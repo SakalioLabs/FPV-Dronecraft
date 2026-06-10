@@ -623,6 +623,36 @@ class DronePhysicsTest {
 		assertTrue(physics.state().averageMotorCurrentRippleAmps() > 0.005);
 		assertTrue(physics.state().averageMotorTorqueRippleNewtonMeters() > 1.0e-6);
 		assertTrue(physics.state().rotorVibration() > 0.0);
+
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig torquePathConfig = config
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorImbalanceIntensity(0.0);
+		DronePhysics torquePath = new DronePhysics(torquePathConfig);
+		torquePath.step(new DroneInput(0.74, 0.0, 0.0, 0.0, true), 0.005);
+
+		RotorSpec rotor = torquePath.config().rotors().get(0);
+		double rippleTorque = torquePath.state().motorTorqueRippleNewtonMeters(0);
+		double aerodynamicTorque = torquePath.state().motorAerodynamicTorqueNewtonMeters(0);
+		double aerodynamicOnlyReactionTorque = rotor.spinDirection() * aerodynamicTorque;
+		double expectedReactionTorque = rotor.spinDirection() * (aerodynamicTorque + rippleTorque);
+		double actualReactionTorque = torquePath.state().rotorTorqueBodyNewtonMeters(0).y();
+
+		assertTrue(Math.abs(rippleTorque) > 1.0e-7, () -> "rippleTorque=" + rippleTorque);
+		assertEquals(expectedReactionTorque, actualReactionTorque, 1.0e-7);
+		assertTrue(
+				Math.abs(actualReactionTorque - aerodynamicOnlyReactionTorque) > Math.abs(rippleTorque) * 0.90,
+				() -> "actualReactionTorque=" + actualReactionTorque
+						+ " aerodynamicOnlyReactionTorque=" + aerodynamicOnlyReactionTorque
+						+ " rippleTorque=" + rippleTorque
+		);
 	}
 
 	@Test
@@ -3081,11 +3111,8 @@ class DronePhysicsTest {
 				.withBodyDragCoefficients(Vec3.ZERO)
 				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
 				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
-		DroneConfig noReactionConfig = reactionConfig.withRotorYawTorquePerThrustMeter(0.0);
 		DronePhysics cleanReaction = new DronePhysics(reactionConfig);
 		DronePhysics loadedReaction = new DronePhysics(reactionConfig);
-		DronePhysics cleanNoReaction = new DronePhysics(noReactionConfig);
-		DronePhysics loadedNoReaction = new DronePhysics(noReactionConfig);
 		DroneInput loaded = new DroneInput(0.52, 0.0, 0.0, 0.0, true);
 		DroneEnvironment singleRotorObstruction = new DroneEnvironment(
 				Vec3.ZERO,
@@ -3102,39 +3129,39 @@ class DronePhysicsTest {
 		for (int i = 0; i < 260; i++) {
 			cleanReaction.state().setOrientation(Quaternion.IDENTITY);
 			loadedReaction.state().setOrientation(Quaternion.IDENTITY);
-			cleanNoReaction.state().setOrientation(Quaternion.IDENTITY);
-			loadedNoReaction.state().setOrientation(Quaternion.IDENTITY);
 			cleanReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			loadedReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-			cleanNoReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-			loadedNoReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			cleanReaction.step(loaded, 0.005);
 			loadedReaction.step(loaded, 0.005);
-			cleanNoReaction.step(loaded, 0.005);
-			loadedNoReaction.step(loaded, 0.005);
 		}
 		cleanReaction.state().setOrientation(Quaternion.IDENTITY);
 		loadedReaction.state().setOrientation(Quaternion.IDENTITY);
-		cleanNoReaction.state().setOrientation(Quaternion.IDENTITY);
-		loadedNoReaction.state().setOrientation(Quaternion.IDENTITY);
 		cleanReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 		loadedReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-		cleanNoReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-		loadedNoReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 		cleanReaction.step(loaded, 0.005);
 		loadedReaction.step(loaded, 0.005, singleRotorObstruction);
-		cleanNoReaction.step(loaded, 0.005);
-		loadedNoReaction.step(loaded, 0.005, singleRotorObstruction);
 
-		double cleanReactionYaw = Math.abs(cleanReaction.state().angularVelocityBodyRadiansPerSecond().y()
-				- cleanNoReaction.state().angularVelocityBodyRadiansPerSecond().y());
-		double loadedReactionYaw = Math.abs(loadedReaction.state().angularVelocityBodyRadiansPerSecond().y()
-				- loadedNoReaction.state().angularVelocityBodyRadiansPerSecond().y());
+		RotorSpec loadedRotor = loadedReaction.config().rotors().get(0);
+		double cleanAerodynamicTorque = cleanReaction.state().motorAerodynamicTorqueNewtonMeters(0);
+		double loadedAerodynamicTorque = loadedReaction.state().motorAerodynamicTorqueNewtonMeters(0);
+		double cleanReactionTorqueWithoutRipple = cleanReaction.state().rotorTorqueBodyNewtonMeters(0).y()
+				- loadedRotor.spinDirection() * cleanReaction.state().motorTorqueRippleNewtonMeters(0);
+		double loadedReactionTorqueWithoutRipple = loadedReaction.state().rotorTorqueBodyNewtonMeters(0).y()
+				- loadedRotor.spinDirection() * loadedReaction.state().motorTorqueRippleNewtonMeters(0);
 
 		assertTrue(loadedReaction.state().rotorAerodynamicLoadFactor(0)
 				> cleanReaction.state().rotorAerodynamicLoadFactor(0) + 0.08);
+		assertTrue(
+				loadedAerodynamicTorque > cleanAerodynamicTorque + 0.001,
+				() -> "cleanAerodynamicTorque=" + cleanAerodynamicTorque
+						+ " loadedAerodynamicTorque=" + loadedAerodynamicTorque
+		);
 		assertEquals(loadedReaction.state().rotorThrustNewtons(1), loadedReaction.state().rotorThrustNewtons(0), 0.02);
-		assertTrue(loadedReactionYaw > cleanReactionYaw + 2.5e-4);
+		assertTrue(
+				Math.abs(loadedReactionTorqueWithoutRipple) > Math.abs(cleanReactionTorqueWithoutRipple) + 0.001,
+				() -> "cleanReactionTorqueWithoutRipple=" + cleanReactionTorqueWithoutRipple
+						+ " loadedReactionTorqueWithoutRipple=" + loadedReactionTorqueWithoutRipple
+		);
 		assertTrue(loadedReaction.state().maxEscDesyncIntensity() < 0.05);
 	}
 
