@@ -36,6 +36,7 @@ public final class DronePhysics {
 	private final double[] motorCommutationPhases;
 	private final double[] rotorBladePassPhases;
 	private final double[] rotorImbalancePhases;
+	private final double[] rotorVortexBuffetPhases;
 	private final double[] heldEscOutputCommands;
 	private final double[] escCommandFrameClockSeconds;
 	private final double[] escCommandFrameAgeSeconds;
@@ -115,6 +116,14 @@ public final class DronePhysics {
 		private static final RotorBladePassRipple IDLE = new RotorBladePassRipple(1.0, 0.0, 0.0);
 	}
 
+	private record RotorVortexRingBuffet(
+			double thrustScale,
+			Vec3 forceBody,
+			double vibration
+	) {
+		private static final RotorVortexRingBuffet IDLE = new RotorVortexRingBuffet(1.0, Vec3.ZERO, 0.0);
+	}
+
 	private record RotorWakeInterference(
 			double[] intensity,
 			Vec3[] downwashVelocityBodyMetersPerSecond,
@@ -153,6 +162,7 @@ public final class DronePhysics {
 		this.motorCommutationPhases = new double[config.rotors().size()];
 		this.rotorBladePassPhases = new double[config.rotors().size()];
 		this.rotorImbalancePhases = new double[config.rotors().size()];
+		this.rotorVortexBuffetPhases = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
 		this.escCommandFrameClockSeconds = new double[config.rotors().size()];
 		this.escCommandFrameAgeSeconds = new double[config.rotors().size()];
@@ -229,6 +239,7 @@ public final class DronePhysics {
 		Arrays.fill(motorCommutationPhases, 0.0);
 		Arrays.fill(rotorBladePassPhases, 0.0);
 		Arrays.fill(rotorImbalancePhases, 0.0);
+		Arrays.fill(rotorVortexBuffetPhases, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
 		Arrays.fill(escCommandFrameClockSeconds, 0.0);
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
@@ -550,10 +561,18 @@ public final class DronePhysics {
 					surfaceScrape,
 					dtSeconds
 			);
-			double thrust = nominalThrust * bladePassRipple.thrustScale();
+			RotorVortexRingBuffet vortexBuffet = updateRotorVortexRingBuffet(
+					i,
+					aerodynamicRotor,
+					omega,
+					nominalThrust * bladePassRipple.thrustScale(),
+					vortexRingState,
+					dtSeconds
+			);
+			double thrust = nominalThrust * bladePassRipple.thrustScale() * vortexBuffet.thrustScale();
 			state.setRotorThrustNewtons(i, thrust);
 			state.setRotorBladePassRippleIntensity(i, bladePassRipple.intensity());
-			rotorVibrationSum += bladePassRipple.vibration();
+			rotorVibrationSum += bladePassRipple.vibration() + vortexBuffet.vibration();
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, omega, thrust, dtSeconds);
 			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, state.rotorHealth(i), omega, thrust, dtSeconds);
@@ -571,7 +590,7 @@ public final class DronePhysics {
 					environment.rotorFlowObstructionDirectionBody(i)
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
-			forceBody = thrustAxisForceBody.add(imbalanceForceBody).add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
+			forceBody = thrustAxisForceBody.add(vortexBuffet.forceBody()).add(imbalanceForceBody).add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
 			state.setRotorForceBodyNewtons(i, forceBody);
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
@@ -1955,6 +1974,65 @@ public final class DronePhysics {
 		double thrustScale = MathUtil.clamp(1.0 + amplitude * bladePassWave, 0.92, 1.08);
 		double vibration = MathUtil.clamp(amplitude * (0.25 + 0.75 * Math.abs(bladePassWave)), 0.0, 0.075);
 		return new RotorBladePassRipple(thrustScale, vibration, amplitude);
+	}
+
+	private RotorVortexRingBuffet updateRotorVortexRingBuffet(
+			int index,
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double vortexRingStateIntensity,
+			double dtSeconds
+	) {
+		double vrs = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
+		double absOmega = Math.abs(omegaRadiansPerSecond);
+		if (dtSeconds <= 0.0 || thrustNewtons <= 1.0e-6 || vrs <= 1.0e-6 || absOmega <= 1.0e-6) {
+			return RotorVortexRingBuffet.IDLE;
+		}
+
+		double spinRatio = MathUtil.clamp(absOmega / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double activeRotor = smoothStep(0.16, 0.52, spinRatio);
+		double intensity = MathUtil.clamp(vrs * activeRotor, 0.0, 1.0);
+		if (intensity <= 1.0e-6) {
+			return RotorVortexRingBuffet.IDLE;
+		}
+
+		double buffetFrequencyHertz = 5.5 + 9.5 * intensity + 3.0 * spinRatio;
+		rotorVortexBuffetPhases[index] = normalizeRadians(
+				rotorVortexBuffetPhases[index] + 2.0 * Math.PI * buffetFrequencyHertz * dtSeconds
+		);
+		double phase = rotorVortexBuffetPhases[index] + index * 0.83;
+		double wave = Math.sin(phase)
+				+ 0.38 * Math.sin(phase * 1.73 + 0.8)
+				+ 0.22 * Math.sin(phase * 2.41 + index * 0.37);
+		double thrustAmplitude = MathUtil.clamp(0.018 + 0.070 * intensity, 0.0, 0.10) * intensity;
+		double thrustScale = MathUtil.clamp(1.0 + thrustAmplitude * wave, 0.76, 1.14);
+
+		Vec3 axis = rotorAxisBody(rotor);
+		Vec3 tangentA = BODY_RIGHT.subtract(axis.multiply(BODY_RIGHT.dot(axis))).normalized();
+		if (tangentA.lengthSquared() <= 1.0e-9) {
+			tangentA = BODY_FORWARD.subtract(axis.multiply(BODY_FORWARD.dot(axis))).normalized();
+		}
+		Vec3 tangentB = axis.cross(tangentA).normalized();
+		Vec3 lateralForce = Vec3.ZERO;
+		if (tangentA.lengthSquared() > 1.0e-9 && tangentB.lengthSquared() > 1.0e-9) {
+			double lateralWaveA = Math.sin(phase * 0.77 + 1.2);
+			double lateralWaveB = Math.cos(phase * 1.11 + 0.4);
+			double lateralMagnitude = MathUtil.clamp(
+					thrustNewtons * intensity * (0.018 + 0.050 * intensity),
+					0.0,
+					rotor.maxThrustNewtons() * 0.10
+			);
+			lateralForce = tangentA.multiply(lateralWaveA * lateralMagnitude)
+					.add(tangentB.multiply(lateralWaveB * lateralMagnitude * 0.82));
+		}
+
+		double vibration = MathUtil.clamp(
+				intensity * (0.020 + 0.080 * Math.abs(wave) + 0.025 * Math.min(1.0, lateralForce.length() / Math.max(1.0e-6, thrustNewtons))),
+				0.0,
+				0.14
+		);
+		return new RotorVortexRingBuffet(thrustScale, lateralForce, vibration);
 	}
 
 	private Vec3 updateRotorImbalanceForce(

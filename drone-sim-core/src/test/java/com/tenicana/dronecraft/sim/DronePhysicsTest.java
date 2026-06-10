@@ -4010,6 +4010,11 @@ class DronePhysicsTest {
 	void vortexRingStateReducesThrustInRetainedDescendingWake() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
 				.withMotorTimeConstantSeconds(0.005)
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
 				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
@@ -4017,6 +4022,18 @@ class DronePhysicsTest {
 		DronePhysics verticalDescent = new DronePhysics(config);
 		DronePhysics crossflowDescent = new DronePhysics(config);
 		DroneInput punch = new DroneInput(0.75, 0.0, 0.0, 0.0, true);
+		double verticalMinThrust = Double.POSITIVE_INFINITY;
+		double verticalMaxThrust = Double.NEGATIVE_INFINITY;
+		double crossflowMinThrust = Double.POSITIVE_INFINITY;
+		double crossflowMaxThrust = Double.NEGATIVE_INFINITY;
+		double verticalMinForceX = Double.POSITIVE_INFINITY;
+		double verticalMaxForceX = Double.NEGATIVE_INFINITY;
+		double verticalMinForceZ = Double.POSITIVE_INFINITY;
+		double verticalMaxForceZ = Double.NEGATIVE_INFINITY;
+		double crossflowMinForceX = Double.POSITIVE_INFINITY;
+		double crossflowMaxForceX = Double.NEGATIVE_INFINITY;
+		double crossflowMinForceZ = Double.POSITIVE_INFINITY;
+		double crossflowMaxForceZ = Double.NEGATIVE_INFINITY;
 
 		for (int i = 0; i < 240; i++) {
 			verticalDescent.state().setOrientation(Quaternion.IDENTITY);
@@ -4027,11 +4044,42 @@ class DronePhysicsTest {
 			crossflowDescent.state().setVelocityMetersPerSecond(new Vec3(8.0, -12.0, 0.0));
 			verticalDescent.step(punch, 0.005);
 			crossflowDescent.step(punch, 0.005);
+
+			if (i >= 120) {
+				double verticalThrust = verticalDescent.state().rotorThrustNewtons(0);
+				double crossflowThrust = crossflowDescent.state().rotorThrustNewtons(0);
+				verticalMinThrust = Math.min(verticalMinThrust, verticalThrust);
+				verticalMaxThrust = Math.max(verticalMaxThrust, verticalThrust);
+				crossflowMinThrust = Math.min(crossflowMinThrust, crossflowThrust);
+				crossflowMaxThrust = Math.max(crossflowMaxThrust, crossflowThrust);
+				Vec3 verticalForce = verticalDescent.state().rotorForceBodyNewtons(0);
+				Vec3 crossflowForce = crossflowDescent.state().rotorForceBodyNewtons(0);
+				verticalMinForceX = Math.min(verticalMinForceX, verticalForce.x());
+				verticalMaxForceX = Math.max(verticalMaxForceX, verticalForce.x());
+				verticalMinForceZ = Math.min(verticalMinForceZ, verticalForce.z());
+				verticalMaxForceZ = Math.max(verticalMaxForceZ, verticalForce.z());
+				crossflowMinForceX = Math.min(crossflowMinForceX, crossflowForce.x());
+				crossflowMaxForceX = Math.max(crossflowMaxForceX, crossflowForce.x());
+				crossflowMinForceZ = Math.min(crossflowMinForceZ, crossflowForce.z());
+				crossflowMaxForceZ = Math.max(crossflowMaxForceZ, crossflowForce.z());
+			}
 		}
 
+		double verticalThrustRange = verticalMaxThrust - verticalMinThrust;
+		double crossflowThrustRange = crossflowMaxThrust - crossflowMinThrust;
+		double verticalLateralForceRange = verticalMaxForceX - verticalMinForceX + verticalMaxForceZ - verticalMinForceZ;
+		double crossflowLateralForceRange = crossflowMaxForceX - crossflowMinForceX + crossflowMaxForceZ - crossflowMinForceZ;
 		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.25);
 		assertTrue(crossflowDescent.state().vortexRingStateIntensity() < 0.05);
 		assertTrue(verticalDescent.state().rotorThrustNewtons(0) < crossflowDescent.state().rotorThrustNewtons(0) * 0.92);
+		assertTrue(verticalThrustRange > crossflowThrustRange + 0.10,
+				() -> "verticalThrustRange=" + verticalThrustRange + " crossflowThrustRange=" + crossflowThrustRange);
+		assertTrue(verticalLateralForceRange > crossflowLateralForceRange + 0.08,
+				() -> "verticalLateralForceRange=" + verticalLateralForceRange
+						+ " crossflowLateralForceRange=" + crossflowLateralForceRange);
+		assertTrue(verticalDescent.state().rotorVibration() > crossflowDescent.state().rotorVibration() + 0.015,
+				() -> "verticalVibration=" + verticalDescent.state().rotorVibration()
+						+ " crossflowVibration=" + crossflowDescent.state().rotorVibration());
 	}
 
 	@Test
