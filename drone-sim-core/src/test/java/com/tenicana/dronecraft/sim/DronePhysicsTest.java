@@ -1699,6 +1699,42 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void nearCeilingBoundaryLayerReducesHorizontalWindAndAddsShear() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics openAir = new DronePhysics(config);
+		DronePhysics nearCeiling = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 crosswind = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment freeStream = new DroneEnvironment(crosswind, 1.0, 3.0, 0.0);
+		DroneEnvironment ceilingBoundary = new DroneEnvironment(
+				crosswind,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				0.08
+		);
+
+		double maxNearCeilingGust = 0.0;
+		for (int i = 0; i < 260; i++) {
+			openAir.step(idle, 0.005, freeStream);
+			nearCeiling.step(idle, 0.005, ceilingBoundary);
+			maxNearCeilingGust = Math.max(maxNearCeilingGust, nearCeiling.state().windGustSpeedMetersPerSecond());
+		}
+
+		double openWind = openAir.state().effectiveWindVelocityWorldMetersPerSecond().x();
+		double boundaryLayerWind = nearCeiling.state().effectiveWindVelocityWorldMetersPerSecond().x();
+		assertTrue(openWind > 9.5);
+		assertTrue(boundaryLayerWind < openWind * 0.35);
+		assertTrue(maxNearCeilingGust > 0.02);
+
+		nearCeiling.step(idle, 0.005, freeStream);
+
+		assertTrue(nearCeiling.state().windShearAccelerationMetersPerSecondSquared() > 8.0);
+	}
+
+	@Test
 	void airframeLiftAddsBodyForceFromAngleOfAttackAndSideslip() {
 		DroneConfig cleanConfig = directControl(DroneConfig.racingQuad()).withBodyDragCoefficients(Vec3.ZERO);
 		DroneConfig liftingConfig = cleanConfig.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));

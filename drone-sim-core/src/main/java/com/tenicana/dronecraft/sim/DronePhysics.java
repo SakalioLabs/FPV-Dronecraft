@@ -3724,7 +3724,8 @@ public final class DronePhysics {
 						+ 0.26 * environment.obstacleProximity()
 						+ 0.18 * environment.droneWakeIntensity()
 						+ 0.12 * environment.ceilingEffectIntensity(config)
-						+ groundBoundaryLayerDirtyAir(environment),
+						+ surfaceBoundaryLayerDirtyAir(environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
+						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
 				0.0,
 				1.8
 		);
@@ -3732,24 +3733,23 @@ public final class DronePhysics {
 
 	private Vec3 boundaryLayerMeanWind(DroneEnvironment environment) {
 		Vec3 wind = environment.windVelocityWorldMetersPerSecond();
-		double height = groundBoundaryLayerHeightMeters();
-		double clearance = environment.groundClearanceMeters();
-		if (height <= 1.0e-6 || !Double.isFinite(clearance) || clearance >= height) {
+		double height = surfaceBoundaryLayerHeightMeters();
+		if (height <= 1.0e-6) {
 			return wind;
 		}
 
-		double horizontalScale = boundaryLayerHorizontalWindScale(clearance, height);
+		double groundScale = boundaryLayerHorizontalWindScale(environment.groundClearanceMeters(), height);
+		double ceilingScale = boundaryLayerHorizontalWindScale(environment.ceilingClearanceMeters(), height);
+		double horizontalScale = Math.min(groundScale, ceilingScale);
 		return new Vec3(wind.x() * horizontalScale, wind.y(), wind.z() * horizontalScale);
 	}
 
-	private double groundBoundaryLayerDirtyAir(DroneEnvironment environment) {
-		double height = groundBoundaryLayerHeightMeters();
-		double clearance = environment.groundClearanceMeters();
+	private double surfaceBoundaryLayerDirtyAir(double clearance, Vec3 wind) {
+		double height = surfaceBoundaryLayerHeightMeters();
 		if (height <= 1.0e-6 || !Double.isFinite(clearance) || clearance >= height) {
 			return 0.0;
 		}
 
-		Vec3 wind = environment.windVelocityWorldMetersPerSecond();
 		double horizontalWindSpeed = Math.sqrt(wind.x() * wind.x() + wind.z() * wind.z());
 		if (horizontalWindSpeed <= 0.5) {
 			return 0.0;
@@ -3761,7 +3761,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.46 * nearSurface * windFactor * shearFactor, 0.0, 0.34);
 	}
 
-	private double groundBoundaryLayerHeightMeters() {
+	private double surfaceBoundaryLayerHeightMeters() {
 		if (config.groundEffectHeightMeters() <= 1.0e-6) {
 			return 0.0;
 		}
@@ -3769,6 +3769,9 @@ public final class DronePhysics {
 	}
 
 	private static double boundaryLayerHorizontalWindScale(double clearanceMeters, double heightMeters) {
+		if (!Double.isFinite(clearanceMeters) || clearanceMeters >= heightMeters || heightMeters <= 1.0e-6) {
+			return 1.0;
+		}
 		double normalizedClearance = MathUtil.clamp(clearanceMeters / Math.max(1.0e-6, heightMeters), 0.0, 1.0);
 		double surfaceSlip = 0.18 + 0.12 * smoothStep(0.0, 0.40, normalizedClearance);
 		double recovery = smoothStep(0.03, 1.0, normalizedClearance);
@@ -5618,7 +5621,12 @@ public final class DronePhysics {
 				);
 		double wakeRecirculation = MathUtil.clamp(environment.droneWakeIntensity() / 1.5, 0.0, 1.0);
 		double ownWake = MathUtil.clamp(state.propwashWakeIntensity(), 0.0, 1.0);
-		double shearLayer = MathUtil.clamp(groundBoundaryLayerDirtyAir(environment), 0.0, 1.0);
+		double shearLayer = MathUtil.clamp(
+				surfaceBoundaryLayerDirtyAir(environment.groundClearanceMeters(), environment.windVelocityWorldMetersPerSecond())
+						+ 0.85 * surfaceBoundaryLayerDirtyAir(environment.ceilingClearanceMeters(), environment.windVelocityWorldMetersPerSecond()),
+				0.0,
+				1.0
+		);
 		double loss = 0.24 * environment.obstacleProximity()
 				+ 0.18 * wakeRecirculation
 				+ 0.17 * environment.ceilingEffectIntensity(config)
