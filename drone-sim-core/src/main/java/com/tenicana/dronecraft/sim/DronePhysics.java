@@ -429,6 +429,7 @@ public final class DronePhysics {
 		double rotorInflowSkewSum = 0.0;
 		Vec3 rotorInflowSkewTorqueSum = Vec3.ZERO;
 		Vec3 rotorBladeDissymmetryTorqueSum = Vec3.ZERO;
+		Vec3 rotorWakeSwirlTorqueSum = Vec3.ZERO;
 		Vec3 rotorInertiaTorqueSum = Vec3.ZERO;
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
 		Vec3 rotorWallEffectForceSum = Vec3.ZERO;
@@ -807,13 +808,22 @@ public final class DronePhysics {
 					bladeDissymmetry
 			);
 			rotorBladeDissymmetryTorqueSum = rotorBladeDissymmetryTorqueSum.add(bladeDissymmetryTorque);
+			Vec3 wakeSwirlTorque = rotorWakeSwirlTorque(
+					aerodynamicRotor,
+					wakeSwirlVelocityBody,
+					thrust,
+					aerodynamicOmega,
+					wakeInterference
+			);
+			rotorWakeSwirlTorqueSum = rotorWakeSwirlTorqueSum.add(wakeSwirlTorque);
 
 			Vec3 rotorTorqueBody = torqueFromArm
 					.add(reactionTorque)
 					.add(inertiaTorque)
 					.add(angularDragTorque)
 					.add(inflowSkewTorque)
-					.add(bladeDissymmetryTorque);
+					.add(bladeDissymmetryTorque)
+					.add(wakeSwirlTorque);
 			state.setRotorTorqueBodyNewtonMeters(i, rotorTorqueBody);
 			double rotorArmFlex = updateRotorArmFlexIntensity(i, rotor, forceBody, rotorTorqueBody, omega, dtSeconds);
 			state.setRotorArmFlexIntensity(i, rotorArmFlex);
@@ -827,6 +837,7 @@ public final class DronePhysics {
 		state.setRotorInflowSkewIntensity(rotorInflowSkewSum / config.rotors().size());
 		state.setRotorInflowSkewTorqueBodyNewtonMeters(rotorInflowSkewTorqueSum);
 		state.setRotorBladeDissymmetryTorqueBodyNewtonMeters(rotorBladeDissymmetryTorqueSum);
+		state.setRotorWakeSwirlTorqueBodyNewtonMeters(rotorWakeSwirlTorqueSum);
 		state.setRotorInertiaTorqueBodyNewtonMeters(rotorInertiaTorqueSum);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(rotorAngularDragTorqueSum);
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);
@@ -3703,6 +3714,50 @@ public final class DronePhysics {
 		Vec3 diskMoment = transverseUnit.cross(axisBody).multiply(imbalanceMoment);
 		Vec3 advancingBladeMoment = transverseUnit.multiply(spinCoupledMoment);
 		return diskMoment.add(advancingBladeMoment).clamp(-0.055, 0.055);
+	}
+
+	private static Vec3 rotorWakeSwirlTorque(
+			RotorSpec rotor,
+			Vec3 wakeSwirlVelocityBody,
+			double thrustNewtons,
+			double omegaRadiansPerSecond,
+			double wakeInterference
+	) {
+		if (wakeSwirlVelocityBody == null || thrustNewtons <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 axisBody = rotorAxisBody(rotor);
+		Vec3 diskSwirlVelocity = projectOntoRotorDisk(wakeSwirlVelocityBody, axisBody);
+		double swirlSpeed = diskSwirlVelocity.length();
+		if (swirlSpeed <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double activeRotor = smoothStep(0.10, 0.36, spinRatio);
+		if (activeRotor <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double tipSpeed = Math.max(1.0, Math.abs(omegaRadiansPerSecond) * rotor.radiusMeters());
+		double swirlRatio = MathUtil.clamp(swirlSpeed / tipSpeed, 0.0, 0.38);
+		double swirlCapture = smoothStep(0.010, 0.140, swirlRatio);
+		double wakeCoupling = MathUtil.clamp(0.45 + 0.55 * wakeInterference, 0.45, 1.0);
+		double momentCoefficient = MathUtil.clamp(
+				(0.055 + 0.120 * MathUtil.clamp(wakeInterference, 0.0, 1.0)) * swirlCapture * activeRotor * wakeCoupling,
+				0.0,
+				0.085
+		);
+		if (momentCoefficient <= 1.0e-8) {
+			return Vec3.ZERO;
+		}
+
+		double moment = thrustNewtons * rotor.radiusMeters() * momentCoefficient;
+		Vec3 swirlUnit = diskSwirlVelocity.multiply(1.0 / swirlSpeed);
+		Vec3 diskMoment = swirlUnit.cross(axisBody).multiply(moment);
+		Vec3 spinCoupledMoment = swirlUnit.multiply(moment * 0.22 * rotor.spinDirection());
+		return diskMoment.add(spinCoupledMoment).clamp(-0.080, 0.080);
 	}
 
 	private double updateRotorInducedInflow(

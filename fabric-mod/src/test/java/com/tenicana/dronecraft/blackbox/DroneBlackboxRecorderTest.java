@@ -132,6 +132,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_3_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_7_wake_swirl_mps"));
+		assertTrue(csv.contains("rotor_wake_swirl_pitch_torque_nm"));
+		assertTrue(csv.contains("rotor_wake_swirl_yaw_torque_nm"));
+		assertTrue(csv.contains("rotor_wake_swirl_roll_torque_nm"));
 		assertTrue(csv.contains("mixer_output_pitch_nm"));
 		assertTrue(csv.contains("mixer_output_yaw_nm"));
 		assertTrue(csv.contains("mixer_output_roll_nm"));
@@ -330,6 +333,9 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_roll_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_angular_drag_roll_torque_nm")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "airframe_separation")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_lift_n")]));
@@ -649,6 +655,9 @@ class DroneBlackboxRecorderTest {
 		String[] row = lines[1].split(",", -1);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_wake_interference")]) > 0.10);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_mps")]) > 0.05);
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_roll_torque_nm")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);

@@ -171,6 +171,9 @@ public final class OfflineFlightRecorder {
 			"rotor_skew_pitch_torque_nm",
 			"rotor_skew_yaw_torque_nm",
 			"rotor_skew_roll_torque_nm",
+			"rotor_wake_swirl_pitch_torque_nm",
+			"rotor_wake_swirl_yaw_torque_nm",
+			"rotor_wake_swirl_roll_torque_nm",
 			"rotor_inertia_pitch_torque_nm",
 			"rotor_inertia_yaw_torque_nm",
 			"rotor_inertia_roll_torque_nm",
@@ -872,6 +875,7 @@ public final class OfflineFlightRecorder {
 		Vec3 turbulenceTorque = state.windTurbulenceTorqueBodyNewtonMeters();
 		Vec3 rotorSkewTorque = state.rotorInflowSkewTorqueBodyNewtonMeters();
 		Vec3 rotorBladeDissymmetryTorque = state.rotorBladeDissymmetryTorqueBodyNewtonMeters();
+		Vec3 rotorWakeSwirlTorque = state.rotorWakeSwirlTorqueBodyNewtonMeters();
 		Vec3 rotorInertiaTorque = state.rotorInertiaTorqueBodyNewtonMeters();
 		Vec3 rotorAngularDragTorque = state.rotorAngularDragTorqueBodyNewtonMeters();
 		Vec3 relativeAir = state.relativeAirVelocityBodyMetersPerSecond();
@@ -897,7 +901,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
-						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.6f,%.6f,%.6f,"
 						+ "%.4f,%.4f,"
@@ -1065,6 +1069,9 @@ public final class OfflineFlightRecorder {
 				rotorSkewTorque.x(),
 				rotorSkewTorque.y(),
 				rotorSkewTorque.z(),
+				rotorWakeSwirlTorque.x(),
+				rotorWakeSwirlTorque.y(),
+				rotorWakeSwirlTorque.z(),
 				rotorInertiaTorque.x(),
 				rotorInertiaTorque.y(),
 				rotorInertiaTorque.z(),

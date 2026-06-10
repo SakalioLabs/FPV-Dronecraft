@@ -105,6 +105,7 @@ public final class DroneState {
 	private double rotorInflowSkewIntensity;
 	private Vec3 rotorInflowSkewTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorBladeDissymmetryTorqueBodyNewtonMeters = Vec3.ZERO;
+	private Vec3 rotorWakeSwirlTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorInertiaTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
 	private double batteryVoltage;
@@ -1204,6 +1205,7 @@ public final class DroneState {
 		rotorInflowSkewIntensity = 0.0;
 		rotorInflowSkewTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorBladeDissymmetryTorqueBodyNewtonMeters = Vec3.ZERO;
+		rotorWakeSwirlTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorInertiaTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
 		airframeSeparatedFlowIntensity = 0.0;
@@ -1780,6 +1782,14 @@ public final class DroneState {
 
 	void setRotorBladeDissymmetryTorqueBodyNewtonMeters(Vec3 rotorBladeDissymmetryTorqueBodyNewtonMeters) {
 		this.rotorBladeDissymmetryTorqueBodyNewtonMeters = rotorBladeDissymmetryTorqueBodyNewtonMeters == null ? Vec3.ZERO : rotorBladeDissymmetryTorqueBodyNewtonMeters;
+	}
+
+	public Vec3 rotorWakeSwirlTorqueBodyNewtonMeters() {
+		return rotorWakeSwirlTorqueBodyNewtonMeters;
+	}
+
+	void setRotorWakeSwirlTorqueBodyNewtonMeters(Vec3 rotorWakeSwirlTorqueBodyNewtonMeters) {
+		this.rotorWakeSwirlTorqueBodyNewtonMeters = rotorWakeSwirlTorqueBodyNewtonMeters == null ? Vec3.ZERO : rotorWakeSwirlTorqueBodyNewtonMeters;
 	}
 
 	public Vec3 rotorInertiaTorqueBodyNewtonMeters() {

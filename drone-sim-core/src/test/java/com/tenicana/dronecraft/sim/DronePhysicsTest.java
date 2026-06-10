@@ -467,6 +467,60 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void asymmetricStackedWakeSwirlAddsHubMoment() {
+		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
+		DroneConfig base = withCommonGains(directControl(DroneConfig.octoLift()), passiveGains)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		RotorSpec template = base.rotors().get(0);
+		double arm = 0.34;
+		double upperY = template.radiusMeters() * 0.70;
+		double lowerY = -upperY;
+		List<RotorSpec> flatRotors = List.of(
+				rotorLike(template, new Vec3(arm, 0.0, arm), 1),
+				rotorLike(template, new Vec3(arm, 0.0, arm * 0.35), -1),
+				rotorLike(template, new Vec3(-arm, 0.0, arm), -1),
+				rotorLike(template, new Vec3(-arm, 0.0, -arm), 1),
+				rotorLike(template, new Vec3(arm, 0.0, -arm), -1),
+				rotorLike(template, new Vec3(0.0, 0.0, arm * 1.45), 1),
+				rotorLike(template, new Vec3(-arm * 1.45, 0.0, 0.0), 1),
+				rotorLike(template, new Vec3(0.0, 0.0, -arm * 1.45), -1)
+		);
+		List<RotorSpec> stackedRotors = List.of(
+				rotorLike(template, new Vec3(arm, upperY, arm), 1),
+				rotorLike(template, new Vec3(arm, lowerY, arm), -1),
+				rotorLike(template, new Vec3(-arm, 0.0, arm), -1),
+				rotorLike(template, new Vec3(-arm, 0.0, -arm), 1),
+				rotorLike(template, new Vec3(arm, 0.0, -arm), -1),
+				rotorLike(template, new Vec3(0.0, 0.0, arm * 1.45), 1),
+				rotorLike(template, new Vec3(-arm * 1.45, 0.0, 0.0), 1),
+				rotorLike(template, new Vec3(0.0, 0.0, -arm * 1.45), -1)
+		);
+		DronePhysics flat = new DronePhysics(base.withRotors(flatRotors));
+		DronePhysics stacked = new DronePhysics(base.withRotors(stackedRotors));
+		DroneInput input = new DroneInput(base.hoverThrottle() + 0.10, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 700; i++) {
+			holdInStillAir(flat);
+			holdInStillAir(stacked);
+			flat.step(input, 0.005);
+			stacked.step(input, 0.005);
+		}
+
+		assertEquals(0.0, flat.state().rotorWakeSwirlTorqueBodyNewtonMeters().length(), 1.0e-9);
+		assertTrue(stacked.state().maxRotorWakeSwirlVelocityMetersPerSecond() > 0.30);
+		assertTrue(stacked.state().rotorWakeSwirlTorqueBodyNewtonMeters().length() > 0.0025,
+				() -> "wakeSwirlTorque=" + stacked.state().rotorWakeSwirlTorqueBodyNewtonMeters());
+		assertTrue(stacked.state().rotorTorqueBodyNewtonMeters(1).length()
+				> flat.state().rotorTorqueBodyNewtonMeters(1).length() + 0.0020);
+	}
+
+	@Test
 	void rotorWakeInterferenceBuildsAndReleasesWithWakeLag() {
 		DroneConfig config = directControl(DroneConfig.coaxialX8())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -6729,6 +6783,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_yaw_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_skew_roll_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inertia_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_angular_drag_roll_torque_nm"));
@@ -6855,6 +6910,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_roll_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_wake_swirl_roll_torque_nm")])));
 		double maxBladeDissymmetryTorque = maxVectorLength(
 				lines,
 				header,

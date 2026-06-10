@@ -44,6 +44,7 @@ Rotor blade angle-of-attack and blade-element stall are also surfaced live as `b
 High-advance blade lift-dissymmetry now feeds a body-frame hub-moment torque and blackbox/offline CSV columns `rotor_blade_dissymmetry_pitch_torque_nm`, `rotor_blade_dissymmetry_yaw_torque_nm`, and `rotor_blade_dissymmetry_roll_torque_nm`, so crosswind or fast forward-flight prop loading can be separated from inflow-skew and rotor-inertia torque.
 Live status and HUD output expose the same hub moment as `bdiss`/`BD`, with a `blade-dissymmetry` warning when high-advance blade loading becomes a live handling risk.
 Same-frame wake swirl is also surfaced live as `swirl`/`SW` in meters per second, so coaxial or stacked-rotor wake coupling can be tuned before saving a blackbox log.
+Wake swirl now also feeds a body-frame rotor hub moment and blackbox/offline CSV columns `rotor_wake_swirl_pitch_torque_nm`, `rotor_wake_swirl_yaw_torque_nm`, and `rotor_wake_swirl_roll_torque_nm`, so asymmetric stacked-rotor swirl can be separated from ordinary inflow-skew and blade-dissymmetry moments.
 The offline recorder summary also prints `max_bdiss_torque`, making the peak blade-dissymmetry hub moment visible in automated tuning runs without opening the CSV.
 
 To compare airframe presets or choose a custom output file:
