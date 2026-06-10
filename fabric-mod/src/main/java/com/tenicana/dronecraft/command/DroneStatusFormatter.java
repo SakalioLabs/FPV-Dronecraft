@@ -23,7 +23,7 @@ public final class DroneStatusFormatter {
 		String warnings = warnings(telemetry);
 		return String.format(
 				Locale.ROOT,
-				"Drone status | mode %s armed %s link raw %s fc %s failsafe %s %.2fs rc %.3f/%.3fs err %.4f | input T %.2f P %.2f R %.2f Y %.2f | speed %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s air %.2fm/s AoA %.1f slip %.1f | forces lift %.1fN cushion %.1fN wash %.1fN wall %.1fN | baro %.1fm %.1fm/s %.1fhPa err %.2fm | battery %.2fV %.0f%% sag %.2fV spike %.2fV %.1fA regen %.1fA limit %.2f current-limit %.2f | imu clip G %.2f A %.2f dterm %.0fHz | health frame %.0f%% rotor %.0f%% motor %.1fC %.2f esc %.1fC %.2f cool %.2f sig %.3f/%.3fs err %.4f desync %.2f load %.2f scrape %.2f prop strikes %d last %s | aero propwash %.2f VRS %.2f ETL %.2f adv %.2f skew %.2f rwake %.2f wake %.2f ceil %.2f asym %.2f blk %.2f water %.2f rain %.2f temp %.1fC stall %.2f vib %.2f coning %.2f mixer %.2f wind %.1fm/s airmass %.1fm/s gust %.2fm/s shear %.2fm/s2 turb %.2f obs %.2f ground %.2f | blackbox %d/%d | %s | warnings %s",
+				"Drone status | mode %s armed %s link raw %s fc %s failsafe %s %.2fs rc %.3f/%.3fs err %.4f | input T %.2f P %.2f R %.2f Y %.2f | speed %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s air %.2fm/s AoA %.1f slip %.1f | forces lift %.1fN sep %.2f cushion %.1fN wash %.1fN wall %.1fN | baro %.1fm %.1fm/s %.1fhPa err %.2fm | battery %.2fV %.0f%% sag %.2fV spike %.2fV %.1fA regen %.1fA limit %.2f current-limit %.2f | imu clip G %.2f A %.2f dterm %.0fHz | health frame %.0f%% rotor %.0f%% motor %.1fC %.2f esc %.1fC %.2f cool %.2f sig %.3f/%.3fs err %.4f desync %.2f load %.2f scrape %.2f prop strikes %d last %s | aero propwash %.2f VRS %.2f ETL %.2f adv %.2f skew %.2f rwake %.2f wake %.2f ceil %.2f asym %.2f blk %.2f water %.2f rain %.2f temp %.1fC stall %.2f vib %.2f coning %.2f mixer %.2f wind %.1fm/s airmass %.1fm/s gust %.2fm/s shear %.2fm/s2 turb %.2f obs %.2f ground %.2f | blackbox %d/%d | %s | warnings %s",
 				telemetry.flightMode(),
 				yesNo(telemetry.armed()),
 				yesNo(telemetry.rawControlLinkActive()),
@@ -46,6 +46,7 @@ public final class DroneStatusFormatter {
 				telemetry.angleOfAttackDegrees(),
 				telemetry.sideslipDegrees(),
 				telemetry.airframeLiftForceNewtons(),
+				telemetry.airframeSeparatedFlowIntensity(),
 				telemetry.groundEffectDragForceNewtons(),
 				telemetry.rotorWashDragForceNewtons(),
 				telemetry.rotorWallEffectForceNewtons(),
@@ -169,6 +170,9 @@ public final class DroneStatusFormatter {
 		if (telemetry.rotorConingIntensity() > 0.35) {
 			warnings.add("rotor-coning");
 		}
+		if (telemetry.airframeSeparatedFlowIntensity() > 0.55) {
+			warnings.add("airframe-separation");
+		}
 		if (telemetry.rotorAdvanceRatio() > 0.55) {
 			warnings.add("high-advance");
 		}
@@ -257,6 +261,7 @@ public final class DroneStatusFormatter {
 			double angleOfAttackDegrees,
 			double sideslipDegrees,
 			double airframeLiftForceNewtons,
+			double airframeSeparatedFlowIntensity,
 			double groundEffectDragForceNewtons,
 			double rotorWashDragForceNewtons,
 			double rotorWallEffectForceNewtons,

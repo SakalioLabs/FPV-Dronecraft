@@ -36,6 +36,7 @@ public record DroneBlackboxSummary(
 		double maxRotorWakeSwirlVelocityMetersPerSecond,
 		double maxRotorAngularDragTorqueNewtonMeters,
 		double maxAirframeAngularDragTorqueNewtonMeters,
+		double maxAirframeSeparatedFlowIntensity,
 		double maxAirframeLiftForceNewtons,
 		double maxGroundEffectDragForceNewtons,
 		double maxRotorWashDragForceNewtons,
@@ -121,6 +122,7 @@ public record DroneBlackboxSummary(
 		double maxRotorWakeSwirlVelocity = 0.0;
 		double maxRotorAngularDrag = 0.0;
 		double maxAirframeAngularDrag = 0.0;
+		double maxAirframeSeparation = 0.0;
 		double maxAirframeLift = 0.0;
 		double maxGroundEffectDrag = 0.0;
 		double maxRotorWashDrag = 0.0;
@@ -227,6 +229,7 @@ public record DroneBlackboxSummary(
 					maxAirframeAngularDrag,
 					Math.sqrt(angularDragPitch * angularDragPitch + angularDragYaw * angularDragYaw + angularDragRoll * angularDragRoll)
 			);
+			maxAirframeSeparation = Math.max(maxAirframeSeparation, value(row, "airframe_separation"));
 			maxAirframeLift = Math.max(maxAirframeLift, value(row, "airframe_lift_n"));
 			maxGroundEffectDrag = Math.max(maxGroundEffectDrag, value(row, "ground_effect_drag_n"));
 			maxRotorWashDrag = Math.max(maxRotorWashDrag, value(row, "rotor_wash_drag_n"));
@@ -332,6 +335,7 @@ public record DroneBlackboxSummary(
 				maxRotorWakeSwirlVelocity,
 				maxRotorAngularDrag,
 				maxAirframeAngularDrag,
+				maxAirframeSeparation,
 				maxAirframeLift,
 				maxGroundEffectDrag,
 				maxRotorWashDrag,
@@ -394,7 +398,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f rwake %.2f swirl %.2fm/s rdamp %.3f ang-drag %.3f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f rwake %.2f swirl %.2fm/s rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -429,6 +433,7 @@ public record DroneBlackboxSummary(
 				maxRotorWakeSwirlVelocityMetersPerSecond,
 				maxRotorAngularDragTorqueNewtonMeters,
 				maxAirframeAngularDragTorqueNewtonMeters,
+				maxAirframeSeparatedFlowIntensity,
 				maxAirframeLiftForceNewtons,
 				maxGroundEffectDragForceNewtons,
 				maxRotorWashDragForceNewtons,
@@ -509,6 +514,7 @@ public record DroneBlackboxSummary(
 				0.0, // maxRotorWakeSwirlVelocityMetersPerSecond
 				0.0, // maxRotorAngularDragTorqueNewtonMeters
 				0.0, // maxAirframeAngularDragTorqueNewtonMeters
+				0.0, // maxAirframeSeparatedFlowIntensity
 				0.0, // maxAirframeLiftForceNewtons
 				0.0, // maxGroundEffectDragForceNewtons
 				0.0, // maxRotorWashDragForceNewtons

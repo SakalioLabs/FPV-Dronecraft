@@ -365,6 +365,7 @@ public final class DroneBlackboxSample {
 			"airspeed_mps",
 			"angle_of_attack_deg",
 			"sideslip_deg",
+			"airframe_separation",
 			"turbulence_intensity",
 			"obstacle_proximity",
 			"drone_wake_intensity",
@@ -1160,6 +1161,7 @@ public final class DroneBlackboxSample {
 		row.add(state.airspeedMetersPerSecond(), "%.5f");
 		row.add(Math.toDegrees(state.angleOfAttackRadians()), "%.3f");
 		row.add(Math.toDegrees(state.sideslipRadians()), "%.3f");
+		row.add(state.airframeSeparatedFlowIntensity(), "%.5f");
 		row.add(environment.turbulenceIntensity(), "%.5f");
 		row.add(environment.obstacleProximity(), "%.5f");
 		row.add(environment.droneWakeIntensity(), "%.5f");

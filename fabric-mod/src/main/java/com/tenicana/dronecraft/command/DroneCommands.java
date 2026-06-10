@@ -359,6 +359,7 @@ public final class DroneCommands {
 				drone.getAngleOfAttackDegrees(),
 				drone.getSideslipDegrees(),
 				drone.getAirframeLiftForceNewtons(),
+				drone.getAirframeSeparatedFlowIntensity(),
 				drone.getGroundEffectDragForceNewtons(),
 				drone.getRotorWashDragForceNewtons(),
 				drone.getRotorWallEffectForceNewtons(),

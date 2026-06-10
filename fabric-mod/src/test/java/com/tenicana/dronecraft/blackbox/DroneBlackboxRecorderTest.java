@@ -152,6 +152,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_angular_drag_roll_torque_nm"));
 		assertTrue(csv.contains("airframe_angular_drag_pitch_torque_nm"));
 		assertTrue(csv.contains("airframe_angular_drag_roll_torque_nm"));
+		assertTrue(csv.contains("airframe_separation"));
 		assertTrue(csv.contains("airframe_lift_n"));
 		assertTrue(csv.contains("ground_effect_drag_n"));
 		assertTrue(csv.contains("rotor_wash_drag_n"));
@@ -323,6 +324,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_angular_drag_roll_torque_nm")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "airframe_separation")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_lift_n")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "ground_effect_drag_n")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wash_drag_n")]));
@@ -399,6 +401,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(10, summary.maxPhysicsSubsteps());
 		assertEquals(200.0, summary.maxPhysicsRateHertz(), 0.001);
 		assertTrue(summary.maxSpeedMetersPerSecond() >= 0.0);
+		assertUnitInterval(summary.maxAirframeSeparatedFlowIntensity());
 		assertTrue(summary.maxAirframeLiftForceNewtons() >= 0.0);
 		assertTrue(summary.maxGroundEffectDragForceNewtons() >= 0.0);
 		assertTrue(summary.maxRotorWashDragForceNewtons() >= 0.0);
@@ -462,6 +465,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("rwake"));
 		assertTrue(summary.formatForChat().contains("rdamp"));
 		assertTrue(summary.formatForChat().contains("ang-drag"));
+		assertTrue(summary.formatForChat().contains("sep"));
 		assertTrue(summary.formatForChat().contains("lift"));
 		assertTrue(summary.formatForChat().contains("cushion"));
 		assertTrue(summary.formatForChat().contains("wash"));

@@ -22,6 +22,7 @@ class DroneStatusFormatterTest {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
 				0.18,
 				0.0,
 				0.0,
@@ -49,7 +50,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("shear 0.00m/s2"));
 		assertTrue(status.contains("imu clip G 0.00 A 0.00 dterm 78Hz"));
 		assertTrue(status.contains("diagnostic idle"));
-		assertTrue(status.contains("forces lift 1.4N cushion 0.2N wash 0.8N wall 0.3N"));
+		assertTrue(status.contains("forces lift 1.4N sep 0.00 cushion 0.2N wash 0.8N wall 0.3N"));
 		assertTrue(status.contains("baro 14.6m 0.4m/s 1011.5hPa err 0.04m"));
 		assertTrue(status.contains("esc 41.0C 1.00 cool 1.25"));
 		assertTrue(status.contains("sig 0.002/0.003s err 0.0007"));
@@ -81,6 +82,7 @@ class DroneStatusFormatterTest {
 				0.42,
 				0.62,
 				0.62,
+				0.62,
 				0.58,
 				0.47,
 				1.12,
@@ -110,6 +112,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("esc-desync"));
 		assertTrue(warnings.contains("rotor-stall"));
 		assertTrue(warnings.contains("rotor-coning"));
+		assertTrue(warnings.contains("airframe-separation"));
 		assertTrue(warnings.contains("high-advance"));
 		assertTrue(warnings.contains("vrs"));
 		assertTrue(warnings.contains("propwash"));
@@ -144,6 +147,7 @@ class DroneStatusFormatterTest {
 			double mixerSaturation,
 			double rotorStall,
 			double propwash,
+			double airframeSeparation,
 			double rotorAdvanceRatio,
 			double droneWake,
 			double rotorWakeInterference,
@@ -180,6 +184,7 @@ class DroneStatusFormatterTest {
 				11.0,
 				-3.0,
 				1.4,
+				airframeSeparation,
 				0.2,
 				0.8,
 				diagnosticActive ? 3.1 : 0.3,

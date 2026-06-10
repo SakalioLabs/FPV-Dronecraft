@@ -144,6 +144,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> AIRSPEED = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ANGLE_OF_ATTACK = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> SIDESLIP = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> AIRFRAME_SEPARATED_FLOW = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> AIRFRAME_LIFT_FORCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> GROUND_EFFECT_DRAG_FORCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WASH_DRAG_FORCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -390,6 +391,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(AIRSPEED, 0.0f);
 		builder.define(ANGLE_OF_ATTACK, 0.0f);
 		builder.define(SIDESLIP, 0.0f);
+		builder.define(AIRFRAME_SEPARATED_FLOW, 0.0f);
 		builder.define(AIRFRAME_LIFT_FORCE, 0.0f);
 		builder.define(GROUND_EFFECT_DRAG_FORCE, 0.0f);
 		builder.define(ROTOR_WASH_DRAG_FORCE, 0.0f);
@@ -1101,6 +1103,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(AIRSPEED, (float) physics.state().airspeedMetersPerSecond());
 		entityData.set(ANGLE_OF_ATTACK, (float) Math.toDegrees(physics.state().angleOfAttackRadians()));
 		entityData.set(SIDESLIP, (float) Math.toDegrees(physics.state().sideslipRadians()));
+		entityData.set(AIRFRAME_SEPARATED_FLOW, (float) physics.state().airframeSeparatedFlowIntensity());
 		entityData.set(AIRFRAME_LIFT_FORCE, (float) physics.state().airframeLiftForceBodyNewtons().length());
 		entityData.set(GROUND_EFFECT_DRAG_FORCE, (float) physics.state().groundEffectDragForceBodyNewtons().length());
 		entityData.set(ROTOR_WASH_DRAG_FORCE, (float) physics.state().rotorWashDragForceBodyNewtons().length());
@@ -1832,6 +1835,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getSideslipDegrees() {
 		return entityData.get(SIDESLIP);
+	}
+
+	public float getAirframeSeparatedFlowIntensity() {
+		return entityData.get(AIRFRAME_SEPARATED_FLOW);
 	}
 
 	public float getAirframeLiftForceNewtons() {
