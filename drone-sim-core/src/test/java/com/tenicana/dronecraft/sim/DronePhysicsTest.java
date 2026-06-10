@@ -4710,6 +4710,59 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorDynamicStallRecoversSlowlyAfterHighAdvanceFlowClears() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorStallThrustLossCoefficient(0.60);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics stalled = new DronePhysics(config);
+		DroneInput input = new DroneInput(0.68, 0.0, 0.0, 0.0, true);
+		Vec3 highSlip = new Vec3(46.0, 0.0, 0.0);
+
+		for (int i = 0; i < 160; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			stalled.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stalled.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			stalled.state().setVelocityMetersPerSecond(highSlip);
+			clean.step(input, 0.005);
+			stalled.step(input, 0.005);
+		}
+
+		double cleanStall = clean.state().averageRotorStallIntensity();
+		double highStall = stalled.state().averageRotorStallIntensity();
+		stalled.state().setOrientation(Quaternion.IDENTITY);
+		stalled.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		stalled.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		stalled.step(input, 0.005);
+		double laggedRecoveryStall = stalled.state().averageRotorStallIntensity();
+
+		for (int i = 0; i < 260; i++) {
+			stalled.state().setOrientation(Quaternion.IDENTITY);
+			stalled.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stalled.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			stalled.step(input, 0.005);
+		}
+
+		assertTrue(cleanStall < 0.02);
+		assertTrue(highStall > 0.55);
+		assertTrue(laggedRecoveryStall > cleanStall + 0.35);
+		assertTrue(laggedRecoveryStall > highStall * 0.85);
+		assertTrue(stalled.state().averageRotorStallIntensity() < 0.04);
+	}
+
+	@Test
 	void airframeAerodynamicMomentAppearsWithAngleOfAttackAndSideslip() {
 		DroneConfig noAeroMomentConfig = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

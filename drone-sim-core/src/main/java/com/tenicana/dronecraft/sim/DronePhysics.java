@@ -45,6 +45,7 @@ public final class DronePhysics {
 	private final double[] rotorImbalancePhases;
 	private final double[] rotorVortexBuffetPhases;
 	private final double[] rotorBladeStallBuffetPhases;
+	private final double[] rotorDynamicStallIntensity;
 	private final double[] rotorConingIntensity;
 	private final double[] heldEscOutputCommands;
 	private final double[] escCommandFrameClockSeconds;
@@ -188,6 +189,7 @@ public final class DronePhysics {
 		this.rotorImbalancePhases = new double[config.rotors().size()];
 		this.rotorVortexBuffetPhases = new double[config.rotors().size()];
 		this.rotorBladeStallBuffetPhases = new double[config.rotors().size()];
+		this.rotorDynamicStallIntensity = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
 		this.escCommandFrameClockSeconds = new double[config.rotors().size()];
@@ -268,6 +270,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorImbalancePhases, 0.0);
 		Arrays.fill(rotorVortexBuffetPhases, 0.0);
 		Arrays.fill(rotorBladeStallBuffetPhases, 0.0);
+		Arrays.fill(rotorDynamicStallIntensity, 0.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
 		Arrays.fill(escCommandFrameClockSeconds, 0.0);
@@ -531,7 +534,16 @@ public final class DronePhysics {
 					omega,
 					baseThrust
 			);
-			rotorStall = kinematicRotorStall;
+			rotorStall = updateRotorDynamicStallIntensity(
+					i,
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					omega,
+					kinematicRotorStall,
+					bladeElement.stallIntensity(),
+					bladeDissymmetry.intensity(),
+					dtSeconds
+			);
 			state.setRotorBladeAngleOfAttackRadians(i, bladeElement.angleOfAttackRadians());
 			state.setRotorBladeElementStallIntensity(i, bladeElement.stallIntensity());
 			state.setRotorBladeDissymmetryIntensity(i, bladeDissymmetry.intensity());
@@ -1830,6 +1842,90 @@ public final class DronePhysics {
 
 		double combined = 1.0 - (1.0 - lateralStall) * (1.0 - reverseAxialStall);
 		return MathUtil.clamp(combined * smoothStep(0.18, 0.55, spinRatio), 0.0, 1.0);
+	}
+
+	private double updateRotorDynamicStallIntensity(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double kinematicStallIntensity,
+			double bladeElementStallIntensity,
+			double bladeDissymmetryIntensity,
+			double dtSeconds
+	) {
+		if (dtSeconds <= 0.0) {
+			return rotorDynamicStallIntensity[index];
+		}
+
+		double previousStall = rotorDynamicStallIntensity[index];
+		double targetStall = rotorDynamicStallTargetIntensity(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				kinematicStallIntensity,
+				bladeElementStallIntensity,
+				bladeDissymmetryIntensity
+		);
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
+		double highAdvance = smoothStep(0.36, 0.78, advanceRatio);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double spinResponse = 0.72 + 0.55 * spinRatio;
+		double attackTimeConstant = MathUtil.clamp(
+				0.020 * Math.sqrt(radiusScale) / spinResponse * (1.0 - 0.28 * highAdvance),
+				0.007,
+				0.055
+		);
+		double recoveryTimeConstant = MathUtil.clamp(
+				(0.080 + 0.055 * highAdvance) * Math.sqrt(radiusScale) / Math.max(0.72, spinResponse),
+				0.040,
+				0.220
+		);
+		double effectiveTarget = targetStall;
+		if (targetStall < previousStall && highAdvance > 1.0e-6) {
+			double attachedFlowMemory = previousStall
+					* (0.16 + 0.46 * highAdvance)
+					* smoothStep(0.14, 0.42, spinRatio);
+			effectiveTarget = Math.max(targetStall, attachedFlowMemory);
+		}
+
+		double timeConstant = effectiveTarget > previousStall ? attackTimeConstant : recoveryTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double dynamicStall = previousStall + (effectiveTarget - previousStall) * alpha;
+		rotorDynamicStallIntensity[index] = MathUtil.clamp(dynamicStall, 0.0, 1.0);
+		return rotorDynamicStallIntensity[index];
+	}
+
+	private static double rotorDynamicStallTargetIntensity(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double kinematicStallIntensity,
+			double bladeElementStallIntensity,
+			double bladeDissymmetryIntensity
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		if (spinRatio <= 0.08) {
+			return 0.0;
+		}
+
+		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
+		double highAdvance = smoothStep(0.36, 0.78, advanceRatio);
+		double activeRotor = smoothStep(0.14, 0.46, spinRatio);
+		double retreatingBladeStall = MathUtil.clamp(bladeDissymmetryIntensity, 0.0, 1.0) * highAdvance;
+		double elementStall = MathUtil.clamp(bladeElementStallIntensity, 0.0, 1.0);
+		double elementDrivenStall = MathUtil.clamp(
+				Math.max(0.70 * elementStall, 0.26 * retreatingBladeStall),
+				0.0,
+				1.0
+		);
+		double highAdvanceBias = 0.020
+				* smoothStep(0.54, 0.88, advanceRatio)
+				* smoothStep(0.22, 0.58, spinRatio);
+		double targetStall = Math.max(MathUtil.clamp(kinematicStallIntensity, 0.0, 1.0), elementDrivenStall)
+				+ highAdvanceBias;
+		return MathUtil.clamp(targetStall * activeRotor, 0.0, 1.0);
 	}
 
 	private static double rotorStallVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorStallIntensity) {
