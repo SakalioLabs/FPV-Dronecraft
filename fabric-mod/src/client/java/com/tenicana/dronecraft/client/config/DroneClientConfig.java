@@ -33,6 +33,8 @@ public final class DroneClientConfig {
 	private float cameraForwardOffsetMeters = 0.16f;
 	private float cameraUpOffsetMeters = 0.16f;
 	private float cameraVibrationScale = 1.0f;
+	private float cameraRollingShutterScale = 0.55f;
+	private float cameraLatencySeconds = 0.035f;
 	private float cameraFovDegrees = 105.0f;
 	private float cameraDynamicFovDegrees = 6.0f;
 
@@ -137,6 +139,14 @@ public final class DroneClientConfig {
 		return cameraVibrationScale;
 	}
 
+	public float cameraRollingShutterScale() {
+		return cameraRollingShutterScale;
+	}
+
+	public float cameraLatencySeconds() {
+		return cameraLatencySeconds;
+	}
+
 	public float cameraFovDegrees() {
 		return cameraFovDegrees;
 	}
@@ -173,6 +183,12 @@ public final class DroneClientConfig {
 		if (!Float.isFinite(cameraVibrationScale)) {
 			cameraVibrationScale = 1.0f;
 		}
+		if (!Float.isFinite(cameraRollingShutterScale)) {
+			cameraRollingShutterScale = 0.55f;
+		}
+		if (!Float.isFinite(cameraLatencySeconds)) {
+			cameraLatencySeconds = 0.035f;
+		}
 		if (!Float.isFinite(cameraFovDegrees)) {
 			cameraFovDegrees = 105.0f;
 		}
@@ -183,6 +199,8 @@ public final class DroneClientConfig {
 		cameraForwardOffsetMeters = Math.max(-0.20f, Math.min(0.80f, cameraForwardOffsetMeters));
 		cameraUpOffsetMeters = Math.max(-0.20f, Math.min(0.60f, cameraUpOffsetMeters));
 		cameraVibrationScale = Math.max(0.0f, Math.min(2.0f, cameraVibrationScale));
+		cameraRollingShutterScale = Math.max(0.0f, Math.min(2.0f, cameraRollingShutterScale));
+		cameraLatencySeconds = Math.max(0.0f, Math.min(0.20f, cameraLatencySeconds));
 		cameraFovDegrees = Math.max(70.0f, Math.min(130.0f, cameraFovDegrees));
 		cameraDynamicFovDegrees = Math.max(0.0f, Math.min(25.0f, cameraDynamicFovDegrees));
 		return this;
