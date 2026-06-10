@@ -3461,23 +3461,57 @@ public final class DronePhysics {
 		Vec3 drag = config.bodyDragCoefficients();
 		double dynamicScale = Math.max(0.0, airDensityRatio) * speed * speed;
 		Vec3 rotationalDamping = calculateRotationalAirframeAngularDamping(angularVelocityBody, airDensityRatio);
+		Vec3 separatedFlowDamping = calculateSeparatedFlowAirframeAngularDamping(relativeAirVelocityBody, airDensityRatio);
 		Vec3 rotorWashDamping = updateRotorWashAirframeAngularDamping(totalRotorForceBody, airDensityRatio, dtSeconds);
 		double pitchDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00022 * drag.z() + 0.00006 * drag.y()), 0.0, 0.36)
 				+ rotationalDamping.x()
+				+ separatedFlowDamping.x()
 				+ rotorWashDamping.x();
 		double yawDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00018 * drag.x() + 0.00008 * drag.z()), 0.0, 0.36)
 				+ rotationalDamping.y()
+				+ separatedFlowDamping.y()
 				+ rotorWashDamping.y();
 		double rollDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00020 * drag.x() + 0.00006 * drag.y()), 0.0, 0.36)
 				+ rotationalDamping.z()
+				+ separatedFlowDamping.z()
 				+ rotorWashDamping.z();
 		return new Vec3(
 				-angularVelocityBody.x() * pitchDamping,
 				-angularVelocityBody.y() * yawDamping,
 				-angularVelocityBody.z() * rollDamping
+		);
+	}
+
+	private Vec3 calculateSeparatedFlowAirframeAngularDamping(Vec3 relativeAirVelocityBody, double airDensityRatio) {
+		double speedSquared = relativeAirVelocityBody.lengthSquared();
+		if (speedSquared <= 1.0e-6 || airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
+
+		double separation = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
+		if (separation <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 drag = config.bodyDragCoefficients();
+		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
+		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
+		double sideslip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
+		double pitchExposure = 0.35 + 0.65 * smoothStep(Math.toRadians(24.0), Math.toRadians(72.0), Math.abs(angleOfAttack));
+		double yawExposure = 0.35 + 0.65 * smoothStep(Math.toRadians(26.0), Math.toRadians(74.0), Math.abs(sideslip));
+		double rollExposure = 0.45 + 0.55 * smoothStep(
+				Math.toRadians(32.0),
+				Math.toRadians(82.0),
+				Math.abs(angleOfAttack) + 0.80 * Math.abs(sideslip)
+		);
+		double separatedDynamicScale = Math.max(0.0, airDensityRatio) * speedSquared * separation;
+		return new Vec3(
+				MathUtil.clamp(separatedDynamicScale * pitchExposure * (0.00012 * drag.z() + 0.00005 * drag.y()), 0.0, 0.18),
+				MathUtil.clamp(separatedDynamicScale * yawExposure * (0.00012 * drag.x() + 0.00005 * drag.z()), 0.0, 0.18),
+				MathUtil.clamp(separatedDynamicScale * rollExposure * (0.00010 * drag.x() + 0.00005 * drag.y()), 0.0, 0.16)
 		);
 	}
 

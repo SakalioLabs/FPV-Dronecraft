@@ -5238,6 +5238,37 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void separatedFlowStrengthensAirframeAngularDampingAtHighSideslip() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics cleanForward = new DronePhysics(config);
+		DronePhysics separated = new DronePhysics(config);
+		Vec3 bodyRates = new Vec3(5.5, 2.0, -4.5);
+		Vec3 forwardVelocity = new Vec3(0.0, 0.0, 18.0);
+		Vec3 highSideslipVelocity = new Vec3(17.0, 0.0, 4.0);
+
+		for (int i = 0; i < 180; i++) {
+			holdInCruise(cleanForward, forwardVelocity);
+			holdInCruise(separated, highSideslipVelocity);
+			cleanForward.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+			separated.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+			cleanForward.step(DroneInput.idle(), 0.005);
+			separated.step(DroneInput.idle(), 0.005);
+		}
+
+		Vec3 cleanDrag = cleanForward.state().airframeAngularDragTorqueBodyNewtonMeters();
+		Vec3 separatedDrag = separated.state().airframeAngularDragTorqueBodyNewtonMeters();
+		assertTrue(cleanForward.state().airframeSeparatedFlowIntensity() < 0.03);
+		assertTrue(separated.state().airframeSeparatedFlowIntensity() > 0.80);
+		assertTrue(separatedDrag.dot(bodyRates) < cleanDrag.dot(bodyRates) - 0.30,
+				() -> "cleanDrag=" + cleanDrag + " separatedDrag=" + separatedDrag);
+		assertTrue(Math.abs(separatedDrag.y()) > Math.abs(cleanDrag.y()) + 0.025,
+				() -> "cleanDrag=" + cleanDrag + " separatedDrag=" + separatedDrag);
+	}
+
+	@Test
 	void airframeAngularDragAppearsFromBodyRotationInStillAir() {
 		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
 		DroneConfig base = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)
