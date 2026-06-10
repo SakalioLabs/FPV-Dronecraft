@@ -4263,11 +4263,39 @@ public final class DronePhysics {
 				? 0.0
 				: MathUtil.clamp((environment.groundEffectThrustMultiplier(config) - 1.0) / config.groundEffectMaxThrustBoost(), 0.0, 1.0);
 		double ceilingSuction = environment.ceilingEffectIntensity(config);
+		double dynamicPressureError = barometerDynamicPressureErrorMeters(environment);
 		double pressurePortError = 0.90 * cleanRotorWash
 				+ 1.15 * unsteadyWash
 				+ 0.35 * ceilingSuction
-				- 0.60 * groundCompression;
+				- 0.60 * groundCompression
+				+ dynamicPressureError;
 		return MathUtil.clamp(pressurePortError, -2.5, 4.5);
+	}
+
+	private double barometerDynamicPressureErrorMeters(DroneEnvironment environment) {
+		Vec3 relativeAirVelocityBody = state.relativeAirVelocityBodyMetersPerSecond();
+		if (relativeAirVelocityBody == null || relativeAirVelocityBody.lengthSquared() <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double airspeed = state.airspeedMetersPerSecond();
+		double airDensityRatio = environment.airDensityRatio();
+		if (airspeed < 3.0 || airDensityRatio <= 0.0) {
+			return 0.0;
+		}
+
+		double angleOfAttack = Math.abs(state.angleOfAttackRadians());
+		double sideslip = Math.abs(state.sideslipRadians());
+		double maxFlowAngle = Math.max(angleOfAttack, sideslip);
+		double dynamicScale = smoothStep(4.0, 22.0, airspeed);
+		double alignedFlow = 1.0 - smoothStep(Math.toRadians(18.0), Math.toRadians(58.0), maxFlowAngle);
+		double separatedFlow = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
+		double broadsideFlow = smoothStep(Math.toRadians(20.0), Math.toRadians(70.0), maxFlowAngle);
+		double densityScale = MathUtil.clamp(airDensityRatio, 0.35, 1.35);
+		double ramAltitudeError = -0.0026 * airspeed * airspeed * dynamicScale * alignedFlow;
+		double suctionAltitudeError = 0.0018 * airspeed * airspeed * dynamicScale
+				* MathUtil.clamp(0.35 * broadsideFlow + 0.65 * separatedFlow, 0.0, 1.0);
+		return MathUtil.clamp(densityScale * (ramAltitudeError + suctionAltitudeError), -1.8, 2.2);
 	}
 
 	private double barometerNoiseMeters(DroneEnvironment environment) {

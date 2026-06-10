@@ -2284,6 +2284,58 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void barometerModelsAirspeedStaticPortPressureError() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.04));
+		DronePhysics still = new DronePhysics(config);
+		DronePhysics fastForward = new DronePhysics(config);
+		DronePhysics highSideslip = new DronePhysics(config);
+		DroneEnvironment calm = DroneEnvironment.calm();
+
+		for (int i = 0; i < 180; i++) {
+			still.state().setOrientation(Quaternion.IDENTITY);
+			still.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			still.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			still.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			still.step(DroneInput.idle(), 0.005, calm);
+
+			fastForward.state().setOrientation(Quaternion.IDENTITY);
+			fastForward.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			fastForward.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			fastForward.state().setVelocityMetersPerSecond(new Vec3(0.0, 0.0, 24.0));
+			fastForward.step(DroneInput.idle(), 0.005, calm);
+
+			highSideslip.state().setOrientation(Quaternion.IDENTITY);
+			highSideslip.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			highSideslip.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			highSideslip.state().setVelocityMetersPerSecond(new Vec3(22.0, 0.0, 5.0));
+			highSideslip.step(DroneInput.idle(), 0.005, calm);
+		}
+
+		assertEquals(0.0, still.state().barometerPropwashErrorMeters(), 1.0e-9);
+		assertTrue(
+				fastForward.state().barometerPropwashErrorMeters() < -1.10,
+				() -> "fastForwardPressureError=" + fastForward.state().barometerPropwashErrorMeters()
+		);
+		assertTrue(
+				fastForward.state().barometerErrorMeters() < -1.00,
+				() -> "fastForwardFilteredError=" + fastForward.state().barometerErrorMeters()
+		);
+		assertTrue(
+				highSideslip.state().barometerPropwashErrorMeters() > 0.60,
+				() -> "highSideslipPressureError=" + highSideslip.state().barometerPropwashErrorMeters()
+		);
+		assertTrue(
+				highSideslip.state().barometerPropwashErrorMeters()
+						> fastForward.state().barometerPropwashErrorMeters() + 1.60,
+				() -> "fastForwardPressureError=" + fastForward.state().barometerPropwashErrorMeters()
+						+ " highSideslipPressureError=" + highSideslip.state().barometerPropwashErrorMeters()
+		);
+	}
+
+	@Test
 	void highAltitudeStandardAtmosphereReducesRotorAuthorityAndPressure() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
