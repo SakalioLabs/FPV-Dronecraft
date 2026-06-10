@@ -561,14 +561,19 @@ public final class DronePhysics {
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
 					+ rotorPrecipitationLoad, 0.0, 2.0);
+			double coningIntensity = rotorConingIntensity(aerodynamicRotor, baseThrust, omega);
+			aerodynamicLoadFactor = MathUtil.clamp(aerodynamicLoadFactor + rotorConingLoadFactor(coningIntensity), 0.0, 2.0);
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);
+			rotorVibrationSum += rotorConingVibration(aerodynamicRotor, omega, coningIntensity);
 			double vortexRingThrustScale = 1.0 - rotor.axialFlowThrustLossCoefficient() * 1.35 * vortexRingState;
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
+			double coningThrustScale = rotorConingThrustScale(coningIntensity);
 			double nominalThrust = baseThrust
 					* rotorAirflowScale
 					* inflowLagScale
 					* bladeElement.thrustScale()
 					* bladeDissymmetry.thrustScale()
+					* coningThrustScale
 					* compressibilityThrustScale
 					* MathUtil.clamp(vortexRingThrustScale, 0.45, 1.0)
 					* MathUtil.clamp(stallThrustScale, 0.35, 1.0);
@@ -1984,6 +1989,39 @@ public final class DronePhysics {
 		}
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		return MathUtil.clamp(0.22 * intensity * spinRatio, 0.0, 0.34);
+	}
+
+	private static double rotorConingIntensity(RotorSpec rotor, double thrustNewtons, double omegaRadiansPerSecond) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double thrustFraction = MathUtil.clamp(thrustNewtons / Math.max(1.0e-6, rotor.maxThrustNewtons()), 0.0, 1.35);
+		if (spinRatio <= 0.10 || thrustFraction <= 0.05) {
+			return 0.0;
+		}
+
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.45, 2.60);
+		double pitchFlexScale = MathUtil.clamp(1.0 / Math.sqrt(rotorBladePitchRatio(rotor)), 0.70, 1.35);
+		double centrifugalStiffening = 0.45 + 0.55 * spinRatio;
+		double load = smoothStep(0.34, 1.05, thrustFraction);
+		double diskSize = smoothStep(0.78, 2.10, radiusScale);
+		return MathUtil.clamp(load * (0.62 + 0.38 * diskSize) * pitchFlexScale / centrifugalStiffening, 0.0, 1.0);
+	}
+
+	private static double rotorConingThrustScale(double coningIntensity) {
+		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
+		return MathUtil.clamp(1.0 - 0.038 * coning, 0.94, 1.0);
+	}
+
+	private static double rotorConingLoadFactor(double coningIntensity) {
+		return 0.055 * MathUtil.clamp(coningIntensity, 0.0, 1.0);
+	}
+
+	private static double rotorConingVibration(RotorSpec rotor, double omegaRadiansPerSecond, double coningIntensity) {
+		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
+		if (coning <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		return MathUtil.clamp(0.020 * coning * (0.35 + 0.65 * spinRatio), 0.0, 0.026);
 	}
 
 	private static double rotorWindmillingLoadFactor(

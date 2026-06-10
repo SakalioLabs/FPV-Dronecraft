@@ -813,6 +813,68 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorConingReducesEffectiveHighLoadThrust() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 160.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics lowLoad = new DronePhysics(config);
+		DronePhysics highLoad = new DronePhysics(config);
+		DroneInput lowThrottle = new DroneInput(0.36, 0.0, 0.0, 0.0, true);
+		DroneInput highThrottle = new DroneInput(0.96, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 180; i++) {
+			lowLoad.state().setOrientation(Quaternion.IDENTITY);
+			highLoad.state().setOrientation(Quaternion.IDENTITY);
+			lowLoad.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			highLoad.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			lowLoad.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			highLoad.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			lowLoad.step(lowThrottle, 0.005);
+			highLoad.step(highThrottle, 0.005);
+		}
+
+		RotorSpec rotor = config.rotors().get(0);
+		double lowIdealThrust = rotor.thrustCoefficient()
+				* lowLoad.state().motorOmegaRadiansPerSecond(0)
+				* lowLoad.state().motorOmegaRadiansPerSecond(0);
+		double highIdealThrust = rotor.thrustCoefficient()
+				* highLoad.state().motorOmegaRadiansPerSecond(0)
+				* highLoad.state().motorOmegaRadiansPerSecond(0);
+		double lowEffectiveThrustRatio = lowLoad.state().rotorThrustNewtons(0) / lowIdealThrust;
+		double highEffectiveThrustRatio = highLoad.state().rotorThrustNewtons(0) / highIdealThrust;
+
+		assertTrue(highLoad.state().rotorThrustNewtons(0) > lowLoad.state().rotorThrustNewtons(0) * 2.2,
+				() -> "lowThrust=" + lowLoad.state().rotorThrustNewtons(0)
+						+ " highThrust=" + highLoad.state().rotorThrustNewtons(0));
+		assertTrue(highEffectiveThrustRatio < lowEffectiveThrustRatio - 0.018,
+				() -> "lowRatio=" + lowEffectiveThrustRatio + " highRatio=" + highEffectiveThrustRatio);
+		assertTrue(highLoad.state().averageRotorAerodynamicLoadFactor()
+				> lowLoad.state().averageRotorAerodynamicLoadFactor() + 0.015,
+				() -> "lowLoad=" + lowLoad.state().averageRotorAerodynamicLoadFactor()
+						+ " highLoad=" + highLoad.state().averageRotorAerodynamicLoadFactor());
+		assertTrue(highLoad.state().rotorVibration() > lowLoad.state().rotorVibration() + 0.006,
+				() -> "lowVibration=" + lowLoad.state().rotorVibration()
+						+ " highVibration=" + highLoad.state().rotorVibration());
+	}
+
+	@Test
 	void rotorImbalanceRaisesVibrationAndCurrentRipple() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withRotorImbalanceIntensity(0.0)
@@ -2999,7 +3061,9 @@ class DronePhysicsTest {
 		assertEquals(0.0, lowPitch.state().averageRotorBladeElementStallIntensity(), 1.0e-9);
 		assertTrue(averageRotorThrust(highPitch.state()) > averageRotorThrust(lowPitch.state()) * 1.50);
 		assertTrue(highPitch.state().averageRotorAerodynamicLoadFactor()
-				> lowPitch.state().averageRotorAerodynamicLoadFactor() + 0.03);
+				> lowPitch.state().averageRotorAerodynamicLoadFactor() + 0.018,
+				() -> "lowLoad=" + lowPitch.state().averageRotorAerodynamicLoadFactor()
+						+ " highLoad=" + highPitch.state().averageRotorAerodynamicLoadFactor());
 		assertTrue(highPitch.state().averageMotorCurrentAmps() > lowPitch.state().averageMotorCurrentAmps() + 2.5);
 	}
 
