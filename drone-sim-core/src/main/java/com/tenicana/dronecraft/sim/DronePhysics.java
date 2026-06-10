@@ -4669,8 +4669,9 @@ public final class DronePhysics {
 		double rotorWashCooling = 0.45 * state.motorPower(config, rotorIndex) * (0.35 + 0.65 * state.escOutputCommand(rotorIndex));
 		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
+		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
 		double densityFactor = MathUtil.clamp(environment.airDensityRatio(), 0.35, 1.35);
-		return MathUtil.clamp(boardAirflow * densityFactor * obstructionLoss, 0.20, 4.0);
+		return MathUtil.clamp(boardAirflow * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
 	}
 
 	private double motorCoolingFactor(
@@ -4687,8 +4688,29 @@ public final class DronePhysics {
 				+ 0.35 * MathUtil.clamp(axialSpeed / 12.0, 0.0, 1.0);
 		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escOutputCommand(rotorIndex));
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
+		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
 		double densityFactor = MathUtil.clamp(environment.airDensityRatio(), 0.35, 1.35);
-		return MathUtil.clamp((1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss, 0.20, 4.0);
+		return MathUtil.clamp((1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
+	}
+
+	private double recirculatedAirCoolingLoss(DroneEnvironment environment) {
+		double groundRecirculation = config.groundEffectMaxThrustBoost() <= 1.0e-6
+				? 0.0
+				: MathUtil.clamp(
+						(environment.groundEffectThrustMultiplier(config) - 1.0) / config.groundEffectMaxThrustBoost(),
+						0.0,
+						1.0
+				);
+		double wakeRecirculation = MathUtil.clamp(environment.droneWakeIntensity() / 1.5, 0.0, 1.0);
+		double ownWake = MathUtil.clamp(state.propwashWakeIntensity(), 0.0, 1.0);
+		double shearLayer = MathUtil.clamp(groundBoundaryLayerDirtyAir(environment), 0.0, 1.0);
+		double loss = 0.24 * environment.obstacleProximity()
+				+ 0.18 * wakeRecirculation
+				+ 0.17 * environment.ceilingEffectIntensity(config)
+				+ 0.16 * groundRecirculation
+				+ 0.13 * ownWake
+				+ 0.10 * shearLayer;
+		return MathUtil.clamp(loss, 0.0, 0.44);
 	}
 
 	private void updateMotorThermalLimit() {

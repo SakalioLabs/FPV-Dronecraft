@@ -1844,6 +1844,56 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void recirculatedDirtyAirReducesMotorAndEscCooling() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorThermal(72.0, 0.18, 200.0, 240.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics recirculated = new DronePhysics(config);
+		for (int i = 0; i < clean.state().motorCount(); i++) {
+			clean.state().setMotorTemperatureCelsius(i, 86.0);
+			recirculated.state().setMotorTemperatureCelsius(i, 86.0);
+			clean.state().setEscTemperatureCelsius(i, 82.0);
+			recirculated.state().setEscTemperatureCelsius(i, 82.0);
+		}
+
+		DroneInput loaded = new DroneInput(0.56, 0.0, 0.0, 0.0, true);
+		Vec3 crossflow = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment cleanAir = new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0);
+		DroneEnvironment dirtyRecirculation = new DroneEnvironment(
+				new Vec3(8.0, 0.0, 0.0),
+				1.0,
+				0.08,
+				0.0,
+				0.85,
+				0.95,
+				0.12
+		);
+
+		for (int i = 0; i < 260; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			recirculated.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			recirculated.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.state().setVelocityMetersPerSecond(crossflow);
+			recirculated.state().setVelocityMetersPerSecond(crossflow);
+			clean.step(loaded, 0.005, cleanAir);
+			recirculated.step(loaded, 0.005, dirtyRecirculation);
+		}
+
+		assertTrue(recirculated.state().averageMotorCoolingFactor() < clean.state().averageMotorCoolingFactor() * 0.82,
+				() -> "cleanMotorCooling=" + clean.state().averageMotorCoolingFactor()
+						+ " recirculatedMotorCooling=" + recirculated.state().averageMotorCoolingFactor());
+		assertTrue(recirculated.state().averageEscCoolingFactor() < clean.state().averageEscCoolingFactor() * 0.88,
+				() -> "cleanEscCooling=" + clean.state().averageEscCoolingFactor()
+						+ " recirculatedEscCooling=" + recirculated.state().averageEscCoolingFactor());
+		assertTrue(recirculated.state().averageMotorTemperatureCelsius() > clean.state().averageMotorTemperatureCelsius() + 0.25);
+		assertTrue(recirculated.state().averageEscTemperatureCelsius() > clean.state().averageEscTemperatureCelsius() + 0.12);
+	}
+
+	@Test
 	void rotorAccelerationReactionTorqueAppearsWhenSpinupIsUnbalanced() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withRotorYawTorquePerThrustMeter(0.0)
