@@ -425,6 +425,7 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(summary.maxRotorLowReynoldsLoss());
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
 		assertTrue(summary.maxRotorArmFlexIntensity() >= 0.0);
+		assertTrue(summary.maxRotorBladeDissymmetryTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorAngularDragTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxControlFrameAgeSeconds() >= 0.0);
 		assertTrue(summary.maxControlFrameError() >= 0.0);
@@ -472,6 +473,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("lowre"));
 		assertTrue(summary.formatForChat().contains("load"));
 		assertTrue(summary.formatForChat().contains("skew"));
+		assertTrue(summary.formatForChat().contains("bdiss"));
 		assertTrue(summary.formatForChat().contains("rwake"));
 		assertTrue(summary.formatForChat().contains("rdamp"));
 		assertTrue(summary.formatForChat().contains("ang-drag"));
@@ -553,6 +555,59 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorFlappingTiltDegrees() >= rotorFlappingTilt);
 		assertTrue(summary.formatForChat().contains("flap"));
 		assertTrue(summary.formatForChat().contains("deg"));
+	}
+
+	@Test
+	void blackboxSummaryReportsBladeDissymmetryHubMoment() {
+		DroneConfig config = DroneConfig.racingQuad()
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneInput input = new DroneInput(0.68, 0.0, 0.0, 0.0, true, true, FlightMode.ACRO);
+		Vec3 crosswind = new Vec3(34.0, 0.0, 0.0);
+
+		for (int i = 0; i < 220; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(crosswind);
+			physics.step(input, 0.005);
+		}
+		recorder.record(DroneBlackboxSample.from(
+				60,
+				60,
+				10,
+				0.005,
+				physics.state(),
+				input,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				DroneEnvironment.calm(),
+				config
+		));
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		assertTrue(summary.maxRotorBladeDissymmetryTorqueNewtonMeters() > 0.003,
+				() -> "summary=" + summary.formatForChat());
+		assertTrue(summary.formatForChat().contains("bdiss"));
 	}
 
 	@Test
