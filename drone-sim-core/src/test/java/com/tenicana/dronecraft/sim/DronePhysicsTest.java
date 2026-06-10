@@ -467,6 +467,56 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWakeInterferenceBuildsAndReleasesWithWakeLag() {
+		DroneConfig config = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput powered = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 8; i++) {
+			holdInStillAir(physics);
+			physics.step(powered, 0.005);
+		}
+		double earlyWake = physics.state().maxRotorWakeInterferenceIntensity();
+		double earlySwirl = physics.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+
+		for (int i = 0; i < 700; i++) {
+			holdInStillAir(physics);
+			physics.step(powered, 0.005);
+		}
+		double settledWake = physics.state().maxRotorWakeInterferenceIntensity();
+		double settledSwirl = physics.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+
+		holdInStillAir(physics);
+		physics.step(DroneInput.idle(), 0.005);
+		double lingeringWake = physics.state().maxRotorWakeInterferenceIntensity();
+		double lingeringSwirl = physics.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+
+		for (int i = 0; i < 480; i++) {
+			holdInStillAir(physics);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		double clearedWake = physics.state().maxRotorWakeInterferenceIntensity();
+		double clearedSwirl = physics.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+
+		assertTrue(earlyWake < settledWake * 0.60,
+				() -> "earlyWake=" + earlyWake + " settledWake=" + settledWake);
+		assertTrue(earlySwirl < settledSwirl * 0.60,
+				() -> "earlySwirl=" + earlySwirl + " settledSwirl=" + settledSwirl);
+		assertTrue(settledWake > 0.30, () -> "settledWake=" + settledWake);
+		assertTrue(settledSwirl > 0.30, () -> "settledSwirl=" + settledSwirl);
+		assertTrue(lingeringWake > clearedWake + 0.12,
+				() -> "lingeringWake=" + lingeringWake + " clearedWake=" + clearedWake);
+		assertTrue(lingeringSwirl > clearedSwirl + 0.12,
+				() -> "lingeringSwirl=" + lingeringSwirl + " clearedSwirl=" + clearedSwirl);
+		assertTrue(clearedWake < 0.04, () -> "clearedWake=" + clearedWake);
+		assertTrue(clearedSwirl < 0.04, () -> "clearedSwirl=" + clearedSwirl);
+	}
+
+	@Test
 	void forwardFlightConvectsFrontRotorWakeOntoRearRotors() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
