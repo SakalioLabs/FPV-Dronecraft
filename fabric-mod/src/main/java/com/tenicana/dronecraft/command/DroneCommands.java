@@ -383,6 +383,7 @@ public final class DroneCommands {
 				drone.getRotorHealth(),
 				drone.getMotorTemperatureCelsius(),
 				drone.getMotorThermalLimit(),
+				drone.getMotorVoltageHeadroom(),
 				drone.getEscTemperatureCelsius(),
 				drone.getEscThermalLimit(),
 				drone.getEscCoolingFactor(),

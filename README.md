@@ -39,6 +39,7 @@ The scripted profile runs the same 200 Hz physics loop used by the mod and sampl
 
 Low-Reynolds rotor efficiency loss is logged as `rotor_low_reynolds_loss` plus per-rotor columns through `rotor_7_low_reynolds_loss`, so tiny-prop efficiency loss can be compared against tip Mach, advance ratio, and blade-stall telemetry.
 The in-game status/HUD also exposes this as `lowre`/`Re` and raises a `low-re` warning when small-prop Reynolds loss becomes a meaningful tuning risk.
+Live status/HUD output also shows minimum motor voltage headroom, making battery sag or back-EMF-limited punch-outs visible without opening a saved CSV.
 
 To compare airframe presets or choose a custom output file:
 

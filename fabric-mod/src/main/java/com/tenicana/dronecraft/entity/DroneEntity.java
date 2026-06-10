@@ -102,6 +102,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> MOTOR_7_RPM = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_TEMPERATURE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MOTOR_THERMAL_LIMIT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> MOTOR_VOLTAGE_HEADROOM = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ESC_TEMPERATURE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ESC_THERMAL_LIMIT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ESC_COOLING_FACTOR = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -352,6 +353,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(MOTOR_7_RPM, 0.0f);
 		builder.define(MOTOR_TEMPERATURE, 25.0f);
 		builder.define(MOTOR_THERMAL_LIMIT, 1.0f);
+		builder.define(MOTOR_VOLTAGE_HEADROOM, 1.0f);
 		builder.define(ESC_TEMPERATURE, 25.0f);
 		builder.define(ESC_THERMAL_LIMIT, 1.0f);
 		builder.define(ESC_COOLING_FACTOR, 1.0f);
@@ -1069,6 +1071,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(MOTOR_RPM, (float) physics.state().averageMotorRpm());
 		entityData.set(MOTOR_TEMPERATURE, (float) physics.state().maxMotorTemperatureCelsius());
 		entityData.set(MOTOR_THERMAL_LIMIT, (float) physics.state().motorThermalLimit());
+		entityData.set(MOTOR_VOLTAGE_HEADROOM, (float) physics.state().minMotorVoltageHeadroom());
 		entityData.set(ESC_TEMPERATURE, (float) physics.state().maxEscTemperatureCelsius());
 		entityData.set(ESC_THERMAL_LIMIT, (float) physics.state().escThermalLimit());
 		entityData.set(ESC_COOLING_FACTOR, (float) physics.state().averageEscCoolingFactor());
@@ -1678,6 +1681,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getMotorThermalLimit() {
 		return entityData.get(MOTOR_THERMAL_LIMIT);
+	}
+
+	public float getMotorVoltageHeadroom() {
+		return entityData.get(MOTOR_VOLTAGE_HEADROOM);
 	}
 
 	public float getEscTemperatureCelsius() {

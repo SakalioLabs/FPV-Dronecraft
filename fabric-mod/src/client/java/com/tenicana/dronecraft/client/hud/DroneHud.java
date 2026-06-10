@@ -398,12 +398,13 @@ public final class DroneHud {
 	private static String thermalLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"TMP A%+3.0f M%3.0f E%3.0f TL%3.0f/%3.0f D%2.0f L%.1f",
+				"TMP A%+3.0f M%3.0f E%3.0f TL%3.0f/%3.0f H%2.0f D%2.0f L%.1f",
 				drone.getAmbientTemperatureCelsius(),
 				drone.getMotorTemperatureCelsius(),
 				drone.getEscTemperatureCelsius(),
 				drone.getMotorThermalLimit() * 100.0f,
 				drone.getEscThermalLimit() * 100.0f,
+				drone.getMotorVoltageHeadroom() * 100.0f,
 				drone.getEscDesyncIntensity() * 100.0f,
 				drone.getRotorAerodynamicLoadFactor()
 		);
@@ -519,6 +520,7 @@ public final class DroneHud {
 				|| drone.getEscTemperatureCelsius() > 95.0f
 				|| drone.getMotorThermalLimit() < 0.95f
 				|| drone.getEscThermalLimit() < 0.95f
+				|| drone.getMotorVoltageHeadroom() < 0.18f
 				|| drone.getEscDesyncIntensity() > 0.20f
 				|| drone.getRotorAerodynamicLoadFactor() > 1.35f) {
 			return WARN_COLOR;
