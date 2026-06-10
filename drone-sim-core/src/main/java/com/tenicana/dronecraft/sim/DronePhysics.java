@@ -739,7 +739,7 @@ public final class DronePhysics {
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);
 		updateEscSignalTelemetry();
 
-		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, airDensity, dtSeconds);
+		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, totalForceBody, airDensity, dtSeconds);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
@@ -3302,9 +3302,18 @@ public final class DronePhysics {
 		return Math.sqrt(baseThrustNewtons / Math.max(1.0e-6, 2.0 * airDensity * diskAreaMetersSquared));
 	}
 
-	private Vec3 calculateAirframeAerodynamicTorque(Vec3 relativeAirVelocityBody, double airDensityRatio, double dtSeconds) {
+	private Vec3 calculateAirframeAerodynamicTorque(
+			Vec3 relativeAirVelocityBody,
+			Vec3 totalRotorForceBody,
+			double airDensityRatio,
+			double dtSeconds
+	) {
 		double speed = relativeAirVelocityBody.length();
-		Vec3 pressureCenterTorque = calculateAirframePressureCenterTorque(relativeAirVelocityBody, airDensityRatio);
+		Vec3 pressureCenterTorque = calculateAirframePressureCenterTorque(
+				relativeAirVelocityBody,
+				totalRotorForceBody,
+				airDensityRatio
+		);
 		state.setAirframePressureCenterTorqueBodyNewtonMeters(pressureCenterTorque);
 		if (speed < 1.0) {
 			return pressureCenterTorque;
@@ -3380,14 +3389,19 @@ public final class DronePhysics {
 		).clamp(-0.20, 0.20);
 	}
 
-	private Vec3 calculateAirframePressureCenterTorque(Vec3 relativeAirVelocityBody, double airDensityRatio) {
+	private Vec3 calculateAirframePressureCenterTorque(
+			Vec3 relativeAirVelocityBody,
+			Vec3 totalRotorForceBody,
+			double airDensityRatio
+	) {
 		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
 		if (momentArmBody.lengthSquared() <= 1.0e-12 || relativeAirVelocityBody.lengthSquared() <= 1.0e-6 || airDensityRatio <= 0.0) {
 			return Vec3.ZERO;
 		}
 
 		Vec3 airframeForceBody = calculateAirframeBodyDragForce(relativeAirVelocityBody, airDensityRatio)
-				.add(calculateAirframeLiftForce(relativeAirVelocityBody, airDensityRatio));
+				.add(calculateAirframeLiftForce(relativeAirVelocityBody, airDensityRatio))
+				.add(calculateRotorWashDragForce(totalRotorForceBody, relativeAirVelocityBody, airDensityRatio));
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
 	}
 

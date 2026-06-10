@@ -3657,6 +3657,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWashDragAtPressureCenterAddsAirframeMoment() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withCenterOfPressureOffsetBodyMeters(new Vec3(0.0, 0.010, 0.0))
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics unpowered = new DronePhysics(config);
+		DronePhysics powered = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.06, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 130; i++) {
+			holdInStillAir(powered);
+			powered.step(hover, 0.005);
+		}
+
+		Vec3 slip = new Vec3(12.0, 0.0, 3.0);
+		holdInCruise(unpowered, slip);
+		holdInCruise(powered, slip);
+		unpowered.step(DroneInput.idle(), 0.005);
+		powered.step(hover, 0.005);
+
+		Vec3 unpoweredTorque = unpowered.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 poweredTorque = powered.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 washDrag = powered.state().rotorWashDragForceBodyNewtons();
+
+		assertTrue(washDrag.x() < -0.45);
+		assertTrue(poweredTorque.z() > unpoweredTorque.z() + 0.015,
+				() -> "unpoweredTorque=" + unpoweredTorque + " poweredTorque=" + poweredTorque);
+		assertTrue(powered.state().airframeAerodynamicTorqueBodyNewtonMeters().z()
+				> unpowered.state().airframeAerodynamicTorqueBodyNewtonMeters().z() + 0.012);
+	}
+
+	@Test
 	void groundEffectAddsNearGroundLift() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics freeAir = new DronePhysics(config);
