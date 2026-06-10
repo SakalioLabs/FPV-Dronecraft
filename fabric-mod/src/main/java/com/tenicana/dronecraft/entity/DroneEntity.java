@@ -131,6 +131,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_INFLOW_SKEW = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_INTERFERENCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_SWIRL = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_WAKE_SWIRL_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MIXER_SATURATION = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> PROPWASH_INTENSITY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> VORTEX_RING_STATE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -386,6 +387,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_INFLOW_SKEW, 0.0f);
 		builder.define(ROTOR_WAKE_INTERFERENCE, 0.0f);
 		builder.define(ROTOR_WAKE_SWIRL, 0.0f);
+		builder.define(ROTOR_WAKE_SWIRL_TORQUE, 0.0f);
 		builder.define(MIXER_SATURATION, 0.0f);
 		builder.define(PROPWASH_INTENSITY, 0.0f);
 		builder.define(VORTEX_RING_STATE, 0.0f);
@@ -1105,6 +1107,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_INFLOW_SKEW, (float) physics.state().rotorInflowSkewIntensity());
 		entityData.set(ROTOR_WAKE_INTERFERENCE, (float) physics.state().maxRotorWakeInterferenceIntensity());
 		entityData.set(ROTOR_WAKE_SWIRL, (float) physics.state().maxRotorWakeSwirlVelocityMetersPerSecond());
+		entityData.set(ROTOR_WAKE_SWIRL_TORQUE, (float) physics.state().rotorWakeSwirlTorqueBodyNewtonMeters().length());
 		entityData.set(MIXER_SATURATION, (float) physics.state().mixerSaturation());
 		entityData.set(PROPWASH_INTENSITY, (float) physics.state().propwashIntensity());
 		entityData.set(VORTEX_RING_STATE, (float) physics.state().vortexRingStateIntensity());
@@ -1807,6 +1810,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorWakeSwirlVelocityMetersPerSecond() {
 		return entityData.get(ROTOR_WAKE_SWIRL);
+	}
+
+	public float getRotorWakeSwirlTorqueNewtonMeters() {
+		return entityData.get(ROTOR_WAKE_SWIRL_TORQUE);
 	}
 
 	public float getPropwashIntensity() {

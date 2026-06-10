@@ -34,6 +34,7 @@ class DroneStatusFormatterTest {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
 				1.0,
 				0.0,
 				0.0,
@@ -72,6 +73,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("bdiss 0.000Nm"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("swirl 0.00m/s"));
+		assertTrue(status.contains("swirlT 0.000Nm"));
 		assertTrue(status.contains("water 0.00"));
 		assertTrue(status.contains("rain 0.00"));
 		assertTrue(status.contains("temp 22.0C"));
@@ -106,6 +108,7 @@ class DroneStatusFormatterTest {
 				0.58,
 				0.47,
 				0.92,
+				0.016,
 				1.12,
 				0.12,
 				0.52,
@@ -148,6 +151,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("drone-wake"));
 		assertTrue(warnings.contains("rotor-wake"));
 		assertTrue(warnings.contains("wake-swirl"));
+		assertTrue(warnings.contains("wake-swirl-torque"));
 		assertTrue(warnings.contains("ceiling-effect"));
 		assertTrue(warnings.contains("env-asymmetry"));
 		assertTrue(warnings.contains("rotor-flow-blocked"));
@@ -161,7 +165,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("bdiss 0.024Nm"));
-		assertTrue(status.contains("swirl 0.92m/s"));
+		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -190,6 +194,7 @@ class DroneStatusFormatterTest {
 			double droneWake,
 			double rotorWakeInterference,
 			double rotorWakeSwirlVelocityMetersPerSecond,
+			double rotorWakeSwirlTorqueNewtonMeters,
 			double ceilingEffect,
 			double environmentAsymmetry,
 			double rotorFlowObstruction,
@@ -269,6 +274,7 @@ class DroneStatusFormatterTest {
 				droneWake > 0.55 ? 0.28 : 0.0,
 				rotorWakeInterference,
 				rotorWakeSwirlVelocityMetersPerSecond,
+				rotorWakeSwirlTorqueNewtonMeters,
 				droneWake,
 				ceilingEffect,
 				environmentAsymmetry,

@@ -45,7 +45,7 @@ public final class DroneHud {
 		int x = 8;
 		int y = 8;
 		int width = 252;
-		int height = drone == null ? 38 : 263;
+		int height = drone == null ? 38 : 274;
 		graphics.fill(x, y, x + width, y + height, PANEL_COLOR);
 		graphics.renderOutline(x, y, width, height, BORDER_COLOR);
 
@@ -122,9 +122,10 @@ public final class DroneHud {
 		graphics.drawString(font, altitude, x + 8, y + 194, barometerStatusColor(drone), false);
 		graphics.drawString(font, attitude, x + 8, y + 205, TEXT_COLOR, false);
 		graphics.drawString(font, aerodynamicStatusLine(drone), x + 8, y + 216, aerodynamicStatusColor(drone), false);
-		graphics.drawString(font, aeroForceLine(drone), x + 8, y + 227, aeroForceStatusColor(drone), false);
-		graphics.drawString(font, environmentLine(drone), x + 8, y + 238, environmentStatusColor(drone), false);
-		graphics.drawString(font, thermalLine(drone), x + 8, y + 249, thermalStatusColor(drone), false);
+		graphics.drawString(font, aeroTorqueLine(drone), x + 8, y + 227, aeroTorqueStatusColor(drone), false);
+		graphics.drawString(font, aeroForceLine(drone), x + 8, y + 238, aeroForceStatusColor(drone), false);
+		graphics.drawString(font, environmentLine(drone), x + 8, y + 249, environmentStatusColor(drone), false);
+		graphics.drawString(font, thermalLine(drone), x + 8, y + 260, thermalStatusColor(drone), false);
 	}
 
 	private static void drawBar(GuiGraphics graphics, int x, int y, int width, int height, float value, int color) {
@@ -370,14 +371,22 @@ public final class DroneHud {
 		);
 	}
 
-	private static String aeroForceLine(DroneEntity drone) {
+	private static String aeroTorqueLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"FOR L%4.1f SP%2.0f FL%2.0f BD%.3f G%4.1f W%4.1f S%4.1f",
-				drone.getAirframeLiftForceNewtons(),
+				"TRQ SP%2.0f FL%2.0f BD%.3f WT%.3f",
 				drone.getAirframeSeparatedFlowIntensity() * 100.0f,
 				drone.getRotorFlappingTiltDegrees(),
 				drone.getRotorBladeDissymmetryTorqueNewtonMeters(),
+				drone.getRotorWakeSwirlTorqueNewtonMeters()
+		);
+	}
+
+	private static String aeroForceLine(DroneEntity drone) {
+		return String.format(
+				Locale.ROOT,
+				"FOR L%4.1f G%4.1f W%4.1f WL%4.1f",
+				drone.getAirframeLiftForceNewtons(),
 				drone.getGroundEffectDragForceNewtons(),
 				drone.getRotorWashDragForceNewtons(),
 				drone.getRotorWallEffectForceNewtons()
@@ -449,11 +458,18 @@ public final class DroneHud {
 		return TEXT_COLOR;
 	}
 
-	private static int aeroForceStatusColor(DroneEntity drone) {
+	private static int aeroTorqueStatusColor(DroneEntity drone) {
 		if (drone.getAirframeSeparatedFlowIntensity() > 0.55f
 				|| drone.getRotorFlappingTiltDegrees() > 8.0f
 				|| drone.getRotorBladeDissymmetryTorqueNewtonMeters() > 0.015f
-				|| drone.getAirframeLiftForceNewtons() > 6.0f
+				|| drone.getRotorWakeSwirlTorqueNewtonMeters() > 0.010f) {
+			return WARN_COLOR;
+		}
+		return TEXT_COLOR;
+	}
+
+	private static int aeroForceStatusColor(DroneEntity drone) {
+		if (drone.getAirframeLiftForceNewtons() > 6.0f
 				|| drone.getGroundEffectDragForceNewtons() > 6.0f
 				|| drone.getRotorWashDragForceNewtons() > 6.0f
 				|| drone.getRotorWallEffectForceNewtons() > 3.0f) {

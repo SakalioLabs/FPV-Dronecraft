@@ -57,6 +57,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorConing;
 	private double maxRotorWakeInterference;
 	private double maxRotorWakeSwirlVelocity;
+	private double maxRotorWakeSwirlTorque;
 	private double maxMixerSaturation;
 	private double finalX;
 	private double finalY;
@@ -133,6 +134,7 @@ public final class DroneServerSelfTest {
 		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
+		maxRotorWakeSwirlTorque = Math.max(maxRotorWakeSwirlTorque, drone.getRotorWakeSwirlTorqueNewtonMeters());
 		maxMixerSaturation = Math.max(maxMixerSaturation, drone.getMixerSaturation());
 	}
 
@@ -180,6 +182,8 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_pitch_torque_nm")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_yaw_torque_nm")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_roll_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_pitch_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_yaw_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_roll_torque_nm")
@@ -318,6 +322,8 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_pitch_torque_nm")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_yaw_torque_nm")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_roll_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_pitch_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_yaw_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_roll_torque_nm")
@@ -487,6 +493,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_coning\": %.5f,\n"
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
+						+ "  \"max_rotor_wake_swirl_torque_nm\": %.6f,\n"
 						+ "  \"max_mixer_saturation\": %.5f,\n"
 						+ "  \"csv\": \"%s\"\n"
 						+ "}\n",
@@ -520,6 +527,7 @@ public final class DroneServerSelfTest {
 				maxRotorConing,
 				maxRotorWakeInterference,
 				maxRotorWakeSwirlVelocity,
+				maxRotorWakeSwirlTorque,
 				maxMixerSaturation,
 				escapeJson(csvPath.toAbsolutePath().toString())
 		);
