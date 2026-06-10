@@ -45,6 +45,7 @@ public final class DronePhysics {
 	private final double[] rotorImbalancePhases;
 	private final double[] rotorVortexBuffetPhases;
 	private final double[] rotorBladeStallBuffetPhases;
+	private final double[] rotorConingIntensity;
 	private final double[] heldEscOutputCommands;
 	private final double[] escCommandFrameClockSeconds;
 	private final double[] escCommandFrameAgeSeconds;
@@ -187,6 +188,7 @@ public final class DronePhysics {
 		this.rotorImbalancePhases = new double[config.rotors().size()];
 		this.rotorVortexBuffetPhases = new double[config.rotors().size()];
 		this.rotorBladeStallBuffetPhases = new double[config.rotors().size()];
+		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
 		this.escCommandFrameClockSeconds = new double[config.rotors().size()];
 		this.escCommandFrameAgeSeconds = new double[config.rotors().size()];
@@ -266,6 +268,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorImbalancePhases, 0.0);
 		Arrays.fill(rotorVortexBuffetPhases, 0.0);
 		Arrays.fill(rotorBladeStallBuffetPhases, 0.0);
+		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
 		Arrays.fill(escCommandFrameClockSeconds, 0.0);
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
@@ -576,7 +579,7 @@ public final class DronePhysics {
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
 					+ rotorPrecipitationLoad, 0.0, 2.0);
-			double coningIntensity = rotorConingIntensity(aerodynamicRotor, baseThrust, omega);
+			double coningIntensity = updateRotorConingIntensity(i, aerodynamicRotor, baseThrust, omega, dtSeconds);
 			aerodynamicLoadFactor = MathUtil.clamp(aerodynamicLoadFactor + rotorConingLoadFactor(coningIntensity), 0.0, 2.0);
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);
 			rotorVibrationSum += rotorLowReynoldsVibration(lowReynoldsLoss, omega, aerodynamicRotor);
@@ -2074,7 +2077,31 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.018 * loss * (0.25 + 0.75 * spinRatio), 0.0, 0.024);
 	}
 
-	private static double rotorConingIntensity(RotorSpec rotor, double thrustNewtons, double omegaRadiansPerSecond) {
+	private double updateRotorConingIntensity(
+			int index,
+			RotorSpec rotor,
+			double thrustNewtons,
+			double omegaRadiansPerSecond,
+			double dtSeconds
+	) {
+		double targetConing = rotorConingTargetIntensity(rotor, thrustNewtons, omegaRadiansPerSecond);
+		if (dtSeconds <= 0.0) {
+			return rotorConingIntensity[index];
+		}
+
+		double previousConing = rotorConingIntensity[index];
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double centrifugalStiffening = 1.0 + 0.35 * spinRatio;
+		double baseTimeConstant = targetConing > previousConing ? 0.030 : 0.070;
+		double timeConstant = MathUtil.clamp(baseTimeConstant * Math.sqrt(radiusScale) / centrifugalStiffening, 0.012, 0.160);
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double coning = previousConing + (targetConing - previousConing) * alpha;
+		rotorConingIntensity[index] = MathUtil.clamp(coning, 0.0, 1.0);
+		return rotorConingIntensity[index];
+	}
+
+	private static double rotorConingTargetIntensity(RotorSpec rotor, double thrustNewtons, double omegaRadiansPerSecond) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		double thrustFraction = MathUtil.clamp(thrustNewtons / Math.max(1.0e-6, rotor.maxThrustNewtons()), 0.0, 1.35);
 		if (spinRatio <= 0.10 || thrustFraction <= 0.05) {

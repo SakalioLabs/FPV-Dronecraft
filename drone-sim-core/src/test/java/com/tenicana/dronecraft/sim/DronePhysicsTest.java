@@ -875,6 +875,59 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorConingBuildsAfterHighLoadStep() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 160.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput highThrottle = new DroneInput(0.96, 0.0, 0.0, 0.0, true);
+		double earlyRatio = 0.0;
+		int earlySamples = 0;
+		double settledRatio = 0.0;
+		int settledSamples = 0;
+
+		for (int i = 0; i < 260; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.step(highThrottle, 0.0025);
+			double ratio = rotorEffectiveThrustRatio(physics, 0);
+			if (i >= 10 && i < 28) {
+				earlyRatio += ratio;
+				earlySamples++;
+			}
+			if (i >= 210) {
+				settledRatio += ratio;
+				settledSamples++;
+			}
+		}
+
+		earlyRatio /= earlySamples;
+		settledRatio /= settledSamples;
+		double observedEarlyRatio = earlyRatio;
+		double observedSettledRatio = settledRatio;
+		assertTrue(observedEarlyRatio > observedSettledRatio + 0.004,
+				() -> "earlyRatio=" + observedEarlyRatio + " settledRatio=" + observedSettledRatio);
+	}
+
+	@Test
 	void rotorImbalanceRaisesVibrationAndCurrentRipple() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withRotorImbalanceIntensity(0.0)
@@ -5766,6 +5819,13 @@ class DronePhysicsTest {
 			sum += value;
 		}
 		return thrust.length == 0 ? 0.0 : sum / thrust.length;
+	}
+
+	private static double rotorEffectiveThrustRatio(DronePhysics physics, int rotorIndex) {
+		RotorSpec rotor = physics.config().rotors().get(rotorIndex);
+		double omega = physics.state().motorOmegaRadiansPerSecond(rotorIndex);
+		double idealThrust = rotor.thrustCoefficient() * omega * omega;
+		return idealThrust <= 1.0e-9 ? 0.0 : physics.state().rotorThrustNewtons(rotorIndex) / idealThrust;
 	}
 
 	private static double densityNormalizedRotorThrust(DroneConfig config, DroneState state, double airDensityRatio) {
