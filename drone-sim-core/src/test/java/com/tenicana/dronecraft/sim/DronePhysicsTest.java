@@ -5196,6 +5196,76 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void bodyYawRateCouplesIntoRotorAerodynamicBladeSpeed() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad()), zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics noYaw = new DronePhysics(config);
+		DronePhysics yawing = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		Vec3 yawRate = new Vec3(0.0, Math.toRadians(1600.0), 0.0);
+		double noYawPositiveThrust = 0.0;
+		double noYawNegativeThrust = 0.0;
+		double yawPositiveThrust = 0.0;
+		double yawNegativeThrust = 0.0;
+		double yawPositiveAdvance = 0.0;
+		double yawNegativeAdvance = 0.0;
+		int samples = 0;
+
+		for (int i = 0; i < 260; i++) {
+			noYaw.state().setOrientation(Quaternion.IDENTITY);
+			yawing.state().setOrientation(Quaternion.IDENTITY);
+			noYaw.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			yawing.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			noYaw.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			yawing.state().setAngularVelocityBodyRadiansPerSecond(yawRate);
+			noYaw.step(hover, 0.005);
+			yawing.step(hover, 0.005);
+
+			if (i >= 120) {
+				noYawPositiveThrust += averageRotorThrustForSpin(noYaw, 1);
+				noYawNegativeThrust += averageRotorThrustForSpin(noYaw, -1);
+				yawPositiveThrust += averageRotorThrustForSpin(yawing, 1);
+				yawNegativeThrust += averageRotorThrustForSpin(yawing, -1);
+				yawPositiveAdvance += averageRotorAdvanceForSpin(yawing, 1);
+				yawNegativeAdvance += averageRotorAdvanceForSpin(yawing, -1);
+				samples++;
+			}
+		}
+
+		noYawPositiveThrust /= samples;
+		noYawNegativeThrust /= samples;
+		yawPositiveThrust /= samples;
+		yawNegativeThrust /= samples;
+		yawPositiveAdvance /= samples;
+		yawNegativeAdvance /= samples;
+		double observedYawPositiveThrust = yawPositiveThrust;
+		double observedYawNegativeThrust = yawNegativeThrust;
+		double observedYawPositiveAdvance = yawPositiveAdvance;
+		double observedYawNegativeAdvance = yawNegativeAdvance;
+
+		assertEquals(noYawPositiveThrust, noYawNegativeThrust, 0.04);
+		assertTrue(observedYawPositiveThrust > observedYawNegativeThrust * 1.16,
+				() -> "yawPositiveThrust=" + observedYawPositiveThrust
+						+ " yawNegativeThrust=" + observedYawNegativeThrust);
+		assertTrue(observedYawNegativeAdvance > observedYawPositiveAdvance + 0.010,
+				() -> "yawPositiveAdvance=" + observedYawPositiveAdvance
+						+ " yawNegativeAdvance=" + observedYawNegativeAdvance);
+	}
+
+	@Test
 	void rotorBladeStallReducesThrustAndAddsVibrationAtHighAdvanceRatio() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -6598,6 +6668,30 @@ class DronePhysicsTest {
 			sum += value;
 		}
 		return thrust.length == 0 ? 0.0 : sum / thrust.length;
+	}
+
+	private static double averageRotorThrustForSpin(DronePhysics physics, int spinDirection) {
+		double sum = 0.0;
+		int count = 0;
+		for (int i = 0; i < physics.config().rotors().size(); i++) {
+			if (Integer.signum(physics.config().rotors().get(i).spinDirection()) == Integer.signum(spinDirection)) {
+				sum += physics.state().rotorThrustNewtons(i);
+				count++;
+			}
+		}
+		return count == 0 ? 0.0 : sum / count;
+	}
+
+	private static double averageRotorAdvanceForSpin(DronePhysics physics, int spinDirection) {
+		double sum = 0.0;
+		int count = 0;
+		for (int i = 0; i < physics.config().rotors().size(); i++) {
+			if (Integer.signum(physics.config().rotors().get(i).spinDirection()) == Integer.signum(spinDirection)) {
+				sum += physics.state().rotorAdvanceRatio(i);
+				count++;
+			}
+		}
+		return count == 0 ? 0.0 : sum / count;
 	}
 
 	private static double rotorEffectiveThrustRatio(DronePhysics physics, int rotorIndex) {
