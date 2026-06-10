@@ -93,6 +93,7 @@ public final class DronePhysics {
 	private Vec3 dynamicPressureCenterOffsetBodyFiltered = Vec3.ZERO;
 	private Vec3 airframeLiftForceBodyFiltered = Vec3.ZERO;
 	private Vec3 airframeDragForceBodyFiltered = Vec3.ZERO;
+	private Vec3 groundEffectDragForceBodyFiltered = Vec3.ZERO;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -4373,7 +4374,7 @@ public final class DronePhysics {
 		Vec3 relativeAirVelocity = velocity.subtract(effectiveWindVelocityWorld);
 		Vec3 velocityBody = state.orientation().conjugate().rotate(relativeAirVelocity);
 		double effectiveAirDensity = environment.effectiveAirDensityRatio();
-		Vec3 groundEffectDragBody = calculateGroundEffectDragForce(totalForceBody, velocityBody, environment);
+		Vec3 groundEffectDragBody = updateGroundEffectDragForce(totalForceBody, velocityBody, environment, dtSeconds);
 		state.setGroundEffectDragForceBodyNewtons(groundEffectDragBody);
 		Vec3 thrustWorld = state.orientation().rotate(totalForceBody.add(airframeLiftBody).add(groundEffectDragBody).add(rotorWashDragBody));
 		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * relativeAirVelocity.length() * effectiveAirDensity);
@@ -4588,7 +4589,41 @@ public final class DronePhysics {
 		);
 	}
 
-	private Vec3 calculateGroundEffectDragForce(Vec3 totalForceBody, Vec3 relativeAirVelocityBody, DroneEnvironment environment) {
+	private Vec3 updateGroundEffectDragForce(
+			Vec3 totalForceBody,
+			Vec3 relativeAirVelocityBody,
+			DroneEnvironment environment,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyGroundEffectDragForce(totalForceBody, relativeAirVelocityBody, environment);
+		if (dtSeconds <= 0.0) {
+			groundEffectDragForceBodyFiltered = target;
+			return groundEffectDragForceBodyFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = groundEffectDragForceBodyFiltered.length();
+		double proximity = config.groundEffectHeightMeters() <= 1.0e-6
+				? 0.0
+				: 1.0 - MathUtil.clamp(
+						environment.groundClearanceMeters() / Math.max(1.0e-6, config.groundEffectHeightMeters()),
+						0.0,
+						1.0
+				);
+		double buildTimeConstant = MathUtil.clamp(0.045 - 0.014 * proximity, 0.026, 0.050);
+		double releaseTimeConstant = MathUtil.clamp(0.115 + 0.035 * proximity, 0.085, 0.155);
+		double timeConstant = targetMagnitude > previousMagnitude ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		groundEffectDragForceBodyFiltered = groundEffectDragForceBodyFiltered
+				.add(target.subtract(groundEffectDragForceBodyFiltered).multiply(alpha))
+				.clamp(-14.0, 14.0);
+		if (targetMagnitude <= 1.0e-6 && groundEffectDragForceBodyFiltered.lengthSquared() < 1.0e-8) {
+			groundEffectDragForceBodyFiltered = Vec3.ZERO;
+		}
+		return groundEffectDragForceBodyFiltered;
+	}
+
+	private Vec3 calculateSteadyGroundEffectDragForce(Vec3 totalForceBody, Vec3 relativeAirVelocityBody, DroneEnvironment environment) {
 		if (config.groundEffectHeightMeters() <= 1.0e-6
 				|| environment.groundClearanceMeters() >= config.groundEffectHeightMeters()) {
 			return Vec3.ZERO;

@@ -3940,12 +3940,14 @@ class DronePhysicsTest {
 		}
 
 		Vec3 lateralVelocity = new Vec3(12.0, 0.0, 3.0);
-		freeAir.state().setOrientation(Quaternion.IDENTITY);
-		nearGround.state().setOrientation(Quaternion.IDENTITY);
-		freeAir.state().setVelocityMetersPerSecond(lateralVelocity);
-		nearGround.state().setVelocityMetersPerSecond(lateralVelocity);
-		freeAir.step(hover, 0.005);
-		nearGround.step(hover, 0.005, nearSurface);
+		for (int i = 0; i < 70; i++) {
+			freeAir.state().setOrientation(Quaternion.IDENTITY);
+			nearGround.state().setOrientation(Quaternion.IDENTITY);
+			freeAir.state().setVelocityMetersPerSecond(lateralVelocity);
+			nearGround.state().setVelocityMetersPerSecond(lateralVelocity);
+			freeAir.step(hover, 0.005);
+			nearGround.step(hover, 0.005, nearSurface);
+		}
 
 		Vec3 cushionDrag = nearGround.state().groundEffectDragForceBodyNewtons();
 		assertEquals(0.0, freeAir.state().groundEffectDragForceBodyNewtons().length(), 1.0e-9);
@@ -3954,6 +3956,55 @@ class DronePhysicsTest {
 		assertTrue(cushionDrag.z() < -0.1);
 		assertTrue(nearGround.state().linearAccelerationWorldMetersPerSecondSquared().x()
 				< freeAir.state().linearAccelerationWorldMetersPerSecondSquared().x() - 0.4);
+	}
+
+	@Test
+	void groundEffectCushionDragBuildsAndReleasesWithPressureLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		DroneEnvironment freeAir = DroneEnvironment.calm();
+		DroneEnvironment nearSurface = new DroneEnvironment(Vec3.ZERO, 1.0, 0.08);
+		Vec3 lateralVelocity = new Vec3(12.0, 0.0, 3.0);
+
+		for (int i = 0; i < 100; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, nearSurface);
+		}
+
+		holdInCruise(physics, lateralVelocity);
+		physics.step(hover, 0.005, nearSurface);
+		Vec3 firstNearSurfaceDrag = physics.state().groundEffectDragForceBodyNewtons();
+
+		for (int i = 0; i < 70; i++) {
+			holdInCruise(physics, lateralVelocity);
+			physics.step(hover, 0.005, nearSurface);
+		}
+		Vec3 settledNearSurfaceDrag = physics.state().groundEffectDragForceBodyNewtons();
+
+		holdInCruise(physics, lateralVelocity);
+		physics.step(hover, 0.005, freeAir);
+		Vec3 lingeringFreeAirDrag = physics.state().groundEffectDragForceBodyNewtons();
+
+		for (int i = 0; i < 220; i++) {
+			holdInCruise(physics, lateralVelocity);
+			physics.step(hover, 0.005, freeAir);
+		}
+		Vec3 recoveredFreeAirDrag = physics.state().groundEffectDragForceBodyNewtons();
+
+		assertTrue(firstNearSurfaceDrag.x() < -0.05,
+				() -> "firstNearSurfaceDrag=" + firstNearSurfaceDrag);
+		assertTrue(settledNearSurfaceDrag.x() < firstNearSurfaceDrag.x() - 0.50,
+				() -> "firstNearSurfaceDrag=" + firstNearSurfaceDrag
+						+ " settledNearSurfaceDrag=" + settledNearSurfaceDrag);
+		assertTrue(lingeringFreeAirDrag.x() < recoveredFreeAirDrag.x() - 0.45,
+				() -> "lingeringFreeAirDrag=" + lingeringFreeAirDrag
+						+ " recoveredFreeAirDrag=" + recoveredFreeAirDrag);
+		assertTrue(recoveredFreeAirDrag.length() < 0.03,
+				() -> "recoveredFreeAirDrag=" + recoveredFreeAirDrag);
 	}
 
 	@Test
