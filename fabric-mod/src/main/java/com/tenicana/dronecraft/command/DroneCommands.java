@@ -396,6 +396,7 @@ public final class DroneCommands {
 				drone.getVortexRingStateIntensity(),
 				drone.getRotorTranslationalLiftIntensity(),
 				drone.getRotorAdvanceRatio(),
+				drone.getRotorTipMach(),
 				drone.getRotorInflowSkewIntensity(),
 				drone.getRotorWakeInterferenceIntensity(),
 				drone.getDroneWakeIntensity(),

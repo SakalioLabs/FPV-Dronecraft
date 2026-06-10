@@ -122,6 +122,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_SURFACE_SCRAPE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_TRANSLATIONAL_LIFT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_ADVANCE_RATIO = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_TIP_MACH = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_INFLOW_SKEW = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_INTERFERENCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MIXER_SATURATION = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -370,6 +371,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_SURFACE_SCRAPE, 0.0f);
 		builder.define(ROTOR_TRANSLATIONAL_LIFT, 0.0f);
 		builder.define(ROTOR_ADVANCE_RATIO, 0.0f);
+		builder.define(ROTOR_TIP_MACH, 0.0f);
 		builder.define(ROTOR_INFLOW_SKEW, 0.0f);
 		builder.define(ROTOR_WAKE_INTERFERENCE, 0.0f);
 		builder.define(MIXER_SATURATION, 0.0f);
@@ -1082,6 +1084,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_SURFACE_SCRAPE, (float) physics.state().maxRotorSurfaceScrapeIntensity());
 		entityData.set(ROTOR_TRANSLATIONAL_LIFT, (float) physics.state().averageRotorTranslationalLiftIntensity());
 		entityData.set(ROTOR_ADVANCE_RATIO, (float) physics.state().maxRotorAdvanceRatio());
+		entityData.set(ROTOR_TIP_MACH, (float) physics.state().maxRotorTipMach());
 		entityData.set(ROTOR_INFLOW_SKEW, (float) physics.state().rotorInflowSkewIntensity());
 		entityData.set(ROTOR_WAKE_INTERFERENCE, (float) physics.state().maxRotorWakeInterferenceIntensity());
 		entityData.set(MIXER_SATURATION, (float) physics.state().mixerSaturation());
@@ -1750,6 +1753,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorAdvanceRatio() {
 		return entityData.get(ROTOR_ADVANCE_RATIO);
+	}
+
+	public float getRotorTipMach() {
+		return entityData.get(ROTOR_TIP_MACH);
 	}
 
 	public float getRotorInflowSkewIntensity() {
