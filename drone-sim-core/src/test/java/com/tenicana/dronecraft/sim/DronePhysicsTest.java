@@ -723,6 +723,9 @@ class DronePhysicsTest {
 		);
 		assertTrue(clean.state().rotorVibration() > 0.002, () -> "clean vibration=" + clean.state().rotorVibration());
 		assertTrue(obstructed.state().rotorVibration() > clean.state().rotorVibration() + 0.006);
+		assertTrue(clean.state().averageRotorBladePassRippleIntensity() > 0.003);
+		assertTrue(obstructed.state().rotorBladePassRippleIntensity(0)
+				> clean.state().rotorBladePassRippleIntensity(0) + 0.003);
 	}
 
 	@Test
@@ -4124,6 +4127,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_element_stall"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_dissymmetry"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_pass_ripple"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_pass_ripple"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_flapping_tilt_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flapping_tilt_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("flight_mode"));
@@ -4233,6 +4238,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_blade_element_stall")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_blade_dissymmetry")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_pass_ripple")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_blade_pass_ripple")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_flapping_tilt_deg")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_flapping_tilt_deg")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_hz")])));
@@ -4352,6 +4359,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_element_stall"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_dissymmetry"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_pass_ripple"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flapping_tilt_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_interference"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_mps"));
@@ -4374,6 +4382,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")])));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);

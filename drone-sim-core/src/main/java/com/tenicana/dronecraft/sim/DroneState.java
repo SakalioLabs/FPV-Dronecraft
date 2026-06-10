@@ -89,6 +89,7 @@ public final class DroneState {
 	private double[] rotorBladeAngleOfAttackRadians;
 	private double[] rotorBladeElementStallIntensity;
 	private double[] rotorBladeDissymmetryIntensity;
+	private double[] rotorBladePassRippleIntensity;
 	private double[] rotorAerodynamicLoadFactor;
 	private double[] rotorFlappingForceNewtons;
 	private double[] rotorFlappingTiltRadians;
@@ -182,6 +183,7 @@ public final class DroneState {
 		rotorBladeAngleOfAttackRadians = new double[motorCount];
 		rotorBladeElementStallIntensity = new double[motorCount];
 		rotorBladeDissymmetryIntensity = new double[motorCount];
+		rotorBladePassRippleIntensity = new double[motorCount];
 		rotorAerodynamicLoadFactor = new double[motorCount];
 		rotorFlappingForceNewtons = new double[motorCount];
 		rotorFlappingTiltRadians = new double[motorCount];
@@ -1181,6 +1183,7 @@ public final class DroneState {
 		Arrays.fill(rotorBladeAngleOfAttackRadians, 0.0);
 		Arrays.fill(rotorBladeElementStallIntensity, 0.0);
 		Arrays.fill(rotorBladeDissymmetryIntensity, 0.0);
+		Arrays.fill(rotorBladePassRippleIntensity, 0.0);
 		Arrays.fill(rotorAerodynamicLoadFactor, 0.0);
 		Arrays.fill(rotorFlappingForceNewtons, 0.0);
 		Arrays.fill(rotorFlappingTiltRadians, 0.0);
@@ -1436,6 +1439,34 @@ public final class DroneState {
 	public double maxRotorBladeDissymmetryIntensity() {
 		double max = 0.0;
 		for (double intensity : rotorBladeDissymmetryIntensity) {
+			max = Math.max(max, intensity);
+		}
+		return max;
+	}
+
+	public double rotorBladePassRippleIntensity(int index) {
+		return rotorBladePassRippleIntensity[index];
+	}
+
+	public double[] rotorBladePassRippleIntensity() {
+		return Arrays.copyOf(rotorBladePassRippleIntensity, rotorBladePassRippleIntensity.length);
+	}
+
+	void setRotorBladePassRippleIntensity(int index, double value) {
+		rotorBladePassRippleIntensity[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorBladePassRippleIntensity() {
+		double sum = 0.0;
+		for (double intensity : rotorBladePassRippleIntensity) {
+			sum += intensity;
+		}
+		return sum / rotorBladePassRippleIntensity.length;
+	}
+
+	public double maxRotorBladePassRippleIntensity() {
+		double max = 0.0;
+		for (double intensity : rotorBladePassRippleIntensity) {
 			max = Math.max(max, intensity);
 		}
 		return max;

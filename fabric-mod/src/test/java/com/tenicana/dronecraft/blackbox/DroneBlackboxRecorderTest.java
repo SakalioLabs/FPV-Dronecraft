@@ -114,6 +114,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_7_blade_element_stall"));
 		assertTrue(csv.contains("rotor_blade_dissymmetry"));
 		assertTrue(csv.contains("rotor_7_blade_dissymmetry"));
+		assertTrue(csv.contains("rotor_blade_pass_ripple"));
+		assertTrue(csv.contains("rotor_7_blade_pass_ripple"));
 		assertTrue(csv.contains("rotor_flapping_tilt_deg"));
 		assertTrue(csv.contains("rotor_7_flapping_tilt_deg"));
 		assertTrue(csv.contains("rotor_aerodynamic_load"));
@@ -306,6 +308,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_0_blade_aoa_deg")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_blade_element_stall")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_blade_dissymmetry")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_blade_pass_ripple")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_flapping_tilt_deg")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_0_force_y_n")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_force_z_n")]));
@@ -517,6 +520,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) > 0.15);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) > 0.10);
@@ -595,6 +599,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);

@@ -462,6 +462,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_blade_dissymmetry",
 			"rotor_6_blade_dissymmetry",
 			"rotor_7_blade_dissymmetry",
+			"rotor_blade_pass_ripple",
+			"rotor_0_blade_pass_ripple",
+			"rotor_1_blade_pass_ripple",
+			"rotor_2_blade_pass_ripple",
+			"rotor_3_blade_pass_ripple",
+			"rotor_4_blade_pass_ripple",
+			"rotor_5_blade_pass_ripple",
+			"rotor_6_blade_pass_ripple",
+			"rotor_7_blade_pass_ripple",
 			"rotor_flapping_tilt_deg",
 			"rotor_0_flapping_tilt_deg",
 			"rotor_1_flapping_tilt_deg",
@@ -1202,6 +1211,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorBladeAngleOfAttack = state.rotorBladeAngleOfAttackRadians();
 		double[] rotorBladeElementStall = state.rotorBladeElementStallIntensity();
 		double[] rotorBladeDissymmetry = state.rotorBladeDissymmetryIntensity();
+		double[] rotorBladePassRipple = state.rotorBladePassRippleIntensity();
 		double[] rotorFlappingTilt = state.rotorFlappingTiltRadians();
 		double[] motorElectricalEfficiency = state.motorElectricalEfficiency();
 		double[] motorVoltageHeadroom = state.motorVoltageHeadroom();
@@ -1293,6 +1303,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.averageRotorBladeDissymmetryIntensity(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorBladeDissymmetry, i), "%.5f");
+		}
+		appendExtra(builder, state.averageRotorBladePassRippleIntensity(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorBladePassRipple, i), "%.5f");
 		}
 		appendExtra(builder, Math.toDegrees(state.averageRotorFlappingTiltRadians()), "%.4f");
 		for (int i = 0; i < 8; i++) {

@@ -108,9 +108,10 @@ public final class DronePhysics {
 
 	private record RotorBladePassRipple(
 			double thrustScale,
-			double vibration
+			double vibration,
+			double intensity
 	) {
-		private static final RotorBladePassRipple IDLE = new RotorBladePassRipple(1.0, 0.0);
+		private static final RotorBladePassRipple IDLE = new RotorBladePassRipple(1.0, 0.0, 0.0);
 	}
 
 	private record RotorWakeInterference(
@@ -546,6 +547,7 @@ public final class DronePhysics {
 			);
 			double thrust = nominalThrust * bladePassRipple.thrustScale();
 			state.setRotorThrustNewtons(i, thrust);
+			state.setRotorBladePassRippleIntensity(i, bladePassRipple.intensity());
 			rotorVibrationSum += bladePassRipple.vibration();
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, omega, thrust, dtSeconds);
@@ -1944,7 +1946,7 @@ public final class DronePhysics {
 
 		double thrustScale = MathUtil.clamp(1.0 + amplitude * bladePassWave, 0.92, 1.08);
 		double vibration = MathUtil.clamp(amplitude * (0.25 + 0.75 * Math.abs(bladePassWave)), 0.0, 0.075);
-		return new RotorBladePassRipple(thrustScale, vibration);
+		return new RotorBladePassRipple(thrustScale, vibration, amplitude);
 	}
 
 	private static double rotorAdvanceRatio(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
