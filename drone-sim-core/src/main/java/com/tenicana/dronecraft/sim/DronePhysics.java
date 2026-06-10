@@ -3612,11 +3612,43 @@ public final class DronePhysics {
 	}
 
 	private Vec3 calculateAirframeBodyDragForce(Vec3 relativeAirVelocityBody, double airDensityRatio) {
-		return new Vec3(
+		Vec3 baseDrag = new Vec3(
 				-config.bodyDragCoefficients().x() * MathUtil.squareSigned(relativeAirVelocityBody.x()),
 				-config.bodyDragCoefficients().y() * MathUtil.squareSigned(relativeAirVelocityBody.y()),
 				-config.bodyDragCoefficients().z() * MathUtil.squareSigned(relativeAirVelocityBody.z())
-		).multiply(Math.max(0.0, airDensityRatio));
+		);
+		return baseDrag
+				.add(calculateAirframeSeparatedFlowDragForce(relativeAirVelocityBody))
+				.multiply(Math.max(0.0, airDensityRatio));
+	}
+
+	private Vec3 calculateAirframeSeparatedFlowDragForce(Vec3 relativeAirVelocityBody) {
+		double speedSquared = relativeAirVelocityBody.lengthSquared();
+		if (speedSquared <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 drag = config.bodyDragCoefficients();
+		double maxBroadsideDrag = Math.max(drag.x(), drag.y());
+		if (maxBroadsideDrag <= 1.0e-9 || drag.z() <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
+		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
+		double sideSlip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
+		double pitchSeparation = smoothStep(Math.toRadians(30.0), Math.toRadians(66.0), Math.abs(angleOfAttack));
+		double yawSeparation = smoothStep(Math.toRadians(32.0), Math.toRadians(68.0), Math.abs(sideSlip));
+		double separation = MathUtil.clamp(1.0 - (1.0 - pitchSeparation) * (1.0 - yawSeparation), 0.0, 1.0);
+		if (separation <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double broadsideCoefficient = 0.20 * maxBroadsideDrag
+				+ 0.14 * Math.sqrt(Math.max(0.0, (drag.x() + drag.y()) * drag.z()));
+		return relativeAirVelocityBody.normalized()
+				.multiply(-speedSquared * broadsideCoefficient * separation)
+				.clamp(-38.0, 38.0);
 	}
 
 	private Vec3 calculateWaterImmersionDragForce(Vec3 velocityWorld, DroneEnvironment environment) {

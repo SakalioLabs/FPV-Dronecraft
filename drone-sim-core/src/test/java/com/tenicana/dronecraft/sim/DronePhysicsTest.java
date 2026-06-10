@@ -1361,6 +1361,28 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void highSideslipAirframeSeparationAddsBroadsideDragRise() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.04));
+		DronePhysics shallowSlip = new DronePhysics(config);
+		DronePhysics highSlip = new DronePhysics(config);
+		Vec3 shallowVelocity = new Vec3(2.0, 0.0, 4.0);
+		Vec3 highSlipVelocity = new Vec3(18.0, 0.0, 4.0);
+		shallowSlip.state().setVelocityMetersPerSecond(shallowVelocity);
+		highSlip.state().setVelocityMetersPerSecond(highSlipVelocity);
+
+		shallowSlip.step(DroneInput.idle(), 0.005);
+		highSlip.step(DroneInput.idle(), 0.005);
+
+		assertTrue(Math.toDegrees(shallowSlip.state().sideslipRadians()) < 32.0);
+		assertTrue(Math.toDegrees(highSlip.state().sideslipRadians()) > 75.0);
+		assertTrue(highSlip.state().linearAccelerationWorldMetersPerSecondSquared().z()
+				< shallowSlip.state().linearAccelerationWorldMetersPerSecondSquared().z() - 4.0);
+		assertTrue(highSlip.state().velocityMetersPerSecond().z() < highSlipVelocity.z() - 0.02);
+	}
+
+	@Test
 	void turbulenceEnvironmentAddsDeterministicDisturbanceTorque() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics calm = new DronePhysics(config);
