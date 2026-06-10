@@ -92,6 +92,7 @@ public final class DronePhysics {
 	private Vec3 rotorWashAirframeAngularDampingFiltered = Vec3.ZERO;
 	private Vec3 dynamicPressureCenterOffsetBodyFiltered = Vec3.ZERO;
 	private Vec3 airframeLiftForceBodyFiltered = Vec3.ZERO;
+	private Vec3 airframeDragForceBodyFiltered = Vec3.ZERO;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -365,6 +366,7 @@ public final class DronePhysics {
 		updateAerodynamicTelemetry(relativeAirVelocityBody);
 		updateAirframeSeparatedFlowIntensity(relativeAirVelocityBody, dtSeconds);
 		Vec3 airframeLiftBody = updateAirframeLiftForce(relativeAirVelocityBody, airDensity, dtSeconds);
+		Vec3 airframeDragBody = updateAirframeBodyDragForce(relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
 		RotorWakeInterference rotorWakeInterference = calculateRotorWakeInterference(input.armed(), relativeAirVelocityBody);
@@ -749,7 +751,7 @@ public final class DronePhysics {
 
 		Vec3 rotorWashDragBody = updateRotorWashDragForce(totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragBody);
-		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, rotorWashDragBody, airframeLiftBody, airDensity, dtSeconds);
+		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, airDensity, dtSeconds);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
@@ -757,7 +759,7 @@ public final class DronePhysics {
 				.add(airframeTorqueBody)
 				.add(calculatePropwashTorque(input, relativeAirVelocityBody, angularVelocityBody, dtSeconds))
 				.add(turbulenceTorqueBody);
-		integrateLinear(totalForceBody, rotorWashDragBody, airframeLiftBody, environment, effectiveWindVelocityWorld, dtSeconds);
+		integrateLinear(totalForceBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, environment, effectiveWindVelocityWorld, dtSeconds);
 		updateBarometerMeasurement(environment, dtSeconds);
 		updateAccelerometerMeasurement(dtSeconds);
 		integrateAngular(totalTorqueBody, totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
@@ -3316,6 +3318,7 @@ public final class DronePhysics {
 			Vec3 relativeAirVelocityBody,
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
+			Vec3 airframeDragForceBody,
 			double airDensityRatio,
 			double dtSeconds
 	) {
@@ -3324,6 +3327,7 @@ public final class DronePhysics {
 				relativeAirVelocityBody,
 				rotorWashDragForceBody,
 				airframeLiftForceBody,
+				airframeDragForceBody,
 				airDensityRatio,
 				dtSeconds
 		);
@@ -3406,6 +3410,7 @@ public final class DronePhysics {
 			Vec3 relativeAirVelocityBody,
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
+			Vec3 airframeDragForceBody,
 			double airDensityRatio,
 			double dtSeconds
 	) {
@@ -3417,7 +3422,7 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		Vec3 airframeForceBody = calculateAirframeBodyDragForce(relativeAirVelocityBody, airDensityRatio)
+		Vec3 airframeForceBody = airframeDragForceBody
 				.add(airframeLiftForceBody)
 				.add(rotorWashDragForceBody);
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
@@ -4358,6 +4363,7 @@ public final class DronePhysics {
 			Vec3 totalForceBody,
 			Vec3 rotorWashDragBody,
 			Vec3 airframeLiftBody,
+			Vec3 bodyDrag,
 			DroneEnvironment environment,
 			Vec3 effectiveWindVelocityWorld,
 			double dtSeconds
@@ -4370,7 +4376,6 @@ public final class DronePhysics {
 		Vec3 groundEffectDragBody = calculateGroundEffectDragForce(totalForceBody, velocityBody, environment);
 		state.setGroundEffectDragForceBodyNewtons(groundEffectDragBody);
 		Vec3 thrustWorld = state.orientation().rotate(totalForceBody.add(airframeLiftBody).add(groundEffectDragBody).add(rotorWashDragBody));
-		Vec3 bodyDrag = calculateAirframeBodyDragForce(velocityBody, effectiveAirDensity);
 		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * relativeAirVelocity.length() * effectiveAirDensity);
 		Vec3 waterDrag = calculateWaterImmersionDragForce(velocity, environment);
 		Vec3 drag = state.orientation().rotate(bodyDrag).add(isotropicDrag).add(waterDrag);
@@ -4384,7 +4389,31 @@ public final class DronePhysics {
 		state.setPositionMeters(position);
 	}
 
-	private Vec3 calculateAirframeBodyDragForce(Vec3 relativeAirVelocityBody, double airDensityRatio) {
+	private Vec3 updateAirframeBodyDragForce(Vec3 relativeAirVelocityBody, double airDensityRatio, double dtSeconds) {
+		Vec3 target = calculateSteadyAirframeBodyDragForce(relativeAirVelocityBody, airDensityRatio);
+		if (dtSeconds <= 0.0) {
+			airframeDragForceBodyFiltered = target;
+			return airframeDragForceBodyFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = airframeDragForceBodyFiltered.length();
+		double airspeed = relativeAirVelocityBody == null ? 0.0 : relativeAirVelocityBody.length();
+		double dynamicPressure = smoothStep(4.0, 22.0, airspeed);
+		double buildTimeConstant = MathUtil.clamp(0.045 - 0.014 * dynamicPressure, 0.024, 0.052);
+		double releaseTimeConstant = MathUtil.clamp(0.110 + 0.050 * (1.0 - dynamicPressure), 0.080, 0.160);
+		double timeConstant = targetMagnitude > previousMagnitude ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		airframeDragForceBodyFiltered = airframeDragForceBodyFiltered
+				.add(target.subtract(airframeDragForceBodyFiltered).multiply(alpha))
+				.clamp(-48.0, 48.0);
+		if (targetMagnitude <= 1.0e-6 && airframeDragForceBodyFiltered.lengthSquared() < 1.0e-8) {
+			airframeDragForceBodyFiltered = Vec3.ZERO;
+		}
+		return airframeDragForceBodyFiltered;
+	}
+
+	private Vec3 calculateSteadyAirframeBodyDragForce(Vec3 relativeAirVelocityBody, double airDensityRatio) {
 		Vec3 baseDrag = new Vec3(
 				-config.bodyDragCoefficients().x() * MathUtil.squareSigned(relativeAirVelocityBody.x()),
 				-config.bodyDragCoefficients().y() * MathUtil.squareSigned(relativeAirVelocityBody.y()),

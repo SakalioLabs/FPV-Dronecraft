@@ -1785,6 +1785,45 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void airframeBodyDragBuildsAndRecoversWithPressureLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));
+		DronePhysics physics = new DronePhysics(config);
+		Vec3 forwardVelocity = new Vec3(0.0, 0.0, 18.0);
+
+		holdInCruise(physics, forwardVelocity);
+		physics.step(DroneInput.idle(), 0.005);
+		double firstForwardAccelerationZ = physics.state().linearAccelerationWorldMetersPerSecondSquared().z();
+
+		for (int i = 0; i < 90; i++) {
+			holdInCruise(physics, forwardVelocity);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		double settledForwardAccelerationZ = physics.state().linearAccelerationWorldMetersPerSecondSquared().z();
+
+		holdInStillAir(physics);
+		physics.step(DroneInput.idle(), 0.005);
+		double lingeringStillAccelerationZ = physics.state().linearAccelerationWorldMetersPerSecondSquared().z();
+
+		for (int i = 0; i < 260; i++) {
+			holdInStillAir(physics);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		double recoveredStillAccelerationZ = physics.state().linearAccelerationWorldMetersPerSecondSquared().z();
+
+		assertTrue(firstForwardAccelerationZ < -2.0,
+				() -> "firstForwardAccelerationZ=" + firstForwardAccelerationZ);
+		assertTrue(settledForwardAccelerationZ < firstForwardAccelerationZ - 20.0,
+				() -> "firstForwardAccelerationZ=" + firstForwardAccelerationZ
+						+ " settledForwardAccelerationZ=" + settledForwardAccelerationZ);
+		assertTrue(lingeringStillAccelerationZ < recoveredStillAccelerationZ - 20.0,
+				() -> "lingeringStillAccelerationZ=" + lingeringStillAccelerationZ
+						+ " recoveredStillAccelerationZ=" + recoveredStillAccelerationZ);
+		assertEquals(0.0, recoveredStillAccelerationZ, 0.05);
+	}
+
+	@Test
 	void airframeSeparatedFlowBuildsAndRecoversWithLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -5055,11 +5094,13 @@ class DronePhysicsTest {
 		DronePhysics centered = new DronePhysics(base);
 		DronePhysics pressureHigh = new DronePhysics(base.withCenterOfPressureOffsetBodyMeters(new Vec3(0.0, 0.050, 0.0)));
 		Vec3 forwardAirspeed = new Vec3(0.0, 0.0, 24.0);
-		centered.state().setVelocityMetersPerSecond(forwardAirspeed);
-		pressureHigh.state().setVelocityMetersPerSecond(forwardAirspeed);
 
-		centered.step(DroneInput.idle(), 0.005);
-		pressureHigh.step(DroneInput.idle(), 0.005);
+		for (int i = 0; i < 90; i++) {
+			holdInCruise(centered, forwardAirspeed);
+			holdInCruise(pressureHigh, forwardAirspeed);
+			centered.step(DroneInput.idle(), 0.005);
+			pressureHigh.step(DroneInput.idle(), 0.005);
+		}
 
 		assertEquals(0.0, centered.state().airframePressureCenterTorqueBodyNewtonMeters().length(), 1.0e-9);
 		assertTrue(pressureHigh.state().airframePressureCenterTorqueBodyNewtonMeters().x() < -0.20);
