@@ -366,12 +366,14 @@ public final class DronePhysics {
 							* escOutput
 							* voltageScale
 							* powerLimitScale
+							* motorWindingTorqueTargetScale(i, escOutput)
 							* motorLoadTargetScale(state.rotorAerodynamicLoadFactor(i) + 0.70 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad, escOutput)
 							* rotorSurfaceScrapeTargetScale(surfaceScrape)
 					: 0.0;
 			state.setMotorTargetOmegaRadiansPerSecond(i, targetOmega);
 			double previousOmega = state.motorOmegaRadiansPerSecond(i);
 			double motorAlpha = MathUtil.expSmoothing(dtSeconds, motorResponseTimeConstantSeconds(
+					i,
 					rotor,
 					previousOmega,
 					targetOmega,
@@ -971,6 +973,7 @@ public final class DronePhysics {
 	}
 
 	private double motorResponseTimeConstantSeconds(
+			int index,
 			RotorSpec rotor,
 			double previousOmega,
 			double targetOmega,
@@ -993,9 +996,10 @@ public final class DronePhysics {
 			double voltageHeadroom = motorVoltageHeadroom(rotor, previousOmega, voltageScale);
 			double backEmfSaturation = 1.0 - smoothStep(0.08, 0.36, voltageHeadroom);
 			double backEmfFactor = 1.0 + 1.10 * backEmfSaturation * smoothStep(0.55, 0.92, escOutput);
+			double windingHeatFactor = MathUtil.clamp(Math.sqrt(motorWindingResistanceTemperatureScale(index)), 0.85, 1.35);
 			double authorityFactor = 1.0 / MathUtil.clamp(voltageAuthority * powerAuthority * escAuthority, 0.30, 1.08);
 			return MathUtil.clamp(
-					baseTimeConstant * inertiaFactor * loadDragFactor * authorityFactor * backEmfFactor,
+					baseTimeConstant * inertiaFactor * loadDragFactor * authorityFactor * backEmfFactor * windingHeatFactor,
 					baseTimeConstant * 0.55,
 					baseTimeConstant * 5.5
 			);
@@ -1086,7 +1090,7 @@ public final class DronePhysics {
 
 		double driveVoltage = motorDriveVoltage(escOutput, powerLimitScale);
 		double backEmfVoltage = motorBackEmfVoltage(rotor, previousOmega);
-		double windingResistanceOhms = inferredMotorWindingResistanceOhms();
+		double windingResistanceOhms = temperatureAdjustedMotorWindingResistanceOhms(index);
 		double torqueConstant = motorTorqueConstantNewtonMetersPerAmp(rotor);
 		double loadTorque = motorLoadTorqueEstimate(index, rotor, previousOmega, aerodynamicLoadFactor, surfaceScrapeIntensity);
 		double limitedAcceleration;
@@ -1241,6 +1245,23 @@ public final class DronePhysics {
 		double perMotorMaxCurrent = config.maxBatteryCurrentAmps() / Math.max(1, state.motorCount());
 		double stallCurrent = Math.max(1.0, perMotorMaxCurrent * MOTOR_STALL_CURRENT_SCALE);
 		return MathUtil.clamp(config.nominalBatteryVoltage() / stallCurrent, 0.025, 2.5);
+	}
+
+	private double temperatureAdjustedMotorWindingResistanceOhms(int index) {
+		return inferredMotorWindingResistanceOhms() * motorWindingResistanceTemperatureScale(index);
+	}
+
+	private double motorWindingResistanceTemperatureScale(int index) {
+		double windingTemperatureCelsius = state.motorTemperatureCelsius(index);
+		double temperatureRise = windingTemperatureCelsius - MOTOR_AMBIENT_TEMPERATURE_CELSIUS;
+		double scale = 1.0 + 0.0039 * temperatureRise;
+		return MathUtil.clamp(scale, 0.72, 1.90);
+	}
+
+	private double motorWindingTorqueTargetScale(int index, double escOutput) {
+		double hotWindingLoss = smoothStep(1.05, 1.62, motorWindingResistanceTemperatureScale(index));
+		double loadedDrive = smoothStep(0.30, 0.82, escOutput);
+		return MathUtil.clamp(1.0 - 0.14 * hotWindingLoss * loadedDrive, 0.82, 1.04);
 	}
 
 	private double motorLoadTorqueEstimate(
@@ -3999,7 +4020,7 @@ public final class DronePhysics {
 		);
 		double backEmfVoltage = motorBackEmfVoltage(rotor, state.motorOmegaRadiansPerSecond(index));
 		double windingVoltageDrop = Math.max(0.0, driveVoltage - backEmfVoltage);
-		double windingCurrent = windingVoltageDrop / inferredMotorWindingResistanceOhms();
+		double windingCurrent = windingVoltageDrop / temperatureAdjustedMotorWindingResistanceOhms(index);
 		double phaseCurrent = Math.max(0.0, windingCurrent);
 		double busVoltage = Math.max(1.0e-6, state.batteryVoltage());
 		double busEquivalentWindingCurrent = windingCurrent * MathUtil.clamp(windingVoltageDrop / busVoltage, 0.0, 1.0);
@@ -4066,11 +4087,13 @@ public final class DronePhysics {
 
 	private double motorElectricalEfficiency(int index, double rpmFraction, double aerodynamicLoadFactor) {
 		double escAuthority = MathUtil.clamp(0.35 + 0.65 * state.escOutputCommand(index), 0.0, 1.0);
+		double hotWindingLoss = smoothStep(1.05, 1.62, motorWindingResistanceTemperatureScale(index));
 		return MathUtil.clamp(
 				0.58
 						+ 0.22 * escAuthority
 						- 0.07 * Math.pow(1.0 - MathUtil.clamp(rpmFraction, 0.0, 1.15), 2.0)
 						- 0.05 * MathUtil.clamp(aerodynamicLoadFactor - 1.0, 0.0, 0.75)
+						- 0.055 * hotWindingLoss
 						- 0.05 * (1.0 - state.escThermalLimit(index))
 						- 0.06 * state.escDesyncIntensity(index)
 						- 0.026 * state.motorCommutationRippleIntensity(index),

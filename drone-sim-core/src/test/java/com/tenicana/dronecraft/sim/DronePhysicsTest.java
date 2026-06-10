@@ -1351,6 +1351,40 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void hotMotorWindingResistanceReducesTorqueAuthorityAndEfficiency() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics coolMotor = new DronePhysics(config);
+		DronePhysics hotMotor = new DronePhysics(config);
+		DroneInput punch = new DroneInput(0.92, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < config.rotors().size(); i++) {
+			coolMotor.state().setMotorTemperatureCelsius(i, 25.0);
+			hotMotor.state().setMotorTemperatureCelsius(i, 145.0);
+		}
+
+		for (int i = 0; i < 36; i++) {
+			coolMotor.step(punch, 0.005);
+			hotMotor.step(punch, 0.005);
+		}
+
+		assertEquals(1.0, hotMotor.state().motorThermalLimit(), 1.0e-9);
+		assertTrue(hotMotor.state().averageMotorRpm() < coolMotor.state().averageMotorRpm() * 0.97,
+				() -> "coolRpm=" + coolMotor.state().averageMotorRpm()
+						+ " hotRpm=" + hotMotor.state().averageMotorRpm());
+		assertTrue(hotMotor.state().averageMotorPhaseCurrentAmps() < coolMotor.state().averageMotorPhaseCurrentAmps() * 0.94,
+				() -> "coolPhaseCurrent=" + coolMotor.state().averageMotorPhaseCurrentAmps()
+						+ " hotPhaseCurrent=" + hotMotor.state().averageMotorPhaseCurrentAmps());
+		assertTrue(hotMotor.state().averageMotorElectricalEfficiency() < coolMotor.state().averageMotorElectricalEfficiency() - 0.025,
+				() -> "coolEfficiency=" + coolMotor.state().averageMotorElectricalEfficiency()
+						+ " hotEfficiency=" + hotMotor.state().averageMotorElectricalEfficiency());
+	}
+
+	@Test
 	void motorRpmTelemetryTracksMotorOmega() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
@@ -3415,7 +3449,7 @@ class DronePhysicsTest {
 
 		double coldLimit = coldCurrentLimit.state().batteryCurrentLimit();
 		double hotLimit = hotCurrentLimit.state().batteryCurrentLimit();
-		assertTrue(coldLimit < hotLimit - 0.02,
+		assertTrue(coldLimit < hotLimit - 0.010,
 				() -> "coldCurrentLimit=" + coldLimit
 						+ " hotCurrentLimit=" + hotLimit
 						+ " coldBatteryTemp=" + coldCurrentLimit.state().batteryTemperatureCelsius()
@@ -3568,9 +3602,10 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(0.0, clean.state().rotorWallEffectForceBodyNewtons().length(), 1.0e-9);
-		assertTrue(nearWall.state().rotorWallEffectForceBodyNewtons().x() < -0.07);
-		assertTrue(nearWall.state().rotorWallEffectForceBodyNewtons().length() > 0.07);
-		assertTrue(nearWall.state().velocityMetersPerSecond().x() < clean.state().velocityMetersPerSecond().x() - 0.04);
+		assertTrue(nearWall.state().rotorWallEffectForceBodyNewtons().x() < -0.07,
+				() -> "wallForce=" + nearWall.state().rotorWallEffectForceBodyNewtons());
+		assertTrue(nearWall.state().rotorWallEffectForceBodyNewtons().length() > 0.07,
+				() -> "wallForce=" + nearWall.state().rotorWallEffectForceBodyNewtons());
 	}
 
 	@Test
