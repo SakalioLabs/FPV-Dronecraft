@@ -1470,6 +1470,27 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void dirtyAirSourcesFeedWindTurbulenceTorque() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics obstructed = new DronePhysics(config);
+		DronePhysics nearGroundCrosswind = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 fastCruise = new Vec3(12.0, 1.0, 4.0);
+		clean.state().setVelocityMetersPerSecond(fastCruise);
+		obstructed.state().setVelocityMetersPerSecond(fastCruise);
+		nearGroundCrosswind.state().setVelocityMetersPerSecond(fastCruise);
+
+		clean.step(idle, 0.005, new DroneEnvironment(Vec3.ZERO, 1.0, 3.0, 0.0));
+		obstructed.step(idle, 0.005, new DroneEnvironment(Vec3.ZERO, 1.0, 3.0, 0.0, 1.0));
+		nearGroundCrosswind.step(idle, 0.005, new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 0.08, 0.0));
+
+		assertEquals(0.0, clean.state().windTurbulenceTorqueBodyNewtonMeters().length(), 1.0e-12);
+		assertTrue(obstructed.state().windTurbulenceTorqueBodyNewtonMeters().length() > 1.0e-4);
+		assertTrue(nearGroundCrosswind.state().windTurbulenceTorqueBodyNewtonMeters().length() > 1.0e-4);
+	}
+
+	@Test
 	void environmentClampsObstacleProximityTelemetry() {
 		DroneEnvironment low = new DroneEnvironment(Vec3.ZERO, 1.0, 10.0, 0.0, -0.25);
 		DroneEnvironment high = new DroneEnvironment(Vec3.ZERO, 1.0, 10.0, 0.0, 1.75);

@@ -1630,7 +1630,7 @@ public final class DronePhysics {
 	}
 
 	private Vec3 calculateWindTurbulenceTorque(DroneEnvironment environment, Vec3 relativeAirVelocityBody, double dtSeconds) {
-		double intensity = environment.turbulenceIntensity();
+		double intensity = dirtyAirIntensity(environment);
 		double airspeed = relativeAirVelocityBody.length();
 		if (intensity <= 1.0e-6 || airspeed <= 0.5) {
 			return Vec3.ZERO;
