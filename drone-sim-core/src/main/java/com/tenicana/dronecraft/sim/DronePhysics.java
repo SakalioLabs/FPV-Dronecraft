@@ -35,6 +35,7 @@ public final class DronePhysics {
 	private final double[] escDesyncPhases;
 	private final double[] motorCommutationPhases;
 	private final double[] rotorBladePassPhases;
+	private final double[] rotorImbalancePhases;
 	private final double[] heldEscOutputCommands;
 	private final double[] escCommandFrameClockSeconds;
 	private final double[] escCommandFrameAgeSeconds;
@@ -151,6 +152,7 @@ public final class DronePhysics {
 		this.escDesyncPhases = new double[config.rotors().size()];
 		this.motorCommutationPhases = new double[config.rotors().size()];
 		this.rotorBladePassPhases = new double[config.rotors().size()];
+		this.rotorImbalancePhases = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
 		this.escCommandFrameClockSeconds = new double[config.rotors().size()];
 		this.escCommandFrameAgeSeconds = new double[config.rotors().size()];
@@ -226,6 +228,7 @@ public final class DronePhysics {
 		Arrays.fill(escDesyncPhases, 0.0);
 		Arrays.fill(motorCommutationPhases, 0.0);
 		Arrays.fill(rotorBladePassPhases, 0.0);
+		Arrays.fill(rotorImbalancePhases, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
 		Arrays.fill(escCommandFrameClockSeconds, 0.0);
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
@@ -551,6 +554,7 @@ public final class DronePhysics {
 			rotorVibrationSum += bladePassRipple.vibration();
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, omega, thrust, dtSeconds);
+			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, omega, thrust, dtSeconds);
 			state.setRotorFlappingForceNewtons(i, Math.hypot(flappingForceBody.x(), flappingForceBody.z()));
 			Vec3 thrustAxisForceBody = forceBody.add(flappingForceBody);
 			Vec3 rotorDiskAxisBody = rotorDiskAxisBody(thrustAxisForceBody);
@@ -565,7 +569,7 @@ public final class DronePhysics {
 					environment.rotorFlowObstructionDirectionBody(i)
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
-			forceBody = thrustAxisForceBody.add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
+			forceBody = thrustAxisForceBody.add(imbalanceForceBody).add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
 			state.setRotorForceBodyNewtons(i, forceBody);
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
@@ -1947,6 +1951,55 @@ public final class DronePhysics {
 		double thrustScale = MathUtil.clamp(1.0 + amplitude * bladePassWave, 0.92, 1.08);
 		double vibration = MathUtil.clamp(amplitude * (0.25 + 0.75 * Math.abs(bladePassWave)), 0.0, 0.075);
 		return new RotorBladePassRipple(thrustScale, vibration, amplitude);
+	}
+
+	private Vec3 updateRotorImbalanceForce(
+			int index,
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double dtSeconds
+	) {
+		double imbalance = MathUtil.clamp(rotor.imbalanceIntensity(), 0.0, 0.35);
+		double absOmega = Math.abs(omegaRadiansPerSecond);
+		if (dtSeconds <= 0.0 || imbalance <= 1.0e-7 || absOmega <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double maxOmega = Math.max(1.0e-6, rotor.maxOmegaRadiansPerSecond());
+		double spinRatio = MathUtil.clamp(absOmega / maxOmega, 0.0, 1.15);
+		double activeSpin = smoothStep(0.06, 0.22, spinRatio);
+		if (activeSpin <= 1.0e-7) {
+			return Vec3.ZERO;
+		}
+
+		rotorImbalancePhases[index] = normalizeRadians(
+				rotorImbalancePhases[index] + Math.signum(rotor.spinDirection()) * absOmega * dtSeconds
+		);
+		Vec3 axis = rotorAxisBody(rotor);
+		Vec3 tangentA = BODY_RIGHT.subtract(axis.multiply(BODY_RIGHT.dot(axis))).normalized();
+		if (tangentA.lengthSquared() <= 1.0e-9) {
+			tangentA = BODY_FORWARD.subtract(axis.multiply(BODY_FORWARD.dot(axis))).normalized();
+		}
+		Vec3 tangentB = axis.cross(tangentA).normalized();
+		if (tangentA.lengthSquared() <= 1.0e-9 || tangentB.lengthSquared() <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double thrustReference = Math.max(
+				Math.max(0.0, thrustNewtons),
+				rotor.maxThrustNewtons() * spinRatio * spinRatio * 0.18
+		);
+		double forceMagnitude = thrustReference
+				* imbalance
+				* activeSpin
+				* spinRatio
+				* spinRatio
+				* (0.16 + 0.24 * spinRatio);
+		forceMagnitude = MathUtil.clamp(forceMagnitude, 0.0, rotor.maxThrustNewtons() * 0.08);
+		double phase = rotorImbalancePhases[index] + index * 1.37;
+		return tangentA.multiply(Math.cos(phase) * forceMagnitude)
+				.add(tangentB.multiply(Math.sin(phase) * forceMagnitude));
 	}
 
 	private static double rotorAdvanceRatio(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {

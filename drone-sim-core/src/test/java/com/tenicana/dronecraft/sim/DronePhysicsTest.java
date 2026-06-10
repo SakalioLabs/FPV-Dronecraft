@@ -753,6 +753,68 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorImbalanceInjectsRotatingLateralForceIntoAirframe() {
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withRotorImbalanceIntensity(0.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics balanced = new DronePhysics(base);
+		DronePhysics imbalanced = new DronePhysics(base.withRotorImbalanceIntensity(0.18));
+		DroneInput cruise = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+		double balancedMaxLateralForce = 0.0;
+		double imbalancedMaxLateralForce = 0.0;
+		double balancedMinYawTorque = Double.POSITIVE_INFINITY;
+		double balancedMaxYawTorque = Double.NEGATIVE_INFINITY;
+		double imbalancedMinYawTorque = Double.POSITIVE_INFINITY;
+		double imbalancedMaxYawTorque = Double.NEGATIVE_INFINITY;
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(balanced);
+			holdInStillAir(imbalanced);
+			balanced.step(cruise, 0.005);
+			imbalanced.step(cruise, 0.005);
+
+			if (i >= 80) {
+				Vec3 balancedForce = balanced.state().rotorForceBodyNewtons(0);
+				Vec3 imbalancedForce = imbalanced.state().rotorForceBodyNewtons(0);
+				balancedMaxLateralForce = Math.max(
+						balancedMaxLateralForce,
+						Math.hypot(balancedForce.x(), balancedForce.z())
+				);
+				imbalancedMaxLateralForce = Math.max(
+						imbalancedMaxLateralForce,
+						Math.hypot(imbalancedForce.x(), imbalancedForce.z())
+				);
+				double balancedYawTorque = balanced.state().rotorTorqueBodyNewtonMeters(0).y();
+				double imbalancedYawTorque = imbalanced.state().rotorTorqueBodyNewtonMeters(0).y();
+				balancedMinYawTorque = Math.min(balancedMinYawTorque, balancedYawTorque);
+				balancedMaxYawTorque = Math.max(balancedMaxYawTorque, balancedYawTorque);
+				imbalancedMinYawTorque = Math.min(imbalancedMinYawTorque, imbalancedYawTorque);
+				imbalancedMaxYawTorque = Math.max(imbalancedMaxYawTorque, imbalancedYawTorque);
+			}
+		}
+
+		double balancedYawRange = balancedMaxYawTorque - balancedMinYawTorque;
+		double imbalancedYawRange = imbalancedMaxYawTorque - imbalancedMinYawTorque;
+		double finalBalancedMaxLateralForce = balancedMaxLateralForce;
+		double finalImbalancedMaxLateralForce = imbalancedMaxLateralForce;
+		assertTrue(finalBalancedMaxLateralForce < 0.05,
+				() -> "balancedMaxLateralForce=" + finalBalancedMaxLateralForce);
+		assertTrue(finalImbalancedMaxLateralForce > finalBalancedMaxLateralForce + 0.06,
+				() -> "balancedMaxLateralForce=" + finalBalancedMaxLateralForce
+						+ " imbalancedMaxLateralForce=" + finalImbalancedMaxLateralForce);
+		assertTrue(imbalancedYawRange > balancedYawRange + 0.010,
+				() -> "balancedYawRange=" + balancedYawRange + " imbalancedYawRange=" + imbalancedYawRange);
+	}
+
+	@Test
 	void batteryBusRippleScalesWithMotorCurrentRippleAndPackResistance() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
