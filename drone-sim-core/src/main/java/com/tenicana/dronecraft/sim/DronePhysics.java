@@ -79,6 +79,7 @@ public final class DronePhysics {
 	private double barometerNoiseTimeSeconds;
 	private double barometerFilteredAltitudeMeters;
 	private double barometerFilteredVerticalSpeedMetersPerSecond;
+	private double barometerFlowErrorFilteredMeters;
 	private boolean barometerInitialized;
 	private Vec3 gyroBiasBodyRadiansPerSecond = Vec3.ZERO;
 	private Vec3 accelerometerBiasBodyMetersPerSecondSquared = Vec3.ZERO;
@@ -5247,7 +5248,7 @@ public final class DronePhysics {
 	private void updateBarometerMeasurement(DroneEnvironment environment, double dtSeconds) {
 		barometerNoiseTimeSeconds += dtSeconds;
 		double trueAltitude = state.positionMeters().y();
-		double flowError = barometerFlowErrorMeters(environment);
+		double flowError = updateBarometerFlowErrorMeters(environment, dtSeconds);
 		double rawAltitude = trueAltitude + flowError + barometerNoiseMeters(environment);
 
 		if (!barometerInitialized) {
@@ -5274,7 +5275,26 @@ public final class DronePhysics {
 		state.setBarometerPropwashErrorMeters(flowError);
 	}
 
-	private double barometerFlowErrorMeters(DroneEnvironment environment) {
+	private double updateBarometerFlowErrorMeters(DroneEnvironment environment, double dtSeconds) {
+		double target = calculateSteadyBarometerFlowErrorMeters(environment);
+		if (dtSeconds <= 0.0) {
+			barometerFlowErrorFilteredMeters = target;
+			return barometerFlowErrorFilteredMeters;
+		}
+
+		double previousMagnitude = Math.abs(barometerFlowErrorFilteredMeters);
+		double targetMagnitude = Math.abs(target);
+		double timeConstant = targetMagnitude > previousMagnitude ? 0.038 : 0.125;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		barometerFlowErrorFilteredMeters += (target - barometerFlowErrorFilteredMeters) * alpha;
+		barometerFlowErrorFilteredMeters = MathUtil.clamp(barometerFlowErrorFilteredMeters, -2.5, 4.5);
+		if (targetMagnitude <= 1.0e-6 && Math.abs(barometerFlowErrorFilteredMeters) < 1.0e-5) {
+			barometerFlowErrorFilteredMeters = 0.0;
+		}
+		return barometerFlowErrorFilteredMeters;
+	}
+
+	private double calculateSteadyBarometerFlowErrorMeters(DroneEnvironment environment) {
 		double motorPower = state.averageMotorPower(config);
 		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
 		double cleanRotorWash = smoothStep(0.08, 0.35, motorPower) * smoothStep(0.5, 5.5, inducedVelocity);
@@ -5390,6 +5410,7 @@ public final class DronePhysics {
 		barometerNoiseTimeSeconds = 0.0;
 		barometerFilteredAltitudeMeters = state.positionMeters().y();
 		barometerFilteredVerticalSpeedMetersPerSecond = state.velocityMetersPerSecond().y();
+		barometerFlowErrorFilteredMeters = 0.0;
 		barometerInitialized = false;
 		state.setBarometerAltitudeMeters(barometerFilteredAltitudeMeters);
 		state.setBarometerVerticalSpeedMetersPerSecond(barometerFilteredVerticalSpeedMetersPerSecond);

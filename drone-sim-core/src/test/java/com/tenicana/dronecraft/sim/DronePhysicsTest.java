@@ -3176,6 +3176,65 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void barometerStaticPortPressureErrorBuildsAndRecoversWithLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.04));
+		DronePhysics physics = new DronePhysics(config);
+		DroneEnvironment calm = DroneEnvironment.calm();
+		Vec3 fastForward = new Vec3(0.0, 0.0, 24.0);
+
+		for (int i = 0; i < 120; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.step(DroneInput.idle(), 0.005, calm);
+		}
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+		physics.state().setVelocityMetersPerSecond(fastForward);
+		physics.step(DroneInput.idle(), 0.005, calm);
+		double firstFastError = physics.state().barometerPropwashErrorMeters();
+
+		for (int i = 0; i < 140; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			physics.state().setVelocityMetersPerSecond(fastForward);
+			physics.step(DroneInput.idle(), 0.005, calm);
+		}
+		double settledFastError = physics.state().barometerPropwashErrorMeters();
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		physics.step(DroneInput.idle(), 0.005, calm);
+		double lingeringStillError = physics.state().barometerPropwashErrorMeters();
+
+		for (int i = 0; i < 240; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.step(DroneInput.idle(), 0.005, calm);
+		}
+		double recoveredStillError = physics.state().barometerPropwashErrorMeters();
+
+		assertTrue(firstFastError < -0.05, () -> "firstFastError=" + firstFastError);
+		assertTrue(settledFastError < firstFastError - 0.90,
+				() -> "firstFastError=" + firstFastError + " settledFastError=" + settledFastError);
+		assertTrue(lingeringStillError < recoveredStillError - 0.40,
+				() -> "lingeringStillError=" + lingeringStillError
+						+ " recoveredStillError=" + recoveredStillError);
+		assertEquals(0.0, recoveredStillError, 0.02);
+	}
+
+	@Test
 	void barometerModelsRotationalStaticPortPressureError() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
