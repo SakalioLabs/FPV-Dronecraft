@@ -1705,17 +1705,59 @@ class DronePhysicsTest {
 		DronePhysics clean = new DronePhysics(cleanConfig);
 		DronePhysics lifting = new DronePhysics(liftingConfig);
 		Vec3 fastSlip = new Vec3(5.0, 4.0, 20.0);
-		clean.state().setVelocityMetersPerSecond(fastSlip);
-		lifting.state().setVelocityMetersPerSecond(fastSlip);
 
-		clean.step(DroneInput.idle(), 0.005);
-		lifting.step(DroneInput.idle(), 0.005);
+		for (int i = 0; i < 90; i++) {
+			holdInCruise(clean, fastSlip);
+			holdInCruise(lifting, fastSlip);
+			clean.step(DroneInput.idle(), 0.005);
+			lifting.step(DroneInput.idle(), 0.005);
+		}
 
 		assertEquals(0.0, clean.state().airframeLiftForceBodyNewtons().length(), 1.0e-9);
 		assertTrue(lifting.state().airframeLiftForceBodyNewtons().length() > 1.0);
 		assertTrue(lifting.state().airframeLiftForceBodyNewtons().y() > 0.0);
 		assertTrue(lifting.state().airframeLiftForceBodyNewtons().x() < 0.0);
 		assertTrue(lifting.state().linearAccelerationWorldMetersPerSecondSquared().y() > clean.state().linearAccelerationWorldMetersPerSecondSquared().y());
+	}
+
+	@Test
+	void airframeLiftForceBuildsAndRecoversWithAerodynamicLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));
+		DronePhysics physics = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		Vec3 slipVelocity = new Vec3(5.0, 4.0, 20.0);
+
+		holdInCruise(physics, slipVelocity);
+		physics.step(DroneInput.idle(), 0.005);
+		Vec3 firstSlipLift = physics.state().airframeLiftForceBodyNewtons();
+
+		for (int i = 0; i < 90; i++) {
+			holdInCruise(physics, slipVelocity);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		Vec3 settledSlipLift = physics.state().airframeLiftForceBodyNewtons();
+
+		holdInCruise(physics, straightVelocity);
+		physics.step(DroneInput.idle(), 0.005);
+		Vec3 lingeringStraightLift = physics.state().airframeLiftForceBodyNewtons();
+
+		for (int i = 0; i < 260; i++) {
+			holdInCruise(physics, straightVelocity);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		Vec3 recoveredStraightLift = physics.state().airframeLiftForceBodyNewtons();
+
+		assertTrue(firstSlipLift.length() > 0.4, () -> "firstSlipLift=" + firstSlipLift);
+		assertTrue(settledSlipLift.length() > firstSlipLift.length() * 5.0,
+				() -> "firstSlipLift=" + firstSlipLift + " settledSlipLift=" + settledSlipLift);
+		assertTrue(settledSlipLift.y() > 0.0, () -> "settledSlipLift=" + settledSlipLift);
+		assertTrue(settledSlipLift.x() < 0.0, () -> "settledSlipLift=" + settledSlipLift);
+		assertTrue(lingeringStraightLift.length() > recoveredStraightLift.length() + 2.0,
+				() -> "lingeringStraightLift=" + lingeringStraightLift + " recoveredStraightLift=" + recoveredStraightLift);
+		assertTrue(recoveredStraightLift.length() < 0.01,
+				() -> "recoveredStraightLift=" + recoveredStraightLift);
 	}
 
 	@Test
