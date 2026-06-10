@@ -4517,6 +4517,76 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWallCushionForceBuildsAndReleasesWithPressureLag() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.05, 0.0, 0.0, 0.0, true);
+		DroneEnvironment cleanAir = DroneEnvironment.calm();
+		DroneEnvironment rightWall = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				new double[] {0.88, 0.88, 0.88, 0.88},
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(1.0, 0.0, 0.0)
+				}
+		);
+
+		for (int i = 0; i < 120; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, cleanAir);
+		}
+
+		holdInStillAir(physics);
+		physics.step(hover, 0.005, rightWall);
+		Vec3 firstWallForce = physics.state().rotorWallEffectForceBodyNewtons();
+
+		for (int i = 0; i < 110; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, rightWall);
+		}
+		Vec3 settledWallForce = physics.state().rotorWallEffectForceBodyNewtons();
+
+		holdInStillAir(physics);
+		physics.step(hover, 0.005, cleanAir);
+		Vec3 lingeringCleanForce = physics.state().rotorWallEffectForceBodyNewtons();
+
+		for (int i = 0; i < 220; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, cleanAir);
+		}
+		Vec3 recoveredCleanForce = physics.state().rotorWallEffectForceBodyNewtons();
+
+		assertTrue(firstWallForce.x() < -0.02, () -> "firstWallForce=" + firstWallForce);
+		assertTrue(settledWallForce.x() < firstWallForce.x() - 0.12,
+				() -> "firstWallForce=" + firstWallForce + " settledWallForce=" + settledWallForce);
+		assertTrue(lingeringCleanForce.x() < recoveredCleanForce.x() - 0.10,
+				() -> "lingeringCleanForce=" + lingeringCleanForce
+						+ " recoveredCleanForce=" + recoveredCleanForce);
+		assertTrue(recoveredCleanForce.length() < 0.01,
+				() -> "recoveredCleanForce=" + recoveredCleanForce);
+	}
+
+	@Test
 	void transverseRotorFlowAddsLift() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

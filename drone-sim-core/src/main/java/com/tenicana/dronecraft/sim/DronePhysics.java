@@ -58,6 +58,7 @@ public final class DronePhysics {
 	private final Vec3[] rotorFlappingTiltBody;
 	private final Vec3[] previousRotorForceBodyNewtons;
 	private final Vec3[] previousRotorTorqueBodyNewtonMeters;
+	private final Vec3[] rotorWallEffectForceBodyFiltered;
 	private final Vec3[] gyroDelayBuffer = new Vec3[GYRO_DELAY_BUFFER_SIZE];
 	private final Vec3[] accelerometerDelayBuffer = new Vec3[GYRO_DELAY_BUFFER_SIZE];
 	private final DroneInput[] controlDelayBuffer = new DroneInput[CONTROL_DELAY_BUFFER_SIZE];
@@ -210,9 +211,11 @@ public final class DronePhysics {
 		this.rotorFlappingTiltBody = new Vec3[config.rotors().size()];
 		this.previousRotorForceBodyNewtons = new Vec3[config.rotors().size()];
 		this.previousRotorTorqueBodyNewtonMeters = new Vec3[config.rotors().size()];
+		this.rotorWallEffectForceBodyFiltered = new Vec3[config.rotors().size()];
 		Arrays.fill(this.rotorFlappingTiltBody, Vec3.ZERO);
 		Arrays.fill(this.previousRotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(this.previousRotorTorqueBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(this.rotorWallEffectForceBodyFiltered, Vec3.ZERO);
 		Arrays.fill(this.rotorSurfaceEffectThrustMultipliers, 1.0);
 		resetSensorBiasModel();
 		resetGyroModel();
@@ -680,13 +683,15 @@ public final class DronePhysics {
 			Vec3 rotorDiskAxisBody = rotorDiskAxisBody(thrustAxisForceBody);
 			Vec3 diskDragBody = rotorDiskDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, airDensity);
 			Vec3 windmillingDragBody = rotorWindmillingDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput, airDensity);
-			Vec3 wallEffectForceBody = rotorWallEffectForce(
+			Vec3 wallEffectForceBody = updateRotorWallEffectForce(
+					i,
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					thrust,
 					environment.rotorFlowObstruction(i),
-					environment.rotorFlowObstructionDirectionBody(i)
+					environment.rotorFlowObstructionDirectionBody(i),
+					dtSeconds
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
 			forceBody = thrustAxisForceBody.add(stallBuffet.forceBody()).add(vortexBuffet.forceBody()).add(imbalanceForceBody).add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
@@ -1665,7 +1670,46 @@ public final class DronePhysics {
 		return 1.0 - smoothStep(0.035, 0.22, MathUtil.clamp(escOutput, 0.0, 1.0));
 	}
 
-	private static Vec3 rotorWallEffectForce(
+	private Vec3 updateRotorWallEffectForce(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double obstruction,
+			Vec3 obstructionDirectionBody,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyRotorWallEffectForce(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				thrustNewtons,
+				obstruction,
+				obstructionDirectionBody
+		);
+		if (dtSeconds <= 0.0) {
+			rotorWallEffectForceBodyFiltered[index] = target;
+			return rotorWallEffectForceBodyFiltered[index];
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = rotorWallEffectForceBodyFiltered[index].length();
+		double obstructionScale = MathUtil.clamp(obstruction, 0.0, 1.0);
+		double buildTimeConstant = MathUtil.clamp(0.040 - 0.012 * obstructionScale, 0.024, 0.046);
+		double releaseTimeConstant = MathUtil.clamp(0.095 + 0.045 * obstructionScale, 0.080, 0.145);
+		double timeConstant = targetMagnitude > previousMagnitude ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		rotorWallEffectForceBodyFiltered[index] = rotorWallEffectForceBodyFiltered[index]
+				.add(target.subtract(rotorWallEffectForceBodyFiltered[index]).multiply(alpha))
+				.clamp(-4.0, 4.0);
+		if (targetMagnitude <= 1.0e-6 && rotorWallEffectForceBodyFiltered[index].lengthSquared() < 1.0e-8) {
+			rotorWallEffectForceBodyFiltered[index] = Vec3.ZERO;
+		}
+		return rotorWallEffectForceBodyFiltered[index];
+	}
+
+	private static Vec3 calculateSteadyRotorWallEffectForce(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
