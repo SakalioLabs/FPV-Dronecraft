@@ -3597,6 +3597,37 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void ambientDirtyAirRoughensRotorLoadAndBladePassRipple() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics dirty = new DronePhysics(config);
+		DroneInput loaded = new DroneInput(0.55, 0.0, 0.0, 0.0, true);
+		DroneEnvironment cleanAir = new DroneEnvironment(Vec3.ZERO, 1.0, 3.0, 0.0);
+		DroneEnvironment turbulentAir = new DroneEnvironment(Vec3.ZERO, 1.0, 3.0, 1.0);
+
+		for (int i = 0; i < 180; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			dirty.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			dirty.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			dirty.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			clean.step(loaded, 0.005, cleanAir);
+			dirty.step(loaded, 0.005, turbulentAir);
+		}
+
+		assertTrue(dirty.state().averageRotorAerodynamicLoadFactor()
+				> clean.state().averageRotorAerodynamicLoadFactor() + 0.045);
+		assertTrue(dirty.state().averageRotorBladePassRippleIntensity()
+				> clean.state().averageRotorBladePassRippleIntensity() + 0.004);
+		assertTrue(dirty.state().rotorVibration() > clean.state().rotorVibration() + 0.002);
+	}
+
+	@Test
 	void rotorSurfaceScrapeAddsLoadVibrationAndMotorDrag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

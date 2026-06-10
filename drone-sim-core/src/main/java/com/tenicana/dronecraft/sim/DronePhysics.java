@@ -331,6 +331,7 @@ public final class DronePhysics {
 		double waterImmersion = environment.waterImmersionIntensity();
 		double precipitationWetness = environment.precipitationWetnessIntensity();
 		Vec3 effectiveWindVelocityWorld = updateAirMassWind(environment, dtSeconds);
+		double ambientDirtyAir = dirtyAirIntensity(environment);
 		Vec3 relativeAirVelocityBody = state.orientation()
 				.conjugate()
 				.rotate(state.velocityMetersPerSecond().subtract(effectiveWindVelocityWorld));
@@ -548,6 +549,7 @@ public final class DronePhysics {
 					+ 0.28 * wakeInterference
 					+ rotorWakeSwirlLoadFactor(rotor, omega, wakeSwirlSpeed)
 					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput)
+					+ rotorAmbientDirtyAirLoadFactor(aerodynamicRotor, omega, ambientDirtyAir)
 					+ compressibilityLoad
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
@@ -573,6 +575,7 @@ public final class DronePhysics {
 					rotorStall,
 					bladeElement,
 					bladeDissymmetry,
+					ambientDirtyAir,
 					wakeInterference,
 					environment.rotorFlowObstruction(i),
 					surfaceScrape,
@@ -1960,6 +1963,7 @@ public final class DronePhysics {
 			double rotorStallIntensity,
 			BladeElementAerodynamics bladeElement,
 			BladeDissymmetryAerodynamics bladeDissymmetry,
+			double ambientDirtyAir,
 			double wakeInterference,
 			double flowObstruction,
 			double surfaceScrapeIntensity,
@@ -1987,7 +1991,8 @@ public final class DronePhysics {
 		double bladeStallRipple = 0.016 * MathUtil.clamp(bladeElement.stallIntensity(), 0.0, 1.0)
 				+ 0.012 * MathUtil.clamp(rotorStallIntensity, 0.0, 1.0);
 		double dissymmetryRipple = 0.012 * MathUtil.clamp(bladeDissymmetry.intensity(), 0.0, 1.0);
-		double dirtyAirRipple = 0.010 * MathUtil.clamp(wakeInterference, 0.0, 1.0)
+		double dirtyAirRipple = 0.008 * MathUtil.clamp(ambientDirtyAir, 0.0, 1.8)
+				+ 0.010 * MathUtil.clamp(wakeInterference, 0.0, 1.0)
 				+ 0.012 * MathUtil.clamp(flowObstruction, 0.0, 1.0)
 				+ 0.010 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0);
 		double amplitude = activeSpin * MathUtil.clamp(
@@ -2755,6 +2760,16 @@ public final class DronePhysics {
 		double stallDrag = 0.12 * MathUtil.clamp(rotorStallIntensity, 0.0, 1.0);
 		double vortexDrag = 0.10 * MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
 		return MathUtil.clamp(1.0 + 0.28 * overload - 0.16 * unload + stallDrag + vortexDrag, 0.70, 1.45);
+	}
+
+	private static double rotorAmbientDirtyAirLoadFactor(RotorSpec rotor, double omegaRadiansPerSecond, double ambientDirtyAir) {
+		if (ambientDirtyAir <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double activeRotor = smoothStep(0.08, 0.32, spinRatio);
+		return MathUtil.clamp(0.075 * activeRotor * MathUtil.clamp(ambientDirtyAir, 0.0, 1.8), 0.0, 0.13);
 	}
 
 	private static Vec3 rotorInflowSkewTorque(
