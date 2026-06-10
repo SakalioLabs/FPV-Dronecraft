@@ -1383,6 +1383,45 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void separatedFlowBuffetAddsUnsteadyAirframeTorque() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.04));
+		DronePhysics shallowSlip = new DronePhysics(config);
+		DronePhysics highSlip = new DronePhysics(config);
+		Vec3 shallowVelocity = new Vec3(2.0, 0.0, 18.0);
+		Vec3 highSlipVelocity = new Vec3(14.0, 3.0, 4.0);
+		double shallowMinYaw = Double.POSITIVE_INFINITY;
+		double shallowMaxYaw = Double.NEGATIVE_INFINITY;
+		double highMinYaw = Double.POSITIVE_INFINITY;
+		double highMaxYaw = Double.NEGATIVE_INFINITY;
+
+		for (int i = 0; i < 320; i++) {
+			holdInCruise(shallowSlip, shallowVelocity);
+			holdInCruise(highSlip, highSlipVelocity);
+			shallowSlip.step(DroneInput.idle(), 0.005);
+			highSlip.step(DroneInput.idle(), 0.005);
+
+			if (i >= 80) {
+				double shallowYawTorque = shallowSlip.state().airframeAerodynamicTorqueBodyNewtonMeters().y();
+				double highYawTorque = highSlip.state().airframeAerodynamicTorqueBodyNewtonMeters().y();
+				shallowMinYaw = Math.min(shallowMinYaw, shallowYawTorque);
+				shallowMaxYaw = Math.max(shallowMaxYaw, shallowYawTorque);
+				highMinYaw = Math.min(highMinYaw, highYawTorque);
+				highMaxYaw = Math.max(highMaxYaw, highYawTorque);
+			}
+		}
+
+		double shallowYawRange = shallowMaxYaw - shallowMinYaw;
+		double highYawRange = highMaxYaw - highMinYaw;
+		assertTrue(Math.toDegrees(shallowSlip.state().sideslipRadians()) < 10.0);
+		assertTrue(Math.toDegrees(highSlip.state().sideslipRadians()) > 70.0);
+		assertTrue(shallowYawRange < 0.004, () -> "shallowYawRange=" + shallowYawRange);
+		assertTrue(highYawRange > shallowYawRange + 0.055,
+				() -> "shallowYawRange=" + shallowYawRange + " highYawRange=" + highYawRange);
+	}
+
+	@Test
 	void turbulenceEnvironmentAddsDeterministicDisturbanceTorque() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics calm = new DronePhysics(config);

@@ -74,6 +74,8 @@ public final class DronePhysics {
 	private double controlLinkLossSeconds;
 	private double propwashPhaseA;
 	private double propwashPhaseB;
+	private double airframeSeparationBuffetPhaseA;
+	private double airframeSeparationBuffetPhaseB;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -677,7 +679,7 @@ public final class DronePhysics {
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);
 		updateEscSignalTelemetry();
 
-		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, airDensity);
+		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
@@ -2858,7 +2860,7 @@ public final class DronePhysics {
 		return Math.sqrt(baseThrustNewtons / Math.max(1.0e-6, 2.0 * airDensity * diskAreaMetersSquared));
 	}
 
-	private Vec3 calculateAirframeAerodynamicTorque(Vec3 relativeAirVelocityBody, double airDensityRatio) {
+	private Vec3 calculateAirframeAerodynamicTorque(Vec3 relativeAirVelocityBody, double airDensityRatio, double dtSeconds) {
 		double speed = relativeAirVelocityBody.length();
 		Vec3 pressureCenterTorque = calculateAirframePressureCenterTorque(relativeAirVelocityBody, airDensityRatio);
 		state.setAirframePressureCenterTorqueBodyNewtonMeters(pressureCenterTorque);
@@ -2882,7 +2884,58 @@ public final class DronePhysics {
 				MathUtil.clamp(yawTorque, -0.25, 0.25),
 				MathUtil.clamp(rollTorque, -0.18, 0.18)
 		);
-		return attitudeTorque.add(pressureCenterTorque).clamp(-0.55, 0.55);
+		Vec3 separationBuffet = updateAirframeSeparatedFlowBuffetTorque(
+				relativeAirVelocityBody,
+				airDensityRatio,
+				dtSeconds
+		);
+		return attitudeTorque.add(pressureCenterTorque).add(separationBuffet).clamp(-0.55, 0.55);
+	}
+
+	private Vec3 updateAirframeSeparatedFlowBuffetTorque(
+			Vec3 relativeAirVelocityBody,
+			double airDensityRatio,
+			double dtSeconds
+	) {
+		double speed = relativeAirVelocityBody.length();
+		if (speed < 3.0 || airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
+
+		double separation = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
+		if (separation <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		airframeSeparationBuffetPhaseA = normalizeRadians(
+				airframeSeparationBuffetPhaseA + dtSeconds * (5.5 + 0.36 * speed)
+		);
+		airframeSeparationBuffetPhaseB = normalizeRadians(
+				airframeSeparationBuffetPhaseB + dtSeconds * (8.1 + 0.23 * speed)
+		);
+		Vec3 drag = config.bodyDragCoefficients();
+		double dynamicScale = airDensityRatio * speed * speed;
+		double exposedAreaScale = Math.sqrt(Math.max(0.0, (drag.x() + drag.y()) * Math.max(0.0, drag.z())));
+		double buffetAuthority = MathUtil.clamp(
+				dynamicScale * exposedAreaScale * Math.pow(separation, 1.35) * 0.0026,
+				0.0,
+				0.18
+		);
+		double pitchWave = Math.sin(airframeSeparationBuffetPhaseA)
+				+ 0.34 * Math.sin(airframeSeparationBuffetPhaseB + 0.8);
+		double yawWave = Math.sin(airframeSeparationBuffetPhaseB + 1.7)
+				+ 0.28 * Math.sin(airframeSeparationBuffetPhaseA * 0.73 + 2.4);
+		double rollWave = Math.sin(airframeSeparationBuffetPhaseA - airframeSeparationBuffetPhaseB + 0.5);
+		double angleOfAttack = state.angleOfAttackRadians();
+		double sideslip = state.sideslipRadians();
+		double pitchBias = MathUtil.clamp(Math.abs(angleOfAttack) / Math.toRadians(75.0), 0.20, 1.0);
+		double yawBias = MathUtil.clamp(Math.abs(sideslip) / Math.toRadians(75.0), 0.20, 1.0);
+		double rollCoupling = MathUtil.clamp((Math.abs(angleOfAttack) + Math.abs(sideslip)) / Math.toRadians(120.0), 0.18, 1.0);
+		return new Vec3(
+				buffetAuthority * pitchWave * pitchBias,
+				buffetAuthority * yawWave * yawBias,
+				buffetAuthority * rollWave * 0.42 * rollCoupling
+		).clamp(-0.20, 0.20);
 	}
 
 	private Vec3 calculateAirframePressureCenterTorque(Vec3 relativeAirVelocityBody, double airDensityRatio) {
@@ -3634,12 +3687,7 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
-		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
-		double sideSlip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
-		double pitchSeparation = smoothStep(Math.toRadians(30.0), Math.toRadians(66.0), Math.abs(angleOfAttack));
-		double yawSeparation = smoothStep(Math.toRadians(32.0), Math.toRadians(68.0), Math.abs(sideSlip));
-		double separation = MathUtil.clamp(1.0 - (1.0 - pitchSeparation) * (1.0 - yawSeparation), 0.0, 1.0);
+		double separation = airframeSeparationIntensity(relativeAirVelocityBody, drag);
 		if (separation <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
@@ -3649,6 +3697,23 @@ public final class DronePhysics {
 		return relativeAirVelocityBody.normalized()
 				.multiply(-speedSquared * broadsideCoefficient * separation)
 				.clamp(-38.0, 38.0);
+	}
+
+	private static double airframeSeparationIntensity(Vec3 relativeAirVelocityBody, Vec3 dragCoefficients) {
+		if (relativeAirVelocityBody == null
+				|| dragCoefficients == null
+				|| relativeAirVelocityBody.lengthSquared() <= 1.0e-6
+				|| dragCoefficients.z() <= 1.0e-9
+				|| Math.max(dragCoefficients.x(), dragCoefficients.y()) <= 1.0e-9) {
+			return 0.0;
+		}
+
+		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
+		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
+		double sideSlip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
+		double pitchSeparation = smoothStep(Math.toRadians(30.0), Math.toRadians(66.0), Math.abs(angleOfAttack));
+		double yawSeparation = smoothStep(Math.toRadians(32.0), Math.toRadians(68.0), Math.abs(sideSlip));
+		return MathUtil.clamp(1.0 - (1.0 - pitchSeparation) * (1.0 - yawSeparation), 0.0, 1.0);
 	}
 
 	private Vec3 calculateWaterImmersionDragForce(Vec3 velocityWorld, DroneEnvironment environment) {
