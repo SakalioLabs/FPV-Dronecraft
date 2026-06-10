@@ -52,6 +52,10 @@ public record DroneBlackboxSummary(
 		double maxRotorArmFlexIntensity,
 		double maxRotorSurfaceScrapeIntensity,
 		double maxMixerSaturation,
+		double maxMixerLowSaturation,
+		double maxMixerHighSaturation,
+		double minMixerLowHeadroom,
+		double minMixerHighHeadroom,
 		double minMixerAxisAuthority,
 		double maxMotorTemperatureCelsius,
 		double minMotorElectricalEfficiency,
@@ -132,6 +136,10 @@ public record DroneBlackboxSummary(
 		double maxRotorArmFlex = 0.0;
 		double maxRotorSurfaceScrape = 0.0;
 		double maxMixer = 0.0;
+		double maxMixerLowSaturation = 0.0;
+		double maxMixerHighSaturation = 0.0;
+		double minMixerLowHeadroom = 1.0;
+		double minMixerHighHeadroom = 1.0;
 		double minMixerAxisAuthority = 1.0;
 		double maxMotorTemp = 0.0;
 		double minMotorElectricalEfficiency = Double.POSITIVE_INFINITY;
@@ -233,6 +241,10 @@ public record DroneBlackboxSummary(
 			maxRotorArmFlex = Math.max(maxRotorArmFlex, value(row, "rotor_arm_flex"));
 			maxRotorSurfaceScrape = Math.max(maxRotorSurfaceScrape, value(row, "rotor_surface_scrape"));
 			maxMixer = Math.max(maxMixer, value(row, "mixer_saturation"));
+			maxMixerLowSaturation = Math.max(maxMixerLowSaturation, valueOrDefault(row, "mixer_low_saturation", 0.0));
+			maxMixerHighSaturation = Math.max(maxMixerHighSaturation, valueOrDefault(row, "mixer_high_saturation", 0.0));
+			minMixerLowHeadroom = Math.min(minMixerLowHeadroom, valueOrDefault(row, "mixer_low_headroom", 1.0));
+			minMixerHighHeadroom = Math.min(minMixerHighHeadroom, valueOrDefault(row, "mixer_high_headroom", 1.0));
 			minMixerAxisAuthority = Math.min(
 					minMixerAxisAuthority,
 					valueOrDefault(row, "mixer_min_axis_authority", 1.0)
@@ -333,6 +345,10 @@ public record DroneBlackboxSummary(
 				maxRotorArmFlex,
 				maxRotorSurfaceScrape,
 				maxMixer,
+				maxMixerLowSaturation,
+				maxMixerHighSaturation,
+				finiteOrOne(minMixerLowHeadroom),
+				finiteOrOne(minMixerHighHeadroom),
 				finiteOrOne(minMixerAxisAuthority),
 				maxMotorTemp,
 				finiteOrZero(minMotorElectricalEfficiency),
@@ -374,7 +390,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f rwake %.2f swirl %.2fm/s rdamp %.3f ang-drag %.3f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f flex %.2f scrape %.2f mixer %.2f mix-auth %.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f rwake %.2f swirl %.2fm/s rdamp %.3f ang-drag %.3f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -433,6 +449,10 @@ public record DroneBlackboxSummary(
 				maxRotorSurfaceScrapeIntensity,
 				maxMixerSaturation,
 				minMixerAxisAuthority,
+				maxMixerLowSaturation,
+				maxMixerHighSaturation,
+				minMixerLowHeadroom,
+				minMixerHighHeadroom,
 				maxEscDesyncIntensity,
 				maxMotorTemperatureCelsius,
 				minMotorElectricalEfficiency,
@@ -500,6 +520,10 @@ public record DroneBlackboxSummary(
 				0.0, // maxRotorArmFlexIntensity
 				0.0, // maxRotorSurfaceScrapeIntensity
 				0.0, // maxMixerSaturation
+				0.0, // maxMixerLowSaturation
+				0.0, // maxMixerHighSaturation
+				1.0, // minMixerLowHeadroom
+				1.0, // minMixerHighHeadroom
 				1.0, // minMixerAxisAuthority
 				0.0, // maxMotorTemperatureCelsius
 				0.0, // minMotorElectricalEfficiency

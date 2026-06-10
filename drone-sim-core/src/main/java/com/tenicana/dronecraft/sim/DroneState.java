@@ -140,6 +140,10 @@ public final class DroneState {
 	private Vec3 airframePressureCenterTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 airframeAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
 	private double mixerSaturation;
+	private double mixerLowSaturation;
+	private double mixerHighSaturation;
+	private double mixerLowHeadroom = 1.0;
+	private double mixerHighHeadroom = 1.0;
 	private Vec3 mixerOutputTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 mixerAxisAuthority = new Vec3(1.0, 1.0, 1.0);
 	private double pidAttenuation = 1.0;
@@ -1198,6 +1202,10 @@ public final class DroneState {
 		rotorWashDragForceBodyNewtons = Vec3.ZERO;
 		rotorWallEffectForceBodyNewtons = Vec3.ZERO;
 		mixerSaturation = 0.0;
+		mixerLowSaturation = 0.0;
+		mixerHighSaturation = 0.0;
+		mixerLowHeadroom = 1.0;
+		mixerHighHeadroom = 1.0;
 		mixerOutputTorqueBodyNewtonMeters = Vec3.ZERO;
 		mixerAxisAuthority = new Vec3(1.0, 1.0, 1.0);
 	}
@@ -2037,6 +2045,38 @@ public final class DroneState {
 
 	void setMixerSaturation(double mixerSaturation) {
 		this.mixerSaturation = MathUtil.clamp(mixerSaturation, 0.0, 1.0);
+	}
+
+	public double mixerLowSaturation() {
+		return mixerLowSaturation;
+	}
+
+	void setMixerLowSaturation(double mixerLowSaturation) {
+		this.mixerLowSaturation = MathUtil.clamp(mixerLowSaturation, 0.0, 1.0);
+	}
+
+	public double mixerHighSaturation() {
+		return mixerHighSaturation;
+	}
+
+	void setMixerHighSaturation(double mixerHighSaturation) {
+		this.mixerHighSaturation = MathUtil.clamp(mixerHighSaturation, 0.0, 1.0);
+	}
+
+	public double mixerLowHeadroom() {
+		return mixerLowHeadroom;
+	}
+
+	void setMixerLowHeadroom(double mixerLowHeadroom) {
+		this.mixerLowHeadroom = MathUtil.clamp(mixerLowHeadroom, 0.0, 1.0);
+	}
+
+	public double mixerHighHeadroom() {
+		return mixerHighHeadroom;
+	}
+
+	void setMixerHighHeadroom(double mixerHighHeadroom) {
+		this.mixerHighHeadroom = MathUtil.clamp(mixerHighHeadroom, 0.0, 1.0);
 	}
 
 	public Vec3 mixerOutputTorqueBodyNewtonMeters() {

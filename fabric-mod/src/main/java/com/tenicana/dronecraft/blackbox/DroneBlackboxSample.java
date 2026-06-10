@@ -374,6 +374,10 @@ public final class DroneBlackboxSample {
 			"mixer_yaw_authority",
 			"mixer_roll_authority",
 			"mixer_min_axis_authority",
+			"mixer_low_saturation",
+			"mixer_high_saturation",
+			"mixer_low_headroom",
+			"mixer_high_headroom",
 			"pid_attenuation",
 			"pid_integral_relax",
 			"pid_integral_relax_pitch",
@@ -1147,6 +1151,10 @@ public final class DroneBlackboxSample {
 		row.add(mixerAxisAuthority.y(), "%.6f");
 		row.add(mixerAxisAuthority.z(), "%.6f");
 		row.add(state.minMixerAxisAuthority(), "%.6f");
+		row.add(state.mixerLowSaturation(), "%.6f");
+		row.add(state.mixerHighSaturation(), "%.6f");
+		row.add(state.mixerLowHeadroom(), "%.6f");
+		row.add(state.mixerHighHeadroom(), "%.6f");
 		row.add(state.pidAttenuation(), "%.6f");
 		row.add(state.pidIntegralRelax(), "%.6f");
 		Vec3 pidIntegralRelaxAxes = state.pidIntegralRelaxAxes();

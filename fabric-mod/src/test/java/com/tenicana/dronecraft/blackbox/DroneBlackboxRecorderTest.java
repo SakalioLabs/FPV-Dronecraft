@@ -132,6 +132,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("mixer_yaw_authority"));
 		assertTrue(csv.contains("mixer_roll_authority"));
 		assertTrue(csv.contains("mixer_min_axis_authority"));
+		assertTrue(csv.contains("mixer_low_saturation"));
+		assertTrue(csv.contains("mixer_high_saturation"));
+		assertTrue(csv.contains("mixer_low_headroom"));
+		assertTrue(csv.contains("mixer_high_headroom"));
 		assertTrue(csv.contains("pid_integral_relax_pitch"));
 		assertTrue(csv.contains("pid_integral_relax_yaw"));
 		assertTrue(csv.contains("pid_integral_relax_roll"));
@@ -357,6 +361,10 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_yaw_authority")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_roll_authority")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_min_axis_authority")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_low_saturation")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_saturation")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_low_headroom")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_headroom")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_pitch")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_yaw")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_roll")]));
@@ -400,6 +408,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.minMotorVoltageHeadroom() >= 0.0);
 		assertTrue(summary.minMixerAxisAuthority() >= 0.0);
 		assertTrue(summary.minMixerAxisAuthority() <= 1.0);
+		assertUnitInterval(summary.maxMixerLowSaturation());
+		assertUnitInterval(summary.maxMixerHighSaturation());
+		assertUnitInterval(summary.minMixerLowHeadroom());
+		assertUnitInterval(summary.minMixerHighHeadroom());
 		assertTrue(summary.maxMotorMechanicalLossTorqueNewtonMeters() > 0.0);
 		assertTrue(summary.minEscThermalLimit() > 0.0);
 		assertTrue(summary.maxBatteryCurrentAmps() > 0.0);
@@ -420,6 +432,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("track"));
 		assertTrue(summary.formatForChat().contains("auth"));
 		assertTrue(summary.formatForChat().contains("mix-auth"));
+		assertTrue(summary.formatForChat().contains("mix-edge"));
+		assertTrue(summary.formatForChat().contains("mix-head"));
 		assertTrue(summary.formatForChat().contains("regen"));
 		assertTrue(summary.formatForChat().contains("spike"));
 		assertTrue(summary.formatForChat().contains("contact"));

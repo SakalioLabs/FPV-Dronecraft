@@ -161,6 +161,10 @@ class DronePhysicsTest {
 		physics.step(saturated, 0.0025);
 
 		assertTrue(physics.state().mixerSaturation() > 0.01);
+		assertTrue(physics.state().mixerHighSaturation() > 0.01);
+		assertTrue(physics.state().mixerHighSaturation() >= physics.state().mixerLowSaturation());
+		assertEquals(0.0, physics.state().mixerHighHeadroom(), 1.0e-9);
+		assertTrue(physics.state().mixerLowHeadroom() >= 0.0);
 		assertTrue(physics.state().mixerOutputTorqueBodyNewtonMeters().isFinite());
 		assertTrue(physics.state().mixerAxisAuthority().isFinite());
 		assertTrue(physics.state().minMixerAxisAuthority() > 0.99);
@@ -175,6 +179,10 @@ class DronePhysicsTest {
 		physics.step(lowThrottleRoll, 0.0025);
 
 		assertTrue(physics.state().mixerSaturation() > 0.01);
+		assertTrue(physics.state().mixerLowSaturation() > 0.01);
+		assertTrue(physics.state().mixerLowSaturation() >= physics.state().mixerHighSaturation());
+		assertEquals(0.0, physics.state().mixerLowHeadroom(), 1.0e-9);
+		assertTrue(physics.state().mixerHighHeadroom() >= 0.0);
 		assertTrue(physics.state().mixerOutputTorqueBodyNewtonMeters().isFinite());
 		assertTrue(physics.state().mixerAxisAuthority().isFinite());
 		assertEquals(1.0, physics.state().mixerAxisAuthority().x(), 1.0e-9);
@@ -3935,6 +3943,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_yaw_authority"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_roll_authority"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_min_axis_authority"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_low_saturation"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_high_saturation"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_low_headroom"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_high_headroom"));
 		assertEquals(columnCount, firstRow.length);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_pitch_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_yaw_nm")])));
@@ -3947,6 +3959,14 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_roll_authority")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_min_axis_authority")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_min_axis_authority")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_low_saturation")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_low_saturation")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_high_saturation")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_high_saturation")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_low_headroom")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_low_headroom")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_high_headroom")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_high_headroom")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) >= 0.0);

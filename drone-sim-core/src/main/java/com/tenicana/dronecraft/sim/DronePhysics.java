@@ -2678,7 +2678,8 @@ public final class DronePhysics {
 			mixedThrusts[i] = baseThrust + torqueMix[i];
 		}
 
-		double desaturationPressure = 0.0;
+		double lowDesaturationPressure = 0.0;
+		double highDesaturationPressure = 0.0;
 		if (input.armed() && config.airmodeStrength() > 0.0) {
 			double upwardShift = 0.0;
 			for (int i = 0; i < config.rotors().size(); i++) {
@@ -2687,7 +2688,7 @@ public final class DronePhysics {
 			}
 			if (upwardShift > 0.0) {
 				double shift = upwardShift * config.airmodeStrength();
-				desaturationPressure = Math.max(desaturationPressure, shift / averageMaxRotorThrust());
+				lowDesaturationPressure = Math.max(lowDesaturationPressure, shift / averageMaxRotorThrust());
 				for (int i = 0; i < mixedThrusts.length; i++) {
 					mixedThrusts[i] += shift;
 				}
@@ -2699,7 +2700,7 @@ public final class DronePhysics {
 			}
 			if (downwardShift > 0.0) {
 				double shift = downwardShift * config.airmodeStrength();
-				desaturationPressure = Math.max(desaturationPressure, shift / averageMaxRotorThrust());
+				highDesaturationPressure = Math.max(highDesaturationPressure, shift / averageMaxRotorThrust());
 				for (int i = 0; i < mixedThrusts.length; i++) {
 					mixedThrusts[i] -= shift;
 				}
@@ -2707,15 +2708,33 @@ public final class DronePhysics {
 		}
 
 		double saturation = 0.0;
+		double lowSaturation = 0.0;
+		double highSaturation = 0.0;
+		double lowHeadroom = input.armed() ? 1.0 : 0.0;
+		double highHeadroom = input.armed() ? 1.0 : 0.0;
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
 			double minThrust = input.armed() ? rotor.maxThrustNewtons() * config.motorIdleThrustFraction() : 0.0;
 			double maxThrust = input.armed() ? rotor.maxThrustNewtons() : 0.0;
 			double clamped = MathUtil.clamp(mixedThrusts[i], minThrust, maxThrust);
-			saturation += Math.abs(mixedThrusts[i] - clamped) / rotor.maxThrustNewtons();
+			double lowClip = Math.max(0.0, minThrust - mixedThrusts[i]);
+			double highClip = Math.max(0.0, mixedThrusts[i] - maxThrust);
+			double normalizedLowClip = lowClip / rotor.maxThrustNewtons();
+			double normalizedHighClip = highClip / rotor.maxThrustNewtons();
+			lowSaturation += normalizedLowClip;
+			highSaturation += normalizedHighClip;
+			saturation += normalizedLowClip + normalizedHighClip;
+			double thrustRange = Math.max(1.0e-9, maxThrust - minThrust);
+			lowHeadroom = Math.min(lowHeadroom, (clamped - minThrust) / thrustRange);
+			highHeadroom = Math.min(highHeadroom, (maxThrust - clamped) / thrustRange);
 			targetRotorThrusts[i] = clamped;
 		}
-		state.setMixerSaturation(Math.max(desaturationPressure, saturation / targetRotorThrusts.length));
+		int rotorCount = Math.max(1, targetRotorThrusts.length);
+		state.setMixerLowSaturation(Math.max(lowDesaturationPressure, lowSaturation / rotorCount));
+		state.setMixerHighSaturation(Math.max(highDesaturationPressure, highSaturation / rotorCount));
+		state.setMixerLowHeadroom(lowHeadroom);
+		state.setMixerHighHeadroom(highHeadroom);
+		state.setMixerSaturation(Math.max(Math.max(lowDesaturationPressure, highDesaturationPressure), saturation / rotorCount));
 		Vec3 achievedTorqueBody = mixerOutputTorqueFromThrustDeltas(
 				config.rotors(),
 				config.centerOfMassOffsetBodyMeters(),

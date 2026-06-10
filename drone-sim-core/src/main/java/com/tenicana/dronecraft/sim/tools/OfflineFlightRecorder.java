@@ -581,6 +581,10 @@ public final class OfflineFlightRecorder {
 			"mixer_yaw_authority",
 			"mixer_roll_authority",
 			"mixer_min_axis_authority",
+			"mixer_low_saturation",
+			"mixer_high_saturation",
+			"mixer_low_headroom",
+			"mixer_high_headroom",
 			"pid_integral_relax_pitch",
 			"pid_integral_relax_yaw",
 			"pid_integral_relax_roll"
@@ -1336,6 +1340,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, mixerAxisAuthority.y(), "%.6f");
 		appendExtra(builder, mixerAxisAuthority.z(), "%.6f");
 		appendExtra(builder, state.minMixerAxisAuthority(), "%.6f");
+		appendExtra(builder, state.mixerLowSaturation(), "%.6f");
+		appendExtra(builder, state.mixerHighSaturation(), "%.6f");
+		appendExtra(builder, state.mixerLowHeadroom(), "%.6f");
+		appendExtra(builder, state.mixerHighHeadroom(), "%.6f");
 		appendExtra(builder, pidIntegralRelaxAxes.x(), "%.6f");
 		appendExtra(builder, pidIntegralRelaxAxes.y(), "%.6f");
 		appendExtra(builder, pidIntegralRelaxAxes.z(), "%.6f");
