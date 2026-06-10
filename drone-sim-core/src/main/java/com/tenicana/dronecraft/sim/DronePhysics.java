@@ -4043,6 +4043,7 @@ public final class DronePhysics {
 		gyroNoiseTimeSeconds += dtSeconds;
 		Vec3 rawRate = state.angularVelocityBodyRadiansPerSecond()
 				.add(state.gyroBiasBodyRadiansPerSecond())
+				.add(gyroSpecificForceErrorBodyRadiansPerSecond())
 				.add(gyroNoiseBodyRadiansPerSecond(dtSeconds));
 		state.setGyroClipIntensity(sensorClipIntensity(rawRate, GYRO_FULL_SCALE_RADIANS_PER_SECOND));
 		Vec3 noisyRate = clipSensorVector(rawRate, GYRO_FULL_SCALE_RADIANS_PER_SECOND);
@@ -4065,6 +4066,30 @@ public final class DronePhysics {
 		}
 		state.setGyroAngularVelocityBodyRadiansPerSecond(gyroDelayBuffer[readIndex]);
 		gyroDelayWriteIndex = (gyroDelayWriteIndex + 1) % GYRO_DELAY_BUFFER_SIZE;
+	}
+
+	private Vec3 gyroSpecificForceErrorBodyRadiansPerSecond() {
+		double noise = config.gyroNoiseStdDevRadiansPerSecond();
+		if (noise <= 0.0) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 specificForce = specificForceBodyMetersPerSecondSquared();
+		double gravity = Math.max(1.0e-6, config.gravityMetersPerSecondSquared());
+		Vec3 dynamicG = specificForce.subtract(new Vec3(0.0, gravity, 0.0)).multiply(1.0 / gravity);
+		double dynamicMagnitude = dynamicG.length();
+		if (dynamicMagnitude <= 0.35) {
+			return Vec3.ZERO;
+		}
+
+		double sensorScale = MathUtil.clamp(noise / 0.025, 0.20, 2.5);
+		double exposure = smoothStep(0.35, 3.0, dynamicMagnitude);
+		double scale = Math.toRadians(0.18) * sensorScale * exposure;
+		return new Vec3(
+				scale * (0.42 * dynamicG.y() - 0.18 * dynamicG.z()),
+				scale * (-0.34 * dynamicG.x() + 0.24 * dynamicG.y()),
+				scale * (0.36 * dynamicG.x() + 0.22 * dynamicG.y() - 0.14 * dynamicG.z())
+		).clamp(-Math.toRadians(4.0), Math.toRadians(4.0));
 	}
 
 	private Vec3 gyroNoiseBodyRadiansPerSecond(double dtSeconds) {

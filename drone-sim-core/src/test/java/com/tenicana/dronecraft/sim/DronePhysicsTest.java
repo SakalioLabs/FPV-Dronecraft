@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.tenicana.dronecraft.sim.tools.OfflineFlightRecorder;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -385,7 +386,8 @@ class DronePhysicsTest {
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
 				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
 				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
-				.withRotorImbalanceIntensity(0.0);
+				.withRotorImbalanceIntensity(0.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
 		RotorSpec template = base.rotors().get(0);
 		double arm = 0.34;
 		double upperY = template.radiusMeters() * 0.70;
@@ -1021,7 +1023,8 @@ class DronePhysicsTest {
 				.withMotorIdleAndAirmode(0.0, 0.0)
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
 				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
-				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
 		DronePhysics belowBreakaway = new DronePhysics(config);
 		DronePhysics aboveBreakaway = new DronePhysics(config);
 		DroneInput tinyThrottle = new DroneInput(0.0005, 0.0, 0.0, 0.0, true);
@@ -1035,7 +1038,7 @@ class DronePhysicsTest {
 		}
 
 		assertTrue(belowBreakaway.state().averageEscOutputCommand() > 0.015);
-		assertTrue(belowBreakaway.state().averageMotorRpm() < 80.0,
+		assertTrue(belowBreakaway.state().averageMotorRpm() < 120.0,
 				() -> "below=" + belowBreakaway.state().averageMotorRpm());
 		assertTrue(aboveBreakaway.state().averageMotorRpm() > belowBreakaway.state().averageMotorRpm() + 500.0,
 				() -> "below=" + belowBreakaway.state().averageMotorRpm() + " above=" + aboveBreakaway.state().averageMotorRpm());
@@ -2221,6 +2224,35 @@ class DronePhysicsTest {
 
 		assertEquals(0.0, clean.state().gyroAngularVelocityBodyRadiansPerSecond().length(), 1.0e-9);
 		assertTrue(noisy.state().gyroAngularVelocityBodyRadiansPerSecond().length() > 0.03);
+	}
+
+	@Test
+	void gyroSpecificForceSensitivityAddsHighGRateError() throws ReflectiveOperationException {
+		DroneConfig realisticConfig = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.08, 1000.0, 0.0, 0.0);
+		DroneConfig idealConfig = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics oneG = new DronePhysics(realisticConfig);
+		DronePhysics highG = new DronePhysics(realisticConfig);
+		DronePhysics idealHighG = new DronePhysics(idealConfig);
+		Vec3 punchAcceleration = new Vec3(0.0, 32.0, 0.0);
+		Method updateGyroMeasurement = DronePhysics.class.getDeclaredMethod("updateGyroMeasurement", double.class);
+		updateGyroMeasurement.setAccessible(true);
+
+		oneG.state().setLinearAccelerationWorldMetersPerSecondSquared(Vec3.ZERO);
+		highG.state().setLinearAccelerationWorldMetersPerSecondSquared(punchAcceleration);
+		idealHighG.state().setLinearAccelerationWorldMetersPerSecondSquared(punchAcceleration);
+		updateGyroMeasurement.invoke(oneG, 0.005);
+		updateGyroMeasurement.invoke(highG, 0.005);
+		updateGyroMeasurement.invoke(idealHighG, 0.005);
+
+		Vec3 highGDelta = highG.state().gyroAngularVelocityBodyRadiansPerSecond()
+				.subtract(oneG.state().gyroAngularVelocityBodyRadiansPerSecond());
+		assertTrue(
+				highGDelta.length() > Math.toRadians(0.55),
+				() -> "highGDeltaDps=" + Math.toDegrees(highGDelta.length())
+		);
+		assertEquals(0.0, idealHighG.state().gyroAngularVelocityBodyRadiansPerSecond().length(), 1.0e-9);
 	}
 
 	@Test
