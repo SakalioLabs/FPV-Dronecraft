@@ -6725,6 +6725,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_aerodynamic_load"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inflow_skew"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_interference"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_pitch_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_yaw_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_skew_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inertia_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_angular_drag_roll_torque_nm"));
@@ -6849,6 +6852,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_low_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_high_headroom"));
 		assertEquals(columnCount, firstRow.length);
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_pitch_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_yaw_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_roll_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_pitch_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_yaw_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_roll_nm")])));
