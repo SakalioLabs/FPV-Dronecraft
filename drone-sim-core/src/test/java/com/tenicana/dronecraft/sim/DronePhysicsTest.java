@@ -3761,6 +3761,83 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void highAdvanceBladeStallAddsLowFrequencyBuffeting() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics highAdvance = new DronePhysics(config);
+		DroneInput input = new DroneInput(0.68, 0.0, 0.0, 0.0, true);
+		Vec3 crosswind = new Vec3(34.0, 0.0, 0.0);
+		DroneEnvironment matchingWind = new DroneEnvironment(crosswind, 1.0, Double.POSITIVE_INFINITY);
+		double cleanMinThrust = Double.POSITIVE_INFINITY;
+		double cleanMaxThrust = Double.NEGATIVE_INFINITY;
+		double stalledMinThrust = Double.POSITIVE_INFINITY;
+		double stalledMaxThrust = Double.NEGATIVE_INFINITY;
+		double cleanMinForceX = Double.POSITIVE_INFINITY;
+		double cleanMaxForceX = Double.NEGATIVE_INFINITY;
+		double cleanMinForceZ = Double.POSITIVE_INFINITY;
+		double cleanMaxForceZ = Double.NEGATIVE_INFINITY;
+		double stalledMinForceX = Double.POSITIVE_INFINITY;
+		double stalledMaxForceX = Double.NEGATIVE_INFINITY;
+		double stalledMinForceZ = Double.POSITIVE_INFINITY;
+		double stalledMaxForceZ = Double.NEGATIVE_INFINITY;
+
+		for (int i = 0; i < 260; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			highAdvance.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			highAdvance.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.state().setVelocityMetersPerSecond(crosswind);
+			highAdvance.state().setVelocityMetersPerSecond(crosswind);
+			clean.step(input, 0.005, matchingWind);
+			highAdvance.step(input, 0.005);
+
+			if (i >= 120) {
+				double cleanThrust = clean.state().rotorThrustNewtons(0);
+				double stalledThrust = highAdvance.state().rotorThrustNewtons(0);
+				cleanMinThrust = Math.min(cleanMinThrust, cleanThrust);
+				cleanMaxThrust = Math.max(cleanMaxThrust, cleanThrust);
+				stalledMinThrust = Math.min(stalledMinThrust, stalledThrust);
+				stalledMaxThrust = Math.max(stalledMaxThrust, stalledThrust);
+				Vec3 cleanForce = clean.state().rotorForceBodyNewtons(0);
+				Vec3 stalledForce = highAdvance.state().rotorForceBodyNewtons(0);
+				cleanMinForceX = Math.min(cleanMinForceX, cleanForce.x());
+				cleanMaxForceX = Math.max(cleanMaxForceX, cleanForce.x());
+				cleanMinForceZ = Math.min(cleanMinForceZ, cleanForce.z());
+				cleanMaxForceZ = Math.max(cleanMaxForceZ, cleanForce.z());
+				stalledMinForceX = Math.min(stalledMinForceX, stalledForce.x());
+				stalledMaxForceX = Math.max(stalledMaxForceX, stalledForce.x());
+				stalledMinForceZ = Math.min(stalledMinForceZ, stalledForce.z());
+				stalledMaxForceZ = Math.max(stalledMaxForceZ, stalledForce.z());
+			}
+		}
+
+		double cleanThrustRange = cleanMaxThrust - cleanMinThrust;
+		double stalledThrustRange = stalledMaxThrust - stalledMinThrust;
+		double cleanLateralRange = cleanMaxForceX - cleanMinForceX + cleanMaxForceZ - cleanMinForceZ;
+		double stalledLateralRange = stalledMaxForceX - stalledMinForceX + stalledMaxForceZ - stalledMinForceZ;
+		assertTrue(highAdvance.state().rotorAdvanceRatio(0) > 0.45);
+		assertTrue(highAdvance.state().rotorStallIntensity(0) > 0.35);
+		assertTrue(highAdvance.state().rotorBladeDissymmetryIntensity(0) > clean.state().rotorBladeDissymmetryIntensity(0) + 0.25);
+		assertTrue(stalledThrustRange > cleanThrustRange + 0.06,
+				() -> "cleanThrustRange=" + cleanThrustRange + " stalledThrustRange=" + stalledThrustRange);
+		assertTrue(stalledLateralRange > cleanLateralRange + 0.05,
+				() -> "cleanLateralRange=" + cleanLateralRange + " stalledLateralRange=" + stalledLateralRange);
+		assertTrue(highAdvance.state().rotorVibration() > clean.state().rotorVibration() + 0.025,
+				() -> "cleanVibration=" + clean.state().rotorVibration()
+						+ " stalledVibration=" + highAdvance.state().rotorVibration());
+	}
+
+	@Test
 	void airframeAngularDragStrengthensWithAirspeed() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
