@@ -90,6 +90,7 @@ public final class DronePhysics {
 	private double airframeSeparatedFlowIntensity;
 	private Vec3 rotorWashDragForceBodyFiltered = Vec3.ZERO;
 	private Vec3 rotorWashAirframeAngularDampingFiltered = Vec3.ZERO;
+	private Vec3 dynamicPressureCenterOffsetBodyFiltered = Vec3.ZERO;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -3318,7 +3319,8 @@ public final class DronePhysics {
 		Vec3 pressureCenterTorque = calculateAirframePressureCenterTorque(
 				relativeAirVelocityBody,
 				rotorWashDragForceBody,
-				airDensityRatio
+				airDensityRatio,
+				dtSeconds
 		);
 		state.setAirframePressureCenterTorqueBodyNewtonMeters(pressureCenterTorque);
 		if (speed < 1.0) {
@@ -3398,9 +3400,10 @@ public final class DronePhysics {
 	private Vec3 calculateAirframePressureCenterTorque(
 			Vec3 relativeAirVelocityBody,
 			Vec3 rotorWashDragForceBody,
-			double airDensityRatio
+			double airDensityRatio,
+			double dtSeconds
 	) {
-		Vec3 dynamicPressureCenterOffsetBody = calculateDynamicPressureCenterOffsetBody(relativeAirVelocityBody);
+		Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(relativeAirVelocityBody, dtSeconds);
 		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
 				.add(dynamicPressureCenterOffsetBody)
 				.subtract(config.centerOfMassOffsetBodyMeters());
@@ -3414,7 +3417,27 @@ public final class DronePhysics {
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
 	}
 
-	private Vec3 calculateDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody) {
+	private Vec3 updateDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody, double dtSeconds) {
+		Vec3 target = calculateSteadyDynamicPressureCenterOffsetBody(relativeAirVelocityBody);
+		if (dtSeconds <= 0.0) {
+			dynamicPressureCenterOffsetBodyFiltered = target;
+			return dynamicPressureCenterOffsetBodyFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = dynamicPressureCenterOffsetBodyFiltered.length();
+		double timeConstant = targetMagnitude > previousMagnitude ? 0.040 : 0.130;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		dynamicPressureCenterOffsetBodyFiltered = dynamicPressureCenterOffsetBodyFiltered
+				.add(target.subtract(dynamicPressureCenterOffsetBodyFiltered).multiply(alpha))
+				.clamp(-0.040, 0.040);
+		if (targetMagnitude <= 1.0e-6 && dynamicPressureCenterOffsetBodyFiltered.lengthSquared() < 1.0e-8) {
+			dynamicPressureCenterOffsetBodyFiltered = Vec3.ZERO;
+		}
+		return dynamicPressureCenterOffsetBodyFiltered;
+	}
+
+	private Vec3 calculateSteadyDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody) {
 		double speed = relativeAirVelocityBody.length();
 		if (speed < 2.0) {
 			return Vec3.ZERO;
