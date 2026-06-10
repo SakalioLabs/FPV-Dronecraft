@@ -728,6 +728,34 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void lowStartupTorqueMustBreakMotorStaticFriction() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics belowBreakaway = new DronePhysics(config);
+		DronePhysics aboveBreakaway = new DronePhysics(config);
+		DroneInput tinyThrottle = new DroneInput(0.0005, 0.0, 0.0, 0.0, true);
+		DroneInput startingThrottle = new DroneInput(0.006, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 80; i++) {
+			belowBreakaway.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			aboveBreakaway.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			belowBreakaway.step(tinyThrottle, 0.005);
+			aboveBreakaway.step(startingThrottle, 0.005);
+		}
+
+		assertTrue(belowBreakaway.state().averageEscOutputCommand() > 0.015);
+		assertTrue(belowBreakaway.state().averageMotorRpm() < 80.0,
+				() -> "below=" + belowBreakaway.state().averageMotorRpm());
+		assertTrue(aboveBreakaway.state().averageMotorRpm() > belowBreakaway.state().averageMotorRpm() + 500.0,
+				() -> "below=" + belowBreakaway.state().averageMotorRpm() + " above=" + aboveBreakaway.state().averageMotorRpm());
+		assertTrue(belowBreakaway.state().averageMotorCurrentAmps() > 0.05);
+	}
+
+	@Test
 	void escDeadbandSuppressesTinyMotorCommands() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)

@@ -13,6 +13,7 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
 	private static final double ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE = 0.055;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
+	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
 	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
@@ -978,9 +979,11 @@ public final class DronePhysics {
 		if (requestedAcceleration > 0.0) {
 			double phaseCurrent = Math.max(0.0, (driveVoltage - backEmfVoltage) / windingResistanceOhms);
 			double availableTorque = phaseCurrent * torqueConstant;
+			double breakawayTorque = motorStaticBreakawayTorque(rotor, previousOmega, escOutput, surfaceScrapeIntensity);
+			double requiredTorque = loadTorque + breakawayTorque;
 			double availableAcceleration = Math.max(
 					0.0,
-					(availableTorque - loadTorque) / rotor.rotorInertiaKgMetersSquared()
+					(availableTorque - requiredTorque) / rotor.rotorInertiaKgMetersSquared()
 			);
 			limitedAcceleration = Math.min(requestedAcceleration, availableAcceleration);
 		} else {
@@ -996,6 +999,34 @@ public final class DronePhysics {
 
 		double nextOmega = previousOmega + limitedAcceleration * dtSeconds;
 		return MathUtil.clamp(nextOmega, 0.0, rotor.maxOmegaRadiansPerSecond() * 1.08);
+	}
+
+	private static double motorStaticBreakawayTorque(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double escOutput,
+			double surfaceScrapeIntensity
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double staticFriction = 1.0 - smoothStep(0.018, 0.080, spinRatio);
+		if (staticFriction <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
+		double inertiaScale = MathUtil.clamp(Math.sqrt(rotor.rotorInertiaKgMetersSquared() / 1.6e-5), 0.55, 3.0);
+		double coggingPeak = 1.0 + 0.20 * Math.sin(MathUtil.clamp(escOutput, 0.0, 1.0) * 72.0 + rotor.spinDirection() * 0.7);
+		double scrapeScale = 1.0 + 3.2 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0);
+		return MathUtil.clamp(
+				MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS
+						* radiusScale
+						* inertiaScale
+						* coggingPeak
+						* scrapeScale
+						* staticFriction,
+				0.0,
+				0.16
+		);
 	}
 
 	private double motorDriveVoltage(double escOutput, double powerLimitScale) {
