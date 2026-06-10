@@ -5306,6 +5306,71 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorBladeDissymmetryBuildsAndClearsWithRotorPhaseLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		Vec3 diskPlaneFlow = new Vec3(18.0, 0.0, 0.0);
+
+		for (int i = 0; i < 160; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.step(hover, 0.005);
+		}
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(diskPlaneFlow);
+		physics.step(hover, 0.005);
+		double firstCrossflowDissymmetry = physics.state().averageRotorBladeDissymmetryIntensity();
+
+		for (int i = 0; i < 180; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(diskPlaneFlow);
+			physics.step(hover, 0.005);
+		}
+		double settledCrossflowDissymmetry = physics.state().averageRotorBladeDissymmetryIntensity();
+		double settledVibration = physics.state().rotorVibration();
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		physics.step(hover, 0.005);
+		double lingeringStillDissymmetry = physics.state().averageRotorBladeDissymmetryIntensity();
+
+		for (int i = 0; i < 180; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.step(hover, 0.005);
+		}
+		double clearedStillDissymmetry = physics.state().averageRotorBladeDissymmetryIntensity();
+
+		assertTrue(firstCrossflowDissymmetry < settledCrossflowDissymmetry * 0.45,
+				() -> "firstCrossflowDissymmetry=" + firstCrossflowDissymmetry
+						+ " settledCrossflowDissymmetry=" + settledCrossflowDissymmetry);
+		assertTrue(settledCrossflowDissymmetry > 0.50,
+				() -> "settledCrossflowDissymmetry=" + settledCrossflowDissymmetry);
+		assertTrue(settledVibration > 0.04, () -> "settledVibration=" + settledVibration);
+		assertTrue(lingeringStillDissymmetry > clearedStillDissymmetry + 0.10,
+				() -> "lingeringStillDissymmetry=" + lingeringStillDissymmetry
+						+ " clearedStillDissymmetry=" + clearedStillDissymmetry);
+		assertTrue(clearedStillDissymmetry < 0.04,
+				() -> "clearedStillDissymmetry=" + clearedStillDissymmetry);
+	}
+
+	@Test
 	void bodyYawRateCouplesIntoRotorAerodynamicBladeSpeed() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad()), zeroGains)
