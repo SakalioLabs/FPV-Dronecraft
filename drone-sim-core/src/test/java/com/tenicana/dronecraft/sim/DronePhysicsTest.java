@@ -7091,6 +7091,7 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_thrust_n")]) >= 0.0);
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
+		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 	}
 
 	@Test
@@ -7180,6 +7181,7 @@ class DronePhysicsTest {
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(report.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
+		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 	}
 
 	private static DroneConfig withCommonGains(DroneConfig config, PidGains gains) {

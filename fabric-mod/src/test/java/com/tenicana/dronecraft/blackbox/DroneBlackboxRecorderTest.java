@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -12,7 +14,9 @@ import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.PidGains;
 import com.tenicana.dronecraft.sim.Quaternion;
+import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 
 class DroneBlackboxRecorderTest {
@@ -670,8 +674,73 @@ class DroneBlackboxRecorderTest {
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() > 0.10);
 		assertTrue(summary.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
+		assertTrue(summary.maxRotorWakeSwirlTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.formatForChat().contains("rwake"));
 		assertTrue(summary.formatForChat().contains("swirl"));
+		assertTrue(summary.formatForChat().contains("swirlT"));
+	}
+
+	@Test
+	void blackboxSummaryReportsWakeSwirlHubTorque() {
+		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
+		DroneConfig base = withCommonGains(DroneConfig.octoLift(), passiveGains)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		RotorSpec template = base.rotors().get(0);
+		double arm = 0.34;
+		double upperY = template.radiusMeters() * 0.70;
+		double lowerY = -upperY;
+		DroneConfig stacked = base.withRotors(List.of(
+				rotorLike(template, new Vec3(arm, upperY, arm), 1),
+				rotorLike(template, new Vec3(arm, lowerY, arm), -1),
+				rotorLike(template, new Vec3(-arm, 0.0, arm), -1),
+				rotorLike(template, new Vec3(-arm, 0.0, -arm), 1),
+				rotorLike(template, new Vec3(arm, 0.0, -arm), -1),
+				rotorLike(template, new Vec3(0.0, 0.0, arm * 1.45), 1),
+				rotorLike(template, new Vec3(-arm * 1.45, 0.0, 0.0), 1),
+				rotorLike(template, new Vec3(0.0, 0.0, -arm * 1.45), -1)
+		));
+		DronePhysics physics = new DronePhysics(stacked);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneEnvironment environment = DroneEnvironment.calm();
+		DroneInput input = new DroneInput(stacked.hoverThrottle() + 0.10, 0.0, 0.0, 0.0, true, true, FlightMode.ACRO);
+
+		for (int i = 0; i < 700; i++) {
+			physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.step(input, 0.005, environment);
+		}
+		recorder.record(DroneBlackboxSample.from(
+				40,
+				40,
+				10,
+				0.005,
+				physics.state(),
+				input,
+				physics.state().averageMotorPower(stacked),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[8],
+				environment,
+				stacked
+		));
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		assertTrue(summary.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
+		assertTrue(summary.maxRotorWakeSwirlTorqueNewtonMeters() > 0.0025,
+				() -> "summary=" + summary.formatForChat());
+		assertTrue(summary.formatForChat().contains("swirlT"));
 	}
 
 	@Test
@@ -772,5 +841,34 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.isFinite(value));
 		assertTrue(value >= 0.0);
 		assertTrue(value <= 1.0);
+	}
+
+	private static DroneConfig withCommonGains(DroneConfig config, PidGains gains) {
+		return config
+				.withPitchGains(gains)
+				.withYawGains(gains)
+				.withRollGains(gains);
+	}
+
+	private static RotorSpec rotorLike(RotorSpec template, Vec3 positionBodyMeters, int spinDirection) {
+		return new RotorSpec(
+				positionBodyMeters,
+				template.thrustAxisBody(),
+				spinDirection,
+				template.maxThrustNewtons(),
+				template.thrustCoefficient(),
+				template.yawTorquePerThrustMeter(),
+				template.radiusMeters(),
+				template.bladePitchMeters(),
+				template.transverseFlowLiftCoefficient(),
+				template.axialFlowThrustLossCoefficient(),
+				template.diskDragCoefficient(),
+				template.rotorInertiaKgMetersSquared(),
+				template.inducedInflowTimeConstantSeconds(),
+				template.inducedInflowLagCoefficient(),
+				template.flappingCoefficient(),
+				template.stallThrustLossCoefficient(),
+				template.imbalanceIntensity()
+		);
 	}
 }
