@@ -4060,6 +4060,11 @@ public final class DronePhysics {
 				* state.escDesyncIntensity(index)
 				* escOutput
 				* (0.45 + 0.55 * rpmFraction);
+		double voltageLimitLossCurrent = perMotorMaxCurrentAmps
+				* (0.012 + 0.030 * MathUtil.clamp(rpmFraction, 0.0, 1.10))
+				* motorVoltageHeadroomStress(index)
+				* MathUtil.clamp(escOutput, 0.0, 1.0)
+				* MathUtil.clamp(0.75 + 0.25 * aerodynamicLoadFactor, 0.75, 1.25);
 		double currentRipple = phaseCurrent
 				* state.motorCommutationRippleIntensity(index)
 				* (0.22 + 0.78 * escOutput)
@@ -4073,6 +4078,7 @@ public final class DronePhysics {
 		double curveCurrent = perMotorMaxCurrentAmps * MathUtil.clamp(normalizedLoad, 0.0, 1.20);
 		double propulsionCurrent = Math.max(Math.max(curveCurrent, shaftPowerCurrent), electricalModelCurrent)
 				+ desyncCurrent
+				+ voltageLimitLossCurrent
 				+ 0.10 * currentRipple;
 		double thermalCurrent = propulsionCurrent + brakingCurrent + 0.35 * currentRipple;
 		return new MotorCurrentEstimate(
@@ -4114,11 +4120,14 @@ public final class DronePhysics {
 	private double motorElectricalEfficiency(int index, double rpmFraction, double aerodynamicLoadFactor) {
 		double escAuthority = MathUtil.clamp(0.35 + 0.65 * state.escOutputCommand(index), 0.0, 1.0);
 		double hotWindingLoss = smoothStep(1.05, 1.62, motorWindingResistanceTemperatureScale(index));
+		double voltageHeadroomStress = motorVoltageHeadroomStress(index);
+		double loadedVoltageStress = voltageHeadroomStress * MathUtil.clamp(0.40 + 0.60 * state.escOutputCommand(index), 0.0, 1.0);
 		return MathUtil.clamp(
 				0.58
 						+ 0.22 * escAuthority
 						- 0.07 * Math.pow(1.0 - MathUtil.clamp(rpmFraction, 0.0, 1.15), 2.0)
 						- 0.05 * MathUtil.clamp(aerodynamicLoadFactor - 1.0, 0.0, 0.75)
+						- 0.060 * loadedVoltageStress
 						- 0.055 * hotWindingLoss
 						- 0.05 * (1.0 - state.escThermalLimit(index))
 						- 0.06 * state.escDesyncIntensity(index)
@@ -4126,6 +4135,10 @@ public final class DronePhysics {
 				0.52,
 				0.86
 		);
+	}
+
+	private double motorVoltageHeadroomStress(int index) {
+		return 1.0 - smoothStep(0.10, 0.42, state.motorVoltageHeadroom(index));
 	}
 
 	private static double motorPositiveInertiaPowerWatts(RotorSpec rotor, double motorAngularAcceleration, double omega) {

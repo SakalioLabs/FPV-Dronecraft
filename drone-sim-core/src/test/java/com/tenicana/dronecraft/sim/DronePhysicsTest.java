@@ -1876,6 +1876,40 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void lowVoltageHeadroomReducesMotorElectricalEfficiency() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.45)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 13.2, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withRotorInertiaKgMetersSquared(0.0);
+		DronePhysics healthyRail = new DronePhysics(config);
+		DronePhysics weakRail = new DronePhysics(config);
+		double startOmega = config.rotors().get(0).maxOmegaRadiansPerSecond() * 0.78;
+		for (int i = 0; i < config.rotors().size(); i++) {
+			healthyRail.state().setMotorOmegaRadiansPerSecond(i, startOmega);
+			weakRail.state().setMotorOmegaRadiansPerSecond(i, startOmega);
+		}
+		healthyRail.state().setBatteryVoltage(16.8);
+		weakRail.state().setBatteryVoltage(12.4);
+		DroneInput punch = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
+
+		healthyRail.step(punch, 0.005);
+		weakRail.step(punch, 0.005);
+
+		assertTrue(weakRail.state().averageMotorVoltageHeadroom()
+						< healthyRail.state().averageMotorVoltageHeadroom() - 0.16,
+				() -> "healthyHeadroom=" + healthyRail.state().averageMotorVoltageHeadroom()
+						+ " weakHeadroom=" + weakRail.state().averageMotorVoltageHeadroom());
+		assertTrue(weakRail.state().averageMotorElectricalEfficiency()
+						< healthyRail.state().averageMotorElectricalEfficiency() - 0.035,
+				() -> "healthyEfficiency=" + healthyRail.state().averageMotorElectricalEfficiency()
+						+ " weakEfficiency=" + weakRail.state().averageMotorElectricalEfficiency());
+		assertTrue(weakRail.state().averageMotorCurrentAmps() > 20.0);
+	}
+
+	@Test
 	void motorShaftPowerTracksPropellerLoad() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
