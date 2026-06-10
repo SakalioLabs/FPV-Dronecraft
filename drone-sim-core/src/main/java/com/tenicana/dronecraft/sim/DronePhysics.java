@@ -4336,15 +4336,47 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		Vec3 drag = config.bodyDragCoefficients();
 		double washDynamicScale = Math.max(0.0, airDensityRatio) * inducedVelocity * washIntensity;
-		double horizontalExposure = 0.055 * (drag.x() + drag.z());
-		double verticalExposure = 0.040 * drag.y();
+		Vec3 projectedExposure = calculateRotorWashProjectedExposure(relativeAirVelocityBody);
 		return new Vec3(
-				-relativeAirVelocityBody.x() * washDynamicScale * horizontalExposure,
-				-relativeAirVelocityBody.y() * washDynamicScale * verticalExposure,
-				-relativeAirVelocityBody.z() * washDynamicScale * horizontalExposure
+				-relativeAirVelocityBody.x() * washDynamicScale * projectedExposure.x(),
+				-relativeAirVelocityBody.y() * washDynamicScale * projectedExposure.y(),
+				-relativeAirVelocityBody.z() * washDynamicScale * projectedExposure.z()
 		).clamp(-12.0, 12.0);
+	}
+
+	private Vec3 calculateRotorWashProjectedExposure(Vec3 relativeAirVelocityBody) {
+		Vec3 drag = config.bodyDragCoefficients();
+		double airspeed = relativeAirVelocityBody.length();
+		if (airspeed <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double baseHorizontalExposure = 0.055 * (drag.x() + drag.z());
+		double baseVerticalExposure = 0.040 * drag.y();
+		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
+		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
+		double sideslip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
+		double verticalRatio = Math.abs(relativeAirVelocityBody.y()) / airspeed;
+		double attitudeProjection = smoothStep(
+				Math.toRadians(18.0),
+				Math.toRadians(62.0),
+				Math.hypot(angleOfAttack, 0.85 * sideslip)
+		);
+		double verticalProjection = smoothStep(0.16, 0.70, verticalRatio);
+		double separatedProjection = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
+		double projectedAreaBoost = 1.0
+				+ 0.18 * verticalProjection
+				+ 0.34 * attitudeProjection
+				+ 0.30 * separatedProjection;
+		double verticalShadowBoost = 1.0
+				+ 0.12 * attitudeProjection
+				+ 0.18 * separatedProjection;
+		return new Vec3(
+				baseHorizontalExposure * projectedAreaBoost,
+				baseVerticalExposure * verticalShadowBoost,
+				baseHorizontalExposure * projectedAreaBoost
+		);
 	}
 
 	private Vec3 calculateGroundEffectDragForce(Vec3 totalForceBody, Vec3 relativeAirVelocityBody, DroneEnvironment environment) {

@@ -3657,6 +3657,39 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWashDragProjectsMoreAirframeAreaAtHighSideslip() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics shallowSlip = new DronePhysics(config);
+		DronePhysics highSlip = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.05, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 130; i++) {
+			holdInStillAir(shallowSlip);
+			holdInStillAir(highSlip);
+			shallowSlip.step(hover, 0.005);
+			highSlip.step(hover, 0.005);
+		}
+
+		Vec3 shallow = new Vec3(8.0, 0.0, 14.0);
+		Vec3 broadside = new Vec3(8.0, 0.0, 4.0);
+		holdInCruise(shallowSlip, shallow);
+		holdInCruise(highSlip, broadside);
+		shallowSlip.step(hover, 0.005);
+		highSlip.step(hover, 0.005);
+
+		Vec3 shallowWash = shallowSlip.state().rotorWashDragForceBodyNewtons();
+		Vec3 highWash = highSlip.state().rotorWashDragForceBodyNewtons();
+		assertTrue(Math.toDegrees(shallowSlip.state().sideslipRadians()) < 35.0);
+		assertTrue(Math.toDegrees(highSlip.state().sideslipRadians()) > 60.0);
+		assertTrue(highWash.x() < shallowWash.x() - 0.08,
+				() -> "shallowWash=" + shallowWash + " highWash=" + highWash);
+	}
+
+	@Test
 	void rotorWashDragAtPressureCenterAddsAirframeMoment() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
