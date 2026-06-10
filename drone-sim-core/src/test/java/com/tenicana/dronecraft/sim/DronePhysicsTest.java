@@ -2693,6 +2693,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void barometerModelsBatteryBusRippleSupplyNoise() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0);
+		DronePhysics cleanRail = new DronePhysics(config);
+		DronePhysics noisyRail = new DronePhysics(config);
+		DroneEnvironment calm = DroneEnvironment.calm();
+		double maxCleanError = 0.0;
+		double maxNoisyError = 0.0;
+
+		for (int i = 0; i < 180; i++) {
+			cleanRail.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			cleanRail.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			cleanRail.state().setBatteryBusRippleVoltage(0.0);
+			cleanRail.step(DroneInput.idle(), 0.005, calm);
+
+			noisyRail.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			noisyRail.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			noisyRail.state().setBatteryBusRippleVoltage(0.90);
+			noisyRail.step(DroneInput.idle(), 0.005, calm);
+
+			maxCleanError = Math.max(maxCleanError, Math.abs(cleanRail.state().barometerErrorMeters()));
+			maxNoisyError = Math.max(maxNoisyError, Math.abs(noisyRail.state().barometerErrorMeters()));
+		}
+
+		double finalMaxCleanError = maxCleanError;
+		double finalMaxNoisyError = maxNoisyError;
+		assertTrue(finalMaxCleanError < 1.0e-6, () -> "maxCleanError=" + finalMaxCleanError);
+		assertTrue(finalMaxNoisyError > 0.010, () -> "maxNoisyError=" + finalMaxNoisyError);
+		assertTrue(Math.abs(noisyRail.state().barometerVerticalSpeedMetersPerSecond()) > 0.02);
+	}
+
+	@Test
 	void barometerModelsAirspeedStaticPortPressureError() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)

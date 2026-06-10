@@ -4566,10 +4566,12 @@ public final class DronePhysics {
 	}
 
 	private double barometerNoiseMeters(DroneEnvironment environment) {
+		double motorRailCoupling = 0.35 + 0.65 * state.averageMotorPower(config);
 		double noiseAmplitude = 0.035 * config.accelerometerNoiseStdDevMetersPerSecondSquared()
 				+ 0.040 * environment.turbulenceIntensity()
 				+ 0.090 * state.rotorVibration()
-				+ 0.035 * state.propwashIntensity();
+				+ 0.035 * state.propwashIntensity()
+				+ 0.055 * state.batteryBusRippleVoltage() * motorRailCoupling;
 		if (noiseAmplitude <= 1.0e-9) {
 			return 0.0;
 		}
