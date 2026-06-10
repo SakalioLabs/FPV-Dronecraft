@@ -46,6 +46,7 @@ public final class DronePhysics {
 	private final double[] rotorVortexBuffetPhases;
 	private final double[] rotorBladeStallBuffetPhases;
 	private final double[] rotorDynamicStallIntensity;
+	private final double[] rotorSurfaceEffectThrustMultipliers;
 	private final double[] rotorConingIntensity;
 	private final double[] heldEscOutputCommands;
 	private final double[] escCommandFrameClockSeconds;
@@ -190,6 +191,7 @@ public final class DronePhysics {
 		this.rotorVortexBuffetPhases = new double[config.rotors().size()];
 		this.rotorBladeStallBuffetPhases = new double[config.rotors().size()];
 		this.rotorDynamicStallIntensity = new double[config.rotors().size()];
+		this.rotorSurfaceEffectThrustMultipliers = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
 		this.escCommandFrameClockSeconds = new double[config.rotors().size()];
@@ -204,6 +206,7 @@ public final class DronePhysics {
 		Arrays.fill(this.rotorFlappingTiltBody, Vec3.ZERO);
 		Arrays.fill(this.previousRotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(this.previousRotorTorqueBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(this.rotorSurfaceEffectThrustMultipliers, 1.0);
 		resetSensorBiasModel();
 		resetGyroModel();
 		resetAccelerometerModel();
@@ -271,6 +274,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorVortexBuffetPhases, 0.0);
 		Arrays.fill(rotorBladeStallBuffetPhases, 0.0);
 		Arrays.fill(rotorDynamicStallIntensity, 0.0);
+		Arrays.fill(rotorSurfaceEffectThrustMultipliers, 1.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
 		Arrays.fill(escCommandFrameClockSeconds, 0.0);
@@ -508,8 +512,15 @@ public final class DronePhysics {
 					airDensity,
 					environment.ambientTemperatureCelsius()
 			);
+			double surfaceEffectThrustMultiplier = updateRotorSurfaceEffectThrustMultiplier(
+					i,
+					aerodynamicRotor,
+					environment.rotorThrustMultiplier(i, config),
+					omega,
+					dtSeconds
+			);
 			double thrustScale = airDensity
-					* environment.rotorThrustMultiplier(i, config)
+					* surfaceEffectThrustMultiplier
 					* rotorWakeInterferenceThrustScale(wakeInterference)
 					* waterImmersionThrustScale(rotorWaterImmersion)
 					* precipitationThrustScale(precipitationWetness)
@@ -1669,6 +1680,35 @@ public final class DronePhysics {
 				* blockage
 				* speedWashout;
 		return lateralDirection.multiply(-forceMagnitude).clamp(-4.0, 4.0);
+	}
+
+	private double updateRotorSurfaceEffectThrustMultiplier(
+			int index,
+			RotorSpec rotor,
+			double targetMultiplier,
+			double omegaRadiansPerSecond,
+			double dtSeconds
+	) {
+		if (dtSeconds <= 0.0) {
+			return rotorSurfaceEffectThrustMultipliers[index];
+		}
+
+		double previousMultiplier = MathUtil.clamp(rotorSurfaceEffectThrustMultipliers[index], 0.35, 2.0);
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double activeDisk = smoothStep(0.08, 0.28, spinRatio);
+		double targetDelta = (MathUtil.clamp(targetMultiplier, 0.35, 2.0) - 1.0) * activeDisk;
+		double targetSurfaceMultiplier = MathUtil.clamp(1.0 + targetDelta, 0.35, 2.0);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double diskResponse = 0.76 + 0.58 * spinRatio;
+		double previousEffect = Math.abs(previousMultiplier - 1.0);
+		double targetEffect = Math.abs(targetSurfaceMultiplier - 1.0);
+		double buildTimeConstant = MathUtil.clamp(0.034 * Math.sqrt(radiusScale) / diskResponse, 0.010, 0.085);
+		double releaseTimeConstant = MathUtil.clamp(0.096 * Math.sqrt(radiusScale) / Math.max(0.70, diskResponse), 0.035, 0.210);
+		double timeConstant = targetEffect > previousEffect ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double multiplier = previousMultiplier + (targetSurfaceMultiplier - previousMultiplier) * alpha;
+		rotorSurfaceEffectThrustMultipliers[index] = MathUtil.clamp(multiplier, 0.35, 2.0);
+		return rotorSurfaceEffectThrustMultipliers[index];
 	}
 
 	private Vec3 calculatePropwashTorque(

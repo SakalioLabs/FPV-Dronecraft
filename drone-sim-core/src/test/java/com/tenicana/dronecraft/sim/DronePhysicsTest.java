@@ -3622,6 +3622,63 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorSurfaceEffectBuildsAndReleasesWithPressureLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withGroundEffect(0.35, 0.55);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		DroneEnvironment freeAir = DroneEnvironment.calm();
+		DroneEnvironment nearSurface = new DroneEnvironment(Vec3.ZERO, 1.0, 0.04);
+
+		assertTrue(nearSurface.groundEffectThrustMultiplier(config) > 1.35);
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, freeAir);
+		}
+		double freeThrust = averageRotorThrust(physics.state());
+
+		holdInStillAir(physics);
+		physics.step(hover, 0.005, nearSurface);
+		double firstNearSurfaceThrust = averageRotorThrust(physics.state());
+
+		for (int i = 0; i < 120; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, nearSurface);
+		}
+		double settledNearSurfaceThrust = averageRotorThrust(physics.state());
+
+		holdInStillAir(physics);
+		physics.step(hover, 0.005, freeAir);
+		double firstFreeAirThrust = averageRotorThrust(physics.state());
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, freeAir);
+		}
+		double recoveredFreeThrust = averageRotorThrust(physics.state());
+		double settledBoost = settledNearSurfaceThrust - recoveredFreeThrust;
+		double firstNearBoost = firstNearSurfaceThrust - freeThrust;
+		double firstFreeLag = firstFreeAirThrust - recoveredFreeThrust;
+
+		assertTrue(settledNearSurfaceThrust > recoveredFreeThrust * 1.20);
+		assertTrue(firstNearBoost < settledBoost * 0.45,
+				() -> "firstNearBoost=" + firstNearBoost + " settledBoost=" + settledBoost);
+		assertTrue(firstFreeLag > settledBoost * 0.45,
+				() -> "firstFreeLag=" + firstFreeLag + " settledBoost=" + settledBoost);
+		assertEquals(freeThrust, recoveredFreeThrust, freeThrust * 0.03);
+	}
+
+	@Test
 	void groundEffectCushionAddsNearGroundHorizontalDrag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
