@@ -6130,6 +6130,56 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void retainedInducedWakeDelaysRepunchAfterThrottleChop() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 1.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorInducedInflow(0.035, 0.50);
+		DronePhysics retainedWake = new DronePhysics(config);
+		DronePhysics freshAir = new DronePhysics(config);
+		DroneInput highThrottle = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneInput idle = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 220; i++) {
+			holdInStillAir(retainedWake);
+			retainedWake.step(highThrottle, 0.005);
+		}
+		double loadedInducedVelocity = retainedWake.state().averageRotorInducedVelocityMetersPerSecond();
+
+		for (int i = 0; i < 24; i++) {
+			holdInStillAir(retainedWake);
+			holdInStillAir(freshAir);
+			retainedWake.step(idle, 0.005);
+			freshAir.step(idle, 0.005);
+		}
+
+		holdInStillAir(retainedWake);
+		holdInStillAir(freshAir);
+		retainedWake.step(highThrottle, 0.005);
+		freshAir.step(highThrottle, 0.005);
+
+		double retainedThrust = retainedWake.state().rotorThrustNewtons(0);
+		double freshThrust = freshAir.state().rotorThrustNewtons(0);
+		double retainedLoad = retainedWake.state().rotorAerodynamicLoadFactor(0);
+		double freshLoad = freshAir.state().rotorAerodynamicLoadFactor(0);
+		double retainedOmega = retainedWake.state().motorOmegaRadiansPerSecond(0);
+		double freshOmega = freshAir.state().motorOmegaRadiansPerSecond(0);
+
+		assertTrue(loadedInducedVelocity > 5.0, () -> "loadedInducedVelocity=" + loadedInducedVelocity);
+		assertEquals(freshOmega, retainedOmega, freshOmega * 0.08);
+		assertTrue(retainedThrust < freshThrust - 0.10,
+				() -> "retainedThrust=" + retainedThrust + " freshThrust=" + freshThrust);
+		assertTrue(retainedLoad > freshLoad + 0.02,
+				() -> "retainedLoad=" + retainedLoad + " freshLoad=" + freshLoad);
+	}
+
+	@Test
 	void propwashAppearsDuringHighThrottleDescent() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		physics.state().setVelocityMetersPerSecond(new Vec3(0.0, -8.0, 0.0));

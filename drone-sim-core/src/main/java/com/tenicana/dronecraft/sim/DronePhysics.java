@@ -54,6 +54,8 @@ public final class DronePhysics {
 	private final double[] rotorBladeDissymmetryLoadFactor;
 	private final double[] rotorBladeDissymmetryVibration;
 	private final double[] rotorDynamicStallIntensity;
+	private final double[] rotorInducedWakeVelocityMetersPerSecond;
+	private final double[] rotorInducedWakeCarryoverIntensity;
 	private final double[] rotorVortexRingStateIntensity;
 	private final double[] rotorWakeInterferenceIntensity;
 	private final Vec3[] rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond;
@@ -220,6 +222,8 @@ public final class DronePhysics {
 		this.rotorBladeDissymmetryLoadFactor = new double[config.rotors().size()];
 		this.rotorBladeDissymmetryVibration = new double[config.rotors().size()];
 		this.rotorDynamicStallIntensity = new double[config.rotors().size()];
+		this.rotorInducedWakeVelocityMetersPerSecond = new double[config.rotors().size()];
+		this.rotorInducedWakeCarryoverIntensity = new double[config.rotors().size()];
 		this.rotorVortexRingStateIntensity = new double[config.rotors().size()];
 		this.rotorWakeInterferenceIntensity = new double[config.rotors().size()];
 		this.rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
@@ -321,6 +325,8 @@ public final class DronePhysics {
 		Arrays.fill(rotorBladeDissymmetryLoadFactor, 0.0);
 		Arrays.fill(rotorBladeDissymmetryVibration, 0.0);
 		Arrays.fill(rotorDynamicStallIntensity, 0.0);
+		Arrays.fill(rotorInducedWakeVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorInducedWakeCarryoverIntensity, 0.0);
 		Arrays.fill(rotorVortexRingStateIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond, Vec3.ZERO);
@@ -662,6 +668,7 @@ public final class DronePhysics {
 					+ rotorWakeSwirlLoadFactor(rotor, aerodynamicOmega, wakeSwirlSpeed)
 					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput)
 					+ rotorAmbientDirtyAirLoadFactor(aerodynamicRotor, aerodynamicOmega, ambientDirtyAir)
+					+ rotorInducedWakeLoadFactor(rotorInducedWakeCarryoverIntensity[i])
 					+ compressibilityLoad
 					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor)
 					+ bladeElement.loadFactor()
@@ -673,6 +680,7 @@ public final class DronePhysics {
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);
 			rotorVibrationSum += rotorLowReynoldsVibration(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor);
 			rotorVibrationSum += rotorConingVibration(aerodynamicRotor, aerodynamicOmega, coningIntensity);
+			rotorVibrationSum += rotorInducedWakeVibration(aerodynamicRotor, aerodynamicOmega, rotorInducedWakeCarryoverIntensity[i]);
 			double vortexRingThrustScale = 1.0 - rotor.axialFlowThrustLossCoefficient() * 1.35 * vortexRingState;
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
 			double lowReynoldsThrustScale = rotorLowReynoldsThrustScale(lowReynoldsLoss);
@@ -3423,6 +3431,24 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.20 * swirlRatio, 0.0, 0.06);
 	}
 
+	private static double rotorInducedWakeLoadFactor(double carryoverIntensity) {
+		carryoverIntensity = MathUtil.clamp(carryoverIntensity, 0.0, 1.0);
+		return MathUtil.clamp(0.12 * Math.pow(carryoverIntensity, 0.85), 0.0, 0.14);
+	}
+
+	private static double rotorInducedWakeVibration(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double carryoverIntensity
+	) {
+		carryoverIntensity = MathUtil.clamp(carryoverIntensity, 0.0, 1.0);
+		if (carryoverIntensity <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		return MathUtil.clamp(0.09 * carryoverIntensity * spinRatio, 0.0, 0.10);
+	}
+
 	private static double smoothStep(double edge0, double edge1, double value) {
 		if (edge1 <= edge0) {
 			return value >= edge1 ? 1.0 : 0.0;
@@ -3627,16 +3653,76 @@ public final class DronePhysics {
 				: MathUtil.expSmoothing(dtSeconds, rotor.inducedInflowTimeConstantSeconds());
 		double inducedVelocity = previousInducedVelocity + (targetInducedVelocity - previousInducedVelocity) * alpha;
 		state.setRotorInducedVelocityMetersPerSecond(index, inducedVelocity);
+		double wakeVelocity = updateRotorInducedWakeVelocity(
+				index,
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				inducedVelocity,
+				targetInducedVelocity,
+				dtSeconds
+		);
 
 		if (rotor.inducedInflowLagCoefficient() <= 0.0 || targetInducedVelocity <= 1.0e-6) {
+			rotorInducedWakeCarryoverIntensity[index] = 0.0;
 			return 1.0;
 		}
 
-		double safeVelocity = Math.max(1.0e-6, Math.max(targetInducedVelocity, previousInducedVelocity));
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double activeRotor = smoothStep(0.06, 0.32, spinRatio);
+		double safeVelocity = Math.max(1.0e-6, Math.max(Math.max(targetInducedVelocity, previousInducedVelocity), wakeVelocity));
 		double inflowDeficit = Math.max(0.0, (targetInducedVelocity - inducedVelocity) / targetInducedVelocity);
-		double wakeCarryover = Math.max(0.0, (inducedVelocity - targetInducedVelocity) / safeVelocity);
-		double thrustLoss = rotor.inducedInflowLagCoefficient() * (inflowDeficit + 0.35 * wakeCarryover);
+		double wakeCarryover = Math.max(0.0, (wakeVelocity - targetInducedVelocity) / safeVelocity);
+		rotorInducedWakeCarryoverIntensity[index] = MathUtil.clamp(wakeCarryover * activeRotor, 0.0, 1.0);
+		double thrustLoss = rotor.inducedInflowLagCoefficient()
+				* (inflowDeficit + 0.35 * wakeCarryover + 0.18 * rotorInducedWakeCarryoverIntensity[index]);
 		return MathUtil.clamp(1.0 - thrustLoss, 0.65, 1.0);
+	}
+
+	private double updateRotorInducedWakeVelocity(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double inducedVelocityMetersPerSecond,
+			double targetInducedVelocityMetersPerSecond,
+			double dtSeconds
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double activeRotor = smoothStep(0.05, 0.25, spinRatio);
+		double targetWakeVelocity = Math.max(
+				inducedVelocityMetersPerSecond,
+				targetInducedVelocityMetersPerSecond * (0.70 + 0.30 * activeRotor)
+		) * activeRotor;
+		if (dtSeconds <= 0.0) {
+			rotorInducedWakeVelocityMetersPerSecond[index] = targetWakeVelocity;
+			return rotorInducedWakeVelocityMetersPerSecond[index];
+		}
+
+		double previousWakeVelocity = rotorInducedWakeVelocityMetersPerSecond[index];
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double transverseFlush = smoothStep(1.0, 9.0, rotorTransverseSpeed(rotor, relativeAirVelocityBody));
+		double climbFlush = smoothStep(1.0, 8.0, Math.max(0.0, rotorAxialVelocity(rotor, relativeAirVelocityBody)));
+		double buildTimeConstant = MathUtil.clamp(
+				0.030 * Math.sqrt(radiusScale) / (0.72 + 0.48 * spinRatio),
+				0.014,
+				0.075
+		);
+		double releaseTimeConstant = MathUtil.clamp(
+				0.185 * Math.sqrt(radiusScale) / (0.68 + 0.82 * transverseFlush + 0.46 * climbFlush),
+				0.060,
+				0.340
+		);
+		double timeConstant = targetWakeVelocity > previousWakeVelocity ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double wakeVelocity = previousWakeVelocity + (targetWakeVelocity - previousWakeVelocity) * alpha;
+		double maxWakeVelocity = targetRotorInducedVelocityMetersPerSecond(rotor, rotor.maxThrustNewtons(), 1.0) * 1.65;
+		wakeVelocity = MathUtil.clamp(wakeVelocity, 0.0, Math.max(1.0, maxWakeVelocity));
+		if (targetWakeVelocity <= 1.0e-6 && wakeVelocity < 1.0e-4) {
+			wakeVelocity = 0.0;
+		}
+		rotorInducedWakeVelocityMetersPerSecond[index] = wakeVelocity;
+		return wakeVelocity;
 	}
 
 	private double updateRotorTranslationalLiftIntensity(
