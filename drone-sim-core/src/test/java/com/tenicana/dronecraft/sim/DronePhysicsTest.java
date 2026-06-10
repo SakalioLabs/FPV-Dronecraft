@@ -1726,18 +1726,69 @@ class DronePhysicsTest {
 		DronePhysics shallowSlip = new DronePhysics(config);
 		DronePhysics highSlip = new DronePhysics(config);
 		Vec3 shallowVelocity = new Vec3(2.0, 0.0, 4.0);
-		Vec3 highSlipVelocity = new Vec3(18.0, 0.0, 4.0);
-		shallowSlip.state().setVelocityMetersPerSecond(shallowVelocity);
-		highSlip.state().setVelocityMetersPerSecond(highSlipVelocity);
-
-		shallowSlip.step(DroneInput.idle(), 0.005);
-		highSlip.step(DroneInput.idle(), 0.005);
+		Vec3 highSlipVelocity = new Vec3(10.0, 0.0, 2.0);
+		for (int i = 0; i < 90; i++) {
+			holdInCruise(shallowSlip, shallowVelocity);
+			holdInCruise(highSlip, highSlipVelocity);
+			shallowSlip.step(DroneInput.idle(), 0.005);
+			highSlip.step(DroneInput.idle(), 0.005);
+		}
 
 		assertTrue(Math.toDegrees(shallowSlip.state().sideslipRadians()) < 32.0);
 		assertTrue(Math.toDegrees(highSlip.state().sideslipRadians()) > 75.0);
-		assertTrue(highSlip.state().linearAccelerationWorldMetersPerSecondSquared().z()
-				< shallowSlip.state().linearAccelerationWorldMetersPerSecondSquared().z() - 4.0);
-		assertTrue(highSlip.state().velocityMetersPerSecond().z() < highSlipVelocity.z() - 0.02);
+		assertTrue(highSlip.state().airframeSeparatedFlowIntensity() > 0.85);
+		assertTrue(highSlip.state().linearAccelerationWorldMetersPerSecondSquared().x()
+				< shallowSlip.state().linearAccelerationWorldMetersPerSecondSquared().x() - 20.0);
+		assertTrue(highSlip.state().velocityMetersPerSecond().x() < highSlipVelocity.x() - 0.02);
+	}
+
+	@Test
+	void airframeSeparatedFlowBuildsAndRecoversWithLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.04));
+		DronePhysics physics = new DronePhysics(config);
+		Vec3 cleanForwardVelocity = new Vec3(0.0, 0.0, 12.0);
+		Vec3 highSideslipVelocity = new Vec3(10.0, 0.0, 2.0);
+
+		for (int i = 0; i < 140; i++) {
+			holdInCruise(physics, cleanForwardVelocity);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		double cleanSeparatedFlow = physics.state().airframeSeparatedFlowIntensity();
+
+		holdInCruise(physics, highSideslipVelocity);
+		physics.step(DroneInput.idle(), 0.005);
+		double firstHighSlipSeparatedFlow = physics.state().airframeSeparatedFlowIntensity();
+
+		for (int i = 0; i < 180; i++) {
+			holdInCruise(physics, highSideslipVelocity);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		double settledHighSlipSeparatedFlow = physics.state().airframeSeparatedFlowIntensity();
+		double highSideslipDegrees = Math.toDegrees(physics.state().sideslipRadians());
+
+		holdInCruise(physics, cleanForwardVelocity);
+		physics.step(DroneInput.idle(), 0.005);
+		double firstRecoveredSeparatedFlow = physics.state().airframeSeparatedFlowIntensity();
+
+		for (int i = 0; i < 260; i++) {
+			holdInCruise(physics, cleanForwardVelocity);
+			physics.step(DroneInput.idle(), 0.005);
+		}
+		double recoveredSeparatedFlow = physics.state().airframeSeparatedFlowIntensity();
+
+		assertTrue(cleanSeparatedFlow < 0.02);
+		assertTrue(highSideslipDegrees > 78.0);
+		assertTrue(firstHighSlipSeparatedFlow < settledHighSlipSeparatedFlow * 0.35,
+				() -> "firstHighSlipSeparatedFlow=" + firstHighSlipSeparatedFlow
+						+ " settledHighSlipSeparatedFlow=" + settledHighSlipSeparatedFlow);
+		assertTrue(settledHighSlipSeparatedFlow > 0.88);
+		assertTrue(firstRecoveredSeparatedFlow > settledHighSlipSeparatedFlow * 0.80,
+				() -> "firstRecoveredSeparatedFlow=" + firstRecoveredSeparatedFlow
+						+ " settledHighSlipSeparatedFlow=" + settledHighSlipSeparatedFlow);
+		assertTrue(recoveredSeparatedFlow < 0.04,
+				() -> "recoveredSeparatedFlow=" + recoveredSeparatedFlow);
 	}
 
 	@Test
@@ -1775,7 +1826,7 @@ class DronePhysicsTest {
 		assertTrue(Math.toDegrees(shallowSlip.state().sideslipRadians()) < 10.0);
 		assertTrue(Math.toDegrees(highSlip.state().sideslipRadians()) > 70.0);
 		assertTrue(shallowYawRange < 0.004, () -> "shallowYawRange=" + shallowYawRange);
-		assertTrue(highYawRange > shallowYawRange + 0.055,
+		assertTrue(highYawRange > shallowYawRange + 0.040,
 				() -> "shallowYawRange=" + shallowYawRange + " highYawRange=" + highYawRange);
 	}
 

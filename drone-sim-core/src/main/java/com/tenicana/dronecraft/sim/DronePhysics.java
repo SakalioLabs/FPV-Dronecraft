@@ -87,6 +87,7 @@ public final class DronePhysics {
 	private double propwashPhaseB;
 	private double airframeSeparationBuffetPhaseA;
 	private double airframeSeparationBuffetPhaseB;
+	private double airframeSeparatedFlowIntensity;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -356,6 +357,7 @@ public final class DronePhysics {
 				.conjugate()
 				.rotate(state.velocityMetersPerSecond().subtract(effectiveWindVelocityWorld));
 		updateAerodynamicTelemetry(relativeAirVelocityBody);
+		updateAirframeSeparatedFlowIntensity(relativeAirVelocityBody, dtSeconds);
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
 		RotorWakeInterference rotorWakeInterference = calculateRotorWakeInterference(input.armed(), relativeAirVelocityBody);
 		double vortexRingStateSum = 0.0;
@@ -3342,7 +3344,7 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		double separation = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
+		double separation = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
 		if (separation <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
@@ -4197,7 +4199,7 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		double separation = airframeSeparationIntensity(relativeAirVelocityBody, drag);
+		double separation = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
 		if (separation <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
@@ -4207,6 +4209,33 @@ public final class DronePhysics {
 		return relativeAirVelocityBody.normalized()
 				.multiply(-speedSquared * broadsideCoefficient * separation)
 				.clamp(-38.0, 38.0);
+	}
+
+	private void updateAirframeSeparatedFlowIntensity(Vec3 relativeAirVelocityBody, double dtSeconds) {
+		if (dtSeconds <= 0.0) {
+			return;
+		}
+
+		double targetSeparation = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
+		double previousSeparation = airframeSeparatedFlowIntensity;
+		double airspeed = relativeAirVelocityBody == null ? 0.0 : relativeAirVelocityBody.length();
+		double dynamicPressure = smoothStep(4.0, 22.0, airspeed);
+		double buildTimeConstant = MathUtil.clamp(0.070 - 0.028 * dynamicPressure, 0.026, 0.080);
+		double recoveryTimeConstant = MathUtil.clamp(0.155 + 0.070 * (1.0 - dynamicPressure), 0.090, 0.240);
+		double timeConstant = targetSeparation > previousSeparation ? buildTimeConstant : recoveryTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		airframeSeparatedFlowIntensity = MathUtil.clamp(
+				previousSeparation + (targetSeparation - previousSeparation) * alpha,
+				0.0,
+				1.0
+		);
+		state.setAirframeSeparatedFlowIntensity(airframeSeparatedFlowIntensity);
+	}
+
+	private double effectiveAirframeSeparationIntensity(Vec3 relativeAirVelocityBody) {
+		double targetSeparation = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
+		double immediateSeparation = 0.32 * targetSeparation;
+		return MathUtil.clamp(Math.max(airframeSeparatedFlowIntensity, immediateSeparation), 0.0, 1.0);
 	}
 
 	private static double airframeSeparationIntensity(Vec3 relativeAirVelocityBody, Vec3 dragCoefficients) {
@@ -4304,12 +4333,15 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
+		double separatedFlow = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
 		double pitchPlaneSpeed = Math.hypot(relativeAirVelocityBody.y(), relativeAirVelocityBody.z());
 		Vec3 pitchLift = Vec3.ZERO;
 		if (pitchPlaneSpeed > 1.0e-6) {
 			double aoa = Math.atan2(relativeAirVelocityBody.y(), relativeAirVelocityBody.z());
 			double liftCoefficient = 0.085 * Math.sqrt(config.bodyDragCoefficients().y() * config.bodyDragCoefficients().z());
-			double stallScale = 1.0 - 0.55 * smoothStep(Math.toRadians(34.0), Math.toRadians(72.0), Math.abs(aoa));
+			double pitchStall = smoothStep(Math.toRadians(34.0), Math.toRadians(72.0), Math.abs(aoa));
+			double dynamicPitchStall = Math.max(0.32 * pitchStall, separatedFlow * pitchStall);
+			double stallScale = 1.0 - 0.55 * dynamicPitchStall;
 			double liftMagnitude = liftCoefficient * speedSquared * Math.sin(2.0 * aoa) * stallScale * airDensityRatio;
 			Vec3 liftDirection = new Vec3(0.0, relativeAirVelocityBody.z(), -relativeAirVelocityBody.y()).normalized();
 			pitchLift = liftDirection.multiply(liftMagnitude);
@@ -4320,7 +4352,9 @@ public final class DronePhysics {
 		if (yawPlaneSpeed > 1.0e-6) {
 			double sideslip = Math.atan2(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
 			double sideforceCoefficient = 0.065 * Math.sqrt(config.bodyDragCoefficients().x() * config.bodyDragCoefficients().z());
-			double stallScale = 1.0 - 0.50 * smoothStep(Math.toRadians(35.0), Math.toRadians(75.0), Math.abs(sideslip));
+			double yawStall = smoothStep(Math.toRadians(35.0), Math.toRadians(75.0), Math.abs(sideslip));
+			double dynamicYawStall = Math.max(0.32 * yawStall, separatedFlow * yawStall);
+			double stallScale = 1.0 - 0.50 * dynamicYawStall;
 			double sideforceMagnitude = sideforceCoefficient * speedSquared * Math.sin(2.0 * sideslip) * stallScale * airDensityRatio;
 			Vec3 sideforceDirection = new Vec3(-relativeAirVelocityBody.z(), 0.0, relativeAirVelocityBody.x()).normalized();
 			sideLift = sideforceDirection.multiply(sideforceMagnitude);
@@ -4876,7 +4910,7 @@ public final class DronePhysics {
 		double maxFlowAngle = Math.max(angleOfAttack, sideslip);
 		double dynamicScale = smoothStep(4.0, 22.0, airspeed);
 		double alignedFlow = 1.0 - smoothStep(Math.toRadians(18.0), Math.toRadians(58.0), maxFlowAngle);
-		double separatedFlow = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
+		double separatedFlow = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
 		double broadsideFlow = smoothStep(Math.toRadians(20.0), Math.toRadians(70.0), maxFlowAngle);
 		double ramAltitudeError = -0.0026 * airspeed * airspeed * dynamicScale * alignedFlow;
 		double suctionAltitudeError = 0.0018 * airspeed * airspeed * dynamicScale

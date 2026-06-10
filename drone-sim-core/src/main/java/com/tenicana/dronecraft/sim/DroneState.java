@@ -128,6 +128,7 @@ public final class DroneState {
 	private double airspeedMetersPerSecond;
 	private double angleOfAttackRadians;
 	private double sideslipRadians;
+	private double airframeSeparatedFlowIntensity;
 	private Vec3 airframeLiftForceBodyNewtons = Vec3.ZERO;
 	private Vec3 groundEffectDragForceBodyNewtons = Vec3.ZERO;
 	private Vec3 rotorWashDragForceBodyNewtons = Vec3.ZERO;
@@ -1197,6 +1198,7 @@ public final class DroneState {
 		rotorInflowSkewTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorInertiaTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
+		airframeSeparatedFlowIntensity = 0.0;
 		propwashIntensity = 0.0;
 		propwashWakeIntensity = 0.0;
 		propwashTorqueBodyNewtonMeters = Vec3.ZERO;
@@ -1972,6 +1974,14 @@ public final class DroneState {
 
 	void setSideslipRadians(double sideslipRadians) {
 		this.sideslipRadians = Double.isFinite(sideslipRadians) ? sideslipRadians : 0.0;
+	}
+
+	public double airframeSeparatedFlowIntensity() {
+		return airframeSeparatedFlowIntensity;
+	}
+
+	void setAirframeSeparatedFlowIntensity(double airframeSeparatedFlowIntensity) {
+		this.airframeSeparatedFlowIntensity = MathUtil.clamp(airframeSeparatedFlowIntensity, 0.0, 1.0);
 	}
 
 	public Vec3 airframeLiftForceBodyNewtons() {
