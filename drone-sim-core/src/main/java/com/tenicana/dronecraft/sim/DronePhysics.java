@@ -4274,16 +4274,26 @@ public final class DronePhysics {
 
 	private double barometerDynamicPressureErrorMeters(DroneEnvironment environment) {
 		Vec3 relativeAirVelocityBody = state.relativeAirVelocityBodyMetersPerSecond();
+		double airDensityRatio = environment.airDensityRatio();
+		if (airDensityRatio <= 0.0) {
+			return 0.0;
+		}
+
+		double densityScale = MathUtil.clamp(airDensityRatio, 0.35, 1.35);
+		double linearPressureError = barometerLinearDynamicPressureErrorMeters(relativeAirVelocityBody);
+		double rotationalPressureError = barometerRotationalDynamicPressureErrorMeters();
+		return MathUtil.clamp(densityScale * (linearPressureError + rotationalPressureError), -1.8, 2.2);
+	}
+
+	private double barometerLinearDynamicPressureErrorMeters(Vec3 relativeAirVelocityBody) {
 		if (relativeAirVelocityBody == null || relativeAirVelocityBody.lengthSquared() <= 1.0e-6) {
 			return 0.0;
 		}
 
 		double airspeed = state.airspeedMetersPerSecond();
-		double airDensityRatio = environment.airDensityRatio();
-		if (airspeed < 3.0 || airDensityRatio <= 0.0) {
+		if (airspeed < 3.0) {
 			return 0.0;
 		}
-
 		double angleOfAttack = Math.abs(state.angleOfAttackRadians());
 		double sideslip = Math.abs(state.sideslipRadians());
 		double maxFlowAngle = Math.max(angleOfAttack, sideslip);
@@ -4291,11 +4301,47 @@ public final class DronePhysics {
 		double alignedFlow = 1.0 - smoothStep(Math.toRadians(18.0), Math.toRadians(58.0), maxFlowAngle);
 		double separatedFlow = airframeSeparationIntensity(relativeAirVelocityBody, config.bodyDragCoefficients());
 		double broadsideFlow = smoothStep(Math.toRadians(20.0), Math.toRadians(70.0), maxFlowAngle);
-		double densityScale = MathUtil.clamp(airDensityRatio, 0.35, 1.35);
 		double ramAltitudeError = -0.0026 * airspeed * airspeed * dynamicScale * alignedFlow;
 		double suctionAltitudeError = 0.0018 * airspeed * airspeed * dynamicScale
 				* MathUtil.clamp(0.35 * broadsideFlow + 0.65 * separatedFlow, 0.0, 1.0);
-		return MathUtil.clamp(densityScale * (ramAltitudeError + suctionAltitudeError), -1.8, 2.2);
+		return ramAltitudeError + suctionAltitudeError;
+	}
+
+	private double barometerRotationalDynamicPressureErrorMeters() {
+		Vec3 omega = state.angularVelocityBodyRadiansPerSecond();
+		if (omega == null || omega.lengthSquared() <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double tumbleRate = Math.hypot(omega.x(), omega.z());
+		double yawRate = Math.abs(omega.y());
+		double coupledRate = Math.hypot(tumbleRate, 0.55 * yawRate);
+		if (coupledRate < Math.toRadians(360.0)) {
+			return 0.0;
+		}
+
+		double staticPortRadius = equivalentStaticPortRadiusMeters();
+		double tumbleLocalSpeed = tumbleRate * staticPortRadius;
+		double yawLocalSpeed = yawRate * staticPortRadius * 0.55;
+		double localSpeedSquared = tumbleLocalSpeed * tumbleLocalSpeed + yawLocalSpeed * yawLocalSpeed;
+		double rateExposure = smoothStep(Math.toRadians(480.0), Math.toRadians(1600.0), coupledRate);
+		double tumbleBias = MathUtil.clamp(0.55 + 0.45 * (tumbleRate / Math.max(1.0e-6, coupledRate)), 0.55, 1.0);
+		return MathUtil.clamp(0.036 * localSpeedSquared * rateExposure * tumbleBias, 0.0, 1.25);
+	}
+
+	private double equivalentStaticPortRadiusMeters() {
+		double rotorArmSum = 0.0;
+		int rotorCount = 0;
+		Vec3 centerOfMass = config.centerOfMassOffsetBodyMeters();
+		for (RotorSpec rotor : config.rotors()) {
+			rotorArmSum += rotor.positionBodyMeters().subtract(centerOfMass).length();
+			rotorCount++;
+		}
+
+		double averageRotorArm = rotorCount == 0 ? 0.12 : rotorArmSum / rotorCount;
+		double boardOffset = config.imuOffsetBodyMeters().length();
+		double frameExposureRadius = averageRotorArm * 0.75;
+		return MathUtil.clamp(Math.max(boardOffset, frameExposureRadius), 0.06, 0.28);
 	}
 
 	private double barometerNoiseMeters(DroneEnvironment environment) {

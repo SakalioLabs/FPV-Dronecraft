@@ -2336,6 +2336,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void barometerModelsRotationalStaticPortPressureError() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.04));
+		DronePhysics still = new DronePhysics(config);
+		DronePhysics fastRoll = new DronePhysics(config);
+		DroneEnvironment calm = DroneEnvironment.calm();
+
+		for (int i = 0; i < 180; i++) {
+			still.state().setOrientation(Quaternion.IDENTITY);
+			still.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			still.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			still.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			still.step(DroneInput.idle(), 0.005, calm);
+
+			fastRoll.state().setOrientation(Quaternion.IDENTITY);
+			fastRoll.state().setAngularVelocityBodyRadiansPerSecond(new Vec3(0.0, 0.0, Math.toRadians(2100.0)));
+			fastRoll.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			fastRoll.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			fastRoll.step(DroneInput.idle(), 0.005, calm);
+		}
+
+		assertEquals(0.0, still.state().barometerPropwashErrorMeters(), 1.0e-9);
+		assertTrue(
+				fastRoll.state().barometerPropwashErrorMeters() > 0.30,
+				() -> "fastRollPressureError=" + fastRoll.state().barometerPropwashErrorMeters()
+		);
+		assertTrue(
+				fastRoll.state().barometerErrorMeters() > 0.25,
+				() -> "fastRollFilteredError=" + fastRoll.state().barometerErrorMeters()
+		);
+	}
+
+	@Test
 	void highAltitudeStandardAtmosphereReducesRotorAuthorityAndPressure() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
