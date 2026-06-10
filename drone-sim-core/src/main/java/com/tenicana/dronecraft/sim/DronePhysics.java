@@ -428,6 +428,7 @@ public final class DronePhysics {
 		double rotorVibrationSum = 0.0;
 		double rotorInflowSkewSum = 0.0;
 		Vec3 rotorInflowSkewTorqueSum = Vec3.ZERO;
+		Vec3 rotorBladeDissymmetryTorqueSum = Vec3.ZERO;
 		Vec3 rotorInertiaTorqueSum = Vec3.ZERO;
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
 		Vec3 rotorWallEffectForceSum = Vec3.ZERO;
@@ -795,12 +796,20 @@ public final class DronePhysics {
 			Vec3 inflowSkewTorque = rotorInflowSkewTorque(aerodynamicRotor, rotorRelativeAirVelocityBody, thrust, inflowSkewIntensity);
 			rotorInflowSkewSum += inflowSkewIntensity;
 			rotorInflowSkewTorqueSum = rotorInflowSkewTorqueSum.add(inflowSkewTorque);
+			Vec3 bladeDissymmetryTorque = rotorBladeDissymmetryTorque(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					thrust,
+					bladeDissymmetry
+			);
+			rotorBladeDissymmetryTorqueSum = rotorBladeDissymmetryTorqueSum.add(bladeDissymmetryTorque);
 
 			Vec3 rotorTorqueBody = torqueFromArm
 					.add(reactionTorque)
 					.add(inertiaTorque)
 					.add(angularDragTorque)
-					.add(inflowSkewTorque);
+					.add(inflowSkewTorque)
+					.add(bladeDissymmetryTorque);
 			state.setRotorTorqueBodyNewtonMeters(i, rotorTorqueBody);
 			double rotorArmFlex = updateRotorArmFlexIntensity(i, rotor, forceBody, rotorTorqueBody, omega, dtSeconds);
 			state.setRotorArmFlexIntensity(i, rotorArmFlex);
@@ -813,6 +822,7 @@ public final class DronePhysics {
 		state.setRotorVibration(rotorVibrationSum / config.rotors().size());
 		state.setRotorInflowSkewIntensity(rotorInflowSkewSum / config.rotors().size());
 		state.setRotorInflowSkewTorqueBodyNewtonMeters(rotorInflowSkewTorqueSum);
+		state.setRotorBladeDissymmetryTorqueBodyNewtonMeters(rotorBladeDissymmetryTorqueSum);
 		state.setRotorInertiaTorqueBodyNewtonMeters(rotorInertiaTorqueSum);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(rotorAngularDragTorqueSum);
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);
@@ -3650,6 +3660,40 @@ public final class DronePhysics {
 		double advancingBladeMoment = moment * 0.28 * rotor.spinDirection();
 		Vec3 spinCoupledMoment = transverseUnit.multiply(advancingBladeMoment);
 		return skewMoment.add(spinCoupledMoment);
+	}
+
+	private static Vec3 rotorBladeDissymmetryTorque(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double thrustNewtons,
+			BladeDissymmetryAerodynamics bladeDissymmetry
+	) {
+		if (bladeDissymmetry == null
+				|| bladeDissymmetry.intensity() <= 1.0e-6
+				|| thrustNewtons <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 transverseVelocityBody = rotorTransverseVelocityBody(rotor, relativeAirVelocityBody);
+		double transverseSpeed = transverseVelocityBody.length();
+		if (transverseSpeed <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 transverseUnit = transverseVelocityBody.multiply(1.0 / transverseSpeed);
+		Vec3 axisBody = rotorAxisBody(rotor);
+		double imbalanceMoment = thrustNewtons
+				* rotor.radiusMeters()
+				* MathUtil.clamp(
+						0.030 * bladeDissymmetry.intensity()
+								+ 0.070 * bladeDissymmetry.loadFactor(),
+						0.0,
+						0.052
+				);
+		double spinCoupledMoment = imbalanceMoment * 0.34 * rotor.spinDirection();
+		Vec3 diskMoment = transverseUnit.cross(axisBody).multiply(imbalanceMoment);
+		Vec3 advancingBladeMoment = transverseUnit.multiply(spinCoupledMoment);
+		return diskMoment.add(advancingBladeMoment).clamp(-0.055, 0.055);
 	}
 
 	private double updateRotorInducedInflow(

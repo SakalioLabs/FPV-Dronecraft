@@ -148,6 +148,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("pid_integral_relax_roll"));
 		assertTrue(csv.contains("rotor_skew_pitch_torque_nm"));
 		assertTrue(csv.contains("rotor_skew_roll_torque_nm"));
+		assertTrue(csv.contains("rotor_blade_dissymmetry_pitch_torque_nm"));
+		assertTrue(csv.contains("rotor_blade_dissymmetry_yaw_torque_nm"));
+		assertTrue(csv.contains("rotor_blade_dissymmetry_roll_torque_nm"));
 		assertTrue(csv.contains("rotor_inertia_pitch_torque_nm"));
 		assertTrue(csv.contains("rotor_inertia_roll_torque_nm"));
 		assertTrue(csv.contains("rotor_angular_drag_pitch_torque_nm"));

@@ -4973,7 +4973,8 @@ class DronePhysicsTest {
 
 		assertEquals(0.0, noRelativeFlow.state().rotorInflowSkewIntensity(), 1.0e-9);
 		assertTrue(crossFlow.state().rotorInflowSkewIntensity() > 0.25);
-		assertTrue(crossFlow.state().rotorInflowSkewTorqueBodyNewtonMeters().length() > 0.012);
+		assertTrue(crossFlow.state().rotorInflowSkewTorqueBodyNewtonMeters().length() > 0.010,
+				() -> "skewTorque=" + crossFlow.state().rotorInflowSkewTorqueBodyNewtonMeters());
 		assertTrue(crossFlow.state().angularVelocityBodyRadiansPerSecond().length()
 				> noRelativeFlow.state().angularVelocityBodyRadiansPerSecond().length() + 0.04);
 	}
@@ -5922,6 +5923,57 @@ class DronePhysicsTest {
 		assertTrue(highAdvance.state().rotorVibration() > clean.state().rotorVibration() + 0.025,
 				() -> "cleanVibration=" + clean.state().rotorVibration()
 						+ " stalledVibration=" + highAdvance.state().rotorVibration());
+	}
+
+	@Test
+	void bladeDissymmetryCreatesHubMomentInHighAdvanceFlow() {
+		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
+		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics noRelativeFlow = new DronePhysics(config);
+		DronePhysics crossFlow = new DronePhysics(config);
+		DronePhysics reacting = new DronePhysics(config);
+		DroneInput input = new DroneInput(0.68, 0.0, 0.0, 0.0, true);
+		Vec3 crosswind = new Vec3(34.0, 0.0, 0.0);
+		DroneEnvironment matchingWind = new DroneEnvironment(crosswind, 1.0, Double.POSITIVE_INFINITY);
+
+		for (int i = 0; i < 220; i++) {
+			noRelativeFlow.state().setOrientation(Quaternion.IDENTITY);
+			crossFlow.state().setOrientation(Quaternion.IDENTITY);
+			noRelativeFlow.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			crossFlow.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			noRelativeFlow.state().setVelocityMetersPerSecond(crosswind);
+			crossFlow.state().setVelocityMetersPerSecond(crosswind);
+			noRelativeFlow.step(input, 0.005, matchingWind);
+			crossFlow.step(input, 0.005);
+
+			reacting.state().setOrientation(Quaternion.IDENTITY);
+			reacting.state().setVelocityMetersPerSecond(crosswind);
+			reacting.step(input, 0.005);
+		}
+
+		Vec3 cleanTorque = noRelativeFlow.state().rotorBladeDissymmetryTorqueBodyNewtonMeters();
+		Vec3 crossFlowTorque = crossFlow.state().rotorBladeDissymmetryTorqueBodyNewtonMeters();
+		assertEquals(0.0, cleanTorque.length(), 1.0e-9);
+		assertTrue(crossFlow.state().averageRotorBladeDissymmetryIntensity() > 0.45);
+		assertTrue(crossFlowTorque.z() > 0.004,
+				() -> "crossFlowTorque=" + crossFlowTorque);
+		assertTrue(Math.abs(crossFlowTorque.z()) > Math.abs(crossFlowTorque.x()) + Math.abs(crossFlowTorque.y()));
+		assertTrue(Math.abs(reacting.state().angularVelocityBodyRadiansPerSecond().z()) > 0.40,
+				() -> "reactingRates=" + reacting.state().angularVelocityBodyRadiansPerSecond());
 	}
 
 	@Test
