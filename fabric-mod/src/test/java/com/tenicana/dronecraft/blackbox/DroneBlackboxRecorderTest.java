@@ -107,6 +107,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_tip_mach"));
 		assertTrue(csv.contains("rotor_0_tip_mach"));
 		assertTrue(csv.contains("rotor_7_tip_mach"));
+		assertTrue(csv.contains("rotor_low_reynolds_loss"));
+		assertTrue(csv.contains("rotor_7_low_reynolds_loss"));
 		assertTrue(csv.contains("rotor_blade_aoa_deg"));
 		assertTrue(csv.contains("rotor_0_blade_aoa_deg"));
 		assertTrue(csv.contains("rotor_7_blade_aoa_deg"));
@@ -323,6 +325,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_low_reynolds_loss")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_angular_drag_roll_torque_nm")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "airframe_separation")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_lift_n")]));
@@ -415,6 +419,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorFlappingTiltDegrees() >= 0.0);
 		assertTrue(summary.maxRotorAdvanceRatio() >= 0.0);
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
+		assertUnitInterval(summary.maxRotorLowReynoldsLoss());
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
 		assertTrue(summary.maxRotorArmFlexIntensity() >= 0.0);
 		assertTrue(summary.maxRotorAngularDragTorqueNewtonMeters() >= 0.0);
@@ -461,6 +466,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("ETL"));
 		assertTrue(summary.formatForChat().contains("adv"));
 		assertTrue(summary.formatForChat().contains("tipmach"));
+		assertTrue(summary.formatForChat().contains("lowre"));
 		assertTrue(summary.formatForChat().contains("load"));
 		assertTrue(summary.formatForChat().contains("skew"));
 		assertTrue(summary.formatForChat().contains("rwake"));
@@ -665,6 +671,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.66, Double.parseDouble(row[indexOf(header, "rotor_7_surface_scrape")]), 0.0001);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]) >= 0.0);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);

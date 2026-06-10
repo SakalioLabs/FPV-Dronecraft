@@ -86,6 +86,7 @@ public final class DroneState {
 	private double[] rotorTranslationalLiftIntensity;
 	private double[] rotorAdvanceRatio;
 	private double[] rotorTipMach;
+	private double[] rotorLowReynoldsLoss;
 	private double[] rotorBladeAngleOfAttackRadians;
 	private double[] rotorBladeElementStallIntensity;
 	private double[] rotorBladeDissymmetryIntensity;
@@ -182,6 +183,7 @@ public final class DroneState {
 		rotorTranslationalLiftIntensity = new double[motorCount];
 		rotorAdvanceRatio = new double[motorCount];
 		rotorTipMach = new double[motorCount];
+		rotorLowReynoldsLoss = new double[motorCount];
 		rotorBladeAngleOfAttackRadians = new double[motorCount];
 		rotorBladeElementStallIntensity = new double[motorCount];
 		rotorBladeDissymmetryIntensity = new double[motorCount];
@@ -1183,6 +1185,7 @@ public final class DroneState {
 		Arrays.fill(rotorTranslationalLiftIntensity, 0.0);
 		Arrays.fill(rotorAdvanceRatio, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
+		Arrays.fill(rotorLowReynoldsLoss, 0.0);
 		Arrays.fill(rotorBladeAngleOfAttackRadians, 0.0);
 		Arrays.fill(rotorBladeElementStallIntensity, 0.0);
 		Arrays.fill(rotorBladeDissymmetryIntensity, 0.0);
@@ -1359,6 +1362,34 @@ public final class DroneState {
 		double max = 0.0;
 		for (double mach : rotorTipMach) {
 			max = Math.max(max, mach);
+		}
+		return max;
+	}
+
+	public double rotorLowReynoldsLoss(int index) {
+		return rotorLowReynoldsLoss[index];
+	}
+
+	public double[] rotorLowReynoldsLoss() {
+		return Arrays.copyOf(rotorLowReynoldsLoss, rotorLowReynoldsLoss.length);
+	}
+
+	void setRotorLowReynoldsLoss(int index, double value) {
+		rotorLowReynoldsLoss[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorLowReynoldsLoss() {
+		double sum = 0.0;
+		for (double loss : rotorLowReynoldsLoss) {
+			sum += loss;
+		}
+		return sum / rotorLowReynoldsLoss.length;
+	}
+
+	public double maxRotorLowReynoldsLoss() {
+		double max = 0.0;
+		for (double loss : rotorLowReynoldsLoss) {
+			max = Math.max(max, loss);
 		}
 		return max;
 	}

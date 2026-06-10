@@ -215,6 +215,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_tip_mach",
 			"rotor_2_tip_mach",
 			"rotor_3_tip_mach",
+			"rotor_low_reynolds_loss",
+			"rotor_0_low_reynolds_loss",
+			"rotor_1_low_reynolds_loss",
+			"rotor_2_low_reynolds_loss",
+			"rotor_3_low_reynolds_loss",
 			"rotor_blade_aoa_deg",
 			"rotor_0_blade_aoa_deg",
 			"rotor_1_blade_aoa_deg",
@@ -650,6 +655,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_tip_mach",
 			"rotor_6_tip_mach",
 			"rotor_7_tip_mach",
+			"rotor_4_low_reynolds_loss",
+			"rotor_5_low_reynolds_loss",
+			"rotor_6_low_reynolds_loss",
+			"rotor_7_low_reynolds_loss",
 			"rotor_4_blade_aoa_deg",
 			"rotor_5_blade_aoa_deg",
 			"rotor_6_blade_aoa_deg",
@@ -1011,6 +1020,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorTipMachOrZero(state, 1), "%.5f");
 		row.add(rotorTipMachOrZero(state, 2), "%.5f");
 		row.add(rotorTipMachOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorLowReynoldsLoss(), "%.5f");
+		row.add(rotorLowReynoldsLossOrZero(state, 0), "%.5f");
+		row.add(rotorLowReynoldsLossOrZero(state, 1), "%.5f");
+		row.add(rotorLowReynoldsLossOrZero(state, 2), "%.5f");
+		row.add(rotorLowReynoldsLossOrZero(state, 3), "%.5f");
 		row.add(Math.toDegrees(state.averageRotorBladeAngleOfAttackRadians()), "%.4f");
 		row.add(rotorBladeAngleOfAttackDegreesOrZero(state, 0), "%.4f");
 		row.add(rotorBladeAngleOfAttackDegreesOrZero(state, 1), "%.4f");
@@ -1410,6 +1424,7 @@ public final class DroneBlackboxSample {
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
 		double[] rotorTipMach = state.rotorTipMach();
+		double[] rotorLowReynoldsLoss = state.rotorLowReynoldsLoss();
 		double[] rotorBladeAngleOfAttack = state.rotorBladeAngleOfAttackRadians();
 		double[] rotorBladeElementStall = state.rotorBladeElementStallIntensity();
 		double[] rotorBladeDissymmetry = state.rotorBladeDissymmetryIntensity();
@@ -1480,6 +1495,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorTipMach, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorLowReynoldsLoss, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(Math.toDegrees(valueOrZero(rotorBladeAngleOfAttack, i)), "%.4f");
@@ -1556,6 +1574,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorTipMachOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorTipMach(index) : 0.0;
+	}
+
+	private static double rotorLowReynoldsLossOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorLowReynoldsLoss(index) : 0.0;
 	}
 
 	private static double rotorBladeAngleOfAttackDegreesOrZero(DroneState state, int index) {

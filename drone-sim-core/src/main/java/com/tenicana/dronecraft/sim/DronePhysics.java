@@ -581,6 +581,7 @@ public final class DronePhysics {
 					airDensity,
 					environment.ambientTemperatureCelsius()
 			);
+			state.setRotorLowReynoldsLoss(i, lowReynoldsLoss);
 			double surfaceEffectThrustMultiplier = updateRotorSurfaceEffectThrustMultiplier(
 					i,
 					aerodynamicRotor,
