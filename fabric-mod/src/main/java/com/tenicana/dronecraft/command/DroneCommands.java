@@ -215,6 +215,7 @@ public final class DroneCommands {
 								.then(tuneParameter("rotor_disk_drag", 0.0, 0.03, DroneConfig::withRotorDiskDragCoefficient))
 								.then(tuneParameter("rotor_flapping", 0.0, 0.2, DroneConfig::withRotorFlappingCoefficient))
 								.then(tuneParameter("rotor_stall_loss", 0.0, 0.65, DroneConfig::withRotorStallThrustLossCoefficient))
+								.then(tuneParameter("rotor_imbalance", 0.0, 0.35, DroneConfig::withRotorImbalanceIntensity))
 								.then(tuneParameter("rotor_yaw_torque", 0.0, 0.08, DroneConfig::withRotorYawTorquePerThrustMeter))
 								.then(tuneParameter("rotor_outward_cant", -35.0, 35.0, DroneConfig::withRotorOutwardCantDegrees))
 								.then(tuneParameter("rotor_inertia", 0.0, 0.0005, DroneConfig::withRotorInertiaKgMetersSquared))
@@ -774,7 +775,7 @@ public final class DroneCommands {
 		RotorSpec rotor = config.rotors().get(0);
 		return String.format(
 				java.util.Locale.ROOT,
-				"Rates deg/s P/Y/R: %.0f / %.0f / %.0f\nExpo P/Y/R: %.2f / %.2f / %.2f super %.2f / %.2f / %.2f\nSelf-level: angle %.0fdeg gain %.2f horizon %.2f..%.2f\nPitch PID: %.5f %.5f %.5f limit %.2f\nYaw PID: %.5f %.5f %.5f limit %.2f\nRoll PID: %.5f %.5f %.5f limit %.2f\nPID assist: FF P/Y/R %.6f / %.6f / %.6f DLPF P/Y/R %.0f / %.0f / %.0fHz AG %.2f TPA %.2f@%.2f IRelax %.2f\nAirframe: rotors %d mass %.3fkg inertia %.5f %.5f %.5f cg %.3f %.3f %.3fm imu %.3f %.3f %.3fm cp %.3f %.3f %.3fm angular drag %.4f\nMotor/battery: tau %.3fs V %.1f/%.1f R %.3f cap %.2fAh max %.1fA\nESC: curve %.3f up %.1f/s down %.1f/s deadband %.3f brake %.2f voltage comp %.2f frame %.0fHz res %d\nThermal: heat %.1fC/s cool %.3f limit %.0fC cutoff %.0fC\nFC sensors: gyro LPF %.1fHz noise %.4frad/s accel LPF %.1fHz noise %.3fm/s^2 latency %.3fs\nAttitude estimator: accel gain %.2f trust %.2fm/s^2\nRC link: smoothing %.3fs latency %.3fs failsafe %.2fs frame %.0fHz res %d\nDrag: linear %.4f body %.4f %.4f %.4f\nRotor: thrust %.2fN Ct %.8f radius %.4fm pitch %.4fm lift %.3f axial %.3f disk %.4f flap %.3f stall %.2f cant %.2fdeg yaw %.5fm inertia %.8fkg*m^2 inflow %.3fs lag %.2f\nGround effect: height %.2fm boost %.2f\nPropwash: start %.2fm/s full %.2fm/s torque %.3fNm\nMixer: idle %.3f airmode %.2f",
+				"Rates deg/s P/Y/R: %.0f / %.0f / %.0f\nExpo P/Y/R: %.2f / %.2f / %.2f super %.2f / %.2f / %.2f\nSelf-level: angle %.0fdeg gain %.2f horizon %.2f..%.2f\nPitch PID: %.5f %.5f %.5f limit %.2f\nYaw PID: %.5f %.5f %.5f limit %.2f\nRoll PID: %.5f %.5f %.5f limit %.2f\nPID assist: FF P/Y/R %.6f / %.6f / %.6f DLPF P/Y/R %.0f / %.0f / %.0fHz AG %.2f TPA %.2f@%.2f IRelax %.2f\nAirframe: rotors %d mass %.3fkg inertia %.5f %.5f %.5f cg %.3f %.3f %.3fm imu %.3f %.3f %.3fm cp %.3f %.3f %.3fm angular drag %.4f\nMotor/battery: tau %.3fs V %.1f/%.1f R %.3f cap %.2fAh max %.1fA\nESC: curve %.3f up %.1f/s down %.1f/s deadband %.3f brake %.2f voltage comp %.2f frame %.0fHz res %d\nThermal: heat %.1fC/s cool %.3f limit %.0fC cutoff %.0fC\nFC sensors: gyro LPF %.1fHz noise %.4frad/s accel LPF %.1fHz noise %.3fm/s^2 latency %.3fs\nAttitude estimator: accel gain %.2f trust %.2fm/s^2\nRC link: smoothing %.3fs latency %.3fs failsafe %.2fs frame %.0fHz res %d\nDrag: linear %.4f body %.4f %.4f %.4f\nRotor: thrust %.2fN Ct %.8f radius %.4fm pitch %.4fm lift %.3f axial %.3f disk %.4f flap %.3f stall %.2f imbalance %.3f cant %.2fdeg yaw %.5fm inertia %.8fkg*m^2 inflow %.3fs lag %.2f\nGround effect: height %.2fm boost %.2f\nPropwash: start %.2fm/s full %.2fm/s torque %.3fNm\nMixer: idle %.3f airmode %.2f",
 				Math.toDegrees(config.maxPitchRateRadiansPerSecond()),
 				Math.toDegrees(config.maxYawRateRadiansPerSecond()),
 				Math.toDegrees(config.maxRollRateRadiansPerSecond()),
@@ -868,6 +869,7 @@ public final class DroneCommands {
 				rotor.diskDragCoefficient(),
 				rotor.flappingCoefficient(),
 				rotor.stallThrustLossCoefficient(),
+				config.averageRotorImbalanceIntensity(),
 				config.averageRotorOutwardCantDegrees(),
 				rotor.yawTorquePerThrustMeter(),
 				rotor.rotorInertiaKgMetersSquared(),

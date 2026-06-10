@@ -264,6 +264,7 @@ public final class OfflineFlightRecorder {
 			"tune_esc_command_frame_rate_hz",
 			"tune_esc_command_resolution_steps",
 			"tune_rotor_blade_pitch_m",
+			"tune_rotor_imbalance",
 			"airframe_lift_x_n",
 			"airframe_lift_y_n",
 			"airframe_lift_z_n",
@@ -867,7 +868,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
-						+ "%.3f,%.0f,%.4f,"
+						+ "%.3f,%.0f,%.4f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1120,6 +1121,7 @@ public final class OfflineFlightRecorder {
 				physics.config().escCommandFrameRateHertz(),
 				(double) physics.config().escCommandResolutionSteps(),
 				physics.config().rotors().get(0).bladePitchMeters(),
+				physics.config().averageRotorImbalanceIntensity(),
 				airframeLift.x(),
 				airframeLift.y(),
 				airframeLift.z(),

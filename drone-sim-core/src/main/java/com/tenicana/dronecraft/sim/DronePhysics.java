@@ -464,6 +464,7 @@ public final class DronePhysics {
 					+ rotorWaterIngestionVibration(rotor, omega, rotorWaterImmersion)
 					+ rotorPrecipitationVibration(rotor, omega, precipitationWetness)
 					+ rotorCompressibilityVibration(rotor, omega, rotorTipMach)
+					+ rotorImbalanceVibration(rotor, omega)
 					+ motorCommutationRippleVibration(rotor, omega, commutationRipple.intensity(), commutationRipple.torqueRippleNewtonMeters());
 			double vortexRingState = rotorVortexRingStateIntensity(
 					rotor,
@@ -1016,7 +1017,8 @@ public final class DronePhysics {
 				* spinRatio;
 		double rainTorque = 0.0006 * MathUtil.clamp(precipitationWetness, 0.0, 1.0) * spinRatio;
 		double scrapeTorque = 0.008 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0) * (0.35 + 0.65 * spinRatio);
-		return MathUtil.clamp(bearingTorque + windageTorque + wetPropTorque + rainTorque + scrapeTorque, 0.0, 0.050);
+		double imbalanceTorque = 0.0045 * rotor.imbalanceIntensity() * spinRatio * spinRatio;
+		return MathUtil.clamp(bearingTorque + windageTorque + wetPropTorque + rainTorque + scrapeTorque + imbalanceTorque, 0.0, 0.050);
 	}
 
 	private static double applyMotorMechanicalLoss(
@@ -1112,6 +1114,7 @@ public final class DronePhysics {
 						+ 0.036 * headroomStress
 						+ 0.090 * MathUtil.clamp(desyncIntensity, 0.0, 1.0)
 						+ 0.050 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0)
+						+ 0.120 * rotor.imbalanceIntensity() * spinRatio
 						+ 0.026 * lowSpeedLoad,
 				0.0,
 				0.28
@@ -1710,6 +1713,15 @@ public final class DronePhysics {
 		}
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		return MathUtil.clamp(damage * spinRatio * spinRatio, 0.0, 1.0);
+	}
+
+	private static double rotorImbalanceVibration(RotorSpec rotor, double omegaRadiansPerSecond) {
+		double imbalance = MathUtil.clamp(rotor.imbalanceIntensity(), 0.0, 0.35);
+		if (imbalance <= 1.0e-7) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		return MathUtil.clamp(imbalance * (0.18 + 0.82 * spinRatio * spinRatio), 0.0, 0.40);
 	}
 
 	private static double rotorHealthThrustScale(double rotorHealth) {
@@ -3188,6 +3200,9 @@ public final class DronePhysics {
 		double currentRipple = phaseCurrent
 				* state.motorCommutationRippleIntensity(index)
 				* (0.22 + 0.78 * escOutput)
+				+ phaseCurrent
+						* rotor.imbalanceIntensity()
+						* (0.05 + 0.45 * rpmFraction)
 				+ perMotorMaxCurrentAmps
 						* 0.06
 						* state.escDesyncIntensity(index)

@@ -638,7 +638,8 @@ public record DroneConfig(
 				template.inducedInflowTimeConstantSeconds(),
 				template.inducedInflowLagCoefficient(),
 				template.flappingCoefficient(),
-				template.stallThrustLossCoefficient()
+				template.stallThrustLossCoefficient(),
+				template.imbalanceIntensity()
 		);
 	}
 
@@ -670,6 +671,13 @@ public record DroneConfig(
 			count++;
 		}
 		return count == 0 ? 0.0 : sum / count;
+	}
+
+	public double averageRotorImbalanceIntensity() {
+		return rotors.stream()
+				.mapToDouble(RotorSpec::imbalanceIntensity)
+				.average()
+				.orElse(0.0);
 	}
 
 	public DroneConfig withMassKg(double massKg) {
@@ -1941,6 +1949,13 @@ public record DroneConfig(
 	public DroneConfig withRotorStallThrustLossCoefficient(double stallThrustLossCoefficient) {
 		List<RotorSpec> updatedRotors = rotors.stream()
 				.map(rotor -> rotor.withStallThrustLossCoefficient(stallThrustLossCoefficient))
+				.toList();
+		return withRotors(updatedRotors);
+	}
+
+	public DroneConfig withRotorImbalanceIntensity(double imbalanceIntensity) {
+		List<RotorSpec> updatedRotors = rotors.stream()
+				.map(rotor -> rotor.withImbalanceIntensity(imbalanceIntensity))
 				.toList();
 		return withRotors(updatedRotors);
 	}

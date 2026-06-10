@@ -197,9 +197,10 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_5_water_immersion",
 		"ceiling_effect_multiplier",
 		"env_thrust_asymmetry",
-	"rotor_flow_obstruction",
-	"tune_rotor_blade_pitch_m",
-	"tune_rotor_stall_loss",
+		"rotor_flow_obstruction",
+		"tune_rotor_blade_pitch_m",
+		"tune_rotor_stall_loss",
+		"tune_rotor_imbalance",
 		"tune_esc_command_frame_rate_hz",
 		"tune_esc_command_resolution_steps"
 ]

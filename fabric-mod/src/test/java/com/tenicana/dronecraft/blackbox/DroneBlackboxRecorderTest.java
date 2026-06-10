@@ -251,6 +251,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_1_surface_scrape"));
 		assertTrue(csv.contains("tune_rotor_blade_pitch_m"));
 		assertTrue(csv.contains("tune_rotor_stall_loss"));
+		assertTrue(csv.contains("tune_rotor_imbalance"));
 		assertTrue(csv.contains("tune_rc_frame_rate_hz"));
 		assertTrue(csv.contains("tune_rc_resolution_steps"));
 		assertTrue(csv.contains("tune_esc_command_frame_rate_hz"));
@@ -280,6 +281,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_command_error")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_blade_pitch_m")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_stall_loss")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_imbalance")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rc_frame_rate_hz")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rc_resolution_steps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_esc_command_frame_rate_hz")]));

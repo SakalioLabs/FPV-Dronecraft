@@ -382,7 +382,8 @@ class DronePhysicsTest {
 		DroneConfig base = directControl(DroneConfig.octoLift())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
 				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
-				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withRotorImbalanceIntensity(0.0);
 		RotorSpec template = base.rotors().get(0);
 		double arm = 0.34;
 		double upperY = template.radiusMeters() * 0.70;
@@ -620,6 +621,30 @@ class DronePhysicsTest {
 		assertTrue(physics.state().averageMotorCurrentRippleAmps() > 0.005);
 		assertTrue(physics.state().averageMotorTorqueRippleNewtonMeters() > 1.0e-6);
 		assertTrue(physics.state().rotorVibration() > 0.0);
+	}
+
+	@Test
+	void rotorImbalanceRaisesVibrationAndCurrentRipple() {
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withRotorImbalanceIntensity(0.0)
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics balanced = new DronePhysics(base);
+		DronePhysics imbalanced = new DronePhysics(base.withRotorImbalanceIntensity(0.18));
+		DroneInput cruise = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 140; i++) {
+			balanced.step(cruise, 0.005);
+			imbalanced.step(cruise, 0.005);
+		}
+
+		assertEquals(0.18, imbalanced.config().averageRotorImbalanceIntensity(), 1.0e-9);
+		assertTrue(imbalanced.state().rotorVibration() > balanced.state().rotorVibration() + 0.08);
+		assertTrue(imbalanced.state().averageMotorCurrentRippleAmps() > balanced.state().averageMotorCurrentRippleAmps() + 0.08);
+		assertTrue(imbalanced.state().gyroDynamicNotchAttenuation() > balanced.state().gyroDynamicNotchAttenuation() + 0.10);
+		assertTrue(imbalanced.state().averageMotorMechanicalLossTorqueNewtonMeters() > balanced.state().averageMotorMechanicalLossTorqueNewtonMeters());
 	}
 
 	@Test
@@ -1518,7 +1543,8 @@ class DronePhysicsTest {
 		PidGains dOnly = new PidGains(0.0, 0.0, 0.020, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad()), dOnly)
 				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
-				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0);
 		DronePhysics setpointStep = new DronePhysics(config);
 		DronePhysics gyroStep = new DronePhysics(config);
 		DroneInput neutral = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
@@ -1857,7 +1883,8 @@ class DronePhysicsTest {
 	@Test
 	void barometerReportsPressureAltitudeAndLaggedVerticalSpeed() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
-				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0);
 		DronePhysics physics = new DronePhysics(config);
 
 		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
@@ -3907,6 +3934,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_frame_rate_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_resolution_steps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_pitch_m"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_imbalance"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_x_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_y_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_z_m"));
@@ -3979,6 +4007,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_frame_rate_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_resolution_steps")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_pitch_m")])));
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_imbalance")]) >= 0.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_cg_x_m")])));
 		assertEquals(0.0, Double.parseDouble(firstRow[indexOf(header, "tune_cg_z_m")]), 0.0001);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_imu_x_m")])));
@@ -4241,7 +4270,8 @@ class DronePhysicsTest {
 				template.inducedInflowTimeConstantSeconds(),
 				template.inducedInflowLagCoefficient(),
 				template.flappingCoefficient(),
-				template.stallThrustLossCoefficient()
+				template.stallThrustLossCoefficient(),
+				template.imbalanceIntensity()
 		);
 	}
 

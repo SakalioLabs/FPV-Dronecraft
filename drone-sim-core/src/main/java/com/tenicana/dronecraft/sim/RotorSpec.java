@@ -16,9 +16,11 @@ public record RotorSpec(
 		double inducedInflowTimeConstantSeconds,
 		double inducedInflowLagCoefficient,
 		double flappingCoefficient,
-		double stallThrustLossCoefficient
+		double stallThrustLossCoefficient,
+		double imbalanceIntensity
 ) {
 	private static final Vec3 DEFAULT_THRUST_AXIS_BODY = new Vec3(0.0, 1.0, 0.0);
+	private static final double DEFAULT_IMBALANCE_INTENSITY = 0.012;
 
 	public RotorSpec(
 			Vec3 positionBodyMeters,
@@ -51,7 +53,8 @@ public record RotorSpec(
 				inducedInflowTimeConstantSeconds,
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
-				0.0
+				0.0,
+				DEFAULT_IMBALANCE_INTENSITY
 		);
 	}
 
@@ -87,7 +90,8 @@ public record RotorSpec(
 				inducedInflowTimeConstantSeconds,
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
-				stallThrustLossCoefficient
+				stallThrustLossCoefficient,
+				DEFAULT_IMBALANCE_INTENSITY
 		);
 	}
 
@@ -121,7 +125,8 @@ public record RotorSpec(
 				inducedInflowTimeConstantSeconds,
 				inducedInflowLagCoefficient,
 				0.0,
-				0.0
+				0.0,
+				DEFAULT_IMBALANCE_INTENSITY
 		);
 	}
 
@@ -153,7 +158,8 @@ public record RotorSpec(
 				0.0,
 				0.0,
 				0.0,
-				0.0
+				0.0,
+				DEFAULT_IMBALANCE_INTENSITY
 		);
 	}
 
@@ -191,6 +197,7 @@ public record RotorSpec(
 		inducedInflowLagCoefficient = MathUtil.clamp(inducedInflowLagCoefficient, 0.0, 0.6);
 		flappingCoefficient = MathUtil.clamp(flappingCoefficient, 0.0, 0.2);
 		stallThrustLossCoefficient = MathUtil.clamp(stallThrustLossCoefficient, 0.0, 0.65);
+		imbalanceIntensity = MathUtil.clamp(imbalanceIntensity, 0.0, 0.35);
 	}
 
 	public static double defaultBladePitchMeters(double radiusMeters) {
@@ -202,52 +209,56 @@ public record RotorSpec(
 	}
 
 	public RotorSpec withMaxThrustNewtons(double maxThrustNewtons) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withThrustCoefficient(double thrustCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withRadiusMeters(double radiusMeters) {
 		double pitchRatio = bladePitchMeters / Math.max(1.0e-6, this.radiusMeters);
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, radiusMeters * pitchRatio, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, radiusMeters * pitchRatio, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withBladePitchMeters(double bladePitchMeters) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withTransverseFlowLiftCoefficient(double transverseFlowLiftCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withAxialFlowThrustLossCoefficient(double axialFlowThrustLossCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withDiskDragCoefficient(double diskDragCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withRotorInertiaKgMetersSquared(double rotorInertiaKgMetersSquared) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withYawTorquePerThrustMeter(double yawTorquePerThrustMeter) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withInducedInflow(double inducedInflowTimeConstantSeconds, double inducedInflowLagCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withFlappingCoefficient(double flappingCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withStallThrustLossCoefficient(double stallThrustLossCoefficient) {
-		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient);
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
+	}
+
+	public RotorSpec withImbalanceIntensity(double imbalanceIntensity) {
+		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
 	public RotorSpec withThrustAxisBody(Vec3 thrustAxisBody) {
@@ -267,7 +278,8 @@ public record RotorSpec(
 				inducedInflowTimeConstantSeconds,
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
-				stallThrustLossCoefficient
+				stallThrustLossCoefficient,
+				imbalanceIntensity
 		);
 	}
 
@@ -284,7 +296,8 @@ public record RotorSpec(
 			double inducedInflowTimeConstantSeconds,
 			double inducedInflowLagCoefficient,
 			double flappingCoefficient,
-			double stallThrustLossCoefficient
+			double stallThrustLossCoefficient,
+			double imbalanceIntensity
 	) {
 		return new RotorSpec(
 				positionBodyMeters,
@@ -302,7 +315,8 @@ public record RotorSpec(
 				inducedInflowTimeConstantSeconds,
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
-				stallThrustLossCoefficient
+				stallThrustLossCoefficient,
+				imbalanceIntensity
 		);
 	}
 }

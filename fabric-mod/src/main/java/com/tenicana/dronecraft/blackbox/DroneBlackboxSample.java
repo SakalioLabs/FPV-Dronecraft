@@ -446,6 +446,7 @@ public final class DroneBlackboxSample {
 			"tune_rotor_axial_loss",
 			"tune_rotor_flapping",
 			"tune_rotor_stall_loss",
+			"tune_rotor_imbalance",
 			"tune_pitch_rate_dps",
 			"tune_yaw_rate_dps",
 			"tune_roll_rate_dps",
@@ -1224,6 +1225,7 @@ public final class DroneBlackboxSample {
 		row.add(rotor.axialFlowThrustLossCoefficient(), "%.8f");
 		row.add(rotor.flappingCoefficient(), "%.5f");
 		row.add(rotor.stallThrustLossCoefficient(), "%.3f");
+		row.add(config.averageRotorImbalanceIntensity(), "%.5f");
 		row.add(Math.toDegrees(config.maxPitchRateRadiansPerSecond()), "%.4f");
 		row.add(Math.toDegrees(config.maxYawRateRadiansPerSecond()), "%.3f");
 		row.add(Math.toDegrees(config.maxRollRateRadiansPerSecond()), "%.4f");
