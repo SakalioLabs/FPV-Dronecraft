@@ -351,7 +351,7 @@ public final class DroneHud {
 	private static String aerodynamicStatusLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"AS%4.1f A%+3.0f S%+3.0f E%2.0f Mu%2.0f TM%2.0f Re%2.0f BA%2.0f BS%2.0f K%2.0f W%2.0f P%2.0f V%2.0f R%2.0f",
+				"AS%4.1f A%+3.0f S%+3.0f E%2.0f Mu%2.0f TM%2.0f Re%2.0f BA%2.0f BS%2.0f K%2.0f W%2.0f SW%.1f P%2.0f V%2.0f R%2.0f",
 				drone.getAirspeedMetersPerSecond(),
 				drone.getAngleOfAttackDegrees(),
 				drone.getSideslipDegrees(),
@@ -363,6 +363,7 @@ public final class DroneHud {
 				drone.getRotorBladeElementStallIntensity() * 100.0f,
 				drone.getRotorInflowSkewIntensity() * 100.0f,
 				drone.getRotorWakeInterferenceIntensity() * 100.0f,
+				drone.getRotorWakeSwirlVelocityMetersPerSecond(),
 				drone.getPropwashIntensity() * 100.0f,
 				drone.getVortexRingStateIntensity() * 100.0f,
 				drone.getRotorStallIntensity() * 100.0f
@@ -425,6 +426,7 @@ public final class DroneHud {
 				|| drone.getRotorBladeAngleOfAttackDegrees() > 28.0f
 				|| drone.getRotorBladeElementStallIntensity() > 0.35f
 				|| drone.getRotorWakeInterferenceIntensity() > 0.35f
+				|| drone.getRotorWakeSwirlVelocityMetersPerSecond() > 0.75f
 				|| drone.getRotorStallIntensity() > 0.35f) {
 			return WARN_COLOR;
 		}
