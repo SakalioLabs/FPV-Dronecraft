@@ -262,7 +262,7 @@ Available PID keys are `pitch_p`, `pitch_i`, `pitch_d`, `pitch_limit`, `yaw_p`, 
 
 `rotor_blade_pitch` is the prop pitch distance in meters; raising it increases pitch-speed margin and prop load, while lowering it makes the prop unload sooner in high axial climb flow.
 
-Rotor advance ratio, flapping, blade stall, induced inflow, disk drag, and same-frame wake checks use each rotor's current axis, so canted motors change both force direction and local airflow.
+Rotor advance ratio, flapping, blade stall, induced inflow, disk drag, same-frame wake checks, and arm-flex feedback use each rotor's current axis, so canted motors and flexed motor mounts change both force direction and local airflow.
 
 The core model includes:
 
@@ -272,7 +272,7 @@ The core model includes:
 - per-rotor dynamic induced inflow, so each prop disk has a finite wake build-up time during throttle punches and rapid unloading;
 - rotor-axis-aware retained propwash wake memory, so low-throttle descents along the prop-disk axes can build dirty wake that hits harder on the next punch-out while disk-plane crossflow flushes it away;
 - same-frame rotor wake interference and wake-swirl velocity for overlapping or vertically stacked rotors, reducing lower-disk thrust while adding load, vibration, and local tangential inflow telemetry;
-- lightweight arm and motor-mount flex dynamics driven by per-rotor force/torque transients, feeding rotor vibration, IMU noise, dynamic notch telemetry, and blackbox/offline CSV traces;
+- lightweight arm and motor-mount flex dynamics driven by per-rotor force/torque transients, feeding rotor vibration, IMU noise, dynamic notch telemetry, blackbox/offline CSV traces, and a small load-dependent rotor force-arm/thrust-axis deflection;
 - deterministic propwash disturbance torque during retained high-throttle descent through the drone's own wake;
 - nearby-drone downwash and wake turbulence, so a drone flying under another active drone receives downward local wind, added turbulence, and dedicated wake telemetry;
 - tunable airframe mass, inertia, center-of-mass offset, IMU mounting offset, center-of-pressure offset, ESC response, motor response, battery sag, rotor thrust, and rotor aerodynamic coefficients, with per-motor RPM telemetry for filter and powertrain tuning;

@@ -2164,6 +2164,10 @@ class DronePhysicsTest {
 
 		assertTrue(maxArmFlex > 0.03);
 		assertTrue(maxRotorVibration > 0.005);
+		Vec3 rotor0Arm = config.rotors().get(0).positionBodyMeters();
+		Vec3 rotor0Radial = new Vec3(rotor0Arm.x(), 0.0, rotor0Arm.z()).normalized();
+		double inwardFlexForce = -physics.state().rotorForceBodyNewtons(0).dot(rotor0Radial);
+		assertTrue(inwardFlexForce > 0.005);
 
 		physics.resetControlLoops();
 

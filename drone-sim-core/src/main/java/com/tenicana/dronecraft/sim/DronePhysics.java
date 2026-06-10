@@ -10,6 +10,8 @@ public final class DronePhysics {
 	private static final double MOTOR_STALL_CURRENT_SCALE = 3.20;
 	private static final double MOTOR_NO_LOAD_OMEGA_SCALE = 1.35;
 	private static final double MOTOR_OUTRUNNER_POLE_PAIRS = 7.0;
+	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
+	private static final double ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE = 0.055;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
 	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
@@ -360,14 +362,17 @@ public final class DronePhysics {
 			Vec3 wakeSwirlVelocityBody = rotorWakeInterference.swirlVelocityBodyMetersPerSecond(i);
 			double wakeSwirlSpeed = wakeSwirlVelocityBody.length();
 			state.setRotorWakeSwirlVelocityMetersPerSecond(i, wakeSwirlSpeed);
-			Vec3 rotorArmBody = rotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
+			Vec3 nominalRotorArmBody = rotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
+			double previousRotorArmFlex = rotorArmFlexIntensity[i];
+			Vec3 rotorArmBody = rotorArmBodyWithFlex(rotor, nominalRotorArmBody, previousRotorArmFlex);
+			RotorSpec aerodynamicRotor = rotorWithArmFlexedThrustAxis(rotor, nominalRotorArmBody, previousRotorArmFlex);
 			Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody
 					.add(angularVelocityBody.cross(rotorArmBody))
 					.add(rotorWakeInterference.downwashVelocityBodyMetersPerSecond(i))
 					.add(wakeSwirlVelocityBody);
-			double advanceRatio = rotorAdvanceRatio(rotor, rotorRelativeAirVelocityBody, commandedOmega);
+			double advanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedOmega);
 			state.setRotorAdvanceRatio(i, advanceRatio);
-			double kinematicRotorStall = rotorBladeStallIntensity(rotor, rotorRelativeAirVelocityBody, commandedOmega);
+			double kinematicRotorStall = rotorBladeStallIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedOmega);
 			double rotorStall = kinematicRotorStall;
 			double desyncIntensity = updateEscDesyncIntensity(
 					i,
@@ -418,7 +423,7 @@ public final class DronePhysics {
 					desyncIntensity,
 					surfaceScrape
 			));
-			double rotorTipMach = rotorTipMach(rotor, rotorRelativeAirVelocityBody, omega, environment.ambientTemperatureCelsius());
+			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, environment.ambientTemperatureCelsius());
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
 			double compressibilityLoad = rotorCompressibilityLoadFactor(rotorTipMach);
@@ -431,19 +436,19 @@ public final class DronePhysics {
 			double baseThrust = rotor.thrustCoefficient() * omega * omega * thrustScale;
 			double inflowLagScale = updateRotorInducedInflow(i, rotor, rotorRelativeAirVelocityBody, omega, baseThrust, airDensity, dtSeconds);
 			double rotorAirflowScale = rotorAirflowThrustMultiplier(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					state.rotorTranslationalLiftIntensity(i)
 			);
 			BladeElementAerodynamics bladeElement = rotorBladeElementAerodynamics(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					state.rotorInducedVelocityMetersPerSecond(i)
 			);
 			BladeDissymmetryAerodynamics bladeDissymmetry = rotorBladeDissymmetryAerodynamics(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					baseThrust
@@ -467,14 +472,14 @@ public final class DronePhysics {
 					+ rotorImbalanceVibration(rotor, omega)
 					+ motorCommutationRippleVibration(rotor, omega, commutationRipple.intensity(), commutationRipple.torqueRippleNewtonMeters());
 			double vortexRingState = rotorVortexRingStateIntensity(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					state.rotorInducedVelocityMetersPerSecond(i)
 			);
 			vortexRingStateSum += vortexRingState;
 			double aerodynamicLoadFactor = MathUtil.clamp(rotorAerodynamicLoadFactor(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					state.rotorInducedVelocityMetersPerSecond(i),
@@ -484,7 +489,7 @@ public final class DronePhysics {
 					environment.rotorFlowObstruction(i),
 					surfaceScrape
 			)
-					+ rotorAngularDragLoadFactor(rotor, angularVelocityBody, omega)
+					+ rotorAngularDragLoadFactor(aerodynamicRotor, angularVelocityBody, omega)
 					+ 0.28 * wakeInterference
 					+ rotorWakeSwirlLoadFactor(rotor, omega, wakeSwirlSpeed)
 					+ compressibilityLoad
@@ -504,14 +509,14 @@ public final class DronePhysics {
 					* MathUtil.clamp(vortexRingThrustScale, 0.45, 1.0)
 					* MathUtil.clamp(stallThrustScale, 0.35, 1.0);
 			state.setRotorThrustNewtons(i, thrust);
-			Vec3 forceBody = rotor.thrustAxisBody().multiply(thrust);
-			Vec3 flappingForceBody = updateRotorFlappingForce(i, rotor, rotorRelativeAirVelocityBody, omega, thrust, dtSeconds);
+			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
+			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, omega, thrust, dtSeconds);
 			state.setRotorFlappingForceNewtons(i, Math.hypot(flappingForceBody.x(), flappingForceBody.z()));
 			Vec3 thrustAxisForceBody = forceBody.add(flappingForceBody);
 			Vec3 rotorDiskAxisBody = rotorDiskAxisBody(thrustAxisForceBody);
-			Vec3 diskDragBody = rotorDiskDragForce(rotor, rotorRelativeAirVelocityBody, omega, airDensity);
+			Vec3 diskDragBody = rotorDiskDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, airDensity);
 			Vec3 wallEffectForceBody = rotorWallEffectForce(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					thrust,
@@ -535,7 +540,7 @@ public final class DronePhysics {
 			Vec3 inertiaTorque = rotorInertiaTorque(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);
 			rotorInertiaTorqueSum = rotorInertiaTorqueSum.add(inertiaTorque);
 			Vec3 angularDragTorque = rotorAngularDragTorque(
-					rotor,
+					aerodynamicRotor,
 					angularVelocityBody,
 					rotorDiskAxisBody,
 					omega,
@@ -547,13 +552,13 @@ public final class DronePhysics {
 			);
 			rotorAngularDragTorqueSum = rotorAngularDragTorqueSum.add(angularDragTorque);
 			double inflowSkewIntensity = rotorInflowSkewIntensity(
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					omega,
 					state.rotorTranslationalLiftIntensity(i),
 					rotorStall
 			);
-			Vec3 inflowSkewTorque = rotorInflowSkewTorque(rotor, rotorRelativeAirVelocityBody, thrust, inflowSkewIntensity);
+			Vec3 inflowSkewTorque = rotorInflowSkewTorque(aerodynamicRotor, rotorRelativeAirVelocityBody, thrust, inflowSkewIntensity);
 			rotorInflowSkewSum += inflowSkewIntensity;
 			rotorInflowSkewTorqueSum = rotorInflowSkewTorqueSum.add(inflowSkewTorque);
 
@@ -1927,6 +1932,46 @@ public final class DronePhysics {
 
 	private static double rotorWakeInterferenceThrustScale(double interference) {
 		return MathUtil.clamp(1.0 - 0.22 * MathUtil.clamp(interference, 0.0, 1.0), 0.72, 1.0);
+	}
+
+	private static Vec3 rotorArmBodyWithFlex(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
+		double flex = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
+		Vec3 radialDirection = horizontalRotorArmDirection(nominalRotorArmBody);
+		if (flex <= 1.0e-6 || radialDirection.lengthSquared() <= 1.0e-9) {
+			return nominalRotorArmBody;
+		}
+
+		double armLength = Math.max(0.08, Math.hypot(nominalRotorArmBody.x(), nominalRotorArmBody.z()));
+		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
+		double verticalDeflection = ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE * flex * armLength * radiusScale;
+		return nominalRotorArmBody.add(BODY_ROTOR_AXIS.multiply(verticalDeflection));
+	}
+
+	private static RotorSpec rotorWithArmFlexedThrustAxis(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
+		double flex = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
+		Vec3 radialDirection = horizontalRotorArmDirection(nominalRotorArmBody);
+		if (flex <= 1.0e-6 || radialDirection.lengthSquared() <= 1.0e-9) {
+			return rotor;
+		}
+
+		double armLength = Math.max(0.08, Math.hypot(nominalRotorArmBody.x(), nominalRotorArmBody.z()));
+		double armScale = MathUtil.clamp(Math.sqrt(armLength / 0.24), 0.55, 2.10);
+		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
+		double tiltRadians = ROTOR_ARM_FLEX_TILT_RADIANS * flex * armScale * radiusScale;
+		Vec3 axis = rotorAxisBody(rotor).subtract(radialDirection.multiply(tiltRadians)).normalized();
+		if (axis.lengthSquared() <= 1.0e-9 || axis.y() <= 0.0) {
+			return rotor;
+		}
+		return rotor.withThrustAxisBody(axis);
+	}
+
+	private static Vec3 horizontalRotorArmDirection(Vec3 rotorArmBody) {
+		Vec3 horizontal = new Vec3(rotorArmBody.x(), 0.0, rotorArmBody.z());
+		double length = horizontal.length();
+		if (length <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+		return horizontal.multiply(1.0 / length);
 	}
 
 	private double updateRotorArmFlexIntensity(
