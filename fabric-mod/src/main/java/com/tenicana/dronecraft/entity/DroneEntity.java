@@ -118,6 +118,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_VIBRATION = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_CONING_INTENSITY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_STALL_INTENSITY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_FLAPPING_TILT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_SURFACE_SCRAPE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_TRANSLATIONAL_LIFT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_ADVANCE_RATIO = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -365,6 +366,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_VIBRATION, 0.0f);
 		builder.define(ROTOR_CONING_INTENSITY, 0.0f);
 		builder.define(ROTOR_STALL_INTENSITY, 0.0f);
+		builder.define(ROTOR_FLAPPING_TILT, 0.0f);
 		builder.define(ROTOR_SURFACE_SCRAPE, 0.0f);
 		builder.define(ROTOR_TRANSLATIONAL_LIFT, 0.0f);
 		builder.define(ROTOR_ADVANCE_RATIO, 0.0f);
@@ -1076,6 +1078,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_VIBRATION, (float) physics.state().rotorVibration());
 		entityData.set(ROTOR_CONING_INTENSITY, (float) physics.state().averageRotorConingIntensity());
 		entityData.set(ROTOR_STALL_INTENSITY, (float) physics.state().averageRotorStallIntensity());
+		entityData.set(ROTOR_FLAPPING_TILT, (float) Math.toDegrees(physics.state().averageRotorFlappingTiltRadians()));
 		entityData.set(ROTOR_SURFACE_SCRAPE, (float) physics.state().maxRotorSurfaceScrapeIntensity());
 		entityData.set(ROTOR_TRANSLATIONAL_LIFT, (float) physics.state().averageRotorTranslationalLiftIntensity());
 		entityData.set(ROTOR_ADVANCE_RATIO, (float) physics.state().maxRotorAdvanceRatio());
@@ -1731,6 +1734,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorStallIntensity() {
 		return entityData.get(ROTOR_STALL_INTENSITY);
+	}
+
+	public float getRotorFlappingTiltDegrees() {
+		return entityData.get(ROTOR_FLAPPING_TILT);
 	}
 
 	public float getRotorSurfaceScrapeIntensity() {

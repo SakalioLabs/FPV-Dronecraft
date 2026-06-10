@@ -368,9 +368,10 @@ public final class DroneHud {
 	private static String aeroForceLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"FOR L%4.1f SP%2.0f G%4.1f W%4.1f S%4.1f",
+				"FOR L%4.1f SP%2.0f FL%2.0f G%4.1f W%4.1f S%4.1f",
 				drone.getAirframeLiftForceNewtons(),
 				drone.getAirframeSeparatedFlowIntensity() * 100.0f,
+				drone.getRotorFlappingTiltDegrees(),
 				drone.getGroundEffectDragForceNewtons(),
 				drone.getRotorWashDragForceNewtons(),
 				drone.getRotorWallEffectForceNewtons()
@@ -438,6 +439,7 @@ public final class DroneHud {
 
 	private static int aeroForceStatusColor(DroneEntity drone) {
 		if (drone.getAirframeSeparatedFlowIntensity() > 0.55f
+				|| drone.getRotorFlappingTiltDegrees() > 8.0f
 				|| drone.getAirframeLiftForceNewtons() > 6.0f
 				|| drone.getGroundEffectDragForceNewtons() > 6.0f
 				|| drone.getRotorWashDragForceNewtons() > 6.0f
