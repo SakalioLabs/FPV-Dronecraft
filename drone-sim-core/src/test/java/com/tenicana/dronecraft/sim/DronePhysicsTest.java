@@ -6721,6 +6721,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_pass_ripple"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_flapping_tilt_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flapping_tilt_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_coning"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_coning"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coning"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("flight_mode"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("control_frame_age_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("control_frame_error"));
@@ -6836,6 +6839,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_blade_pass_ripple")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_flapping_tilt_deg")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_flapping_tilt_deg")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_coning")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_0_coning")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_coning")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_attenuation")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_commutation_ripple")])));
@@ -6864,6 +6870,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_target_rpm") > 1000.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_tracking_error") > 0.005);
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);
+		assertTrue(maxColumn(lines, header, "rotor_coning") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
@@ -6897,6 +6904,7 @@ class DronePhysicsTest {
 		assertTrue(report.minMotorVoltageHeadroom() >= 0.0);
 		assertTrue(report.minMotorVoltageHeadroom() < 0.45);
 		assertTrue(report.maxRotorStallIntensity() > 0.20);
+		assertTrue(report.maxRotorConingIntensity() > 0.0);
 		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.05);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
 		assertTrue(report.maxEscTemperatureCelsius() >= 25.0);
@@ -6955,6 +6963,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_dissymmetry"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_pass_ripple"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flapping_tilt_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coning"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_interference"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_swirl_mps"));
@@ -6978,6 +6987,7 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
