@@ -994,6 +994,59 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryVoltageSpikeRaisesActiveBrakingEscStress() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withBattery(16.8, 16.7, 0.010, 2.0, 180.0);
+		DronePhysics cleanRail = new DronePhysics(config);
+		DronePhysics spikyRail = new DronePhysics(config);
+		DroneInput spoolUp = new DroneInput(0.90, 0.0, 0.0, 0.0, true);
+		DroneInput brake = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		double maxCleanDesync = 0.0;
+		double maxSpikyDesync = 0.0;
+		double maxCleanCommutationRipple = 0.0;
+		double maxSpikyCommutationRipple = 0.0;
+		double maxCleanCurrentRipple = 0.0;
+		double maxSpikyCurrentRipple = 0.0;
+
+		for (int i = 0; i < 130; i++) {
+			cleanRail.step(spoolUp, 0.005);
+			spikyRail.step(spoolUp, 0.005);
+		}
+
+		for (int i = 0; i < 70; i++) {
+			cleanRail.state().setBatteryVoltageSpike(0.0);
+			spikyRail.state().setBatteryVoltageSpike(1.05);
+			cleanRail.step(brake, 0.005);
+			spikyRail.step(brake, 0.005);
+			maxCleanDesync = Math.max(maxCleanDesync, cleanRail.state().maxEscDesyncIntensity());
+			maxSpikyDesync = Math.max(maxSpikyDesync, spikyRail.state().maxEscDesyncIntensity());
+			maxCleanCommutationRipple = Math.max(maxCleanCommutationRipple, cleanRail.state().averageMotorCommutationRippleIntensity());
+			maxSpikyCommutationRipple = Math.max(maxSpikyCommutationRipple, spikyRail.state().averageMotorCommutationRippleIntensity());
+			maxCleanCurrentRipple = Math.max(maxCleanCurrentRipple, cleanRail.state().averageMotorCurrentRippleAmps());
+			maxSpikyCurrentRipple = Math.max(maxSpikyCurrentRipple, spikyRail.state().averageMotorCurrentRippleAmps());
+		}
+
+		double finalMaxCleanDesync = maxCleanDesync;
+		double finalMaxSpikyDesync = maxSpikyDesync;
+		double finalMaxCleanCommutationRipple = maxCleanCommutationRipple;
+		double finalMaxSpikyCommutationRipple = maxSpikyCommutationRipple;
+		double finalMaxCleanCurrentRipple = maxCleanCurrentRipple;
+		double finalMaxSpikyCurrentRipple = maxSpikyCurrentRipple;
+		assertTrue(finalMaxSpikyDesync > finalMaxCleanDesync + 0.010,
+				() -> "cleanDesync=" + finalMaxCleanDesync
+						+ " spikyDesync=" + finalMaxSpikyDesync);
+		assertTrue(finalMaxSpikyCommutationRipple > finalMaxCleanCommutationRipple + 0.0025,
+				() -> "cleanCommutation=" + finalMaxCleanCommutationRipple
+						+ " spikyCommutation=" + finalMaxSpikyCommutationRipple);
+		assertTrue(finalMaxSpikyCurrentRipple > finalMaxCleanCurrentRipple + 0.002,
+				() -> "cleanCurrentRipple=" + finalMaxCleanCurrentRipple
+						+ " spikyCurrentRipple=" + finalMaxSpikyCurrentRipple);
+	}
+
+	@Test
 	void escOutputCurveSoftensMidThrottleResponse() {
 		DroneConfig base = directControl(DroneConfig.racingQuad()).withMotorTimeConstantSeconds(0.01);
 		DronePhysics linearEsc = new DronePhysics(base.withEscMotorResponse(1.0, 1000.0, 0.0));

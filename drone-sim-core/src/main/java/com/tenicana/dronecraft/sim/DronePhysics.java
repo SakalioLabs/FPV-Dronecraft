@@ -1015,6 +1015,10 @@ public final class DronePhysics {
 		double voltageHeadroomStress = (1.0 - smoothStep(0.08, 0.36, voltageHeadroom))
 				* smoothStep(0.55, 0.92, escOutput);
 		double railRippleStress = batteryBusRippleStress() * smoothStep(0.45, 0.90, escOutput);
+		double spinRatio = MathUtil.clamp(previousOmega / Math.max(1.0, rotor.maxOmegaRadiansPerSecond()), 0.0, 1.0);
+		double railSpikeStress = batteryBusSpikeStress()
+				* smoothStep(0.10, 0.65, spinRatio)
+				* MathUtil.clamp(0.45 + 0.55 * config.motorActiveBrakingStrength(), 0.0, 1.0);
 		double thermalStress = Math.max(1.0 - state.motorThermalLimit(), 1.0 - state.escThermalLimit(index));
 		double outputStress = smoothStep(0.48, 0.90, escOutput);
 		double risk = 0.78 * flowObstruction
@@ -1026,10 +1030,15 @@ public final class DronePhysics {
 				+ 0.20 * voltageStress
 				+ 0.20 * voltageHeadroomStress
 				+ 0.34 * railRippleStress
+				+ 0.50 * railSpikeStress
 				+ 0.14 * thermalStress
 				+ 0.16 * outputStress
 				- 0.42;
-		double targetIntensity = MathUtil.clamp(risk * 1.45, 0.0, 1.0) * smoothStep(0.12, 0.38, escOutput);
+		double activeElectricalDrive = Math.max(
+				smoothStep(0.12, 0.38, escOutput),
+				0.55 * railSpikeStress * MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0)
+		);
+		double targetIntensity = MathUtil.clamp(risk * 1.45, 0.0, 1.0) * activeElectricalDrive;
 		double previousIntensity = state.escDesyncIntensity(index);
 		double timeConstant = targetIntensity > previousIntensity ? 0.018 : 0.090;
 		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
@@ -1273,13 +1282,19 @@ public final class DronePhysics {
 		double headroomStress = 1.0 - smoothStep(0.08, 0.35, voltageHeadroom);
 		double loadStress = smoothStep(0.88, 1.85, load);
 		double railRippleStress = batteryBusRippleStress();
-		double activeSpin = smoothStep(0.025, 0.18, spinRatio) * smoothStep(0.04, 0.16, output);
+		double railSpikeStress = batteryBusSpikeStress() * smoothStep(0.08, 0.55, spinRatio);
+		double activeDrive = Math.max(
+				smoothStep(0.04, 0.16, output),
+				0.45 * railSpikeStress * MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0)
+		);
+		double activeSpin = smoothStep(0.025, 0.18, spinRatio) * activeDrive;
 		double intensity = activeSpin * MathUtil.clamp(
 				0.006
 						+ 0.030 * dutyRipple
 						+ 0.030 * loadStress
 						+ 0.036 * headroomStress
 						+ 0.024 * railRippleStress
+						+ 0.020 * railSpikeStress
 						+ 0.090 * MathUtil.clamp(desyncIntensity, 0.0, 1.0)
 						+ 0.050 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0)
 						+ 0.120 * rotorEffectiveImbalanceIntensity(rotor, rotorHealth) * spinRatio
@@ -1322,6 +1337,11 @@ public final class DronePhysics {
 	private double batteryBusRippleStress() {
 		double rippleRatio = state.batteryBusRippleVoltage() / Math.max(1.0, config.nominalBatteryVoltage());
 		return smoothStep(0.0035, 0.018, rippleRatio);
+	}
+
+	private double batteryBusSpikeStress() {
+		double spikeRatio = state.batteryVoltageSpike() / Math.max(1.0, config.nominalBatteryVoltage());
+		return smoothStep(0.010, 0.060, spikeRatio);
 	}
 
 	private static double motorVoltageHeadroom(RotorSpec rotor, double omegaRadiansPerSecond, double voltageScale) {
