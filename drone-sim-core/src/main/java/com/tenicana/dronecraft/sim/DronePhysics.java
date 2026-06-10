@@ -4643,7 +4643,7 @@ public final class DronePhysics {
 
 		double trust = 1.0 - Math.abs(magnitude - config.gravityMetersPerSecondSquared())
 				/ config.attitudeEstimatorAccelerometerTrustMarginMetersPerSecondSquared();
-		trust = MathUtil.clamp(trust, 0.0, 1.0);
+		trust = MathUtil.clamp(trust, 0.0, 1.0) * attitudeAccelerometerQualityScale();
 		state.setAttitudeEstimatorAccelerometerTrust(trust);
 		if (trust <= 1.0e-6) {
 			return Vec3.ZERO;
@@ -4652,6 +4652,12 @@ public final class DronePhysics {
 		Vec3 measuredUpBody = measuredSpecificForce.normalized();
 		Vec3 estimatedUpBody = estimatedOrientation.conjugate().rotate(WORLD_UP).normalized();
 		return measuredUpBody.cross(estimatedUpBody).multiply(gain * trust);
+	}
+
+	private double attitudeAccelerometerQualityScale() {
+		double vibrationLoss = 0.72 * smoothStep(0.055, 0.240, state.rotorVibration());
+		double clipLoss = 0.85 * MathUtil.clamp(state.accelerometerClipIntensity(), 0.0, 1.0);
+		return MathUtil.clamp((1.0 - vibrationLoss) * (1.0 - clipLoss), 0.0, 1.0);
 	}
 
 	private void updateAttitudeEstimateError(Quaternion estimatedOrientation) {

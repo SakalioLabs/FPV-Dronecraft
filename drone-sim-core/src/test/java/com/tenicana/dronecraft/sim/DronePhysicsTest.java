@@ -3169,6 +3169,33 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void attitudeEstimatorDropsAccelerometerTrustDuringHighVibration() throws ReflectiveOperationException {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withAttitudeEstimator(4.0, 4.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics vibrating = new DronePhysics(config);
+		Method correctionMethod = DronePhysics.class.getDeclaredMethod(
+				"attitudeAccelerometerCorrectionBody",
+				Quaternion.class
+		);
+		correctionMethod.setAccessible(true);
+		Vec3 oneG = new Vec3(0.0, config.gravityMetersPerSecondSquared(), 0.0);
+
+		clean.state().setAccelerometerBodyMetersPerSecondSquared(oneG);
+		vibrating.state().setAccelerometerBodyMetersPerSecondSquared(oneG);
+		vibrating.state().setRotorVibration(0.32);
+		correctionMethod.invoke(clean, Quaternion.IDENTITY);
+		correctionMethod.invoke(vibrating, Quaternion.IDENTITY);
+
+		assertTrue(clean.state().attitudeEstimatorAccelerometerTrust() > 0.98);
+		assertTrue(vibrating.state().attitudeEstimatorAccelerometerTrust()
+						< clean.state().attitudeEstimatorAccelerometerTrust() * 0.35,
+				() -> "cleanTrust=" + clean.state().attitudeEstimatorAccelerometerTrust()
+						+ " vibratingTrust=" + vibrating.state().attitudeEstimatorAccelerometerTrust());
+	}
+
+	@Test
 	void attitudeEstimatorAccelerometerCorrectionReducesStaticRollError() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
