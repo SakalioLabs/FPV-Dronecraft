@@ -32,6 +32,7 @@ class DroneStatusFormatterTest {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
 				false
 		);
 
@@ -60,6 +61,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("water 0.00"));
 		assertTrue(status.contains("rain 0.00"));
 		assertTrue(status.contains("temp 22.0C"));
+		assertTrue(status.contains("coning 0.00"));
 		assertTrue(status.contains("prop strikes 0 last none"));
 		assertTrue(status.contains("warnings none"));
 	}
@@ -87,6 +89,7 @@ class DroneStatusFormatterTest {
 				0.18,
 				0.68,
 				0.50,
+				0.48,
 				0.74,
 				true
 		);
@@ -106,6 +109,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("esc-thermal-limit"));
 		assertTrue(warnings.contains("esc-desync"));
 		assertTrue(warnings.contains("rotor-stall"));
+		assertTrue(warnings.contains("rotor-coning"));
 		assertTrue(warnings.contains("high-advance"));
 		assertTrue(warnings.contains("vrs"));
 		assertTrue(warnings.contains("propwash"));
@@ -149,6 +153,7 @@ class DroneStatusFormatterTest {
 			double waterImmersion,
 			double precipitationWetness,
 			double vibration,
+			double rotorConing,
 			double obstacleProximity,
 			boolean diagnosticActive
 	) {
@@ -221,6 +226,7 @@ class DroneStatusFormatterTest {
 				diagnosticActive ? 46.0 : 22.0,
 				rotorStall,
 				vibration,
+				rotorConing,
 				mixerSaturation,
 				3.2,
 				2.7,

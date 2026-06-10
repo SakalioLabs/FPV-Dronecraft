@@ -118,6 +118,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_7_blade_pass_ripple"));
 		assertTrue(csv.contains("rotor_flapping_tilt_deg"));
 		assertTrue(csv.contains("rotor_7_flapping_tilt_deg"));
+		assertTrue(csv.contains("rotor_coning"));
+		assertTrue(csv.contains("rotor_0_coning"));
+		assertTrue(csv.contains("rotor_7_coning"));
 		assertTrue(csv.contains("rotor_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_0_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_3_aerodynamic_load"));
@@ -375,6 +378,8 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_saturation")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_low_headroom")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_headroom")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_coning")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_0_coning")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_pitch")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_yaw")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_roll")]));
@@ -403,6 +408,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.6, summary.maxContactBounceSpeedMetersPerSecond(), 0.0001);
 		assertEquals(540.0, summary.maxContactAngularImpulseDegreesPerSecond(), 0.0001);
 		assertEquals(0.18, summary.maxRotorSurfaceScrapeIntensity(), 0.0001);
+		assertTrue(summary.maxRotorConingIntensity() >= 0.0);
 		assertTrue(summary.maxRotorAdvanceRatio() >= 0.0);
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
@@ -460,6 +466,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("cushion"));
 		assertTrue(summary.formatForChat().contains("wash"));
 		assertTrue(summary.formatForChat().contains("wall"));
+		assertTrue(summary.formatForChat().contains("coning"));
 		assertTrue(summary.formatForChat().contains("flex"));
 		assertTrue(summary.formatForChat().contains("scrape"));
 		assertTrue(summary.formatForChat().contains("baro"));
@@ -606,6 +613,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]) >= 0.0);

@@ -54,6 +54,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorAdvanceRatio;
 	private double maxRotorStall;
 	private double maxRotorVibration;
+	private double maxRotorConing;
 	private double maxRotorWakeInterference;
 	private double maxRotorWakeSwirlVelocity;
 	private double maxMixerSaturation;
@@ -129,6 +130,7 @@ public final class DroneServerSelfTest {
 		maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, drone.getRotorAdvanceRatio());
 		maxRotorStall = Math.max(maxRotorStall, drone.getRotorStallIntensity());
 		maxRotorVibration = Math.max(maxRotorVibration, drone.getRotorVibration());
+		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxMixerSaturation = Math.max(maxMixerSaturation, drone.getMixerSaturation());
@@ -170,6 +172,8 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_blade_pass_ripple")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_tilt_deg")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_flapping_tilt_deg")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_coning")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_coning")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_interference")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
@@ -299,6 +303,8 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_blade_pass_ripple")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_tilt_deg")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_flapping_tilt_deg")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_coning")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_coning")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_interference")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
@@ -464,6 +470,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_advance_ratio\": %.5f,\n"
 						+ "  \"max_rotor_stall\": %.5f,\n"
 						+ "  \"max_rotor_vibration\": %.5f,\n"
+						+ "  \"max_rotor_coning\": %.5f,\n"
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_mixer_saturation\": %.5f,\n"
@@ -496,6 +503,7 @@ public final class DroneServerSelfTest {
 				maxRotorAdvanceRatio,
 				maxRotorStall,
 				maxRotorVibration,
+				maxRotorConing,
 				maxRotorWakeInterference,
 				maxRotorWakeSwirlVelocity,
 				maxMixerSaturation,

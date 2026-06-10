@@ -266,6 +266,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_flapping_tilt_deg",
 			"rotor_2_flapping_tilt_deg",
 			"rotor_3_flapping_tilt_deg",
+			"rotor_coning",
+			"rotor_0_coning",
+			"rotor_1_coning",
+			"rotor_2_coning",
+			"rotor_3_coning",
 			"rotor_vibration",
 			"rotor_arm_flex",
 			"rotor_0_arm_flex",
@@ -664,6 +669,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_flapping_tilt_deg",
 			"rotor_6_flapping_tilt_deg",
 			"rotor_7_flapping_tilt_deg",
+			"rotor_4_coning",
+			"rotor_5_coning",
+			"rotor_6_coning",
+			"rotor_7_coning",
 			"rotor_4_wake_interference",
 			"rotor_5_wake_interference",
 			"rotor_6_wake_interference",
@@ -1052,6 +1061,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorFlappingTiltDegreesOrZero(state, 1), "%.4f");
 		row.add(rotorFlappingTiltDegreesOrZero(state, 2), "%.4f");
 		row.add(rotorFlappingTiltDegreesOrZero(state, 3), "%.4f");
+		row.add(state.averageRotorConingIntensity(), "%.5f");
+		row.add(rotorConingOrZero(state, 0), "%.5f");
+		row.add(rotorConingOrZero(state, 1), "%.5f");
+		row.add(rotorConingOrZero(state, 2), "%.5f");
+		row.add(rotorConingOrZero(state, 3), "%.5f");
 		row.add(state.rotorVibration(), "%.5f");
 		row.add(state.averageRotorArmFlexIntensity(), "%.5f");
 		row.add(rotorArmFlexOrZero(state, 0), "%.5f");
@@ -1399,6 +1413,7 @@ public final class DroneBlackboxSample {
 		double[] rotorBladeDissymmetry = state.rotorBladeDissymmetryIntensity();
 		double[] rotorBladePassRipple = state.rotorBladePassRippleIntensity();
 		double[] rotorFlappingTilt = state.rotorFlappingTiltRadians();
+		double[] rotorConing = state.rotorConingIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorArmFlex = state.rotorArmFlexIntensity();
@@ -1480,6 +1495,9 @@ public final class DroneBlackboxSample {
 			row.add(Math.toDegrees(valueOrZero(rotorFlappingTilt, i)), "%.4f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorConing, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorWakeInterference, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -1556,6 +1574,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorFlappingTiltDegreesOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? Math.toDegrees(state.rotorFlappingTiltRadians(index)) : 0.0;
+	}
+
+	private static double rotorConingOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorConingIntensity(index) : 0.0;
 	}
 
 	private static double rotorWakeInterferenceOrZero(DroneState state, int index) {

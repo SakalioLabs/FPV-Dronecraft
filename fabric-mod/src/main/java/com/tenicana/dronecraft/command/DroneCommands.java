@@ -405,6 +405,7 @@ public final class DroneCommands {
 				drone.getAmbientTemperatureCelsius(),
 				drone.getRotorStallIntensity(),
 				drone.getRotorVibration(),
+				drone.getRotorConingIntensity(),
 				drone.getMixerSaturation(),
 				drone.getWindSpeedMetersPerSecond(),
 				drone.getEffectiveWindSpeedMetersPerSecond(),
