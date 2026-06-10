@@ -2469,6 +2469,26 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void imuClippingReducesPidAuthority() {
+		PidGains noTpa = new PidGains(0.09, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad())
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0), noTpa);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics clipped = new DronePhysics(config);
+		DroneInput armed = new DroneInput(0.35, 0.0, 0.0, 0.0, true);
+
+		clean.step(armed, 0.005);
+		clipped.state().setAngularVelocityBodyRadiansPerSecond(new Vec3(Math.toRadians(2600.0), 0.0, 0.0));
+		clipped.step(armed, 0.005);
+
+		assertEquals(1.0, clean.state().pidAttenuation(), 1.0e-9);
+		assertTrue(clipped.state().gyroClipIntensity() > 0.25);
+		assertTrue(clipped.state().pidAttenuation() < 0.80);
+		assertTrue(clipped.state().pidAttenuation() > 0.35);
+	}
+
+	@Test
 	void antiGravityBoostsIntegratorDuringThrottlePunchAndDecays() {
 		PidGains gains = new PidGains(0.02, 0.02, 0.0, 1.0, 0.0, 0.0, 2.2, 1.0, 0.0);
 		DronePhysics physics = new DronePhysics(withCommonGains(directControl(DroneConfig.racingQuad()), gains));

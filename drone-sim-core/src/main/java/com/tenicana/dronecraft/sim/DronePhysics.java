@@ -3230,6 +3230,11 @@ public final class DronePhysics {
 		double pitchPidAttenuation = throttlePidAttenuation(input.throttle(), config.pitchGains());
 		double yawPidAttenuation = throttlePidAttenuation(input.throttle(), config.yawGains());
 		double rollPidAttenuation = throttlePidAttenuation(input.throttle(), config.rollGains());
+		double sensorPidAuthority = sensorClippingPidAuthority();
+		pitchPidAttenuation *= sensorPidAuthority;
+		yawPidAttenuation *= sensorPidAuthority;
+		rollPidAttenuation *= sensorPidAuthority;
+		integratorAttenuation = integratorAttenuation.multiply(sensorPidAuthority);
 		state.setPidAttenuation((pitchPidAttenuation + yawPidAttenuation + rollPidAttenuation) / 3.0);
 		state.setAntiGravityBoost(antiGravityPulse * maxAntiGravityGain());
 		state.setPidIntegralRelaxAxes(integralRelax);
@@ -3459,6 +3464,14 @@ public final class DronePhysics {
 		double denominator = Math.max(1.0e-6, 1.0 - gains.tpaBreakpoint());
 		double tpa = MathUtil.clamp((throttle - gains.tpaBreakpoint()) / denominator, 0.0, 1.0);
 		return 1.0 - gains.tpaStrength() * tpa;
+	}
+
+	private double sensorClippingPidAuthority() {
+		double gyroClip = MathUtil.clamp(state.gyroClipIntensity(), 0.0, 1.0);
+		double accelerometerClip = MathUtil.clamp(state.accelerometerClipIntensity(), 0.0, 1.0);
+		double gyroLoss = 0.55 * smoothStep(0.02, 0.45, gyroClip);
+		double accelerometerLoss = 0.18 * smoothStep(0.05, 0.75, accelerometerClip);
+		return MathUtil.clamp((1.0 - gyroLoss) * (1.0 - accelerometerLoss), 0.35, 1.0);
 	}
 
 	private double dynamicDTermLowPassCutoffHertz(PidGains gains, double throttle) {
