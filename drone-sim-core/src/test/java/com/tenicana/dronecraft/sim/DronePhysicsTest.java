@@ -2991,6 +2991,83 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void lowReynoldsSmallPropsLoseDensityNormalizedEfficiency() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DroneConfig smallPropConfig = base
+				.withRotorRadiusMeters(0.020)
+				.withRotorBladePitchMeters(0.016);
+		DroneConfig referencePropConfig = base
+				.withRotorRadiusMeters(0.0635)
+				.withRotorBladePitchMeters(0.108);
+		DroneEnvironment standardAir = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				25.0
+		);
+		DronePhysics smallProp = new DronePhysics(smallPropConfig);
+		DronePhysics referenceProp = new DronePhysics(referencePropConfig);
+		DroneInput cruise = new DroneInput(0.34, 0.0, 0.0, 0.0, true);
+		double smallRatioSum = 0.0;
+		double referenceRatioSum = 0.0;
+		int samples = 0;
+
+		for (int i = 0; i < 220; i++) {
+			smallProp.state().setOrientation(Quaternion.IDENTITY);
+			referenceProp.state().setOrientation(Quaternion.IDENTITY);
+			smallProp.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			referenceProp.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			smallProp.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			referenceProp.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			smallProp.step(cruise, 0.005, standardAir);
+			referenceProp.step(cruise, 0.005, standardAir);
+			if (i >= 160) {
+				smallRatioSum += densityNormalizedRotorThrust(smallPropConfig, smallProp.state(), standardAir.airDensityRatio());
+				referenceRatioSum += densityNormalizedRotorThrust(referencePropConfig, referenceProp.state(), standardAir.airDensityRatio());
+				samples++;
+			}
+		}
+
+		double smallRatio = smallRatioSum / samples;
+		double referenceRatio = referenceRatioSum / samples;
+		assertTrue(smallProp.state().rotorThrustNewtons(0) > 0.5);
+		assertTrue(smallRatio < referenceRatio - 0.12,
+				() -> "smallRatio=" + smallRatio + " referenceRatio=" + referenceRatio);
+		assertTrue(smallProp.state().rotorVibration() > referenceProp.state().rotorVibration() + 0.006,
+				() -> "smallVibration=" + smallProp.state().rotorVibration()
+						+ " referenceVibration=" + referenceProp.state().rotorVibration());
+	}
+
+	@Test
 	void highRotorTipMachReducesPropEfficiencyAndAddsLoad() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withRotorMaxThrustNewtons(80.0)
@@ -3000,7 +3077,7 @@ class DronePhysicsTest {
 				.withBattery(16.8, 16.7, 0.0, 20.0, 200.0)
 				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
-		DronePhysics lowMach = new DronePhysics(base.withRotorRadiusMeters(0.030));
+		DronePhysics lowMach = new DronePhysics(base.withRotorRadiusMeters(0.050));
 		DronePhysics highMach = new DronePhysics(base.withRotorRadiusMeters(0.160));
 		DroneInput punch = new DroneInput(0.88, 0.0, 0.0, 0.0, true);
 
@@ -5539,6 +5616,18 @@ class DronePhysicsTest {
 			sum += value;
 		}
 		return thrust.length == 0 ? 0.0 : sum / thrust.length;
+	}
+
+	private static double densityNormalizedRotorThrust(DroneConfig config, DroneState state, double airDensityRatio) {
+		double thrustSum = 0.0;
+		double idealSum = 0.0;
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double omega = state.motorOmegaRadiansPerSecond(i);
+			thrustSum += state.rotorThrustNewtons(i);
+			idealSum += rotor.thrustCoefficient() * omega * omega * Math.max(1.0e-6, airDensityRatio);
+		}
+		return idealSum <= 1.0e-9 ? 0.0 : thrustSum / idealSum;
 	}
 
 	private static Vec3 torqueFromRotorDeltas(DroneConfig config, double[] deltas) {

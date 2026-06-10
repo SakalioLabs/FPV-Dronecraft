@@ -16,6 +16,8 @@ public final class DronePhysics {
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
+	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
+	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.17, 0.28, 0.43, 0.52, 0.58, 0.66, 0.76, 0.86, 1.0};
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
@@ -488,6 +490,12 @@ public final class DronePhysics {
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
 			double compressibilityLoad = rotorCompressibilityLoadFactor(rotorTipMach);
+			double lowReynoldsLoss = rotorLowReynoldsLoss(
+					aerodynamicRotor,
+					omega,
+					airDensity,
+					environment.ambientTemperatureCelsius()
+			);
 			double thrustScale = airDensity
 					* environment.rotorThrustMultiplier(i, config)
 					* rotorWakeInterferenceThrustScale(wakeInterference)
@@ -557,6 +565,7 @@ public final class DronePhysics {
 					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput)
 					+ rotorAmbientDirtyAirLoadFactor(aerodynamicRotor, omega, ambientDirtyAir)
 					+ compressibilityLoad
+					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, omega, aerodynamicRotor)
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
@@ -564,15 +573,18 @@ public final class DronePhysics {
 			double coningIntensity = rotorConingIntensity(aerodynamicRotor, baseThrust, omega);
 			aerodynamicLoadFactor = MathUtil.clamp(aerodynamicLoadFactor + rotorConingLoadFactor(coningIntensity), 0.0, 2.0);
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);
+			rotorVibrationSum += rotorLowReynoldsVibration(lowReynoldsLoss, omega, aerodynamicRotor);
 			rotorVibrationSum += rotorConingVibration(aerodynamicRotor, omega, coningIntensity);
 			double vortexRingThrustScale = 1.0 - rotor.axialFlowThrustLossCoefficient() * 1.35 * vortexRingState;
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
+			double lowReynoldsThrustScale = rotorLowReynoldsThrustScale(lowReynoldsLoss);
 			double coningThrustScale = rotorConingThrustScale(coningIntensity);
 			double nominalThrust = baseThrust
 					* rotorAirflowScale
 					* inflowLagScale
 					* bladeElement.thrustScale()
 					* bladeDissymmetry.thrustScale()
+					* lowReynoldsThrustScale
 					* coningThrustScale
 					* compressibilityThrustScale
 					* MathUtil.clamp(vortexRingThrustScale, 0.45, 1.0)
@@ -1989,6 +2001,71 @@ public final class DronePhysics {
 		}
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		return MathUtil.clamp(0.22 * intensity * spinRatio, 0.0, 0.34);
+	}
+
+	private static double rotorLowReynoldsLoss(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			double ambientTemperatureCelsius
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		if (spinRatio <= 0.08) {
+			return 0.0;
+		}
+
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double densityViscosityRatio = MathUtil.clamp(
+				Math.max(0.0, airDensityRatio) / airDynamicViscosityRatio(ambientTemperatureCelsius),
+				0.20,
+				1.90
+		);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.32, 3.0);
+		double smallPropFactor = 1.0 - smoothStep(0.62, 0.96, radiusScale);
+		if (smallPropFactor <= 1.0e-6) {
+			return 0.0;
+		}
+		double pitchChordProxy = MathUtil.clamp(0.70 + 0.30 * Math.sqrt(rotorBladePitchRatio(rotor)), 0.78, 1.18);
+		double reynoldsIndex = densityViscosityRatio
+				* radiusScale
+				* pitchChordProxy
+				* MathUtil.clamp(tipSpeed / 34.0, 0.0, 2.8);
+		double lowReynolds = 1.0 - smoothStep(0.52, 1.05, reynoldsIndex);
+		return MathUtil.clamp(lowReynolds * smallPropFactor * smoothStep(0.10, 0.34, spinRatio), 0.0, 1.0);
+	}
+
+	private static double airDynamicViscosityRatio(double ambientTemperatureCelsius) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = MOTOR_AMBIENT_TEMPERATURE_CELSIUS;
+		}
+		double temperatureKelvin = MathUtil.clamp(ambientTemperatureCelsius + 273.15, 233.15, 338.15);
+		double ratio = Math.pow(temperatureKelvin / REFERENCE_AIR_TEMPERATURE_KELVIN, 1.5)
+				* (REFERENCE_AIR_TEMPERATURE_KELVIN + AIR_SUTHERLAND_CONSTANT_KELVIN)
+				/ (temperatureKelvin + AIR_SUTHERLAND_CONSTANT_KELVIN);
+		return MathUtil.clamp(ratio, 0.70, 1.20);
+	}
+
+	private static double rotorLowReynoldsThrustScale(double lowReynoldsLoss) {
+		double loss = MathUtil.clamp(lowReynoldsLoss, 0.0, 1.0);
+		return MathUtil.clamp(1.0 - 0.070 * loss, 0.92, 1.0);
+	}
+
+	private static double rotorLowReynoldsLoadFactor(double lowReynoldsLoss, double omegaRadiansPerSecond, RotorSpec rotor) {
+		double loss = MathUtil.clamp(lowReynoldsLoss, 0.0, 1.0);
+		if (loss <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		return 0.060 * loss * (0.35 + 0.65 * spinRatio);
+	}
+
+	private static double rotorLowReynoldsVibration(double lowReynoldsLoss, double omegaRadiansPerSecond, RotorSpec rotor) {
+		double loss = MathUtil.clamp(lowReynoldsLoss, 0.0, 1.0);
+		if (loss <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		return MathUtil.clamp(0.018 * loss * (0.25 + 0.75 * spinRatio), 0.0, 0.024);
 	}
 
 	private static double rotorConingIntensity(RotorSpec rotor, double thrustNewtons, double omegaRadiansPerSecond) {
