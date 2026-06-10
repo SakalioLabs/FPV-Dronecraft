@@ -412,6 +412,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(540.0, summary.maxContactAngularImpulseDegreesPerSecond(), 0.0001);
 		assertEquals(0.18, summary.maxRotorSurfaceScrapeIntensity(), 0.0001);
 		assertTrue(summary.maxRotorConingIntensity() >= 0.0);
+		assertTrue(summary.maxRotorFlappingTiltDegrees() >= 0.0);
 		assertTrue(summary.maxRotorAdvanceRatio() >= 0.0);
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
@@ -471,6 +472,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("wash"));
 		assertTrue(summary.formatForChat().contains("wall"));
 		assertTrue(summary.formatForChat().contains("coning"));
+		assertTrue(summary.formatForChat().contains("flap"));
 		assertTrue(summary.formatForChat().contains("flex"));
 		assertTrue(summary.formatForChat().contains("scrape"));
 		assertTrue(summary.formatForChat().contains("baro"));
@@ -491,6 +493,57 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("rotor min"));
 		assertTrue(summary.formatForChat().contains("prop-strike"));
 		assertTrue(summary.formatForChat().contains("rc-frame"));
+	}
+
+	@Test
+	void blackboxSummaryReportsRotorFlappingTilt() {
+		DroneConfig config = DroneConfig.racingQuad()
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorFlappingCoefficient(0.16);
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true, true, FlightMode.ACRO);
+
+		for (int i = 0; i < 500; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(new Vec3(16.0, 0.0, 0.0));
+			physics.step(hover, 0.005, DroneEnvironment.calm());
+		}
+		recorder.record(DroneBlackboxSample.from(
+				60,
+				60,
+				10,
+				0.005,
+				physics.state(),
+				hover,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				DroneEnvironment.calm(),
+				config
+		));
+
+		String[] lines = recorder.toCsv().strip().split("\\R");
+		String[] header = lines[0].split(",", -1);
+		String[] row = lines[1].split(",", -1);
+		double averageFlappingTilt = Double.parseDouble(row[indexOf(header, "rotor_flapping_tilt_deg")]);
+		double rotorFlappingTilt = Double.parseDouble(row[indexOf(header, "rotor_0_flapping_tilt_deg")]);
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		assertTrue(averageFlappingTilt > 3.0);
+		assertTrue(summary.maxRotorFlappingTiltDegrees() >= averageFlappingTilt);
+		assertTrue(summary.maxRotorFlappingTiltDegrees() >= rotorFlappingTilt);
+		assertTrue(summary.formatForChat().contains("flap"));
+		assertTrue(summary.formatForChat().contains("deg"));
 	}
 
 	@Test
