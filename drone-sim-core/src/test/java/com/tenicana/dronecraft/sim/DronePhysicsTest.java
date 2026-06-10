@@ -129,6 +129,8 @@ class DronePhysicsTest {
 		DroneInput armedIdle = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
 
 		for (int i = 0; i < 400; i++) {
+			armed.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			disarmed.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			armed.step(armedIdle, 0.0025);
 			disarmed.step(DroneInput.idle(), 0.0025);
 		}
@@ -2895,6 +2897,36 @@ class DronePhysicsTest {
 		assertTrue(crossFlow.state().rotorInflowSkewTorqueBodyNewtonMeters().length() > 0.012);
 		assertTrue(crossFlow.state().angularVelocityBodyRadiansPerSecond().length()
 				> noRelativeFlow.state().angularVelocityBodyRadiansPerSecond().length() + 0.04);
+	}
+
+	@Test
+	void zeroThrottleAxialDescentWindmillsUnpoweredProps() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics stillAir = new DronePhysics(config);
+		DronePhysics axialDescent = new DronePhysics(config);
+		DroneInput cutThrottle = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		Vec3 descentVelocity = new Vec3(0.0, -18.0, 0.0);
+
+		for (int i = 0; i < 120; i++) {
+			stillAir.state().setOrientation(Quaternion.IDENTITY);
+			axialDescent.state().setOrientation(Quaternion.IDENTITY);
+			stillAir.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			axialDescent.state().setVelocityMetersPerSecond(descentVelocity);
+			stillAir.step(cutThrottle, 0.005);
+			axialDescent.step(cutThrottle, 0.005);
+		}
+
+		assertTrue(axialDescent.state().averageMotorRpm() > stillAir.state().averageMotorRpm() + 900.0);
+		assertTrue(axialDescent.state().rotorForceBodyNewtons(0).y() > stillAir.state().rotorForceBodyNewtons(0).y() + 0.12);
+		assertTrue(axialDescent.state().averageRotorAerodynamicLoadFactor()
+				> stillAir.state().averageRotorAerodynamicLoadFactor() + 0.03);
+		assertTrue(axialDescent.state().rotorVibration() > stillAir.state().rotorVibration() + 0.004);
 	}
 
 	@Test

@@ -12,6 +12,7 @@ public final class DronePhysics {
 	private static final double MOTOR_OUTRUNNER_POLE_PAIRS = 7.0;
 	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
 	private static final double ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE = 0.055;
+	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
 	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
@@ -370,6 +371,13 @@ public final class DronePhysics {
 					.add(angularVelocityBody.cross(rotorArmBody))
 					.add(rotorWakeInterference.downwashVelocityBodyMetersPerSecond(i))
 					.add(wakeSwirlVelocityBody);
+			commandedOmega = applyRotorWindmilling(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					commandedOmega,
+					escOutput,
+					dtSeconds
+			);
 			double advanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedOmega);
 			state.setRotorAdvanceRatio(i, advanceRatio);
 			double kinematicRotorStall = rotorBladeStallIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedOmega);
@@ -470,6 +478,7 @@ public final class DronePhysics {
 					+ rotorPrecipitationVibration(rotor, omega, precipitationWetness)
 					+ rotorCompressibilityVibration(rotor, omega, rotorTipMach)
 					+ rotorImbalanceVibration(rotor, omega)
+					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput)
 					+ motorCommutationRippleVibration(rotor, omega, commutationRipple.intensity(), commutationRipple.torqueRippleNewtonMeters());
 			double vortexRingState = rotorVortexRingStateIntensity(
 					aerodynamicRotor,
@@ -492,6 +501,7 @@ public final class DronePhysics {
 					+ rotorAngularDragLoadFactor(aerodynamicRotor, angularVelocityBody, omega)
 					+ 0.28 * wakeInterference
 					+ rotorWakeSwirlLoadFactor(rotor, omega, wakeSwirlSpeed)
+					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput)
 					+ compressibilityLoad
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
@@ -515,6 +525,7 @@ public final class DronePhysics {
 			Vec3 thrustAxisForceBody = forceBody.add(flappingForceBody);
 			Vec3 rotorDiskAxisBody = rotorDiskAxisBody(thrustAxisForceBody);
 			Vec3 diskDragBody = rotorDiskDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, airDensity);
+			Vec3 windmillingDragBody = rotorWindmillingDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput, airDensity);
 			Vec3 wallEffectForceBody = rotorWallEffectForce(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
@@ -524,7 +535,7 @@ public final class DronePhysics {
 					environment.rotorFlowObstructionDirectionBody(i)
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
-			forceBody = thrustAxisForceBody.add(diskDragBody).add(wallEffectForceBody);
+			forceBody = thrustAxisForceBody.add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
 			state.setRotorForceBodyNewtons(i, forceBody);
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
@@ -1039,6 +1050,35 @@ public final class DronePhysics {
 		return Math.max(0.0, omegaRadiansPerSecond - deceleration * dtSeconds);
 	}
 
+	private double applyRotorWindmilling(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double escOutput,
+			double dtSeconds
+	) {
+		if (dtSeconds <= 0.0 || rotor.rotorInertiaKgMetersSquared() <= 1.0e-9) {
+			return Math.max(0.0, omegaRadiansPerSecond);
+		}
+
+		double windmillTargetOmega = rotorWindmillingTargetOmega(
+				rotor,
+				relativeAirVelocityBody,
+				escOutput,
+				config.motorActiveBrakingStrength()
+		);
+		if (windmillTargetOmega <= omegaRadiansPerSecond + 1.0e-6) {
+			return Math.max(0.0, omegaRadiansPerSecond);
+		}
+
+		double reverseAxialSpeed = rotorWindmillingReverseAxialSpeed(rotor, relativeAirVelocityBody);
+		double inertiaScale = MathUtil.clamp(Math.sqrt(rotor.rotorInertiaKgMetersSquared() / 1.6e-5), 0.65, 3.0);
+		double timeConstant = MathUtil.clamp(0.20 * inertiaScale / (0.65 + reverseAxialSpeed), 0.018, 0.16);
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double omega = omegaRadiansPerSecond + (windmillTargetOmega - omegaRadiansPerSecond) * alpha;
+		return MathUtil.clamp(omega, 0.0, rotor.maxOmegaRadiansPerSecond() * 1.08);
+	}
+
 	private double motorBackEmfVoltage(RotorSpec rotor, double omegaRadiansPerSecond) {
 		return Math.abs(omegaRadiansPerSecond) / motorKvRadiansPerSecondPerVolt(rotor);
 	}
@@ -1292,6 +1332,61 @@ public final class DronePhysics {
 		double spinFactor = 0.15 + 0.85 * spinRatio;
 		double dragScale = rotor.diskDragCoefficient() * airDensityRatio * spinFactor * transverseSpeed;
 		return transverseVelocityBody.multiply(-dragScale);
+	}
+
+	private static Vec3 rotorWindmillingDragForce(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double escOutput,
+			double airDensityRatio
+	) {
+		double reverseAxialSpeed = rotorWindmillingReverseAxialSpeed(rotor, relativeAirVelocityBody);
+		double lowDrive = rotorWindmillingLowDriveFactor(escOutput);
+		if (reverseAxialSpeed <= 1.0e-6 || lowDrive <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * Math.max(0.20, airDensityRatio);
+		double dynamicPressure = 0.5 * density * reverseAxialSpeed * reverseAxialSpeed;
+		double pitchScale = MathUtil.clamp(rotorBladePitchRatio(rotor), 0.45, 1.8);
+		double dragCoefficient = (0.13 + 0.22 * pitchScale + 0.38 * smoothStep(0.04, 0.30, spinRatio)) * lowDrive;
+		double forceNewtons = MathUtil.clamp(
+				dynamicPressure * diskArea * dragCoefficient,
+				0.0,
+				rotor.maxThrustNewtons() * 0.42
+		);
+		return rotorAxisBody(rotor).multiply(forceNewtons);
+	}
+
+	private static double rotorWindmillingTargetOmega(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double escOutput,
+			double motorBrakeStrength
+	) {
+		double reverseAxialSpeed = rotorWindmillingReverseAxialSpeed(rotor, relativeAirVelocityBody);
+		double lowDrive = rotorWindmillingLowDriveFactor(escOutput);
+		if (reverseAxialSpeed <= 1.0e-6 || lowDrive <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double freewheel = 1.0 - 0.78 * MathUtil.clamp(motorBrakeStrength, 0.0, 1.0) * lowDrive;
+		double airDrive = smoothStep(0.85, 9.5, reverseAxialSpeed);
+		double pitchOmega = reverseAxialSpeed * (2.0 * Math.PI) / Math.max(0.012, rotor.bladePitchMeters());
+		double pitchScale = MathUtil.clamp(1.0 / Math.sqrt(rotorBladePitchRatio(rotor)), 0.55, 1.55);
+		double targetOmega = pitchOmega * 0.42 * pitchScale * lowDrive * freewheel * airDrive;
+		return MathUtil.clamp(targetOmega, 0.0, rotor.maxOmegaRadiansPerSecond() * ROTOR_WINDMILL_MAX_OMEGA_FRACTION);
+	}
+
+	private static double rotorWindmillingReverseAxialSpeed(RotorSpec rotor, Vec3 relativeAirVelocityBody) {
+		return Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody) - 0.55);
+	}
+
+	private static double rotorWindmillingLowDriveFactor(double escOutput) {
+		return 1.0 - smoothStep(0.035, 0.22, MathUtil.clamp(escOutput, 0.0, 1.0));
 	}
 
 	private static Vec3 rotorWallEffectForce(
@@ -1677,6 +1772,40 @@ public final class DronePhysics {
 		}
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		return MathUtil.clamp(0.22 * intensity * spinRatio, 0.0, 0.34);
+	}
+
+	private static double rotorWindmillingLoadFactor(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double escOutput
+	) {
+		double reverseAxialSpeed = rotorWindmillingReverseAxialSpeed(rotor, relativeAirVelocityBody);
+		double lowDrive = rotorWindmillingLowDriveFactor(escOutput);
+		if (reverseAxialSpeed <= 1.0e-6 || lowDrive <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double airDrive = smoothStep(1.0, 12.0, reverseAxialSpeed);
+		return MathUtil.clamp(0.22 * lowDrive * airDrive * (0.35 + 0.65 * spinRatio), 0.0, 0.32);
+	}
+
+	private static double rotorWindmillingVibration(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double escOutput
+	) {
+		double reverseAxialSpeed = rotorWindmillingReverseAxialSpeed(rotor, relativeAirVelocityBody);
+		double lowDrive = rotorWindmillingLowDriveFactor(escOutput);
+		if (reverseAxialSpeed <= 1.0e-6 || lowDrive <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double axialDrive = smoothStep(1.5, 14.0, reverseAxialSpeed);
+		return MathUtil.clamp(0.13 * lowDrive * axialDrive * (0.30 + 0.70 * spinRatio), 0.0, 0.18);
 	}
 
 	private static double motorCommutationRippleVibration(
