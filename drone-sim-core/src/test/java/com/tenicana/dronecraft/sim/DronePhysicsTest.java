@@ -656,6 +656,76 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void bladePassRippleAddsSmallThrustForceTexture() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics obstructed = new DronePhysics(config);
+		DroneInput cruise = new DroneInput(0.66, 0.0, 0.0, 0.0, true);
+		DroneEnvironment singleRotorObstruction = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				new double[] {0.38, 0.0, 0.0, 0.0}
+		);
+
+		double cleanMinForce = Double.POSITIVE_INFINITY;
+		double cleanMaxForce = Double.NEGATIVE_INFINITY;
+		double obstructedMinForce = Double.POSITIVE_INFINITY;
+		double obstructedMaxForce = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < 180; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			obstructed.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			obstructed.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			obstructed.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.step(cruise, 0.005);
+			obstructed.step(cruise, 0.005, singleRotorObstruction);
+
+			if (i >= 80) {
+				double cleanForce = clean.state().rotorForceBodyNewtons(0).y();
+				double obstructedForce = obstructed.state().rotorForceBodyNewtons(0).y();
+				cleanMinForce = Math.min(cleanMinForce, cleanForce);
+				cleanMaxForce = Math.max(cleanMaxForce, cleanForce);
+				obstructedMinForce = Math.min(obstructedMinForce, obstructedForce);
+				obstructedMaxForce = Math.max(obstructedMaxForce, obstructedForce);
+			}
+		}
+
+		double cleanForceRange = cleanMaxForce - cleanMinForce;
+		double obstructedForceRange = obstructedMaxForce - obstructedMinForce;
+		assertTrue(cleanForceRange > 0.025, () -> "cleanForceRange=" + cleanForceRange);
+		assertTrue(
+				obstructedForceRange > cleanForceRange * 1.35,
+				() -> "cleanForceRange=" + cleanForceRange + " obstructedForceRange=" + obstructedForceRange
+		);
+		assertTrue(clean.state().rotorVibration() > 0.002, () -> "clean vibration=" + clean.state().rotorVibration());
+		assertTrue(obstructed.state().rotorVibration() > clean.state().rotorVibration() + 0.006);
+	}
+
+	@Test
 	void rotorImbalanceRaisesVibrationAndCurrentRipple() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withRotorImbalanceIntensity(0.0)
@@ -2038,16 +2108,29 @@ class DronePhysicsTest {
 		DronePhysics highMach = new DronePhysics(base.withRotorRadiusMeters(0.160));
 		DroneInput punch = new DroneInput(0.88, 0.0, 0.0, 0.0, true);
 
-		for (int i = 0; i < 180; i++) {
+		double lowMachThrustSum = 0.0;
+		double highMachThrustSum = 0.0;
+		int thrustSamples = 0;
+		for (int i = 0; i < 220; i++) {
 			lowMach.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			highMach.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			lowMach.step(punch, 0.005, DroneEnvironment.calm());
 			highMach.step(punch, 0.005, DroneEnvironment.calm());
+			if (i >= 180) {
+				lowMachThrustSum += averageRotorThrust(lowMach.state());
+				highMachThrustSum += averageRotorThrust(highMach.state());
+				thrustSamples++;
+			}
 		}
+		double lowMachMeanThrust = lowMachThrustSum / thrustSamples;
+		double highMachMeanThrust = highMachThrustSum / thrustSamples;
 
 		assertTrue(lowMach.state().maxRotorTipMach() < 0.35);
 		assertTrue(highMach.state().maxRotorTipMach() > 0.60);
-		assertTrue(averageRotorThrust(highMach.state()) < averageRotorThrust(lowMach.state()) * 0.95);
+		assertTrue(
+				highMachMeanThrust < lowMachMeanThrust * 0.95,
+				() -> "lowMachMeanThrust=" + lowMachMeanThrust + " highMachMeanThrust=" + highMachMeanThrust
+		);
 		assertTrue(highMach.state().averageRotorAerodynamicLoadFactor()
 				> lowMach.state().averageRotorAerodynamicLoadFactor() + 0.04);
 		assertTrue(highMach.state().rotorVibration() > lowMach.state().rotorVibration() + 0.03);
@@ -3129,38 +3212,67 @@ class DronePhysicsTest {
 		for (int i = 0; i < 260; i++) {
 			cleanReaction.state().setOrientation(Quaternion.IDENTITY);
 			loadedReaction.state().setOrientation(Quaternion.IDENTITY);
+			cleanReaction.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			loadedReaction.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			cleanReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			loadedReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			cleanReaction.step(loaded, 0.005);
 			loadedReaction.step(loaded, 0.005);
 		}
-		cleanReaction.state().setOrientation(Quaternion.IDENTITY);
-		loadedReaction.state().setOrientation(Quaternion.IDENTITY);
-		cleanReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-		loadedReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-		cleanReaction.step(loaded, 0.005);
-		loadedReaction.step(loaded, 0.005, singleRotorObstruction);
-
 		RotorSpec loadedRotor = loadedReaction.config().rotors().get(0);
-		double cleanAerodynamicTorque = cleanReaction.state().motorAerodynamicTorqueNewtonMeters(0);
-		double loadedAerodynamicTorque = loadedReaction.state().motorAerodynamicTorqueNewtonMeters(0);
-		double cleanReactionTorqueWithoutRipple = cleanReaction.state().rotorTorqueBodyNewtonMeters(0).y()
-				- loadedRotor.spinDirection() * cleanReaction.state().motorTorqueRippleNewtonMeters(0);
-		double loadedReactionTorqueWithoutRipple = loadedReaction.state().rotorTorqueBodyNewtonMeters(0).y()
-				- loadedRotor.spinDirection() * loadedReaction.state().motorTorqueRippleNewtonMeters(0);
+		double cleanAerodynamicTorque = 0.0;
+		double loadedAerodynamicTorque = 0.0;
+		double cleanReactionTorqueWithoutRipple = 0.0;
+		double loadedReactionTorqueWithoutRipple = 0.0;
+		double cleanAerodynamicLoad = 0.0;
+		double loadedAerodynamicLoad = 0.0;
+		double loadedRotor0Thrust = 0.0;
+		double loadedRotor1Thrust = 0.0;
+		int samples = 32;
+		for (int i = 0; i < samples; i++) {
+			cleanReaction.state().setOrientation(Quaternion.IDENTITY);
+			loadedReaction.state().setOrientation(Quaternion.IDENTITY);
+			cleanReaction.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			loadedReaction.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			cleanReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			loadedReaction.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			cleanReaction.step(loaded, 0.005);
+			loadedReaction.step(loaded, 0.005, singleRotorObstruction);
+			cleanAerodynamicTorque += cleanReaction.state().motorAerodynamicTorqueNewtonMeters(0);
+			loadedAerodynamicTorque += loadedReaction.state().motorAerodynamicTorqueNewtonMeters(0);
+			cleanReactionTorqueWithoutRipple += cleanReaction.state().rotorTorqueBodyNewtonMeters(0).y()
+					- loadedRotor.spinDirection() * cleanReaction.state().motorTorqueRippleNewtonMeters(0);
+			loadedReactionTorqueWithoutRipple += loadedReaction.state().rotorTorqueBodyNewtonMeters(0).y()
+					- loadedRotor.spinDirection() * loadedReaction.state().motorTorqueRippleNewtonMeters(0);
+			cleanAerodynamicLoad += cleanReaction.state().rotorAerodynamicLoadFactor(0);
+			loadedAerodynamicLoad += loadedReaction.state().rotorAerodynamicLoadFactor(0);
+			loadedRotor0Thrust += loadedReaction.state().rotorThrustNewtons(0);
+			loadedRotor1Thrust += loadedReaction.state().rotorThrustNewtons(1);
+		}
+		cleanAerodynamicTorque /= samples;
+		loadedAerodynamicTorque /= samples;
+		cleanReactionTorqueWithoutRipple /= samples;
+		loadedReactionTorqueWithoutRipple /= samples;
+		cleanAerodynamicLoad /= samples;
+		loadedAerodynamicLoad /= samples;
+		loadedRotor0Thrust /= samples;
+		loadedRotor1Thrust /= samples;
+		double meanCleanAerodynamicTorque = cleanAerodynamicTorque;
+		double meanLoadedAerodynamicTorque = loadedAerodynamicTorque;
+		double meanCleanReactionTorqueWithoutRipple = cleanReactionTorqueWithoutRipple;
+		double meanLoadedReactionTorqueWithoutRipple = loadedReactionTorqueWithoutRipple;
 
-		assertTrue(loadedReaction.state().rotorAerodynamicLoadFactor(0)
-				> cleanReaction.state().rotorAerodynamicLoadFactor(0) + 0.08);
+		assertTrue(loadedAerodynamicLoad > cleanAerodynamicLoad + 0.08);
 		assertTrue(
-				loadedAerodynamicTorque > cleanAerodynamicTorque + 0.001,
-				() -> "cleanAerodynamicTorque=" + cleanAerodynamicTorque
-						+ " loadedAerodynamicTorque=" + loadedAerodynamicTorque
+				meanLoadedAerodynamicTorque > meanCleanAerodynamicTorque + 0.001,
+				() -> "cleanAerodynamicTorque=" + meanCleanAerodynamicTorque
+						+ " loadedAerodynamicTorque=" + meanLoadedAerodynamicTorque
 		);
-		assertEquals(loadedReaction.state().rotorThrustNewtons(1), loadedReaction.state().rotorThrustNewtons(0), 0.02);
+		assertEquals(loadedRotor1Thrust, loadedRotor0Thrust, 0.15);
 		assertTrue(
-				Math.abs(loadedReactionTorqueWithoutRipple) > Math.abs(cleanReactionTorqueWithoutRipple) + 0.001,
-				() -> "cleanReactionTorqueWithoutRipple=" + cleanReactionTorqueWithoutRipple
-						+ " loadedReactionTorqueWithoutRipple=" + loadedReactionTorqueWithoutRipple
+				Math.abs(meanLoadedReactionTorqueWithoutRipple) > Math.abs(meanCleanReactionTorqueWithoutRipple) + 0.001,
+				() -> "cleanReactionTorqueWithoutRipple=" + meanCleanReactionTorqueWithoutRipple
+						+ " loadedReactionTorqueWithoutRipple=" + meanLoadedReactionTorqueWithoutRipple
 		);
 		assertTrue(loadedReaction.state().maxEscDesyncIntensity() < 0.05);
 	}
@@ -3380,7 +3492,7 @@ class DronePhysicsTest {
 		assertTrue(stalled.state().averageRotorAdvanceRatio() > 0.70);
 		assertTrue(stalled.state().maxRotorAdvanceRatio() > 0.70);
 		assertTrue(stalled.state().rotorThrustNewtons(0) < noStallLoss.state().rotorThrustNewtons(0) * 0.65);
-		assertTrue(noStallLoss.state().rotorVibration() < 0.08);
+		assertTrue(noStallLoss.state().rotorVibration() < 0.13);
 		assertTrue(stalled.state().rotorVibration() > noStallLoss.state().rotorVibration() + 0.09);
 	}
 
