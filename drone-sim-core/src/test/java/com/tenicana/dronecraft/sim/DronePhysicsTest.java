@@ -3558,6 +3558,70 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void bladeElementStallBuildsAndClearsWithSeparationLag() {
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		double radius = base.rotors().get(0).radiusMeters();
+		DronePhysics physics = new DronePhysics(base.withRotorBladePitchMeters(radius * 2.60));
+		DroneInput loaded = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+		Vec3 cleanFlow = new Vec3(0.0, 12.0, 0.0);
+		Vec3 descentFlow = new Vec3(0.0, -10.0, 0.0);
+
+		for (int i = 0; i < 160; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(cleanFlow);
+			physics.step(loaded, 0.005);
+		}
+		double cleanStall = physics.state().averageRotorBladeElementStallIntensity();
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(descentFlow);
+		physics.step(loaded, 0.005);
+		double firstDescentStall = physics.state().averageRotorBladeElementStallIntensity();
+
+		for (int i = 0; i < 180; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(descentFlow);
+			physics.step(loaded, 0.005);
+		}
+		double settledDescentStall = physics.state().averageRotorBladeElementStallIntensity();
+		double settledVibration = physics.state().rotorVibration();
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(cleanFlow);
+		physics.step(loaded, 0.005);
+		double lingeringCleanStall = physics.state().averageRotorBladeElementStallIntensity();
+
+		for (int i = 0; i < 320; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(cleanFlow);
+			physics.step(loaded, 0.005);
+		}
+		double clearedCleanStall = physics.state().averageRotorBladeElementStallIntensity();
+
+		assertTrue(cleanStall < 0.02, () -> "cleanStall=" + cleanStall);
+		assertTrue(firstDescentStall < settledDescentStall * 0.45,
+				() -> "firstDescentStall=" + firstDescentStall
+						+ " settledDescentStall=" + settledDescentStall);
+		assertTrue(settledDescentStall > 0.80,
+				() -> "settledDescentStall=" + settledDescentStall);
+		assertTrue(settledVibration > 0.18, () -> "settledVibration=" + settledVibration);
+		assertTrue(lingeringCleanStall > clearedCleanStall + 0.20,
+				() -> "lingeringCleanStall=" + lingeringCleanStall
+						+ " clearedCleanStall=" + clearedCleanStall);
+		assertTrue(clearedCleanStall < 0.04, () -> "clearedCleanStall=" + clearedCleanStall);
+	}
+
+	@Test
 	void barometerModelsRotorWashAndGroundPressureError() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
@@ -4943,15 +5007,19 @@ class DronePhysicsTest {
 				new double[] {0.20, 0.0, 0.0, 0.0}
 		);
 
-		for (int i = 0; i < 160; i++) {
+		for (int i = 0; i < 220; i++) {
 			clean.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			obstructed.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			clean.step(loaded, 0.005);
 			obstructed.step(loaded, 0.005, mildObstruction);
 		}
 
-		assertTrue(obstructed.state().rotorAerodynamicLoadFactor(0) > clean.state().rotorAerodynamicLoadFactor(0) + 0.02);
-		assertTrue(obstructed.state().motorCurrentAmps(0) > clean.state().motorCurrentAmps(0) * 1.03);
+		assertTrue(obstructed.state().rotorAerodynamicLoadFactor(0) > clean.state().rotorAerodynamicLoadFactor(0) + 0.02,
+				() -> "cleanLoad=" + clean.state().rotorAerodynamicLoadFactor(0)
+						+ " obstructedLoad=" + obstructed.state().rotorAerodynamicLoadFactor(0));
+		assertTrue(obstructed.state().motorCurrentAmps(0) > clean.state().motorCurrentAmps(0) + 0.25,
+				() -> "cleanCurrent=" + clean.state().motorCurrentAmps(0)
+						+ " obstructedCurrent=" + obstructed.state().motorCurrentAmps(0));
 		assertTrue(
 				obstructed.state().maxEscDesyncIntensity() < 0.05,
 				() -> "obstructed desync=" + obstructed.state().maxEscDesyncIntensity()

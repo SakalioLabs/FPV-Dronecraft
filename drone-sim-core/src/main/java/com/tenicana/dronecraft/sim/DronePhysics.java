@@ -45,6 +45,10 @@ public final class DronePhysics {
 	private final double[] rotorImbalancePhases;
 	private final double[] rotorVortexBuffetPhases;
 	private final double[] rotorBladeStallBuffetPhases;
+	private final double[] rotorBladeElementStallIntensity;
+	private final double[] rotorBladeElementThrustScale;
+	private final double[] rotorBladeElementLoadFactor;
+	private final double[] rotorBladeElementVibration;
 	private final double[] rotorBladeDissymmetryIntensity;
 	private final double[] rotorBladeDissymmetryThrustScale;
 	private final double[] rotorBladeDissymmetryLoadFactor;
@@ -207,6 +211,10 @@ public final class DronePhysics {
 		this.rotorImbalancePhases = new double[config.rotors().size()];
 		this.rotorVortexBuffetPhases = new double[config.rotors().size()];
 		this.rotorBladeStallBuffetPhases = new double[config.rotors().size()];
+		this.rotorBladeElementStallIntensity = new double[config.rotors().size()];
+		this.rotorBladeElementThrustScale = new double[config.rotors().size()];
+		this.rotorBladeElementLoadFactor = new double[config.rotors().size()];
+		this.rotorBladeElementVibration = new double[config.rotors().size()];
 		this.rotorBladeDissymmetryIntensity = new double[config.rotors().size()];
 		this.rotorBladeDissymmetryThrustScale = new double[config.rotors().size()];
 		this.rotorBladeDissymmetryLoadFactor = new double[config.rotors().size()];
@@ -235,6 +243,7 @@ public final class DronePhysics {
 		Arrays.fill(this.rotorWallEffectForceBodyFiltered, Vec3.ZERO);
 		Arrays.fill(this.rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(this.rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond, Vec3.ZERO);
+		Arrays.fill(this.rotorBladeElementThrustScale, 1.0);
 		Arrays.fill(this.rotorBladeDissymmetryThrustScale, 1.0);
 		Arrays.fill(this.rotorSurfaceEffectThrustMultipliers, 1.0);
 		resetSensorBiasModel();
@@ -303,6 +312,10 @@ public final class DronePhysics {
 		Arrays.fill(rotorImbalancePhases, 0.0);
 		Arrays.fill(rotorVortexBuffetPhases, 0.0);
 		Arrays.fill(rotorBladeStallBuffetPhases, 0.0);
+		Arrays.fill(rotorBladeElementStallIntensity, 0.0);
+		Arrays.fill(rotorBladeElementThrustScale, 1.0);
+		Arrays.fill(rotorBladeElementLoadFactor, 0.0);
+		Arrays.fill(rotorBladeElementVibration, 0.0);
 		Arrays.fill(rotorBladeDissymmetryIntensity, 0.0);
 		Arrays.fill(rotorBladeDissymmetryThrustScale, 1.0);
 		Arrays.fill(rotorBladeDissymmetryLoadFactor, 0.0);
@@ -580,11 +593,13 @@ public final class DronePhysics {
 					aerodynamicOmega,
 					state.rotorTranslationalLiftIntensity(i)
 			);
-			BladeElementAerodynamics bladeElement = rotorBladeElementAerodynamics(
+			BladeElementAerodynamics bladeElement = updateRotorBladeElementAerodynamics(
+					i,
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
-					state.rotorInducedVelocityMetersPerSecond(i)
+					state.rotorInducedVelocityMetersPerSecond(i),
+					dtSeconds
 			);
 			BladeDissymmetryAerodynamics bladeDissymmetry = updateRotorBladeDissymmetryAerodynamics(
 					i,
@@ -2171,7 +2186,79 @@ public final class DronePhysics {
 		);
 	}
 
-	private static BladeElementAerodynamics rotorBladeElementAerodynamics(
+	private BladeElementAerodynamics updateRotorBladeElementAerodynamics(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double inducedVelocityMetersPerSecond,
+			double dtSeconds
+	) {
+		BladeElementAerodynamics target = calculateSteadyRotorBladeElementAerodynamics(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				inducedVelocityMetersPerSecond
+		);
+		if (dtSeconds <= 0.0) {
+			setRotorBladeElementState(index, target);
+			return target;
+		}
+
+		double previousStall = rotorBladeElementStallIntensity[index];
+		double previousThrustScale = rotorBladeElementThrustScale[index];
+		double previousLoadFactor = rotorBladeElementLoadFactor[index];
+		double previousVibration = rotorBladeElementVibration[index];
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double bladePeriodSeconds = Math.abs(omegaRadiansPerSecond) <= 1.0e-6
+				? 0.040
+				: 2.0 * Math.PI / Math.abs(omegaRadiansPerSecond);
+		double previousSeparation = Math.max(previousStall, Math.max(0.0, 1.0 - previousThrustScale));
+		double targetSeparation = Math.max(target.stallIntensity(), Math.max(0.0, 1.0 - target.thrustScale()));
+		double buildTimeConstant = MathUtil.clamp(
+				Math.max(0.020, 3.1 * bladePeriodSeconds) * Math.sqrt(radiusScale) / (0.78 + 0.52 * spinRatio),
+				0.015,
+				0.095
+		);
+		double recoveryTimeConstant = MathUtil.clamp(
+				Math.max(0.060, 8.0 * bladePeriodSeconds) * Math.sqrt(radiusScale) / (0.72 + 0.30 * spinRatio),
+				0.050,
+				0.210
+		);
+		double timeConstant = targetSeparation > previousSeparation ? buildTimeConstant : recoveryTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+
+		double stall = previousStall + (target.stallIntensity() - previousStall) * alpha;
+		double thrustScale = previousThrustScale + (target.thrustScale() - previousThrustScale) * alpha;
+		double loadFactor = previousLoadFactor + (target.loadFactor() - previousLoadFactor) * alpha;
+		double vibration = previousVibration + (target.vibration() - previousVibration) * alpha;
+		if (targetSeparation <= 1.0e-6 && Math.max(stall, Math.max(0.0, 1.0 - thrustScale)) < 1.0e-5) {
+			stall = 0.0;
+			thrustScale = 1.0;
+			loadFactor = 0.0;
+			vibration = 0.0;
+		}
+
+		BladeElementAerodynamics filtered = new BladeElementAerodynamics(
+				target.angleOfAttackRadians(),
+				MathUtil.clamp(stall, 0.0, 1.0),
+				MathUtil.clamp(thrustScale, 0.74, 1.03),
+				MathUtil.clamp(loadFactor, -0.09, 0.24),
+				MathUtil.clamp(vibration, 0.0, 0.12)
+		);
+		setRotorBladeElementState(index, filtered);
+		return filtered;
+	}
+
+	private void setRotorBladeElementState(int index, BladeElementAerodynamics aerodynamics) {
+		rotorBladeElementStallIntensity[index] = aerodynamics.stallIntensity();
+		rotorBladeElementThrustScale[index] = aerodynamics.thrustScale();
+		rotorBladeElementLoadFactor[index] = aerodynamics.loadFactor();
+		rotorBladeElementVibration[index] = aerodynamics.vibration();
+	}
+
+	private static BladeElementAerodynamics calculateSteadyRotorBladeElementAerodynamics(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
