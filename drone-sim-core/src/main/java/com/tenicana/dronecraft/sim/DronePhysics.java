@@ -3457,20 +3457,45 @@ public final class DronePhysics {
 		double speed = relativeAirVelocityBody.length();
 		Vec3 drag = config.bodyDragCoefficients();
 		double dynamicScale = Math.max(0.0, airDensityRatio) * speed * speed;
+		Vec3 rotationalDamping = calculateRotationalAirframeAngularDamping(angularVelocityBody, airDensityRatio);
 		Vec3 rotorWashDamping = calculateRotorWashAirframeAngularDamping(totalRotorForceBody, airDensityRatio);
 		double pitchDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00022 * drag.z() + 0.00006 * drag.y()), 0.0, 0.36)
+				+ rotationalDamping.x()
 				+ rotorWashDamping.x();
 		double yawDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00018 * drag.x() + 0.00008 * drag.z()), 0.0, 0.36)
+				+ rotationalDamping.y()
 				+ rotorWashDamping.y();
 		double rollDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00020 * drag.x() + 0.00006 * drag.y()), 0.0, 0.36)
+				+ rotationalDamping.z()
 				+ rotorWashDamping.z();
 		return new Vec3(
 				-angularVelocityBody.x() * pitchDamping,
 				-angularVelocityBody.y() * yawDamping,
 				-angularVelocityBody.z() * rollDamping
+		);
+	}
+
+	private Vec3 calculateRotationalAirframeAngularDamping(Vec3 angularVelocityBody, double airDensityRatio) {
+		if (airDensityRatio <= 0.0 || angularVelocityBody.lengthSquared() <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 drag = config.bodyDragCoefficients();
+		if (Math.max(drag.x(), Math.max(drag.y(), drag.z())) <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double frameRadius = equivalentStaticPortRadiusMeters();
+		double pitchLocalSpeed = Math.abs(angularVelocityBody.x()) * frameRadius;
+		double yawLocalSpeed = Math.abs(angularVelocityBody.y()) * frameRadius * 0.68;
+		double rollLocalSpeed = Math.abs(angularVelocityBody.z()) * frameRadius;
+		return new Vec3(
+				MathUtil.clamp(airDensityRatio * pitchLocalSpeed * (0.020 * drag.z() + 0.006 * drag.y()), 0.0, 0.08),
+				MathUtil.clamp(airDensityRatio * yawLocalSpeed * (0.014 * Math.sqrt(Math.max(0.0, drag.x() * drag.z())) + 0.004 * drag.y()), 0.0, 0.06),
+				MathUtil.clamp(airDensityRatio * rollLocalSpeed * (0.020 * drag.x() + 0.006 * drag.y()), 0.0, 0.08)
 		);
 	}
 

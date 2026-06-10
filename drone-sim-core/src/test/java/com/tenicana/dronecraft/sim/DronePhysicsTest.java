@@ -5238,6 +5238,33 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void airframeAngularDragAppearsFromBodyRotationInStillAir() {
+		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
+		DroneConfig base = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)
+				.withLinearDragCoefficient(0.0)
+				.withAngularDragCoefficient(0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorDiskDragCoefficient(0.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics noBodyArea = new DronePhysics(base.withBodyDragCoefficients(Vec3.ZERO));
+		DronePhysics tumbling = new DronePhysics(base.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32)));
+		Vec3 bodyRates = new Vec3(7.0, 3.0, -6.0);
+		noBodyArea.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+		tumbling.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+
+		noBodyArea.step(DroneInput.idle(), 0.005);
+		tumbling.step(DroneInput.idle(), 0.005);
+
+		Vec3 tumbleDrag = tumbling.state().airframeAngularDragTorqueBodyNewtonMeters();
+		assertEquals(0.0, noBodyArea.state().airframeAngularDragTorqueBodyNewtonMeters().length(), 1.0e-9);
+		assertTrue(tumbleDrag.dot(bodyRates) < -0.055, () -> "tumbleDrag=" + tumbleDrag);
+		assertTrue(tumbling.state().angularVelocityBodyRadiansPerSecond().length()
+				< noBodyArea.state().angularVelocityBodyRadiansPerSecond().length() - 0.02);
+	}
+
+	@Test
 	void rotorWashEnhancesAirframeAngularDampingInPoweredHover() {
 		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
 		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)
@@ -5271,10 +5298,13 @@ class DronePhysicsTest {
 
 		Vec3 unpoweredDrag = unpowered.state().airframeAngularDragTorqueBodyNewtonMeters();
 		Vec3 poweredDrag = powered.state().airframeAngularDragTorqueBodyNewtonMeters();
-		assertEquals(0.0, unpoweredDrag.length(), 1.0e-9);
-		assertTrue(poweredDrag.dot(bodyRates) < -0.06, () -> "poweredDrag=" + poweredDrag);
-		assertTrue(Math.abs(poweredDrag.x()) > 0.030, () -> "poweredDrag=" + poweredDrag);
-		assertTrue(Math.abs(poweredDrag.z()) > 0.025, () -> "poweredDrag=" + poweredDrag);
+		assertTrue(unpoweredDrag.dot(bodyRates) < -0.035, () -> "unpoweredDrag=" + unpoweredDrag);
+		assertTrue(poweredDrag.dot(bodyRates) < unpoweredDrag.dot(bodyRates) - 0.055,
+				() -> "unpoweredDrag=" + unpoweredDrag + " poweredDrag=" + poweredDrag);
+		assertTrue(Math.abs(poweredDrag.x()) > Math.abs(unpoweredDrag.x()) + 0.012,
+				() -> "unpoweredDrag=" + unpoweredDrag + " poweredDrag=" + poweredDrag);
+		assertTrue(Math.abs(poweredDrag.z()) > Math.abs(unpoweredDrag.z()) + 0.010,
+				() -> "unpoweredDrag=" + unpoweredDrag + " poweredDrag=" + poweredDrag);
 	}
 
 	@Test
