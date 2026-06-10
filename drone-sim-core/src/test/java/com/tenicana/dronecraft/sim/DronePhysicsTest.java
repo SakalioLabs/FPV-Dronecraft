@@ -6007,6 +6007,60 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void vortexRingStateBuildsAndClearsWithRotorWakeLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput punch = new DroneInput(0.75, 0.0, 0.0, 0.0, true);
+		Vec3 verticalDescent = new Vec3(0.0, -12.0, 0.0);
+		Vec3 crossflowEscape = new Vec3(8.0, -12.0, 0.0);
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(verticalDescent);
+		physics.step(punch, 0.005);
+		double firstVerticalVrs = physics.state().vortexRingStateIntensity();
+
+		for (int i = 0; i < 180; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(verticalDescent);
+			physics.step(punch, 0.005);
+		}
+		double settledVerticalVrs = physics.state().vortexRingStateIntensity();
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(crossflowEscape);
+		physics.step(punch, 0.005);
+		double firstCrossflowVrs = physics.state().vortexRingStateIntensity();
+
+		for (int i = 0; i < 220; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(crossflowEscape);
+			physics.step(punch, 0.005);
+		}
+		double clearedCrossflowVrs = physics.state().vortexRingStateIntensity();
+
+		assertTrue(firstVerticalVrs < settledVerticalVrs * 0.35,
+				() -> "firstVerticalVrs=" + firstVerticalVrs + " settledVerticalVrs=" + settledVerticalVrs);
+		assertTrue(settledVerticalVrs > 0.25, () -> "settledVerticalVrs=" + settledVerticalVrs);
+		assertTrue(firstCrossflowVrs > clearedCrossflowVrs + 0.08,
+				() -> "firstCrossflowVrs=" + firstCrossflowVrs + " clearedCrossflowVrs=" + clearedCrossflowVrs);
+		assertTrue(clearedCrossflowVrs < 0.06, () -> "clearedCrossflowVrs=" + clearedCrossflowVrs);
+	}
+
+	@Test
 	void vortexRingStateReducesThrustInRetainedDescendingWake() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)

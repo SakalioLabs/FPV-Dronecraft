@@ -46,6 +46,7 @@ public final class DronePhysics {
 	private final double[] rotorVortexBuffetPhases;
 	private final double[] rotorBladeStallBuffetPhases;
 	private final double[] rotorDynamicStallIntensity;
+	private final double[] rotorVortexRingStateIntensity;
 	private final double[] rotorSurfaceEffectThrustMultipliers;
 	private final double[] rotorConingIntensity;
 	private final double[] heldEscOutputCommands;
@@ -200,6 +201,7 @@ public final class DronePhysics {
 		this.rotorVortexBuffetPhases = new double[config.rotors().size()];
 		this.rotorBladeStallBuffetPhases = new double[config.rotors().size()];
 		this.rotorDynamicStallIntensity = new double[config.rotors().size()];
+		this.rotorVortexRingStateIntensity = new double[config.rotors().size()];
 		this.rotorSurfaceEffectThrustMultipliers = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
@@ -285,6 +287,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorVortexBuffetPhases, 0.0);
 		Arrays.fill(rotorBladeStallBuffetPhases, 0.0);
 		Arrays.fill(rotorDynamicStallIntensity, 0.0);
+		Arrays.fill(rotorVortexRingStateIntensity, 0.0);
 		Arrays.fill(rotorSurfaceEffectThrustMultipliers, 1.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
@@ -593,11 +596,13 @@ public final class DronePhysics {
 					+ rotorImbalanceVibration(rotor, omega, state.rotorHealth(i))
 					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput)
 					+ motorCommutationRippleVibration(rotor, omega, commutationRipple.intensity(), commutationRipple.torqueRippleNewtonMeters());
-			double vortexRingState = rotorVortexRingStateIntensity(
+			double vortexRingState = updateRotorVortexRingStateIntensity(
+					i,
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
-					state.rotorInducedVelocityMetersPerSecond(i)
+					state.rotorInducedVelocityMetersPerSecond(i),
+					dtSeconds
 			);
 			vortexRingStateSum += vortexRingState;
 			double aerodynamicLoadFactor = MathUtil.clamp(rotorAerodynamicLoadFactor(
@@ -2041,7 +2046,48 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.35 * lossScale * rotorStallIntensity * spinRatio, 0.0, 1.0);
 	}
 
-	private static double rotorVortexRingStateIntensity(
+	private double updateRotorVortexRingStateIntensity(
+			int rotorIndex,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double inducedVelocityMetersPerSecond,
+			double dtSeconds
+	) {
+		double target = calculateSteadyRotorVortexRingStateIntensity(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				inducedVelocityMetersPerSecond
+		);
+		if (dtSeconds <= 0.0) {
+			rotorVortexRingStateIntensity[rotorIndex] = target;
+			return target;
+		}
+
+		double previous = rotorVortexRingStateIntensity[rotorIndex];
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
+		double transverseFlush = smoothStep(2.5, 7.0, transverseSpeed);
+		double diskResponse = 0.72 + 0.55 * spinRatio;
+		double attackTimeConstant = MathUtil.clamp(0.070 * Math.sqrt(radiusScale) / diskResponse, 0.025, 0.140);
+		double recoveryTimeConstant = MathUtil.clamp(
+				(0.190 - 0.095 * transverseFlush) * Math.sqrt(radiusScale) / Math.max(0.72, diskResponse),
+				0.055,
+				0.260
+		);
+		double timeConstant = target > previous ? attackTimeConstant : recoveryTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double intensity = previous + (target - previous) * alpha;
+		if (target <= 1.0e-6 && intensity < 1.0e-5) {
+			intensity = 0.0;
+		}
+		rotorVortexRingStateIntensity[rotorIndex] = MathUtil.clamp(intensity, 0.0, 1.0);
+		return rotorVortexRingStateIntensity[rotorIndex];
+	}
+
+	private static double calculateSteadyRotorVortexRingStateIntensity(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
