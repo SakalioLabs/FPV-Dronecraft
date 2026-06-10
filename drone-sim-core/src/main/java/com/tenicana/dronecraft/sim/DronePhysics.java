@@ -367,6 +367,7 @@ public final class DronePhysics {
 							* voltageScale
 							* powerLimitScale
 							* motorWindingTorqueTargetScale(i, escOutput)
+							* motorBearingDragTargetScale(i, escOutput)
 							* motorLoadTargetScale(state.rotorAerodynamicLoadFactor(i) + 0.70 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad, escOutput)
 							* rotorSurfaceScrapeTargetScale(surfaceScrape)
 					: 0.0;
@@ -398,6 +399,7 @@ public final class DronePhysics {
 					rotor,
 					commandedOmega,
 					airDensity,
+					state.motorTemperatureCelsius(i),
 					rotorWaterImmersion,
 					precipitationWetness,
 					surfaceScrape,
@@ -1097,7 +1099,7 @@ public final class DronePhysics {
 		if (requestedAcceleration > 0.0) {
 			double phaseCurrent = Math.max(0.0, (driveVoltage - backEmfVoltage) / windingResistanceOhms);
 			double availableTorque = phaseCurrent * torqueConstant;
-			double breakawayTorque = motorStaticBreakawayTorque(rotor, previousOmega, escOutput, surfaceScrapeIntensity);
+			double breakawayTorque = motorStaticBreakawayTorque(rotor, previousOmega, escOutput, state.motorTemperatureCelsius(index), surfaceScrapeIntensity);
 			double requiredTorque = loadTorque + breakawayTorque;
 			double availableAcceleration = Math.max(
 					0.0,
@@ -1123,6 +1125,7 @@ public final class DronePhysics {
 			RotorSpec rotor,
 			double omegaRadiansPerSecond,
 			double escOutput,
+			double motorTemperatureCelsius,
 			double surfaceScrapeIntensity
 	) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
@@ -1135,10 +1138,12 @@ public final class DronePhysics {
 		double inertiaScale = MathUtil.clamp(Math.sqrt(rotor.rotorInertiaKgMetersSquared() / 1.6e-5), 0.55, 3.0);
 		double coggingPeak = 1.0 + 0.20 * Math.sin(MathUtil.clamp(escOutput, 0.0, 1.0) * 72.0 + rotor.spinDirection() * 0.7);
 		double scrapeScale = 1.0 + 3.2 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0);
+		double bearingViscosityScale = motorBearingViscosityScale(motorTemperatureCelsius);
 		return MathUtil.clamp(
 				MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS
 						* radiusScale
 						* inertiaScale
+						* bearingViscosityScale
 						* coggingPeak
 						* scrapeScale
 						* staticFriction,
@@ -1158,6 +1163,7 @@ public final class DronePhysics {
 			RotorSpec rotor,
 			double omegaRadiansPerSecond,
 			double airDensityRatio,
+			double motorTemperatureCelsius,
 			double waterImmersion,
 			double precipitationWetness,
 			double surfaceScrapeIntensity,
@@ -1172,6 +1178,7 @@ public final class DronePhysics {
 		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.35, 3.0);
 		double diskDragScale = MathUtil.clamp(rotor.diskDragCoefficient() / 0.0028, 0.25, 5.0);
 		double bearingTorque = (0.00011 * Math.sqrt(radiusScale) + 0.00014 * Math.sqrt(inertiaScale))
+				* motorBearingViscosityScale(motorTemperatureCelsius)
 				* smoothStep(0.015, 0.10, spinRatio);
 		double windageTorque = 0.0016
 				* diskDragScale
@@ -1185,6 +1192,23 @@ public final class DronePhysics {
 		double scrapeTorque = 0.008 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0) * (0.35 + 0.65 * spinRatio);
 		double imbalanceTorque = 0.0045 * rotorEffectiveImbalanceIntensity(rotor, rotorHealth) * spinRatio * spinRatio;
 		return MathUtil.clamp(bearingTorque + windageTorque + wetPropTorque + rainTorque + scrapeTorque + imbalanceTorque, 0.0, 0.050);
+	}
+
+	private static double motorBearingViscosityScale(double motorTemperatureCelsius) {
+		if (!Double.isFinite(motorTemperatureCelsius)) {
+			motorTemperatureCelsius = MOTOR_AMBIENT_TEMPERATURE_CELSIUS;
+		}
+		double coldRise = Math.max(0.0, MOTOR_AMBIENT_TEMPERATURE_CELSIUS - motorTemperatureCelsius);
+		double heatRise = Math.max(0.0, motorTemperatureCelsius - 55.0);
+		double scale = 1.0 + 0.018 * coldRise - 0.0016 * heatRise;
+		return MathUtil.clamp(scale, 0.88, 1.85);
+	}
+
+	private double motorBearingDragTargetScale(int index, double escOutput) {
+		double extraViscosity = Math.max(0.0, motorBearingViscosityScale(state.motorTemperatureCelsius(index)) - 1.0);
+		double lowDrive = 1.0 - smoothStep(0.08, 0.35, escOutput);
+		double loss = extraViscosity * (0.07 + 0.17 * lowDrive);
+		return MathUtil.clamp(1.0 - loss, 0.76, 1.02);
 	}
 
 	private static double applyMotorMechanicalLoss(

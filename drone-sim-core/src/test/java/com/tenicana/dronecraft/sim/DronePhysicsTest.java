@@ -655,6 +655,40 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coldMotorBearingsIncreaseStartupDragAndMechanicalLoss() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics warmBearings = new DronePhysics(config);
+		DronePhysics coldBearings = new DronePhysics(config);
+		DroneInput lowStartup = new DroneInput(0.006, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < config.rotors().size(); i++) {
+			warmBearings.state().setMotorTemperatureCelsius(i, 35.0);
+			coldBearings.state().setMotorTemperatureCelsius(i, -20.0);
+		}
+
+		for (int i = 0; i < 90; i++) {
+			warmBearings.step(lowStartup, 0.005);
+			coldBearings.step(lowStartup, 0.005);
+		}
+
+		assertTrue(coldBearings.state().averageMotorMechanicalLossTorqueNewtonMeters()
+						> warmBearings.state().averageMotorMechanicalLossTorqueNewtonMeters() * 1.18,
+				() -> "warmLoss=" + warmBearings.state().averageMotorMechanicalLossTorqueNewtonMeters()
+						+ " coldLoss=" + coldBearings.state().averageMotorMechanicalLossTorqueNewtonMeters());
+		assertTrue(coldBearings.state().averageMotorRpm() < warmBearings.state().averageMotorRpm() - 80.0,
+				() -> "warmRpm=" + warmBearings.state().averageMotorRpm()
+						+ " coldRpm=" + coldBearings.state().averageMotorRpm());
+		assertTrue(coldBearings.state().averageMotorTargetRpm() < warmBearings.state().averageMotorTargetRpm() - 80.0,
+				() -> "warmTargetRpm=" + warmBearings.state().averageMotorTargetRpm()
+						+ " coldTargetRpm=" + coldBearings.state().averageMotorTargetRpm());
+	}
+
+	@Test
 	void motorCommutationRippleAddsPhaseCurrentAndTorqueTelemetry() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
