@@ -158,6 +158,10 @@ public final class DronePhysics {
 	private record RotorWakeFlow(double axialDescentSpeedMetersPerSecond, double transverseSpeedMetersPerSecond) {
 	}
 
+	private record RotorConvectedWake(double overlap, double missDistanceMeters, Vec3 swirlOffsetBody) {
+		private static final RotorConvectedWake IDLE = new RotorConvectedWake(0.0, Double.POSITIVE_INFINITY, Vec3.ZERO);
+	}
+
 	public DronePhysics(DroneConfig config) {
 		this.config = config;
 		this.state = new DroneState(config.rotors().size());
@@ -2303,9 +2307,6 @@ public final class DronePhysics {
 
 		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
 		double crossflowFlush = 1.0 - smoothStep(2.0, 8.0, crossflowSpeed);
-		if (crossflowFlush <= 1.0e-6) {
-			return new RotorWakeInterference(intensity, downwash, swirl);
-		}
 
 		for (int receiverIndex = 0; receiverIndex < rotorCount; receiverIndex++) {
 			RotorSpec receiver = config.rotors().get(receiverIndex);
@@ -2325,17 +2326,6 @@ public final class DronePhysics {
 				double downstreamDistance = -sourceToReceiver.dot(sourceAxisBody);
 				Vec3 lateralOffset = sourceToReceiver.add(sourceAxisBody.multiply(downstreamDistance));
 				double lateralDistance = lateralOffset.length();
-				double downstreamFactor = rotorWakeAxisOverlap(source, receiver, downstreamDistance, lateralDistance);
-				if (downstreamFactor <= 1.0e-6) {
-					continue;
-				}
-
-				double wakeRadius = source.radiusMeters() + Math.max(0.0, downstreamDistance) * 0.42;
-				double lateralFactor = 1.0 - smoothStep(wakeRadius * 0.35, wakeRadius + receiver.radiusMeters() * 0.85, lateralDistance);
-				if (lateralFactor <= 1.0e-6) {
-					continue;
-				}
-
 				double sourceSpinRatio = MathUtil.clamp(
 						Math.abs(state.motorOmegaRadiansPerSecond(sourceIndex)) / source.maxOmegaRadiansPerSecond(),
 						0.0,
@@ -2345,23 +2335,46 @@ public final class DronePhysics {
 					continue;
 				}
 
-				double radiusMatch = MathUtil.clamp(source.radiusMeters() / Math.max(1.0e-6, receiver.radiusMeters()), 0.45, 1.45);
-				double contribution = MathUtil.clamp(
-						sourceSpinRatio * sourceSpinRatio * downstreamFactor * lateralFactor * crossflowFlush * (0.70 + 0.18 * radiusMatch),
-						0.0,
-						1.0
-				);
 				double sourceInducedVelocity = Math.max(
 						state.rotorInducedVelocityMetersPerSecond(sourceIndex),
 						sourceSpinRatio * source.maxOmegaRadiansPerSecond() * source.radiusMeters() * 0.10
 				);
-				double coaxialCoreFactor = 1.0 - smoothStep(source.radiusMeters() * 0.08, source.radiusMeters() * 0.72, lateralDistance);
+				double axialWakeOverlap = rotorWakeAxisOverlap(source, receiver, downstreamDistance, lateralDistance);
+				double axialLateralFactor = 0.0;
+				if (axialWakeOverlap > 1.0e-6 && crossflowFlush > 1.0e-6) {
+					double wakeRadius = source.radiusMeters() + Math.max(0.0, downstreamDistance) * 0.42;
+					axialLateralFactor = 1.0 - smoothStep(wakeRadius * 0.35, wakeRadius + receiver.radiusMeters() * 0.85, lateralDistance);
+				}
+				double axialContributionFactor = Math.max(0.0, axialWakeOverlap * axialLateralFactor * crossflowFlush);
+				RotorConvectedWake convectedWake = rotorConvectedWakeOverlap(
+						source,
+						receiver,
+						relativeAirVelocityBody,
+						sourceToReceiver,
+						sourceAxisBody,
+						sourceInducedVelocity
+				);
+				double wakeGeometryFactor = MathUtil.clamp(axialContributionFactor + convectedWake.overlap(), 0.0, 1.0);
+				if (wakeGeometryFactor <= 1.0e-6) {
+					continue;
+				}
+
+				double radiusMatch = MathUtil.clamp(source.radiusMeters() / Math.max(1.0e-6, receiver.radiusMeters()), 0.45, 1.45);
+				double contribution = MathUtil.clamp(
+						sourceSpinRatio * sourceSpinRatio * wakeGeometryFactor * (0.70 + 0.18 * radiusMatch),
+						0.0,
+						1.0
+				);
+				double effectiveMissDistance = convectedWake.overlap() > axialContributionFactor
+						? convectedWake.missDistanceMeters()
+						: lateralDistance;
+				double coaxialCoreFactor = 1.0 - smoothStep(source.radiusMeters() * 0.08, source.radiusMeters() * 0.72, effectiveMissDistance);
 				double swirlCapture = MathUtil.clamp(0.34 + 0.26 * coaxialCoreFactor + 0.14 * sourceSpinRatio, 0.0, 0.78);
 				double swirlVelocity = contribution * sourceInducedVelocity * swirlCapture;
 				Vec3 sourceArmBody = sourcePosition.subtract(config.centerOfMassOffsetBodyMeters());
 				Vec3 swirlDirection = rotorWakeSwirlDirection(
 						sourceAxisBody,
-						lateralOffset,
+						convectedWake.overlap() > axialContributionFactor ? convectedWake.swirlOffsetBody() : lateralOffset,
 						sourceArmBody,
 						source.spinDirection()
 				);
@@ -2411,6 +2424,77 @@ public final class DronePhysics {
 			return 0.20 * diskOverlap;
 		}
 		return 0.0;
+	}
+
+	private static RotorConvectedWake rotorConvectedWakeOverlap(
+			RotorSpec source,
+			RotorSpec receiver,
+			Vec3 relativeAirVelocityBody,
+			Vec3 sourceToReceiverBody,
+			Vec3 sourceAxisBody,
+			double sourceInducedVelocityMetersPerSecond
+	) {
+		Vec3 transverseVelocityBody = projectOntoRotorDisk(relativeAirVelocityBody, sourceAxisBody);
+		double transverseSpeed = transverseVelocityBody.length();
+		if (transverseSpeed <= 1.0 || sourceInducedVelocityMetersPerSecond <= 1.0e-6) {
+			return RotorConvectedWake.IDLE;
+		}
+
+		Vec3 wakeConvectionDirectionBody = transverseVelocityBody.multiply(-1.0 / transverseSpeed);
+		Vec3 receiverLateralOffsetBody = projectOntoRotorDisk(sourceToReceiverBody, sourceAxisBody);
+		double alongConvectionMeters = receiverLateralOffsetBody.dot(wakeConvectionDirectionBody);
+		double sourceRadius = source.radiusMeters();
+		double receiverRadius = receiver.radiusMeters();
+		double wakeShedding = smoothStep(0.0004, 0.0028, source.diskDragCoefficient());
+		if (wakeShedding <= 1.0e-6) {
+			return RotorConvectedWake.IDLE;
+		}
+		if (alongConvectionMeters <= sourceRadius * 0.25) {
+			return RotorConvectedWake.IDLE;
+		}
+
+		Vec3 crossTrackBody = receiverLateralOffsetBody.subtract(
+				wakeConvectionDirectionBody.multiply(alongConvectionMeters)
+		);
+		double crossTrackDistance = crossTrackBody.length();
+		double wakeAgeSeconds = alongConvectionMeters / Math.max(1.0, transverseSpeed);
+		double wakeDropMeters = sourceInducedVelocityMetersPerSecond * wakeAgeSeconds;
+		double receiverBelowSourceMeters = -sourceToReceiverBody.dot(sourceAxisBody);
+		double axialMissMeters = receiverBelowSourceMeters - wakeDropMeters;
+		double wakeRadius = sourceRadius + wakeDropMeters * 0.38 + alongConvectionMeters * 0.045;
+		double maxUsefulAlong = Math.max(sourceRadius * 8.0, receiverRadius * 5.5);
+		double alongCapture = smoothStep(sourceRadius * 0.35, Math.max(sourceRadius * 2.4, receiverRadius * 2.0), alongConvectionMeters)
+				* (1.0 - smoothStep(maxUsefulAlong * 0.72, maxUsefulAlong, alongConvectionMeters));
+		double crossTrackCapture = 1.0 - smoothStep(
+				wakeRadius * 0.45,
+				wakeRadius + receiverRadius * 0.95,
+				crossTrackDistance
+		);
+		double axialCapture = 1.0 - smoothStep(
+				receiverRadius * 0.45,
+				receiverRadius * 1.75 + wakeRadius * 0.45,
+				Math.abs(axialMissMeters)
+		);
+		double crossflowCapture = smoothStep(4.0, 14.0, transverseSpeed);
+		double wakeRetention = MathUtil.clamp(
+				sourceInducedVelocityMetersPerSecond / (sourceInducedVelocityMetersPerSecond + 0.30 * transverseSpeed),
+				0.18,
+				0.82
+		);
+		double overlap = MathUtil.clamp(
+				2.35 * alongCapture * crossTrackCapture * axialCapture * crossflowCapture * wakeRetention * wakeShedding,
+				0.0,
+				1.0
+		);
+		if (overlap <= 1.0e-6) {
+			return RotorConvectedWake.IDLE;
+		}
+
+		double missDistance = Math.sqrt(crossTrackDistance * crossTrackDistance + axialMissMeters * axialMissMeters);
+		Vec3 swirlOffset = crossTrackBody.lengthSquared() > 1.0e-9
+				? crossTrackBody
+				: receiverLateralOffsetBody;
+		return new RotorConvectedWake(overlap, missDistance, swirlOffset);
 	}
 
 	private static double rotorWakeInterferenceThrustScale(double interference) {

@@ -465,6 +465,54 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void forwardFlightConvectsFrontRotorWakeOntoRearRotors() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withRotorImbalanceIntensity(0.0);
+		DronePhysics hover = new DronePhysics(config);
+		DronePhysics forward = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.10, 0.0, 0.0, 0.0, true);
+		Vec3 forwardVelocity = new Vec3(0.0, 0.0, 22.0);
+
+		for (int i = 0; i < 700; i++) {
+			holdInStillAir(hover);
+			holdInCruise(forward, forwardVelocity);
+			hover.step(input, 0.005);
+			forward.step(input, 0.005);
+		}
+
+		double frontWake = 0.5 * (
+				forward.state().rotorWakeInterferenceIntensity(0)
+						+ forward.state().rotorWakeInterferenceIntensity(1)
+		);
+		double rearWake = 0.5 * (
+				forward.state().rotorWakeInterferenceIntensity(2)
+						+ forward.state().rotorWakeInterferenceIntensity(3)
+		);
+		double frontThrust = 0.5 * (
+				forward.state().rotorThrustNewtons(0)
+						+ forward.state().rotorThrustNewtons(1)
+		);
+		double rearThrust = 0.5 * (
+				forward.state().rotorThrustNewtons(2)
+						+ forward.state().rotorThrustNewtons(3)
+		);
+
+		assertEquals(0.0, hover.state().maxRotorWakeInterferenceIntensity(), 0.02);
+		assertTrue(frontWake < 0.03, () -> "frontWake=" + frontWake + " rearWake=" + rearWake);
+		assertTrue(rearWake > 0.08, () -> "frontWake=" + frontWake + " rearWake=" + rearWake);
+		assertTrue(rearWake > frontWake + 0.06, () -> "frontWake=" + frontWake + " rearWake=" + rearWake);
+		assertTrue(forward.state().maxRotorWakeSwirlVelocityMetersPerSecond() > 0.08);
+		assertTrue(rearThrust < frontThrust * 0.985, () -> "frontThrust=" + frontThrust + " rearThrust=" + rearThrust);
+	}
+
+	@Test
 	void inertiaTuningChangesRateResponse() {
 		DroneConfig base = directControl(DroneConfig.racingQuad());
 		DronePhysics lightInertia = new DronePhysics(base.withInertiaKgMetersSquared(base.inertiaKgMetersSquared().multiply(0.55)));
@@ -4695,6 +4743,13 @@ class DronePhysicsTest {
 	private static void holdInStillAir(DronePhysics physics) {
 		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+	}
+
+	private static void holdInCruise(DronePhysics physics, Vec3 velocityMetersPerSecond) {
+		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+		physics.state().setVelocityMetersPerSecond(velocityMetersPerSecond);
 		physics.state().setOrientation(Quaternion.IDENTITY);
 		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 	}
