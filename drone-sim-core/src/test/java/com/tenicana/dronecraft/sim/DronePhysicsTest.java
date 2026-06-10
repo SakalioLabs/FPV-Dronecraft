@@ -3535,6 +3535,8 @@ class DronePhysicsTest {
 
 		double lowMachThrustSum = 0.0;
 		double highMachThrustSum = 0.0;
+		double lowMachTorqueSum = 0.0;
+		double highMachTorqueSum = 0.0;
 		int thrustSamples = 0;
 		for (int i = 0; i < 220; i++) {
 			lowMach.state().setVelocityMetersPerSecond(Vec3.ZERO);
@@ -3544,11 +3546,17 @@ class DronePhysicsTest {
 			if (i >= 180) {
 				lowMachThrustSum += averageRotorThrust(lowMach.state());
 				highMachThrustSum += averageRotorThrust(highMach.state());
+				lowMachTorqueSum += lowMach.state().averageMotorAerodynamicTorqueNewtonMeters();
+				highMachTorqueSum += highMach.state().averageMotorAerodynamicTorqueNewtonMeters();
 				thrustSamples++;
 			}
 		}
 		double lowMachMeanThrust = lowMachThrustSum / thrustSamples;
 		double highMachMeanThrust = highMachThrustSum / thrustSamples;
+		double lowMachMeanTorque = lowMachTorqueSum / thrustSamples;
+		double highMachMeanTorque = highMachTorqueSum / thrustSamples;
+		double lowMachTorquePerThrust = lowMachMeanTorque / lowMachMeanThrust;
+		double highMachTorquePerThrust = highMachMeanTorque / highMachMeanThrust;
 
 		assertTrue(lowMach.state().maxRotorTipMach() < 0.35);
 		assertTrue(highMach.state().maxRotorTipMach() > 0.60);
@@ -3558,6 +3566,9 @@ class DronePhysicsTest {
 		);
 		assertTrue(highMach.state().averageRotorAerodynamicLoadFactor()
 				> lowMach.state().averageRotorAerodynamicLoadFactor() + 0.04);
+		assertTrue(highMachTorquePerThrust > lowMachTorquePerThrust * 1.10,
+				() -> "lowMachTorquePerThrust=" + lowMachTorquePerThrust
+						+ " highMachTorquePerThrust=" + highMachTorquePerThrust);
 		assertTrue(highMach.state().rotorVibration() > lowMach.state().rotorVibration() + 0.03);
 	}
 

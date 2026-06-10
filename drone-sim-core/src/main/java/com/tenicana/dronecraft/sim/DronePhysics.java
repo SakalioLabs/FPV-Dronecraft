@@ -576,6 +576,7 @@ public final class DronePhysics {
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
 			double compressibilityLoad = rotorCompressibilityLoadFactor(rotorTipMach);
+			double compressibilityReactionTorqueScale = rotorCompressibilityReactionTorqueScale(rotorTipMach);
 			double lowReynoldsLoss = rotorLowReynoldsLoss(
 					aerodynamicRotor,
 					aerodynamicOmega,
@@ -762,7 +763,10 @@ public final class DronePhysics {
 			state.setRotorForceBodyNewtons(i, forceBody);
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
-			double motorAerodynamicTorque = rotor.yawTorquePerThrustMeter() * thrust * reactionTorqueScale;
+			double motorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
+					* thrust
+					* reactionTorqueScale
+					* compressibilityReactionTorqueScale;
 			state.setMotorAerodynamicTorqueNewtonMeters(i, motorAerodynamicTorque);
 			state.setMotorShaftPowerWatts(
 					i,
@@ -2471,6 +2475,11 @@ public final class DronePhysics {
 
 	private static double rotorCompressibilityLoadFactor(double rotorTipMach) {
 		return 0.42 * rotorCompressibilityIntensity(rotorTipMach);
+	}
+
+	private static double rotorCompressibilityReactionTorqueScale(double rotorTipMach) {
+		double intensity = rotorCompressibilityIntensity(rotorTipMach);
+		return MathUtil.clamp(1.0 + 0.32 * intensity + 0.10 * intensity * intensity, 1.0, 1.42);
 	}
 
 	private static double rotorCompressibilityVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorTipMach) {
