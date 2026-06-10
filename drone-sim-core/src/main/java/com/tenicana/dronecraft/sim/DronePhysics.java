@@ -16,6 +16,8 @@ public final class DronePhysics {
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
+	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
+	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.17, 0.28, 0.43, 0.52, 0.58, 0.66, 0.76, 0.86, 1.0};
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
 	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
 	private static final double GYRO_FULL_SCALE_RADIANS_PER_SECOND = Math.toRadians(2000.0);
@@ -4907,8 +4909,7 @@ public final class DronePhysics {
 		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
 		double stateOfCharge = MathUtil.clamp(1.0 - state.batteryAmpSecondsConsumed() / capacityAmpSeconds, 0.0, 1.0);
 		state.setBatteryStateOfCharge(stateOfCharge);
-		double openCircuitVoltage = config.emptyBatteryVoltage()
-				+ (config.nominalBatteryVoltage() - config.emptyBatteryVoltage()) * stateOfCharge;
+		double openCircuitVoltage = batteryOpenCircuitVoltageFromStateOfCharge(stateOfCharge);
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
 		double batteryResistanceOhms = temperatureAdjustedBatteryResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius());
 		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
@@ -4945,6 +4946,29 @@ public final class DronePhysics {
 		double stateOfChargeLimit = batteryStateOfChargePowerLimit(stateOfCharge);
 		double currentLimit = updateBatteryCurrentLimit(dischargeCurrentAmps, state.batteryTemperatureCelsius(), dtSeconds);
 		state.setBatteryPowerLimit(Math.min(Math.min(stateOfChargeLimit, currentLimit), state.batteryThermalLimit()));
+	}
+
+	private double batteryOpenCircuitVoltageFromStateOfCharge(double stateOfCharge) {
+		double voltageRange = config.nominalBatteryVoltage() - config.emptyBatteryVoltage();
+		if (Math.abs(voltageRange) <= 1.0e-9) {
+			return config.nominalBatteryVoltage();
+		}
+		return config.emptyBatteryVoltage() + voltageRange * normalizedLipoOpenCircuitVoltage(stateOfCharge);
+	}
+
+	private static double normalizedLipoOpenCircuitVoltage(double stateOfCharge) {
+		double soc = MathUtil.clamp(stateOfCharge, 0.0, 1.0);
+		for (int i = 1; i < LIPO_OCV_SOC_POINTS.length; i++) {
+			double upperSoc = LIPO_OCV_SOC_POINTS[i];
+			if (soc <= upperSoc) {
+				double lowerSoc = LIPO_OCV_SOC_POINTS[i - 1];
+				double lowerVoltage = LIPO_OCV_NORMALIZED_POINTS[i - 1];
+				double upperVoltage = LIPO_OCV_NORMALIZED_POINTS[i];
+				double t = smoothStep(lowerSoc, upperSoc, soc);
+				return lowerVoltage + (upperVoltage - lowerVoltage) * t;
+			}
+		}
+		return 1.0;
 	}
 
 	private double batteryBusRippleTarget(double dischargeCurrentAmps, double batteryResistanceOhms) {

@@ -1284,6 +1284,26 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryOpenCircuitVoltageFollowsLipoDischargeCurve() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withBattery(16.8, 13.2, 0.0, 10.0, 90.0);
+		double fullOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 1.0);
+		double midOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 0.50);
+		double lowOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 0.10);
+		double voltageRange = config.nominalBatteryVoltage() - config.emptyBatteryVoltage();
+		double linearMidVoltage = config.emptyBatteryVoltage() + voltageRange * 0.50;
+
+		assertEquals(config.nominalBatteryVoltage(), fullOpenCircuitVoltage, 0.02);
+		assertTrue(midOpenCircuitVoltage > linearMidVoltage + 0.15);
+		assertTrue(midOpenCircuitVoltage < config.emptyBatteryVoltage() + voltageRange * 0.63);
+		assertTrue(lowOpenCircuitVoltage > config.emptyBatteryVoltage() + voltageRange * 0.20);
+		assertTrue(lowOpenCircuitVoltage < midOpenCircuitVoltage - voltageRange * 0.24);
+		assertTrue(fullOpenCircuitVoltage > midOpenCircuitVoltage);
+		assertTrue(midOpenCircuitVoltage > lowOpenCircuitVoltage);
+	}
+
+	@Test
 	void batteryResistanceTuningChangesVoltageSag() {
 		DroneConfig base = directControl(DroneConfig.racingQuad());
 		DronePhysics lowResistance = new DronePhysics(base.withBattery(16.8, 13.2, 0.005, 1.5, 90.0));
@@ -5235,6 +5255,14 @@ class DronePhysicsTest {
 				.withPitchGains(gains)
 				.withYawGains(gains)
 				.withRollGains(gains);
+	}
+
+	private static double openCircuitVoltageAtStateOfCharge(DroneConfig config, double stateOfCharge) {
+		DronePhysics physics = new DronePhysics(config);
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
+		physics.step(DroneInput.idle(), 0.005);
+		return physics.state().batteryOpenCircuitVoltage();
 	}
 
 	private static DroneConfig directControl(DroneConfig config) {
