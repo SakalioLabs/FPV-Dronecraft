@@ -247,10 +247,11 @@ public final class DroneHud {
 	private static String damageLine(DroneEntity drone, float health) {
 		return String.format(
 				Locale.ROOT,
-				"DMG F%2.0f R%2.0f V%2.0f",
+				"DMG F%2.0f R%2.0f V%2.0f C%2.0f",
 				(1.0f - drone.getFrameHealth()) * 100.0f,
 				(1.0f - minRotorHealth(drone)) * 100.0f,
-				drone.getRotorVibration() * 100.0f
+				drone.getRotorVibration() * 100.0f,
+				drone.getRotorConingIntensity() * 100.0f
 		);
 	}
 
@@ -487,7 +488,10 @@ public final class DroneHud {
 	}
 
 	private static int damageStatusColor(DroneEntity drone, float health) {
-		if (health < 0.35f || drone.getRotorVibration() > 0.12f || drone.getRotorSurfaceScrapeIntensity() > 0.28f) {
+		if (health < 0.35f
+				|| drone.getRotorVibration() > 0.12f
+				|| drone.getRotorConingIntensity() > 0.35f
+				|| drone.getRotorSurfaceScrapeIntensity() > 0.28f) {
 			return WARN_COLOR;
 		}
 		return TEXT_COLOR;
