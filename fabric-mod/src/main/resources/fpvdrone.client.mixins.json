@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"package": "com.tenicana.dronecraft.client.mixin",
+	"compatibilityLevel": "JAVA_21",
+	"client": [
+		"CameraMixin",
+		"GameRendererMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

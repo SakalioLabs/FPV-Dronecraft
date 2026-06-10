@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"id": "fpvdrone",
+	"version": "${version}",
+	"name": "FPV Dronecraft",
+	"description": "A high-frequency multirotor drone simulation prototype for Minecraft.",
+	"authors": [
+		"Teni",
+		"Codex"
+	],
+	"license": "MIT",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.tenicana.dronecraft.FpvDronecraftMod"
+		],
+		"client": [
+			"com.tenicana.dronecraft.client.FpvDronecraftClient"
+		]
+	},
+	"mixins": [
+		"fpvdrone.client.mixins.json"
+	],
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~1.21.11",
+		"java": ">=21",
+		"fabric-api": "*"
+	}
+}
