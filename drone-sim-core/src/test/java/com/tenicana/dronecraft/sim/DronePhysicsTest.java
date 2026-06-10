@@ -5308,6 +5308,48 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWashAirframeAngularDampingBuildsWithPressureLag() {
+		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
+		DroneConfig config = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorDiskDragCoefficient(0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.05, 0.0, 0.0, 0.0, true);
+		Vec3 bodyRates = new Vec3(6.0, 0.0, -5.0);
+
+		holdInStillAir(physics);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+		physics.step(DroneInput.idle(), 0.005);
+		double baselineDamping = physics.state().airframeAngularDragTorqueBodyNewtonMeters().dot(bodyRates);
+
+		holdInStillAir(physics);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+		physics.step(hover, 0.005);
+		double firstPunchDamping = physics.state().airframeAngularDragTorqueBodyNewtonMeters().dot(bodyRates);
+
+		for (int i = 0; i < 36; i++) {
+			holdInStillAir(physics);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(bodyRates);
+			physics.step(hover, 0.005);
+		}
+		double settledDamping = physics.state().airframeAngularDragTorqueBodyNewtonMeters().dot(bodyRates);
+
+		assertTrue(baselineDamping < -0.030, () -> "baselineDamping=" + baselineDamping);
+		assertEquals(baselineDamping, firstPunchDamping, 0.006);
+		assertTrue(settledDamping < firstPunchDamping - 0.050,
+				() -> "firstPunchDamping=" + firstPunchDamping + " settledDamping=" + settledDamping);
+	}
+
+	@Test
 	void rotorAngularDragDampsBodyRatesWhenPropsAreSpinning() {
 		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
 		DroneConfig base = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)

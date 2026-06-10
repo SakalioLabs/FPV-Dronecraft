@@ -89,6 +89,7 @@ public final class DronePhysics {
 	private double airframeSeparationBuffetPhaseB;
 	private double airframeSeparatedFlowIntensity;
 	private Vec3 rotorWashDragForceBodyFiltered = Vec3.ZERO;
+	private Vec3 rotorWashAirframeAngularDampingFiltered = Vec3.ZERO;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -298,6 +299,7 @@ public final class DronePhysics {
 		state.setAirframeLiftForceBodyNewtons(Vec3.ZERO);
 		state.setGroundEffectDragForceBodyNewtons(Vec3.ZERO);
 		rotorWashDragForceBodyFiltered = Vec3.ZERO;
+		rotorWashAirframeAngularDampingFiltered = Vec3.ZERO;
 		state.setRotorWashDragForceBodyNewtons(Vec3.ZERO);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setAirframeAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
@@ -3452,13 +3454,14 @@ public final class DronePhysics {
 			Vec3 angularVelocityBody,
 			Vec3 totalRotorForceBody,
 			Vec3 relativeAirVelocityBody,
-			double airDensityRatio
+			double airDensityRatio,
+			double dtSeconds
 	) {
 		double speed = relativeAirVelocityBody.length();
 		Vec3 drag = config.bodyDragCoefficients();
 		double dynamicScale = Math.max(0.0, airDensityRatio) * speed * speed;
 		Vec3 rotationalDamping = calculateRotationalAirframeAngularDamping(angularVelocityBody, airDensityRatio);
-		Vec3 rotorWashDamping = calculateRotorWashAirframeAngularDamping(totalRotorForceBody, airDensityRatio);
+		Vec3 rotorWashDamping = updateRotorWashAirframeAngularDamping(totalRotorForceBody, airDensityRatio, dtSeconds);
 		double pitchDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00022 * drag.z() + 0.00006 * drag.y()), 0.0, 0.36)
 				+ rotationalDamping.x()
@@ -3499,7 +3502,31 @@ public final class DronePhysics {
 		);
 	}
 
-	private Vec3 calculateRotorWashAirframeAngularDamping(Vec3 totalRotorForceBody, double airDensityRatio) {
+	private Vec3 updateRotorWashAirframeAngularDamping(
+			Vec3 totalRotorForceBody,
+			double airDensityRatio,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyRotorWashAirframeAngularDamping(totalRotorForceBody, airDensityRatio);
+		if (dtSeconds <= 0.0) {
+			rotorWashAirframeAngularDampingFiltered = target;
+			return rotorWashAirframeAngularDampingFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = rotorWashAirframeAngularDampingFiltered.length();
+		double timeConstant = targetMagnitude > previousMagnitude ? 0.026 : 0.090;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		rotorWashAirframeAngularDampingFiltered = rotorWashAirframeAngularDampingFiltered
+				.add(target.subtract(rotorWashAirframeAngularDampingFiltered).multiply(alpha))
+				.clamp(0.0, 0.16);
+		if (targetMagnitude <= 1.0e-6 && rotorWashAirframeAngularDampingFiltered.lengthSquared() < 1.0e-8) {
+			rotorWashAirframeAngularDampingFiltered = Vec3.ZERO;
+		}
+		return rotorWashAirframeAngularDampingFiltered;
+	}
+
+	private Vec3 calculateSteadyRotorWashAirframeAngularDamping(Vec3 totalRotorForceBody, double airDensityRatio) {
 		if (totalRotorForceBody.y() <= 1.0e-6 || airDensityRatio <= 0.0) {
 			return Vec3.ZERO;
 		}
@@ -4547,7 +4574,13 @@ public final class DronePhysics {
 			double dtSeconds
 	) {
 		Vec3 omega = state.angularVelocityBodyRadiansPerSecond();
-		Vec3 angularDrag = calculateAirframeAngularDragTorque(omega, totalRotorForceBody, relativeAirVelocityBody, airDensityRatio);
+		Vec3 angularDrag = calculateAirframeAngularDragTorque(
+				omega,
+				totalRotorForceBody,
+				relativeAirVelocityBody,
+				airDensityRatio,
+				dtSeconds
+		);
 		state.setAirframeAngularDragTorqueBodyNewtonMeters(angularDrag);
 		Vec3 inertia = config.inertiaKgMetersSquared();
 		Vec3 gyroscopic = omega.cross(inertia.multiply(omega));
