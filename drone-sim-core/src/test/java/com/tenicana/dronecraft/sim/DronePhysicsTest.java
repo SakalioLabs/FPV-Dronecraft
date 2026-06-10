@@ -961,6 +961,39 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryBusRippleRaisesEscDesyncAndCommutationTexture() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withBattery(16.8, 16.7, 0.006, 2.0, 180.0);
+		DronePhysics cleanRail = new DronePhysics(config);
+		DronePhysics noisyRail = new DronePhysics(config);
+		DroneInput highDuty = new DroneInput(0.92, 0.0, 0.0, 0.0, true);
+		double maxCleanCommutationRipple = 0.0;
+		double maxNoisyCommutationRipple = 0.0;
+
+		for (int i = 0; i < 180; i++) {
+			cleanRail.state().setBatteryBusRippleVoltage(0.0);
+			noisyRail.state().setBatteryBusRippleVoltage(0.36);
+			cleanRail.step(highDuty, 0.005);
+			noisyRail.step(highDuty, 0.005);
+			maxCleanCommutationRipple = Math.max(maxCleanCommutationRipple, cleanRail.state().averageMotorCommutationRippleIntensity());
+			maxNoisyCommutationRipple = Math.max(maxNoisyCommutationRipple, noisyRail.state().averageMotorCommutationRippleIntensity());
+		}
+
+		double finalMaxCleanCommutationRipple = maxCleanCommutationRipple;
+		double finalMaxNoisyCommutationRipple = maxNoisyCommutationRipple;
+		assertTrue(noisyRail.state().maxEscDesyncIntensity() > cleanRail.state().maxEscDesyncIntensity() + 0.015,
+				() -> "cleanDesync=" + cleanRail.state().maxEscDesyncIntensity()
+						+ " noisyDesync=" + noisyRail.state().maxEscDesyncIntensity());
+		assertTrue(finalMaxNoisyCommutationRipple > finalMaxCleanCommutationRipple + 0.010,
+				() -> "cleanCommutation=" + finalMaxCleanCommutationRipple
+						+ " noisyCommutation=" + finalMaxNoisyCommutationRipple);
+		assertTrue(noisyRail.state().averageMotorCurrentRippleAmps() > cleanRail.state().averageMotorCurrentRippleAmps() + 0.02);
+	}
+
+	@Test
 	void escOutputCurveSoftensMidThrottleResponse() {
 		DroneConfig base = directControl(DroneConfig.racingQuad()).withMotorTimeConstantSeconds(0.01);
 		DronePhysics linearEsc = new DronePhysics(base.withEscMotorResponse(1.0, 1000.0, 0.0));

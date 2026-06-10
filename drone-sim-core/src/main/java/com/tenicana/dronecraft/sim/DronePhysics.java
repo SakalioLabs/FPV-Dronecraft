@@ -1014,6 +1014,7 @@ public final class DronePhysics {
 		double voltageHeadroom = motorVoltageHeadroom(rotor, previousOmega, voltageScale);
 		double voltageHeadroomStress = (1.0 - smoothStep(0.08, 0.36, voltageHeadroom))
 				* smoothStep(0.55, 0.92, escOutput);
+		double railRippleStress = batteryBusRippleStress() * smoothStep(0.45, 0.90, escOutput);
 		double thermalStress = Math.max(1.0 - state.motorThermalLimit(), 1.0 - state.escThermalLimit(index));
 		double outputStress = smoothStep(0.48, 0.90, escOutput);
 		double risk = 0.78 * flowObstruction
@@ -1024,6 +1025,7 @@ public final class DronePhysics {
 				+ 0.24 * accelerationStress
 				+ 0.20 * voltageStress
 				+ 0.20 * voltageHeadroomStress
+				+ 0.34 * railRippleStress
 				+ 0.14 * thermalStress
 				+ 0.16 * outputStress
 				- 0.42;
@@ -1270,12 +1272,14 @@ public final class DronePhysics {
 		double lowSpeedLoad = (1.0 - smoothStep(0.10, 0.32, spinRatio)) * smoothStep(0.18, 0.60, output);
 		double headroomStress = 1.0 - smoothStep(0.08, 0.35, voltageHeadroom);
 		double loadStress = smoothStep(0.88, 1.85, load);
+		double railRippleStress = batteryBusRippleStress();
 		double activeSpin = smoothStep(0.025, 0.18, spinRatio) * smoothStep(0.04, 0.16, output);
 		double intensity = activeSpin * MathUtil.clamp(
 				0.006
 						+ 0.030 * dutyRipple
 						+ 0.030 * loadStress
 						+ 0.036 * headroomStress
+						+ 0.024 * railRippleStress
 						+ 0.090 * MathUtil.clamp(desyncIntensity, 0.0, 1.0)
 						+ 0.050 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0)
 						+ 0.120 * rotorEffectiveImbalanceIntensity(rotor, rotorHealth) * spinRatio
@@ -1313,6 +1317,11 @@ public final class DronePhysics {
 						maxDeltaOmega
 				);
 		return new MotorCommutationRipple(intensity, torqueRipple, deltaOmega);
+	}
+
+	private double batteryBusRippleStress() {
+		double rippleRatio = state.batteryBusRippleVoltage() / Math.max(1.0, config.nominalBatteryVoltage());
+		return smoothStep(0.0035, 0.018, rippleRatio);
 	}
 
 	private static double motorVoltageHeadroom(RotorSpec rotor, double omegaRadiansPerSecond, double voltageScale) {
