@@ -3640,12 +3640,12 @@ class DronePhysicsTest {
 		}
 
 		Vec3 slip = new Vec3(11.0, -1.5, 4.0);
-		powered.state().setOrientation(Quaternion.IDENTITY);
-		unpowered.state().setOrientation(Quaternion.IDENTITY);
-		powered.state().setVelocityMetersPerSecond(slip);
-		unpowered.state().setVelocityMetersPerSecond(slip);
-		powered.step(hover, 0.005);
-		unpowered.step(DroneInput.idle(), 0.005);
+		for (int i = 0; i < 8; i++) {
+			holdInCruise(powered, slip);
+			holdInCruise(unpowered, slip);
+			powered.step(hover, 0.005);
+			unpowered.step(DroneInput.idle(), 0.005);
+		}
 
 		Vec3 washDrag = powered.state().rotorWashDragForceBodyNewtons();
 		assertEquals(0.0, unpowered.state().rotorWashDragForceBodyNewtons().length(), 1.0e-9);
@@ -3654,6 +3654,47 @@ class DronePhysicsTest {
 		assertTrue(washDrag.z() < -0.15);
 		assertTrue(powered.state().linearAccelerationWorldMetersPerSecondSquared().x()
 				< unpowered.state().linearAccelerationWorldMetersPerSecondSquared().x() - 0.35);
+	}
+
+	@Test
+	void rotorWashDragBuildsAndReleasesWithSlipstreamPressureLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.05, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 130; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005);
+		}
+
+		Vec3 slip = new Vec3(10.0, 0.0, 4.0);
+		holdInCruise(physics, slip);
+		physics.step(hover, 0.005);
+		double firstSlipDragX = physics.state().rotorWashDragForceBodyNewtons().x();
+		for (int i = 0; i < 12; i++) {
+			holdInCruise(physics, slip);
+			physics.step(hover, 0.005);
+		}
+		double settledSlipDragX = physics.state().rotorWashDragForceBodyNewtons().x();
+
+		holdInStillAir(physics);
+		physics.step(hover, 0.005);
+		double lingeringDragX = physics.state().rotorWashDragForceBodyNewtons().x();
+		for (int i = 0; i < 70; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005);
+		}
+
+		assertTrue(firstSlipDragX < -0.10);
+		assertTrue(settledSlipDragX < firstSlipDragX - 0.20,
+				() -> "firstSlipDragX=" + firstSlipDragX + " settledSlipDragX=" + settledSlipDragX);
+		assertTrue(lingeringDragX < settledSlipDragX * 0.45,
+				() -> "settledSlipDragX=" + settledSlipDragX + " lingeringDragX=" + lingeringDragX);
+		assertEquals(0.0, physics.state().rotorWashDragForceBodyNewtons().length(), 0.08);
 	}
 
 	@Test
@@ -3676,10 +3717,12 @@ class DronePhysicsTest {
 
 		Vec3 shallow = new Vec3(8.0, 0.0, 14.0);
 		Vec3 broadside = new Vec3(8.0, 0.0, 4.0);
-		holdInCruise(shallowSlip, shallow);
-		holdInCruise(highSlip, broadside);
-		shallowSlip.step(hover, 0.005);
-		highSlip.step(hover, 0.005);
+		for (int i = 0; i < 8; i++) {
+			holdInCruise(shallowSlip, shallow);
+			holdInCruise(highSlip, broadside);
+			shallowSlip.step(hover, 0.005);
+			highSlip.step(hover, 0.005);
+		}
 
 		Vec3 shallowWash = shallowSlip.state().rotorWashDragForceBodyNewtons();
 		Vec3 highWash = highSlip.state().rotorWashDragForceBodyNewtons();
@@ -3708,10 +3751,12 @@ class DronePhysicsTest {
 		}
 
 		Vec3 slip = new Vec3(12.0, 0.0, 3.0);
-		holdInCruise(unpowered, slip);
-		holdInCruise(powered, slip);
-		unpowered.step(DroneInput.idle(), 0.005);
-		powered.step(hover, 0.005);
+		for (int i = 0; i < 8; i++) {
+			holdInCruise(unpowered, slip);
+			holdInCruise(powered, slip);
+			unpowered.step(DroneInput.idle(), 0.005);
+			powered.step(hover, 0.005);
+		}
 
 		Vec3 unpoweredTorque = unpowered.state().airframePressureCenterTorqueBodyNewtonMeters();
 		Vec3 poweredTorque = powered.state().airframePressureCenterTorqueBodyNewtonMeters();
