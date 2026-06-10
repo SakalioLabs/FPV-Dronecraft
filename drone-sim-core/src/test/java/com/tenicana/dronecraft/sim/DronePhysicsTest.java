@@ -815,6 +815,80 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void damagedRotorBehavesLikeBentPropImbalance() {
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withRotorImbalanceIntensity(0.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics clean = new DronePhysics(base);
+		DronePhysics bentProp = new DronePhysics(base);
+		bentProp.state().damageRotor(0, 0.55);
+		DroneInput cruise = new DroneInput(0.72, 0.0, 0.0, 0.0, true);
+		double cleanMinForceX = Double.POSITIVE_INFINITY;
+		double cleanMaxForceX = Double.NEGATIVE_INFINITY;
+		double cleanMinForceZ = Double.POSITIVE_INFINITY;
+		double cleanMaxForceZ = Double.NEGATIVE_INFINITY;
+		double bentPropMinForceX = Double.POSITIVE_INFINITY;
+		double bentPropMaxForceX = Double.NEGATIVE_INFINITY;
+		double bentPropMinForceZ = Double.POSITIVE_INFINITY;
+		double bentPropMaxForceZ = Double.NEGATIVE_INFINITY;
+		double cleanMaxCurrentRipple = 0.0;
+		double bentPropMaxCurrentRipple = 0.0;
+		double cleanMaxCommutationRipple = 0.0;
+		double bentPropMaxCommutationRipple = 0.0;
+
+		for (int i = 0; i < 200; i++) {
+			holdInStillAir(clean);
+			holdInStillAir(bentProp);
+			clean.step(cruise, 0.005);
+			bentProp.step(cruise, 0.005);
+
+			if (i >= 90) {
+				Vec3 cleanForce = clean.state().rotorForceBodyNewtons(0);
+				Vec3 bentPropForce = bentProp.state().rotorForceBodyNewtons(0);
+				cleanMinForceX = Math.min(cleanMinForceX, cleanForce.x());
+				cleanMaxForceX = Math.max(cleanMaxForceX, cleanForce.x());
+				cleanMinForceZ = Math.min(cleanMinForceZ, cleanForce.z());
+				cleanMaxForceZ = Math.max(cleanMaxForceZ, cleanForce.z());
+				bentPropMinForceX = Math.min(bentPropMinForceX, bentPropForce.x());
+				bentPropMaxForceX = Math.max(bentPropMaxForceX, bentPropForce.x());
+				bentPropMinForceZ = Math.min(bentPropMinForceZ, bentPropForce.z());
+				bentPropMaxForceZ = Math.max(bentPropMaxForceZ, bentPropForce.z());
+				cleanMaxCurrentRipple = Math.max(cleanMaxCurrentRipple, clean.state().motorCurrentRippleAmps(0));
+				bentPropMaxCurrentRipple = Math.max(bentPropMaxCurrentRipple, bentProp.state().motorCurrentRippleAmps(0));
+				cleanMaxCommutationRipple = Math.max(cleanMaxCommutationRipple, clean.state().motorCommutationRippleIntensity(0));
+				bentPropMaxCommutationRipple = Math.max(bentPropMaxCommutationRipple, bentProp.state().motorCommutationRippleIntensity(0));
+			}
+		}
+
+		double cleanLateralComponentRange = cleanMaxForceX - cleanMinForceX + cleanMaxForceZ - cleanMinForceZ;
+		double bentPropLateralComponentRange = bentPropMaxForceX - bentPropMinForceX + bentPropMaxForceZ - bentPropMinForceZ;
+		double finalCleanMaxCurrentRipple = cleanMaxCurrentRipple;
+		double finalBentPropMaxCurrentRipple = bentPropMaxCurrentRipple;
+		double finalCleanMaxCommutationRipple = cleanMaxCommutationRipple;
+		double finalBentPropMaxCommutationRipple = bentPropMaxCommutationRipple;
+		assertTrue(bentPropLateralComponentRange > cleanLateralComponentRange + 0.045,
+				() -> "cleanLateralComponentRange=" + cleanLateralComponentRange
+						+ " bentPropLateralComponentRange=" + bentPropLateralComponentRange);
+		assertTrue(finalBentPropMaxCommutationRipple > finalCleanMaxCommutationRipple + 0.006,
+				() -> "cleanCommutation=" + finalCleanMaxCommutationRipple
+						+ " bentPropCommutation=" + finalBentPropMaxCommutationRipple);
+		assertTrue(finalBentPropMaxCurrentRipple > finalCleanMaxCurrentRipple + 0.020,
+				() -> "cleanCurrentRipple=" + finalCleanMaxCurrentRipple
+						+ " bentPropCurrentRipple=" + finalBentPropMaxCurrentRipple);
+		assertTrue(bentProp.state().rotorVibration() > clean.state().rotorVibration() + 0.035,
+				() -> "cleanVibration=" + clean.state().rotorVibration()
+						+ " bentPropVibration=" + bentProp.state().rotorVibration());
+	}
+
+	@Test
 	void batteryBusRippleScalesWithMotorCurrentRippleAndPackResistance() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)

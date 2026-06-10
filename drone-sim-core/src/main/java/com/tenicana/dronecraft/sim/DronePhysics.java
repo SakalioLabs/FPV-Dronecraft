@@ -369,7 +369,8 @@ public final class DronePhysics {
 					airDensity,
 					rotorWaterImmersion,
 					precipitationWetness,
-					surfaceScrape
+					surfaceScrape,
+					state.rotorHealth(i)
 			);
 			commandedOmega = applyMotorMechanicalLoss(rotor, commandedOmega, mechanicalLossTorque, dtSeconds);
 			state.setMotorMechanicalLossTorqueNewtonMeters(i, mechanicalLossTorque);
@@ -422,6 +423,7 @@ public final class DronePhysics {
 					state.rotorAerodynamicLoadFactor(i) + 0.85 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad,
 					desyncIntensity,
 					surfaceScrape,
+					state.rotorHealth(i),
 					dtSeconds
 			);
 			double omega = commandedOmega * (1.0 - 0.26 * desyncPulse) * (1.0 - 0.18 * surfaceScrape)
@@ -493,7 +495,7 @@ public final class DronePhysics {
 					+ rotorWaterIngestionVibration(rotor, omega, rotorWaterImmersion)
 					+ rotorPrecipitationVibration(rotor, omega, precipitationWetness)
 					+ rotorCompressibilityVibration(rotor, omega, rotorTipMach)
-					+ rotorImbalanceVibration(rotor, omega)
+					+ rotorImbalanceVibration(rotor, omega, state.rotorHealth(i))
 					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, omega, escOutput)
 					+ motorCommutationRippleVibration(rotor, omega, commutationRipple.intensity(), commutationRipple.torqueRippleNewtonMeters());
 			double vortexRingState = rotorVortexRingStateIntensity(
@@ -554,7 +556,7 @@ public final class DronePhysics {
 			rotorVibrationSum += bladePassRipple.vibration();
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, omega, thrust, dtSeconds);
-			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, omega, thrust, dtSeconds);
+			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, state.rotorHealth(i), omega, thrust, dtSeconds);
 			state.setRotorFlappingForceNewtons(i, Math.hypot(flappingForceBody.x(), flappingForceBody.z()));
 			Vec3 thrustAxisForceBody = forceBody.add(flappingForceBody);
 			Vec3 rotorDiskAxisBody = rotorDiskAxisBody(thrustAxisForceBody);
@@ -1076,7 +1078,8 @@ public final class DronePhysics {
 			double airDensityRatio,
 			double waterImmersion,
 			double precipitationWetness,
-			double surfaceScrapeIntensity
+			double surfaceScrapeIntensity,
+			double rotorHealth
 	) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.25);
 		if (spinRatio <= 1.0e-6) {
@@ -1098,7 +1101,7 @@ public final class DronePhysics {
 				* spinRatio;
 		double rainTorque = 0.0006 * MathUtil.clamp(precipitationWetness, 0.0, 1.0) * spinRatio;
 		double scrapeTorque = 0.008 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0) * (0.35 + 0.65 * spinRatio);
-		double imbalanceTorque = 0.0045 * rotor.imbalanceIntensity() * spinRatio * spinRatio;
+		double imbalanceTorque = 0.0045 * rotorEffectiveImbalanceIntensity(rotor, rotorHealth) * spinRatio * spinRatio;
 		return MathUtil.clamp(bearingTorque + windageTorque + wetPropTorque + rainTorque + scrapeTorque + imbalanceTorque, 0.0, 0.050);
 	}
 
@@ -1203,6 +1206,7 @@ public final class DronePhysics {
 			double aerodynamicLoadFactor,
 			double desyncIntensity,
 			double surfaceScrapeIntensity,
+			double rotorHealth,
 			double dtSeconds
 	) {
 		if (dtSeconds <= 0.0 || escOutput <= 1.0e-6 || omegaRadiansPerSecond <= 1.0e-6) {
@@ -1224,7 +1228,7 @@ public final class DronePhysics {
 						+ 0.036 * headroomStress
 						+ 0.090 * MathUtil.clamp(desyncIntensity, 0.0, 1.0)
 						+ 0.050 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0)
-						+ 0.120 * rotor.imbalanceIntensity() * spinRatio
+						+ 0.120 * rotorEffectiveImbalanceIntensity(rotor, rotorHealth) * spinRatio
 						+ 0.026 * lowSpeedLoad,
 				0.0,
 				0.28
@@ -1956,11 +1960,12 @@ public final class DronePhysics {
 	private Vec3 updateRotorImbalanceForce(
 			int index,
 			RotorSpec rotor,
+			double rotorHealth,
 			double omegaRadiansPerSecond,
 			double thrustNewtons,
 			double dtSeconds
 	) {
-		double imbalance = MathUtil.clamp(rotor.imbalanceIntensity(), 0.0, 0.35);
+		double imbalance = rotorEffectiveImbalanceIntensity(rotor, rotorHealth);
 		double absOmega = Math.abs(omegaRadiansPerSecond);
 		if (dtSeconds <= 0.0 || imbalance <= 1.0e-7 || absOmega <= 1.0e-6) {
 			return Vec3.ZERO;
@@ -2002,6 +2007,13 @@ public final class DronePhysics {
 				.add(tangentB.multiply(Math.sin(phase) * forceMagnitude));
 	}
 
+	private static double rotorEffectiveImbalanceIntensity(RotorSpec rotor, double rotorHealth) {
+		double healthyPropImbalance = MathUtil.clamp(rotor.imbalanceIntensity(), 0.0, 0.35);
+		double damage = 1.0 - MathUtil.clamp(rotorHealth, 0.0, 1.0);
+		double bentPropImbalance = damage * (0.10 + 0.18 * damage);
+		return MathUtil.clamp(healthyPropImbalance + bentPropImbalance, 0.0, 0.35);
+	}
+
 	private static double rotorAdvanceRatio(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
 		return MathUtil.clamp(transverseSpeed / rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond), 0.0, 2.0);
@@ -2016,8 +2028,8 @@ public final class DronePhysics {
 		return MathUtil.clamp(damage * spinRatio * spinRatio, 0.0, 1.0);
 	}
 
-	private static double rotorImbalanceVibration(RotorSpec rotor, double omegaRadiansPerSecond) {
-		double imbalance = MathUtil.clamp(rotor.imbalanceIntensity(), 0.0, 0.35);
+	private static double rotorImbalanceVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorHealth) {
+		double imbalance = rotorEffectiveImbalanceIntensity(rotor, rotorHealth);
 		if (imbalance <= 1.0e-7) {
 			return 0.0;
 		}
@@ -3542,7 +3554,7 @@ public final class DronePhysics {
 				* state.motorCommutationRippleIntensity(index)
 				* (0.22 + 0.78 * escOutput)
 				+ phaseCurrent
-						* rotor.imbalanceIntensity()
+						* rotorEffectiveImbalanceIntensity(rotor, state.rotorHealth(index))
 						* (0.05 + 0.45 * rpmFraction)
 				+ perMotorMaxCurrentAmps
 						* 0.06
