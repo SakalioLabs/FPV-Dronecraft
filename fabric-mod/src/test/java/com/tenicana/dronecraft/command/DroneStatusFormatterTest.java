@@ -28,6 +28,7 @@ class DroneStatusFormatterTest {
 				0.32,
 				0.0,
 				0.0,
+				0.0,
 				1.0,
 				0.0,
 				0.0,
@@ -61,6 +62,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("ETL"));
 		assertTrue(status.contains("adv"));
 		assertTrue(status.contains("tipmach 0.32"));
+		assertTrue(status.contains("lowre 0.00"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("water 0.00"));
 		assertTrue(status.contains("rain 0.00"));
@@ -88,6 +90,7 @@ class DroneStatusFormatterTest {
 				9.2,
 				0.62,
 				0.74,
+				0.31,
 				0.58,
 				0.47,
 				1.12,
@@ -121,6 +124,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("rotor-flapping"));
 		assertTrue(warnings.contains("high-advance"));
 		assertTrue(warnings.contains("tip-mach"));
+		assertTrue(warnings.contains("low-re"));
 		assertTrue(warnings.contains("vrs"));
 		assertTrue(warnings.contains("propwash"));
 		assertTrue(warnings.contains("baro-disturbed"));
@@ -158,6 +162,7 @@ class DroneStatusFormatterTest {
 			double rotorFlappingTilt,
 			double rotorAdvanceRatio,
 			double rotorTipMach,
+			double rotorLowReynoldsLoss,
 			double droneWake,
 			double rotorWakeInterference,
 			double ceilingEffect,
@@ -231,6 +236,7 @@ class DroneStatusFormatterTest {
 				droneWake > 0.55 ? 0.36 : 0.0,
 				rotorAdvanceRatio,
 				rotorTipMach,
+				rotorLowReynoldsLoss,
 				droneWake > 0.55 ? 0.28 : 0.0,
 				rotorWakeInterference,
 				droneWake,
