@@ -42,6 +42,7 @@ The in-game status/HUD also exposes this as `lowre`/`Re` and raises a `low-re` w
 Live status/HUD output also shows minimum motor voltage headroom, making battery sag or back-EMF-limited punch-outs visible without opening a saved CSV.
 Rotor blade angle-of-attack and blade-element stall are also surfaced live as `blade`/`bstall` and `BA`/`BS`, so prop pitch or steep-descent tuning can be checked before saving a blackbox log.
 High-advance blade lift-dissymmetry now feeds a body-frame hub-moment torque and blackbox/offline CSV columns `rotor_blade_dissymmetry_pitch_torque_nm`, `rotor_blade_dissymmetry_yaw_torque_nm`, and `rotor_blade_dissymmetry_roll_torque_nm`, so crosswind or fast forward-flight prop loading can be separated from inflow-skew and rotor-inertia torque.
+Live status and HUD output expose the same hub moment as `bdiss`/`BD`, with a `blade-dissymmetry` warning when high-advance blade loading becomes a live handling risk.
 The offline recorder summary also prints `max_bdiss_torque`, making the peak blade-dissymmetry hub moment visible in automated tuning runs without opening the CSV.
 
 To compare airframe presets or choose a custom output file:

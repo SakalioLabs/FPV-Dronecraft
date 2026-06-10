@@ -32,6 +32,7 @@ class DroneStatusFormatterTest {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
 				1.0,
 				0.0,
 				0.0,
@@ -67,6 +68,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("tipmach 0.32"));
 		assertTrue(status.contains("lowre 0.00"));
 		assertTrue(status.contains("blade 12deg bstall 0.00"));
+		assertTrue(status.contains("bdiss 0.000Nm"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("water 0.00"));
 		assertTrue(status.contains("rain 0.00"));
@@ -98,6 +100,7 @@ class DroneStatusFormatterTest {
 				0.31,
 				32.0,
 				0.46,
+				0.024,
 				0.58,
 				0.47,
 				1.12,
@@ -135,6 +138,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("low-re"));
 		assertTrue(warnings.contains("blade-aoa"));
 		assertTrue(warnings.contains("blade-stall"));
+		assertTrue(warnings.contains("blade-dissymmetry"));
 		assertTrue(warnings.contains("vrs"));
 		assertTrue(warnings.contains("propwash"));
 		assertTrue(warnings.contains("baro-disturbed"));
@@ -152,6 +156,7 @@ class DroneStatusFormatterTest {
 
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
+		assertTrue(status.contains("bdiss 0.024Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -176,6 +181,7 @@ class DroneStatusFormatterTest {
 			double rotorLowReynoldsLoss,
 			double rotorBladeAngleOfAttackDegrees,
 			double rotorBladeElementStallIntensity,
+			double rotorBladeDissymmetryTorqueNewtonMeters,
 			double droneWake,
 			double rotorWakeInterference,
 			double ceilingEffect,
@@ -253,6 +259,7 @@ class DroneStatusFormatterTest {
 				rotorLowReynoldsLoss,
 				rotorBladeAngleOfAttackDegrees,
 				rotorBladeElementStallIntensity,
+				rotorBladeDissymmetryTorqueNewtonMeters,
 				droneWake > 0.55 ? 0.28 : 0.0,
 				rotorWakeInterference,
 				droneWake,

@@ -401,6 +401,7 @@ public final class DroneCommands {
 				drone.getRotorLowReynoldsLoss(),
 				drone.getRotorBladeAngleOfAttackDegrees(),
 				drone.getRotorBladeElementStallIntensity(),
+				drone.getRotorBladeDissymmetryTorqueNewtonMeters(),
 				drone.getRotorInflowSkewIntensity(),
 				drone.getRotorWakeInterferenceIntensity(),
 				drone.getDroneWakeIntensity(),
