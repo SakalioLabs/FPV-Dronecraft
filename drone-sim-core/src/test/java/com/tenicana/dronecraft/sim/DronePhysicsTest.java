@@ -1304,6 +1304,36 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void lowStateOfChargeRaisesBatteryResistanceSagPerAmp() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withBattery(16.8, 13.2, 0.032, 4.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics fullPack = new DronePhysics(config);
+		DronePhysics lowPack = new DronePhysics(config);
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+		lowPack.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * 0.88);
+		DroneInput punch = new DroneInput(0.82, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 70; i++) {
+			fullPack.step(punch, 0.005);
+			lowPack.step(punch, 0.005);
+		}
+
+		double fullSagPerAmp = fullPack.state().batteryOhmicSagVoltage()
+				/ Math.max(1.0, fullPack.state().batteryCurrentAmps());
+		double lowSagPerAmp = lowPack.state().batteryOhmicSagVoltage()
+				/ Math.max(1.0, lowPack.state().batteryCurrentAmps());
+		assertTrue(lowPack.state().batteryStateOfCharge() < 0.13);
+		assertTrue(fullPack.state().batteryStateOfCharge() > 0.99);
+		assertTrue(lowSagPerAmp > fullSagPerAmp * 1.45,
+				() -> "fullSagPerAmp=" + fullSagPerAmp + " lowSagPerAmp=" + lowSagPerAmp);
+		assertTrue(lowPack.state().batteryVoltage() < fullPack.state().batteryVoltage() - 1.8,
+				() -> "fullVoltage=" + fullPack.state().batteryVoltage()
+						+ " lowVoltage=" + lowPack.state().batteryVoltage());
+	}
+
+	@Test
 	void batteryResistanceTuningChangesVoltageSag() {
 		DroneConfig base = directControl(DroneConfig.racingQuad());
 		DronePhysics lowResistance = new DronePhysics(base.withBattery(16.8, 13.2, 0.005, 1.5, 90.0));

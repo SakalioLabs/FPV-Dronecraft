@@ -4864,7 +4864,7 @@ public final class DronePhysics {
 		double currentLoad = MathUtil.clamp(dischargeCurrentAmps / maxCurrent, 0.0, 2.0);
 		double regenLoad = MathUtil.clamp(regenerativeCurrentAmps / maxCurrent, 0.0, 1.5);
 		double rippleLoad = MathUtil.clamp(state.averageMotorCurrentRippleAmps() / Math.max(1.0, maxCurrent / Math.max(1, state.motorCount())), 0.0, 1.8);
-		double batteryResistanceOhms = temperatureAdjustedBatteryResistanceOhms(packTemperature, environment.ambientTemperatureCelsius());
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.ambientTemperatureCelsius(), currentBatteryStateOfCharge());
 		double resistanceScale = config.batteryInternalResistanceOhms() <= 1.0e-9
 				? 0.0
 				: MathUtil.clamp(batteryResistanceOhms / config.batteryInternalResistanceOhms(), 0.40, 3.5);
@@ -4906,12 +4906,11 @@ public final class DronePhysics {
 	}
 
 	private void updateBatteryVoltage(double netCurrentAmps, double regenerativeCurrentAmps, DroneEnvironment environment, double dtSeconds) {
-		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
-		double stateOfCharge = MathUtil.clamp(1.0 - state.batteryAmpSecondsConsumed() / capacityAmpSeconds, 0.0, 1.0);
+		double stateOfCharge = currentBatteryStateOfCharge();
 		state.setBatteryStateOfCharge(stateOfCharge);
 		double openCircuitVoltage = batteryOpenCircuitVoltageFromStateOfCharge(stateOfCharge);
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
-		double batteryResistanceOhms = temperatureAdjustedBatteryResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius());
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge);
 		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
 		double ohmicSag = totalResistanceSag * 0.62;
 		double targetTransientSag = totalResistanceSag * 0.38;
@@ -4946,6 +4945,11 @@ public final class DronePhysics {
 		double stateOfChargeLimit = batteryStateOfChargePowerLimit(stateOfCharge);
 		double currentLimit = updateBatteryCurrentLimit(dischargeCurrentAmps, state.batteryTemperatureCelsius(), dtSeconds);
 		state.setBatteryPowerLimit(Math.min(Math.min(stateOfChargeLimit, currentLimit), state.batteryThermalLimit()));
+	}
+
+	private double currentBatteryStateOfCharge() {
+		double capacityAmpSeconds = Math.max(1.0e-9, config.batteryCapacityAmpHours() * 3600.0);
+		return MathUtil.clamp(1.0 - state.batteryAmpSecondsConsumed() / capacityAmpSeconds, 0.0, 1.0);
 	}
 
 	private double batteryOpenCircuitVoltageFromStateOfCharge(double stateOfCharge) {
@@ -5015,6 +5019,18 @@ public final class DronePhysics {
 		double heatRise = Math.max(0.0, electricalTemperature - 45.0);
 		double scale = 1.0 + 0.024 * coldRise + 0.0045 * heatRise;
 		return config.batteryInternalResistanceOhms() * MathUtil.clamp(scale, 0.72, 2.85);
+	}
+
+	private double batteryElectricalResistanceOhms(double batteryTemperatureCelsius, double ambientTemperatureCelsius, double stateOfCharge) {
+		return temperatureAdjustedBatteryResistanceOhms(batteryTemperatureCelsius, ambientTemperatureCelsius)
+				* batteryStateOfChargeResistanceScale(stateOfCharge);
+	}
+
+	private static double batteryStateOfChargeResistanceScale(double stateOfCharge) {
+		double soc = MathUtil.clamp(stateOfCharge, 0.0, 1.0);
+		double lowChargeRise = 1.0 - smoothStep(0.18, 0.55, soc);
+		double reserveKneeRise = 1.0 - smoothStep(0.04, 0.18, soc);
+		return MathUtil.clamp(1.0 + 0.30 * lowChargeRise + 0.70 * reserveKneeRise, 1.0, 2.20);
 	}
 
 	private double batterySagRiseTimeConstantSeconds() {
