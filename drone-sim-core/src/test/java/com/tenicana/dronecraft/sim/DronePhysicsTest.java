@@ -6855,6 +6855,13 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_roll_torque_nm")])));
+		double maxBladeDissymmetryTorque = maxVectorLength(
+				lines,
+				header,
+				"rotor_blade_dissymmetry_pitch_torque_nm",
+				"rotor_blade_dissymmetry_yaw_torque_nm",
+				"rotor_blade_dissymmetry_roll_torque_nm"
+		);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_pitch_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_yaw_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mixer_output_roll_nm")])));
@@ -6988,6 +6995,8 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorTipMach() > 0.05);
 		assertTrue(report.maxRotorLowReynoldsLoss() >= 0.0);
 		assertTrue(report.maxRotorLowReynoldsLoss() <= 1.0);
+		assertTrue(report.maxRotorBladeDissymmetryTorqueNewtonMeters() > 1.0e-4);
+		assertEquals(maxBladeDissymmetryTorque, report.maxRotorBladeDissymmetryTorqueNewtonMeters(), 1.0e-5);
 		assertTrue(report.maxRotorArmFlexIntensity() > 0.02);
 		assertTrue(report.minMotorElectricalEfficiency() > 0.50);
 		assertTrue(report.minMotorElectricalEfficiency() < 0.90);
@@ -7283,6 +7292,21 @@ class DronePhysicsTest {
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			max = Math.max(max, Double.parseDouble(row[index]));
+		}
+		return max;
+	}
+
+	private static double maxVectorLength(List<String> lines, String[] header, String xColumn, String yColumn, String zColumn) {
+		int xIndex = indexOf(header, xColumn);
+		int yIndex = indexOf(header, yColumn);
+		int zIndex = indexOf(header, zColumn);
+		double max = 0.0;
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			double x = Double.parseDouble(row[xIndex]);
+			double y = Double.parseDouble(row[yIndex]);
+			double z = Double.parseDouble(row[zIndex]);
+			max = Math.max(max, Math.sqrt(x * x + y * y + z * z));
 		}
 		return max;
 	}
