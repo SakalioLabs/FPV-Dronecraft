@@ -4761,6 +4761,66 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorTranslationalLiftBuildsAndClearsWithWakeLag() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		Vec3 crossflow = new Vec3(12.0, 0.0, 0.0);
+
+		for (int i = 0; i < 120; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.step(hover, 0.005);
+		}
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(crossflow);
+		physics.step(hover, 0.005);
+		double firstCrossflowLift = physics.state().averageRotorTranslationalLiftIntensity();
+
+		for (int i = 0; i < 180; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(crossflow);
+			physics.step(hover, 0.005);
+		}
+		double settledCrossflowLift = physics.state().averageRotorTranslationalLiftIntensity();
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		physics.step(hover, 0.005);
+		double lingeringStillLift = physics.state().averageRotorTranslationalLiftIntensity();
+
+		for (int i = 0; i < 260; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			physics.step(hover, 0.005);
+		}
+		double clearedStillLift = physics.state().averageRotorTranslationalLiftIntensity();
+
+		assertTrue(firstCrossflowLift < settledCrossflowLift * 0.40,
+				() -> "firstCrossflowLift=" + firstCrossflowLift
+						+ " settledCrossflowLift=" + settledCrossflowLift);
+		assertTrue(settledCrossflowLift > 0.30,
+				() -> "settledCrossflowLift=" + settledCrossflowLift);
+		assertTrue(lingeringStillLift > clearedStillLift + 0.12,
+				() -> "lingeringStillLift=" + lingeringStillLift
+						+ " clearedStillLift=" + clearedStillLift);
+		assertTrue(clearedStillLift < 0.04, () -> "clearedStillLift=" + clearedStillLift);
+	}
+
+	@Test
 	void rotorInflowSkewAddsHubMomentInTransverseFlow() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())

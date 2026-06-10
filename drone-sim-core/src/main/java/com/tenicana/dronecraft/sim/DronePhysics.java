@@ -3437,13 +3437,14 @@ public final class DronePhysics {
 			double dtSeconds
 	) {
 		double hoverTargetInducedVelocity = targetRotorInducedVelocityMetersPerSecond(rotor, baseThrustNewtons, airDensityRatio);
-		double translationalLift = rotorTranslationalLiftIntensity(
+		double translationalLift = updateRotorTranslationalLiftIntensity(
+				index,
 				rotor,
 				relativeAirVelocityBody,
 				omegaRadiansPerSecond,
-				hoverTargetInducedVelocity
+				hoverTargetInducedVelocity,
+				dtSeconds
 		);
-		state.setRotorTranslationalLiftIntensity(index, translationalLift);
 
 		double liftCoefficientScale = MathUtil.clamp(rotor.transverseFlowLiftCoefficient() / 0.08, 0.0, 1.35);
 		double cleanInflowReduction = 0.28 * translationalLift * liftCoefficientScale;
@@ -3466,7 +3467,51 @@ public final class DronePhysics {
 		return MathUtil.clamp(1.0 - thrustLoss, 0.65, 1.0);
 	}
 
-	private static double rotorTranslationalLiftIntensity(
+	private double updateRotorTranslationalLiftIntensity(
+			int index,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double hoverTargetInducedVelocityMetersPerSecond,
+			double dtSeconds
+	) {
+		double target = calculateSteadyRotorTranslationalLiftIntensity(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				hoverTargetInducedVelocityMetersPerSecond
+		);
+		if (dtSeconds <= 0.0) {
+			state.setRotorTranslationalLiftIntensity(index, target);
+			return target;
+		}
+
+		double previous = state.rotorTranslationalLiftIntensity(index);
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
+		double transverseFlush = smoothStep(1.0, 8.0, transverseSpeed);
+		double buildTimeConstant = MathUtil.clamp(
+				0.075 * Math.sqrt(radiusScale) / (0.78 + 0.36 * spinRatio + 0.24 * transverseFlush),
+				0.024,
+				0.155
+		);
+		double releaseTimeConstant = MathUtil.clamp(
+				(0.180 - 0.080 * transverseFlush) * Math.sqrt(radiusScale) / (0.72 + 0.28 * spinRatio),
+				0.055,
+				0.280
+		);
+		double timeConstant = target > previous ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double translationalLift = previous + (target - previous) * alpha;
+		if (target <= 1.0e-6 && translationalLift < 1.0e-5) {
+			translationalLift = 0.0;
+		}
+		state.setRotorTranslationalLiftIntensity(index, translationalLift);
+		return state.rotorTranslationalLiftIntensity(index);
+	}
+
+	private static double calculateSteadyRotorTranslationalLiftIntensity(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
