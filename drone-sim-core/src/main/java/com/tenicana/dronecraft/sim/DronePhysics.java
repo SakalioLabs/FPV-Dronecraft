@@ -2390,14 +2390,18 @@ public final class DronePhysics {
 		Vec3 targetRateAcceleration = targetRateAcceleration(targetRates, dtSeconds);
 		Vec3 feedForwardTorque = updateFeedForwardTorque(targetRateAcceleration, dtSeconds);
 		double antiGravityPulse = updateAntiGravityTransient(input.throttle(), dtSeconds);
-		double integralRelax = pidIntegralRelax(targetRateAcceleration);
-		double integratorAttenuation = 1.0 - integralRelax;
+		Vec3 integralRelax = pidIntegralRelaxAxes(targetRateAcceleration);
+		Vec3 integratorAttenuation = new Vec3(
+				1.0 - integralRelax.x(),
+				1.0 - integralRelax.y(),
+				1.0 - integralRelax.z()
+		);
 		double pitchPidAttenuation = throttlePidAttenuation(input.throttle(), config.pitchGains());
 		double yawPidAttenuation = throttlePidAttenuation(input.throttle(), config.yawGains());
 		double rollPidAttenuation = throttlePidAttenuation(input.throttle(), config.rollGains());
 		state.setPidAttenuation((pitchPidAttenuation + yawPidAttenuation + rollPidAttenuation) / 3.0);
 		state.setAntiGravityBoost(antiGravityPulse * maxAntiGravityGain());
-		state.setPidIntegralRelax(integralRelax);
+		state.setPidIntegralRelaxAxes(integralRelax);
 
 		Vec3 gyroRates = state.gyroAngularVelocityBodyRadiansPerSecond();
 		Vec3 gyroRateAcceleration = gyroRateAcceleration(gyroRates, dtSeconds);
@@ -2418,7 +2422,7 @@ public final class DronePhysics {
 				antiGravityPulse * config.pitchGains().antiGravityGain(),
 				pitchPidAttenuation,
 				feedForwardTorque.x(),
-				integratorAttenuation,
+				integratorAttenuation.x(),
 				pitchDTermCutoffHz
 		);
 		double yawOutput = yawPid.stepWithDerivativeInput(
@@ -2429,7 +2433,7 @@ public final class DronePhysics {
 				antiGravityPulse * config.yawGains().antiGravityGain(),
 				yawPidAttenuation,
 				feedForwardTorque.y(),
-				integratorAttenuation,
+				integratorAttenuation.y(),
 				yawDTermCutoffHz
 		);
 		double rollOutput = rollPid.stepWithDerivativeInput(
@@ -2440,7 +2444,7 @@ public final class DronePhysics {
 				antiGravityPulse * config.rollGains().antiGravityGain(),
 				rollPidAttenuation,
 				feedForwardTorque.z(),
-				integratorAttenuation,
+				integratorAttenuation.z(),
 				rollDTermCutoffHz
 		);
 		Vec3 output = new Vec3(pitchOutput, yawOutput, rollOutput);
@@ -2560,15 +2564,23 @@ public final class DronePhysics {
 		return acceleration;
 	}
 
-	private double pidIntegralRelax(Vec3 targetRateAcceleration) {
+	private Vec3 pidIntegralRelaxAxes(Vec3 targetRateAcceleration) {
 		if (config.pidIntegralRelaxStrength() <= 1.0e-6) {
-			return 0.0;
+			return Vec3.ZERO;
 		}
 
-		double mixerRelax = MathUtil.clamp((state.mixerSaturation() - 0.02) / 0.16, 0.0, 1.0);
-		double setpointAcceleration = targetRateAcceleration.length();
-		double setpointRelax = MathUtil.clamp(setpointAcceleration / Math.toRadians(4200.0), 0.0, 1.0) * 0.70;
-		return MathUtil.clamp(config.pidIntegralRelaxStrength() * Math.max(mixerRelax, setpointRelax), 0.0, 1.0);
+		Vec3 authority = state.mixerAxisAuthority();
+		return new Vec3(
+				pidAxisIntegralRelax(authority.x(), targetRateAcceleration.x()),
+				pidAxisIntegralRelax(authority.y(), targetRateAcceleration.y()),
+				pidAxisIntegralRelax(authority.z(), targetRateAcceleration.z())
+		);
+	}
+
+	private double pidAxisIntegralRelax(double mixerAxisAuthority, double targetRateAcceleration) {
+		double authorityRelax = 1.0 - MathUtil.clamp(mixerAxisAuthority, 0.0, 1.0);
+		double setpointRelax = MathUtil.clamp(Math.abs(targetRateAcceleration) / Math.toRadians(4200.0), 0.0, 1.0) * 0.70;
+		return MathUtil.clamp(config.pidIntegralRelaxStrength() * Math.max(authorityRelax, setpointRelax), 0.0, 1.0);
 	}
 
 	private double updateAntiGravityTransient(double throttle, double dtSeconds) {

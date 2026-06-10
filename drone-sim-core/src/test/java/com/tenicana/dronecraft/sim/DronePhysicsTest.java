@@ -1534,20 +1534,25 @@ class DronePhysicsTest {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withMotorIdleAndAirmode(0.055, 0.0)
 				.withRollGains(aggressiveRoll);
 		DronePhysics noRelax = new DronePhysics(base.withPidIntegralRelaxStrength(0.0));
 		DronePhysics withRelax = new DronePhysics(base.withPidIntegralRelaxStrength(1.0));
-		DroneInput saturatedRoll = new DroneInput(1.0, 0.0, 1.0, 0.0, true);
+		DroneInput saturatedRoll = new DroneInput(0.0, 0.0, 1.0, 0.0, true);
 
-		for (int i = 0; i < 220; i++) {
+		for (int i = 0; i < 2; i++) {
 			noRelax.step(saturatedRoll, 0.005);
 			withRelax.step(saturatedRoll, 0.005);
 		}
 
 		double noRelaxIntegral = Math.abs(noRelax.state().pidIntegralTorqueBodyNewtonMeters().z());
 		double relaxedIntegral = Math.abs(withRelax.state().pidIntegralTorqueBodyNewtonMeters().z());
-		assertTrue(withRelax.state().pidIntegralRelax() > 0.15);
-		assertTrue(relaxedIntegral < noRelaxIntegral * 0.72);
+		Vec3 relaxAxes = withRelax.state().pidIntegralRelaxAxes();
+		assertTrue(relaxAxes.x() < 1.0e-6);
+		assertTrue(relaxAxes.y() < 1.0e-6);
+		assertTrue(relaxAxes.z() > 0.45);
+		assertEquals(relaxAxes.z(), withRelax.state().pidIntegralRelax(), 1.0e-9);
+		assertTrue(relaxedIntegral < noRelaxIntegral * 0.75);
 	}
 
 	@Test
@@ -3906,6 +3911,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_outward_cant_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("self_level_blend"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("pid_integral_relax"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("pid_integral_relax_pitch"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("pid_integral_relax_yaw"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("pid_integral_relax_roll"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("pid_dterm_lpf_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_iterm_relax"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_level_angle_deg"));
@@ -3939,6 +3947,12 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_roll_authority")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_min_axis_authority")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_min_axis_authority")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) <= 1.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_roll")]) >= 0.0);
+		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_roll")]) <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_frame_age_s")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_frame_interval_s")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_error")])));

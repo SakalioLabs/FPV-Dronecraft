@@ -376,6 +376,9 @@ public final class DroneBlackboxSample {
 			"mixer_min_axis_authority",
 			"pid_attenuation",
 			"pid_integral_relax",
+			"pid_integral_relax_pitch",
+			"pid_integral_relax_yaw",
+			"pid_integral_relax_roll",
 			"pid_dterm_lpf_hz",
 			"anti_gravity_boost",
 			"level_target_pitch_deg",
@@ -1146,6 +1149,10 @@ public final class DroneBlackboxSample {
 		row.add(state.minMixerAxisAuthority(), "%.6f");
 		row.add(state.pidAttenuation(), "%.6f");
 		row.add(state.pidIntegralRelax(), "%.6f");
+		Vec3 pidIntegralRelaxAxes = state.pidIntegralRelaxAxes();
+		row.add(pidIntegralRelaxAxes.x(), "%.6f");
+		row.add(pidIntegralRelaxAxes.y(), "%.6f");
+		row.add(pidIntegralRelaxAxes.z(), "%.6f");
 		row.add(state.pidDTermLowPassCutoffHertz(), "%.5f");
 		row.add(state.antiGravityBoost(), "%.6f");
 		row.add(Math.toDegrees(levelTarget.x()), "%.3f");

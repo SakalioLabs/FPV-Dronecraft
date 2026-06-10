@@ -580,7 +580,10 @@ public final class OfflineFlightRecorder {
 			"mixer_pitch_authority",
 			"mixer_yaw_authority",
 			"mixer_roll_authority",
-			"mixer_min_axis_authority"
+			"mixer_min_axis_authority",
+			"pid_integral_relax_pitch",
+			"pid_integral_relax_yaw",
+			"pid_integral_relax_roll"
 	);
 
 	private OfflineFlightRecorder() {
@@ -1202,6 +1205,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorArmFlex = state.rotorArmFlexIntensity();
 		Vec3 mixerOutputTorque = state.mixerOutputTorqueBodyNewtonMeters();
 		Vec3 mixerAxisAuthority = state.mixerAxisAuthority();
+		Vec3 pidIntegralRelaxAxes = state.pidIntegralRelaxAxes();
 
 		appendExtra(builder, config.rotors().size());
 		for (int i = 4; i < 8; i++) {
@@ -1332,6 +1336,9 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, mixerAxisAuthority.y(), "%.6f");
 		appendExtra(builder, mixerAxisAuthority.z(), "%.6f");
 		appendExtra(builder, state.minMixerAxisAuthority(), "%.6f");
+		appendExtra(builder, pidIntegralRelaxAxes.x(), "%.6f");
+		appendExtra(builder, pidIntegralRelaxAxes.y(), "%.6f");
+		appendExtra(builder, pidIntegralRelaxAxes.z(), "%.6f");
 		return builder.toString();
 	}
 

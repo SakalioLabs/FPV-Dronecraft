@@ -45,6 +45,7 @@ public final class DroneState {
 	private Vec3 pidFeedForwardTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 pidOutputTorqueBodyNewtonMeters = Vec3.ZERO;
 	private double pidIntegralRelax;
+	private Vec3 pidIntegralRelaxAxes = Vec3.ZERO;
 	private double pidDTermLowPassCutoffHertz;
 	private DroneInput rawControlInput = DroneInput.idle();
 	private DroneInput processedControlInput = DroneInput.idle();
@@ -528,6 +529,21 @@ public final class DroneState {
 
 	void setPidIntegralRelax(double pidIntegralRelax) {
 		this.pidIntegralRelax = MathUtil.clamp(pidIntegralRelax, 0.0, 1.0);
+		this.pidIntegralRelaxAxes = new Vec3(this.pidIntegralRelax, this.pidIntegralRelax, this.pidIntegralRelax);
+	}
+
+	public Vec3 pidIntegralRelaxAxes() {
+		return pidIntegralRelaxAxes;
+	}
+
+	void setPidIntegralRelaxAxes(Vec3 pidIntegralRelaxAxes) {
+		this.pidIntegralRelaxAxes = pidIntegralRelaxAxes == null || !pidIntegralRelaxAxes.isFinite()
+				? Vec3.ZERO
+				: pidIntegralRelaxAxes.clamp(0.0, 1.0);
+		this.pidIntegralRelax = Math.max(
+				this.pidIntegralRelaxAxes.x(),
+				Math.max(this.pidIntegralRelaxAxes.y(), this.pidIntegralRelaxAxes.z())
+		);
 	}
 
 	public double pidDTermLowPassCutoffHertz() {

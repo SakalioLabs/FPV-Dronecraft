@@ -132,6 +132,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("mixer_yaw_authority"));
 		assertTrue(csv.contains("mixer_roll_authority"));
 		assertTrue(csv.contains("mixer_min_axis_authority"));
+		assertTrue(csv.contains("pid_integral_relax_pitch"));
+		assertTrue(csv.contains("pid_integral_relax_yaw"));
+		assertTrue(csv.contains("pid_integral_relax_roll"));
 		assertTrue(csv.contains("rotor_skew_pitch_torque_nm"));
 		assertTrue(csv.contains("rotor_skew_roll_torque_nm"));
 		assertTrue(csv.contains("rotor_inertia_pitch_torque_nm"));
@@ -354,6 +357,9 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_yaw_authority")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_roll_authority")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_min_axis_authority")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_pitch")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_yaw")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_roll")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_commutation_ripple")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_commutation_ripple")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_phase_current_a")]));
