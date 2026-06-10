@@ -13,6 +13,9 @@ public final class DronePhysics {
 	private static final double ROTOR_BLADE_COUNT = 2.0;
 	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
 	private static final double ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE = 0.055;
+	private static final double ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ = 24.0;
+	private static final double ROTOR_ARM_FLEX_DAMPING_RATIO = 0.42;
+	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
@@ -48,6 +51,7 @@ public final class DronePhysics {
 	private final double[] escCommandErrors;
 	private final boolean[] escCommandFrameInitialized;
 	private final double[] rotorArmFlexIntensity;
+	private final double[] rotorArmFlexVelocity;
 	private final Vec3[] rotorFlappingTiltBody;
 	private final Vec3[] previousRotorForceBodyNewtons;
 	private final Vec3[] previousRotorTorqueBodyNewtonMeters;
@@ -189,6 +193,7 @@ public final class DronePhysics {
 		this.escCommandErrors = new double[config.rotors().size()];
 		this.escCommandFrameInitialized = new boolean[config.rotors().size()];
 		this.rotorArmFlexIntensity = new double[config.rotors().size()];
+		this.rotorArmFlexVelocity = new double[config.rotors().size()];
 		this.rotorFlappingTiltBody = new Vec3[config.rotors().size()];
 		this.previousRotorForceBodyNewtons = new Vec3[config.rotors().size()];
 		this.previousRotorTorqueBodyNewtonMeters = new Vec3[config.rotors().size()];
@@ -267,6 +272,7 @@ public final class DronePhysics {
 		Arrays.fill(escCommandErrors, 0.0);
 		Arrays.fill(escCommandFrameInitialized, false);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
+		Arrays.fill(rotorArmFlexVelocity, 0.0);
 		Arrays.fill(rotorFlappingTiltBody, Vec3.ZERO);
 		Arrays.fill(previousRotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(previousRotorTorqueBodyNewtonMeters, Vec3.ZERO);
@@ -2784,12 +2790,60 @@ public final class DronePhysics {
 				0.0,
 				1.0
 		);
-		double timeConstant = target > rotorArmFlexIntensity[index] ? 0.018 : 0.085;
-		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
-		double flex = rotorArmFlexIntensity[index] + (target - rotorArmFlexIntensity[index]) * alpha;
-		rotorArmFlexIntensity[index] = MathUtil.clamp(flex, 0.0, 1.0);
+		double flex = integrateRotorArmFlexResonance(index, rotor, target, spinRatio, dtSeconds);
 		previousRotorForceBodyNewtons[index] = forceBody;
 		previousRotorTorqueBodyNewtonMeters[index] = torqueBody;
+		return flex;
+	}
+
+	private double integrateRotorArmFlexResonance(
+			int index,
+			RotorSpec rotor,
+			double targetFlex,
+			double spinRatio,
+			double dtSeconds
+	) {
+		if (dtSeconds <= 0.0) {
+			return rotorArmFlexIntensity[index];
+		}
+
+		Vec3 rotorArmBody = rotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
+		double armLength = Math.max(0.08, Math.hypot(rotorArmBody.x(), rotorArmBody.z()));
+		double lengthScale = MathUtil.clamp(Math.sqrt(0.24 / armLength), 0.70, 1.45);
+		double propScale = MathUtil.clamp(Math.sqrt(0.0635 / Math.max(0.025, rotor.radiusMeters())), 0.70, 1.35);
+		double centrifugalStiffening = 1.0 + 0.28 * MathUtil.clamp(spinRatio, 0.0, 1.0);
+		double naturalFrequencyHertz = ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ
+				* lengthScale
+				* propScale
+				* centrifugalStiffening;
+		double angularFrequency = Math.PI * 2.0 * naturalFrequencyHertz;
+		double dampingRatio = ROTOR_ARM_FLEX_DAMPING_RATIO + 0.10 * MathUtil.clamp(spinRatio, 0.0, 1.0);
+		double flex = rotorArmFlexIntensity[index];
+		double velocity = rotorArmFlexVelocity[index];
+		int substeps = Math.max(1, (int) Math.ceil(dtSeconds / 0.0015));
+		double subDt = dtSeconds / substeps;
+		double target = MathUtil.clamp(targetFlex, 0.0, 1.0);
+
+		for (int step = 0; step < substeps; step++) {
+			double acceleration = angularFrequency * angularFrequency * (target - flex)
+					- 2.0 * dampingRatio * angularFrequency * velocity;
+			velocity = MathUtil.clamp(
+					velocity + acceleration * subDt,
+					-ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND,
+					ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND
+			);
+			flex += velocity * subDt;
+			if (flex < 0.0) {
+				flex = 0.0;
+				velocity = Math.max(0.0, velocity) * 0.18;
+			} else if (flex > 1.0) {
+				flex = 1.0;
+				velocity = Math.min(0.0, velocity) * 0.18;
+			}
+		}
+
+		rotorArmFlexIntensity[index] = MathUtil.clamp(flex, 0.0, 1.0);
+		rotorArmFlexVelocity[index] = velocity;
 		return rotorArmFlexIntensity[index];
 	}
 

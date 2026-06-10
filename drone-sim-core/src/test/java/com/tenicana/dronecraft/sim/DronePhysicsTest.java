@@ -3351,6 +3351,39 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorArmFlexRingsDownAfterThrottleChop() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput punch = new DroneInput(0.95, 0.0, 0.0, 0.0, true);
+		DroneInput chop = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 8; i++) {
+			physics.step(punch, 0.0025);
+		}
+		double flexAtChop = physics.state().maxRotorArmFlexIntensity();
+		double postChopPeak = flexAtChop;
+		for (int i = 0; i < 26; i++) {
+			physics.step(chop, 0.0025);
+			postChopPeak = Math.max(postChopPeak, physics.state().maxRotorArmFlexIntensity());
+		}
+
+		assertTrue(flexAtChop > 0.01);
+		double observedPostChopPeak = postChopPeak;
+		assertTrue(observedPostChopPeak > flexAtChop + 0.002,
+				() -> "flexAtChop=" + flexAtChop + " postChopPeak=" + observedPostChopPeak);
+
+		for (int i = 0; i < 260; i++) {
+			physics.step(chop, 0.005);
+		}
+
+		assertTrue(physics.state().maxRotorArmFlexIntensity() < observedPostChopPeak * 0.45);
+	}
+
+	@Test
 	void damagedRotorsAddImuVibrationEvenWithIdealSensorNoise() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
