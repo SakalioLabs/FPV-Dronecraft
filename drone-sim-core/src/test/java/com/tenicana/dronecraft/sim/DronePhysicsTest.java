@@ -6701,6 +6701,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_voltage_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_0_voltage_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("angle_of_attack_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_separation"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_stall_intensity"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_surface_scrape"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_pressure_center_pitch_torque_nm"));
@@ -6800,6 +6801,9 @@ class DronePhysicsTest {
 		double loggedEffectiveAirDensity = Double.parseDouble(firstRow[indexOf(header, "effective_air_density_ratio")]);
 		assertTrue(Double.isFinite(loggedEffectiveAirDensity));
 		assertTrue(loggedEffectiveAirDensity <= loggedAirDensity + 1.0e-6);
+		double loggedAirframeSeparation = Double.parseDouble(firstRow[indexOf(header, "airframe_separation")]);
+		assertTrue(loggedAirframeSeparation >= 0.0);
+		assertTrue(loggedAirframeSeparation <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) >= 0.0);
@@ -6871,6 +6875,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_tracking_error") > 0.005);
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_coning") > 0.0);
+		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
@@ -6904,6 +6909,8 @@ class DronePhysicsTest {
 		assertTrue(report.minMotorVoltageHeadroom() >= 0.0);
 		assertTrue(report.minMotorVoltageHeadroom() < 0.45);
 		assertTrue(report.maxRotorStallIntensity() > 0.20);
+		assertTrue(report.maxAirframeSeparatedFlowIntensity() > 0.50);
+		assertTrue(report.maxAirframeSeparatedFlowIntensity() <= 1.0);
 		assertTrue(report.maxRotorConingIntensity() > 0.0);
 		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.05);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
