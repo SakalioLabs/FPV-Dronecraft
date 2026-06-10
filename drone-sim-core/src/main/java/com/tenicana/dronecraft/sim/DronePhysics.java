@@ -62,6 +62,7 @@ public final class DronePhysics {
 	private final Vec3[] rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond;
 	private final double[] rotorSurfaceEffectThrustMultipliers;
 	private final double[] rotorConingIntensity;
+	private final double[] rotorConingVelocity;
 	private final double[] heldEscOutputCommands;
 	private final double[] escCommandFrameClockSeconds;
 	private final double[] escCommandFrameAgeSeconds;
@@ -230,6 +231,7 @@ public final class DronePhysics {
 		this.rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond = new Vec3[config.rotors().size()];
 		this.rotorSurfaceEffectThrustMultipliers = new double[config.rotors().size()];
 		this.rotorConingIntensity = new double[config.rotors().size()];
+		this.rotorConingVelocity = new double[config.rotors().size()];
 		this.heldEscOutputCommands = new double[config.rotors().size()];
 		this.escCommandFrameClockSeconds = new double[config.rotors().size()];
 		this.escCommandFrameAgeSeconds = new double[config.rotors().size()];
@@ -333,6 +335,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(rotorSurfaceEffectThrustMultipliers, 1.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
+		Arrays.fill(rotorConingVelocity, 0.0);
 		Arrays.fill(heldEscOutputCommands, 0.0);
 		Arrays.fill(escCommandFrameClockSeconds, 0.0);
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
@@ -681,6 +684,7 @@ public final class DronePhysics {
 			rotorVibrationSum += rotorLowReynoldsVibration(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor);
 			rotorVibrationSum += rotorConingVibration(aerodynamicRotor, aerodynamicOmega, coningIntensity);
 			rotorVibrationSum += rotorInducedWakeVibration(aerodynamicRotor, aerodynamicOmega, rotorInducedWakeCarryoverIntensity[i]);
+			state.setRotorConingIntensity(i, coningIntensity);
 			double vortexRingThrustScale = 1.0 - rotor.axialFlowThrustLossCoefficient() * 1.35 * vortexRingState;
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
 			double lowReynoldsThrustScale = rotorLowReynoldsThrustScale(lowReynoldsLoss);
@@ -2544,15 +2548,37 @@ public final class DronePhysics {
 			return rotorConingIntensity[index];
 		}
 
-		double previousConing = rotorConingIntensity[index];
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
-		double centrifugalStiffening = 1.0 + 0.35 * spinRatio;
-		double baseTimeConstant = targetConing > previousConing ? 0.030 : 0.070;
-		double timeConstant = MathUtil.clamp(baseTimeConstant * Math.sqrt(radiusScale) / centrifugalStiffening, 0.012, 0.160);
-		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
-		double coning = previousConing + (targetConing - previousConing) * alpha;
+		double centrifugalStiffening = 1.0 + 0.42 * spinRatio;
+		double naturalFrequencyHertz = MathUtil.clamp(
+				30.0 * centrifugalStiffening / Math.sqrt(radiusScale),
+				16.0,
+				62.0
+		);
+		double angularFrequency = 2.0 * Math.PI * naturalFrequencyHertz;
+		double dampingRatio = MathUtil.clamp(0.46 + 0.18 * spinRatio, 0.44, 0.72);
+		double coning = rotorConingIntensity[index];
+		double velocity = rotorConingVelocity[index];
+		int substeps = Math.max(1, (int) Math.ceil(dtSeconds / 0.00125));
+		double subDt = dtSeconds / substeps;
+
+		for (int step = 0; step < substeps; step++) {
+			double acceleration = angularFrequency * angularFrequency * (targetConing - coning)
+					- 2.0 * dampingRatio * angularFrequency * velocity;
+			velocity = MathUtil.clamp(velocity + acceleration * subDt, -24.0, 24.0);
+			coning += velocity * subDt;
+			if (coning < 0.0) {
+				coning = 0.0;
+				velocity = Math.max(0.0, velocity) * 0.22;
+			} else if (coning > 1.0) {
+				coning = 1.0;
+				velocity = Math.min(0.0, velocity) * 0.22;
+			}
+		}
+
 		rotorConingIntensity[index] = MathUtil.clamp(coning, 0.0, 1.0);
+		rotorConingVelocity[index] = velocity;
 		return rotorConingIntensity[index];
 	}
 

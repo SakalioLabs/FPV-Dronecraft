@@ -93,6 +93,7 @@ public final class DroneState {
 	private double[] rotorAerodynamicLoadFactor;
 	private double[] rotorFlappingForceNewtons;
 	private double[] rotorFlappingTiltRadians;
+	private double[] rotorConingIntensity;
 	private double[] rotorStallIntensity;
 	private double[] rotorSurfaceScrapeIntensity;
 	private double[] rotorWakeInterferenceIntensity;
@@ -188,6 +189,7 @@ public final class DroneState {
 		rotorAerodynamicLoadFactor = new double[motorCount];
 		rotorFlappingForceNewtons = new double[motorCount];
 		rotorFlappingTiltRadians = new double[motorCount];
+		rotorConingIntensity = new double[motorCount];
 		rotorStallIntensity = new double[motorCount];
 		rotorSurfaceScrapeIntensity = new double[motorCount];
 		rotorWakeInterferenceIntensity = new double[motorCount];
@@ -1188,6 +1190,7 @@ public final class DroneState {
 		Arrays.fill(rotorAerodynamicLoadFactor, 0.0);
 		Arrays.fill(rotorFlappingForceNewtons, 0.0);
 		Arrays.fill(rotorFlappingTiltRadians, 0.0);
+		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(rotorStallIntensity, 0.0);
 		Arrays.fill(rotorSurfaceScrapeIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
@@ -1538,6 +1541,34 @@ public final class DroneState {
 		double max = 0.0;
 		for (double tilt : rotorFlappingTiltRadians) {
 			max = Math.max(max, tilt);
+		}
+		return max;
+	}
+
+	public double rotorConingIntensity(int index) {
+		return rotorConingIntensity[index];
+	}
+
+	public double[] rotorConingIntensity() {
+		return Arrays.copyOf(rotorConingIntensity, rotorConingIntensity.length);
+	}
+
+	void setRotorConingIntensity(int index, double value) {
+		rotorConingIntensity[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorConingIntensity() {
+		double sum = 0.0;
+		for (double coning : rotorConingIntensity) {
+			sum += coning;
+		}
+		return sum / rotorConingIntensity.length;
+	}
+
+	public double maxRotorConingIntensity() {
+		double max = 0.0;
+		for (double coning : rotorConingIntensity) {
+			max = Math.max(max, coning);
 		}
 		return max;
 	}

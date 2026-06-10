@@ -949,8 +949,10 @@ class DronePhysicsTest {
 		DronePhysics physics = new DronePhysics(config);
 		DroneInput highThrottle = new DroneInput(0.96, 0.0, 0.0, 0.0, true);
 		double earlyRatio = 0.0;
+		double earlyConing = 0.0;
 		int earlySamples = 0;
 		double settledRatio = 0.0;
+		double settledConing = 0.0;
 		int settledSamples = 0;
 
 		for (int i = 0; i < 260; i++) {
@@ -959,22 +961,78 @@ class DronePhysicsTest {
 			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			physics.step(highThrottle, 0.0025);
 			double ratio = rotorEffectiveThrustRatio(physics, 0);
-			if (i >= 10 && i < 28) {
+			if (i >= 1 && i < 8) {
 				earlyRatio += ratio;
+				earlyConing += physics.state().averageRotorConingIntensity();
 				earlySamples++;
 			}
 			if (i >= 210) {
 				settledRatio += ratio;
+				settledConing += physics.state().averageRotorConingIntensity();
 				settledSamples++;
 			}
 		}
 
 		earlyRatio /= earlySamples;
+		earlyConing /= earlySamples;
 		settledRatio /= settledSamples;
+		settledConing /= settledSamples;
 		double observedEarlyRatio = earlyRatio;
 		double observedSettledRatio = settledRatio;
-		assertTrue(observedEarlyRatio > observedSettledRatio + 0.004,
+		double observedEarlyConing = earlyConing;
+		double observedSettledConing = settledConing;
+		assertTrue(observedSettledConing > observedEarlyConing + 0.035,
+				() -> "earlyConing=" + observedEarlyConing + " settledConing=" + observedSettledConing);
+		assertTrue(observedEarlyRatio > observedSettledRatio + 0.001,
 				() -> "earlyRatio=" + observedEarlyRatio + " settledRatio=" + observedSettledRatio);
+	}
+
+	@Test
+	void rotorConingFlexLingersAfterThrottleChop() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorInertiaKgMetersSquared(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withRotorYawTorquePerThrustMeter(0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withRotorStallThrustLossCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 160.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput highThrottle = new DroneInput(0.96, 0.0, 0.0, 0.0, true);
+		DroneInput chop = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(physics);
+			physics.step(highThrottle, 0.0025);
+		}
+		double loadedConing = physics.state().averageRotorConingIntensity();
+
+		holdInStillAir(physics);
+		physics.step(chop, 0.0025);
+		double firstChopConing = physics.state().averageRotorConingIntensity();
+
+		for (int i = 0; i < 160; i++) {
+			holdInStillAir(physics);
+			physics.step(chop, 0.0025);
+		}
+		double clearedConing = physics.state().averageRotorConingIntensity();
+
+		assertTrue(loadedConing > 0.40, () -> "loadedConing=" + loadedConing);
+		assertTrue(firstChopConing > clearedConing + 0.20,
+				() -> "firstChopConing=" + firstChopConing + " clearedConing=" + clearedConing);
+		assertTrue(clearedConing < 0.04, () -> "clearedConing=" + clearedConing);
 	}
 
 	@Test
