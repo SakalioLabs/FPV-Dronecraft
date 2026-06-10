@@ -2228,6 +2228,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void dTermLowPassClosesDuringBladePassRoughAir() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorStallThrustLossCoefficient(0.60)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics rough = new DronePhysics(config);
+		Vec3 highSlip = new Vec3(46.0, 0.0, 0.0);
+		DroneInput highThrottle = new DroneInput(0.72, 0.0, 0.0, 0.0, true);
+		DroneEnvironment matchingWind = new DroneEnvironment(highSlip, 1.0, Double.POSITIVE_INFINITY);
+
+		for (int i = 0; i < 170; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			rough.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			rough.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.state().setVelocityMetersPerSecond(highSlip);
+			rough.state().setVelocityMetersPerSecond(highSlip);
+			clean.step(highThrottle, 0.005, matchingWind);
+			rough.step(highThrottle, 0.005);
+		}
+
+		assertTrue(rough.state().averageRotorBladePassRippleIntensity()
+				> clean.state().averageRotorBladePassRippleIntensity() + 0.008);
+		assertTrue(rough.state().averageRotorStallIntensity() > 0.55);
+		assertTrue(rough.state().pidDTermLowPassCutoffHertz()
+				< clean.state().pidDTermLowPassCutoffHertz() * 0.78);
+	}
+
+	@Test
 	void pidIntegratorAttenuationSuppressesAccumulation() {
 		PidController normal = new PidController(new PidGains(0.0, 1.0, 0.0, 10.0));
 		PidController relaxed = new PidController(new PidGains(0.0, 1.0, 0.0, 10.0));

@@ -3486,7 +3486,17 @@ public final class DronePhysics {
 		double authority = Math.max(throttleOpen, rpmOpen);
 		double lowCutoff = Math.min(configuredCutoff, Math.max(5.0, configuredCutoff * 0.42));
 		double vibrationFoldback = 1.0 - 0.32 * smoothStep(0.035, 0.180, state.rotorVibration());
-		double dynamicCutoff = MathUtil.lerp(lowCutoff, configuredCutoff, authority) * vibrationFoldback;
+		double bladePassRoughness = Math.max(
+				state.averageRotorBladePassRippleIntensity(),
+				state.maxRotorBladePassRippleIntensity() * 0.72
+		);
+		double bladePassFoldback = 1.0 - 0.16 * smoothStep(0.006, 0.038, bladePassRoughness);
+		double separatedFlowRoughness = Math.max(state.averageRotorStallIntensity(), state.vortexRingStateIntensity());
+		double separatedFlowFoldback = 1.0 - 0.14 * smoothStep(0.12, 0.70, separatedFlowRoughness);
+		double dynamicCutoff = MathUtil.lerp(lowCutoff, configuredCutoff, authority)
+				* vibrationFoldback
+				* bladePassFoldback
+				* separatedFlowFoldback;
 		return MathUtil.clamp(dynamicCutoff, Math.max(1.0, configuredCutoff * 0.30), configuredCutoff);
 	}
 
