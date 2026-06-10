@@ -4953,6 +4953,27 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void airframePressureCenterMigratesWithAngleOfAttackAndSideslip() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics straight = new DronePhysics(config);
+		DronePhysics slipped = new DronePhysics(config);
+		straight.state().setVelocityMetersPerSecond(new Vec3(0.0, 0.0, 18.0));
+		slipped.state().setVelocityMetersPerSecond(new Vec3(6.0, 5.0, 14.0));
+
+		straight.step(DroneInput.idle(), 0.005);
+		slipped.step(DroneInput.idle(), 0.005);
+
+		Vec3 migratedTorque = slipped.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertEquals(0.0, straight.state().airframePressureCenterTorqueBodyNewtonMeters().length(), 1.0e-9);
+		assertTrue(migratedTorque.x() < -0.035, () -> "migratedTorque=" + migratedTorque);
+		assertTrue(Math.abs(migratedTorque.y()) > 0.015, () -> "migratedTorque=" + migratedTorque);
+		assertTrue(migratedTorque.z() > 0.010, () -> "migratedTorque=" + migratedTorque);
+	}
+
+	@Test
 	void rotorOutwardCantTiltsThrustAxesAndReducesVerticalLift() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
