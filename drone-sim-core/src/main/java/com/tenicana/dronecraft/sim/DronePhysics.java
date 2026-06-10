@@ -4174,7 +4174,9 @@ public final class DronePhysics {
 
 	private void updateAccelerometerMeasurement(double dtSeconds) {
 		accelerometerNoiseTimeSeconds += dtSeconds;
-		Vec3 rawSpecificForce = specificForceBodyMetersPerSecondSquared()
+		Vec3 trueSpecificForce = specificForceBodyMetersPerSecondSquared();
+		Vec3 rawSpecificForce = trueSpecificForce
+				.add(accelerometerScaleErrorBodyMetersPerSecondSquared(trueSpecificForce))
 				.add(state.accelerometerBiasBodyMetersPerSecondSquared())
 				.add(accelerometerNoiseBodyMetersPerSecondSquared());
 		state.setAccelerometerClipIntensity(sensorClipIntensity(rawSpecificForce, ACCELEROMETER_FULL_SCALE_METERS_PER_SECOND_SQUARED));
@@ -4198,6 +4200,31 @@ public final class DronePhysics {
 		}
 		state.setAccelerometerBodyMetersPerSecondSquared(accelerometerDelayBuffer[readIndex]);
 		accelerometerDelayWriteIndex = (accelerometerDelayWriteIndex + 1) % GYRO_DELAY_BUFFER_SIZE;
+	}
+
+	private Vec3 accelerometerScaleErrorBodyMetersPerSecondSquared(Vec3 trueSpecificForce) {
+		double noise = config.accelerometerNoiseStdDevMetersPerSecondSquared();
+		if (noise <= 0.0 || trueSpecificForce == null || trueSpecificForce.lengthSquared() <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double gravity = Math.max(1.0e-6, config.gravityMetersPerSecondSquared());
+		Vec3 gForce = trueSpecificForce.multiply(1.0 / gravity);
+		double gMagnitude = gForce.length();
+		if (gMagnitude <= 1.35) {
+			return Vec3.ZERO;
+		}
+
+		double sensorScale = MathUtil.clamp(noise / 0.22, 0.20, 2.5);
+		double exposure = smoothStep(1.35, 6.0, gMagnitude);
+		double compression = MathUtil.clamp(-0.010 * sensorScale * exposure * (gMagnitude - 1.0), -0.12, 0.0);
+		Vec3 scaleError = trueSpecificForce.multiply(compression);
+		Vec3 crossAxisError = new Vec3(
+				0.32 * gForce.y() - 0.18 * gForce.z(),
+				-0.22 * gForce.x() + 0.14 * gForce.z(),
+				0.26 * gForce.x() + 0.18 * gForce.y()
+		).multiply(gravity * 0.0035 * sensorScale * exposure);
+		return scaleError.add(crossAxisError).clamp(-gravity * 2.0, gravity * 2.0);
 	}
 
 	private Vec3 specificForceBodyMetersPerSecondSquared() {

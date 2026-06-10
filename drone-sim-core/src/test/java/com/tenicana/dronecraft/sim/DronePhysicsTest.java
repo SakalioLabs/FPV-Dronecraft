@@ -2291,6 +2291,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void accelerometerScaleErrorModelsHighGCompressionAndCrossAxis() throws ReflectiveOperationException {
+		DroneConfig realisticConfig = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 1.2, 0.0);
+		DroneConfig idealConfig = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics realistic = new DronePhysics(realisticConfig);
+		DronePhysics ideal = new DronePhysics(idealConfig);
+		Method scaleErrorMethod = DronePhysics.class.getDeclaredMethod(
+				"accelerometerScaleErrorBodyMetersPerSecondSquared",
+				Vec3.class
+		);
+		scaleErrorMethod.setAccessible(true);
+		Vec3 nominalSpecificForce = new Vec3(0.0, realisticConfig.gravityMetersPerSecondSquared(), 0.0);
+		Vec3 highSpecificForce = new Vec3(0.0, realisticConfig.gravityMetersPerSecondSquared() + 45.0, 0.0);
+
+		Vec3 nominalError = (Vec3) scaleErrorMethod.invoke(realistic, nominalSpecificForce);
+		Vec3 highGError = (Vec3) scaleErrorMethod.invoke(realistic, highSpecificForce);
+		Vec3 idealError = (Vec3) scaleErrorMethod.invoke(ideal, highSpecificForce);
+
+		assertEquals(0.0, nominalError.length(), 1.0e-12);
+		assertTrue(
+				highGError.y() < -4.0,
+				() -> "highGErrorY=" + highGError.y()
+		);
+		assertTrue(
+				highGError.z() > 0.06,
+				() -> "highGErrorZ=" + highGError.z()
+		);
+		assertEquals(0.0, idealError.length(), 1.0e-12);
+	}
+
+	@Test
 	void barometerReportsPressureAltitudeAndLaggedVerticalSpeed() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
