@@ -891,12 +891,20 @@ public final class DronePhysics {
 			return heldEscOutputCommands[index];
 		}
 
-		escCommandFrameClockSeconds[index] += Math.max(0.0, dtSeconds);
 		boolean firstFrame = !escCommandFrameInitialized[index];
-		if (firstFrame || escCommandFrameClockSeconds[index] >= intervalSeconds) {
+		if (firstFrame) {
 			heldEscOutputCommands[index] = quantizedOutput;
 			escCommandFrameInitialized[index] = true;
-			escCommandFrameClockSeconds[index] = firstFrame ? 0.0 : escCommandFrameClockSeconds[index] - intervalSeconds;
+			escCommandFrameClockSeconds[index] = -escCommandFramePhaseOffsetSeconds(index, intervalSeconds);
+			escCommandFrameAgeSeconds[index] = 0.0;
+			escCommandErrors[index] = Math.abs(continuousOutput - heldEscOutputCommands[index]);
+			return heldEscOutputCommands[index];
+		}
+
+		escCommandFrameClockSeconds[index] += Math.max(0.0, dtSeconds);
+		if (escCommandFrameClockSeconds[index] >= intervalSeconds) {
+			heldEscOutputCommands[index] = quantizedOutput;
+			escCommandFrameClockSeconds[index] -= intervalSeconds;
 			if (escCommandFrameClockSeconds[index] >= intervalSeconds) {
 				escCommandFrameClockSeconds[index] = 0.0;
 			}
@@ -927,6 +935,15 @@ public final class DronePhysics {
 
 	private double escCommandFrameIntervalSeconds() {
 		return config.escCommandFrameRateHertz() <= 1.0e-9 ? 0.0 : 1.0 / config.escCommandFrameRateHertz();
+	}
+
+	private double escCommandFramePhaseOffsetSeconds(int index, double intervalSeconds) {
+		int motorCount = heldEscOutputCommands.length;
+		if (motorCount <= 1 || intervalSeconds <= 1.0e-9) {
+			return 0.0;
+		}
+		double phase = Math.floorMod(index, motorCount) / (double) motorCount;
+		return intervalSeconds * 0.45 * phase;
 	}
 
 	private void updateEscSignalTelemetry() {

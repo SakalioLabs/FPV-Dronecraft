@@ -1170,8 +1170,16 @@ class DronePhysicsTest {
 
 		physics.step(highThrottle, 0.005);
 
+		double partiallyUpdatedOutput = physics.state().averageEscOutputCommand();
+		assertTrue(partiallyUpdatedOutput > heldOutput);
+		assertTrue(physics.state().escOutputCommand(0) > physics.state().escOutputCommand(3) + 0.20);
+		assertTrue(physics.state().escCommandFrameAgeSeconds() > 0.0);
+
+		physics.step(highThrottle, 0.005);
+
 		assertTrue(physics.state().averageEscOutputCommand() > heldOutput + 0.20);
-		assertEquals(0.0, physics.state().escCommandFrameAgeSeconds(), 1.0e-9);
+		assertTrue(physics.state().averageEscOutputCommand() > partiallyUpdatedOutput + 0.10);
+		assertEquals(physics.state().escOutputCommand(0), physics.state().escOutputCommand(3), 1.0e-3);
 	}
 
 	@Test
