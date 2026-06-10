@@ -331,7 +331,7 @@ public final class DronePhysics {
 		Vec3 totalForceBody = Vec3.ZERO;
 		Vec3 totalTorqueBody = Vec3.ZERO;
 		double voltageScale = MathUtil.clamp(state.batteryVoltage() / config.nominalBatteryVoltage(), 0.55, 1.03);
-		double airDensity = environment.airDensityRatio();
+		double airDensity = environment.effectiveAirDensityRatio();
 		double waterImmersion = environment.waterImmersionIntensity();
 		double precipitationWetness = environment.precipitationWetnessIntensity();
 		Vec3 effectiveWindVelocityWorld = updateAirMassWind(environment, dtSeconds);
@@ -3935,15 +3935,16 @@ public final class DronePhysics {
 		Vec3 velocity = state.velocityMetersPerSecond();
 		Vec3 relativeAirVelocity = velocity.subtract(effectiveWindVelocityWorld);
 		Vec3 velocityBody = state.orientation().conjugate().rotate(relativeAirVelocity);
-		Vec3 airframeLiftBody = calculateAirframeLiftForce(velocityBody, environment.airDensityRatio());
+		double effectiveAirDensity = environment.effectiveAirDensityRatio();
+		Vec3 airframeLiftBody = calculateAirframeLiftForce(velocityBody, effectiveAirDensity);
 		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 groundEffectDragBody = calculateGroundEffectDragForce(totalForceBody, velocityBody, environment);
 		state.setGroundEffectDragForceBodyNewtons(groundEffectDragBody);
-		Vec3 rotorWashDragBody = calculateRotorWashDragForce(totalForceBody, velocityBody, environment.airDensityRatio());
+		Vec3 rotorWashDragBody = calculateRotorWashDragForce(totalForceBody, velocityBody, effectiveAirDensity);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragBody);
 		Vec3 thrustWorld = state.orientation().rotate(totalForceBody.add(airframeLiftBody).add(groundEffectDragBody).add(rotorWashDragBody));
-		Vec3 bodyDrag = calculateAirframeBodyDragForce(velocityBody, environment.airDensityRatio());
-		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * relativeAirVelocity.length() * environment.airDensityRatio());
+		Vec3 bodyDrag = calculateAirframeBodyDragForce(velocityBody, effectiveAirDensity);
+		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * relativeAirVelocity.length() * effectiveAirDensity);
 		Vec3 waterDrag = calculateWaterImmersionDragForce(velocity, environment);
 		Vec3 drag = state.orientation().rotate(bodyDrag).add(isotropicDrag).add(waterDrag);
 		Vec3 acceleration = thrustWorld.add(gravity).add(drag).multiply(1.0 / config.massKg());
@@ -4070,7 +4071,7 @@ public final class DronePhysics {
 		}
 
 		double lateralDragCoefficient = 0.18 * Math.sqrt(config.bodyDragCoefficients().x() * config.bodyDragCoefficients().z());
-		double densityScale = Math.max(0.0, environment.airDensityRatio());
+		double densityScale = Math.max(0.0, environment.effectiveAirDensityRatio());
 		double cushionScale = proximity * proximity * rotorWash * densityScale;
 		double dragScale = lateralDragCoefficient * lateralSpeed * cushionScale;
 		return new Vec3(
@@ -4633,7 +4634,7 @@ public final class DronePhysics {
 
 	private double barometerDynamicPressureErrorMeters(DroneEnvironment environment) {
 		Vec3 relativeAirVelocityBody = state.relativeAirVelocityBodyMetersPerSecond();
-		double airDensityRatio = environment.airDensityRatio();
+		double airDensityRatio = environment.effectiveAirDensityRatio();
 		if (airDensityRatio <= 0.0) {
 			return 0.0;
 		}
@@ -4924,7 +4925,7 @@ public final class DronePhysics {
 		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
-		double densityFactor = MathUtil.clamp(environment.airDensityRatio(), 0.35, 1.35);
+		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		return MathUtil.clamp(boardAirflow * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
 	}
 
@@ -4943,7 +4944,7 @@ public final class DronePhysics {
 		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escOutputCommand(rotorIndex));
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
-		double densityFactor = MathUtil.clamp(environment.airDensityRatio(), 0.35, 1.35);
+		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		return MathUtil.clamp((1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss * recirculationEfficiency, 0.20, 4.0);
 	}
 
@@ -5045,7 +5046,7 @@ public final class DronePhysics {
 	private double batteryCoolingFactor(DroneEnvironment environment) {
 		double airspeedCooling = MathUtil.clamp(state.airspeedMetersPerSecond() / 20.0, 0.0, 1.8);
 		double rotorWashCooling = 0.35 * state.averageMotorPower(config);
-		double densityFactor = MathUtil.clamp(environment.airDensityRatio(), 0.35, 1.35);
+		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
 				+ 0.22 * MathUtil.clamp(environment.precipitationWetnessIntensity(), 0.0, 1.0);
 		return MathUtil.clamp((0.55 + 0.45 * airspeedCooling + rotorWashCooling) * densityFactor + wetCooling, 0.20, 4.0);

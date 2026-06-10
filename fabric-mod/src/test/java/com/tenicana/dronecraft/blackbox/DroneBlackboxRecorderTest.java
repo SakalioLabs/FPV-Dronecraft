@@ -184,6 +184,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_3_flow_obstruction"));
 		assertTrue(csv.contains("water_immersion"));
 		assertTrue(csv.contains("precipitation_wetness"));
+		assertTrue(csv.contains("effective_air_density_ratio"));
 		assertTrue(csv.contains("ambient_temperature_c"));
 		assertTrue(csv.contains("rotor_0_water_immersion"));
 		assertTrue(csv.contains("rotor_3_water_immersion"));
@@ -347,6 +348,10 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.18, Double.parseDouble(row[indexOf(header, "water_immersion")]), 0.0001);
 		assertEquals(0.36, Double.parseDouble(row[indexOf(header, "precipitation_wetness")]), 0.0001);
 		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]), 0.0001);
+		double airDensity = Double.parseDouble(row[indexOf(header, "air_density_ratio")]);
+		double effectiveAirDensity = Double.parseDouble(row[indexOf(header, "effective_air_density_ratio")]);
+		assertTrue(effectiveAirDensity < airDensity);
+		assertTrue(effectiveAirDensity > airDensity * 0.997);
 		assertEquals(0.45, Double.parseDouble(row[indexOf(header, "rotor_0_water_immersion")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_water_immersion")]), 0.0001);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_electrical_efficiency")]));

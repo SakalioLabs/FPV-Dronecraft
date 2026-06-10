@@ -323,6 +323,7 @@ public final class DroneBlackboxSample {
 			"wind_gust_speed_mps",
 			"wind_shear_accel_mps2",
 			"air_density_ratio",
+			"effective_air_density_ratio",
 			"ambient_temperature_c",
 			"ground_clearance_m",
 			"ground_effect_multiplier",
@@ -1108,6 +1109,7 @@ public final class DroneBlackboxSample {
 		row.add(state.windGustSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windShearAccelerationMetersPerSecondSquared(), "%.5f");
 		row.add(environment.airDensityRatio(), "%.5f");
+		row.add(environment.effectiveAirDensityRatio(), "%.5f");
 		row.add(environment.ambientTemperatureCelsius(), "%.3f");
 		row.add(groundClearance, "%.5f");
 		row.add(environment.groundEffectThrustMultiplier(config), "%.5f");

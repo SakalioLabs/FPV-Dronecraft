@@ -192,6 +192,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"drone_wake_intensity",
 		"water_immersion",
 		"precipitation_wetness",
+		"effective_air_density_ratio",
 		"ambient_temperature_c",
 		"rotor_0_water_immersion",
 		"rotor_5_water_immersion",

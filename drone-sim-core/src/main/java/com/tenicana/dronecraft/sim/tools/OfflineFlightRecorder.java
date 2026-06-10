@@ -238,6 +238,7 @@ public final class OfflineFlightRecorder {
 			"wind_y_mps",
 			"wind_z_mps",
 			"air_density_ratio",
+			"effective_air_density_ratio",
 			"ambient_temperature_c",
 			"ground_clearance_m",
 			"ground_effect_multiplier",
@@ -875,7 +876,7 @@ public final class OfflineFlightRecorder {
 						+ "%.4f,%.4f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
+						+ "%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.0f,%.4f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
@@ -1104,6 +1105,7 @@ public final class OfflineFlightRecorder {
 				wind.y(),
 				wind.z(),
 				environment.airDensityRatio(),
+				environment.effectiveAirDensityRatio(),
 				environment.ambientTemperatureCelsius(),
 				environment.groundClearanceMeters(),
 				environment.groundEffectThrustMultiplier(physics.config()),

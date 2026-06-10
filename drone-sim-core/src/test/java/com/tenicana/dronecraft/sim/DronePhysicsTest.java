@@ -1801,6 +1801,64 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void wetHotAirReducesEffectiveDensity() {
+		DroneEnvironment dryHot = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				42.0
+		);
+		DroneEnvironment saturatedHot = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				1.0,
+				42.0
+		);
+		DroneEnvironment saturatedCold = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				1.0,
+				2.0
+		);
+
+		assertEquals(1.0, dryHot.effectiveAirDensityRatio(), 1.0e-12);
+		assertTrue(saturatedHot.effectiveAirDensityRatio() < 0.980);
+		assertTrue(saturatedCold.effectiveAirDensityRatio() > saturatedHot.effectiveAirDensityRatio());
+		assertTrue(DroneEnvironment.moistAirDensityMultiplier(42.0, 1.0)
+				< DroneEnvironment.moistAirDensityMultiplier(42.0, 0.25));
+	}
+
+	@Test
 	void batteryCurrentTracksPerMotorLoadDuringMixerWork() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
@@ -3755,6 +3813,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void moistAirDensityChangesRainRotorAuthority() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		double wetness = 1.0;
+		double hotAirCelsius = 45.0;
+		double densityCompensation = 1.0 / DroneEnvironment.moistAirDensityMultiplier(hotAirCelsius, wetness);
+		DroneEnvironment hotRain = rainEnvironmentWithDensity(1.0, wetness, hotAirCelsius);
+		DroneEnvironment densityCompensatedHotRain = rainEnvironmentWithDensity(densityCompensation, wetness, hotAirCelsius);
+		DronePhysics uncorrected = new DronePhysics(config);
+		DronePhysics compensated = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.78, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 220; i++) {
+			uncorrected.step(highLoad, 0.005, hotRain);
+			compensated.step(highLoad, 0.005, densityCompensatedHotRain);
+		}
+
+		double uncorrectedThrust = averageRotorThrust(uncorrected.state());
+		double compensatedThrust = averageRotorThrust(compensated.state());
+		assertTrue(hotRain.effectiveAirDensityRatio() < hotRain.airDensityRatio());
+		assertEquals(1.0, densityCompensatedHotRain.effectiveAirDensityRatio(), 0.002);
+		assertTrue(
+				compensatedThrust > uncorrectedThrust,
+				() -> "compensated thrust=" + compensatedThrust + " uncorrected thrust=" + uncorrectedThrust
+		);
+	}
+
+	@Test
 	void ambientTemperatureChangesBatterySagAndThermalEquilibrium() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig thermalConfig = directControl(DroneConfig.racingQuad())
@@ -5273,6 +5366,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_pressure_center_pitch_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("turbulence_intensity"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("obstacle_proximity"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_air_density_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("precipitation_wetness"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_water_immersion"));
@@ -5359,6 +5453,10 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_low_headroom")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_high_headroom")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "mixer_high_headroom")]) <= 1.0);
+		double loggedAirDensity = Double.parseDouble(firstRow[indexOf(header, "air_density_ratio")]);
+		double loggedEffectiveAirDensity = Double.parseDouble(firstRow[indexOf(header, "effective_air_density_ratio")]);
+		assertTrue(Double.isFinite(loggedEffectiveAirDensity));
+		assertTrue(loggedEffectiveAirDensity <= loggedAirDensity + 1.0e-6);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) >= 0.0);
@@ -5607,6 +5705,25 @@ class DronePhysicsTest {
 		physics.state().setVelocityMetersPerSecond(velocityMetersPerSecond);
 		physics.state().setOrientation(Quaternion.IDENTITY);
 		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+	}
+
+	private static DroneEnvironment rainEnvironmentWithDensity(double airDensityRatio, double precipitationWetness, double ambientTemperatureCelsius) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				airDensityRatio,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				precipitationWetness,
+				ambientTemperatureCelsius
+		);
 	}
 
 	private static double averageRotorThrust(DroneState state) {

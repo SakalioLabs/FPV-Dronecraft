@@ -20,6 +20,7 @@ public record DroneEnvironment(
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
+	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, 0.0);
@@ -136,6 +137,35 @@ public record DroneEnvironment(
 		}
 		double temperatureKelvin = MathUtil.clamp(ambientTemperatureCelsius + 273.15, 233.15, 338.15);
 		return Math.sqrt(1.4 * 287.05 * temperatureKelvin);
+	}
+
+	public double effectiveAirDensityRatio() {
+		return MathUtil.clamp(
+				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, precipitationWetnessIntensity),
+				0.35,
+				1.35
+		);
+	}
+
+	public static double moistAirDensityMultiplier(double ambientTemperatureCelsius, double precipitationWetnessIntensity) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double wetness = MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0);
+		if (wetness <= 1.0e-9) {
+			return 1.0;
+		}
+
+		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
+		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
+		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
+		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF * vaporPressureFraction * wetness;
+		return MathUtil.clamp(1.0 - densityRelief, 0.94, 1.0);
+	}
+
+	private static double saturationVaporPressureHectopascals(double ambientTemperatureCelsius) {
+		double celsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
+		return 6.112 * Math.exp(17.67 * celsius / (celsius + 243.5));
 	}
 
 	public static double barometricPressureHectopascals(
