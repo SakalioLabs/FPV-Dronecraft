@@ -150,6 +150,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_translational_lift",
 		"rotor_aerodynamic_load",
 		"rotor_advance_ratio",
+		"rotor_reverse_flow_fraction",
 		"rotor_tip_mach",
 		"rotor_5_tip_mach",
 		"rotor_blade_aoa_deg",

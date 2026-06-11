@@ -74,6 +74,7 @@ public final class DronePhysics {
 	private final double[] rotorBladeDissymmetryThrustScale;
 	private final double[] rotorBladeDissymmetryLoadFactor;
 	private final double[] rotorBladeDissymmetryVibration;
+	private final double[] rotorBladeDissymmetryReverseFlowInboardFraction;
 	private final double[] rotorDynamicStallIntensity;
 	private final double[] rotorInducedWakeVelocityMetersPerSecond;
 	private final double[] rotorInducedWakeCarryoverIntensity;
@@ -268,6 +269,7 @@ public final class DronePhysics {
 		this.rotorBladeDissymmetryThrustScale = new double[config.rotors().size()];
 		this.rotorBladeDissymmetryLoadFactor = new double[config.rotors().size()];
 		this.rotorBladeDissymmetryVibration = new double[config.rotors().size()];
+		this.rotorBladeDissymmetryReverseFlowInboardFraction = new double[config.rotors().size()];
 		this.rotorDynamicStallIntensity = new double[config.rotors().size()];
 		this.rotorInducedWakeVelocityMetersPerSecond = new double[config.rotors().size()];
 		this.rotorInducedWakeCarryoverIntensity = new double[config.rotors().size()];
@@ -376,6 +378,7 @@ public final class DronePhysics {
 		Arrays.fill(rotorBladeDissymmetryThrustScale, 1.0);
 		Arrays.fill(rotorBladeDissymmetryLoadFactor, 0.0);
 		Arrays.fill(rotorBladeDissymmetryVibration, 0.0);
+		Arrays.fill(rotorBladeDissymmetryReverseFlowInboardFraction, 0.0);
 		Arrays.fill(rotorDynamicStallIntensity, 0.0);
 		Arrays.fill(rotorInducedWakeVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorInducedWakeCarryoverIntensity, 0.0);
@@ -713,6 +716,7 @@ public final class DronePhysics {
 			state.setRotorBladeAngleOfAttackRadians(i, bladeElement.angleOfAttackRadians());
 			state.setRotorBladeElementStallIntensity(i, bladeElement.stallIntensity());
 			state.setRotorBladeDissymmetryIntensity(i, bladeDissymmetry.intensity());
+			state.setRotorReverseFlowInboardFraction(i, bladeDissymmetry.reverseFlowInboardFraction());
 			state.setRotorStallIntensity(i, rotorStall);
 			rotorVibrationSum += rotorDamageVibration(rotor, omega, state.rotorHealth(i))
 					+ rotorStallVibration(rotor, aerodynamicOmega, rotorStall)
@@ -2759,6 +2763,8 @@ public final class DronePhysics {
 				+ (target.loadFactor() - rotorBladeDissymmetryLoadFactor[index]) * alpha;
 		double vibration = rotorBladeDissymmetryVibration[index]
 				+ (target.vibration() - rotorBladeDissymmetryVibration[index]) * alpha;
+		double reverseFlowInboardFraction = rotorBladeDissymmetryReverseFlowInboardFraction[index]
+				+ (target.reverseFlowInboardFraction() - rotorBladeDissymmetryReverseFlowInboardFraction[index]) * alpha;
 
 		if (target.intensity() <= 1.0e-6 && intensity < 1.0e-5) {
 			intensity = 0.0;
@@ -2770,7 +2776,8 @@ public final class DronePhysics {
 				MathUtil.clamp(intensity, 0.0, 1.0),
 				MathUtil.clamp(thrustScale, 0.86, 1.0),
 				MathUtil.clamp(loadFactor, 0.0, 0.22),
-				MathUtil.clamp(vibration, 0.0, 0.12)
+				MathUtil.clamp(vibration, 0.0, 0.12),
+				MathUtil.clamp(reverseFlowInboardFraction, 0.0, 1.0)
 		);
 		setRotorBladeDissymmetryState(index, filtered);
 		return filtered;
@@ -2781,6 +2788,7 @@ public final class DronePhysics {
 		rotorBladeDissymmetryThrustScale[index] = aerodynamics.thrustScale();
 		rotorBladeDissymmetryLoadFactor[index] = aerodynamics.loadFactor();
 		rotorBladeDissymmetryVibration[index] = aerodynamics.vibration();
+		rotorBladeDissymmetryReverseFlowInboardFraction[index] = aerodynamics.reverseFlowInboardFraction();
 	}
 
 	private static BladeDissymmetryAerodynamics calculateSteadyRotorBladeDissymmetryAerodynamics(
@@ -2798,22 +2806,43 @@ public final class DronePhysics {
 		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
 		double thrustFraction = MathUtil.clamp(baseThrustNewtons / Math.max(1.0e-6, rotor.maxThrustNewtons()), 0.0, 1.25);
 		double loadedRotor = smoothStep(0.16, 0.55, spinRatio) * (0.35 + 0.65 * smoothStep(0.05, 0.45, thrustFraction));
+		double reverseFlowInboardFraction = MathUtil.clamp(advanceRatio, 0.0, 1.0);
+		double reverseFlowSeverity = smoothStep(0.36, 0.82, reverseFlowInboardFraction) * loadedRotor;
 		double liftDissymmetry = smoothStep(0.08, 0.34, advanceRatio) * loadedRotor;
 		double retreatingBladeStall = smoothStep(0.42, 0.82, advanceRatio) * loadedRotor;
 		double intensity = MathUtil.clamp(liftDissymmetry + 0.35 * retreatingBladeStall, 0.0, 1.0);
-		double thrustScale = MathUtil.clamp(1.0 - 0.025 * liftDissymmetry - 0.075 * retreatingBladeStall, 0.86, 1.0);
-		double loadFactor = MathUtil.clamp(0.035 * liftDissymmetry + 0.13 * retreatingBladeStall, 0.0, 0.22);
-		double vibration = MathUtil.clamp(0.025 * liftDissymmetry + 0.075 * retreatingBladeStall, 0.0, 0.12);
-		return new BladeDissymmetryAerodynamics(intensity, thrustScale, loadFactor, vibration);
+		double thrustScale = MathUtil.clamp(
+				1.0 - 0.025 * liftDissymmetry - 0.075 * retreatingBladeStall - 0.020 * reverseFlowSeverity,
+				0.86,
+				1.0
+		);
+		double loadFactor = MathUtil.clamp(
+				0.035 * liftDissymmetry + 0.13 * retreatingBladeStall + 0.050 * reverseFlowSeverity,
+				0.0,
+				0.22
+		);
+		double vibration = MathUtil.clamp(
+				0.025 * liftDissymmetry + 0.075 * retreatingBladeStall + 0.030 * reverseFlowSeverity,
+				0.0,
+				0.12
+		);
+		return new BladeDissymmetryAerodynamics(
+				intensity,
+				thrustScale,
+				loadFactor,
+				vibration,
+				reverseFlowInboardFraction
+		);
 	}
 
 	private record BladeDissymmetryAerodynamics(
 			double intensity,
 			double thrustScale,
 			double loadFactor,
-			double vibration
+			double vibration,
+			double reverseFlowInboardFraction
 	) {
-		private static final BladeDissymmetryAerodynamics IDLE = new BladeDissymmetryAerodynamics(0.0, 1.0, 0.0, 0.0);
+		private static final BladeDissymmetryAerodynamics IDLE = new BladeDissymmetryAerodynamics(0.0, 1.0, 0.0, 0.0, 0.0);
 	}
 
 	private static double rotorTipMach(

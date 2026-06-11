@@ -90,6 +90,7 @@ public final class DroneState {
 	private double[] rotorTranslationalLiftIntensity;
 	private double[] rotorAdvanceRatio;
 	private double[] rotorPropellerAdvanceRatioJ;
+	private double[] rotorReverseFlowInboardFraction;
 	private double[] rotorTipMach;
 	private double[] rotorLowReynoldsLoss;
 	private double[] rotorBladeAngleOfAttackRadians;
@@ -208,6 +209,7 @@ public final class DroneState {
 		rotorTranslationalLiftIntensity = new double[motorCount];
 		rotorAdvanceRatio = new double[motorCount];
 		rotorPropellerAdvanceRatioJ = new double[motorCount];
+		rotorReverseFlowInboardFraction = new double[motorCount];
 		rotorTipMach = new double[motorCount];
 		rotorLowReynoldsLoss = new double[motorCount];
 		rotorBladeAngleOfAttackRadians = new double[motorCount];
@@ -1287,6 +1289,7 @@ public final class DroneState {
 		Arrays.fill(rotorTranslationalLiftIntensity, 0.0);
 		Arrays.fill(rotorAdvanceRatio, 0.0);
 		Arrays.fill(rotorPropellerAdvanceRatioJ, 0.0);
+		Arrays.fill(rotorReverseFlowInboardFraction, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
 		Arrays.fill(rotorLowReynoldsLoss, 0.0);
 		Arrays.fill(rotorBladeAngleOfAttackRadians, 0.0);
@@ -1514,6 +1517,34 @@ public final class DroneState {
 		double max = 0.0;
 		for (double ratio : rotorPropellerAdvanceRatioJ) {
 			max = Math.max(max, ratio);
+		}
+		return max;
+	}
+
+	public double rotorReverseFlowInboardFraction(int index) {
+		return rotorReverseFlowInboardFraction[index];
+	}
+
+	public double[] rotorReverseFlowInboardFraction() {
+		return Arrays.copyOf(rotorReverseFlowInboardFraction, rotorReverseFlowInboardFraction.length);
+	}
+
+	void setRotorReverseFlowInboardFraction(int index, double value) {
+		rotorReverseFlowInboardFraction[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorReverseFlowInboardFraction() {
+		double sum = 0.0;
+		for (double fraction : rotorReverseFlowInboardFraction) {
+			sum += fraction;
+		}
+		return sum / rotorReverseFlowInboardFraction.length;
+	}
+
+	public double maxRotorReverseFlowInboardFraction() {
+		double max = 0.0;
+		for (double fraction : rotorReverseFlowInboardFraction) {
+			max = Math.max(max, fraction);
 		}
 		return max;
 	}

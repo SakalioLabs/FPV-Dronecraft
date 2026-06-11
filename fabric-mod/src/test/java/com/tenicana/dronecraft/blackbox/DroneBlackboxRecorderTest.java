@@ -115,6 +115,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_prop_advance_ratio_j"));
 		assertTrue(csv.contains("rotor_0_prop_advance_ratio_j"));
 		assertTrue(csv.contains("rotor_3_prop_advance_ratio_j"));
+		assertTrue(csv.contains("rotor_reverse_flow_fraction"));
+		assertTrue(csv.contains("rotor_0_reverse_flow_fraction"));
+		assertTrue(csv.contains("rotor_7_reverse_flow_fraction"));
 		assertTrue(csv.contains("rotor_tip_mach"));
 		assertTrue(csv.contains("rotor_0_tip_mach"));
 		assertTrue(csv.contains("rotor_7_tip_mach"));
@@ -384,9 +387,15 @@ class DroneBlackboxRecorderTest {
 		double loggedRotorAdvanceRatio = Double.parseDouble(row[indexOf(header, "rotor_advance_ratio")]);
 		double loggedRotorPropAdvanceRatioJ = Double.parseDouble(row[indexOf(header, "rotor_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotorAdvanceRatio, loggedRotorPropAdvanceRatioJ, 1.0e-4);
+		double loggedRotorReverseFlow = Double.parseDouble(row[indexOf(header, "rotor_reverse_flow_fraction")]);
+		assertUnitInterval(loggedRotorReverseFlow);
+		assertTrue(loggedRotorReverseFlow <= Math.min(1.0, loggedRotorAdvanceRatio) + 0.02);
 		double loggedRotor0AdvanceRatio = Double.parseDouble(row[indexOf(header, "rotor_0_advance_ratio")]);
 		double loggedRotor0PropAdvanceRatioJ = Double.parseDouble(row[indexOf(header, "rotor_0_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotor0AdvanceRatio, loggedRotor0PropAdvanceRatioJ, 1.0e-4);
+		double loggedRotor0ReverseFlow = Double.parseDouble(row[indexOf(header, "rotor_0_reverse_flow_fraction")]);
+		assertUnitInterval(loggedRotor0ReverseFlow);
+		assertTrue(loggedRotor0ReverseFlow <= Math.min(1.0, loggedRotor0AdvanceRatio) + 0.02);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_blade_aoa_deg")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_0_blade_aoa_deg")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_blade_element_stall")]));
@@ -871,6 +880,9 @@ class DroneBlackboxRecorderTest {
 				Double.parseDouble(row[indexOf(header, "rotor_7_prop_advance_ratio_j")]),
 				1.0e-4
 		);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")])
+				<= Math.min(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")])) + 0.02);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_dissymmetry")]) >= 0.0);
@@ -1039,6 +1051,9 @@ class DroneBlackboxRecorderTest {
 				Double.parseDouble(row[indexOf(header, "rotor_7_prop_advance_ratio_j")]),
 				1.0e-4
 		);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")])
+				<= Math.min(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")])) + 0.02);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));

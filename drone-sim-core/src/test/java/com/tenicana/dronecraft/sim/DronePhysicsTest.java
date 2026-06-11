@@ -6392,9 +6392,16 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(0.0, noRelativeFlow.state().averageRotorBladeDissymmetryIntensity(), 1.0e-9);
+		assertEquals(0.0, noRelativeFlow.state().averageRotorReverseFlowInboardFraction(), 1.0e-9);
 		assertTrue(crossFlow.state().averageRotorBladeDissymmetryIntensity() > 0.44);
 		assertTrue(crossFlow.state().maxRotorBladeDissymmetryIntensity() > 0.45);
 		assertTrue(crossFlow.state().averageRotorAdvanceRatio() > 0.70);
+		assertTrue(crossFlow.state().averageRotorReverseFlowInboardFraction() > 0.70);
+		assertEquals(
+				Math.min(1.0, crossFlow.state().averageRotorAdvanceRatio()),
+				crossFlow.state().averageRotorReverseFlowInboardFraction(),
+				0.015
+		);
 		assertTrue(crossFlow.state().averageRotorAerodynamicLoadFactor()
 				> noRelativeFlow.state().averageRotorAerodynamicLoadFactor() + 0.16);
 		assertTrue(crossFlow.state().rotorVibration() > noRelativeFlow.state().rotorVibration() + 0.04);
@@ -6664,6 +6671,7 @@ class DronePhysicsTest {
 		assertTrue(stalled.state().averageRotorStallIntensity() > 0.55);
 		assertTrue(stalled.state().averageRotorAdvanceRatio() > 0.70);
 		assertTrue(stalled.state().maxRotorAdvanceRatio() > 0.70);
+		assertTrue(stalled.state().maxRotorReverseFlowInboardFraction() > 0.70);
 		assertTrue(stalled.state().rotorThrustNewtons(0) < noStallLoss.state().rotorThrustNewtons(0) * 0.65);
 		assertTrue(noStallLoss.state().rotorVibration() < 0.13);
 		assertTrue(stalled.state().rotorVibration() > noStallLoss.state().rotorVibration() + 0.09);
@@ -6943,6 +6951,16 @@ class DronePhysicsTest {
 				Math.PI * transverseFlow.state().rotorAdvanceRatio(0),
 				transverseFlow.state().rotorPropellerAdvanceRatioJ(0),
 				1.0e-6
+		);
+		assertEquals(
+				Math.min(1.0, axialFlow.state().rotorAdvanceRatio(0)),
+				axialFlow.state().rotorReverseFlowInboardFraction(0),
+				0.010
+		);
+		assertEquals(
+				Math.min(1.0, transverseFlow.state().rotorAdvanceRatio(0)),
+				transverseFlow.state().rotorReverseFlowInboardFraction(0),
+				0.010
 		);
 		assertTrue(transverseFlow.state().rotorTranslationalLiftIntensity(0)
 				> axialFlow.state().rotorTranslationalLiftIntensity(0) + 0.10);
@@ -7998,6 +8016,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_advance_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_prop_advance_ratio_j"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_prop_advance_ratio_j"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_reverse_flow_fraction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_reverse_flow_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_tip_mach"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_tip_mach"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_low_reynolds_loss"));
@@ -8282,6 +8302,12 @@ class DronePhysicsTest {
 		double loggedRotor0AdvanceRatio = Double.parseDouble(firstRow[indexOf(header, "rotor_0_advance_ratio")]);
 		double loggedRotor0PropAdvanceRatioJ = Double.parseDouble(firstRow[indexOf(header, "rotor_0_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotor0AdvanceRatio, loggedRotor0PropAdvanceRatioJ, 1.0e-4);
+		double loggedRotorReverseFlow = Double.parseDouble(firstRow[indexOf(header, "rotor_reverse_flow_fraction")]);
+		double loggedRotor7ReverseFlow = Double.parseDouble(firstRow[indexOf(header, "rotor_7_reverse_flow_fraction")]);
+		assertTrue(loggedRotorReverseFlow >= 0.0);
+		assertTrue(loggedRotorReverseFlow <= 1.0);
+		assertTrue(loggedRotor7ReverseFlow >= 0.0);
+		assertTrue(loggedRotor7ReverseFlow <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_tip_mach")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_tip_mach")])));
 		double loggedRotorLowReynoldsLoss = Double.parseDouble(firstRow[indexOf(header, "rotor_low_reynolds_loss")]);
@@ -8376,6 +8402,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_coning") > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") > 0.10);
+		assertTrue(maxColumn(lines, header, "rotor_reverse_flow_fraction") > 0.05);
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
@@ -8444,6 +8471,20 @@ class DronePhysicsTest {
 		assertTrue(report.maxPropwashIntensity() > 0.02);
 		assertTrue(report.maxRotorAdvanceRatio() > 0.05);
 		assertEquals(Math.PI * report.maxRotorAdvanceRatio(), report.maxRotorPropellerAdvanceRatioJ(), 0.0001);
+		assertTrue(report.maxRotorReverseFlowInboardFraction() > 0.05);
+		assertTrue(report.maxRotorReverseFlowInboardFraction() <= Math.min(1.0, report.maxRotorAdvanceRatio()) + 0.02);
+		double maxLoggedRotorReverseFlow = 0.0;
+		for (int i = 0; i < 8; i++) {
+			maxLoggedRotorReverseFlow = Math.max(
+					maxLoggedRotorReverseFlow,
+					maxColumn(lines, header, "rotor_" + i + "_reverse_flow_fraction")
+			);
+		}
+		assertEquals(
+				maxLoggedRotorReverseFlow,
+				report.maxRotorReverseFlowInboardFraction(),
+				1.0e-5
+		);
 		assertTrue(report.maxRotorTipMach() > 0.05);
 		assertTrue(report.maxRotorLowReynoldsLoss() >= 0.0);
 		assertTrue(report.maxRotorLowReynoldsLoss() <= 1.0);
