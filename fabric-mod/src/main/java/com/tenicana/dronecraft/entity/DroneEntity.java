@@ -2409,6 +2409,7 @@ public class DroneEntity extends PathfinderMob {
 		output.putDouble("tune_rotor_thrust_coefficient", rotor.thrustCoefficient());
 		output.putDouble("tune_rotor_radius", rotor.radiusMeters());
 		output.putDouble("tune_rotor_blade_pitch", rotor.bladePitchMeters());
+		output.putDouble("tune_rotor_blade_count", rotor.bladeCount());
 		output.putDouble("tune_rotor_transverse_lift", rotor.transverseFlowLiftCoefficient());
 		output.putDouble("tune_rotor_axial_loss", rotor.axialFlowThrustLossCoefficient());
 		output.putDouble("tune_rotor_disk_drag", rotor.diskDragCoefficient());
@@ -2540,6 +2541,7 @@ public class DroneEntity extends PathfinderMob {
 				.withRotorThrustCoefficient(input.getDoubleOr("tune_rotor_thrust_coefficient", defaultRotor.thrustCoefficient()))
 				.withRotorRadiusMeters(input.getDoubleOr("tune_rotor_radius", defaultRotor.radiusMeters()))
 				.withRotorBladePitchMeters(input.getDoubleOr("tune_rotor_blade_pitch", defaultRotor.bladePitchMeters()))
+				.withRotorBladeCount((int) Math.round(input.getDoubleOr("tune_rotor_blade_count", defaultRotor.bladeCount())))
 				.withRotorTransverseFlowLiftCoefficient(input.getDoubleOr("tune_rotor_transverse_lift", defaultRotor.transverseFlowLiftCoefficient()))
 				.withRotorAxialFlowThrustLossCoefficient(input.getDoubleOr("tune_rotor_axial_loss", defaultRotor.axialFlowThrustLossCoefficient()))
 				.withRotorDiskDragCoefficient(input.getDoubleOr("tune_rotor_disk_drag", defaultRotor.diskDragCoefficient()))
