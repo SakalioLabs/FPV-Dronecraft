@@ -34,6 +34,7 @@ class DroneStatusFormatterTest {
 				0.0, // droneWake
 				0.0, // rotorWakeInterference
 				0.0, // rotorWakeSwirlVelocityMetersPerSecond
+				0.0, // rotorWindmillingIntensity
 				0.0, // rotorWakeSwirlTorqueNewtonMeters
 				0.0, // rotorActiveBrakingTorqueNewtonMeters
 				0.0, // rotorAccelerationReactionTorqueNewtonMeters
@@ -77,6 +78,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("bdiss 0.000Nm"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("swirl 0.00m/s"));
+		assertTrue(status.contains("wmill 0.00"));
 		assertTrue(status.contains("swirlT 0.000Nm"));
 		assertTrue(status.contains("brakeT 0.000Nm"));
 		assertTrue(status.contains("accelT 0.000Nm"));
@@ -116,6 +118,7 @@ class DroneStatusFormatterTest {
 				0.58,
 				0.47,
 				0.92,
+				0.68,
 				0.016,
 				0.018,
 				0.016,
@@ -164,6 +167,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("drone-wake"));
 		assertTrue(warnings.contains("rotor-wake"));
 		assertTrue(warnings.contains("wake-swirl"));
+		assertTrue(warnings.contains("rotor-windmilling"));
 		assertTrue(warnings.contains("wake-swirl-torque"));
 		assertTrue(warnings.contains("active-brake-torque"));
 		assertTrue(warnings.contains("rotor-accel-torque"));
@@ -182,7 +186,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("bdiss 0.024Nm"));
-		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
+		assertTrue(status.contains("swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -211,6 +215,7 @@ class DroneStatusFormatterTest {
 			double droneWake,
 			double rotorWakeInterference,
 			double rotorWakeSwirlVelocityMetersPerSecond,
+			double rotorWindmillingIntensity,
 			double rotorWakeSwirlTorqueNewtonMeters,
 			double rotorActiveBrakingTorqueNewtonMeters,
 			double rotorAccelerationReactionTorqueNewtonMeters,
@@ -296,6 +301,7 @@ class DroneStatusFormatterTest {
 				droneWake > 0.55 ? 0.28 : 0.0,
 				rotorWakeInterference,
 				rotorWakeSwirlVelocityMetersPerSecond,
+				rotorWindmillingIntensity,
 				rotorWakeSwirlTorqueNewtonMeters,
 				rotorActiveBrakingTorqueNewtonMeters,
 				rotorAccelerationReactionTorqueNewtonMeters,

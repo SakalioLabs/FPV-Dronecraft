@@ -97,6 +97,7 @@ public final class DroneState {
 	private double[] rotorFlappingTiltRadians;
 	private double[] rotorConingIntensity;
 	private double[] rotorStallIntensity;
+	private double[] rotorWindmillingIntensity;
 	private double[] rotorSurfaceScrapeIntensity;
 	private double[] rotorWakeInterferenceIntensity;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
@@ -200,6 +201,7 @@ public final class DroneState {
 		rotorFlappingTiltRadians = new double[motorCount];
 		rotorConingIntensity = new double[motorCount];
 		rotorStallIntensity = new double[motorCount];
+		rotorWindmillingIntensity = new double[motorCount];
 		rotorSurfaceScrapeIntensity = new double[motorCount];
 		rotorWakeInterferenceIntensity = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
@@ -1210,6 +1212,7 @@ public final class DroneState {
 		Arrays.fill(rotorFlappingTiltRadians, 0.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
 		Arrays.fill(rotorStallIntensity, 0.0);
+		Arrays.fill(rotorWindmillingIntensity, 0.0);
 		Arrays.fill(rotorSurfaceScrapeIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
@@ -1643,6 +1646,34 @@ public final class DroneState {
 			sum += stall;
 		}
 		return sum / rotorStallIntensity.length;
+	}
+
+	public double rotorWindmillingIntensity(int index) {
+		return rotorWindmillingIntensity[index];
+	}
+
+	public double[] rotorWindmillingIntensity() {
+		return Arrays.copyOf(rotorWindmillingIntensity, rotorWindmillingIntensity.length);
+	}
+
+	void setRotorWindmillingIntensity(int index, double value) {
+		rotorWindmillingIntensity[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorWindmillingIntensity() {
+		double sum = 0.0;
+		for (double intensity : rotorWindmillingIntensity) {
+			sum += intensity;
+		}
+		return sum / rotorWindmillingIntensity.length;
+	}
+
+	public double maxRotorWindmillingIntensity() {
+		double max = 0.0;
+		for (double intensity : rotorWindmillingIntensity) {
+			max = Math.max(max, intensity);
+		}
+		return max;
 	}
 
 	public double rotorSurfaceScrapeIntensity(int index) {

@@ -159,6 +159,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_inflow_skew",
 		"rotor_wake_swirl_mps",
 		"rotor_5_wake_swirl_mps",
+		"rotor_windmilling",
+		"rotor_5_windmilling",
 		"rotor_arm_flex",
 		"rotor_5_arm_flex",
 		"rotor_surface_scrape",

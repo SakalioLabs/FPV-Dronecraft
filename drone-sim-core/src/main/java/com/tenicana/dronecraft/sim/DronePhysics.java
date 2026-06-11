@@ -516,6 +516,8 @@ public final class DronePhysics {
 					.add(angularVelocityBody.cross(rotorArmBody))
 					.add(rotorWakeInterference.downwashVelocityBodyMetersPerSecond(i))
 					.add(wakeSwirlVelocityBody);
+			double windmillingIntensity = rotorWindmillingIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, escOutput);
+			state.setRotorWindmillingIntensity(i, windmillingIntensity);
 			commandedOmega = applyRotorWindmilling(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
@@ -1813,7 +1815,22 @@ public final class DronePhysics {
 	}
 
 	private static double rotorWindmillingLowDriveFactor(double escOutput) {
-		return 1.0 - smoothStep(0.035, 0.22, MathUtil.clamp(escOutput, 0.0, 1.0));
+		return 1.0 - smoothStep(0.080, 0.42, MathUtil.clamp(escOutput, 0.0, 1.0));
+	}
+
+	private static double rotorWindmillingIntensity(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double escOutput
+	) {
+		double reverseAxialSpeed = rotorWindmillingReverseAxialSpeed(rotor, relativeAirVelocityBody);
+		double lowDrive = rotorWindmillingLowDriveFactor(escOutput);
+		if (reverseAxialSpeed <= 1.0e-6 || lowDrive <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double reverseCapture = smoothStep(1.0, 12.0, reverseAxialSpeed);
+		return MathUtil.clamp(reverseCapture * lowDrive, 0.0, 1.0);
 	}
 
 	private Vec3 updateRotorWallEffectForce(

@@ -257,6 +257,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_wake_swirl_mps",
 			"rotor_2_wake_swirl_mps",
 			"rotor_3_wake_swirl_mps",
+			"rotor_windmilling",
+			"rotor_0_windmilling",
+			"rotor_1_windmilling",
+			"rotor_2_windmilling",
+			"rotor_3_windmilling",
 			"rotor_wake_swirl_pitch_torque_nm",
 			"rotor_wake_swirl_yaw_torque_nm",
 			"rotor_wake_swirl_roll_torque_nm",
@@ -710,6 +715,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_wake_swirl_mps",
 			"rotor_6_wake_swirl_mps",
 			"rotor_7_wake_swirl_mps",
+			"rotor_4_windmilling",
+			"rotor_5_windmilling",
+			"rotor_6_windmilling",
+			"rotor_7_windmilling",
 			"rotor_4_arm_flex",
 			"rotor_5_arm_flex",
 			"rotor_6_arm_flex",
@@ -1087,6 +1096,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorWakeSwirlOrZero(state, 1), "%.5f");
 		row.add(rotorWakeSwirlOrZero(state, 2), "%.5f");
 		row.add(rotorWakeSwirlOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorWindmillingIntensity(), "%.5f");
+		row.add(rotorWindmillingOrZero(state, 0), "%.5f");
+		row.add(rotorWindmillingOrZero(state, 1), "%.5f");
+		row.add(rotorWindmillingOrZero(state, 2), "%.5f");
+		row.add(rotorWindmillingOrZero(state, 3), "%.5f");
 		row.add(rotorWakeSwirlTorque.x(), "%.6f");
 		row.add(rotorWakeSwirlTorque.y(), "%.6f");
 		row.add(rotorWakeSwirlTorque.z(), "%.6f");
@@ -1477,6 +1491,7 @@ public final class DroneBlackboxSample {
 		double[] rotorConing = state.rotorConingIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
+		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorArmFlex = state.rotorArmFlexIntensity();
 
 		row.add(config.rotors().size());
@@ -1568,6 +1583,9 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(rotorWakeSwirl, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorWindmilling, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorArmFlex, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -1654,6 +1672,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorWakeSwirlOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorWakeSwirlVelocityMetersPerSecond(index) : 0.0;
+	}
+
+	private static double rotorWindmillingOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorWindmillingIntensity(index) : 0.0;
 	}
 
 	private static double rotorArmFlexOrZero(DroneState state, int index) {

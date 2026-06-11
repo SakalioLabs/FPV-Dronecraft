@@ -58,6 +58,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorConing;
 	private double maxRotorWakeInterference;
 	private double maxRotorWakeSwirlVelocity;
+	private double maxRotorWindmilling;
 	private double maxRotorWakeSwirlTorque;
 	private double maxRotorActiveBrakingTorque;
 	private double maxRotorAccelerationReactionTorque;
@@ -140,6 +141,7 @@ public final class DroneServerSelfTest {
 		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
+		maxRotorWindmilling = Math.max(maxRotorWindmilling, drone.getRotorWindmillingIntensity());
 		maxRotorWakeSwirlTorque = Math.max(maxRotorWakeSwirlTorque, drone.getRotorWakeSwirlTorqueNewtonMeters());
 		maxRotorActiveBrakingTorque = Math.max(maxRotorActiveBrakingTorque, drone.getRotorActiveBrakingTorqueNewtonMeters());
 		maxRotorAccelerationReactionTorque = Math.max(maxRotorAccelerationReactionTorque, drone.getRotorAccelerationReactionTorqueNewtonMeters());
@@ -191,6 +193,8 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_interference")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_windmilling")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_windmilling")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_pitch_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_yaw_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_roll_torque_nm")
@@ -344,6 +348,8 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_interference")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_windmilling")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_windmilling")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_pitch_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_yaw_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_roll_torque_nm")
@@ -530,6 +536,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_coning\": %.5f,\n"
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
+						+ "  \"max_rotor_windmilling\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_active_braking_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_acceleration_reaction_torque_nm\": %.6f,\n"
@@ -569,6 +576,7 @@ public final class DroneServerSelfTest {
 				maxRotorConing,
 				maxRotorWakeInterference,
 				maxRotorWakeSwirlVelocity,
+				maxRotorWindmilling,
 				maxRotorWakeSwirlTorque,
 				maxRotorActiveBrakingTorque,
 				maxRotorAccelerationReactionTorque,
