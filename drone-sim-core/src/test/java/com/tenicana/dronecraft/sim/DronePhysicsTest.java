@@ -7417,6 +7417,8 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorTipMach() > 0.05);
 		assertTrue(report.maxRotorLowReynoldsLoss() >= 0.0);
 		assertTrue(report.maxRotorLowReynoldsLoss() <= 1.0);
+		assertTrue(report.maxRotorBladePassRippleIntensity() > 0.0);
+		assertTrue(report.maxRotorBladePassRippleIntensity() <= 1.0);
 		assertTrue(report.maxRotorBladeDissymmetryTorqueNewtonMeters() >= 0.0);
 		assertEquals(maxBladeDissymmetryTorque, report.maxRotorBladeDissymmetryTorqueNewtonMeters(), 1.0e-5);
 		assertTrue(report.maxRotorArmFlexIntensity() > 0.02);

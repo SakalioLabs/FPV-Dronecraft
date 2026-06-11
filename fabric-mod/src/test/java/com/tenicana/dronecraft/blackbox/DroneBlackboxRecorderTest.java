@@ -523,6 +523,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxBatteryVoltageSpike() >= 0.0);
 		assertTrue(summary.maxWindGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
+		assertTrue(summary.maxRotorBladePassRippleIntensity() > 0.0);
 		assertEquals(0.45, summary.maxWaterImmersionIntensity(), 0.0001);
 		assertEquals(0.36, summary.maxPrecipitationWetnessIntensity(), 0.0001);
 		assertTrue(summary.minRotorWetThrustScale() < 1.0);
@@ -551,6 +552,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("adv"));
 		assertTrue(summary.formatForChat().contains("tipmach"));
 		assertTrue(summary.formatForChat().contains("lowre"));
+		assertTrue(summary.formatForChat().contains("bpass"));
 		assertTrue(summary.formatForChat().contains("load"));
 		assertTrue(summary.formatForChat().contains("skew"));
 		assertTrue(summary.formatForChat().contains("bdiss"));

@@ -30,6 +30,7 @@ class DroneStatusFormatterTest {
 				0.0, // rotorLowReynoldsLoss
 				12.0, // rotorBladeAngleOfAttackDegrees
 				0.0, // rotorBladeElementStallIntensity
+				0.0, // rotorBladePassRippleIntensity
 				0.0, // rotorBladeDissymmetryTorqueNewtonMeters
 				0.0, // droneWake
 				0.0, // rotorWakeInterference
@@ -77,7 +78,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("adv"));
 		assertTrue(status.contains("tipmach 0.32"));
 		assertTrue(status.contains("lowre 0.00"));
-		assertTrue(status.contains("blade 12deg bstall 0.00"));
+		assertTrue(status.contains("blade 12deg bstall 0.00 bpass 0.000"));
 		assertTrue(status.contains("bdiss 0.000Nm"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("wloss 0%"));
@@ -119,6 +120,7 @@ class DroneStatusFormatterTest {
 				0.31,
 				32.0,
 				0.46,
+				0.031,
 				0.024,
 				0.58,
 				0.47,
@@ -167,6 +169,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("low-re"));
 		assertTrue(warnings.contains("blade-aoa"));
 		assertTrue(warnings.contains("blade-stall"));
+		assertTrue(warnings.contains("blade-pass-ripple"));
 		assertTrue(warnings.contains("blade-dissymmetry"));
 		assertTrue(warnings.contains("vrs"));
 		assertTrue(warnings.contains("propwash"));
@@ -194,7 +197,7 @@ class DroneStatusFormatterTest {
 
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
-		assertTrue(status.contains("bdiss 0.024Nm"));
+		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
 		assertTrue(status.contains("rwake 0.47 wloss 9% wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
@@ -220,6 +223,7 @@ class DroneStatusFormatterTest {
 			double rotorLowReynoldsLoss,
 			double rotorBladeAngleOfAttackDegrees,
 			double rotorBladeElementStallIntensity,
+			double rotorBladePassRippleIntensity,
 			double rotorBladeDissymmetryTorqueNewtonMeters,
 			double droneWake,
 			double rotorWakeInterference,
@@ -309,6 +313,7 @@ class DroneStatusFormatterTest {
 				rotorLowReynoldsLoss,
 				rotorBladeAngleOfAttackDegrees,
 				rotorBladeElementStallIntensity,
+				rotorBladePassRippleIntensity,
 				rotorBladeDissymmetryTorqueNewtonMeters,
 				droneWake > 0.55 ? 0.28 : 0.0,
 				rotorWakeInterference,

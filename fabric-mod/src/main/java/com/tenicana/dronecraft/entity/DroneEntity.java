@@ -127,6 +127,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_LOW_REYNOLDS_LOSS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_AOA = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_ELEMENT_STALL = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_BLADE_PASS_RIPPLE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_DISSYMMETRY_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_INFLOW_SKEW = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_INTERFERENCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -392,6 +393,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_LOW_REYNOLDS_LOSS, 0.0f);
 		builder.define(ROTOR_BLADE_AOA, 0.0f);
 		builder.define(ROTOR_BLADE_ELEMENT_STALL, 0.0f);
+		builder.define(ROTOR_BLADE_PASS_RIPPLE, 0.0f);
 		builder.define(ROTOR_BLADE_DISSYMMETRY_TORQUE, 0.0f);
 		builder.define(ROTOR_INFLOW_SKEW, 0.0f);
 		builder.define(ROTOR_WAKE_INTERFERENCE, 0.0f);
@@ -1122,6 +1124,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_LOW_REYNOLDS_LOSS, (float) physics.state().maxRotorLowReynoldsLoss());
 		entityData.set(ROTOR_BLADE_AOA, (float) Math.toDegrees(physics.state().maxAbsRotorBladeAngleOfAttackRadians()));
 		entityData.set(ROTOR_BLADE_ELEMENT_STALL, (float) physics.state().maxRotorBladeElementStallIntensity());
+		entityData.set(ROTOR_BLADE_PASS_RIPPLE, (float) physics.state().maxRotorBladePassRippleIntensity());
 		entityData.set(ROTOR_BLADE_DISSYMMETRY_TORQUE, (float) physics.state().rotorBladeDissymmetryTorqueBodyNewtonMeters().length());
 		entityData.set(ROTOR_INFLOW_SKEW, (float) physics.state().rotorInflowSkewIntensity());
 		entityData.set(ROTOR_WAKE_INTERFERENCE, (float) physics.state().maxRotorWakeInterferenceIntensity());
@@ -1821,6 +1824,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorBladeElementStallIntensity() {
 		return entityData.get(ROTOR_BLADE_ELEMENT_STALL);
+	}
+
+	public float getRotorBladePassRippleIntensity() {
+		return entityData.get(ROTOR_BLADE_PASS_RIPPLE);
 	}
 
 	public float getRotorBladeDissymmetryTorqueNewtonMeters() {
