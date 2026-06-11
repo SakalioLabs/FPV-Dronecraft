@@ -521,6 +521,25 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coaxialLoadBiasFollowsBenchmarkSpacingEfficiencyWindows() {
+		DroneConfig base = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		double closePeakBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 0.32), 0.08);
+		double valleyBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 0.55), 0.08);
+		double x8PeakBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 0.72), 0.08);
+		double farSpacingBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 1.00), 0.08);
+
+		assertTrue(closePeakBias > valleyBias + 0.006,
+				() -> "closePeakBias=" + closePeakBias + " valleyBias=" + valleyBias);
+		assertTrue(x8PeakBias > valleyBias + 0.010,
+				() -> "x8PeakBias=" + x8PeakBias + " valleyBias=" + valleyBias);
+		assertTrue(x8PeakBias > farSpacingBias + 0.006,
+				() -> "x8PeakBias=" + x8PeakBias + " farSpacingBias=" + farSpacingBias);
+	}
+
+	@Test
 	void asymmetricStackedWakeSwirlAddsHubMoment() {
 		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
 		DroneConfig base = withCommonGains(directControl(DroneConfig.octoLift()), passiveGains)
@@ -8019,6 +8038,41 @@ class DronePhysicsTest {
 			idealSum += rotor.thrustCoefficient() * omega * omega * Math.max(1.0e-6, airDensityRatio);
 		}
 		return idealSum <= 1.0e-9 ? 0.0 : thrustSum / idealSum;
+	}
+
+	private static double settledCoaxialLoadBias(DroneConfig config, double throttleOffset) {
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + throttleOffset, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 700; i++) {
+			holdInStillAir(physics);
+			physics.step(input, 0.005);
+		}
+		return physics.state().maxAbsRotorCoaxialLoadBias();
+	}
+
+	private static DroneConfig withCoaxialX8Spacing(DroneConfig base, double spacingOverDiameter) {
+		RotorSpec template = base.rotors().get(0);
+		double arm = Math.hypot(template.positionBodyMeters().x(), template.positionBodyMeters().z());
+		double verticalOffset = template.radiusMeters() * spacingOverDiameter;
+		return base.withRotors(List.of(
+				rotorLike(template, rotorPositionAtDegrees(45.0, arm, verticalOffset), 1),
+				rotorLike(template, rotorPositionAtDegrees(45.0, arm, -verticalOffset), -1),
+				rotorLike(template, rotorPositionAtDegrees(135.0, arm, verticalOffset), -1),
+				rotorLike(template, rotorPositionAtDegrees(135.0, arm, -verticalOffset), 1),
+				rotorLike(template, rotorPositionAtDegrees(225.0, arm, verticalOffset), 1),
+				rotorLike(template, rotorPositionAtDegrees(225.0, arm, -verticalOffset), -1),
+				rotorLike(template, rotorPositionAtDegrees(315.0, arm, verticalOffset), -1),
+				rotorLike(template, rotorPositionAtDegrees(315.0, arm, -verticalOffset), 1)
+		));
+	}
+
+	private static Vec3 rotorPositionAtDegrees(double angleDegrees, double armMeters, double verticalOffsetMeters) {
+		double angleRadians = Math.toRadians(angleDegrees);
+		return new Vec3(
+				Math.sin(angleRadians) * armMeters,
+				verticalOffsetMeters,
+				Math.cos(angleRadians) * armMeters
+		);
 	}
 
 	private static Vec3 torqueFromRotorDeltas(DroneConfig config, double[] deltas) {

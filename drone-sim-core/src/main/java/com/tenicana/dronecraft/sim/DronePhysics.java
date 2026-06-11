@@ -5304,8 +5304,7 @@ public final class DronePhysics {
 		double averageRadius = 0.5 * (upper.radiusMeters() + lower.radiusMeters());
 		double spacingRatio = (upper.positionBodyMeters().y() - lower.positionBodyMeters().y())
 				/ Math.max(1.0e-6, averageRadius * 2.0);
-		double spacingWindow = smoothStep(0.22, 0.48, spacingRatio)
-				* (1.0 - smoothStep(1.05, 1.36, spacingRatio));
+		double spacingWindow = coaxialBenchmarkSpacingEfficiencyWindow(spacingRatio);
 		double loadFraction = MathUtil.clamp(
 				pairMeanThrust / Math.max(1.0e-6, 0.5 * (upper.maxThrustNewtons() + lower.maxThrustNewtons())),
 				0.0,
@@ -5326,6 +5325,30 @@ public final class DronePhysics {
 				0.0,
 				COAXIAL_LOAD_BIAS_MAX
 		);
+	}
+
+	private static double coaxialBenchmarkSpacingEfficiencyWindow(double spacingRatio) {
+		double activeRange = smoothStep(0.12, 0.24, spacingRatio)
+				* (1.0 - smoothStep(1.05, 1.32, spacingRatio));
+		if (activeRange <= 1.0e-6) {
+			return 0.0;
+		}
+
+		// New Dexterity 11-inch data has local mechanical-efficiency peaks near z/D 0.25-0.40 and 0.70-0.85,
+		// with a softer valley around z/D 0.55; keep this as an allocation-bias window, not a thrust-loss fit.
+		double lowerPeak = coaxialSpacingGaussian(spacingRatio, 0.34, 0.16);
+		double upperPeak = coaxialSpacingGaussian(spacingRatio, 0.76, 0.13);
+		double midValley = coaxialSpacingGaussian(spacingRatio, 0.55, 0.115);
+		double envelope = 0.44
+				+ 0.30 * lowerPeak
+				+ 0.50 * upperPeak
+				- 0.24 * midValley;
+		return MathUtil.clamp(activeRange * envelope, 0.0, 1.0);
+	}
+
+	private static double coaxialSpacingGaussian(double value, double center, double width) {
+		double normalized = (value - center) / Math.max(1.0e-6, width);
+		return Math.exp(-normalized * normalized);
 	}
 
 	private static Vec3 mixerOutputTorqueFromThrustDeltas(
