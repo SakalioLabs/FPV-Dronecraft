@@ -68,6 +68,10 @@ public final class DronePhysics {
 	private final double[] escCommandFrameAgeSeconds;
 	private final double[] escCommandErrors;
 	private final boolean[] escCommandFrameInitialized;
+	private final double[] escRpmTelemetryOmegaRadiansPerSecond;
+	private final double[] escRpmTelemetryFrameClockSeconds;
+	private final double[] escRpmTelemetryFrameAgeSeconds;
+	private final boolean[] escRpmTelemetryFrameInitialized;
 	private final double[] rotorArmFlexIntensity;
 	private final double[] rotorArmFlexVelocity;
 	private final Vec3[] rotorFlappingTiltBody;
@@ -243,6 +247,10 @@ public final class DronePhysics {
 		this.escCommandFrameAgeSeconds = new double[config.rotors().size()];
 		this.escCommandErrors = new double[config.rotors().size()];
 		this.escCommandFrameInitialized = new boolean[config.rotors().size()];
+		this.escRpmTelemetryOmegaRadiansPerSecond = new double[config.rotors().size()];
+		this.escRpmTelemetryFrameClockSeconds = new double[config.rotors().size()];
+		this.escRpmTelemetryFrameAgeSeconds = new double[config.rotors().size()];
+		this.escRpmTelemetryFrameInitialized = new boolean[config.rotors().size()];
 		this.rotorArmFlexIntensity = new double[config.rotors().size()];
 		this.rotorArmFlexVelocity = new double[config.rotors().size()];
 		this.rotorFlappingTiltBody = new Vec3[config.rotors().size()];
@@ -347,6 +355,7 @@ public final class DronePhysics {
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
 		Arrays.fill(escCommandErrors, 0.0);
 		Arrays.fill(escCommandFrameInitialized, false);
+		resetEscRpmTelemetryModel();
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		Arrays.fill(rotorArmFlexVelocity, 0.0);
 		Arrays.fill(rotorFlappingTiltBody, Vec3.ZERO);
@@ -475,6 +484,7 @@ public final class DronePhysics {
 					: 0.0;
 			state.setMotorTargetOmegaRadiansPerSecond(i, targetOmega);
 			double previousOmega = state.motorOmegaRadiansPerSecond(i);
+			updateEscRpmTelemetry(i, rotor, input.armed() ? previousOmega : 0.0, dtSeconds);
 			double motorAlpha = MathUtil.expSmoothing(dtSeconds, motorResponseTimeConstantSeconds(
 					i,
 					rotor,
@@ -1150,6 +1160,18 @@ public final class DronePhysics {
 		}
 		double scale = Math.max(1.0, resolutionSteps - 1.0);
 		return Math.round(MathUtil.clamp(command, 0.0, 1.0) * scale) / scale;
+	}
+
+	private static double quantizeBidirectionalDshotRpmTelemetry(RotorSpec rotor, double omegaRadiansPerSecond) {
+		if (rotor == null || omegaRadiansPerSecond <= 0.0 || !Double.isFinite(omegaRadiansPerSecond)) {
+			return 0.0;
+		}
+
+		double mechanicalRpm = omegaRadiansPerSecond * 60.0 / (Math.PI * 2.0);
+		double electricalRpmDiv100 = mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS / 100.0;
+		double reportedElectricalRpmDiv100 = Math.round(Math.max(0.0, electricalRpmDiv100));
+		double reportedMechanicalRpm = reportedElectricalRpmDiv100 * 100.0 / MOTOR_OUTRUNNER_POLE_PAIRS;
+		return reportedMechanicalRpm * (Math.PI * 2.0) / 60.0;
 	}
 
 	private double escCommandFrameIntervalSeconds() {
@@ -6173,10 +6195,10 @@ public final class DronePhysics {
 		double motorVibration = 0.25 + 0.75 * state.averageMotorPower(config);
 		double propwashVibration = 1.0 + 0.7 * state.propwashIntensity();
 		double noiseScale = noise * motorVibration * propwashVibration / 1.35;
-		double averageOmega = averageMotorOmegaRadiansPerSecond();
+		double averageOmega = averageEscRpmTelemetryOmegaRadiansPerSecond();
 		double notchFrequencyHertz = averageOmega / (Math.PI * 2.0);
 		double notchAttenuation = gyroDynamicNotchAttenuation(notchFrequencyHertz, vibration);
-		double averageBladePassOmega = averageRotorBladePassOmegaRadiansPerSecond();
+		double averageBladePassOmega = averageEscRpmTelemetryBladePassOmegaRadiansPerSecond();
 		double bladePassNotchFrequencyHertz = averageBladePassOmega / (Math.PI * 2.0);
 		double bladePassNotchAttenuation = gyroDynamicNotchAttenuation(bladePassNotchFrequencyHertz, vibration);
 		state.setGyroDynamicNotchFrequencyHertz(notchFrequencyHertz);
@@ -6210,19 +6232,19 @@ public final class DronePhysics {
 		return broadbandNoise.add(powerRailNoise).add(motorSynchronousNoise);
 	}
 
-	private double averageMotorOmegaRadiansPerSecond() {
+	private double averageEscRpmTelemetryOmegaRadiansPerSecond() {
 		double sum = 0.0;
 		for (int i = 0; i < state.motorCount(); i++) {
-			sum += Math.abs(state.motorOmegaRadiansPerSecond(i));
+			sum += Math.abs(escRpmTelemetryOmegaRadiansPerSecond[i]);
 		}
 		return sum / state.motorCount();
 	}
 
-	private double averageRotorBladePassOmegaRadiansPerSecond() {
+	private double averageEscRpmTelemetryBladePassOmegaRadiansPerSecond() {
 		double sum = 0.0;
 		int count = Math.min(state.motorCount(), config.rotors().size());
 		for (int i = 0; i < count; i++) {
-			sum += Math.abs(state.motorOmegaRadiansPerSecond(i)) * config.rotors().get(i).bladeCount();
+			sum += Math.abs(escRpmTelemetryOmegaRadiansPerSecond[i]) * config.rotors().get(i).bladeCount();
 		}
 		return count == 0 ? 0.0 : sum / count;
 	}
@@ -6638,7 +6660,51 @@ public final class DronePhysics {
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
 		Arrays.fill(escCommandErrors, 0.0);
 		Arrays.fill(escCommandFrameInitialized, false);
+		resetEscRpmTelemetryModel();
 		state.setEscCommandTelemetry(0.0, escCommandFrameIntervalSeconds(), 0.0);
+	}
+
+	private void resetEscRpmTelemetryModel() {
+		Arrays.fill(escRpmTelemetryOmegaRadiansPerSecond, 0.0);
+		Arrays.fill(escRpmTelemetryFrameClockSeconds, 0.0);
+		Arrays.fill(escRpmTelemetryFrameAgeSeconds, 0.0);
+		Arrays.fill(escRpmTelemetryFrameInitialized, false);
+	}
+
+	private void updateEscRpmTelemetry(int index, RotorSpec rotor, double omegaRadiansPerSecond, double dtSeconds) {
+		double intervalSeconds = escCommandFrameIntervalSeconds();
+		double measuredOmega = quantizeBidirectionalDshotRpmTelemetry(rotor, omegaRadiansPerSecond);
+		if (intervalSeconds <= 1.0e-9) {
+			escRpmTelemetryOmegaRadiansPerSecond[index] = measuredOmega;
+			escRpmTelemetryFrameClockSeconds[index] = 0.0;
+			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
+			escRpmTelemetryFrameInitialized[index] = true;
+			return;
+		}
+
+		double phaseOffset = escCommandFramePhaseOffsetSeconds(index, intervalSeconds);
+		if (!escRpmTelemetryFrameInitialized[index]) {
+			escRpmTelemetryOmegaRadiansPerSecond[index] = measuredOmega;
+			escRpmTelemetryFrameClockSeconds[index] = -phaseOffset;
+			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
+			escRpmTelemetryFrameInitialized[index] = true;
+			return;
+		}
+
+		escRpmTelemetryFrameClockSeconds[index] += Math.max(0.0, dtSeconds);
+		if (escRpmTelemetryFrameClockSeconds[index] >= intervalSeconds) {
+			escRpmTelemetryOmegaRadiansPerSecond[index] = measuredOmega;
+			escRpmTelemetryFrameClockSeconds[index] -= intervalSeconds;
+			if (escRpmTelemetryFrameClockSeconds[index] >= intervalSeconds) {
+				escRpmTelemetryFrameClockSeconds[index] = 0.0;
+			}
+			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
+		} else {
+			escRpmTelemetryFrameAgeSeconds[index] = Math.min(
+					intervalSeconds,
+					escRpmTelemetryFrameAgeSeconds[index] + Math.max(0.0, dtSeconds)
+			);
+		}
 	}
 
 	private void integrateMotorThermal(DroneEnvironment environment, double dtSeconds) {

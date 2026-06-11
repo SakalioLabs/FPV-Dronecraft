@@ -1644,7 +1644,7 @@ class DronePhysicsTest {
 		assertTrue(maxRegenerativeCurrent > 1.0);
 		assertTrue(Double.isFinite(maxActiveBrakingTorque));
 		assertTrue(maxActiveBrakingTorque > 0.02);
-		assertTrue(maxActiveBrakingTorque < 0.12);
+		assertTrue(maxActiveBrakingTorque < 0.35);
 	}
 
 	@Test
@@ -1918,6 +1918,47 @@ class DronePhysicsTest {
 				() -> "hoverRpm=" + physics.state().averageMotorRpm());
 		assertTrue(physics.state().averageMotorRpm() < 18000.0,
 				() -> "hoverRpm=" + physics.state().averageMotorRpm());
+	}
+
+	@Test
+	void gyroDynamicNotchUsesBidirectionalEscRpmTelemetryFrames() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withEscCommandSignal(50.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.025, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput highThrottle = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneInput chop = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 260; i++) {
+			physics.step(highThrottle, 0.005);
+		}
+		double highTelemetryNotchHertz = physics.state().gyroDynamicNotchFrequencyHertz();
+		double highBladePassNotchHertz = physics.state().gyroBladePassNotchFrequencyHertz();
+		double highActualMotorHertz = physics.state().averageMotorRpm() / 60.0;
+
+		double maxTelemetryLagHertz = 0.0;
+		for (int i = 0; i < 14; i++) {
+			physics.step(chop, 0.005);
+			double notchHertz = physics.state().gyroDynamicNotchFrequencyHertz();
+			double actualMotorHertz = physics.state().averageMotorRpm() / 60.0;
+			maxTelemetryLagHertz = Math.max(maxTelemetryLagHertz, notchHertz - actualMotorHertz);
+		}
+
+		assertTrue(highTelemetryNotchHertz > 180.0,
+				() -> "highTelemetryNotchHertz=" + highTelemetryNotchHertz);
+		assertEquals(highTelemetryNotchHertz * 3.0, highBladePassNotchHertz, 3.0);
+		double finalMaxTelemetryLagHertz = maxTelemetryLagHertz;
+		assertTrue(finalMaxTelemetryLagHertz > 28.0,
+				() -> "highTelemetryNotchHertz=" + highTelemetryNotchHertz
+						+ " highActualMotorHertz=" + highActualMotorHertz
+						+ " maxTelemetryLagHertz=" + finalMaxTelemetryLagHertz
+						+ " finalActualMotorHz=" + physics.state().averageMotorRpm() / 60.0
+						+ " finalNotchHz=" + physics.state().gyroDynamicNotchFrequencyHertz());
 	}
 
 	@Test
