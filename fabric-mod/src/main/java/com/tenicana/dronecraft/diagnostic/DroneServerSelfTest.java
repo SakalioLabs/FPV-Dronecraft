@@ -51,6 +51,7 @@ public final class DroneServerSelfTest {
 	private double maxBatterySag;
 	private double maxBatteryEffectiveResistance;
 	private double maxImuSupplyNoise;
+	private double maxMotorWindingResistanceScale = 1.0;
 	private double maxPropwash;
 	private double maxVortexRingState;
 	private double maxRotorAdvanceRatio;
@@ -137,6 +138,7 @@ public final class DroneServerSelfTest {
 		maxBatterySag = Math.max(maxBatterySag, drone.getBatterySagVoltage());
 		maxBatteryEffectiveResistance = Math.max(maxBatteryEffectiveResistance, drone.getBatteryEffectiveResistanceOhms());
 		maxImuSupplyNoise = Math.max(maxImuSupplyNoise, drone.getImuSupplyNoiseIntensity());
+		maxMotorWindingResistanceScale = Math.max(maxMotorWindingResistanceScale, drone.getMotorWindingResistanceScale());
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
 		maxVortexRingState = Math.max(maxVortexRingState, drone.getVortexRingStateIntensity());
 		maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, drone.getRotorAdvanceRatio());
@@ -624,6 +626,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_battery_sag_v\": %.5f,\n"
 						+ "  \"max_battery_effective_resistance_ohm\": %.6f,\n"
 						+ "  \"max_imu_supply_noise\": %.5f,\n"
+						+ "  \"max_motor_winding_resistance_scale\": %.5f,\n"
 						+ "  \"max_propwash\": %.5f,\n"
 						+ "  \"max_vortex_ring_state\": %.5f,\n"
 						+ "  \"max_rotor_advance_ratio\": %.5f,\n"
@@ -667,6 +670,7 @@ public final class DroneServerSelfTest {
 				maxBatterySag,
 				maxBatteryEffectiveResistance,
 				maxImuSupplyNoise,
+				maxMotorWindingResistanceScale,
 				maxPropwash,
 				maxVortexRingState,
 				maxRotorAdvanceRatio,
