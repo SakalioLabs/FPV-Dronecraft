@@ -2795,6 +2795,52 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void gyroRpmHarmonicNotchWeakensWhenRpmTelemetryDropsOut() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withRotorImbalanceIntensity(0.18)
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withEscCommandSignal(400.0, 2048.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.025, 1000.0, 0.0, 0.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics obstructed = new DronePhysics(config);
+		DroneInput highThrottle = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneEnvironment obstructedFlow = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				new double[] {1.0, 1.0, 1.0, 1.0}
+		);
+
+		for (int i = 0; i < 360; i++) {
+			clean.step(highThrottle, 0.005);
+			obstructed.step(highThrottle, 0.005, obstructedFlow);
+		}
+
+		double cleanHarmonicNotch = clean.state().gyroRpmHarmonicNotchAttenuation();
+		double obstructedHarmonicNotch = obstructed.state().gyroRpmHarmonicNotchAttenuation();
+		assertTrue(clean.state().averageMotorRpmTelemetryValidity() > 0.95,
+				() -> "cleanValidity=" + clean.state().averageMotorRpmTelemetryValidity());
+		assertTrue(obstructed.state().averageMotorRpmTelemetryValidity() < 0.50,
+				() -> "obstructedValidity=" + obstructed.state().averageMotorRpmTelemetryValidity());
+		assertTrue(cleanHarmonicNotch > 0.25,
+				() -> "cleanHarmonicNotch=" + cleanHarmonicNotch
+						+ " vibration=" + clean.state().rotorVibration());
+		assertTrue(obstructedHarmonicNotch < cleanHarmonicNotch * 0.70,
+				() -> "cleanHarmonicNotch=" + cleanHarmonicNotch
+						+ " obstructedHarmonicNotch=" + obstructedHarmonicNotch
+						+ " obstructedValidity=" + obstructed.state().averageMotorRpmTelemetryValidity());
+	}
+
+	@Test
 	void gyroNotchSpreadTracksPerMotorRpmTelemetry() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
@@ -9183,6 +9229,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_notch_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_notch_attenuation"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_notch_spread_hz"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_rpm_harmonic_notch_attenuation"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_notch_spread_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_bias_pitch_dps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_clip"));
@@ -9387,6 +9434,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_attenuation")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_notch_spread_hz")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_rpm_harmonic_notch_attenuation")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_spread_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_commutation_ripple")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_commutation_ripple")])));

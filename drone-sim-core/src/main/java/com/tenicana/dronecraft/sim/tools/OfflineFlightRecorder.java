@@ -880,6 +880,7 @@ public final class OfflineFlightRecorder {
 			"rotor_coaxial_allocation_mech_gain_pct",
 			"rotor_coaxial_allocation_elec_gain_pct",
 			"gyro_notch_spread_hz",
+			"gyro_rpm_harmonic_notch_attenuation",
 			"gyro_blade_pass_notch_spread_hz",
 			"vortex_ring_thrust_buffet",
 			"vortex_ring_max_thrust_buffet",
@@ -2046,6 +2047,7 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.maxRotorCoaxialAllocationMechanicalGainPercent(), "%.5f");
 		appendExtra(builder, state.maxRotorCoaxialAllocationElectricalGainPercent(), "%.5f");
 		appendExtra(builder, state.gyroDynamicNotchSpreadHertz(), "%.3f");
+		appendExtra(builder, state.gyroRpmHarmonicNotchAttenuation(), "%.5f");
 		appendExtra(builder, state.gyroBladePassNotchSpreadHertz(), "%.3f");
 		Vec3 vortexRingBuffetForce = state.vortexRingBuffetForceBodyNewtons();
 		appendExtra(builder, state.vortexRingThrustBuffetAmplitude(), "%.5f");

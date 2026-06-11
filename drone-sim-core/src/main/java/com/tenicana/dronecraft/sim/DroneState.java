@@ -31,6 +31,7 @@ public final class DroneState {
 	private double gyroDynamicNotchFrequencyHertz;
 	private double gyroDynamicNotchAttenuation;
 	private double gyroDynamicNotchSpreadHertz;
+	private double gyroRpmHarmonicNotchAttenuation;
 	private double gyroBladePassNotchFrequencyHertz;
 	private double gyroBladePassNotchAttenuation;
 	private double gyroBladePassNotchSpreadHertz;
@@ -496,6 +497,14 @@ public final class DroneState {
 
 	void setGyroDynamicNotchSpreadHertz(double gyroDynamicNotchSpreadHertz) {
 		this.gyroDynamicNotchSpreadHertz = Math.max(0.0, gyroDynamicNotchSpreadHertz);
+	}
+
+	public double gyroRpmHarmonicNotchAttenuation() {
+		return gyroRpmHarmonicNotchAttenuation;
+	}
+
+	void setGyroRpmHarmonicNotchAttenuation(double gyroRpmHarmonicNotchAttenuation) {
+		this.gyroRpmHarmonicNotchAttenuation = MathUtil.clamp(gyroRpmHarmonicNotchAttenuation, 0.0, 1.0);
 	}
 
 	public double gyroBladePassNotchFrequencyHertz() {

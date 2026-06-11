@@ -121,6 +121,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"tune_rotor_outward_cant_deg",
 		"gyro_bias_pitch_dps",
 		"gyro_clip",
+		"gyro_rpm_harmonic_notch_attenuation",
 		"gyro_blade_pass_notch_hz",
 		"gyro_blade_pass_notch_attenuation",
 		"accel_bias_x_mps2",

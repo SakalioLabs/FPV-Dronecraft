@@ -7045,6 +7045,7 @@ public final class DronePhysics {
 			state.setGyroDynamicNotchFrequencyHertz(0.0);
 			state.setGyroDynamicNotchAttenuation(0.0);
 			state.setGyroDynamicNotchSpreadHertz(0.0);
+			state.setGyroRpmHarmonicNotchAttenuation(0.0);
 			state.setGyroBladePassNotchFrequencyHertz(0.0);
 			state.setGyroBladePassNotchAttenuation(0.0);
 			state.setGyroBladePassNotchSpreadHertz(0.0);
@@ -7057,12 +7058,14 @@ public final class DronePhysics {
 		double averageOmega = averageEscRpmTelemetryOmegaRadiansPerSecond();
 		double notchFrequencyHertz = averageOmega / (Math.PI * 2.0);
 		double notchAttenuation = gyroDynamicNotchAttenuation(notchFrequencyHertz, vibration);
+		double harmonicNotchAttenuation = gyroRpmHarmonicNotchAttenuation(vibration);
 		double averageBladePassOmega = averageEscRpmTelemetryBladePassOmegaRadiansPerSecond();
 		double bladePassNotchFrequencyHertz = averageBladePassOmega / (Math.PI * 2.0);
 		double bladePassNotchAttenuation = gyroDynamicNotchAttenuation(bladePassNotchFrequencyHertz, vibration);
 		state.setGyroDynamicNotchFrequencyHertz(notchFrequencyHertz);
 		state.setGyroDynamicNotchAttenuation(notchAttenuation);
 		state.setGyroDynamicNotchSpreadHertz(escRpmTelemetryFrequencySpreadHertz(false));
+		state.setGyroRpmHarmonicNotchAttenuation(harmonicNotchAttenuation);
 		state.setGyroBladePassNotchFrequencyHertz(bladePassNotchFrequencyHertz);
 		state.setGyroBladePassNotchAttenuation(bladePassNotchAttenuation);
 		state.setGyroBladePassNotchSpreadHertz(escRpmTelemetryFrequencySpreadHertz(true));
@@ -7079,10 +7082,12 @@ public final class DronePhysics {
 				railNoiseScale * (Math.sin(t * 683.0 + 2.9) + 0.26 * Math.sin(t * 1261.0 + 1.4))
 		);
 		double rotorVibrationScale = 0.45 * vibration * (1.0 - notchAttenuation);
+		double harmonicVibrationScale = 0.12 * vibration * (1.0 - harmonicNotchAttenuation);
 		double bladePassVibrationScale = 0.45 * vibration * (1.0 - bladePassNotchAttenuation);
 		Vec3 motorSynchronousNoise = perMotorSynchronousGyroNoise(
 				dtSeconds,
 				rotorVibrationScale,
+				harmonicVibrationScale,
 				bladePassVibrationScale
 		);
 		return broadbandNoise.add(powerRailNoise).add(motorSynchronousNoise);
@@ -7091,10 +7096,11 @@ public final class DronePhysics {
 	private Vec3 perMotorSynchronousGyroNoise(
 			double dtSeconds,
 			double rotorVibrationScale,
+			double harmonicVibrationScale,
 			double bladePassVibrationScale
 	) {
 		int count = Math.min(state.motorCount(), config.rotors().size());
-		if (count <= 0 || (rotorVibrationScale <= 0.0 && bladePassVibrationScale <= 0.0)) {
+		if (count <= 0 || (rotorVibrationScale <= 0.0 && harmonicVibrationScale <= 0.0 && bladePassVibrationScale <= 0.0)) {
 			return Vec3.ZERO;
 		}
 
@@ -7107,14 +7113,22 @@ public final class DronePhysics {
 			gyroBladePassVibrationPhases[i] += bladePassOmega * dtSeconds;
 			double motorPhase = gyroMotorVibrationPhases[i] + i * 0.73;
 			double bladePhase = gyroBladePassVibrationPhases[i] + i * 1.11;
+			double secondHarmonicPhase = 2.0 * motorPhase + i * 0.31;
+			double thirdHarmonicPhase = 3.0 * motorPhase + i * 0.47;
 			double armSignX = Math.signum(config.rotors().get(i).positionBodyMeters().x());
 			double armSignZ = Math.signum(config.rotors().get(i).positionBodyMeters().z());
 			Vec3 line = new Vec3(
 					rotorVibrationScale * Math.sin(motorPhase + 0.3 + 0.18 * armSignZ)
+							+ 0.34 * harmonicVibrationScale * Math.sin(secondHarmonicPhase + 0.6 - 0.11 * armSignX)
+							+ 0.24 * harmonicVibrationScale * Math.sin(thirdHarmonicPhase + 1.4 + 0.09 * armSignZ)
 							+ 0.42 * bladePassVibrationScale * Math.sin(bladePhase + 1.2 + 0.14 * armSignX),
 					rotorVibrationScale * Math.sin(motorPhase + 2.0 + 0.16 * armSignX)
+							+ 0.29 * harmonicVibrationScale * Math.sin(secondHarmonicPhase + 2.2 + 0.08 * armSignZ)
+							+ 0.21 * harmonicVibrationScale * Math.sin(thirdHarmonicPhase + 0.5 - 0.13 * armSignX)
 							+ 0.35 * bladePassVibrationScale * Math.sin(bladePhase + 0.4 + 0.12 * armSignZ),
 					rotorVibrationScale * Math.sin(motorPhase + 4.1 - 0.15 * armSignX)
+							+ 0.31 * harmonicVibrationScale * Math.sin(secondHarmonicPhase + 3.1 + 0.10 * armSignX)
+							+ 0.23 * harmonicVibrationScale * Math.sin(thirdHarmonicPhase + 2.8 - 0.07 * armSignZ)
 							+ 0.38 * bladePassVibrationScale * Math.sin(bladePhase + 2.6 - 0.10 * armSignZ)
 			);
 			sum = sum.add(line.multiply(mixScale));
@@ -7164,6 +7178,38 @@ public final class DronePhysics {
 		return 0.72 * frequencyActive * vibrationActive;
 	}
 
+	private double gyroRpmHarmonicNotchAttenuation(double rotorVibration) {
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		if (count <= 0 || rotorVibration <= 0.0) {
+			return 0.0;
+		}
+		double combined = 0.0;
+		for (int i = 0; i < count; i++) {
+			double validity = state.motorRpmTelemetryValidity(i);
+			if (validity <= 0.0) {
+				continue;
+			}
+			double fundamentalHertz = Math.abs(escRpmTelemetryOmegaRadiansPerSecond[i]) / (Math.PI * 2.0);
+			if (fundamentalHertz <= 0.0) {
+				continue;
+			}
+			for (int harmonic = 2; harmonic <= 3; harmonic++) {
+				double harmonicWeight = harmonic == 2 ? 0.20 : 0.14;
+				double attenuation = gyroDynamicNotchAttenuation(fundamentalHertz * harmonic, rotorVibration)
+						* validity
+						* harmonicWeight;
+				combined = combineIndependentNotchAttenuation(combined, attenuation);
+			}
+		}
+		return MathUtil.clamp(combined, 0.0, 0.58);
+	}
+
+	private static double combineIndependentNotchAttenuation(double first, double second) {
+		double a = MathUtil.clamp(first, 0.0, 1.0);
+		double b = MathUtil.clamp(second, 0.0, 1.0);
+		return 1.0 - (1.0 - a) * (1.0 - b);
+	}
+
 	private void resetGyroModel() {
 		gyroFilteredBodyRadiansPerSecond = state.angularVelocityBodyRadiansPerSecond();
 		Arrays.fill(gyroDelayBuffer, gyroFilteredBodyRadiansPerSecond);
@@ -7172,6 +7218,7 @@ public final class DronePhysics {
 		state.setGyroDynamicNotchFrequencyHertz(0.0);
 		state.setGyroDynamicNotchAttenuation(0.0);
 		state.setGyroDynamicNotchSpreadHertz(0.0);
+		state.setGyroRpmHarmonicNotchAttenuation(0.0);
 		state.setGyroBladePassNotchFrequencyHertz(0.0);
 		state.setGyroBladePassNotchAttenuation(0.0);
 		state.setGyroBladePassNotchSpreadHertz(0.0);
