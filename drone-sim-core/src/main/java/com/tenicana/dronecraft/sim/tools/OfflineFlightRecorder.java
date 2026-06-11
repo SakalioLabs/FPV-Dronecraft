@@ -23,6 +23,7 @@ public final class OfflineFlightRecorder {
 	public static final double DEFAULT_DURATION_SECONDS = 16.0;
 	public static final int SAMPLE_EVERY_STEPS = 4;
 	private static final double WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS = 0.075;
+	private static final double RAIN_BURST_PRECIPITATION_WETNESS = 1.0;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -942,7 +943,15 @@ public final class OfflineFlightRecorder {
 			return frame("yaw_step", 0.50, 0.0, 0.0, 0.70, Vec3.ZERO);
 		}
 		if (timeSeconds < 12.95) {
-			return frame("settle_before_punch", hover + 0.03, 0.0, 0.0, 0.0, Vec3.ZERO);
+			return frame(
+					"rain_burst",
+					hover + 0.03,
+					0.0,
+					0.0,
+					0.0,
+					Vec3.ZERO,
+					RAIN_BURST_PRECIPITATION_WETNESS
+			);
 		}
 		if (timeSeconds < 14.35) {
 			return frame("throttle_punch", 0.88, 0.0, 0.0, 0.0, Vec3.ZERO);
@@ -954,6 +963,18 @@ public final class OfflineFlightRecorder {
 	}
 
 	private static ScriptFrame frame(String phase, double throttle, double pitch, double roll, double yaw, Vec3 windVelocityWorldMetersPerSecond) {
+		return frame(phase, throttle, pitch, roll, yaw, windVelocityWorldMetersPerSecond, 0.0);
+	}
+
+	private static ScriptFrame frame(
+			String phase,
+			double throttle,
+			double pitch,
+			double roll,
+			double yaw,
+			Vec3 windVelocityWorldMetersPerSecond,
+			double precipitationWetnessIntensity
+	) {
 		return new ScriptFrame(
 				phase,
 				new DroneInput(
@@ -963,7 +984,8 @@ public final class OfflineFlightRecorder {
 						MathUtil.clamp(yaw, -1.0, 1.0),
 						true
 				),
-				windVelocityWorldMetersPerSecond
+				windVelocityWorldMetersPerSecond,
+				MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0)
 		);
 	}
 
@@ -993,7 +1015,7 @@ public final class OfflineFlightRecorder {
 				rotorFlow.directionsBody(),
 				null,
 				0.0,
-				0.0,
+				frame.precipitationWetnessIntensity(),
 				ambientTemperatureCelsius
 		);
 	}
@@ -1800,7 +1822,12 @@ public final class OfflineFlightRecorder {
 		return normalized;
 	}
 
-	private record ScriptFrame(String phase, DroneInput input, Vec3 windVelocityWorldMetersPerSecond) {
+	private record ScriptFrame(
+			String phase,
+			DroneInput input,
+			Vec3 windVelocityWorldMetersPerSecond,
+			double precipitationWetnessIntensity
+	) {
 	}
 
 	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double maxIntensity) {

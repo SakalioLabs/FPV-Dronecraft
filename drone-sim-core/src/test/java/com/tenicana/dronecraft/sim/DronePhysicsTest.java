@@ -8291,16 +8291,22 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
 		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
 		assertTrue(maxColumn(lines, header, "rotor_wall_effect_n") > 0.04);
+		assertEquals(0.0, maxColumn(lines, header, "water_immersion"), 1.0e-9);
+		assertTrue(maxColumn(lines, header, "precipitation_wetness") > 0.95);
+		assertTrue(minColumn(lines, header, "rotor_wet_thrust_scale") < 0.98);
 		int phaseIndex = indexOf(header, "phase");
 		boolean sawWallSkim = false;
+		boolean sawRainBurst = false;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			if ("wall_skim".equals(row[phaseIndex])) {
 				sawWallSkim = true;
-				break;
+			} else if ("rain_burst".equals(row[phaseIndex])) {
+				sawRainBurst = true;
 			}
 		}
 		assertTrue(sawWallSkim);
+		assertTrue(sawRainBurst);
 		assertTrue(report.samples() > 200);
 		assertTrue(report.maxSpeedMetersPerSecond() > 6.8, () -> "maxSpeed=" + report.maxSpeedMetersPerSecond());
 		assertTrue(report.maxBatteryCurrentAmps() > 45.0);
@@ -8328,6 +8334,7 @@ class DronePhysicsTest {
 		assertEquals((1.0 - report.minRotorInducedLagThrustScale()) * 100.0, report.maxRotorInducedLagThrustLossPercent(), 1.0e-9);
 		assertTrue(report.minRotorWetThrustScale() >= 0.08);
 		assertTrue(report.minRotorWetThrustScale() <= 1.0);
+		assertTrue(report.maxRotorWetThrustLossPercent() > 2.0);
 		assertEquals((1.0 - report.minRotorWetThrustScale()) * 100.0, report.maxRotorWetThrustLossPercent(), 1.0e-9);
 		assertTrue(report.maxRotorSurfaceScrapeIntensity() >= 0.0);
 		assertTrue(report.minBatteryVoltage() < directControl(DroneConfig.racingQuad()).nominalBatteryVoltage() - 0.5);
