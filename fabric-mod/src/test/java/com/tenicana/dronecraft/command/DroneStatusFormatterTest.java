@@ -36,6 +36,7 @@ class DroneStatusFormatterTest {
 				0.0, // rotorWakeSwirlVelocityMetersPerSecond
 				0.0, // rotorWakeSwirlTorqueNewtonMeters
 				0.0, // rotorActiveBrakingTorqueNewtonMeters
+				0.0, // rotorAccelerationReactionTorqueNewtonMeters
 				0.0, // rotorGyroscopicTorqueNewtonMeters
 				0.0, // rotorFlappingTorqueNewtonMeters
 				1.0, // ceilingEffect
@@ -78,6 +79,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("swirl 0.00m/s"));
 		assertTrue(status.contains("swirlT 0.000Nm"));
 		assertTrue(status.contains("brakeT 0.000Nm"));
+		assertTrue(status.contains("accelT 0.000Nm"));
 		assertTrue(status.contains("gyroT 0.000Nm"));
 		assertTrue(status.contains("flapT 0.000Nm"));
 		assertTrue(status.contains("water 0.00"));
@@ -116,6 +118,7 @@ class DroneStatusFormatterTest {
 				0.92,
 				0.016,
 				0.018,
+				0.016,
 				0.014,
 				0.017,
 				1.12,
@@ -163,6 +166,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("wake-swirl"));
 		assertTrue(warnings.contains("wake-swirl-torque"));
 		assertTrue(warnings.contains("active-brake-torque"));
+		assertTrue(warnings.contains("rotor-accel-torque"));
 		assertTrue(warnings.contains("rotor-gyro-torque"));
 		assertTrue(warnings.contains("rotor-flapping-torque"));
 		assertTrue(warnings.contains("ceiling-effect"));
@@ -178,7 +182,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("bdiss 0.024Nm"));
-		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm brakeT 0.018Nm gyroT 0.014Nm flapT 0.017Nm"));
+		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -209,6 +213,7 @@ class DroneStatusFormatterTest {
 			double rotorWakeSwirlVelocityMetersPerSecond,
 			double rotorWakeSwirlTorqueNewtonMeters,
 			double rotorActiveBrakingTorqueNewtonMeters,
+			double rotorAccelerationReactionTorqueNewtonMeters,
 			double rotorGyroscopicTorqueNewtonMeters,
 			double rotorFlappingTorqueNewtonMeters,
 			double ceilingEffect,
@@ -293,6 +298,7 @@ class DroneStatusFormatterTest {
 				rotorWakeSwirlVelocityMetersPerSecond,
 				rotorWakeSwirlTorqueNewtonMeters,
 				rotorActiveBrakingTorqueNewtonMeters,
+				rotorAccelerationReactionTorqueNewtonMeters,
 				rotorGyroscopicTorqueNewtonMeters,
 				rotorFlappingTorqueNewtonMeters,
 				droneWake,

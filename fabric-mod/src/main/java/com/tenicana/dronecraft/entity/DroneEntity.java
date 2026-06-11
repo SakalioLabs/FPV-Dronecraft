@@ -133,6 +133,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_SWIRL = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_SWIRL_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_ACTIVE_BRAKING_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_ACCELERATION_REACTION_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_GYROSCOPIC_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_FLAPPING_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> MIXER_SATURATION = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -393,6 +394,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_WAKE_SWIRL, 0.0f);
 		builder.define(ROTOR_WAKE_SWIRL_TORQUE, 0.0f);
 		builder.define(ROTOR_ACTIVE_BRAKING_TORQUE, 0.0f);
+		builder.define(ROTOR_ACCELERATION_REACTION_TORQUE, 0.0f);
 		builder.define(ROTOR_GYROSCOPIC_TORQUE, 0.0f);
 		builder.define(ROTOR_FLAPPING_TORQUE, 0.0f);
 		builder.define(MIXER_SATURATION, 0.0f);
@@ -1118,6 +1120,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_WAKE_SWIRL, (float) physics.state().maxRotorWakeSwirlVelocityMetersPerSecond());
 		entityData.set(ROTOR_WAKE_SWIRL_TORQUE, (float) physics.state().rotorWakeSwirlTorqueBodyNewtonMeters().length());
 		entityData.set(ROTOR_ACTIVE_BRAKING_TORQUE, (float) physics.state().rotorActiveBrakingTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_ACCELERATION_REACTION_TORQUE, (float) physics.state().rotorAccelerationReactionTorqueBodyNewtonMeters().length());
 		entityData.set(ROTOR_GYROSCOPIC_TORQUE, (float) physics.state().rotorGyroscopicTorqueBodyNewtonMeters().length());
 		entityData.set(ROTOR_FLAPPING_TORQUE, (float) physics.state().rotorFlappingTorqueBodyNewtonMeters().length());
 		entityData.set(MIXER_SATURATION, (float) physics.state().mixerSaturation());
@@ -1830,6 +1833,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorActiveBrakingTorqueNewtonMeters() {
 		return entityData.get(ROTOR_ACTIVE_BRAKING_TORQUE);
+	}
+
+	public float getRotorAccelerationReactionTorqueNewtonMeters() {
+		return entityData.get(ROTOR_ACCELERATION_REACTION_TORQUE);
 	}
 
 	public float getRotorGyroscopicTorqueNewtonMeters() {

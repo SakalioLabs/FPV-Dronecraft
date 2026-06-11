@@ -362,6 +362,7 @@ public final class DronePhysics {
 		state.setAirframeAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorFlappingTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorInertiaTorqueBodyNewtonMeters(Vec3.ZERO);
+		state.setRotorAccelerationReactionTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorGyroscopicTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setMixerSaturation(0.0);
@@ -435,6 +436,7 @@ public final class DronePhysics {
 		Vec3 rotorFlappingTorqueSum = Vec3.ZERO;
 		Vec3 rotorActiveBrakingTorqueSum = Vec3.ZERO;
 		Vec3 rotorInertiaTorqueSum = Vec3.ZERO;
+		Vec3 rotorAccelerationReactionTorqueSum = Vec3.ZERO;
 		Vec3 rotorGyroscopicTorqueSum = Vec3.ZERO;
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
 		Vec3 rotorWallEffectForceSum = Vec3.ZERO;
@@ -789,6 +791,7 @@ public final class DronePhysics {
 			Vec3 activeBrakingTorque = rotorActiveBrakingTorque(rotor, previousOmega, omega, escOutput, rotorDiskAxisBody, dtSeconds);
 			rotorActiveBrakingTorqueSum = rotorActiveBrakingTorqueSum.add(activeBrakingTorque);
 			rotorInertiaTorqueSum = rotorInertiaTorqueSum.add(inertiaTorque);
+			rotorAccelerationReactionTorqueSum = rotorAccelerationReactionTorqueSum.add(inertiaTorques.accelerationReactionTorque());
 			rotorGyroscopicTorqueSum = rotorGyroscopicTorqueSum.add(inertiaTorques.gyroscopicReactionTorque());
 			Vec3 angularDragTorque = rotorAngularDragTorque(
 					aerodynamicRotor,
@@ -852,6 +855,7 @@ public final class DronePhysics {
 		state.setRotorFlappingTorqueBodyNewtonMeters(rotorFlappingTorqueSum);
 		state.setRotorActiveBrakingTorqueBodyNewtonMeters(rotorActiveBrakingTorqueSum);
 		state.setRotorInertiaTorqueBodyNewtonMeters(rotorInertiaTorqueSum);
+		state.setRotorAccelerationReactionTorqueBodyNewtonMeters(rotorAccelerationReactionTorqueSum);
 		state.setRotorGyroscopicTorqueBodyNewtonMeters(rotorGyroscopicTorqueSum);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(rotorAngularDragTorqueSum);
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);

@@ -39,6 +39,7 @@ public record DroneBlackboxSummary(
 		double maxRotorWakeSwirlVelocityMetersPerSecond,
 		double maxRotorWakeSwirlTorqueNewtonMeters,
 		double maxRotorActiveBrakingTorqueNewtonMeters,
+		double maxRotorAccelerationReactionTorqueNewtonMeters,
 		double maxRotorGyroscopicTorqueNewtonMeters,
 		double maxRotorFlappingTorqueNewtonMeters,
 		double maxRotorAngularDragTorqueNewtonMeters,
@@ -133,6 +134,7 @@ public record DroneBlackboxSummary(
 		double maxRotorWakeSwirlVelocity = 0.0;
 		double maxRotorWakeSwirlTorque = 0.0;
 		double maxRotorActiveBrakingTorque = 0.0;
+		double maxRotorAccelerationReactionTorque = 0.0;
 		double maxRotorGyroscopicTorque = 0.0;
 		double maxRotorFlappingTorque = 0.0;
 		double maxRotorAngularDrag = 0.0;
@@ -262,6 +264,15 @@ public record DroneBlackboxSummary(
 					Math.sqrt(activeBrakingTorquePitch * activeBrakingTorquePitch
 							+ activeBrakingTorqueYaw * activeBrakingTorqueYaw
 							+ activeBrakingTorqueRoll * activeBrakingTorqueRoll)
+			);
+			double accelerationReactionTorquePitch = value(row, "rotor_acceleration_reaction_pitch_torque_nm");
+			double accelerationReactionTorqueYaw = value(row, "rotor_acceleration_reaction_yaw_torque_nm");
+			double accelerationReactionTorqueRoll = value(row, "rotor_acceleration_reaction_roll_torque_nm");
+			maxRotorAccelerationReactionTorque = Math.max(
+					maxRotorAccelerationReactionTorque,
+					Math.sqrt(accelerationReactionTorquePitch * accelerationReactionTorquePitch
+							+ accelerationReactionTorqueYaw * accelerationReactionTorqueYaw
+							+ accelerationReactionTorqueRoll * accelerationReactionTorqueRoll)
 			);
 			double gyroscopicTorquePitch = value(row, "rotor_gyroscopic_pitch_torque_nm");
 			double gyroscopicTorqueYaw = value(row, "rotor_gyroscopic_yaw_torque_nm");
@@ -408,6 +419,7 @@ public record DroneBlackboxSummary(
 				maxRotorWakeSwirlVelocity,
 				maxRotorWakeSwirlTorque,
 				maxRotorActiveBrakingTorque,
+				maxRotorAccelerationReactionTorque,
 				maxRotorGyroscopicTorque,
 				maxRotorFlappingTorque,
 				maxRotorAngularDrag,
@@ -476,7 +488,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s swirlT %.3fNm brakeT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -514,6 +526,7 @@ public record DroneBlackboxSummary(
 				maxRotorWakeSwirlVelocityMetersPerSecond,
 				maxRotorWakeSwirlTorqueNewtonMeters,
 				maxRotorActiveBrakingTorqueNewtonMeters,
+				maxRotorAccelerationReactionTorqueNewtonMeters,
 				maxRotorGyroscopicTorqueNewtonMeters,
 				maxRotorFlappingTorqueNewtonMeters,
 				maxRotorAngularDragTorqueNewtonMeters,
@@ -603,6 +616,7 @@ public record DroneBlackboxSummary(
 				0.0, // maxRotorWakeSwirlVelocityMetersPerSecond
 				0.0, // maxRotorWakeSwirlTorqueNewtonMeters
 				0.0, // maxRotorActiveBrakingTorqueNewtonMeters
+				0.0, // maxRotorAccelerationReactionTorqueNewtonMeters
 				0.0, // maxRotorGyroscopicTorqueNewtonMeters
 				0.0, // maxRotorFlappingTorqueNewtonMeters
 				0.0, // maxRotorAngularDragTorqueNewtonMeters

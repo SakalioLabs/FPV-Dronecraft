@@ -2725,6 +2725,7 @@ class DronePhysicsTest {
 
 		assertTrue(Math.abs(physics.state().angularVelocityBodyRadiansPerSecond().y()) > 0.03);
 		assertTrue(Math.abs(physics.state().rotorInertiaTorqueBodyNewtonMeters().y()) > 0.01);
+		assertTrue(Math.abs(physics.state().rotorAccelerationReactionTorqueBodyNewtonMeters().y()) > 0.01);
 	}
 
 	@Test
@@ -6856,6 +6857,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_skew_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inertia_roll_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_acceleration_reaction_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_gyroscopic_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_active_braking_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_flapping_roll_torque_nm"));
@@ -6991,6 +6993,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_active_braking_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_active_braking_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_active_braking_roll_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_acceleration_reaction_pitch_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_acceleration_reaction_yaw_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_acceleration_reaction_roll_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_flapping_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_flapping_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_flapping_roll_torque_nm")])));
@@ -7175,6 +7180,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxRotorAccelerationReactionTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorGyroscopicTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorFlappingTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxImuSupplyNoiseIntensity()));
@@ -7269,6 +7275,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxRotorAccelerationReactionTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorGyroscopicTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorFlappingTorqueNewtonMeters()));
 	}

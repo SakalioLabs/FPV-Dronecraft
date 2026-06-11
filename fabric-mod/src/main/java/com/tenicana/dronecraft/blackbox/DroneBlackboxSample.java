@@ -269,6 +269,9 @@ public final class DroneBlackboxSample {
 			"rotor_inertia_pitch_torque_nm",
 			"rotor_inertia_yaw_torque_nm",
 			"rotor_inertia_roll_torque_nm",
+			"rotor_acceleration_reaction_pitch_torque_nm",
+			"rotor_acceleration_reaction_yaw_torque_nm",
+			"rotor_acceleration_reaction_roll_torque_nm",
 			"rotor_gyroscopic_pitch_torque_nm",
 			"rotor_gyroscopic_yaw_torque_nm",
 			"rotor_gyroscopic_roll_torque_nm",
@@ -824,6 +827,7 @@ public final class DroneBlackboxSample {
 		Vec3 rotorBladeDissymmetryTorque = state.rotorBladeDissymmetryTorqueBodyNewtonMeters();
 		Vec3 rotorWakeSwirlTorque = state.rotorWakeSwirlTorqueBodyNewtonMeters();
 		Vec3 rotorInertiaTorque = state.rotorInertiaTorqueBodyNewtonMeters();
+		Vec3 rotorAccelerationReactionTorque = state.rotorAccelerationReactionTorqueBodyNewtonMeters();
 		Vec3 rotorGyroscopicTorque = state.rotorGyroscopicTorqueBodyNewtonMeters();
 		Vec3 rotorActiveBrakingTorque = state.rotorActiveBrakingTorqueBodyNewtonMeters();
 		Vec3 rotorFlappingTorque = state.rotorFlappingTorqueBodyNewtonMeters();
@@ -1095,6 +1099,9 @@ public final class DroneBlackboxSample {
 		row.add(rotorInertiaTorque.x(), "%.6f");
 		row.add(rotorInertiaTorque.y(), "%.6f");
 		row.add(rotorInertiaTorque.z(), "%.6f");
+		row.add(rotorAccelerationReactionTorque.x(), "%.6f");
+		row.add(rotorAccelerationReactionTorque.y(), "%.6f");
+		row.add(rotorAccelerationReactionTorque.z(), "%.6f");
 		row.add(rotorGyroscopicTorque.x(), "%.6f");
 		row.add(rotorGyroscopicTorque.y(), "%.6f");
 		row.add(rotorGyroscopicTorque.z(), "%.6f");

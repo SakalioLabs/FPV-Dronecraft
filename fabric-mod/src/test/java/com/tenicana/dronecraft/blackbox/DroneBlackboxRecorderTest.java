@@ -166,6 +166,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_blade_dissymmetry_roll_torque_nm"));
 		assertTrue(csv.contains("rotor_inertia_pitch_torque_nm"));
 		assertTrue(csv.contains("rotor_inertia_roll_torque_nm"));
+		assertTrue(csv.contains("rotor_acceleration_reaction_pitch_torque_nm"));
+		assertTrue(csv.contains("rotor_acceleration_reaction_roll_torque_nm"));
 		assertTrue(csv.contains("rotor_gyroscopic_pitch_torque_nm"));
 		assertTrue(csv.contains("rotor_gyroscopic_roll_torque_nm"));
 		assertTrue(csv.contains("rotor_angular_drag_pitch_torque_nm"));
@@ -352,6 +354,9 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_active_braking_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_active_braking_yaw_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_active_braking_roll_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_acceleration_reaction_pitch_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_acceleration_reaction_yaw_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_acceleration_reaction_roll_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_gyroscopic_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_gyroscopic_yaw_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_gyroscopic_roll_torque_nm")]));
@@ -455,6 +460,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
 		assertTrue(summary.maxRotorArmFlexIntensity() >= 0.0);
 		assertTrue(summary.maxRotorBladeDissymmetryTorqueNewtonMeters() >= 0.0);
+		assertTrue(summary.maxRotorAccelerationReactionTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorGyroscopicTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorFlappingTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorAngularDragTorqueNewtonMeters() >= 0.0);
@@ -698,12 +704,14 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(summary.maxRotorWakeSwirlTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorActiveBrakingTorqueNewtonMeters() >= 0.0);
+		assertTrue(summary.maxRotorAccelerationReactionTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorGyroscopicTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorFlappingTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.formatForChat().contains("rwake"));
 		assertTrue(summary.formatForChat().contains("swirl"));
 		assertTrue(summary.formatForChat().contains("swirlT"));
 		assertTrue(summary.formatForChat().contains("brakeT"));
+		assertTrue(summary.formatForChat().contains("accelT"));
 		assertTrue(summary.formatForChat().contains("gyroT"));
 		assertTrue(summary.formatForChat().contains("flapT"));
 	}

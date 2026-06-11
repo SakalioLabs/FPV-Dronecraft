@@ -110,6 +110,7 @@ public final class DroneState {
 	private Vec3 rotorFlappingTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorActiveBrakingTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorInertiaTorqueBodyNewtonMeters = Vec3.ZERO;
+	private Vec3 rotorAccelerationReactionTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorGyroscopicTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
 	private double batteryVoltage;
@@ -1221,6 +1222,7 @@ public final class DroneState {
 		rotorFlappingTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorActiveBrakingTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorInertiaTorqueBodyNewtonMeters = Vec3.ZERO;
+		rotorAccelerationReactionTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorGyroscopicTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
 		airframeSeparatedFlowIntensity = 0.0;
@@ -1829,6 +1831,14 @@ public final class DroneState {
 
 	void setRotorInertiaTorqueBodyNewtonMeters(Vec3 rotorInertiaTorqueBodyNewtonMeters) {
 		this.rotorInertiaTorqueBodyNewtonMeters = rotorInertiaTorqueBodyNewtonMeters == null ? Vec3.ZERO : rotorInertiaTorqueBodyNewtonMeters;
+	}
+
+	public Vec3 rotorAccelerationReactionTorqueBodyNewtonMeters() {
+		return rotorAccelerationReactionTorqueBodyNewtonMeters;
+	}
+
+	void setRotorAccelerationReactionTorqueBodyNewtonMeters(Vec3 rotorAccelerationReactionTorqueBodyNewtonMeters) {
+		this.rotorAccelerationReactionTorqueBodyNewtonMeters = rotorAccelerationReactionTorqueBodyNewtonMeters == null ? Vec3.ZERO : rotorAccelerationReactionTorqueBodyNewtonMeters;
 	}
 
 	public Vec3 rotorGyroscopicTorqueBodyNewtonMeters() {
