@@ -21,6 +21,10 @@ public record DroneEnvironment(
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
 	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
+	private static final double ZJU_GROUND_EFFECT_G1_METERS_SQUARED = 0.01804;
+	private static final double ZJU_GROUND_EFFECT_G2_METERS_SQUARED = 0.007339;
+	private static final double RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST = 0.18;
+	private static final double MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION = 0.60;
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, 0.0);
@@ -187,12 +191,37 @@ public record DroneEnvironment(
 	}
 
 	public static double groundEffectThrustMultiplier(DroneConfig config, double groundClearanceMeters) {
+		return 1.0 + groundEffectMaxExtraThrustFraction(config) * groundEffectIntensity(config, groundClearanceMeters);
+	}
+
+	public double groundEffectIntensity(DroneConfig config) {
+		return groundEffectIntensity(config, groundClearanceMeters);
+	}
+
+	public static double groundEffectIntensity(DroneConfig config, double groundClearanceMeters) {
 		if (groundClearanceMeters >= config.groundEffectHeightMeters() || config.groundEffectHeightMeters() <= 1.0e-6) {
-			return 1.0;
+			return 0.0;
 		}
 
-		double proximity = 1.0 - groundClearanceMeters / config.groundEffectHeightMeters();
-		return 1.0 + config.groundEffectMaxThrustBoost() * proximity * proximity;
+		double clearance = Math.max(0.0, groundClearanceMeters);
+		double zjuHeightShape = ZJU_GROUND_EFFECT_G1_METERS_SQUARED
+				/ (clearance * clearance + ZJU_GROUND_EFFECT_G1_METERS_SQUARED);
+		double cutoffFade = 1.0 - smoothStep(
+				config.groundEffectHeightMeters() * 0.80,
+				config.groundEffectHeightMeters(),
+				clearance
+		);
+		return MathUtil.clamp(zjuHeightShape * cutoffFade, 0.0, 1.0);
+	}
+
+	private static double groundEffectMaxExtraThrustFraction(DroneConfig config) {
+		double zjuReferenceScale = ZJU_GROUND_EFFECT_G2_METERS_SQUARED
+				/ (ZJU_GROUND_EFFECT_G1_METERS_SQUARED * RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST);
+		return MathUtil.clamp(
+				config.groundEffectMaxThrustBoost() * zjuReferenceScale,
+				0.0,
+				MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION
+		);
 	}
 
 	public static double weightedGroundEffectThrustMultiplier(
@@ -262,6 +291,14 @@ public record DroneEnvironment(
 			return 1.0;
 		}
 		return MathUtil.clamp(weightedMultiplier / totalWeight, 0.35, 2.0);
+	}
+
+	private static double smoothStep(double edge0, double edge1, double value) {
+		if (edge1 <= edge0) {
+			return value >= edge1 ? 1.0 : 0.0;
+		}
+		double t = MathUtil.clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+		return t * t * (3.0 - 2.0 * t);
 	}
 
 	public double rotorThrustMultiplier(int rotorIndex, DroneConfig config) {

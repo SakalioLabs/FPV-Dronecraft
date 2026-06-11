@@ -4665,6 +4665,23 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void racingQuadGroundEffectMatchesZjuHeightResponse() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		double rotorRadius = config.rotors().get(0).radiusMeters();
+		double halfRadius = DroneEnvironment.groundEffectThrustMultiplier(config, rotorRadius * 0.5);
+		double oneRadius = DroneEnvironment.groundEffectThrustMultiplier(config, rotorRadius);
+		double fourRadii = DroneEnvironment.groundEffectThrustMultiplier(config, rotorRadius * 4.0);
+		double effectHeight = DroneEnvironment.groundEffectThrustMultiplier(config, config.groundEffectHeightMeters());
+
+		assertEquals(1.385, halfRadius, 0.020);
+		assertEquals(1.332, oneRadius, 0.020);
+		assertEquals(1.089, fourRadii, 0.012);
+		assertTrue(halfRadius > oneRadius);
+		assertTrue(oneRadius > fourRadii);
+		assertEquals(1.0, effectHeight, 1.0e-9);
+	}
+
+	@Test
 	void rotorSurfaceEffectBuildsAndReleasesWithPressureLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

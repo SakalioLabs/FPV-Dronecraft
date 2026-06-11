@@ -6544,9 +6544,7 @@ public final class DronePhysics {
 				+ 0.55 * state.vortexRingStateIntensity()
 				+ 0.25 * state.rotorVibration()
 				+ 0.32 * environment.droneWakeIntensity();
-		double groundCompression = config.groundEffectMaxThrustBoost() <= 1.0e-6
-				? 0.0
-				: MathUtil.clamp((environment.groundEffectThrustMultiplier(config) - 1.0) / config.groundEffectMaxThrustBoost(), 0.0, 1.0);
+		double groundCompression = environment.groundEffectIntensity(config);
 		double ceilingSuction = environment.ceilingEffectIntensity(config);
 		double dynamicPressureError = barometerDynamicPressureErrorMeters(environment);
 		double pressurePortError = 0.90 * cleanRotorWash
