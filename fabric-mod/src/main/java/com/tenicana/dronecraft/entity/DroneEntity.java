@@ -148,6 +148,8 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> MIXER_SATURATION = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> PROPWASH_INTENSITY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> VORTEX_RING_STATE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> VORTEX_RING_THRUST_BUFFET = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> VORTEX_RING_BUFFET_FORCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> GROUND_EFFECT_MULTIPLIER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> CEILING_EFFECT_MULTIPLIER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> CEILING_EFFECT_INTENSITY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -421,6 +423,8 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(MIXER_SATURATION, 0.0f);
 		builder.define(PROPWASH_INTENSITY, 0.0f);
 		builder.define(VORTEX_RING_STATE, 0.0f);
+		builder.define(VORTEX_RING_THRUST_BUFFET, 0.0f);
+		builder.define(VORTEX_RING_BUFFET_FORCE, 0.0f);
 		builder.define(GROUND_EFFECT_MULTIPLIER, 1.0f);
 		builder.define(CEILING_EFFECT_MULTIPLIER, 1.0f);
 		builder.define(CEILING_EFFECT_INTENSITY, 0.0f);
@@ -1158,6 +1162,8 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(MIXER_SATURATION, (float) physics.state().mixerSaturation());
 		entityData.set(PROPWASH_INTENSITY, (float) physics.state().propwashIntensity());
 		entityData.set(VORTEX_RING_STATE, (float) physics.state().vortexRingStateIntensity());
+		entityData.set(VORTEX_RING_THRUST_BUFFET, (float) physics.state().maxVortexRingThrustBuffetAmplitude());
+		entityData.set(VORTEX_RING_BUFFET_FORCE, (float) physics.state().vortexRingBuffetForceBodyNewtons().length());
 		entityData.set(GROUND_EFFECT_MULTIPLIER, (float) lastEnvironment.groundEffectThrustMultiplier(physics.config()));
 		entityData.set(CEILING_EFFECT_MULTIPLIER, (float) lastEnvironment.ceilingEffectThrustMultiplier(physics.config()));
 		entityData.set(CEILING_EFFECT_INTENSITY, (float) lastEnvironment.ceilingEffectIntensity(physics.config()));
@@ -1921,6 +1927,14 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getVortexRingStateIntensity() {
 		return entityData.get(VORTEX_RING_STATE);
+	}
+
+	public float getVortexRingThrustBuffetAmplitude() {
+		return entityData.get(VORTEX_RING_THRUST_BUFFET);
+	}
+
+	public float getVortexRingBuffetForceNewtons() {
+		return entityData.get(VORTEX_RING_BUFFET_FORCE);
 	}
 
 	public float getGroundEffectMultiplier() {

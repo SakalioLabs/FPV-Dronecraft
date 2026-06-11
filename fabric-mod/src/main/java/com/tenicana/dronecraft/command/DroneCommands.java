@@ -403,6 +403,8 @@ public final class DroneCommands {
 				drone.getRotorSurfaceScrapeIntensity(),
 				drone.getPropwashIntensity(),
 				drone.getVortexRingStateIntensity(),
+				drone.getVortexRingThrustBuffetAmplitude(),
+				drone.getVortexRingBuffetForceNewtons(),
 				drone.getRotorTranslationalLiftIntensity(),
 				drone.getRotorInducedVelocityMetersPerSecond(),
 				drone.getRotorInducedLagThrustScale(),

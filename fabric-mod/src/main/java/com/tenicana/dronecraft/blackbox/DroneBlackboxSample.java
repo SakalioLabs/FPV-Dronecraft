@@ -472,6 +472,12 @@ public final class DroneBlackboxSample {
 			"propwash_intensity",
 			"propwash_wake_intensity",
 			"vortex_ring_state",
+			"vortex_ring_thrust_buffet",
+			"vortex_ring_max_thrust_buffet",
+			"vortex_ring_buffet_force_x_n",
+			"vortex_ring_buffet_force_y_n",
+			"vortex_ring_buffet_force_z_n",
+			"vortex_ring_buffet_force_n",
 			"propwash_pitch_torque_nm",
 			"propwash_yaw_torque_nm",
 			"propwash_roll_torque_nm",
@@ -1001,6 +1007,7 @@ public final class DroneBlackboxSample {
 		Vec3 pidOutput = state.pidOutputTorqueBodyNewtonMeters();
 		Vec3 wind = environment.windVelocityWorldMetersPerSecond();
 		Vec3 propwashTorque = state.propwashTorqueBodyNewtonMeters();
+		Vec3 vortexRingBuffetForce = state.vortexRingBuffetForceBodyNewtons();
 		Vec3 airframeTorque = state.airframeAerodynamicTorqueBodyNewtonMeters();
 		Vec3 pressureCenterTorque = state.airframePressureCenterTorqueBodyNewtonMeters();
 		Vec3 airframeAngularDragTorque = state.airframeAngularDragTorqueBodyNewtonMeters();
@@ -1491,6 +1498,12 @@ public final class DroneBlackboxSample {
 		row.add(state.propwashIntensity(), "%.4f");
 		row.add(state.propwashWakeIntensity(), "%.4f");
 		row.add(state.vortexRingStateIntensity(), "%.4f");
+		row.add(state.vortexRingThrustBuffetAmplitude(), "%.5f");
+		row.add(state.maxVortexRingThrustBuffetAmplitude(), "%.5f");
+		row.add(vortexRingBuffetForce.x(), "%.5f");
+		row.add(vortexRingBuffetForce.y(), "%.5f");
+		row.add(vortexRingBuffetForce.z(), "%.5f");
+		row.add(vortexRingBuffetForce.length(), "%.5f");
 		row.add(propwashTorque.x(), "%.5f");
 		row.add(propwashTorque.y(), "%.5f");
 		row.add(propwashTorque.z(), "%.5f");

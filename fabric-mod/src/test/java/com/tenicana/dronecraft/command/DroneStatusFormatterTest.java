@@ -87,6 +87,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("tipmach 0.32"));
 		assertTrue(status.contains("lowre 0.00"));
 		assertTrue(status.contains("blade 12deg bstall 0.00 bpass 0.000"));
+		assertTrue(status.contains("vrsbuf 0% vrsF 0.00N"));
 		assertTrue(status.contains("bdiss 0.000Nm"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("wloss 0%"));
@@ -188,6 +189,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("blade-dissymmetry"));
 		assertTrue(warnings.contains("rotor-hforce"));
 		assertTrue(warnings.contains("vrs"));
+		assertTrue(warnings.contains("vrs-buffet"));
 		assertTrue(warnings.contains("propwash"));
 		assertTrue(warnings.contains("baro-disturbed"));
 		assertTrue(warnings.contains("drone-wake"));
@@ -219,6 +221,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("spike 0.42V ripple 0.240V"));
 		assertTrue(status.contains("load 1.08 hforce 2.60N"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
+		assertTrue(status.contains("vrsbuf 11% vrsF 0.24N"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
 		assertTrue(status.contains("rwake 0.47 wloss 9% coax 0.082 wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
@@ -337,6 +340,8 @@ class DroneStatusFormatterTest {
 				diagnosticActive ? 0.55 : 0.0,
 				propwash,
 				propwash > 0.55 ? 0.42 : 0.0,
+				propwash > 0.55 ? 0.11 : 0.0,
+				propwash > 0.55 ? 0.24 : 0.0,
 				droneWake > 0.55 ? 0.36 : 0.0,
 				rotorInducedVelocityMetersPerSecond,
 				rotorInducedLagThrustScale,

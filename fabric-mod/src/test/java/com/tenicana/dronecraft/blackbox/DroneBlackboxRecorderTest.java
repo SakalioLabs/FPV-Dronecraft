@@ -260,6 +260,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_0_water_immersion"));
 		assertTrue(csv.contains("rotor_3_water_immersion"));
 		assertTrue(csv.contains("propwash_wake_intensity"));
+		assertTrue(csv.contains("vortex_ring_thrust_buffet"));
+		assertTrue(csv.contains("vortex_ring_max_thrust_buffet"));
+		assertTrue(csv.contains("vortex_ring_buffet_force_n"));
 		assertTrue(csv.contains("avg_motor_cooling_factor"));
 		assertTrue(csv.contains("motor_0_cooling_factor"));
 		assertTrue(csv.contains("motor_3_cooling_factor"));
@@ -666,6 +669,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("spike"));
 		assertTrue(summary.formatForChat().contains("contact"));
 		assertTrue(summary.formatForChat().contains("propwash"));
+		assertTrue(summary.formatForChat().contains("vrsbuf"));
+		assertTrue(summary.formatForChat().contains("vrsF"));
 		assertTrue(summary.formatForChat().contains("ind"));
 		assertTrue(summary.formatForChat().contains("iloss"));
 		assertTrue(summary.formatForChat().contains("ETL"));
