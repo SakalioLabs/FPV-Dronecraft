@@ -112,6 +112,12 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_arm_flex"));
 		assertTrue(csv.contains("rotor_0_arm_flex"));
 		assertTrue(csv.contains("rotor_7_arm_flex"));
+		assertTrue(csv.contains("rotor_arm_flex_deflection_mm"));
+		assertTrue(csv.contains("rotor_0_arm_flex_deflection_mm"));
+		assertTrue(csv.contains("rotor_7_arm_flex_deflection_mm"));
+		assertTrue(csv.contains("rotor_arm_flex_tilt_deg"));
+		assertTrue(csv.contains("rotor_0_arm_flex_tilt_deg"));
+		assertTrue(csv.contains("rotor_7_arm_flex_tilt_deg"));
 		assertTrue(csv.contains("rotor_advance_ratio"));
 		assertTrue(csv.contains("rotor_0_advance_ratio"));
 		assertTrue(csv.contains("rotor_3_advance_ratio"));
@@ -143,6 +149,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_coning"));
 		assertTrue(csv.contains("rotor_0_coning"));
 		assertTrue(csv.contains("rotor_7_coning"));
+		assertTrue(csv.contains("rotor_coning_angle_deg"));
+		assertTrue(csv.contains("rotor_0_coning_angle_deg"));
+		assertTrue(csv.contains("rotor_7_coning_angle_deg"));
 		assertTrue(csv.contains("rotor_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_0_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_3_aerodynamic_load"));
@@ -420,6 +429,10 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_torque_z_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_arm_flex")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_arm_flex_deflection_mm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex_deflection_mm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_arm_flex_tilt_deg")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex_tilt_deg")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_low_reynolds_loss")]));
@@ -542,6 +555,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_dynamic_inflow_tau_s")]) <= 0.36);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_coning")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_0_coning")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_coning_angle_deg")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_0_coning_angle_deg")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_pitch")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_yaw")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_roll")]));
@@ -574,6 +589,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(540.0, summary.maxContactAngularImpulseDegreesPerSecond(), 0.0001);
 		assertEquals(0.18, summary.maxRotorSurfaceScrapeIntensity(), 0.0001);
 		assertTrue(summary.maxRotorConingIntensity() >= 0.0);
+		assertTrue(summary.maxRotorConingAngleDegrees() >= 0.0);
 		assertTrue(summary.maxRotorFlappingTiltDegrees() >= 0.0);
 		assertTrue(summary.maxRotorInducedVelocityMetersPerSecond() > 0.0);
 		assertUnitInterval(summary.minRotorInducedLagThrustScale());
@@ -583,6 +599,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
 		assertUnitInterval(summary.maxRotorWindmillingIntensity());
 		assertTrue(summary.maxRotorArmFlexIntensity() >= 0.0);
+		assertTrue(summary.maxRotorArmFlexDeflectionMillimeters() >= 0.0);
+		assertTrue(summary.maxRotorArmFlexTiltDegrees() >= 0.0);
 		assertTrue(summary.maxRotorBladeDissymmetryTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorAccelerationReactionTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorGyroscopicTorqueNewtonMeters() >= 0.0);

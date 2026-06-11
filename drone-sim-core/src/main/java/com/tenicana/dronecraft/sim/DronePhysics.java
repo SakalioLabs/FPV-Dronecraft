@@ -781,6 +781,7 @@ public final class DronePhysics {
 			rotorVibrationSum += rotorConingVibration(aerodynamicRotor, aerodynamicOmega, coningIntensity);
 			rotorVibrationSum += rotorInducedWakeVibration(aerodynamicRotor, aerodynamicOmega, rotorInducedWakeCarryoverIntensity[i]);
 			state.setRotorConingIntensity(i, coningIntensity);
+			state.setRotorConingAngleRadians(i, rotorConingAngleRadians(aerodynamicRotor, coningIntensity));
 			double vortexRingThrustScale = 1.0 - rotorVortexRingMeanThrustLoss(rotor, vortexRingState);
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
 			double lowReynoldsThrustScale = rotorLowReynoldsThrustScale(lowReynoldsLoss);
@@ -945,6 +946,8 @@ public final class DronePhysics {
 			state.setRotorTorqueBodyNewtonMeters(i, rotorTorqueBody);
 			double rotorArmFlex = updateRotorArmFlexIntensity(i, rotor, forceBody, rotorTorqueBody, omega, dtSeconds);
 			state.setRotorArmFlexIntensity(i, rotorArmFlex);
+			state.setRotorArmFlexDeflectionMeters(i, rotorArmFlexVerticalDeflectionMeters(rotor, nominalRotorArmBody, rotorArmFlex));
+			state.setRotorArmFlexTiltRadians(i, rotorArmFlexTiltRadians(rotor, nominalRotorArmBody, rotorArmFlex));
 			rotorVibrationSum += rotorArmFlexVibration(rotor, omega, rotorArmFlex);
 			totalForceBody = totalForceBody.add(forceBody);
 			totalTorqueBody = totalTorqueBody.add(rotorTorqueBody);
@@ -3041,6 +3044,17 @@ public final class DronePhysics {
 		return MathUtil.clamp(load * (0.62 + 0.38 * diskSize) * pitchFlexScale / centrifugalStiffening, 0.0, 1.0);
 	}
 
+	private static double rotorConingAngleRadians(RotorSpec rotor, double coningIntensity) {
+		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
+		if (coning <= 1.0e-6) {
+			return 0.0;
+		}
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.55, 2.60);
+		double pitchFlexScale = MathUtil.clamp(1.0 / Math.sqrt(rotorBladePitchRatio(rotor)), 0.70, 1.35);
+		double maximumConingDegrees = MathUtil.clamp(2.05 * Math.pow(radiusScale, -0.08) * pitchFlexScale, 1.20, 3.20);
+		return Math.toRadians(maximumConingDegrees * coning);
+	}
+
 	private static double rotorConingThrustScale(double coningIntensity) {
 		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
 		return MathUtil.clamp(1.0 - 0.038 * coning, 0.94, 1.0);
@@ -3760,10 +3774,9 @@ public final class DronePhysics {
 			return nominalRotorArmBody;
 		}
 
-		double armLength = Math.max(0.08, Math.hypot(nominalRotorArmBody.x(), nominalRotorArmBody.z()));
-		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
-		double verticalDeflection = ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE * flex * armLength * radiusScale;
-		return nominalRotorArmBody.add(BODY_ROTOR_AXIS.multiply(verticalDeflection));
+		return nominalRotorArmBody.add(BODY_ROTOR_AXIS.multiply(
+				rotorArmFlexVerticalDeflectionMeters(rotor, nominalRotorArmBody, flex)
+		));
 	}
 
 	private static RotorSpec rotorWithArmFlexedThrustAxis(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
@@ -3773,15 +3786,33 @@ public final class DronePhysics {
 			return rotor;
 		}
 
-		double armLength = Math.max(0.08, Math.hypot(nominalRotorArmBody.x(), nominalRotorArmBody.z()));
-		double armScale = MathUtil.clamp(Math.sqrt(armLength / 0.24), 0.55, 2.10);
-		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
-		double tiltRadians = ROTOR_ARM_FLEX_TILT_RADIANS * flex * armScale * radiusScale;
+		double tiltRadians = rotorArmFlexTiltRadians(rotor, nominalRotorArmBody, flex);
 		Vec3 axis = rotorAxisBody(rotor).subtract(radialDirection.multiply(tiltRadians)).normalized();
 		if (axis.lengthSquared() <= 1.0e-9 || axis.y() <= 0.0) {
 			return rotor;
 		}
 		return rotor.withThrustAxisBody(axis);
+	}
+
+	private static double rotorArmFlexVerticalDeflectionMeters(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
+		double flex = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
+		if (flex <= 1.0e-6 || horizontalRotorArmDirection(nominalRotorArmBody).lengthSquared() <= 1.0e-9) {
+			return 0.0;
+		}
+		double armLength = Math.max(0.08, Math.hypot(nominalRotorArmBody.x(), nominalRotorArmBody.z()));
+		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
+		return ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE * flex * armLength * radiusScale;
+	}
+
+	private static double rotorArmFlexTiltRadians(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
+		double flex = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
+		if (flex <= 1.0e-6 || horizontalRotorArmDirection(nominalRotorArmBody).lengthSquared() <= 1.0e-9) {
+			return 0.0;
+		}
+		double armLength = Math.max(0.08, Math.hypot(nominalRotorArmBody.x(), nominalRotorArmBody.z()));
+		double armScale = MathUtil.clamp(Math.sqrt(armLength / 0.24), 0.55, 2.10);
+		double radiusScale = MathUtil.clamp(Math.sqrt(rotor.radiusMeters() / 0.0635), 0.55, 2.20);
+		return ROTOR_ARM_FLEX_TILT_RADIANS * flex * armScale * radiusScale;
 	}
 
 	private static Vec3 horizontalRotorArmDirection(Vec3 rotorArmBody) {

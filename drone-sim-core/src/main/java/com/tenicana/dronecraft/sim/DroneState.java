@@ -104,6 +104,7 @@ public final class DroneState {
 	private double[] rotorFlappingForceNewtons;
 	private double[] rotorFlappingTiltRadians;
 	private double[] rotorConingIntensity;
+	private double[] rotorConingAngleRadians;
 	private double[] rotorStallIntensity;
 	private double[] rotorWindmillingIntensity;
 	private double[] rotorSurfaceScrapeIntensity;
@@ -113,6 +114,8 @@ public final class DroneState {
 	private double[] rotorCoaxialLoadBias;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
 	private double[] rotorArmFlexIntensity;
+	private double[] rotorArmFlexDeflectionMeters;
+	private double[] rotorArmFlexTiltRadians;
 	private double[] rotorHealth;
 	private double rotorVibration;
 	private double rotorInflowSkewIntensity;
@@ -225,6 +228,7 @@ public final class DroneState {
 		rotorFlappingForceNewtons = new double[motorCount];
 		rotorFlappingTiltRadians = new double[motorCount];
 		rotorConingIntensity = new double[motorCount];
+		rotorConingAngleRadians = new double[motorCount];
 		rotorStallIntensity = new double[motorCount];
 		rotorWindmillingIntensity = new double[motorCount];
 		rotorSurfaceScrapeIntensity = new double[motorCount];
@@ -234,6 +238,8 @@ public final class DroneState {
 		rotorCoaxialLoadBias = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
 		rotorArmFlexIntensity = new double[motorCount];
+		rotorArmFlexDeflectionMeters = new double[motorCount];
+		rotorArmFlexTiltRadians = new double[motorCount];
 		rotorHealth = new double[motorCount];
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
@@ -1309,6 +1315,7 @@ public final class DroneState {
 		Arrays.fill(rotorFlappingForceNewtons, 0.0);
 		Arrays.fill(rotorFlappingTiltRadians, 0.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
+		Arrays.fill(rotorConingAngleRadians, 0.0);
 		Arrays.fill(rotorStallIntensity, 0.0);
 		Arrays.fill(rotorWindmillingIntensity, 0.0);
 		Arrays.fill(rotorSurfaceScrapeIntensity, 0.0);
@@ -1318,6 +1325,8 @@ public final class DroneState {
 		Arrays.fill(rotorCoaxialLoadBias, 0.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
+		Arrays.fill(rotorArmFlexDeflectionMeters, 0.0);
+		Arrays.fill(rotorArmFlexTiltRadians, 0.0);
 		rotorVibration = 0.0;
 		rotorInflowSkewIntensity = 0.0;
 		rotorInflowSkewTorqueBodyNewtonMeters = Vec3.ZERO;
@@ -1907,6 +1916,36 @@ public final class DroneState {
 		return max;
 	}
 
+	public double rotorConingAngleRadians(int index) {
+		return rotorConingAngleRadians[index];
+	}
+
+	public double[] rotorConingAngleRadians() {
+		return Arrays.copyOf(rotorConingAngleRadians, rotorConingAngleRadians.length);
+	}
+
+	void setRotorConingAngleRadians(int index, double value) {
+		rotorConingAngleRadians[index] = Double.isFinite(value)
+				? MathUtil.clamp(value, 0.0, Math.toRadians(6.0))
+				: 0.0;
+	}
+
+	public double averageRotorConingAngleRadians() {
+		double sum = 0.0;
+		for (double angle : rotorConingAngleRadians) {
+			sum += angle;
+		}
+		return sum / rotorConingAngleRadians.length;
+	}
+
+	public double maxRotorConingAngleRadians() {
+		double max = 0.0;
+		for (double angle : rotorConingAngleRadians) {
+			max = Math.max(max, angle);
+		}
+		return max;
+	}
+
 	public double rotorStallIntensity(int index) {
 		return rotorStallIntensity[index];
 	}
@@ -2159,6 +2198,66 @@ public final class DroneState {
 		double max = 0.0;
 		for (double flex : rotorArmFlexIntensity) {
 			max = Math.max(max, flex);
+		}
+		return max;
+	}
+
+	public double rotorArmFlexDeflectionMeters(int index) {
+		return rotorArmFlexDeflectionMeters[index];
+	}
+
+	public double[] rotorArmFlexDeflectionMeters() {
+		return Arrays.copyOf(rotorArmFlexDeflectionMeters, rotorArmFlexDeflectionMeters.length);
+	}
+
+	void setRotorArmFlexDeflectionMeters(int index, double value) {
+		rotorArmFlexDeflectionMeters[index] = Double.isFinite(value)
+				? MathUtil.clamp(value, 0.0, 0.25)
+				: 0.0;
+	}
+
+	public double averageRotorArmFlexDeflectionMeters() {
+		double sum = 0.0;
+		for (double deflection : rotorArmFlexDeflectionMeters) {
+			sum += deflection;
+		}
+		return sum / rotorArmFlexDeflectionMeters.length;
+	}
+
+	public double maxRotorArmFlexDeflectionMeters() {
+		double max = 0.0;
+		for (double deflection : rotorArmFlexDeflectionMeters) {
+			max = Math.max(max, deflection);
+		}
+		return max;
+	}
+
+	public double rotorArmFlexTiltRadians(int index) {
+		return rotorArmFlexTiltRadians[index];
+	}
+
+	public double[] rotorArmFlexTiltRadians() {
+		return Arrays.copyOf(rotorArmFlexTiltRadians, rotorArmFlexTiltRadians.length);
+	}
+
+	void setRotorArmFlexTiltRadians(int index, double value) {
+		rotorArmFlexTiltRadians[index] = Double.isFinite(value)
+				? MathUtil.clamp(value, 0.0, Math.toRadians(16.0))
+				: 0.0;
+	}
+
+	public double averageRotorArmFlexTiltRadians() {
+		double sum = 0.0;
+		for (double tilt : rotorArmFlexTiltRadians) {
+			sum += tilt;
+		}
+		return sum / rotorArmFlexTiltRadians.length;
+	}
+
+	public double maxRotorArmFlexTiltRadians() {
+		double max = 0.0;
+		for (double tilt : rotorArmFlexTiltRadians) {
+			max = Math.max(max, tilt);
 		}
 		return max;
 	}

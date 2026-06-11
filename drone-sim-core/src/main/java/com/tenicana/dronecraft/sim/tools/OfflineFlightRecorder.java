@@ -664,6 +664,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_coning",
 			"rotor_6_coning",
 			"rotor_7_coning",
+			"rotor_coning_angle_deg",
+			"rotor_0_coning_angle_deg",
+			"rotor_1_coning_angle_deg",
+			"rotor_2_coning_angle_deg",
+			"rotor_3_coning_angle_deg",
+			"rotor_4_coning_angle_deg",
+			"rotor_5_coning_angle_deg",
+			"rotor_6_coning_angle_deg",
+			"rotor_7_coning_angle_deg",
 			"motor_electrical_efficiency",
 			"motor_0_electrical_efficiency",
 			"motor_1_electrical_efficiency",
@@ -767,6 +776,24 @@ public final class OfflineFlightRecorder {
 			"rotor_5_arm_flex",
 			"rotor_6_arm_flex",
 			"rotor_7_arm_flex",
+			"rotor_arm_flex_deflection_mm",
+			"rotor_0_arm_flex_deflection_mm",
+			"rotor_1_arm_flex_deflection_mm",
+			"rotor_2_arm_flex_deflection_mm",
+			"rotor_3_arm_flex_deflection_mm",
+			"rotor_4_arm_flex_deflection_mm",
+			"rotor_5_arm_flex_deflection_mm",
+			"rotor_6_arm_flex_deflection_mm",
+			"rotor_7_arm_flex_deflection_mm",
+			"rotor_arm_flex_tilt_deg",
+			"rotor_0_arm_flex_tilt_deg",
+			"rotor_1_arm_flex_tilt_deg",
+			"rotor_2_arm_flex_tilt_deg",
+			"rotor_3_arm_flex_tilt_deg",
+			"rotor_4_arm_flex_tilt_deg",
+			"rotor_5_arm_flex_tilt_deg",
+			"rotor_6_arm_flex_tilt_deg",
+			"rotor_7_arm_flex_tilt_deg",
 			"tune_cg_x_m",
 			"tune_cg_y_m",
 			"tune_cg_z_m",
@@ -830,7 +857,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -874,7 +901,10 @@ public final class OfflineFlightRecorder {
 				report.maxRotorStallIntensity(),
 				report.maxAirframeSeparatedFlowIntensity(),
 				report.maxRotorConingIntensity(),
+				Math.toDegrees(report.maxRotorConingAngleRadians()),
 				report.maxRotorArmFlexIntensity(),
+				report.maxRotorArmFlexDeflectionMeters() * 1000.0,
+				Math.toDegrees(report.maxRotorArmFlexTiltRadians()),
 				report.maxRotorSurfaceScrapeIntensity(),
 				report.maxWindGustSpeedMetersPerSecond(),
 				report.maxWindShearAccelerationMetersPerSecondSquared(),
@@ -1646,6 +1676,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorBladePassRipple = state.rotorBladePassRippleIntensity();
 		double[] rotorFlappingTilt = state.rotorFlappingTiltRadians();
 		double[] rotorConing = state.rotorConingIntensity();
+		double[] rotorConingAngle = state.rotorConingAngleRadians();
 		double[] motorElectricalEfficiency = state.motorElectricalEfficiency();
 		double[] motorVoltageHeadroom = state.motorVoltageHeadroom();
 		double[] motorWindingResistanceScale = state.motorWindingResistanceScale();
@@ -1653,6 +1684,8 @@ public final class OfflineFlightRecorder {
 		Vec3[] rotorForceBody = state.rotorForceBodyNewtons();
 		Vec3[] rotorTorqueBody = state.rotorTorqueBodyNewtonMeters();
 		double[] rotorArmFlex = state.rotorArmFlexIntensity();
+		double[] rotorArmFlexDeflection = state.rotorArmFlexDeflectionMeters();
+		double[] rotorArmFlexTilt = state.rotorArmFlexTiltRadians();
 		Vec3 mixerOutputTorque = state.mixerOutputTorqueBodyNewtonMeters();
 		Vec3 mixerAxisAuthority = state.mixerAxisAuthority();
 		Vec3 pidIntegralRelaxAxes = state.pidIntegralRelaxAxes();
@@ -1814,6 +1847,10 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorConing, i), "%.5f");
 		}
+		appendExtra(builder, Math.toDegrees(state.averageRotorConingAngleRadians()), "%.4f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, Math.toDegrees(valueOrZero(rotorConingAngle, i)), "%.4f");
+		}
 		appendExtra(builder, state.averageMotorElectricalEfficiency(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorElectricalEfficiency, i), "%.5f");
@@ -1844,6 +1881,14 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.averageRotorArmFlexIntensity(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorArmFlex, i), "%.5f");
+		}
+		appendExtra(builder, state.averageRotorArmFlexDeflectionMeters() * 1000.0, "%.4f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorArmFlexDeflection, i) * 1000.0, "%.4f");
+		}
+		appendExtra(builder, Math.toDegrees(state.averageRotorArmFlexTiltRadians()), "%.4f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, Math.toDegrees(valueOrZero(rotorArmFlexTilt, i)), "%.4f");
 		}
 		appendExtra(builder, config.centerOfMassOffsetBodyMeters().x(), "%.5f");
 		appendExtra(builder, config.centerOfMassOffsetBodyMeters().y(), "%.5f");
@@ -1998,7 +2043,10 @@ public final class OfflineFlightRecorder {
 		private double maxRotorStallIntensity;
 		private double maxAirframeSeparatedFlowIntensity;
 		private double maxRotorConingIntensity;
+		private double maxRotorConingAngleRadians;
 		private double maxRotorArmFlexIntensity;
+		private double maxRotorArmFlexDeflectionMeters;
+		private double maxRotorArmFlexTiltRadians;
 		private double maxRotorSurfaceScrapeIntensity;
 		private double maxWindGustSpeedMetersPerSecond;
 		private double maxWindShearAccelerationMetersPerSecondSquared;
@@ -2088,7 +2136,10 @@ public final class OfflineFlightRecorder {
 			maxRotorStallIntensity = Math.max(maxRotorStallIntensity, state.averageRotorStallIntensity());
 			maxAirframeSeparatedFlowIntensity = Math.max(maxAirframeSeparatedFlowIntensity, state.airframeSeparatedFlowIntensity());
 			maxRotorConingIntensity = Math.max(maxRotorConingIntensity, state.maxRotorConingIntensity());
+			maxRotorConingAngleRadians = Math.max(maxRotorConingAngleRadians, state.maxRotorConingAngleRadians());
 			maxRotorArmFlexIntensity = Math.max(maxRotorArmFlexIntensity, state.maxRotorArmFlexIntensity());
+			maxRotorArmFlexDeflectionMeters = Math.max(maxRotorArmFlexDeflectionMeters, state.maxRotorArmFlexDeflectionMeters());
+			maxRotorArmFlexTiltRadians = Math.max(maxRotorArmFlexTiltRadians, state.maxRotorArmFlexTiltRadians());
 			maxRotorSurfaceScrapeIntensity = Math.max(maxRotorSurfaceScrapeIntensity, state.maxRotorSurfaceScrapeIntensity());
 			maxWindGustSpeedMetersPerSecond = Math.max(maxWindGustSpeedMetersPerSecond, state.windGustSpeedMetersPerSecond());
 			maxWindShearAccelerationMetersPerSecondSquared = Math.max(maxWindShearAccelerationMetersPerSecondSquared, state.windShearAccelerationMetersPerSecondSquared());
@@ -2296,8 +2347,20 @@ public final class OfflineFlightRecorder {
 			return maxRotorConingIntensity;
 		}
 
+		public double maxRotorConingAngleRadians() {
+			return maxRotorConingAngleRadians;
+		}
+
 		public double maxRotorArmFlexIntensity() {
 			return maxRotorArmFlexIntensity;
+		}
+
+		public double maxRotorArmFlexDeflectionMeters() {
+			return maxRotorArmFlexDeflectionMeters;
+		}
+
+		public double maxRotorArmFlexTiltRadians() {
+			return maxRotorArmFlexTiltRadians;
 		}
 
 		public double maxRotorSurfaceScrapeIntensity() {

@@ -1130,6 +1130,12 @@ class DronePhysicsTest {
 		assertTrue(highLoad.state().rotorVibration() > lowLoad.state().rotorVibration() + 0.006,
 				() -> "lowVibration=" + lowLoad.state().rotorVibration()
 						+ " highVibration=" + highLoad.state().rotorVibration());
+		double lowConingAngleDegrees = Math.toDegrees(lowLoad.state().maxRotorConingAngleRadians());
+		double highConingAngleDegrees = Math.toDegrees(highLoad.state().maxRotorConingAngleRadians());
+		assertTrue(highConingAngleDegrees > lowConingAngleDegrees + 0.50,
+				() -> "lowConingAngle=" + lowConingAngleDegrees + " highConingAngle=" + highConingAngleDegrees);
+		assertTrue(highConingAngleDegrees > 0.80 && highConingAngleDegrees < 2.60,
+				() -> "highConingAngle=" + highConingAngleDegrees);
 	}
 
 	@Test
@@ -4540,15 +4546,31 @@ class DronePhysicsTest {
 		DronePhysics physics = new DronePhysics(config);
 		DroneInput punch = new DroneInput(0.92, 0.0, 0.0, 0.0, true);
 		double maxArmFlex = 0.0;
+		double maxArmFlexDeflectionMillimeters = 0.0;
+		double maxArmFlexTiltDegrees = 0.0;
 		double maxRotorVibration = 0.0;
 
 		for (int i = 0; i < 120; i++) {
 			physics.step(punch, 0.0025);
 			maxArmFlex = Math.max(maxArmFlex, physics.state().maxRotorArmFlexIntensity());
+			maxArmFlexDeflectionMillimeters = Math.max(
+					maxArmFlexDeflectionMillimeters,
+					physics.state().maxRotorArmFlexDeflectionMeters() * 1000.0
+			);
+			maxArmFlexTiltDegrees = Math.max(
+					maxArmFlexTiltDegrees,
+					Math.toDegrees(physics.state().maxRotorArmFlexTiltRadians())
+			);
 			maxRotorVibration = Math.max(maxRotorVibration, physics.state().rotorVibration());
 		}
 
 		assertTrue(maxArmFlex > 0.03);
+		double observedMaxArmFlexDeflectionMillimeters = maxArmFlexDeflectionMillimeters;
+		double observedMaxArmFlexTiltDegrees = maxArmFlexTiltDegrees;
+		assertTrue(observedMaxArmFlexDeflectionMillimeters > 0.20,
+				() -> "maxArmFlexMm=" + observedMaxArmFlexDeflectionMillimeters);
+		assertTrue(observedMaxArmFlexTiltDegrees > 0.05,
+				() -> "maxArmFlexTiltDeg=" + observedMaxArmFlexTiltDegrees);
 		assertTrue(maxRotorVibration > 0.005);
 		Vec3 rotor0Arm = config.rotors().get(0).positionBodyMeters();
 		Vec3 rotor0Radial = new Vec3(rotor0Arm.x(), 0.0, rotor0Arm.z()).normalized();
@@ -4558,6 +4580,8 @@ class DronePhysicsTest {
 		physics.resetControlLoops();
 
 		assertEquals(0.0, physics.state().averageRotorArmFlexIntensity(), 1.0e-9);
+		assertEquals(0.0, physics.state().averageRotorArmFlexDeflectionMeters(), 1.0e-9);
+		assertEquals(0.0, physics.state().averageRotorArmFlexTiltRadians(), 1.0e-9);
 	}
 
 	@Test
@@ -8113,6 +8137,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_torque_z_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_arm_flex"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_arm_flex"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_arm_flex_deflection_mm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_arm_flex_deflection_mm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_arm_flex_tilt_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_arm_flex_tilt_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_translational_lift"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_advance_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_advance_ratio"));
@@ -8238,6 +8266,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_coning"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_coning"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coning"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_coning_angle_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_coning_angle_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coning_angle_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_windmilling"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_windmilling"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_windmilling"));
@@ -8406,6 +8437,10 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_torque_z_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_arm_flex")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_arm_flex")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_arm_flex_deflection_mm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_arm_flex_deflection_mm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_arm_flex_tilt_deg")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_arm_flex_tilt_deg")])));
 		double loggedRotorAdvanceRatio = Double.parseDouble(firstRow[indexOf(header, "rotor_advance_ratio")]);
 		double loggedRotorPropAdvanceRatioJ = Double.parseDouble(firstRow[indexOf(header, "rotor_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotorAdvanceRatio, loggedRotorPropAdvanceRatioJ, 1.0e-4);
@@ -8443,6 +8478,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_coning")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_0_coning")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_coning")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_coning_angle_deg")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_0_coning_angle_deg")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_coning_angle_deg")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_windmilling")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_0_windmilling")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_windmilling")])));
@@ -8515,6 +8553,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_tracking_error") > 0.005);
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_coning") > 0.0);
+		assertTrue(maxColumn(lines, header, "rotor_coning_angle_deg") > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") > 0.10);
 		assertTrue(maxColumn(lines, header, "rotor_dynamic_inflow_tau_s") > 0.02);
 		assertTrue(minColumn(lines, header, "rotor_prop_power_scale") < 0.95);
@@ -8610,6 +8649,8 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorBladeDissymmetryTorqueNewtonMeters() >= 0.0);
 		assertEquals(maxBladeDissymmetryTorque, report.maxRotorBladeDissymmetryTorqueNewtonMeters(), 1.0e-5);
 		assertTrue(report.maxRotorArmFlexIntensity() > 0.02);
+		assertTrue(report.maxRotorArmFlexDeflectionMeters() > 0.0001);
+		assertTrue(report.maxRotorArmFlexTiltRadians() > 0.0);
 		assertTrue(report.minMotorElectricalEfficiency() > 0.50);
 		assertTrue(report.minMotorElectricalEfficiency() < 0.90);
 		assertTrue(report.minMotorVoltageHeadroom() >= 0.0);
@@ -8618,6 +8659,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() > 0.50);
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() <= 1.0);
 		assertTrue(report.maxRotorConingIntensity() > 0.0);
+		assertTrue(report.maxRotorConingAngleRadians() > 0.0);
 		assertTrue(report.maxRotorWindmillingIntensity() > 0.10);
 		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.025);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
