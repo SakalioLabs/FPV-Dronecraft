@@ -45,8 +45,10 @@ public final class DroneBlackboxSample {
 			"gyro_clip",
 			"gyro_notch_hz",
 			"gyro_notch_attenuation",
+			"gyro_notch_spread_hz",
 			"gyro_blade_pass_notch_hz",
 			"gyro_blade_pass_notch_attenuation",
+			"gyro_blade_pass_notch_spread_hz",
 			"linear_accel_x_mps2",
 			"linear_accel_y_mps2",
 			"linear_accel_z_mps2",
@@ -1076,8 +1078,10 @@ public final class DroneBlackboxSample {
 		row.add(state.gyroClipIntensity(), "%.5f");
 		row.add(state.gyroDynamicNotchFrequencyHertz(), "%.3f");
 		row.add(state.gyroDynamicNotchAttenuation(), "%.5f");
+		row.add(state.gyroDynamicNotchSpreadHertz(), "%.3f");
 		row.add(state.gyroBladePassNotchFrequencyHertz(), "%.3f");
 		row.add(state.gyroBladePassNotchAttenuation(), "%.5f");
+		row.add(state.gyroBladePassNotchSpreadHertz(), "%.3f");
 		row.add(linearAcceleration.x(), "%.4f");
 		row.add(linearAcceleration.y(), "%.4f");
 		row.add(linearAcceleration.z(), "%.4f");

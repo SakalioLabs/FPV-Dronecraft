@@ -97,6 +97,8 @@ public final class DronePhysics {
 	private final double[] escRpmTelemetryFrameClockSeconds;
 	private final double[] escRpmTelemetryFrameAgeSeconds;
 	private final boolean[] escRpmTelemetryFrameInitialized;
+	private final double[] gyroMotorVibrationPhases;
+	private final double[] gyroBladePassVibrationPhases;
 	private final double[] rotorArmFlexIntensity;
 	private final double[] rotorArmFlexVelocity;
 	private final Vec3[] rotorFlappingTiltBody;
@@ -117,8 +119,6 @@ public final class DronePhysics {
 	private double receiverFrameClockSeconds;
 	private double receiverFrameAgeSeconds;
 	private double gyroNoiseTimeSeconds;
-	private double gyroRotorVibrationPhase;
-	private double gyroBladePassVibrationPhase;
 	private double accelerometerNoiseTimeSeconds;
 	private double barometerNoiseTimeSeconds;
 	private double barometerFilteredAltitudeMeters;
@@ -292,6 +292,8 @@ public final class DronePhysics {
 		this.escRpmTelemetryFrameClockSeconds = new double[config.rotors().size()];
 		this.escRpmTelemetryFrameAgeSeconds = new double[config.rotors().size()];
 		this.escRpmTelemetryFrameInitialized = new boolean[config.rotors().size()];
+		this.gyroMotorVibrationPhases = new double[config.rotors().size()];
+		this.gyroBladePassVibrationPhases = new double[config.rotors().size()];
 		this.rotorArmFlexIntensity = new double[config.rotors().size()];
 		this.rotorArmFlexVelocity = new double[config.rotors().size()];
 		this.rotorFlappingTiltBody = new Vec3[config.rotors().size()];
@@ -6596,8 +6598,10 @@ public final class DronePhysics {
 		if (noise <= 0.0 && vibration <= 0.0 && busRipple <= 0.0 && supplyNoise <= 0.0) {
 			state.setGyroDynamicNotchFrequencyHertz(0.0);
 			state.setGyroDynamicNotchAttenuation(0.0);
+			state.setGyroDynamicNotchSpreadHertz(0.0);
 			state.setGyroBladePassNotchFrequencyHertz(0.0);
 			state.setGyroBladePassNotchAttenuation(0.0);
+			state.setGyroBladePassNotchSpreadHertz(0.0);
 			return Vec3.ZERO;
 		}
 
@@ -6612,10 +6616,10 @@ public final class DronePhysics {
 		double bladePassNotchAttenuation = gyroDynamicNotchAttenuation(bladePassNotchFrequencyHertz, vibration);
 		state.setGyroDynamicNotchFrequencyHertz(notchFrequencyHertz);
 		state.setGyroDynamicNotchAttenuation(notchAttenuation);
+		state.setGyroDynamicNotchSpreadHertz(escRpmTelemetryFrequencySpreadHertz(false));
 		state.setGyroBladePassNotchFrequencyHertz(bladePassNotchFrequencyHertz);
 		state.setGyroBladePassNotchAttenuation(bladePassNotchAttenuation);
-		gyroRotorVibrationPhase += averageOmega * dtSeconds;
-		gyroBladePassVibrationPhase += averageBladePassOmega * dtSeconds;
+		state.setGyroBladePassNotchSpreadHertz(escRpmTelemetryFrequencySpreadHertz(true));
 		double t = gyroNoiseTimeSeconds;
 		Vec3 broadbandNoise = new Vec3(
 				noiseScale * (Math.sin(t * 437.0 + 0.2) + 0.35 * Math.sin(t * 941.0 + 1.7)),
@@ -6630,15 +6634,46 @@ public final class DronePhysics {
 		);
 		double rotorVibrationScale = 0.45 * vibration * (1.0 - notchAttenuation);
 		double bladePassVibrationScale = 0.45 * vibration * (1.0 - bladePassNotchAttenuation);
-		Vec3 motorSynchronousNoise = new Vec3(
-				rotorVibrationScale * Math.sin(gyroRotorVibrationPhase + 0.3)
-						+ 0.42 * bladePassVibrationScale * Math.sin(gyroBladePassVibrationPhase + 1.2),
-				rotorVibrationScale * Math.sin(gyroRotorVibrationPhase + 2.0)
-						+ 0.35 * bladePassVibrationScale * Math.sin(gyroBladePassVibrationPhase + 0.4),
-				rotorVibrationScale * Math.sin(gyroRotorVibrationPhase + 4.1)
-						+ 0.38 * bladePassVibrationScale * Math.sin(gyroBladePassVibrationPhase + 2.6)
+		Vec3 motorSynchronousNoise = perMotorSynchronousGyroNoise(
+				dtSeconds,
+				rotorVibrationScale,
+				bladePassVibrationScale
 		);
 		return broadbandNoise.add(powerRailNoise).add(motorSynchronousNoise);
+	}
+
+	private Vec3 perMotorSynchronousGyroNoise(
+			double dtSeconds,
+			double rotorVibrationScale,
+			double bladePassVibrationScale
+	) {
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		if (count <= 0 || (rotorVibrationScale <= 0.0 && bladePassVibrationScale <= 0.0)) {
+			return Vec3.ZERO;
+		}
+
+		double mixScale = 1.0 / Math.sqrt(count);
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < count; i++) {
+			double motorOmega = Math.abs(escRpmTelemetryOmegaRadiansPerSecond[i]);
+			double bladePassOmega = motorOmega * config.rotors().get(i).bladeCount();
+			gyroMotorVibrationPhases[i] += motorOmega * dtSeconds;
+			gyroBladePassVibrationPhases[i] += bladePassOmega * dtSeconds;
+			double motorPhase = gyroMotorVibrationPhases[i] + i * 0.73;
+			double bladePhase = gyroBladePassVibrationPhases[i] + i * 1.11;
+			double armSignX = Math.signum(config.rotors().get(i).positionBodyMeters().x());
+			double armSignZ = Math.signum(config.rotors().get(i).positionBodyMeters().z());
+			Vec3 line = new Vec3(
+					rotorVibrationScale * Math.sin(motorPhase + 0.3 + 0.18 * armSignZ)
+							+ 0.42 * bladePassVibrationScale * Math.sin(bladePhase + 1.2 + 0.14 * armSignX),
+					rotorVibrationScale * Math.sin(motorPhase + 2.0 + 0.16 * armSignX)
+							+ 0.35 * bladePassVibrationScale * Math.sin(bladePhase + 0.4 + 0.12 * armSignZ),
+					rotorVibrationScale * Math.sin(motorPhase + 4.1 - 0.15 * armSignX)
+							+ 0.38 * bladePassVibrationScale * Math.sin(bladePhase + 2.6 - 0.10 * armSignZ)
+			);
+			sum = sum.add(line.multiply(mixScale));
+		}
+		return sum;
 	}
 
 	private double averageEscRpmTelemetryOmegaRadiansPerSecond() {
@@ -6658,6 +6693,25 @@ public final class DronePhysics {
 		return count == 0 ? 0.0 : sum / count;
 	}
 
+	private double escRpmTelemetryFrequencySpreadHertz(boolean bladePass) {
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		if (count <= 1) {
+			return 0.0;
+		}
+		double min = Double.POSITIVE_INFINITY;
+		double max = 0.0;
+		for (int i = 0; i < count; i++) {
+			double omega = Math.abs(escRpmTelemetryOmegaRadiansPerSecond[i]);
+			if (bladePass) {
+				omega *= config.rotors().get(i).bladeCount();
+			}
+			double hertz = omega / (Math.PI * 2.0);
+			min = Math.min(min, hertz);
+			max = Math.max(max, hertz);
+		}
+		return Double.isFinite(min) ? Math.max(0.0, max - min) : 0.0;
+	}
+
 	private static double gyroDynamicNotchAttenuation(double frequencyHertz, double rotorVibration) {
 		double frequencyActive = smoothStep(25.0, 75.0, frequencyHertz);
 		double vibrationActive = smoothStep(0.005, 0.09, rotorVibration);
@@ -6671,13 +6725,15 @@ public final class DronePhysics {
 		state.setGyroClipIntensity(0.0);
 		state.setGyroDynamicNotchFrequencyHertz(0.0);
 		state.setGyroDynamicNotchAttenuation(0.0);
+		state.setGyroDynamicNotchSpreadHertz(0.0);
 		state.setGyroBladePassNotchFrequencyHertz(0.0);
 		state.setGyroBladePassNotchAttenuation(0.0);
+		state.setGyroBladePassNotchSpreadHertz(0.0);
 		state.setImuSupplyNoiseIntensity(0.0);
 		gyroDelayWriteIndex = 0;
 		gyroNoiseTimeSeconds = 0.0;
-		gyroRotorVibrationPhase = 0.0;
-		gyroBladePassVibrationPhase = 0.0;
+		Arrays.fill(gyroMotorVibrationPhases, 0.0);
+		Arrays.fill(gyroBladePassVibrationPhases, 0.0);
 	}
 
 	private void updateAccelerometerMeasurement(double dtSeconds) {

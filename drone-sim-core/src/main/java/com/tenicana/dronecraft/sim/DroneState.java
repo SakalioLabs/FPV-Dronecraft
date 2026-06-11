@@ -27,8 +27,10 @@ public final class DroneState {
 	private double imuSupplyNoiseIntensity;
 	private double gyroDynamicNotchFrequencyHertz;
 	private double gyroDynamicNotchAttenuation;
+	private double gyroDynamicNotchSpreadHertz;
 	private double gyroBladePassNotchFrequencyHertz;
 	private double gyroBladePassNotchAttenuation;
+	private double gyroBladePassNotchSpreadHertz;
 	private double barometerAltitudeMeters;
 	private double barometerVerticalSpeedMetersPerSecond;
 	private double barometerPressureHectopascals = 1013.25;
@@ -416,6 +418,14 @@ public final class DroneState {
 		this.gyroDynamicNotchAttenuation = MathUtil.clamp(gyroDynamicNotchAttenuation, 0.0, 1.0);
 	}
 
+	public double gyroDynamicNotchSpreadHertz() {
+		return gyroDynamicNotchSpreadHertz;
+	}
+
+	void setGyroDynamicNotchSpreadHertz(double gyroDynamicNotchSpreadHertz) {
+		this.gyroDynamicNotchSpreadHertz = Math.max(0.0, gyroDynamicNotchSpreadHertz);
+	}
+
 	public double gyroBladePassNotchFrequencyHertz() {
 		return gyroBladePassNotchFrequencyHertz;
 	}
@@ -430,6 +440,14 @@ public final class DroneState {
 
 	void setGyroBladePassNotchAttenuation(double gyroBladePassNotchAttenuation) {
 		this.gyroBladePassNotchAttenuation = MathUtil.clamp(gyroBladePassNotchAttenuation, 0.0, 1.0);
+	}
+
+	public double gyroBladePassNotchSpreadHertz() {
+		return gyroBladePassNotchSpreadHertz;
+	}
+
+	void setGyroBladePassNotchSpreadHertz(double gyroBladePassNotchSpreadHertz) {
+		this.gyroBladePassNotchSpreadHertz = Math.max(0.0, gyroBladePassNotchSpreadHertz);
 	}
 
 	public Vec3 accelerometerBodyMetersPerSecondSquared() {

@@ -838,7 +838,9 @@ public final class OfflineFlightRecorder {
 			"rotor_4_coaxial_load_bias",
 			"rotor_5_coaxial_load_bias",
 			"rotor_6_coaxial_load_bias",
-			"rotor_7_coaxial_load_bias"
+			"rotor_7_coaxial_load_bias",
+			"gyro_notch_spread_hz",
+			"gyro_blade_pass_notch_spread_hz"
 	);
 
 	private OfflineFlightRecorder() {
@@ -1928,6 +1930,8 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorCoaxialLoadBias, i), "%.5f");
 		}
+		appendExtra(builder, state.gyroDynamicNotchSpreadHertz(), "%.3f");
+		appendExtra(builder, state.gyroBladePassNotchSpreadHertz(), "%.3f");
 		return builder.toString();
 	}
 
