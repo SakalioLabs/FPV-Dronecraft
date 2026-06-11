@@ -132,6 +132,7 @@ public final class DroneState {
 	private double batteryOpenCircuitVoltage;
 	private double batteryOhmicSagVoltage;
 	private double batteryTransientSagVoltage;
+	private double batterySlowPolarizationVoltage;
 	private double batteryRegenerativeCurrentAmps;
 	private double batteryVoltageSpike;
 	private double batteryBusRippleVoltage;
@@ -2422,6 +2423,20 @@ public final class DroneState {
 
 	void setBatteryTransientSagVoltage(double batteryTransientSagVoltage) {
 		this.batteryTransientSagVoltage = Math.max(0.0, batteryTransientSagVoltage);
+	}
+
+	public double batterySlowPolarizationVoltage() {
+		return batterySlowPolarizationVoltage;
+	}
+
+	void setBatterySlowPolarizationVoltage(double batterySlowPolarizationVoltage) {
+		this.batterySlowPolarizationVoltage = Double.isFinite(batterySlowPolarizationVoltage)
+				? Math.max(0.0, batterySlowPolarizationVoltage)
+				: 0.0;
+	}
+
+	public double batteryTotalSagVoltage() {
+		return batteryOhmicSagVoltage + batteryTransientSagVoltage + batterySlowPolarizationVoltage;
 	}
 
 	public double batteryRegenerativeCurrentAmps() {

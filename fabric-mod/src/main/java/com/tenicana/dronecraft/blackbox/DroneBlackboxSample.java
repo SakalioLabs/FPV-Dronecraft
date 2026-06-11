@@ -403,6 +403,7 @@ public final class DroneBlackboxSample {
 			"battery_ocv_v",
 			"battery_ohmic_sag_v",
 			"battery_transient_sag_v",
+			"battery_slow_polarization_v",
 			"battery_effective_resistance_ohm",
 			"battery_resistance_aging_scale",
 			"battery_polarization_resistance_scale",
@@ -1415,6 +1416,7 @@ public final class DroneBlackboxSample {
 		row.add(state.batteryOpenCircuitVoltage(), "%.4f");
 		row.add(state.batteryOhmicSagVoltage(), "%.4f");
 		row.add(state.batteryTransientSagVoltage(), "%.4f");
+		row.add(state.batterySlowPolarizationVoltage(), "%.4f");
 		row.add(state.batteryEffectiveResistanceOhms(), "%.6f");
 		row.add(state.batteryResistanceAgingScale(), "%.5f");
 		row.add(state.batteryPolarizationResistanceScale(), "%.5f");

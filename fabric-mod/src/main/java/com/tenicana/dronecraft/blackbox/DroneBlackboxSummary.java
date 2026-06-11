@@ -229,7 +229,9 @@ public record DroneBlackboxSummary(
 					maxMotorRegenCurrent,
 					Math.max(value(row, "motor_regen_current_a"), maxIndexedValue(row, "motor_", "_regen_current_a"))
 			);
-			maxSag = Math.max(maxSag, value(row, "battery_ohmic_sag_v") + value(row, "battery_transient_sag_v"));
+			maxSag = Math.max(maxSag, value(row, "battery_ohmic_sag_v")
+					+ value(row, "battery_transient_sag_v")
+					+ valueOrDefault(row, "battery_slow_polarization_v", 0.0));
 			maxEffectiveResistance = Math.max(maxEffectiveResistance, value(row, "battery_effective_resistance_ohm"));
 			maxVoltageSpike = Math.max(maxVoltageSpike, value(row, "battery_voltage_spike_v"));
 			maxBusRipple = Math.max(maxBusRipple, value(row, "battery_bus_ripple_v"));

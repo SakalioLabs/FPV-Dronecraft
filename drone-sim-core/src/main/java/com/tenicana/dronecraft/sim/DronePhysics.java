@@ -28,6 +28,8 @@ public final class DronePhysics {
 	// CALCE low-current LiPo OCV median, normalized over each preset's configured usable empty/full voltage window.
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.04, 0.05, 0.10, 0.18, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.090, 0.137, 0.181, 0.261, 0.279, 0.349, 0.405, 0.540, 0.702, 0.826, 1.0};
+	private static final double[] LIPO_SLOW_POLARIZATION_SOC_POINTS = {0.0, 0.50, 0.80, 1.0};
+	private static final double[] LIPO_SLOW_POLARIZATION_RECOVERY_TAU_SECONDS = {360.0, 630.0, 79.0, 120.0};
 	private static final double LIPO_MENDELEY_REFERENCE_AGING_CYCLES = 450.0;
 	private static final double[] LIPO_MENDELEY_R0_SOC_POINTS = {0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_MENDELEY_R0_FRESH_SCALE = {
@@ -7331,6 +7333,7 @@ public final class DronePhysics {
 				: batterySagRecoveryTimeConstantSeconds();
 		double alpha = dtSeconds <= 0.0 ? 1.0 : MathUtil.expSmoothing(dtSeconds, timeConstant);
 		double transientSag = previousTransientSag + (targetTransientSag - previousTransientSag) * alpha;
+		double slowPolarization = updateBatterySlowPolarizationVoltage(dischargeCurrentAmps, batteryResistanceOhms, stateOfCharge, dtSeconds);
 		double targetVoltageSpike = batteryVoltageSpikeTarget(regenerativeCurrentAmps, stateOfCharge, batteryResistanceOhms);
 		double previousVoltageSpike = state.batteryVoltageSpike();
 		double spikeTimeConstant = targetVoltageSpike > previousVoltageSpike
@@ -7348,12 +7351,13 @@ public final class DronePhysics {
 		state.setBatteryOpenCircuitVoltage(openCircuitVoltage);
 		state.setBatteryOhmicSagVoltage(ohmicSag);
 		state.setBatteryTransientSagVoltage(transientSag);
+		state.setBatterySlowPolarizationVoltage(slowPolarization);
 		state.setBatteryVoltageSpike(voltageSpike);
 		state.setBatteryBusRippleVoltage(busRipple);
 		state.setImuSupplyNoiseIntensity(imuSupplyNoiseIntensity(ohmicSag, transientSag, voltageSpike, busRipple));
 		double minimumVoltage = config.emptyBatteryVoltage() * 0.85;
 		double maximumBusVoltage = config.nominalBatteryVoltage() * 1.12;
-		state.setBatteryVoltage(MathUtil.clamp(openCircuitVoltage - ohmicSag - transientSag + voltageSpike - 0.08 * busRipple, minimumVoltage, maximumBusVoltage));
+		state.setBatteryVoltage(MathUtil.clamp(openCircuitVoltage - ohmicSag - transientSag - slowPolarization + voltageSpike - 0.08 * busRipple, minimumVoltage, maximumBusVoltage));
 		double stateOfChargeLimit = batteryStateOfChargePowerLimit(stateOfCharge);
 		double currentLimit = updateBatteryCurrentLimit(dischargeCurrentAmps, state.batteryTemperatureCelsius(), dtSeconds);
 		state.setBatteryPowerLimit(Math.min(Math.min(stateOfChargeLimit, currentLimit), state.batteryThermalLimit()));
@@ -7434,6 +7438,53 @@ public final class DronePhysics {
 						+ 0.030 * lowSocStress * pulseLoad
 						+ 0.025 * rippleStress * pulseLoad);
 		return MathUtil.clamp(1.0 + targetRise, 1.0, 1.26);
+	}
+
+	private double updateBatterySlowPolarizationVoltage(
+			double dischargeCurrentAmps,
+			double batteryResistanceOhms,
+			double stateOfCharge,
+			double dtSeconds
+	) {
+		double target = batterySlowPolarizationTargetVoltage(dischargeCurrentAmps, batteryResistanceOhms, stateOfCharge);
+		double previous = state.batterySlowPolarizationVoltage();
+		double loadFraction = dischargeCurrentAmps / Math.max(1.0, config.maxBatteryCurrentAmps());
+		double timeConstant = target > previous
+				? batterySlowPolarizationRiseTimeConstantSeconds(loadFraction)
+				: batterySlowPolarizationRecoveryTimeConstantSeconds(stateOfCharge);
+		double alpha = dtSeconds <= 0.0 ? 1.0 : MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double voltage = previous + (target - previous) * alpha;
+		if (target <= 1.0e-9 && voltage < 0.001) {
+			voltage = 0.0;
+		}
+		return voltage;
+	}
+
+	private double batterySlowPolarizationTargetVoltage(double dischargeCurrentAmps, double batteryResistanceOhms, double stateOfCharge) {
+		if (dischargeCurrentAmps <= 1.0e-6 || batteryResistanceOhms <= 1.0e-9) {
+			return 0.0;
+		}
+		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
+		double loadFraction = MathUtil.clamp(dischargeCurrentAmps / Math.max(1.0, config.maxBatteryCurrentAmps()), 0.0, 1.6);
+		double loadStress = smoothStep(0.18, 0.92, loadFraction);
+		double lowSocStress = 1.0 + 0.45 * (1.0 - smoothStep(0.18, 0.75, stateOfCharge));
+		double target = totalResistanceSag * (0.025 + 0.095 * loadStress) * lowSocStress;
+		return MathUtil.clamp(target, 0.0, Math.max(0.0, config.nominalBatteryVoltage()) * 0.055);
+	}
+
+	private double batterySlowPolarizationRiseTimeConstantSeconds(double loadFraction) {
+		double capacityScale = MathUtil.clamp(config.batteryCapacityAmpHours(), 0.35, 8.0);
+		double highLoad = smoothStep(0.35, 1.0, loadFraction);
+		return MathUtil.clamp(22.0 + 5.0 * capacityScale - 14.0 * highLoad, 12.0, 75.0);
+	}
+
+	private static double batterySlowPolarizationRecoveryTimeConstantSeconds(double stateOfCharge) {
+		double soc = MathUtil.clamp(stateOfCharge, 0.0, 1.0);
+		return interpolateLookup(
+				soc,
+				LIPO_SLOW_POLARIZATION_SOC_POINTS,
+				LIPO_SLOW_POLARIZATION_RECOVERY_TAU_SECONDS
+		);
 	}
 
 	private static double normalizedLipoOpenCircuitVoltage(double stateOfCharge) {

@@ -488,6 +488,7 @@ public final class OfflineFlightRecorder {
 			"motor_6_torque_ripple_nm",
 			"motor_7_torque_ripple_nm",
 			"battery_bus_ripple_v",
+			"battery_slow_polarization_v",
 			"imu_supply_noise",
 			"battery_temp_c",
 			"battery_cooling_factor",
@@ -1758,6 +1759,7 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, valueOrZero(motorTorqueRipples, i), "%.6f");
 		}
 		appendExtra(builder, state.batteryBusRippleVoltage(), "%.5f");
+		appendExtra(builder, state.batterySlowPolarizationVoltage(), "%.5f");
 		appendExtra(builder, state.imuSupplyNoiseIntensity(), "%.5f");
 		appendExtra(builder, state.batteryTemperatureCelsius(), "%.3f");
 		appendExtra(builder, state.batteryCoolingFactor(), "%.5f");
@@ -2067,7 +2069,7 @@ public final class OfflineFlightRecorder {
 			maxBatteryRegenerativeCurrentAmps = Math.max(maxBatteryRegenerativeCurrentAmps, state.batteryRegenerativeCurrentAmps());
 			maxMotorRegenerativeCurrentAmps = Math.max(maxMotorRegenerativeCurrentAmps, state.maxMotorRegenerativeCurrentAmps());
 			minBatteryVoltage = Math.min(minBatteryVoltage, state.batteryVoltage());
-			maxBatterySagVoltage = Math.max(maxBatterySagVoltage, state.batteryOhmicSagVoltage() + state.batteryTransientSagVoltage());
+			maxBatterySagVoltage = Math.max(maxBatterySagVoltage, state.batteryTotalSagVoltage());
 			maxBatteryEffectiveResistanceOhms = Math.max(maxBatteryEffectiveResistanceOhms, state.batteryEffectiveResistanceOhms());
 			maxBatteryPolarizationResistanceScale = Math.max(maxBatteryPolarizationResistanceScale, state.batteryPolarizationResistanceScale());
 			maxBatteryVoltageSpike = Math.max(maxBatteryVoltageSpike, state.batteryVoltageSpike());

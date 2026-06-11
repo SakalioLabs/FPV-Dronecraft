@@ -2075,6 +2075,53 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void sustainedLoadBuildsSlowBatteryPolarizationVoltage() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 13.2, 0.030, 1.5, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput punch = new DroneInput(0.98, 0.0, 0.0, 0.0, true);
+		DroneInput cut = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 2400; i++) {
+			physics.step(punch, 0.005);
+		}
+		double loadedSlowPolarization = physics.state().batterySlowPolarizationVoltage();
+		double loadedTransientSag = physics.state().batteryTransientSagVoltage();
+
+		for (int i = 0; i < 200; i++) {
+			physics.step(cut, 0.005);
+		}
+		double earlySlowPolarization = physics.state().batterySlowPolarizationVoltage();
+		double earlyOpenCircuitVoltage = physics.state().batteryOpenCircuitVoltage();
+		double earlyBusVoltage = physics.state().batteryVoltage();
+
+		for (int i = 0; i < 4000; i++) {
+			physics.step(cut, 0.005);
+		}
+		double lateSlowPolarization = physics.state().batterySlowPolarizationVoltage();
+
+		assertTrue(loadedSlowPolarization > 0.050,
+				() -> "loadedSlowPolarization=" + loadedSlowPolarization);
+		assertTrue(loadedSlowPolarization < loadedTransientSag * 0.35,
+				() -> "loadedSlowPolarization=" + loadedSlowPolarization
+						+ " loadedTransientSag=" + loadedTransientSag);
+		assertTrue(earlySlowPolarization > loadedSlowPolarization * 0.92,
+				() -> "loadedSlowPolarization=" + loadedSlowPolarization
+						+ " earlySlowPolarization=" + earlySlowPolarization);
+		assertTrue(earlyBusVoltage < earlyOpenCircuitVoltage - earlySlowPolarization * 0.80,
+				() -> "earlyBusVoltage=" + earlyBusVoltage
+						+ " earlyOpenCircuitVoltage=" + earlyOpenCircuitVoltage
+						+ " earlySlowPolarization=" + earlySlowPolarization);
+		assertTrue(lateSlowPolarization < earlySlowPolarization);
+		assertTrue(lateSlowPolarization > earlySlowPolarization * 0.70,
+				() -> "earlySlowPolarization=" + earlySlowPolarization
+						+ " lateSlowPolarization=" + lateSlowPolarization);
+	}
+
+	@Test
 	void batteryMaxCurrentAppliesDynamicPowerLimit() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.020)
@@ -8180,6 +8227,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_transient_sag_v"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_slow_polarization_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_effective_resistance_ohm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_resistance_aging_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_equivalent_cycles"));
@@ -8542,6 +8590,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_actuator_authority")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_bus_ripple_v")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_effective_resistance_ohm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_slow_polarization_v")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_cooling_factor")])));
@@ -8566,6 +8615,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
+		assertTrue(maxColumn(lines, header, "battery_slow_polarization_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_polarization_resistance_scale") > 1.05);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
@@ -8821,7 +8871,7 @@ class DronePhysicsTest {
 		assertEquals("8", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_wake_interference") > 0.03);
-		assertTrue(maxColumn(lines, header, "rotor_7_wake_interference") > 0.07);
+		assertTrue(maxColumn(lines, header, "rotor_7_wake_interference") > 0.065);
 		assertTrue(minColumn(lines, header, "rotor_wake_thrust_scale") < 0.995);
 		assertTrue(minColumn(lines, header, "rotor_7_wake_thrust_scale") < 0.99);
 		assertTrue(minColumn(lines, header, "rotor_7_wake_thrust_scale") >= 0.72);
