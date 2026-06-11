@@ -678,8 +678,12 @@ class DronePhysicsTest {
 		double offSpacingBias = (double) commandMapBias.invoke(null, 0.55, 0.60);
 		double mediumLoadRatio = (double) commandMapRatio.invoke(null, 0.72, 0.60);
 		double offSpacingRatio = (double) commandMapRatio.invoke(null, 0.55, 0.60);
+		double lowerPeakRatio = (double) commandMapRatio.invoke(null, 0.40, 0.60);
 		double midLowMechanicalGain = (double) commandMapMechanicalGain.invoke(null, 0.72, 0.45);
+		double lowerPeakMechanicalGain = (double) commandMapMechanicalGain.invoke(null, 0.40, 0.60);
+		double valleyMechanicalGain = (double) commandMapMechanicalGain.invoke(null, 0.55, 0.60);
 		double mediumElectricalGain = (double) commandMapElectricalGain.invoke(null, 0.72, 0.60);
+		double lowerPeakElectricalGain = (double) commandMapElectricalGain.invoke(null, 0.40, 0.60);
 
 		assertEquals(0.06692, lightLoadBias, 1.0e-4);
 		assertEquals(0.09791, midLowLoadBias, 1.0e-4);
@@ -687,12 +691,18 @@ class DronePhysicsTest {
 		assertEquals(0.10604, midHighLoadBias, 1.0e-4);
 		assertEquals(0.08133, highLoadBias, 1.0e-4);
 		assertEquals(1.3275111760369225, mediumLoadRatio, 1.0e-9);
+		assertEquals(1.125445473618999, offSpacingRatio, 1.0e-9);
+		assertEquals(1.1101294655127385, lowerPeakRatio, 1.0e-9);
 		assertEquals(4.878985379626062, midLowMechanicalGain, 1.0e-9);
+		assertEquals(7.286945739425876, lowerPeakMechanicalGain, 1.0e-9);
+		assertEquals(2.585847358303339, valleyMechanicalGain, 1.0e-9);
 		assertEquals(2.842254411676719, mediumElectricalGain, 1.0e-9);
+		assertEquals(1.8619233726712814, lowerPeakElectricalGain, 1.0e-9);
 		assertTrue(mediumLoadBias > lightLoadBias + 0.045);
 		assertTrue(mediumLoadBias > highLoadBias + 0.030);
-		assertTrue(offSpacingBias < mediumLoadBias * 0.12);
-		assertTrue(offSpacingRatio < 1.04);
+		assertTrue(offSpacingBias < mediumLoadBias * 0.60);
+		assertTrue(lowerPeakMechanicalGain > midLowMechanicalGain + 2.0);
+		assertTrue(lowerPeakMechanicalGain > valleyMechanicalGain + 4.0);
 	}
 
 	@Test

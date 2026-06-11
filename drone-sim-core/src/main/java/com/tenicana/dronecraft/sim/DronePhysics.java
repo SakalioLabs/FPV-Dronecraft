@@ -20,7 +20,6 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = 0.115;
-	private static final double COAXIAL_COMMAND_MAP_REFERENCE_SPACING_RATIO = 0.72;
 	// Smoothed New Dexterity z/D=0.72 command-envelope model for the current coaxialX8 spacing.
 	private static final double[] COAXIAL_COMMAND_MAP_LOAD_FRACTIONS = {0.35, 0.45, 0.60, 0.75, 0.85};
 	private static final double[] COAXIAL_COMMAND_MAP_RATIOS = {
@@ -43,6 +42,36 @@ public final class DronePhysics {
 			2.842254411676719,
 			3.4679138420725897,
 			3.8850201290031703
+	};
+	// Rows are z/D spacing samples from the New Dexterity 11-inch command envelope;
+	// columns use COAXIAL_COMMAND_MAP_LOAD_FRACTIONS. The z/D=0.72 row preserves the current X8 prior.
+	private static final double[] COAXIAL_COMMAND_MAP_SPACING_RATIOS = {0.25, 0.40, 0.55, 0.70, 0.72, 0.85, 1.00};
+	private static final double[][] COAXIAL_COMMAND_MAP_RATIO_SURFACE = {
+			{1.1434392831646552, 1.1362417593463927, 1.1254454736189989, 1.1564156138527832, 1.1770623740086394},
+			{1.1434392831646552, 1.1301153561038886, 1.1101294655127385, 1.1502892106102791, 1.1770623740086394},
+			{1.1434392831646552, 1.1362417593463927, 1.1254454736189989, 1.1564156138527832, 1.1770623740086394},
+			{1.1434392831646552, 1.2295028527700498, 1.3585982071781415, 1.2496767072764403, 1.1770623740086394},
+			COAXIAL_COMMAND_MAP_RATIOS,
+			{1.1434392831646552, 1.1362417593463927, 1.1254454736189989, 1.1564156138527832, 1.1770623740086394},
+			{1.1434392831646552, 1.1362417593463927, 1.1254454736189989, 1.1564156138527832, 1.1770623740086394}
+	};
+	private static final double[][] COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_SURFACE_PCT = {
+			{4.281545947786891, 4.311961612637245, 4.357585109912776, 5.394673344985956, 6.08606550170141},
+			{8.783690531755518, 8.184992614823662, 7.286945739425876, 7.006953002652967, 6.820291178137694},
+			{5.661425165994904, 4.431194042918278, 2.585847358303339, 5.10719968937576, 6.788101243424038},
+			{5.4940007043495775, 4.872558251056622, 3.9403945711171895, 4.977193238284596, 5.668392349729534},
+			COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_PCT,
+			{3.251282376514153, 4.920761715327427, 7.424980723547336, 7.107495979686473, 6.895839483779231},
+			{6.550257104265023, 5.834208300026025, 4.760135093667528, 6.619558702895079, 7.859174442380112}
+	};
+	private static final double[][] COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_SURFACE_PCT = {
+			{5.738746490731184, 4.67109120405237, 3.0696082740341524, 2.9609333593433895, 2.8884834162162143},
+			{5.579411589457717, 4.092416302743143, 1.8619233726712814, 3.3934289658893846, 4.414432694701453},
+			{5.121455096170857, 4.331030961688942, 3.145394759966069, 3.0113372698400243, 2.9219656097559943},
+			{5.446521036517504, 4.322803383457892, 2.6372269038684726, 3.2665743224560684, 3.6861392681811322},
+			COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_PCT,
+			{3.948837373786196, 4.039275709243846, 4.174933212430321, 4.776620719579978, 5.177745724346416},
+			{6.146307869516732, 5.538135435201474, 4.625876783728589, 4.683706389432736, 4.722259459902167}
 	};
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
@@ -5882,7 +5911,11 @@ public final class DronePhysics {
 			return 1.0;
 		}
 
-		double lookupRatio = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_RATIOS, loadFraction);
+		double lookupRatio = interpolateCoaxialCommandMapSurface(
+				COAXIAL_COMMAND_MAP_RATIO_SURFACE,
+				spacingRatio,
+				loadFraction
+		);
 		return MathUtil.clamp(1.0 + (lookupRatio - 1.0) * activation, 1.0, 2.0);
 	}
 
@@ -5891,7 +5924,11 @@ public final class DronePhysics {
 		if (activation <= 1.0e-6) {
 			return 0.0;
 		}
-		return interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_PCT, loadFraction) * activation;
+		return interpolateCoaxialCommandMapSurface(
+				COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_SURFACE_PCT,
+				spacingRatio,
+				loadFraction
+		) * activation;
 	}
 
 	private static double coaxialCommandMapElectricalGainPercent(double spacingRatio, double loadFraction) {
@@ -5899,7 +5936,11 @@ public final class DronePhysics {
 		if (activation <= 1.0e-6) {
 			return 0.0;
 		}
-		return interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_PCT, loadFraction) * activation;
+		return interpolateCoaxialCommandMapSurface(
+				COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_SURFACE_PCT,
+				spacingRatio,
+				loadFraction
+		) * activation;
 	}
 
 	private double coaxialAllocationMechanicalPowerScale(int index) {
@@ -5997,11 +6038,8 @@ public final class DronePhysics {
 	}
 
 	private static double coaxialCommandMapActivation(double spacingRatio, double loadFraction) {
-		double spacingWindow = coaxialSpacingGaussian(
-				spacingRatio,
-				COAXIAL_COMMAND_MAP_REFERENCE_SPACING_RATIO,
-				0.105
-		);
+		double spacingWindow = smoothStep(0.18, 0.25, spacingRatio)
+				* (1.0 - smoothStep(1.05, 1.32, spacingRatio));
 		if (spacingWindow <= 1.0e-6) {
 			return 0.0;
 		}
@@ -6010,6 +6048,38 @@ public final class DronePhysics {
 		double activeLoad = smoothStep(0.18, 0.32, boundedLoadFraction)
 				* (1.0 - smoothStep(0.92, 1.0, boundedLoadFraction));
 		return MathUtil.clamp(spacingWindow * activeLoad, 0.0, 1.0);
+	}
+
+	private static double interpolateCoaxialCommandMapSurface(
+			double[][] valuesBySpacing,
+			double spacingRatio,
+			double loadFraction
+	) {
+		double boundedSpacing = MathUtil.clamp(
+				spacingRatio,
+				COAXIAL_COMMAND_MAP_SPACING_RATIOS[0],
+				COAXIAL_COMMAND_MAP_SPACING_RATIOS[COAXIAL_COMMAND_MAP_SPACING_RATIOS.length - 1]
+		);
+		double lowerValue = interpolateCoaxialCommandMap(valuesBySpacing[0], loadFraction);
+		if (boundedSpacing <= COAXIAL_COMMAND_MAP_SPACING_RATIOS[0]) {
+			return lowerValue;
+		}
+
+		for (int i = 1; i < COAXIAL_COMMAND_MAP_SPACING_RATIOS.length; i++) {
+			double upperSpacing = COAXIAL_COMMAND_MAP_SPACING_RATIOS[i];
+			if (boundedSpacing <= upperSpacing) {
+				double lowerSpacing = COAXIAL_COMMAND_MAP_SPACING_RATIOS[i - 1];
+				lowerValue = interpolateCoaxialCommandMap(valuesBySpacing[i - 1], loadFraction);
+				double upperValue = interpolateCoaxialCommandMap(valuesBySpacing[i], loadFraction);
+				double amount = (boundedSpacing - lowerSpacing) / (upperSpacing - lowerSpacing);
+				return MathUtil.lerp(lowerValue, upperValue, amount);
+			}
+		}
+
+		return interpolateCoaxialCommandMap(
+				valuesBySpacing[valuesBySpacing.length - 1],
+				loadFraction
+		);
 	}
 
 	private static double interpolateCoaxialCommandMap(double[] values, double loadFraction) {
