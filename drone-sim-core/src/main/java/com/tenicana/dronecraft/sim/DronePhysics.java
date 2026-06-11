@@ -3555,7 +3555,7 @@ public final class DronePhysics {
 
 			rotorWakeInterferenceIntensity[i] = MathUtil.clamp(filteredIntensity, 0.0, 1.0);
 			rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i] = filteredDownwash.clamp(-12.0, 12.0);
-			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = filteredSwirl.clamp(-8.0, 8.0);
+			rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i] = clampRotorWakeSwirlVelocity(rotor, filteredSwirl);
 			intensity[i] = rotorWakeInterferenceIntensity[i];
 			downwash[i] = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
 			swirl[i] = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
@@ -3653,9 +3653,30 @@ public final class DronePhysics {
 			}
 			intensity[receiverIndex] = MathUtil.clamp(receiverIntensity, 0.0, 1.0);
 			downwash[receiverIndex] = receiverDownwash.clamp(-12.0, 12.0);
-			swirl[receiverIndex] = receiverSwirl.clamp(-8.0, 8.0);
+			swirl[receiverIndex] = clampRotorWakeSwirlVelocity(receiver, receiverSwirl);
 		}
 		return new RotorWakeInterference(intensity, downwash, swirl);
+	}
+
+	private static Vec3 clampRotorWakeSwirlVelocity(RotorSpec receiver, Vec3 swirlVelocityBodyMetersPerSecond) {
+		if (swirlVelocityBodyMetersPerSecond == null || swirlVelocityBodyMetersPerSecond.lengthSquared() <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+
+		double limit = rotorWakeSwirlVelocityLimitMetersPerSecond(receiver);
+		double length = swirlVelocityBodyMetersPerSecond.length();
+		if (!Double.isFinite(length) || length <= limit) {
+			return swirlVelocityBodyMetersPerSecond.isFinite() ? swirlVelocityBodyMetersPerSecond : Vec3.ZERO;
+		}
+		return swirlVelocityBodyMetersPerSecond.multiply(limit / Math.max(1.0e-9, length));
+	}
+
+	private static double rotorWakeSwirlVelocityLimitMetersPerSecond(RotorSpec receiver) {
+		double radius = Math.max(1.0e-6, receiver.radiusMeters());
+		double diskArea = Math.PI * radius * radius;
+		double maxInducedVelocity = Math.sqrt(receiver.maxThrustNewtons() / Math.max(1.0e-6, 2.0 * SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * diskArea));
+		double tipSpeed = receiver.maxOmegaRadiansPerSecond() * radius;
+		return MathUtil.clamp(0.62 * maxInducedVelocity + 0.018 * tipSpeed, 4.0, 18.0);
 	}
 
 	private static Vec3 rotorWakeSwirlDirection(Vec3 sourceAxisBody, Vec3 lateralOffset, Vec3 sourceArmBody, int spinDirection) {

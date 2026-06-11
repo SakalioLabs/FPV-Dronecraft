@@ -562,6 +562,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coaxialWakeSwirlLimitScalesWithRotorDiskLoading() throws ReflectiveOperationException {
+		DroneConfig config = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 500.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 800; i++) {
+			holdInStillAir(physics);
+			physics.step(highLoad, 0.005);
+		}
+
+		double maxWakeSwirl = physics.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		Method clampSwirl = DronePhysics.class.getDeclaredMethod(
+				"clampRotorWakeSwirlVelocity",
+				RotorSpec.class,
+				Vec3.class
+		);
+		clampSwirl.setAccessible(true);
+		Vec3 limitedSwirl = (Vec3) clampSwirl.invoke(null, config.rotors().get(1), new Vec3(20.0, 0.0, 0.0));
+
+		assertTrue(maxWakeSwirl > 7.50, () -> "maxWakeSwirl=" + maxWakeSwirl);
+		assertTrue(maxWakeSwirl < 11.8, () -> "maxWakeSwirl=" + maxWakeSwirl);
+		assertTrue(limitedSwirl.length() > 8.05, () -> "limitedSwirl=" + limitedSwirl.length());
+		assertTrue(limitedSwirl.length() < 11.8, () -> "limitedSwirl=" + limitedSwirl.length());
+		assertEquals(0.0, limitedSwirl.y(), 1.0e-12);
+		assertEquals(0.0, limitedSwirl.z(), 1.0e-12);
+		assertTrue(physics.state().maxRotorWakeInterferenceIntensity() > 0.70);
+	}
+
+	@Test
 	void coaxialLoadBiasFollowsBenchmarkSpacingEfficiencyWindows() {
 		DroneConfig base = directControl(DroneConfig.coaxialX8())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
