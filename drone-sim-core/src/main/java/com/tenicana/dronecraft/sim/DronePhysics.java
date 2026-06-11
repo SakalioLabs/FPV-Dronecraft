@@ -4214,9 +4214,19 @@ public final class DronePhysics {
 		double cleanInflowReduction = 0.28 * translationalLift * liftCoefficientScale;
 		double targetInducedVelocity = hoverTargetInducedVelocity * MathUtil.clamp(1.0 - cleanInflowReduction, 0.58, 1.0);
 		double previousInducedVelocity = state.rotorInducedVelocityMetersPerSecond(index);
-		double alpha = rotor.inducedInflowTimeConstantSeconds() <= 0.0
+		double nominalHoverInducedVelocity = nominalHoverRotorInducedVelocityMetersPerSecond(rotor);
+		double dynamicInflowTimeConstant = rotorDynamicInflowTimeConstantSeconds(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				targetInducedVelocity,
+				previousInducedVelocity,
+				nominalHoverInducedVelocity
+		);
+		state.setRotorDynamicInflowTimeConstantSeconds(index, dynamicInflowTimeConstant);
+		double alpha = dynamicInflowTimeConstant <= 0.0
 				? 1.0
-				: MathUtil.expSmoothing(dtSeconds, rotor.inducedInflowTimeConstantSeconds());
+				: MathUtil.expSmoothing(dtSeconds, dynamicInflowTimeConstant);
 		double inducedVelocity = previousInducedVelocity + (targetInducedVelocity - previousInducedVelocity) * alpha;
 		state.setRotorInducedVelocityMetersPerSecond(index, inducedVelocity);
 		double wakeVelocity = updateRotorInducedWakeVelocity(
@@ -4246,6 +4256,64 @@ public final class DronePhysics {
 		double thrustScale = MathUtil.clamp(1.0 - thrustLoss, 0.65, 1.0);
 		state.setRotorInducedLagThrustScale(index, thrustScale);
 		return thrustScale;
+	}
+
+	private double nominalHoverRotorInducedVelocityMetersPerSecond(RotorSpec rotor) {
+		double nominalRotorThrust = config.massKg()
+				* Math.max(1.0e-6, config.gravityMetersPerSecondSquared())
+				/ Math.max(1.0, config.rotors().size());
+		return targetRotorInducedVelocityMetersPerSecond(rotor, nominalRotorThrust, 1.0);
+	}
+
+	private static double rotorDynamicInflowTimeConstantSeconds(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double targetInducedVelocityMetersPerSecond,
+			double previousInducedVelocityMetersPerSecond,
+			double nominalHoverInducedVelocityMetersPerSecond
+	) {
+		double baseTimeConstant = rotor.inducedInflowTimeConstantSeconds();
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		if (baseTimeConstant <= 0.0) {
+			return 0.0;
+		}
+		if (targetInducedVelocityMetersPerSecond <= 1.0e-6
+				&& previousInducedVelocityMetersPerSecond <= 1.0e-6
+				&& spinRatio <= 0.02) {
+			return 0.0;
+		}
+
+		double safeTargetInflow = Math.max(0.75, targetInducedVelocityMetersPerSecond);
+		double safeNominalHoverInflow = Math.max(0.75, nominalHoverInducedVelocityMetersPerSecond);
+		double inducedVelocityScale = MathUtil.clamp(safeNominalHoverInflow / safeTargetInflow, 0.48, 2.45);
+		double targetRisingScale = targetInducedVelocityMetersPerSecond >= previousInducedVelocityMetersPerSecond
+				? 0.88
+				: 1.16;
+		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
+		double transverseFlush = smoothStep(0.06, 0.32, advanceRatio);
+		double climbRatio = Math.max(0.0, rotorAxialVelocity(rotor, relativeAirVelocityBody)) / safeTargetInflow;
+		double descentRatio = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody)) / safeTargetInflow;
+		double climbFlush = smoothStep(0.08, 0.55, climbRatio);
+		double descendingWake = smoothStep(0.25, 1.15, descentRatio);
+		double spinWakeScale = MathUtil.clamp(
+				1.16 - 0.26 * smoothStep(0.20, 0.80, spinRatio),
+				0.88,
+				1.16
+		);
+		double wakeFlushScale = MathUtil.clamp(
+				1.0 - 0.34 * transverseFlush - 0.16 * climbFlush + 0.28 * descendingWake,
+				0.52,
+				1.32
+		);
+		double wakeTransitTime = 2.0 * rotor.radiusMeters() / safeTargetInflow;
+		double minimumTimeConstant = MathUtil.clamp(1.15 * wakeTransitTime, 0.006, baseTimeConstant * 0.75);
+		double maximumTimeConstant = MathUtil.clamp(baseTimeConstant * 2.75, baseTimeConstant, 0.36);
+		return MathUtil.clamp(
+				baseTimeConstant * inducedVelocityScale * targetRisingScale * spinWakeScale * wakeFlushScale,
+				minimumTimeConstant,
+				maximumTimeConstant
+		);
 	}
 
 	private double updateRotorInducedWakeVelocity(

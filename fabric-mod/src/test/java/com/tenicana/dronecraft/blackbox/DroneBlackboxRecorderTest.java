@@ -97,6 +97,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("pid_dterm_lpf_hz"));
 		assertTrue(csv.contains("rotor_stall_intensity"));
 		assertTrue(csv.contains("rotor_induced_lag_thrust_scale"));
+		assertTrue(csv.contains("rotor_dynamic_inflow_tau_s"));
+		assertTrue(csv.contains("rotor_0_dynamic_inflow_tau_s"));
+		assertTrue(csv.contains("rotor_7_dynamic_inflow_tau_s"));
 		assertTrue(csv.contains("rotor_translational_lift"));
 		assertTrue(csv.contains("rotor_0_translational_lift"));
 		assertTrue(csv.contains("rotor_3_translational_lift"));
@@ -535,6 +538,8 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_low_headroom")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_headroom")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_induced_lag_thrust_scale")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_dynamic_inflow_tau_s")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_dynamic_inflow_tau_s")]) <= 0.36);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_coning")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_0_coning")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_pitch")]));
@@ -891,6 +896,8 @@ class DroneBlackboxRecorderTest {
 		);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) <= 0.36);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")])
 				<= Math.min(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")])) + 0.02);
@@ -1064,6 +1071,8 @@ class DroneBlackboxRecorderTest {
 		);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) <= 0.36);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")])
 				<= Math.min(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")])) + 0.02);

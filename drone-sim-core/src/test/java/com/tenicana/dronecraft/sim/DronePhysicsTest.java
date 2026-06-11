@@ -7443,6 +7443,8 @@ class DronePhysicsTest {
 		DroneInput punch = new DroneInput(0.85, 0.0, 0.0, 0.0, true);
 
 		for (int i = 0; i < 5; i++) {
+			holdInStillAir(fastInflow);
+			holdInStillAir(slowInflow);
 			fastInflow.step(punch, 0.005);
 			slowInflow.step(punch, 0.005);
 		}
@@ -7454,6 +7456,8 @@ class DronePhysicsTest {
 		assertEquals(1.0, fastInflow.state().minRotorInducedLagThrustScale(), 1.0e-9);
 
 		for (int i = 0; i < 500; i++) {
+			holdInStillAir(fastInflow);
+			holdInStillAir(slowInflow);
 			fastInflow.step(punch, 0.005);
 			slowInflow.step(punch, 0.005);
 		}
@@ -7463,7 +7467,53 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void retainedInducedWakeDelaysRepunchAfterThrottleChop() {
+	void dynamicInducedInflowTimeConstantFollowsWakeTransitScale() throws ReflectiveOperationException {
+		DroneConfig config = DroneConfig.racingQuad().withRotorInducedInflow(0.035, 0.16);
+		RotorSpec rotor = config.rotors().get(0);
+		Method targetInflowMethod = DronePhysics.class.getDeclaredMethod(
+				"targetRotorInducedVelocityMetersPerSecond",
+				RotorSpec.class,
+				double.class,
+				double.class
+		);
+		Method dynamicTauMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorDynamicInflowTimeConstantSeconds",
+				RotorSpec.class,
+				Vec3.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		targetInflowMethod.setAccessible(true);
+		dynamicTauMethod.setAccessible(true);
+
+		double hoverThrust = config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size();
+		double hoverInflow = (double) targetInflowMethod.invoke(null, rotor, hoverThrust, 1.0);
+		double maxInflow = (double) targetInflowMethod.invoke(null, rotor, rotor.maxThrustNewtons(), 1.0);
+		double hoverOmega = rotor.maxOmegaRadiansPerSecond() * 0.62;
+		double highOmega = rotor.maxOmegaRadiansPerSecond() * 0.92;
+		double lowOmega = rotor.maxOmegaRadiansPerSecond() * 0.24;
+
+		double hoverTau = (double) dynamicTauMethod.invoke(null, rotor, Vec3.ZERO, hoverOmega, hoverInflow, 0.0, hoverInflow);
+		double highThrustTau = (double) dynamicTauMethod.invoke(null, rotor, Vec3.ZERO, highOmega, maxInflow, 0.0, hoverInflow);
+		double lowThrustReleaseTau = (double) dynamicTauMethod.invoke(null, rotor, Vec3.ZERO, lowOmega, hoverInflow * 0.25, hoverInflow, hoverInflow);
+		double crossflowTau = (double) dynamicTauMethod.invoke(null, rotor, new Vec3(18.0, 0.0, 0.0), hoverOmega, hoverInflow, 0.0, hoverInflow);
+		double descendingTau = (double) dynamicTauMethod.invoke(null, rotor, new Vec3(0.0, -10.0, 0.0), hoverOmega, hoverInflow, hoverInflow, hoverInflow);
+
+		assertTrue(hoverTau > 0.020 && hoverTau < 0.045, () -> "hoverTau=" + hoverTau);
+		assertTrue(highThrustTau < hoverTau * 0.70,
+				() -> "highThrustTau=" + highThrustTau + " hoverTau=" + hoverTau);
+		assertTrue(lowThrustReleaseTau > hoverTau * 2.20,
+				() -> "lowThrustReleaseTau=" + lowThrustReleaseTau + " hoverTau=" + hoverTau);
+		assertTrue(crossflowTau < hoverTau * 0.95,
+				() -> "crossflowTau=" + crossflowTau + " hoverTau=" + hoverTau);
+		assertTrue(descendingTau > hoverTau * 1.10,
+				() -> "descendingTau=" + descendingTau + " hoverTau=" + hoverTau);
+	}
+
+	@Test
+	void retainedInducedWakeLoadsRepunchAfterThrottleChop() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
 				.withBodyDragCoefficients(Vec3.ZERO)
@@ -7501,13 +7551,17 @@ class DronePhysicsTest {
 		double freshThrust = freshAir.state().rotorThrustNewtons(0);
 		double retainedLoad = retainedWake.state().rotorAerodynamicLoadFactor(0);
 		double freshLoad = freshAir.state().rotorAerodynamicLoadFactor(0);
+		double retainedLagScale = retainedWake.state().minRotorInducedLagThrustScale();
+		double freshLagScale = freshAir.state().minRotorInducedLagThrustScale();
 		double retainedOmega = retainedWake.state().motorOmegaRadiansPerSecond(0);
 		double freshOmega = freshAir.state().motorOmegaRadiansPerSecond(0);
 
 		assertTrue(loadedInducedVelocity > 5.0, () -> "loadedInducedVelocity=" + loadedInducedVelocity);
 		assertEquals(freshOmega, retainedOmega, freshOmega * 0.08);
-		assertTrue(retainedThrust < freshThrust - 0.10,
+		assertTrue(retainedThrust > freshThrust + 0.08,
 				() -> "retainedThrust=" + retainedThrust + " freshThrust=" + freshThrust);
+		assertTrue(retainedLagScale > freshLagScale + 0.05,
+				() -> "retainedLagScale=" + retainedLagScale + " freshLagScale=" + freshLagScale);
 		assertTrue(retainedLoad > freshLoad + 0.02,
 				() -> "retainedLoad=" + retainedLoad + " freshLoad=" + freshLoad);
 	}
@@ -8051,6 +8105,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_esc_cooling_factor"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_induced_velocity_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("min_induced_lag_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_dynamic_inflow_tau_s"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_dynamic_inflow_tau_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_force_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_force_z_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_torque_x_nm"));
@@ -8244,6 +8300,12 @@ class DronePhysicsTest {
 		double loggedInducedLagThrustScale = Double.parseDouble(firstRow[indexOf(header, "min_induced_lag_thrust_scale")]);
 		assertTrue(loggedInducedLagThrustScale >= 0.65);
 		assertTrue(loggedInducedLagThrustScale <= 1.0);
+		double loggedDynamicInflowTau = Double.parseDouble(firstRow[indexOf(header, "rotor_dynamic_inflow_tau_s")]);
+		double loggedRotor7DynamicInflowTau = Double.parseDouble(firstRow[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]);
+		assertTrue(loggedDynamicInflowTau >= 0.0);
+		assertTrue(loggedDynamicInflowTau <= 0.36);
+		assertTrue(loggedRotor7DynamicInflowTau >= 0.0);
+		assertTrue(loggedRotor7DynamicInflowTau <= 0.36);
 		double loggedWakeThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_wake_thrust_scale")]);
 		double loggedRotor7WakeThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_wake_thrust_scale")]);
 		assertTrue(loggedWakeThrustScale >= 0.72);
@@ -8454,6 +8516,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_coning") > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") > 0.10);
+		assertTrue(maxColumn(lines, header, "rotor_dynamic_inflow_tau_s") > 0.02);
 		assertTrue(minColumn(lines, header, "rotor_prop_power_scale") < 0.95);
 		assertTrue(maxColumn(lines, header, "rotor_reverse_flow_fraction") > 0.05);
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
@@ -8515,6 +8578,7 @@ class DronePhysicsTest {
 		assertTrue(report.minRotorInducedLagThrustScale() >= 0.65);
 		assertTrue(report.minRotorInducedLagThrustScale() <= 1.0);
 		assertEquals((1.0 - report.minRotorInducedLagThrustScale()) * 100.0, report.maxRotorInducedLagThrustLossPercent(), 1.0e-9);
+		assertTrue(report.maxRotorDynamicInflowTimeConstantSeconds() > 0.02);
 		assertTrue(report.minRotorWetThrustScale() >= 0.08);
 		assertTrue(report.minRotorWetThrustScale() <= 1.0);
 		assertTrue(report.maxRotorWetThrustLossPercent() > 2.0);
@@ -8648,6 +8712,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_windmilling"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_dynamic_inflow_tau_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_advance_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ambient_temperature_c"));
@@ -8677,6 +8742,8 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) <= 0.36);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);

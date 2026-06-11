@@ -87,6 +87,7 @@ public final class DroneState {
 	private Vec3[] rotorTorqueBodyNewtonMeters;
 	private double[] rotorInducedVelocityMetersPerSecond;
 	private double[] rotorInducedLagThrustScale;
+	private double[] rotorDynamicInflowTimeConstantSeconds;
 	private double[] rotorTranslationalLiftIntensity;
 	private double[] rotorAdvanceRatio;
 	private double[] rotorPropellerAdvanceRatioJ;
@@ -207,6 +208,7 @@ public final class DroneState {
 		rotorTorqueBodyNewtonMeters = new Vec3[motorCount];
 		rotorInducedVelocityMetersPerSecond = new double[motorCount];
 		rotorInducedLagThrustScale = new double[motorCount];
+		rotorDynamicInflowTimeConstantSeconds = new double[motorCount];
 		rotorTranslationalLiftIntensity = new double[motorCount];
 		rotorAdvanceRatio = new double[motorCount];
 		rotorPropellerAdvanceRatioJ = new double[motorCount];
@@ -244,6 +246,7 @@ public final class DroneState {
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
+		Arrays.fill(rotorDynamicInflowTimeConstantSeconds, 0.0);
 		Arrays.fill(rotorPropellerPowerScale, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
@@ -1289,6 +1292,7 @@ public final class DroneState {
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
 		Arrays.fill(rotorInducedVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
+		Arrays.fill(rotorDynamicInflowTimeConstantSeconds, 0.0);
 		Arrays.fill(rotorTranslationalLiftIntensity, 0.0);
 		Arrays.fill(rotorAdvanceRatio, 0.0);
 		Arrays.fill(rotorPropellerAdvanceRatioJ, 0.0);
@@ -1433,6 +1437,18 @@ public final class DroneState {
 		rotorInducedLagThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.65, 1.0) : 1.0;
 	}
 
+	public double rotorDynamicInflowTimeConstantSeconds(int index) {
+		return rotorDynamicInflowTimeConstantSeconds[index];
+	}
+
+	public double[] rotorDynamicInflowTimeConstantSeconds() {
+		return Arrays.copyOf(rotorDynamicInflowTimeConstantSeconds, rotorDynamicInflowTimeConstantSeconds.length);
+	}
+
+	void setRotorDynamicInflowTimeConstantSeconds(int index, double value) {
+		rotorDynamicInflowTimeConstantSeconds[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 0.5) : 0.0;
+	}
+
 	public double averageRotorInducedLagThrustScale() {
 		double sum = 0.0;
 		for (double scale : rotorInducedLagThrustScale) {
@@ -1447,6 +1463,22 @@ public final class DroneState {
 			min = Math.min(min, scale);
 		}
 		return min;
+	}
+
+	public double averageRotorDynamicInflowTimeConstantSeconds() {
+		double sum = 0.0;
+		for (double timeConstant : rotorDynamicInflowTimeConstantSeconds) {
+			sum += timeConstant;
+		}
+		return sum / rotorDynamicInflowTimeConstantSeconds.length;
+	}
+
+	public double maxRotorDynamicInflowTimeConstantSeconds() {
+		double max = 0.0;
+		for (double timeConstant : rotorDynamicInflowTimeConstantSeconds) {
+			max = Math.max(max, timeConstant);
+		}
+		return max;
 	}
 
 	public double rotorTranslationalLiftIntensity(int index) {

@@ -233,6 +233,11 @@ public final class DroneBlackboxSample {
 			"rotor_3_torque_z_nm",
 			"rotor_induced_velocity_mps",
 			"rotor_induced_lag_thrust_scale",
+			"rotor_dynamic_inflow_tau_s",
+			"rotor_0_dynamic_inflow_tau_s",
+			"rotor_1_dynamic_inflow_tau_s",
+			"rotor_2_dynamic_inflow_tau_s",
+			"rotor_3_dynamic_inflow_tau_s",
 			"rotor_translational_lift",
 			"rotor_0_translational_lift",
 			"rotor_1_translational_lift",
@@ -745,6 +750,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_thrust_n",
 			"rotor_6_thrust_n",
 			"rotor_7_thrust_n",
+			"rotor_4_dynamic_inflow_tau_s",
+			"rotor_5_dynamic_inflow_tau_s",
+			"rotor_6_dynamic_inflow_tau_s",
+			"rotor_7_dynamic_inflow_tau_s",
 			"rotor_4_force_x_n",
 			"rotor_4_force_y_n",
 			"rotor_4_force_z_n",
@@ -1209,6 +1218,11 @@ public final class DroneBlackboxSample {
 		addRotorTorqueColumns(row, rotorTorqueBody, 3);
 		row.add(state.averageRotorInducedVelocityMetersPerSecond(), "%.4f");
 		row.add(state.minRotorInducedLagThrustScale(), "%.5f");
+		row.add(state.averageRotorDynamicInflowTimeConstantSeconds(), "%.5f");
+		row.add(rotorDynamicInflowTimeConstantOrZero(state, 0), "%.5f");
+		row.add(rotorDynamicInflowTimeConstantOrZero(state, 1), "%.5f");
+		row.add(rotorDynamicInflowTimeConstantOrZero(state, 2), "%.5f");
+		row.add(rotorDynamicInflowTimeConstantOrZero(state, 3), "%.5f");
 		row.add(state.averageRotorTranslationalLiftIntensity(), "%.5f");
 		row.add(rotorTranslationalLiftOrZero(state, 0), "%.5f");
 		row.add(rotorTranslationalLiftOrZero(state, 1), "%.5f");
@@ -1705,6 +1719,7 @@ public final class DroneBlackboxSample {
 		double[] motorRpm = state.motorRpm();
 		double[] rotorHealth = state.rotorHealth();
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
+		double[] rotorDynamicInflowTimeConstant = state.rotorDynamicInflowTimeConstantSeconds();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
 		double[] rotorPropellerAdvanceRatioJ = state.rotorPropellerAdvanceRatioJ();
 		double[] rotorPropellerPowerScale = state.rotorPropellerPowerScale();
@@ -1786,6 +1801,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorThrust, i), "%.4f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorDynamicInflowTimeConstant, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			addRotorForceColumns(row, rotorForceBody, i);
@@ -1895,6 +1913,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorTranslationalLiftOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorTranslationalLiftIntensity(index) : 0.0;
+	}
+
+	private static double rotorDynamicInflowTimeConstantOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorDynamicInflowTimeConstantSeconds(index) : 0.0;
 	}
 
 	private static double rotorAerodynamicLoadOrZero(DroneState state, int index) {

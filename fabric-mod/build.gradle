@@ -149,6 +149,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_stall_intensity",
 		"rotor_translational_lift",
 		"rotor_aerodynamic_load",
+		"rotor_dynamic_inflow_tau_s",
+		"rotor_5_dynamic_inflow_tau_s",
 		"rotor_advance_ratio",
 		"rotor_prop_power_scale",
 		"rotor_5_prop_power_scale",
