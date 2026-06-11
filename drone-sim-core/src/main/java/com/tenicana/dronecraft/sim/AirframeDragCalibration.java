@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim;
 
 public final class AirframeDragCalibration {
 	private static final double EPSILON = 1.0e-12;
+	public static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double IMAV_2022_BASE_DRAG_NEWTON_SECONDS_PER_METER = 0.105;
 	private static final double IMAV_2022_MASS_DRAG_NEWTON_SECONDS_PER_METER_PER_KG = 0.087;
 
@@ -76,6 +77,39 @@ public final class AirframeDragCalibration {
 	public static double dragForceNewtons(double linearCoefficient, double quadraticCoefficient, double speedMetersPerSecond) {
 		double speed = Math.max(0.0, speedMetersPerSecond);
 		return linearCoefficient * speed + quadraticCoefficient * speed * speed;
+	}
+
+	public static double imav2022ReferenceDragForceNewtons(
+			DroneConfig config,
+			double speedMetersPerSecond,
+			double airDensityRatio
+	) {
+		double densityScale = Math.max(0.0, airDensityRatio);
+		return imav2022MassFitLinearDragCoefficient(config)
+				* Math.max(0.0, speedMetersPerSecond)
+				* densityScale;
+	}
+
+	public static double equivalentLinearCoefficient(double dragForceNewtons, double speedMetersPerSecond) {
+		double speed = Math.max(0.0, speedMetersPerSecond);
+		if (speed <= EPSILON) {
+			return 0.0;
+		}
+		return Math.max(0.0, dragForceNewtons) / speed;
+	}
+
+	public static double equivalentCdAMetersSquared(
+			double dragForceNewtons,
+			double speedMetersPerSecond,
+			double airDensityRatio
+	) {
+		double speedSquared = Math.max(0.0, speedMetersPerSecond) * Math.max(0.0, speedMetersPerSecond);
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * Math.max(0.0, airDensityRatio);
+		double dynamicPressure = 0.5 * density * speedSquared;
+		if (dynamicPressure <= EPSILON) {
+			return 0.0;
+		}
+		return Math.max(0.0, dragForceNewtons) / dynamicPressure;
 	}
 
 	private static double coastdownTimeSeconds(

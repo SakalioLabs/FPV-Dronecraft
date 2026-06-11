@@ -370,6 +370,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("accel_bias_x_mps2"));
 		assertTrue(csv.contains("accel_clip"));
 		assertTrue(csv.contains("airframe_pressure_center_pitch_torque_nm"));
+		assertTrue(csv.contains("airframe_drag_along_flow_n"));
+		assertTrue(csv.contains("airframe_drag_equivalent_linear_k"));
+		assertTrue(csv.contains("airframe_drag_equivalent_cda_m2"));
+		assertTrue(csv.contains("airframe_drag_imav_ratio"));
 		assertTrue(csv.contains("rotor_surface_scrape"));
 		assertTrue(csv.contains("rotor_1_surface_scrape"));
 		assertTrue(csv.contains("tune_rotor_blade_pitch_m"));
@@ -432,6 +436,10 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_blade_pass_notch_spread_hz")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "accel_bias_x_mps2")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "accel_clip")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_drag_along_flow_n")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_drag_equivalent_linear_k")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_drag_equivalent_cda_m2")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_drag_imav_ratio")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_advance_ratio")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_0_advance_ratio")]));
 		double loggedRotorAdvanceRatio = Double.parseDouble(row[indexOf(header, "rotor_advance_ratio")]);

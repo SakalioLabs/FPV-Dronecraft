@@ -690,6 +690,10 @@ public final class DroneBlackboxSample {
 			"linear_damping_drag_y_n",
 			"linear_damping_drag_z_n",
 			"linear_damping_drag_n",
+			"airframe_drag_along_flow_n",
+			"airframe_drag_equivalent_linear_k",
+			"airframe_drag_equivalent_cda_m2",
+			"airframe_drag_imav_ratio",
 			"ground_effect_drag_x_n",
 			"ground_effect_drag_y_n",
 			"ground_effect_drag_z_n",
@@ -1762,6 +1766,10 @@ public final class DroneBlackboxSample {
 		row.add(linearDampingDrag.y(), "%.5f");
 		row.add(linearDampingDrag.z(), "%.5f");
 		row.add(linearDampingDrag.length(), "%.5f");
+		row.add(state.airframeDragAlongFlowNewtons(), "%.5f");
+		row.add(state.airframeDragEquivalentLinearCoefficient(), "%.5f");
+		row.add(state.airframeDragEquivalentCdAMetersSquared(), "%.5f");
+		row.add(state.airframeDragImavReferenceRatio(), "%.5f");
 		row.add(groundEffectDrag.x(), "%.5f");
 		row.add(groundEffectDrag.y(), "%.5f");
 		row.add(groundEffectDrag.z(), "%.5f");

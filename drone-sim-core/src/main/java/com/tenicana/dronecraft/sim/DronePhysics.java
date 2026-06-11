@@ -6364,6 +6364,8 @@ public final class DronePhysics {
 		Vec3 thrustWorld = state.orientation().rotate(totalForceBody.add(airframeLiftBody).add(groundEffectDragBody).add(rotorWashDragBody));
 		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * effectiveAirDensity);
 		state.setLinearDampingDragForceWorldNewtons(isotropicDrag);
+		Vec3 linearDampingDragBody = velocityBody.multiply(-config.linearDragCoefficient() * effectiveAirDensity);
+		updateAirframeDragReferenceTelemetry(velocityBody, bodyDrag, linearDampingDragBody, effectiveAirDensity);
 		Vec3 waterDrag = calculateWaterImmersionDragForce(velocity, environment);
 		Vec3 drag = state.orientation().rotate(bodyDrag).add(isotropicDrag).add(waterDrag);
 		Vec3 acceleration = thrustWorld.add(gravity).add(drag).multiply(1.0 / config.massKg());
@@ -6374,6 +6376,48 @@ public final class DronePhysics {
 		state.setLinearAccelerationWorldMetersPerSecondSquared(acceleration);
 		state.setVelocityMetersPerSecond(velocity);
 		state.setPositionMeters(position);
+	}
+
+	private void updateAirframeDragReferenceTelemetry(
+			Vec3 relativeAirVelocityBody,
+			Vec3 bodyDragBody,
+			Vec3 linearDampingDragBody,
+			double airDensityRatio
+	) {
+		double speed = relativeAirVelocityBody == null ? 0.0 : relativeAirVelocityBody.length();
+		if (speed <= 1.0e-6) {
+			state.setAirframeDragAlongFlowNewtons(0.0);
+			state.setAirframeDragEquivalentLinearCoefficient(0.0);
+			state.setAirframeDragEquivalentCdAMetersSquared(0.0);
+			state.setAirframeDragImavReferenceRatio(0.0);
+			return;
+		}
+
+		Vec3 dragBody = (bodyDragBody == null ? Vec3.ZERO : bodyDragBody)
+				.add(linearDampingDragBody == null ? Vec3.ZERO : linearDampingDragBody);
+		double alongFlowNewtons = Math.max(
+				0.0,
+				dragBody.dot(relativeAirVelocityBody.normalized().multiply(-1.0))
+		);
+		double equivalentLinearCoefficient = AirframeDragCalibration.equivalentLinearCoefficient(
+				alongFlowNewtons,
+				speed
+		);
+		double equivalentCdA = AirframeDragCalibration.equivalentCdAMetersSquared(
+				alongFlowNewtons,
+				speed,
+				airDensityRatio
+		);
+		double referenceForce = AirframeDragCalibration.imav2022ReferenceDragForceNewtons(
+				config,
+				speed,
+				airDensityRatio
+		);
+		double imavReferenceRatio = referenceForce > 1.0e-9 ? alongFlowNewtons / referenceForce : 0.0;
+		state.setAirframeDragAlongFlowNewtons(alongFlowNewtons);
+		state.setAirframeDragEquivalentLinearCoefficient(equivalentLinearCoefficient);
+		state.setAirframeDragEquivalentCdAMetersSquared(equivalentCdA);
+		state.setAirframeDragImavReferenceRatio(imavReferenceRatio);
 	}
 
 	private Vec3 updateAirframeBodyDragForce(Vec3 relativeAirVelocityBody, double airDensityRatio, double dtSeconds) {

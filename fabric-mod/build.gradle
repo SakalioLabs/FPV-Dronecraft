@@ -118,6 +118,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"tune_imu_z_m",
 		"tune_cp_x_m",
 		"airframe_pressure_center_pitch_torque_nm",
+		"airframe_drag_imav_ratio",
 		"tune_rotor_outward_cant_deg",
 		"gyro_bias_pitch_dps",
 		"gyro_clip",

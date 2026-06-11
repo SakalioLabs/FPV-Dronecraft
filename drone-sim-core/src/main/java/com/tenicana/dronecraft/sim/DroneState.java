@@ -179,6 +179,10 @@ public final class DroneState {
 	private double airframeSeparatedFlowIntensity;
 	private Vec3 airframeBodyDragForceBodyNewtons = Vec3.ZERO;
 	private Vec3 linearDampingDragForceWorldNewtons = Vec3.ZERO;
+	private double airframeDragAlongFlowNewtons;
+	private double airframeDragEquivalentLinearCoefficient;
+	private double airframeDragEquivalentCdAMetersSquared;
+	private double airframeDragImavReferenceRatio;
 	private Vec3 airframeLiftForceBodyNewtons = Vec3.ZERO;
 	private Vec3 groundEffectDragForceBodyNewtons = Vec3.ZERO;
 	private Vec3 rotorWashDragForceBodyNewtons = Vec3.ZERO;
@@ -1503,6 +1507,10 @@ public final class DroneState {
 		airframeSeparatedFlowIntensity = 0.0;
 		airframeBodyDragForceBodyNewtons = Vec3.ZERO;
 		linearDampingDragForceWorldNewtons = Vec3.ZERO;
+		airframeDragAlongFlowNewtons = 0.0;
+		airframeDragEquivalentLinearCoefficient = 0.0;
+		airframeDragEquivalentCdAMetersSquared = 0.0;
+		airframeDragImavReferenceRatio = 0.0;
 		propwashIntensity = 0.0;
 		propwashWakeIntensity = 0.0;
 		propwashTorqueBodyNewtonMeters = Vec3.ZERO;
@@ -3105,6 +3113,38 @@ public final class DroneState {
 
 	void setLinearDampingDragForceWorldNewtons(Vec3 linearDampingDragForceWorldNewtons) {
 		this.linearDampingDragForceWorldNewtons = linearDampingDragForceWorldNewtons == null ? Vec3.ZERO : linearDampingDragForceWorldNewtons;
+	}
+
+	public double airframeDragAlongFlowNewtons() {
+		return airframeDragAlongFlowNewtons;
+	}
+
+	void setAirframeDragAlongFlowNewtons(double airframeDragAlongFlowNewtons) {
+		this.airframeDragAlongFlowNewtons = nonNegativeFinite(airframeDragAlongFlowNewtons);
+	}
+
+	public double airframeDragEquivalentLinearCoefficient() {
+		return airframeDragEquivalentLinearCoefficient;
+	}
+
+	void setAirframeDragEquivalentLinearCoefficient(double airframeDragEquivalentLinearCoefficient) {
+		this.airframeDragEquivalentLinearCoefficient = nonNegativeFinite(airframeDragEquivalentLinearCoefficient);
+	}
+
+	public double airframeDragEquivalentCdAMetersSquared() {
+		return airframeDragEquivalentCdAMetersSquared;
+	}
+
+	void setAirframeDragEquivalentCdAMetersSquared(double airframeDragEquivalentCdAMetersSquared) {
+		this.airframeDragEquivalentCdAMetersSquared = nonNegativeFinite(airframeDragEquivalentCdAMetersSquared);
+	}
+
+	public double airframeDragImavReferenceRatio() {
+		return airframeDragImavReferenceRatio;
+	}
+
+	void setAirframeDragImavReferenceRatio(double airframeDragImavReferenceRatio) {
+		this.airframeDragImavReferenceRatio = nonNegativeFinite(airframeDragImavReferenceRatio);
 	}
 
 	public Vec3 airframeLiftForceBodyNewtons() {

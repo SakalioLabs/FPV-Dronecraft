@@ -879,6 +879,10 @@ public final class OfflineFlightRecorder {
 			"rotor_coaxial_allocation_ratio",
 			"rotor_coaxial_allocation_mech_gain_pct",
 			"rotor_coaxial_allocation_elec_gain_pct",
+			"airframe_drag_along_flow_n",
+			"airframe_drag_equivalent_linear_k",
+			"airframe_drag_equivalent_cda_m2",
+			"airframe_drag_imav_ratio",
 			"gyro_notch_spread_hz",
 			"gyro_rpm_harmonic_notch_attenuation",
 			"gyro_blade_pass_notch_spread_hz",
@@ -2046,6 +2050,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.maxRotorCoaxialAllocationCommandRatio(), "%.5f");
 		appendExtra(builder, state.maxRotorCoaxialAllocationMechanicalGainPercent(), "%.5f");
 		appendExtra(builder, state.maxRotorCoaxialAllocationElectricalGainPercent(), "%.5f");
+		appendExtra(builder, state.airframeDragAlongFlowNewtons(), "%.5f");
+		appendExtra(builder, state.airframeDragEquivalentLinearCoefficient(), "%.5f");
+		appendExtra(builder, state.airframeDragEquivalentCdAMetersSquared(), "%.5f");
+		appendExtra(builder, state.airframeDragImavReferenceRatio(), "%.5f");
 		appendExtra(builder, state.gyroDynamicNotchSpreadHertz(), "%.3f");
 		appendExtra(builder, state.gyroRpmHarmonicNotchAttenuation(), "%.5f");
 		appendExtra(builder, state.gyroBladePassNotchSpreadHertz(), "%.3f");

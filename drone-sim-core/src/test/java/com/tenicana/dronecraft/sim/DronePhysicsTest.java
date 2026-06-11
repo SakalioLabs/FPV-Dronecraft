@@ -5438,6 +5438,11 @@ class DronePhysicsTest {
 		double forwardDampingDrag = -forward.state().linearDampingDragForceWorldNewtons().z();
 		double lateralTotalDrag = lateralBodyDrag + lateralDampingDrag;
 		double forwardTotalDrag = forwardBodyDrag + forwardDampingDrag;
+		double forwardReferenceDrag = AirframeDragCalibration.imav2022ReferenceDragForceNewtons(
+				config,
+				10.0,
+				1.0
+		);
 
 		assertTrue(lateralBodyDrag < 0.40, () -> "lateralBodyDrag=" + lateralBodyDrag);
 		assertTrue(forwardBodyDrag < 0.65, () -> "forwardBodyDrag=" + forwardBodyDrag);
@@ -5445,6 +5450,13 @@ class DronePhysicsTest {
 				() -> "lateralTotalDrag=" + lateralTotalDrag);
 		assertTrue(forwardTotalDrag > 2.05 && forwardTotalDrag < 2.55,
 				() -> "forwardTotalDrag=" + forwardTotalDrag);
+		assertEquals(forwardTotalDrag, forward.state().airframeDragAlongFlowNewtons(), 0.08);
+		assertEquals(forwardTotalDrag / 10.0, forward.state().airframeDragEquivalentLinearCoefficient(), 0.01);
+		assertEquals(forwardTotalDrag / forwardReferenceDrag, forward.state().airframeDragImavReferenceRatio(), 0.04);
+		assertTrue(forward.state().airframeDragEquivalentCdAMetersSquared() > 0.025,
+				() -> "equivalentCdA=" + forward.state().airframeDragEquivalentCdAMetersSquared());
+		assertTrue(forward.state().airframeDragEquivalentCdAMetersSquared() < 0.050,
+				() -> "equivalentCdA=" + forward.state().airframeDragEquivalentCdAMetersSquared());
 	}
 
 	@Test
@@ -5476,6 +5488,7 @@ class DronePhysicsTest {
 		);
 
 		assertEquals(0.2007, lateralLowSpeed.referenceLinearDragCoefficient(), 1.0e-6);
+		assertEquals(2.007, AirframeDragCalibration.imav2022ReferenceDragForceNewtons(config, 10.0, 1.0), 1.0e-6);
 		assertEquals(config.linearDragCoefficient(), lateralLowSpeed.linearDampingCoefficient(), 1.0e-12);
 		assertEquals(config.bodyDragCoefficients().x(), lateralLowSpeed.bodyQuadraticCoefficient(), 1.0e-12);
 		assertEquals(config.bodyDragCoefficients().z(), forwardLowSpeed.bodyQuadraticCoefficient(), 1.0e-12);
@@ -9019,6 +9032,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_lift_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_body_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("linear_damping_drag_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_drag_along_flow_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_drag_equivalent_linear_k"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_drag_equivalent_cda_m2"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_drag_imav_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ground_effect_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wash_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wall_effect_n"));
@@ -9323,6 +9340,10 @@ class DronePhysicsTest {
 		assertTrue(loggedAirframeSeparation <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_body_drag_n")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "linear_damping_drag_n")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_along_flow_n")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_linear_k")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_cda_m2")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_imav_ratio")])));
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_friction")]), 1.0e-9);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_restitution")]), 1.0e-9);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_scrape")]), 1.0e-9);
