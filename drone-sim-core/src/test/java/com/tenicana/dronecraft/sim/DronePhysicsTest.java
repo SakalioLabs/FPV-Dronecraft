@@ -1904,6 +1904,25 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batterySocResistanceShapeFollowsMendeleyRuntimeLookup() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withBattery(16.8, 13.2, 0.020, 1000.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+
+		double freshFull = effectiveBatteryResistanceAt(config, 1.0, 0.0);
+		double freshLow = effectiveBatteryResistanceAt(config, 0.10, 0.0);
+		double wornFull = effectiveBatteryResistanceAt(config, 1.0, 450.0);
+		double wornLow = effectiveBatteryResistanceAt(config, 0.10, 450.0);
+
+		assertEquals(1.030, freshLow / freshFull, 0.004);
+		assertEquals(1.039, wornLow / wornFull, 0.008);
+		assertTrue(wornFull > freshFull * 1.18,
+				() -> "freshFull=" + freshFull + " wornFull=" + wornFull);
+		assertTrue(wornLow > freshLow * 1.19,
+				() -> "freshLow=" + freshLow + " wornLow=" + wornLow);
+	}
+
+	@Test
 	void batteryEquivalentCyclesRaiseResistanceOnMendeleyAgingScale() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withBattery(16.8, 13.2, 0.020, 2.0, 120.0)
@@ -8484,6 +8503,15 @@ class DronePhysicsTest {
 		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
 		physics.step(DroneInput.idle(), 0.005);
 		return physics.state().batteryOpenCircuitVoltage();
+	}
+
+	private static double effectiveBatteryResistanceAt(DroneConfig config, double stateOfCharge, double equivalentCycles) {
+		DronePhysics physics = new DronePhysics(config);
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
+		physics.state().setBatteryEquivalentCycles(equivalentCycles);
+		physics.step(DroneInput.idle(), 0.005);
+		return physics.state().batteryEffectiveResistanceOhms();
 	}
 
 	private static DroneConfig directControl(DroneConfig config) {

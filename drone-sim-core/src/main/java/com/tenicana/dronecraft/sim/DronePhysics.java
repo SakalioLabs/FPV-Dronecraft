@@ -28,6 +28,22 @@ public final class DronePhysics {
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.17, 0.28, 0.43, 0.52, 0.58, 0.66, 0.76, 0.86, 1.0};
 	private static final double LIPO_MENDELEY_REFERENCE_AGING_CYCLES = 450.0;
+	private static final double[] LIPO_MENDELEY_R0_SOC_POINTS = {0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0};
+	private static final double[] LIPO_MENDELEY_R0_FRESH_SCALE = {
+			1.0326822976566437, 1.015915885475362, 1.018510929006367, 1.0200955572677333,
+			1.0183323058810432, 1.0197545280325397, 1.0174728004953455, 1.015348458875896,
+			1.0083956381039862, 1.002684224007052
+	};
+	private static final double[] LIPO_MENDELEY_R0_AGED_SCALE = {
+			1.1523512095542858, 1.1143059803007573, 1.1281835986067184, 1.1275984440817655,
+			1.1350752504251385, 1.1385042770480385, 1.1238252952951855, 1.1336659929580892,
+			1.1295256100692384, 1.1031165689083977
+	};
+	private static final double[] LIPO_MENDELEY_R0_WORN_SCALE = {
+			1.1902959848598709, 1.1688627229470703, 1.165424310370534, 1.1773179790552062,
+			1.2106301151226226, 1.1773193885232351, 1.181201236162614, 1.2141890535118343,
+			1.1501151032140817, 1.1452400882358447
+	};
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
 	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
 	private static final double GYRO_FULL_SCALE_RADIANS_PER_SECOND = Math.toRadians(2000.0);
@@ -7282,16 +7298,52 @@ public final class DronePhysics {
 
 	private double batteryElectricalResistanceOhms(double batteryTemperatureCelsius, double ambientTemperatureCelsius, double stateOfCharge) {
 		return temperatureAdjustedBatteryResistanceOhms(batteryTemperatureCelsius, ambientTemperatureCelsius)
-				* batteryStateOfChargeResistanceScale(stateOfCharge)
+				* batteryStateOfChargeResistanceScale(stateOfCharge, state.batteryEquivalentCycles())
 				* batteryAgingResistanceScale(state.batteryEquivalentCycles());
 	}
 
-	private static double batteryStateOfChargeResistanceScale(double stateOfCharge) {
+	private static double batteryStateOfChargeResistanceScale(double stateOfCharge, double equivalentCycles) {
 		double soc = MathUtil.clamp(stateOfCharge, 0.0, 1.0);
-		double measuredR0Rise = 1.0 - smoothStep(0.12, 0.65, soc);
+		double measuredShape = mendeleyR0SocShapeScale(soc, equivalentCycles);
 		double reserveKneeRise = 1.0 - smoothStep(0.02, 0.08, soc);
 		double deepReserveRise = 1.0 - smoothStep(0.0, 0.025, soc);
-		return MathUtil.clamp(1.0 + 0.055 * measuredR0Rise + 0.38 * reserveKneeRise + 0.35 * deepReserveRise, 1.0, 1.80);
+		return MathUtil.clamp(measuredShape + 0.38 * reserveKneeRise + 0.35 * deepReserveRise, 1.0, 1.80);
+	}
+
+	private static double mendeleyR0SocShapeScale(double stateOfCharge, double equivalentCycles) {
+		double soc = MathUtil.clamp(stateOfCharge, LIPO_MENDELEY_R0_SOC_POINTS[0], 1.0);
+		double agingFraction = MathUtil.clamp(equivalentCycles / LIPO_MENDELEY_REFERENCE_AGING_CYCLES, 0.0, 1.0);
+		double fresh = interpolateLookup(soc, LIPO_MENDELEY_R0_SOC_POINTS, LIPO_MENDELEY_R0_FRESH_SCALE);
+		double aged = interpolateLookup(soc, LIPO_MENDELEY_R0_SOC_POINTS, LIPO_MENDELEY_R0_AGED_SCALE);
+		double worn = interpolateLookup(soc, LIPO_MENDELEY_R0_SOC_POINTS, LIPO_MENDELEY_R0_WORN_SCALE);
+		double highSocFresh = LIPO_MENDELEY_R0_FRESH_SCALE[LIPO_MENDELEY_R0_FRESH_SCALE.length - 1];
+		double highSocAged = LIPO_MENDELEY_R0_AGED_SCALE[LIPO_MENDELEY_R0_AGED_SCALE.length - 1];
+		double highSocWorn = LIPO_MENDELEY_R0_WORN_SCALE[LIPO_MENDELEY_R0_WORN_SCALE.length - 1];
+
+		if (agingFraction <= 0.55) {
+			double t = smoothStep(0.0, 0.55, agingFraction);
+			double scale = MathUtil.lerp(fresh, aged, t);
+			double highSocScale = MathUtil.lerp(highSocFresh, highSocAged, t);
+			return scale / Math.max(1.0e-6, highSocScale);
+		}
+
+		double t = smoothStep(0.55, 1.0, agingFraction);
+		double scale = MathUtil.lerp(aged, worn, t);
+		double highSocScale = MathUtil.lerp(highSocAged, highSocWorn, t);
+		return scale / Math.max(1.0e-6, highSocScale);
+	}
+
+	private static double interpolateLookup(double value, double[] x, double[] y) {
+		if (value <= x[0]) {
+			return y[0];
+		}
+		for (int i = 1; i < x.length; i++) {
+			if (value <= x[i]) {
+				double t = (value - x[i - 1]) / Math.max(1.0e-9, x[i] - x[i - 1]);
+				return MathUtil.lerp(y[i - 1], y[i], t);
+			}
+		}
+		return y[y.length - 1];
 	}
 
 	private static double batteryAgingResistanceScale(double equivalentCycles) {
