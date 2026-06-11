@@ -6354,6 +6354,76 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void restoredRotorDynamicStateSurvivesFirstPoweredStep() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.090)
+				.withBattery(16.8, 16.7, 0.0, 10.0, 90.0);
+		DronePhysics coldStart = new DronePhysics(config);
+		DronePhysics restored = new DronePhysics(config);
+		double[] motorOmega = new double[config.rotors().size()];
+		double[] escOutput = new double[config.rotors().size()];
+		double[] telemetryRpm = new double[config.rotors().size()];
+		double[] telemetryValidity = new double[config.rotors().size()];
+		double[] inducedVelocity = new double[config.rotors().size()];
+		double[] inducedLagScale = new double[config.rotors().size()];
+		double[] wakeVelocity = new double[config.rotors().size()];
+		double[] wakeCarryover = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			double maxOmega = config.rotors().get(i).maxOmegaRadiansPerSecond();
+			motorOmega[i] = maxOmega * (0.68 - 0.02 * i);
+			escOutput[i] = 0.62 - 0.01 * i;
+			telemetryRpm[i] = motorOmega[i] * 60.0 / (Math.PI * 2.0);
+			telemetryValidity[i] = 1.0;
+			inducedVelocity[i] = 5.8 - 0.2 * i;
+			inducedLagScale[i] = 0.82 + 0.02 * i;
+			wakeVelocity[i] = 6.9 - 0.25 * i;
+			wakeCarryover[i] = 0.42 - 0.04 * i;
+		}
+		restored.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
+				motorOmega,
+				escOutput,
+				telemetryRpm,
+				telemetryValidity,
+				inducedVelocity,
+				inducedLagScale,
+				wakeVelocity,
+				wakeCarryover,
+				0.73,
+				0.54,
+				0.61,
+				0.09,
+				0.11
+		));
+
+		DronePhysics.RotorDynamicState snapshot = restored.rotorDynamicStateSnapshot();
+		assertEquals(motorOmega[0], restored.state().motorOmegaRadiansPerSecond(0), 1.0e-9);
+		assertEquals(escOutput[0], restored.state().escOutputCommand(0), 1.0e-9);
+		assertEquals(telemetryRpm[0], restored.state().motorRpmTelemetryRpm(0), 1.0e-9);
+		assertEquals(inducedVelocity[0], restored.state().rotorInducedVelocityMetersPerSecond(0), 1.0e-9);
+		assertEquals(inducedLagScale[0], restored.state().rotorInducedLagThrustScale(0), 1.0e-9);
+		assertEquals(wakeVelocity[0], snapshot.rotorInducedWakeVelocityMetersPerSecond()[0], 1.0e-9);
+		assertEquals(wakeCarryover[0], snapshot.rotorInducedWakeCarryoverIntensity()[0], 1.0e-9);
+		assertEquals(0.73, restored.state().propwashWakeIntensity(), 1.0e-9);
+		assertEquals(0.61, restored.state().vortexRingStateIntensity(), 1.0e-9);
+
+		DroneInput throttle = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+		coldStart.step(throttle, 0.005, DroneEnvironment.calm());
+		restored.step(throttle, 0.005, DroneEnvironment.calm());
+
+		assertTrue(restored.state().averageMotorRpm() > coldStart.state().averageMotorRpm() + 12000.0,
+				() -> "coldRpm=" + coldStart.state().averageMotorRpm()
+						+ " restoredRpm=" + restored.state().averageMotorRpm());
+		assertTrue(restored.state().maxRotorInducedVelocityMetersPerSecond() > 5.0,
+				() -> "restoredInduced=" + restored.state().maxRotorInducedVelocityMetersPerSecond());
+		assertTrue(restored.rotorDynamicStateSnapshot().rotorInducedWakeVelocityMetersPerSecond()[0] > 6.2,
+				() -> "restoredWake=" + restored.rotorDynamicStateSnapshot().rotorInducedWakeVelocityMetersPerSecond()[0]);
+		assertTrue(restored.state().propwashWakeIntensity() > 0.60,
+				() -> "propwashWake=" + restored.state().propwashWakeIntensity());
+		assertTrue(restored.state().vortexRingStateIntensity() > 0.52,
+				() -> "vrs=" + restored.state().vortexRingStateIntensity());
+	}
+
+	@Test
 	void recirculatedDirtyAirReducesBatteryCooling() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

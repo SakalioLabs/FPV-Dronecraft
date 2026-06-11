@@ -218,6 +218,77 @@ public final class DronePhysics {
 	private double previousThrottle;
 	private double antiGravityTransient;
 
+	public record RotorDynamicState(
+			double[] motorOmegaRadiansPerSecond,
+			double[] escOutputCommand,
+			double[] motorRpmTelemetryRpm,
+			double[] motorRpmTelemetryValidity,
+			double[] rotorInducedVelocityMetersPerSecond,
+			double[] rotorInducedLagThrustScale,
+			double[] rotorInducedWakeVelocityMetersPerSecond,
+			double[] rotorInducedWakeCarryoverIntensity,
+			double propwashWakeIntensity,
+			double propwashIntensity,
+			double vortexRingStateIntensity,
+			double vortexRingThrustBuffetAmplitude,
+			double vortexRingMaxThrustBuffetAmplitude
+	) {
+		public RotorDynamicState {
+			motorOmegaRadiansPerSecond = copyOrNull(motorOmegaRadiansPerSecond);
+			escOutputCommand = copyOrNull(escOutputCommand);
+			motorRpmTelemetryRpm = copyOrNull(motorRpmTelemetryRpm);
+			motorRpmTelemetryValidity = copyOrNull(motorRpmTelemetryValidity);
+			rotorInducedVelocityMetersPerSecond = copyOrNull(rotorInducedVelocityMetersPerSecond);
+			rotorInducedLagThrustScale = copyOrNull(rotorInducedLagThrustScale);
+			rotorInducedWakeVelocityMetersPerSecond = copyOrNull(rotorInducedWakeVelocityMetersPerSecond);
+			rotorInducedWakeCarryoverIntensity = copyOrNull(rotorInducedWakeCarryoverIntensity);
+		}
+
+		@Override
+		public double[] motorOmegaRadiansPerSecond() {
+			return copyOrNull(motorOmegaRadiansPerSecond);
+		}
+
+		@Override
+		public double[] escOutputCommand() {
+			return copyOrNull(escOutputCommand);
+		}
+
+		@Override
+		public double[] motorRpmTelemetryRpm() {
+			return copyOrNull(motorRpmTelemetryRpm);
+		}
+
+		@Override
+		public double[] motorRpmTelemetryValidity() {
+			return copyOrNull(motorRpmTelemetryValidity);
+		}
+
+		@Override
+		public double[] rotorInducedVelocityMetersPerSecond() {
+			return copyOrNull(rotorInducedVelocityMetersPerSecond);
+		}
+
+		@Override
+		public double[] rotorInducedLagThrustScale() {
+			return copyOrNull(rotorInducedLagThrustScale);
+		}
+
+		@Override
+		public double[] rotorInducedWakeVelocityMetersPerSecond() {
+			return copyOrNull(rotorInducedWakeVelocityMetersPerSecond);
+		}
+
+		@Override
+		public double[] rotorInducedWakeCarryoverIntensity() {
+			return copyOrNull(rotorInducedWakeCarryoverIntensity);
+		}
+
+		private static double[] copyOrNull(double[] values) {
+			return values == null ? null : Arrays.copyOf(values, values.length);
+		}
+	}
+
 	private record MotorCurrentEstimate(
 			double dischargeCurrentAmps,
 			double regenerativeCurrentAmps,
@@ -475,6 +546,104 @@ public final class DronePhysics {
 		}
 		updateMotorThermalLimit();
 		updateEscThermalLimit();
+	}
+
+	public RotorDynamicState rotorDynamicStateSnapshot() {
+		return new RotorDynamicState(
+				state.motorOmegaRadiansPerSecond(),
+				state.escOutputCommand(),
+				state.motorRpmTelemetryRpm(),
+				state.motorRpmTelemetryValidity(),
+				state.rotorInducedVelocityMetersPerSecond(),
+				state.rotorInducedLagThrustScale(),
+				Arrays.copyOf(rotorInducedWakeVelocityMetersPerSecond, rotorInducedWakeVelocityMetersPerSecond.length),
+				Arrays.copyOf(rotorInducedWakeCarryoverIntensity, rotorInducedWakeCarryoverIntensity.length),
+				state.propwashWakeIntensity(),
+				state.propwashIntensity(),
+				state.vortexRingStateIntensity(),
+				state.vortexRingThrustBuffetAmplitude(),
+				state.maxVortexRingThrustBuffetAmplitude()
+		);
+	}
+
+	public void restoreRotorDynamicState(RotorDynamicState dynamicState) {
+		if (dynamicState == null) {
+			return;
+		}
+
+		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
+		double[] escOutput = dynamicState.escOutputCommand();
+		double[] telemetryRpm = dynamicState.motorRpmTelemetryRpm();
+		double[] telemetryValidity = dynamicState.motorRpmTelemetryValidity();
+		double[] inducedVelocity = dynamicState.rotorInducedVelocityMetersPerSecond();
+		double[] inducedLagScale = dynamicState.rotorInducedLagThrustScale();
+		double[] wakeVelocity = dynamicState.rotorInducedWakeVelocityMetersPerSecond();
+		double[] wakeCarryover = dynamicState.rotorInducedWakeCarryoverIntensity();
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			if (hasFiniteValue(motorOmega, i)) {
+				double omega = MathUtil.clamp(motorOmega[i], 0.0, rotor.maxOmegaRadiansPerSecond() * 1.08);
+				state.setMotorOmegaRadiansPerSecond(i, omega);
+				state.setMotorTargetOmegaRadiansPerSecond(i, omega);
+				state.setMotorAngularAccelerationRadiansPerSecondSquared(i, 0.0);
+			}
+			if (hasFiniteValue(escOutput, i)) {
+				state.setEscOutputCommand(i, escOutput[i]);
+				heldEscOutputCommands[i] = state.escOutputCommand(i);
+				escCommandFrameInitialized[i] = true;
+				escCommandFrameClockSeconds[i] = 0.0;
+				escCommandFrameAgeSeconds[i] = 0.0;
+				escCommandErrors[i] = 0.0;
+			}
+			if (hasFiniteValue(telemetryRpm, i) || hasFiniteValue(telemetryValidity, i)) {
+				double rpm = hasFiniteValue(telemetryRpm, i) ? Math.max(0.0, telemetryRpm[i]) : state.motorRpmTelemetryRpm(i);
+				double validity = hasFiniteValue(telemetryValidity, i) ? telemetryValidity[i] : state.motorRpmTelemetryValidity(i);
+				double telemetryOmega = rpm * (Math.PI * 2.0) / 60.0;
+				state.setMotorRpmTelemetry(i, telemetryOmega, validity);
+				escRpmTelemetryOmegaRadiansPerSecond[i] = telemetryOmega;
+				escRpmTelemetryFrameInitialized[i] = state.motorRpmTelemetryValidity(i) > 0.0;
+				escRpmTelemetryFrameClockSeconds[i] = 0.0;
+				escRpmTelemetryFrameAgeSeconds[i] = 0.0;
+			}
+			if (hasFiniteValue(inducedVelocity, i)) {
+				state.setRotorInducedVelocityMetersPerSecond(i, inducedVelocity[i]);
+			}
+			if (hasFiniteValue(inducedLagScale, i)) {
+				state.setRotorInducedLagThrustScale(i, inducedLagScale[i]);
+			}
+			if (hasFiniteValue(wakeVelocity, i)) {
+				double maxWakeVelocity = targetRotorInducedVelocityMetersPerSecond(rotor, rotor.maxThrustNewtons(), 1.0) * 1.65;
+				rotorInducedWakeVelocityMetersPerSecond[i] = MathUtil.clamp(wakeVelocity[i], 0.0, Math.max(1.0, maxWakeVelocity));
+			}
+			if (hasFiniteValue(wakeCarryover, i)) {
+				rotorInducedWakeCarryoverIntensity[i] = MathUtil.clamp(wakeCarryover[i], 0.0, 1.0);
+			}
+		}
+		if (Double.isFinite(dynamicState.propwashWakeIntensity())) {
+			state.setPropwashWakeIntensity(dynamicState.propwashWakeIntensity());
+		}
+		if (Double.isFinite(dynamicState.propwashIntensity())) {
+			state.setPropwashIntensity(dynamicState.propwashIntensity());
+		}
+		if (Double.isFinite(dynamicState.vortexRingStateIntensity())) {
+			state.setVortexRingStateIntensity(dynamicState.vortexRingStateIntensity());
+			Arrays.fill(rotorVortexRingStateIntensity, state.vortexRingStateIntensity());
+		}
+		if (Double.isFinite(dynamicState.vortexRingThrustBuffetAmplitude())) {
+			state.setVortexRingThrustBuffetAmplitude(dynamicState.vortexRingThrustBuffetAmplitude());
+		}
+		if (Double.isFinite(dynamicState.vortexRingMaxThrustBuffetAmplitude())) {
+			state.setVortexRingMaxThrustBuffetAmplitude(dynamicState.vortexRingMaxThrustBuffetAmplitude());
+		}
+		updateEscSignalTelemetry();
+	}
+
+	private static boolean hasFiniteValue(double[] values, int index) {
+		return values != null
+				&& index >= 0
+				&& index < values.length
+				&& Double.isFinite(values[index]);
 	}
 
 	public void resetControlLoops() {

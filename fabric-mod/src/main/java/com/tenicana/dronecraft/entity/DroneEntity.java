@@ -2578,6 +2578,7 @@ public class DroneEntity extends PathfinderMob {
 			output.putDouble("motor_cooling_factor_" + i, physics.state().motorCoolingFactor(i));
 			output.putDouble("esc_cooling_factor_" + i, physics.state().escCoolingFactor(i));
 		}
+		saveRotorDynamicState(output);
 		double[] rotorHealth = physics.state().rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
@@ -2603,6 +2604,7 @@ public class DroneEntity extends PathfinderMob {
 		physics.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		loadBatteryTransientState(input);
 		loadPowertrainThermalState(input);
+		loadRotorDynamicState(input);
 		physics.state().repairAllRotors();
 		for (int i = 0; i < physics.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
@@ -2630,6 +2632,33 @@ public class DroneEntity extends PathfinderMob {
 				Double.isFinite(coolingFactor) ? coolingFactor : state.batteryCoolingFactor(),
 				Double.isFinite(thermalLimit) ? thermalLimit : state.batteryThermalLimit()
 		);
+	}
+
+	private void saveRotorDynamicState(ValueOutput output) {
+		DronePhysics.RotorDynamicState dynamicState = physics.rotorDynamicStateSnapshot();
+		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
+		double[] escOutput = dynamicState.escOutputCommand();
+		double[] telemetryRpm = dynamicState.motorRpmTelemetryRpm();
+		double[] telemetryValidity = dynamicState.motorRpmTelemetryValidity();
+		double[] inducedVelocity = dynamicState.rotorInducedVelocityMetersPerSecond();
+		double[] inducedLagScale = dynamicState.rotorInducedLagThrustScale();
+		double[] wakeVelocity = dynamicState.rotorInducedWakeVelocityMetersPerSecond();
+		double[] wakeCarryover = dynamicState.rotorInducedWakeCarryoverIntensity();
+		for (int i = 0; i < physics.state().motorCount(); i++) {
+			output.putDouble("motor_omega_rad_s_" + i, motorOmega[i]);
+			output.putDouble("esc_output_command_" + i, escOutput[i]);
+			output.putDouble("motor_rpm_telemetry_rpm_" + i, telemetryRpm[i]);
+			output.putDouble("motor_rpm_telemetry_validity_" + i, telemetryValidity[i]);
+			output.putDouble("rotor_induced_velocity_mps_" + i, inducedVelocity[i]);
+			output.putDouble("rotor_induced_lag_thrust_scale_" + i, inducedLagScale[i]);
+			output.putDouble("rotor_induced_wake_velocity_mps_" + i, wakeVelocity[i]);
+			output.putDouble("rotor_induced_wake_carryover_" + i, wakeCarryover[i]);
+		}
+		output.putDouble("propwash_wake_intensity", dynamicState.propwashWakeIntensity());
+		output.putDouble("propwash_intensity", dynamicState.propwashIntensity());
+		output.putDouble("vrs_intensity", dynamicState.vortexRingStateIntensity());
+		output.putDouble("vrs_thrust_buffet_amplitude", dynamicState.vortexRingThrustBuffetAmplitude());
+		output.putDouble("vrs_max_thrust_buffet_amplitude", dynamicState.vortexRingMaxThrustBuffetAmplitude());
 	}
 
 	private void loadPowertrainThermalState(ValueInput input) {
@@ -2663,6 +2692,77 @@ public class DroneEntity extends PathfinderMob {
 					motorCoolingFactors,
 					escCoolingFactors
 			);
+		}
+	}
+
+	private void loadRotorDynamicState(ValueInput input) {
+		int count = physics.config().rotors().size();
+		double[] motorOmega = new double[count];
+		double[] escOutput = new double[count];
+		double[] telemetryRpm = new double[count];
+		double[] telemetryValidity = new double[count];
+		double[] inducedVelocity = new double[count];
+		double[] inducedLagScale = new double[count];
+		double[] wakeVelocity = new double[count];
+		double[] wakeCarryover = new double[count];
+		Arrays.fill(motorOmega, Double.NaN);
+		Arrays.fill(escOutput, Double.NaN);
+		Arrays.fill(telemetryRpm, Double.NaN);
+		Arrays.fill(telemetryValidity, Double.NaN);
+		Arrays.fill(inducedVelocity, Double.NaN);
+		Arrays.fill(inducedLagScale, Double.NaN);
+		Arrays.fill(wakeVelocity, Double.NaN);
+		Arrays.fill(wakeCarryover, Double.NaN);
+
+		boolean hasDynamicState = false;
+		for (int i = 0; i < count; i++) {
+			motorOmega[i] = input.getDoubleOr("motor_omega_rad_s_" + i, Double.NaN);
+			escOutput[i] = input.getDoubleOr("esc_output_command_" + i, Double.NaN);
+			telemetryRpm[i] = input.getDoubleOr("motor_rpm_telemetry_rpm_" + i, Double.NaN);
+			telemetryValidity[i] = input.getDoubleOr("motor_rpm_telemetry_validity_" + i, Double.NaN);
+			inducedVelocity[i] = input.getDoubleOr("rotor_induced_velocity_mps_" + i, Double.NaN);
+			inducedLagScale[i] = input.getDoubleOr("rotor_induced_lag_thrust_scale_" + i, Double.NaN);
+			wakeVelocity[i] = input.getDoubleOr("rotor_induced_wake_velocity_mps_" + i, Double.NaN);
+			wakeCarryover[i] = input.getDoubleOr("rotor_induced_wake_carryover_" + i, Double.NaN);
+			hasDynamicState = hasDynamicState
+					|| Double.isFinite(motorOmega[i])
+					|| Double.isFinite(escOutput[i])
+					|| Double.isFinite(telemetryRpm[i])
+					|| Double.isFinite(telemetryValidity[i])
+					|| Double.isFinite(inducedVelocity[i])
+					|| Double.isFinite(inducedLagScale[i])
+					|| Double.isFinite(wakeVelocity[i])
+					|| Double.isFinite(wakeCarryover[i]);
+		}
+
+		double propwashWake = input.getDoubleOr("propwash_wake_intensity", Double.NaN);
+		double propwash = input.getDoubleOr("propwash_intensity", Double.NaN);
+		double vortexRingState = input.getDoubleOr("vrs_intensity", Double.NaN);
+		double vortexRingBuffet = input.getDoubleOr("vrs_thrust_buffet_amplitude", Double.NaN);
+		double vortexRingMaxBuffet = input.getDoubleOr("vrs_max_thrust_buffet_amplitude", Double.NaN);
+		hasDynamicState = hasDynamicState
+				|| Double.isFinite(propwashWake)
+				|| Double.isFinite(propwash)
+				|| Double.isFinite(vortexRingState)
+				|| Double.isFinite(vortexRingBuffet)
+				|| Double.isFinite(vortexRingMaxBuffet);
+
+		if (hasDynamicState) {
+			physics.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
+					motorOmega,
+					escOutput,
+					telemetryRpm,
+					telemetryValidity,
+					inducedVelocity,
+					inducedLagScale,
+					wakeVelocity,
+					wakeCarryover,
+					propwashWake,
+					propwash,
+					vortexRingState,
+					vortexRingBuffet,
+					vortexRingMaxBuffet
+			));
 		}
 	}
 
