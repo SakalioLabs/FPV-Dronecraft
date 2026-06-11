@@ -23,6 +23,7 @@ public final class DronePhysics {
 	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.17, 0.28, 0.43, 0.52, 0.58, 0.66, 0.76, 0.86, 1.0};
+	private static final double LIPO_MENDELEY_REFERENCE_AGING_CYCLES = 450.0;
 	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
 	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
 	private static final double GYRO_FULL_SCALE_RADIANS_PER_SECOND = Math.toRadians(2000.0);
@@ -6029,8 +6030,20 @@ public final class DronePhysics {
 		state.setBatteryRegenerativeCurrentAmps(regenerativeCurrentAmps);
 		state.setBatteryCurrentAmps(netBatteryCurrentAmps);
 		state.addBatteryAmpSecondsConsumed(netBatteryCurrentAmps * dtSeconds);
+		state.addBatteryEquivalentCycles(batteryEquivalentCycleDelta(dischargeCurrentAmps, regenerativeCurrentAmps, dtSeconds));
 		integrateBatteryThermal(dischargeCurrentAmps, regenerativeCurrentAmps, environment, dtSeconds);
 		updateBatteryVoltage(netBatteryCurrentAmps, regenerativeCurrentAmps, environment, dtSeconds);
+	}
+
+	private double batteryEquivalentCycleDelta(double dischargeCurrentAmps, double regenerativeCurrentAmps, double dtSeconds) {
+		if (dtSeconds <= 0.0) {
+			return 0.0;
+		}
+
+		double capacityAmpSeconds = Math.max(1.0e-9, config.batteryCapacityAmpHours() * 3600.0);
+		double agingCurrentAmps = Math.max(0.0, dischargeCurrentAmps)
+				+ 0.50 * Math.max(0.0, regenerativeCurrentAmps);
+		return agingCurrentAmps * dtSeconds / capacityAmpSeconds;
 	}
 
 	private MotorCurrentEstimate estimateMotorCurrent(int index) {
@@ -7049,6 +7062,7 @@ public final class DronePhysics {
 		double openCircuitVoltage = batteryOpenCircuitVoltageFromStateOfCharge(stateOfCharge);
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
 		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge);
+		state.setBatteryResistanceAgingScale(batteryAgingResistanceScale(state.batteryEquivalentCycles()));
 		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
 		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
 		double ohmicSag = totalResistanceSag * 0.62;
@@ -7188,7 +7202,8 @@ public final class DronePhysics {
 
 	private double batteryElectricalResistanceOhms(double batteryTemperatureCelsius, double ambientTemperatureCelsius, double stateOfCharge) {
 		return temperatureAdjustedBatteryResistanceOhms(batteryTemperatureCelsius, ambientTemperatureCelsius)
-				* batteryStateOfChargeResistanceScale(stateOfCharge);
+				* batteryStateOfChargeResistanceScale(stateOfCharge)
+				* batteryAgingResistanceScale(state.batteryEquivalentCycles());
 	}
 
 	private static double batteryStateOfChargeResistanceScale(double stateOfCharge) {
@@ -7197,6 +7212,13 @@ public final class DronePhysics {
 		double reserveKneeRise = 1.0 - smoothStep(0.02, 0.08, soc);
 		double deepReserveRise = 1.0 - smoothStep(0.0, 0.025, soc);
 		return MathUtil.clamp(1.0 + 0.055 * measuredR0Rise + 0.38 * reserveKneeRise + 0.35 * deepReserveRise, 1.0, 1.80);
+	}
+
+	private static double batteryAgingResistanceScale(double equivalentCycles) {
+		double cycles = MathUtil.clamp(equivalentCycles, 0.0, LIPO_MENDELEY_REFERENCE_AGING_CYCLES);
+		double earlyGrowth = smoothStep(0.0, 0.36 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES, cycles);
+		double lifeGrowth = smoothStep(0.18 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES, LIPO_MENDELEY_REFERENCE_AGING_CYCLES, cycles);
+		return MathUtil.clamp(1.0 + 0.055 * earlyGrowth + 0.145 * lifeGrowth, 1.0, 1.22);
 	}
 
 	private double batterySagRiseTimeConstantSeconds() {

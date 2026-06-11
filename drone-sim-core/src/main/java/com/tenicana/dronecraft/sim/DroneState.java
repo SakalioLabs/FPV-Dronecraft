@@ -133,6 +133,8 @@ public final class DroneState {
 	private double batteryCoolingFactor = 1.0;
 	private double batteryThermalLimit = 1.0;
 	private double batteryAmpSecondsConsumed;
+	private double batteryEquivalentCycles;
+	private double batteryResistanceAgingScale = 1.0;
 	private double batteryCurrentAmps;
 	private double batteryStateOfCharge = 1.0;
 	private double batteryCurrentLimit = 1.0;
@@ -2268,8 +2270,34 @@ public final class DroneState {
 		this.batteryAmpSecondsConsumed = Math.max(0.0, this.batteryAmpSecondsConsumed + ampSeconds);
 	}
 
-	void setBatteryAmpSecondsConsumed(double batteryAmpSecondsConsumed) {
+	public void setBatteryAmpSecondsConsumed(double batteryAmpSecondsConsumed) {
 		this.batteryAmpSecondsConsumed = Math.max(0.0, batteryAmpSecondsConsumed);
+	}
+
+	public double batteryEquivalentCycles() {
+		return batteryEquivalentCycles;
+	}
+
+	void addBatteryEquivalentCycles(double equivalentCycles) {
+		if (Double.isFinite(equivalentCycles) && equivalentCycles > 0.0) {
+			this.batteryEquivalentCycles = MathUtil.clamp(this.batteryEquivalentCycles + equivalentCycles, 0.0, 5000.0);
+		}
+	}
+
+	public void setBatteryEquivalentCycles(double batteryEquivalentCycles) {
+		this.batteryEquivalentCycles = Double.isFinite(batteryEquivalentCycles)
+				? MathUtil.clamp(batteryEquivalentCycles, 0.0, 5000.0)
+				: 0.0;
+	}
+
+	public double batteryResistanceAgingScale() {
+		return batteryResistanceAgingScale;
+	}
+
+	void setBatteryResistanceAgingScale(double batteryResistanceAgingScale) {
+		this.batteryResistanceAgingScale = Double.isFinite(batteryResistanceAgingScale)
+				? MathUtil.clamp(batteryResistanceAgingScale, 1.0, 1.35)
+				: 1.0;
 	}
 
 	public double batteryCurrentAmps() {

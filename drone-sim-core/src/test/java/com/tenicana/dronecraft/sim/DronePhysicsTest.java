@@ -1835,6 +1835,50 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryEquivalentCyclesRaiseResistanceOnMendeleyAgingScale() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withBattery(16.8, 13.2, 0.020, 2.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics fresh = new DronePhysics(config);
+		DronePhysics aged = new DronePhysics(config);
+		aged.state().setBatteryEquivalentCycles(450.0);
+
+		fresh.step(DroneInput.idle(), 0.005);
+		aged.step(DroneInput.idle(), 0.005);
+
+		assertEquals(1.0, fresh.state().batteryResistanceAgingScale(), 0.002);
+		assertTrue(aged.state().batteryResistanceAgingScale() > 1.18,
+				() -> "agingScale=" + aged.state().batteryResistanceAgingScale());
+		assertTrue(aged.state().batteryResistanceAgingScale() < 1.22,
+				() -> "agingScale=" + aged.state().batteryResistanceAgingScale());
+		assertTrue(aged.state().batteryEffectiveResistanceOhms() > fresh.state().batteryEffectiveResistanceOhms() * 1.18,
+				() -> "freshResistance=" + fresh.state().batteryEffectiveResistanceOhms()
+						+ " agedResistance=" + aged.state().batteryEffectiveResistanceOhms());
+		assertTrue(aged.state().batteryEffectiveResistanceOhms() < fresh.state().batteryEffectiveResistanceOhms() * 1.23,
+				() -> "freshResistance=" + fresh.state().batteryEffectiveResistanceOhms()
+						+ " agedResistance=" + aged.state().batteryEffectiveResistanceOhms());
+	}
+
+	@Test
+	void batteryEquivalentCyclesAccumulateFromCurrentThroughput() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 13.2, 0.018, 0.08, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput punch = new DroneInput(0.92, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 160; i++) {
+			physics.step(punch, 0.005);
+		}
+
+		assertTrue(physics.state().batteryCurrentAmps() > 8.0);
+		assertTrue(physics.state().batteryEquivalentCycles() > 0.04,
+				() -> "equivalentCycles=" + physics.state().batteryEquivalentCycles());
+	}
+
+	@Test
 	void batteryResistanceTuningChangesVoltageSag() {
 		DroneConfig base = directControl(DroneConfig.racingQuad());
 		DronePhysics lowResistance = new DronePhysics(base.withBattery(16.8, 13.2, 0.005, 1.5, 90.0));
@@ -7626,6 +7670,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_transient_sag_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_effective_resistance_ohm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_resistance_aging_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_equivalent_cycles"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_voltage_spike_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_current_limit"));

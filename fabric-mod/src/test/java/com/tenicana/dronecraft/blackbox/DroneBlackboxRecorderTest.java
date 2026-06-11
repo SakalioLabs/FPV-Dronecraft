@@ -91,6 +91,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("esc_command_frame_age_s"));
 		assertTrue(csv.contains("esc_command_frame_interval_s"));
 		assertTrue(csv.contains("esc_command_error"));
+		assertTrue(csv.contains("battery_resistance_aging_scale"));
+		assertTrue(csv.contains("battery_equivalent_cycles"));
 		assertTrue(csv.contains("pid_dterm_lpf_hz"));
 		assertTrue(csv.contains("rotor_stall_intensity"));
 		assertTrue(csv.contains("rotor_induced_lag_thrust_scale"));

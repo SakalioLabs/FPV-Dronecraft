@@ -2350,6 +2350,8 @@ public class DroneEntity extends PathfinderMob {
 			output.putString("owner", owner.toString());
 		}
 		output.putDouble("frame_health", frameHealth);
+		output.putDouble("battery_amp_seconds_consumed", physics.state().batteryAmpSecondsConsumed());
+		output.putDouble("battery_equivalent_cycles", physics.state().batteryEquivalentCycles());
 		double[] rotorHealth = physics.state().rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
@@ -2371,6 +2373,8 @@ public class DroneEntity extends PathfinderMob {
 		frameHealth = input.getDoubleOr("frame_health", 1.0);
 		loadEnvironmentOverride(input);
 		loadConfig(input);
+		physics.state().setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
+		physics.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		physics.state().repairAllRotors();
 		for (int i = 0; i < physics.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);

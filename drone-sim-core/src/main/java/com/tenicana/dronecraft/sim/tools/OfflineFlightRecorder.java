@@ -141,6 +141,8 @@ public final class OfflineFlightRecorder {
 			"battery_ohmic_sag_v",
 			"battery_transient_sag_v",
 			"battery_effective_resistance_ohm",
+			"battery_resistance_aging_scale",
+			"battery_equivalent_cycles",
 			"battery_regen_current_a",
 			"battery_voltage_spike_v",
 			"battery_soc",
@@ -1003,7 +1005,7 @@ public final class OfflineFlightRecorder {
 						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.5f,%.3f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.6f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.5f,%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
+						+ "%.5f,%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1149,6 +1151,8 @@ public final class OfflineFlightRecorder {
 				state.batteryOhmicSagVoltage(),
 				state.batteryTransientSagVoltage(),
 				state.batteryEffectiveResistanceOhms(),
+				state.batteryResistanceAgingScale(),
+				state.batteryEquivalentCycles(),
 				state.batteryRegenerativeCurrentAmps(),
 				state.batteryVoltageSpike(),
 				state.batteryStateOfCharge(),
