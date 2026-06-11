@@ -15,36 +15,37 @@ class DroneStatusFormatterTest {
 				true,
 				true,
 				false,
-				0.86,
-				1.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.18,
-				0.32,
-				0.0,
-				12.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
+				0.86, // batterySoc
+				1.0, // frameHealth
+				1.0, // rotorHealth
+				0.0, // escDesync
+				0.0, // mixerSaturation
+				0.0, // rotorStall
+				0.0, // propwash
+				1.0, // motorVoltageHeadroom
+				0.0, // airframeSeparation
+				0.0, // rotorFlappingTilt
+				0.18, // rotorAdvanceRatio
+				0.32, // rotorTipMach
+				0.0, // rotorLowReynoldsLoss
+				12.0, // rotorBladeAngleOfAttackDegrees
+				0.0, // rotorBladeElementStallIntensity
+				0.0, // rotorBladeDissymmetryTorqueNewtonMeters
+				0.0, // droneWake
+				0.0, // rotorWakeInterference
+				0.0, // rotorWakeSwirlVelocityMetersPerSecond
+				0.0, // rotorWakeSwirlTorqueNewtonMeters
+				0.0, // rotorActiveBrakingTorqueNewtonMeters
+				0.0, // rotorGyroscopicTorqueNewtonMeters
+				0.0, // rotorFlappingTorqueNewtonMeters
+				1.0, // ceilingEffect
+				0.0, // environmentAsymmetry
+				0.0, // rotorFlowObstruction
+				0.0, // waterImmersion
+				0.0, // precipitationWetness
+				0.0, // vibration
+				0.0, // rotorConing
+				0.0, // obstacleProximity
 				false
 		);
 
@@ -77,6 +78,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("swirl 0.00m/s"));
 		assertTrue(status.contains("swirlT 0.000Nm"));
 		assertTrue(status.contains("brakeT 0.000Nm"));
+		assertTrue(status.contains("gyroT 0.000Nm"));
 		assertTrue(status.contains("flapT 0.000Nm"));
 		assertTrue(status.contains("water 0.00"));
 		assertTrue(status.contains("rain 0.00"));
@@ -114,6 +116,7 @@ class DroneStatusFormatterTest {
 				0.92,
 				0.016,
 				0.018,
+				0.014,
 				0.017,
 				1.12,
 				0.12,
@@ -160,6 +163,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("wake-swirl"));
 		assertTrue(warnings.contains("wake-swirl-torque"));
 		assertTrue(warnings.contains("active-brake-torque"));
+		assertTrue(warnings.contains("rotor-gyro-torque"));
 		assertTrue(warnings.contains("rotor-flapping-torque"));
 		assertTrue(warnings.contains("ceiling-effect"));
 		assertTrue(warnings.contains("env-asymmetry"));
@@ -174,7 +178,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("bdiss 0.024Nm"));
-		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm brakeT 0.018Nm flapT 0.017Nm"));
+		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm brakeT 0.018Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -205,6 +209,7 @@ class DroneStatusFormatterTest {
 			double rotorWakeSwirlVelocityMetersPerSecond,
 			double rotorWakeSwirlTorqueNewtonMeters,
 			double rotorActiveBrakingTorqueNewtonMeters,
+			double rotorGyroscopicTorqueNewtonMeters,
 			double rotorFlappingTorqueNewtonMeters,
 			double ceilingEffect,
 			double environmentAsymmetry,
@@ -288,6 +293,7 @@ class DroneStatusFormatterTest {
 				rotorWakeSwirlVelocityMetersPerSecond,
 				rotorWakeSwirlTorqueNewtonMeters,
 				rotorActiveBrakingTorqueNewtonMeters,
+				rotorGyroscopicTorqueNewtonMeters,
 				rotorFlappingTorqueNewtonMeters,
 				droneWake,
 				ceilingEffect,

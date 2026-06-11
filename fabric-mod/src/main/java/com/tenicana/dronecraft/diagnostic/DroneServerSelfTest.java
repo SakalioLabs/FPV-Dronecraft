@@ -60,6 +60,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorWakeSwirlVelocity;
 	private double maxRotorWakeSwirlTorque;
 	private double maxRotorActiveBrakingTorque;
+	private double maxRotorGyroscopicTorque;
 	private double maxRotorFlappingTorque;
 	private double maxMixerSaturation;
 	private double finalX;
@@ -140,6 +141,7 @@ public final class DroneServerSelfTest {
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxRotorWakeSwirlTorque = Math.max(maxRotorWakeSwirlTorque, drone.getRotorWakeSwirlTorqueNewtonMeters());
 		maxRotorActiveBrakingTorque = Math.max(maxRotorActiveBrakingTorque, drone.getRotorActiveBrakingTorqueNewtonMeters());
+		maxRotorGyroscopicTorque = Math.max(maxRotorGyroscopicTorque, drone.getRotorGyroscopicTorqueNewtonMeters());
 		maxRotorFlappingTorque = Math.max(maxRotorFlappingTorque, drone.getRotorFlappingTorqueNewtonMeters());
 		maxMixerSaturation = Math.max(maxMixerSaturation, drone.getMixerSaturation());
 	}
@@ -193,6 +195,9 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_pitch_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_yaw_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_roll_torque_nm")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_gyroscopic_pitch_torque_nm")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_gyroscopic_yaw_torque_nm")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_gyroscopic_roll_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_pitch_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_yaw_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_roll_torque_nm")
@@ -340,6 +345,9 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_pitch_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_yaw_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_roll_torque_nm")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_gyroscopic_pitch_torque_nm")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_gyroscopic_yaw_torque_nm")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_gyroscopic_roll_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_pitch_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_yaw_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_roll_torque_nm")
@@ -516,6 +524,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_active_braking_torque_nm\": %.6f,\n"
+						+ "  \"max_rotor_gyroscopic_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_flapping_torque_nm\": %.6f,\n"
 						+ "  \"max_mixer_saturation\": %.5f,\n"
 						+ "  \"csv\": \"%s\"\n"
@@ -553,6 +562,7 @@ public final class DroneServerSelfTest {
 				maxRotorWakeSwirlVelocity,
 				maxRotorWakeSwirlTorque,
 				maxRotorActiveBrakingTorque,
+				maxRotorGyroscopicTorque,
 				maxRotorFlappingTorque,
 				maxMixerSaturation,
 				escapeJson(csvPath.toAbsolutePath().toString())

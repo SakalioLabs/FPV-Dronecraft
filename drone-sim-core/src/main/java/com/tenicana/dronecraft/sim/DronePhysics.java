@@ -362,6 +362,7 @@ public final class DronePhysics {
 		state.setAirframeAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorFlappingTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorInertiaTorqueBodyNewtonMeters(Vec3.ZERO);
+		state.setRotorGyroscopicTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setMixerSaturation(0.0);
 		state.setPidAttenuation(1.0);
@@ -434,6 +435,7 @@ public final class DronePhysics {
 		Vec3 rotorFlappingTorqueSum = Vec3.ZERO;
 		Vec3 rotorActiveBrakingTorqueSum = Vec3.ZERO;
 		Vec3 rotorInertiaTorqueSum = Vec3.ZERO;
+		Vec3 rotorGyroscopicTorqueSum = Vec3.ZERO;
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
 		Vec3 rotorWallEffectForceSum = Vec3.ZERO;
 
@@ -782,10 +784,12 @@ public final class DronePhysics {
 			);
 			double reactionTorqueNewtonMeters = motorAerodynamicTorque + commutationRipple.torqueRippleNewtonMeters();
 			Vec3 reactionTorque = rotorDiskAxisBody.multiply(rotor.spinDirection() * reactionTorqueNewtonMeters);
-			Vec3 inertiaTorque = rotorInertiaTorque(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);
+			RotorInertiaTorques inertiaTorques = rotorInertiaTorques(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);
+			Vec3 inertiaTorque = inertiaTorques.totalTorque();
 			Vec3 activeBrakingTorque = rotorActiveBrakingTorque(rotor, previousOmega, omega, escOutput, rotorDiskAxisBody, dtSeconds);
 			rotorActiveBrakingTorqueSum = rotorActiveBrakingTorqueSum.add(activeBrakingTorque);
 			rotorInertiaTorqueSum = rotorInertiaTorqueSum.add(inertiaTorque);
+			rotorGyroscopicTorqueSum = rotorGyroscopicTorqueSum.add(inertiaTorques.gyroscopicReactionTorque());
 			Vec3 angularDragTorque = rotorAngularDragTorque(
 					aerodynamicRotor,
 					angularVelocityBody,
@@ -848,6 +852,7 @@ public final class DronePhysics {
 		state.setRotorFlappingTorqueBodyNewtonMeters(rotorFlappingTorqueSum);
 		state.setRotorActiveBrakingTorqueBodyNewtonMeters(rotorActiveBrakingTorqueSum);
 		state.setRotorInertiaTorqueBodyNewtonMeters(rotorInertiaTorqueSum);
+		state.setRotorGyroscopicTorqueBodyNewtonMeters(rotorGyroscopicTorqueSum);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(rotorAngularDragTorqueSum);
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);
 		updateEscSignalTelemetry();
@@ -1590,7 +1595,7 @@ public final class DronePhysics {
 		return MathUtil.clamp((driveVoltage - backEmfVoltage) / driveVoltage, 0.0, 1.0);
 	}
 
-	private static Vec3 rotorInertiaTorque(
+	private static RotorInertiaTorques rotorInertiaTorques(
 			RotorSpec rotor,
 			double previousOmega,
 			double omega,
@@ -1599,7 +1604,7 @@ public final class DronePhysics {
 			double dtSeconds
 	) {
 		if (rotor.rotorInertiaKgMetersSquared() <= 0.0 || dtSeconds <= 0.0) {
-			return Vec3.ZERO;
+			return RotorInertiaTorques.ZERO;
 		}
 
 		Vec3 diskAxisBody = rotorDiskAxisBody == null || rotorDiskAxisBody.lengthSquared() <= 1.0e-9
@@ -1611,7 +1616,15 @@ public final class DronePhysics {
 		);
 		Vec3 angularMomentumBody = diskAxisBody.multiply(rotor.spinDirection() * rotor.rotorInertiaKgMetersSquared() * omega);
 		Vec3 gyroscopicReactionTorque = bodyAngularVelocity.cross(angularMomentumBody).multiply(-1.0);
-		return accelerationReactionTorque.add(gyroscopicReactionTorque);
+		return new RotorInertiaTorques(accelerationReactionTorque, gyroscopicReactionTorque);
+	}
+
+	private record RotorInertiaTorques(Vec3 accelerationReactionTorque, Vec3 gyroscopicReactionTorque) {
+		private static final RotorInertiaTorques ZERO = new RotorInertiaTorques(Vec3.ZERO, Vec3.ZERO);
+
+		private Vec3 totalTorque() {
+			return accelerationReactionTorque.add(gyroscopicReactionTorque);
+		}
 	}
 
 	private Vec3 rotorActiveBrakingTorque(

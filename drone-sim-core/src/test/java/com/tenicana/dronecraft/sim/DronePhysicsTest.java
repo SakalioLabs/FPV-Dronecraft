@@ -2749,7 +2749,9 @@ class DronePhysicsTest {
 
 		assertTrue(Math.abs(withGyro.state().angularVelocityBodyRadiansPerSecond().x()) > Math.abs(withoutGyro.state().angularVelocityBodyRadiansPerSecond().x()) + 0.01);
 		assertTrue(Math.abs(withGyro.state().rotorInertiaTorqueBodyNewtonMeters().x()) > 0.10);
+		assertTrue(Math.abs(withGyro.state().rotorGyroscopicTorqueBodyNewtonMeters().x()) > 0.10);
 		assertEquals(0.0, withoutGyro.state().rotorInertiaTorqueBodyNewtonMeters().length(), 1.0e-9);
+		assertEquals(0.0, withoutGyro.state().rotorGyroscopicTorqueBodyNewtonMeters().length(), 1.0e-9);
 	}
 
 	@Test
@@ -6854,6 +6856,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_skew_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inertia_roll_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_gyroscopic_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_active_braking_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_flapping_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_angular_drag_roll_torque_nm"));
@@ -7172,6 +7175,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxRotorGyroscopicTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorFlappingTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxImuSupplyNoiseIntensity()));
 	}
@@ -7265,6 +7269,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxRotorGyroscopicTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorFlappingTorqueNewtonMeters()));
 	}
 
