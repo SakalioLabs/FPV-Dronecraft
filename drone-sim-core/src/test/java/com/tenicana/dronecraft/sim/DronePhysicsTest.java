@@ -1923,6 +1923,28 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryColdResistanceFollowsJeffcoRcLipoTemperatureRatio() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withBattery(16.8, 13.2, 0.020, 1000.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		double warmReferenceCelsius = (71.0 - 32.0) * 5.0 / 9.0;
+		double coldReferenceCelsius = (42.0 - 32.0) * 5.0 / 9.0;
+
+		double warmResistance = effectiveBatteryResistanceAt(config, 1.0, 0.0, warmReferenceCelsius);
+		double coldResistance = effectiveBatteryResistanceAt(config, 1.0, 0.0, coldReferenceCelsius);
+		double coldWarmRatio = coldResistance / warmResistance;
+
+		assertTrue(coldWarmRatio > 1.67,
+				() -> "coldWarmRatio=" + coldWarmRatio
+						+ " warmResistance=" + warmResistance
+						+ " coldResistance=" + coldResistance);
+		assertTrue(coldWarmRatio < 2.05,
+				() -> "coldWarmRatio=" + coldWarmRatio
+						+ " warmResistance=" + warmResistance
+						+ " coldResistance=" + coldResistance);
+	}
+
+	@Test
 	void batteryEquivalentCyclesRaiseResistanceOnMendeleyAgingScale() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withBattery(16.8, 13.2, 0.020, 2.0, 120.0)
@@ -8512,6 +8534,39 @@ class DronePhysicsTest {
 		physics.state().setBatteryEquivalentCycles(equivalentCycles);
 		physics.step(DroneInput.idle(), 0.005);
 		return physics.state().batteryEffectiveResistanceOhms();
+	}
+
+	private static double effectiveBatteryResistanceAt(
+			DroneConfig config,
+			double stateOfCharge,
+			double equivalentCycles,
+			double ambientTemperatureCelsius
+	) {
+		DronePhysics physics = new DronePhysics(config);
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
+		physics.state().setBatteryEquivalentCycles(equivalentCycles);
+		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
+		return physics.state().batteryEffectiveResistanceOhms();
+	}
+
+	private static DroneEnvironment environmentWithAmbientTemperature(double ambientTemperatureCelsius) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				ambientTemperatureCelsius
+		);
 	}
 
 	private static DroneConfig directControl(DroneConfig config) {

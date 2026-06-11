@@ -7292,7 +7292,8 @@ public final class DronePhysics {
 		double electricalTemperature = 0.78 * batteryTemperatureCelsius + 0.22 * ambientTemperatureCelsius;
 		double coldRise = Math.max(0.0, 25.0 - electricalTemperature);
 		double heatRise = Math.max(0.0, electricalTemperature - 45.0);
-		double scale = 1.0 + 0.024 * coldRise + 0.0045 * heatRise;
+		double deepColdRise = Math.max(0.0, coldRise - 6.0);
+		double scale = 1.0 + 0.024 * coldRise + 0.0030 * deepColdRise * deepColdRise + 0.0045 * heatRise;
 		return config.batteryInternalResistanceOhms() * MathUtil.clamp(scale, 0.72, 2.85);
 	}
 
