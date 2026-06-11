@@ -443,6 +443,9 @@ public final class DroneBlackboxSample {
 			"contact_impact_mps",
 			"contact_slip_mps",
 			"contact_bounce_mps",
+			"contact_surface_friction",
+			"contact_surface_restitution",
+			"contact_surface_scrape",
 			"contact_angular_impulse_pitch_dps",
 			"contact_angular_impulse_yaw_dps",
 			"contact_angular_impulse_roll_dps",
@@ -1484,6 +1487,9 @@ public final class DroneBlackboxSample {
 		row.add(state.contactImpactSpeedMetersPerSecond(), "%.5f");
 		row.add(state.contactSlipSpeedMetersPerSecond(), "%.5f");
 		row.add(state.contactBounceSpeedMetersPerSecond(), "%.5f");
+		row.add(state.contactSurfaceFrictionMultiplier(), "%.4f");
+		row.add(state.contactSurfaceRestitutionMultiplier(), "%.4f");
+		row.add(state.contactSurfaceScrapeMultiplier(), "%.4f");
 		row.add(Math.toDegrees(contactAngularImpulse.x()), "%.4f");
 		row.add(Math.toDegrees(contactAngularImpulse.y()), "%.4f");
 		row.add(Math.toDegrees(contactAngularImpulse.z()), "%.4f");

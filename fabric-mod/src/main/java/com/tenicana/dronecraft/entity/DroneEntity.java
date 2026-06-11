@@ -1069,7 +1069,8 @@ public class DroneEntity extends PathfinderMob {
 					contact.impactSpeedMetersPerSecond(),
 					contact.slipSpeedMetersPerSecond(),
 					contact.bounceSpeedMetersPerSecond(),
-					angularImpulse
+					angularImpulse,
+					contactSurface
 			);
 			applyCollisionDamage(velocityBeforeCollision, contact.impactSpeedMetersPerSecond());
 		} else {
@@ -1323,6 +1324,7 @@ public class DroneEntity extends PathfinderMob {
 			}
 
 			double scrapeIntensity = propScrapeIntensity(tipSpeed, frameSpeed) * contactSurface.scrapeMultiplier();
+			physics.state().setContactSurfaceTelemetry(contactSurface);
 			physics.state().addRotorSurfaceScrapeIntensity(i, scrapeIntensity);
 			if (rotorStrikeCooldownTicks[i] > 0) {
 				continue;

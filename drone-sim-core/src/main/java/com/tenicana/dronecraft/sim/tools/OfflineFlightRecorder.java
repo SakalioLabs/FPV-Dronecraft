@@ -375,6 +375,9 @@ public final class OfflineFlightRecorder {
 			"contact_impact_mps",
 			"contact_slip_mps",
 			"contact_bounce_mps",
+			"contact_surface_friction",
+			"contact_surface_restitution",
+			"contact_surface_scrape",
 			"contact_angular_impulse_pitch_dps",
 			"contact_angular_impulse_yaw_dps",
 			"contact_angular_impulse_roll_dps",
@@ -1358,7 +1361,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.4f,%.4f,%.4f,%.4f,"
+						+ "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f%s%n",
 				sample,
 				step,
@@ -1695,6 +1698,9 @@ public final class OfflineFlightRecorder {
 				state.contactImpactSpeedMetersPerSecond(),
 				state.contactSlipSpeedMetersPerSecond(),
 				state.contactBounceSpeedMetersPerSecond(),
+				state.contactSurfaceFrictionMultiplier(),
+				state.contactSurfaceRestitutionMultiplier(),
+				state.contactSurfaceScrapeMultiplier(),
 				Math.toDegrees(contactAngularImpulse.x()),
 				Math.toDegrees(contactAngularImpulse.y()),
 				Math.toDegrees(contactAngularImpulse.z()),

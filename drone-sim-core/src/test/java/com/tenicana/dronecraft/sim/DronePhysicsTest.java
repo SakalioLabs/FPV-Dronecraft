@@ -8401,6 +8401,24 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void contactSurfaceTelemetryRecordsMaterialMultipliers() {
+		DroneState state = new DroneState(4);
+		ContactDynamics.ContactSurface metal = new ContactDynamics.ContactSurface(0.72, 1.08, 1.70);
+
+		state.setContactTelemetry(5.0, 3.0, 0.6, Vec3.ZERO, metal);
+
+		assertEquals(0.72, state.contactSurfaceFrictionMultiplier(), 1.0e-9);
+		assertEquals(1.08, state.contactSurfaceRestitutionMultiplier(), 1.0e-9);
+		assertEquals(1.70, state.contactSurfaceScrapeMultiplier(), 1.0e-9);
+
+		state.setContactTelemetry(0.0, 0.0, 0.0);
+
+		assertEquals(1.0, state.contactSurfaceFrictionMultiplier(), 1.0e-9);
+		assertEquals(1.0, state.contactSurfaceRestitutionMultiplier(), 1.0e-9);
+		assertEquals(1.0, state.contactSurfaceScrapeMultiplier(), 1.0e-9);
+	}
+
+	@Test
 	void contactAngularImpulseUsesRotorArmAndFrameInertia() {
 		DroneConfig config = DroneConfig.racingQuad();
 		ContactDynamics.Response response = ContactDynamics.resolve(
@@ -8542,6 +8560,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_impact_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_slip_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_bounce_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_surface_friction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_surface_restitution"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_surface_scrape"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_angular_impulse_dps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_cooling_factor"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_rpm"));
@@ -8758,6 +8779,9 @@ class DronePhysicsTest {
 		assertTrue(loggedAirframeSeparation <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_body_drag_n")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "linear_damping_drag_n")])));
+		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_friction")]), 1.0e-9);
+		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_restitution")]), 1.0e-9);
+		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_scrape")]), 1.0e-9);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) >= 0.0);

@@ -9,6 +9,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
@@ -51,7 +52,8 @@ class DroneBlackboxRecorderTest {
 					tick == 2 ? 4.5 : 0.0,
 					tick == 2 ? 5.0 : 0.0,
 					tick == 2 ? 0.6 : 0.0,
-					tick == 2 ? new Vec3(0.0, Math.toRadians(540.0), 0.0) : Vec3.ZERO
+					tick == 2 ? new Vec3(0.0, Math.toRadians(540.0), 0.0) : Vec3.ZERO,
+					tick == 2 ? new ContactDynamics.ContactSurface(0.72, 1.08, 1.70) : ContactDynamics.DEFAULT_SURFACE
 			);
 			if (tick == 2) {
 				physics.state().addRotorSurfaceScrapeIntensity(1, 0.72);
@@ -80,8 +82,10 @@ class DroneBlackboxRecorderTest {
 		String[] lines = csv.strip().split("\\R");
 		String[] header = lines[0].split(",", -1);
 		String[] row = lines[1].split(",", -1);
+		String[] contactRow = lines[3].split(",", -1);
 
 		assertEquals(header.length, row.length);
+		assertEquals(header.length, contactRow.length);
 		assertEquals(DroneBlackboxSample.CSV_HEADER.split(",", -1).length, header.length);
 		assertTrue(csv.contains("physics_substeps"));
 		assertTrue(csv.contains("physics_dt_s"));
@@ -234,6 +238,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("contact_impact_mps"));
 		assertTrue(csv.contains("contact_slip_mps"));
 		assertTrue(csv.contains("contact_bounce_mps"));
+		assertTrue(csv.contains("contact_surface_friction"));
+		assertTrue(csv.contains("contact_surface_restitution"));
+		assertTrue(csv.contains("contact_surface_scrape"));
 		assertTrue(csv.contains("contact_angular_impulse_dps"));
 		assertTrue(csv.contains("barometer_altitude_m"));
 		assertTrue(csv.contains("barometer_vertical_speed_mps"));
@@ -492,6 +499,9 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "contact_impact_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "contact_slip_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "contact_bounce_mps")]));
+		assertEquals(0.72, Double.parseDouble(contactRow[indexOf(header, "contact_surface_friction")]), 1.0e-4);
+		assertEquals(1.08, Double.parseDouble(contactRow[indexOf(header, "contact_surface_restitution")]), 1.0e-4);
+		assertEquals(1.70, Double.parseDouble(contactRow[indexOf(header, "contact_surface_scrape")]), 1.0e-4);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "contact_angular_impulse_dps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_surface_scrape")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_1_surface_scrape")]));

@@ -11,6 +11,9 @@ public final class DroneState {
 	private double contactImpactSpeedMetersPerSecond;
 	private double contactSlipSpeedMetersPerSecond;
 	private double contactBounceSpeedMetersPerSecond;
+	private double contactSurfaceFrictionMultiplier = 1.0;
+	private double contactSurfaceRestitutionMultiplier = 1.0;
+	private double contactSurfaceScrapeMultiplier = 1.0;
 	private Vec3 contactAngularImpulseBodyRadiansPerSecond = Vec3.ZERO;
 	private Quaternion orientation = Quaternion.IDENTITY;
 	private Quaternion estimatedOrientation = Quaternion.IDENTITY;
@@ -327,6 +330,18 @@ public final class DroneState {
 		return contactAngularImpulseBodyRadiansPerSecond;
 	}
 
+	public double contactSurfaceFrictionMultiplier() {
+		return contactSurfaceFrictionMultiplier;
+	}
+
+	public double contactSurfaceRestitutionMultiplier() {
+		return contactSurfaceRestitutionMultiplier;
+	}
+
+	public double contactSurfaceScrapeMultiplier() {
+		return contactSurfaceScrapeMultiplier;
+	}
+
 	public void setContactTelemetry(double impactSpeedMetersPerSecond, double slipSpeedMetersPerSecond, double bounceSpeedMetersPerSecond) {
 		setContactTelemetry(impactSpeedMetersPerSecond, slipSpeedMetersPerSecond, bounceSpeedMetersPerSecond, Vec3.ZERO);
 	}
@@ -337,14 +352,42 @@ public final class DroneState {
 			double bounceSpeedMetersPerSecond,
 			Vec3 angularImpulseBodyRadiansPerSecond
 	) {
+		setContactTelemetry(
+				impactSpeedMetersPerSecond,
+				slipSpeedMetersPerSecond,
+				bounceSpeedMetersPerSecond,
+				angularImpulseBodyRadiansPerSecond,
+				ContactDynamics.DEFAULT_SURFACE
+		);
+	}
+
+	public void setContactTelemetry(
+			double impactSpeedMetersPerSecond,
+			double slipSpeedMetersPerSecond,
+			double bounceSpeedMetersPerSecond,
+			Vec3 angularImpulseBodyRadiansPerSecond,
+			ContactDynamics.ContactSurface surface
+	) {
 		contactImpactSpeedMetersPerSecond = nonNegativeFinite(impactSpeedMetersPerSecond);
 		contactSlipSpeedMetersPerSecond = nonNegativeFinite(slipSpeedMetersPerSecond);
 		contactBounceSpeedMetersPerSecond = nonNegativeFinite(bounceSpeedMetersPerSecond);
 		contactAngularImpulseBodyRadiansPerSecond = finiteVectorOrZero(angularImpulseBodyRadiansPerSecond);
+		setContactSurfaceTelemetry(surface);
+	}
+
+	public void setContactSurfaceTelemetry(ContactDynamics.ContactSurface surface) {
+		ContactDynamics.ContactSurface contactSurface = surface == null ? ContactDynamics.DEFAULT_SURFACE : surface;
+		contactSurfaceFrictionMultiplier = positiveFinite(contactSurface.frictionMultiplier(), 1.0);
+		contactSurfaceRestitutionMultiplier = positiveFinite(contactSurface.restitutionMultiplier(), 1.0);
+		contactSurfaceScrapeMultiplier = positiveFinite(contactSurface.scrapeMultiplier(), 1.0);
 	}
 
 	private static double nonNegativeFinite(double value) {
 		return Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
+	private static double positiveFinite(double value, double fallback) {
+		return Double.isFinite(value) && value > 0.0 ? value : fallback;
 	}
 
 	private static Vec3 finiteVectorOrZero(Vec3 value) {
