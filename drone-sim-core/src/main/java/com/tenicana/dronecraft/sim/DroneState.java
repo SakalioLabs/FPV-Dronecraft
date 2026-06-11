@@ -105,6 +105,7 @@ public final class DroneState {
 	private double[] rotorWakeInterferenceIntensity;
 	private double[] rotorWakeThrustScale;
 	private double[] rotorWetThrustScale;
+	private double[] rotorCoaxialLoadBias;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
 	private double[] rotorArmFlexIntensity;
 	private double[] rotorHealth;
@@ -217,6 +218,7 @@ public final class DroneState {
 		rotorWakeInterferenceIntensity = new double[motorCount];
 		rotorWakeThrustScale = new double[motorCount];
 		rotorWetThrustScale = new double[motorCount];
+		rotorCoaxialLoadBias = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
 		rotorArmFlexIntensity = new double[motorCount];
 		rotorHealth = new double[motorCount];
@@ -1293,6 +1295,7 @@ public final class DroneState {
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
+		Arrays.fill(rotorCoaxialLoadBias, 0.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		rotorVibration = 0.0;
@@ -1912,6 +1915,34 @@ public final class DroneState {
 			min = Math.min(min, scale);
 		}
 		return min;
+	}
+
+	public double rotorCoaxialLoadBias(int index) {
+		return rotorCoaxialLoadBias[index];
+	}
+
+	public double[] rotorCoaxialLoadBias() {
+		return Arrays.copyOf(rotorCoaxialLoadBias, rotorCoaxialLoadBias.length);
+	}
+
+	void setRotorCoaxialLoadBias(int index, double value) {
+		rotorCoaxialLoadBias[index] = Double.isFinite(value) ? MathUtil.clamp(value, -0.35, 0.35) : 0.0;
+	}
+
+	public double averageAbsRotorCoaxialLoadBias() {
+		double sum = 0.0;
+		for (double bias : rotorCoaxialLoadBias) {
+			sum += Math.abs(bias);
+		}
+		return sum / rotorCoaxialLoadBias.length;
+	}
+
+	public double maxAbsRotorCoaxialLoadBias() {
+		double max = 0.0;
+		for (double bias : rotorCoaxialLoadBias) {
+			max = Math.max(max, Math.abs(bias));
+		}
+		return max;
 	}
 
 	public double rotorWakeSwirlVelocityMetersPerSecond(int index) {

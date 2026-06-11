@@ -692,7 +692,16 @@ public final class OfflineFlightRecorder {
 			"mixer_high_headroom",
 			"pid_integral_relax_pitch",
 			"pid_integral_relax_yaw",
-			"pid_integral_relax_roll"
+			"pid_integral_relax_roll",
+			"rotor_coaxial_load_bias",
+			"rotor_0_coaxial_load_bias",
+			"rotor_1_coaxial_load_bias",
+			"rotor_2_coaxial_load_bias",
+			"rotor_3_coaxial_load_bias",
+			"rotor_4_coaxial_load_bias",
+			"rotor_5_coaxial_load_bias",
+			"rotor_6_coaxial_load_bias",
+			"rotor_7_coaxial_load_bias"
 	);
 
 	private OfflineFlightRecorder() {
@@ -714,7 +723,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bpass=%.3f, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bpass=%.3f, max_coax_bias=%.3f, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -735,6 +744,7 @@ public final class OfflineFlightRecorder {
 				report.maxRotorTipMach(),
 				report.maxRotorLowReynoldsLoss(),
 				report.maxRotorBladePassRippleIntensity(),
+				report.maxRotorCoaxialLoadBias(),
 				report.maxRotorWetThrustLossPercent(),
 				report.maxRotorBladeDissymmetryTorqueNewtonMeters(),
 				report.maxRotorWakeSwirlVelocityMetersPerSecond(),
@@ -1371,6 +1381,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
 		double[] rotorWetThrustScale = state.rotorWetThrustScale();
+		double[] rotorCoaxialLoadBias = state.rotorCoaxialLoadBias();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
@@ -1560,6 +1571,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, pidIntegralRelaxAxes.x(), "%.6f");
 		appendExtra(builder, pidIntegralRelaxAxes.y(), "%.6f");
 		appendExtra(builder, pidIntegralRelaxAxes.z(), "%.6f");
+		appendExtra(builder, state.averageAbsRotorCoaxialLoadBias(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorCoaxialLoadBias, i), "%.5f");
+		}
 		return builder.toString();
 	}
 
@@ -1642,6 +1657,7 @@ public final class OfflineFlightRecorder {
 		private double maxRotorTipMach;
 		private double maxRotorLowReynoldsLoss;
 		private double maxRotorBladePassRippleIntensity;
+		private double maxRotorCoaxialLoadBias;
 		private double minRotorWetThrustScale = 1.0;
 		private double maxRotorBladeDissymmetryTorqueNewtonMeters;
 		private double maxRotorWakeSwirlVelocityMetersPerSecond;
@@ -1698,6 +1714,7 @@ public final class OfflineFlightRecorder {
 			maxRotorTipMach = Math.max(maxRotorTipMach, state.maxRotorTipMach());
 			maxRotorLowReynoldsLoss = Math.max(maxRotorLowReynoldsLoss, state.maxRotorLowReynoldsLoss());
 			maxRotorBladePassRippleIntensity = Math.max(maxRotorBladePassRippleIntensity, state.maxRotorBladePassRippleIntensity());
+			maxRotorCoaxialLoadBias = Math.max(maxRotorCoaxialLoadBias, state.maxAbsRotorCoaxialLoadBias());
 			minRotorWetThrustScale = Math.min(minRotorWetThrustScale, state.minRotorWetThrustScale());
 			maxRotorBladeDissymmetryTorqueNewtonMeters = Math.max(
 					maxRotorBladeDissymmetryTorqueNewtonMeters,
@@ -1845,6 +1862,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxRotorBladePassRippleIntensity() {
 			return maxRotorBladePassRippleIntensity;
+		}
+
+		public double maxRotorCoaxialLoadBias() {
+			return maxRotorCoaxialLoadBias;
 		}
 
 		public double minRotorWetThrustScale() {

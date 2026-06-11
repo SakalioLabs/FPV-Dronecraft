@@ -514,6 +514,10 @@ class DronePhysicsTest {
 		assertTrue(coaxial.state().rotorWakeSwirlVelocityMetersPerSecond(1)
 				> coaxial.state().rotorWakeSwirlVelocityMetersPerSecond(0) + 0.20);
 		assertTrue(coaxial.state().rotorThrustNewtons(1) < coaxial.state().rotorThrustNewtons(0) * 0.90);
+		assertEquals(0.0, flat.state().maxAbsRotorCoaxialLoadBias(), 1.0e-9);
+		assertTrue(coaxial.state().maxAbsRotorCoaxialLoadBias() > 0.025);
+		assertTrue(coaxial.state().rotorCoaxialLoadBias(0) > 0.0);
+		assertTrue(coaxial.state().rotorCoaxialLoadBias(1) < 0.0);
 	}
 
 	@Test
@@ -568,6 +572,7 @@ class DronePhysicsTest {
 				() -> "wakeSwirlTorque=" + stacked.state().rotorWakeSwirlTorqueBodyNewtonMeters());
 		assertTrue(stacked.state().rotorTorqueBodyNewtonMeters(1).length()
 				> flat.state().rotorTorqueBodyNewtonMeters(1).length() + 0.0020);
+		assertEquals(0.0, stacked.state().maxAbsRotorCoaxialLoadBias(), 1.0e-9);
 	}
 
 	@Test
@@ -7158,6 +7163,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_air_density_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("precipitation_wetness"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_coaxial_load_bias"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_coaxial_load_bias"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coaxial_load_bias"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wet_thrust_scale"));
@@ -7582,12 +7590,16 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "rotor_7_wake_thrust_scale") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_wake_swirl_mps") > 0.05);
 		assertTrue(maxColumn(lines, header, "rotor_7_wake_swirl_mps") > 0.10);
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_load_bias") > 0.015);
+		assertTrue(maxColumn(lines, header, "rotor_0_coaxial_load_bias") > 0.015);
+		assertTrue(minColumn(lines, header, "rotor_1_coaxial_load_bias") < -0.015);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") >= 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_7_windmilling") >= 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_advance_ratio") >= 0.0);
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(report.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
+		assertTrue(report.maxRotorCoaxialLoadBias() > 0.015);
 		assertTrue(Double.isFinite(report.maxRotorWindmillingIntensity()));
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));

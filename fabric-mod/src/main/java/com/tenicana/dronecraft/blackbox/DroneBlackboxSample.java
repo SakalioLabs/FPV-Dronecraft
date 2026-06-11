@@ -268,6 +268,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_wake_thrust_scale",
 			"rotor_2_wake_thrust_scale",
 			"rotor_3_wake_thrust_scale",
+			"rotor_coaxial_load_bias",
+			"rotor_0_coaxial_load_bias",
+			"rotor_1_coaxial_load_bias",
+			"rotor_2_coaxial_load_bias",
+			"rotor_3_coaxial_load_bias",
 			"rotor_wet_thrust_scale",
 			"rotor_0_wet_thrust_scale",
 			"rotor_1_wet_thrust_scale",
@@ -754,6 +759,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_wake_thrust_scale",
 			"rotor_6_wake_thrust_scale",
 			"rotor_7_wake_thrust_scale",
+			"rotor_4_coaxial_load_bias",
+			"rotor_5_coaxial_load_bias",
+			"rotor_6_coaxial_load_bias",
+			"rotor_7_coaxial_load_bias",
 			"rotor_4_wet_thrust_scale",
 			"rotor_5_wet_thrust_scale",
 			"rotor_6_wet_thrust_scale",
@@ -1158,6 +1167,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorWakeThrustScaleOrOne(state, 1), "%.5f");
 		row.add(rotorWakeThrustScaleOrOne(state, 2), "%.5f");
 		row.add(rotorWakeThrustScaleOrOne(state, 3), "%.5f");
+		row.add(state.averageAbsRotorCoaxialLoadBias(), "%.5f");
+		row.add(rotorCoaxialLoadBiasOrZero(state, 0), "%.5f");
+		row.add(rotorCoaxialLoadBiasOrZero(state, 1), "%.5f");
+		row.add(rotorCoaxialLoadBiasOrZero(state, 2), "%.5f");
+		row.add(rotorCoaxialLoadBiasOrZero(state, 3), "%.5f");
 		row.add(state.averageRotorWetThrustScale(), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 0), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 1), "%.5f");
@@ -1576,6 +1590,7 @@ public final class DroneBlackboxSample {
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
 		double[] rotorWetThrustScale = state.rotorWetThrustScale();
+		double[] rotorCoaxialLoadBias = state.rotorCoaxialLoadBias();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorArmFlex = state.rotorArmFlexIntensity();
@@ -1675,6 +1690,9 @@ public final class DroneBlackboxSample {
 			row.add(valueOrOne(rotorWakeThrustScale, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorCoaxialLoadBias, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(valueOrOne(rotorWetThrustScale, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -1770,6 +1788,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorWakeThrustScaleOrOne(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorWakeThrustScale(index) : 1.0;
+	}
+
+	private static double rotorCoaxialLoadBiasOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorCoaxialLoadBias(index) : 0.0;
 	}
 
 	private static double rotorWetThrustScaleOrOne(DroneState state, int index) {

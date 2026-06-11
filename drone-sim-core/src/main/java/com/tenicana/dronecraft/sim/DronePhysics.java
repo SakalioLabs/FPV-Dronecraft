@@ -16,6 +16,7 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_DAMPING_RATIO = 0.42;
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
+	private static final double COAXIAL_LOAD_BIAS_MAX = 0.115;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
@@ -4899,6 +4900,7 @@ public final class DronePhysics {
 			baseThrusts[i] = baseThrust;
 			mixedThrusts[i] = baseThrust + torqueMix[i];
 		}
+		applyCoaxialLoadBias(mixedThrusts, input.armed(), input.throttle());
 
 		double lowDesaturationPressure = 0.0;
 		double highDesaturationPressure = 0.0;
@@ -4965,6 +4967,143 @@ public final class DronePhysics {
 		);
 		state.setMixerOutputTorqueBodyNewtonMeters(achievedTorqueBody);
 		state.setMixerAxisAuthority(mixerAxisAuthority(requestedTorqueBody, achievedTorqueBody));
+	}
+
+	private void applyCoaxialLoadBias(double[] mixedThrusts, boolean armed, double throttle) {
+		for (int i = 0; i < state.motorCount(); i++) {
+			state.setRotorCoaxialLoadBias(i, 0.0);
+		}
+		if (!armed || mixedThrusts == null || config.rotors().size() < 2) {
+			return;
+		}
+
+		boolean[] paired = new boolean[config.rotors().size()];
+		int[] upperPairIndices = new int[config.rotors().size() / 2];
+		int[] lowerPairIndices = new int[config.rotors().size() / 2];
+		int pairCount = 0;
+		for (int upperIndex = 0; upperIndex < config.rotors().size(); upperIndex++) {
+			if (paired[upperIndex]) {
+				continue;
+			}
+			int lowerIndex = coaxialLowerRotorIndex(upperIndex, paired);
+			if (lowerIndex < 0) {
+				continue;
+			}
+			upperPairIndices[pairCount] = upperIndex;
+			lowerPairIndices[pairCount] = lowerIndex;
+			pairCount++;
+			paired[upperIndex] = true;
+			paired[lowerIndex] = true;
+		}
+		if (pairCount < 2) {
+			return;
+		}
+
+		for (int pairIndex = 0; pairIndex < pairCount; pairIndex++) {
+			int upperIndex = upperPairIndices[pairIndex];
+			int lowerIndex = lowerPairIndices[pairIndex];
+			RotorSpec upper = config.rotors().get(upperIndex);
+			RotorSpec lower = config.rotors().get(lowerIndex);
+			double pairTotalThrust = mixedThrusts[upperIndex] + mixedThrusts[lowerIndex];
+			double pairMeanThrust = pairTotalThrust * 0.5;
+			if (pairMeanThrust <= 1.0e-6) {
+				continue;
+			}
+
+			double targetBias = coaxialLoadBiasTarget(upper, lower, upperIndex, lowerIndex, throttle, pairMeanThrust);
+			if (targetBias <= 1.0e-6) {
+				continue;
+			}
+
+			double upperMax = upper.maxThrustNewtons();
+			double lowerMax = lower.maxThrustNewtons();
+			double lowerMin = lowerMax * config.motorIdleThrustFraction();
+			double requestedShift = pairMeanThrust * targetBias;
+			double availableShift = Math.min(upperMax - mixedThrusts[upperIndex], mixedThrusts[lowerIndex] - lowerMin);
+			double shift = MathUtil.clamp(requestedShift, 0.0, Math.max(0.0, availableShift));
+			if (shift <= 1.0e-6) {
+				continue;
+			}
+
+			mixedThrusts[upperIndex] += shift;
+			mixedThrusts[lowerIndex] -= shift;
+			double actualBias = MathUtil.clamp(shift / pairMeanThrust, 0.0, COAXIAL_LOAD_BIAS_MAX);
+			state.setRotorCoaxialLoadBias(upperIndex, actualBias);
+			state.setRotorCoaxialLoadBias(lowerIndex, -actualBias);
+		}
+	}
+
+	private int coaxialLowerRotorIndex(int upperIndex, boolean[] paired) {
+		RotorSpec upper = config.rotors().get(upperIndex);
+		int lowerIndex = -1;
+		double bestVerticalSeparation = Double.POSITIVE_INFINITY;
+		for (int candidateIndex = 0; candidateIndex < config.rotors().size(); candidateIndex++) {
+			if (candidateIndex == upperIndex || paired[candidateIndex]) {
+				continue;
+			}
+
+			RotorSpec lower = config.rotors().get(candidateIndex);
+			double verticalSeparation = upper.positionBodyMeters().y() - lower.positionBodyMeters().y();
+			if (verticalSeparation <= 0.0 || !isCoaxialRotorPair(upper, lower, verticalSeparation)) {
+				continue;
+			}
+			if (verticalSeparation < bestVerticalSeparation) {
+				bestVerticalSeparation = verticalSeparation;
+				lowerIndex = candidateIndex;
+			}
+		}
+		return lowerIndex;
+	}
+
+	private static boolean isCoaxialRotorPair(RotorSpec upper, RotorSpec lower, double verticalSeparation) {
+		double averageRadius = 0.5 * (upper.radiusMeters() + lower.radiusMeters());
+		double lateralDistance = Math.hypot(
+				upper.positionBodyMeters().x() - lower.positionBodyMeters().x(),
+				upper.positionBodyMeters().z() - lower.positionBodyMeters().z()
+		);
+		double spacingRatio = verticalSeparation / Math.max(1.0e-6, averageRadius * 2.0);
+		double radiusMismatch = Math.abs(upper.radiusMeters() - lower.radiusMeters()) / Math.max(1.0e-6, averageRadius);
+		return lateralDistance <= averageRadius * 0.16
+				&& spacingRatio >= 0.18
+				&& spacingRatio <= 1.35
+				&& radiusMismatch <= 0.20
+				&& upper.spinDirection() == -lower.spinDirection()
+				&& rotorAxisBody(upper).dot(rotorAxisBody(lower)) > 0.96;
+	}
+
+	private double coaxialLoadBiasTarget(
+			RotorSpec upper,
+			RotorSpec lower,
+			int upperIndex,
+			int lowerIndex,
+			double throttle,
+			double pairMeanThrust
+	) {
+		double averageRadius = 0.5 * (upper.radiusMeters() + lower.radiusMeters());
+		double spacingRatio = (upper.positionBodyMeters().y() - lower.positionBodyMeters().y())
+				/ Math.max(1.0e-6, averageRadius * 2.0);
+		double spacingWindow = smoothStep(0.22, 0.48, spacingRatio)
+				* (1.0 - smoothStep(1.05, 1.36, spacingRatio));
+		double loadFraction = MathUtil.clamp(
+				pairMeanThrust / Math.max(1.0e-6, 0.5 * (upper.maxThrustNewtons() + lower.maxThrustNewtons())),
+				0.0,
+				1.0
+		);
+		double loadWindow = smoothStep(
+				Math.max(0.02, config.motorIdleThrustFraction()),
+				0.52,
+				Math.max(loadFraction, throttle)
+		);
+		double upperHeadroom = 1.0 - smoothStep(0.82, 0.98, loadFraction);
+		double lowerWake = MathUtil.clamp(state.rotorWakeInterferenceIntensity(lowerIndex), 0.0, 1.0);
+		double wakeWindow = 0.35 + 0.65 * smoothStep(0.08, 0.55, lowerWake);
+		double lowerLoss = Math.max(0.0, 1.0 - state.rotorWakeThrustScale(lowerIndex));
+		double lossWindow = 0.75 + 0.25 * smoothStep(0.02, 0.12, lowerLoss);
+		return MathUtil.clamp(
+				COAXIAL_LOAD_BIAS_MAX * spacingWindow * loadWindow * upperHeadroom * wakeWindow * lossWindow,
+				0.0,
+				COAXIAL_LOAD_BIAS_MAX
+		);
 	}
 
 	private static Vec3 mixerOutputTorqueFromThrustDeltas(
