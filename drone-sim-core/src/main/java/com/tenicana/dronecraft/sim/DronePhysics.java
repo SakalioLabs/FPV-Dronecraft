@@ -5933,6 +5933,69 @@ public final class DronePhysics {
 		return MathUtil.clamp(1.0 - mechanicalGain * realization * loadGate, 0.88, 1.0);
 	}
 
+	private double coaxialAllocationElectricalPowerScale(int index) {
+		return coaxialAllocationElectricalPowerScale(
+				state.rotorCoaxialAllocationElectricalGainPercent(index),
+				state.rotorCoaxialLoadBiasTarget(index),
+				state.rotorCoaxialLoadBias(index),
+				state.rotorCoaxialAllocationLoadFraction(index)
+		);
+	}
+
+	private static double coaxialAllocationElectricalPowerScale(
+			double electricalGainPercent,
+			double targetBias,
+			double actualBias,
+			double loadFraction
+	) {
+		double electricalGain = Math.max(0.0, electricalGainPercent) * 0.01;
+		if (electricalGain <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double targetMagnitude = Math.abs(targetBias);
+		double actualMagnitude = Math.abs(actualBias);
+		if (targetMagnitude <= 1.0e-6 || actualMagnitude <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double realization = MathUtil.clamp(actualMagnitude / targetMagnitude, 0.0, 1.0);
+		double loadGate = smoothStep(0.08, 0.22, loadFraction);
+		return MathUtil.clamp(1.0 - electricalGain * realization * loadGate, 0.90, 1.0);
+	}
+
+	private double coaxialAllocationElectricalEfficiencyBonus(int index, double baseEfficiency) {
+		return coaxialAllocationElectricalEfficiencyBonus(
+				baseEfficiency,
+				state.rotorCoaxialAllocationElectricalGainPercent(index),
+				state.rotorCoaxialLoadBiasTarget(index),
+				state.rotorCoaxialLoadBias(index),
+				state.rotorCoaxialAllocationLoadFraction(index)
+		);
+	}
+
+	private static double coaxialAllocationElectricalEfficiencyBonus(
+			double baseEfficiency,
+			double electricalGainPercent,
+			double targetBias,
+			double actualBias,
+			double loadFraction
+	) {
+		double powerScale = coaxialAllocationElectricalPowerScale(
+				electricalGainPercent,
+				targetBias,
+				actualBias,
+				loadFraction
+		);
+		if (powerScale >= 1.0 - 1.0e-9) {
+			return 0.0;
+		}
+
+		double boundedBaseEfficiency = MathUtil.clamp(baseEfficiency, 0.52, 0.86);
+		double targetEfficiency = boundedBaseEfficiency / Math.max(0.90, powerScale);
+		return MathUtil.clamp(targetEfficiency - boundedBaseEfficiency, 0.0, 0.05);
+	}
+
 	private static double coaxialCommandMapActivation(double spacingRatio, double loadFraction) {
 		double spacingWindow = coaxialSpacingGaussian(
 				spacingRatio,
@@ -6655,6 +6718,7 @@ public final class DronePhysics {
 				? 1.0
 				: state.rotorAerodynamicLoadFactor(index);
 		double electricalEfficiency = motorElectricalEfficiency(index, rpmFraction, aerodynamicLoadFactor);
+		double coaxialElectricalPowerScale = coaxialAllocationElectricalPowerScale(index);
 		if (escOutput <= 1.0e-6) {
 			double brakingRippleCurrent = brakingCurrent * 0.08 * smoothStep(0.02, 0.40, brakingLoad);
 			return new MotorCurrentEstimate(
@@ -6686,7 +6750,9 @@ public final class DronePhysics {
 				* (0.018 + 0.045 * rpmFraction)
 				* MathUtil.clamp(0.35 + 0.65 * escOutput, 0.0, 1.0);
 		double electricalModelCurrent = noLoadCurrent
-				+ busEquivalentWindingCurrent * MathUtil.clamp(0.35 + 0.65 * aerodynamicLoadFactor, 0.25, 1.60);
+				+ busEquivalentWindingCurrent
+						* MathUtil.clamp(0.35 + 0.65 * aerodynamicLoadFactor, 0.25, 1.60)
+						* coaxialElectricalPowerScale;
 		double desyncCurrent = perMotorMaxCurrentAmps
 				* 0.22
 				* state.escDesyncIntensity(index)
@@ -6707,7 +6773,8 @@ public final class DronePhysics {
 						* 0.06
 						* state.escDesyncIntensity(index)
 						* smoothStep(0.12, 0.82, escOutput);
-		double curveCurrent = perMotorMaxCurrentAmps * MathUtil.clamp(normalizedLoad, 0.0, 1.20);
+		double curveCurrent = perMotorMaxCurrentAmps * MathUtil.clamp(normalizedLoad, 0.0, 1.20)
+				* coaxialElectricalPowerScale;
 		double propulsionCurrent = Math.max(Math.max(curveCurrent, shaftPowerCurrent), electricalModelCurrent)
 				+ desyncCurrent
 				+ voltageLimitLossCurrent
@@ -6755,7 +6822,7 @@ public final class DronePhysics {
 		double hotWindingLoss = smoothStep(1.05, 1.62, motorWindingResistanceTemperatureScale(index));
 		double voltageHeadroomStress = motorVoltageHeadroomStress(index);
 		double loadedVoltageStress = voltageHeadroomStress * MathUtil.clamp(0.40 + 0.60 * state.escOutputCommand(index), 0.0, 1.0);
-		return MathUtil.clamp(
+		double baseEfficiency = MathUtil.clamp(
 				0.58
 						+ 0.22 * escAuthority
 						- 0.07 * Math.pow(1.0 - MathUtil.clamp(rpmFraction, 0.0, 1.15), 2.0)
@@ -6767,6 +6834,11 @@ public final class DronePhysics {
 						- 0.026 * state.motorCommutationRippleIntensity(index),
 				0.52,
 				0.86
+		);
+		return MathUtil.clamp(
+				baseEfficiency + coaxialAllocationElectricalEfficiencyBonus(index, baseEfficiency),
+				0.52,
+				0.90
 		);
 	}
 

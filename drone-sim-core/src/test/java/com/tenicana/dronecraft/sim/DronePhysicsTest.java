@@ -757,6 +757,78 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coaxialCommandMapElectricalGainReducesRealizedMotorCurrent() throws ReflectiveOperationException {
+		Method powerScaleFormula = DronePhysics.class.getDeclaredMethod(
+				"coaxialAllocationElectricalPowerScale",
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		Method efficiencyBonusFormula = DronePhysics.class.getDeclaredMethod(
+				"coaxialAllocationElectricalEfficiencyBonus",
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		Method runtimePowerScale = DronePhysics.class.getDeclaredMethod(
+				"coaxialAllocationElectricalPowerScale",
+				int.class
+		);
+		Method motorCurrentEstimate = DronePhysics.class.getDeclaredMethod(
+				"estimateMotorCurrent",
+				int.class
+		);
+		powerScaleFormula.setAccessible(true);
+		efficiencyBonusFormula.setAccessible(true);
+		runtimePowerScale.setAccessible(true);
+		motorCurrentEstimate.setAccessible(true);
+
+		double realizedScale = (double) powerScaleFormula.invoke(null, 2.842254411676719, 0.115, 0.115, 0.60);
+		double clippedScale = (double) powerScaleFormula.invoke(null, 2.842254411676719, 0.115, 0.0575, 0.60);
+		double inactiveScale = (double) powerScaleFormula.invoke(null, 2.842254411676719, 0.115, 0.0, 0.60);
+		double lowLoadScale = (double) powerScaleFormula.invoke(null, 2.842254411676719, 0.115, 0.115, 0.10);
+		double efficiencyBonus = (double) efficiencyBonusFormula.invoke(null, 0.76, 2.842254411676719, 0.115, 0.115, 0.60);
+
+		assertEquals(0.9715774558832328, realizedScale, 1.0e-12);
+		assertEquals(0.9857887279416164, clippedScale, 1.0e-12);
+		assertEquals(1.0, inactiveScale, 1.0e-12);
+		assertTrue(lowLoadScale > 0.998 && lowLoadScale < 1.0,
+				() -> "lowLoadScale=" + lowLoadScale);
+		assertEquals(0.0222330534718985, efficiencyBonus, 1.0e-12);
+
+		DroneConfig config = withCoaxialX8Spacing(directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0), 0.72);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.16, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 700; i++) {
+			holdInStillAir(physics);
+			physics.step(input, 0.005);
+		}
+
+		double runtimeScale = (double) runtimePowerScale.invoke(physics, 0);
+		Object withGainEstimate = motorCurrentEstimate.invoke(physics, 0);
+		double withGainCurrent = recordDouble(withGainEstimate, "dischargeCurrentAmps");
+		double withGainEfficiency = recordDouble(withGainEstimate, "electricalEfficiency");
+		physics.state().setRotorCoaxialAllocationElectricalGainPercent(0, 0.0);
+		Object withoutGainEstimate = motorCurrentEstimate.invoke(physics, 0);
+		double withoutGainCurrent = recordDouble(withoutGainEstimate, "dischargeCurrentAmps");
+		double withoutGainEfficiency = recordDouble(withoutGainEstimate, "electricalEfficiency");
+
+		assertTrue(physics.state().maxRotorCoaxialAllocationElectricalGainPercent() > 2.0);
+		assertTrue(runtimeScale < 0.985 && runtimeScale > 0.960,
+				() -> "runtimeScale=" + runtimeScale);
+		assertTrue(withGainEfficiency > withoutGainEfficiency + 0.015,
+				() -> "withGainEfficiency=" + withGainEfficiency + " withoutGainEfficiency=" + withoutGainEfficiency);
+		assertTrue(withGainCurrent < withoutGainCurrent - 0.10,
+				() -> "withGainCurrent=" + withGainCurrent + " withoutGainCurrent=" + withoutGainCurrent);
+	}
+
+	@Test
 	void coaxialX8RuntimeCommandMapPriorStrengthensCurrentSpacing() {
 		DroneConfig base = directControl(DroneConfig.coaxialX8())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -9682,6 +9754,12 @@ class DronePhysicsTest {
 		physics.state().setBatteryEquivalentCycles(equivalentCycles);
 		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
 		return physics.state().batteryEffectiveResistanceOhms();
+	}
+
+	private static double recordDouble(Object record, String accessorName) throws ReflectiveOperationException {
+		Method accessor = record.getClass().getDeclaredMethod(accessorName);
+		accessor.setAccessible(true);
+		return (double) accessor.invoke(record);
 	}
 
 	private static DroneEnvironment environmentWithAmbientTemperature(double ambientTemperatureCelsius) {
