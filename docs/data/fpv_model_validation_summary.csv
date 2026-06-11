@@ -727,6 +727,214 @@ imu_noise_reference,coaxialX8 ICM-42688-P,configured_over_sensor_gyro,27.3201876
 imu_noise_reference,coaxialX8 ICM-42688-P,configured_over_sensor_accel,26.39718300372404,x,https://invensense.tdk.com/en-us/products/6-axis/icm-42688-p
 imu_noise_reference,coaxialX8 ICM-42688-P,gyro_equivalent_one_pole_cutoff_hz,52247.48578178318,Hz,https://invensense.tdk.com/en-us/products/6-axis/icm-42688-p
 imu_noise_reference,coaxialX8 ICM-42688-P,accel_equivalent_one_pole_cutoff_hz,26478.828280219695,Hz,https://invensense.tdk.com/en-us/products/6-axis/icm-42688-p
+wind_gust_dryden,dirty_0.25_wind_5m_s,current_gust_rms_x_m_s,0.14036773095850102,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,current_gust_rms_y_m_s,0.07088978657181536,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,current_gust_peak_x_m_s,0.353839711059514,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,phase_a_period_s,2.551547332864806,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,gust_time_constant_s,0.2116666666666667,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,mean_wind_time_constant_s,0.18,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,dryden_sigma_u_m_s,0.9650869598142503,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,dryden_sigma_w_m_s,0.5000000000000001,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,current_x_rms_over_dryden_u,0.1454456818953574,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,current_y_rms_over_dryden_w,0.14177957314363068,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,dryden_longitudinal_time_s,8.629200809776801,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_5m_s,dryden_vertical_time_s,1.2,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,current_gust_rms_x_m_s,0.421103192875503,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,current_gust_rms_y_m_s,0.21266935971544607,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,current_gust_peak_x_m_s,1.061519133178542,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,phase_a_period_s,2.0350397756047243,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,gust_time_constant_s,0.14727272727272728,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,mean_wind_time_constant_s,0.25,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,dryden_sigma_u_m_s,0.9650869598142503,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,dryden_sigma_w_m_s,0.5000000000000001,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,current_x_rms_over_dryden_u,0.4363370456860722,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,current_y_rms_over_dryden_w,0.425338719430892,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,dryden_longitudinal_time_s,8.629200809776801,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_5m_s,dryden_vertical_time_s,1.2,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,current_gust_rms_x_m_s,0.842206385751006,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,current_gust_rms_y_m_s,0.42533871943089213,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,current_gust_peak_x_m_s,2.123038266357084,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,phase_a_period_s,1.5610398278707045,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,gust_time_constant_s,0.11594594594594596,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,mean_wind_time_constant_s,0.355,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,dryden_sigma_u_m_s,0.9650869598142503,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,dryden_sigma_w_m_s,0.5000000000000001,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,current_x_rms_over_dryden_u,0.8726740913721444,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,current_y_rms_over_dryden_w,0.850677438861784,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,dryden_longitudinal_time_s,8.629200809776801,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_5m_s,dryden_vertical_time_s,1.2,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,current_gust_rms_x_m_s,1.0106476629012073,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,current_gust_rms_y_m_s,0.5104064633170705,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,current_gust_peak_x_m_s,2.5476459196285006,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,phase_a_period_s,1.427996660722633,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,gust_time_constant_s,0.10953488372093025,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,mean_wind_time_constant_s,0.397,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,dryden_sigma_u_m_s,0.9650869598142503,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,dryden_sigma_w_m_s,0.5000000000000001,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,current_x_rms_over_dryden_u,1.0472089096465733,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,current_y_rms_over_dryden_w,1.0208129266341408,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,dryden_longitudinal_time_s,8.629200809776801,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_5m_s,dryden_vertical_time_s,1.2,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,current_gust_rms_x_m_s,0.2754835115678478,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,current_gust_rms_y_m_s,0.14057104180018776,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,current_gust_peak_x_m_s,0.666719422119028,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,phase_a_period_s,1.9258805539247772,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,gust_time_constant_s,0.2116666666666667,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,mean_wind_time_constant_s,0.27,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,dryden_sigma_u_m_s,1.9301739196285006,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,dryden_sigma_w_m_s,1.0000000000000002,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,current_x_rms_over_dryden_u,0.1427247092950411,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,current_y_rms_over_dryden_w,0.14057104180018773,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,dryden_longitudinal_time_s,4.314600404888401,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_10m_s,dryden_vertical_time_s,0.6,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,current_gust_rms_x_m_s,0.8264505347035432,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,current_gust_rms_y_m_s,0.4217131254005632,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,current_gust_peak_x_m_s,2.000158266357084,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,phase_a_period_s,1.6162534552230445,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,gust_time_constant_s,0.14727272727272728,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,mean_wind_time_constant_s,0.33999999999999997,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,dryden_sigma_u_m_s,1.9301739196285006,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,dryden_sigma_w_m_s,1.0000000000000002,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,current_x_rms_over_dryden_u,0.42817412788512327,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,current_y_rms_over_dryden_w,0.4217131254005631,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,dryden_longitudinal_time_s,4.314600404888401,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_10m_s,dryden_vertical_time_s,0.6,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,current_gust_rms_x_m_s,1.6529010694070865,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,current_gust_rms_y_m_s,0.8434262508011264,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,current_gust_peak_x_m_s,4.000316532714168,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,phase_a_period_s,1.3022145714361837,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,gust_time_constant_s,0.11594594594594596,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,mean_wind_time_constant_s,0.445,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,dryden_sigma_u_m_s,1.9301739196285006,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,dryden_sigma_w_m_s,1.0000000000000002,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,current_x_rms_over_dryden_u,0.8563482557702465,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,current_y_rms_over_dryden_w,0.8434262508011262,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,dryden_longitudinal_time_s,4.314600404888401,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_10m_s,dryden_vertical_time_s,0.6,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,current_gust_rms_x_m_s,1.9834812832885038,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,current_gust_rms_y_m_s,1.0121115009613517,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,current_gust_peak_x_m_s,4.800379839257001,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,phase_a_period_s,1.208304866765305,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,gust_time_constant_s,0.10953488372093025,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,mean_wind_time_constant_s,0.48700000000000004,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,dryden_sigma_u_m_s,1.9301739196285006,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,dryden_sigma_w_m_s,1.0000000000000002,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,current_x_rms_over_dryden_u,1.0276179069242959,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,current_y_rms_over_dryden_w,1.0121115009613515,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,dryden_longitudinal_time_s,4.314600404888401,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_10m_s,dryden_vertical_time_s,0.6,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,current_gust_rms_x_m_s,0.4110478017675598,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,current_gust_rms_y_m_s,0.21035882742061904,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,current_gust_peak_x_m_s,0.9795991331785419,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,phase_a_period_s,1.5466302294595904,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,gust_time_constant_s,0.2116666666666667,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,mean_wind_time_constant_s,0.36,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,dryden_sigma_u_m_s,2.8952608794427506,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,dryden_sigma_w_m_s,1.5,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,current_x_rms_over_dryden_u,0.1419726300611204,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,current_y_rms_over_dryden_w,0.1402392182804127,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,dryden_longitudinal_time_s,2.8764002699256,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.25_wind_15m_s,dryden_vertical_time_s,0.4,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,current_gust_rms_x_m_s,1.233143405302679,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,current_gust_rms_y_m_s,0.6310764822618571,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,current_gust_peak_x_m_s,2.938797399535625,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,phase_a_period_s,1.340412865531645,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,gust_time_constant_s,0.14727272727272728,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,mean_wind_time_constant_s,0.42999999999999994,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,dryden_sigma_u_m_s,2.8952608794427506,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,dryden_sigma_w_m_s,1.5,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,current_x_rms_over_dryden_u,0.4259178901833612,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,current_y_rms_over_dryden_w,0.4207176548412381,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,dryden_longitudinal_time_s,2.8764002699256,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_0.75_wind_15m_s,dryden_vertical_time_s,0.4,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,current_gust_rms_x_m_s,2.466286810605358,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,current_gust_rms_y_m_s,1.2621529645237142,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,current_gust_peak_x_m_s,5.87759479907125,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,phase_a_period_s,1.117010721276371,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,gust_time_constant_s,0.11594594594594596,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,mean_wind_time_constant_s,0.5349999999999999,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,dryden_sigma_u_m_s,2.8952608794427506,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,dryden_sigma_w_m_s,1.5,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,current_x_rms_over_dryden_u,0.8518357803667224,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,current_y_rms_over_dryden_w,0.8414353096824762,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,dryden_longitudinal_time_s,2.8764002699256,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.50_wind_15m_s,dryden_vertical_time_s,0.4,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,current_gust_rms_x_m_s,2.9595441727264302,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,current_gust_rms_y_m_s,1.514583557428457,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,current_gust_peak_x_m_s,7.053113758885502,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,phase_a_period_s,1.0471975511965976,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,gust_time_constant_s,0.10953488372093025,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,mean_wind_time_constant_s,0.577,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,dryden_sigma_u_m_s,2.8952608794427506,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,dryden_sigma_w_m_s,1.5,m/s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,current_x_rms_over_dryden_u,1.0222029364400669,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,current_y_rms_over_dryden_w,1.0097223716189714,x,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,dryden_longitudinal_time_s,2.8764002699256,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+wind_gust_dryden,dirty_1.80_wind_15m_s,dryden_vertical_time_s,0.4,s,https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py
+barometer_sensor,Bosch BMP280,pressure_noise_pa,1.3,Pa,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+barometer_sensor,Bosch BMP280,pressure_noise_altitude_m,0.1082147817854128,m,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+barometer_sensor,Bosch BMP280,relative_accuracy_pa,12.0,Pa,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+barometer_sensor,Bosch BMP280,relative_accuracy_altitude_m,0.998905678019195,m,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf
+barometer_sensor,Bosch BMP388,pressure_noise_pa,0.64,Pa,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
+barometer_sensor,Bosch BMP388,pressure_noise_altitude_m,0.05327496949435707,m,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
+barometer_sensor,Bosch BMP388,relative_accuracy_pa,8.0,Pa,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
+barometer_sensor,Bosch BMP388,relative_accuracy_altitude_m,0.6659371186794634,m,https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf
+barometer_sensor,Infineon DPS310,pressure_noise_pa,0.2,Pa,https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242
+barometer_sensor,Infineon DPS310,pressure_noise_altitude_m,0.016648427966986585,m,https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242
+barometer_sensor,Infineon DPS310,relative_accuracy_pa,6.0,Pa,https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242
+barometer_sensor,Infineon DPS310,relative_accuracy_altitude_m,0.4994528390095975,m,https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242
+barometer_sensor,TE MS5611-01BA03,pressure_noise_pa,1.2,Pa,https://www.hpinfotech.ro/MS5611-01BA03.pdf
+barometer_sensor,TE MS5611-01BA03,pressure_noise_altitude_m,0.0998905678019195,m,https://www.hpinfotech.ro/MS5611-01BA03.pdf
+barometer_sensor,TE MS5611-01BA03,relative_accuracy_pa,10.0,Pa,https://www.hpinfotech.ro/MS5611-01BA03.pdf
+barometer_sensor,TE MS5611-01BA03,relative_accuracy_altitude_m,0.8324213983493292,m,https://www.hpinfotech.ro/MS5611-01BA03.pdf
+barometer_current_noise,racingQuad,quiet_barometer_noise_amplitude_m,0.007700000000000001,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,racingQuad,quiet_barometer_noise_rms_m,0.005851240082238978,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,racingQuad,barometer_altitude_tau_s,0.09,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,racingQuad,barometer_vertical_speed_tau_s,0.18,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,cinewhoop,quiet_barometer_noise_amplitude_m,0.007000000000000001,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,cinewhoop,quiet_barometer_noise_rms_m,0.005319309165671799,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,cinewhoop,barometer_altitude_tau_s,0.09,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,cinewhoop,barometer_vertical_speed_tau_s,0.18,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,heavyLift,quiet_barometer_noise_amplitude_m,0.005600000000000001,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,heavyLift,quiet_barometer_noise_rms_m,0.004255447332537439,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,heavyLift,barometer_altitude_tau_s,0.09,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,heavyLift,barometer_vertical_speed_tau_s,0.18,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,hexLift,quiet_barometer_noise_amplitude_m,0.004900000000000001,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,hexLift,quiet_barometer_noise_rms_m,0.003723516415970259,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,hexLift,barometer_altitude_tau_s,0.09,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,hexLift,barometer_vertical_speed_tau_s,0.18,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,octoLift,quiet_barometer_noise_amplitude_m,0.004900000000000001,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,octoLift,quiet_barometer_noise_rms_m,0.003723516415970259,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,octoLift,barometer_altitude_tau_s,0.09,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,octoLift,barometer_vertical_speed_tau_s,0.18,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,coaxialX8,quiet_barometer_noise_amplitude_m,0.004900000000000001,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,coaxialX8,quiet_barometer_noise_rms_m,0.003723516415970259,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,coaxialX8,barometer_altitude_tau_s,0.09,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_current_noise,coaxialX8,barometer_vertical_speed_tau_s,0.18,s,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_5m_s,dynamic_pressure_head_m,1.2746452662224104,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_5m_s,code_altitude_error_m,-0.0005795610425240055,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_5m_s,static_port_pressure_coefficient_equivalent,-0.00045468418381344305,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_5m_s,dynamic_pressure_head_m,1.2746452662224104,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_5m_s,code_altitude_error_m,0.00040123456790123454,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_5m_s,static_port_pressure_coefficient_equivalent,0.0003147813580246913,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_10m_s,dynamic_pressure_head_m,5.0985810648896415,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_10m_s,code_altitude_error_m,-0.0674074074074074,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_10m_s,static_port_pressure_coefficient_equivalent,-0.013220817037037036,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_10m_s,dynamic_pressure_head_m,5.0985810648896415,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_10m_s,code_altitude_error_m,0.04666666666666666,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_10m_s,static_port_pressure_coefficient_equivalent,0.009152873333333332,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_20m_s,dynamic_pressure_head_m,20.394324259558566,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_20m_s,code_altitude_error_m,-1.0043347050754459,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_20m_s,static_port_pressure_coefficient_equivalent,-0.049245794677640606,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_20m_s,dynamic_pressure_head_m,20.394324259558566,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_20m_s,code_altitude_error_m,0.6953086419753086,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_20m_s,static_port_pressure_coefficient_equivalent,0.0340932424691358,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_30m_s,dynamic_pressure_head_m,45.887229584006775,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_30m_s,code_altitude_error_m,-2.34,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,aligned_30m_s,static_port_pressure_coefficient_equivalent,-0.05099457999999999,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_30m_s,dynamic_pressure_head_m,45.887229584006775,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_30m_s,code_altitude_error_m,1.6199999999999999,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+barometer_dynamic_pressure,broadside_separated_30m_s,static_port_pressure_coefficient_equivalent,0.03530393999999999,Cp,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
 blackbox_log_header,Betaflight issue LOG00078,field_count,34,fields,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
 blackbox_log_header,Betaflight issue LOG00078,has_gyro_adc,1,bool,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
 blackbox_log_header,Betaflight issue LOG00078,has_motor_command,1,bool,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT

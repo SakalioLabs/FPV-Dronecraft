@@ -225,6 +225,20 @@ Values relevant to `DronePhysics`:
 - Standard gravity `9.80665 m/s^2` matches the project preset value.
 - Sutherland-law constants around `110.4 K` for air are consistent with the project's `AIR_SUTHERLAND_CONSTANT_KELVIN`.
 
+### Wind, turbulence, and gusts
+
+Useful open-source/model anchors:
+
+- [pyfly Dryden turbulence implementation](https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py) exposes the common low-altitude Dryden formulas using `L_w = h`, `L_u = L_v = h / (0.177 + 0.000823h)^1.2`, `sigma_w = 0.1 W20`, and `sigma_u = sigma_v = sigma_w / (0.177 + 0.000823h)^0.4` with altitude in feet.
+- [Open UAV wind modeling survey](https://arxiv.org/abs/1905.09954) gives broader context for Dryden/Von Karman-style wind fields in small-UAV simulation.
+- Generated file `docs/data/wind_gust_dryden_reference.csv` compares the current hybrid Dryden-plus-burble gust model against a Dryden low-altitude intensity reference at 6 m altitude.
+
+Current high-signal outputs:
+
+- For `wind = 10 m/s` and `dirtyAir = 1.5`, the current target-gust RMS is about `1.65 m/s` horizontal X and `0.84 m/s` vertical after combining a reduced dirty-air burble with the Dryden target.
+- Against a low-altitude Dryden reference with `W20 = 10 m/s`, that is roughly `0.86x` longitudinal intensity and `0.84x` vertical intensity.
+- The Dryden component now carries the physical low-altitude length scales and sigma targets, while the reduced deterministic burble remains a tunable FPV obstacle/wake feel layer unless a stochastic Dryden/Von Karman generator replaces the sine excitation.
+
 ### Airframe inertia and body drag
 
 Generated report sections:
@@ -368,6 +382,15 @@ IMU noise anchors:
 - Generated file `docs/data/imu_noise_reference_summary.csv` converts those datasheet densities to RMS at each preset's configured gyro/accelerometer LPF using one-pole equivalent noise bandwidth `pi/2 * cutoff`.
 - For `racingQuad`, the configured `0.025 rad/s` gyro noise is about `20.8x` an MPU-6000/6050 electronics-only RMS estimate at 120 Hz LPF and about `37.2x` an ICM-42688-P estimate. Treat it as residual vibration plus electronics, not bare IMU electronics noise.
 
+Barometer/altimeter anchors:
+
+- [Bosch BMP280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf)
+- [Bosch BMP388 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf)
+- [Infineon DPS310 datasheet](https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242)
+- [TE/Measurement Specialties MS5611-01BA03 datasheet](https://www.hpinfotech.ro/MS5611-01BA03.pdf)
+- Generated file `docs/data/barometer_reference_summary.csv` converts pressure noise and relative accuracy to equivalent altitude error with `dh = dp / (rho g)`.
+- Current takeaway: good MEMS pressure noise is centimeters-to-decimeters in altitude, while the project's flow/static-port model can create meter-scale barometer error at FPV airspeeds. Keep those concepts separate.
+
 Generated blackbox/log checks:
 
 - `docs/data/blackbox_log_header_summary.csv` extracts public blackbox header fields, including field presence, `looptime`, `pid_process_denom`, DShot/RPM-filter headers, and an estimated main log rate.
@@ -415,11 +438,19 @@ Use these for RC link update-rate/failsafe plausibility rather than rigid physic
    - Keep the count aligned with the prop family used for calibration; three-blade FPV logs should compare against 3x mechanical motor frequency, while larger two-blade lift props can remain at 2x until better data is available.
    - If a preset intentionally uses a synthetic harmonic for feel, avoid labeling that notch as measured physical blade-pass frequency.
 
-9. Reconcile IMU noise semantics.
+9. Reconcile wind/gust semantics.
+   - Keep the low-altitude Dryden-scaled turbulence component separate from the reduced deterministic burble used for obstacle/propwash feel.
+   - If the goal is physical turbulence spectrum matching, replace the deterministic excitation with a stochastic Dryden/Von Karman colored-noise process.
+
+10. Reconcile IMU noise semantics.
    - Datasheet electronics noise is much lower than the current configured noise at the project LPF bandwidths.
    - If these values include frame vibration, prop imbalance, and aliasing, label them as residual FPV sensor noise rather than bare IMU electronics.
 
-10. Reconcile blackbox RPM units before using logs for validation.
+11. Reconcile barometer error semantics.
+   - MEMS pressure-sensor noise should be centimeters-to-decimeters when converted to altitude near sea level.
+   - Meter-scale barometer excursions should be attributed to propwash/static-port/dynamic-pressure error, not raw sensor noise.
+
+12. Reconcile blackbox RPM units before using logs for validation.
    - Betaflight blackbox `eRPM[]` values are logged as electrical RPM divided by 100.
    - Convert through motor pole count before comparing to simulated mechanical RPM or blade-pass frequency.
    - Public logs without `eRPM[]` should only be used for timing, gyro, accelerometer, and motor-command field validation.

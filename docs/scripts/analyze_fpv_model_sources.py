@@ -7,6 +7,8 @@ Outputs:
   docs/data/fpv_model_validation_summary.csv
   docs/data/blackbox_log_header_summary.csv
   docs/data/imu_noise_reference_summary.csv
+  docs/data/wind_gust_dryden_reference.csv
+  docs/data/barometer_reference_summary.csv
   docs/data/raw/* cached source files
 """
 
@@ -101,6 +103,9 @@ MENDELEY_LIPO_DATASET_URL = "https://data.mendeley.com/datasets/stcppt2r68/1"
 NASA_BATTERY_DATASET_URL = "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets"
 NASA_BATTERY_ZIP_URL = "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
 CHL_LIPO_IR_URL = "https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained"
+NASA_ATMOSPHERE_URL = "https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html"
+PYFLY_DRYDEN_URL = "https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py"
+UAV_WIND_MODELING_URL = "https://arxiv.org/abs/1905.09954"
 BETAFLIGHT_RPM_FILTER_URL = "https://betaflight.com/docs/wiki/guides/current/DSHOT-RPM-Filtering"
 BETAFLIGHT_PID_TUNING_URL = "https://betaflight.com/docs/wiki/guides/current/PID-Tuning-Guide"
 EXPRESSLRS_PACKET_URL = "https://www.expresslrs.org/software/switch-config/"
@@ -112,6 +117,10 @@ MPU6000_DATASHEET_URL = "https://www.cdiweb.com/datasheets/invensense/mpu-6050_d
 ICM20602_PRODUCT_URL = "https://bluerobotics.com/wp-content/uploads/2022/05/ICM20602-DATASHEET.pdf"
 BMI270_DATASHEET_URL = "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf"
 ICM42688P_PRODUCT_URL = "https://invensense.tdk.com/en-us/products/6-axis/icm-42688-p"
+BMP280_DATASHEET_URL = "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf"
+BMP388_DATASHEET_URL = "https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp388-ds001.pdf"
+DPS310_DATASHEET_URL = "https://www.infineon.com/dgdl/Infineon-DPS310-DataSheet-v01_02-EN.pdf?fileId=5546d462576f34750157750826c42242"
+MS5611_DATASHEET_URL = "https://www.hpinfotech.ro/MS5611-01BA03.pdf"
 
 BLACKBOX_LOG_SOURCES = [
     {
@@ -150,6 +159,37 @@ IMU_SENSOR_REFERENCES = [
         "gyro_noise_dps_sqrt_hz": 0.0028,
         "accel_noise_ug_sqrt_hz": 70.0,
         "source": ICM42688P_PRODUCT_URL,
+    },
+]
+
+BAROMETER_SENSOR_REFERENCES = [
+    {
+        "name": "Bosch BMP280",
+        "pressure_noise_pa": 1.3,
+        "relative_accuracy_pa": 12.0,
+        "source": BMP280_DATASHEET_URL,
+        "note": "RMS pressure noise typical at ultra-high-resolution setting; relative accuracy from datasheet operating range.",
+    },
+    {
+        "name": "Bosch BMP388",
+        "pressure_noise_pa": 0.64,
+        "relative_accuracy_pa": 8.0,
+        "source": BMP388_DATASHEET_URL,
+        "note": "Datasheet pressure noise/relative accuracy used as sensor-only floor.",
+    },
+    {
+        "name": "Infineon DPS310",
+        "pressure_noise_pa": 0.2,
+        "relative_accuracy_pa": 6.0,
+        "source": DPS310_DATASHEET_URL,
+        "note": "High-precision pressure mode; relative accuracy used for slow altitude bias floor.",
+    },
+    {
+        "name": "TE MS5611-01BA03",
+        "pressure_noise_pa": 1.2,
+        "relative_accuracy_pa": 10.0,
+        "source": MS5611_DATASHEET_URL,
+        "note": "0.012 mbar pressure resolution converted to Pa; relative accuracy is approximate absolute/temperature residual scale.",
     },
 ]
 
@@ -1046,6 +1086,202 @@ def summarize_imu_noise(presets: list[dict[str, float | str]]) -> list[dict[str,
     return rows
 
 
+def dryden_low_altitude_reference(altitude_m: float, wind20_m_s: float) -> dict[str, float]:
+    altitude_ft = altitude_m * 3.280839895
+    wind20_ft_s = wind20_m_s * 3.280839895
+    denom = 0.177 + 0.000823 * max(1.0, altitude_ft)
+    lu_ft = altitude_ft / (denom**1.2)
+    lv_ft = lu_ft
+    lw_ft = altitude_ft
+    sigma_w_ft_s = 0.1 * wind20_ft_s
+    sigma_u_ft_s = sigma_w_ft_s / (denom**0.4)
+    sigma_v_ft_s = sigma_u_ft_s
+    return {
+        "altitude_m": altitude_m,
+        "wind20_m_s": wind20_m_s,
+        "lu_m": lu_ft / 3.280839895,
+        "lv_m": lv_ft / 3.280839895,
+        "lw_m": lw_ft / 3.280839895,
+        "sigma_u_m_s": sigma_u_ft_s / 3.280839895,
+        "sigma_v_m_s": sigma_v_ft_s / 3.280839895,
+        "sigma_w_m_s": sigma_w_ft_s / 3.280839895,
+        "source": PYFLY_DRYDEN_URL,
+    }
+
+
+def current_gust_reference_row(dirty_air: float, wind_speed_m_s: float, altitude_m: float = 6.0) -> dict[str, float | str]:
+    gust_scale = min(4.5, max(0.0, dirty_air * (0.32 + 0.070 * wind_speed_m_s)))
+    burble_scale = 0.32
+    burble_x_peak = 1.60 * gust_scale * burble_scale
+    burble_z_peak = 1.57 * gust_scale * burble_scale
+    burble_y_peak = 0.50 * gust_scale * burble_scale
+    burble_x_rms = math.sqrt((1.0**2 + 0.42**2 + 0.18**2) / 2.0) * gust_scale * burble_scale
+    burble_z_rms = math.sqrt((1.0**2 + 0.35**2 + 0.22**2) / 2.0) * gust_scale * burble_scale
+    burble_y_rms = math.sqrt((0.34**2 + 0.16**2) / 2.0) * gust_scale * burble_scale
+    phase_a = 1.35 + 0.16 * wind_speed_m_s + 1.25 * dirty_air
+    phase_b = 1.95 + 0.11 * wind_speed_m_s + 0.95 * dirty_air
+    phase_c = 0.85 + 0.09 * wind_speed_m_s + 1.55 * dirty_air
+    gust_tau = min(0.260, max(0.055, 0.070 + 0.085 / (0.35 + dirty_air)))
+    mean_tau = min(0.620, max(0.045, 0.055 + 0.018 * wind_speed_m_s + 0.140 * dirty_air))
+    dryden = dryden_low_altitude_reference(altitude_m, max(wind_speed_m_s, 0.1))
+    dryden_intensity_scale = min(1.0, max(0.0, dirty_air / 1.8))
+    dryden_x_rms = dryden["sigma_u_m_s"] * dryden_intensity_scale
+    dryden_z_rms = dryden["sigma_v_m_s"] * dryden_intensity_scale
+    dryden_y_rms = dryden["sigma_w_m_s"] * dryden_intensity_scale
+    x_rms = math.sqrt(burble_x_rms**2 + dryden_x_rms**2)
+    z_rms = math.sqrt(burble_z_rms**2 + dryden_z_rms**2)
+    y_rms = math.sqrt(burble_y_rms**2 + dryden_y_rms**2)
+    x_peak = burble_x_peak + 2.0 * dryden_x_rms
+    z_peak = burble_z_peak + 2.0 * dryden_z_rms
+    y_peak = burble_y_peak + 2.0 * dryden_y_rms
+    dryden_longitudinal_time_s = dryden["lu_m"] / max(0.1, wind_speed_m_s)
+    dryden_vertical_time_s = dryden["lw_m"] / max(0.1, wind_speed_m_s)
+    return {
+        "dirty_air": dirty_air,
+        "wind_speed_m_s": wind_speed_m_s,
+        "altitude_m": altitude_m,
+        "current_gust_scale": gust_scale,
+        "current_burble_scale": burble_scale,
+        "dryden_intensity_scale": dryden_intensity_scale,
+        "current_gust_rms_x_m_s": x_rms,
+        "current_gust_rms_y_m_s": y_rms,
+        "current_gust_rms_z_m_s": z_rms,
+        "current_burble_rms_x_m_s": burble_x_rms,
+        "current_burble_rms_y_m_s": burble_y_rms,
+        "current_burble_rms_z_m_s": burble_z_rms,
+        "dryden_target_rms_x_m_s": dryden_x_rms,
+        "dryden_target_rms_y_m_s": dryden_y_rms,
+        "dryden_target_rms_z_m_s": dryden_z_rms,
+        "current_gust_peak_x_m_s": x_peak,
+        "current_gust_peak_y_m_s": y_peak,
+        "current_gust_peak_z_m_s": z_peak,
+        "phase_a_rad_s": phase_a,
+        "phase_b_rad_s": phase_b,
+        "phase_c_rad_s": phase_c,
+        "phase_a_period_s": 2.0 * math.pi / phase_a,
+        "phase_b_period_s": 2.0 * math.pi / phase_b,
+        "phase_c_period_s": 2.0 * math.pi / phase_c,
+        "gust_time_constant_s": gust_tau,
+        "mean_wind_time_constant_s": mean_tau,
+        "dryden_sigma_u_m_s": dryden["sigma_u_m_s"],
+        "dryden_sigma_v_m_s": dryden["sigma_v_m_s"],
+        "dryden_sigma_w_m_s": dryden["sigma_w_m_s"],
+        "current_x_rms_over_dryden_u": x_rms / dryden["sigma_u_m_s"] if dryden["sigma_u_m_s"] > 0.0 else float("nan"),
+        "current_y_rms_over_dryden_w": y_rms / dryden["sigma_w_m_s"] if dryden["sigma_w_m_s"] > 0.0 else float("nan"),
+        "dryden_lu_m": dryden["lu_m"],
+        "dryden_lw_m": dryden["lw_m"],
+        "dryden_longitudinal_time_s": dryden_longitudinal_time_s,
+        "dryden_vertical_time_s": dryden_vertical_time_s,
+        "source": PYFLY_DRYDEN_URL,
+    }
+
+
+def summarize_wind_gust() -> list[dict[str, float | str]]:
+    fetch_text(PYFLY_DRYDEN_URL)
+    fetch_text(UAV_WIND_MODELING_URL)
+    rows = []
+    for wind_speed in (5.0, 10.0, 15.0):
+        for dirty_air in (0.25, 0.75, 1.50, 1.80):
+            rows.append(current_gust_reference_row(dirty_air, wind_speed))
+    path = DATA / "wind_gust_dryden_reference.csv"
+    DATA.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = list(rows[0].keys())
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
+
+
+def smooth_step(edge0: float, edge1: float, value: float) -> float:
+    if edge1 <= edge0:
+        return 1.0 if value >= edge1 else 0.0
+    x = min(1.0, max(0.0, (value - edge0) / (edge1 - edge0)))
+    return x * x * (3.0 - 2.0 * x)
+
+
+def pressure_pa_to_altitude_m(pressure_pa: float, rho: float = RHO) -> float:
+    return pressure_pa / (rho * G)
+
+
+def barometer_current_noise_metrics(preset: dict[str, float | str]) -> dict[str, float | str]:
+    accel_noise = float(preset.get("accelerometer_noise_stddev_m_s2", float("nan")))
+    base_amplitude = 0.035 * accel_noise
+    sine_rms_scale = math.sqrt((1.0**2 + 0.35**2 + 0.18**2) / 2.0)
+    return {
+        "preset": preset["preset"],
+        "accelerometer_noise_stddev_m_s2": accel_noise,
+        "quiet_barometer_noise_amplitude_m": base_amplitude,
+        "quiet_barometer_noise_rms_m": base_amplitude * sine_rms_scale,
+        "barometer_altitude_tau_s": 0.090,
+        "barometer_vertical_speed_tau_s": 0.180,
+        "source": repo_path(ROOT / "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"),
+    }
+
+
+def barometer_dynamic_pressure_error(airspeed_m_s: float, mode: str) -> float:
+    dynamic_scale = smooth_step(4.0, 22.0, airspeed_m_s)
+    if mode == "aligned":
+        return -0.0026 * airspeed_m_s * airspeed_m_s * dynamic_scale
+    if mode == "broadside_separated":
+        return 0.0018 * airspeed_m_s * airspeed_m_s * dynamic_scale
+    raise ValueError(mode)
+
+
+def summarize_barometer(presets: list[dict[str, float | str]]) -> dict[str, object]:
+    sensor_rows: list[dict[str, float | str]] = []
+    for sensor in BAROMETER_SENSOR_REFERENCES:
+        noise_pa = float(sensor["pressure_noise_pa"])
+        accuracy_pa = float(sensor["relative_accuracy_pa"])
+        sensor_rows.append(
+            {
+                "sensor": sensor["name"],
+                "pressure_noise_pa": noise_pa,
+                "pressure_noise_altitude_m": pressure_pa_to_altitude_m(noise_pa),
+                "relative_accuracy_pa": accuracy_pa,
+                "relative_accuracy_altitude_m": pressure_pa_to_altitude_m(accuracy_pa),
+                "source": sensor["source"],
+                "note": sensor["note"],
+            }
+        )
+    preset_noise_rows = [barometer_current_noise_metrics(preset) for preset in presets]
+    dynamic_rows: list[dict[str, float | str]] = []
+    for speed in (5.0, 10.0, 20.0, 30.0):
+        dynamic_head_m = speed * speed / (2.0 * G)
+        for mode in ("aligned", "broadside_separated"):
+            error_m = barometer_dynamic_pressure_error(speed, mode)
+            dynamic_rows.append(
+                {
+                    "airspeed_m_s": speed,
+                    "mode": mode,
+                    "dynamic_pressure_head_m": dynamic_head_m,
+                    "code_altitude_error_m": error_m,
+                    "static_port_pressure_coefficient_equivalent": error_m / dynamic_head_m if dynamic_head_m > 0.0 else float("nan"),
+                    "source": repo_path(ROOT / "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"),
+                }
+            )
+    path = DATA / "barometer_reference_summary.csv"
+    DATA.mkdir(parents=True, exist_ok=True)
+    rows_for_csv: list[dict[str, str | float]] = []
+    for row in sensor_rows:
+        rows_for_csv.append({"kind": "sensor", **row})
+    for row in preset_noise_rows:
+        rows_for_csv.append({"kind": "current_preset_noise", **row})
+    for row in dynamic_rows:
+        rows_for_csv.append({"kind": "current_dynamic_pressure", **row})
+    fieldnames = sorted({key for row in rows_for_csv for key in row.keys()})
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows_for_csv)
+    return {
+        "summary_csv": repo_path(path),
+        "sensor_rows": sensor_rows,
+        "preset_noise_rows": preset_noise_rows,
+        "dynamic_rows": dynamic_rows,
+    }
+
+
 def blackbox_header_value(headers: dict[str, str], key: str, default: float = float("nan")) -> float:
     raw = headers.get(key)
     if raw is None or raw == "":
@@ -1431,6 +1667,8 @@ def write_summary_csv(
     drag_rows: list[dict[str, float | str]],
     timing_rows: list[dict[str, float | str]],
     imu_rows: list[dict[str, float | str]],
+    wind_rows: list[dict[str, float | str]],
+    barometer_summary: dict[str, object],
     blackbox_summary: dict[str, object],
     mendeley_ecm: dict[str, object],
 ) -> None:
@@ -1572,6 +1810,50 @@ def write_summary_csv(
             ("accel_equivalent_one_pole_cutoff_hz", "Hz"),
         ):
             rows.append({"category": "imu_noise_reference", "name": f"{item['preset']} {item['sensor']}", "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in wind_rows:
+        name = f"dirty_{fmt(float(item['dirty_air']), 2)}_wind_{fmt(float(item['wind_speed_m_s']), 0)}m_s"
+        for metric, unit in (
+            ("current_gust_rms_x_m_s", "m/s"),
+            ("current_gust_rms_y_m_s", "m/s"),
+            ("current_gust_peak_x_m_s", "m/s"),
+            ("phase_a_period_s", "s"),
+            ("gust_time_constant_s", "s"),
+            ("mean_wind_time_constant_s", "s"),
+            ("dryden_sigma_u_m_s", "m/s"),
+            ("dryden_sigma_w_m_s", "m/s"),
+            ("current_x_rms_over_dryden_u", "x"),
+            ("current_y_rms_over_dryden_w", "x"),
+            ("dryden_longitudinal_time_s", "s"),
+            ("dryden_vertical_time_s", "s"),
+        ):
+            rows.append({"category": "wind_gust_dryden", "name": name, "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in barometer_summary.get("sensor_rows", []):
+        sensor_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("pressure_noise_pa", "Pa"),
+            ("pressure_noise_altitude_m", "m"),
+            ("relative_accuracy_pa", "Pa"),
+            ("relative_accuracy_altitude_m", "m"),
+        ):
+            rows.append({"category": "barometer_sensor", "name": sensor_row["sensor"], "metric": metric, "value": sensor_row[metric], "unit": unit, "source": sensor_row["source"]})
+    for item in barometer_summary.get("preset_noise_rows", []):
+        noise_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("quiet_barometer_noise_amplitude_m", "m"),
+            ("quiet_barometer_noise_rms_m", "m"),
+            ("barometer_altitude_tau_s", "s"),
+            ("barometer_vertical_speed_tau_s", "s"),
+        ):
+            rows.append({"category": "barometer_current_noise", "name": noise_row["preset"], "metric": metric, "value": noise_row[metric], "unit": unit, "source": noise_row["source"]})
+    for item in barometer_summary.get("dynamic_rows", []):
+        dyn_row = item  # type: ignore[assignment]
+        name = f"{dyn_row['mode']}_{fmt(float(dyn_row['airspeed_m_s']), 0)}m_s"
+        for metric, unit in (
+            ("dynamic_pressure_head_m", "m"),
+            ("code_altitude_error_m", "m"),
+            ("static_port_pressure_coefficient_equivalent", "Cp"),
+        ):
+            rows.append({"category": "barometer_dynamic_pressure", "name": name, "metric": metric, "value": dyn_row[metric], "unit": unit, "source": dyn_row["source"]})
     for item in blackbox_summary.get("header_rows", []):
         header_row = item  # type: ignore[assignment]
         for metric, unit in (
@@ -1640,6 +1922,8 @@ def write_markdown(
     drag_rows: list[dict[str, float | str]],
     timing_rows: list[dict[str, float | str]],
     imu_rows: list[dict[str, float | str]],
+    wind_rows: list[dict[str, float | str]],
+    barometer_summary: dict[str, object],
     blackbox_summary: dict[str, object],
     mendeley_ecm: dict[str, object],
 ) -> None:
@@ -1662,6 +1946,10 @@ def write_markdown(
     racing_timing = next(row for row in timing_rows if row["preset"] == "racingQuad")
     racing_imu_mpu6000 = next(row for row in imu_rows if row["preset"] == "racingQuad" and row["sensor"] == "MPU-6000/MPU-6050")
     racing_imu_icm42688 = next(row for row in imu_rows if row["preset"] == "racingQuad" and row["sensor"] == "ICM-42688-P")
+    wind_case = next(row for row in wind_rows if float(row["dirty_air"]) == 1.5 and float(row["wind_speed_m_s"]) == 10.0)
+    racing_baro_noise = next(row for row in barometer_summary.get("preset_noise_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
+    baro_aligned_20 = next(row for row in barometer_summary.get("dynamic_rows", []) if row["mode"] == "aligned" and float(row["airspeed_m_s"]) == 20.0)  # type: ignore[index]
+    baro_best_sensor = min(barometer_summary.get("sensor_rows", []), key=lambda row: float(row["pressure_noise_altitude_m"]))  # type: ignore[arg-type]
     racing_erpm = next(row for row in blackbox_summary.get("erpm_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
     betaflight_log = next((row for row in blackbox_summary.get("header_rows", []) if row["name"] == "Betaflight issue LOG00078"), None)  # type: ignore[index]
     lines: list[str] = []
@@ -1689,8 +1977,10 @@ def write_markdown(
     if rotorpy_drag_10 is not None:
         drag_note += f" RotorPy Hummingbird's comparable 10 m/s body-drag-only X/Z forces are `{fmt(float(rotorpy_drag_10['axis_x_drag_force_n']))}`/`{fmt(float(rotorpy_drag_10['axis_z_drag_force_n']))}` N."
     lines.append(f"- {drag_note} Treat the current drag coefficients as very strong unless intentionally gameplay-scaled.")
+    lines.append(f"- In the current hybrid gust model, a representative `wind=10 m/s, dirtyAir=1.5` case gives target gust RMS of `{fmt(float(wind_case['current_gust_rms_x_m_s']))}` m/s horizontal X and `{fmt(float(wind_case['current_gust_rms_y_m_s']))}` m/s vertical after combining a scaled dirty-air burble with the low-altitude Dryden target. Against a Dryden reference at 6 m using the same 10 m/s wind, those are `{fmt(float(wind_case['current_x_rms_over_dryden_u']), 2)}x` longitudinal and `{fmt(float(wind_case['current_y_rms_over_dryden_w']), 2)}x` vertical turbulence intensity.")
     lines.append(f"- `racingQuad` now carries `RotorSpec.bladeCount = {fmt(float(racing_timing['configured_blade_count']), 0)}` for blade-pass vibration and gyro notch telemetry. Its configured hover/max blade-pass frequencies are `{fmt(float(racing_timing['hover_blade_pass_hz']))}/{fmt(float(racing_timing['max_blade_pass_hz']))}` Hz, matching the three-blade FPV prop references at the same RPM.")
     lines.append(f"- `racingQuad` configured gyro noise `{fmt(float(racing_imu_mpu6000['configured_gyro_noise_rad_s']))}` rad/s is about `{fmt(float(racing_imu_mpu6000['configured_over_sensor_gyro']), 1)}x` an MPU-6000/6050 one-pole 120 Hz RMS estimate and `{fmt(float(racing_imu_icm42688['configured_over_sensor_gyro']), 1)}x` an ICM-42688-P estimate. Treat the configured noise as frame vibration plus electronics, not bare IMU noise.")
+    lines.append(f"- `racingQuad` quiet barometer model noise is about `{fmt(float(racing_baro_noise['quiet_barometer_noise_rms_m']), 4)}` m RMS from the accelerometer-noise coupling term, comparable to good MEMS pressure-sensor noise floors such as `{baro_best_sensor['sensor']}` at `{fmt(float(baro_best_sensor['pressure_noise_altitude_m']), 4)}` m. But the modeled aligned-flow dynamic-pressure error at 20 m/s is `{fmt(float(baro_aligned_20['code_altitude_error_m']))}` m, so barometer realism is dominated by static-port/propwash pressure error rather than silicon pressure noise.")
     if betaflight_log is not None:
         lines.append(f"- The public Betaflight 4.2.4 blackbox log header has `looptime={fmt(float(betaflight_log['looptime_us']), 0)} us`, `pid_process_denom={fmt(float(betaflight_log['pid_process_denom']), 0)}`, `dshot_bidir={fmt(float(betaflight_log['dshot_bidir']), 0)}`, and an estimated main-log rate of `{fmt(float(betaflight_log['estimated_main_sample_hz']), 0)}` Hz. Its field list has gyro, accelerometer, and motor command data, but no `eRPM` field, so it is a format/timing anchor rather than a motor-RPM validation log.")
     lines.append(f"- Betaflight's current blackbox source logs `eRPM / {fmt(float(blackbox_summary['erpm_logged_divisor']), 0)}` when DShot telemetry fields are present. For a 14-pole motor, one logged count equals `{fmt(float(blackbox_summary['mechanical_rpm_per_logged_erpm100']), 2)}` mechanical rpm; the current `racingQuad` hover/max RPM would appear as about `{fmt(float(racing_erpm['hover_logged_erpm100']), 0)}/{fmt(float(racing_erpm['max_logged_erpm100']), 0)}` in an `eRPM[]` blackbox column.")
@@ -1764,6 +2054,30 @@ def write_markdown(
         )
     lines.append("")
     lines.append("The important warning is formula-level: the current linear coefficient is already a quadratic force term, not a small Stokes-like linear damping term. For `racingQuad`, `linear + body-X` gives an equivalent `CdA` above half a square meter and several vehicle weights of drag by 10 m/s, before separated-flow additions. If this is meant to model real aerodynamic body drag, it is very high; if it is a gameplay stability damper, it should be documented as such and kept separate from physical CdA claims.")
+    lines.append("")
+    lines.append("## Wind, turbulence, and atmosphere sanity")
+    lines.append("")
+    lines.append(f"References: [NASA standard atmosphere]({NASA_ATMOSPHERE_URL}), [pyfly Dryden implementation]({PYFLY_DRYDEN_URL}), and [open UAV wind modeling survey]({UAV_WIND_MODELING_URL}). Generated wind CSV: `docs/data/wind_gust_dryden_reference.csv`.")
+    lines.append("")
+    lines.append("The Dryden rows use the common low-altitude formulas at 6 m altitude and take `wind20` equal to the scenario wind speed. The current model rows estimate target-gust RMS from the scaled dirty-air burble plus Dryden target before vehicle response and first-order filtering; this is an intensity/time-scale check, not a full stochastic spectrum fit.")
+    lines.append("")
+    lines.append("| wind | dirtyAir | current gust RMS X/Y/Z | current peak X/Y/Z | phase periods A/B/C | tau gust/mean | Dryden sigma u/w | RMS ratio X/u Y/w | Dryden time u/w |")
+    lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in wind_rows:
+        if float(row["dirty_air"]) not in (0.75, 1.50) or float(row["wind_speed_m_s"]) not in (5.0, 10.0, 15.0):
+            continue
+        lines.append(
+            f"| {fmt(float(row['wind_speed_m_s']), 0)} m/s | {fmt(float(row['dirty_air']), 2)} | "
+            f"{fmt(float(row['current_gust_rms_x_m_s']))}/{fmt(float(row['current_gust_rms_y_m_s']))}/{fmt(float(row['current_gust_rms_z_m_s']))} m/s | "
+            f"{fmt(float(row['current_gust_peak_x_m_s']))}/{fmt(float(row['current_gust_peak_y_m_s']))}/{fmt(float(row['current_gust_peak_z_m_s']))} m/s | "
+            f"{fmt(float(row['phase_a_period_s']))}/{fmt(float(row['phase_b_period_s']))}/{fmt(float(row['phase_c_period_s']))} s | "
+            f"{fmt(float(row['gust_time_constant_s']))}/{fmt(float(row['mean_wind_time_constant_s']))} s | "
+            f"{fmt(float(row['dryden_sigma_u_m_s']))}/{fmt(float(row['dryden_sigma_w_m_s']))} m/s | "
+            f"{fmt(float(row['current_x_rms_over_dryden_u']), 2)}/{fmt(float(row['current_y_rms_over_dryden_w']), 2)} | "
+            f"{fmt(float(row['dryden_longitudinal_time_s']))}/{fmt(float(row['dryden_vertical_time_s']))} s |"
+        )
+    lines.append("")
+    lines.append("The Dryden component now carries the physical low-altitude length scales and sigma targets, while the remaining deterministic burble is deliberately reduced and kept as obstacle/dirty-air feel. A future Von Karman or stochastic Dryden noise source would still be a cleaner spectral target than deterministic sine excitation.")
     lines.append("")
     lines.append("## ZJU ground-effect and motor calibration anchor")
     lines.append("")
@@ -1857,6 +2171,47 @@ def write_markdown(
         )
     lines.append("")
     lines.append("The current sensor-noise values are consistently several times to tens of times above bare IMU electronics noise. That can be reasonable for a gameplay/FPV feel model if these parameters intentionally represent residual vibration after filtering; if they are meant as electronics-only noise, they are high.")
+    lines.append("")
+    lines.append("## Barometer pressure and altitude sanity")
+    lines.append("")
+    lines.append(f"Sources: [BMP280 datasheet]({BMP280_DATASHEET_URL}), [BMP388 datasheet]({BMP388_DATASHEET_URL}), [DPS310 datasheet]({DPS310_DATASHEET_URL}), [MS5611 datasheet]({MS5611_DATASHEET_URL}), and [NASA dynamic pressure/atmosphere context]({NASA_ATMOSPHERE_URL}). Generated barometer CSV: `{barometer_summary['summary_csv']}`.")
+    lines.append("")
+    lines.append("Near sea level, `1 Pa` pressure error is about `0.083 m` altitude error by `dh = dp / (rho g)`. The table separates sensor pressure noise from the project's simulated pressure-port/propwash/dynamic-pressure error.")
+    lines.append("")
+    lines.append("| Sensor | pressure noise | altitude noise | relative accuracy | relative altitude | note |")
+    lines.append("|---|---:|---:|---:|---:|---|")
+    for row in barometer_summary.get("sensor_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| [{item['sensor']}]({item['source']}) | {fmt(float(item['pressure_noise_pa']))} Pa | "
+            f"{fmt(float(item['pressure_noise_altitude_m']), 4)} m | "
+            f"{fmt(float(item['relative_accuracy_pa']))} Pa | {fmt(float(item['relative_accuracy_altitude_m']))} m | "
+            f"{item['note']} |"
+        )
+    lines.append("")
+    lines.append("| Preset | accel noise | quiet baro amplitude | quiet baro RMS | altitude tau | vertical-speed tau |")
+    lines.append("|---|---:|---:|---:|---:|---:|")
+    for row in barometer_summary.get("preset_noise_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| {item['preset']} | {fmt(float(item['accelerometer_noise_stddev_m_s2']))} m/s^2 | "
+            f"{fmt(float(item['quiet_barometer_noise_amplitude_m']), 4)} m | "
+            f"{fmt(float(item['quiet_barometer_noise_rms_m']), 4)} m | "
+            f"{fmt(float(item['barometer_altitude_tau_s']), 3)} s | {fmt(float(item['barometer_vertical_speed_tau_s']), 3)} s |"
+        )
+    lines.append("")
+    lines.append("| Airspeed | flow mode | dynamic pressure head | code altitude error | equivalent pressure coefficient |")
+    lines.append("|---:|---|---:|---:|---:|")
+    for row in barometer_summary.get("dynamic_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| {fmt(float(item['airspeed_m_s']), 0)} m/s | {item['mode']} | "
+            f"{fmt(float(item['dynamic_pressure_head_m']))} m | "
+            f"{fmt(float(item['code_altitude_error_m']))} m | "
+            f"{fmt(float(item['static_port_pressure_coefficient_equivalent']), 3)} |"
+        )
+    lines.append("")
+    lines.append("Sensor-only altitude noise is centimeters to decimeters, while pressure-port aerodynamic bias can easily be meters at FPV speed. The current dynamic-pressure coefficients are equivalent to a few percent of dynamic pressure in aligned flow, which is plausible as a static-port placement/propwash abstraction but should not be described as raw barometer sensor noise.")
     lines.append("")
     lines.append("## Betaflight blackbox timing and RPM telemetry anchors")
     lines.append("")
@@ -1996,8 +2351,10 @@ def write_markdown(
     lines.append("5. Treat the current drag coefficients as gameplay damping unless a real FPV airframe drag data source supports multi-weight drag at 10 m/s; RotorPy's comparable Hummingbird body-drag coefficients are much smaller.")
     lines.append("6. Keep `RotorSpec.bladeCount` aligned with the prop family used for calibration; three-blade FPV presets should keep blade-pass vibration and gyro notch telemetry at 3x mechanical motor frequency.")
     lines.append("7. Label sensor-noise parameters as electronics-only or residual vibration/noise-after-filtering. Current values are much larger than bare IMU datasheet RMS at the configured LPF bandwidths, which is plausible for FPV vibration but not for pure sensor electronics.")
-    lines.append("8. Treat public blackbox logs without `eRPM[]` as timing/gyro/motor-command anchors only. For RPM-filter validation, require logs or exports that explicitly include `eRPM[0..3]`, and convert Betaflight logged `eRPM/100` through motor pole count before comparing with mechanical RPM.")
-    lines.append("9. Next data targets: digitized coaxial thrust/efficiency curves versus `z/D`, FPV high-C pack absolute ESR versus SOC/temperature, FPV airframe coast-down/log-fit drag, and Betaflight blackbox logs with RPM telemetry for propwash recovery validation.")
+    lines.append("8. Keep physical turbulence and FPV dirty-air feel separate. The wind model now has a low-altitude Dryden-scaled turbulence component plus a reduced deterministic burble component for obstacle/wake feel.")
+    lines.append("9. Separate barometer silicon pressure noise from pressure-port/propwash/dynamic-pressure altitude bias. The former is centimeters-to-decimeters; the current high-speed flow model is meters and should be documented as aerodynamic/static-port error.")
+    lines.append("10. Treat public blackbox logs without `eRPM[]` as timing/gyro/motor-command anchors only. For RPM-filter validation, require logs or exports that explicitly include `eRPM[0..3]`, and convert Betaflight logged `eRPM/100` through motor pole count before comparing with mechanical RPM.")
+    lines.append("11. Next data targets: digitized coaxial thrust/efficiency curves versus `z/D`, FPV high-C pack absolute ESR versus SOC/temperature, FPV airframe coast-down/log-fit drag, and Betaflight blackbox logs with RPM telemetry for propwash recovery validation.")
     lines.append("")
     while lines and lines[-1] == "":
         lines.pop()
@@ -2025,6 +2382,9 @@ def main() -> None:
         MENDELEY_LIPO_DATASET_URL,
         NASA_BATTERY_DATASET_URL,
         CHL_LIPO_IR_URL,
+        NASA_ATMOSPHERE_URL,
+        PYFLY_DRYDEN_URL,
+        UAV_WIND_MODELING_URL,
         BETAFLIGHT_RPM_FILTER_URL,
         BETAFLIGHT_PID_TUNING_URL,
         EXPRESSLRS_PACKET_URL,
@@ -2131,6 +2491,8 @@ def main() -> None:
     drag_rows = summarize_body_drag(presets, open_models)
     timing_rows = summarize_timing_vibration(presets)
     imu_rows = summarize_imu_noise(presets)
+    wind_rows = summarize_wind_gust()
+    barometer_summary = summarize_barometer(presets)
     blackbox_summary = summarize_blackbox_sources(timing_rows)
     mendeley_ecm = summarize_mendeley_ecm()
 
@@ -2154,12 +2516,14 @@ def main() -> None:
         ]
     )
 
-    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, blackbox_summary, mendeley_ecm)
-    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, blackbox_summary, mendeley_ecm)
+    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
     print("Wrote docs/fpv-sim-model-validation.md")
     print("Wrote docs/data/fpv_model_validation_summary.csv")
     print("Wrote docs/data/blackbox_log_header_summary.csv")
     print("Wrote docs/data/imu_noise_reference_summary.csv")
+    print("Wrote docs/data/wind_gust_dryden_reference.csv")
+    print("Wrote docs/data/barometer_reference_summary.csv")
     print(f"Cached raw sources in {RAW}")
 
 

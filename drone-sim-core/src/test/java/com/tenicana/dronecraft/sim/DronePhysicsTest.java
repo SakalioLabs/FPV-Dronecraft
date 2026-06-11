@@ -1968,6 +1968,32 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment dirtyWind = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5);
+		double sumGustXSquared = 0.0;
+		double sumGustYSquared = 0.0;
+		int samples = 0;
+
+		for (int i = 0; i < 1800; i++) {
+			physics.step(idle, 0.005, dirtyWind);
+			if (i >= 240) {
+				Vec3 gust = physics.state().windGustVelocityWorldMetersPerSecond();
+				sumGustXSquared += gust.x() * gust.x();
+				sumGustYSquared += gust.y() * gust.y();
+				samples++;
+			}
+		}
+
+		double rmsGustX = Math.sqrt(sumGustXSquared / samples);
+		double rmsGustY = Math.sqrt(sumGustYSquared / samples);
+		assertTrue(rmsGustX > 0.40, () -> "rmsGustX=" + rmsGustX);
+		assertTrue(rmsGustY > 0.10, () -> "rmsGustY=" + rmsGustY);
+		assertTrue(rmsGustX < 3.00, () -> "rmsGustX=" + rmsGustX);
+	}
+
+	@Test
 	void nearGroundBoundaryLayerReducesHorizontalWindAndAddsShear() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics openAir = new DronePhysics(config);

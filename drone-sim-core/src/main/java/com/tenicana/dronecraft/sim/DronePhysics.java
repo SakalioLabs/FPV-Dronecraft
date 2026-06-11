@@ -117,7 +117,13 @@ public final class DronePhysics {
 	private double windGustPhaseB;
 	private double windGustPhaseC;
 	private Vec3 meanWindVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private double drydenLongitudinalPhase;
+	private double drydenLateralPhase;
+	private double drydenVerticalPhase;
+	private double drydenCrossPhase;
 	private boolean windModelInitialized;
 	private boolean batteryThermalInitialized;
 	private Vec3 previousTargetRatesRadiansPerSecond = Vec3.ZERO;
@@ -4334,6 +4340,8 @@ public final class DronePhysics {
 		if (!windModelInitialized || dtSeconds <= 0.0) {
 			windModelInitialized = true;
 			meanWindVelocityWorldMetersPerSecond = targetMeanWind;
+			windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+			drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
 			windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 			state.setEffectiveWindVelocityWorldMetersPerSecond(targetMeanWind);
 			state.setWindGustVelocityWorldMetersPerSecond(Vec3.ZERO);
@@ -4360,12 +4368,14 @@ public final class DronePhysics {
 		windGustPhaseA += dtSeconds * (1.35 + 0.16 * targetWindSpeed + 1.25 * dirtyAir);
 		windGustPhaseB += dtSeconds * (1.95 + 0.11 * targetWindSpeed + 0.95 * dirtyAir);
 		windGustPhaseC += dtSeconds * (0.85 + 0.09 * targetWindSpeed + 1.55 * dirtyAir);
-		Vec3 targetGust = windGustTarget(environment, targetMeanWind, dirtyAir);
-		double gustTimeConstant = MathUtil.clamp(0.070 + 0.085 / (0.35 + dirtyAir), 0.055, 0.260);
-		double gustAlpha = MathUtil.expSmoothing(dtSeconds, gustTimeConstant);
-		windGustVelocityWorldMetersPerSecond = windGustVelocityWorldMetersPerSecond.add(
-				targetGust.subtract(windGustVelocityWorldMetersPerSecond).multiply(gustAlpha)
+		Vec3 targetBurble = windBurbleTarget(environment, targetMeanWind, dirtyAir);
+		double burbleTimeConstant = MathUtil.clamp(0.070 + 0.085 / (0.35 + dirtyAir), 0.055, 0.260);
+		double burbleAlpha = MathUtil.expSmoothing(dtSeconds, burbleTimeConstant);
+		windBurbleVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond.add(
+				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
+		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dirtyAir, dtSeconds);
+		windGustVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond.add(drydenTurbulence);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		Vec3 effectiveWind = meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond);
@@ -4436,7 +4446,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(surfaceSlip + (1.0 - surfaceSlip) * recovery, 0.18, 1.0);
 	}
 
-	private Vec3 windGustTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
+	private Vec3 windBurbleTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
 		if (dirtyAir <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
@@ -4455,9 +4465,91 @@ public final class DronePhysics {
 		Vec3 upstreamBurble = windSpeed <= 1.0e-6
 				? Vec3.ZERO
 				: targetMeanWind.normalized().multiply(-upstreamBias);
+		double burbleScale = MathUtil.clamp(
+				0.32
+						+ 0.18 * environment.obstacleProximity()
+						+ 0.14 * environment.droneWakeIntensity(),
+				0.28,
+				0.70
+		);
 		return new Vec3(horizontalGustX, verticalGust, horizontalGustZ)
 				.multiply(gustScale)
-				.add(upstreamBurble);
+				.add(upstreamBurble)
+				.multiply(burbleScale);
+	}
+
+	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir, double dtSeconds) {
+		double windSpeed = targetMeanWind.length();
+		if (dirtyAir <= 1.0e-6 || windSpeed <= 0.5 || dtSeconds <= 0.0) {
+			double alpha = MathUtil.expSmoothing(dtSeconds, 0.35);
+			drydenTurbulenceVelocityWorldMetersPerSecond = drydenTurbulenceVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
+			return drydenTurbulenceVelocityWorldMetersPerSecond;
+		}
+
+		DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(drydenReferenceAltitudeMeters(environment), windSpeed);
+		double intensityScale = MathUtil.clamp(dirtyAir / 1.8, 0.0, 1.0);
+		double longitudinalTau = MathUtil.clamp(dryden.longitudinalTimeConstantSeconds(), 0.10, 12.0);
+		double lateralTau = MathUtil.clamp(dryden.lateralTimeConstantSeconds(), 0.10, 12.0);
+		double verticalTau = MathUtil.clamp(dryden.verticalTimeConstantSeconds(), 0.05, 6.0);
+
+		drydenLongitudinalPhase += dtSeconds * MathUtil.clamp(1.55 / longitudinalTau, 0.08, 9.0);
+		drydenLateralPhase += dtSeconds * MathUtil.clamp(1.70 / lateralTau, 0.08, 9.0);
+		drydenVerticalPhase += dtSeconds * MathUtil.clamp(1.85 / verticalTau, 0.18, 16.0);
+		drydenCrossPhase += dtSeconds * MathUtil.clamp(2.35 / Math.sqrt(longitudinalTau * verticalTau), 0.12, 14.0);
+
+		double targetLongitudinal = dryden.longitudinalSigmaMetersPerSecond()
+				* intensityScale
+				* normalizedSineBlend(drydenLongitudinalPhase, drydenCrossPhase * 0.73 + 0.8, drydenVerticalPhase * 0.31 + 2.1, 1.0, 0.38, 0.16);
+		double targetLateral = dryden.lateralSigmaMetersPerSecond()
+				* intensityScale
+				* normalizedSineBlend(drydenLateralPhase + 1.1, drydenCrossPhase * 0.91 + 2.7, drydenLongitudinalPhase * 0.42, 1.0, 0.34, 0.20);
+		double targetVertical = dryden.verticalSigmaMetersPerSecond()
+				* intensityScale
+				* normalizedSineBlend(drydenVerticalPhase + 2.4, drydenCrossPhase * 1.13 + 0.3, drydenLateralPhase * 0.37 + 1.6, 1.0, 0.30, 0.18);
+
+		Vec3 longitudinalAxis = horizontalWindAxis(targetMeanWind);
+		Vec3 lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
+		Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
+		double currentLongitudinal = drydenTurbulenceVelocityWorldMetersPerSecond.dot(longitudinalAxis);
+		double currentLateral = drydenTurbulenceVelocityWorldMetersPerSecond.dot(lateralAxis);
+		double currentVertical = drydenTurbulenceVelocityWorldMetersPerSecond.dot(verticalAxis);
+		double longitudinal = currentLongitudinal + (targetLongitudinal - currentLongitudinal) * MathUtil.expSmoothing(dtSeconds, longitudinalTau);
+		double lateral = currentLateral + (targetLateral - currentLateral) * MathUtil.expSmoothing(dtSeconds, lateralTau);
+		double vertical = currentVertical + (targetVertical - currentVertical) * MathUtil.expSmoothing(dtSeconds, verticalTau);
+
+		drydenTurbulenceVelocityWorldMetersPerSecond = longitudinalAxis.multiply(longitudinal)
+				.add(lateralAxis.multiply(lateral))
+				.add(verticalAxis.multiply(vertical));
+		return drydenTurbulenceVelocityWorldMetersPerSecond;
+	}
+
+	private static double drydenReferenceAltitudeMeters(DroneEnvironment environment) {
+		if (Double.isFinite(environment.groundClearanceMeters())) {
+			return environment.groundClearanceMeters();
+		}
+		return 6.0;
+	}
+
+	private static Vec3 horizontalWindAxis(Vec3 windVelocityWorldMetersPerSecond) {
+		Vec3 horizontal = new Vec3(windVelocityWorldMetersPerSecond.x(), 0.0, windVelocityWorldMetersPerSecond.z());
+		return horizontal.lengthSquared() > 1.0e-9 ? horizontal.normalized() : new Vec3(1.0, 0.0, 0.0);
+	}
+
+	private static double normalizedSineBlend(
+			double phaseA,
+			double phaseB,
+			double phaseC,
+			double weightA,
+			double weightB,
+			double weightC
+	) {
+		double rms = Math.sqrt((weightA * weightA + weightB * weightB + weightC * weightC) * 0.5);
+		if (rms <= 1.0e-9) {
+			return 0.0;
+		}
+		return (weightA * Math.sin(phaseA)
+				+ weightB * Math.sin(phaseB)
+				+ weightC * Math.sin(phaseC)) / rms;
 	}
 
 	private Vec3 calculateRateControllerTorque(DroneInput input, double dtSeconds) {
