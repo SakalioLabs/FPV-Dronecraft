@@ -232,7 +232,7 @@ public record DroneConfig(
 				DEFAULT_RC_FRAME_RATE_HERTZ,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS).withRotorBladeCount(3);
 	}
 
 	public static DroneConfig cinewhoop() {
@@ -314,7 +314,7 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS).withRotorBladeCount(3);
 	}
 
 	public static DroneConfig heavyLift() {
@@ -639,7 +639,8 @@ public record DroneConfig(
 				template.inducedInflowLagCoefficient(),
 				template.flappingCoefficient(),
 				template.stallThrustLossCoefficient(),
-				template.imbalanceIntensity()
+				template.imbalanceIntensity(),
+				template.bladeCount()
 		);
 	}
 
@@ -1715,6 +1716,12 @@ public record DroneConfig(
 	public DroneConfig withRotorBladePitchMeters(double bladePitchMeters) {
 		return withRotors(rotors.stream()
 				.map(rotor -> rotor.withBladePitchMeters(bladePitchMeters))
+				.toList());
+	}
+
+	public DroneConfig withRotorBladeCount(int bladeCount) {
+		return withRotors(rotors.stream()
+				.map(rotor -> rotor.withBladeCount(bladeCount))
 				.toList());
 	}
 

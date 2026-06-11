@@ -17,10 +17,12 @@ public record RotorSpec(
 		double inducedInflowLagCoefficient,
 		double flappingCoefficient,
 		double stallThrustLossCoefficient,
-		double imbalanceIntensity
+		double imbalanceIntensity,
+		int bladeCount
 ) {
 	private static final Vec3 DEFAULT_THRUST_AXIS_BODY = new Vec3(0.0, 1.0, 0.0);
 	private static final double DEFAULT_IMBALANCE_INTENSITY = 0.012;
+	private static final int DEFAULT_BLADE_COUNT = 2;
 
 	public RotorSpec(
 			Vec3 positionBodyMeters,
@@ -54,7 +56,8 @@ public record RotorSpec(
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
 				0.0,
-				DEFAULT_IMBALANCE_INTENSITY
+				DEFAULT_IMBALANCE_INTENSITY,
+				DEFAULT_BLADE_COUNT
 		);
 	}
 
@@ -91,7 +94,8 @@ public record RotorSpec(
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
 				stallThrustLossCoefficient,
-				DEFAULT_IMBALANCE_INTENSITY
+				DEFAULT_IMBALANCE_INTENSITY,
+				DEFAULT_BLADE_COUNT
 		);
 	}
 
@@ -126,7 +130,8 @@ public record RotorSpec(
 				inducedInflowLagCoefficient,
 				0.0,
 				0.0,
-				DEFAULT_IMBALANCE_INTENSITY
+				DEFAULT_IMBALANCE_INTENSITY,
+				DEFAULT_BLADE_COUNT
 		);
 	}
 
@@ -159,7 +164,8 @@ public record RotorSpec(
 				0.0,
 				0.0,
 				0.0,
-				DEFAULT_IMBALANCE_INTENSITY
+				DEFAULT_IMBALANCE_INTENSITY,
+				DEFAULT_BLADE_COUNT
 		);
 	}
 
@@ -198,6 +204,7 @@ public record RotorSpec(
 		flappingCoefficient = MathUtil.clamp(flappingCoefficient, 0.0, 0.2);
 		stallThrustLossCoefficient = MathUtil.clamp(stallThrustLossCoefficient, 0.0, 0.65);
 		imbalanceIntensity = MathUtil.clamp(imbalanceIntensity, 0.0, 0.35);
+		bladeCount = Math.max(1, Math.min(8, bladeCount));
 	}
 
 	public static double defaultBladePitchMeters(double radiusMeters) {
@@ -261,6 +268,29 @@ public record RotorSpec(
 		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
 	}
 
+	public RotorSpec withBladeCount(int bladeCount) {
+		return new RotorSpec(
+				positionBodyMeters,
+				thrustAxisBody,
+				spinDirection,
+				maxThrustNewtons,
+				thrustCoefficient,
+				yawTorquePerThrustMeter,
+				radiusMeters,
+				bladePitchMeters,
+				transverseFlowLiftCoefficient,
+				axialFlowThrustLossCoefficient,
+				diskDragCoefficient,
+				rotorInertiaKgMetersSquared,
+				inducedInflowTimeConstantSeconds,
+				inducedInflowLagCoefficient,
+				flappingCoefficient,
+				stallThrustLossCoefficient,
+				imbalanceIntensity,
+				bladeCount
+		);
+	}
+
 	public RotorSpec withThrustAxisBody(Vec3 thrustAxisBody) {
 		return new RotorSpec(
 				positionBodyMeters,
@@ -279,7 +309,8 @@ public record RotorSpec(
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
 				stallThrustLossCoefficient,
-				imbalanceIntensity
+				imbalanceIntensity,
+				bladeCount
 		);
 	}
 
@@ -316,7 +347,8 @@ public record RotorSpec(
 				inducedInflowLagCoefficient,
 				flappingCoefficient,
 				stallThrustLossCoefficient,
-				imbalanceIntensity
+				imbalanceIntensity,
+				bladeCount
 		);
 	}
 }

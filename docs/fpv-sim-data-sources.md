@@ -354,11 +354,19 @@ Useful values and concepts:
 
 Generated timing/filter checks:
 
-- The report's `RPM, filtering, and command timing sanity` section derives hover/max RPM, configured blade-pass frequency, three-blade blade-pass frequency, gyro LPF, RC frame interval, ESC command frame interval, and configured latency/smoothing.
-- `DronePhysics` currently hardcodes `ROTOR_BLADE_COUNT = 2.0`.
-- For the calibrated `racingQuad`, this gives configured hover/max blade-pass `434/971 Hz`, while a three-blade FPV prop at the same RPM would be `651/1457 Hz`.
-- Because the UIUC and Mini Quad Test Bench 5-inch anchors used here are three-blade prop examples, either update the blade count for that family or document the current notch as a synthetic second harmonic rather than a true blade-pass frequency.
+- The report's `RPM, filtering, and command timing sanity` section derives hover/max RPM, configured blade-pass frequency from `RotorSpec.bladeCount`, three-blade reference frequency, gyro LPF, RC frame interval, ESC command frame interval, and configured latency/smoothing.
+- `racingQuad` and `cinewhoop` now configure `RotorSpec.bladeCount = 3`, matching the UIUC and Mini Quad Test Bench three-blade FPV prop anchors used here.
+- Larger lift presets keep the two-blade default until prop-family-specific data supports a different blade count.
 - `racingQuad` uses `150 Hz` RC frame rate, `400 Hz` ESC command rate, `15 ms` control latency, `18 ms` RC command latency, and `18 ms` RC smoothing. These are plausible gameplay/controller values, but they are not equivalent to a modern high-rate Betaflight loop unless explicitly modeled.
+
+IMU noise anchors:
+
+- [MPU-6000/6050 datasheet](https://www.cdiweb.com/datasheets/invensense/mpu-6050_datasheet_v3%204.pdf): gyro noise density `0.005 deg/s/sqrt(Hz)`, accel noise density `400 ug/sqrt(Hz)`.
+- [ICM-20602 datasheet](https://bluerobotics.com/wp-content/uploads/2022/05/ICM20602-DATASHEET.pdf): gyro noise density `0.004 deg/s/sqrt(Hz)`, accel noise density `100 ug/sqrt(Hz)`.
+- [BMI270 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmi270-ds000.pdf): gyro noise density `0.008 deg/s/sqrt(Hz)`, accel noise density `160 ug/sqrt(Hz)`.
+- [ICM-42688-P product page](https://invensense.tdk.com/en-us/products/6-axis/icm-42688-p): gyro noise density `0.0028 deg/s/sqrt(Hz)`, accel noise density `70 ug/sqrt(Hz)`.
+- Generated file `docs/data/imu_noise_reference_summary.csv` converts those datasheet densities to RMS at each preset's configured gyro/accelerometer LPF using one-pole equivalent noise bandwidth `pi/2 * cutoff`.
+- For `racingQuad`, the configured `0.025 rad/s` gyro noise is about `20.8x` an MPU-6000/6050 electronics-only RMS estimate at 120 Hz LPF and about `37.2x` an ICM-42688-P estimate. Treat it as residual vibration plus electronics, not bare IMU electronics noise.
 
 Generated blackbox/log checks:
 
@@ -403,11 +411,15 @@ Use these for RC link update-rate/failsafe plausibility rather than rigid physic
    - Treat those coefficients as gameplay damping unless wind-tunnel, coast-down, log-fit, or open-source model data supports that magnitude.
 
 8. Reconcile blade-pass semantics.
-   - Current code uses `ROTOR_BLADE_COUNT = 2.0`.
-   - The 5-inch FPV prop anchors in this packet are three-blade examples, so physical blade-pass frequency is `1.5x` the current telemetry/notch value at the same RPM.
-   - If the code keeps two blades for gameplay feel, avoid labeling that notch as the measured three-blade blade-pass frequency.
+   - Blade-pass ripple and gyro notch frequency now use per-rotor `RotorSpec.bladeCount`.
+   - Keep the count aligned with the prop family used for calibration; three-blade FPV logs should compare against 3x mechanical motor frequency, while larger two-blade lift props can remain at 2x until better data is available.
+   - If a preset intentionally uses a synthetic harmonic for feel, avoid labeling that notch as measured physical blade-pass frequency.
 
-9. Reconcile blackbox RPM units before using logs for validation.
+9. Reconcile IMU noise semantics.
+   - Datasheet electronics noise is much lower than the current configured noise at the project LPF bandwidths.
+   - If these values include frame vibration, prop imbalance, and aliasing, label them as residual FPV sensor noise rather than bare IMU electronics.
+
+10. Reconcile blackbox RPM units before using logs for validation.
    - Betaflight blackbox `eRPM[]` values are logged as electrical RPM divided by 100.
    - Convert through motor pole count before comparing to simulated mechanical RPM or blade-pass frequency.
    - Public logs without `eRPM[]` should only be used for timing, gyro, accelerometer, and motor-command field validation.

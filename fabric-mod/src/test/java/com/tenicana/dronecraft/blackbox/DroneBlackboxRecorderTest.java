@@ -287,6 +287,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_surface_scrape"));
 		assertTrue(csv.contains("rotor_1_surface_scrape"));
 		assertTrue(csv.contains("tune_rotor_blade_pitch_m"));
+		assertTrue(csv.contains("tune_rotor_blade_count"));
 		assertTrue(csv.contains("tune_rotor_stall_loss"));
 		assertTrue(csv.contains("tune_rotor_imbalance"));
 		assertTrue(csv.contains("tune_rc_frame_rate_hz"));
@@ -317,6 +318,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_command_frame_interval_s")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_command_error")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_blade_pitch_m")]));
+		assertEquals(3.0, Double.parseDouble(row[indexOf(header, "tune_rotor_blade_count")]), 0.0001);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_stall_loss")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_imbalance")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rc_frame_rate_hz")]));
@@ -928,7 +930,8 @@ class DroneBlackboxRecorderTest {
 				template.inducedInflowLagCoefficient(),
 				template.flappingCoefficient(),
 				template.stallThrustLossCoefficient(),
-				template.imbalanceIntensity()
+				template.imbalanceIntensity(),
+				template.bladeCount()
 		);
 	}
 }

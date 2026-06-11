@@ -10,7 +10,6 @@ public final class DronePhysics {
 	private static final double MOTOR_STALL_CURRENT_SCALE = 3.20;
 	private static final double MOTOR_NO_LOAD_OMEGA_SCALE = 1.35;
 	private static final double MOTOR_OUTRUNNER_POLE_PAIRS = 7.0;
-	private static final double ROTOR_BLADE_COUNT = 2.0;
 	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
 	private static final double ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE = 0.055;
 	private static final double ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ = 24.0;
@@ -2809,7 +2808,7 @@ public final class DronePhysics {
 		}
 
 		rotorBladePassPhases[index] = normalizeRadians(
-				rotorBladePassPhases[index] + Math.abs(omegaRadiansPerSecond) * ROTOR_BLADE_COUNT * dtSeconds
+				rotorBladePassPhases[index] + Math.abs(omegaRadiansPerSecond) * rotor.bladeCount() * dtSeconds
 		);
 		double phase = rotorBladePassPhases[index] + index * 0.61;
 		double bladePassWave = Math.sin(phase)
@@ -5748,14 +5747,15 @@ public final class DronePhysics {
 		double averageOmega = averageMotorOmegaRadiansPerSecond();
 		double notchFrequencyHertz = averageOmega / (Math.PI * 2.0);
 		double notchAttenuation = gyroDynamicNotchAttenuation(notchFrequencyHertz, vibration);
-		double bladePassNotchFrequencyHertz = notchFrequencyHertz * 2.0;
+		double averageBladePassOmega = averageRotorBladePassOmegaRadiansPerSecond();
+		double bladePassNotchFrequencyHertz = averageBladePassOmega / (Math.PI * 2.0);
 		double bladePassNotchAttenuation = gyroDynamicNotchAttenuation(bladePassNotchFrequencyHertz, vibration);
 		state.setGyroDynamicNotchFrequencyHertz(notchFrequencyHertz);
 		state.setGyroDynamicNotchAttenuation(notchAttenuation);
 		state.setGyroBladePassNotchFrequencyHertz(bladePassNotchFrequencyHertz);
 		state.setGyroBladePassNotchAttenuation(bladePassNotchAttenuation);
 		gyroRotorVibrationPhase += averageOmega * dtSeconds;
-		gyroBladePassVibrationPhase += averageOmega * 2.0 * dtSeconds;
+		gyroBladePassVibrationPhase += averageBladePassOmega * dtSeconds;
 		double t = gyroNoiseTimeSeconds;
 		Vec3 broadbandNoise = new Vec3(
 				noiseScale * (Math.sin(t * 437.0 + 0.2) + 0.35 * Math.sin(t * 941.0 + 1.7)),
@@ -5787,6 +5787,15 @@ public final class DronePhysics {
 			sum += Math.abs(state.motorOmegaRadiansPerSecond(i));
 		}
 		return sum / state.motorCount();
+	}
+
+	private double averageRotorBladePassOmegaRadiansPerSecond() {
+		double sum = 0.0;
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		for (int i = 0; i < count; i++) {
+			sum += Math.abs(state.motorOmegaRadiansPerSecond(i)) * config.rotors().get(i).bladeCount();
+		}
+		return count == 0 ? 0.0 : sum / count;
 	}
 
 	private static double gyroDynamicNotchAttenuation(double frequencyHertz, double rotorVibration) {

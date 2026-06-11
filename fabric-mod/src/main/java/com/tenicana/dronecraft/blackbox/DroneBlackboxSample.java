@@ -489,6 +489,7 @@ public final class DroneBlackboxSample {
 			"tune_rotor_thrust_coefficient",
 			"tune_rotor_radius_m",
 			"tune_rotor_blade_pitch_m",
+			"tune_rotor_blade_count",
 			"tune_rotor_transverse_lift",
 			"tune_rotor_axial_loss",
 			"tune_rotor_flapping",
@@ -1342,6 +1343,7 @@ public final class DroneBlackboxSample {
 		row.add(rotor.thrustCoefficient(), "%.4f");
 		row.add(rotor.radiusMeters(), "%.3f");
 		row.add(rotor.bladePitchMeters(), "%.4f");
+		row.add((double) rotor.bladeCount(), "%.0f");
 		row.add(rotor.transverseFlowLiftCoefficient(), "%.4f");
 		row.add(rotor.axialFlowThrustLossCoefficient(), "%.8f");
 		row.add(rotor.flappingCoefficient(), "%.5f");

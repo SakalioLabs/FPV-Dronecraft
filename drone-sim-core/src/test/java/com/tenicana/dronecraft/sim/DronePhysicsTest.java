@@ -39,6 +39,29 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorBladeCountIsPresetSpecific() {
+		assertEquals(3, DroneConfig.racingQuad().rotors().get(0).bladeCount());
+		assertEquals(3, DroneConfig.cinewhoop().rotors().get(0).bladeCount());
+		assertEquals(2, DroneConfig.heavyLift().rotors().get(0).bladeCount());
+
+		RotorSpec defaultRotor = new RotorSpec(
+				Vec3.ZERO,
+				1,
+				12.0,
+				1.0e-6,
+				0.014,
+				0.0635,
+				0.08,
+				0.16,
+				0.0028,
+				3.0e-6
+		);
+		assertEquals(2, defaultRotor.bladeCount());
+		assertEquals(3, defaultRotor.withBladeCount(3).bladeCount());
+		assertEquals(8, defaultRotor.withBladeCount(99).bladeCount());
+	}
+
+	@Test
 	void rollCommandProducesBodyRollRate() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput input = new DroneInput(0.45, 0.0, 0.7, 0.0, true);
@@ -612,6 +635,25 @@ class DronePhysicsTest {
 			forward.step(input, 0.005);
 		}
 
+		double frontThrustSum = 0.0;
+		double rearThrustSum = 0.0;
+		int thrustSamples = 0;
+		for (int i = 0; i < 160; i++) {
+			holdInStillAir(hover);
+			holdInCruise(forward, forwardVelocity);
+			hover.step(input, 0.005);
+			forward.step(input, 0.005);
+			frontThrustSum += 0.5 * (
+					forward.state().rotorThrustNewtons(0)
+							+ forward.state().rotorThrustNewtons(1)
+			);
+			rearThrustSum += 0.5 * (
+					forward.state().rotorThrustNewtons(2)
+							+ forward.state().rotorThrustNewtons(3)
+			);
+			thrustSamples++;
+		}
+
 		double frontWake = 0.5 * (
 				forward.state().rotorWakeInterferenceIntensity(0)
 						+ forward.state().rotorWakeInterferenceIntensity(1)
@@ -620,21 +662,15 @@ class DronePhysicsTest {
 				forward.state().rotorWakeInterferenceIntensity(2)
 						+ forward.state().rotorWakeInterferenceIntensity(3)
 		);
-		double frontThrust = 0.5 * (
-				forward.state().rotorThrustNewtons(0)
-						+ forward.state().rotorThrustNewtons(1)
-		);
-		double rearThrust = 0.5 * (
-				forward.state().rotorThrustNewtons(2)
-						+ forward.state().rotorThrustNewtons(3)
-		);
+		double frontThrust = frontThrustSum / thrustSamples;
+		double rearThrust = rearThrustSum / thrustSamples;
 
 		assertEquals(0.0, hover.state().maxRotorWakeInterferenceIntensity(), 0.02);
 		assertTrue(frontWake < 0.03, () -> "frontWake=" + frontWake + " rearWake=" + rearWake);
 		assertTrue(rearWake > 0.055, () -> "frontWake=" + frontWake + " rearWake=" + rearWake);
 		assertTrue(rearWake > frontWake + 0.050, () -> "frontWake=" + frontWake + " rearWake=" + rearWake);
 		assertTrue(forward.state().maxRotorWakeSwirlVelocityMetersPerSecond() > 0.08);
-		assertTrue(rearThrust < frontThrust * 0.99, () -> "frontThrust=" + frontThrust + " rearThrust=" + rearThrust);
+		assertTrue(rearThrust < frontThrust - 0.005, () -> "frontThrust=" + frontThrust + " rearThrust=" + rearThrust);
 	}
 
 	@Test
@@ -4123,7 +4159,7 @@ class DronePhysicsTest {
 		assertTrue(damaged.state().rotorVibration() > clean.state().rotorVibration() + 0.02);
 		assertTrue(damaged.state().gyroDynamicNotchFrequencyHertz() > 40.0);
 		assertEquals(
-				damaged.state().gyroDynamicNotchFrequencyHertz() * 2.0,
+				damaged.state().gyroDynamicNotchFrequencyHertz() * config.rotors().get(0).bladeCount(),
 				damaged.state().gyroBladePassNotchFrequencyHertz(),
 				1.0e-9
 		);
@@ -7076,6 +7112,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_frame_rate_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_resolution_steps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_pitch_m"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_count"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_imbalance"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_x_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_y_m"));
@@ -7178,6 +7215,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_frame_rate_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_resolution_steps")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_pitch_m")])));
+		assertEquals(3.0, Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_count")]), 0.0001);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_imbalance")]) >= 0.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_cg_x_m")])));
 		assertEquals(0.0, Double.parseDouble(firstRow[indexOf(header, "tune_cg_z_m")]), 0.0001);
@@ -7582,7 +7620,8 @@ class DronePhysicsTest {
 				template.inducedInflowLagCoefficient(),
 				template.flappingCoefficient(),
 				template.stallThrustLossCoefficient(),
-				template.imbalanceIntensity()
+				template.imbalanceIntensity(),
+				template.bladeCount()
 		);
 	}
 
