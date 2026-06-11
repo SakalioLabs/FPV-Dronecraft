@@ -353,7 +353,7 @@ public final class DroneHud {
 	private static String aerodynamicStatusLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"AS%4.1f A%+3.0f S%+3.0f E%2.0f Mu%2.0f TM%2.0f Re%2.0f BA%2.0f BS%2.0f K%2.0f W%2.0f WL%2.0f SW%.1f WM%2.0f P%2.0f V%2.0f R%2.0f",
+				"AS%4.1f A%+3.0f S%+3.0f E%2.0f Mu%2.0f TM%2.0f Re%2.0f BA%2.0f BS%2.0f K%2.0f W%2.0f WL%2.0f WW%2.0f SW%.1f WM%2.0f P%2.0f V%2.0f R%2.0f",
 				drone.getAirspeedMetersPerSecond(),
 				drone.getAngleOfAttackDegrees(),
 				drone.getSideslipDegrees(),
@@ -366,6 +366,7 @@ public final class DroneHud {
 				drone.getRotorInflowSkewIntensity() * 100.0f,
 				drone.getRotorWakeInterferenceIntensity() * 100.0f,
 				(1.0f - drone.getRotorWakeThrustScale()) * 100.0f,
+				(1.0f - drone.getRotorWetThrustScale()) * 100.0f,
 				drone.getRotorWakeSwirlVelocityMetersPerSecond(),
 				drone.getRotorWindmillingIntensity() * 100.0f,
 				drone.getPropwashIntensity() * 100.0f,
@@ -443,6 +444,7 @@ public final class DroneHud {
 				|| drone.getRotorBladeElementStallIntensity() > 0.35f
 				|| drone.getRotorWakeInterferenceIntensity() > 0.35f
 				|| drone.getRotorWakeThrustScale() < 0.94f
+				|| drone.getRotorWetThrustScale() < 0.96f
 				|| drone.getRotorWakeSwirlVelocityMetersPerSecond() > 0.75f
 				|| drone.getRotorWindmillingIntensity() > 0.45f
 				|| drone.getRotorStallIntensity() > 0.35f) {
