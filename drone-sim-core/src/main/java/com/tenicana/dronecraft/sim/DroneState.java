@@ -103,6 +103,7 @@ public final class DroneState {
 	private double[] rotorSurfaceScrapeIntensity;
 	private double[] rotorWakeInterferenceIntensity;
 	private double[] rotorWakeThrustScale;
+	private double[] rotorWetThrustScale;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
 	private double[] rotorArmFlexIntensity;
 	private double[] rotorHealth;
@@ -213,6 +214,7 @@ public final class DroneState {
 		rotorSurfaceScrapeIntensity = new double[motorCount];
 		rotorWakeInterferenceIntensity = new double[motorCount];
 		rotorWakeThrustScale = new double[motorCount];
+		rotorWetThrustScale = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
 		rotorArmFlexIntensity = new double[motorCount];
 		rotorHealth = new double[motorCount];
@@ -227,6 +229,7 @@ public final class DroneState {
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
+		Arrays.fill(rotorWetThrustScale, 1.0);
 		repairAllRotors();
 	}
 
@@ -1285,6 +1288,7 @@ public final class DroneState {
 		Arrays.fill(rotorSurfaceScrapeIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
+		Arrays.fill(rotorWetThrustScale, 1.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		rotorVibration = 0.0;
@@ -1837,6 +1841,34 @@ public final class DroneState {
 	public double minRotorWakeThrustScale() {
 		double min = 1.0;
 		for (double scale : rotorWakeThrustScale) {
+			min = Math.min(min, scale);
+		}
+		return min;
+	}
+
+	public double rotorWetThrustScale(int index) {
+		return rotorWetThrustScale[index];
+	}
+
+	public double[] rotorWetThrustScale() {
+		return Arrays.copyOf(rotorWetThrustScale, rotorWetThrustScale.length);
+	}
+
+	void setRotorWetThrustScale(int index, double value) {
+		rotorWetThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.08, 1.0) : 1.0;
+	}
+
+	public double averageRotorWetThrustScale() {
+		double sum = 0.0;
+		for (double scale : rotorWetThrustScale) {
+			sum += scale;
+		}
+		return sum / rotorWetThrustScale.length;
+	}
+
+	public double minRotorWetThrustScale() {
+		double min = 1.0;
+		for (double scale : rotorWetThrustScale) {
 			min = Math.min(min, scale);
 		}
 		return min;

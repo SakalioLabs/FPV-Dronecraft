@@ -609,11 +609,13 @@ public final class DronePhysics {
 			);
 			double wakeThrustScale = rotorWakeInterferenceThrustScale(wakeInterference);
 			state.setRotorWakeThrustScale(i, wakeThrustScale);
+			double wetThrustScale = waterImmersionThrustScale(rotorWaterImmersion)
+					* precipitationThrustScale(precipitationWetness);
+			state.setRotorWetThrustScale(i, wetThrustScale);
 			double thrustScale = airDensity
 					* surfaceEffectThrustMultiplier
 					* wakeThrustScale
-					* waterImmersionThrustScale(rotorWaterImmersion)
-					* precipitationThrustScale(precipitationWetness)
+					* wetThrustScale
 					* rotorHealthThrustScale(state.rotorHealth(i));
 			double baseThrust = rotor.thrustCoefficient() * aerodynamicOmega * aerodynamicOmega * thrustScale;
 			double inflowLagScale = updateRotorInducedInflow(i, rotor, rotorRelativeAirVelocityBody, aerodynamicOmega, baseThrust, airDensity, dtSeconds);

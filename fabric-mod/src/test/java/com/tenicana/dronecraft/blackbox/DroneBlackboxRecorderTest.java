@@ -136,6 +136,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_wake_thrust_scale"));
 		assertTrue(csv.contains("rotor_3_wake_thrust_scale"));
 		assertTrue(csv.contains("rotor_7_wake_thrust_scale"));
+		assertTrue(csv.contains("rotor_wet_thrust_scale"));
+		assertTrue(csv.contains("rotor_3_wet_thrust_scale"));
+		assertTrue(csv.contains("rotor_7_wet_thrust_scale"));
 		assertTrue(csv.contains("rotor_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_3_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_7_wake_swirl_mps"));
@@ -367,6 +370,10 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_wake_thrust_scale")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]));
+		double loggedWetThrustScale = Double.parseDouble(row[indexOf(header, "rotor_wet_thrust_scale")]);
+		assertUnitInterval(loggedWetThrustScale);
+		assertTrue(loggedWetThrustScale < 1.0);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wet_thrust_scale")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_roll_torque_nm")]));
@@ -894,6 +901,7 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wet_thrust_scale")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_windmilling")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]) >= 0.0);

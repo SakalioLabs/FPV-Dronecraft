@@ -171,6 +171,11 @@ public final class OfflineFlightRecorder {
 			"rotor_1_wake_thrust_scale",
 			"rotor_2_wake_thrust_scale",
 			"rotor_3_wake_thrust_scale",
+			"rotor_wet_thrust_scale",
+			"rotor_0_wet_thrust_scale",
+			"rotor_1_wet_thrust_scale",
+			"rotor_2_wet_thrust_scale",
+			"rotor_3_wet_thrust_scale",
 			"rotor_blade_dissymmetry_pitch_torque_nm",
 			"rotor_blade_dissymmetry_yaw_torque_nm",
 			"rotor_blade_dissymmetry_roll_torque_nm",
@@ -449,6 +454,10 @@ public final class OfflineFlightRecorder {
 			"rotor_5_wake_thrust_scale",
 			"rotor_6_wake_thrust_scale",
 			"rotor_7_wake_thrust_scale",
+			"rotor_4_wet_thrust_scale",
+			"rotor_5_wet_thrust_scale",
+			"rotor_6_wet_thrust_scale",
+			"rotor_7_wet_thrust_scale",
 			"rotor_wake_swirl_mps",
 			"rotor_0_wake_swirl_mps",
 			"rotor_1_wake_swirl_mps",
@@ -972,7 +981,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
+						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
 						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
@@ -1145,6 +1154,11 @@ public final class OfflineFlightRecorder {
 				state.rotorWakeThrustScale(1),
 				state.rotorWakeThrustScale(2),
 				state.rotorWakeThrustScale(3),
+				state.averageRotorWetThrustScale(),
+				state.rotorWetThrustScale(0),
+				state.rotorWetThrustScale(1),
+				state.rotorWetThrustScale(2),
+				state.rotorWetThrustScale(3),
 				rotorBladeDissymmetryTorque.x(),
 				rotorBladeDissymmetryTorque.y(),
 				rotorBladeDissymmetryTorque.z(),
@@ -1350,6 +1364,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
+		double[] rotorWetThrustScale = state.rotorWetThrustScale();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
@@ -1430,6 +1445,9 @@ public final class OfflineFlightRecorder {
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorWakeThrustScale, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			appendExtra(builder, valueOrOne(rotorWetThrustScale, i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorWakeSwirlVelocityMetersPerSecond(), "%.5f");
 		for (int i = 0; i < 8; i++) {

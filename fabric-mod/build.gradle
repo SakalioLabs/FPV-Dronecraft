@@ -162,6 +162,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_wake_interference",
 		"rotor_wake_thrust_scale",
 		"rotor_5_wake_thrust_scale",
+		"rotor_wet_thrust_scale",
+		"rotor_5_wet_thrust_scale",
 		"rotor_wake_swirl_mps",
 		"rotor_5_wake_swirl_mps",
 		"rotor_windmilling",

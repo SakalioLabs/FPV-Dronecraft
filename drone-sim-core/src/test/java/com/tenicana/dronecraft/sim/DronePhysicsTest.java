@@ -4795,6 +4795,9 @@ class DronePhysicsTest {
 		}
 
 		assertTrue(wetEnvironment.waterImmersionIntensity() > 0.70);
+		assertTrue(wet.state().averageRotorWetThrustScale() < dry.state().averageRotorWetThrustScale() - 0.45);
+		assertTrue(wet.state().minRotorWetThrustScale() < 0.45);
+		assertEquals(1.0, dry.state().minRotorWetThrustScale(), 0.001);
 		assertTrue(wet.state().averageRotorAerodynamicLoadFactor()
 				> dry.state().averageRotorAerodynamicLoadFactor() + 0.25);
 		assertTrue(averageRotorThrust(wet.state()) < averageRotorThrust(dry.state()) * 0.65);
@@ -4855,6 +4858,9 @@ class DronePhysicsTest {
 		double rainThrust = averageRotorThrust(rainWet.state());
 		assertEquals(0.0, rainEnvironment.waterImmersionIntensity(), 1.0e-9);
 		assertTrue(rainEnvironment.precipitationWetnessIntensity() > 0.90);
+		assertEquals(1.0, dry.state().minRotorWetThrustScale(), 0.001);
+		assertTrue(rainWet.state().averageRotorWetThrustScale() < 0.97);
+		assertTrue(rainWet.state().minRotorWetThrustScale() > 0.92);
 		assertTrue(rainWet.state().averageRotorAerodynamicLoadFactor()
 				> dry.state().averageRotorAerodynamicLoadFactor() + 0.06);
 		assertTrue(rainThrust < dryThrust * 0.99);
@@ -7148,6 +7154,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_air_density_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("precipitation_wetness"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wet_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_wet_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
@@ -7226,6 +7235,12 @@ class DronePhysicsTest {
 		assertTrue(loggedWakeThrustScale <= 1.0);
 		assertTrue(loggedRotor7WakeThrustScale >= 0.72);
 		assertTrue(loggedRotor7WakeThrustScale <= 1.0);
+		double loggedWetThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_wet_thrust_scale")]);
+		double loggedRotor7WetThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_wet_thrust_scale")]);
+		assertTrue(loggedWetThrustScale >= 0.08);
+		assertTrue(loggedWetThrustScale <= 1.0);
+		assertTrue(loggedRotor7WetThrustScale >= 0.08);
+		assertTrue(loggedRotor7WetThrustScale <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_roll_torque_nm")])));
@@ -7435,11 +7450,14 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_thrust_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_windmilling"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_wet_thrust_scale"));
 		assertEquals("6", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_regen_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_thrust_n")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_windmilling")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_wet_thrust_scale")]) >= 0.08);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_wet_thrust_scale")]) <= 1.0);
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
@@ -7485,6 +7503,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coning"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_interference"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_windmilling"));
@@ -7516,6 +7535,8 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) >= 0.72);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) <= 1.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wet_thrust_scale")]) >= 0.08);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wet_thrust_scale")]) <= 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_windmilling")]) >= 0.0);
 		assertTrue(report.samples() > 100);
