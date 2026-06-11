@@ -8287,6 +8287,53 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void vortexRingDescentEnvelopePeaksAtSmallPropReferenceBand() throws ReflectiveOperationException {
+		Method envelopeMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorVortexRingDescentEnvelope",
+				double.class
+		);
+		Method steadyVrsMethod = DronePhysics.class.getDeclaredMethod(
+				"calculateSteadyRotorVortexRingStateIntensity",
+				RotorSpec.class,
+				Vec3.class,
+				double.class,
+				double.class
+		);
+		envelopeMethod.setAccessible(true);
+		steadyVrsMethod.setAccessible(true);
+
+		double earlyEntry = (double) envelopeMethod.invoke(null, 0.75);
+		double prePeak = (double) envelopeMethod.invoke(null, 0.95);
+		double peak = (double) envelopeMethod.invoke(null, 1.25);
+		double highDescentRelease = (double) envelopeMethod.invoke(null, 1.85);
+		double exited = (double) envelopeMethod.invoke(null, 2.30);
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		double steadyPeak = (double) steadyVrsMethod.invoke(
+				null,
+				rotor,
+				new Vec3(0.0, -12.5, 0.0),
+				rotor.maxOmegaRadiansPerSecond(),
+				10.0
+		);
+		double crossflowEscape = (double) steadyVrsMethod.invoke(
+				null,
+				rotor,
+				new Vec3(8.0, -12.5, 0.0),
+				rotor.maxOmegaRadiansPerSecond(),
+				10.0
+		);
+
+		assertTrue(earlyEntry > 0.25 && earlyEntry < 0.45, () -> "earlyEntry=" + earlyEntry);
+		assertTrue(prePeak > earlyEntry * 1.8 && prePeak < 0.85, () -> "prePeak=" + prePeak);
+		assertTrue(peak > 0.98, () -> "peak=" + peak);
+		assertTrue(highDescentRelease > 0.25 && highDescentRelease < peak * 0.55,
+				() -> "highDescentRelease=" + highDescentRelease);
+		assertEquals(0.0, exited, 1.0e-9);
+		assertTrue(steadyPeak > 0.98, () -> "steadyPeak=" + steadyPeak);
+		assertTrue(crossflowEscape < steadyPeak * 0.05, () -> "crossflowEscape=" + crossflowEscape);
+	}
+
+	@Test
 	void vortexRingStateBuildsAndClearsWithRotorWakeLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)

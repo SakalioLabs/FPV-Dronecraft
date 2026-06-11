@@ -2709,11 +2709,20 @@ public final class DronePhysics {
 		double descentRatio = descentSpeed / inducedVelocity;
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
 
-		double entry = smoothStep(0.45, 0.95, descentRatio);
-		double exit = 1.0 - smoothStep(1.55, 2.25, descentRatio);
+		double descentEnvelope = rotorVortexRingDescentEnvelope(descentRatio);
 		double washout = 1.0 - smoothStep(2.5, 7.0, transverseSpeed);
 		double load = smoothStep(0.12, 0.75, spinRatio);
-		return MathUtil.clamp(entry * exit * washout * load, 0.0, 1.0);
+		return MathUtil.clamp(descentEnvelope * washout * load, 0.0, 1.0);
+	}
+
+	private static double rotorVortexRingDescentEnvelope(double descentRatio) {
+		if (!Double.isFinite(descentRatio)) {
+			return 0.0;
+		}
+
+		double entry = smoothStep(0.45, 1.20, descentRatio);
+		double highDescentExit = 1.0 - smoothStep(1.35, 2.25, descentRatio);
+		return MathUtil.clamp(entry * highDescentExit, 0.0, 1.0);
 	}
 
 	private static double rotorVortexRingMeanThrustLoss(RotorSpec rotor, double vortexRingStateIntensity) {
