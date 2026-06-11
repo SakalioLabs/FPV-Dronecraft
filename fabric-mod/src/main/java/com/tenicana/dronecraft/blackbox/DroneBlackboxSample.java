@@ -133,6 +133,11 @@ public final class DroneBlackboxSample {
 			"motor_1_einterval_us",
 			"motor_2_einterval_us",
 			"motor_3_einterval_us",
+			"avg_motor_rpm_telemetry_valid",
+			"motor_0_rpm_telemetry_valid",
+			"motor_1_rpm_telemetry_valid",
+			"motor_2_rpm_telemetry_valid",
+			"motor_3_rpm_telemetry_valid",
 			"avg_motor_target_rpm",
 			"motor_0_target_rpm",
 			"motor_1_target_rpm",
@@ -728,6 +733,10 @@ public final class DroneBlackboxSample {
 			"motor_5_einterval_us",
 			"motor_6_einterval_us",
 			"motor_7_einterval_us",
+			"motor_4_rpm_telemetry_valid",
+			"motor_5_rpm_telemetry_valid",
+			"motor_6_rpm_telemetry_valid",
+			"motor_7_rpm_telemetry_valid",
 			"motor_4_target_rpm",
 			"motor_5_target_rpm",
 			"motor_6_target_rpm",
@@ -1062,6 +1071,8 @@ public final class DroneBlackboxSample {
 		double[] motorVoltageHeadroom = state.motorVoltageHeadroom();
 		double[] motorWindingResistanceScale = state.motorWindingResistanceScale();
 		double[] motorMechanicalLoss = state.motorMechanicalLossTorqueNewtonMeters();
+		double[] motorTelemetryRpm = state.motorRpmTelemetryRpm();
+		double[] motorTelemetryValidity = state.motorRpmTelemetryValidity();
 		double[] rotorThrust = state.rotorThrustNewtons();
 		Vec3[] rotorForceBody = state.rotorForceBodyNewtons();
 		Vec3[] rotorTorqueBody = state.rotorTorqueBodyNewtonMeters();
@@ -1183,16 +1194,24 @@ public final class DroneBlackboxSample {
 		row.add(state.motorRpm(1), "%.1f");
 		row.add(state.motorRpm(2), "%.1f");
 		row.add(state.motorRpm(3), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpm()), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(0)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(1)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(2)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(3)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorRpm()), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorRpm(0)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorRpm(1)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorRpm(2)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorRpm(3)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpmTelemetryRpm()), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 0)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 1)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 2)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 3)), "%.1f");
+		row.add(DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+				state.averageMotorRpmTelemetryRpm(),
+				state.averageMotorRpmTelemetryValidity()
+		), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 0), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 1), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 2), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 3), "%.1f");
+		row.add(state.averageMotorRpmTelemetryValidity(), "%.3f");
+		row.add(valueOrZero(motorTelemetryValidity, 0), "%.3f");
+		row.add(valueOrZero(motorTelemetryValidity, 1), "%.3f");
+		row.add(valueOrZero(motorTelemetryValidity, 2), "%.3f");
+		row.add(valueOrZero(motorTelemetryValidity, 3), "%.3f");
 		row.add(state.averageMotorTargetRpm(), "%.1f");
 		row.add(state.motorTargetRpm(0), "%.1f");
 		row.add(state.motorTargetRpm(1), "%.1f");
@@ -1818,6 +1837,8 @@ public final class DroneBlackboxSample {
 			double[] propStrikeSeverityByRotor
 	) {
 		double[] motorRpm = state.motorRpm();
+		double[] motorTelemetryRpm = state.motorRpmTelemetryRpm();
+		double[] motorTelemetryValidity = state.motorRpmTelemetryValidity();
 		double[] rotorHealth = state.rotorHealth();
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorDynamicInflowTimeConstant = state.rotorDynamicInflowTimeConstantSeconds();
@@ -1854,10 +1875,13 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(motorRpm, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+			row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(motorTelemetryValidity, i), "%.3f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(motorTargetRpm(valueOrZero(motorTargetOmega, i)), "%.1f");
@@ -2026,6 +2050,16 @@ public final class DroneBlackboxSample {
 
 	private static double escCoolingFactorOrOne(DroneState state, int index) {
 		return index < state.motorCount() ? state.escCoolingFactor(index) : 1.0;
+	}
+
+	private static double motorTelemetryEIntervalMicros(double[] motorTelemetryRpm, double[] motorTelemetryValidity, int index) {
+		if (index < 0 || index >= motorTelemetryRpm.length || index >= motorTelemetryValidity.length) {
+			return 0.0;
+		}
+		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+				motorTelemetryRpm[index],
+				motorTelemetryValidity[index]
+		);
 	}
 
 	private static double rotorTranslationalLiftOrZero(DroneState state, int index) {

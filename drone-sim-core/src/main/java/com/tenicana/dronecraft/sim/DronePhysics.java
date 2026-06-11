@@ -4,12 +4,15 @@ import java.util.Arrays;
 import java.util.List;
 
 public final class DronePhysics {
+	public static final double BETAFLIGHT_EINTERVAL_INVALID_MICROS = 65_535.0;
 	private static final double MOTOR_AMBIENT_TEMPERATURE_CELSIUS = 25.0;
 	private static final double AVIONICS_CURRENT_AMPS = 1.2;
 	private static final double MIN_THERMAL_THRUST_LIMIT = 0.45;
 	private static final double MOTOR_STALL_CURRENT_SCALE = 3.20;
 	private static final double MOTOR_NO_LOAD_OMEGA_SCALE = 1.35;
 	private static final double MOTOR_OUTRUNNER_POLE_PAIRS = 7.0;
+	private static final double ESC_RPM_TELEMETRY_MIN_VALID_MECHANICAL_RPM = 120.0;
+	private static final double ESC_RPM_TELEMETRY_FULL_VALID_MECHANICAL_RPM = 200.0;
 	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
 	private static final double ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE = 0.055;
 	private static final double ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ = 24.0;
@@ -267,6 +270,13 @@ public final class DronePhysics {
 			return 0.0;
 		}
 		return 60_000_000.0 / electricalRpm;
+	}
+
+	public static double betaflightEIntervalMicrosFromTelemetryRpm(double mechanicalRpm, double telemetryValidity) {
+		if (telemetryValidity < 0.5) {
+			return BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+		}
+		return betaflightEIntervalMicrosFromMechanicalRpm(mechanicalRpm);
 	}
 
 	public DronePhysics(DroneConfig config) {
@@ -1269,6 +1279,19 @@ public final class DronePhysics {
 		double reportedElectricalRpmDiv100 = Math.round(Math.max(0.0, electricalRpmDiv100));
 		double reportedMechanicalRpm = reportedElectricalRpmDiv100 * 100.0 / MOTOR_OUTRUNNER_POLE_PAIRS;
 		return reportedMechanicalRpm * (Math.PI * 2.0) / 60.0;
+	}
+
+	private static double escRpmTelemetryValidity(double omegaRadiansPerSecond) {
+		if (!Double.isFinite(omegaRadiansPerSecond) || omegaRadiansPerSecond <= 0.0) {
+			return 0.0;
+		}
+
+		double mechanicalRpm = omegaRadiansPerSecond * 60.0 / (Math.PI * 2.0);
+		return smoothStep(
+				ESC_RPM_TELEMETRY_MIN_VALID_MECHANICAL_RPM,
+				ESC_RPM_TELEMETRY_FULL_VALID_MECHANICAL_RPM,
+				mechanicalRpm
+		);
 	}
 
 	private double escCommandFrameIntervalSeconds() {
@@ -7288,16 +7311,23 @@ public final class DronePhysics {
 		Arrays.fill(escRpmTelemetryFrameClockSeconds, 0.0);
 		Arrays.fill(escRpmTelemetryFrameAgeSeconds, 0.0);
 		Arrays.fill(escRpmTelemetryFrameInitialized, false);
+		for (int i = 0; i < state.motorCount(); i++) {
+			state.setMotorRpmTelemetry(i, 0.0, 0.0);
+		}
 	}
 
 	private void updateEscRpmTelemetry(int index, RotorSpec rotor, double omegaRadiansPerSecond, double dtSeconds) {
 		double intervalSeconds = escCommandFrameIntervalSeconds();
-		double measuredOmega = quantizeBidirectionalDshotRpmTelemetry(rotor, omegaRadiansPerSecond);
+		double telemetryValidity = escRpmTelemetryValidity(omegaRadiansPerSecond);
+		double measuredOmega = telemetryValidity >= 0.5
+				? quantizeBidirectionalDshotRpmTelemetry(rotor, omegaRadiansPerSecond)
+				: 0.0;
 		if (intervalSeconds <= 1.0e-9) {
 			escRpmTelemetryOmegaRadiansPerSecond[index] = measuredOmega;
 			escRpmTelemetryFrameClockSeconds[index] = 0.0;
 			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
 			escRpmTelemetryFrameInitialized[index] = true;
+			state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity);
 			return;
 		}
 
@@ -7307,6 +7337,7 @@ public final class DronePhysics {
 			escRpmTelemetryFrameClockSeconds[index] = -phaseOffset;
 			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
 			escRpmTelemetryFrameInitialized[index] = true;
+			state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity);
 			return;
 		}
 
@@ -7318,6 +7349,7 @@ public final class DronePhysics {
 				escRpmTelemetryFrameClockSeconds[index] = 0.0;
 			}
 			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
+			state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity);
 		} else {
 			escRpmTelemetryFrameAgeSeconds[index] = Math.min(
 					intervalSeconds,

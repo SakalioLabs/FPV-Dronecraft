@@ -2459,7 +2459,7 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void motorRpmTelemetryTracksMotorOmega() {
+	void motorRpmAccessorsTrackMotorOmega() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -2524,6 +2524,50 @@ class DronePhysicsTest {
 						+ " maxTelemetryLagHertz=" + finalMaxTelemetryLagHertz
 						+ " finalActualMotorHz=" + physics.state().averageMotorRpm() / 60.0
 						+ " finalNotchHz=" + physics.state().gyroDynamicNotchFrequencyHertz());
+	}
+
+	@Test
+	void bidirectionalEscRpmTelemetryDropsOutBelowValidEintervalBand() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withEscCommandSignal(400.0, 2048.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput zeroThrottle = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		DroneInput highThrottle = new DroneInput(0.72, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 20; i++) {
+			physics.step(zeroThrottle, 0.005);
+		}
+
+		assertEquals(0.0, physics.state().averageMotorRpmTelemetryValidity(), 1.0e-9);
+		assertEquals(0.0, physics.state().motorRpmTelemetryRpm(0), 1.0e-9);
+		assertEquals(
+				DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS,
+				DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+						physics.state().motorRpmTelemetryRpm(0),
+						physics.state().motorRpmTelemetryValidity(0)
+				),
+				1.0e-9
+		);
+
+		for (int i = 0; i < 180; i++) {
+			physics.step(highThrottle, 0.005);
+		}
+
+		double telemetryRpm = physics.state().motorRpmTelemetryRpm(0);
+		double telemetryValidity = physics.state().motorRpmTelemetryValidity(0);
+		double telemetryEinterval = DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+				telemetryRpm,
+				telemetryValidity
+		);
+		assertTrue(physics.state().averageMotorRpmTelemetryValidity() > 0.95);
+		assertTrue(telemetryRpm > 6000.0, () -> "telemetryRpm=" + telemetryRpm);
+		assertTrue(telemetryEinterval > 0.0 && telemetryEinterval < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS,
+				() -> "telemetryEinterval=" + telemetryEinterval + " validity=" + telemetryValidity);
 	}
 
 	@Test
@@ -8629,8 +8673,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_erpm100"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_einterval_us"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_rpm_telemetry_valid"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_erpm100"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_einterval_us"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_rpm_telemetry_valid"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_target_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_target_erpm100"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_target_einterval_us"));
@@ -8960,11 +9006,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_torque_ripple_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_winding_resistance_scale")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_winding_resistance_scale")])));
-		assertEquals(
-				Double.parseDouble(firstRow[indexOf(header, "avg_motor_rpm")]) * 7.0 / 100.0,
-				Double.parseDouble(firstRow[indexOf(header, "avg_motor_erpm100")]),
-				0.1
-		);
+		double firstAvgTelemetryValidity = Double.parseDouble(firstRow[indexOf(header, "avg_motor_rpm_telemetry_valid")]);
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_erpm100")])));
+		assertTrue(firstAvgTelemetryValidity >= 0.0 && firstAvgTelemetryValidity <= 1.0);
 		String[] spinningRow = null;
 		int avgErpmIndex = indexOf(header, "avg_motor_erpm100");
 		for (int i = 1; i < lines.size(); i++) {
@@ -8987,6 +9031,7 @@ class DronePhysicsTest {
 				0.1
 		);
 		assertEquals(0.0, Double.parseDouble(firstRow[indexOf(header, "motor_7_einterval_us")]), 1.0e-9);
+		assertEquals(0.0, Double.parseDouble(firstRow[indexOf(header, "motor_7_rpm_telemetry_valid")]), 1.0e-9);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_rpm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_erpm100")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_einterval_us")])));
@@ -9201,6 +9246,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_erpm100"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_einterval_us"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_rpm_telemetry_valid"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_erpm100"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_electrical_efficiency"));
@@ -9237,6 +9283,7 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm_telemetry_valid")]) > 0.95);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_erpm100")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_electrical_efficiency")]) > 0.0);

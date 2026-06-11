@@ -322,6 +322,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("avg_motor_einterval_us"));
 		assertTrue(csv.contains("motor_0_einterval_us"));
 		assertTrue(csv.contains("motor_3_einterval_us"));
+		assertTrue(csv.contains("avg_motor_rpm_telemetry_valid"));
+		assertTrue(csv.contains("motor_0_rpm_telemetry_valid"));
+		assertTrue(csv.contains("motor_3_rpm_telemetry_valid"));
 		assertTrue(csv.contains("avg_motor_target_rpm"));
 		assertTrue(csv.contains("avg_motor_target_erpm100"));
 		assertTrue(csv.contains("avg_motor_target_einterval_us"));
@@ -541,28 +544,42 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_voltage_headroom")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_winding_resistance_scale")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_winding_resistance_scale")]));
-		assertEquals(
-				Double.parseDouble(row[indexOf(header, "avg_motor_rpm")]) * 7.0 / 100.0,
-				Double.parseDouble(row[indexOf(header, "avg_motor_erpm100")]),
-				0.1
-		);
-		double expectedAvgMotorEInterval = 600000.0 / Double.parseDouble(row[indexOf(header, "avg_motor_erpm100")]);
-		assertEquals(
-				expectedAvgMotorEInterval,
-				Double.parseDouble(row[indexOf(header, "avg_motor_einterval_us")]),
-				Math.max(1.0, expectedAvgMotorEInterval * 0.002)
-		);
-		assertEquals(
-				Double.parseDouble(row[indexOf(header, "motor_0_rpm")]) * 7.0 / 100.0,
-				Double.parseDouble(row[indexOf(header, "motor_0_erpm100")]),
-				0.1
-		);
-		double expectedMotor0EInterval = 600000.0 / Double.parseDouble(row[indexOf(header, "motor_0_erpm100")]);
-		assertEquals(
-				expectedMotor0EInterval,
-				Double.parseDouble(row[indexOf(header, "motor_0_einterval_us")]),
-				Math.max(1.0, expectedMotor0EInterval * 0.002)
-		);
+		double avgTelemetryValidity = Double.parseDouble(row[indexOf(header, "avg_motor_rpm_telemetry_valid")]);
+		double avgMotorErpm100 = Double.parseDouble(row[indexOf(header, "avg_motor_erpm100")]);
+		assertUnitInterval(avgTelemetryValidity);
+		assertTrue(Double.isFinite(avgMotorErpm100));
+		if (avgTelemetryValidity >= 0.5 && avgMotorErpm100 > 0.0) {
+			double expectedAvgMotorEInterval = 600000.0 / avgMotorErpm100;
+			assertEquals(
+					expectedAvgMotorEInterval,
+					Double.parseDouble(row[indexOf(header, "avg_motor_einterval_us")]),
+					Math.max(1.0, expectedAvgMotorEInterval * 0.002)
+			);
+		} else {
+			assertEquals(
+					DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS,
+					Double.parseDouble(row[indexOf(header, "avg_motor_einterval_us")]),
+					1.0e-9
+			);
+		}
+		double motor0TelemetryValidity = Double.parseDouble(row[indexOf(header, "motor_0_rpm_telemetry_valid")]);
+		double motor0Erpm100 = Double.parseDouble(row[indexOf(header, "motor_0_erpm100")]);
+		assertUnitInterval(motor0TelemetryValidity);
+		assertTrue(Double.isFinite(motor0Erpm100));
+		if (motor0TelemetryValidity >= 0.5 && motor0Erpm100 > 0.0) {
+			double expectedMotor0EInterval = 600000.0 / motor0Erpm100;
+			assertEquals(
+					expectedMotor0EInterval,
+					Double.parseDouble(row[indexOf(header, "motor_0_einterval_us")]),
+					Math.max(1.0, expectedMotor0EInterval * 0.002)
+			);
+		} else {
+			assertEquals(
+					DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS,
+					Double.parseDouble(row[indexOf(header, "motor_0_einterval_us")]),
+					1.0e-9
+			);
+		}
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_rpm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_erpm100")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_einterval_us")]));
@@ -1183,6 +1200,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm_telemetry_valid")]) > 0.95);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_erpm100")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_electrical_efficiency")]) > 0.0);

@@ -75,6 +75,8 @@ public final class DroneState {
 	private double[] motorVoltageHeadroom;
 	private double[] motorWindingResistanceScale;
 	private double[] motorCommutationRippleIntensity;
+	private double[] motorRpmTelemetryOmegaRadiansPerSecond;
+	private double[] motorRpmTelemetryValidity;
 	private double[] escOutputCommand;
 	private double escCommandFrameAgeSeconds;
 	private double escCommandFrameIntervalSeconds;
@@ -215,6 +217,8 @@ public final class DroneState {
 		motorVoltageHeadroom = new double[motorCount];
 		motorWindingResistanceScale = new double[motorCount];
 		motorCommutationRippleIntensity = new double[motorCount];
+		motorRpmTelemetryOmegaRadiansPerSecond = new double[motorCount];
+		motorRpmTelemetryValidity = new double[motorCount];
 		escOutputCommand = new double[motorCount];
 		escDesyncIntensity = new double[motorCount];
 		escTemperatureCelsius = new double[motorCount];
@@ -785,6 +789,58 @@ public final class DroneState {
 
 	void setMotorOmegaRadiansPerSecond(int index, double value) {
 		motorOmegaRadiansPerSecond[index] = value;
+	}
+
+	public double motorRpmTelemetryRpm(int index) {
+		return Math.max(0.0, motorRpmTelemetryOmegaRadiansPerSecond[index] * RPM_PER_RADIAN_PER_SECOND);
+	}
+
+	public double[] motorRpmTelemetryRpm() {
+		double[] rpm = new double[motorRpmTelemetryOmegaRadiansPerSecond.length];
+		for (int i = 0; i < rpm.length; i++) {
+			rpm[i] = motorRpmTelemetryRpm(i);
+		}
+		return rpm;
+	}
+
+	public double averageMotorRpmTelemetryRpm() {
+		double sum = 0.0;
+		int validCount = 0;
+		for (int i = 0; i < motorRpmTelemetryOmegaRadiansPerSecond.length; i++) {
+			if (motorRpmTelemetryValidity[i] >= 0.5) {
+				sum += motorRpmTelemetryRpm(i);
+				validCount++;
+			}
+		}
+		return validCount == 0 ? 0.0 : sum / validCount;
+	}
+
+	public double motorRpmTelemetryValidity(int index) {
+		return motorRpmTelemetryValidity[index];
+	}
+
+	public double[] motorRpmTelemetryValidity() {
+		return Arrays.copyOf(motorRpmTelemetryValidity, motorRpmTelemetryValidity.length);
+	}
+
+	public double averageMotorRpmTelemetryValidity() {
+		if (motorRpmTelemetryValidity.length == 0) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		for (double validity : motorRpmTelemetryValidity) {
+			sum += validity;
+		}
+		return sum / motorRpmTelemetryValidity.length;
+	}
+
+	void setMotorRpmTelemetry(int index, double omegaRadiansPerSecond, double validity) {
+		motorRpmTelemetryOmegaRadiansPerSecond[index] = Double.isFinite(omegaRadiansPerSecond)
+				? Math.max(0.0, omegaRadiansPerSecond)
+				: 0.0;
+		motorRpmTelemetryValidity[index] = Double.isFinite(validity)
+				? MathUtil.clamp(validity, 0.0, 1.0)
+				: 0.0;
 	}
 
 	public double motorAngularAccelerationRadiansPerSecondSquared(int index) {
@@ -1367,6 +1423,8 @@ public final class DroneState {
 		Arrays.fill(motorVoltageHeadroom, 1.0);
 		Arrays.fill(motorWindingResistanceScale, 1.0);
 		Arrays.fill(motorCommutationRippleIntensity, 0.0);
+		Arrays.fill(motorRpmTelemetryOmegaRadiansPerSecond, 0.0);
+		Arrays.fill(motorRpmTelemetryValidity, 0.0);
 		Arrays.fill(escOutputCommand, 0.0);
 		escCommandFrameAgeSeconds = 0.0;
 		escCommandFrameIntervalSeconds = 0.0;

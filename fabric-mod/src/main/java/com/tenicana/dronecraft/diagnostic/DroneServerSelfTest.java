@@ -295,6 +295,8 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("motor_5_erpm100")
 				&& DroneBlackboxSample.CSV_HEADER.contains("avg_motor_einterval_us")
 				&& DroneBlackboxSample.CSV_HEADER.contains("motor_5_einterval_us")
+				&& DroneBlackboxSample.CSV_HEADER.contains("avg_motor_rpm_telemetry_valid")
+				&& DroneBlackboxSample.CSV_HEADER.contains("motor_5_rpm_telemetry_valid")
 				&& DroneBlackboxSample.CSV_HEADER.contains("avg_motor_target_rpm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("motor_5_target_rpm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("avg_motor_target_erpm100")
