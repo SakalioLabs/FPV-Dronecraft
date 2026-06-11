@@ -8423,9 +8423,10 @@ class DronePhysicsTest {
 				() -> "vrs=" + verticalDescent.state().vortexRingStateIntensity());
 		assertTrue(crossflowEscape.state().vortexRingStateIntensity() < 0.05,
 				() -> "crossflowVrs=" + crossflowEscape.state().vortexRingStateIntensity());
-		// Shetty/Selig small fixed-pitch prop histories report about +/-30% at the strongest VRS point;
-		// the default 5-inch FPV preset keeps a conservative but visible unsteady thrust band.
-		assertTrue(verticalHalfAmplitude > 0.14 && verticalHalfAmplitude < 0.32,
+		// Shetty/Selig small fixed-pitch prop histories report about +/-30% at the strongest VRS point.
+		// The default 5-inch FPV preset now tracks the lower half of that text anchor while staying below
+		// the larger low-precision measured-limit digitization envelope.
+		assertTrue(verticalHalfAmplitude > 0.17 && verticalHalfAmplitude < 0.34,
 				() -> "verticalHalfAmplitude=" + verticalHalfAmplitude
 						+ " verticalMinThrust=" + observedVerticalMinThrust
 						+ " verticalMaxThrust=" + observedVerticalMaxThrust
@@ -8433,7 +8434,7 @@ class DronePhysicsTest {
 		assertTrue(crossflowHalfAmplitude < verticalHalfAmplitude * 0.55,
 				() -> "verticalHalfAmplitude=" + verticalHalfAmplitude
 						+ " crossflowHalfAmplitude=" + crossflowHalfAmplitude);
-		assertTrue(observedVerticalMaxTelemetryAmplitude > 0.12 && observedVerticalMaxTelemetryAmplitude < 0.27,
+		assertTrue(observedVerticalMaxTelemetryAmplitude > 0.18 && observedVerticalMaxTelemetryAmplitude < 0.31,
 				() -> "verticalMaxTelemetryAmplitude=" + observedVerticalMaxTelemetryAmplitude);
 		assertTrue(observedCrossflowMaxTelemetryAmplitude < observedVerticalMaxTelemetryAmplitude * 0.30,
 				() -> "verticalMaxTelemetryAmplitude=" + observedVerticalMaxTelemetryAmplitude

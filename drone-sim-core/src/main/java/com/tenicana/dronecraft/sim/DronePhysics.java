@@ -3368,9 +3368,9 @@ public final class DronePhysics {
 		double wave = Math.sin(phase)
 				+ 0.38 * Math.sin(phase * 1.73 + 0.8)
 				+ 0.22 * Math.sin(phase * 2.41 + index * 0.37);
-		double thrustAmplitude = MathUtil.clamp(0.034 + 0.116 * intensity, 0.0, 0.18) * intensity;
-		double thrustScale = MathUtil.clamp(1.0 + thrustAmplitude * wave, 0.68, 1.24);
-		double thrustEnvelope = MathUtil.clamp(thrustAmplitude * 1.60, 0.0, 0.24);
+		double thrustAmplitude = MathUtil.clamp(0.042 + 0.138 * intensity, 0.0, 0.20) * intensity;
+		double thrustScale = MathUtil.clamp(1.0 + thrustAmplitude * wave, 0.64, 1.28);
+		double thrustEnvelope = MathUtil.clamp(thrustAmplitude * 1.55, 0.0, 0.28);
 
 		Vec3 axis = rotorAxisBody(rotor);
 		Vec3 tangentA = BODY_RIGHT.subtract(axis.multiply(BODY_RIGHT.dot(axis))).normalized();
