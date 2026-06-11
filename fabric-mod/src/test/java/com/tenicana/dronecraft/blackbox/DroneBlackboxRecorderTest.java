@@ -265,6 +265,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("motor_3_actuator_authority"));
 		assertTrue(csv.contains("battery_current_limit"));
 		assertTrue(csv.contains("battery_regen_current_a"));
+		assertTrue(csv.contains("battery_effective_resistance_ohm"));
 		assertTrue(csv.contains("battery_voltage_spike_v"));
 		assertTrue(csv.contains("battery_bus_ripple_v"));
 		assertTrue(csv.contains("imu_supply_noise"));
@@ -390,6 +391,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_thermal_limit")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_esc_cooling_factor")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_regen_current_a")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "battery_effective_resistance_ohm")]) > 0.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_voltage_spike_v")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_bus_ripple_v")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "imu_supply_noise")]));
@@ -494,6 +496,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxBatteryCurrentAmps() > 0.0);
 		assertTrue(summary.maxBatteryRegenerativeCurrentAmps() >= 0.0);
 		assertTrue(summary.maxMotorRegenerativeCurrentAmps() >= 0.0);
+		assertTrue(summary.maxBatteryEffectiveResistanceOhms() > 0.0);
 		assertTrue(summary.maxBatteryVoltageSpike() >= 0.0);
 		assertTrue(summary.maxWindGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
@@ -505,6 +508,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("Blackbox"));
 		assertTrue(summary.formatForChat().contains("loop 10@200Hz"));
 		assertTrue(summary.formatForChat().contains("current-limit"));
+		assertTrue(summary.formatForChat().contains("ir"));
 		assertTrue(summary.formatForChat().contains("ripple"));
 		assertTrue(summary.formatForChat().contains("imuP"));
 		assertTrue(summary.formatForChat().contains("batt-limit"));

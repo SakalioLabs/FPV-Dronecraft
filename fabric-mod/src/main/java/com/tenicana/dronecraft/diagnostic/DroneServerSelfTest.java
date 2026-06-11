@@ -49,6 +49,7 @@ public final class DroneServerSelfTest {
 	private double maxMotorPower;
 	private double maxBatteryCurrent;
 	private double maxBatterySag;
+	private double maxBatteryEffectiveResistance;
 	private double maxImuSupplyNoise;
 	private double maxPropwash;
 	private double maxVortexRingState;
@@ -132,6 +133,7 @@ public final class DroneServerSelfTest {
 		maxMotorPower = Math.max(maxMotorPower, drone.getMotorPower());
 		maxBatteryCurrent = Math.max(maxBatteryCurrent, drone.getBatteryCurrentAmps());
 		maxBatterySag = Math.max(maxBatterySag, drone.getBatterySagVoltage());
+		maxBatteryEffectiveResistance = Math.max(maxBatteryEffectiveResistance, drone.getBatteryEffectiveResistanceOhms());
 		maxImuSupplyNoise = Math.max(maxImuSupplyNoise, drone.getImuSupplyNoiseIntensity());
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
 		maxVortexRingState = Math.max(maxVortexRingState, drone.getVortexRingStateIntensity());
@@ -162,6 +164,7 @@ public final class DroneServerSelfTest {
 				&& maxMotorPower > 0.08
 				&& maxBatteryCurrent > 1.5
 				&& maxBatterySag > 0.01
+				&& maxBatteryEffectiveResistance > 0.001
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_substeps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_dt_s")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_rate_hz")
@@ -269,6 +272,7 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("accel_clip")
 				&& DroneBlackboxSample.CSV_HEADER.contains("battery_current_limit")
 				&& DroneBlackboxSample.CSV_HEADER.contains("battery_regen_current_a")
+				&& DroneBlackboxSample.CSV_HEADER.contains("battery_effective_resistance_ohm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("battery_voltage_spike_v")
 				&& DroneBlackboxSample.CSV_HEADER.contains("battery_bus_ripple_v")
 				&& DroneBlackboxSample.CSV_HEADER.contains("battery_temp_c")
@@ -315,7 +319,7 @@ public final class DroneServerSelfTest {
 		if (maxSpeed <= 0.35 || maxAirspeed <= 0.25) {
 			return "insufficient_motion";
 		}
-		if (maxMotorPower <= 0.08 || maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01) {
+		if (maxMotorPower <= 0.08 || maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {
 			return "powertrain_not_exercised";
 		}
 		String csv = drone.blackbox().toCsv();
@@ -429,6 +433,7 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("accel_clip")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("battery_current_limit")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("battery_regen_current_a")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("battery_effective_resistance_ohm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("battery_voltage_spike_v")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("battery_bus_ripple_v")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("battery_temp_c")
@@ -531,6 +536,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_motor_power\": %.5f,\n"
 						+ "  \"max_battery_current_a\": %.5f,\n"
 						+ "  \"max_battery_sag_v\": %.5f,\n"
+						+ "  \"max_battery_effective_resistance_ohm\": %.6f,\n"
 						+ "  \"max_imu_supply_noise\": %.5f,\n"
 						+ "  \"max_propwash\": %.5f,\n"
 						+ "  \"max_vortex_ring_state\": %.5f,\n"
@@ -571,6 +577,7 @@ public final class DroneServerSelfTest {
 				maxMotorPower,
 				maxBatteryCurrent,
 				maxBatterySag,
+				maxBatteryEffectiveResistance,
 				maxImuSupplyNoise,
 				maxPropwash,
 				maxVortexRingState,

@@ -1688,10 +1688,14 @@ class DronePhysicsTest {
 				/ Math.max(1.0, fullPack.state().batteryCurrentAmps());
 		double lowSagPerAmp = lowPack.state().batteryOhmicSagVoltage()
 				/ Math.max(1.0, lowPack.state().batteryCurrentAmps());
+		double fullEffectiveResistance = fullPack.state().batteryEffectiveResistanceOhms();
+		double lowEffectiveResistance = lowPack.state().batteryEffectiveResistanceOhms();
 		assertTrue(lowPack.state().batteryStateOfCharge() < 0.13);
 		assertTrue(fullPack.state().batteryStateOfCharge() > 0.99);
 		assertTrue(lowSagPerAmp > fullSagPerAmp * 1.45,
 				() -> "fullSagPerAmp=" + fullSagPerAmp + " lowSagPerAmp=" + lowSagPerAmp);
+		assertTrue(lowEffectiveResistance > fullEffectiveResistance * 1.45,
+				() -> "fullResistance=" + fullEffectiveResistance + " lowResistance=" + lowEffectiveResistance);
 		assertTrue(lowPack.state().batteryVoltage() < fullPack.state().batteryVoltage() - 1.8,
 				() -> "fullVoltage=" + fullPack.state().batteryVoltage()
 						+ " lowVoltage=" + lowPack.state().batteryVoltage());
@@ -1711,6 +1715,7 @@ class DronePhysicsTest {
 
 		assertTrue(lowResistance.state().batteryCurrentAmps() > 20.0);
 		assertTrue(lowResistance.state().batteryStateOfCharge() < 1.0);
+		assertTrue(highResistance.state().batteryEffectiveResistanceOhms() > lowResistance.state().batteryEffectiveResistanceOhms() * 10.0);
 		assertTrue(highResistance.state().batteryVoltage() < lowResistance.state().batteryVoltage() - 3.0);
 	}
 
@@ -4864,6 +4869,7 @@ class DronePhysicsTest {
 		assertEquals(-15.0, coldEnvironment.ambientTemperatureCelsius(), 1.0e-12);
 		assertEquals(45.0, hotEnvironment.ambientTemperatureCelsius(), 1.0e-12);
 		assertTrue(cold.state().batteryOhmicSagVoltage() > hot.state().batteryOhmicSagVoltage() + 0.20);
+		assertTrue(cold.state().batteryEffectiveResistanceOhms() > hot.state().batteryEffectiveResistanceOhms());
 		assertTrue(hot.state().batteryTemperatureCelsius() > cold.state().batteryTemperatureCelsius() + 45.0);
 		assertTrue(hot.state().batteryCoolingFactor() >= 0.20);
 		assertTrue(hot.state().averageMotorTemperatureCelsius() > cold.state().averageMotorTemperatureCelsius() + 8.0);
@@ -4938,6 +4944,7 @@ class DronePhysicsTest {
 		assertTrue(hotPack.state().batteryTemperatureCelsius() > 70.0);
 		assertTrue(hotPack.state().batteryThermalLimit() < 0.90);
 		assertTrue(hotPack.state().batteryPowerLimit() <= hotPack.state().batteryThermalLimit() + 1.0e-9);
+		assertTrue(hotPack.state().batteryEffectiveResistanceOhms() > coolPack.state().batteryEffectiveResistanceOhms() * 1.05);
 		double hotSagPerAmp = hotPack.state().batteryOhmicSagVoltage()
 				/ Math.max(1.0, hotPack.state().batteryCurrentAmps());
 		double coolSagPerAmp = coolPack.state().batteryOhmicSagVoltage()
@@ -6980,6 +6987,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_transient_sag_v"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_effective_resistance_ohm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_voltage_spike_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_current_limit"));
@@ -7223,6 +7231,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_actuator_authority")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_actuator_authority")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_bus_ripple_v")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_effective_resistance_ohm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_cooling_factor")])));
@@ -7240,6 +7249,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") > 0.10);
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
+		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
 		assertTrue(report.samples() > 200);
@@ -7249,6 +7259,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxMotorRegenerativeCurrentAmps() > 0.0);
 		assertTrue(report.maxBatteryVoltageSpike() > 1.0e-4);
 		assertTrue(report.maxBatteryBusRippleVoltage() > 1.0e-4);
+		assertTrue(report.maxBatteryEffectiveResistanceOhms() > 0.0);
 		assertTrue(report.maxBatteryTemperatureCelsius() >= 25.0);
 		assertTrue(report.minBatteryThermalLimit() > 0.0);
 		assertTrue(report.maxMotorTrackingError() > 0.005);

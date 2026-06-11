@@ -140,6 +140,7 @@ public final class OfflineFlightRecorder {
 			"battery_ocv_v",
 			"battery_ohmic_sag_v",
 			"battery_transient_sag_v",
+			"battery_effective_resistance_ohm",
 			"battery_regen_current_a",
 			"battery_voltage_spike_v",
 			"battery_soc",
@@ -676,13 +677,14 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
 				report.maxMotorRegenerativeCurrentAmps(),
 				report.minBatteryVoltage(),
 				report.maxBatterySagVoltage(),
+				report.maxBatteryEffectiveResistanceOhms() * 1000.0,
 				report.maxBatteryVoltageSpike(),
 				report.maxBatteryBusRippleVoltage(),
 				report.maxImuSupplyNoiseIntensity(),
@@ -938,7 +940,7 @@ public final class OfflineFlightRecorder {
 						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.5f,%.3f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.6f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
+						+ "%.5f,%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1081,6 +1083,7 @@ public final class OfflineFlightRecorder {
 				state.batteryOpenCircuitVoltage(),
 				state.batteryOhmicSagVoltage(),
 				state.batteryTransientSagVoltage(),
+				state.batteryEffectiveResistanceOhms(),
 				state.batteryRegenerativeCurrentAmps(),
 				state.batteryVoltageSpike(),
 				state.batteryStateOfCharge(),
@@ -1547,6 +1550,7 @@ public final class OfflineFlightRecorder {
 		private double maxMotorRegenerativeCurrentAmps;
 		private double minBatteryVoltage = Double.POSITIVE_INFINITY;
 		private double maxBatterySagVoltage;
+		private double maxBatteryEffectiveResistanceOhms;
 		private double maxBatteryVoltageSpike;
 		private double maxBatteryBusRippleVoltage;
 		private double maxImuSupplyNoiseIntensity;
@@ -1595,6 +1599,7 @@ public final class OfflineFlightRecorder {
 			maxMotorRegenerativeCurrentAmps = Math.max(maxMotorRegenerativeCurrentAmps, state.maxMotorRegenerativeCurrentAmps());
 			minBatteryVoltage = Math.min(minBatteryVoltage, state.batteryVoltage());
 			maxBatterySagVoltage = Math.max(maxBatterySagVoltage, state.batteryOhmicSagVoltage() + state.batteryTransientSagVoltage());
+			maxBatteryEffectiveResistanceOhms = Math.max(maxBatteryEffectiveResistanceOhms, state.batteryEffectiveResistanceOhms());
 			maxBatteryVoltageSpike = Math.max(maxBatteryVoltageSpike, state.batteryVoltageSpike());
 			maxBatteryBusRippleVoltage = Math.max(maxBatteryBusRippleVoltage, state.batteryBusRippleVoltage());
 			maxImuSupplyNoiseIntensity = Math.max(maxImuSupplyNoiseIntensity, state.imuSupplyNoiseIntensity());
@@ -1691,6 +1696,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxBatterySagVoltage() {
 			return maxBatterySagVoltage;
+		}
+
+		public double maxBatteryEffectiveResistanceOhms() {
+			return maxBatteryEffectiveResistanceOhms;
 		}
 
 		public double maxBatteryVoltageSpike() {

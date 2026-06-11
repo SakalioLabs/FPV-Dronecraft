@@ -204,6 +204,7 @@ public final class DronePhysics {
 		this.state = new DroneState(config.rotors().size());
 		this.state.setBatteryVoltage(config.nominalBatteryVoltage());
 		this.state.setBatteryOpenCircuitVoltage(config.nominalBatteryVoltage());
+		this.state.setBatteryEffectiveResistanceOhms(config.batteryInternalResistanceOhms());
 		this.pitchPid = new PidController(config.pitchGains());
 		this.yawPid = new PidController(config.yawGains());
 		this.rollPid = new PidController(config.rollGains());
@@ -6427,6 +6428,7 @@ public final class DronePhysics {
 		double openCircuitVoltage = batteryOpenCircuitVoltageFromStateOfCharge(stateOfCharge);
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
 		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge);
+		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
 		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
 		double ohmicSag = totalResistanceSag * 0.62;
 		double targetTransientSag = totalResistanceSag * 0.38;

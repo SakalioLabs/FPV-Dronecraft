@@ -56,6 +56,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("mode HORIZON"));
 		assertTrue(status.contains("current-limit 1.00"));
 		assertTrue(status.contains("rc 0.003/0.007s err 0.0005"));
+		assertTrue(status.contains("ir 18mOhm"));
 		assertTrue(status.contains("spike 0.00V"));
 		assertTrue(status.contains("regen 0.0A"));
 		assertTrue(status.contains("contact 0.00/0.00/0.00m/s 0d/s"));
@@ -265,6 +266,7 @@ class DroneStatusFormatterTest {
 				diagnosticActive ? 1.8 : 0.04,
 				15.2,
 				0.35,
+				0.018,
 				diagnosticActive ? 6.5 : 0.0,
 				diagnosticActive ? 0.42 : 0.0,
 				batterySoc,

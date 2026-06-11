@@ -122,6 +122,7 @@ public final class DroneState {
 	private double batteryRegenerativeCurrentAmps;
 	private double batteryVoltageSpike;
 	private double batteryBusRippleVoltage;
+	private double batteryEffectiveResistanceOhms;
 	private double batteryTemperatureCelsius = 25.0;
 	private double batteryCoolingFactor = 1.0;
 	private double batteryThermalLimit = 1.0;
@@ -2016,6 +2017,16 @@ public final class DroneState {
 	void setBatteryBusRippleVoltage(double batteryBusRippleVoltage) {
 		this.batteryBusRippleVoltage = Double.isFinite(batteryBusRippleVoltage)
 				? Math.max(0.0, batteryBusRippleVoltage)
+				: 0.0;
+	}
+
+	public double batteryEffectiveResistanceOhms() {
+		return batteryEffectiveResistanceOhms;
+	}
+
+	void setBatteryEffectiveResistanceOhms(double batteryEffectiveResistanceOhms) {
+		this.batteryEffectiveResistanceOhms = Double.isFinite(batteryEffectiveResistanceOhms)
+				? Math.max(0.0, batteryEffectiveResistanceOhms)
 				: 0.0;
 	}
 

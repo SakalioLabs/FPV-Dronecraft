@@ -370,6 +370,7 @@ public final class DroneCommands {
 				drone.getBarometerErrorMeters(),
 				drone.getBatteryVoltage(),
 				drone.getBatterySagVoltage(),
+				drone.getBatteryEffectiveResistanceOhms(),
 				drone.getBatteryRegenerativeCurrentAmps(),
 				drone.getBatteryVoltageSpike(),
 				drone.getBatteryStateOfCharge(),

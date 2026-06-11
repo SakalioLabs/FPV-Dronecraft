@@ -321,6 +321,7 @@ public final class DroneBlackboxSample {
 			"battery_ocv_v",
 			"battery_ohmic_sag_v",
 			"battery_transient_sag_v",
+			"battery_effective_resistance_ohm",
 			"battery_regen_current_a",
 			"battery_voltage_spike_v",
 			"battery_bus_ripple_v",
@@ -1170,6 +1171,7 @@ public final class DroneBlackboxSample {
 		row.add(state.batteryOpenCircuitVoltage(), "%.4f");
 		row.add(state.batteryOhmicSagVoltage(), "%.4f");
 		row.add(state.batteryTransientSagVoltage(), "%.4f");
+		row.add(state.batteryEffectiveResistanceOhms(), "%.6f");
 		row.add(state.batteryRegenerativeCurrentAmps(), "%.3f");
 		row.add(state.batteryVoltageSpike(), "%.4f");
 		row.add(state.batteryBusRippleVoltage(), "%.5f");
