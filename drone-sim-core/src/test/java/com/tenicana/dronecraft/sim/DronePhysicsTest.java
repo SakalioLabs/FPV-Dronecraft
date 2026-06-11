@@ -5110,6 +5110,10 @@ class DronePhysicsTest {
 				() -> "lateralFast=" + lateralFast);
 		assertTrue(forwardFast.timeRatioToReference() > 0.85 && forwardFast.timeRatioToReference() < 0.92,
 				() -> "forwardFast=" + forwardFast);
+		assertTrue(lateralFast.distanceRatioToReference() > 0.92 && lateralFast.distanceRatioToReference() < 0.99,
+				() -> "lateralFast=" + lateralFast);
+		assertTrue(forwardFast.distanceRatioToReference() > 0.82 && forwardFast.distanceRatioToReference() < 0.89,
+				() -> "forwardFast=" + forwardFast);
 		assertTrue(lateralFast.initialDragForceNewtons() < 5.0);
 		assertTrue(forwardFast.initialDragForceNewtons() < 5.5);
 	}
@@ -9040,6 +9044,8 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorStallIntensity() > 0.10);
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() > 0.50);
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() <= 1.0);
+		assertTrue(report.maxAirframeBodyDragForceNewtons() > 0.05);
+		assertTrue(report.maxLinearDampingDragForceNewtons() > 0.50);
 		assertTrue(report.maxRotorConingIntensity() > 0.0);
 		assertTrue(report.maxRotorConingAngleRadians() > 0.0);
 		assertTrue(report.maxRotorWindmillingIntensity() > 0.10);

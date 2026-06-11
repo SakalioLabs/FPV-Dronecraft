@@ -604,6 +604,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxSpeedMetersPerSecond() >= 0.0);
 		assertUnitInterval(summary.maxAirframeSeparatedFlowIntensity());
 		assertTrue(summary.maxAirframeLiftForceNewtons() >= 0.0);
+		assertTrue(summary.maxAirframeBodyDragForceNewtons() >= 0.0);
+		assertTrue(summary.maxLinearDampingDragForceNewtons() >= 0.0);
 		assertTrue(summary.maxGroundEffectDragForceNewtons() >= 0.0);
 		assertTrue(summary.maxRotorWashDragForceNewtons() >= 0.0);
 		assertTrue(summary.maxRotorWallEffectForceNewtons() >= 0.0);
@@ -699,6 +701,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("ang-drag"));
 		assertTrue(summary.formatForChat().contains("sep"));
 		assertTrue(summary.formatForChat().contains("lift"));
+		assertTrue(summary.formatForChat().contains("bodyD"));
+		assertTrue(summary.formatForChat().contains("linD"));
 		assertTrue(summary.formatForChat().contains("cushion"));
 		assertTrue(summary.formatForChat().contains("wash"));
 		assertTrue(summary.formatForChat().contains("wall"));
