@@ -63,6 +63,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("rc 0.003/0.007s err 0.0005"));
 		assertTrue(status.contains("ir 18mOhm"));
 		assertTrue(status.contains("spike 0.00V"));
+		assertTrue(status.contains("ripple 0.000V"));
 		assertTrue(status.contains("regen 0.0A"));
 		assertTrue(status.contains("contact 0.00/0.00/0.00m/s 0d/s"));
 		assertTrue(status.contains("airmass 2.7m/s"));
@@ -156,6 +157,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("battery-limit"));
 		assertTrue(warnings.contains("current-limit"));
 		assertTrue(warnings.contains("bus-spike"));
+		assertTrue(warnings.contains("bus-ripple"));
 		assertTrue(warnings.contains("gusty-air"));
 		assertTrue(warnings.contains("contact-impact"));
 		assertTrue(warnings.contains("ground-slide"));
@@ -203,6 +205,7 @@ class DroneStatusFormatterTest {
 
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
+		assertTrue(status.contains("spike 0.42V ripple 0.240V"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
 		assertTrue(status.contains("rwake 0.47 wloss 9% wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
@@ -292,6 +295,7 @@ class DroneStatusFormatterTest {
 				0.018,
 				diagnosticActive ? 6.5 : 0.0,
 				diagnosticActive ? 0.42 : 0.0,
+				diagnosticActive ? 0.24 : 0.0,
 				batterySoc,
 				38.0,
 				batterySoc < 0.20 ? 0.75 : 1.0,

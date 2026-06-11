@@ -182,6 +182,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> BATTERY_EFFECTIVE_RESISTANCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> BATTERY_REGEN_CURRENT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> BATTERY_VOLTAGE_SPIKE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> BATTERY_BUS_RIPPLE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> BATTERY_STATE_OF_CHARGE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> BATTERY_CURRENT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> BATTERY_CURRENT_LIMIT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -450,6 +451,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(BATTERY_EFFECTIVE_RESISTANCE, 0.018f);
 		builder.define(BATTERY_REGEN_CURRENT, 0.0f);
 		builder.define(BATTERY_VOLTAGE_SPIKE, 0.0f);
+		builder.define(BATTERY_BUS_RIPPLE, 0.0f);
 		builder.define(BATTERY_STATE_OF_CHARGE, 1.0f);
 		builder.define(BATTERY_CURRENT, 0.0f);
 		builder.define(BATTERY_CURRENT_LIMIT, 1.0f);
@@ -1184,6 +1186,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(BATTERY_EFFECTIVE_RESISTANCE, (float) physics.state().batteryEffectiveResistanceOhms());
 		entityData.set(BATTERY_REGEN_CURRENT, (float) physics.state().batteryRegenerativeCurrentAmps());
 		entityData.set(BATTERY_VOLTAGE_SPIKE, (float) physics.state().batteryVoltageSpike());
+		entityData.set(BATTERY_BUS_RIPPLE, (float) physics.state().batteryBusRippleVoltage());
 		entityData.set(BATTERY_STATE_OF_CHARGE, (float) physics.state().batteryStateOfCharge());
 		entityData.set(BATTERY_CURRENT, (float) physics.state().batteryCurrentAmps());
 		entityData.set(BATTERY_CURRENT_LIMIT, (float) physics.state().batteryCurrentLimit());
@@ -2046,6 +2049,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getBatteryVoltageSpike() {
 		return entityData.get(BATTERY_VOLTAGE_SPIKE);
+	}
+
+	public float getBatteryBusRippleVoltage() {
+		return entityData.get(BATTERY_BUS_RIPPLE);
 	}
 
 	public float getBatteryStateOfCharge() {

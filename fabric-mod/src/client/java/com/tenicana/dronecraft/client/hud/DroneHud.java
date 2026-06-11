@@ -22,6 +22,8 @@ public final class DroneHud {
 	private static final int BORDER_COLOR = 0xFF22E6C7;
 	private static final int TEXT_COLOR = 0xFFEAF7F3;
 	private static final int WARN_COLOR = 0xFFFFA94D;
+	private static final float BATTERY_BUS_RIPPLE_WARNING_MIN_VOLTS = 0.18f;
+	private static final float BATTERY_BUS_RIPPLE_WARNING_RATIO = 0.0125f;
 
 	private DroneHud() {
 	}
@@ -44,7 +46,7 @@ public final class DroneHud {
 		Font font = client.font;
 		int x = 8;
 		int y = 8;
-		int width = 252;
+		int width = 288;
 		int height = drone == null ? 38 : 274;
 		graphics.fill(x, y, x + width, y + height, PANEL_COLOR);
 		graphics.renderOutline(x, y, width, height, BORDER_COLOR);
@@ -91,6 +93,7 @@ public final class DroneHud {
 				|| drone.getBatteryPowerLimit() < 0.9f
 				|| drone.getBatteryCurrentLimit() < 0.9f
 				|| drone.getBatteryVoltageSpike() > 0.35f
+				|| batteryBusRippleWarning(drone)
 				? WARN_COLOR
 				: 0xFF2BE870;
 		drawBar(graphics, x + 8, y + 143, 116, 6, batteryPercent, batteryColor);
@@ -237,13 +240,22 @@ public final class DroneHud {
 	private static String batteryLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"%.1fV %.0fA R%.0f +%.1f L%.0f",
+				"%.1fV %.0fA R%.0f +%.1f Rp%.2f L%.0f",
 				drone.getBatteryVoltage(),
 				drone.getBatteryCurrentAmps(),
 				drone.getBatteryRegenerativeCurrentAmps(),
 				drone.getBatteryVoltageSpike(),
+				drone.getBatteryBusRippleVoltage(),
 				Math.min(drone.getBatteryPowerLimit(), drone.getBatteryCurrentLimit()) * 100.0f
 		);
+	}
+
+	private static boolean batteryBusRippleWarning(DroneEntity drone) {
+		float threshold = Math.max(
+				BATTERY_BUS_RIPPLE_WARNING_MIN_VOLTS,
+				Math.max(1.0f, drone.getBatteryVoltage()) * BATTERY_BUS_RIPPLE_WARNING_RATIO
+		);
+		return drone.getBatteryBusRippleVoltage() > threshold;
 	}
 
 	private static String damageLine(DroneEntity drone, float health) {

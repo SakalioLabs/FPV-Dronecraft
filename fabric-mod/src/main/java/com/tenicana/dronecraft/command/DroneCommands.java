@@ -374,6 +374,7 @@ public final class DroneCommands {
 				drone.getBatteryEffectiveResistanceOhms(),
 				drone.getBatteryRegenerativeCurrentAmps(),
 				drone.getBatteryVoltageSpike(),
+				drone.getBatteryBusRippleVoltage(),
 				drone.getBatteryStateOfCharge(),
 				drone.getBatteryCurrentAmps(),
 				drone.getBatteryPowerLimit(),
