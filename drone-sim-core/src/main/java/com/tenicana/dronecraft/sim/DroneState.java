@@ -68,6 +68,7 @@ public final class DroneState {
 	private double[] motorCurrentRippleAmps;
 	private double[] motorElectricalEfficiency;
 	private double[] motorVoltageHeadroom;
+	private double[] motorWindingResistanceScale;
 	private double[] motorCommutationRippleIntensity;
 	private double[] escOutputCommand;
 	private double escCommandFrameAgeSeconds;
@@ -179,6 +180,7 @@ public final class DroneState {
 		motorCurrentRippleAmps = new double[motorCount];
 		motorElectricalEfficiency = new double[motorCount];
 		motorVoltageHeadroom = new double[motorCount];
+		motorWindingResistanceScale = new double[motorCount];
 		motorCommutationRippleIntensity = new double[motorCount];
 		escOutputCommand = new double[motorCount];
 		escDesyncIntensity = new double[motorCount];
@@ -219,6 +221,7 @@ public final class DroneState {
 		Arrays.fill(escThermalLimitByEsc, 1.0);
 		Arrays.fill(motorActuatorAuthority, 1.0);
 		Arrays.fill(motorVoltageHeadroom, 1.0);
+		Arrays.fill(motorWindingResistanceScale, 1.0);
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		repairAllRotors();
@@ -867,6 +870,34 @@ public final class DroneState {
 		return min;
 	}
 
+	public double motorWindingResistanceScale(int index) {
+		return motorWindingResistanceScale[index];
+	}
+
+	public double[] motorWindingResistanceScale() {
+		return Arrays.copyOf(motorWindingResistanceScale, motorWindingResistanceScale.length);
+	}
+
+	void setMotorWindingResistanceScale(int index, double value) {
+		motorWindingResistanceScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.72, 1.90) : 1.0;
+	}
+
+	public double averageMotorWindingResistanceScale() {
+		double sum = 0.0;
+		for (double scale : motorWindingResistanceScale) {
+			sum += scale;
+		}
+		return sum / motorWindingResistanceScale.length;
+	}
+
+	public double maxMotorWindingResistanceScale() {
+		double max = 1.0;
+		for (double scale : motorWindingResistanceScale) {
+			max = Math.max(max, scale);
+		}
+		return max;
+	}
+
 	public double motorCommutationRippleIntensity(int index) {
 		return motorCommutationRippleIntensity[index];
 	}
@@ -1219,6 +1250,7 @@ public final class DroneState {
 		Arrays.fill(motorCurrentRippleAmps, 0.0);
 		Arrays.fill(motorElectricalEfficiency, 0.0);
 		Arrays.fill(motorVoltageHeadroom, 1.0);
+		Arrays.fill(motorWindingResistanceScale, 1.0);
 		Arrays.fill(motorCommutationRippleIntensity, 0.0);
 		Arrays.fill(escOutputCommand, 0.0);
 		escCommandFrameAgeSeconds = 0.0;

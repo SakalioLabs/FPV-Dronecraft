@@ -170,6 +170,11 @@ public final class DroneBlackboxSample {
 			"motor_1_voltage_headroom",
 			"motor_2_voltage_headroom",
 			"motor_3_voltage_headroom",
+			"motor_winding_resistance_scale",
+			"motor_0_winding_resistance_scale",
+			"motor_1_winding_resistance_scale",
+			"motor_2_winding_resistance_scale",
+			"motor_3_winding_resistance_scale",
 			"motor_temp_c",
 			"motor_thermal_limit",
 			"avg_motor_cooling_factor",
@@ -646,6 +651,10 @@ public final class DroneBlackboxSample {
 			"motor_5_voltage_headroom",
 			"motor_6_voltage_headroom",
 			"motor_7_voltage_headroom",
+			"motor_4_winding_resistance_scale",
+			"motor_5_winding_resistance_scale",
+			"motor_6_winding_resistance_scale",
+			"motor_7_winding_resistance_scale",
 			"motor_4_mechanical_loss_torque_nm",
 			"motor_5_mechanical_loss_torque_nm",
 			"motor_6_mechanical_loss_torque_nm",
@@ -877,6 +886,7 @@ public final class DroneBlackboxSample {
 		double[] motorTorqueRipples = state.motorTorqueRippleNewtonMeters();
 		double[] motorElectricalEfficiency = state.motorElectricalEfficiency();
 		double[] motorVoltageHeadroom = state.motorVoltageHeadroom();
+		double[] motorWindingResistanceScale = state.motorWindingResistanceScale();
 		double[] motorMechanicalLoss = state.motorMechanicalLossTorqueNewtonMeters();
 		double[] rotorThrust = state.rotorThrustNewtons();
 		Vec3[] rotorForceBody = state.rotorForceBodyNewtons();
@@ -1047,6 +1057,11 @@ public final class DroneBlackboxSample {
 		row.add(valueOrZero(motorVoltageHeadroom, 1), "%.5f");
 		row.add(valueOrZero(motorVoltageHeadroom, 2), "%.5f");
 		row.add(valueOrZero(motorVoltageHeadroom, 3), "%.5f");
+		row.add(state.averageMotorWindingResistanceScale(), "%.5f");
+		row.add(valueOrOne(motorWindingResistanceScale, 0), "%.5f");
+		row.add(valueOrOne(motorWindingResistanceScale, 1), "%.5f");
+		row.add(valueOrOne(motorWindingResistanceScale, 2), "%.5f");
+		row.add(valueOrOne(motorWindingResistanceScale, 3), "%.5f");
 		row.add(state.maxMotorTemperatureCelsius(), "%.2f");
 		row.add(state.motorThermalLimit(), "%.5f");
 		row.add(state.averageMotorCoolingFactor(), "%.5f");
@@ -1461,7 +1476,7 @@ public final class DroneBlackboxSample {
 		row.add(escCoolingFactorOrOne(state, 1), "%.5f");
 		row.add(escCoolingFactorOrOne(state, 2), "%.5f");
 		row.add(escCoolingFactorOrOne(state, 3), "%.5f");
-		addExtendedRotorColumns(row, state, environment, config, motorPowers, motorTargetOmega, motorTrackingError, motorActuatorAuthority, motorCurrents, motorRegenerativeCurrents, motorPhaseCurrents, motorCurrentRipples, motorCommutationRipples, motorTorqueRipples, motorElectricalEfficiency, motorVoltageHeadroom, motorMechanicalLoss, rotorThrust, rotorForceBody, rotorTorqueBody, propStrikeSeverityByRotor);
+		addExtendedRotorColumns(row, state, environment, config, motorPowers, motorTargetOmega, motorTrackingError, motorActuatorAuthority, motorCurrents, motorRegenerativeCurrents, motorPhaseCurrents, motorCurrentRipples, motorCommutationRipples, motorTorqueRipples, motorElectricalEfficiency, motorVoltageHeadroom, motorWindingResistanceScale, motorMechanicalLoss, rotorThrust, rotorForceBody, rotorTorqueBody, propStrikeSeverityByRotor);
 
 		return new DroneBlackboxSample(row.build());
 	}
@@ -1509,6 +1524,7 @@ public final class DroneBlackboxSample {
 			double[] motorTorqueRipples,
 			double[] motorElectricalEfficiency,
 			double[] motorVoltageHeadroom,
+			double[] motorWindingResistanceScale,
 			double[] motorMechanicalLoss,
 			double[] rotorThrust,
 			Vec3[] rotorForceBody,
@@ -1568,6 +1584,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrOne(motorVoltageHeadroom, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrOne(motorWindingResistanceScale, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(motorMechanicalLoss, i), "%.6f");

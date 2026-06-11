@@ -1866,6 +1866,9 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(1.0, hotMotor.state().motorThermalLimit(), 1.0e-9);
+		assertEquals(1.0, coolMotor.state().averageMotorWindingResistanceScale(), 1.0e-9);
+		assertTrue(hotMotor.state().averageMotorWindingResistanceScale() > 1.45,
+				() -> "hotResistanceScale=" + hotMotor.state().averageMotorWindingResistanceScale());
 		assertTrue(hotMotor.state().averageMotorRpm() < coolMotor.state().averageMotorRpm() * 0.97,
 				() -> "coolRpm=" + coolMotor.state().averageMotorRpm()
 						+ " hotRpm=" + hotMotor.state().averageMotorRpm());
@@ -7123,6 +7126,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_0_electrical_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_voltage_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_0_voltage_headroom"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_winding_resistance_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_winding_resistance_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("angle_of_attack_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_separation"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_stall_intensity"));
@@ -7319,6 +7324,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_current_ripple_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_torque_ripple_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_torque_ripple_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_winding_resistance_scale")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_winding_resistance_scale")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_rpm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_target_rpm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_tracking_error")])));
@@ -7337,6 +7344,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "motor_current_ripple_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "motor_phase_current_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "motor_torque_ripple_nm") > 0.0);
+		assertTrue(maxColumn(lines, header, "motor_winding_resistance_scale") >= 1.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_target_rpm") > 1000.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_tracking_error") > 0.005);
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);

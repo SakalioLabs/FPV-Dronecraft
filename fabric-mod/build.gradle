@@ -93,6 +93,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"motor_5_electrical_efficiency",
 		"motor_voltage_headroom",
 		"motor_5_voltage_headroom",
+		"motor_winding_resistance_scale",
+		"motor_5_winding_resistance_scale",
 		"avg_motor_target_rpm",
 		"motor_5_target_rpm",
 		"avg_motor_tracking_error",

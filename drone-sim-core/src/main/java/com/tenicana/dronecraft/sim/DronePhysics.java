@@ -459,6 +459,7 @@ public final class DronePhysics {
 				escOutput = 0.0;
 			}
 			state.setEscOutputCommand(i, escOutput);
+			updateMotorWindingResistanceScale(i);
 			double surfaceScrape = state.rotorSurfaceScrapeIntensity(i);
 			double powerLimitScale = Math.sqrt(state.batteryPowerLimit() * state.motorThermalLimit() * state.escThermalLimit() * state.rotorHealth(i));
 			double targetOmega = input.armed()
@@ -1456,7 +1457,13 @@ public final class DronePhysics {
 	}
 
 	private double temperatureAdjustedMotorWindingResistanceOhms(int index) {
-		return inferredMotorWindingResistanceOhms() * motorWindingResistanceTemperatureScale(index);
+		return inferredMotorWindingResistanceOhms() * updateMotorWindingResistanceScale(index);
+	}
+
+	private double updateMotorWindingResistanceScale(int index) {
+		double scale = motorWindingResistanceTemperatureScale(index);
+		state.setMotorWindingResistanceScale(index, scale);
+		return scale;
 	}
 
 	private double motorWindingResistanceTemperatureScale(int index) {
@@ -6343,6 +6350,7 @@ public final class DronePhysics {
 					* coolingFactor
 					* (temperature - environment.ambientTemperatureCelsius());
 			state.setMotorTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
+			updateMotorWindingResistanceScale(i);
 		}
 		updateMotorThermalLimit();
 	}

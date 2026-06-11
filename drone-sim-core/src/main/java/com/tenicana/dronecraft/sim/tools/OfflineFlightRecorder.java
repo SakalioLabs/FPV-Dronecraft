@@ -565,6 +565,15 @@ public final class OfflineFlightRecorder {
 			"motor_5_voltage_headroom",
 			"motor_6_voltage_headroom",
 			"motor_7_voltage_headroom",
+			"motor_winding_resistance_scale",
+			"motor_0_winding_resistance_scale",
+			"motor_1_winding_resistance_scale",
+			"motor_2_winding_resistance_scale",
+			"motor_3_winding_resistance_scale",
+			"motor_4_winding_resistance_scale",
+			"motor_5_winding_resistance_scale",
+			"motor_6_winding_resistance_scale",
+			"motor_7_winding_resistance_scale",
 			"water_immersion",
 			"precipitation_wetness",
 			"rotor_0_water_immersion",
@@ -1339,6 +1348,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorConing = state.rotorConingIntensity();
 		double[] motorElectricalEfficiency = state.motorElectricalEfficiency();
 		double[] motorVoltageHeadroom = state.motorVoltageHeadroom();
+		double[] motorWindingResistanceScale = state.motorWindingResistanceScale();
 		double[] motorMechanicalLoss = state.motorMechanicalLossTorqueNewtonMeters();
 		Vec3[] rotorForceBody = state.rotorForceBodyNewtons();
 		Vec3[] rotorTorqueBody = state.rotorTorqueBodyNewtonMeters();
@@ -1460,6 +1470,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.averageMotorVoltageHeadroom(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(motorVoltageHeadroom, i), "%.5f");
+		}
+		appendExtra(builder, state.averageMotorWindingResistanceScale(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrOne(motorWindingResistanceScale, i), "%.5f");
 		}
 		appendExtra(builder, environment.waterImmersionIntensity(), "%.5f");
 		appendExtra(builder, environment.precipitationWetnessIntensity(), "%.5f");

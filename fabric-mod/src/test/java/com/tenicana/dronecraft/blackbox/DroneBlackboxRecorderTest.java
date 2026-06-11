@@ -256,6 +256,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("motor_voltage_headroom"));
 		assertTrue(csv.contains("motor_0_voltage_headroom"));
 		assertTrue(csv.contains("motor_3_voltage_headroom"));
+		assertTrue(csv.contains("motor_winding_resistance_scale"));
+		assertTrue(csv.contains("motor_0_winding_resistance_scale"));
+		assertTrue(csv.contains("motor_3_winding_resistance_scale"));
 		assertTrue(csv.contains("avg_motor_target_rpm"));
 		assertTrue(csv.contains("motor_0_target_rpm"));
 		assertTrue(csv.contains("motor_3_target_rpm"));
@@ -420,6 +423,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_electrical_efficiency")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_voltage_headroom")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_voltage_headroom")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_winding_resistance_scale")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_winding_resistance_scale")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_rpm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_target_rpm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_tracking_error")]));
@@ -861,6 +866,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_electrical_efficiency")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_voltage_headroom")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_winding_resistance_scale")]) >= 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_mechanical_loss_torque_nm")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_commutation_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_regen_current_a")]) >= 0.0);
