@@ -629,6 +629,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxEscTemperatureCelsius() >= 25.0);
 		assertTrue(summary.minMotorElectricalEfficiency() > 0.0);
 		assertTrue(summary.minMotorVoltageHeadroom() >= 0.0);
+		assertTrue(summary.maxMotorWindingResistanceScale() >= 1.0);
 		assertTrue(summary.minMixerAxisAuthority() >= 0.0);
 		assertTrue(summary.minMixerAxisAuthority() <= 1.0);
 		assertUnitInterval(summary.maxMixerLowSaturation());
@@ -710,6 +711,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("mech-loss"));
 		assertTrue(summary.formatForChat().contains("eff"));
 		assertTrue(summary.formatForChat().contains("headroom"));
+		assertTrue(summary.formatForChat().contains("mR"));
 		assertTrue(summary.formatForChat().contains("rotor min"));
 		assertTrue(summary.formatForChat().contains("prop-strike"));
 		assertTrue(summary.formatForChat().contains("rc-frame"));

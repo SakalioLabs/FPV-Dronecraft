@@ -8988,6 +8988,7 @@ class DronePhysicsTest {
 		assertTrue(report.minMotorElectricalEfficiency() < 0.90);
 		assertTrue(report.minMotorVoltageHeadroom() >= 0.0);
 		assertTrue(report.minMotorVoltageHeadroom() < 0.45);
+		assertTrue(report.maxMotorWindingResistanceScale() >= 1.0);
 		assertTrue(report.maxRotorStallIntensity() > 0.10);
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() > 0.50);
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() <= 1.0);

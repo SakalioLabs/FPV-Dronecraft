@@ -25,6 +25,7 @@ class DroneStatusFormatterTest {
 				2.4, // rotorInducedVelocityMetersPerSecond
 				1.0, // rotorInducedLagThrustScale
 				1.0, // motorVoltageHeadroom
+				1.0, // motorWindingResistanceScale
 				0.0, // airframeSeparation
 				0.0, // rotorFlappingTilt
 				0.18, // rotorAdvanceRatio
@@ -76,7 +77,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("diagnostic idle"));
 		assertTrue(status.contains("forces lift 1.4N sep 0.00 flap 0.0deg cushion 0.2N wash 0.8N wall 0.3N"));
 		assertTrue(status.contains("baro 14.6m 0.4m/s 1011.5hPa err 0.04m"));
-		assertTrue(status.contains("motor 52.0C 1.00 head 1.00 esc 41.0C 1.00 cool 1.25"));
+		assertTrue(status.contains("motor 52.0C 1.00 head 1.00 mR 1.00 esc 41.0C 1.00 cool 1.25"));
 		assertTrue(status.contains("sig 0.002/0.003s err 0.0007"));
 		assertTrue(status.contains("load"));
 		assertTrue(status.contains("hforce 0.00N"));
@@ -125,6 +126,7 @@ class DroneStatusFormatterTest {
 				7.8,
 				0.86,
 				0.12,
+				1.33,
 				0.62,
 				9.2,
 				0.62,
@@ -176,6 +178,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("esc-thermal-limit"));
 		assertTrue(warnings.contains("esc-desync"));
 		assertTrue(warnings.contains("voltage-headroom"));
+		assertTrue(warnings.contains("hot-winding"));
 		assertTrue(warnings.contains("rotor-stall"));
 		assertTrue(warnings.contains("rotor-coning"));
 		assertTrue(warnings.contains("airframe-separation"));
@@ -243,6 +246,7 @@ class DroneStatusFormatterTest {
 			double rotorInducedVelocityMetersPerSecond,
 			double rotorInducedLagThrustScale,
 			double motorVoltageHeadroom,
+			double motorWindingResistanceScale,
 			double airframeSeparation,
 			double rotorFlappingTilt,
 			double rotorAdvanceRatio,
@@ -328,6 +332,7 @@ class DroneStatusFormatterTest {
 				52.0,
 				rotorHealth < 0.80 ? 0.95 : 1.0,
 				motorVoltageHeadroom,
+				motorWindingResistanceScale,
 				diagnosticActive ? 82.0 : 41.0,
 				diagnosticActive ? 0.72 : 1.0,
 				diagnosticActive ? 0.62 : 1.25,

@@ -26,7 +26,7 @@ public final class DroneStatusFormatter {
 		String warnings = warnings(telemetry);
 		return String.format(
 				Locale.ROOT,
-				"Drone status | mode %s armed %s link raw %s fc %s failsafe %s %.2fs rc %.3f/%.3fs err %.4f | input T %.2f P %.2f R %.2f Y %.2f | speed %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s air %.2fm/s AoA %.1f slip %.1f | forces lift %.1fN sep %.2f flap %.1fdeg cushion %.1fN wash %.1fN wall %.1fN | baro %.1fm %.1fm/s %.1fhPa err %.2fm | battery %.2fV %.0f%% sag %.2fV ir %.0fmOhm sag20 %.0fA margin %.2f spike %.2fV ripple %.3fV %.1fA regen %.1fA limit %.2f current-limit %.2f | imu clip G %.2f A %.2f pwr %.2f dterm %.0fHz | health frame %.0f%% rotor %.0f%% motor %.1fC %.2f head %.2f esc %.1fC %.2f cool %.2f sig %.3f/%.3fs err %.4f desync %.2f load %.2f hforce %.2fN scrape %.2f prop strikes %d last %s | aero propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ETL %.2f ind %.2fm/s iloss %.0f%% adv %.2f tipmach %.2f lowre %.2f blade %.0fdeg bstall %.2f bpass %.3f bdiss %.3fNm skew %.2f rwake %.2f wloss %.0f%% coax %.3f wetloss %.0f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm wake %.2f ceil %.2f asym %.2f blk %.2f water %.2f rain %.2f temp %.1fC stall %.2f vib %.2f coning %.2f mixer %.2f wind %.1fm/s airmass %.1fm/s gust %.2fm/s shear %.2fm/s2 turb %.2f obs %.2f ground %.2f | blackbox %d/%d | %s | warnings %s",
+				"Drone status | mode %s armed %s link raw %s fc %s failsafe %s %.2fs rc %.3f/%.3fs err %.4f | input T %.2f P %.2f R %.2f Y %.2f | speed %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s air %.2fm/s AoA %.1f slip %.1f | forces lift %.1fN sep %.2f flap %.1fdeg cushion %.1fN wash %.1fN wall %.1fN | baro %.1fm %.1fm/s %.1fhPa err %.2fm | battery %.2fV %.0f%% sag %.2fV ir %.0fmOhm sag20 %.0fA margin %.2f spike %.2fV ripple %.3fV %.1fA regen %.1fA limit %.2f current-limit %.2f | imu clip G %.2f A %.2f pwr %.2f dterm %.0fHz | health frame %.0f%% rotor %.0f%% motor %.1fC %.2f head %.2f mR %.2f esc %.1fC %.2f cool %.2f sig %.3f/%.3fs err %.4f desync %.2f load %.2f hforce %.2fN scrape %.2f prop strikes %d last %s | aero propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ETL %.2f ind %.2fm/s iloss %.0f%% adv %.2f tipmach %.2f lowre %.2f blade %.0fdeg bstall %.2f bpass %.3f bdiss %.3fNm skew %.2f rwake %.2f wloss %.0f%% coax %.3f wetloss %.0f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm wake %.2f ceil %.2f asym %.2f blk %.2f water %.2f rain %.2f temp %.1fC stall %.2f vib %.2f coning %.2f mixer %.2f wind %.1fm/s airmass %.1fm/s gust %.2fm/s shear %.2fm/s2 turb %.2f obs %.2f ground %.2f | blackbox %d/%d | %s | warnings %s",
 				telemetry.flightMode(),
 				yesNo(telemetry.armed()),
 				yesNo(telemetry.rawControlLinkActive()),
@@ -79,6 +79,7 @@ public final class DroneStatusFormatter {
 				telemetry.motorTemperatureCelsius(),
 				telemetry.motorThermalLimit(),
 				telemetry.motorVoltageHeadroom(),
+				telemetry.motorWindingResistanceScale(),
 				telemetry.escTemperatureCelsius(),
 				telemetry.escThermalLimit(),
 				telemetry.escCoolingFactor(),
@@ -191,6 +192,9 @@ public final class DroneStatusFormatter {
 		}
 		if (telemetry.motorVoltageHeadroom() < 0.18) {
 			warnings.add("voltage-headroom");
+		}
+		if (telemetry.motorWindingResistanceScale() > 1.25) {
+			warnings.add("hot-winding");
 		}
 		if (telemetry.escThermalLimit() < 0.98) {
 			warnings.add("esc-thermal-limit");
@@ -402,6 +406,7 @@ public final class DroneStatusFormatter {
 			double motorTemperatureCelsius,
 			double motorThermalLimit,
 			double motorVoltageHeadroom,
+			double motorWindingResistanceScale,
 			double escTemperatureCelsius,
 			double escThermalLimit,
 			double escCoolingFactor,
