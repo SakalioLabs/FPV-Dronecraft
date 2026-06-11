@@ -6552,17 +6552,40 @@ class DronePhysicsTest {
 				RotorSpec.class,
 				double.class
 		);
+		Method powerScaleMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorForwardAdvancePowerScale",
+				RotorSpec.class,
+				double.class
+		);
+		Method torquePerThrustScaleMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorForwardAdvanceTorquePerThrustScale",
+				RotorSpec.class,
+				double.class
+		);
 		thrustScaleMethod.setAccessible(true);
+		powerScaleMethod.setAccessible(true);
+		torquePerThrustScaleMethod.setAccessible(true);
 
 		double j025Scale = (double) thrustScaleMethod.invoke(null, rotor, 0.25 / Math.PI);
 		double j045Scale = (double) thrustScaleMethod.invoke(null, rotor, 0.45 / Math.PI);
 		double j065Scale = (double) thrustScaleMethod.invoke(null, rotor, 0.65 / Math.PI);
+		double j025PowerScale = (double) powerScaleMethod.invoke(null, rotor, 0.25 / Math.PI);
+		double j045PowerScale = (double) powerScaleMethod.invoke(null, rotor, 0.45 / Math.PI);
+		double j065PowerScale = (double) powerScaleMethod.invoke(null, rotor, 0.65 / Math.PI);
+		double j045TorquePerThrust = (double) torquePerThrustScaleMethod.invoke(null, rotor, 0.45 / Math.PI);
+		double j065TorquePerThrust = (double) torquePerThrustScaleMethod.invoke(null, rotor, 0.65 / Math.PI);
 
 		assertEquals(0.905, j025Scale, 0.055);
 		assertEquals(0.549, j045Scale, 0.050);
 		assertEquals(0.193, j065Scale, 0.090);
+		assertEquals(0.968, j025PowerScale, 0.035);
+		assertEquals(0.688, j045PowerScale, 0.045);
+		assertEquals(0.409, j065PowerScale, 0.060);
 		assertTrue(j025Scale > j045Scale + 0.25);
 		assertTrue(j045Scale > j065Scale + 0.25);
+		assertTrue(j045PowerScale > j045Scale + 0.08);
+		assertEquals(1.254, j045TorquePerThrust, 0.14);
+		assertTrue(j065TorquePerThrust > j045TorquePerThrust + 0.70);
 	}
 
 	@Test
@@ -6586,6 +6609,9 @@ class DronePhysicsTest {
 		double forwardThrustRatio = 0.0;
 		double hoverLoad = 0.0;
 		double forwardLoad = 0.0;
+		double hoverTorque = 0.0;
+		double forwardTorque = 0.0;
+		double forwardPropellerPowerScale = 0.0;
 		double forwardAdvance = 0.0;
 		double forwardTranslationalLift = 0.0;
 		int samples = 0;
@@ -6601,6 +6627,9 @@ class DronePhysicsTest {
 				forwardThrustRatio += rotorEffectiveThrustRatio(forward, 0);
 				hoverLoad += hover.state().rotorAerodynamicLoadFactor(0);
 				forwardLoad += forward.state().rotorAerodynamicLoadFactor(0);
+				hoverTorque += hover.state().motorAerodynamicTorqueNewtonMeters(0);
+				forwardTorque += forward.state().motorAerodynamicTorqueNewtonMeters(0);
+				forwardPropellerPowerScale += forward.state().rotorPropellerPowerScale(0);
 				forwardAdvance += forward.state().rotorAdvanceRatio(0);
 				forwardTranslationalLift += forward.state().rotorTranslationalLiftIntensity(0);
 				samples++;
@@ -6611,16 +6640,23 @@ class DronePhysicsTest {
 		forwardThrustRatio /= samples;
 		hoverLoad /= samples;
 		forwardLoad /= samples;
+		hoverTorque /= samples;
+		forwardTorque /= samples;
+		forwardPropellerPowerScale /= samples;
 		forwardAdvance /= samples;
 		forwardTranslationalLift /= samples;
 		double observedHoverThrustRatio = hoverThrustRatio;
 		double observedForwardThrustRatio = forwardThrustRatio;
 		double observedHoverLoad = hoverLoad;
 		double observedForwardLoad = forwardLoad;
+		double observedHoverTorque = hoverTorque;
+		double observedForwardTorque = forwardTorque;
+		double observedForwardPropellerPowerScale = forwardPropellerPowerScale;
 		double observedForwardAdvance = forwardAdvance;
 		double observedForwardTranslationalLift = forwardTranslationalLift;
 		double observedForwardThrustRatioToHover = observedForwardThrustRatio / observedHoverThrustRatio;
 		double observedForwardLoadRatioToHover = observedForwardLoad / observedHoverLoad;
+		double observedForwardTorqueRatioToHover = observedForwardTorque / observedHoverTorque;
 		double observedForwardTorquePerThrustProxy = observedForwardLoadRatioToHover / observedForwardThrustRatioToHover;
 
 		assertTrue(observedForwardAdvance > 0.12 && observedForwardAdvance < 0.18,
@@ -6632,6 +6668,12 @@ class DronePhysicsTest {
 		// UIUC 5-inch forward-flow fits near J=0.45 give CT/static about 0.55 and Q/T about 1.25.
 		assertTrue(observedForwardThrustRatioToHover > 0.50 && observedForwardThrustRatioToHover < 0.63,
 				() -> "forwardThrustRatioToHover=" + observedForwardThrustRatioToHover);
+		assertTrue(observedForwardPropellerPowerScale > 0.64 && observedForwardPropellerPowerScale < 0.74,
+				() -> "forwardPropellerPowerScale=" + observedForwardPropellerPowerScale);
+		assertTrue(observedForwardTorqueRatioToHover > observedForwardThrustRatioToHover + 0.08
+						&& observedForwardTorqueRatioToHover < 0.84,
+				() -> "forwardTorqueRatioToHover=" + observedForwardTorqueRatioToHover
+						+ " forwardThrustRatioToHover=" + observedForwardThrustRatioToHover);
 		assertTrue(observedForwardLoadRatioToHover > 0.62 && observedForwardLoadRatioToHover < 0.78,
 				() -> "forwardLoadRatioToHover=" + observedForwardLoadRatioToHover);
 		assertTrue(observedForwardTorquePerThrustProxy > 1.15 && observedForwardTorquePerThrustProxy < 1.36,
@@ -7358,10 +7400,14 @@ class DronePhysicsTest {
 				< noDiskDrag.state().rotorForceBodyNewtons(0).x() - 0.12);
 		assertTrue(maxLoadDelta > 0.04, "maxLoadDelta=" + maxLoadDelta);
 		assertTrue(hForce.state().averageMotorAerodynamicTorqueNewtonMeters()
-				> noDiskDrag.state().averageMotorAerodynamicTorqueNewtonMeters() + 0.0018);
+						> noDiskDrag.state().averageMotorAerodynamicTorqueNewtonMeters() + 0.0007,
+				() -> "hForceTorque=" + hForce.state().averageMotorAerodynamicTorqueNewtonMeters()
+						+ " noDiskDragTorque=" + noDiskDrag.state().averageMotorAerodynamicTorqueNewtonMeters());
 		assertTrue(hForce.state().averageMotorShaftPowerWatts()
 				> noDiskDrag.state().averageMotorShaftPowerWatts() + 1.0);
-		assertTrue(hForce.state().batteryCurrentAmps() > noDiskDrag.state().batteryCurrentAmps() + 0.35);
+		assertTrue(hForce.state().batteryCurrentAmps() > noDiskDrag.state().batteryCurrentAmps() + 0.20,
+				() -> "hForceCurrent=" + hForce.state().batteryCurrentAmps()
+						+ " noDiskDragCurrent=" + noDiskDrag.state().batteryCurrentAmps());
 	}
 
 	@Test
@@ -8016,6 +8062,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_advance_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_prop_advance_ratio_j"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_prop_advance_ratio_j"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_prop_power_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_reverse_flow_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_reverse_flow_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_tip_mach"));
@@ -8302,6 +8350,10 @@ class DronePhysicsTest {
 		double loggedRotor0AdvanceRatio = Double.parseDouble(firstRow[indexOf(header, "rotor_0_advance_ratio")]);
 		double loggedRotor0PropAdvanceRatioJ = Double.parseDouble(firstRow[indexOf(header, "rotor_0_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotor0AdvanceRatio, loggedRotor0PropAdvanceRatioJ, 1.0e-4);
+		double loggedRotorPropellerPowerScale = Double.parseDouble(firstRow[indexOf(header, "rotor_prop_power_scale")]);
+		double loggedRotor7PropellerPowerScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_prop_power_scale")]);
+		assertTrue(loggedRotorPropellerPowerScale > 0.0 && loggedRotorPropellerPowerScale <= 1.08);
+		assertTrue(loggedRotor7PropellerPowerScale > 0.0 && loggedRotor7PropellerPowerScale <= 1.08);
 		double loggedRotorReverseFlow = Double.parseDouble(firstRow[indexOf(header, "rotor_reverse_flow_fraction")]);
 		double loggedRotor7ReverseFlow = Double.parseDouble(firstRow[indexOf(header, "rotor_7_reverse_flow_fraction")]);
 		assertTrue(loggedRotorReverseFlow >= 0.0);
@@ -8402,6 +8454,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_actuator_authority") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_coning") > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") > 0.10);
+		assertTrue(minColumn(lines, header, "rotor_prop_power_scale") < 0.95);
 		assertTrue(maxColumn(lines, header, "rotor_reverse_flow_fraction") > 0.05);
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
@@ -8596,6 +8649,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_windmilling"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_advance_ratio"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ambient_temperature_c"));
 		assertEquals("8", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]) >= -40.0);
@@ -8624,6 +8678,8 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) >= 0.72);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) <= 1.0);

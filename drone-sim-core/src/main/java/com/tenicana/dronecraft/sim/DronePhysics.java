@@ -650,6 +650,8 @@ public final class DronePhysics {
 			double aerodynamicAdvanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega);
 			state.setRotorAdvanceRatio(i, aerodynamicAdvanceRatio);
 			state.setRotorPropellerAdvanceRatioJ(i, rotorPropellerAdvanceRatioJ(aerodynamicAdvanceRatio));
+			double propellerPowerScale = rotorForwardAdvancePowerScale(aerodynamicRotor, aerodynamicAdvanceRatio);
+			state.setRotorPropellerPowerScale(i, propellerPowerScale);
 			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, environment.ambientTemperatureCelsius());
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
@@ -867,10 +869,12 @@ public final class DronePhysics {
 			state.setRotorForceBodyNewtons(i, forceBody);
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
+			double propellerTorquePerThrustScale = rotorForwardAdvanceTorquePerThrustScale(aerodynamicRotor, aerodynamicAdvanceRatio);
 			double motorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
 					* thrust
 					* reactionTorqueScale
 					* compressibilityReactionTorqueScale
+					* propellerTorquePerThrustScale
 					+ rotorInPlaneDragShaftTorque(
 							aerodynamicRotor,
 							rotorRelativeAirVelocityBody,
@@ -2358,14 +2362,33 @@ public final class DronePhysics {
 		return MathUtil.clamp(1.0 - rotorForwardAdvanceThrustLoss(rotor, advanceRatio), 0.12, 1.05);
 	}
 
+	private static double rotorForwardAdvancePowerScale(RotorSpec rotor, double advanceRatio) {
+		double propAdvanceRatio = rotorUiucEquivalentPropellerAdvanceRatio(rotor, advanceRatio);
+		double lowAdvanceLoss = 0.032 * smoothStep(0.08, 0.25, propAdvanceRatio);
+		double midAdvanceLoss = 0.280 * smoothStep(0.25, 0.45, propAdvanceRatio);
+		double highAdvanceLoss = 0.279 * smoothStep(0.45, 0.65, propAdvanceRatio);
+		double postPeakLoss = 0.220 * smoothStep(0.65, 0.95, propAdvanceRatio);
+		return MathUtil.clamp(1.0 - lowAdvanceLoss - midAdvanceLoss - highAdvanceLoss - postPeakLoss, 0.16, 1.08);
+	}
+
+	private static double rotorForwardAdvanceTorquePerThrustScale(RotorSpec rotor, double advanceRatio) {
+		double thrustScale = rotorForwardAdvanceThrustScale(rotor, advanceRatio);
+		double powerScale = rotorForwardAdvancePowerScale(rotor, advanceRatio);
+		return MathUtil.clamp(powerScale / Math.max(0.12, thrustScale), 0.65, 3.20);
+	}
+
 	private static double rotorForwardAdvanceThrustLoss(RotorSpec rotor, double advanceRatio) {
-		double pitchRelief = MathUtil.clamp(Math.sqrt(rotorBladePitchRatio(rotor)), 0.75, 1.45);
-		// UIUC prop data uses J = V / (nD), while rotorAdvanceRatio is mu = V / (omega R).
-		double propAdvanceRatio = Math.PI * MathUtil.clamp(advanceRatio, 0.0, 2.0) / pitchRelief;
+		double propAdvanceRatio = rotorUiucEquivalentPropellerAdvanceRatio(rotor, advanceRatio);
 		double lowAdvanceLoss = 0.10 * smoothStep(0.14, 0.25, propAdvanceRatio);
 		double midAdvanceLoss = 0.36 * smoothStep(0.25, 0.45, propAdvanceRatio);
 		double highAdvanceLoss = 0.46 * smoothStep(0.45, 0.72, propAdvanceRatio);
 		return MathUtil.clamp(lowAdvanceLoss + midAdvanceLoss + highAdvanceLoss, 0.0, 0.88);
+	}
+
+	private static double rotorUiucEquivalentPropellerAdvanceRatio(RotorSpec rotor, double advanceRatio) {
+		double pitchRelief = MathUtil.clamp(Math.sqrt(rotorBladePitchRatio(rotor)), 0.75, 1.45);
+		// UIUC prop data uses J = V / (nD), while rotorAdvanceRatio is mu = V / (omega R).
+		return Math.PI * MathUtil.clamp(advanceRatio, 0.0, 2.0) / pitchRelief;
 	}
 
 	private static double rotorBladeStallIntensity(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
