@@ -72,6 +72,10 @@ public class DroneEntity extends PathfinderMob {
 	private static final ContactDynamics.ContactSurface LOOSE_CONTACT_SURFACE = new ContactDynamics.ContactSurface(1.35, 0.50, 1.25);
 	private static final ContactDynamics.ContactSurface STICKY_DIRT_CONTACT_SURFACE = new ContactDynamics.ContactSurface(1.65, 0.45, 1.35);
 	private static final ContactDynamics.ContactSurface ABRASIVE_CONTACT_SURFACE = new ContactDynamics.ContactSurface(1.20, 0.35, 2.20);
+	private static final ContactDynamics.ContactSurface HARD_MASONRY_CONTACT_SURFACE = new ContactDynamics.ContactSurface(1.12, 0.78, 1.25);
+	private static final ContactDynamics.ContactSurface WOOD_CONTACT_SURFACE = new ContactDynamics.ContactSurface(1.05, 0.82, 0.85);
+	private static final ContactDynamics.ContactSurface METAL_CONTACT_SURFACE = new ContactDynamics.ContactSurface(0.72, 1.08, 1.70);
+	private static final ContactDynamics.ContactSurface SOFT_FIBER_CONTACT_SURFACE = new ContactDynamics.ContactSurface(1.45, 0.28, 0.40);
 	private static final double ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE = 0.72;
 	private static final double ROTOR_DISK_SURFACE_CENTER_WEIGHT = 0.36;
 	private static final double ROTOR_DISK_SURFACE_CARDINAL_WEIGHT = 0.11;
@@ -1459,7 +1463,145 @@ public class DroneEntity extends PathfinderMob {
 		if (state.is(Blocks.MUD) || state.is(Blocks.SOUL_SAND) || state.is(Blocks.SOUL_SOIL)) {
 			return STICKY_DIRT_CONTACT_SURFACE;
 		}
+		if (isSoftFiberSurface(state)) {
+			return SOFT_FIBER_CONTACT_SURFACE;
+		}
+		if (isMetalSurface(state)) {
+			return METAL_CONTACT_SURFACE;
+		}
+		if (isWoodSurface(state)) {
+			return WOOD_CONTACT_SURFACE;
+		}
+		if (isHardMasonrySurface(state)) {
+			return HARD_MASONRY_CONTACT_SURFACE;
+		}
 		return ContactDynamics.DEFAULT_SURFACE;
+	}
+
+	private static boolean isHardMasonrySurface(BlockState state) {
+		return state.is(Blocks.STONE)
+				|| state.is(Blocks.SMOOTH_STONE)
+				|| state.is(Blocks.COBBLESTONE)
+				|| state.is(Blocks.MOSSY_COBBLESTONE)
+				|| state.is(Blocks.STONE_BRICKS)
+				|| state.is(Blocks.MOSSY_STONE_BRICKS)
+				|| state.is(Blocks.CRACKED_STONE_BRICKS)
+				|| state.is(Blocks.CHISELED_STONE_BRICKS)
+				|| state.is(Blocks.BRICKS)
+				|| state.is(Blocks.GRANITE)
+				|| state.is(Blocks.POLISHED_GRANITE)
+				|| state.is(Blocks.DIORITE)
+				|| state.is(Blocks.POLISHED_DIORITE)
+				|| state.is(Blocks.ANDESITE)
+				|| state.is(Blocks.POLISHED_ANDESITE)
+				|| state.is(Blocks.DEEPSLATE)
+				|| state.is(Blocks.COBBLED_DEEPSLATE)
+				|| state.is(Blocks.POLISHED_DEEPSLATE)
+				|| state.is(Blocks.DEEPSLATE_BRICKS)
+				|| state.is(Blocks.DEEPSLATE_TILES)
+				|| state.is(Blocks.TUFF)
+				|| state.is(Blocks.POLISHED_TUFF)
+				|| state.is(Blocks.TUFF_BRICKS)
+				|| state.is(Blocks.BASALT)
+				|| state.is(Blocks.SMOOTH_BASALT)
+				|| state.is(Blocks.POLISHED_BASALT)
+				|| state.is(Blocks.BLACKSTONE)
+				|| state.is(Blocks.POLISHED_BLACKSTONE)
+				|| state.is(Blocks.POLISHED_BLACKSTONE_BRICKS)
+				|| state.is(Blocks.NETHER_BRICKS)
+				|| state.is(Blocks.RED_NETHER_BRICKS)
+				|| state.is(Blocks.END_STONE)
+				|| state.is(Blocks.END_STONE_BRICKS)
+				|| state.is(Blocks.OBSIDIAN)
+				|| state.is(Blocks.WHITE_CONCRETE)
+				|| state.is(Blocks.LIGHT_GRAY_CONCRETE)
+				|| state.is(Blocks.GRAY_CONCRETE)
+				|| state.is(Blocks.BLACK_CONCRETE)
+				|| state.is(Blocks.BROWN_CONCRETE)
+				|| state.is(Blocks.RED_CONCRETE)
+				|| state.is(Blocks.ORANGE_CONCRETE)
+				|| state.is(Blocks.YELLOW_CONCRETE)
+				|| state.is(Blocks.LIME_CONCRETE)
+				|| state.is(Blocks.GREEN_CONCRETE)
+				|| state.is(Blocks.CYAN_CONCRETE)
+				|| state.is(Blocks.LIGHT_BLUE_CONCRETE)
+				|| state.is(Blocks.BLUE_CONCRETE)
+				|| state.is(Blocks.PURPLE_CONCRETE)
+				|| state.is(Blocks.MAGENTA_CONCRETE)
+				|| state.is(Blocks.PINK_CONCRETE);
+	}
+
+	private static boolean isWoodSurface(BlockState state) {
+		return state.is(Blocks.OAK_PLANKS)
+				|| state.is(Blocks.SPRUCE_PLANKS)
+				|| state.is(Blocks.BIRCH_PLANKS)
+				|| state.is(Blocks.JUNGLE_PLANKS)
+				|| state.is(Blocks.ACACIA_PLANKS)
+				|| state.is(Blocks.DARK_OAK_PLANKS)
+				|| state.is(Blocks.MANGROVE_PLANKS)
+				|| state.is(Blocks.CHERRY_PLANKS)
+				|| state.is(Blocks.PALE_OAK_PLANKS)
+				|| state.is(Blocks.BAMBOO_PLANKS)
+				|| state.is(Blocks.CRIMSON_PLANKS)
+				|| state.is(Blocks.WARPED_PLANKS)
+				|| state.is(Blocks.OAK_LOG)
+				|| state.is(Blocks.SPRUCE_LOG)
+				|| state.is(Blocks.BIRCH_LOG)
+				|| state.is(Blocks.JUNGLE_LOG)
+				|| state.is(Blocks.ACACIA_LOG)
+				|| state.is(Blocks.DARK_OAK_LOG)
+				|| state.is(Blocks.MANGROVE_LOG)
+				|| state.is(Blocks.CHERRY_LOG)
+				|| state.is(Blocks.PALE_OAK_LOG)
+				|| state.is(Blocks.BAMBOO_BLOCK)
+				|| state.is(Blocks.CRIMSON_STEM)
+				|| state.is(Blocks.WARPED_STEM);
+	}
+
+	private static boolean isMetalSurface(BlockState state) {
+		return state.is(Blocks.IRON_BLOCK)
+				|| state.is(Blocks.IRON_BARS)
+				|| state.is(Blocks.IRON_TRAPDOOR)
+				|| state.is(Blocks.ANVIL)
+				|| state.is(Blocks.CHIPPED_ANVIL)
+				|| state.is(Blocks.DAMAGED_ANVIL)
+				|| state.is(Blocks.GOLD_BLOCK)
+				|| state.is(Blocks.COPPER_BLOCK)
+				|| state.is(Blocks.EXPOSED_COPPER)
+				|| state.is(Blocks.WEATHERED_COPPER)
+				|| state.is(Blocks.OXIDIZED_COPPER)
+				|| state.is(Blocks.CUT_COPPER)
+				|| state.is(Blocks.EXPOSED_CUT_COPPER)
+				|| state.is(Blocks.WEATHERED_CUT_COPPER)
+				|| state.is(Blocks.OXIDIZED_CUT_COPPER)
+				|| state.is(Blocks.WAXED_COPPER_BLOCK)
+				|| state.is(Blocks.WAXED_EXPOSED_COPPER)
+				|| state.is(Blocks.WAXED_WEATHERED_COPPER)
+				|| state.is(Blocks.WAXED_OXIDIZED_COPPER)
+				|| state.is(Blocks.WAXED_CUT_COPPER)
+				|| state.is(Blocks.WAXED_EXPOSED_CUT_COPPER)
+				|| state.is(Blocks.WAXED_WEATHERED_CUT_COPPER)
+				|| state.is(Blocks.WAXED_OXIDIZED_CUT_COPPER);
+	}
+
+	private static boolean isSoftFiberSurface(BlockState state) {
+		return state.is(Blocks.WHITE_WOOL)
+				|| state.is(Blocks.LIGHT_GRAY_WOOL)
+				|| state.is(Blocks.GRAY_WOOL)
+				|| state.is(Blocks.BLACK_WOOL)
+				|| state.is(Blocks.BROWN_WOOL)
+				|| state.is(Blocks.RED_WOOL)
+				|| state.is(Blocks.ORANGE_WOOL)
+				|| state.is(Blocks.YELLOW_WOOL)
+				|| state.is(Blocks.LIME_WOOL)
+				|| state.is(Blocks.GREEN_WOOL)
+				|| state.is(Blocks.CYAN_WOOL)
+				|| state.is(Blocks.LIGHT_BLUE_WOOL)
+				|| state.is(Blocks.BLUE_WOOL)
+				|| state.is(Blocks.PURPLE_WOOL)
+				|| state.is(Blocks.MAGENTA_WOOL)
+				|| state.is(Blocks.PINK_WOOL)
+				|| state.is(Blocks.HAY_BLOCK);
 	}
 
 	private static double effectivePropStrikeRadius(RotorSpec rotor) {
