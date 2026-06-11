@@ -2261,6 +2261,48 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void atmosphericTurbulenceIsSlowerThanLocalizedDirtyAirBurble() {
+		DronePhysics openAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics localizedDirtyAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment openTurbulence = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5);
+		DroneEnvironment obstacleWakeTurbulence = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5, 1.0, 1.5);
+		Vec3 previousOpenGust = Vec3.ZERO;
+		Vec3 previousLocalizedGust = Vec3.ZERO;
+		double openGustXSquared = 0.0;
+		double openStepChange = 0.0;
+		double localizedStepChange = 0.0;
+		int samples = 0;
+
+		for (int i = 0; i < 2200; i++) {
+			openAir.step(idle, 0.005, openTurbulence);
+			localizedDirtyAir.step(idle, 0.005, obstacleWakeTurbulence);
+
+			Vec3 openGust = openAir.state().windGustVelocityWorldMetersPerSecond();
+			Vec3 localizedGust = localizedDirtyAir.state().windGustVelocityWorldMetersPerSecond();
+			if (i >= 240) {
+				openGustXSquared += openGust.x() * openGust.x();
+				if (samples > 0) {
+					openStepChange += openGust.subtract(previousOpenGust).length();
+					localizedStepChange += localizedGust.subtract(previousLocalizedGust).length();
+				}
+				samples++;
+			}
+			previousOpenGust = openGust;
+			previousLocalizedGust = localizedGust;
+		}
+
+		double openRmsGustX = Math.sqrt(openGustXSquared / samples);
+		double openAverageStepChange = openStepChange / Math.max(1, samples - 1);
+		double localizedAverageStepChange = localizedStepChange / Math.max(1, samples - 1);
+		assertTrue(openRmsGustX > 0.80, () -> "openRmsGustX=" + openRmsGustX);
+		assertTrue(openAverageStepChange < 0.16, () -> "openAverageStepChange=" + openAverageStepChange);
+		assertTrue(localizedAverageStepChange > openAverageStepChange * 1.15,
+				() -> "openAverageStepChange=" + openAverageStepChange
+						+ " localizedAverageStepChange=" + localizedAverageStepChange);
+	}
+
+	@Test
 	void nearGroundBoundaryLayerReducesHorizontalWindAndAddsShear() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics openAir = new DronePhysics(config);

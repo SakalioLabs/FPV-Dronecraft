@@ -4763,12 +4763,13 @@ public final class DronePhysics {
 	}
 
 	private Vec3 windBurbleTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
-		if (dirtyAir <= 1.0e-6) {
+		double burbleDirtyAir = localizedWindBurbleIntensity(environment, dirtyAir);
+		if (burbleDirtyAir <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
 
 		double windSpeed = targetMeanWind.length();
-		double gustScale = MathUtil.clamp(dirtyAir * (0.32 + 0.070 * windSpeed), 0.0, 4.5);
+		double gustScale = MathUtil.clamp(burbleDirtyAir * (0.32 + 0.070 * windSpeed), 0.0, 4.5);
 		double horizontalGustX = Math.sin(windGustPhaseA)
 				+ 0.42 * Math.sin(windGustPhaseB * 1.71 + 0.4)
 				+ 0.18 * Math.sin(windGustPhaseC * 2.17 + 2.2);
@@ -4792,6 +4793,12 @@ public final class DronePhysics {
 				.multiply(gustScale)
 				.add(upstreamBurble)
 				.multiply(burbleScale);
+	}
+
+	private static double localizedWindBurbleIntensity(DroneEnvironment environment, double dirtyAir) {
+		double ambientTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.5);
+		double localDirtyAir = Math.max(0.0, dirtyAir - ambientTurbulence);
+		return MathUtil.clamp(localDirtyAir + 0.18 * ambientTurbulence, 0.0, 1.8);
 	}
 
 	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir, double dtSeconds) {
