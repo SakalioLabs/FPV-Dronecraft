@@ -2612,6 +2612,58 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void bidirectionalEscRpmTelemetryDropsFramesDuringDesyncBurst() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withEscCommandSignal(400.0, 2048.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 180.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.025, 1000.0, 0.0, 0.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics obstructed = new DronePhysics(config);
+		DroneInput highThrottle = new DroneInput(0.90, 0.0, 0.0, 0.0, true);
+		DroneEnvironment obstructedFlow = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				new double[] {1.0, 1.0, 1.0, 1.0}
+		);
+
+		for (int i = 0; i < 360; i++) {
+			clean.step(highThrottle, 0.005);
+			obstructed.step(highThrottle, 0.005, obstructedFlow);
+		}
+
+		double obstructedTelemetryRpm = obstructed.state().motorRpmTelemetryRpm(0);
+		double obstructedTelemetryValidity = obstructed.state().motorRpmTelemetryValidity(0);
+		assertTrue(clean.state().averageMotorRpmTelemetryValidity() > 0.95,
+				() -> "cleanValidity=" + clean.state().averageMotorRpmTelemetryValidity());
+		assertTrue(obstructed.state().maxEscDesyncIntensity() > 0.70,
+				() -> "desync=" + obstructed.state().maxEscDesyncIntensity());
+		assertTrue(obstructedTelemetryRpm > 1000.0,
+				() -> "staleTelemetryRpm=" + obstructedTelemetryRpm);
+		assertTrue(obstructedTelemetryValidity < 0.5,
+				() -> "obstructedTelemetryValidity=" + obstructedTelemetryValidity);
+		assertEquals(
+				DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS,
+				DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+						obstructedTelemetryRpm,
+						obstructedTelemetryValidity
+				),
+				1.0e-9
+		);
+		assertTrue(obstructed.state().gyroDynamicNotchFrequencyHertz() > 50.0,
+				() -> "staleNotchHz=" + obstructed.state().gyroDynamicNotchFrequencyHertz());
+	}
+
+	@Test
 	void gyroNotchSpreadTracksPerMotorRpmTelemetry() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)

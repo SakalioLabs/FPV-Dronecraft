@@ -1226,9 +1226,19 @@ class DroneBlackboxRecorderTest {
 		assertEquals(header.length, row.length);
 		assertEquals("8", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
-		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]) > 0.0);
-		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]) > 0.0);
-		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm_telemetry_valid")]) > 0.95);
+		double motor7Erpm100 = Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]);
+		double motor7Einterval = Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]);
+		double motor7TelemetryValidity = Double.parseDouble(row[indexOf(header, "motor_7_rpm_telemetry_valid")]);
+		assertTrue(motor7Erpm100 > 0.0);
+		assertTrue(motor7Einterval > 0.0);
+		assertUnitInterval(motor7TelemetryValidity);
+		assertTrue(motor7TelemetryValidity < 0.95);
+		if (motor7TelemetryValidity >= 0.5) {
+			double expectedMotor7Einterval = 600000.0 / motor7Erpm100;
+			assertEquals(expectedMotor7Einterval, motor7Einterval, Math.max(1.0, expectedMotor7Einterval * 0.002));
+		} else {
+			assertEquals(DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS, motor7Einterval, 1.0e-9);
+		}
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_erpm100")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_electrical_efficiency")]) > 0.0);

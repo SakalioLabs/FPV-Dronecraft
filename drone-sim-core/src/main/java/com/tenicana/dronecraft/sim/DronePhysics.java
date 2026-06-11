@@ -119,6 +119,7 @@ public final class DronePhysics {
 	private final double[] escRpmTelemetryOmegaRadiansPerSecond;
 	private final double[] escRpmTelemetryFrameClockSeconds;
 	private final double[] escRpmTelemetryFrameAgeSeconds;
+	private final double[] escRpmTelemetryDropoutPhases;
 	private final boolean[] escRpmTelemetryFrameInitialized;
 	private final double[] gyroMotorVibrationPhases;
 	private final double[] gyroBladePassVibrationPhases;
@@ -325,6 +326,7 @@ public final class DronePhysics {
 		this.escRpmTelemetryOmegaRadiansPerSecond = new double[config.rotors().size()];
 		this.escRpmTelemetryFrameClockSeconds = new double[config.rotors().size()];
 		this.escRpmTelemetryFrameAgeSeconds = new double[config.rotors().size()];
+		this.escRpmTelemetryDropoutPhases = new double[config.rotors().size()];
 		this.escRpmTelemetryFrameInitialized = new boolean[config.rotors().size()];
 		this.gyroMotorVibrationPhases = new double[config.rotors().size()];
 		this.gyroBladePassVibrationPhases = new double[config.rotors().size()];
@@ -7433,6 +7435,7 @@ public final class DronePhysics {
 		Arrays.fill(escRpmTelemetryOmegaRadiansPerSecond, 0.0);
 		Arrays.fill(escRpmTelemetryFrameClockSeconds, 0.0);
 		Arrays.fill(escRpmTelemetryFrameAgeSeconds, 0.0);
+		Arrays.fill(escRpmTelemetryDropoutPhases, 0.0);
 		Arrays.fill(escRpmTelemetryFrameInitialized, false);
 		for (int i = 0; i < state.motorCount(); i++) {
 			state.setMotorRpmTelemetry(i, 0.0, 0.0);
@@ -7442,6 +7445,7 @@ public final class DronePhysics {
 	private void updateEscRpmTelemetry(int index, RotorSpec rotor, double omegaRadiansPerSecond, double dtSeconds) {
 		double intervalSeconds = escCommandFrameIntervalSeconds();
 		double telemetryValidity = escRpmTelemetryValidity(omegaRadiansPerSecond);
+		double dropoutIntensity = escRpmTelemetryDropoutIntensity(index, telemetryValidity);
 		double measuredOmega = telemetryValidity >= 0.5
 				? quantizeBidirectionalDshotRpmTelemetry(rotor, omegaRadiansPerSecond)
 				: 0.0;
@@ -7450,7 +7454,7 @@ public final class DronePhysics {
 			escRpmTelemetryFrameClockSeconds[index] = 0.0;
 			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
 			escRpmTelemetryFrameInitialized[index] = true;
-			state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity);
+			state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity * (1.0 - 0.55 * dropoutIntensity));
 			return;
 		}
 
@@ -7466,19 +7470,75 @@ public final class DronePhysics {
 
 		escRpmTelemetryFrameClockSeconds[index] += Math.max(0.0, dtSeconds);
 		if (escRpmTelemetryFrameClockSeconds[index] >= intervalSeconds) {
-			escRpmTelemetryOmegaRadiansPerSecond[index] = measuredOmega;
+			boolean frameDropped = escRpmTelemetryFrameDropped(index, dropoutIntensity, intervalSeconds);
 			escRpmTelemetryFrameClockSeconds[index] -= intervalSeconds;
 			if (escRpmTelemetryFrameClockSeconds[index] >= intervalSeconds) {
 				escRpmTelemetryFrameClockSeconds[index] = 0.0;
 			}
-			escRpmTelemetryFrameAgeSeconds[index] = 0.0;
-			state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity);
+			if (frameDropped) {
+				double staleAge = Math.min(
+						intervalSeconds * 4.0,
+						escRpmTelemetryFrameAgeSeconds[index] + intervalSeconds
+				);
+				escRpmTelemetryFrameAgeSeconds[index] = staleAge;
+				double staleFade = 1.0 - smoothStep(intervalSeconds * 0.85, intervalSeconds * 3.2, staleAge);
+				double staleValidity = Math.min(state.motorRpmTelemetryValidity(index), telemetryValidity)
+						* staleFade
+						* (1.0 - 0.72 * dropoutIntensity);
+				state.setMotorRpmTelemetry(index, escRpmTelemetryOmegaRadiansPerSecond[index], staleValidity);
+			} else {
+				escRpmTelemetryOmegaRadiansPerSecond[index] = measuredOmega;
+				escRpmTelemetryFrameAgeSeconds[index] = 0.0;
+				state.setMotorRpmTelemetry(index, measuredOmega, telemetryValidity * (1.0 - 0.28 * dropoutIntensity));
+			}
 		} else {
 			escRpmTelemetryFrameAgeSeconds[index] = Math.min(
-					intervalSeconds,
+					intervalSeconds * 4.0,
 					escRpmTelemetryFrameAgeSeconds[index] + Math.max(0.0, dtSeconds)
 			);
 		}
+	}
+
+	private double escRpmTelemetryDropoutIntensity(int index, double telemetryValidity) {
+		if (index < 0 || index >= state.motorCount() || telemetryValidity <= 0.0) {
+			return 0.0;
+		}
+
+		double perMotorMaxCurrentAmps = config.maxBatteryCurrentAmps() / Math.max(1, state.motorCount());
+		double currentRippleStress = perMotorMaxCurrentAmps <= 1.0e-6
+				? 0.0
+				: smoothStep(0.045, 0.36, state.motorCurrentRippleAmps(index) / perMotorMaxCurrentAmps);
+		double lowSpeedEdge = 1.0 - smoothStep(0.55, 0.98, telemetryValidity);
+		double voltageHeadroomStress = motorVoltageHeadroomStress(index)
+				* smoothStep(0.35, 0.92, state.escOutputCommand(index));
+		double brakingOverrun = Math.max(0.0, state.motorPower(config, index) - state.escOutputCommand(index));
+		double brakingStress = MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0)
+				* smoothStep(0.06, 0.42, brakingOverrun)
+				* batteryBusSpikeStress();
+		double electricalStress = 0.82 * state.escDesyncIntensity(index)
+				+ 0.28 * state.motorCommutationRippleIntensity(index)
+				+ 0.26 * currentRippleStress
+				+ 0.22 * batteryBusRippleStress()
+				+ 0.20 * batteryBusSpikeStress()
+				+ 0.16 * voltageHeadroomStress
+				+ 0.15 * brakingStress
+				+ 0.10 * lowSpeedEdge;
+		return MathUtil.clamp((electricalStress - 0.18) / 0.72, 0.0, 0.95);
+	}
+
+	private boolean escRpmTelemetryFrameDropped(int index, double dropoutIntensity, double intervalSeconds) {
+		if (dropoutIntensity <= 1.0e-6) {
+			return false;
+		}
+
+		escRpmTelemetryDropoutPhases[index] += intervalSeconds
+				* (37.0 + 11.0 * index + 53.0 * dropoutIntensity);
+		double phase = escRpmTelemetryDropoutPhases[index] + index * 0.61;
+		double carrier = 0.50
+				+ 0.34 * Math.sin(phase)
+				+ 0.16 * Math.sin(phase * 2.17 + 1.4 + index * 0.29);
+		double burstBoost = 0.24 * smoothStep(0.42, 0.85, dropoutIntensity);
+		return carrier < dropoutIntensity + burstBoost;
 	}
 
 	private void integrateMotorThermal(DroneEnvironment environment, double dtSeconds) {
