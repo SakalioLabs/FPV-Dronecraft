@@ -3214,8 +3214,8 @@ public final class DronePhysics {
 		double wave = Math.sin(phase)
 				+ 0.38 * Math.sin(phase * 1.73 + 0.8)
 				+ 0.22 * Math.sin(phase * 2.41 + index * 0.37);
-		double thrustAmplitude = MathUtil.clamp(0.018 + 0.070 * intensity, 0.0, 0.10) * intensity;
-		double thrustScale = MathUtil.clamp(1.0 + thrustAmplitude * wave, 0.76, 1.14);
+		double thrustAmplitude = MathUtil.clamp(0.034 + 0.116 * intensity, 0.0, 0.18) * intensity;
+		double thrustScale = MathUtil.clamp(1.0 + thrustAmplitude * wave, 0.68, 1.24);
 
 		Vec3 axis = rotorAxisBody(rotor);
 		Vec3 tangentA = BODY_RIGHT.subtract(axis.multiply(BODY_RIGHT.dot(axis))).normalized();
@@ -3228,18 +3228,18 @@ public final class DronePhysics {
 			double lateralWaveA = Math.sin(phase * 0.77 + 1.2);
 			double lateralWaveB = Math.cos(phase * 1.11 + 0.4);
 			double lateralMagnitude = MathUtil.clamp(
-					thrustNewtons * intensity * (0.018 + 0.050 * intensity),
+					thrustNewtons * intensity * (0.026 + 0.072 * intensity),
 					0.0,
-					rotor.maxThrustNewtons() * 0.10
+					rotor.maxThrustNewtons() * 0.14
 			);
 			lateralForce = tangentA.multiply(lateralWaveA * lateralMagnitude)
 					.add(tangentB.multiply(lateralWaveB * lateralMagnitude * 0.82));
 		}
 
 		double vibration = MathUtil.clamp(
-				intensity * (0.020 + 0.080 * Math.abs(wave) + 0.025 * Math.min(1.0, lateralForce.length() / Math.max(1.0e-6, thrustNewtons))),
+				intensity * (0.026 + 0.108 * Math.abs(wave) + 0.034 * Math.min(1.0, lateralForce.length() / Math.max(1.0e-6, thrustNewtons))),
 				0.0,
-				0.14
+				0.20
 		);
 		return new RotorVortexRingBuffet(thrustScale, lateralForce, vibration);
 	}

@@ -7624,6 +7624,83 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void vortexRingStateBuffetApproachesSmallPropTimeHistoryBand() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 160.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics verticalDescent = new DronePhysics(config);
+		DronePhysics crossflowEscape = new DronePhysics(config);
+		DroneInput fullThrottle = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
+		double verticalMinThrust = Double.POSITIVE_INFINITY;
+		double verticalMaxThrust = Double.NEGATIVE_INFINITY;
+		double verticalThrustSum = 0.0;
+		double crossflowMinThrust = Double.POSITIVE_INFINITY;
+		double crossflowMaxThrust = Double.NEGATIVE_INFINITY;
+		double crossflowThrustSum = 0.0;
+		int samples = 0;
+
+		for (int i = 0; i < 420; i++) {
+			double inducedVelocity = Math.max(
+					9.0,
+					verticalDescent.state().averageRotorInducedVelocityMetersPerSecond()
+			);
+			double descentSpeed = inducedVelocity * 1.20;
+			verticalDescent.state().setOrientation(Quaternion.IDENTITY);
+			verticalDescent.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			verticalDescent.state().setVelocityMetersPerSecond(new Vec3(0.0, -descentSpeed, 0.0));
+			crossflowEscape.state().setOrientation(Quaternion.IDENTITY);
+			crossflowEscape.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			crossflowEscape.state().setVelocityMetersPerSecond(new Vec3(8.0, -descentSpeed, 0.0));
+			verticalDescent.step(fullThrottle, 0.005);
+			crossflowEscape.step(fullThrottle, 0.005);
+
+			if (i >= 240) {
+				double verticalThrust = verticalDescent.state().rotorThrustNewtons(0);
+				double crossflowThrust = crossflowEscape.state().rotorThrustNewtons(0);
+				verticalMinThrust = Math.min(verticalMinThrust, verticalThrust);
+				verticalMaxThrust = Math.max(verticalMaxThrust, verticalThrust);
+				verticalThrustSum += verticalThrust;
+				crossflowMinThrust = Math.min(crossflowMinThrust, crossflowThrust);
+				crossflowMaxThrust = Math.max(crossflowMaxThrust, crossflowThrust);
+				crossflowThrustSum += crossflowThrust;
+				samples++;
+			}
+		}
+
+		double verticalMeanThrust = verticalThrustSum / samples;
+		double crossflowMeanThrust = crossflowThrustSum / samples;
+		double verticalHalfAmplitude = (verticalMaxThrust - verticalMinThrust) / (2.0 * verticalMeanThrust);
+		double crossflowHalfAmplitude = (crossflowMaxThrust - crossflowMinThrust) / (2.0 * crossflowMeanThrust);
+		double observedVerticalMinThrust = verticalMinThrust;
+		double observedVerticalMaxThrust = verticalMaxThrust;
+		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.82,
+				() -> "vrs=" + verticalDescent.state().vortexRingStateIntensity());
+		assertTrue(crossflowEscape.state().vortexRingStateIntensity() < 0.05,
+				() -> "crossflowVrs=" + crossflowEscape.state().vortexRingStateIntensity());
+		// Shetty/Selig small fixed-pitch prop histories report about +/-30% at the strongest VRS point;
+		// the default 5-inch FPV preset keeps a conservative but visible unsteady thrust band.
+		assertTrue(verticalHalfAmplitude > 0.14 && verticalHalfAmplitude < 0.32,
+				() -> "verticalHalfAmplitude=" + verticalHalfAmplitude
+						+ " verticalMinThrust=" + observedVerticalMinThrust
+						+ " verticalMaxThrust=" + observedVerticalMaxThrust
+						+ " verticalMeanThrust=" + verticalMeanThrust);
+		assertTrue(crossflowHalfAmplitude < verticalHalfAmplitude * 0.55,
+				() -> "verticalHalfAmplitude=" + verticalHalfAmplitude
+						+ " crossflowHalfAmplitude=" + crossflowHalfAmplitude);
+		assertTrue(verticalDescent.state().rotorVibration() > crossflowEscape.state().rotorVibration() + 0.04,
+				() -> "verticalVibration=" + verticalDescent.state().rotorVibration()
+						+ " crossflowVibration=" + crossflowEscape.state().rotorVibration());
+	}
+
+	@Test
 	void contactDynamicsSeparatesWallImpactFromTangentialSlip() {
 		ContactDynamics.Response response = ContactDynamics.resolve(
 				new Vec3(6.0, 1.0, 7.0),
