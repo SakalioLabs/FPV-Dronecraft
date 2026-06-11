@@ -5,6 +5,7 @@ import java.util.Locale;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
+import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
@@ -120,11 +121,21 @@ public final class DroneBlackboxSample {
 			"motor_1_rpm",
 			"motor_2_rpm",
 			"motor_3_rpm",
+			"avg_motor_erpm100",
+			"motor_0_erpm100",
+			"motor_1_erpm100",
+			"motor_2_erpm100",
+			"motor_3_erpm100",
 			"avg_motor_target_rpm",
 			"motor_0_target_rpm",
 			"motor_1_target_rpm",
 			"motor_2_target_rpm",
 			"motor_3_target_rpm",
+			"avg_motor_target_erpm100",
+			"motor_0_target_erpm100",
+			"motor_1_target_erpm100",
+			"motor_2_target_erpm100",
+			"motor_3_target_erpm100",
 			"avg_motor_tracking_error",
 			"motor_0_tracking_error",
 			"motor_1_tracking_error",
@@ -634,10 +645,18 @@ public final class DroneBlackboxSample {
 			"motor_5_rpm",
 			"motor_6_rpm",
 			"motor_7_rpm",
+			"motor_4_erpm100",
+			"motor_5_erpm100",
+			"motor_6_erpm100",
+			"motor_7_erpm100",
 			"motor_4_target_rpm",
 			"motor_5_target_rpm",
 			"motor_6_target_rpm",
 			"motor_7_target_rpm",
+			"motor_4_target_erpm100",
+			"motor_5_target_erpm100",
+			"motor_6_target_erpm100",
+			"motor_7_target_erpm100",
 			"motor_4_tracking_error",
 			"motor_5_tracking_error",
 			"motor_6_tracking_error",
@@ -1046,11 +1065,21 @@ public final class DroneBlackboxSample {
 		row.add(state.motorRpm(1), "%.1f");
 		row.add(state.motorRpm(2), "%.1f");
 		row.add(state.motorRpm(3), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpm()), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(0)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(1)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(2)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorRpm(3)), "%.1f");
 		row.add(state.averageMotorTargetRpm(), "%.1f");
 		row.add(state.motorTargetRpm(0), "%.1f");
 		row.add(state.motorTargetRpm(1), "%.1f");
 		row.add(state.motorTargetRpm(2), "%.1f");
 		row.add(state.motorTargetRpm(3), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(0)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(1)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(2)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(3)), "%.1f");
 		row.add(state.averageMotorTrackingError(), "%.5f");
 		row.add(state.motorTrackingError(0), "%.5f");
 		row.add(state.motorTrackingError(1), "%.5f");
@@ -1551,6 +1580,10 @@ public final class DroneBlackboxSample {
 		return index >= 0 && index < values.length ? values[index] : 1.0;
 	}
 
+	private static double motorTargetRpm(double omegaRadiansPerSecond) {
+		return omegaRadiansPerSecond * 60.0 / (Math.PI * 2.0);
+	}
+
 	private static Vec3 vectorOrZero(Vec3[] values, int index) {
 		return index >= 0 && index < values.length && values[index] != null ? values[index] : Vec3.ZERO;
 	}
@@ -1622,7 +1655,13 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(motorRpm, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(valueOrZero(motorTargetOmega, i) * 60.0 / (Math.PI * 2.0), "%.1f");
+			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(motorTargetRpm(valueOrZero(motorTargetOmega, i)), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(motorTrackingError, i), "%.5f");

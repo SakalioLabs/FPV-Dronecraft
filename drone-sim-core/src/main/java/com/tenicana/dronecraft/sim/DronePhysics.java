@@ -213,6 +213,13 @@ public final class DronePhysics {
 		private static final RotorConvectedWake IDLE = new RotorConvectedWake(0.0, Double.POSITIVE_INFINITY, Vec3.ZERO);
 	}
 
+	public static double betaflightErpm100FromMechanicalRpm(double mechanicalRpm) {
+		if (!Double.isFinite(mechanicalRpm) || mechanicalRpm <= 0.0) {
+			return 0.0;
+		}
+		return mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS / 100.0;
+	}
+
 	public DronePhysics(DroneConfig config) {
 		this.config = config;
 		this.state = new DroneState(config.rotors().size());

@@ -363,6 +363,16 @@ public final class OfflineFlightRecorder {
 			"rotor_2_surface_scrape",
 			"rotor_3_surface_scrape",
 			"airframe_rotor_count",
+			"avg_motor_erpm100",
+			"motor_0_erpm100",
+			"motor_1_erpm100",
+			"motor_2_erpm100",
+			"motor_3_erpm100",
+			"avg_motor_target_erpm100",
+			"motor_0_target_erpm100",
+			"motor_1_target_erpm100",
+			"motor_2_target_erpm100",
+			"motor_3_target_erpm100",
 			"motor_4_output",
 			"motor_5_output",
 			"motor_6_output",
@@ -371,10 +381,18 @@ public final class OfflineFlightRecorder {
 			"motor_5_rpm",
 			"motor_6_rpm",
 			"motor_7_rpm",
+			"motor_4_erpm100",
+			"motor_5_erpm100",
+			"motor_6_erpm100",
+			"motor_7_erpm100",
 			"motor_4_target_rpm",
 			"motor_5_target_rpm",
 			"motor_6_target_rpm",
 			"motor_7_target_rpm",
+			"motor_4_target_erpm100",
+			"motor_5_target_erpm100",
+			"motor_6_target_erpm100",
+			"motor_7_target_erpm100",
 			"motor_4_tracking_error",
 			"motor_5_tracking_error",
 			"motor_6_tracking_error",
@@ -1420,6 +1438,14 @@ public final class OfflineFlightRecorder {
 		Vec3 pidIntegralRelaxAxes = state.pidIntegralRelaxAxes();
 
 		appendExtra(builder, config.rotors().size());
+		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpm()), "%.1f");
+		for (int i = 0; i < 4; i++) {
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+		}
+		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
+		for (int i = 0; i < 4; i++) {
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorPowers, i), "%.5f");
 		}
@@ -1427,7 +1453,13 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, valueOrZero(motorRpm, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			appendExtra(builder, valueOrZero(motorTargetOmega, i) * 60.0 / (Math.PI * 2.0), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
+			appendExtra(builder, motorTargetRpm(valueOrZero(motorTargetOmega, i)), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorTrackingError, i), "%.5f");
@@ -1611,6 +1643,10 @@ public final class OfflineFlightRecorder {
 
 	private static double valueOrOne(double[] values, int index) {
 		return index >= 0 && index < values.length ? values[index] : 1.0;
+	}
+
+	private static double motorTargetRpm(double omegaRadiansPerSecond) {
+		return omegaRadiansPerSecond * 60.0 / (Math.PI * 2.0);
 	}
 
 	private static Vec3 vectorOrZero(Vec3[] values, int index) {
