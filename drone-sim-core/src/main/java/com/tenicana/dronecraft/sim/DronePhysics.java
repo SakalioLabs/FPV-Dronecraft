@@ -2444,15 +2444,62 @@ public final class DronePhysics {
 		double pitchAdvance = climbSpeed / rotorPitchSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double pitchUnloadAuthority = MathUtil.clamp(0.08 + 0.18 / rotorBladePitchRatio(rotor), 0.10, 0.32);
 		double bladePitchUnload = pitchUnloadAuthority * smoothStep(0.42, 1.05, pitchAdvance);
+		double axialGustThrustScale = rotorAxialGustThrustScale(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				tipSpeed,
+				transverseSpeed
+		);
 		return MathUtil.clamp(
 				transverseLift
 						* forwardAdvanceThrustScale
 						* (1.0 - axialLoss)
 						* (1.0 - postPeakAdvanceLoss)
-						* (1.0 - bladePitchUnload),
+						* (1.0 - bladePitchUnload)
+						* axialGustThrustScale,
 				0.12,
-				1.25
+				1.75
 		);
+	}
+
+	private static double rotorAxialGustThrustScale(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double tipSpeedMetersPerSecond,
+			double transverseSpeedMetersPerSecond
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		if (spinRatio <= 0.06) {
+			return 1.0;
+		}
+
+		double axialVelocity = rotorAxialVelocity(rotor, relativeAirVelocityBody);
+		double axialSpeed = Math.abs(axialVelocity);
+		double totalSpeed = Math.hypot(axialSpeed, transverseSpeedMetersPerSecond);
+		if (axialSpeed <= 0.35 || totalSpeed <= 0.35) {
+			return 1.0;
+		}
+
+		double axialAlignment = axialSpeed / totalSpeed;
+		double transverseAdvanceRatio = transverseSpeedMetersPerSecond / Math.max(1.0, tipSpeedMetersPerSecond);
+		double axialDominance = smoothStep(0.55, 0.94, axialAlignment)
+				* (1.0 - smoothStep(0.045, 0.22, transverseAdvanceRatio));
+		double axialRatio = axialSpeed / Math.max(2.5, tipSpeedMetersPerSecond * 0.22);
+		double severity = smoothStep(0.16, 0.58, axialRatio) * axialDominance;
+		if (severity <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double lowRpmAuthority = 1.0 - smoothStep(0.14, 0.32, spinRatio);
+		if (axialVelocity > 0.0) {
+			double adverseLoss = (0.22 + 0.58 * lowRpmAuthority) * severity;
+			return MathUtil.clamp(1.0 - adverseLoss, 0.18, 1.0);
+		}
+
+		double assistingGain = (0.36 + 0.96 * lowRpmAuthority) * severity;
+		return MathUtil.clamp(1.0 + assistingGain, 1.0, 2.35);
 	}
 
 	private static double rotorForwardAdvanceThrustScale(RotorSpec rotor, double advanceRatio) {

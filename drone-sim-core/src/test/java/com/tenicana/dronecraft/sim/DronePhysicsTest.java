@@ -7106,6 +7106,83 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void axialHoverGustThrustScaleMatchesIcasDirectionality() throws ReflectiveOperationException {
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		Method airflowScaleMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorAirflowThrustMultiplier",
+				RotorSpec.class,
+				Vec3.class,
+				double.class,
+				double.class
+		);
+		airflowScaleMethod.setAccessible(true);
+
+		double omega6528Rpm = 6528.0 * Math.PI * 2.0 / 60.0;
+		Vec3 axis = rotor.thrustAxisBody();
+		double stillScale = (double) airflowScaleMethod.invoke(null, rotor, Vec3.ZERO, omega6528Rpm, 0.0);
+		double adverseAxialGustScale = (double) airflowScaleMethod.invoke(
+				null,
+				rotor,
+				axis.multiply(10.0),
+				omega6528Rpm,
+				0.0
+		);
+		double assistingAxialGustScale = (double) airflowScaleMethod.invoke(
+				null,
+				rotor,
+				axis.multiply(-10.0),
+				omega6528Rpm,
+				0.0
+		);
+
+		assertEquals(1.0, stillScale, 1.0e-9);
+		assertTrue(adverseAxialGustScale > 0.25 && adverseAxialGustScale < 0.48,
+				() -> "adverseAxialGustScale=" + adverseAxialGustScale);
+		assertTrue(assistingAxialGustScale > 1.35 && assistingAxialGustScale < 1.75,
+				() -> "assistingAxialGustScale=" + assistingAxialGustScale);
+		assertTrue(assistingAxialGustScale > adverseAxialGustScale + 0.95,
+				() -> "adverseAxialGustScale=" + adverseAxialGustScale
+						+ " assistingAxialGustScale=" + assistingAxialGustScale);
+	}
+
+	@Test
+	void axialHoverGustModelFadesOutInCrossflow() throws ReflectiveOperationException {
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		Method axialGustScaleMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorAxialGustThrustScale",
+				RotorSpec.class,
+				Vec3.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		axialGustScaleMethod.setAccessible(true);
+
+		double omega6528Rpm = 6528.0 * Math.PI * 2.0 / 60.0;
+		double tipSpeed = Math.abs(omega6528Rpm) * rotor.radiusMeters();
+		Vec3 axis = rotor.thrustAxisBody();
+		double pureAxialScale = (double) axialGustScaleMethod.invoke(
+				null,
+				rotor,
+				axis.multiply(-10.0),
+				omega6528Rpm,
+				tipSpeed,
+				0.0
+		);
+		double mixedCrossflowScale = (double) axialGustScaleMethod.invoke(
+				null,
+				rotor,
+				new Vec3(20.0, -10.0, 0.0),
+				omega6528Rpm,
+				tipSpeed,
+				20.0
+		);
+
+		assertTrue(pureAxialScale > 1.65, () -> "pureAxialScale=" + pureAxialScale);
+		assertEquals(1.0, mixedCrossflowScale, 1.0e-9);
+	}
+
+	@Test
 	void forwardFlightPropellerAdvanceRolloffBeatsTranslationalLiftBoost() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
