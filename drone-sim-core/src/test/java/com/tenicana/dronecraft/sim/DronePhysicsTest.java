@@ -1870,18 +1870,23 @@ class DronePhysicsTest {
 				.withMotorIdleAndAirmode(0.0, 0.0)
 				.withBattery(16.8, 13.2, 0.0, 10.0, 90.0);
 		double fullOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 1.0);
+		double highOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 0.80);
 		double midOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 0.50);
+		double reserveOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 0.20);
 		double lowOpenCircuitVoltage = openCircuitVoltageAtStateOfCharge(config, 0.10);
 		double voltageRange = config.nominalBatteryVoltage() - config.emptyBatteryVoltage();
 		double linearMidVoltage = config.emptyBatteryVoltage() + voltageRange * 0.50;
 
 		assertEquals(config.nominalBatteryVoltage(), fullOpenCircuitVoltage, 0.02);
-		assertTrue(midOpenCircuitVoltage > linearMidVoltage + 0.15);
-		assertTrue(midOpenCircuitVoltage < config.emptyBatteryVoltage() + voltageRange * 0.63);
-		assertTrue(lowOpenCircuitVoltage > config.emptyBatteryVoltage() + voltageRange * 0.20);
-		assertTrue(lowOpenCircuitVoltage < midOpenCircuitVoltage - voltageRange * 0.24);
-		assertTrue(fullOpenCircuitVoltage > midOpenCircuitVoltage);
-		assertTrue(midOpenCircuitVoltage > lowOpenCircuitVoltage);
+		assertEquals(15.73, highOpenCircuitVoltage, 0.04);
+		assertEquals(14.66, midOpenCircuitVoltage, 0.04);
+		assertEquals(14.20, reserveOpenCircuitVoltage, 0.04);
+		assertEquals(13.85, lowOpenCircuitVoltage, 0.04);
+		assertTrue(midOpenCircuitVoltage < linearMidVoltage - 0.25);
+		assertTrue(fullOpenCircuitVoltage > highOpenCircuitVoltage);
+		assertTrue(highOpenCircuitVoltage > midOpenCircuitVoltage);
+		assertTrue(midOpenCircuitVoltage > reserveOpenCircuitVoltage);
+		assertTrue(reserveOpenCircuitVoltage > lowOpenCircuitVoltage);
 	}
 
 	@Test

@@ -25,8 +25,9 @@ public final class DronePhysics {
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
 	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
-	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.05, 0.10, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
-	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.17, 0.28, 0.43, 0.52, 0.58, 0.66, 0.76, 0.86, 1.0};
+	// CALCE low-current LiPo OCV median, normalized over each preset's configured usable empty/full voltage window.
+	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.04, 0.05, 0.10, 0.18, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
+	private static final double[] LIPO_OCV_NORMALIZED_POINTS = {0.0, 0.090, 0.137, 0.181, 0.261, 0.279, 0.349, 0.405, 0.540, 0.702, 0.826, 1.0};
 	private static final double LIPO_MENDELEY_REFERENCE_AGING_CYCLES = 450.0;
 	private static final double[] LIPO_MENDELEY_R0_SOC_POINTS = {0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 1.0};
 	private static final double[] LIPO_MENDELEY_R0_FRESH_SCALE = {
@@ -7437,17 +7438,7 @@ public final class DronePhysics {
 
 	private static double normalizedLipoOpenCircuitVoltage(double stateOfCharge) {
 		double soc = MathUtil.clamp(stateOfCharge, 0.0, 1.0);
-		for (int i = 1; i < LIPO_OCV_SOC_POINTS.length; i++) {
-			double upperSoc = LIPO_OCV_SOC_POINTS[i];
-			if (soc <= upperSoc) {
-				double lowerSoc = LIPO_OCV_SOC_POINTS[i - 1];
-				double lowerVoltage = LIPO_OCV_NORMALIZED_POINTS[i - 1];
-				double upperVoltage = LIPO_OCV_NORMALIZED_POINTS[i];
-				double t = smoothStep(lowerSoc, upperSoc, soc);
-				return lowerVoltage + (upperVoltage - lowerVoltage) * t;
-			}
-		}
-		return 1.0;
+		return interpolateLookup(soc, LIPO_OCV_SOC_POINTS, LIPO_OCV_NORMALIZED_POINTS);
 	}
 
 	private double batteryBusRippleTarget(double dischargeCurrentAmps, double batteryResistanceOhms) {
