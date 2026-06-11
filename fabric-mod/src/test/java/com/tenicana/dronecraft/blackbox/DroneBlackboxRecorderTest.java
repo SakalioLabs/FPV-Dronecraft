@@ -131,6 +131,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_0_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_3_aerodynamic_load"));
+		assertTrue(csv.contains("rotor_in_plane_drag_force_n"));
+		assertTrue(csv.contains("rotor_0_in_plane_drag_force_n"));
+		assertTrue(csv.contains("rotor_7_in_plane_drag_force_n"));
 		assertTrue(csv.contains("rotor_inflow_skew"));
 		assertTrue(csv.contains("rotor_wake_interference"));
 		assertTrue(csv.contains("rotor_3_wake_interference"));
@@ -651,6 +654,59 @@ class DroneBlackboxRecorderTest {
 	}
 
 	@Test
+	void blackboxSummaryReportsRotorInPlaneHForce() {
+		DroneConfig config = DroneConfig.racingQuad()
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0042)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true, true, FlightMode.ACRO);
+
+		for (int i = 0; i < 320; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(new Vec3(24.0, 0.0, 0.0));
+			physics.step(hover, 0.005, DroneEnvironment.calm());
+		}
+		recorder.record(DroneBlackboxSample.from(
+				70,
+				70,
+				10,
+				0.005,
+				physics.state(),
+				hover,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				DroneEnvironment.calm(),
+				config
+		));
+
+		String[] lines = recorder.toCsv().strip().split("\\R");
+		String[] header = lines[0].split(",", -1);
+		String[] row = lines[1].split(",", -1);
+		double averageHForce = Double.parseDouble(row[indexOf(header, "rotor_in_plane_drag_force_n")]);
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		assertTrue(averageHForce > 0.10, () -> "hforce=" + averageHForce);
+		assertTrue(summary.maxRotorInPlaneDragForceNewtons() >= averageHForce);
+		assertTrue(summary.formatForChat().contains("hforce"));
+	}
+
+	@Test
 	void blackboxSummaryReportsBladeDissymmetryHubMoment() {
 		DroneConfig config = DroneConfig.racingQuad()
 				.withLinearDragCoefficient(0.0)
@@ -906,6 +962,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_current_ripple_a")]) >= 0.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_7_torque_ripple_nm")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_thrust_n")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_in_plane_drag_force_n")]) >= 0.0);
 		assertEquals(0.80, Double.parseDouble(row[indexOf(header, "rotor_7_health")]), 0.0001);
 		assertEquals(0.66, Double.parseDouble(row[indexOf(header, "rotor_7_surface_scrape")]), 0.0001);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);

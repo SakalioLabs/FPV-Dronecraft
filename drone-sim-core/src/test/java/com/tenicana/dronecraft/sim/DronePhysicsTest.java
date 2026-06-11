@@ -6568,6 +6568,50 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorInPlaneDragOpposesDiskPlaneFlowAndRaisesRotorLoad() {
+		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
+		DroneConfig base = withCommonGains(directControl(DroneConfig.racingQuad()), passiveGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics noDiskDrag = new DronePhysics(base.withRotorDiskDragCoefficient(0.0));
+		DronePhysics hForce = new DronePhysics(base.withRotorDiskDragCoefficient(0.0042));
+		DroneInput hover = new DroneInput(base.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		Vec3 crossflow = new Vec3(24.0, 0.0, 0.0);
+		double maxLoadDelta = 0.0;
+
+		for (int i = 0; i < 260; i++) {
+			noDiskDrag.state().setOrientation(Quaternion.IDENTITY);
+			hForce.state().setOrientation(Quaternion.IDENTITY);
+			noDiskDrag.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			hForce.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			noDiskDrag.state().setVelocityMetersPerSecond(crossflow);
+			hForce.state().setVelocityMetersPerSecond(crossflow);
+			noDiskDrag.step(hover, 0.005, DroneEnvironment.calm());
+			hForce.step(hover, 0.005, DroneEnvironment.calm());
+			maxLoadDelta = Math.max(
+					maxLoadDelta,
+					hForce.state().averageRotorAerodynamicLoadFactor()
+							- noDiskDrag.state().averageRotorAerodynamicLoadFactor()
+			);
+		}
+
+		assertEquals(0.0, noDiskDrag.state().maxRotorInPlaneDragForceNewtons(), 1.0e-9);
+		assertTrue(hForce.state().averageRotorInPlaneDragForceNewtons() > 0.10,
+				() -> "hforce=" + hForce.state().averageRotorInPlaneDragForceNewtons());
+		assertTrue(hForce.state().rotorForceBodyNewtons(0).x()
+				< noDiskDrag.state().rotorForceBodyNewtons(0).x() - 0.12);
+		assertTrue(maxLoadDelta > 0.04, "maxLoadDelta=" + maxLoadDelta);
+	}
+
+	@Test
 	void descendingAxialRotorFlowReducesLift() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -7089,6 +7133,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_low_reynolds_loss"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_low_reynolds_loss"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_aerodynamic_load"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_in_plane_drag_force_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_in_plane_drag_force_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_in_plane_drag_force_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inflow_skew"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_interference"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_thrust_scale"));

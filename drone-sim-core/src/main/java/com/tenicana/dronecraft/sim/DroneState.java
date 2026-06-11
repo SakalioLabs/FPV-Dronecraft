@@ -96,6 +96,7 @@ public final class DroneState {
 	private double[] rotorBladeDissymmetryIntensity;
 	private double[] rotorBladePassRippleIntensity;
 	private double[] rotorAerodynamicLoadFactor;
+	private double[] rotorInPlaneDragForceNewtons;
 	private double[] rotorFlappingForceNewtons;
 	private double[] rotorFlappingTiltRadians;
 	private double[] rotorConingIntensity;
@@ -209,6 +210,7 @@ public final class DroneState {
 		rotorBladeDissymmetryIntensity = new double[motorCount];
 		rotorBladePassRippleIntensity = new double[motorCount];
 		rotorAerodynamicLoadFactor = new double[motorCount];
+		rotorInPlaneDragForceNewtons = new double[motorCount];
 		rotorFlappingForceNewtons = new double[motorCount];
 		rotorFlappingTiltRadians = new double[motorCount];
 		rotorConingIntensity = new double[motorCount];
@@ -1286,6 +1288,7 @@ public final class DroneState {
 		Arrays.fill(rotorBladeDissymmetryIntensity, 0.0);
 		Arrays.fill(rotorBladePassRippleIntensity, 0.0);
 		Arrays.fill(rotorAerodynamicLoadFactor, 0.0);
+		Arrays.fill(rotorInPlaneDragForceNewtons, 0.0);
 		Arrays.fill(rotorFlappingForceNewtons, 0.0);
 		Arrays.fill(rotorFlappingTiltRadians, 0.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
@@ -1669,6 +1672,34 @@ public final class DroneState {
 			sum += loadFactor;
 		}
 		return sum / rotorAerodynamicLoadFactor.length;
+	}
+
+	public double rotorInPlaneDragForceNewtons(int index) {
+		return rotorInPlaneDragForceNewtons[index];
+	}
+
+	public double[] rotorInPlaneDragForceNewtons() {
+		return Arrays.copyOf(rotorInPlaneDragForceNewtons, rotorInPlaneDragForceNewtons.length);
+	}
+
+	void setRotorInPlaneDragForceNewtons(int index, double value) {
+		rotorInPlaneDragForceNewtons[index] = Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
+	public double averageRotorInPlaneDragForceNewtons() {
+		double sum = 0.0;
+		for (double force : rotorInPlaneDragForceNewtons) {
+			sum += force;
+		}
+		return sum / rotorInPlaneDragForceNewtons.length;
+	}
+
+	public double maxRotorInPlaneDragForceNewtons() {
+		double max = 0.0;
+		for (double force : rotorInPlaneDragForceNewtons) {
+			max = Math.max(max, force);
+		}
+		return max;
 	}
 
 	public double rotorFlappingForceNewtons(int index) {

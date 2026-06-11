@@ -257,6 +257,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_aerodynamic_load",
 			"rotor_2_aerodynamic_load",
 			"rotor_3_aerodynamic_load",
+			"rotor_in_plane_drag_force_n",
+			"rotor_0_in_plane_drag_force_n",
+			"rotor_1_in_plane_drag_force_n",
+			"rotor_2_in_plane_drag_force_n",
+			"rotor_3_in_plane_drag_force_n",
 			"rotor_inflow_skew",
 			"rotor_wake_interference",
 			"rotor_0_wake_interference",
@@ -743,6 +748,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_blade_pass_ripple",
 			"rotor_6_blade_pass_ripple",
 			"rotor_7_blade_pass_ripple",
+			"rotor_4_in_plane_drag_force_n",
+			"rotor_5_in_plane_drag_force_n",
+			"rotor_6_in_plane_drag_force_n",
+			"rotor_7_in_plane_drag_force_n",
 			"rotor_4_flapping_tilt_deg",
 			"rotor_5_flapping_tilt_deg",
 			"rotor_6_flapping_tilt_deg",
@@ -1156,6 +1165,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorAerodynamicLoadOrZero(state, 1), "%.5f");
 		row.add(rotorAerodynamicLoadOrZero(state, 2), "%.5f");
 		row.add(rotorAerodynamicLoadOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorInPlaneDragForceNewtons(), "%.4f");
+		row.add(rotorInPlaneDragForceOrZero(state, 0), "%.4f");
+		row.add(rotorInPlaneDragForceOrZero(state, 1), "%.4f");
+		row.add(rotorInPlaneDragForceOrZero(state, 2), "%.4f");
+		row.add(rotorInPlaneDragForceOrZero(state, 3), "%.4f");
 		row.add(state.rotorInflowSkewIntensity(), "%.5f");
 		row.add(state.averageRotorWakeInterferenceIntensity(), "%.5f");
 		row.add(rotorWakeInterferenceOrZero(state, 0), "%.5f");
@@ -1585,6 +1599,7 @@ public final class DroneBlackboxSample {
 		double[] rotorBladeElementStall = state.rotorBladeElementStallIntensity();
 		double[] rotorBladeDissymmetry = state.rotorBladeDissymmetryIntensity();
 		double[] rotorBladePassRipple = state.rotorBladePassRippleIntensity();
+		double[] rotorInPlaneDrag = state.rotorInPlaneDragForceNewtons();
 		double[] rotorFlappingTilt = state.rotorFlappingTiltRadians();
 		double[] rotorConing = state.rotorConingIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
@@ -1678,6 +1693,9 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(rotorBladePassRipple, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorInPlaneDrag, i), "%.4f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(Math.toDegrees(valueOrZero(rotorFlappingTilt, i)), "%.4f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -1744,6 +1762,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorAerodynamicLoadOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorAerodynamicLoadFactor(index) : 0.0;
+	}
+
+	private static double rotorInPlaneDragForceOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorInPlaneDragForceNewtons(index) : 0.0;
 	}
 
 	private static double rotorAdvanceRatioOrZero(DroneState state, int index) {

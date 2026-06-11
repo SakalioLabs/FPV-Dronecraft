@@ -696,6 +696,14 @@ public final class DronePhysics {
 					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput)
 					+ rotorAmbientDirtyAirLoadFactor(aerodynamicRotor, aerodynamicOmega, ambientDirtyAir)
 					+ rotorInducedWakeLoadFactor(rotorInducedWakeCarryoverIntensity[i])
+					+ rotorInPlaneDragLoadFactor(
+							aerodynamicRotor,
+							rotorRelativeAirVelocityBody,
+							aerodynamicOmega,
+							state.rotorTranslationalLiftIntensity(i),
+							bladeDissymmetry.intensity(),
+							rotorStall
+					)
 					+ compressibilityLoad
 					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor)
 					+ bladeElement.loadFactor()
@@ -770,6 +778,17 @@ public final class DronePhysics {
 			Vec3 thrustAxisForceBody = forceBody.add(flappingForceBody);
 			Vec3 rotorDiskAxisBody = rotorDiskAxisBody(thrustAxisForceBody);
 			Vec3 diskDragBody = rotorDiskDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, airDensity);
+			Vec3 inPlaneDragBody = rotorInPlaneDragForce(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					aerodynamicOmega,
+					thrust,
+					airDensity,
+					state.rotorTranslationalLiftIntensity(i),
+					bladeDissymmetry.intensity(),
+					rotorStall
+			);
+			state.setRotorInPlaneDragForceNewtons(i, inPlaneDragBody.length());
 			Vec3 windmillingDragBody = rotorWindmillingDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput, airDensity);
 			Vec3 wallEffectForceBody = updateRotorWallEffectForce(
 					i,
@@ -782,7 +801,7 @@ public final class DronePhysics {
 					dtSeconds
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
-			forceBody = thrustAxisForceBody.add(stallBuffet.forceBody()).add(vortexBuffet.forceBody()).add(imbalanceForceBody).add(diskDragBody).add(windmillingDragBody).add(wallEffectForceBody);
+			forceBody = thrustAxisForceBody.add(stallBuffet.forceBody()).add(vortexBuffet.forceBody()).add(imbalanceForceBody).add(diskDragBody).add(inPlaneDragBody).add(windmillingDragBody).add(wallEffectForceBody);
 			state.setRotorForceBodyNewtons(i, forceBody);
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
@@ -1778,6 +1797,86 @@ public final class DronePhysics {
 		double spinFactor = 0.15 + 0.85 * spinRatio;
 		double dragScale = rotor.diskDragCoefficient() * airDensityRatio * spinFactor * transverseSpeed;
 		return transverseVelocityBody.multiply(-dragScale);
+	}
+
+	private static Vec3 rotorInPlaneDragForce(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double airDensityRatio,
+			double translationalLiftIntensity,
+			double bladeDissymmetryIntensity,
+			double rotorStallIntensity
+	) {
+		Vec3 transverseVelocityBody = rotorTransverseVelocityBody(rotor, relativeAirVelocityBody);
+		double transverseSpeed = transverseVelocityBody.length();
+		double diskDragScale = MathUtil.clamp(rotor.diskDragCoefficient() / 0.0028, 0.0, 3.5);
+		if (transverseSpeed <= 1.0e-6 || thrustNewtons <= 1.0e-6 || diskDragScale <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		if (spinRatio <= 0.08) {
+			return Vec3.ZERO;
+		}
+
+		double advanceRatio = transverseSpeed / rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double activeDisk = smoothStep(0.10, 0.32, spinRatio);
+		double crossflow = smoothStep(0.025, 0.35, advanceRatio);
+		double loadedCrossflow = smoothStep(0.08, 0.55, advanceRatio);
+		double hCoefficient = diskDragScale
+				* activeDisk
+				* crossflow
+				* (0.030
+						+ 0.105 * loadedCrossflow
+						+ 0.035 * MathUtil.clamp(translationalLiftIntensity, 0.0, 1.0)
+						+ 0.045 * MathUtil.clamp(bladeDissymmetryIntensity, 0.0, 1.0)
+						+ 0.055 * MathUtil.clamp(rotorStallIntensity, 0.0, 1.0));
+		double thrustCoupledForce = Math.max(0.0, thrustNewtons) * hCoefficient;
+
+		double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * Math.max(0.20, airDensityRatio);
+		double dynamicPressure = 0.5 * density * transverseSpeed * transverseSpeed;
+		double profileCoefficient = diskDragScale
+				* activeDisk
+				* (0.020 + 0.045 * loadedCrossflow)
+				* smoothStep(0.04, 0.32, advanceRatio);
+		double profileForce = dynamicPressure * diskArea * profileCoefficient;
+		double forceMagnitude = MathUtil.clamp(
+				thrustCoupledForce + profileForce,
+				0.0,
+				rotor.maxThrustNewtons() * 0.42
+		);
+		return transverseVelocityBody.multiply(-forceMagnitude / transverseSpeed);
+	}
+
+	private static double rotorInPlaneDragLoadFactor(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double translationalLiftIntensity,
+			double bladeDissymmetryIntensity,
+			double rotorStallIntensity
+	) {
+		double diskDragScale = MathUtil.clamp(rotor.diskDragCoefficient() / 0.0028, 0.0, 3.5);
+		if (diskDragScale <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
+		if (spinRatio <= 0.08) {
+			return 0.0;
+		}
+		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
+		double crossflow = smoothStep(0.04, 0.46, advanceRatio);
+		double separatedLoading = 0.35 * MathUtil.clamp(translationalLiftIntensity, 0.0, 1.0)
+				+ 0.45 * MathUtil.clamp(bladeDissymmetryIntensity, 0.0, 1.0)
+				+ 0.55 * MathUtil.clamp(rotorStallIntensity, 0.0, 1.0);
+		return MathUtil.clamp(
+				0.10 * diskDragScale * crossflow * (0.35 + 0.65 * spinRatio) * (1.0 + separatedLoading),
+				0.0,
+				0.42
+		);
 	}
 
 	private static Vec3 rotorWindmillingDragForce(

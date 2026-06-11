@@ -396,6 +396,7 @@ public final class DroneCommands {
 				drone.getEscCommandFrameIntervalSeconds(),
 				drone.getEscCommandError(),
 				drone.getRotorAerodynamicLoadFactor(),
+				drone.getRotorInPlaneDragForceNewtons(),
 				drone.getRotorSurfaceScrapeIntensity(),
 				drone.getPropwashIntensity(),
 				drone.getVortexRingStateIntensity(),

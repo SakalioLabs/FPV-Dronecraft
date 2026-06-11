@@ -409,10 +409,11 @@ public final class DroneHud {
 	private static String aeroForceLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"FOR L%4.1f G%4.1f W%4.1f WL%4.1f",
+				"FOR L%4.1f G%4.1f W%4.1f H%4.1f WL%4.1f",
 				drone.getAirframeLiftForceNewtons(),
 				drone.getGroundEffectDragForceNewtons(),
 				drone.getRotorWashDragForceNewtons(),
+				drone.getRotorInPlaneDragForceNewtons(),
 				drone.getRotorWallEffectForceNewtons()
 		);
 	}
@@ -459,6 +460,7 @@ public final class DroneHud {
 				|| drone.getRotorBladeAngleOfAttackDegrees() > 28.0f
 				|| drone.getRotorBladeElementStallIntensity() > 0.35f
 				|| drone.getRotorBladePassRippleIntensity() > 0.025f
+				|| drone.getRotorInPlaneDragForceNewtons() > 2.0f
 				|| drone.getRotorInducedLagThrustScale() < 0.93f
 				|| drone.getRotorWakeInterferenceIntensity() > 0.35f
 				|| drone.getRotorWakeThrustScale() < 0.94f

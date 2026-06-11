@@ -34,6 +34,7 @@ class DroneStatusFormatterTest {
 				0.0, // rotorBladeElementStallIntensity
 				0.0, // rotorBladePassRippleIntensity
 				0.0, // rotorBladeDissymmetryTorqueNewtonMeters
+				0.0, // rotorInPlaneDragForceNewtons
 				0.0, // droneWake
 				0.0, // rotorWakeInterference
 				1.0, // rotorWakeThrustScale
@@ -77,6 +78,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("motor 52.0C 1.00 head 1.00 esc 41.0C 1.00 cool 1.25"));
 		assertTrue(status.contains("sig 0.002/0.003s err 0.0007"));
 		assertTrue(status.contains("load"));
+		assertTrue(status.contains("hforce 0.00N"));
 		assertTrue(status.contains("scrape 0.00"));
 		assertTrue(status.contains("ETL"));
 		assertTrue(status.contains("ind 2.40m/s iloss 0%"));
@@ -130,6 +132,7 @@ class DroneStatusFormatterTest {
 				0.46,
 				0.031,
 				0.024,
+				2.6,
 				0.58,
 				0.47,
 				0.91,
@@ -181,6 +184,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("blade-stall"));
 		assertTrue(warnings.contains("blade-pass-ripple"));
 		assertTrue(warnings.contains("blade-dissymmetry"));
+		assertTrue(warnings.contains("rotor-hforce"));
 		assertTrue(warnings.contains("vrs"));
 		assertTrue(warnings.contains("propwash"));
 		assertTrue(warnings.contains("baro-disturbed"));
@@ -210,6 +214,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("spike 0.42V ripple 0.240V"));
+		assertTrue(status.contains("load 1.08 hforce 2.60N"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
 		assertTrue(status.contains("rwake 0.47 wloss 9% coax 0.082 wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
@@ -241,6 +246,7 @@ class DroneStatusFormatterTest {
 			double rotorBladeElementStallIntensity,
 			double rotorBladePassRippleIntensity,
 			double rotorBladeDissymmetryTorqueNewtonMeters,
+			double rotorInPlaneDragForceNewtons,
 			double droneWake,
 			double rotorWakeInterference,
 			double rotorWakeThrustScale,
@@ -322,6 +328,7 @@ class DroneStatusFormatterTest {
 				0.0025,
 				diagnosticActive ? 0.084 : 0.0007,
 				1.08,
+				rotorInPlaneDragForceNewtons,
 				diagnosticActive ? 0.55 : 0.0,
 				propwash,
 				propwash > 0.55 ? 0.42 : 0.0,

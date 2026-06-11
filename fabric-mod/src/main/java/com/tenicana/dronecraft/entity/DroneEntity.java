@@ -108,6 +108,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ESC_COOLING_FACTOR = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ESC_DESYNC = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_AERODYNAMIC_LOAD = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_IN_PLANE_DRAG_FORCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_0_THRUST = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_1_THRUST = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_2_THRUST = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -378,6 +379,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ESC_COOLING_FACTOR, 1.0f);
 		builder.define(ESC_DESYNC, 0.0f);
 		builder.define(ROTOR_AERODYNAMIC_LOAD, 0.0f);
+		builder.define(ROTOR_IN_PLANE_DRAG_FORCE, 0.0f);
 		builder.define(ROTOR_0_THRUST, 0.0f);
 		builder.define(ROTOR_1_THRUST, 0.0f);
 		builder.define(ROTOR_2_THRUST, 0.0f);
@@ -1116,6 +1118,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ESC_COOLING_FACTOR, (float) physics.state().averageEscCoolingFactor());
 		entityData.set(ESC_DESYNC, (float) physics.state().maxEscDesyncIntensity());
 		entityData.set(ROTOR_AERODYNAMIC_LOAD, (float) physics.state().averageRotorAerodynamicLoadFactor());
+		entityData.set(ROTOR_IN_PLANE_DRAG_FORCE, (float) physics.state().maxRotorInPlaneDragForceNewtons());
 		double[] motorPower = physics.state().motorPower(physics.config());
 		double[] motorRpm = physics.state().motorRpm();
 		double[] rotorThrust = physics.state().rotorThrustNewtons();
@@ -1774,6 +1777,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorAerodynamicLoadFactor() {
 		return entityData.get(ROTOR_AERODYNAMIC_LOAD);
+	}
+
+	public float getRotorInPlaneDragForceNewtons() {
+		return entityData.get(ROTOR_IN_PLANE_DRAG_FORCE);
 	}
 
 	public float getRotorThrustNewtons(int index) {

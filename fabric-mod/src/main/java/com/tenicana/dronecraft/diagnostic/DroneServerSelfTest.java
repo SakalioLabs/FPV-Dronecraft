@@ -58,6 +58,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorVibration;
 	private double maxRotorConing;
 	private double maxRotorWakeInterference;
+	private double maxRotorInPlaneDragForce;
 	private double maxRotorCoaxialLoadBias;
 	private double maxRotorWakeSwirlVelocity;
 	private double maxRotorWindmilling;
@@ -143,6 +144,7 @@ public final class DroneServerSelfTest {
 		maxRotorVibration = Math.max(maxRotorVibration, drone.getRotorVibration());
 		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
+		maxRotorInPlaneDragForce = Math.max(maxRotorInPlaneDragForce, drone.getRotorInPlaneDragForceNewtons());
 		maxRotorCoaxialLoadBias = Math.max(maxRotorCoaxialLoadBias, drone.getRotorCoaxialLoadBias());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxRotorWindmilling = Math.max(maxRotorWindmilling, drone.getRotorWindmillingIntensity());
@@ -191,6 +193,8 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_blade_dissymmetry")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_pass_ripple")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_blade_pass_ripple")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_in_plane_drag_force_n")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_in_plane_drag_force_n")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_tilt_deg")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_flapping_tilt_deg")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_coning")
@@ -358,6 +362,8 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_blade_dissymmetry")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_pass_ripple")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_blade_pass_ripple")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_in_plane_drag_force_n")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_in_plane_drag_force_n")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_flapping_tilt_deg")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_flapping_tilt_deg")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_coning")
@@ -565,6 +571,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_vibration\": %.5f,\n"
 						+ "  \"max_rotor_coning\": %.5f,\n"
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
+						+ "  \"max_rotor_in_plane_drag_force_n\": %.5f,\n"
 						+ "  \"max_rotor_coaxial_load_bias\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_rotor_windmilling\": %.5f,\n"
@@ -607,6 +614,7 @@ public final class DroneServerSelfTest {
 				maxRotorVibration,
 				maxRotorConing,
 				maxRotorWakeInterference,
+				maxRotorInPlaneDragForce,
 				maxRotorCoaxialLoadBias,
 				maxRotorWakeSwirlVelocity,
 				maxRotorWindmilling,

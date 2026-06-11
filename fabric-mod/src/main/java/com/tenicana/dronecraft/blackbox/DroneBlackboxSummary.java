@@ -35,6 +35,7 @@ public record DroneBlackboxSummary(
 		double maxRotorLowReynoldsLoss,
 		double maxRotorBladePassRippleIntensity,
 		double maxRotorAerodynamicLoadFactor,
+		double maxRotorInPlaneDragForceNewtons,
 		double maxMotorMechanicalLossTorqueNewtonMeters,
 		double maxMotorTrackingError,
 		double minMotorActuatorAuthority,
@@ -138,6 +139,7 @@ public record DroneBlackboxSummary(
 		double maxRotorLowReynoldsLoss = 0.0;
 		double maxRotorBladePassRipple = 0.0;
 		double maxRotorAerodynamicLoad = 0.0;
+		double maxRotorInPlaneDragForce = 0.0;
 		double maxMotorMechanicalLoss = 0.0;
 		double maxMotorTrackingError = 0.0;
 		double minMotorActuatorAuthority = 1.0;
@@ -250,6 +252,10 @@ public record DroneBlackboxSummary(
 					Math.max(value(row, "rotor_blade_pass_ripple"), maxIndexedValue(row, "rotor_", "_blade_pass_ripple"))
 			);
 			maxRotorAerodynamicLoad = Math.max(maxRotorAerodynamicLoad, value(row, "rotor_aerodynamic_load"));
+			maxRotorInPlaneDragForce = Math.max(
+					maxRotorInPlaneDragForce,
+					Math.max(value(row, "rotor_in_plane_drag_force_n"), maxIndexedValue(row, "rotor_", "_in_plane_drag_force_n"))
+			);
 			maxMotorMechanicalLoss = Math.max(
 					maxMotorMechanicalLoss,
 					Math.max(value(row, "avg_motor_mechanical_loss_torque_nm"), maxIndexedValue(row, "motor_", "_mechanical_loss_torque_nm"))
@@ -457,6 +463,7 @@ public record DroneBlackboxSummary(
 				maxRotorLowReynoldsLoss,
 				maxRotorBladePassRipple,
 				maxRotorAerodynamicLoad,
+				maxRotorInPlaneDragForce,
 				maxMotorMechanicalLoss,
 				maxMotorTrackingError,
 				finiteOrOne(minMotorActuatorAuthority),
@@ -538,7 +545,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f tipmach %.2f lowre %.2f bpass %.3f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f tipmach %.2f lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -572,6 +579,7 @@ public record DroneBlackboxSummary(
 				maxRotorLowReynoldsLoss,
 				maxRotorBladePassRippleIntensity,
 				maxRotorAerodynamicLoadFactor,
+				maxRotorInPlaneDragForceNewtons,
 				maxMotorMechanicalLossTorqueNewtonMeters,
 				maxMotorTrackingError,
 				minMotorActuatorAuthority,
@@ -670,6 +678,7 @@ public record DroneBlackboxSummary(
 				0.0, // maxRotorLowReynoldsLoss
 				0.0, // maxRotorBladePassRippleIntensity
 				0.0, // maxRotorAerodynamicLoadFactor
+				0.0, // maxRotorInPlaneDragForceNewtons
 				0.0, // maxMotorMechanicalLossTorqueNewtonMeters
 				0.0, // maxMotorTrackingError
 				1.0, // minMotorActuatorAuthority
