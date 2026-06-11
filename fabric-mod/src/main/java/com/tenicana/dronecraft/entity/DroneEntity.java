@@ -2567,6 +2567,10 @@ public class DroneEntity extends PathfinderMob {
 		output.putDouble("frame_health", frameHealth);
 		output.putDouble("battery_amp_seconds_consumed", physics.state().batteryAmpSecondsConsumed());
 		output.putDouble("battery_equivalent_cycles", physics.state().batteryEquivalentCycles());
+		output.putDouble("battery_slow_polarization_v", physics.state().batterySlowPolarizationVoltage());
+		output.putDouble("battery_temp_c", physics.state().batteryTemperatureCelsius());
+		output.putDouble("battery_cooling_factor", physics.state().batteryCoolingFactor());
+		output.putDouble("battery_thermal_limit", physics.state().batteryThermalLimit());
 		double[] rotorHealth = physics.state().rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
@@ -2590,12 +2594,34 @@ public class DroneEntity extends PathfinderMob {
 		loadConfig(input);
 		physics.state().setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
 		physics.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
+		loadBatteryTransientState(input);
 		physics.state().repairAllRotors();
 		for (int i = 0; i < physics.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
 			physics.state().damageRotor(i, 1.0 - health);
 		}
 		updateDamageSyncedState();
+	}
+
+	private void loadBatteryTransientState(ValueInput input) {
+		double slowPolarization = input.getDoubleOr("battery_slow_polarization_v", Double.NaN);
+		double temperatureCelsius = input.getDoubleOr("battery_temp_c", Double.NaN);
+		double coolingFactor = input.getDoubleOr("battery_cooling_factor", Double.NaN);
+		double thermalLimit = input.getDoubleOr("battery_thermal_limit", Double.NaN);
+		if (!Double.isFinite(slowPolarization)
+				&& !Double.isFinite(temperatureCelsius)
+				&& !Double.isFinite(coolingFactor)
+				&& !Double.isFinite(thermalLimit)) {
+			return;
+		}
+
+		DroneState state = physics.state();
+		physics.restoreBatteryTransientState(
+				Double.isFinite(slowPolarization) ? slowPolarization : state.batterySlowPolarizationVoltage(),
+				Double.isFinite(temperatureCelsius) ? temperatureCelsius : state.batteryTemperatureCelsius(),
+				Double.isFinite(coolingFactor) ? coolingFactor : state.batteryCoolingFactor(),
+				Double.isFinite(thermalLimit) ? thermalLimit : state.batteryThermalLimit()
+		);
 	}
 
 	private void saveEnvironmentOverride(ValueOutput output) {

@@ -429,6 +429,19 @@ public final class DronePhysics {
 		return state;
 	}
 
+	public void restoreBatteryTransientState(
+			double slowPolarizationVoltage,
+			double temperatureCelsius,
+			double coolingFactor,
+			double thermalLimit
+	) {
+		state.setBatterySlowPolarizationVoltage(slowPolarizationVoltage);
+		state.setBatteryTemperatureCelsius(temperatureCelsius);
+		state.setBatteryCoolingFactor(coolingFactor);
+		state.setBatteryThermalLimit(thermalLimit);
+		batteryThermalInitialized = true;
+	}
+
 	public void resetControlLoops() {
 		pitchPid.reset();
 		yawPid.reset();

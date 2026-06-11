@@ -6254,6 +6254,48 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void restoredBatteryTransientStateSurvivesFirstEnvironmentStep() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 13.2, 0.022, 1.5, 90.0)
+				.withMotorThermal(0.0, 0.50, 200.0, 240.0);
+		DroneEnvironment coldEnvironment = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				5.0
+		);
+		DronePhysics coldStart = new DronePhysics(config);
+		DronePhysics restored = new DronePhysics(config);
+		restored.restoreBatteryTransientState(0.42, 72.0, 1.35, 0.62);
+
+		coldStart.step(DroneInput.idle(), 0.005, coldEnvironment);
+		restored.step(DroneInput.idle(), 0.005, coldEnvironment);
+
+		assertEquals(5.0, coldStart.state().batteryTemperatureCelsius(), 1.0e-9);
+		assertTrue(restored.state().batteryTemperatureCelsius() > 71.0,
+				() -> "restoredTemp=" + restored.state().batteryTemperatureCelsius());
+		assertTrue(restored.state().batterySlowPolarizationVoltage() > 0.419,
+				() -> "restoredPolarization=" + restored.state().batterySlowPolarizationVoltage());
+		assertTrue(restored.state().batteryThermalLimit() < 0.80,
+				() -> "restoredThermalLimit=" + restored.state().batteryThermalLimit());
+		assertTrue(restored.state().batteryVoltage() < coldStart.state().batteryVoltage() - 0.25,
+				() -> "coldStartVoltage=" + coldStart.state().batteryVoltage()
+						+ " restoredVoltage=" + restored.state().batteryVoltage());
+	}
+
+	@Test
 	void recirculatedDirtyAirReducesBatteryCooling() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
