@@ -699,9 +699,13 @@ class DroneBlackboxRecorderTest {
 		String[] header = lines[0].split(",", -1);
 		String[] row = lines[1].split(",", -1);
 		double averageHForce = Double.parseDouble(row[indexOf(header, "rotor_in_plane_drag_force_n")]);
+		double averageMotorAeroTorque = Double.parseDouble(row[indexOf(header, "avg_motor_aero_torque_nm")]);
+		double averageMotorShaftPower = Double.parseDouble(row[indexOf(header, "avg_motor_shaft_power_w")]);
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertTrue(averageHForce > 0.10, () -> "hforce=" + averageHForce);
+		assertTrue(averageMotorAeroTorque > 0.015, () -> "motorAeroTorque=" + averageMotorAeroTorque);
+		assertTrue(averageMotorShaftPower > 8.0, () -> "motorShaftPower=" + averageMotorShaftPower);
 		assertTrue(summary.maxRotorInPlaneDragForceNewtons() >= averageHForce);
 		assertTrue(summary.formatForChat().contains("hforce"));
 	}

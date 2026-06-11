@@ -2920,6 +2920,7 @@ class DronePhysicsTest {
 				.withLinearDragCoefficient(0.0)
 				.withBodyDragCoefficients(Vec3.ZERO)
 				.withRotorStallThrustLossCoefficient(0.60)
+				.withRotorDiskDragCoefficient(0.0)
 				.withMotorTimeConstantSeconds(0.005)
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
 				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
@@ -5949,6 +5950,7 @@ class DronePhysicsTest {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
 				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
 				.withMotorTimeConstantSeconds(0.005)
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
 				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
@@ -6609,6 +6611,11 @@ class DronePhysicsTest {
 		assertTrue(hForce.state().rotorForceBodyNewtons(0).x()
 				< noDiskDrag.state().rotorForceBodyNewtons(0).x() - 0.12);
 		assertTrue(maxLoadDelta > 0.04, "maxLoadDelta=" + maxLoadDelta);
+		assertTrue(hForce.state().averageMotorAerodynamicTorqueNewtonMeters()
+				> noDiskDrag.state().averageMotorAerodynamicTorqueNewtonMeters() + 0.002);
+		assertTrue(hForce.state().averageMotorShaftPowerWatts()
+				> noDiskDrag.state().averageMotorShaftPowerWatts() + 1.0);
+		assertTrue(hForce.state().batteryCurrentAmps() > noDiskDrag.state().batteryCurrentAmps() + 0.35);
 	}
 
 	@Test
@@ -7449,7 +7456,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
 		assertTrue(report.samples() > 200);
-		assertTrue(report.maxSpeedMetersPerSecond() > 7.0);
+		assertTrue(report.maxSpeedMetersPerSecond() > 6.8, () -> "maxSpeed=" + report.maxSpeedMetersPerSecond());
 		assertTrue(report.maxBatteryCurrentAmps() > 45.0);
 		assertTrue(report.maxBatteryRegenerativeCurrentAmps() >= 0.0);
 		assertTrue(report.maxMotorRegenerativeCurrentAmps() > 0.0);

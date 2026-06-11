@@ -808,7 +808,13 @@ public final class DronePhysics {
 			double motorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
 					* thrust
 					* reactionTorqueScale
-					* compressibilityReactionTorqueScale;
+					* compressibilityReactionTorqueScale
+					+ rotorInPlaneDragShaftTorque(
+							aerodynamicRotor,
+							rotorRelativeAirVelocityBody,
+							inPlaneDragBody,
+							aerodynamicOmega
+					);
 			state.setMotorAerodynamicTorqueNewtonMeters(i, motorAerodynamicTorque);
 			state.setMotorShaftPowerWatts(
 					i,
@@ -1849,6 +1855,32 @@ public final class DronePhysics {
 				rotor.maxThrustNewtons() * 0.42
 		);
 		return transverseVelocityBody.multiply(-forceMagnitude / transverseSpeed);
+	}
+
+	private static double rotorInPlaneDragShaftTorque(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			Vec3 inPlaneDragBody,
+			double omegaRadiansPerSecond
+	) {
+		double forceMagnitude = inPlaneDragBody.length();
+		double shaftSpeed = Math.abs(omegaRadiansPerSecond);
+		if (forceMagnitude <= 1.0e-9 || shaftSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double transverseSpeed = rotorTransverseVelocityBody(rotor, relativeAirVelocityBody).length();
+		if (transverseSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double profilePowerWatts = forceMagnitude
+				* transverseSpeed
+				* MathUtil.clamp(0.48 + 0.34 * smoothStep(0.05, 0.55, rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond)), 0.48, 0.82);
+		double torqueLimit = Math.max(
+				rotor.maxThrustNewtons() * Math.abs(rotor.yawTorquePerThrustMeter()) * 0.90,
+				rotor.maxThrustNewtons() * rotor.radiusMeters() * 0.075
+		);
+		return MathUtil.clamp(profilePowerWatts / shaftSpeed, 0.0, torqueLimit);
 	}
 
 	private static double rotorInPlaneDragLoadFactor(
