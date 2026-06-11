@@ -366,16 +366,17 @@ These rows can help validate per-motor current and voltage-sag scale. They do no
 Useful sources:
 
 - [U8 Kv100 dyno processed data](https://github.com/thhsieh/U8-Kv100-Dyno-Data)
-- [Related Actuators paper page](https://www.mdpi.com/2076-0825/12/8/318)
-- [Copper temperature coefficient reference](https://www.copper.org/resources/properties/129_8/)
-- [NEMA MG-1 motor insulation-temperature context](https://www.nema.org/docs/default-source/technical-document-library/motors-and-generators-standard-mg-1.pdf)
-- [Infineon MOSFET thermal context](https://www.infineon.com/dgdl/Infineon-IRL40SC228-DataSheet-v01_00-EN.pdf?fileId=5546d46269e1c019016a04b42abd1c9a)
+- [Copper temperature coefficient reference](https://www.copper.org/publications/newsletters/innovations/2001/08/intro_fac.html)
+- [Motor insulation-class context](https://www.theaemt.com/resource/insulation-classes-for-electric-motors.html)
+- [Infineon IRL40SC228 MOSFET thermal context](https://www.infineon.com/part/IRL40SC228)
 
 Generated thermal file:
 
 - `docs/data/motor_esc_thermal_reference.csv` summarizes the open U8 processed temperature/loss/efficiency maps, current preset motor/ESC thermal limits and cooling proxies, and copper winding resistance scaling versus temperature.
 - The U8 dyno is a larger motor and driver than an FPV 2306-class setup, so treat it as an open BLDC thermal/efficiency scale reference rather than direct parameter data.
 - The current preset rows mirror this project's thermal equations under sea-level, unobstructed conditions; measured FPV motor winding temperature and ESC case/junction telemetry would still be the best calibration source.
+- Copper winding resistance scaling gives about `1.39x` resistance at `125 C` and `1.60x` at `180 C` relative to `25 C`, so hot-motor resistance should not remain constant if the simulation tries to model sustained abuse.
+- For `racingQuad`, the current proxy gives motor limit/cutoff `95/125 C`; a full-power no-airspeed steady-rise estimate exceeds the limit, which is a useful red flag for sustained-throttle thermal limiting rather than a measured FPV value.
 
 ## Sensor, filtering, and control references
 
@@ -384,10 +385,15 @@ Betaflight references:
 - [Betaflight rate calculator](https://betaflight.com/docs/wiki/guides/current/Rate-Calculator)
 - [Betaflight PID tuning guide](https://betaflight.com/docs/wiki/guides/current/PID-Tuning-Guide)
 - [Betaflight DShot RPM filtering](https://betaflight.com/docs/wiki/guides/current/DSHOT-RPM-Filtering)
+- [Betaflight DShot protocol/API notes](https://betaflight.com/docs/development/API/Dshot)
+- [Betaflight blackbox logging guide](https://betaflight.com/docs/wiki/guides/current/Black-Box-logging-and-usage)
 - [Betaflight PID tuning tab reference](https://betaflight.com/docs/wiki/app/pid-tuning-tab)
 - [Betaflight blackbox source field table](https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c)
 - [Public Betaflight issue blackbox log attachment](https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT)
 - [blackbox-library parser project](https://github.com/maxlaverse/blackbox-library) and [normal.bfl fixture](https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl)
+- [ExpressLRS switch/channel resolution](https://www.expresslrs.org/software/switch-config/)
+- [ExpressLRS Lua packet-rate notes](https://www.expresslrs.org/quick-start/transmitters/lua-howto/)
+- [ExpressLRS RF-mode and sensitivity table](https://www.expresslrs.org/info/signal-health/)
 
 Useful values and concepts:
 
@@ -399,9 +405,11 @@ Useful values and concepts:
 Generated timing/filter checks:
 
 - The report's `RPM, filtering, and command timing sanity` section derives hover/max RPM, configured blade-pass frequency from `RotorSpec.bladeCount`, three-blade reference frequency, gyro LPF, RC frame interval, ESC command frame interval, and configured latency/smoothing.
+- `docs/data/rc_esc_timing_reference.csv` separates protocol references from current preset settings: ELRS packet-rate anchors, DShot raw frame timing and 2000-step throttle resolution, Blackbox log-rate anchors, and current preset RC/ESC frame/latency/quantization ratios.
 - `racingQuad` and `cinewhoop` now configure `RotorSpec.bladeCount = 3`, matching the UIUC and Mini Quad Test Bench three-blade FPV prop anchors used here.
 - Larger lift presets keep the two-blade default until prop-family-specific data supports a different blade count.
 - `racingQuad` uses `150 Hz` RC frame rate, `400 Hz` ESC command rate, `15 ms` control latency, `18 ms` RC command latency, and `18 ms` RC smoothing. These are plausible gameplay/controller values, but they are not equivalent to a modern high-rate Betaflight loop unless explicitly modeled.
+- In the generated RC/ESC timing table, `racingQuad`'s `18 ms` RC latency and smoothing each span about `2.7` configured RC frames. Its `400 Hz` ESC frame is intentionally far below raw DShot300/600 frame capacity, so it should be read as a simplified motor-command cadence, not literal DShot wire timing.
 
 IMU noise anchors:
 

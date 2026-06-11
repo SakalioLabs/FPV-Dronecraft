@@ -196,7 +196,7 @@ RotorS Firefly/Hummingbird and PX4 Iris use first-order motor lag values of `tim
 
 ## Motor, ESC, and winding thermal sanity
 
-Sources: [U8/Kv100 processed dyno data](https://github.com/thhsieh/U8-Kv100-Dyno-Data), [related Actuators paper page](https://www.mdpi.com/2076-0825/12/8/318), [copper temperature-coefficient reference](https://www.copper.org/resources/properties/129_8/), [NEMA MG-1 insulation-temperature context](https://www.nema.org/docs/default-source/technical-document-library/motors-and-generators-standard-mg-1.pdf), and [Infineon power MOSFET junction-temperature context](https://www.infineon.com/dgdl/Infineon-IRL40SC228-DataSheet-v01_00-EN.pdf?fileId=5546d46269e1c019016a04b42abd1c9a). Generated thermal CSV: `docs/data/motor_esc_thermal_reference.csv`.
+Sources: [U8/Kv100 processed dyno data](https://github.com/thhsieh/U8-Kv100-Dyno-Data), [copper temperature-coefficient reference](https://www.copper.org/publications/newsletters/innovations/2001/08/intro_fac.html), [motor insulation-class context](https://www.theaemt.com/resource/insulation-classes-for-electric-motors.html), and [Infineon IRL40SC228 MOSFET page](https://www.infineon.com/part/IRL40SC228). Generated thermal CSV: `docs/data/motor_esc_thermal_reference.csv`.
 
 The U8/Kv100 data is a larger motor/driver dyno map, not an FPV 2306 motor. It is useful here as an open processed BLDC motor/driver efficiency, loss, and maximum-temperature reference. The current-preset table mirrors this project's thermal equations using sea-level density and no obstruction/recirculation; steady rises are model proxies, not lab measurements.
 
@@ -242,6 +242,23 @@ References: [Betaflight DShot/RPM filtering](https://betaflight.com/docs/wiki/gu
 | coaxialX8 | 2 | 5015 | 8270 | 167/276 Hz | 251/413 Hz | 70 Hz | 100 Hz / 10.000 ms | 400 Hz / 2.500 ms | control 24.000 ms, RC 40.000 ms, smooth 45.000 ms |
 
 For 5-inch FPV three-blade props, `racingQuad` and `cinewhoop` now use a physical three-blade blade-pass frequency. Keep `RotorSpec.bladeCount` aligned with the prop family used for each preset, especially before using blackbox RPM spectra for validation.
+
+### RC, ESC, and log-rate protocol anchors
+
+References: [ExpressLRS switch/channel resolution](https://www.expresslrs.org/software/switch-config/), [ExpressLRS Lua packet-rate notes](https://www.expresslrs.org/quick-start/transmitters/lua-howto/), [ExpressLRS RF-mode table](https://www.expresslrs.org/info/signal-health/), [Betaflight DShot API](https://betaflight.com/docs/development/API/Dshot), and [Betaflight blackbox guide](https://betaflight.com/docs/wiki/guides/current/Black-Box-logging-and-usage). Generated RC/ESC timing CSV: `docs/data/rc_esc_timing_reference.csv`.
+
+The reference rows separate protocol packet/frame timing from true end-to-end latency. ExpressLRS packet rate is not the same thing as stick-to-motor delay, and raw DShot frame time is not the same thing as ESC motor update cadence, but both are useful bounds for spotting slow or overly quantized simulation settings.
+
+| Preset | RC rate/interval | nearest ELRS | RC step | RC latency/smoothing frames | ESC rate/interval | ESC step | ESC interval vs raw DShot300/DShot600 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| racingQuad | 150 Hz / 6.667 ms | 150 Hz | 2048 steps / 0.049% | 2.70 / 2.70 frames | 400 Hz / 2.500 ms | 2048 steps / 0.049% | 46.9x / 93.8x |
+| cinewhoop | 100 Hz / 10.000 ms | 100 Hz | 2048 steps / 0.049% | 2.50 / 2.50 frames | 400 Hz / 2.500 ms | 2048 steps / 0.049% | 46.9x / 93.8x |
+| heavyLift | 100 Hz / 10.000 ms | 100 Hz | 2048 steps / 0.049% | 3.50 / 4.00 frames | 400 Hz / 2.500 ms | 2048 steps / 0.049% | 46.9x / 93.8x |
+| hexLift | 100 Hz / 10.000 ms | 100 Hz | 2048 steps / 0.049% | 3.50 / 4.00 frames | 400 Hz / 2.500 ms | 2048 steps / 0.049% | 46.9x / 93.8x |
+| octoLift | 100 Hz / 10.000 ms | 100 Hz | 2048 steps / 0.049% | 4.00 / 4.50 frames | 400 Hz / 2.500 ms | 2048 steps / 0.049% | 46.9x / 93.8x |
+| coaxialX8 | 100 Hz / 10.000 ms | 100 Hz | 2048 steps / 0.049% | 4.00 / 4.50 frames | 400 Hz / 2.500 ms | 2048 steps / 0.049% | 46.9x / 93.8x |
+
+The current `racingQuad` RC rate of 150 Hz lines up with an ELRS packet-rate anchor, but its 18 ms RC latency and 18 ms smoothing each span about 2.7 configured RC frames. Its 400 Hz ESC command frame is much slower than raw DShot frame capacity, which is plausible as a simplified motor-command model but should not be described as literal DShot timing.
 
 ## IMU noise and LPF sanity
 

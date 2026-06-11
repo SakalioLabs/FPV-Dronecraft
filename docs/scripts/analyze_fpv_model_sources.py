@@ -122,14 +122,17 @@ US_STANDARD_ATMOSPHERE_URL = "https://ntrs.nasa.gov/citations/19770009539"
 PYFLY_DRYDEN_URL = "https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py"
 UAV_WIND_MODELING_URL = "https://arxiv.org/abs/1905.09954"
 U8_DYNO_REPO_URL = "https://github.com/thhsieh/U8-Kv100-Dyno-Data"
-U8_DYNO_PAPER_URL = "https://www.mdpi.com/2076-0825/12/8/318"
 U8_DYNO_RAW_BASE = "https://raw.githubusercontent.com/thhsieh/U8-Kv100-Dyno-Data/main/Processed%20Data/"
-COPPER_TEMP_COEFF_SOURCE_URL = "https://www.copper.org/resources/properties/129_8/"
-NEMA_MOTOR_INSULATION_URL = "https://www.nema.org/docs/default-source/technical-document-library/motors-and-generators-standard-mg-1.pdf"
-INFINEON_MOSFET_THERMAL_URL = "https://www.infineon.com/dgdl/Infineon-IRL40SC228-DataSheet-v01_00-EN.pdf?fileId=5546d46269e1c019016a04b42abd1c9a"
+COPPER_TEMP_COEFF_SOURCE_URL = "https://www.copper.org/publications/newsletters/innovations/2001/08/intro_fac.html"
+MOTOR_INSULATION_CLASS_URL = "https://www.theaemt.com/resource/insulation-classes-for-electric-motors.html"
+INFINEON_MOSFET_THERMAL_URL = "https://www.infineon.com/part/IRL40SC228"
 BETAFLIGHT_RPM_FILTER_URL = "https://betaflight.com/docs/wiki/guides/current/DSHOT-RPM-Filtering"
+BETAFLIGHT_DSHOT_API_URL = "https://betaflight.com/docs/development/API/Dshot"
 BETAFLIGHT_PID_TUNING_URL = "https://betaflight.com/docs/wiki/guides/current/PID-Tuning-Guide"
+BETAFLIGHT_BLACKBOX_GUIDE_URL = "https://betaflight.com/docs/wiki/guides/current/Black-Box-logging-and-usage"
 EXPRESSLRS_PACKET_URL = "https://www.expresslrs.org/software/switch-config/"
+EXPRESSLRS_LUA_URL = "https://www.expresslrs.org/quick-start/transmitters/lua-howto/"
+EXPRESSLRS_SIGNAL_HEALTH_URL = "https://www.expresslrs.org/info/signal-health/"
 BETAFLIGHT_BLACKBOX_SOURCE_URL = "https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c"
 BLACKBOX_LIBRARY_URL = "https://github.com/maxlaverse/blackbox-library"
 BLACKBOX_LIBRARY_FIXTURE_URL = "https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl"
@@ -1246,6 +1249,147 @@ def summarize_timing_vibration(presets: list[dict[str, float | str]]) -> list[di
     return rows
 
 
+def resolution_step_percent(steps: float) -> float:
+    return 100.0 / (steps - 1.0) if steps > 1.0 and math.isfinite(steps) else float("nan")
+
+
+def dshot_raw_frame_time_us(rate_kbps: float) -> float:
+    # DShot frames are 16 bits: 11-bit command, telemetry bit, and 4-bit checksum.
+    return 16.0 * 1000.0 / rate_kbps if rate_kbps > 0.0 else float("nan")
+
+
+def summarize_rc_esc_timing_reference(
+    presets: list[dict[str, float | str]],
+    timing_rows: list[dict[str, float | str]],
+) -> dict[str, object]:
+    rows: list[dict[str, float | str]] = []
+
+    for name, rate_hz, source, note in (
+        ("elrs_50hz", 50.0, EXPRESSLRS_SIGNAL_HEALTH_URL, "ELRS low-rate/range-oriented air packet anchor; channel update depends on switch mode."),
+        ("elrs_100hz", 100.0, EXPRESSLRS_PACKET_URL, "ELRS full-resolution switch modes are associated with 100 Hz and 333 Hz packet-rate modes."),
+        ("elrs_150hz", 150.0, EXPRESSLRS_PACKET_URL, "ELRS switch-config page lists 150 Hz among packet rates that support hybrid/wide modes."),
+        ("elrs_250hz", 250.0, EXPRESSLRS_LUA_URL, "ELRS Lua guide notes 250 Hz as the fastest packet rate usable with 400 kbaud external modules."),
+        ("elrs_333hz", 333.0, EXPRESSLRS_PACKET_URL, "ELRS full-resolution switch modes are associated with 100 Hz and 333 Hz packet-rate modes."),
+        ("elrs_500hz", 500.0, EXPRESSLRS_PACKET_URL, "ELRS switch-config page lists 500 Hz and F500 packet-rate modes."),
+        ("elrs_f1000", 1000.0, EXPRESSLRS_LUA_URL, "ELRS F1000 is a low-latency FLRC packet-rate mode with reduced range."),
+    ):
+        steps = 1024.0
+        rows.append(
+            {
+                "row_type": "rc_protocol_reference",
+                "name": name,
+                "protocol": "ExpressLRS",
+                "rate_hz": rate_hz,
+                "interval_ms": interval_ms(rate_hz),
+                "resolution_steps": steps,
+                "step_percent": resolution_step_percent(steps),
+                "source": source,
+                "note": note,
+            }
+        )
+
+    for name, rate_kbps in (("dshot150", 150.0), ("dshot300", 300.0), ("dshot600", 600.0)):
+        frame_time_us = dshot_raw_frame_time_us(rate_kbps)
+        rows.append(
+            {
+                "row_type": "esc_protocol_reference",
+                "name": name,
+                "protocol": "DShot",
+                "rate_hz": 1_000_000.0 / frame_time_us,
+                "interval_ms": frame_time_us / 1000.0,
+                "bit_rate_kbps": rate_kbps,
+                "raw_frame_time_us": frame_time_us,
+                "resolution_steps": 2000.0,
+                "step_percent": resolution_step_percent(2000.0),
+                "source": BETAFLIGHT_DSHOT_API_URL,
+                "note": "Raw one-way 16-bit frame timing; real command cadence is usually locked to FC loop/ESC telemetry scheduling.",
+            }
+        )
+
+    for name, pid_loop_hz, sample_fraction in (
+        ("blackbox_4k_1_4", 4000.0, 0.25),
+        ("blackbox_8k_1_4", 8000.0, 0.25),
+        ("blackbox_sd_1khz_anchor", 1000.0, 1.0),
+    ):
+        rate = pid_loop_hz * sample_fraction
+        rows.append(
+            {
+                "row_type": "log_reference",
+                "name": name,
+                "protocol": "Betaflight blackbox",
+                "rate_hz": rate,
+                "interval_ms": interval_ms(rate),
+                "sample_fraction": sample_fraction,
+                "source": BETAFLIGHT_BLACKBOX_GUIDE_URL,
+                "note": "Blackbox guide states sample-rate fractions are PID-loop fractions and 1 kHz+ logging is possible on suitable SD cards.",
+            }
+        )
+
+    elrs_rates = [50.0, 100.0, 150.0, 250.0, 333.0, 500.0, 1000.0]
+    dshot300_frame_ms = dshot_raw_frame_time_us(300.0) / 1000.0
+    dshot600_frame_ms = dshot_raw_frame_time_us(600.0) / 1000.0
+    timing_by_preset = {str(row["preset"]): row for row in timing_rows}
+    for preset in presets:
+        name = str(preset["preset"])
+        timing = timing_by_preset[name]
+        rc_rate = float(timing["rc_frame_rate_hz"])
+        esc_rate = float(timing["esc_command_frame_rate_hz"])
+        rc_interval = float(timing["rc_frame_interval_ms"])
+        esc_interval = float(timing["esc_command_frame_interval_ms"])
+        rc_resolution = float(preset.get("rc_channel_resolution_steps", float("nan")))
+        esc_resolution = float(preset.get("esc_command_resolution_steps", float("nan")))
+        nearest_elrs = min(elrs_rates, key=lambda rate: abs(rate - rc_rate)) if math.isfinite(rc_rate) else float("nan")
+        rows.append(
+            {
+                "row_type": "current_preset_timing",
+                "name": name,
+                "protocol": "current preset",
+                "rc_rate_hz": rc_rate,
+                "rc_interval_ms": rc_interval,
+                "nearest_elrs_packet_rate_hz": nearest_elrs,
+                "rc_rate_over_elrs_250": rc_rate / 250.0 if rc_rate > 0.0 else float("nan"),
+                "rc_rate_over_elrs_500": rc_rate / 500.0 if rc_rate > 0.0 else float("nan"),
+                "rc_resolution_steps": rc_resolution,
+                "rc_step_percent": resolution_step_percent(rc_resolution),
+                "rc_latency_ms": float(timing["rc_command_latency_ms"]),
+                "rc_latency_frames": float(timing["rc_command_latency_ms"]) / rc_interval if rc_interval > 0.0 else float("nan"),
+                "rc_smoothing_ms": float(timing["rc_smoothing_tau_ms"]),
+                "rc_smoothing_frames": float(timing["rc_smoothing_tau_ms"]) / rc_interval if rc_interval > 0.0 else float("nan"),
+                "esc_rate_hz": esc_rate,
+                "esc_interval_ms": esc_interval,
+                "esc_resolution_steps": esc_resolution,
+                "esc_step_percent": resolution_step_percent(esc_resolution),
+                "esc_resolution_over_dshot_throttle_steps": esc_resolution / 2000.0 if esc_resolution > 0.0 else float("nan"),
+                "esc_interval_over_dshot300_raw_frame": esc_interval / dshot300_frame_ms if dshot300_frame_ms > 0.0 else float("nan"),
+                "esc_interval_over_dshot600_raw_frame": esc_interval / dshot600_frame_ms if dshot600_frame_ms > 0.0 else float("nan"),
+                "control_latency_ms": float(timing["control_latency_ms"]),
+                "source": repo_path(DRONE_CONFIG),
+                "note": "Current preset values; latency/smoothing are model parameters and may include gameplay or input-stack delay.",
+            }
+        )
+
+    path = DATA / "rc_esc_timing_reference.csv"
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+    current_rows = [row for row in rows if row["row_type"] == "current_preset_timing"]
+    return {
+        "summary_csv": repo_path(path),
+        "rows": rows,
+        "current_rows": current_rows,
+        "reference_rows": [row for row in rows if row["row_type"] != "current_preset_timing"],
+        "dshot300_frame_ms": dshot300_frame_ms,
+        "dshot600_frame_ms": dshot600_frame_ms,
+    }
+
+
 def one_pole_enbw_hz(cutoff_hz: float) -> float:
     return math.pi * cutoff_hz / 2.0 if cutoff_hz > 0.0 and math.isfinite(cutoff_hz) else float("nan")
 
@@ -2200,6 +2344,7 @@ def write_summary_csv(
     inertia_rows: list[dict[str, float | str]],
     drag_rows: list[dict[str, float | str]],
     timing_rows: list[dict[str, float | str]],
+    rc_esc_timing_summary: dict[str, object],
     imu_rows: list[dict[str, float | str]],
     wind_rows: list[dict[str, float | str]],
     atmosphere_rows: list[dict[str, float | str]],
@@ -2385,6 +2530,25 @@ def write_summary_csv(
             ("rc_smoothing_tau_ms", "ms"),
         ):
             rows.append({"category": "timing_vibration", "name": item["preset"], "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in rc_esc_timing_summary.get("current_rows", []):
+        rc_esc_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("rc_rate_hz", "Hz"),
+            ("rc_interval_ms", "ms"),
+            ("nearest_elrs_packet_rate_hz", "Hz"),
+            ("rc_rate_over_elrs_250", "x"),
+            ("rc_rate_over_elrs_500", "x"),
+            ("rc_step_percent", "%"),
+            ("rc_latency_frames", "frames"),
+            ("rc_smoothing_frames", "frames"),
+            ("esc_rate_hz", "Hz"),
+            ("esc_interval_ms", "ms"),
+            ("esc_step_percent", "%"),
+            ("esc_resolution_over_dshot_throttle_steps", "x"),
+            ("esc_interval_over_dshot300_raw_frame", "frames"),
+            ("esc_interval_over_dshot600_raw_frame", "frames"),
+        ):
+            rows.append({"category": "rc_esc_timing_reference", "name": rc_esc_row["name"], "metric": metric, "value": rc_esc_row[metric], "unit": unit, "source": rc_esc_row["source"]})
     for item in imu_rows:
         for metric, unit in (
             ("sensor_gyro_rms_rad_s", "rad/s"),
@@ -2530,6 +2694,7 @@ def write_markdown(
     inertia_rows: list[dict[str, float | str]],
     drag_rows: list[dict[str, float | str]],
     timing_rows: list[dict[str, float | str]],
+    rc_esc_timing_summary: dict[str, object],
     imu_rows: list[dict[str, float | str]],
     wind_rows: list[dict[str, float | str]],
     atmosphere_rows: list[dict[str, float | str]],
@@ -2783,7 +2948,7 @@ def write_markdown(
     lines.append("")
     lines.append("## Motor, ESC, and winding thermal sanity")
     lines.append("")
-    lines.append(f"Sources: [U8/Kv100 processed dyno data]({U8_DYNO_REPO_URL}), [related Actuators paper page]({U8_DYNO_PAPER_URL}), [copper temperature-coefficient reference]({COPPER_TEMP_COEFF_SOURCE_URL}), [NEMA MG-1 insulation-temperature context]({NEMA_MOTOR_INSULATION_URL}), and [Infineon power MOSFET junction-temperature context]({INFINEON_MOSFET_THERMAL_URL}). Generated thermal CSV: `{motor_thermal_summary['summary_csv']}`.")
+    lines.append(f"Sources: [U8/Kv100 processed dyno data]({U8_DYNO_REPO_URL}), [copper temperature-coefficient reference]({COPPER_TEMP_COEFF_SOURCE_URL}), [motor insulation-class context]({MOTOR_INSULATION_CLASS_URL}), and [Infineon IRL40SC228 MOSFET page]({INFINEON_MOSFET_THERMAL_URL}). Generated thermal CSV: `{motor_thermal_summary['summary_csv']}`.")
     lines.append("")
     lines.append("The U8/Kv100 data is a larger motor/driver dyno map, not an FPV 2306 motor. It is useful here as an open processed BLDC motor/driver efficiency, loss, and maximum-temperature reference. The current-preset table mirrors this project's thermal equations using sea-level density and no obstruction/recirculation; steady rises are model proxies, not lab measurements.")
     lines.append("")
@@ -2842,6 +3007,28 @@ def write_markdown(
         )
     lines.append("")
     lines.append("For 5-inch FPV three-blade props, `racingQuad` and `cinewhoop` now use a physical three-blade blade-pass frequency. Keep `RotorSpec.bladeCount` aligned with the prop family used for each preset, especially before using blackbox RPM spectra for validation.")
+    lines.append("")
+    lines.append("### RC, ESC, and log-rate protocol anchors")
+    lines.append("")
+    lines.append(f"References: [ExpressLRS switch/channel resolution]({EXPRESSLRS_PACKET_URL}), [ExpressLRS Lua packet-rate notes]({EXPRESSLRS_LUA_URL}), [ExpressLRS RF-mode table]({EXPRESSLRS_SIGNAL_HEALTH_URL}), [Betaflight DShot API]({BETAFLIGHT_DSHOT_API_URL}), and [Betaflight blackbox guide]({BETAFLIGHT_BLACKBOX_GUIDE_URL}). Generated RC/ESC timing CSV: `{rc_esc_timing_summary['summary_csv']}`.")
+    lines.append("")
+    lines.append("The reference rows separate protocol packet/frame timing from true end-to-end latency. ExpressLRS packet rate is not the same thing as stick-to-motor delay, and raw DShot frame time is not the same thing as ESC motor update cadence, but both are useful bounds for spotting slow or overly quantized simulation settings.")
+    lines.append("")
+    lines.append("| Preset | RC rate/interval | nearest ELRS | RC step | RC latency/smoothing frames | ESC rate/interval | ESC step | ESC interval vs raw DShot300/DShot600 |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+    for row in rc_esc_timing_summary.get("current_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| {item['name']} | {fmt(float(item['rc_rate_hz']), 0)} Hz / {fmt(float(item['rc_interval_ms']))} ms | "
+            f"{fmt(float(item['nearest_elrs_packet_rate_hz']), 0)} Hz | "
+            f"{fmt(float(item['rc_resolution_steps']), 0)} steps / {fmt(float(item['rc_step_percent']), 3)}% | "
+            f"{fmt(float(item['rc_latency_frames']), 2)} / {fmt(float(item['rc_smoothing_frames']), 2)} frames | "
+            f"{fmt(float(item['esc_rate_hz']), 0)} Hz / {fmt(float(item['esc_interval_ms']))} ms | "
+            f"{fmt(float(item['esc_resolution_steps']), 0)} steps / {fmt(float(item['esc_step_percent']), 3)}% | "
+            f"{fmt(float(item['esc_interval_over_dshot300_raw_frame']), 1)}x / {fmt(float(item['esc_interval_over_dshot600_raw_frame']), 1)}x |"
+        )
+    lines.append("")
+    lines.append("The current `racingQuad` RC rate of 150 Hz lines up with an ELRS packet-rate anchor, but its 18 ms RC latency and 18 ms smoothing each span about 2.7 configured RC frames. Its 400 Hz ESC command frame is much slower than raw DShot frame capacity, which is plausible as a simplified motor-command model but should not be described as literal DShot timing.")
     lines.append("")
     lines.append("## IMU noise and LPF sanity")
     lines.append("")
@@ -3100,8 +3287,12 @@ def main() -> None:
         UAV_WIND_MODELING_URL,
         U8_DYNO_REPO_URL,
         BETAFLIGHT_RPM_FILTER_URL,
+        BETAFLIGHT_DSHOT_API_URL,
         BETAFLIGHT_PID_TUNING_URL,
+        BETAFLIGHT_BLACKBOX_GUIDE_URL,
         EXPRESSLRS_PACKET_URL,
+        EXPRESSLRS_LUA_URL,
+        EXPRESSLRS_SIGNAL_HEALTH_URL,
         BETAFLIGHT_BLACKBOX_SOURCE_URL,
         BLACKBOX_LIBRARY_FIXTURE_URL,
         BETAFLIGHT_PUBLIC_LOG_URL,
@@ -3206,6 +3397,7 @@ def main() -> None:
     inertia_rows = summarize_inertia_geometry(presets, open_models)
     drag_rows = summarize_body_drag(presets, open_models)
     timing_rows = summarize_timing_vibration(presets)
+    rc_esc_timing_summary = summarize_rc_esc_timing_reference(presets, timing_rows)
     imu_rows = summarize_imu_noise(presets)
     wind_rows = summarize_wind_gust()
     atmosphere_rows = summarize_atmosphere_reynolds(presets)
@@ -3233,8 +3425,8 @@ def main() -> None:
         ]
     )
 
-    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, motor_thermal_summary, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, atmosphere_rows, barometer_summary, blackbox_summary, mendeley_ecm)
-    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, motor_thermal_summary, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, atmosphere_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, motor_thermal_summary, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, rc_esc_timing_summary, imu_rows, wind_rows, atmosphere_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, motor_thermal_summary, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, rc_esc_timing_summary, imu_rows, wind_rows, atmosphere_rows, barometer_summary, blackbox_summary, mendeley_ecm)
     print("Wrote docs/fpv-sim-model-validation.md")
     print("Wrote docs/data/fpv_model_validation_summary.csv")
     print("Wrote docs/data/blackbox_log_header_summary.csv")
@@ -3244,6 +3436,7 @@ def main() -> None:
     print("Wrote docs/data/battery_temperature_derating_summary.csv")
     print("Wrote docs/data/atmosphere_reynolds_mach_summary.csv")
     print("Wrote docs/data/motor_esc_thermal_reference.csv")
+    print("Wrote docs/data/rc_esc_timing_reference.csv")
     print(f"Cached raw sources in {RAW}")
 
 
