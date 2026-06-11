@@ -220,6 +220,14 @@ public final class DronePhysics {
 		return mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS / 100.0;
 	}
 
+	public static double betaflightEIntervalMicrosFromMechanicalRpm(double mechanicalRpm) {
+		double electricalRpm = mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS;
+		if (!Double.isFinite(electricalRpm) || electricalRpm <= 0.0) {
+			return 0.0;
+		}
+		return 60_000_000.0 / electricalRpm;
+	}
+
 	public DronePhysics(DroneConfig config) {
 		this.config = config;
 		this.state = new DroneState(config.rotors().size());

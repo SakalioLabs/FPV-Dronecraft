@@ -7757,11 +7757,15 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_cooling_factor"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_target_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_target_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_target_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_tracking_error"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_tracking_error"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_actuator_authority"));
@@ -8015,15 +8019,34 @@ class DronePhysicsTest {
 				Double.parseDouble(firstRow[indexOf(header, "avg_motor_erpm100")]),
 				0.1
 		);
+		String[] spinningRow = null;
+		int avgErpmIndex = indexOf(header, "avg_motor_erpm100");
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			if (Double.parseDouble(row[avgErpmIndex]) > 1.0) {
+				spinningRow = row;
+				break;
+			}
+		}
+		assertTrue(spinningRow != null);
+		double expectedAvgMotorEInterval = 600000.0 / Double.parseDouble(spinningRow[indexOf(header, "avg_motor_erpm100")]);
+		assertEquals(
+				expectedAvgMotorEInterval,
+				Double.parseDouble(spinningRow[indexOf(header, "avg_motor_einterval_us")]),
+				Math.max(1.0, expectedAvgMotorEInterval * 0.002)
+		);
 		assertEquals(
 				Double.parseDouble(firstRow[indexOf(header, "motor_7_rpm")]) * 7.0 / 100.0,
 				Double.parseDouble(firstRow[indexOf(header, "motor_7_erpm100")]),
 				0.1
 		);
+		assertEquals(0.0, Double.parseDouble(firstRow[indexOf(header, "motor_7_einterval_us")]), 1.0e-9);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_rpm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_erpm100")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_target_einterval_us")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_target_rpm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_target_erpm100")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_target_einterval_us")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_tracking_error")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_tracking_error")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_actuator_authority")])));
@@ -8122,7 +8145,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_rotor_count"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_target_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_target_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_thrust_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_windmilling"));
@@ -8130,7 +8155,9 @@ class DronePhysicsTest {
 		assertEquals("6", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_erpm100")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_target_erpm100")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_target_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_regen_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_thrust_n")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_windmilling")]) >= 0.0);
@@ -8162,7 +8189,9 @@ class DronePhysicsTest {
 		assertEquals(columnCount, row.length);
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_erpm100"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_target_einterval_us"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_electrical_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_voltage_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_mechanical_loss_torque_nm"));
@@ -8193,7 +8222,9 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]) >= -40.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_erpm100")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_electrical_efficiency")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_voltage_headroom")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_mechanical_loss_torque_nm")]) >= 0.0);

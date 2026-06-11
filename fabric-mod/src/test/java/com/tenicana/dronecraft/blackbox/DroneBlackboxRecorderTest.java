@@ -277,12 +277,18 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("avg_motor_erpm100"));
 		assertTrue(csv.contains("motor_0_erpm100"));
 		assertTrue(csv.contains("motor_3_erpm100"));
+		assertTrue(csv.contains("avg_motor_einterval_us"));
+		assertTrue(csv.contains("motor_0_einterval_us"));
+		assertTrue(csv.contains("motor_3_einterval_us"));
 		assertTrue(csv.contains("avg_motor_target_rpm"));
 		assertTrue(csv.contains("avg_motor_target_erpm100"));
+		assertTrue(csv.contains("avg_motor_target_einterval_us"));
 		assertTrue(csv.contains("motor_0_target_rpm"));
 		assertTrue(csv.contains("motor_0_target_erpm100"));
+		assertTrue(csv.contains("motor_0_target_einterval_us"));
 		assertTrue(csv.contains("motor_3_target_rpm"));
 		assertTrue(csv.contains("motor_3_target_erpm100"));
+		assertTrue(csv.contains("motor_3_target_einterval_us"));
 		assertTrue(csv.contains("avg_motor_tracking_error"));
 		assertTrue(csv.contains("motor_0_tracking_error"));
 		assertTrue(csv.contains("motor_3_tracking_error"));
@@ -457,15 +463,29 @@ class DroneBlackboxRecorderTest {
 				Double.parseDouble(row[indexOf(header, "avg_motor_erpm100")]),
 				0.1
 		);
+		double expectedAvgMotorEInterval = 600000.0 / Double.parseDouble(row[indexOf(header, "avg_motor_erpm100")]);
+		assertEquals(
+				expectedAvgMotorEInterval,
+				Double.parseDouble(row[indexOf(header, "avg_motor_einterval_us")]),
+				Math.max(1.0, expectedAvgMotorEInterval * 0.002)
+		);
 		assertEquals(
 				Double.parseDouble(row[indexOf(header, "motor_0_rpm")]) * 7.0 / 100.0,
 				Double.parseDouble(row[indexOf(header, "motor_0_erpm100")]),
 				0.1
 		);
+		double expectedMotor0EInterval = 600000.0 / Double.parseDouble(row[indexOf(header, "motor_0_erpm100")]);
+		assertEquals(
+				expectedMotor0EInterval,
+				Double.parseDouble(row[indexOf(header, "motor_0_einterval_us")]),
+				Math.max(1.0, expectedMotor0EInterval * 0.002)
+		);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_rpm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_erpm100")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_target_einterval_us")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_target_rpm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_target_erpm100")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_target_einterval_us")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_tracking_error")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_tracking_error")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_motor_actuator_authority")]));
@@ -977,7 +997,9 @@ class DroneBlackboxRecorderTest {
 		assertEquals("8", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_erpm100")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_target_einterval_us")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_electrical_efficiency")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_voltage_headroom")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_winding_resistance_scale")]) >= 1.0);

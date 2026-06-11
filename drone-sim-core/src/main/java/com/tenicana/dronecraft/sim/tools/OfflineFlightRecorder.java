@@ -368,11 +368,21 @@ public final class OfflineFlightRecorder {
 			"motor_1_erpm100",
 			"motor_2_erpm100",
 			"motor_3_erpm100",
+			"avg_motor_einterval_us",
+			"motor_0_einterval_us",
+			"motor_1_einterval_us",
+			"motor_2_einterval_us",
+			"motor_3_einterval_us",
 			"avg_motor_target_erpm100",
 			"motor_0_target_erpm100",
 			"motor_1_target_erpm100",
 			"motor_2_target_erpm100",
 			"motor_3_target_erpm100",
+			"avg_motor_target_einterval_us",
+			"motor_0_target_einterval_us",
+			"motor_1_target_einterval_us",
+			"motor_2_target_einterval_us",
+			"motor_3_target_einterval_us",
 			"motor_4_output",
 			"motor_5_output",
 			"motor_6_output",
@@ -385,6 +395,10 @@ public final class OfflineFlightRecorder {
 			"motor_5_erpm100",
 			"motor_6_erpm100",
 			"motor_7_erpm100",
+			"motor_4_einterval_us",
+			"motor_5_einterval_us",
+			"motor_6_einterval_us",
+			"motor_7_einterval_us",
 			"motor_4_target_rpm",
 			"motor_5_target_rpm",
 			"motor_6_target_rpm",
@@ -393,6 +407,10 @@ public final class OfflineFlightRecorder {
 			"motor_5_target_erpm100",
 			"motor_6_target_erpm100",
 			"motor_7_target_erpm100",
+			"motor_4_target_einterval_us",
+			"motor_5_target_einterval_us",
+			"motor_6_target_einterval_us",
+			"motor_7_target_einterval_us",
 			"motor_4_tracking_error",
 			"motor_5_tracking_error",
 			"motor_6_tracking_error",
@@ -1442,9 +1460,17 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 4; i++) {
 			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
 		}
+		appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorRpm()), "%.1f");
+		for (int i = 0; i < 4; i++) {
+			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+		}
 		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
 		for (int i = 0; i < 4; i++) {
 			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+		}
+		appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
+		for (int i = 0; i < 4; i++) {
+			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorPowers, i), "%.5f");
@@ -1456,10 +1482,16 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
+			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(valueOrZero(motorRpm, i)), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, motorTargetRpm(valueOrZero(motorTargetOmega, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+		}
+		for (int i = 4; i < 8; i++) {
+			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorTrackingError, i), "%.5f");
