@@ -115,6 +115,12 @@ public final class DroneState {
 	private double[] rotorWakeThrustScale;
 	private double[] rotorWetThrustScale;
 	private double[] rotorCoaxialLoadBias;
+	private double[] rotorCoaxialLoadBiasTarget;
+	private double[] rotorCoaxialLoadBiasClipping;
+	private double[] rotorCoaxialAllocationLoadFraction;
+	private double[] rotorCoaxialAllocationCommandRatio;
+	private double[] rotorCoaxialAllocationMechanicalGainPercent;
+	private double[] rotorCoaxialAllocationElectricalGainPercent;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
 	private double[] rotorArmFlexIntensity;
 	private double[] rotorArmFlexDeflectionMeters;
@@ -246,6 +252,12 @@ public final class DroneState {
 		rotorWakeThrustScale = new double[motorCount];
 		rotorWetThrustScale = new double[motorCount];
 		rotorCoaxialLoadBias = new double[motorCount];
+		rotorCoaxialLoadBiasTarget = new double[motorCount];
+		rotorCoaxialLoadBiasClipping = new double[motorCount];
+		rotorCoaxialAllocationLoadFraction = new double[motorCount];
+		rotorCoaxialAllocationCommandRatio = new double[motorCount];
+		rotorCoaxialAllocationMechanicalGainPercent = new double[motorCount];
+		rotorCoaxialAllocationElectricalGainPercent = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
 		rotorArmFlexIntensity = new double[motorCount];
 		rotorArmFlexDeflectionMeters = new double[motorCount];
@@ -267,6 +279,7 @@ public final class DroneState {
 		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
+		Arrays.fill(rotorCoaxialAllocationCommandRatio, 1.0);
 		repairAllRotors();
 	}
 
@@ -1351,6 +1364,12 @@ public final class DroneState {
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
 		Arrays.fill(rotorCoaxialLoadBias, 0.0);
+		Arrays.fill(rotorCoaxialLoadBiasTarget, 0.0);
+		Arrays.fill(rotorCoaxialLoadBiasClipping, 0.0);
+		Arrays.fill(rotorCoaxialAllocationLoadFraction, 0.0);
+		Arrays.fill(rotorCoaxialAllocationCommandRatio, 1.0);
+		Arrays.fill(rotorCoaxialAllocationMechanicalGainPercent, 0.0);
+		Arrays.fill(rotorCoaxialAllocationElectricalGainPercent, 0.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		Arrays.fill(rotorArmFlexDeflectionMeters, 0.0);
@@ -2203,6 +2222,174 @@ public final class DroneState {
 		double max = 0.0;
 		for (double bias : rotorCoaxialLoadBias) {
 			max = Math.max(max, Math.abs(bias));
+		}
+		return max;
+	}
+
+	public double rotorCoaxialLoadBiasTarget(int index) {
+		return rotorCoaxialLoadBiasTarget[index];
+	}
+
+	public double[] rotorCoaxialLoadBiasTarget() {
+		return Arrays.copyOf(rotorCoaxialLoadBiasTarget, rotorCoaxialLoadBiasTarget.length);
+	}
+
+	void setRotorCoaxialLoadBiasTarget(int index, double value) {
+		rotorCoaxialLoadBiasTarget[index] = Double.isFinite(value) ? MathUtil.clamp(value, -0.35, 0.35) : 0.0;
+	}
+
+	public double averageAbsRotorCoaxialLoadBiasTarget() {
+		double sum = 0.0;
+		for (double bias : rotorCoaxialLoadBiasTarget) {
+			sum += Math.abs(bias);
+		}
+		return sum / rotorCoaxialLoadBiasTarget.length;
+	}
+
+	public double maxAbsRotorCoaxialLoadBiasTarget() {
+		double max = 0.0;
+		for (double bias : rotorCoaxialLoadBiasTarget) {
+			max = Math.max(max, Math.abs(bias));
+		}
+		return max;
+	}
+
+	public double rotorCoaxialLoadBiasClipping(int index) {
+		return rotorCoaxialLoadBiasClipping[index];
+	}
+
+	public double[] rotorCoaxialLoadBiasClipping() {
+		return Arrays.copyOf(rotorCoaxialLoadBiasClipping, rotorCoaxialLoadBiasClipping.length);
+	}
+
+	void setRotorCoaxialLoadBiasClipping(int index, double value) {
+		rotorCoaxialLoadBiasClipping[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 0.35) : 0.0;
+	}
+
+	public double averageRotorCoaxialLoadBiasClipping() {
+		double sum = 0.0;
+		for (double clipping : rotorCoaxialLoadBiasClipping) {
+			sum += clipping;
+		}
+		return sum / rotorCoaxialLoadBiasClipping.length;
+	}
+
+	public double maxRotorCoaxialLoadBiasClipping() {
+		double max = 0.0;
+		for (double clipping : rotorCoaxialLoadBiasClipping) {
+			max = Math.max(max, clipping);
+		}
+		return max;
+	}
+
+	public double rotorCoaxialAllocationLoadFraction(int index) {
+		return rotorCoaxialAllocationLoadFraction[index];
+	}
+
+	public double[] rotorCoaxialAllocationLoadFraction() {
+		return Arrays.copyOf(rotorCoaxialAllocationLoadFraction, rotorCoaxialAllocationLoadFraction.length);
+	}
+
+	void setRotorCoaxialAllocationLoadFraction(int index, double value) {
+		rotorCoaxialAllocationLoadFraction[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorCoaxialAllocationLoadFraction() {
+		double sum = 0.0;
+		for (double loadFraction : rotorCoaxialAllocationLoadFraction) {
+			sum += loadFraction;
+		}
+		return sum / rotorCoaxialAllocationLoadFraction.length;
+	}
+
+	public double maxRotorCoaxialAllocationLoadFraction() {
+		double max = 0.0;
+		for (double loadFraction : rotorCoaxialAllocationLoadFraction) {
+			max = Math.max(max, loadFraction);
+		}
+		return max;
+	}
+
+	public double rotorCoaxialAllocationCommandRatio(int index) {
+		return rotorCoaxialAllocationCommandRatio[index];
+	}
+
+	public double[] rotorCoaxialAllocationCommandRatio() {
+		return Arrays.copyOf(rotorCoaxialAllocationCommandRatio, rotorCoaxialAllocationCommandRatio.length);
+	}
+
+	void setRotorCoaxialAllocationCommandRatio(int index, double value) {
+		rotorCoaxialAllocationCommandRatio[index] = Double.isFinite(value) ? MathUtil.clamp(value, 1.0, 2.0) : 1.0;
+	}
+
+	public double averageRotorCoaxialAllocationCommandRatio() {
+		double sum = 0.0;
+		for (double ratio : rotorCoaxialAllocationCommandRatio) {
+			sum += ratio;
+		}
+		return sum / rotorCoaxialAllocationCommandRatio.length;
+	}
+
+	public double maxRotorCoaxialAllocationCommandRatio() {
+		double max = 1.0;
+		for (double ratio : rotorCoaxialAllocationCommandRatio) {
+			max = Math.max(max, ratio);
+		}
+		return max;
+	}
+
+	public double rotorCoaxialAllocationMechanicalGainPercent(int index) {
+		return rotorCoaxialAllocationMechanicalGainPercent[index];
+	}
+
+	public double[] rotorCoaxialAllocationMechanicalGainPercent() {
+		return Arrays.copyOf(rotorCoaxialAllocationMechanicalGainPercent, rotorCoaxialAllocationMechanicalGainPercent.length);
+	}
+
+	void setRotorCoaxialAllocationMechanicalGainPercent(int index, double value) {
+		rotorCoaxialAllocationMechanicalGainPercent[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 25.0) : 0.0;
+	}
+
+	public double averageRotorCoaxialAllocationMechanicalGainPercent() {
+		double sum = 0.0;
+		for (double gain : rotorCoaxialAllocationMechanicalGainPercent) {
+			sum += gain;
+		}
+		return sum / rotorCoaxialAllocationMechanicalGainPercent.length;
+	}
+
+	public double maxRotorCoaxialAllocationMechanicalGainPercent() {
+		double max = 0.0;
+		for (double gain : rotorCoaxialAllocationMechanicalGainPercent) {
+			max = Math.max(max, gain);
+		}
+		return max;
+	}
+
+	public double rotorCoaxialAllocationElectricalGainPercent(int index) {
+		return rotorCoaxialAllocationElectricalGainPercent[index];
+	}
+
+	public double[] rotorCoaxialAllocationElectricalGainPercent() {
+		return Arrays.copyOf(rotorCoaxialAllocationElectricalGainPercent, rotorCoaxialAllocationElectricalGainPercent.length);
+	}
+
+	void setRotorCoaxialAllocationElectricalGainPercent(int index, double value) {
+		rotorCoaxialAllocationElectricalGainPercent[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 25.0) : 0.0;
+	}
+
+	public double averageRotorCoaxialAllocationElectricalGainPercent() {
+		double sum = 0.0;
+		for (double gain : rotorCoaxialAllocationElectricalGainPercent) {
+			sum += gain;
+		}
+		return sum / rotorCoaxialAllocationElectricalGainPercent.length;
+	}
+
+	public double maxRotorCoaxialAllocationElectricalGainPercent() {
+		double max = 0.0;
+		for (double gain : rotorCoaxialAllocationElectricalGainPercent) {
+			max = Math.max(max, gain);
 		}
 		return max;
 	}

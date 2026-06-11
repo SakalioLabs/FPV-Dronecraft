@@ -570,7 +570,13 @@ class DronePhysicsTest {
 				> coaxial.state().rotorWakeSwirlVelocityMetersPerSecond(0) + 0.20);
 		assertTrue(coaxial.state().rotorThrustNewtons(1) < coaxial.state().rotorThrustNewtons(0) * 0.90);
 		assertEquals(0.0, flat.state().maxAbsRotorCoaxialLoadBias(), 1.0e-9);
+		assertEquals(0.0, flat.state().maxAbsRotorCoaxialLoadBiasTarget(), 1.0e-9);
+		assertEquals(1.0, flat.state().maxRotorCoaxialAllocationCommandRatio(), 1.0e-9);
 		assertTrue(coaxial.state().maxAbsRotorCoaxialLoadBias() > 0.025);
+		assertTrue(coaxial.state().maxAbsRotorCoaxialLoadBiasTarget() >= coaxial.state().maxAbsRotorCoaxialLoadBias());
+		assertTrue(coaxial.state().maxRotorCoaxialAllocationLoadFraction() > 0.10);
+		assertTrue(coaxial.state().maxRotorCoaxialAllocationCommandRatio() > 1.02);
+		assertTrue(coaxial.state().maxRotorCoaxialAllocationMechanicalGainPercent() > 0.10);
 		assertTrue(coaxial.state().rotorCoaxialLoadBias(0) > 0.0);
 		assertTrue(coaxial.state().rotorCoaxialLoadBias(1) < 0.0);
 	}
@@ -633,19 +639,49 @@ class DronePhysicsTest {
 				double.class,
 				double.class
 		);
+		Method commandMapRatio = DronePhysics.class.getDeclaredMethod(
+				"coaxialCommandMapAllocationRatio",
+				double.class,
+				double.class
+		);
+		Method commandMapMechanicalGain = DronePhysics.class.getDeclaredMethod(
+				"coaxialCommandMapMechanicalGainPercent",
+				double.class,
+				double.class
+		);
+		Method commandMapElectricalGain = DronePhysics.class.getDeclaredMethod(
+				"coaxialCommandMapElectricalGainPercent",
+				double.class,
+				double.class
+		);
 		commandMapBias.setAccessible(true);
+		commandMapRatio.setAccessible(true);
+		commandMapMechanicalGain.setAccessible(true);
+		commandMapElectricalGain.setAccessible(true);
 
 		double lightLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.35);
+		double midLowLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.45);
 		double mediumLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.60);
+		double midHighLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.75);
 		double highLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.85);
 		double offSpacingBias = (double) commandMapBias.invoke(null, 0.55, 0.60);
+		double mediumLoadRatio = (double) commandMapRatio.invoke(null, 0.72, 0.60);
+		double offSpacingRatio = (double) commandMapRatio.invoke(null, 0.55, 0.60);
+		double midLowMechanicalGain = (double) commandMapMechanicalGain.invoke(null, 0.72, 0.45);
+		double mediumElectricalGain = (double) commandMapElectricalGain.invoke(null, 0.72, 0.60);
 
-		assertEquals(0.067, lightLoadBias, 1.0e-3);
+		assertEquals(0.06692, lightLoadBias, 1.0e-4);
+		assertEquals(0.09791, midLowLoadBias, 1.0e-4);
 		assertEquals(0.115, mediumLoadBias, 1.0e-3);
-		assertEquals(0.070, highLoadBias, 1.0e-3);
-		assertTrue(mediumLoadBias > lightLoadBias + 0.040);
-		assertTrue(mediumLoadBias > highLoadBias + 0.040);
-		assertTrue(offSpacingBias < mediumLoadBias * 0.10);
+		assertEquals(0.10604, midHighLoadBias, 1.0e-4);
+		assertEquals(0.08133, highLoadBias, 1.0e-4);
+		assertEquals(1.3275111760369225, mediumLoadRatio, 1.0e-9);
+		assertEquals(4.878985379626062, midLowMechanicalGain, 1.0e-9);
+		assertEquals(2.842254411676719, mediumElectricalGain, 1.0e-9);
+		assertTrue(mediumLoadBias > lightLoadBias + 0.045);
+		assertTrue(mediumLoadBias > highLoadBias + 0.030);
+		assertTrue(offSpacingBias < mediumLoadBias * 0.12);
+		assertTrue(offSpacingRatio < 1.04);
 	}
 
 	@Test
@@ -9173,6 +9209,13 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "rotor_coaxial_load_bias") > 0.015);
 		assertTrue(maxColumn(lines, header, "rotor_0_coaxial_load_bias") > 0.015);
 		assertTrue(minColumn(lines, header, "rotor_1_coaxial_load_bias") < -0.015);
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_load_bias_target")
+				+ 1.0e-5 >= maxColumn(lines, header, "rotor_coaxial_load_bias"));
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_load_bias_clipping") >= 0.0);
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_allocation_load") > 0.10);
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_allocation_ratio") > 1.02);
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_allocation_mech_gain_pct") > 0.10);
+		assertTrue(maxColumn(lines, header, "rotor_coaxial_allocation_elec_gain_pct") > 0.10);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") >= 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_7_windmilling") >= 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_advance_ratio") >= 0.0);
@@ -9185,6 +9228,12 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(report.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(report.maxRotorCoaxialLoadBias() > 0.015);
+		assertTrue(report.maxRotorCoaxialLoadBiasTarget() + 1.0e-6 >= report.maxRotorCoaxialLoadBias());
+		assertTrue(report.maxRotorCoaxialLoadBiasClipping() >= 0.0);
+		assertTrue(report.maxRotorCoaxialAllocationLoadFraction() > 0.10);
+		assertTrue(report.maxRotorCoaxialAllocationCommandRatio() > 1.02);
+		assertTrue(report.maxRotorCoaxialAllocationMechanicalGainPercent() > 0.10);
+		assertTrue(report.maxRotorCoaxialAllocationElectricalGainPercent() > 0.10);
 		assertTrue(Double.isFinite(report.maxRotorWindmillingIntensity()));
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));

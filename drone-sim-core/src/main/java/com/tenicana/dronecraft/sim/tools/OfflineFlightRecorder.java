@@ -851,6 +851,12 @@ public final class OfflineFlightRecorder {
 			"rotor_5_coaxial_load_bias",
 			"rotor_6_coaxial_load_bias",
 			"rotor_7_coaxial_load_bias",
+			"rotor_coaxial_load_bias_target",
+			"rotor_coaxial_load_bias_clipping",
+			"rotor_coaxial_allocation_load",
+			"rotor_coaxial_allocation_ratio",
+			"rotor_coaxial_allocation_mech_gain_pct",
+			"rotor_coaxial_allocation_elec_gain_pct",
 			"gyro_notch_spread_hz",
 			"gyro_blade_pass_notch_spread_hz",
 			"vortex_ring_thrust_buffet",
@@ -893,7 +899,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -923,6 +929,12 @@ public final class OfflineFlightRecorder {
 				report.maxRotorBladePassRippleIntensity(),
 				report.maxRotorInPlaneDragForceNewtons(),
 				report.maxRotorCoaxialLoadBias(),
+				report.maxRotorCoaxialLoadBiasTarget(),
+				report.maxRotorCoaxialLoadBiasClipping(),
+				report.maxRotorCoaxialAllocationLoadFraction(),
+				report.maxRotorCoaxialAllocationCommandRatio(),
+				report.maxRotorCoaxialAllocationMechanicalGainPercent(),
+				report.maxRotorCoaxialAllocationElectricalGainPercent(),
 				report.maxRotorWetThrustLossPercent(),
 				report.maxRotorBladeDissymmetryTorqueNewtonMeters(),
 				report.maxRotorWakeSwirlVelocityMetersPerSecond(),
@@ -1984,6 +1996,12 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorCoaxialLoadBias, i), "%.5f");
 		}
+		appendExtra(builder, state.averageAbsRotorCoaxialLoadBiasTarget(), "%.5f");
+		appendExtra(builder, state.maxRotorCoaxialLoadBiasClipping(), "%.5f");
+		appendExtra(builder, state.averageRotorCoaxialAllocationLoadFraction(), "%.5f");
+		appendExtra(builder, state.maxRotorCoaxialAllocationCommandRatio(), "%.5f");
+		appendExtra(builder, state.maxRotorCoaxialAllocationMechanicalGainPercent(), "%.5f");
+		appendExtra(builder, state.maxRotorCoaxialAllocationElectricalGainPercent(), "%.5f");
 		appendExtra(builder, state.gyroDynamicNotchSpreadHertz(), "%.3f");
 		appendExtra(builder, state.gyroBladePassNotchSpreadHertz(), "%.3f");
 		Vec3 vortexRingBuffetForce = state.vortexRingBuffetForceBodyNewtons();
@@ -2100,6 +2118,12 @@ public final class OfflineFlightRecorder {
 		private double maxRotorBladePassRippleIntensity;
 		private double maxRotorInPlaneDragForceNewtons;
 		private double maxRotorCoaxialLoadBias;
+		private double maxRotorCoaxialLoadBiasTarget;
+		private double maxRotorCoaxialLoadBiasClipping;
+		private double maxRotorCoaxialAllocationLoadFraction;
+		private double maxRotorCoaxialAllocationCommandRatio = 1.0;
+		private double maxRotorCoaxialAllocationMechanicalGainPercent;
+		private double maxRotorCoaxialAllocationElectricalGainPercent;
 		private double minRotorWetThrustScale = 1.0;
 		private double maxRotorBladeDissymmetryTorqueNewtonMeters;
 		private double maxRotorWakeSwirlVelocityMetersPerSecond;
@@ -2182,6 +2206,24 @@ public final class OfflineFlightRecorder {
 			maxRotorBladePassRippleIntensity = Math.max(maxRotorBladePassRippleIntensity, state.maxRotorBladePassRippleIntensity());
 			maxRotorInPlaneDragForceNewtons = Math.max(maxRotorInPlaneDragForceNewtons, state.maxRotorInPlaneDragForceNewtons());
 			maxRotorCoaxialLoadBias = Math.max(maxRotorCoaxialLoadBias, state.maxAbsRotorCoaxialLoadBias());
+			maxRotorCoaxialLoadBiasTarget = Math.max(maxRotorCoaxialLoadBiasTarget, state.maxAbsRotorCoaxialLoadBiasTarget());
+			maxRotorCoaxialLoadBiasClipping = Math.max(maxRotorCoaxialLoadBiasClipping, state.maxRotorCoaxialLoadBiasClipping());
+			maxRotorCoaxialAllocationLoadFraction = Math.max(
+					maxRotorCoaxialAllocationLoadFraction,
+					state.maxRotorCoaxialAllocationLoadFraction()
+			);
+			maxRotorCoaxialAllocationCommandRatio = Math.max(
+					maxRotorCoaxialAllocationCommandRatio,
+					state.maxRotorCoaxialAllocationCommandRatio()
+			);
+			maxRotorCoaxialAllocationMechanicalGainPercent = Math.max(
+					maxRotorCoaxialAllocationMechanicalGainPercent,
+					state.maxRotorCoaxialAllocationMechanicalGainPercent()
+			);
+			maxRotorCoaxialAllocationElectricalGainPercent = Math.max(
+					maxRotorCoaxialAllocationElectricalGainPercent,
+					state.maxRotorCoaxialAllocationElectricalGainPercent()
+			);
 			minRotorWetThrustScale = Math.min(minRotorWetThrustScale, state.minRotorWetThrustScale());
 			maxRotorBladeDissymmetryTorqueNewtonMeters = Math.max(
 					maxRotorBladeDissymmetryTorqueNewtonMeters,
@@ -2380,6 +2422,30 @@ public final class OfflineFlightRecorder {
 
 		public double maxRotorCoaxialLoadBias() {
 			return maxRotorCoaxialLoadBias;
+		}
+
+		public double maxRotorCoaxialLoadBiasTarget() {
+			return maxRotorCoaxialLoadBiasTarget;
+		}
+
+		public double maxRotorCoaxialLoadBiasClipping() {
+			return maxRotorCoaxialLoadBiasClipping;
+		}
+
+		public double maxRotorCoaxialAllocationLoadFraction() {
+			return maxRotorCoaxialAllocationLoadFraction;
+		}
+
+		public double maxRotorCoaxialAllocationCommandRatio() {
+			return maxRotorCoaxialAllocationCommandRatio;
+		}
+
+		public double maxRotorCoaxialAllocationMechanicalGainPercent() {
+			return maxRotorCoaxialAllocationMechanicalGainPercent;
+		}
+
+		public double maxRotorCoaxialAllocationElectricalGainPercent() {
+			return maxRotorCoaxialAllocationElectricalGainPercent;
 		}
 
 		public double minRotorWetThrustScale() {

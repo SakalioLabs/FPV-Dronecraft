@@ -326,6 +326,12 @@ public final class DroneBlackboxSample {
 			"rotor_1_coaxial_load_bias",
 			"rotor_2_coaxial_load_bias",
 			"rotor_3_coaxial_load_bias",
+			"rotor_coaxial_load_bias_target",
+			"rotor_coaxial_load_bias_clipping",
+			"rotor_coaxial_allocation_load",
+			"rotor_coaxial_allocation_ratio",
+			"rotor_coaxial_allocation_mech_gain_pct",
+			"rotor_coaxial_allocation_elec_gain_pct",
 			"rotor_wet_thrust_scale",
 			"rotor_0_wet_thrust_scale",
 			"rotor_1_wet_thrust_scale",
@@ -1361,6 +1367,12 @@ public final class DroneBlackboxSample {
 		row.add(rotorCoaxialLoadBiasOrZero(state, 1), "%.5f");
 		row.add(rotorCoaxialLoadBiasOrZero(state, 2), "%.5f");
 		row.add(rotorCoaxialLoadBiasOrZero(state, 3), "%.5f");
+		row.add(state.averageAbsRotorCoaxialLoadBiasTarget(), "%.5f");
+		row.add(state.maxRotorCoaxialLoadBiasClipping(), "%.5f");
+		row.add(state.averageRotorCoaxialAllocationLoadFraction(), "%.5f");
+		row.add(state.maxRotorCoaxialAllocationCommandRatio(), "%.5f");
+		row.add(state.maxRotorCoaxialAllocationMechanicalGainPercent(), "%.5f");
+		row.add(state.maxRotorCoaxialAllocationElectricalGainPercent(), "%.5f");
 		row.add(state.averageRotorWetThrustScale(), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 0), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 1), "%.5f");

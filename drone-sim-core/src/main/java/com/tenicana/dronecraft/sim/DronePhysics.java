@@ -18,9 +18,29 @@ public final class DronePhysics {
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = 0.115;
 	private static final double COAXIAL_COMMAND_MAP_REFERENCE_SPACING_RATIO = 0.72;
-	// Averaged from the New Dexterity z/D=0.72 command-envelope lookup and capped by the runtime bias limit.
-	private static final double[] COAXIAL_COMMAND_MAP_LOAD_FRACTIONS = {0.35, 0.60, 0.85};
-	private static final double[] COAXIAL_COMMAND_MAP_LOAD_BIASES = {0.067, 0.115, 0.070};
+	// Smoothed New Dexterity z/D=0.72 command-envelope model for the current coaxialX8 spacing.
+	private static final double[] COAXIAL_COMMAND_MAP_LOAD_FRACTIONS = {0.35, 0.45, 0.60, 0.75, 0.85};
+	private static final double[] COAXIAL_COMMAND_MAP_RATIOS = {
+			1.1434392831646552,
+			1.217068040313562,
+			1.3275111760369225,
+			1.2372418948199526,
+			1.1770623740086394
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_PCT = {
+			5.194971593971521,
+			4.878985379626062,
+			4.405006058107876,
+			5.261233603804847,
+			5.832051967602827
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_PCT = {
+			5.246829881486663,
+			4.2849996935626855,
+			2.842254411676719,
+			3.4679138420725897,
+			3.8850201290031703
+	};
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
@@ -5503,6 +5523,12 @@ public final class DronePhysics {
 	private void applyCoaxialLoadBias(double[] mixedThrusts, boolean armed, double throttle) {
 		for (int i = 0; i < state.motorCount(); i++) {
 			state.setRotorCoaxialLoadBias(i, 0.0);
+			state.setRotorCoaxialLoadBiasTarget(i, 0.0);
+			state.setRotorCoaxialLoadBiasClipping(i, 0.0);
+			state.setRotorCoaxialAllocationLoadFraction(i, 0.0);
+			state.setRotorCoaxialAllocationCommandRatio(i, 1.0);
+			state.setRotorCoaxialAllocationMechanicalGainPercent(i, 0.0);
+			state.setRotorCoaxialAllocationElectricalGainPercent(i, 0.0);
 		}
 		if (!armed || mixedThrusts == null || config.rotors().size() < 2) {
 			return;
@@ -5541,7 +5567,25 @@ public final class DronePhysics {
 				continue;
 			}
 
-			double targetBias = coaxialLoadBiasTarget(upper, lower, upperIndex, lowerIndex, throttle, pairMeanThrust);
+			CoaxialLoadBiasTarget target = coaxialLoadBiasTarget(
+					upper,
+					lower,
+					upperIndex,
+					lowerIndex,
+					throttle,
+					pairMeanThrust
+			);
+			double targetBias = target.bias();
+			state.setRotorCoaxialLoadBiasTarget(upperIndex, targetBias);
+			state.setRotorCoaxialLoadBiasTarget(lowerIndex, -targetBias);
+			state.setRotorCoaxialAllocationLoadFraction(upperIndex, target.loadFraction());
+			state.setRotorCoaxialAllocationLoadFraction(lowerIndex, target.loadFraction());
+			state.setRotorCoaxialAllocationCommandRatio(upperIndex, target.commandMapRatio());
+			state.setRotorCoaxialAllocationCommandRatio(lowerIndex, target.commandMapRatio());
+			state.setRotorCoaxialAllocationMechanicalGainPercent(upperIndex, target.mechanicalGainPercent());
+			state.setRotorCoaxialAllocationMechanicalGainPercent(lowerIndex, target.mechanicalGainPercent());
+			state.setRotorCoaxialAllocationElectricalGainPercent(upperIndex, target.electricalGainPercent());
+			state.setRotorCoaxialAllocationElectricalGainPercent(lowerIndex, target.electricalGainPercent());
 			if (targetBias <= 1.0e-6) {
 				continue;
 			}
@@ -5552,15 +5596,16 @@ public final class DronePhysics {
 			double requestedShift = pairMeanThrust * targetBias;
 			double availableShift = Math.min(upperMax - mixedThrusts[upperIndex], mixedThrusts[lowerIndex] - lowerMin);
 			double shift = MathUtil.clamp(requestedShift, 0.0, Math.max(0.0, availableShift));
-			if (shift <= 1.0e-6) {
-				continue;
-			}
-
-			mixedThrusts[upperIndex] += shift;
-			mixedThrusts[lowerIndex] -= shift;
 			double actualBias = MathUtil.clamp(shift / pairMeanThrust, 0.0, COAXIAL_LOAD_BIAS_MAX);
-			state.setRotorCoaxialLoadBias(upperIndex, actualBias);
-			state.setRotorCoaxialLoadBias(lowerIndex, -actualBias);
+			double clipping = Math.max(0.0, targetBias - actualBias);
+			state.setRotorCoaxialLoadBiasClipping(upperIndex, clipping);
+			state.setRotorCoaxialLoadBiasClipping(lowerIndex, clipping);
+			if (shift > 1.0e-6) {
+				mixedThrusts[upperIndex] += shift;
+				mixedThrusts[lowerIndex] -= shift;
+				state.setRotorCoaxialLoadBias(upperIndex, actualBias);
+				state.setRotorCoaxialLoadBias(lowerIndex, -actualBias);
+			}
 		}
 	}
 
@@ -5602,7 +5647,30 @@ public final class DronePhysics {
 				&& rotorAxisBody(upper).dot(rotorAxisBody(lower)) > 0.96;
 	}
 
-	private double coaxialLoadBiasTarget(
+	private record CoaxialLoadBiasTarget(
+			double bias,
+			double loadFraction,
+			double commandMapRatio,
+			double mechanicalGainPercent,
+			double electricalGainPercent
+	) {
+	}
+
+	private double coaxialSpacingRatio(RotorSpec upper, RotorSpec lower) {
+		double averageRadius = 0.5 * (upper.radiusMeters() + lower.radiusMeters());
+		return (upper.positionBodyMeters().y() - lower.positionBodyMeters().y())
+				/ Math.max(1.0e-6, averageRadius * 2.0);
+	}
+
+	private static double coaxialLoadFraction(RotorSpec upper, RotorSpec lower, double pairMeanThrust) {
+		return MathUtil.clamp(
+				pairMeanThrust / Math.max(1.0e-6, 0.5 * (upper.maxThrustNewtons() + lower.maxThrustNewtons())),
+				0.0,
+				1.0
+		);
+	}
+
+	private CoaxialLoadBiasTarget coaxialLoadBiasTarget(
 			RotorSpec upper,
 			RotorSpec lower,
 			int upperIndex,
@@ -5610,15 +5678,9 @@ public final class DronePhysics {
 			double throttle,
 			double pairMeanThrust
 	) {
-		double averageRadius = 0.5 * (upper.radiusMeters() + lower.radiusMeters());
-		double spacingRatio = (upper.positionBodyMeters().y() - lower.positionBodyMeters().y())
-				/ Math.max(1.0e-6, averageRadius * 2.0);
+		double spacingRatio = coaxialSpacingRatio(upper, lower);
 		double spacingWindow = coaxialBenchmarkSpacingEfficiencyWindow(spacingRatio);
-		double loadFraction = MathUtil.clamp(
-				pairMeanThrust / Math.max(1.0e-6, 0.5 * (upper.maxThrustNewtons() + lower.maxThrustNewtons())),
-				0.0,
-				1.0
-		);
+		double loadFraction = coaxialLoadFraction(upper, lower, pairMeanThrust);
 		double loadWindow = smoothStep(
 				Math.max(0.02, config.motorIdleThrustFraction()),
 				0.52,
@@ -5635,18 +5697,63 @@ public final class DronePhysics {
 				* upperHeadroom
 				* wakeWindow
 				* lossWindow;
+		double commandMapRatio = coaxialCommandMapAllocationRatio(spacingRatio, loadFraction);
+		double mechanicalGainPercent = coaxialCommandMapMechanicalGainPercent(spacingRatio, loadFraction);
+		double electricalGainPercent = coaxialCommandMapElectricalGainPercent(spacingRatio, loadFraction);
 		double commandMapBiasTarget = coaxialCommandMapLoadBias(spacingRatio, loadFraction)
 				* upperHeadroom
 				* wakeWindow
 				* lossWindow;
-		return MathUtil.clamp(
+		double bias = MathUtil.clamp(
 				Math.max(spacingBiasTarget, commandMapBiasTarget),
 				0.0,
 				COAXIAL_LOAD_BIAS_MAX
 		);
+		return new CoaxialLoadBiasTarget(
+				bias,
+				loadFraction,
+				commandMapRatio,
+				mechanicalGainPercent,
+				electricalGainPercent
+		);
 	}
 
 	private static double coaxialCommandMapLoadBias(double spacingRatio, double loadFraction) {
+		double ratio = coaxialCommandMapAllocationRatio(spacingRatio, loadFraction);
+		if (ratio <= 1.0 + 1.0e-9) {
+			return 0.0;
+		}
+
+		return MathUtil.clamp((ratio - 1.0) / (ratio + 1.0), 0.0, COAXIAL_LOAD_BIAS_MAX);
+	}
+
+	private static double coaxialCommandMapAllocationRatio(double spacingRatio, double loadFraction) {
+		double activation = coaxialCommandMapActivation(spacingRatio, loadFraction);
+		if (activation <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double lookupRatio = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_RATIOS, loadFraction);
+		return MathUtil.clamp(1.0 + (lookupRatio - 1.0) * activation, 1.0, 2.0);
+	}
+
+	private static double coaxialCommandMapMechanicalGainPercent(double spacingRatio, double loadFraction) {
+		double activation = coaxialCommandMapActivation(spacingRatio, loadFraction);
+		if (activation <= 1.0e-6) {
+			return 0.0;
+		}
+		return interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_PCT, loadFraction) * activation;
+	}
+
+	private static double coaxialCommandMapElectricalGainPercent(double spacingRatio, double loadFraction) {
+		double activation = coaxialCommandMapActivation(spacingRatio, loadFraction);
+		if (activation <= 1.0e-6) {
+			return 0.0;
+		}
+		return interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_PCT, loadFraction) * activation;
+	}
+
+	private static double coaxialCommandMapActivation(double spacingRatio, double loadFraction) {
 		double spacingWindow = coaxialSpacingGaussian(
 				spacingRatio,
 				COAXIAL_COMMAND_MAP_REFERENCE_SPACING_RATIO,
@@ -5657,28 +5764,32 @@ public final class DronePhysics {
 		}
 
 		double boundedLoadFraction = MathUtil.clamp(loadFraction, 0.0, 1.0);
-		double lookupBias = COAXIAL_COMMAND_MAP_LOAD_BIASES[COAXIAL_COMMAND_MAP_LOAD_BIASES.length - 1];
+		double activeLoad = smoothStep(0.18, 0.32, boundedLoadFraction)
+				* (1.0 - smoothStep(0.92, 1.0, boundedLoadFraction));
+		return MathUtil.clamp(spacingWindow * activeLoad, 0.0, 1.0);
+	}
+
+	private static double interpolateCoaxialCommandMap(double[] values, double loadFraction) {
+		double boundedLoadFraction = MathUtil.clamp(loadFraction, 0.0, 1.0);
+		double lookupValue = values[values.length - 1];
 		if (boundedLoadFraction <= COAXIAL_COMMAND_MAP_LOAD_FRACTIONS[0]) {
-			lookupBias = COAXIAL_COMMAND_MAP_LOAD_BIASES[0];
+			lookupValue = values[0];
 		} else {
 			for (int i = 1; i < COAXIAL_COMMAND_MAP_LOAD_FRACTIONS.length; i++) {
 				double upperLoad = COAXIAL_COMMAND_MAP_LOAD_FRACTIONS[i];
 				if (boundedLoadFraction <= upperLoad) {
 					double lowerLoad = COAXIAL_COMMAND_MAP_LOAD_FRACTIONS[i - 1];
 					double amount = (boundedLoadFraction - lowerLoad) / (upperLoad - lowerLoad);
-					lookupBias = MathUtil.lerp(
-							COAXIAL_COMMAND_MAP_LOAD_BIASES[i - 1],
-							COAXIAL_COMMAND_MAP_LOAD_BIASES[i],
+					lookupValue = MathUtil.lerp(
+							values[i - 1],
+							values[i],
 							amount
 					);
 					break;
 				}
 			}
 		}
-
-		double activeLoad = smoothStep(0.18, 0.32, boundedLoadFraction)
-				* (1.0 - smoothStep(0.92, 1.0, boundedLoadFraction));
-		return MathUtil.clamp(lookupBias * spacingWindow * activeLoad, 0.0, COAXIAL_LOAD_BIAS_MAX);
+		return lookupValue;
 	}
 
 	private static double coaxialBenchmarkSpacingEfficiencyWindow(double spacingRatio) {
