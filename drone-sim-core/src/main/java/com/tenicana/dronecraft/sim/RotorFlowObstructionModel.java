@@ -1,15 +1,12 @@
-package com.tenicana.dronecraft.entity;
+package com.tenicana.dronecraft.sim;
 
-import com.tenicana.dronecraft.sim.MathUtil;
-import com.tenicana.dronecraft.sim.Vec3;
-
-final class RotorFlowObstructionModel {
-	static final Result CLEAR = new Result(0.0, Vec3.ZERO);
+public final class RotorFlowObstructionModel {
+	public static final Result CLEAR = new Result(0.0, Vec3.ZERO);
 
 	private RotorFlowObstructionModel() {
 	}
 
-	static Result fromDirectionalDistances(double[] distancesMeters, Vec3[] bodyDirections, double maxDistanceMeters) {
+	public static Result fromDirectionalDistances(double[] distancesMeters, Vec3[] bodyDirections, double maxDistanceMeters) {
 		if (distancesMeters == null || bodyDirections == null || distancesMeters.length == 0 || maxDistanceMeters <= 1.0e-6) {
 			return CLEAR;
 		}
@@ -51,7 +48,7 @@ final class RotorFlowObstructionModel {
 		return new Result(intensity, direction);
 	}
 
-	static double proximityFromDistance(double distanceMeters, double maxDistanceMeters) {
+	public static double proximityFromDistance(double distanceMeters, double maxDistanceMeters) {
 		if (!Double.isFinite(distanceMeters)) {
 			return 0.0;
 		}
@@ -70,6 +67,6 @@ final class RotorFlowObstructionModel {
 		return 1.0 - 0.30 * MathUtil.clamp(diagonalMix, 0.0, 1.0);
 	}
 
-	record Result(double intensity, Vec3 directionBody) {
+	public record Result(double intensity, Vec3 directionBody) {
 	}
 }

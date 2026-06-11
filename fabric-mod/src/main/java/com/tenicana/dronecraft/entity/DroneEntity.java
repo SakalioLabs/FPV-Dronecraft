@@ -55,6 +55,7 @@ import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.FlightMode;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.PidGains;
+import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 

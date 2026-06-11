@@ -9,6 +9,7 @@ The project is intentionally split into two modules:
 
 The simulator uses Minecraft as the world, renderer, input, and networking layer. Flight dynamics live in `drone-sim-core` so they can be tested and tuned without starting the game.
 The default `racing_quad` rotor speed scale is calibrated against open 5-inch FPV thrust-stand and UIUC propeller data; see `docs/fpv-sim-model-validation.md` and `docs/fpv-sim-data-sources.md` before changing rotor constants that feed RPM, tip Mach, blade-pass filtering, vibration, or motor current telemetry.
+Rotor side-flow obstruction geometry also lives in `drone-sim-core`, so Minecraft wall sampling, offline flight logs, and future non-Fabric frontends share the same wall-clearance-to-rotor-blockage mapping.
 
 ## Build
 

@@ -1,11 +1,9 @@
-package com.tenicana.dronecraft.entity;
+package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
-
-import com.tenicana.dronecraft.sim.Vec3;
 
 class RotorFlowObstructionModelTest {
 	private static final double MAX_DISTANCE = 0.40;
