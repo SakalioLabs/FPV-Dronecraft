@@ -94,6 +94,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("battery_resistance_aging_scale"));
 		assertTrue(csv.contains("battery_polarization_resistance_scale"));
 		assertTrue(csv.contains("battery_slow_polarization_v"));
+		assertTrue(csv.contains("battery_20pct_sag_current_a"));
+		assertTrue(csv.contains("battery_20pct_sag_current_margin"));
 		assertTrue(csv.contains("battery_equivalent_cycles"));
 		assertTrue(csv.contains("pid_dterm_lpf_hz"));
 		assertTrue(csv.contains("rotor_stall_intensity"));
@@ -321,6 +323,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("battery_current_limit"));
 		assertTrue(csv.contains("battery_regen_current_a"));
 		assertTrue(csv.contains("battery_effective_resistance_ohm"));
+		assertTrue(csv.contains("battery_20pct_sag_current_a"));
+		assertTrue(csv.contains("battery_20pct_sag_current_margin"));
 		assertTrue(csv.contains("battery_voltage_spike_v"));
 		assertTrue(csv.contains("battery_bus_ripple_v"));
 		assertTrue(csv.contains("imu_supply_noise"));
@@ -487,6 +491,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_esc_cooling_factor")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_regen_current_a")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_effective_resistance_ohm")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "battery_20pct_sag_current_a")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "battery_20pct_sag_current_margin")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_polarization_resistance_scale")]) >= 1.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_slow_polarization_v")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_voltage_spike_v")]));

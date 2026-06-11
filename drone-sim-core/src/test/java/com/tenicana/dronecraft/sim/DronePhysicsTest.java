@@ -2021,6 +2021,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batterySagCurrentHeadroomTracksEffectiveResistance() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withBattery(16.8, 13.2, 0.018, 1.5, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics freshFull = new DronePhysics(config);
+		DronePhysics wornLow = new DronePhysics(config);
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+		wornLow.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * 0.90);
+		wornLow.state().setBatteryEquivalentCycles(450.0);
+
+		freshFull.step(DroneInput.idle(), 0.005);
+		wornLow.step(DroneInput.idle(), 0.005);
+
+		double expectedFreshCurrent = 0.20 * config.nominalBatteryVoltage()
+				/ freshFull.state().batteryEffectiveResistanceOhms();
+		double expectedWornCurrent = 0.20 * config.nominalBatteryVoltage()
+				/ wornLow.state().batteryEffectiveResistanceOhms();
+		assertEquals(expectedFreshCurrent, freshFull.state().batteryTwentyPercentSagCurrentAmps(), 1.0e-6);
+		assertEquals(expectedFreshCurrent / config.maxBatteryCurrentAmps(),
+				freshFull.state().batteryTwentyPercentSagCurrentMargin(), 1.0e-6);
+		assertEquals(expectedWornCurrent, wornLow.state().batteryTwentyPercentSagCurrentAmps(), 1.0e-6);
+		assertEquals(expectedWornCurrent / config.maxBatteryCurrentAmps(),
+				wornLow.state().batteryTwentyPercentSagCurrentMargin(), 1.0e-6);
+		assertTrue(wornLow.state().batteryTwentyPercentSagCurrentAmps()
+				< freshFull.state().batteryTwentyPercentSagCurrentAmps() * 0.85,
+				() -> "freshSag20A=" + freshFull.state().batteryTwentyPercentSagCurrentAmps()
+						+ " wornLowSag20A=" + wornLow.state().batteryTwentyPercentSagCurrentAmps());
+		assertTrue(wornLow.state().batteryTwentyPercentSagCurrentMargin()
+				< freshFull.state().batteryTwentyPercentSagCurrentMargin() * 0.85);
+	}
+
+	@Test
 	void batteryColdResistanceFollowsJeffcoRcLipoTemperatureRatio() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withBattery(16.8, 13.2, 0.020, 1000.0, 120.0)
@@ -8374,6 +8406,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_equivalent_cycles"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_voltage_spike_v"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_20pct_sag_current_a"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_20pct_sag_current_margin"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_current_limit"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("imu_supply_noise"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_x_mps"));
@@ -8747,6 +8781,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_actuator_authority")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_bus_ripple_v")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_effective_resistance_ohm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_20pct_sag_current_a")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_20pct_sag_current_margin")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_slow_polarization_v")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
@@ -8772,6 +8808,8 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
+		assertTrue(maxColumn(lines, header, "battery_20pct_sag_current_a") > 0.0);
+		assertTrue(maxColumn(lines, header, "battery_20pct_sag_current_margin") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_slow_polarization_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_polarization_resistance_scale") > 1.05);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);

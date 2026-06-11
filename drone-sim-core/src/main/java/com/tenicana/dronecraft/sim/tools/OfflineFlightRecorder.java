@@ -496,6 +496,8 @@ public final class OfflineFlightRecorder {
 			"battery_cooling_factor",
 			"battery_thermal_limit",
 			"battery_polarization_resistance_scale",
+			"battery_20pct_sag_current_a",
+			"battery_20pct_sag_current_margin",
 			"rotor_4_thrust_n",
 			"rotor_5_thrust_n",
 			"rotor_6_thrust_n",
@@ -1771,6 +1773,8 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.batteryCoolingFactor(), "%.5f");
 		appendExtra(builder, state.batteryThermalLimit(), "%.5f");
 		appendExtra(builder, state.batteryPolarizationResistanceScale(), "%.5f");
+		appendExtra(builder, state.batteryTwentyPercentSagCurrentAmps(), "%.3f");
+		appendExtra(builder, state.batteryTwentyPercentSagCurrentMargin(), "%.5f");
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorThrust, i), "%.4f");
 		}

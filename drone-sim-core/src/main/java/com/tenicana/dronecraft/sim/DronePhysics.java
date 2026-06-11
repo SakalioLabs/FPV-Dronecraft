@@ -254,6 +254,7 @@ public final class DronePhysics {
 		this.state.setBatteryVoltage(config.nominalBatteryVoltage());
 		this.state.setBatteryOpenCircuitVoltage(config.nominalBatteryVoltage());
 		this.state.setBatteryEffectiveResistanceOhms(config.batteryInternalResistanceOhms());
+		updateBatterySagCurrentTelemetry(config.batteryInternalResistanceOhms());
 		this.pitchPid = new PidController(config.pitchGains());
 		this.yawPid = new PidController(config.yawGains());
 		this.rollPid = new PidController(config.rollGains());
@@ -7405,6 +7406,7 @@ public final class DronePhysics {
 		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge)
 				* polarizationScale;
 		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
+		updateBatterySagCurrentTelemetry(batteryResistanceOhms);
 		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
 		double ohmicSag = totalResistanceSag * 0.62;
 		double targetTransientSag = totalResistanceSag * 0.38;
@@ -7442,6 +7444,25 @@ public final class DronePhysics {
 		double stateOfChargeLimit = batteryStateOfChargePowerLimit(stateOfCharge);
 		double currentLimit = updateBatteryCurrentLimit(dischargeCurrentAmps, state.batteryTemperatureCelsius(), dtSeconds);
 		state.setBatteryPowerLimit(Math.min(Math.min(stateOfChargeLimit, currentLimit), state.batteryThermalLimit()));
+	}
+
+	private void updateBatterySagCurrentTelemetry(double batteryResistanceOhms) {
+		double sagCurrentAmps = batteryTwentyPercentSagCurrentAmps(batteryResistanceOhms);
+		state.setBatteryTwentyPercentSagCurrentAmps(sagCurrentAmps);
+		state.setBatteryTwentyPercentSagCurrentMargin(
+				MathUtil.clamp(sagCurrentAmps / Math.max(1.0, config.maxBatteryCurrentAmps()), 0.0, 99.0)
+		);
+	}
+
+	private double batteryTwentyPercentSagCurrentAmps(double batteryResistanceOhms) {
+		if (batteryResistanceOhms <= 1.0e-9) {
+			return 9999.0;
+		}
+		return MathUtil.clamp(
+				0.20 * Math.max(0.0, config.nominalBatteryVoltage()) / batteryResistanceOhms,
+				0.0,
+				9999.0
+		);
 	}
 
 	private double currentBatteryStateOfCharge() {

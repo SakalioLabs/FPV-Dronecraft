@@ -64,6 +64,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("current-limit 1.00"));
 		assertTrue(status.contains("rc 0.003/0.007s err 0.0005"));
 		assertTrue(status.contains("ir 18mOhm"));
+		assertTrue(status.contains("sag20 187A margin 2.08"));
 		assertTrue(status.contains("spike 0.00V"));
 		assertTrue(status.contains("ripple 0.000V"));
 		assertTrue(status.contains("regen 0.0A"));
@@ -162,6 +163,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("fc-link-lost"));
 		assertTrue(warnings.contains("battery-limit"));
 		assertTrue(warnings.contains("current-limit"));
+		assertTrue(warnings.contains("sag-headroom"));
 		assertTrue(warnings.contains("bus-spike"));
 		assertTrue(warnings.contains("bus-ripple"));
 		assertTrue(warnings.contains("gusty-air"));
@@ -213,6 +215,7 @@ class DroneStatusFormatterTest {
 
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
+		assertTrue(status.contains("sag20 74A margin 0.82"));
 		assertTrue(status.contains("spike 0.42V ripple 0.240V"));
 		assertTrue(status.contains("load 1.08 hforce 2.60N"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
@@ -309,6 +312,8 @@ class DroneStatusFormatterTest {
 				diagnosticActive ? 0.24 : 0.0,
 				batterySoc,
 				38.0,
+				diagnosticActive ? 74.0 : 187.0,
+				diagnosticActive ? 0.82 : 2.08,
 				batterySoc < 0.20 ? 0.75 : 1.0,
 				batterySoc < 0.20 ? 0.76 : 1.0,
 				diagnosticActive ? 0.12 : 0.0,

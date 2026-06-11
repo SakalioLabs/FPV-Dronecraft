@@ -378,6 +378,8 @@ public final class DroneCommands {
 				drone.getBatteryBusRippleVoltage(),
 				drone.getBatteryStateOfCharge(),
 				drone.getBatteryCurrentAmps(),
+				drone.getBatteryTwentyPercentSagCurrentAmps(),
+				drone.getBatteryTwentyPercentSagCurrentMargin(),
 				drone.getBatteryPowerLimit(),
 				drone.getBatteryCurrentLimit(),
 				drone.getGyroClipIntensity(),
