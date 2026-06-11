@@ -163,7 +163,7 @@ public record DroneConfig(
 		double transverseFlowLift = 0.08;
 		double axialFlowLoss = 0.16;
 		double diskDrag = 0.0028;
-		double rotorInertia = 3.0e-6;
+		double rotorInertia = RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(rotorRadius, 4.0);
 		double inflowTimeConstant = 0.035;
 		double inflowLag = 0.16;
 		double flapping = 0.055;

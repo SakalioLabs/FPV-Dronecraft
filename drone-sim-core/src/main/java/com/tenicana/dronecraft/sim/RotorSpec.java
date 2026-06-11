@@ -26,6 +26,9 @@ public record RotorSpec(
 	public static final double DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO = 0.85;
 	public static final double BLADE_GEOMETRY_REFERENCE_STATION_FRACTION = 0.70;
 	public static final double DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO = 0.12;
+	public static final double HUB_BIASED_PROP_INERTIA_COEFFICIENT = 0.25;
+	public static final double UNIFORM_BLADE_PROP_INERTIA_COEFFICIENT = 1.0 / 3.0;
+	public static final double TIP_BIASED_PROP_INERTIA_COEFFICIENT = 0.50;
 
 	public RotorSpec(
 			Vec3 positionBodyMeters,
@@ -212,6 +215,30 @@ public record RotorSpec(
 
 	public static double defaultBladePitchMeters(double radiusMeters) {
 		return Math.max(0.01, radiusMeters * 2.0 * DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO);
+	}
+
+	public static double estimatedPropInertiaKgMetersSquared(
+			double radiusMeters,
+			double propMassGrams,
+			double massDistributionCoefficient
+	) {
+		if (!Double.isFinite(radiusMeters)
+				|| !Double.isFinite(propMassGrams)
+				|| !Double.isFinite(massDistributionCoefficient)) {
+			return 0.0;
+		}
+		double safeRadiusMeters = Math.max(0.0, radiusMeters);
+		double safeMassKilograms = Math.max(0.0, propMassGrams) * 0.001;
+		double safeCoefficient = MathUtil.clamp(massDistributionCoefficient, 0.0, 1.0);
+		return safeCoefficient * safeMassKilograms * safeRadiusMeters * safeRadiusMeters;
+	}
+
+	public static double estimatedUniformBladePropInertiaKgMetersSquared(double radiusMeters, double propMassGrams) {
+		return estimatedPropInertiaKgMetersSquared(
+				radiusMeters,
+				propMassGrams,
+				UNIFORM_BLADE_PROP_INERTIA_COEFFICIENT
+		);
 	}
 
 	public double bladePitchToDiameterRatio() {
