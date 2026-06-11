@@ -457,12 +457,16 @@ class DronePhysicsTest {
 
 		assertEquals(0.0, flat.state().maxRotorWakeInterferenceIntensity(), 0.02);
 		assertEquals(0.0, flat.state().maxRotorWakeSwirlVelocityMetersPerSecond(), 0.05);
+		assertEquals(1.0, flat.state().minRotorWakeThrustScale(), 0.01);
 		assertTrue(coaxial.state().maxRotorWakeInterferenceIntensity() > 0.35);
 		assertTrue(coaxial.state().averageRotorWakeInterferenceIntensity() > 0.15);
 		assertTrue(coaxial.state().maxRotorWakeSwirlVelocityMetersPerSecond() > 0.35);
 		assertTrue(coaxial.state().averageRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(coaxial.state().rotorWakeInterferenceIntensity(1)
 				> coaxial.state().rotorWakeInterferenceIntensity(0) + 0.30);
+		assertTrue(coaxial.state().rotorWakeThrustScale(1)
+				< coaxial.state().rotorWakeThrustScale(0) - 0.06);
+		assertTrue(coaxial.state().minRotorWakeThrustScale() < 0.93);
 		assertTrue(coaxial.state().rotorWakeSwirlVelocityMetersPerSecond(1)
 				> coaxial.state().rotorWakeSwirlVelocityMetersPerSecond(0) + 0.25);
 		assertTrue(coaxial.state().rotorThrustNewtons(1) < coaxial.state().rotorThrustNewtons(0) * 0.88);
@@ -495,12 +499,16 @@ class DronePhysicsTest {
 		assertEquals(8, coaxial.state().motorCount());
 		assertEquals(0.0, flat.state().maxRotorWakeInterferenceIntensity(), 0.02);
 		assertEquals(0.0, flat.state().maxRotorWakeSwirlVelocityMetersPerSecond(), 0.05);
+		assertEquals(1.0, flat.state().minRotorWakeThrustScale(), 0.01);
 		assertTrue(coaxial.state().maxRotorWakeInterferenceIntensity() > 0.30);
 		assertTrue(coaxial.state().averageRotorWakeInterferenceIntensity() > 0.12);
 		assertTrue(coaxial.state().maxRotorWakeSwirlVelocityMetersPerSecond() > 0.30);
 		assertTrue(coaxial.state().averageRotorWakeSwirlVelocityMetersPerSecond() > 0.08);
 		assertTrue(coaxial.state().rotorWakeInterferenceIntensity(1)
 				> coaxial.state().rotorWakeInterferenceIntensity(0) + 0.25);
+		assertTrue(coaxial.state().rotorWakeThrustScale(1)
+				< coaxial.state().rotorWakeThrustScale(0) - 0.05);
+		assertTrue(coaxial.state().minRotorWakeThrustScale() < 0.94);
 		assertTrue(coaxial.state().rotorWakeInterferenceIntensity(3)
 				> coaxial.state().rotorWakeInterferenceIntensity(2) + 0.25);
 		assertTrue(coaxial.state().rotorWakeSwirlVelocityMetersPerSecond(1)
@@ -7068,6 +7076,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_aerodynamic_load"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inflow_skew"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_interference"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_pitch_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_yaw_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_dissymmetry_roll_torque_nm"));
@@ -7210,6 +7220,12 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_low_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_high_headroom"));
 		assertEquals(columnCount, firstRow.length);
+		double loggedWakeThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_wake_thrust_scale")]);
+		double loggedRotor7WakeThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_wake_thrust_scale")]);
+		assertTrue(loggedWakeThrustScale >= 0.72);
+		assertTrue(loggedWakeThrustScale <= 1.0);
+		assertTrue(loggedRotor7WakeThrustScale >= 0.72);
+		assertTrue(loggedRotor7WakeThrustScale <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_blade_dissymmetry_roll_torque_nm")])));
@@ -7468,6 +7484,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flapping_tilt_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coning"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_interference"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wake_swirl_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_windmilling"));
@@ -7497,6 +7514,8 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) >= 0.72);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) <= 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_windmilling")]) >= 0.0);
 		assertTrue(report.samples() > 100);
@@ -7520,6 +7539,10 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_wake_interference") > 0.03);
 		assertTrue(maxColumn(lines, header, "rotor_7_wake_interference") > 0.07);
+		assertTrue(minColumn(lines, header, "rotor_wake_thrust_scale") < 0.995);
+		assertTrue(minColumn(lines, header, "rotor_7_wake_thrust_scale") < 0.99);
+		assertTrue(minColumn(lines, header, "rotor_7_wake_thrust_scale") >= 0.72);
+		assertTrue(maxColumn(lines, header, "rotor_7_wake_thrust_scale") <= 1.0);
 		assertTrue(maxColumn(lines, header, "rotor_wake_swirl_mps") > 0.05);
 		assertTrue(maxColumn(lines, header, "rotor_7_wake_swirl_mps") > 0.10);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") >= 0.0);
@@ -7707,6 +7730,16 @@ class DronePhysicsTest {
 			max = Math.max(max, Double.parseDouble(row[index]));
 		}
 		return max;
+	}
+
+	private static double minColumn(List<String> lines, String[] header, String column) {
+		int index = indexOf(header, column);
+		double min = Double.POSITIVE_INFINITY;
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			min = Math.min(min, Double.parseDouble(row[index]));
+		}
+		return min;
 	}
 
 	private static double maxVectorLength(List<String> lines, String[] header, String xColumn, String yColumn, String zColumn) {

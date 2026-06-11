@@ -262,6 +262,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_wake_interference",
 			"rotor_2_wake_interference",
 			"rotor_3_wake_interference",
+			"rotor_wake_thrust_scale",
+			"rotor_0_wake_thrust_scale",
+			"rotor_1_wake_thrust_scale",
+			"rotor_2_wake_thrust_scale",
+			"rotor_3_wake_thrust_scale",
 			"rotor_wake_swirl_mps",
 			"rotor_0_wake_swirl_mps",
 			"rotor_1_wake_swirl_mps",
@@ -739,6 +744,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_wake_interference",
 			"rotor_6_wake_interference",
 			"rotor_7_wake_interference",
+			"rotor_4_wake_thrust_scale",
+			"rotor_5_wake_thrust_scale",
+			"rotor_6_wake_thrust_scale",
+			"rotor_7_wake_thrust_scale",
 			"rotor_4_wake_swirl_mps",
 			"rotor_5_wake_swirl_mps",
 			"rotor_6_wake_swirl_mps",
@@ -1133,6 +1142,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorWakeInterferenceOrZero(state, 1), "%.5f");
 		row.add(rotorWakeInterferenceOrZero(state, 2), "%.5f");
 		row.add(rotorWakeInterferenceOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorWakeThrustScale(), "%.5f");
+		row.add(rotorWakeThrustScaleOrOne(state, 0), "%.5f");
+		row.add(rotorWakeThrustScaleOrOne(state, 1), "%.5f");
+		row.add(rotorWakeThrustScaleOrOne(state, 2), "%.5f");
+		row.add(rotorWakeThrustScaleOrOne(state, 3), "%.5f");
 		row.add(state.averageRotorWakeSwirlVelocityMetersPerSecond(), "%.5f");
 		row.add(rotorWakeSwirlOrZero(state, 0), "%.5f");
 		row.add(rotorWakeSwirlOrZero(state, 1), "%.5f");
@@ -1544,6 +1558,7 @@ public final class DroneBlackboxSample {
 		double[] rotorFlappingTilt = state.rotorFlappingTiltRadians();
 		double[] rotorConing = state.rotorConingIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
+		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorArmFlex = state.rotorArmFlexIntensity();
@@ -1640,6 +1655,9 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(rotorWakeInterference, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrOne(rotorWakeThrustScale, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorWakeSwirl, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -1728,6 +1746,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorWakeInterferenceOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorWakeInterferenceIntensity(index) : 0.0;
+	}
+
+	private static double rotorWakeThrustScaleOrOne(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorWakeThrustScale(index) : 1.0;
 	}
 
 	private static double rotorWakeSwirlOrZero(DroneState state, int index) {

@@ -133,6 +133,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_inflow_skew"));
 		assertTrue(csv.contains("rotor_wake_interference"));
 		assertTrue(csv.contains("rotor_3_wake_interference"));
+		assertTrue(csv.contains("rotor_wake_thrust_scale"));
+		assertTrue(csv.contains("rotor_3_wake_thrust_scale"));
+		assertTrue(csv.contains("rotor_7_wake_thrust_scale"));
 		assertTrue(csv.contains("rotor_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_3_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_7_wake_swirl_mps"));
@@ -362,6 +365,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_wake_thrust_scale")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_roll_torque_nm")]));
@@ -715,6 +720,7 @@ class DroneBlackboxRecorderTest {
 		String[] header = lines[0].split(",", -1);
 		String[] row = lines[1].split(",", -1);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_wake_interference")]) > 0.10);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_wake_thrust_scale")]) < 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_mps")]) > 0.05);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_windmilling")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
@@ -727,6 +733,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_pass_ripple")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) > 0.15);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]) < 0.99);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) > 0.10);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_windmilling")]));
 
@@ -886,6 +893,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_flapping_tilt_deg")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_coning")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wake_thrust_scale")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_windmilling")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]) >= 0.0);

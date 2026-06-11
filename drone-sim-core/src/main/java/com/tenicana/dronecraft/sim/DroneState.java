@@ -102,6 +102,7 @@ public final class DroneState {
 	private double[] rotorWindmillingIntensity;
 	private double[] rotorSurfaceScrapeIntensity;
 	private double[] rotorWakeInterferenceIntensity;
+	private double[] rotorWakeThrustScale;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
 	private double[] rotorArmFlexIntensity;
 	private double[] rotorHealth;
@@ -211,6 +212,7 @@ public final class DroneState {
 		rotorWindmillingIntensity = new double[motorCount];
 		rotorSurfaceScrapeIntensity = new double[motorCount];
 		rotorWakeInterferenceIntensity = new double[motorCount];
+		rotorWakeThrustScale = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
 		rotorArmFlexIntensity = new double[motorCount];
 		rotorHealth = new double[motorCount];
@@ -224,6 +226,7 @@ public final class DroneState {
 		Arrays.fill(motorWindingResistanceScale, 1.0);
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
+		Arrays.fill(rotorWakeThrustScale, 1.0);
 		repairAllRotors();
 	}
 
@@ -1281,6 +1284,7 @@ public final class DroneState {
 		Arrays.fill(rotorWindmillingIntensity, 0.0);
 		Arrays.fill(rotorSurfaceScrapeIntensity, 0.0);
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
+		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		rotorVibration = 0.0;
@@ -1808,6 +1812,34 @@ public final class DroneState {
 			max = Math.max(max, interference);
 		}
 		return max;
+	}
+
+	public double rotorWakeThrustScale(int index) {
+		return rotorWakeThrustScale[index];
+	}
+
+	public double[] rotorWakeThrustScale() {
+		return Arrays.copyOf(rotorWakeThrustScale, rotorWakeThrustScale.length);
+	}
+
+	void setRotorWakeThrustScale(int index, double value) {
+		rotorWakeThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.72, 1.0) : 1.0;
+	}
+
+	public double averageRotorWakeThrustScale() {
+		double sum = 0.0;
+		for (double scale : rotorWakeThrustScale) {
+			sum += scale;
+		}
+		return sum / rotorWakeThrustScale.length;
+	}
+
+	public double minRotorWakeThrustScale() {
+		double min = 1.0;
+		for (double scale : rotorWakeThrustScale) {
+			min = Math.min(min, scale);
+		}
+		return min;
 	}
 
 	public double rotorWakeSwirlVelocityMetersPerSecond(int index) {

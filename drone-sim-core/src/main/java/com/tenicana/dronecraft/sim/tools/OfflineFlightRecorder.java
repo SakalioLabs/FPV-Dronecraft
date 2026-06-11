@@ -166,6 +166,11 @@ public final class OfflineFlightRecorder {
 			"rotor_1_wake_interference",
 			"rotor_2_wake_interference",
 			"rotor_3_wake_interference",
+			"rotor_wake_thrust_scale",
+			"rotor_0_wake_thrust_scale",
+			"rotor_1_wake_thrust_scale",
+			"rotor_2_wake_thrust_scale",
+			"rotor_3_wake_thrust_scale",
 			"rotor_blade_dissymmetry_pitch_torque_nm",
 			"rotor_blade_dissymmetry_yaw_torque_nm",
 			"rotor_blade_dissymmetry_roll_torque_nm",
@@ -440,6 +445,10 @@ public final class OfflineFlightRecorder {
 			"rotor_5_wake_interference",
 			"rotor_6_wake_interference",
 			"rotor_7_wake_interference",
+			"rotor_4_wake_thrust_scale",
+			"rotor_5_wake_thrust_scale",
+			"rotor_6_wake_thrust_scale",
+			"rotor_7_wake_thrust_scale",
 			"rotor_wake_swirl_mps",
 			"rotor_0_wake_swirl_mps",
 			"rotor_1_wake_swirl_mps",
@@ -961,7 +970,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.6f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
+						+ "%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1131,6 +1140,11 @@ public final class OfflineFlightRecorder {
 				state.rotorWakeInterferenceIntensity(1),
 				state.rotorWakeInterferenceIntensity(2),
 				state.rotorWakeInterferenceIntensity(3),
+				state.averageRotorWakeThrustScale(),
+				state.rotorWakeThrustScale(0),
+				state.rotorWakeThrustScale(1),
+				state.rotorWakeThrustScale(2),
+				state.rotorWakeThrustScale(3),
 				rotorBladeDissymmetryTorque.x(),
 				rotorBladeDissymmetryTorque.y(),
 				rotorBladeDissymmetryTorque.z(),
@@ -1335,6 +1349,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorHealth = state.rotorHealth();
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
+		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
@@ -1412,6 +1427,9 @@ public final class OfflineFlightRecorder {
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorWakeInterference, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			appendExtra(builder, valueOrOne(rotorWakeThrustScale, i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorWakeSwirlVelocityMetersPerSecond(), "%.5f");
 		for (int i = 0; i < 8; i++) {

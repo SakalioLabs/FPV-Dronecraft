@@ -607,9 +607,11 @@ public final class DronePhysics {
 					aerodynamicOmega,
 					dtSeconds
 			);
+			double wakeThrustScale = rotorWakeInterferenceThrustScale(wakeInterference);
+			state.setRotorWakeThrustScale(i, wakeThrustScale);
 			double thrustScale = airDensity
 					* surfaceEffectThrustMultiplier
-					* rotorWakeInterferenceThrustScale(wakeInterference)
+					* wakeThrustScale
 					* waterImmersionThrustScale(rotorWaterImmersion)
 					* precipitationThrustScale(precipitationWetness)
 					* rotorHealthThrustScale(state.rotorHealth(i));
