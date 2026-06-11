@@ -7407,6 +7407,9 @@ class DronePhysicsTest {
 		assertTrue(report.maxContactSlipSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxContactBounceSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxContactAngularImpulseDegreesPerSecond() >= 0.0);
+		assertTrue(report.minRotorWetThrustScale() >= 0.08);
+		assertTrue(report.minRotorWetThrustScale() <= 1.0);
+		assertEquals((1.0 - report.minRotorWetThrustScale()) * 100.0, report.maxRotorWetThrustLossPercent(), 1.0e-9);
 		assertTrue(report.maxRotorSurfaceScrapeIntensity() >= 0.0);
 		assertTrue(report.minBatteryVoltage() < directControl(DroneConfig.racingQuad()).nominalBatteryVoltage() - 0.5);
 		assertTrue(report.maxPropwashIntensity() > 0.10);

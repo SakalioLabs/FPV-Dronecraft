@@ -525,6 +525,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
 		assertEquals(0.45, summary.maxWaterImmersionIntensity(), 0.0001);
 		assertEquals(0.36, summary.maxPrecipitationWetnessIntensity(), 0.0001);
+		assertTrue(summary.minRotorWetThrustScale() < 1.0);
+		assertTrue(summary.minRotorWetThrustScale() >= 0.08);
 		assertEquals(7.5, summary.minAmbientTemperatureCelsius(), 0.0001);
 		assertEquals(7.5, summary.maxAmbientTemperatureCelsius(), 0.0001);
 		assertTrue(summary.minBatteryVoltage() > 0.0);
@@ -570,6 +572,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("wake"));
 		assertTrue(summary.formatForChat().contains("water"));
 		assertTrue(summary.formatForChat().contains("rain"));
+		assertTrue(summary.formatForChat().contains("wetloss"));
 		assertTrue(summary.formatForChat().contains("temp 7.5..7.5C"));
 		assertTrue(summary.formatForChat().contains("gust"));
 		assertTrue(summary.formatForChat().contains("shear"));
