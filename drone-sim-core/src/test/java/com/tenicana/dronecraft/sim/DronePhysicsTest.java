@@ -306,6 +306,20 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void representativeBladeChordTracksBladeCountPitchAndUtilityLiftProps() {
+		RotorSpec racingTriBlade = DroneConfig.racingQuad().rotors().get(0);
+		RotorSpec racingTwoBlade = racingTriBlade.withBladeCount(2);
+		RotorSpec liftProp = DroneConfig.heavyLift().rotors().get(0);
+
+		assertEquals(RotorSpec.DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO, racingTwoBlade.representativeBladeChordToRadiusRatio(), 1.0e-12);
+		assertEquals(0.1536, racingTriBlade.representativeBladeChordToRadiusRatio(), 1.0e-5);
+		assertTrue(racingTriBlade.representativeBladeChordMeters() > racingTwoBlade.representativeBladeChordMeters() * 1.25);
+		assertTrue(liftProp.representativeBladeChordToRadiusRatio() > 0.15);
+		assertTrue(liftProp.representativeBladeChordToRadiusRatio() < 0.18);
+		assertTrue(liftProp.representativeBladeChordMeters() > racingTriBlade.representativeBladeChordMeters() * 2.0);
+	}
+
+	@Test
 	void liftPresetsUseLowPitchUtilityPropGeometry() {
 		DroneConfig racing = DroneConfig.racingQuad();
 		DroneConfig heavyLift = DroneConfig.heavyLift();
@@ -4283,6 +4297,32 @@ class DronePhysicsTest {
 		assertTrue(smallProp.state().rotorVibration() > referenceProp.state().rotorVibration() + 0.006,
 				() -> "smallVibration=" + smallProp.state().rotorVibration()
 						+ " referenceVibration=" + referenceProp.state().rotorVibration());
+	}
+
+	@Test
+	void lowReynoldsProxyUsesRepresentativeBladeChord() throws ReflectiveOperationException {
+		Method lowReynoldsLoss = DronePhysics.class.getDeclaredMethod(
+				"rotorLowReynoldsLoss",
+				RotorSpec.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		lowReynoldsLoss.setAccessible(true);
+		RotorSpec twoBladeSmall = DroneConfig.racingQuad().rotors().get(0)
+				.withRadiusMeters(0.035)
+				.withBladePitchToDiameterRatio(0.40)
+				.withBladeCount(2);
+		RotorSpec triBladeSmall = twoBladeSmall.withBladeCount(3);
+		double omega = twoBladeSmall.maxOmegaRadiansPerSecond() * 0.65;
+
+		double twoBladeLoss = (double) lowReynoldsLoss.invoke(null, twoBladeSmall, omega, 0.78, 30.0);
+		double triBladeLoss = (double) lowReynoldsLoss.invoke(null, triBladeSmall, omega, 0.78, 30.0);
+
+		assertTrue(triBladeSmall.representativeBladeChordMeters() > twoBladeSmall.representativeBladeChordMeters() * 1.25);
+		assertTrue(twoBladeLoss > 0.35, () -> "twoBladeLoss=" + twoBladeLoss);
+		assertTrue(triBladeLoss < twoBladeLoss - 0.25,
+				() -> "twoBladeLoss=" + twoBladeLoss + " triBladeLoss=" + triBladeLoss);
 	}
 
 	@Test
@@ -8398,6 +8438,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_pitch_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_pitch_to_diameter"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_pitch_angle_70r_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_chord_m"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_chord_to_radius"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_count"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_imbalance"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_x_m"));
@@ -8533,6 +8575,16 @@ class DronePhysicsTest {
 				Math.toDegrees(offlineRotor.geometricBladePitchAngleRadians()),
 				Double.parseDouble(firstRow[indexOf(header, "tune_rotor_pitch_angle_70r_deg")]),
 				0.02
+		);
+		assertEquals(
+				offlineRotor.representativeBladeChordMeters(),
+				Double.parseDouble(firstRow[indexOf(header, "tune_rotor_chord_m")]),
+				0.00001
+		);
+		assertEquals(
+				offlineRotor.representativeBladeChordToRadiusRatio(),
+				Double.parseDouble(firstRow[indexOf(header, "tune_rotor_chord_to_radius")]),
+				0.00001
 		);
 		assertEquals(3.0, Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_count")]), 0.0001);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_imbalance")]) >= 0.0);

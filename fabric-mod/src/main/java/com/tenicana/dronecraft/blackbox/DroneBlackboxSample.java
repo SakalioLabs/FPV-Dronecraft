@@ -577,6 +577,8 @@ public final class DroneBlackboxSample {
 			"tune_rotor_blade_pitch_m",
 			"tune_rotor_pitch_to_diameter",
 			"tune_rotor_pitch_angle_70r_deg",
+			"tune_rotor_chord_m",
+			"tune_rotor_chord_to_radius",
 			"tune_rotor_blade_count",
 			"tune_rotor_transverse_lift",
 			"tune_rotor_axial_loss",
@@ -1593,6 +1595,8 @@ public final class DroneBlackboxSample {
 		row.add(rotor.bladePitchMeters(), "%.4f");
 		row.add(rotor.bladePitchToDiameterRatio(), "%.5f");
 		row.add(Math.toDegrees(rotor.geometricBladePitchAngleRadians()), "%.3f");
+		row.add(rotor.representativeBladeChordMeters(), "%.5f");
+		row.add(rotor.representativeBladeChordToRadiusRatio(), "%.5f");
 		row.add((double) rotor.bladeCount(), "%.0f");
 		row.add(rotor.transverseFlowLiftCoefficient(), "%.4f");
 		row.add(rotor.axialFlowThrustLossCoefficient(), "%.8f");

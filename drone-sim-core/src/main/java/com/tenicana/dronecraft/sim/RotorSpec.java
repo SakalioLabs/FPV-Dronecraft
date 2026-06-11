@@ -25,6 +25,7 @@ public record RotorSpec(
 	private static final int DEFAULT_BLADE_COUNT = 2;
 	public static final double DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO = 0.85;
 	public static final double BLADE_GEOMETRY_REFERENCE_STATION_FRACTION = 0.70;
+	public static final double DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO = 0.12;
 
 	public RotorSpec(
 			Vec3 positionBodyMeters,
@@ -225,6 +226,32 @@ public record RotorSpec(
 		double stationFraction = MathUtil.clamp(radialFraction, 0.20, 1.0);
 		double stationRadius = radiusMeters * stationFraction;
 		return Math.atan(bladePitchMeters / Math.max(1.0e-6, 2.0 * Math.PI * stationRadius));
+	}
+
+	public double representativeBladeChordToRadiusRatio() {
+		double pitchRatio = bladePitchToDiameterRatio() / DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO;
+		double pitchScale = MathUtil.clamp(0.88 + 0.12 * Math.sqrt(Math.max(0.05, pitchRatio)), 0.82, 1.14);
+		double bladeCountScale = MathUtil.clamp(1.0 + 0.28 * (bladeCount - DEFAULT_BLADE_COUNT), 0.72, 1.56);
+		double utilityLiftScale = 1.0 + 0.38
+				* smoothStep(0.08, 0.115, radiusMeters)
+				* (1.0 - smoothStep(0.55, 0.85, bladePitchToDiameterRatio()));
+		return MathUtil.clamp(
+				DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO * pitchScale * bladeCountScale * utilityLiftScale,
+				0.075,
+				0.220
+		);
+	}
+
+	public double representativeBladeChordMeters() {
+		return radiusMeters * representativeBladeChordToRadiusRatio();
+	}
+
+	private static double smoothStep(double edge0, double edge1, double value) {
+		if (edge1 <= edge0) {
+			return value >= edge1 ? 1.0 : 0.0;
+		}
+		double t = MathUtil.clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
+		return t * t * (3.0 - 2.0 * t);
 	}
 
 	public double maxOmegaRadiansPerSecond() {

@@ -317,6 +317,8 @@ public final class OfflineFlightRecorder {
 			"tune_rotor_blade_pitch_m",
 			"tune_rotor_pitch_to_diameter",
 			"tune_rotor_pitch_angle_70r_deg",
+			"tune_rotor_chord_m",
+			"tune_rotor_chord_to_radius",
 			"tune_rotor_blade_count",
 			"tune_rotor_imbalance",
 			"airframe_lift_x_n",
@@ -1282,7 +1284,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
-						+ "%.3f,%.0f,%.5f,%.5f,%.3f,%.0f,%.5f,"
+						+ "%.3f,%.0f,%.5f,%.5f,%.3f,%.5f,%.5f,%.0f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
@@ -1573,6 +1575,8 @@ public final class OfflineFlightRecorder {
 				physics.config().rotors().get(0).bladePitchMeters(),
 				physics.config().rotors().get(0).bladePitchToDiameterRatio(),
 				Math.toDegrees(physics.config().rotors().get(0).geometricBladePitchAngleRadians()),
+				physics.config().rotors().get(0).representativeBladeChordMeters(),
+				physics.config().rotors().get(0).representativeBladeChordToRadiusRatio(),
 				(double) physics.config().rotors().get(0).bladeCount(),
 				physics.config().averageRotorImbalanceIntensity(),
 				airframeLift.x(),

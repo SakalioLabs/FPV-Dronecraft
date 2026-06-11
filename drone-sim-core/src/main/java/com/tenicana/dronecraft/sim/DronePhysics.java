@@ -2943,10 +2943,14 @@ public final class DronePhysics {
 		if (smallPropFactor <= 1.0e-6) {
 			return 0.0;
 		}
-		double pitchChordProxy = MathUtil.clamp(0.70 + 0.30 * Math.sqrt(rotorBladePitchRatio(rotor)), 0.78, 1.18);
+		double chordScale = MathUtil.clamp(
+				rotor.representativeBladeChordMeters()
+						/ (0.0635 * RotorSpec.DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO),
+				0.24,
+				3.60
+		);
 		double reynoldsIndex = densityViscosityRatio
-				* radiusScale
-				* pitchChordProxy
+				* chordScale
 				* MathUtil.clamp(tipSpeed / 34.0, 0.0, 2.8);
 		double lowReynolds = 1.0 - smoothStep(0.52, 1.05, reynoldsIndex);
 		return MathUtil.clamp(lowReynolds * smallPropFactor * smoothStep(0.10, 0.34, spinRatio), 0.0, 1.0);
