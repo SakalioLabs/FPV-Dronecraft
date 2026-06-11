@@ -490,6 +490,7 @@ public final class OfflineFlightRecorder {
 			"battery_temp_c",
 			"battery_cooling_factor",
 			"battery_thermal_limit",
+			"battery_polarization_resistance_scale",
 			"rotor_4_thrust_n",
 			"rotor_5_thrust_n",
 			"rotor_6_thrust_n",
@@ -1680,6 +1681,7 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.batteryTemperatureCelsius(), "%.3f");
 		appendExtra(builder, state.batteryCoolingFactor(), "%.5f");
 		appendExtra(builder, state.batteryThermalLimit(), "%.5f");
+		appendExtra(builder, state.batteryPolarizationResistanceScale(), "%.5f");
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorThrust, i), "%.4f");
 		}
@@ -1895,6 +1897,7 @@ public final class OfflineFlightRecorder {
 		private double minBatteryVoltage = Double.POSITIVE_INFINITY;
 		private double maxBatterySagVoltage;
 		private double maxBatteryEffectiveResistanceOhms;
+		private double maxBatteryPolarizationResistanceScale = 1.0;
 		private double maxBatteryVoltageSpike;
 		private double maxBatteryBusRippleVoltage;
 		private double maxImuSupplyNoiseIntensity;
@@ -1950,6 +1953,7 @@ public final class OfflineFlightRecorder {
 			minBatteryVoltage = Math.min(minBatteryVoltage, state.batteryVoltage());
 			maxBatterySagVoltage = Math.max(maxBatterySagVoltage, state.batteryOhmicSagVoltage() + state.batteryTransientSagVoltage());
 			maxBatteryEffectiveResistanceOhms = Math.max(maxBatteryEffectiveResistanceOhms, state.batteryEffectiveResistanceOhms());
+			maxBatteryPolarizationResistanceScale = Math.max(maxBatteryPolarizationResistanceScale, state.batteryPolarizationResistanceScale());
 			maxBatteryVoltageSpike = Math.max(maxBatteryVoltageSpike, state.batteryVoltageSpike());
 			maxBatteryBusRippleVoltage = Math.max(maxBatteryBusRippleVoltage, state.batteryBusRippleVoltage());
 			maxImuSupplyNoiseIntensity = Math.max(maxImuSupplyNoiseIntensity, state.imuSupplyNoiseIntensity());
@@ -2059,6 +2063,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxBatteryEffectiveResistanceOhms() {
 			return maxBatteryEffectiveResistanceOhms;
+		}
+
+		public double maxBatteryPolarizationResistanceScale() {
+			return maxBatteryPolarizationResistanceScale;
 		}
 
 		public double maxBatteryVoltageSpike() {

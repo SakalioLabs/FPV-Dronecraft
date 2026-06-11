@@ -2007,6 +2007,50 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void sustainedHighCurrentBuildsBatteryPolarizationResistance() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 13.2, 0.020, 1.5, 80.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics cruise = new DronePhysics(config);
+		DronePhysics punch = new DronePhysics(config);
+		DroneInput cruiseInput = new DroneInput(config.hoverThrottle() + 0.04, 0.0, 0.0, 0.0, true);
+		DroneInput punchInput = new DroneInput(0.98, 0.0, 0.0, 0.0, true);
+		DroneInput cut = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 180; i++) {
+			cruise.step(cruiseInput, 0.005);
+			punch.step(punchInput, 0.005);
+		}
+		double loadedScale = punch.state().batteryPolarizationResistanceScale();
+		double loadedResistance = punch.state().batteryEffectiveResistanceOhms();
+		double loadedVoltage = punch.state().batteryVoltage();
+		double loadedCurrent = punch.state().batteryCurrentAmps();
+		double cruiseCurrent = cruise.state().batteryCurrentAmps();
+
+		for (int i = 0; i < 260; i++) {
+			punch.step(cut, 0.005);
+		}
+
+		assertTrue(loadedCurrent > cruiseCurrent + 25.0,
+				() -> "cruiseCurrent=" + cruiseCurrent + " loadedCurrent=" + loadedCurrent);
+		assertTrue(loadedScale > cruise.state().batteryPolarizationResistanceScale() + 0.08,
+				() -> "cruiseScale=" + cruise.state().batteryPolarizationResistanceScale()
+						+ " loadedScale=" + loadedScale);
+		assertTrue(loadedResistance > cruise.state().batteryEffectiveResistanceOhms() * 1.08,
+				() -> "cruiseResistance=" + cruise.state().batteryEffectiveResistanceOhms()
+						+ " loadedResistance=" + loadedResistance);
+		assertTrue(loadedVoltage < cruise.state().batteryVoltage() - 0.35,
+				() -> "cruiseVoltage=" + cruise.state().batteryVoltage()
+						+ " loadedVoltage=" + loadedVoltage);
+		assertTrue(punch.state().batteryPolarizationResistanceScale() < loadedScale - 0.035,
+				() -> "loadedScale=" + loadedScale
+						+ " recoveredScale=" + punch.state().batteryPolarizationResistanceScale());
+		assertTrue(punch.state().batteryPolarizationResistanceScale() > 1.0);
+	}
+
+	@Test
 	void batteryMaxCurrentAppliesDynamicPowerLimit() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.020)
@@ -8001,6 +8045,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_temp_c"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_cooling_factor"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_thermal_limit"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_polarization_resistance_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_mechanical_loss_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_0_mechanical_loss_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_shaft_power_w"));
@@ -8274,6 +8319,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_cooling_factor")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_thermal_limit")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_polarization_resistance_scale")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_mechanical_loss_torque_nm")])));
 		assertTrue(maxColumn(lines, header, "motor_commutation_ripple") > 0.0);
 		assertTrue(maxColumn(lines, header, "motor_regen_current_a") >= 0.0);
@@ -8289,6 +8335,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
 		assertTrue(maxColumn(lines, header, "battery_bus_ripple_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
+		assertTrue(maxColumn(lines, header, "battery_polarization_resistance_scale") > 1.05);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
 		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
@@ -8326,6 +8373,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryVoltageSpike() > 1.0e-4);
 		assertTrue(report.maxBatteryBusRippleVoltage() > 1.0e-4);
 		assertTrue(report.maxBatteryEffectiveResistanceOhms() > 0.0);
+		assertTrue(report.maxBatteryPolarizationResistanceScale() > 1.05);
 		assertTrue(report.maxBatteryTemperatureCelsius() >= 25.0);
 		assertTrue(report.minBatteryThermalLimit() > 0.0);
 		assertTrue(report.maxMotorTrackingError() > 0.005);

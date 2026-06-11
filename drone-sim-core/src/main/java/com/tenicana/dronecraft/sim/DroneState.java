@@ -135,6 +135,7 @@ public final class DroneState {
 	private double batteryAmpSecondsConsumed;
 	private double batteryEquivalentCycles;
 	private double batteryResistanceAgingScale = 1.0;
+	private double batteryPolarizationResistanceScale = 1.0;
 	private double batteryCurrentAmps;
 	private double batteryStateOfCharge = 1.0;
 	private double batteryCurrentLimit = 1.0;
@@ -2297,6 +2298,16 @@ public final class DroneState {
 	void setBatteryResistanceAgingScale(double batteryResistanceAgingScale) {
 		this.batteryResistanceAgingScale = Double.isFinite(batteryResistanceAgingScale)
 				? MathUtil.clamp(batteryResistanceAgingScale, 1.0, 1.35)
+				: 1.0;
+	}
+
+	public double batteryPolarizationResistanceScale() {
+		return batteryPolarizationResistanceScale;
+	}
+
+	void setBatteryPolarizationResistanceScale(double batteryPolarizationResistanceScale) {
+		this.batteryPolarizationResistanceScale = Double.isFinite(batteryPolarizationResistanceScale)
+				? MathUtil.clamp(batteryPolarizationResistanceScale, 1.0, 1.35)
 				: 1.0;
 	}
 

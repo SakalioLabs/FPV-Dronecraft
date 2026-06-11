@@ -7107,7 +7107,8 @@ public final class DronePhysics {
 		double currentLoad = MathUtil.clamp(dischargeCurrentAmps / maxCurrent, 0.0, 2.0);
 		double regenLoad = MathUtil.clamp(regenerativeCurrentAmps / maxCurrent, 0.0, 1.5);
 		double rippleLoad = MathUtil.clamp(state.averageMotorCurrentRippleAmps() / Math.max(1.0, maxCurrent / Math.max(1, state.motorCount())), 0.0, 1.8);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.ambientTemperatureCelsius(), currentBatteryStateOfCharge());
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.ambientTemperatureCelsius(), currentBatteryStateOfCharge())
+				* state.batteryPolarizationResistanceScale();
 		double resistanceScale = config.batteryInternalResistanceOhms() <= 1.0e-9
 				? 0.0
 				: MathUtil.clamp(batteryResistanceOhms / config.batteryInternalResistanceOhms(), 0.40, 3.5);
@@ -7157,8 +7158,10 @@ public final class DronePhysics {
 		state.setBatteryStateOfCharge(stateOfCharge);
 		double openCircuitVoltage = batteryOpenCircuitVoltageFromStateOfCharge(stateOfCharge);
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge);
 		state.setBatteryResistanceAgingScale(batteryAgingResistanceScale(state.batteryEquivalentCycles()));
+		double polarizationScale = updateBatteryPolarizationResistanceScale(dischargeCurrentAmps, stateOfCharge, dtSeconds);
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge)
+				* polarizationScale;
 		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
 		double totalResistanceSag = dischargeCurrentAmps * batteryResistanceOhms;
 		double ohmicSag = totalResistanceSag * 0.62;
@@ -7233,6 +7236,45 @@ public final class DronePhysics {
 			return config.nominalBatteryVoltage();
 		}
 		return config.emptyBatteryVoltage() + voltageRange * normalizedLipoOpenCircuitVoltage(stateOfCharge);
+	}
+
+	private double updateBatteryPolarizationResistanceScale(double dischargeCurrentAmps, double stateOfCharge, double dtSeconds) {
+		double target = batteryPolarizationResistanceTarget(dischargeCurrentAmps, stateOfCharge);
+		double previous = state.batteryPolarizationResistanceScale();
+		double capacityScale = MathUtil.clamp(config.batteryCapacityAmpHours(), 0.35, 8.0);
+		double timeConstant = target > previous
+				? MathUtil.clamp(0.090 + 0.018 * capacityScale, 0.080, 0.220)
+				: MathUtil.clamp(0.680 + 0.260 * capacityScale, 0.550, 2.200);
+		double alpha = dtSeconds <= 0.0 ? 1.0 : MathUtil.expSmoothing(dtSeconds, timeConstant);
+		double scale = previous + (target - previous) * alpha;
+		if (scale < 1.0005) {
+			scale = 1.0;
+		}
+		state.setBatteryPolarizationResistanceScale(scale);
+		return state.batteryPolarizationResistanceScale();
+	}
+
+	private double batteryPolarizationResistanceTarget(double dischargeCurrentAmps, double stateOfCharge) {
+		double maxCurrent = Math.max(1.0, config.maxBatteryCurrentAmps());
+		double capacityAmpHours = Math.max(0.05, config.batteryCapacityAmpHours());
+		double loadFraction = MathUtil.clamp(dischargeCurrentAmps / maxCurrent, 0.0, 1.6);
+		double cRate = dischargeCurrentAmps / capacityAmpHours;
+		double ratedCRate = maxCurrent / capacityAmpHours;
+		double pulseLoad = smoothStep(0.55, 1.05, loadFraction);
+		double cRateLoad = smoothStep(0.55 * ratedCRate, 1.05 * ratedCRate, cRate);
+		double smallPackPolarization = 0.25 + 0.75 * (1.0 - smoothStep(2.0, 4.5, capacityAmpHours));
+		double lowSocStress = 1.0 - smoothStep(0.16, 0.55, stateOfCharge);
+		double rippleStress = smoothStep(
+				0.08,
+				0.58,
+				state.averageMotorCurrentRippleAmps() / Math.max(1.0, maxCurrent)
+		);
+		double targetRise = smallPackPolarization
+				* (0.155 * pulseLoad
+						+ 0.065 * cRateLoad
+						+ 0.030 * lowSocStress * pulseLoad
+						+ 0.025 * rippleStress * pulseLoad);
+		return MathUtil.clamp(1.0 + targetRise, 1.0, 1.26);
 	}
 
 	private static double normalizedLipoOpenCircuitVoltage(double stateOfCharge) {
