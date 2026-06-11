@@ -210,6 +210,7 @@ public final class DroneCommands {
 								.then(tuneParameter("rotor_thrust_coefficient", 0.00000001, 0.001, DroneConfig::withRotorThrustCoefficient))
 								.then(tuneParameter("rotor_radius", 0.01, 0.3, DroneConfig::withRotorRadiusMeters))
 								.then(tuneParameter("rotor_blade_pitch", 0.005, 0.8, DroneConfig::withRotorBladePitchMeters))
+								.then(tuneParameter("rotor_pitch_to_diameter", 0.175, 1.75, DroneConfig::withRotorBladePitchToDiameterRatio))
 								.then(tuneParameter("rotor_blade_count", 1.0, 8.0, (config, value) -> config.withRotorBladeCount((int) Math.round(value))))
 								.then(tuneParameter("rotor_transverse_lift", 0.0, 0.25, DroneConfig::withRotorTransverseFlowLiftCoefficient))
 								.then(tuneParameter("rotor_axial_loss", 0.0, 0.45, DroneConfig::withRotorAxialFlowThrustLossCoefficient))

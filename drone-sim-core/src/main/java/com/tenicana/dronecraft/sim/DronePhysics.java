@@ -2576,7 +2576,7 @@ public final class DronePhysics {
 
 	private static double rotorBladePitchRatio(RotorSpec rotor) {
 		return MathUtil.clamp(
-				rotor.bladePitchMeters() / Math.max(1.0e-6, RotorSpec.defaultBladePitchMeters(rotor.radiusMeters())),
+				rotor.bladePitchToDiameterRatio() / RotorSpec.DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO,
 				0.25,
 				2.50
 		);
@@ -2665,9 +2665,9 @@ public final class DronePhysics {
 			return BladeElementAerodynamics.IDLE;
 		}
 
-		double stationRadius = rotor.radiusMeters() * 0.70;
+		double stationRadius = rotor.radiusMeters() * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
 		double tangentialSpeed = Math.max(0.5, Math.abs(omegaRadiansPerSecond) * stationRadius);
-		double geometricPitchAngle = Math.atan(rotor.bladePitchMeters() / Math.max(1.0e-6, 2.0 * Math.PI * stationRadius));
+		double geometricPitchAngle = rotor.geometricBladePitchAngleRadians();
 		double inducedInflow = Math.max(0.0, inducedVelocityMetersPerSecond) * (0.28 + 0.32 * spinRatio);
 		double axialInflow = rotorAxialVelocity(rotor, relativeAirVelocityBody) + inducedInflow;
 		double inflowAngle = Math.atan2(axialInflow, tangentialSpeed);

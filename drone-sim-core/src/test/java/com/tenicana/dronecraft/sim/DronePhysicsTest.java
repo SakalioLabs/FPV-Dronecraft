@@ -283,13 +283,26 @@ class DronePhysicsTest {
 		double pitchRatio = rotor.bladePitchMeters() / rotor.radiusMeters();
 
 		assertEquals(RotorSpec.defaultBladePitchMeters(rotor.radiusMeters()), rotor.bladePitchMeters(), 1.0e-12);
+		assertEquals(RotorSpec.DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO, rotor.bladePitchToDiameterRatio(), 1.0e-12);
+		assertEquals(21.13, Math.toDegrees(rotor.geometricBladePitchAngleRadians()), 0.02);
+		assertEquals(
+				rotor.geometricBladePitchAngleRadians(),
+				rotor.geometricBladePitchAngleRadians(RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION),
+				1.0e-12
+		);
 
 		DroneConfig largerRotor = base.withRotorRadiusMeters(rotor.radiusMeters() * 1.35);
 		RotorSpec larger = largerRotor.rotors().get(0);
 		assertEquals(pitchRatio, larger.bladePitchMeters() / larger.radiusMeters(), 1.0e-12);
+		assertEquals(rotor.bladePitchToDiameterRatio(), larger.bladePitchToDiameterRatio(), 1.0e-12);
 
 		DroneConfig tunedPitch = base.withRotorBladePitchMeters(rotor.radiusMeters() * 2.35);
 		assertEquals(rotor.radiusMeters() * 2.35, tunedPitch.rotors().get(0).bladePitchMeters(), 1.0e-12);
+
+		DroneConfig hqFiveByFourPointThree = base.withRotorBladePitchToDiameterRatio(0.86);
+		RotorSpec hqLikeRotor = hqFiveByFourPointThree.rotors().get(0);
+		assertEquals(0.86, hqLikeRotor.bladePitchToDiameterRatio(), 1.0e-12);
+		assertEquals(21.36, Math.toDegrees(hqLikeRotor.geometricBladePitchAngleRadians()), 0.02);
 	}
 
 	@Test
@@ -7942,6 +7955,7 @@ class DronePhysicsTest {
 		List<String> lines = Files.readAllLines(output);
 		String[] header = lines.get(0).split(",", -1);
 		String[] firstRow = lines.get(1).split(",", -1);
+		RotorSpec offlineRotor = OfflineFlightRecorder.preset("racing_quad").rotors().get(0);
 		int columnCount = header.length;
 
 		assertTrue(Files.exists(output));
@@ -8102,6 +8116,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_frame_rate_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_resolution_steps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_pitch_m"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_pitch_to_diameter"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_pitch_angle_70r_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_count"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_imbalance"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_x_m"));
@@ -8222,6 +8238,16 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_frame_rate_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_resolution_steps")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_pitch_m")])));
+		assertEquals(
+				offlineRotor.bladePitchToDiameterRatio(),
+				Double.parseDouble(firstRow[indexOf(header, "tune_rotor_pitch_to_diameter")]),
+				0.00001
+		);
+		assertEquals(
+				Math.toDegrees(offlineRotor.geometricBladePitchAngleRadians()),
+				Double.parseDouble(firstRow[indexOf(header, "tune_rotor_pitch_angle_70r_deg")]),
+				0.02
+		);
 		assertEquals(3.0, Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_count")]), 0.0001);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_imbalance")]) >= 0.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_cg_x_m")])));

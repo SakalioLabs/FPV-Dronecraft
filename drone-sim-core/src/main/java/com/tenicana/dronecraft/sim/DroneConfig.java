@@ -1719,6 +1719,12 @@ public record DroneConfig(
 				.toList());
 	}
 
+	public DroneConfig withRotorBladePitchToDiameterRatio(double pitchToDiameterRatio) {
+		return withRotors(rotors.stream()
+				.map(rotor -> rotor.withBladePitchToDiameterRatio(pitchToDiameterRatio))
+				.toList());
+	}
+
 	public DroneConfig withRotorBladeCount(int bladeCount) {
 		return withRotors(rotors.stream()
 				.map(rotor -> rotor.withBladeCount(bladeCount))

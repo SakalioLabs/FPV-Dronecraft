@@ -23,6 +23,8 @@ public record RotorSpec(
 	private static final Vec3 DEFAULT_THRUST_AXIS_BODY = new Vec3(0.0, 1.0, 0.0);
 	private static final double DEFAULT_IMBALANCE_INTENSITY = 0.012;
 	private static final int DEFAULT_BLADE_COUNT = 2;
+	public static final double DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO = 0.85;
+	public static final double BLADE_GEOMETRY_REFERENCE_STATION_FRACTION = 0.70;
 
 	public RotorSpec(
 			Vec3 positionBodyMeters,
@@ -208,7 +210,21 @@ public record RotorSpec(
 	}
 
 	public static double defaultBladePitchMeters(double radiusMeters) {
-		return Math.max(0.01, radiusMeters * 1.70);
+		return Math.max(0.01, radiusMeters * 2.0 * DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO);
+	}
+
+	public double bladePitchToDiameterRatio() {
+		return bladePitchMeters / Math.max(1.0e-6, 2.0 * radiusMeters);
+	}
+
+	public double geometricBladePitchAngleRadians() {
+		return geometricBladePitchAngleRadians(BLADE_GEOMETRY_REFERENCE_STATION_FRACTION);
+	}
+
+	public double geometricBladePitchAngleRadians(double radialFraction) {
+		double stationFraction = MathUtil.clamp(radialFraction, 0.20, 1.0);
+		double stationRadius = radiusMeters * stationFraction;
+		return Math.atan(bladePitchMeters / Math.max(1.0e-6, 2.0 * Math.PI * stationRadius));
 	}
 
 	public double maxOmegaRadiansPerSecond() {
@@ -230,6 +246,13 @@ public record RotorSpec(
 
 	public RotorSpec withBladePitchMeters(double bladePitchMeters) {
 		return copy(maxThrustNewtons, thrustCoefficient, yawTorquePerThrustMeter, radiusMeters, bladePitchMeters, transverseFlowLiftCoefficient, axialFlowThrustLossCoefficient, diskDragCoefficient, rotorInertiaKgMetersSquared, inducedInflowTimeConstantSeconds, inducedInflowLagCoefficient, flappingCoefficient, stallThrustLossCoefficient, imbalanceIntensity);
+	}
+
+	public RotorSpec withBladePitchToDiameterRatio(double pitchToDiameterRatio) {
+		double safeRatio = Double.isFinite(pitchToDiameterRatio)
+				? pitchToDiameterRatio
+				: DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO;
+		return withBladePitchMeters(2.0 * radiusMeters * safeRatio);
 	}
 
 	public RotorSpec withTransverseFlowLiftCoefficient(double transverseFlowLiftCoefficient) {
