@@ -2682,6 +2682,7 @@ class DronePhysicsTest {
 		DroneEnvironment dirtyWind = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5);
 		double sumGustXSquared = 0.0;
 		double sumGustYSquared = 0.0;
+		double sumGustZSquared = 0.0;
 		int samples = 0;
 
 		for (int i = 0; i < 1800; i++) {
@@ -2691,15 +2692,20 @@ class DronePhysicsTest {
 				Vec3 gust = physics.state().windGustVelocityWorldMetersPerSecond();
 				sumGustXSquared += gust.x() * gust.x();
 				sumGustYSquared += gust.y() * gust.y();
+				sumGustZSquared += gust.z() * gust.z();
 				samples++;
 			}
 		}
 
 		double rmsGustX = Math.sqrt(sumGustXSquared / samples);
 		double rmsGustY = Math.sqrt(sumGustYSquared / samples);
+		double rmsGustZ = Math.sqrt(sumGustZSquared / samples);
 		assertTrue(rmsGustX > 0.40, () -> "rmsGustX=" + rmsGustX);
 		assertTrue(rmsGustY > 0.10, () -> "rmsGustY=" + rmsGustY);
+		assertTrue(rmsGustZ > 0.40, () -> "rmsGustZ=" + rmsGustZ);
 		assertTrue(rmsGustX < 4.50, () -> "rmsGustX=" + rmsGustX);
+		assertTrue(rmsGustY < rmsGustX, () -> "rmsGustY=" + rmsGustY + " rmsGustX=" + rmsGustX);
+		assertTrue(rmsGustZ < 4.50, () -> "rmsGustZ=" + rmsGustZ);
 		assertEquals(0.0, physics.state().windGustVelocityWorldMetersPerSecond()
 				.subtract(repeat.state().windGustVelocityWorldMetersPerSecond()).length(), 1.0e-12);
 	}
@@ -2740,7 +2746,7 @@ class DronePhysicsTest {
 		double openAverageStepChange = openStepChange / Math.max(1, samples - 1);
 		double localizedAverageStepChange = localizedStepChange / Math.max(1, samples - 1);
 		assertTrue(openRmsGustX > 0.80, () -> "openRmsGustX=" + openRmsGustX);
-		assertTrue(openAverageStepChange < 0.16, () -> "openAverageStepChange=" + openAverageStepChange);
+		assertTrue(openAverageStepChange < 0.18, () -> "openAverageStepChange=" + openAverageStepChange);
 		assertTrue(localizedAverageStepChange > openAverageStepChange * 1.15,
 				() -> "openAverageStepChange=" + openAverageStepChange
 						+ " localizedAverageStepChange=" + localizedAverageStepChange);

@@ -171,6 +171,8 @@ public final class DronePhysics {
 	private double windGustPhaseC;
 	private Vec3 meanWindVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private long drydenRandomState = 0x6A09E667F3BCC909L;
@@ -4924,6 +4926,8 @@ public final class DronePhysics {
 			windModelInitialized = true;
 			meanWindVelocityWorldMetersPerSecond = targetMeanWind;
 			windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+			drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
+			drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
 			windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 			state.setEffectiveWindVelocityWorldMetersPerSecond(targetMeanWind);
@@ -5072,6 +5076,10 @@ public final class DronePhysics {
 		double windSpeed = targetMeanWind.length();
 		if (dirtyAir <= 1.0e-6 || windSpeed <= 0.5 || dtSeconds <= 0.0) {
 			double alpha = MathUtil.expSmoothing(dtSeconds, 0.35);
+			drydenFirstOrderVelocityWorldMetersPerSecond =
+					drydenFirstOrderVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
+			drydenTransverseLagVelocityWorldMetersPerSecond =
+					drydenTransverseLagVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
 			drydenTurbulenceVelocityWorldMetersPerSecond = drydenTurbulenceVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
 			return drydenTurbulenceVelocityWorldMetersPerSecond;
 		}
@@ -5085,29 +5093,40 @@ public final class DronePhysics {
 		Vec3 longitudinalAxis = horizontalWindAxis(targetMeanWind);
 		Vec3 lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
 		Vec3 verticalAxis = new Vec3(0.0, 1.0, 0.0);
-		double currentLongitudinal = drydenTurbulenceVelocityWorldMetersPerSecond.dot(longitudinalAxis);
-		double currentLateral = drydenTurbulenceVelocityWorldMetersPerSecond.dot(lateralAxis);
-		double currentVertical = drydenTurbulenceVelocityWorldMetersPerSecond.dot(verticalAxis);
-		double longitudinal = updateDrydenAxis(
+		double currentLongitudinal = drydenFirstOrderVelocityWorldMetersPerSecond.dot(longitudinalAxis);
+		double currentLateral = drydenFirstOrderVelocityWorldMetersPerSecond.dot(lateralAxis);
+		double currentVertical = drydenFirstOrderVelocityWorldMetersPerSecond.dot(verticalAxis);
+		double currentLateralLag = drydenTransverseLagVelocityWorldMetersPerSecond.dot(lateralAxis);
+		double currentVerticalLag = drydenTransverseLagVelocityWorldMetersPerSecond.dot(verticalAxis);
+		double longitudinalFirstOrder = updateDrydenAxis(
 				currentLongitudinal,
 				dryden.longitudinalSigmaMetersPerSecond() * intensityScale,
 				longitudinalTau,
 				dtSeconds
 		);
-		double lateral = updateDrydenAxis(
+		double lateralFirstOrder = updateDrydenAxis(
 				currentLateral,
 				dryden.lateralSigmaMetersPerSecond() * intensityScale,
 				lateralTau,
 				dtSeconds
 		);
-		double vertical = updateDrydenAxis(
+		double verticalFirstOrder = updateDrydenAxis(
 				currentVertical,
 				dryden.verticalSigmaMetersPerSecond() * intensityScale,
 				verticalTau,
 				dtSeconds
 		);
+		double lateralLag = updateDrydenLag(currentLateralLag, lateralFirstOrder, lateralTau, dtSeconds);
+		double verticalLag = updateDrydenLag(currentVerticalLag, verticalFirstOrder, verticalTau, dtSeconds);
+		double lateral = shapeDrydenTransverseAxis(lateralFirstOrder, lateralLag);
+		double vertical = shapeDrydenTransverseAxis(verticalFirstOrder, verticalLag);
 
-		drydenTurbulenceVelocityWorldMetersPerSecond = longitudinalAxis.multiply(longitudinal)
+		drydenFirstOrderVelocityWorldMetersPerSecond = longitudinalAxis.multiply(longitudinalFirstOrder)
+				.add(lateralAxis.multiply(lateralFirstOrder))
+				.add(verticalAxis.multiply(verticalFirstOrder));
+		drydenTransverseLagVelocityWorldMetersPerSecond = lateralAxis.multiply(lateralLag)
+				.add(verticalAxis.multiply(verticalLag));
+		drydenTurbulenceVelocityWorldMetersPerSecond = longitudinalAxis.multiply(longitudinalFirstOrder)
 				.add(lateralAxis.multiply(lateral))
 				.add(verticalAxis.multiply(vertical));
 		return drydenTurbulenceVelocityWorldMetersPerSecond;
@@ -5117,6 +5136,16 @@ public final class DronePhysics {
 		double phi = Math.exp(-dtSeconds / Math.max(1.0e-6, timeConstantSeconds));
 		double innovationScale = sigmaMetersPerSecond * Math.sqrt(Math.max(0.0, 1.0 - phi * phi));
 		return currentValue * phi + innovationScale * nextDrydenGaussian();
+	}
+
+	private static double updateDrydenLag(double currentValue, double targetValue, double timeConstantSeconds, double dtSeconds) {
+		double alpha = MathUtil.expSmoothing(dtSeconds, Math.max(1.0e-6, timeConstantSeconds));
+		return currentValue + (targetValue - currentValue) * alpha;
+	}
+
+	private static double shapeDrydenTransverseAxis(double firstOrderValue, double laggedValue) {
+		return DrydenTurbulenceModel.TRANSVERSE_LEAD_LAG_SCALE
+				* (firstOrderValue - DrydenTurbulenceModel.TRANSVERSE_LAG_WEIGHT * laggedValue);
 	}
 
 	private double nextDrydenGaussian() {

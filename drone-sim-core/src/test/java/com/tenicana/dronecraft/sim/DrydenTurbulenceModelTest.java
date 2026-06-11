@@ -20,6 +20,16 @@ class DrydenTurbulenceModelTest {
 	}
 
 	@Test
+	void transverseLeadLagCoefficientsMatchDrydenShape() {
+		assertEquals(Math.sqrt(1.5), DrydenTurbulenceModel.TRANSVERSE_LEAD_LAG_SCALE, 1.0e-12);
+		assertEquals(1.0 - 1.0 / Math.sqrt(3.0), DrydenTurbulenceModel.TRANSVERSE_LAG_WEIGHT, 1.0e-12);
+		assertEquals(1.0 / Math.sqrt(2.0),
+				DrydenTurbulenceModel.TRANSVERSE_LEAD_LAG_SCALE
+						* (1.0 - DrydenTurbulenceModel.TRANSVERSE_LAG_WEIGHT),
+				1.0e-12);
+	}
+
+	@Test
 	void lowAltitudeParametersClampInvalidInputs() {
 		DrydenTurbulenceModel.Parameters parameters = DrydenTurbulenceModel.lowAltitude(Double.NaN, Double.POSITIVE_INFINITY);
 

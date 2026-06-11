@@ -2,6 +2,8 @@ package com.tenicana.dronecraft.sim;
 
 final class DrydenTurbulenceModel {
 	private static final double FEET_PER_METER = 3.280839895;
+	static final double TRANSVERSE_LEAD_LAG_SCALE = Math.sqrt(1.5);
+	static final double TRANSVERSE_LAG_WEIGHT = 1.0 - 1.0 / Math.sqrt(3.0);
 
 	private DrydenTurbulenceModel() {
 	}
