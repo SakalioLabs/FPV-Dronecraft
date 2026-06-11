@@ -10,6 +10,7 @@ Outputs:
   docs/data/wind_gust_dryden_reference.csv
   docs/data/barometer_reference_summary.csv
   docs/data/battery_temperature_derating_summary.csv
+  docs/data/atmosphere_reynolds_mach_summary.csv
   docs/data/raw/* cached source files
 """
 
@@ -34,6 +35,14 @@ MENDELEY_ECM_SUMMARY_CSV = DATA / "lipo_ecm_mendeley_r0_summary.csv"
 RHO = 1.225
 G = 9.80665
 SPEED_OF_SOUND_25C = 346.1
+STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15
+STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065
+STANDARD_PRESSURE_EXPONENT = 5.255
+AIR_GAMMA = 1.4
+AIR_GAS_CONSTANT_J_PER_KG_K = 287.05
+REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15
+AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4
+AIR_SUTHERLAND_BETA = 1.458e-6
 _JAVA_NUMERIC_CONSTANTS: dict[str, float] | None = None
 
 
@@ -107,8 +116,17 @@ CHL_LIPO_IR_URL = "https://chinahobbyline.com/blogs/news/lipo-internal-resistanc
 BATTERY_UNIVERSITY_TEMPERATURE_URL = "https://batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures"
 BATTERY_UNIVERSITY_IR_URL = "https://batteryuniversity.com/article/bu-802a-how-does-rising-internal-resistance-affect-performance"
 NASA_ATMOSPHERE_URL = "https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html"
+NASA_SOUND_URL = "https://www.grc.nasa.gov/www/BGH/sound.html"
+NASA_VISCOSITY_URL = "https://www.grc.nasa.gov/www/BGH/viscosity.html"
+US_STANDARD_ATMOSPHERE_URL = "https://ntrs.nasa.gov/citations/19770009539"
 PYFLY_DRYDEN_URL = "https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py"
 UAV_WIND_MODELING_URL = "https://arxiv.org/abs/1905.09954"
+U8_DYNO_REPO_URL = "https://github.com/thhsieh/U8-Kv100-Dyno-Data"
+U8_DYNO_PAPER_URL = "https://www.mdpi.com/2076-0825/12/8/318"
+U8_DYNO_RAW_BASE = "https://raw.githubusercontent.com/thhsieh/U8-Kv100-Dyno-Data/main/Processed%20Data/"
+COPPER_TEMP_COEFF_SOURCE_URL = "https://www.copper.org/resources/properties/129_8/"
+NEMA_MOTOR_INSULATION_URL = "https://www.nema.org/docs/default-source/technical-document-library/motors-and-generators-standard-mg-1.pdf"
+INFINEON_MOSFET_THERMAL_URL = "https://www.infineon.com/dgdl/Infineon-IRL40SC228-DataSheet-v01_00-EN.pdf?fileId=5546d46269e1c019016a04b42abd1c9a"
 BETAFLIGHT_RPM_FILTER_URL = "https://betaflight.com/docs/wiki/guides/current/DSHOT-RPM-Filtering"
 BETAFLIGHT_PID_TUNING_URL = "https://betaflight.com/docs/wiki/guides/current/PID-Tuning-Guide"
 EXPRESSLRS_PACKET_URL = "https://www.expresslrs.org/software/switch-config/"
@@ -260,6 +278,51 @@ ZJU_GROUND_EFFECT_COEFFICIENTS = {
     "inertia_y_kg_m2": 0.00792752,
     "inertia_z_kg_m2": 0.01249522,
 }
+
+ATMOSPHERE_SCENARIOS = [
+    {
+        "scenario": "sea_level_isa",
+        "altitude_m": 0.0,
+        "ambient_temperature_c": 15.0,
+        "note": "ISA sea-level reference used by the standard-atmosphere pressure law.",
+    },
+    {
+        "scenario": "project_default_25c",
+        "altitude_m": 0.0,
+        "ambient_temperature_c": 25.0,
+        "note": "Current DroneEnvironment.calm temperature; standard-atmosphere density ratio is below 1 because ISA sea level is 15 C.",
+    },
+    {
+        "scenario": "cold_sea_level_-10c",
+        "altitude_m": 0.0,
+        "ambient_temperature_c": -10.0,
+        "note": "Cold dense air and lower speed of sound; useful for max-tip-Mach checks.",
+    },
+    {
+        "scenario": "hot_sea_level_38c",
+        "altitude_m": 0.0,
+        "ambient_temperature_c": 38.0,
+        "note": "Hot sea-level day used by existing environment tests.",
+    },
+    {
+        "scenario": "mountain_1500m_20c",
+        "altitude_m": 1500.0,
+        "ambient_temperature_c": 20.0,
+        "note": "Warm mountain field; common high-density-altitude operating case.",
+    },
+    {
+        "scenario": "mountain_3000m_isa",
+        "altitude_m": 3000.0,
+        "ambient_temperature_c": -4.5,
+        "note": "Existing code-test mountain case near ISA lapse from 15 C.",
+    },
+    {
+        "scenario": "mountain_3000m_hot_30c",
+        "altitude_m": 3000.0,
+        "ambient_temperature_c": 30.0,
+        "note": "High-density-altitude stress case for thrust margin and Reynolds scaling.",
+    },
+]
 
 
 def cache_name(url: str) -> str:
@@ -629,6 +692,10 @@ def parse_drone_presets() -> list[dict[str, float | str]]:
                 "propwash_torque_nm": arg_number(args, 13),
                 "angular_drag_coefficient": arg_number(args, 14),
                 "motor_tau_s": arg_number(args, 15),
+                "motor_thermal_rise_c_s": arg_number(args, 22),
+                "motor_cooling_rate_s": arg_number(args, 23),
+                "motor_thermal_limit_c": arg_number(args, 24),
+                "motor_thermal_cutoff_c": arg_number(args, 25),
                 "gyro_low_pass_hz": arg_number(args, 28),
                 "gyro_noise_stddev_rad_s": arg_number(args, 29),
                 "accelerometer_low_pass_hz": arg_number(args, 30),
@@ -843,12 +910,17 @@ def parse_open_source_params() -> list[dict[str, float | str]]:
     return rows
 
 
+def default_blade_pitch_m(radius_m: float) -> float:
+    return max(0.01, radius_m * 1.70)
+
+
 def summarize_presets(presets: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
     rows = []
     for preset in presets:
         max_thrust = float(preset["max_thrust_n"])
         k = float(preset["k_n_per_rad2"])
         radius = float(preset["radius_m"])
+        blade_pitch = default_blade_pitch_m(radius)
         rotors = int(preset["rotor_count"])
         mass = float(preset["mass_kg"])
         rpm = rpm_from_k_thrust(k, max_thrust)
@@ -860,6 +932,7 @@ def summarize_presets(presets: list[dict[str, float | str]]) -> list[dict[str, f
                 **preset,
                 "max_rpm_from_k": rpm,
                 "tip_mach_at_max": omega * radius / SPEED_OF_SOUND_25C,
+                "blade_pitch_m": blade_pitch,
                 "thrust_to_weight": total_max / weight,
                 "hover_throttle_linear": weight / total_max,
                 "hover_disk_loading_n_m2": weight / (rotors * math.pi * radius * radius),
@@ -867,6 +940,163 @@ def summarize_presets(presets: list[dict[str, float | str]]) -> list[dict[str, f
                 "hover_induced_velocity_m_s": math.sqrt((weight / rotors) / (2.0 * RHO * math.pi * radius * radius)),
             }
         )
+    return rows
+
+
+def standard_atmosphere_pressure_ratio(altitude_m: float) -> float:
+    altitude = min(18000.0, max(-1000.0, altitude_m))
+    base = 1.0 - STANDARD_LAPSE_RATE_KELVIN_PER_METER * altitude / STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN
+    return min(1.25, max(0.15, base)) ** STANDARD_PRESSURE_EXPONENT
+
+
+def standard_atmosphere_density_ratio(altitude_m: float, temperature_c: float) -> float:
+    temperature_k = min(338.15, max(233.15, temperature_c + 273.15))
+    ratio = standard_atmosphere_pressure_ratio(altitude_m) * STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN / temperature_k
+    return min(1.35, max(0.35, ratio))
+
+
+def speed_of_sound_m_s(temperature_c: float) -> float:
+    temperature_k = min(338.15, max(233.15, temperature_c + 273.15))
+    return math.sqrt(AIR_GAMMA * AIR_GAS_CONSTANT_J_PER_KG_K * temperature_k)
+
+
+def air_dynamic_viscosity_pa_s(temperature_c: float) -> float:
+    temperature_k = min(338.15, max(233.15, temperature_c + 273.15))
+    return AIR_SUTHERLAND_BETA * temperature_k**1.5 / (temperature_k + AIR_SUTHERLAND_CONSTANT_KELVIN)
+
+
+def air_dynamic_viscosity_ratio(temperature_c: float) -> float:
+    mu = air_dynamic_viscosity_pa_s(temperature_c)
+    reference_mu = air_dynamic_viscosity_pa_s(REFERENCE_AIR_TEMPERATURE_KELVIN - 273.15)
+    return min(1.20, max(0.70, mu / reference_mu))
+
+
+def rotor_blade_pitch_ratio(radius_m: float, blade_pitch_m: float) -> float:
+    return min(3.50, max(0.35, blade_pitch_m / max(1.0e-6, default_blade_pitch_m(radius_m))))
+
+
+def rotor_low_reynolds_index(
+    preset: dict[str, float | str],
+    omega_rad_s: float,
+    density_ratio: float,
+    temperature_c: float,
+) -> float:
+    radius = float(preset["radius_m"])
+    blade_pitch = float(preset.get("blade_pitch_m", default_blade_pitch_m(radius)))
+    tip_speed = abs(omega_rad_s) * radius
+    density_viscosity_ratio = min(1.90, max(0.20, max(0.0, density_ratio) / air_dynamic_viscosity_ratio(temperature_c)))
+    radius_scale = min(3.0, max(0.32, radius / 0.0635))
+    pitch_chord_proxy = min(1.18, max(0.78, 0.70 + 0.30 * math.sqrt(rotor_blade_pitch_ratio(radius, blade_pitch))))
+    return (
+        density_viscosity_ratio
+        * radius_scale
+        * pitch_chord_proxy
+        * min(2.8, max(0.0, tip_speed / 34.0))
+    )
+
+
+def rotor_low_reynolds_loss_proxy(
+    preset: dict[str, float | str],
+    omega_rad_s: float,
+    density_ratio: float,
+    temperature_c: float,
+) -> float:
+    radius = float(preset["radius_m"])
+    spin_ratio = min(1.10, max(0.0, abs(omega_rad_s) / (float(preset["max_rpm_from_k"]) * 2.0 * math.pi / 60.0)))
+    if spin_ratio <= 0.08:
+        return 0.0
+    radius_scale = min(3.0, max(0.32, radius / 0.0635))
+    small_prop_factor = 1.0 - smooth_step(0.62, 0.96, radius_scale)
+    if small_prop_factor <= 1.0e-6:
+        return 0.0
+    reynolds_index = rotor_low_reynolds_index(preset, omega_rad_s, density_ratio, temperature_c)
+    low_reynolds = 1.0 - smooth_step(0.52, 1.05, reynolds_index)
+    return min(1.0, max(0.0, low_reynolds * small_prop_factor * smooth_step(0.10, 0.34, spin_ratio)))
+
+
+def rotor_compressibility_intensity(tip_mach: float) -> float:
+    return smooth_step(0.46, 0.82, tip_mach)
+
+
+def rotor_compressibility_thrust_scale(tip_mach: float) -> float:
+    return min(1.0, max(0.74, 1.0 - 0.20 * rotor_compressibility_intensity(tip_mach)))
+
+
+def proxy_blade_chord_m(radius_m: float, blade_pitch_m: float) -> float:
+    pitch_chord_proxy = min(1.18, max(0.78, 0.70 + 0.30 * math.sqrt(rotor_blade_pitch_ratio(radius_m, blade_pitch_m))))
+    return 0.12 * radius_m * pitch_chord_proxy
+
+
+def summarize_atmosphere_reynolds(presets: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
+    fetch_text(NASA_ATMOSPHERE_URL)
+    fetch_text(NASA_SOUND_URL)
+    fetch_text(NASA_VISCOSITY_URL)
+    fetch_text(US_STANDARD_ATMOSPHERE_URL)
+    rows: list[dict[str, float | str]] = []
+    for scenario in ATMOSPHERE_SCENARIOS:
+        altitude = float(scenario["altitude_m"])
+        temperature = float(scenario["ambient_temperature_c"])
+        pressure_ratio = standard_atmosphere_pressure_ratio(altitude)
+        density_ratio = standard_atmosphere_density_ratio(altitude, temperature)
+        density = RHO * density_ratio
+        sound = speed_of_sound_m_s(temperature)
+        mu = air_dynamic_viscosity_pa_s(temperature)
+        viscosity_ratio = air_dynamic_viscosity_ratio(temperature)
+        same_thrust_rpm_scale = 1.0 / math.sqrt(max(1.0e-6, density_ratio))
+        for preset in presets:
+            radius = float(preset["radius_m"])
+            blade_pitch = float(preset.get("blade_pitch_m", default_blade_pitch_m(radius)))
+            chord = proxy_blade_chord_m(radius, blade_pitch)
+            k = float(preset["k_n_per_rad2"])
+            hover_thrust = float(preset["hover_thrust_per_rotor_n"])
+            max_thrust = float(preset["max_thrust_n"])
+            hover_omega = math.sqrt(hover_thrust / k)
+            max_omega = math.sqrt(max_thrust / k)
+            hover_tip_speed = hover_omega * radius
+            max_tip_speed = max_omega * radius
+            hover_re_75 = density * (0.75 * hover_tip_speed) * chord / mu
+            max_re_75 = density * (0.75 * max_tip_speed) * chord / mu
+            hover_tip_mach = hover_tip_speed / sound
+            max_tip_mach = max_tip_speed / sound
+            rows.append(
+                {
+                    "scenario": scenario["scenario"],
+                    "altitude_m": altitude,
+                    "ambient_temperature_c": temperature,
+                    "pressure_ratio": pressure_ratio,
+                    "density_ratio": density_ratio,
+                    "density_kg_m3": density,
+                    "speed_of_sound_m_s": sound,
+                    "dynamic_viscosity_pa_s": mu,
+                    "viscosity_ratio_25c": viscosity_ratio,
+                    "same_thrust_rpm_scale": same_thrust_rpm_scale,
+                    "preset": preset["preset"],
+                    "radius_m": radius,
+                    "blade_pitch_m": blade_pitch,
+                    "proxy_chord_m": chord,
+                    "hover_tip_speed_m_s": hover_tip_speed,
+                    "max_tip_speed_m_s": max_tip_speed,
+                    "hover_tip_mach": hover_tip_mach,
+                    "max_tip_mach": max_tip_mach,
+                    "hover_reynolds_75r_proxy": hover_re_75,
+                    "max_reynolds_75r_proxy": max_re_75,
+                    "hover_code_reynolds_index": rotor_low_reynolds_index(preset, hover_omega, density_ratio, temperature),
+                    "max_code_reynolds_index": rotor_low_reynolds_index(preset, max_omega, density_ratio, temperature),
+                    "hover_low_reynolds_loss_proxy": rotor_low_reynolds_loss_proxy(preset, hover_omega, density_ratio, temperature),
+                    "max_low_reynolds_loss_proxy": rotor_low_reynolds_loss_proxy(preset, max_omega, density_ratio, temperature),
+                    "hover_compressibility_thrust_scale": rotor_compressibility_thrust_scale(hover_tip_mach),
+                    "max_compressibility_thrust_scale": rotor_compressibility_thrust_scale(max_tip_mach),
+                    "source": NASA_ATMOSPHERE_URL,
+                    "note": scenario["note"],
+                }
+            )
+    path = DATA / "atmosphere_reynolds_mach_summary.csv"
+    DATA.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = list(rows[0].keys())
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
     return rows
 
 
@@ -1598,6 +1828,242 @@ def summarize_battery_temperature_derating(presets: list[dict[str, float | str]]
     return rows
 
 
+def csv_matrix_from_url(url: str) -> list[list[float]]:
+    text = fetch_text(url)
+    rows: list[list[float]] = []
+    for row in csv.reader(text.splitlines()):
+        values: list[float] = []
+        for value in row:
+            try:
+                number = float(value)
+            except ValueError:
+                continue
+            if math.isfinite(number):
+                values.append(number)
+        if values:
+            rows.append(values)
+    return rows
+
+
+def matrix_values(matrix: list[list[float]], positive: bool = False) -> list[float]:
+    values = [value for row in matrix for value in row if math.isfinite(value)]
+    if positive:
+        values = [value for value in values if value > 0.0]
+    return values
+
+
+def matrix_stats(matrix: list[list[float]], positive: bool = False) -> tuple[float, float, float, int]:
+    values = matrix_values(matrix, positive)
+    if not values:
+        return (float("nan"), float("nan"), float("nan"), 0)
+    return (min(values), statistics.fmean(values), max(values), len(values))
+
+
+def matrix_max_position(matrix: list[list[float]], positive: bool = False) -> tuple[int, int, float]:
+    best_i = -1
+    best_j = -1
+    best_value = float("-inf")
+    for i, row in enumerate(matrix):
+        for j, value in enumerate(row):
+            if positive and value <= 0.0:
+                continue
+            if math.isfinite(value) and value > best_value:
+                best_i = i
+                best_j = j
+                best_value = value
+    return best_i, best_j, best_value
+
+
+def matrix_lookup(matrix: list[list[float]], i: int, j: int) -> float:
+    if i < 0 or j < 0 or i >= len(matrix) or j >= len(matrix[i]):
+        return float("nan")
+    return matrix[i][j]
+
+
+def copper_winding_resistance_scale(temperature_c: float) -> float:
+    return clamp(1.0 + 0.0039 * (temperature_c - 25.0), 0.72, 1.90)
+
+
+def thermal_limit_scale(temperature_c: float, limit_c: float, cutoff_c: float) -> float:
+    if temperature_c <= limit_c:
+        return 1.0
+    if temperature_c >= cutoff_c:
+        return 0.45
+    t = (temperature_c - limit_c) / (cutoff_c - limit_c)
+    smooth = t * t * (3.0 - 2.0 * t)
+    return 1.0 - (1.0 - 0.45) * smooth
+
+
+def current_motor_cooling_factor_proxy(power: float, esc_output: float, density_ratio: float = 1.0, airspeed_m_s: float = 0.0) -> float:
+    freestream_cooling = clamp(airspeed_m_s / 18.0, 0.0, 1.8)
+    rotor_wash = 0.92 * power * (0.45 + 0.55 * esc_output)
+    return clamp((1.0 + freestream_cooling + rotor_wash) * density_ratio, 0.20, 4.0)
+
+
+def current_esc_cooling_factor_proxy(motor_cooling_factor: float, power: float, esc_output: float, density_ratio: float = 1.0) -> float:
+    rotor_wash = 0.45 * power * (0.35 + 0.65 * esc_output)
+    board_airflow = 0.58 + 0.42 * motor_cooling_factor + rotor_wash
+    return clamp(board_airflow * density_ratio, 0.20, 4.0)
+
+
+def summarize_u8_dyno_thermal() -> list[dict[str, float | str]]:
+    fetch_text(U8_DYNO_REPO_URL)
+    rows: list[dict[str, float | str]] = []
+    for voltage in (24, 36):
+        url_base = U8_DYNO_RAW_BASE
+        temp = csv_matrix_from_url(f"{url_base}max_termperature{voltage}.csv")
+        loss = csv_matrix_from_url(f"{url_base}loss_map{voltage}.csv")
+        motor_eff = csv_matrix_from_url(f"{url_base}motor_eff{voltage}.csv")
+        driver_eff = csv_matrix_from_url(f"{url_base}driver_eff{voltage}.csv")
+        rpm = csv_matrix_from_url(f"{url_base}avg_rpm{voltage}.csv")
+        torque = csv_matrix_from_url(f"{url_base}avg_trqNm{voltage}.csv")
+        current = csv_matrix_from_url(f"{url_base}curr_setpoints{voltage}.csv")
+        temp_min, temp_mean, temp_max, temp_count = matrix_stats(temp, positive=True)
+        loss_min, loss_mean, loss_max, loss_count = matrix_stats(loss, positive=True)
+        motor_eff_min, motor_eff_mean, motor_eff_max, motor_eff_count = matrix_stats(motor_eff, positive=True)
+        driver_eff_min, driver_eff_mean, driver_eff_max, driver_eff_count = matrix_stats(driver_eff, positive=True)
+        rpm_min, rpm_mean, rpm_max, rpm_count = matrix_stats(rpm, positive=True)
+        torque_min, torque_mean, torque_max, torque_count = matrix_stats(torque, positive=True)
+        current_min, current_mean, current_max, current_count = matrix_stats(current, positive=True)
+        max_i, max_j, max_temperature = matrix_max_position(temp, positive=True)
+        rows.append(
+            {
+                "row_type": "u8_dyno_processed",
+                "name": f"U8_Kv100_{voltage}V",
+                "source": U8_DYNO_REPO_URL,
+                "voltage_v": voltage,
+                "temperature_min_c": temp_min,
+                "temperature_mean_c": temp_mean,
+                "temperature_max_c": temp_max,
+                "temperature_sample_count": temp_count,
+                "loss_min_w": loss_min,
+                "loss_mean_w": loss_mean,
+                "loss_max_w": loss_max,
+                "loss_sample_count": loss_count,
+                "motor_efficiency_min": motor_eff_min,
+                "motor_efficiency_mean": motor_eff_mean,
+                "motor_efficiency_max": motor_eff_max,
+                "motor_efficiency_sample_count": motor_eff_count,
+                "driver_efficiency_min": driver_eff_min,
+                "driver_efficiency_mean": driver_eff_mean,
+                "driver_efficiency_max": driver_eff_max,
+                "driver_efficiency_sample_count": driver_eff_count,
+                "rpm_min": rpm_min,
+                "rpm_mean": rpm_mean,
+                "rpm_max": rpm_max,
+                "rpm_sample_count": rpm_count,
+                "torque_min_nm": torque_min,
+                "torque_mean_nm": torque_mean,
+                "torque_max_nm": torque_max,
+                "torque_sample_count": torque_count,
+                "current_min_a": current_min,
+                "current_mean_a": current_mean,
+                "current_max_a": current_max,
+                "current_sample_count": current_count,
+                "max_temp_current_a": matrix_lookup(current, max_i, max_j),
+                "max_temp_rpm": matrix_lookup(rpm, max_i, max_j),
+                "max_temp_torque_nm": matrix_lookup(torque, max_i, max_j),
+                "note": "Processed U8/Kv100 dyno maps; max_termperature filename spelling follows upstream repository.",
+            }
+        )
+    return rows
+
+
+def summarize_current_motor_esc_thermal(presets: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
+    rows: list[dict[str, float | str]] = []
+    for preset in presets:
+        rise = float(preset.get("motor_thermal_rise_c_s", float("nan")))
+        cooling = float(preset.get("motor_cooling_rate_s", float("nan")))
+        limit = float(preset.get("motor_thermal_limit_c", float("nan")))
+        cutoff = float(preset.get("motor_thermal_cutoff_c", float("nan")))
+        hover = float(preset.get("hover_throttle_linear", float("nan")))
+        rotor_count = max(1, int(preset.get("rotor_count", 1)))
+        per_motor_max_current = float(preset.get("max_battery_current_a", float("nan"))) / rotor_count
+        stall_current = max(1.0, per_motor_max_current * 3.20)
+        inferred_winding_resistance = clamp(float(preset.get("battery_nominal_v", float("nan"))) / stall_current, 0.025, 2.5)
+        hover_motor_cooling = current_motor_cooling_factor_proxy(hover, hover)
+        full_motor_cooling = current_motor_cooling_factor_proxy(1.0, 1.0)
+        full_airspeed_motor_cooling = current_motor_cooling_factor_proxy(1.0, 1.0, airspeed_m_s=10.0)
+        full_esc_cooling = current_esc_cooling_factor_proxy(full_motor_cooling, 1.0, 1.0)
+        hover_esc_cooling = current_esc_cooling_factor_proxy(hover_motor_cooling, hover, hover)
+        esc_limit = limit - 5.0
+        esc_cutoff = cutoff - 5.0
+        rows.append(
+            {
+                "row_type": "current_preset_thermal",
+                "name": preset["preset"],
+                "source": repo_path(ROOT / "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java"),
+                "thermal_rise_c_s": rise,
+                "cooling_rate_s": cooling,
+                "motor_limit_c": limit,
+                "motor_cutoff_c": cutoff,
+                "esc_limit_c": esc_limit,
+                "esc_cutoff_c": esc_cutoff,
+                "min_thermal_thrust_limit": 0.45,
+                "hover_power_proxy": hover,
+                "hover_motor_cooling_factor_proxy": hover_motor_cooling,
+                "full_motor_cooling_factor_proxy": full_motor_cooling,
+                "full_10m_s_motor_cooling_factor_proxy": full_airspeed_motor_cooling,
+                "hover_esc_cooling_factor_proxy": hover_esc_cooling,
+                "full_esc_cooling_factor_proxy": full_esc_cooling,
+                "motor_base_time_constant_s": 1.0 / cooling if cooling > 0.0 else float("nan"),
+                "motor_full_wash_time_constant_s": 1.0 / (cooling * full_motor_cooling) if cooling > 0.0 else float("nan"),
+                "motor_full_10m_s_time_constant_s": 1.0 / (cooling * full_airspeed_motor_cooling) if cooling > 0.0 else float("nan"),
+                "motor_full_steady_rise_c": rise / (cooling * full_motor_cooling) if cooling > 0.0 else float("nan"),
+                "motor_hover_steady_rise_proxy_c": rise * hover * hover / (cooling * hover_motor_cooling) if cooling > 0.0 else float("nan"),
+                "esc_full_current_steady_rise_proxy_c": (rise * 0.72 * 0.62) / (cooling * 0.90 * full_esc_cooling) if cooling > 0.0 else float("nan"),
+                "inferred_winding_resistance_25c_ohm": inferred_winding_resistance,
+                "winding_resistance_scale_at_limit": copper_winding_resistance_scale(limit),
+                "winding_resistance_scale_at_cutoff": copper_winding_resistance_scale(cutoff),
+                "motor_limit_scale_at_midpoint": thermal_limit_scale((limit + cutoff) * 0.5, limit, cutoff),
+                "esc_limit_scale_at_midpoint": thermal_limit_scale((esc_limit + esc_cutoff) * 0.5, esc_limit, esc_cutoff),
+                "note": "Steady-rise values are current-code proxies with no obstruction/recirculation and sea-level density.",
+            }
+        )
+    return rows
+
+
+def summarize_copper_resistance_temperature() -> list[dict[str, float | str]]:
+    rows: list[dict[str, float | str]] = []
+    for temperature in (0.0, 25.0, 60.0, 95.0, 125.0, 150.0, 180.0, 220.0, 260.0):
+        rows.append(
+            {
+                "row_type": "copper_resistance_scale",
+                "name": f"copper_{fmt(temperature, 0)}C",
+                "source": COPPER_TEMP_COEFF_SOURCE_URL,
+                "temperature_c": temperature,
+                "resistance_scale_vs_25c": copper_winding_resistance_scale(temperature),
+                "note": "Uses current model coefficient 0.0039 per C for copper winding resistance.",
+            }
+        )
+    return rows
+
+
+def summarize_motor_esc_thermal(presets: list[dict[str, float | str]]) -> dict[str, object]:
+    u8_rows = summarize_u8_dyno_thermal()
+    current_rows = summarize_current_motor_esc_thermal(presets)
+    copper_rows = summarize_copper_resistance_temperature()
+    rows = [*u8_rows, *current_rows, *copper_rows]
+    path = DATA / "motor_esc_thermal_reference.csv"
+    DATA.mkdir(parents=True, exist_ok=True)
+    fieldnames: list[str] = []
+    for row in rows:
+        for key in row:
+            if key not in fieldnames:
+                fieldnames.append(key)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+    return {
+        "summary_csv": repo_path(path),
+        "u8_rows": u8_rows,
+        "current_rows": current_rows,
+        "copper_rows": copper_rows,
+        "source": U8_DYNO_REPO_URL,
+    }
+
+
 def summarize_mendeley_ecm() -> dict[str, object]:
     if not MENDELEY_ECM_SUMMARY_CSV.exists():
         return {"available": False, "pack_rows": []}
@@ -1728,6 +2194,7 @@ def write_summary_csv(
     vrs_rows: list[dict[str, float | str]],
     battery_ir_rows: list[dict[str, float | str]],
     battery_temp_rows: list[dict[str, float | str]],
+    motor_thermal_summary: dict[str, object],
     coaxial_rows: list[dict[str, float | str]],
     motor_response_rows: list[dict[str, float | str]],
     inertia_rows: list[dict[str, float | str]],
@@ -1735,6 +2202,7 @@ def write_summary_csv(
     timing_rows: list[dict[str, float | str]],
     imu_rows: list[dict[str, float | str]],
     wind_rows: list[dict[str, float | str]],
+    atmosphere_rows: list[dict[str, float | str]],
     barometer_summary: dict[str, object],
     blackbox_summary: dict[str, object],
     mendeley_ecm: dict[str, object],
@@ -1811,6 +2279,46 @@ def write_summary_csv(
             ("sag_at_temperature_scaled_limit_v", "V"),
         ):
             rows.append({"category": "battery_temperature_derating", "name": name, "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in motor_thermal_summary.get("u8_rows", []):
+        u8_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("temperature_min_c", "C"),
+            ("temperature_mean_c", "C"),
+            ("temperature_max_c", "C"),
+            ("loss_mean_w", "W"),
+            ("loss_max_w", "W"),
+            ("motor_efficiency_max", "x"),
+            ("driver_efficiency_max", "x"),
+            ("rpm_max", "rpm"),
+            ("torque_max_nm", "N*m"),
+            ("current_max_a", "A"),
+            ("max_temp_current_a", "A"),
+            ("max_temp_rpm", "rpm"),
+            ("max_temp_torque_nm", "N*m"),
+        ):
+            rows.append({"category": "motor_esc_thermal_u8_dyno", "name": u8_row["name"], "metric": metric, "value": u8_row[metric], "unit": unit, "source": u8_row["source"]})
+    for item in motor_thermal_summary.get("current_rows", []):
+        thermal_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("thermal_rise_c_s", "C/s"),
+            ("cooling_rate_s", "1/s"),
+            ("motor_limit_c", "C"),
+            ("motor_cutoff_c", "C"),
+            ("esc_limit_c", "C"),
+            ("esc_cutoff_c", "C"),
+            ("motor_base_time_constant_s", "s"),
+            ("motor_full_wash_time_constant_s", "s"),
+            ("motor_full_steady_rise_c", "C"),
+            ("motor_hover_steady_rise_proxy_c", "C"),
+            ("esc_full_current_steady_rise_proxy_c", "C"),
+            ("inferred_winding_resistance_25c_ohm", "ohm"),
+            ("winding_resistance_scale_at_limit", "x"),
+            ("winding_resistance_scale_at_cutoff", "x"),
+        ):
+            rows.append({"category": "motor_esc_thermal_current", "name": thermal_row["name"], "metric": metric, "value": thermal_row[metric], "unit": unit, "source": thermal_row["source"]})
+    for item in motor_thermal_summary.get("copper_rows", []):
+        copper_row = item  # type: ignore[assignment]
+        rows.append({"category": "motor_copper_resistance_temperature", "name": copper_row["name"], "metric": "resistance_scale_vs_25c", "value": copper_row["resistance_scale_vs_25c"], "unit": "x", "source": copper_row["source"]})
     for item in coaxial_rows:
         for metric, unit in (
             ("upper_lower_separation_m", "m"),
@@ -1906,6 +2414,26 @@ def write_summary_csv(
             ("dryden_vertical_time_s", "s"),
         ):
             rows.append({"category": "wind_gust_dryden", "name": name, "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in atmosphere_rows:
+        name = f"{item['preset']}_{item['scenario']}"
+        for metric, unit in (
+            ("pressure_ratio", "x"),
+            ("density_ratio", "x"),
+            ("speed_of_sound_m_s", "m/s"),
+            ("dynamic_viscosity_pa_s", "Pa*s"),
+            ("viscosity_ratio_25c", "x"),
+            ("same_thrust_rpm_scale", "x"),
+            ("hover_tip_mach", "Mach"),
+            ("max_tip_mach", "Mach"),
+            ("hover_reynolds_75r_proxy", "Re"),
+            ("max_reynolds_75r_proxy", "Re"),
+            ("hover_code_reynolds_index", "index"),
+            ("max_code_reynolds_index", "index"),
+            ("hover_low_reynolds_loss_proxy", "x"),
+            ("max_low_reynolds_loss_proxy", "x"),
+            ("max_compressibility_thrust_scale", "x"),
+        ):
+            rows.append({"category": "atmosphere_reynolds_mach", "name": name, "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
     for item in barometer_summary.get("sensor_rows", []):
         sensor_row = item  # type: ignore[assignment]
         for metric, unit in (
@@ -1996,6 +2524,7 @@ def write_markdown(
     vrs_rows: list[dict[str, float | str]],
     battery_ir_rows: list[dict[str, float | str]],
     battery_temp_rows: list[dict[str, float | str]],
+    motor_thermal_summary: dict[str, object],
     coaxial_rows: list[dict[str, float | str]],
     motor_response_rows: list[dict[str, float | str]],
     inertia_rows: list[dict[str, float | str]],
@@ -2003,6 +2532,7 @@ def write_markdown(
     timing_rows: list[dict[str, float | str]],
     imu_rows: list[dict[str, float | str]],
     wind_rows: list[dict[str, float | str]],
+    atmosphere_rows: list[dict[str, float | str]],
     barometer_summary: dict[str, object],
     blackbox_summary: dict[str, object],
     mendeley_ecm: dict[str, object],
@@ -2027,11 +2557,18 @@ def write_markdown(
     racing_imu_mpu6000 = next(row for row in imu_rows if row["preset"] == "racingQuad" and row["sensor"] == "MPU-6000/MPU-6050")
     racing_imu_icm42688 = next(row for row in imu_rows if row["preset"] == "racingQuad" and row["sensor"] == "ICM-42688-P")
     wind_case = next(row for row in wind_rows if float(row["dirty_air"]) == 1.5 and float(row["wind_speed_m_s"]) == 10.0)
+    racing_atmos_cold = next(row for row in atmosphere_rows if row["preset"] == "racingQuad" and row["scenario"] == "cold_sea_level_-10c")
+    racing_atmos_hot_high = next(row for row in atmosphere_rows if row["preset"] == "racingQuad" and row["scenario"] == "mountain_3000m_hot_30c")
+    cine_atmos_hot_high = next(row for row in atmosphere_rows if row["preset"] == "cinewhoop" and row["scenario"] == "mountain_3000m_hot_30c")
     racing_baro_noise = next(row for row in barometer_summary.get("preset_noise_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
     baro_aligned_20 = next(row for row in barometer_summary.get("dynamic_rows", []) if row["mode"] == "aligned" and float(row["airspeed_m_s"]) == 20.0)  # type: ignore[index]
     baro_best_sensor = min(barometer_summary.get("sensor_rows", []), key=lambda row: float(row["pressure_noise_altitude_m"]))  # type: ignore[arg-type]
     battery_0c = next(row for row in battery_temp_rows if float(row["battery_temperature_c"]) == 0.0)
     battery_70c = next(row for row in battery_temp_rows if float(row["battery_temperature_c"]) == 70.0)
+    u8_36v_thermal = next(row for row in motor_thermal_summary.get("u8_rows", []) if row["name"] == "U8_Kv100_36V")  # type: ignore[index]
+    racing_thermal = next(row for row in motor_thermal_summary.get("current_rows", []) if row["name"] == "racingQuad")  # type: ignore[index]
+    copper_125c = next(row for row in motor_thermal_summary.get("copper_rows", []) if float(row["temperature_c"]) == 125.0)  # type: ignore[index]
+    copper_180c = next(row for row in motor_thermal_summary.get("copper_rows", []) if float(row["temperature_c"]) == 180.0)  # type: ignore[index]
     racing_erpm = next(row for row in blackbox_summary.get("erpm_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
     betaflight_log = next((row for row in blackbox_summary.get("header_rows", []) if row["name"] == "Betaflight issue LOG00078"), None)  # type: ignore[index]
     lines: list[str] = []
@@ -2046,6 +2583,8 @@ def write_markdown(
     lines.append(f"- The current `racingQuad` rotor coefficient is `{fmt(float(racing['k_n_per_rad2']))}` N/(rad/s)^2. UIUC 5-inch three-blade prop data averages `{fmt(uiuc_5_k)}`, and Mini Quad Test Bench 5-inch FPV motor/prop rows average `{fmt(mqtb_5_k)}`. That puts the current coefficient at `{fmt(racing_to_mqtb, 2)}x` of the FPV bench mean and `{fmt(racing_to_uiuc, 2)}x` of the UIUC 5-inch mean.")
     lines.append(f"- With the current coefficient, `racingQuad` reaches `{fmt(float(racing['max_thrust_n']))}` N per rotor at `{fmt(float(racing['max_rpm_from_k']))}` rpm. Using the Mini Quad Test Bench mean coefficient, the same thrust would require about `{fmt(rpm_from_k_thrust(mqtb_5_k, float(racing['max_thrust_n'])))}` rpm.")
     lines.append(f"- The current `racingQuad` tip Mach at max thrust is `{fmt(float(racing['tip_mach_at_max']), 2)}`. Using FPV bench k for the same thrust and radius would put tip Mach near `{fmt((rpm_from_k_thrust(mqtb_5_k, float(racing['max_thrust_n'])) * 2.0 * math.pi / 60.0) * float(racing['radius_m']) / SPEED_OF_SOUND_25C, 2)}`.")
+    lines.append(f"- In cold sea-level air (`-10 C`), the same `racingQuad` max RPM reaches tip Mach `{fmt(float(racing_atmos_cold['max_tip_mach']), 2)}` because speed of sound falls to `{fmt(float(racing_atmos_cold['speed_of_sound_m_s']))}` m/s. In a hot 3000 m case (`30 C`), standard-atmosphere density ratio is `{fmt(float(racing_atmos_hot_high['density_ratio']), 3)}`, so the same-thrust RPM scale is `{fmt(float(racing_atmos_hot_high['same_thrust_rpm_scale']), 3)}x` before battery/motor limits.")
+    lines.append(f"- The low-Reynolds proxy is currently a small-prop feature: `racingQuad` max low-Re loss remains `{fmt(float(racing_atmos_hot_high['max_low_reynolds_loss_proxy']), 3)}` in the hot 3000 m case because the 5-inch radius gates it out, while `cinewhoop` reaches `{fmt(float(cine_atmos_hot_high['max_low_reynolds_loss_proxy']), 3)}` max-loss proxy under the same density/temperature.")
     lines.append(f"- For the HQ v1s 5x4x3 bench rows, fitted motor current is approximately `I = {fmt(battery['current_a'])} * T^{fmt(battery['current_b'])}` where `T` is per-motor thrust in newtons. This estimates racing hover current near `{fmt(battery['hover_total_current_a'])}` A for four motors before avionics.")
     lines.append(f"- At the current `racingQuad` battery resistance of 0.018 ohm, the fitted hover current implies about `{fmt(battery['hover_sag_v'])}` V pack sag. The 90 A current limit implies `{fmt(battery['limit_per_motor_thrust_n'])}` N per rotor on the fitted HQ prop curve, below the configured `{fmt(float(racing['max_thrust_n']))}` N per rotor.")
     lines.append(f"- The ZJU ground-effect/motor-calibration source reports single-rotor `k_T = {fmt(float(zju_single['k_t_n_per_rpm2']))}` N/rpm^2, which converts to `{fmt(float(zju_single['k_n_per_rad2']))}` N/(rad/s)^2, with `Q/T = {fmt(float(zju_single['qt_m']), 4)}` m. The `Q/T` value is close to this project's 5-inch yaw torque order of magnitude.")
@@ -2055,6 +2594,8 @@ def write_markdown(
     if mendeley_ecm.get("available"):
         lines.append(f"- The extracted Mendeley LP-503562-IS-3 ECM fit summary has `{int(float(mendeley_ecm['row_count']))}` fitted-cycle files across `{int(float(mendeley_ecm['pack_count']))}` packs. Mean fitted `RO` spans `{fmt(float(mendeley_ecm['r0_mean_min_ohm']) * 1000.0)}-{fmt(float(mendeley_ecm['r0_mean_max_ohm']) * 1000.0)}` mOhm/cell, and low-SOC `RO` averages `{fmt(float(mendeley_ecm['low_soc_over_high_soc_avg']), 3)}x` high-SOC `RO`; use this for SOC/SOH shape, not FPV high-C absolute ESR.")
     lines.append(f"- `racingQuad.motor_tau` is `{fmt(float(racing_motor_response['motor_tau_s']), 4)}` s, about `{fmt(float(racing_motor_response['motor_tau_vs_ref_up']), 2)}x` RotorS/PX4 `timeConstantUp` and `{fmt(float(racing_motor_response['motor_tau_vs_ref_down']), 2)}x` `timeConstantDown`. That is defensible if it includes ESC/load/voltage effects, but it is slower than the simple open-source actuator lag reference.")
+    lines.append(f"- The U8/Kv100 open dyno processed maps reach `{fmt(float(u8_36v_thermal['temperature_max_c']))}` C max reported temperature and `{fmt(float(u8_36v_thermal['loss_max_w']))}` W max loss in the 36 V map. Current `racingQuad` starts motor limiting at `{fmt(float(racing_thermal['motor_limit_c']), 0)}` C and cuts to the minimum thermal scale by `{fmt(float(racing_thermal['motor_cutoff_c']), 0)}` C; its full-power no-airspeed proxy steady motor rise is `{fmt(float(racing_thermal['motor_full_steady_rise_c']))}` C above ambient, so sustained full throttle should thermally limit.")
+    lines.append(f"- The current copper winding coefficient `0.0039 / C` gives resistance scales of `{fmt(float(copper_125c['resistance_scale_vs_25c']), 2)}x` at 125 C and `{fmt(float(copper_180c['resistance_scale_vs_25c']), 2)}x` at 180 C. That supports the direction of hot-winding torque/current loss, though actual FPV motor winding temperature needs telemetry or bench data.")
     lines.append(f"- `racingQuad` radius of gyration is `rx/ry/rz = {fmt(float(racing_inertia['rg_x_m']))}/{fmt(float(racing_inertia['rg_y_m']))}/{fmt(float(racing_inertia['rg_z_m']))}` m, with yaw-axis inertia about `{fmt(float(racing_inertia['yaw_to_roll_pitch_inertia_ratio']), 2)}x` the roll/pitch-axis mean. That is close to RotorS Hummingbird/PX4 Iris scale after mass normalization, so the base inertia order looks plausible.")
     drag_note = f"`racingQuad` base drag at 10 m/s is `{fmt(float(racing_drag_10['axis_x_drag_force_n']))}` N on body X and `{fmt(float(racing_drag_10['axis_z_drag_force_n']))}` N on body Z before separated-flow additions, equal to `{fmt(float(racing_drag_10['axis_x_drag_over_weight']), 2)}x` and `{fmt(float(racing_drag_10['axis_z_drag_over_weight']), 2)}x` vehicle weight."
     if rotorpy_drag_10 is not None:
@@ -2138,9 +2679,34 @@ def write_markdown(
     lines.append("")
     lines.append("The important warning is formula-level: the current linear coefficient is already a quadratic force term, not a small Stokes-like linear damping term. For `racingQuad`, `linear + body-X` gives an equivalent `CdA` above half a square meter and several vehicle weights of drag by 10 m/s, before separated-flow additions. If this is meant to model real aerodynamic body drag, it is very high; if it is a gameplay stability damper, it should be documented as such and kept separate from physical CdA claims.")
     lines.append("")
-    lines.append("## Wind, turbulence, and atmosphere sanity")
+    lines.append("## Standard atmosphere, Reynolds, and tip Mach sanity")
     lines.append("")
-    lines.append(f"References: [NASA standard atmosphere]({NASA_ATMOSPHERE_URL}), [pyfly Dryden implementation]({PYFLY_DRYDEN_URL}), and [open UAV wind modeling survey]({UAV_WIND_MODELING_URL}). Generated wind CSV: `docs/data/wind_gust_dryden_reference.csv`.")
+    lines.append(f"References: [NASA standard atmosphere]({NASA_ATMOSPHERE_URL}), [NASA speed of sound]({NASA_SOUND_URL}), [NASA Sutherland viscosity model]({NASA_VISCOSITY_URL}), [U.S. Standard Atmosphere 1976]({US_STANDARD_ATMOSPHERE_URL}), and the UIUC Reynolds-number propeller reference listed in the source packet. Generated atmosphere CSV: `docs/data/atmosphere_reynolds_mach_summary.csv`.")
+    lines.append("")
+    lines.append("The table mirrors the current Java formulas for standard-atmosphere pressure ratio, density ratio, speed of sound, and Sutherland-law dynamic viscosity. The `Re75` column is a proxy using 75% span speed and a representative chord of `0.12R` scaled by the project's pitch/chord proxy; the `code Re index` and `low-Re loss` columns mirror the current low-Reynolds model path more directly.")
+    lines.append("")
+    lines.append("| Scenario | Preset | altitude/temp | density ratio | sound | mu ratio | RPM scale | max Mach | max Re75 proxy | max code Re index | max low-Re loss | max compressibility thrust |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in atmosphere_rows:
+        if row["preset"] not in ("racingQuad", "cinewhoop", "heavyLift"):
+            continue
+        if row["scenario"] not in ("sea_level_isa", "project_default_25c", "cold_sea_level_-10c", "hot_sea_level_38c", "mountain_3000m_isa", "mountain_3000m_hot_30c"):
+            continue
+        lines.append(
+            f"| {row['scenario']} | {row['preset']} | "
+            f"{fmt(float(row['altitude_m']), 0)} m / {fmt(float(row['ambient_temperature_c']), 1)} C | "
+            f"{fmt(float(row['density_ratio']), 3)} | {fmt(float(row['speed_of_sound_m_s']))} m/s | "
+            f"{fmt(float(row['viscosity_ratio_25c']), 3)} | {fmt(float(row['same_thrust_rpm_scale']), 3)}x | "
+            f"{fmt(float(row['max_tip_mach']), 3)} | {fmt(float(row['max_reynolds_75r_proxy']), 0)} | "
+            f"{fmt(float(row['max_code_reynolds_index']), 3)} | {fmt(float(row['max_low_reynolds_loss_proxy']), 3)} | "
+            f"{fmt(float(row['max_compressibility_thrust_scale']), 3)}x |"
+        )
+    lines.append("")
+    lines.append("Two modeling notes fall out of this: first, a density ratio below 1 raises required RPM roughly by `1/sqrt(rho_ratio)` for the same thrust, which quickly eats motor/battery headroom at high density altitude. Second, cold air lowers speed of sound, so a fixed max RPM can move closer to the compressibility onset even though cold dense air helps thrust.")
+    lines.append("")
+    lines.append("## Wind and turbulence sanity")
+    lines.append("")
+    lines.append(f"References: [pyfly Dryden implementation]({PYFLY_DRYDEN_URL}) and [open UAV wind modeling survey]({UAV_WIND_MODELING_URL}). Generated wind CSV: `docs/data/wind_gust_dryden_reference.csv`.")
     lines.append("")
     lines.append("The Dryden rows use the common low-altitude formulas at 6 m altitude and take `wind20` equal to the scenario wind speed. The current model rows estimate target-gust RMS from the scaled dirty-air burble plus Dryden target before vehicle response and first-order filtering; the runtime implementation drives the Dryden part with a reproducible colored-noise process.")
     lines.append("")
@@ -2214,6 +2780,49 @@ def write_markdown(
             f"{fmt(float(row['motor_tau_vs_ref_down']), 2)}x | "
             f"{fmt(float(row['inflow_tau_vs_ref_up']), 2)}x |"
         )
+    lines.append("")
+    lines.append("## Motor, ESC, and winding thermal sanity")
+    lines.append("")
+    lines.append(f"Sources: [U8/Kv100 processed dyno data]({U8_DYNO_REPO_URL}), [related Actuators paper page]({U8_DYNO_PAPER_URL}), [copper temperature-coefficient reference]({COPPER_TEMP_COEFF_SOURCE_URL}), [NEMA MG-1 insulation-temperature context]({NEMA_MOTOR_INSULATION_URL}), and [Infineon power MOSFET junction-temperature context]({INFINEON_MOSFET_THERMAL_URL}). Generated thermal CSV: `{motor_thermal_summary['summary_csv']}`.")
+    lines.append("")
+    lines.append("The U8/Kv100 data is a larger motor/driver dyno map, not an FPV 2306 motor. It is useful here as an open processed BLDC motor/driver efficiency, loss, and maximum-temperature reference. The current-preset table mirrors this project's thermal equations using sea-level density and no obstruction/recirculation; steady rises are model proxies, not lab measurements.")
+    lines.append("")
+    lines.append("| U8 map | voltage | max temp | loss mean/max | motor eff max | driver eff max | rpm max | torque max | current max | max-temp point current/rpm/torque |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in motor_thermal_summary.get("u8_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| {item['name']} | {fmt(float(item['voltage_v']), 0)} V | "
+            f"{fmt(float(item['temperature_max_c']))} C | "
+            f"{fmt(float(item['loss_mean_w']))}/{fmt(float(item['loss_max_w']))} W | "
+            f"{fmt(float(item['motor_efficiency_max']), 3)} | {fmt(float(item['driver_efficiency_max']), 3)} | "
+            f"{fmt(float(item['rpm_max']), 0)} | {fmt(float(item['torque_max_nm']))} N*m | "
+            f"{fmt(float(item['current_max_a']))} A | "
+            f"{fmt(float(item['max_temp_current_a']))} A / {fmt(float(item['max_temp_rpm']), 0)} rpm / {fmt(float(item['max_temp_torque_nm']))} N*m |"
+        )
+    lines.append("")
+    lines.append("| Preset | rise/cooling | motor limit/cutoff | ESC limit/cutoff | tau base/full | hover/full steady motor rise | full ESC rise proxy | inferred winding R | R scale limit/cutoff |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in motor_thermal_summary.get("current_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| {item['name']} | {fmt(float(item['thermal_rise_c_s']))} C/s / {fmt(float(item['cooling_rate_s']), 3)} 1/s | "
+            f"{fmt(float(item['motor_limit_c']), 0)}/{fmt(float(item['motor_cutoff_c']), 0)} C | "
+            f"{fmt(float(item['esc_limit_c']), 0)}/{fmt(float(item['esc_cutoff_c']), 0)} C | "
+            f"{fmt(float(item['motor_base_time_constant_s']))}/{fmt(float(item['motor_full_wash_time_constant_s']))} s | "
+            f"{fmt(float(item['motor_hover_steady_rise_proxy_c']))}/{fmt(float(item['motor_full_steady_rise_c']))} C | "
+            f"{fmt(float(item['esc_full_current_steady_rise_proxy_c']))} C | "
+            f"{fmt(float(item['inferred_winding_resistance_25c_ohm']))} ohm | "
+            f"{fmt(float(item['winding_resistance_scale_at_limit']), 2)}x/{fmt(float(item['winding_resistance_scale_at_cutoff']), 2)}x |"
+        )
+    lines.append("")
+    lines.append("| Copper temp | resistance scale vs 25 C |")
+    lines.append("|---:|---:|")
+    for row in motor_thermal_summary.get("copper_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(f"| {fmt(float(item['temperature_c']), 0)} C | {fmt(float(item['resistance_scale_vs_25c']), 3)}x |")
+    lines.append("")
+    lines.append("The copper coefficient validates the sign and order of the hot-winding resistance model: by common motor temperature limits, winding resistance is already tens of percent above its 25 C value. The exact thermal rise/cooling constants remain gameplay/model coefficients until matched to FPV motor temperature telemetry or a 2306/2806 bench with thermocouple/IR measurements.")
     lines.append("")
     lines.append("## RPM, filtering, and command timing sanity")
     lines.append("")
@@ -2484,8 +3093,12 @@ def main() -> None:
         BATTERY_UNIVERSITY_TEMPERATURE_URL,
         BATTERY_UNIVERSITY_IR_URL,
         NASA_ATMOSPHERE_URL,
+        NASA_SOUND_URL,
+        NASA_VISCOSITY_URL,
+        US_STANDARD_ATMOSPHERE_URL,
         PYFLY_DRYDEN_URL,
         UAV_WIND_MODELING_URL,
+        U8_DYNO_REPO_URL,
         BETAFLIGHT_RPM_FILTER_URL,
         BETAFLIGHT_PID_TUNING_URL,
         EXPRESSLRS_PACKET_URL,
@@ -2587,6 +3200,7 @@ def main() -> None:
     vrs_rows = summarize_vrs(presets)
     battery_ir_rows = summarize_battery_ir(presets)
     battery_temp_rows = summarize_battery_temperature_derating(presets)
+    motor_thermal_summary = summarize_motor_esc_thermal(presets)
     coaxial_rows = summarize_coaxial_spacing(presets)
     motor_response_rows = summarize_motor_response(presets, open_models)
     inertia_rows = summarize_inertia_geometry(presets, open_models)
@@ -2594,6 +3208,7 @@ def main() -> None:
     timing_rows = summarize_timing_vibration(presets)
     imu_rows = summarize_imu_noise(presets)
     wind_rows = summarize_wind_gust()
+    atmosphere_rows = summarize_atmosphere_reynolds(presets)
     barometer_summary = summarize_barometer(presets)
     blackbox_summary = summarize_blackbox_sources(timing_rows)
     mendeley_ecm = summarize_mendeley_ecm()
@@ -2618,8 +3233,8 @@ def main() -> None:
         ]
     )
 
-    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
-    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, motor_thermal_summary, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, atmosphere_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, motor_thermal_summary, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, atmosphere_rows, barometer_summary, blackbox_summary, mendeley_ecm)
     print("Wrote docs/fpv-sim-model-validation.md")
     print("Wrote docs/data/fpv_model_validation_summary.csv")
     print("Wrote docs/data/blackbox_log_header_summary.csv")
@@ -2627,6 +3242,8 @@ def main() -> None:
     print("Wrote docs/data/wind_gust_dryden_reference.csv")
     print("Wrote docs/data/barometer_reference_summary.csv")
     print("Wrote docs/data/battery_temperature_derating_summary.csv")
+    print("Wrote docs/data/atmosphere_reynolds_mach_summary.csv")
+    print("Wrote docs/data/motor_esc_thermal_reference.csv")
     print(f"Cached raw sources in {RAW}")
 
 

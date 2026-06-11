@@ -217,13 +217,24 @@ This source is particularly useful for `bodyDragCoefficients` because RotorPy's 
 Useful sources:
 
 - [NASA Glenn atmosphere equations](https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html)
+- [NASA Glenn speed of sound equation](https://www.grc.nasa.gov/www/BGH/sound.html)
+- [NASA Glenn Sutherland viscosity model](https://www.grc.nasa.gov/www/BGH/viscosity.html)
 - [NOAA/NASA/USAF U.S. Standard Atmosphere 1976, PDF](https://ntrs.nasa.gov/citations/19770009539)
 
 Values relevant to `DronePhysics`:
 
 - Sea-level standard density is conventionally `1.225 kg/m^3`, matching `SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER`.
 - Standard gravity `9.80665 m/s^2` matches the project preset value.
-- Sutherland-law constants around `110.4 K` for air are consistent with the project's `AIR_SUTHERLAND_CONSTANT_KELVIN`.
+- Standard sea-level temperature `288.15 K`, lapse rate `0.0065 K/m`, and pressure exponent about `5.255` match `DroneEnvironment.standardAtmospherePressureRatio`.
+- The speed-of-sound path `sqrt(gamma * R * T)` with `gamma = 1.4` and `R = 287.05 J/(kg*K)` matches `DroneEnvironment.speedOfSoundMetersPerSecond`.
+- Sutherland-law constants for air around `S = 110.4 K` and `beta = 1.458e-6 kg/(s*m*K^0.5)` are consistent with the project's `AIR_SUTHERLAND_CONSTANT_KELVIN` and viscosity-ratio path.
+
+Generated atmosphere file:
+
+- `docs/data/atmosphere_reynolds_mach_summary.csv` compares current presets across ISA sea level, 25 C project default, cold sea level, hot sea level, 1500 m, 3000 m ISA, and 3000 m hot cases.
+- In the hot 3000 m / 30 C stress case, the generated standard-atmosphere density ratio is `0.658`, so a simple `T proportional rho * omega^2` model needs `1.233x` RPM for the same thrust before battery/motor limits.
+- In the cold sea-level / -10 C case, `racingQuad` max tip Mach rises to about `0.60` because speed of sound drops to about `325 m/s`.
+- The current low-Reynolds loss path is size-gated: `racingQuad` stays at `0.000` low-Re loss in the hot 3000 m case, while `cinewhoop` reaches `1.000` in the same generated proxy calculation.
 
 ### Wind, turbulence, and gusts
 
@@ -349,6 +360,22 @@ MiniQuad Test Bench voltage/current examples for one 2306 motor and HQ v1s 5x4x3
 | 783 g | 15.2 A | 15.89 V |
 
 These rows can help validate per-motor current and voltage-sag scale. They do not by themselves identify pack internal resistance because test-stand supply, wiring, ESC, and measurement setup are coupled.
+
+## Motor and ESC thermal references
+
+Useful sources:
+
+- [U8 Kv100 dyno processed data](https://github.com/thhsieh/U8-Kv100-Dyno-Data)
+- [Related Actuators paper page](https://www.mdpi.com/2076-0825/12/8/318)
+- [Copper temperature coefficient reference](https://www.copper.org/resources/properties/129_8/)
+- [NEMA MG-1 motor insulation-temperature context](https://www.nema.org/docs/default-source/technical-document-library/motors-and-generators-standard-mg-1.pdf)
+- [Infineon MOSFET thermal context](https://www.infineon.com/dgdl/Infineon-IRL40SC228-DataSheet-v01_00-EN.pdf?fileId=5546d46269e1c019016a04b42abd1c9a)
+
+Generated thermal file:
+
+- `docs/data/motor_esc_thermal_reference.csv` summarizes the open U8 processed temperature/loss/efficiency maps, current preset motor/ESC thermal limits and cooling proxies, and copper winding resistance scaling versus temperature.
+- The U8 dyno is a larger motor and driver than an FPV 2306-class setup, so treat it as an open BLDC thermal/efficiency scale reference rather than direct parameter data.
+- The current preset rows mirror this project's thermal equations under sea-level, unobstructed conditions; measured FPV motor winding temperature and ESC case/junction telemetry would still be the best calibration source.
 
 ## Sensor, filtering, and control references
 
