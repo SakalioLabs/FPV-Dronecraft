@@ -17,6 +17,10 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = 0.115;
+	private static final double COAXIAL_COMMAND_MAP_REFERENCE_SPACING_RATIO = 0.72;
+	// Averaged from the New Dexterity z/D=0.72 command-envelope lookup and capped by the runtime bias limit.
+	private static final double[] COAXIAL_COMMAND_MAP_LOAD_FRACTIONS = {0.35, 0.60, 0.85};
+	private static final double[] COAXIAL_COMMAND_MAP_LOAD_BIASES = {0.067, 0.115, 0.070};
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
@@ -5377,11 +5381,56 @@ public final class DronePhysics {
 		double wakeWindow = 0.35 + 0.65 * smoothStep(0.08, 0.55, lowerWake);
 		double lowerLoss = Math.max(0.0, 1.0 - state.rotorWakeThrustScale(lowerIndex));
 		double lossWindow = 0.75 + 0.25 * smoothStep(0.02, 0.12, lowerLoss);
+		double spacingBiasTarget = COAXIAL_LOAD_BIAS_MAX
+				* spacingWindow
+				* loadWindow
+				* upperHeadroom
+				* wakeWindow
+				* lossWindow;
+		double commandMapBiasTarget = coaxialCommandMapLoadBias(spacingRatio, loadFraction)
+				* upperHeadroom
+				* wakeWindow
+				* lossWindow;
 		return MathUtil.clamp(
-				COAXIAL_LOAD_BIAS_MAX * spacingWindow * loadWindow * upperHeadroom * wakeWindow * lossWindow,
+				Math.max(spacingBiasTarget, commandMapBiasTarget),
 				0.0,
 				COAXIAL_LOAD_BIAS_MAX
 		);
+	}
+
+	private static double coaxialCommandMapLoadBias(double spacingRatio, double loadFraction) {
+		double spacingWindow = coaxialSpacingGaussian(
+				spacingRatio,
+				COAXIAL_COMMAND_MAP_REFERENCE_SPACING_RATIO,
+				0.105
+		);
+		if (spacingWindow <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double boundedLoadFraction = MathUtil.clamp(loadFraction, 0.0, 1.0);
+		double lookupBias = COAXIAL_COMMAND_MAP_LOAD_BIASES[COAXIAL_COMMAND_MAP_LOAD_BIASES.length - 1];
+		if (boundedLoadFraction <= COAXIAL_COMMAND_MAP_LOAD_FRACTIONS[0]) {
+			lookupBias = COAXIAL_COMMAND_MAP_LOAD_BIASES[0];
+		} else {
+			for (int i = 1; i < COAXIAL_COMMAND_MAP_LOAD_FRACTIONS.length; i++) {
+				double upperLoad = COAXIAL_COMMAND_MAP_LOAD_FRACTIONS[i];
+				if (boundedLoadFraction <= upperLoad) {
+					double lowerLoad = COAXIAL_COMMAND_MAP_LOAD_FRACTIONS[i - 1];
+					double amount = (boundedLoadFraction - lowerLoad) / (upperLoad - lowerLoad);
+					lookupBias = MathUtil.lerp(
+							COAXIAL_COMMAND_MAP_LOAD_BIASES[i - 1],
+							COAXIAL_COMMAND_MAP_LOAD_BIASES[i],
+							amount
+					);
+					break;
+				}
+			}
+		}
+
+		double activeLoad = smoothStep(0.18, 0.32, boundedLoadFraction)
+				* (1.0 - smoothStep(0.92, 1.0, boundedLoadFraction));
+		return MathUtil.clamp(lookupBias * spacingWindow * activeLoad, 0.0, COAXIAL_LOAD_BIAS_MAX);
 	}
 
 	private static double coaxialBenchmarkSpacingEfficiencyWindow(double spacingRatio) {

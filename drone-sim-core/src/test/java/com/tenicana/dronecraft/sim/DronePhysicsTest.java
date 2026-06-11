@@ -540,6 +540,46 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coaxialCommandMapLoadBiasInterpolatesRuntimeLookup() throws ReflectiveOperationException {
+		Method commandMapBias = DronePhysics.class.getDeclaredMethod(
+				"coaxialCommandMapLoadBias",
+				double.class,
+				double.class
+		);
+		commandMapBias.setAccessible(true);
+
+		double lightLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.35);
+		double mediumLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.60);
+		double highLoadBias = (double) commandMapBias.invoke(null, 0.72, 0.85);
+		double offSpacingBias = (double) commandMapBias.invoke(null, 0.55, 0.60);
+
+		assertEquals(0.067, lightLoadBias, 1.0e-3);
+		assertEquals(0.115, mediumLoadBias, 1.0e-3);
+		assertEquals(0.070, highLoadBias, 1.0e-3);
+		assertTrue(mediumLoadBias > lightLoadBias + 0.040);
+		assertTrue(mediumLoadBias > highLoadBias + 0.040);
+		assertTrue(offSpacingBias < mediumLoadBias * 0.10);
+	}
+
+	@Test
+	void coaxialX8RuntimeCommandMapPriorStrengthensCurrentSpacing() {
+		DroneConfig base = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		double valleyBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 0.55), 0.16);
+		double currentSpacingBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 0.72), 0.16);
+		double farSpacingBias = settledCoaxialLoadBias(withCoaxialX8Spacing(base, 1.00), 0.16);
+
+		assertTrue(currentSpacingBias > 0.080,
+				() -> "currentSpacingBias=" + currentSpacingBias);
+		assertTrue(currentSpacingBias > valleyBias + 0.030,
+				() -> "currentSpacingBias=" + currentSpacingBias + " valleyBias=" + valleyBias);
+		assertTrue(currentSpacingBias > farSpacingBias + 0.020,
+				() -> "currentSpacingBias=" + currentSpacingBias + " farSpacingBias=" + farSpacingBias);
+	}
+
+	@Test
 	void asymmetricStackedWakeSwirlAddsHubMoment() {
 		PidGains passiveGains = new PidGains(0.0, 0.0, 0.0, 0.0);
 		DroneConfig base = withCommonGains(directControl(DroneConfig.octoLift()), passiveGains)
