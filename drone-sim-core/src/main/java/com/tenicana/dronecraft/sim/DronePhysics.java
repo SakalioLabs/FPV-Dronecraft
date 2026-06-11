@@ -5187,6 +5187,7 @@ public final class DronePhysics {
 		state.setGroundEffectDragForceBodyNewtons(groundEffectDragBody);
 		Vec3 thrustWorld = state.orientation().rotate(totalForceBody.add(airframeLiftBody).add(groundEffectDragBody).add(rotorWashDragBody));
 		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * relativeAirVelocity.length() * effectiveAirDensity);
+		state.setLinearDampingDragForceWorldNewtons(isotropicDrag);
 		Vec3 waterDrag = calculateWaterImmersionDragForce(velocity, environment);
 		Vec3 drag = state.orientation().rotate(bodyDrag).add(isotropicDrag).add(waterDrag);
 		Vec3 acceleration = thrustWorld.add(gravity).add(drag).multiply(1.0 / config.massKg());
@@ -5203,6 +5204,7 @@ public final class DronePhysics {
 		Vec3 target = calculateSteadyAirframeBodyDragForce(relativeAirVelocityBody, airDensityRatio);
 		if (dtSeconds <= 0.0) {
 			airframeDragForceBodyFiltered = target;
+			state.setAirframeBodyDragForceBodyNewtons(airframeDragForceBodyFiltered);
 			return airframeDragForceBodyFiltered;
 		}
 
@@ -5220,6 +5222,7 @@ public final class DronePhysics {
 		if (targetMagnitude <= 1.0e-6 && airframeDragForceBodyFiltered.lengthSquared() < 1.0e-8) {
 			airframeDragForceBodyFiltered = Vec3.ZERO;
 		}
+		state.setAirframeBodyDragForceBodyNewtons(airframeDragForceBodyFiltered);
 		return airframeDragForceBodyFiltered;
 	}
 

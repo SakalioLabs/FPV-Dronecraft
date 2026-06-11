@@ -141,6 +141,8 @@ public final class DroneState {
 	private double angleOfAttackRadians;
 	private double sideslipRadians;
 	private double airframeSeparatedFlowIntensity;
+	private Vec3 airframeBodyDragForceBodyNewtons = Vec3.ZERO;
+	private Vec3 linearDampingDragForceWorldNewtons = Vec3.ZERO;
 	private Vec3 airframeLiftForceBodyNewtons = Vec3.ZERO;
 	private Vec3 groundEffectDragForceBodyNewtons = Vec3.ZERO;
 	private Vec3 rotorWashDragForceBodyNewtons = Vec3.ZERO;
@@ -1261,6 +1263,8 @@ public final class DroneState {
 		rotorGyroscopicTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorAngularDragTorqueBodyNewtonMeters = Vec3.ZERO;
 		airframeSeparatedFlowIntensity = 0.0;
+		airframeBodyDragForceBodyNewtons = Vec3.ZERO;
+		linearDampingDragForceWorldNewtons = Vec3.ZERO;
 		propwashIntensity = 0.0;
 		propwashWakeIntensity = 0.0;
 		propwashTorqueBodyNewtonMeters = Vec3.ZERO;
@@ -2186,6 +2190,22 @@ public final class DroneState {
 
 	void setAirframeSeparatedFlowIntensity(double airframeSeparatedFlowIntensity) {
 		this.airframeSeparatedFlowIntensity = MathUtil.clamp(airframeSeparatedFlowIntensity, 0.0, 1.0);
+	}
+
+	public Vec3 airframeBodyDragForceBodyNewtons() {
+		return airframeBodyDragForceBodyNewtons;
+	}
+
+	void setAirframeBodyDragForceBodyNewtons(Vec3 airframeBodyDragForceBodyNewtons) {
+		this.airframeBodyDragForceBodyNewtons = airframeBodyDragForceBodyNewtons == null ? Vec3.ZERO : airframeBodyDragForceBodyNewtons;
+	}
+
+	public Vec3 linearDampingDragForceWorldNewtons() {
+		return linearDampingDragForceWorldNewtons;
+	}
+
+	void setLinearDampingDragForceWorldNewtons(Vec3 linearDampingDragForceWorldNewtons) {
+		this.linearDampingDragForceWorldNewtons = linearDampingDragForceWorldNewtons == null ? Vec3.ZERO : linearDampingDragForceWorldNewtons;
 	}
 
 	public Vec3 airframeLiftForceBodyNewtons() {

@@ -556,6 +556,14 @@ public final class DroneBlackboxSample {
 			"airframe_lift_y_n",
 			"airframe_lift_z_n",
 			"airframe_lift_n",
+			"airframe_body_drag_x_n",
+			"airframe_body_drag_y_n",
+			"airframe_body_drag_z_n",
+			"airframe_body_drag_n",
+			"linear_damping_drag_x_n",
+			"linear_damping_drag_y_n",
+			"linear_damping_drag_z_n",
+			"linear_damping_drag_n",
 			"ground_effect_drag_x_n",
 			"ground_effect_drag_y_n",
 			"ground_effect_drag_z_n",
@@ -839,6 +847,8 @@ public final class DroneBlackboxSample {
 		Vec3 pressureCenterTorque = state.airframePressureCenterTorqueBodyNewtonMeters();
 		Vec3 airframeAngularDragTorque = state.airframeAngularDragTorqueBodyNewtonMeters();
 		Vec3 airframeLift = state.airframeLiftForceBodyNewtons();
+		Vec3 airframeBodyDrag = state.airframeBodyDragForceBodyNewtons();
+		Vec3 linearDampingDrag = state.linearDampingDragForceWorldNewtons();
 		Vec3 groundEffectDrag = state.groundEffectDragForceBodyNewtons();
 		Vec3 rotorWashDrag = state.rotorWashDragForceBodyNewtons();
 		Vec3 rotorWallEffect = state.rotorWallEffectForceBodyNewtons();
@@ -1410,6 +1420,14 @@ public final class DroneBlackboxSample {
 		row.add(airframeLift.y(), "%.5f");
 		row.add(airframeLift.z(), "%.5f");
 		row.add(airframeLift.length(), "%.5f");
+		row.add(airframeBodyDrag.x(), "%.5f");
+		row.add(airframeBodyDrag.y(), "%.5f");
+		row.add(airframeBodyDrag.z(), "%.5f");
+		row.add(airframeBodyDrag.length(), "%.5f");
+		row.add(linearDampingDrag.x(), "%.5f");
+		row.add(linearDampingDrag.y(), "%.5f");
+		row.add(linearDampingDrag.z(), "%.5f");
+		row.add(linearDampingDrag.length(), "%.5f");
 		row.add(groundEffectDrag.x(), "%.5f");
 		row.add(groundEffectDrag.y(), "%.5f");
 		row.add(groundEffectDrag.z(), "%.5f");

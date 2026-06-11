@@ -179,6 +179,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("airframe_angular_drag_roll_torque_nm"));
 		assertTrue(csv.contains("airframe_separation"));
 		assertTrue(csv.contains("airframe_lift_n"));
+		assertTrue(csv.contains("airframe_body_drag_n"));
+		assertTrue(csv.contains("linear_damping_drag_n"));
 		assertTrue(csv.contains("ground_effect_drag_n"));
 		assertTrue(csv.contains("rotor_wash_drag_n"));
 		assertTrue(csv.contains("rotor_wall_effect_n"));
@@ -377,6 +379,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_angular_drag_roll_torque_nm")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "airframe_separation")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_lift_n")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_body_drag_n")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "linear_damping_drag_n")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "ground_effect_drag_n")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wash_drag_n")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wall_effect_n")]));

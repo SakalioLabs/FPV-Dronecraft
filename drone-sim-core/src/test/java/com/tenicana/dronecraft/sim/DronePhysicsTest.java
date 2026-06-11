@@ -4306,6 +4306,24 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void airframeDragTelemetrySeparatesBodyDragFromDamping() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics physics = new DronePhysics(config);
+		physics.state().setVelocityMetersPerSecond(new Vec3(10.0, 0.0, 0.0));
+
+		physics.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+
+		Vec3 bodyDrag = physics.state().airframeBodyDragForceBodyNewtons();
+		Vec3 dampingDrag = physics.state().linearDampingDragForceWorldNewtons();
+		assertTrue(bodyDrag.x() < -0.8, () -> "bodyDrag=" + bodyDrag);
+		assertEquals(0.0, bodyDrag.y(), 1.0e-9);
+		assertEquals(0.0, bodyDrag.z(), 1.0e-9);
+		assertEquals(-config.linearDragCoefficient() * 100.0, dampingDrag.x(), 0.25);
+		assertEquals(0.0, dampingDrag.y(), 1.0e-9);
+		assertEquals(0.0, dampingDrag.z(), 1.0e-9);
+	}
+
+	@Test
 	void rotorWashDragAppearsOnlyWithPoweredSlipstreamAndRelativeMotion() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
@@ -7017,6 +7035,8 @@ class DronePhysicsTest {
 		assertTrue(lines.size() > 200);
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_pitch_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_lift_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_body_drag_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("linear_damping_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ground_effect_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wash_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wall_effect_n"));
@@ -7233,6 +7253,8 @@ class DronePhysicsTest {
 		double loggedAirframeSeparation = Double.parseDouble(firstRow[indexOf(header, "airframe_separation")]);
 		assertTrue(loggedAirframeSeparation >= 0.0);
 		assertTrue(loggedAirframeSeparation <= 1.0);
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_body_drag_n")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "linear_damping_drag_n")])));
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) >= 0.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_pitch")]) <= 1.0);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "pid_integral_relax_yaw")]) >= 0.0);
