@@ -181,7 +181,7 @@ public record DroneConfig(
 				),
 				9.80665,
 				0.18,
-				new Vec3(0.13, 0.09, 0.20),
+				new Vec3(0.0025, 0.0020, 0.0045),
 				0.6,
 				0.18,
 				2.2,
@@ -263,7 +263,7 @@ public record DroneConfig(
 				),
 				9.80665,
 				0.26,
-				new Vec3(0.24, 0.15, 0.34),
+				new Vec3(0.0090, 0.0060, 0.0140),
 				0.75,
 				0.24,
 				1.6,
@@ -344,8 +344,8 @@ public record DroneConfig(
 						new RotorSpec(new Vec3(arm, 0.0, -arm), -1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss)
 				),
 				9.80665,
-				0.28,
-				new Vec3(0.32, 0.22, 0.42),
+				0.34,
+				new Vec3(0.0160, 0.0120, 0.0240),
 				1.2,
 				0.12,
 				1.5,
@@ -428,8 +428,8 @@ public record DroneConfig(
 						rotorAtDegrees(330.0, arm, -1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss)
 				),
 				9.80665,
-				0.30,
-				new Vec3(0.36, 0.24, 0.44),
+				0.32,
+				new Vec3(0.0180, 0.0130, 0.0250),
 				1.05,
 				0.11,
 				1.4,
@@ -514,8 +514,8 @@ public record DroneConfig(
 						rotorAtDegrees(337.5, arm, -1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss)
 				),
 				9.80665,
-				0.34,
-				new Vec3(0.45, 0.30, 0.54),
+				0.46,
+				new Vec3(0.0250, 0.0180, 0.0340),
 				1.15,
 				0.10,
 				1.2,
@@ -573,7 +573,7 @@ public record DroneConfig(
 		DroneConfig base = octoLift()
 				.withMassKg(7.2)
 				.withInertiaKgMetersSquared(new Vec3(0.245, 0.430, 0.255))
-				.withBodyDragCoefficients(new Vec3(0.50, 0.34, 0.58))
+				.withBodyDragCoefficients(new Vec3(0.0300, 0.0220, 0.0400))
 				.withAngularDragCoefficient(1.25)
 				.withRates(Math.toRadians(220.0), Math.toRadians(155.0), Math.toRadians(220.0));
 		RotorSpec rotor = base.rotors().get(0);

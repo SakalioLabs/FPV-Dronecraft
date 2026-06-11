@@ -5584,7 +5584,7 @@ public final class DronePhysics {
 		Vec3 groundEffectDragBody = updateGroundEffectDragForce(totalForceBody, velocityBody, environment, dtSeconds);
 		state.setGroundEffectDragForceBodyNewtons(groundEffectDragBody);
 		Vec3 thrustWorld = state.orientation().rotate(totalForceBody.add(airframeLiftBody).add(groundEffectDragBody).add(rotorWashDragBody));
-		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * relativeAirVelocity.length() * effectiveAirDensity);
+		Vec3 isotropicDrag = relativeAirVelocity.multiply(-config.linearDragCoefficient() * effectiveAirDensity);
 		state.setLinearDampingDragForceWorldNewtons(isotropicDrag);
 		Vec3 waterDrag = calculateWaterImmersionDragForce(velocity, environment);
 		Vec3 drag = state.orientation().rotate(bodyDrag).add(isotropicDrag).add(waterDrag);
@@ -5772,8 +5772,8 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		double baseHorizontalExposure = 0.055 * (drag.x() + drag.z());
-		double baseVerticalExposure = 0.040 * drag.y();
+		double baseHorizontalExposure = 0.75 * (drag.x() + drag.z());
+		double baseVerticalExposure = 0.55 * drag.y();
 		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
 		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
 		double sideslip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
@@ -5855,7 +5855,11 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		double lateralDragCoefficient = 0.18 * Math.sqrt(config.bodyDragCoefficients().x() * config.bodyDragCoefficients().z());
+		double lateralDragCoefficient = MathUtil.clamp(
+				2.4 * Math.sqrt(config.bodyDragCoefficients().x() * config.bodyDragCoefficients().z()),
+				0.0,
+				0.032
+		);
 		double densityScale = Math.max(0.0, environment.effectiveAirDensityRatio());
 		double cushionScale = proximity * proximity * rotorWash * densityScale;
 		double dragScale = lateralDragCoefficient * lateralSpeed * cushionScale;

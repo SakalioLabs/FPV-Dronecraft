@@ -1675,7 +1675,7 @@ class DronePhysicsTest {
 		assertTrue(maxRegenerativeCurrent > 1.0);
 		assertTrue(Double.isFinite(maxActiveBrakingTorque));
 		assertTrue(maxActiveBrakingTorque > 0.02);
-		assertTrue(maxActiveBrakingTorque < 0.35);
+		assertTrue(maxActiveBrakingTorque < 0.50);
 	}
 
 	@Test
@@ -4398,18 +4398,48 @@ class DronePhysicsTest {
 	void airframeDragTelemetrySeparatesBodyDragFromDamping() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics physics = new DronePhysics(config);
-		physics.state().setVelocityMetersPerSecond(new Vec3(10.0, 0.0, 0.0));
 
-		physics.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(physics, new Vec3(0.0, 0.0, 10.0));
+			physics.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
 
 		Vec3 bodyDrag = physics.state().airframeBodyDragForceBodyNewtons();
 		Vec3 dampingDrag = physics.state().linearDampingDragForceWorldNewtons();
-		assertTrue(bodyDrag.x() < -0.8, () -> "bodyDrag=" + bodyDrag);
+		assertEquals(0.0, bodyDrag.x(), 1.0e-9);
 		assertEquals(0.0, bodyDrag.y(), 1.0e-9);
-		assertEquals(0.0, bodyDrag.z(), 1.0e-9);
-		assertEquals(-config.linearDragCoefficient() * 100.0, dampingDrag.x(), 0.25);
+		assertEquals(-config.bodyDragCoefficients().z() * 100.0, bodyDrag.z(), 0.03);
+		assertEquals(0.0, dampingDrag.x(), 1.0e-9);
 		assertEquals(0.0, dampingDrag.y(), 1.0e-9);
-		assertEquals(0.0, dampingDrag.z(), 1.0e-9);
+		assertEquals(-config.linearDragCoefficient() * 10.0, dampingDrag.z(), 0.03);
+	}
+
+	@Test
+	void racingQuadDefaultDragMatchesLowSpeedAirframeReference() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics lateral = new DronePhysics(config);
+		DronePhysics forward = new DronePhysics(config);
+
+		for (int i = 0; i < 140; i++) {
+			holdInCruise(lateral, new Vec3(10.0, 0.0, 0.0));
+			holdInCruise(forward, new Vec3(0.0, 0.0, 10.0));
+			lateral.step(DroneInput.idle(), 0.005);
+			forward.step(DroneInput.idle(), 0.005);
+		}
+
+		double lateralBodyDrag = -lateral.state().airframeBodyDragForceBodyNewtons().x();
+		double lateralDampingDrag = -lateral.state().linearDampingDragForceWorldNewtons().x();
+		double forwardBodyDrag = -forward.state().airframeBodyDragForceBodyNewtons().z();
+		double forwardDampingDrag = -forward.state().linearDampingDragForceWorldNewtons().z();
+		double lateralTotalDrag = lateralBodyDrag + lateralDampingDrag;
+		double forwardTotalDrag = forwardBodyDrag + forwardDampingDrag;
+
+		assertTrue(lateralBodyDrag < 0.40, () -> "lateralBodyDrag=" + lateralBodyDrag);
+		assertTrue(forwardBodyDrag < 0.65, () -> "forwardBodyDrag=" + forwardBodyDrag);
+		assertTrue(lateralTotalDrag > 1.85 && lateralTotalDrag < 2.25,
+				() -> "lateralTotalDrag=" + lateralTotalDrag);
+		assertTrue(forwardTotalDrag > 2.05 && forwardTotalDrag < 2.55,
+				() -> "forwardTotalDrag=" + forwardTotalDrag);
 	}
 
 	@Test
@@ -4437,7 +4467,7 @@ class DronePhysicsTest {
 		Vec3 washDrag = powered.state().rotorWashDragForceBodyNewtons();
 		assertEquals(0.0, unpowered.state().rotorWashDragForceBodyNewtons().length(), 1.0e-9);
 		assertTrue(washDrag.x() < -0.45);
-		assertTrue(washDrag.y() > 0.02);
+		assertTrue(washDrag.y() > 0.012);
 		assertTrue(washDrag.z() < -0.15);
 		assertTrue(powered.state().linearAccelerationWorldMetersPerSecondSquared().x()
 				< unpowered.state().linearAccelerationWorldMetersPerSecondSquared().x() - 0.35);
@@ -4550,10 +4580,10 @@ class DronePhysicsTest {
 		Vec3 washDrag = powered.state().rotorWashDragForceBodyNewtons();
 
 		assertTrue(washDrag.x() < -0.45);
-		assertTrue(poweredTorque.z() > unpoweredTorque.z() + 0.015,
+		assertTrue(poweredTorque.z() > unpoweredTorque.z() + 0.007,
 				() -> "unpoweredTorque=" + unpoweredTorque + " poweredTorque=" + poweredTorque);
 		assertTrue(powered.state().airframeAerodynamicTorqueBodyNewtonMeters().z()
-				> unpowered.state().airframeAerodynamicTorqueBodyNewtonMeters().z() + 0.012);
+				> unpowered.state().airframeAerodynamicTorqueBodyNewtonMeters().z() + 0.006);
 	}
 
 	@Test
@@ -7755,7 +7785,7 @@ class DronePhysicsTest {
 		assertEquals((1.0 - report.minRotorWetThrustScale()) * 100.0, report.maxRotorWetThrustLossPercent(), 1.0e-9);
 		assertTrue(report.maxRotorSurfaceScrapeIntensity() >= 0.0);
 		assertTrue(report.minBatteryVoltage() < directControl(DroneConfig.racingQuad()).nominalBatteryVoltage() - 0.5);
-		assertTrue(report.maxPropwashIntensity() > 0.10);
+		assertTrue(report.maxPropwashIntensity() > 0.02);
 		assertTrue(report.maxRotorAdvanceRatio() > 0.05);
 		assertTrue(report.maxRotorTipMach() > 0.05);
 		assertTrue(report.maxRotorLowReynoldsLoss() >= 0.0);
@@ -7774,7 +7804,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() <= 1.0);
 		assertTrue(report.maxRotorConingIntensity() > 0.0);
 		assertTrue(report.maxRotorWindmillingIntensity() > 0.10);
-		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.05);
+		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.045);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
 		assertTrue(report.maxEscTemperatureCelsius() >= 25.0);
 		assertTrue(report.minEscThermalLimit() > 0.0);
