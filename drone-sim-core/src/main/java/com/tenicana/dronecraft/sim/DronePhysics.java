@@ -442,6 +442,41 @@ public final class DronePhysics {
 		batteryThermalInitialized = true;
 	}
 
+	public void restorePowertrainThermalState(
+			double[] motorTemperaturesCelsius,
+			double[] escTemperaturesCelsius,
+			double[] motorCoolingFactors,
+			double[] escCoolingFactors
+	) {
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		for (int i = 0; i < count; i++) {
+			if (motorTemperaturesCelsius != null
+					&& i < motorTemperaturesCelsius.length
+					&& Double.isFinite(motorTemperaturesCelsius[i])) {
+				state.setMotorTemperatureCelsius(i, motorTemperaturesCelsius[i]);
+			}
+			if (escTemperaturesCelsius != null
+					&& i < escTemperaturesCelsius.length
+					&& Double.isFinite(escTemperaturesCelsius[i])) {
+				state.setEscTemperatureCelsius(i, escTemperaturesCelsius[i]);
+			}
+			if (motorCoolingFactors != null
+					&& i < motorCoolingFactors.length
+					&& Double.isFinite(motorCoolingFactors[i])) {
+				state.setMotorCoolingFactor(i, motorCoolingFactors[i]);
+			}
+			if (escCoolingFactors != null
+					&& i < escCoolingFactors.length
+					&& Double.isFinite(escCoolingFactors[i])) {
+				state.setEscCoolingFactor(i, escCoolingFactors[i]);
+			}
+			updateMotorWindingResistanceScale(i);
+			state.setEscThermalLimit(i, escThermalLimit(state.escTemperatureCelsius(i)));
+		}
+		updateMotorThermalLimit();
+		updateEscThermalLimit();
+	}
+
 	public void resetControlLoops() {
 		pitchPid.reset();
 		yawPid.reset();

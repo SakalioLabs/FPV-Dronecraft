@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -2571,6 +2572,12 @@ public class DroneEntity extends PathfinderMob {
 		output.putDouble("battery_temp_c", physics.state().batteryTemperatureCelsius());
 		output.putDouble("battery_cooling_factor", physics.state().batteryCoolingFactor());
 		output.putDouble("battery_thermal_limit", physics.state().batteryThermalLimit());
+		for (int i = 0; i < physics.state().motorCount(); i++) {
+			output.putDouble("motor_temperature_c_" + i, physics.state().motorTemperatureCelsius(i));
+			output.putDouble("esc_temperature_c_" + i, physics.state().escTemperatureCelsius(i));
+			output.putDouble("motor_cooling_factor_" + i, physics.state().motorCoolingFactor(i));
+			output.putDouble("esc_cooling_factor_" + i, physics.state().escCoolingFactor(i));
+		}
 		double[] rotorHealth = physics.state().rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
@@ -2595,6 +2602,7 @@ public class DroneEntity extends PathfinderMob {
 		physics.state().setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
 		physics.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		loadBatteryTransientState(input);
+		loadPowertrainThermalState(input);
 		physics.state().repairAllRotors();
 		for (int i = 0; i < physics.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
@@ -2622,6 +2630,40 @@ public class DroneEntity extends PathfinderMob {
 				Double.isFinite(coolingFactor) ? coolingFactor : state.batteryCoolingFactor(),
 				Double.isFinite(thermalLimit) ? thermalLimit : state.batteryThermalLimit()
 		);
+	}
+
+	private void loadPowertrainThermalState(ValueInput input) {
+		int count = physics.config().rotors().size();
+		double[] motorTemperaturesCelsius = new double[count];
+		double[] escTemperaturesCelsius = new double[count];
+		double[] motorCoolingFactors = new double[count];
+		double[] escCoolingFactors = new double[count];
+		Arrays.fill(motorTemperaturesCelsius, Double.NaN);
+		Arrays.fill(escTemperaturesCelsius, Double.NaN);
+		Arrays.fill(motorCoolingFactors, Double.NaN);
+		Arrays.fill(escCoolingFactors, Double.NaN);
+
+		boolean hasThermalState = false;
+		for (int i = 0; i < count; i++) {
+			motorTemperaturesCelsius[i] = input.getDoubleOr("motor_temperature_c_" + i, Double.NaN);
+			escTemperaturesCelsius[i] = input.getDoubleOr("esc_temperature_c_" + i, Double.NaN);
+			motorCoolingFactors[i] = input.getDoubleOr("motor_cooling_factor_" + i, Double.NaN);
+			escCoolingFactors[i] = input.getDoubleOr("esc_cooling_factor_" + i, Double.NaN);
+			hasThermalState = hasThermalState
+					|| Double.isFinite(motorTemperaturesCelsius[i])
+					|| Double.isFinite(escTemperaturesCelsius[i])
+					|| Double.isFinite(motorCoolingFactors[i])
+					|| Double.isFinite(escCoolingFactors[i]);
+		}
+
+		if (hasThermalState) {
+			physics.restorePowertrainThermalState(
+					motorTemperaturesCelsius,
+					escTemperaturesCelsius,
+					motorCoolingFactors,
+					escCoolingFactors
+			);
+		}
 	}
 
 	private void saveEnvironmentOverride(ValueOutput output) {

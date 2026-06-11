@@ -6296,6 +6296,64 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void restoredPowertrainThermalStateRecomputesMotorEscLimits() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 13.2, 0.018, 1.5, 90.0)
+				.withMotorThermal(0.0, 0.50, 95.0, 125.0);
+		DroneEnvironment coldEnvironment = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				5.0
+		);
+		DronePhysics coldStart = new DronePhysics(config);
+		DronePhysics restored = new DronePhysics(config);
+		restored.restorePowertrainThermalState(
+				new double[] { 118.0, 112.0, 105.0, 100.0 },
+				new double[] { 110.0, 106.0, 99.0, 94.0 },
+				new double[] { 0.70, 0.80, 0.90, 1.00 },
+				new double[] { 0.60, 0.70, 0.80, 0.90 }
+		);
+
+		assertEquals(118.0, restored.state().motorTemperatureCelsius(0), 1.0e-9);
+		assertEquals(110.0, restored.state().escTemperatureCelsius(0), 1.0e-9);
+		assertEquals(0.70, restored.state().motorCoolingFactor(0), 1.0e-9);
+		assertEquals(0.60, restored.state().escCoolingFactor(0), 1.0e-9);
+		assertTrue(restored.state().motorThermalLimit() < 0.60,
+				() -> "motorThermalLimit=" + restored.state().motorThermalLimit());
+		assertTrue(restored.state().escThermalLimit() < 0.70,
+				() -> "escThermalLimit=" + restored.state().escThermalLimit());
+		assertTrue(restored.state().motorWindingResistanceScale(0) > 1.30,
+				() -> "windingScale=" + restored.state().motorWindingResistanceScale(0));
+
+		coldStart.step(DroneInput.idle(), 0.005, coldEnvironment);
+		restored.step(DroneInput.idle(), 0.005, coldEnvironment);
+
+		assertTrue(coldStart.state().maxMotorTemperatureCelsius() < 26.0,
+				() -> "coldStartMotorTemp=" + coldStart.state().maxMotorTemperatureCelsius());
+		assertTrue(restored.state().maxMotorTemperatureCelsius() > 117.0,
+				() -> "restoredMotorTemp=" + restored.state().maxMotorTemperatureCelsius());
+		assertTrue(restored.state().maxEscTemperatureCelsius() > 109.0,
+				() -> "restoredEscTemp=" + restored.state().maxEscTemperatureCelsius());
+		assertTrue(restored.state().motorThermalLimit() < 0.62,
+				() -> "restoredMotorLimit=" + restored.state().motorThermalLimit());
+		assertTrue(restored.state().escThermalLimit() < 0.72,
+				() -> "restoredEscLimit=" + restored.state().escThermalLimit());
+	}
+
+	@Test
 	void recirculatedDirtyAirReducesBatteryCooling() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
