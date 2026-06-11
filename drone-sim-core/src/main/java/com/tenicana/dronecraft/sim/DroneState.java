@@ -96,6 +96,7 @@ public final class DroneState {
 	private double[] rotorPropellerPowerScale;
 	private double[] rotorReverseFlowInboardFraction;
 	private double[] rotorTipMach;
+	private double[] rotorCompressibilityThrustScale;
 	private double[] rotorLowReynoldsLoss;
 	private double[] rotorBladeAngleOfAttackRadians;
 	private double[] rotorBladeElementStallIntensity;
@@ -226,6 +227,7 @@ public final class DroneState {
 		rotorPropellerPowerScale = new double[motorCount];
 		rotorReverseFlowInboardFraction = new double[motorCount];
 		rotorTipMach = new double[motorCount];
+		rotorCompressibilityThrustScale = new double[motorCount];
 		rotorLowReynoldsLoss = new double[motorCount];
 		rotorBladeAngleOfAttackRadians = new double[motorCount];
 		rotorBladeElementStallIntensity = new double[motorCount];
@@ -262,6 +264,7 @@ public final class DroneState {
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
 		Arrays.fill(rotorDynamicInflowTimeConstantSeconds, 0.0);
 		Arrays.fill(rotorPropellerPowerScale, 1.0);
+		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
 		repairAllRotors();
@@ -1329,6 +1332,7 @@ public final class DroneState {
 		Arrays.fill(rotorPropellerPowerScale, 1.0);
 		Arrays.fill(rotorReverseFlowInboardFraction, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
+		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
 		Arrays.fill(rotorLowReynoldsLoss, 0.0);
 		Arrays.fill(rotorBladeAngleOfAttackRadians, 0.0);
 		Arrays.fill(rotorBladeElementStallIntensity, 0.0);
@@ -1675,6 +1679,38 @@ public final class DroneState {
 			max = Math.max(max, mach);
 		}
 		return max;
+	}
+
+	public double rotorCompressibilityThrustScale(int index) {
+		return rotorCompressibilityThrustScale[index];
+	}
+
+	public double[] rotorCompressibilityThrustScale() {
+		return Arrays.copyOf(rotorCompressibilityThrustScale, rotorCompressibilityThrustScale.length);
+	}
+
+	void setRotorCompressibilityThrustScale(int index, double value) {
+		rotorCompressibilityThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 1.0;
+	}
+
+	public double averageRotorCompressibilityThrustScale() {
+		double sum = 0.0;
+		for (double scale : rotorCompressibilityThrustScale) {
+			sum += scale;
+		}
+		return sum / rotorCompressibilityThrustScale.length;
+	}
+
+	public double minRotorCompressibilityThrustScale() {
+		double min = 1.0;
+		for (double scale : rotorCompressibilityThrustScale) {
+			min = Math.min(min, scale);
+		}
+		return min;
+	}
+
+	public double maxRotorCompressibilityThrustLossPercent() {
+		return (1.0 - minRotorCompressibilityThrustScale()) * 100.0;
 	}
 
 	public double rotorLowReynoldsLoss(int index) {

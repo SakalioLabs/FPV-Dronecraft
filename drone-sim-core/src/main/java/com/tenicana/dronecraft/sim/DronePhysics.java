@@ -665,6 +665,7 @@ public final class DronePhysics {
 			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, environment.ambientTemperatureCelsius());
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
+			state.setRotorCompressibilityThrustScale(i, compressibilityThrustScale);
 			double compressibilityLoad = rotorCompressibilityLoadFactor(rotorTipMach);
 			double compressibilityReactionTorqueScale = rotorCompressibilityReactionTorqueScale(rotorTipMach);
 			double lowReynoldsLoss = rotorLowReynoldsLoss(

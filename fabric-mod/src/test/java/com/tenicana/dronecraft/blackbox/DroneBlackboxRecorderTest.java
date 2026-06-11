@@ -136,6 +136,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_tip_mach"));
 		assertTrue(csv.contains("rotor_0_tip_mach"));
 		assertTrue(csv.contains("rotor_7_tip_mach"));
+		assertTrue(csv.contains("rotor_compressibility_thrust_scale"));
+		assertTrue(csv.contains("rotor_0_compressibility_thrust_scale"));
+		assertTrue(csv.contains("rotor_7_compressibility_thrust_scale"));
 		assertTrue(csv.contains("rotor_low_reynolds_loss"));
 		assertTrue(csv.contains("rotor_7_low_reynolds_loss"));
 		assertTrue(csv.contains("rotor_blade_aoa_deg"));
@@ -447,6 +450,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex_tilt_deg")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_compressibility_thrust_scale")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_compressibility_thrust_scale")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_wake_thrust_scale")]));
@@ -610,6 +615,7 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(summary.minRotorInducedLagThrustScale());
 		assertTrue(summary.maxRotorAdvanceRatio() >= 0.0);
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
+		assertUnitInterval(summary.minRotorCompressibilityThrustScale());
 		assertUnitInterval(summary.maxRotorLowReynoldsLoss());
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
 		assertUnitInterval(summary.maxRotorWindmillingIntensity());
@@ -677,6 +683,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("ETL"));
 		assertTrue(summary.formatForChat().contains("adv"));
 		assertTrue(summary.formatForChat().contains("tipmach"));
+		assertTrue(summary.formatForChat().contains("machloss"));
 		assertTrue(summary.formatForChat().contains("lowre"));
 		assertTrue(summary.formatForChat().contains("bpass"));
 		assertTrue(summary.formatForChat().contains("load"));

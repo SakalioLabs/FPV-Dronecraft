@@ -127,6 +127,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_TRANSLATIONAL_LIFT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_ADVANCE_RATIO = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_TIP_MACH = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_COMPRESSIBILITY_THRUST_SCALE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_LOW_REYNOLDS_LOSS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_AOA = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_ELEMENT_STALL = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -403,6 +404,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_TRANSLATIONAL_LIFT, 0.0f);
 		builder.define(ROTOR_ADVANCE_RATIO, 0.0f);
 		builder.define(ROTOR_TIP_MACH, 0.0f);
+		builder.define(ROTOR_COMPRESSIBILITY_THRUST_SCALE, 1.0f);
 		builder.define(ROTOR_LOW_REYNOLDS_LOSS, 0.0f);
 		builder.define(ROTOR_BLADE_AOA, 0.0f);
 		builder.define(ROTOR_BLADE_ELEMENT_STALL, 0.0f);
@@ -1143,6 +1145,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_TRANSLATIONAL_LIFT, (float) physics.state().averageRotorTranslationalLiftIntensity());
 		entityData.set(ROTOR_ADVANCE_RATIO, (float) physics.state().maxRotorAdvanceRatio());
 		entityData.set(ROTOR_TIP_MACH, (float) physics.state().maxRotorTipMach());
+		entityData.set(ROTOR_COMPRESSIBILITY_THRUST_SCALE, (float) physics.state().minRotorCompressibilityThrustScale());
 		entityData.set(ROTOR_LOW_REYNOLDS_LOSS, (float) physics.state().maxRotorLowReynoldsLoss());
 		entityData.set(ROTOR_BLADE_AOA, (float) Math.toDegrees(physics.state().maxAbsRotorBladeAngleOfAttackRadians()));
 		entityData.set(ROTOR_BLADE_ELEMENT_STALL, (float) physics.state().maxRotorBladeElementStallIntensity());
@@ -1850,6 +1853,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorTipMach() {
 		return entityData.get(ROTOR_TIP_MACH);
+	}
+
+	public float getRotorCompressibilityThrustScale() {
+		return entityData.get(ROTOR_COMPRESSIBILITY_THRUST_SCALE);
 	}
 
 	public float getRotorLowReynoldsLoss() {

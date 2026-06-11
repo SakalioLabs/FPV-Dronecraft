@@ -55,6 +55,7 @@ public final class DroneServerSelfTest {
 	private double maxPropwash;
 	private double maxVortexRingState;
 	private double maxRotorAdvanceRatio;
+	private double minRotorCompressibilityThrustScale = 1.0;
 	private double maxRotorStall;
 	private double maxRotorVibration;
 	private double maxRotorConing;
@@ -142,6 +143,7 @@ public final class DroneServerSelfTest {
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
 		maxVortexRingState = Math.max(maxVortexRingState, drone.getVortexRingStateIntensity());
 		maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, drone.getRotorAdvanceRatio());
+		minRotorCompressibilityThrustScale = Math.min(minRotorCompressibilityThrustScale, drone.getRotorCompressibilityThrustScale());
 		maxRotorStall = Math.max(maxRotorStall, drone.getRotorStallIntensity());
 		maxRotorVibration = Math.max(maxRotorVibration, drone.getRotorVibration());
 		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
@@ -199,6 +201,8 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_reverse_flow_fraction")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_tip_mach")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_tip_mach")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_compressibility_thrust_scale")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_compressibility_thrust_scale")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_low_reynolds_loss")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_low_reynolds_loss")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_aoa_deg")
@@ -398,6 +402,8 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_prop_power_scale")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_tip_mach")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_tip_mach")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_compressibility_thrust_scale")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_compressibility_thrust_scale")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_low_reynolds_loss")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_low_reynolds_loss")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_aoa_deg")
@@ -630,6 +636,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_propwash\": %.5f,\n"
 						+ "  \"max_vortex_ring_state\": %.5f,\n"
 						+ "  \"max_rotor_advance_ratio\": %.5f,\n"
+						+ "  \"max_rotor_compressibility_loss_percent\": %.3f,\n"
 						+ "  \"max_rotor_stall\": %.5f,\n"
 						+ "  \"max_rotor_vibration\": %.5f,\n"
 						+ "  \"max_rotor_coning\": %.5f,\n"
@@ -674,6 +681,7 @@ public final class DroneServerSelfTest {
 				maxPropwash,
 				maxVortexRingState,
 				maxRotorAdvanceRatio,
+				(1.0 - minRotorCompressibilityThrustScale) * 100.0,
 				maxRotorStall,
 				maxRotorVibration,
 				maxRotorConing,

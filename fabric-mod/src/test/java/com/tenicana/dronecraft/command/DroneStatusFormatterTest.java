@@ -30,6 +30,7 @@ class DroneStatusFormatterTest {
 				0.0, // rotorFlappingTilt
 				0.18, // rotorAdvanceRatio
 				0.32, // rotorTipMach
+				1.0, // rotorCompressibilityThrustScale
 				0.0, // rotorLowReynoldsLoss
 				12.0, // rotorBladeAngleOfAttackDegrees
 				0.0, // rotorBladeElementStallIntensity
@@ -86,6 +87,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("ind 2.40m/s iloss 0%"));
 		assertTrue(status.contains("adv"));
 		assertTrue(status.contains("tipmach 0.32"));
+		assertTrue(status.contains("machloss 0%"));
 		assertTrue(status.contains("lowre 0.00"));
 		assertTrue(status.contains("blade 12deg bstall 0.00 bpass 0.000"));
 		assertTrue(status.contains("vrsbuf 0% vrsF 0.00N"));
@@ -131,6 +133,7 @@ class DroneStatusFormatterTest {
 				9.2,
 				0.62,
 				0.74,
+				0.88,
 				0.31,
 				32.0,
 				0.46,
@@ -185,6 +188,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("rotor-flapping"));
 		assertTrue(warnings.contains("high-advance"));
 		assertTrue(warnings.contains("tip-mach"));
+		assertTrue(warnings.contains("compressibility-loss"));
 		assertTrue(warnings.contains("low-re"));
 		assertTrue(warnings.contains("blade-aoa"));
 		assertTrue(warnings.contains("blade-stall"));
@@ -251,6 +255,7 @@ class DroneStatusFormatterTest {
 			double rotorFlappingTilt,
 			double rotorAdvanceRatio,
 			double rotorTipMach,
+			double rotorCompressibilityThrustScale,
 			double rotorLowReynoldsLoss,
 			double rotorBladeAngleOfAttackDegrees,
 			double rotorBladeElementStallIntensity,
@@ -352,6 +357,7 @@ class DroneStatusFormatterTest {
 				rotorInducedLagThrustScale,
 				rotorAdvanceRatio,
 				rotorTipMach,
+				rotorCompressibilityThrustScale,
 				rotorLowReynoldsLoss,
 				rotorBladeAngleOfAttackDegrees,
 				rotorBladeElementStallIntensity,
