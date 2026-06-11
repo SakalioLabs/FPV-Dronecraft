@@ -637,6 +637,58 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorInducedVelocityMetersPerSecond() > 0.0);
 		assertUnitInterval(summary.minRotorInducedLagThrustScale());
 		assertTrue(summary.maxRotorAdvanceRatio() >= 0.0);
+		assertEquals(
+				maxOfColumns(
+						lines,
+						header,
+						"rotor_prop_advance_ratio_j",
+						"rotor_0_prop_advance_ratio_j",
+						"rotor_1_prop_advance_ratio_j",
+						"rotor_2_prop_advance_ratio_j",
+						"rotor_3_prop_advance_ratio_j",
+						"rotor_4_prop_advance_ratio_j",
+						"rotor_5_prop_advance_ratio_j",
+						"rotor_6_prop_advance_ratio_j",
+						"rotor_7_prop_advance_ratio_j"
+				),
+				summary.maxRotorPropellerAdvanceRatioJ(),
+				1.0e-5
+		);
+		assertEquals(
+				minOfColumns(
+						lines,
+						header,
+						"rotor_prop_power_scale",
+						"rotor_0_prop_power_scale",
+						"rotor_1_prop_power_scale",
+						"rotor_2_prop_power_scale",
+						"rotor_3_prop_power_scale",
+						"rotor_4_prop_power_scale",
+						"rotor_5_prop_power_scale",
+						"rotor_6_prop_power_scale",
+						"rotor_7_prop_power_scale"
+				),
+				summary.minRotorPropellerPowerScale(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfColumns(
+						lines,
+						header,
+						"rotor_reverse_flow_fraction",
+						"rotor_0_reverse_flow_fraction",
+						"rotor_1_reverse_flow_fraction",
+						"rotor_2_reverse_flow_fraction",
+						"rotor_3_reverse_flow_fraction",
+						"rotor_4_reverse_flow_fraction",
+						"rotor_5_reverse_flow_fraction",
+						"rotor_6_reverse_flow_fraction",
+						"rotor_7_reverse_flow_fraction"
+				),
+				summary.maxRotorReverseFlowInboardFraction(),
+				1.0e-5
+		);
+		assertTrue(summary.formatForChat().contains(" ppwr "));
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
 		assertUnitInterval(summary.minRotorCompressibilityThrustScale());
 		assertUnitInterval(summary.maxRotorLowReynoldsLoss());
@@ -1191,6 +1243,30 @@ class DroneBlackboxRecorderTest {
 			}
 		}
 		throw new AssertionError("Missing column " + column);
+	}
+
+	private static double maxOfColumns(String[] lines, String[] header, String... columns) {
+		double max = Double.NEGATIVE_INFINITY;
+		for (String column : columns) {
+			int index = indexOf(header, column);
+			for (int i = 1; i < lines.length; i++) {
+				String[] row = lines[i].split(",", -1);
+				max = Math.max(max, Double.parseDouble(row[index]));
+			}
+		}
+		return max;
+	}
+
+	private static double minOfColumns(String[] lines, String[] header, String... columns) {
+		double min = Double.POSITIVE_INFINITY;
+		for (String column : columns) {
+			int index = indexOf(header, column);
+			for (int i = 1; i < lines.length; i++) {
+				String[] row = lines[i].split(",", -1);
+				min = Math.min(min, Double.parseDouble(row[index]));
+			}
+		}
+		return min;
 	}
 
 	private static void assertUnitInterval(double value) {

@@ -33,6 +33,9 @@ public record DroneBlackboxSummary(
 		double minRotorInducedLagThrustScale,
 		double maxRotorTranslationalLiftIntensity,
 		double maxRotorAdvanceRatio,
+		double maxRotorPropellerAdvanceRatioJ,
+		double minRotorPropellerPowerScale,
+		double maxRotorReverseFlowInboardFraction,
 		double maxRotorTipMach,
 		double minRotorCompressibilityThrustScale,
 		double maxRotorLowReynoldsLoss,
@@ -158,6 +161,9 @@ public record DroneBlackboxSummary(
 		double minRotorInducedLagThrustScale = 1.0;
 		double maxRotorTranslationalLift = 0.0;
 		double maxRotorAdvanceRatio = 0.0;
+		double maxRotorPropellerAdvanceRatioJ = 0.0;
+		double minRotorPropellerPowerScale = 1.0;
+		double maxRotorReverseFlow = 0.0;
 		double maxRotorTipMach = 0.0;
 		double minRotorCompressibilityThrustScale = 1.0;
 		double maxRotorLowReynoldsLoss = 0.0;
@@ -294,6 +300,21 @@ public record DroneBlackboxSummary(
 			);
 			maxRotorTranslationalLift = Math.max(maxRotorTranslationalLift, value(row, "rotor_translational_lift"));
 			maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, value(row, "rotor_advance_ratio"));
+			maxRotorPropellerAdvanceRatioJ = Math.max(
+					maxRotorPropellerAdvanceRatioJ,
+					Math.max(value(row, "rotor_prop_advance_ratio_j"), maxIndexedValue(row, "rotor_", "_prop_advance_ratio_j"))
+			);
+			minRotorPropellerPowerScale = Math.min(
+					minRotorPropellerPowerScale,
+					Math.min(
+							valueOrDefault(row, "rotor_prop_power_scale", 1.0),
+							minIndexedValue(row, "rotor_", "_prop_power_scale", 1.0)
+					)
+			);
+			maxRotorReverseFlow = Math.max(
+					maxRotorReverseFlow,
+					Math.max(value(row, "rotor_reverse_flow_fraction"), maxIndexedValue(row, "rotor_", "_reverse_flow_fraction"))
+			);
 			maxRotorTipMach = Math.max(maxRotorTipMach, value(row, "rotor_tip_mach"));
 			minRotorCompressibilityThrustScale = Math.min(
 					minRotorCompressibilityThrustScale,
@@ -574,6 +595,9 @@ public record DroneBlackboxSummary(
 				finiteOrOne(minRotorInducedLagThrustScale),
 				maxRotorTranslationalLift,
 				maxRotorAdvanceRatio,
+				maxRotorPropellerAdvanceRatioJ,
+				finiteOrOne(minRotorPropellerPowerScale),
+				maxRotorReverseFlow,
 				maxRotorTipMach,
 				finiteOrOne(minRotorCompressibilityThrustScale),
 				maxRotorLowReynoldsLoss,
@@ -679,7 +703,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -717,6 +741,9 @@ public record DroneBlackboxSummary(
 				(1.0 - minRotorInducedLagThrustScale) * 100.0,
 				maxRotorTranslationalLiftIntensity,
 				maxRotorAdvanceRatio,
+				maxRotorPropellerAdvanceRatioJ,
+				minRotorPropellerPowerScale,
+				maxRotorReverseFlowInboardFraction,
 				maxRotorTipMach,
 				(1.0 - minRotorCompressibilityThrustScale) * 100.0,
 				maxRotorLowReynoldsLoss,
@@ -831,6 +858,9 @@ public record DroneBlackboxSummary(
 				1.0, // minRotorInducedLagThrustScale
 				0.0, // maxRotorTranslationalLiftIntensity
 				0.0, // maxRotorAdvanceRatio
+				0.0, // maxRotorPropellerAdvanceRatioJ
+				1.0, // minRotorPropellerPowerScale
+				0.0, // maxRotorReverseFlowInboardFraction
 				0.0, // maxRotorTipMach
 				1.0, // minRotorCompressibilityThrustScale
 				0.0, // maxRotorLowReynoldsLoss
