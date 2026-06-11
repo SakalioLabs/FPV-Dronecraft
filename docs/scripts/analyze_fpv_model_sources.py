@@ -5,6 +5,7 @@ Fetch open FPV/multirotor data sources and compare them with DroneConfig presets
 Outputs:
   docs/fpv-sim-model-validation.md
   docs/data/fpv_model_validation_summary.csv
+  docs/data/blackbox_log_header_summary.csv
   docs/data/raw/* cached source files
 """
 
@@ -24,10 +25,17 @@ DOCS = ROOT / "docs"
 DATA = DOCS / "data"
 RAW = DATA / "raw"
 DRONE_CONFIG = ROOT / "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java"
+DRONE_PHYSICS = ROOT / "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"
+MENDELEY_ECM_SUMMARY_CSV = DATA / "lipo_ecm_mendeley_r0_summary.csv"
 
 RHO = 1.225
 G = 9.80665
 SPEED_OF_SOUND_25C = 346.1
+_JAVA_NUMERIC_CONSTANTS: dict[str, float] | None = None
+
+
+def repo_path(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
 
 
 UIUC_STATIC = [
@@ -84,14 +92,35 @@ MQTB_URL = "https://www.miniquadtestbench.com/assets/components/motordata/motori
 ZJU_GROUND_EFFECT_URL = "https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md"
 ZJU_GROUND_EFFECT_PAPER_URL = "https://arxiv.org/abs/2506.19424"
 GYMPYB_BASEAVIARY_URL = "https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py"
+ROTORPY_HUMMINGBIRD_URL = "https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py"
 COAXIAL_BENCHMARK_URL = "https://raw.githubusercontent.com/newdexterity/Coaxial-Benchmarking-Platform/master/README.md"
-COAXIAL_RESULTS_URL = "https://hackaday.io/project/181977-omnirotor-an-agile-coaxial-all-terrain-vehicle/log/199225-some-results-of-coaxial-rotor-experiments-on-the-benchmarking-platform"
+COAXIAL_RESULTS_URL = "https://hackaday.io/project/181977/log/199225-some-results-of-coaxial-rotor-experiments-on-the-benchmarking-platform"
 CAMBRIDGE_VRS_URL = "https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692"
 LIPO_EIS_DATASET_URL = "https://pmc.ncbi.nlm.nih.gov/articles/PMC10518458/"
 MENDELEY_LIPO_DATASET_URL = "https://data.mendeley.com/datasets/stcppt2r68/1"
 NASA_BATTERY_DATASET_URL = "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets"
 NASA_BATTERY_ZIP_URL = "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
 CHL_LIPO_IR_URL = "https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained"
+BETAFLIGHT_RPM_FILTER_URL = "https://betaflight.com/docs/wiki/guides/current/DSHOT-RPM-Filtering"
+BETAFLIGHT_PID_TUNING_URL = "https://betaflight.com/docs/wiki/guides/current/PID-Tuning-Guide"
+EXPRESSLRS_PACKET_URL = "https://www.expresslrs.org/software/switch-config/"
+BETAFLIGHT_BLACKBOX_SOURCE_URL = "https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c"
+BLACKBOX_LIBRARY_URL = "https://github.com/maxlaverse/blackbox-library"
+BLACKBOX_LIBRARY_FIXTURE_URL = "https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl"
+BETAFLIGHT_PUBLIC_LOG_URL = "https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT"
+
+BLACKBOX_LOG_SOURCES = [
+    {
+        "name": "Betaflight issue LOG00078",
+        "url": BETAFLIGHT_PUBLIC_LOG_URL,
+        "context": "public Betaflight 4.2.4 issue attachment with DShot bidirectional/RPM-filter headers",
+    },
+    {
+        "name": "blackbox-library normal.bfl",
+        "url": BLACKBOX_LIBRARY_FIXTURE_URL,
+        "context": "small open parser fixture for Blackbox field layout",
+    },
+]
 
 OPEN_SOURCE_PARAMS = [
     {
@@ -118,6 +147,11 @@ OPEN_SOURCE_PARAMS = [
         "name": "Flightmare quadrotor",
         "vehicle": "flightmare",
         "url": "https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml",
+    },
+    {
+        "name": "RotorPy Hummingbird",
+        "vehicle": "rotorpy_hummingbird",
+        "url": ROTORPY_HUMMINGBIRD_URL,
     },
 ]
 
@@ -167,6 +201,23 @@ def fetch_text(url: str) -> str:
         with urllib.request.urlopen(req, timeout=45) as response:
             path.write_bytes(response.read())
     return path.read_text(encoding="utf-8", errors="replace")
+
+
+def java_numeric_constants() -> dict[str, float]:
+    global _JAVA_NUMERIC_CONSTANTS
+    if _JAVA_NUMERIC_CONSTANTS is not None:
+        return _JAVA_NUMERIC_CONSTANTS
+    constants: dict[str, float] = {}
+    if DRONE_CONFIG.exists():
+        src = DRONE_CONFIG.read_text(encoding="utf-8")
+        env: dict[str, object] = {"Math": math, "math": math}
+        for _, name, expr in re.findall(r"public static final (double|int)\s+(\w+)\s*=\s*([^;]+);", src):
+            try:
+                constants[name] = float(eval(expr.strip(), {"__builtins__": {}}, {**env, **constants}))
+            except Exception:
+                continue
+    _JAVA_NUMERIC_CONSTANTS = constants
+    return constants
 
 
 def numeric_rows(text: str) -> list[list[float]]:
@@ -358,7 +409,7 @@ def parse_mqtb() -> tuple[list[dict[str, float | str]], list[dict[str, float | s
 
 def safe_eval_number(expr: str) -> float:
     expr = expr.strip()
-    env = {"Math": math, "math": math}
+    env = {"Math": math, "math": math, **java_numeric_constants()}
     return float(eval(expr, {"__builtins__": {}}, env))
 
 
@@ -412,6 +463,25 @@ def arg_number(args: list[str], index: int) -> float:
         return float("nan")
 
 
+def vec3_components(expr: str) -> tuple[float, float, float]:
+    match = re.search(r"new\s+Vec3\((.*)\)", expr, re.S)
+    if not match:
+        return (float("nan"), float("nan"), float("nan"))
+    parts = split_top_level_args(match.group(1))
+    if len(parts) != 3:
+        return (float("nan"), float("nan"), float("nan"))
+    try:
+        return tuple(safe_eval_number(part) for part in parts)  # type: ignore[return-value]
+    except Exception:
+        return (float("nan"), float("nan"), float("nan"))
+
+
+def arg_vec3(args: list[str], index: int) -> tuple[float, float, float]:
+    if index < 0 or index >= len(args):
+        return (float("nan"), float("nan"), float("nan"))
+    return vec3_components(args[index])
+
+
 def parse_drone_presets() -> list[dict[str, float | str]]:
     src = DRONE_CONFIG.read_text(encoding="utf-8")
     presets = []
@@ -427,11 +497,16 @@ def parse_drone_presets() -> list[dict[str, float | str]]:
         var = {key: safe_eval_number(value) for key, value in re.findall(r"double\s+(\w+)\s*=\s*([^;]+);", body)}
         args = constructor_args(body)
         mass = arg_number(args, 0)
+        inertia = arg_vec3(args, 1)
+        body_drag = arg_vec3(args, 8)
         rotor_count = body.count("new RotorSpec(") + body.count("rotorAtDegrees(")
         presets.append(
             {
                 "preset": name,
                 "mass_kg": mass,
+                "inertia_x_kg_m2": inertia[0],
+                "inertia_y_kg_m2": inertia[1],
+                "inertia_z_kg_m2": inertia[2],
                 "rotor_count": rotor_count,
                 "max_thrust_n": var.get("maxRotorThrust", float("nan")),
                 "k_n_per_rad2": var.get("thrustCoefficient", float("nan")),
@@ -439,17 +514,34 @@ def parse_drone_presets() -> list[dict[str, float | str]]:
                 "radius_m": var.get("rotorRadius", float("nan")),
                 "rotor_inertia_kg_m2": var.get("rotorInertia", float("nan")),
                 "inflow_tau_s": var.get("inflowTimeConstant", float("nan")),
+                "linear_drag_coefficient": arg_number(args, 7),
+                "body_drag_x": body_drag[0],
+                "body_drag_y": body_drag[1],
+                "body_drag_z": body_drag[2],
                 "ground_effect_height_m": arg_number(args, 9),
                 "ground_effect_max_boost": arg_number(args, 10),
                 "propwash_start_m_s": arg_number(args, 11),
                 "propwash_full_m_s": arg_number(args, 12),
                 "propwash_torque_nm": arg_number(args, 13),
+                "angular_drag_coefficient": arg_number(args, 14),
                 "motor_tau_s": arg_number(args, 15),
+                "gyro_low_pass_hz": arg_number(args, 28),
+                "gyro_noise_stddev_rad_s": arg_number(args, 29),
+                "accelerometer_low_pass_hz": arg_number(args, 30),
+                "accelerometer_noise_stddev_m_s2": arg_number(args, 31),
+                "control_latency_s": arg_number(args, 32),
                 "battery_nominal_v": arg_number(args, 33),
                 "battery_empty_v": arg_number(args, 34),
                 "battery_resistance_ohm": arg_number(args, 35),
                 "battery_capacity_ah": arg_number(args, 36),
                 "max_battery_current_a": arg_number(args, 37),
+                "rc_smoothing_tau_s": arg_number(args, 46),
+                "rc_command_latency_s": arg_number(args, 47),
+                "rc_failsafe_timeout_s": arg_number(args, 48),
+                "rc_frame_rate_hz": arg_number(args, 56),
+                "rc_channel_resolution_steps": arg_number(args, 57),
+                "esc_command_frame_rate_hz": arg_number(args, 58),
+                "esc_command_resolution_steps": arg_number(args, 59),
             }
         )
 
@@ -458,6 +550,13 @@ def parse_drone_presets() -> list[dict[str, float | str]]:
         coax = dict(octo)
         coax["preset"] = "coaxialX8"
         coax["mass_kg"] = 7.2
+        coax["inertia_x_kg_m2"] = 0.245
+        coax["inertia_y_kg_m2"] = 0.430
+        coax["inertia_z_kg_m2"] = 0.255
+        coax["body_drag_x"] = 0.50
+        coax["body_drag_y"] = 0.34
+        coax["body_drag_z"] = 0.58
+        coax["angular_drag_coefficient"] = 1.25
         coax["rotor_count"] = 8
         presets.append(coax)
     return presets
@@ -478,6 +577,32 @@ def xml_attr_value(text: str, tag: str, attr: str) -> float:
     return float(match.group(1)) if match else float("nan")
 
 
+def first_inertia_attrs(text: str) -> tuple[float, float, float]:
+    match = re.search(r"<inertia\b([^>]*)>", text)
+    if not match:
+        return (float("nan"), float("nan"), float("nan"))
+    attrs = dict(re.findall(r'([A-Za-z0-9_]+)="([^"]+)"', match.group(1)))
+    return (
+        float(attrs.get("ixx", "nan")),
+        float(attrs.get("iyy", "nan")),
+        float(attrs.get("izz", "nan")),
+    )
+
+
+def py_dict_value(text: str, name: str) -> float:
+    match = re.search(rf"['\"]{re.escape(name)}['\"]\s*:\s*([^,\n}}]+)", text)
+    return safe_eval_number(match.group(1)) if match else float("nan")
+
+
+def py_dict_list(text: str, name: str) -> list[float]:
+    match = re.search(rf"['\"]{re.escape(name)}['\"]\s*:\s*np\.array\(\[([^\]]+)\]\)", text)
+    if not match:
+        match = re.search(rf"['\"]{re.escape(name)}['\"]\s*:\s*\[([^\]]+)\]", text)
+    if not match:
+        return []
+    return [safe_eval_number(part.strip()) for part in match.group(1).split(",") if part.strip()]
+
+
 def yaml_value(text: str, name: str) -> float:
     match = re.search(rf"^\s*{re.escape(name)}:\s*([^\s#]+)", text, re.M)
     return float(match.group(1)) if match else float("nan")
@@ -493,11 +618,15 @@ def parse_open_source_params() -> list[dict[str, float | str]]:
             radius = prop_value(text, "radius_rotor")
             k = prop_value(text, "motor_constant")
             qt = prop_value(text, "moment_constant")
+            inertia = first_inertia_attrs(text)
             rows.append(
                 {
                     "name": source["name"],
                     "url": source["url"],
                     "mass_kg": mass,
+                    "inertia_x_kg_m2": inertia[0],
+                    "inertia_y_kg_m2": inertia[1],
+                    "inertia_z_kg_m2": inertia[2],
                     "radius_m": radius,
                     "k_n_per_rad2": k,
                     "qt_m": qt,
@@ -518,6 +647,9 @@ def parse_open_source_params() -> list[dict[str, float | str]]:
                     "name": source["name"],
                     "url": source["url"],
                     "mass_kg": first_xml_value(text, "mass"),
+                    "inertia_x_kg_m2": first_xml_value(text, "ixx"),
+                    "inertia_y_kg_m2": first_xml_value(text, "iyy"),
+                    "inertia_z_kg_m2": first_xml_value(text, "izz"),
                     "radius_m": radius,
                     "k_n_per_rad2": k,
                     "qt_m": qt,
@@ -533,11 +665,16 @@ def parse_open_source_params() -> list[dict[str, float | str]]:
             prop_match = re.search(r"<properties\s+([^>]+)>", text)
             if prop_match:
                 props = {key: float(value) for key, value in re.findall(r'([A-Za-z0-9_]+)="([^"]+)"', prop_match.group(1))}
+            inertia = first_inertia_attrs(text)
             rows.append(
                 {
                     "name": source["name"],
                     "url": source["url"],
                     "mass_kg": xml_attr_value(text, "mass", "value"),
+                    "inertia_x_kg_m2": inertia[0],
+                    "inertia_y_kg_m2": inertia[1],
+                    "inertia_z_kg_m2": inertia[2],
+                    "arm_m": props.get("arm", float("nan")),
                     "radius_m": props.get("prop_radius", float("nan")),
                     "k_n_per_rad2": props.get("kf", float("nan")),
                     "qt_m": props.get("km", float("nan")) / props.get("kf", float("nan")),
@@ -571,6 +708,34 @@ def parse_open_source_params() -> list[dict[str, float | str]]:
                     "arm_m": yaml_value(text, "arm_l"),
                 }
             )
+        elif vehicle == "rotorpy_hummingbird":
+            inertia = [
+                py_dict_value(text, "Ixx"),
+                py_dict_value(text, "Iyy"),
+                py_dict_value(text, "Izz"),
+            ]
+            c_drag = py_dict_list(text, "c_D")
+            rows.append(
+                {
+                    "name": source["name"],
+                    "url": source["url"],
+                    "mass_kg": py_dict_value(text, "mass"),
+                    "inertia_x_kg_m2": inertia[0],
+                    "inertia_y_kg_m2": inertia[1],
+                    "inertia_z_kg_m2": inertia[2],
+                    "arm_m": py_dict_value(text, "arm_length"),
+                    "radius_m": float("nan"),
+                    "k_n_per_rad2": py_dict_value(text, "k_eta"),
+                    "qt_m": py_dict_value(text, "k_m") / py_dict_value(text, "k_eta"),
+                    "max_omega_rad_s": py_dict_value(text, "rotor_speed_max"),
+                    "tau_up_s": float("nan"),
+                    "tau_down_s": float("nan"),
+                    "normalized_ct": float("nan"),
+                    "body_drag_x": c_drag[0] if len(c_drag) > 0 else py_dict_value(text, "c_Dx"),
+                    "body_drag_y": c_drag[1] if len(c_drag) > 1 else py_dict_value(text, "c_Dy"),
+                    "body_drag_z": c_drag[2] if len(c_drag) > 2 else py_dict_value(text, "c_Dz"),
+                }
+            )
     return rows
 
 
@@ -599,6 +764,294 @@ def summarize_presets(presets: list[dict[str, float | str]]) -> list[dict[str, f
             }
         )
     return rows
+
+
+def radius_of_gyration(inertia: float, mass: float) -> float:
+    if inertia <= 0.0 or mass <= 0.0 or not math.isfinite(inertia) or not math.isfinite(mass):
+        return float("nan")
+    return math.sqrt(inertia / mass)
+
+
+def summarize_inertia_geometry(
+    presets: list[dict[str, float | str]],
+    open_models: list[dict[str, float | str]],
+) -> list[dict[str, float | str]]:
+    rows = []
+    for source_name, source_rows, source_ref in (
+        ("current_preset", presets, repo_path(DRONE_CONFIG)),
+        ("open_source_model", open_models, ""),
+    ):
+        for row in source_rows:
+            mass = float(row.get("mass_kg", float("nan")))
+            ix = float(row.get("inertia_x_kg_m2", float("nan")))
+            iy = float(row.get("inertia_y_kg_m2", float("nan")))
+            iz = float(row.get("inertia_z_kg_m2", float("nan")))
+            if not all(math.isfinite(value) for value in (mass, ix, iy, iz)):
+                continue
+            if source_name == "current_preset":
+                yaw_inertia = iy
+                roll_pitch_inertia = (ix + iz) * 0.5
+                yaw_axis = "project Y"
+            else:
+                yaw_inertia = iz
+                roll_pitch_inertia = (ix + iy) * 0.5
+                yaw_axis = "source Z"
+            rows.append(
+                {
+                    "kind": source_name,
+                    "name": row.get("preset", row.get("name", "")),
+                    "mass_kg": mass,
+                    "inertia_x_kg_m2": ix,
+                    "inertia_y_kg_m2": iy,
+                    "inertia_z_kg_m2": iz,
+                    "rg_x_m": radius_of_gyration(ix, mass),
+                    "rg_y_m": radius_of_gyration(iy, mass),
+                    "rg_z_m": radius_of_gyration(iz, mass),
+                    "yaw_axis": yaw_axis,
+                    "yaw_to_roll_pitch_inertia_ratio": yaw_inertia / roll_pitch_inertia if roll_pitch_inertia > 0.0 else float("nan"),
+                    "source": row.get("url", source_ref),
+                }
+            )
+    return rows
+
+
+def summarize_body_drag(
+    presets: list[dict[str, float | str]],
+    open_models: list[dict[str, float | str]],
+) -> list[dict[str, float | str]]:
+    rows = []
+    for source_name, source_rows, source_ref in (
+        ("current_preset", presets, repo_path(DRONE_CONFIG)),
+        ("open_source_model", open_models, ""),
+    ):
+        for row in source_rows:
+            body_x = float(row.get("body_drag_x", float("nan")))
+            body_y = float(row.get("body_drag_y", float("nan")))
+            body_z = float(row.get("body_drag_z", float("nan")))
+            if not any(math.isfinite(value) for value in (body_x, body_y, body_z)):
+                continue
+            linear = float(row.get("linear_drag_coefficient", 0.0))
+            if not math.isfinite(linear):
+                linear = 0.0
+            mass = float(row.get("mass_kg", float("nan")))
+            weight = mass * G if math.isfinite(mass) and mass > 0.0 else float("nan")
+            for speed in (10.0, 20.0):
+                v2 = speed * speed
+                axis_x = linear + body_x if math.isfinite(body_x) else float("nan")
+                axis_y = linear + body_y if math.isfinite(body_y) else float("nan")
+                axis_z = linear + body_z if math.isfinite(body_z) else float("nan")
+                rows.append(
+                    {
+                        "kind": source_name,
+                        "name": row.get("preset", row.get("name", "")),
+                        "speed_m_s": speed,
+                        "linear_drag_coefficient": linear,
+                        "body_drag_x": body_x,
+                        "body_drag_y": body_y,
+                        "body_drag_z": body_z,
+                        "axis_x_drag_force_n": axis_x * v2 if math.isfinite(axis_x) else float("nan"),
+                        "axis_y_drag_force_n": axis_y * v2 if math.isfinite(axis_y) else float("nan"),
+                        "axis_z_drag_force_n": axis_z * v2 if math.isfinite(axis_z) else float("nan"),
+                        "axis_x_drag_over_weight": axis_x * v2 / weight if weight > 0.0 and math.isfinite(axis_x) else float("nan"),
+                        "axis_z_drag_over_weight": axis_z * v2 / weight if weight > 0.0 and math.isfinite(axis_z) else float("nan"),
+                        "axis_x_equiv_cda_m2": 2.0 * axis_x / RHO if math.isfinite(axis_x) else float("nan"),
+                        "axis_z_equiv_cda_m2": 2.0 * axis_z / RHO if math.isfinite(axis_z) else float("nan"),
+                        "source": row.get("url", source_ref),
+                    }
+                )
+    return rows
+
+
+def configured_rotor_blade_count() -> float:
+    text = DRONE_PHYSICS.read_text(encoding="utf-8")
+    match = re.search(r"ROTOR_BLADE_COUNT\s*=\s*([0-9.]+)", text)
+    return float(match.group(1)) if match else float("nan")
+
+
+def interval_ms(rate_hz: float) -> float:
+    return 1000.0 / rate_hz if rate_hz > 0.0 and math.isfinite(rate_hz) else float("nan")
+
+
+def summarize_timing_vibration(presets: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
+    blade_count = configured_rotor_blade_count()
+    rows = []
+    for preset in presets:
+        hover_thrust = float(preset["hover_thrust_per_rotor_n"])
+        k = float(preset["k_n_per_rad2"])
+        hover_rpm = rpm_from_k_thrust(k, hover_thrust)
+        max_rpm = float(preset["max_rpm_from_k"])
+        hover_motor_hz = hover_rpm / 60.0
+        max_motor_hz = max_rpm / 60.0
+        gyro_lpf = float(preset.get("gyro_low_pass_hz", float("nan")))
+        rc_rate = float(preset.get("rc_frame_rate_hz", float("nan")))
+        esc_rate = float(preset.get("esc_command_frame_rate_hz", float("nan")))
+        control_latency = float(preset.get("control_latency_s", float("nan")))
+        rc_latency = float(preset.get("rc_command_latency_s", float("nan")))
+        rc_smoothing = float(preset.get("rc_smoothing_tau_s", float("nan")))
+        rows.append(
+            {
+                "preset": preset["preset"],
+                "configured_blade_count": blade_count,
+                "reference_3blade_count": 3.0,
+                "hover_rpm": hover_rpm,
+                "max_rpm": max_rpm,
+                "hover_motor_hz": hover_motor_hz,
+                "max_motor_hz": max_motor_hz,
+                "hover_blade_pass_hz": hover_motor_hz * blade_count,
+                "max_blade_pass_hz": max_motor_hz * blade_count,
+                "hover_3blade_pass_hz": hover_motor_hz * 3.0,
+                "max_3blade_pass_hz": max_motor_hz * 3.0,
+                "blade_pass_3blade_to_configured_ratio": 3.0 / blade_count if blade_count > 0.0 else float("nan"),
+                "gyro_low_pass_hz": gyro_lpf,
+                "gyro_lpf_over_hover_blade_pass": gyro_lpf / (hover_motor_hz * blade_count) if hover_motor_hz * blade_count > 0.0 else float("nan"),
+                "gyro_lpf_over_hover_3blade_pass": gyro_lpf / (hover_motor_hz * 3.0) if hover_motor_hz > 0.0 else float("nan"),
+                "rc_frame_rate_hz": rc_rate,
+                "rc_frame_interval_ms": interval_ms(rc_rate),
+                "esc_command_frame_rate_hz": esc_rate,
+                "esc_command_frame_interval_ms": interval_ms(esc_rate),
+                "control_latency_ms": control_latency * 1000.0 if math.isfinite(control_latency) else float("nan"),
+                "rc_command_latency_ms": rc_latency * 1000.0 if math.isfinite(rc_latency) else float("nan"),
+                "rc_smoothing_tau_ms": rc_smoothing * 1000.0 if math.isfinite(rc_smoothing) else float("nan"),
+                "source": repo_path(DRONE_CONFIG),
+            }
+        )
+    return rows
+
+
+def blackbox_header_value(headers: dict[str, str], key: str, default: float = float("nan")) -> float:
+    raw = headers.get(key)
+    if raw is None or raw == "":
+        return default
+    try:
+        return float(raw.split(",", 1)[0])
+    except ValueError:
+        return default
+
+
+def parse_blackbox_headers(text: str) -> dict[str, str]:
+    headers: dict[str, str] = {}
+    for line in text.splitlines():
+        if not line.startswith("H ") or ":" not in line:
+            continue
+        key, value = line[2:].split(":", 1)
+        headers[key.strip()] = value.strip()
+    return headers
+
+
+def blackbox_field_names(headers: dict[str, str]) -> list[str]:
+    raw = headers.get("Field I name", "")
+    return [field.strip() for field in raw.split(",") if field.strip()]
+
+
+def summarize_blackbox_sources(timing_rows: list[dict[str, float | str]]) -> dict[str, object]:
+    source_text = fetch_text(BETAFLIGHT_BLACKBOX_SOURCE_URL)
+    erpm_logged_divisor = 100.0 if "eRPM / 100" in source_text else float("nan")
+    header_rows: list[dict[str, float | str]] = []
+    for source in BLACKBOX_LOG_SOURCES:
+        text = fetch_text(source["url"])
+        headers = parse_blackbox_headers(text)
+        fields = blackbox_field_names(headers)
+        looptime_us = blackbox_header_value(headers, "looptime")
+        pid_denom = blackbox_header_value(headers, "pid_process_denom", 1.0)
+        rate_num = blackbox_header_value(headers, "blackbox_rate_num", 1.0)
+        rate_denom = blackbox_header_value(headers, "blackbox_rate_denom", 1.0)
+        interval_us = looptime_us * pid_denom * rate_denom / rate_num if looptime_us > 0.0 and rate_num > 0.0 else float("nan")
+        sample_hz = 1_000_000.0 / interval_us if interval_us > 0.0 else float("nan")
+        header_rows.append(
+            {
+                "name": source["name"],
+                "url": source["url"],
+                "context": source["context"],
+                "firmware_type": headers.get("Firmware type", ""),
+                "firmware_revision": headers.get("Firmware revision", ""),
+                "firmware_date": headers.get("Firmware date", ""),
+                "field_count": len(fields),
+                "has_time": int("time" in fields),
+                "has_gyro_adc": int(any(field.startswith("gyroADC") for field in fields)),
+                "has_acc_smooth": int(any(field.startswith("accSmooth") for field in fields)),
+                "has_motor_command": int(any(field.startswith("motor[") for field in fields)),
+                "has_erpm": int(any(field.startswith("eRPM") for field in fields)),
+                "looptime_us": looptime_us,
+                "pid_process_denom": pid_denom,
+                "blackbox_rate_num": rate_num,
+                "blackbox_rate_denom": rate_denom,
+                "estimated_main_interval_us": interval_us,
+                "estimated_main_sample_hz": sample_hz,
+                "dshot_bidir": blackbox_header_value(headers, "dshot_bidir"),
+                "gyro_rpm_notch_harmonics": blackbox_header_value(headers, "gyro_rpm_notch_harmonics"),
+                "gyro_rpm_notch_min_hz": blackbox_header_value(headers, "gyro_rpm_notch_min"),
+                "rpm_notch_lpf_hz": blackbox_header_value(headers, "rpm_notch_lpf"),
+                "gyro_lowpass_hz": blackbox_header_value(headers, "gyro_lowpass_hz"),
+                "gyro_lowpass_dyn_hz_low": blackbox_header_value(headers, "gyro_lowpass_dyn_hz"),
+            }
+        )
+
+    motor_poles = 14.0
+    mechanical_rpm_per_logged_erpm100 = erpm_logged_divisor * 2.0 / motor_poles
+    erpm_rows: list[dict[str, float | str]] = []
+    for row in timing_rows:
+        hover_rpm = float(row["hover_rpm"])
+        max_rpm = float(row["max_rpm"])
+        hover_logged = hover_rpm * motor_poles / 2.0 / erpm_logged_divisor
+        max_logged = max_rpm * motor_poles / 2.0 / erpm_logged_divisor
+        erpm_rows.append(
+            {
+                "preset": row["preset"],
+                "motor_poles": motor_poles,
+                "erpm_logged_divisor": erpm_logged_divisor,
+                "mechanical_rpm_per_logged_erpm100": mechanical_rpm_per_logged_erpm100,
+                "hover_mechanical_rpm": hover_rpm,
+                "max_mechanical_rpm": max_rpm,
+                "hover_logged_erpm100": hover_logged,
+                "max_logged_erpm100": max_logged,
+                "hover_3blade_pass_hz": row["hover_3blade_pass_hz"],
+                "max_3blade_pass_hz": row["max_3blade_pass_hz"],
+                "source": BETAFLIGHT_BLACKBOX_SOURCE_URL,
+            }
+        )
+
+    path = DATA / "blackbox_log_header_summary.csv"
+    DATA.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = [
+            "name",
+            "url",
+            "context",
+            "firmware_type",
+            "firmware_revision",
+            "firmware_date",
+            "field_count",
+            "has_time",
+            "has_gyro_adc",
+            "has_acc_smooth",
+            "has_motor_command",
+            "has_erpm",
+            "looptime_us",
+            "pid_process_denom",
+            "blackbox_rate_num",
+            "blackbox_rate_denom",
+            "estimated_main_interval_us",
+            "estimated_main_sample_hz",
+            "dshot_bidir",
+            "gyro_rpm_notch_harmonics",
+            "gyro_rpm_notch_min_hz",
+            "rpm_notch_lpf_hz",
+            "gyro_lowpass_hz",
+            "gyro_lowpass_dyn_hz_low",
+        ]
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(header_rows)
+    return {
+        "source": BETAFLIGHT_BLACKBOX_SOURCE_URL,
+        "library": BLACKBOX_LIBRARY_URL,
+        "summary_csv": repo_path(path),
+        "header_rows": header_rows,
+        "erpm_rows": erpm_rows,
+        "erpm_logged_divisor": erpm_logged_divisor,
+        "motor_poles": motor_poles,
+        "mechanical_rpm_per_logged_erpm100": mechanical_rpm_per_logged_erpm100,
+    }
 
 
 def summarize_zju_ground_effect() -> list[dict[str, float | str]]:
@@ -715,6 +1168,53 @@ def summarize_battery_ir(presets: list[dict[str, float | str]]) -> list[dict[str
     return rows
 
 
+def summarize_mendeley_ecm() -> dict[str, object]:
+    if not MENDELEY_ECM_SUMMARY_CSV.exists():
+        return {"available": False, "pack_rows": []}
+    rows: list[dict[str, float | str]] = []
+    with MENDELEY_ECM_SUMMARY_CSV.open(encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            parsed: dict[str, float | str] = {"pack": row["pack"]}
+            for key, value in row.items():
+                if key in ("pack", "source_file"):
+                    parsed[key] = value
+                else:
+                    parsed[key] = float(value)
+            rows.append(parsed)
+    pack_rows = []
+    for pack in sorted({str(row["pack"]) for row in rows}):
+        pack_samples = sorted((row for row in rows if row["pack"] == pack), key=lambda row: float(row["cycle"]))
+        first = pack_samples[0]
+        last = pack_samples[-1]
+        pack_rows.append(
+            {
+                "pack": pack,
+                "file_count": len(pack_samples),
+                "first_cycle": first["cycle"],
+                "last_cycle": last["cycle"],
+                "first_r0_mean_ohm": first["r0_mean_ohm"],
+                "last_r0_mean_ohm": last["r0_mean_ohm"],
+                "cycle_growth_ratio": float(last["r0_mean_ohm"]) / float(first["r0_mean_ohm"]),
+            }
+        )
+    def values(metric: str) -> list[float]:
+        return [float(row[metric]) for row in rows]
+    return {
+        "available": True,
+        "source": MENDELEY_LIPO_DATASET_URL,
+        "summary_csv": repo_path(MENDELEY_ECM_SUMMARY_CSV),
+        "row_count": len(rows),
+        "pack_count": len(pack_rows),
+        "r0_mean_min_ohm": min(values("r0_mean_ohm")),
+        "r0_mean_avg_ohm": statistics.fmean(values("r0_mean_ohm")),
+        "r0_mean_max_ohm": max(values("r0_mean_ohm")),
+        "low_soc_over_high_soc_avg": statistics.fmean(values("r0_low_soc_over_high_soc")),
+        "low_soc_over_high_soc_min": min(values("r0_low_soc_over_high_soc")),
+        "low_soc_over_high_soc_max": max(values("r0_low_soc_over_high_soc")),
+        "pack_rows": pack_rows,
+    }
+
+
 def summarize_coaxial_spacing(presets: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
     rows = []
     coax = next((preset for preset in presets if preset["preset"] == "coaxialX8"), None)
@@ -799,6 +1299,11 @@ def write_summary_csv(
     battery_ir_rows: list[dict[str, float | str]],
     coaxial_rows: list[dict[str, float | str]],
     motor_response_rows: list[dict[str, float | str]],
+    inertia_rows: list[dict[str, float | str]],
+    drag_rows: list[dict[str, float | str]],
+    timing_rows: list[dict[str, float | str]],
+    blackbox_summary: dict[str, object],
+    mendeley_ecm: dict[str, object],
 ) -> None:
     path = DATA / "fpv_model_validation_summary.csv"
     DATA.mkdir(parents=True, exist_ok=True)
@@ -820,19 +1325,25 @@ def write_summary_csv(
             ("qt_m", "m"),
             ("normalized_ct", "CT"),
             ("max_omega_rad_s", "rad/s"),
+            ("inertia_x_kg_m2", "kg*m^2"),
+            ("inertia_y_kg_m2", "kg*m^2"),
+            ("inertia_z_kg_m2", "kg*m^2"),
+            ("body_drag_x", "N/(m/s)^2"),
+            ("body_drag_y", "N/(m/s)^2"),
+            ("body_drag_z", "N/(m/s)^2"),
         ):
             if metric in item:
                 rows.append({"category": "open_source_model", "name": item["name"], "metric": metric, "value": item[metric], "unit": unit, "source": item["url"]})
     for item in presets:
         for metric in ("max_rpm_from_k", "tip_mach_at_max", "thrust_to_weight", "hover_throttle_linear", "hover_disk_loading_n_m2", "hover_induced_velocity_m_s"):
-            rows.append({"category": "current_preset", "name": item["preset"], "metric": metric, "value": item[metric], "unit": "", "source": str(DRONE_CONFIG)})
+            rows.append({"category": "current_preset", "name": item["preset"], "metric": metric, "value": item[metric], "unit": "", "source": repo_path(DRONE_CONFIG)})
     for item in comparisons:
         rows.append({"category": "comparison", "name": item["name"], "metric": item["metric"], "value": item["value"], "unit": item["unit"], "source": item["source"]})
     for item in zju_ground:
         rows.append({"category": "zju_ground_effect", "name": item["name"], "metric": "k_n_per_rad2", "value": item["k_n_per_rad2"], "unit": "N/(rad/s)^2", "source": item["url"]})
         rows.append({"category": "zju_ground_effect", "name": item["name"], "metric": "qt_m", "value": item["qt_m"], "unit": "m", "source": item["url"]})
     for item in ground_rows:
-        rows.append({"category": "ground_effect_shape", "name": item["preset"], "metric": f"current_multiplier_at_{item['h_over_r']}_R", "value": item["current_multiplier"], "unit": "x", "source": str(DRONE_CONFIG)})
+        rows.append({"category": "ground_effect_shape", "name": item["preset"], "metric": f"current_multiplier_at_{item['h_over_r']}_R", "value": item["current_multiplier"], "unit": "x", "source": repo_path(DRONE_CONFIG)})
         rows.append({"category": "ground_effect_shape", "name": item["preset"], "metric": f"gympyb_cf2_multiplier_at_{item['h_over_r']}_R", "value": item["gympyb_cf2_multiplier"], "unit": "x", "source": item["source"]})
     for item in vrs_rows:
         for metric, unit in (
@@ -870,6 +1381,99 @@ def write_summary_csv(
             ("inflow_tau_vs_ref_up", "x"),
         ):
             rows.append({"category": "motor_response", "name": item["preset"], "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in inertia_rows:
+        for metric, unit in (
+            ("rg_x_m", "m"),
+            ("rg_y_m", "m"),
+            ("rg_z_m", "m"),
+            ("yaw_to_roll_pitch_inertia_ratio", "ratio"),
+        ):
+            rows.append({"category": "inertia_geometry", "name": item["name"], "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in drag_rows:
+        for metric, unit in (
+            ("axis_x_drag_force_n", "N"),
+            ("axis_y_drag_force_n", "N"),
+            ("axis_z_drag_force_n", "N"),
+            ("axis_x_drag_over_weight", "weight"),
+            ("axis_z_drag_over_weight", "weight"),
+            ("axis_x_equiv_cda_m2", "m^2"),
+            ("axis_z_equiv_cda_m2", "m^2"),
+        ):
+            rows.append(
+                {
+                    "category": "body_drag_sanity",
+                    "name": item["name"],
+                    "metric": f"{metric}_at_{fmt(float(item['speed_m_s']), 0)}m_s",
+                    "value": item[metric],
+                    "unit": unit,
+                    "source": item["source"],
+                }
+            )
+    for item in timing_rows:
+        for metric, unit in (
+            ("configured_blade_count", "blades"),
+            ("hover_rpm", "rpm"),
+            ("max_rpm", "rpm"),
+            ("hover_blade_pass_hz", "Hz"),
+            ("max_blade_pass_hz", "Hz"),
+            ("hover_3blade_pass_hz", "Hz"),
+            ("max_3blade_pass_hz", "Hz"),
+            ("blade_pass_3blade_to_configured_ratio", "x"),
+            ("gyro_low_pass_hz", "Hz"),
+            ("gyro_lpf_over_hover_blade_pass", "ratio"),
+            ("gyro_lpf_over_hover_3blade_pass", "ratio"),
+            ("rc_frame_rate_hz", "Hz"),
+            ("rc_frame_interval_ms", "ms"),
+            ("esc_command_frame_rate_hz", "Hz"),
+            ("esc_command_frame_interval_ms", "ms"),
+            ("control_latency_ms", "ms"),
+            ("rc_command_latency_ms", "ms"),
+            ("rc_smoothing_tau_ms", "ms"),
+        ):
+            rows.append({"category": "timing_vibration", "name": item["preset"], "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in blackbox_summary.get("header_rows", []):
+        header_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("field_count", "fields"),
+            ("has_gyro_adc", "bool"),
+            ("has_motor_command", "bool"),
+            ("has_erpm", "bool"),
+            ("estimated_main_sample_hz", "Hz"),
+            ("dshot_bidir", "bool"),
+            ("gyro_rpm_notch_harmonics", "harmonics"),
+            ("rpm_notch_lpf_hz", "Hz"),
+        ):
+            rows.append({"category": "blackbox_log_header", "name": header_row["name"], "metric": metric, "value": header_row[metric], "unit": unit, "source": header_row["url"]})
+    for item in blackbox_summary.get("erpm_rows", []):
+        erpm_row = item  # type: ignore[assignment]
+        for metric, unit in (
+            ("mechanical_rpm_per_logged_erpm100", "rpm/count"),
+            ("hover_logged_erpm100", "logged eRPM/100"),
+            ("max_logged_erpm100", "logged eRPM/100"),
+            ("hover_3blade_pass_hz", "Hz"),
+            ("max_3blade_pass_hz", "Hz"),
+        ):
+            rows.append({"category": "blackbox_erpm_conversion", "name": erpm_row["preset"], "metric": metric, "value": erpm_row[metric], "unit": unit, "source": erpm_row["source"]})
+    if mendeley_ecm.get("available"):
+        for metric, unit in (
+            ("row_count", "files"),
+            ("pack_count", "packs"),
+            ("r0_mean_min_ohm", "ohm"),
+            ("r0_mean_avg_ohm", "ohm"),
+            ("r0_mean_max_ohm", "ohm"),
+            ("low_soc_over_high_soc_min", "x"),
+            ("low_soc_over_high_soc_avg", "x"),
+            ("low_soc_over_high_soc_max", "x"),
+        ):
+            rows.append({"category": "mendeley_lipo_ecm", "name": "LP-503562-IS-3", "metric": metric, "value": mendeley_ecm[metric], "unit": unit, "source": mendeley_ecm["source"]})
+        for item in mendeley_ecm.get("pack_rows", []):
+            pack_row = item  # type: ignore[assignment]
+            for metric, unit in (
+                ("first_r0_mean_ohm", "ohm"),
+                ("last_r0_mean_ohm", "ohm"),
+                ("cycle_growth_ratio", "x"),
+            ):
+                rows.append({"category": "mendeley_lipo_ecm", "name": pack_row["pack"], "metric": metric, "value": pack_row[metric], "unit": unit, "source": mendeley_ecm["source"]})
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=["category", "name", "metric", "value", "unit", "source"])
         writer.writeheader()
@@ -891,6 +1495,11 @@ def write_markdown(
     battery_ir_rows: list[dict[str, float | str]],
     coaxial_rows: list[dict[str, float | str]],
     motor_response_rows: list[dict[str, float | str]],
+    inertia_rows: list[dict[str, float | str]],
+    drag_rows: list[dict[str, float | str]],
+    timing_rows: list[dict[str, float | str]],
+    blackbox_summary: dict[str, object],
+    mendeley_ecm: dict[str, object],
 ) -> None:
     path = DOCS / "fpv-sim-model-validation.md"
     five_in = [row for row in mqtb if "5x" in str(row["prop"]) or "5.1x" in str(row["prop"])]
@@ -905,6 +1514,12 @@ def write_markdown(
     racing_ground = [row for row in ground_rows if row["preset"] == "racingQuad"]
     racing_battery_ir = next(row for row in battery_ir_rows if row["preset"] == "racingQuad")
     racing_motor_response = next(row for row in motor_response_rows if row["preset"] == "racingQuad")
+    racing_inertia = next(row for row in inertia_rows if row["name"] == "racingQuad")
+    racing_drag_10 = next(row for row in drag_rows if row["name"] == "racingQuad" and float(row["speed_m_s"]) == 10.0)
+    rotorpy_drag_10 = next((row for row in drag_rows if row["name"] == "RotorPy Hummingbird" and float(row["speed_m_s"]) == 10.0), None)
+    racing_timing = next(row for row in timing_rows if row["preset"] == "racingQuad")
+    racing_erpm = next(row for row in blackbox_summary.get("erpm_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
+    betaflight_log = next((row for row in blackbox_summary.get("header_rows", []) if row["name"] == "Betaflight issue LOG00078"), None)  # type: ignore[index]
     lines: list[str] = []
     lines.append("# FPV simulation model validation calculations")
     lines.append("")
@@ -922,7 +1537,18 @@ def write_markdown(
     lines.append(f"- The ZJU ground-effect/motor-calibration source reports single-rotor `k_T = {fmt(float(zju_single['k_t_n_per_rpm2']))}` N/rpm^2, which converts to `{fmt(float(zju_single['k_n_per_rad2']))}` N/(rad/s)^2, with `Q/T = {fmt(float(zju_single['qt_m']), 4)}` m. The `Q/T` value is close to this project's 5-inch yaw torque order of magnitude.")
     lines.append(f"- For `racingQuad`, hover induced velocity is `{fmt(float(racing_vrs['hover_induced_velocity_m_s']))}` m/s. The code's VRS intensity band covers roughly `{fmt(float(racing_vrs['current_vrs_entry_m_s']))}-{fmt(float(racing_vrs['current_vrs_exit_end_m_s']))}` m/s descent, while the Cambridge dual-rotor paper reports strongest loss around `1.2-1.3 vi` (`{fmt(float(racing_vrs['paper_peak_loss_low_m_s']))}-{fmt(float(racing_vrs['paper_peak_loss_high_m_s']))}` m/s for this preset).")
     lines.append(f"- `racingQuad` battery IR is `{fmt(float(racing_battery_ir['per_cell_resistance_mohm']))}` mOhm/cell by the inferred `{int(racing_battery_ir['estimated_cells'])}S` pack. That sits in the high-C LiPo plausibility range, but max-current sag still reaches `{fmt(float(racing_battery_ir['current_limit_pack_sag_v']))}` V at the configured limit.")
+    if mendeley_ecm.get("available"):
+        lines.append(f"- The extracted Mendeley LP-503562-IS-3 ECM fit summary has `{int(float(mendeley_ecm['row_count']))}` fitted-cycle files across `{int(float(mendeley_ecm['pack_count']))}` packs. Mean fitted `RO` spans `{fmt(float(mendeley_ecm['r0_mean_min_ohm']) * 1000.0)}-{fmt(float(mendeley_ecm['r0_mean_max_ohm']) * 1000.0)}` mOhm/cell, and low-SOC `RO` averages `{fmt(float(mendeley_ecm['low_soc_over_high_soc_avg']), 3)}x` high-SOC `RO`; use this for SOC/SOH shape, not FPV high-C absolute ESR.")
     lines.append(f"- `racingQuad.motor_tau` is `{fmt(float(racing_motor_response['motor_tau_s']), 4)}` s, about `{fmt(float(racing_motor_response['motor_tau_vs_ref_up']), 2)}x` RotorS/PX4 `timeConstantUp` and `{fmt(float(racing_motor_response['motor_tau_vs_ref_down']), 2)}x` `timeConstantDown`. That is defensible if it includes ESC/load/voltage effects, but it is slower than the simple open-source actuator lag reference.")
+    lines.append(f"- `racingQuad` radius of gyration is `rx/ry/rz = {fmt(float(racing_inertia['rg_x_m']))}/{fmt(float(racing_inertia['rg_y_m']))}/{fmt(float(racing_inertia['rg_z_m']))}` m, with yaw-axis inertia about `{fmt(float(racing_inertia['yaw_to_roll_pitch_inertia_ratio']), 2)}x` the roll/pitch-axis mean. That is close to RotorS Hummingbird/PX4 Iris scale after mass normalization, so the base inertia order looks plausible.")
+    drag_note = f"`racingQuad` base drag at 10 m/s is `{fmt(float(racing_drag_10['axis_x_drag_force_n']))}` N on body X and `{fmt(float(racing_drag_10['axis_z_drag_force_n']))}` N on body Z before separated-flow additions, equal to `{fmt(float(racing_drag_10['axis_x_drag_over_weight']), 2)}x` and `{fmt(float(racing_drag_10['axis_z_drag_over_weight']), 2)}x` vehicle weight."
+    if rotorpy_drag_10 is not None:
+        drag_note += f" RotorPy Hummingbird's comparable 10 m/s body-drag-only X/Z forces are `{fmt(float(rotorpy_drag_10['axis_x_drag_force_n']))}`/`{fmt(float(rotorpy_drag_10['axis_z_drag_force_n']))}` N."
+    lines.append(f"- {drag_note} Treat the current drag coefficients as very strong unless intentionally gameplay-scaled.")
+    lines.append(f"- `DronePhysics` uses `ROTOR_BLADE_COUNT = {fmt(float(racing_timing['configured_blade_count']), 0)}` for blade-pass vibration and notch telemetry. For `racingQuad`, that gives hover/max blade-pass frequencies of `{fmt(float(racing_timing['hover_blade_pass_hz']))}/{fmt(float(racing_timing['max_blade_pass_hz']))}` Hz; a three-blade FPV prop at the same RPM would be `{fmt(float(racing_timing['hover_3blade_pass_hz']))}/{fmt(float(racing_timing['max_3blade_pass_hz']))}` Hz, or `{fmt(float(racing_timing['blade_pass_3blade_to_configured_ratio']), 2)}x` higher.")
+    if betaflight_log is not None:
+        lines.append(f"- The public Betaflight 4.2.4 blackbox log header has `looptime={fmt(float(betaflight_log['looptime_us']), 0)} us`, `pid_process_denom={fmt(float(betaflight_log['pid_process_denom']), 0)}`, `dshot_bidir={fmt(float(betaflight_log['dshot_bidir']), 0)}`, and an estimated main-log rate of `{fmt(float(betaflight_log['estimated_main_sample_hz']), 0)}` Hz. Its field list has gyro, accelerometer, and motor command data, but no `eRPM` field, so it is a format/timing anchor rather than a motor-RPM validation log.")
+    lines.append(f"- Betaflight's current blackbox source logs `eRPM / {fmt(float(blackbox_summary['erpm_logged_divisor']), 0)}` when DShot telemetry fields are present. For a 14-pole motor, one logged count equals `{fmt(float(blackbox_summary['mechanical_rpm_per_logged_erpm100']), 2)}` mechanical rpm; the current `racingQuad` hover/max RPM would appear as about `{fmt(float(racing_erpm['hover_logged_erpm100']), 0)}/{fmt(float(racing_erpm['max_logged_erpm100']), 0)}` in an `eRPM[]` blackbox column.")
     lines.append("")
     lines.append("## UIUC static propeller coefficients")
     lines.append("")
@@ -942,15 +1568,57 @@ def write_markdown(
     lines.append("")
     lines.append("## Open-source simulator parameter checks")
     lines.append("")
-    lines.append("| Source | mass | radius | k | Q/T or kappa | max omega | tau up/down | normalized CT |")
-    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|")
+    lines.append("| Source | mass | inertia Ix/Iy/Iz | radius | k | Q/T or kappa | max omega | tau up/down | normalized CT | drag |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
     for row in open_models:
         tau = f"{fmt(float(row.get('tau_up_s', float('nan'))), 4)}/{fmt(float(row.get('tau_down_s', float('nan'))), 4)}"
-        lines.append(f"| [{row['name']}]({row['url']}) | {fmt(float(row.get('mass_kg', float('nan'))))} kg | {fmt(float(row.get('radius_m', float('nan'))), 4)} m | {fmt(float(row.get('k_n_per_rad2', float('nan'))))} | {fmt(float(row.get('qt_m', float('nan'))), 4)} | {fmt(float(row.get('max_omega_rad_s', float('nan'))), 0)} | {tau} s | {fmt(float(row.get('normalized_ct', float('nan'))), 3)} |")
+        inertia = f"{fmt(float(row.get('inertia_x_kg_m2', float('nan'))))}/{fmt(float(row.get('inertia_y_kg_m2', float('nan'))))}/{fmt(float(row.get('inertia_z_kg_m2', float('nan'))))}"
+        drag = f"{fmt(float(row.get('body_drag_x', row.get('rotor_drag_coefficient', float('nan')))))}/{fmt(float(row.get('body_drag_y', row.get('rotor_drag_coefficient', float('nan')))))}/{fmt(float(row.get('body_drag_z', row.get('rotor_drag_coefficient', float('nan')))))}"
+        lines.append(f"| [{row['name']}]({row['url']}) | {fmt(float(row.get('mass_kg', float('nan'))))} kg | {inertia} | {fmt(float(row.get('radius_m', float('nan'))), 4)} m | {fmt(float(row.get('k_n_per_rad2', float('nan'))))} | {fmt(float(row.get('qt_m', float('nan'))), 4)} | {fmt(float(row.get('max_omega_rad_s', float('nan'))), 0)} | {tau} s | {fmt(float(row.get('normalized_ct', float('nan'))), 3)} | {drag} |")
     lines.append("")
     lines.append("RotorS and PX4 use the same simple thrust form as this project, `T = k * omega^2`. Their normalized CT values are useful as a sanity range, but their vehicle scale and prop geometry differ from a 5-inch FPV racing quad.")
     lines.append("")
     lines.append("gym-pybullet-drones also exposes simple ground-effect and multi-drone downwash formulas in `BaseAviary.py`: extra ground-effect force is proportional to `rpm^2 * kf * gnd_eff_coeff * (R / (4h))^2`, and downwash uses `alpha = dw1 * (R / (4 dz))^2`, `beta = dw2 * dz + dw3`, then a Gaussian lateral falloff. Those formulas are useful references for this project's ground, propwash, and nearby-drone wake terms.")
+    lines.append("")
+    lines.append("## Airframe inertia sanity")
+    lines.append("")
+    lines.append("The table compares radius of gyration `r = sqrt(I/m)` instead of raw inertia. This makes a 27 g Crazyflie, a 1.5 kg Iris, and the current presets comparable on geometry rather than mass. For the yaw ratio, current project presets use their vertical `Y` axis, while URDF/SDF/Python open models use their source `Z` axis.")
+    lines.append("")
+    lines.append("| Kind | Name | mass | Ixx/Iyy/Izz | rg x/y/z | yaw axis | yaw inertia ratio | Source |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|---|")
+    for row in inertia_rows:
+        source = row["source"]
+        source_text = f"[source]({source})" if isinstance(source, str) and source.startswith("http") else str(source)
+        lines.append(
+            f"| {row['kind']} | {row['name']} | {fmt(float(row['mass_kg']))} kg | "
+            f"{fmt(float(row['inertia_x_kg_m2']))}/{fmt(float(row['inertia_y_kg_m2']))}/{fmt(float(row['inertia_z_kg_m2']))} | "
+            f"{fmt(float(row['rg_x_m']))}/{fmt(float(row['rg_y_m']))}/{fmt(float(row['rg_z_m']))} m | "
+            f"{row['yaw_axis']} | {fmt(float(row['yaw_to_roll_pitch_inertia_ratio']), 2)} | {source_text} |"
+        )
+    lines.append("")
+    lines.append("Current 5-inch and small-lift presets are in the same mass-normalized geometry range as RotorS Hummingbird and PX4 Iris. The larger lift presets have larger radii of gyration, as expected from longer arms and battery/payload mass farther from the center.")
+    lines.append("")
+    lines.append("## Body drag sanity")
+    lines.append("")
+    lines.append(f"Current code path: `linearDragCoefficient` contributes `F = -c * |v| * v` in world axes, while `bodyDragCoefficients` contribute per-axis `F_i = -c_i * v_i * |v_i|` in body axes before separated-flow additions. The values below assume sea-level density ratio and do not include the separated-flow drag term. Comparable open-source anchor: [RotorPy Hummingbird]({ROTORPY_HUMMINGBIRD_URL}) uses `c_D` in `N/(m/s)^2`; [gym-pybullet-drones BaseAviary.py]({GYMPYB_BASEAVIARY_URL}) uses a rotor-speed-scaled linear drag model and attributes it to Forster's Crazyflie system identification.")
+    lines.append("")
+    lines.append("| Kind | Name | speed | linear c | body c x/y/z | drag force x/y/z | x drag / weight | x equiv CdA | Source |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|---:|---|")
+    for row in drag_rows:
+        if float(row["speed_m_s"]) not in (10.0, 20.0):
+            continue
+        source = row["source"]
+        source_text = f"[source]({source})" if isinstance(source, str) and source.startswith("http") else str(source)
+        lines.append(
+            f"| {row['kind']} | {row['name']} | {fmt(float(row['speed_m_s']), 0)} m/s | "
+            f"{fmt(float(row['linear_drag_coefficient']))} | "
+            f"{fmt(float(row['body_drag_x']))}/{fmt(float(row['body_drag_y']))}/{fmt(float(row['body_drag_z']))} | "
+            f"{fmt(float(row['axis_x_drag_force_n']))}/{fmt(float(row['axis_y_drag_force_n']))}/{fmt(float(row['axis_z_drag_force_n']))} N | "
+            f"{fmt(float(row['axis_x_drag_over_weight']), 2)} | "
+            f"{fmt(float(row['axis_x_equiv_cda_m2']))} m^2 | {source_text} |"
+        )
+    lines.append("")
+    lines.append("The important warning is formula-level: the current linear coefficient is already a quadratic force term, not a small Stokes-like linear damping term. For `racingQuad`, `linear + body-X` gives an equivalent `CdA` above half a square meter and several vehicle weights of drag by 10 m/s, before separated-flow additions. If this is meant to model real aerodynamic body drag, it is very high; if it is a gameplay stability damper, it should be documented as such and kept separate from physical CdA claims.")
     lines.append("")
     lines.append("## ZJU ground-effect and motor calibration anchor")
     lines.append("")
@@ -1005,6 +1673,56 @@ def write_markdown(
             f"{fmt(float(row['inflow_tau_vs_ref_up']), 2)}x |"
         )
     lines.append("")
+    lines.append("## RPM, filtering, and command timing sanity")
+    lines.append("")
+    lines.append(f"References: [Betaflight DShot/RPM filtering]({BETAFLIGHT_RPM_FILTER_URL}), [Betaflight PID/filter tuning]({BETAFLIGHT_PID_TUNING_URL}), and [ExpressLRS packet-rate context]({EXPRESSLRS_PACKET_URL}). Betaflight-style RPM filtering is normally motor-RPM telemetry aware; this project's current gyro vibration telemetry uses an average motor notch plus a blade-pass notch. The code constant is `ROTOR_BLADE_COUNT = {fmt(float(timing_rows[0]['configured_blade_count']), 0)}`.")
+    lines.append("")
+    lines.append("| Preset | hover RPM | max RPM | configured blade-pass hover/max | 3-blade hover/max | gyro LPF | RC frame | ESC frame | latency/smoothing |")
+    lines.append("|---|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in timing_rows:
+        lines.append(
+            f"| {row['preset']} | {fmt(float(row['hover_rpm']), 0)} | {fmt(float(row['max_rpm']), 0)} | "
+            f"{fmt(float(row['hover_blade_pass_hz']), 0)}/{fmt(float(row['max_blade_pass_hz']), 0)} Hz | "
+            f"{fmt(float(row['hover_3blade_pass_hz']), 0)}/{fmt(float(row['max_3blade_pass_hz']), 0)} Hz | "
+            f"{fmt(float(row['gyro_low_pass_hz']), 0)} Hz | "
+            f"{fmt(float(row['rc_frame_rate_hz']), 0)} Hz / {fmt(float(row['rc_frame_interval_ms']))} ms | "
+            f"{fmt(float(row['esc_command_frame_rate_hz']), 0)} Hz / {fmt(float(row['esc_command_frame_interval_ms']))} ms | "
+            f"control {fmt(float(row['control_latency_ms']))} ms, RC {fmt(float(row['rc_command_latency_ms']))} ms, smooth {fmt(float(row['rc_smoothing_tau_ms']))} ms |"
+        )
+    lines.append("")
+    lines.append("For 5-inch FPV three-blade props, a physical blade-pass frequency is `1.5x` the current two-blade telemetry/notch value. Keep `ROTOR_BLADE_COUNT` aligned with the prop family used for calibration, or label the current notch as a synthetic second harmonic rather than true blade-pass frequency.")
+    lines.append("")
+    lines.append("## Betaflight blackbox timing and RPM telemetry anchors")
+    lines.append("")
+    lines.append(f"Sources: [Betaflight blackbox source]({BETAFLIGHT_BLACKBOX_SOURCE_URL}), [blackbox-library parser fixture]({BLACKBOX_LIBRARY_URL}), and [public Betaflight issue log]({BETAFLIGHT_PUBLIC_LOG_URL}). The generated header CSV is `{blackbox_summary['summary_csv']}`.")
+    lines.append("")
+    lines.append("| Log source | firmware | fields | gyro | motor cmd | eRPM | looptime | PID denom | estimated main rate | DShot bidir | RPM notch |")
+    lines.append("|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
+    for row in blackbox_summary.get("header_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| [{item['name']}]({item['url']}) | {item['firmware_revision']} | "
+            f"{int(item['field_count'])} | {int(item['has_gyro_adc'])} | {int(item['has_motor_command'])} | {int(item['has_erpm'])} | "
+            f"{fmt(float(item['looptime_us']), 0)} us | {fmt(float(item['pid_process_denom']), 0)} | "
+            f"{fmt(float(item['estimated_main_sample_hz']), 0)} Hz | {fmt(float(item['dshot_bidir']), 0)} | "
+            f"{fmt(float(item['gyro_rpm_notch_harmonics']), 0)} harmonics, LPF {fmt(float(item['rpm_notch_lpf_hz']), 0)} Hz |"
+        )
+    lines.append("")
+    lines.append("The public Betaflight issue log is useful because it is a real Betaflight 4.2.4 header with DShot bidirectional telemetry and RPM-filter settings enabled, but it does not expose `eRPM[]` fields in the main field list. For actual motor-RPM validation, the next log target should explicitly include `eRPM[0..3]` or an exported CSV from a viewer/parser that preserves those columns.")
+    lines.append("")
+    lines.append(f"Betaflight's current blackbox field table comments `eRPM / {fmt(float(blackbox_summary['erpm_logged_divisor']), 0)}`. With the common 14-pole FPV motor setting, mechanical rpm is `logged_eRPM100 * {fmt(float(blackbox_summary['mechanical_rpm_per_logged_erpm100']), 2)}`. For blade-pass checks, multiply mechanical rpm by blade count and divide by 60.")
+    lines.append("")
+    lines.append("| Preset | motor poles | hover RPM | max RPM | expected logged eRPM/100 hover/max | 3-blade blade-pass hover/max |")
+    lines.append("|---|---:|---:|---:|---:|---:|")
+    for row in blackbox_summary.get("erpm_rows", []):
+        item = row  # type: ignore[assignment]
+        lines.append(
+            f"| {item['preset']} | {fmt(float(item['motor_poles']), 0)} | "
+            f"{fmt(float(item['hover_mechanical_rpm']), 0)} | {fmt(float(item['max_mechanical_rpm']), 0)} | "
+            f"{fmt(float(item['hover_logged_erpm100']), 0)}/{fmt(float(item['max_logged_erpm100']), 0)} | "
+            f"{fmt(float(item['hover_3blade_pass_hz']), 0)}/{fmt(float(item['max_3blade_pass_hz']), 0)} Hz |"
+        )
+    lines.append("")
     lines.append("## VRS and propwash descent-speed anchors")
     lines.append("")
     lines.append(f"Reference: [Cambridge Flow dual-rotor axial-descent paper]({CAMBRIDGE_VRS_URL}). It reports strongest fixed-RPM thrust loss around `1.2-1.3 vi` and losses up to about one third in the fully developed VRS region.")
@@ -1048,6 +1766,23 @@ def write_markdown(
     lines.append("")
     lines.append("The Mendeley LiPo dataset exposes raw capacity, partial-discharge, EIS, and fitted ECM CSVs. The fitted model files provide columns `SOC, R_0, R_1, Q_1, a_1, R_2, Q_2, a_2, Q, L`, so `R_0(SOC, SOH)` is a direct candidate for replacing a constant internal resistance with a state-dependent lookup. Caveat: the cells are 3.7 V, 1.1 Ah BAK LP-503562-IS-3 packs measured at 25 C, with 1 A standard discharge and 3 A stress discharge, so the dataset informs SOC/SOH shape more than FPV high-C absolute resistance.")
     lines.append("")
+    if mendeley_ecm.get("available"):
+        lines.append(f"Extracted ECM summary CSV: `{mendeley_ecm['summary_csv']}`. The archive download endpoint is `{MENDELEY_LIPO_DATASET_URL}` -> `/public-api/zip/stcppt2r68/download/1`; the large zip is not stored in this repo. Note: the actual fitted CSV header uses `RO` for ohmic resistance.")
+        lines.append("")
+        lines.append(f"Across `{int(float(mendeley_ecm['row_count']))}` fitted-cycle files, mean `RO` spans `{fmt(float(mendeley_ecm['r0_mean_min_ohm']) * 1000.0)}-{fmt(float(mendeley_ecm['r0_mean_max_ohm']) * 1000.0)}` mOhm/cell, and low-SOC `RO` is `{fmt(float(mendeley_ecm['low_soc_over_high_soc_min']), 3)}-{fmt(float(mendeley_ecm['low_soc_over_high_soc_max']), 3)}x` high-SOC `RO` with average `{fmt(float(mendeley_ecm['low_soc_over_high_soc_avg']), 3)}x`.")
+        lines.append("")
+        lines.append("| Pack | fitted files | cycle span | first mean RO | last mean RO | growth |")
+        lines.append("|---|---:|---:|---:|---:|---:|")
+        for row in mendeley_ecm.get("pack_rows", []):
+            item = row  # type: ignore[assignment]
+            lines.append(
+                f"| {item['pack']} | {int(item['file_count'])} | "
+                f"{fmt(float(item['first_cycle']), 0)}-{fmt(float(item['last_cycle']), 0)} | "
+                f"{fmt(float(item['first_r0_mean_ohm']) * 1000.0)} mOhm | "
+                f"{fmt(float(item['last_r0_mean_ohm']) * 1000.0)} mOhm | "
+                f"{fmt(float(item['cycle_growth_ratio']), 3)}x |"
+            )
+        lines.append("")
     lines.append("The NASA/DASHlink battery set has a direct public zip of roughly 210 MB. This script links but does not cache that large binary by default. Its impedance records include `Battery_impedance`, `Rectified_impedance`, `Re`, and `Rct`, making it a second candidate for aging/SOH resistance-curve fitting.")
     lines.append("")
     lines.append("## Mini Quad Test Bench 2306/5-inch results")
@@ -1092,8 +1827,13 @@ def write_markdown(
     lines.append("2. Re-run this report after changing rotor constants so telemetry labels such as RPM, tip Mach, blade-pass notch, and motor electrical estimates stay tied to physical units.")
     lines.append("3. Keep `yawTorquePerThrustMeter` separate from thrust-coefficient tuning. The current 5-inch yaw value is close to RotorS/UIUC magnitude, while PX4 Iris uses a much larger 0.06 m constant.")
     lines.append("4. Keep the VRS thrust-loss path tied to induced velocity ratio; the current code thresholds are close to the Cambridge axial-descent reference, while `propwash_start/full` should remain a separate handling-disturbance tune.")
-    lines.append("5. Next data targets: digitized coaxial thrust/efficiency curves versus `z/D`, FPV pack IR versus SOC/temperature, and Betaflight blackbox logs with RPM telemetry for propwash recovery validation.")
+    lines.append("5. Treat the current drag coefficients as gameplay damping unless a real FPV airframe drag data source supports multi-weight drag at 10 m/s; RotorPy's comparable Hummingbird body-drag coefficients are much smaller.")
+    lines.append("6. Align `ROTOR_BLADE_COUNT` with the prop family used for calibration; the current 2-blade constant under-labels three-blade FPV blade-pass frequency by 33%.")
+    lines.append("7. Treat public blackbox logs without `eRPM[]` as timing/gyro/motor-command anchors only. For RPM-filter validation, require logs or exports that explicitly include `eRPM[0..3]`, and convert Betaflight logged `eRPM/100` through motor pole count before comparing with mechanical RPM.")
+    lines.append("8. Next data targets: digitized coaxial thrust/efficiency curves versus `z/D`, FPV high-C pack absolute ESR versus SOC/temperature, FPV airframe coast-down/log-fit drag, and Betaflight blackbox logs with RPM telemetry for propwash recovery validation.")
     lines.append("")
+    while lines and lines[-1] == "":
+        lines.pop()
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -1110,6 +1850,7 @@ def main() -> None:
     for url in (
         ZJU_GROUND_EFFECT_URL,
         GYMPYB_BASEAVIARY_URL,
+        ROTORPY_HUMMINGBIRD_URL,
         COAXIAL_BENCHMARK_URL,
         COAXIAL_RESULTS_URL,
         CAMBRIDGE_VRS_URL,
@@ -1117,6 +1858,12 @@ def main() -> None:
         MENDELEY_LIPO_DATASET_URL,
         NASA_BATTERY_DATASET_URL,
         CHL_LIPO_IR_URL,
+        BETAFLIGHT_RPM_FILTER_URL,
+        BETAFLIGHT_PID_TUNING_URL,
+        EXPRESSLRS_PACKET_URL,
+        BETAFLIGHT_BLACKBOX_SOURCE_URL,
+        BLACKBOX_LIBRARY_FIXTURE_URL,
+        BETAFLIGHT_PUBLIC_LOG_URL,
     ):
         fetch_text(url)
 
@@ -1213,6 +1960,11 @@ def main() -> None:
     battery_ir_rows = summarize_battery_ir(presets)
     coaxial_rows = summarize_coaxial_spacing(presets)
     motor_response_rows = summarize_motor_response(presets, open_models)
+    inertia_rows = summarize_inertia_geometry(presets, open_models)
+    drag_rows = summarize_body_drag(presets, open_models)
+    timing_rows = summarize_timing_vibration(presets)
+    blackbox_summary = summarize_blackbox_sources(timing_rows)
+    mendeley_ecm = summarize_mendeley_ecm()
 
     zju_single = next(row for row in zju_ground if "single-rotor" in str(row["name"]))
     comparisons.extend(
@@ -1234,10 +1986,11 @@ def main() -> None:
         ]
     )
 
-    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows)
-    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows)
+    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, blackbox_summary, mendeley_ecm)
+    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, blackbox_summary, mendeley_ecm)
     print("Wrote docs/fpv-sim-model-validation.md")
     print("Wrote docs/data/fpv_model_validation_summary.csv")
+    print("Wrote docs/data/blackbox_log_header_summary.csv")
     print(f"Cached raw sources in {RAW}")
 
 

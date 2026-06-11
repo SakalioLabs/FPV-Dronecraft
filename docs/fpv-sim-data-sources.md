@@ -82,7 +82,7 @@ Source:
 
 - [Mini Quad Test Bench, Emax Eco 2306 2400kv](https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259)
 
-This source is useful because it measures a real FPV motor plus prop plus ESC/power setup, not just propeller aerodynamics. The page includes a static HTML summary table and a JSONP data loader from `https://datarecorder.miniquadtestbench.com/admin/getdata.php`.
+This source is useful because it measures a real FPV motor plus prop plus ESC/power setup, not just propeller aerodynamics. The page includes a static HTML summary table and a JSONP data loader from its `datarecorder.miniquadtestbench.com/admin/getdata.php` endpoint.
 
 Extracted summary values:
 
@@ -190,6 +190,26 @@ Extracted values:
 | kappa / rotor drag coefficient | 0.016 |
 | body-rate constraint | `[6.0, 6.0, 6.0] rad/s` |
 
+### RotorPy Hummingbird
+
+Source:
+
+- [RotorPy Hummingbird parameters](https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py)
+
+Extracted values:
+
+| Field | Value |
+|---|---:|
+| mass | 0.5 kg |
+| inertia | `Ixx = 0.00365`, `Iyy = 0.00368`, `Izz = 0.00703 kg m^2` |
+| arm length | 0.17 m |
+| `k_eta` thrust coefficient | 5.57e-6 |
+| `k_m/k_eta` torque/thrust ratio | 0.0244 m |
+| rotor speed max | 1500 rad/s |
+| quadratic body drag `c_D` | `[0.005, 0.005, 0.010] N/(m/s)^2` |
+
+This source is particularly useful for `bodyDragCoefficients` because RotorPy's `c_D` has the same quadratic-force unit form as this project's body drag path.
+
 ## Environment and aero effects
 
 ### Standard atmosphere and air properties
@@ -204,6 +224,30 @@ Values relevant to `DronePhysics`:
 - Sea-level standard density is conventionally `1.225 kg/m^3`, matching `SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER`.
 - Standard gravity `9.80665 m/s^2` matches the project preset value.
 - Sutherland-law constants around `110.4 K` for air are consistent with the project's `AIR_SUTHERLAND_CONSTANT_KELVIN`.
+
+### Airframe inertia and body drag
+
+Generated report sections:
+
+- `Airframe inertia sanity` compares `sqrt(I/m)` radius of gyration for the current presets against RotorS, PX4, gym-pybullet-drones, and RotorPy.
+- `Body drag sanity` computes 10 m/s and 20 m/s base drag from the current `linearDragCoefficient` and `bodyDragCoefficients`, then compares with RotorPy Hummingbird.
+
+Coordinate-system note:
+
+- Current project presets use `Y` as the vertical/yaw axis, with rotor positions in `X/Z`.
+- URDF/SDF/Python open-source models usually use `Z` as vertical/yaw.
+- The generated report computes yaw inertia ratio using each source's own vertical axis.
+
+Current high-signal outputs:
+
+- `racingQuad` has radius of gyration `0.104/0.138/0.113 m` and yaw-axis inertia about `1.62x` the roll/pitch mean, close to RotorS Hummingbird and gym-pybullet Crazyflie ratios.
+- `racingQuad` base drag at 10 m/s is `31 N` on body X and `38 N` on body Z before separated-flow additions, versus RotorPy Hummingbird's `0.5 N` and `1.0 N` body-drag-only values.
+- The current drag path therefore looks very strong if interpreted as physical CdA; if it is a gameplay/stability damper, document it separately from measured aerodynamic drag.
+
+Open-source drag anchors:
+
+- [RotorPy Hummingbird parameters](https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py) gives direct quadratic body drag `c_D`.
+- [gym-pybullet-drones BaseAviary.py](https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py) applies a rotor-speed-scaled linear drag model based on Forster's Crazyflie system identification.
 
 ### Ground effect
 
@@ -240,7 +284,7 @@ Data status:
 Useful open-source anchors:
 
 - [New Dexterity Coaxial Benchmarking Platform README](https://raw.githubusercontent.com/newdexterity/Coaxial-Benchmarking-Platform/master/README.md) describes an open rig measuring thrust, torque, RPM, voltage, and current for coaxial rotor pairs.
-- [Hackaday coaxial experiment result log](https://hackaday.io/project/181977-omnirotor-an-agile-coaxial-all-terrain-vehicle/log/199225-some-results-of-coaxial-rotor-experiments-on-the-benchmarking-platform) describes 7 spacing values across `z/D = 0.1..1.0`, 100 command-map points per spacing, and 700 points per rotor set.
+- [Hackaday coaxial experiment result log](https://hackaday.io/project/181977/log/199225-some-results-of-coaxial-rotor-experiments-on-the-benchmarking-platform) describes 7 spacing values across `z/D = 0.1..1.0`, 100 command-map points per spacing, and 700 points per rotor set.
 
 Current mapping:
 
@@ -270,6 +314,15 @@ How to use them:
 - The current `racingQuad()` battery values are `16.8 V nominal`, `13.2 V empty`, `0.018 ohm pack resistance`, `1.5 Ah`, `90 A max`. That is `4.5 mOhm/cell` if interpreted as a 4S pack, which is plausible for a high-C pack but should be validated against a real FPV battery test or manufacturer ESR data before treating it as measured.
 - CHL's practical bands put many fresh high-performance LiPos around `2-5 mOhm/cell`, below `10 mOhm/cell` as a strong fresh-pack target, `10-20 mOhm/cell` as usable/healthy, and above `20 mOhm/cell` as tired for high-performance use.
 
+Mendeley ECM extraction:
+
+- Script: `docs/scripts/analyze_mendeley_lipo_ecm.py`.
+- Output: `docs/data/lipo_ecm_mendeley_r0_summary.csv`.
+- Large archive endpoint: `https://data.mendeley.com/public-api/zip/stcppt2r68/download/1`; the downloaded zip is about 174 MB and is kept in the local temp directory, not this repo.
+- The fitted CSVs actually use column name `RO` for ohmic resistance.
+- Extracted result: 57 fitted-cycle files across 5 packs. Mean `RO` spans `75.6-93.0 mOhm/cell`; low-SOC `RO` averages `1.037x` high-SOC `RO`; pack-level first-to-last fitted-cycle mean `RO` growth is about `1.05x-1.20x`.
+- This is not an FPV high-C absolute ESR source. It is useful for the shape of SOC/SOH-dependent resistance if the absolute scale is separately calibrated to FPV packs.
+
 MiniQuad Test Bench voltage/current examples for one 2306 motor and HQ v1s 5x4x3:
 
 | Thrust | Current | Voltage |
@@ -288,6 +341,9 @@ Betaflight references:
 - [Betaflight PID tuning guide](https://betaflight.com/docs/wiki/guides/current/PID-Tuning-Guide)
 - [Betaflight DShot RPM filtering](https://betaflight.com/docs/wiki/guides/current/DSHOT-RPM-Filtering)
 - [Betaflight PID tuning tab reference](https://betaflight.com/docs/wiki/app/pid-tuning-tab)
+- [Betaflight blackbox source field table](https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c)
+- [Public Betaflight issue blackbox log attachment](https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT)
+- [blackbox-library parser project](https://github.com/maxlaverse/blackbox-library) and [normal.bfl fixture](https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl)
 
 Useful values and concepts:
 
@@ -295,6 +351,22 @@ Useful values and concepts:
 - For a quad, Betaflight's RPM filter default can create 36 notches: 4 motors * 3 harmonics * 3 gyro axes.
 - Betaflight dynamic notch guidance gives practical frequency bands and Q-factor ranges; the docs mention examples like one notch with high Q when RPM filtering is active, and wider/multiple notches when RPM filtering is absent.
 - Betaflight's rate/expo/super-rate behavior is a good conceptual match for `rateExpo`, `rateSuper`, and max rate fields, but the exact formula in this project should be checked before copying UI values.
+
+Generated timing/filter checks:
+
+- The report's `RPM, filtering, and command timing sanity` section derives hover/max RPM, configured blade-pass frequency, three-blade blade-pass frequency, gyro LPF, RC frame interval, ESC command frame interval, and configured latency/smoothing.
+- `DronePhysics` currently hardcodes `ROTOR_BLADE_COUNT = 2.0`.
+- For the calibrated `racingQuad`, this gives configured hover/max blade-pass `434/971 Hz`, while a three-blade FPV prop at the same RPM would be `651/1457 Hz`.
+- Because the UIUC and Mini Quad Test Bench 5-inch anchors used here are three-blade prop examples, either update the blade count for that family or document the current notch as a synthetic second harmonic rather than a true blade-pass frequency.
+- `racingQuad` uses `150 Hz` RC frame rate, `400 Hz` ESC command rate, `15 ms` control latency, `18 ms` RC command latency, and `18 ms` RC smoothing. These are plausible gameplay/controller values, but they are not equivalent to a modern high-rate Betaflight loop unless explicitly modeled.
+
+Generated blackbox/log checks:
+
+- `docs/data/blackbox_log_header_summary.csv` extracts public blackbox header fields, including field presence, `looptime`, `pid_process_denom`, DShot/RPM-filter headers, and an estimated main log rate.
+- The public Betaflight 4.2.4 log has `looptime = 125 us`, `pid_process_denom = 2`, `dshot_bidir = 1`, three gyro RPM-notch harmonics, and estimated main records around `4000 Hz`.
+- That log includes `time`, `gyroADC`, `accSmooth`, and `motor[0..3]`, but no `eRPM[]` columns. It is useful for timing and field-format validation, not for direct motor-RPM curve validation.
+- Betaflight's current blackbox source table documents `eRPM / 100` for DShot telemetry fields. For a common 14-pole FPV motor, `mechanical_rpm = logged_eRPM100 * 100 * 2 / 14`, so one logged count is about `14.29 rpm`.
+- With the current `racingQuad` RPM scale, a 14-pole motor would map to about `912` logged `eRPM/100` at hover and `2040` at max thrust.
 
 ExpressLRS references:
 
@@ -323,13 +395,29 @@ Use these for RC link update-rate/failsafe plausibility rather than rigid physic
 
 5. Use MiniQuad Test Bench for per-motor current, voltage, thrust, and RPM scale on FPV racing presets.
 
-6. Use RotorS/PX4/Flightmare/gym-pybullet-drones as sanity checks for airframe mass, inertia, motor time constants, and simple `T = k*omega^2` structure.
+6. Use RotorS/PX4/Flightmare/gym-pybullet-drones/RotorPy as sanity checks for airframe mass, inertia, motor time constants, simple `T = k*omega^2` structure, and body-drag order of magnitude.
+
+7. Reconcile drag coefficients.
+   - Current `linearDragCoefficient` and `bodyDragCoefficients` are both quadratic in speed.
+   - `racingQuad` produces more than `2.8x` weight of base X-axis drag at 10 m/s before separated-flow terms.
+   - Treat those coefficients as gameplay damping unless wind-tunnel, coast-down, log-fit, or open-source model data supports that magnitude.
+
+8. Reconcile blade-pass semantics.
+   - Current code uses `ROTOR_BLADE_COUNT = 2.0`.
+   - The 5-inch FPV prop anchors in this packet are three-blade examples, so physical blade-pass frequency is `1.5x` the current telemetry/notch value at the same RPM.
+   - If the code keeps two blades for gameplay feel, avoid labeling that notch as the measured three-blade blade-pass frequency.
+
+9. Reconcile blackbox RPM units before using logs for validation.
+   - Betaflight blackbox `eRPM[]` values are logged as electrical RPM divided by 100.
+   - Convert through motor pole count before comparing to simulated mechanical RPM or blade-pass frequency.
+   - Public logs without `eRPM[]` should only be used for timing, gyro, accelerometer, and motor-command field validation.
 
 ## Gaps still worth filling
 
 - Open numeric data for 5-inch prop dynamic inflow time constants, flapping coefficient, coning, arm-flex resonance, and blade-pass vibration.
+- Open FPV-scale airframe drag measurements, ideally wind-tunnel, coast-down, or onboard-log fits separated by attitude and axis.
 - Open high-C LiPo internal resistance versus SOC and temperature for FPV-sized 4S/6S packs; Mendeley/NASA give SOC/SOH shape but not FPV high-C absolute values.
 - Digitized multirotor ground-effect table for thrust multiplier versus `h/R`; ZJU gives coefficients, but the project still needs equation-level mapping before direct replacement.
 - Propwash-specific buffeting table for torque/noise versus normalized descent rate; Cambridge supports VRS thrust-loss timing, not FPV propwash feel torque.
 - Digitized coaxial/stacked rotor thrust and efficiency curves versus `z/D`; New Dexterity/Hackaday give the experimental map description and qualitative maxima, but not machine-readable curve points in this packet.
-- Real Betaflight blackbox logs for a known 5-inch quad with motor RPM telemetry, gyro spectrum, and propwash recovery.
+- Real Betaflight blackbox logs for a known 5-inch quad with explicit `eRPM[]` columns, gyro spectrum, and propwash recovery.

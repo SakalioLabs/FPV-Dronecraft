@@ -45,66 +45,90 @@ open_source_model,RotorS Firefly,k_n_per_rad2,8.54858e-06,N/(rad/s)^2,https://ra
 open_source_model,RotorS Firefly,qt_m,0.016,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
 open_source_model,RotorS Firefly,normalized_ct,0.17218592406339683,CT,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
 open_source_model,RotorS Firefly,max_omega_rad_s,838.0,rad/s,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,inertia_x_kg_m2,0.0347563,kg*m^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,inertia_y_kg_m2,0.0458929,kg*m^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,inertia_z_kg_m2,0.0977,kg*m^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
 open_source_model,RotorS Hummingbird,mass_kg,0.68,kg,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
 open_source_model,RotorS Hummingbird,radius_m,0.1,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
 open_source_model,RotorS Hummingbird,k_n_per_rad2,8.54858e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
 open_source_model,RotorS Hummingbird,qt_m,0.016,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
 open_source_model,RotorS Hummingbird,normalized_ct,0.17218592406339683,CT,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
 open_source_model,RotorS Hummingbird,max_omega_rad_s,838.0,rad/s,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,inertia_x_kg_m2,0.007,kg*m^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,inertia_y_kg_m2,0.007,kg*m^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,inertia_z_kg_m2,0.012,kg*m^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
 open_source_model,PX4 Gazebo Iris,mass_kg,1.5,kg,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
 open_source_model,PX4 Gazebo Iris,radius_m,0.128,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
 open_source_model,PX4 Gazebo Iris,k_n_per_rad2,5.84e-06,N/(rad/s)^2,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
 open_source_model,PX4 Gazebo Iris,qt_m,0.06,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
 open_source_model,PX4 Gazebo Iris,normalized_ct,0.04382042989922561,CT,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
 open_source_model,PX4 Gazebo Iris,max_omega_rad_s,1100.0,rad/s,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,inertia_x_kg_m2,0.029125,kg*m^2,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,inertia_y_kg_m2,0.029125,kg*m^2,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,inertia_z_kg_m2,0.055225,kg*m^2,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
 open_source_model,gym-pybullet-drones Crazyflie,mass_kg,0.027,kg,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
 open_source_model,gym-pybullet-drones Crazyflie,radius_m,0.0231348,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
 open_source_model,gym-pybullet-drones Crazyflie,k_n_per_rad2,3.16e-10,N/(rad/s)^2,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
 open_source_model,gym-pybullet-drones Crazyflie,qt_m,0.025126582278481014,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
 open_source_model,gym-pybullet-drones Crazyflie,normalized_ct,nan,CT,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
 open_source_model,gym-pybullet-drones Crazyflie,max_omega_rad_s,nan,rad/s,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,inertia_x_kg_m2,1.4e-05,kg*m^2,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,inertia_y_kg_m2,1.4e-05,kg*m^2,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,inertia_z_kg_m2,2.17e-05,kg*m^2,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
 open_source_model,Flightmare quadrotor,mass_kg,0.73,kg,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
 open_source_model,Flightmare quadrotor,radius_m,nan,m,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
 open_source_model,Flightmare quadrotor,k_n_per_rad2,1.3298253500372892e-06,N/(rad/s)^2,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
 open_source_model,Flightmare quadrotor,qt_m,0.016,m,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
 open_source_model,Flightmare quadrotor,normalized_ct,nan,CT,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
 open_source_model,Flightmare quadrotor,max_omega_rad_s,3000.0,rad/s,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
-current_preset,racingQuad,max_rpm_from_k,29137.63274949454,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,racingQuad,tip_mach_at_max,0.5598285066733504,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,racingQuad,thrust_to_weight,5.005879590982557,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,racingQuad,hover_throttle_linear,0.1997650925925926,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,racingQuad,hover_disk_loading_n_m2,212.89038439324807,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,racingQuad,hover_induced_velocity_m_s,9.321696972452155,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,cinewhoop,max_rpm_from_k,7964.663928742473,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,cinewhoop,tip_mach_at_max,0.0915752410767852,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,cinewhoop,thrust_to_weight,3.434833559504601,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,cinewhoop,hover_throttle_linear,0.29113492187499995,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,cinewhoop,hover_disk_loading_n_m2,513.4134285105708,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,cinewhoop,hover_induced_velocity_m_s,14.47606650416079,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,heavyLift,max_rpm_from_k,8775.19797885932,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,heavyLift,tip_mach_at_max,0.33720007541470826,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,heavyLift,thrust_to_weight,3.444374763836558,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,heavyLift,hover_throttle_linear,0.29032845394736845,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,heavyLift,hover_disk_loading_n_m2,217.72880222036736,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,heavyLift,hover_induced_velocity_m_s,9.427030225126895,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,hexLift,max_rpm_from_k,8115.341605103235,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,hexLift,tip_mach_at_max,0.25782387023367154,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,hexLift,thrust_to_weight,3.7875173624894476,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,hexLift,hover_throttle_linear,0.26402519230769234,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,hexLift,hover_disk_loading_n_m2,198.19388224408073,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,hexLift,hover_induced_velocity_m_s,8.994190466097608,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,octoLift,max_rpm_from_k,8269.933431326881,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,octoLift,tip_mach_at_max,0.28775764644672186,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,octoLift,thrust_to_weight,2.8791987189965034,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,octoLift,hover_throttle_linear,0.3473188541666667,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,octoLift,hover_disk_loading_n_m2,200.62915678961286,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,octoLift,hover_induced_velocity_m_s,9.049279073542952,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,coaxialX8,max_rpm_from_k,8269.933431326881,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,coaxialX8,tip_mach_at_max,0.28775764644672186,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,coaxialX8,thrust_to_weight,2.719243234607809,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,coaxialX8,hover_throttle_linear,0.367749375,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,coaxialX8,hover_disk_loading_n_m2,212.43087189488418,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
-current_preset,coaxialX8,hover_induced_velocity_m_s,9.311631346033977,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+open_source_model,RotorPy Hummingbird,mass_kg,0.5,kg,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,radius_m,nan,m,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,k_n_per_rad2,5.57e-06,N/(rad/s)^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,qt_m,0.024416517055655295,m,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,normalized_ct,nan,CT,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,max_omega_rad_s,1500.0,rad/s,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,inertia_x_kg_m2,0.00365,kg*m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,inertia_y_kg_m2,0.00368,kg*m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,inertia_z_kg_m2,0.00703,kg*m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,body_drag_x,0.005,N/(m/s)^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,body_drag_y,0.005,N/(m/s)^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+open_source_model,RotorPy Hummingbird,body_drag_z,0.01,N/(m/s)^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+current_preset,racingQuad,max_rpm_from_k,29137.63274949454,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,racingQuad,tip_mach_at_max,0.5598285066733504,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,racingQuad,thrust_to_weight,5.005879590982557,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,racingQuad,hover_throttle_linear,0.1997650925925926,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,racingQuad,hover_disk_loading_n_m2,212.89038439324807,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,racingQuad,hover_induced_velocity_m_s,9.321696972452155,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,cinewhoop,max_rpm_from_k,7964.663928742473,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,cinewhoop,tip_mach_at_max,0.0915752410767852,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,cinewhoop,thrust_to_weight,3.434833559504601,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,cinewhoop,hover_throttle_linear,0.29113492187499995,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,cinewhoop,hover_disk_loading_n_m2,513.4134285105708,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,cinewhoop,hover_induced_velocity_m_s,14.47606650416079,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,heavyLift,max_rpm_from_k,8775.19797885932,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,heavyLift,tip_mach_at_max,0.33720007541470826,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,heavyLift,thrust_to_weight,3.444374763836558,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,heavyLift,hover_throttle_linear,0.29032845394736845,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,heavyLift,hover_disk_loading_n_m2,217.72880222036736,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,heavyLift,hover_induced_velocity_m_s,9.427030225126895,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,hexLift,max_rpm_from_k,8115.341605103235,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,hexLift,tip_mach_at_max,0.25782387023367154,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,hexLift,thrust_to_weight,3.7875173624894476,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,hexLift,hover_throttle_linear,0.26402519230769234,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,hexLift,hover_disk_loading_n_m2,198.19388224408073,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,hexLift,hover_induced_velocity_m_s,8.994190466097608,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,octoLift,max_rpm_from_k,8269.933431326881,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,octoLift,tip_mach_at_max,0.28775764644672186,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,octoLift,thrust_to_weight,2.8791987189965034,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,octoLift,hover_throttle_linear,0.3473188541666667,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,octoLift,hover_disk_loading_n_m2,200.62915678961286,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,octoLift,hover_induced_velocity_m_s,9.049279073542952,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,coaxialX8,max_rpm_from_k,8269.933431326881,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,coaxialX8,tip_mach_at_max,0.28775764644672186,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,coaxialX8,thrust_to_weight,2.719243234607809,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,coaxialX8,hover_throttle_linear,0.367749375,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,coaxialX8,hover_disk_loading_n_m2,212.43087189488418,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+current_preset,coaxialX8,hover_induced_velocity_m_s,9.311631346033977,,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 comparison,racingQuad vs MiniQuadTestBench 5in mean,k ratio current/source,0.9751228786467787,x,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
 comparison,racingQuad vs UIUC 5in mean,k ratio current/source,1.234104188978682,x,UIUC 5in static rows
 comparison,racingQuad yaw torque,Q/T ratio current/UIUC_5in_mean,1.0813879631745213,x,UIUC 5in static rows
@@ -120,41 +144,41 @@ zju_ground_effect,ZJU quadrotor platform kT,k_n_per_rad2,3.4505942301234556e-06,
 zju_ground_effect,ZJU quadrotor platform kT,qt_m,0.01687605708245243,m,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
 zju_ground_effect,ZJU real-flight hover kT,k_n_per_rad2,3.917299866216792e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
 zju_ground_effect,ZJU real-flight hover kT,qt_m,0.014865449974393593,m,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
-ground_effect_shape,racingQuad,current_multiplier_at_1.0_R,1.143916125,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,racingQuad,current_multiplier_at_1.0_R,1.143916125,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,racingQuad,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,racingQuad,current_multiplier_at_2.0_R,1.1118645,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,racingQuad,current_multiplier_at_2.0_R,1.1118645,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,racingQuad,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,racingQuad,current_multiplier_at_4.0_R,1.059858,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,racingQuad,current_multiplier_at_4.0_R,1.059858,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,racingQuad,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,cinewhoop,current_multiplier_at_1.0_R,1.2162961066666667,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,cinewhoop,current_multiplier_at_1.0_R,1.2162961066666667,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,cinewhoop,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,cinewhoop,current_multiplier_at_2.0_R,1.1938244266666667,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,cinewhoop,current_multiplier_at_2.0_R,1.1938244266666667,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,cinewhoop,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,cinewhoop,current_multiplier_at_4.0_R,1.1525777066666667,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,cinewhoop,current_multiplier_at_4.0_R,1.1525777066666667,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,cinewhoop,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,heavyLift,current_multiplier_at_1.0_R,1.0959440833333334,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,heavyLift,current_multiplier_at_1.0_R,1.0959440833333334,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,heavyLift,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,heavyLift,current_multiplier_at_2.0_R,1.0745763333333334,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,heavyLift,current_multiplier_at_2.0_R,1.0745763333333334,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,heavyLift,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,heavyLift,current_multiplier_at_4.0_R,1.0399053333333332,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,heavyLift,current_multiplier_at_4.0_R,1.0399053333333332,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,heavyLift,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,hexLift,current_multiplier_at_1.0_R,1.0891,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,hexLift,current_multiplier_at_1.0_R,1.0891,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,hexLift,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,hexLift,current_multiplier_at_2.0_R,1.0704,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,hexLift,current_multiplier_at_2.0_R,1.0704,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,hexLift,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,hexLift,current_multiplier_at_4.0_R,1.0396,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,hexLift,current_multiplier_at_4.0_R,1.0396,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,hexLift,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,octoLift,current_multiplier_at_1.0_R,1.081,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,octoLift,current_multiplier_at_1.0_R,1.081,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,octoLift,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,octoLift,current_multiplier_at_2.0_R,1.064,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,octoLift,current_multiplier_at_2.0_R,1.064,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,octoLift,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,octoLift,current_multiplier_at_4.0_R,1.036,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,octoLift,current_multiplier_at_4.0_R,1.036,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,octoLift,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,coaxialX8,current_multiplier_at_1.0_R,1.081,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,coaxialX8,current_multiplier_at_1.0_R,1.081,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,coaxialX8,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,coaxialX8,current_multiplier_at_2.0_R,1.064,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,coaxialX8,current_multiplier_at_2.0_R,1.064,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,coaxialX8,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
-ground_effect_shape,coaxialX8,current_multiplier_at_4.0_R,1.036,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,coaxialX8,current_multiplier_at_4.0_R,1.036,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
 ground_effect_shape,coaxialX8,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
 vrs_reference,racingQuad,hover_induced_velocity_m_s,9.321696972452155,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
 vrs_reference,racingQuad,current_vrs_entry_m_s,4.1947636376034705,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
@@ -261,3 +285,322 @@ motor_response,coaxialX8,rotor_inflow_tau_s,0.09,s,RotorS/PX4 timeConstantUp/Dow
 motor_response,coaxialX8,motor_tau_vs_ref_up,8.399999999999999,x,RotorS/PX4 timeConstantUp/Down
 motor_response,coaxialX8,motor_tau_vs_ref_down,4.199999999999999,x,RotorS/PX4 timeConstantUp/Down
 motor_response,coaxialX8,inflow_tau_vs_ref_up,7.199999999999998,x,RotorS/PX4 timeConstantUp/Down
+inertia_geometry,racingQuad,rg_x_m,0.1044465935734187,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,racingQuad,rg_y_m,0.13816985594155148,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,racingQuad,rg_z_m,0.11281521496355323,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,racingQuad,yaw_to_roll_pitch_inertia_ratio,1.6153846153846154,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,cinewhoop,rg_x_m,0.10259783520851541,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,cinewhoop,rg_y_m,0.13764944032233706,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,cinewhoop,rg_z_m,0.11239029738980329,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,cinewhoop,yaw_to_roll_pitch_inertia_ratio,1.6363636363636362,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,heavyLift,rg_x_m,0.1632993161855452,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,heavyLift,rg_y_m,0.22110831935702666,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,heavyLift,rg_z_m,0.17638342073763938,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,heavyLift,yaw_to_roll_pitch_inertia_ratio,1.6923076923076923,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,hexLift,rg_x_m,0.17928429140015906,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,hexLift,rg_y_m,0.23904572186687872,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,hexLift,rg_z_m,0.1889822365046136,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,hexLift,yaw_to_roll_pitch_inertia_ratio,1.6842105263157892,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,octoLift,rg_x_m,0.17986923354612536,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,octoLift,rg_y_m,0.23948474100967393,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,octoLift,rg_z_m,0.18590003638894687,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,octoLift,yaw_to_roll_pitch_inertia_ratio,1.7142857142857144,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,coaxialX8,rg_x_m,0.18446619684315546,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,coaxialX8,rg_y_m,0.24438130497691965,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,coaxialX8,rg_z_m,0.18819316317727025,m,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,coaxialX8,yaw_to_roll_pitch_inertia_ratio,1.72,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+inertia_geometry,RotorS Firefly,rg_x_m,0.15221979722318205,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+inertia_geometry,RotorS Firefly,rg_y_m,0.17491502698929748,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+inertia_geometry,RotorS Firefly,rg_z_m,0.25521232990067966,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+inertia_geometry,RotorS Firefly,yaw_to_roll_pitch_inertia_ratio,2.422838664239695,ratio,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+inertia_geometry,RotorS Hummingbird,rg_x_m,0.10145993123917847,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+inertia_geometry,RotorS Hummingbird,rg_y_m,0.10145993123917847,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+inertia_geometry,RotorS Hummingbird,rg_z_m,0.1328422328310143,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+inertia_geometry,RotorS Hummingbird,yaw_to_roll_pitch_inertia_ratio,1.7142857142857142,ratio,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+inertia_geometry,PX4 Gazebo Iris,rg_x_m,0.13934369977385655,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+inertia_geometry,PX4 Gazebo Iris,rg_y_m,0.13934369977385655,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+inertia_geometry,PX4 Gazebo Iris,rg_z_m,0.19187669651801562,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+inertia_geometry,PX4 Gazebo Iris,yaw_to_roll_pitch_inertia_ratio,1.896137339055794,ratio,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+inertia_geometry,gym-pybullet-drones Crazyflie,rg_x_m,0.02277100170213244,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+inertia_geometry,gym-pybullet-drones Crazyflie,rg_y_m,0.02277100170213244,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+inertia_geometry,gym-pybullet-drones Crazyflie,rg_z_m,0.028349668493717943,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+inertia_geometry,gym-pybullet-drones Crazyflie,yaw_to_roll_pitch_inertia_ratio,1.55,ratio,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+inertia_geometry,RotorPy Hummingbird,rg_x_m,0.08544003745317531,m,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+inertia_geometry,RotorPy Hummingbird,rg_y_m,0.08579044235810887,m,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+inertia_geometry,RotorPy Hummingbird,rg_z_m,0.1185748708622531,m,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+inertia_geometry,RotorPy Hummingbird,yaw_to_roll_pitch_inertia_ratio,1.9181446111869032,ratio,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,racingQuad,axis_x_drag_force_n_at_10m_s,31.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_y_drag_force_n_at_10m_s,27.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_z_drag_force_n_at_10m_s,38.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_x_drag_over_weight_at_10m_s,2.873745691119616,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_z_drag_over_weight_at_10m_s,3.5226560084692067,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_x_equiv_cda_m2_at_10m_s,0.5061224489795918,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_z_equiv_cda_m2_at_10m_s,0.6204081632653061,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_x_drag_force_n_at_20m_s,124.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_y_drag_force_n_at_20m_s,108.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_z_drag_force_n_at_20m_s,152.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_x_drag_over_weight_at_20m_s,11.494982764478465,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_z_drag_over_weight_at_20m_s,14.090624033876827,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_x_equiv_cda_m2_at_20m_s,0.5061224489795918,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,racingQuad,axis_z_equiv_cda_m2_at_20m_s,0.6204081632653061,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_x_drag_force_n_at_10m_s,50.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_y_drag_force_n_at_10m_s,41.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_z_drag_force_n_at_10m_s,60.00000000000001,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_x_drag_over_weight_at_10m_s,5.366927436725939,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_z_drag_over_weight_at_10m_s,6.440312924071128,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_x_equiv_cda_m2_at_10m_s,0.8163265306122448,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_z_equiv_cda_m2_at_10m_s,0.979591836734694,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_x_drag_force_n_at_20m_s,200.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_y_drag_force_n_at_20m_s,164.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_z_drag_force_n_at_20m_s,240.00000000000003,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_x_drag_over_weight_at_20m_s,21.467709746903758,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_z_drag_over_weight_at_20m_s,25.76125169628451,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_x_equiv_cda_m2_at_20m_s,0.8163265306122448,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,cinewhoop,axis_z_equiv_cda_m2_at_20m_s,0.979591836734694,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_x_drag_force_n_at_10m_s,60.00000000000001,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_y_drag_force_n_at_10m_s,50.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_z_drag_force_n_at_10m_s,70.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_x_drag_over_weight_at_10m_s,1.3596216173039044,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_z_drag_over_weight_at_10m_s,1.5862252201878884,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_x_equiv_cda_m2_at_10m_s,0.979591836734694,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_z_equiv_cda_m2_at_10m_s,1.1428571428571428,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_x_drag_force_n_at_20m_s,240.00000000000003,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_y_drag_force_n_at_20m_s,200.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_z_drag_force_n_at_20m_s,280.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_x_drag_over_weight_at_20m_s,5.438486469215618,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_z_drag_over_weight_at_20m_s,6.3449008807515535,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_x_equiv_cda_m2_at_20m_s,0.979591836734694,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,heavyLift,axis_z_equiv_cda_m2_at_20m_s,1.1428571428571428,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_x_drag_force_n_at_10m_s,65.99999999999999,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_y_drag_force_n_at_10m_s,54.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_z_drag_force_n_at_10m_s,74.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_x_drag_over_weight_at_10m_s,1.6024111918224582,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_z_drag_over_weight_at_10m_s,1.796642851437302,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_x_equiv_cda_m2_at_10m_s,1.077551020408163,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_z_equiv_cda_m2_at_10m_s,1.2081632653061223,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_x_drag_force_n_at_20m_s,263.99999999999994,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_y_drag_force_n_at_20m_s,216.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_z_drag_force_n_at_20m_s,296.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_x_drag_over_weight_at_20m_s,6.409644767289833,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_z_drag_over_weight_at_20m_s,7.186571405749208,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_x_equiv_cda_m2_at_20m_s,1.077551020408163,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,hexLift,axis_z_equiv_cda_m2_at_20m_s,1.2081632653061223,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_x_drag_force_n_at_10m_s,79.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_y_drag_force_n_at_10m_s,64.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_z_drag_force_n_at_10m_s,88.00000000000001,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_x_drag_over_weight_at_10m_s,1.1846703062537696,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_z_drag_over_weight_at_10m_s,1.3196327462067308,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_x_equiv_cda_m2_at_10m_s,1.2897959183673469,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_z_equiv_cda_m2_at_10m_s,1.4367346938775512,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_x_drag_force_n_at_20m_s,316.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_y_drag_force_n_at_20m_s,256.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_z_drag_force_n_at_20m_s,352.00000000000006,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_x_drag_over_weight_at_20m_s,4.738681225015078,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_z_drag_over_weight_at_20m_s,5.278530984826923,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_x_equiv_cda_m2_at_20m_s,1.2897959183673469,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,octoLift,axis_z_equiv_cda_m2_at_20m_s,1.4367346938775512,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_x_drag_force_n_at_10m_s,84.00000000000001,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_y_drag_force_n_at_10m_s,68.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_z_drag_force_n_at_10m_s,92.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_x_drag_over_weight_at_10m_s,1.1896689151409165,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_z_drag_over_weight_at_10m_s,1.3029707165829083,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_x_equiv_cda_m2_at_10m_s,1.3714285714285714,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_z_equiv_cda_m2_at_10m_s,1.5020408163265304,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_x_drag_force_n_at_20m_s,336.00000000000006,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_y_drag_force_n_at_20m_s,272.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_z_drag_force_n_at_20m_s,368.0,N,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_x_drag_over_weight_at_20m_s,4.758675660563666,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_z_drag_over_weight_at_20m_s,5.211882866331633,weight,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_x_equiv_cda_m2_at_20m_s,1.3714285714285714,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,coaxialX8,axis_z_equiv_cda_m2_at_20m_s,1.5020408163265304,m^2,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+body_drag_sanity,RotorPy Hummingbird,axis_x_drag_force_n_at_10m_s,0.5,N,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_y_drag_force_n_at_10m_s,0.5,N,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_z_drag_force_n_at_10m_s,1.0,N,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_x_drag_over_weight_at_10m_s,0.10197162129779283,weight,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_z_drag_over_weight_at_10m_s,0.20394324259558566,weight,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_x_equiv_cda_m2_at_10m_s,0.008163265306122448,m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_z_equiv_cda_m2_at_10m_s,0.016326530612244896,m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_x_drag_force_n_at_20m_s,2.0,N,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_y_drag_force_n_at_20m_s,2.0,N,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_z_drag_force_n_at_20m_s,4.0,N,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_x_drag_over_weight_at_20m_s,0.4078864851911713,weight,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_z_drag_over_weight_at_20m_s,0.8157729703823426,weight,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_x_equiv_cda_m2_at_20m_s,0.008163265306122448,m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+body_drag_sanity,RotorPy Hummingbird,axis_z_equiv_cda_m2_at_20m_s,0.016326530612244896,m^2,https://raw.githubusercontent.com/spencerfolk/rotorpy/main/rotorpy/vehicles/hummingbird_params.py
+timing_vibration,racingQuad,configured_blade_count,2.0,blades,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,hover_rpm,13023.090711279678,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,max_rpm,29137.63274949454,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,hover_blade_pass_hz,434.1030237093226,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,max_blade_pass_hz,971.2544249831514,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,hover_3blade_pass_hz,651.1545355639839,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,max_3blade_pass_hz,1456.881637474727,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,blade_pass_3blade_to_configured_ratio,1.5,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,gyro_low_pass_hz,120.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,gyro_lpf_over_hover_blade_pass,0.2764320759036052,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,gyro_lpf_over_hover_3blade_pass,0.18428805060240347,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,rc_frame_rate_hz,150.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,rc_frame_interval_ms,6.666666666666667,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,esc_command_frame_rate_hz,400.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,esc_command_frame_interval_ms,2.5,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,control_latency_ms,15.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,rc_command_latency_ms,18.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,racingQuad,rc_smoothing_tau_ms,18.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,configured_blade_count,2.0,blades,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,hover_rpm,4297.487346413935,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,max_rpm,7964.663928742473,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,hover_blade_pass_hz,143.24957821379783,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,max_blade_pass_hz,265.4887976247491,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,hover_3blade_pass_hz,214.87436732069676,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,max_3blade_pass_hz,398.23319643712364,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,blade_pass_3blade_to_configured_ratio,1.5,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,gyro_low_pass_hz,90.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,gyro_lpf_over_hover_blade_pass,0.6282741012031209,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,gyro_lpf_over_hover_3blade_pass,0.41884940080208055,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,rc_frame_rate_hz,100.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,rc_frame_interval_ms,10.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,esc_command_frame_rate_hz,400.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,esc_command_frame_interval_ms,2.5,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,control_latency_ms,18.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,rc_command_latency_ms,25.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,cinewhoop,rc_smoothing_tau_ms,25.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,configured_blade_count,2.0,blades,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,hover_rpm,4728.264076300938,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,max_rpm,8775.19797885932,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,hover_blade_pass_hz,157.6088025433646,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,max_blade_pass_hz,292.50659929531065,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,hover_3blade_pass_hz,236.41320381504687,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,max_3blade_pass_hz,438.75989894296595,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,blade_pass_3blade_to_configured_ratio,1.5,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,gyro_low_pass_hz,70.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,gyro_lpf_over_hover_blade_pass,0.4441376298175995,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,gyro_lpf_over_hover_3blade_pass,0.29609175321173303,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,rc_frame_rate_hz,100.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,rc_frame_interval_ms,10.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,esc_command_frame_rate_hz,400.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,esc_command_frame_interval_ms,2.5,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,control_latency_ms,25.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,rc_command_latency_ms,35.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,heavyLift,rc_smoothing_tau_ms,40.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,configured_blade_count,2.0,blades,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,hover_rpm,4169.93695964427,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,max_rpm,8115.341605103235,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,hover_blade_pass_hz,138.997898654809,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,max_blade_pass_hz,270.51138683677453,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,hover_3blade_pass_hz,208.49684798221352,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,max_3blade_pass_hz,405.7670802551618,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,blade_pass_3blade_to_configured_ratio,1.5,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,gyro_low_pass_hz,75.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,gyro_lpf_over_hover_blade_pass,0.5395765024207808,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,gyro_lpf_over_hover_3blade_pass,0.35971766828052054,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,rc_frame_rate_hz,100.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,rc_frame_interval_ms,10.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,esc_command_frame_rate_hz,400.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,esc_command_frame_interval_ms,2.5,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,control_latency_ms,22.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,rc_command_latency_ms,35.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,hexLift,rc_smoothing_tau_ms,40.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,configured_blade_count,2.0,blades,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,hover_rpm,4873.783053100573,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,max_rpm,8269.933431326881,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,hover_blade_pass_hz,162.45943510335243,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,max_blade_pass_hz,275.664447710896,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,hover_3blade_pass_hz,243.68915265502864,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,max_3blade_pass_hz,413.49667156634405,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,blade_pass_3blade_to_configured_ratio,1.5,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,gyro_low_pass_hz,70.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,gyro_lpf_over_hover_blade_pass,0.43087679059986783,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,gyro_lpf_over_hover_3blade_pass,0.2872511937332452,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,rc_frame_rate_hz,100.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,rc_frame_interval_ms,10.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,esc_command_frame_rate_hz,400.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,esc_command_frame_interval_ms,2.5,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,control_latency_ms,24.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,rc_command_latency_ms,40.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,octoLift,rc_smoothing_tau_ms,45.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,configured_blade_count,2.0,blades,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,hover_rpm,5015.081387389711,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,max_rpm,8269.933431326881,rpm,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,hover_blade_pass_hz,167.16937957965703,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,max_blade_pass_hz,275.664447710896,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,hover_3blade_pass_hz,250.75406936948553,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,max_3blade_pass_hz,413.49667156634405,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,blade_pass_3blade_to_configured_ratio,1.5,x,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,gyro_low_pass_hz,70.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,gyro_lpf_over_hover_blade_pass,0.4187369730988602,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,gyro_lpf_over_hover_3blade_pass,0.2791579820659068,ratio,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,rc_frame_rate_hz,100.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,rc_frame_interval_ms,10.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,esc_command_frame_rate_hz,400.0,Hz,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,esc_command_frame_interval_ms,2.5,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,control_latency_ms,24.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,rc_command_latency_ms,40.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+timing_vibration,coaxialX8,rc_smoothing_tau_ms,45.0,ms,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DroneConfig.java
+blackbox_log_header,Betaflight issue LOG00078,field_count,34,fields,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,has_gyro_adc,1,bool,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,has_motor_command,1,bool,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,has_erpm,0,bool,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,estimated_main_sample_hz,4000.0,Hz,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,dshot_bidir,1.0,bool,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,gyro_rpm_notch_harmonics,3.0,harmonics,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,Betaflight issue LOG00078,rpm_notch_lpf_hz,150.0,Hz,https://github.com/betaflight/betaflight/files/5507542/LOG00078.TXT
+blackbox_log_header,blackbox-library normal.bfl,field_count,38,fields,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,has_gyro_adc,1,bool,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,has_motor_command,1,bool,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,has_erpm,0,bool,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,estimated_main_sample_hz,nan,Hz,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,dshot_bidir,nan,bool,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,gyro_rpm_notch_harmonics,nan,harmonics,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_log_header,blackbox-library normal.bfl,rpm_notch_lpf_hz,nan,Hz,https://raw.githubusercontent.com/maxlaverse/blackbox-library/master/fixtures/normal.bfl
+blackbox_erpm_conversion,racingQuad,mechanical_rpm_per_logged_erpm100,14.285714285714286,rpm/count,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,racingQuad,hover_logged_erpm100,911.6163497895774,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,racingQuad,max_logged_erpm100,2039.6342924646178,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,racingQuad,hover_3blade_pass_hz,651.1545355639839,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,racingQuad,max_3blade_pass_hz,1456.881637474727,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,cinewhoop,mechanical_rpm_per_logged_erpm100,14.285714285714286,rpm/count,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,cinewhoop,hover_logged_erpm100,300.82411424897543,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,cinewhoop,max_logged_erpm100,557.526475011973,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,cinewhoop,hover_3blade_pass_hz,214.87436732069676,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,cinewhoop,max_3blade_pass_hz,398.23319643712364,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,heavyLift,mechanical_rpm_per_logged_erpm100,14.285714285714286,rpm/count,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,heavyLift,hover_logged_erpm100,330.9784853410656,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,heavyLift,max_logged_erpm100,614.2638585201524,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,heavyLift,hover_3blade_pass_hz,236.41320381504687,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,heavyLift,max_3blade_pass_hz,438.75989894296595,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,hexLift,mechanical_rpm_per_logged_erpm100,14.285714285714286,rpm/count,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,hexLift,hover_logged_erpm100,291.8955871750989,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,hexLift,max_logged_erpm100,568.0739123572265,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,hexLift,hover_3blade_pass_hz,208.49684798221352,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,hexLift,max_3blade_pass_hz,405.7670802551618,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,octoLift,mechanical_rpm_per_logged_erpm100,14.285714285714286,rpm/count,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,octoLift,hover_logged_erpm100,341.1648137170401,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,octoLift,max_logged_erpm100,578.8953401928817,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,octoLift,hover_3blade_pass_hz,243.68915265502864,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,octoLift,max_3blade_pass_hz,413.49667156634405,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,coaxialX8,mechanical_rpm_per_logged_erpm100,14.285714285714286,rpm/count,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,coaxialX8,hover_logged_erpm100,351.0556971172798,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,coaxialX8,max_logged_erpm100,578.8953401928817,logged eRPM/100,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,coaxialX8,hover_3blade_pass_hz,250.75406936948553,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+blackbox_erpm_conversion,coaxialX8,max_3blade_pass_hz,413.49667156634405,Hz,https://raw.githubusercontent.com/betaflight/betaflight/master/src/main/blackbox/blackbox.c
+mendeley_lipo_ecm,LP-503562-IS-3,row_count,57,files,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,pack_count,5,packs,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,r0_mean_min_ohm,0.07558552006236605,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,r0_mean_avg_ohm,0.08065309515958344,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,r0_mean_max_ohm,0.09298718137024435,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,low_soc_over_high_soc_min,0.9965979335306693,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,low_soc_over_high_soc_avg,1.037488685434272,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LP-503562-IS-3,low_soc_over_high_soc_max,1.0695663626960386,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_1,first_r0_mean_ohm,0.0778196925001481,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_1,last_r0_mean_ohm,0.08654329668657246,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_1,cycle_growth_ratio,1.1121002140481056,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_2,first_r0_mean_ohm,0.07561794750937999,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_2,last_r0_mean_ohm,0.07966442061210516,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_2,cycle_growth_ratio,1.053512072675911,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_3,first_r0_mean_ohm,0.07659831755840678,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_3,last_r0_mean_ohm,0.08814643041188831,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_3,cycle_growth_ratio,1.1507619647739131,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_4,first_r0_mean_ohm,0.07558552006236605,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_4,last_r0_mean_ohm,0.08961447311790867,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_4,cycle_growth_ratio,1.1856037114511782,x,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_5,first_r0_mean_ohm,0.07760100353552725,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_5,last_r0_mean_ohm,0.09298718137024435,ohm,https://data.mendeley.com/datasets/stcppt2r68/1
+mendeley_lipo_ecm,LiPO_5,cycle_growth_ratio,1.1982729234638443,x,https://data.mendeley.com/datasets/stcppt2r68/1

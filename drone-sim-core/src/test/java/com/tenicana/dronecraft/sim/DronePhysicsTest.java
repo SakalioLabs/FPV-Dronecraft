@@ -1668,7 +1668,7 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void lowStateOfChargeRaisesBatteryResistanceSagPerAmp() {
+	void lowStateOfChargeAppliesMeasuredR0RiseWithoutHidingReserveLimit() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
 				.withBattery(16.8, 13.2, 0.032, 4.0, 180.0)
@@ -1692,11 +1692,15 @@ class DronePhysicsTest {
 		double lowEffectiveResistance = lowPack.state().batteryEffectiveResistanceOhms();
 		assertTrue(lowPack.state().batteryStateOfCharge() < 0.13);
 		assertTrue(fullPack.state().batteryStateOfCharge() > 0.99);
-		assertTrue(lowSagPerAmp > fullSagPerAmp * 1.45,
+		assertTrue(lowSagPerAmp > fullSagPerAmp * 1.02,
 				() -> "fullSagPerAmp=" + fullSagPerAmp + " lowSagPerAmp=" + lowSagPerAmp);
-		assertTrue(lowEffectiveResistance > fullEffectiveResistance * 1.45,
+		assertTrue(lowSagPerAmp < fullSagPerAmp * 1.12,
+				() -> "fullSagPerAmp=" + fullSagPerAmp + " lowSagPerAmp=" + lowSagPerAmp);
+		assertTrue(lowEffectiveResistance > fullEffectiveResistance * 1.02,
 				() -> "fullResistance=" + fullEffectiveResistance + " lowResistance=" + lowEffectiveResistance);
-		assertTrue(lowPack.state().batteryVoltage() < fullPack.state().batteryVoltage() - 1.8,
+		assertTrue(lowEffectiveResistance < fullEffectiveResistance * 1.12,
+				() -> "fullResistance=" + fullEffectiveResistance + " lowResistance=" + lowEffectiveResistance);
+		assertTrue(lowPack.state().batteryVoltage() < fullPack.state().batteryVoltage() - 1.2,
 				() -> "fullVoltage=" + fullPack.state().batteryVoltage()
 						+ " lowVoltage=" + lowPack.state().batteryVoltage());
 	}
@@ -2557,6 +2561,7 @@ class DronePhysicsTest {
 		}
 
 		assertTrue(lowBattery.state().batteryPowerLimit() < 0.45);
+		assertTrue(lowBattery.state().batteryEffectiveResistanceOhms() > fullBattery.state().batteryEffectiveResistanceOhms() * 1.25);
 		assertTrue(lowBattery.state().averageMotorPower(lowBattery.config()) < fullBattery.state().averageMotorPower(fullBattery.config()) * 0.75);
 	}
 

@@ -6572,9 +6572,10 @@ public final class DronePhysics {
 
 	private static double batteryStateOfChargeResistanceScale(double stateOfCharge) {
 		double soc = MathUtil.clamp(stateOfCharge, 0.0, 1.0);
-		double lowChargeRise = 1.0 - smoothStep(0.18, 0.55, soc);
-		double reserveKneeRise = 1.0 - smoothStep(0.04, 0.18, soc);
-		return MathUtil.clamp(1.0 + 0.30 * lowChargeRise + 0.70 * reserveKneeRise, 1.0, 2.20);
+		double measuredR0Rise = 1.0 - smoothStep(0.12, 0.65, soc);
+		double reserveKneeRise = 1.0 - smoothStep(0.02, 0.08, soc);
+		double deepReserveRise = 1.0 - smoothStep(0.0, 0.025, soc);
+		return MathUtil.clamp(1.0 + 0.055 * measuredR0Rise + 0.38 * reserveKneeRise + 0.35 * deepReserveRise, 1.0, 1.80);
 	}
 
 	private double batterySagRiseTimeConstantSeconds() {
