@@ -3548,15 +3548,37 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void rateSuperSoftensMidStickWhilePreservingFullStickRate() {
+	void acroRateCurveMatchesActualRatesEquivalentForRacingQuadRoll() {
+		DroneConfig preset = DroneConfig.racingQuad();
+		DroneConfig config = directControl(preset).withRateProfile(preset.rateExpo(), preset.rateSuper());
+		DronePhysics halfStick = new DronePhysics(config);
+		DronePhysics threeQuarterStick = new DronePhysics(config);
+
+		halfStick.step(new DroneInput(0.5, 0.0, 0.5, 0.0, true), 0.005);
+		threeQuarterStick.step(new DroneInput(0.5, 0.0, 0.75, 0.0, true), 0.005);
+
+		assertEquals(
+				206.40234375,
+				Math.toDegrees(halfStick.state().targetRatesBodyRadiansPerSecond().z()),
+				1.0e-9
+		);
+		assertEquals(
+				391.00462646484374,
+				Math.toDegrees(threeQuarterStick.state().targetRatesBodyRadiansPerSecond().z()),
+				1.0e-9
+		);
+	}
+
+	@Test
+	void rateSuperReducesCenterSensitivityWhilePreservingFullStickRate() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
 				.withRateProfile(Vec3.ZERO, Vec3.ZERO);
 		DronePhysics linear = new DronePhysics(base);
 		DronePhysics superRate = new DronePhysics(base.withRateSuper(new Vec3(0.0, 0.0, 0.70)));
 
-		linear.step(new DroneInput(0.5, 0.0, 0.5, 0.0, true), 0.005);
-		superRate.step(new DroneInput(0.5, 0.0, 0.5, 0.0, true), 0.005);
+		linear.step(new DroneInput(0.5, 0.0, 0.25, 0.0, true), 0.005);
+		superRate.step(new DroneInput(0.5, 0.0, 0.25, 0.0, true), 0.005);
 
 		assertTrue(superRate.state().targetRatesBodyRadiansPerSecond().z()
 				< linear.state().targetRatesBodyRadiansPerSecond().z() * 0.55);

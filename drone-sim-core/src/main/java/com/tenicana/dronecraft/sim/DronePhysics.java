@@ -5186,14 +5186,19 @@ public final class DronePhysics {
 
 	private static double shapeRateInput(double input, double expo, double superRate) {
 		double clamped = MathUtil.clamp(input, -1.0, 1.0);
-		double shaped = clamped * (1.0 - expo) + clamped * clamped * clamped * expo;
+		double expoClamped = MathUtil.clamp(expo, 0.0, 1.0);
 		double superRateClamped = MathUtil.clamp(superRate, 0.0, 0.95);
-		if (superRateClamped <= 1.0e-9) {
-			return shaped;
-		}
-
-		double denominator = Math.max(1.0e-6, 1.0 - Math.abs(shaped) * superRateClamped);
-		return shaped * (1.0 - superRateClamped) / denominator;
+		double centerSensitivityFraction = (1.0 - expoClamped) * (1.0 - superRateClamped);
+		double commandAbs = Math.abs(clamped);
+		double commandSquared = clamped * clamped;
+		double commandFifth = commandSquared * commandSquared * clamped;
+		double expoCurve = commandAbs * (commandFifth * expoClamped + clamped * (1.0 - expoClamped));
+		double stickMovementFraction = Math.max(0.0, 1.0 - centerSensitivityFraction);
+		return MathUtil.clamp(
+				clamped * centerSensitivityFraction + stickMovementFraction * expoCurve,
+				-1.0,
+				1.0
+		);
 	}
 
 	private void mixRotorThrusts(DroneInput input, Vec3 requestedTorqueBody) {

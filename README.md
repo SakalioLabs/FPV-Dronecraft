@@ -346,7 +346,7 @@ The core model includes:
 - Minecraft contact materials for block-aware friction, rebound, and prop-scrape severity on ice, slime, honey, sand, mud, soul-sand, and cactus-style surfaces;
 - decaying prop-surface scrape loads from sustained disk contact, feeding per-rotor load, motor RPM drag, ESC desync risk, current draw, vibration, HUD/status warnings, and blackbox telemetry;
 - rotor damage uses a nonlinear fault-vibration curve inspired by open DJI Mini 2 prop-damage data, then adds deterministic high-frequency gyro and accelerometer vibration plus effective bent-prop imbalance, so damaged props inject rotating force, commutation/current ripple, control feel changes, and blackbox traces, with motor-fundamental and blade-pass notch frequency/attenuation telemetry for filter tuning;
-- per-axis rate/expo/super-rate input curves that preserve configured full-stick maximum rate;
+- per-axis Betaflight Actual-style rate/expo/super-rate input curves that preserve configured full-stick maximum rate while exposing softer center-stick sensitivity;
 - Acro/rate-mode PID control with dynamic D-term low-pass filtering, target-rate feedforward, anti-gravity I-term boost on throttle punches, throttle PID attenuation (TPA), IMU clipping-aware PID authority foldback, and per-axis I-term relax/anti-windup during rapid setpoint changes or measured mixer authority loss;
 - tunable Angle and Horizon self-level modes that convert attitude error into rate setpoints while still reusing the same PID, mixer, ESC, motor, and airframe physics path as Acro;
 - blackbox-style rate setpoint/error and per-axis P/I/D/feedforward/output torque telemetry, with gyro-derivative D-term damping and setpoint feedforward separated for tuning;
