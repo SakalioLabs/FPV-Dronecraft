@@ -1391,6 +1391,35 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorDamageVibrationKeepsLightFaultsModest() throws ReflectiveOperationException {
+		Method damageVibration = DronePhysics.class.getDeclaredMethod(
+				"rotorDamageVibration",
+				RotorSpec.class,
+				double.class,
+				double.class
+		);
+		damageVibration.setAccessible(true);
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		double maxOmega = rotor.maxOmegaRadiansPerSecond();
+
+		double mildFault = (double) damageVibration.invoke(null, rotor, maxOmega, 0.90);
+		double moderateFault = (double) damageVibration.invoke(null, rotor, maxOmega, 0.75);
+		double heavyFault = (double) damageVibration.invoke(null, rotor, maxOmega, 0.50);
+		double severeFault = (double) damageVibration.invoke(null, rotor, maxOmega, 0.25);
+		double halfSpeedMildFault = (double) damageVibration.invoke(null, rotor, maxOmega * 0.5, 0.90);
+
+		assertTrue(mildFault > 0.020 && mildFault < 0.050,
+				() -> "mildFault=" + mildFault);
+		assertTrue(moderateFault > mildFault && moderateFault < 0.10,
+				() -> "mildFault=" + mildFault + " moderateFault=" + moderateFault);
+		assertTrue(heavyFault > 0.30 && heavyFault < 0.50,
+				() -> "heavyFault=" + heavyFault);
+		assertTrue(severeFault > heavyFault + 0.25,
+				() -> "heavyFault=" + heavyFault + " severeFault=" + severeFault);
+		assertEquals(mildFault * 0.25, halfSpeedMildFault, 1.0e-6);
+	}
+
+	@Test
 	void batteryBusRippleScalesWithMotorCurrentRippleAndPackResistance() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)

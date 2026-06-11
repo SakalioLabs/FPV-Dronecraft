@@ -3297,7 +3297,11 @@ public final class DronePhysics {
 			return 0.0;
 		}
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		return MathUtil.clamp(damage * spinRatio * spinRatio, 0.0, 1.0);
+		// DJI Mini 2 fault data shows light faults as modest RMS changes; reserve strong vibration for deeper damage.
+		double mildFault = 0.035 * smoothStep(0.02, 0.12, damage);
+		double bentBladeFault = 0.72 * Math.pow(smoothStep(0.12, 0.85, damage), 1.35);
+		double severeFault = 0.20 * smoothStep(0.70, 1.0, damage);
+		return MathUtil.clamp((mildFault + bentBladeFault + severeFault) * spinRatio * spinRatio, 0.0, 1.0);
 	}
 
 	private static double rotorImbalanceVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorHealth) {
