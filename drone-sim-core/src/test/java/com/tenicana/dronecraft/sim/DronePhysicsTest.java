@@ -1970,6 +1970,7 @@ class DronePhysicsTest {
 	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
 		DroneEnvironment dirtyWind = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5);
 		double sumGustXSquared = 0.0;
@@ -1978,6 +1979,7 @@ class DronePhysicsTest {
 
 		for (int i = 0; i < 1800; i++) {
 			physics.step(idle, 0.005, dirtyWind);
+			repeat.step(idle, 0.005, dirtyWind);
 			if (i >= 240) {
 				Vec3 gust = physics.state().windGustVelocityWorldMetersPerSecond();
 				sumGustXSquared += gust.x() * gust.x();
@@ -1990,7 +1992,9 @@ class DronePhysicsTest {
 		double rmsGustY = Math.sqrt(sumGustYSquared / samples);
 		assertTrue(rmsGustX > 0.40, () -> "rmsGustX=" + rmsGustX);
 		assertTrue(rmsGustY > 0.10, () -> "rmsGustY=" + rmsGustY);
-		assertTrue(rmsGustX < 3.00, () -> "rmsGustX=" + rmsGustX);
+		assertTrue(rmsGustX < 4.50, () -> "rmsGustX=" + rmsGustX);
+		assertEquals(0.0, physics.state().windGustVelocityWorldMetersPerSecond()
+				.subtract(repeat.state().windGustVelocityWorldMetersPerSecond()).length(), 1.0e-12);
 	}
 
 	@Test

@@ -9,6 +9,7 @@ Outputs:
   docs/data/imu_noise_reference_summary.csv
   docs/data/wind_gust_dryden_reference.csv
   docs/data/barometer_reference_summary.csv
+  docs/data/battery_temperature_derating_summary.csv
   docs/data/raw/* cached source files
 """
 
@@ -103,6 +104,8 @@ MENDELEY_LIPO_DATASET_URL = "https://data.mendeley.com/datasets/stcppt2r68/1"
 NASA_BATTERY_DATASET_URL = "https://data.nasa.gov/dataset/li-ion-battery-aging-datasets"
 NASA_BATTERY_ZIP_URL = "https://phm-datasets.s3.amazonaws.com/NASA/5.+Battery+Data+Set.zip"
 CHL_LIPO_IR_URL = "https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained"
+BATTERY_UNIVERSITY_TEMPERATURE_URL = "https://batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures"
+BATTERY_UNIVERSITY_IR_URL = "https://batteryuniversity.com/article/bu-802a-how-does-rising-internal-resistance-affect-performance"
 NASA_ATMOSPHERE_URL = "https://www.grc.nasa.gov/www/k-12/airplane/atmosmet.html"
 PYFLY_DRYDEN_URL = "https://raw.githubusercontent.com/eivindeb/pyfly/master/pyfly/dryden.py"
 UAV_WIND_MODELING_URL = "https://arxiv.org/abs/1905.09954"
@@ -1532,6 +1535,69 @@ def summarize_battery_ir(presets: list[dict[str, float | str]]) -> list[dict[str
     return rows
 
 
+def clamp(value: float, low: float, high: float) -> float:
+    return min(high, max(low, value))
+
+
+def battery_temperature_resistance_scale(battery_temperature_c: float, ambient_c: float = 25.0) -> float:
+    electrical_temperature = 0.78 * battery_temperature_c + 0.22 * ambient_c
+    cold_rise = max(0.0, 25.0 - electrical_temperature)
+    heat_rise = max(0.0, electrical_temperature - 45.0)
+    return clamp(1.0 + 0.024 * cold_rise + 0.0045 * heat_rise, 0.72, 2.85)
+
+
+def battery_temperature_current_scale(battery_temperature_c: float) -> float:
+    cold_loss = max(0.0, 25.0 - battery_temperature_c) * 0.011
+    heat_loss = max(0.0, battery_temperature_c - 42.0) * 0.006
+    return clamp(1.0 - cold_loss - heat_loss, 0.52, 1.0)
+
+
+def battery_thermal_limit_scale(battery_temperature_c: float) -> float:
+    if battery_temperature_c <= 58.0:
+        return 1.0
+    if battery_temperature_c >= 86.0:
+        return 0.45
+    t = (battery_temperature_c - 58.0) / 28.0
+    smooth = t * t * (3.0 - 2.0 * t)
+    return 1.0 - (1.0 - 0.45) * smooth
+
+
+def summarize_battery_temperature_derating(presets: list[dict[str, float | str]]) -> list[dict[str, float | str]]:
+    rows: list[dict[str, float | str]] = []
+    racing = next((preset for preset in presets if preset["preset"] == "racingQuad"), presets[0])
+    base_resistance = float(racing.get("battery_resistance_ohm", float("nan")))
+    max_current = float(racing.get("max_battery_current_a", float("nan")))
+    for temp_c in (-20.0, 0.0, 10.0, 25.0, 45.0, 58.0, 70.0, 86.0, 100.0):
+        resistance_scale = battery_temperature_resistance_scale(temp_c)
+        current_scale = battery_temperature_current_scale(temp_c)
+        thermal_limit = battery_thermal_limit_scale(temp_c)
+        effective_resistance = base_resistance * resistance_scale
+        effective_current_limit = max_current * current_scale
+        rows.append(
+            {
+                "preset": "racingQuad",
+                "battery_temperature_c": temp_c,
+                "ambient_temperature_c": 25.0,
+                "resistance_scale": resistance_scale,
+                "current_scale": current_scale,
+                "thermal_power_limit": thermal_limit,
+                "effective_resistance_ohm": effective_resistance,
+                "effective_current_limit_a": effective_current_limit,
+                "sag_at_nominal_limit_v": max_current * effective_resistance,
+                "sag_at_temperature_scaled_limit_v": effective_current_limit * effective_resistance,
+                "source": repo_path(ROOT / "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"),
+            }
+        )
+    path = DATA / "battery_temperature_derating_summary.csv"
+    DATA.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        fieldnames = list(rows[0].keys())
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+    return rows
+
+
 def summarize_mendeley_ecm() -> dict[str, object]:
     if not MENDELEY_ECM_SUMMARY_CSV.exists():
         return {"available": False, "pack_rows": []}
@@ -1661,6 +1727,7 @@ def write_summary_csv(
     ground_rows: list[dict[str, float | str]],
     vrs_rows: list[dict[str, float | str]],
     battery_ir_rows: list[dict[str, float | str]],
+    battery_temp_rows: list[dict[str, float | str]],
     coaxial_rows: list[dict[str, float | str]],
     motor_response_rows: list[dict[str, float | str]],
     inertia_rows: list[dict[str, float | str]],
@@ -1732,6 +1799,18 @@ def write_summary_csv(
             ("current_limit_cell_sag_v", "V/cell"),
         ):
             rows.append({"category": "battery_ir", "name": item["preset"], "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
+    for item in battery_temp_rows:
+        name = f"{item['preset']}_{fmt(float(item['battery_temperature_c']), 0)}C"
+        for metric, unit in (
+            ("resistance_scale", "x"),
+            ("current_scale", "x"),
+            ("thermal_power_limit", "x"),
+            ("effective_resistance_ohm", "ohm"),
+            ("effective_current_limit_a", "A"),
+            ("sag_at_nominal_limit_v", "V"),
+            ("sag_at_temperature_scaled_limit_v", "V"),
+        ):
+            rows.append({"category": "battery_temperature_derating", "name": name, "metric": metric, "value": item[metric], "unit": unit, "source": item["source"]})
     for item in coaxial_rows:
         for metric, unit in (
             ("upper_lower_separation_m", "m"),
@@ -1916,6 +1995,7 @@ def write_markdown(
     ground_rows: list[dict[str, float | str]],
     vrs_rows: list[dict[str, float | str]],
     battery_ir_rows: list[dict[str, float | str]],
+    battery_temp_rows: list[dict[str, float | str]],
     coaxial_rows: list[dict[str, float | str]],
     motor_response_rows: list[dict[str, float | str]],
     inertia_rows: list[dict[str, float | str]],
@@ -1950,6 +2030,8 @@ def write_markdown(
     racing_baro_noise = next(row for row in barometer_summary.get("preset_noise_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
     baro_aligned_20 = next(row for row in barometer_summary.get("dynamic_rows", []) if row["mode"] == "aligned" and float(row["airspeed_m_s"]) == 20.0)  # type: ignore[index]
     baro_best_sensor = min(barometer_summary.get("sensor_rows", []), key=lambda row: float(row["pressure_noise_altitude_m"]))  # type: ignore[arg-type]
+    battery_0c = next(row for row in battery_temp_rows if float(row["battery_temperature_c"]) == 0.0)
+    battery_70c = next(row for row in battery_temp_rows if float(row["battery_temperature_c"]) == 70.0)
     racing_erpm = next(row for row in blackbox_summary.get("erpm_rows", []) if row["preset"] == "racingQuad")  # type: ignore[index]
     betaflight_log = next((row for row in blackbox_summary.get("header_rows", []) if row["name"] == "Betaflight issue LOG00078"), None)  # type: ignore[index]
     lines: list[str] = []
@@ -1969,6 +2051,7 @@ def write_markdown(
     lines.append(f"- The ZJU ground-effect/motor-calibration source reports single-rotor `k_T = {fmt(float(zju_single['k_t_n_per_rpm2']))}` N/rpm^2, which converts to `{fmt(float(zju_single['k_n_per_rad2']))}` N/(rad/s)^2, with `Q/T = {fmt(float(zju_single['qt_m']), 4)}` m. The `Q/T` value is close to this project's 5-inch yaw torque order of magnitude.")
     lines.append(f"- For `racingQuad`, hover induced velocity is `{fmt(float(racing_vrs['hover_induced_velocity_m_s']))}` m/s. The code's VRS intensity band covers roughly `{fmt(float(racing_vrs['current_vrs_entry_m_s']))}-{fmt(float(racing_vrs['current_vrs_exit_end_m_s']))}` m/s descent, while the Cambridge dual-rotor paper reports strongest loss around `1.2-1.3 vi` (`{fmt(float(racing_vrs['paper_peak_loss_low_m_s']))}-{fmt(float(racing_vrs['paper_peak_loss_high_m_s']))}` m/s for this preset).")
     lines.append(f"- `racingQuad` battery IR is `{fmt(float(racing_battery_ir['per_cell_resistance_mohm']))}` mOhm/cell by the inferred `{int(racing_battery_ir['estimated_cells'])}S` pack. That sits in the high-C LiPo plausibility range, but max-current sag still reaches `{fmt(float(racing_battery_ir['current_limit_pack_sag_v']))}` V at the configured limit.")
+    lines.append(f"- The current battery temperature model raises `racingQuad` pack resistance to `{fmt(float(battery_0c['resistance_scale']), 2)}x` and cuts max-current scale to `{fmt(float(battery_0c['current_scale']), 2)}x` at 0 C. At 70 C, resistance is `{fmt(float(battery_70c['resistance_scale']), 2)}x`, current scale `{fmt(float(battery_70c['current_scale']), 2)}x`, and thermal power limit `{fmt(float(battery_70c['thermal_power_limit']), 2)}x`; this matches the qualitative Li-ion/LiPo pattern that cold mainly hurts power delivery and heat drives protection.")
     if mendeley_ecm.get("available"):
         lines.append(f"- The extracted Mendeley LP-503562-IS-3 ECM fit summary has `{int(float(mendeley_ecm['row_count']))}` fitted-cycle files across `{int(float(mendeley_ecm['pack_count']))}` packs. Mean fitted `RO` spans `{fmt(float(mendeley_ecm['r0_mean_min_ohm']) * 1000.0)}-{fmt(float(mendeley_ecm['r0_mean_max_ohm']) * 1000.0)}` mOhm/cell, and low-SOC `RO` averages `{fmt(float(mendeley_ecm['low_soc_over_high_soc_avg']), 3)}x` high-SOC `RO`; use this for SOC/SOH shape, not FPV high-C absolute ESR.")
     lines.append(f"- `racingQuad.motor_tau` is `{fmt(float(racing_motor_response['motor_tau_s']), 4)}` s, about `{fmt(float(racing_motor_response['motor_tau_vs_ref_up']), 2)}x` RotorS/PX4 `timeConstantUp` and `{fmt(float(racing_motor_response['motor_tau_vs_ref_down']), 2)}x` `timeConstantDown`. That is defensible if it includes ESC/load/voltage effects, but it is slower than the simple open-source actuator lag reference.")
@@ -2059,7 +2142,7 @@ def write_markdown(
     lines.append("")
     lines.append(f"References: [NASA standard atmosphere]({NASA_ATMOSPHERE_URL}), [pyfly Dryden implementation]({PYFLY_DRYDEN_URL}), and [open UAV wind modeling survey]({UAV_WIND_MODELING_URL}). Generated wind CSV: `docs/data/wind_gust_dryden_reference.csv`.")
     lines.append("")
-    lines.append("The Dryden rows use the common low-altitude formulas at 6 m altitude and take `wind20` equal to the scenario wind speed. The current model rows estimate target-gust RMS from the scaled dirty-air burble plus Dryden target before vehicle response and first-order filtering; this is an intensity/time-scale check, not a full stochastic spectrum fit.")
+    lines.append("The Dryden rows use the common low-altitude formulas at 6 m altitude and take `wind20` equal to the scenario wind speed. The current model rows estimate target-gust RMS from the scaled dirty-air burble plus Dryden target before vehicle response and first-order filtering; the runtime implementation drives the Dryden part with a reproducible colored-noise process.")
     lines.append("")
     lines.append("| wind | dirtyAir | current gust RMS X/Y/Z | current peak X/Y/Z | phase periods A/B/C | tau gust/mean | Dryden sigma u/w | RMS ratio X/u Y/w | Dryden time u/w |")
     lines.append("|---:|---:|---:|---:|---:|---:|---:|---:|---:|")
@@ -2077,7 +2160,7 @@ def write_markdown(
             f"{fmt(float(row['dryden_longitudinal_time_s']))}/{fmt(float(row['dryden_vertical_time_s']))} s |"
         )
     lines.append("")
-    lines.append("The Dryden component now carries the physical low-altitude length scales and sigma targets, while the remaining deterministic burble is deliberately reduced and kept as obstacle/dirty-air feel. A future Von Karman or stochastic Dryden noise source would still be a cleaner spectral target than deterministic sine excitation.")
+    lines.append("The Dryden component now carries the physical low-altitude length scales and sigma targets as colored noise, while the remaining deterministic burble is deliberately reduced and kept as obstacle/dirty-air feel. A future full Dryden/Von Karman shaping filter would be a cleaner spectral target, but the wind field is no longer driven only by sine excitation.")
     lines.append("")
     lines.append("## ZJU ground-effect and motor calibration anchor")
     lines.append("")
@@ -2285,6 +2368,21 @@ def write_markdown(
     lines.append("")
     lines.append("The CHL high-C LiPo guide gives practical per-cell IR bands: many new high-performance packs are around `2-5 mOhm`, below `10 mOhm` is a strong fresh-pack target, `10-20 mOhm` is still usable/healthy, and above `20 mOhm` is tired for high-performance use. The current presets land in the plausible high-current range, but the larger aircraft still show large pack-level sag at their configured current limits.")
     lines.append("")
+    lines.append(f"Temperature references: [Battery University low/high-temperature discharge]({BATTERY_UNIVERSITY_TEMPERATURE_URL}), [Battery University internal-resistance performance]({BATTERY_UNIVERSITY_IR_URL}), [CHL LiPo IR explainer]({CHL_LIPO_IR_URL}), and the Mendeley LiPo ECM dataset above. Generated temperature CSV: `docs/data/battery_temperature_derating_summary.csv`.")
+    lines.append("")
+    lines.append("| Battery temp | resistance scale | current scale | thermal power limit | effective R | effective current limit | sag at nominal/scaled limit |")
+    lines.append("|---:|---:|---:|---:|---:|---:|---:|")
+    for row in battery_temp_rows:
+        lines.append(
+            f"| {fmt(float(row['battery_temperature_c']), 0)} C | "
+            f"{fmt(float(row['resistance_scale']), 2)}x | {fmt(float(row['current_scale']), 2)}x | "
+            f"{fmt(float(row['thermal_power_limit']), 2)}x | {fmt(float(row['effective_resistance_ohm']))} ohm | "
+            f"{fmt(float(row['effective_current_limit_a']))} A | "
+            f"{fmt(float(row['sag_at_nominal_limit_v']))}/{fmt(float(row['sag_at_temperature_scaled_limit_v']))} V |"
+        )
+    lines.append("")
+    lines.append("The current temperature model is qualitatively aligned with Li-ion behavior: cold packs get higher effective resistance and lower current capability, while high temperature gradually reduces allowable power before hard thermal limiting. The exact coefficients are still heuristic; measured FPV high-C pack ESR versus temperature would be the best next calibration target.")
+    lines.append("")
     lines.append("The Mendeley LiPo dataset exposes raw capacity, partial-discharge, EIS, and fitted ECM CSVs. The fitted model files provide columns `SOC, R_0, R_1, Q_1, a_1, R_2, Q_2, a_2, Q, L`, so `R_0(SOC, SOH)` is a direct candidate for replacing a constant internal resistance with a state-dependent lookup. Caveat: the cells are 3.7 V, 1.1 Ah BAK LP-503562-IS-3 packs measured at 25 C, with 1 A standard discharge and 3 A stress discharge, so the dataset informs SOC/SOH shape more than FPV high-C absolute resistance.")
     lines.append("")
     if mendeley_ecm.get("available"):
@@ -2353,8 +2451,9 @@ def write_markdown(
     lines.append("7. Label sensor-noise parameters as electronics-only or residual vibration/noise-after-filtering. Current values are much larger than bare IMU datasheet RMS at the configured LPF bandwidths, which is plausible for FPV vibration but not for pure sensor electronics.")
     lines.append("8. Keep physical turbulence and FPV dirty-air feel separate. The wind model now has a low-altitude Dryden-scaled turbulence component plus a reduced deterministic burble component for obstacle/wake feel.")
     lines.append("9. Separate barometer silicon pressure noise from pressure-port/propwash/dynamic-pressure altitude bias. The former is centimeters-to-decimeters; the current high-speed flow model is meters and should be documented as aerodynamic/static-port error.")
-    lines.append("10. Treat public blackbox logs without `eRPM[]` as timing/gyro/motor-command anchors only. For RPM-filter validation, require logs or exports that explicitly include `eRPM[0..3]`, and convert Betaflight logged `eRPM/100` through motor pole count before comparing with mechanical RPM.")
-    lines.append("11. Next data targets: digitized coaxial thrust/efficiency curves versus `z/D`, FPV high-C pack absolute ESR versus SOC/temperature, FPV airframe coast-down/log-fit drag, and Betaflight blackbox logs with RPM telemetry for propwash recovery validation.")
+    lines.append("10. Keep battery temperature effects separate from SOC/SOH effects. Current low-temperature resistance/current scaling is directionally plausible but still needs high-C FPV pack ESR versus temperature data for coefficient calibration.")
+    lines.append("11. Treat public blackbox logs without `eRPM[]` as timing/gyro/motor-command anchors only. For RPM-filter validation, require logs or exports that explicitly include `eRPM[0..3]`, and convert Betaflight logged `eRPM/100` through motor pole count before comparing with mechanical RPM.")
+    lines.append("12. Next data targets: digitized coaxial thrust/efficiency curves versus `z/D`, FPV high-C pack absolute ESR versus SOC/temperature, FPV airframe coast-down/log-fit drag, and Betaflight blackbox logs with RPM telemetry for propwash recovery validation.")
     lines.append("")
     while lines and lines[-1] == "":
         lines.pop()
@@ -2382,6 +2481,8 @@ def main() -> None:
         MENDELEY_LIPO_DATASET_URL,
         NASA_BATTERY_DATASET_URL,
         CHL_LIPO_IR_URL,
+        BATTERY_UNIVERSITY_TEMPERATURE_URL,
+        BATTERY_UNIVERSITY_IR_URL,
         NASA_ATMOSPHERE_URL,
         PYFLY_DRYDEN_URL,
         UAV_WIND_MODELING_URL,
@@ -2485,6 +2586,7 @@ def main() -> None:
     ground_rows = summarize_ground_effect(presets)
     vrs_rows = summarize_vrs(presets)
     battery_ir_rows = summarize_battery_ir(presets)
+    battery_temp_rows = summarize_battery_temperature_derating(presets)
     coaxial_rows = summarize_coaxial_spacing(presets)
     motor_response_rows = summarize_motor_response(presets, open_models)
     inertia_rows = summarize_inertia_geometry(presets, open_models)
@@ -2516,14 +2618,15 @@ def main() -> None:
         ]
     )
 
-    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
-    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_summary_csv(static, forward, mqtb, open_models, presets, comparisons, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
+    write_markdown(static, forward, mqtb, command_rows, open_models, presets, comparisons, battery, zju_ground, ground_rows, vrs_rows, battery_ir_rows, battery_temp_rows, coaxial_rows, motor_response_rows, inertia_rows, drag_rows, timing_rows, imu_rows, wind_rows, barometer_summary, blackbox_summary, mendeley_ecm)
     print("Wrote docs/fpv-sim-model-validation.md")
     print("Wrote docs/data/fpv_model_validation_summary.csv")
     print("Wrote docs/data/blackbox_log_header_summary.csv")
     print("Wrote docs/data/imu_noise_reference_summary.csv")
     print("Wrote docs/data/wind_gust_dryden_reference.csv")
     print("Wrote docs/data/barometer_reference_summary.csv")
+    print("Wrote docs/data/battery_temperature_derating_summary.csv")
     print(f"Cached raw sources in {RAW}")
 
 

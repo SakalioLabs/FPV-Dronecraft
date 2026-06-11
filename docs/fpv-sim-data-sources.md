@@ -237,7 +237,7 @@ Current high-signal outputs:
 
 - For `wind = 10 m/s` and `dirtyAir = 1.5`, the current target-gust RMS is about `1.65 m/s` horizontal X and `0.84 m/s` vertical after combining a reduced dirty-air burble with the Dryden target.
 - Against a low-altitude Dryden reference with `W20 = 10 m/s`, that is roughly `0.86x` longitudinal intensity and `0.84x` vertical intensity.
-- The Dryden component now carries the physical low-altitude length scales and sigma targets, while the reduced deterministic burble remains a tunable FPV obstacle/wake feel layer unless a stochastic Dryden/Von Karman generator replaces the sine excitation.
+- The Dryden component now runs as a reproducible colored-noise process with the physical low-altitude length scales and sigma targets, while the reduced deterministic burble remains a tunable FPV obstacle/wake feel layer.
 
 ### Airframe inertia and body drag
 
@@ -318,6 +318,8 @@ Open datasets:
 - [Open LiPo battery dataset on PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC10518458/)
 - [Mendeley direct LiPo EIS/capacity/ECM dataset](https://data.mendeley.com/datasets/stcppt2r68/1)
 - [CHL LiPo internal resistance explainer](https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained)
+- [Battery University low/high-temperature discharge guide](https://batteryuniversity.com/article/bu-502-discharging-at-high-and-low-temperatures)
+- [Battery University internal-resistance performance guide](https://batteryuniversity.com/article/bu-802a-how-does-rising-internal-resistance-affect-performance)
 
 How to use them:
 
@@ -327,6 +329,7 @@ How to use them:
 - Use FPV-specific thrust-stand pages such as Mini Quad Test Bench for high-current voltage sag under prop load.
 - The current `racingQuad()` battery values are `16.8 V nominal`, `13.2 V empty`, `0.018 ohm pack resistance`, `1.5 Ah`, `90 A max`. That is `4.5 mOhm/cell` if interpreted as a 4S pack, which is plausible for a high-C pack but should be validated against a real FPV battery test or manufacturer ESR data before treating it as measured.
 - CHL's practical bands put many fresh high-performance LiPos around `2-5 mOhm/cell`, below `10 mOhm/cell` as a strong fresh-pack target, `10-20 mOhm/cell` as usable/healthy, and above `20 mOhm/cell` as tired for high-performance use.
+- `docs/data/battery_temperature_derating_summary.csv` evaluates the current temperature model for `racingQuad`. At 0 C it gives `1.47x` resistance and `0.72x` current scale; at 70 C it gives about `1.07x` resistance, `0.83x` current scale, and `0.78x` thermal power limit.
 
 Mendeley ECM extraction:
 
@@ -439,8 +442,8 @@ Use these for RC link update-rate/failsafe plausibility rather than rigid physic
    - If a preset intentionally uses a synthetic harmonic for feel, avoid labeling that notch as measured physical blade-pass frequency.
 
 9. Reconcile wind/gust semantics.
-   - Keep the low-altitude Dryden-scaled turbulence component separate from the reduced deterministic burble used for obstacle/propwash feel.
-   - If the goal is physical turbulence spectrum matching, replace the deterministic excitation with a stochastic Dryden/Von Karman colored-noise process.
+   - Keep the low-altitude Dryden colored-noise turbulence component separate from the reduced deterministic burble used for obstacle/propwash feel.
+   - If the goal is tighter spectrum matching, compare the current OU-style Dryden process against a fuller Dryden/Von Karman filter implementation.
 
 10. Reconcile IMU noise semantics.
    - Datasheet electronics noise is much lower than the current configured noise at the project LPF bandwidths.
@@ -450,7 +453,11 @@ Use these for RC link update-rate/failsafe plausibility rather than rigid physic
    - MEMS pressure-sensor noise should be centimeters-to-decimeters when converted to altitude near sea level.
    - Meter-scale barometer excursions should be attributed to propwash/static-port/dynamic-pressure error, not raw sensor noise.
 
-12. Reconcile blackbox RPM units before using logs for validation.
+12. Reconcile battery temperature effects.
+   - Current coefficients are directionally plausible: cold raises resistance and reduces current scale; heat drives thermal power limiting.
+   - Keep this separate from SOC/SOH resistance growth and calibrate coefficients with high-C FPV pack ESR versus temperature if available.
+
+13. Reconcile blackbox RPM units before using logs for validation.
    - Betaflight blackbox `eRPM[]` values are logged as electrical RPM divided by 100.
    - Convert through motor pole count before comparing to simulated mechanical RPM or blade-pass frequency.
    - Public logs without `eRPM[]` should only be used for timing, gyro, accelerometer, and motor-command field validation.

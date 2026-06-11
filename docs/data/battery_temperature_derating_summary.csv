@@ -1,0 +1,10 @@
+preset,battery_temperature_c,ambient_temperature_c,resistance_scale,current_scale,thermal_power_limit,effective_resistance_ohm,effective_current_limit_a,sag_at_nominal_limit_v,sag_at_temperature_scaled_limit_v,source
+racingQuad,-20.0,25.0,1.8424,0.52,1.0,0.0331632,46.800000000000004,2.984688,1.55203776,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,0.0,25.0,1.468,0.7250000000000001,1.0,0.026423999999999996,65.25000000000001,2.37816,1.724166,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,10.0,25.0,1.2808,0.835,1.0,0.023054399999999996,75.14999999999999,2.0748959999999994,1.7325381599999994,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,25.0,25.0,1.0,1.0,1.0,0.018,90.0,1.6199999999999999,1.6199999999999999,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,45.0,25.0,1.0,0.982,1.0,0.018,88.38,1.6199999999999999,1.5908399999999998,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,58.0,25.0,1.02583,0.904,1.0,0.01846494,81.36,1.6618446,1.5023075183999999,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,70.0,25.0,1.06795,0.832,0.7835276967930029,0.019223099999999996,74.88,1.7300789999999997,1.4394257279999996,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,86.0,25.0,1.12411,0.736,0.45,0.02023398,66.24,1.8210582,1.3402988351999998,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
+racingQuad,100.0,25.0,1.17325,0.6519999999999999,0.45,0.0211185,58.67999999999999,1.9006649999999998,1.2392335799999998,drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java
