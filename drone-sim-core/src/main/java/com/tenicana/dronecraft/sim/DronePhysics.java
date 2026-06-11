@@ -398,7 +398,7 @@ public final class DronePhysics {
 		yawPid.setGains(config.yawGains());
 		rollPid.setGains(config.rollGains());
 		if (batteryModelChanged(previousConfig, config)) {
-			double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+			double capacityAmpSeconds = effectiveBatteryCapacityAmpSeconds();
 			state.setBatteryAmpSecondsConsumed((1.0 - previousStateOfCharge) * capacityAmpSeconds);
 			state.setBatteryTransientSagVoltage(0.0);
 			state.setBatteryVoltageSpike(0.0);
@@ -7909,6 +7909,7 @@ public final class DronePhysics {
 	}
 
 	private void updateBatteryVoltage(double netCurrentAmps, double regenerativeCurrentAmps, DroneEnvironment environment, double dtSeconds) {
+		state.setBatteryCapacityAgingScale(batteryCapacityAgingScale(state.batteryEquivalentCycles()));
 		double stateOfCharge = currentBatteryStateOfCharge();
 		state.setBatteryStateOfCharge(stateOfCharge);
 		double openCircuitVoltage = batteryOpenCircuitVoltageFromStateOfCharge(stateOfCharge);
@@ -7978,8 +7979,15 @@ public final class DronePhysics {
 	}
 
 	private double currentBatteryStateOfCharge() {
-		double capacityAmpSeconds = Math.max(1.0e-9, config.batteryCapacityAmpHours() * 3600.0);
+		double capacityAmpSeconds = effectiveBatteryCapacityAmpSeconds();
 		return MathUtil.clamp(1.0 - state.batteryAmpSecondsConsumed() / capacityAmpSeconds, 0.0, 1.0);
+	}
+
+	private double effectiveBatteryCapacityAmpSeconds() {
+		return Math.max(
+				1.0e-9,
+				config.batteryCapacityAmpHours() * 3600.0 * batteryCapacityAgingScale(state.batteryEquivalentCycles())
+		);
 	}
 
 	private double imuSupplyNoiseIntensity(double ohmicSag, double transientSag, double voltageSpike, double busRipple) {
@@ -8208,6 +8216,18 @@ public final class DronePhysics {
 		double earlyGrowth = smoothStep(0.0, 0.36 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES, cycles);
 		double lifeGrowth = smoothStep(0.18 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES, LIPO_MENDELEY_REFERENCE_AGING_CYCLES, cycles);
 		return MathUtil.clamp(1.0 + 0.055 * earlyGrowth + 0.145 * lifeGrowth, 1.0, 1.22);
+	}
+
+	private static double batteryCapacityAgingScale(double equivalentCycles) {
+		double cycles = MathUtil.clamp(equivalentCycles, 0.0, 5000.0);
+		double highCurrentFade = smoothStep(0.05 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES, 400.0, cycles);
+		double lateReferenceFade = smoothStep(0.55 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES, LIPO_MENDELEY_REFERENCE_AGING_CYCLES, cycles);
+		double extendedFade = smoothStep(
+				LIPO_MENDELEY_REFERENCE_AGING_CYCLES,
+				3.0 * LIPO_MENDELEY_REFERENCE_AGING_CYCLES,
+				cycles
+		);
+		return MathUtil.clamp(1.0 - 0.170 * highCurrentFade - 0.030 * lateReferenceFade - 0.150 * extendedFade, 0.65, 1.0);
 	}
 
 	private double batterySagRiseTimeConstantSeconds() {

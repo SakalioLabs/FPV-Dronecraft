@@ -431,6 +431,7 @@ public final class DroneBlackboxSample {
 			"battery_20pct_sag_current_a",
 			"battery_20pct_sag_current_margin",
 			"battery_resistance_aging_scale",
+			"battery_capacity_aging_scale",
 			"battery_polarization_resistance_scale",
 			"battery_equivalent_cycles",
 			"battery_regen_current_a",
@@ -1498,6 +1499,7 @@ public final class DroneBlackboxSample {
 		row.add(state.batteryTwentyPercentSagCurrentAmps(), "%.3f");
 		row.add(state.batteryTwentyPercentSagCurrentMargin(), "%.5f");
 		row.add(state.batteryResistanceAgingScale(), "%.5f");
+		row.add(state.batteryCapacityAgingScale(), "%.5f");
 		row.add(state.batteryPolarizationResistanceScale(), "%.5f");
 		row.add(state.batteryEquivalentCycles(), "%.5f");
 		row.add(state.batteryRegenerativeCurrentAmps(), "%.3f");

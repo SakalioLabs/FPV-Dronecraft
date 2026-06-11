@@ -2320,6 +2320,55 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryEquivalentCyclesReduceEffectiveCapacityOnHighCurrentSohCurve() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withBattery(16.8, 13.2, 0.018, 1.5, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics fresh = new DronePhysics(config);
+		DronePhysics highCurrentAged = new DronePhysics(config);
+		DronePhysics worn = new DronePhysics(config);
+		highCurrentAged.state().setBatteryEquivalentCycles(400.0);
+		worn.state().setBatteryEquivalentCycles(450.0);
+
+		fresh.step(DroneInput.idle(), 0.005);
+		highCurrentAged.step(DroneInput.idle(), 0.005);
+		worn.step(DroneInput.idle(), 0.005);
+
+		assertEquals(1.0, fresh.state().batteryCapacityAgingScale(), 0.001);
+		assertEquals(0.808, highCurrentAged.state().batteryCapacityAgingScale(), 0.006);
+		assertEquals(0.800, worn.state().batteryCapacityAgingScale(), 0.002);
+		assertEquals(1.0, worn.state().batteryStateOfCharge(), 0.001);
+	}
+
+	@Test
+	void capacityFadeConsumesReserveSoonerForSameAmpSeconds() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withBattery(16.8, 13.2, 0.018, 1.5, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics fresh = new DronePhysics(config);
+		DronePhysics worn = new DronePhysics(config);
+		double nominalCapacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
+		fresh.state().setBatteryAmpSecondsConsumed(nominalCapacityAmpSeconds * 0.70);
+		worn.state().setBatteryAmpSecondsConsumed(nominalCapacityAmpSeconds * 0.70);
+		worn.state().setBatteryEquivalentCycles(450.0);
+
+		fresh.step(DroneInput.idle(), 0.005);
+		worn.step(DroneInput.idle(), 0.005);
+
+		assertTrue(worn.state().batteryStateOfCharge() < fresh.state().batteryStateOfCharge() - 0.17,
+				() -> "freshSoc=" + fresh.state().batteryStateOfCharge()
+						+ " wornSoc=" + worn.state().batteryStateOfCharge()
+						+ " wornCapacityScale=" + worn.state().batteryCapacityAgingScale());
+		assertTrue(worn.state().batteryOpenCircuitVoltage() < fresh.state().batteryOpenCircuitVoltage() - 0.30,
+				() -> "freshOcv=" + fresh.state().batteryOpenCircuitVoltage()
+						+ " wornOcv=" + worn.state().batteryOpenCircuitVoltage());
+		assertTrue(worn.state().batteryPowerLimit() < fresh.state().batteryPowerLimit(),
+				() -> "freshPowerLimit=" + fresh.state().batteryPowerLimit()
+						+ " wornPowerLimit=" + worn.state().batteryPowerLimit());
+	}
+
+	@Test
 	void batteryEquivalentCyclesAccumulateFromCurrentThroughput() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
@@ -8990,6 +9039,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_slow_polarization_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_effective_resistance_ohm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_resistance_aging_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_capacity_aging_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_equivalent_cycles"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_voltage_spike_v"));
@@ -9745,9 +9795,10 @@ class DronePhysicsTest {
 
 	private static double effectiveBatteryResistanceAt(DroneConfig config, double stateOfCharge, double equivalentCycles) {
 		DronePhysics physics = new DronePhysics(config);
-		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
-		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
 		physics.state().setBatteryEquivalentCycles(equivalentCycles);
+		physics.step(DroneInput.idle(), 0.005);
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0 * physics.state().batteryCapacityAgingScale();
+		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
 		physics.step(DroneInput.idle(), 0.005);
 		return physics.state().batteryEffectiveResistanceOhms();
 	}
@@ -9759,9 +9810,10 @@ class DronePhysicsTest {
 			double ambientTemperatureCelsius
 	) {
 		DronePhysics physics = new DronePhysics(config);
-		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0;
-		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
 		physics.state().setBatteryEquivalentCycles(equivalentCycles);
+		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0 * physics.state().batteryCapacityAgingScale();
+		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
 		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
 		return physics.state().batteryEffectiveResistanceOhms();
 	}
