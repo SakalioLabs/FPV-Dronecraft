@@ -1679,6 +1679,55 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void activeBrakingThrottleChopSlewStaysBlackboxPlausible() {
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.045)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 160.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics coasting = new DronePhysics(base.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0));
+		DronePhysics braked = new DronePhysics(base.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0));
+		DroneInput highThrottle = new DroneInput(0.92, 0.0, 0.0, 0.0, true);
+		DroneInput cutThrottle = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		double dtSeconds = 0.005;
+
+		for (int i = 0; i < 240; i++) {
+			coasting.step(highThrottle, dtSeconds);
+			braked.step(highThrottle, dtSeconds);
+		}
+
+		double coastingStartRpm = coasting.state().averageMotorRpm();
+		double brakedStartRpm = braked.state().averageMotorRpm();
+		coasting.step(cutThrottle, dtSeconds);
+		braked.step(cutThrottle, dtSeconds);
+		double coastingFirstFrameSlewRpmPerSecond = (coastingStartRpm - coasting.state().averageMotorRpm()) / dtSeconds;
+		double brakedFirstFrameSlewRpmPerSecond = (brakedStartRpm - braked.state().averageMotorRpm()) / dtSeconds;
+
+		for (int i = 1; i < 10; i++) {
+			coasting.step(cutThrottle, dtSeconds);
+			braked.step(cutThrottle, dtSeconds);
+		}
+
+		double coastingFiftyMillisecondSlewRpmPerSecond = (coastingStartRpm - coasting.state().averageMotorRpm()) / 0.050;
+		double brakedFiftyMillisecondSlewRpmPerSecond = (brakedStartRpm - braked.state().averageMotorRpm()) / 0.050;
+		double maxRpm = base.rotors().get(0).maxOmegaRadiansPerSecond() * 60.0 / (Math.PI * 2.0);
+		double firstOrderSpinupReferenceSlewRpmPerSecond = maxRpm / base.motorTimeConstantSeconds();
+
+		assertTrue(brakedFirstFrameSlewRpmPerSecond < firstOrderSpinupReferenceSlewRpmPerSecond * 1.25,
+				() -> "brakedFirstFrameSlew=" + brakedFirstFrameSlewRpmPerSecond
+						+ " reference=" + firstOrderSpinupReferenceSlewRpmPerSecond);
+		assertTrue(brakedFirstFrameSlewRpmPerSecond > coastingFirstFrameSlewRpmPerSecond * 1.08,
+				() -> "brakedFirstFrameSlew=" + brakedFirstFrameSlewRpmPerSecond
+						+ " coastingFirstFrameSlew=" + coastingFirstFrameSlewRpmPerSecond);
+		assertTrue(brakedFiftyMillisecondSlewRpmPerSecond > coastingFiftyMillisecondSlewRpmPerSecond * 1.30,
+				() -> "braked50msSlew=" + brakedFiftyMillisecondSlewRpmPerSecond
+						+ " coasting50msSlew=" + coastingFiftyMillisecondSlewRpmPerSecond);
+		assertTrue(braked.state().averageMotorRpm() < coasting.state().averageMotorRpm() * 0.25,
+				() -> "brakedEndRpm=" + braked.state().averageMotorRpm()
+						+ " coastingEndRpm=" + coasting.state().averageMotorRpm());
+	}
+
+	@Test
 	void activeBrakingTorqueTelemetryShowsAsymmetricThrottleChop() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.090)
@@ -1876,15 +1925,28 @@ class DronePhysicsTest {
 		}
 		double loadedVoltage = physics.state().batteryVoltage();
 
-		physics.step(cut, 0.005);
-		double motorThermalCurrentSum = 0.0;
-		for (double motorCurrent : physics.state().motorCurrentAmps()) {
-			motorThermalCurrentSum += motorCurrent;
+		double maxRegenerativeCurrent = 0.0;
+		double maxVoltageSpike = 0.0;
+		double maxRecoveryVoltage = loadedVoltage;
+		double minBatteryToMotorCurrentRatio = Double.POSITIVE_INFINITY;
+		for (int i = 0; i < 4; i++) {
+			physics.step(cut, 0.005);
+			double motorThermalCurrentSum = 0.0;
+			for (double motorCurrent : physics.state().motorCurrentAmps()) {
+				motorThermalCurrentSum += motorCurrent;
+			}
+			maxRegenerativeCurrent = Math.max(maxRegenerativeCurrent, physics.state().batteryRegenerativeCurrentAmps());
+			maxVoltageSpike = Math.max(maxVoltageSpike, physics.state().batteryVoltageSpike());
+			maxRecoveryVoltage = Math.max(maxRecoveryVoltage, physics.state().batteryVoltage());
+			minBatteryToMotorCurrentRatio = Math.min(
+					minBatteryToMotorCurrentRatio,
+					physics.state().batteryCurrentAmps() / Math.max(1.0e-6, motorThermalCurrentSum)
+			);
 		}
-		assertTrue(physics.state().batteryRegenerativeCurrentAmps() > 1.0);
-		assertTrue(physics.state().batteryVoltageSpike() > 0.004);
-		assertTrue(physics.state().batteryCurrentAmps() < motorThermalCurrentSum * 0.85);
-		assertTrue(physics.state().batteryVoltage() > loadedVoltage + 0.08);
+		assertTrue(maxRegenerativeCurrent > 1.0);
+		assertTrue(maxVoltageSpike > 0.004);
+		assertTrue(minBatteryToMotorCurrentRatio < 0.85);
+		assertTrue(maxRecoveryVoltage > loadedVoltage + 0.25);
 	}
 
 	@Test

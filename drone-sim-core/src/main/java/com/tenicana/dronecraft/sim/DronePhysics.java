@@ -507,6 +507,15 @@ public final class DronePhysics {
 					surfaceScrape,
 					dtSeconds
 			);
+			commandedOmega = blackboxLimitedActiveBrakingOmega(
+					rotor,
+					previousOmega,
+					targetOmega,
+					commandedOmega,
+					escOutput,
+					voltageScale,
+					dtSeconds
+			);
 			double mechanicalLossTorque = motorMechanicalLossTorque(
 					rotor,
 					commandedOmega,
@@ -1251,6 +1260,41 @@ public final class DronePhysics {
 				0.005,
 				baseTimeConstant * coastInertiaFactor
 		);
+	}
+
+	private double blackboxLimitedActiveBrakingOmega(
+			RotorSpec rotor,
+			double previousOmega,
+			double targetOmega,
+			double commandedOmega,
+			double escOutput,
+			double voltageScale,
+			double dtSeconds
+	) {
+		if (dtSeconds <= 1.0e-6
+				|| targetOmega >= previousOmega
+				|| commandedOmega >= previousOmega
+				|| config.motorActiveBrakingStrength() <= 1.0e-6) {
+			return commandedOmega;
+		}
+		double maxOmega = rotor.maxOmegaRadiansPerSecond();
+		if (maxOmega <= 1.0e-6 || config.motorTimeConstantSeconds() <= 1.0e-6) {
+			return commandedOmega;
+		}
+
+		double rpmFraction = MathUtil.clamp(previousOmega / maxOmega, 0.0, 1.0);
+		double overrun = MathUtil.clamp(rpmFraction - escOutput, 0.0, 1.0);
+		double brakeAuthority = MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0);
+		double voltageAuthority = MathUtil.clamp((MathUtil.clamp(voltageScale, 0.35, 1.05) - 0.35) / 0.70, 0.0, 1.0);
+		double overrunAuthority = smoothStep(0.04, 0.35, overrun);
+		double brakingSlewMultiplier = MathUtil.clamp(
+				0.92 + 0.14 * brakeAuthority + 0.08 * voltageAuthority + 0.08 * overrunAuthority,
+				0.80,
+				1.16
+		);
+		double referenceSlewRadiansPerSecondSquared = maxOmega / Math.max(0.005, config.motorTimeConstantSeconds());
+		double limitedOmega = previousOmega - referenceSlewRadiansPerSecondSquared * brakingSlewMultiplier * dtSeconds;
+		return Math.max(commandedOmega, limitedOmega);
 	}
 
 	private double updateEscDesyncIntensity(
