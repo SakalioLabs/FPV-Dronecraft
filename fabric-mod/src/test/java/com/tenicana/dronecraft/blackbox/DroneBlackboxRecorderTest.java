@@ -623,6 +623,13 @@ class DroneBlackboxRecorderTest {
 		assertEquals(5.0, summary.maxContactSlipSpeedMetersPerSecond(), 0.0001);
 		assertEquals(0.6, summary.maxContactBounceSpeedMetersPerSecond(), 0.0001);
 		assertEquals(540.0, summary.maxContactAngularImpulseDegreesPerSecond(), 0.0001);
+		assertEquals(0.72, summary.minContactSurfaceFrictionMultiplier(), 0.0001);
+		assertEquals(1.00, summary.maxContactSurfaceFrictionMultiplier(), 0.0001);
+		assertEquals(1.00, summary.minContactSurfaceRestitutionMultiplier(), 0.0001);
+		assertEquals(1.08, summary.maxContactSurfaceRestitutionMultiplier(), 0.0001);
+		assertEquals(1.00, summary.minContactSurfaceScrapeMultiplier(), 0.0001);
+		assertEquals(1.70, summary.maxContactSurfaceScrapeMultiplier(), 0.0001);
+		assertTrue(summary.formatForChat().contains("surface 0.72..1.00/1.00..1.08/1.00..1.70"));
 		assertEquals(0.18, summary.maxRotorSurfaceScrapeIntensity(), 0.0001);
 		assertTrue(summary.maxRotorConingIntensity() >= 0.0);
 		assertTrue(summary.maxRotorConingAngleDegrees() >= 0.0);

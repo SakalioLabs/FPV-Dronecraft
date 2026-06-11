@@ -72,6 +72,12 @@ public record DroneBlackboxSummary(
 		double maxContactImpactSpeedMetersPerSecond,
 		double maxContactSlipSpeedMetersPerSecond,
 		double maxContactBounceSpeedMetersPerSecond,
+		double minContactSurfaceFrictionMultiplier,
+		double maxContactSurfaceFrictionMultiplier,
+		double minContactSurfaceRestitutionMultiplier,
+		double maxContactSurfaceRestitutionMultiplier,
+		double minContactSurfaceScrapeMultiplier,
+		double maxContactSurfaceScrapeMultiplier,
 		double maxContactAngularImpulseDegreesPerSecond,
 		double maxBarometerErrorMeters,
 		double maxBarometerPropwashErrorMeters,
@@ -191,6 +197,12 @@ public record DroneBlackboxSummary(
 		double maxContactImpact = 0.0;
 		double maxContactSlip = 0.0;
 		double maxContactBounce = 0.0;
+		double minContactSurfaceFriction = 1.0;
+		double maxContactSurfaceFriction = 1.0;
+		double minContactSurfaceRestitution = 1.0;
+		double maxContactSurfaceRestitution = 1.0;
+		double minContactSurfaceScrape = 1.0;
+		double maxContactSurfaceScrape = 1.0;
 		double maxContactAngularImpulse = 0.0;
 		double maxBarometerError = 0.0;
 		double maxBarometerPropwashError = 0.0;
@@ -435,6 +447,15 @@ public record DroneBlackboxSummary(
 			maxContactImpact = Math.max(maxContactImpact, value(row, "contact_impact_mps"));
 			maxContactSlip = Math.max(maxContactSlip, value(row, "contact_slip_mps"));
 			maxContactBounce = Math.max(maxContactBounce, value(row, "contact_bounce_mps"));
+			double contactSurfaceFriction = valueOrDefault(row, "contact_surface_friction", 1.0);
+			double contactSurfaceRestitution = valueOrDefault(row, "contact_surface_restitution", 1.0);
+			double contactSurfaceScrape = valueOrDefault(row, "contact_surface_scrape", 1.0);
+			minContactSurfaceFriction = Math.min(minContactSurfaceFriction, contactSurfaceFriction);
+			maxContactSurfaceFriction = Math.max(maxContactSurfaceFriction, contactSurfaceFriction);
+			minContactSurfaceRestitution = Math.min(minContactSurfaceRestitution, contactSurfaceRestitution);
+			maxContactSurfaceRestitution = Math.max(maxContactSurfaceRestitution, contactSurfaceRestitution);
+			minContactSurfaceScrape = Math.min(minContactSurfaceScrape, contactSurfaceScrape);
+			maxContactSurfaceScrape = Math.max(maxContactSurfaceScrape, contactSurfaceScrape);
 			maxContactAngularImpulse = Math.max(maxContactAngularImpulse, value(row, "contact_angular_impulse_dps"));
 			maxBarometerError = Math.max(maxBarometerError, Math.abs(value(row, "barometer_error_m")));
 			maxBarometerPropwashError = Math.max(maxBarometerPropwashError, Math.abs(value(row, "barometer_propwash_error_m")));
@@ -592,6 +613,12 @@ public record DroneBlackboxSummary(
 				maxContactImpact,
 				maxContactSlip,
 				maxContactBounce,
+				finiteOrOne(minContactSurfaceFriction),
+				finiteOrOne(maxContactSurfaceFriction),
+				finiteOrOne(minContactSurfaceRestitution),
+				finiteOrOne(maxContactSurfaceRestitution),
+				finiteOrOne(minContactSurfaceScrape),
+				finiteOrOne(maxContactSurfaceScrape),
 				maxContactAngularImpulse,
 				maxBarometerError,
 				maxBarometerPropwashError,
@@ -652,7 +679,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -663,6 +690,12 @@ public record DroneBlackboxSummary(
 				maxContactSlipSpeedMetersPerSecond,
 				maxContactBounceSpeedMetersPerSecond,
 				maxContactAngularImpulseDegreesPerSecond,
+				minContactSurfaceFrictionMultiplier,
+				maxContactSurfaceFrictionMultiplier,
+				minContactSurfaceRestitutionMultiplier,
+				maxContactSurfaceRestitutionMultiplier,
+				minContactSurfaceScrapeMultiplier,
+				maxContactSurfaceScrapeMultiplier,
 				minBatteryVoltage,
 				maxBatterySagVoltage,
 				maxBatteryEffectiveResistanceOhms * 1000.0,
@@ -837,6 +870,12 @@ public record DroneBlackboxSummary(
 				0.0, // maxContactImpactSpeedMetersPerSecond
 				0.0, // maxContactSlipSpeedMetersPerSecond
 				0.0, // maxContactBounceSpeedMetersPerSecond
+				1.0, // minContactSurfaceFrictionMultiplier
+				1.0, // maxContactSurfaceFrictionMultiplier
+				1.0, // minContactSurfaceRestitutionMultiplier
+				1.0, // maxContactSurfaceRestitutionMultiplier
+				1.0, // minContactSurfaceScrapeMultiplier
+				1.0, // maxContactSurfaceScrapeMultiplier
 				0.0, // maxContactAngularImpulseDegreesPerSecond
 				0.0, // maxBarometerErrorMeters
 				0.0, // maxBarometerPropwashErrorMeters
