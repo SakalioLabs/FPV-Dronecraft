@@ -1,5 +1,6 @@
 package com.tenicana.dronecraft.sim.tools;
 
+import com.tenicana.dronecraft.sim.AirframeDragCalibration;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
@@ -866,6 +867,19 @@ public final class OfflineFlightRecorder {
 				: Path.of("build", "offline-flight", presetName + ".csv");
 		double durationSeconds = args.length > 2 ? Double.parseDouble(args[2]) : DEFAULT_DURATION_SECONDS;
 		FlightReport report = record(presetName, outputPath, durationSeconds);
+		DroneConfig preset = preset(presetName);
+		AirframeDragCalibration.Coastdown lateralCoastdown = AirframeDragCalibration.coastdown(
+				preset,
+				AirframeDragCalibration.Axis.X,
+				20.0,
+				5.0
+		);
+		AirframeDragCalibration.Coastdown forwardCoastdown = AirframeDragCalibration.coastdown(
+				preset,
+				AirframeDragCalibration.Axis.Z,
+				20.0,
+				5.0
+		);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
@@ -932,6 +946,18 @@ public final class OfflineFlightRecorder {
 				report.maxBarometerErrorMeters(),
 				report.maxEscTemperatureCelsius(),
 				report.minEscThermalLimit()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Airframe coastdown 20->5 m/s: X %.2f s/%.1f m (%.0f%%/%.0f%% IMAV), Z %.2f s/%.1f m (%.0f%%/%.0f%% IMAV)%n",
+				lateralCoastdown.timeSeconds(),
+				lateralCoastdown.distanceMeters(),
+				lateralCoastdown.timeRatioToReference() * 100.0,
+				lateralCoastdown.distanceRatioToReference() * 100.0,
+				forwardCoastdown.timeSeconds(),
+				forwardCoastdown.distanceMeters(),
+				forwardCoastdown.timeRatioToReference() * 100.0,
+				forwardCoastdown.distanceRatioToReference() * 100.0
 		);
 	}
 

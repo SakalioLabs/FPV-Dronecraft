@@ -5029,6 +5029,54 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void racingQuadPassiveCoastdownMatchesImavMassFitReference() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		AirframeDragCalibration.Coastdown lateralLowSpeed = AirframeDragCalibration.coastdown(
+				config,
+				AirframeDragCalibration.Axis.X,
+				12.5,
+				2.5
+		);
+		AirframeDragCalibration.Coastdown forwardLowSpeed = AirframeDragCalibration.coastdown(
+				config,
+				AirframeDragCalibration.Axis.Z,
+				12.5,
+				2.5
+		);
+		AirframeDragCalibration.Coastdown lateralFast = AirframeDragCalibration.coastdown(
+				config,
+				AirframeDragCalibration.Axis.X,
+				20.0,
+				5.0
+		);
+		AirframeDragCalibration.Coastdown forwardFast = AirframeDragCalibration.coastdown(
+				config,
+				AirframeDragCalibration.Axis.Z,
+				20.0,
+				5.0
+		);
+
+		assertEquals(0.2007, lateralLowSpeed.referenceLinearDragCoefficient(), 1.0e-6);
+		assertEquals(config.linearDragCoefficient(), lateralLowSpeed.linearDampingCoefficient(), 1.0e-12);
+		assertEquals(config.bodyDragCoefficients().x(), lateralLowSpeed.bodyQuadraticCoefficient(), 1.0e-12);
+		assertEquals(config.bodyDragCoefficients().z(), forwardLowSpeed.bodyQuadraticCoefficient(), 1.0e-12);
+		assertTrue(lateralLowSpeed.timeRatioToReference() > 1.00 && lateralLowSpeed.timeRatioToReference() < 1.06,
+				() -> "lateralLowSpeed=" + lateralLowSpeed);
+		assertTrue(forwardLowSpeed.timeRatioToReference() > 0.94 && forwardLowSpeed.timeRatioToReference() < 1.00,
+				() -> "forwardLowSpeed=" + forwardLowSpeed);
+		assertTrue(lateralLowSpeed.distanceRatioToReference() > 0.99 && lateralLowSpeed.distanceRatioToReference() < 1.03,
+				() -> "lateralLowSpeed=" + lateralLowSpeed);
+		assertTrue(forwardLowSpeed.distanceRatioToReference() > 0.92 && forwardLowSpeed.distanceRatioToReference() < 0.97,
+				() -> "forwardLowSpeed=" + forwardLowSpeed);
+		assertTrue(lateralFast.timeRatioToReference() > 0.94 && lateralFast.timeRatioToReference() < 1.00,
+				() -> "lateralFast=" + lateralFast);
+		assertTrue(forwardFast.timeRatioToReference() > 0.85 && forwardFast.timeRatioToReference() < 0.92,
+				() -> "forwardFast=" + forwardFast);
+		assertTrue(lateralFast.initialDragForceNewtons() < 5.0);
+		assertTrue(forwardFast.initialDragForceNewtons() < 5.5);
+	}
+
+	@Test
 	void rotorWashDragAppearsOnlyWithPoweredSlipstreamAndRelativeMotion() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
