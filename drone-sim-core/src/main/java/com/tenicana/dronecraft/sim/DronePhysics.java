@@ -905,7 +905,7 @@ public final class DronePhysics {
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
 			double propellerTorquePerThrustScale = rotorForwardAdvanceTorquePerThrustScale(aerodynamicRotor, aerodynamicAdvanceRatio);
-			double motorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
+			double rawMotorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
 					* thrust
 					* reactionTorqueScale
 					* compressibilityReactionTorqueScale
@@ -916,6 +916,7 @@ public final class DronePhysics {
 							inPlaneDragBody,
 							aerodynamicOmega
 					);
+			double motorAerodynamicTorque = rawMotorAerodynamicTorque * coaxialAllocationMechanicalPowerScale(i);
 			state.setMotorAerodynamicTorqueNewtonMeters(i, motorAerodynamicTorque);
 			state.setMotorShaftPowerWatts(
 					i,
@@ -5751,6 +5752,37 @@ public final class DronePhysics {
 			return 0.0;
 		}
 		return interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_PCT, loadFraction) * activation;
+	}
+
+	private double coaxialAllocationMechanicalPowerScale(int index) {
+		return coaxialAllocationMechanicalPowerScale(
+				state.rotorCoaxialAllocationMechanicalGainPercent(index),
+				state.rotorCoaxialLoadBiasTarget(index),
+				state.rotorCoaxialLoadBias(index),
+				state.rotorCoaxialAllocationLoadFraction(index)
+		);
+	}
+
+	private static double coaxialAllocationMechanicalPowerScale(
+			double mechanicalGainPercent,
+			double targetBias,
+			double actualBias,
+			double loadFraction
+	) {
+		double mechanicalGain = Math.max(0.0, mechanicalGainPercent) * 0.01;
+		if (mechanicalGain <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double targetMagnitude = Math.abs(targetBias);
+		double actualMagnitude = Math.abs(actualBias);
+		if (targetMagnitude <= 1.0e-6 || actualMagnitude <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double realization = MathUtil.clamp(actualMagnitude / targetMagnitude, 0.0, 1.0);
+		double loadGate = smoothStep(0.08, 0.22, loadFraction);
+		return MathUtil.clamp(1.0 - mechanicalGain * realization * loadGate, 0.88, 1.0);
 	}
 
 	private static double coaxialCommandMapActivation(double spacingRatio, double loadFraction) {

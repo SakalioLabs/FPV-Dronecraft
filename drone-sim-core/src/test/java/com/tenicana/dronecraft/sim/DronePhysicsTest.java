@@ -685,6 +685,67 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void coaxialCommandMapMechanicalGainScalesRealizedShaftPower() throws ReflectiveOperationException {
+		Method powerScaleFormula = DronePhysics.class.getDeclaredMethod(
+				"coaxialAllocationMechanicalPowerScale",
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		Method runtimePowerScale = DronePhysics.class.getDeclaredMethod(
+				"coaxialAllocationMechanicalPowerScale",
+				int.class
+		);
+		powerScaleFormula.setAccessible(true);
+		runtimePowerScale.setAccessible(true);
+
+		double realizedScale = (double) powerScaleFormula.invoke(null, 4.405006058107876, 0.115, 0.115, 0.60);
+		double clippedScale = (double) powerScaleFormula.invoke(null, 4.405006058107876, 0.115, 0.0575, 0.60);
+		double inactiveScale = (double) powerScaleFormula.invoke(null, 4.405006058107876, 0.115, 0.0, 0.60);
+		double lowLoadScale = (double) powerScaleFormula.invoke(null, 4.405006058107876, 0.115, 0.115, 0.10);
+
+		assertEquals(0.9559499394189213, realizedScale, 1.0e-12);
+		assertEquals(0.9779749697094606, clippedScale, 1.0e-12);
+		assertEquals(1.0, inactiveScale, 1.0e-12);
+		assertTrue(lowLoadScale > 0.997 && lowLoadScale < 1.0,
+				() -> "lowLoadScale=" + lowLoadScale);
+
+		DroneConfig config = withCoaxialX8Spacing(directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0), 0.72);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.16, 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 700; i++) {
+			holdInStillAir(physics);
+			physics.step(input, 0.005);
+		}
+
+		double runtimeScale = (double) runtimePowerScale.invoke(physics, 0);
+		double lowerRuntimeScale = (double) runtimePowerScale.invoke(physics, 1);
+		double omega = physics.state().motorOmegaRadiansPerSecond(0);
+		double aeroPower = physics.state().motorAerodynamicTorqueNewtonMeters(0) * omega;
+		double mechanicalLossPower = physics.state().motorMechanicalLossTorqueNewtonMeters(0) * omega;
+		double positiveInertiaPower = Math.max(
+				0.0,
+				config.rotors().get(0).rotorInertiaKgMetersSquared()
+						* physics.state().motorAngularAccelerationRadiansPerSecondSquared(0)
+						* omega
+		);
+		double expectedShaftPower = aeroPower + mechanicalLossPower + positiveInertiaPower;
+
+		assertTrue(physics.state().maxRotorCoaxialAllocationMechanicalGainPercent() > 3.0);
+		assertTrue(physics.state().maxAbsRotorCoaxialLoadBias() > 0.06);
+		assertTrue(runtimeScale < 0.98 && runtimeScale > 0.94,
+				() -> "runtimeScale=" + runtimeScale);
+		assertEquals(runtimeScale, lowerRuntimeScale, 1.0e-9);
+		assertTrue(aeroPower / runtimeScale > aeroPower + 1.0,
+				() -> "aeroPower=" + aeroPower + " runtimeScale=" + runtimeScale);
+		assertEquals(expectedShaftPower, physics.state().motorShaftPowerWatts(0), 1.0e-9);
+	}
+
+	@Test
 	void coaxialX8RuntimeCommandMapPriorStrengthensCurrentSpacing() {
 		DroneConfig base = directControl(DroneConfig.coaxialX8())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
