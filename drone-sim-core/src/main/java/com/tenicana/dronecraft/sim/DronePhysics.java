@@ -6834,7 +6834,7 @@ public final class DronePhysics {
 		double coolingRate = config.motorCoolingRatePerSecond()
 				* 0.28
 				* coolingFactor
-				* Math.max(0.0, packTemperature - environment.ambientTemperatureCelsius());
+				* (packTemperature - environment.ambientTemperatureCelsius());
 		state.setBatteryTemperatureCelsius(packTemperature + (heatRate - coolingRate) * dtSeconds);
 		state.setBatteryThermalLimit(batteryThermalLimit(state.batteryTemperatureCelsius()));
 	}
@@ -6843,9 +6843,13 @@ public final class DronePhysics {
 		double airspeedCooling = MathUtil.clamp(state.airspeedMetersPerSecond() / 20.0, 0.0, 1.8);
 		double rotorWashCooling = 0.35 * state.averageMotorPower(config);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
+		double recirculationEfficiency = 1.0 - 0.58 * recirculatedAirCoolingLoss(environment);
+		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
+				* densityFactor
+				* recirculationEfficiency;
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
 				+ 0.22 * MathUtil.clamp(environment.precipitationWetnessIntensity(), 0.0, 1.0);
-		return MathUtil.clamp((0.55 + 0.45 * airspeedCooling + rotorWashCooling) * densityFactor + wetCooling, 0.20, 4.0);
+		return MathUtil.clamp(airCooling + wetCooling, 0.20, 4.0);
 	}
 
 	private static double batteryThermalLimit(double batteryTemperatureCelsius) {

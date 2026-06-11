@@ -5006,6 +5006,106 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void hotAmbientHeatSoaksColdBatteryPack() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.018, 2.0, 90.0)
+				.withMotorThermal(0.0, 0.50, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneEnvironment coldEnvironment = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				5.0
+		);
+		DroneEnvironment hotEnvironment = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				55.0
+		);
+
+		physics.step(DroneInput.idle(), 0.005, coldEnvironment);
+		double coldSoakedTemperature = physics.state().batteryTemperatureCelsius();
+		for (int i = 0; i < 500; i++) {
+			physics.step(DroneInput.idle(), 0.005, hotEnvironment);
+		}
+
+		assertEquals(5.0, coldSoakedTemperature, 1.0e-9);
+		assertTrue(physics.state().batteryTemperatureCelsius() > coldSoakedTemperature + 6.0,
+				() -> "coldSoaked=" + coldSoakedTemperature
+						+ " heatSoaked=" + physics.state().batteryTemperatureCelsius());
+		assertTrue(physics.state().batteryTemperatureCelsius() < hotEnvironment.ambientTemperatureCelsius());
+	}
+
+	@Test
+	void recirculatedDirtyAirReducesBatteryCooling() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 3.0, 90.0)
+				.withMotorThermal(0.0, 0.50, 200.0, 240.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics recirculated = new DronePhysics(config);
+		DroneInput loaded = new DroneInput(0.56, 0.0, 0.0, 0.0, true);
+		Vec3 crossflow = new Vec3(10.0, 0.0, 0.0);
+		DroneEnvironment cleanAir = new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0);
+		DroneEnvironment dirtyRecirculation = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				0.08,
+				0.0,
+				0.85,
+				0.95,
+				0.12
+		);
+
+		clean.step(DroneInput.idle(), 0.005, cleanAir);
+		recirculated.step(DroneInput.idle(), 0.005, dirtyRecirculation);
+		clean.state().setBatteryTemperatureCelsius(72.0);
+		recirculated.state().setBatteryTemperatureCelsius(72.0);
+
+		for (int i = 0; i < 260; i++) {
+			clean.state().setOrientation(Quaternion.IDENTITY);
+			recirculated.state().setOrientation(Quaternion.IDENTITY);
+			clean.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			recirculated.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			clean.state().setVelocityMetersPerSecond(crossflow);
+			recirculated.state().setVelocityMetersPerSecond(crossflow);
+			clean.step(loaded, 0.005, cleanAir);
+			recirculated.step(loaded, 0.005, dirtyRecirculation);
+		}
+
+		assertTrue(recirculated.state().batteryCoolingFactor() < clean.state().batteryCoolingFactor() * 0.82,
+				() -> "cleanBatteryCooling=" + clean.state().batteryCoolingFactor()
+						+ " recirculatedBatteryCooling=" + recirculated.state().batteryCoolingFactor());
+		assertTrue(recirculated.state().batteryTemperatureCelsius() > clean.state().batteryTemperatureCelsius() + 1.0,
+				() -> "cleanBatteryTemp=" + clean.state().batteryTemperatureCelsius()
+						+ " recirculatedBatteryTemp=" + recirculated.state().batteryTemperatureCelsius());
+	}
+
+	@Test
 	void hotBatteryPackRaisesResistanceAndThermallyLimitsPower() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
