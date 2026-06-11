@@ -58,6 +58,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorVibration;
 	private double maxRotorConing;
 	private double maxRotorWakeInterference;
+	private double maxRotorCoaxialLoadBias;
 	private double maxRotorWakeSwirlVelocity;
 	private double maxRotorWindmilling;
 	private double maxRotorWakeSwirlTorque;
@@ -142,6 +143,7 @@ public final class DroneServerSelfTest {
 		maxRotorVibration = Math.max(maxRotorVibration, drone.getRotorVibration());
 		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
+		maxRotorCoaxialLoadBias = Math.max(maxRotorCoaxialLoadBias, drone.getRotorCoaxialLoadBias());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxRotorWindmilling = Math.max(maxRotorWindmilling, drone.getRotorWindmillingIntensity());
 		maxRotorWakeSwirlTorque = Math.max(maxRotorWakeSwirlTorque, drone.getRotorWakeSwirlTorqueNewtonMeters());
@@ -563,6 +565,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_vibration\": %.5f,\n"
 						+ "  \"max_rotor_coning\": %.5f,\n"
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_load_bias\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_rotor_windmilling\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_torque_nm\": %.6f,\n"
@@ -604,6 +607,7 @@ public final class DroneServerSelfTest {
 				maxRotorVibration,
 				maxRotorConing,
 				maxRotorWakeInterference,
+				maxRotorCoaxialLoadBias,
 				maxRotorWakeSwirlVelocity,
 				maxRotorWindmilling,
 				maxRotorWakeSwirlTorque,

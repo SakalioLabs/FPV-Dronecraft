@@ -37,6 +37,7 @@ class DroneStatusFormatterTest {
 				0.0, // droneWake
 				0.0, // rotorWakeInterference
 				1.0, // rotorWakeThrustScale
+				0.0, // rotorCoaxialLoadBias
 				1.0, // rotorWetThrustScale
 				0.0, // rotorWakeSwirlVelocityMetersPerSecond
 				0.0, // rotorWindmillingIntensity
@@ -86,6 +87,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("bdiss 0.000Nm"));
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("wloss 0%"));
+		assertTrue(status.contains("coax 0.000"));
 		assertTrue(status.contains("wetloss 0%"));
 		assertTrue(status.contains("swirl 0.00m/s"));
 		assertTrue(status.contains("wmill 0.00"));
@@ -131,6 +133,7 @@ class DroneStatusFormatterTest {
 				0.58,
 				0.47,
 				0.91,
+				0.082,
 				0.88,
 				0.92,
 				0.68,
@@ -184,6 +187,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("drone-wake"));
 		assertTrue(warnings.contains("rotor-wake"));
 		assertTrue(warnings.contains("wake-thrust-loss"));
+		assertTrue(warnings.contains("coax-load-bias"));
 		assertTrue(warnings.contains("inflow-lag"));
 		assertTrue(warnings.contains("wet-thrust-loss"));
 		assertTrue(warnings.contains("wake-swirl"));
@@ -208,7 +212,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("spike 0.42V ripple 0.240V"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
-		assertTrue(status.contains("rwake 0.47 wloss 9% wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
+		assertTrue(status.contains("rwake 0.47 wloss 9% coax 0.082 wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -240,6 +244,7 @@ class DroneStatusFormatterTest {
 			double droneWake,
 			double rotorWakeInterference,
 			double rotorWakeThrustScale,
+			double rotorCoaxialLoadBias,
 			double rotorWetThrustScale,
 			double rotorWakeSwirlVelocityMetersPerSecond,
 			double rotorWindmillingIntensity,
@@ -333,6 +338,7 @@ class DroneStatusFormatterTest {
 				droneWake > 0.55 ? 0.28 : 0.0,
 				rotorWakeInterference,
 				rotorWakeThrustScale,
+				rotorCoaxialLoadBias,
 				rotorWetThrustScale,
 				rotorWakeSwirlVelocityMetersPerSecond,
 				rotorWindmillingIntensity,
