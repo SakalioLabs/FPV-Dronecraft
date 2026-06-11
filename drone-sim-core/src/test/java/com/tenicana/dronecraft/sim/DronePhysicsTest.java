@@ -6081,6 +6081,33 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void sideslipWeathercockDampingOpposesYawRate() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0)
+				.withRotorDiskDragCoefficient(0.0);
+		DronePhysics straight = new DronePhysics(config);
+		DronePhysics slipped = new DronePhysics(config);
+		Vec3 yawRate = new Vec3(0.0, 4.0, 0.0);
+
+		straight.state().setOrientation(Quaternion.IDENTITY);
+		slipped.state().setOrientation(Quaternion.IDENTITY);
+		straight.state().setAngularVelocityBodyRadiansPerSecond(yawRate);
+		slipped.state().setAngularVelocityBodyRadiansPerSecond(yawRate);
+		straight.state().setVelocityMetersPerSecond(new Vec3(0.0, 0.0, 18.0));
+		slipped.state().setVelocityMetersPerSecond(new Vec3(8.0, 0.0, 16.0));
+		straight.step(DroneInput.idle(), 0.005);
+		slipped.step(DroneInput.idle(), 0.005);
+
+		double straightYawDamping = straight.state().airframeAngularDragTorqueBodyNewtonMeters().y();
+		double slippedYawDamping = slipped.state().airframeAngularDragTorqueBodyNewtonMeters().y();
+		assertTrue(straightYawDamping < 0.0, () -> "straightYawDamping=" + straightYawDamping);
+		assertTrue(slippedYawDamping < straightYawDamping - 0.015,
+				() -> "straightYawDamping=" + straightYawDamping + " slippedYawDamping=" + slippedYawDamping);
+	}
+
+	@Test
 	void airframePressureCenterMigratesWithAngleOfAttackAndSideslip() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

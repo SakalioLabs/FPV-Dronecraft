@@ -4351,6 +4351,7 @@ public final class DronePhysics {
 		Vec3 rotationalDamping = calculateRotationalAirframeAngularDamping(angularVelocityBody, airDensityRatio);
 		Vec3 separatedFlowDamping = calculateSeparatedFlowAirframeAngularDamping(relativeAirVelocityBody, airDensityRatio);
 		Vec3 rotorWashDamping = updateRotorWashAirframeAngularDamping(totalRotorForceBody, airDensityRatio, dtSeconds);
+		double sideslipYawDamping = calculateSideslipWeathercockYawDamping(relativeAirVelocityBody, airDensityRatio);
 		double pitchDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00022 * drag.z() + 0.00006 * drag.y()), 0.0, 0.36)
 				+ rotationalDamping.x()
@@ -4358,6 +4359,7 @@ public final class DronePhysics {
 				+ rotorWashDamping.x();
 		double yawDamping = config.angularDragCoefficient()
 				+ MathUtil.clamp(dynamicScale * (0.00018 * drag.x() + 0.00008 * drag.z()), 0.0, 0.36)
+				+ sideslipYawDamping
 				+ rotationalDamping.y()
 				+ separatedFlowDamping.y()
 				+ rotorWashDamping.y();
@@ -4370,6 +4372,42 @@ public final class DronePhysics {
 				-angularVelocityBody.x() * pitchDamping,
 				-angularVelocityBody.y() * yawDamping,
 				-angularVelocityBody.z() * rollDamping
+		);
+	}
+
+	private double calculateSideslipWeathercockYawDamping(Vec3 relativeAirVelocityBody, double airDensityRatio) {
+		double speedSquared = relativeAirVelocityBody.lengthSquared();
+		if (speedSquared <= 1.0e-6 || airDensityRatio <= 0.0) {
+			return 0.0;
+		}
+
+		double lateralSpeed = Math.abs(relativeAirVelocityBody.x());
+		double forwardSpeed = Math.abs(relativeAirVelocityBody.z());
+		if (lateralSpeed <= 1.0e-6 || forwardSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+
+		Vec3 drag = config.bodyDragCoefficients();
+		double lateralArea = Math.max(0.0, drag.x());
+		double frontalArea = Math.max(0.0, drag.z());
+		if (lateralArea <= 1.0e-9 || frontalArea <= 1.0e-9) {
+			return 0.0;
+		}
+
+		double sideslip = Math.atan2(relativeAirVelocityBody.x(), Math.max(2.0, forwardSpeed));
+		double sideslipExposure = smoothStep(Math.toRadians(7.0), Math.toRadians(48.0), Math.abs(sideslip));
+		double forwardExposure = smoothStep(2.5, 16.0, forwardSpeed);
+		double lateralExposure = smoothStep(1.5, 12.0, lateralSpeed);
+		double dynamicScale = Math.max(0.0, airDensityRatio) * speedSquared;
+		double weathercockArea = Math.sqrt(lateralArea * frontalArea);
+		return MathUtil.clamp(
+				dynamicScale
+						* weathercockArea
+						* sideslipExposure
+						* (0.45 + 0.35 * forwardExposure + 0.20 * lateralExposure)
+						* 0.00016,
+				0.0,
+				0.22
 		);
 	}
 
