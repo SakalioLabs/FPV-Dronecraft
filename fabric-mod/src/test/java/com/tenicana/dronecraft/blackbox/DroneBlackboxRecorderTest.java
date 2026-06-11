@@ -93,6 +93,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("esc_command_error"));
 		assertTrue(csv.contains("pid_dterm_lpf_hz"));
 		assertTrue(csv.contains("rotor_stall_intensity"));
+		assertTrue(csv.contains("rotor_induced_lag_thrust_scale"));
 		assertTrue(csv.contains("rotor_translational_lift"));
 		assertTrue(csv.contains("rotor_0_translational_lift"));
 		assertTrue(csv.contains("rotor_3_translational_lift"));
@@ -454,6 +455,7 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_saturation")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_low_headroom")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "mixer_high_headroom")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_induced_lag_thrust_scale")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_coning")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_0_coning")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_pitch")]));
@@ -489,6 +491,8 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.18, summary.maxRotorSurfaceScrapeIntensity(), 0.0001);
 		assertTrue(summary.maxRotorConingIntensity() >= 0.0);
 		assertTrue(summary.maxRotorFlappingTiltDegrees() >= 0.0);
+		assertTrue(summary.maxRotorInducedVelocityMetersPerSecond() > 0.0);
+		assertUnitInterval(summary.minRotorInducedLagThrustScale());
 		assertTrue(summary.maxRotorAdvanceRatio() >= 0.0);
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
 		assertUnitInterval(summary.maxRotorLowReynoldsLoss());
@@ -548,6 +552,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("spike"));
 		assertTrue(summary.formatForChat().contains("contact"));
 		assertTrue(summary.formatForChat().contains("propwash"));
+		assertTrue(summary.formatForChat().contains("ind"));
+		assertTrue(summary.formatForChat().contains("iloss"));
 		assertTrue(summary.formatForChat().contains("ETL"));
 		assertTrue(summary.formatForChat().contains("adv"));
 		assertTrue(summary.formatForChat().contains("tipmach"));

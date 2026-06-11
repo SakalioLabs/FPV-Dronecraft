@@ -27,6 +27,8 @@ public record DroneBlackboxSummary(
 		double minBatteryThermalLimit,
 		double maxPropwashIntensity,
 		double maxVortexRingState,
+		double maxRotorInducedVelocityMetersPerSecond,
+		double minRotorInducedLagThrustScale,
 		double maxRotorTranslationalLiftIntensity,
 		double maxRotorAdvanceRatio,
 		double maxRotorTipMach,
@@ -127,6 +129,8 @@ public record DroneBlackboxSummary(
 		double minBatteryThermalLimit = 1.0;
 		double maxPropwash = 0.0;
 		double maxVrs = 0.0;
+		double maxRotorInducedVelocity = 0.0;
+		double minRotorInducedLagThrustScale = 1.0;
 		double maxRotorTranslationalLift = 0.0;
 		double maxRotorAdvanceRatio = 0.0;
 		double maxRotorTipMach = 0.0;
@@ -227,6 +231,11 @@ public record DroneBlackboxSummary(
 			minBatteryThermalLimit = Math.min(minBatteryThermalLimit, valueOrDefault(row, "battery_thermal_limit", 1.0));
 			maxPropwash = Math.max(maxPropwash, value(row, "propwash_intensity"));
 			maxVrs = Math.max(maxVrs, value(row, "vortex_ring_state"));
+			maxRotorInducedVelocity = Math.max(maxRotorInducedVelocity, value(row, "rotor_induced_velocity_mps"));
+			minRotorInducedLagThrustScale = Math.min(
+					minRotorInducedLagThrustScale,
+					valueOrDefault(row, "rotor_induced_lag_thrust_scale", 1.0)
+			);
 			maxRotorTranslationalLift = Math.max(maxRotorTranslationalLift, value(row, "rotor_translational_lift"));
 			maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, value(row, "rotor_advance_ratio"));
 			maxRotorTipMach = Math.max(maxRotorTipMach, value(row, "rotor_tip_mach"));
@@ -437,6 +446,8 @@ public record DroneBlackboxSummary(
 				finiteOrZero(minBatteryThermalLimit),
 				maxPropwash,
 				maxVrs,
+				maxRotorInducedVelocity,
+				finiteOrOne(minRotorInducedLagThrustScale),
 				maxRotorTranslationalLift,
 				maxRotorAdvanceRatio,
 				maxRotorTipMach,
@@ -523,7 +534,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f bpass %.3f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f tipmach %.2f lowre %.2f bpass %.3f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -549,6 +560,8 @@ public record DroneBlackboxSummary(
 				minBatteryThermalLimit,
 				maxPropwashIntensity,
 				maxVortexRingState,
+				maxRotorInducedVelocityMetersPerSecond,
+				(1.0 - minRotorInducedLagThrustScale) * 100.0,
 				maxRotorTranslationalLiftIntensity,
 				maxRotorAdvanceRatio,
 				maxRotorTipMach,
@@ -644,6 +657,8 @@ public record DroneBlackboxSummary(
 				1.0, // minBatteryThermalLimit
 				0.0, // maxPropwashIntensity
 				0.0, // maxVortexRingState
+				0.0, // maxRotorInducedVelocityMetersPerSecond
+				1.0, // minRotorInducedLagThrustScale
 				0.0, // maxRotorTranslationalLiftIntensity
 				0.0, // maxRotorAdvanceRatio
 				0.0, // maxRotorTipMach

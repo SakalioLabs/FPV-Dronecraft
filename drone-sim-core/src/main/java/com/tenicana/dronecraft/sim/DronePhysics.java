@@ -3891,6 +3891,7 @@ public final class DronePhysics {
 
 		if (rotor.inducedInflowLagCoefficient() <= 0.0 || targetInducedVelocity <= 1.0e-6) {
 			rotorInducedWakeCarryoverIntensity[index] = 0.0;
+			state.setRotorInducedLagThrustScale(index, 1.0);
 			return 1.0;
 		}
 
@@ -3902,7 +3903,9 @@ public final class DronePhysics {
 		rotorInducedWakeCarryoverIntensity[index] = MathUtil.clamp(wakeCarryover * activeRotor, 0.0, 1.0);
 		double thrustLoss = rotor.inducedInflowLagCoefficient()
 				* (inflowDeficit + 0.35 * wakeCarryover + 0.18 * rotorInducedWakeCarryoverIntensity[index]);
-		return MathUtil.clamp(1.0 - thrustLoss, 0.65, 1.0);
+		double thrustScale = MathUtil.clamp(1.0 - thrustLoss, 0.65, 1.0);
+		state.setRotorInducedLagThrustScale(index, thrustScale);
+		return thrustScale;
 	}
 
 	private double updateRotorInducedWakeVelocity(

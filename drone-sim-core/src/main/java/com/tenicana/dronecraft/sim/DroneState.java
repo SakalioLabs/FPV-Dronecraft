@@ -86,6 +86,7 @@ public final class DroneState {
 	private Vec3[] rotorForceBodyNewtons;
 	private Vec3[] rotorTorqueBodyNewtonMeters;
 	private double[] rotorInducedVelocityMetersPerSecond;
+	private double[] rotorInducedLagThrustScale;
 	private double[] rotorTranslationalLiftIntensity;
 	private double[] rotorAdvanceRatio;
 	private double[] rotorTipMach;
@@ -197,6 +198,7 @@ public final class DroneState {
 		rotorForceBodyNewtons = new Vec3[motorCount];
 		rotorTorqueBodyNewtonMeters = new Vec3[motorCount];
 		rotorInducedVelocityMetersPerSecond = new double[motorCount];
+		rotorInducedLagThrustScale = new double[motorCount];
 		rotorTranslationalLiftIntensity = new double[motorCount];
 		rotorAdvanceRatio = new double[motorCount];
 		rotorTipMach = new double[motorCount];
@@ -228,6 +230,7 @@ public final class DroneState {
 		Arrays.fill(motorWindingResistanceScale, 1.0);
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
+		Arrays.fill(rotorInducedLagThrustScale, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
 		repairAllRotors();
@@ -1271,6 +1274,7 @@ public final class DroneState {
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
 		Arrays.fill(rotorInducedVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorInducedLagThrustScale, 1.0);
 		Arrays.fill(rotorTranslationalLiftIntensity, 0.0);
 		Arrays.fill(rotorAdvanceRatio, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
@@ -1388,6 +1392,42 @@ public final class DroneState {
 			sum += inducedVelocity;
 		}
 		return sum / rotorInducedVelocityMetersPerSecond.length;
+	}
+
+	public double maxRotorInducedVelocityMetersPerSecond() {
+		double max = 0.0;
+		for (double inducedVelocity : rotorInducedVelocityMetersPerSecond) {
+			max = Math.max(max, inducedVelocity);
+		}
+		return max;
+	}
+
+	public double rotorInducedLagThrustScale(int index) {
+		return rotorInducedLagThrustScale[index];
+	}
+
+	public double[] rotorInducedLagThrustScale() {
+		return Arrays.copyOf(rotorInducedLagThrustScale, rotorInducedLagThrustScale.length);
+	}
+
+	void setRotorInducedLagThrustScale(int index, double value) {
+		rotorInducedLagThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.65, 1.0) : 1.0;
+	}
+
+	public double averageRotorInducedLagThrustScale() {
+		double sum = 0.0;
+		for (double scale : rotorInducedLagThrustScale) {
+			sum += scale;
+		}
+		return sum / rotorInducedLagThrustScale.length;
+	}
+
+	public double minRotorInducedLagThrustScale() {
+		double min = 1.0;
+		for (double scale : rotorInducedLagThrustScale) {
+			min = Math.min(min, scale);
+		}
+		return min;
 	}
 
 	public double rotorTranslationalLiftIntensity(int index) {

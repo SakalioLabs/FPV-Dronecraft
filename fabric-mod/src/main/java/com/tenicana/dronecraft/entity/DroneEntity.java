@@ -130,6 +130,8 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_PASS_RIPPLE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_BLADE_DISSYMMETRY_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_INFLOW_SKEW = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_INDUCED_VELOCITY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_INDUCED_LAG_THRUST_SCALE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_INTERFERENCE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WAKE_THRUST_SCALE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_WET_THRUST_SCALE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -396,6 +398,8 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_BLADE_PASS_RIPPLE, 0.0f);
 		builder.define(ROTOR_BLADE_DISSYMMETRY_TORQUE, 0.0f);
 		builder.define(ROTOR_INFLOW_SKEW, 0.0f);
+		builder.define(ROTOR_INDUCED_VELOCITY, 0.0f);
+		builder.define(ROTOR_INDUCED_LAG_THRUST_SCALE, 1.0f);
 		builder.define(ROTOR_WAKE_INTERFERENCE, 0.0f);
 		builder.define(ROTOR_WAKE_THRUST_SCALE, 1.0f);
 		builder.define(ROTOR_WET_THRUST_SCALE, 1.0f);
@@ -1127,6 +1131,8 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_BLADE_PASS_RIPPLE, (float) physics.state().maxRotorBladePassRippleIntensity());
 		entityData.set(ROTOR_BLADE_DISSYMMETRY_TORQUE, (float) physics.state().rotorBladeDissymmetryTorqueBodyNewtonMeters().length());
 		entityData.set(ROTOR_INFLOW_SKEW, (float) physics.state().rotorInflowSkewIntensity());
+		entityData.set(ROTOR_INDUCED_VELOCITY, (float) physics.state().maxRotorInducedVelocityMetersPerSecond());
+		entityData.set(ROTOR_INDUCED_LAG_THRUST_SCALE, (float) physics.state().minRotorInducedLagThrustScale());
 		entityData.set(ROTOR_WAKE_INTERFERENCE, (float) physics.state().maxRotorWakeInterferenceIntensity());
 		entityData.set(ROTOR_WAKE_THRUST_SCALE, (float) physics.state().minRotorWakeThrustScale());
 		entityData.set(ROTOR_WET_THRUST_SCALE, (float) physics.state().minRotorWetThrustScale());
@@ -1836,6 +1842,14 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorInflowSkewIntensity() {
 		return entityData.get(ROTOR_INFLOW_SKEW);
+	}
+
+	public float getRotorInducedVelocityMetersPerSecond() {
+		return entityData.get(ROTOR_INDUCED_VELOCITY);
+	}
+
+	public float getRotorInducedLagThrustScale() {
+		return entityData.get(ROTOR_INDUCED_LAG_THRUST_SCALE);
 	}
 
 	public float getRotorWakeInterferenceIntensity() {

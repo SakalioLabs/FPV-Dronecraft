@@ -211,6 +211,7 @@ public final class DroneBlackboxSample {
 			"rotor_3_torque_y_nm",
 			"rotor_3_torque_z_nm",
 			"rotor_induced_velocity_mps",
+			"rotor_induced_lag_thrust_scale",
 			"rotor_translational_lift",
 			"rotor_0_translational_lift",
 			"rotor_1_translational_lift",
@@ -1100,6 +1101,7 @@ public final class DroneBlackboxSample {
 		addRotorTorqueColumns(row, rotorTorqueBody, 2);
 		addRotorTorqueColumns(row, rotorTorqueBody, 3);
 		row.add(state.averageRotorInducedVelocityMetersPerSecond(), "%.4f");
+		row.add(state.minRotorInducedLagThrustScale(), "%.5f");
 		row.add(state.averageRotorTranslationalLiftIntensity(), "%.5f");
 		row.add(rotorTranslationalLiftOrZero(state, 0), "%.5f");
 		row.add(rotorTranslationalLiftOrZero(state, 1), "%.5f");

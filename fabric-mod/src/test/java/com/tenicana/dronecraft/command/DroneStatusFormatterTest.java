@@ -22,6 +22,8 @@ class DroneStatusFormatterTest {
 				0.0, // mixerSaturation
 				0.0, // rotorStall
 				0.0, // propwash
+				2.4, // rotorInducedVelocityMetersPerSecond
+				1.0, // rotorInducedLagThrustScale
 				1.0, // motorVoltageHeadroom
 				0.0, // airframeSeparation
 				0.0, // rotorFlappingTilt
@@ -75,6 +77,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("load"));
 		assertTrue(status.contains("scrape 0.00"));
 		assertTrue(status.contains("ETL"));
+		assertTrue(status.contains("ind 2.40m/s iloss 0%"));
 		assertTrue(status.contains("adv"));
 		assertTrue(status.contains("tipmach 0.32"));
 		assertTrue(status.contains("lowre 0.00"));
@@ -112,6 +115,8 @@ class DroneStatusFormatterTest {
 				0.90,
 				0.42,
 				0.62,
+				7.8,
+				0.86,
 				0.12,
 				0.62,
 				9.2,
@@ -177,6 +182,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("drone-wake"));
 		assertTrue(warnings.contains("rotor-wake"));
 		assertTrue(warnings.contains("wake-thrust-loss"));
+		assertTrue(warnings.contains("inflow-lag"));
 		assertTrue(warnings.contains("wet-thrust-loss"));
 		assertTrue(warnings.contains("wake-swirl"));
 		assertTrue(warnings.contains("rotor-windmilling"));
@@ -198,6 +204,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
+		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
 		assertTrue(status.contains("rwake 0.47 wloss 9% wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
@@ -215,6 +222,8 @@ class DroneStatusFormatterTest {
 			double mixerSaturation,
 			double rotorStall,
 			double propwash,
+			double rotorInducedVelocityMetersPerSecond,
+			double rotorInducedLagThrustScale,
 			double motorVoltageHeadroom,
 			double airframeSeparation,
 			double rotorFlappingTilt,
@@ -308,6 +317,8 @@ class DroneStatusFormatterTest {
 				propwash,
 				propwash > 0.55 ? 0.42 : 0.0,
 				droneWake > 0.55 ? 0.36 : 0.0,
+				rotorInducedVelocityMetersPerSecond,
+				rotorInducedLagThrustScale,
 				rotorAdvanceRatio,
 				rotorTipMach,
 				rotorLowReynoldsLoss,

@@ -6602,6 +6602,8 @@ class DronePhysicsTest {
 		assertTrue(fastInflow.state().averageRotorInducedVelocityMetersPerSecond()
 				> slowInflow.state().averageRotorInducedVelocityMetersPerSecond() * 4.0);
 		assertTrue(fastInflow.state().rotorThrustNewtons(0) > slowInflow.state().rotorThrustNewtons(0) * 1.20);
+		assertTrue(slowInflow.state().minRotorInducedLagThrustScale() < 0.90);
+		assertEquals(1.0, fastInflow.state().minRotorInducedLagThrustScale(), 1.0e-9);
 
 		for (int i = 0; i < 500; i++) {
 			fastInflow.step(punch, 0.005);
@@ -6609,6 +6611,7 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(fastInflow.state().rotorThrustNewtons(0), slowInflow.state().rotorThrustNewtons(0), 0.25);
+		assertEquals(1.0, slowInflow.state().minRotorInducedLagThrustScale(), 0.02);
 	}
 
 	@Test
@@ -7066,6 +7069,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("esc_thermal_limit"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_esc_cooling_factor"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_induced_velocity_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("min_induced_lag_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_force_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_force_z_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_torque_x_nm"));
@@ -7229,6 +7233,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_low_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_high_headroom"));
 		assertEquals(columnCount, firstRow.length);
+		double loggedInducedLagThrustScale = Double.parseDouble(firstRow[indexOf(header, "min_induced_lag_thrust_scale")]);
+		assertTrue(loggedInducedLagThrustScale >= 0.65);
+		assertTrue(loggedInducedLagThrustScale <= 1.0);
 		double loggedWakeThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_wake_thrust_scale")]);
 		double loggedRotor7WakeThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_wake_thrust_scale")]);
 		assertTrue(loggedWakeThrustScale >= 0.72);
@@ -7407,6 +7414,10 @@ class DronePhysicsTest {
 		assertTrue(report.maxContactSlipSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxContactBounceSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxContactAngularImpulseDegreesPerSecond() >= 0.0);
+		assertTrue(report.maxRotorInducedVelocityMetersPerSecond() > 0.0);
+		assertTrue(report.minRotorInducedLagThrustScale() >= 0.65);
+		assertTrue(report.minRotorInducedLagThrustScale() <= 1.0);
+		assertEquals((1.0 - report.minRotorInducedLagThrustScale()) * 100.0, report.maxRotorInducedLagThrustLossPercent(), 1.0e-9);
 		assertTrue(report.minRotorWetThrustScale() >= 0.08);
 		assertTrue(report.minRotorWetThrustScale() <= 1.0);
 		assertEquals((1.0 - report.minRotorWetThrustScale()) * 100.0, report.maxRotorWetThrustLossPercent(), 1.0e-9);
