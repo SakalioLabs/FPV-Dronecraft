@@ -7,6 +7,8 @@ import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.Quaternion;
+import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
+import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 
 import java.io.IOException;
@@ -20,6 +22,18 @@ public final class OfflineFlightRecorder {
 	public static final double SIMULATION_DT_SECONDS = 0.005;
 	public static final double DEFAULT_DURATION_SECONDS = 16.0;
 	public static final int SAMPLE_EVERY_STEPS = 4;
+	private static final double WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS = 0.075;
+	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
+	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
+			new Vec3(1.0, 0.0, 0.0),
+			new Vec3(-1.0, 0.0, 0.0),
+			new Vec3(0.0, 0.0, 1.0),
+			new Vec3(0.0, 0.0, -1.0),
+			new Vec3(1.0, 0.0, 1.0).normalized(),
+			new Vec3(1.0, 0.0, -1.0).normalized(),
+			new Vec3(-1.0, 0.0, 1.0).normalized(),
+			new Vec3(-1.0, 0.0, -1.0).normalized()
+	};
 
 	private static final String CSV_HEADER = String.join(",",
 			"sample",
@@ -848,7 +862,7 @@ public final class OfflineFlightRecorder {
 			for (int step = 0; step <= totalSteps; step++) {
 				double timeSeconds = step * SIMULATION_DT_SECONDS;
 				ScriptFrame frame = script(timeSeconds, config);
-				DroneEnvironment environment = environmentFor(physics.state(), frame.windVelocityWorldMetersPerSecond());
+				DroneEnvironment environment = environmentFor(physics.state(), config, frame);
 				physics.step(frame.input(), SIMULATION_DT_SECONDS, environment);
 
 				if (step % SAMPLE_EVERY_STEPS == 0) {
@@ -912,8 +926,11 @@ public final class OfflineFlightRecorder {
 		if (timeSeconds < 9.3) {
 			return frame("pitch_recover", hover + 0.06, -0.18, 0.0, 0.0, new Vec3(4.0, 0.0, 0.0));
 		}
-		if (timeSeconds < 10.15) {
+		if (timeSeconds < 9.65) {
 			return frame("crosswind_settle", hover + 0.04, 0.0, 0.0, 0.0, new Vec3(5.0, 0.0, 0.0));
+		}
+		if (timeSeconds < 10.15) {
+			return frame("wall_skim", hover + 0.05, 0.0, 0.04, 0.0, new Vec3(5.0, 0.0, 0.0));
 		}
 		if (timeSeconds < 10.5) {
 			return frame("roll_step", 0.52, 0.0, 0.85, 0.0, new Vec3(5.0, 0.0, 0.0));
@@ -950,28 +967,92 @@ public final class OfflineFlightRecorder {
 		);
 	}
 
-	private static DroneEnvironment environmentFor(DroneState state, Vec3 windVelocityWorldMetersPerSecond) {
+	private static DroneEnvironment environmentFor(DroneState state, DroneConfig config, ScriptFrame frame) {
+		Vec3 windVelocityWorldMetersPerSecond = frame.windVelocityWorldMetersPerSecond();
 		double altitude = state.positionMeters().y();
 		double ambientTemperatureCelsius = MathUtil.clamp(25.0 - Math.max(0.0, altitude) * 0.0065, -40.0, 65.0);
 		double airDensityRatio = DroneEnvironment.standardAtmosphereAirDensityRatio(altitude, ambientTemperatureCelsius);
 		double groundClearance = Math.max(0.0, altitude);
-		double turbulenceIntensity = MathUtil.clamp(windVelocityWorldMetersPerSecond.length() / 12.0, 0.0, 0.55);
+		RotorFlowObstructionProfile rotorFlow = rotorFlowObstructionFor(config, frame.phase());
+		double obstacleProximity = rotorFlow.maxIntensity();
+		double turbulenceIntensity = MathUtil.clamp(
+				windVelocityWorldMetersPerSecond.length() / 12.0 + 0.18 * obstacleProximity,
+				0.0,
+				0.55
+		);
 		return new DroneEnvironment(
 				windVelocityWorldMetersPerSecond,
 				airDensityRatio,
 				groundClearance,
 				turbulenceIntensity,
-				0.0,
+				obstacleProximity,
 				0.0,
 				Double.POSITIVE_INFINITY,
 				null,
-				null,
-				null,
+				rotorFlow.obstructions(),
+				rotorFlow.directionsBody(),
 				null,
 				0.0,
 				0.0,
 				ambientTemperatureCelsius
 		);
+	}
+
+	private static RotorFlowObstructionProfile rotorFlowObstructionFor(DroneConfig config, String phase) {
+		if (!"wall_skim".equals(phase)) {
+			return RotorFlowObstructionProfile.CLEAR;
+		}
+
+		int rotorCount = config.rotors().size();
+		double[] obstructions = new double[rotorCount];
+		Vec3[] directions = new Vec3[rotorCount];
+		double bodyCenterClearance = maxRotorProjection(config, WALL_SKIM_DIRECTION_BODY)
+				+ WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS;
+		double maxIntensity = 0.0;
+
+		for (int i = 0; i < rotorCount; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double rotorClearance = bodyCenterClearance - rotor.positionBodyMeters().dot(WALL_SKIM_DIRECTION_BODY);
+			RotorFlowObstructionModel.Result result = RotorFlowObstructionModel.fromDirectionalDistances(
+					distancesToBodyWalls(rotorClearance, WALL_SKIM_DIRECTION_BODY),
+					ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY,
+					sideFlowSampleMaxDistance(rotor)
+			);
+			obstructions[i] = result.intensity();
+			directions[i] = result.directionBody();
+			maxIntensity = Math.max(maxIntensity, result.intensity());
+		}
+
+		return new RotorFlowObstructionProfile(obstructions, directions, maxIntensity);
+	}
+
+	private static double maxRotorProjection(DroneConfig config, Vec3 directionBody) {
+		double maxProjection = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			maxProjection = Math.max(maxProjection, rotor.positionBodyMeters().dot(directionBody));
+		}
+		return maxProjection;
+	}
+
+	private static double sideFlowSampleMaxDistance(RotorSpec rotor) {
+		return MathUtil.clamp(rotor.radiusMeters() * 6.5, 0.32, 0.70);
+	}
+
+	private static double[] distancesToBodyWalls(double clearanceMeters, Vec3... wallDirectionsBody) {
+		double[] distances = new double[ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY.length];
+		double clearance = Math.max(0.0, clearanceMeters);
+		for (int i = 0; i < ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY.length; i++) {
+			Vec3 sampleDirection = ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY[i].normalized();
+			double distance = Double.POSITIVE_INFINITY;
+			for (Vec3 wallDirection : wallDirectionsBody) {
+				double projection = sampleDirection.dot(wallDirection.normalized());
+				if (projection > 1.0e-9) {
+					distance = Math.min(distance, clearance / projection);
+				}
+			}
+			distances[i] = distance;
+		}
+		return distances;
 	}
 
 	private static void writeSample(
@@ -1720,6 +1801,10 @@ public final class OfflineFlightRecorder {
 	}
 
 	private record ScriptFrame(String phase, DroneInput input, Vec3 windVelocityWorldMetersPerSecond) {
+	}
+
+	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double maxIntensity) {
+		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, 0.0);
 	}
 
 	public static final class FlightReport {

@@ -8289,6 +8289,18 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
+		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
+		assertTrue(maxColumn(lines, header, "rotor_wall_effect_n") > 0.04);
+		int phaseIndex = indexOf(header, "phase");
+		boolean sawWallSkim = false;
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			if ("wall_skim".equals(row[phaseIndex])) {
+				sawWallSkim = true;
+				break;
+			}
+		}
+		assertTrue(sawWallSkim);
 		assertTrue(report.samples() > 200);
 		assertTrue(report.maxSpeedMetersPerSecond() > 6.8, () -> "maxSpeed=" + report.maxSpeedMetersPerSecond());
 		assertTrue(report.maxBatteryCurrentAmps() > 45.0);
@@ -8305,7 +8317,7 @@ class DronePhysicsTest {
 		assertTrue(report.minMixerAxisAuthority() <= 1.0);
 		assertTrue(report.maxWindGustSpeedMetersPerSecond() > 0.05);
 		assertTrue(report.maxWindShearAccelerationMetersPerSecondSquared() > 0.10);
-		assertTrue(report.maxRotorWallEffectForceNewtons() >= 0.0);
+		assertTrue(report.maxRotorWallEffectForceNewtons() > 0.04);
 		assertTrue(report.maxContactImpactSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxContactSlipSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxContactBounceSpeedMetersPerSecond() >= 0.0);
