@@ -24,6 +24,8 @@ public final class OfflineFlightRecorder {
 	public static final int SAMPLE_EVERY_STEPS = 4;
 	private static final double WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS = 0.075;
 	private static final double RAIN_BURST_PRECIPITATION_WETNESS = 1.0;
+	private static final int LIGHT_PROP_FAULT_ROTOR_INDEX = 0;
+	private static final double LIGHT_PROP_FAULT_DAMAGE = 0.10;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -492,6 +494,10 @@ public final class OfflineFlightRecorder {
 			"rotor_5_thrust_n",
 			"rotor_6_thrust_n",
 			"rotor_7_thrust_n",
+			"rotor_0_health",
+			"rotor_1_health",
+			"rotor_2_health",
+			"rotor_3_health",
 			"rotor_4_health",
 			"rotor_5_health",
 			"rotor_6_health",
@@ -860,10 +866,12 @@ public final class OfflineFlightRecorder {
 		try (PrintWriter writer = new PrintWriter(Files.newBufferedWriter(outputPath, StandardCharsets.UTF_8))) {
 			writer.println(CSV_HEADER);
 			int sample = 0;
+			boolean[] scriptedRotorDamageApplied = new boolean[Math.max(8, config.rotors().size())];
 			for (int step = 0; step <= totalSteps; step++) {
 				double timeSeconds = step * SIMULATION_DT_SECONDS;
 				ScriptFrame frame = script(timeSeconds, config);
 				DroneEnvironment environment = environmentFor(physics.state(), config, frame);
+				applyScriptedRotorDamage(physics.state(), frame, scriptedRotorDamageApplied);
 				physics.step(frame.input(), SIMULATION_DT_SECONDS, environment);
 
 				if (step % SAMPLE_EVERY_STEPS == 0) {
@@ -959,6 +967,19 @@ public final class OfflineFlightRecorder {
 		if (timeSeconds < 14.75) {
 			return frame("throttle_chop", 0.0, 0.0, 0.0, 0.0, Vec3.ZERO);
 		}
+		if (timeSeconds < 15.35) {
+			return frame(
+					"light_prop_fault",
+					hover + 0.02,
+					0.0,
+					0.0,
+					0.0,
+					Vec3.ZERO,
+					0.0,
+					LIGHT_PROP_FAULT_ROTOR_INDEX,
+					LIGHT_PROP_FAULT_DAMAGE
+			);
+		}
 		return frame("cooldown_hover", hover + 0.02, 0.0, 0.0, 0.0, Vec3.ZERO);
 	}
 
@@ -975,6 +996,20 @@ public final class OfflineFlightRecorder {
 			Vec3 windVelocityWorldMetersPerSecond,
 			double precipitationWetnessIntensity
 	) {
+		return frame(phase, throttle, pitch, roll, yaw, windVelocityWorldMetersPerSecond, precipitationWetnessIntensity, -1, 0.0);
+	}
+
+	private static ScriptFrame frame(
+			String phase,
+			double throttle,
+			double pitch,
+			double roll,
+			double yaw,
+			Vec3 windVelocityWorldMetersPerSecond,
+			double precipitationWetnessIntensity,
+			int rotorDamageIndex,
+			double rotorDamageAmount
+	) {
 		return new ScriptFrame(
 				phase,
 				new DroneInput(
@@ -985,8 +1020,23 @@ public final class OfflineFlightRecorder {
 						true
 				),
 				windVelocityWorldMetersPerSecond,
-				MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0)
+				MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0),
+				rotorDamageIndex,
+				MathUtil.clamp(rotorDamageAmount, 0.0, 1.0)
 		);
+	}
+
+	private static void applyScriptedRotorDamage(DroneState state, ScriptFrame frame, boolean[] scriptedRotorDamageApplied) {
+		int rotorIndex = frame.rotorDamageIndex();
+		if (rotorIndex < 0
+				|| rotorIndex >= state.motorCount()
+				|| rotorIndex >= scriptedRotorDamageApplied.length
+				|| scriptedRotorDamageApplied[rotorIndex]
+				|| frame.rotorDamageAmount() <= 0.0) {
+			return;
+		}
+		state.damageRotor(rotorIndex, frame.rotorDamageAmount());
+		scriptedRotorDamageApplied[rotorIndex] = true;
 	}
 
 	private static DroneEnvironment environmentFor(DroneState state, DroneConfig config, ScriptFrame frame) {
@@ -1633,7 +1683,7 @@ public final class OfflineFlightRecorder {
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorThrust, i), "%.4f");
 		}
-		for (int i = 4; i < 8; i++) {
+		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorHealth, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -1826,7 +1876,9 @@ public final class OfflineFlightRecorder {
 			String phase,
 			DroneInput input,
 			Vec3 windVelocityWorldMetersPerSecond,
-			double precipitationWetnessIntensity
+			double precipitationWetnessIntensity,
+			int rotorDamageIndex,
+			double rotorDamageAmount
 	) {
 	}
 

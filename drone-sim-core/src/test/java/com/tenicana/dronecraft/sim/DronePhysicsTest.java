@@ -8023,6 +8023,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_coaxial_load_bias"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_coaxial_load_bias"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_coaxial_load_bias"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_health"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_3_health"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wet_thrust_scale"));
@@ -8294,19 +8296,28 @@ class DronePhysicsTest {
 		assertEquals(0.0, maxColumn(lines, header, "water_immersion"), 1.0e-9);
 		assertTrue(maxColumn(lines, header, "precipitation_wetness") > 0.95);
 		assertTrue(minColumn(lines, header, "rotor_wet_thrust_scale") < 0.98);
+		assertEquals(1.0, maxColumn(lines, header, "rotor_0_health"), 1.0e-9);
+		assertEquals(0.90, minColumn(lines, header, "rotor_0_health"), 1.0e-9);
+		assertEquals(1.0, minColumn(lines, header, "rotor_1_health"), 1.0e-9);
+		assertEquals(1.0, minColumn(lines, header, "rotor_2_health"), 1.0e-9);
+		assertEquals(1.0, minColumn(lines, header, "rotor_3_health"), 1.0e-9);
 		int phaseIndex = indexOf(header, "phase");
 		boolean sawWallSkim = false;
 		boolean sawRainBurst = false;
+		boolean sawLightPropFault = false;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			if ("wall_skim".equals(row[phaseIndex])) {
 				sawWallSkim = true;
 			} else if ("rain_burst".equals(row[phaseIndex])) {
 				sawRainBurst = true;
+			} else if ("light_prop_fault".equals(row[phaseIndex])) {
+				sawLightPropFault = true;
 			}
 		}
 		assertTrue(sawWallSkim);
 		assertTrue(sawRainBurst);
+		assertTrue(sawLightPropFault);
 		assertTrue(report.samples() > 200);
 		assertTrue(report.maxSpeedMetersPerSecond() > 6.8, () -> "maxSpeed=" + report.maxSpeedMetersPerSecond());
 		assertTrue(report.maxBatteryCurrentAmps() > 45.0);
