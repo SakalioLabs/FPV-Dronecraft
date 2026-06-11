@@ -7085,6 +7085,27 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorForwardAdvancePostPeakWashoutUsesUiucAdvanceRatio() throws ReflectiveOperationException {
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		Method postPeakLossMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorForwardAdvancePostPeakThrustLoss",
+				RotorSpec.class,
+				double.class
+		);
+		postPeakLossMethod.setAccessible(true);
+
+		double j045Loss = (double) postPeakLossMethod.invoke(null, rotor, 0.45 / Math.PI);
+		double j065Loss = (double) postPeakLossMethod.invoke(null, rotor, 0.65 / Math.PI);
+		double j105Loss = (double) postPeakLossMethod.invoke(null, rotor, 1.05 / Math.PI);
+		double j135Loss = (double) postPeakLossMethod.invoke(null, rotor, 1.35 / Math.PI);
+
+		assertEquals(0.0, j045Loss, 1.0e-9);
+		assertEquals(0.0, j065Loss, 1.0e-9);
+		assertTrue(j105Loss > 0.02 && j105Loss < 0.06, () -> "j105Loss=" + j105Loss);
+		assertEquals(0.20, j135Loss, 1.0e-9);
+	}
+
+	@Test
 	void forwardFlightPropellerAdvanceRolloffBeatsTranslationalLiftBoost() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

@@ -2435,7 +2435,7 @@ public final class DronePhysics {
 				1.0
 		);
 		double forwardAdvanceThrustScale = rotorForwardAdvanceThrustScale(rotor, advanceRatio);
-		double highAdvanceLoss = 0.20 * smoothStep(0.46, 0.92, advanceRatio);
+		double postPeakAdvanceLoss = rotorForwardAdvancePostPeakThrustLoss(rotor, advanceRatio);
 
 		double descentSpeed = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody) - 1.2);
 		double descentRatio = descentSpeed / Math.max(1.5, tipSpeed * 0.08);
@@ -2448,7 +2448,7 @@ public final class DronePhysics {
 				transverseLift
 						* forwardAdvanceThrustScale
 						* (1.0 - axialLoss)
-						* (1.0 - highAdvanceLoss)
+						* (1.0 - postPeakAdvanceLoss)
 						* (1.0 - bladePitchUnload),
 				0.12,
 				1.25
@@ -2480,6 +2480,11 @@ public final class DronePhysics {
 		double midAdvanceLoss = 0.36 * smoothStep(0.25, 0.45, propAdvanceRatio);
 		double highAdvanceLoss = 0.46 * smoothStep(0.45, 0.72, propAdvanceRatio);
 		return MathUtil.clamp(lowAdvanceLoss + midAdvanceLoss + highAdvanceLoss, 0.0, 0.88);
+	}
+
+	private static double rotorForwardAdvancePostPeakThrustLoss(RotorSpec rotor, double advanceRatio) {
+		double propAdvanceRatio = rotorUiucEquivalentPropellerAdvanceRatio(rotor, advanceRatio);
+		return 0.20 * smoothStep(0.95, 1.35, propAdvanceRatio);
 	}
 
 	private static double rotorUiucEquivalentPropellerAdvanceRatio(RotorSpec rotor, double advanceRatio) {
