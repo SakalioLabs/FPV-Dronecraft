@@ -3891,9 +3891,11 @@ public final class DronePhysics {
 
 		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
 		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.0);
+		double advanceResponse = MathUtil.clamp(advanceRatio / 0.095, 0.0, 1.0);
+		double diskLoadingResponse = MathUtil.clamp(0.72 + 0.28 * Math.sqrt(thrustFraction), 0.0, 1.0);
 		double tilt = rotor.flappingCoefficient()
-				* MathUtil.clamp(advanceRatio / 0.22, 0.0, 1.0)
-				* (0.35 + 0.65 * thrustFraction);
+				* advanceResponse
+				* diskLoadingResponse;
 		Vec3 transverseUnit = transverseVelocityBody.multiply(1.0 / transverseSpeed);
 		return transverseUnit.multiply(-tilt);
 	}

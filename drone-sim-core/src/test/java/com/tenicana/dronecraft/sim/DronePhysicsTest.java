@@ -5961,6 +5961,37 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void racingQuadFlappingScaleMatchesStarmacLowSpeedReference() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorInducedInflow(0.0, 0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		Vec3 starmacFigureNineWind = new Vec3(3.4, 0.0, 0.0);
+
+		for (int i = 0; i < 300; i++) {
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.state().setVelocityMetersPerSecond(starmacFigureNineWind);
+			physics.step(hover, 0.005);
+		}
+
+		double flappingTiltDegrees = Math.toDegrees(physics.state().averageRotorFlappingTiltRadians());
+		assertEquals(0.039, physics.state().rotorAdvanceRatio(0), 0.004);
+		assertTrue(flappingTiltDegrees > 0.85 && flappingTiltDegrees < 1.35,
+				() -> "flappingTiltDegrees=" + flappingTiltDegrees);
+		assertTrue(physics.state().averageRotorFlappingForceNewtons() > 0.040,
+				() -> "flappingForce=" + physics.state().averageRotorFlappingForceNewtons());
+	}
+
+	@Test
 	void rotorFlappingTiltsThrustAgainstCrossflow() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
