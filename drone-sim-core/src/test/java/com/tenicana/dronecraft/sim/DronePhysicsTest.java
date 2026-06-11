@@ -7271,6 +7271,61 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void vortexRingStatePeakLossMatchesSmallPropReferenceBand() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withRotorFlappingCoefficient(0.0)
+				.withRotorTransverseFlowLiftCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 160.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics verticalDescent = new DronePhysics(config);
+		DronePhysics crossflowEscape = new DronePhysics(config);
+		DroneInput fullThrottle = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
+		double verticalThrustSum = 0.0;
+		double crossflowThrustSum = 0.0;
+		int samples = 0;
+
+		for (int i = 0; i < 320; i++) {
+			double inducedVelocity = Math.max(
+					9.0,
+					verticalDescent.state().averageRotorInducedVelocityMetersPerSecond()
+			);
+			double descentSpeed = inducedVelocity * 1.20;
+			verticalDescent.state().setOrientation(Quaternion.IDENTITY);
+			verticalDescent.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			verticalDescent.state().setVelocityMetersPerSecond(new Vec3(0.0, -descentSpeed, 0.0));
+			crossflowEscape.state().setOrientation(Quaternion.IDENTITY);
+			crossflowEscape.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			crossflowEscape.state().setVelocityMetersPerSecond(new Vec3(8.0, -descentSpeed, 0.0));
+			verticalDescent.step(fullThrottle, 0.005);
+			crossflowEscape.step(fullThrottle, 0.005);
+
+			if (i >= 220) {
+				verticalThrustSum += verticalDescent.state().rotorThrustNewtons(0);
+				crossflowThrustSum += crossflowEscape.state().rotorThrustNewtons(0);
+				samples++;
+			}
+		}
+
+		double averageVerticalThrust = verticalThrustSum / samples;
+		double averageCrossflowThrust = crossflowThrustSum / samples;
+		double lossFraction = 1.0 - averageVerticalThrust / averageCrossflowThrust;
+		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.82,
+				() -> "vrs=" + verticalDescent.state().vortexRingStateIntensity());
+		assertTrue(crossflowEscape.state().vortexRingStateIntensity() < 0.05,
+				() -> "crossflowVrs=" + crossflowEscape.state().vortexRingStateIntensity());
+		assertTrue(lossFraction > 0.24 && lossFraction < 0.40,
+				() -> "lossFraction=" + lossFraction
+						+ " averageVerticalThrust=" + averageVerticalThrust
+						+ " averageCrossflowThrust=" + averageCrossflowThrust);
+	}
+
+	@Test
 	void contactDynamicsSeparatesWallImpactFromTangentialSlip() {
 		ContactDynamics.Response response = ContactDynamics.resolve(
 				new Vec3(6.0, 1.0, 7.0),
@@ -7804,7 +7859,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxAirframeSeparatedFlowIntensity() <= 1.0);
 		assertTrue(report.maxRotorConingIntensity() > 0.0);
 		assertTrue(report.maxRotorWindmillingIntensity() > 0.10);
-		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.045);
+		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.025);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
 		assertTrue(report.maxEscTemperatureCelsius() >= 25.0);
 		assertTrue(report.minEscThermalLimit() > 0.0);

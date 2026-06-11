@@ -727,7 +727,7 @@ public final class DronePhysics {
 			rotorVibrationSum += rotorConingVibration(aerodynamicRotor, aerodynamicOmega, coningIntensity);
 			rotorVibrationSum += rotorInducedWakeVibration(aerodynamicRotor, aerodynamicOmega, rotorInducedWakeCarryoverIntensity[i]);
 			state.setRotorConingIntensity(i, coningIntensity);
-			double vortexRingThrustScale = 1.0 - rotor.axialFlowThrustLossCoefficient() * 1.35 * vortexRingState;
+			double vortexRingThrustScale = 1.0 - rotorVortexRingMeanThrustLoss(rotor, vortexRingState);
 			double stallThrustScale = 1.0 - rotor.stallThrustLossCoefficient() * rotorStall;
 			double lowReynoldsThrustScale = rotorLowReynoldsThrustScale(lowReynoldsLoss);
 			double coningThrustScale = rotorConingThrustScale(coningIntensity);
@@ -2455,6 +2455,16 @@ public final class DronePhysics {
 		double washout = 1.0 - smoothStep(2.5, 7.0, transverseSpeed);
 		double load = smoothStep(0.12, 0.75, spinRatio);
 		return MathUtil.clamp(entry * exit * washout * load, 0.0, 1.0);
+	}
+
+	private static double rotorVortexRingMeanThrustLoss(RotorSpec rotor, double vortexRingStateIntensity) {
+		double vrs = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
+		if (vrs <= 1.0e-6 || rotor.axialFlowThrustLossCoefficient() <= 0.0) {
+			return 0.0;
+		}
+
+		double peakLoss = MathUtil.clamp(2.06 * rotor.axialFlowThrustLossCoefficient(), 0.0, 0.33);
+		return peakLoss * vrs;
 	}
 
 	private static double rotorAerodynamicOmegaRadiansPerSecond(
