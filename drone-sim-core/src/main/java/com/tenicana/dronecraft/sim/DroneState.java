@@ -89,6 +89,7 @@ public final class DroneState {
 	private double[] rotorInducedLagThrustScale;
 	private double[] rotorTranslationalLiftIntensity;
 	private double[] rotorAdvanceRatio;
+	private double[] rotorPropellerAdvanceRatioJ;
 	private double[] rotorTipMach;
 	private double[] rotorLowReynoldsLoss;
 	private double[] rotorBladeAngleOfAttackRadians;
@@ -206,6 +207,7 @@ public final class DroneState {
 		rotorInducedLagThrustScale = new double[motorCount];
 		rotorTranslationalLiftIntensity = new double[motorCount];
 		rotorAdvanceRatio = new double[motorCount];
+		rotorPropellerAdvanceRatioJ = new double[motorCount];
 		rotorTipMach = new double[motorCount];
 		rotorLowReynoldsLoss = new double[motorCount];
 		rotorBladeAngleOfAttackRadians = new double[motorCount];
@@ -1284,6 +1286,7 @@ public final class DroneState {
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
 		Arrays.fill(rotorTranslationalLiftIntensity, 0.0);
 		Arrays.fill(rotorAdvanceRatio, 0.0);
+		Arrays.fill(rotorPropellerAdvanceRatioJ, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
 		Arrays.fill(rotorLowReynoldsLoss, 0.0);
 		Arrays.fill(rotorBladeAngleOfAttackRadians, 0.0);
@@ -1471,6 +1474,18 @@ public final class DroneState {
 		rotorAdvanceRatio[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 2.0) : 0.0;
 	}
 
+	public double rotorPropellerAdvanceRatioJ(int index) {
+		return rotorPropellerAdvanceRatioJ[index];
+	}
+
+	public double[] rotorPropellerAdvanceRatioJ() {
+		return Arrays.copyOf(rotorPropellerAdvanceRatioJ, rotorPropellerAdvanceRatioJ.length);
+	}
+
+	void setRotorPropellerAdvanceRatioJ(int index, double value) {
+		rotorPropellerAdvanceRatioJ[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, Math.PI * 2.0) : 0.0;
+	}
+
 	public double averageRotorAdvanceRatio() {
 		double sum = 0.0;
 		for (double ratio : rotorAdvanceRatio) {
@@ -1482,6 +1497,22 @@ public final class DroneState {
 	public double maxRotorAdvanceRatio() {
 		double max = 0.0;
 		for (double ratio : rotorAdvanceRatio) {
+			max = Math.max(max, ratio);
+		}
+		return max;
+	}
+
+	public double averageRotorPropellerAdvanceRatioJ() {
+		double sum = 0.0;
+		for (double ratio : rotorPropellerAdvanceRatioJ) {
+			sum += ratio;
+		}
+		return sum / rotorPropellerAdvanceRatioJ.length;
+	}
+
+	public double maxRotorPropellerAdvanceRatioJ() {
+		double max = 0.0;
+		for (double ratio : rotorPropellerAdvanceRatioJ) {
 			max = Math.max(max, ratio);
 		}
 		return max;

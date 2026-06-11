@@ -590,6 +590,7 @@ public final class DronePhysics {
 			double commandedAerodynamicOmega = rotorAerodynamicOmegaRadiansPerSecond(aerodynamicRotor, commandedOmega, angularVelocityBody);
 			double advanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedAerodynamicOmega);
 			state.setRotorAdvanceRatio(i, advanceRatio);
+			state.setRotorPropellerAdvanceRatioJ(i, rotorPropellerAdvanceRatioJ(advanceRatio));
 			double kinematicRotorStall = rotorBladeStallIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedAerodynamicOmega);
 			double rotorStall = kinematicRotorStall;
 			double desyncIntensity = updateEscDesyncIntensity(
@@ -643,7 +644,9 @@ public final class DronePhysics {
 					surfaceScrape
 			));
 			double aerodynamicOmega = rotorAerodynamicOmegaRadiansPerSecond(aerodynamicRotor, omega, angularVelocityBody);
-			state.setRotorAdvanceRatio(i, rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega));
+			double aerodynamicAdvanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega);
+			state.setRotorAdvanceRatio(i, aerodynamicAdvanceRatio);
+			state.setRotorPropellerAdvanceRatioJ(i, rotorPropellerAdvanceRatioJ(aerodynamicAdvanceRatio));
 			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, environment.ambientTemperatureCelsius());
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
@@ -3320,6 +3323,10 @@ public final class DronePhysics {
 	private static double rotorAdvanceRatio(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
 		return MathUtil.clamp(transverseSpeed / rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond), 0.0, 2.0);
+	}
+
+	private static double rotorPropellerAdvanceRatioJ(double rotorAdvanceRatio) {
+		return MathUtil.clamp(Math.PI * rotorAdvanceRatio, 0.0, Math.PI * 2.0);
 	}
 
 	private static double rotorDamageVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorHealth) {

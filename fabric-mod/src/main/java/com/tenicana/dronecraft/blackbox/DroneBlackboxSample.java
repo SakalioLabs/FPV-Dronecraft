@@ -243,6 +243,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_advance_ratio",
 			"rotor_2_advance_ratio",
 			"rotor_3_advance_ratio",
+			"rotor_prop_advance_ratio_j",
+			"rotor_0_prop_advance_ratio_j",
+			"rotor_1_prop_advance_ratio_j",
+			"rotor_2_prop_advance_ratio_j",
+			"rotor_3_prop_advance_ratio_j",
 			"rotor_tip_mach",
 			"rotor_0_tip_mach",
 			"rotor_1_tip_mach",
@@ -766,6 +771,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_advance_ratio",
 			"rotor_6_advance_ratio",
 			"rotor_7_advance_ratio",
+			"rotor_4_prop_advance_ratio_j",
+			"rotor_5_prop_advance_ratio_j",
+			"rotor_6_prop_advance_ratio_j",
+			"rotor_7_prop_advance_ratio_j",
 			"rotor_4_tip_mach",
 			"rotor_5_tip_mach",
 			"rotor_6_tip_mach",
@@ -1192,6 +1201,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorAdvanceRatioOrZero(state, 1), "%.5f");
 		row.add(rotorAdvanceRatioOrZero(state, 2), "%.5f");
 		row.add(rotorAdvanceRatioOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorPropellerAdvanceRatioJ(), "%.5f");
+		row.add(rotorPropellerAdvanceRatioJOrZero(state, 0), "%.5f");
+		row.add(rotorPropellerAdvanceRatioJOrZero(state, 1), "%.5f");
+		row.add(rotorPropellerAdvanceRatioJOrZero(state, 2), "%.5f");
+		row.add(rotorPropellerAdvanceRatioJOrZero(state, 3), "%.5f");
 		row.add(state.averageRotorTipMach(), "%.5f");
 		row.add(rotorTipMachOrZero(state, 0), "%.5f");
 		row.add(rotorTipMachOrZero(state, 1), "%.5f");
@@ -1664,6 +1678,7 @@ public final class DroneBlackboxSample {
 		double[] rotorHealth = state.rotorHealth();
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
+		double[] rotorPropellerAdvanceRatioJ = state.rotorPropellerAdvanceRatioJ();
 		double[] rotorTipMach = state.rotorTipMach();
 		double[] rotorLowReynoldsLoss = state.rotorLowReynoldsLoss();
 		double[] rotorBladeAngleOfAttack = state.rotorBladeAngleOfAttackRadians();
@@ -1756,6 +1771,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorAdvanceRatio, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorPropellerAdvanceRatioJ, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorTipMach, i), "%.5f");
@@ -1853,6 +1871,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorAdvanceRatioOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorAdvanceRatio(index) : 0.0;
+	}
+
+	private static double rotorPropellerAdvanceRatioJOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorPropellerAdvanceRatioJ(index) : 0.0;
 	}
 
 	private static double rotorTipMachOrZero(DroneState state, int index) {
