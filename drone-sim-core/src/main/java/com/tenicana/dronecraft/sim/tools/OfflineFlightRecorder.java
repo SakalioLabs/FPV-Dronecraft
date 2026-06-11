@@ -180,6 +180,9 @@ public final class OfflineFlightRecorder {
 			"rotor_active_braking_pitch_torque_nm",
 			"rotor_active_braking_yaw_torque_nm",
 			"rotor_active_braking_roll_torque_nm",
+			"rotor_flapping_pitch_torque_nm",
+			"rotor_flapping_yaw_torque_nm",
+			"rotor_flapping_roll_torque_nm",
 			"rotor_angular_drag_pitch_torque_nm",
 			"rotor_angular_drag_yaw_torque_nm",
 			"rotor_angular_drag_roll_torque_nm",
@@ -649,7 +652,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, min_voltage=%.2f V, max_sag=%.2f V, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, min_voltage=%.2f V, max_sag=%.2f V, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -669,6 +672,7 @@ public final class OfflineFlightRecorder {
 				report.maxRotorWakeSwirlVelocityMetersPerSecond(),
 				report.maxRotorWakeSwirlTorqueNewtonMeters(),
 				report.maxRotorActiveBrakingTorqueNewtonMeters(),
+				report.maxRotorFlappingTorqueNewtonMeters(),
 				report.minMotorElectricalEfficiency(),
 				report.minMotorVoltageHeadroom(),
 				report.maxMotorTrackingError(),
@@ -885,6 +889,7 @@ public final class OfflineFlightRecorder {
 		Vec3 rotorWakeSwirlTorque = state.rotorWakeSwirlTorqueBodyNewtonMeters();
 		Vec3 rotorInertiaTorque = state.rotorInertiaTorqueBodyNewtonMeters();
 		Vec3 rotorActiveBrakingTorque = state.rotorActiveBrakingTorqueBodyNewtonMeters();
+		Vec3 rotorFlappingTorque = state.rotorFlappingTorqueBodyNewtonMeters();
 		Vec3 rotorAngularDragTorque = state.rotorAngularDragTorqueBodyNewtonMeters();
 		Vec3 relativeAir = state.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 wind = environment.windVelocityWorldMetersPerSecond();
@@ -911,7 +916,7 @@ public final class OfflineFlightRecorder {
 						+ "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
 						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
-						+ "%.6f,%.6f,%.6f,"
+						+ "%.6f,%.6f,%.6f,%.6f,%.6f,%.6f,"
 						+ "%.4f,%.4f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1086,6 +1091,9 @@ public final class OfflineFlightRecorder {
 				rotorActiveBrakingTorque.x(),
 				rotorActiveBrakingTorque.y(),
 				rotorActiveBrakingTorque.z(),
+				rotorFlappingTorque.x(),
+				rotorFlappingTorque.y(),
+				rotorFlappingTorque.z(),
 				rotorAngularDragTorque.x(),
 				rotorAngularDragTorque.y(),
 				rotorAngularDragTorque.z(),
@@ -1506,6 +1514,7 @@ public final class OfflineFlightRecorder {
 		private double maxRotorWakeSwirlVelocityMetersPerSecond;
 		private double maxRotorWakeSwirlTorqueNewtonMeters;
 		private double maxRotorActiveBrakingTorqueNewtonMeters;
+		private double maxRotorFlappingTorqueNewtonMeters;
 		private double minMotorElectricalEfficiency = 1.0;
 		private double minMotorVoltageHeadroom = 1.0;
 		private double maxMotorTrackingError;
@@ -1560,6 +1569,10 @@ public final class OfflineFlightRecorder {
 			maxRotorActiveBrakingTorqueNewtonMeters = Math.max(
 					maxRotorActiveBrakingTorqueNewtonMeters,
 					state.rotorActiveBrakingTorqueBodyNewtonMeters().length()
+			);
+			maxRotorFlappingTorqueNewtonMeters = Math.max(
+					maxRotorFlappingTorqueNewtonMeters,
+					state.rotorFlappingTorqueBodyNewtonMeters().length()
 			);
 			minMotorElectricalEfficiency = Math.min(minMotorElectricalEfficiency, state.minMotorElectricalEfficiency());
 			minMotorVoltageHeadroom = Math.min(minMotorVoltageHeadroom, state.minMotorVoltageHeadroom());
@@ -1667,6 +1680,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxRotorActiveBrakingTorqueNewtonMeters() {
 			return maxRotorActiveBrakingTorqueNewtonMeters;
+		}
+
+		public double maxRotorFlappingTorqueNewtonMeters() {
+			return maxRotorFlappingTorqueNewtonMeters;
 		}
 
 		public double minMotorElectricalEfficiency() {

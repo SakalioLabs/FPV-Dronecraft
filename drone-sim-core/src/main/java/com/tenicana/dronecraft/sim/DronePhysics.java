@@ -360,6 +360,7 @@ public final class DronePhysics {
 		state.setRotorWashDragForceBodyNewtons(Vec3.ZERO);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setAirframeAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
+		state.setRotorFlappingTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorInertiaTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setMixerSaturation(0.0);
@@ -430,6 +431,7 @@ public final class DronePhysics {
 		Vec3 rotorInflowSkewTorqueSum = Vec3.ZERO;
 		Vec3 rotorBladeDissymmetryTorqueSum = Vec3.ZERO;
 		Vec3 rotorWakeSwirlTorqueSum = Vec3.ZERO;
+		Vec3 rotorFlappingTorqueSum = Vec3.ZERO;
 		Vec3 rotorActiveBrakingTorqueSum = Vec3.ZERO;
 		Vec3 rotorInertiaTorqueSum = Vec3.ZERO;
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
@@ -744,6 +746,8 @@ public final class DronePhysics {
 			rotorVibrationSum += bladePassRipple.vibration() + stallBuffet.vibration() + vortexBuffet.vibration();
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, thrust, dtSeconds);
+			Vec3 flappingTorque = rotorArmBody.cross(flappingForceBody);
+			rotorFlappingTorqueSum = rotorFlappingTorqueSum.add(flappingTorque);
 			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, state.rotorHealth(i), omega, thrust, dtSeconds);
 			state.setRotorFlappingForceNewtons(i, Math.hypot(flappingForceBody.x(), flappingForceBody.z()));
 			Vec3 thrustAxisForceBody = forceBody.add(flappingForceBody);
@@ -841,6 +845,7 @@ public final class DronePhysics {
 		state.setRotorInflowSkewTorqueBodyNewtonMeters(rotorInflowSkewTorqueSum);
 		state.setRotorBladeDissymmetryTorqueBodyNewtonMeters(rotorBladeDissymmetryTorqueSum);
 		state.setRotorWakeSwirlTorqueBodyNewtonMeters(rotorWakeSwirlTorqueSum);
+		state.setRotorFlappingTorqueBodyNewtonMeters(rotorFlappingTorqueSum);
 		state.setRotorActiveBrakingTorqueBodyNewtonMeters(rotorActiveBrakingTorqueSum);
 		state.setRotorInertiaTorqueBodyNewtonMeters(rotorInertiaTorqueSum);
 		state.setRotorAngularDragTorqueBodyNewtonMeters(rotorAngularDragTorqueSum);

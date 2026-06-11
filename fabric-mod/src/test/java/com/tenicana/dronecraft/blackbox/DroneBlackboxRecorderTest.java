@@ -142,6 +142,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_active_braking_pitch_torque_nm"));
 		assertTrue(csv.contains("rotor_active_braking_yaw_torque_nm"));
 		assertTrue(csv.contains("rotor_active_braking_roll_torque_nm"));
+		assertTrue(csv.contains("rotor_flapping_pitch_torque_nm"));
+		assertTrue(csv.contains("rotor_flapping_yaw_torque_nm"));
+		assertTrue(csv.contains("rotor_flapping_roll_torque_nm"));
 		assertTrue(csv.contains("mixer_output_pitch_nm"));
 		assertTrue(csv.contains("mixer_output_yaw_nm"));
 		assertTrue(csv.contains("mixer_output_roll_nm"));
@@ -347,6 +350,9 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_active_braking_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_active_braking_yaw_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_active_braking_roll_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_flapping_pitch_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_flapping_yaw_torque_nm")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_flapping_roll_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_angular_drag_roll_torque_nm")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "airframe_separation")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "airframe_lift_n")]));
@@ -444,6 +450,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorWakeInterferenceIntensity() >= 0.0);
 		assertTrue(summary.maxRotorArmFlexIntensity() >= 0.0);
 		assertTrue(summary.maxRotorBladeDissymmetryTorqueNewtonMeters() >= 0.0);
+		assertTrue(summary.maxRotorFlappingTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorAngularDragTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxControlFrameAgeSeconds() >= 0.0);
 		assertTrue(summary.maxControlFrameError() >= 0.0);
@@ -685,10 +692,12 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(summary.maxRotorWakeSwirlTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.maxRotorActiveBrakingTorqueNewtonMeters() >= 0.0);
+		assertTrue(summary.maxRotorFlappingTorqueNewtonMeters() >= 0.0);
 		assertTrue(summary.formatForChat().contains("rwake"));
 		assertTrue(summary.formatForChat().contains("swirl"));
 		assertTrue(summary.formatForChat().contains("swirlT"));
 		assertTrue(summary.formatForChat().contains("brakeT"));
+		assertTrue(summary.formatForChat().contains("flapT"));
 	}
 
 	@Test
