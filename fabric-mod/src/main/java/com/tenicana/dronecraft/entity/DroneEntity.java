@@ -755,20 +755,22 @@ public class DroneEntity extends PathfinderMob {
 
 	private RotorFlowObstruction rotorSideFlowObstruction(Vec3 rotorCenterWorld, RotorSpec rotor, RotorPlaneSampleDirection[] sampleDirections) {
 		double scanDistanceMeters = MathUtil.clamp(rotor.radiusMeters() * 2.4 + 0.22, 0.32, 0.82);
-		double obstruction = 0.0;
-		Vec3 directionBody = Vec3.ZERO;
-		for (RotorPlaneSampleDirection direction : sampleDirections) {
-			double distance = obstacleDistanceMetersFrom(rotorCenterWorld, direction.worldDirection(), scanDistanceMeters);
-			double proximity = obstacleProximityFromDistance(distance, scanDistanceMeters);
-			if (proximity > obstruction) {
-				obstruction = proximity;
-				directionBody = direction.bodyDirection();
-			}
+		double[] distancesMeters = new double[sampleDirections.length];
+		Vec3[] bodyDirections = new Vec3[sampleDirections.length];
+		for (int i = 0; i < sampleDirections.length; i++) {
+			RotorPlaneSampleDirection direction = sampleDirections[i];
+			distancesMeters[i] = obstacleDistanceMetersFrom(rotorCenterWorld, direction.worldDirection(), scanDistanceMeters);
+			bodyDirections[i] = direction.bodyDirection();
 		}
-		obstruction = MathUtil.clamp(obstruction, 0.0, 1.0);
-		return obstruction <= 1.0e-6
+
+		RotorFlowObstructionModel.Result obstruction = RotorFlowObstructionModel.fromDirectionalDistances(
+				distancesMeters,
+				bodyDirections,
+				scanDistanceMeters
+		);
+		return obstruction.intensity() <= 1.0e-6
 				? RotorFlowObstruction.CLEAR
-				: new RotorFlowObstruction(obstruction, directionBody.normalized());
+				: new RotorFlowObstruction(obstruction.intensity(), obstruction.directionBody());
 	}
 
 	private DroneWakeAirflow sampleDroneWakeAirflow() {
@@ -910,10 +912,7 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private static double obstacleProximityFromDistance(double distanceMeters, double maxDistanceMeters) {
-		if (!Double.isFinite(distanceMeters)) {
-			return 0.0;
-		}
-		return 1.0 - MathUtil.clamp(distanceMeters / maxDistanceMeters, 0.0, 1.0);
+		return RotorFlowObstructionModel.proximityFromDistance(distanceMeters, maxDistanceMeters);
 	}
 
 	private Vec3 weatherWindMetersPerSecond() {
