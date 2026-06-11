@@ -6376,6 +6376,27 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorForwardAdvanceRolloffMatchesUiucFiveInchCurve() throws ReflectiveOperationException {
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
+		Method thrustScaleMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorForwardAdvanceThrustScale",
+				RotorSpec.class,
+				double.class
+		);
+		thrustScaleMethod.setAccessible(true);
+
+		double j025Scale = (double) thrustScaleMethod.invoke(null, rotor, 0.25 / Math.PI);
+		double j045Scale = (double) thrustScaleMethod.invoke(null, rotor, 0.45 / Math.PI);
+		double j065Scale = (double) thrustScaleMethod.invoke(null, rotor, 0.65 / Math.PI);
+
+		assertEquals(0.905, j025Scale, 0.055);
+		assertEquals(0.549, j045Scale, 0.050);
+		assertEquals(0.193, j065Scale, 0.090);
+		assertTrue(j025Scale > j045Scale + 0.25);
+		assertTrue(j045Scale > j065Scale + 0.25);
+	}
+
+	@Test
 	void forwardFlightPropellerAdvanceRolloffBeatsTranslationalLiftBoost() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -6429,11 +6450,23 @@ class DronePhysicsTest {
 		double observedForwardLoad = forwardLoad;
 		double observedForwardAdvance = forwardAdvance;
 		double observedForwardTranslationalLift = forwardTranslationalLift;
+		double observedForwardThrustRatioToHover = observedForwardThrustRatio / observedHoverThrustRatio;
+		double observedForwardLoadRatioToHover = observedForwardLoad / observedHoverLoad;
+		double observedForwardTorquePerThrustProxy = observedForwardLoadRatioToHover / observedForwardThrustRatioToHover;
 
 		assertTrue(observedForwardAdvance > 0.12 && observedForwardAdvance < 0.18,
 				() -> "forwardAdvance=" + observedForwardAdvance);
+		assertTrue(Math.PI * observedForwardAdvance > 0.43 && Math.PI * observedForwardAdvance < 0.48,
+				() -> "uiucEquivalentJ=" + Math.PI * observedForwardAdvance);
 		assertTrue(observedForwardTranslationalLift > 0.55,
 				() -> "forwardTranslationalLift=" + observedForwardTranslationalLift);
+		// UIUC 5-inch forward-flow fits near J=0.45 give CT/static about 0.55 and Q/T about 1.25.
+		assertTrue(observedForwardThrustRatioToHover > 0.50 && observedForwardThrustRatioToHover < 0.63,
+				() -> "forwardThrustRatioToHover=" + observedForwardThrustRatioToHover);
+		assertTrue(observedForwardLoadRatioToHover > 0.62 && observedForwardLoadRatioToHover < 0.78,
+				() -> "forwardLoadRatioToHover=" + observedForwardLoadRatioToHover);
+		assertTrue(observedForwardTorquePerThrustProxy > 1.15 && observedForwardTorquePerThrustProxy < 1.36,
+				() -> "forwardTorquePerThrustProxy=" + observedForwardTorquePerThrustProxy);
 		assertTrue(observedForwardThrustRatio < observedHoverThrustRatio * 0.70,
 				() -> "hoverThrustRatio=" + observedHoverThrustRatio
 						+ " forwardThrustRatio=" + observedForwardThrustRatio);
