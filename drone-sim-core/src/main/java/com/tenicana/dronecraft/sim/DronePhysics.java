@@ -2246,6 +2246,7 @@ public final class DronePhysics {
 				0.0,
 				1.0
 		);
+		double forwardAdvanceThrustScale = rotorForwardAdvanceThrustScale(rotor, advanceRatio);
 		double highAdvanceLoss = 0.20 * smoothStep(0.46, 0.92, advanceRatio);
 
 		double descentSpeed = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody) - 1.2);
@@ -2255,7 +2256,29 @@ public final class DronePhysics {
 		double pitchAdvance = climbSpeed / rotorPitchSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double pitchUnloadAuthority = MathUtil.clamp(0.08 + 0.18 / rotorBladePitchRatio(rotor), 0.10, 0.32);
 		double bladePitchUnload = pitchUnloadAuthority * smoothStep(0.42, 1.05, pitchAdvance);
-		return MathUtil.clamp(transverseLift * (1.0 - axialLoss) * (1.0 - highAdvanceLoss) * (1.0 - bladePitchUnload), 0.55, 1.25);
+		return MathUtil.clamp(
+				transverseLift
+						* forwardAdvanceThrustScale
+						* (1.0 - axialLoss)
+						* (1.0 - highAdvanceLoss)
+						* (1.0 - bladePitchUnload),
+				0.12,
+				1.25
+		);
+	}
+
+	private static double rotorForwardAdvanceThrustScale(RotorSpec rotor, double advanceRatio) {
+		return MathUtil.clamp(1.0 - rotorForwardAdvanceThrustLoss(rotor, advanceRatio), 0.12, 1.05);
+	}
+
+	private static double rotorForwardAdvanceThrustLoss(RotorSpec rotor, double advanceRatio) {
+		double pitchRelief = MathUtil.clamp(Math.sqrt(rotorBladePitchRatio(rotor)), 0.75, 1.45);
+		// UIUC prop data uses J = V / (nD), while rotorAdvanceRatio is mu = V / (omega R).
+		double propAdvanceRatio = Math.PI * MathUtil.clamp(advanceRatio, 0.0, 2.0) / pitchRelief;
+		double lowAdvanceLoss = 0.10 * smoothStep(0.14, 0.25, propAdvanceRatio);
+		double midAdvanceLoss = 0.36 * smoothStep(0.25, 0.45, propAdvanceRatio);
+		double highAdvanceLoss = 0.46 * smoothStep(0.45, 0.72, propAdvanceRatio);
+		return MathUtil.clamp(lowAdvanceLoss + midAdvanceLoss + highAdvanceLoss, 0.0, 0.88);
 	}
 
 	private static double rotorBladeStallIntensity(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
@@ -3063,8 +3086,14 @@ public final class DronePhysics {
 		Vec3 tangentB = axis.cross(tangentA).normalized();
 		Vec3 lateralForce = Vec3.ZERO;
 		if (tangentA.lengthSquared() > 1.0e-9 && tangentB.lengthSquared() > 1.0e-9) {
+			double rolloffBuffetThrust = rotor.maxThrustNewtons()
+					* spinRatio
+					* spinRatio
+					* rotorForwardAdvanceThrustLoss(rotor, advanceRatio)
+					* 0.24;
+			double buffetReferenceThrust = Math.max(thrustNewtons, rolloffBuffetThrust);
 			double lateralMagnitude = MathUtil.clamp(
-					thrustNewtons * intensity * (0.014 + 0.055 * highAdvance + 0.030 * intensity),
+					buffetReferenceThrust * intensity * (0.014 + 0.055 * highAdvance + 0.030 * intensity),
 					0.0,
 					rotor.maxThrustNewtons() * 0.12
 			);
@@ -3858,6 +3887,7 @@ public final class DronePhysics {
 		double climbRatio = Math.max(0.0, axialVelocity) / inducedVelocity;
 		double cleanTransverseUnload = 0.30 * translationalLiftIntensity;
 		double climbUnload = 0.12 * smoothStep(0.45, 1.35, climbRatio);
+		double forwardAdvanceUnload = 0.22 * rotorForwardAdvanceThrustLoss(rotor, advanceRatio);
 		double descentLoad = 0.28 * smoothStep(0.45, 1.35, descentRatio);
 		double highAdvanceLoad = 0.16 * smoothStep(0.38, 0.82, advanceRatio);
 		double stallLoad = 0.32 * MathUtil.clamp(rotorStallIntensity, 0.0, 1.0);
@@ -3872,7 +3902,8 @@ public final class DronePhysics {
 				+ obstructionLoad
 				+ scrapeLoad
 				- cleanTransverseUnload
-				- climbUnload;
+				- climbUnload
+				- forwardAdvanceUnload;
 		return MathUtil.clamp(load, 0.35, 2.0);
 	}
 

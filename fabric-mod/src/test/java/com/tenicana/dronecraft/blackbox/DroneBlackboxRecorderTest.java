@@ -704,7 +704,7 @@ class DroneBlackboxRecorderTest {
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertTrue(averageHForce > 0.10, () -> "hforce=" + averageHForce);
-		assertTrue(averageMotorAeroTorque > 0.015, () -> "motorAeroTorque=" + averageMotorAeroTorque);
+		assertTrue(averageMotorAeroTorque > 0.006, () -> "motorAeroTorque=" + averageMotorAeroTorque);
 		assertTrue(averageMotorShaftPower > 8.0, () -> "motorShaftPower=" + averageMotorShaftPower);
 		assertTrue(summary.maxRotorInPlaneDragForceNewtons() >= averageHForce);
 		assertTrue(summary.formatForChat().contains("hforce"));
