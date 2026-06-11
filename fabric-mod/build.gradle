@@ -162,6 +162,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_5_arm_flex",
 		"rotor_surface_scrape",
 		"rotor_inertia_roll_torque_nm",
+		"rotor_active_braking_roll_torque_nm",
 		"rotor_angular_drag_roll_torque_nm",
 		"propwash_intensity",
 		"propwash_wake_intensity",

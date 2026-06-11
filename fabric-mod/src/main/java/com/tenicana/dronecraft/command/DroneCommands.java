@@ -406,6 +406,7 @@ public final class DroneCommands {
 				drone.getRotorWakeInterferenceIntensity(),
 				drone.getRotorWakeSwirlVelocityMetersPerSecond(),
 				drone.getRotorWakeSwirlTorqueNewtonMeters(),
+				drone.getRotorActiveBrakingTorqueNewtonMeters(),
 				drone.getDroneWakeIntensity(),
 				drone.getCeilingEffectMultiplier(),
 				drone.getEnvironmentThrustAsymmetry(),

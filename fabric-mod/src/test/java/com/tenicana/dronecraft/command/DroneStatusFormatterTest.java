@@ -35,6 +35,7 @@ class DroneStatusFormatterTest {
 				0.0,
 				0.0,
 				0.0,
+				0.0,
 				1.0,
 				0.0,
 				0.0,
@@ -74,6 +75,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("skew"));
 		assertTrue(status.contains("swirl 0.00m/s"));
 		assertTrue(status.contains("swirlT 0.000Nm"));
+		assertTrue(status.contains("brakeT 0.000Nm"));
 		assertTrue(status.contains("water 0.00"));
 		assertTrue(status.contains("rain 0.00"));
 		assertTrue(status.contains("temp 22.0C"));
@@ -109,6 +111,7 @@ class DroneStatusFormatterTest {
 				0.47,
 				0.92,
 				0.016,
+				0.018,
 				1.12,
 				0.12,
 				0.52,
@@ -152,6 +155,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("rotor-wake"));
 		assertTrue(warnings.contains("wake-swirl"));
 		assertTrue(warnings.contains("wake-swirl-torque"));
+		assertTrue(warnings.contains("active-brake-torque"));
 		assertTrue(warnings.contains("ceiling-effect"));
 		assertTrue(warnings.contains("env-asymmetry"));
 		assertTrue(warnings.contains("rotor-flow-blocked"));
@@ -165,7 +169,7 @@ class DroneStatusFormatterTest {
 		String status = DroneStatusFormatter.format(telemetry);
 		assertTrue(status.contains("diagnostic roll_step 4.5/16.0s"));
 		assertTrue(status.contains("bdiss 0.024Nm"));
-		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm"));
+		assertTrue(status.contains("swirl 0.92m/s swirlT 0.016Nm brakeT 0.018Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -195,6 +199,7 @@ class DroneStatusFormatterTest {
 			double rotorWakeInterference,
 			double rotorWakeSwirlVelocityMetersPerSecond,
 			double rotorWakeSwirlTorqueNewtonMeters,
+			double rotorActiveBrakingTorqueNewtonMeters,
 			double ceilingEffect,
 			double environmentAsymmetry,
 			double rotorFlowObstruction,
@@ -275,6 +280,7 @@ class DroneStatusFormatterTest {
 				rotorWakeInterference,
 				rotorWakeSwirlVelocityMetersPerSecond,
 				rotorWakeSwirlTorqueNewtonMeters,
+				rotorActiveBrakingTorqueNewtonMeters,
 				droneWake,
 				ceilingEffect,
 				environmentAsymmetry,

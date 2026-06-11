@@ -1525,16 +1525,47 @@ class DronePhysicsTest {
 		}
 		double maxBrakedCurrent = 0.0;
 		double maxRegenerativeCurrent = 0.0;
+		double maxActiveBrakingTorque = 0.0;
 		for (int i = 0; i < 10; i++) {
 			coasting.step(cutThrottle, 0.005);
 			braked.step(cutThrottle, 0.005);
 			maxBrakedCurrent = Math.max(maxBrakedCurrent, braked.state().averageMotorCurrentAmps());
 			maxRegenerativeCurrent = Math.max(maxRegenerativeCurrent, braked.state().batteryRegenerativeCurrentAmps());
+			maxActiveBrakingTorque = Math.max(maxActiveBrakingTorque, braked.state().rotorActiveBrakingTorqueBodyNewtonMeters().length());
 		}
 
 		assertTrue(braked.state().averageMotorPower(braked.config()) < coasting.state().averageMotorPower(coasting.config()) * 0.55);
 		assertTrue(maxBrakedCurrent > 1.8);
 		assertTrue(maxRegenerativeCurrent > 1.0);
+		assertTrue(Double.isFinite(maxActiveBrakingTorque));
+		assertTrue(maxActiveBrakingTorque > 0.02);
+		assertTrue(maxActiveBrakingTorque < 0.12);
+	}
+
+	@Test
+	void activeBrakingTorqueTelemetryShowsAsymmetricThrottleChop() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.090)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput yawPreload = new DroneInput(0.78, 0.0, 0.0, 0.85, true, true, FlightMode.ACRO);
+		DroneInput cutThrottle = new DroneInput(0.0, 0.0, 0.0, 0.0, true, true, FlightMode.ACRO);
+
+		for (int i = 0; i < 260; i++) {
+			physics.step(yawPreload, 0.005);
+		}
+		double maxActiveBrakingTorque = 0.0;
+		for (int i = 0; i < 14; i++) {
+			physics.step(cutThrottle, 0.005);
+			maxActiveBrakingTorque = Math.max(maxActiveBrakingTorque, physics.state().rotorActiveBrakingTorqueBodyNewtonMeters().length());
+		}
+
+		double observedActiveBrakingTorque = maxActiveBrakingTorque;
+		assertTrue(observedActiveBrakingTorque > 0.004,
+				() -> "activeBrakingTorque=" + observedActiveBrakingTorque);
 	}
 
 	@Test
@@ -6785,6 +6816,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_skew_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_swirl_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inertia_roll_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_active_braking_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_angular_drag_roll_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_transient_sag_v"));
@@ -6913,6 +6945,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_wake_swirl_roll_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_active_braking_pitch_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_active_braking_yaw_torque_nm")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_active_braking_roll_torque_nm")])));
 		double maxBladeDissymmetryTorque = maxVectorLength(
 				lines,
 				header,
@@ -7092,6 +7127,7 @@ class DronePhysicsTest {
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
 	}
 
 	@Test
@@ -7182,6 +7218,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(report.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
 	}
 
 	private static DroneConfig withCommonGains(DroneConfig config, PidGains gains) {
