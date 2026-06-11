@@ -1589,7 +1589,34 @@ public final class DronePhysics {
 		double rainTorque = 0.0006 * MathUtil.clamp(precipitationWetness, 0.0, 1.0) * spinRatio;
 		double scrapeTorque = 0.008 * MathUtil.clamp(surfaceScrapeIntensity, 0.0, 1.0) * (0.35 + 0.65 * spinRatio);
 		double imbalanceTorque = 0.0045 * rotorEffectiveImbalanceIntensity(rotor, rotorHealth) * spinRatio * spinRatio;
-		return MathUtil.clamp(bearingTorque + windageTorque + wetPropTorque + rainTorque + scrapeTorque + imbalanceTorque, 0.0, 0.050);
+		double damageProfileTorque = rotorDamageProfileDragTorque(rotor, rotorHealth, spinRatio, radiusScale, diskDragScale);
+		return MathUtil.clamp(
+				bearingTorque
+						+ windageTorque
+						+ wetPropTorque
+						+ rainTorque
+						+ scrapeTorque
+						+ imbalanceTorque
+						+ damageProfileTorque,
+				0.0,
+				0.050
+		);
+	}
+
+	private static double rotorDamageProfileDragTorque(
+			RotorSpec rotor,
+			double rotorHealth,
+			double spinRatio,
+			double radiusScale,
+			double diskDragScale
+	) {
+		double damage = 1.0 - MathUtil.clamp(rotorHealth, 0.0, 1.0);
+		if (damage <= 1.0e-6 || spinRatio <= 1.0e-6) {
+			return 0.0;
+		}
+		double profileArea = MathUtil.clamp(0.70 * Math.sqrt(radiusScale) + 0.30 * diskDragScale, 0.35, 4.0);
+		double spinLoad = spinRatio * spinRatio * MathUtil.clamp(0.65 + 0.35 * spinRatio, 0.65, 1.10);
+		return 0.0048 * profileArea * Math.pow(damage, 1.35) * spinLoad;
 	}
 
 	private static double motorBearingViscosityScale(double motorTemperatureCelsius) {

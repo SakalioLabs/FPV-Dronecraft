@@ -1095,6 +1095,36 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void damagedPropAddsMechanicalProfileDrag() throws ReflectiveOperationException {
+		Method mechanicalLoss = DronePhysics.class.getDeclaredMethod(
+				"motorMechanicalLossTorque",
+				RotorSpec.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		mechanicalLoss.setAccessible(true);
+		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0).withImbalanceIntensity(0.0);
+		double omega = rotor.maxOmegaRadiansPerSecond() * 0.78;
+
+		double cleanLoss = (double) mechanicalLoss.invoke(null, rotor, omega, 1.0, 25.0, 0.0, 0.0, 0.0, 1.0);
+		double mildLoss = (double) mechanicalLoss.invoke(null, rotor, omega, 1.0, 25.0, 0.0, 0.0, 0.0, 0.90);
+		double bentLoss = (double) mechanicalLoss.invoke(null, rotor, omega, 1.0, 25.0, 0.0, 0.0, 0.0, 0.45);
+		double severeLoss = (double) mechanicalLoss.invoke(null, rotor, omega, 1.0, 25.0, 0.0, 0.0, 0.0, 0.15);
+
+		assertTrue(mildLoss > cleanLoss * 1.07,
+				() -> "cleanLoss=" + cleanLoss + " mildLoss=" + mildLoss);
+		assertTrue(bentLoss > cleanLoss + 0.0010,
+				() -> "cleanLoss=" + cleanLoss + " bentLoss=" + bentLoss);
+		assertTrue(severeLoss > bentLoss * 1.35,
+				() -> "bentLoss=" + bentLoss + " severeLoss=" + severeLoss);
+	}
+
+	@Test
 	void coldMotorBearingsIncreaseStartupDragAndMechanicalLoss() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
