@@ -46,8 +46,8 @@ public final class DroneHud {
 		Font font = client.font;
 		int x = 8;
 		int y = 8;
-		int width = 288;
-		int height = drone == null ? 38 : 274;
+		int width = 320;
+		int height = drone == null ? 38 : 307;
 		graphics.fill(x, y, x + width, y + height, PANEL_COLOR);
 		graphics.renderOutline(x, y, width, height, BORDER_COLOR);
 
@@ -124,11 +124,15 @@ public final class DroneHud {
 		graphics.drawString(font, speed, x + 8, y + 183, speedStatusColor(drone), false);
 		graphics.drawString(font, altitude, x + 8, y + 194, barometerStatusColor(drone), false);
 		graphics.drawString(font, attitude, x + 8, y + 205, TEXT_COLOR, false);
-		graphics.drawString(font, aerodynamicStatusLine(drone), x + 8, y + 216, aerodynamicStatusColor(drone), false);
-		graphics.drawString(font, aeroTorqueLine(drone), x + 8, y + 227, aeroTorqueStatusColor(drone), false);
-		graphics.drawString(font, aeroForceLine(drone), x + 8, y + 238, aeroForceStatusColor(drone), false);
-		graphics.drawString(font, environmentLine(drone), x + 8, y + 249, environmentStatusColor(drone), false);
-		graphics.drawString(font, thermalLine(drone), x + 8, y + 260, thermalStatusColor(drone), false);
+		int aeroColor = aerodynamicStatusColor(drone);
+		graphics.drawString(font, airflowStatusLine(drone), x + 8, y + 216, aeroColor, false);
+		graphics.drawString(font, propellerStatusLine(drone), x + 8, y + 227, aeroColor, false);
+		graphics.drawString(font, bladeStatusLine(drone), x + 8, y + 238, aeroColor, false);
+		graphics.drawString(font, wakeStatusLine(drone), x + 8, y + 249, aeroColor, false);
+		graphics.drawString(font, aeroTorqueLine(drone), x + 8, y + 260, aeroTorqueStatusColor(drone), false);
+		graphics.drawString(font, aeroForceLine(drone), x + 8, y + 271, aeroForceStatusColor(drone), false);
+		graphics.drawString(font, environmentLine(drone), x + 8, y + 282, environmentStatusColor(drone), false);
+		graphics.drawString(font, thermalLine(drone), x + 8, y + 293, thermalStatusColor(drone), false);
 	}
 
 	private static void drawBar(GuiGraphics graphics, int x, int y, int width, int height, float value, int color) {
@@ -362,24 +366,51 @@ public final class DroneHud {
 		);
 	}
 
-	private static String aerodynamicStatusLine(DroneEntity drone) {
+	private static String airflowStatusLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"AS%4.1f A%+3.0f S%+3.0f E%2.0f Iv%.1f IL%2.0f Mu%2.0f TM%2.0f MC%2.0f Re%2.0f BA%2.0f BS%2.0f BP%2.0f K%2.0f W%2.0f WL%2.0f CX%2.0f WW%2.0f SW%.1f WM%2.0f P%2.0f V%2.0f VB%2.0f VF%.1f R%2.0f",
+				"AIR AS%4.1f A%+3.0f S%+3.0f E%2.0f Iv%.1f IL%2.0f",
 				drone.getAirspeedMetersPerSecond(),
 				drone.getAngleOfAttackDegrees(),
 				drone.getSideslipDegrees(),
 				drone.getRotorTranslationalLiftIntensity() * 100.0f,
 				drone.getRotorInducedVelocityMetersPerSecond(),
-				(1.0f - drone.getRotorInducedLagThrustScale()) * 100.0f,
+				(1.0f - drone.getRotorInducedLagThrustScale()) * 100.0f
+		);
+	}
+
+	private static String propellerStatusLine(DroneEntity drone) {
+		return String.format(
+				Locale.ROOT,
+				"PROP Mu%2.0f J%.2f PW%2.0f RF%2.0f TM%2.0f MC%2.0f Re%2.0f",
 				drone.getRotorAdvanceRatio() * 100.0f,
+				drone.getRotorPropellerAdvanceRatioJ(),
+				drone.getRotorPropellerPowerScale() * 100.0f,
+				drone.getRotorReverseFlowInboardFraction() * 100.0f,
 				drone.getRotorTipMach() * 100.0f,
 				(1.0f - drone.getRotorCompressibilityThrustScale()) * 100.0f,
-				drone.getRotorLowReynoldsLoss() * 100.0f,
+				drone.getRotorLowReynoldsLoss() * 100.0f
+		);
+	}
+
+	private static String bladeStatusLine(DroneEntity drone) {
+		return String.format(
+				Locale.ROOT,
+				"BLD BA%2.0f BS%2.0f BP%2.0f K%2.0f R%2.0f V%2.0f VB%2.0f",
 				drone.getRotorBladeAngleOfAttackDegrees(),
 				drone.getRotorBladeElementStallIntensity() * 100.0f,
 				drone.getRotorBladePassRippleIntensity() * 100.0f,
 				drone.getRotorInflowSkewIntensity() * 100.0f,
+				drone.getRotorStallIntensity() * 100.0f,
+				drone.getVortexRingStateIntensity() * 100.0f,
+				drone.getVortexRingThrustBuffetAmplitude() * 100.0f
+		);
+	}
+
+	private static String wakeStatusLine(DroneEntity drone) {
+		return String.format(
+				Locale.ROOT,
+				"WAK W%2.0f WL%2.0f CX%2.0f WW%2.0f SW%.1f WM%2.0f P%2.0f VF%.1f",
 				drone.getRotorWakeInterferenceIntensity() * 100.0f,
 				(1.0f - drone.getRotorWakeThrustScale()) * 100.0f,
 				drone.getRotorCoaxialLoadBias() * 100.0f,
@@ -387,10 +418,7 @@ public final class DroneHud {
 				drone.getRotorWakeSwirlVelocityMetersPerSecond(),
 				drone.getRotorWindmillingIntensity() * 100.0f,
 				drone.getPropwashIntensity() * 100.0f,
-				drone.getVortexRingStateIntensity() * 100.0f,
-				drone.getVortexRingThrustBuffetAmplitude() * 100.0f,
-				drone.getVortexRingBuffetForceNewtons(),
-				drone.getRotorStallIntensity() * 100.0f
+				drone.getVortexRingBuffetForceNewtons()
 		);
 	}
 
@@ -461,6 +489,9 @@ public final class DroneHud {
 				|| drone.getVortexRingThrustBuffetAmplitude() > 0.08f
 				|| drone.getVortexRingBuffetForceNewtons() > 0.20f
 				|| drone.getRotorAdvanceRatio() > 0.55f
+				|| drone.getRotorPropellerAdvanceRatioJ() > 0.45f
+				|| drone.getRotorPropellerPowerScale() < 0.80f
+				|| drone.getRotorReverseFlowInboardFraction() > 0.25f
 				|| drone.getRotorTipMach() > 0.70f
 				|| drone.getRotorCompressibilityThrustScale() < 0.94f
 				|| drone.getRotorLowReynoldsLoss() > 0.25f
