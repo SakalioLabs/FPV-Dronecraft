@@ -3532,7 +3532,9 @@ public final class DronePhysics {
 
 	private static double precipitationThrustScale(double precipitationWetnessIntensity) {
 		double wetness = MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0);
-		return MathUtil.clamp(1.0 - 0.055 * Math.pow(wetness, 0.85), 0.92, 1.0);
+		// ICAS 2020 heavy-rain quadrotor CFD reports roughly 1.7-2.6% CT loss;
+		// keep pure rain milder than water immersion while retaining wet-prop texture.
+		return MathUtil.clamp(1.0 - 0.030 * Math.pow(wetness, 0.85), 0.96, 1.0);
 	}
 
 	private static double rotorWaterLoadFactor(double waterImmersionIntensity) {

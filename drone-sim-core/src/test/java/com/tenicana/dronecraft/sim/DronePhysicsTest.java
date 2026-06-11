@@ -5776,8 +5776,11 @@ class DronePhysicsTest {
 		assertEquals(0.0, rainEnvironment.waterImmersionIntensity(), 1.0e-9);
 		assertTrue(rainEnvironment.precipitationWetnessIntensity() > 0.90);
 		assertEquals(1.0, dry.state().minRotorWetThrustScale(), 0.001);
-		assertTrue(rainWet.state().averageRotorWetThrustScale() < 0.97);
-		assertTrue(rainWet.state().minRotorWetThrustScale() > 0.92);
+		// ICAS 2020 heavy-rain CFD reports about 1.7-2.6% CT loss; the full-wet
+		// gameplay wetness cap stays close while leaving water immersion severe.
+		assertTrue(rainWet.state().averageRotorWetThrustScale() > 0.965);
+		assertTrue(rainWet.state().averageRotorWetThrustScale() < 0.980);
+		assertTrue(rainWet.state().minRotorWetThrustScale() > 0.960);
 		assertTrue(rainWet.state().averageRotorAerodynamicLoadFactor()
 				> dry.state().averageRotorAerodynamicLoadFactor() + 0.06);
 		assertTrue(rainThrust < dryThrust * 0.99);
