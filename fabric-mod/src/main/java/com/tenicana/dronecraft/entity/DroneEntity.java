@@ -130,6 +130,9 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ROTOR_SURFACE_SCRAPE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_TRANSLATIONAL_LIFT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_ADVANCE_RATIO = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_PROPELLER_ADVANCE_RATIO_J = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_PROPELLER_POWER_SCALE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> ROTOR_REVERSE_FLOW = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_TIP_MACH = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_COMPRESSIBILITY_THRUST_SCALE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ROTOR_LOW_REYNOLDS_LOSS = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -407,6 +410,9 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ROTOR_SURFACE_SCRAPE, 0.0f);
 		builder.define(ROTOR_TRANSLATIONAL_LIFT, 0.0f);
 		builder.define(ROTOR_ADVANCE_RATIO, 0.0f);
+		builder.define(ROTOR_PROPELLER_ADVANCE_RATIO_J, 0.0f);
+		builder.define(ROTOR_PROPELLER_POWER_SCALE, 1.0f);
+		builder.define(ROTOR_REVERSE_FLOW, 0.0f);
 		builder.define(ROTOR_TIP_MACH, 0.0f);
 		builder.define(ROTOR_COMPRESSIBILITY_THRUST_SCALE, 1.0f);
 		builder.define(ROTOR_LOW_REYNOLDS_LOSS, 0.0f);
@@ -1149,6 +1155,9 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROTOR_SURFACE_SCRAPE, (float) physics.state().maxRotorSurfaceScrapeIntensity());
 		entityData.set(ROTOR_TRANSLATIONAL_LIFT, (float) physics.state().averageRotorTranslationalLiftIntensity());
 		entityData.set(ROTOR_ADVANCE_RATIO, (float) physics.state().maxRotorAdvanceRatio());
+		entityData.set(ROTOR_PROPELLER_ADVANCE_RATIO_J, (float) physics.state().maxRotorPropellerAdvanceRatioJ());
+		entityData.set(ROTOR_PROPELLER_POWER_SCALE, (float) physics.state().minRotorPropellerPowerScale());
+		entityData.set(ROTOR_REVERSE_FLOW, (float) physics.state().maxRotorReverseFlowInboardFraction());
 		entityData.set(ROTOR_TIP_MACH, (float) physics.state().maxRotorTipMach());
 		entityData.set(ROTOR_COMPRESSIBILITY_THRUST_SCALE, (float) physics.state().minRotorCompressibilityThrustScale());
 		entityData.set(ROTOR_LOW_REYNOLDS_LOSS, (float) physics.state().maxRotorLowReynoldsLoss());
@@ -1993,6 +2002,18 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getRotorAdvanceRatio() {
 		return entityData.get(ROTOR_ADVANCE_RATIO);
+	}
+
+	public float getRotorPropellerAdvanceRatioJ() {
+		return entityData.get(ROTOR_PROPELLER_ADVANCE_RATIO_J);
+	}
+
+	public float getRotorPropellerPowerScale() {
+		return entityData.get(ROTOR_PROPELLER_POWER_SCALE);
+	}
+
+	public float getRotorReverseFlowInboardFraction() {
+		return entityData.get(ROTOR_REVERSE_FLOW);
 	}
 
 	public float getRotorTipMach() {
