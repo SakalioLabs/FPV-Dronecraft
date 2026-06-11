@@ -73,6 +73,7 @@ public record DroneConfig(
 	public static final int DEFAULT_RC_CHANNEL_RESOLUTION_STEPS = 2048;
 	public static final double DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ = 400.0;
 	public static final int DEFAULT_ESC_COMMAND_RESOLUTION_STEPS = 2048;
+	public static final double LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO = 0.50;
 
 	public DroneConfig {
 		rotors = List.copyOf(rotors);
@@ -396,7 +397,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS)
+				.withRotorBladePitchToDiameterRatio(LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO);
 	}
 
 	public static DroneConfig hexLift() {
@@ -480,7 +482,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS)
+				.withRotorBladePitchToDiameterRatio(LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO);
 	}
 
 	public static DroneConfig octoLift() {
@@ -566,7 +569,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS)
+				.withRotorBladePitchToDiameterRatio(LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO);
 	}
 
 	public static DroneConfig coaxialX8() {

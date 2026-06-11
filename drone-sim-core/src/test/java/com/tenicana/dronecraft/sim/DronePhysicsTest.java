@@ -306,6 +306,27 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void liftPresetsUseLowPitchUtilityPropGeometry() {
+		DroneConfig racing = DroneConfig.racingQuad();
+		DroneConfig heavyLift = DroneConfig.heavyLift();
+		DroneConfig hexLift = DroneConfig.hexLift();
+		DroneConfig octoLift = DroneConfig.octoLift();
+		DroneConfig coaxialX8 = DroneConfig.coaxialX8();
+
+		assertLiftPropPitch(heavyLift);
+		assertLiftPropPitch(hexLift);
+		assertLiftPropPitch(octoLift);
+		assertLiftPropPitch(coaxialX8);
+		assertTrue(heavyLift.rotors().get(0).bladePitchToDiameterRatio()
+				< racing.rotors().get(0).bladePitchToDiameterRatio() * 0.60);
+		assertEquals(
+				octoLift.rotors().get(0).bladePitchToDiameterRatio(),
+				coaxialX8.rotors().get(0).bladePitchToDiameterRatio(),
+				1.0e-12
+		);
+	}
+
+	@Test
 	void aircraftPresetsRepresentDifferentFrameClasses() {
 		DroneConfig racing = directControl(DroneConfig.racingQuad());
 		DroneConfig cinewhoop = DroneConfig.cinewhoop();
@@ -319,6 +340,8 @@ class DronePhysicsTest {
 		assertTrue(cinewhoop.hoverThrottle() > racing.hoverThrottle());
 		assertTrue(heavyLift.massKg() > racing.massKg() * 3.0);
 		assertTrue(heavyLift.rotors().get(0).radiusMeters() > racing.rotors().get(0).radiusMeters() * 1.8);
+		assertTrue(heavyLift.rotors().get(0).bladePitchToDiameterRatio()
+				< racing.rotors().get(0).bladePitchToDiameterRatio());
 		assertTrue(heavyLift.motorTimeConstantSeconds() > racing.motorTimeConstantSeconds() * 2.0);
 		assertTrue(heavyLift.nominalBatteryVoltage() > racing.nominalBatteryVoltage());
 		assertEquals(6, hexLift.rotors().size());
@@ -333,6 +356,11 @@ class DronePhysicsTest {
 		assertEquals(8, coaxialX8.rotors().size());
 		assertTrue(coaxialX8.massKg() > octoLift.massKg());
 		assertTrue(coaxialX8.hoverThrottle() > octoLift.hoverThrottle());
+		assertEquals(
+				octoLift.rotors().get(0).bladePitchToDiameterRatio(),
+				coaxialX8.rotors().get(0).bladePitchToDiameterRatio(),
+				1.0e-12
+		);
 		assertEquals(coaxialX8.rotors().get(0).positionBodyMeters().x(), coaxialX8.rotors().get(1).positionBodyMeters().x(), 1.0e-9);
 		assertEquals(coaxialX8.rotors().get(0).positionBodyMeters().z(), coaxialX8.rotors().get(1).positionBodyMeters().z(), 1.0e-9);
 		assertTrue(coaxialX8.rotors().get(0).positionBodyMeters().y() > coaxialX8.rotors().get(1).positionBodyMeters().y());
@@ -9102,6 +9130,13 @@ class DronePhysicsTest {
 			sum += value;
 		}
 		return sum;
+	}
+
+	private static void assertLiftPropPitch(DroneConfig config) {
+		RotorSpec rotor = config.rotors().get(0);
+		assertEquals(DroneConfig.LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO, rotor.bladePitchToDiameterRatio(), 1.0e-12);
+		assertEquals(rotor.radiusMeters(), rotor.bladePitchMeters(), 1.0e-12);
+		assertEquals(12.81, Math.toDegrees(rotor.geometricBladePitchAngleRadians()), 0.03);
 	}
 
 	private static RotorSpec rotorLike(RotorSpec template, Vec3 positionBodyMeters, int spinDirection) {
