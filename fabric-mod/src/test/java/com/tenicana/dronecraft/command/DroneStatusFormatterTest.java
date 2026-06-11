@@ -30,6 +30,7 @@ class DroneStatusFormatterTest {
 				0.0, // rotorFlappingTilt
 				0.18, // rotorAdvanceRatio
 				0.32, // rotorPropellerAdvanceRatioJ
+				0.97, // rotorPropellerThrustScale
 				0.94, // rotorPropellerPowerScale
 				0.03, // rotorReverseFlowInboardFraction
 				0.32, // rotorTipMach
@@ -88,7 +89,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("scrape 0.00"));
 		assertTrue(status.contains("ETL"));
 		assertTrue(status.contains("ind 2.40m/s iloss 0%"));
-		assertTrue(status.contains("adv 0.18 J 0.32 ppwr 0.94 rev 0.03 tipmach 0.32"));
+		assertTrue(status.contains("adv 0.18 J 0.32 pthr 0.97 ppwr 0.94 rev 0.03 tipmach 0.32"));
 		assertTrue(status.contains("tipmach 0.32"));
 		assertTrue(status.contains("machloss 0%"));
 		assertTrue(status.contains("lowre 0.00"));
@@ -136,6 +137,7 @@ class DroneStatusFormatterTest {
 				9.2,
 				0.62,
 				0.58,
+				0.72,
 				0.72,
 				0.31,
 				0.74,
@@ -194,6 +196,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("rotor-flapping"));
 		assertTrue(warnings.contains("high-advance"));
 		assertTrue(warnings.contains("prop-advance"));
+		assertTrue(warnings.contains("prop-thrust-loss"));
 		assertTrue(warnings.contains("prop-power-loss"));
 		assertTrue(warnings.contains("reverse-flow"));
 		assertTrue(warnings.contains("tip-mach"));
@@ -239,7 +242,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
 		assertTrue(status.contains("vrsbuf 11% vrsF 0.24N"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
-		assertTrue(status.contains("adv 0.62 J 0.58 ppwr 0.72 rev 0.31 tipmach 0.74"));
+		assertTrue(status.contains("adv 0.62 J 0.58 pthr 0.72 ppwr 0.72 rev 0.31 tipmach 0.74"));
 		assertTrue(status.contains("rwake 0.47 wloss 9% coax 0.082 wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
@@ -265,6 +268,7 @@ class DroneStatusFormatterTest {
 			double rotorFlappingTilt,
 			double rotorAdvanceRatio,
 			double rotorPropellerAdvanceRatioJ,
+			double rotorPropellerThrustScale,
 			double rotorPropellerPowerScale,
 			double rotorReverseFlowInboardFraction,
 			double rotorTipMach,
@@ -370,6 +374,7 @@ class DroneStatusFormatterTest {
 				rotorInducedLagThrustScale,
 				rotorAdvanceRatio,
 				rotorPropellerAdvanceRatioJ,
+				rotorPropellerThrustScale,
 				rotorPropellerPowerScale,
 				rotorReverseFlowInboardFraction,
 				rotorTipMach,

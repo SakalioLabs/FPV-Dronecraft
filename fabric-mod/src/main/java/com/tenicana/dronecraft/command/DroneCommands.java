@@ -411,6 +411,7 @@ public final class DroneCommands {
 				drone.getRotorInducedLagThrustScale(),
 				drone.getRotorAdvanceRatio(),
 				drone.getRotorPropellerAdvanceRatioJ(),
+				drone.getRotorPropellerThrustScale(),
 				drone.getRotorPropellerPowerScale(),
 				drone.getRotorReverseFlowInboardFraction(),
 				drone.getRotorTipMach(),

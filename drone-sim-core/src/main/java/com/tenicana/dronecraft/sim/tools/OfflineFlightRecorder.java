@@ -592,6 +592,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_prop_advance_ratio_j",
 			"rotor_6_prop_advance_ratio_j",
 			"rotor_7_prop_advance_ratio_j",
+			"rotor_prop_thrust_scale",
+			"rotor_0_prop_thrust_scale",
+			"rotor_1_prop_thrust_scale",
+			"rotor_2_prop_thrust_scale",
+			"rotor_3_prop_thrust_scale",
+			"rotor_4_prop_thrust_scale",
+			"rotor_5_prop_thrust_scale",
+			"rotor_6_prop_thrust_scale",
+			"rotor_7_prop_thrust_scale",
 			"rotor_prop_power_scale",
 			"rotor_0_prop_power_scale",
 			"rotor_1_prop_power_scale",
@@ -911,7 +920,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -933,6 +942,7 @@ public final class OfflineFlightRecorder {
 				report.maxRotorDynamicInflowTimeConstantSeconds(),
 				report.maxRotorAdvanceRatio(),
 				report.maxRotorPropellerAdvanceRatioJ(),
+				report.minRotorPropellerThrustScale(),
 				report.minRotorPropellerPowerScale(),
 				report.maxRotorReverseFlowInboardFraction(),
 				report.maxRotorTipMach(),
@@ -1751,6 +1761,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorDynamicInflowTimeConstant = state.rotorDynamicInflowTimeConstantSeconds();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
 		double[] rotorPropellerAdvanceRatioJ = state.rotorPropellerAdvanceRatioJ();
+		double[] rotorPropellerThrustScale = state.rotorPropellerThrustScale();
 		double[] rotorPropellerPowerScale = state.rotorPropellerPowerScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -1902,6 +1913,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.averageRotorPropellerAdvanceRatioJ(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorPropellerAdvanceRatioJ, i), "%.5f");
+		}
+		appendExtra(builder, state.averageRotorPropellerThrustScale(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrOne(rotorPropellerThrustScale, i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorPropellerPowerScale(), "%.5f");
 		for (int i = 0; i < 8; i++) {
@@ -2146,6 +2161,7 @@ public final class OfflineFlightRecorder {
 		private double maxRotorDynamicInflowTimeConstantSeconds;
 		private double maxRotorAdvanceRatio;
 		private double maxRotorPropellerAdvanceRatioJ;
+		private double minRotorPropellerThrustScale = 1.0;
 		private double minRotorPropellerPowerScale = 1.0;
 		private double maxRotorReverseFlowInboardFraction;
 		private double maxRotorTipMach;
@@ -2233,6 +2249,7 @@ public final class OfflineFlightRecorder {
 			);
 			maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, state.maxRotorAdvanceRatio());
 			maxRotorPropellerAdvanceRatioJ = Math.max(maxRotorPropellerAdvanceRatioJ, state.maxRotorPropellerAdvanceRatioJ());
+			minRotorPropellerThrustScale = Math.min(minRotorPropellerThrustScale, state.minRotorPropellerThrustScale());
 			minRotorPropellerPowerScale = Math.min(minRotorPropellerPowerScale, state.minRotorPropellerPowerScale());
 			maxRotorReverseFlowInboardFraction = Math.max(maxRotorReverseFlowInboardFraction, state.maxRotorReverseFlowInboardFraction());
 			maxRotorTipMach = Math.max(maxRotorTipMach, state.maxRotorTipMach());
@@ -2432,6 +2449,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxRotorPropellerAdvanceRatioJ() {
 			return maxRotorPropellerAdvanceRatioJ;
+		}
+
+		public double minRotorPropellerThrustScale() {
+			return minRotorPropellerThrustScale;
 		}
 
 		public double minRotorPropellerPowerScale() {

@@ -7068,6 +7068,7 @@ class DronePhysicsTest {
 		double forwardLoad = 0.0;
 		double hoverTorque = 0.0;
 		double forwardTorque = 0.0;
+		double forwardPropellerThrustScale = 0.0;
 		double forwardPropellerPowerScale = 0.0;
 		double forwardAdvance = 0.0;
 		double forwardTranslationalLift = 0.0;
@@ -7086,6 +7087,7 @@ class DronePhysicsTest {
 				forwardLoad += forward.state().rotorAerodynamicLoadFactor(0);
 				hoverTorque += hover.state().motorAerodynamicTorqueNewtonMeters(0);
 				forwardTorque += forward.state().motorAerodynamicTorqueNewtonMeters(0);
+				forwardPropellerThrustScale += forward.state().rotorPropellerThrustScale(0);
 				forwardPropellerPowerScale += forward.state().rotorPropellerPowerScale(0);
 				forwardAdvance += forward.state().rotorAdvanceRatio(0);
 				forwardTranslationalLift += forward.state().rotorTranslationalLiftIntensity(0);
@@ -7099,6 +7101,7 @@ class DronePhysicsTest {
 		forwardLoad /= samples;
 		hoverTorque /= samples;
 		forwardTorque /= samples;
+		forwardPropellerThrustScale /= samples;
 		forwardPropellerPowerScale /= samples;
 		forwardAdvance /= samples;
 		forwardTranslationalLift /= samples;
@@ -7108,6 +7111,7 @@ class DronePhysicsTest {
 		double observedForwardLoad = forwardLoad;
 		double observedHoverTorque = hoverTorque;
 		double observedForwardTorque = forwardTorque;
+		double observedForwardPropellerThrustScale = forwardPropellerThrustScale;
 		double observedForwardPropellerPowerScale = forwardPropellerPowerScale;
 		double observedForwardAdvance = forwardAdvance;
 		double observedForwardTranslationalLift = forwardTranslationalLift;
@@ -7123,6 +7127,8 @@ class DronePhysicsTest {
 		assertTrue(observedForwardTranslationalLift > 0.55,
 				() -> "forwardTranslationalLift=" + observedForwardTranslationalLift);
 		// UIUC 5-inch forward-flow fits near J=0.45 give CT/static about 0.55 and Q/T about 1.25.
+		assertTrue(observedForwardPropellerThrustScale > 0.50 && observedForwardPropellerThrustScale < 0.63,
+				() -> "forwardPropellerThrustScale=" + observedForwardPropellerThrustScale);
 		assertTrue(observedForwardThrustRatioToHover > 0.50 && observedForwardThrustRatioToHover < 0.63,
 				() -> "forwardThrustRatioToHover=" + observedForwardThrustRatioToHover);
 		assertTrue(observedForwardPropellerPowerScale > 0.64 && observedForwardPropellerPowerScale < 0.74,
@@ -8629,6 +8635,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_advance_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_prop_advance_ratio_j"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_prop_advance_ratio_j"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_prop_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_reverse_flow_fraction"));
@@ -8960,6 +8968,10 @@ class DronePhysicsTest {
 		double loggedRotor0AdvanceRatio = Double.parseDouble(firstRow[indexOf(header, "rotor_0_advance_ratio")]);
 		double loggedRotor0PropAdvanceRatioJ = Double.parseDouble(firstRow[indexOf(header, "rotor_0_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotor0AdvanceRatio, loggedRotor0PropAdvanceRatioJ, 1.0e-4);
+		double loggedRotorPropellerThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_prop_thrust_scale")]);
+		double loggedRotor7PropellerThrustScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_prop_thrust_scale")]);
+		assertTrue(loggedRotorPropellerThrustScale > 0.0 && loggedRotorPropellerThrustScale <= 1.08);
+		assertTrue(loggedRotor7PropellerThrustScale > 0.0 && loggedRotor7PropellerThrustScale <= 1.08);
 		double loggedRotorPropellerPowerScale = Double.parseDouble(firstRow[indexOf(header, "rotor_prop_power_scale")]);
 		double loggedRotor7PropellerPowerScale = Double.parseDouble(firstRow[indexOf(header, "rotor_7_prop_power_scale")]);
 		assertTrue(loggedRotorPropellerPowerScale > 0.0 && loggedRotorPropellerPowerScale <= 1.08);
@@ -9079,6 +9091,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "rotor_coning_angle_deg") > 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") > 0.10);
 		assertTrue(maxColumn(lines, header, "rotor_dynamic_inflow_tau_s") > 0.02);
+		assertTrue(minColumn(lines, header, "rotor_prop_thrust_scale") < 0.90);
 		assertTrue(minColumn(lines, header, "rotor_prop_power_scale") < 0.95);
 		assertTrue(maxColumn(lines, header, "rotor_reverse_flow_fraction") > 0.05);
 		assertTrue(maxColumn(lines, header, "airframe_separation") > 0.50);
@@ -9289,6 +9302,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_windmilling"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_dynamic_inflow_tau_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_advance_ratio"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ambient_temperature_c"));
 		assertEquals("8", row[indexOf(header, "airframe_rotor_count")]);
@@ -9321,6 +9335,8 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) <= 0.36);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_thrust_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_thrust_scale")]) <= 1.08);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_interference")]) >= 0.0);

@@ -131,6 +131,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_prop_advance_ratio_j"));
 		assertTrue(csv.contains("rotor_0_prop_advance_ratio_j"));
 		assertTrue(csv.contains("rotor_3_prop_advance_ratio_j"));
+		assertTrue(csv.contains("rotor_prop_thrust_scale"));
+		assertTrue(csv.contains("rotor_0_prop_thrust_scale"));
+		assertTrue(csv.contains("rotor_7_prop_thrust_scale"));
 		assertTrue(csv.contains("rotor_prop_power_scale"));
 		assertTrue(csv.contains("rotor_0_prop_power_scale"));
 		assertTrue(csv.contains("rotor_7_prop_power_scale"));
@@ -431,6 +434,9 @@ class DroneBlackboxRecorderTest {
 		double loggedRotorAdvanceRatio = Double.parseDouble(row[indexOf(header, "rotor_advance_ratio")]);
 		double loggedRotorPropAdvanceRatioJ = Double.parseDouble(row[indexOf(header, "rotor_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotorAdvanceRatio, loggedRotorPropAdvanceRatioJ, 1.0e-4);
+		double loggedRotorPropellerThrustScale = Double.parseDouble(row[indexOf(header, "rotor_prop_thrust_scale")]);
+		assertTrue(loggedRotorPropellerThrustScale > 0.0);
+		assertTrue(loggedRotorPropellerThrustScale <= 1.08);
 		double loggedRotorPropellerPowerScale = Double.parseDouble(row[indexOf(header, "rotor_prop_power_scale")]);
 		assertTrue(loggedRotorPropellerPowerScale > 0.0);
 		assertTrue(loggedRotorPropellerPowerScale <= 1.08);
@@ -440,6 +446,9 @@ class DroneBlackboxRecorderTest {
 		double loggedRotor0AdvanceRatio = Double.parseDouble(row[indexOf(header, "rotor_0_advance_ratio")]);
 		double loggedRotor0PropAdvanceRatioJ = Double.parseDouble(row[indexOf(header, "rotor_0_prop_advance_ratio_j")]);
 		assertEquals(Math.PI * loggedRotor0AdvanceRatio, loggedRotor0PropAdvanceRatioJ, 1.0e-4);
+		double loggedRotor0PropellerThrustScale = Double.parseDouble(row[indexOf(header, "rotor_0_prop_thrust_scale")]);
+		assertTrue(loggedRotor0PropellerThrustScale > 0.0);
+		assertTrue(loggedRotor0PropellerThrustScale <= 1.08);
 		double loggedRotor0PropellerPowerScale = Double.parseDouble(row[indexOf(header, "rotor_0_prop_power_scale")]);
 		assertTrue(loggedRotor0PropellerPowerScale > 0.0);
 		assertTrue(loggedRotor0PropellerPowerScale <= 1.08);
@@ -669,6 +678,23 @@ class DroneBlackboxRecorderTest {
 						"rotor_7_prop_advance_ratio_j"
 				),
 				summary.maxRotorPropellerAdvanceRatioJ(),
+				1.0e-5
+		);
+		assertEquals(
+				minOfColumns(
+						lines,
+						header,
+						"rotor_prop_thrust_scale",
+						"rotor_0_prop_thrust_scale",
+						"rotor_1_prop_thrust_scale",
+						"rotor_2_prop_thrust_scale",
+						"rotor_3_prop_thrust_scale",
+						"rotor_4_prop_thrust_scale",
+						"rotor_5_prop_thrust_scale",
+						"rotor_6_prop_thrust_scale",
+						"rotor_7_prop_thrust_scale"
+				),
+				summary.minRotorPropellerThrustScale(),
 				1.0e-5
 		);
 		assertEquals(
@@ -1039,6 +1065,8 @@ class DroneBlackboxRecorderTest {
 				Double.parseDouble(row[indexOf(header, "rotor_7_prop_advance_ratio_j")]),
 				1.0e-4
 		);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_thrust_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_thrust_scale")]) <= 1.08);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);

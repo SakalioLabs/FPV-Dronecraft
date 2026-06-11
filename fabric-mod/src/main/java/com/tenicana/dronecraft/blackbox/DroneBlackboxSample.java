@@ -260,6 +260,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_prop_advance_ratio_j",
 			"rotor_2_prop_advance_ratio_j",
 			"rotor_3_prop_advance_ratio_j",
+			"rotor_prop_thrust_scale",
+			"rotor_0_prop_thrust_scale",
+			"rotor_1_prop_thrust_scale",
+			"rotor_2_prop_thrust_scale",
+			"rotor_3_prop_thrust_scale",
 			"rotor_prop_power_scale",
 			"rotor_0_prop_power_scale",
 			"rotor_1_prop_power_scale",
@@ -845,6 +850,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_prop_advance_ratio_j",
 			"rotor_6_prop_advance_ratio_j",
 			"rotor_7_prop_advance_ratio_j",
+			"rotor_4_prop_thrust_scale",
+			"rotor_5_prop_thrust_scale",
+			"rotor_6_prop_thrust_scale",
+			"rotor_7_prop_thrust_scale",
 			"rotor_4_prop_power_scale",
 			"rotor_5_prop_power_scale",
 			"rotor_6_prop_power_scale",
@@ -1318,6 +1327,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorPropellerAdvanceRatioJOrZero(state, 1), "%.5f");
 		row.add(rotorPropellerAdvanceRatioJOrZero(state, 2), "%.5f");
 		row.add(rotorPropellerAdvanceRatioJOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorPropellerThrustScale(), "%.5f");
+		row.add(rotorPropellerThrustScaleOrOne(state, 0), "%.5f");
+		row.add(rotorPropellerThrustScaleOrOne(state, 1), "%.5f");
+		row.add(rotorPropellerThrustScaleOrOne(state, 2), "%.5f");
+		row.add(rotorPropellerThrustScaleOrOne(state, 3), "%.5f");
 		row.add(state.averageRotorPropellerPowerScale(), "%.5f");
 		row.add(rotorPropellerPowerScaleOrOne(state, 0), "%.5f");
 		row.add(rotorPropellerPowerScaleOrOne(state, 1), "%.5f");
@@ -1844,6 +1858,7 @@ public final class DroneBlackboxSample {
 		double[] rotorDynamicInflowTimeConstant = state.rotorDynamicInflowTimeConstantSeconds();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
 		double[] rotorPropellerAdvanceRatioJ = state.rotorPropellerAdvanceRatioJ();
+		double[] rotorPropellerThrustScale = state.rotorPropellerThrustScale();
 		double[] rotorPropellerPowerScale = state.rotorPropellerPowerScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -1951,6 +1966,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorPropellerAdvanceRatioJ, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrOne(rotorPropellerThrustScale, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrOne(rotorPropellerPowerScale, i), "%.5f");
@@ -2084,6 +2102,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorPropellerAdvanceRatioJOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorPropellerAdvanceRatioJ(index) : 0.0;
+	}
+
+	private static double rotorPropellerThrustScaleOrOne(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorPropellerThrustScale(index) : 1.0;
 	}
 
 	private static double rotorPropellerPowerScaleOrOne(DroneState state, int index) {

@@ -382,9 +382,10 @@ public final class DroneHud {
 	private static String propellerStatusLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"PROP Mu%2.0f J%.2f PW%2.0f RF%2.0f TM%2.0f MC%2.0f Re%2.0f",
+				"PROP Mu%2.0f J%.2f PT%2.0f PW%2.0f RF%2.0f TM%2.0f MC%2.0f Re%2.0f",
 				drone.getRotorAdvanceRatio() * 100.0f,
 				drone.getRotorPropellerAdvanceRatioJ(),
+				drone.getRotorPropellerThrustScale() * 100.0f,
 				drone.getRotorPropellerPowerScale() * 100.0f,
 				drone.getRotorReverseFlowInboardFraction() * 100.0f,
 				drone.getRotorTipMach() * 100.0f,

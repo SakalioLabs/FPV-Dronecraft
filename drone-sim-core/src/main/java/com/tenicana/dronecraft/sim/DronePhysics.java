@@ -634,6 +634,8 @@ public final class DronePhysics {
 			double advanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedAerodynamicOmega);
 			state.setRotorAdvanceRatio(i, advanceRatio);
 			state.setRotorPropellerAdvanceRatioJ(i, rotorPropellerAdvanceRatioJ(advanceRatio));
+			state.setRotorPropellerThrustScale(i, rotorForwardAdvanceThrustScale(aerodynamicRotor, advanceRatio));
+			state.setRotorPropellerPowerScale(i, rotorForwardAdvancePowerScale(aerodynamicRotor, advanceRatio));
 			double kinematicRotorStall = rotorBladeStallIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, commandedAerodynamicOmega);
 			double rotorStall = kinematicRotorStall;
 			double desyncIntensity = updateEscDesyncIntensity(
@@ -690,6 +692,8 @@ public final class DronePhysics {
 			double aerodynamicAdvanceRatio = rotorAdvanceRatio(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega);
 			state.setRotorAdvanceRatio(i, aerodynamicAdvanceRatio);
 			state.setRotorPropellerAdvanceRatioJ(i, rotorPropellerAdvanceRatioJ(aerodynamicAdvanceRatio));
+			double propellerThrustScale = rotorForwardAdvanceThrustScale(aerodynamicRotor, aerodynamicAdvanceRatio);
+			state.setRotorPropellerThrustScale(i, propellerThrustScale);
 			double propellerPowerScale = rotorForwardAdvancePowerScale(aerodynamicRotor, aerodynamicAdvanceRatio);
 			state.setRotorPropellerPowerScale(i, propellerPowerScale);
 			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, environment.ambientTemperatureCelsius());
