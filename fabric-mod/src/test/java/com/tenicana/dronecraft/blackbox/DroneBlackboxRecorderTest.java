@@ -230,6 +230,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("motor_commutation_ripple"));
 		assertTrue(csv.contains("motor_0_commutation_ripple"));
 		assertTrue(csv.contains("motor_3_commutation_ripple"));
+		assertTrue(csv.contains("motor_regen_current_a"));
+		assertTrue(csv.contains("motor_0_regen_current_a"));
+		assertTrue(csv.contains("motor_3_regen_current_a"));
 		assertTrue(csv.contains("motor_phase_current_a"));
 		assertTrue(csv.contains("motor_0_phase_current_a"));
 		assertTrue(csv.contains("motor_3_phase_current_a"));
@@ -433,6 +436,8 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "pid_integral_relax_roll")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_commutation_ripple")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_commutation_ripple")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_regen_current_a")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_regen_current_a")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_phase_current_a")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_phase_current_a")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_current_ripple_a")]));
@@ -488,6 +493,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.minEscThermalLimit() > 0.0);
 		assertTrue(summary.maxBatteryCurrentAmps() > 0.0);
 		assertTrue(summary.maxBatteryRegenerativeCurrentAmps() >= 0.0);
+		assertTrue(summary.maxMotorRegenerativeCurrentAmps() >= 0.0);
 		assertTrue(summary.maxBatteryVoltageSpike() >= 0.0);
 		assertTrue(summary.maxWindGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
@@ -508,6 +514,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("mix-edge"));
 		assertTrue(summary.formatForChat().contains("mix-head"));
 		assertTrue(summary.formatForChat().contains("regen"));
+		assertTrue(summary.formatForChat().contains("motor-regen"));
 		assertTrue(summary.formatForChat().contains("spike"));
 		assertTrue(summary.formatForChat().contains("contact"));
 		assertTrue(summary.formatForChat().contains("propwash"));
@@ -846,6 +853,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_voltage_headroom")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_mechanical_loss_torque_nm")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_commutation_ripple")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_regen_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_phase_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_current_ripple_a")]) >= 0.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_7_torque_ripple_nm")]));

@@ -5453,6 +5453,7 @@ public final class DronePhysics {
 		for (int i = 0; i < state.motorCount(); i++) {
 			MotorCurrentEstimate estimate = estimateMotorCurrent(i);
 			state.setMotorCurrentAmps(i, estimate.thermalCurrentAmps());
+			state.setMotorRegenerativeCurrentAmps(i, estimate.regenerativeCurrentAmps());
 			state.setMotorPhaseCurrentAmps(i, estimate.phaseCurrentAmps());
 			state.setMotorCurrentRippleAmps(i, estimate.currentRippleAmps());
 			state.setMotorElectricalEfficiency(i, estimate.electricalEfficiency());
@@ -5472,7 +5473,12 @@ public final class DronePhysics {
 		RotorSpec rotor = config.rotors().get(index);
 		double rpmFraction = state.motorPower(config, index);
 		double perMotorMaxCurrentAmps = config.maxBatteryCurrentAmps() / state.motorCount();
-		double brakingLoad = config.motorActiveBrakingStrength() * Math.max(0.0, rpmFraction - escOutput);
+		double overrunBrakingLoad = config.motorActiveBrakingStrength() * Math.max(0.0, rpmFraction - escOutput);
+		double windmillingGeneratorLoad = config.motorActiveBrakingStrength()
+				* state.rotorWindmillingIntensity(index)
+				* (1.0 - smoothStep(0.22, 0.56, escOutput))
+				* smoothStep(0.025, 0.30, rpmFraction);
+		double brakingLoad = MathUtil.clamp(overrunBrakingLoad + 0.42 * windmillingGeneratorLoad, 0.0, 1.25);
 		double brakingCurrent = perMotorMaxCurrentAmps
 				* 0.16
 				* brakingLoad
@@ -5557,7 +5563,8 @@ public final class DronePhysics {
 		}
 
 		double overrun = Math.max(0.0, rpmFraction - escOutput);
-		double overrunFactor = smoothStep(0.025, 0.42, overrun);
+		double generatorDrive = Math.max(overrun, brakingLoad * 0.34);
+		double overrunFactor = smoothStep(0.025, 0.42, generatorDrive);
 		double rpmFactor = smoothStep(0.08, 0.75, rpmFraction);
 		double brakeAuthority = MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0);
 		return MathUtil.clamp((0.30 + 0.38 * brakeAuthority + 0.12 * rpmFactor) * overrunFactor, 0.0, 0.82);

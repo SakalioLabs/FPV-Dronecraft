@@ -96,6 +96,11 @@ public final class DroneBlackboxSample {
 			"motor_1_current_a",
 			"motor_2_current_a",
 			"motor_3_current_a",
+			"motor_regen_current_a",
+			"motor_0_regen_current_a",
+			"motor_1_regen_current_a",
+			"motor_2_regen_current_a",
+			"motor_3_regen_current_a",
 			"motor_phase_current_a",
 			"motor_0_phase_current_a",
 			"motor_1_phase_current_a",
@@ -607,6 +612,10 @@ public final class DroneBlackboxSample {
 			"motor_5_current_a",
 			"motor_6_current_a",
 			"motor_7_current_a",
+			"motor_4_regen_current_a",
+			"motor_5_regen_current_a",
+			"motor_6_regen_current_a",
+			"motor_7_regen_current_a",
 			"motor_4_phase_current_a",
 			"motor_5_phase_current_a",
 			"motor_6_phase_current_a",
@@ -849,6 +858,7 @@ public final class DroneBlackboxSample {
 		double[] motorTrackingError = state.motorTrackingError();
 		double[] motorActuatorAuthority = state.motorActuatorAuthority();
 		double[] motorCurrents = state.motorCurrentAmps();
+		double[] motorRegenerativeCurrents = state.motorRegenerativeCurrentAmps();
 		double[] motorPhaseCurrents = state.motorPhaseCurrentAmps();
 		double[] motorCurrentRipples = state.motorCurrentRippleAmps();
 		double[] motorCommutationRipples = state.motorCommutationRippleIntensity();
@@ -951,6 +961,11 @@ public final class DroneBlackboxSample {
 		row.add(valueOrZero(motorCurrents, 1), "%.3f");
 		row.add(valueOrZero(motorCurrents, 2), "%.3f");
 		row.add(valueOrZero(motorCurrents, 3), "%.3f");
+		row.add(state.averageMotorRegenerativeCurrentAmps(), "%.3f");
+		row.add(valueOrZero(motorRegenerativeCurrents, 0), "%.3f");
+		row.add(valueOrZero(motorRegenerativeCurrents, 1), "%.3f");
+		row.add(valueOrZero(motorRegenerativeCurrents, 2), "%.3f");
+		row.add(valueOrZero(motorRegenerativeCurrents, 3), "%.3f");
 		row.add(state.averageMotorPhaseCurrentAmps(), "%.3f");
 		row.add(valueOrZero(motorPhaseCurrents, 0), "%.3f");
 		row.add(valueOrZero(motorPhaseCurrents, 1), "%.3f");
@@ -1424,7 +1439,7 @@ public final class DroneBlackboxSample {
 		row.add(escCoolingFactorOrOne(state, 1), "%.5f");
 		row.add(escCoolingFactorOrOne(state, 2), "%.5f");
 		row.add(escCoolingFactorOrOne(state, 3), "%.5f");
-		addExtendedRotorColumns(row, state, environment, config, motorPowers, motorTargetOmega, motorTrackingError, motorActuatorAuthority, motorCurrents, motorPhaseCurrents, motorCurrentRipples, motorCommutationRipples, motorTorqueRipples, motorElectricalEfficiency, motorVoltageHeadroom, motorMechanicalLoss, rotorThrust, rotorForceBody, rotorTorqueBody, propStrikeSeverityByRotor);
+		addExtendedRotorColumns(row, state, environment, config, motorPowers, motorTargetOmega, motorTrackingError, motorActuatorAuthority, motorCurrents, motorRegenerativeCurrents, motorPhaseCurrents, motorCurrentRipples, motorCommutationRipples, motorTorqueRipples, motorElectricalEfficiency, motorVoltageHeadroom, motorMechanicalLoss, rotorThrust, rotorForceBody, rotorTorqueBody, propStrikeSeverityByRotor);
 
 		return new DroneBlackboxSample(row.build());
 	}
@@ -1465,6 +1480,7 @@ public final class DroneBlackboxSample {
 			double[] motorTrackingError,
 			double[] motorActuatorAuthority,
 			double[] motorCurrents,
+			double[] motorRegenerativeCurrents,
 			double[] motorPhaseCurrents,
 			double[] motorCurrentRipples,
 			double[] motorCommutationRipples,
@@ -1512,6 +1528,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(motorCurrents, i), "%.3f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(motorRegenerativeCurrents, i), "%.3f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(motorPhaseCurrents, i), "%.3f");

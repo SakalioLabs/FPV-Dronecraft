@@ -14,6 +14,7 @@ public record DroneBlackboxSummary(
 		double maxAirspeedMetersPerSecond,
 		double maxBatteryCurrentAmps,
 		double maxBatteryRegenerativeCurrentAmps,
+		double maxMotorRegenerativeCurrentAmps,
 		double maxBatterySagVoltage,
 		double maxBatteryVoltageSpike,
 		double maxBatteryBusRippleVoltage,
@@ -110,6 +111,7 @@ public record DroneBlackboxSummary(
 		double maxAirspeed = 0.0;
 		double maxCurrent = 0.0;
 		double maxRegenCurrent = 0.0;
+		double maxMotorRegenCurrent = 0.0;
 		double maxSag = 0.0;
 		double maxVoltageSpike = 0.0;
 		double maxBusRipple = 0.0;
@@ -203,6 +205,10 @@ public record DroneBlackboxSummary(
 			maxAirspeed = Math.max(maxAirspeed, value(row, "airspeed_mps"));
 			maxCurrent = Math.max(maxCurrent, value(row, "battery_current_a"));
 			maxRegenCurrent = Math.max(maxRegenCurrent, value(row, "battery_regen_current_a"));
+			maxMotorRegenCurrent = Math.max(
+					maxMotorRegenCurrent,
+					Math.max(value(row, "motor_regen_current_a"), maxIndexedValue(row, "motor_", "_regen_current_a"))
+			);
 			maxSag = Math.max(maxSag, value(row, "battery_ohmic_sag_v") + value(row, "battery_transient_sag_v"));
 			maxVoltageSpike = Math.max(maxVoltageSpike, value(row, "battery_voltage_spike_v"));
 			maxBusRipple = Math.max(maxBusRipple, value(row, "battery_bus_ripple_v"));
@@ -400,6 +406,7 @@ public record DroneBlackboxSummary(
 				maxAirspeed,
 				maxCurrent,
 				maxRegenCurrent,
+				maxMotorRegenCurrent,
 				maxSag,
 				maxVoltageSpike,
 				maxBusRipple,
@@ -495,7 +502,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -513,6 +520,7 @@ public record DroneBlackboxSummary(
 				maxImuSupplyNoiseIntensity,
 				maxBatteryCurrentAmps,
 				maxBatteryRegenerativeCurrentAmps,
+				maxMotorRegenerativeCurrentAmps,
 				minBatteryStateOfCharge * 100.0,
 				minBatteryCurrentLimit,
 				maxBatteryTemperatureCelsius,
@@ -599,6 +607,7 @@ public record DroneBlackboxSummary(
 				0.0, // maxAirspeedMetersPerSecond
 				0.0, // maxBatteryCurrentAmps
 				0.0, // maxBatteryRegenerativeCurrentAmps
+				0.0, // maxMotorRegenerativeCurrentAmps
 				0.0, // maxBatterySagVoltage
 				0.0, // maxBatteryVoltageSpike
 				0.0, // maxBatteryBusRippleVoltage

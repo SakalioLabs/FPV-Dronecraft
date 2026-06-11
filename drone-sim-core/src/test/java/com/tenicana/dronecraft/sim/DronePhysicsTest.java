@@ -3798,6 +3798,57 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void windmillingGeneratorLoadReportsPerMotorRegenCurrent() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 1.0)
+				.withMotorIdleAndAirmode(0.055, 1.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics windmilling = new DronePhysics(config);
+		DronePhysics poweredDescent = new DronePhysics(config);
+		DroneInput idle = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		DroneInput powered = new DroneInput(0.55, 0.0, 0.0, 0.0, true);
+		Vec3 descent = new Vec3(0.0, -14.0, 0.0);
+		double maxWindmillingMotorRegen = 0.0;
+		double maxPoweredMotorRegen = 0.0;
+
+		for (int i = 0; i < 180; i++) {
+			windmilling.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			windmilling.state().setOrientation(Quaternion.IDENTITY);
+			windmilling.state().setVelocityMetersPerSecond(descent);
+			windmilling.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			windmilling.step(idle, 0.005, DroneEnvironment.calm());
+			maxWindmillingMotorRegen = Math.max(maxWindmillingMotorRegen, windmilling.state().maxMotorRegenerativeCurrentAmps());
+
+			poweredDescent.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			poweredDescent.state().setOrientation(Quaternion.IDENTITY);
+			poweredDescent.state().setVelocityMetersPerSecond(descent);
+			poweredDescent.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			poweredDescent.step(powered, 0.005, DroneEnvironment.calm());
+			maxPoweredMotorRegen = Math.max(maxPoweredMotorRegen, poweredDescent.state().maxMotorRegenerativeCurrentAmps());
+		}
+		double observedWindmillingMotorRegen = maxWindmillingMotorRegen;
+		double observedPoweredMotorRegen = maxPoweredMotorRegen;
+
+		assertTrue(windmilling.state().maxRotorWindmillingIntensity() > 0.20,
+				() -> "windmilling=" + windmilling.state().maxRotorWindmillingIntensity());
+		assertTrue(observedWindmillingMotorRegen > 0.005,
+				() -> "windmillMotorRegen=" + observedWindmillingMotorRegen);
+		assertEquals(
+				windmilling.state().batteryRegenerativeCurrentAmps(),
+				windmilling.state().averageMotorRegenerativeCurrentAmps() * windmilling.state().motorCount(),
+				1.0e-9
+		);
+		assertTrue(poweredDescent.state().maxRotorWindmillingIntensity() < 0.05,
+				() -> "poweredWindmill=" + poweredDescent.state().maxRotorWindmillingIntensity());
+		assertTrue(observedPoweredMotorRegen < observedWindmillingMotorRegen * 0.35,
+				() -> "windmillMotorRegen=" + observedWindmillingMotorRegen
+						+ " poweredMotorRegen=" + observedPoweredMotorRegen);
+	}
+
+	@Test
 	void bladeElementStallBuildsAndClearsWithSeparationLag() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -6931,6 +6982,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_aero_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_commutation_ripple"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_commutation_ripple"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_regen_current_a"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_phase_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_phase_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_current_ripple_a"));
@@ -7132,6 +7185,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_attenuation")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_commutation_ripple")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_commutation_ripple")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_regen_current_a")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_regen_current_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_phase_current_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_phase_current_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_current_ripple_a")])));
@@ -7151,6 +7206,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_thermal_limit")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_mechanical_loss_torque_nm")])));
 		assertTrue(maxColumn(lines, header, "motor_commutation_ripple") > 0.0);
+		assertTrue(maxColumn(lines, header, "motor_regen_current_a") >= 0.0);
 		assertTrue(maxColumn(lines, header, "motor_current_ripple_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "motor_phase_current_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "motor_torque_ripple_nm") > 0.0);
@@ -7167,6 +7223,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxSpeedMetersPerSecond() > 8.0);
 		assertTrue(report.maxBatteryCurrentAmps() > 45.0);
 		assertTrue(report.maxBatteryRegenerativeCurrentAmps() > 0.01);
+		assertTrue(report.maxMotorRegenerativeCurrentAmps() > 0.0);
 		assertTrue(report.maxBatteryVoltageSpike() > 1.0e-4);
 		assertTrue(report.maxBatteryBusRippleVoltage() > 1.0e-4);
 		assertTrue(report.maxBatteryTemperatureCelsius() >= 25.0);
@@ -7222,10 +7279,12 @@ class DronePhysicsTest {
 		assertEquals(columnCount, row.length);
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_rotor_count"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_rpm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_5_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_thrust_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_5_windmilling"));
 		assertEquals("6", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_rpm")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_5_regen_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_thrust_n")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_5_windmilling")]) >= 0.0);
 		assertTrue(report.samples() > 100);
@@ -7257,6 +7316,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_voltage_headroom"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_mechanical_loss_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_commutation_ripple"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_phase_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_current_ripple_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("motor_7_torque_ripple_nm"));
@@ -7283,6 +7343,7 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_voltage_headroom")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_mechanical_loss_torque_nm")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_commutation_ripple")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_regen_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_phase_current_a")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_current_ripple_a")]) >= 0.0);
 		assertTrue(Double.isFinite(Double.parseDouble(row[indexOf(header, "motor_7_torque_ripple_nm")])));

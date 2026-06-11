@@ -78,6 +78,7 @@ public final class DroneState {
 	private double[] escCoolingFactor;
 	private double[] escThermalLimitByEsc;
 	private double[] motorCurrentAmps;
+	private double[] motorRegenerativeCurrentAmps;
 	private double[] motorTemperatureCelsius;
 	private double[] motorCoolingFactor;
 	private double[] rotorThrustNewtons;
@@ -182,6 +183,7 @@ public final class DroneState {
 		escCoolingFactor = new double[motorCount];
 		escThermalLimitByEsc = new double[motorCount];
 		motorCurrentAmps = new double[motorCount];
+		motorRegenerativeCurrentAmps = new double[motorCount];
 		motorTemperatureCelsius = new double[motorCount];
 		motorCoolingFactor = new double[motorCount];
 		rotorThrustNewtons = new double[motorCount];
@@ -1028,12 +1030,32 @@ public final class DroneState {
 		motorCurrentAmps[index] = Math.max(0.0, value);
 	}
 
+	public double motorRegenerativeCurrentAmps(int index) {
+		return motorRegenerativeCurrentAmps[index];
+	}
+
+	public double[] motorRegenerativeCurrentAmps() {
+		return Arrays.copyOf(motorRegenerativeCurrentAmps, motorRegenerativeCurrentAmps.length);
+	}
+
+	void setMotorRegenerativeCurrentAmps(int index, double value) {
+		motorRegenerativeCurrentAmps[index] = Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
 	public double averageMotorCurrentAmps() {
 		double sum = 0.0;
 		for (double current : motorCurrentAmps) {
 			sum += current;
 		}
 		return sum / motorCurrentAmps.length;
+	}
+
+	public double averageMotorRegenerativeCurrentAmps() {
+		double sum = 0.0;
+		for (double current : motorRegenerativeCurrentAmps) {
+			sum += current;
+		}
+		return sum / motorRegenerativeCurrentAmps.length;
 	}
 
 	public double motorTargetOmegaRadiansPerSecond(int index) {
@@ -1124,6 +1146,14 @@ public final class DroneState {
 		return max;
 	}
 
+	public double maxMotorRegenerativeCurrentAmps() {
+		double max = 0.0;
+		for (double current : motorRegenerativeCurrentAmps) {
+			max = Math.max(max, current);
+		}
+		return max;
+	}
+
 	public double motorTemperatureCelsius(int index) {
 		return motorTemperatureCelsius[index];
 	}
@@ -1194,6 +1224,7 @@ public final class DroneState {
 		Arrays.fill(escDesyncIntensity, 0.0);
 		Arrays.fill(escCoolingFactor, 1.0);
 		Arrays.fill(motorCurrentAmps, 0.0);
+		Arrays.fill(motorRegenerativeCurrentAmps, 0.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		Arrays.fill(rotorThrustNewtons, 0.0);
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
