@@ -191,9 +191,10 @@ public final class DronePhysics {
 	private record RotorVortexRingBuffet(
 			double thrustScale,
 			Vec3 forceBody,
-			double vibration
+			double vibration,
+			double thrustAmplitude
 	) {
-		private static final RotorVortexRingBuffet IDLE = new RotorVortexRingBuffet(1.0, Vec3.ZERO, 0.0);
+		private static final RotorVortexRingBuffet IDLE = new RotorVortexRingBuffet(1.0, Vec3.ZERO, 0.0, 0.0);
 	}
 
 	private record RotorBladeStallBuffet(
@@ -488,6 +489,8 @@ public final class DronePhysics {
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
 		RotorWakeInterference rotorWakeInterference = updateRotorWakeInterference(input.armed(), relativeAirVelocityBody, dtSeconds);
 		double vortexRingStateSum = 0.0;
+		double vortexRingThrustBuffetAmplitudeSum = 0.0;
+		double vortexRingMaxThrustBuffetAmplitude = 0.0;
 		double rotorVibrationSum = 0.0;
 		double rotorInflowSkewSum = 0.0;
 		Vec3 rotorInflowSkewTorqueSum = Vec3.ZERO;
@@ -500,6 +503,7 @@ public final class DronePhysics {
 		Vec3 rotorGyroscopicTorqueSum = Vec3.ZERO;
 		Vec3 rotorAngularDragTorqueSum = Vec3.ZERO;
 		Vec3 rotorWallEffectForceSum = Vec3.ZERO;
+		Vec3 vortexRingBuffetForceSum = Vec3.ZERO;
 
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
@@ -836,6 +840,9 @@ public final class DronePhysics {
 					vortexRingState,
 					dtSeconds
 			);
+			vortexRingThrustBuffetAmplitudeSum += vortexBuffet.thrustAmplitude();
+			vortexRingMaxThrustBuffetAmplitude = Math.max(vortexRingMaxThrustBuffetAmplitude, vortexBuffet.thrustAmplitude());
+			vortexRingBuffetForceSum = vortexRingBuffetForceSum.add(vortexBuffet.forceBody());
 			double thrust = nominalThrust * bladePassRipple.thrustScale() * stallBuffet.thrustScale() * vortexBuffet.thrustScale();
 			state.setRotorThrustNewtons(i, thrust);
 			state.setRotorBladePassRippleIntensity(i, bladePassRipple.intensity());
@@ -960,6 +967,9 @@ public final class DronePhysics {
 			state.setRotorSurfaceScrapeIntensity(i, surfaceScrapeDecay(surfaceScrape, dtSeconds));
 		}
 		state.setVortexRingStateIntensity(vortexRingStateSum / config.rotors().size());
+		state.setVortexRingThrustBuffetAmplitude(vortexRingThrustBuffetAmplitudeSum / config.rotors().size());
+		state.setVortexRingMaxThrustBuffetAmplitude(vortexRingMaxThrustBuffetAmplitude);
+		state.setVortexRingBuffetForceBodyNewtons(vortexRingBuffetForceSum);
 		state.setRotorVibration(rotorVibrationSum / config.rotors().size());
 		state.setRotorInflowSkewIntensity(rotorInflowSkewSum / config.rotors().size());
 		state.setRotorInflowSkewTorqueBodyNewtonMeters(rotorInflowSkewTorqueSum);
@@ -3311,6 +3321,7 @@ public final class DronePhysics {
 				+ 0.22 * Math.sin(phase * 2.41 + index * 0.37);
 		double thrustAmplitude = MathUtil.clamp(0.034 + 0.116 * intensity, 0.0, 0.18) * intensity;
 		double thrustScale = MathUtil.clamp(1.0 + thrustAmplitude * wave, 0.68, 1.24);
+		double thrustEnvelope = MathUtil.clamp(thrustAmplitude * 1.60, 0.0, 0.24);
 
 		Vec3 axis = rotorAxisBody(rotor);
 		Vec3 tangentA = BODY_RIGHT.subtract(axis.multiply(BODY_RIGHT.dot(axis))).normalized();
@@ -3336,7 +3347,7 @@ public final class DronePhysics {
 				0.0,
 				0.20
 		);
-		return new RotorVortexRingBuffet(thrustScale, lateralForce, vibration);
+		return new RotorVortexRingBuffet(thrustScale, lateralForce, vibration, thrustEnvelope);
 	}
 
 	private Vec3 updateRotorImbalanceForce(

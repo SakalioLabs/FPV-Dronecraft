@@ -8142,6 +8142,10 @@ class DronePhysicsTest {
 		double crossflowMinThrust = Double.POSITIVE_INFINITY;
 		double crossflowMaxThrust = Double.NEGATIVE_INFINITY;
 		double crossflowThrustSum = 0.0;
+		double verticalMaxTelemetryAmplitude = 0.0;
+		double crossflowMaxTelemetryAmplitude = 0.0;
+		double verticalMaxTelemetryForce = 0.0;
+		double crossflowMaxTelemetryForce = 0.0;
 		int samples = 0;
 
 		for (int i = 0; i < 420; i++) {
@@ -8168,6 +8172,22 @@ class DronePhysicsTest {
 				crossflowMinThrust = Math.min(crossflowMinThrust, crossflowThrust);
 				crossflowMaxThrust = Math.max(crossflowMaxThrust, crossflowThrust);
 				crossflowThrustSum += crossflowThrust;
+				verticalMaxTelemetryAmplitude = Math.max(
+						verticalMaxTelemetryAmplitude,
+						verticalDescent.state().maxVortexRingThrustBuffetAmplitude()
+				);
+				crossflowMaxTelemetryAmplitude = Math.max(
+						crossflowMaxTelemetryAmplitude,
+						crossflowEscape.state().maxVortexRingThrustBuffetAmplitude()
+				);
+				verticalMaxTelemetryForce = Math.max(
+						verticalMaxTelemetryForce,
+						verticalDescent.state().vortexRingBuffetForceBodyNewtons().length()
+				);
+				crossflowMaxTelemetryForce = Math.max(
+						crossflowMaxTelemetryForce,
+						crossflowEscape.state().vortexRingBuffetForceBodyNewtons().length()
+				);
 				samples++;
 			}
 		}
@@ -8178,6 +8198,10 @@ class DronePhysicsTest {
 		double crossflowHalfAmplitude = (crossflowMaxThrust - crossflowMinThrust) / (2.0 * crossflowMeanThrust);
 		double observedVerticalMinThrust = verticalMinThrust;
 		double observedVerticalMaxThrust = verticalMaxThrust;
+		double observedVerticalMaxTelemetryAmplitude = verticalMaxTelemetryAmplitude;
+		double observedCrossflowMaxTelemetryAmplitude = crossflowMaxTelemetryAmplitude;
+		double observedVerticalMaxTelemetryForce = verticalMaxTelemetryForce;
+		double observedCrossflowMaxTelemetryForce = crossflowMaxTelemetryForce;
 		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.82,
 				() -> "vrs=" + verticalDescent.state().vortexRingStateIntensity());
 		assertTrue(crossflowEscape.state().vortexRingStateIntensity() < 0.05,
@@ -8192,6 +8216,14 @@ class DronePhysicsTest {
 		assertTrue(crossflowHalfAmplitude < verticalHalfAmplitude * 0.55,
 				() -> "verticalHalfAmplitude=" + verticalHalfAmplitude
 						+ " crossflowHalfAmplitude=" + crossflowHalfAmplitude);
+		assertTrue(observedVerticalMaxTelemetryAmplitude > 0.12 && observedVerticalMaxTelemetryAmplitude < 0.27,
+				() -> "verticalMaxTelemetryAmplitude=" + observedVerticalMaxTelemetryAmplitude);
+		assertTrue(observedCrossflowMaxTelemetryAmplitude < observedVerticalMaxTelemetryAmplitude * 0.30,
+				() -> "verticalMaxTelemetryAmplitude=" + observedVerticalMaxTelemetryAmplitude
+						+ " crossflowMaxTelemetryAmplitude=" + observedCrossflowMaxTelemetryAmplitude);
+		assertTrue(observedVerticalMaxTelemetryForce > observedCrossflowMaxTelemetryForce + 0.02,
+				() -> "verticalMaxTelemetryForce=" + observedVerticalMaxTelemetryForce
+						+ " crossflowMaxTelemetryForce=" + observedCrossflowMaxTelemetryForce);
 		assertTrue(verticalDescent.state().rotorVibration() > crossflowEscape.state().rotorVibration() + 0.04,
 				() -> "verticalVibration=" + verticalDescent.state().rotorVibration()
 						+ " crossflowVibration=" + crossflowEscape.state().rotorVibration());
@@ -8548,6 +8580,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("accel_clip"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("propwash_wake_intensity"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("vortex_ring_state"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("vortex_ring_thrust_buffet"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("vortex_ring_max_thrust_buffet"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("vortex_ring_buffet_force_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_output_pitch_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_output_yaw_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mixer_output_roll_nm"));

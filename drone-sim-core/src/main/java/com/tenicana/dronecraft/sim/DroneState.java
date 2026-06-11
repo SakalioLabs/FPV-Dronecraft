@@ -171,6 +171,9 @@ public final class DroneState {
 	private double propwashIntensity;
 	private double propwashWakeIntensity;
 	private double vortexRingStateIntensity;
+	private double vortexRingThrustBuffetAmplitude;
+	private double vortexRingMaxThrustBuffetAmplitude;
+	private Vec3 vortexRingBuffetForceBodyNewtons = Vec3.ZERO;
 	private Vec3 propwashTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 windTurbulenceTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 airframeAerodynamicTorqueBodyNewtonMeters = Vec3.ZERO;
@@ -1366,6 +1369,9 @@ public final class DroneState {
 		propwashWakeIntensity = 0.0;
 		propwashTorqueBodyNewtonMeters = Vec3.ZERO;
 		vortexRingStateIntensity = 0.0;
+		vortexRingThrustBuffetAmplitude = 0.0;
+		vortexRingMaxThrustBuffetAmplitude = 0.0;
+		vortexRingBuffetForceBodyNewtons = Vec3.ZERO;
 		groundEffectDragForceBodyNewtons = Vec3.ZERO;
 		rotorWashDragForceBodyNewtons = Vec3.ZERO;
 		rotorWallEffectForceBodyNewtons = Vec3.ZERO;
@@ -2779,6 +2785,30 @@ public final class DroneState {
 
 	void setVortexRingStateIntensity(double vortexRingStateIntensity) {
 		this.vortexRingStateIntensity = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
+	}
+
+	public double vortexRingThrustBuffetAmplitude() {
+		return vortexRingThrustBuffetAmplitude;
+	}
+
+	void setVortexRingThrustBuffetAmplitude(double vortexRingThrustBuffetAmplitude) {
+		this.vortexRingThrustBuffetAmplitude = MathUtil.clamp(vortexRingThrustBuffetAmplitude, 0.0, 1.0);
+	}
+
+	public double maxVortexRingThrustBuffetAmplitude() {
+		return vortexRingMaxThrustBuffetAmplitude;
+	}
+
+	void setVortexRingMaxThrustBuffetAmplitude(double vortexRingMaxThrustBuffetAmplitude) {
+		this.vortexRingMaxThrustBuffetAmplitude = MathUtil.clamp(vortexRingMaxThrustBuffetAmplitude, 0.0, 1.0);
+	}
+
+	public Vec3 vortexRingBuffetForceBodyNewtons() {
+		return vortexRingBuffetForceBodyNewtons;
+	}
+
+	void setVortexRingBuffetForceBodyNewtons(Vec3 vortexRingBuffetForceBodyNewtons) {
+		this.vortexRingBuffetForceBodyNewtons = vortexRingBuffetForceBodyNewtons == null ? Vec3.ZERO : vortexRingBuffetForceBodyNewtons;
 	}
 
 	public Vec3 propwashTorqueBodyNewtonMeters() {
