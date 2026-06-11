@@ -378,6 +378,7 @@ public final class DroneCommands {
 				drone.getBatteryCurrentLimit(),
 				drone.getGyroClipIntensity(),
 				drone.getAccelerometerClipIntensity(),
+				drone.getImuSupplyNoiseIntensity(),
 				drone.getPidDTermLowPassCutoffHertz(),
 				drone.getFrameHealth(),
 				drone.getRotorHealth(),

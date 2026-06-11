@@ -24,6 +24,7 @@ public final class DroneState {
 	private Vec3 accelerometerBiasBodyMetersPerSecondSquared = Vec3.ZERO;
 	private double gyroClipIntensity;
 	private double accelerometerClipIntensity;
+	private double imuSupplyNoiseIntensity;
 	private double gyroDynamicNotchFrequencyHertz;
 	private double gyroDynamicNotchAttenuation;
 	private double gyroBladePassNotchFrequencyHertz;
@@ -407,6 +408,14 @@ public final class DroneState {
 
 	void setAccelerometerClipIntensity(double accelerometerClipIntensity) {
 		this.accelerometerClipIntensity = MathUtil.clamp(accelerometerClipIntensity, 0.0, 1.0);
+	}
+
+	public double imuSupplyNoiseIntensity() {
+		return imuSupplyNoiseIntensity;
+	}
+
+	void setImuSupplyNoiseIntensity(double imuSupplyNoiseIntensity) {
+		this.imuSupplyNoiseIntensity = MathUtil.clamp(imuSupplyNoiseIntensity, 0.0, 1.6);
 	}
 
 	public double barometerAltitudeMeters() {

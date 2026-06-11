@@ -58,7 +58,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("airmass 2.7m/s"));
 		assertTrue(status.contains("gust 0.00m/s"));
 		assertTrue(status.contains("shear 0.00m/s2"));
-		assertTrue(status.contains("imu clip G 0.00 A 0.00 dterm 78Hz"));
+		assertTrue(status.contains("imu clip G 0.00 A 0.00 pwr 0.00 dterm 78Hz"));
 		assertTrue(status.contains("diagnostic idle"));
 		assertTrue(status.contains("forces lift 1.4N sep 0.00 flap 0.0deg cushion 0.2N wash 0.8N wall 0.3N"));
 		assertTrue(status.contains("baro 14.6m 0.4m/s 1011.5hPa err 0.04m"));
@@ -135,6 +135,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("ground-slide"));
 		assertTrue(warnings.contains("contact-tumble"));
 		assertTrue(warnings.contains("imu-clip"));
+		assertTrue(warnings.contains("imu-power-noise"));
 		assertTrue(warnings.contains("esc-thermal-limit"));
 		assertTrue(warnings.contains("esc-desync"));
 		assertTrue(warnings.contains("voltage-headroom"));
@@ -252,6 +253,7 @@ class DroneStatusFormatterTest {
 				batterySoc < 0.20 ? 0.76 : 1.0,
 				diagnosticActive ? 0.12 : 0.0,
 				diagnosticActive ? 0.08 : 0.0,
+				diagnosticActive ? 0.42 : 0.0,
 				78.0,
 				frameHealth,
 				rotorHealth,

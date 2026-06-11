@@ -49,6 +49,7 @@ public final class DroneServerSelfTest {
 	private double maxMotorPower;
 	private double maxBatteryCurrent;
 	private double maxBatterySag;
+	private double maxImuSupplyNoise;
 	private double maxPropwash;
 	private double maxVortexRingState;
 	private double maxRotorAdvanceRatio;
@@ -127,6 +128,7 @@ public final class DroneServerSelfTest {
 		maxMotorPower = Math.max(maxMotorPower, drone.getMotorPower());
 		maxBatteryCurrent = Math.max(maxBatteryCurrent, drone.getBatteryCurrentAmps());
 		maxBatterySag = Math.max(maxBatterySag, drone.getBatterySagVoltage());
+		maxImuSupplyNoise = Math.max(maxImuSupplyNoise, drone.getImuSupplyNoiseIntensity());
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
 		maxVortexRingState = Math.max(maxVortexRingState, drone.getVortexRingStateIntensity());
 		maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, drone.getRotorAdvanceRatio());
@@ -189,6 +191,7 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_pitch_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_yaw_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_roll_torque_nm")
+				&& DroneBlackboxSample.CSV_HEADER.contains("imu_supply_noise")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_pitch_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_yaw_torque_nm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_roll_torque_nm")
@@ -332,6 +335,7 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_pitch_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_yaw_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_active_braking_roll_torque_nm")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("imu_supply_noise")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_pitch_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_yaw_torque_nm")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_blade_dissymmetry_roll_torque_nm")
@@ -493,6 +497,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_motor_power\": %.5f,\n"
 						+ "  \"max_battery_current_a\": %.5f,\n"
 						+ "  \"max_battery_sag_v\": %.5f,\n"
+						+ "  \"max_imu_supply_noise\": %.5f,\n"
 						+ "  \"max_propwash\": %.5f,\n"
 						+ "  \"max_vortex_ring_state\": %.5f,\n"
 						+ "  \"max_rotor_advance_ratio\": %.5f,\n"
@@ -528,6 +533,7 @@ public final class DroneServerSelfTest {
 				maxMotorPower,
 				maxBatteryCurrent,
 				maxBatterySag,
+				maxImuSupplyNoise,
 				maxPropwash,
 				maxVortexRingState,
 				maxRotorAdvanceRatio,

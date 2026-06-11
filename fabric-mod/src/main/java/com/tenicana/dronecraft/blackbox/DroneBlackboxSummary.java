@@ -17,6 +17,7 @@ public record DroneBlackboxSummary(
 		double maxBatterySagVoltage,
 		double maxBatteryVoltageSpike,
 		double maxBatteryBusRippleVoltage,
+		double maxImuSupplyNoiseIntensity,
 		double minBatteryVoltage,
 		double minBatteryStateOfCharge,
 		double minBatteryCurrentLimit,
@@ -108,6 +109,7 @@ public record DroneBlackboxSummary(
 		double maxSag = 0.0;
 		double maxVoltageSpike = 0.0;
 		double maxBusRipple = 0.0;
+		double maxImuSupplyNoise = 0.0;
 		double minVoltage = Double.POSITIVE_INFINITY;
 		double minSoc = Double.POSITIVE_INFINITY;
 		double minCurrentLimit = Double.POSITIVE_INFINITY;
@@ -196,6 +198,7 @@ public record DroneBlackboxSummary(
 			maxSag = Math.max(maxSag, value(row, "battery_ohmic_sag_v") + value(row, "battery_transient_sag_v"));
 			maxVoltageSpike = Math.max(maxVoltageSpike, value(row, "battery_voltage_spike_v"));
 			maxBusRipple = Math.max(maxBusRipple, value(row, "battery_bus_ripple_v"));
+			maxImuSupplyNoise = Math.max(maxImuSupplyNoise, value(row, "imu_supply_noise"));
 			minVoltage = Math.min(minVoltage, value(row, "battery_voltage"));
 			minSoc = Math.min(minSoc, value(row, "battery_soc"));
 			minCurrentLimit = Math.min(minCurrentLimit, value(row, "battery_current_limit"));
@@ -361,6 +364,7 @@ public record DroneBlackboxSummary(
 				maxSag,
 				maxVoltageSpike,
 				maxBusRipple,
+				maxImuSupplyNoise,
 				finiteOrZero(minVoltage),
 				finiteOrZero(minSoc),
 				finiteOrZero(minCurrentLimit),
@@ -448,7 +452,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s swirlT %.3fNm brakeT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s | battery min %.2fV sag %.2fV spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f ETL %.2f adv %.2f tipmach %.2f lowre %.2f load %.2f mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f swirl %.2fm/s swirlT %.3fNm brakeT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f flap %.1fdeg flex %.2f scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -463,6 +467,7 @@ public record DroneBlackboxSummary(
 				maxBatterySagVoltage,
 				maxBatteryVoltageSpike,
 				maxBatteryBusRippleVoltage,
+				maxImuSupplyNoiseIntensity,
 				maxBatteryCurrentAmps,
 				maxBatteryRegenerativeCurrentAmps,
 				minBatteryStateOfCharge * 100.0,
@@ -550,6 +555,7 @@ public record DroneBlackboxSummary(
 				0.0, // maxBatterySagVoltage
 				0.0, // maxBatteryVoltageSpike
 				0.0, // maxBatteryBusRippleVoltage
+				0.0, // maxImuSupplyNoiseIntensity
 				0.0, // minBatteryVoltage
 				0.0, // minBatteryStateOfCharge
 				1.0, // minBatteryCurrentLimit

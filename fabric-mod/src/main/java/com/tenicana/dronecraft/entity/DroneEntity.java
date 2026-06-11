@@ -205,6 +205,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> GYRO_ROLL_RATE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> GYRO_CLIP = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ACCEL_CLIP = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final EntityDataAccessor<Float> IMU_SUPPLY_NOISE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> GYRO_NOTCH_FREQUENCY = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> GYRO_NOTCH_ATTENUATION = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> PID_PITCH_OUTPUT = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
@@ -462,6 +463,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(GYRO_ROLL_RATE, 0.0f);
 		builder.define(GYRO_CLIP, 0.0f);
 		builder.define(ACCEL_CLIP, 0.0f);
+		builder.define(IMU_SUPPLY_NOISE, 0.0f);
 		builder.define(GYRO_NOTCH_FREQUENCY, 0.0f);
 		builder.define(GYRO_NOTCH_ATTENUATION, 0.0f);
 		builder.define(PID_PITCH_OUTPUT, 0.0f);
@@ -1065,6 +1067,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(GYRO_ROLL_RATE, (float) Math.toDegrees(gyroRates.z()));
 		entityData.set(GYRO_CLIP, (float) physics.state().gyroClipIntensity());
 		entityData.set(ACCEL_CLIP, (float) physics.state().accelerometerClipIntensity());
+		entityData.set(IMU_SUPPLY_NOISE, (float) physics.state().imuSupplyNoiseIntensity());
 		entityData.set(GYRO_NOTCH_FREQUENCY, (float) physics.state().gyroDynamicNotchFrequencyHertz());
 		entityData.set(GYRO_NOTCH_ATTENUATION, (float) physics.state().gyroDynamicNotchAttenuation());
 		entityData.set(PID_PITCH_OUTPUT, (float) pidOutput.x());
@@ -2099,6 +2102,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getAccelerometerClipIntensity() {
 		return entityData.get(ACCEL_CLIP);
+	}
+
+	public float getImuSupplyNoiseIntensity() {
+		return entityData.get(IMU_SUPPLY_NOISE);
 	}
 
 	public float getGyroNotchFrequencyHertz() {

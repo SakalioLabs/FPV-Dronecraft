@@ -178,13 +178,14 @@ public final class DroneHud {
 	private static String gyroRateLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"GYR P%+4.0f Y%+4.0f R%+4.0f N%3.0f/%2.0f C%2.0f",
+				"GYR P%+4.0f Y%+4.0f R%+4.0f N%3.0f/%2.0f C%2.0f P%2.0f",
 				drone.getGyroPitchRateDegreesPerSecond(),
 				drone.getGyroYawRateDegreesPerSecond(),
 				drone.getGyroRollRateDegreesPerSecond(),
 				drone.getGyroNotchFrequencyHertz(),
 				drone.getGyroNotchAttenuation() * 100.0f,
-				Math.max(drone.getGyroClipIntensity(), drone.getAccelerometerClipIntensity()) * 100.0f
+				Math.max(drone.getGyroClipIntensity(), drone.getAccelerometerClipIntensity()) * 100.0f,
+				drone.getImuSupplyNoiseIntensity() * 100.0f
 		);
 	}
 
@@ -509,7 +510,8 @@ public final class DroneHud {
 				+ Math.abs(drone.getTargetRollRateDegreesPerSecond() - drone.getGyroRollRateDegreesPerSecond());
 		if ((targetMagnitude > 120.0f && errorMagnitude > targetMagnitude * 0.85f)
 				|| drone.getGyroClipIntensity() > 0.05f
-				|| drone.getAccelerometerClipIntensity() > 0.05f) {
+				|| drone.getAccelerometerClipIntensity() > 0.05f
+				|| drone.getImuSupplyNoiseIntensity() > 0.35f) {
 			return WARN_COLOR;
 		}
 		return TEXT_COLOR;

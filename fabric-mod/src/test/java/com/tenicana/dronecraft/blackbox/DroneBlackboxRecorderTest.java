@@ -254,6 +254,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("battery_regen_current_a"));
 		assertTrue(csv.contains("battery_voltage_spike_v"));
 		assertTrue(csv.contains("battery_bus_ripple_v"));
+		assertTrue(csv.contains("imu_supply_noise"));
 		assertTrue(csv.contains("battery_temp_c"));
 		assertTrue(csv.contains("battery_cooling_factor"));
 		assertTrue(csv.contains("battery_thermal_limit"));
@@ -367,6 +368,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_regen_current_a")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_voltage_spike_v")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_bus_ripple_v")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "imu_supply_noise")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_temp_c")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_cooling_factor")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_thermal_limit")]));
@@ -473,6 +475,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("loop 10@200Hz"));
 		assertTrue(summary.formatForChat().contains("current-limit"));
 		assertTrue(summary.formatForChat().contains("ripple"));
+		assertTrue(summary.formatForChat().contains("imuP"));
 		assertTrue(summary.formatForChat().contains("batt-limit"));
 		assertTrue(summary.formatForChat().contains("track"));
 		assertTrue(summary.formatForChat().contains("auth"));

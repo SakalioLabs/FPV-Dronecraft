@@ -5686,7 +5686,8 @@ public final class DronePhysics {
 		double noise = config.gyroNoiseStdDevRadiansPerSecond();
 		double vibration = state.rotorVibration();
 		double busRipple = state.batteryBusRippleVoltage();
-		if (noise <= 0.0 && vibration <= 0.0 && busRipple <= 0.0) {
+		double supplyNoise = state.imuSupplyNoiseIntensity();
+		if (noise <= 0.0 && vibration <= 0.0 && busRipple <= 0.0 && supplyNoise <= 0.0) {
 			state.setGyroDynamicNotchFrequencyHertz(0.0);
 			state.setGyroDynamicNotchAttenuation(0.0);
 			state.setGyroBladePassNotchFrequencyHertz(0.0);
@@ -5714,7 +5715,7 @@ public final class DronePhysics {
 				noiseScale * (Math.sin(t * 389.0 + 2.1) + 0.30 * Math.sin(t * 811.0 + 0.4)),
 				noiseScale * (Math.sin(t * 463.0 + 1.1) + 0.32 * Math.sin(t * 877.0 + 2.8))
 		);
-		double railNoiseScale = Math.toRadians(0.42 * busRipple) * (0.35 + 0.65 * motorVibration);
+		double railNoiseScale = Math.toRadians(0.42 * busRipple + 0.11 * supplyNoise) * (0.35 + 0.65 * motorVibration);
 		Vec3 powerRailNoise = new Vec3(
 				railNoiseScale * (Math.sin(t * 617.0 + 0.9) + 0.28 * Math.sin(t * 1321.0 + 2.4)),
 				railNoiseScale * (Math.sin(t * 557.0 + 1.8) + 0.24 * Math.sin(t * 1187.0 + 0.6)),
@@ -5756,6 +5757,7 @@ public final class DronePhysics {
 		state.setGyroDynamicNotchAttenuation(0.0);
 		state.setGyroBladePassNotchFrequencyHertz(0.0);
 		state.setGyroBladePassNotchAttenuation(0.0);
+		state.setImuSupplyNoiseIntensity(0.0);
 		gyroDelayWriteIndex = 0;
 		gyroNoiseTimeSeconds = 0.0;
 		gyroRotorVibrationPhase = 0.0;
@@ -5837,7 +5839,8 @@ public final class DronePhysics {
 		double noise = config.accelerometerNoiseStdDevMetersPerSecondSquared();
 		double vibration = state.rotorVibration();
 		double busRipple = state.batteryBusRippleVoltage();
-		if (noise <= 0.0 && vibration <= 0.0 && busRipple <= 0.0) {
+		double supplyNoise = state.imuSupplyNoiseIntensity();
+		if (noise <= 0.0 && vibration <= 0.0 && busRipple <= 0.0 && supplyNoise <= 0.0) {
 			return Vec3.ZERO;
 		}
 
@@ -5845,7 +5848,7 @@ public final class DronePhysics {
 		double propwashVibration = 1.0 + 0.9 * state.propwashIntensity();
 		double scale = noise * motorVibration * propwashVibration / 1.30
 				+ 4.0 * vibration
-				+ 0.18 * busRipple * (0.30 + 0.70 * motorVibration);
+				+ (0.18 * busRipple + 0.24 * supplyNoise) * (0.30 + 0.70 * motorVibration);
 		double t = accelerometerNoiseTimeSeconds;
 		return new Vec3(
 				scale * (Math.sin(t * 173.0 + 0.7) + 0.42 * Math.sin(t * 353.0 + 2.2)),
@@ -6011,7 +6014,7 @@ public final class DronePhysics {
 				+ 0.040 * environment.turbulenceIntensity()
 				+ 0.090 * state.rotorVibration()
 				+ 0.035 * state.propwashIntensity()
-				+ 0.055 * state.batteryBusRippleVoltage() * motorRailCoupling;
+				+ (0.055 * state.batteryBusRippleVoltage() + 0.030 * state.imuSupplyNoiseIntensity()) * motorRailCoupling;
 		if (noiseAmplitude <= 1.0e-9) {
 			return 0.0;
 		}
@@ -6406,6 +6409,7 @@ public final class DronePhysics {
 		state.setBatteryTransientSagVoltage(transientSag);
 		state.setBatteryVoltageSpike(voltageSpike);
 		state.setBatteryBusRippleVoltage(busRipple);
+		state.setImuSupplyNoiseIntensity(imuSupplyNoiseIntensity(ohmicSag, transientSag, voltageSpike, busRipple));
 		double minimumVoltage = config.emptyBatteryVoltage() * 0.85;
 		double maximumBusVoltage = config.nominalBatteryVoltage() * 1.12;
 		state.setBatteryVoltage(MathUtil.clamp(openCircuitVoltage - ohmicSag - transientSag + voltageSpike - 0.08 * busRipple, minimumVoltage, maximumBusVoltage));
@@ -6417,6 +6421,31 @@ public final class DronePhysics {
 	private double currentBatteryStateOfCharge() {
 		double capacityAmpSeconds = Math.max(1.0e-9, config.batteryCapacityAmpHours() * 3600.0);
 		return MathUtil.clamp(1.0 - state.batteryAmpSecondsConsumed() / capacityAmpSeconds, 0.0, 1.0);
+	}
+
+	private double imuSupplyNoiseIntensity(double ohmicSag, double transientSag, double voltageSpike, double busRipple) {
+		double nominalVoltage = Math.max(1.0, config.nominalBatteryVoltage());
+		double sagStress = smoothStep(0.018, 0.145, (ohmicSag + transientSag) / nominalVoltage);
+		double rippleStress = smoothStep(0.0025, 0.052, busRipple / nominalVoltage);
+		double spikeStress = smoothStep(0.0035, 0.070, voltageSpike / nominalVoltage);
+		double currentRippleStress = 0.0;
+		for (int i = 0; i < state.motorCount(); i++) {
+			currentRippleStress += state.motorCurrentRippleAmps(i) * state.motorCurrentRippleAmps(i);
+		}
+		currentRippleStress = smoothStep(
+				0.08,
+				0.70,
+				Math.sqrt(currentRippleStress) / Math.max(1.0, config.maxBatteryCurrentAmps())
+		);
+		double highLoadWindow = smoothStep(0.12, 0.82, state.averageEscOutputCommand());
+		return MathUtil.clamp(
+				0.52 * sagStress
+						+ 0.60 * rippleStress
+						+ 0.45 * spikeStress
+						+ 0.24 * currentRippleStress * (0.35 + 0.65 * highLoadWindow),
+				0.0,
+				1.6
+		);
 	}
 
 	private double batteryOpenCircuitVoltageFromStateOfCharge(double stateOfCharge) {

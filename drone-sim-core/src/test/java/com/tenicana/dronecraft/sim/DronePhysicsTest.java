@@ -1272,6 +1272,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void imuSupplyNoiseTelemetryTracksSagRippleAndRegenerativeSpike() {
+		DroneConfig base = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.006)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 1.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics idealRail = new DronePhysics(base.withBattery(16.8, 16.7, 0.0, 20.0, 180.0));
+		DronePhysics noisyRail = new DronePhysics(base.withBattery(16.8, 16.7, 0.070, 1.5, 180.0));
+		DroneInput punch = new DroneInput(0.92, 0.0, 0.0, 0.0, true);
+		DroneInput brake = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+
+		double maxIdealSupplyNoise = 0.0;
+		double maxNoisySupplyNoise = 0.0;
+		for (int i = 0; i < 180; i++) {
+			idealRail.step(punch, 0.005);
+			noisyRail.step(punch, 0.005);
+			maxIdealSupplyNoise = Math.max(maxIdealSupplyNoise, idealRail.state().imuSupplyNoiseIntensity());
+			maxNoisySupplyNoise = Math.max(maxNoisySupplyNoise, noisyRail.state().imuSupplyNoiseIntensity());
+		}
+		for (int i = 0; i < 12; i++) {
+			idealRail.step(brake, 0.005);
+			noisyRail.step(brake, 0.005);
+			maxIdealSupplyNoise = Math.max(maxIdealSupplyNoise, idealRail.state().imuSupplyNoiseIntensity());
+			maxNoisySupplyNoise = Math.max(maxNoisySupplyNoise, noisyRail.state().imuSupplyNoiseIntensity());
+		}
+
+		double observedIdealSupplyNoise = maxIdealSupplyNoise;
+		double observedNoisySupplyNoise = maxNoisySupplyNoise;
+		assertTrue(Double.isFinite(observedNoisySupplyNoise));
+		assertTrue(observedNoisySupplyNoise > observedIdealSupplyNoise + 0.18,
+				() -> "idealSupplyNoise=" + observedIdealSupplyNoise + " noisySupplyNoise=" + observedNoisySupplyNoise);
+		assertTrue(observedNoisySupplyNoise > 0.30);
+	}
+
+	@Test
 	void batteryBusRippleRaisesEscDesyncAndCommutationTexture() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
@@ -6823,6 +6858,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_voltage_spike_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_current_limit"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("imu_supply_noise"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_x_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_y_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_z_mps"));
@@ -7046,6 +7082,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_actuator_authority")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "motor_7_actuator_authority")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_bus_ripple_v")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_cooling_factor")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_thermal_limit")])));
@@ -7128,6 +7165,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertTrue(Double.isFinite(report.maxRotorWakeSwirlTorqueNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxRotorActiveBrakingTorqueNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxImuSupplyNoiseIntensity()));
 	}
 
 	@Test

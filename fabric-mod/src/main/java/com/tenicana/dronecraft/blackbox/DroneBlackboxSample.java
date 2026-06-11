@@ -56,6 +56,7 @@ public final class DroneBlackboxSample {
 			"accel_bias_y_mps2",
 			"accel_bias_z_mps2",
 			"accel_clip",
+			"imu_supply_noise",
 			"throttle",
 			"input_pitch",
 			"input_yaw",
@@ -889,6 +890,7 @@ public final class DroneBlackboxSample {
 		row.add(accelerometerBias.y(), "%.4f");
 		row.add(accelerometerBias.z(), "%.4f");
 		row.add(state.accelerometerClipIntensity(), "%.5f");
+		row.add(state.imuSupplyNoiseIntensity(), "%.5f");
 		row.add(input.throttle(), "%.5f");
 		row.add(input.pitch(), "%.5f");
 		row.add(input.yaw(), "%.5f");

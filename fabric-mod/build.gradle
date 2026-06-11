@@ -129,6 +129,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"battery_regen_current_a",
 		"battery_voltage_spike_v",
 		"battery_bus_ripple_v",
+		"imu_supply_noise",
 		"battery_temp_c",
 		"battery_cooling_factor",
 		"battery_thermal_limit",

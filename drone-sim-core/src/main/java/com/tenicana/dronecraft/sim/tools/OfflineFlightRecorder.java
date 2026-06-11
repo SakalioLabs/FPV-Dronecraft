@@ -392,6 +392,7 @@ public final class OfflineFlightRecorder {
 			"motor_6_torque_ripple_nm",
 			"motor_7_torque_ripple_nm",
 			"battery_bus_ripple_v",
+			"imu_supply_noise",
 			"battery_temp_c",
 			"battery_cooling_factor",
 			"battery_thermal_limit",
@@ -648,7 +649,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, min_voltage=%.2f V, max_sag=%.2f V, max_spike=%.4f V, max_ripple=%.4f V, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, min_voltage=%.2f V, max_sag=%.2f V, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_rotor_adv=%.3f, max_tip_mach=%.3f, max_low_re=%.3f, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_coning=%.3f, max_arm_flex=%.3f, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -656,6 +657,7 @@ public final class OfflineFlightRecorder {
 				report.maxBatterySagVoltage(),
 				report.maxBatteryVoltageSpike(),
 				report.maxBatteryBusRippleVoltage(),
+				report.maxImuSupplyNoiseIntensity(),
 				report.maxBatteryTemperatureCelsius(),
 				report.minBatteryThermalLimit(),
 				report.maxPropwashIntensity(),
@@ -1310,6 +1312,7 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, valueOrZero(motorTorqueRipples, i), "%.6f");
 		}
 		appendExtra(builder, state.batteryBusRippleVoltage(), "%.5f");
+		appendExtra(builder, state.imuSupplyNoiseIntensity(), "%.5f");
 		appendExtra(builder, state.batteryTemperatureCelsius(), "%.3f");
 		appendExtra(builder, state.batteryCoolingFactor(), "%.5f");
 		appendExtra(builder, state.batteryThermalLimit(), "%.5f");
@@ -1491,6 +1494,7 @@ public final class OfflineFlightRecorder {
 		private double maxBatterySagVoltage;
 		private double maxBatteryVoltageSpike;
 		private double maxBatteryBusRippleVoltage;
+		private double maxImuSupplyNoiseIntensity;
 		private double maxBatteryTemperatureCelsius = 25.0;
 		private double minBatteryThermalLimit = 1.0;
 		private double maxPropwashIntensity;
@@ -1533,6 +1537,7 @@ public final class OfflineFlightRecorder {
 			maxBatterySagVoltage = Math.max(maxBatterySagVoltage, state.batteryOhmicSagVoltage() + state.batteryTransientSagVoltage());
 			maxBatteryVoltageSpike = Math.max(maxBatteryVoltageSpike, state.batteryVoltageSpike());
 			maxBatteryBusRippleVoltage = Math.max(maxBatteryBusRippleVoltage, state.batteryBusRippleVoltage());
+			maxImuSupplyNoiseIntensity = Math.max(maxImuSupplyNoiseIntensity, state.imuSupplyNoiseIntensity());
 			maxBatteryTemperatureCelsius = Math.max(maxBatteryTemperatureCelsius, state.batteryTemperatureCelsius());
 			minBatteryThermalLimit = Math.min(minBatteryThermalLimit, state.batteryThermalLimit());
 			maxPropwashIntensity = Math.max(maxPropwashIntensity, state.propwashIntensity());
@@ -1614,6 +1619,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxBatteryBusRippleVoltage() {
 			return maxBatteryBusRippleVoltage;
+		}
+
+		public double maxImuSupplyNoiseIntensity() {
+			return maxImuSupplyNoiseIntensity;
 		}
 
 		public double maxBatteryTemperatureCelsius() {
