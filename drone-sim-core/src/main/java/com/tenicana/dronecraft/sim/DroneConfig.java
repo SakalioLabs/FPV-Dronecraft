@@ -156,13 +156,13 @@ public record DroneConfig(
 	public static DroneConfig racingQuad() {
 		double arm = 0.18 / Math.sqrt(2.0);
 		double maxRotorThrust = 13.5;
-		double thrustCoefficient = 1.8e-5;
-		double yawTorquePerThrust = 0.018;
+		double thrustCoefficient = 1.45e-6;
+		double yawTorquePerThrust = 0.014;
 		double rotorRadius = 0.0635;
 		double transverseFlowLift = 0.08;
 		double axialFlowLoss = 0.16;
 		double diskDrag = 0.0028;
-		double rotorInertia = 1.6e-5;
+		double rotorInertia = 3.0e-6;
 		double inflowTimeConstant = 0.035;
 		double inflowLag = 0.16;
 		double flapping = 0.055;

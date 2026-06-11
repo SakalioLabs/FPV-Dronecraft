@@ -1,0 +1,263 @@
+category,name,metric,value,unit,source
+uiuc_static,DA4052 5x3.75 3-blade,k_n_per_rad2,1.1970258229679262e-06,N/(rad/s)^2,https://m-selig.ae.illinois.edu/props/volume-2/data/da4052_5x3.75_3b_static_1204ga.txt
+uiuc_static,DA4052 5x3.75 3-blade,qt_m,0.014063300257624914,m,https://m-selig.ae.illinois.edu/props/volume-2/data/da4052_5x3.75_3b_static_1204ga.txt
+uiuc_static,NR640 5in 15deg 3-blade,k_n_per_rad2,8.757202193706874e-07,N/(rad/s)^2,https://m-selig.ae.illinois.edu/props/volume-2/data/nr640_5_15deg_3b_static_0696md.txt
+uiuc_static,NR640 5in 15deg 3-blade,qt_m,0.011583916425380788,m,https://m-selig.ae.illinois.edu/props/volume-2/data/nr640_5_15deg_3b_static_0696md.txt
+uiuc_static,MicroInvent 5x4 3-blade,k_n_per_rad2,1.4520779059537646e-06,N/(rad/s)^2,https://m-selig.ae.illinois.edu/props/volume-2/data/mit_5x4_static_0362rd.txt
+uiuc_static,MicroInvent 5x4 3-blade,qt_m,0.013191758255003452,m,https://m-selig.ae.illinois.edu/props/volume-2/data/mit_5x4_static_0362rd.txt
+uiuc_static,APC SF 10x4.7,k_n_per_rad2,1.5300024001184797e-05,N/(rad/s)^2,https://m-selig.ae.illinois.edu/props/volume-1/data/apcsf_10x4.7_static_kt0835.txt
+uiuc_static,APC SF 10x4.7,qt_m,0.01636508141286297,m,https://m-selig.ae.illinois.edu/props/volume-1/data/apcsf_10x4.7_static_kt0835.txt
+uiuc_forward,DA4052 5x3.75 3-blade 7044 rpm,zero_ct_j_linear_fit,0.7577854919572184,advance ratio,https://m-selig.ae.illinois.edu/props/volume-2/data/da4052_5x3.75_3b_1209ga_7044.txt
+uiuc_forward,DA4052 5x3.75 3-blade 7044 rpm,ct_ratio_near_j_0.45,0.5509199628912818,ratio,https://m-selig.ae.illinois.edu/props/volume-2/data/da4052_5x3.75_3b_1209ga_7044.txt
+uiuc_forward,NR640 5in 15deg 3-blade 9547 rpm,zero_ct_j_linear_fit,0.694860396237104,advance ratio,https://m-selig.ae.illinois.edu/props/volume-2/data/nr640_5_15deg_3b_0702rd_9547.txt
+uiuc_forward,NR640 5in 15deg 3-blade 9547 rpm,ct_ratio_near_j_0.45,0.4087712200742542,ratio,https://m-selig.ae.illinois.edu/props/volume-2/data/nr640_5_15deg_3b_0702rd_9547.txt
+uiuc_forward,MicroInvent 5x4 3-blade 6057 rpm,zero_ct_j_linear_fit,0.8545157560167264,advance ratio,https://m-selig.ae.illinois.edu/props/volume-2/data/mit_5x4_0366rd_6057.txt
+uiuc_forward,MicroInvent 5x4 3-blade 6057 rpm,ct_ratio_near_j_0.45,0.6124360202794489,ratio,https://m-selig.ae.illinois.edu/props/volume-2/data/mit_5x4_0366rd_6057.txt
+uiuc_forward,APC SF 10x4.7 6513 rpm,zero_ct_j_linear_fit,0.6718063177176506,advance ratio,https://m-selig.ae.illinois.edu/props/volume-1/data/apcsf_10x4.7_rd0842_6513.txt
+uiuc_forward,APC SF 10x4.7 6513 rpm,ct_ratio_near_j_0.45,0.4811649256093701,ratio,https://m-selig.ae.illinois.edu/props/volume-1/data/apcsf_10x4.7_rd0842_6513.txt
+mqtb_100pct,HQ v1s 5x4x3,k_n_per_rad2,1.206949259293976e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5x4x3,avg_max_current,27.76,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ 5x4x3GF,k_n_per_rad2,1.3893644604838392e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ 5x4x3GF,avg_max_current,31.76,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5x4.3x3PC,k_n_per_rad2,1.4097439974673437e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5x4.3x3PC,avg_max_current,32.27,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,DAL Cyclone 5x4.5x3,k_n_per_rad2,1.4603061038052626e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,DAL Cyclone 5x4.5x3,avg_max_current,33.32,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,T-Motor 5143 5.1x4.3x3,k_n_per_rad2,1.5284010776545647e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,T-Motor 5143 5.1x4.3x3,avg_max_current,35.35,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,Gemfan 5149 5.1x4.9x3,k_n_per_rad2,1.642636805586088e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,Gemfan 5149 5.1x4.9x3,avg_max_current,36.7,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,DAL Cyclone 5x4.6x3,k_n_per_rad2,1.659463694990152e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,DAL Cyclone 5x4.6x3,avg_max_current,37.07,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,Lumenier Buttercutter 5x5x3,k_n_per_rad2,1.599071260617304e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,Lumenier Buttercutter 5x5x3,avg_max_current,35.5,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5x5x3,k_n_per_rad2,1.7981905379717663e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5x5x3,avg_max_current,39.69,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5.1x4.6x3,k_n_per_rad2,2.011590117047321e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ v1s 5.1x4.6x3,avg_max_current,43.73,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ 6x3.5,k_n_per_rad2,1.8012601620975851e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,HQ 6x3.5,avg_max_current,37.35,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,KingKong 6x4,k_n_per_rad2,2.1431474418959134e-06,N/(rad/s)^2,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+mqtb_100pct,KingKong 6x4,avg_max_current,41.19,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+open_source_model,RotorS Firefly,mass_kg,1.5,kg,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,radius_m,0.1,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,k_n_per_rad2,8.54858e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,qt_m,0.016,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,normalized_ct,0.17218592406339683,CT,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Firefly,max_omega_rad_s,838.0,rad/s,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/firefly.xacro
+open_source_model,RotorS Hummingbird,mass_kg,0.68,kg,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,radius_m,0.1,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,k_n_per_rad2,8.54858e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,qt_m,0.016,m,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,normalized_ct,0.17218592406339683,CT,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,RotorS Hummingbird,max_omega_rad_s,838.0,rad/s,https://raw.githubusercontent.com/ethz-asl/rotors_simulator/master/rotors_description/urdf/hummingbird.xacro
+open_source_model,PX4 Gazebo Iris,mass_kg,1.5,kg,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,radius_m,0.128,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,k_n_per_rad2,5.84e-06,N/(rad/s)^2,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,qt_m,0.06,m,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,normalized_ct,0.04382042989922561,CT,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,PX4 Gazebo Iris,max_omega_rad_s,1100.0,rad/s,https://raw.githubusercontent.com/PX4/PX4-SITL_gazebo-classic/main/models/iris/iris.sdf.jinja
+open_source_model,gym-pybullet-drones Crazyflie,mass_kg,0.027,kg,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,radius_m,0.0231348,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,k_n_per_rad2,3.16e-10,N/(rad/s)^2,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,qt_m,0.025126582278481014,m,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,normalized_ct,nan,CT,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,gym-pybullet-drones Crazyflie,max_omega_rad_s,nan,rad/s,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/assets/cf2x.urdf
+open_source_model,Flightmare quadrotor,mass_kg,0.73,kg,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
+open_source_model,Flightmare quadrotor,radius_m,nan,m,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
+open_source_model,Flightmare quadrotor,k_n_per_rad2,1.3298253500372892e-06,N/(rad/s)^2,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
+open_source_model,Flightmare quadrotor,qt_m,0.016,m,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
+open_source_model,Flightmare quadrotor,normalized_ct,nan,CT,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
+open_source_model,Flightmare quadrotor,max_omega_rad_s,3000.0,rad/s,https://raw.githubusercontent.com/uzh-rpg/flightmare/master/flightlib/configs/quadrotor_env.yaml
+current_preset,racingQuad,max_rpm_from_k,29137.63274949454,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,racingQuad,tip_mach_at_max,0.5598285066733504,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,racingQuad,thrust_to_weight,5.005879590982557,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,racingQuad,hover_throttle_linear,0.1997650925925926,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,racingQuad,hover_disk_loading_n_m2,212.89038439324807,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,racingQuad,hover_induced_velocity_m_s,9.321696972452155,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,cinewhoop,max_rpm_from_k,7964.663928742473,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,cinewhoop,tip_mach_at_max,0.0915752410767852,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,cinewhoop,thrust_to_weight,3.434833559504601,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,cinewhoop,hover_throttle_linear,0.29113492187499995,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,cinewhoop,hover_disk_loading_n_m2,513.4134285105708,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,cinewhoop,hover_induced_velocity_m_s,14.47606650416079,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,heavyLift,max_rpm_from_k,8775.19797885932,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,heavyLift,tip_mach_at_max,0.33720007541470826,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,heavyLift,thrust_to_weight,3.444374763836558,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,heavyLift,hover_throttle_linear,0.29032845394736845,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,heavyLift,hover_disk_loading_n_m2,217.72880222036736,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,heavyLift,hover_induced_velocity_m_s,9.427030225126895,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,hexLift,max_rpm_from_k,8115.341605103235,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,hexLift,tip_mach_at_max,0.25782387023367154,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,hexLift,thrust_to_weight,3.7875173624894476,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,hexLift,hover_throttle_linear,0.26402519230769234,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,hexLift,hover_disk_loading_n_m2,198.19388224408073,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,hexLift,hover_induced_velocity_m_s,8.994190466097608,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,octoLift,max_rpm_from_k,8269.933431326881,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,octoLift,tip_mach_at_max,0.28775764644672186,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,octoLift,thrust_to_weight,2.8791987189965034,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,octoLift,hover_throttle_linear,0.3473188541666667,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,octoLift,hover_disk_loading_n_m2,200.62915678961286,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,octoLift,hover_induced_velocity_m_s,9.049279073542952,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,coaxialX8,max_rpm_from_k,8269.933431326881,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,coaxialX8,tip_mach_at_max,0.28775764644672186,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,coaxialX8,thrust_to_weight,2.719243234607809,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,coaxialX8,hover_throttle_linear,0.367749375,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,coaxialX8,hover_disk_loading_n_m2,212.43087189488418,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+current_preset,coaxialX8,hover_induced_velocity_m_s,9.311631346033977,,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+comparison,racingQuad vs MiniQuadTestBench 5in mean,k ratio current/source,0.9751228786467787,x,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+comparison,racingQuad vs UIUC 5in mean,k ratio current/source,1.234104188978682,x,UIUC 5in static rows
+comparison,racingQuad yaw torque,Q/T ratio current/UIUC_5in_mean,1.0813879631745213,x,UIUC 5in static rows
+comparison,heavyLift vs APC SF 10x4.7,k ratio current/source,2.941171856757565,x,https://m-selig.ae.illinois.edu/props/volume-1/data/apcsf_10x4.7_static_kt0835.txt
+comparison,heavyLift yaw torque vs APC SF 10x4.7,Q/T ratio current/source,1.8331714485954205,x,https://m-selig.ae.illinois.edu/props/volume-1/data/apcsf_10x4.7_static_kt0835.txt
+comparison,racingQuad fitted HQ5x4x3 hover current,total_motor_current,18.03907695434466,A,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+comparison,racingQuad fitted HQ5x4x3 current-limit thrust,per_motor_thrust_at_90A_pack,10.806817561897978,N,https://www.miniquadtestbench.com/assets/components/motordata/motorinfo.php?uid=259
+comparison,racingQuad yaw torque vs ZJU single-rotor kI/kT,Q/T ratio current/source,0.878751624673108,x,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+comparison,coaxialX8 geometry spacing,upper_lower_separation_over_diameter,0.72,D,https://raw.githubusercontent.com/newdexterity/Coaxial-Benchmarking-Platform/master/README.md
+zju_ground_effect,ZJU single-rotor platform kT,k_n_per_rad2,3.655131303542243e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+zju_ground_effect,ZJU single-rotor platform kT,qt_m,0.015931691739640246,m,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+zju_ground_effect,ZJU quadrotor platform kT,k_n_per_rad2,3.4505942301234556e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+zju_ground_effect,ZJU quadrotor platform kT,qt_m,0.01687605708245243,m,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+zju_ground_effect,ZJU real-flight hover kT,k_n_per_rad2,3.917299866216792e-06,N/(rad/s)^2,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+zju_ground_effect,ZJU real-flight hover kT,qt_m,0.014865449974393593,m,https://raw.githubusercontent.com/ZJU-FAST-Lab/Ground-effect-controller/master/README.md
+ground_effect_shape,racingQuad,current_multiplier_at_1.0_R,1.143916125,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,racingQuad,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,racingQuad,current_multiplier_at_2.0_R,1.1118645,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,racingQuad,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,racingQuad,current_multiplier_at_4.0_R,1.059858,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,racingQuad,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,cinewhoop,current_multiplier_at_1.0_R,1.2162961066666667,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,cinewhoop,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,cinewhoop,current_multiplier_at_2.0_R,1.1938244266666667,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,cinewhoop,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,cinewhoop,current_multiplier_at_4.0_R,1.1525777066666667,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,cinewhoop,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,heavyLift,current_multiplier_at_1.0_R,1.0959440833333334,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,heavyLift,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,heavyLift,current_multiplier_at_2.0_R,1.0745763333333334,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,heavyLift,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,heavyLift,current_multiplier_at_4.0_R,1.0399053333333332,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,heavyLift,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,hexLift,current_multiplier_at_1.0_R,1.0891,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,hexLift,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,hexLift,current_multiplier_at_2.0_R,1.0704,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,hexLift,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,hexLift,current_multiplier_at_4.0_R,1.0396,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,hexLift,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,octoLift,current_multiplier_at_1.0_R,1.081,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,octoLift,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,octoLift,current_multiplier_at_2.0_R,1.064,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,octoLift,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,octoLift,current_multiplier_at_4.0_R,1.036,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,octoLift,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,coaxialX8,current_multiplier_at_1.0_R,1.081,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,coaxialX8,gympyb_cf2_multiplier_at_1.0_R,1.7105368749999998,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,coaxialX8,current_multiplier_at_2.0_R,1.064,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,coaxialX8,gympyb_cf2_multiplier_at_2.0_R,1.17763421875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+ground_effect_shape,coaxialX8,current_multiplier_at_4.0_R,1.036,x,C:\Users\Teni\Documents\minecraft-mod\drone-sim-core\src\main\java\com\tenicana\dronecraft\sim\DroneConfig.java
+ground_effect_shape,coaxialX8,gympyb_cf2_multiplier_at_4.0_R,1.0444085546875,x,https://raw.githubusercontent.com/utiasDSL/gym-pybullet-drones/main/gym_pybullet_drones/envs/BaseAviary.py
+vrs_reference,racingQuad,hover_induced_velocity_m_s,9.321696972452155,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,racingQuad,current_vrs_entry_m_s,4.1947636376034705,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,racingQuad,current_vrs_full_entry_m_s,8.855612123829546,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,racingQuad,paper_peak_loss_low_m_s,11.186036366942586,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,racingQuad,paper_peak_loss_high_m_s,12.118206064187802,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,racingQuad,propwash_start_ratio_vi,0.23600853004571232,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,racingQuad,propwash_full_ratio_vi,0.8045745342467465,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,hover_induced_velocity_m_s,14.47606650416079,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,current_vrs_entry_m_s,6.514229926872356,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,current_vrs_full_entry_m_s,13.75226317895275,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,paper_peak_loss_low_m_s,17.371279804992948,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,paper_peak_loss_high_m_s,18.81888645540903,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,propwash_start_ratio_vi,0.11052726232917756,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,cinewhoop,propwash_full_ratio_vi,0.3453976947786799,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,hover_induced_velocity_m_s,9.427030225126895,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,current_vrs_entry_m_s,4.242163601307103,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,current_vrs_full_entry_m_s,8.95567871387055,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,paper_peak_loss_low_m_s,11.312436270152274,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,paper_peak_loss_high_m_s,12.255139292664964,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,propwash_start_ratio_vi,0.15911691849697118,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,heavyLift,propwash_full_ratio_vi,0.583428701155561,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,hover_induced_velocity_m_s,8.994190466097608,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,current_vrs_entry_m_s,4.047385709743923,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,current_vrs_full_entry_m_s,8.544480942792728,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,paper_peak_loss_low_m_s,10.79302855931713,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,paper_peak_loss_high_m_s,11.69244760592689,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,propwash_start_ratio_vi,0.1556560321106287,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,hexLift,propwash_full_ratio_vi,0.5781509764109067,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,hover_induced_velocity_m_s,9.049279073542952,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,current_vrs_entry_m_s,4.072175583094328,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,current_vrs_full_entry_m_s,8.596815119865804,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,paper_peak_loss_low_m_s,10.85913488825154,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,paper_peak_loss_high_m_s,11.764062795605838,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,propwash_start_ratio_vi,0.13260724862695375,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,octoLift,propwash_full_ratio_vi,0.530428994507815,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,hover_induced_velocity_m_s,9.311631346033977,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,current_vrs_entry_m_s,4.19023410571529,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,current_vrs_full_entry_m_s,8.846049778732278,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,paper_peak_loss_low_m_s,11.173957615240772,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,paper_peak_loss_high_m_s,12.10512074984417,m/s,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,propwash_start_ratio_vi,0.12887108127525965,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+vrs_reference,coaxialX8,propwash_full_ratio_vi,0.5154843251010386,vi,https://www.cambridge.org/core/journals/flow/article/effects-of-rotor-separation-on-the-axial-descent-performance-of-dualrotor-configurations/BE7FE0D2E732E777CBD43F8E65CA0692
+battery_ir,racingQuad,estimated_cells,4,S,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,racingQuad,per_cell_resistance_mohm,4.5,mohm/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,racingQuad,current_limit_c,60.0,C,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,racingQuad,current_limit_pack_sag_v,1.6199999999999999,V,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,racingQuad,current_limit_cell_sag_v,0.40499999999999997,V/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,cinewhoop,estimated_cells,4,S,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,cinewhoop,per_cell_resistance_mohm,8.75,mohm/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,cinewhoop,current_limit_c,50.0,C,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,cinewhoop,current_limit_pack_sag_v,2.2750000000000004,V,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,cinewhoop,current_limit_cell_sag_v,0.5687500000000001,V/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,heavyLift,estimated_cells,6,S,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,heavyLift,per_cell_resistance_mohm,4.666666666666667,mohm/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,heavyLift,current_limit_c,28.0,C,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,heavyLift,current_limit_pack_sag_v,3.92,V,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,heavyLift,current_limit_cell_sag_v,0.6533333333333333,V/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,hexLift,estimated_cells,6,S,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,hexLift,per_cell_resistance_mohm,4.333333333333333,mohm/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,hexLift,current_limit_c,26.666666666666668,C,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,hexLift,current_limit_pack_sag_v,4.16,V,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,hexLift,current_limit_cell_sag_v,0.6933333333333334,V/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,octoLift,estimated_cells,8,S,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,octoLift,per_cell_resistance_mohm,3.75,mohm/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,octoLift,current_limit_c,27.5,C,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,octoLift,current_limit_pack_sag_v,6.6,V,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,octoLift,current_limit_cell_sag_v,0.825,V/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,coaxialX8,estimated_cells,8,S,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,coaxialX8,per_cell_resistance_mohm,3.75,mohm/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,coaxialX8,current_limit_c,27.5,C,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,coaxialX8,current_limit_pack_sag_v,6.6,V,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+battery_ir,coaxialX8,current_limit_cell_sag_v,0.825,V/cell,https://chinahobbyline.com/blogs/news/lipo-internal-resistance-explained
+coaxial_spacing,coaxialX8,upper_lower_separation_m,0.1656,m,https://raw.githubusercontent.com/newdexterity/Coaxial-Benchmarking-Platform/master/README.md
+coaxial_spacing,coaxialX8,separation_over_radius,1.44,R,https://raw.githubusercontent.com/newdexterity/Coaxial-Benchmarking-Platform/master/README.md
+coaxial_spacing,coaxialX8,separation_over_diameter,0.72,D,https://raw.githubusercontent.com/newdexterity/Coaxial-Benchmarking-Platform/master/README.md
+motor_response,racingQuad,motor_tau_s,0.045,s,RotorS/PX4 timeConstantUp/Down
+motor_response,racingQuad,rotor_inflow_tau_s,0.035,s,RotorS/PX4 timeConstantUp/Down
+motor_response,racingQuad,motor_tau_vs_ref_up,3.599999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,racingQuad,motor_tau_vs_ref_down,1.7999999999999996,x,RotorS/PX4 timeConstantUp/Down
+motor_response,racingQuad,inflow_tau_vs_ref_up,2.8,x,RotorS/PX4 timeConstantUp/Down
+motor_response,cinewhoop,motor_tau_s,0.07,s,RotorS/PX4 timeConstantUp/Down
+motor_response,cinewhoop,rotor_inflow_tau_s,0.055,s,RotorS/PX4 timeConstantUp/Down
+motor_response,cinewhoop,motor_tau_vs_ref_up,5.6,x,RotorS/PX4 timeConstantUp/Down
+motor_response,cinewhoop,motor_tau_vs_ref_down,2.8,x,RotorS/PX4 timeConstantUp/Down
+motor_response,cinewhoop,inflow_tau_vs_ref_up,4.3999999999999995,x,RotorS/PX4 timeConstantUp/Down
+motor_response,heavyLift,motor_tau_s,0.12,s,RotorS/PX4 timeConstantUp/Down
+motor_response,heavyLift,rotor_inflow_tau_s,0.095,s,RotorS/PX4 timeConstantUp/Down
+motor_response,heavyLift,motor_tau_vs_ref_up,9.599999999999998,x,RotorS/PX4 timeConstantUp/Down
+motor_response,heavyLift,motor_tau_vs_ref_down,4.799999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,heavyLift,inflow_tau_vs_ref_up,7.599999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,hexLift,motor_tau_s,0.095,s,RotorS/PX4 timeConstantUp/Down
+motor_response,hexLift,rotor_inflow_tau_s,0.085,s,RotorS/PX4 timeConstantUp/Down
+motor_response,hexLift,motor_tau_vs_ref_up,7.599999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,hexLift,motor_tau_vs_ref_down,3.7999999999999994,x,RotorS/PX4 timeConstantUp/Down
+motor_response,hexLift,inflow_tau_vs_ref_up,6.799999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,octoLift,motor_tau_s,0.105,s,RotorS/PX4 timeConstantUp/Down
+motor_response,octoLift,rotor_inflow_tau_s,0.09,s,RotorS/PX4 timeConstantUp/Down
+motor_response,octoLift,motor_tau_vs_ref_up,8.399999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,octoLift,motor_tau_vs_ref_down,4.199999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,octoLift,inflow_tau_vs_ref_up,7.199999999999998,x,RotorS/PX4 timeConstantUp/Down
+motor_response,coaxialX8,motor_tau_s,0.105,s,RotorS/PX4 timeConstantUp/Down
+motor_response,coaxialX8,rotor_inflow_tau_s,0.09,s,RotorS/PX4 timeConstantUp/Down
+motor_response,coaxialX8,motor_tau_vs_ref_up,8.399999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,coaxialX8,motor_tau_vs_ref_down,4.199999999999999,x,RotorS/PX4 timeConstantUp/Down
+motor_response,coaxialX8,inflow_tau_vs_ref_up,7.199999999999998,x,RotorS/PX4 timeConstantUp/Down
