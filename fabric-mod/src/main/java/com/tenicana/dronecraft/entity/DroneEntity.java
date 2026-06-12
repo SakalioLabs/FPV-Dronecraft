@@ -2080,6 +2080,30 @@ public class DroneEntity extends PathfinderMob {
 		return entityData.get(ROTOR_COAXIAL_LOAD_BIAS);
 	}
 
+	public float getRotorCoaxialLoadBiasTarget() {
+		return (float) physics.state().maxAbsRotorCoaxialLoadBiasTarget();
+	}
+
+	public float getRotorCoaxialLoadBiasClipping() {
+		return (float) physics.state().maxRotorCoaxialLoadBiasClipping();
+	}
+
+	public float getRotorCoaxialAllocationLoadFraction() {
+		return (float) physics.state().maxRotorCoaxialAllocationLoadFraction();
+	}
+
+	public float getRotorCoaxialAllocationCommandRatio() {
+		return (float) physics.state().maxRotorCoaxialAllocationCommandRatio();
+	}
+
+	public float getRotorCoaxialAllocationMechanicalGainPercent() {
+		return (float) physics.state().maxRotorCoaxialAllocationMechanicalGainPercent();
+	}
+
+	public float getRotorCoaxialAllocationElectricalGainPercent() {
+		return (float) physics.state().maxRotorCoaxialAllocationElectricalGainPercent();
+	}
+
 	public float getRotorWetThrustScale() {
 		return entityData.get(ROTOR_WET_THRUST_SCALE);
 	}

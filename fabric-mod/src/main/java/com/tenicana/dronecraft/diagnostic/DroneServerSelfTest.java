@@ -20,6 +20,7 @@ import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
+import com.tenicana.dronecraft.sim.DroneConfig;
 
 public final class DroneServerSelfTest {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -33,6 +34,7 @@ public final class DroneServerSelfTest {
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final double PHYSICS_DT_SECONDS = 0.005;
 	private static final double PHYSICS_RATE_HERTZ = 1.0 / PHYSICS_DT_SECONDS;
+	private static final String SELF_TEST_PRESET = "coaxial_x8";
 
 	private static DroneServerSelfTest active;
 
@@ -80,6 +82,12 @@ public final class DroneServerSelfTest {
 	private double maxRotorWakeInterference;
 	private double maxRotorInPlaneDragForce;
 	private double maxRotorCoaxialLoadBias;
+	private double maxRotorCoaxialLoadBiasTarget;
+	private double maxRotorCoaxialLoadBiasClipping;
+	private double maxRotorCoaxialAllocationLoadFraction;
+	private double maxRotorCoaxialAllocationCommandRatio = 1.0;
+	private double maxRotorCoaxialAllocationMechanicalGainPercent;
+	private double maxRotorCoaxialAllocationElectricalGainPercent;
 	private double minRotorWetThrustScale = 1.0;
 	private double maxRotorWakeSwirlVelocity;
 	private double maxRotorWindmilling;
@@ -142,6 +150,7 @@ public final class DroneServerSelfTest {
 
 	private void start(ServerLevel level) {
 		drone = new DroneEntity(DroneEntityTypes.DRONE, level);
+		drone.applyConfig(DroneConfig.coaxialX8(), SELF_TEST_PRESET);
 		drone.setOwner(SELF_TEST_OWNER);
 		drone.setPos(0.0, 96.0, 0.0);
 		level.addFreshEntity(drone);
@@ -190,6 +199,12 @@ public final class DroneServerSelfTest {
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
 		maxRotorInPlaneDragForce = Math.max(maxRotorInPlaneDragForce, drone.getRotorInPlaneDragForceNewtons());
 		maxRotorCoaxialLoadBias = Math.max(maxRotorCoaxialLoadBias, drone.getRotorCoaxialLoadBias());
+		maxRotorCoaxialLoadBiasTarget = Math.max(maxRotorCoaxialLoadBiasTarget, drone.getRotorCoaxialLoadBiasTarget());
+		maxRotorCoaxialLoadBiasClipping = Math.max(maxRotorCoaxialLoadBiasClipping, drone.getRotorCoaxialLoadBiasClipping());
+		maxRotorCoaxialAllocationLoadFraction = Math.max(maxRotorCoaxialAllocationLoadFraction, drone.getRotorCoaxialAllocationLoadFraction());
+		maxRotorCoaxialAllocationCommandRatio = Math.max(maxRotorCoaxialAllocationCommandRatio, drone.getRotorCoaxialAllocationCommandRatio());
+		maxRotorCoaxialAllocationMechanicalGainPercent = Math.max(maxRotorCoaxialAllocationMechanicalGainPercent, drone.getRotorCoaxialAllocationMechanicalGainPercent());
+		maxRotorCoaxialAllocationElectricalGainPercent = Math.max(maxRotorCoaxialAllocationElectricalGainPercent, drone.getRotorCoaxialAllocationElectricalGainPercent());
 		minRotorWetThrustScale = Math.min(minRotorWetThrustScale, drone.getRotorWetThrustScale());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxRotorWindmilling = Math.max(maxRotorWindmilling, drone.getRotorWindmillingIntensity());
@@ -220,6 +235,12 @@ public final class DroneServerSelfTest {
 				&& maxBatteryCurrent > 1.5
 				&& maxBatterySag > 0.01
 				&& maxBatteryEffectiveResistance > 0.001
+				&& maxRotorCoaxialLoadBias > 0.005
+				&& maxRotorCoaxialLoadBiasTarget + 1.0e-6 >= maxRotorCoaxialLoadBias
+				&& maxRotorCoaxialAllocationLoadFraction > 0.01
+				&& maxRotorCoaxialAllocationCommandRatio > 1.0
+				&& maxRotorCoaxialAllocationMechanicalGainPercent > 0.0
+				&& maxRotorCoaxialAllocationElectricalGainPercent > 0.0
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_substeps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_dt_s")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_rate_hz")
@@ -440,6 +461,14 @@ public final class DroneServerSelfTest {
 		}
 		if (maxMotorPower <= 0.08 || maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {
 			return "powertrain_not_exercised";
+		}
+		if (maxRotorCoaxialLoadBias <= 0.005
+				|| maxRotorCoaxialLoadBiasTarget + 1.0e-6 < maxRotorCoaxialLoadBias
+				|| maxRotorCoaxialAllocationLoadFraction <= 0.01
+				|| maxRotorCoaxialAllocationCommandRatio <= 1.0
+				|| maxRotorCoaxialAllocationMechanicalGainPercent <= 0.0
+				|| maxRotorCoaxialAllocationElectricalGainPercent <= 0.0) {
+			return "coaxial_allocation_not_exercised";
 		}
 		String csv = drone.blackbox().toCsv();
 		if (!DroneBlackboxSample.CSV_HEADER.contains("airframe_rotor_count")
@@ -741,6 +770,12 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
 						+ "  \"max_rotor_in_plane_drag_force_n\": %.5f,\n"
 						+ "  \"max_rotor_coaxial_load_bias\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_load_bias_target\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_load_bias_clipping\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_allocation_load\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_allocation_ratio\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_allocation_mech_gain_pct\": %.5f,\n"
+						+ "  \"max_rotor_coaxial_allocation_elec_gain_pct\": %.5f,\n"
 						+ "  \"max_rotor_wet_thrust_loss_percent\": %.3f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_rotor_windmilling\": %.5f,\n"
@@ -808,6 +843,12 @@ public final class DroneServerSelfTest {
 				maxRotorWakeInterference,
 				maxRotorInPlaneDragForce,
 				maxRotorCoaxialLoadBias,
+				maxRotorCoaxialLoadBiasTarget,
+				maxRotorCoaxialLoadBiasClipping,
+				maxRotorCoaxialAllocationLoadFraction,
+				maxRotorCoaxialAllocationCommandRatio,
+				maxRotorCoaxialAllocationMechanicalGainPercent,
+				maxRotorCoaxialAllocationElectricalGainPercent,
 				(1.0 - minRotorWetThrustScale) * 100.0,
 				maxRotorWakeSwirlVelocity,
 				maxRotorWindmilling,

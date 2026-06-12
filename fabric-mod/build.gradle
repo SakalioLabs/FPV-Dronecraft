@@ -171,6 +171,14 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_wake_interference",
 		"rotor_wake_thrust_scale",
 		"rotor_5_wake_thrust_scale",
+		"rotor_coaxial_load_bias",
+		"rotor_5_coaxial_load_bias",
+		"rotor_coaxial_load_bias_target",
+		"rotor_coaxial_load_bias_clipping",
+		"rotor_coaxial_allocation_load",
+		"rotor_coaxial_allocation_ratio",
+		"rotor_coaxial_allocation_mech_gain_pct",
+		"rotor_coaxial_allocation_elec_gain_pct",
 		"rotor_wet_thrust_scale",
 		"rotor_5_wet_thrust_scale",
 		"rotor_wake_swirl_mps",
@@ -336,6 +344,13 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_rotor_low_reynolds_loss",
 			"max_rotor_blade_pass_ripple",
 			"max_rotor_wet_thrust_loss_percent",
+			"max_rotor_coaxial_load_bias",
+			"max_rotor_coaxial_load_bias_target",
+			"max_rotor_coaxial_load_bias_clipping",
+			"max_rotor_coaxial_allocation_load",
+			"max_rotor_coaxial_allocation_ratio",
+			"max_rotor_coaxial_allocation_mech_gain_pct",
+			"max_rotor_coaxial_allocation_elec_gain_pct",
 			"max_airframe_body_drag_n",
 			"max_linear_damping_drag_n",
 			"max_airframe_drag_along_flow_n",
@@ -368,6 +383,15 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_rotor_blade_pass_ripple ?: -1.0) < 0.0
 			|| (report.max_rotor_wet_thrust_loss_percent ?: -1.0) < 0.0) {
 		throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges.")
+	}
+	if ((report.max_rotor_coaxial_load_bias ?: 0.0) <= 0.005
+			|| (report.max_rotor_coaxial_load_bias_target ?: 0.0) + 1.0e-6 < (report.max_rotor_coaxial_load_bias ?: 0.0)
+			|| (report.max_rotor_coaxial_load_bias_clipping ?: -1.0) < 0.0
+			|| (report.max_rotor_coaxial_allocation_load ?: 0.0) <= 0.01
+			|| (report.max_rotor_coaxial_allocation_ratio ?: 1.0) <= 1.0
+			|| (report.max_rotor_coaxial_allocation_mech_gain_pct ?: 0.0) <= 0.0
+			|| (report.max_rotor_coaxial_allocation_elec_gain_pct ?: 0.0) <= 0.0) {
+		throw new GradleException("FPV Dronecraft server self-test did not exercise coaxial X8 allocation telemetry.")
 	}
 	if ((report.max_airframe_drag_along_flow_n ?: 0.0) <= 0.001
 			|| (report.max_airframe_drag_equivalent_linear_k ?: 0.0) <= 0.001
