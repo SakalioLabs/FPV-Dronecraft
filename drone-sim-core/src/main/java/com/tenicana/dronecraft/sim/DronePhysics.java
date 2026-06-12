@@ -1028,9 +1028,7 @@ public final class DronePhysics {
 				.rotate(state.velocityMetersPerSecond().subtract(effectiveWindVelocityWorld));
 		updateAerodynamicTelemetry(relativeAirVelocityBody);
 		updateAirframeSeparatedFlowIntensity(relativeAirVelocityBody, dtSeconds);
-		Vec3 airframeLiftBody = updateAirframeLiftForce(relativeAirVelocityBody, airDensity, dtSeconds);
 		Vec3 airframeDragBody = updateAirframeBodyDragForce(relativeAirVelocityBody, airDensity, dtSeconds);
-		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
 		RotorWakeInterference rotorWakeInterference = updateRotorWakeInterference(input.armed(), relativeAirVelocityBody, dtSeconds);
 		double vortexRingStateSum = 0.0;
@@ -1569,6 +1567,8 @@ public final class DronePhysics {
 		state.setRotorWallEffectForceBodyNewtons(rotorWallEffectForceSum);
 		updateEscSignalTelemetry();
 
+		Vec3 airframeLiftBody = updateAirframeLiftForce(totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
+		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 rotorWashDragBody = updateRotorWashDragForce(totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragBody);
 		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, airDensity, dtSeconds);
@@ -7451,8 +7451,13 @@ public final class DronePhysics {
 		return count == 0 ? 0.0635 : sum / count;
 	}
 
-	private Vec3 updateAirframeLiftForce(Vec3 relativeAirVelocityBody, double airDensityRatio, double dtSeconds) {
-		Vec3 target = calculateSteadyAirframeLiftForce(relativeAirVelocityBody, airDensityRatio);
+	private Vec3 updateAirframeLiftForce(
+			Vec3 totalForceBody,
+			Vec3 relativeAirVelocityBody,
+			double airDensityRatio,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyAirframeLiftForce(totalForceBody, relativeAirVelocityBody, airDensityRatio);
 		if (dtSeconds <= 0.0) {
 			airframeLiftForceBodyFiltered = target;
 			return airframeLiftForceBodyFiltered;
@@ -7475,10 +7480,15 @@ public final class DronePhysics {
 		return airframeLiftForceBodyFiltered;
 	}
 
-	private Vec3 calculateSteadyAirframeLiftForce(Vec3 relativeAirVelocityBody, double airDensityRatio) {
+	private Vec3 calculateSteadyAirframeLiftForce(
+			Vec3 totalForceBody,
+			Vec3 relativeAirVelocityBody,
+			double airDensityRatio
+	) {
+		Vec3 poweredLift = calculatePoweredRotorWashAirframeLiftForce(totalForceBody, airDensityRatio);
 		double speedSquared = relativeAirVelocityBody.lengthSquared();
 		if (speedSquared < 1.0e-6 || airDensityRatio <= 0.0) {
-			return Vec3.ZERO;
+			return poweredLift;
 		}
 
 		double separatedFlow = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
@@ -7508,7 +7518,39 @@ public final class DronePhysics {
 			sideLift = sideforceDirection.multiply(sideforceMagnitude);
 		}
 
-		return pitchLift.add(sideLift).clamp(-18.0, 18.0);
+		return poweredLift.add(pitchLift).add(sideLift).clamp(-18.0, 18.0);
+	}
+
+	private Vec3 calculatePoweredRotorWashAirframeLiftForce(Vec3 totalForceBody, double airDensityRatio) {
+		if (totalForceBody == null || totalForceBody.y() <= 1.0e-6 || airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 drag = config.bodyDragCoefficients();
+		double projectedDeckCoefficient = Math.sqrt(Math.max(0.0, drag.x() * drag.z()));
+		if (projectedDeckCoefficient <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+
+		double thrustToWeight = totalForceBody.y()
+				/ Math.max(1.0e-6, config.massKg() * config.gravityMetersPerSecondSquared());
+		double motorPower = state.averageMotorPower(config);
+		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
+		double washIntensity = smoothStep(0.08, 0.70, thrustToWeight) * smoothStep(0.35, 5.5, inducedVelocity);
+		if (washIntensity <= 1.0e-6 || motorPower <= 0.035) {
+			return Vec3.ZERO;
+		}
+
+		double frameExposure = MathUtil.clamp(projectedDeckCoefficient / 0.0035, 0.0, 1.65);
+		double rpmLift = 0.018 + 0.038 * smoothStep(0.16, 0.82, motorPower);
+		double poweredLiftFraction = MathUtil.clamp(
+				rpmLift * washIntensity * frameExposure * MathUtil.clamp(airDensityRatio, 0.0, 1.35),
+				0.0,
+				0.075
+		);
+		double weight = config.massKg() * config.gravityMetersPerSecondSquared();
+		double liftMagnitude = Math.min(totalForceBody.y() * poweredLiftFraction, weight * 0.085);
+		return BODY_ROTOR_AXIS.multiply(liftMagnitude).clamp(-18.0, 18.0);
 	}
 
 	private void integrateAngular(

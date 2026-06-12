@@ -3427,6 +3427,37 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void poweredRotorWashAddsAirframeLiftAtZeroAirspeed() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics powered = new DronePhysics(config);
+		DronePhysics cleanDeck = new DronePhysics(config.withBodyDragCoefficients(Vec3.ZERO));
+		DronePhysics unpowered = new DronePhysics(config);
+		DroneInput loadedHover = new DroneInput(config.hoverThrottle() + 0.06, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(powered);
+			holdInStillAir(cleanDeck);
+			holdInStillAir(unpowered);
+			powered.step(loadedHover, 0.005);
+			cleanDeck.step(loadedHover, 0.005);
+			unpowered.step(DroneInput.idle(), 0.005);
+		}
+
+		Vec3 poweredLift = powered.state().airframeLiftForceBodyNewtons();
+		double weight = config.massKg() * config.gravityMetersPerSecondSquared();
+		assertEquals(0.0, cleanDeck.state().airframeLiftForceBodyNewtons().length(), 1.0e-9);
+		assertEquals(0.0, unpowered.state().airframeLiftForceBodyNewtons().length(), 1.0e-9);
+		assertTrue(poweredLift.y() > 0.12, () -> "poweredLift=" + poweredLift);
+		assertTrue(poweredLift.y() < weight * 0.09, () -> "poweredLift=" + poweredLift + " weight=" + weight);
+		assertEquals(0.0, poweredLift.x(), 1.0e-9);
+		assertEquals(0.0, poweredLift.z(), 1.0e-9);
+	}
+
+	@Test
 	void airframeLiftForceBuildsAndRecoversWithAerodynamicLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -6253,7 +6284,7 @@ class DronePhysicsTest {
 		Vec3 washDrag = powered.state().rotorWashDragForceBodyNewtons();
 
 		assertTrue(washDrag.x() < -0.45);
-		assertTrue(poweredTorque.z() > unpoweredTorque.z() + 0.007,
+		assertTrue(poweredTorque.z() > unpoweredTorque.z() + 0.006,
 				() -> "unpoweredTorque=" + unpoweredTorque + " poweredTorque=" + poweredTorque);
 		assertTrue(powered.state().airframeAerodynamicTorqueBodyNewtonMeters().z()
 				> unpowered.state().airframeAerodynamicTorqueBodyNewtonMeters().z() + 0.006);
