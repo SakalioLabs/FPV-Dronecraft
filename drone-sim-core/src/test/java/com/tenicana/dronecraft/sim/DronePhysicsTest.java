@@ -104,8 +104,20 @@ class DronePhysicsTest {
 		assertEquals(0.035, actualRateCenterSensitivity, 1.0e-12);
 		assertTrue(maxRpm > 28500.0, () -> "maxRpm=" + maxRpm);
 		assertTrue(maxRpm < 30000.0, () -> "maxRpm=" + maxRpm);
-		assertTrue(config.hoverThrottle() > 0.10, () -> "hover=" + config.hoverThrottle());
-		assertTrue(config.hoverThrottle() < 0.13, () -> "hover=" + config.hoverThrottle());
+		assertTrue(config.hoverDirectThrustFraction() > 0.10, () -> "hoverDirect=" + config.hoverDirectThrustFraction());
+		assertTrue(config.hoverDirectThrustFraction() < 0.13, () -> "hoverDirect=" + config.hoverDirectThrustFraction());
+		assertEquals(
+				DroneConfig.APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND,
+				config.hoverThrottle(),
+				1.0e-12
+		);
+		assertEquals(
+				config.hoverDirectThrustFraction(),
+				config.throttleCommandToDirectThrustFraction(config.hoverThrottle()),
+				1.0e-12
+		);
+		assertTrue(config.throttleCommandCurveExponent() > 3.5);
+		assertTrue(config.throttleCommandToDirectThrustFraction(0.9867448887828499) > 0.94);
 		assertTrue(config.inertiaKgMetersSquared().y() > config.inertiaKgMetersSquared().x());
 		assertTrue(config.inertiaKgMetersSquared().y() > config.inertiaKgMetersSquared().z());
 		assertTrue(config.bodyDragCoefficients().z() < DroneConfig.racingQuad().bodyDragCoefficients().z());
@@ -401,7 +413,8 @@ class DronePhysicsTest {
 		DroneConfig coaxialX8 = DroneConfig.coaxialX8();
 
 		assertTrue(apDrone.massKg() < racing.massKg());
-		assertTrue(apDrone.hoverThrottle() < racing.hoverThrottle());
+		assertTrue(apDrone.hoverDirectThrustFraction() < racing.hoverDirectThrustFraction());
+		assertTrue(apDrone.hoverThrottle() > racing.hoverThrottle());
 		assertTrue(apDrone.rotors().get(0).positionBodyMeters().length() < racing.rotors().get(0).positionBodyMeters().length());
 		assertTrue(apDrone.rotors().get(0).radiusMeters() > racing.rotors().get(0).radiusMeters());
 		assertTrue(apDrone.maxRollRateRadiansPerSecond() > racing.maxRollRateRadiansPerSecond());
@@ -10541,8 +10554,8 @@ class DronePhysicsTest {
 		assertTrue(autonomy[1].simulatedDurationSeconds() > autonomy[0].simulatedDurationSeconds());
 		assertTrue(autonomy[0].durationRatio() > 0.10);
 		assertTrue(autonomy[0].durationRatio() < 0.60);
-		assertTrue(autonomy[1].durationRatio() > 0.05);
-		assertTrue(autonomy[1].durationRatio() < 0.35);
+		assertTrue(autonomy[1].durationRatio() > 0.55);
+		assertTrue(autonomy[1].durationRatio() < 0.90);
 		assertTrue(autonomy[0].meanCurrentAmps() > autonomy[0].referenceMeanCurrentAmps());
 		assertTrue(autonomy[1].meanCurrentAmps() > autonomy[1].referenceMeanCurrentAmps());
 		assertTrue(autonomy[0].currentMatchedDirectThrottleCommand() > 0.0);

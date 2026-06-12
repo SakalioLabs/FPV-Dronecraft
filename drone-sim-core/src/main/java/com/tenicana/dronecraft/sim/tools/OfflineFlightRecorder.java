@@ -1344,8 +1344,10 @@ public final class OfflineFlightRecorder {
 			DroneConfig config,
 			double targetMeanCurrentAmps
 	) {
-		StaticBatteryLoad low = sampleStaticBatteryLoad(config, 0.0);
-		StaticBatteryLoad high = sampleStaticBatteryLoad(config, 1.0);
+		DroneConfig directThrottleConfig =
+				config.withThrottleCommandCurveExponent(DroneConfig.DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT);
+		StaticBatteryLoad low = sampleStaticBatteryLoad(directThrottleConfig, 0.0);
+		StaticBatteryLoad high = sampleStaticBatteryLoad(directThrottleConfig, 1.0);
 		StaticBatteryLoad best = closerToMeanCurrent(low, high, targetMeanCurrentAmps);
 		if (!Double.isFinite(targetMeanCurrentAmps) || targetMeanCurrentAmps <= low.meanCurrentAmps()) {
 			return low;
@@ -1358,7 +1360,7 @@ public final class OfflineFlightRecorder {
 		double highThrottle = high.throttleCommand();
 		for (int i = 0; i < BATTERY_AUTONOMY_CURRENT_MATCH_ITERATIONS; i++) {
 			double midThrottle = (lowThrottle + highThrottle) * 0.5;
-			StaticBatteryLoad mid = sampleStaticBatteryLoad(config, midThrottle);
+			StaticBatteryLoad mid = sampleStaticBatteryLoad(directThrottleConfig, midThrottle);
 			best = closerToMeanCurrent(best, mid, targetMeanCurrentAmps);
 			if (mid.meanCurrentAmps() < targetMeanCurrentAmps) {
 				lowThrottle = midThrottle;

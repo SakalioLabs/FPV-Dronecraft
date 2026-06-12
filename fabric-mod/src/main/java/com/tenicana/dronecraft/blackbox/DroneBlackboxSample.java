@@ -624,6 +624,7 @@ public final class DroneBlackboxSample {
 			"tune_angular_drag",
 			"tune_motor_tau_s",
 			"tune_esc_curve_exp",
+			"tune_throttle_curve_exp",
 			"tune_esc_slew_rate",
 			"tune_voltage_compensation",
 			"tune_motor_heat_cps",
@@ -1758,6 +1759,7 @@ public final class DroneBlackboxSample {
 		row.add(config.angularDragCoefficient(), "%.6f");
 		row.add(config.motorTimeConstantSeconds(), "%.6f");
 		row.add(config.escOutputCurveExponent(), "%.6f");
+		row.add(config.throttleCommandCurveExponent(), "%.6f");
 		row.add(config.escOutputSlewRatePerSecond(), "%.5f");
 		row.add(config.voltageCompensationStrength(), "%.3f");
 		row.add(config.motorThermalRiseCelsiusPerSecond(), "%.2f");

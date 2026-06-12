@@ -3076,6 +3076,7 @@ public class DroneEntity extends PathfinderMob {
 		output.putDouble("tune_angular_drag", config.angularDragCoefficient());
 		output.putDouble("tune_motor_tau", config.motorTimeConstantSeconds());
 		output.putDouble("tune_esc_curve", config.escOutputCurveExponent());
+		output.putDouble("tune_throttle_curve", config.throttleCommandCurveExponent());
 		output.putDouble("tune_esc_slew", config.escOutputSlewRatePerSecond());
 		output.putDouble("tune_esc_down_slew", config.escOutputFallSlewRatePerSecond());
 		output.putDouble("tune_esc_deadband", config.escDeadband());
@@ -3190,6 +3191,9 @@ public class DroneEntity extends PathfinderMob {
 				))
 				.withAngularDragCoefficient(input.getDoubleOr("tune_angular_drag", defaults.angularDragCoefficient()))
 				.withMotorTimeConstantSeconds(input.getDoubleOr("tune_motor_tau", defaults.motorTimeConstantSeconds()))
+				.withThrottleCommandCurveExponent(
+						input.getDoubleOr("tune_throttle_curve", defaults.throttleCommandCurveExponent())
+				)
 				.withEscMotorResponse(
 						input.getDoubleOr("tune_esc_curve", defaults.escOutputCurveExponent()),
 						input.getDoubleOr("tune_esc_slew", defaults.escOutputSlewRatePerSecond()),

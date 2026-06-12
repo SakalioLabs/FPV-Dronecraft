@@ -20,6 +20,7 @@ public record DroneConfig(
 		double angularDragCoefficient,
 		double motorTimeConstantSeconds,
 		double escOutputCurveExponent,
+		double throttleCommandCurveExponent,
 		double escOutputSlewRatePerSecond,
 		double escOutputFallSlewRatePerSecond,
 		double escDeadband,
@@ -75,6 +76,8 @@ public record DroneConfig(
 	public static final double DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ = 400.0;
 	public static final EscCommandProtocol DEFAULT_ESC_COMMAND_PROTOCOL = EscCommandProtocol.DSHOT600;
 	public static final int DEFAULT_ESC_COMMAND_RESOLUTION_STEPS = DEFAULT_ESC_COMMAND_PROTOCOL.throttleSteps();
+	public static final double DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT = 1.0;
+	public static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND = 0.5439609800526073;
 	public static final double LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO = 0.50;
 
 	public DroneConfig {
@@ -117,6 +120,7 @@ public record DroneConfig(
 		angularDragCoefficient = Math.max(0.0, angularDragCoefficient);
 		motorTimeConstantSeconds = MathUtil.clamp(motorTimeConstantSeconds, 0.005, 0.5);
 		escOutputCurveExponent = MathUtil.clamp(escOutputCurveExponent, 0.45, 2.5);
+		throttleCommandCurveExponent = MathUtil.clamp(throttleCommandCurveExponent, 0.25, 8.0);
 		escOutputSlewRatePerSecond = MathUtil.clamp(escOutputSlewRatePerSecond, 0.1, 1000.0);
 		escOutputFallSlewRatePerSecond = MathUtil.clamp(escOutputFallSlewRatePerSecond, 0.1, 1000.0);
 		escDeadband = MathUtil.clamp(escDeadband, 0.0, 0.25);
@@ -197,6 +201,7 @@ public record DroneConfig(
 				0.018,
 				0.045,
 				1.00,
+				DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT,
 				160.0,
 				360.0,
 				0.018,
@@ -259,6 +264,9 @@ public record DroneConfig(
 		double inflowLag = 0.16;
 		double flapping = 0.060;
 		double stallLoss = 0.34;
+		double hoverDirectThrustFraction = 0.6284 * 9.80665 / (4.0 * maxRotorThrust);
+		double throttleCommandCurveExponent = Math.log(hoverDirectThrustFraction)
+				/ Math.log(APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND);
 		return new DroneConfig(
 				0.6284,
 				new Vec3(0.001346, 0.002480, 0.001410),
@@ -282,6 +290,7 @@ public record DroneConfig(
 				0.012,
 				0.015,
 				1.00,
+				throttleCommandCurveExponent,
 				190.0,
 				430.0,
 				0.012,
@@ -367,6 +376,7 @@ public record DroneConfig(
 				0.035,
 				0.070,
 				1.08,
+				DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT,
 				80.0,
 				150.0,
 				0.022,
@@ -450,6 +460,7 @@ public record DroneConfig(
 				0.060,
 				0.120,
 				1.00,
+				DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT,
 				45.0,
 				70.0,
 				0.015,
@@ -536,6 +547,7 @@ public record DroneConfig(
 				0.055,
 				0.095,
 				1.00,
+				DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT,
 				55.0,
 				90.0,
 				0.015,
@@ -624,6 +636,7 @@ public record DroneConfig(
 				0.070,
 				0.105,
 				1.00,
+				DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT,
 				50.0,
 				85.0,
 				0.015,
@@ -756,8 +769,23 @@ public record DroneConfig(
 				.sum();
 	}
 
-	public double hoverThrottle() {
+	public double hoverDirectThrustFraction() {
 		return massKg * gravityMetersPerSecondSquared / Math.max(1.0e-6, totalMaxVerticalThrustNewtons());
+	}
+
+	public double hoverThrottle() {
+		return directThrustFractionToThrottleCommand(hoverDirectThrustFraction());
+	}
+
+	public double throttleCommandToDirectThrustFraction(double throttleCommand) {
+		double clamped = MathUtil.clamp(throttleCommand, 0.0, 1.0);
+		return MathUtil.clamp(Math.pow(clamped, throttleCommandCurveExponent), 0.0, 1.0);
+	}
+
+	public double directThrustFractionToThrottleCommand(double directThrustFraction) {
+		double clamped = MathUtil.clamp(directThrustFraction, 0.0, 1.0);
+		double exponent = Math.max(0.25, throttleCommandCurveExponent);
+		return MathUtil.clamp(Math.pow(clamped, 1.0 / exponent), 0.0, 1.0);
 	}
 
 	public double averageRotorOutwardCantDegrees() {
@@ -802,6 +830,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -867,6 +896,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -932,6 +962,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -997,6 +1028,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1062,6 +1094,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1127,6 +1160,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1192,6 +1226,73 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
+				escOutputSlewRatePerSecond,
+				escOutputFallSlewRatePerSecond,
+				escDeadband,
+				motorActiveBrakingStrength,
+				voltageCompensationStrength,
+				motorThermalRiseCelsiusPerSecond,
+				motorCoolingRatePerSecond,
+				motorThermalLimitCelsius,
+				motorThermalCutoffCelsius,
+				motorIdleThrustFraction,
+				airmodeStrength,
+				gyroLowPassCutoffHz,
+				gyroNoiseStdDevRadiansPerSecond,
+				accelerometerLowPassCutoffHz,
+				accelerometerNoiseStdDevMetersPerSecondSquared,
+				controlLatencySeconds,
+				nominalBatteryVoltage,
+				emptyBatteryVoltage,
+				batteryInternalResistanceOhms,
+				batteryCapacityAmpHours,
+				maxBatteryCurrentAmps,
+				maxPitchRateRadiansPerSecond,
+				maxYawRateRadiansPerSecond,
+				maxRollRateRadiansPerSecond,
+				rateExpo,
+				rateSuper,
+				pitchGains,
+				yawGains,
+				rollGains,
+				rcCommandSmoothingTimeConstantSeconds,
+				rcCommandLatencySeconds,
+				rcFailsafeTimeoutSeconds,
+				attitudeEstimatorAccelerometerCorrectionGain,
+				attitudeEstimatorAccelerometerTrustMarginMetersPerSecondSquared,
+				selfLevelMaxAngleRadians,
+				selfLevelRateGain,
+				horizonTransitionStartStick,
+				horizonTransitionEndStick,
+				pidIntegralRelaxStrength,
+				rcFrameRateHertz,
+				rcChannelResolutionSteps,
+				escCommandFrameRateHertz,
+				escCommandResolutionSteps,
+				escCommandProtocol);
+	}
+
+	public DroneConfig withThrottleCommandCurveExponent(double throttleCommandCurveExponent) {
+		return new DroneConfig(
+				massKg,
+				inertiaKgMetersSquared,
+				centerOfMassOffsetBodyMeters,
+				imuOffsetBodyMeters,
+				centerOfPressureOffsetBodyMeters,
+				rotors,
+				gravityMetersPerSecondSquared,
+				linearDragCoefficient,
+				bodyDragCoefficients,
+				groundEffectHeightMeters,
+				groundEffectMaxThrustBoost,
+				propwashStartDescentMetersPerSecond,
+				propwashFullDescentMetersPerSecond,
+				propwashMaxTorqueNewtonMeters,
+				angularDragCoefficient,
+				motorTimeConstantSeconds,
+				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1279,6 +1380,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1349,6 +1451,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1434,6 +1537,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1503,6 +1607,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1568,6 +1673,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1662,6 +1768,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1730,6 +1837,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1795,6 +1903,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1908,6 +2017,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -1973,6 +2083,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2041,6 +2152,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2171,6 +2283,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2236,6 +2349,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2301,6 +2415,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2366,6 +2481,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2439,6 +2555,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2509,6 +2626,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2574,6 +2692,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2652,6 +2771,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,
@@ -2717,6 +2837,7 @@ public record DroneConfig(
 				angularDragCoefficient,
 				motorTimeConstantSeconds,
 				escOutputCurveExponent,
+				throttleCommandCurveExponent,
 				escOutputSlewRatePerSecond,
 				escOutputFallSlewRatePerSecond,
 				escDeadband,

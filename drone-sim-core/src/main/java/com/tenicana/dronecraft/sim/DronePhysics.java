@@ -6130,17 +6130,20 @@ public final class DronePhysics {
 	private void mixRotorThrusts(DroneInput input, Vec3 requestedTorqueBody) {
 		double[] baseThrusts = new double[targetRotorThrusts.length];
 		double[] mixedThrusts = new double[targetRotorThrusts.length];
+		double directThrottleFraction = input.armed()
+				? config.throttleCommandToDirectThrustFraction(input.throttle())
+				: 0.0;
 		double[] torqueMix = input.armed()
 				? allocateTorqueMixDeltas(config.rotors(), config.centerOfMassOffsetBodyMeters(), requestedTorqueBody)
 				: new double[targetRotorThrusts.length];
 
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
-			double baseThrust = input.armed() ? input.throttle() * rotor.maxThrustNewtons() : 0.0;
+			double baseThrust = directThrottleFraction * rotor.maxThrustNewtons();
 			baseThrusts[i] = baseThrust;
 			mixedThrusts[i] = baseThrust + torqueMix[i];
 		}
-		applyCoaxialLoadBias(mixedThrusts, input.armed(), input.throttle());
+		applyCoaxialLoadBias(mixedThrusts, input.armed(), directThrottleFraction);
 
 		double lowDesaturationPressure = 0.0;
 		double highDesaturationPressure = 0.0;

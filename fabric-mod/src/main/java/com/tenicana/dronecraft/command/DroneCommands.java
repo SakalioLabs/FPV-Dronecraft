@@ -188,6 +188,7 @@ public final class DroneCommands {
 								.then(tuneParameter("angular_drag", 0.0, 1.0, DroneConfig::withAngularDragCoefficient))
 								.then(tuneParameter("motor_tau", 0.005, 0.5, DroneConfig::withMotorTimeConstantSeconds))
 								.then(tuneParameter("esc_curve", 0.45, 2.5, (config, value) -> config.withEscMotorResponse(value, config.escOutputSlewRatePerSecond(), config.escOutputFallSlewRatePerSecond(), config.escDeadband(), config.voltageCompensationStrength(), config.motorActiveBrakingStrength())))
+								.then(tuneParameter("throttle_curve", 0.25, 8.0, DroneConfig::withThrottleCommandCurveExponent))
 								.then(tuneParameter("esc_slew", 0.1, 1000.0, (config, value) -> config.withEscMotorResponse(config.escOutputCurveExponent(), value, config.escOutputFallSlewRatePerSecond(), config.escDeadband(), config.voltageCompensationStrength(), config.motorActiveBrakingStrength())))
 								.then(tuneParameter("esc_down_slew", 0.1, 1000.0, (config, value) -> config.withEscMotorResponse(config.escOutputCurveExponent(), config.escOutputSlewRatePerSecond(), value, config.escDeadband(), config.voltageCompensationStrength(), config.motorActiveBrakingStrength())))
 								.then(tuneParameter("esc_deadband", 0.0, 0.25, (config, value) -> config.withEscMotorResponse(config.escOutputCurveExponent(), config.escOutputSlewRatePerSecond(), config.escOutputFallSlewRatePerSecond(), value, config.voltageCompensationStrength(), config.motorActiveBrakingStrength())))
