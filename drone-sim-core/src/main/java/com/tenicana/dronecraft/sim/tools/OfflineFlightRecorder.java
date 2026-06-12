@@ -932,7 +932,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_irx=%.2f/%.2f/%.2f, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_irx=%.2f/%.2f/%.2f, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_erpm100=%.1f/%.1f, min_eint=%.1f/%.1f us, max_rpm_valid=%.2f/%.2f, notch=%.1fHz/%.3f, notch_spread=%.1fHz, hnotch=%.3f, bpass_notch=%.1fHz/%.3f, bpass_spread=%.1fHz, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -946,6 +946,19 @@ public final class OfflineFlightRecorder {
 				report.maxBatteryVoltageSpike(),
 				report.maxBatteryBusRippleVoltage(),
 				report.maxImuSupplyNoiseIntensity(),
+				report.maxAverageMotorTelemetryErpm100(),
+				report.maxMotorTelemetryErpm100(),
+				report.minAverageMotorTelemetryEIntervalMicros(),
+				report.minMotorTelemetryEIntervalMicros(),
+				report.maxAverageMotorRpmTelemetryValidity(),
+				report.maxMotorRpmTelemetryValidity(),
+				report.maxGyroNotchFrequencyHertz(),
+				report.maxGyroNotchAttenuation(),
+				report.maxGyroNotchSpreadHertz(),
+				report.maxGyroRpmHarmonicNotchAttenuation(),
+				report.maxGyroBladePassNotchFrequencyHertz(),
+				report.maxGyroBladePassNotchAttenuation(),
+				report.maxGyroBladePassNotchSpreadHertz(),
 				report.maxBatteryTemperatureCelsius(),
 				report.minBatteryThermalLimit(),
 				report.maxPropwashIntensity(),
@@ -2179,6 +2192,21 @@ public final class OfflineFlightRecorder {
 		private double maxBatteryVoltageSpike;
 		private double maxBatteryBusRippleVoltage;
 		private double maxImuSupplyNoiseIntensity;
+		private double maxAverageMotorTelemetryRpm;
+		private double maxMotorTelemetryRpm;
+		private double maxAverageMotorTelemetryErpm100;
+		private double maxMotorTelemetryErpm100;
+		private double minAverageMotorTelemetryEIntervalMicros = DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+		private double minMotorTelemetryEIntervalMicros = DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+		private double maxAverageMotorRpmTelemetryValidity;
+		private double maxMotorRpmTelemetryValidity;
+		private double maxGyroNotchFrequencyHertz;
+		private double maxGyroNotchAttenuation;
+		private double maxGyroNotchSpreadHertz;
+		private double maxGyroRpmHarmonicNotchAttenuation;
+		private double maxGyroBladePassNotchFrequencyHertz;
+		private double maxGyroBladePassNotchAttenuation;
+		private double maxGyroBladePassNotchSpreadHertz;
 		private double maxBatteryTemperatureCelsius = 25.0;
 		private double minBatteryThermalLimit = 1.0;
 		private double maxPropwashIntensity;
@@ -2257,6 +2285,14 @@ public final class OfflineFlightRecorder {
 			maxBatteryVoltageSpike = Math.max(maxBatteryVoltageSpike, state.batteryVoltageSpike());
 			maxBatteryBusRippleVoltage = Math.max(maxBatteryBusRippleVoltage, state.batteryBusRippleVoltage());
 			maxImuSupplyNoiseIntensity = Math.max(maxImuSupplyNoiseIntensity, state.imuSupplyNoiseIntensity());
+			recordRpmTelemetry(state);
+			maxGyroNotchFrequencyHertz = Math.max(maxGyroNotchFrequencyHertz, state.gyroDynamicNotchFrequencyHertz());
+			maxGyroNotchAttenuation = Math.max(maxGyroNotchAttenuation, state.gyroDynamicNotchAttenuation());
+			maxGyroNotchSpreadHertz = Math.max(maxGyroNotchSpreadHertz, state.gyroDynamicNotchSpreadHertz());
+			maxGyroRpmHarmonicNotchAttenuation = Math.max(maxGyroRpmHarmonicNotchAttenuation, state.gyroRpmHarmonicNotchAttenuation());
+			maxGyroBladePassNotchFrequencyHertz = Math.max(maxGyroBladePassNotchFrequencyHertz, state.gyroBladePassNotchFrequencyHertz());
+			maxGyroBladePassNotchAttenuation = Math.max(maxGyroBladePassNotchAttenuation, state.gyroBladePassNotchAttenuation());
+			maxGyroBladePassNotchSpreadHertz = Math.max(maxGyroBladePassNotchSpreadHertz, state.gyroBladePassNotchSpreadHertz());
 			maxBatteryTemperatureCelsius = Math.max(maxBatteryTemperatureCelsius, state.batteryTemperatureCelsius());
 			minBatteryThermalLimit = Math.min(minBatteryThermalLimit, state.batteryThermalLimit());
 			maxPropwashIntensity = Math.max(maxPropwashIntensity, state.propwashIntensity());
@@ -2382,6 +2418,50 @@ public final class OfflineFlightRecorder {
 			minEscThermalLimit = Math.min(minEscThermalLimit, state.escThermalLimit());
 		}
 
+		private void recordRpmTelemetry(DroneState state) {
+			double averageTelemetryRpm = state.averageMotorRpmTelemetryRpm();
+			maxAverageMotorTelemetryRpm = Math.max(maxAverageMotorTelemetryRpm, averageTelemetryRpm);
+			maxAverageMotorTelemetryErpm100 = Math.max(
+					maxAverageMotorTelemetryErpm100,
+					DronePhysics.betaflightErpm100FromMechanicalRpm(averageTelemetryRpm)
+			);
+			minAverageMotorTelemetryEIntervalMicros = minValidEIntervalMicros(
+					minAverageMotorTelemetryEIntervalMicros,
+					DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+							averageTelemetryRpm,
+							state.averageMotorRpmTelemetryValidity()
+					)
+			);
+			maxAverageMotorRpmTelemetryValidity = Math.max(
+					maxAverageMotorRpmTelemetryValidity,
+					state.averageMotorRpmTelemetryValidity()
+			);
+
+			double[] telemetryRpm = state.motorRpmTelemetryRpm();
+			double[] telemetryValidity = state.motorRpmTelemetryValidity();
+			for (int i = 0; i < telemetryRpm.length; i++) {
+				double rpm = telemetryRpm[i];
+				double validity = i < telemetryValidity.length ? telemetryValidity[i] : 0.0;
+				maxMotorTelemetryRpm = Math.max(maxMotorTelemetryRpm, rpm);
+				maxMotorTelemetryErpm100 = Math.max(
+						maxMotorTelemetryErpm100,
+						DronePhysics.betaflightErpm100FromMechanicalRpm(rpm)
+				);
+				minMotorTelemetryEIntervalMicros = minValidEIntervalMicros(
+						minMotorTelemetryEIntervalMicros,
+						DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(rpm, validity)
+				);
+				maxMotorRpmTelemetryValidity = Math.max(maxMotorRpmTelemetryValidity, validity);
+			}
+		}
+
+		private static double minValidEIntervalMicros(double currentMin, double sample) {
+			if (sample > 0.0 && sample < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS) {
+				return Math.min(currentMin, sample);
+			}
+			return currentMin;
+		}
+
 		private void setSamples(int samples) {
 			this.samples = samples;
 		}
@@ -2440,6 +2520,66 @@ public final class OfflineFlightRecorder {
 
 		public double maxImuSupplyNoiseIntensity() {
 			return maxImuSupplyNoiseIntensity;
+		}
+
+		public double maxAverageMotorTelemetryRpm() {
+			return maxAverageMotorTelemetryRpm;
+		}
+
+		public double maxMotorTelemetryRpm() {
+			return maxMotorTelemetryRpm;
+		}
+
+		public double maxAverageMotorTelemetryErpm100() {
+			return maxAverageMotorTelemetryErpm100;
+		}
+
+		public double maxMotorTelemetryErpm100() {
+			return maxMotorTelemetryErpm100;
+		}
+
+		public double minAverageMotorTelemetryEIntervalMicros() {
+			return minAverageMotorTelemetryEIntervalMicros;
+		}
+
+		public double minMotorTelemetryEIntervalMicros() {
+			return minMotorTelemetryEIntervalMicros;
+		}
+
+		public double maxAverageMotorRpmTelemetryValidity() {
+			return maxAverageMotorRpmTelemetryValidity;
+		}
+
+		public double maxMotorRpmTelemetryValidity() {
+			return maxMotorRpmTelemetryValidity;
+		}
+
+		public double maxGyroNotchFrequencyHertz() {
+			return maxGyroNotchFrequencyHertz;
+		}
+
+		public double maxGyroNotchAttenuation() {
+			return maxGyroNotchAttenuation;
+		}
+
+		public double maxGyroNotchSpreadHertz() {
+			return maxGyroNotchSpreadHertz;
+		}
+
+		public double maxGyroRpmHarmonicNotchAttenuation() {
+			return maxGyroRpmHarmonicNotchAttenuation;
+		}
+
+		public double maxGyroBladePassNotchFrequencyHertz() {
+			return maxGyroBladePassNotchFrequencyHertz;
+		}
+
+		public double maxGyroBladePassNotchAttenuation() {
+			return maxGyroBladePassNotchAttenuation;
+		}
+
+		public double maxGyroBladePassNotchSpreadHertz() {
+			return maxGyroBladePassNotchSpreadHertz;
 		}
 
 		public double maxBatteryTemperatureCelsius() {

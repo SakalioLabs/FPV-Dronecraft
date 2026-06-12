@@ -9836,6 +9836,12 @@ class DronePhysicsTest {
 		double firstAvgTelemetryValidity = Double.parseDouble(firstRow[indexOf(header, "avg_motor_rpm_telemetry_valid")]);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_erpm100")])));
 		assertTrue(firstAvgTelemetryValidity >= 0.0 && firstAvgTelemetryValidity <= 1.0);
+		assertTrue(maxColumn(lines, header, "avg_motor_erpm100") > 1.0);
+		assertTrue(maxColumn(lines, header, "motor_0_erpm100") > 1.0);
+		assertTrue(maxColumn(lines, header, "avg_motor_rpm_telemetry_valid") > 0.50);
+		assertTrue(maxColumn(lines, header, "gyro_notch_hz") > 1.0);
+		assertTrue(maxColumn(lines, header, "gyro_blade_pass_notch_hz") > maxColumn(lines, header, "gyro_notch_hz"));
+		assertTrue(maxColumn(lines, header, "gyro_blade_pass_notch_attenuation") > 0.0);
 		String[] spinningRow = null;
 		int avgErpmIndex = indexOf(header, "avg_motor_erpm100");
 		for (int i = 1; i < lines.size(); i++) {
@@ -9944,6 +9950,40 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryVoltageSpike() > 1.0e-4);
 		assertTrue(report.maxBatteryBusRippleVoltage() > 1.0e-4);
 		assertTrue(report.maxBatteryEffectiveResistanceOhms() > 0.0);
+		assertTrue(report.maxAverageMotorTelemetryRpm() > 100.0);
+		assertTrue(report.maxMotorTelemetryRpm() >= report.maxAverageMotorTelemetryRpm() * 0.80);
+		double maxLoggedMotorErpm100 = 0.0;
+		double minLoggedMotorEInterval = Double.POSITIVE_INFINITY;
+		double maxLoggedMotorRpmTelemetryValidity = 0.0;
+		for (int i = 0; i < 4; i++) {
+			maxLoggedMotorErpm100 = Math.max(maxLoggedMotorErpm100, maxColumn(lines, header, "motor_" + i + "_erpm100"));
+			minLoggedMotorEInterval = Math.min(minLoggedMotorEInterval, minColumn(lines, header, "motor_" + i + "_einterval_us"));
+			maxLoggedMotorRpmTelemetryValidity = Math.max(
+					maxLoggedMotorRpmTelemetryValidity,
+					maxColumn(lines, header, "motor_" + i + "_rpm_telemetry_valid")
+			);
+		}
+		assertEquals(maxColumn(lines, header, "avg_motor_erpm100"), report.maxAverageMotorTelemetryErpm100(), 0.1);
+		assertEquals(maxLoggedMotorErpm100, report.maxMotorTelemetryErpm100(), 0.1);
+		assertEquals(minColumn(lines, header, "avg_motor_einterval_us"), report.minAverageMotorTelemetryEIntervalMicros(), 0.1);
+		assertEquals(minLoggedMotorEInterval, report.minMotorTelemetryEIntervalMicros(), 0.1);
+		assertEquals(
+				maxColumn(lines, header, "avg_motor_rpm_telemetry_valid"),
+				report.maxAverageMotorRpmTelemetryValidity(),
+				1.0e-5
+		);
+		assertEquals(
+				maxLoggedMotorRpmTelemetryValidity,
+				report.maxMotorRpmTelemetryValidity(),
+				1.0e-5
+		);
+		assertEquals(maxColumn(lines, header, "gyro_notch_hz"), report.maxGyroNotchFrequencyHertz(), 0.001);
+		assertEquals(maxColumn(lines, header, "gyro_notch_attenuation"), report.maxGyroNotchAttenuation(), 1.0e-4);
+		assertEquals(maxColumn(lines, header, "gyro_notch_spread_hz"), report.maxGyroNotchSpreadHertz(), 0.001);
+		assertEquals(maxColumn(lines, header, "gyro_rpm_harmonic_notch_attenuation"), report.maxGyroRpmHarmonicNotchAttenuation(), 1.0e-4);
+		assertEquals(maxColumn(lines, header, "gyro_blade_pass_notch_hz"), report.maxGyroBladePassNotchFrequencyHertz(), 0.001);
+		assertEquals(maxColumn(lines, header, "gyro_blade_pass_notch_attenuation"), report.maxGyroBladePassNotchAttenuation(), 1.0e-4);
+		assertEquals(maxColumn(lines, header, "gyro_blade_pass_notch_spread_hz"), report.maxGyroBladePassNotchSpreadHertz(), 0.001);
 		assertEquals(
 				maxColumn(lines, header, "battery_soc_resistance_scale"),
 				report.maxBatteryStateOfChargeResistanceScale(),
@@ -10050,6 +10090,10 @@ class DronePhysicsTest {
 		assertTrue(Files.exists(output));
 		assertTrue(text.contains("max_ir="));
 		assertTrue(text.contains("max_irx="));
+		assertTrue(text.contains("max_erpm100="));
+		assertTrue(text.contains("min_eint="));
+		assertTrue(text.contains("notch="));
+		assertTrue(text.contains("bpass_notch="));
 	}
 
 	@Test
