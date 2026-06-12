@@ -2240,6 +2240,18 @@ public class DroneEntity extends PathfinderMob {
 		return entityData.get(ROTOR_WET_THRUST_SCALE);
 	}
 
+	public double getRotorIcingSeverity() {
+		return physics.state().maxRotorIcingSeverity();
+	}
+
+	public double getRotorIcingThrustScale() {
+		return physics.state().minRotorIcingThrustScale();
+	}
+
+	public double getRotorIcingPowerScale() {
+		return physics.state().maxRotorIcingPowerScale();
+	}
+
 	public float getRotorWakeSwirlVelocityMetersPerSecond() {
 		return entityData.get(ROTOR_WAKE_SWIRL);
 	}

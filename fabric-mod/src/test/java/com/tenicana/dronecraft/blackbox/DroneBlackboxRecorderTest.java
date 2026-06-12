@@ -210,6 +210,13 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_wet_thrust_scale"));
 		assertTrue(csv.contains("rotor_3_wet_thrust_scale"));
 		assertTrue(csv.contains("rotor_7_wet_thrust_scale"));
+		assertTrue(csv.contains("rotor_icing_severity"));
+		assertTrue(csv.contains("rotor_3_icing_severity"));
+		assertTrue(csv.contains("rotor_7_icing_severity"));
+		assertTrue(csv.contains("rotor_icing_thrust_scale"));
+		assertTrue(csv.contains("rotor_7_icing_thrust_scale"));
+		assertTrue(csv.contains("rotor_icing_power_scale"));
+		assertTrue(csv.contains("rotor_7_icing_power_scale"));
 		assertTrue(csv.contains("rotor_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_3_wake_swirl_mps"));
 		assertTrue(csv.contains("rotor_7_wake_swirl_mps"));
@@ -548,6 +555,12 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(loggedWetThrustScale);
 		assertTrue(loggedWetThrustScale < 1.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wet_thrust_scale")]));
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_icing_severity")]), 1.0e-5);
+		assertEquals(1.0, Double.parseDouble(row[indexOf(header, "rotor_icing_thrust_scale")]), 1.0e-5);
+		assertEquals(1.0, Double.parseDouble(row[indexOf(header, "rotor_icing_power_scale")]), 1.0e-5);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_icing_severity")]), 1.0e-5);
+		assertEquals(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_icing_thrust_scale")]), 1.0e-5);
+		assertEquals(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_icing_power_scale")]), 1.0e-5);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_roll_torque_nm")]));
@@ -984,6 +997,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("water"));
 		assertTrue(summary.formatForChat().contains("rain"));
 		assertTrue(summary.formatForChat().contains("wetloss"));
+		assertTrue(summary.formatForChat().contains("ice"));
+		assertTrue(summary.formatForChat().contains("iceloss"));
+		assertTrue(summary.formatForChat().contains("icepwr"));
 		assertTrue(summary.formatForChat().contains("temp 7.5..7.5C"));
 		assertTrue(summary.formatForChat().contains("gust"));
 		assertTrue(summary.formatForChat().contains("shear"));
@@ -998,6 +1014,77 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("rotor min"));
 		assertTrue(summary.formatForChat().contains("prop-strike"));
 		assertTrue(summary.formatForChat().contains("rc-frame"));
+	}
+
+	@Test
+	void blackboxCsvRecordsRotorIcingTelemetryFromFreezingWetFlight() {
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneInput input = new DroneInput(0.86, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+		DroneEnvironment freezingRain = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				1.0,
+				-8.0
+		);
+
+		for (int i = 0; i < 2500; i++) {
+			physics.step(input, 0.010, freezingRain);
+		}
+		recorder.record(DroneBlackboxSample.from(
+				0,
+				0,
+				1,
+				0.010,
+				physics.state(),
+				input,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				freezingRain,
+				config
+		));
+
+		String[] lines = recorder.toCsv().strip().split("\\R");
+		String[] header = lines[0].split(",", -1);
+		String[] row = lines[1].split(",", -1);
+		double severity = Double.parseDouble(row[indexOf(header, "rotor_icing_severity")]);
+		double rotor0Severity = Double.parseDouble(row[indexOf(header, "rotor_0_icing_severity")]);
+		double thrustScale = Double.parseDouble(row[indexOf(header, "rotor_icing_thrust_scale")]);
+		double rotor0ThrustScale = Double.parseDouble(row[indexOf(header, "rotor_0_icing_thrust_scale")]);
+		double powerScale = Double.parseDouble(row[indexOf(header, "rotor_icing_power_scale")]);
+		double rotor0PowerScale = Double.parseDouble(row[indexOf(header, "rotor_0_icing_power_scale")]);
+
+		assertTrue(severity > 0.10, () -> "severity=" + severity);
+		assertTrue(rotor0Severity > 0.10, () -> "rotor0Severity=" + rotor0Severity);
+		assertTrue(thrustScale < 0.985, () -> "thrustScale=" + thrustScale);
+		assertTrue(rotor0ThrustScale < 0.985, () -> "rotor0ThrustScale=" + rotor0ThrustScale);
+		assertTrue(powerScale > 1.05, () -> "powerScale=" + powerScale);
+		assertTrue(rotor0PowerScale > 1.05, () -> "rotor0PowerScale=" + rotor0PowerScale);
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		assertTrue(summary.maxRotorIcingSeverity() > 0.10);
+		assertTrue(summary.minRotorIcingThrustScale() < 0.985);
+		assertTrue(summary.maxRotorIcingPowerScale() > 1.05);
+		assertTrue(summary.formatForChat().contains("ice "));
+		assertTrue(summary.formatForChat().contains("iceloss "));
+		assertTrue(summary.formatForChat().contains("icepwr "));
 	}
 
 	@Test

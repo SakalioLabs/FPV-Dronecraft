@@ -386,6 +386,21 @@ public final class DroneBlackboxSample {
 			"rotor_1_wet_thrust_scale",
 			"rotor_2_wet_thrust_scale",
 			"rotor_3_wet_thrust_scale",
+			"rotor_icing_severity",
+			"rotor_0_icing_severity",
+			"rotor_1_icing_severity",
+			"rotor_2_icing_severity",
+			"rotor_3_icing_severity",
+			"rotor_icing_thrust_scale",
+			"rotor_0_icing_thrust_scale",
+			"rotor_1_icing_thrust_scale",
+			"rotor_2_icing_thrust_scale",
+			"rotor_3_icing_thrust_scale",
+			"rotor_icing_power_scale",
+			"rotor_0_icing_power_scale",
+			"rotor_1_icing_power_scale",
+			"rotor_2_icing_power_scale",
+			"rotor_3_icing_power_scale",
 			"rotor_wake_swirl_mps",
 			"rotor_0_wake_swirl_mps",
 			"rotor_1_wake_swirl_mps",
@@ -1007,6 +1022,18 @@ public final class DroneBlackboxSample {
 			"rotor_5_wet_thrust_scale",
 			"rotor_6_wet_thrust_scale",
 			"rotor_7_wet_thrust_scale",
+			"rotor_4_icing_severity",
+			"rotor_5_icing_severity",
+			"rotor_6_icing_severity",
+			"rotor_7_icing_severity",
+			"rotor_4_icing_thrust_scale",
+			"rotor_5_icing_thrust_scale",
+			"rotor_6_icing_thrust_scale",
+			"rotor_7_icing_thrust_scale",
+			"rotor_4_icing_power_scale",
+			"rotor_5_icing_power_scale",
+			"rotor_6_icing_power_scale",
+			"rotor_7_icing_power_scale",
 			"rotor_4_wake_swirl_mps",
 			"rotor_5_wake_swirl_mps",
 			"rotor_6_wake_swirl_mps",
@@ -1540,6 +1567,21 @@ public final class DroneBlackboxSample {
 		row.add(rotorWetThrustScaleOrOne(state, 1), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 2), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 3), "%.5f");
+		row.add(state.averageRotorIcingSeverity(), "%.5f");
+		row.add(rotorIcingSeverityOrZero(state, 0), "%.5f");
+		row.add(rotorIcingSeverityOrZero(state, 1), "%.5f");
+		row.add(rotorIcingSeverityOrZero(state, 2), "%.5f");
+		row.add(rotorIcingSeverityOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorIcingThrustScale(), "%.5f");
+		row.add(rotorIcingThrustScaleOrOne(state, 0), "%.5f");
+		row.add(rotorIcingThrustScaleOrOne(state, 1), "%.5f");
+		row.add(rotorIcingThrustScaleOrOne(state, 2), "%.5f");
+		row.add(rotorIcingThrustScaleOrOne(state, 3), "%.5f");
+		row.add(state.averageRotorIcingPowerScale(), "%.5f");
+		row.add(rotorIcingPowerScaleOrOne(state, 0), "%.5f");
+		row.add(rotorIcingPowerScaleOrOne(state, 1), "%.5f");
+		row.add(rotorIcingPowerScaleOrOne(state, 2), "%.5f");
+		row.add(rotorIcingPowerScaleOrOne(state, 3), "%.5f");
 		row.add(state.averageRotorWakeSwirlVelocityMetersPerSecond(), "%.5f");
 		row.add(rotorWakeSwirlOrZero(state, 0), "%.5f");
 		row.add(rotorWakeSwirlOrZero(state, 1), "%.5f");
@@ -2039,6 +2081,9 @@ public final class DroneBlackboxSample {
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
 		double[] rotorWetThrustScale = state.rotorWetThrustScale();
+		double[] rotorIcingSeverity = state.rotorIcingSeverity();
+		double[] rotorIcingThrustScale = state.rotorIcingThrustScale();
+		double[] rotorIcingPowerScale = state.rotorIcingPowerScale();
 		double[] rotorCoaxialLoadBias = state.rotorCoaxialLoadBias();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
@@ -2196,6 +2241,15 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrOne(rotorWetThrustScale, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorIcingSeverity, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrOne(rotorIcingThrustScale, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrOne(rotorIcingPowerScale, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorWakeSwirl, i), "%.5f");
@@ -2388,6 +2442,18 @@ public final class DroneBlackboxSample {
 
 	private static double rotorWetThrustScaleOrOne(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorWetThrustScale(index) : 1.0;
+	}
+
+	private static double rotorIcingSeverityOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorIcingSeverity(index) : 0.0;
+	}
+
+	private static double rotorIcingThrustScaleOrOne(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorIcingThrustScale(index) : 1.0;
+	}
+
+	private static double rotorIcingPowerScaleOrOne(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorIcingPowerScale(index) : 1.0;
 	}
 
 	private static double rotorWakeSwirlOrZero(DroneState state, int index) {

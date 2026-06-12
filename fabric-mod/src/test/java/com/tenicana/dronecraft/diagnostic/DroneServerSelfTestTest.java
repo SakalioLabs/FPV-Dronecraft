@@ -47,6 +47,9 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxRotorBladePassRipple", 0.021);
 		setDouble(selfTest, "maxRotorDamageVibration", 0.073);
 		setDouble(selfTest, "minRotorWetThrustScale", 0.94);
+		setDouble(selfTest, "maxRotorIcingSeverity", 0.27);
+		setDouble(selfTest, "minRotorIcingThrustScale", 0.947);
+		setDouble(selfTest, "maxRotorIcingPowerScale", 1.16);
 		setDouble(selfTest, "maxRotorCoaxialLoadBias", 0.083);
 		setDouble(selfTest, "maxRotorCoaxialLoadBiasTarget", 0.115);
 		setDouble(selfTest, "maxRotorCoaxialLoadBiasClipping", 0.012);
@@ -98,6 +101,9 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_rotor_blade_pass_ripple\": 0.02100"));
 		assertTrue(json.contains("\"max_rotor_damage_vibration\": 0.07300"));
 		assertTrue(json.contains("\"max_rotor_wet_thrust_loss_percent\": 6.000"));
+		assertTrue(json.contains("\"max_rotor_icing_severity\": 0.27000"));
+		assertTrue(json.contains("\"max_rotor_icing_thrust_loss_percent\": 5.300"));
+		assertTrue(json.contains("\"max_rotor_icing_power_scale\": 1.16000"));
 		assertTrue(json.contains("\"max_rotor_coaxial_load_bias\": 0.08300"));
 		assertTrue(json.contains("\"max_rotor_coaxial_load_bias_target\": 0.11500"));
 		assertTrue(json.contains("\"max_rotor_coaxial_load_bias_clipping\": 0.01200"));

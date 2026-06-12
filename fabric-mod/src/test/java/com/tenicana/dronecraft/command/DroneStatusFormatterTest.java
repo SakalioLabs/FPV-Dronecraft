@@ -46,6 +46,9 @@ class DroneStatusFormatterTest {
 				1.0, // rotorWakeThrustScale
 				0.0, // rotorCoaxialLoadBias
 				1.0, // rotorWetThrustScale
+				0.0, // rotorIcingSeverity
+				1.0, // rotorIcingThrustScale
+				1.0, // rotorIcingPowerScale
 				0.0, // rotorWakeSwirlVelocityMetersPerSecond
 				0.0, // rotorWindmillingIntensity
 				0.0, // rotorWakeSwirlTorqueNewtonMeters
@@ -101,6 +104,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("wloss 0%"));
 		assertTrue(status.contains("coax 0.000"));
 		assertTrue(status.contains("wetloss 0%"));
+		assertTrue(status.contains("ice 0.00 iceloss 0% icepwr 1.00"));
 		assertTrue(status.contains("swirl 0.00m/s"));
 		assertTrue(status.contains("wmill 0.00"));
 		assertTrue(status.contains("swirlT 0.000Nm"));
@@ -154,6 +158,9 @@ class DroneStatusFormatterTest {
 				0.91,
 				0.082,
 				0.88,
+				0.22,
+				0.95,
+				1.12,
 				0.92,
 				0.68,
 				0.016,
@@ -219,6 +226,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("coax-load-bias"));
 		assertTrue(warnings.contains("inflow-lag"));
 		assertTrue(warnings.contains("wet-thrust-loss"));
+		assertTrue(warnings.contains("rotor-icing"));
 		assertTrue(warnings.contains("wake-swirl"));
 		assertTrue(warnings.contains("rotor-windmilling"));
 		assertTrue(warnings.contains("wake-swirl-torque"));
@@ -247,7 +255,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("vrsbuf 11% vrsF 0.24N"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
 		assertTrue(status.contains("adv 0.62 J 0.58 pthr 0.72 ppwr 0.72 rev 0.31 tipmach 0.74"));
-		assertTrue(status.contains("rwake 0.47 wloss 9% coax 0.082 wetloss 12% swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
+		assertTrue(status.contains("rwake 0.47 wloss 9% coax 0.082 wetloss 12% ice 0.22 iceloss 5% icepwr 1.12 swirl 0.92m/s wmill 0.68 swirlT 0.016Nm brakeT 0.018Nm accelT 0.016Nm gyroT 0.014Nm flapT 0.017Nm"));
 		assertTrue(status.contains("prop strikes 3 last r2/0.11"));
 		assertTrue(status.contains("warnings "));
 	}
@@ -288,6 +296,9 @@ class DroneStatusFormatterTest {
 			double rotorWakeThrustScale,
 			double rotorCoaxialLoadBias,
 			double rotorWetThrustScale,
+			double rotorIcingSeverity,
+			double rotorIcingThrustScale,
+			double rotorIcingPowerScale,
 			double rotorWakeSwirlVelocityMetersPerSecond,
 			double rotorWindmillingIntensity,
 			double rotorWakeSwirlTorqueNewtonMeters,
@@ -397,6 +408,9 @@ class DroneStatusFormatterTest {
 				rotorWakeThrustScale,
 				rotorCoaxialLoadBias,
 				rotorWetThrustScale,
+				rotorIcingSeverity,
+				rotorIcingThrustScale,
+				rotorIcingPowerScale,
 				rotorWakeSwirlVelocityMetersPerSecond,
 				rotorWindmillingIntensity,
 				rotorWakeSwirlTorqueNewtonMeters,

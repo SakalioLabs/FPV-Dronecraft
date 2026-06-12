@@ -107,6 +107,9 @@ public final class DroneServerSelfTest {
 	private double maxRotorCoaxialAllocationElectricalGainPercent;
 	private double maxRotorCoaxialAllocationUncertaintyPercent;
 	private double minRotorWetThrustScale = 1.0;
+	private double maxRotorIcingSeverity;
+	private double minRotorIcingThrustScale = 1.0;
+	private double maxRotorIcingPowerScale = 1.0;
 	private double maxRotorWakeSwirlVelocity;
 	private double maxRotorWindmilling;
 	private double maxRotorWakeSwirlTorque;
@@ -248,6 +251,9 @@ public final class DroneServerSelfTest {
 		maxRotorCoaxialAllocationElectricalGainPercent = Math.max(maxRotorCoaxialAllocationElectricalGainPercent, drone.getRotorCoaxialAllocationElectricalGainPercent());
 		maxRotorCoaxialAllocationUncertaintyPercent = Math.max(maxRotorCoaxialAllocationUncertaintyPercent, drone.getRotorCoaxialAllocationUncertaintyPercent());
 		minRotorWetThrustScale = Math.min(minRotorWetThrustScale, drone.getRotorWetThrustScale());
+		maxRotorIcingSeverity = Math.max(maxRotorIcingSeverity, drone.getRotorIcingSeverity());
+		minRotorIcingThrustScale = Math.min(minRotorIcingThrustScale, drone.getRotorIcingThrustScale());
+		maxRotorIcingPowerScale = Math.max(maxRotorIcingPowerScale, drone.getRotorIcingPowerScale());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxRotorWindmilling = Math.max(maxRotorWindmilling, drone.getRotorWindmillingIntensity());
 		maxRotorWakeSwirlTorque = Math.max(maxRotorWakeSwirlTorque, drone.getRotorWakeSwirlTorqueNewtonMeters());
@@ -387,6 +393,12 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_coaxial_load_bias")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wet_thrust_scale")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wet_thrust_scale")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_icing_severity")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_icing_severity")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_icing_thrust_scale")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_icing_thrust_scale")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_icing_power_scale")
+				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_icing_power_scale")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_windmilling")
@@ -640,6 +652,12 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_coaxial_load_bias")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wet_thrust_scale")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wet_thrust_scale")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_icing_severity")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_icing_severity")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_icing_thrust_scale")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_icing_thrust_scale")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_icing_power_scale")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_icing_power_scale")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_wake_swirl_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_wake_swirl_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_windmilling")
@@ -917,6 +935,9 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_coaxial_allocation_elec_gain_pct\": %.5f,\n"
 						+ "  \"max_rotor_coaxial_allocation_uncertainty_pct\": %.5f,\n"
 						+ "  \"max_rotor_wet_thrust_loss_percent\": %.3f,\n"
+						+ "  \"max_rotor_icing_severity\": %.5f,\n"
+						+ "  \"max_rotor_icing_thrust_loss_percent\": %.3f,\n"
+						+ "  \"max_rotor_icing_power_scale\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_rotor_windmilling\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_torque_nm\": %.6f,\n"
@@ -1008,6 +1029,9 @@ public final class DroneServerSelfTest {
 				maxRotorCoaxialAllocationElectricalGainPercent,
 				maxRotorCoaxialAllocationUncertaintyPercent,
 				(1.0 - minRotorWetThrustScale) * 100.0,
+				maxRotorIcingSeverity,
+				(1.0 - minRotorIcingThrustScale) * 100.0,
+				maxRotorIcingPowerScale,
 				maxRotorWakeSwirlVelocity,
 				maxRotorWindmilling,
 				maxRotorWakeSwirlTorque,
