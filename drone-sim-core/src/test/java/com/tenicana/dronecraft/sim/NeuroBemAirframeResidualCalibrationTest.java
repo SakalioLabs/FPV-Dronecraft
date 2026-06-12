@@ -82,6 +82,40 @@ class NeuroBemAirframeResidualCalibrationTest {
 	}
 
 	@Test
+	void runtimeAngularDampingGuardScalesNeuroBemTorqueResidualsByCurrentInertia() {
+		NeuroBemAirframeResidualCalibration.RuntimeAngularDampingGuard guard =
+				NeuroBemAirframeResidualCalibration.audit(DroneConfig.racingQuad()).runtimeAngularDampingGuard();
+
+		assertEquals(3.09969215197, guard.speedGateStartMetersPerSecond(), 1.0e-12);
+		assertEquals(11.7354143183, guard.speedGateFullMetersPerSecond(), 1.0e-12);
+		assertEquals(0.588461352766, guard.angularRateGateStartRadiansPerSecond(), 1.0e-12);
+		assertEquals(3.81664941329, guard.angularRateGateFullRadiansPerSecond(), 1.0e-12);
+		assertEquals(1.20, guard.headroom(), 1.0e-15);
+		assertEquals(5.8076, guard.residualTorqueEquivalentAngularAccelP95RadiansPerSecondSquared().x(), 1.0e-15);
+		assertEquals(7.61285714286, guard.residualTorqueEquivalentAngularAccelP95RadiansPerSecondSquared().y(), 1.0e-12);
+		assertEquals(1.81976744186, guard.residualTorqueEquivalentAngularAccelP95RadiansPerSecondSquared().z(), 1.0e-12);
+		assertEquals(0.08362944, guard.residualTorqueP95AxisLimitNewtonMeters().x(), 1.0e-12);
+		assertEquals(0.191844000000072, guard.residualTorqueP95AxisLimitNewtonMeters().y(), 1.0e-12);
+		assertEquals(0.030572093023248002, guard.residualTorqueP95AxisLimitNewtonMeters().z(), 1.0e-12);
+		assertEquals(0.06869968943922,
+				guard.currentBaseAngularDragTorqueAtNeuroBemP95RatesNewtonMeters().x(), 1.0e-14);
+		assertEquals(guard.currentBaseAngularDragTorqueAtNeuroBemP95RatesNewtonMeters().x(),
+				guard.currentBaseAngularDragTorqueAtNeuroBemP95RatesNewtonMeters().y(), 1.0e-15);
+		assertEquals(guard.currentBaseAngularDragTorqueAtNeuroBemP95RatesNewtonMeters().x(),
+				guard.currentBaseAngularDragTorqueAtNeuroBemP95RatesNewtonMeters().z(), 1.0e-15);
+
+		Vec3 heavierInertiaLimit = NeuroBemAirframeResidualCalibration
+				.runtimeResidualTorqueP95AxisLimitNewtonMeters(
+						DroneConfig.racingQuad().withInertiaKgMetersSquared(new Vec3(0.024, 0.042, 0.028)));
+		assertEquals(guard.residualTorqueP95AxisLimitNewtonMeters().x() * 2.0,
+				heavierInertiaLimit.x(), 1.0e-12);
+		assertEquals(guard.residualTorqueP95AxisLimitNewtonMeters().y() * 2.0,
+				heavierInertiaLimit.y(), 1.0e-12);
+		assertEquals(guard.residualTorqueP95AxisLimitNewtonMeters().z() * 2.0,
+				heavierInertiaLimit.z(), 1.0e-12);
+	}
+
+	@Test
 	void residualFitKeepsAxisFitsSeparateFromCurrentPresetDrag() {
 		NeuroBemAirframeResidualCalibration.ResidualFitEnvelope fit =
 				NeuroBemAirframeResidualCalibration.audit(DroneConfig.racingQuad()).residualFitEnvelope();

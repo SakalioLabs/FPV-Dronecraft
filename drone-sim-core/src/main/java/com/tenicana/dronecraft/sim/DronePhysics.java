@@ -5649,11 +5649,48 @@ public final class DronePhysics {
 				+ rotationalDamping.z()
 				+ separatedFlowDamping.z()
 				+ rotorWashDamping.z();
-		return new Vec3(
+		Vec3 rawDampingTorque = new Vec3(
 				-angularVelocityBody.x() * pitchDamping,
 				-angularVelocityBody.y() * yawDamping,
 				-angularVelocityBody.z() * rollDamping
 		);
+		return applyNeuroBemAngularDampingGuard(rawDampingTorque, angularVelocityBody, speed, airDensityRatio);
+	}
+
+	private Vec3 applyNeuroBemAngularDampingGuard(
+			Vec3 rawDampingTorque,
+			Vec3 angularVelocityBody,
+			double airspeedMetersPerSecond,
+			double airDensityRatio
+	) {
+		if (airDensityRatio <= 0.0
+				|| rawDampingTorque.lengthSquared() <= 1.0e-12
+				|| angularVelocityBody.lengthSquared() <= 1.0e-12) {
+			return rawDampingTorque;
+		}
+
+		double speedCoverage = smoothStep(
+				NeuroBemAirframeResidualCalibration.BODY_SPEED_SAMPLE_P50_METERS_PER_SECOND,
+				NeuroBemAirframeResidualCalibration.BODY_SPEED_SAMPLE_P95_METERS_PER_SECOND,
+				airspeedMetersPerSecond
+		);
+		double rateCoverage = smoothStep(
+				NeuroBemAirframeResidualCalibration.ANGULAR_SPEED_SAMPLE_P50_RADIANS_PER_SECOND,
+				NeuroBemAirframeResidualCalibration.ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND,
+				angularVelocityBody.length()
+		);
+		double guardCoverage = speedCoverage * rateCoverage;
+		if (guardCoverage <= 1.0e-6) {
+			return rawDampingTorque;
+		}
+
+		Vec3 torqueLimit = NeuroBemAirframeResidualCalibration.runtimeResidualTorqueP95AxisLimitNewtonMeters(config);
+		Vec3 guardedTorque = new Vec3(
+				MathUtil.clamp(rawDampingTorque.x(), -torqueLimit.x(), torqueLimit.x()),
+				MathUtil.clamp(rawDampingTorque.y(), -torqueLimit.y(), torqueLimit.y()),
+				MathUtil.clamp(rawDampingTorque.z(), -torqueLimit.z(), torqueLimit.z())
+		);
+		return rawDampingTorque.add(guardedTorque.subtract(rawDampingTorque).multiply(guardCoverage));
 	}
 
 	private double calculateSideslipWeathercockYawDamping(Vec3 relativeAirVelocityBody, double airDensityRatio) {

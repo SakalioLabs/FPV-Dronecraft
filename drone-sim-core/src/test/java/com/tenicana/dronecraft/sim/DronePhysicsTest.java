@@ -9196,7 +9196,7 @@ class DronePhysicsTest {
 				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));
 		DronePhysics stillAir = new DronePhysics(config);
 		DronePhysics fastAir = new DronePhysics(config);
-		Vec3 initialSpin = new Vec3(8.0, 3.5, -6.0);
+		Vec3 initialSpin = new Vec3(0.42, 0.18, -0.34);
 		stillAir.state().setAngularVelocityBodyRadiansPerSecond(initialSpin);
 		fastAir.state().setAngularVelocityBodyRadiansPerSecond(initialSpin);
 		Vec3 forwardAirspeed = new Vec3(0.0, 0.0, 28.0);
@@ -9216,8 +9216,35 @@ class DronePhysicsTest {
 		assertTrue(Math.abs(fastDrag.y()) > Math.abs(stillDrag.y()) * 2.2);
 		assertTrue(Math.abs(fastDrag.z()) > Math.abs(stillDrag.z()) * 2.2);
 		assertTrue(fastAir.state().angularVelocityBodyRadiansPerSecond().length()
-				< stillAir.state().angularVelocityBodyRadiansPerSecond().length() - 0.35);
+				< stillAir.state().angularVelocityBodyRadiansPerSecond().length() - 0.006);
 		assertEquals(0.0, fastAir.state().airframeAerodynamicTorqueBodyNewtonMeters().length(), 1.0e-9);
+	}
+
+	@Test
+	void neuroBemGuardLimitsHighRateAirframeAngularDragToResidualTorqueScale() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));
+		DronePhysics physics = new DronePhysics(config);
+		Vec3 highRate = new Vec3(8.0, 3.5, -6.0);
+		Vec3 highAirspeed = new Vec3(0.0, 0.0, 28.0);
+
+		physics.state().setOrientation(Quaternion.IDENTITY);
+		physics.state().setVelocityMetersPerSecond(highAirspeed);
+		physics.state().setAngularVelocityBodyRadiansPerSecond(highRate);
+		physics.step(DroneInput.idle(), 0.0025);
+
+		Vec3 angularDrag = physics.state().airframeAngularDragTorqueBodyNewtonMeters();
+		Vec3 limit = NeuroBemAirframeResidualCalibration.runtimeResidualTorqueP95AxisLimitNewtonMeters(config);
+		assertTrue(angularDrag.dot(highRate) < 0.0, () -> "angularDrag=" + angularDrag);
+		assertTrue(Math.abs(angularDrag.x()) <= limit.x() + 1.0e-9,
+				() -> "angularDrag=" + angularDrag + " limit=" + limit);
+		assertTrue(Math.abs(angularDrag.y()) <= limit.y() + 1.0e-9,
+				() -> "angularDrag=" + angularDrag + " limit=" + limit);
+		assertTrue(Math.abs(angularDrag.z()) <= limit.z() + 1.0e-9,
+				() -> "angularDrag=" + angularDrag + " limit=" + limit);
+		assertEquals(limit.x(), Math.abs(angularDrag.x()), 1.0e-9);
+		assertEquals(limit.z(), Math.abs(angularDrag.z()), 1.0e-9);
 	}
 
 	@Test
@@ -9245,7 +9272,7 @@ class DronePhysicsTest {
 		Vec3 separatedDrag = separated.state().airframeAngularDragTorqueBodyNewtonMeters();
 		assertTrue(cleanForward.state().airframeSeparatedFlowIntensity() < 0.03);
 		assertTrue(separated.state().airframeSeparatedFlowIntensity() > 0.80);
-		assertTrue(separatedDrag.dot(bodyRates) < cleanDrag.dot(bodyRates) - 0.30,
+		assertTrue(separatedDrag.dot(bodyRates) < cleanDrag.dot(bodyRates) - 0.08,
 				() -> "cleanDrag=" + cleanDrag + " separatedDrag=" + separatedDrag);
 		assertTrue(Math.abs(separatedDrag.y()) > Math.abs(cleanDrag.y()) + 0.025,
 				() -> "cleanDrag=" + cleanDrag + " separatedDrag=" + separatedDrag);
@@ -11168,6 +11195,7 @@ class DronePhysicsTest {
 		assertTrue(text.contains("NeuroBEM residual audit"));
 		assertTrue(text.contains("NeuroBEM-Drag-Residual-Packet"));
 		assertTrue(text.contains("0.772kg"));
+		assertTrue(text.contains("guard"));
 		assertTrue(text.contains("low-speed-residual-not-wind-tunnel-drag"));
 		assertTrue(text.contains("FPV LiPo ESR audit"));
 		assertTrue(text.contains("FPV-LiPo-ESR-Calibration-Packet"));

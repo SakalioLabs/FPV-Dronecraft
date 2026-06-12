@@ -1502,7 +1502,7 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"NeuroBEM residual audit: %s rows %d files %d raw %d matched/test %d/%d %.1fmin 0.772kg speed p50/p95/max %.2f/%.2f/%.2fm/s residual p50/p95 %.2f/%.2fN %.1f%%W drag_like p95 %.2fN eqC95 %.5f, torque p50/p95/max %.4f/%.4f/%.4fNm %.2fxpropwash axes %.4f/%.4f/%.4fNm damp p50/p95 %.4f/%.4fNm eqD p50/p95 %.5f/%.5f %.2fxangdrag, preset X/Z 10m %.2f/%.2fN p95v %.2f/%.2fN over_resid %.2f/%.2fx over_draglike %.2f/%.2fx bins trim %.1fm/s %.2f/%.2fN fast %.1fm/s %.2f/%.2fN families %d targets %d lemn/lin/ell torque %.4f/%.4f/%.4fNm vertD %.5f caveat low-speed-residual-not-wind-tunnel-drag%n",
+				"NeuroBEM residual audit: %s rows %d files %d raw %d matched/test %d/%d %.1fmin 0.772kg speed p50/p95/max %.2f/%.2f/%.2fm/s residual p50/p95 %.2f/%.2fN %.1f%%W drag_like p95 %.2fN eqC95 %.5f, torque p50/p95/max %.4f/%.4f/%.4fNm %.2fxpropwash axes %.4f/%.4f/%.4fNm damp p50/p95 %.4f/%.4fNm eqD p50/p95 %.5f/%.5f %.2fxangdrag guard %.2fx %.4f/%.4f/%.4fNm, preset X/Z 10m %.2f/%.2fN p95v %.2f/%.2fN over_resid %.2f/%.2fx over_draglike %.2f/%.2fx bins trim %.1fm/s %.2f/%.2fN fast %.1fm/s %.2f/%.2fN families %d targets %d lemn/lin/ell torque %.4f/%.4f/%.4fNm vertD %.5f caveat low-speed-residual-not-wind-tunnel-drag%n",
 				neuroBemResidualAudit.sourceId(),
 				neuroBemResidualAudit.packetMetricRowCount(),
 				neuroBemResidualAudit.globalEnvelope().predictionCsvFileCount(),
@@ -1533,6 +1533,13 @@ public final class OfflineFlightRecorder {
 						.equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond(),
 				neuroBemResidualAudit.torqueEnvelope()
 						.equivalentAngularDampingSampleP95OverCurrentAngularDragCoefficient(),
+				neuroBemResidualAudit.runtimeAngularDampingGuard().headroom(),
+				neuroBemResidualAudit.runtimeAngularDampingGuard()
+						.residualTorqueP95AxisLimitNewtonMeters().x(),
+				neuroBemResidualAudit.runtimeAngularDampingGuard()
+						.residualTorqueP95AxisLimitNewtonMeters().y(),
+				neuroBemResidualAudit.runtimeAngularDampingGuard()
+						.residualTorqueP95AxisLimitNewtonMeters().z(),
 				neuroBemResidualAudit.lateralAxisComparison().dragAtTenMetersPerSecondNewtons(),
 				neuroBemResidualAudit.forwardAxisComparison().dragAtTenMetersPerSecondNewtons(),
 				neuroBemResidualAudit.lateralAxisComparison().dragAtNeuroBemP95SpeedNewtons(),

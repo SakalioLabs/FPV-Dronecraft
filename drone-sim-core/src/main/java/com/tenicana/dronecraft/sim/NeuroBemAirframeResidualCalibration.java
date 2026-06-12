@@ -48,6 +48,7 @@ public final class NeuroBemAirframeResidualCalibration {
 			0.000719563050699;
 	public static final double EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P95_NEWTON_METERS_PER_RADIAN_PER_SECOND =
 			0.012315040507;
+	public static final double RUNTIME_ANGULAR_DAMPING_GUARD_HEADROOM = 1.20;
 	public static final double DRAG_LIKE_FORCE_SAMPLE_P50_NEWTONS = -0.0136422721443;
 	public static final double DRAG_LIKE_FORCE_SAMPLE_P95_NEWTONS = 0.376788401479;
 	public static final double EQUIVALENT_QUAD_COEFF_SAMPLE_P50 = -0.00068123767585;
@@ -116,6 +117,18 @@ public final class NeuroBemAirframeResidualCalibration {
 			double equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond,
 			double currentAngularDragCoefficient,
 			double equivalentAngularDampingSampleP95OverCurrentAngularDragCoefficient
+	) {
+	}
+
+	public record RuntimeAngularDampingGuard(
+			double speedGateStartMetersPerSecond,
+			double speedGateFullMetersPerSecond,
+			double angularRateGateStartRadiansPerSecond,
+			double angularRateGateFullRadiansPerSecond,
+			double headroom,
+			Vec3 residualTorqueEquivalentAngularAccelP95RadiansPerSecondSquared,
+			Vec3 residualTorqueP95AxisLimitNewtonMeters,
+			Vec3 currentBaseAngularDragTorqueAtNeuroBemP95RatesNewtonMeters
 	) {
 	}
 
@@ -194,6 +207,7 @@ public final class NeuroBemAirframeResidualCalibration {
 			int targetVelocitySummaryRowCount,
 			GlobalResidualEnvelope globalEnvelope,
 			ResidualTorqueEnvelope torqueEnvelope,
+			RuntimeAngularDampingGuard runtimeAngularDampingGuard,
 			ResidualFitEnvelope residualFitEnvelope,
 			CurrentAxisDragComparison lateralAxisComparison,
 			CurrentAxisDragComparison forwardAxisComparison,
@@ -249,6 +263,7 @@ public final class NeuroBemAirframeResidualCalibration {
 						BATTERY_VOLTAGE_SAMPLE_P05
 				),
 				residualTorqueEnvelope(config),
+				runtimeAngularDampingGuard(config),
 				new ResidualFitEnvelope(
 						DRAG_LIKE_LINEAR_FIT_K,
 						DRAG_LIKE_QUADRATIC_FIT_C,
@@ -336,6 +351,52 @@ public final class NeuroBemAirframeResidualCalibration {
 						0.000688390892377,
 						0.0312104000645
 				)
+		);
+	}
+
+	public static RuntimeAngularDampingGuard runtimeAngularDampingGuard(DroneConfig config) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		return new RuntimeAngularDampingGuard(
+				BODY_SPEED_SAMPLE_P50_METERS_PER_SECOND,
+				BODY_SPEED_SAMPLE_P95_METERS_PER_SECOND,
+				ANGULAR_SPEED_SAMPLE_P50_RADIANS_PER_SECOND,
+				ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND,
+				RUNTIME_ANGULAR_DAMPING_GUARD_HEADROOM,
+				residualTorqueEquivalentAngularAccelP95RadiansPerSecondSquared(),
+				runtimeResidualTorqueP95AxisLimitNewtonMeters(config),
+				new Vec3(
+						config.angularDragCoefficient() * ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND,
+						config.angularDragCoefficient() * ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND,
+						config.angularDragCoefficient() * ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND
+				)
+		);
+	}
+
+	public static Vec3 runtimeResidualTorqueP95AxisLimitNewtonMeters(DroneConfig config) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		Vec3 inertia = config.inertiaKgMetersSquared();
+		return new Vec3(
+				RESIDUAL_TORQUE_ABS_X_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED
+						* inertia.x()
+						* RUNTIME_ANGULAR_DAMPING_GUARD_HEADROOM,
+				RESIDUAL_TORQUE_ABS_Y_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED
+						* inertia.y()
+						* RUNTIME_ANGULAR_DAMPING_GUARD_HEADROOM,
+				RESIDUAL_TORQUE_ABS_Z_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED
+						* inertia.z()
+						* RUNTIME_ANGULAR_DAMPING_GUARD_HEADROOM
+		);
+	}
+
+	private static Vec3 residualTorqueEquivalentAngularAccelP95RadiansPerSecondSquared() {
+		return new Vec3(
+				RESIDUAL_TORQUE_ABS_X_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED,
+				RESIDUAL_TORQUE_ABS_Y_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED,
+				RESIDUAL_TORQUE_ABS_Z_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED
 		);
 	}
 
