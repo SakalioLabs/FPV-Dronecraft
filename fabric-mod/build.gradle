@@ -318,6 +318,21 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 	if ((report.max_motor_power ?: 0.0) <= 0.08 || (report.max_battery_current_a ?: 0.0) <= 1.5 || (report.max_battery_sag_v ?: 0.0) <= 0.01) {
 		throw new GradleException("FPV Dronecraft server self-test did not exercise the powertrain enough.")
 	}
+	def missingReportFields = [
+			"max_battery_effective_resistance_ohm",
+			"max_battery_soc_resistance_scale",
+			"max_battery_temp_resistance_scale",
+			"max_battery_polarization_resistance_scale"
+	].findAll { !report.containsKey(it) }
+	if (!missingReportFields.isEmpty()) {
+		throw new GradleException("FPV Dronecraft server self-test JSON is missing fields ${missingReportFields}: ${reportFile}")
+	}
+	if ((report.max_battery_effective_resistance_ohm ?: 0.0) <= 0.001
+			|| (report.max_battery_soc_resistance_scale ?: 0.0) < 1.0
+			|| (report.max_battery_temp_resistance_scale ?: 0.0) < 1.0
+			|| (report.max_battery_polarization_resistance_scale ?: 0.0) < 1.0) {
+		throw new GradleException("FPV Dronecraft server self-test did not report valid battery resistance split telemetry.")
+	}
 
 	logger.lifecycle("FPV Dronecraft server self-test report validated: ${reportFile}")
 }

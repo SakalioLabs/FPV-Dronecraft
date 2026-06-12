@@ -30,6 +30,9 @@ public final class DroneServerSelfTest {
 	private static final String ENV_SECONDS = "FPVDRONE_SELFTEST_SECONDS";
 	private static final int DEFAULT_SECONDS = 12;
 	private static final int POST_SCRIPT_TICKS = 40;
+	private static final int PHYSICS_STEPS_PER_TICK = 10;
+	private static final double PHYSICS_DT_SECONDS = 0.005;
+	private static final double PHYSICS_RATE_HERTZ = 1.0 / PHYSICS_DT_SECONDS;
 
 	private static DroneServerSelfTest active;
 
@@ -50,6 +53,9 @@ public final class DroneServerSelfTest {
 	private double maxBatteryCurrent;
 	private double maxBatterySag;
 	private double maxBatteryEffectiveResistance;
+	private double maxBatteryStateOfChargeResistanceScale = 1.0;
+	private double maxBatteryTemperatureResistanceScale = 1.0;
+	private double maxBatteryPolarizationResistanceScale = 1.0;
 	private double maxImuSupplyNoise;
 	private double maxMotorWindingResistanceScale = 1.0;
 	private double maxPropwash;
@@ -138,6 +144,9 @@ public final class DroneServerSelfTest {
 		maxBatteryCurrent = Math.max(maxBatteryCurrent, drone.getBatteryCurrentAmps());
 		maxBatterySag = Math.max(maxBatterySag, drone.getBatterySagVoltage());
 		maxBatteryEffectiveResistance = Math.max(maxBatteryEffectiveResistance, drone.getBatteryEffectiveResistanceOhms());
+		maxBatteryStateOfChargeResistanceScale = Math.max(maxBatteryStateOfChargeResistanceScale, drone.getBatteryStateOfChargeResistanceScale());
+		maxBatteryTemperatureResistanceScale = Math.max(maxBatteryTemperatureResistanceScale, drone.getBatteryTemperatureResistanceScale());
+		maxBatteryPolarizationResistanceScale = Math.max(maxBatteryPolarizationResistanceScale, drone.getBatteryPolarizationResistanceScale());
 		maxImuSupplyNoise = Math.max(maxImuSupplyNoise, drone.getImuSupplyNoiseIntensity());
 		maxMotorWindingResistanceScale = Math.max(maxMotorWindingResistanceScale, drone.getMotorWindingResistanceScale());
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
@@ -667,6 +676,9 @@ public final class DroneServerSelfTest {
 						+ "  \"max_battery_current_a\": %.5f,\n"
 						+ "  \"max_battery_sag_v\": %.5f,\n"
 						+ "  \"max_battery_effective_resistance_ohm\": %.6f,\n"
+						+ "  \"max_battery_soc_resistance_scale\": %.5f,\n"
+						+ "  \"max_battery_temp_resistance_scale\": %.5f,\n"
+						+ "  \"max_battery_polarization_resistance_scale\": %.5f,\n"
 						+ "  \"max_imu_supply_noise\": %.5f,\n"
 						+ "  \"max_motor_winding_resistance_scale\": %.5f,\n"
 						+ "  \"max_propwash\": %.5f,\n"
@@ -692,9 +704,9 @@ public final class DroneServerSelfTest {
 				passed,
 				escapeJson(reason),
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
-				DroneEntity.physicsStepsPerTick(),
-				DroneEntity.physicsDtSeconds(),
-				DroneEntity.physicsRateHertz(),
+				PHYSICS_STEPS_PER_TICK,
+				PHYSICS_DT_SECONDS,
+				PHYSICS_RATE_HERTZ,
 				durationTicks,
 				sampleCount,
 				initialX,
@@ -712,6 +724,9 @@ public final class DroneServerSelfTest {
 				maxBatteryCurrent,
 				maxBatterySag,
 				maxBatteryEffectiveResistance,
+				maxBatteryStateOfChargeResistanceScale,
+				maxBatteryTemperatureResistanceScale,
+				maxBatteryPolarizationResistanceScale,
 				maxImuSupplyNoise,
 				maxMotorWindingResistanceScale,
 				maxPropwash,
