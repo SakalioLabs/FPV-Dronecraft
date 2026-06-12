@@ -19,7 +19,9 @@ import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
 import com.tenicana.dronecraft.camera.FpvCameraPoseDelay;
+import com.tenicana.dronecraft.camera.FpvCameraVibration;
 import com.tenicana.dronecraft.entity.DroneEntity;
+import com.tenicana.dronecraft.sim.RotorSpec;
 
 @Mixin(Camera.class)
 public abstract class CameraMixin {
@@ -140,7 +142,7 @@ public abstract class CameraMixin {
 		float wideLensFactor = Mth.clamp(config.cameraFovDegrees() / 105.0f, 0.75f, 1.35f);
 		float rollingShutter = config.cameraRollingShutterScale() * rotorShake * rpmFactor * wideLensFactor;
 		float jelloDegrees = Mth.clamp(0.75f * rollingShutter * (0.55f + 0.45f * propwash), 0.0f, 1.4f);
-		float bladePassPhase = motorPhase * 2.0f + 0.41f * Mth.sin(washPhase);
+		float bladePassPhase = FpvCameraVibration.bladePassPhaseRadians(motorPhase, cameraBladeCount(drone), washPhase);
 
 		float lateralMeters = positionMeters * (0.45f * Mth.sin(motorPhase + 1.3f) + 0.25f * Mth.sin(washPhase + 0.2f));
 		float verticalMeters = positionMeters * (0.65f * Mth.sin(motorPhase * 1.91f + 2.1f) + 0.20f * Mth.sin(washPhase * 1.7f));
@@ -154,6 +156,18 @@ public abstract class CameraMixin {
 		yawDegrees += jelloDegrees * 0.75f * Mth.sin(bladePassPhase + 1.8f);
 		rollRadians += jelloDegrees * 0.65f * Mth.DEG_TO_RAD * Mth.sin(bladePassPhase * 0.93f + 2.9f);
 		return new CameraShake(lateralMeters, verticalMeters, forwardMeters, pitchDegrees, yawDegrees, rollRadians);
+	}
+
+	private static int cameraBladeCount(DroneEntity drone) {
+		if (drone == null || drone.config().rotors().isEmpty()) {
+			return FpvCameraVibration.sanitizedBladeCount(0);
+		}
+
+		double sum = 0.0;
+		for (RotorSpec rotor : drone.config().rotors()) {
+			sum += rotor.bladeCount();
+		}
+		return FpvCameraVibration.sanitizedBladeCount((int) Math.round(sum / drone.config().rotors().size()));
 	}
 
 	private record CameraShake(
