@@ -44,6 +44,16 @@ public final class MotorBenchCurrentModel {
 	public static final double APDRONE_FOXEER_5145_RADIUS_METERS = 5.1 * 0.0254 * 0.5;
 	public static final double APDRONE_FOXEER_5145_PITCH_TO_DIAMETER_RATIO = 4.5 / 5.1;
 	public static final int APDRONE_FOXEER_5145_BLADE_COUNT = 3;
+	public static final String FOXEER_DONUT_5145_PUBLIC_TEST_SOURCE_ID = "Foxeer-Donut-5145";
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_NEWTONS = 13.556742379949998;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_RPM = 29802.0;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_COEFFICIENT = 1.3918976015517363e-6;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_TORQUE_NEWTON_METERS = 0.184;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_TORQUE_PER_THRUST_METERS = 0.013572582176683558;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_CURRENT_AMPS = 34.83;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_VOLTAGE_VOLTS = 23.72;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_POWER_WATTS = 826.0;
+	public static final double FOXEER_DONUT_5145_PUBLIC_TEST_VIBRATION_G = 1.7;
 	public static final String AIIO_ROTOR_SPEED_SOURCE_ID = "AI-IO";
 	public static final int AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT = 22;
 	public static final double AIIO_HDF5_SAMPLE_RATE_HERTZ = 100.00009536752259;
@@ -183,6 +193,28 @@ public final class MotorBenchCurrentModel {
 			double configuredMaxRpmOverReferenceKvNominal,
 			double configuredMaxRpmOverBetaflightKvFullCharge,
 			double configuredMaxRpmOverBetaflightKvNominal
+	) {
+	}
+
+	public record FoxeerDonut5145PropAudit(
+			String referenceId,
+			double configuredMaxRotorThrustNewtons,
+			double configuredThrustCoefficient,
+			double configuredYawTorquePerThrustMeter,
+			double configuredMaxRpm,
+			double referenceThrustNewtons,
+			double referenceRpm,
+			double referenceThrustCoefficient,
+			double referenceTorqueNewtonMeters,
+			double referenceTorquePerThrustMeter,
+			double referenceCurrentAmps,
+			double referenceVoltageVolts,
+			double referencePowerWatts,
+			double referenceVibrationG,
+			double configuredMaxThrustOverReference,
+			double configuredThrustCoefficientOverReference,
+			double configuredYawTorquePerThrustOverReference,
+			double configuredMaxRpmOverReference
 	) {
 	}
 
@@ -468,6 +500,33 @@ public final class MotorBenchCurrentModel {
 				ratio(configuredMaxRpm, referenceKvNominalRpm),
 				ratio(configuredMaxRpm, betaflightKvFullChargeRpm),
 				ratio(configuredMaxRpm, betaflightKvNominalRpm)
+		);
+	}
+
+	public static FoxeerDonut5145PropAudit foxeerDonut5145PropAudit(DroneConfig config) {
+		double configuredMaxThrustNewtons = averageMaxRotorThrustNewtons(config);
+		double configuredThrustCoefficient = averageThrustCoefficient(config);
+		double configuredYawTorque = averageYawTorquePerThrustMeter(config);
+		double configuredMaxRpm = averageMaxRotorRpm(config);
+		return new FoxeerDonut5145PropAudit(
+				FOXEER_DONUT_5145_PUBLIC_TEST_SOURCE_ID,
+				configuredMaxThrustNewtons,
+				configuredThrustCoefficient,
+				configuredYawTorque,
+				configuredMaxRpm,
+				FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_NEWTONS,
+				FOXEER_DONUT_5145_PUBLIC_TEST_RPM,
+				FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_COEFFICIENT,
+				FOXEER_DONUT_5145_PUBLIC_TEST_TORQUE_NEWTON_METERS,
+				FOXEER_DONUT_5145_PUBLIC_TEST_TORQUE_PER_THRUST_METERS,
+				FOXEER_DONUT_5145_PUBLIC_TEST_CURRENT_AMPS,
+				FOXEER_DONUT_5145_PUBLIC_TEST_VOLTAGE_VOLTS,
+				FOXEER_DONUT_5145_PUBLIC_TEST_POWER_WATTS,
+				FOXEER_DONUT_5145_PUBLIC_TEST_VIBRATION_G,
+				ratio(configuredMaxThrustNewtons, FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_NEWTONS),
+				ratio(configuredThrustCoefficient, FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_COEFFICIENT),
+				ratio(configuredYawTorque, FOXEER_DONUT_5145_PUBLIC_TEST_TORQUE_PER_THRUST_METERS),
+				ratio(configuredMaxRpm, FOXEER_DONUT_5145_PUBLIC_TEST_RPM)
 		);
 	}
 

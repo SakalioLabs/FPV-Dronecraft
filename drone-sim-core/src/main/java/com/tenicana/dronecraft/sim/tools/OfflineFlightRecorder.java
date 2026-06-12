@@ -1204,6 +1204,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(preset);
 		MotorBenchCurrentModel.ApDroneMotorSpecAudit apDroneMotorAudit =
 				MotorBenchCurrentModel.apDroneMotorSpecAudit(preset);
+		MotorBenchCurrentModel.FoxeerDonut5145PropAudit foxeerPropAudit =
+				MotorBenchCurrentModel.foxeerDonut5145PropAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 		PropDamageVibrationAudit propDamageAudit = propDamageVibrationAudit(preset);
@@ -1374,6 +1376,28 @@ public final class OfflineFlightRecorder {
 				apDroneMotorAudit.configuredPerMotorPackCurrentAmps(),
 				apDroneMotorAudit.referenceContinuousCurrentAmps(),
 				apDroneMotorAudit.configuredPerMotorPackCurrentOverReferenceContinuous()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Foxeer Donut 5145 prop audit: %s max_thrust %.2fN/%.2fN ratio %.2f, k %.3e/%.3e ratio %.2f, yaw_qt %.5fm/%.5fm ratio %.2f, rpm %.0f/%.0f ratio %.3f, torque %.3fNm current %.1fA@%.1fV power %.0fW vib %.1fg%n",
+				foxeerPropAudit.referenceId(),
+				foxeerPropAudit.configuredMaxRotorThrustNewtons(),
+				foxeerPropAudit.referenceThrustNewtons(),
+				foxeerPropAudit.configuredMaxThrustOverReference(),
+				foxeerPropAudit.configuredThrustCoefficient(),
+				foxeerPropAudit.referenceThrustCoefficient(),
+				foxeerPropAudit.configuredThrustCoefficientOverReference(),
+				foxeerPropAudit.configuredYawTorquePerThrustMeter(),
+				foxeerPropAudit.referenceTorquePerThrustMeter(),
+				foxeerPropAudit.configuredYawTorquePerThrustOverReference(),
+				foxeerPropAudit.configuredMaxRpm(),
+				foxeerPropAudit.referenceRpm(),
+				foxeerPropAudit.configuredMaxRpmOverReference(),
+				foxeerPropAudit.referenceTorqueNewtonMeters(),
+				foxeerPropAudit.referenceCurrentAmps(),
+				foxeerPropAudit.referenceVoltageVolts(),
+				foxeerPropAudit.referencePowerWatts(),
+				foxeerPropAudit.referenceVibrationG()
 		);
 		System.out.printf(
 				Locale.ROOT,

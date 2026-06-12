@@ -87,6 +87,12 @@ class DronePhysicsTest {
 		assertEquals(5.1 * 0.0254 * 0.5, rotor.radiusMeters(), 1.0e-12);
 		assertEquals(4.5 / 5.1, rotor.bladePitchToDiameterRatio(), 1.0e-12);
 		assertEquals(3, rotor.bladeCount());
+		assertEquals(DroneConfig.APDRONE_FOXEER_DONUT_5145_THRUST_COEFFICIENT, rotor.thrustCoefficient(), 1.0e-18);
+		assertEquals(
+				DroneConfig.APDRONE_FOXEER_DONUT_5145_YAW_TORQUE_PER_THRUST_METERS,
+				rotor.yawTorquePerThrustMeter(),
+				1.0e-15
+		);
 		assertEquals(DroneConfig.APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS, rotor.motorWindingResistanceOhms(), 1.0e-12);
 		assertEquals(
 				RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(rotor.radiusMeters(), 4.3),
@@ -10604,6 +10610,8 @@ class DronePhysicsTest {
 		assertTrue(text.contains("YSIDO-2507-1800KV"));
 		assertTrue(text.contains("winding_r"));
 		assertTrue(text.contains("per_motor_current"));
+		assertTrue(text.contains("Foxeer Donut 5145 prop audit"));
+		assertTrue(text.contains("Foxeer-Donut-5145"));
 		assertTrue(text.contains("Tyto static yaw-torque audit"));
 		assertTrue(text.contains("yaw_qt"));
 		assertTrue(text.contains("fit_window"));

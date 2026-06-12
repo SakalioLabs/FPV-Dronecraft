@@ -89,8 +89,8 @@ class MotorBenchCurrentModelTest {
 
 		assertEquals("x3nm", audit.referenceId());
 		assertEquals(13.5, audit.configuredMaxRotorThrustNewtons(), 1.0e-12);
-		assertEquals(1.45e-6, audit.configuredThrustCoefficient(), 1.0e-18);
-		assertEquals(29137.63274949454, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(1.3918976015517363e-6, audit.configuredThrustCoefficient(), 1.0e-18);
+		assertEquals(29739.565767989377, audit.configuredMaxRpm(), 1.0e-9);
 		assertEquals(12.547278947987, audit.referenceMaxThrustNewtons(), 1.0e-12);
 		assertEquals(22.185563411713, audit.referenceMaxCurrentAmps(), 1.0e-12);
 		assertEquals(24.213822555542, audit.referenceVoltageAtMaxThrust(), 1.0e-12);
@@ -100,7 +100,7 @@ class MotorBenchCurrentModelTest {
 		assertEquals(25214.575008524822, audit.referenceRpmAtMaxThrust(), 1.0e-9);
 		assertEquals(26154.33969893502, audit.referenceEquivalentRpmForConfiguredMaxThrust(), 1.0e-9);
 		assertEquals(1.0759304910620362, audit.configuredMaxThrustOverReference(), 1.0e-15);
-		assertEquals(0.8057104380610366, audit.configuredThrustCoefficientOverReference(), 1.0e-15);
+		assertEquals(0.7734251215740384, audit.configuredThrustCoefficientOverReference(), 1.0e-15);
 	}
 
 	@Test
@@ -110,7 +110,7 @@ class MotorBenchCurrentModelTest {
 
 		assertEquals("YSIDO-2507-1800KV", audit.referenceId());
 		assertEquals(13.5, audit.configuredMaxRotorThrustNewtons(), 1.0e-12);
-		assertEquals(29137.63274949454, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(29739.565767989377, audit.configuredMaxRpm(), 1.0e-9);
 		assertEquals(0.0586, audit.configuredMotorWindingResistanceOhms(), 1.0e-12);
 		assertEquals(37.5, audit.configuredPerMotorPackCurrentAmps(), 1.0e-12);
 		assertEquals(1800.0, audit.referenceKvRpmPerVolt(), 1.0e-12);
@@ -125,10 +125,35 @@ class MotorBenchCurrentModelTest {
 		assertEquals(0.9533357946815811, audit.configuredMaxThrustOverReferenceBestVisible(), 1.0e-15);
 		assertEquals(1.0, audit.configuredMotorWindingResistanceOverReference(), 1.0e-15);
 		assertEquals(0.8928571428571429, audit.configuredPerMotorPackCurrentOverReferenceContinuous(), 1.0e-15);
-		assertEquals(0.9635460565309041, audit.configuredMaxRpmOverReferenceKvFullCharge(), 1.0e-15);
-		assertEquals(1.0937549830891344, audit.configuredMaxRpmOverReferenceKvNominal(), 1.0e-15);
-		assertEquals(0.8848892355896057, audit.configuredMaxRpmOverBetaflightKvFullCharge(), 1.0e-15);
-		assertEquals(1.0044688620206337, audit.configuredMaxRpmOverBetaflightKvNominal(), 1.0e-15);
+		assertEquals(0.9834512489414476, audit.configuredMaxRpmOverReferenceKvFullCharge(), 1.0e-15);
+		assertEquals(1.1163500663659676, audit.configuredMaxRpmOverReferenceKvNominal(), 1.0e-15);
+		assertEquals(0.9031695143339825, audit.configuredMaxRpmOverBetaflightKvFullCharge(), 1.0e-15);
+		assertEquals(1.0252194487034396, audit.configuredMaxRpmOverBetaflightKvNominal(), 1.0e-15);
+	}
+
+	@Test
+	void foxeerDonut5145PropAuditMatchesCachedPublicThrustImageReference() {
+		MotorBenchCurrentModel.FoxeerDonut5145PropAudit audit =
+				MotorBenchCurrentModel.foxeerDonut5145PropAudit(DroneConfig.apDrone());
+
+		assertEquals("Foxeer-Donut-5145", audit.referenceId());
+		assertEquals(13.5, audit.configuredMaxRotorThrustNewtons(), 1.0e-12);
+		assertEquals(1.3918976015517363e-6, audit.configuredThrustCoefficient(), 1.0e-18);
+		assertEquals(0.013572582176683558, audit.configuredYawTorquePerThrustMeter(), 1.0e-15);
+		assertEquals(29739.565767989377, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(13.556742379949998, audit.referenceThrustNewtons(), 1.0e-12);
+		assertEquals(29802.0, audit.referenceRpm(), 1.0e-12);
+		assertEquals(1.3918976015517363e-6, audit.referenceThrustCoefficient(), 1.0e-18);
+		assertEquals(0.184, audit.referenceTorqueNewtonMeters(), 1.0e-12);
+		assertEquals(0.013572582176683558, audit.referenceTorquePerThrustMeter(), 1.0e-15);
+		assertEquals(34.83, audit.referenceCurrentAmps(), 1.0e-12);
+		assertEquals(23.72, audit.referenceVoltageVolts(), 1.0e-12);
+		assertEquals(826.0, audit.referencePowerWatts(), 1.0e-12);
+		assertEquals(1.7, audit.referenceVibrationG(), 1.0e-12);
+		assertEquals(0.9958144531805873, audit.configuredMaxThrustOverReference(), 1.0e-15);
+		assertEquals(1.0, audit.configuredThrustCoefficientOverReference(), 1.0e-15);
+		assertEquals(1.0, audit.configuredYawTorquePerThrustOverReference(), 1.0e-15);
+		assertEquals(0.9979050321451371, audit.configuredMaxRpmOverReference(), 1.0e-15);
 	}
 
 	@Test
@@ -175,11 +200,11 @@ class MotorBenchCurrentModelTest {
 		assertEquals(1456.881637474727, racingAudit.configuredMaxBladePassHertz(), 1.0e-9);
 		assertEquals(1457.3414561360478, racingAudit.referenceThreeBladeBladePassHertz(), 1.0e-9);
 		assertEquals(29.14680132613862, racingAudit.referenceBladePassOverTelemetryNyquist(), 1.0e-12);
-		assertEquals(9843.188707660616, apDroneAudit.configuredHoverRotorRpm(), 1.0e-9);
-		assertEquals(1.3859827396733637, apDroneAudit.lowDynamicRotorRpmMeanOverConfiguredHover(), 1.0e-15);
+		assertEquals(10046.531935346788, apDroneAudit.configuredHoverRotorRpm(), 1.0e-9);
+		assertEquals(1.3579302529429986, apDroneAudit.lowDynamicRotorRpmMeanOverConfiguredHover(), 1.0e-15);
 		assertEquals(3.0, apDroneAudit.configuredBladeCount(), 1.0e-12);
 		assertEquals(682.1244826082689, apDroneAudit.lowDynamicMeanBladePassHertzForConfiguredBladeCount(), 1.0e-9);
-		assertEquals(racingAudit.configuredMaxRotorRpm(), apDroneAudit.configuredMaxRotorRpm(), 1.0e-9);
+		assertEquals(29739.565767989377, apDroneAudit.configuredMaxRotorRpm(), 1.0e-9);
 	}
 
 	@Test
@@ -211,10 +236,10 @@ class MotorBenchCurrentModelTest {
 		assertEquals(0.0113854299885362, racingAudit.referenceFitWindowMinMeters(), 1.0e-15);
 		assertEquals(0.014586521016335946, racingAudit.referenceFitWindowMaxMeters(), 1.0e-15);
 		assertEquals(0.8167746523787272, racingAudit.configuredPositionWithinReferenceFitWindow(), 1.0e-15);
-		assertEquals(0.0145, apDroneAudit.configuredYawTorquePerThrustMeter(), 1.0e-15);
-		assertEquals(1.2735575217273138, apDroneAudit.configuredOverLowTorqueReferenceFit(), 1.0e-15);
-		assertEquals(0.994068426855242, apDroneAudit.configuredOverHighTorqueReferenceFit(), 1.0e-15);
-		assertEquals(0.9729713976939244, apDroneAudit.configuredPositionWithinReferenceFitWindow(), 1.0e-15);
+		assertEquals(0.013572582176683558, apDroneAudit.configuredYawTorquePerThrustMeter(), 1.0e-15);
+		assertEquals(1.1921009738191324, apDroneAudit.configuredOverLowTorqueReferenceFit(), 1.0e-15);
+		assertEquals(0.9304879594992636, apDroneAudit.configuredOverHighTorqueReferenceFit(), 1.0e-15);
+		assertEquals(0.6832521065952586, apDroneAudit.configuredPositionWithinReferenceFitWindow(), 1.0e-15);
 	}
 
 	@Test

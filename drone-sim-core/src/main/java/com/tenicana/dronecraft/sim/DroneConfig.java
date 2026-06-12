@@ -79,6 +79,8 @@ public record DroneConfig(
 	public static final double DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT = 1.0;
 	public static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND = 0.5439609800526073;
 	public static final double APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS = 0.0586;
+	public static final double APDRONE_FOXEER_DONUT_5145_THRUST_COEFFICIENT = 1.3918976015517363e-6;
+	public static final double APDRONE_FOXEER_DONUT_5145_YAW_TORQUE_PER_THRUST_METERS = 0.013572582176683558;
 	public static final double LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO = 0.50;
 
 	public DroneConfig {
@@ -253,8 +255,8 @@ public record DroneConfig(
 		double motorCenterRadius = 0.095;
 		double arm = motorCenterRadius / Math.sqrt(2.0);
 		double maxRotorThrust = 13.5;
-		double thrustCoefficient = 1.45e-6;
-		double yawTorquePerThrust = 0.0145;
+		double thrustCoefficient = APDRONE_FOXEER_DONUT_5145_THRUST_COEFFICIENT;
+		double yawTorquePerThrust = APDRONE_FOXEER_DONUT_5145_YAW_TORQUE_PER_THRUST_METERS;
 		double rotorRadius = 5.1 * 0.0254 * 0.5;
 		double rotorPitchToDiameter = 4.5 / 5.1;
 		double transverseFlowLift = 0.085;
