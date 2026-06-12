@@ -21,6 +21,7 @@ import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
 import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.WindGustCalibration;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -1251,6 +1252,8 @@ public final class OfflineFlightRecorder {
 				PropGeometryCalibration.audit(preset);
 		PrecipitationWaterCalibration.PrecipitationWaterAudit precipitationWaterAudit =
 				PrecipitationWaterCalibration.audit(preset);
+		WindGustCalibration.WindGustAudit windGustAudit =
+				WindGustCalibration.audit();
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1534,6 +1537,46 @@ public final class OfflineFlightRecorder {
 				precipitationWaterAudit.halfImmersionAt5MetersPerSecond().waterImmersionThrustLossPercent(),
 				precipitationWaterAudit.halfImmersionAt5MetersPerSecond().waterDragOverWeight(),
 				precipitationWaterAudit.hotFullWetMoistAir().moistAirDensityMultiplier()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Wind/gust audit: %s rows %d refs %d scans %d spectral %d ICAS %d, rep %s rms %.2f/%.2f/%.2fm/s dryden %.2f/%.2f ratio %.2f/%.2f peak %.2f/%.2f/%.2f, corner %.2fHz dryden %.3f/%.3fHz shape1 %.1f/%.2fx, light %.2f/%.2f/%.2fm/s sat %.2f/%.2f/%.2fm/s, scan_rms_ratio %.2f..%.2f/%.2f..%.2f, ICAS10ms CT 4319 %.0f..%.0f%% 6528 %.0f..%.0f%% caveat dryden-burble-ct-separate%n",
+				windGustAudit.sourceId(),
+				windGustAudit.packetMetricRowCount(),
+				windGustAudit.sourceReferenceCount(),
+				windGustAudit.currentWindScanCount(),
+				windGustAudit.spectralShapeMetricRowCount(),
+				windGustAudit.icasHoverGustRowCount(),
+				windGustAudit.representativeDirtyAir().scenarioId(),
+				windGustAudit.representativeDirtyAir().currentGustRmsXMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().currentGustRmsYMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().currentGustRmsZMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().drydenTargetRmsXMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().drydenTargetRmsYMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().currentXRmsOverDrydenU(),
+				windGustAudit.representativeDirtyAir().currentYRmsOverDrydenW(),
+				windGustAudit.representativeDirtyAir().currentGustPeakXMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().currentGustPeakYMetersPerSecond(),
+				windGustAudit.representativeDirtyAir().currentGustPeakZMetersPerSecond(),
+				windGustAudit.representativeSpectralShape().currentGustCornerHertz(),
+				windGustAudit.representativeSpectralShape().drydenLongitudinalPoleHertz(),
+				windGustAudit.representativeSpectralShape().drydenVerticalPoleHertz(),
+				windGustAudit.representativeSpectralShape().currentShapeOverDrydenLongitudinalAtOneHertz(),
+				windGustAudit.representativeSpectralShape().currentShapeOverDrydenVerticalAtOneHertz(),
+				windGustAudit.lightDirtyAir().currentGustRmsXMetersPerSecond(),
+				windGustAudit.lightDirtyAir().currentGustRmsYMetersPerSecond(),
+				windGustAudit.lightDirtyAir().currentGustRmsZMetersPerSecond(),
+				windGustAudit.saturatedDirtyAir().currentGustRmsXMetersPerSecond(),
+				windGustAudit.saturatedDirtyAir().currentGustRmsYMetersPerSecond(),
+				windGustAudit.saturatedDirtyAir().currentGustRmsZMetersPerSecond(),
+				windGustAudit.currentXRmsOverDrydenUMin(),
+				windGustAudit.currentXRmsOverDrydenUMax(),
+				windGustAudit.currentYRmsOverDrydenWMin(),
+				windGustAudit.currentYRmsOverDrydenWMax(),
+				windGustAudit.strongest4319Downdraft().ctChangePercent(),
+				windGustAudit.strongest4319Updraft().ctChangePercent(),
+				windGustAudit.strongest6528Downdraft().ctChangePercent(),
+				windGustAudit.strongest6528Updraft().ctChangePercent()
 		);
 		System.out.printf(
 				Locale.ROOT,

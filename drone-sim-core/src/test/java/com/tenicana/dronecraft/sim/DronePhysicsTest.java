@@ -11070,6 +11070,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("ICAS-2020-heavy-rain-CT"));
 		assertTrue(text.contains("wet-prop-not-immersion"));
 		assertTrue(text.contains("water0.5@5m/s"));
+		assertTrue(text.contains("Wind/gust audit"));
+		assertTrue(text.contains("Wind-Gust-Dryden-Calibration-Packet"));
+		assertTrue(text.contains("wind_10m_s_dirty_1p5_alt_6m"));
+		assertTrue(text.contains("dryden-burble-ct-separate"));
 		assertTrue(text.contains("APDrone inertia audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Inertia-PDF"));
 		assertTrue(text.contains("yaw_ratio"));
