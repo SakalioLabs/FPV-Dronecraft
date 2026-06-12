@@ -22,6 +22,7 @@ import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
 import com.tenicana.dronecraft.sim.SurfaceNearfieldCalibration;
 import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.VrsPropwashCalibration;
 import com.tenicana.dronecraft.sim.WindGustCalibration;
 
 import java.io.IOException;
@@ -1255,6 +1256,8 @@ public final class OfflineFlightRecorder {
 				PrecipitationWaterCalibration.audit(preset);
 		WindGustCalibration.WindGustAudit windGustAudit =
 				WindGustCalibration.audit();
+		VrsPropwashCalibration.VrsPropwashAudit vrsPropwashAudit =
+				VrsPropwashCalibration.audit(preset);
 		SurfaceNearfieldCalibration.SurfaceNearfieldAudit surfaceNearfieldAudit =
 				SurfaceNearfieldCalibration.audit(preset);
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
@@ -1580,6 +1583,42 @@ public final class OfflineFlightRecorder {
 				windGustAudit.strongest4319Updraft().ctChangePercent(),
 				windGustAudit.strongest6528Downdraft().ctChangePercent(),
 				windGustAudit.strongest6528Updraft().ctChangePercent()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"VRS/propwash audit: %s rows %d refs %d scans %d/%d shetty %d/%d cmp %d, Cambridge peak %.2f..%.2fvi loss %.0f%% broad %.2f..%.2fvi, preset active %.2f..%.2fvi full_prop %.2fvi, peak %.2fvi loss %.1f%% buffet %.1f%% lat_bound %.1f%% torque %.3fNm freq %.1fHz, early %.2fvi loss %.1f%% buffet %.1f%%, exit %.2fvi loss %.1f%%, Shetty max %.2fvi amp %.2f current %.2fx best %.2fx loss %.2fx caveat separate-mean-buffet-lateral-torque%n",
+				vrsPropwashAudit.sourceId(),
+				vrsPropwashAudit.packetMetricRowCount(),
+				vrsPropwashAudit.sourceReferenceCount(),
+				vrsPropwashAudit.currentScanMetricRowCount(),
+				vrsPropwashAudit.currentScanScenarioCount(),
+				vrsPropwashAudit.shettyDigitizedMetricRowCount(),
+				vrsPropwashAudit.shettyDigitizedPointCount(),
+				vrsPropwashAudit.currentVsShettyMetricRowCount(),
+				vrsPropwashAudit.referenceRegime().cambridgePeakBandLowVi(),
+				vrsPropwashAudit.referenceRegime().cambridgePeakBandHighVi(),
+				vrsPropwashAudit.referenceRegime().cambridgePeakLossFraction() * 100.0,
+				vrsPropwashAudit.referenceRegime().broadRegimeLowVi(),
+				vrsPropwashAudit.referenceRegime().broadRegimeHighVi(),
+				vrsPropwashAudit.activeEnvelope().firstActiveDescentRatioVi(),
+				vrsPropwashAudit.activeEnvelope().lastActiveDescentRatioVi(),
+				vrsPropwashAudit.activeEnvelope().propwashFullyActiveFromDescentRatioVi(),
+				vrsPropwashAudit.activeEnvelope().peakLossDescentRatioVi(),
+				vrsPropwashAudit.peakBandLow().currentVrsBaseThrustLossPercentHoverSpin(),
+				vrsPropwashAudit.peakBandLow().currentVrsBuffetHalfAmplitudePercentMaxSpin(),
+				vrsPropwashAudit.peakBandLow().currentVrsLateralForceBoundPercentMaxThrust(),
+				vrsPropwashAudit.peakBandLow().propwashMaxTorqueNewtonMeters(),
+				vrsPropwashAudit.peakBandLow().buffetFrequencyHertzHoverSpin(),
+				vrsPropwashAudit.earlyEntry().descentRatioVi(),
+				vrsPropwashAudit.earlyEntry().currentVrsBaseThrustLossPercentHoverSpin(),
+				vrsPropwashAudit.earlyEntry().currentVrsBuffetHalfAmplitudePercentMaxSpin(),
+				vrsPropwashAudit.highDescentExit().descentRatioVi(),
+				vrsPropwashAudit.highDescentExit().currentVrsBaseThrustLossPercentHoverSpin(),
+				vrsPropwashAudit.largestShettyDigitized().descentRatioViProxy(),
+				vrsPropwashAudit.largestShettyDigitized().referenceMeasuredHalfAmplitudeFraction(),
+				vrsPropwashAudit.largestShettyDigitized().currentBuffetOverReferenceMeasuredHalfAmplitude(),
+				vrsPropwashAudit.bestCurrentShettyMatch().currentBuffetOverReferenceMeasuredHalfAmplitude(),
+				vrsPropwashAudit.bestCurrentShettyMatch().currentBaseLossOverCambridgePeakLoss()
 		);
 		System.out.printf(
 				Locale.ROOT,

@@ -3345,7 +3345,7 @@ public final class DronePhysics {
 		return rotorVortexRingStateIntensity[rotorIndex];
 	}
 
-	private static double calculateSteadyRotorVortexRingStateIntensity(
+	static double calculateSteadyRotorVortexRingStateIntensity(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
@@ -3365,7 +3365,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(descentEnvelope * washout * load, 0.0, 1.0);
 	}
 
-	private static double rotorVortexRingDescentEnvelope(double descentRatio) {
+	static double rotorVortexRingDescentEnvelope(double descentRatio) {
 		if (!Double.isFinite(descentRatio)) {
 			return 0.0;
 		}
@@ -3375,7 +3375,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(entry * highDescentExit, 0.0, 1.0);
 	}
 
-	private static double rotorVortexRingDescentRatio(
+	static double rotorVortexRingDescentRatio(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double inducedVelocityMetersPerSecond
@@ -3385,7 +3385,7 @@ public final class DronePhysics {
 		return descentSpeed / inducedVelocity;
 	}
 
-	private static double rotorVortexRingBuffetEnvelope(double descentRatio) {
+	static double rotorVortexRingBuffetEnvelope(double descentRatio) {
 		if (!Double.isFinite(descentRatio)) {
 			return 0.0;
 		}
@@ -3405,7 +3405,7 @@ public final class DronePhysics {
 		);
 	}
 
-	private static double rotorVortexRingBuffetFrequencyHertz(
+	static double rotorVortexRingBuffetFrequencyHertz(
 			RotorSpec rotor,
 			double omegaRadiansPerSecond,
 			double vortexRingStateIntensity,
@@ -3429,7 +3429,7 @@ public final class DronePhysics {
 		return revolutionsPerSecond / characteristicRevolutions;
 	}
 
-	private static double rotorVortexRingMeanThrustLoss(RotorSpec rotor, double vortexRingStateIntensity) {
+	static double rotorVortexRingMeanThrustLoss(RotorSpec rotor, double vortexRingStateIntensity) {
 		double vrs = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
 		if (vrs <= 1.0e-6 || rotor.axialFlowThrustLossCoefficient() <= 0.0) {
 			return 0.0;
@@ -5442,7 +5442,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(cleanDiskFlow * highAdvanceFlow * loadedRotor * descentWashPenalty, 0.0, 1.0);
 	}
 
-	private static double targetRotorInducedVelocityMetersPerSecond(
+	static double targetRotorInducedVelocityMetersPerSecond(
 			RotorSpec rotor,
 			double baseThrustNewtons,
 			double airDensityRatio

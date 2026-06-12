@@ -11074,6 +11074,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("Wind-Gust-Dryden-Calibration-Packet"));
 		assertTrue(text.contains("wind_10m_s_dirty_1p5_alt_6m"));
 		assertTrue(text.contains("dryden-burble-ct-separate"));
+		assertTrue(text.contains("VRS/propwash audit"));
+		assertTrue(text.contains("VRS-Propwash-Calibration-Packet"));
+		assertTrue(text.contains("Cambridge peak"));
+		assertTrue(text.contains("separate-mean-buffet-lateral-torque"));
 		assertTrue(text.contains("Surface near-field audit"));
 		assertTrue(text.contains("Surface-Nearfield-Calibration-Packet"));
 		assertTrue(text.contains("wall0.25R"));
