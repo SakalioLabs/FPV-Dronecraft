@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim.tools;
 
 import com.tenicana.dronecraft.sim.AirframeDragCalibration;
+import com.tenicana.dronecraft.sim.ControlResponseCalibration;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
@@ -1209,6 +1210,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.foxeerDonut5145PropAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
+		ControlResponseCalibration.ControlResponseAudit controlResponseAudit =
+				ControlResponseCalibration.apDroneControlResponseAudit(preset);
 		SensorNoiseCalibration.ImuNoiseAudit imuNoiseAudit =
 				SensorNoiseCalibration.apDroneImuNoiseAudit(preset);
 		PropDamageVibrationAudit propDamageAudit = propDamageVibrationAudit(preset);
@@ -1437,6 +1440,37 @@ public final class OfflineFlightRecorder {
 				aiioRotorSpeedAudit.referenceBladePassOverTelemetryNyquist(),
 				aiioRotorSpeedAudit.referenceSampleFileCount(),
 				aiioRotorSpeedAudit.referenceSampleRateHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone control-response audit: %s lag_p50 roll/pitch/yaw %.1f/%.1f/%.1fms cfg_control %.1fms cfg+rc %.1fms smoothing %.1fms frame rc/esc %.2f/%.2fms ratios_ctrl %.2f/%.2f/%.2f ratios_total %.2f/%.2f/%.2f corr_p50 %.3f/%.3f/%.3f gain_p50 %.3f/%.3f/%.3f mae_p50 %.1f/%.1f/%.1fdps reliable %d/%d/%d%n",
+				controlResponseAudit.sourceId(),
+				controlResponseAudit.roll().lagP50Milliseconds(),
+				controlResponseAudit.pitch().lagP50Milliseconds(),
+				controlResponseAudit.yaw().lagP50Milliseconds(),
+				controlResponseAudit.roll().configuredControlLatencyMilliseconds(),
+				controlResponseAudit.roll().configuredControlPlusRcLatencyMilliseconds(),
+				controlResponseAudit.roll().configuredRcSmoothingTauMilliseconds(),
+				controlResponseAudit.roll().rcFrameIntervalMilliseconds(),
+				controlResponseAudit.roll().escFrameIntervalMilliseconds(),
+				controlResponseAudit.roll().p50LagOverControlLatency(),
+				controlResponseAudit.pitch().p50LagOverControlLatency(),
+				controlResponseAudit.yaw().p50LagOverControlLatency(),
+				controlResponseAudit.roll().p50LagOverControlPlusRcLatency(),
+				controlResponseAudit.pitch().p50LagOverControlPlusRcLatency(),
+				controlResponseAudit.yaw().p50LagOverControlPlusRcLatency(),
+				controlResponseAudit.roll().absCorrelationP50(),
+				controlResponseAudit.pitch().absCorrelationP50(),
+				controlResponseAudit.yaw().absCorrelationP50(),
+				controlResponseAudit.roll().gainP50(),
+				controlResponseAudit.pitch().gainP50(),
+				controlResponseAudit.yaw().gainP50(),
+				controlResponseAudit.roll().maeDegreesPerSecondP50(),
+				controlResponseAudit.pitch().maeDegreesPerSecondP50(),
+				controlResponseAudit.yaw().maeDegreesPerSecondP50(),
+				controlResponseAudit.roll().reliableRowCount(),
+				controlResponseAudit.pitch().reliableRowCount(),
+				controlResponseAudit.yaw().reliableRowCount()
 		);
 		System.out.printf(
 				Locale.ROOT,

@@ -10628,6 +10628,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("AI-IO rotor-speed audit"));
 		assertTrue(text.contains("low_dyn"));
 		assertTrue(text.contains("bpass_nyq"));
+		assertTrue(text.contains("APDrone control-response audit"));
+		assertTrue(text.contains("lag_p50"));
+		assertTrue(text.contains("ratios_ctrl"));
+		assertTrue(text.contains("reliable"));
 		assertTrue(text.contains("APDrone IMU noise audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Blackbox"));
 		assertTrue(text.contains("baro_quiet"));
