@@ -3082,6 +3082,7 @@ public class DroneEntity extends PathfinderMob {
 		output.putDouble("tune_voltage_compensation", config.voltageCompensationStrength());
 		output.putDouble("tune_esc_frame_rate", config.escCommandFrameRateHertz());
 		output.putDouble("tune_esc_resolution", config.escCommandResolutionSteps());
+		output.putDouble("tune_esc_dshot_bitrate", config.escCommandProtocol().bitrateKilobitsPerSecond());
 		output.putDouble("tune_motor_heat_rate", config.motorThermalRiseCelsiusPerSecond());
 		output.putDouble("tune_motor_cooling_rate", config.motorCoolingRatePerSecond());
 		output.putDouble("tune_motor_temp_limit", config.motorThermalLimitCelsius());
@@ -3294,6 +3295,10 @@ public class DroneEntity extends PathfinderMob {
 				.withPitchGains(loadGains(input, "pitch", defaults.pitchGains()))
 				.withYawGains(loadGains(input, "yaw", defaults.yawGains()))
 				.withRollGains(loadGains(input, "roll", defaults.rollGains()));
+		double escDshotBitrate = input.getDoubleOr("tune_esc_dshot_bitrate", Double.NaN);
+		if (Double.isFinite(escDshotBitrate)) {
+			config = config.withEscCommandProtocolBitrate(escDshotBitrate);
+		}
 		applyConfig(config, preset);
 	}
 

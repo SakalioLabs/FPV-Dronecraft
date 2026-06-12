@@ -415,6 +415,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("tune_rc_resolution_steps"));
 		assertTrue(csv.contains("tune_esc_command_frame_rate_hz"));
 		assertTrue(csv.contains("tune_esc_command_resolution_steps"));
+		assertTrue(csv.contains("tune_esc_dshot_bitrate_kbit_s"));
+		assertTrue(csv.contains("tune_esc_dshot_raw_frame_us"));
+		assertTrue(csv.contains("tune_esc_dshot_wire_utilization"));
+		assertTrue(csv.contains("tune_esc_command_interval_raw_frame_ratio"));
 		assertTrue(csv.contains("tune_cg_x_m"));
 		assertTrue(csv.contains("tune_cg_y_m"));
 		assertTrue(csv.contains("tune_cg_z_m"));
@@ -448,6 +452,10 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rc_resolution_steps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_esc_command_frame_rate_hz")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_esc_command_resolution_steps")]));
+		assertEquals(600.0, Double.parseDouble(row[indexOf(header, "tune_esc_dshot_bitrate_kbit_s")]), 1.0e-9);
+		assertEquals(26.667, Double.parseDouble(row[indexOf(header, "tune_esc_dshot_raw_frame_us")]), 0.001);
+		assertEquals(0.01067, Double.parseDouble(row[indexOf(header, "tune_esc_dshot_wire_utilization")]), 0.00001);
+		assertEquals(93.75, Double.parseDouble(row[indexOf(header, "tune_esc_command_interval_raw_frame_ratio")]), 0.01);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "tune_cg_x_m")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "tune_cg_z_m")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "tune_imu_x_m")]), 0.0001);

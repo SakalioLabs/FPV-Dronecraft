@@ -2715,6 +2715,34 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void dshotProtocolTimingMatchesBetaflightFrameReference() {
+		assertEquals(53.333333333333336, EscCommandProtocol.DSHOT300.rawFrameMicroseconds(), 1.0e-12);
+		assertEquals(26.666666666666668, EscCommandProtocol.DSHOT600.rawFrameMicroseconds(), 1.0e-12);
+		assertEquals(2000, EscCommandProtocol.DSHOT600.throttleSteps());
+		assertEquals(0.010666666666666668, EscCommandProtocol.DSHOT600.commandWireUtilization(400.0), 1.0e-12);
+		assertEquals(93.75, EscCommandProtocol.DSHOT600.commandIntervalRawFrameRatio(400.0), 1.0e-12);
+		assertEquals(46.875, EscCommandProtocol.DSHOT300.commandIntervalRawFrameRatio(400.0), 1.0e-12);
+	}
+
+	@Test
+	void escCommandProtocolTracksDshotResolutionAndGenericFallback() {
+		DroneConfig dshot = DroneConfig.racingQuad();
+		assertEquals(EscCommandProtocol.DSHOT600, dshot.escCommandProtocol());
+		assertEquals(2000, dshot.escCommandResolutionSteps());
+
+		DroneConfig dshot300 = dshot
+				.withEscCommandProtocolBitrate(300.0)
+				.withMassKg(dshot.massKg() * 1.01);
+		assertEquals(EscCommandProtocol.DSHOT300, dshot300.escCommandProtocol());
+		assertEquals(2000, dshot300.escCommandResolutionSteps());
+
+		DroneConfig generic = dshot300.withEscCommandSignal(400.0, 2048.0);
+		assertEquals(EscCommandProtocol.GENERIC, generic.escCommandProtocol());
+		assertEquals(2048, generic.escCommandResolutionSteps());
+		assertEquals(0.0, generic.escCommandProtocol().rawFrameMicroseconds(), 1.0e-12);
+	}
+
+	@Test
 	void gyroDynamicNotchUsesBidirectionalEscRpmTelemetryFrames() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.006)
@@ -9804,6 +9832,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rc_resolution_steps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_frame_rate_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_resolution_steps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_dshot_bitrate_kbit_s"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_dshot_raw_frame_us"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_dshot_wire_utilization"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_interval_raw_frame_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_pitch_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_pitch_to_diameter"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_pitch_angle_70r_deg"));
@@ -9973,6 +10005,10 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_error")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_frame_rate_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_resolution_steps")])));
+		assertEquals(600.0, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_bitrate_kbit_s")]), 1.0e-9);
+		assertEquals(26.667, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_raw_frame_us")]), 0.001);
+		assertEquals(0.01067, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_wire_utilization")]), 0.00001);
+		assertEquals(93.75, Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_interval_raw_frame_ratio")]), 0.01);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_pitch_m")])));
 		assertEquals(
 				offlineRotor.bladePitchToDiameterRatio(),

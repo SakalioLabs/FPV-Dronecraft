@@ -62,7 +62,8 @@ public record DroneConfig(
 		double rcFrameRateHertz,
 		int rcChannelResolutionSteps,
 		double escCommandFrameRateHertz,
-		int escCommandResolutionSteps
+		int escCommandResolutionSteps,
+		EscCommandProtocol escCommandProtocol
 ) {
 	public static final double DEFAULT_SELF_LEVEL_MAX_ANGLE_RADIANS = Math.toRadians(55.0);
 	public static final double DEFAULT_SELF_LEVEL_RATE_GAIN = 6.0;
@@ -72,7 +73,8 @@ public record DroneConfig(
 	public static final double DEFAULT_RC_FRAME_RATE_HERTZ = 150.0;
 	public static final int DEFAULT_RC_CHANNEL_RESOLUTION_STEPS = 2048;
 	public static final double DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ = 400.0;
-	public static final int DEFAULT_ESC_COMMAND_RESOLUTION_STEPS = 2048;
+	public static final EscCommandProtocol DEFAULT_ESC_COMMAND_PROTOCOL = EscCommandProtocol.DSHOT600;
+	public static final int DEFAULT_ESC_COMMAND_RESOLUTION_STEPS = DEFAULT_ESC_COMMAND_PROTOCOL.throttleSteps();
 	public static final double LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO = 0.50;
 
 	public DroneConfig {
@@ -152,6 +154,10 @@ public record DroneConfig(
 		rcChannelResolutionSteps = Math.max(0, Math.min(65535, rcChannelResolutionSteps));
 		escCommandFrameRateHertz = MathUtil.clamp(escCommandFrameRateHertz, 0.0, 8000.0);
 		escCommandResolutionSteps = Math.max(0, Math.min(65535, escCommandResolutionSteps));
+		if (escCommandProtocol == null) {
+			escCommandProtocol = DEFAULT_ESC_COMMAND_PROTOCOL;
+		}
+		escCommandProtocol = escCommandProtocol.normalizedForResolution(escCommandResolutionSteps);
 	}
 
 	public static DroneConfig racingQuad() {
@@ -233,7 +239,8 @@ public record DroneConfig(
 				DEFAULT_RC_FRAME_RATE_HERTZ,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS).withRotorBladeCount(3);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
+				DEFAULT_ESC_COMMAND_PROTOCOL).withRotorBladeCount(3);
 	}
 
 	public static DroneConfig cinewhoop() {
@@ -315,7 +322,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS).withRotorBladeCount(3);
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
+				DEFAULT_ESC_COMMAND_PROTOCOL).withRotorBladeCount(3);
 	}
 
 	public static DroneConfig heavyLift() {
@@ -397,7 +405,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS)
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
+				DEFAULT_ESC_COMMAND_PROTOCOL)
 				.withRotorBladePitchToDiameterRatio(LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO);
 	}
 
@@ -482,7 +491,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS)
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
+				DEFAULT_ESC_COMMAND_PROTOCOL)
 				.withRotorBladePitchToDiameterRatio(LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO);
 	}
 
@@ -569,7 +579,8 @@ public record DroneConfig(
 				100.0,
 				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
 				DEFAULT_ESC_COMMAND_FRAME_RATE_HERTZ,
-				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS)
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
+				DEFAULT_ESC_COMMAND_PROTOCOL)
 				.withRotorBladePitchToDiameterRatio(LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO);
 	}
 
@@ -746,7 +757,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withInertiaKgMetersSquared(Vec3 inertiaKgMetersSquared) {
@@ -810,7 +822,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withCenterOfMassOffsetBodyMeters(Vec3 centerOfMassOffsetBodyMeters) {
@@ -874,7 +887,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withImuOffsetBodyMeters(Vec3 imuOffsetBodyMeters) {
@@ -938,7 +952,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withCenterOfPressureOffsetBodyMeters(Vec3 centerOfPressureOffsetBodyMeters) {
@@ -1002,7 +1017,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withAngularDragCoefficient(double angularDragCoefficient) {
@@ -1066,7 +1082,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withMotorTimeConstantSeconds(double motorTimeConstantSeconds) {
@@ -1130,7 +1147,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withEscMotorResponse(
@@ -1216,7 +1234,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withMotorThermal(
@@ -1285,7 +1304,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withFlightControllerSensors(
@@ -1369,7 +1389,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withControlLink(
@@ -1437,7 +1458,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withControlReceiver(double rcFrameRateHertz, double rcChannelResolutionSteps) {
@@ -1501,10 +1523,40 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				(int) Math.round(rcChannelResolutionSteps),
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withEscCommandSignal(double escCommandFrameRateHertz, double escCommandResolutionSteps) {
+		int roundedResolutionSteps = (int) Math.round(escCommandResolutionSteps);
+		return withEscCommandSignalAndProtocol(
+				escCommandFrameRateHertz,
+				roundedResolutionSteps,
+				escCommandProtocol.normalizedForResolution(roundedResolutionSteps)
+		);
+	}
+
+	public DroneConfig withEscCommandProtocolBitrate(double bitrateKilobitsPerSecond) {
+		return withEscCommandProtocol(EscCommandProtocol.fromBitrateKilobitsPerSecond(bitrateKilobitsPerSecond));
+	}
+
+	public DroneConfig withEscCommandProtocol(EscCommandProtocol protocol) {
+		EscCommandProtocol selectedProtocol = protocol == null ? EscCommandProtocol.GENERIC : protocol;
+		int resolutionSteps = selectedProtocol.digital() ? selectedProtocol.throttleSteps() : escCommandResolutionSteps;
+		return withEscCommandSignalAndProtocol(escCommandFrameRateHertz, resolutionSteps, selectedProtocol);
+	}
+
+	public DroneConfig withEscCommandSignal(EscCommandProtocol protocol, double escCommandFrameRateHertz) {
+		EscCommandProtocol selectedProtocol = protocol == null ? EscCommandProtocol.GENERIC : protocol;
+		int resolutionSteps = selectedProtocol.digital() ? selectedProtocol.throttleSteps() : escCommandResolutionSteps;
+		return withEscCommandSignalAndProtocol(escCommandFrameRateHertz, resolutionSteps, selectedProtocol);
+	}
+
+	private DroneConfig withEscCommandSignalAndProtocol(
+			double escCommandFrameRateHertz,
+			int escCommandResolutionSteps,
+			EscCommandProtocol escCommandProtocol
+	) {
 		return new DroneConfig(
 				massKg,
 				inertiaKgMetersSquared,
@@ -1565,7 +1617,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				(int) Math.round(escCommandResolutionSteps));
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withAttitudeEstimator(
@@ -1632,7 +1685,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withBattery(double nominalVoltage, double emptyVoltage, double internalResistanceOhms, double capacityAmpHours, double maxCurrentAmps) {
@@ -1696,7 +1750,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withRotorMaxThrustNewtons(double maxThrustNewtons) {
@@ -1808,7 +1863,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withBodyDragCoefficients(Vec3 bodyDragCoefficients) {
@@ -1872,7 +1928,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withRotorDiskDragCoefficient(double diskDragCoefficient) {
@@ -1939,7 +1996,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withRotorInertiaKgMetersSquared(double rotorInertiaKgMetersSquared) {
@@ -2068,7 +2126,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withPropwash(double startDescentMetersPerSecond, double fullDescentMetersPerSecond, double maxTorqueNewtonMeters) {
@@ -2132,7 +2191,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withMotorIdleAndAirmode(double motorIdleThrustFraction, double airmodeStrength) {
@@ -2196,7 +2256,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withRates(double pitchRadiansPerSecond, double yawRadiansPerSecond, double rollRadiansPerSecond) {
@@ -2260,7 +2321,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withRateExpo(Vec3 rateExpo) {
@@ -2332,7 +2394,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withSelfLevel(
@@ -2401,7 +2464,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withPidIntegralRelaxStrength(double pidIntegralRelaxStrength) {
@@ -2465,7 +2529,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps
+				escCommandResolutionSteps,
+				escCommandProtocol
 		);
 	}
 
@@ -2542,7 +2607,8 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 
 	public DroneConfig withRotors(List<RotorSpec> rotors) {
@@ -2606,6 +2672,7 @@ public record DroneConfig(
 				rcFrameRateHertz,
 				rcChannelResolutionSteps,
 				escCommandFrameRateHertz,
-				escCommandResolutionSteps);
+				escCommandResolutionSteps,
+				escCommandProtocol);
 	}
 }

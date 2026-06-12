@@ -701,6 +701,10 @@ public final class DroneBlackboxSample {
 			"tune_rc_resolution_steps",
 			"tune_esc_command_frame_rate_hz",
 			"tune_esc_command_resolution_steps",
+			"tune_esc_dshot_bitrate_kbit_s",
+			"tune_esc_dshot_raw_frame_us",
+			"tune_esc_dshot_wire_utilization",
+			"tune_esc_command_interval_raw_frame_ratio",
 			"tune_esc_down_slew_rate",
 			"tune_esc_deadband",
 			"tune_motor_brake",
@@ -1831,6 +1835,10 @@ public final class DroneBlackboxSample {
 		row.add(config.rcChannelResolutionSteps());
 		row.add(config.escCommandFrameRateHertz(), "%.3f");
 		row.add(config.escCommandResolutionSteps());
+		row.add(config.escCommandProtocol().bitrateKilobitsPerSecond(), "%.1f");
+		row.add(config.escCommandProtocol().rawFrameMicroseconds(), "%.3f");
+		row.add(config.escCommandProtocol().commandWireUtilization(config.escCommandFrameRateHertz()), "%.5f");
+		row.add(config.escCommandProtocol().commandIntervalRawFrameRatio(config.escCommandFrameRateHertz()), "%.2f");
 		row.add(config.escOutputFallSlewRatePerSecond(), "%.5f");
 		row.add(config.escDeadband(), "%.4f");
 		row.add(config.motorActiveBrakingStrength(), "%.3f");

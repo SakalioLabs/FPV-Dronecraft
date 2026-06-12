@@ -318,6 +318,10 @@ public final class OfflineFlightRecorder {
 			"tune_accel_noise_mps2",
 			"tune_esc_command_frame_rate_hz",
 			"tune_esc_command_resolution_steps",
+			"tune_esc_dshot_bitrate_kbit_s",
+			"tune_esc_dshot_raw_frame_us",
+			"tune_esc_dshot_wire_utilization",
+			"tune_esc_command_interval_raw_frame_ratio",
 			"tune_rotor_blade_pitch_m",
 			"tune_rotor_pitch_to_diameter",
 			"tune_rotor_pitch_angle_70r_deg",
@@ -1508,7 +1512,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
-						+ "%.3f,%.0f,%.5f,%.5f,%.3f,%.5f,%.5f,%.0f,%.5f,"
+						+ "%.3f,%.0f,%.1f,%.3f,%.5f,%.2f,%.5f,%.5f,%.3f,%.5f,%.5f,%.0f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
@@ -1799,6 +1803,10 @@ public final class OfflineFlightRecorder {
 				physics.config().accelerometerNoiseStdDevMetersPerSecondSquared(),
 				physics.config().escCommandFrameRateHertz(),
 				(double) physics.config().escCommandResolutionSteps(),
+				physics.config().escCommandProtocol().bitrateKilobitsPerSecond(),
+				physics.config().escCommandProtocol().rawFrameMicroseconds(),
+				physics.config().escCommandProtocol().commandWireUtilization(physics.config().escCommandFrameRateHertz()),
+				physics.config().escCommandProtocol().commandIntervalRawFrameRatio(physics.config().escCommandFrameRateHertz()),
 				physics.config().rotors().get(0).bladePitchMeters(),
 				physics.config().rotors().get(0).bladePitchToDiameterRatio(),
 				Math.toDegrees(physics.config().rotors().get(0).geometricBladePitchAngleRadians()),

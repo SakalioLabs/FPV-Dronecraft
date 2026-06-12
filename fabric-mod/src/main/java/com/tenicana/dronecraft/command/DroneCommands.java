@@ -193,6 +193,7 @@ public final class DroneCommands {
 								.then(tuneParameter("voltage_compensation", 0.0, 1.0, (config, value) -> config.withEscMotorResponse(config.escOutputCurveExponent(), config.escOutputSlewRatePerSecond(), config.escOutputFallSlewRatePerSecond(), config.escDeadband(), value, config.motorActiveBrakingStrength())))
 								.then(tuneParameter("esc_frame_rate", 0.0, 8000.0, (config, value) -> config.withEscCommandSignal(value, config.escCommandResolutionSteps())))
 								.then(tuneParameter("esc_resolution", 0.0, 65535.0, (config, value) -> config.withEscCommandSignal(config.escCommandFrameRateHertz(), value)))
+								.then(tuneParameter("esc_dshot_bitrate", 0.0, 600.0, (config, value) -> config.withEscCommandProtocolBitrate(value)))
 								.then(tuneParameter("motor_heat_rate", 0.0, 250.0, (config, value) -> config.withMotorThermal(value, config.motorCoolingRatePerSecond(), config.motorThermalLimitCelsius(), config.motorThermalCutoffCelsius())))
 								.then(tuneParameter("motor_cooling_rate", 0.0, 5.0, (config, value) -> config.withMotorThermal(config.motorThermalRiseCelsiusPerSecond(), value, config.motorThermalLimitCelsius(), config.motorThermalCutoffCelsius())))
 								.then(tuneParameter("motor_temp_limit", 30.0, 220.0, (config, value) -> config.withMotorThermal(config.motorThermalRiseCelsiusPerSecond(), config.motorCoolingRatePerSecond(), value, config.motorThermalCutoffCelsius())))
@@ -817,7 +818,7 @@ public final class DroneCommands {
 		RotorSpec rotor = config.rotors().get(0);
 		return String.format(
 				java.util.Locale.ROOT,
-				"Rates deg/s P/Y/R: %.0f / %.0f / %.0f\nExpo P/Y/R: %.2f / %.2f / %.2f super %.2f / %.2f / %.2f\nSelf-level: angle %.0fdeg gain %.2f horizon %.2f..%.2f\nPitch PID: %.5f %.5f %.5f limit %.2f\nYaw PID: %.5f %.5f %.5f limit %.2f\nRoll PID: %.5f %.5f %.5f limit %.2f\nPID assist: FF P/Y/R %.6f / %.6f / %.6f DLPF P/Y/R %.0f / %.0f / %.0fHz AG %.2f TPA %.2f@%.2f IRelax %.2f\nAirframe: rotors %d mass %.3fkg inertia %.5f %.5f %.5f cg %.3f %.3f %.3fm imu %.3f %.3f %.3fm cp %.3f %.3f %.3fm angular drag %.4f\nMotor/battery: tau %.3fs V %.1f/%.1f R %.3f cap %.2fAh max %.1fA\nESC: curve %.3f up %.1f/s down %.1f/s deadband %.3f brake %.2f voltage comp %.2f frame %.0fHz res %d\nThermal: heat %.1fC/s cool %.3f limit %.0fC cutoff %.0fC\nFC sensors: gyro LPF %.1fHz noise %.4frad/s accel LPF %.1fHz noise %.3fm/s^2 latency %.3fs\nAttitude estimator: accel gain %.2f trust %.2fm/s^2\nRC link: smoothing %.3fs latency %.3fs failsafe %.2fs frame %.0fHz res %d\nDrag: linear %.4f body %.4f %.4f %.4f\nRotor: thrust %.2fN Ct %.8f radius %.4fm pitch %.4fm blades %d lift %.3f axial %.3f disk %.4f flap %.3f stall %.2f imbalance %.3f cant %.2fdeg yaw %.5fm inertia %.8fkg*m^2 inflow %.3fs lag %.2f\nGround effect: height %.2fm boost %.2f\nPropwash: start %.2fm/s full %.2fm/s torque %.3fNm\nMixer: idle %.3f airmode %.2f",
+				"Rates deg/s P/Y/R: %.0f / %.0f / %.0f\nExpo P/Y/R: %.2f / %.2f / %.2f super %.2f / %.2f / %.2f\nSelf-level: angle %.0fdeg gain %.2f horizon %.2f..%.2f\nPitch PID: %.5f %.5f %.5f limit %.2f\nYaw PID: %.5f %.5f %.5f limit %.2f\nRoll PID: %.5f %.5f %.5f limit %.2f\nPID assist: FF P/Y/R %.6f / %.6f / %.6f DLPF P/Y/R %.0f / %.0f / %.0fHz AG %.2f TPA %.2f@%.2f IRelax %.2f\nAirframe: rotors %d mass %.3fkg inertia %.5f %.5f %.5f cg %.3f %.3f %.3fm imu %.3f %.3f %.3fm cp %.3f %.3f %.3fm angular drag %.4f\nMotor/battery: tau %.3fs V %.1f/%.1f R %.3f cap %.2fAh max %.1fA\nESC: curve %.3f up %.1f/s down %.1f/s deadband %.3f brake %.2f voltage comp %.2f frame %.0fHz res %d dshot %.0fk %.3fus %.2f%%\nThermal: heat %.1fC/s cool %.3f limit %.0fC cutoff %.0fC\nFC sensors: gyro LPF %.1fHz noise %.4frad/s accel LPF %.1fHz noise %.3fm/s^2 latency %.3fs\nAttitude estimator: accel gain %.2f trust %.2fm/s^2\nRC link: smoothing %.3fs latency %.3fs failsafe %.2fs frame %.0fHz res %d\nDrag: linear %.4f body %.4f %.4f %.4f\nRotor: thrust %.2fN Ct %.8f radius %.4fm pitch %.4fm blades %d lift %.3f axial %.3f disk %.4f flap %.3f stall %.2f imbalance %.3f cant %.2fdeg yaw %.5fm inertia %.8fkg*m^2 inflow %.3fs lag %.2f\nGround effect: height %.2fm boost %.2f\nPropwash: start %.2fm/s full %.2fm/s torque %.3fNm\nMixer: idle %.3f airmode %.2f",
 				Math.toDegrees(config.maxPitchRateRadiansPerSecond()),
 				Math.toDegrees(config.maxYawRateRadiansPerSecond()),
 				Math.toDegrees(config.maxRollRateRadiansPerSecond()),
@@ -882,6 +883,9 @@ public final class DroneCommands {
 				config.voltageCompensationStrength(),
 				config.escCommandFrameRateHertz(),
 				config.escCommandResolutionSteps(),
+				config.escCommandProtocol().bitrateKilobitsPerSecond(),
+				config.escCommandProtocol().rawFrameMicroseconds(),
+				config.escCommandProtocol().commandWireUtilization(config.escCommandFrameRateHertz()) * 100.0,
 				config.motorThermalRiseCelsiusPerSecond(),
 				config.motorCoolingRatePerSecond(),
 				config.motorThermalLimitCelsius(),
