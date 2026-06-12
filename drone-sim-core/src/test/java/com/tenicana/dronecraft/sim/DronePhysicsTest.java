@@ -11121,6 +11121,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("rpm_ratio"));
 		assertTrue(text.contains("thr_rpm"));
 		assertTrue(text.contains("thr_ratio"));
+		assertTrue(text.contains("Motor thermal audit"));
+		assertTrue(text.contains("Motor-Thermal-Calibration-Packet"));
+		assertTrue(text.contains("cross-class-U8-no-FPV-thermocouple"));
 		assertTrue(text.contains("Nanodrone sysid audit"));
 		assertTrue(text.contains("Nanodrone-System-Identification-Packet"));
 		assertTrue(text.contains("nano-not-fpv-scale"));

@@ -13,6 +13,7 @@ import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.MotorResponseCalibration;
+import com.tenicana.dronecraft.sim.MotorThermalCalibration;
 import com.tenicana.dronecraft.sim.NanodroneSysIdCalibration;
 import com.tenicana.dronecraft.sim.NeuroBemAirframeResidualCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
@@ -1284,6 +1285,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 		MotorBenchCurrentModel.ApDroneUrbanMotorRpmAudit apDroneUrbanMotorRpmAudit =
 				MotorBenchCurrentModel.apDroneUrbanMotorRpmAudit(preset);
+		MotorThermalCalibration.MotorThermalAudit motorThermalAudit =
+				MotorThermalCalibration.audit(preset);
 		NanodroneSysIdCalibration.NanodroneSysIdAudit nanodroneSysIdAudit =
 				NanodroneSysIdCalibration.audit(preset);
 		MotorResponseCalibration.MotorResponseAudit motorResponseAudit =
@@ -1981,6 +1984,54 @@ public final class OfflineFlightRecorder {
 				apDroneUrbanMotorRpmAudit.motorP95RpmSpread(),
 				apDroneUrbanMotorRpmAudit.measuredP95BladePassHertz(),
 				apDroneUrbanMotorRpmAudit.configuredMaxBladePassHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Motor thermal audit: %s rows %d sources %d U8max %.1fC %.1fW MQTB %s %.0fkv %.1fg %s %.0fA, preset rise/cool %.1fCps/%.3fs^-1 limit/cut %.0f/%.0fC esc %.0f/%.0fC tc %.1f/%.1f/%.1fs cooling %.2f/%.2f/%.2f, rise full/hover/esc %.1f/%.1f/%.1fC abs25 %.1f/%.1f/%.1fC, elec kv %.0frpmV kt %.4fNmA current %.1f/%.1fA limit %.1fA %.2fx phase %.1fA head %.3f stress %.3f, copper95/125 %.3f/%.3f mid %.3f cross U8 %.2fx hover %.2fx mqtb %.2fkv %.2fesc caveat cross-class-U8-no-FPV-thermocouple%n",
+				motorThermalAudit.sourceId(),
+				motorThermalAudit.rowTypeCounts().totalRowCount(),
+				motorThermalAudit.rowTypeCounts().sourceInventoryRowCount(),
+				motorThermalAudit.u8Dyno36v().temperatureMaxCelsius(),
+				motorThermalAudit.u8Dyno36v().lossMaxWatts(),
+				motorThermalAudit.mqtbMetadata().referenceMotor(),
+				motorThermalAudit.mqtbMetadata().testedKvRpmPerVolt(),
+				motorThermalAudit.mqtbMetadata().motorWeightGrams(),
+				motorThermalAudit.mqtbMetadata().esc(),
+				motorThermalAudit.mqtbMetadata().escCurrentRatingAmps(),
+				motorThermalAudit.preset().thermalRiseCelsiusPerSecond(),
+				motorThermalAudit.preset().coolingRatePerSecond(),
+				motorThermalAudit.preset().motorLimitCelsius(),
+				motorThermalAudit.preset().motorCutoffCelsius(),
+				motorThermalAudit.preset().escLimitCelsius(),
+				motorThermalAudit.preset().escCutoffCelsius(),
+				motorThermalAudit.preset().motorBaseTimeConstantSeconds(),
+				motorThermalAudit.preset().motorFullWashTimeConstantSeconds(),
+				motorThermalAudit.preset().motorFullTenMetersPerSecondTimeConstantSeconds(),
+				motorThermalAudit.preset().hoverMotorCoolingFactorProxy(),
+				motorThermalAudit.preset().fullMotorCoolingFactorProxy(),
+				motorThermalAudit.preset().fullTenMetersPerSecondMotorCoolingFactorProxy(),
+				motorThermalAudit.preset().motorFullSteadyRiseCelsius(),
+				motorThermalAudit.preset().motorHoverSteadyRiseProxyCelsius(),
+				motorThermalAudit.preset().escFullCurrentSteadyRiseProxyCelsius(),
+				motorThermalAudit.racingQuadCrosscheck().currentFullPowerMotorAbsoluteTempAt25c(),
+				motorThermalAudit.racingQuadCrosscheck().currentHoverMotorAbsoluteTempAt25c(),
+				motorThermalAudit.racingQuadCrosscheck().currentFullEscAbsoluteTempAt25c(),
+				motorThermalAudit.electricalStress().inferredKvRpmPerVolt(),
+				motorThermalAudit.electricalStress().torqueConstantNewtonMetersPerAmp(),
+				motorThermalAudit.electricalStress().hoverPowerCurrentAmps(),
+				motorThermalAudit.electricalStress().maxPowerCurrentAmps(),
+				motorThermalAudit.electricalStress().perMotorCurrentLimitAmps(),
+				motorThermalAudit.electricalStress().maxPowerCurrentOverLimit(),
+				motorThermalAudit.electricalStress().maxPhaseCurrentProxyAmps(),
+				motorThermalAudit.electricalStress().maxVoltageHeadroom(),
+				motorThermalAudit.electricalStress().maxDesyncHeadroomStress(),
+				motorThermalAudit.preset().windingResistanceScaleAtLimit(),
+				motorThermalAudit.preset().windingResistanceScaleAtCutoff(),
+				motorThermalAudit.preset().motorLimitScaleAtMidpoint(),
+				motorThermalAudit.racingQuadCrosscheck().currentFullMotorRiseOverU8MaxRise(),
+				motorThermalAudit.racingQuadCrosscheck().currentHoverMotorRiseOverU8MaxRise(),
+				motorThermalAudit.racingQuadCrosscheck().currentInferredKvOverMqtbTestedKv(),
+				motorThermalAudit.racingQuadCrosscheck().currentPerMotorLimitOverMqtbEscRating()
 		);
 		System.out.printf(
 				Locale.ROOT,
