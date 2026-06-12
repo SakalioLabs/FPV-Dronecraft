@@ -985,6 +985,12 @@ public final class OfflineFlightRecorder {
 						20.0,
 						5.0
 				);
+		AirframeDragCalibration.LevelFlightRequirement aiioManualHigh =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 14.0, 1.0);
+		AirframeDragCalibration.LevelFlightRequirement ratmHighSpeed =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 21.0, 1.0);
+		AirframeDragCalibration.LevelFlightRequirement uzhFpvVmax =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
@@ -1105,6 +1111,31 @@ public final class OfflineFlightRecorder {
 				lateralImavFit.targetReachable() ? "reachable" : "linear-high",
 				forwardImavFit.bodyQuadraticCoefficient(),
 				forwardImavFit.targetReachable() ? "reachable" : "linear-high"
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Airframe base-drag level-flight envelope: %s; %s; %s%n",
+				formatLevelFlightRequirement("AI-IO14", aiioManualHigh),
+				formatLevelFlightRequirement("RATM21", ratmHighSpeed),
+				formatLevelFlightRequirement("UZH26.8", uzhFpvVmax)
+		);
+	}
+
+	private static String formatLevelFlightRequirement(
+			String label,
+			AirframeDragCalibration.LevelFlightRequirement requirement
+	) {
+		return String.format(
+				Locale.ROOT,
+				"%s %.2fm/s %s drag %.2fN %.0f%%margin thrust %.2fmax tilt %.1fdeg %s",
+				label,
+				requirement.speedMetersPerSecond(),
+				requirement.axis().name(),
+				requirement.baseDragForceNewtons(),
+				requirement.dragToHorizontalMarginRatio() * 100.0,
+				requirement.requiredMaxThrustFraction(),
+				requirement.requiredTiltDegrees(),
+				requirement.reachable() ? "reachable" : "over-thrust"
 		);
 	}
 

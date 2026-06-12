@@ -5737,6 +5737,34 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void airframeDragCalibrationReportsRealFpvSpeedEnvelopeReachability() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		AirframeDragCalibration.LevelFlightRequirement aiioManualHigh =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(config, 14.0, 1.0);
+		AirframeDragCalibration.LevelFlightRequirement ratmHighSpeed =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(config, 21.0, 1.0);
+		AirframeDragCalibration.LevelFlightRequirement uzhFpvVmax =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(config, 26.79, 1.0);
+
+		assertEquals(AirframeDragCalibration.Axis.Z, aiioManualHigh.axis());
+		assertEquals(54.0, aiioManualHigh.maxTotalThrustNewtons(), 1.0e-9);
+		assertTrue(aiioManualHigh.reachable());
+		assertTrue(ratmHighSpeed.reachable());
+		assertTrue(uzhFpvVmax.reachable());
+		assertTrue(aiioManualHigh.baseDragForceNewtons() > 3.3 && aiioManualHigh.baseDragForceNewtons() < 3.5,
+				() -> "aiio=" + aiioManualHigh);
+		assertTrue(ratmHighSpeed.baseDragForceNewtons() > aiioManualHigh.baseDragForceNewtons());
+		assertTrue(uzhFpvVmax.baseDragForceNewtons() > ratmHighSpeed.baseDragForceNewtons());
+		assertTrue(aiioManualHigh.requiredMaxThrustFraction() < ratmHighSpeed.requiredMaxThrustFraction());
+		assertTrue(ratmHighSpeed.requiredMaxThrustFraction() < uzhFpvVmax.requiredMaxThrustFraction());
+		assertTrue(uzhFpvVmax.requiredMaxThrustFraction() < 0.30, () -> "uzh=" + uzhFpvVmax);
+		assertTrue(uzhFpvVmax.requiredTiltDegrees() > 34.0 && uzhFpvVmax.requiredTiltDegrees() < 39.0,
+				() -> "uzhTilt=" + uzhFpvVmax.requiredTiltDegrees());
+		assertTrue(uzhFpvVmax.dragToHorizontalMarginRatio() < 0.20,
+				() -> "uzhMarginRatio=" + uzhFpvVmax.dragToHorizontalMarginRatio());
+	}
+
+	@Test
 	void airframeDragCalibrationFitsBodyCoefficientFromMeasuredCoastdown() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		AirframeDragCalibration.Coastdown observed = AirframeDragCalibration.coastdown(
@@ -10312,6 +10340,11 @@ class DronePhysicsTest {
 		assertTrue(text.contains("bpass_notch="));
 		assertTrue(text.contains("max_ground_level="));
 		assertTrue(text.contains("Airframe IMAV body-drag fit"));
+		assertTrue(text.contains("Airframe base-drag level-flight envelope"));
+		assertTrue(text.contains("AI-IO14"));
+		assertTrue(text.contains("RATM21"));
+		assertTrue(text.contains("UZH26.8"));
+		assertTrue(text.contains("tilt"));
 		assertTrue(text.contains("reachable"));
 	}
 

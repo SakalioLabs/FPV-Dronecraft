@@ -54,6 +54,28 @@ public final class AirframeDragCalibration {
 		}
 	}
 
+	public record LevelFlightRequirement(
+			Axis axis,
+			double speedMetersPerSecond,
+			double airDensityRatio,
+			double linearDampingCoefficient,
+			double bodyQuadraticCoefficient,
+			double baseDragForceNewtons,
+			double vehicleWeightNewtons,
+			double maxTotalThrustNewtons,
+			double horizontalThrustMarginNewtons,
+			double requiredTotalThrustNewtons,
+			double requiredMaxThrustFraction,
+			double requiredTiltDegrees,
+			boolean reachable
+	) {
+		public double dragToHorizontalMarginRatio() {
+			return horizontalThrustMarginNewtons <= EPSILON
+					? Double.POSITIVE_INFINITY
+					: baseDragForceNewtons / horizontalThrustMarginNewtons;
+		}
+	}
+
 	public static Coastdown coastdown(DroneConfig config, Axis axis, double startSpeedMetersPerSecond, double endSpeedMetersPerSecond) {
 		requireValidSpeedRange(startSpeedMetersPerSecond, endSpeedMetersPerSecond);
 		double massKg = config.massKg();
@@ -176,6 +198,86 @@ public final class AirframeDragCalibration {
 				high,
 				true
 		);
+	}
+
+	public static LevelFlightRequirement levelFlightRequirement(
+			DroneConfig config,
+			Axis axis,
+			double speedMetersPerSecond,
+			double airDensityRatio
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		if (!Double.isFinite(speedMetersPerSecond) || speedMetersPerSecond < 0.0) {
+			throw new IllegalArgumentException("speedMetersPerSecond must be finite and non-negative.");
+		}
+
+		double densityScale = Double.isFinite(airDensityRatio) ? MathUtil.clamp(airDensityRatio, 0.0, 2.0) : 1.0;
+		double linearCoefficient = config.linearDragCoefficient();
+		double quadraticCoefficient = bodyQuadraticCoefficient(config, axis);
+		double baseDrag = dragForceNewtons(linearCoefficient, quadraticCoefficient, speedMetersPerSecond)
+				* densityScale;
+		double weight = config.massKg() * config.gravityMetersPerSecondSquared();
+		double maxThrust = maxTotalRotorThrustNewtons(config);
+		double horizontalMargin = maxThrust <= weight
+				? 0.0
+				: Math.sqrt(Math.max(0.0, maxThrust * maxThrust - weight * weight));
+		double requiredTotalThrust = Math.hypot(weight, baseDrag);
+		double requiredMaxThrustFraction = maxThrust <= EPSILON
+				? Double.POSITIVE_INFINITY
+				: requiredTotalThrust / maxThrust;
+		double requiredTiltDegrees = Math.toDegrees(Math.atan2(baseDrag, weight));
+		boolean reachable = maxThrust + EPSILON >= requiredTotalThrust;
+
+		return new LevelFlightRequirement(
+				axis,
+				speedMetersPerSecond,
+				densityScale,
+				linearCoefficient,
+				quadraticCoefficient,
+				baseDrag,
+				weight,
+				maxThrust,
+				horizontalMargin,
+				requiredTotalThrust,
+				requiredMaxThrustFraction,
+				requiredTiltDegrees,
+				reachable
+		);
+	}
+
+	public static LevelFlightRequirement worstHorizontalLevelFlightRequirement(
+			DroneConfig config,
+			double speedMetersPerSecond,
+			double airDensityRatio
+	) {
+		LevelFlightRequirement lateral = levelFlightRequirement(
+				config,
+				Axis.X,
+				speedMetersPerSecond,
+				airDensityRatio
+		);
+		LevelFlightRequirement forward = levelFlightRequirement(
+				config,
+				Axis.Z,
+				speedMetersPerSecond,
+				airDensityRatio
+		);
+		return forward.requiredMaxThrustFraction() >= lateral.requiredMaxThrustFraction()
+				? forward
+				: lateral;
+	}
+
+	public static double maxTotalRotorThrustNewtons(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+		double maxThrust = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			maxThrust += Math.max(0.0, rotor.maxThrustNewtons());
+		}
+		return maxThrust;
 	}
 
 	public static double imav2022MassFitLinearDragCoefficient(DroneConfig config) {
