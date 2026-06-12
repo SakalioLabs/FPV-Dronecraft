@@ -58,6 +58,12 @@ public final class DronePhysics {
 	private static final Vec3 BODY_ROTOR_AXIS = new Vec3(0.0, 1.0, 0.0);
 	private static final Vec3 BODY_RIGHT = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3 BODY_FORWARD = new Vec3(0.0, 0.0, 1.0);
+	static final double JOHNSON_VRS_MODEL_JOIN_LOW_VI = 0.20;
+	static final double JOHNSON_VRS_ZERO_DAMPING_LOW_VI = 0.45;
+	static final double JOHNSON_VRS_ZERO_DAMPING_HIGH_VI = 1.50;
+	static final double JOHNSON_VRS_MODEL_JOIN_HIGH_VI = 2.00;
+	static final double JOHNSON_BASELINE_FORWARD_CUTOFF_VX_OVER_VH = 0.75;
+	static final double JOHNSON_VRS_FORWARD_CUTOFF_VX_OVER_VH = 0.95;
 	private DroneConfig config;
 	private final DroneState state;
 	private final PidController pitchPid;
@@ -3265,7 +3271,7 @@ public final class DronePhysics {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
-		double transverseFlush = smoothStep(2.5, 7.0, transverseSpeed);
+		double transverseFlush = rotorVortexRingForwardEscape(transverseSpeed, inducedVelocityMetersPerSecond);
 		double diskResponse = 0.72 + 0.55 * spinRatio;
 		double attackTimeConstant = MathUtil.clamp(0.070 * Math.sqrt(radiusScale) / diskResponse, 0.025, 0.140);
 		double recoveryTimeConstant = MathUtil.clamp(
@@ -3298,9 +3304,21 @@ public final class DronePhysics {
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
 
 		double descentEnvelope = rotorVortexRingDescentEnvelope(descentRatio);
-		double washout = 1.0 - smoothStep(2.5, 7.0, transverseSpeed);
+		double washout = 1.0 - rotorVortexRingForwardEscape(transverseSpeed, inducedVelocityMetersPerSecond);
 		double load = smoothStep(0.12, 0.75, spinRatio);
 		return MathUtil.clamp(descentEnvelope * washout * load, 0.0, 1.0);
+	}
+
+	static double rotorVortexRingForwardEscape(double transverseSpeedMetersPerSecond, double inducedVelocityMetersPerSecond) {
+		if (!Double.isFinite(transverseSpeedMetersPerSecond)
+				|| transverseSpeedMetersPerSecond <= 0.0
+				|| !Double.isFinite(inducedVelocityMetersPerSecond)) {
+			return 0.0;
+		}
+		double hoverInducedVelocity = Math.max(1.0, inducedVelocityMetersPerSecond);
+		double baselineForwardCutoff = JOHNSON_BASELINE_FORWARD_CUTOFF_VX_OVER_VH * hoverInducedVelocity;
+		double vrsForwardCutoff = JOHNSON_VRS_FORWARD_CUTOFF_VX_OVER_VH * hoverInducedVelocity;
+		return smoothStep(baselineForwardCutoff, vrsForwardCutoff, transverseSpeedMetersPerSecond);
 	}
 
 	static double rotorVortexRingDescentEnvelope(double descentRatio) {

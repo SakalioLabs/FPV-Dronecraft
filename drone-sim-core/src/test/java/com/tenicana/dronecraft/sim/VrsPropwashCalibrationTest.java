@@ -31,6 +31,36 @@ class VrsPropwashCalibrationTest {
 		assertEquals(2.00, reference.broadRegimeHighVi(), 1.0e-12);
 		assertEquals(0.6625, reference.shettyMaxDigitizedHalfAmplitudeFraction(), 1.0e-12);
 		assertEquals(1.2396163037650905, reference.shettyMaxDigitizedDescentRatioVi(), 1.0e-15);
+
+		VrsPropwashCalibration.JohnsonRegimeAudit johnson = audit.johnsonRegime();
+		assertEquals("VRS-Johnson-Regime-Packet", johnson.sourceId());
+		assertEquals("NASA/TP-2005-213477", johnson.reportId());
+		assertTrue(johnson.caveat().contains("mean-inflow boundary"));
+		assertEquals(272, johnson.packetMetricRowCount());
+		assertEquals(10, johnson.table4ParameterCount());
+		assertEquals(6, johnson.presetCount());
+		assertEquals(6, johnson.regimeBoundaryRowCount());
+		assertEquals(36, johnson.presetBoundarySpeedRowCount());
+		assertEquals(144, johnson.currentAtBoundaryRowCount());
+		assertEquals(60, johnson.presetSummaryRowCount());
+		assertEquals(0.20, johnson.modelJoinLowDescentRatioVi(), 1.0e-12);
+		assertEquals(0.45, johnson.zeroDampingLowDescentRatioVi(), 1.0e-12);
+		assertEquals(1.50, johnson.zeroDampingHighDescentRatioVi(), 1.0e-12);
+		assertEquals(2.00, johnson.modelJoinHighDescentRatioVi(), 1.0e-12);
+		assertEquals(0.75, johnson.baselineForwardCutoffVxOverVh(), 1.0e-12);
+		assertEquals(0.95, johnson.vrsForwardCutoffVxOverVh(), 1.0e-12);
+		assertEquals(9.321696972452157, johnson.hoverInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(4.1947636376034705, johnson.johnsonNDescentSpeedMetersPerSecond(), 1.0e-15);
+		assertEquals(13.982545458678235, johnson.johnsonXDescentSpeedMetersPerSecond(), 1.0e-15);
+		assertEquals(6.9912727293391175, johnson.baselineForwardCutoffMetersPerSecond(), 1.0e-15);
+		assertEquals(8.855612123829548, johnson.vrsForwardCutoffMetersPerSecond(), 1.0e-15);
+		assertEquals(0.0, johnson.currentIntensityAtJohnsonN(), 1.0e-12);
+		assertEquals(0.4892970676148576, johnson.currentIntensityAtJohnsonX(), 1.0e-15);
+		assertEquals(0.5284408330240461,
+				johnson.currentPeakDescentIntensityAtBaselineForwardCutoff(), 1.0e-15);
+		assertEquals(0.0, johnson.currentPeakDescentIntensityAtVrsForwardCutoff(), 1.0e-12);
+		assertEquals(0.0, johnson.currentForwardEscapeAtBaselineForwardCutoff(), 1.0e-12);
+		assertEquals(1.0, johnson.currentForwardEscapeAtVrsForwardCutoff(), 1.0e-12);
 	}
 
 	@Test

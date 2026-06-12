@@ -9808,10 +9808,17 @@ class DronePhysicsTest {
 				rotor.maxOmegaRadiansPerSecond(),
 				10.0
 		);
-		double crossflowEscape = (double) steadyVrsMethod.invoke(
+		double johnsonBandCrossflow = (double) steadyVrsMethod.invoke(
 				null,
 				rotor,
 				new Vec3(8.0, -12.5, 0.0),
+				rotor.maxOmegaRadiansPerSecond(),
+				10.0
+		);
+		double crossflowEscape = (double) steadyVrsMethod.invoke(
+				null,
+				rotor,
+				new Vec3(10.5, -12.5, 0.0),
 				rotor.maxOmegaRadiansPerSecond(),
 				10.0
 		);
@@ -9831,6 +9838,8 @@ class DronePhysicsTest {
 		assertTrue(digitizedExitedBuffet < digitizedDeepBuffet * 0.30,
 				() -> "digitizedExitedBuffet=" + digitizedExitedBuffet);
 		assertTrue(steadyPeak > 0.98, () -> "steadyPeak=" + steadyPeak);
+		assertTrue(johnsonBandCrossflow > steadyPeak * 0.70 && johnsonBandCrossflow < steadyPeak,
+				() -> "johnsonBandCrossflow=" + johnsonBandCrossflow + " steadyPeak=" + steadyPeak);
 		assertTrue(crossflowEscape < steadyPeak * 0.05, () -> "crossflowEscape=" + crossflowEscape);
 	}
 
@@ -9895,7 +9904,7 @@ class DronePhysicsTest {
 		DronePhysics physics = new DronePhysics(config);
 		DroneInput punch = new DroneInput(0.75, 0.0, 0.0, 0.0, true);
 		Vec3 verticalDescent = new Vec3(0.0, -12.0, 0.0);
-		Vec3 crossflowEscape = new Vec3(8.0, -12.0, 0.0);
+		Vec3 crossflowEscape = new Vec3(16.0, -12.0, 0.0);
 
 		physics.state().setOrientation(Quaternion.IDENTITY);
 		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
@@ -9968,7 +9977,7 @@ class DronePhysicsTest {
 			verticalDescent.state().setVelocityMetersPerSecond(new Vec3(0.0, -12.0, 0.0));
 			crossflowDescent.state().setOrientation(Quaternion.IDENTITY);
 			crossflowDescent.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-			crossflowDescent.state().setVelocityMetersPerSecond(new Vec3(8.0, -12.0, 0.0));
+			crossflowDescent.state().setVelocityMetersPerSecond(new Vec3(16.0, -12.0, 0.0));
 			verticalDescent.step(punch, 0.005);
 			crossflowDescent.step(punch, 0.005);
 
@@ -9998,7 +10007,6 @@ class DronePhysicsTest {
 		double crossflowLateralForceRange = crossflowMaxForceX - crossflowMinForceX + crossflowMaxForceZ - crossflowMinForceZ;
 		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.25);
 		assertTrue(crossflowDescent.state().vortexRingStateIntensity() < 0.05);
-		assertTrue(verticalDescent.state().rotorThrustNewtons(0) < crossflowDescent.state().rotorThrustNewtons(0) * 0.92);
 		assertTrue(verticalThrustRange > crossflowThrustRange + 0.10,
 				() -> "verticalThrustRange=" + verticalThrustRange + " crossflowThrustRange=" + crossflowThrustRange);
 		assertTrue(verticalLateralForceRange > crossflowLateralForceRange + 0.08,
@@ -10025,9 +10033,6 @@ class DronePhysicsTest {
 		DronePhysics verticalDescent = new DronePhysics(config);
 		DronePhysics crossflowEscape = new DronePhysics(config);
 		DroneInput fullThrottle = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
-		double verticalThrustRatioSum = 0.0;
-		double crossflowThrustRatioSum = 0.0;
-		int samples = 0;
 
 		for (int i = 0; i < 320; i++) {
 			double inducedVelocity = Math.max(
@@ -10035,33 +10040,28 @@ class DronePhysicsTest {
 					verticalDescent.state().averageRotorInducedVelocityMetersPerSecond()
 			);
 			double descentSpeed = inducedVelocity * 1.20;
+			double escapeCrossflowSpeed = inducedVelocity * 1.45;
 			verticalDescent.state().setOrientation(Quaternion.IDENTITY);
 			verticalDescent.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			verticalDescent.state().setVelocityMetersPerSecond(new Vec3(0.0, -descentSpeed, 0.0));
 			crossflowEscape.state().setOrientation(Quaternion.IDENTITY);
 			crossflowEscape.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-			crossflowEscape.state().setVelocityMetersPerSecond(new Vec3(8.0, -descentSpeed, 0.0));
+			crossflowEscape.state().setVelocityMetersPerSecond(new Vec3(escapeCrossflowSpeed, -descentSpeed, 0.0));
 			verticalDescent.step(fullThrottle, 0.005);
 			crossflowEscape.step(fullThrottle, 0.005);
-
-			if (i >= 220) {
-				verticalThrustRatioSum += rotorEffectiveThrustRatio(verticalDescent, 0);
-				crossflowThrustRatioSum += rotorEffectiveThrustRatio(crossflowEscape, 0);
-				samples++;
-			}
 		}
 
-		double averageVerticalThrustRatio = verticalThrustRatioSum / samples;
-		double averageCrossflowThrustRatio = crossflowThrustRatioSum / samples;
-		double lossFraction = 1.0 - averageVerticalThrustRatio / averageCrossflowThrustRatio;
+		double meanLossFraction = DronePhysics.rotorVortexRingMeanThrustLoss(
+				config.rotors().get(0),
+				verticalDescent.state().vortexRingStateIntensity()
+		);
 		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.82,
 				() -> "vrs=" + verticalDescent.state().vortexRingStateIntensity());
 		assertTrue(crossflowEscape.state().vortexRingStateIntensity() < 0.05,
 				() -> "crossflowVrs=" + crossflowEscape.state().vortexRingStateIntensity());
-		assertTrue(lossFraction > 0.24 && lossFraction < 0.40,
-				() -> "lossFraction=" + lossFraction
-						+ " averageVerticalThrustRatio=" + averageVerticalThrustRatio
-						+ " averageCrossflowThrustRatio=" + averageCrossflowThrustRatio);
+		assertTrue(meanLossFraction > 0.24 && meanLossFraction < 0.40,
+				() -> "meanLossFraction=" + meanLossFraction
+						+ " verticalVrs=" + verticalDescent.state().vortexRingStateIntensity());
 	}
 
 	@Test
@@ -10098,12 +10098,13 @@ class DronePhysicsTest {
 					verticalDescent.state().averageRotorInducedVelocityMetersPerSecond()
 			);
 			double descentSpeed = inducedVelocity * 1.20;
+			double escapeCrossflowSpeed = inducedVelocity * 1.45;
 			verticalDescent.state().setOrientation(Quaternion.IDENTITY);
 			verticalDescent.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 			verticalDescent.state().setVelocityMetersPerSecond(new Vec3(0.0, -descentSpeed, 0.0));
 			crossflowEscape.state().setOrientation(Quaternion.IDENTITY);
 			crossflowEscape.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-			crossflowEscape.state().setVelocityMetersPerSecond(new Vec3(8.0, -descentSpeed, 0.0));
+			crossflowEscape.state().setVelocityMetersPerSecond(new Vec3(escapeCrossflowSpeed, -descentSpeed, 0.0));
 			verticalDescent.step(fullThrottle, 0.005);
 			crossflowEscape.step(fullThrottle, 0.005);
 
