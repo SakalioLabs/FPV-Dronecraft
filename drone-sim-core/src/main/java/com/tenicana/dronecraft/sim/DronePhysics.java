@@ -1360,6 +1360,11 @@ public final class DronePhysics {
 					state.rotorInducedVelocityMetersPerSecond(i),
 					dtSeconds
 			);
+			double vortexRingDescentRatio = rotorVortexRingDescentRatio(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					state.rotorInducedVelocityMetersPerSecond(i)
+			);
 			vortexRingStateSum += vortexRingState;
 			double aerodynamicLoadFactor = MathUtil.clamp(rotorAerodynamicLoadFactor(
 					aerodynamicRotor,
@@ -1446,6 +1451,7 @@ public final class DronePhysics {
 					aerodynamicOmega,
 					nominalThrust * bladePassRipple.thrustScale() * stallBuffet.thrustScale(),
 					vortexRingState,
+					vortexRingDescentRatio,
 					dtSeconds
 			);
 			vortexRingThrustBuffetAmplitudeSum += vortexBuffet.thrustAmplitude();
@@ -3345,9 +3351,7 @@ public final class DronePhysics {
 			return 0.0;
 		}
 
-		double descentSpeed = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody));
-		double inducedVelocity = Math.max(1.0, inducedVelocityMetersPerSecond);
-		double descentRatio = descentSpeed / inducedVelocity;
+		double descentRatio = rotorVortexRingDescentRatio(rotor, relativeAirVelocityBody, inducedVelocityMetersPerSecond);
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
 
 		double descentEnvelope = rotorVortexRingDescentEnvelope(descentRatio);
@@ -3364,6 +3368,36 @@ public final class DronePhysics {
 		double entry = smoothStep(0.45, 1.20, descentRatio);
 		double highDescentExit = 1.0 - smoothStep(1.35, 2.25, descentRatio);
 		return MathUtil.clamp(entry * highDescentExit, 0.0, 1.0);
+	}
+
+	private static double rotorVortexRingDescentRatio(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double inducedVelocityMetersPerSecond
+	) {
+		double descentSpeed = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody));
+		double inducedVelocity = Math.max(1.0, inducedVelocityMetersPerSecond);
+		return descentSpeed / inducedVelocity;
+	}
+
+	private static double rotorVortexRingBuffetEnvelope(double descentRatio) {
+		if (!Double.isFinite(descentRatio)) {
+			return 0.0;
+		}
+
+		double earlyDigitizedShoulder = 0.42
+				* smoothStep(0.45, 0.80, descentRatio)
+				* (1.0 - smoothStep(0.96, 1.18, descentRatio));
+		double peakDigitizedBand = smoothStep(0.78, 1.20, descentRatio)
+				* (1.0 - smoothStep(1.36, 1.95, descentRatio));
+		double deepDescentShoulder = 0.30
+				* smoothStep(1.46, 1.76, descentRatio)
+				* (1.0 - smoothStep(2.15, 2.65, descentRatio));
+		return MathUtil.clamp(
+				Math.max(earlyDigitizedShoulder, Math.max(peakDigitizedBand, deepDescentShoulder)),
+				0.0,
+				1.0
+		);
 	}
 
 	private static double rotorVortexRingMeanThrustLoss(RotorSpec rotor, double vortexRingStateIntensity) {
@@ -4110,6 +4144,7 @@ public final class DronePhysics {
 			double omegaRadiansPerSecond,
 			double thrustNewtons,
 			double vortexRingStateIntensity,
+			double descentRatio,
 			double dtSeconds
 	) {
 		double vrs = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
@@ -4120,7 +4155,8 @@ public final class DronePhysics {
 
 		double spinRatio = MathUtil.clamp(absOmega / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		double activeRotor = smoothStep(0.16, 0.52, spinRatio);
-		double intensity = MathUtil.clamp(vrs * activeRotor, 0.0, 1.0);
+		double buffetEnvelope = rotorVortexRingBuffetEnvelope(descentRatio);
+		double intensity = MathUtil.clamp(vrs * activeRotor * (0.28 + 0.72 * buffetEnvelope), 0.0, 1.0);
 		if (intensity <= 1.0e-6) {
 			return RotorVortexRingBuffet.IDLE;
 		}

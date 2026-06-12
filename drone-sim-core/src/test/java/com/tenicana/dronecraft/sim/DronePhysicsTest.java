@@ -9595,6 +9595,10 @@ class DronePhysicsTest {
 				"rotorVortexRingDescentEnvelope",
 				double.class
 		);
+		Method buffetEnvelopeMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorVortexRingBuffetEnvelope",
+				double.class
+		);
 		Method steadyVrsMethod = DronePhysics.class.getDeclaredMethod(
 				"calculateSteadyRotorVortexRingStateIntensity",
 				RotorSpec.class,
@@ -9603,6 +9607,7 @@ class DronePhysicsTest {
 				double.class
 		);
 		envelopeMethod.setAccessible(true);
+		buffetEnvelopeMethod.setAccessible(true);
 		steadyVrsMethod.setAccessible(true);
 
 		double earlyEntry = (double) envelopeMethod.invoke(null, 0.75);
@@ -9610,6 +9615,11 @@ class DronePhysicsTest {
 		double peak = (double) envelopeMethod.invoke(null, 1.25);
 		double highDescentRelease = (double) envelopeMethod.invoke(null, 1.85);
 		double exited = (double) envelopeMethod.invoke(null, 2.30);
+		double noBuffet = (double) buffetEnvelopeMethod.invoke(null, 0.0);
+		double digitizedEarlyBuffet = (double) buffetEnvelopeMethod.invoke(null, 0.78);
+		double digitizedPeakBuffet = (double) buffetEnvelopeMethod.invoke(null, 1.24);
+		double digitizedDeepBuffet = (double) buffetEnvelopeMethod.invoke(null, 1.74);
+		double digitizedExitedBuffet = (double) buffetEnvelopeMethod.invoke(null, 2.56);
 		RotorSpec rotor = DroneConfig.racingQuad().rotors().get(0);
 		double steadyPeak = (double) steadyVrsMethod.invoke(
 				null,
@@ -9632,6 +9642,14 @@ class DronePhysicsTest {
 		assertTrue(highDescentRelease > 0.25 && highDescentRelease < peak * 0.55,
 				() -> "highDescentRelease=" + highDescentRelease);
 		assertEquals(0.0, exited, 1.0e-9);
+		assertEquals(0.0, noBuffet, 1.0e-9);
+		assertTrue(digitizedEarlyBuffet > 0.30 && digitizedEarlyBuffet < 0.55,
+				() -> "digitizedEarlyBuffet=" + digitizedEarlyBuffet);
+		assertTrue(digitizedPeakBuffet > 0.98, () -> "digitizedPeakBuffet=" + digitizedPeakBuffet);
+		assertTrue(digitizedDeepBuffet > 0.18 && digitizedDeepBuffet < digitizedPeakBuffet * 0.45,
+				() -> "digitizedDeepBuffet=" + digitizedDeepBuffet);
+		assertTrue(digitizedExitedBuffet < digitizedDeepBuffet * 0.30,
+				() -> "digitizedExitedBuffet=" + digitizedExitedBuffet);
 		assertTrue(steadyPeak > 0.98, () -> "steadyPeak=" + steadyPeak);
 		assertTrue(crossflowEscape < steadyPeak * 0.05, () -> "crossflowEscape=" + crossflowEscape);
 	}
