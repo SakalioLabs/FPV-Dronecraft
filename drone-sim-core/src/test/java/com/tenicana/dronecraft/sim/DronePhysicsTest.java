@@ -4730,29 +4730,27 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(0.0, still.state().barometerPropwashErrorMeters(), 1.0e-9);
+		assertEquals(0.0, still.state().barometerPressurePortErrorMeters(), 1.0e-9);
 		assertEquals(0.0, fastForward.state().barometerSensorNoiseMeters(), 1.0e-9);
-		assertEquals(
-				fastForward.state().barometerPropwashErrorMeters(),
-				fastForward.state().barometerPressurePortErrorMeters(),
-				1.0e-12
-		);
+		assertEquals(0.0, fastForward.state().barometerPropwashErrorMeters(), 1.0e-9);
 		assertTrue(
-				fastForward.state().barometerPropwashErrorMeters() < -1.10,
-				() -> "fastForwardPressureError=" + fastForward.state().barometerPropwashErrorMeters()
+				fastForward.state().barometerPressurePortErrorMeters() < -1.10,
+				() -> "fastForwardPressureError=" + fastForward.state().barometerPressurePortErrorMeters()
 		);
 		assertTrue(
 				fastForward.state().barometerErrorMeters() < -1.00,
 				() -> "fastForwardFilteredError=" + fastForward.state().barometerErrorMeters()
 		);
+		assertEquals(0.0, highSideslip.state().barometerPropwashErrorMeters(), 1.0e-9);
 		assertTrue(
-				highSideslip.state().barometerPropwashErrorMeters() > 0.60,
-				() -> "highSideslipPressureError=" + highSideslip.state().barometerPropwashErrorMeters()
+				highSideslip.state().barometerPressurePortErrorMeters() > 0.60,
+				() -> "highSideslipPressureError=" + highSideslip.state().barometerPressurePortErrorMeters()
 		);
 		assertTrue(
-				highSideslip.state().barometerPropwashErrorMeters()
-						> fastForward.state().barometerPropwashErrorMeters() + 1.60,
-				() -> "fastForwardPressureError=" + fastForward.state().barometerPropwashErrorMeters()
-						+ " highSideslipPressureError=" + highSideslip.state().barometerPropwashErrorMeters()
+				highSideslip.state().barometerPressurePortErrorMeters()
+						> fastForward.state().barometerPressurePortErrorMeters() + 1.60,
+				() -> "fastForwardPressureError=" + fastForward.state().barometerPressurePortErrorMeters()
+						+ " highSideslipPressureError=" + highSideslip.state().barometerPressurePortErrorMeters()
 		);
 	}
 
@@ -4779,7 +4777,7 @@ class DronePhysicsTest {
 		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
 		physics.state().setVelocityMetersPerSecond(fastForward);
 		physics.step(DroneInput.idle(), 0.005, calm);
-		double firstFastError = physics.state().barometerPropwashErrorMeters();
+		double firstFastError = physics.state().barometerPressurePortErrorMeters();
 
 		for (int i = 0; i < 140; i++) {
 			physics.state().setOrientation(Quaternion.IDENTITY);
@@ -4788,14 +4786,14 @@ class DronePhysicsTest {
 			physics.state().setVelocityMetersPerSecond(fastForward);
 			physics.step(DroneInput.idle(), 0.005, calm);
 		}
-		double settledFastError = physics.state().barometerPropwashErrorMeters();
+		double settledFastError = physics.state().barometerPressurePortErrorMeters();
 
 		physics.state().setOrientation(Quaternion.IDENTITY);
 		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 		physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 		physics.step(DroneInput.idle(), 0.005, calm);
-		double lingeringStillError = physics.state().barometerPropwashErrorMeters();
+		double lingeringStillError = physics.state().barometerPressurePortErrorMeters();
 
 		for (int i = 0; i < 240; i++) {
 			physics.state().setOrientation(Quaternion.IDENTITY);
@@ -4804,7 +4802,7 @@ class DronePhysicsTest {
 			physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 			physics.step(DroneInput.idle(), 0.005, calm);
 		}
-		double recoveredStillError = physics.state().barometerPropwashErrorMeters();
+		double recoveredStillError = physics.state().barometerPressurePortErrorMeters();
 
 		assertTrue(firstFastError < -0.05, () -> "firstFastError=" + firstFastError);
 		assertTrue(settledFastError < firstFastError - 0.90,
@@ -4839,10 +4837,18 @@ class DronePhysicsTest {
 			fastRoll.step(DroneInput.idle(), 0.005, calm);
 		}
 
+		assertEquals(0.0, still.state().barometerPressurePortErrorMeters(), 1.0e-9);
 		assertEquals(0.0, still.state().barometerPropwashErrorMeters(), 1.0e-9);
+		double fastRollPressurePortError = fastRoll.state().barometerPressurePortErrorMeters();
+		double fastRollPropwashError = Math.abs(fastRoll.state().barometerPropwashErrorMeters());
 		assertTrue(
-				fastRoll.state().barometerPropwashErrorMeters() > 0.30,
-				() -> "fastRollPressureError=" + fastRoll.state().barometerPropwashErrorMeters()
+				fastRollPressurePortError > 0.30,
+				() -> "fastRollPressureError=" + fastRollPressurePortError
+		);
+		assertTrue(
+				fastRollPropwashError < fastRollPressurePortError * 0.45,
+				() -> "fastRollPressureError=" + fastRollPressurePortError
+						+ " fastRollPropwashError=" + fastRollPropwashError
 		);
 		assertTrue(
 				fastRoll.state().barometerErrorMeters() > 0.25,
@@ -9900,6 +9906,20 @@ class DronePhysicsTest {
 		);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_sensor_noise_m")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_pressure_port_error_m")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_propwash_error_m")])));
+		assertTrue(maxAbsColumn(lines, header, "barometer_pressure_port_error_m") > 0.25);
+		assertTrue(maxAbsColumn(lines, header, "barometer_propwash_error_m") > 0.10);
+		assertTrue(maxAbsColumnDifference(lines, header, "barometer_pressure_port_error_m", "barometer_propwash_error_m") > 0.25);
+		assertEquals(
+				maxAbsColumn(lines, header, "barometer_pressure_port_error_m"),
+				report.maxBarometerPressurePortErrorMeters(),
+				1.0e-5
+		);
+		assertEquals(
+				maxAbsColumn(lines, header, "barometer_propwash_error_m"),
+				report.maxBarometerPropwashErrorMeters(),
+				1.0e-5
+		);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_friction")]), 1.0e-9);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_restitution")]), 1.0e-9);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_scrape")]), 1.0e-9);
@@ -10896,6 +10916,29 @@ class DronePhysicsTest {
 			min = Math.min(min, Double.parseDouble(row[index]));
 		}
 		return min;
+	}
+
+	private static double maxAbsColumn(List<String> lines, String[] header, String column) {
+		int index = indexOf(header, column);
+		double max = 0.0;
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			max = Math.max(max, Math.abs(Double.parseDouble(row[index])));
+		}
+		return max;
+	}
+
+	private static double maxAbsColumnDifference(List<String> lines, String[] header, String aColumn, String bColumn) {
+		int aIndex = indexOf(header, aColumn);
+		int bIndex = indexOf(header, bColumn);
+		double max = 0.0;
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			double a = Double.parseDouble(row[aIndex]);
+			double b = Double.parseDouble(row[bIndex]);
+			max = Math.max(max, Math.abs(a - b));
+		}
+		return max;
 	}
 
 	private static double maxVectorLength(List<String> lines, String[] header, String xColumn, String yColumn, String zColumn) {

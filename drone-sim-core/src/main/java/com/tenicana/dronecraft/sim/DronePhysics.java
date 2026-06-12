@@ -219,7 +219,8 @@ public final class DronePhysics {
 	private double barometerNoiseTimeSeconds;
 	private double barometerFilteredAltitudeMeters;
 	private double barometerFilteredVerticalSpeedMetersPerSecond;
-	private double barometerFlowErrorFilteredMeters;
+	private double barometerPressurePortErrorFilteredMeters;
+	private double barometerPropwashErrorFilteredMeters;
 	private boolean barometerInitialized;
 	private Vec3 gyroBiasBodyRadiansPerSecond = Vec3.ZERO;
 	private Vec3 accelerometerBiasBodyMetersPerSecondSquared = Vec3.ZERO;
@@ -8057,7 +8058,9 @@ public final class DronePhysics {
 	private void updateBarometerMeasurement(DroneEnvironment environment, double dtSeconds) {
 		barometerNoiseTimeSeconds += dtSeconds;
 		double trueAltitude = state.positionMeters().y();
-		double flowError = updateBarometerFlowErrorMeters(environment, dtSeconds);
+		double pressurePortError = updateBarometerPressurePortErrorMeters(environment, dtSeconds);
+		double propwashError = updateBarometerPropwashErrorMeters(environment, dtSeconds);
+		double flowError = MathUtil.clamp(pressurePortError + propwashError, -2.5, 4.5);
 		double sensorNoise = barometerNoiseMeters(environment);
 		double rawAltitude = trueAltitude + flowError + sensorNoise;
 
@@ -8083,29 +8086,62 @@ public final class DronePhysics {
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
 		state.setBarometerSensorNoiseMeters(sensorNoise);
-		state.setBarometerPressurePortErrorMeters(flowError);
+		state.setBarometerPressurePortErrorMeters(pressurePortError);
+		state.setBarometerPropwashErrorMeters(propwashError);
 	}
 
-	private double updateBarometerFlowErrorMeters(DroneEnvironment environment, double dtSeconds) {
-		double target = calculateSteadyBarometerFlowErrorMeters(environment);
+	private double updateBarometerPressurePortErrorMeters(DroneEnvironment environment, double dtSeconds) {
+		double target = calculateSteadyBarometerPressurePortErrorMeters(environment);
+		barometerPressurePortErrorFilteredMeters = updateFilteredBarometerAerodynamicErrorMeters(
+				barometerPressurePortErrorFilteredMeters,
+				target,
+				dtSeconds,
+				-1.8,
+				2.2
+		);
+		return barometerPressurePortErrorFilteredMeters;
+	}
+
+	private double updateBarometerPropwashErrorMeters(DroneEnvironment environment, double dtSeconds) {
+		double target = calculateSteadyBarometerPropwashErrorMeters(environment);
+		barometerPropwashErrorFilteredMeters = updateFilteredBarometerAerodynamicErrorMeters(
+				barometerPropwashErrorFilteredMeters,
+				target,
+				dtSeconds,
+				-2.5,
+				4.5
+		);
+		return barometerPropwashErrorFilteredMeters;
+	}
+
+	private double updateFilteredBarometerAerodynamicErrorMeters(
+			double previous,
+			double target,
+			double dtSeconds,
+			double minMeters,
+			double maxMeters
+	) {
 		if (dtSeconds <= 0.0) {
-			barometerFlowErrorFilteredMeters = target;
-			return barometerFlowErrorFilteredMeters;
+			return MathUtil.clamp(target, minMeters, maxMeters);
 		}
 
-		double previousMagnitude = Math.abs(barometerFlowErrorFilteredMeters);
+		double previousMagnitude = Math.abs(previous);
 		double targetMagnitude = Math.abs(target);
 		double timeConstant = targetMagnitude > previousMagnitude ? 0.038 : 0.125;
 		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
-		barometerFlowErrorFilteredMeters += (target - barometerFlowErrorFilteredMeters) * alpha;
-		barometerFlowErrorFilteredMeters = MathUtil.clamp(barometerFlowErrorFilteredMeters, -2.5, 4.5);
-		if (targetMagnitude <= 1.0e-6 && Math.abs(barometerFlowErrorFilteredMeters) < 1.0e-5) {
-			barometerFlowErrorFilteredMeters = 0.0;
+		double filtered = previous + (target - previous) * alpha;
+		filtered = MathUtil.clamp(filtered, minMeters, maxMeters);
+		if (targetMagnitude <= 1.0e-6 && Math.abs(filtered) < 1.0e-5) {
+			filtered = 0.0;
 		}
-		return barometerFlowErrorFilteredMeters;
+		return filtered;
 	}
 
-	private double calculateSteadyBarometerFlowErrorMeters(DroneEnvironment environment) {
+	private double calculateSteadyBarometerPressurePortErrorMeters(DroneEnvironment environment) {
+		return barometerDynamicPressureErrorMeters(environment);
+	}
+
+	private double calculateSteadyBarometerPropwashErrorMeters(DroneEnvironment environment) {
 		double motorPower = state.averageMotorPower(config);
 		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
 		double cleanRotorWash = smoothStep(0.08, 0.35, motorPower) * smoothStep(0.5, 5.5, inducedVelocity);
@@ -8115,13 +8151,11 @@ public final class DronePhysics {
 				+ 0.32 * environment.droneWakeIntensity();
 		double groundCompression = environment.groundEffectIntensity(config);
 		double ceilingSuction = environment.ceilingEffectIntensity(config);
-		double dynamicPressureError = barometerDynamicPressureErrorMeters(environment);
-		double pressurePortError = 0.90 * cleanRotorWash
+		double propwashError = 0.90 * cleanRotorWash
 				+ 1.15 * unsteadyWash
 				+ 0.35 * ceilingSuction
-				- 0.60 * groundCompression
-				+ dynamicPressureError;
-		return MathUtil.clamp(pressurePortError, -2.5, 4.5);
+				- 0.60 * groundCompression;
+		return MathUtil.clamp(propwashError, -2.5, 4.5);
 	}
 
 	private double barometerDynamicPressureErrorMeters(DroneEnvironment environment) {
@@ -8219,7 +8253,8 @@ public final class DronePhysics {
 		barometerNoiseTimeSeconds = 0.0;
 		barometerFilteredAltitudeMeters = state.positionMeters().y();
 		barometerFilteredVerticalSpeedMetersPerSecond = state.velocityMetersPerSecond().y();
-		barometerFlowErrorFilteredMeters = 0.0;
+		barometerPressurePortErrorFilteredMeters = 0.0;
+		barometerPropwashErrorFilteredMeters = 0.0;
 		barometerInitialized = false;
 		state.setBarometerAltitudeMeters(barometerFilteredAltitudeMeters);
 		state.setBarometerVerticalSpeedMetersPerSecond(barometerFilteredVerticalSpeedMetersPerSecond);
@@ -8227,6 +8262,7 @@ public final class DronePhysics {
 		state.setBarometerErrorMeters(0.0);
 		state.setBarometerSensorNoiseMeters(0.0);
 		state.setBarometerPressurePortErrorMeters(0.0);
+		state.setBarometerPropwashErrorMeters(0.0);
 	}
 
 	private static double sensorClipIntensity(Vec3 measurement, double fullScale) {
