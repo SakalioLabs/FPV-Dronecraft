@@ -43,6 +43,48 @@ public final class DronePhysics {
 			3.4679138420725897,
 			3.8850201290031703
 	};
+	private static final double[] COAXIAL_COMMAND_MAP_RATIO_P10 = {
+			1.1434392831646552,
+			1.17311275505984,
+			1.2176229629026172,
+			1.189005930708007,
+			1.1034549624034093
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_RATIO_P90 = {
+			1.1434392831646552,
+			1.26486568658725,
+			1.447005291721142,
+			1.269025278106009,
+			1.1770623740086394
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_P10_PCT = {
+			4.134394291807541,
+			3.8432189016912126,
+			2.43665922622438,
+			4.556839395685327,
+			5.684992772966581
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_P90_PCT = {
+			7.863154349719293,
+			6.909930826213276,
+			6.140265567387578,
+			6.376766661995988,
+			7.254549722087849
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_P10_PCT = {
+			5.4329209552945645,
+			3.777622247854227,
+			-1.0620783466494865,
+			2.5941574632063116,
+			4.211596163865798
+	};
+	private static final double[] COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_P90_PCT = {
+			8.512947872971823,
+			5.542628189182429,
+			3.2956922256159595,
+			4.947395195300065,
+			6.487214643375651
+	};
 	// Rows are z/D spacing samples from the New Dexterity 11-inch command envelope;
 	// columns use COAXIAL_COMMAND_MAP_LOAD_FRACTIONS. The z/D=0.72 row preserves the current X8 prior.
 	private static final double[] COAXIAL_COMMAND_MAP_SPACING_RATIOS = {0.25, 0.40, 0.55, 0.70, 0.72, 0.85, 1.00};
@@ -6159,6 +6201,7 @@ public final class DronePhysics {
 			state.setRotorCoaxialAllocationCommandRatio(i, 1.0);
 			state.setRotorCoaxialAllocationMechanicalGainPercent(i, 0.0);
 			state.setRotorCoaxialAllocationElectricalGainPercent(i, 0.0);
+			state.setRotorCoaxialAllocationUncertaintyPercent(i, 0.0);
 		}
 		if (!armed || mixedThrusts == null || config.rotors().size() < 2) {
 			return;
@@ -6216,6 +6259,8 @@ public final class DronePhysics {
 			state.setRotorCoaxialAllocationMechanicalGainPercent(lowerIndex, target.mechanicalGainPercent());
 			state.setRotorCoaxialAllocationElectricalGainPercent(upperIndex, target.electricalGainPercent());
 			state.setRotorCoaxialAllocationElectricalGainPercent(lowerIndex, target.electricalGainPercent());
+			state.setRotorCoaxialAllocationUncertaintyPercent(upperIndex, target.uncertaintyPercent());
+			state.setRotorCoaxialAllocationUncertaintyPercent(lowerIndex, target.uncertaintyPercent());
 			if (targetBias <= 1.0e-6) {
 				continue;
 			}
@@ -6282,7 +6327,8 @@ public final class DronePhysics {
 			double loadFraction,
 			double commandMapRatio,
 			double mechanicalGainPercent,
-			double electricalGainPercent
+			double electricalGainPercent,
+			double uncertaintyPercent
 	) {
 	}
 
@@ -6330,6 +6376,7 @@ public final class DronePhysics {
 		double commandMapRatio = coaxialCommandMapAllocationRatio(spacingRatio, loadFraction);
 		double mechanicalGainPercent = coaxialCommandMapMechanicalGainPercent(spacingRatio, loadFraction);
 		double electricalGainPercent = coaxialCommandMapElectricalGainPercent(spacingRatio, loadFraction);
+		double uncertaintyPercent = coaxialCommandMapAllocationUncertaintyPercent(spacingRatio, loadFraction);
 		double commandMapBiasTarget = coaxialCommandMapLoadBias(spacingRatio, loadFraction)
 				* upperHeadroom
 				* wakeWindow
@@ -6344,7 +6391,8 @@ public final class DronePhysics {
 				loadFraction,
 				commandMapRatio,
 				mechanicalGainPercent,
-				electricalGainPercent
+				electricalGainPercent,
+				uncertaintyPercent
 		);
 	}
 
@@ -6393,6 +6441,30 @@ public final class DronePhysics {
 				spacingRatio,
 				loadFraction
 		) * activation;
+	}
+
+	private static double coaxialCommandMapAllocationUncertaintyPercent(double spacingRatio, double loadFraction) {
+		double activation = coaxialCommandMapActivation(spacingRatio, loadFraction);
+		if (activation <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double ratioP10 = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_RATIO_P10, loadFraction);
+		double ratioP90 = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_RATIO_P90, loadFraction);
+		double mechanicalP10 = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_P10_PCT, loadFraction);
+		double mechanicalP90 = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_MECHANICAL_GAIN_P90_PCT, loadFraction);
+		double electricalP10 = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_P10_PCT, loadFraction);
+		double electricalP90 = interpolateCoaxialCommandMap(COAXIAL_COMMAND_MAP_ELECTRICAL_GAIN_P90_PCT, loadFraction);
+		double ratioMidpoint = Math.max(1.0, 0.5 * (ratioP10 + ratioP90));
+		double ratioUncertaintyPercent = 100.0 * 0.5 * Math.max(0.0, ratioP90 - ratioP10) / ratioMidpoint;
+		double mechanicalUncertaintyPercent = 0.5 * Math.max(0.0, mechanicalP90 - mechanicalP10);
+		double electricalUncertaintyPercent = 0.5 * Math.max(0.0, electricalP90 - electricalP10);
+		return MathUtil.clamp(
+				Math.max(ratioUncertaintyPercent, Math.max(mechanicalUncertaintyPercent, electricalUncertaintyPercent))
+						* activation,
+				0.0,
+				25.0
+		);
 	}
 
 	private double coaxialAllocationMechanicalPowerScale(int index) {

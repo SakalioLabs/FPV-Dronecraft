@@ -131,6 +131,7 @@ public final class DroneState {
 	private double[] rotorCoaxialAllocationCommandRatio;
 	private double[] rotorCoaxialAllocationMechanicalGainPercent;
 	private double[] rotorCoaxialAllocationElectricalGainPercent;
+	private double[] rotorCoaxialAllocationUncertaintyPercent;
 	private double[] rotorWakeSwirlVelocityMetersPerSecond;
 	private double[] rotorArmFlexIntensity;
 	private double[] rotorArmFlexDeflectionMeters;
@@ -281,6 +282,7 @@ public final class DroneState {
 		rotorCoaxialAllocationCommandRatio = new double[motorCount];
 		rotorCoaxialAllocationMechanicalGainPercent = new double[motorCount];
 		rotorCoaxialAllocationElectricalGainPercent = new double[motorCount];
+		rotorCoaxialAllocationUncertaintyPercent = new double[motorCount];
 		rotorWakeSwirlVelocityMetersPerSecond = new double[motorCount];
 		rotorArmFlexIntensity = new double[motorCount];
 		rotorArmFlexDeflectionMeters = new double[motorCount];
@@ -1515,6 +1517,7 @@ public final class DroneState {
 		Arrays.fill(rotorCoaxialAllocationCommandRatio, 1.0);
 		Arrays.fill(rotorCoaxialAllocationMechanicalGainPercent, 0.0);
 		Arrays.fill(rotorCoaxialAllocationElectricalGainPercent, 0.0);
+		Arrays.fill(rotorCoaxialAllocationUncertaintyPercent, 0.0);
 		Arrays.fill(rotorWakeSwirlVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		Arrays.fill(rotorArmFlexDeflectionMeters, 0.0);
@@ -2626,6 +2629,34 @@ public final class DroneState {
 		double max = 0.0;
 		for (double gain : rotorCoaxialAllocationElectricalGainPercent) {
 			max = Math.max(max, gain);
+		}
+		return max;
+	}
+
+	public double rotorCoaxialAllocationUncertaintyPercent(int index) {
+		return rotorCoaxialAllocationUncertaintyPercent[index];
+	}
+
+	public double[] rotorCoaxialAllocationUncertaintyPercent() {
+		return Arrays.copyOf(rotorCoaxialAllocationUncertaintyPercent, rotorCoaxialAllocationUncertaintyPercent.length);
+	}
+
+	void setRotorCoaxialAllocationUncertaintyPercent(int index, double value) {
+		rotorCoaxialAllocationUncertaintyPercent[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 25.0) : 0.0;
+	}
+
+	public double averageRotorCoaxialAllocationUncertaintyPercent() {
+		double sum = 0.0;
+		for (double uncertainty : rotorCoaxialAllocationUncertaintyPercent) {
+			sum += uncertainty;
+		}
+		return sum / rotorCoaxialAllocationUncertaintyPercent.length;
+	}
+
+	public double maxRotorCoaxialAllocationUncertaintyPercent() {
+		double max = 0.0;
+		for (double uncertainty : rotorCoaxialAllocationUncertaintyPercent) {
+			max = Math.max(max, uncertainty);
 		}
 		return max;
 	}

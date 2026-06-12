@@ -59,6 +59,7 @@ public record DroneBlackboxSummary(
 		double maxRotorCoaxialAllocationCommandRatio,
 		double maxRotorCoaxialAllocationMechanicalGainPercent,
 		double maxRotorCoaxialAllocationElectricalGainPercent,
+		double maxRotorCoaxialAllocationUncertaintyPercent,
 		double minRotorWetThrustScale,
 		double maxRotorWakeSwirlVelocityMetersPerSecond,
 		double maxRotorWindmillingIntensity,
@@ -192,6 +193,7 @@ public record DroneBlackboxSummary(
 		double maxRotorCoaxialAllocationCommandRatio = 1.0;
 		double maxRotorCoaxialAllocationMechanicalGain = 0.0;
 		double maxRotorCoaxialAllocationElectricalGain = 0.0;
+		double maxRotorCoaxialAllocationUncertainty = 0.0;
 		double minRotorWetThrustScale = 1.0;
 		double maxRotorWakeSwirlVelocity = 0.0;
 		double maxRotorWindmilling = 0.0;
@@ -403,6 +405,10 @@ public record DroneBlackboxSummary(
 			maxRotorCoaxialAllocationElectricalGain = Math.max(
 					maxRotorCoaxialAllocationElectricalGain,
 					valueOrDefault(row, "rotor_coaxial_allocation_elec_gain_pct", 0.0)
+			);
+			maxRotorCoaxialAllocationUncertainty = Math.max(
+					maxRotorCoaxialAllocationUncertainty,
+					valueOrDefault(row, "rotor_coaxial_allocation_uncertainty_pct", 0.0)
 			);
 			minRotorWetThrustScale = Math.min(
 					minRotorWetThrustScale,
@@ -645,6 +651,7 @@ public record DroneBlackboxSummary(
 				maxRotorCoaxialAllocationCommandRatio,
 				maxRotorCoaxialAllocationMechanicalGain,
 				maxRotorCoaxialAllocationElectricalGain,
+				maxRotorCoaxialAllocationUncertainty,
 				finiteOrOne(minRotorWetThrustScale),
 				maxRotorWakeSwirlVelocity,
 				maxRotorWindmilling,
@@ -732,7 +739,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -796,6 +803,7 @@ public record DroneBlackboxSummary(
 				maxRotorCoaxialAllocationCommandRatio,
 				maxRotorCoaxialAllocationMechanicalGainPercent,
 				maxRotorCoaxialAllocationElectricalGainPercent,
+				maxRotorCoaxialAllocationUncertaintyPercent,
 				maxRotorWakeSwirlVelocityMetersPerSecond,
 				maxRotorWindmillingIntensity,
 				maxRotorWakeSwirlTorqueNewtonMeters,
@@ -918,6 +926,7 @@ public record DroneBlackboxSummary(
 				1.0, // maxRotorCoaxialAllocationCommandRatio
 				0.0, // maxRotorCoaxialAllocationMechanicalGainPercent
 				0.0, // maxRotorCoaxialAllocationElectricalGainPercent
+				0.0, // maxRotorCoaxialAllocationUncertaintyPercent
 				1.0, // minRotorWetThrustScale
 				0.0, // maxRotorWakeSwirlVelocityMetersPerSecond
 				0.0, // maxRotorWindmillingIntensity

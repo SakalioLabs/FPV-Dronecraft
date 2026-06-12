@@ -355,6 +355,7 @@ public final class DroneBlackboxSample {
 			"rotor_coaxial_allocation_ratio",
 			"rotor_coaxial_allocation_mech_gain_pct",
 			"rotor_coaxial_allocation_elec_gain_pct",
+			"rotor_coaxial_allocation_uncertainty_pct",
 			"rotor_wet_thrust_scale",
 			"rotor_0_wet_thrust_scale",
 			"rotor_1_wet_thrust_scale",
@@ -1457,6 +1458,7 @@ public final class DroneBlackboxSample {
 		row.add(state.maxRotorCoaxialAllocationCommandRatio(), "%.5f");
 		row.add(state.maxRotorCoaxialAllocationMechanicalGainPercent(), "%.5f");
 		row.add(state.maxRotorCoaxialAllocationElectricalGainPercent(), "%.5f");
+		row.add(state.maxRotorCoaxialAllocationUncertaintyPercent(), "%.5f");
 		row.add(state.averageRotorWetThrustScale(), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 0), "%.5f");
 		row.add(rotorWetThrustScaleOrOne(state, 1), "%.5f");

@@ -2151,6 +2151,10 @@ public class DroneEntity extends PathfinderMob {
 		return (float) physics.state().maxRotorCoaxialAllocationElectricalGainPercent();
 	}
 
+	public float getRotorCoaxialAllocationUncertaintyPercent() {
+		return (float) physics.state().maxRotorCoaxialAllocationUncertaintyPercent();
+	}
+
 	public float getRotorWetThrustScale() {
 		return entityData.get(ROTOR_WET_THRUST_SCALE);
 	}

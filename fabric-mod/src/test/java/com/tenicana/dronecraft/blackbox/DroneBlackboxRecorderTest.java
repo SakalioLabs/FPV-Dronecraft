@@ -191,6 +191,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_coaxial_load_bias_clipping"));
 		assertTrue(csv.contains("rotor_coaxial_allocation_ratio"));
 		assertTrue(csv.contains("rotor_coaxial_allocation_mech_gain_pct"));
+		assertTrue(csv.contains("rotor_coaxial_allocation_uncertainty_pct"));
 		assertTrue(csv.contains("rotor_3_coaxial_load_bias"));
 		assertTrue(csv.contains("rotor_7_coaxial_load_bias"));
 		assertTrue(csv.contains("rotor_wet_thrust_scale"));
@@ -1115,6 +1116,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_coaxial_allocation_ratio")]) > 1.02);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_coaxial_allocation_mech_gain_pct")]) > 0.10);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_coaxial_allocation_elec_gain_pct")]) > 0.10);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_coaxial_allocation_uncertainty_pct")]) > 0.10);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_windmilling")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_pitch_torque_nm")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_wake_swirl_yaw_torque_nm")]));
@@ -1153,6 +1155,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxRotorCoaxialAllocationCommandRatio() > 1.02);
 		assertTrue(summary.maxRotorCoaxialAllocationMechanicalGainPercent() > 0.10);
 		assertTrue(summary.maxRotorCoaxialAllocationElectricalGainPercent() > 0.10);
+		assertTrue(summary.maxRotorCoaxialAllocationUncertaintyPercent() > 0.10);
 		assertTrue(summary.maxRotorWakeSwirlVelocityMetersPerSecond() > 0.10);
 		assertUnitInterval(summary.maxRotorWindmillingIntensity());
 		assertTrue(summary.maxRotorWakeSwirlTorqueNewtonMeters() >= 0.0);
