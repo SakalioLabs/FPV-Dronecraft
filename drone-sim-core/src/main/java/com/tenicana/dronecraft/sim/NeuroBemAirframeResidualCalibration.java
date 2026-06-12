@@ -8,13 +8,17 @@ public final class NeuroBemAirframeResidualCalibration {
 	public static final String SOURCE_ID = "NeuroBEM-Drag-Residual-Packet";
 	public static final String CAVEAT =
 			"NeuroBEM residual forces are 0.772 kg quadrotor model residuals, not isolated wind-tunnel drag or racing-speed envelope.";
-	public static final int PACKET_METRIC_ROW_COUNT = 8176;
-	public static final int SOURCE_INVENTORY_ROW_COUNT = 5;
-	public static final int FILE_SUMMARY_ROW_COUNT = 8032;
-	public static final int GLOBAL_SUMMARY_METRIC_ROW_COUNT = 39;
-	public static final int SPEED_BIN_METRIC_ROW_COUNT = 99;
+	public static final int PACKET_METRIC_ROW_COUNT = 17_293;
+	public static final int SOURCE_INVENTORY_ROW_COUNT = 8;
+	public static final int FILE_SUMMARY_ROW_COUNT = 14_056;
+	public static final int GLOBAL_SUMMARY_METRIC_ROW_COUNT = 60;
+	public static final int SPEED_BIN_METRIC_ROW_COUNT = 171;
+	public static final int TRAJECTORY_FAMILY_SUMMARY_ROW_COUNT = 253;
+	public static final int TARGET_VELOCITY_SUMMARY_ROW_COUNT = 483;
 	public static final int PREDICTION_CSV_FILE_COUNT = 251;
 	public static final long RAW_SAMPLE_ROW_COUNT = 1_816_329L;
+	public static final int METADATA_MATCHED_FILE_COUNT = 247;
+	public static final int TESTSET_MATCHED_FILE_COUNT = 13;
 	public static final int INVALID_SAMPLE_ROW_COUNT = 0;
 	public static final double TOTAL_DURATION_SECONDS = 4563.064695;
 	public static final double TOTAL_DURATION_MINUTES = 76.05107825;
@@ -25,6 +29,25 @@ public final class NeuroBemAirframeResidualCalibration {
 	public static final double RESIDUAL_FORCE_SAMPLE_P95_NEWTONS = 0.914653292187;
 	public static final double RESIDUAL_FORCE_MAX_NEWTONS = 6.86236711785;
 	public static final double RESIDUAL_FORCE_SAMPLE_P95_OVER_WEIGHT = 0.120814351204;
+	public static final double ANGULAR_SPEED_SAMPLE_P50_RADIANS_PER_SECOND = 0.588461352766;
+	public static final double ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND = 3.81664941329;
+	public static final double PREDICTED_TORQUE_SAMPLE_P50_NEWTON_METERS = 0.00718893907333;
+	public static final double PREDICTED_TORQUE_SAMPLE_P95_NEWTON_METERS = 0.0635806567204;
+	public static final double RESIDUAL_TORQUE_SAMPLE_P50_NEWTON_METERS = 0.00419321106075;
+	public static final double RESIDUAL_TORQUE_SAMPLE_P95_NEWTON_METERS = 0.0227576957313;
+	public static final double RESIDUAL_TORQUE_MAX_NEWTON_METERS = 0.175744943512;
+	public static final double RESIDUAL_TORQUE_ABS_X_SAMPLE_P95_NEWTON_METERS = 0.014519;
+	public static final double RESIDUAL_TORQUE_ABS_Y_SAMPLE_P95_NEWTON_METERS = 0.015987;
+	public static final double RESIDUAL_TORQUE_ABS_Z_SAMPLE_P95_NEWTON_METERS = 0.007825;
+	public static final double RESIDUAL_TORQUE_ABS_X_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED = 5.8076;
+	public static final double RESIDUAL_TORQUE_ABS_Y_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED = 7.61285714286;
+	public static final double RESIDUAL_TORQUE_ABS_Z_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED = 1.81976744186;
+	public static final double TORQUE_DAMPING_LIKE_SAMPLE_P50_NEWTON_METERS = 0.000615487067973;
+	public static final double TORQUE_DAMPING_LIKE_SAMPLE_P95_NEWTON_METERS = 0.0133403058651;
+	public static final double EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P50_NEWTON_METERS_PER_RADIAN_PER_SECOND =
+			0.000719563050699;
+	public static final double EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P95_NEWTON_METERS_PER_RADIAN_PER_SECOND =
+			0.012315040507;
 	public static final double DRAG_LIKE_FORCE_SAMPLE_P50_NEWTONS = -0.0136422721443;
 	public static final double DRAG_LIKE_FORCE_SAMPLE_P95_NEWTONS = 0.376788401479;
 	public static final double EQUIVALENT_QUAD_COEFF_SAMPLE_P50 = -0.00068123767585;
@@ -48,6 +71,8 @@ public final class NeuroBemAirframeResidualCalibration {
 			int predictionCsvFileCount,
 			long rawSampleRowCount,
 			int invalidSampleRowCount,
+			int metadataMatchedFileCount,
+			int testsetMatchedFileCount,
 			double totalDurationSeconds,
 			double totalDurationMinutes,
 			double vehicleMassKg,
@@ -66,6 +91,31 @@ public final class NeuroBemAirframeResidualCalibration {
 			double motorRpmSampleP95,
 			double batteryVoltageSampleP50,
 			double batteryVoltageSampleP05
+	) {
+	}
+
+	public record ResidualTorqueEnvelope(
+			double angularSpeedSampleP50RadiansPerSecond,
+			double angularSpeedSampleP95RadiansPerSecond,
+			double predictedTorqueSampleP50NewtonMeters,
+			double predictedTorqueSampleP95NewtonMeters,
+			double residualTorqueSampleP50NewtonMeters,
+			double residualTorqueSampleP95NewtonMeters,
+			double residualTorqueMaxNewtonMeters,
+			double currentPropwashMaxTorqueNewtonMeters,
+			double residualTorqueSampleP95OverCurrentPropwashMaxTorque,
+			double residualTorqueAbsXSampleP95NewtonMeters,
+			double residualTorqueAbsYSampleP95NewtonMeters,
+			double residualTorqueAbsZSampleP95NewtonMeters,
+			double residualTorqueAbsXEquivalentAngularAccelSampleP95RadiansPerSecondSquared,
+			double residualTorqueAbsYEquivalentAngularAccelSampleP95RadiansPerSecondSquared,
+			double residualTorqueAbsZEquivalentAngularAccelSampleP95RadiansPerSecondSquared,
+			double torqueDampingLikeSampleP50NewtonMeters,
+			double torqueDampingLikeSampleP95NewtonMeters,
+			double equivalentAngularDampingSampleP50NewtonMetersPerRadianPerSecond,
+			double equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond,
+			double currentAngularDragCoefficient,
+			double equivalentAngularDampingSampleP95OverCurrentAngularDragCoefficient
 	) {
 	}
 
@@ -110,6 +160,28 @@ public final class NeuroBemAirframeResidualCalibration {
 	) {
 	}
 
+	public record TrajectoryFamilyResidualSummary(
+			String familyId,
+			int segmentCount,
+			int testsetSegmentCount,
+			int rowCount,
+			int targetVelocitySegmentCount,
+			double targetVelocitySampleP50MetersPerSecond,
+			double targetVelocitySampleP95MetersPerSecond,
+			double bodySpeedSampleP50MetersPerSecond,
+			double bodySpeedSampleP95MetersPerSecond,
+			double residualForceSampleP95Newtons,
+			double residualTorqueSampleP50NewtonMeters,
+			double residualTorqueSampleP95NewtonMeters,
+			double torqueDampingLikeSampleP50NewtonMeters,
+			double torqueDampingLikeSampleP95NewtonMeters,
+			double equivalentAngularDampingSampleP50NewtonMetersPerRadianPerSecond,
+			double equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond,
+			double residualTorqueSampleP95OverGlobalP95,
+			double equivalentAngularDampingSampleP95OverGlobalP95
+	) {
+	}
+
 	public record NeuroBemAirframeResidualAudit(
 			String sourceId,
 			String caveat,
@@ -118,14 +190,21 @@ public final class NeuroBemAirframeResidualCalibration {
 			int fileSummaryRowCount,
 			int globalSummaryMetricRowCount,
 			int speedBinMetricRowCount,
+			int trajectoryFamilySummaryRowCount,
+			int targetVelocitySummaryRowCount,
 			GlobalResidualEnvelope globalEnvelope,
+			ResidualTorqueEnvelope torqueEnvelope,
 			ResidualFitEnvelope residualFitEnvelope,
 			CurrentAxisDragComparison lateralAxisComparison,
 			CurrentAxisDragComparison forwardAxisComparison,
 			SpeedBinResidualComparison crawlSpeedBin,
 			SpeedBinResidualComparison trimSpeedBin,
 			SpeedBinResidualComparison maneuverSpeedBin,
-			SpeedBinResidualComparison fastPacketSpeedBin
+			SpeedBinResidualComparison fastPacketSpeedBin,
+			TrajectoryFamilyResidualSummary lemniscateFamily,
+			TrajectoryFamilyResidualSummary linearOscillationFamily,
+			TrajectoryFamilyResidualSummary ellipseFamily,
+			TrajectoryFamilyResidualSummary verticalOscillationFamily
 	) {
 	}
 
@@ -142,10 +221,14 @@ public final class NeuroBemAirframeResidualCalibration {
 				FILE_SUMMARY_ROW_COUNT,
 				GLOBAL_SUMMARY_METRIC_ROW_COUNT,
 				SPEED_BIN_METRIC_ROW_COUNT,
+				TRAJECTORY_FAMILY_SUMMARY_ROW_COUNT,
+				TARGET_VELOCITY_SUMMARY_ROW_COUNT,
 				new GlobalResidualEnvelope(
 						PREDICTION_CSV_FILE_COUNT,
 						RAW_SAMPLE_ROW_COUNT,
 						INVALID_SAMPLE_ROW_COUNT,
+						METADATA_MATCHED_FILE_COUNT,
+						TESTSET_MATCHED_FILE_COUNT,
 						TOTAL_DURATION_SECONDS,
 						TOTAL_DURATION_MINUTES,
 						NEUROBEM_VEHICLE_MASS_KG,
@@ -165,6 +248,7 @@ public final class NeuroBemAirframeResidualCalibration {
 						BATTERY_VOLTAGE_SAMPLE_P50,
 						BATTERY_VOLTAGE_SAMPLE_P05
 				),
+				residualTorqueEnvelope(config),
 				new ResidualFitEnvelope(
 						DRAG_LIKE_LINEAR_FIT_K,
 						DRAG_LIKE_QUADRATIC_FIT_C,
@@ -179,7 +263,106 @@ public final class NeuroBemAirframeResidualCalibration {
 				speedBinComparison(config, "0.5_1_m_s", 161_312, 0.767070923619, 0.383154430811, 0.279695151046, 0.526183760193),
 				speedBinComparison(config, "1_1.5_m_s", 139_239, 1.15517914043, 0.461757616852, 0.264411169336, 0.219673290107),
 				speedBinComparison(config, "2.5_3_m_s", 89_520, 2.74919044185, 0.746158830247, 0.244448346754, 0.0329423693021),
-				speedBinComparison(config, "6_inf_m_s", 579_133, 9.11826016831, 1.12536541476, 0.482333181678, 0.00591862401076)
+				speedBinComparison(config, "6_inf_m_s", 579_133, 9.11826016831, 1.12536541476, 0.482333181678, 0.00591862401076),
+				trajectoryFamilySummary(
+						"lemniscate",
+						48,
+						4,
+						355_242,
+						46,
+						1.5,
+						2.0,
+						3.14348190163,
+						11.8527395202,
+						0.95004882295,
+						0.0037683808194,
+						0.0256703819411,
+						0.000488171282824,
+						0.0138312536393,
+						0.000619831374504,
+						0.0137543792969
+				),
+				trajectoryFamilySummary(
+						"linear_oscillation",
+						29,
+						1,
+						160_927,
+						29,
+						2.25,
+						2.6,
+						3.05540662315,
+						12.8388823236,
+						0.814105480701,
+						0.00509266717939,
+						0.0296943336346,
+						0.0012766741647,
+						0.0192212830102,
+						0.00205848936421,
+						0.0196407346741
+				),
+				trajectoryFamilySummary(
+						"ellipse",
+						1,
+						1,
+						16_909,
+						1,
+						2.4,
+						2.4,
+						12.5136570164,
+						16.2219816887,
+						1.3736296898,
+						0.0141914773368,
+						0.0449853350549,
+						-0.00361185946738,
+						0.0113207227346,
+						-0.00258760976613,
+						0.00922561190983
+				),
+				trajectoryFamilySummary(
+						"vertical_oscillation",
+						6,
+						0,
+						30_798,
+						6,
+						1.0,
+						1.7,
+						1.04452690348,
+						3.24464821287,
+						0.376874366455,
+						0.0026201935043,
+						0.00818470610346,
+						0.000231135898947,
+						0.00522571279876,
+						0.000688390892377,
+						0.0312104000645
+				)
+		);
+	}
+
+	private static ResidualTorqueEnvelope residualTorqueEnvelope(DroneConfig config) {
+		return new ResidualTorqueEnvelope(
+				ANGULAR_SPEED_SAMPLE_P50_RADIANS_PER_SECOND,
+				ANGULAR_SPEED_SAMPLE_P95_RADIANS_PER_SECOND,
+				PREDICTED_TORQUE_SAMPLE_P50_NEWTON_METERS,
+				PREDICTED_TORQUE_SAMPLE_P95_NEWTON_METERS,
+				RESIDUAL_TORQUE_SAMPLE_P50_NEWTON_METERS,
+				RESIDUAL_TORQUE_SAMPLE_P95_NEWTON_METERS,
+				RESIDUAL_TORQUE_MAX_NEWTON_METERS,
+				config.propwashMaxTorqueNewtonMeters(),
+				ratio(RESIDUAL_TORQUE_SAMPLE_P95_NEWTON_METERS, config.propwashMaxTorqueNewtonMeters()),
+				RESIDUAL_TORQUE_ABS_X_SAMPLE_P95_NEWTON_METERS,
+				RESIDUAL_TORQUE_ABS_Y_SAMPLE_P95_NEWTON_METERS,
+				RESIDUAL_TORQUE_ABS_Z_SAMPLE_P95_NEWTON_METERS,
+				RESIDUAL_TORQUE_ABS_X_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED,
+				RESIDUAL_TORQUE_ABS_Y_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED,
+				RESIDUAL_TORQUE_ABS_Z_EQUIV_ANGULAR_ACCEL_SAMPLE_P95_RADIANS_PER_SECOND_SQUARED,
+				TORQUE_DAMPING_LIKE_SAMPLE_P50_NEWTON_METERS,
+				TORQUE_DAMPING_LIKE_SAMPLE_P95_NEWTON_METERS,
+				EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P50_NEWTON_METERS_PER_RADIAN_PER_SECOND,
+				EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P95_NEWTON_METERS_PER_RADIAN_PER_SECOND,
+				config.angularDragCoefficient(),
+				ratio(EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P95_NEWTON_METERS_PER_RADIAN_PER_SECOND,
+						config.angularDragCoefficient())
 		);
 	}
 
@@ -245,6 +428,47 @@ public final class NeuroBemAirframeResidualCalibration {
 				currentZDrag,
 				ratio(currentXDrag, dragLikeForceSampleP95Newtons),
 				ratio(currentZDrag, dragLikeForceSampleP95Newtons)
+		);
+	}
+
+	private static TrajectoryFamilyResidualSummary trajectoryFamilySummary(
+			String familyId,
+			int segmentCount,
+			int testsetSegmentCount,
+			int rowCount,
+			int targetVelocitySegmentCount,
+			double targetVelocitySampleP50MetersPerSecond,
+			double targetVelocitySampleP95MetersPerSecond,
+			double bodySpeedSampleP50MetersPerSecond,
+			double bodySpeedSampleP95MetersPerSecond,
+			double residualForceSampleP95Newtons,
+			double residualTorqueSampleP50NewtonMeters,
+			double residualTorqueSampleP95NewtonMeters,
+			double torqueDampingLikeSampleP50NewtonMeters,
+			double torqueDampingLikeSampleP95NewtonMeters,
+			double equivalentAngularDampingSampleP50NewtonMetersPerRadianPerSecond,
+			double equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond
+	) {
+		return new TrajectoryFamilyResidualSummary(
+				familyId,
+				segmentCount,
+				testsetSegmentCount,
+				rowCount,
+				targetVelocitySegmentCount,
+				targetVelocitySampleP50MetersPerSecond,
+				targetVelocitySampleP95MetersPerSecond,
+				bodySpeedSampleP50MetersPerSecond,
+				bodySpeedSampleP95MetersPerSecond,
+				residualForceSampleP95Newtons,
+				residualTorqueSampleP50NewtonMeters,
+				residualTorqueSampleP95NewtonMeters,
+				torqueDampingLikeSampleP50NewtonMeters,
+				torqueDampingLikeSampleP95NewtonMeters,
+				equivalentAngularDampingSampleP50NewtonMetersPerRadianPerSecond,
+				equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond,
+				ratio(residualTorqueSampleP95NewtonMeters, RESIDUAL_TORQUE_SAMPLE_P95_NEWTON_METERS),
+				ratio(equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond,
+						EQUIVALENT_ANGULAR_DAMPING_SAMPLE_P95_NEWTON_METERS_PER_RADIAN_PER_SECOND)
 		);
 	}
 

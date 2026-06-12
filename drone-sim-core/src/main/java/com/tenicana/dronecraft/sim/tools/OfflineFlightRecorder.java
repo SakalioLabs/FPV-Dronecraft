@@ -1502,11 +1502,13 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"NeuroBEM residual audit: %s rows %d files %d raw %d %.1fmin 0.772kg speed p50/p95/max %.2f/%.2f/%.2fm/s residual p50/p95 %.2f/%.2fN %.1f%%W drag_like p95 %.2fN eqC95 %.5f, preset X/Z 10m %.2f/%.2fN p95v %.2f/%.2fN over_resid %.2f/%.2fx over_draglike %.2f/%.2fx bins trim %.1fm/s %.2f/%.2fN fast %.1fm/s %.2f/%.2fN caveat low-speed-residual-not-wind-tunnel-drag%n",
+				"NeuroBEM residual audit: %s rows %d files %d raw %d matched/test %d/%d %.1fmin 0.772kg speed p50/p95/max %.2f/%.2f/%.2fm/s residual p50/p95 %.2f/%.2fN %.1f%%W drag_like p95 %.2fN eqC95 %.5f, torque p50/p95/max %.4f/%.4f/%.4fNm %.2fxpropwash axes %.4f/%.4f/%.4fNm damp p50/p95 %.4f/%.4fNm eqD p50/p95 %.5f/%.5f %.2fxangdrag, preset X/Z 10m %.2f/%.2fN p95v %.2f/%.2fN over_resid %.2f/%.2fx over_draglike %.2f/%.2fx bins trim %.1fm/s %.2f/%.2fN fast %.1fm/s %.2f/%.2fN families %d targets %d lemn/lin/ell torque %.4f/%.4f/%.4fNm vertD %.5f caveat low-speed-residual-not-wind-tunnel-drag%n",
 				neuroBemResidualAudit.sourceId(),
 				neuroBemResidualAudit.packetMetricRowCount(),
 				neuroBemResidualAudit.globalEnvelope().predictionCsvFileCount(),
 				neuroBemResidualAudit.globalEnvelope().rawSampleRowCount(),
+				neuroBemResidualAudit.globalEnvelope().metadataMatchedFileCount(),
+				neuroBemResidualAudit.globalEnvelope().testsetMatchedFileCount(),
 				neuroBemResidualAudit.globalEnvelope().totalDurationMinutes(),
 				neuroBemResidualAudit.globalEnvelope().bodySpeedSampleP50MetersPerSecond(),
 				neuroBemResidualAudit.globalEnvelope().bodySpeedSampleP95MetersPerSecond(),
@@ -1516,6 +1518,21 @@ public final class OfflineFlightRecorder {
 				neuroBemResidualAudit.globalEnvelope().residualForceSampleP95OverWeight() * 100.0,
 				neuroBemResidualAudit.globalEnvelope().dragLikeForceSampleP95Newtons(),
 				neuroBemResidualAudit.globalEnvelope().equivalentQuadCoeffSampleP95(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueSampleP50NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueSampleP95NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueMaxNewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueSampleP95OverCurrentPropwashMaxTorque(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueAbsXSampleP95NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueAbsYSampleP95NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().residualTorqueAbsZSampleP95NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().torqueDampingLikeSampleP50NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope().torqueDampingLikeSampleP95NewtonMeters(),
+				neuroBemResidualAudit.torqueEnvelope()
+						.equivalentAngularDampingSampleP50NewtonMetersPerRadianPerSecond(),
+				neuroBemResidualAudit.torqueEnvelope()
+						.equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond(),
+				neuroBemResidualAudit.torqueEnvelope()
+						.equivalentAngularDampingSampleP95OverCurrentAngularDragCoefficient(),
 				neuroBemResidualAudit.lateralAxisComparison().dragAtTenMetersPerSecondNewtons(),
 				neuroBemResidualAudit.forwardAxisComparison().dragAtTenMetersPerSecondNewtons(),
 				neuroBemResidualAudit.lateralAxisComparison().dragAtNeuroBemP95SpeedNewtons(),
@@ -1529,7 +1546,14 @@ public final class OfflineFlightRecorder {
 				neuroBemResidualAudit.maneuverSpeedBin().currentZDragAtP50SpeedNewtons(),
 				neuroBemResidualAudit.fastPacketSpeedBin().speedSampleP50MetersPerSecond(),
 				neuroBemResidualAudit.fastPacketSpeedBin().currentXDragAtP50SpeedNewtons(),
-				neuroBemResidualAudit.fastPacketSpeedBin().currentZDragAtP50SpeedNewtons()
+				neuroBemResidualAudit.fastPacketSpeedBin().currentZDragAtP50SpeedNewtons(),
+				neuroBemResidualAudit.trajectoryFamilySummaryRowCount(),
+				neuroBemResidualAudit.targetVelocitySummaryRowCount(),
+				neuroBemResidualAudit.lemniscateFamily().residualTorqueSampleP95NewtonMeters(),
+				neuroBemResidualAudit.linearOscillationFamily().residualTorqueSampleP95NewtonMeters(),
+				neuroBemResidualAudit.ellipseFamily().residualTorqueSampleP95NewtonMeters(),
+				neuroBemResidualAudit.verticalOscillationFamily()
+						.equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond()
 		);
 		System.out.printf(
 				Locale.ROOT,

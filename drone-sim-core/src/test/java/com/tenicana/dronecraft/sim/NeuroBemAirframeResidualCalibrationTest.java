@@ -14,16 +14,20 @@ class NeuroBemAirframeResidualCalibrationTest {
 
 		assertEquals("NeuroBEM-Drag-Residual-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("model residuals"));
-		assertEquals(8176, audit.packetMetricRowCount());
-		assertEquals(5, audit.sourceInventoryRowCount());
-		assertEquals(8032, audit.fileSummaryRowCount());
-		assertEquals(39, audit.globalSummaryMetricRowCount());
-		assertEquals(99, audit.speedBinMetricRowCount());
+		assertEquals(17_293, audit.packetMetricRowCount());
+		assertEquals(8, audit.sourceInventoryRowCount());
+		assertEquals(14_056, audit.fileSummaryRowCount());
+		assertEquals(60, audit.globalSummaryMetricRowCount());
+		assertEquals(171, audit.speedBinMetricRowCount());
+		assertEquals(253, audit.trajectoryFamilySummaryRowCount());
+		assertEquals(483, audit.targetVelocitySummaryRowCount());
 
 		NeuroBemAirframeResidualCalibration.GlobalResidualEnvelope global = audit.globalEnvelope();
 		assertEquals(251, global.predictionCsvFileCount());
 		assertEquals(1_816_329L, global.rawSampleRowCount());
 		assertEquals(0, global.invalidSampleRowCount());
+		assertEquals(247, global.metadataMatchedFileCount());
+		assertEquals(13, global.testsetMatchedFileCount());
 		assertEquals(4563.064695, global.totalDurationSeconds(), 1.0e-12);
 		assertEquals(76.05107825, global.totalDurationMinutes(), 1.0e-12);
 		assertEquals(0.772, global.vehicleMassKg(), 1.0e-12);
@@ -41,6 +45,40 @@ class NeuroBemAirframeResidualCalibrationTest {
 		assertEquals(19085.8175825, global.motorRpmSampleP95(), 1.0e-10);
 		assertEquals(15.3337401, global.batteryVoltageSampleP50(), 1.0e-12);
 		assertEquals(14.296264, global.batteryVoltageSampleP05(), 1.0e-12);
+	}
+
+	@Test
+	void torqueEnvelopeExposesResidualTorqueAndAngularDampingScale() {
+		NeuroBemAirframeResidualCalibration.ResidualTorqueEnvelope torque =
+				NeuroBemAirframeResidualCalibration.audit(DroneConfig.racingQuad()).torqueEnvelope();
+
+		assertEquals(0.588461352766, torque.angularSpeedSampleP50RadiansPerSecond(), 1.0e-12);
+		assertEquals(3.81664941329, torque.angularSpeedSampleP95RadiansPerSecond(), 1.0e-12);
+		assertEquals(0.00718893907333, torque.predictedTorqueSampleP50NewtonMeters(), 1.0e-15);
+		assertEquals(0.0635806567204, torque.predictedTorqueSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.00419321106075, torque.residualTorqueSampleP50NewtonMeters(), 1.0e-15);
+		assertEquals(0.0227576957313, torque.residualTorqueSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.175744943512, torque.residualTorqueMaxNewtonMeters(), 1.0e-15);
+		assertEquals(0.035, torque.currentPropwashMaxTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(0.650219878037143, torque.residualTorqueSampleP95OverCurrentPropwashMaxTorque(), 1.0e-15);
+		assertEquals(0.014519, torque.residualTorqueAbsXSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.015987, torque.residualTorqueAbsYSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.007825, torque.residualTorqueAbsZSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(5.8076,
+				torque.residualTorqueAbsXEquivalentAngularAccelSampleP95RadiansPerSecondSquared(), 1.0e-15);
+		assertEquals(7.61285714286,
+				torque.residualTorqueAbsYEquivalentAngularAccelSampleP95RadiansPerSecondSquared(), 1.0e-12);
+		assertEquals(1.81976744186,
+				torque.residualTorqueAbsZEquivalentAngularAccelSampleP95RadiansPerSecondSquared(), 1.0e-12);
+		assertEquals(0.000615487067973, torque.torqueDampingLikeSampleP50NewtonMeters(), 1.0e-15);
+		assertEquals(0.0133403058651, torque.torqueDampingLikeSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.000719563050699,
+				torque.equivalentAngularDampingSampleP50NewtonMetersPerRadianPerSecond(), 1.0e-15);
+		assertEquals(0.012315040507,
+				torque.equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond(), 1.0e-15);
+		assertEquals(0.018, torque.currentAngularDragCoefficient(), 1.0e-15);
+		assertEquals(0.684168917055556,
+				torque.equivalentAngularDampingSampleP95OverCurrentAngularDragCoefficient(), 1.0e-15);
 	}
 
 	@Test
@@ -109,6 +147,59 @@ class NeuroBemAirframeResidualCalibrationTest {
 		assertEquals(0.00591862401076, fast.equivalentQuadCoeffSampleP95(), 1.0e-15);
 		assertEquals(1.84914350153827, fast.currentXDragAtP50SpeedNewtons(), 1.0e-14);
 		assertEquals(2.01542883853225, fast.currentZDragAtP50SpeedNewtons(), 1.0e-14);
+	}
+
+	@Test
+	void trajectoryFamiliesExposeMotionDependentTorqueResiduals() {
+		NeuroBemAirframeResidualCalibration.NeuroBemAirframeResidualAudit audit =
+				NeuroBemAirframeResidualCalibration.audit(DroneConfig.racingQuad());
+
+		NeuroBemAirframeResidualCalibration.TrajectoryFamilyResidualSummary lemniscate =
+				audit.lemniscateFamily();
+		assertEquals("lemniscate", lemniscate.familyId());
+		assertEquals(48, lemniscate.segmentCount());
+		assertEquals(4, lemniscate.testsetSegmentCount());
+		assertEquals(355_242, lemniscate.rowCount());
+		assertEquals(46, lemniscate.targetVelocitySegmentCount());
+		assertEquals(1.5, lemniscate.targetVelocitySampleP50MetersPerSecond(), 1.0e-15);
+		assertEquals(2.0, lemniscate.targetVelocitySampleP95MetersPerSecond(), 1.0e-15);
+		assertEquals(11.8527395202, lemniscate.bodySpeedSampleP95MetersPerSecond(), 1.0e-12);
+		assertEquals(0.95004882295, lemniscate.residualForceSampleP95Newtons(), 1.0e-12);
+		assertEquals(0.0037683808194, lemniscate.residualTorqueSampleP50NewtonMeters(), 1.0e-15);
+		assertEquals(0.0256703819411, lemniscate.residualTorqueSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(1.12798686845057, lemniscate.residualTorqueSampleP95OverGlobalP95(), 1.0e-14);
+
+		NeuroBemAirframeResidualCalibration.TrajectoryFamilyResidualSummary linear =
+				audit.linearOscillationFamily();
+		assertEquals("linear_oscillation", linear.familyId());
+		assertEquals(29, linear.segmentCount());
+		assertEquals(2.25, linear.targetVelocitySampleP50MetersPerSecond(), 1.0e-15);
+		assertEquals(12.8388823236, linear.bodySpeedSampleP95MetersPerSecond(), 1.0e-12);
+		assertEquals(0.0296943336346, linear.residualTorqueSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.0196407346741,
+				linear.equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond(), 1.0e-15);
+		assertEquals(1.59485749664697, linear.equivalentAngularDampingSampleP95OverGlobalP95(), 1.0e-14);
+
+		NeuroBemAirframeResidualCalibration.TrajectoryFamilyResidualSummary ellipse =
+				audit.ellipseFamily();
+		assertEquals("ellipse", ellipse.familyId());
+		assertEquals(1, ellipse.segmentCount());
+		assertEquals(1, ellipse.testsetSegmentCount());
+		assertEquals(16_909, ellipse.rowCount());
+		assertEquals(16.2219816887, ellipse.bodySpeedSampleP95MetersPerSecond(), 1.0e-12);
+		assertEquals(0.0449853350549, ellipse.residualTorqueSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(1.97670869608424, ellipse.residualTorqueSampleP95OverGlobalP95(), 1.0e-14);
+
+		NeuroBemAirframeResidualCalibration.TrajectoryFamilyResidualSummary vertical =
+				audit.verticalOscillationFamily();
+		assertEquals("vertical_oscillation", vertical.familyId());
+		assertEquals(6, vertical.segmentCount());
+		assertEquals(0, vertical.testsetSegmentCount());
+		assertEquals(3.24464821287, vertical.bodySpeedSampleP95MetersPerSecond(), 1.0e-12);
+		assertEquals(0.00818470610346, vertical.residualTorqueSampleP95NewtonMeters(), 1.0e-15);
+		assertEquals(0.0312104000645,
+				vertical.equivalentAngularDampingSampleP95NewtonMetersPerRadianPerSecond(), 1.0e-15);
+		assertEquals(2.53433190469489, vertical.equivalentAngularDampingSampleP95OverGlobalP95(), 1.0e-14);
 	}
 
 	@Test
