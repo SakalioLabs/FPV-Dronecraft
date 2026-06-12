@@ -11080,6 +11080,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("lag_p50"));
 		assertTrue(text.contains("ratios_ctrl"));
 		assertTrue(text.contains("reliable"));
+		assertTrue(text.contains("APDrone PID tuning audit"));
+		assertTrue(text.contains("APDrone-Mendeley-PID-Sweeps"));
+		assertTrue(text.contains("PID/PI"));
+		assertTrue(text.contains("dmin_match"));
 		assertTrue(text.contains("APDrone rate-envelope audit"));
 		assertTrue(text.contains("cfg/limit"));
 		assertTrue(text.contains("stick25/50/75"));

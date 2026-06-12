@@ -10,6 +10,7 @@ import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
+import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
@@ -1254,6 +1255,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.apDroneUrbanMotorRpmAudit(preset);
 		ControlResponseCalibration.ControlResponseAudit controlResponseAudit =
 				ControlResponseCalibration.apDroneControlResponseAudit(preset);
+		PidTuningCalibration.ApDronePidTuningAudit pidTuningAudit =
+				PidTuningCalibration.apDronePidTuningAudit();
 		RateEnvelopeCalibration.RateEnvelopeAudit rateEnvelopeAudit =
 				RateEnvelopeCalibration.apDroneRateEnvelopeAudit(preset);
 		SensorNoiseCalibration.ImuNoiseAudit imuNoiseAudit =
@@ -1588,6 +1591,26 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
+				"APDrone PID tuning audit: %s PI/P roll/pitch/yaw %.3f/%.3f/%.3f PID/PI %.2f/%.2f/%.2f dumpD/best %.2f/%.2f/%.2f dmin_match %s/%s/%s best %s; %s; %s%n",
+				pidTuningAudit.sourceId(),
+				pidTuningAudit.roll().piMaeOverPOnlyMae(),
+				pidTuningAudit.pitch().piMaeOverPOnlyMae(),
+				pidTuningAudit.yaw().piMaeOverPOnlyMae(),
+				pidTuningAudit.roll().pidMaeOverPiMae(),
+				pidTuningAudit.pitch().pidMaeOverPiMae(),
+				pidTuningAudit.yaw().pidMaeOverPiMae(),
+				pidTuningAudit.roll().betaflightConfigKdOverBestKd(),
+				pidTuningAudit.pitch().betaflightConfigKdOverBestKd(),
+				pidTuningAudit.yaw().betaflightConfigKdOverBestKd(),
+				pidTuningAudit.roll().betaflightConfigDMinMatchesBestKd(),
+				pidTuningAudit.pitch().betaflightConfigDMinMatchesBestKd(),
+				pidTuningAudit.yaw().betaflightConfigDMinMatchesBestKd(),
+				formatPidTuningAxis(pidTuningAudit.roll()),
+				formatPidTuningAxis(pidTuningAudit.pitch()),
+				formatPidTuningAxis(pidTuningAudit.yaw())
+		);
+		System.out.printf(
+				Locale.ROOT,
 				"APDrone rate-envelope audit: %s %s type %s rc_rate %.1f center %.1f/%.1fdps max %.1f/%.1fdps dump %.1fdps limit %.0fdps cfg/limit %.2f expo %.2f super %.3f stick25/50/75 %.1f/%.1f/%.1fdps ref %.1f/%.1f/%.1fdps%n",
 				rateEnvelopeAudit.sourceId(),
 				rateEnvelopeAudit.selection(),
@@ -1762,6 +1785,23 @@ public final class OfflineFlightRecorder {
 				requirement.requiredMaxThrustFraction(),
 				requirement.requiredTiltDegrees(),
 				requirement.reachable() ? "reachable" : "over-thrust"
+		);
+	}
+
+	private static String formatPidTuningAxis(PidTuningCalibration.AxisPidTuningAudit axis) {
+		return String.format(
+				Locale.ROOT,
+				"%s P%.0f %.1fMAE PI%.0f/%.0f %.2fMAE PID_D%.0f %.2fMAE dumpD%.0f dmin%.0f",
+				axis.axis(),
+				axis.bestPOnlyKp(),
+				axis.bestPOnlyMae(),
+				axis.bestPiKp(),
+				axis.bestPiKi(),
+				axis.bestPiMae(),
+				axis.bestPidKd(),
+				axis.bestPidMae(),
+				axis.betaflightConfigKd(),
+				axis.betaflightConfigDMin()
 		);
 	}
 
