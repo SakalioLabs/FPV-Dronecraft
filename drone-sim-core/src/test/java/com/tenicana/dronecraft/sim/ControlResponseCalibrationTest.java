@@ -91,7 +91,11 @@ class ControlResponseCalibrationTest {
 		assertEquals(12.0, axis.configuredRcSmoothingTauMilliseconds(), 1.0e-12);
 		assertEquals(1000.0 / 150.0, axis.rcFrameIntervalMilliseconds(), 1.0e-12);
 		assertEquals(1000.0 / 480.0, axis.escFrameIntervalMilliseconds(), 1.0e-12);
-		assertEquals(1998.0, axis.maxRateDegreesPerSecond(), 1.0e-9);
+		assertEquals(
+				RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_RATE_DEGREES_PER_SECOND,
+				axis.maxRateDegreesPerSecond(),
+				1.0e-9
+		);
 		assertEquals(p50OverControlLatency, axis.p50LagOverControlLatency(), 1.0e-15);
 		assertEquals(p50OverControlPlusRcLatency, axis.p50LagOverControlPlusRcLatency(), 1.0e-15);
 	}

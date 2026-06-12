@@ -274,6 +274,9 @@ public record DroneConfig(
 		double hoverDirectThrustFraction = 0.6284 * 9.80665 / (4.0 * maxRotorThrust);
 		double throttleCommandCurveExponent = Math.log(hoverDirectThrustFraction)
 				/ Math.log(APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND);
+		double maxRateDegreesPerSecond = RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_RATE_DEGREES_PER_SECOND;
+		double rateExpo = RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_EXPO_FRACTION;
+		double rateSuper = RateEnvelopeCalibration.APDRONE_SELECTED_PROJECT_EQUIVALENT_SUPER_RATE;
 		return new DroneConfig(
 				0.6284,
 				new Vec3(0.001346, 0.002480, 0.001410),
@@ -319,11 +322,11 @@ public record DroneConfig(
 				0.016,
 				1.5,
 				150.0,
-				Math.toRadians(1998.0),
-				Math.toRadians(1998.0),
-				Math.toRadians(1998.0),
-				new Vec3(0.65, 0.65, 0.65),
-				new Vec3(0.90, 0.90, 0.90),
+				Math.toRadians(maxRateDegreesPerSecond),
+				Math.toRadians(maxRateDegreesPerSecond),
+				Math.toRadians(maxRateDegreesPerSecond),
+				new Vec3(rateExpo, rateExpo, rateExpo),
+				new Vec3(rateSuper, rateSuper, rateSuper),
 				new PidGains(0.034, 0.0109, 0.00063, 1.00, 0.000012, 125.0, 1.60, 0.65, 0.20),
 				new PidGains(0.035, 0.0070, 0.00063, 0.90, 0.000009, 125.0, 1.30, 0.65, 0.18),
 				new PidGains(0.016, 0.0060, 0.00042, 0.70, 0.000010, 125.0, 1.20, 0.65, 0.18),

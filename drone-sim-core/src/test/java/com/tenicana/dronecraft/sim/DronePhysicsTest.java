@@ -77,7 +77,9 @@ class DronePhysicsTest {
 		RotorSpec rotor = config.rotors().get(0);
 		double motorCenterRadius = Math.hypot(rotor.positionBodyMeters().x(), rotor.positionBodyMeters().z());
 		double maxRpm = rotor.maxOmegaRadiansPerSecond() * 60.0 / (Math.PI * 2.0);
-		double actualRateCenterSensitivity = (1.0 - config.rateExpo().x()) * (1.0 - config.rateSuper().x());
+		double actualRateCenterSensitivity = Math.toDegrees(config.maxPitchRateRadiansPerSecond())
+				* (1.0 - config.rateExpo().x())
+				* (1.0 - config.rateSuper().x());
 
 		assertEquals(0.6284, config.massKg(), 1.0e-9);
 		assertEquals(0.001346, config.inertiaKgMetersSquared().x(), 1.0e-12);
@@ -115,10 +117,44 @@ class DronePhysicsTest {
 				config.accelerometerNoiseStdDevMetersPerSecondSquared(),
 				1.0e-15
 		);
-		assertEquals(Math.toRadians(1998.0), config.maxPitchRateRadiansPerSecond(), 1.0e-12);
-		assertEquals(Math.toRadians(1998.0), config.maxYawRateRadiansPerSecond(), 1.0e-12);
-		assertEquals(Math.toRadians(1998.0), config.maxRollRateRadiansPerSecond(), 1.0e-12);
-		assertEquals(0.035, actualRateCenterSensitivity, 1.0e-12);
+		assertEquals(
+				Math.toRadians(RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_RATE_DEGREES_PER_SECOND),
+				config.maxPitchRateRadiansPerSecond(),
+				1.0e-12
+		);
+		assertEquals(
+				Math.toRadians(RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_RATE_DEGREES_PER_SECOND),
+				config.maxYawRateRadiansPerSecond(),
+				1.0e-12
+		);
+		assertEquals(
+				Math.toRadians(RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_RATE_DEGREES_PER_SECOND),
+				config.maxRollRateRadiansPerSecond(),
+				1.0e-12
+		);
+		assertEquals(RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_EXPO_FRACTION, config.rateExpo().x(), 1.0e-12);
+		assertEquals(RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_EXPO_FRACTION, config.rateExpo().y(), 1.0e-12);
+		assertEquals(RateEnvelopeCalibration.APDRONE_SELECTED_ACTUAL_EXPO_FRACTION, config.rateExpo().z(), 1.0e-12);
+		assertEquals(
+				RateEnvelopeCalibration.APDRONE_SELECTED_PROJECT_EQUIVALENT_SUPER_RATE,
+				config.rateSuper().x(),
+				1.0e-12
+		);
+		assertEquals(
+				RateEnvelopeCalibration.APDRONE_SELECTED_PROJECT_EQUIVALENT_SUPER_RATE,
+				config.rateSuper().y(),
+				1.0e-12
+		);
+		assertEquals(
+				RateEnvelopeCalibration.APDRONE_SELECTED_PROJECT_EQUIVALENT_SUPER_RATE,
+				config.rateSuper().z(),
+				1.0e-12
+		);
+		assertEquals(
+				RateEnvelopeCalibration.APDRONE_BETAFLIGHT_ACTUAL_CENTER_SENSITIVITY_DEGREES_PER_SECOND,
+				actualRateCenterSensitivity,
+				1.0e-9
+		);
 		assertTrue(maxRpm > 28500.0, () -> "maxRpm=" + maxRpm);
 		assertTrue(maxRpm < 30000.0, () -> "maxRpm=" + maxRpm);
 		assertTrue(config.hoverDirectThrustFraction() > 0.10, () -> "hoverDirect=" + config.hoverDirectThrustFraction());
@@ -450,7 +486,8 @@ class DronePhysicsTest {
 		assertTrue(apDrone.hoverThrottle() > racing.hoverThrottle());
 		assertTrue(apDrone.rotors().get(0).positionBodyMeters().length() < racing.rotors().get(0).positionBodyMeters().length());
 		assertTrue(apDrone.rotors().get(0).radiusMeters() > racing.rotors().get(0).radiusMeters());
-		assertTrue(apDrone.maxRollRateRadiansPerSecond() > racing.maxRollRateRadiansPerSecond());
+		assertTrue(apDrone.maxRollRateRadiansPerSecond() > cinewhoop.maxRollRateRadiansPerSecond());
+		assertTrue(apDrone.maxRollRateRadiansPerSecond() < racing.maxRollRateRadiansPerSecond());
 		assertEquals(EscCommandProtocol.DSHOT600, apDrone.escCommandProtocol());
 		assertTrue(cinewhoop.maxRollRateRadiansPerSecond() < racing.maxRollRateRadiansPerSecond());
 		assertTrue(cinewhoop.bodyDragCoefficients().z() > racing.bodyDragCoefficients().z());
@@ -10632,6 +10669,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("lag_p50"));
 		assertTrue(text.contains("ratios_ctrl"));
 		assertTrue(text.contains("reliable"));
+		assertTrue(text.contains("APDrone rate-envelope audit"));
+		assertTrue(text.contains("cfg/limit"));
+		assertTrue(text.contains("stick25/50/75"));
 		assertTrue(text.contains("APDrone IMU noise audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Blackbox"));
 		assertTrue(text.contains("baro_quiet"));

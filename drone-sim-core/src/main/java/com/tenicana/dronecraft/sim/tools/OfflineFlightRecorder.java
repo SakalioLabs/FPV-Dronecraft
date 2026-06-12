@@ -10,6 +10,7 @@ import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.Quaternion;
+import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
@@ -1212,6 +1213,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 		ControlResponseCalibration.ControlResponseAudit controlResponseAudit =
 				ControlResponseCalibration.apDroneControlResponseAudit(preset);
+		RateEnvelopeCalibration.RateEnvelopeAudit rateEnvelopeAudit =
+				RateEnvelopeCalibration.apDroneRateEnvelopeAudit(preset);
 		SensorNoiseCalibration.ImuNoiseAudit imuNoiseAudit =
 				SensorNoiseCalibration.apDroneImuNoiseAudit(preset);
 		SensorNoiseCalibration.BarometerNoiseAudit barometerNoiseAudit =
@@ -1473,6 +1476,29 @@ public final class OfflineFlightRecorder {
 				controlResponseAudit.roll().reliableRowCount(),
 				controlResponseAudit.pitch().reliableRowCount(),
 				controlResponseAudit.yaw().reliableRowCount()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone rate-envelope audit: %s %s type %s rc_rate %.1f center %.1f/%.1fdps max %.1f/%.1fdps dump %.1fdps limit %.0fdps cfg/limit %.2f expo %.2f super %.3f stick25/50/75 %.1f/%.1f/%.1fdps ref %.1f/%.1f/%.1fdps%n",
+				rateEnvelopeAudit.sourceId(),
+				rateEnvelopeAudit.selection(),
+				rateEnvelopeAudit.betaflightRatesTypeName(),
+				rateEnvelopeAudit.betaflightActualRcRate(),
+				rateEnvelopeAudit.roll().configuredCenterSensitivityDegreesPerSecond(),
+				rateEnvelopeAudit.referenceCenterSensitivityDegreesPerSecond(),
+				rateEnvelopeAudit.roll().configuredMaxRateDegreesPerSecond(),
+				rateEnvelopeAudit.selectedReferenceMaxRateDegreesPerSecond(),
+				rateEnvelopeAudit.dumpOpenFieldReferenceMaxRateDegreesPerSecond(),
+				rateEnvelopeAudit.betaflightRateLimitDegreesPerSecond(),
+				rateEnvelopeAudit.roll().configuredMaxOverBetaflightRateLimit(),
+				rateEnvelopeAudit.roll().configuredRateExpo(),
+				rateEnvelopeAudit.roll().configuredRateSuper(),
+				rateEnvelopeAudit.roll().configuredRateAtStick25DegreesPerSecond(),
+				rateEnvelopeAudit.roll().configuredRateAtStick50DegreesPerSecond(),
+				rateEnvelopeAudit.roll().configuredRateAtStick75DegreesPerSecond(),
+				rateEnvelopeAudit.roll().selectedReferenceRateAtStick25DegreesPerSecond(),
+				rateEnvelopeAudit.roll().selectedReferenceRateAtStick50DegreesPerSecond(),
+				rateEnvelopeAudit.roll().selectedReferenceRateAtStick75DegreesPerSecond()
 		);
 		System.out.printf(
 				Locale.ROOT,
