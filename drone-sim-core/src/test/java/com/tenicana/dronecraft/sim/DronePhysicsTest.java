@@ -10537,6 +10537,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("Tyto x3nm static-powertrain audit"));
 		assertTrue(text.contains("max_thrust"));
 		assertTrue(text.contains("tyto_eq"));
+		assertTrue(text.contains("Tyto static yaw-torque audit"));
+		assertTrue(text.contains("yaw_qt"));
+		assertTrue(text.contains("fit_window"));
 		assertTrue(text.contains("AI-IO rotor-speed audit"));
 		assertTrue(text.contains("low_dyn"));
 		assertTrue(text.contains("bpass_nyq"));

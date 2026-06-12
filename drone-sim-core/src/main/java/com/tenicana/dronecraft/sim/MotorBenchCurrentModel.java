@@ -15,6 +15,17 @@ public final class MotorBenchCurrentModel {
 	public static final double TYTO_X3NM_FIT_THRUST_COEFFICIENT = 1.7996539842396274e-6;
 	public static final double TYTO_X3NM_FIT_R2 = 0.9988870109198886;
 	public static final int TYTO_X3NM_FIT_POINT_COUNT = 7;
+	public static final double TYTO_X3NM_FIT_Q_OVER_T_METERS = 0.0113854299885362;
+	public static final double TYTO_X3NM_TORQUE_RATIO_FIT_R2 = 0.99991803288615;
+	public static final int TYTO_X3NM_TORQUE_RATIO_FIT_POINT_COUNT = 7;
+	public static final double TYTO_X3NM_HIGH_THRUST_Q_OVER_T_MEAN_METERS = 0.011369775044516606;
+	public static final double TYTO_X3NM_Q_OVER_T_AT_MAX_THRUST_METERS = 0.011385548298033902;
+	public static final String TYTO_DNQ_SOURCE_ID = "dnq";
+	public static final double TYTO_DNQ_FIT_Q_OVER_T_METERS = 0.014586521016335946;
+	public static final double TYTO_DNQ_TORQUE_RATIO_FIT_R2 = 0.9996491957508717;
+	public static final int TYTO_DNQ_TORQUE_RATIO_FIT_POINT_COUNT = 14;
+	public static final double TYTO_DNQ_HIGH_THRUST_Q_OVER_T_MEAN_METERS = 0.0145697672667851;
+	public static final double TYTO_DNQ_Q_OVER_T_AT_MAX_THRUST_METERS = 0.014512651125968636;
 	public static final String AIIO_ROTOR_SPEED_SOURCE_ID = "AI-IO";
 	public static final int AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT = 22;
 	public static final double AIIO_HDF5_SAMPLE_RATE_HERTZ = 100.00009536752259;
@@ -103,6 +114,32 @@ public final class MotorBenchCurrentModel {
 			double configuredMaxBladePassHertz,
 			double referenceThreeBladeBladePassHertz,
 			double referenceBladePassOverTelemetryNyquist
+	) {
+	}
+
+	public record StaticYawTorqueAudit(
+			double configuredYawTorquePerThrustMeter,
+			String lowTorqueReferenceId,
+			double lowTorqueReferenceFitQOverTMeters,
+			double lowTorqueReferenceFitR2,
+			int lowTorqueReferenceFitPointCount,
+			double lowTorqueReferenceHighThrustMeanQOverTMeters,
+			double lowTorqueReferenceQOverTAtMaxThrustMeters,
+			double configuredOverLowTorqueReferenceFit,
+			double lowTorqueReferenceFitOverConfigured,
+			double lowTorqueReferenceAtMaxThrustOverConfigured,
+			String highTorqueReferenceId,
+			double highTorqueReferenceFitQOverTMeters,
+			double highTorqueReferenceFitR2,
+			int highTorqueReferenceFitPointCount,
+			double highTorqueReferenceHighThrustMeanQOverTMeters,
+			double highTorqueReferenceQOverTAtMaxThrustMeters,
+			double configuredOverHighTorqueReferenceFit,
+			double highTorqueReferenceFitOverConfigured,
+			double highTorqueReferenceAtMaxThrustOverConfigured,
+			double referenceFitWindowMinMeters,
+			double referenceFitWindowMaxMeters,
+			double configuredPositionWithinReferenceFitWindow
 	) {
 	}
 
@@ -248,6 +285,37 @@ public final class MotorBenchCurrentModel {
 		);
 	}
 
+	public static StaticYawTorqueAudit tytoStaticYawTorqueAudit(DroneConfig config) {
+		double configuredYawTorque = averageYawTorquePerThrustMeter(config);
+		double minFit = Math.min(TYTO_X3NM_FIT_Q_OVER_T_METERS, TYTO_DNQ_FIT_Q_OVER_T_METERS);
+		double maxFit = Math.max(TYTO_X3NM_FIT_Q_OVER_T_METERS, TYTO_DNQ_FIT_Q_OVER_T_METERS);
+		double windowPosition = ratio(configuredYawTorque - minFit, maxFit - minFit);
+		return new StaticYawTorqueAudit(
+				configuredYawTorque,
+				TYTO_X3NM_SOURCE_ID,
+				TYTO_X3NM_FIT_Q_OVER_T_METERS,
+				TYTO_X3NM_TORQUE_RATIO_FIT_R2,
+				TYTO_X3NM_TORQUE_RATIO_FIT_POINT_COUNT,
+				TYTO_X3NM_HIGH_THRUST_Q_OVER_T_MEAN_METERS,
+				TYTO_X3NM_Q_OVER_T_AT_MAX_THRUST_METERS,
+				ratio(configuredYawTorque, TYTO_X3NM_FIT_Q_OVER_T_METERS),
+				ratio(TYTO_X3NM_FIT_Q_OVER_T_METERS, configuredYawTorque),
+				ratio(TYTO_X3NM_Q_OVER_T_AT_MAX_THRUST_METERS, configuredYawTorque),
+				TYTO_DNQ_SOURCE_ID,
+				TYTO_DNQ_FIT_Q_OVER_T_METERS,
+				TYTO_DNQ_TORQUE_RATIO_FIT_R2,
+				TYTO_DNQ_TORQUE_RATIO_FIT_POINT_COUNT,
+				TYTO_DNQ_HIGH_THRUST_Q_OVER_T_MEAN_METERS,
+				TYTO_DNQ_Q_OVER_T_AT_MAX_THRUST_METERS,
+				ratio(configuredYawTorque, TYTO_DNQ_FIT_Q_OVER_T_METERS),
+				ratio(TYTO_DNQ_FIT_Q_OVER_T_METERS, configuredYawTorque),
+				ratio(TYTO_DNQ_Q_OVER_T_AT_MAX_THRUST_METERS, configuredYawTorque),
+				minFit,
+				maxFit,
+				MathUtil.clamp(windowPosition, 0.0, 1.0)
+		);
+	}
+
 	private static double powerLaw(double thrustNewtons, double coefficient, double exponent) {
 		if (!Double.isFinite(thrustNewtons) || thrustNewtons <= 0.0) {
 			return 0.0;
@@ -313,6 +381,18 @@ public final class MotorBenchCurrentModel {
 		double total = 0.0;
 		for (RotorSpec rotor : config.rotors()) {
 			total += rotor.bladeCount();
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageYawTorquePerThrustMeter(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.yawTorquePerThrustMeter();
 		}
 		return total / config.rotors().size();
 	}

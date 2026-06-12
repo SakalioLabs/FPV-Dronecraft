@@ -1127,6 +1127,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
 				MotorBenchCurrentModel.tytoX3nmStaticPowertrainAudit(preset);
+		MotorBenchCurrentModel.StaticYawTorqueAudit tytoYawTorqueAudit =
+				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 
@@ -1274,6 +1276,24 @@ public final class OfflineFlightRecorder {
 				tytoAudit.referenceMaxCurrentAmps(),
 				tytoAudit.referenceVoltageAtMaxThrust(),
 				tytoAudit.referenceFitR2()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Tyto static yaw-torque audit: yaw_qt %.5fm, %s fit %.5fm ratio %.2f high %.5fm, %s-5040 fit %.5fm ratio %.2f high %.5fm, fit_window %.5f..%.5fm pos %.2f, fit_r2 %.4f/%.4f%n",
+				tytoYawTorqueAudit.configuredYawTorquePerThrustMeter(),
+				tytoYawTorqueAudit.lowTorqueReferenceId(),
+				tytoYawTorqueAudit.lowTorqueReferenceFitQOverTMeters(),
+				tytoYawTorqueAudit.configuredOverLowTorqueReferenceFit(),
+				tytoYawTorqueAudit.lowTorqueReferenceHighThrustMeanQOverTMeters(),
+				tytoYawTorqueAudit.highTorqueReferenceId(),
+				tytoYawTorqueAudit.highTorqueReferenceFitQOverTMeters(),
+				tytoYawTorqueAudit.configuredOverHighTorqueReferenceFit(),
+				tytoYawTorqueAudit.highTorqueReferenceHighThrustMeanQOverTMeters(),
+				tytoYawTorqueAudit.referenceFitWindowMinMeters(),
+				tytoYawTorqueAudit.referenceFitWindowMaxMeters(),
+				tytoYawTorqueAudit.configuredPositionWithinReferenceFitWindow(),
+				tytoYawTorqueAudit.lowTorqueReferenceFitR2(),
+				tytoYawTorqueAudit.highTorqueReferenceFitR2()
 		);
 		System.out.printf(
 				Locale.ROOT,

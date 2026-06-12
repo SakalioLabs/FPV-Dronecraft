@@ -114,6 +114,41 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void tytoStaticYawTorqueAuditKeepsFiveInchReactionTorqueWithinReferenceWindow() {
+		MotorBenchCurrentModel.StaticYawTorqueAudit racingAudit =
+				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(DroneConfig.racingQuad());
+		MotorBenchCurrentModel.StaticYawTorqueAudit apDroneAudit =
+				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(DroneConfig.apDrone());
+
+		assertEquals(0.014, racingAudit.configuredYawTorquePerThrustMeter(), 1.0e-15);
+		assertEquals("x3nm", racingAudit.lowTorqueReferenceId());
+		assertEquals(0.0113854299885362, racingAudit.lowTorqueReferenceFitQOverTMeters(), 1.0e-15);
+		assertEquals(0.99991803288615, racingAudit.lowTorqueReferenceFitR2(), 1.0e-15);
+		assertEquals(7, racingAudit.lowTorqueReferenceFitPointCount());
+		assertEquals(0.011369775044516606, racingAudit.lowTorqueReferenceHighThrustMeanQOverTMeters(), 1.0e-15);
+		assertEquals(0.011385548298033902, racingAudit.lowTorqueReferenceQOverTAtMaxThrustMeters(), 1.0e-15);
+		assertEquals(1.229641745116027, racingAudit.configuredOverLowTorqueReferenceFit(), 1.0e-15);
+		assertEquals(0.8132449991811571, racingAudit.lowTorqueReferenceFitOverConfigured(), 1.0e-15);
+		assertEquals(0.8132534498595644, racingAudit.lowTorqueReferenceAtMaxThrustOverConfigured(), 1.0e-15);
+		assertEquals("dnq", racingAudit.highTorqueReferenceId());
+		assertEquals(0.014586521016335946, racingAudit.highTorqueReferenceFitQOverTMeters(), 1.0e-15);
+		assertEquals(0.9996491957508717, racingAudit.highTorqueReferenceFitR2(), 1.0e-15);
+		assertEquals(14, racingAudit.highTorqueReferenceFitPointCount());
+		assertEquals(0.0145697672667851, racingAudit.highTorqueReferenceHighThrustMeanQOverTMeters(), 1.0e-15);
+		assertEquals(0.014512651125968636, racingAudit.highTorqueReferenceQOverTAtMaxThrustMeters(), 1.0e-15);
+		assertEquals(0.959790205239544, racingAudit.configuredOverHighTorqueReferenceFit(), 1.0e-15);
+		assertEquals(1.0418943583097104, racingAudit.highTorqueReferenceFitOverConfigured(), 1.0e-15);
+		assertEquals(1.0366179375691882, racingAudit.highTorqueReferenceAtMaxThrustOverConfigured(), 1.0e-15);
+		assertEquals(0.0113854299885362, racingAudit.referenceFitWindowMinMeters(), 1.0e-15);
+		assertEquals(0.014586521016335946, racingAudit.referenceFitWindowMaxMeters(), 1.0e-15);
+		assertEquals(0.8167746523787272, racingAudit.configuredPositionWithinReferenceFitWindow(), 1.0e-15);
+		assertEquals(0.0145, apDroneAudit.configuredYawTorquePerThrustMeter(), 1.0e-15);
+		assertEquals(1.2735575217273138, apDroneAudit.configuredOverLowTorqueReferenceFit(), 1.0e-15);
+		assertEquals(0.994068426855242, apDroneAudit.configuredOverHighTorqueReferenceFit(), 1.0e-15);
+		assertEquals(0.9729713976939244, apDroneAudit.configuredPositionWithinReferenceFitWindow(), 1.0e-15);
+	}
+
+	@Test
 	void mqtbHq5x4x3RotorSimilaritySelectsFiveInchTriBladeProps() {
 		assertEquals(
 				1.0,
