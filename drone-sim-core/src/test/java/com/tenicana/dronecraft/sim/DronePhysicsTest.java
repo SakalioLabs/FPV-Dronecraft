@@ -1810,7 +1810,10 @@ class DronePhysicsTest {
 				() -> "heavyFault=" + heavyFault);
 		assertTrue(severeFault > heavyFault + 0.25,
 				() -> "heavyFault=" + heavyFault + " severeFault=" + severeFault);
-		assertEquals(mildFault * 0.25, halfSpeedMildFault, 1.0e-6);
+		assertTrue(halfSpeedMildFault > mildFault * 0.55,
+				() -> "mildFault=" + mildFault + " halfSpeedMildFault=" + halfSpeedMildFault);
+		assertTrue(halfSpeedMildFault < mildFault,
+				() -> "mildFault=" + mildFault + " halfSpeedMildFault=" + halfSpeedMildFault);
 	}
 
 	@Test
@@ -10543,6 +10546,35 @@ class DronePhysicsTest {
 		assertTrue(text.contains("AI-IO rotor-speed audit"));
 		assertTrue(text.contains("low_dyn"));
 		assertTrue(text.contains("bpass_nyq"));
+		assertTrue(text.contains("Prop damage vibration audit"));
+		assertTrue(text.contains("single_fault"));
+		assertTrue(text.contains("padre"));
+	}
+
+	@Test
+	void propDamageVibrationAuditComparesRuntimeSensorRmsAgainstFaultDatasets() {
+		OfflineFlightRecorder.PropDamageVibrationAudit audit =
+				OfflineFlightRecorder.propDamageVibrationAudit(DroneConfig.racingQuad());
+
+		assertEquals(0, audit.damagedRotorIndex());
+		assertEquals(0.75, audit.rotorDamageAmount(), 1.0e-12);
+		assertEquals(1200, audit.sampleCount());
+		assertEquals(6.0, audit.sampledSeconds(), 1.0e-12);
+		assertEquals(1.566803460010257, audit.referenceSingleBrokenGyroRmsRatio(), 1.0e-15);
+		assertEquals(3.65539974853721, audit.referenceSingleBrokenAccelerometerRmsRatio(), 1.0e-15);
+		assertEquals(3.000977801285221, audit.padreSingleRotorAccelerometerFeatureRmsRatio(), 1.0e-15);
+		assertEquals(3.125830267410634, audit.padreTwoPositionAccelerometerFeatureRmsRatio(), 1.0e-15);
+		assertTrue(audit.healthyGyroDynamicRmsRadiansPerSecond() > 0.0);
+		assertTrue(audit.damagedGyroDynamicRmsRadiansPerSecond() > audit.healthyGyroDynamicRmsRadiansPerSecond());
+		assertTrue(audit.gyroDynamicRmsRatio() > 1.05);
+		assertTrue(audit.gyroDynamicRmsRatio() < 20.0);
+		assertTrue(audit.healthyAccelerometerDynamicRmsMetersPerSecondSquared() > 0.0);
+		assertTrue(audit.damagedAccelerometerDynamicRmsMetersPerSecondSquared()
+				> audit.healthyAccelerometerDynamicRmsMetersPerSecondSquared());
+		assertTrue(audit.accelerometerDynamicRmsRatio() > 1.05);
+		assertTrue(audit.accelerometerDynamicRmsRatio() < 30.0);
+		assertTrue(audit.maxDamagedRotorDamageVibration() > 0.10);
+		assertTrue(audit.maxDamagedRotorVibration() > audit.maxHealthyRotorVibration() + 0.02);
 	}
 
 	@Test

@@ -51,6 +51,14 @@ public final class OfflineFlightRecorder {
 	private static final double APDRONE_OPEN_FIELD_MEAN_FILE_MAX_SPEED_METERS_PER_SECOND = 11.072;
 	private static final double APDRONE_OPEN_FIELD_FLIGHT_2_P95_SPEED_METERS_PER_SECOND = 17.25;
 	private static final double APDRONE_OPEN_FIELD_FASTEST_SPEED_METERS_PER_SECOND = 18.72;
+	private static final int PROP_DAMAGE_AUDIT_ROTOR_INDEX = 0;
+	private static final double PROP_DAMAGE_AUDIT_DAMAGE = 0.75;
+	private static final double PROP_DAMAGE_AUDIT_WARMUP_SECONDS = 2.0;
+	private static final double PROP_DAMAGE_AUDIT_SAMPLE_SECONDS = 6.0;
+	private static final double UAV_REALISTIC_FAULT_SINGLE_BROKEN_GYRO_RMS_RATIO = 1.566803460010257;
+	private static final double UAV_REALISTIC_FAULT_SINGLE_BROKEN_ACCEL_RMS_RATIO = 3.65539974853721;
+	private static final double PADRE_SINGLE_ROTOR_ACCEL_FEATURE_RMS_RATIO = 3.000977801285221;
+	private static final double PADRE_TWO_POSITION_ACCEL_FEATURE_RMS_RATIO = 3.125830267410634;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -1073,11 +1081,72 @@ public final class OfflineFlightRecorder {
 	) {
 	}
 
+	public record PropDamageVibrationAudit(
+			int damagedRotorIndex,
+			double rotorDamageAmount,
+			int sampleCount,
+			double sampledSeconds,
+			double healthyGyroDynamicRmsRadiansPerSecond,
+			double damagedGyroDynamicRmsRadiansPerSecond,
+			double gyroDynamicRmsRatio,
+			double healthyAccelerometerDynamicRmsMetersPerSecondSquared,
+			double damagedAccelerometerDynamicRmsMetersPerSecondSquared,
+			double accelerometerDynamicRmsRatio,
+			double maxHealthyRotorVibration,
+			double maxDamagedRotorVibration,
+			double maxDamagedRotorDamageVibration,
+			double referenceSingleBrokenGyroRmsRatio,
+			double referenceSingleBrokenAccelerometerRmsRatio,
+			double padreSingleRotorAccelerometerFeatureRmsRatio,
+			double padreTwoPositionAccelerometerFeatureRmsRatio
+	) {
+	}
+
 	private record StaticBatteryLoad(
 			double throttleCommand,
 			double meanCurrentAmps,
 			double peakCurrentAmps
 	) {
+	}
+
+	private record DamageSensorRms(
+			int sampleCount,
+			double sampledSeconds,
+			double gyroDynamicRmsRadiansPerSecond,
+			double accelerometerDynamicRmsMetersPerSecondSquared,
+			double maxRotorVibration,
+			double maxRotorDamageVibration
+	) {
+	}
+
+	private static final class VectorRmsAccumulator {
+		private int samples;
+		private Vec3 sum = Vec3.ZERO;
+		private double sumLengthSquared;
+
+		private void add(Vec3 value) {
+			if (value == null || !value.isFinite()) {
+				return;
+			}
+
+			samples++;
+			sum = sum.add(value);
+			sumLengthSquared += value.lengthSquared();
+		}
+
+		private int samples() {
+			return samples;
+		}
+
+		private double dynamicRms() {
+			if (samples <= 0) {
+				return 0.0;
+			}
+
+			Vec3 mean = sum.multiply(1.0 / samples);
+			double meanSquare = sumLengthSquared / samples;
+			return Math.sqrt(Math.max(0.0, meanSquare - mean.lengthSquared()));
+		}
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -1131,6 +1200,7 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
+		PropDamageVibrationAudit propDamageAudit = propDamageVibrationAudit(preset);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
@@ -1312,6 +1382,23 @@ public final class OfflineFlightRecorder {
 				aiioRotorSpeedAudit.referenceBladePassOverTelemetryNyquist(),
 				aiioRotorSpeedAudit.referenceSampleFileCount(),
 				aiioRotorSpeedAudit.referenceSampleRateHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Prop damage vibration audit: single_fault rotor %d damage %.2f gyro %.2fx ref %.2fx, accel %.2fx ref %.2fx padre %.2f..%.2fx, dvib %.3f rotor_vib %.3f/%.3f samples %d@%.1fs%n",
+				propDamageAudit.damagedRotorIndex(),
+				propDamageAudit.rotorDamageAmount(),
+				propDamageAudit.gyroDynamicRmsRatio(),
+				propDamageAudit.referenceSingleBrokenGyroRmsRatio(),
+				propDamageAudit.accelerometerDynamicRmsRatio(),
+				propDamageAudit.referenceSingleBrokenAccelerometerRmsRatio(),
+				propDamageAudit.padreSingleRotorAccelerometerFeatureRmsRatio(),
+				propDamageAudit.padreTwoPositionAccelerometerFeatureRmsRatio(),
+				propDamageAudit.maxDamagedRotorDamageVibration(),
+				propDamageAudit.maxHealthyRotorVibration(),
+				propDamageAudit.maxDamagedRotorVibration(),
+				propDamageAudit.sampleCount(),
+				propDamageAudit.sampledSeconds()
 		);
 		if ("apdrone".equals(presetName)) {
 			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);
@@ -1698,6 +1785,78 @@ public final class OfflineFlightRecorder {
 
 		double meanCurrent = sampledSeconds > 0.0 ? ampSeconds / sampledSeconds : lastCurrent;
 		return new StaticBatteryLoad(clampedThrottleCommand, meanCurrent, peakCurrent);
+	}
+
+	public static PropDamageVibrationAudit propDamageVibrationAudit(DroneConfig config) {
+		int rotorIndex = Math.min(PROP_DAMAGE_AUDIT_ROTOR_INDEX, Math.max(0, config.rotors().size() - 1));
+		DamageSensorRms healthy = sampleDamageSensorRms(config, -1, 0.0);
+		DamageSensorRms damaged = sampleDamageSensorRms(config, rotorIndex, PROP_DAMAGE_AUDIT_DAMAGE);
+		return new PropDamageVibrationAudit(
+				rotorIndex,
+				PROP_DAMAGE_AUDIT_DAMAGE,
+				damaged.sampleCount(),
+				damaged.sampledSeconds(),
+				healthy.gyroDynamicRmsRadiansPerSecond(),
+				damaged.gyroDynamicRmsRadiansPerSecond(),
+				ratio(damaged.gyroDynamicRmsRadiansPerSecond(), healthy.gyroDynamicRmsRadiansPerSecond()),
+				healthy.accelerometerDynamicRmsMetersPerSecondSquared(),
+				damaged.accelerometerDynamicRmsMetersPerSecondSquared(),
+				ratio(
+						damaged.accelerometerDynamicRmsMetersPerSecondSquared(),
+						healthy.accelerometerDynamicRmsMetersPerSecondSquared()
+				),
+				healthy.maxRotorVibration(),
+				damaged.maxRotorVibration(),
+				damaged.maxRotorDamageVibration(),
+				UAV_REALISTIC_FAULT_SINGLE_BROKEN_GYRO_RMS_RATIO,
+				UAV_REALISTIC_FAULT_SINGLE_BROKEN_ACCEL_RMS_RATIO,
+				PADRE_SINGLE_ROTOR_ACCEL_FEATURE_RMS_RATIO,
+				PADRE_TWO_POSITION_ACCEL_FEATURE_RMS_RATIO
+		);
+	}
+
+	private static DamageSensorRms sampleDamageSensorRms(DroneConfig config, int damagedRotorIndex, double damageAmount) {
+		DronePhysics physics = new DronePhysics(config);
+		DroneState state = physics.state();
+		if (damagedRotorIndex >= 0 && damagedRotorIndex < state.motorCount() && damageAmount > 0.0) {
+			state.damageRotor(damagedRotorIndex, damageAmount);
+		}
+
+		DroneInput input = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		DroneEnvironment environment = DroneEnvironment.calm();
+		VectorRmsAccumulator gyro = new VectorRmsAccumulator();
+		VectorRmsAccumulator accelerometer = new VectorRmsAccumulator();
+		int warmupSteps = Math.max(0, (int) Math.round(PROP_DAMAGE_AUDIT_WARMUP_SECONDS / SIMULATION_DT_SECONDS));
+		int sampleSteps = Math.max(1, (int) Math.round(PROP_DAMAGE_AUDIT_SAMPLE_SECONDS / SIMULATION_DT_SECONDS));
+		double maxRotorVibration = 0.0;
+		double maxRotorDamageVibration = 0.0;
+
+		for (int step = 0; step < warmupSteps + sampleSteps; step++) {
+			holdStaticAutonomyRig(state);
+			physics.step(input, SIMULATION_DT_SECONDS, environment);
+			if (step >= warmupSteps) {
+				gyro.add(state.gyroAngularVelocityBodyRadiansPerSecond());
+				accelerometer.add(state.accelerometerBodyMetersPerSecondSquared());
+				maxRotorVibration = Math.max(maxRotorVibration, state.rotorVibration());
+				maxRotorDamageVibration = Math.max(maxRotorDamageVibration, state.maxRotorDamageVibration());
+			}
+		}
+
+		return new DamageSensorRms(
+				gyro.samples(),
+				gyro.samples() * SIMULATION_DT_SECONDS,
+				gyro.dynamicRms(),
+				accelerometer.dynamicRms(),
+				maxRotorVibration,
+				maxRotorDamageVibration
+		);
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= 1.0e-12) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 
 	private static void holdStaticAutonomyRig(DroneState state) {
