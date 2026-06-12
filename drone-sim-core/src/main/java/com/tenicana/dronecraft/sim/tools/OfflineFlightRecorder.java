@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim.tools;
 
 import com.tenicana.dronecraft.sim.AirframeDragCalibration;
+import com.tenicana.dronecraft.sim.AirframeInertiaCalibration;
 import com.tenicana.dronecraft.sim.ControlResponseCalibration;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -1237,6 +1238,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 21.0, 1.0);
 		AirframeDragCalibration.LevelFlightRequirement uzhFpvVmax =
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
+		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
+				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
 				MotorBenchCurrentModel.tytoX3nmStaticPowertrainAudit(preset);
 		MotorBenchCurrentModel.StaticYawTorqueAudit tytoYawTorqueAudit =
@@ -1387,6 +1390,33 @@ public final class OfflineFlightRecorder {
 				formatLevelFlightRequirement("AI-IO14", aiioManualHigh),
 				formatLevelFlightRequirement("RATM21", ratmHighSpeed),
 				formatLevelFlightRequirement("UZH26.8", uzhFpvVmax)
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone inertia audit: %s mass %.4f/%.4f ratio %.3f Ixyz %.6f/%.6f/%.6f ref %.6f/%.6f/%.6f rg %.4f/%.4f/%.4f ref %.4f/%.4f/%.4f yaw_ratio %.3f/%.3f map %.2f/%.2f/%.2f radius %.3f/%.3f%n",
+				apDroneInertiaAudit.referenceId(),
+				apDroneInertiaAudit.currentMassKg(),
+				apDroneInertiaAudit.referenceMassKg(),
+				apDroneInertiaAudit.currentMassOverReference(),
+				apDroneInertiaAudit.currentProjectInertiaXKgMetersSquared(),
+				apDroneInertiaAudit.currentProjectYawInertiaYKgMetersSquared(),
+				apDroneInertiaAudit.currentProjectInertiaZKgMetersSquared(),
+				apDroneInertiaAudit.referenceSourceInertiaXKgMetersSquared(),
+				apDroneInertiaAudit.referenceSourceYawInertiaZKgMetersSquared(),
+				apDroneInertiaAudit.referenceSourceInertiaYKgMetersSquared(),
+				apDroneInertiaAudit.currentRadiusOfGyrationXMeters(),
+				apDroneInertiaAudit.currentRadiusOfGyrationYawYMeters(),
+				apDroneInertiaAudit.currentRadiusOfGyrationZMeters(),
+				apDroneInertiaAudit.referenceRadiusOfGyrationSourceXMeters(),
+				apDroneInertiaAudit.referenceRadiusOfGyrationYawZMeters(),
+				apDroneInertiaAudit.referenceRadiusOfGyrationSourceYMeters(),
+				apDroneInertiaAudit.currentYawToRollPitchMeanInertiaRatio(),
+				apDroneInertiaAudit.referenceYawToRollPitchMeanInertiaRatio(),
+				apDroneInertiaAudit.currentProjectXOverReferenceSourceX(),
+				apDroneInertiaAudit.currentProjectYawYOverReferenceSourceYawZ(),
+				apDroneInertiaAudit.currentProjectZOverReferenceSourceY(),
+				apDroneInertiaAudit.currentMotorCenterRadiusMeters(),
+				apDroneInertiaAudit.referenceMotorCenterRadiusMeters()
 		);
 		System.out.printf(
 				Locale.ROOT,

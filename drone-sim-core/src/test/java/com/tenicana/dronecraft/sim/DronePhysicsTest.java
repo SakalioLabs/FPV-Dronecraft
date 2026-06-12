@@ -11052,6 +11052,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("UZH26.8"));
 		assertTrue(text.contains("tilt"));
 		assertTrue(text.contains("reachable"));
+		assertTrue(text.contains("APDrone inertia audit"));
+		assertTrue(text.contains("APDrone-Mendeley-Inertia-PDF"));
+		assertTrue(text.contains("yaw_ratio"));
 		assertTrue(text.contains("Tyto x3nm static-powertrain audit"));
 		assertTrue(text.contains("max_thrust"));
 		assertTrue(text.contains("tyto_eq"));
