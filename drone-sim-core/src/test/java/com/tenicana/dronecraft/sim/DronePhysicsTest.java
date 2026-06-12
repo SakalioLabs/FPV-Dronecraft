@@ -11094,6 +11094,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("Surface-Nearfield-Calibration-Packet"));
 		assertTrue(text.contains("wall0.25R"));
 		assertTrue(text.contains("ground-ceiling-wall-separate"));
+		assertTrue(text.contains("Rotor dynamics audit"));
+		assertTrue(text.contains("Rotor-Dynamics-Inertia-Inflow-Coning-Packet"));
+		assertTrue(text.contains("runtime-helpers"));
 		assertTrue(text.contains("APDrone inertia audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Inertia-PDF"));
 		assertTrue(text.contains("yaw_ratio"));

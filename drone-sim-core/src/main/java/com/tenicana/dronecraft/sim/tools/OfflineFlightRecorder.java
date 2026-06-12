@@ -19,6 +19,7 @@ import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
 import com.tenicana.dronecraft.sim.PropGeometryCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
+import com.tenicana.dronecraft.sim.RotorDynamicsCalibration;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
@@ -1254,6 +1255,8 @@ public final class OfflineFlightRecorder {
 				NeuroBemAirframeResidualCalibration.audit(preset);
 		FpvLipoEsrCalibration.FpvLipoEsrAudit lipoEsrAudit =
 				FpvLipoEsrCalibration.audit(preset);
+		RotorDynamicsCalibration.RotorDynamicsAudit rotorDynamicsAudit =
+				RotorDynamicsCalibration.audit(preset);
 		HighAdvanceRotorCalibration.HighAdvanceAudit highAdvanceAudit =
 				HighAdvanceRotorCalibration.audit(preset);
 		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
@@ -1521,6 +1524,64 @@ public final class OfflineFlightRecorder {
 				lipoEsrAudit.temperatureReference().jeffcoReferenceColdOverWarmIrMax(),
 				lipoEsrAudit.temperatureReference().currentModelOverJeffcoMin(),
 				lipoEsrAudit.temperatureReference().currentModelOverJeffcoMax()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Rotor dynamics audit: %s rows %d inertia/inflow/flex %d/%d/%d refs %d, rotor %.2fin P/D %.3f blades %d I %.3e ref %s %.2fx/%.2fx/%.2fx mass %.2fg %.2fx, rpm hover/max %.0f/%.0f L %.5f/%.5f gyro %.3f/%.3fNm spinup %.3f/%.3fNm, inflow tau %.1fms %.1fxPX4 vi %.2f/%.2fm/s transit %.1f/%.1f/%.1fms dyn %.1f/%.1f/%.1f/%.1fms, coning target %.3f angle %.2fdeg thrust %.3f vib %.3f freq %.1fHz ref %.2f/%.2fdeg, arm flex %.3f/%.3f/%.3f defl %.2f/%.2f/%.2fmm tilt %.2f/%.2f/%.2fdeg beam %s %.2fmm %.2fxfreq caveat runtime-helpers%n",
+				rotorDynamicsAudit.sourceId(),
+				rotorDynamicsAudit.packetMetricRowCount(),
+				rotorDynamicsAudit.rotorInertiaRowCount(),
+				rotorDynamicsAudit.rotorInflowRowCount(),
+				rotorDynamicsAudit.armFlexConingRowCount(),
+				rotorDynamicsAudit.physicalPropReferenceCount(),
+				rotorDynamicsAudit.inertia().configuredDiameterInches(),
+				rotorDynamicsAudit.inertia().configuredPitchToDiameterRatio(),
+				rotorDynamicsAudit.inertia().configuredBladeCount(),
+				rotorDynamicsAudit.inertia().configuredRotorInertiaKgMetersSquared(),
+				rotorDynamicsAudit.inertia().nearestPhysicalReference().propellerId(),
+				rotorDynamicsAudit.inertia().configuredOverReferenceHubBiasedInertia(),
+				rotorDynamicsAudit.inertia().configuredOverReferenceUniformBladeInertia(),
+				rotorDynamicsAudit.inertia().configuredOverReferenceTipBiasedInertia(),
+				rotorDynamicsAudit.inertia().configuredEquivalentUniformBladeMassGrams(),
+				rotorDynamicsAudit.inertia().configuredEquivalentUniformBladeMassOverReferenceMass(),
+				rotorDynamicsAudit.inertia().hoverRpm(),
+				rotorDynamicsAudit.inertia().maxRpm(),
+				rotorDynamicsAudit.inertia().hoverAngularMomentumNewtonMeterSeconds(),
+				rotorDynamicsAudit.inertia().maxAngularMomentumNewtonMeterSeconds(),
+				rotorDynamicsAudit.inertia().hoverGyroTorquePerRotorNewtonMeters(),
+				rotorDynamicsAudit.inertia().maxGyroTorquePerRotorNewtonMeters(),
+				rotorDynamicsAudit.inertia().motorTauSpinupReactionTorqueNewtonMeters(),
+				rotorDynamicsAudit.inertia().fiftyMillisecondSpinupReactionTorqueNewtonMeters(),
+				rotorDynamicsAudit.dynamicInflow().configuredInflowTimeConstantSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().configuredTauOverReferenceUp(),
+				rotorDynamicsAudit.dynamicInflow().hoverInducedVelocityMetersPerSecond(),
+				rotorDynamicsAudit.dynamicInflow().maxInducedVelocityMetersPerSecond(),
+				rotorDynamicsAudit.dynamicInflow().wakeTransitOneRadiusHoverSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().wakeTransitTwoRadiusHoverSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().wakeTransitOneRadiusMaxSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().runtimeHoverDynamicTauSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().runtimeHighThrustDynamicTauSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().runtimeFastCrossflowDynamicTauSeconds() * 1000.0,
+				rotorDynamicsAudit.dynamicInflow().runtimeFastDescentDynamicTauSeconds() * 1000.0,
+				rotorDynamicsAudit.coning().maxTargetIntensity(),
+				rotorDynamicsAudit.coning().maxConingAngleDegrees(),
+				rotorDynamicsAudit.coning().maxConingThrustScale(),
+				rotorDynamicsAudit.coning().maxConingVibration(),
+				rotorDynamicsAudit.coning().maxConingNaturalFrequencyHertz(),
+				rotorDynamicsAudit.coning().djiPhantom8500RpmConingDegrees(),
+				rotorDynamicsAudit.coning().tmotor15x5_5000RpmConingDegrees(),
+				rotorDynamicsAudit.armFlex().hoverTargetIntensity(),
+				rotorDynamicsAudit.armFlex().maxSteadyTargetIntensity(),
+				rotorDynamicsAudit.armFlex().maxSnapTargetIntensity(),
+				rotorDynamicsAudit.armFlex().fullFlexVerticalDeflectionMillimeters(),
+				rotorDynamicsAudit.armFlex().maxSteadyVerticalDeflectionMillimeters(),
+				rotorDynamicsAudit.armFlex().maxSnapVerticalDeflectionMillimeters(),
+				rotorDynamicsAudit.armFlex().fullFlexTiltDegrees(),
+				rotorDynamicsAudit.armFlex().maxSteadyTiltDegrees(),
+				rotorDynamicsAudit.armFlex().maxSnapTiltDegrees(),
+				rotorDynamicsAudit.armFlex().representativeBeamSensitivity().geometryId(),
+				rotorDynamicsAudit.armFlex().representativeBeamSensitivity().cantileverTipDeflectionMillimeters(),
+				rotorDynamicsAudit.armFlex().representativeBeamSensitivity().beamFrequencyOverRuntimeMaxSpin()
 		);
 		System.out.printf(
 				Locale.ROOT,

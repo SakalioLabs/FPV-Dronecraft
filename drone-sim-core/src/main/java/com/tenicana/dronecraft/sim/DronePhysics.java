@@ -3893,15 +3893,9 @@ public final class DronePhysics {
 		}
 
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
-		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
-		double centrifugalStiffening = 1.0 + 0.42 * spinRatio;
-		double naturalFrequencyHertz = MathUtil.clamp(
-				30.0 * centrifugalStiffening / Math.sqrt(radiusScale),
-				16.0,
-				62.0
-		);
+		double naturalFrequencyHertz = rotorConingNaturalFrequencyHertz(rotor, spinRatio);
 		double angularFrequency = 2.0 * Math.PI * naturalFrequencyHertz;
-		double dampingRatio = MathUtil.clamp(0.46 + 0.18 * spinRatio, 0.44, 0.72);
+		double dampingRatio = rotorConingDampingRatio(spinRatio);
 		double coning = rotorConingIntensity[index];
 		double velocity = rotorConingVelocity[index];
 		int substeps = Math.max(1, (int) Math.ceil(dtSeconds / 0.00125));
@@ -3926,7 +3920,21 @@ public final class DronePhysics {
 		return rotorConingIntensity[index];
 	}
 
-	private static double rotorConingTargetIntensity(RotorSpec rotor, double thrustNewtons, double omegaRadiansPerSecond) {
+	static double rotorConingNaturalFrequencyHertz(RotorSpec rotor, double spinRatio) {
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.60);
+		double centrifugalStiffening = 1.0 + 0.42 * MathUtil.clamp(spinRatio, 0.0, 1.10);
+		return MathUtil.clamp(
+				30.0 * centrifugalStiffening / Math.sqrt(radiusScale),
+				16.0,
+				62.0
+		);
+	}
+
+	static double rotorConingDampingRatio(double spinRatio) {
+		return MathUtil.clamp(0.46 + 0.18 * MathUtil.clamp(spinRatio, 0.0, 1.10), 0.44, 0.72);
+	}
+
+	static double rotorConingTargetIntensity(RotorSpec rotor, double thrustNewtons, double omegaRadiansPerSecond) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		double thrustFraction = MathUtil.clamp(thrustNewtons / Math.max(1.0e-6, rotor.maxThrustNewtons()), 0.0, 1.35);
 		if (spinRatio <= 0.10 || thrustFraction <= 0.05) {
@@ -3941,7 +3949,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(load * (0.62 + 0.38 * diskSize) * pitchFlexScale / centrifugalStiffening, 0.0, 1.0);
 	}
 
-	private static double rotorConingAngleRadians(RotorSpec rotor, double coningIntensity) {
+	static double rotorConingAngleRadians(RotorSpec rotor, double coningIntensity) {
 		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
 		if (coning <= 1.0e-6) {
 			return 0.0;
@@ -3952,16 +3960,16 @@ public final class DronePhysics {
 		return Math.toRadians(maximumConingDegrees * coning);
 	}
 
-	private static double rotorConingThrustScale(double coningIntensity) {
+	static double rotorConingThrustScale(double coningIntensity) {
 		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
 		return MathUtil.clamp(1.0 - 0.038 * coning, 0.94, 1.0);
 	}
 
-	private static double rotorConingLoadFactor(double coningIntensity) {
+	static double rotorConingLoadFactor(double coningIntensity) {
 		return 0.055 * MathUtil.clamp(coningIntensity, 0.0, 1.0);
 	}
 
-	private static double rotorConingVibration(RotorSpec rotor, double omegaRadiansPerSecond, double coningIntensity) {
+	static double rotorConingVibration(RotorSpec rotor, double omegaRadiansPerSecond, double coningIntensity) {
 		double coning = MathUtil.clamp(coningIntensity, 0.0, 1.0);
 		if (coning <= 1.0e-6) {
 			return 0.0;
@@ -4775,7 +4783,7 @@ public final class DronePhysics {
 		return rotor.withThrustAxisBody(axis);
 	}
 
-	private static double rotorArmFlexVerticalDeflectionMeters(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
+	static double rotorArmFlexVerticalDeflectionMeters(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
 		double flex = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
 		if (flex <= 1.0e-6 || horizontalRotorArmDirection(nominalRotorArmBody).lengthSquared() <= 1.0e-9) {
 			return 0.0;
@@ -4785,7 +4793,7 @@ public final class DronePhysics {
 		return ROTOR_ARM_FLEX_VERTICAL_DEFLECTION_SCALE * flex * armLength * radiusScale;
 	}
 
-	private static double rotorArmFlexTiltRadians(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
+	static double rotorArmFlexTiltRadians(RotorSpec rotor, Vec3 nominalRotorArmBody, double armFlexIntensity) {
 		double flex = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
 		if (flex <= 1.0e-6 || horizontalRotorArmDirection(nominalRotorArmBody).lengthSquared() <= 1.0e-9) {
 			return 0.0;
@@ -4825,18 +4833,30 @@ public final class DronePhysics {
 				? 0.0
 				: torqueBody.subtract(previousTorque).length() / (torqueReference * dtSeconds);
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		double steadyLoad = smoothStep(0.22, 0.95, forceMagnitude / maxThrust);
-		double snapLoad = smoothStep(4.0, 45.0, forceSlew);
-		double torsionalSnap = smoothStep(1.5, 28.0, torqueSlew);
-		double target = MathUtil.clamp(
-				(0.16 * steadyLoad + 0.26 * snapLoad + 0.18 * torsionalSnap) * smoothStep(0.05, 0.35, spinRatio),
-				0.0,
-				1.0
-		);
+		double target = rotorArmFlexTargetIntensity(rotor, forceMagnitude, forceSlew, torqueSlew, omegaRadiansPerSecond);
 		double flex = integrateRotorArmFlexResonance(index, rotor, target, spinRatio, dtSeconds);
 		previousRotorForceBodyNewtons[index] = forceBody;
 		previousRotorTorqueBodyNewtonMeters[index] = torqueBody;
 		return flex;
+	}
+
+	static double rotorArmFlexTargetIntensity(
+			RotorSpec rotor,
+			double forceMagnitudeNewtons,
+			double normalizedForceSlewPerSecond,
+			double normalizedTorqueSlewPerSecond,
+			double omegaRadiansPerSecond
+	) {
+		double maxThrust = Math.max(1.0e-6, rotor.maxThrustNewtons());
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double steadyLoad = smoothStep(0.22, 0.95, forceMagnitudeNewtons / maxThrust);
+		double snapLoad = smoothStep(4.0, 45.0, normalizedForceSlewPerSecond);
+		double torsionalSnap = smoothStep(1.5, 28.0, normalizedTorqueSlewPerSecond);
+		return MathUtil.clamp(
+				(0.16 * steadyLoad + 0.26 * snapLoad + 0.18 * torsionalSnap) * smoothStep(0.05, 0.35, spinRatio),
+				0.0,
+				1.0
+		);
 	}
 
 	private double integrateRotorArmFlexResonance(
@@ -4851,16 +4871,9 @@ public final class DronePhysics {
 		}
 
 		Vec3 rotorArmBody = rotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
-		double armLength = Math.max(0.08, Math.hypot(rotorArmBody.x(), rotorArmBody.z()));
-		double lengthScale = MathUtil.clamp(Math.sqrt(0.24 / armLength), 0.70, 1.45);
-		double propScale = MathUtil.clamp(Math.sqrt(0.0635 / Math.max(0.025, rotor.radiusMeters())), 0.70, 1.35);
-		double centrifugalStiffening = 1.0 + 0.28 * MathUtil.clamp(spinRatio, 0.0, 1.0);
-		double naturalFrequencyHertz = ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ
-				* lengthScale
-				* propScale
-				* centrifugalStiffening;
+		double naturalFrequencyHertz = rotorArmFlexNaturalFrequencyHertz(rotor, rotorArmBody, spinRatio);
 		double angularFrequency = Math.PI * 2.0 * naturalFrequencyHertz;
-		double dampingRatio = ROTOR_ARM_FLEX_DAMPING_RATIO + 0.10 * MathUtil.clamp(spinRatio, 0.0, 1.0);
+		double dampingRatio = rotorArmFlexDampingRatio(spinRatio);
 		double flex = rotorArmFlexIntensity[index];
 		double velocity = rotorArmFlexVelocity[index];
 		int substeps = Math.max(1, (int) Math.ceil(dtSeconds / 0.0015));
@@ -4890,7 +4903,23 @@ public final class DronePhysics {
 		return rotorArmFlexIntensity[index];
 	}
 
-	private static double rotorArmFlexVibration(RotorSpec rotor, double omegaRadiansPerSecond, double armFlexIntensity) {
+	static double rotorArmFlexNaturalFrequencyHertz(RotorSpec rotor, Vec3 rotorArmBody, double spinRatio) {
+		Vec3 arm = rotorArmBody == null ? Vec3.ZERO : rotorArmBody;
+		double armLength = Math.max(0.08, Math.hypot(arm.x(), arm.z()));
+		double lengthScale = MathUtil.clamp(Math.sqrt(0.24 / armLength), 0.70, 1.45);
+		double propScale = MathUtil.clamp(Math.sqrt(0.0635 / Math.max(0.025, rotor.radiusMeters())), 0.70, 1.35);
+		double centrifugalStiffening = 1.0 + 0.28 * MathUtil.clamp(spinRatio, 0.0, 1.0);
+		return ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ
+				* lengthScale
+				* propScale
+				* centrifugalStiffening;
+	}
+
+	static double rotorArmFlexDampingRatio(double spinRatio) {
+		return ROTOR_ARM_FLEX_DAMPING_RATIO + 0.10 * MathUtil.clamp(spinRatio, 0.0, 1.0);
+	}
+
+	static double rotorArmFlexVibration(RotorSpec rotor, double omegaRadiansPerSecond, double armFlexIntensity) {
 		armFlexIntensity = MathUtil.clamp(armFlexIntensity, 0.0, 1.0);
 		if (armFlexIntensity <= 1.0e-6) {
 			return 0.0;
@@ -5277,7 +5306,7 @@ public final class DronePhysics {
 		return targetRotorInducedVelocityMetersPerSecond(rotor, nominalRotorThrust, 1.0);
 	}
 
-	private static double rotorDynamicInflowTimeConstantSeconds(
+	static double rotorDynamicInflowTimeConstantSeconds(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
