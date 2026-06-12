@@ -3690,6 +3690,44 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void propellerPowerScaleShapesMotorSpinupLoad() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorTimeConstantSeconds(0.035)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.8, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withRotorInertiaKgMetersSquared(1.6e-5);
+		DronePhysics staticProp = new DronePhysics(config);
+		DronePhysics unloadedProp = new DronePhysics(config);
+		DronePhysics highLoadProp = new DronePhysics(config);
+		preparePropellerPowerSpinupEstimate(staticProp, 0.38, 1.0);
+		preparePropellerPowerSpinupEstimate(unloadedProp, 0.38, 0.688);
+		preparePropellerPowerSpinupEstimate(highLoadProp, 0.38, 1.08);
+		DroneInput input = new DroneInput(0.72, 0.0, 0.0, 0.0, true);
+
+		staticProp.step(input, 0.005);
+		unloadedProp.step(input, 0.005);
+		highLoadProp.step(input, 0.005);
+
+		double maxOmega = config.rotors().get(0).maxOmegaRadiansPerSecond();
+		double staticTarget = staticProp.state().motorTargetOmegaRadiansPerSecond(0);
+		double unloadedTarget = unloadedProp.state().motorTargetOmegaRadiansPerSecond(0);
+		double highLoadTarget = highLoadProp.state().motorTargetOmegaRadiansPerSecond(0);
+		double staticOmega = staticProp.state().motorOmegaRadiansPerSecond(0);
+		double unloadedOmega = unloadedProp.state().motorOmegaRadiansPerSecond(0);
+		double highLoadOmega = highLoadProp.state().motorOmegaRadiansPerSecond(0);
+
+		assertTrue(unloadedTarget > staticTarget + maxOmega * 0.0035,
+				() -> "staticTarget=" + staticTarget + " unloadedTarget=" + unloadedTarget);
+		assertTrue(highLoadTarget < staticTarget - maxOmega * 0.0015,
+				() -> "staticTarget=" + staticTarget + " highLoadTarget=" + highLoadTarget);
+		assertTrue(unloadedOmega > staticOmega + maxOmega * 0.00004,
+				() -> "staticOmega=" + staticOmega + " unloadedOmega=" + unloadedOmega);
+		assertTrue(highLoadOmega < staticOmega - maxOmega * 0.00001,
+				() -> "staticOmega=" + staticOmega + " highLoadOmega=" + highLoadOmega);
+	}
+
+	@Test
 	void applyingBatteryPresetRecomputesVoltageFromStateOfCharge() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		for (int i = 0; i < 20; i++) {
@@ -8968,8 +9006,8 @@ class DronePhysicsTest {
 		DronePhysics verticalDescent = new DronePhysics(config);
 		DronePhysics crossflowEscape = new DronePhysics(config);
 		DroneInput fullThrottle = new DroneInput(1.0, 0.0, 0.0, 0.0, true);
-		double verticalThrustSum = 0.0;
-		double crossflowThrustSum = 0.0;
+		double verticalThrustRatioSum = 0.0;
+		double crossflowThrustRatioSum = 0.0;
 		int samples = 0;
 
 		for (int i = 0; i < 320; i++) {
@@ -8988,23 +9026,23 @@ class DronePhysicsTest {
 			crossflowEscape.step(fullThrottle, 0.005);
 
 			if (i >= 220) {
-				verticalThrustSum += verticalDescent.state().rotorThrustNewtons(0);
-				crossflowThrustSum += crossflowEscape.state().rotorThrustNewtons(0);
+				verticalThrustRatioSum += rotorEffectiveThrustRatio(verticalDescent, 0);
+				crossflowThrustRatioSum += rotorEffectiveThrustRatio(crossflowEscape, 0);
 				samples++;
 			}
 		}
 
-		double averageVerticalThrust = verticalThrustSum / samples;
-		double averageCrossflowThrust = crossflowThrustSum / samples;
-		double lossFraction = 1.0 - averageVerticalThrust / averageCrossflowThrust;
+		double averageVerticalThrustRatio = verticalThrustRatioSum / samples;
+		double averageCrossflowThrustRatio = crossflowThrustRatioSum / samples;
+		double lossFraction = 1.0 - averageVerticalThrustRatio / averageCrossflowThrustRatio;
 		assertTrue(verticalDescent.state().vortexRingStateIntensity() > 0.82,
 				() -> "vrs=" + verticalDescent.state().vortexRingStateIntensity());
 		assertTrue(crossflowEscape.state().vortexRingStateIntensity() < 0.05,
 				() -> "crossflowVrs=" + crossflowEscape.state().vortexRingStateIntensity());
 		assertTrue(lossFraction > 0.24 && lossFraction < 0.40,
 				() -> "lossFraction=" + lossFraction
-						+ " averageVerticalThrust=" + averageVerticalThrust
-						+ " averageCrossflowThrust=" + averageCrossflowThrust);
+						+ " averageVerticalThrustRatio=" + averageVerticalThrustRatio
+						+ " averageCrossflowThrustRatio=" + averageCrossflowThrustRatio);
 	}
 
 	@Test
@@ -10156,6 +10194,20 @@ class DronePhysicsTest {
 		physics.state().setRotorThrustNewtons(0, rotor.maxThrustNewtons() * thrustFraction);
 		physics.state().setRotorAerodynamicLoadFactor(0, aerodynamicLoadFactor);
 		physics.state().setRotorPropellerPowerScale(0, propellerPowerScale);
+	}
+
+	private static void preparePropellerPowerSpinupEstimate(
+			DronePhysics physics,
+			double rpmFraction,
+			double propellerPowerScale
+	) {
+		holdInStillAir(physics);
+		for (int i = 0; i < physics.state().motorCount(); i++) {
+			RotorSpec rotor = physics.config().rotors().get(i);
+			physics.state().setMotorOmegaRadiansPerSecond(i, rotor.maxOmegaRadiansPerSecond() * rpmFraction);
+			physics.state().setRotorAerodynamicLoadFactor(i, 1.0);
+			physics.state().setRotorPropellerPowerScale(i, propellerPowerScale);
+		}
 	}
 
 	private static DroneEnvironment environmentWithAmbientTemperature(double ambientTemperatureCelsius) {

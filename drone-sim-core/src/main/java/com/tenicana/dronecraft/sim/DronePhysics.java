@@ -935,6 +935,15 @@ public final class DronePhysics {
 			state.setEscOutputCommand(i, escOutput);
 			updateMotorWindingResistanceScale(i);
 			double surfaceScrape = state.rotorSurfaceScrapeIntensity(i);
+			double previousPropellerPowerLoadFactor = motorPropellerDynamicLoadFactor(i, state.rotorAerodynamicLoadFactor(i));
+			double previousTargetLoadFactor = previousPropellerPowerLoadFactor
+					+ 0.70 * surfaceScrape
+					+ rotorWaterLoad
+					+ rotorPrecipitationLoad;
+			double previousResponseLoadFactor = previousPropellerPowerLoadFactor
+					+ 0.85 * surfaceScrape
+					+ rotorWaterLoad
+					+ rotorPrecipitationLoad;
 			double powerLimitScale = Math.sqrt(state.batteryPowerLimit() * state.motorThermalLimit() * state.escThermalLimit() * state.rotorHealth(i));
 			double targetOmega = input.armed()
 					? rotor.maxOmegaRadiansPerSecond()
@@ -943,7 +952,7 @@ public final class DronePhysics {
 							* powerLimitScale
 							* motorWindingTorqueTargetScale(i, escOutput)
 							* motorBearingDragTargetScale(i, escOutput)
-							* motorLoadTargetScale(state.rotorAerodynamicLoadFactor(i) + 0.70 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad, escOutput)
+							* motorLoadTargetScale(previousTargetLoadFactor, escOutput)
 							* rotorSurfaceScrapeTargetScale(surfaceScrape)
 					: 0.0;
 			state.setMotorTargetOmegaRadiansPerSecond(i, targetOmega);
@@ -957,7 +966,7 @@ public final class DronePhysics {
 					escOutput,
 					voltageScale,
 					powerLimitScale,
-					state.rotorAerodynamicLoadFactor(i) + 0.85 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad
+					previousResponseLoadFactor
 			));
 			double commandedOmega = previousOmega + (targetOmega - previousOmega) * motorAlpha;
 			commandedOmega = electricallyLimitedMotorOmega(
@@ -967,7 +976,7 @@ public final class DronePhysics {
 					commandedOmega,
 					escOutput,
 					powerLimitScale,
-					state.rotorAerodynamicLoadFactor(i) + 0.85 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad,
+					previousResponseLoadFactor,
 					surfaceScrape,
 					dtSeconds
 			);
@@ -1044,7 +1053,7 @@ public final class DronePhysics {
 					commandedOmega,
 					escOutput,
 					commandedVoltageHeadroom,
-					state.rotorAerodynamicLoadFactor(i) + 0.85 * surfaceScrape + rotorWaterLoad + rotorPrecipitationLoad,
+					previousResponseLoadFactor,
 					desyncIntensity,
 					surfaceScrape,
 					state.rotorHealth(i),
@@ -7258,15 +7267,29 @@ public final class DronePhysics {
 	}
 
 	private double motorPropellerPowerLoadFactor(int index, double aerodynamicLoadFactor) {
+		return motorPropellerLoadFactor(index, aerodynamicLoadFactor, 0.45, 0.20);
+	}
+
+	private double motorPropellerDynamicLoadFactor(int index, double aerodynamicLoadFactor) {
+		return motorPropellerLoadFactor(index, aerodynamicLoadFactor, 0.28, 0.25);
+	}
+
+	private double motorPropellerLoadFactor(
+			int index,
+			double aerodynamicLoadFactor,
+			double propellerPowerWeight,
+			double minimumUnload
+	) {
 		double loadFactor = aerodynamicLoadFactor <= 1.0e-6
 				? 1.0
 				: MathUtil.clamp(aerodynamicLoadFactor, 0.35, 2.0);
 		double propellerPowerScale = state.rotorPropellerPowerScale(index) <= 1.0e-6
 				? 1.0
 				: MathUtil.clamp(state.rotorPropellerPowerScale(index), 0.16, 1.08);
-		double blendedLoad = 0.55 * loadFactor + 0.45 * propellerPowerScale;
+		double weight = MathUtil.clamp(propellerPowerWeight, 0.0, 1.0);
+		double blendedLoad = (1.0 - weight) * loadFactor + weight * propellerPowerScale;
 		if (propellerPowerScale < 1.0) {
-			return MathUtil.clamp(Math.min(loadFactor, blendedLoad), 0.20, 2.0);
+			return MathUtil.clamp(Math.min(loadFactor, blendedLoad), minimumUnload, 2.0);
 		}
 		return MathUtil.clamp(Math.max(loadFactor, blendedLoad), 0.35, 2.0);
 	}
