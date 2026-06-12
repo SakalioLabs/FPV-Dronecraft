@@ -1239,6 +1239,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 21.0, 1.0);
 		AirframeDragCalibration.LevelFlightRequirement uzhFpvVmax =
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
+		AirframeDragCalibration.RatmHighSpeedEnvelopeAudit ratmEnvelopeAudit =
+				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(preset);
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1393,6 +1395,35 @@ public final class OfflineFlightRecorder {
 				formatLevelFlightRequirement("AI-IO14", aiioManualHigh),
 				formatLevelFlightRequirement("RATM21", ratmHighSpeed),
 				formatLevelFlightRequirement("UZH26.8", uzhFpvVmax)
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"RATM high-speed audit: %s flights %d (%d auto/%d pilot) rows %d@%.0fHz >=%.0fm/s %d(%.1f%%) vmax %.2fm/s p99 %.2fm/s member %s req %.2f/%.2f/%.2fmax drag %.1f/%.1f/%.1f%%margin limit %.1fm/s speed/limit %.2f/%.2f kv %.2fx esc %.2fx radius %.2fx vbat_min %.1fV%n",
+				ratmEnvelopeAudit.sourceId(),
+				ratmEnvelopeAudit.totalFlightCount(),
+				ratmEnvelopeAudit.autonomousFlightCount(),
+				ratmEnvelopeAudit.pilotedFlightCount(),
+				ratmEnvelopeAudit.totalSampleRowCount(),
+				ratmEnvelopeAudit.sampleRateHertz(),
+				ratmEnvelopeAudit.readmeSpeedFloorMetersPerSecond(),
+				ratmEnvelopeAudit.flightCountAtOrAboveReadmeFloor(),
+				ratmEnvelopeAudit.flightFractionAtOrAboveReadmeFloor() * 100.0,
+				ratmEnvelopeAudit.fastestSpeedMetersPerSecond(),
+				ratmEnvelopeAudit.fastestP99SpeedMetersPerSecond(),
+				ratmEnvelopeAudit.fastestMemberPath(),
+				ratmEnvelopeAudit.readmeFloorRequirement().requiredMaxThrustFraction(),
+				ratmEnvelopeAudit.fastestRequirement().requiredMaxThrustFraction(),
+				ratmEnvelopeAudit.p99Requirement().requiredMaxThrustFraction(),
+				ratmEnvelopeAudit.readmeFloorRequirement().dragToHorizontalMarginRatio() * 100.0,
+				ratmEnvelopeAudit.fastestRequirement().dragToHorizontalMarginRatio() * 100.0,
+				ratmEnvelopeAudit.p99Requirement().dragToHorizontalMarginRatio() * 100.0,
+				ratmEnvelopeAudit.slowestHorizontalDragLimitedLevelSpeedMetersPerSecond(),
+				ratmEnvelopeAudit.fastestSpeedOverDragLimitedLevelSpeed(),
+				ratmEnvelopeAudit.p99SpeedOverDragLimitedLevelSpeed(),
+				ratmEnvelopeAudit.configuredMaxRpmOverRatmKvAtNominalVoltage(),
+				ratmEnvelopeAudit.configuredPerMotorCurrentOverRatmEscCurrent(),
+				ratmEnvelopeAudit.configuredRotorRadiusOverRatmPropRadius(),
+				ratmEnvelopeAudit.minimumBatteryVoltageAcrossGroup()
 		);
 		System.out.printf(
 				Locale.ROOT,

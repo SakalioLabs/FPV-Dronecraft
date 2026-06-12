@@ -2,7 +2,30 @@ package com.tenicana.dronecraft.sim;
 
 public final class AirframeDragCalibration {
 	private static final double EPSILON = 1.0e-12;
+	private static final double RADIANS_PER_SECOND_TO_RPM = 60.0 / (2.0 * Math.PI);
 	public static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
+	public static final String RATM_HIGH_SPEED_SOURCE_ID = "RATM-500Hz-Speed-Envelope";
+	public static final int RATM_HIGH_SPEED_TOTAL_FLIGHT_COUNT = 36;
+	public static final int RATM_HIGH_SPEED_AUTONOMOUS_FLIGHT_COUNT = 18;
+	public static final int RATM_HIGH_SPEED_PILOTED_FLIGHT_COUNT = 18;
+	public static final int RATM_HIGH_SPEED_TOTAL_SAMPLE_ROW_COUNT = 996_104;
+	public static final double RATM_HIGH_SPEED_SAMPLE_RATE_HERTZ = 500.0;
+	public static final double RATM_README_SPEED_FLOOR_METERS_PER_SECOND = 21.0;
+	public static final double RATM_FASTEST_SPEED_METERS_PER_SECOND = 21.8533357096;
+	public static final double RATM_P99_MAX_SPEED_METERS_PER_SECOND = 21.2591123637;
+	public static final int RATM_FLIGHT_COUNT_AT_OR_ABOVE_README_FLOOR = 13;
+	public static final double RATM_FLIGHT_FRACTION_AT_OR_ABOVE_README_FLOOR = 0.361111111111;
+	public static final String RATM_FASTEST_MEMBER_PATH =
+			"autonomous/flight-04a-ellipse/flight-04a-ellipse_500hz_freq_sync.csv";
+	public static final double RATM_AUTONOMOUS_FASTEST_SPEED_METERS_PER_SECOND = 21.8533357096;
+	public static final double RATM_PILOTED_FASTEST_SPEED_METERS_PER_SECOND = 21.2937177831;
+	public static final double RATM_MINIMUM_BATTERY_VOLTAGE_ACROSS_GROUP = 20.5;
+	public static final double RATM_MOTOR_KV_RPM_PER_VOLT = 2020.0;
+	public static final double RATM_ESC_CURRENT_AMPS = 55.0;
+	public static final double RATM_BATTERY_NOMINAL_VOLTAGE = 22.2;
+	public static final double RATM_BATTERY_CAPACITY_AMP_HOURS = 1.4;
+	public static final double RATM_BATTERY_LISTED_PACK_CURRENT_AMPS = 210.0;
+	public static final double RATM_PROP_RADIUS_METERS = 0.0648;
 	private static final double IMAV_2022_BASE_DRAG_NEWTON_SECONDS_PER_METER = 0.105;
 	private static final double IMAV_2022_MASS_DRAG_NEWTON_SECONDS_PER_METER_PER_KG = 0.087;
 
@@ -74,6 +97,43 @@ public final class AirframeDragCalibration {
 					? Double.POSITIVE_INFINITY
 					: baseDragForceNewtons / horizontalThrustMarginNewtons;
 		}
+	}
+
+	public record RatmHighSpeedEnvelopeAudit(
+			String sourceId,
+			int totalFlightCount,
+			int autonomousFlightCount,
+			int pilotedFlightCount,
+			int totalSampleRowCount,
+			double sampleRateHertz,
+			double readmeSpeedFloorMetersPerSecond,
+			double fastestSpeedMetersPerSecond,
+			double fastestP99SpeedMetersPerSecond,
+			int flightCountAtOrAboveReadmeFloor,
+			double flightFractionAtOrAboveReadmeFloor,
+			String fastestMemberPath,
+			double autonomousFastestSpeedMetersPerSecond,
+			double pilotedFastestSpeedMetersPerSecond,
+			double minimumBatteryVoltageAcrossGroup,
+			double motorKvRpmPerVolt,
+			double escCurrentAmps,
+			double batteryNominalVoltage,
+			double batteryCapacityAmpHours,
+			double batteryListedPackCurrentAmps,
+			double propRadiusMeters,
+			double configuredAverageMaxRotorRpm,
+			double configuredPerMotorPackCurrentAmps,
+			double configuredAverageRotorRadiusMeters,
+			LevelFlightRequirement readmeFloorRequirement,
+			LevelFlightRequirement fastestRequirement,
+			LevelFlightRequirement p99Requirement,
+			double slowestHorizontalDragLimitedLevelSpeedMetersPerSecond,
+			double fastestSpeedOverDragLimitedLevelSpeed,
+			double p99SpeedOverDragLimitedLevelSpeed,
+			double configuredMaxRpmOverRatmKvAtNominalVoltage,
+			double configuredPerMotorCurrentOverRatmEscCurrent,
+			double configuredRotorRadiusOverRatmPropRadius
+	) {
 	}
 
 	public static Coastdown coastdown(DroneConfig config, Axis axis, double startSpeedMetersPerSecond, double endSpeedMetersPerSecond) {
@@ -269,6 +329,73 @@ public final class AirframeDragCalibration {
 				: lateral;
 	}
 
+	public static RatmHighSpeedEnvelopeAudit ratmHighSpeedEnvelopeAudit(DroneConfig config) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+
+		LevelFlightRequirement readmeFloorRequirement = worstHorizontalLevelFlightRequirement(
+				config,
+				RATM_README_SPEED_FLOOR_METERS_PER_SECOND,
+				1.0
+		);
+		LevelFlightRequirement fastestRequirement = worstHorizontalLevelFlightRequirement(
+				config,
+				RATM_FASTEST_SPEED_METERS_PER_SECOND,
+				1.0
+		);
+		LevelFlightRequirement p99Requirement = worstHorizontalLevelFlightRequirement(
+				config,
+				RATM_P99_MAX_SPEED_METERS_PER_SECOND,
+				1.0
+		);
+		double slowestHorizontalDragLimitedLevelSpeed = Math.min(
+				dragLimitedLevelSpeedMetersPerSecond(config, Axis.X, 1.0),
+				dragLimitedLevelSpeedMetersPerSecond(config, Axis.Z, 1.0)
+		);
+		double configuredAverageMaxRotorRpm = averageMaxRotorRpm(config);
+		double configuredPerMotorPackCurrentAmps = config.rotors().isEmpty()
+				? 0.0
+				: Math.max(0.0, config.maxBatteryCurrentAmps()) / config.rotors().size();
+		double configuredAverageRotorRadiusMeters = averageRotorRadiusMeters(config);
+
+		return new RatmHighSpeedEnvelopeAudit(
+				RATM_HIGH_SPEED_SOURCE_ID,
+				RATM_HIGH_SPEED_TOTAL_FLIGHT_COUNT,
+				RATM_HIGH_SPEED_AUTONOMOUS_FLIGHT_COUNT,
+				RATM_HIGH_SPEED_PILOTED_FLIGHT_COUNT,
+				RATM_HIGH_SPEED_TOTAL_SAMPLE_ROW_COUNT,
+				RATM_HIGH_SPEED_SAMPLE_RATE_HERTZ,
+				RATM_README_SPEED_FLOOR_METERS_PER_SECOND,
+				RATM_FASTEST_SPEED_METERS_PER_SECOND,
+				RATM_P99_MAX_SPEED_METERS_PER_SECOND,
+				RATM_FLIGHT_COUNT_AT_OR_ABOVE_README_FLOOR,
+				RATM_FLIGHT_FRACTION_AT_OR_ABOVE_README_FLOOR,
+				RATM_FASTEST_MEMBER_PATH,
+				RATM_AUTONOMOUS_FASTEST_SPEED_METERS_PER_SECOND,
+				RATM_PILOTED_FASTEST_SPEED_METERS_PER_SECOND,
+				RATM_MINIMUM_BATTERY_VOLTAGE_ACROSS_GROUP,
+				RATM_MOTOR_KV_RPM_PER_VOLT,
+				RATM_ESC_CURRENT_AMPS,
+				RATM_BATTERY_NOMINAL_VOLTAGE,
+				RATM_BATTERY_CAPACITY_AMP_HOURS,
+				RATM_BATTERY_LISTED_PACK_CURRENT_AMPS,
+				RATM_PROP_RADIUS_METERS,
+				configuredAverageMaxRotorRpm,
+				configuredPerMotorPackCurrentAmps,
+				configuredAverageRotorRadiusMeters,
+				readmeFloorRequirement,
+				fastestRequirement,
+				p99Requirement,
+				slowestHorizontalDragLimitedLevelSpeed,
+				ratio(RATM_FASTEST_SPEED_METERS_PER_SECOND, slowestHorizontalDragLimitedLevelSpeed),
+				ratio(RATM_P99_MAX_SPEED_METERS_PER_SECOND, slowestHorizontalDragLimitedLevelSpeed),
+				ratio(configuredAverageMaxRotorRpm, RATM_MOTOR_KV_RPM_PER_VOLT * RATM_BATTERY_NOMINAL_VOLTAGE),
+				ratio(configuredPerMotorPackCurrentAmps, RATM_ESC_CURRENT_AMPS),
+				ratio(configuredAverageRotorRadiusMeters, RATM_PROP_RADIUS_METERS)
+		);
+	}
+
 	public static double dragLimitedLevelSpeedMetersPerSecond(
 			DroneConfig config,
 			Axis axis,
@@ -369,6 +496,37 @@ public final class AirframeDragCalibration {
 
 	private static double normalizedAirDensityRatio(double airDensityRatio) {
 		return Double.isFinite(airDensityRatio) ? MathUtil.clamp(airDensityRatio, 0.0, 2.0) : 1.0;
+	}
+
+	private static double averageMaxRotorRpm(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.maxOmegaRadiansPerSecond() * RADIANS_PER_SECOND_TO_RPM;
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageRotorRadiusMeters(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.radiusMeters();
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= EPSILON) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 
 	private static double coastdownTimeSeconds(
