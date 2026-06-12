@@ -322,7 +322,20 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_battery_effective_resistance_ohm",
 			"max_battery_soc_resistance_scale",
 			"max_battery_temp_resistance_scale",
-			"max_battery_polarization_resistance_scale"
+			"max_battery_polarization_resistance_scale",
+			"max_vortex_ring_thrust_buffet",
+			"max_vortex_ring_buffet_force_n",
+			"max_rotor_induced_velocity_mps",
+			"max_rotor_inflow_lag_loss_percent",
+			"max_rotor_dynamic_inflow_tau_s",
+			"max_rotor_translational_lift",
+			"max_rotor_propeller_advance_ratio_j",
+			"max_rotor_propeller_thrust_loss_percent",
+			"max_rotor_propeller_power_loss_percent",
+			"max_rotor_reverse_flow",
+			"max_rotor_low_reynolds_loss",
+			"max_rotor_blade_pass_ripple",
+			"max_rotor_wet_thrust_loss_percent"
 	].findAll { !report.containsKey(it) }
 	if (!missingReportFields.isEmpty()) {
 		throw new GradleException("FPV Dronecraft server self-test JSON is missing fields ${missingReportFields}: ${reportFile}")
@@ -332,6 +345,23 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_battery_temp_resistance_scale ?: 0.0) < 1.0
 			|| (report.max_battery_polarization_resistance_scale ?: 0.0) < 1.0) {
 		throw new GradleException("FPV Dronecraft server self-test did not report valid battery resistance split telemetry.")
+	}
+	if ((report.max_rotor_induced_velocity_mps ?: 0.0) <= 0.01
+			|| (report.max_rotor_dynamic_inflow_tau_s ?: 0.0) <= 0.0
+			|| (report.max_rotor_propeller_advance_ratio_j ?: 0.0) <= 0.0) {
+		throw new GradleException("FPV Dronecraft server self-test did not report active rotor inflow/advance telemetry.")
+	}
+	if ((report.max_vortex_ring_thrust_buffet ?: -1.0) < 0.0
+			|| (report.max_vortex_ring_buffet_force_n ?: -1.0) < 0.0
+			|| (report.max_rotor_inflow_lag_loss_percent ?: -1.0) < 0.0
+			|| (report.max_rotor_translational_lift ?: -1.0) < 0.0
+			|| (report.max_rotor_propeller_thrust_loss_percent ?: -1.0) < 0.0
+			|| (report.max_rotor_propeller_power_loss_percent ?: -1.0) < 0.0
+			|| (report.max_rotor_reverse_flow ?: -1.0) < 0.0
+			|| (report.max_rotor_low_reynolds_loss ?: -1.0) < 0.0
+			|| (report.max_rotor_blade_pass_ripple ?: -1.0) < 0.0
+			|| (report.max_rotor_wet_thrust_loss_percent ?: -1.0) < 0.0) {
+		throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges.")
 	}
 
 	logger.lifecycle("FPV Dronecraft server self-test report validated: ${reportFile}")

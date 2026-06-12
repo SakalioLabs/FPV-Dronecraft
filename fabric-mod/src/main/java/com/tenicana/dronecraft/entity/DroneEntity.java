@@ -2064,6 +2064,10 @@ public class DroneEntity extends PathfinderMob {
 		return entityData.get(ROTOR_INDUCED_LAG_THRUST_SCALE);
 	}
 
+	public float getRotorDynamicInflowTimeConstantSeconds() {
+		return (float) physics.state().maxRotorDynamicInflowTimeConstantSeconds();
+	}
+
 	public float getRotorWakeInterferenceIntensity() {
 		return entityData.get(ROTOR_WAKE_INTERFERENCE);
 	}

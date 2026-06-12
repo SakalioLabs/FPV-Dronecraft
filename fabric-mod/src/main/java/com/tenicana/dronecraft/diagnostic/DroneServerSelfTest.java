@@ -60,14 +60,27 @@ public final class DroneServerSelfTest {
 	private double maxMotorWindingResistanceScale = 1.0;
 	private double maxPropwash;
 	private double maxVortexRingState;
+	private double maxVortexRingThrustBuffet;
+	private double maxVortexRingBuffetForce;
+	private double maxRotorInducedVelocity;
+	private double minRotorInducedLagThrustScale = 1.0;
+	private double maxRotorDynamicInflowTimeConstant;
+	private double maxRotorTranslationalLift;
 	private double maxRotorAdvanceRatio;
+	private double maxRotorPropellerAdvanceRatioJ;
+	private double minRotorPropellerThrustScale = 1.0;
+	private double minRotorPropellerPowerScale = 1.0;
+	private double maxRotorReverseFlow;
 	private double minRotorCompressibilityThrustScale = 1.0;
+	private double maxRotorLowReynoldsLoss;
+	private double maxRotorBladePassRipple;
 	private double maxRotorStall;
 	private double maxRotorVibration;
 	private double maxRotorConing;
 	private double maxRotorWakeInterference;
 	private double maxRotorInPlaneDragForce;
 	private double maxRotorCoaxialLoadBias;
+	private double minRotorWetThrustScale = 1.0;
 	private double maxRotorWakeSwirlVelocity;
 	private double maxRotorWindmilling;
 	private double maxRotorWakeSwirlTorque;
@@ -151,14 +164,27 @@ public final class DroneServerSelfTest {
 		maxMotorWindingResistanceScale = Math.max(maxMotorWindingResistanceScale, drone.getMotorWindingResistanceScale());
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
 		maxVortexRingState = Math.max(maxVortexRingState, drone.getVortexRingStateIntensity());
+		maxVortexRingThrustBuffet = Math.max(maxVortexRingThrustBuffet, drone.getVortexRingThrustBuffetAmplitude());
+		maxVortexRingBuffetForce = Math.max(maxVortexRingBuffetForce, drone.getVortexRingBuffetForceNewtons());
+		maxRotorInducedVelocity = Math.max(maxRotorInducedVelocity, drone.getRotorInducedVelocityMetersPerSecond());
+		minRotorInducedLagThrustScale = Math.min(minRotorInducedLagThrustScale, drone.getRotorInducedLagThrustScale());
+		maxRotorDynamicInflowTimeConstant = Math.max(maxRotorDynamicInflowTimeConstant, drone.getRotorDynamicInflowTimeConstantSeconds());
+		maxRotorTranslationalLift = Math.max(maxRotorTranslationalLift, drone.getRotorTranslationalLiftIntensity());
 		maxRotorAdvanceRatio = Math.max(maxRotorAdvanceRatio, drone.getRotorAdvanceRatio());
+		maxRotorPropellerAdvanceRatioJ = Math.max(maxRotorPropellerAdvanceRatioJ, drone.getRotorPropellerAdvanceRatioJ());
+		minRotorPropellerThrustScale = Math.min(minRotorPropellerThrustScale, drone.getRotorPropellerThrustScale());
+		minRotorPropellerPowerScale = Math.min(minRotorPropellerPowerScale, drone.getRotorPropellerPowerScale());
+		maxRotorReverseFlow = Math.max(maxRotorReverseFlow, drone.getRotorReverseFlowInboardFraction());
 		minRotorCompressibilityThrustScale = Math.min(minRotorCompressibilityThrustScale, drone.getRotorCompressibilityThrustScale());
+		maxRotorLowReynoldsLoss = Math.max(maxRotorLowReynoldsLoss, drone.getRotorLowReynoldsLoss());
+		maxRotorBladePassRipple = Math.max(maxRotorBladePassRipple, drone.getRotorBladePassRippleIntensity());
 		maxRotorStall = Math.max(maxRotorStall, drone.getRotorStallIntensity());
 		maxRotorVibration = Math.max(maxRotorVibration, drone.getRotorVibration());
 		maxRotorConing = Math.max(maxRotorConing, drone.getRotorConingIntensity());
 		maxRotorWakeInterference = Math.max(maxRotorWakeInterference, drone.getRotorWakeInterferenceIntensity());
 		maxRotorInPlaneDragForce = Math.max(maxRotorInPlaneDragForce, drone.getRotorInPlaneDragForceNewtons());
 		maxRotorCoaxialLoadBias = Math.max(maxRotorCoaxialLoadBias, drone.getRotorCoaxialLoadBias());
+		minRotorWetThrustScale = Math.min(minRotorWetThrustScale, drone.getRotorWetThrustScale());
 		maxRotorWakeSwirlVelocity = Math.max(maxRotorWakeSwirlVelocity, drone.getRotorWakeSwirlVelocityMetersPerSecond());
 		maxRotorWindmilling = Math.max(maxRotorWindmilling, drone.getRotorWindmillingIntensity());
 		maxRotorWakeSwirlTorque = Math.max(maxRotorWakeSwirlTorque, drone.getRotorWakeSwirlTorqueNewtonMeters());
@@ -683,14 +709,27 @@ public final class DroneServerSelfTest {
 						+ "  \"max_motor_winding_resistance_scale\": %.5f,\n"
 						+ "  \"max_propwash\": %.5f,\n"
 						+ "  \"max_vortex_ring_state\": %.5f,\n"
+						+ "  \"max_vortex_ring_thrust_buffet\": %.5f,\n"
+						+ "  \"max_vortex_ring_buffet_force_n\": %.5f,\n"
+						+ "  \"max_rotor_induced_velocity_mps\": %.5f,\n"
+						+ "  \"max_rotor_inflow_lag_loss_percent\": %.3f,\n"
+						+ "  \"max_rotor_dynamic_inflow_tau_s\": %.5f,\n"
+						+ "  \"max_rotor_translational_lift\": %.5f,\n"
 						+ "  \"max_rotor_advance_ratio\": %.5f,\n"
+						+ "  \"max_rotor_propeller_advance_ratio_j\": %.5f,\n"
+						+ "  \"max_rotor_propeller_thrust_loss_percent\": %.3f,\n"
+						+ "  \"max_rotor_propeller_power_loss_percent\": %.3f,\n"
+						+ "  \"max_rotor_reverse_flow\": %.5f,\n"
 						+ "  \"max_rotor_compressibility_loss_percent\": %.3f,\n"
+						+ "  \"max_rotor_low_reynolds_loss\": %.5f,\n"
+						+ "  \"max_rotor_blade_pass_ripple\": %.5f,\n"
 						+ "  \"max_rotor_stall\": %.5f,\n"
 						+ "  \"max_rotor_vibration\": %.5f,\n"
 						+ "  \"max_rotor_coning\": %.5f,\n"
 						+ "  \"max_rotor_wake_interference\": %.5f,\n"
 						+ "  \"max_rotor_in_plane_drag_force_n\": %.5f,\n"
 						+ "  \"max_rotor_coaxial_load_bias\": %.5f,\n"
+						+ "  \"max_rotor_wet_thrust_loss_percent\": %.3f,\n"
 						+ "  \"max_rotor_wake_swirl_mps\": %.5f,\n"
 						+ "  \"max_rotor_windmilling\": %.5f,\n"
 						+ "  \"max_rotor_wake_swirl_torque_nm\": %.6f,\n"
@@ -731,14 +770,27 @@ public final class DroneServerSelfTest {
 				maxMotorWindingResistanceScale,
 				maxPropwash,
 				maxVortexRingState,
+				maxVortexRingThrustBuffet,
+				maxVortexRingBuffetForce,
+				maxRotorInducedVelocity,
+				(1.0 - minRotorInducedLagThrustScale) * 100.0,
+				maxRotorDynamicInflowTimeConstant,
+				maxRotorTranslationalLift,
 				maxRotorAdvanceRatio,
+				maxRotorPropellerAdvanceRatioJ,
+				(1.0 - minRotorPropellerThrustScale) * 100.0,
+				(1.0 - minRotorPropellerPowerScale) * 100.0,
+				maxRotorReverseFlow,
 				(1.0 - minRotorCompressibilityThrustScale) * 100.0,
+				maxRotorLowReynoldsLoss,
+				maxRotorBladePassRipple,
 				maxRotorStall,
 				maxRotorVibration,
 				maxRotorConing,
 				maxRotorWakeInterference,
 				maxRotorInPlaneDragForce,
 				maxRotorCoaxialLoadBias,
+				(1.0 - minRotorWetThrustScale) * 100.0,
 				maxRotorWakeSwirlVelocity,
 				maxRotorWindmilling,
 				maxRotorWakeSwirlTorque,
