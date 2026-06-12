@@ -1057,6 +1057,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 21.0, 1.0);
 		AirframeDragCalibration.LevelFlightRequirement uzhFpvVmax =
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
+		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
+				MotorBenchCurrentModel.tytoX3nmStaticPowertrainAudit(preset);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
@@ -1186,6 +1188,22 @@ public final class OfflineFlightRecorder {
 				formatLevelFlightRequirement("AI-IO14", aiioManualHigh),
 				formatLevelFlightRequirement("RATM21", ratmHighSpeed),
 				formatLevelFlightRequirement("UZH26.8", uzhFpvVmax)
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Tyto x3nm static-powertrain audit: max_thrust %.2fN/%.2fN ratio %.2f, k %.3e/%.3e ratio %.2f, rpm %.0f tyto_eq %.0f tyto_ref %.0f, ref_current %.1fA@%.1fV fit_r2 %.4f%n",
+				tytoAudit.configuredMaxRotorThrustNewtons(),
+				tytoAudit.referenceMaxThrustNewtons(),
+				tytoAudit.configuredMaxThrustOverReference(),
+				tytoAudit.configuredThrustCoefficient(),
+				tytoAudit.referenceThrustCoefficient(),
+				tytoAudit.configuredThrustCoefficientOverReference(),
+				tytoAudit.configuredMaxRpm(),
+				tytoAudit.referenceEquivalentRpmForConfiguredMaxThrust(),
+				tytoAudit.referenceRpmAtMaxThrust(),
+				tytoAudit.referenceMaxCurrentAmps(),
+				tytoAudit.referenceVoltageAtMaxThrust(),
+				tytoAudit.referenceFitR2()
 		);
 		if ("apdrone".equals(presetName)) {
 			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);

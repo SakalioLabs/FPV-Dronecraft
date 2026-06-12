@@ -42,6 +42,27 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void tytoX3nmStaticPowertrainAuditMatchesCachedReference() {
+		MotorBenchCurrentModel.StaticPowertrainAudit audit =
+				MotorBenchCurrentModel.tytoX3nmStaticPowertrainAudit(DroneConfig.apDrone());
+
+		assertEquals("x3nm", audit.referenceId());
+		assertEquals(13.5, audit.configuredMaxRotorThrustNewtons(), 1.0e-12);
+		assertEquals(1.45e-6, audit.configuredThrustCoefficient(), 1.0e-18);
+		assertEquals(29137.63274949454, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(12.547278947987, audit.referenceMaxThrustNewtons(), 1.0e-12);
+		assertEquals(22.185563411713, audit.referenceMaxCurrentAmps(), 1.0e-12);
+		assertEquals(24.213822555542, audit.referenceVoltageAtMaxThrust(), 1.0e-12);
+		assertEquals(1.7996539842396274e-6, audit.referenceThrustCoefficient(), 1.0e-18);
+		assertEquals(0.9988870109198886, audit.referenceFitR2(), 1.0e-15);
+		assertEquals(7, audit.referenceFitPointCount());
+		assertEquals(25214.575008524822, audit.referenceRpmAtMaxThrust(), 1.0e-9);
+		assertEquals(26154.33969893502, audit.referenceEquivalentRpmForConfiguredMaxThrust(), 1.0e-9);
+		assertEquals(1.0759304910620362, audit.configuredMaxThrustOverReference(), 1.0e-15);
+		assertEquals(0.8057104380610366, audit.configuredThrustCoefficientOverReference(), 1.0e-15);
+	}
+
+	@Test
 	void mqtbHq5x4x3RotorSimilaritySelectsFiveInchTriBladeProps() {
 		assertEquals(
 				1.0,

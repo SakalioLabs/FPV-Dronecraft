@@ -8,8 +8,35 @@ public final class MotorBenchCurrentModel {
 	public static final double MQTB_HQ5X4X3_RADIUS_METERS = 0.0635;
 	public static final double MQTB_HQ5X4X3_PITCH_TO_DIAMETER_RATIO = 0.80;
 	public static final int MQTB_HQ5X4X3_BLADE_COUNT = 3;
+	public static final String TYTO_X3NM_SOURCE_ID = "x3nm";
+	public static final double TYTO_X3NM_MAX_THRUST_NEWTONS = 12.547278947987;
+	public static final double TYTO_X3NM_MAX_CURRENT_AMPS = 22.185563411713;
+	public static final double TYTO_X3NM_VOLTAGE_AT_MAX_THRUST = 24.213822555542;
+	public static final double TYTO_X3NM_FIT_THRUST_COEFFICIENT = 1.7996539842396274e-6;
+	public static final double TYTO_X3NM_FIT_R2 = 0.9988870109198886;
+	public static final int TYTO_X3NM_FIT_POINT_COUNT = 7;
+
+	private static final double RADIANS_PER_SECOND_TO_RPM = 60.0 / (2.0 * Math.PI);
 
 	private MotorBenchCurrentModel() {
+	}
+
+	public record StaticPowertrainAudit(
+			String referenceId,
+			double configuredMaxRotorThrustNewtons,
+			double configuredThrustCoefficient,
+			double configuredMaxRpm,
+			double referenceMaxThrustNewtons,
+			double referenceMaxCurrentAmps,
+			double referenceVoltageAtMaxThrust,
+			double referenceThrustCoefficient,
+			double referenceFitR2,
+			int referenceFitPointCount,
+			double referenceRpmAtMaxThrust,
+			double referenceEquivalentRpmForConfiguredMaxThrust,
+			double configuredMaxThrustOverReference,
+			double configuredThrustCoefficientOverReference
+	) {
 	}
 
 	public static double mqtbHq5x4x3CurrentAmpsForThrustNewtons(double thrustNewtons) {
@@ -76,11 +103,94 @@ public final class MotorBenchCurrentModel {
 		return MathUtil.clamp(radiusWeight * pitchWeight * bladeWeight, 0.0, 1.0);
 	}
 
+	public static StaticPowertrainAudit tytoX3nmStaticPowertrainAudit(DroneConfig config) {
+		double configuredMaxThrustNewtons = averageMaxRotorThrustNewtons(config);
+		double configuredThrustCoefficient = averageThrustCoefficient(config);
+		double configuredMaxRpm = averageMaxRotorRpm(config);
+		double referenceRpmAtMaxThrust = rpmForThrustAndCoefficient(
+				TYTO_X3NM_MAX_THRUST_NEWTONS,
+				TYTO_X3NM_FIT_THRUST_COEFFICIENT
+		);
+		double referenceEquivalentRpmForConfiguredMaxThrust = rpmForThrustAndCoefficient(
+				configuredMaxThrustNewtons,
+				TYTO_X3NM_FIT_THRUST_COEFFICIENT
+		);
+		return new StaticPowertrainAudit(
+				TYTO_X3NM_SOURCE_ID,
+				configuredMaxThrustNewtons,
+				configuredThrustCoefficient,
+				configuredMaxRpm,
+				TYTO_X3NM_MAX_THRUST_NEWTONS,
+				TYTO_X3NM_MAX_CURRENT_AMPS,
+				TYTO_X3NM_VOLTAGE_AT_MAX_THRUST,
+				TYTO_X3NM_FIT_THRUST_COEFFICIENT,
+				TYTO_X3NM_FIT_R2,
+				TYTO_X3NM_FIT_POINT_COUNT,
+				referenceRpmAtMaxThrust,
+				referenceEquivalentRpmForConfiguredMaxThrust,
+				ratio(configuredMaxThrustNewtons, TYTO_X3NM_MAX_THRUST_NEWTONS),
+				ratio(configuredThrustCoefficient, TYTO_X3NM_FIT_THRUST_COEFFICIENT)
+		);
+	}
+
 	private static double powerLaw(double thrustNewtons, double coefficient, double exponent) {
 		if (!Double.isFinite(thrustNewtons) || thrustNewtons <= 0.0) {
 			return 0.0;
 		}
 		return coefficient * Math.pow(thrustNewtons, exponent);
+	}
+
+	private static double averageMaxRotorThrustNewtons(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.maxThrustNewtons();
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageThrustCoefficient(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.thrustCoefficient();
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageMaxRotorRpm(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.maxOmegaRadiansPerSecond() * RADIANS_PER_SECOND_TO_RPM;
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double rpmForThrustAndCoefficient(double thrustNewtons, double thrustCoefficient) {
+		if (!Double.isFinite(thrustNewtons)
+				|| !Double.isFinite(thrustCoefficient)
+				|| thrustNewtons <= 0.0
+				|| thrustCoefficient <= 0.0) {
+			return 0.0;
+		}
+		return Math.sqrt(thrustNewtons / thrustCoefficient) * RADIANS_PER_SECOND_TO_RPM;
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= 1.0e-12) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 
 	private static double plateauWindow(double value, double center, double innerHalfWidth, double outerHalfWidth) {
