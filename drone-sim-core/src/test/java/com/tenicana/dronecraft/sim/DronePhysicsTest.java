@@ -10545,6 +10545,17 @@ class DronePhysicsTest {
 		assertTrue(autonomy[1].durationRatio() < 0.35);
 		assertTrue(autonomy[0].meanCurrentAmps() > autonomy[0].referenceMeanCurrentAmps());
 		assertTrue(autonomy[1].meanCurrentAmps() > autonomy[1].referenceMeanCurrentAmps());
+		assertTrue(autonomy[0].currentMatchedDirectThrottleCommand() > 0.0);
+		assertTrue(autonomy[0].currentMatchedDirectThrottleCommand() < autonomy[0].throttleCommand());
+		assertTrue(autonomy[1].currentMatchedDirectThrottleCommand() > 0.0);
+		assertTrue(autonomy[1].currentMatchedDirectThrottleCommand() < autonomy[1].throttleCommand() * 0.5);
+		assertTrue(autonomy[0].currentMatchedMeanCurrentRatio() > 0.85);
+		assertTrue(autonomy[0].currentMatchedMeanCurrentRatio() < 1.15);
+		assertTrue(autonomy[1].currentMatchedMeanCurrentRatio() > 0.85);
+		assertTrue(autonomy[1].currentMatchedMeanCurrentRatio() < 1.15);
+		assertTrue(autonomy[1].referenceThrottleToCurrentMatchedDirectThrottleRatio() > 2.0);
+		assertTrue(autonomy[0].currentMatchedPeakCurrentAmps() >= autonomy[0].currentMatchedMeanCurrentAmps());
+		assertTrue(autonomy[1].currentMatchedPeakCurrentAmps() >= autonomy[1].currentMatchedMeanCurrentAmps());
 		assertTrue(autonomy[0].consumedAmpHours() > 1.0);
 		assertTrue(autonomy[0].consumedAmpHours() < 1.7);
 		assertTrue(autonomy[1].consumedAmpHours() > 1.0);

@@ -30,6 +30,9 @@ public final class OfflineFlightRecorder {
 	private static final double LIGHT_PROP_FAULT_DAMAGE = 0.10;
 	private static final double BATTERY_AUTONOMY_DT_SECONDS = 0.010;
 	private static final double BATTERY_AUTONOMY_MAX_SECONDS = 900.0;
+	private static final double BATTERY_AUTONOMY_CURRENT_MATCH_SECONDS = 8.0;
+	private static final double BATTERY_AUTONOMY_CURRENT_MATCH_WARMUP_SECONDS = 2.0;
+	private static final int BATTERY_AUTONOMY_CURRENT_MATCH_ITERATIONS = 16;
 	private static final double APDRONE_AUTONOMY_LOWER_VOLTAGE = 12.0;
 	private static final double APDRONE_AUTONOMY_UPPER_VOLTAGE = 18.0;
 	private static final double APDRONE_MAX_POWER_REFERENCE_SECONDS = 205.862266;
@@ -980,7 +983,10 @@ public final class OfflineFlightRecorder {
 			double meanCurrentAmps,
 			double peakCurrentAmps,
 			double consumedAmpHours,
-			double consumedWattHours
+			double consumedWattHours,
+			double currentMatchedDirectThrottleCommand,
+			double currentMatchedMeanCurrentAmps,
+			double currentMatchedPeakCurrentAmps
 	) {
 		public double durationRatio() {
 			return simulatedDurationSeconds / Math.max(1.0e-9, referenceDurationSeconds);
@@ -989,6 +995,21 @@ public final class OfflineFlightRecorder {
 		public double meanCurrentRatio() {
 			return meanCurrentAmps / Math.max(1.0e-9, referenceMeanCurrentAmps);
 		}
+
+		public double currentMatchedMeanCurrentRatio() {
+			return currentMatchedMeanCurrentAmps / Math.max(1.0e-9, referenceMeanCurrentAmps);
+		}
+
+		public double referenceThrottleToCurrentMatchedDirectThrottleRatio() {
+			return throttleCommand / Math.max(1.0e-9, currentMatchedDirectThrottleCommand);
+		}
+	}
+
+	private record StaticBatteryLoad(
+			double throttleCommand,
+			double meanCurrentAmps,
+			double peakCurrentAmps
+	) {
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -1170,7 +1191,7 @@ public final class OfflineFlightRecorder {
 			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);
 			System.out.printf(
 					Locale.ROOT,
-					"APDrone battery-autonomy audit: %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA; %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA%n",
+					"APDrone battery-autonomy audit: %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA equiv_direct %.3f match %.1fA log/direct %.1fx; %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA equiv_direct %.3f match %.1fA log/direct %.1fx%n",
 					autonomy[0].scenario(),
 					autonomy[0].simulatedDurationSeconds(),
 					autonomy[0].simulatedTimeInVoltageWindowSeconds(),
@@ -1179,6 +1200,9 @@ public final class OfflineFlightRecorder {
 					autonomy[0].meanCurrentAmps(),
 					autonomy[0].peakCurrentAmps(),
 					autonomy[0].referenceMeanCurrentAmps(),
+					autonomy[0].currentMatchedDirectThrottleCommand(),
+					autonomy[0].currentMatchedMeanCurrentAmps(),
+					autonomy[0].referenceThrottleToCurrentMatchedDirectThrottleRatio(),
 					autonomy[1].scenario(),
 					autonomy[1].simulatedDurationSeconds(),
 					autonomy[1].simulatedTimeInVoltageWindowSeconds(),
@@ -1186,7 +1210,10 @@ public final class OfflineFlightRecorder {
 					autonomy[1].durationRatio(),
 					autonomy[1].meanCurrentAmps(),
 					autonomy[1].peakCurrentAmps(),
-					autonomy[1].referenceMeanCurrentAmps()
+					autonomy[1].referenceMeanCurrentAmps(),
+					autonomy[1].currentMatchedDirectThrottleCommand(),
+					autonomy[1].currentMatchedMeanCurrentAmps(),
+					autonomy[1].referenceThrottleToCurrentMatchedDirectThrottleRatio()
 			);
 		}
 	}
@@ -1252,8 +1279,10 @@ public final class OfflineFlightRecorder {
 			double referenceMeanCurrentAmps,
 			double maxSeconds
 	) {
+		double clampedThrottleCommand = MathUtil.clamp(throttleCommand, 0.0, 1.0);
+		StaticBatteryLoad currentMatchedLoad = estimateStaticBatteryLoadForMeanCurrent(config, referenceMeanCurrentAmps);
 		DronePhysics physics = new DronePhysics(config);
-		DroneInput input = new DroneInput(MathUtil.clamp(throttleCommand, 0.0, 1.0), 0.0, 0.0, 0.0, true);
+		DroneInput input = new DroneInput(clampedThrottleCommand, 0.0, 0.0, 0.0, true);
 		DroneEnvironment environment = DroneEnvironment.calm();
 		int maxSteps = Math.max(1, (int) Math.round(Math.max(BATTERY_AUTONOMY_DT_SECONDS, maxSeconds) / BATTERY_AUTONOMY_DT_SECONDS));
 		double elapsedSeconds = 0.0;
@@ -1291,7 +1320,7 @@ public final class OfflineFlightRecorder {
 		double safeElapsed = Math.max(BATTERY_AUTONOMY_DT_SECONDS, elapsedSeconds);
 		return new BatteryAutonomyEstimate(
 				scenario,
-				MathUtil.clamp(throttleCommand, 0.0, 1.0),
+				clampedThrottleCommand,
 				lowerVoltageCutoff,
 				upperVoltageCutoff,
 				referenceDurationSeconds,
@@ -1304,8 +1333,84 @@ public final class OfflineFlightRecorder {
 				ampSeconds / safeElapsed,
 				peakCurrent,
 				ampSeconds / 3600.0,
-				wattSeconds / 3600.0
+				wattSeconds / 3600.0,
+				currentMatchedLoad.throttleCommand(),
+				currentMatchedLoad.meanCurrentAmps(),
+				currentMatchedLoad.peakCurrentAmps()
 		);
+	}
+
+	private static StaticBatteryLoad estimateStaticBatteryLoadForMeanCurrent(
+			DroneConfig config,
+			double targetMeanCurrentAmps
+	) {
+		StaticBatteryLoad low = sampleStaticBatteryLoad(config, 0.0);
+		StaticBatteryLoad high = sampleStaticBatteryLoad(config, 1.0);
+		StaticBatteryLoad best = closerToMeanCurrent(low, high, targetMeanCurrentAmps);
+		if (!Double.isFinite(targetMeanCurrentAmps) || targetMeanCurrentAmps <= low.meanCurrentAmps()) {
+			return low;
+		}
+		if (targetMeanCurrentAmps >= high.meanCurrentAmps()) {
+			return high;
+		}
+
+		double lowThrottle = low.throttleCommand();
+		double highThrottle = high.throttleCommand();
+		for (int i = 0; i < BATTERY_AUTONOMY_CURRENT_MATCH_ITERATIONS; i++) {
+			double midThrottle = (lowThrottle + highThrottle) * 0.5;
+			StaticBatteryLoad mid = sampleStaticBatteryLoad(config, midThrottle);
+			best = closerToMeanCurrent(best, mid, targetMeanCurrentAmps);
+			if (mid.meanCurrentAmps() < targetMeanCurrentAmps) {
+				lowThrottle = midThrottle;
+			} else {
+				highThrottle = midThrottle;
+			}
+		}
+		return best;
+	}
+
+	private static StaticBatteryLoad closerToMeanCurrent(
+			StaticBatteryLoad first,
+			StaticBatteryLoad second,
+			double targetMeanCurrentAmps
+	) {
+		double firstError = Math.abs(first.meanCurrentAmps() - targetMeanCurrentAmps);
+		double secondError = Math.abs(second.meanCurrentAmps() - targetMeanCurrentAmps);
+		return secondError < firstError ? second : first;
+	}
+
+	private static StaticBatteryLoad sampleStaticBatteryLoad(DroneConfig config, double throttleCommand) {
+		double clampedThrottleCommand = MathUtil.clamp(throttleCommand, 0.0, 1.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput input = new DroneInput(clampedThrottleCommand, 0.0, 0.0, 0.0, true);
+		DroneEnvironment environment = DroneEnvironment.calm();
+		int maxSteps = Math.max(
+				1,
+				(int) Math.round(BATTERY_AUTONOMY_CURRENT_MATCH_SECONDS / BATTERY_AUTONOMY_DT_SECONDS)
+		);
+		double warmupSeconds = Math.min(
+				BATTERY_AUTONOMY_CURRENT_MATCH_WARMUP_SECONDS,
+				Math.max(0.0, BATTERY_AUTONOMY_CURRENT_MATCH_SECONDS - BATTERY_AUTONOMY_DT_SECONDS)
+		);
+		double ampSeconds = 0.0;
+		double sampledSeconds = 0.0;
+		double peakCurrent = 0.0;
+		double lastCurrent = 0.0;
+
+		for (int step = 0; step < maxSteps; step++) {
+			holdStaticAutonomyRig(physics.state());
+			physics.step(input, BATTERY_AUTONOMY_DT_SECONDS, environment);
+			double elapsedSeconds = (step + 1) * BATTERY_AUTONOMY_DT_SECONDS;
+			lastCurrent = physics.state().batteryCurrentAmps();
+			if (elapsedSeconds > warmupSeconds) {
+				ampSeconds += lastCurrent * BATTERY_AUTONOMY_DT_SECONDS;
+				sampledSeconds += BATTERY_AUTONOMY_DT_SECONDS;
+				peakCurrent = Math.max(peakCurrent, lastCurrent);
+			}
+		}
+
+		double meanCurrent = sampledSeconds > 0.0 ? ampSeconds / sampledSeconds : lastCurrent;
+		return new StaticBatteryLoad(clampedThrottleCommand, meanCurrent, peakCurrent);
 	}
 
 	private static void holdStaticAutonomyRig(DroneState state) {
