@@ -112,6 +112,7 @@ public final class DroneServerSelfTest {
 	private double maxRotorAccelerationReactionTorque;
 	private double maxRotorGyroscopicTorque;
 	private double maxRotorFlappingTorque;
+	private double maxGroundEffectLevelingTorque;
 	private double maxAirframeBodyDragForce;
 	private double maxLinearDampingDragForce;
 	private double maxAirframeDragAlongFlow;
@@ -250,6 +251,7 @@ public final class DroneServerSelfTest {
 		maxRotorAccelerationReactionTorque = Math.max(maxRotorAccelerationReactionTorque, drone.getRotorAccelerationReactionTorqueNewtonMeters());
 		maxRotorGyroscopicTorque = Math.max(maxRotorGyroscopicTorque, drone.getRotorGyroscopicTorqueNewtonMeters());
 		maxRotorFlappingTorque = Math.max(maxRotorFlappingTorque, drone.getRotorFlappingTorqueNewtonMeters());
+		maxGroundEffectLevelingTorque = Math.max(maxGroundEffectLevelingTorque, drone.getGroundEffectLevelingTorqueNewtonMeters());
 		maxAirframeBodyDragForce = Math.max(maxAirframeBodyDragForce, drone.getAirframeBodyDragForceNewtons());
 		maxLinearDampingDragForce = Math.max(maxLinearDampingDragForce, drone.getLinearDampingDragForceNewtons());
 		maxAirframeDragAlongFlow = Math.max(maxAirframeDragAlongFlow, drone.getAirframeDragAlongFlowNewtons());
@@ -884,6 +886,7 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_acceleration_reaction_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_gyroscopic_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_flapping_torque_nm\": %.6f,\n"
+						+ "  \"max_ground_effect_leveling_torque_nm\": %.6f,\n"
 						+ "  \"max_airframe_body_drag_n\": %.5f,\n"
 						+ "  \"max_linear_damping_drag_n\": %.5f,\n"
 						+ "  \"max_airframe_drag_along_flow_n\": %.5f,\n"
@@ -972,6 +975,7 @@ public final class DroneServerSelfTest {
 				maxRotorAccelerationReactionTorque,
 				maxRotorGyroscopicTorque,
 				maxRotorFlappingTorque,
+				maxGroundEffectLevelingTorque,
 				maxAirframeBodyDragForce,
 				maxLinearDampingDragForce,
 				maxAirframeDragAlongFlow,

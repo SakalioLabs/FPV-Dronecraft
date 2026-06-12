@@ -53,6 +53,7 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxRotorCoaxialAllocationCommandRatio", 1.33);
 		setDouble(selfTest, "maxRotorCoaxialAllocationMechanicalGainPercent", 4.41);
 		setDouble(selfTest, "maxRotorCoaxialAllocationElectricalGainPercent", 2.84);
+		setDouble(selfTest, "maxGroundEffectLevelingTorque", 0.03125);
 		setDouble(selfTest, "maxAirframeBodyDragForce", 0.65);
 		setDouble(selfTest, "maxLinearDampingDragForce", 1.85);
 		setDouble(selfTest, "maxAirframeDragAlongFlow", 2.42);
@@ -101,6 +102,7 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_rotor_coaxial_allocation_ratio\": 1.33000"));
 		assertTrue(json.contains("\"max_rotor_coaxial_allocation_mech_gain_pct\": 4.41000"));
 		assertTrue(json.contains("\"max_rotor_coaxial_allocation_elec_gain_pct\": 2.84000"));
+		assertTrue(json.contains("\"max_ground_effect_leveling_torque_nm\": 0.031250"));
 		assertTrue(json.contains("\"max_airframe_body_drag_n\": 0.65000"));
 		assertTrue(json.contains("\"max_linear_damping_drag_n\": 1.85000"));
 		assertTrue(json.contains("\"max_airframe_drag_along_flow_n\": 2.42000"));

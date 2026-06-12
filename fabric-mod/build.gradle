@@ -380,6 +380,7 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_rotor_coaxial_allocation_ratio",
 			"max_rotor_coaxial_allocation_mech_gain_pct",
 			"max_rotor_coaxial_allocation_elec_gain_pct",
+			"max_ground_effect_leveling_torque_nm",
 			"max_airframe_body_drag_n",
 			"max_linear_damping_drag_n",
 			"max_airframe_drag_along_flow_n",
@@ -444,6 +445,9 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_rotor_coaxial_allocation_mech_gain_pct ?: 0.0) <= 0.0
 			|| (report.max_rotor_coaxial_allocation_elec_gain_pct ?: 0.0) <= 0.0) {
 		throw new GradleException("FPV Dronecraft server self-test did not exercise coaxial X8 allocation telemetry.")
+	}
+	if ((report.max_ground_effect_leveling_torque_nm ?: -1.0) < 0.0) {
+		throw new GradleException("FPV Dronecraft server self-test reported an invalid ground-effect leveling torque range.")
 	}
 	if ((report.max_airframe_drag_along_flow_n ?: 0.0) <= 0.001
 			|| (report.max_airframe_drag_equivalent_linear_k ?: 0.0) <= 0.001
