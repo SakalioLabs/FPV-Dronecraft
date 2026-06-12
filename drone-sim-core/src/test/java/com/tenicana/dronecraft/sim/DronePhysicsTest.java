@@ -5892,6 +5892,30 @@ class DronePhysicsTest {
 				() -> "uzhTilt=" + uzhFpvVmax.requiredTiltDegrees());
 		assertTrue(uzhFpvVmax.dragToHorizontalMarginRatio() < 0.20,
 				() -> "uzhMarginRatio=" + uzhFpvVmax.dragToHorizontalMarginRatio());
+		double dragLimitedForwardSpeed = AirframeDragCalibration.dragLimitedLevelSpeedMetersPerSecond(
+				config,
+				AirframeDragCalibration.Axis.Z,
+				1.0
+		);
+		double denseAirDragLimitedForwardSpeed = AirframeDragCalibration.dragLimitedLevelSpeedMetersPerSecond(
+				config,
+				AirframeDragCalibration.Axis.Z,
+				2.0
+		);
+		DroneConfig noDrag = config.withLinearDragCoefficient(0.0).withBodyDragCoefficients(Vec3.ZERO);
+
+		assertTrue(dragLimitedForwardSpeed > 89.0 && dragLimitedForwardSpeed < 92.0,
+				() -> "dragLimitedForwardSpeed=" + dragLimitedForwardSpeed);
+		assertTrue(denseAirDragLimitedForwardSpeed < dragLimitedForwardSpeed);
+		assertEquals(
+				Double.POSITIVE_INFINITY,
+				AirframeDragCalibration.dragLimitedLevelSpeedMetersPerSecond(
+						noDrag,
+						AirframeDragCalibration.Axis.Z,
+						1.0
+				),
+				0.0
+		);
 	}
 
 	@Test
@@ -10529,6 +10553,8 @@ class DronePhysicsTest {
 				OfflineFlightRecorder.apDroneBatteryAutonomyEstimates(preset);
 		OfflineFlightRecorder.BatteryVoltageDropAudit voltageDrop =
 				OfflineFlightRecorder.apDroneBatteryVoltageDropAudit(preset);
+		OfflineFlightRecorder.ReferenceSpeedEnvelopeEstimate[] speedEnvelope =
+				OfflineFlightRecorder.apDroneOpenFieldSpeedEnvelopeAudit(preset);
 
 		assertEquals(4, preset.rotors().size());
 		assertTrue(Files.exists(output));
@@ -10601,6 +10627,27 @@ class DronePhysicsTest {
 		assertEquals(0.00586863899273207, voltageDrop.maxStartDropResistanceProxyOhms(), 1.0e-12);
 		assertEquals(0.6645872286927987, voltageDrop.normalConfiguredOverStartDropProxy(), 1.0e-12);
 		assertEquals(2.726356148302011, voltageDrop.maxConfiguredOverStartDropProxy(), 1.0e-12);
+		assertEquals(4, speedEnvelope.length);
+		assertEquals("selected_max", speedEnvelope[0].speedPoint());
+		assertEquals("open_field_mean_file_max", speedEnvelope[1].speedPoint());
+		assertEquals("open_field_flight2_p95", speedEnvelope[2].speedPoint());
+		assertEquals("open_field_fastest", speedEnvelope[3].speedPoint());
+		assertEquals(5.75, speedEnvelope[0].referenceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(11.072, speedEnvelope[1].referenceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(17.25, speedEnvelope[2].referenceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(18.72, speedEnvelope[3].referenceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(AirframeDragCalibration.Axis.Z, speedEnvelope[3].axis());
+		assertTrue(speedEnvelope[3].reachable());
+		assertEquals(3.43789056, speedEnvelope[3].baseDragForceNewtons(), 1.0e-9);
+		assertEquals(53.647214352662324, speedEnvelope[3].horizontalThrustMarginNewtons(), 1.0e-12);
+		assertTrue(speedEnvelope[3].residualHorizontalMarginNewtons() > 50.0);
+		assertTrue(speedEnvelope[3].dragOverHorizontalMargin() > 0.06);
+		assertTrue(speedEnvelope[3].dragOverHorizontalMargin() < 0.07);
+		assertTrue(speedEnvelope[3].requiredMaxThrustFraction() < 0.14);
+		assertTrue(speedEnvelope[3].dragLimitedLevelSpeedMetersPerSecond() > 108.0);
+		assertTrue(speedEnvelope[3].dragLimitedLevelSpeedMetersPerSecond() < 110.0);
+		assertTrue(speedEnvelope[3].speedOverDragLimitedLevelSpeed() > 0.16);
+		assertTrue(speedEnvelope[3].speedOverDragLimitedLevelSpeed() < 0.18);
 	}
 
 	@Test

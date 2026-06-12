@@ -47,6 +47,10 @@ public final class OfflineFlightRecorder {
 	private static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE = 0.5439609800526073;
 	private static final double APDRONE_NORMAL_POWER_REFERENCE_START_VOLTAGE = 16.576;
 	private static final double APDRONE_NORMAL_POWER_REFERENCE_MEAN_VOLTAGE = 14.701756347346997;
+	private static final double APDRONE_SELECTED_FLIGHT_REFERENCE_MAX_SPEED_METERS_PER_SECOND = 5.75;
+	private static final double APDRONE_OPEN_FIELD_MEAN_FILE_MAX_SPEED_METERS_PER_SECOND = 11.072;
+	private static final double APDRONE_OPEN_FIELD_FLIGHT_2_P95_SPEED_METERS_PER_SECOND = 17.25;
+	private static final double APDRONE_OPEN_FIELD_FASTEST_SPEED_METERS_PER_SECOND = 18.72;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -1053,6 +1057,22 @@ public final class OfflineFlightRecorder {
 		}
 	}
 
+	public record ReferenceSpeedEnvelopeEstimate(
+			String speedPoint,
+			double referenceSpeedMetersPerSecond,
+			AirframeDragCalibration.Axis axis,
+			double dragLimitedLevelSpeedMetersPerSecond,
+			double speedOverDragLimitedLevelSpeed,
+			double baseDragForceNewtons,
+			double horizontalThrustMarginNewtons,
+			double residualHorizontalMarginNewtons,
+			double dragOverHorizontalMargin,
+			double requiredMaxThrustFraction,
+			double requiredTiltDegrees,
+			boolean reachable
+	) {
+	}
+
 	private record StaticBatteryLoad(
 			double throttleCommand,
 			double meanCurrentAmps,
@@ -1256,6 +1276,7 @@ public final class OfflineFlightRecorder {
 		if ("apdrone".equals(presetName)) {
 			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);
 			BatteryVoltageDropAudit voltageDrop = apDroneBatteryVoltageDropAudit(preset);
+			ReferenceSpeedEnvelopeEstimate[] speedEnvelope = apDroneOpenFieldSpeedEnvelopeAudit(preset);
 			System.out.printf(
 					Locale.ROOT,
 					"APDrone battery-autonomy audit: %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA equiv_direct %.3f match %.1fA log/direct %.1fx; %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA equiv_direct %.3f match %.1fA log/direct %.1fx%n",
@@ -1295,6 +1316,31 @@ public final class OfflineFlightRecorder {
 					voltageDrop.maxStartDropResistanceProxyMilliohms(),
 					voltageDrop.normalConfiguredSagAtP95Current(),
 					voltageDrop.maxConfiguredSagAtP95Current()
+			);
+			System.out.printf(
+					Locale.ROOT,
+					"APDrone open-field speed-envelope audit: %s %.2fm/s %s drag %.2fN margin %.1fN limit %.1fm/s speed/limit %.2f; %s %.2fm/s %s drag %.2fN margin %.1fN limit %.1fm/s speed/limit %.2f; %s %.2fm/s %s drag %.2fN margin %.1fN limit %.1fm/s speed/limit %.2f%n",
+					speedEnvelope[0].speedPoint(),
+					speedEnvelope[0].referenceSpeedMetersPerSecond(),
+					speedEnvelope[0].axis().name(),
+					speedEnvelope[0].baseDragForceNewtons(),
+					speedEnvelope[0].horizontalThrustMarginNewtons(),
+					speedEnvelope[0].dragLimitedLevelSpeedMetersPerSecond(),
+					speedEnvelope[0].speedOverDragLimitedLevelSpeed(),
+					speedEnvelope[2].speedPoint(),
+					speedEnvelope[2].referenceSpeedMetersPerSecond(),
+					speedEnvelope[2].axis().name(),
+					speedEnvelope[2].baseDragForceNewtons(),
+					speedEnvelope[2].horizontalThrustMarginNewtons(),
+					speedEnvelope[2].dragLimitedLevelSpeedMetersPerSecond(),
+					speedEnvelope[2].speedOverDragLimitedLevelSpeed(),
+					speedEnvelope[3].speedPoint(),
+					speedEnvelope[3].referenceSpeedMetersPerSecond(),
+					speedEnvelope[3].axis().name(),
+					speedEnvelope[3].baseDragForceNewtons(),
+					speedEnvelope[3].horizontalThrustMarginNewtons(),
+					speedEnvelope[3].dragLimitedLevelSpeedMetersPerSecond(),
+					speedEnvelope[3].speedOverDragLimitedLevelSpeed()
 			);
 		}
 	}
@@ -1399,6 +1445,72 @@ public final class OfflineFlightRecorder {
 				maxStartDropResistanceProxy,
 				configuredResistance / Math.max(1.0e-9, normalStartDropResistanceProxy),
 				configuredResistance / Math.max(1.0e-9, maxStartDropResistanceProxy)
+		);
+	}
+
+	public static ReferenceSpeedEnvelopeEstimate[] apDroneOpenFieldSpeedEnvelopeAudit() {
+		return apDroneOpenFieldSpeedEnvelopeAudit(DroneConfig.apDrone());
+	}
+
+	public static ReferenceSpeedEnvelopeEstimate[] apDroneOpenFieldSpeedEnvelopeAudit(DroneConfig config) {
+		return new ReferenceSpeedEnvelopeEstimate[] {
+				referenceSpeedEnvelopeEstimate(
+						config,
+						"selected_max",
+						APDRONE_SELECTED_FLIGHT_REFERENCE_MAX_SPEED_METERS_PER_SECOND
+				),
+				referenceSpeedEnvelopeEstimate(
+						config,
+						"open_field_mean_file_max",
+						APDRONE_OPEN_FIELD_MEAN_FILE_MAX_SPEED_METERS_PER_SECOND
+				),
+				referenceSpeedEnvelopeEstimate(
+						config,
+						"open_field_flight2_p95",
+						APDRONE_OPEN_FIELD_FLIGHT_2_P95_SPEED_METERS_PER_SECOND
+				),
+				referenceSpeedEnvelopeEstimate(
+						config,
+						"open_field_fastest",
+						APDRONE_OPEN_FIELD_FASTEST_SPEED_METERS_PER_SECOND
+				)
+		};
+	}
+
+	private static ReferenceSpeedEnvelopeEstimate referenceSpeedEnvelopeEstimate(
+			DroneConfig config,
+			String speedPoint,
+			double referenceSpeedMetersPerSecond
+	) {
+		AirframeDragCalibration.LevelFlightRequirement requirement =
+				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(
+						config,
+						referenceSpeedMetersPerSecond,
+						1.0
+				);
+		double dragLimitedLevelSpeed = AirframeDragCalibration.dragLimitedLevelSpeedMetersPerSecond(
+				config,
+				requirement.axis(),
+				1.0
+		);
+		double speedOverLimit = Double.isFinite(dragLimitedLevelSpeed) && dragLimitedLevelSpeed > 1.0e-9
+				? referenceSpeedMetersPerSecond / dragLimitedLevelSpeed
+				: 0.0;
+		double residualMargin = requirement.horizontalThrustMarginNewtons()
+				- requirement.baseDragForceNewtons();
+		return new ReferenceSpeedEnvelopeEstimate(
+				speedPoint,
+				referenceSpeedMetersPerSecond,
+				requirement.axis(),
+				dragLimitedLevelSpeed,
+				speedOverLimit,
+				requirement.baseDragForceNewtons(),
+				requirement.horizontalThrustMarginNewtons(),
+				residualMargin,
+				requirement.dragToHorizontalMarginRatio(),
+				requirement.requiredMaxThrustFraction(),
+				requirement.requiredTiltDegrees(),
+				requirement.reachable()
 		);
 	}
 

@@ -213,7 +213,7 @@ public final class AirframeDragCalibration {
 			throw new IllegalArgumentException("speedMetersPerSecond must be finite and non-negative.");
 		}
 
-		double densityScale = Double.isFinite(airDensityRatio) ? MathUtil.clamp(airDensityRatio, 0.0, 2.0) : 1.0;
+		double densityScale = normalizedAirDensityRatio(airDensityRatio);
 		double linearCoefficient = config.linearDragCoefficient();
 		double quadraticCoefficient = bodyQuadraticCoefficient(config, axis);
 		double baseDrag = dragForceNewtons(linearCoefficient, quadraticCoefficient, speedMetersPerSecond)
@@ -267,6 +267,41 @@ public final class AirframeDragCalibration {
 		return forward.requiredMaxThrustFraction() >= lateral.requiredMaxThrustFraction()
 				? forward
 				: lateral;
+	}
+
+	public static double dragLimitedLevelSpeedMetersPerSecond(
+			DroneConfig config,
+			Axis axis,
+			double airDensityRatio
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		double densityScale = normalizedAirDensityRatio(airDensityRatio);
+		double linearCoefficient = config.linearDragCoefficient();
+		double quadraticCoefficient = bodyQuadraticCoefficient(config, axis);
+		double weight = config.massKg() * config.gravityMetersPerSecondSquared();
+		double maxThrust = maxTotalRotorThrustNewtons(config);
+		double horizontalMargin = maxThrust <= weight
+				? 0.0
+				: Math.sqrt(Math.max(0.0, maxThrust * maxThrust - weight * weight));
+		if (horizontalMargin <= EPSILON) {
+			return 0.0;
+		}
+		if (densityScale <= EPSILON || (linearCoefficient <= EPSILON && quadraticCoefficient <= EPSILON)) {
+			return Double.POSITIVE_INFINITY;
+		}
+
+		double dragForceAtLimit = horizontalMargin / densityScale;
+		if (quadraticCoefficient <= EPSILON) {
+			return dragForceAtLimit / Math.max(EPSILON, linearCoefficient);
+		}
+		if (linearCoefficient <= EPSILON) {
+			return Math.sqrt(dragForceAtLimit / quadraticCoefficient);
+		}
+		double discriminant = linearCoefficient * linearCoefficient
+				+ 4.0 * quadraticCoefficient * dragForceAtLimit;
+		return (-linearCoefficient + Math.sqrt(discriminant)) / (2.0 * quadraticCoefficient);
 	}
 
 	public static double maxTotalRotorThrustNewtons(DroneConfig config) {
@@ -330,6 +365,10 @@ public final class AirframeDragCalibration {
 			return 0.0;
 		}
 		return Math.max(0.0, dragForceNewtons) / dynamicPressure;
+	}
+
+	private static double normalizedAirDensityRatio(double airDensityRatio) {
+		return Double.isFinite(airDensityRatio) ? MathUtil.clamp(airDensityRatio, 0.0, 2.0) : 1.0;
 	}
 
 	private static double coastdownTimeSeconds(
