@@ -77,6 +77,12 @@ def fpvDroneRequiredSelfTestColumns = [
 		"airframe_rotor_count",
 		"avg_motor_rpm",
 		"motor_5_rpm",
+		"avg_motor_erpm100",
+		"motor_5_erpm100",
+		"avg_motor_einterval_us",
+		"motor_5_einterval_us",
+		"avg_motor_rpm_telemetry_valid",
+		"motor_5_rpm_telemetry_valid",
 		"avg_motor_accel_rad_s2",
 		"motor_commutation_ripple",
 		"motor_5_commutation_ripple",
@@ -97,6 +103,10 @@ def fpvDroneRequiredSelfTestColumns = [
 		"motor_5_winding_resistance_scale",
 		"avg_motor_target_rpm",
 		"motor_5_target_rpm",
+		"avg_motor_target_erpm100",
+		"motor_5_target_erpm100",
+		"avg_motor_target_einterval_us",
+		"motor_5_target_einterval_us",
 		"avg_motor_tracking_error",
 		"motor_5_tracking_error",
 		"avg_motor_actuator_authority",
@@ -122,9 +132,13 @@ def fpvDroneRequiredSelfTestColumns = [
 		"tune_rotor_outward_cant_deg",
 		"gyro_bias_pitch_dps",
 		"gyro_clip",
+		"gyro_notch_hz",
+		"gyro_notch_attenuation",
+		"gyro_notch_spread_hz",
 		"gyro_rpm_harmonic_notch_attenuation",
 		"gyro_blade_pass_notch_hz",
 		"gyro_blade_pass_notch_attenuation",
+		"gyro_blade_pass_notch_spread_hz",
 		"accel_bias_x_mps2",
 		"accel_clip",
 		"battery_voltage",
@@ -331,6 +345,21 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_battery_soc_resistance_scale",
 			"max_battery_temp_resistance_scale",
 			"max_battery_polarization_resistance_scale",
+			"max_avg_motor_rpm_telemetry_rpm",
+			"max_motor_5_rpm_telemetry_rpm",
+			"max_avg_motor_erpm100",
+			"max_motor_5_erpm100",
+			"min_avg_motor_einterval_us",
+			"min_motor_5_einterval_us",
+			"max_avg_motor_rpm_telemetry_valid",
+			"max_motor_5_rpm_telemetry_valid",
+			"max_gyro_notch_hz",
+			"max_gyro_notch_attenuation",
+			"max_gyro_notch_spread_hz",
+			"max_gyro_rpm_harmonic_notch_attenuation",
+			"max_gyro_blade_pass_notch_hz",
+			"max_gyro_blade_pass_notch_attenuation",
+			"max_gyro_blade_pass_notch_spread_hz",
 			"max_vortex_ring_thrust_buffet",
 			"max_vortex_ring_buffet_force_n",
 			"max_rotor_induced_velocity_mps",
@@ -366,6 +395,29 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_battery_temp_resistance_scale ?: 0.0) < 1.0
 			|| (report.max_battery_polarization_resistance_scale ?: 0.0) < 1.0) {
 		throw new GradleException("FPV Dronecraft server self-test did not report valid battery resistance split telemetry.")
+	}
+	if ((report.max_avg_motor_rpm_telemetry_valid ?: 0.0) < 0.5
+			|| (report.max_motor_5_rpm_telemetry_valid ?: 0.0) < 0.5
+			|| (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) <= 100.0
+			|| (report.max_motor_5_rpm_telemetry_rpm ?: 0.0) <= 100.0
+			|| (report.max_avg_motor_erpm100 ?: 0.0) <= 5.0
+			|| (report.max_motor_5_erpm100 ?: 0.0) <= 5.0
+			|| (report.min_avg_motor_einterval_us ?: 65535.0) <= 0.0
+			|| (report.min_avg_motor_einterval_us ?: 65535.0) >= 65535.0
+			|| (report.min_motor_5_einterval_us ?: 65535.0) <= 0.0
+			|| (report.min_motor_5_einterval_us ?: 65535.0) >= 65535.0) {
+		throw new GradleException("FPV Dronecraft server self-test did not exercise Betaflight-style RPM telemetry.")
+	}
+	def gyroNotchAttenuationPeak = Math.max(
+			Math.max(report.max_gyro_notch_attenuation ?: 0.0, report.max_gyro_blade_pass_notch_attenuation ?: 0.0),
+			report.max_gyro_rpm_harmonic_notch_attenuation ?: 0.0
+	)
+	if ((report.max_gyro_notch_hz ?: 0.0) <= 1.0
+			|| (report.max_gyro_blade_pass_notch_hz ?: 0.0) <= (report.max_gyro_notch_hz ?: 0.0)
+			|| gyroNotchAttenuationPeak <= 0.0001
+			|| (report.max_gyro_notch_spread_hz ?: -1.0) < 0.0
+			|| (report.max_gyro_blade_pass_notch_spread_hz ?: -1.0) < 0.0) {
+		throw new GradleException("FPV Dronecraft server self-test did not exercise RPM-driven gyro notch telemetry.")
 	}
 	if ((report.max_rotor_induced_velocity_mps ?: 0.0) <= 0.01
 			|| (report.max_rotor_dynamic_inflow_tau_s ?: 0.0) <= 0.0

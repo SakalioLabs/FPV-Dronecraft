@@ -1910,6 +1910,50 @@ public class DroneEntity extends PathfinderMob {
 		};
 	}
 
+	public double getAverageMotorRpmTelemetryRpm() {
+		return physics.state().averageMotorRpmTelemetryRpm();
+	}
+
+	public double getMotorRpmTelemetryRpm(int index) {
+		if (index < 0 || index >= physics.state().motorCount()) {
+			return 0.0;
+		}
+		return physics.state().motorRpmTelemetryRpm(index);
+	}
+
+	public double getAverageMotorRpmTelemetryValidity() {
+		return physics.state().averageMotorRpmTelemetryValidity();
+	}
+
+	public double getMotorRpmTelemetryValidity(int index) {
+		if (index < 0 || index >= physics.state().motorCount()) {
+			return 0.0;
+		}
+		return physics.state().motorRpmTelemetryValidity(index);
+	}
+
+	public double getAverageMotorTelemetryErpm100() {
+		return DronePhysics.betaflightErpm100FromMechanicalRpm(physics.state().averageMotorRpmTelemetryRpm());
+	}
+
+	public double getMotorTelemetryErpm100(int index) {
+		return DronePhysics.betaflightErpm100FromMechanicalRpm(getMotorRpmTelemetryRpm(index));
+	}
+
+	public double getAverageMotorTelemetryEIntervalMicros() {
+		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+				physics.state().averageMotorRpmTelemetryRpm(),
+				physics.state().averageMotorRpmTelemetryValidity()
+		);
+	}
+
+	public double getMotorTelemetryEIntervalMicros(int index) {
+		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+				getMotorRpmTelemetryRpm(index),
+				getMotorRpmTelemetryValidity(index)
+		);
+	}
+
 	public float getMotorTemperatureCelsius() {
 		return entityData.get(MOTOR_TEMPERATURE);
 	}
@@ -2484,6 +2528,26 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getGyroNotchAttenuation() {
 		return entityData.get(GYRO_NOTCH_ATTENUATION);
+	}
+
+	public double getGyroNotchSpreadHertz() {
+		return physics.state().gyroDynamicNotchSpreadHertz();
+	}
+
+	public double getGyroRpmHarmonicNotchAttenuation() {
+		return physics.state().gyroRpmHarmonicNotchAttenuation();
+	}
+
+	public double getGyroBladePassNotchFrequencyHertz() {
+		return physics.state().gyroBladePassNotchFrequencyHertz();
+	}
+
+	public double getGyroBladePassNotchAttenuation() {
+		return physics.state().gyroBladePassNotchAttenuation();
+	}
+
+	public double getGyroBladePassNotchSpreadHertz() {
+		return physics.state().gyroBladePassNotchSpreadHertz();
 	}
 
 	public float getPidPitchOutputNewtonMeters() {

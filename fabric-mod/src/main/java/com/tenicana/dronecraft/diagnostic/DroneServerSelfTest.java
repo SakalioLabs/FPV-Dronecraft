@@ -21,6 +21,7 @@ import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.DronePhysics;
 
 public final class DroneServerSelfTest {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -52,6 +53,14 @@ public final class DroneServerSelfTest {
 	private double maxSpeed;
 	private double maxAirspeed;
 	private double maxMotorPower;
+	private double maxAverageMotorTelemetryRpm;
+	private double maxMotor5TelemetryRpm;
+	private double maxAverageMotorTelemetryErpm100;
+	private double maxMotor5TelemetryErpm100;
+	private double minAverageMotorTelemetryEIntervalMicros = DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+	private double minMotor5TelemetryEIntervalMicros = DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+	private double maxAverageMotorRpmTelemetryValidity;
+	private double maxMotor5RpmTelemetryValidity;
 	private double maxBatteryCurrent;
 	private double maxBatterySag;
 	private double maxBatteryEffectiveResistance;
@@ -59,6 +68,13 @@ public final class DroneServerSelfTest {
 	private double maxBatteryTemperatureResistanceScale = 1.0;
 	private double maxBatteryPolarizationResistanceScale = 1.0;
 	private double maxImuSupplyNoise;
+	private double maxGyroNotchFrequency;
+	private double maxGyroNotchAttenuation;
+	private double maxGyroNotchSpread;
+	private double maxGyroRpmHarmonicNotchAttenuation;
+	private double maxGyroBladePassNotchFrequency;
+	private double maxGyroBladePassNotchAttenuation;
+	private double maxGyroBladePassNotchSpread;
 	private double maxMotorWindingResistanceScale = 1.0;
 	private double maxPropwash;
 	private double maxVortexRingState;
@@ -169,6 +185,20 @@ public final class DroneServerSelfTest {
 		maxSpeed = Math.max(maxSpeed, drone.getSpeedMetersPerSecond());
 		maxAirspeed = Math.max(maxAirspeed, drone.getAirspeedMetersPerSecond());
 		maxMotorPower = Math.max(maxMotorPower, drone.getMotorPower());
+		maxAverageMotorTelemetryRpm = Math.max(maxAverageMotorTelemetryRpm, drone.getAverageMotorRpmTelemetryRpm());
+		maxMotor5TelemetryRpm = Math.max(maxMotor5TelemetryRpm, drone.getMotorRpmTelemetryRpm(5));
+		maxAverageMotorTelemetryErpm100 = Math.max(maxAverageMotorTelemetryErpm100, drone.getAverageMotorTelemetryErpm100());
+		maxMotor5TelemetryErpm100 = Math.max(maxMotor5TelemetryErpm100, drone.getMotorTelemetryErpm100(5));
+		minAverageMotorTelemetryEIntervalMicros = minValidEIntervalMicros(
+				minAverageMotorTelemetryEIntervalMicros,
+				drone.getAverageMotorTelemetryEIntervalMicros()
+		);
+		minMotor5TelemetryEIntervalMicros = minValidEIntervalMicros(
+				minMotor5TelemetryEIntervalMicros,
+				drone.getMotorTelemetryEIntervalMicros(5)
+		);
+		maxAverageMotorRpmTelemetryValidity = Math.max(maxAverageMotorRpmTelemetryValidity, drone.getAverageMotorRpmTelemetryValidity());
+		maxMotor5RpmTelemetryValidity = Math.max(maxMotor5RpmTelemetryValidity, drone.getMotorRpmTelemetryValidity(5));
 		maxBatteryCurrent = Math.max(maxBatteryCurrent, drone.getBatteryCurrentAmps());
 		maxBatterySag = Math.max(maxBatterySag, drone.getBatterySagVoltage());
 		maxBatteryEffectiveResistance = Math.max(maxBatteryEffectiveResistance, drone.getBatteryEffectiveResistanceOhms());
@@ -176,6 +206,13 @@ public final class DroneServerSelfTest {
 		maxBatteryTemperatureResistanceScale = Math.max(maxBatteryTemperatureResistanceScale, drone.getBatteryTemperatureResistanceScale());
 		maxBatteryPolarizationResistanceScale = Math.max(maxBatteryPolarizationResistanceScale, drone.getBatteryPolarizationResistanceScale());
 		maxImuSupplyNoise = Math.max(maxImuSupplyNoise, drone.getImuSupplyNoiseIntensity());
+		maxGyroNotchFrequency = Math.max(maxGyroNotchFrequency, drone.getGyroNotchFrequencyHertz());
+		maxGyroNotchAttenuation = Math.max(maxGyroNotchAttenuation, drone.getGyroNotchAttenuation());
+		maxGyroNotchSpread = Math.max(maxGyroNotchSpread, drone.getGyroNotchSpreadHertz());
+		maxGyroRpmHarmonicNotchAttenuation = Math.max(maxGyroRpmHarmonicNotchAttenuation, drone.getGyroRpmHarmonicNotchAttenuation());
+		maxGyroBladePassNotchFrequency = Math.max(maxGyroBladePassNotchFrequency, drone.getGyroBladePassNotchFrequencyHertz());
+		maxGyroBladePassNotchAttenuation = Math.max(maxGyroBladePassNotchAttenuation, drone.getGyroBladePassNotchAttenuation());
+		maxGyroBladePassNotchSpread = Math.max(maxGyroBladePassNotchSpread, drone.getGyroBladePassNotchSpreadHertz());
 		maxMotorWindingResistanceScale = Math.max(maxMotorWindingResistanceScale, drone.getMotorWindingResistanceScale());
 		maxPropwash = Math.max(maxPropwash, drone.getPropwashIntensity());
 		maxVortexRingState = Math.max(maxVortexRingState, drone.getVortexRingStateIntensity());
@@ -222,6 +259,36 @@ public final class DroneServerSelfTest {
 		maxMixerSaturation = Math.max(maxMixerSaturation, drone.getMixerSaturation());
 	}
 
+	private static double minValidEIntervalMicros(double currentMin, double sample) {
+		if (sample > 0.0 && sample < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS) {
+			return Math.min(currentMin, sample);
+		}
+		return currentMin;
+	}
+
+	private boolean rpmTelemetryExercised() {
+		return maxAverageMotorRpmTelemetryValidity >= 0.5
+				&& maxMotor5RpmTelemetryValidity >= 0.5
+				&& maxAverageMotorTelemetryRpm > 100.0
+				&& maxMotor5TelemetryRpm > 100.0
+				&& maxAverageMotorTelemetryErpm100 > 5.0
+				&& maxMotor5TelemetryErpm100 > 5.0
+				&& minAverageMotorTelemetryEIntervalMicros > 0.0
+				&& minAverageMotorTelemetryEIntervalMicros < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS
+				&& minMotor5TelemetryEIntervalMicros > 0.0
+				&& minMotor5TelemetryEIntervalMicros < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+	}
+
+	private boolean gyroRpmNotchExercised() {
+		return maxGyroNotchFrequency > 1.0
+				&& maxGyroBladePassNotchFrequency > maxGyroNotchFrequency
+				&& (maxGyroNotchAttenuation > 0.0001
+						|| maxGyroBladePassNotchAttenuation > 0.0001
+						|| maxGyroRpmHarmonicNotchAttenuation > 0.0001)
+				&& maxGyroNotchSpread >= 0.0
+				&& maxGyroBladePassNotchSpread >= 0.0;
+	}
+
 	private boolean evaluatePassed() {
 		if (drone == null) {
 			return false;
@@ -235,6 +302,8 @@ public final class DroneServerSelfTest {
 				&& maxBatteryCurrent > 1.5
 				&& maxBatterySag > 0.01
 				&& maxBatteryEffectiveResistance > 0.001
+				&& rpmTelemetryExercised()
+				&& gyroRpmNotchExercised()
 				&& maxRotorCoaxialLoadBias > 0.005
 				&& maxRotorCoaxialLoadBiasTarget + 1.0e-6 >= maxRotorCoaxialLoadBias
 				&& maxRotorCoaxialAllocationLoadFraction > 0.01
@@ -461,6 +530,12 @@ public final class DroneServerSelfTest {
 		}
 		if (maxMotorPower <= 0.08 || maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {
 			return "powertrain_not_exercised";
+		}
+		if (!rpmTelemetryExercised()) {
+			return "rpm_telemetry_not_exercised";
+		}
+		if (!gyroRpmNotchExercised()) {
+			return "gyro_rpm_notch_not_exercised";
 		}
 		if (maxRotorCoaxialLoadBias <= 0.005
 				|| maxRotorCoaxialLoadBiasTarget + 1.0e-6 < maxRotorCoaxialLoadBias
@@ -740,6 +815,14 @@ public final class DroneServerSelfTest {
 						+ "  \"max_speed_mps\": %.5f,\n"
 						+ "  \"max_airspeed_mps\": %.5f,\n"
 						+ "  \"max_motor_power\": %.5f,\n"
+						+ "  \"max_avg_motor_rpm_telemetry_rpm\": %.2f,\n"
+						+ "  \"max_motor_5_rpm_telemetry_rpm\": %.2f,\n"
+						+ "  \"max_avg_motor_erpm100\": %.2f,\n"
+						+ "  \"max_motor_5_erpm100\": %.2f,\n"
+						+ "  \"min_avg_motor_einterval_us\": %.2f,\n"
+						+ "  \"min_motor_5_einterval_us\": %.2f,\n"
+						+ "  \"max_avg_motor_rpm_telemetry_valid\": %.5f,\n"
+						+ "  \"max_motor_5_rpm_telemetry_valid\": %.5f,\n"
 						+ "  \"max_battery_current_a\": %.5f,\n"
 						+ "  \"max_battery_sag_v\": %.5f,\n"
 						+ "  \"max_battery_effective_resistance_ohm\": %.6f,\n"
@@ -747,6 +830,13 @@ public final class DroneServerSelfTest {
 						+ "  \"max_battery_temp_resistance_scale\": %.5f,\n"
 						+ "  \"max_battery_polarization_resistance_scale\": %.5f,\n"
 						+ "  \"max_imu_supply_noise\": %.5f,\n"
+						+ "  \"max_gyro_notch_hz\": %.5f,\n"
+						+ "  \"max_gyro_notch_attenuation\": %.5f,\n"
+						+ "  \"max_gyro_notch_spread_hz\": %.5f,\n"
+						+ "  \"max_gyro_rpm_harmonic_notch_attenuation\": %.5f,\n"
+						+ "  \"max_gyro_blade_pass_notch_hz\": %.5f,\n"
+						+ "  \"max_gyro_blade_pass_notch_attenuation\": %.5f,\n"
+						+ "  \"max_gyro_blade_pass_notch_spread_hz\": %.5f,\n"
 						+ "  \"max_motor_winding_resistance_scale\": %.5f,\n"
 						+ "  \"max_propwash\": %.5f,\n"
 						+ "  \"max_vortex_ring_state\": %.5f,\n"
@@ -813,6 +903,14 @@ public final class DroneServerSelfTest {
 				maxSpeed,
 				maxAirspeed,
 				maxMotorPower,
+				maxAverageMotorTelemetryRpm,
+				maxMotor5TelemetryRpm,
+				maxAverageMotorTelemetryErpm100,
+				maxMotor5TelemetryErpm100,
+				minAverageMotorTelemetryEIntervalMicros,
+				minMotor5TelemetryEIntervalMicros,
+				maxAverageMotorRpmTelemetryValidity,
+				maxMotor5RpmTelemetryValidity,
 				maxBatteryCurrent,
 				maxBatterySag,
 				maxBatteryEffectiveResistance,
@@ -820,6 +918,13 @@ public final class DroneServerSelfTest {
 				maxBatteryTemperatureResistanceScale,
 				maxBatteryPolarizationResistanceScale,
 				maxImuSupplyNoise,
+				maxGyroNotchFrequency,
+				maxGyroNotchAttenuation,
+				maxGyroNotchSpread,
+				maxGyroRpmHarmonicNotchAttenuation,
+				maxGyroBladePassNotchFrequency,
+				maxGyroBladePassNotchAttenuation,
+				maxGyroBladePassNotchSpread,
 				maxMotorWindingResistanceScale,
 				maxPropwash,
 				maxVortexRingState,
