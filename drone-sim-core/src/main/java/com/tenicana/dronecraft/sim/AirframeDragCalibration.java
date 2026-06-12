@@ -26,6 +26,16 @@ public final class AirframeDragCalibration {
 	public static final double RATM_BATTERY_CAPACITY_AMP_HOURS = 1.4;
 	public static final double RATM_BATTERY_LISTED_PACK_CURRENT_AMPS = 210.0;
 	public static final double RATM_PROP_RADIUS_METERS = 0.0648;
+	public static final String AIRFRAME_CDA_GUARD_SOURCE_ID = "Airframe-CdA-Guard-Packet";
+	public static final String AIRFRAME_CDA_GUARD_CAVEAT =
+			"Runtime linearDragCoefficient is linear damping in N/(m/s); packet rows that fold it into c*v^2 are a projection guard, not runtime force.";
+	public static final double NASA_BARE_AIRFRAME_MEDIAN_CDA_METERS_SQUARED = 0.020903184;
+	public static final double NASA_POWERED_FULL_AIRFRAME_MEDIAN_CDA_METERS_SQUARED = 0.06967728000048874;
+	public static final double ROTORPY_HUMMINGBIRD_X_QUADRATIC_DRAG = 0.005;
+	public static final double ROTORPY_HUMMINGBIRD_Y_QUADRATIC_DRAG = 0.005;
+	public static final double ROTORPY_HUMMINGBIRD_Z_QUADRATIC_DRAG = 0.010;
+	public static final double MANCHESTER_FLIGHT_DRAG_VS_WIND_TUNNEL_ACCURACY_PERCENT = 6.0;
+	public static final double MANCHESTER_DRAG_BUILD_UP_MODEL_CI_PERCENT = 20.0;
 	private static final double IMAV_2022_BASE_DRAG_NEWTON_SECONDS_PER_METER = 0.105;
 	private static final double IMAV_2022_MASS_DRAG_NEWTON_SECONDS_PER_METER_PER_KG = 0.087;
 
@@ -133,6 +143,42 @@ public final class AirframeDragCalibration {
 			double configuredMaxRpmOverRatmKvAtNominalVoltage,
 			double configuredPerMotorCurrentOverRatmEscCurrent,
 			double configuredRotorRadiusOverRatmPropRadius
+	) {
+	}
+
+	public record CdaGuardSample(
+			Axis axis,
+			double speedMetersPerSecond,
+			double linearDampingCoefficient,
+			double bodyQuadraticCoefficient,
+			double runtimeLinearDampingForceNewtons,
+			double runtimeBodyDragForceNewtons,
+			double runtimeTotalDragForceNewtons,
+			double imavReferenceDragForceNewtons,
+			double runtimeOverImavReference,
+			double imavEquivalentQuadraticCoefficient,
+			double runtimeEquivalentLinearCoefficient,
+			double runtimeEquivalentCdAMetersSquared,
+			double linearAsQuadraticProjectionForceNewtons,
+			double linearAsQuadraticProjectionOverRuntime
+	) {
+	}
+
+	public record AirframeCdaGuardAudit(
+			String sourceId,
+			String caveat,
+			double imavMassFitLinearDragCoefficient,
+			double nasaBareAirframeMedianCdAMetersSquared,
+			double nasaPoweredFullAirframeMedianCdAMetersSquared,
+			double rotorPyHummingbirdXQuadraticDrag,
+			double rotorPyHummingbirdYQuadraticDrag,
+			double rotorPyHummingbirdZQuadraticDrag,
+			double manchesterFlightDragVsWindTunnelAccuracyPercent,
+			double manchesterDragBuildUpModelCiPercent,
+			CdaGuardSample lateral10MetersPerSecond,
+			CdaGuardSample forward10MetersPerSecond,
+			CdaGuardSample lateral20MetersPerSecond,
+			CdaGuardSample forward20MetersPerSecond
 	) {
 	}
 
@@ -393,6 +439,69 @@ public final class AirframeDragCalibration {
 				ratio(configuredAverageMaxRotorRpm, RATM_MOTOR_KV_RPM_PER_VOLT * RATM_BATTERY_NOMINAL_VOLTAGE),
 				ratio(configuredPerMotorPackCurrentAmps, RATM_ESC_CURRENT_AMPS),
 				ratio(configuredAverageRotorRadiusMeters, RATM_PROP_RADIUS_METERS)
+		);
+	}
+
+	public static AirframeCdaGuardAudit cdaGuardAudit(DroneConfig config) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+
+		return new AirframeCdaGuardAudit(
+				AIRFRAME_CDA_GUARD_SOURCE_ID,
+				AIRFRAME_CDA_GUARD_CAVEAT,
+				imav2022MassFitLinearDragCoefficient(config),
+				NASA_BARE_AIRFRAME_MEDIAN_CDA_METERS_SQUARED,
+				NASA_POWERED_FULL_AIRFRAME_MEDIAN_CDA_METERS_SQUARED,
+				ROTORPY_HUMMINGBIRD_X_QUADRATIC_DRAG,
+				ROTORPY_HUMMINGBIRD_Y_QUADRATIC_DRAG,
+				ROTORPY_HUMMINGBIRD_Z_QUADRATIC_DRAG,
+				MANCHESTER_FLIGHT_DRAG_VS_WIND_TUNNEL_ACCURACY_PERCENT,
+				MANCHESTER_DRAG_BUILD_UP_MODEL_CI_PERCENT,
+				cdaGuardSample(config, Axis.X, 10.0),
+				cdaGuardSample(config, Axis.Z, 10.0),
+				cdaGuardSample(config, Axis.X, 20.0),
+				cdaGuardSample(config, Axis.Z, 20.0)
+		);
+	}
+
+	public static CdaGuardSample cdaGuardSample(
+			DroneConfig config,
+			Axis axis,
+			double speedMetersPerSecond
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		if (!Double.isFinite(speedMetersPerSecond) || speedMetersPerSecond < 0.0) {
+			throw new IllegalArgumentException("speedMetersPerSecond must be finite and non-negative.");
+		}
+
+		double speed = Math.max(0.0, speedMetersPerSecond);
+		double linearCoefficient = config.linearDragCoefficient();
+		double quadraticCoefficient = bodyQuadraticCoefficient(config, axis);
+		double linearForce = linearCoefficient * speed;
+		double bodyForce = quadraticCoefficient * speed * speed;
+		double totalForce = linearForce + bodyForce;
+		double imavReference = imav2022ReferenceDragForceNewtons(config, speed, 1.0);
+		double imavEquivalentQuadratic = speed <= EPSILON ? 0.0 : imavReference / (speed * speed);
+		double cda = equivalentCdAMetersSquared(totalForce, speed, 1.0);
+		double linearAsQuadraticProjection = (linearCoefficient + quadraticCoefficient) * speed * speed;
+		return new CdaGuardSample(
+				axis,
+				speed,
+				linearCoefficient,
+				quadraticCoefficient,
+				linearForce,
+				bodyForce,
+				totalForce,
+				imavReference,
+				ratio(totalForce, imavReference),
+				imavEquivalentQuadratic,
+				equivalentLinearCoefficient(totalForce, speed),
+				cda,
+				linearAsQuadraticProjection,
+				ratio(linearAsQuadraticProjection, totalForce)
 		);
 	}
 

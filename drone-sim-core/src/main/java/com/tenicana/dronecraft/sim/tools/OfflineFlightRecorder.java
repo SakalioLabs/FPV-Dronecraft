@@ -1252,6 +1252,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
 		AirframeDragCalibration.RatmHighSpeedEnvelopeAudit ratmEnvelopeAudit =
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(preset);
+		AirframeDragCalibration.AirframeCdaGuardAudit cdaGuardAudit =
+				AirframeDragCalibration.cdaGuardAudit(preset);
 		NeuroBemAirframeResidualCalibration.NeuroBemAirframeResidualAudit neuroBemResidualAudit =
 				NeuroBemAirframeResidualCalibration.audit(preset);
 		FpvLipoEsrCalibration.FpvLipoEsrAudit lipoEsrAudit =
@@ -1467,6 +1469,32 @@ public final class OfflineFlightRecorder {
 				ratmEnvelopeAudit.configuredPerMotorCurrentOverRatmEscCurrent(),
 				ratmEnvelopeAudit.configuredRotorRadiusOverRatmPropRadius(),
 				ratmEnvelopeAudit.minimumBatteryVoltageAcrossGroup()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Airframe CdA guard audit: %s runtime linear %.4fN/(m/s), X10 %.2fN %.2fxIMAV CdA %.4f proj %.1fx, Z10 %.2fN %.2fxIMAV CdA %.4f proj %.1fx, Z20 %.2fN %.2fxIMAV CdA %.4f proj %.1fx, NASA bare/powered CdA %.4f/%.4f RotorPy %.3f/%.3f/%.3f Manchester %.0f/%.0f%% caveat %s%n",
+				cdaGuardAudit.sourceId(),
+				cdaGuardAudit.imavMassFitLinearDragCoefficient(),
+				cdaGuardAudit.lateral10MetersPerSecond().runtimeTotalDragForceNewtons(),
+				cdaGuardAudit.lateral10MetersPerSecond().runtimeOverImavReference(),
+				cdaGuardAudit.lateral10MetersPerSecond().runtimeEquivalentCdAMetersSquared(),
+				cdaGuardAudit.lateral10MetersPerSecond().linearAsQuadraticProjectionOverRuntime(),
+				cdaGuardAudit.forward10MetersPerSecond().runtimeTotalDragForceNewtons(),
+				cdaGuardAudit.forward10MetersPerSecond().runtimeOverImavReference(),
+				cdaGuardAudit.forward10MetersPerSecond().runtimeEquivalentCdAMetersSquared(),
+				cdaGuardAudit.forward10MetersPerSecond().linearAsQuadraticProjectionOverRuntime(),
+				cdaGuardAudit.forward20MetersPerSecond().runtimeTotalDragForceNewtons(),
+				cdaGuardAudit.forward20MetersPerSecond().runtimeOverImavReference(),
+				cdaGuardAudit.forward20MetersPerSecond().runtimeEquivalentCdAMetersSquared(),
+				cdaGuardAudit.forward20MetersPerSecond().linearAsQuadraticProjectionOverRuntime(),
+				cdaGuardAudit.nasaBareAirframeMedianCdAMetersSquared(),
+				cdaGuardAudit.nasaPoweredFullAirframeMedianCdAMetersSquared(),
+				cdaGuardAudit.rotorPyHummingbirdXQuadraticDrag(),
+				cdaGuardAudit.rotorPyHummingbirdYQuadraticDrag(),
+				cdaGuardAudit.rotorPyHummingbirdZQuadraticDrag(),
+				cdaGuardAudit.manchesterFlightDragVsWindTunnelAccuracyPercent(),
+				cdaGuardAudit.manchesterDragBuildUpModelCiPercent(),
+				cdaGuardAudit.caveat()
 		);
 		System.out.printf(
 				Locale.ROOT,

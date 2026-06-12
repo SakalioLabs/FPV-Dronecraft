@@ -7,6 +7,59 @@ import org.junit.jupiter.api.Test;
 
 class AirframeDragCalibrationTest {
 	@Test
+	void cdaGuardAuditSeparatesRuntimeLinearDampingFromQuadraticProjection() {
+		AirframeDragCalibration.AirframeCdaGuardAudit audit =
+				AirframeDragCalibration.cdaGuardAudit(DroneConfig.racingQuad());
+
+		assertEquals("Airframe-CdA-Guard-Packet", audit.sourceId());
+		assertTrue(audit.caveat().contains("linear damping"));
+		assertEquals(0.2007, audit.imavMassFitLinearDragCoefficient(), 1.0e-12);
+		assertEquals(0.020903184, audit.nasaBareAirframeMedianCdAMetersSquared(), 1.0e-12);
+		assertEquals(0.06967728000048874, audit.nasaPoweredFullAirframeMedianCdAMetersSquared(), 1.0e-15);
+		assertEquals(0.005, audit.rotorPyHummingbirdXQuadraticDrag(), 1.0e-12);
+		assertEquals(0.005, audit.rotorPyHummingbirdYQuadraticDrag(), 1.0e-12);
+		assertEquals(0.010, audit.rotorPyHummingbirdZQuadraticDrag(), 1.0e-12);
+		assertEquals(6.0, audit.manchesterFlightDragVsWindTunnelAccuracyPercent(), 1.0e-12);
+		assertEquals(20.0, audit.manchesterDragBuildUpModelCiPercent(), 1.0e-12);
+
+		AirframeDragCalibration.CdaGuardSample lateral10 = audit.lateral10MetersPerSecond();
+		assertEquals(AirframeDragCalibration.Axis.X, lateral10.axis());
+		assertEquals(10.0, lateral10.speedMetersPerSecond(), 1.0e-12);
+		assertEquals(0.18, lateral10.linearDampingCoefficient(), 1.0e-12);
+		assertEquals(0.0025, lateral10.bodyQuadraticCoefficient(), 1.0e-12);
+		assertEquals(1.8, lateral10.runtimeLinearDampingForceNewtons(), 1.0e-12);
+		assertEquals(0.25, lateral10.runtimeBodyDragForceNewtons(), 1.0e-12);
+		assertEquals(2.05, lateral10.runtimeTotalDragForceNewtons(), 1.0e-12);
+		assertEquals(2.007, lateral10.imavReferenceDragForceNewtons(), 1.0e-12);
+		assertEquals(1.0214250124564025, lateral10.runtimeOverImavReference(), 1.0e-15);
+		assertEquals(0.02007, lateral10.imavEquivalentQuadraticCoefficient(), 1.0e-12);
+		assertEquals(0.205, lateral10.runtimeEquivalentLinearCoefficient(), 1.0e-12);
+		assertEquals(0.03346938775510204, lateral10.runtimeEquivalentCdAMetersSquared(), 1.0e-15);
+		assertEquals(18.25, lateral10.linearAsQuadraticProjectionForceNewtons(), 1.0e-12);
+		assertEquals(8.902439024390244, lateral10.linearAsQuadraticProjectionOverRuntime(), 1.0e-15);
+
+		AirframeDragCalibration.CdaGuardSample forward10 = audit.forward10MetersPerSecond();
+		assertEquals(AirframeDragCalibration.Axis.Z, forward10.axis());
+		assertEquals(0.0045, forward10.bodyQuadraticCoefficient(), 1.0e-12);
+		assertEquals(2.25, forward10.runtimeTotalDragForceNewtons(), 1.0e-12);
+		assertEquals(1.1210762331838565, forward10.runtimeOverImavReference(), 1.0e-15);
+		assertEquals(0.036734693877551024, forward10.runtimeEquivalentCdAMetersSquared(), 1.0e-15);
+		assertEquals(18.45, forward10.linearAsQuadraticProjectionForceNewtons(), 1.0e-12);
+		assertEquals(8.2, forward10.linearAsQuadraticProjectionOverRuntime(), 1.0e-12);
+
+		AirframeDragCalibration.CdaGuardSample forward20 = audit.forward20MetersPerSecond();
+		assertEquals(20.0, forward20.speedMetersPerSecond(), 1.0e-12);
+		assertEquals(3.6, forward20.runtimeLinearDampingForceNewtons(), 1.0e-12);
+		assertEquals(1.8, forward20.runtimeBodyDragForceNewtons(), 1.0e-12);
+		assertEquals(5.4, forward20.runtimeTotalDragForceNewtons(), 1.0e-12);
+		assertEquals(4.014, forward20.imavReferenceDragForceNewtons(), 1.0e-12);
+		assertEquals(1.345291479820628, forward20.runtimeOverImavReference(), 1.0e-15);
+		assertEquals(0.02204081632653061, forward20.runtimeEquivalentCdAMetersSquared(), 1.0e-15);
+		assertEquals(73.8, forward20.linearAsQuadraticProjectionForceNewtons(), 1.0e-12);
+		assertEquals(13.666666666666668, forward20.linearAsQuadraticProjectionOverRuntime(), 1.0e-15);
+	}
+
+	@Test
 	void ratmHighSpeedEnvelopeAuditKeepsRawEnvelopeSeparateFromCurrentDragModel() {
 		AirframeDragCalibration.RatmHighSpeedEnvelopeAudit audit =
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(DroneConfig.racingQuad());
