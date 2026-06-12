@@ -80,6 +80,53 @@ public final class MotorBenchCurrentModel {
 	public static final double AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P95 = 14119.280967371637;
 	public static final double AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MAX = 15192.087569316081;
 	public static final double AIIO_LOW_DYNAMIC_STRICT_THREE_BLADE_BLADE_PASS_HERTZ_AT_MEAN = 682.1244826082689;
+	public static final String APDRONE_URBAN_MOTOR_RPM_SOURCE_ID = "APDrone-Mendeley-Urban-eRPM";
+	public static final int APDRONE_URBAN_MOTOR_RPM_SOURCE_FILE_COUNT = 5;
+	public static final double APDRONE_URBAN_MOTOR_OUTPUT_LOW = 158.0;
+	public static final double APDRONE_URBAN_MOTOR_OUTPUT_HIGH = 2047.0;
+	public static final int APDRONE_URBAN_MOTOR_POLES = 14;
+	public static final boolean APDRONE_URBAN_DSHOT_BIDIRECTIONAL = true;
+	public static final double APDRONE_URBAN_THRUST_LINEAR_PERCENT = 20.0;
+	public static final double APDRONE_URBAN_MOTOR_RPM_DURATION_SECONDS = 218.60566;
+	public static final int APDRONE_URBAN_MOTOR_RPM_SAMPLE_COUNT = 8_839_444;
+	public static final int APDRONE_URBAN_MOTOR_RPM_VALID_ERPM_SAMPLE_COUNT = 8_532_916;
+	public static final double APDRONE_URBAN_MOTOR_RPM_VALID_ERPM_FRACTION = 0.9653227058172437;
+	public static final int APDRONE_URBAN_MOTOR_RPM_SAMPLED_PERCENTILE_COUNT = 426_649;
+	public static final double APDRONE_URBAN_MOTOR_COMMAND_P50 = 0.4695606140815246;
+	public static final double APDRONE_URBAN_MOTOR_COMMAND_P95 = 0.5569084171519323;
+	public static final double APDRONE_URBAN_MOTOR_COMMAND_P99 = 0.5881418740074114;
+	public static final double APDRONE_URBAN_MECHANICAL_RPM_P50 = 12428.57142857143;
+	public static final double APDRONE_URBAN_MECHANICAL_RPM_P95 = 14100.0;
+	public static final double APDRONE_URBAN_MECHANICAL_RPM_P99 = 14671.42857142857;
+	public static final double APDRONE_URBAN_MECHANICAL_RPM_MAX_SAMPLED = 19000.0;
+	public static final double APDRONE_URBAN_EFFECTIVE_KV_RPM_PER_VOLT_P50 = 1747.6119054465175;
+	public static final double APDRONE_URBAN_EFFECTIVE_KV_RPM_PER_VOLT_P95 = 1945.9294542855673;
+	public static final double APDRONE_URBAN_RPM_OVER_LINEAR_MOTOR_COMMAND_P50 = 0.885346198843192;
+	public static final double APDRONE_URBAN_RPM_OVER_LINEAR_MOTOR_COMMAND_P95 = 0.991249628534453;
+	public static final double APDRONE_URBAN_RPM_OVER_SQRT_MOTOR_COMMAND_P50 = 0.610184367768238;
+	public static final double APDRONE_URBAN_RPM_OVER_SQRT_MOTOR_COMMAND_P95 = 0.6472152484376887;
+	public static final double APDRONE_URBAN_INFERRED_THRUST_NEWTONS_P50 = 2.357799914647421;
+	public static final double APDRONE_URBAN_INFERRED_THRUST_NEWTONS_P95 = 3.034609043535689;
+	public static final double APDRONE_URBAN_INFERRED_QUAD_TWR_P50 = 1.5304180776091347;
+	public static final double APDRONE_URBAN_INFERRED_QUAD_TWR_P95 = 1.9697263155587432;
+	public static final int APDRONE_URBAN_LINEAR_FIT_COUNT = 421_313;
+	public static final double APDRONE_URBAN_LINEAR_FIT_SLOPE_RPM_PER_NORM = 18811.050781477166;
+	public static final double APDRONE_URBAN_LINEAR_FIT_INTERCEPT_RPM = 3545.8876633553405;
+	public static final double APDRONE_URBAN_LINEAR_FIT_R2 = 0.8646054039037868;
+	public static final double APDRONE_URBAN_LINEAR_FIT_RMSE_RPM = 557.0568044537405;
+	public static final double APDRONE_URBAN_LINEAR_FIT_NORM_AT_HOVER_RPM = 0.34557581857109704;
+	public static final double APDRONE_URBAN_POWER_FIT_SCALE_RPM_FRACTION_AT_NORM_1 = 0.6852594622080235;
+	public static final double APDRONE_URBAN_POWER_FIT_EXPONENT = 0.656685495229842;
+	public static final double APDRONE_URBAN_POWER_FIT_R2_LOG = 0.8809725007373087;
+	public static final double APDRONE_URBAN_POWER_FIT_RMSE_RPM_FRACTION = 0.01800243818551285;
+	public static final double APDRONE_URBAN_MOTOR0_RPM_P50 = 11642.857142857143;
+	public static final double APDRONE_URBAN_MOTOR1_RPM_P50 = 13400.0;
+	public static final double APDRONE_URBAN_MOTOR2_RPM_P50 = 11800.0;
+	public static final double APDRONE_URBAN_MOTOR3_RPM_P50 = 13228.57142857143;
+	public static final double APDRONE_URBAN_MOTOR0_RPM_P95 = 12757.142857142859;
+	public static final double APDRONE_URBAN_MOTOR1_RPM_P95 = 14385.714285714286;
+	public static final double APDRONE_URBAN_MOTOR2_RPM_P95 = 12757.142857142857;
+	public static final double APDRONE_URBAN_MOTOR3_RPM_P95 = 14185.714285714286;
 
 	private static final double RADIANS_PER_SECOND_TO_RPM = 60.0 / (2.0 * Math.PI);
 
@@ -142,6 +189,61 @@ public final class MotorBenchCurrentModel {
 			double configuredMaxBladePassHertz,
 			double referenceThreeBladeBladePassHertz,
 			double referenceBladePassOverTelemetryNyquist
+	) {
+	}
+
+	public record ApDroneUrbanMotorRpmAudit(
+			String referenceId,
+			int sourceFileCount,
+			double motorOutputLow,
+			double motorOutputHigh,
+			int motorPoles,
+			boolean dshotBidirectional,
+			double thrustLinearPercent,
+			double durationSeconds,
+			int sampleCount,
+			int validErpmSampleCount,
+			double validErpmFraction,
+			int sampledPercentileCount,
+			double motorCommandP50,
+			double motorCommandP95,
+			double motorCommandP99,
+			double mechanicalRpmP50,
+			double mechanicalRpmP95,
+			double mechanicalRpmP99,
+			double mechanicalRpmMaxSampled,
+			double configuredHoverRpm,
+			double configuredMaxRpm,
+			double configuredHoverLoggedErpm100,
+			double configuredMaxLoggedErpm100,
+			double mechanicalRpmP50OverConfiguredHover,
+			double mechanicalRpmP95OverConfiguredHover,
+			double mechanicalRpmP95OverConfiguredMax,
+			double mechanicalRpmMaxOverConfiguredMax,
+			double effectiveKvRpmPerVoltP50,
+			double effectiveKvRpmPerVoltP95,
+			double rpmOverLinearMotorCommandP50,
+			double rpmOverLinearMotorCommandP95,
+			double rpmOverSqrtMotorCommandP50,
+			double rpmOverSqrtMotorCommandP95,
+			double inferredThrustNewtonsP50,
+			double inferredThrustNewtonsP95,
+			double inferredQuadTwrP50,
+			double inferredQuadTwrP95,
+			int linearFitCount,
+			double linearFitSlopeRpmPerNorm,
+			double linearFitInterceptRpm,
+			double linearFitR2,
+			double linearFitRmseRpm,
+			double linearFitNormAtHoverRpm,
+			double powerFitScaleRpmFractionAtNorm1,
+			double powerFitExponent,
+			double powerFitR2Log,
+			double powerFitRmseRpmFraction,
+			double motorP50RpmSpread,
+			double motorP95RpmSpread,
+			double measuredP95BladePassHertz,
+			double configuredMaxBladePassHertz
 	) {
 	}
 
@@ -232,6 +334,26 @@ public final class MotorBenchCurrentModel {
 
 	public static double apDronePdf5045ElectricalPowerWattsForThrustNewtons(double thrustNewtons) {
 		return powerLaw(thrustNewtons, APDRONE_PDF_5045_6S_POWER_FIT_A, APDRONE_PDF_5045_6S_POWER_FIT_B);
+	}
+
+	public static double mechanicalRpmForBetaflightErpm100(double loggedErpm100, double motorPoles) {
+		if (!Double.isFinite(loggedErpm100)
+				|| loggedErpm100 <= 0.0
+				|| !Double.isFinite(motorPoles)
+				|| motorPoles <= 0.0) {
+			return 0.0;
+		}
+		return loggedErpm100 * 100.0 * 2.0 / motorPoles;
+	}
+
+	public static double betaflightErpm100ForMechanicalRpm(double mechanicalRpm, double motorPoles) {
+		if (!Double.isFinite(mechanicalRpm)
+				|| mechanicalRpm <= 0.0
+				|| !Double.isFinite(motorPoles)
+				|| motorPoles <= 0.0) {
+			return 0.0;
+		}
+		return mechanicalRpm * motorPoles / 200.0;
 	}
 
 	public static double mqtbHq5x4x3TotalCurrentAmps(DroneState state) {
@@ -429,6 +551,87 @@ public final class MotorBenchCurrentModel {
 				configuredMaxBladePass,
 				AIIO_THREE_BLADE_BLADE_PASS_HERTZ_AT_MAX,
 				ratio(AIIO_THREE_BLADE_BLADE_PASS_HERTZ_AT_MAX, AIIO_HDF5_TELEMETRY_NYQUIST_HERTZ)
+		);
+	}
+
+	public static ApDroneUrbanMotorRpmAudit apDroneUrbanMotorRpmAudit(DroneConfig config) {
+		double configuredHoverRotorRpm = averageHoverRotorRpm(config);
+		double configuredMaxRotorRpm = averageMaxRotorRpm(config);
+		double configuredBladeCount = averageBladeCount(config);
+		double motorP50Spread = max(
+				APDRONE_URBAN_MOTOR0_RPM_P50,
+				APDRONE_URBAN_MOTOR1_RPM_P50,
+				APDRONE_URBAN_MOTOR2_RPM_P50,
+				APDRONE_URBAN_MOTOR3_RPM_P50
+		) - min(
+				APDRONE_URBAN_MOTOR0_RPM_P50,
+				APDRONE_URBAN_MOTOR1_RPM_P50,
+				APDRONE_URBAN_MOTOR2_RPM_P50,
+				APDRONE_URBAN_MOTOR3_RPM_P50
+		);
+		double motorP95Spread = max(
+				APDRONE_URBAN_MOTOR0_RPM_P95,
+				APDRONE_URBAN_MOTOR1_RPM_P95,
+				APDRONE_URBAN_MOTOR2_RPM_P95,
+				APDRONE_URBAN_MOTOR3_RPM_P95
+		) - min(
+				APDRONE_URBAN_MOTOR0_RPM_P95,
+				APDRONE_URBAN_MOTOR1_RPM_P95,
+				APDRONE_URBAN_MOTOR2_RPM_P95,
+				APDRONE_URBAN_MOTOR3_RPM_P95
+		);
+		return new ApDroneUrbanMotorRpmAudit(
+				APDRONE_URBAN_MOTOR_RPM_SOURCE_ID,
+				APDRONE_URBAN_MOTOR_RPM_SOURCE_FILE_COUNT,
+				APDRONE_URBAN_MOTOR_OUTPUT_LOW,
+				APDRONE_URBAN_MOTOR_OUTPUT_HIGH,
+				APDRONE_URBAN_MOTOR_POLES,
+				APDRONE_URBAN_DSHOT_BIDIRECTIONAL,
+				APDRONE_URBAN_THRUST_LINEAR_PERCENT,
+				APDRONE_URBAN_MOTOR_RPM_DURATION_SECONDS,
+				APDRONE_URBAN_MOTOR_RPM_SAMPLE_COUNT,
+				APDRONE_URBAN_MOTOR_RPM_VALID_ERPM_SAMPLE_COUNT,
+				APDRONE_URBAN_MOTOR_RPM_VALID_ERPM_FRACTION,
+				APDRONE_URBAN_MOTOR_RPM_SAMPLED_PERCENTILE_COUNT,
+				APDRONE_URBAN_MOTOR_COMMAND_P50,
+				APDRONE_URBAN_MOTOR_COMMAND_P95,
+				APDRONE_URBAN_MOTOR_COMMAND_P99,
+				APDRONE_URBAN_MECHANICAL_RPM_P50,
+				APDRONE_URBAN_MECHANICAL_RPM_P95,
+				APDRONE_URBAN_MECHANICAL_RPM_P99,
+				APDRONE_URBAN_MECHANICAL_RPM_MAX_SAMPLED,
+				configuredHoverRotorRpm,
+				configuredMaxRotorRpm,
+				betaflightErpm100ForMechanicalRpm(configuredHoverRotorRpm, APDRONE_URBAN_MOTOR_POLES),
+				betaflightErpm100ForMechanicalRpm(configuredMaxRotorRpm, APDRONE_URBAN_MOTOR_POLES),
+				ratio(APDRONE_URBAN_MECHANICAL_RPM_P50, configuredHoverRotorRpm),
+				ratio(APDRONE_URBAN_MECHANICAL_RPM_P95, configuredHoverRotorRpm),
+				ratio(APDRONE_URBAN_MECHANICAL_RPM_P95, configuredMaxRotorRpm),
+				ratio(APDRONE_URBAN_MECHANICAL_RPM_MAX_SAMPLED, configuredMaxRotorRpm),
+				APDRONE_URBAN_EFFECTIVE_KV_RPM_PER_VOLT_P50,
+				APDRONE_URBAN_EFFECTIVE_KV_RPM_PER_VOLT_P95,
+				APDRONE_URBAN_RPM_OVER_LINEAR_MOTOR_COMMAND_P50,
+				APDRONE_URBAN_RPM_OVER_LINEAR_MOTOR_COMMAND_P95,
+				APDRONE_URBAN_RPM_OVER_SQRT_MOTOR_COMMAND_P50,
+				APDRONE_URBAN_RPM_OVER_SQRT_MOTOR_COMMAND_P95,
+				APDRONE_URBAN_INFERRED_THRUST_NEWTONS_P50,
+				APDRONE_URBAN_INFERRED_THRUST_NEWTONS_P95,
+				APDRONE_URBAN_INFERRED_QUAD_TWR_P50,
+				APDRONE_URBAN_INFERRED_QUAD_TWR_P95,
+				APDRONE_URBAN_LINEAR_FIT_COUNT,
+				APDRONE_URBAN_LINEAR_FIT_SLOPE_RPM_PER_NORM,
+				APDRONE_URBAN_LINEAR_FIT_INTERCEPT_RPM,
+				APDRONE_URBAN_LINEAR_FIT_R2,
+				APDRONE_URBAN_LINEAR_FIT_RMSE_RPM,
+				APDRONE_URBAN_LINEAR_FIT_NORM_AT_HOVER_RPM,
+				APDRONE_URBAN_POWER_FIT_SCALE_RPM_FRACTION_AT_NORM_1,
+				APDRONE_URBAN_POWER_FIT_EXPONENT,
+				APDRONE_URBAN_POWER_FIT_R2_LOG,
+				APDRONE_URBAN_POWER_FIT_RMSE_RPM_FRACTION,
+				motorP50Spread,
+				motorP95Spread,
+				APDRONE_URBAN_MECHANICAL_RPM_P95 * configuredBladeCount / 60.0,
+				configuredMaxRotorRpm * configuredBladeCount / 60.0
 		);
 	}
 
@@ -638,6 +841,22 @@ public final class MotorBenchCurrentModel {
 			return 0.0;
 		}
 		return numerator / denominator;
+	}
+
+	private static double min(double first, double... rest) {
+		double result = first;
+		for (double value : rest) {
+			result = Math.min(result, value);
+		}
+		return result;
+	}
+
+	private static double max(double first, double... rest) {
+		double result = first;
+		for (double value : rest) {
+			result = Math.max(result, value);
+		}
+		return result;
 	}
 
 	private static double plateauWindow(double value, double center, double innerHalfWidth, double outerHalfWidth) {

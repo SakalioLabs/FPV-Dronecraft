@@ -1211,6 +1211,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.foxeerDonut5145PropAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
+		MotorBenchCurrentModel.ApDroneUrbanMotorRpmAudit apDroneUrbanMotorRpmAudit =
+				MotorBenchCurrentModel.apDroneUrbanMotorRpmAudit(preset);
 		ControlResponseCalibration.ControlResponseAudit controlResponseAudit =
 				ControlResponseCalibration.apDroneControlResponseAudit(preset);
 		RateEnvelopeCalibration.RateEnvelopeAudit rateEnvelopeAudit =
@@ -1445,6 +1447,39 @@ public final class OfflineFlightRecorder {
 				aiioRotorSpeedAudit.referenceBladePassOverTelemetryNyquist(),
 				aiioRotorSpeedAudit.referenceSampleFileCount(),
 				aiioRotorSpeedAudit.referenceSampleRateHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone urban motor-RPM audit: %s files %d valid %.1f%% cmd %.3f/%.3f/%.3f rpm %.0f/%.0f/%.0f cfg %.0f/%.0f rpm_ratio hover %.2f/%.2f max %.2f/%.2f erpm100 %.1f/%.1f kv %.0f/%.0f fit %.0frpm_per_norm %.0frpm r2 %.3f power %.3f@%.3f r2 %.3f spread %.0f/%.0frpm bpf %.1f/%.1fHz%n",
+				apDroneUrbanMotorRpmAudit.referenceId(),
+				apDroneUrbanMotorRpmAudit.sourceFileCount(),
+				apDroneUrbanMotorRpmAudit.validErpmFraction() * 100.0,
+				apDroneUrbanMotorRpmAudit.motorCommandP50(),
+				apDroneUrbanMotorRpmAudit.motorCommandP95(),
+				apDroneUrbanMotorRpmAudit.motorCommandP99(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmP50(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmP95(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmMaxSampled(),
+				apDroneUrbanMotorRpmAudit.configuredHoverRpm(),
+				apDroneUrbanMotorRpmAudit.configuredMaxRpm(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmP50OverConfiguredHover(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmP95OverConfiguredHover(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmP95OverConfiguredMax(),
+				apDroneUrbanMotorRpmAudit.mechanicalRpmMaxOverConfiguredMax(),
+				apDroneUrbanMotorRpmAudit.configuredHoverLoggedErpm100(),
+				apDroneUrbanMotorRpmAudit.configuredMaxLoggedErpm100(),
+				apDroneUrbanMotorRpmAudit.effectiveKvRpmPerVoltP50(),
+				apDroneUrbanMotorRpmAudit.effectiveKvRpmPerVoltP95(),
+				apDroneUrbanMotorRpmAudit.linearFitSlopeRpmPerNorm(),
+				apDroneUrbanMotorRpmAudit.linearFitInterceptRpm(),
+				apDroneUrbanMotorRpmAudit.linearFitR2(),
+				apDroneUrbanMotorRpmAudit.powerFitExponent(),
+				apDroneUrbanMotorRpmAudit.powerFitScaleRpmFractionAtNorm1(),
+				apDroneUrbanMotorRpmAudit.powerFitR2Log(),
+				apDroneUrbanMotorRpmAudit.motorP50RpmSpread(),
+				apDroneUrbanMotorRpmAudit.motorP95RpmSpread(),
+				apDroneUrbanMotorRpmAudit.measuredP95BladePassHertz(),
+				apDroneUrbanMotorRpmAudit.configuredMaxBladePassHertz()
 		);
 		System.out.printf(
 				Locale.ROOT,

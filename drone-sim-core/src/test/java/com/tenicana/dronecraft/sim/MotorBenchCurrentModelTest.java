@@ -208,6 +208,76 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void apDroneUrbanMotorRpmAuditMatchesBlackboxErpmTelemetry() {
+		MotorBenchCurrentModel.ApDroneUrbanMotorRpmAudit audit =
+				MotorBenchCurrentModel.apDroneUrbanMotorRpmAudit(DroneConfig.apDrone());
+
+		assertEquals(
+				10046.531935346788,
+				MotorBenchCurrentModel.mechanicalRpmForBetaflightErpm100(703.257235474275, 14.0),
+				1.0e-9
+		);
+		assertEquals(
+				703.257235474275,
+				MotorBenchCurrentModel.betaflightErpm100ForMechanicalRpm(10046.531935346788, 14.0),
+				1.0e-12
+		);
+		assertEquals(0.0, MotorBenchCurrentModel.mechanicalRpmForBetaflightErpm100(Double.NaN, 14.0), 1.0e-12);
+		assertEquals(0.0, MotorBenchCurrentModel.betaflightErpm100ForMechanicalRpm(10_000.0, 0.0), 1.0e-12);
+		assertEquals("APDrone-Mendeley-Urban-eRPM", audit.referenceId());
+		assertEquals(5, audit.sourceFileCount());
+		assertEquals(158.0, audit.motorOutputLow(), 1.0e-12);
+		assertEquals(2047.0, audit.motorOutputHigh(), 1.0e-12);
+		assertEquals(14, audit.motorPoles());
+		assertEquals(true, audit.dshotBidirectional());
+		assertEquals(20.0, audit.thrustLinearPercent(), 1.0e-12);
+		assertEquals(218.60566, audit.durationSeconds(), 1.0e-12);
+		assertEquals(8_839_444, audit.sampleCount());
+		assertEquals(8_532_916, audit.validErpmSampleCount());
+		assertEquals(0.9653227058172437, audit.validErpmFraction(), 1.0e-15);
+		assertEquals(426_649, audit.sampledPercentileCount());
+		assertEquals(0.4695606140815246, audit.motorCommandP50(), 1.0e-15);
+		assertEquals(0.5569084171519323, audit.motorCommandP95(), 1.0e-15);
+		assertEquals(0.5881418740074114, audit.motorCommandP99(), 1.0e-15);
+		assertEquals(12428.57142857143, audit.mechanicalRpmP50(), 1.0e-9);
+		assertEquals(14100.0, audit.mechanicalRpmP95(), 1.0e-9);
+		assertEquals(14671.42857142857, audit.mechanicalRpmP99(), 1.0e-9);
+		assertEquals(19000.0, audit.mechanicalRpmMaxSampled(), 1.0e-9);
+		assertEquals(10046.531935346788, audit.configuredHoverRpm(), 1.0e-9);
+		assertEquals(29739.565767989377, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(703.257235474275, audit.configuredHoverLoggedErpm100(), 1.0e-12);
+		assertEquals(2081.7696037592564, audit.configuredMaxLoggedErpm100(), 1.0e-12);
+		assertEquals(1.2371006739991435, audit.mechanicalRpmP50OverConfiguredHover(), 1.0e-15);
+		assertEquals(1.4034693853300626, audit.mechanicalRpmP95OverConfiguredHover(), 1.0e-15);
+		assertEquals(0.47411586672111883, audit.mechanicalRpmP95OverConfiguredMax(), 1.0e-15);
+		assertEquals(0.6388795367164013, audit.mechanicalRpmMaxOverConfiguredMax(), 1.0e-15);
+		assertEquals(1747.6119054465175, audit.effectiveKvRpmPerVoltP50(), 1.0e-12);
+		assertEquals(1945.9294542855673, audit.effectiveKvRpmPerVoltP95(), 1.0e-12);
+		assertEquals(0.885346198843192, audit.rpmOverLinearMotorCommandP50(), 1.0e-15);
+		assertEquals(0.991249628534453, audit.rpmOverLinearMotorCommandP95(), 1.0e-15);
+		assertEquals(0.610184367768238, audit.rpmOverSqrtMotorCommandP50(), 1.0e-15);
+		assertEquals(0.6472152484376887, audit.rpmOverSqrtMotorCommandP95(), 1.0e-15);
+		assertEquals(2.357799914647421, audit.inferredThrustNewtonsP50(), 1.0e-15);
+		assertEquals(3.034609043535689, audit.inferredThrustNewtonsP95(), 1.0e-15);
+		assertEquals(1.5304180776091347, audit.inferredQuadTwrP50(), 1.0e-15);
+		assertEquals(1.9697263155587432, audit.inferredQuadTwrP95(), 1.0e-15);
+		assertEquals(421_313, audit.linearFitCount());
+		assertEquals(18811.050781477166, audit.linearFitSlopeRpmPerNorm(), 1.0e-9);
+		assertEquals(3545.8876633553405, audit.linearFitInterceptRpm(), 1.0e-9);
+		assertEquals(0.8646054039037868, audit.linearFitR2(), 1.0e-15);
+		assertEquals(557.0568044537405, audit.linearFitRmseRpm(), 1.0e-12);
+		assertEquals(0.34557581857109704, audit.linearFitNormAtHoverRpm(), 1.0e-15);
+		assertEquals(0.6852594622080235, audit.powerFitScaleRpmFractionAtNorm1(), 1.0e-15);
+		assertEquals(0.656685495229842, audit.powerFitExponent(), 1.0e-15);
+		assertEquals(0.8809725007373087, audit.powerFitR2Log(), 1.0e-15);
+		assertEquals(0.01800243818551285, audit.powerFitRmseRpmFraction(), 1.0e-15);
+		assertEquals(1757.1428571428569, audit.motorP50RpmSpread(), 1.0e-9);
+		assertEquals(1628.5714285714294, audit.motorP95RpmSpread(), 1.0e-9);
+		assertEquals(705.0, audit.measuredP95BladePassHertz(), 1.0e-12);
+		assertEquals(1486.978288399469, audit.configuredMaxBladePassHertz(), 1.0e-9);
+	}
+
+	@Test
 	void tytoStaticYawTorqueAuditKeepsFiveInchReactionTorqueWithinReferenceWindow() {
 		MotorBenchCurrentModel.StaticYawTorqueAudit racingAudit =
 				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(DroneConfig.racingQuad());
