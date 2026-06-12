@@ -20,6 +20,7 @@ import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
+import com.tenicana.dronecraft.sim.SurfaceNearfieldCalibration;
 import com.tenicana.dronecraft.sim.Vec3;
 import com.tenicana.dronecraft.sim.WindGustCalibration;
 
@@ -1254,6 +1255,8 @@ public final class OfflineFlightRecorder {
 				PrecipitationWaterCalibration.audit(preset);
 		WindGustCalibration.WindGustAudit windGustAudit =
 				WindGustCalibration.audit();
+		SurfaceNearfieldCalibration.SurfaceNearfieldAudit surfaceNearfieldAudit =
+				SurfaceNearfieldCalibration.audit(preset);
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1577,6 +1580,35 @@ public final class OfflineFlightRecorder {
 				windGustAudit.strongest4319Updraft().ctChangePercent(),
 				windGustAudit.strongest6528Downdraft().ctChangePercent(),
 				windGustAudit.strongest6528Updraft().ctChangePercent()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Surface near-field audit: %s rows %d refs %d ground/ceiling %d wall_map %d wall_force %d zju %d, hR1 current/zju %.3f/%.3f extra %.2f cheese %.2f ceiling %.3f, hR0.5 %.3f hR2 %.3f, wall0.25R obs %.3f loss %.1f%% side %.1f%%W, wall1R loss %.1f%% side %.1f%%W, fullObs side %.1f/%.1f%%W speed12 %.1f%%W, ZJU drag %.2f/%.2f pred %.2f caveat ground-ceiling-wall-separate%n",
+				surfaceNearfieldAudit.sourceId(),
+				surfaceNearfieldAudit.packetMetricRowCount(),
+				surfaceNearfieldAudit.sourceReferenceCount(),
+				surfaceNearfieldAudit.groundCeilingScanRowCount(),
+				surfaceNearfieldAudit.wallRuntimeMappingRowCount(),
+				surfaceNearfieldAudit.wallForceScanRowCount(),
+				surfaceNearfieldAudit.zjuGroundCheckRowCount(),
+				surfaceNearfieldAudit.oneRadiusGround().currentGroundMultiplier(),
+				surfaceNearfieldAudit.oneRadiusGround().zjuGroundMultiplier(),
+				surfaceNearfieldAudit.oneRadiusGround().currentExtraOverZjuExtra(),
+				surfaceNearfieldAudit.oneRadiusGround().currentGroundOverCheeseman(),
+				surfaceNearfieldAudit.oneRadiusGround().currentCeilingMultiplier(),
+				surfaceNearfieldAudit.halfRadiusGround().currentGroundMultiplier(),
+				surfaceNearfieldAudit.twoRadiusGround().currentGroundMultiplier(),
+				surfaceNearfieldAudit.quarterRadiusWall().runtimeObstruction(),
+				surfaceNearfieldAudit.quarterRadiusWall().twoAffectedVehicleThrustLossFraction() * 100.0,
+				surfaceNearfieldAudit.quarterRadiusWall().twoAffectedWallForceOverWeight() * 100.0,
+				surfaceNearfieldAudit.oneRadiusWall().twoAffectedVehicleThrustLossFraction() * 100.0,
+				surfaceNearfieldAudit.oneRadiusWall().twoAffectedWallForceOverWeight() * 100.0,
+				surfaceNearfieldAudit.fullObstructionWall().twoAffectedWallForceOverWeight() * 100.0,
+				surfaceNearfieldAudit.fullObstructionHoverSideForce().fourRotorForceOverWeight() * 100.0,
+				surfaceNearfieldAudit.fullObstructionFastSideForce().twoRotorForceOverWeight() * 100.0,
+				surfaceNearfieldAudit.zjuDragObservation().measuredDragXLowOverHigh(),
+				surfaceNearfieldAudit.zjuDragObservation().measuredDragYLowOverHigh(),
+				surfaceNearfieldAudit.zjuDragObservation().predictedDragRatioFromSqrtThrust()
 		);
 		System.out.printf(
 				Locale.ROOT,

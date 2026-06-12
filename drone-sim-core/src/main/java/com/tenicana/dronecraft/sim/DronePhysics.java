@@ -2869,7 +2869,7 @@ public final class DronePhysics {
 		return rotorWallEffectForceBodyFiltered[index];
 	}
 
-	private static Vec3 calculateSteadyRotorWallEffectForce(
+	static Vec3 calculateSteadyRotorWallEffectForce(
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
