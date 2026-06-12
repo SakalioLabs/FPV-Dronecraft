@@ -165,6 +165,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"prop_strike_severity",
 		"prop_strike_count",
 		"rotor_stall_intensity",
+		"rotor_damage_vibration",
+		"rotor_5_damage_vibration",
 		"rotor_translational_lift",
 		"rotor_aerodynamic_load",
 		"rotor_dynamic_inflow_tau_s",
@@ -373,6 +375,7 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_rotor_reverse_flow",
 			"max_rotor_low_reynolds_loss",
 			"max_rotor_blade_pass_ripple",
+			"max_rotor_damage_vibration",
 			"max_rotor_wet_thrust_loss_percent",
 			"max_rotor_coaxial_load_bias",
 			"max_rotor_coaxial_load_bias_target",
@@ -436,6 +439,7 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_rotor_reverse_flow ?: -1.0) < 0.0
 			|| (report.max_rotor_low_reynolds_loss ?: -1.0) < 0.0
 			|| (report.max_rotor_blade_pass_ripple ?: -1.0) < 0.0
+			|| (report.max_rotor_damage_vibration ?: -1.0) < 0.0
 			|| (report.max_rotor_wet_thrust_loss_percent ?: -1.0) < 0.0) {
 		throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges.")
 	}

@@ -415,6 +415,11 @@ public final class DroneBlackboxSample {
 			"rotor_2_coning_angle_deg",
 			"rotor_3_coning_angle_deg",
 			"rotor_vibration",
+			"rotor_damage_vibration",
+			"rotor_0_damage_vibration",
+			"rotor_1_damage_vibration",
+			"rotor_2_damage_vibration",
+			"rotor_3_damage_vibration",
 			"rotor_arm_flex",
 			"rotor_0_arm_flex",
 			"rotor_1_arm_flex",
@@ -865,6 +870,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_health",
 			"rotor_6_health",
 			"rotor_7_health",
+			"rotor_4_damage_vibration",
+			"rotor_5_damage_vibration",
+			"rotor_6_damage_vibration",
+			"rotor_7_damage_vibration",
 			"rotor_4_surface_scrape",
 			"rotor_5_surface_scrape",
 			"rotor_6_surface_scrape",
@@ -1518,6 +1527,11 @@ public final class DroneBlackboxSample {
 		row.add(rotorConingAngleDegreesOrZero(state, 2), "%.4f");
 		row.add(rotorConingAngleDegreesOrZero(state, 3), "%.4f");
 		row.add(state.rotorVibration(), "%.5f");
+		row.add(state.maxRotorDamageVibration(), "%.5f");
+		row.add(rotorDamageVibrationOrZero(state, 0), "%.5f");
+		row.add(rotorDamageVibrationOrZero(state, 1), "%.5f");
+		row.add(rotorDamageVibrationOrZero(state, 2), "%.5f");
+		row.add(rotorDamageVibrationOrZero(state, 3), "%.5f");
 		row.add(state.averageRotorArmFlexIntensity(), "%.5f");
 		row.add(rotorArmFlexOrZero(state, 0), "%.5f");
 		row.add(rotorArmFlexOrZero(state, 1), "%.5f");
@@ -1917,6 +1931,7 @@ public final class DroneBlackboxSample {
 		double[] motorTelemetryRpm = state.motorRpmTelemetryRpm();
 		double[] motorTelemetryValidity = state.motorRpmTelemetryValidity();
 		double[] rotorHealth = state.rotorHealth();
+		double[] rotorDamageVibration = state.rotorDamageVibration();
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorDynamicInflowTimeConstant = state.rotorDynamicInflowTimeConstantSeconds();
 		double[] rotorAdvanceRatio = state.rotorAdvanceRatio();
@@ -2024,6 +2039,9 @@ public final class DroneBlackboxSample {
 			row.add(valueOrOne(rotorHealth, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorDamageVibration, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorScrape, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -2123,6 +2141,10 @@ public final class DroneBlackboxSample {
 
 	private static double rotorHealthOrOne(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorHealth(index) : 1.0;
+	}
+
+	private static double rotorDamageVibrationOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorDamageVibration(index) : 0.0;
 	}
 
 	private static double escDesyncOrZero(DroneState state, int index) {

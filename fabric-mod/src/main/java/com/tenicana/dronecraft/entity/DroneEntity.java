@@ -2031,6 +2031,10 @@ public class DroneEntity extends PathfinderMob {
 		return entityData.get(ROTOR_VIBRATION);
 	}
 
+	public float getRotorDamageVibration() {
+		return (float) physics.state().maxRotorDamageVibration();
+	}
+
 	public float getRotorConingIntensity() {
 		return entityData.get(ROTOR_CONING_INTENSITY);
 	}

@@ -534,6 +534,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_health",
 			"rotor_6_health",
 			"rotor_7_health",
+			"rotor_damage_vibration",
+			"rotor_0_damage_vibration",
+			"rotor_1_damage_vibration",
+			"rotor_2_damage_vibration",
+			"rotor_3_damage_vibration",
+			"rotor_4_damage_vibration",
+			"rotor_5_damage_vibration",
+			"rotor_6_damage_vibration",
+			"rotor_7_damage_vibration",
 			"rotor_4_surface_scrape",
 			"rotor_5_surface_scrape",
 			"rotor_6_surface_scrape",
@@ -969,7 +978,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_irx=%.2f/%.2f/%.2f, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_erpm100=%.1f/%.1f, min_eint=%.1f/%.1f us, max_rpm_valid=%.2f/%.2f, notch=%.1fHz/%.3f, notch_spread=%.1fHz, hnotch=%.3f, bpass_notch=%.1fHz/%.3f, bpass_spread=%.1fHz, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_coax_unc=%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_ground_level=%.4f N-m, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_irx=%.2f/%.2f/%.2f, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_erpm100=%.1f/%.1f, min_eint=%.1f/%.1f us, max_rpm_valid=%.2f/%.2f, notch=%.1fHz/%.3f, notch_spread=%.1fHz, hnotch=%.3f, bpass_notch=%.1fHz/%.3f, bpass_spread=%.1fHz, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_coax_unc=%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_damage_vib=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_ground_level=%.4f N-m, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -1039,6 +1048,7 @@ public final class OfflineFlightRecorder {
 				report.minMotorActuatorAuthority(),
 				report.minMixerAxisAuthority(),
 				report.maxRotorStallIntensity(),
+				report.maxRotorDamageVibration(),
 				report.maxAirframeSeparatedFlowIntensity(),
 				report.maxAirframeBodyDragForceNewtons(),
 				report.maxLinearDampingDragForceNewtons(),
@@ -1835,6 +1845,7 @@ public final class OfflineFlightRecorder {
 		double[] motorTorqueRipples = state.motorTorqueRippleNewtonMeters();
 		double[] rotorThrust = state.rotorThrustNewtons();
 		double[] rotorHealth = state.rotorHealth();
+		double[] rotorDamageVibration = state.rotorDamageVibration();
 		double[] rotorScrape = state.rotorSurfaceScrapeIntensity();
 		double[] rotorWakeInterference = state.rotorWakeInterferenceIntensity();
 		double[] rotorWakeThrustScale = state.rotorWakeThrustScale();
@@ -1965,6 +1976,10 @@ public final class OfflineFlightRecorder {
 		}
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorHealth, i), "%.5f");
+		}
+		appendExtra(builder, state.maxRotorDamageVibration(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorDamageVibration, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorScrape, i), "%.5f");
@@ -2314,6 +2329,7 @@ public final class OfflineFlightRecorder {
 		private double minMotorActuatorAuthority = 1.0;
 		private double minMixerAxisAuthority = 1.0;
 		private double maxRotorStallIntensity;
+		private double maxRotorDamageVibration;
 		private double maxAirframeSeparatedFlowIntensity;
 		private double maxAirframeBodyDragForceNewtons;
 		private double maxLinearDampingDragForceNewtons;
@@ -2459,6 +2475,7 @@ public final class OfflineFlightRecorder {
 			minMotorActuatorAuthority = Math.min(minMotorActuatorAuthority, state.minMotorActuatorAuthority());
 			minMixerAxisAuthority = Math.min(minMixerAxisAuthority, state.minMixerAxisAuthority());
 			maxRotorStallIntensity = Math.max(maxRotorStallIntensity, state.averageRotorStallIntensity());
+			maxRotorDamageVibration = Math.max(maxRotorDamageVibration, state.maxRotorDamageVibration());
 			maxAirframeSeparatedFlowIntensity = Math.max(maxAirframeSeparatedFlowIntensity, state.airframeSeparatedFlowIntensity());
 			maxAirframeBodyDragForceNewtons = Math.max(
 					maxAirframeBodyDragForceNewtons,
@@ -2838,6 +2855,10 @@ public final class OfflineFlightRecorder {
 
 		public double maxRotorStallIntensity() {
 			return maxRotorStallIntensity;
+		}
+
+		public double maxRotorDamageVibration() {
+			return maxRotorDamageVibration;
 		}
 
 		public double maxAirframeSeparatedFlowIntensity() {

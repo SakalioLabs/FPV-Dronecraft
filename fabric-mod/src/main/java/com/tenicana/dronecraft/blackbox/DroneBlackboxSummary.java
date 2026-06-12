@@ -93,6 +93,7 @@ public record DroneBlackboxSummary(
 		double minBarometerPressureHectopascals,
 		double maxRotorStallIntensity,
 		double maxRotorVibration,
+		double maxRotorDamageVibration,
 		double maxRotorConingIntensity,
 		double maxRotorConingAngleDegrees,
 		double maxRotorFlappingTiltDegrees,
@@ -227,6 +228,7 @@ public record DroneBlackboxSummary(
 		double minBarometerPressure = Double.POSITIVE_INFINITY;
 		double maxRotorStall = 0.0;
 		double maxRotorVibration = 0.0;
+		double maxRotorDamageVibration = 0.0;
 		double maxRotorConing = 0.0;
 		double maxRotorConingAngle = 0.0;
 		double maxRotorFlappingTilt = 0.0;
@@ -513,6 +515,13 @@ public record DroneBlackboxSummary(
 			minBarometerPressure = Math.min(minBarometerPressure, value(row, "barometer_pressure_hpa"));
 			maxRotorStall = Math.max(maxRotorStall, value(row, "rotor_stall_intensity"));
 			maxRotorVibration = Math.max(maxRotorVibration, value(row, "rotor_vibration"));
+			maxRotorDamageVibration = Math.max(
+					maxRotorDamageVibration,
+					Math.max(
+							valueOrDefault(row, "rotor_damage_vibration", 0.0),
+							maxIndexedValue(row, "rotor_", "_damage_vibration")
+					)
+			);
 			maxRotorConing = Math.max(maxRotorConing, value(row, "rotor_coning"));
 			maxRotorConingAngle = Math.max(
 					maxRotorConingAngle,
@@ -685,6 +694,7 @@ public record DroneBlackboxSummary(
 				finiteOrZero(minBarometerPressure),
 				maxRotorStall,
 				maxRotorVibration,
+				maxRotorDamageVibration,
 				maxRotorConing,
 				maxRotorConingAngle,
 				maxRotorFlappingTilt,
@@ -739,7 +749,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -838,6 +848,7 @@ public record DroneBlackboxSummary(
 				maxRotorFlowObstruction,
 				maxRotorStallIntensity,
 				maxRotorVibration,
+				maxRotorDamageVibration,
 				maxRotorConingIntensity,
 				maxRotorConingAngleDegrees,
 				maxRotorFlappingTiltDegrees,
@@ -960,6 +971,7 @@ public record DroneBlackboxSummary(
 				1013.25, // minBarometerPressureHectopascals
 				0.0, // maxRotorStallIntensity
 				0.0, // maxRotorVibration
+				0.0, // maxRotorDamageVibration
 				0.0, // maxRotorConingIntensity
 				0.0, // maxRotorConingAngleDegrees
 				0.0, // maxRotorFlappingTiltDegrees

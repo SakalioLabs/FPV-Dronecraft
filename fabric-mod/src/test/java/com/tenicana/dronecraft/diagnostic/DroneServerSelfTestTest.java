@@ -45,6 +45,7 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxRotorReverseFlow", 0.17);
 		setDouble(selfTest, "maxRotorLowReynoldsLoss", 0.13);
 		setDouble(selfTest, "maxRotorBladePassRipple", 0.021);
+		setDouble(selfTest, "maxRotorDamageVibration", 0.073);
 		setDouble(selfTest, "minRotorWetThrustScale", 0.94);
 		setDouble(selfTest, "maxRotorCoaxialLoadBias", 0.083);
 		setDouble(selfTest, "maxRotorCoaxialLoadBiasTarget", 0.115);
@@ -95,6 +96,7 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_rotor_reverse_flow\": 0.17000"));
 		assertTrue(json.contains("\"max_rotor_low_reynolds_loss\": 0.13000"));
 		assertTrue(json.contains("\"max_rotor_blade_pass_ripple\": 0.02100"));
+		assertTrue(json.contains("\"max_rotor_damage_vibration\": 0.07300"));
 		assertTrue(json.contains("\"max_rotor_wet_thrust_loss_percent\": 6.000"));
 		assertTrue(json.contains("\"max_rotor_coaxial_load_bias\": 0.08300"));
 		assertTrue(json.contains("\"max_rotor_coaxial_load_bias_target\": 0.11500"));

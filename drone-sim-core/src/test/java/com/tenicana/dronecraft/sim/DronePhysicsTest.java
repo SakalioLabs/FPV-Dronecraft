@@ -1716,6 +1716,11 @@ class DronePhysicsTest {
 		assertTrue(bentProp.state().rotorVibration() > clean.state().rotorVibration() + 0.035,
 				() -> "cleanVibration=" + clean.state().rotorVibration()
 						+ " bentPropVibration=" + bentProp.state().rotorVibration());
+		assertEquals(0.0, clean.state().maxRotorDamageVibration(), 1.0e-9);
+		assertTrue(bentProp.state().rotorDamageVibration(0) > bentProp.state().rotorDamageVibration(1) + 0.02,
+				() -> "rotor0DamageVibration=" + bentProp.state().rotorDamageVibration(0)
+						+ " rotor1DamageVibration=" + bentProp.state().rotorDamageVibration(1));
+		assertEquals(bentProp.state().rotorDamageVibration(0), bentProp.state().maxRotorDamageVibration(), 1.0e-9);
 	}
 
 	@Test
@@ -9737,6 +9742,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_level_angle_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_horizon_end"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_vibration"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_damage_vibration"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_damage_vibration"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_notch_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_notch_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_alias_1024_hz"));
@@ -9969,6 +9976,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_windmilling")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_0_windmilling")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_windmilling")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_damage_vibration")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_damage_vibration")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_alias_1024_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_alias_4000_hz")])));
@@ -10080,6 +10089,9 @@ class DronePhysicsTest {
 		assertEquals(1.0, minColumn(lines, header, "rotor_1_health"), 1.0e-9);
 		assertEquals(1.0, minColumn(lines, header, "rotor_2_health"), 1.0e-9);
 		assertEquals(1.0, minColumn(lines, header, "rotor_3_health"), 1.0e-9);
+		assertTrue(maxColumn(lines, header, "rotor_damage_vibration") > 0.001);
+		assertTrue(maxColumn(lines, header, "rotor_0_damage_vibration") > 0.001);
+		assertEquals(0.0, maxColumn(lines, header, "rotor_1_damage_vibration"), 1.0e-9);
 		int phaseIndex = indexOf(header, "phase");
 		boolean sawWallSkim = false;
 		boolean sawRainBurst = false;
@@ -10104,6 +10116,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxMotorRegenerativeCurrentAmps() > 0.0);
 		assertTrue(report.maxBatteryVoltageSpike() > 1.0e-4);
 		assertTrue(report.maxBatteryBusRippleVoltage() > 1.0e-4);
+		assertTrue(report.maxRotorDamageVibration() > 0.001);
 		assertTrue(report.maxBatteryEffectiveResistanceOhms() > 0.0);
 		assertTrue(report.maxAverageMotorTelemetryRpm() > 100.0);
 		assertTrue(report.maxMotorTelemetryRpm() >= report.maxAverageMotorTelemetryRpm() * 0.80);
@@ -10433,6 +10446,8 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "rotor_coaxial_allocation_uncertainty_pct") > 0.10);
 		assertTrue(maxColumn(lines, header, "rotor_windmilling") >= 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_7_windmilling") >= 0.0);
+		assertTrue(maxColumn(lines, header, "rotor_damage_vibration") >= 0.0);
+		assertTrue(maxColumn(lines, header, "rotor_7_damage_vibration") >= 0.0);
 		assertTrue(maxColumn(lines, header, "rotor_advance_ratio") >= 0.0);
 		assertEquals(
 				Math.PI * maxColumn(lines, header, "rotor_advance_ratio"),

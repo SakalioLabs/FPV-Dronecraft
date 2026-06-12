@@ -1250,7 +1250,9 @@ public final class DronePhysics {
 			state.setRotorBladeDissymmetryIntensity(i, bladeDissymmetry.intensity());
 			state.setRotorReverseFlowInboardFraction(i, bladeDissymmetry.reverseFlowInboardFraction());
 			state.setRotorStallIntensity(i, rotorStall);
-			rotorVibrationSum += rotorDamageVibration(rotor, omega, state.rotorHealth(i))
+			double damageVibration = rotorDamageVibration(rotor, omega, state.rotorHealth(i));
+			state.setRotorDamageVibration(i, damageVibration);
+			rotorVibrationSum += damageVibration
 					+ rotorStallVibration(rotor, aerodynamicOmega, rotorStall)
 					+ bladeElement.vibration()
 					+ bladeDissymmetry.vibration()

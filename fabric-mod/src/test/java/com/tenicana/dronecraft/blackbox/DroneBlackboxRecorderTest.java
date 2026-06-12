@@ -166,6 +166,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_7_blade_dissymmetry"));
 		assertTrue(csv.contains("rotor_blade_pass_ripple"));
 		assertTrue(csv.contains("rotor_7_blade_pass_ripple"));
+		assertTrue(csv.contains("rotor_damage_vibration"));
+		assertTrue(csv.contains("rotor_7_damage_vibration"));
 		assertTrue(csv.contains("rotor_flapping_tilt_deg"));
 		assertTrue(csv.contains("rotor_7_flapping_tilt_deg"));
 		assertTrue(csv.contains("rotor_coning"));
@@ -1259,6 +1261,7 @@ class DroneBlackboxRecorderTest {
 			physics.step(input, 0.005, environment);
 		}
 		physics.state().damageRotor(7, 0.20);
+		physics.step(input, 0.005, environment);
 		physics.state().addRotorSurfaceScrapeIntensity(7, 0.66);
 
 		double[] propStrikeSeverity = new double[8];
@@ -1345,6 +1348,9 @@ class DroneBlackboxRecorderTest {
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_wet_thrust_scale")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_wake_swirl_mps")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_windmilling")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_damage_vibration")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_damage_vibration")]) > 0.0);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_0_damage_vibration")]), 1.0e-9);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]) >= 0.0);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_water_immersion")]), 0.0001);
 		assertEquals(0.23, Double.parseDouble(row[indexOf(header, "prop_strike_7_severity")]), 0.0001);
@@ -1353,8 +1359,10 @@ class DroneBlackboxRecorderTest {
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(0.80, summary.minRotorHealth(), 0.0001);
+		assertTrue(summary.maxRotorDamageVibration() > 0.0);
 		assertEquals(0.23, summary.maxPropStrikeSeverity(), 0.0001);
 		assertTrue(summary.formatForChat().contains("rotor min 80.0%"));
+		assertTrue(summary.formatForChat().contains("dvib"));
 	}
 
 	private static int indexOf(String[] header, String column) {

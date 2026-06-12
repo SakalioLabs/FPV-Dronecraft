@@ -136,6 +136,7 @@ public final class DroneState {
 	private double[] rotorArmFlexIntensity;
 	private double[] rotorArmFlexDeflectionMeters;
 	private double[] rotorArmFlexTiltRadians;
+	private double[] rotorDamageVibration;
 	private double[] rotorHealth;
 	private double rotorVibration;
 	private double rotorInflowSkewIntensity;
@@ -287,6 +288,7 @@ public final class DroneState {
 		rotorArmFlexIntensity = new double[motorCount];
 		rotorArmFlexDeflectionMeters = new double[motorCount];
 		rotorArmFlexTiltRadians = new double[motorCount];
+		rotorDamageVibration = new double[motorCount];
 		rotorHealth = new double[motorCount];
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
@@ -1522,6 +1524,7 @@ public final class DroneState {
 		Arrays.fill(rotorArmFlexIntensity, 0.0);
 		Arrays.fill(rotorArmFlexDeflectionMeters, 0.0);
 		Arrays.fill(rotorArmFlexTiltRadians, 0.0);
+		Arrays.fill(rotorDamageVibration, 0.0);
 		rotorVibration = 0.0;
 		rotorInflowSkewIntensity = 0.0;
 		rotorInflowSkewTorqueBodyNewtonMeters = Vec3.ZERO;
@@ -2785,6 +2788,34 @@ public final class DroneState {
 
 	void setRotorVibration(double rotorVibration) {
 		this.rotorVibration = MathUtil.clamp(rotorVibration, 0.0, 1.0);
+	}
+
+	public double rotorDamageVibration(int index) {
+		return rotorDamageVibration[index];
+	}
+
+	public double[] rotorDamageVibration() {
+		return Arrays.copyOf(rotorDamageVibration, rotorDamageVibration.length);
+	}
+
+	void setRotorDamageVibration(int index, double value) {
+		rotorDamageVibration[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorDamageVibration() {
+		double sum = 0.0;
+		for (double vibration : rotorDamageVibration) {
+			sum += vibration;
+		}
+		return sum / rotorDamageVibration.length;
+	}
+
+	public double maxRotorDamageVibration() {
+		double max = 0.0;
+		for (double vibration : rotorDamageVibration) {
+			max = Math.max(max, vibration);
+		}
+		return max;
 	}
 
 	public double rotorInflowSkewIntensity() {
