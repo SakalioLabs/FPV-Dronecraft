@@ -11054,6 +11054,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("RATM-500Hz-Speed-Envelope"));
 		assertTrue(text.contains(">=21m/s"));
 		assertTrue(text.contains("speed/limit"));
+		assertTrue(text.contains("NeuroBEM residual audit"));
+		assertTrue(text.contains("NeuroBEM-Drag-Residual-Packet"));
+		assertTrue(text.contains("0.772kg"));
+		assertTrue(text.contains("low-speed-residual-not-wind-tunnel-drag"));
 		assertTrue(text.contains("High-advance prop audit"));
 		assertTrue(text.contains("APC-High-J-Axial-Propeller-Packet"));
 		assertTrue(text.contains("axial-not-edgewise"));

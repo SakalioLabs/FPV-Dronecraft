@@ -12,6 +12,7 @@ import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.MotorResponseCalibration;
+import com.tenicana.dronecraft.sim.NeuroBemAirframeResidualCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
 import com.tenicana.dronecraft.sim.PropGeometryCalibration;
@@ -1248,6 +1249,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
 		AirframeDragCalibration.RatmHighSpeedEnvelopeAudit ratmEnvelopeAudit =
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(preset);
+		NeuroBemAirframeResidualCalibration.NeuroBemAirframeResidualAudit neuroBemResidualAudit =
+				NeuroBemAirframeResidualCalibration.audit(preset);
 		HighAdvanceRotorCalibration.HighAdvanceAudit highAdvanceAudit =
 				HighAdvanceRotorCalibration.audit(preset);
 		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
@@ -1445,6 +1448,37 @@ public final class OfflineFlightRecorder {
 				ratmEnvelopeAudit.configuredPerMotorCurrentOverRatmEscCurrent(),
 				ratmEnvelopeAudit.configuredRotorRadiusOverRatmPropRadius(),
 				ratmEnvelopeAudit.minimumBatteryVoltageAcrossGroup()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"NeuroBEM residual audit: %s rows %d files %d raw %d %.1fmin 0.772kg speed p50/p95/max %.2f/%.2f/%.2fm/s residual p50/p95 %.2f/%.2fN %.1f%%W drag_like p95 %.2fN eqC95 %.5f, preset X/Z 10m %.2f/%.2fN p95v %.2f/%.2fN over_resid %.2f/%.2fx over_draglike %.2f/%.2fx bins trim %.1fm/s %.2f/%.2fN fast %.1fm/s %.2f/%.2fN caveat low-speed-residual-not-wind-tunnel-drag%n",
+				neuroBemResidualAudit.sourceId(),
+				neuroBemResidualAudit.packetMetricRowCount(),
+				neuroBemResidualAudit.globalEnvelope().predictionCsvFileCount(),
+				neuroBemResidualAudit.globalEnvelope().rawSampleRowCount(),
+				neuroBemResidualAudit.globalEnvelope().totalDurationMinutes(),
+				neuroBemResidualAudit.globalEnvelope().bodySpeedSampleP50MetersPerSecond(),
+				neuroBemResidualAudit.globalEnvelope().bodySpeedSampleP95MetersPerSecond(),
+				neuroBemResidualAudit.globalEnvelope().bodySpeedMaxMetersPerSecond(),
+				neuroBemResidualAudit.globalEnvelope().residualForceSampleP50Newtons(),
+				neuroBemResidualAudit.globalEnvelope().residualForceSampleP95Newtons(),
+				neuroBemResidualAudit.globalEnvelope().residualForceSampleP95OverWeight() * 100.0,
+				neuroBemResidualAudit.globalEnvelope().dragLikeForceSampleP95Newtons(),
+				neuroBemResidualAudit.globalEnvelope().equivalentQuadCoeffSampleP95(),
+				neuroBemResidualAudit.lateralAxisComparison().dragAtTenMetersPerSecondNewtons(),
+				neuroBemResidualAudit.forwardAxisComparison().dragAtTenMetersPerSecondNewtons(),
+				neuroBemResidualAudit.lateralAxisComparison().dragAtNeuroBemP95SpeedNewtons(),
+				neuroBemResidualAudit.forwardAxisComparison().dragAtNeuroBemP95SpeedNewtons(),
+				neuroBemResidualAudit.lateralAxisComparison().dragAtNeuroBemP95SpeedOverNeuroBemResidualP95(),
+				neuroBemResidualAudit.forwardAxisComparison().dragAtNeuroBemP95SpeedOverNeuroBemResidualP95(),
+				neuroBemResidualAudit.lateralAxisComparison().dragAtNeuroBemP95SpeedOverNeuroBemDragLikeP95(),
+				neuroBemResidualAudit.forwardAxisComparison().dragAtNeuroBemP95SpeedOverNeuroBemDragLikeP95(),
+				neuroBemResidualAudit.maneuverSpeedBin().speedSampleP50MetersPerSecond(),
+				neuroBemResidualAudit.maneuverSpeedBin().currentXDragAtP50SpeedNewtons(),
+				neuroBemResidualAudit.maneuverSpeedBin().currentZDragAtP50SpeedNewtons(),
+				neuroBemResidualAudit.fastPacketSpeedBin().speedSampleP50MetersPerSecond(),
+				neuroBemResidualAudit.fastPacketSpeedBin().currentXDragAtP50SpeedNewtons(),
+				neuroBemResidualAudit.fastPacketSpeedBin().currentZDragAtP50SpeedNewtons()
 		);
 		System.out.printf(
 				Locale.ROOT,
