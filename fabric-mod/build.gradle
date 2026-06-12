@@ -237,6 +237,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"effective_wind_y_mps",
 		"effective_wind_z_mps",
 		"wind_gust_speed_mps",
+		"wind_dryden_speed_mps",
+		"wind_burble_speed_mps",
 		"wind_shear_accel_mps2",
 		"drone_wake_intensity",
 		"water_immersion",

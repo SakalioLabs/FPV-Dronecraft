@@ -929,7 +929,9 @@ public final class OfflineFlightRecorder {
 			"vortex_ring_buffet_force_x_n",
 			"vortex_ring_buffet_force_y_n",
 			"vortex_ring_buffet_force_z_n",
-			"vortex_ring_buffet_force_n"
+			"vortex_ring_buffet_force_n",
+			"wind_dryden_speed_mps",
+			"wind_burble_speed_mps"
 	);
 
 	private OfflineFlightRecorder() {
@@ -978,7 +980,7 @@ public final class OfflineFlightRecorder {
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
 				Locale.ROOT,
-				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_irx=%.2f/%.2f/%.2f, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_erpm100=%.1f/%.1f, min_eint=%.1f/%.1f us, max_rpm_valid=%.2f/%.2f, notch=%.1fHz/%.3f, notch_spread=%.1fHz, hnotch=%.3f, bpass_notch=%.1fHz/%.3f, bpass_spread=%.1fHz, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_coax_unc=%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_damage_vib=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_ground_level=%.4f N-m, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
+				"Summary: max_speed=%.2f m/s, max_current=%.1f A, max_regen=%.1f A, max_motor_regen=%.3f A, min_voltage=%.2f V, max_sag=%.2f V, max_ir=%.1f mOhm, max_irx=%.2f/%.2f/%.2f, max_spike=%.4f V, max_ripple=%.4f V, max_imu_power_noise=%.3f, max_erpm100=%.1f/%.1f, min_eint=%.1f/%.1f us, max_rpm_valid=%.2f/%.2f, notch=%.1fHz/%.3f, notch_spread=%.1fHz, hnotch=%.3f, bpass_notch=%.1fHz/%.3f, bpass_spread=%.1fHz, max_batt=%.1f C, batt_limit=%.2f, max_propwash=%.3f, max_vrs=%.3f, max_vrs_buffet=%.3f, max_vrs_buffet_force=%.3f N, max_induced=%.2f m/s, max_inflow_lag=%.1f%%, max_dynamic_inflow_tau=%.3f s, max_rotor_adv=%.3f, max_prop_j=%.3f, min_prop_thrust=%.3f, min_prop_power=%.3f, max_reverse_flow=%.3f, max_tip_mach=%.3f, max_mach_loss=%.1f%%, max_low_re=%.3f, max_bpass=%.3f, max_hforce=%.3f N, max_coax_bias=%.3f, max_coax_target=%.3f, max_coax_clip=%.3f, max_coax_load=%.2f, max_coax_ratio=%.2f, max_coax_gain=%.1f/%.1f%%, max_coax_unc=%.1f%%, max_wet_loss=%.1f%%, max_bdiss_torque=%.4f N-m, max_wake_swirl=%.2f m/s, max_windmill=%.3f, max_wake_swirl_torque=%.4f N-m, max_active_brake_torque=%.4f N-m, max_rotor_accel_torque=%.4f N-m, max_rotor_gyro_torque=%.4f N-m, max_flap_torque=%.4f N-m, min_motor_eff=%.3f, min_motor_headroom=%.3f, max_motor_winding_r=%.3f, max_track=%.3f, min_auth=%.2f, min_mix_axis=%.2f, max_rotor_stall=%.3f, max_damage_vib=%.3f, max_airframe_sep=%.3f, max_body_drag=%.3f N, max_linear_drag=%.3f N, max_ground_level=%.4f N-m, max_coning=%.3f, max_coning_angle=%.2f deg, max_arm_flex=%.3f, max_arm_flex_mm=%.2f, max_arm_flex_tilt=%.2f deg, max_scrape=%.3f, max_gust=%.2f m/s, max_dryden=%.2f m/s, max_burble=%.2f m/s, max_shear=%.2f m/s2, max_wall=%.3f N, max_contact=%.2f/%.2f/%.2f m/s, max_contact_ang=%.0f d/s, max_aero_torque=%.4f N-m, max_baro_error=%.3f m, max_esc=%.1f C, esc_limit=%.2f%n",
 				report.maxSpeedMetersPerSecond(),
 				report.maxBatteryCurrentAmps(),
 				report.maxBatteryRegenerativeCurrentAmps(),
@@ -1060,6 +1062,8 @@ public final class OfflineFlightRecorder {
 				Math.toDegrees(report.maxRotorArmFlexTiltRadians()),
 				report.maxRotorSurfaceScrapeIntensity(),
 				report.maxWindGustSpeedMetersPerSecond(),
+				report.maxWindDrydenSpeedMetersPerSecond(),
+				report.maxWindBurbleSpeedMetersPerSecond(),
 				report.maxWindShearAccelerationMetersPerSecondSquared(),
 				report.maxRotorWallEffectForceNewtons(),
 				report.maxContactImpactSpeedMetersPerSecond(),
@@ -2171,6 +2175,8 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, vortexRingBuffetForce.y(), "%.5f");
 		appendExtra(builder, vortexRingBuffetForce.z(), "%.5f");
 		appendExtra(builder, vortexRingBuffetForce.length(), "%.5f");
+		appendExtra(builder, state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
+		appendExtra(builder, state.windBurbleSpeedMetersPerSecond(), "%.5f");
 		return builder.toString();
 	}
 
@@ -2341,6 +2347,8 @@ public final class OfflineFlightRecorder {
 		private double maxRotorArmFlexTiltRadians;
 		private double maxRotorSurfaceScrapeIntensity;
 		private double maxWindGustSpeedMetersPerSecond;
+		private double maxWindDrydenSpeedMetersPerSecond;
+		private double maxWindBurbleSpeedMetersPerSecond;
 		private double maxWindShearAccelerationMetersPerSecondSquared;
 		private double maxRotorWallEffectForceNewtons;
 		private double maxContactImpactSpeedMetersPerSecond;
@@ -2496,6 +2504,8 @@ public final class OfflineFlightRecorder {
 			maxRotorArmFlexTiltRadians = Math.max(maxRotorArmFlexTiltRadians, state.maxRotorArmFlexTiltRadians());
 			maxRotorSurfaceScrapeIntensity = Math.max(maxRotorSurfaceScrapeIntensity, state.maxRotorSurfaceScrapeIntensity());
 			maxWindGustSpeedMetersPerSecond = Math.max(maxWindGustSpeedMetersPerSecond, state.windGustSpeedMetersPerSecond());
+			maxWindDrydenSpeedMetersPerSecond = Math.max(maxWindDrydenSpeedMetersPerSecond, state.drydenTurbulenceSpeedMetersPerSecond());
+			maxWindBurbleSpeedMetersPerSecond = Math.max(maxWindBurbleSpeedMetersPerSecond, state.windBurbleSpeedMetersPerSecond());
 			maxWindShearAccelerationMetersPerSecondSquared = Math.max(maxWindShearAccelerationMetersPerSecondSquared, state.windShearAccelerationMetersPerSecondSquared());
 			maxRotorWallEffectForceNewtons = Math.max(maxRotorWallEffectForceNewtons, state.rotorWallEffectForceBodyNewtons().length());
 			maxContactImpactSpeedMetersPerSecond = Math.max(maxContactImpactSpeedMetersPerSecond, state.contactImpactSpeedMetersPerSecond());
@@ -2903,6 +2913,14 @@ public final class OfflineFlightRecorder {
 
 		public double maxWindGustSpeedMetersPerSecond() {
 			return maxWindGustSpeedMetersPerSecond;
+		}
+
+		public double maxWindDrydenSpeedMetersPerSecond() {
+			return maxWindDrydenSpeedMetersPerSecond;
+		}
+
+		public double maxWindBurbleSpeedMetersPerSecond() {
+			return maxWindBurbleSpeedMetersPerSecond;
 		}
 
 		public double maxWindShearAccelerationMetersPerSecondSquared() {

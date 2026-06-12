@@ -830,6 +830,8 @@ public final class DronePhysics {
 				meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond)
 		);
 		state.setWindGustVelocityWorldMetersPerSecond(windGustVelocityWorldMetersPerSecond);
+		state.setDrydenTurbulenceVelocityWorldMetersPerSecond(drydenTurbulenceVelocityWorldMetersPerSecond);
+		state.setWindBurbleVelocityWorldMetersPerSecond(windBurbleVelocityWorldMetersPerSecond);
 		state.setAirframeSeparatedFlowIntensity(airframeSeparatedFlowIntensity);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragForceBodyFiltered);
 		state.setAirframeLiftForceBodyNewtons(airframeLiftForceBodyFiltered);
@@ -5547,6 +5549,8 @@ public final class DronePhysics {
 			windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 			state.setEffectiveWindVelocityWorldMetersPerSecond(targetMeanWind);
 			state.setWindGustVelocityWorldMetersPerSecond(Vec3.ZERO);
+			state.setDrydenTurbulenceVelocityWorldMetersPerSecond(Vec3.ZERO);
+			state.setWindBurbleVelocityWorldMetersPerSecond(Vec3.ZERO);
 			state.setWindShearAccelerationMetersPerSecondSquared(0.0);
 			return targetMeanWind;
 		}
@@ -5584,6 +5588,8 @@ public final class DronePhysics {
 		double shearAcceleration = effectiveWind.subtract(previousEffectiveWind).length() / Math.max(1.0e-6, dtSeconds);
 		state.setEffectiveWindVelocityWorldMetersPerSecond(effectiveWind);
 		state.setWindGustVelocityWorldMetersPerSecond(windGustVelocityWorldMetersPerSecond);
+		state.setDrydenTurbulenceVelocityWorldMetersPerSecond(drydenTurbulence);
+		state.setWindBurbleVelocityWorldMetersPerSecond(windBurbleVelocityWorldMetersPerSecond);
 		state.setWindShearAccelerationMetersPerSecondSquared(shearAcceleration);
 		return effectiveWind;
 	}

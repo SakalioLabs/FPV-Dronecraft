@@ -179,6 +179,8 @@ public final class DroneState {
 	private Vec3 relativeAirVelocityBodyMetersPerSecond = Vec3.ZERO;
 	private Vec3 effectiveWindVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private double windShearAccelerationMetersPerSecondSquared;
 	private double airspeedMetersPerSecond;
 	private double angleOfAttackRadians;
@@ -3222,6 +3224,34 @@ public final class DroneState {
 
 	public double windGustSpeedMetersPerSecond() {
 		return windGustVelocityWorldMetersPerSecond.length();
+	}
+
+	public Vec3 drydenTurbulenceVelocityWorldMetersPerSecond() {
+		return drydenTurbulenceVelocityWorldMetersPerSecond;
+	}
+
+	void setDrydenTurbulenceVelocityWorldMetersPerSecond(Vec3 drydenTurbulenceVelocityWorldMetersPerSecond) {
+		this.drydenTurbulenceVelocityWorldMetersPerSecond = drydenTurbulenceVelocityWorldMetersPerSecond == null
+				? Vec3.ZERO
+				: drydenTurbulenceVelocityWorldMetersPerSecond;
+	}
+
+	public double drydenTurbulenceSpeedMetersPerSecond() {
+		return drydenTurbulenceVelocityWorldMetersPerSecond.length();
+	}
+
+	public Vec3 windBurbleVelocityWorldMetersPerSecond() {
+		return windBurbleVelocityWorldMetersPerSecond;
+	}
+
+	void setWindBurbleVelocityWorldMetersPerSecond(Vec3 windBurbleVelocityWorldMetersPerSecond) {
+		this.windBurbleVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond == null
+				? Vec3.ZERO
+				: windBurbleVelocityWorldMetersPerSecond;
+	}
+
+	public double windBurbleSpeedMetersPerSecond() {
+		return windBurbleVelocityWorldMetersPerSecond.length();
 	}
 
 	public double windShearAccelerationMetersPerSecondSquared() {

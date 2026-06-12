@@ -373,6 +373,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("effective_wind_y_mps"));
 		assertTrue(csv.contains("effective_wind_z_mps"));
 		assertTrue(csv.contains("wind_gust_speed_mps"));
+		assertTrue(csv.contains("wind_dryden_speed_mps"));
+		assertTrue(csv.contains("wind_burble_speed_mps"));
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
 		assertTrue(csv.contains("gyro_bias_pitch_dps"));
 		assertTrue(csv.contains("gyro_clip"));
@@ -575,6 +577,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_thermal_limit")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "effective_wind_x_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_gust_speed_mps")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_dryden_speed_mps")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_burble_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_shear_accel_mps2")]));
 		assertEquals(0.18, Double.parseDouble(row[indexOf(header, "water_immersion")]), 0.0001);
 		assertEquals(0.36, Double.parseDouble(row[indexOf(header, "precipitation_wetness")]), 0.0001);
@@ -829,6 +833,18 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxBatteryPolarizationResistanceScale() >= 1.0);
 		assertTrue(summary.maxBatteryVoltageSpike() >= 0.0);
 		assertTrue(summary.maxWindGustSpeedMetersPerSecond() >= 0.0);
+		assertTrue(summary.maxWindDrydenSpeedMetersPerSecond() >= 0.0);
+		assertTrue(summary.maxWindBurbleSpeedMetersPerSecond() >= 0.0);
+		assertEquals(
+				maxOfColumns(lines, header, "wind_dryden_speed_mps"),
+				summary.maxWindDrydenSpeedMetersPerSecond(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfColumns(lines, header, "wind_burble_speed_mps"),
+				summary.maxWindBurbleSpeedMetersPerSecond(),
+				1.0e-5
+		);
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
 		assertTrue(summary.maxRotorBladePassRippleIntensity() > 0.0);
 		assertEquals(0.45, summary.maxWaterImmersionIntensity(), 0.0001);
@@ -849,6 +865,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("track"));
 		assertTrue(summary.formatForChat().contains("auth"));
 		assertTrue(summary.formatForChat().contains("mix-auth"));
+		assertTrue(summary.formatForChat().contains("dryden"));
+		assertTrue(summary.formatForChat().contains("burble"));
 		assertTrue(summary.formatForChat().contains("mix-edge"));
 		assertTrue(summary.formatForChat().contains("mix-head"));
 		assertTrue(summary.formatForChat().contains("regen"));

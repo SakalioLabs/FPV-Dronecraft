@@ -497,6 +497,8 @@ public final class DroneBlackboxSample {
 			"effective_wind_y_mps",
 			"effective_wind_z_mps",
 			"wind_gust_speed_mps",
+			"wind_dryden_speed_mps",
+			"wind_burble_speed_mps",
 			"wind_shear_accel_mps2",
 			"air_density_ratio",
 			"effective_air_density_ratio",
@@ -1609,6 +1611,8 @@ public final class DroneBlackboxSample {
 		row.add(effectiveWind.y(), "%.5f");
 		row.add(effectiveWind.z(), "%.5f");
 		row.add(state.windGustSpeedMetersPerSecond(), "%.5f");
+		row.add(state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
+		row.add(state.windBurbleSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windShearAccelerationMetersPerSecondSquared(), "%.5f");
 		row.add(environment.airDensityRatio(), "%.5f");
 		row.add(environment.effectiveAirDensityRatio(), "%.5f");
