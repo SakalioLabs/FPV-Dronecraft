@@ -258,6 +258,7 @@ def fpvDroneRequiredSelfTestColumns = [
 		"rotor_flow_obstruction",
 		"tune_rotor_blade_pitch_m",
 		"tune_rotor_blade_count",
+		"tune_motor_pole_pairs",
 		"tune_rotor_stall_loss",
 		"tune_rotor_imbalance",
 		"tune_esc_command_frame_rate_hz",

@@ -1936,25 +1936,49 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	public double getAverageMotorTelemetryErpm100() {
-		return DronePhysics.betaflightErpm100FromMechanicalRpm(physics.state().averageMotorRpmTelemetryRpm());
+		return DronePhysics.betaflightErpm100FromMechanicalRpm(
+				physics.state().averageMotorRpmTelemetryRpm(),
+				averageMotorPolePairs()
+		);
 	}
 
 	public double getMotorTelemetryErpm100(int index) {
-		return DronePhysics.betaflightErpm100FromMechanicalRpm(getMotorRpmTelemetryRpm(index));
+		return DronePhysics.betaflightErpm100FromMechanicalRpm(getMotorRpmTelemetryRpm(index), motorPolePairs(index));
 	}
 
 	public double getAverageMotorTelemetryEIntervalMicros() {
 		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
 				physics.state().averageMotorRpmTelemetryRpm(),
-				physics.state().averageMotorRpmTelemetryValidity()
+				physics.state().averageMotorRpmTelemetryValidity(),
+				averageMotorPolePairs()
 		);
 	}
 
 	public double getMotorTelemetryEIntervalMicros(int index) {
 		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
 				getMotorRpmTelemetryRpm(index),
-				getMotorRpmTelemetryValidity(index)
+				getMotorRpmTelemetryValidity(index),
+				motorPolePairs(index)
 		);
+	}
+
+	private double averageMotorPolePairs() {
+		DroneConfig config = physics.config();
+		if (config.rotors().isEmpty()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().stream()
+				.mapToDouble(RotorSpec::motorPolePairs)
+				.average()
+				.orElse(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
+	}
+
+	private double motorPolePairs(int index) {
+		DroneConfig config = physics.config();
+		if (index < 0 || index >= config.rotors().size()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().get(index).motorPolePairs();
 	}
 
 	public float getMotorTemperatureCelsius() {
@@ -3115,6 +3139,7 @@ public class DroneEntity extends PathfinderMob {
 		output.putDouble("tune_rotor_radius", rotor.radiusMeters());
 		output.putDouble("tune_rotor_blade_pitch", rotor.bladePitchMeters());
 		output.putDouble("tune_rotor_blade_count", rotor.bladeCount());
+		output.putDouble("tune_motor_pole_pairs", rotor.motorPolePairs());
 		output.putDouble("tune_rotor_transverse_lift", rotor.transverseFlowLiftCoefficient());
 		output.putDouble("tune_rotor_axial_loss", rotor.axialFlowThrustLossCoefficient());
 		output.putDouble("tune_rotor_disk_drag", rotor.diskDragCoefficient());
@@ -3250,6 +3275,7 @@ public class DroneEntity extends PathfinderMob {
 				.withRotorRadiusMeters(input.getDoubleOr("tune_rotor_radius", defaultRotor.radiusMeters()))
 				.withRotorBladePitchMeters(input.getDoubleOr("tune_rotor_blade_pitch", defaultRotor.bladePitchMeters()))
 				.withRotorBladeCount((int) Math.round(input.getDoubleOr("tune_rotor_blade_count", defaultRotor.bladeCount())))
+				.withRotorMotorPolePairs(input.getDoubleOr("tune_motor_pole_pairs", defaultRotor.motorPolePairs()))
 				.withRotorTransverseFlowLiftCoefficient(input.getDoubleOr("tune_rotor_transverse_lift", defaultRotor.transverseFlowLiftCoefficient()))
 				.withRotorAxialFlowThrustLossCoefficient(input.getDoubleOr("tune_rotor_axial_loss", defaultRotor.axialFlowThrustLossCoefficient()))
 				.withRotorDiskDragCoefficient(input.getDoubleOr("tune_rotor_disk_drag", defaultRotor.diskDragCoefficient()))

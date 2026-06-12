@@ -10,7 +10,6 @@ public final class DronePhysics {
 	private static final double MIN_THERMAL_THRUST_LIMIT = 0.45;
 	private static final double MOTOR_STALL_CURRENT_SCALE = 3.20;
 	private static final double MOTOR_NO_LOAD_OMEGA_SCALE = 1.35;
-	private static final double MOTOR_OUTRUNNER_POLE_PAIRS = 7.0;
 	private static final double ESC_RPM_TELEMETRY_MIN_VALID_MECHANICAL_RPM = 120.0;
 	private static final double ESC_RPM_TELEMETRY_FULL_VALID_MECHANICAL_RPM = 200.0;
 	private static final double ROTOR_ARM_FLEX_TILT_RADIANS = Math.toRadians(4.0);
@@ -453,10 +452,14 @@ public final class DronePhysics {
 	}
 
 	public static double betaflightErpm100FromMechanicalRpm(double mechanicalRpm) {
+		return betaflightErpm100FromMechanicalRpm(mechanicalRpm, RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
+	}
+
+	public static double betaflightErpm100FromMechanicalRpm(double mechanicalRpm, double motorPolePairs) {
 		if (!Double.isFinite(mechanicalRpm) || mechanicalRpm <= 0.0) {
 			return 0.0;
 		}
-		return mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS / 100.0;
+		return mechanicalRpm * normalizedMotorPolePairs(motorPolePairs) / 100.0;
 	}
 
 	public static double bladePassFrequencyHertz(double mechanicalRpm, int bladeCount) {
@@ -485,7 +488,11 @@ public final class DronePhysics {
 	}
 
 	public static double betaflightEIntervalMicrosFromMechanicalRpm(double mechanicalRpm) {
-		double electricalRpm = mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS;
+		return betaflightEIntervalMicrosFromMechanicalRpm(mechanicalRpm, RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
+	}
+
+	public static double betaflightEIntervalMicrosFromMechanicalRpm(double mechanicalRpm, double motorPolePairs) {
+		double electricalRpm = mechanicalRpm * normalizedMotorPolePairs(motorPolePairs);
 		if (!Double.isFinite(electricalRpm) || electricalRpm <= 0.0) {
 			return 0.0;
 		}
@@ -493,10 +500,33 @@ public final class DronePhysics {
 	}
 
 	public static double betaflightEIntervalMicrosFromTelemetryRpm(double mechanicalRpm, double telemetryValidity) {
+		return betaflightEIntervalMicrosFromTelemetryRpm(
+				mechanicalRpm,
+				telemetryValidity,
+				RotorSpec.DEFAULT_MOTOR_POLE_PAIRS
+		);
+	}
+
+	public static double betaflightEIntervalMicrosFromTelemetryRpm(
+			double mechanicalRpm,
+			double telemetryValidity,
+			double motorPolePairs
+	) {
 		if (telemetryValidity < 0.5) {
 			return BETAFLIGHT_EINTERVAL_INVALID_MICROS;
 		}
-		return betaflightEIntervalMicrosFromMechanicalRpm(mechanicalRpm);
+		return betaflightEIntervalMicrosFromMechanicalRpm(mechanicalRpm, motorPolePairs);
+	}
+
+	private static double normalizedMotorPolePairs(double motorPolePairs) {
+		if (!Double.isFinite(motorPolePairs) || motorPolePairs <= 0.0) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return MathUtil.clamp(motorPolePairs, 1.0, 28.0);
+	}
+
+	private static double motorPolePairs(RotorSpec rotor) {
+		return rotor == null ? RotorSpec.DEFAULT_MOTOR_POLE_PAIRS : normalizedMotorPolePairs(rotor.motorPolePairs());
 	}
 
 	public DronePhysics(DroneConfig config) {
@@ -1784,9 +1814,10 @@ public final class DronePhysics {
 		}
 
 		double mechanicalRpm = omegaRadiansPerSecond * 60.0 / (Math.PI * 2.0);
-		double electricalRpmDiv100 = mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS / 100.0;
+		double polePairs = motorPolePairs(rotor);
+		double electricalRpmDiv100 = mechanicalRpm * polePairs / 100.0;
 		double reportedElectricalRpmDiv100 = Math.round(Math.max(0.0, electricalRpmDiv100));
-		double reportedMechanicalRpm = reportedElectricalRpmDiv100 * 100.0 / MOTOR_OUTRUNNER_POLE_PAIRS;
+		double reportedMechanicalRpm = reportedElectricalRpmDiv100 * 100.0 / polePairs;
 		return reportedMechanicalRpm * (Math.PI * 2.0) / 60.0;
 	}
 
@@ -2313,7 +2344,7 @@ public final class DronePhysics {
 		}
 
 		motorCommutationPhases[index] = normalizeRadians(
-				motorCommutationPhases[index] + Math.abs(omegaRadiansPerSecond) * MOTOR_OUTRUNNER_POLE_PAIRS * dtSeconds
+				motorCommutationPhases[index] + Math.abs(omegaRadiansPerSecond) * motorPolePairs(rotor) * dtSeconds
 		);
 		double phase = motorCommutationPhases[index] * 6.0 + index * 1.23;
 		double commutationWave = Math.sin(phase)

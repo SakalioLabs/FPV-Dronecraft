@@ -47,6 +47,7 @@ class DronePhysicsTest {
 		assertEquals(3, DroneConfig.apDrone().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.cinewhoop().rotors().get(0).bladeCount());
 		assertEquals(2, DroneConfig.heavyLift().rotors().get(0).bladeCount());
+		assertEquals(DroneConfig.APDRONE_MOTOR_POLE_PAIRS, DroneConfig.apDrone().rotors().get(0).motorPolePairs(), 1.0e-12);
 
 		RotorSpec defaultRotor = new RotorSpec(
 				Vec3.ZERO,
@@ -61,8 +62,14 @@ class DronePhysicsTest {
 				3.0e-6
 		);
 		assertEquals(2, defaultRotor.bladeCount());
+		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, defaultRotor.motorPolePairs(), 1.0e-12);
 		assertEquals(3, defaultRotor.withBladeCount(3).bladeCount());
 		assertEquals(8, defaultRotor.withBladeCount(99).bladeCount());
+		assertEquals(6.0, defaultRotor.withMotorPolePairs(6.0).motorPolePairs(), 1.0e-12);
+		assertEquals(28.0, defaultRotor.withMotorPolePairs(99.0).motorPolePairs(), 1.0e-12);
+		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, defaultRotor.withMotorPolePairs(Double.NaN).motorPolePairs(), 1.0e-12);
+		assertEquals(300.0, DronePhysics.betaflightErpm100FromMechanicalRpm(5_000.0, 6.0), 1.0e-12);
+		assertEquals(2_000.0, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(5_000.0, 6.0), 1.0e-12);
 		assertEquals(
 				5.376333333333333e-6,
 				RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(0.0635, 4.0),
@@ -10039,6 +10046,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_chord_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_chord_to_radius"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_blade_count"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_motor_pole_pairs"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rotor_imbalance"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_x_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_cg_y_m"));
@@ -10228,6 +10236,7 @@ class DronePhysicsTest {
 				0.00001
 		);
 		assertEquals(3.0, Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_count")]), 0.0001);
+		assertEquals(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS, Double.parseDouble(firstRow[indexOf(header, "tune_motor_pole_pairs")]), 0.0001);
 		assertTrue(Double.parseDouble(firstRow[indexOf(header, "tune_rotor_imbalance")]) >= 0.0);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_cg_x_m")])));
 		assertEquals(0.0, Double.parseDouble(firstRow[indexOf(header, "tune_cg_z_m")]), 0.0001);
@@ -10743,6 +10752,7 @@ class DronePhysicsTest {
 		assertEquals(78.13, Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_interval_raw_frame_ratio")]), 0.01);
 		assertEquals(rotor.bladePitchToDiameterRatio(), Double.parseDouble(firstRow[indexOf(header, "tune_rotor_pitch_to_diameter")]), 0.00001);
 		assertEquals(3.0, Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_count")]), 1.0e-9);
+		assertEquals(DroneConfig.APDRONE_MOTOR_POLE_PAIRS, Double.parseDouble(firstRow[indexOf(header, "tune_motor_pole_pairs")]), 1.0e-9);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_0_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_reynolds_number")]) >= 0.0);
@@ -11335,6 +11345,8 @@ class DronePhysicsTest {
 				template.flappingCoefficient(),
 				template.stallThrustLossCoefficient(),
 				template.imbalanceIntensity(),
+				template.motorWindingResistanceOhms(),
+				template.motorPolePairs(),
 				template.bladeCount()
 		);
 	}

@@ -434,6 +434,7 @@ public final class OfflineFlightRecorder {
 			"rotor_1_surface_scrape",
 			"rotor_2_surface_scrape",
 			"rotor_3_surface_scrape",
+			"tune_motor_pole_pairs",
 			"airframe_rotor_count",
 			"avg_motor_erpm100",
 			"motor_0_erpm100",
@@ -2093,7 +2094,7 @@ public final class OfflineFlightRecorder {
 
 				if (step % SAMPLE_EVERY_STEPS == 0) {
 					writeSample(writer, sample, step, timeSeconds, frame, physics, environment);
-					report.record(physics.state());
+					report.record(physics.state(), config);
 					sample++;
 				}
 			}
@@ -2862,26 +2863,28 @@ public final class OfflineFlightRecorder {
 		Vec3 mixerAxisAuthority = state.mixerAxisAuthority();
 		Vec3 pidIntegralRelaxAxes = state.pidIntegralRelaxAxes();
 
+		double averageMotorPolePairs = averageMotorPolePairs(config);
+		appendExtra(builder, averageMotorPolePairs, "%.3f");
 		appendExtra(builder, config.rotors().size());
-		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpmTelemetryRpm()), "%.1f");
+		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpmTelemetryRpm(), averageMotorPolePairs), "%.1f");
 		for (int i = 0; i < 4; i++) {
-			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i)), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i), motorPolePairs(config, i)), "%.1f");
 		}
-		appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(state.averageMotorRpmTelemetryRpm(), state.averageMotorRpmTelemetryValidity()), "%.1f");
+		appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(state.averageMotorRpmTelemetryRpm(), state.averageMotorRpmTelemetryValidity(), averageMotorPolePairs), "%.1f");
 		for (int i = 0; i < 4; i++) {
-			appendExtra(builder, motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
+			appendExtra(builder, motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
 		}
 		appendExtra(builder, state.averageMotorRpmTelemetryValidity(), "%.3f");
 		for (int i = 0; i < 4; i++) {
 			appendExtra(builder, valueOrZero(motorTelemetryValidity, i), "%.3f");
 		}
-		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
+		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm(), averageMotorPolePairs), "%.1f");
 		for (int i = 0; i < 4; i++) {
-			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i)), motorPolePairs(config, i)), "%.1f");
 		}
-		appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
+		appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorTargetRpm(), averageMotorPolePairs), "%.1f");
 		for (int i = 0; i < 4; i++) {
-			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i)), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorPowers, i), "%.5f");
@@ -2890,10 +2893,10 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, valueOrZero(motorRpm, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i)), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			appendExtra(builder, motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
+			appendExtra(builder, motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorTelemetryValidity, i), "%.3f");
@@ -2902,10 +2905,10 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, motorTargetRpm(valueOrZero(motorTargetOmega, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i)), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+			appendExtra(builder, DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i)), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			appendExtra(builder, valueOrZero(motorTrackingError, i), "%.5f");
@@ -3181,14 +3184,37 @@ public final class OfflineFlightRecorder {
 		return index >= 0 && index < values.length ? values[index] : 1.0;
 	}
 
-	private static double motorTelemetryEIntervalMicros(double[] motorTelemetryRpm, double[] motorTelemetryValidity, int index) {
+	private static double motorTelemetryEIntervalMicros(
+			DroneConfig config,
+			double[] motorTelemetryRpm,
+			double[] motorTelemetryValidity,
+			int index
+	) {
 		if (index < 0 || index >= motorTelemetryRpm.length || index >= motorTelemetryValidity.length) {
 			return 0.0;
 		}
 		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
 				motorTelemetryRpm[index],
-				motorTelemetryValidity[index]
+				motorTelemetryValidity[index],
+				motorPolePairs(config, index)
 		);
+	}
+
+	private static double averageMotorPolePairs(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().stream()
+				.mapToDouble(RotorSpec::motorPolePairs)
+				.average()
+				.orElse(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
+	}
+
+	private static double motorPolePairs(DroneConfig config, int index) {
+		if (config == null || index < 0 || index >= config.rotors().size()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().get(index).motorPolePairs();
 	}
 
 	private static double motorTargetRpm(double omegaRadiansPerSecond) {
@@ -3349,7 +3375,7 @@ public final class OfflineFlightRecorder {
 		private double maxEscTemperatureCelsius;
 		private double minEscThermalLimit = 1.0;
 
-		private void record(DroneState state) {
+		private void record(DroneState state, DroneConfig config) {
 			maxSpeedMetersPerSecond = Math.max(maxSpeedMetersPerSecond, state.speedMetersPerSecond());
 			maxBatteryCurrentAmps = Math.max(maxBatteryCurrentAmps, state.batteryCurrentAmps());
 			maxBatteryRegenerativeCurrentAmps = Math.max(maxBatteryRegenerativeCurrentAmps, state.batteryRegenerativeCurrentAmps());
@@ -3363,7 +3389,7 @@ public final class OfflineFlightRecorder {
 			maxBatteryVoltageSpike = Math.max(maxBatteryVoltageSpike, state.batteryVoltageSpike());
 			maxBatteryBusRippleVoltage = Math.max(maxBatteryBusRippleVoltage, state.batteryBusRippleVoltage());
 			maxImuSupplyNoiseIntensity = Math.max(maxImuSupplyNoiseIntensity, state.imuSupplyNoiseIntensity());
-			recordRpmTelemetry(state);
+			recordRpmTelemetry(state, config);
 			maxGyroNotchFrequencyHertz = Math.max(maxGyroNotchFrequencyHertz, state.gyroDynamicNotchFrequencyHertz());
 			maxGyroNotchAttenuation = Math.max(maxGyroNotchAttenuation, state.gyroDynamicNotchAttenuation());
 			maxGyroNotchSpreadHertz = Math.max(maxGyroNotchSpreadHertz, state.gyroDynamicNotchSpreadHertz());
@@ -3510,18 +3536,20 @@ public final class OfflineFlightRecorder {
 			minEscThermalLimit = Math.min(minEscThermalLimit, state.escThermalLimit());
 		}
 
-		private void recordRpmTelemetry(DroneState state) {
+		private void recordRpmTelemetry(DroneState state, DroneConfig config) {
 			double averageTelemetryRpm = state.averageMotorRpmTelemetryRpm();
+			double averagePolePairs = averageMotorPolePairs(config);
 			maxAverageMotorTelemetryRpm = Math.max(maxAverageMotorTelemetryRpm, averageTelemetryRpm);
 			maxAverageMotorTelemetryErpm100 = Math.max(
 					maxAverageMotorTelemetryErpm100,
-					DronePhysics.betaflightErpm100FromMechanicalRpm(averageTelemetryRpm)
+					DronePhysics.betaflightErpm100FromMechanicalRpm(averageTelemetryRpm, averagePolePairs)
 			);
 			minAverageMotorTelemetryEIntervalMicros = minValidEIntervalMicros(
 					minAverageMotorTelemetryEIntervalMicros,
 					DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
 							averageTelemetryRpm,
-							state.averageMotorRpmTelemetryValidity()
+							state.averageMotorRpmTelemetryValidity(),
+							averagePolePairs
 					)
 			);
 			maxAverageMotorRpmTelemetryValidity = Math.max(
@@ -3537,11 +3565,11 @@ public final class OfflineFlightRecorder {
 				maxMotorTelemetryRpm = Math.max(maxMotorTelemetryRpm, rpm);
 				maxMotorTelemetryErpm100 = Math.max(
 						maxMotorTelemetryErpm100,
-						DronePhysics.betaflightErpm100FromMechanicalRpm(rpm)
+						DronePhysics.betaflightErpm100FromMechanicalRpm(rpm, motorPolePairs(config, i))
 				);
 				minMotorTelemetryEIntervalMicros = minValidEIntervalMicros(
 						minMotorTelemetryEIntervalMicros,
-						DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(rpm, validity)
+						DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(rpm, validity, motorPolePairs(config, i))
 				);
 				maxMotorRpmTelemetryValidity = Math.max(maxMotorRpmTelemetryValidity, validity);
 			}

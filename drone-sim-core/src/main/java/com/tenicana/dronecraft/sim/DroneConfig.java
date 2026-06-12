@@ -79,6 +79,7 @@ public record DroneConfig(
 	public static final double DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT = 1.0;
 	public static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND = 0.5439609800526073;
 	public static final double APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS = 0.0586;
+	public static final double APDRONE_MOTOR_POLE_PAIRS = 7.0;
 	public static final double APDRONE_FOXEER_DONUT_5145_THRUST_COEFFICIENT = 1.3918976015517363e-6;
 	public static final double APDRONE_FOXEER_DONUT_5145_YAW_TORQUE_PER_THRUST_METERS = 0.013572582176683558;
 	public static final double APDRONE_BLACKBOX_LOW_MOTION_GYRO_NOISE_RADIANS_PER_SECOND =
@@ -347,6 +348,7 @@ public record DroneConfig(
 				EscCommandProtocol.DSHOT600)
 				.withRotorBladeCount(3)
 				.withRotorBladePitchToDiameterRatio(rotorPitchToDiameter)
+				.withRotorMotorPolePairs(APDRONE_MOTOR_POLE_PAIRS)
 				.withMotorWindingResistanceOhms(APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS);
 	}
 
@@ -766,6 +768,8 @@ public record DroneConfig(
 				template.flappingCoefficient(),
 				template.stallThrustLossCoefficient(),
 				template.imbalanceIntensity(),
+				template.motorWindingResistanceOhms(),
+				template.motorPolePairs(),
 				template.bladeCount()
 		);
 	}
@@ -2000,6 +2004,12 @@ public record DroneConfig(
 	public DroneConfig withMotorWindingResistanceOhms(double motorWindingResistanceOhms) {
 		return withRotors(rotors.stream()
 				.map(rotor -> rotor.withMotorWindingResistanceOhms(motorWindingResistanceOhms))
+				.toList());
+	}
+
+	public DroneConfig withRotorMotorPolePairs(double motorPolePairs) {
+		return withRotors(rotors.stream()
+				.map(rotor -> rotor.withMotorPolePairs(motorPolePairs))
 				.toList());
 	}
 

@@ -19,11 +19,13 @@ public record RotorSpec(
 		double stallThrustLossCoefficient,
 		double imbalanceIntensity,
 		double motorWindingResistanceOhms,
+		double motorPolePairs,
 		int bladeCount
 ) {
 	private static final Vec3 DEFAULT_THRUST_AXIS_BODY = new Vec3(0.0, 1.0, 0.0);
 	private static final double DEFAULT_IMBALANCE_INTENSITY = 0.012;
 	private static final int DEFAULT_BLADE_COUNT = 2;
+	public static final double DEFAULT_MOTOR_POLE_PAIRS = 7.0;
 	public static final double DEFAULT_BLADE_PITCH_TO_DIAMETER_RATIO = 0.85;
 	public static final double BLADE_GEOMETRY_REFERENCE_STATION_FRACTION = 0.70;
 	public static final double DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO = 0.12;
@@ -65,6 +67,7 @@ public record RotorSpec(
 				0.0,
 				DEFAULT_IMBALANCE_INTENSITY,
 				0.0,
+				DEFAULT_MOTOR_POLE_PAIRS,
 				DEFAULT_BLADE_COUNT
 		);
 	}
@@ -104,6 +107,7 @@ public record RotorSpec(
 				stallThrustLossCoefficient,
 				DEFAULT_IMBALANCE_INTENSITY,
 				0.0,
+				DEFAULT_MOTOR_POLE_PAIRS,
 				DEFAULT_BLADE_COUNT
 		);
 	}
@@ -141,6 +145,7 @@ public record RotorSpec(
 				0.0,
 				DEFAULT_IMBALANCE_INTENSITY,
 				0.0,
+				DEFAULT_MOTOR_POLE_PAIRS,
 				DEFAULT_BLADE_COUNT
 		);
 	}
@@ -176,6 +181,7 @@ public record RotorSpec(
 				0.0,
 				DEFAULT_IMBALANCE_INTENSITY,
 				0.0,
+				DEFAULT_MOTOR_POLE_PAIRS,
 				DEFAULT_BLADE_COUNT
 		);
 	}
@@ -219,6 +225,7 @@ public record RotorSpec(
 				stallThrustLossCoefficient,
 				imbalanceIntensity,
 				0.0,
+				DEFAULT_MOTOR_POLE_PAIRS,
 				bladeCount
 		);
 	}
@@ -262,6 +269,11 @@ public record RotorSpec(
 			motorWindingResistanceOhms = 0.0;
 		} else {
 			motorWindingResistanceOhms = MathUtil.clamp(motorWindingResistanceOhms, 0.01, 2.5);
+		}
+		if (!Double.isFinite(motorPolePairs) || motorPolePairs <= 0.0) {
+			motorPolePairs = DEFAULT_MOTOR_POLE_PAIRS;
+		} else {
+			motorPolePairs = MathUtil.clamp(motorPolePairs, 1.0, 28.0);
 		}
 		bladeCount = Math.max(1, Math.min(8, bladeCount));
 	}
@@ -418,6 +430,32 @@ public record RotorSpec(
 				stallThrustLossCoefficient,
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
+				motorPolePairs,
+				bladeCount
+		);
+	}
+
+	public RotorSpec withMotorPolePairs(double motorPolePairs) {
+		return new RotorSpec(
+				positionBodyMeters,
+				thrustAxisBody,
+				spinDirection,
+				maxThrustNewtons,
+				thrustCoefficient,
+				yawTorquePerThrustMeter,
+				radiusMeters,
+				bladePitchMeters,
+				transverseFlowLiftCoefficient,
+				axialFlowThrustLossCoefficient,
+				diskDragCoefficient,
+				rotorInertiaKgMetersSquared,
+				inducedInflowTimeConstantSeconds,
+				inducedInflowLagCoefficient,
+				flappingCoefficient,
+				stallThrustLossCoefficient,
+				imbalanceIntensity,
+				motorWindingResistanceOhms,
+				motorPolePairs,
 				bladeCount
 		);
 	}
@@ -442,6 +480,7 @@ public record RotorSpec(
 				stallThrustLossCoefficient,
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
+				motorPolePairs,
 				bladeCount
 		);
 	}
@@ -466,6 +505,7 @@ public record RotorSpec(
 				stallThrustLossCoefficient,
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
+				motorPolePairs,
 				bladeCount
 		);
 	}
@@ -505,6 +545,7 @@ public record RotorSpec(
 				stallThrustLossCoefficient,
 				imbalanceIntensity,
 				motorWindingResistanceOhms,
+				motorPolePairs,
 				bladeCount
 		);
 	}

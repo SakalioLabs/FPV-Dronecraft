@@ -645,6 +645,7 @@ public final class DroneBlackboxSample {
 			"tune_rotor_chord_m",
 			"tune_rotor_chord_to_radius",
 			"tune_rotor_blade_count",
+			"tune_motor_pole_pairs",
 			"tune_rotor_transverse_lift",
 			"tune_rotor_axial_loss",
 			"tune_rotor_flapping",
@@ -1157,6 +1158,7 @@ public final class DroneBlackboxSample {
 		int sanitizedPhysicsSubsteps = Math.max(0, physicsSubsteps);
 		double sanitizedPhysicsDtSeconds = Double.isFinite(physicsDtSeconds) && physicsDtSeconds > 0.0 ? physicsDtSeconds : 0.0;
 		double physicsRateHertz = sanitizedPhysicsDtSeconds > 0.0 ? 1.0 / sanitizedPhysicsDtSeconds : 0.0;
+		double averageMotorPolePairs = averageMotorPolePairs(config);
 
 		CsvRow row = new CsvRow();
 		row.add(gameTime);
@@ -1272,19 +1274,20 @@ public final class DroneBlackboxSample {
 		row.add(state.motorRpm(1), "%.1f");
 		row.add(state.motorRpm(2), "%.1f");
 		row.add(state.motorRpm(3), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpmTelemetryRpm()), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 0)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 1)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 2)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 3)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpmTelemetryRpm(), averageMotorPolePairs), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 0), motorPolePairs(config, 0)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 1), motorPolePairs(config, 1)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 2), motorPolePairs(config, 2)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, 3), motorPolePairs(config, 3)), "%.1f");
 		row.add(DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
 				state.averageMotorRpmTelemetryRpm(),
-				state.averageMotorRpmTelemetryValidity()
+				state.averageMotorRpmTelemetryValidity(),
+				averageMotorPolePairs
 		), "%.1f");
-		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 0), "%.1f");
-		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 1), "%.1f");
-		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 2), "%.1f");
-		row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, 3), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, 0), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, 1), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, 2), "%.1f");
+		row.add(motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, 3), "%.1f");
 		row.add(state.averageMotorRpmTelemetryValidity(), "%.3f");
 		row.add(valueOrZero(motorTelemetryValidity, 0), "%.3f");
 		row.add(valueOrZero(motorTelemetryValidity, 1), "%.3f");
@@ -1295,16 +1298,16 @@ public final class DroneBlackboxSample {
 		row.add(state.motorTargetRpm(1), "%.1f");
 		row.add(state.motorTargetRpm(2), "%.1f");
 		row.add(state.motorTargetRpm(3), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(0)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(1)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(2)), "%.1f");
-		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(3)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorTargetRpm()), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(0)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(1)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(2)), "%.1f");
-		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(3)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorTargetRpm(), averageMotorPolePairs), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(0), motorPolePairs(config, 0)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(1), motorPolePairs(config, 1)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(2), motorPolePairs(config, 2)), "%.1f");
+		row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(state.motorTargetRpm(3), motorPolePairs(config, 3)), "%.1f");
+		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.averageMotorTargetRpm(), averageMotorPolePairs), "%.1f");
+		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(0), motorPolePairs(config, 0)), "%.1f");
+		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(1), motorPolePairs(config, 1)), "%.1f");
+		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(2), motorPolePairs(config, 2)), "%.1f");
+		row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(state.motorTargetRpm(3), motorPolePairs(config, 3)), "%.1f");
 		row.add(state.averageMotorTrackingError(), "%.5f");
 		row.add(state.motorTrackingError(0), "%.5f");
 		row.add(state.motorTrackingError(1), "%.5f");
@@ -1780,6 +1783,7 @@ public final class DroneBlackboxSample {
 		row.add(rotor.representativeBladeChordMeters(), "%.5f");
 		row.add(rotor.representativeBladeChordToRadiusRatio(), "%.5f");
 		row.add((double) rotor.bladeCount(), "%.0f");
+		row.add(rotor.motorPolePairs(), "%.3f");
 		row.add(rotor.transverseFlowLiftCoefficient(), "%.4f");
 		row.add(rotor.axialFlowThrustLossCoefficient(), "%.8f");
 		row.add(rotor.flappingCoefficient(), "%.5f");
@@ -2008,10 +2012,10 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(motorRpm, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i)), "%.1f");
+			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(motorTelemetryEIntervalMicros(motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
+			row.add(motorTelemetryEIntervalMicros(config, motorTelemetryRpm, motorTelemetryValidity, i), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(motorTelemetryValidity, i), "%.3f");
@@ -2020,10 +2024,10 @@ public final class DroneBlackboxSample {
 			row.add(motorTargetRpm(valueOrZero(motorTargetOmega, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+			row.add(DronePhysics.betaflightErpm100FromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i)), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
-			row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i))), "%.1f");
+			row.add(DronePhysics.betaflightEIntervalMicrosFromMechanicalRpm(motorTargetRpm(valueOrZero(motorTargetOmega, i)), motorPolePairs(config, i)), "%.1f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(motorTrackingError, i), "%.5f");
@@ -2204,14 +2208,37 @@ public final class DroneBlackboxSample {
 		return index < state.motorCount() ? state.escCoolingFactor(index) : 1.0;
 	}
 
-	private static double motorTelemetryEIntervalMicros(double[] motorTelemetryRpm, double[] motorTelemetryValidity, int index) {
+	private static double motorTelemetryEIntervalMicros(
+			DroneConfig config,
+			double[] motorTelemetryRpm,
+			double[] motorTelemetryValidity,
+			int index
+	) {
 		if (index < 0 || index >= motorTelemetryRpm.length || index >= motorTelemetryValidity.length) {
 			return 0.0;
 		}
 		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
 				motorTelemetryRpm[index],
-				motorTelemetryValidity[index]
+				motorTelemetryValidity[index],
+				motorPolePairs(config, index)
 		);
+	}
+
+	private static double averageMotorPolePairs(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().stream()
+				.mapToDouble(RotorSpec::motorPolePairs)
+				.average()
+				.orElse(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
+	}
+
+	private static double motorPolePairs(DroneConfig config, int index) {
+		if (config == null || index < 0 || index >= config.rotors().size()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().get(index).motorPolePairs();
 	}
 
 	private static double rotorTranslationalLiftOrZero(DroneState state, int index) {
