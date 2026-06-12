@@ -1260,6 +1260,8 @@ public final class OfflineFlightRecorder {
 				RotorDynamicsCalibration.audit(preset);
 		HighAdvanceRotorCalibration.HighAdvanceAudit highAdvanceAudit =
 				HighAdvanceRotorCalibration.audit(preset);
+		HighAdvanceRotorCalibration.TytoWindTunnelLeadAudit tytoWindTunnelLeadAudit =
+				highAdvanceAudit.tytoWindTunnelLeadAudit();
 		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
 				PropGeometryCalibration.audit(preset);
 		PrecipitationWaterCalibration.PrecipitationWaterAudit precipitationWaterAudit =
@@ -1649,6 +1651,37 @@ public final class OfflineFlightRecorder {
 				highAdvanceAudit.mejzlikWindTunnelAudit().windmillingBoundaryPoint().currentThrustScale(),
 				highAdvanceAudit.mejzlikWindTunnelAudit().windmillingBoundaryPoint().currentPowerScale(),
 				highAdvanceAudit.mejzlikWindTunnelAudit().windmillingBoundaryPoint().windTunnelCt()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Tyto wind-tunnel lead audit: %s setup %.0fin %.1fm %s/%d fans wind %d %.0fm/s %.1fmph throttle %d rpm %.0f, article retain th/pw %.2f/%.2f raw %s digitize %s, current articleJ %.3f th/pw %.2f/%.2f over %.2f/%.2f, racing hover17 J %.3f th/pw %.2f/%.2f over %.2f/%.2f, maxrpm17 J %.3f th/pw %.2f/%.2f caveat article-lead-not-fit%n",
+				tytoWindTunnelLeadAudit.sourceId(),
+				tytoWindTunnelLeadAudit.propellerDiameterInches(),
+				tytoWindTunnelLeadAudit.propellerDistanceFromWindshaperMeters(),
+				tytoWindTunnelLeadAudit.windshaperFanGrid(),
+				tytoWindTunnelLeadAudit.windshaperFanCount(),
+				tytoWindTunnelLeadAudit.airspeedConditionCount(),
+				tytoWindTunnelLeadAudit.maxWindSpeedMetersPerSecond(),
+				tytoWindTunnelLeadAudit.maxWindSpeedMilesPerHour(),
+				tytoWindTunnelLeadAudit.throttleStepCount(),
+				tytoWindTunnelLeadAudit.comparisonRpm(),
+				tytoWindTunnelLeadAudit.articleThrustRetentionAtMaxWind9000Rpm(),
+				tytoWindTunnelLeadAudit.articlePowerRetentionAtMaxWind9000Rpm(),
+				tytoWindTunnelLeadAudit.articleRawNumericTableAvailable(),
+				tytoWindTunnelLeadAudit.needsFigureDigitizationOrRawExport(),
+				tytoWindTunnelLeadAudit.tytoArticle9000RpmMaxWindPoint().packetEquivalentAdvanceRatioJ(),
+				tytoWindTunnelLeadAudit.tytoArticle9000RpmMaxWindPoint().currentThrustScale(),
+				tytoWindTunnelLeadAudit.tytoArticle9000RpmMaxWindPoint().currentPowerScale(),
+				tytoWindTunnelLeadAudit.tytoArticle9000RpmMaxWindPoint().currentThrustScaleOverArticleRetention(),
+				tytoWindTunnelLeadAudit.tytoArticle9000RpmMaxWindPoint().currentPowerScaleOverArticleRetention(),
+				tytoWindTunnelLeadAudit.racingHoverMaxWindPoint().packetEquivalentAdvanceRatioJ(),
+				tytoWindTunnelLeadAudit.racingHoverMaxWindPoint().currentThrustScale(),
+				tytoWindTunnelLeadAudit.racingHoverMaxWindPoint().currentPowerScale(),
+				tytoWindTunnelLeadAudit.racingHoverMaxWindPoint().currentThrustScaleOverArticleRetention(),
+				tytoWindTunnelLeadAudit.racingHoverMaxWindPoint().currentPowerScaleOverArticleRetention(),
+				tytoWindTunnelLeadAudit.racingMaxRpmMaxWindPoint().packetEquivalentAdvanceRatioJ(),
+				tytoWindTunnelLeadAudit.racingMaxRpmMaxWindPoint().currentThrustScale(),
+				tytoWindTunnelLeadAudit.racingMaxRpmMaxWindPoint().currentPowerScale()
 		);
 		System.out.printf(
 				Locale.ROOT,

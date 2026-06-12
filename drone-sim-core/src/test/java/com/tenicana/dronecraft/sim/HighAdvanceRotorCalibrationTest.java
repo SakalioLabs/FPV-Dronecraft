@@ -131,4 +131,73 @@ class HighAdvanceRotorCalibrationTest {
 		assertEquals(0.2989999999999998, windmilling.currentPowerScale(), 1.0e-15);
 		assertEquals(0.0, windmilling.currentThrustScaleOverPositiveWindTunnelCtRatio(), 1.0e-12);
 	}
+
+	@Test
+	void tytoWindTunnelLeadAuditAddsArticleLevelForwardFlowConstraint() {
+		HighAdvanceRotorCalibration.TytoWindTunnelLeadAudit audit =
+				HighAdvanceRotorCalibration.audit(DroneConfig.racingQuad()).tytoWindTunnelLeadAudit();
+
+		assertEquals("Tyto-Wind-Tunnel-Lead-Packet", audit.sourceId());
+		assertTrue(audit.caveat().contains("article-level lead"));
+		assertTrue(audit.articleMentions0To38Mph());
+		assertTrue(audit.articleMentions0To17Mps());
+		assertTrue(audit.articleMentionsFourThrottleSteps());
+		assertTrue(audit.articleMentionsThrustDeclines75Percent());
+		assertTrue(audit.articleMentionsPowerDeclines19Percent());
+		assertEquals(9.0, audit.propellerDiameterInches(), 1.0e-12);
+		assertEquals(2.1, audit.propellerDistanceFromWindshaperMeters(), 1.0e-12);
+		assertEquals("2x2", audit.windshaperFanGrid());
+		assertEquals(36, audit.windshaperFanCount());
+		assertEquals(6, audit.airspeedConditionCount());
+		assertEquals(4, audit.throttleStepCount());
+		assertEquals(9000.0, audit.comparisonRpm(), 1.0e-12);
+		assertTrue(audit.measuredFieldsIncludeThrustTorqueRpmCurrentVoltageAirspeed());
+		assertEquals(17.0, audit.maxWindSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(38.027916964, audit.maxWindSpeedMilesPerHour(), 1.0e-12);
+		assertEquals(0.495771361913, audit.tyto9InAdvanceRatioAtMaxWind9000Rpm(), 1.0e-12);
+		assertEquals(0.157808925784, audit.tyto9InCodeMuAtMaxWind9000Rpm(), 1.0e-12);
+		assertEquals(0.453467850036, audit.racing5InAdvanceRatioAt12p5MpsHoverRpm(), 1.0e-12);
+		assertEquals(0.616716276049, audit.racing5InAdvanceRatioAtMaxWindHoverRpm(), 1.0e-12);
+		assertEquals(0.196306887637, audit.racing5InCodeMuAtMaxWindHoverRpm(), 1.0e-12);
+		assertEquals(0.275639964716, audit.racing5InAdvanceRatioAtMaxWindMaxRpm(), 1.0e-12);
+		assertEquals(0.0877389257966, audit.racing5InCodeMuAtMaxWindMaxRpm(), 1.0e-12);
+		assertEquals(0.25, audit.articleThrustRetentionAtMaxWind9000Rpm(), 1.0e-12);
+		assertEquals(0.81, audit.articlePowerRetentionAtMaxWind9000Rpm(), 1.0e-12);
+		assertEquals(0.308641975309, audit.articleThrustPowerRatioRetentionAtMaxWind9000Rpm(), 1.0e-12);
+		assertFalse(audit.articleRawNumericTableAvailable());
+		assertTrue(audit.needsFigureDigitizationOrRawExport());
+
+		HighAdvanceRotorCalibration.TytoForwardFlowPoint article = audit.tytoArticle9000RpmMaxWindPoint();
+		assertEquals("tyto_9in_17mps_9000rpm", article.pointId());
+		assertEquals(17.0, article.windSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(0.495771361913, article.packetEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.157808925784, article.packetCodeEquivalentProjectMu(), 1.0e-12);
+		assertEquals(0.15780892578371, article.currentRotorAdvanceRatio(), 1.0e-14);
+		assertEquals(0.495771361913, article.currentEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.504823295015123, article.currentThrustScale(), 1.0e-15);
+		assertEquals(0.650850210890329, article.currentPowerScale(), 1.0e-15);
+		assertEquals(1.28926342606838, article.currentTorquePerThrustScale(), 1.0e-14);
+		assertEquals(2.01929318006049, article.currentThrustScaleOverArticleRetention(), 1.0e-14);
+		assertEquals(0.803518778876949, article.currentPowerScaleOverArticleRetention(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.TytoForwardFlowPoint hover17 = audit.racingHoverMaxWindPoint();
+		assertEquals("racing_5in_17mps_hover_rpm", hover17.pointId());
+		assertEquals(0.616716276049, hover17.packetEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.196306887637, hover17.packetCodeEquivalentProjectMu(), 1.0e-12);
+		assertEquals(0.23043851928893, hover17.currentThrustScale(), 1.0e-15);
+		assertEquals(0.429609030100437, hover17.currentPowerScale(), 1.0e-15);
+		assertEquals(1.86431084276228, hover17.currentTorquePerThrustScale(), 1.0e-14);
+		assertEquals(0.92175407715572, hover17.currentThrustScaleOverArticleRetention(), 1.0e-14);
+		assertEquals(0.530381518642515, hover17.currentPowerScaleOverArticleRetention(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.TytoForwardFlowPoint maxRpm17 = audit.racingMaxRpmMaxWindPoint();
+		assertEquals("racing_5in_17mps_max_rpm", maxRpm17.pointId());
+		assertEquals(0.275639964716, maxRpm17.packetEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.0877389257966, maxRpm17.packetCodeEquivalentProjectMu(), 1.0e-12);
+		assertEquals(0.883767021782819, maxRpm17.currentThrustScale(), 1.0e-15);
+		assertEquals(0.955374350275526, maxRpm17.currentPowerScale(), 1.0e-15);
+		assertEquals(1.08102511943504, maxRpm17.currentTorquePerThrustScale(), 1.0e-14);
+		assertEquals(3.53506808713128, maxRpm17.currentThrustScaleOverArticleRetention(), 1.0e-14);
+		assertEquals(1.179474506513, maxRpm17.currentPowerScaleOverArticleRetention(), 1.0e-12);
+	}
 }
