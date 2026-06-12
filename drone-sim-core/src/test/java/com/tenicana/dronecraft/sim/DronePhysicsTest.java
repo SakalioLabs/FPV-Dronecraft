@@ -11090,6 +11090,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("VRS-Propwash-Calibration-Packet"));
 		assertTrue(text.contains("Cambridge peak"));
 		assertTrue(text.contains("separate-mean-buffet-lateral-torque"));
+		assertTrue(text.contains("Coaxial allocation audit"));
+		assertTrue(text.contains("Coaxial-Allocation-Calibration-Packet"));
+		assertTrue(text.contains("allocation-not-thrust-loss-fit"));
 		assertTrue(text.contains("Surface near-field audit"));
 		assertTrue(text.contains("Surface-Nearfield-Calibration-Packet"));
 		assertTrue(text.contains("wall0.25R"));

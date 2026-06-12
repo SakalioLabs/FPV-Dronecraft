@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim.tools;
 
 import com.tenicana.dronecraft.sim.AirframeDragCalibration;
 import com.tenicana.dronecraft.sim.AirframeInertiaCalibration;
+import com.tenicana.dronecraft.sim.CoaxialAllocationCalibration;
 import com.tenicana.dronecraft.sim.ControlResponseCalibration;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -1271,6 +1272,8 @@ public final class OfflineFlightRecorder {
 				VrsPropwashCalibration.audit(preset);
 		SurfaceNearfieldCalibration.SurfaceNearfieldAudit surfaceNearfieldAudit =
 				SurfaceNearfieldCalibration.audit(preset);
+		CoaxialAllocationCalibration.CoaxialAllocationAudit coaxialAllocationAudit =
+				CoaxialAllocationCalibration.audit(DroneConfig.coaxialX8());
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1791,6 +1794,55 @@ public final class OfflineFlightRecorder {
 				vrsPropwashAudit.largestShettyDigitized().currentBuffetOverReferenceMeasuredHalfAmplitude(),
 				vrsPropwashAudit.bestCurrentShettyMatch().currentBuffetOverReferenceMeasuredHalfAmplitude(),
 				vrsPropwashAudit.bestCurrentShettyMatch().currentBaseLossOverCambridgePeakLoss()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Coaxial allocation audit: %s rows %d platform %s %.1fkgf %.1fgf torque %.4f/%.7fNm channels %s, zD %.2f pairs %d sep %.4fm R %.3fm geom_match %s wake %.2f/%.2f%% zD055_extra %.2f/%.2f%%, 60pct ratio %.3f bias %.3f left/right %.3f/%.3f mech/elec %.2f/%.2f%% unc %.2f%% p10/med/p90 %.3f/%.3f/%.3f mech %.2f/%.2f/%.2f%%, 11in zD0.70 1000g %.3f %.2f%% 1500g %.3f %.2f%% claim %.1f%%, strongest multi %.2f%% %.3f command %.2f%% %.3f elec %.2f%% surface %.2f%%/%.4f %.2f%%/%.4f caveat %s%n",
+				coaxialAllocationAudit.sourceId(),
+				coaxialAllocationAudit.rowTypeCounts().totalRowCount(),
+				coaxialAllocationAudit.referencePlatform().platform(),
+				coaxialAllocationAudit.referencePlatform().thrustLoadCellCapacityKgf(),
+				coaxialAllocationAudit.referencePlatform().thrustPrecisionGf(),
+				coaxialAllocationAudit.referencePlatform().torqueCapacityNewtonMeters(),
+				coaxialAllocationAudit.referencePlatform().torquePrecisionNewtonMeters(),
+				coaxialAllocationAudit.referencePlatform().measuredChannels(),
+				coaxialAllocationAudit.currentGeometry().separationOverDiameter(),
+				coaxialAllocationAudit.currentGeometry().coaxialPairCount(),
+				coaxialAllocationAudit.currentGeometry().upperLowerSeparationMeters(),
+				coaxialAllocationAudit.currentGeometry().radiusMeters(),
+				coaxialAllocationAudit.currentGeometry().matchesPacketGeometry(),
+				coaxialAllocationAudit.wakeLoss().hoverWakeLossZOverD072Percent(),
+				coaxialAllocationAudit.wakeLoss().maxWakeLossZOverD072Percent(),
+				coaxialAllocationAudit.wakeLoss().hoverWakeLossZOverD055MinusZOverD072Percent(),
+				coaxialAllocationAudit.wakeLoss().maxWakeLossZOverD055MinusZOverD072Percent(),
+				coaxialAllocationAudit.runtimeAllocation().recommendedPwmRatioRightOverLeft(),
+				coaxialAllocationAudit.runtimeAllocation().loadBiasTarget(),
+				coaxialAllocationAudit.runtimeAllocation().recommendedLeftPwmScaleVsEqual(),
+				coaxialAllocationAudit.runtimeAllocation().recommendedRightPwmScaleVsEqual(),
+				coaxialAllocationAudit.runtimeAllocation().mechanicalGainOverEqualPercent(),
+				coaxialAllocationAudit.runtimeAllocation().electricalGainOverEqualPercent(),
+				coaxialAllocationAudit.runtimeAllocation().allocationUncertaintyPercent(),
+				coaxialAllocationAudit.runtimeAllocation().allGroupRatioP10(),
+				coaxialAllocationAudit.runtimeAllocation().allGroupRatioMedian(),
+				coaxialAllocationAudit.runtimeAllocation().allGroupRatioP90(),
+				coaxialAllocationAudit.runtimeAllocation().allGroupMechanicalGainP10Percent(),
+				coaxialAllocationAudit.runtimeAllocation().allGroupMechanicalGainMedianPercent(),
+				coaxialAllocationAudit.runtimeAllocation().allGroupMechanicalGainP90Percent(),
+				coaxialAllocationAudit.benchmarkAllocation().elevenInZOverD070RatioAt1000g(),
+				coaxialAllocationAudit.benchmarkAllocation().elevenInZOverD070MechanicalGainAt1000gPercent(),
+				coaxialAllocationAudit.benchmarkAllocation().elevenInZOverD070RatioAt1500g(),
+				coaxialAllocationAudit.benchmarkAllocation().elevenInZOverD070MechanicalGainAt1500gPercent(),
+				coaxialAllocationAudit.benchmarkAllocation().allocationClaimMechanicalGainPercent(),
+				coaxialAllocationAudit.strongestAllocation().strongestMultiOptimal60PercentMechanicalGainPercent(),
+				coaxialAllocationAudit.strongestAllocation().strongestMultiOptimal60PercentPwmRatioRightOverLeft(),
+				coaxialAllocationAudit.strongestAllocation().strongestCommandEnvelope60PercentMechanicalGainPercent(),
+				coaxialAllocationAudit.strongestAllocation().strongestCommandEnvelope60PercentPwmRatioRightOverLeft(),
+				coaxialAllocationAudit.strongestAllocation().strongestCommandEnvelope60PercentElectricalGainPercent(),
+				coaxialAllocationAudit.surfaceFit().thrustMedianCvRmseOverRangePercent(),
+				coaxialAllocationAudit.surfaceFit().thrustMedianCvR2(),
+				coaxialAllocationAudit.surfaceFit().mechanicalPowerMedianCvRmseOverRangePercent(),
+				coaxialAllocationAudit.surfaceFit().mechanicalPowerMedianCvR2(),
+				coaxialAllocationAudit.caveat()
 		);
 		System.out.printf(
 				Locale.ROOT,
