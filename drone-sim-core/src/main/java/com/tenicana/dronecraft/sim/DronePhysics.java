@@ -3400,6 +3400,30 @@ public final class DronePhysics {
 		);
 	}
 
+	private static double rotorVortexRingBuffetFrequencyHertz(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double vortexRingStateIntensity,
+			double descentRatio
+	) {
+		double absOmega = Math.abs(omegaRadiansPerSecond);
+		double vrs = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
+		if (rotor == null || !Double.isFinite(absOmega) || absOmega <= 1.0e-6 || vrs <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double revolutionsPerSecond = absOmega / (2.0 * Math.PI);
+		double peakBuffetBand = rotorVortexRingBuffetEnvelope(descentRatio);
+		double weakState = 1.0 - smoothStep(0.35, 0.90, vrs);
+		double highDescentRelease = smoothStep(1.55, 2.25, descentRatio);
+		double characteristicRevolutions = 20.0
+				+ 18.0 * (1.0 - peakBuffetBand)
+				+ 8.0 * weakState
+				+ 12.0 * highDescentRelease;
+		characteristicRevolutions = MathUtil.clamp(characteristicRevolutions, 20.0, 50.0);
+		return revolutionsPerSecond / characteristicRevolutions;
+	}
+
 	private static double rotorVortexRingMeanThrustLoss(RotorSpec rotor, double vortexRingStateIntensity) {
 		double vrs = MathUtil.clamp(vortexRingStateIntensity, 0.0, 1.0);
 		if (vrs <= 1.0e-6 || rotor.axialFlowThrustLossCoefficient() <= 0.0) {
@@ -4161,7 +4185,15 @@ public final class DronePhysics {
 			return RotorVortexRingBuffet.IDLE;
 		}
 
-		double buffetFrequencyHertz = 5.5 + 9.5 * intensity + 3.0 * spinRatio;
+		double buffetFrequencyHertz = rotorVortexRingBuffetFrequencyHertz(
+				rotor,
+				absOmega,
+				vrs,
+				descentRatio
+		);
+		if (buffetFrequencyHertz <= 1.0e-6) {
+			return RotorVortexRingBuffet.IDLE;
+		}
 		rotorVortexBuffetPhases[index] = normalizeRadians(
 				rotorVortexBuffetPhases[index] + 2.0 * Math.PI * buffetFrequencyHertz * dtSeconds
 		);

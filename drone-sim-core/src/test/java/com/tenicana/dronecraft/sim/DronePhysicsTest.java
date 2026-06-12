@@ -9693,6 +9693,51 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void vortexRingBuffetFrequencyUsesRotorRevolutionTimeScale() throws ReflectiveOperationException {
+		Method buffetFrequencyMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorVortexRingBuffetFrequencyHertz",
+				RotorSpec.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		buffetFrequencyMethod.setAccessible(true);
+
+		DroneConfig config = DroneConfig.racingQuad();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverThrust = config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size();
+		double hoverOmega = Math.sqrt(hoverThrust / rotor.thrustCoefficient());
+		double maxOmega = rotor.maxOmegaRadiansPerSecond();
+		double hoverRevolutionsPerSecond = hoverOmega / (2.0 * Math.PI);
+		double maxRevolutionsPerSecond = maxOmega / (2.0 * Math.PI);
+		double hoverPeakFrequency = (double) buffetFrequencyMethod.invoke(null, rotor, hoverOmega, 1.0, 1.24);
+		double maxPeakFrequency = (double) buffetFrequencyMethod.invoke(null, rotor, maxOmega, 1.0, 1.24);
+		double earlyEntryFrequency = (double) buffetFrequencyMethod.invoke(null, rotor, hoverOmega, 1.0, 0.78);
+		double exitedFrequency = (double) buffetFrequencyMethod.invoke(null, rotor, hoverOmega, 1.0, 2.56);
+		double idleFrequency = (double) buffetFrequencyMethod.invoke(null, rotor, hoverOmega, 0.0, 1.24);
+
+		assertTrue(hoverPeakFrequency >= hoverRevolutionsPerSecond / 50.0
+						&& hoverPeakFrequency <= hoverRevolutionsPerSecond / 20.0,
+				() -> "hoverPeakFrequency=" + hoverPeakFrequency);
+		assertTrue(maxPeakFrequency >= maxRevolutionsPerSecond / 50.0
+						&& maxPeakFrequency <= maxRevolutionsPerSecond / 20.0,
+				() -> "maxPeakFrequency=" + maxPeakFrequency);
+		assertTrue(hoverPeakFrequency > 4.0 && hoverPeakFrequency < 12.0,
+				() -> "hoverPeakFrequency=" + hoverPeakFrequency);
+		assertTrue(maxPeakFrequency > 9.0 && maxPeakFrequency < 25.0,
+				() -> "maxPeakFrequency=" + maxPeakFrequency);
+		assertTrue(earlyEntryFrequency >= hoverRevolutionsPerSecond / 50.0
+						&& earlyEntryFrequency < hoverPeakFrequency * 0.82,
+				() -> "earlyEntryFrequency=" + earlyEntryFrequency
+						+ " hoverPeakFrequency=" + hoverPeakFrequency);
+		assertTrue(exitedFrequency >= hoverRevolutionsPerSecond / 50.0
+						&& exitedFrequency < hoverPeakFrequency * 0.55,
+				() -> "exitedFrequency=" + exitedFrequency
+						+ " hoverPeakFrequency=" + hoverPeakFrequency);
+		assertEquals(0.0, idleFrequency, 1.0e-12);
+	}
+
+	@Test
 	void vortexRingStateBuildsAndClearsWithRotorWakeLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
