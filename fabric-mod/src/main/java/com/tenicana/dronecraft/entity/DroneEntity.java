@@ -2208,6 +2208,30 @@ public class DroneEntity extends PathfinderMob {
 		return entityData.get(AIRFRAME_LIFT_FORCE);
 	}
 
+	public float getAirframeBodyDragForceNewtons() {
+		return (float) physics.state().airframeBodyDragForceBodyNewtons().length();
+	}
+
+	public float getLinearDampingDragForceNewtons() {
+		return (float) physics.state().linearDampingDragForceWorldNewtons().length();
+	}
+
+	public float getAirframeDragAlongFlowNewtons() {
+		return (float) physics.state().airframeDragAlongFlowNewtons();
+	}
+
+	public float getAirframeDragEquivalentLinearCoefficient() {
+		return (float) physics.state().airframeDragEquivalentLinearCoefficient();
+	}
+
+	public float getAirframeDragEquivalentCdAMetersSquared() {
+		return (float) physics.state().airframeDragEquivalentCdAMetersSquared();
+	}
+
+	public float getAirframeDragImavReferenceRatio() {
+		return (float) physics.state().airframeDragImavReferenceRatio();
+	}
+
 	public float getGroundEffectDragForceNewtons() {
 		return entityData.get(GROUND_EFFECT_DRAG_FORCE);
 	}

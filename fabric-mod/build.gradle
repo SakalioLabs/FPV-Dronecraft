@@ -335,7 +335,13 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_rotor_reverse_flow",
 			"max_rotor_low_reynolds_loss",
 			"max_rotor_blade_pass_ripple",
-			"max_rotor_wet_thrust_loss_percent"
+			"max_rotor_wet_thrust_loss_percent",
+			"max_airframe_body_drag_n",
+			"max_linear_damping_drag_n",
+			"max_airframe_drag_along_flow_n",
+			"max_airframe_drag_equivalent_linear_k",
+			"max_airframe_drag_equivalent_cda_m2",
+			"max_airframe_drag_imav_ratio"
 	].findAll { !report.containsKey(it) }
 	if (!missingReportFields.isEmpty()) {
 		throw new GradleException("FPV Dronecraft server self-test JSON is missing fields ${missingReportFields}: ${reportFile}")
@@ -362,6 +368,16 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_rotor_blade_pass_ripple ?: -1.0) < 0.0
 			|| (report.max_rotor_wet_thrust_loss_percent ?: -1.0) < 0.0) {
 		throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges.")
+	}
+	if ((report.max_airframe_drag_along_flow_n ?: 0.0) <= 0.001
+			|| (report.max_airframe_drag_equivalent_linear_k ?: 0.0) <= 0.001
+			|| (report.max_airframe_drag_equivalent_cda_m2 ?: 0.0) <= 0.001
+			|| (report.max_airframe_drag_imav_ratio ?: 0.0) <= 0.001) {
+		throw new GradleException("FPV Dronecraft server self-test did not report active airframe drag calibration telemetry.")
+	}
+	if ((report.max_airframe_body_drag_n ?: -1.0) < 0.0
+			|| (report.max_linear_damping_drag_n ?: -1.0) < 0.0) {
+		throw new GradleException("FPV Dronecraft server self-test reported invalid airframe drag force ranges.")
 	}
 
 	logger.lifecycle("FPV Dronecraft server self-test report validated: ${reportFile}")

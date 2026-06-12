@@ -88,6 +88,12 @@ public final class DroneServerSelfTest {
 	private double maxRotorAccelerationReactionTorque;
 	private double maxRotorGyroscopicTorque;
 	private double maxRotorFlappingTorque;
+	private double maxAirframeBodyDragForce;
+	private double maxLinearDampingDragForce;
+	private double maxAirframeDragAlongFlow;
+	private double maxAirframeDragEquivalentLinearCoefficient;
+	private double maxAirframeDragEquivalentCdA;
+	private double maxAirframeDragImavReferenceRatio;
 	private double maxMixerSaturation;
 	private double finalX;
 	private double finalY;
@@ -192,6 +198,12 @@ public final class DroneServerSelfTest {
 		maxRotorAccelerationReactionTorque = Math.max(maxRotorAccelerationReactionTorque, drone.getRotorAccelerationReactionTorqueNewtonMeters());
 		maxRotorGyroscopicTorque = Math.max(maxRotorGyroscopicTorque, drone.getRotorGyroscopicTorqueNewtonMeters());
 		maxRotorFlappingTorque = Math.max(maxRotorFlappingTorque, drone.getRotorFlappingTorqueNewtonMeters());
+		maxAirframeBodyDragForce = Math.max(maxAirframeBodyDragForce, drone.getAirframeBodyDragForceNewtons());
+		maxLinearDampingDragForce = Math.max(maxLinearDampingDragForce, drone.getLinearDampingDragForceNewtons());
+		maxAirframeDragAlongFlow = Math.max(maxAirframeDragAlongFlow, drone.getAirframeDragAlongFlowNewtons());
+		maxAirframeDragEquivalentLinearCoefficient = Math.max(maxAirframeDragEquivalentLinearCoefficient, drone.getAirframeDragEquivalentLinearCoefficient());
+		maxAirframeDragEquivalentCdA = Math.max(maxAirframeDragEquivalentCdA, drone.getAirframeDragEquivalentCdAMetersSquared());
+		maxAirframeDragImavReferenceRatio = Math.max(maxAirframeDragImavReferenceRatio, drone.getAirframeDragImavReferenceRatio());
 		maxMixerSaturation = Math.max(maxMixerSaturation, drone.getMixerSaturation());
 	}
 
@@ -737,6 +749,12 @@ public final class DroneServerSelfTest {
 						+ "  \"max_rotor_acceleration_reaction_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_gyroscopic_torque_nm\": %.6f,\n"
 						+ "  \"max_rotor_flapping_torque_nm\": %.6f,\n"
+						+ "  \"max_airframe_body_drag_n\": %.5f,\n"
+						+ "  \"max_linear_damping_drag_n\": %.5f,\n"
+						+ "  \"max_airframe_drag_along_flow_n\": %.5f,\n"
+						+ "  \"max_airframe_drag_equivalent_linear_k\": %.5f,\n"
+						+ "  \"max_airframe_drag_equivalent_cda_m2\": %.5f,\n"
+						+ "  \"max_airframe_drag_imav_ratio\": %.5f,\n"
 						+ "  \"max_mixer_saturation\": %.5f,\n"
 						+ "  \"csv\": \"%s\"\n"
 						+ "}\n",
@@ -798,6 +816,12 @@ public final class DroneServerSelfTest {
 				maxRotorAccelerationReactionTorque,
 				maxRotorGyroscopicTorque,
 				maxRotorFlappingTorque,
+				maxAirframeBodyDragForce,
+				maxLinearDampingDragForce,
+				maxAirframeDragAlongFlow,
+				maxAirframeDragEquivalentLinearCoefficient,
+				maxAirframeDragEquivalentCdA,
+				maxAirframeDragImavReferenceRatio,
 				maxMixerSaturation,
 				escapeJson(csvPath.toAbsolutePath().toString())
 		);

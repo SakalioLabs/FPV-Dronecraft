@@ -31,6 +31,12 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxRotorLowReynoldsLoss", 0.13);
 		setDouble(selfTest, "maxRotorBladePassRipple", 0.021);
 		setDouble(selfTest, "minRotorWetThrustScale", 0.94);
+		setDouble(selfTest, "maxAirframeBodyDragForce", 0.65);
+		setDouble(selfTest, "maxLinearDampingDragForce", 1.85);
+		setDouble(selfTest, "maxAirframeDragAlongFlow", 2.42);
+		setDouble(selfTest, "maxAirframeDragEquivalentLinearCoefficient", 0.242);
+		setDouble(selfTest, "maxAirframeDragEquivalentCdA", 0.0395);
+		setDouble(selfTest, "maxAirframeDragImavReferenceRatio", 1.21);
 
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest.csv"));
 
@@ -51,6 +57,12 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_rotor_low_reynolds_loss\": 0.13000"));
 		assertTrue(json.contains("\"max_rotor_blade_pass_ripple\": 0.02100"));
 		assertTrue(json.contains("\"max_rotor_wet_thrust_loss_percent\": 6.000"));
+		assertTrue(json.contains("\"max_airframe_body_drag_n\": 0.65000"));
+		assertTrue(json.contains("\"max_linear_damping_drag_n\": 1.85000"));
+		assertTrue(json.contains("\"max_airframe_drag_along_flow_n\": 2.42000"));
+		assertTrue(json.contains("\"max_airframe_drag_equivalent_linear_k\": 0.24200"));
+		assertTrue(json.contains("\"max_airframe_drag_equivalent_cda_m2\": 0.03950"));
+		assertTrue(json.contains("\"max_airframe_drag_imav_ratio\": 1.21000"));
 	}
 
 	private static DroneServerSelfTest newSelfTest() throws ReflectiveOperationException {
