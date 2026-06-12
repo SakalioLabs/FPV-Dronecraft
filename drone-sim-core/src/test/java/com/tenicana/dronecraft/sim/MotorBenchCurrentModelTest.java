@@ -104,6 +104,61 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void tyto5InStaticPropPacketAuditMatchesCachedFpvEnvelope() {
+		MotorBenchCurrentModel.Tyto5InStaticPropPacketAudit audit =
+				MotorBenchCurrentModel.tyto5InStaticPropPacketAudit(DroneConfig.racingQuad());
+
+		assertEquals("Tyto-5In-Static-Prop-Packet", audit.referenceId());
+		assertEquals(1_514, audit.publicTestCount());
+		assertEquals(174_503, audit.publicSampleCount());
+		assertEquals(120, audit.motorCount());
+		assertEquals(189, audit.propellerCount());
+		assertEquals(28, audit.candidatePropellerCount());
+		assertEquals(89, audit.candidateBenchmarkCount());
+		assertEquals(1_548, audit.parsedSampleCount());
+		assertEquals(true, audit.staticOnly());
+		assertEquals(89, audit.testSummaryCount());
+		assertEquals(86, audit.fpvEnvelopeTestCount());
+		assertEquals(3, audit.rejectedLowRpmOrLargePropCount());
+		assertEquals(13.5, audit.configuredMaxRotorThrustNewtons(), 1.0e-12);
+		assertEquals(1.45e-6, audit.configuredThrustCoefficient(), 1.0e-18);
+		assertEquals(29137.63274949454, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(22.5, audit.configuredPerMotorCurrentLimitAmps(), 1.0e-12);
+		assertEquals(13.5, audit.packetRacingMaxThrustPerRotorNewtons(), 1.0e-12);
+		assertEquals(29137.6327495, audit.packetRacingMaxRpm(), 1.0e-7);
+		assertEquals(1.45e-6, audit.packetRacingThrustCoefficient(), 1.0e-18);
+		assertEquals(12.547278948, audit.strongestMaxThrustNewtons(), 1.0e-12);
+		assertEquals(25001.0, audit.strongestMaxRpm(), 1.0e-12);
+		assertEquals(22.1855634117, audit.strongestMaxCurrentAmps(), 1.0e-12);
+		assertEquals(1.75342209424e-6, audit.strongestPositiveThrustCoefficientP50(), 1.0e-18);
+		assertEquals(9.83338282391, audit.fpvMaxThrustNewtonsP50(), 1.0e-12);
+		assertEquals(10.7449961755, audit.fpvMaxThrustNewtonsP90(), 1.0e-12);
+		assertEquals(23147.0, audit.fpvMaxRpmP50(), 1.0e-12);
+		assertEquals(26747.0, audit.fpvMaxRpmP90(), 1.0e-12);
+		assertEquals(26.7374085045, audit.fpvMaxCurrentAmpsP50(), 1.0e-12);
+		assertEquals(34.4757908249, audit.fpvMaxCurrentAmpsP90(), 1.0e-12);
+		assertEquals(0.452983904581, audit.fpvTipMachIsaP50(), 1.0e-12);
+		assertEquals(0.522667723387, audit.fpvTipMachIsaP90(), 1.0e-12);
+		assertEquals(5.90610049486e-7, audit.fpvPositiveThrustCoefficientP10(), 1.0e-18);
+		assertEquals(1.38308833029e-6, audit.fpvPositiveThrustCoefficientP50(), 1.0e-18);
+		assertEquals(1.89448793303e-6, audit.fpvPositiveThrustCoefficientP90(), 1.0e-18);
+		assertEquals(0.407317275508, audit.fpvPositiveThrustCoefficientRatioP10(), 1.0e-15);
+		assertEquals(0.953854020891, audit.fpvPositiveThrustCoefficientRatioP50(), 1.0e-15);
+		assertEquals(1.30654340209, audit.fpvPositiveThrustCoefficientRatioP90(), 1.0e-15);
+		assertEquals(1.18832926687, audit.fpvMaxCurrentRatioP50(), 1.0e-12);
+		assertEquals(1.53225737, audit.fpvMaxCurrentRatioP90(), 1.0e-12);
+		assertEquals(1.3728744463374873, audit.configuredMaxThrustOverFpvP50(), 1.0e-15);
+		assertEquals(1.2563987719960077, audit.configuredMaxThrustOverFpvP90(), 1.0e-15);
+		assertEquals(1.0759304910609213, audit.configuredMaxThrustOverStrongest(), 1.0e-15);
+		assertEquals(1.2588081716634787, audit.configuredMaxRpmOverFpvP50(), 1.0e-15);
+		assertEquals(1.0893794724453039, audit.configuredMaxRpmOverFpvP90(), 1.0e-15);
+		assertEquals(0.8415176061738807, audit.configuredPerMotorCurrentLimitOverFpvP50(), 1.0e-15);
+		assertEquals(0.6526318747632459, audit.configuredPerMotorCurrentLimitOverFpvP90(), 1.0e-15);
+		assertEquals(1.0483784500560209, audit.configuredThrustCoefficientOverFpvP50(), 1.0e-15);
+		assertEquals(0.7653783245169072, audit.configuredThrustCoefficientOverFpvP90(), 1.0e-15);
+	}
+
+	@Test
 	void apDroneMotorSpecAuditMatchesCachedMotorPdfReference() {
 		MotorBenchCurrentModel.ApDroneMotorSpecAudit audit =
 				MotorBenchCurrentModel.apDroneMotorSpecAudit(DroneConfig.apDrone());

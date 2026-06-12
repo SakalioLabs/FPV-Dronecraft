@@ -26,6 +26,41 @@ public final class MotorBenchCurrentModel {
 	public static final int TYTO_DNQ_TORQUE_RATIO_FIT_POINT_COUNT = 14;
 	public static final double TYTO_DNQ_HIGH_THRUST_Q_OVER_T_MEAN_METERS = 0.0145697672667851;
 	public static final double TYTO_DNQ_Q_OVER_T_AT_MAX_THRUST_METERS = 0.014512651125968636;
+	public static final String TYTO_5IN_STATIC_PROP_PACKET_SOURCE_ID = "Tyto-5In-Static-Prop-Packet";
+	public static final int TYTO_5IN_STATIC_PUBLIC_TEST_COUNT = 1_514;
+	public static final int TYTO_5IN_STATIC_PUBLIC_SAMPLE_COUNT = 174_503;
+	public static final int TYTO_5IN_STATIC_MOTOR_COUNT = 120;
+	public static final int TYTO_5IN_STATIC_PROPELLER_COUNT = 189;
+	public static final int TYTO_5IN_STATIC_CANDIDATE_PROPELLER_COUNT = 28;
+	public static final int TYTO_5IN_STATIC_CANDIDATE_BENCHMARK_COUNT = 89;
+	public static final int TYTO_5IN_STATIC_PARSED_SAMPLE_COUNT = 1_548;
+	public static final int TYTO_5IN_STATIC_TEST_SUMMARY_COUNT = 89;
+	public static final int TYTO_5IN_STATIC_FPV_ENVELOPE_TEST_COUNT = 86;
+	public static final int TYTO_5IN_STATIC_REJECTED_LOW_RPM_OR_LARGE_PROP_COUNT = 3;
+	public static final boolean TYTO_5IN_STATIC_ONLY = true;
+	public static final double TYTO_5IN_STATIC_PACKET_RACING_MAX_THRUST_PER_ROTOR_NEWTONS = 13.5;
+	public static final double TYTO_5IN_STATIC_PACKET_RACING_MAX_RPM = 29137.6327495;
+	public static final double TYTO_5IN_STATIC_PACKET_RACING_THRUST_COEFFICIENT = 1.45e-6;
+	public static final double TYTO_5IN_STATIC_STRONGEST_MAX_THRUST_NEWTONS = 12.547278948;
+	public static final double TYTO_5IN_STATIC_STRONGEST_MAX_RPM = 25001.0;
+	public static final double TYTO_5IN_STATIC_STRONGEST_MAX_CURRENT_AMPS = 22.1855634117;
+	public static final double TYTO_5IN_STATIC_STRONGEST_POSITIVE_THRUST_COEFFICIENT_P50 = 1.75342209424e-6;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_THRUST_NEWTONS_P50 = 9.83338282391;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_THRUST_NEWTONS_P90 = 10.7449961755;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_RPM_P50 = 23147.0;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_RPM_P90 = 26747.0;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_CURRENT_AMPS_P50 = 26.7374085045;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_CURRENT_AMPS_P90 = 34.4757908249;
+	public static final double TYTO_5IN_STATIC_FPV_TIP_MACH_ISA_P50 = 0.452983904581;
+	public static final double TYTO_5IN_STATIC_FPV_TIP_MACH_ISA_P90 = 0.522667723387;
+	public static final double TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P10 = 5.90610049486e-7;
+	public static final double TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P50 = 1.38308833029e-6;
+	public static final double TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P90 = 1.89448793303e-6;
+	public static final double TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_RATIO_P10 = 0.407317275508;
+	public static final double TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_RATIO_P50 = 0.953854020891;
+	public static final double TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_RATIO_P90 = 1.30654340209;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_CURRENT_RATIO_P50 = 1.18832926687;
+	public static final double TYTO_5IN_STATIC_FPV_MAX_CURRENT_RATIO_P90 = 1.53225737;
 	public static final String APDRONE_MOTOR_PDF_SOURCE_ID = "YSIDO-2507-1800KV";
 	public static final double APDRONE_MOTOR_PDF_KV_RPM_PER_VOLT = 1800.0;
 	public static final double APDRONE_BETAFLIGHT_KV_RPM_PER_VOLT = 1960.0;
@@ -158,6 +193,58 @@ public final class MotorBenchCurrentModel {
 			double referenceEquivalentRpmForConfiguredMaxThrust,
 			double configuredMaxThrustOverReference,
 			double configuredThrustCoefficientOverReference
+	) {
+	}
+
+	public record Tyto5InStaticPropPacketAudit(
+			String referenceId,
+			int publicTestCount,
+			int publicSampleCount,
+			int motorCount,
+			int propellerCount,
+			int candidatePropellerCount,
+			int candidateBenchmarkCount,
+			int parsedSampleCount,
+			boolean staticOnly,
+			int testSummaryCount,
+			int fpvEnvelopeTestCount,
+			int rejectedLowRpmOrLargePropCount,
+			double configuredMaxRotorThrustNewtons,
+			double configuredThrustCoefficient,
+			double configuredMaxRpm,
+			double configuredPerMotorCurrentLimitAmps,
+			double packetRacingMaxThrustPerRotorNewtons,
+			double packetRacingMaxRpm,
+			double packetRacingThrustCoefficient,
+			double strongestMaxThrustNewtons,
+			double strongestMaxRpm,
+			double strongestMaxCurrentAmps,
+			double strongestPositiveThrustCoefficientP50,
+			double fpvMaxThrustNewtonsP50,
+			double fpvMaxThrustNewtonsP90,
+			double fpvMaxRpmP50,
+			double fpvMaxRpmP90,
+			double fpvMaxCurrentAmpsP50,
+			double fpvMaxCurrentAmpsP90,
+			double fpvTipMachIsaP50,
+			double fpvTipMachIsaP90,
+			double fpvPositiveThrustCoefficientP10,
+			double fpvPositiveThrustCoefficientP50,
+			double fpvPositiveThrustCoefficientP90,
+			double fpvPositiveThrustCoefficientRatioP10,
+			double fpvPositiveThrustCoefficientRatioP50,
+			double fpvPositiveThrustCoefficientRatioP90,
+			double fpvMaxCurrentRatioP50,
+			double fpvMaxCurrentRatioP90,
+			double configuredMaxThrustOverFpvP50,
+			double configuredMaxThrustOverFpvP90,
+			double configuredMaxThrustOverStrongest,
+			double configuredMaxRpmOverFpvP50,
+			double configuredMaxRpmOverFpvP90,
+			double configuredPerMotorCurrentLimitOverFpvP50,
+			double configuredPerMotorCurrentLimitOverFpvP90,
+			double configuredThrustCoefficientOverFpvP50,
+			double configuredThrustCoefficientOverFpvP90
 	) {
 	}
 
@@ -521,6 +608,64 @@ public final class MotorBenchCurrentModel {
 				referenceEquivalentRpmForConfiguredMaxThrust,
 				ratio(configuredMaxThrustNewtons, TYTO_X3NM_MAX_THRUST_NEWTONS),
 				ratio(configuredThrustCoefficient, TYTO_X3NM_FIT_THRUST_COEFFICIENT)
+		);
+	}
+
+	public static Tyto5InStaticPropPacketAudit tyto5InStaticPropPacketAudit(DroneConfig config) {
+		double configuredMaxThrustNewtons = averageMaxRotorThrustNewtons(config);
+		double configuredThrustCoefficient = averageThrustCoefficient(config);
+		double configuredMaxRpm = averageMaxRotorRpm(config);
+		int rotorCount = config == null ? 0 : config.rotors().size();
+		double configuredPerMotorCurrentLimit = rotorCount == 0 ? 0.0 : config.maxBatteryCurrentAmps() / rotorCount;
+		return new Tyto5InStaticPropPacketAudit(
+				TYTO_5IN_STATIC_PROP_PACKET_SOURCE_ID,
+				TYTO_5IN_STATIC_PUBLIC_TEST_COUNT,
+				TYTO_5IN_STATIC_PUBLIC_SAMPLE_COUNT,
+				TYTO_5IN_STATIC_MOTOR_COUNT,
+				TYTO_5IN_STATIC_PROPELLER_COUNT,
+				TYTO_5IN_STATIC_CANDIDATE_PROPELLER_COUNT,
+				TYTO_5IN_STATIC_CANDIDATE_BENCHMARK_COUNT,
+				TYTO_5IN_STATIC_PARSED_SAMPLE_COUNT,
+				TYTO_5IN_STATIC_ONLY,
+				TYTO_5IN_STATIC_TEST_SUMMARY_COUNT,
+				TYTO_5IN_STATIC_FPV_ENVELOPE_TEST_COUNT,
+				TYTO_5IN_STATIC_REJECTED_LOW_RPM_OR_LARGE_PROP_COUNT,
+				configuredMaxThrustNewtons,
+				configuredThrustCoefficient,
+				configuredMaxRpm,
+				configuredPerMotorCurrentLimit,
+				TYTO_5IN_STATIC_PACKET_RACING_MAX_THRUST_PER_ROTOR_NEWTONS,
+				TYTO_5IN_STATIC_PACKET_RACING_MAX_RPM,
+				TYTO_5IN_STATIC_PACKET_RACING_THRUST_COEFFICIENT,
+				TYTO_5IN_STATIC_STRONGEST_MAX_THRUST_NEWTONS,
+				TYTO_5IN_STATIC_STRONGEST_MAX_RPM,
+				TYTO_5IN_STATIC_STRONGEST_MAX_CURRENT_AMPS,
+				TYTO_5IN_STATIC_STRONGEST_POSITIVE_THRUST_COEFFICIENT_P50,
+				TYTO_5IN_STATIC_FPV_MAX_THRUST_NEWTONS_P50,
+				TYTO_5IN_STATIC_FPV_MAX_THRUST_NEWTONS_P90,
+				TYTO_5IN_STATIC_FPV_MAX_RPM_P50,
+				TYTO_5IN_STATIC_FPV_MAX_RPM_P90,
+				TYTO_5IN_STATIC_FPV_MAX_CURRENT_AMPS_P50,
+				TYTO_5IN_STATIC_FPV_MAX_CURRENT_AMPS_P90,
+				TYTO_5IN_STATIC_FPV_TIP_MACH_ISA_P50,
+				TYTO_5IN_STATIC_FPV_TIP_MACH_ISA_P90,
+				TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P10,
+				TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P50,
+				TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P90,
+				TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_RATIO_P10,
+				TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_RATIO_P50,
+				TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_RATIO_P90,
+				TYTO_5IN_STATIC_FPV_MAX_CURRENT_RATIO_P50,
+				TYTO_5IN_STATIC_FPV_MAX_CURRENT_RATIO_P90,
+				ratio(configuredMaxThrustNewtons, TYTO_5IN_STATIC_FPV_MAX_THRUST_NEWTONS_P50),
+				ratio(configuredMaxThrustNewtons, TYTO_5IN_STATIC_FPV_MAX_THRUST_NEWTONS_P90),
+				ratio(configuredMaxThrustNewtons, TYTO_5IN_STATIC_STRONGEST_MAX_THRUST_NEWTONS),
+				ratio(configuredMaxRpm, TYTO_5IN_STATIC_FPV_MAX_RPM_P50),
+				ratio(configuredMaxRpm, TYTO_5IN_STATIC_FPV_MAX_RPM_P90),
+				ratio(configuredPerMotorCurrentLimit, TYTO_5IN_STATIC_FPV_MAX_CURRENT_AMPS_P50),
+				ratio(configuredPerMotorCurrentLimit, TYTO_5IN_STATIC_FPV_MAX_CURRENT_AMPS_P90),
+				ratio(configuredThrustCoefficient, TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P50),
+				ratio(configuredThrustCoefficient, TYTO_5IN_STATIC_FPV_POSITIVE_THRUST_COEFFICIENT_P90)
 		);
 	}
 
