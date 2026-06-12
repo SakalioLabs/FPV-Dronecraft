@@ -1276,6 +1276,8 @@ public final class OfflineFlightRecorder {
 				VrsPropwashCalibration.audit(preset);
 		SurfaceNearfieldCalibration.SurfaceNearfieldAudit surfaceNearfieldAudit =
 				SurfaceNearfieldCalibration.audit(preset);
+		SurfaceNearfieldCalibration.JirsSurfaceEffectAudit jirsSurfaceEffectAudit =
+				surfaceNearfieldAudit.jirsSurfaceEffectAudit();
 		SurfaceNearfieldCalibration.PartialSurfaceLeadAudit partialSurfaceLeadAudit =
 				surfaceNearfieldAudit.partialSurfaceLeadAudit();
 		CoaxialAllocationCalibration.CoaxialAllocationAudit coaxialAllocationAudit =
@@ -1974,6 +1976,53 @@ public final class OfflineFlightRecorder {
 				surfaceNearfieldAudit.zjuDragObservation().measuredDragXLowOverHigh(),
 				surfaceNearfieldAudit.zjuDragObservation().measuredDragYLowOverHigh(),
 				surfaceNearfieldAudit.zjuDragObservation().predictedDragRatioFromSqrtThrust()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"JIRS surface-effect audit: %s DOI %s rows meas %d unc %d ground/ceiling/wall %d/%d/%d zip %dB files %d csv %d mat %d pdf %d, ground %.2f..%.2fR meas %.3f/%.3f runtime %.3f/%.3f, ceiling %.2f..%.2fR meas %.3f/%.3f runtime %.3f/%.3f, wall d/R %.2f..%.2f |F| %.3f/%.3fN |M| %.3f/%.3fNm uncF txc/du %.3f/%.3fN runtime1R %.3fN %.1f%%W runtimeFull %.3fN %.1f%%W strongestF %s %dpwm %.2fR strongestM %s %dpwm %.2fR caveat %s%n",
+				jirsSurfaceEffectAudit.sourceId(),
+				jirsSurfaceEffectAudit.doi(),
+				jirsSurfaceEffectAudit.numericMeasurementRowCount(),
+				jirsSurfaceEffectAudit.uncertaintySummaryRowCount(),
+				jirsSurfaceEffectAudit.ground().sampleCount(),
+				jirsSurfaceEffectAudit.ceiling().sampleCount(),
+				jirsSurfaceEffectAudit.wall().sampleCount(),
+				jirsSurfaceEffectAudit.supplementZipSizeBytes(),
+				jirsSurfaceEffectAudit.supplementZipFileCount(),
+				jirsSurfaceEffectAudit.supplementCsvFileCount(),
+				jirsSurfaceEffectAudit.supplementMatFileCount(),
+				jirsSurfaceEffectAudit.supplementPdfFileCount(),
+				jirsSurfaceEffectAudit.ground().closestDistanceOverRadiusMin(),
+				jirsSurfaceEffectAudit.ground().closestDistanceOverRadiusMax(),
+				jirsSurfaceEffectAudit.ground().closestFzRatioP50(),
+				jirsSurfaceEffectAudit.ground().closestFzRatioMax(),
+				jirsSurfaceEffectAudit.ground().currentMultiplierAtClosestMin(),
+				jirsSurfaceEffectAudit.ground().currentMultiplierAtClosestMax(),
+				jirsSurfaceEffectAudit.ceiling().closestDistanceOverRadiusMin(),
+				jirsSurfaceEffectAudit.ceiling().closestDistanceOverRadiusMax(),
+				jirsSurfaceEffectAudit.ceiling().closestFzRatioP50(),
+				jirsSurfaceEffectAudit.ceiling().closestFzRatioMax(),
+				jirsSurfaceEffectAudit.ceiling().currentMultiplierAtClosestMin(),
+				jirsSurfaceEffectAudit.ceiling().currentMultiplierAtClosestMax(),
+				jirsSurfaceEffectAudit.wall().distanceOverRadiusMin(),
+				jirsSurfaceEffectAudit.wall().distanceOverRadiusMax(),
+				jirsSurfaceEffectAudit.wall().absForceP50Newtons(),
+				jirsSurfaceEffectAudit.wall().absForceMaxNewtons(),
+				jirsSurfaceEffectAudit.wall().absMomentP50NewtonMeters(),
+				jirsSurfaceEffectAudit.wall().absMomentMaxNewtonMeters(),
+				jirsSurfaceEffectAudit.wall().terraXcubeWallForceUncertaintyP50Newtons(),
+				jirsSurfaceEffectAudit.wall().du2sriWallForceUncertaintyP50Newtons(),
+				jirsSurfaceEffectAudit.wall().runtimeOneRadiusWallForcePerRotorNewtons(),
+				jirsSurfaceEffectAudit.wall().runtimeOneRadiusTwoRotorForceOverWeight() * 100.0,
+				jirsSurfaceEffectAudit.wall().runtimeFullObstructionHoverForcePerRotorNewtons(),
+				jirsSurfaceEffectAudit.wall().runtimeFullObstructionTwoRotorForceOverWeight() * 100.0,
+				jirsSurfaceEffectAudit.wall().strongestForceSource(),
+				jirsSurfaceEffectAudit.wall().strongestForcePwm(),
+				jirsSurfaceEffectAudit.wall().strongestForceDistanceOverRadius(),
+				jirsSurfaceEffectAudit.wall().strongestMomentSource(),
+				jirsSurfaceEffectAudit.wall().strongestMomentPwm(),
+				jirsSurfaceEffectAudit.wall().strongestMomentDistanceOverRadius(),
+				jirsSurfaceEffectAudit.caveat()
 		);
 		System.out.printf(
 				Locale.ROOT,

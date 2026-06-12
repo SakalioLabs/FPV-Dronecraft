@@ -36,6 +36,54 @@ public final class SurfaceNearfieldCalibration {
 	public static final double PARTIAL_SURFACE_NEGLIGIBLE_AREA_OVER_DISK_AREA = 0.25;
 	public static final double PARTIAL_SURFACE_CURVE_FIT_RELATIVE_ACCURACY = 0.06;
 	public static final double MINECRAFT_BLOCK_WIDTH_METERS = 1.0;
+	public static final String JIRS_SURFACE_EFFECT_SOURCE_ID = "JIRS-2024-Surface-Effect-Packet";
+	public static final String JIRS_SURFACE_EFFECT_DOI = "10.1007/s10846-024-02155-7";
+	public static final String JIRS_SURFACE_EFFECT_SUPPLEMENT_DOI = "10.5281/zenodo.11384638";
+	public static final String JIRS_SURFACE_EFFECT_CAVEAT =
+			"Raw larger-prop ground/ceiling/wall measurements; fit thrust multipliers and wall force/moment separately before retuning runtime.";
+	public static final int JIRS_SUPPLEMENT_ZIP_SIZE_BYTES = 460164;
+	public static final int JIRS_SUPPLEMENT_ZIP_FILE_COUNT = 18;
+	public static final int JIRS_SUPPLEMENT_CSV_FILE_COUNT = 9;
+	public static final int JIRS_SUPPLEMENT_MAT_FILE_COUNT = 4;
+	public static final int JIRS_SUPPLEMENT_PDF_FILE_COUNT = 1;
+	public static final int JIRS_NUMERIC_MEASUREMENT_ROW_COUNT = 225;
+	public static final int JIRS_UNCERTAINTY_SUMMARY_ROW_COUNT = 40;
+	public static final int JIRS_GROUND_SAMPLE_COUNT = 40;
+	public static final int JIRS_CEILING_SAMPLE_COUNT = 40;
+	public static final int JIRS_WALL_SAMPLE_COUNT = 145;
+	public static final double JIRS_GROUND_NEAR_FZ_RATIO_MIN = 0.862999580105;
+	public static final double JIRS_GROUND_NEAR_FZ_RATIO_P50 = 1.02584338925;
+	public static final double JIRS_GROUND_NEAR_FZ_RATIO_MAX = 1.31490929705;
+	public static final double JIRS_GROUND_CLOSEST_FZ_RATIO_P50 = 1.29121270457;
+	public static final double JIRS_GROUND_CLOSEST_FZ_RATIO_MAX = 1.31490929705;
+	public static final double JIRS_GROUND_CLOSEST_DISTANCE_OVER_RADIUS_MIN = 0.328083989501;
+	public static final double JIRS_GROUND_CLOSEST_DISTANCE_OVER_RADIUS_MAX = 0.393700787402;
+	public static final double JIRS_CEILING_NEAR_FZ_RATIO_MIN = 0.993352831694;
+	public static final double JIRS_CEILING_NEAR_FZ_RATIO_P50 = 1.04620491703;
+	public static final double JIRS_CEILING_NEAR_FZ_RATIO_MAX = 1.28879545278;
+	public static final double JIRS_CEILING_CLOSEST_FZ_RATIO_P50 = 1.22717806178;
+	public static final double JIRS_CEILING_CLOSEST_FZ_RATIO_MAX = 1.28879545278;
+	public static final double JIRS_CEILING_CLOSEST_DISTANCE_OVER_RADIUS_MIN = 0.328083989501;
+	public static final double JIRS_CEILING_CLOSEST_DISTANCE_OVER_RADIUS_MAX = 0.393700787402;
+	public static final double JIRS_GROUND_CEILING_FAR_BASELINE_DISTANCE_CENTIMETERS = 100.0;
+	public static final double JIRS_WALL_ABS_FORCE_P50_NEWTONS = 0.09864;
+	public static final double JIRS_WALL_ABS_FORCE_MAX_NEWTONS = 0.42777;
+	public static final double JIRS_WALL_SIGNED_FORCE_MIN_NEWTONS = -0.42777;
+	public static final double JIRS_WALL_SIGNED_FORCE_MAX_NEWTONS = 0.24607;
+	public static final double JIRS_WALL_ABS_MOMENT_P50_NEWTON_METERS = 0.027677;
+	public static final double JIRS_WALL_ABS_MOMENT_MAX_NEWTON_METERS = 0.11947;
+	public static final double JIRS_WALL_DISTANCE_OVER_RADIUS_MIN = 0.964566929134;
+	public static final double JIRS_WALL_DISTANCE_OVER_RADIUS_MAX = 3.0;
+	public static final String JIRS_WALL_STRONGEST_FORCE_SOURCE = "WallEffect_13_DU2SRI.csv";
+	public static final int JIRS_WALL_STRONGEST_FORCE_PWM = 1544;
+	public static final double JIRS_WALL_STRONGEST_FORCE_DISTANCE_OVER_RADIUS = 1.75003028468;
+	public static final String JIRS_WALL_STRONGEST_MOMENT_SOURCE = "WallEffect_12_txc.csv";
+	public static final int JIRS_WALL_STRONGEST_MOMENT_PWM = 1719;
+	public static final double JIRS_WALL_STRONGEST_MOMENT_DISTANCE_OVER_RADIUS = 1.0;
+	public static final double JIRS_TERRAXCUBE_WALL_FORCE_UNCERTAINTY_P50_NEWTONS = 0.0389109547857;
+	public static final double JIRS_DU2SRI_WALL_FORCE_UNCERTAINTY_P50_NEWTONS = 1.1100511642;
+	public static final double JIRS_TERRAXCUBE_WALL_MOMENT_UNCERTAINTY_P50_NEWTON_METERS = 0.00687397096237;
+	public static final double JIRS_DU2SRI_WALL_MOMENT_UNCERTAINTY_P50_NEWTON_METERS = 0.0560048097306;
 
 	private SurfaceNearfieldCalibration() {
 	}
@@ -129,6 +177,70 @@ public final class SurfaceNearfieldCalibration {
 	) {
 	}
 
+	public record JirsThrustAnchor(
+			String effect,
+			int sampleCount,
+			double nearFzRatioMin,
+			double nearFzRatioP50,
+			double nearFzRatioMax,
+			double closestDistanceOverRadiusMin,
+			double closestDistanceOverRadiusMax,
+			double closestFzRatioP50,
+			double closestFzRatioMax,
+			double farBaselineDistanceCentimeters,
+			double currentMultiplierAtClosestMin,
+			double currentMultiplierAtClosestMax,
+			double currentClosestMinOverMeasuredP50,
+			double currentClosestMaxOverMeasuredMax
+	) {
+	}
+
+	public record JirsWallAnchor(
+			int sampleCount,
+			double distanceOverRadiusMin,
+			double distanceOverRadiusMax,
+			double absForceP50Newtons,
+			double absForceMaxNewtons,
+			double signedForceMinNewtons,
+			double signedForceMaxNewtons,
+			double absMomentP50NewtonMeters,
+			double absMomentMaxNewtonMeters,
+			String strongestForceSource,
+			int strongestForcePwm,
+			double strongestForceDistanceOverRadius,
+			String strongestMomentSource,
+			int strongestMomentPwm,
+			double strongestMomentDistanceOverRadius,
+			double terraXcubeWallForceUncertaintyP50Newtons,
+			double du2sriWallForceUncertaintyP50Newtons,
+			double terraXcubeWallMomentUncertaintyP50NewtonMeters,
+			double du2sriWallMomentUncertaintyP50NewtonMeters,
+			double du2sriOverTerraXcubeWallForceUncertaintyP50,
+			double runtimeOneRadiusWallForcePerRotorNewtons,
+			double runtimeOneRadiusTwoRotorForceOverWeight,
+			double runtimeFullObstructionHoverForcePerRotorNewtons,
+			double runtimeFullObstructionTwoRotorForceOverWeight
+	) {
+	}
+
+	public record JirsSurfaceEffectAudit(
+			String sourceId,
+			String doi,
+			String supplementDoi,
+			String caveat,
+			int supplementZipSizeBytes,
+			int supplementZipFileCount,
+			int supplementCsvFileCount,
+			int supplementMatFileCount,
+			int supplementPdfFileCount,
+			int numericMeasurementRowCount,
+			int uncertaintySummaryRowCount,
+			JirsThrustAnchor ground,
+			JirsThrustAnchor ceiling,
+			JirsWallAnchor wall
+	) {
+	}
+
 	public record SurfaceNearfieldAudit(
 			String sourceId,
 			String caveat,
@@ -150,6 +262,7 @@ public final class SurfaceNearfieldCalibration {
 			WallForceSample fullObstructionHoverSideForce,
 			WallForceSample fullObstructionFastSideForce,
 			ZjuDragObservation zjuDragObservation,
+			JirsSurfaceEffectAudit jirsSurfaceEffectAudit,
 			PartialSurfaceLeadAudit partialSurfaceLeadAudit
 	) {
 	}
@@ -188,7 +301,126 @@ public final class SurfaceNearfieldCalibration {
 						0.5963 / 0.9486,
 						0.6179 / 0.9486
 				),
+				jirsSurfaceEffectAudit(config),
 				partialSurfaceLeadAudit(config)
+		);
+	}
+
+	private static JirsSurfaceEffectAudit jirsSurfaceEffectAudit(DroneConfig config) {
+		return new JirsSurfaceEffectAudit(
+				JIRS_SURFACE_EFFECT_SOURCE_ID,
+				JIRS_SURFACE_EFFECT_DOI,
+				JIRS_SURFACE_EFFECT_SUPPLEMENT_DOI,
+				JIRS_SURFACE_EFFECT_CAVEAT,
+				JIRS_SUPPLEMENT_ZIP_SIZE_BYTES,
+				JIRS_SUPPLEMENT_ZIP_FILE_COUNT,
+				JIRS_SUPPLEMENT_CSV_FILE_COUNT,
+				JIRS_SUPPLEMENT_MAT_FILE_COUNT,
+				JIRS_SUPPLEMENT_PDF_FILE_COUNT,
+				JIRS_NUMERIC_MEASUREMENT_ROW_COUNT,
+				JIRS_UNCERTAINTY_SUMMARY_ROW_COUNT,
+				jirsThrustAnchor(
+						config,
+						"ground",
+						JIRS_GROUND_SAMPLE_COUNT,
+						JIRS_GROUND_NEAR_FZ_RATIO_MIN,
+						JIRS_GROUND_NEAR_FZ_RATIO_P50,
+						JIRS_GROUND_NEAR_FZ_RATIO_MAX,
+						JIRS_GROUND_CLOSEST_DISTANCE_OVER_RADIUS_MIN,
+						JIRS_GROUND_CLOSEST_DISTANCE_OVER_RADIUS_MAX,
+						JIRS_GROUND_CLOSEST_FZ_RATIO_P50,
+						JIRS_GROUND_CLOSEST_FZ_RATIO_MAX
+				),
+				jirsThrustAnchor(
+						config,
+						"ceiling",
+						JIRS_CEILING_SAMPLE_COUNT,
+						JIRS_CEILING_NEAR_FZ_RATIO_MIN,
+						JIRS_CEILING_NEAR_FZ_RATIO_P50,
+						JIRS_CEILING_NEAR_FZ_RATIO_MAX,
+						JIRS_CEILING_CLOSEST_DISTANCE_OVER_RADIUS_MIN,
+						JIRS_CEILING_CLOSEST_DISTANCE_OVER_RADIUS_MAX,
+						JIRS_CEILING_CLOSEST_FZ_RATIO_P50,
+						JIRS_CEILING_CLOSEST_FZ_RATIO_MAX
+				),
+				jirsWallAnchor(config)
+		);
+	}
+
+	private static JirsThrustAnchor jirsThrustAnchor(
+			DroneConfig config,
+			String effect,
+			int sampleCount,
+			double nearFzRatioMin,
+			double nearFzRatioP50,
+			double nearFzRatioMax,
+			double closestDistanceOverRadiusMin,
+			double closestDistanceOverRadiusMax,
+			double closestFzRatioP50,
+			double closestFzRatioMax
+	) {
+		RotorSpec rotor = representativeRotor(config);
+		double closestMinClearanceMeters = closestDistanceOverRadiusMin * rotor.radiusMeters();
+		double closestMaxClearanceMeters = closestDistanceOverRadiusMax * rotor.radiusMeters();
+		boolean ceiling = "ceiling".equals(effect);
+		double currentAtClosestMin = jirsSurfaceMultiplier(config, closestMinClearanceMeters, ceiling);
+		double currentAtClosestMax = jirsSurfaceMultiplier(config, closestMaxClearanceMeters, ceiling);
+		return new JirsThrustAnchor(
+				effect,
+				sampleCount,
+				nearFzRatioMin,
+				nearFzRatioP50,
+				nearFzRatioMax,
+				closestDistanceOverRadiusMin,
+				closestDistanceOverRadiusMax,
+				closestFzRatioP50,
+				closestFzRatioMax,
+				JIRS_GROUND_CEILING_FAR_BASELINE_DISTANCE_CENTIMETERS,
+				currentAtClosestMin,
+				currentAtClosestMax,
+				ratio(currentAtClosestMin, closestFzRatioP50),
+				ratio(currentAtClosestMax, closestFzRatioMax)
+		);
+	}
+
+	private static double jirsSurfaceMultiplier(DroneConfig config, double clearanceMeters, boolean ceiling) {
+		if (ceiling) {
+			return DroneEnvironment.ceilingEffectThrustMultiplier(config, clearanceMeters);
+		}
+		return DroneEnvironment.groundEffectThrustMultiplier(config, clearanceMeters);
+	}
+
+	private static JirsWallAnchor jirsWallAnchor(DroneConfig config) {
+		WallForceSample oneRadiusForce = wallForceSample(config, wallObstruction(config, 1.0), 0.0);
+		WallRuntimeMapping oneRadiusMapping = wallRuntimeMapping(config, 1.0);
+		WallForceSample fullObstructionHover = wallForceSample(config, 1.0, 0.0);
+		WallRuntimeMapping fullObstructionMapping = wallRuntimeMapping(config, 0.0, 1.0);
+		return new JirsWallAnchor(
+				JIRS_WALL_SAMPLE_COUNT,
+				JIRS_WALL_DISTANCE_OVER_RADIUS_MIN,
+				JIRS_WALL_DISTANCE_OVER_RADIUS_MAX,
+				JIRS_WALL_ABS_FORCE_P50_NEWTONS,
+				JIRS_WALL_ABS_FORCE_MAX_NEWTONS,
+				JIRS_WALL_SIGNED_FORCE_MIN_NEWTONS,
+				JIRS_WALL_SIGNED_FORCE_MAX_NEWTONS,
+				JIRS_WALL_ABS_MOMENT_P50_NEWTON_METERS,
+				JIRS_WALL_ABS_MOMENT_MAX_NEWTON_METERS,
+				JIRS_WALL_STRONGEST_FORCE_SOURCE,
+				JIRS_WALL_STRONGEST_FORCE_PWM,
+				JIRS_WALL_STRONGEST_FORCE_DISTANCE_OVER_RADIUS,
+				JIRS_WALL_STRONGEST_MOMENT_SOURCE,
+				JIRS_WALL_STRONGEST_MOMENT_PWM,
+				JIRS_WALL_STRONGEST_MOMENT_DISTANCE_OVER_RADIUS,
+				JIRS_TERRAXCUBE_WALL_FORCE_UNCERTAINTY_P50_NEWTONS,
+				JIRS_DU2SRI_WALL_FORCE_UNCERTAINTY_P50_NEWTONS,
+				JIRS_TERRAXCUBE_WALL_MOMENT_UNCERTAINTY_P50_NEWTON_METERS,
+				JIRS_DU2SRI_WALL_MOMENT_UNCERTAINTY_P50_NEWTON_METERS,
+				ratio(JIRS_DU2SRI_WALL_FORCE_UNCERTAINTY_P50_NEWTONS,
+						JIRS_TERRAXCUBE_WALL_FORCE_UNCERTAINTY_P50_NEWTONS),
+				oneRadiusForce.forcePerRotorNewtons(),
+				oneRadiusMapping.twoAffectedWallForceOverWeight(),
+				fullObstructionHover.forcePerRotorNewtons(),
+				fullObstructionMapping.twoAffectedWallForceOverWeight()
 		);
 	}
 

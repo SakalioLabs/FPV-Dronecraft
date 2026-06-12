@@ -112,6 +112,110 @@ class SurfaceNearfieldCalibrationTest {
 	}
 
 	@Test
+	void jirsSurfaceEffectAuditAddsRawGroundCeilingWallAnchors() {
+		DroneConfig config = DroneConfig.racingQuad();
+		SurfaceNearfieldCalibration.SurfaceNearfieldAudit audit =
+				SurfaceNearfieldCalibration.audit(config);
+		SurfaceNearfieldCalibration.JirsSurfaceEffectAudit jirs =
+				audit.jirsSurfaceEffectAudit();
+
+		assertEquals("JIRS-2024-Surface-Effect-Packet", jirs.sourceId());
+		assertEquals("10.1007/s10846-024-02155-7", jirs.doi());
+		assertEquals("10.5281/zenodo.11384638", jirs.supplementDoi());
+		assertTrue(jirs.caveat().contains("wall force/moment separately"));
+		assertEquals(460164, jirs.supplementZipSizeBytes());
+		assertEquals(18, jirs.supplementZipFileCount());
+		assertEquals(9, jirs.supplementCsvFileCount());
+		assertEquals(4, jirs.supplementMatFileCount());
+		assertEquals(1, jirs.supplementPdfFileCount());
+		assertEquals(225, jirs.numericMeasurementRowCount());
+		assertEquals(40, jirs.uncertaintySummaryRowCount());
+
+		double rotorRadiusMeters = config.rotors().get(0).radiusMeters();
+		SurfaceNearfieldCalibration.JirsThrustAnchor ground = jirs.ground();
+		assertEquals("ground", ground.effect());
+		assertEquals(40, ground.sampleCount());
+		assertEquals(0.862999580105, ground.nearFzRatioMin(), 1.0e-12);
+		assertEquals(1.02584338925, ground.nearFzRatioP50(), 1.0e-12);
+		assertEquals(1.31490929705, ground.nearFzRatioMax(), 1.0e-12);
+		assertEquals(0.328083989501, ground.closestDistanceOverRadiusMin(), 1.0e-12);
+		assertEquals(0.393700787402, ground.closestDistanceOverRadiusMax(), 1.0e-12);
+		assertEquals(1.29121270457, ground.closestFzRatioP50(), 1.0e-12);
+		assertEquals(1.31490929705, ground.closestFzRatioMax(), 1.0e-12);
+		assertEquals(100.0, ground.farBaselineDistanceCentimeters(), 1.0e-12);
+		assertEquals(
+				DroneEnvironment.groundEffectThrustMultiplier(
+						config,
+						rotorRadiusMeters * ground.closestDistanceOverRadiusMin()
+				),
+				ground.currentMultiplierAtClosestMin(),
+				1.0e-15
+		);
+		assertEquals(
+				DroneEnvironment.groundEffectThrustMultiplier(
+						config,
+						rotorRadiusMeters * ground.closestDistanceOverRadiusMax()
+				),
+				ground.currentMultiplierAtClosestMax(),
+				1.0e-15
+		);
+		assertTrue(ground.currentClosestMinOverMeasuredP50() > 1.0);
+		assertTrue(ground.currentClosestMaxOverMeasuredMax() > 1.0);
+
+		SurfaceNearfieldCalibration.JirsThrustAnchor ceiling = jirs.ceiling();
+		assertEquals("ceiling", ceiling.effect());
+		assertEquals(40, ceiling.sampleCount());
+		assertEquals(0.993352831694, ceiling.nearFzRatioMin(), 1.0e-12);
+		assertEquals(1.04620491703, ceiling.nearFzRatioP50(), 1.0e-12);
+		assertEquals(1.28879545278, ceiling.nearFzRatioMax(), 1.0e-12);
+		assertEquals(1.22717806178, ceiling.closestFzRatioP50(), 1.0e-12);
+		assertEquals(1.28879545278, ceiling.closestFzRatioMax(), 1.0e-12);
+		assertEquals(
+				DroneEnvironment.ceilingEffectThrustMultiplier(
+						config,
+						rotorRadiusMeters * ceiling.closestDistanceOverRadiusMin()
+				),
+				ceiling.currentMultiplierAtClosestMin(),
+				1.0e-15
+		);
+		assertTrue(ceiling.currentClosestMinOverMeasuredP50() < 1.0);
+		assertTrue(ceiling.currentClosestMaxOverMeasuredMax() < 1.0);
+
+		SurfaceNearfieldCalibration.JirsWallAnchor wall = jirs.wall();
+		assertEquals(145, wall.sampleCount());
+		assertEquals(0.964566929134, wall.distanceOverRadiusMin(), 1.0e-12);
+		assertEquals(3.0, wall.distanceOverRadiusMax(), 1.0e-12);
+		assertEquals(0.09864, wall.absForceP50Newtons(), 1.0e-12);
+		assertEquals(0.42777, wall.absForceMaxNewtons(), 1.0e-12);
+		assertEquals(-0.42777, wall.signedForceMinNewtons(), 1.0e-12);
+		assertEquals(0.24607, wall.signedForceMaxNewtons(), 1.0e-12);
+		assertEquals(0.027677, wall.absMomentP50NewtonMeters(), 1.0e-12);
+		assertEquals(0.11947, wall.absMomentMaxNewtonMeters(), 1.0e-12);
+		assertEquals("WallEffect_13_DU2SRI.csv", wall.strongestForceSource());
+		assertEquals(1544, wall.strongestForcePwm());
+		assertEquals(1.75003028468, wall.strongestForceDistanceOverRadius(), 1.0e-12);
+		assertEquals("WallEffect_12_txc.csv", wall.strongestMomentSource());
+		assertEquals(1719, wall.strongestMomentPwm());
+		assertEquals(1.0, wall.strongestMomentDistanceOverRadius(), 1.0e-12);
+		assertEquals(0.0389109547857, wall.terraXcubeWallForceUncertaintyP50Newtons(), 1.0e-12);
+		assertEquals(1.1100511642, wall.du2sriWallForceUncertaintyP50Newtons(), 1.0e-12);
+		assertEquals(0.00687397096237, wall.terraXcubeWallMomentUncertaintyP50NewtonMeters(), 1.0e-12);
+		assertEquals(0.0560048097306, wall.du2sriWallMomentUncertaintyP50NewtonMeters(), 1.0e-12);
+		assertEquals(1.1100511642 / 0.0389109547857,
+				wall.du2sriOverTerraXcubeWallForceUncertaintyP50(), 1.0e-12);
+		assertEquals(audit.oneRadiusWall().twoAffectedWallForceOverWeight(),
+				wall.runtimeOneRadiusTwoRotorForceOverWeight(), 1.0e-15);
+		assertEquals(audit.fullObstructionHoverSideForce().forcePerRotorNewtons(),
+				wall.runtimeFullObstructionHoverForcePerRotorNewtons(), 1.0e-15);
+		assertEquals(audit.fullObstructionWall().twoAffectedWallForceOverWeight(),
+				wall.runtimeFullObstructionTwoRotorForceOverWeight(), 1.0e-15);
+		assertTrue(wall.du2sriOverTerraXcubeWallForceUncertaintyP50() > 28.0);
+		assertTrue(wall.runtimeOneRadiusWallForcePerRotorNewtons() > wall.absForceP50Newtons());
+		assertTrue(wall.runtimeOneRadiusWallForcePerRotorNewtons() < wall.absForceMaxNewtons());
+		assertTrue(wall.runtimeFullObstructionHoverForcePerRotorNewtons() > wall.absForceMaxNewtons());
+	}
+
+	@Test
 	void partialSurfaceLeadAuditMatchesCaiOlAbstractThresholds() {
 		SurfaceNearfieldCalibration.PartialSurfaceLeadAudit audit =
 				SurfaceNearfieldCalibration.audit(DroneConfig.racingQuad()).partialSurfaceLeadAudit();
