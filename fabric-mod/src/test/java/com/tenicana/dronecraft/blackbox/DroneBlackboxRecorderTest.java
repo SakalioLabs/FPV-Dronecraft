@@ -250,6 +250,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("barometer_vertical_speed_mps"));
 		assertTrue(csv.contains("barometer_pressure_hpa"));
 		assertTrue(csv.contains("barometer_error_m"));
+		assertTrue(csv.contains("barometer_sensor_noise_m"));
+		assertTrue(csv.contains("barometer_pressure_port_error_m"));
 		assertTrue(csv.contains("barometer_propwash_error_m"));
 		assertTrue(csv.contains("max_esc_temp_c"));
 		assertTrue(csv.contains("esc_thermal_limit"));
@@ -535,6 +537,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "barometer_altitude_m")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "barometer_pressure_hpa")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "barometer_error_m")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "barometer_sensor_noise_m")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "barometer_pressure_port_error_m")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "max_esc_temp_c")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_thermal_limit")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "avg_esc_cooling_factor")]));

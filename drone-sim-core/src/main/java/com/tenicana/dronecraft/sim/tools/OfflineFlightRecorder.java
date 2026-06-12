@@ -348,6 +348,8 @@ public final class OfflineFlightRecorder {
 			"barometer_vertical_speed_mps",
 			"barometer_pressure_hpa",
 			"barometer_error_m",
+			"barometer_sensor_noise_m",
+			"barometer_pressure_port_error_m",
 			"barometer_propwash_error_m",
 			"avg_esc_temp_c",
 			"max_esc_temp_c",
@@ -1383,7 +1385,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.3f,%.3f,%.5f,%.5f,"
+						+ "%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.3f,%.3f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1698,6 +1700,8 @@ public final class OfflineFlightRecorder {
 				state.barometerVerticalSpeedMetersPerSecond(),
 				state.barometerPressureHectopascals(),
 				state.barometerErrorMeters(),
+				state.barometerSensorNoiseMeters(),
+				state.barometerPressurePortErrorMeters(),
 				state.barometerPropwashErrorMeters(),
 				state.averageEscTemperatureCelsius(),
 				state.maxEscTemperatureCelsius(),

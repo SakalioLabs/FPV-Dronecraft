@@ -7794,7 +7794,8 @@ public final class DronePhysics {
 		barometerNoiseTimeSeconds += dtSeconds;
 		double trueAltitude = state.positionMeters().y();
 		double flowError = updateBarometerFlowErrorMeters(environment, dtSeconds);
-		double rawAltitude = trueAltitude + flowError + barometerNoiseMeters(environment);
+		double sensorNoise = barometerNoiseMeters(environment);
+		double rawAltitude = trueAltitude + flowError + sensorNoise;
 
 		if (!barometerInitialized) {
 			barometerFilteredAltitudeMeters = rawAltitude;
@@ -7817,7 +7818,8 @@ public final class DronePhysics {
 				environment.ambientTemperatureCelsius()
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
-		state.setBarometerPropwashErrorMeters(flowError);
+		state.setBarometerSensorNoiseMeters(sensorNoise);
+		state.setBarometerPressurePortErrorMeters(flowError);
 	}
 
 	private double updateBarometerFlowErrorMeters(DroneEnvironment environment, double dtSeconds) {
@@ -7959,7 +7961,8 @@ public final class DronePhysics {
 		state.setBarometerVerticalSpeedMetersPerSecond(barometerFilteredVerticalSpeedMetersPerSecond);
 		state.setBarometerPressureHectopascals(DroneEnvironment.barometricPressureHectopascals(barometerFilteredAltitudeMeters, 1.0, 25.0));
 		state.setBarometerErrorMeters(0.0);
-		state.setBarometerPropwashErrorMeters(0.0);
+		state.setBarometerSensorNoiseMeters(0.0);
+		state.setBarometerPressurePortErrorMeters(0.0);
 	}
 
 	private static double sensorClipIntensity(Vec3 measurement, double fullScale) {

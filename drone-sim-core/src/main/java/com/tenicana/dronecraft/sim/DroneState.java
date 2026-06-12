@@ -39,6 +39,7 @@ public final class DroneState {
 	private double barometerVerticalSpeedMetersPerSecond;
 	private double barometerPressureHectopascals = 1013.25;
 	private double barometerErrorMeters;
+	private double barometerSensorNoiseMeters;
 	private double barometerPropwashErrorMeters;
 	private FlightMode flightMode = FlightMode.ACRO;
 	private Vec3 levelTargetAttitudeRadians = Vec3.ZERO;
@@ -597,6 +598,22 @@ public final class DroneState {
 
 	void setBarometerErrorMeters(double barometerErrorMeters) {
 		this.barometerErrorMeters = Double.isFinite(barometerErrorMeters) ? barometerErrorMeters : 0.0;
+	}
+
+	public double barometerSensorNoiseMeters() {
+		return barometerSensorNoiseMeters;
+	}
+
+	void setBarometerSensorNoiseMeters(double barometerSensorNoiseMeters) {
+		this.barometerSensorNoiseMeters = Double.isFinite(barometerSensorNoiseMeters) ? barometerSensorNoiseMeters : 0.0;
+	}
+
+	public double barometerPressurePortErrorMeters() {
+		return barometerPropwashErrorMeters;
+	}
+
+	void setBarometerPressurePortErrorMeters(double barometerPressurePortErrorMeters) {
+		setBarometerPropwashErrorMeters(barometerPressurePortErrorMeters);
 	}
 
 	public double barometerPropwashErrorMeters() {

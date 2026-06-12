@@ -712,6 +712,8 @@ public final class DroneBlackboxSample {
 			"barometer_vertical_speed_mps",
 			"barometer_pressure_hpa",
 			"barometer_error_m",
+			"barometer_sensor_noise_m",
+			"barometer_pressure_port_error_m",
 			"barometer_propwash_error_m",
 			"avg_esc_temp_c",
 			"max_esc_temp_c",
@@ -1790,6 +1792,8 @@ public final class DroneBlackboxSample {
 		row.add(state.barometerVerticalSpeedMetersPerSecond(), "%.5f");
 		row.add(state.barometerPressureHectopascals(), "%.5f");
 		row.add(state.barometerErrorMeters(), "%.5f");
+		row.add(state.barometerSensorNoiseMeters(), "%.5f");
+		row.add(state.barometerPressurePortErrorMeters(), "%.5f");
 		row.add(state.barometerPropwashErrorMeters(), "%.5f");
 		row.add(state.averageEscTemperatureCelsius(), "%.3f");
 		row.add(state.maxEscTemperatureCelsius(), "%.3f");

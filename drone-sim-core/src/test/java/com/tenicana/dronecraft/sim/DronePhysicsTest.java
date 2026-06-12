@@ -4580,6 +4580,8 @@ class DronePhysicsTest {
 
 		assertTrue(physics.state().barometerAltitudeMeters() > 23.0);
 		assertTrue(physics.state().barometerVerticalSpeedMetersPerSecond() > 2.0);
+		assertEquals(0.0, physics.state().barometerSensorNoiseMeters(), 1.0e-9);
+		assertEquals(0.0, physics.state().barometerPressurePortErrorMeters(), 1.0e-9);
 		assertEquals(0.0, physics.state().barometerPropwashErrorMeters(), 1.0e-9);
 	}
 
@@ -4595,6 +4597,8 @@ class DronePhysicsTest {
 		DroneEnvironment calm = DroneEnvironment.calm();
 		double maxCleanError = 0.0;
 		double maxNoisyError = 0.0;
+		double maxCleanSensorNoise = 0.0;
+		double maxNoisySensorNoise = 0.0;
 
 		for (int i = 0; i < 180; i++) {
 			cleanRail.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
@@ -4609,12 +4613,18 @@ class DronePhysicsTest {
 
 			maxCleanError = Math.max(maxCleanError, Math.abs(cleanRail.state().barometerErrorMeters()));
 			maxNoisyError = Math.max(maxNoisyError, Math.abs(noisyRail.state().barometerErrorMeters()));
+			maxCleanSensorNoise = Math.max(maxCleanSensorNoise, Math.abs(cleanRail.state().barometerSensorNoiseMeters()));
+			maxNoisySensorNoise = Math.max(maxNoisySensorNoise, Math.abs(noisyRail.state().barometerSensorNoiseMeters()));
 		}
 
 		double finalMaxCleanError = maxCleanError;
 		double finalMaxNoisyError = maxNoisyError;
+		double finalMaxCleanSensorNoise = maxCleanSensorNoise;
+		double finalMaxNoisySensorNoise = maxNoisySensorNoise;
 		assertTrue(finalMaxCleanError < 1.0e-6, () -> "maxCleanError=" + finalMaxCleanError);
 		assertTrue(finalMaxNoisyError > 0.010, () -> "maxNoisyError=" + finalMaxNoisyError);
+		assertTrue(finalMaxCleanSensorNoise < 1.0e-9, () -> "maxCleanSensorNoise=" + finalMaxCleanSensorNoise);
+		assertTrue(finalMaxNoisySensorNoise > 0.010, () -> "maxNoisySensorNoise=" + finalMaxNoisySensorNoise);
 		assertTrue(Math.abs(noisyRail.state().barometerVerticalSpeedMetersPerSecond()) > 0.02);
 	}
 
@@ -4650,6 +4660,12 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(0.0, still.state().barometerPropwashErrorMeters(), 1.0e-9);
+		assertEquals(0.0, fastForward.state().barometerSensorNoiseMeters(), 1.0e-9);
+		assertEquals(
+				fastForward.state().barometerPropwashErrorMeters(),
+				fastForward.state().barometerPressurePortErrorMeters(),
+				1.0e-12
+		);
 		assertTrue(
 				fastForward.state().barometerPropwashErrorMeters() < -1.10,
 				() -> "fastForwardPressureError=" + fastForward.state().barometerPropwashErrorMeters()
@@ -9341,6 +9357,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_vertical_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_pressure_hpa"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_error_m"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_sensor_noise_m"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_pressure_port_error_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_propwash_error_m"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("max_esc_temp_c"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("esc_thermal_limit"));
@@ -9644,6 +9662,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_linear_k")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_cda_m2")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_imav_ratio")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_sensor_noise_m")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_pressure_port_error_m")])));
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_friction")]), 1.0e-9);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_restitution")]), 1.0e-9);
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_scrape")]), 1.0e-9);
