@@ -10509,6 +10509,8 @@ class DronePhysicsTest {
 		String[] row = lines.get(lines.size() - 1).split(",", -1);
 		DroneConfig preset = OfflineFlightRecorder.preset("apdrone");
 		RotorSpec rotor = preset.rotors().get(0);
+		OfflineFlightRecorder.BatteryAutonomyEstimate[] autonomy =
+				OfflineFlightRecorder.apDroneBatteryAutonomyEstimates(preset);
 
 		assertEquals(4, preset.rotors().size());
 		assertTrue(Files.exists(output));
@@ -10528,6 +10530,25 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_reynolds_number")]) >= 0.0);
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
+		assertEquals(2, autonomy.length);
+		assertEquals("max_power", autonomy[0].scenario());
+		assertEquals("normal_power", autonomy[1].scenario());
+		assertEquals(205.862266, autonomy[0].referenceDurationSeconds(), 1.0e-6);
+		assertEquals(511.0542576, autonomy[1].referenceDurationSeconds(), 1.0e-6);
+		assertEquals(25.900383408869278, autonomy[0].referenceMeanCurrentAmps(), 1.0e-12);
+		assertEquals(9.30422120169919, autonomy[1].referenceMeanCurrentAmps(), 1.0e-12);
+		assertTrue(autonomy[0].simulatedDurationSeconds() > 20.0);
+		assertTrue(autonomy[1].simulatedDurationSeconds() > autonomy[0].simulatedDurationSeconds());
+		assertTrue(autonomy[0].durationRatio() > 0.10);
+		assertTrue(autonomy[0].durationRatio() < 0.60);
+		assertTrue(autonomy[1].durationRatio() > 0.05);
+		assertTrue(autonomy[1].durationRatio() < 0.35);
+		assertTrue(autonomy[0].meanCurrentAmps() > autonomy[0].referenceMeanCurrentAmps());
+		assertTrue(autonomy[1].meanCurrentAmps() > autonomy[1].referenceMeanCurrentAmps());
+		assertTrue(autonomy[0].consumedAmpHours() > 1.0);
+		assertTrue(autonomy[0].consumedAmpHours() < 1.7);
+		assertTrue(autonomy[1].consumedAmpHours() > 1.0);
+		assertTrue(autonomy[1].consumedAmpHours() < 1.7);
 	}
 
 	@Test

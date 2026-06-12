@@ -28,6 +28,16 @@ public final class OfflineFlightRecorder {
 	private static final double RAIN_BURST_PRECIPITATION_WETNESS = 1.0;
 	private static final int LIGHT_PROP_FAULT_ROTOR_INDEX = 0;
 	private static final double LIGHT_PROP_FAULT_DAMAGE = 0.10;
+	private static final double BATTERY_AUTONOMY_DT_SECONDS = 0.010;
+	private static final double BATTERY_AUTONOMY_MAX_SECONDS = 900.0;
+	private static final double APDRONE_AUTONOMY_LOWER_VOLTAGE = 12.0;
+	private static final double APDRONE_AUTONOMY_UPPER_VOLTAGE = 18.0;
+	private static final double APDRONE_MAX_POWER_REFERENCE_SECONDS = 205.862266;
+	private static final double APDRONE_MAX_POWER_REFERENCE_MEAN_CURRENT_AMPS = 25.900383408869278;
+	private static final double APDRONE_MAX_POWER_REFERENCE_THROTTLE = 0.9867448887828499;
+	private static final double APDRONE_NORMAL_POWER_REFERENCE_SECONDS = 511.05425759999997;
+	private static final double APDRONE_NORMAL_POWER_REFERENCE_MEAN_CURRENT_AMPS = 9.30422120169919;
+	private static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE = 0.5439609800526073;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -955,6 +965,32 @@ public final class OfflineFlightRecorder {
 	private OfflineFlightRecorder() {
 	}
 
+	public record BatteryAutonomyEstimate(
+			String scenario,
+			double throttleCommand,
+			double lowerVoltageCutoff,
+			double upperVoltageCutoff,
+			double referenceDurationSeconds,
+			double referenceMeanCurrentAmps,
+			double simulatedDurationSeconds,
+			double simulatedTimeInVoltageWindowSeconds,
+			double startVoltage,
+			double endVoltage,
+			double minVoltage,
+			double meanCurrentAmps,
+			double peakCurrentAmps,
+			double consumedAmpHours,
+			double consumedWattHours
+	) {
+		public double durationRatio() {
+			return simulatedDurationSeconds / Math.max(1.0e-9, referenceDurationSeconds);
+		}
+
+		public double meanCurrentRatio() {
+			return meanCurrentAmps / Math.max(1.0e-9, referenceMeanCurrentAmps);
+		}
+	}
+
 	public static void main(String[] args) throws IOException {
 		if (args.length > 0 && ("--help".equals(args[0]) || "-h".equals(args[0]))) {
 			printUsage();
@@ -1130,6 +1166,29 @@ public final class OfflineFlightRecorder {
 				formatLevelFlightRequirement("RATM21", ratmHighSpeed),
 				formatLevelFlightRequirement("UZH26.8", uzhFpvVmax)
 		);
+		if ("apdrone".equals(presetName)) {
+			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);
+			System.out.printf(
+					Locale.ROOT,
+					"APDrone battery-autonomy audit: %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA; %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA%n",
+					autonomy[0].scenario(),
+					autonomy[0].simulatedDurationSeconds(),
+					autonomy[0].simulatedTimeInVoltageWindowSeconds(),
+					autonomy[0].referenceDurationSeconds(),
+					autonomy[0].durationRatio(),
+					autonomy[0].meanCurrentAmps(),
+					autonomy[0].peakCurrentAmps(),
+					autonomy[0].referenceMeanCurrentAmps(),
+					autonomy[1].scenario(),
+					autonomy[1].simulatedDurationSeconds(),
+					autonomy[1].simulatedTimeInVoltageWindowSeconds(),
+					autonomy[1].referenceDurationSeconds(),
+					autonomy[1].durationRatio(),
+					autonomy[1].meanCurrentAmps(),
+					autonomy[1].peakCurrentAmps(),
+					autonomy[1].referenceMeanCurrentAmps()
+			);
+		}
 	}
 
 	private static String formatLevelFlightRequirement(
@@ -1152,6 +1211,109 @@ public final class OfflineFlightRecorder {
 
 	public static FlightReport record(String presetName, Path outputPath) throws IOException {
 		return record(presetName, outputPath, DEFAULT_DURATION_SECONDS);
+	}
+
+	public static BatteryAutonomyEstimate[] apDroneBatteryAutonomyEstimates() {
+		return apDroneBatteryAutonomyEstimates(DroneConfig.apDrone());
+	}
+
+	public static BatteryAutonomyEstimate[] apDroneBatteryAutonomyEstimates(DroneConfig config) {
+		return new BatteryAutonomyEstimate[] {
+				estimateStaticBatteryAutonomy(
+						config,
+						"max_power",
+						APDRONE_MAX_POWER_REFERENCE_THROTTLE,
+						APDRONE_AUTONOMY_LOWER_VOLTAGE,
+						APDRONE_AUTONOMY_UPPER_VOLTAGE,
+						APDRONE_MAX_POWER_REFERENCE_SECONDS,
+						APDRONE_MAX_POWER_REFERENCE_MEAN_CURRENT_AMPS,
+						BATTERY_AUTONOMY_MAX_SECONDS
+				),
+				estimateStaticBatteryAutonomy(
+						config,
+						"normal_power",
+						APDRONE_NORMAL_POWER_REFERENCE_THROTTLE,
+						APDRONE_AUTONOMY_LOWER_VOLTAGE,
+						APDRONE_AUTONOMY_UPPER_VOLTAGE,
+						APDRONE_NORMAL_POWER_REFERENCE_SECONDS,
+						APDRONE_NORMAL_POWER_REFERENCE_MEAN_CURRENT_AMPS,
+						BATTERY_AUTONOMY_MAX_SECONDS
+				)
+		};
+	}
+
+	public static BatteryAutonomyEstimate estimateStaticBatteryAutonomy(
+			DroneConfig config,
+			String scenario,
+			double throttleCommand,
+			double lowerVoltageCutoff,
+			double upperVoltageCutoff,
+			double referenceDurationSeconds,
+			double referenceMeanCurrentAmps,
+			double maxSeconds
+	) {
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput input = new DroneInput(MathUtil.clamp(throttleCommand, 0.0, 1.0), 0.0, 0.0, 0.0, true);
+		DroneEnvironment environment = DroneEnvironment.calm();
+		int maxSteps = Math.max(1, (int) Math.round(Math.max(BATTERY_AUTONOMY_DT_SECONDS, maxSeconds) / BATTERY_AUTONOMY_DT_SECONDS));
+		double elapsedSeconds = 0.0;
+		double inVoltageWindowSeconds = 0.0;
+		double ampSeconds = 0.0;
+		double wattSeconds = 0.0;
+		double startVoltage = Double.NaN;
+		double endVoltage = config.nominalBatteryVoltage();
+		double minVoltage = Double.POSITIVE_INFINITY;
+		double peakCurrent = 0.0;
+
+		for (int step = 0; step < maxSteps; step++) {
+			holdStaticAutonomyRig(physics.state());
+			physics.step(input, BATTERY_AUTONOMY_DT_SECONDS, environment);
+			DroneState state = physics.state();
+			double voltage = state.batteryVoltage();
+			double current = state.batteryCurrentAmps();
+			elapsedSeconds += BATTERY_AUTONOMY_DT_SECONDS;
+			if (!Double.isFinite(startVoltage)) {
+				startVoltage = voltage;
+			}
+			endVoltage = voltage;
+			minVoltage = Math.min(minVoltage, voltage);
+			peakCurrent = Math.max(peakCurrent, current);
+			ampSeconds += current * BATTERY_AUTONOMY_DT_SECONDS;
+			wattSeconds += current * Math.max(0.0, voltage) * BATTERY_AUTONOMY_DT_SECONDS;
+			if (voltage >= lowerVoltageCutoff && voltage <= upperVoltageCutoff) {
+				inVoltageWindowSeconds += BATTERY_AUTONOMY_DT_SECONDS;
+			}
+			if (elapsedSeconds >= 1.0 && (voltage <= lowerVoltageCutoff || state.batteryStateOfCharge() <= 0.001)) {
+				break;
+			}
+		}
+
+		double safeElapsed = Math.max(BATTERY_AUTONOMY_DT_SECONDS, elapsedSeconds);
+		return new BatteryAutonomyEstimate(
+				scenario,
+				MathUtil.clamp(throttleCommand, 0.0, 1.0),
+				lowerVoltageCutoff,
+				upperVoltageCutoff,
+				referenceDurationSeconds,
+				referenceMeanCurrentAmps,
+				elapsedSeconds,
+				inVoltageWindowSeconds,
+				Double.isFinite(startVoltage) ? startVoltage : endVoltage,
+				endVoltage,
+				Double.isFinite(minVoltage) ? minVoltage : endVoltage,
+				ampSeconds / safeElapsed,
+				peakCurrent,
+				ampSeconds / 3600.0,
+				wattSeconds / 3600.0
+		);
+	}
+
+	private static void holdStaticAutonomyRig(DroneState state) {
+		state.setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+		state.setVelocityMetersPerSecond(Vec3.ZERO);
+		state.setOrientation(Quaternion.IDENTITY);
+		state.setEstimatedOrientation(Quaternion.IDENTITY);
+		state.setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 	}
 
 	public static FlightReport record(String presetName, Path outputPath, double durationSeconds) throws IOException {
