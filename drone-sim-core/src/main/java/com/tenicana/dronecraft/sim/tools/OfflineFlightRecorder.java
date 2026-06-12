@@ -1127,6 +1127,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
 				MotorBenchCurrentModel.tytoX3nmStaticPowertrainAudit(preset);
+		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
+				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
@@ -1272,6 +1274,20 @@ public final class OfflineFlightRecorder {
 				tytoAudit.referenceMaxCurrentAmps(),
 				tytoAudit.referenceVoltageAtMaxThrust(),
 				tytoAudit.referenceFitR2()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"AI-IO rotor-speed audit: max_rpm %.0f/%.0f ratio %.4f, hover %.0f, p95_file %.0f, bpass %.1fHz/%.1fHz, bpass_nyq %.1fx, files %d@%.1fHz%n",
+				aiioRotorSpeedAudit.referenceMaxRotorRpm(),
+				aiioRotorSpeedAudit.configuredMaxRotorRpm(),
+				aiioRotorSpeedAudit.referenceMaxRotorRpmOverConfiguredMax(),
+				aiioRotorSpeedAudit.configuredHoverRotorRpm(),
+				aiioRotorSpeedAudit.referenceRotorRpmP95OfFilePeaks(),
+				aiioRotorSpeedAudit.referenceBladePassHertzForConfiguredBladeCount(),
+				aiioRotorSpeedAudit.configuredMaxBladePassHertz(),
+				aiioRotorSpeedAudit.referenceBladePassOverTelemetryNyquist(),
+				aiioRotorSpeedAudit.referenceSampleFileCount(),
+				aiioRotorSpeedAudit.referenceSampleRateHertz()
 		);
 		if ("apdrone".equals(presetName)) {
 			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);

@@ -63,6 +63,33 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void aiioRotorSpeedTelemetryAuditMatchesResolvedMechanicalRpmScale() {
+		MotorBenchCurrentModel.RotorSpeedTelemetryAudit racingAudit =
+				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(DroneConfig.racingQuad());
+		MotorBenchCurrentModel.RotorSpeedTelemetryAudit apDroneAudit =
+				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(DroneConfig.apDrone());
+
+		assertEquals("AI-IO", racingAudit.referenceId());
+		assertEquals(22, racingAudit.referenceSampleFileCount());
+		assertEquals(100.00009536752259, racingAudit.referenceSampleRateHertz(), 1.0e-12);
+		assertEquals(50.000047683761295, racingAudit.referenceTelemetryNyquistHertz(), 1.0e-12);
+		assertEquals(13.597415180566555, racingAudit.referenceFastestSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(24245.16376198689, racingAudit.referenceRotorRpmP95OfFilePeaks(), 1.0e-9);
+		assertEquals(29146.829122720956, racingAudit.referenceMaxRotorRpm(), 1.0e-9);
+		assertEquals(13023.090711279678, racingAudit.configuredHoverRotorRpm(), 1.0e-9);
+		assertEquals(29137.63274949454, racingAudit.configuredMaxRotorRpm(), 1.0e-9);
+		assertEquals(1.0003156184068034, racingAudit.referenceMaxRotorRpmOverConfiguredMax(), 1.0e-15);
+		assertEquals(0.999684481176745, racingAudit.configuredMaxRotorRpmOverReferenceMax(), 1.0e-15);
+		assertEquals(3.0, racingAudit.configuredBladeCount(), 1.0e-12);
+		assertEquals(1457.3414561360478, racingAudit.referenceBladePassHertzForConfiguredBladeCount(), 1.0e-9);
+		assertEquals(1456.881637474727, racingAudit.configuredMaxBladePassHertz(), 1.0e-9);
+		assertEquals(1457.3414561360478, racingAudit.referenceThreeBladeBladePassHertz(), 1.0e-9);
+		assertEquals(29.14680132613862, racingAudit.referenceBladePassOverTelemetryNyquist(), 1.0e-12);
+		assertEquals(9843.188707660616, apDroneAudit.configuredHoverRotorRpm(), 1.0e-9);
+		assertEquals(racingAudit.configuredMaxRotorRpm(), apDroneAudit.configuredMaxRotorRpm(), 1.0e-9);
+	}
+
+	@Test
 	void mqtbHq5x4x3RotorSimilaritySelectsFiveInchTriBladeProps() {
 		assertEquals(
 				1.0,

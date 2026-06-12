@@ -15,6 +15,14 @@ public final class MotorBenchCurrentModel {
 	public static final double TYTO_X3NM_FIT_THRUST_COEFFICIENT = 1.7996539842396274e-6;
 	public static final double TYTO_X3NM_FIT_R2 = 0.9988870109198886;
 	public static final int TYTO_X3NM_FIT_POINT_COUNT = 7;
+	public static final String AIIO_ROTOR_SPEED_SOURCE_ID = "AI-IO";
+	public static final int AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT = 22;
+	public static final double AIIO_HDF5_SAMPLE_RATE_HERTZ = 100.00009536752259;
+	public static final double AIIO_HDF5_TELEMETRY_NYQUIST_HERTZ = 50.000047683761295;
+	public static final double AIIO_FASTEST_TEST_SPEED_METERS_PER_SECOND = 13.597415180566555;
+	public static final double AIIO_ROTOR_RPM_P95_OF_FILE_PEAKS = 24245.16376198689;
+	public static final double AIIO_ROTOR_RPM_MAX = 29146.829122720956;
+	public static final double AIIO_THREE_BLADE_BLADE_PASS_HERTZ_AT_MAX = 1457.3414561360478;
 
 	private static final double RADIANS_PER_SECOND_TO_RPM = 60.0 / (2.0 * Math.PI);
 
@@ -36,6 +44,26 @@ public final class MotorBenchCurrentModel {
 			double referenceEquivalentRpmForConfiguredMaxThrust,
 			double configuredMaxThrustOverReference,
 			double configuredThrustCoefficientOverReference
+	) {
+	}
+
+	public record RotorSpeedTelemetryAudit(
+			String referenceId,
+			int referenceSampleFileCount,
+			double referenceSampleRateHertz,
+			double referenceTelemetryNyquistHertz,
+			double referenceFastestSpeedMetersPerSecond,
+			double referenceRotorRpmP95OfFilePeaks,
+			double referenceMaxRotorRpm,
+			double configuredHoverRotorRpm,
+			double configuredMaxRotorRpm,
+			double referenceMaxRotorRpmOverConfiguredMax,
+			double configuredMaxRotorRpmOverReferenceMax,
+			double configuredBladeCount,
+			double referenceBladePassHertzForConfiguredBladeCount,
+			double configuredMaxBladePassHertz,
+			double referenceThreeBladeBladePassHertz,
+			double referenceBladePassOverTelemetryNyquist
 	) {
 	}
 
@@ -133,6 +161,32 @@ public final class MotorBenchCurrentModel {
 		);
 	}
 
+	public static RotorSpeedTelemetryAudit aiioRotorSpeedTelemetryAudit(DroneConfig config) {
+		double configuredMaxRotorRpm = averageMaxRotorRpm(config);
+		double configuredHoverRotorRpm = averageHoverRotorRpm(config);
+		double configuredBladeCount = averageBladeCount(config);
+		double referenceBladePass = AIIO_ROTOR_RPM_MAX * configuredBladeCount / 60.0;
+		double configuredMaxBladePass = configuredMaxRotorRpm * configuredBladeCount / 60.0;
+		return new RotorSpeedTelemetryAudit(
+				AIIO_ROTOR_SPEED_SOURCE_ID,
+				AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT,
+				AIIO_HDF5_SAMPLE_RATE_HERTZ,
+				AIIO_HDF5_TELEMETRY_NYQUIST_HERTZ,
+				AIIO_FASTEST_TEST_SPEED_METERS_PER_SECOND,
+				AIIO_ROTOR_RPM_P95_OF_FILE_PEAKS,
+				AIIO_ROTOR_RPM_MAX,
+				configuredHoverRotorRpm,
+				configuredMaxRotorRpm,
+				ratio(AIIO_ROTOR_RPM_MAX, configuredMaxRotorRpm),
+				ratio(configuredMaxRotorRpm, AIIO_ROTOR_RPM_MAX),
+				configuredBladeCount,
+				referenceBladePass,
+				configuredMaxBladePass,
+				AIIO_THREE_BLADE_BLADE_PASS_HERTZ_AT_MAX,
+				ratio(AIIO_THREE_BLADE_BLADE_PASS_HERTZ_AT_MAX, AIIO_HDF5_TELEMETRY_NYQUIST_HERTZ)
+		);
+	}
+
 	private static double powerLaw(double thrustNewtons, double coefficient, double exponent) {
 		if (!Double.isFinite(thrustNewtons) || thrustNewtons <= 0.0) {
 			return 0.0;
@@ -172,6 +226,32 @@ public final class MotorBenchCurrentModel {
 		double total = 0.0;
 		for (RotorSpec rotor : config.rotors()) {
 			total += rotor.maxOmegaRadiansPerSecond() * RADIANS_PER_SECOND_TO_RPM;
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageHoverRotorRpm(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double nominalHoverThrust = config.massKg() * config.gravityMetersPerSecondSquared()
+				/ config.rotors().size();
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rpmForThrustAndCoefficient(nominalHoverThrust, rotor.thrustCoefficient());
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageBladeCount(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.bladeCount();
 		}
 		return total / config.rotors().size();
 	}
