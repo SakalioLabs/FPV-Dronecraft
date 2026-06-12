@@ -239,6 +239,14 @@ class MotorBenchCurrentModelTest {
 		assertEquals(0.4695606140815246, audit.motorCommandP50(), 1.0e-15);
 		assertEquals(0.5569084171519323, audit.motorCommandP95(), 1.0e-15);
 		assertEquals(0.5881418740074114, audit.motorCommandP99(), 1.0e-15);
+		assertEquals(0.484, audit.flightThrottleP50(), 1.0e-12);
+		assertEquals(0.535, audit.flightThrottleP95(), 1.0e-12);
+		assertEquals(8158.4876639962695, audit.projectRpmAtFlightThrottleP50(), 1.0e-9);
+		assertEquals(9753.44747388906, audit.projectRpmAtFlightThrottleP95(), 1.0e-9);
+		assertEquals(12607.142857142857, audit.mechanicalRpmAtFlightThrottleP50(), 1.0e-9);
+		assertEquals(13078.57142857143, audit.mechanicalRpmAtFlightThrottleP95(), 1.0e-9);
+		assertEquals(1.5305406762833884, audit.sampledMechanicalOverProjectThrottleRpmP50(), 1.0e-15);
+		assertEquals(2.257441177074109, audit.sampledMechanicalOverProjectThrottleRpmP95(), 1.0e-15);
 		assertEquals(12428.57142857143, audit.mechanicalRpmP50(), 1.0e-9);
 		assertEquals(14100.0, audit.mechanicalRpmP95(), 1.0e-9);
 		assertEquals(14671.42857142857, audit.mechanicalRpmP99(), 1.0e-9);

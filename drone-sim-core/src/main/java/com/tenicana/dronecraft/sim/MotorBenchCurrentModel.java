@@ -95,6 +95,16 @@ public final class MotorBenchCurrentModel {
 	public static final double APDRONE_URBAN_MOTOR_COMMAND_P50 = 0.4695606140815246;
 	public static final double APDRONE_URBAN_MOTOR_COMMAND_P95 = 0.5569084171519323;
 	public static final double APDRONE_URBAN_MOTOR_COMMAND_P99 = 0.5881418740074114;
+	public static final double APDRONE_URBAN_FLIGHT_THROTTLE_P50 = 0.484;
+	public static final double APDRONE_URBAN_FLIGHT_THROTTLE_P95 = 0.535;
+	public static final double APDRONE_URBAN_PROJECT_RPM_AT_FLIGHT_THROTTLE_P50 = 8158.4876639962695;
+	public static final double APDRONE_URBAN_PROJECT_RPM_AT_FLIGHT_THROTTLE_P95 = 9753.44747388906;
+	public static final double APDRONE_URBAN_THROTTLE_MECHANICAL_RPM_P50 = 12607.142857142857;
+	public static final double APDRONE_URBAN_THROTTLE_MECHANICAL_RPM_P95 = 13078.57142857143;
+	public static final double APDRONE_URBAN_SAMPLED_MECHANICAL_OVER_PROJECT_THROTTLE_RPM_P50 =
+			1.5305406762833884;
+	public static final double APDRONE_URBAN_SAMPLED_MECHANICAL_OVER_PROJECT_THROTTLE_RPM_P95 =
+			2.257441177074109;
 	public static final double APDRONE_URBAN_MECHANICAL_RPM_P50 = 12428.57142857143;
 	public static final double APDRONE_URBAN_MECHANICAL_RPM_P95 = 14100.0;
 	public static final double APDRONE_URBAN_MECHANICAL_RPM_P99 = 14671.42857142857;
@@ -208,6 +218,14 @@ public final class MotorBenchCurrentModel {
 			double motorCommandP50,
 			double motorCommandP95,
 			double motorCommandP99,
+			double flightThrottleP50,
+			double flightThrottleP95,
+			double projectRpmAtFlightThrottleP50,
+			double projectRpmAtFlightThrottleP95,
+			double mechanicalRpmAtFlightThrottleP50,
+			double mechanicalRpmAtFlightThrottleP95,
+			double sampledMechanicalOverProjectThrottleRpmP50,
+			double sampledMechanicalOverProjectThrottleRpmP95,
 			double mechanicalRpmP50,
 			double mechanicalRpmP95,
 			double mechanicalRpmP99,
@@ -596,6 +614,14 @@ public final class MotorBenchCurrentModel {
 				APDRONE_URBAN_MOTOR_COMMAND_P50,
 				APDRONE_URBAN_MOTOR_COMMAND_P95,
 				APDRONE_URBAN_MOTOR_COMMAND_P99,
+				APDRONE_URBAN_FLIGHT_THROTTLE_P50,
+				APDRONE_URBAN_FLIGHT_THROTTLE_P95,
+				APDRONE_URBAN_PROJECT_RPM_AT_FLIGHT_THROTTLE_P50,
+				APDRONE_URBAN_PROJECT_RPM_AT_FLIGHT_THROTTLE_P95,
+				APDRONE_URBAN_THROTTLE_MECHANICAL_RPM_P50,
+				APDRONE_URBAN_THROTTLE_MECHANICAL_RPM_P95,
+				APDRONE_URBAN_SAMPLED_MECHANICAL_OVER_PROJECT_THROTTLE_RPM_P50,
+				APDRONE_URBAN_SAMPLED_MECHANICAL_OVER_PROJECT_THROTTLE_RPM_P95,
 				APDRONE_URBAN_MECHANICAL_RPM_P50,
 				APDRONE_URBAN_MECHANICAL_RPM_P95,
 				APDRONE_URBAN_MECHANICAL_RPM_P99,

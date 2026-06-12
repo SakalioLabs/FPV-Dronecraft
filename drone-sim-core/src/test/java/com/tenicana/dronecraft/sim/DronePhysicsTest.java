@@ -11071,6 +11071,8 @@ class DronePhysicsTest {
 		assertTrue(text.contains("APDrone-Mendeley-Urban-eRPM"));
 		assertTrue(text.contains("erpm100"));
 		assertTrue(text.contains("rpm_ratio"));
+		assertTrue(text.contains("thr_rpm"));
+		assertTrue(text.contains("thr_ratio"));
 		assertTrue(text.contains("APDrone control-response audit"));
 		assertTrue(text.contains("lag_p50"));
 		assertTrue(text.contains("ratios_ctrl"));
