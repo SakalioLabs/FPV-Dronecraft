@@ -1,7 +1,9 @@
 package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -63,6 +65,64 @@ class MotorResponseCalibrationTest {
 		assertEquals(11.403027150576492, preset.motorTauOverApDroneUrbanFirstOrderTauP50(), 1.0e-12);
 		assertEquals(0.9393787575130691, preset.motorTauOverApDroneUrbanLevelLagP50(), 1.0e-12);
 		assertEquals(0.06262525050084512, preset.escFrameIntervalOverApDroneUrbanDeltaLagP50(), 1.0e-15);
+	}
+
+	@Test
+	void openBenchPropResponseAuditAddsAdjacentEscSlewAndPropbenchProtocolAnchors() {
+		MotorResponseCalibration.MotorResponseAudit audit =
+				MotorResponseCalibration.audit(DroneConfig.racingQuad());
+
+		MotorResponseCalibration.OpenBenchPropResponseReference openBench =
+				audit.openBenchPropResponseReference();
+		assertEquals("ESC-Test-PropBench-Packet", openBench.referenceId());
+		assertTrue(openBench.caveat().contains("Adjacent 7-inch static bench"));
+		assertEquals(367, openBench.packetRowCount());
+		assertEquals(6, openBench.sourceInventoryCount());
+		assertEquals(6, openBench.rcbenchTestCount());
+		assertEquals(67_972, openBench.rcbenchSampleCountTotal());
+		assertEquals(102, openBench.rcbenchRpmBinCount());
+		assertEquals(32, openBench.autoquadEscSummaryRowCount());
+		assertEquals(9, openBench.propbenchProtocolMetricCount());
+		assertEquals(6, openBench.propbenchCsvSchemaFieldCount());
+		assertEquals(0.1778, openBench.propDiameterMeters(), 1.0e-12);
+		assertEquals(3, openBench.bladeCount());
+		assertEquals(16.0, openBench.nominalSupplyVoltageVolts(), 1.0e-12);
+		assertEquals(1.4, openBench.propDiameterOverAveragePresetPropDiameter(), 1.0e-12);
+
+		assertEquals(4.30424359474e-06, openBench.thrustCoefficientKFitP10(), 1.0e-18);
+		assertEquals(4.44527215402e-06, openBench.thrustCoefficientKFitP50(), 1.0e-18);
+		assertEquals(4.54877146718e-06, openBench.thrustCoefficientKFitP90(), 1.0e-18);
+		assertEquals(3.0657049338068964,
+				openBench.thrustCoefficientKFitP50OverAveragePresetK(), 1.0e-15);
+		assertEquals(3.06570493381,
+				openBench.thrustCoefficientKFitP50OverCurrentRacingQuadK(), 1.0e-12);
+		assertEquals(0, openBench.highRpmTorqueFitSampleCount());
+		assertFalse(openBench.rcbenchmarkCommandTimestampsAvailable());
+		assertFalse(openBench.highRpmTorqueRowsAvailable());
+
+		assertEquals(138_752.523874, openBench.maxPositiveSlew50msP50RpmPerSecond(), 1.0e-6);
+		assertEquals(253_618.683953, openBench.maxPositiveSlew50msMaxRpmPerSecond(), 1.0e-6);
+		assertEquals(135_827.751648, openBench.maxNegativeSlew50msP50RpmPerSecond(), 1.0e-6);
+		assertEquals(272_067.092347, openBench.maxNegativeSlew50msMaxRpmPerSecond(), 1.0e-6);
+		assertEquals(0.391687302671593,
+				openBench.maxPositiveSlew50msMaxOverPresetSpinupProxy(), 1.0e-15);
+		assertEquals(0.1313059135250463,
+				openBench.maxNegativeSlew50msMaxOverPresetBrakingProxy(), 1.0e-15);
+		assertEquals(0.11488756386297662, openBench.positiveSlewTauEquivalentSeconds(), 1.0e-15);
+		assertEquals(0.107097232885232, openBench.negativeSlewTauEquivalentSeconds(), 1.0e-15);
+		assertEquals(2.5530569747328135, openBench.positiveSlewTauOverPresetMotorTau(), 1.0e-12);
+		assertEquals(7.6158032273942755, openBench.negativeSlewTauOverPresetActiveBrakingTau(), 1.0e-12);
+		assertTrue(openBench.negativeSlewTauOverPresetActiveBrakingTau() > 7.0);
+
+		assertEquals(5000.0, openBench.propbenchMaxThrustRampUpMilliseconds(), 1.0e-12);
+		assertEquals(1000.0, openBench.propbenchMaxThrustHoldMilliseconds(), 1.0e-12);
+		assertEquals(800.0, openBench.propbenchMaxThrustRampDownMilliseconds(), 1.0e-12);
+		assertEquals(900.0, openBench.propbenchMaxThrustRestMilliseconds(), 1.0e-12);
+		assertEquals(3, openBench.propbenchTestRepeatCount());
+		assertEquals(1000.0, openBench.propbenchAvgAccelRampUpMilliseconds(), 1.0e-12);
+		assertEquals(7000.0, openBench.propbenchAvgAccelObservationWindowMilliseconds(), 1.0e-12);
+		assertEquals(200.0, openBench.propbenchFcTelemetryPollIntervalMilliseconds(), 1.0e-12);
+		assertEquals(41.0, openBench.propbenchRpmScaleConstant(), 1.0e-12);
 	}
 
 	@Test
