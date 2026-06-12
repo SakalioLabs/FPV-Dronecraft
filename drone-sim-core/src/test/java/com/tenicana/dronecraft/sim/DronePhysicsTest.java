@@ -10289,6 +10289,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_precipitation_wetness"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_precipitation_wetness"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_env_thrust_multiplier"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_env_thrust_multiplier"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_flow_obstruction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flow_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_element_stall"));
@@ -10730,6 +10734,8 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
 		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
 		assertTrue(maxColumn(lines, header, "rotor_wall_effect_n") > 0.04);
+		assertTrue(maxColumn(lines, header, "rotor_0_flow_obstruction") >= 0.0);
+		assertTrue(minColumn(lines, header, "rotor_0_env_thrust_multiplier") > 0.0);
 		assertEquals(0.0, maxColumn(lines, header, "water_immersion"), 1.0e-9);
 		assertTrue(maxColumn(lines, header, "precipitation_wetness") > 0.95);
 		assertTrue(minColumn(lines, header, "rotor_wet_thrust_scale") < 0.98);
@@ -10745,10 +10751,23 @@ class DronePhysicsTest {
 		boolean sawWallSkim = false;
 		boolean sawRainBurst = false;
 		boolean sawLightPropFault = false;
+		double maxWallSkimFlowObstruction = 0.0;
+		double minWallSkimThrustMultiplier = 1.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			if ("wall_skim".equals(row[phaseIndex])) {
 				sawWallSkim = true;
+				for (int rotorIndex = 0; rotorIndex < 4; rotorIndex++) {
+					double flowObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_flow_obstruction")]);
+					double thrustMultiplier = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_env_thrust_multiplier")]);
+					maxWallSkimFlowObstruction = Math.max(maxWallSkimFlowObstruction, flowObstruction);
+					minWallSkimThrustMultiplier = Math.min(minWallSkimThrustMultiplier, thrustMultiplier);
+					assertEquals(
+							RotorFlowObstructionModel.thrustMultiplier(flowObstruction),
+							thrustMultiplier,
+							2.0e-5
+					);
+				}
 			} else if ("rain_burst".equals(row[phaseIndex])) {
 				sawRainBurst = true;
 			} else if ("light_prop_fault".equals(row[phaseIndex])) {
@@ -10756,6 +10775,9 @@ class DronePhysicsTest {
 			}
 		}
 		assertTrue(sawWallSkim);
+		assertTrue(maxWallSkimFlowObstruction > 0.25, "maxWallSkimFlowObstruction=" + maxWallSkimFlowObstruction);
+		assertTrue(minWallSkimThrustMultiplier < 0.995, "minWallSkimThrustMultiplier=" + minWallSkimThrustMultiplier);
+		assertTrue(minWallSkimThrustMultiplier > 0.94, "minWallSkimThrustMultiplier=" + minWallSkimThrustMultiplier);
 		assertTrue(sawRainBurst);
 		assertTrue(sawLightPropFault);
 		assertTrue(report.samples() > 200);

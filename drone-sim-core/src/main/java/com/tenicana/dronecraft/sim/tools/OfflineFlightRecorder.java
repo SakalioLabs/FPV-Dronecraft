@@ -636,10 +636,18 @@ public final class OfflineFlightRecorder {
 			"rotor_5_windmilling",
 			"rotor_6_windmilling",
 			"rotor_7_windmilling",
+			"rotor_0_env_thrust_multiplier",
+			"rotor_1_env_thrust_multiplier",
+			"rotor_2_env_thrust_multiplier",
+			"rotor_3_env_thrust_multiplier",
 			"rotor_4_env_thrust_multiplier",
 			"rotor_5_env_thrust_multiplier",
 			"rotor_6_env_thrust_multiplier",
 			"rotor_7_env_thrust_multiplier",
+			"rotor_0_flow_obstruction",
+			"rotor_1_flow_obstruction",
+			"rotor_2_flow_obstruction",
+			"rotor_3_flow_obstruction",
 			"rotor_4_flow_obstruction",
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
@@ -3020,10 +3028,10 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorWindmilling, i), "%.5f");
 		}
-		for (int i = 4; i < 8; i++) {
+		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, i < config.rotors().size() ? environment.rotorThrustMultiplier(i, config) : 1.0, "%.5f");
 		}
-		for (int i = 4; i < 8; i++) {
+		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorFlowObstruction(i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorDynamicInflowTimeConstantSeconds(), "%.5f");
