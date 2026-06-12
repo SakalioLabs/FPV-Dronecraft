@@ -1214,6 +1214,8 @@ public final class OfflineFlightRecorder {
 				ControlResponseCalibration.apDroneControlResponseAudit(preset);
 		SensorNoiseCalibration.ImuNoiseAudit imuNoiseAudit =
 				SensorNoiseCalibration.apDroneImuNoiseAudit(preset);
+		SensorNoiseCalibration.BarometerNoiseAudit barometerNoiseAudit =
+				SensorNoiseCalibration.apDroneBarometerNoiseAudit(preset);
 		PropDamageVibrationAudit propDamageAudit = propDamageVibrationAudit(preset);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
@@ -1496,6 +1498,30 @@ public final class OfflineFlightRecorder {
 				imuNoiseAudit.configuredAccelerometerLowPassHertz(),
 				imuNoiseAudit.configuredQuietBarometerNoiseAmplitudeMeters(),
 				imuNoiseAudit.configuredQuietBarometerNoiseRmsMeters()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone barometer noise audit: %s %s %dseg/%dfiles %.1fs detrended_p50/p90 %.4f/%.4fm cfg_rms %.4fm cfg/p50 %.2f cfg/p90 %.2f strict %.4fm cfg/strict %.2f dps310 %.4fm cfg/dps %.2f peak_pp_p50/p90 %.2f/%.2fm slope_p50/p90 %.3f/%.3fm/s tau %.2f/%.2fs%n",
+				barometerNoiseAudit.sourceId(),
+				barometerNoiseAudit.lowMotionSelection(),
+				barometerNoiseAudit.lowMotionSegmentCount(),
+				barometerNoiseAudit.lowMotionSourceFileCount(),
+				barometerNoiseAudit.lowMotionDurationSeconds(),
+				barometerNoiseAudit.lowMotionDetrendedStdP50Meters(),
+				barometerNoiseAudit.lowMotionDetrendedStdP90Meters(),
+				barometerNoiseAudit.configuredQuietBarometerNoiseRmsMeters(),
+				barometerNoiseAudit.configuredRmsOverLowMotionDetrendedP50(),
+				barometerNoiseAudit.configuredRmsOverLowMotionDetrendedP90(),
+				barometerNoiseAudit.strictStaticDetrendedStdMeters(),
+				barometerNoiseAudit.configuredRmsOverStrictStaticDetrended(),
+				barometerNoiseAudit.dps310PressureNoiseAltitudeMeters(),
+				barometerNoiseAudit.configuredRmsOverDps310PressureNoise(),
+				barometerNoiseAudit.lowMotionPeakToPeakP50Meters(),
+				barometerNoiseAudit.lowMotionPeakToPeakP90Meters(),
+				barometerNoiseAudit.lowMotionAbsSlopeP50MetersPerSecond(),
+				barometerNoiseAudit.lowMotionAbsSlopeP90MetersPerSecond(),
+				barometerNoiseAudit.configuredAltitudeTimeConstantSeconds(),
+				barometerNoiseAudit.configuredVerticalSpeedTimeConstantSeconds()
 		);
 		System.out.printf(
 				Locale.ROOT,

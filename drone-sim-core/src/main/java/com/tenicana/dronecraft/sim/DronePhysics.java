@@ -142,8 +142,10 @@ public final class DronePhysics {
 			1.2106301151226226, 1.1773193885232351, 1.181201236162614, 1.2141890535118343,
 			1.1501151032140817, 1.1452400882358447
 	};
-	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
-	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
+	private static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS =
+			SensorNoiseCalibration.BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS;
+	private static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS =
+			SensorNoiseCalibration.BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS;
 	private static final double GYRO_FULL_SCALE_RADIANS_PER_SECOND = Math.toRadians(2000.0);
 	private static final double ACCELEROMETER_FULL_SCALE_METERS_PER_SECOND_SQUARED = 16.0 * 9.80665;
 	private static final int GYRO_DELAY_BUFFER_SIZE = 256;
@@ -8355,7 +8357,8 @@ public final class DronePhysics {
 
 	private double barometerNoiseMeters(DroneEnvironment environment) {
 		double motorRailCoupling = 0.35 + 0.65 * state.averageMotorPower(config);
-		double noiseAmplitude = 0.035 * config.accelerometerNoiseStdDevMetersPerSecondSquared()
+		double noiseAmplitude = SensorNoiseCalibration.QUIET_BAROMETER_ACCEL_NOISE_TO_ALTITUDE_AMPLITUDE
+				* config.accelerometerNoiseStdDevMetersPerSecondSquared()
 				+ 0.040 * environment.turbulenceIntensity()
 				+ 0.090 * state.rotorVibration()
 				+ 0.035 * state.propwashIntensity()

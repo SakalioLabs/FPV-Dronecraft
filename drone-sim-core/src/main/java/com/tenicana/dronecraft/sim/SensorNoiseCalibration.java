@@ -22,7 +22,31 @@ public final class SensorNoiseCalibration {
 			0.1212572174381882;
 	public static final double APDRONE_IMU_REFERENCE_GYRO_LPF_HERTZ = 125.0;
 	public static final double APDRONE_IMU_REFERENCE_ACCEL_LPF_HERTZ = 80.0;
-	public static final double QUIET_BAROMETER_ACCEL_NOISE_TO_ALTITUDE_AMPLITUDE = 0.035;
+	public static final String APDRONE_BAROMETER_SOURCE_ID = APDRONE_IMU_SOURCE_ID;
+	public static final int APDRONE_BAROMETER_STRICT_STATIC_SEGMENT_COUNT = 1;
+	public static final int APDRONE_BAROMETER_STRICT_STATIC_SOURCE_FILE_COUNT = 1;
+	public static final int APDRONE_BAROMETER_STRICT_STATIC_SAMPLE_COUNT = 1_217;
+	public static final double APDRONE_BAROMETER_STRICT_STATIC_DURATION_SECONDS = 0.6069669999999974;
+	public static final double APDRONE_BAROMETER_STRICT_STATIC_DETRENDED_STD_METERS =
+			0.0448688059126939;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_ALTITUDE_STD_P50_METERS =
+			0.07234794487121128;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_ALTITUDE_STD_P90_METERS =
+			0.15701987989708205;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P50_METERS =
+			0.0473254554729487;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P90_METERS =
+			0.13125824407872994;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_PEAK_TO_PEAK_P50_METERS = 0.21;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_PEAK_TO_PEAK_P90_METERS = 0.958;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_ABS_SLOPE_P50_METERS_PER_SECOND =
+			0.03734281684447072;
+	public static final double APDRONE_BAROMETER_LOW_MOTION_ABS_SLOPE_P90_METERS_PER_SECOND =
+			0.6436827196710759;
+	public static final double DPS310_PRESSURE_NOISE_ALTITUDE_METERS = 0.016648427966986585;
+	public static final double BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS = 0.090;
+	public static final double BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS = 0.180;
+	public static final double QUIET_BAROMETER_ACCEL_NOISE_TO_ALTITUDE_AMPLITUDE = 0.513605908960336;
 	public static final double QUIET_BAROMETER_SECOND_HARMONIC_SCALE = 0.35;
 	public static final double QUIET_BAROMETER_THIRD_HARMONIC_SCALE = 0.18;
 
@@ -57,6 +81,41 @@ public final class SensorNoiseCalibration {
 	) {
 	}
 
+	public record BarometerNoiseAudit(
+			String sourceId,
+			String lowMotionSelection,
+			String strictStaticSelection,
+			int lowMotionSegmentCount,
+			int lowMotionSourceFileCount,
+			int lowMotionSampleCount,
+			double lowMotionDurationSeconds,
+			int strictStaticSegmentCount,
+			int strictStaticSourceFileCount,
+			int strictStaticSampleCount,
+			double strictStaticDurationSeconds,
+			double configuredQuietBarometerNoiseAmplitudeMeters,
+			double configuredQuietBarometerNoiseRmsMeters,
+			double configuredAltitudeTimeConstantSeconds,
+			double configuredVerticalSpeedTimeConstantSeconds,
+			double dps310PressureNoiseAltitudeMeters,
+			double lowMotionBarometerAltitudeStdP50Meters,
+			double lowMotionBarometerAltitudeStdP90Meters,
+			double lowMotionDetrendedStdP50Meters,
+			double lowMotionDetrendedStdP90Meters,
+			double lowMotionPeakToPeakP50Meters,
+			double lowMotionPeakToPeakP90Meters,
+			double lowMotionAbsSlopeP50MetersPerSecond,
+			double lowMotionAbsSlopeP90MetersPerSecond,
+			double strictStaticDetrendedStdMeters,
+			double configuredRmsOverLowMotionDetrendedP50,
+			double configuredRmsOverLowMotionDetrendedP90,
+			double configuredRmsOverStrictStaticDetrended,
+			double configuredRmsOverDps310PressureNoise,
+			double lowMotionDetrendedP50OverDps310PressureNoise,
+			double lowMotionDetrendedP90OverDps310PressureNoise
+	) {
+	}
+
 	public static ImuNoiseAudit apDroneImuNoiseAudit(DroneConfig config) {
 		return new ImuNoiseAudit(
 				APDRONE_IMU_SOURCE_ID,
@@ -83,6 +142,43 @@ public final class SensorNoiseCalibration {
 				ratio(config.accelerometerNoiseStdDevMetersPerSecondSquared(), APDRONE_IMU_LOW_MOTION_ACCEL_VECTOR_RMS_P90_METERS_PER_SECOND_SQUARED),
 				quietBarometerNoiseAmplitudeMeters(config),
 				quietBarometerNoiseRmsMeters(config)
+		);
+	}
+
+	public static BarometerNoiseAudit apDroneBarometerNoiseAudit(DroneConfig config) {
+		double configuredRms = quietBarometerNoiseRmsMeters(config);
+		return new BarometerNoiseAudit(
+				APDRONE_BAROMETER_SOURCE_ID,
+				APDRONE_IMU_LOW_MOTION_SELECTION,
+				APDRONE_IMU_STRICT_STATIC_SELECTION,
+				APDRONE_IMU_LOW_MOTION_SEGMENT_COUNT,
+				APDRONE_IMU_LOW_MOTION_SOURCE_FILE_COUNT,
+				APDRONE_IMU_LOW_MOTION_SAMPLE_COUNT,
+				APDRONE_IMU_LOW_MOTION_DURATION_SECONDS,
+				APDRONE_BAROMETER_STRICT_STATIC_SEGMENT_COUNT,
+				APDRONE_BAROMETER_STRICT_STATIC_SOURCE_FILE_COUNT,
+				APDRONE_BAROMETER_STRICT_STATIC_SAMPLE_COUNT,
+				APDRONE_BAROMETER_STRICT_STATIC_DURATION_SECONDS,
+				quietBarometerNoiseAmplitudeMeters(config),
+				configuredRms,
+				BAROMETER_ALTITUDE_TIME_CONSTANT_SECONDS,
+				BAROMETER_VERTICAL_SPEED_TIME_CONSTANT_SECONDS,
+				DPS310_PRESSURE_NOISE_ALTITUDE_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_ALTITUDE_STD_P50_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_ALTITUDE_STD_P90_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P50_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P90_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_PEAK_TO_PEAK_P50_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_PEAK_TO_PEAK_P90_METERS,
+				APDRONE_BAROMETER_LOW_MOTION_ABS_SLOPE_P50_METERS_PER_SECOND,
+				APDRONE_BAROMETER_LOW_MOTION_ABS_SLOPE_P90_METERS_PER_SECOND,
+				APDRONE_BAROMETER_STRICT_STATIC_DETRENDED_STD_METERS,
+				ratio(configuredRms, APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P50_METERS),
+				ratio(configuredRms, APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P90_METERS),
+				ratio(configuredRms, APDRONE_BAROMETER_STRICT_STATIC_DETRENDED_STD_METERS),
+				ratio(configuredRms, DPS310_PRESSURE_NOISE_ALTITUDE_METERS),
+				ratio(APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P50_METERS, DPS310_PRESSURE_NOISE_ALTITUDE_METERS),
+				ratio(APDRONE_BAROMETER_LOW_MOTION_DETRENDED_STD_P90_METERS, DPS310_PRESSURE_NOISE_ALTITUDE_METERS)
 		);
 	}
 

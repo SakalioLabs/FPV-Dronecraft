@@ -10635,6 +10635,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("APDrone IMU noise audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Blackbox"));
 		assertTrue(text.contains("baro_quiet"));
+		assertTrue(text.contains("APDrone barometer noise audit"));
+		assertTrue(text.contains("detrended_p50"));
+		assertTrue(text.contains("cfg/dps"));
 		assertTrue(text.contains("Prop damage vibration audit"));
 		assertTrue(text.contains("single_fault"));
 		assertTrue(text.contains("padre"));
