@@ -5697,6 +5697,59 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void airframeDragCalibrationFitsBodyCoefficientFromMeasuredCoastdown() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		AirframeDragCalibration.Coastdown observed = AirframeDragCalibration.coastdown(
+				config,
+				AirframeDragCalibration.Axis.Z,
+				20.0,
+				5.0
+		);
+
+		AirframeDragCalibration.BodyDragFit fit = AirframeDragCalibration.fitBodyQuadraticCoefficientForCoastdownTime(
+				config,
+				AirframeDragCalibration.Axis.Z,
+				20.0,
+				5.0,
+				observed.timeSeconds()
+		);
+
+		assertTrue(fit.targetReachable());
+		assertEquals(AirframeDragCalibration.Axis.Z, fit.axis());
+		assertEquals(config.linearDragCoefficient(), fit.linearDampingCoefficient(), 1.0e-12);
+		assertEquals(config.bodyDragCoefficients().z(), fit.bodyQuadraticCoefficient(), 1.0e-9);
+		assertEquals(observed.timeSeconds(), fit.achievedTimeSeconds(), 1.0e-9);
+		assertEquals(observed.distanceMeters(), fit.achievedDistanceMeters(), 1.0e-8);
+		assertEquals(0.0, fit.timeResidualSeconds(), 1.0e-9);
+	}
+
+	@Test
+	void airframeDragCalibrationReportsUnreachableSlowTargetWhenLinearDampingIsTooHigh() {
+		DroneConfig overdamped = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.42)
+				.withBodyDragCoefficients(Vec3.ZERO);
+
+		AirframeDragCalibration.BodyDragFit fit = AirframeDragCalibration.fitBodyQuadraticCoefficientToImav2022Reference(
+				overdamped,
+				AirframeDragCalibration.Axis.X,
+				20.0,
+				5.0
+		);
+		AirframeDragCalibration.Coastdown zeroQuadratic = AirframeDragCalibration.coastdown(
+				overdamped,
+				AirframeDragCalibration.Axis.X,
+				20.0,
+				5.0
+		);
+
+		assertTrue(!fit.targetReachable());
+		assertEquals(0.0, fit.bodyQuadraticCoefficient(), 1.0e-12);
+		assertEquals(zeroQuadratic.timeSeconds(), fit.achievedTimeSeconds(), 1.0e-9);
+		assertTrue(fit.achievedTimeSeconds() < fit.targetTimeSeconds());
+		assertTrue(fit.timeResidualSeconds() < 0.0);
+	}
+
+	@Test
 	void rotorWashDragAppearsOnlyWithPoweredSlipstreamAndRelativeMotion() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
@@ -10094,6 +10147,8 @@ class DronePhysicsTest {
 		assertTrue(text.contains("min_eint="));
 		assertTrue(text.contains("notch="));
 		assertTrue(text.contains("bpass_notch="));
+		assertTrue(text.contains("Airframe IMAV body-drag fit"));
+		assertTrue(text.contains("reachable"));
 	}
 
 	@Test

@@ -38,6 +38,22 @@ public final class AirframeDragCalibration {
 		}
 	}
 
+	public record BodyDragFit(
+			Axis axis,
+			double startSpeedMetersPerSecond,
+			double endSpeedMetersPerSecond,
+			double targetTimeSeconds,
+			double linearDampingCoefficient,
+			double bodyQuadraticCoefficient,
+			double achievedTimeSeconds,
+			double achievedDistanceMeters,
+			boolean targetReachable
+	) {
+		public double timeResidualSeconds() {
+			return achievedTimeSeconds - targetTimeSeconds;
+		}
+	}
+
 	public static Coastdown coastdown(DroneConfig config, Axis axis, double startSpeedMetersPerSecond, double endSpeedMetersPerSecond) {
 		requireValidSpeedRange(startSpeedMetersPerSecond, endSpeedMetersPerSecond);
 		double massKg = config.massKg();
@@ -57,6 +73,108 @@ public final class AirframeDragCalibration {
 				referenceCoefficient,
 				coastdownTimeSeconds(massKg, referenceCoefficient, 0.0, startSpeedMetersPerSecond, endSpeedMetersPerSecond),
 				coastdownDistanceMeters(massKg, referenceCoefficient, 0.0, startSpeedMetersPerSecond, endSpeedMetersPerSecond)
+		);
+	}
+
+	public static BodyDragFit fitBodyQuadraticCoefficientToImav2022Reference(
+			DroneConfig config,
+			Axis axis,
+			double startSpeedMetersPerSecond,
+			double endSpeedMetersPerSecond
+	) {
+		requireValidSpeedRange(startSpeedMetersPerSecond, endSpeedMetersPerSecond);
+		double referenceCoefficient = imav2022MassFitLinearDragCoefficient(config);
+		double targetTimeSeconds = coastdownTimeSeconds(
+				config.massKg(),
+				referenceCoefficient,
+				0.0,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond
+		);
+		return fitBodyQuadraticCoefficientForCoastdownTime(
+				config,
+				axis,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond,
+				targetTimeSeconds
+		);
+	}
+
+	public static BodyDragFit fitBodyQuadraticCoefficientForCoastdownTime(
+			DroneConfig config,
+			Axis axis,
+			double startSpeedMetersPerSecond,
+			double endSpeedMetersPerSecond,
+			double targetTimeSeconds
+	) {
+		requireValidSpeedRange(startSpeedMetersPerSecond, endSpeedMetersPerSecond);
+		if (!Double.isFinite(targetTimeSeconds) || targetTimeSeconds <= 0.0) {
+			throw new IllegalArgumentException("targetTimeSeconds must be finite and positive.");
+		}
+
+		double massKg = config.massKg();
+		double linearCoefficient = config.linearDragCoefficient();
+		double zeroQuadraticTimeSeconds = coastdownTimeSeconds(
+				massKg,
+				linearCoefficient,
+				0.0,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond
+		);
+		double toleranceSeconds = Math.max(1.0e-9, targetTimeSeconds * 1.0e-9);
+		if (targetTimeSeconds >= zeroQuadraticTimeSeconds - toleranceSeconds) {
+			boolean targetReachable = targetTimeSeconds <= zeroQuadraticTimeSeconds + toleranceSeconds;
+			return bodyDragFit(
+					axis,
+					startSpeedMetersPerSecond,
+					endSpeedMetersPerSecond,
+					targetTimeSeconds,
+					massKg,
+					linearCoefficient,
+					0.0,
+					targetReachable
+			);
+		}
+
+		double low = 0.0;
+		double high = Math.max(
+				Math.max(bodyQuadraticCoefficient(config, axis), EPSILON),
+				massKg * (1.0 / endSpeedMetersPerSecond - 1.0 / startSpeedMetersPerSecond) / targetTimeSeconds
+		);
+		for (int i = 0; i < 128
+				&& coastdownTimeSeconds(massKg, linearCoefficient, high, startSpeedMetersPerSecond, endSpeedMetersPerSecond) > targetTimeSeconds;
+				i++) {
+			high *= 2.0;
+			if (!Double.isFinite(high)) {
+				throw new IllegalArgumentException("targetTimeSeconds requires a non-finite drag coefficient.");
+			}
+		}
+
+		for (int i = 0; i < 96; i++) {
+			double mid = 0.5 * (low + high);
+			double midTime = coastdownTimeSeconds(
+					massKg,
+					linearCoefficient,
+					mid,
+					startSpeedMetersPerSecond,
+					endSpeedMetersPerSecond
+			);
+			if (midTime > targetTimeSeconds) {
+				low = mid;
+			} else {
+				high = mid;
+			}
+		}
+
+		return bodyDragFit(
+				axis,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond,
+				targetTimeSeconds,
+				massKg,
+				linearCoefficient,
+				high,
+				true
 		);
 	}
 
@@ -160,6 +278,43 @@ public final class AirframeDragCalibration {
 						(linearCoefficient + quadraticCoefficient * startSpeedMetersPerSecond)
 								/ (linearCoefficient + quadraticCoefficient * endSpeedMetersPerSecond)
 				);
+	}
+
+	private static BodyDragFit bodyDragFit(
+			Axis axis,
+			double startSpeedMetersPerSecond,
+			double endSpeedMetersPerSecond,
+			double targetTimeSeconds,
+			double massKg,
+			double linearCoefficient,
+			double quadraticCoefficient,
+			boolean targetReachable
+	) {
+		double achievedTimeSeconds = coastdownTimeSeconds(
+				massKg,
+				linearCoefficient,
+				quadraticCoefficient,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond
+		);
+		double achievedDistanceMeters = coastdownDistanceMeters(
+				massKg,
+				linearCoefficient,
+				quadraticCoefficient,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond
+		);
+		return new BodyDragFit(
+				axis,
+				startSpeedMetersPerSecond,
+				endSpeedMetersPerSecond,
+				targetTimeSeconds,
+				linearCoefficient,
+				quadraticCoefficient,
+				achievedTimeSeconds,
+				achievedDistanceMeters,
+				targetReachable
+		);
 	}
 
 	private static void requireValidSpeedRange(double startSpeedMetersPerSecond, double endSpeedMetersPerSecond) {

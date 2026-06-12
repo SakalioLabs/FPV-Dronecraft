@@ -928,6 +928,20 @@ public final class OfflineFlightRecorder {
 				20.0,
 				5.0
 		);
+		AirframeDragCalibration.BodyDragFit lateralImavFit =
+				AirframeDragCalibration.fitBodyQuadraticCoefficientToImav2022Reference(
+						preset,
+						AirframeDragCalibration.Axis.X,
+						20.0,
+						5.0
+				);
+		AirframeDragCalibration.BodyDragFit forwardImavFit =
+				AirframeDragCalibration.fitBodyQuadraticCoefficientToImav2022Reference(
+						preset,
+						AirframeDragCalibration.Axis.Z,
+						20.0,
+						5.0
+				);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
 		System.out.printf(
@@ -1033,6 +1047,14 @@ public final class OfflineFlightRecorder {
 				forwardCoastdown.distanceMeters(),
 				forwardCoastdown.timeRatioToReference() * 100.0,
 				forwardCoastdown.distanceRatioToReference() * 100.0
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Airframe IMAV body-drag fit 20->5 m/s: X %.5f (%s), Z %.5f (%s)%n",
+				lateralImavFit.bodyQuadraticCoefficient(),
+				lateralImavFit.targetReachable() ? "reachable" : "linear-high",
+				forwardImavFit.bodyQuadraticCoefficient(),
+				forwardImavFit.targetReachable() ? "reachable" : "linear-high"
 		);
 	}
 
