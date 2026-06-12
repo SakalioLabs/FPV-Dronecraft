@@ -1274,6 +1274,8 @@ public final class OfflineFlightRecorder {
 				VrsPropwashCalibration.audit(preset);
 		SurfaceNearfieldCalibration.SurfaceNearfieldAudit surfaceNearfieldAudit =
 				SurfaceNearfieldCalibration.audit(preset);
+		SurfaceNearfieldCalibration.PartialSurfaceLeadAudit partialSurfaceLeadAudit =
+				surfaceNearfieldAudit.partialSurfaceLeadAudit();
 		CoaxialAllocationCalibration.CoaxialAllocationAudit coaxialAllocationAudit =
 				CoaxialAllocationCalibration.audit(DroneConfig.coaxialX8());
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
@@ -1944,6 +1946,29 @@ public final class OfflineFlightRecorder {
 				surfaceNearfieldAudit.zjuDragObservation().measuredDragXLowOverHigh(),
 				surfaceNearfieldAudit.zjuDragObservation().measuredDragYLowOverHigh(),
 				surfaceNearfieldAudit.zjuDragObservation().predictedDragRatioFromSqrtThrust()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Partial surface lead audit: %s DOI %s bundle %d chars %d, thresholds %.2fD/%.2fD area %.2f fit %.1f%%, propD %.3fm negligible %.4fm full %.4fm block %.2fD gate %.2f, 0.75D gate %.2f ground %.3f->%.3f ceiling %.3f->%.3f caveat %s%n",
+				partialSurfaceLeadAudit.sourceId(),
+				partialSurfaceLeadAudit.doi(),
+				partialSurfaceLeadAudit.publicBundleCount(),
+				partialSurfaceLeadAudit.abstractCharacterCount(),
+				partialSurfaceLeadAudit.negligiblePlateDiameterOverPropDiameter(),
+				partialSurfaceLeadAudit.fullLikePlateDiameterOverPropDiameter(),
+				partialSurfaceLeadAudit.negligiblePlateAreaOverDiskArea(),
+				partialSurfaceLeadAudit.curveFitRelativeAccuracy() * 100.0,
+				partialSurfaceLeadAudit.propellerDiameterMeters(),
+				partialSurfaceLeadAudit.negligiblePatchDiameterMeters(),
+				partialSurfaceLeadAudit.fullLikePatchDiameterMeters(),
+				partialSurfaceLeadAudit.minecraftBlockWidthOverPropDiameter(),
+				partialSurfaceLeadAudit.minecraftBlockPatch().gate(),
+				partialSurfaceLeadAudit.threeQuarterDiameterPatch().gate(),
+				partialSurfaceLeadAudit.threeQuarterDiameterPatch().fullGroundMultiplier(),
+				partialSurfaceLeadAudit.threeQuarterDiameterPatch().gatedGroundMultiplier(),
+				partialSurfaceLeadAudit.threeQuarterDiameterPatch().fullCeilingMultiplier(),
+				partialSurfaceLeadAudit.threeQuarterDiameterPatch().gatedCeilingMultiplier(),
+				partialSurfaceLeadAudit.caveat()
 		);
 		System.out.printf(
 				Locale.ROOT,

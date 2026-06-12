@@ -25,6 +25,17 @@ public final class SurfaceNearfieldCalibration {
 	public static final int WALL_FORCE_SCAN_ROW_COUNT = 240;
 	public static final int ZJU_GROUND_CHECK_ROW_COUNT = 150;
 	public static final int ZJU_DRAG_OBSERVATION_ROW_COUNT = 7;
+	public static final String PARTIAL_SURFACE_LEAD_SOURCE_ID = "Partial-Surface-Effect-Lead-Packet";
+	public static final String PARTIAL_SURFACE_LEAD_DOI = "10.2514/1.C036974";
+	public static final String PARTIAL_SURFACE_LEAD_CAVEAT =
+			"Abstract-level partial ground/ceiling thresholds; raw thrust and power curves still need digitization.";
+	public static final int PARTIAL_SURFACE_PUBLIC_BUNDLE_COUNT = 0;
+	public static final int PARTIAL_SURFACE_ABSTRACT_CHARACTER_COUNT = 1411;
+	public static final double PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER = 0.5;
+	public static final double PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER = 1.0;
+	public static final double PARTIAL_SURFACE_NEGLIGIBLE_AREA_OVER_DISK_AREA = 0.25;
+	public static final double PARTIAL_SURFACE_CURVE_FIT_RELATIVE_ACCURACY = 0.06;
+	public static final double MINECRAFT_BLOCK_WIDTH_METERS = 1.0;
 
 	private SurfaceNearfieldCalibration() {
 	}
@@ -75,6 +86,49 @@ public final class SurfaceNearfieldCalibration {
 	) {
 	}
 
+	public record PartialSurfaceGateSample(
+			double plateDiameterOverPropDiameter,
+			double patchDiameterMeters,
+			double circularPatchAreaOverPropDiskArea,
+			double gate,
+			double fullGroundMultiplier,
+			double gatedGroundMultiplier,
+			double fullCeilingMultiplier,
+			double gatedCeilingMultiplier
+	) {
+	}
+
+	public record PartialSurfaceLeadAudit(
+			String sourceId,
+			String doi,
+			String caveat,
+			int publicBundleCount,
+			int abstractCharacterCount,
+			boolean mentionsPartialGround,
+			boolean mentionsPartialCeiling,
+			boolean mentionsCircularAndAnnularPlates,
+			boolean mentionsForceBalance,
+			boolean mentionsPlateEqualPropDiameter,
+			boolean mentionsLessThanHalfPropDiameter,
+			boolean mentionsSuperimposedCeiling,
+			boolean mentionsCurveFitWithinSixPercent,
+			double negligiblePlateDiameterOverPropDiameter,
+			double fullLikePlateDiameterOverPropDiameter,
+			double negligiblePlateAreaOverDiskArea,
+			double curveFitRelativeAccuracy,
+			double propellerDiameterMeters,
+			double negligiblePatchDiameterMeters,
+			double fullLikePatchDiameterMeters,
+			double minecraftBlockWidthOverPropDiameter,
+			PartialSurfaceGateSample zeroDiameterPatch,
+			PartialSurfaceGateSample quarterDiameterPatch,
+			PartialSurfaceGateSample halfDiameterPatch,
+			PartialSurfaceGateSample threeQuarterDiameterPatch,
+			PartialSurfaceGateSample fullDiameterPatch,
+			PartialSurfaceGateSample minecraftBlockPatch
+	) {
+	}
+
 	public record SurfaceNearfieldAudit(
 			String sourceId,
 			String caveat,
@@ -95,7 +149,8 @@ public final class SurfaceNearfieldCalibration {
 			WallRuntimeMapping fullObstructionWall,
 			WallForceSample fullObstructionHoverSideForce,
 			WallForceSample fullObstructionFastSideForce,
-			ZjuDragObservation zjuDragObservation
+			ZjuDragObservation zjuDragObservation,
+			PartialSurfaceLeadAudit partialSurfaceLeadAudit
 	) {
 	}
 
@@ -132,7 +187,73 @@ public final class SurfaceNearfieldCalibration {
 						0.6179,
 						0.5963 / 0.9486,
 						0.6179 / 0.9486
-				)
+				),
+				partialSurfaceLeadAudit(config)
+		);
+	}
+
+	private static PartialSurfaceLeadAudit partialSurfaceLeadAudit(DroneConfig config) {
+		RotorSpec rotor = representativeRotor(config);
+		double propellerDiameterMeters = rotor.radiusMeters() * 2.0;
+		return new PartialSurfaceLeadAudit(
+				PARTIAL_SURFACE_LEAD_SOURCE_ID,
+				PARTIAL_SURFACE_LEAD_DOI,
+				PARTIAL_SURFACE_LEAD_CAVEAT,
+				PARTIAL_SURFACE_PUBLIC_BUNDLE_COUNT,
+				PARTIAL_SURFACE_ABSTRACT_CHARACTER_COUNT,
+				true,
+				true,
+				true,
+				true,
+				true,
+				true,
+				true,
+				true,
+				PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER,
+				PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER,
+				PARTIAL_SURFACE_NEGLIGIBLE_AREA_OVER_DISK_AREA,
+				PARTIAL_SURFACE_CURVE_FIT_RELATIVE_ACCURACY,
+				propellerDiameterMeters,
+				propellerDiameterMeters * PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER,
+				propellerDiameterMeters * PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER,
+				MINECRAFT_BLOCK_WIDTH_METERS / propellerDiameterMeters,
+				partialSurfaceGateSample(config, 0.0),
+				partialSurfaceGateSample(config, 0.25),
+				partialSurfaceGateSample(config, 0.5),
+				partialSurfaceGateSample(config, 0.75),
+				partialSurfaceGateSample(config, 1.0),
+				partialSurfaceGateSampleForPatchDiameter(config, MINECRAFT_BLOCK_WIDTH_METERS)
+		);
+	}
+
+	private static PartialSurfaceGateSample partialSurfaceGateSample(
+			DroneConfig config,
+			double plateDiameterOverPropDiameter
+	) {
+		RotorSpec rotor = representativeRotor(config);
+		double patchDiameterMeters = rotor.radiusMeters() * 2.0 * plateDiameterOverPropDiameter;
+		return partialSurfaceGateSampleForPatchDiameter(config, patchDiameterMeters);
+	}
+
+	private static PartialSurfaceGateSample partialSurfaceGateSampleForPatchDiameter(
+			DroneConfig config,
+			double patchDiameterMeters
+	) {
+		RotorSpec rotor = representativeRotor(config);
+		double clearanceMeters = rotor.radiusMeters();
+		double plateDiameterOverPropDiameter =
+				DroneEnvironment.partialSurfaceDiameterOverPropDiameter(config, patchDiameterMeters);
+		double fullGroundMultiplier = DroneEnvironment.groundEffectThrustMultiplier(config, clearanceMeters);
+		double fullCeilingMultiplier = DroneEnvironment.ceilingEffectThrustMultiplier(config, clearanceMeters);
+		return new PartialSurfaceGateSample(
+				plateDiameterOverPropDiameter,
+				patchDiameterMeters,
+				plateDiameterOverPropDiameter * plateDiameterOverPropDiameter,
+				DroneEnvironment.partialSurfaceEffectGate(config, patchDiameterMeters),
+				fullGroundMultiplier,
+				DroneEnvironment.partialGroundEffectThrustMultiplier(config, clearanceMeters, patchDiameterMeters),
+				fullCeilingMultiplier,
+				DroneEnvironment.partialCeilingEffectThrustMultiplier(config, clearanceMeters, patchDiameterMeters)
 		);
 	}
 

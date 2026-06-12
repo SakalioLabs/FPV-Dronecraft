@@ -112,6 +112,57 @@ class SurfaceNearfieldCalibrationTest {
 	}
 
 	@Test
+	void partialSurfaceLeadAuditMatchesCaiOlAbstractThresholds() {
+		SurfaceNearfieldCalibration.PartialSurfaceLeadAudit audit =
+				SurfaceNearfieldCalibration.audit(DroneConfig.racingQuad()).partialSurfaceLeadAudit();
+
+		assertEquals("Partial-Surface-Effect-Lead-Packet", audit.sourceId());
+		assertEquals("10.2514/1.C036974", audit.doi());
+		assertTrue(audit.caveat().contains("Abstract-level"));
+		assertEquals(0, audit.publicBundleCount());
+		assertEquals(1411, audit.abstractCharacterCount());
+		assertTrue(audit.mentionsPartialGround());
+		assertTrue(audit.mentionsPartialCeiling());
+		assertTrue(audit.mentionsCircularAndAnnularPlates());
+		assertTrue(audit.mentionsForceBalance());
+		assertTrue(audit.mentionsPlateEqualPropDiameter());
+		assertTrue(audit.mentionsLessThanHalfPropDiameter());
+		assertTrue(audit.mentionsSuperimposedCeiling());
+		assertTrue(audit.mentionsCurveFitWithinSixPercent());
+		assertEquals(0.5, audit.negligiblePlateDiameterOverPropDiameter(), 1.0e-12);
+		assertEquals(1.0, audit.fullLikePlateDiameterOverPropDiameter(), 1.0e-12);
+		assertEquals(0.25, audit.negligiblePlateAreaOverDiskArea(), 1.0e-12);
+		assertEquals(0.06, audit.curveFitRelativeAccuracy(), 1.0e-12);
+		assertEquals(0.127, audit.propellerDiameterMeters(), 1.0e-12);
+		assertEquals(0.0635, audit.negligiblePatchDiameterMeters(), 1.0e-12);
+		assertEquals(0.127, audit.fullLikePatchDiameterMeters(), 1.0e-12);
+		assertEquals(7.874015748031496, audit.minecraftBlockWidthOverPropDiameter(), 1.0e-12);
+
+		SurfaceNearfieldCalibration.PartialSurfaceGateSample half = audit.halfDiameterPatch();
+		assertEquals(0.5, half.plateDiameterOverPropDiameter(), 1.0e-12);
+		assertEquals(0.25, half.circularPatchAreaOverPropDiskArea(), 1.0e-12);
+		assertEquals(0.0, half.gate(), 1.0e-12);
+		assertEquals(1.0, half.gatedGroundMultiplier(), 1.0e-12);
+		assertEquals(1.0, half.gatedCeilingMultiplier(), 1.0e-12);
+
+		SurfaceNearfieldCalibration.PartialSurfaceGateSample threeQuarter =
+				audit.threeQuarterDiameterPatch();
+		assertEquals(0.75, threeQuarter.plateDiameterOverPropDiameter(), 1.0e-12);
+		assertEquals(0.5625, threeQuarter.circularPatchAreaOverPropDiskArea(), 1.0e-12);
+		assertEquals(0.5, threeQuarter.gate(), 1.0e-12);
+		assertEquals(1.332498952304364, threeQuarter.fullGroundMultiplier(), 1.0e-15);
+		assertEquals(1.166249476152182, threeQuarter.gatedGroundMultiplier(), 1.0e-15);
+		assertEquals(1.11310774, threeQuarter.fullCeilingMultiplier(), 1.0e-12);
+		assertEquals(1.05655387, threeQuarter.gatedCeilingMultiplier(), 1.0e-12);
+
+		assertEquals(1.0, audit.fullDiameterPatch().gate(), 1.0e-12);
+		assertEquals(audit.fullDiameterPatch().fullGroundMultiplier(),
+				audit.fullDiameterPatch().gatedGroundMultiplier(), 1.0e-12);
+		assertEquals(1.0, audit.minecraftBlockPatch().gate(), 1.0e-12);
+		assertTrue(audit.minecraftBlockPatch().plateDiameterOverPropDiameter() > 7.8);
+	}
+
+	@Test
 	void surfaceNearfieldAuditRequiresRotorConfiguration() {
 		assertThrows(IllegalArgumentException.class, () -> SurfaceNearfieldCalibration.audit(null));
 	}

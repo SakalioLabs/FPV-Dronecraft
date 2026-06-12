@@ -30,6 +30,8 @@ public record DroneEnvironment(
 	private static final double ZJU_GROUND_EFFECT_LEVELING_TORQUE_PEAK_HEIGHT_METERS = 0.186;
 	private static final double RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST = 0.18;
 	private static final double MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION = 0.60;
+	private static final double PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER = 0.5;
+	private static final double PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER = 1.0;
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, 0.0);
@@ -309,6 +311,66 @@ public record DroneEnvironment(
 			double[] weights
 	) {
 		return weightedSurfaceEffectThrustMultiplier(config, ceilingClearancesMeters, weights, true);
+	}
+
+	public static double partialSurfaceDiameterOverPropDiameter(DroneConfig config, double patchDiameterMeters) {
+		if (config == null || config.rotors().isEmpty() || patchDiameterMeters <= 0.0) {
+			return 0.0;
+		}
+		if (patchDiameterMeters == Double.POSITIVE_INFINITY) {
+			return Double.POSITIVE_INFINITY;
+		}
+		if (!Double.isFinite(patchDiameterMeters)) {
+			return 0.0;
+		}
+
+		RotorSpec rotor = config.rotors().get(0);
+		double propellerDiameterMeters = rotor.radiusMeters() * 2.0;
+		if (propellerDiameterMeters <= 1.0e-9) {
+			return 0.0;
+		}
+		return patchDiameterMeters / propellerDiameterMeters;
+	}
+
+	public static double partialSurfaceEffectGate(DroneConfig config, double patchDiameterMeters) {
+		double diameterOverPropDiameter = partialSurfaceDiameterOverPropDiameter(config, patchDiameterMeters);
+		if (diameterOverPropDiameter == Double.POSITIVE_INFINITY) {
+			return 1.0;
+		}
+		if (!Double.isFinite(diameterOverPropDiameter)) {
+			return 0.0;
+		}
+		return smoothStep(
+				PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER,
+				PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER,
+				diameterOverPropDiameter
+		);
+	}
+
+	public static double partialGroundEffectThrustMultiplier(
+			DroneConfig config,
+			double groundClearanceMeters,
+			double patchDiameterMeters
+	) {
+		if (config == null) {
+			return 1.0;
+		}
+		double fullSurfaceMultiplier = groundEffectThrustMultiplier(config, groundClearanceMeters);
+		double gate = partialSurfaceEffectGate(config, patchDiameterMeters);
+		return 1.0 + (fullSurfaceMultiplier - 1.0) * gate;
+	}
+
+	public static double partialCeilingEffectThrustMultiplier(
+			DroneConfig config,
+			double ceilingClearanceMeters,
+			double patchDiameterMeters
+	) {
+		if (config == null) {
+			return 1.0;
+		}
+		double fullSurfaceMultiplier = ceilingEffectThrustMultiplier(config, ceilingClearanceMeters);
+		double gate = partialSurfaceEffectGate(config, patchDiameterMeters);
+		return 1.0 + (fullSurfaceMultiplier - 1.0) * gate;
 	}
 
 	private static double weightedSurfaceEffectThrustMultiplier(

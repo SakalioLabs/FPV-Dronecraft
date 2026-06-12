@@ -6654,6 +6654,44 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void partialSurfacePatchDiameterGatesGroundAndCeilingEffect() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		double rotorRadius = config.rotors().get(0).radiusMeters();
+		double propellerDiameter = rotorRadius * 2.0;
+		double clearance = rotorRadius;
+		double fullGround = DroneEnvironment.groundEffectThrustMultiplier(config, clearance);
+		double fullCeiling = DroneEnvironment.ceilingEffectThrustMultiplier(config, clearance);
+
+		assertEquals(0.0, DroneEnvironment.partialSurfaceEffectGate(config, propellerDiameter * 0.25), 1.0e-12);
+		assertEquals(0.0, DroneEnvironment.partialSurfaceEffectGate(config, propellerDiameter * 0.50), 1.0e-12);
+		assertEquals(0.5, DroneEnvironment.partialSurfaceEffectGate(config, propellerDiameter * 0.75), 1.0e-12);
+		assertEquals(1.0, DroneEnvironment.partialSurfaceEffectGate(config, propellerDiameter), 1.0e-12);
+		assertEquals(1.0, DroneEnvironment.partialSurfaceEffectGate(config, 1.0), 1.0e-12);
+
+		assertEquals(1.0,
+				DroneEnvironment.partialGroundEffectThrustMultiplier(config, clearance, propellerDiameter * 0.50),
+				1.0e-12);
+		assertEquals(1.0,
+				DroneEnvironment.partialCeilingEffectThrustMultiplier(config, clearance, propellerDiameter * 0.50),
+				1.0e-12);
+		assertEquals(1.0 + (fullGround - 1.0) * 0.5,
+				DroneEnvironment.partialGroundEffectThrustMultiplier(config, clearance, propellerDiameter * 0.75),
+				1.0e-12);
+		assertEquals(1.0 + (fullCeiling - 1.0) * 0.5,
+				DroneEnvironment.partialCeilingEffectThrustMultiplier(config, clearance, propellerDiameter * 0.75),
+				1.0e-12);
+		assertEquals(fullGround,
+				DroneEnvironment.partialGroundEffectThrustMultiplier(config, clearance, propellerDiameter),
+				1.0e-12);
+		assertEquals(fullCeiling,
+				DroneEnvironment.partialCeilingEffectThrustMultiplier(config, clearance, propellerDiameter),
+				1.0e-12);
+		assertEquals(fullGround,
+				DroneEnvironment.partialGroundEffectThrustMultiplier(config, clearance, 1.0),
+				1.0e-12);
+	}
+
+	@Test
 	void perRotorEnvironmentMultipliersCreateAsymmetricThrust() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
