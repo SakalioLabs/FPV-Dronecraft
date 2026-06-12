@@ -9829,6 +9829,11 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_cda_m2")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_imav_ratio")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "ground_effect_leveling_torque_nm")])));
+		assertEquals(
+				maxColumn(lines, header, "ground_effect_leveling_torque_nm"),
+				report.maxGroundEffectLevelingTorqueNewtonMeters(),
+				1.0e-5
+		);
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_sensor_noise_m")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_pressure_port_error_m")])));
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_friction")]), 1.0e-9);
@@ -10231,6 +10236,7 @@ class DronePhysicsTest {
 		assertTrue(text.contains("min_eint="));
 		assertTrue(text.contains("notch="));
 		assertTrue(text.contains("bpass_notch="));
+		assertTrue(text.contains("max_ground_level="));
 		assertTrue(text.contains("Airframe IMAV body-drag fit"));
 		assertTrue(text.contains("reachable"));
 	}

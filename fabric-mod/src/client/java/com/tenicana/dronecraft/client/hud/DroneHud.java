@@ -426,9 +426,10 @@ public final class DroneHud {
 	private static String aeroTorqueLine(DroneEntity drone) {
 		return String.format(
 				Locale.ROOT,
-				"TRQ SP%2.0f FL%2.0f BD%.3f WT%.3f BT%.3f AT%.3f GT%.3f FT%.3f",
+				"TRQ SP%2.0f FL%2.0f GL%.3f BD%.3f WT%.3f BT%.3f AT%.3f GT%.3f FT%.3f",
 				drone.getAirframeSeparatedFlowIntensity() * 100.0f,
 				drone.getRotorFlappingTiltDegrees(),
+				drone.getGroundEffectLevelingTorqueNewtonMeters(),
 				drone.getRotorBladeDissymmetryTorqueNewtonMeters(),
 				drone.getRotorWakeSwirlTorqueNewtonMeters(),
 				drone.getRotorActiveBrakingTorqueNewtonMeters(),
@@ -532,6 +533,7 @@ public final class DroneHud {
 	private static int aeroTorqueStatusColor(DroneEntity drone) {
 		if (drone.getAirframeSeparatedFlowIntensity() > 0.55f
 				|| drone.getRotorFlappingTiltDegrees() > 8.0f
+				|| drone.getGroundEffectLevelingTorqueNewtonMeters() > 0.045f
 				|| drone.getRotorBladeDissymmetryTorqueNewtonMeters() > 0.015f
 				|| drone.getRotorWakeSwirlTorqueNewtonMeters() > 0.010f
 				|| drone.getRotorActiveBrakingTorqueNewtonMeters() > 0.015f

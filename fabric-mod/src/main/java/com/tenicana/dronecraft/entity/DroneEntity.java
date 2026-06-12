@@ -250,6 +250,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final EntityDataAccessor<Float> ATTITUDE_ESTIMATE_ERROR = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<Float> ATTITUDE_ACCEL_TRUST = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<String> OWNER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
+	private static final EntityDataAccessor<Float> GROUND_EFFECT_LEVELING_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 
 	private DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
 	private String airframePreset = "racing_quad";
@@ -531,6 +532,7 @@ public class DroneEntity extends PathfinderMob {
 		builder.define(ATTITUDE_ESTIMATE_ERROR, 0.0f);
 		builder.define(ATTITUDE_ACCEL_TRUST, 0.0f);
 		builder.define(OWNER, "");
+		builder.define(GROUND_EFFECT_LEVELING_TORQUE, 0.0f);
 	}
 
 	@Override
@@ -1210,6 +1212,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(AIRFRAME_SEPARATED_FLOW, (float) physics.state().airframeSeparatedFlowIntensity());
 		entityData.set(AIRFRAME_LIFT_FORCE, (float) physics.state().airframeLiftForceBodyNewtons().length());
 		entityData.set(GROUND_EFFECT_DRAG_FORCE, (float) physics.state().groundEffectDragForceBodyNewtons().length());
+		entityData.set(GROUND_EFFECT_LEVELING_TORQUE, (float) physics.state().groundEffectLevelingTorqueBodyNewtonMeters().length());
 		entityData.set(ROTOR_WASH_DRAG_FORCE, (float) physics.state().rotorWashDragForceBodyNewtons().length());
 		entityData.set(ROTOR_WALL_EFFECT_FORCE, (float) physics.state().rotorWallEffectForceBodyNewtons().length());
 		entityData.set(BAROMETER_ALTITUDE, (float) physics.state().barometerAltitudeMeters());
@@ -2302,6 +2305,10 @@ public class DroneEntity extends PathfinderMob {
 
 	public float getGroundEffectDragForceNewtons() {
 		return entityData.get(GROUND_EFFECT_DRAG_FORCE);
+	}
+
+	public float getGroundEffectLevelingTorqueNewtonMeters() {
+		return entityData.get(GROUND_EFFECT_LEVELING_TORQUE);
 	}
 
 	public float getRotorWashDragForceNewtons() {

@@ -81,7 +81,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("shear 0.00m/s2"));
 		assertTrue(status.contains("imu clip G 0.00 A 0.00 pwr 0.00 dterm 78Hz"));
 		assertTrue(status.contains("diagnostic idle"));
-		assertTrue(status.contains("forces lift 1.4N sep 0.00 flap 0.0deg cushion 0.2N wash 0.8N wall 0.3N"));
+		assertTrue(status.contains("forces lift 1.4N sep 0.00 flap 0.0deg cushion 0.2N glev 0.004Nm wash 0.8N wall 0.3N"));
 		assertTrue(status.contains("baro 14.6m 0.4m/s 1011.5hPa err 0.04m"));
 		assertTrue(status.contains("motor 52.0C 1.00 head 1.00 mR 1.00 esc 41.0C 1.00 cool 1.25"));
 		assertTrue(status.contains("sig 0.002/0.003s err 0.0007"));
@@ -195,6 +195,7 @@ class DroneStatusFormatterTest {
 		assertTrue(warnings.contains("rotor-coning"));
 		assertTrue(warnings.contains("airframe-separation"));
 		assertTrue(warnings.contains("rotor-flapping"));
+		assertTrue(warnings.contains("ground-leveling-torque"));
 		assertTrue(warnings.contains("high-advance"));
 		assertTrue(warnings.contains("prop-advance"));
 		assertTrue(warnings.contains("prop-thrust-loss"));
@@ -241,6 +242,7 @@ class DroneStatusFormatterTest {
 		assertTrue(status.contains("sag20 74A margin 0.82"));
 		assertTrue(status.contains("spike 0.42V ripple 0.240V"));
 		assertTrue(status.contains("load 1.08 hforce 2.60N"));
+		assertTrue(status.contains("glev 0.061Nm"));
 		assertTrue(status.contains("bpass 0.031 bdiss 0.024Nm"));
 		assertTrue(status.contains("vrsbuf 11% vrsF 0.24N"));
 		assertTrue(status.contains("ind 7.80m/s iloss 14%"));
@@ -329,6 +331,7 @@ class DroneStatusFormatterTest {
 				airframeSeparation,
 				rotorFlappingTilt,
 				0.2,
+				diagnosticActive ? 0.061 : 0.004,
 				0.8,
 				diagnosticActive ? 3.1 : 0.3,
 				14.6,
