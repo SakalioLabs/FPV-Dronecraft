@@ -11062,6 +11062,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("APC-High-J-Axial-Propeller-Packet"));
 		assertTrue(text.contains("axial-not-edgewise"));
 		assertTrue(text.contains("5x11"));
+		assertTrue(text.contains("Mejzlik wind-tunnel prop audit"));
+		assertTrue(text.contains("Mejzlik-Wind-Tunnel-Prop-Packet"));
+		assertTrue(text.contains("CT0 J"));
+		assertTrue(text.contains("axial-wind-tunnel-not-edgewise-fpv"));
 		assertTrue(text.contains("tilt"));
 		assertTrue(text.contains("reachable"));
 		assertTrue(text.contains("Prop geometry audit"));

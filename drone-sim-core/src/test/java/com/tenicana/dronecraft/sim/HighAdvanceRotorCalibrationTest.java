@@ -65,4 +65,70 @@ class HighAdvanceRotorCalibrationTest {
 		assertEquals(0.0, stallEnd.apcCtOverStaticCt(), 1.0e-12);
 		assertEquals(0.0, stallEnd.currentThrustScaleOverApcCtRatio(), 1.0e-12);
 	}
+
+	@Test
+	void mejzlikWindTunnelAuditAddsMeasuredAxialHighJBoundaryWithoutEdgewiseRetune() {
+		HighAdvanceRotorCalibration.MejzlikWindTunnelAudit audit =
+				HighAdvanceRotorCalibration.audit(DroneConfig.racingQuad()).mejzlikWindTunnelAudit();
+
+		assertEquals("Mejzlik-Wind-Tunnel-Prop-Packet", audit.sourceId());
+		assertTrue(audit.caveat().contains("axial propeller wind-tunnel"));
+		assertEquals(129, audit.packetMetricRowCount());
+		assertEquals(6, audit.sourceInventoryRowCount());
+		assertEquals(52, audit.tableValueRowCount());
+		assertEquals(60, audit.modelVsTunnelRowCount());
+		assertEquals(10, audit.summaryRowCount());
+		assertEquals(4900.0, audit.windTunnelRpm(), 1.0e-12);
+		assertEquals(35.0, audit.windTunnelSpeedMaxMetersPerSecond(), 1.0e-12);
+		assertEquals(60.0, audit.cfdMaxSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(1.38, audit.cfdMaxAdvanceRatioJ(), 1.0e-12);
+		assertEquals(4, audit.publishedTableJCount());
+		assertEquals(0.784304932735, audit.ctZeroCrossingAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.249652013872, audit.ctZeroCrossingProjectMu(), 1.0e-12);
+		assertEquals(21.6197905685, audit.racingHoverSpeedAtCtZeroMetersPerSecond(), 1.0e-10);
+		assertEquals(1.06814150222, audit.currentLiftDissymmetryEndAdvanceRatioJ(), 1.0e-12);
+		assertEquals(1.31946891451, audit.currentRetreatingStallStartAdvanceRatioJ(), 1.0e-12);
+		assertEquals(1.44513262065, audit.currentHighAdvanceLossStartAdvanceRatioJ(), 1.0e-12);
+		assertEquals(1.36189568322, audit.currentLiftDissymmetryEndOverCtZeroJ(), 1.0e-11);
+		assertEquals(1.68234172633, audit.currentRetreatingStallStartOverCtZeroJ(), 1.0e-11);
+		assertEquals(1.84256474789, audit.currentHighAdvanceLossStartOverCtZeroJ(), 1.0e-11);
+		assertEquals(39.8358639581, audit.racingHoverSpeedAtCurrentHighAdvanceLossStartMetersPerSecond(), 1.0e-10);
+
+		HighAdvanceRotorCalibration.MejzlikWindTunnelPoint low = audit.lowAdvancePoint();
+		assertEquals("wind_tunnel_j_0.2", low.pointId());
+		assertEquals(0.2, low.advanceRatioJ(), 1.0e-12);
+		assertEquals(0.06366197723675814, low.codeEquivalentProjectMu(), 1.0e-15);
+		assertEquals(0.0918, low.windTunnelCt(), 1.0e-15);
+		assertEquals(0.0417, low.windTunnelCp(), 1.0e-15);
+		assertEquals(0.4452, low.windTunnelEfficiency(), 1.0e-15);
+		assertEquals(1.0, low.windTunnelCtOverJ02(), 1.0e-12);
+		assertEquals(1.0, low.windTunnelCpOverJ02(), 1.0e-12);
+		assertTrue(low.windTunnelPositiveThrust());
+		assertEquals(0.9432006010518407, low.currentThrustScale(), 1.0e-15);
+		assertEquals(0.9746761652757989, low.currentPowerScale(), 1.0e-15);
+		assertEquals(1.0333710179879627, low.currentTorquePerThrustScale(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.MejzlikWindTunnelPoint high = audit.highMeasuredPoint();
+		assertEquals("wind_tunnel_j_0.6", high.pointId());
+		assertEquals(0.6, high.advanceRatioJ(), 1.0e-12);
+		assertEquals(0.1909859317102744, high.codeEquivalentProjectMu(), 1.0e-15);
+		assertEquals(0.0411, high.windTunnelCt(), 1.0e-15);
+		assertEquals(0.0321, high.windTunnelCp(), 1.0e-15);
+		assertEquals(0.7745, high.windTunnelEfficiency(), 1.0e-15);
+		assertEquals(0.44771241830065356, high.windTunnelCtOverJ02(), 1.0e-15);
+		assertEquals(0.7697841726618704, high.windTunnelCpOverJ02(), 1.0e-15);
+		assertEquals(0.27182441700960225, high.currentThrustScale(), 1.0e-15);
+		assertEquals(0.45259375, high.currentPowerScale(), 1.0e-15);
+		assertEquals(0.6071406686491846, high.currentThrustScaleOverPositiveWindTunnelCtRatio(), 1.0e-15);
+		assertEquals(0.587948890186916, high.currentPowerScaleOverWindTunnelCpRatio(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.MejzlikWindTunnelPoint windmilling = audit.windmillingBoundaryPoint();
+		assertEquals("wind_tunnel_j_0.8", windmilling.pointId());
+		assertFalse(windmilling.windTunnelPositiveThrust());
+		assertEquals(-0.0035, windmilling.windTunnelCt(), 1.0e-15);
+		assertEquals(-0.03812636165577342, windmilling.windTunnelCtOverJ02(), 1.0e-15);
+		assertEquals(0.12, windmilling.currentThrustScale(), 1.0e-15);
+		assertEquals(0.2989999999999998, windmilling.currentPowerScale(), 1.0e-15);
+		assertEquals(0.0, windmilling.currentThrustScaleOverPositiveWindTunnelCtRatio(), 1.0e-12);
+	}
 }

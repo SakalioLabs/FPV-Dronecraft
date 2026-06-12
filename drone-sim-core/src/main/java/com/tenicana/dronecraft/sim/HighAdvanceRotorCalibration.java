@@ -5,6 +5,9 @@ public final class HighAdvanceRotorCalibration {
 	public static final String APC_HIGH_ADVANCE_SOURCE_ID = "APC-High-J-Axial-Propeller-Packet";
 	public static final String APC_HIGH_ADVANCE_CAVEAT =
 			"APC rows are axial propeller predictions; use NASA/UMD rotor sources for edgewise high-mu stall.";
+	public static final String MEJZLIK_WIND_TUNNEL_SOURCE_ID = "Mejzlik-Wind-Tunnel-Prop-Packet";
+	public static final String MEJZLIK_WIND_TUNNEL_CAVEAT =
+			"AirShaper/Mejzlik rows are axial propeller wind-tunnel table values; keep them separate from FPV 5-inch edgewise high-mu data.";
 	public static final int SELECTED_APC_PROPELLER_COUNT = 7;
 	public static final int SELECTED_APC_ROW_COUNT = 7_590;
 	public static final double SELECTED_APC_MAX_ADVANCE_RATIO_J = 2.4664;
@@ -21,6 +24,18 @@ public final class HighAdvanceRotorCalibration {
 	public static final double CURRENT_HIGH_ADVANCE_LOSS_START_EQUIVALENT_J = 1.44513262065;
 	public static final double CURRENT_RETREATING_STALL_END_PROJECT_MU = 0.82;
 	public static final double CURRENT_RETREATING_STALL_END_EQUIVALENT_J = 2.57610597594;
+	public static final int MEJZLIK_PACKET_METRIC_ROW_COUNT = 129;
+	public static final int MEJZLIK_SOURCE_INVENTORY_ROW_COUNT = 6;
+	public static final int MEJZLIK_TABLE_VALUE_ROW_COUNT = 52;
+	public static final int MEJZLIK_MODEL_VS_TUNNEL_ROW_COUNT = 60;
+	public static final int MEJZLIK_SUMMARY_ROW_COUNT = 10;
+	public static final double MEJZLIK_WIND_TUNNEL_RPM = 4900.0;
+	public static final double MEJZLIK_WIND_TUNNEL_SPEED_MAX_METERS_PER_SECOND = 35.0;
+	public static final double MEJZLIK_CFD_MAX_SPEED_METERS_PER_SECOND = 60.0;
+	public static final double MEJZLIK_CFD_MAX_ADVANCE_RATIO_J = 1.38;
+	public static final int MEJZLIK_PUBLISHED_TABLE_J_COUNT = 4;
+	public static final double MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_J = 0.784304932735;
+	public static final double MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_PROJECT_MU = 0.249652013872;
 
 	private static final ApcPropellerReference APC_5X4E_3BLADE = new ApcPropellerReference(
 			"APC_5x4E_3blade",
@@ -116,6 +131,56 @@ public final class HighAdvanceRotorCalibration {
 	) {
 	}
 
+	public record MejzlikWindTunnelPoint(
+			String pointId,
+			double advanceRatioJ,
+			double codeEquivalentProjectMu,
+			double windTunnelCt,
+			double windTunnelCp,
+			double windTunnelEfficiency,
+			double windTunnelCtOverJ02,
+			double windTunnelCpOverJ02,
+			boolean windTunnelPositiveThrust,
+			double currentRotorAdvanceRatio,
+			double currentEquivalentAdvanceRatioJ,
+			double currentThrustScale,
+			double currentPowerScale,
+			double currentTorquePerThrustScale,
+			double currentThrustScaleOverPositiveWindTunnelCtRatio,
+			double currentPowerScaleOverWindTunnelCpRatio
+	) {
+	}
+
+	public record MejzlikWindTunnelAudit(
+			String sourceId,
+			String caveat,
+			int packetMetricRowCount,
+			int sourceInventoryRowCount,
+			int tableValueRowCount,
+			int modelVsTunnelRowCount,
+			int summaryRowCount,
+			double windTunnelRpm,
+			double windTunnelSpeedMaxMetersPerSecond,
+			double cfdMaxSpeedMetersPerSecond,
+			double cfdMaxAdvanceRatioJ,
+			int publishedTableJCount,
+			double ctZeroCrossingAdvanceRatioJ,
+			double ctZeroCrossingProjectMu,
+			double racingHoverSpeedAtCtZeroMetersPerSecond,
+			double currentLiftDissymmetryEndAdvanceRatioJ,
+			double currentRetreatingStallStartAdvanceRatioJ,
+			double currentHighAdvanceLossStartAdvanceRatioJ,
+			double currentLiftDissymmetryEndOverCtZeroJ,
+			double currentRetreatingStallStartOverCtZeroJ,
+			double currentHighAdvanceLossStartOverCtZeroJ,
+			double racingHoverSpeedAtCurrentHighAdvanceLossStartMetersPerSecond,
+			MejzlikWindTunnelPoint lowAdvancePoint,
+			MejzlikWindTunnelPoint midAdvancePoint,
+			MejzlikWindTunnelPoint highMeasuredPoint,
+			MejzlikWindTunnelPoint windmillingBoundaryPoint
+	) {
+	}
+
 	public record HighAdvanceAudit(
 			String sourceId,
 			String caveat,
@@ -133,7 +198,8 @@ public final class HighAdvanceRotorCalibration {
 			AdvancePointAudit fpvAdjacentLiftDissymmetryEnd,
 			AdvancePointAudit extremePitchRetreatingStallStart,
 			AdvancePointAudit extremePitchHighAdvanceLossStart,
-			AdvancePointAudit extremePitchRetreatingStallEnd
+			AdvancePointAudit extremePitchRetreatingStallEnd,
+			MejzlikWindTunnelAudit mejzlikWindTunnelAudit
 	) {
 	}
 
@@ -215,7 +281,78 @@ public final class HighAdvanceRotorCalibration {
 						0.0302,
 						0.0,
 						0.152911392405
-				)
+				),
+				mejzlikWindTunnelAudit(config)
+		);
+	}
+
+	private static MejzlikWindTunnelAudit mejzlikWindTunnelAudit(DroneConfig config) {
+		RotorSpec rotor = config.rotors().get(0);
+		return new MejzlikWindTunnelAudit(
+				MEJZLIK_WIND_TUNNEL_SOURCE_ID,
+				MEJZLIK_WIND_TUNNEL_CAVEAT,
+				MEJZLIK_PACKET_METRIC_ROW_COUNT,
+				MEJZLIK_SOURCE_INVENTORY_ROW_COUNT,
+				MEJZLIK_TABLE_VALUE_ROW_COUNT,
+				MEJZLIK_MODEL_VS_TUNNEL_ROW_COUNT,
+				MEJZLIK_SUMMARY_ROW_COUNT,
+				MEJZLIK_WIND_TUNNEL_RPM,
+				MEJZLIK_WIND_TUNNEL_SPEED_MAX_METERS_PER_SECOND,
+				MEJZLIK_CFD_MAX_SPEED_METERS_PER_SECOND,
+				MEJZLIK_CFD_MAX_ADVANCE_RATIO_J,
+				MEJZLIK_PUBLISHED_TABLE_J_COUNT,
+				MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_J,
+				MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_PROJECT_MU,
+				hoverSpeedForPropellerAdvanceRatioJ(config, MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_J),
+				CURRENT_LIFT_DISSYMMETRY_END_EQUIVALENT_J,
+				CURRENT_RETREATING_STALL_START_EQUIVALENT_J,
+				CURRENT_HIGH_ADVANCE_LOSS_START_EQUIVALENT_J,
+				ratio(CURRENT_LIFT_DISSYMMETRY_END_EQUIVALENT_J, MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_J),
+				ratio(CURRENT_RETREATING_STALL_START_EQUIVALENT_J, MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_J),
+				ratio(CURRENT_HIGH_ADVANCE_LOSS_START_EQUIVALENT_J, MEJZLIK_WIND_TUNNEL_CT_ZERO_CROSSING_J),
+				hoverSpeedForPropellerAdvanceRatioJ(config, CURRENT_HIGH_ADVANCE_LOSS_START_EQUIVALENT_J),
+				mejzlikPoint(rotor, "wind_tunnel_j_0.2", 0.2, 0.0918, 0.0417, 0.4452),
+				mejzlikPoint(rotor, "wind_tunnel_j_0.4", 0.4, 0.0711, 0.0417, 0.6810),
+				mejzlikPoint(rotor, "wind_tunnel_j_0.6", 0.6, 0.0411, 0.0321, 0.7745),
+				mejzlikPoint(rotor, "wind_tunnel_j_0.8", 0.8, -0.0035, 0.0081, 0.2132)
+		);
+	}
+
+	private static MejzlikWindTunnelPoint mejzlikPoint(
+			RotorSpec rotor,
+			String pointId,
+			double advanceRatioJ,
+			double windTunnelCt,
+			double windTunnelCp,
+			double windTunnelEfficiency
+	) {
+		double currentAdvanceRatio = DronePhysics.rotorAdvanceRatioForUiucEquivalentPropellerAdvanceRatio(
+				rotor,
+				advanceRatioJ
+		);
+		double currentEquivalentJ = DronePhysics.rotorUiucEquivalentPropellerAdvanceRatio(rotor, currentAdvanceRatio);
+		double currentThrustScale = DronePhysics.rotorForwardAdvanceThrustScale(rotor, currentAdvanceRatio);
+		double currentPowerScale = DronePhysics.rotorForwardAdvancePowerScale(rotor, currentAdvanceRatio);
+		double currentTorquePerThrustScale = DronePhysics.rotorForwardAdvanceTorquePerThrustScale(rotor, currentAdvanceRatio);
+		double windTunnelCtRatio = ratio(windTunnelCt, 0.0918);
+		double windTunnelCpRatio = ratio(windTunnelCp, 0.0417);
+		return new MejzlikWindTunnelPoint(
+				pointId,
+				advanceRatioJ,
+				advanceRatioJ / Math.PI,
+				windTunnelCt,
+				windTunnelCp,
+				windTunnelEfficiency,
+				windTunnelCtRatio,
+				windTunnelCpRatio,
+				windTunnelCt > 0.0,
+				currentAdvanceRatio,
+				currentEquivalentJ,
+				currentThrustScale,
+				currentPowerScale,
+				currentTorquePerThrustScale,
+				positiveRatio(currentThrustScale, windTunnelCtRatio),
+				positiveRatio(currentPowerScale, windTunnelCpRatio)
 		);
 	}
 
@@ -264,5 +401,20 @@ public final class HighAdvanceRotorCalibration {
 			return 0.0;
 		}
 		return numerator / denominator;
+	}
+
+	private static double positiveRatio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || denominator <= EPSILON) {
+			return 0.0;
+		}
+		return numerator / denominator;
+	}
+
+	private static double hoverSpeedForPropellerAdvanceRatioJ(DroneConfig config, double advanceRatioJ) {
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverThrustPerRotor = config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size();
+		double hoverOmega = Math.sqrt(hoverThrustPerRotor / rotor.thrustCoefficient());
+		double hoverFrequencyHertz = hoverOmega / (2.0 * Math.PI);
+		return Math.max(0.0, advanceRatioJ) * hoverFrequencyHertz * rotor.radiusMeters() * 2.0;
 	}
 }
