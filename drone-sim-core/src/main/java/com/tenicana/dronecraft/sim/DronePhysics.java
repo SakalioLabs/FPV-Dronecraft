@@ -76,6 +76,7 @@ public final class DronePhysics {
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
+	private static final double REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS = 1.837e-5;
 	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
 	// CALCE low-current LiPo OCV median, normalized over each preset's configured usable empty/full voltage window.
 	private static final double[] LIPO_OCV_SOC_POINTS = {0.0, 0.04, 0.05, 0.10, 0.18, 0.20, 0.35, 0.50, 0.65, 0.80, 0.90, 1.0};
@@ -1123,6 +1124,18 @@ public final class DronePhysics {
 			state.setRotorCompressibilityThrustScale(i, compressibilityThrustScale);
 			double compressibilityLoad = rotorCompressibilityLoadFactor(rotorTipMach);
 			double compressibilityReactionTorqueScale = rotorCompressibilityReactionTorqueScale(rotorTipMach);
+			state.setRotorReynoldsNumber(i, rotorReynoldsNumber(
+					aerodynamicRotor,
+					aerodynamicOmega,
+					airDensity,
+					environment.ambientTemperatureCelsius()
+			));
+			state.setRotorReynoldsIndex(i, rotorLowReynoldsIndex(
+					aerodynamicRotor,
+					aerodynamicOmega,
+					airDensity,
+					environment.ambientTemperatureCelsius()
+			));
 			double lowReynoldsLoss = rotorLowReynoldsLoss(
 					aerodynamicRotor,
 					aerodynamicOmega,
@@ -3503,28 +3516,62 @@ public final class DronePhysics {
 			return 0.0;
 		}
 
+		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.32, 3.0);
+		double smallPropFactor = 1.0 - smoothStep(0.62, 0.96, radiusScale);
+		if (smallPropFactor <= 1.0e-6) {
+			return 0.0;
+		}
+		double reynoldsIndex = rotorLowReynoldsIndex(
+				rotor,
+				omegaRadiansPerSecond,
+				airDensityRatio,
+				ambientTemperatureCelsius
+		);
+		double lowReynolds = 1.0 - smoothStep(0.52, 1.05, reynoldsIndex);
+		return MathUtil.clamp(lowReynolds * smallPropFactor * smoothStep(0.10, 0.34, spinRatio), 0.0, 1.0);
+	}
+
+	private static double rotorReynoldsNumber(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			double ambientTemperatureCelsius
+	) {
+		double stationSpeed = 0.75 * rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		if (stationSpeed <= 1.0e-9) {
+			return 0.0;
+		}
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * Math.max(0.0, airDensityRatio);
+		double dynamicViscosity = REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS
+				* airDynamicViscosityRatio(ambientTemperatureCelsius);
+		return MathUtil.clamp(
+				density * stationSpeed * rotor.representativeBladeChordMeters() / Math.max(1.0e-9, dynamicViscosity),
+				0.0,
+				2.0e6
+		);
+	}
+
+	private static double rotorLowReynoldsIndex(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			double ambientTemperatureCelsius
+	) {
 		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double densityViscosityRatio = MathUtil.clamp(
 				Math.max(0.0, airDensityRatio) / airDynamicViscosityRatio(ambientTemperatureCelsius),
 				0.20,
 				1.90
 		);
-		double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.32, 3.0);
-		double smallPropFactor = 1.0 - smoothStep(0.62, 0.96, radiusScale);
-		if (smallPropFactor <= 1.0e-6) {
-			return 0.0;
-		}
 		double chordScale = MathUtil.clamp(
 				rotor.representativeBladeChordMeters()
 						/ (0.0635 * RotorSpec.DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO),
 				0.24,
 				3.60
 		);
-		double reynoldsIndex = densityViscosityRatio
+		return densityViscosityRatio
 				* chordScale
 				* MathUtil.clamp(tipSpeed / 34.0, 0.0, 2.8);
-		double lowReynolds = 1.0 - smoothStep(0.52, 1.05, reynoldsIndex);
-		return MathUtil.clamp(lowReynolds * smallPropFactor * smoothStep(0.10, 0.34, spinRatio), 0.0, 1.0);
 	}
 
 	private static double airDynamicViscosityRatio(double ambientTemperatureCelsius) {

@@ -105,6 +105,8 @@ public final class DroneState {
 	private double[] rotorReverseFlowInboardFraction;
 	private double[] rotorTipMach;
 	private double[] rotorCompressibilityThrustScale;
+	private double[] rotorReynoldsNumber;
+	private double[] rotorReynoldsIndex;
 	private double[] rotorLowReynoldsLoss;
 	private double[] rotorBladeAngleOfAttackRadians;
 	private double[] rotorBladeElementStallIntensity;
@@ -252,6 +254,8 @@ public final class DroneState {
 		rotorReverseFlowInboardFraction = new double[motorCount];
 		rotorTipMach = new double[motorCount];
 		rotorCompressibilityThrustScale = new double[motorCount];
+		rotorReynoldsNumber = new double[motorCount];
+		rotorReynoldsIndex = new double[motorCount];
 		rotorLowReynoldsLoss = new double[motorCount];
 		rotorBladeAngleOfAttackRadians = new double[motorCount];
 		rotorBladeElementStallIntensity = new double[motorCount];
@@ -1484,6 +1488,8 @@ public final class DroneState {
 		Arrays.fill(rotorReverseFlowInboardFraction, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
 		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
+		Arrays.fill(rotorReynoldsNumber, 0.0);
+		Arrays.fill(rotorReynoldsIndex, 0.0);
 		Arrays.fill(rotorLowReynoldsLoss, 0.0);
 		Arrays.fill(rotorBladeAngleOfAttackRadians, 0.0);
 		Arrays.fill(rotorBladeElementStallIntensity, 0.0);
@@ -1900,6 +1906,64 @@ public final class DroneState {
 
 	public double maxRotorCompressibilityThrustLossPercent() {
 		return (1.0 - minRotorCompressibilityThrustScale()) * 100.0;
+	}
+
+	public double rotorReynoldsNumber(int index) {
+		return rotorReynoldsNumber[index];
+	}
+
+	public double[] rotorReynoldsNumber() {
+		return Arrays.copyOf(rotorReynoldsNumber, rotorReynoldsNumber.length);
+	}
+
+	void setRotorReynoldsNumber(int index, double value) {
+		rotorReynoldsNumber[index] = Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
+	public double averageRotorReynoldsNumber() {
+		double sum = 0.0;
+		for (double reynolds : rotorReynoldsNumber) {
+			sum += reynolds;
+		}
+		return sum / rotorReynoldsNumber.length;
+	}
+
+	public double maxRotorReynoldsNumber() {
+		double max = 0.0;
+		for (double reynolds : rotorReynoldsNumber) {
+			max = Math.max(max, reynolds);
+		}
+		return max;
+	}
+
+	public double rotorReynoldsIndex(int index) {
+		return rotorReynoldsIndex[index];
+	}
+
+	public double[] rotorReynoldsIndex() {
+		return Arrays.copyOf(rotorReynoldsIndex, rotorReynoldsIndex.length);
+	}
+
+	void setRotorReynoldsIndex(int index, double value) {
+		rotorReynoldsIndex[index] = Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
+	public double averageRotorReynoldsIndex() {
+		double sum = 0.0;
+		for (double reynoldsIndex : rotorReynoldsIndex) {
+			sum += reynoldsIndex;
+		}
+		return sum / rotorReynoldsIndex.length;
+	}
+
+	public double minPositiveRotorReynoldsIndex() {
+		double min = Double.POSITIVE_INFINITY;
+		for (double reynoldsIndex : rotorReynoldsIndex) {
+			if (reynoldsIndex > 1.0e-9) {
+				min = Math.min(min, reynoldsIndex);
+			}
+		}
+		return Double.isFinite(min) ? min : 0.0;
 	}
 
 	public double rotorLowReynoldsLoss(int index) {

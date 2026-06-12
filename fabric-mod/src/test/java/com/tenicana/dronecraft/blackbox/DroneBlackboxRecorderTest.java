@@ -149,6 +149,12 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_compressibility_thrust_scale"));
 		assertTrue(csv.contains("rotor_0_compressibility_thrust_scale"));
 		assertTrue(csv.contains("rotor_7_compressibility_thrust_scale"));
+		assertTrue(csv.contains("rotor_reynolds_number"));
+		assertTrue(csv.contains("rotor_0_reynolds_number"));
+		assertTrue(csv.contains("rotor_7_reynolds_number"));
+		assertTrue(csv.contains("rotor_reynolds_index"));
+		assertTrue(csv.contains("rotor_0_reynolds_index"));
+		assertTrue(csv.contains("rotor_7_reynolds_index"));
 		assertTrue(csv.contains("rotor_low_reynolds_loss"));
 		assertTrue(csv.contains("rotor_7_low_reynolds_loss"));
 		assertTrue(csv.contains("rotor_blade_aoa_deg"));
@@ -494,6 +500,10 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_compressibility_thrust_scale")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_compressibility_thrust_scale")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_reynolds_number")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reynolds_number")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_reynolds_index")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reynolds_index")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_wake_thrust_scale")]));
@@ -1310,6 +1320,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")])
 				<= Math.min(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_advance_ratio")])) + 0.02);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reynolds_number")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reynolds_index")]) >= 0.0);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_blade_element_stall")]) >= 0.0);

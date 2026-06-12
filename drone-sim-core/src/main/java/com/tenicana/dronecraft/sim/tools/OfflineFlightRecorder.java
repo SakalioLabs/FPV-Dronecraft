@@ -644,6 +644,24 @@ public final class OfflineFlightRecorder {
 			"rotor_5_compressibility_thrust_scale",
 			"rotor_6_compressibility_thrust_scale",
 			"rotor_7_compressibility_thrust_scale",
+			"rotor_reynolds_number",
+			"rotor_0_reynolds_number",
+			"rotor_1_reynolds_number",
+			"rotor_2_reynolds_number",
+			"rotor_3_reynolds_number",
+			"rotor_4_reynolds_number",
+			"rotor_5_reynolds_number",
+			"rotor_6_reynolds_number",
+			"rotor_7_reynolds_number",
+			"rotor_reynolds_index",
+			"rotor_0_reynolds_index",
+			"rotor_1_reynolds_index",
+			"rotor_2_reynolds_index",
+			"rotor_3_reynolds_index",
+			"rotor_4_reynolds_index",
+			"rotor_5_reynolds_index",
+			"rotor_6_reynolds_index",
+			"rotor_7_reynolds_index",
 			"rotor_low_reynolds_loss",
 			"rotor_0_low_reynolds_loss",
 			"rotor_1_low_reynolds_loss",
@@ -1820,6 +1838,8 @@ public final class OfflineFlightRecorder {
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
 		double[] rotorCompressibilityThrustScale = state.rotorCompressibilityThrustScale();
+		double[] rotorReynoldsNumber = state.rotorReynoldsNumber();
+		double[] rotorReynoldsIndex = state.rotorReynoldsIndex();
 		double[] rotorLowReynoldsLoss = state.rotorLowReynoldsLoss();
 		double[] rotorBladeAngleOfAttack = state.rotorBladeAngleOfAttackRadians();
 		double[] rotorBladeElementStall = state.rotorBladeElementStallIntensity();
@@ -1990,6 +2010,14 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.averageRotorCompressibilityThrustScale(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorCompressibilityThrustScale, i), "%.5f");
+		}
+		appendExtra(builder, state.averageRotorReynoldsNumber(), "%.1f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorReynoldsNumber, i), "%.1f");
+		}
+		appendExtra(builder, state.averageRotorReynoldsIndex(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorReynoldsIndex, i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorLowReynoldsLoss(), "%.5f");
 		for (int i = 0; i < 8; i++) {

@@ -4953,6 +4953,16 @@ class DronePhysicsTest {
 				() -> "smallRatio=" + smallRatio + " referenceRatio=" + referenceRatio);
 		assertTrue(smallProp.state().averageRotorLowReynoldsLoss() > 0.20,
 				() -> "smallLowReLoss=" + smallProp.state().averageRotorLowReynoldsLoss());
+		assertTrue(smallProp.state().averageRotorReynoldsNumber() > 0.0,
+				() -> "smallRe=" + smallProp.state().averageRotorReynoldsNumber());
+		assertTrue(referenceProp.state().averageRotorReynoldsNumber()
+						> smallProp.state().averageRotorReynoldsNumber(),
+				() -> "smallRe=" + smallProp.state().averageRotorReynoldsNumber()
+						+ " referenceRe=" + referenceProp.state().averageRotorReynoldsNumber());
+		assertTrue(smallProp.state().averageRotorReynoldsIndex()
+						< referenceProp.state().averageRotorReynoldsIndex(),
+				() -> "smallReIndex=" + smallProp.state().averageRotorReynoldsIndex()
+						+ " referenceReIndex=" + referenceProp.state().averageRotorReynoldsIndex());
 		assertTrue(referenceProp.state().averageRotorLowReynoldsLoss()
 						< smallProp.state().averageRotorLowReynoldsLoss() * 0.35,
 				() -> "smallLowReLoss=" + smallProp.state().averageRotorLowReynoldsLoss()
@@ -9485,6 +9495,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_tip_mach"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_compressibility_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_compressibility_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_reynolds_number"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_reynolds_number"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_reynolds_index"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_reynolds_index"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_low_reynolds_loss"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_low_reynolds_loss"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_aerodynamic_load"));
@@ -9842,6 +9856,18 @@ class DronePhysicsTest {
 		assertTrue(loggedRotorCompressibilityThrustScale <= 1.0);
 		assertTrue(loggedRotor7CompressibilityThrustScale >= 0.0);
 		assertTrue(loggedRotor7CompressibilityThrustScale <= 1.0);
+		double loggedRotorReynoldsNumber = Double.parseDouble(firstRow[indexOf(header, "rotor_reynolds_number")]);
+		double loggedRotor7ReynoldsNumber = Double.parseDouble(firstRow[indexOf(header, "rotor_7_reynolds_number")]);
+		assertTrue(Double.isFinite(loggedRotorReynoldsNumber));
+		assertTrue(loggedRotorReynoldsNumber >= 0.0);
+		assertTrue(Double.isFinite(loggedRotor7ReynoldsNumber));
+		assertTrue(loggedRotor7ReynoldsNumber >= 0.0);
+		double loggedRotorReynoldsIndex = Double.parseDouble(firstRow[indexOf(header, "rotor_reynolds_index")]);
+		double loggedRotor7ReynoldsIndex = Double.parseDouble(firstRow[indexOf(header, "rotor_7_reynolds_index")]);
+		assertTrue(Double.isFinite(loggedRotorReynoldsIndex));
+		assertTrue(loggedRotorReynoldsIndex >= 0.0);
+		assertTrue(Double.isFinite(loggedRotor7ReynoldsIndex));
+		assertTrue(loggedRotor7ReynoldsIndex >= 0.0);
 		double loggedRotorLowReynoldsLoss = Double.parseDouble(firstRow[indexOf(header, "rotor_low_reynolds_loss")]);
 		double loggedRotor7LowReynoldsLoss = Double.parseDouble(firstRow[indexOf(header, "rotor_7_low_reynolds_loss")]);
 		assertTrue(loggedRotorLowReynoldsLoss >= 0.0);
@@ -10227,6 +10253,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_arm_flex"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_tip_mach"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_compressibility_thrust_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_reynolds_number"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_reynolds_index"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_low_reynolds_loss"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_element_stall"));
@@ -10264,6 +10292,8 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_thrust_n")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_tip_mach")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reynolds_number")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_reynolds_index")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_low_reynolds_loss")]) <= 1.0);
 		assertTrue(Double.isFinite(Double.parseDouble(row[indexOf(header, "rotor_7_blade_aoa_deg")])));
