@@ -80,12 +80,36 @@ class MotorBenchCurrentModelTest {
 		assertEquals(29137.63274949454, racingAudit.configuredMaxRotorRpm(), 1.0e-9);
 		assertEquals(1.0003156184068034, racingAudit.referenceMaxRotorRpmOverConfiguredMax(), 1.0e-15);
 		assertEquals(0.999684481176745, racingAudit.configuredMaxRotorRpmOverReferenceMax(), 1.0e-15);
+		assertEquals(37089, racingAudit.lowDynamicSampleCount());
+		assertEquals(20, racingAudit.lowDynamicSampleFileCount());
+		assertEquals(370.8896462917328, racingAudit.lowDynamicDurationSeconds(), 1.0e-9);
+		assertEquals(1.0, racingAudit.lowDynamicMaxSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(1.5, racingAudit.lowDynamicMaxGroundAccelerationMetersPerSecondSquared(), 1.0e-12);
+		assertEquals(0.5, racingAudit.lowDynamicMaxGyroNormRadiansPerSecond(), 1.0e-12);
+		assertEquals(0.5199172711044272, racingAudit.lowDynamicSpeedMeanMetersPerSecond(), 1.0e-15);
+		assertEquals(0.9754606713859196, racingAudit.lowDynamicSpeedP95MetersPerSecond(), 1.0e-15);
+		assertEquals(1.2580811125853344, racingAudit.lowDynamicGroundAccelerationP95MetersPerSecondSquared(), 1.0e-15);
+		assertEquals(0.4236720246096596, racingAudit.lowDynamicGyroNormP95RadiansPerSecond(), 1.0e-15);
+		assertEquals(0.2870552036315011, racingAudit.lowDynamicThrottleMean(), 1.0e-15);
+		assertEquals(0.30747738541591185, racingAudit.lowDynamicThrottleP95(), 1.0e-15);
+		assertEquals(13642.489652165377, racingAudit.lowDynamicRotorRpmMean(), 1.0e-9);
+		assertEquals(13791.514254986312, racingAudit.lowDynamicRotorRpmP50(), 1.0e-9);
+		assertEquals(14119.280967371637, racingAudit.lowDynamicRotorRpmP95(), 1.0e-9);
+		assertEquals(15192.087569316081, racingAudit.lowDynamicRotorRpmMax(), 1.0e-9);
+		assertEquals(1.0475615930670912, racingAudit.lowDynamicRotorRpmMeanOverConfiguredHover(), 1.0e-15);
+		assertEquals(1.0590046987111195, racingAudit.lowDynamicRotorRpmP50OverConfiguredHover(), 1.0e-15);
+		assertEquals(0.4845719996802612, racingAudit.lowDynamicRotorRpmP95OverConfiguredMax(), 1.0e-15);
+		assertEquals(682.1244826082689, racingAudit.lowDynamicMeanBladePassHertzForConfiguredBladeCount(), 1.0e-9);
+		assertEquals(682.1244826082689, racingAudit.lowDynamicThreeBladeBladePassHertzAtMean(), 1.0e-9);
 		assertEquals(3.0, racingAudit.configuredBladeCount(), 1.0e-12);
 		assertEquals(1457.3414561360478, racingAudit.referenceBladePassHertzForConfiguredBladeCount(), 1.0e-9);
 		assertEquals(1456.881637474727, racingAudit.configuredMaxBladePassHertz(), 1.0e-9);
 		assertEquals(1457.3414561360478, racingAudit.referenceThreeBladeBladePassHertz(), 1.0e-9);
 		assertEquals(29.14680132613862, racingAudit.referenceBladePassOverTelemetryNyquist(), 1.0e-12);
 		assertEquals(9843.188707660616, apDroneAudit.configuredHoverRotorRpm(), 1.0e-9);
+		assertEquals(1.3859827396733637, apDroneAudit.lowDynamicRotorRpmMeanOverConfiguredHover(), 1.0e-15);
+		assertEquals(3.0, apDroneAudit.configuredBladeCount(), 1.0e-12);
+		assertEquals(682.1244826082689, apDroneAudit.lowDynamicMeanBladePassHertzForConfiguredBladeCount(), 1.0e-9);
 		assertEquals(racingAudit.configuredMaxRotorRpm(), apDroneAudit.configuredMaxRotorRpm(), 1.0e-9);
 	}
 

@@ -1277,11 +1277,15 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"AI-IO rotor-speed audit: max_rpm %.0f/%.0f ratio %.4f, hover %.0f, p95_file %.0f, bpass %.1fHz/%.1fHz, bpass_nyq %.1fx, files %d@%.1fHz%n",
+				"AI-IO rotor-speed audit: max_rpm %.0f/%.0f ratio %.4f, hover %.0f, low_dyn %.0frpm %.3fx hover speed_p95 %.2fm/s bpf %.1fHz, p95_file %.0f, bpass %.1fHz/%.1fHz, bpass_nyq %.1fx, files %d@%.1fHz%n",
 				aiioRotorSpeedAudit.referenceMaxRotorRpm(),
 				aiioRotorSpeedAudit.configuredMaxRotorRpm(),
 				aiioRotorSpeedAudit.referenceMaxRotorRpmOverConfiguredMax(),
 				aiioRotorSpeedAudit.configuredHoverRotorRpm(),
+				aiioRotorSpeedAudit.lowDynamicRotorRpmMean(),
+				aiioRotorSpeedAudit.lowDynamicRotorRpmMeanOverConfiguredHover(),
+				aiioRotorSpeedAudit.lowDynamicSpeedP95MetersPerSecond(),
+				aiioRotorSpeedAudit.lowDynamicMeanBladePassHertzForConfiguredBladeCount(),
 				aiioRotorSpeedAudit.referenceRotorRpmP95OfFilePeaks(),
 				aiioRotorSpeedAudit.referenceBladePassHertzForConfiguredBladeCount(),
 				aiioRotorSpeedAudit.configuredMaxBladePassHertz(),

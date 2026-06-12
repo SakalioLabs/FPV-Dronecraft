@@ -23,6 +23,24 @@ public final class MotorBenchCurrentModel {
 	public static final double AIIO_ROTOR_RPM_P95_OF_FILE_PEAKS = 24245.16376198689;
 	public static final double AIIO_ROTOR_RPM_MAX = 29146.829122720956;
 	public static final double AIIO_THREE_BLADE_BLADE_PASS_HERTZ_AT_MAX = 1457.3414561360478;
+	public static final int AIIO_LOW_DYNAMIC_STRICT_SAMPLE_COUNT = 37089;
+	public static final int AIIO_LOW_DYNAMIC_STRICT_SAMPLE_FILE_COUNT = 20;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_DURATION_SECONDS = 370.8896462917328;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_MAX_SPEED_METERS_PER_SECOND = 1.0;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_MAX_GROUND_ACCELERATION_METERS_PER_SECOND_SQUARED = 1.5;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_MAX_GYRO_NORM_RADIANS_PER_SECOND = 0.5;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_SPEED_MEAN_METERS_PER_SECOND = 0.5199172711044272;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_SPEED_P95_METERS_PER_SECOND = 0.9754606713859196;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_GROUND_ACCELERATION_P95_METERS_PER_SECOND_SQUARED =
+			1.2580811125853344;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_GYRO_NORM_P95_RADIANS_PER_SECOND = 0.4236720246096596;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_THROTTLE_MEAN = 0.2870552036315011;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_THROTTLE_P95 = 0.30747738541591185;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MEAN = 13642.489652165377;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P50 = 13791.514254986312;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P95 = 14119.280967371637;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MAX = 15192.087569316081;
+	public static final double AIIO_LOW_DYNAMIC_STRICT_THREE_BLADE_BLADE_PASS_HERTZ_AT_MEAN = 682.1244826082689;
 
 	private static final double RADIANS_PER_SECOND_TO_RPM = 60.0 / (2.0 * Math.PI);
 
@@ -59,6 +77,27 @@ public final class MotorBenchCurrentModel {
 			double configuredMaxRotorRpm,
 			double referenceMaxRotorRpmOverConfiguredMax,
 			double configuredMaxRotorRpmOverReferenceMax,
+			int lowDynamicSampleCount,
+			int lowDynamicSampleFileCount,
+			double lowDynamicDurationSeconds,
+			double lowDynamicMaxSpeedMetersPerSecond,
+			double lowDynamicMaxGroundAccelerationMetersPerSecondSquared,
+			double lowDynamicMaxGyroNormRadiansPerSecond,
+			double lowDynamicSpeedMeanMetersPerSecond,
+			double lowDynamicSpeedP95MetersPerSecond,
+			double lowDynamicGroundAccelerationP95MetersPerSecondSquared,
+			double lowDynamicGyroNormP95RadiansPerSecond,
+			double lowDynamicThrottleMean,
+			double lowDynamicThrottleP95,
+			double lowDynamicRotorRpmMean,
+			double lowDynamicRotorRpmP50,
+			double lowDynamicRotorRpmP95,
+			double lowDynamicRotorRpmMax,
+			double lowDynamicRotorRpmMeanOverConfiguredHover,
+			double lowDynamicRotorRpmP50OverConfiguredHover,
+			double lowDynamicRotorRpmP95OverConfiguredMax,
+			double lowDynamicMeanBladePassHertzForConfiguredBladeCount,
+			double lowDynamicThreeBladeBladePassHertzAtMean,
 			double configuredBladeCount,
 			double referenceBladePassHertzForConfiguredBladeCount,
 			double configuredMaxBladePassHertz,
@@ -167,6 +206,7 @@ public final class MotorBenchCurrentModel {
 		double configuredBladeCount = averageBladeCount(config);
 		double referenceBladePass = AIIO_ROTOR_RPM_MAX * configuredBladeCount / 60.0;
 		double configuredMaxBladePass = configuredMaxRotorRpm * configuredBladeCount / 60.0;
+		double lowDynamicMeanBladePass = AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MEAN * configuredBladeCount / 60.0;
 		return new RotorSpeedTelemetryAudit(
 				AIIO_ROTOR_SPEED_SOURCE_ID,
 				AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT,
@@ -179,6 +219,27 @@ public final class MotorBenchCurrentModel {
 				configuredMaxRotorRpm,
 				ratio(AIIO_ROTOR_RPM_MAX, configuredMaxRotorRpm),
 				ratio(configuredMaxRotorRpm, AIIO_ROTOR_RPM_MAX),
+				AIIO_LOW_DYNAMIC_STRICT_SAMPLE_COUNT,
+				AIIO_LOW_DYNAMIC_STRICT_SAMPLE_FILE_COUNT,
+				AIIO_LOW_DYNAMIC_STRICT_DURATION_SECONDS,
+				AIIO_LOW_DYNAMIC_STRICT_MAX_SPEED_METERS_PER_SECOND,
+				AIIO_LOW_DYNAMIC_STRICT_MAX_GROUND_ACCELERATION_METERS_PER_SECOND_SQUARED,
+				AIIO_LOW_DYNAMIC_STRICT_MAX_GYRO_NORM_RADIANS_PER_SECOND,
+				AIIO_LOW_DYNAMIC_STRICT_SPEED_MEAN_METERS_PER_SECOND,
+				AIIO_LOW_DYNAMIC_STRICT_SPEED_P95_METERS_PER_SECOND,
+				AIIO_LOW_DYNAMIC_STRICT_GROUND_ACCELERATION_P95_METERS_PER_SECOND_SQUARED,
+				AIIO_LOW_DYNAMIC_STRICT_GYRO_NORM_P95_RADIANS_PER_SECOND,
+				AIIO_LOW_DYNAMIC_STRICT_THROTTLE_MEAN,
+				AIIO_LOW_DYNAMIC_STRICT_THROTTLE_P95,
+				AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MEAN,
+				AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P50,
+				AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P95,
+				AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MAX,
+				ratio(AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_MEAN, configuredHoverRotorRpm),
+				ratio(AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P50, configuredHoverRotorRpm),
+				ratio(AIIO_LOW_DYNAMIC_STRICT_ROTOR_RPM_P95, configuredMaxRotorRpm),
+				lowDynamicMeanBladePass,
+				AIIO_LOW_DYNAMIC_STRICT_THREE_BLADE_BLADE_PASS_HERTZ_AT_MEAN,
 				configuredBladeCount,
 				referenceBladePass,
 				configuredMaxBladePass,
