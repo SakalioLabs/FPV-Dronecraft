@@ -5812,7 +5812,7 @@ public final class DronePhysics {
 		windBurbleVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond.add(
 				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
-		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dirtyAir, dtSeconds);
+		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dtSeconds);
 		windGustVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond.add(drydenTurbulence);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
@@ -5925,9 +5925,10 @@ public final class DronePhysics {
 		return MathUtil.clamp(localDirtyAir + 0.18 * ambientTurbulence, 0.0, 1.8);
 	}
 
-	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir, double dtSeconds) {
+	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
 		double windSpeed = targetMeanWind.length();
-		if (dirtyAir <= 1.0e-6 || windSpeed <= 0.5 || dtSeconds <= 0.0) {
+		double atmosphericTurbulence = atmosphericDrydenIntensity(environment);
+		if (atmosphericTurbulence <= 1.0e-6 || windSpeed <= 0.5 || dtSeconds <= 0.0) {
 			double alpha = MathUtil.expSmoothing(dtSeconds, 0.35);
 			drydenFirstOrderVelocityWorldMetersPerSecond =
 					drydenFirstOrderVelocityWorldMetersPerSecond.multiply(1.0 - alpha);
@@ -5938,7 +5939,7 @@ public final class DronePhysics {
 		}
 
 		DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(drydenReferenceAltitudeMeters(environment), windSpeed);
-		double intensityScale = MathUtil.clamp(dirtyAir / 1.8, 0.0, 1.0);
+		double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
 		double longitudinalTau = MathUtil.clamp(dryden.longitudinalTimeConstantSeconds(), 0.10, 12.0);
 		double lateralTau = MathUtil.clamp(dryden.lateralTimeConstantSeconds(), 0.10, 12.0);
 		double verticalTau = MathUtil.clamp(dryden.verticalTimeConstantSeconds(), 0.05, 6.0);
@@ -5983,6 +5984,10 @@ public final class DronePhysics {
 				.add(lateralAxis.multiply(lateral))
 				.add(verticalAxis.multiply(vertical));
 		return drydenTurbulenceVelocityWorldMetersPerSecond;
+	}
+
+	private static double atmosphericDrydenIntensity(DroneEnvironment environment) {
+		return MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
 	}
 
 	private double updateDrydenAxis(double currentValue, double sigmaMetersPerSecond, double timeConstantSeconds, double dtSeconds) {

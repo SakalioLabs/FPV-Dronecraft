@@ -3299,45 +3299,83 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void atmosphericTurbulenceIsSlowerThanLocalizedDirtyAirBurble() {
+	void atmosphericTurbulenceStaysDrydenWhileLocalizedDirtyAirAddsBurble() {
 		DronePhysics openAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics localizedDirtyAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DroneInput idle = DroneInput.idle();
 		DroneEnvironment openTurbulence = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5);
 		DroneEnvironment obstacleWakeTurbulence = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.5, 1.0, 1.5);
-		Vec3 previousOpenGust = Vec3.ZERO;
-		Vec3 previousLocalizedGust = Vec3.ZERO;
-		double openGustXSquared = 0.0;
-		double openStepChange = 0.0;
-		double localizedStepChange = 0.0;
+		double openDrydenSquared = 0.0;
+		double openBurbleSquared = 0.0;
+		double localizedDrydenSquared = 0.0;
+		double localizedBurbleSquared = 0.0;
 		int samples = 0;
 
 		for (int i = 0; i < 2200; i++) {
 			openAir.step(idle, 0.005, openTurbulence);
 			localizedDirtyAir.step(idle, 0.005, obstacleWakeTurbulence);
 
-			Vec3 openGust = openAir.state().windGustVelocityWorldMetersPerSecond();
-			Vec3 localizedGust = localizedDirtyAir.state().windGustVelocityWorldMetersPerSecond();
+			Vec3 openDryden = openAir.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			Vec3 openBurble = openAir.state().windBurbleVelocityWorldMetersPerSecond();
+			Vec3 localizedDryden = localizedDirtyAir.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+			Vec3 localizedBurble = localizedDirtyAir.state().windBurbleVelocityWorldMetersPerSecond();
 			if (i >= 240) {
-				openGustXSquared += openGust.x() * openGust.x();
-				if (samples > 0) {
-					openStepChange += openGust.subtract(previousOpenGust).length();
-					localizedStepChange += localizedGust.subtract(previousLocalizedGust).length();
-				}
+				openDrydenSquared += openDryden.lengthSquared();
+				openBurbleSquared += openBurble.lengthSquared();
+				localizedDrydenSquared += localizedDryden.lengthSquared();
+				localizedBurbleSquared += localizedBurble.lengthSquared();
 				samples++;
 			}
-			previousOpenGust = openGust;
-			previousLocalizedGust = localizedGust;
 		}
 
-		double openRmsGustX = Math.sqrt(openGustXSquared / samples);
-		double openAverageStepChange = openStepChange / Math.max(1, samples - 1);
-		double localizedAverageStepChange = localizedStepChange / Math.max(1, samples - 1);
-		assertTrue(openRmsGustX > 0.80, () -> "openRmsGustX=" + openRmsGustX);
-		assertTrue(openAverageStepChange < 0.18, () -> "openAverageStepChange=" + openAverageStepChange);
-		assertTrue(localizedAverageStepChange > openAverageStepChange * 1.15,
-				() -> "openAverageStepChange=" + openAverageStepChange
-						+ " localizedAverageStepChange=" + localizedAverageStepChange);
+		double openDrydenRms = Math.sqrt(openDrydenSquared / samples);
+		double openBurbleRms = Math.sqrt(openBurbleSquared / samples);
+		double localizedDrydenRms = Math.sqrt(localizedDrydenSquared / samples);
+		double localizedBurbleRms = Math.sqrt(localizedBurbleSquared / samples);
+		assertTrue(openDrydenRms > 0.80, () -> "openDrydenRms=" + openDrydenRms);
+		assertTrue(openDrydenRms > openBurbleRms * 3.0,
+				() -> "openDrydenRms=" + openDrydenRms + " openBurbleRms=" + openBurbleRms);
+		assertEquals(openDrydenRms, localizedDrydenRms, 1.0e-12);
+		assertTrue(localizedBurbleRms > openBurbleRms * 1.45,
+				() -> "localizedBurbleRms=" + localizedBurbleRms + " openBurbleRms=" + openBurbleRms);
+	}
+
+	@Test
+	void localizedDirtyAirFeedsBurbleWithoutLargeScaleDrydenTurbulence() {
+		DronePhysics localizedDirtyAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics openAtmosphere = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment obstacleWake = new DroneEnvironment(
+				new Vec3(10.0, 0.0, 0.0),
+				1.0,
+				6.0,
+				0.0,
+				1.0,
+				1.5
+		);
+		DroneEnvironment atmosphericTurbulence = new DroneEnvironment(new Vec3(10.0, 0.0, 0.0), 1.0, 6.0, 1.0);
+		double maxLocalizedBurble = 0.0;
+		double maxLocalizedDryden = 0.0;
+		double maxAtmosphericDryden = 0.0;
+
+		for (int i = 0; i < 1400; i++) {
+			localizedDirtyAir.step(idle, 0.005, obstacleWake);
+			openAtmosphere.step(idle, 0.005, atmosphericTurbulence);
+			if (i >= 160) {
+				maxLocalizedBurble = Math.max(maxLocalizedBurble, localizedDirtyAir.state().windBurbleSpeedMetersPerSecond());
+				maxLocalizedDryden = Math.max(maxLocalizedDryden, localizedDirtyAir.state().drydenTurbulenceSpeedMetersPerSecond());
+				maxAtmosphericDryden = Math.max(maxAtmosphericDryden, openAtmosphere.state().drydenTurbulenceSpeedMetersPerSecond());
+			}
+		}
+
+		double observedMaxLocalizedBurble = maxLocalizedBurble;
+		double observedMaxLocalizedDryden = maxLocalizedDryden;
+		double observedMaxAtmosphericDryden = maxAtmosphericDryden;
+		assertTrue(observedMaxLocalizedBurble > 0.12, () -> "maxLocalizedBurble=" + observedMaxLocalizedBurble);
+		assertTrue(observedMaxLocalizedDryden < 0.010, () -> "maxLocalizedDryden=" + observedMaxLocalizedDryden);
+		assertTrue(observedMaxAtmosphericDryden > observedMaxLocalizedDryden + 0.20,
+				() -> "maxAtmosphericDryden=" + observedMaxAtmosphericDryden
+						+ " maxLocalizedDryden=" + observedMaxLocalizedDryden);
 	}
 
 	@Test
