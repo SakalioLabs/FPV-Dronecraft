@@ -2816,6 +2816,7 @@ public class DroneEntity extends PathfinderMob {
 		double[] inducedLagScale = dynamicState.rotorInducedLagThrustScale();
 		double[] wakeVelocity = dynamicState.rotorInducedWakeVelocityMetersPerSecond();
 		double[] wakeCarryover = dynamicState.rotorInducedWakeCarryoverIntensity();
+		double[] surfaceWetness = dynamicState.rotorSurfaceWetness();
 		for (int i = 0; i < physics.state().motorCount(); i++) {
 			output.putDouble("motor_omega_rad_s_" + i, motorOmega[i]);
 			output.putDouble("esc_output_command_" + i, escOutput[i]);
@@ -2826,6 +2827,7 @@ public class DroneEntity extends PathfinderMob {
 			output.putDouble("rotor_induced_lag_thrust_scale_" + i, inducedLagScale[i]);
 			output.putDouble("rotor_induced_wake_velocity_mps_" + i, wakeVelocity[i]);
 			output.putDouble("rotor_induced_wake_carryover_" + i, wakeCarryover[i]);
+			output.putDouble("rotor_surface_wetness_" + i, surfaceWetness[i]);
 		}
 		output.putDouble("propwash_wake_intensity", dynamicState.propwashWakeIntensity());
 		output.putDouble("propwash_intensity", dynamicState.propwashIntensity());
@@ -2879,6 +2881,7 @@ public class DroneEntity extends PathfinderMob {
 		double[] inducedLagScale = new double[count];
 		double[] wakeVelocity = new double[count];
 		double[] wakeCarryover = new double[count];
+		double[] surfaceWetness = new double[count];
 		Arrays.fill(motorOmega, Double.NaN);
 		Arrays.fill(escOutput, Double.NaN);
 		Arrays.fill(escElectricalOutput, Double.NaN);
@@ -2888,6 +2891,7 @@ public class DroneEntity extends PathfinderMob {
 		Arrays.fill(inducedLagScale, Double.NaN);
 		Arrays.fill(wakeVelocity, Double.NaN);
 		Arrays.fill(wakeCarryover, Double.NaN);
+		Arrays.fill(surfaceWetness, Double.NaN);
 
 		boolean hasDynamicState = false;
 		for (int i = 0; i < count; i++) {
@@ -2900,6 +2904,7 @@ public class DroneEntity extends PathfinderMob {
 			inducedLagScale[i] = input.getDoubleOr("rotor_induced_lag_thrust_scale_" + i, Double.NaN);
 			wakeVelocity[i] = input.getDoubleOr("rotor_induced_wake_velocity_mps_" + i, Double.NaN);
 			wakeCarryover[i] = input.getDoubleOr("rotor_induced_wake_carryover_" + i, Double.NaN);
+			surfaceWetness[i] = input.getDoubleOr("rotor_surface_wetness_" + i, Double.NaN);
 			hasDynamicState = hasDynamicState
 					|| Double.isFinite(motorOmega[i])
 					|| Double.isFinite(escOutput[i])
@@ -2909,7 +2914,8 @@ public class DroneEntity extends PathfinderMob {
 					|| Double.isFinite(inducedVelocity[i])
 					|| Double.isFinite(inducedLagScale[i])
 					|| Double.isFinite(wakeVelocity[i])
-					|| Double.isFinite(wakeCarryover[i]);
+					|| Double.isFinite(wakeCarryover[i])
+					|| Double.isFinite(surfaceWetness[i]);
 		}
 
 		double propwashWake = input.getDoubleOr("propwash_wake_intensity", Double.NaN);
@@ -2935,6 +2941,7 @@ public class DroneEntity extends PathfinderMob {
 					inducedLagScale,
 					wakeVelocity,
 					wakeCarryover,
+					surfaceWetness,
 					propwashWake,
 					propwash,
 					vortexRingState,

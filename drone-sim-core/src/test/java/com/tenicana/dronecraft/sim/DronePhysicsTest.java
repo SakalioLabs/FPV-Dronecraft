@@ -6775,6 +6775,119 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void precipitationWetnessBuildsThenDriesWithRotorSpin() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics wet = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneEnvironment heavyRain = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.92
+		);
+
+		wet.step(highLoad, 0.005, heavyRain);
+		double firstFrameWetScale = wet.state().averageRotorWetThrustScale();
+		assertTrue(firstFrameWetScale > 0.995,
+				() -> "firstFrameWetScale=" + firstFrameWetScale);
+
+		for (int i = 0; i < 499; i++) {
+			wet.step(highLoad, 0.005, heavyRain);
+		}
+
+		double saturatedWetScale = wet.state().averageRotorWetThrustScale();
+		assertTrue(saturatedWetScale > 0.965,
+				() -> "saturatedWetScale=" + saturatedWetScale);
+		assertTrue(saturatedWetScale < 0.980,
+				() -> "saturatedWetScale=" + saturatedWetScale);
+
+		for (int i = 0; i < 80; i++) {
+			wet.step(highLoad, 0.005, DroneEnvironment.calm());
+		}
+
+		double earlyDryScale = wet.state().averageRotorWetThrustScale();
+		assertTrue(earlyDryScale > saturatedWetScale + 0.006,
+				() -> "earlyDryScale=" + earlyDryScale + " saturatedWetScale=" + saturatedWetScale);
+		assertTrue(earlyDryScale < 0.995,
+				() -> "earlyDryScale=" + earlyDryScale);
+
+		for (int i = 0; i < 900; i++) {
+			wet.step(highLoad, 0.005, DroneEnvironment.calm());
+		}
+
+		assertTrue(wet.state().averageRotorWetThrustScale() > 0.998,
+				() -> "recoveredWetScale=" + wet.state().averageRotorWetThrustScale());
+	}
+
+	@Test
+	void wetPropFilmDriesSlowerWhenRotorsStop() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics spinningDry = new DronePhysics(config);
+		DronePhysics stoppedDry = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneEnvironment heavyRain = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.92
+		);
+
+		for (int i = 0; i < 500; i++) {
+			spinningDry.step(highLoad, 0.005, heavyRain);
+			stoppedDry.step(highLoad, 0.005, heavyRain);
+		}
+
+		double saturatedWetScale = spinningDry.state().averageRotorWetThrustScale();
+		assertEquals(saturatedWetScale, stoppedDry.state().averageRotorWetThrustScale(), 0.001);
+
+		for (int i = 0; i < 160; i++) {
+			spinningDry.step(highLoad, 0.005, DroneEnvironment.calm());
+			stoppedDry.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
+
+		double spinDryScale = spinningDry.state().averageRotorWetThrustScale();
+		double stoppedScale = stoppedDry.state().averageRotorWetThrustScale();
+		assertTrue(spinDryScale > stoppedScale + 0.003,
+				() -> "spinDryScale=" + spinDryScale + " stoppedScale=" + stoppedScale);
+		assertTrue(stoppedScale < 0.993,
+				() -> "stoppedScale=" + stoppedScale);
+	}
+
+	@Test
 	void moistAirDensityChangesRainRotorAuthority() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
@@ -7058,6 +7171,7 @@ class DronePhysicsTest {
 		double[] inducedLagScale = new double[config.rotors().size()];
 		double[] wakeVelocity = new double[config.rotors().size()];
 		double[] wakeCarryover = new double[config.rotors().size()];
+		double[] surfaceWetness = new double[config.rotors().size()];
 		for (int i = 0; i < config.rotors().size(); i++) {
 			double maxOmega = config.rotors().get(i).maxOmegaRadiansPerSecond();
 			motorOmega[i] = maxOmega * (0.68 - 0.02 * i);
@@ -7069,6 +7183,7 @@ class DronePhysicsTest {
 			inducedLagScale[i] = 0.82 + 0.02 * i;
 			wakeVelocity[i] = 6.9 - 0.25 * i;
 			wakeCarryover[i] = 0.42 - 0.04 * i;
+			surfaceWetness[i] = 0.58 - 0.04 * i;
 		}
 		restored.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
 				motorOmega,
@@ -7080,6 +7195,7 @@ class DronePhysicsTest {
 				inducedLagScale,
 				wakeVelocity,
 				wakeCarryover,
+				surfaceWetness,
 				0.73,
 				0.54,
 				0.61,
@@ -7097,6 +7213,9 @@ class DronePhysicsTest {
 		assertEquals(inducedLagScale[0], restored.state().rotorInducedLagThrustScale(0), 1.0e-9);
 		assertEquals(wakeVelocity[0], snapshot.rotorInducedWakeVelocityMetersPerSecond()[0], 1.0e-9);
 		assertEquals(wakeCarryover[0], snapshot.rotorInducedWakeCarryoverIntensity()[0], 1.0e-9);
+		assertEquals(surfaceWetness[0], snapshot.rotorSurfaceWetness()[0], 1.0e-9);
+		assertTrue(restored.state().rotorWetThrustScale(0) < 0.985,
+				() -> "restoredWetScale=" + restored.state().rotorWetThrustScale(0));
 		assertEquals(0.73, restored.state().propwashWakeIntensity(), 1.0e-9);
 		assertEquals(0.61, restored.state().vortexRingStateIntensity(), 1.0e-9);
 
