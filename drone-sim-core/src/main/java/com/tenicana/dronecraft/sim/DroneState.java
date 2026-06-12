@@ -128,6 +128,9 @@ public final class DroneState {
 	private double[] rotorWakeInterferenceIntensity;
 	private double[] rotorWakeThrustScale;
 	private double[] rotorWetThrustScale;
+	private double[] rotorIcingSeverity;
+	private double[] rotorIcingThrustScale;
+	private double[] rotorIcingPowerScale;
 	private double[] rotorCoaxialLoadBias;
 	private double[] rotorCoaxialLoadBiasTarget;
 	private double[] rotorCoaxialLoadBiasClipping;
@@ -285,6 +288,9 @@ public final class DroneState {
 		rotorWakeInterferenceIntensity = new double[motorCount];
 		rotorWakeThrustScale = new double[motorCount];
 		rotorWetThrustScale = new double[motorCount];
+		rotorIcingSeverity = new double[motorCount];
+		rotorIcingThrustScale = new double[motorCount];
+		rotorIcingPowerScale = new double[motorCount];
 		rotorCoaxialLoadBias = new double[motorCount];
 		rotorCoaxialLoadBiasTarget = new double[motorCount];
 		rotorCoaxialLoadBiasClipping = new double[motorCount];
@@ -317,6 +323,8 @@ public final class DroneState {
 		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
+		Arrays.fill(rotorIcingThrustScale, 1.0);
+		Arrays.fill(rotorIcingPowerScale, 1.0);
 		Arrays.fill(rotorCoaxialAllocationCommandRatio, 1.0);
 		repairAllRotors();
 	}
@@ -1573,6 +1581,9 @@ public final class DroneState {
 		Arrays.fill(rotorWakeInterferenceIntensity, 0.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
+		Arrays.fill(rotorIcingSeverity, 0.0);
+		Arrays.fill(rotorIcingThrustScale, 1.0);
+		Arrays.fill(rotorIcingPowerScale, 1.0);
 		Arrays.fill(rotorCoaxialLoadBias, 0.0);
 		Arrays.fill(rotorCoaxialLoadBiasTarget, 0.0);
 		Arrays.fill(rotorCoaxialLoadBiasClipping, 0.0);
@@ -2535,6 +2546,90 @@ public final class DroneState {
 			min = Math.min(min, scale);
 		}
 		return min;
+	}
+
+	public double rotorIcingSeverity(int index) {
+		return rotorIcingSeverity[index];
+	}
+
+	public double[] rotorIcingSeverity() {
+		return Arrays.copyOf(rotorIcingSeverity, rotorIcingSeverity.length);
+	}
+
+	void setRotorIcingSeverity(int index, double value) {
+		rotorIcingSeverity[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.25) : 0.0;
+	}
+
+	public double averageRotorIcingSeverity() {
+		double sum = 0.0;
+		for (double severity : rotorIcingSeverity) {
+			sum += severity;
+		}
+		return sum / rotorIcingSeverity.length;
+	}
+
+	public double maxRotorIcingSeverity() {
+		double max = 0.0;
+		for (double severity : rotorIcingSeverity) {
+			max = Math.max(max, severity);
+		}
+		return max;
+	}
+
+	public double rotorIcingThrustScale(int index) {
+		return rotorIcingThrustScale[index];
+	}
+
+	public double[] rotorIcingThrustScale() {
+		return Arrays.copyOf(rotorIcingThrustScale, rotorIcingThrustScale.length);
+	}
+
+	void setRotorIcingThrustScale(int index, double value) {
+		rotorIcingThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.70, 1.0) : 1.0;
+	}
+
+	public double averageRotorIcingThrustScale() {
+		double sum = 0.0;
+		for (double scale : rotorIcingThrustScale) {
+			sum += scale;
+		}
+		return sum / rotorIcingThrustScale.length;
+	}
+
+	public double minRotorIcingThrustScale() {
+		double min = 1.0;
+		for (double scale : rotorIcingThrustScale) {
+			min = Math.min(min, scale);
+		}
+		return min;
+	}
+
+	public double rotorIcingPowerScale(int index) {
+		return rotorIcingPowerScale[index];
+	}
+
+	public double[] rotorIcingPowerScale() {
+		return Arrays.copyOf(rotorIcingPowerScale, rotorIcingPowerScale.length);
+	}
+
+	void setRotorIcingPowerScale(int index, double value) {
+		rotorIcingPowerScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 1.0, 1.90) : 1.0;
+	}
+
+	public double averageRotorIcingPowerScale() {
+		double sum = 0.0;
+		for (double scale : rotorIcingPowerScale) {
+			sum += scale;
+		}
+		return sum / rotorIcingPowerScale.length;
+	}
+
+	public double maxRotorIcingPowerScale() {
+		double max = 1.0;
+		for (double scale : rotorIcingPowerScale) {
+			max = Math.max(max, scale);
+		}
+		return max;
 	}
 
 	public double rotorCoaxialLoadBias(int index) {

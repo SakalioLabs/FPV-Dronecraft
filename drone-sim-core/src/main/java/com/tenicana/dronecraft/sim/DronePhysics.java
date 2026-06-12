@@ -181,6 +181,7 @@ public final class DronePhysics {
 			double[] rotorInducedWakeVelocityMetersPerSecond,
 			double[] rotorInducedWakeCarryoverIntensity,
 			double[] rotorSurfaceWetness,
+			double[] rotorIcingSeverity,
 			double propwashWakeIntensity,
 			double propwashIntensity,
 			double vortexRingStateIntensity,
@@ -198,6 +199,7 @@ public final class DronePhysics {
 			rotorInducedWakeVelocityMetersPerSecond = copyOrNull(rotorInducedWakeVelocityMetersPerSecond);
 			rotorInducedWakeCarryoverIntensity = copyOrNull(rotorInducedWakeCarryoverIntensity);
 			rotorSurfaceWetness = copyOrNull(rotorSurfaceWetness);
+			rotorIcingSeverity = copyOrNull(rotorIcingSeverity);
 		}
 
 		@Override
@@ -248,6 +250,11 @@ public final class DronePhysics {
 		@Override
 		public double[] rotorSurfaceWetness() {
 			return copyOrNull(rotorSurfaceWetness);
+		}
+
+		@Override
+		public double[] rotorIcingSeverity() {
+			return copyOrNull(rotorIcingSeverity);
 		}
 
 		private static double[] copyOrNull(double[] values) {
@@ -630,6 +637,7 @@ public final class DronePhysics {
 				Arrays.copyOf(rotorInducedWakeVelocityMetersPerSecond, rotorInducedWakeVelocityMetersPerSecond.length),
 				Arrays.copyOf(rotorInducedWakeCarryoverIntensity, rotorInducedWakeCarryoverIntensity.length),
 				Arrays.copyOf(rotorSurfaceWetness, rotorSurfaceWetness.length),
+				state.rotorIcingSeverity(),
 				state.propwashWakeIntensity(),
 				state.propwashIntensity(),
 				state.vortexRingStateIntensity(),
@@ -653,6 +661,7 @@ public final class DronePhysics {
 		double[] wakeVelocity = dynamicState.rotorInducedWakeVelocityMetersPerSecond();
 		double[] wakeCarryover = dynamicState.rotorInducedWakeCarryoverIntensity();
 		double[] surfaceWetness = dynamicState.rotorSurfaceWetness();
+		double[] icingSeverity = dynamicState.rotorIcingSeverity();
 		int count = Math.min(state.motorCount(), config.rotors().size());
 		for (int i = 0; i < count; i++) {
 			RotorSpec rotor = config.rotors().get(i);
@@ -703,6 +712,12 @@ public final class DronePhysics {
 			if (hasFiniteValue(surfaceWetness, i)) {
 				rotorSurfaceWetness[i] = MathUtil.clamp(surfaceWetness[i], 0.0, 1.0);
 				state.setRotorWetThrustScale(i, precipitationThrustScale(rotorSurfaceWetness[i]));
+			}
+			if (hasFiniteValue(icingSeverity, i)) {
+				double severity = MathUtil.clamp(icingSeverity[i], 0.0, 1.25);
+				state.setRotorIcingSeverity(i, severity);
+				state.setRotorIcingThrustScale(i, IcingRotorCalibration.icingThrustScale(severity));
+				state.setRotorIcingPowerScale(i, IcingRotorCalibration.icingPowerScale(severity));
 			}
 		}
 		if (Double.isFinite(dynamicState.propwashWakeIntensity())) {
@@ -975,6 +990,8 @@ public final class DronePhysics {
 			double rotorWetnessForPreviousLoad = Math.max(rotorPrecipitationWetness, rotorSurfaceWetness[i]);
 			double rotorWaterLoad = rotorWaterLoadFactor(rotorWaterImmersion);
 			double rotorPrecipitationLoad = rotorPrecipitationLoadFactor(rotorWetnessForPreviousLoad);
+			double previousIcingSeverity = state.rotorIcingSeverity(i);
+			double rotorIcingLoad = IcingRotorCalibration.icingAerodynamicLoadFactor(previousIcingSeverity);
 			double escCommandOutput;
 			double escElectricalOutput;
 			if (input.armed()) {
@@ -995,11 +1012,13 @@ public final class DronePhysics {
 			double previousTargetLoadFactor = previousPropellerPowerLoadFactor
 					+ 0.70 * surfaceScrape
 					+ rotorWaterLoad
-					+ rotorPrecipitationLoad;
+					+ rotorPrecipitationLoad
+					+ rotorIcingLoad;
 			double previousResponseLoadFactor = previousPropellerPowerLoadFactor
 					+ 0.85 * surfaceScrape
 					+ rotorWaterLoad
-					+ rotorPrecipitationLoad;
+					+ rotorPrecipitationLoad
+					+ rotorIcingLoad;
 			double powerLimitScale = Math.sqrt(state.batteryPowerLimit() * state.motorThermalLimit() * state.escThermalLimit() * state.rotorHealth(i));
 			double targetOmega = input.armed()
 					? rotor.maxOmegaRadiansPerSecond()
@@ -1009,6 +1028,7 @@ public final class DronePhysics {
 							* motorWindingTorqueTargetScale(i, escElectricalOutput)
 							* motorBearingDragTargetScale(i, escElectricalOutput)
 							* motorLoadTargetScale(previousTargetLoadFactor, escElectricalOutput)
+							* rotorIcingTargetScale(previousIcingSeverity)
 							* rotorSurfaceScrapeTargetScale(surfaceScrape)
 					: 0.0;
 			state.setMotorTargetOmegaRadiansPerSecond(i, targetOmega);
@@ -1054,7 +1074,7 @@ public final class DronePhysics {
 					rotorWetnessForPreviousLoad,
 					surfaceScrape,
 					state.rotorHealth(i)
-			);
+			) * IcingRotorCalibration.icingMechanicalLossTorqueScale(previousIcingSeverity);
 			commandedOmega = applyMotorMechanicalLoss(rotor, commandedOmega, mechanicalLossTorque, dtSeconds);
 			state.setMotorMechanicalLossTorqueNewtonMeters(i, mechanicalLossTorque);
 
@@ -1197,10 +1217,23 @@ public final class DronePhysics {
 			double wetThrustScale = waterImmersionThrustScale(rotorWaterImmersion)
 					* precipitationThrustScale(rotorFilmWetness);
 			state.setRotorWetThrustScale(i, wetThrustScale);
+			double icingSeverity = updateRotorIcingSeverity(
+					i,
+					aerodynamicRotor,
+					aerodynamicOmega,
+					Math.max(rotorPrecipitationWetness, rotorFilmWetness),
+					environment.ambientTemperatureCelsius(),
+					dtSeconds
+			);
+			double icingThrustScale = IcingRotorCalibration.icingThrustScale(icingSeverity);
+			double icingPowerScale = IcingRotorCalibration.icingPowerScale(icingSeverity);
+			state.setRotorIcingThrustScale(i, icingThrustScale);
+			state.setRotorIcingPowerScale(i, icingPowerScale);
 			double thrustScale = airDensity
 					* surfaceEffectThrustMultiplier
 					* wakeThrustScale
 					* wetThrustScale
+					* icingThrustScale
 					* rotorHealthThrustScale(state.rotorHealth(i));
 			double baseThrust = rotor.thrustCoefficient() * aerodynamicOmega * aerodynamicOmega * thrustScale;
 			double inflowLagScale = updateRotorInducedInflow(i, rotor, rotorRelativeAirVelocityBody, aerodynamicOmega, baseThrust, airDensity, dtSeconds);
@@ -1253,6 +1286,7 @@ public final class DronePhysics {
 					+ rotorWakeSwirlVibration(rotor, aerodynamicOmega, wakeSwirlSpeed)
 					+ rotorWaterIngestionVibration(rotor, aerodynamicOmega, rotorWaterImmersion)
 					+ rotorPrecipitationVibration(rotor, aerodynamicOmega, Math.max(rotorPrecipitationWetness, rotorFilmWetness))
+					+ rotorIcingVibration(rotor, aerodynamicOmega, icingSeverity)
 					+ rotorCompressibilityVibration(rotor, aerodynamicOmega, rotorTipMach)
 					+ rotorImbalanceVibration(rotor, omega, state.rotorHealth(i))
 					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escElectricalOutput)
@@ -1301,7 +1335,8 @@ public final class DronePhysics {
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
-					+ rotorPrecipitationLoadFactor(Math.max(rotorPrecipitationWetness, rotorFilmWetness)), 0.0, 2.0);
+					+ rotorPrecipitationLoadFactor(Math.max(rotorPrecipitationWetness, rotorFilmWetness))
+					+ IcingRotorCalibration.icingAerodynamicLoadFactor(icingSeverity), 0.0, 2.0);
 			double coningIntensity = updateRotorConingIntensity(i, aerodynamicRotor, baseThrust, aerodynamicOmega, dtSeconds);
 			aerodynamicLoadFactor = MathUtil.clamp(aerodynamicLoadFactor + rotorConingLoadFactor(coningIntensity), 0.0, 2.0);
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);
@@ -1414,7 +1449,7 @@ public final class DronePhysics {
 							inPlaneDragBody,
 							aerodynamicOmega
 					);
-			double motorAerodynamicTorque = rawMotorAerodynamicTorque * coaxialAllocationMechanicalPowerScale(i);
+			double motorAerodynamicTorque = rawMotorAerodynamicTorque * coaxialAllocationMechanicalPowerScale(i) * icingPowerScale;
 			state.setMotorAerodynamicTorqueNewtonMeters(i, motorAerodynamicTorque);
 			state.setMotorShaftPowerWatts(
 					i,
@@ -4252,6 +4287,11 @@ public final class DronePhysics {
 		return MathUtil.clamp(1.0 - 0.26 * scrape, 0.60, 1.0);
 	}
 
+	private static double rotorIcingTargetScale(double icingSeverity) {
+		double powerScale = IcingRotorCalibration.icingPowerScale(icingSeverity);
+		return MathUtil.clamp(1.0 / Math.sqrt(powerScale), 0.72, 1.0);
+	}
+
 	private static double surfaceScrapeDecay(double surfaceScrapeIntensity, double dtSeconds) {
 		if (surfaceScrapeIntensity <= 1.0e-6 || dtSeconds <= 0.0) {
 			return 0.0;
@@ -4278,6 +4318,39 @@ public final class DronePhysics {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		double unsteadyFlow = Math.pow(obstruction, 1.35);
 		return MathUtil.clamp(0.30 * unsteadyFlow * spinRatio, 0.0, 1.0);
+	}
+
+	private double updateRotorIcingSeverity(
+			int index,
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			double dtSeconds
+	) {
+		double previous = MathUtil.clamp(state.rotorIcingSeverity(index), 0.0, 1.25);
+		if (dtSeconds <= 0.0) {
+			return previous;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.25);
+		double accretionRate = IcingRotorCalibration.icingSeverityRatePerSecond(
+				ambientTemperatureCelsius,
+				precipitationWetnessIntensity,
+				spinRatio
+		);
+		double recoveryRate = IcingRotorCalibration.icingRecoveryRatePerSecond(
+				ambientTemperatureCelsius,
+				precipitationWetnessIntensity,
+				spinRatio
+		);
+		double severity = previous + accretionRate * dtSeconds - recoveryRate * dtSeconds;
+		if (accretionRate <= 1.0e-9 && severity <= 5.0e-5) {
+			severity = 0.0;
+		}
+		severity = MathUtil.clamp(severity, 0.0, 1.25);
+		state.setRotorIcingSeverity(index, severity);
+		return severity;
 	}
 
 	private double updateRotorSurfaceWetness(
@@ -4366,6 +4439,16 @@ public final class DronePhysics {
 
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
 		return MathUtil.clamp(0.10 * Math.pow(wetness, 1.05) * spinRatio, 0.0, 1.0);
+	}
+
+	static double rotorIcingVibration(RotorSpec rotor, double omegaRadiansPerSecond, double icingSeverity) {
+		double severity = MathUtil.clamp(icingSeverity, 0.0, 1.25);
+		if (severity <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		return MathUtil.clamp(0.22 * Math.pow(severity, 0.82) * spinRatio, 0.0, 1.0);
 	}
 
 	private RotorWakeInterference updateRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody, double dtSeconds) {

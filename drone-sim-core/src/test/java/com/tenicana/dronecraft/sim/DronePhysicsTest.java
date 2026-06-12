@@ -6907,6 +6907,63 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorIcingAccumulatesInFreezingWetSpinAndMeltsInWarmDryAir() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics freezingWet = new DronePhysics(config);
+		DronePhysics warmWet = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneEnvironment freezingRain = rainEnvironmentWithDensity(1.0, 1.0, -8.0);
+		DroneEnvironment warmRain = rainEnvironmentWithDensity(1.0, 1.0, 6.0);
+
+		for (int i = 0; i < 2500; i++) {
+			freezingWet.step(highLoad, 0.010, freezingRain);
+			warmWet.step(highLoad, 0.010, warmRain);
+		}
+
+		double frozenSeverity = freezingWet.state().maxRotorIcingSeverity();
+		assertTrue(frozenSeverity > 0.10,
+				() -> "frozenSeverity=" + frozenSeverity);
+		assertTrue(warmWet.state().maxRotorIcingSeverity() < 1.0e-8,
+				() -> "warmSeverity=" + warmWet.state().maxRotorIcingSeverity());
+		assertTrue(freezingWet.state().minRotorIcingThrustScale() < 0.985,
+				() -> "icingThrustScale=" + freezingWet.state().minRotorIcingThrustScale());
+		assertTrue(freezingWet.state().maxRotorIcingPowerScale() > 1.05,
+				() -> "icingPowerScale=" + freezingWet.state().maxRotorIcingPowerScale());
+		assertEquals(1.0, warmWet.state().maxRotorIcingPowerScale(), 1.0e-12);
+		double icingVibration = DronePhysics.rotorIcingVibration(
+				config.rotors().get(0),
+				freezingWet.state().motorOmegaRadiansPerSecond(0),
+				freezingWet.state().rotorIcingSeverity(0)
+		);
+		assertTrue(icingVibration > 0.015,
+				() -> "icingVibration=" + icingVibration);
+		assertEquals(0.0, DronePhysics.rotorIcingVibration(
+				config.rotors().get(0),
+				warmWet.state().motorOmegaRadiansPerSecond(0),
+				warmWet.state().rotorIcingSeverity(0)
+		), 1.0e-12);
+
+		DroneEnvironment warmDry = rainEnvironmentWithDensity(1.0, 0.0, 6.0);
+		for (int i = 0; i < 900; i++) {
+			freezingWet.step(highLoad, 0.010, warmDry);
+		}
+
+		assertTrue(freezingWet.state().maxRotorIcingSeverity() < frozenSeverity * 0.30,
+				() -> "recoveredSeverity=" + freezingWet.state().maxRotorIcingSeverity()
+						+ " frozenSeverity=" + frozenSeverity);
+		assertTrue(freezingWet.state().minRotorIcingThrustScale() > 0.990,
+				() -> "recoveredIcingThrustScale=" + freezingWet.state().minRotorIcingThrustScale());
+	}
+
+	@Test
 	void wetPropFilmDriesSlowerWhenRotorsStop() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
@@ -7242,6 +7299,7 @@ class DronePhysicsTest {
 		double[] wakeVelocity = new double[config.rotors().size()];
 		double[] wakeCarryover = new double[config.rotors().size()];
 		double[] surfaceWetness = new double[config.rotors().size()];
+		double[] icingSeverity = new double[config.rotors().size()];
 		for (int i = 0; i < config.rotors().size(); i++) {
 			double maxOmega = config.rotors().get(i).maxOmegaRadiansPerSecond();
 			motorOmega[i] = maxOmega * (0.68 - 0.02 * i);
@@ -7254,6 +7312,7 @@ class DronePhysicsTest {
 			wakeVelocity[i] = 6.9 - 0.25 * i;
 			wakeCarryover[i] = 0.42 - 0.04 * i;
 			surfaceWetness[i] = 0.58 - 0.04 * i;
+			icingSeverity[i] = Math.max(0.0, 0.62 - 0.12 * i);
 		}
 		restored.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
 				motorOmega,
@@ -7266,6 +7325,7 @@ class DronePhysicsTest {
 				wakeVelocity,
 				wakeCarryover,
 				surfaceWetness,
+				icingSeverity,
 				0.73,
 				0.54,
 				0.61,
@@ -7284,8 +7344,14 @@ class DronePhysicsTest {
 		assertEquals(wakeVelocity[0], snapshot.rotorInducedWakeVelocityMetersPerSecond()[0], 1.0e-9);
 		assertEquals(wakeCarryover[0], snapshot.rotorInducedWakeCarryoverIntensity()[0], 1.0e-9);
 		assertEquals(surfaceWetness[0], snapshot.rotorSurfaceWetness()[0], 1.0e-9);
+		assertEquals(icingSeverity[0], snapshot.rotorIcingSeverity()[0], 1.0e-9);
 		assertTrue(restored.state().rotorWetThrustScale(0) < 0.985,
 				() -> "restoredWetScale=" + restored.state().rotorWetThrustScale(0));
+		assertEquals(icingSeverity[0], restored.state().rotorIcingSeverity(0), 1.0e-9);
+		assertTrue(restored.state().rotorIcingThrustScale(0) < 0.89,
+				() -> "restoredIcingThrustScale=" + restored.state().rotorIcingThrustScale(0));
+		assertTrue(restored.state().rotorIcingPowerScale(0) > 1.30,
+				() -> "restoredIcingPowerScale=" + restored.state().rotorIcingPowerScale(0));
 		assertEquals(0.73, restored.state().propwashWakeIntensity(), 1.0e-9);
 		assertEquals(0.61, restored.state().vortexRingStateIntensity(), 1.0e-9);
 
@@ -11082,6 +11148,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("ICAS-2020-heavy-rain-CT"));
 		assertTrue(text.contains("wet-prop-not-immersion"));
 		assertTrue(text.contains("water0.5@5m/s"));
+		assertTrue(text.contains("Icing rotor audit"));
+		assertTrue(text.contains("Icing-Rotor-MDPI-Packet"));
+		assertTrue(text.contains("icing-time-accumulating-not-ordinary-rain"));
+		assertTrue(text.contains("MVD120_T-15_h4m"));
 		assertTrue(text.contains("Wind/gust audit"));
 		assertTrue(text.contains("Wind-Gust-Dryden-Calibration-Packet"));
 		assertTrue(text.contains("wind_10m_s_dirty_1p5_alt_6m"));

@@ -11,6 +11,7 @@ import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.FpvLipoEsrCalibration;
 import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
+import com.tenicana.dronecraft.sim.IcingRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.MotorResponseCalibration;
@@ -1266,6 +1267,8 @@ public final class OfflineFlightRecorder {
 				PropGeometryCalibration.audit(preset);
 		PrecipitationWaterCalibration.PrecipitationWaterAudit precipitationWaterAudit =
 				PrecipitationWaterCalibration.audit(preset);
+		IcingRotorCalibration.IcingRotorAudit icingRotorAudit =
+				IcingRotorCalibration.audit();
 		WindGustCalibration.WindGustAudit windGustAudit =
 				WindGustCalibration.audit();
 		VrsPropwashCalibration.VrsPropwashAudit vrsPropwashAudit =
@@ -1718,6 +1721,45 @@ public final class OfflineFlightRecorder {
 				precipitationWaterAudit.halfImmersionAt5MetersPerSecond().waterImmersionThrustLossPercent(),
 				precipitationWaterAudit.halfImmersionAt5MetersPerSecond().waterDragOverWeight(),
 				precipitationWaterAudit.hotFullWetMoistAir().moistAirDensityMultiplier()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Icing rotor audit: %s rows %d source %s %.2fm %.0f blades tip %.0fm/s, table4 %.0frpm %.1fdeg lambda %.0fg/dm2/h rain %.1fmmh, CT rate %.3f/%.3f/%.3f%%/s time %.0f/%.1f/%.0fs loss %.1f/%.1f/%.1f%% power %.1f/%.1f/%.1f%%, rain_loss %.1f%% ratio %.2f/%.2fx runtime sev1 %.1fs thrust %.3f power %.3f max %.1f%%/%.3f, extremes %s %.1f%% %s %.1f%% caveat %s%n",
+				icingRotorAudit.sourceId(),
+				icingRotorAudit.rowTypeCounts().totalRowCount(),
+				icingRotorAudit.sourceInventory().doi(),
+				icingRotorAudit.sourceInventory().rotorDiameterMeters(),
+				icingRotorAudit.sourceInventory().rotorBladeCount(),
+				icingRotorAudit.sourceInventory().rotorMaxTipSpeedMetersPerSecond(),
+				icingRotorAudit.sourceInventory().table4Rpm(),
+				icingRotorAudit.sourceInventory().table4PitchDegrees(),
+				icingRotorAudit.sourceInventory().table4LambdaGdm2h(),
+				icingRotorAudit.sourceInventory().table4EquivalentRainMillimetersPerHour(),
+				icingRotorAudit.distribution().absCtStarRateMinPercentPerSecond(),
+				icingRotorAudit.distribution().absCtStarRateMedianPercentPerSecond(),
+				icingRotorAudit.distribution().absCtStarRateMaxPercentPerSecond(),
+				icingRotorAudit.distribution().icingTimeMinSeconds(),
+				icingRotorAudit.distribution().icingTimeMedianSeconds(),
+				icingRotorAudit.distribution().icingTimeMaxSeconds(),
+				icingRotorAudit.distribution().projectedCtLossMinPercent(),
+				icingRotorAudit.distribution().projectedCtLossMedianPercent(),
+				icingRotorAudit.distribution().projectedCtLossMaxPercent(),
+				icingRotorAudit.distribution().projectedPowerRequiredMinPercent(),
+				icingRotorAudit.distribution().projectedPowerRequiredMedianPercent(),
+				icingRotorAudit.distribution().projectedPowerRequiredMaxPercent(),
+				icingRotorAudit.currentModelComparison().currentFullWetnessRainLossPercent(),
+				icingRotorAudit.currentModelComparison().icingProjectedCtLossMedianOverCurrentRainLoss(),
+				icingRotorAudit.currentModelComparison().icingProjectedCtLossMaxOverCurrentRainLoss(),
+				icingRotorAudit.runtimeModel().severityOneIcingTimeSeconds(),
+				icingRotorAudit.runtimeModel().severityOneThrustScale(),
+				icingRotorAudit.runtimeModel().severityOnePowerScale(),
+				icingRotorAudit.runtimeModel().maxModeledCtLossPercent(),
+				icingRotorAudit.runtimeModel().maxModeledPowerScale(),
+				icingRotorAudit.extremeCase().strongestProjectedCtLossCase(),
+				icingRotorAudit.extremeCase().strongestProjectedCtLossPercent(),
+				icingRotorAudit.extremeCase().strongestProjectedPowerRequiredCase(),
+				icingRotorAudit.extremeCase().strongestProjectedPowerRequiredPercent(),
+				icingRotorAudit.caveat()
 		);
 		System.out.printf(
 				Locale.ROOT,
