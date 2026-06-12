@@ -81,6 +81,8 @@ public final class DroneState {
 	private double[] motorRpmTelemetryOmegaRadiansPerSecond;
 	private double[] motorRpmTelemetryValidity;
 	private double[] escOutputCommand;
+	private double[] escElectricalOutputCommand;
+	private double[] escElectricalOutputError;
 	private double escCommandFrameAgeSeconds;
 	private double escCommandFrameIntervalSeconds;
 	private double escCommandError;
@@ -239,6 +241,8 @@ public final class DroneState {
 		motorRpmTelemetryOmegaRadiansPerSecond = new double[motorCount];
 		motorRpmTelemetryValidity = new double[motorCount];
 		escOutputCommand = new double[motorCount];
+		escElectricalOutputCommand = new double[motorCount];
+		escElectricalOutputError = new double[motorCount];
 		escDesyncIntensity = new double[motorCount];
 		escTemperatureCelsius = new double[motorCount];
 		escCoolingFactor = new double[motorCount];
@@ -1160,6 +1164,30 @@ public final class DroneState {
 		escOutputCommand[index] = MathUtil.clamp(value, 0.0, 1.0);
 	}
 
+	public double escElectricalOutputCommand(int index) {
+		return escElectricalOutputCommand[index];
+	}
+
+	public double[] escElectricalOutputCommand() {
+		return Arrays.copyOf(escElectricalOutputCommand, escElectricalOutputCommand.length);
+	}
+
+	void setEscElectricalOutputCommand(int index, double value) {
+		escElectricalOutputCommand[index] = MathUtil.clamp(value, 0.0, 1.0);
+	}
+
+	public double escElectricalOutputError(int index) {
+		return escElectricalOutputError[index];
+	}
+
+	public double[] escElectricalOutputError() {
+		return Arrays.copyOf(escElectricalOutputError, escElectricalOutputError.length);
+	}
+
+	void setEscElectricalOutputError(int index, double value) {
+		escElectricalOutputError[index] = nonNegativeFinite(value);
+	}
+
 	public double escDesyncIntensity(int index) {
 		return escDesyncIntensity[index];
 	}
@@ -1186,6 +1214,30 @@ public final class DroneState {
 			sum += output;
 		}
 		return sum / escOutputCommand.length;
+	}
+
+	public double averageEscElectricalOutputCommand() {
+		double sum = 0.0;
+		for (double output : escElectricalOutputCommand) {
+			sum += output;
+		}
+		return sum / escElectricalOutputCommand.length;
+	}
+
+	public double averageEscElectricalOutputError() {
+		double sum = 0.0;
+		for (double error : escElectricalOutputError) {
+			sum += error;
+		}
+		return sum / escElectricalOutputError.length;
+	}
+
+	public double maxEscElectricalOutputError() {
+		double max = 0.0;
+		for (double error : escElectricalOutputError) {
+			max = Math.max(max, error);
+		}
+		return max;
 	}
 
 	public double escCommandFrameAgeSeconds() {
@@ -1477,6 +1529,8 @@ public final class DroneState {
 		Arrays.fill(motorRpmTelemetryOmegaRadiansPerSecond, 0.0);
 		Arrays.fill(motorRpmTelemetryValidity, 0.0);
 		Arrays.fill(escOutputCommand, 0.0);
+		Arrays.fill(escElectricalOutputCommand, 0.0);
+		Arrays.fill(escElectricalOutputError, 0.0);
 		escCommandFrameAgeSeconds = 0.0;
 		escCommandFrameIntervalSeconds = 0.0;
 		escCommandError = 0.0;

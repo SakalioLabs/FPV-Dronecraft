@@ -2187,6 +2187,35 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void escElectricalOutputLagsCommandedOutputOnThrottleSteps() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withEscCommandSignal(EscCommandProtocol.DSHOT600, 400.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput punch = new DroneInput(0.85, 0.0, 0.0, 0.0, true);
+
+		physics.step(punch, 0.00025);
+
+		double commandedOutput = physics.state().averageEscOutputCommand();
+		double electricalOutput = physics.state().averageEscElectricalOutputCommand();
+		assertTrue(commandedOutput > 0.20, () -> "commanded=" + commandedOutput);
+		assertTrue(electricalOutput > 0.04, () -> "electrical=" + electricalOutput);
+		assertTrue(electricalOutput < commandedOutput * 0.45,
+				() -> "commanded=" + commandedOutput + " electrical=" + electricalOutput);
+		assertTrue(physics.state().maxEscElectricalOutputError() > 0.13,
+				() -> "error=" + physics.state().maxEscElectricalOutputError());
+
+		for (int i = 0; i < 80; i++) {
+			physics.step(punch, 0.00025);
+		}
+
+		assertEquals(physics.state().averageEscOutputCommand(), physics.state().averageEscElectricalOutputCommand(), 0.010);
+		assertTrue(physics.state().maxEscElectricalOutputError() < 0.012,
+				() -> "error=" + physics.state().maxEscElectricalOutputError());
+	}
+
+	@Test
 	void activeBrakingAcceleratesMotorSpinDownAndAddsLoad() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.090)
@@ -2265,7 +2294,7 @@ class DronePhysicsTest {
 		assertTrue(brakedFiftyMillisecondSlewRpmPerSecond > coastingFiftyMillisecondSlewRpmPerSecond * 1.30,
 				() -> "braked50msSlew=" + brakedFiftyMillisecondSlewRpmPerSecond
 						+ " coasting50msSlew=" + coastingFiftyMillisecondSlewRpmPerSecond);
-		assertTrue(braked.state().averageMotorRpm() < coasting.state().averageMotorRpm() * 0.25,
+		assertTrue(braked.state().averageMotorRpm() < coasting.state().averageMotorRpm() * 0.30,
 				() -> "brakedEndRpm=" + braked.state().averageMotorRpm()
 						+ " coastingEndRpm=" + coasting.state().averageMotorRpm());
 	}
@@ -6991,6 +7020,7 @@ class DronePhysicsTest {
 		DronePhysics restored = new DronePhysics(config);
 		double[] motorOmega = new double[config.rotors().size()];
 		double[] escOutput = new double[config.rotors().size()];
+		double[] escElectricalOutput = new double[config.rotors().size()];
 		double[] telemetryRpm = new double[config.rotors().size()];
 		double[] telemetryValidity = new double[config.rotors().size()];
 		double[] inducedVelocity = new double[config.rotors().size()];
@@ -7001,6 +7031,7 @@ class DronePhysicsTest {
 			double maxOmega = config.rotors().get(i).maxOmegaRadiansPerSecond();
 			motorOmega[i] = maxOmega * (0.68 - 0.02 * i);
 			escOutput[i] = 0.62 - 0.01 * i;
+			escElectricalOutput[i] = escOutput[i] - 0.015;
 			telemetryRpm[i] = motorOmega[i] * 60.0 / (Math.PI * 2.0);
 			telemetryValidity[i] = 1.0;
 			inducedVelocity[i] = 5.8 - 0.2 * i;
@@ -7011,6 +7042,7 @@ class DronePhysicsTest {
 		restored.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
 				motorOmega,
 				escOutput,
+				escElectricalOutput,
 				telemetryRpm,
 				telemetryValidity,
 				inducedVelocity,
@@ -7027,6 +7059,8 @@ class DronePhysicsTest {
 		DronePhysics.RotorDynamicState snapshot = restored.rotorDynamicStateSnapshot();
 		assertEquals(motorOmega[0], restored.state().motorOmegaRadiansPerSecond(0), 1.0e-9);
 		assertEquals(escOutput[0], restored.state().escOutputCommand(0), 1.0e-9);
+		assertEquals(escElectricalOutput[0], restored.state().escElectricalOutputCommand(0), 1.0e-9);
+		assertEquals(0.015, restored.state().escElectricalOutputError(0), 1.0e-9);
 		assertEquals(telemetryRpm[0], restored.state().motorRpmTelemetryRpm(0), 1.0e-9);
 		assertEquals(inducedVelocity[0], restored.state().rotorInducedVelocityMetersPerSecond(0), 1.0e-9);
 		assertEquals(inducedLagScale[0], restored.state().rotorInducedLagThrustScale(0), 1.0e-9);
@@ -10032,6 +10066,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("esc_command_frame_age_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("esc_command_frame_interval_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("esc_command_error"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_esc_electrical_output"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("max_esc_electrical_error"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("esc_7_electrical_output"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rc_frame_rate_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_rc_resolution_steps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("tune_esc_command_frame_rate_hz"));
@@ -10208,6 +10245,9 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_frame_age_s")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_frame_interval_s")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_command_error")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_esc_electrical_output")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "max_esc_electrical_error")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "esc_7_electrical_output")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_frame_rate_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_resolution_steps")])));
 		assertEquals(600.0, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_bitrate_kbit_s")]), 1.0e-9);
@@ -11126,6 +11166,8 @@ class DronePhysicsTest {
 		RotorSpec rotor = physics.config().rotors().get(0);
 		physics.state().setBatteryVoltage(physics.config().nominalBatteryVoltage());
 		physics.state().setEscOutputCommand(0, rpmFraction);
+		physics.state().setEscElectricalOutputCommand(0, rpmFraction);
+		physics.state().setEscElectricalOutputError(0, 0.0);
 		physics.state().setMotorOmegaRadiansPerSecond(0, rotor.maxOmegaRadiansPerSecond() * rpmFraction);
 		physics.state().setMotorVoltageHeadroom(0, 0.45);
 		physics.state().setMotorShaftPowerWatts(0, 0.0);

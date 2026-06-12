@@ -436,6 +436,25 @@ public final class OfflineFlightRecorder {
 			"rotor_3_surface_scrape",
 			"tune_motor_pole_pairs",
 			"airframe_rotor_count",
+			"avg_esc_electrical_output",
+			"max_esc_electrical_error",
+			"avg_esc_electrical_error",
+			"esc_0_electrical_output",
+			"esc_1_electrical_output",
+			"esc_2_electrical_output",
+			"esc_3_electrical_output",
+			"esc_4_electrical_output",
+			"esc_5_electrical_output",
+			"esc_6_electrical_output",
+			"esc_7_electrical_output",
+			"esc_0_electrical_error",
+			"esc_1_electrical_error",
+			"esc_2_electrical_error",
+			"esc_3_electrical_error",
+			"esc_4_electrical_error",
+			"esc_5_electrical_error",
+			"esc_6_electrical_error",
+			"esc_7_electrical_error",
 			"avg_motor_erpm100",
 			"motor_0_erpm100",
 			"motor_1_erpm100",
@@ -2807,6 +2826,8 @@ public final class OfflineFlightRecorder {
 
 	private static String extraRotorColumns(DroneState state, DroneConfig config, DroneEnvironment environment) {
 		StringBuilder builder = new StringBuilder();
+		double[] escElectricalOutput = state.escElectricalOutputCommand();
+		double[] escElectricalError = state.escElectricalOutputError();
 		double[] motorPowers = state.motorPower(config);
 		double[] motorRpm = state.motorRpm();
 		double[] motorTelemetryRpm = state.motorRpmTelemetryRpm();
@@ -2866,6 +2887,15 @@ public final class OfflineFlightRecorder {
 		double averageMotorPolePairs = averageMotorPolePairs(config);
 		appendExtra(builder, averageMotorPolePairs, "%.3f");
 		appendExtra(builder, config.rotors().size());
+		appendExtra(builder, state.averageEscElectricalOutputCommand(), "%.5f");
+		appendExtra(builder, state.maxEscElectricalOutputError(), "%.6f");
+		appendExtra(builder, state.averageEscElectricalOutputError(), "%.6f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(escElectricalOutput, i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(escElectricalError, i), "%.6f");
+		}
 		appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(state.averageMotorRpmTelemetryRpm(), averageMotorPolePairs), "%.1f");
 		for (int i = 0; i < 4; i++) {
 			appendExtra(builder, DronePhysics.betaflightErpm100FromMechanicalRpm(valueOrZero(motorTelemetryRpm, i), motorPolePairs(config, i)), "%.1f");

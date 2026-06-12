@@ -85,6 +85,25 @@ public final class DroneBlackboxSample {
 			"control_frame_error",
 			"motor_power",
 			"esc_output",
+			"esc_electrical_output",
+			"esc_electrical_error",
+			"avg_esc_electrical_error",
+			"esc_0_electrical_output",
+			"esc_1_electrical_output",
+			"esc_2_electrical_output",
+			"esc_3_electrical_output",
+			"esc_4_electrical_output",
+			"esc_5_electrical_output",
+			"esc_6_electrical_output",
+			"esc_7_electrical_output",
+			"esc_0_electrical_error",
+			"esc_1_electrical_error",
+			"esc_2_electrical_error",
+			"esc_3_electrical_error",
+			"esc_4_electrical_error",
+			"esc_5_electrical_error",
+			"esc_6_electrical_error",
+			"esc_7_electrical_error",
 			"esc_command_frame_age_s",
 			"esc_command_frame_interval_s",
 			"esc_command_error",
@@ -1134,6 +1153,8 @@ public final class DroneBlackboxSample {
 		Vec3 effectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		Vec3 contactAngularImpulse = state.contactAngularImpulseBodyRadiansPerSecond();
 		double[] motorPowers = state.motorPower(config);
+		double[] escElectricalOutputs = state.escElectricalOutputCommand();
+		double[] escElectricalErrors = state.escElectricalOutputError();
 		double[] motorTargetOmega = state.motorTargetOmegaRadiansPerSecond();
 		double[] motorTrackingError = state.motorTrackingError();
 		double[] motorActuatorAuthority = state.motorActuatorAuthority();
@@ -1232,6 +1253,15 @@ public final class DroneBlackboxSample {
 		row.add(state.controlFrameError(), "%.6f");
 		row.add(motorPower, "%.5f");
 		row.add(state.averageEscOutputCommand(), "%.5f");
+		row.add(state.averageEscElectricalOutputCommand(), "%.5f");
+		row.add(state.maxEscElectricalOutputError(), "%.6f");
+		row.add(state.averageEscElectricalOutputError(), "%.6f");
+		for (int i = 0; i < 8; i++) {
+			row.add(valueOrZero(escElectricalOutputs, i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
+			row.add(valueOrZero(escElectricalErrors, i), "%.6f");
+		}
 		row.add(state.escCommandFrameAgeSeconds(), "%.5f");
 		row.add(state.escCommandFrameIntervalSeconds(), "%.5f");
 		row.add(state.escCommandError(), "%.6f");

@@ -267,6 +267,7 @@ public final class DronePhysics {
 	public record RotorDynamicState(
 			double[] motorOmegaRadiansPerSecond,
 			double[] escOutputCommand,
+			double[] escElectricalOutputCommand,
 			double[] motorRpmTelemetryRpm,
 			double[] motorRpmTelemetryValidity,
 			double[] rotorInducedVelocityMetersPerSecond,
@@ -282,6 +283,7 @@ public final class DronePhysics {
 		public RotorDynamicState {
 			motorOmegaRadiansPerSecond = copyOrNull(motorOmegaRadiansPerSecond);
 			escOutputCommand = copyOrNull(escOutputCommand);
+			escElectricalOutputCommand = copyOrNull(escElectricalOutputCommand);
 			motorRpmTelemetryRpm = copyOrNull(motorRpmTelemetryRpm);
 			motorRpmTelemetryValidity = copyOrNull(motorRpmTelemetryValidity);
 			rotorInducedVelocityMetersPerSecond = copyOrNull(rotorInducedVelocityMetersPerSecond);
@@ -298,6 +300,11 @@ public final class DronePhysics {
 		@Override
 		public double[] escOutputCommand() {
 			return copyOrNull(escOutputCommand);
+		}
+
+		@Override
+		public double[] escElectricalOutputCommand() {
+			return copyOrNull(escElectricalOutputCommand);
 		}
 
 		@Override
@@ -701,6 +708,7 @@ public final class DronePhysics {
 		return new RotorDynamicState(
 				state.motorOmegaRadiansPerSecond(),
 				state.escOutputCommand(),
+				state.escElectricalOutputCommand(),
 				state.motorRpmTelemetryRpm(),
 				state.motorRpmTelemetryValidity(),
 				state.rotorInducedVelocityMetersPerSecond(),
@@ -722,6 +730,7 @@ public final class DronePhysics {
 
 		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
 		double[] escOutput = dynamicState.escOutputCommand();
+		double[] escElectricalOutput = dynamicState.escElectricalOutputCommand();
 		double[] telemetryRpm = dynamicState.motorRpmTelemetryRpm();
 		double[] telemetryValidity = dynamicState.motorRpmTelemetryValidity();
 		double[] inducedVelocity = dynamicState.rotorInducedVelocityMetersPerSecond();
@@ -744,6 +753,13 @@ public final class DronePhysics {
 				escCommandFrameClockSeconds[i] = 0.0;
 				escCommandFrameAgeSeconds[i] = 0.0;
 				escCommandErrors[i] = 0.0;
+			}
+			if (hasFiniteValue(escElectricalOutput, i)) {
+				state.setEscElectricalOutputCommand(i, escElectricalOutput[i]);
+				state.setEscElectricalOutputError(i, Math.abs(state.escOutputCommand(i) - state.escElectricalOutputCommand(i)));
+			} else if (hasFiniteValue(escOutput, i)) {
+				state.setEscElectricalOutputCommand(i, state.escOutputCommand(i));
+				state.setEscElectricalOutputError(i, 0.0);
 			}
 			if (hasFiniteValue(telemetryRpm, i) || hasFiniteValue(telemetryValidity, i)) {
 				double rpm = hasFiniteValue(telemetryRpm, i) ? Math.max(0.0, telemetryRpm[i]) : state.motorRpmTelemetryRpm(i);
@@ -1039,14 +1055,20 @@ public final class DronePhysics {
 			double rotorWaterImmersion = environment.rotorWaterImmersion(i);
 			double rotorWaterLoad = rotorWaterLoadFactor(rotorWaterImmersion);
 			double rotorPrecipitationLoad = rotorPrecipitationLoadFactor(precipitationWetness);
-			double escOutput;
+			double escCommandOutput;
+			double escElectricalOutput;
 			if (input.armed()) {
-				escOutput = updateEscOutputCommand(i, rotor, voltageScale, dtSeconds);
+				escCommandOutput = updateEscOutputCommand(i, rotor, voltageScale, dtSeconds);
+				escElectricalOutput = updateEscElectricalOutput(i, escCommandOutput, dtSeconds);
 			} else {
 				resetEscSignalOutput(i);
-				escOutput = 0.0;
+				resetEscElectricalOutput(i);
+				escCommandOutput = 0.0;
+				escElectricalOutput = 0.0;
 			}
-			state.setEscOutputCommand(i, escOutput);
+			state.setEscOutputCommand(i, escCommandOutput);
+			state.setEscElectricalOutputCommand(i, escElectricalOutput);
+			state.setEscElectricalOutputError(i, Math.abs(escCommandOutput - escElectricalOutput));
 			updateMotorWindingResistanceScale(i);
 			double surfaceScrape = state.rotorSurfaceScrapeIntensity(i);
 			double previousPropellerPowerLoadFactor = motorPropellerDynamicLoadFactor(i, state.rotorAerodynamicLoadFactor(i));
@@ -1061,12 +1083,12 @@ public final class DronePhysics {
 			double powerLimitScale = Math.sqrt(state.batteryPowerLimit() * state.motorThermalLimit() * state.escThermalLimit() * state.rotorHealth(i));
 			double targetOmega = input.armed()
 					? rotor.maxOmegaRadiansPerSecond()
-							* escOutput
+							* escElectricalOutput
 							* voltageScale
 							* powerLimitScale
-							* motorWindingTorqueTargetScale(i, escOutput)
-							* motorBearingDragTargetScale(i, escOutput)
-							* motorLoadTargetScale(previousTargetLoadFactor, escOutput)
+							* motorWindingTorqueTargetScale(i, escElectricalOutput)
+							* motorBearingDragTargetScale(i, escElectricalOutput)
+							* motorLoadTargetScale(previousTargetLoadFactor, escElectricalOutput)
 							* rotorSurfaceScrapeTargetScale(surfaceScrape)
 					: 0.0;
 			state.setMotorTargetOmegaRadiansPerSecond(i, targetOmega);
@@ -1077,7 +1099,7 @@ public final class DronePhysics {
 					rotor,
 					previousOmega,
 					targetOmega,
-					escOutput,
+					escElectricalOutput,
 					voltageScale,
 					powerLimitScale,
 					previousResponseLoadFactor
@@ -1088,7 +1110,7 @@ public final class DronePhysics {
 					rotor,
 					previousOmega,
 					commandedOmega,
-					escOutput,
+					escElectricalOutput,
 					powerLimitScale,
 					previousResponseLoadFactor,
 					surfaceScrape,
@@ -1099,7 +1121,7 @@ public final class DronePhysics {
 					previousOmega,
 					targetOmega,
 					commandedOmega,
-					escOutput,
+					escElectricalOutput,
 					voltageScale,
 					dtSeconds
 			);
@@ -1129,13 +1151,13 @@ public final class DronePhysics {
 					.add(angularVelocityBody.cross(rotorArmBody))
 					.add(rotorWakeInterference.downwashVelocityBodyMetersPerSecond(i))
 					.add(wakeSwirlVelocityBody);
-			double windmillingIntensity = rotorWindmillingIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, escOutput);
+			double windmillingIntensity = rotorWindmillingIntensity(aerodynamicRotor, rotorRelativeAirVelocityBody, escElectricalOutput);
 			state.setRotorWindmillingIntensity(i, windmillingIntensity);
 			commandedOmega = applyRotorWindmilling(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					commandedOmega,
-					escOutput,
+					escElectricalOutput,
 					dtSeconds
 			);
 			double commandedAerodynamicOmega = rotorAerodynamicOmegaRadiansPerSecond(aerodynamicRotor, commandedOmega, angularVelocityBody);
@@ -1153,19 +1175,19 @@ public final class DronePhysics {
 					rotorStall,
 					previousOmega,
 					targetOmega,
-					escOutput,
+					escElectricalOutput,
 					voltageScale,
 					surfaceScrape,
 					dtSeconds
 			);
 			double desyncPulse = escDesyncPulse(i, commandedOmega, desyncIntensity, dtSeconds);
-			double driveVoltage = motorDriveVoltage(escOutput, powerLimitScale);
+			double driveVoltage = motorDriveVoltage(escElectricalOutput, powerLimitScale);
 			double commandedVoltageHeadroom = motorVoltageHeadroomFromDriveVoltage(rotor, commandedOmega, driveVoltage);
 			MotorCommutationRipple commutationRipple = updateMotorCommutationRipple(
 					i,
 					rotor,
 					commandedOmega,
-					escOutput,
+					escElectricalOutput,
 					commandedVoltageHeadroom,
 					previousResponseLoadFactor,
 					desyncIntensity,
@@ -1304,7 +1326,7 @@ public final class DronePhysics {
 					+ rotorPrecipitationVibration(rotor, aerodynamicOmega, precipitationWetness)
 					+ rotorCompressibilityVibration(rotor, aerodynamicOmega, rotorTipMach)
 					+ rotorImbalanceVibration(rotor, omega, state.rotorHealth(i))
-					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput)
+					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escElectricalOutput)
 					+ motorCommutationRippleVibration(rotor, omega, commutationRipple.intensity(), commutationRipple.torqueRippleNewtonMeters());
 			double vortexRingState = updateRotorVortexRingStateIntensity(
 					i,
@@ -1329,7 +1351,7 @@ public final class DronePhysics {
 					+ rotorAngularDragLoadFactor(aerodynamicRotor, angularVelocityBody, aerodynamicOmega)
 					+ 0.28 * wakeInterference
 					+ rotorWakeSwirlLoadFactor(rotor, aerodynamicOmega, wakeSwirlSpeed)
-					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput)
+					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escElectricalOutput)
 					+ rotorAmbientDirtyAirLoadFactor(aerodynamicRotor, aerodynamicOmega, ambientDirtyAir)
 					+ rotorInducedWakeLoadFactor(rotorInducedWakeCarryoverIntensity[i])
 					+ rotorInPlaneDragLoadFactor(
@@ -1429,7 +1451,7 @@ public final class DronePhysics {
 					rotorStall
 			);
 			state.setRotorInPlaneDragForceNewtons(i, inPlaneDragBody.length());
-			Vec3 windmillingDragBody = rotorWindmillingDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escOutput, airDensity);
+			Vec3 windmillingDragBody = rotorWindmillingDragForce(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escElectricalOutput, airDensity);
 			Vec3 wallEffectForceBody = updateRotorWallEffectForce(
 					i,
 					aerodynamicRotor,
@@ -1469,7 +1491,7 @@ public final class DronePhysics {
 			Vec3 reactionTorque = rotorDiskAxisBody.multiply(rotor.spinDirection() * reactionTorqueNewtonMeters);
 			RotorInertiaTorques inertiaTorques = rotorInertiaTorques(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);
 			Vec3 inertiaTorque = inertiaTorques.totalTorque();
-			Vec3 activeBrakingTorque = rotorActiveBrakingTorque(rotor, previousOmega, omega, escOutput, rotorDiskAxisBody, dtSeconds);
+			Vec3 activeBrakingTorque = rotorActiveBrakingTorque(rotor, previousOmega, omega, escElectricalOutput, rotorDiskAxisBody, dtSeconds);
 			rotorActiveBrakingTorqueSum = rotorActiveBrakingTorqueSum.add(activeBrakingTorque);
 			rotorInertiaTorqueSum = rotorInertiaTorqueSum.add(inertiaTorque);
 			rotorAccelerationReactionTorqueSum = rotorAccelerationReactionTorqueSum.add(inertiaTorques.accelerationReactionTorque());
@@ -1791,12 +1813,53 @@ public final class DronePhysics {
 		return heldEscOutputCommands[index];
 	}
 
+	private double updateEscElectricalOutput(int index, double commandOutput, double dtSeconds) {
+		double previousElectricalOutput = state.escElectricalOutputCommand(index);
+		if (dtSeconds <= 0.0) {
+			return previousElectricalOutput;
+		}
+
+		double timeConstantSeconds = escElectricalOutputTimeConstantSeconds(index, commandOutput, previousElectricalOutput);
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstantSeconds);
+		return MathUtil.clamp(previousElectricalOutput + (commandOutput - previousElectricalOutput) * alpha, 0.0, 1.0);
+	}
+
+	private double escElectricalOutputTimeConstantSeconds(int index, double commandOutput, double previousElectricalOutput) {
+		double intervalSeconds = escCommandFrameIntervalSeconds();
+		double schedulingSeconds = intervalSeconds > 1.0e-9 ? intervalSeconds : 0.001;
+		double rawFrameSeconds = config.escCommandProtocol().rawFrameSeconds();
+		double protocolBaseSeconds = config.escCommandProtocol().digital()
+				? 0.00055 + 0.10 * schedulingSeconds + 1.50 * rawFrameSeconds
+				: intervalSeconds > 1.0e-9 ? 0.00140 + 0.18 * schedulingSeconds : 0.00058;
+		double outputDelta = commandOutput - previousElectricalOutput;
+		double activeBraking = MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0);
+		double brakingStretch = outputDelta < 0.0
+				? 1.0 - 0.42 * activeBraking * smoothStep(0.03, 0.45, -outputDelta)
+				: 1.0;
+		double perMotorMaxCurrentAmps = config.maxBatteryCurrentAmps() / Math.max(1, state.motorCount());
+		double currentRippleStress = perMotorMaxCurrentAmps <= 1.0e-6
+				? 0.0
+				: smoothStep(0.04, 0.35, state.motorCurrentRippleAmps(index) / perMotorMaxCurrentAmps);
+		double voltageHeadroomStress = motorVoltageHeadroomStress(index)
+				* smoothStep(0.35, 0.92, previousElectricalOutput);
+		double stressStretch = 1.0
+				+ 0.62 * state.escDesyncIntensity(index)
+				+ 0.30 * voltageHeadroomStress
+				+ 0.22 * currentRippleStress;
+		return MathUtil.clamp(protocolBaseSeconds * MathUtil.clamp(brakingStretch, 0.52, 1.0) * stressStretch, 0.00045, 0.0085);
+	}
+
 	private void resetEscSignalOutput(int index) {
 		heldEscOutputCommands[index] = 0.0;
 		escCommandFrameClockSeconds[index] = 0.0;
 		escCommandFrameAgeSeconds[index] = 0.0;
 		escCommandErrors[index] = 0.0;
 		escCommandFrameInitialized[index] = false;
+	}
+
+	private void resetEscElectricalOutput(int index) {
+		state.setEscElectricalOutputCommand(index, 0.0);
+		state.setEscElectricalOutputError(index, 0.0);
 	}
 
 	private double quantizeEscCommand(double command) {
@@ -7508,7 +7571,7 @@ public final class DronePhysics {
 	}
 
 	private MotorCurrentEstimate estimateMotorCurrent(int index) {
-		double escOutput = state.escOutputCommand(index);
+		double escOutput = state.escElectricalOutputCommand(index);
 		RotorSpec rotor = config.rotors().get(index);
 		double rpmFraction = state.motorPower(config, index);
 		double perMotorMaxCurrentAmps = config.maxBatteryCurrentAmps() / state.motorCount();
@@ -7730,7 +7793,7 @@ public final class DronePhysics {
 
 		double activeRotor = smoothStep(0.06, 0.32, thrustFraction);
 		double midLoadConfidence = 1.0 - smoothStep(0.58, 0.82, thrustFraction);
-		double outputConfidence = 1.0 - smoothStep(0.64, 0.72, state.escOutputCommand(index));
+		double outputConfidence = 1.0 - smoothStep(0.64, 0.72, state.escElectricalOutputCommand(index));
 		double cleanLoadConfidence = 1.0 - smoothStep(0.035, 0.16, Math.abs(aerodynamicLoadFactor - 1.0));
 		double powerCurveConfidence = 1.0 - smoothStep(0.12, 0.42, Math.abs(propellerPowerLoadFactor - 1.0));
 		double rotorHealthConfidence = smoothStep(0.96, 0.995, minimumRotorHealth());
@@ -7768,10 +7831,11 @@ public final class DronePhysics {
 	}
 
 	private double motorElectricalEfficiency(int index, double rpmFraction, double aerodynamicLoadFactor) {
-		double escAuthority = MathUtil.clamp(0.35 + 0.65 * state.escOutputCommand(index), 0.0, 1.0);
+		double escOutput = state.escElectricalOutputCommand(index);
+		double escAuthority = MathUtil.clamp(0.35 + 0.65 * escOutput, 0.0, 1.0);
 		double hotWindingLoss = smoothStep(1.05, 1.62, motorWindingResistanceTemperatureScale(index));
 		double voltageHeadroomStress = motorVoltageHeadroomStress(index);
-		double loadedVoltageStress = voltageHeadroomStress * MathUtil.clamp(0.40 + 0.60 * state.escOutputCommand(index), 0.0, 1.0);
+		double loadedVoltageStress = voltageHeadroomStress * MathUtil.clamp(0.40 + 0.60 * escOutput, 0.0, 1.0);
 		double baseEfficiency = MathUtil.clamp(
 				0.58
 						+ 0.22 * escAuthority
@@ -8535,6 +8599,9 @@ public final class DronePhysics {
 		Arrays.fill(escCommandFrameAgeSeconds, 0.0);
 		Arrays.fill(escCommandErrors, 0.0);
 		Arrays.fill(escCommandFrameInitialized, false);
+		for (int i = 0; i < state.motorCount(); i++) {
+			resetEscElectricalOutput(i);
+		}
 		resetEscRpmTelemetryModel();
 		state.setEscCommandTelemetry(0.0, escCommandFrameIntervalSeconds(), 0.0);
 	}
@@ -8618,8 +8685,8 @@ public final class DronePhysics {
 				: smoothStep(0.045, 0.36, state.motorCurrentRippleAmps(index) / perMotorMaxCurrentAmps);
 		double lowSpeedEdge = 1.0 - smoothStep(0.55, 0.98, telemetryValidity);
 		double voltageHeadroomStress = motorVoltageHeadroomStress(index)
-				* smoothStep(0.35, 0.92, state.escOutputCommand(index));
-		double brakingOverrun = Math.max(0.0, state.motorPower(config, index) - state.escOutputCommand(index));
+				* smoothStep(0.35, 0.92, state.escElectricalOutputCommand(index));
+		double brakingOverrun = Math.max(0.0, state.motorPower(config, index) - state.escElectricalOutputCommand(index));
 		double brakingStress = MathUtil.clamp(config.motorActiveBrakingStrength(), 0.0, 1.0)
 				* smoothStep(0.06, 0.42, brakingOverrun)
 				* batteryBusSpikeStress();
@@ -8659,9 +8726,9 @@ public final class DronePhysics {
 					? 0.0
 					: MathUtil.clamp(state.motorCurrentAmps(i) / perMotorMaxCurrentAmps, 0.0, 1.2);
 			double brakingLoad = config.motorActiveBrakingStrength()
-					* Math.max(0.0, state.motorPower(config, i) - state.escOutputCommand(i));
+					* Math.max(0.0, state.motorPower(config, i) - state.escElectricalOutputCommand(i));
 			double power = MathUtil.clamp(
-					0.40 * state.escOutputCommand(i) + 0.48 * currentLoad + 0.12 * brakingLoad,
+					0.40 * state.escElectricalOutputCommand(i) + 0.48 * currentLoad + 0.12 * brakingLoad,
 					0.0,
 					1.2
 			);
@@ -8685,7 +8752,7 @@ public final class DronePhysics {
 			double currentLoad = perEscMaxCurrentAmps <= 1.0e-6
 					? 0.0
 					: MathUtil.clamp(state.motorCurrentAmps(i) / perEscMaxCurrentAmps, 0.0, 1.35);
-			double output = state.escOutputCommand(i);
+			double output = state.escElectricalOutputCommand(i);
 			double rpmFraction = state.motorPower(config, i);
 			double accelerationStress = MathUtil.clamp(
 					Math.abs(state.motorAngularAccelerationRadiansPerSecondSquared(i))
@@ -8720,7 +8787,7 @@ public final class DronePhysics {
 	}
 
 	private double escCoolingFactor(DroneEnvironment environment, int rotorIndex) {
-		double rotorWashCooling = 0.45 * state.motorPower(config, rotorIndex) * (0.35 + 0.65 * state.escOutputCommand(rotorIndex));
+		double rotorWashCooling = 0.45 * state.motorPower(config, rotorIndex) * (0.35 + 0.65 * state.escElectricalOutputCommand(rotorIndex));
 		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
@@ -8740,7 +8807,7 @@ public final class DronePhysics {
 		double axialSpeed = Math.abs(rotorRelativeAirVelocityBody.y());
 		double freestreamCooling = MathUtil.clamp(transverseSpeed / 18.0, 0.0, 1.8)
 				+ 0.35 * MathUtil.clamp(axialSpeed / 12.0, 0.0, 1.0);
-		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escOutputCommand(rotorIndex));
+		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escElectricalOutputCommand(rotorIndex));
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
@@ -8970,7 +9037,7 @@ public final class DronePhysics {
 				0.70,
 				Math.sqrt(currentRippleStress) / Math.max(1.0, config.maxBatteryCurrentAmps())
 		);
-		double highLoadWindow = smoothStep(0.12, 0.82, state.averageEscOutputCommand());
+		double highLoadWindow = smoothStep(0.12, 0.82, state.averageEscElectricalOutputCommand());
 		return MathUtil.clamp(
 				0.52 * sagStress
 						+ 0.60 * rippleStress
@@ -9093,7 +9160,8 @@ public final class DronePhysics {
 		double rippleCurrentRms = Math.sqrt(rippleCurrentSquared);
 		double loading = MathUtil.clamp(dischargeCurrentAmps / Math.max(1.0, config.maxBatteryCurrentAmps()), 0.0, 1.5);
 		double capSmoothing = 1.0 / Math.sqrt(Math.max(0.35, config.batteryCapacityAmpHours()));
-		double escSwitchingWindow = 0.25 + 0.75 * MathUtil.clamp(state.averageEscOutputCommand() * (1.0 - state.averageEscOutputCommand()) * 4.0, 0.0, 1.0);
+		double averageEscElectricalOutput = state.averageEscElectricalOutputCommand();
+		double escSwitchingWindow = 0.25 + 0.75 * MathUtil.clamp(averageEscElectricalOutput * (1.0 - averageEscElectricalOutput) * 4.0, 0.0, 1.0);
 		double desyncBurst = 1.0 + 0.65 * state.maxEscDesyncIntensity();
 		double target = rippleCurrentRms
 				* batteryResistanceOhms

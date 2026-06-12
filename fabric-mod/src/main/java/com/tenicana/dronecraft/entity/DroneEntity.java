@@ -2808,6 +2808,7 @@ public class DroneEntity extends PathfinderMob {
 		DronePhysics.RotorDynamicState dynamicState = physics.rotorDynamicStateSnapshot();
 		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
 		double[] escOutput = dynamicState.escOutputCommand();
+		double[] escElectricalOutput = dynamicState.escElectricalOutputCommand();
 		double[] telemetryRpm = dynamicState.motorRpmTelemetryRpm();
 		double[] telemetryValidity = dynamicState.motorRpmTelemetryValidity();
 		double[] inducedVelocity = dynamicState.rotorInducedVelocityMetersPerSecond();
@@ -2817,6 +2818,7 @@ public class DroneEntity extends PathfinderMob {
 		for (int i = 0; i < physics.state().motorCount(); i++) {
 			output.putDouble("motor_omega_rad_s_" + i, motorOmega[i]);
 			output.putDouble("esc_output_command_" + i, escOutput[i]);
+			output.putDouble("esc_electrical_output_command_" + i, escElectricalOutput[i]);
 			output.putDouble("motor_rpm_telemetry_rpm_" + i, telemetryRpm[i]);
 			output.putDouble("motor_rpm_telemetry_validity_" + i, telemetryValidity[i]);
 			output.putDouble("rotor_induced_velocity_mps_" + i, inducedVelocity[i]);
@@ -2869,6 +2871,7 @@ public class DroneEntity extends PathfinderMob {
 		int count = physics.config().rotors().size();
 		double[] motorOmega = new double[count];
 		double[] escOutput = new double[count];
+		double[] escElectricalOutput = new double[count];
 		double[] telemetryRpm = new double[count];
 		double[] telemetryValidity = new double[count];
 		double[] inducedVelocity = new double[count];
@@ -2877,6 +2880,7 @@ public class DroneEntity extends PathfinderMob {
 		double[] wakeCarryover = new double[count];
 		Arrays.fill(motorOmega, Double.NaN);
 		Arrays.fill(escOutput, Double.NaN);
+		Arrays.fill(escElectricalOutput, Double.NaN);
 		Arrays.fill(telemetryRpm, Double.NaN);
 		Arrays.fill(telemetryValidity, Double.NaN);
 		Arrays.fill(inducedVelocity, Double.NaN);
@@ -2888,6 +2892,7 @@ public class DroneEntity extends PathfinderMob {
 		for (int i = 0; i < count; i++) {
 			motorOmega[i] = input.getDoubleOr("motor_omega_rad_s_" + i, Double.NaN);
 			escOutput[i] = input.getDoubleOr("esc_output_command_" + i, Double.NaN);
+			escElectricalOutput[i] = input.getDoubleOr("esc_electrical_output_command_" + i, Double.NaN);
 			telemetryRpm[i] = input.getDoubleOr("motor_rpm_telemetry_rpm_" + i, Double.NaN);
 			telemetryValidity[i] = input.getDoubleOr("motor_rpm_telemetry_validity_" + i, Double.NaN);
 			inducedVelocity[i] = input.getDoubleOr("rotor_induced_velocity_mps_" + i, Double.NaN);
@@ -2897,6 +2902,7 @@ public class DroneEntity extends PathfinderMob {
 			hasDynamicState = hasDynamicState
 					|| Double.isFinite(motorOmega[i])
 					|| Double.isFinite(escOutput[i])
+					|| Double.isFinite(escElectricalOutput[i])
 					|| Double.isFinite(telemetryRpm[i])
 					|| Double.isFinite(telemetryValidity[i])
 					|| Double.isFinite(inducedVelocity[i])
@@ -2921,6 +2927,7 @@ public class DroneEntity extends PathfinderMob {
 			physics.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
 					motorOmega,
 					escOutput,
+					escElectricalOutput,
 					telemetryRpm,
 					telemetryValidity,
 					inducedVelocity,

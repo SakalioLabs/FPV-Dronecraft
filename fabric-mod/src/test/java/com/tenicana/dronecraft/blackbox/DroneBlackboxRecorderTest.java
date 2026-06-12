@@ -95,6 +95,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("esc_command_frame_age_s"));
 		assertTrue(csv.contains("esc_command_frame_interval_s"));
 		assertTrue(csv.contains("esc_command_error"));
+		assertTrue(csv.contains("esc_electrical_output"));
+		assertTrue(csv.contains("esc_electrical_error"));
+		assertTrue(csv.contains("esc_7_electrical_output"));
 		assertTrue(csv.contains("battery_resistance_aging_scale"));
 		assertTrue(csv.contains("battery_capacity_aging_scale"));
 		assertTrue(csv.contains("battery_soc_resistance_scale"));
@@ -443,6 +446,9 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_command_frame_age_s")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_command_frame_interval_s")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_command_error")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_electrical_output")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_electrical_error")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "esc_7_electrical_output")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "tune_rotor_blade_pitch_m")]));
 		assertEquals(0.85, Double.parseDouble(row[indexOf(header, "tune_rotor_pitch_to_diameter")]), 0.00001);
 		assertEquals(21.13, Double.parseDouble(row[indexOf(header, "tune_rotor_pitch_angle_70r_deg")]), 0.02);
