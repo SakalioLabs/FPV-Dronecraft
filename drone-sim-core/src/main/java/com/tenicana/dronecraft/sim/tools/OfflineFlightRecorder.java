@@ -13,6 +13,7 @@ import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.MotorResponseCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
+import com.tenicana.dronecraft.sim.PropGeometryCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
@@ -1245,6 +1246,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(preset);
 		HighAdvanceRotorCalibration.HighAdvanceAudit highAdvanceAudit =
 				HighAdvanceRotorCalibration.audit(preset);
+		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
+				PropGeometryCalibration.audit(preset);
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1459,6 +1462,45 @@ public final class OfflineFlightRecorder {
 				highAdvanceAudit.extremePitchHighAdvanceLossStart().currentPowerScale(),
 				highAdvanceAudit.extremePitchHighAdvanceLossStart().apcCtOverStaticCt(),
 				highAdvanceAudit.extremePitchHighAdvanceLossStart().apcCpOverStaticCp()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Prop geometry audit: %s rows %d refs %d/%d current %.2fx%.2fin P/D %.3f blades %d angle70 %.2fdeg chord/R %.3f pitch_speed %.1f/%.1fm/s, %s pitch %.2fx P/D %.2fx angle %.2fx, %s pitch %.2fx P/D %.2fx angle %.2fx, %s pitch %.2fx P/D %.2fx angle %.2fx, UIUC %s chord %.2fx beta %.2fx localP %.2fx, %s chord %.2fx beta %.2fx localP %.2fx, lift %s beta %.2fx localP %.2fx caveat geometry-not-slip%n",
+				propGeometryAudit.sourceId(),
+				propGeometryAudit.packetRowCount(),
+				propGeometryAudit.officialPropReferenceCount(),
+				propGeometryAudit.uiucGeometryReferenceCount(),
+				propGeometryAudit.current().diameterInches(),
+				propGeometryAudit.current().pitchInches(),
+				propGeometryAudit.current().pitchToDiameterRatio(),
+				propGeometryAudit.current().bladeCount(),
+				propGeometryAudit.current().geometricPitchAngle70rDegrees(),
+				propGeometryAudit.current().representativeChordToRadius70r(),
+				propGeometryAudit.current().hoverPitchSpeedMetersPerSecond(),
+				propGeometryAudit.current().maxPitchSpeedMetersPerSecond(),
+				propGeometryAudit.hq5x43Comparison().reference().propellerId(),
+				propGeometryAudit.hq5x43Comparison().currentPitchOverReference(),
+				propGeometryAudit.hq5x43Comparison().currentPitchToDiameterOverReference(),
+				propGeometryAudit.hq5x43Comparison().currentGeometricPitchAngleOverReference(),
+				propGeometryAudit.hq5x45Comparison().reference().propellerId(),
+				propGeometryAudit.hq5x45Comparison().currentPitchOverReference(),
+				propGeometryAudit.hq5x45Comparison().currentPitchToDiameterOverReference(),
+				propGeometryAudit.hq5x45Comparison().currentGeometricPitchAngleOverReference(),
+				propGeometryAudit.gemfan51466Comparison().reference().propellerId(),
+				propGeometryAudit.gemfan51466Comparison().currentPitchOverReference(),
+				propGeometryAudit.gemfan51466Comparison().currentPitchToDiameterOverReference(),
+				propGeometryAudit.gemfan51466Comparison().currentGeometricPitchAngleOverReference(),
+				propGeometryAudit.da4052Comparison().reference().geometryId(),
+				propGeometryAudit.da4052Comparison().currentChordOverReference70r(),
+				propGeometryAudit.da4052Comparison().currentGeometricPitchAngleOverReference70r(),
+				propGeometryAudit.da4052Comparison().currentPitchToDiameterOverReferenceLocal70r(),
+				propGeometryAudit.nr640Comparison().reference().geometryId(),
+				propGeometryAudit.nr640Comparison().currentChordOverReference70r(),
+				propGeometryAudit.nr640Comparison().currentGeometricPitchAngleOverReference70r(),
+				propGeometryAudit.nr640Comparison().currentPitchToDiameterOverReferenceLocal70r(),
+				propGeometryAudit.apcThin10x5Comparison().reference().geometryId(),
+				propGeometryAudit.apcThin10x5Comparison().currentGeometricPitchAngleOverReference70r(),
+				propGeometryAudit.apcThin10x5Comparison().currentPitchToDiameterOverReferenceLocal70r()
 		);
 		System.out.printf(
 				Locale.ROOT,

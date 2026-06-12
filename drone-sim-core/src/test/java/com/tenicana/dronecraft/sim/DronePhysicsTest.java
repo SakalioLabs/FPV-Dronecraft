@@ -11060,6 +11060,11 @@ class DronePhysicsTest {
 		assertTrue(text.contains("5x11"));
 		assertTrue(text.contains("tilt"));
 		assertTrue(text.contains("reachable"));
+		assertTrue(text.contains("Prop geometry audit"));
+		assertTrue(text.contains("Prop-Pitch-Geometry-Packet"));
+		assertTrue(text.contains("HQProp Durable 5x4.5x3 V1S"));
+		assertTrue(text.contains("UIUC"));
+		assertTrue(text.contains("geometry-not-slip"));
 		assertTrue(text.contains("APDrone inertia audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Inertia-PDF"));
 		assertTrue(text.contains("yaw_ratio"));
