@@ -13,6 +13,7 @@ import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.MotorResponseCalibration;
+import com.tenicana.dronecraft.sim.NanodroneSysIdCalibration;
 import com.tenicana.dronecraft.sim.NeuroBemAirframeResidualCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
@@ -1283,6 +1284,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 		MotorBenchCurrentModel.ApDroneUrbanMotorRpmAudit apDroneUrbanMotorRpmAudit =
 				MotorBenchCurrentModel.apDroneUrbanMotorRpmAudit(preset);
+		NanodroneSysIdCalibration.NanodroneSysIdAudit nanodroneSysIdAudit =
+				NanodroneSysIdCalibration.audit(preset);
 		MotorResponseCalibration.MotorResponseAudit motorResponseAudit =
 				MotorResponseCalibration.audit(preset);
 		ControlResponseCalibration.ControlResponseAudit controlResponseAudit =
@@ -1978,6 +1981,48 @@ public final class OfflineFlightRecorder {
 				apDroneUrbanMotorRpmAudit.motorP95RpmSpread(),
 				apDroneUrbanMotorRpmAudit.measuredP95BladePassHertz(),
 				apDroneUrbanMotorRpmAudit.configuredMaxBladePassHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Nanodrone sysid audit: %s rows %d source %d schema %d files %d samples %d@%.0fHz train/test %d/%d horizon %.2fs, model %.3fkg arm %.3fm Kt %.3e Kc %.3e Tmax %.3fN TW%.1f, thrust source/train/test R2 %.3f/%.3f/%.3f rmse %.4f/%.4f/%.4fN fitKt/source %.4f, torque fit/source roll/pitch/yaw %.3f/%.3f/%.3f testR2 %.3f/%.3f/%.3f, cfg Kt %.3e nanoKt %.3fx hover/max %.0f/%.0frad_s nano p95/max %.2fx/%.2fx TW %.2f/%.2f/%.2f caveat nano-not-fpv-scale%n",
+				nanodroneSysIdAudit.sourceId(),
+				nanodroneSysIdAudit.rowTypeCounts().totalRowCount(),
+				nanodroneSysIdAudit.rowTypeCounts().sourceInventoryRowCount(),
+				nanodroneSysIdAudit.rowTypeCounts().columnSchemaRowCount(),
+				nanodroneSysIdAudit.sourceData().actualCsvFileCount(),
+				nanodroneSysIdAudit.sourceData().actualLoadedSampleCount(),
+				nanodroneSysIdAudit.sourceData().sampleRateHertz(),
+				nanodroneSysIdAudit.sourceData().trainSampleCount(),
+				nanodroneSysIdAudit.sourceData().testSampleCount(),
+				nanodroneSysIdAudit.sourceData().benchmarkOpenLoopHorizonSeconds(),
+				nanodroneSysIdAudit.referenceModel().massKg(),
+				nanodroneSysIdAudit.referenceModel().armLengthMeters(),
+				nanodroneSysIdAudit.referenceModel().sourceKtNewtonsPerRadianPerSecondSquared(),
+				nanodroneSysIdAudit.referenceModel().sourceKcNewtonMetersPerRadianPerSecondSquared(),
+				nanodroneSysIdAudit.referenceModel().sourceTmaxNewtons(),
+				nanodroneSysIdAudit.referenceModel().sourceThrustToWeight(),
+				nanodroneSysIdAudit.sourceThrustFit().r2(),
+				nanodroneSysIdAudit.trainThrustFit().trainR2(),
+				nanodroneSysIdAudit.trainThrustFit().testR2(),
+				nanodroneSysIdAudit.sourceThrustFit().rmse(),
+				nanodroneSysIdAudit.trainThrustFit().trainRmse(),
+				nanodroneSysIdAudit.trainThrustFit().testRmse(),
+				nanodroneSysIdAudit.trainThrustFit().trainFitCoefficientOverSource(),
+				nanodroneSysIdAudit.trainRollTorqueFit().trainFitCoefficientOverSource(),
+				nanodroneSysIdAudit.trainPitchTorqueFit().trainFitCoefficientOverSource(),
+				nanodroneSysIdAudit.trainYawTorqueFit().trainFitCoefficientOverSource(),
+				nanodroneSysIdAudit.trainRollTorqueFit().testR2(),
+				nanodroneSysIdAudit.trainPitchTorqueFit().testR2(),
+				nanodroneSysIdAudit.trainYawTorqueFit().testR2(),
+				nanodroneSysIdAudit.currentScale().configuredAverageRotorThrustCoefficient(),
+				nanodroneSysIdAudit.currentScale().sourceKtOverConfiguredRotorThrustCoefficient(),
+				nanodroneSysIdAudit.currentScale().configuredHoverRotorRadiansPerSecond(),
+				nanodroneSysIdAudit.currentScale().configuredMaxRotorRadiansPerSecond(),
+				nanodroneSysIdAudit.currentScale().nanodroneMotorP95OverConfiguredHover(),
+				nanodroneSysIdAudit.currentScale().nanodroneMotorMaxOverConfiguredMax(),
+				nanodroneSysIdAudit.currentScale().nanodroneSourceKtThrustToWeightP50(),
+				nanodroneSysIdAudit.currentScale().nanodroneSourceKtThrustToWeightP95(),
+				nanodroneSysIdAudit.currentScale().nanodroneSourceKtThrustToWeightMax()
 		);
 		System.out.printf(
 				Locale.ROOT,
