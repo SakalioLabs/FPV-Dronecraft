@@ -102,6 +102,7 @@ public final class DroneState {
 	private double[] rotorPropellerAdvanceRatioJ;
 	private double[] rotorPropellerThrustScale;
 	private double[] rotorPropellerPowerScale;
+	private double[] rotorAxialGustThrustScale;
 	private double[] rotorReverseFlowInboardFraction;
 	private double[] rotorTipMach;
 	private double[] rotorCompressibilityThrustScale;
@@ -256,6 +257,7 @@ public final class DroneState {
 		rotorPropellerAdvanceRatioJ = new double[motorCount];
 		rotorPropellerThrustScale = new double[motorCount];
 		rotorPropellerPowerScale = new double[motorCount];
+		rotorAxialGustThrustScale = new double[motorCount];
 		rotorReverseFlowInboardFraction = new double[motorCount];
 		rotorTipMach = new double[motorCount];
 		rotorCompressibilityThrustScale = new double[motorCount];
@@ -306,6 +308,7 @@ public final class DroneState {
 		Arrays.fill(rotorDynamicInflowTimeConstantSeconds, 0.0);
 		Arrays.fill(rotorPropellerThrustScale, 1.0);
 		Arrays.fill(rotorPropellerPowerScale, 1.0);
+		Arrays.fill(rotorAxialGustThrustScale, 1.0);
 		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
 		Arrays.fill(rotorWakeThrustScale, 1.0);
 		Arrays.fill(rotorWetThrustScale, 1.0);
@@ -1492,6 +1495,7 @@ public final class DroneState {
 		Arrays.fill(rotorPropellerAdvanceRatioJ, 0.0);
 		Arrays.fill(rotorPropellerThrustScale, 1.0);
 		Arrays.fill(rotorPropellerPowerScale, 1.0);
+		Arrays.fill(rotorAxialGustThrustScale, 1.0);
 		Arrays.fill(rotorReverseFlowInboardFraction, 0.0);
 		Arrays.fill(rotorTipMach, 0.0);
 		Arrays.fill(rotorCompressibilityThrustScale, 1.0);
@@ -1766,6 +1770,18 @@ public final class DroneState {
 		rotorPropellerPowerScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 2.0) : 1.0;
 	}
 
+	public double rotorAxialGustThrustScale(int index) {
+		return rotorAxialGustThrustScale[index];
+	}
+
+	public double[] rotorAxialGustThrustScale() {
+		return Arrays.copyOf(rotorAxialGustThrustScale, rotorAxialGustThrustScale.length);
+	}
+
+	void setRotorAxialGustThrustScale(int index, double value) {
+		rotorAxialGustThrustScale[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 2.5) : 1.0;
+	}
+
 	public double averageRotorAdvanceRatio() {
 		double sum = 0.0;
 		for (double ratio : rotorAdvanceRatio) {
@@ -1828,6 +1844,30 @@ public final class DroneState {
 			min = Math.min(min, scale);
 		}
 		return min;
+	}
+
+	public double averageRotorAxialGustThrustScale() {
+		double sum = 0.0;
+		for (double scale : rotorAxialGustThrustScale) {
+			sum += scale;
+		}
+		return sum / rotorAxialGustThrustScale.length;
+	}
+
+	public double minRotorAxialGustThrustScale() {
+		double min = 1.0;
+		for (double scale : rotorAxialGustThrustScale) {
+			min = Math.min(min, scale);
+		}
+		return min;
+	}
+
+	public double maxRotorAxialGustThrustScale() {
+		double max = 1.0;
+		for (double scale : rotorAxialGustThrustScale) {
+			max = Math.max(max, scale);
+		}
+		return max;
 	}
 
 	public double rotorReverseFlowInboardFraction(int index) {

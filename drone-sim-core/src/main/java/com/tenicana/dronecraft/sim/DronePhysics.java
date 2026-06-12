@@ -1171,6 +1171,11 @@ public final class DronePhysics {
 			state.setRotorPropellerThrustScale(i, propellerThrustScale);
 			double propellerPowerScale = rotorForwardAdvancePowerScale(aerodynamicRotor, aerodynamicAdvanceRatio);
 			state.setRotorPropellerPowerScale(i, propellerPowerScale);
+			state.setRotorAxialGustThrustScale(i, rotorAxialGustThrustScale(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					aerodynamicOmega
+			));
 			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, environment.ambientTemperatureCelsius());
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
@@ -2939,13 +2944,7 @@ public final class DronePhysics {
 		double pitchAdvance = climbSpeed / rotorPitchSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double pitchUnloadAuthority = MathUtil.clamp(0.08 + 0.18 / rotorBladePitchRatio(rotor), 0.10, 0.32);
 		double bladePitchUnload = pitchUnloadAuthority * smoothStep(0.42, 1.05, pitchAdvance);
-		double axialGustThrustScale = rotorAxialGustThrustScale(
-				rotor,
-				relativeAirVelocityBody,
-				omegaRadiansPerSecond,
-				tipSpeed,
-				transverseSpeed
-		);
+		double axialGustThrustScale = rotorAxialGustThrustScale(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
 		return MathUtil.clamp(
 				transverseLift
 						* forwardAdvanceThrustScale
@@ -2955,6 +2954,20 @@ public final class DronePhysics {
 						* axialGustThrustScale,
 				0.12,
 				1.75
+		);
+	}
+
+	private static double rotorAxialGustThrustScale(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond
+	) {
+		return rotorAxialGustThrustScale(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond),
+				rotorTransverseSpeed(rotor, relativeAirVelocityBody)
 		);
 	}
 

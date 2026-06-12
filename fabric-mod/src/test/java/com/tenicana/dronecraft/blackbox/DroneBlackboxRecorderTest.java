@@ -140,6 +140,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_prop_power_scale"));
 		assertTrue(csv.contains("rotor_0_prop_power_scale"));
 		assertTrue(csv.contains("rotor_7_prop_power_scale"));
+		assertTrue(csv.contains("rotor_axial_gust_thrust_scale"));
+		assertTrue(csv.contains("rotor_0_axial_gust_thrust_scale"));
+		assertTrue(csv.contains("rotor_7_axial_gust_thrust_scale"));
 		assertTrue(csv.contains("rotor_reverse_flow_fraction"));
 		assertTrue(csv.contains("rotor_0_reverse_flow_fraction"));
 		assertTrue(csv.contains("rotor_7_reverse_flow_fraction"));
@@ -674,6 +677,10 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_torque_ripple_nm")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "avg_motor_mechanical_loss_torque_nm")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_0_mechanical_loss_torque_nm")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_axial_gust_thrust_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_axial_gust_thrust_scale")]) <= 2.5);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_0_axial_gust_thrust_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_0_axial_gust_thrust_scale")]) <= 2.5);
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(4, summary.sampleCount());
@@ -762,6 +769,40 @@ class DroneBlackboxRecorderTest {
 				1.0e-5
 		);
 		assertEquals(
+				minOfColumns(
+						lines,
+						header,
+						"rotor_axial_gust_thrust_scale",
+						"rotor_0_axial_gust_thrust_scale",
+						"rotor_1_axial_gust_thrust_scale",
+						"rotor_2_axial_gust_thrust_scale",
+						"rotor_3_axial_gust_thrust_scale",
+						"rotor_4_axial_gust_thrust_scale",
+						"rotor_5_axial_gust_thrust_scale",
+						"rotor_6_axial_gust_thrust_scale",
+						"rotor_7_axial_gust_thrust_scale"
+				),
+				summary.minRotorAxialGustThrustScale(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfColumns(
+						lines,
+						header,
+						"rotor_axial_gust_thrust_scale",
+						"rotor_0_axial_gust_thrust_scale",
+						"rotor_1_axial_gust_thrust_scale",
+						"rotor_2_axial_gust_thrust_scale",
+						"rotor_3_axial_gust_thrust_scale",
+						"rotor_4_axial_gust_thrust_scale",
+						"rotor_5_axial_gust_thrust_scale",
+						"rotor_6_axial_gust_thrust_scale",
+						"rotor_7_axial_gust_thrust_scale"
+				),
+				summary.maxRotorAxialGustThrustScale(),
+				1.0e-5
+		);
+		assertEquals(
 				maxOfColumns(
 						lines,
 						header,
@@ -779,6 +820,7 @@ class DroneBlackboxRecorderTest {
 				1.0e-5
 		);
 		assertTrue(summary.formatForChat().contains(" ppwr "));
+		assertTrue(summary.formatForChat().contains(" agust "));
 		assertTrue(summary.maxRotorTipMach() >= 0.0);
 		assertUnitInterval(summary.minRotorCompressibilityThrustScale());
 		assertUnitInterval(summary.maxRotorLowReynoldsLoss());
@@ -1151,6 +1193,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_thrust_scale")]) <= 1.08);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_axial_gust_thrust_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_axial_gust_thrust_scale")]) <= 2.5);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) <= 0.36);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")]));
@@ -1346,6 +1390,8 @@ class DroneBlackboxRecorderTest {
 		);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_prop_power_scale")]) <= 1.08);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_axial_gust_thrust_scale")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_axial_gust_thrust_scale")]) <= 2.5);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_dynamic_inflow_tau_s")]) <= 0.36);
 		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_7_reverse_flow_fraction")]));
