@@ -200,4 +200,90 @@ class HighAdvanceRotorCalibrationTest {
 		assertEquals(3.53506808713128, maxRpm17.currentThrustScaleOverArticleRetention(), 1.0e-14);
 		assertEquals(1.179474506513, maxRpm17.currentPowerScaleOverArticleRetention(), 1.0e-12);
 	}
+
+	@Test
+	void imav2021ForwardFlowAuditAddsDirectFiveInchCoverageBounds() {
+		HighAdvanceRotorCalibration.ImavForwardFlowAudit audit =
+				HighAdvanceRotorCalibration.audit(DroneConfig.racingQuad()).imavForwardFlowAudit();
+
+		assertEquals("IMAV-2021-5in-Forward-Flow-Packet", audit.sourceId());
+		assertTrue(audit.caveat().contains("Direct 5-inch three-blade"));
+		assertEquals(56, audit.packetRowCount());
+		assertEquals(2, audit.sourceInventoryRowCount());
+		assertEquals(9, audit.testArticleRowCount());
+		assertEquals(7, audit.testMatrixRowCount());
+		assertEquals(7, audit.loggedSchemaRowCount());
+		assertEquals(6, audit.formulaRowCount());
+		assertEquals(8, audit.currentOverlapRowCount());
+		assertEquals(5.0, audit.propellerDiameterInches(), 1.0e-12);
+		assertEquals(3, audit.propellerBladeCount());
+		assertEquals(10.0, audit.windSpeedMinMetersPerSecond(), 1.0e-12);
+		assertEquals(20.0, audit.windSpeedMaxMetersPerSecond(), 1.0e-12);
+		assertEquals(30.0, audit.flowAngleMinDegrees(), 1.0e-12);
+		assertEquals(90.0, audit.flowAngleMaxDegrees(), 1.0e-12);
+		assertEquals(10_000.0, audit.rpmRampStart(), 1.0e-12);
+		assertEquals(15_000.0, audit.highQualityRpmCropStart(), 1.0e-12);
+		assertEquals(30_000.0, audit.rpmRampEndApprox(), 1.0e-12);
+		assertTrue(audit.hasDirect5InchThreeBladeForwardFlow());
+		assertTrue(audit.hasMechanicalTorqueMeasurement());
+		assertTrue(audit.hasElectricalPowerMeasurement());
+		assertFalse(audit.hasRawCurveCsvInPublicPdf());
+		assertTrue(audit.needsFigureDigitizationOrRawExport());
+
+		HighAdvanceRotorCalibration.ImavForwardFlowPoint hover10 = audit.racingHover10MetersPerSecondPoint();
+		assertEquals("racing_hover_10mps", hover10.pointId());
+		assertEquals(10.0, hover10.windSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(0.362771494408, hover10.packetAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.15748, hover10.highQualityMinAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.314961, hover10.highQualityMaxAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.11547375309573414, hover10.currentRotorAdvanceRatio(), 1.0e-15);
+		assertEquals(0.362771494408, hover10.currentEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertFalse(hover10.insideHighQualityJRange());
+		assertEquals(1.151798141382584, hover10.advanceRatioJOverHighQualityMax(), 1.0e-15);
+		assertEquals(0.6857044505883809, hover10.currentThrustScale(), 1.0e-15);
+		assertEquals(0.8013256837909629, hover10.currentPowerScale(), 1.0e-15);
+		assertEquals(1.1686167168717823, hover10.currentTorquePerThrustScale(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.ImavForwardFlowPoint max10 = audit.racingMax10MetersPerSecondPoint();
+		assertEquals("racing_max_10mps", max10.pointId());
+		assertTrue(max10.insideHighQualityJRange());
+		assertEquals(0.162141155716, max10.packetAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.9894765135755539, max10.currentThrustScale(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.ImavForwardFlowPoint hover15 = audit.racingHover15MetersPerSecondPoint();
+		assertEquals("racing_hover_15mps", hover15.pointId());
+		assertFalse(hover15.insideHighQualityJRange());
+		assertEquals(0.544157241611, hover15.packetAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.472441, hover15.highQualityMaxAdvanceRatioJ(), 1.0e-12);
+		assertEquals(1.1517993603666912, hover15.advanceRatioJOverHighQualityMax(), 1.0e-15);
+		assertEquals(0.41119143460438745, hover15.currentThrustScale(), 1.0e-15);
+		assertEquals(0.5607120596590689, hover15.currentPowerScale(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.ImavForwardFlowPoint max15 = audit.racingMax15MetersPerSecondPoint();
+		assertEquals("racing_max_15mps", max15.pointId());
+		assertTrue(max15.insideHighQualityJRange());
+		assertEquals(0.243211733573, max15.packetAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.9010954899253352, max15.currentThrustScale(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.ImavForwardFlowPoint hover20 = audit.racingHover20MetersPerSecondPoint();
+		assertEquals("racing_hover_20mps", hover20.pointId());
+		assertFalse(hover20.insideHighQualityJRange());
+		assertEquals(0.725542988815, hover20.packetAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.629921, hover20.highQualityMaxAdvanceRatioJ(), 1.0e-12);
+		assertEquals(1.1517999698613002, hover20.advanceRatioJOverHighQualityMax(), 1.0e-15);
+		assertEquals(0.12, hover20.currentThrustScale(), 1.0e-15);
+		assertEquals(0.37417595576808793, hover20.currentPowerScale(), 1.0e-15);
+		assertEquals(3.118132964734066, hover20.currentTorquePerThrustScale(), 1.0e-15);
+
+		HighAdvanceRotorCalibration.ImavForwardFlowPoint max20 = audit.racingMax20MetersPerSecondPoint();
+		assertEquals("racing_max_20mps", max20.pointId());
+		assertTrue(max20.insideHighQualityJRange());
+		assertEquals(0.324282311431, max20.packetAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.10322226564301817, max20.currentRotorAdvanceRatio(), 1.0e-15);
+		assertEquals(0.324282311431, max20.currentEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.514798381751045, max20.advanceRatioJOverHighQualityMax(), 1.0e-15);
+		assertEquals(0.7879068891514961, max20.currentThrustScale(), 1.0e-15);
+		assertEquals(0.8808164693400525, max20.currentPowerScale(), 1.0e-15);
+		assertEquals(1.1179194920971076, max20.currentTorquePerThrustScale(), 1.0e-15);
+	}
 }

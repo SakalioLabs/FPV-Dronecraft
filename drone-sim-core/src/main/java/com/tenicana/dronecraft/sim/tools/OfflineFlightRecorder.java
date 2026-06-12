@@ -1264,6 +1264,8 @@ public final class OfflineFlightRecorder {
 				HighAdvanceRotorCalibration.audit(preset);
 		HighAdvanceRotorCalibration.TytoWindTunnelLeadAudit tytoWindTunnelLeadAudit =
 				highAdvanceAudit.tytoWindTunnelLeadAudit();
+		HighAdvanceRotorCalibration.ImavForwardFlowAudit imavForwardFlowAudit =
+				highAdvanceAudit.imavForwardFlowAudit();
 		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
 				PropGeometryCalibration.audit(preset);
 		PrecipitationWaterCalibration.PrecipitationWaterAudit precipitationWaterAudit =
@@ -1714,6 +1716,39 @@ public final class OfflineFlightRecorder {
 				tytoWindTunnelLeadAudit.racingMaxRpmMaxWindPoint().packetEquivalentAdvanceRatioJ(),
 				tytoWindTunnelLeadAudit.racingMaxRpmMaxWindPoint().currentThrustScale(),
 				tytoWindTunnelLeadAudit.racingMaxRpmMaxWindPoint().currentPowerScale()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"IMAV 2021 5in forward-flow audit: %s rows %d setup %.0fin/%dblades wind %.0f-%.0fm/s angles %.0f-%.0fdeg rpm %.0f-%.0f crop %.0f raw %s digitize %s, HQ Jmax 10/15/20 %.3f/%.3f/%.3f, hoverJ 10/15/20 %.3f/%.3f/%.3f inside %s/%s/%s th %.2f/%.2f/%.2f, max20 J %.3f inside %s th/pw %.2f/%.2f caveat coverage-not-fit%n",
+				imavForwardFlowAudit.sourceId(),
+				imavForwardFlowAudit.packetRowCount(),
+				imavForwardFlowAudit.propellerDiameterInches(),
+				imavForwardFlowAudit.propellerBladeCount(),
+				imavForwardFlowAudit.windSpeedMinMetersPerSecond(),
+				imavForwardFlowAudit.windSpeedMaxMetersPerSecond(),
+				imavForwardFlowAudit.flowAngleMinDegrees(),
+				imavForwardFlowAudit.flowAngleMaxDegrees(),
+				imavForwardFlowAudit.rpmRampStart(),
+				imavForwardFlowAudit.rpmRampEndApprox(),
+				imavForwardFlowAudit.highQualityRpmCropStart(),
+				imavForwardFlowAudit.hasRawCurveCsvInPublicPdf(),
+				imavForwardFlowAudit.needsFigureDigitizationOrRawExport(),
+				imavForwardFlowAudit.racingHover10MetersPerSecondPoint().highQualityMaxAdvanceRatioJ(),
+				imavForwardFlowAudit.racingHover15MetersPerSecondPoint().highQualityMaxAdvanceRatioJ(),
+				imavForwardFlowAudit.racingHover20MetersPerSecondPoint().highQualityMaxAdvanceRatioJ(),
+				imavForwardFlowAudit.racingHover10MetersPerSecondPoint().currentEquivalentAdvanceRatioJ(),
+				imavForwardFlowAudit.racingHover15MetersPerSecondPoint().currentEquivalentAdvanceRatioJ(),
+				imavForwardFlowAudit.racingHover20MetersPerSecondPoint().currentEquivalentAdvanceRatioJ(),
+				imavForwardFlowAudit.racingHover10MetersPerSecondPoint().insideHighQualityJRange(),
+				imavForwardFlowAudit.racingHover15MetersPerSecondPoint().insideHighQualityJRange(),
+				imavForwardFlowAudit.racingHover20MetersPerSecondPoint().insideHighQualityJRange(),
+				imavForwardFlowAudit.racingHover10MetersPerSecondPoint().currentThrustScale(),
+				imavForwardFlowAudit.racingHover15MetersPerSecondPoint().currentThrustScale(),
+				imavForwardFlowAudit.racingHover20MetersPerSecondPoint().currentThrustScale(),
+				imavForwardFlowAudit.racingMax20MetersPerSecondPoint().currentEquivalentAdvanceRatioJ(),
+				imavForwardFlowAudit.racingMax20MetersPerSecondPoint().insideHighQualityJRange(),
+				imavForwardFlowAudit.racingMax20MetersPerSecondPoint().currentThrustScale(),
+				imavForwardFlowAudit.racingMax20MetersPerSecondPoint().currentPowerScale()
 		);
 		System.out.printf(
 				Locale.ROOT,

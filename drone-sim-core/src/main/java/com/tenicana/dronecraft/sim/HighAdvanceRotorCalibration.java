@@ -11,6 +11,9 @@ public final class HighAdvanceRotorCalibration {
 	public static final String TYTO_WIND_TUNNEL_LEAD_SOURCE_ID = "Tyto-Wind-Tunnel-Lead-Packet";
 	public static final String TYTO_WIND_TUNNEL_LEAD_CAVEAT =
 			"Tyto wind-speed article is an article-level lead; raw graph/table digitization is required before fitting curves.";
+	public static final String IMAV_2021_FORWARD_FLOW_SOURCE_ID = "IMAV-2021-5in-Forward-Flow-Packet";
+	public static final String IMAV_2021_FORWARD_FLOW_CAVEAT =
+			"Direct 5-inch three-blade forward-flow wind-tunnel source; PDF lacks raw CT/CP curves, so use it as coverage and digitization target.";
 	public static final int SELECTED_APC_PROPELLER_COUNT = 7;
 	public static final int SELECTED_APC_ROW_COUNT = 7_590;
 	public static final double SELECTED_APC_MAX_ADVANCE_RATIO_J = 2.4664;
@@ -67,6 +70,39 @@ public final class HighAdvanceRotorCalibration {
 			0.308641975309;
 	public static final boolean TYTO_WIND_TUNNEL_ARTICLE_RAW_NUMERIC_TABLE_AVAILABLE = false;
 	public static final boolean TYTO_WIND_TUNNEL_NEEDS_FIGURE_DIGITIZATION_OR_RAW_EXPORT = true;
+	public static final int IMAV_2021_PACKET_ROW_COUNT = 56;
+	public static final int IMAV_2021_SOURCE_INVENTORY_ROW_COUNT = 2;
+	public static final int IMAV_2021_TEST_ARTICLE_ROW_COUNT = 9;
+	public static final int IMAV_2021_TEST_MATRIX_ROW_COUNT = 7;
+	public static final int IMAV_2021_LOGGED_SCHEMA_ROW_COUNT = 7;
+	public static final int IMAV_2021_FORMULA_ROW_COUNT = 6;
+	public static final int IMAV_2021_CURRENT_OVERLAP_ROW_COUNT = 8;
+	public static final double IMAV_2021_PROPELLER_DIAMETER_INCHES = 5.0;
+	public static final int IMAV_2021_PROPELLER_BLADE_COUNT = 3;
+	public static final double IMAV_2021_WIND_SPEED_MIN_METERS_PER_SECOND = 10.0;
+	public static final double IMAV_2021_WIND_SPEED_MAX_METERS_PER_SECOND = 20.0;
+	public static final double IMAV_2021_FLOW_ANGLE_MIN_DEGREES = 30.0;
+	public static final double IMAV_2021_FLOW_ANGLE_MAX_DEGREES = 90.0;
+	public static final double IMAV_2021_RPM_RAMP_START = 10_000.0;
+	public static final double IMAV_2021_HIGH_QUALITY_RPM_CROP_START = 15_000.0;
+	public static final double IMAV_2021_RPM_RAMP_END_APPROX = 30_000.0;
+	public static final double IMAV_2021_HIGH_QUALITY_10MPS_J_MIN = 0.15748;
+	public static final double IMAV_2021_HIGH_QUALITY_10MPS_J_MAX = 0.314961;
+	public static final double IMAV_2021_HIGH_QUALITY_15MPS_J_MIN = 0.23622;
+	public static final double IMAV_2021_HIGH_QUALITY_15MPS_J_MAX = 0.472441;
+	public static final double IMAV_2021_HIGH_QUALITY_20MPS_J_MIN = 0.314961;
+	public static final double IMAV_2021_HIGH_QUALITY_20MPS_J_MAX = 0.629921;
+	public static final double IMAV_2021_RACING_HOVER_10MPS_J = 0.362771494408;
+	public static final double IMAV_2021_RACING_MAX_10MPS_J = 0.162141155716;
+	public static final double IMAV_2021_RACING_HOVER_15MPS_J = 0.544157241611;
+	public static final double IMAV_2021_RACING_MAX_15MPS_J = 0.243211733573;
+	public static final double IMAV_2021_RACING_HOVER_20MPS_J = 0.725542988815;
+	public static final double IMAV_2021_RACING_MAX_20MPS_J = 0.324282311431;
+	public static final boolean IMAV_2021_HAS_DIRECT_5IN_3BLADE_FORWARD_FLOW = true;
+	public static final boolean IMAV_2021_HAS_MECHANICAL_TORQUE_MEASUREMENT = true;
+	public static final boolean IMAV_2021_HAS_ELECTRICAL_POWER_MEASUREMENT = true;
+	public static final boolean IMAV_2021_HAS_RAW_CURVE_CSV_IN_PUBLIC_PDF = false;
+	public static final boolean IMAV_2021_NEEDS_FIGURE_DIGITIZATION_OR_RAW_EXPORT = true;
 
 	private static final ApcPropellerReference APC_5X4E_3BLADE = new ApcPropellerReference(
 			"APC_5x4E_3blade",
@@ -265,6 +301,55 @@ public final class HighAdvanceRotorCalibration {
 	) {
 	}
 
+	public record ImavForwardFlowPoint(
+			String pointId,
+			double windSpeedMetersPerSecond,
+			double packetAdvanceRatioJ,
+			double highQualityMinAdvanceRatioJ,
+			double highQualityMaxAdvanceRatioJ,
+			double currentRotorAdvanceRatio,
+			double currentEquivalentAdvanceRatioJ,
+			double currentThrustScale,
+			double currentPowerScale,
+			double currentTorquePerThrustScale,
+			boolean insideHighQualityJRange,
+			double advanceRatioJOverHighQualityMax
+	) {
+	}
+
+	public record ImavForwardFlowAudit(
+			String sourceId,
+			String caveat,
+			int packetRowCount,
+			int sourceInventoryRowCount,
+			int testArticleRowCount,
+			int testMatrixRowCount,
+			int loggedSchemaRowCount,
+			int formulaRowCount,
+			int currentOverlapRowCount,
+			double propellerDiameterInches,
+			int propellerBladeCount,
+			double windSpeedMinMetersPerSecond,
+			double windSpeedMaxMetersPerSecond,
+			double flowAngleMinDegrees,
+			double flowAngleMaxDegrees,
+			double rpmRampStart,
+			double highQualityRpmCropStart,
+			double rpmRampEndApprox,
+			boolean hasDirect5InchThreeBladeForwardFlow,
+			boolean hasMechanicalTorqueMeasurement,
+			boolean hasElectricalPowerMeasurement,
+			boolean hasRawCurveCsvInPublicPdf,
+			boolean needsFigureDigitizationOrRawExport,
+			ImavForwardFlowPoint racingHover10MetersPerSecondPoint,
+			ImavForwardFlowPoint racingMax10MetersPerSecondPoint,
+			ImavForwardFlowPoint racingHover15MetersPerSecondPoint,
+			ImavForwardFlowPoint racingMax15MetersPerSecondPoint,
+			ImavForwardFlowPoint racingHover20MetersPerSecondPoint,
+			ImavForwardFlowPoint racingMax20MetersPerSecondPoint
+	) {
+	}
+
 	public record HighAdvanceAudit(
 			String sourceId,
 			String caveat,
@@ -284,7 +369,8 @@ public final class HighAdvanceRotorCalibration {
 			AdvancePointAudit extremePitchHighAdvanceLossStart,
 			AdvancePointAudit extremePitchRetreatingStallEnd,
 			MejzlikWindTunnelAudit mejzlikWindTunnelAudit,
-			TytoWindTunnelLeadAudit tytoWindTunnelLeadAudit
+			TytoWindTunnelLeadAudit tytoWindTunnelLeadAudit,
+			ImavForwardFlowAudit imavForwardFlowAudit
 	) {
 	}
 
@@ -368,7 +454,122 @@ public final class HighAdvanceRotorCalibration {
 						0.152911392405
 				),
 				mejzlikWindTunnelAudit(config),
-				tytoWindTunnelLeadAudit(config)
+				tytoWindTunnelLeadAudit(config),
+				imavForwardFlowAudit(config)
+		);
+	}
+
+	private static ImavForwardFlowAudit imavForwardFlowAudit(DroneConfig config) {
+		RotorSpec rotor = config.rotors().get(0);
+		return new ImavForwardFlowAudit(
+				IMAV_2021_FORWARD_FLOW_SOURCE_ID,
+				IMAV_2021_FORWARD_FLOW_CAVEAT,
+				IMAV_2021_PACKET_ROW_COUNT,
+				IMAV_2021_SOURCE_INVENTORY_ROW_COUNT,
+				IMAV_2021_TEST_ARTICLE_ROW_COUNT,
+				IMAV_2021_TEST_MATRIX_ROW_COUNT,
+				IMAV_2021_LOGGED_SCHEMA_ROW_COUNT,
+				IMAV_2021_FORMULA_ROW_COUNT,
+				IMAV_2021_CURRENT_OVERLAP_ROW_COUNT,
+				IMAV_2021_PROPELLER_DIAMETER_INCHES,
+				IMAV_2021_PROPELLER_BLADE_COUNT,
+				IMAV_2021_WIND_SPEED_MIN_METERS_PER_SECOND,
+				IMAV_2021_WIND_SPEED_MAX_METERS_PER_SECOND,
+				IMAV_2021_FLOW_ANGLE_MIN_DEGREES,
+				IMAV_2021_FLOW_ANGLE_MAX_DEGREES,
+				IMAV_2021_RPM_RAMP_START,
+				IMAV_2021_HIGH_QUALITY_RPM_CROP_START,
+				IMAV_2021_RPM_RAMP_END_APPROX,
+				IMAV_2021_HAS_DIRECT_5IN_3BLADE_FORWARD_FLOW,
+				IMAV_2021_HAS_MECHANICAL_TORQUE_MEASUREMENT,
+				IMAV_2021_HAS_ELECTRICAL_POWER_MEASUREMENT,
+				IMAV_2021_HAS_RAW_CURVE_CSV_IN_PUBLIC_PDF,
+				IMAV_2021_NEEDS_FIGURE_DIGITIZATION_OR_RAW_EXPORT,
+				imavForwardFlowPoint(
+						rotor,
+						"racing_hover_10mps",
+						10.0,
+						IMAV_2021_RACING_HOVER_10MPS_J,
+						IMAV_2021_HIGH_QUALITY_10MPS_J_MIN,
+						IMAV_2021_HIGH_QUALITY_10MPS_J_MAX
+				),
+				imavForwardFlowPoint(
+						rotor,
+						"racing_max_10mps",
+						10.0,
+						IMAV_2021_RACING_MAX_10MPS_J,
+						IMAV_2021_HIGH_QUALITY_10MPS_J_MIN,
+						IMAV_2021_HIGH_QUALITY_10MPS_J_MAX
+				),
+				imavForwardFlowPoint(
+						rotor,
+						"racing_hover_15mps",
+						15.0,
+						IMAV_2021_RACING_HOVER_15MPS_J,
+						IMAV_2021_HIGH_QUALITY_15MPS_J_MIN,
+						IMAV_2021_HIGH_QUALITY_15MPS_J_MAX
+				),
+				imavForwardFlowPoint(
+						rotor,
+						"racing_max_15mps",
+						15.0,
+						IMAV_2021_RACING_MAX_15MPS_J,
+						IMAV_2021_HIGH_QUALITY_15MPS_J_MIN,
+						IMAV_2021_HIGH_QUALITY_15MPS_J_MAX
+				),
+				imavForwardFlowPoint(
+						rotor,
+						"racing_hover_20mps",
+						20.0,
+						IMAV_2021_RACING_HOVER_20MPS_J,
+						IMAV_2021_HIGH_QUALITY_20MPS_J_MIN,
+						IMAV_2021_HIGH_QUALITY_20MPS_J_MAX
+				),
+				imavForwardFlowPoint(
+						rotor,
+						"racing_max_20mps",
+						20.0,
+						IMAV_2021_RACING_MAX_20MPS_J,
+						IMAV_2021_HIGH_QUALITY_20MPS_J_MIN,
+						IMAV_2021_HIGH_QUALITY_20MPS_J_MAX
+				)
+		);
+	}
+
+	private static ImavForwardFlowPoint imavForwardFlowPoint(
+			RotorSpec rotor,
+			String pointId,
+			double windSpeedMetersPerSecond,
+			double advanceRatioJ,
+			double highQualityMinAdvanceRatioJ,
+			double highQualityMaxAdvanceRatioJ
+	) {
+		double currentAdvanceRatio = DronePhysics.rotorAdvanceRatioForUiucEquivalentPropellerAdvanceRatio(
+				rotor,
+				advanceRatioJ
+		);
+		double currentEquivalentJ = DronePhysics.rotorUiucEquivalentPropellerAdvanceRatio(rotor, currentAdvanceRatio);
+		double currentThrustScale = DronePhysics.rotorForwardAdvanceThrustScale(rotor, currentAdvanceRatio);
+		double currentPowerScale = DronePhysics.rotorForwardAdvancePowerScale(rotor, currentAdvanceRatio);
+		double currentTorquePerThrustScale = DronePhysics.rotorForwardAdvanceTorquePerThrustScale(
+				rotor,
+				currentAdvanceRatio
+		);
+		boolean insideHighQualityRange = currentEquivalentJ + EPSILON >= highQualityMinAdvanceRatioJ
+				&& currentEquivalentJ <= highQualityMaxAdvanceRatioJ + EPSILON;
+		return new ImavForwardFlowPoint(
+				pointId,
+				windSpeedMetersPerSecond,
+				advanceRatioJ,
+				highQualityMinAdvanceRatioJ,
+				highQualityMaxAdvanceRatioJ,
+				currentAdvanceRatio,
+				currentEquivalentJ,
+				currentThrustScale,
+				currentPowerScale,
+				currentTorquePerThrustScale,
+				insideHighQualityRange,
+				ratio(currentEquivalentJ, highQualityMaxAdvanceRatioJ)
 		);
 	}
 
