@@ -5,8 +5,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.tools.OfflineFlightRecorder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -9941,6 +9944,23 @@ class DronePhysicsTest {
 		assertTrue(report.maxBatteryVoltageSpike() > 1.0e-4);
 		assertTrue(report.maxBatteryBusRippleVoltage() > 1.0e-4);
 		assertTrue(report.maxBatteryEffectiveResistanceOhms() > 0.0);
+		assertEquals(
+				maxColumn(lines, header, "battery_soc_resistance_scale"),
+				report.maxBatteryStateOfChargeResistanceScale(),
+				1.0e-5
+		);
+		assertEquals(
+				maxColumn(lines, header, "battery_temp_resistance_scale"),
+				report.maxBatteryTemperatureResistanceScale(),
+				1.0e-5
+		);
+		assertEquals(
+				maxColumn(lines, header, "battery_polarization_resistance_scale"),
+				report.maxBatteryPolarizationResistanceScale(),
+				1.0e-5
+		);
+		assertTrue(report.maxBatteryStateOfChargeResistanceScale() >= 1.0);
+		assertTrue(report.maxBatteryTemperatureResistanceScale() >= 1.0);
 		assertTrue(report.maxBatteryPolarizationResistanceScale() > 1.05);
 		assertTrue(report.maxBatteryTemperatureCelsius() >= 25.0);
 		assertTrue(report.minBatteryThermalLimit() > 0.0);
@@ -10012,6 +10032,24 @@ class DronePhysicsTest {
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
 		assertTrue(report.maxEscTemperatureCelsius() >= 25.0);
 		assertTrue(report.minEscThermalLimit() > 0.0);
+	}
+
+	@Test
+	void offlineFlightRecorderCliSummaryReportsBatteryResistanceScaleSplit(@TempDir Path tempDir) throws IOException {
+		Path output = tempDir.resolve("short_racing_quad.csv");
+		ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+		PrintStream previousOut = System.out;
+		try {
+			System.setOut(new PrintStream(stdout, true, StandardCharsets.UTF_8));
+			OfflineFlightRecorder.main(new String[] {"racing_quad", output.toString(), "1.0"});
+		} finally {
+			System.setOut(previousOut);
+		}
+
+		String text = stdout.toString(StandardCharsets.UTF_8);
+		assertTrue(Files.exists(output));
+		assertTrue(text.contains("max_ir="));
+		assertTrue(text.contains("max_irx="));
 	}
 
 	@Test
