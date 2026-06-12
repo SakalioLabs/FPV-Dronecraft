@@ -5753,8 +5753,8 @@ public final class DronePhysics {
 		);
 		double lateralLag = updateDrydenLag(currentLateralLag, lateralFirstOrder, lateralTau, dtSeconds);
 		double verticalLag = updateDrydenLag(currentVerticalLag, verticalFirstOrder, verticalTau, dtSeconds);
-		double lateral = shapeDrydenTransverseAxis(lateralFirstOrder, lateralLag);
-		double vertical = shapeDrydenTransverseAxis(verticalFirstOrder, verticalLag);
+		double lateral = DrydenTurbulenceModel.shapeTransverseAxis(lateralFirstOrder, lateralLag);
+		double vertical = DrydenTurbulenceModel.shapeTransverseAxis(verticalFirstOrder, verticalLag);
 
 		drydenFirstOrderVelocityWorldMetersPerSecond = longitudinalAxis.multiply(longitudinalFirstOrder)
 				.add(lateralAxis.multiply(lateralFirstOrder))
@@ -5776,11 +5776,6 @@ public final class DronePhysics {
 	private static double updateDrydenLag(double currentValue, double targetValue, double timeConstantSeconds, double dtSeconds) {
 		double alpha = MathUtil.expSmoothing(dtSeconds, Math.max(1.0e-6, timeConstantSeconds));
 		return currentValue + (targetValue - currentValue) * alpha;
-	}
-
-	private static double shapeDrydenTransverseAxis(double firstOrderValue, double laggedValue) {
-		return DrydenTurbulenceModel.TRANSVERSE_LEAD_LAG_SCALE
-				* (firstOrderValue - DrydenTurbulenceModel.TRANSVERSE_LAG_WEIGHT * laggedValue);
 	}
 
 	private double nextDrydenGaussian() {

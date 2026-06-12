@@ -27,6 +27,23 @@ class DrydenTurbulenceModelTest {
 				DrydenTurbulenceModel.TRANSVERSE_LEAD_LAG_SCALE
 						* (1.0 - DrydenTurbulenceModel.TRANSVERSE_LAG_WEIGHT),
 				1.0e-12);
+		assertEquals(1.0 / Math.sqrt(2.0), DrydenTurbulenceModel.shapeTransverseAxis(1.0, 1.0), 1.0e-12);
+		assertEquals(Math.sqrt(1.5), DrydenTurbulenceModel.shapeTransverseAxis(1.0, 0.0), 1.0e-12);
+	}
+
+	@Test
+	void spectralHelpersMatchLowAltitudeDrydenShape() {
+		DrydenTurbulenceModel.Parameters parameters = DrydenTurbulenceModel.lowAltitude(6.0, 10.0);
+
+		assertEquals(0.0368875, DrydenTurbulenceModel.longitudinalPoleHertz(parameters), 1.0e-7);
+		assertEquals(0.0368875, DrydenTurbulenceModel.lateralPoleHertz(parameters), 1.0e-7);
+		assertEquals(0.2652582, DrydenTurbulenceModel.verticalPoleHertz(parameters), 1.0e-7);
+		assertEquals(1.0, DrydenTurbulenceModel.longitudinalSpectralMagnitudeRatio(0.0, parameters), 1.0e-12);
+		assertEquals(1.0 / Math.sqrt(2.0), DrydenTurbulenceModel.lateralSpectralMagnitudeRatio(0.0, parameters), 1.0e-12);
+		assertEquals(1.0 / Math.sqrt(2.0), DrydenTurbulenceModel.verticalSpectralMagnitudeRatio(0.0, parameters), 1.0e-12);
+		assertEquals(0.0368625, DrydenTurbulenceModel.longitudinalSpectralMagnitudeRatio(1.0, parameters), 1.0e-7);
+		assertEquals(0.0451267, DrydenTurbulenceModel.lateralSpectralMagnitudeRatio(1.0, parameters), 1.0e-7);
+		assertEquals(0.3070563, DrydenTurbulenceModel.verticalSpectralMagnitudeRatio(1.0, parameters), 1.0e-7);
 	}
 
 	@Test

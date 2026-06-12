@@ -39,6 +39,59 @@ final class DrydenTurbulenceModel {
 		);
 	}
 
+	static double longitudinalPoleHertz(Parameters parameters) {
+		return poleHertz(parameters.longitudinalTimeConstantSeconds());
+	}
+
+	static double lateralPoleHertz(Parameters parameters) {
+		return poleHertz(parameters.lateralTimeConstantSeconds());
+	}
+
+	static double verticalPoleHertz(Parameters parameters) {
+		return poleHertz(parameters.verticalTimeConstantSeconds());
+	}
+
+	static double longitudinalSpectralMagnitudeRatio(double frequencyHertz, Parameters parameters) {
+		return firstOrderSpectralMagnitudeRatio(frequencyHertz, parameters.longitudinalTimeConstantSeconds());
+	}
+
+	static double lateralSpectralMagnitudeRatio(double frequencyHertz, Parameters parameters) {
+		return transverseSpectralMagnitudeRatio(frequencyHertz, parameters.lateralTimeConstantSeconds());
+	}
+
+	static double verticalSpectralMagnitudeRatio(double frequencyHertz, Parameters parameters) {
+		return transverseSpectralMagnitudeRatio(frequencyHertz, parameters.verticalTimeConstantSeconds());
+	}
+
+	static double shapeTransverseAxis(double firstOrderValue, double laggedValue) {
+		return TRANSVERSE_LEAD_LAG_SCALE * (firstOrderValue - TRANSVERSE_LAG_WEIGHT * laggedValue);
+	}
+
+	private static double poleHertz(double timeConstantSeconds) {
+		if (!Double.isFinite(timeConstantSeconds) || timeConstantSeconds <= 0.0) {
+			return 0.0;
+		}
+		return 1.0 / (2.0 * Math.PI * timeConstantSeconds);
+	}
+
+	private static double firstOrderSpectralMagnitudeRatio(double frequencyHertz, double timeConstantSeconds) {
+		double frequency = Double.isFinite(frequencyHertz) ? Math.max(0.0, frequencyHertz) : 0.0;
+		double timeConstant = Math.max(1.0e-9, Double.isFinite(timeConstantSeconds) ? timeConstantSeconds : 0.0);
+		double omegaTau = 2.0 * Math.PI * frequency * timeConstant;
+		return 1.0 / Math.sqrt(1.0 + omegaTau * omegaTau);
+	}
+
+	private static double transverseSpectralMagnitudeRatio(double frequencyHertz, double timeConstantSeconds) {
+		double frequency = Double.isFinite(frequencyHertz) ? Math.max(0.0, frequencyHertz) : 0.0;
+		double timeConstant = Math.max(1.0e-9, Double.isFinite(timeConstantSeconds) ? timeConstantSeconds : 0.0);
+		double omegaTau = 2.0 * Math.PI * frequency * timeConstant;
+		double denominator = 1.0 + omegaTau * omegaTau;
+		double real = 1.0 - TRANSVERSE_LAG_WEIGHT / denominator;
+		double imaginary = TRANSVERSE_LAG_WEIGHT * omegaTau / denominator;
+		double leadLagMagnitude = TRANSVERSE_LEAD_LAG_SCALE * Math.sqrt(real * real + imaginary * imaginary);
+		return firstOrderSpectralMagnitudeRatio(frequency, timeConstant) * leadLagMagnitude;
+	}
+
 	record Parameters(
 			double altitudeMeters,
 			double wind20MetersPerSecond,
