@@ -103,6 +103,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("battery_slow_polarization_v"));
 		assertTrue(csv.contains("battery_20pct_sag_current_a"));
 		assertTrue(csv.contains("battery_20pct_sag_current_margin"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_current_a"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_power_w"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_current_ratio"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_current_residual_a"));
 		assertTrue(csv.contains("battery_equivalent_cycles"));
 		assertTrue(csv.contains("pid_dterm_lpf_hz"));
 		assertTrue(csv.contains("rotor_stall_intensity"));
@@ -366,6 +370,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("battery_effective_resistance_ohm"));
 		assertTrue(csv.contains("battery_20pct_sag_current_a"));
 		assertTrue(csv.contains("battery_20pct_sag_current_margin"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_current_a"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_power_w"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_current_ratio"));
+		assertTrue(csv.contains("mqtb_hq5x4x3_current_residual_a"));
 		assertTrue(csv.contains("battery_voltage_spike_v"));
 		assertTrue(csv.contains("battery_bus_ripple_v"));
 		assertTrue(csv.contains("imu_supply_noise"));
@@ -568,6 +576,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_effective_resistance_ohm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_20pct_sag_current_a")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_20pct_sag_current_margin")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "mqtb_hq5x4x3_current_a")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "mqtb_hq5x4x3_power_w")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "mqtb_hq5x4x3_current_ratio")]) > 0.0);
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "mqtb_hq5x4x3_current_residual_a")]));
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_soc_resistance_scale")]) >= 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_temp_resistance_scale")]) >= 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_polarization_resistance_scale")]) >= 1.0);

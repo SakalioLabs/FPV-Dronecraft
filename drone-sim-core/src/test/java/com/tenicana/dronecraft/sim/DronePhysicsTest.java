@@ -9656,6 +9656,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_20pct_sag_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_20pct_sag_current_margin"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_current_limit"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_current_a"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_current_ratio"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_current_residual_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("imu_supply_noise"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_x_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_y_mps"));
@@ -10111,6 +10115,10 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_effective_resistance_ohm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_20pct_sag_current_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_20pct_sag_current_margin")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_current_a")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_power_w")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_current_ratio")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_current_residual_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_slow_polarization_v")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
@@ -10141,6 +10149,10 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "battery_effective_resistance_ohm") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_20pct_sag_current_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_20pct_sag_current_margin") > 0.0);
+		assertTrue(maxColumn(lines, header, "mqtb_hq5x4x3_current_a") > 0.0);
+		assertTrue(maxColumn(lines, header, "mqtb_hq5x4x3_power_w") > 0.0);
+		assertTrue(maxColumn(lines, header, "mqtb_hq5x4x3_current_ratio") > 0.0);
+		assertTrue(maxAbsColumn(lines, header, "mqtb_hq5x4x3_current_residual_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_slow_polarization_v") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_soc_resistance_scale") >= 1.0);
 		assertTrue(maxColumn(lines, header, "battery_temp_resistance_scale") >= 1.0);

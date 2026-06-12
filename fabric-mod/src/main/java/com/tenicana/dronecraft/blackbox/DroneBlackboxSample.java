@@ -7,6 +7,7 @@ import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
+import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 
@@ -1012,7 +1013,11 @@ public final class DroneBlackboxSample {
 			"rotor_4_water_immersion",
 			"rotor_5_water_immersion",
 			"rotor_6_water_immersion",
-			"rotor_7_water_immersion"
+			"rotor_7_water_immersion",
+			"mqtb_hq5x4x3_current_a",
+			"mqtb_hq5x4x3_power_w",
+			"mqtb_hq5x4x3_current_ratio",
+			"mqtb_hq5x4x3_current_residual_a"
 	);
 	private static final int CSV_COLUMN_COUNT = CSV_HEADER.split(",", -1).length;
 
@@ -1887,6 +1892,10 @@ public final class DroneBlackboxSample {
 		row.add(escCoolingFactorOrOne(state, 2), "%.5f");
 		row.add(escCoolingFactorOrOne(state, 3), "%.5f");
 		addExtendedRotorColumns(row, state, environment, config, motorPowers, motorTargetOmega, motorTrackingError, motorActuatorAuthority, motorCurrents, motorRegenerativeCurrents, motorPhaseCurrents, motorCurrentRipples, motorCommutationRipples, motorTorqueRipples, motorElectricalEfficiency, motorVoltageHeadroom, motorWindingResistanceScale, motorMechanicalLoss, rotorThrust, rotorForceBody, rotorTorqueBody, propStrikeSeverityByRotor);
+		row.add(MotorBenchCurrentModel.mqtbHq5x4x3TotalCurrentAmps(state), "%.3f");
+		row.add(MotorBenchCurrentModel.mqtbHq5x4x3TotalElectricalPowerWatts(state), "%.3f");
+		row.add(MotorBenchCurrentModel.mqtbHq5x4x3CurrentRatio(state), "%.5f");
+		row.add(MotorBenchCurrentModel.mqtbHq5x4x3CurrentResidualAmps(state), "%.3f");
 
 		return new DroneBlackboxSample(row.build());
 	}

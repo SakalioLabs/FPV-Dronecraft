@@ -7,6 +7,7 @@ import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.MathUtil;
+import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
@@ -940,7 +941,11 @@ public final class OfflineFlightRecorder {
 			"vortex_ring_buffet_force_z_n",
 			"vortex_ring_buffet_force_n",
 			"wind_dryden_speed_mps",
-			"wind_burble_speed_mps"
+			"wind_burble_speed_mps",
+			"mqtb_hq5x4x3_current_a",
+			"mqtb_hq5x4x3_power_w",
+			"mqtb_hq5x4x3_current_ratio",
+			"mqtb_hq5x4x3_current_residual_a"
 	);
 
 	private OfflineFlightRecorder() {
@@ -2226,6 +2231,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, vortexRingBuffetForce.length(), "%.5f");
 		appendExtra(builder, state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
 		appendExtra(builder, state.windBurbleSpeedMetersPerSecond(), "%.5f");
+		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalCurrentAmps(state), "%.3f");
+		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalElectricalPowerWatts(state), "%.3f");
+		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3CurrentRatio(state), "%.5f");
+		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3CurrentResidualAmps(state), "%.3f");
 		return builder.toString();
 	}
 
