@@ -11084,6 +11084,13 @@ class DronePhysicsTest {
 		assertTrue(text.contains("rpm_ratio"));
 		assertTrue(text.contains("thr_rpm"));
 		assertTrue(text.contains("thr_ratio"));
+		assertTrue(text.contains("Motor response dynamics audit"));
+		assertTrue(text.contains("Motor-Response-Dynamics-Packet"));
+		assertTrue(text.contains("Betaflight-PR12562-RPM-Slew"));
+		assertTrue(text.contains("APDrone-Urban-eRPM-Lag"));
+		assertTrue(text.contains("brakeTau"));
+		assertTrue(text.contains("obs_ratio"));
+		assertTrue(text.contains("frame_delta"));
 		assertTrue(text.contains("APDrone control-response audit"));
 		assertTrue(text.contains("lag_p50"));
 		assertTrue(text.contains("ratios_ctrl"));

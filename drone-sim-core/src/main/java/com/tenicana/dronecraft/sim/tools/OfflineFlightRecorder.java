@@ -11,6 +11,7 @@ import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
+import com.tenicana.dronecraft.sim.MotorResponseCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
@@ -1258,6 +1259,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 		MotorBenchCurrentModel.ApDroneUrbanMotorRpmAudit apDroneUrbanMotorRpmAudit =
 				MotorBenchCurrentModel.apDroneUrbanMotorRpmAudit(preset);
+		MotorResponseCalibration.MotorResponseAudit motorResponseAudit =
+				MotorResponseCalibration.audit(preset);
 		ControlResponseCalibration.ControlResponseAudit controlResponseAudit =
 				ControlResponseCalibration.apDroneControlResponseAudit(preset);
 		PidTuningCalibration.ApDronePidTuningAudit pidTuningAudit =
@@ -1620,6 +1623,52 @@ public final class OfflineFlightRecorder {
 				apDroneUrbanMotorRpmAudit.motorP95RpmSpread(),
 				apDroneUrbanMotorRpmAudit.measuredP95BladePassHertz(),
 				apDroneUrbanMotorRpmAudit.configuredMaxBladePassHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Motor response dynamics audit: %s rows %d, RotorS/PX4 ref up/down/inflow %.1f/%.1f/%.1fms racing %.1fx/%.1fx inflow %.1fx, %s BF50 slew pos/neg %.0f/%.0frpm/s log_p50 %.0frpm/s tau %.1f/%.1fms decoded_max %.0frpm, %s lag level %.1f/%.1f/%.1fms delta %.1f/%.1f/%.1fms tau50 %.2fms tau90max %.1fms valid %.1f%%, preset tau %.1fms esc %.0fHz %.2fms brake %.2f brakeTau %.1fms slew %.0f/%.0frpm/s obs_ratio %.2f/%.2f tau_ratio %.2f/%.2f cfg_rpm %.0f/%.0f %.2fx ap_tau %.2f/%.2f frame_delta %.3fx%n",
+				motorResponseAudit.sourceId(),
+				motorResponseAudit.packetRowCount(),
+				motorResponseAudit.rotorSPx4Reference().motorSpinupReferenceTauSeconds() * 1000.0,
+				motorResponseAudit.rotorSPx4Reference().motorSpindownReferenceTauSeconds() * 1000.0,
+				motorResponseAudit.rotorSPx4Reference().rotorInflowReferenceTauSeconds() * 1000.0,
+				motorResponseAudit.rotorSPx4Reference().racingQuadMotorTauOverSpinupReference(),
+				motorResponseAudit.rotorSPx4Reference().racingQuadMotorTauOverSpindownReference(),
+				motorResponseAudit.rotorSPx4Reference().racingQuadInflowTauOverReference(),
+				motorResponseAudit.betaflightRpmSlewReference().referenceId(),
+				motorResponseAudit.betaflightRpmSlewReference().observedMaxPositive50msSlewRpmPerSecond(),
+				motorResponseAudit.betaflightRpmSlewReference().observedMaxNegative50msSlewRpmPerSecond(),
+				motorResponseAudit.betaflightRpmSlewReference().logLevelPositiveSlewP50RpmPerSecond(),
+				motorResponseAudit.betaflightRpmSlewReference().observedPositiveTauEquivalentSeconds() * 1000.0,
+				motorResponseAudit.betaflightRpmSlewReference().observedNegativeTauEquivalentSeconds() * 1000.0,
+				motorResponseAudit.betaflightRpmSlewReference().decodedRpmMaxAcrossMotors(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().referenceId(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().commandRpmLevelLagP10Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().commandRpmLevelLagP50Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().commandRpmLevelLagP90Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().commandRpmDeltaLagP10Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().commandRpmDeltaLagP50Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().commandRpmDeltaLagP90Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().firstOrderTauP50AcrossFilesP50Milliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().firstOrderTauP90AcrossFilesMaxMilliseconds(),
+				motorResponseAudit.apDroneUrbanRpmLagReference().validErpmFractionMin() * 100.0,
+				motorResponseAudit.preset().motorTimeConstantSeconds() * 1000.0,
+				motorResponseAudit.preset().escFrameRateHertz(),
+				motorResponseAudit.preset().escCommandFrameIntervalMilliseconds(),
+				motorResponseAudit.preset().activeBrakingStrength(),
+				motorResponseAudit.preset().activeBrakingTauProxySeconds() * 1000.0,
+				motorResponseAudit.preset().nominalSpinupSlewRpmPerSecond(),
+				motorResponseAudit.preset().activeBrakingSlewProxyRpmPerSecond(),
+				motorResponseAudit.preset().observedPositiveSlewOverNominalSpinupProxy(),
+				motorResponseAudit.preset().observedNegativeSlewOverActiveBrakingProxy(),
+				motorResponseAudit.preset().observedPositiveTauOverMotorTau(),
+				motorResponseAudit.preset().observedNegativeTauOverActiveBrakingTauProxy(),
+				motorResponseAudit.preset().averageHoverRotorRpm(),
+				motorResponseAudit.preset().averageMaxRotorRpm(),
+				motorResponseAudit.preset().configuredMaxRpmOverBetaflightDecodedMaxRpm(),
+				motorResponseAudit.preset().motorTauOverApDroneUrbanFirstOrderTauP50(),
+				motorResponseAudit.preset().motorTauOverApDroneUrbanLevelLagP50(),
+				motorResponseAudit.preset().escFrameIntervalOverApDroneUrbanDeltaLagP50()
 		);
 		System.out.printf(
 				Locale.ROOT,
