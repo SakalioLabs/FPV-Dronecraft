@@ -50,6 +50,7 @@ public final class DroneCommands {
 				.then(Commands.literal("spawn")
 						.executes(context -> spawn(context.getSource(), "racing_quad", DroneConfig::racingQuad))
 						.then(spawnPreset("racing_quad", DroneConfig::racingQuad))
+						.then(spawnPreset("apdrone", DroneConfig::apDrone))
 						.then(spawnPreset("cinewhoop", DroneConfig::cinewhoop))
 						.then(spawnPreset("heavy_lift", DroneConfig::heavyLift))
 						.then(spawnPreset("hex_lift", DroneConfig::hexLift))
@@ -102,6 +103,7 @@ public final class DroneCommands {
 				.then(Commands.literal("preset")
 						.then(Commands.literal("list").executes(context -> presetList(context.getSource())))
 						.then(preset("racing_quad", DroneConfig::racingQuad))
+						.then(preset("apdrone", DroneConfig::apDrone))
 						.then(preset("cinewhoop", DroneConfig::cinewhoop))
 						.then(preset("heavy_lift", DroneConfig::heavyLift))
 						.then(preset("hex_lift", DroneConfig::hexLift))
@@ -620,8 +622,8 @@ public final class DroneCommands {
 	}
 
 	private static int presetList(CommandSourceStack source) {
-		source.sendSuccess(() -> Component.literal("Available drone presets: racing_quad, cinewhoop, heavy_lift, hex_lift, octo_lift, coaxial_x8"), false);
-		return 5;
+		source.sendSuccess(() -> Component.literal("Available drone presets: racing_quad, apdrone, cinewhoop, heavy_lift, hex_lift, octo_lift, coaxial_x8"), false);
+		return 7;
 	}
 
 	private static int environmentStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

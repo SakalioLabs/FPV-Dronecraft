@@ -1191,12 +1191,13 @@ public final class OfflineFlightRecorder {
 	public static DroneConfig preset(String presetName) {
 		return switch (presetName) {
 			case "racing_quad" -> DroneConfig.racingQuad();
+			case "apdrone" -> DroneConfig.apDrone();
 			case "cinewhoop" -> DroneConfig.cinewhoop();
 			case "heavy_lift" -> DroneConfig.heavyLift();
 			case "hex_lift" -> DroneConfig.hexLift();
 			case "octo_lift" -> DroneConfig.octoLift();
 			case "coaxial_x8" -> DroneConfig.coaxialX8();
-			default -> throw new IllegalArgumentException("Unknown preset '" + presetName + "'. Use racing_quad, cinewhoop, heavy_lift, hex_lift, octo_lift, or coaxial_x8.");
+			default -> throw new IllegalArgumentException("Unknown preset '" + presetName + "'. Use racing_quad, apdrone, cinewhoop, heavy_lift, hex_lift, octo_lift, or coaxial_x8.");
 		};
 	}
 
@@ -1206,7 +1207,7 @@ public final class OfflineFlightRecorder {
 
 	private static void printUsage() {
 		System.out.println("Usage: OfflineFlightRecorder [preset] [output.csv] [duration_seconds]");
-		System.out.println("Presets: racing_quad, cinewhoop, heavy_lift, hex_lift, octo_lift, coaxial_x8");
+		System.out.println("Presets: racing_quad, apdrone, cinewhoop, heavy_lift, hex_lift, octo_lift, coaxial_x8");
 	}
 
 	private static ScriptFrame script(double timeSeconds, DroneConfig config) {

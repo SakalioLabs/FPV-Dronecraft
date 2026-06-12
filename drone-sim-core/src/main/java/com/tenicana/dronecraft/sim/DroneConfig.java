@@ -243,6 +243,93 @@ public record DroneConfig(
 				DEFAULT_ESC_COMMAND_PROTOCOL).withRotorBladeCount(3);
 	}
 
+	public static DroneConfig apDrone() {
+		double motorCenterRadius = 0.095;
+		double arm = motorCenterRadius / Math.sqrt(2.0);
+		double maxRotorThrust = 13.5;
+		double thrustCoefficient = 1.45e-6;
+		double yawTorquePerThrust = 0.0145;
+		double rotorRadius = 5.1 * 0.0254 * 0.5;
+		double rotorPitchToDiameter = 4.5 / 5.1;
+		double transverseFlowLift = 0.085;
+		double axialFlowLoss = 0.16;
+		double diskDrag = 0.0030;
+		double rotorInertia = RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(rotorRadius, 4.3);
+		double inflowTimeConstant = 0.034;
+		double inflowLag = 0.16;
+		double flapping = 0.060;
+		double stallLoss = 0.34;
+		return new DroneConfig(
+				0.6284,
+				new Vec3(0.001346, 0.002480, 0.001410),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				List.of(
+						new RotorSpec(new Vec3(arm, 0.0, arm), 1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss),
+						new RotorSpec(new Vec3(-arm, 0.0, arm), -1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss),
+						new RotorSpec(new Vec3(-arm, 0.0, -arm), 1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss),
+						new RotorSpec(new Vec3(arm, 0.0, -arm), -1, maxRotorThrust, thrustCoefficient, yawTorquePerThrust, rotorRadius, transverseFlowLift, axialFlowLoss, diskDrag, rotorInertia, inflowTimeConstant, inflowLag, flapping, stallLoss)
+				),
+				9.80665,
+				0.12,
+				new Vec3(0.0018, 0.0014, 0.0034),
+				0.55,
+				0.18,
+				2.0,
+				7.3,
+				0.030,
+				0.012,
+				0.015,
+				1.00,
+				190.0,
+				430.0,
+				0.012,
+				0.62,
+				0.88,
+				13.0,
+				0.040,
+				100.0,
+				130.0,
+				0.045,
+				1.0,
+				125.0,
+				0.025,
+				80.0,
+				0.20,
+				0.010,
+				16.8,
+				13.2,
+				0.016,
+				1.5,
+				150.0,
+				Math.toRadians(1998.0),
+				Math.toRadians(1998.0),
+				Math.toRadians(1998.0),
+				new Vec3(0.65, 0.65, 0.65),
+				new Vec3(0.90, 0.90, 0.90),
+				new PidGains(0.034, 0.0109, 0.00063, 1.00, 0.000012, 125.0, 1.60, 0.65, 0.20),
+				new PidGains(0.035, 0.0070, 0.00063, 0.90, 0.000009, 125.0, 1.30, 0.65, 0.18),
+				new PidGains(0.016, 0.0060, 0.00042, 0.70, 0.000010, 125.0, 1.20, 0.65, 0.18),
+				0.012,
+				0.010,
+				0.35,
+				2.0,
+				3.5,
+				DEFAULT_SELF_LEVEL_MAX_ANGLE_RADIANS,
+				DEFAULT_SELF_LEVEL_RATE_GAIN,
+				DEFAULT_HORIZON_TRANSITION_START_STICK,
+				DEFAULT_HORIZON_TRANSITION_END_STICK,
+				DEFAULT_PID_INTEGRAL_RELAX_STRENGTH,
+				DEFAULT_RC_FRAME_RATE_HERTZ,
+				DEFAULT_RC_CHANNEL_RESOLUTION_STEPS,
+				480.0,
+				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
+				EscCommandProtocol.DSHOT600)
+				.withRotorBladeCount(3)
+				.withRotorBladePitchToDiameterRatio(rotorPitchToDiameter);
+	}
+
 	public static DroneConfig cinewhoop() {
 		double arm = 0.13 / Math.sqrt(2.0);
 		double maxRotorThrust = 8.0;

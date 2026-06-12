@@ -44,6 +44,7 @@ class DronePhysicsTest {
 	@Test
 	void rotorBladeCountIsPresetSpecific() {
 		assertEquals(3, DroneConfig.racingQuad().rotors().get(0).bladeCount());
+		assertEquals(3, DroneConfig.apDrone().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.cinewhoop().rotors().get(0).bladeCount());
 		assertEquals(2, DroneConfig.heavyLift().rotors().get(0).bladeCount());
 
@@ -68,6 +69,46 @@ class DronePhysicsTest {
 				1.0e-15
 		);
 		assertEquals(0.0, RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(Double.NaN, 4.0), 1.0e-15);
+	}
+
+	@Test
+	void apDronePresetMatchesReferenceInertiaAndBetaflightAnchors() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double motorCenterRadius = Math.hypot(rotor.positionBodyMeters().x(), rotor.positionBodyMeters().z());
+		double maxRpm = rotor.maxOmegaRadiansPerSecond() * 60.0 / (Math.PI * 2.0);
+		double actualRateCenterSensitivity = (1.0 - config.rateExpo().x()) * (1.0 - config.rateSuper().x());
+
+		assertEquals(0.6284, config.massKg(), 1.0e-9);
+		assertEquals(0.001346, config.inertiaKgMetersSquared().x(), 1.0e-12);
+		assertEquals(0.002480, config.inertiaKgMetersSquared().y(), 1.0e-12);
+		assertEquals(0.001410, config.inertiaKgMetersSquared().z(), 1.0e-12);
+		assertEquals(0.095, motorCenterRadius, 1.0e-12);
+		assertEquals(5.1 * 0.0254 * 0.5, rotor.radiusMeters(), 1.0e-12);
+		assertEquals(4.5 / 5.1, rotor.bladePitchToDiameterRatio(), 1.0e-12);
+		assertEquals(3, rotor.bladeCount());
+		assertEquals(
+				RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(rotor.radiusMeters(), 4.3),
+				rotor.rotorInertiaKgMetersSquared(),
+				1.0e-15
+		);
+		assertEquals(EscCommandProtocol.DSHOT600, config.escCommandProtocol());
+		assertEquals(2000, config.escCommandResolutionSteps());
+		assertEquals(480.0, config.escCommandFrameRateHertz(), 1.0e-12);
+		assertEquals(1.5, config.batteryCapacityAmpHours(), 1.0e-12);
+		assertEquals(150.0, config.maxBatteryCurrentAmps(), 1.0e-12);
+		assertEquals(125.0, config.gyroLowPassCutoffHz(), 1.0e-12);
+		assertEquals(Math.toRadians(1998.0), config.maxPitchRateRadiansPerSecond(), 1.0e-12);
+		assertEquals(Math.toRadians(1998.0), config.maxYawRateRadiansPerSecond(), 1.0e-12);
+		assertEquals(Math.toRadians(1998.0), config.maxRollRateRadiansPerSecond(), 1.0e-12);
+		assertEquals(0.035, actualRateCenterSensitivity, 1.0e-12);
+		assertTrue(maxRpm > 28500.0, () -> "maxRpm=" + maxRpm);
+		assertTrue(maxRpm < 30000.0, () -> "maxRpm=" + maxRpm);
+		assertTrue(config.hoverThrottle() > 0.10, () -> "hover=" + config.hoverThrottle());
+		assertTrue(config.hoverThrottle() < 0.13, () -> "hover=" + config.hoverThrottle());
+		assertTrue(config.inertiaKgMetersSquared().y() > config.inertiaKgMetersSquared().x());
+		assertTrue(config.inertiaKgMetersSquared().y() > config.inertiaKgMetersSquared().z());
+		assertTrue(config.bodyDragCoefficients().z() < DroneConfig.racingQuad().bodyDragCoefficients().z());
 	}
 
 	@Test
@@ -352,12 +393,19 @@ class DronePhysicsTest {
 	@Test
 	void aircraftPresetsRepresentDifferentFrameClasses() {
 		DroneConfig racing = directControl(DroneConfig.racingQuad());
+		DroneConfig apDrone = DroneConfig.apDrone();
 		DroneConfig cinewhoop = DroneConfig.cinewhoop();
 		DroneConfig heavyLift = DroneConfig.heavyLift();
 		DroneConfig hexLift = DroneConfig.hexLift();
 		DroneConfig octoLift = DroneConfig.octoLift();
 		DroneConfig coaxialX8 = DroneConfig.coaxialX8();
 
+		assertTrue(apDrone.massKg() < racing.massKg());
+		assertTrue(apDrone.hoverThrottle() < racing.hoverThrottle());
+		assertTrue(apDrone.rotors().get(0).positionBodyMeters().length() < racing.rotors().get(0).positionBodyMeters().length());
+		assertTrue(apDrone.rotors().get(0).radiusMeters() > racing.rotors().get(0).radiusMeters());
+		assertTrue(apDrone.maxRollRateRadiansPerSecond() > racing.maxRollRateRadiansPerSecond());
+		assertEquals(EscCommandProtocol.DSHOT600, apDrone.escCommandProtocol());
 		assertTrue(cinewhoop.maxRollRateRadiansPerSecond() < racing.maxRollRateRadiansPerSecond());
 		assertTrue(cinewhoop.bodyDragCoefficients().z() > racing.bodyDragCoefficients().z());
 		assertTrue(cinewhoop.hoverThrottle() > racing.hoverThrottle());
@@ -10449,6 +10497,37 @@ class DronePhysicsTest {
 		assertTrue(text.contains("UZH26.8"));
 		assertTrue(text.contains("tilt"));
 		assertTrue(text.contains("reachable"));
+	}
+
+	@Test
+	void offlineFlightRecorderSupportsApDronePreset(@TempDir Path tempDir) throws IOException {
+		Path output = tempDir.resolve("apdrone.csv");
+		OfflineFlightRecorder.FlightReport report = OfflineFlightRecorder.record("apdrone", output, 3.0);
+		List<String> lines = Files.readAllLines(output);
+		String[] header = lines.get(0).split(",", -1);
+		String[] firstRow = lines.get(1).split(",", -1);
+		String[] row = lines.get(lines.size() - 1).split(",", -1);
+		DroneConfig preset = OfflineFlightRecorder.preset("apdrone");
+		RotorSpec rotor = preset.rotors().get(0);
+
+		assertEquals(4, preset.rotors().size());
+		assertTrue(Files.exists(output));
+		assertTrue(lines.size() > 100);
+		assertEquals(header.length, row.length);
+		assertEquals("4", row[indexOf(header, "airframe_rotor_count")]);
+		assertEquals(480.0, Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_frame_rate_hz")]), 1.0e-9);
+		assertEquals(2000.0, Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_resolution_steps")]), 1.0e-9);
+		assertEquals(600.0, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_bitrate_kbit_s")]), 1.0e-9);
+		assertEquals(26.667, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_raw_frame_us")]), 0.001);
+		assertEquals(0.01280, Double.parseDouble(firstRow[indexOf(header, "tune_esc_dshot_wire_utilization")]), 0.00001);
+		assertEquals(78.13, Double.parseDouble(firstRow[indexOf(header, "tune_esc_command_interval_raw_frame_ratio")]), 0.01);
+		assertEquals(rotor.bladePitchToDiameterRatio(), Double.parseDouble(firstRow[indexOf(header, "tune_rotor_pitch_to_diameter")]), 0.00001);
+		assertEquals(3.0, Double.parseDouble(firstRow[indexOf(header, "tune_rotor_blade_count")]), 1.0e-9);
+		assertTrue(Double.parseDouble(row[indexOf(header, "motor_0_rpm")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]) >= 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_reynolds_number")]) >= 0.0);
+		assertTrue(report.samples() > 100);
+		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 	}
 
 	@Test

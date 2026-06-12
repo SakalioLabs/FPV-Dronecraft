@@ -9,6 +9,7 @@ The project is intentionally split into two modules:
 
 The simulator uses Minecraft as the world, renderer, input, and networking layer. Flight dynamics live in `drone-sim-core` so they can be tested and tuned without starting the game.
 The default `racing_quad` rotor speed scale is calibrated against open 5-inch FPV thrust-stand and UIUC propeller data; see `docs/fpv-sim-model-validation.md` and `docs/fpv-sim-data-sources.md` before changing rotor constants that feed RPM, tip Mach, blade-pass filtering, vibration, or motor current telemetry.
+The `apdrone` preset adds a compact APDrone/Mendeley FPV reference frame with 0.6284 kg mass, 0.095 m motor-center radius, mapped X/Y/Z inertia, Foxeer Donut 5145-style 5.1x4.5 tri-blade geometry, a 4S 1500 mAh battery, and Betaflight 4.5/DShot600 command-rate anchors.
 Rotor side-flow obstruction geometry also lives in `drone-sim-core`, so Minecraft wall sampling, offline flight logs, and future non-Fabric frontends share the same wall-clearance-to-rotor-blockage mapping.
 
 ## Build
@@ -78,6 +79,7 @@ Vortex-ring-state mean thrust loss is calibrated against the small-prop referenc
 To compare airframe presets or choose a custom output file:
 
 ```powershell
+.\gradlew.bat :drone-sim-core:offlineFlight -Ppreset=apdrone
 .\gradlew.bat :drone-sim-core:offlineFlight -Ppreset=cinewhoop
 .\gradlew.bat :drone-sim-core:offlineFlight -Ppreset=heavy_lift -Poutput=C:\temp\heavy_lift.csv
 .\gradlew.bat :drone-sim-core:offlineFlight -Ppreset=hex_lift
@@ -102,6 +104,7 @@ For command-based setup and testing, use:
 ```text
 /fpvdrone spawn
 /fpvdrone spawn racing_quad
+/fpvdrone spawn apdrone
 /fpvdrone spawn cinewhoop
 /fpvdrone spawn heavy_lift
 /fpvdrone spawn hex_lift
@@ -240,6 +243,7 @@ Use presets to switch the currently linked drone to a coherent airframe baseline
 ```text
 /fpvdrone preset list
 /fpvdrone preset racing_quad
+/fpvdrone preset apdrone
 /fpvdrone preset cinewhoop
 /fpvdrone preset heavy_lift
 /fpvdrone preset hex_lift
@@ -247,7 +251,7 @@ Use presets to switch the currently linked drone to a coherent airframe baseline
 /fpvdrone preset coaxial_x8
 ```
 
-`racing_quad` is the default fast 5-inch-style acro frame. `cinewhoop` is slower, draggier, and more protected-feeling. `heavy_lift` uses larger rotors, higher mass and inertia, slower motor response, and lower rates for stable camera or cargo-style flight. `hex_lift` is a six-rotor X/flat-hex lift frame that exercises the generic rotor-geometry mixer with three clockwise and three counter-clockwise rotors. `octo_lift` is an eight-rotor lift frame with heavier inertia, slower rates, wider collision footprint, and the full rotor 4..7 telemetry extension range active. `coaxial_x8` is a compact four-arm X8 with upper/lower counter-rotating prop pairs, so the lower disks fly in same-frame rotor wake and expose the wake-interference, wake-swirl, and z/D-windowed upper/lower load-bias allocation model with a z/D=0.72 runtime command-map prior in normal gameplay. When a preset changes rotor count, the Fabric entity rebuilds its physics stack around the new airframe while carrying over position, velocity, attitude, and angular velocity. Preset name and tuning values are saved on the drone entity, then the saved preset is restored before tuning overrides are applied, so a saved multi-rotor drone reloads with the same airframe. Blackbox and offline CSV logs keep the legacy rotor 0..3 columns stable and append rotor 4..7 extension columns, including in-plane H-force, wake-interference, coaxial load-bias, wake-swirl velocity, and wake-swirl hub torque telemetry, for six- and eight-rotor tuning.
+`racing_quad` is the default fast 5-inch-style acro frame. `apdrone` is a compact APDrone/Mendeley FPV reference frame with measured mass/inertia, 0.095 m motor-center radius, 5.1x4.5 three-blade prop geometry, 4S 1500 mAh pack limits, high Actual-rate limits, and DShot600 at the Betaflight dump's 480 Hz motor command anchor. `cinewhoop` is slower, draggier, and more protected-feeling. `heavy_lift` uses larger rotors, higher mass and inertia, slower motor response, and lower rates for stable camera or cargo-style flight. `hex_lift` is a six-rotor X/flat-hex lift frame that exercises the generic rotor-geometry mixer with three clockwise and three counter-clockwise rotors. `octo_lift` is an eight-rotor lift frame with heavier inertia, slower rates, wider collision footprint, and the full rotor 4..7 telemetry extension range active. `coaxial_x8` is a compact four-arm X8 with upper/lower counter-rotating prop pairs, so the lower disks fly in same-frame rotor wake and expose the wake-interference, wake-swirl, and z/D-windowed upper/lower load-bias allocation model with a z/D=0.72 runtime command-map prior in normal gameplay. When a preset changes rotor count, the Fabric entity rebuilds its physics stack around the new airframe while carrying over position, velocity, attitude, and angular velocity. Preset name and tuning values are saved on the drone entity, then the saved preset is restored before tuning overrides are applied, so a saved multi-rotor drone reloads with the same airframe. Blackbox and offline CSV logs keep the legacy rotor 0..3 columns stable and append rotor 4..7 extension columns, including in-plane H-force, wake-interference, coaxial load-bias, wake-swirl velocity, and wake-swirl hub torque telemetry, for six- and eight-rotor tuning.
 
 Use the tuning commands on your currently linked drone to refine a preset:
 

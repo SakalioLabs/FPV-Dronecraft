@@ -2667,13 +2667,14 @@ public class DroneEntity extends PathfinderMob {
 	private static String normalizeAirframePreset(String presetName) {
 		String normalized = presetName == null ? "" : presetName.toLowerCase(Locale.ROOT);
 		return switch (normalized) {
-			case "cinewhoop", "heavy_lift", "hex_lift", "octo_lift", "coaxial_x8" -> normalized;
+			case "apdrone", "cinewhoop", "heavy_lift", "hex_lift", "octo_lift", "coaxial_x8" -> normalized;
 			default -> "racing_quad";
 		};
 	}
 
 	private static DroneConfig configForPreset(String presetName) {
 		return switch (normalizeAirframePreset(presetName)) {
+			case "apdrone" -> DroneConfig.apDrone();
 			case "cinewhoop" -> DroneConfig.cinewhoop();
 			case "heavy_lift" -> DroneConfig.heavyLift();
 			case "hex_lift" -> DroneConfig.hexLift();
