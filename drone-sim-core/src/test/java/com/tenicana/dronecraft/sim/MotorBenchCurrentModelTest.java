@@ -27,6 +27,27 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void apDronePdf5045PowerLawMatchesFitRows() {
+		assertEquals(
+				1.7785734509563393,
+				MotorBenchCurrentModel.apDronePdf5045CurrentAmpsForThrustNewtons(1.540624715),
+				1.0e-12
+		);
+		assertEquals(
+				30.09258590120369,
+				MotorBenchCurrentModel.apDronePdf5045CurrentAmpsForThrustNewtons(13.5),
+				1.0e-12
+		);
+		assertEquals(
+				736.4674066918693,
+				MotorBenchCurrentModel.apDronePdf5045ElectricalPowerWattsForThrustNewtons(13.5),
+				1.0e-9
+		);
+		assertEquals(0.0, MotorBenchCurrentModel.apDronePdf5045CurrentAmpsForThrustNewtons(Double.NaN), 1.0e-12);
+		assertEquals(0.0, MotorBenchCurrentModel.apDronePdf5045ElectricalPowerWattsForThrustNewtons(-1.0), 1.0e-12);
+	}
+
+	@Test
 	void stateAuditReportsTotalCurrentRatioAndResidual() {
 		DroneState state = new DroneState(4);
 		for (int i = 0; i < 4; i++) {
@@ -39,6 +60,26 @@ class MotorBenchCurrentModelTest {
 		assertEquals(288.1544128, MotorBenchCurrentModel.mqtbHq5x4x3TotalElectricalPowerWatts(state), 1.0e-6);
 		assertEquals(19.0 / referenceCurrent, MotorBenchCurrentModel.mqtbHq5x4x3CurrentRatio(state), 1.0e-12);
 		assertEquals(19.0 - referenceCurrent, MotorBenchCurrentModel.mqtbHq5x4x3CurrentResidualAmps(state), 1.0e-12);
+	}
+
+	@Test
+	void apDronePdf5045StateAuditUsesRotorSimilarity() {
+		DroneState state = new DroneState(4);
+		for (int i = 0; i < 4; i++) {
+			state.setRotorThrustNewtons(i, 13.5);
+			state.setMotorCurrentAmps(i, 35.0);
+		}
+
+		double referenceCurrent = MotorBenchCurrentModel.apDronePdf5045TotalCurrentAmps(DroneConfig.apDrone(), state);
+		assertEquals(120.37034360481476, referenceCurrent, 1.0e-9);
+		assertEquals(
+				2945.8696267674773,
+				MotorBenchCurrentModel.apDronePdf5045TotalElectricalPowerWatts(DroneConfig.apDrone(), state),
+				1.0e-9
+		);
+		assertEquals(140.0 / referenceCurrent, MotorBenchCurrentModel.apDronePdf5045CurrentRatio(DroneConfig.apDrone(), state), 1.0e-12);
+		assertEquals(140.0 - referenceCurrent, MotorBenchCurrentModel.apDronePdf5045CurrentResidualAmps(DroneConfig.apDrone(), state), 1.0e-12);
+		assertEquals(0.0, MotorBenchCurrentModel.apDronePdf5045TotalCurrentAmps(DroneConfig.racingQuad(), state), 1.0e-12);
 	}
 
 	@Test
@@ -198,6 +239,34 @@ class MotorBenchCurrentModelTest {
 		assertEquals(
 				0.0,
 				MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(DroneConfig.heavyLift().rotors().get(0)),
+				1.0e-12
+		);
+	}
+
+	@Test
+	void apDronePdf5045RotorSimilaritySelectsApDroneMotorAndProp() {
+		assertEquals(
+				1.0,
+				MotorBenchCurrentModel.apDronePdf5045RotorSimilarity(DroneConfig.apDrone().rotors().get(0)),
+				1.0e-12
+		);
+		assertEquals(
+				0.0,
+				MotorBenchCurrentModel.apDronePdf5045RotorSimilarity(
+						DroneConfig.apDrone().withRotorBladeCount(2).rotors().get(0)
+				),
+				1.0e-12
+		);
+		assertEquals(
+				0.0,
+				MotorBenchCurrentModel.apDronePdf5045RotorSimilarity(
+						DroneConfig.apDrone().withMotorWindingResistanceOhms(0.0).rotors().get(0)
+				),
+				1.0e-12
+		);
+		assertEquals(
+				0.0,
+				MotorBenchCurrentModel.apDronePdf5045RotorSimilarity(DroneConfig.racingQuad().rotors().get(0)),
 				1.0e-12
 		);
 	}

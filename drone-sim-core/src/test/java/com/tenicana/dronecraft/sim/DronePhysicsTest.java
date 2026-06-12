@@ -3917,6 +3917,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void apDronePdfBenchAnchorPullsMotorCurrentTowardPdfCurve() throws ReflectiveOperationException {
+		Method motorCurrentEstimate = DronePhysics.class.getDeclaredMethod(
+				"estimateMotorCurrent",
+				int.class
+		);
+		motorCurrentEstimate.setAccessible(true);
+
+		DroneConfig baseConfig = directControl(DroneConfig.apDrone())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.8, 0.0, 20.0, 150.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics apDroneAnchored = new DronePhysics(baseConfig);
+		DronePhysics noPdfAnchor = new DronePhysics(baseConfig.withRotorBladeCount(2));
+		preparePropellerPowerCurrentEstimate(apDroneAnchored, 0.62, 0.45, 1.0, 1.0);
+		preparePropellerPowerCurrentEstimate(noPdfAnchor, 0.62, 0.45, 1.0, 1.0);
+		apDroneAnchored.state().setMotorShaftPowerWatts(0, 240.0);
+		noPdfAnchor.state().setMotorShaftPowerWatts(0, 240.0);
+
+		double anchoredCurrent = recordDouble(motorCurrentEstimate.invoke(apDroneAnchored, 0), "dischargeCurrentAmps");
+		double unanchoredCurrent = recordDouble(motorCurrentEstimate.invoke(noPdfAnchor, 0), "dischargeCurrentAmps");
+		double benchCurrent = MotorBenchCurrentModel.apDronePdf5045CurrentAmpsForThrustNewtons(
+				apDroneAnchored.state().rotorThrustNewtons(0)
+		);
+
+		assertTrue(Math.abs(anchoredCurrent - benchCurrent) < Math.abs(unanchoredCurrent - benchCurrent) * 0.55,
+				() -> "anchoredCurrent=" + anchoredCurrent
+						+ " unanchoredCurrent=" + unanchoredCurrent
+						+ " benchCurrent=" + benchCurrent);
+		assertTrue(anchoredCurrent < unanchoredCurrent - 5.0,
+				() -> "anchoredCurrent=" + anchoredCurrent + " unanchoredCurrent=" + unanchoredCurrent);
+		assertTrue(anchoredCurrent > benchCurrent * 1.20,
+				() -> "anchoredCurrent=" + anchoredCurrent + " benchCurrent=" + benchCurrent);
+	}
+
+	@Test
 	void propellerPowerScaleShapesMotorSpinupLoad() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.035)
@@ -9828,6 +9863,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_power_w"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_current_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("mqtb_hq5x4x3_current_residual_a"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("apdrone_pdf5045_current_a"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("apdrone_pdf5045_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("apdrone_pdf5045_current_ratio"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("apdrone_pdf5045_current_residual_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("imu_supply_noise"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_x_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("effective_wind_y_mps"));
@@ -10295,6 +10334,10 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_power_w")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_current_ratio")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "mqtb_hq5x4x3_current_residual_a")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "apdrone_pdf5045_current_a")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "apdrone_pdf5045_power_w")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "apdrone_pdf5045_current_ratio")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "apdrone_pdf5045_current_residual_a")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_slow_polarization_v")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
@@ -10631,6 +10674,10 @@ class DronePhysicsTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_0_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_tip_mach")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_reynolds_number")]) >= 0.0);
+		assertTrue(maxColumn(lines, header, "apdrone_pdf5045_current_a") > 0.0);
+		assertTrue(maxColumn(lines, header, "apdrone_pdf5045_power_w") > 0.0);
+		assertTrue(maxColumn(lines, header, "apdrone_pdf5045_current_ratio") > 0.0);
+		assertTrue(maxAbsColumn(lines, header, "apdrone_pdf5045_current_residual_a") > 0.0);
 		assertTrue(report.samples() > 100);
 		assertTrue(report.maxBatteryCurrentAmps() > 20.0);
 		assertEquals(2, autonomy.length);

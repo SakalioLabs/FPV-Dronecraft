@@ -980,7 +980,11 @@ public final class OfflineFlightRecorder {
 			"mqtb_hq5x4x3_current_a",
 			"mqtb_hq5x4x3_power_w",
 			"mqtb_hq5x4x3_current_ratio",
-			"mqtb_hq5x4x3_current_residual_a"
+			"mqtb_hq5x4x3_current_residual_a",
+			"apdrone_pdf5045_current_a",
+			"apdrone_pdf5045_power_w",
+			"apdrone_pdf5045_current_ratio",
+			"apdrone_pdf5045_current_residual_a"
 	);
 
 	private OfflineFlightRecorder() {
@@ -2981,6 +2985,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalElectricalPowerWatts(state), "%.3f");
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3CurrentRatio(state), "%.5f");
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3CurrentResidualAmps(state), "%.3f");
+		appendExtra(builder, MotorBenchCurrentModel.apDronePdf5045TotalCurrentAmps(config, state), "%.3f");
+		appendExtra(builder, MotorBenchCurrentModel.apDronePdf5045TotalElectricalPowerWatts(config, state), "%.3f");
+		appendExtra(builder, MotorBenchCurrentModel.apDronePdf5045CurrentRatio(config, state), "%.5f");
+		appendExtra(builder, MotorBenchCurrentModel.apDronePdf5045CurrentResidualAmps(config, state), "%.3f");
 		return builder.toString();
 	}
 

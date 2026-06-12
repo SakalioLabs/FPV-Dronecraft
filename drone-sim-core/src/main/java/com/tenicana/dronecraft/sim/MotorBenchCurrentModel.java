@@ -37,6 +37,13 @@ public final class MotorBenchCurrentModel {
 	public static final double APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_CURRENT_AMPS = 32.16;
 	public static final double APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_VOLTAGE_VOLTS = 24.39;
 	public static final double APDRONE_BATTERY_FILENAME_NOMINAL_VOLTAGE_VOLTS = 14.8;
+	public static final double APDRONE_PDF_5045_6S_CURRENT_FIT_A = 1.0126900652391877;
+	public static final double APDRONE_PDF_5045_6S_CURRENT_FIT_B = 1.303139834022931;
+	public static final double APDRONE_PDF_5045_6S_POWER_FIT_A = 27.51898610712409;
+	public static final double APDRONE_PDF_5045_6S_POWER_FIT_B = 1.2629199818308061;
+	public static final double APDRONE_FOXEER_5145_RADIUS_METERS = 5.1 * 0.0254 * 0.5;
+	public static final double APDRONE_FOXEER_5145_PITCH_TO_DIAMETER_RATIO = 4.5 / 5.1;
+	public static final int APDRONE_FOXEER_5145_BLADE_COUNT = 3;
 	public static final String AIIO_ROTOR_SPEED_SOURCE_ID = "AI-IO";
 	public static final int AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT = 22;
 	public static final double AIIO_HDF5_SAMPLE_RATE_HERTZ = 100.00009536752259;
@@ -187,6 +194,14 @@ public final class MotorBenchCurrentModel {
 		return powerLaw(thrustNewtons, MQTB_HQ5X4X3_POWER_FIT_A, MQTB_HQ5X4X3_POWER_FIT_B);
 	}
 
+	public static double apDronePdf5045CurrentAmpsForThrustNewtons(double thrustNewtons) {
+		return powerLaw(thrustNewtons, APDRONE_PDF_5045_6S_CURRENT_FIT_A, APDRONE_PDF_5045_6S_CURRENT_FIT_B);
+	}
+
+	public static double apDronePdf5045ElectricalPowerWattsForThrustNewtons(double thrustNewtons) {
+		return powerLaw(thrustNewtons, APDRONE_PDF_5045_6S_POWER_FIT_A, APDRONE_PDF_5045_6S_POWER_FIT_B);
+	}
+
 	public static double mqtbHq5x4x3TotalCurrentAmps(DroneState state) {
 		double total = 0.0;
 		for (double thrust : state.rotorThrustNewtons()) {
@@ -223,6 +238,44 @@ public final class MotorBenchCurrentModel {
 		return totalMotorCurrentAmps(state) - mqtbHq5x4x3TotalCurrentAmps(state);
 	}
 
+	public static double apDronePdf5045TotalCurrentAmps(DroneConfig config, DroneState state) {
+		if (config == null || state == null) {
+			return 0.0;
+		}
+		double total = 0.0;
+		int count = Math.min(config.rotors().size(), state.rotorThrustNewtons().length);
+		for (int i = 0; i < count; i++) {
+			total += apDronePdf5045RotorSimilarity(config.rotors().get(i))
+					* apDronePdf5045CurrentAmpsForThrustNewtons(state.rotorThrustNewtons(i));
+		}
+		return total;
+	}
+
+	public static double apDronePdf5045TotalElectricalPowerWatts(DroneConfig config, DroneState state) {
+		if (config == null || state == null) {
+			return 0.0;
+		}
+		double total = 0.0;
+		int count = Math.min(config.rotors().size(), state.rotorThrustNewtons().length);
+		for (int i = 0; i < count; i++) {
+			total += apDronePdf5045RotorSimilarity(config.rotors().get(i))
+					* apDronePdf5045ElectricalPowerWattsForThrustNewtons(state.rotorThrustNewtons(i));
+		}
+		return total;
+	}
+
+	public static double apDronePdf5045CurrentRatio(DroneConfig config, DroneState state) {
+		double referenceCurrent = apDronePdf5045TotalCurrentAmps(config, state);
+		if (referenceCurrent <= 1.0e-9) {
+			return 0.0;
+		}
+		return totalMotorCurrentAmps(state) / referenceCurrent;
+	}
+
+	public static double apDronePdf5045CurrentResidualAmps(DroneConfig config, DroneState state) {
+		return totalMotorCurrentAmps(state) - apDronePdf5045TotalCurrentAmps(config, state);
+	}
+
 	public static double mqtbHq5x4x3RotorSimilarity(RotorSpec rotor) {
 		if (rotor == null) {
 			return 0.0;
@@ -241,6 +294,32 @@ public final class MotorBenchCurrentModel {
 				1.0
 		);
 		return MathUtil.clamp(radiusWeight * pitchWeight * bladeWeight, 0.0, 1.0);
+	}
+
+	public static double apDronePdf5045RotorSimilarity(RotorSpec rotor) {
+		if (rotor == null) {
+			return 0.0;
+		}
+
+		double radiusWeight = plateauWindow(rotor.radiusMeters(), APDRONE_FOXEER_5145_RADIUS_METERS, 0.003, 0.012);
+		double pitchWeight = plateauWindow(
+				rotor.bladePitchToDiameterRatio(),
+				APDRONE_FOXEER_5145_PITCH_TO_DIAMETER_RATIO,
+				0.035,
+				0.16
+		);
+		double bladeWeight = 1.0 - MathUtil.clamp(
+				Math.abs(rotor.bladeCount() - APDRONE_FOXEER_5145_BLADE_COUNT),
+				0.0,
+				1.0
+		);
+		double windingResistanceWeight = plateauWindow(
+				rotor.motorWindingResistanceOhms(),
+				APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS,
+				0.008,
+				0.035
+		);
+		return MathUtil.clamp(radiusWeight * pitchWeight * bladeWeight * windingResistanceWeight, 0.0, 1.0);
 	}
 
 	public static StaticPowertrainAudit tytoX3nmStaticPowertrainAudit(DroneConfig config) {

@@ -7642,10 +7642,52 @@ public final class DronePhysics {
 			double propellerPowerLoadFactor,
 			double brakingLoad
 	) {
+		double apDroneProfileWeight = MotorBenchCurrentModel.apDronePdf5045RotorSimilarity(rotor);
+		if (apDroneProfileWeight > 1.0e-6) {
+			double apDroneBenchCurrentAmps = MotorBenchCurrentModel.apDronePdf5045CurrentAmpsForThrustNewtons(
+					state.rotorThrustNewtons(index)
+			);
+			return motorBenchAnchoredSteadyMotorCurrentAmps(
+					index,
+					steadyCurrentAmps,
+					apDroneBenchCurrentAmps,
+					apDroneProfileWeight,
+					thrustFraction,
+					aerodynamicLoadFactor,
+					propellerPowerLoadFactor,
+					brakingLoad,
+					0.72
+			);
+		}
+
 		double profileWeight = MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(rotor);
 		double benchCurrentAmps = MotorBenchCurrentModel.mqtbHq5x4x3CurrentAmpsForThrustNewtons(
 				state.rotorThrustNewtons(index)
 		);
+		return motorBenchAnchoredSteadyMotorCurrentAmps(
+				index,
+				steadyCurrentAmps,
+				benchCurrentAmps,
+				profileWeight,
+				thrustFraction,
+				aerodynamicLoadFactor,
+				propellerPowerLoadFactor,
+				brakingLoad,
+				0.62
+		);
+	}
+
+	private double motorBenchAnchoredSteadyMotorCurrentAmps(
+			int index,
+			double steadyCurrentAmps,
+			double benchCurrentAmps,
+			double profileWeight,
+			double thrustFraction,
+			double aerodynamicLoadFactor,
+			double propellerPowerLoadFactor,
+			double brakingLoad,
+			double maxAnchorBlend
+	) {
 		if (profileWeight <= 1.0e-6
 				|| steadyCurrentAmps <= 1.0e-6
 				|| benchCurrentAmps <= 1.0e-6
@@ -7668,7 +7710,7 @@ public final class DronePhysics {
 				0.0,
 				1.0
 		);
-		double anchorBlend = 0.62
+		double anchorBlend = maxAnchorBlend
 				* profileWeight
 				* activeRotor
 				* midLoadConfidence
@@ -7677,7 +7719,11 @@ public final class DronePhysics {
 				* powerCurveConfidence
 				* rotorHealthConfidence
 				* (1.0 - transientPenalty);
-		return MathUtil.lerp(steadyCurrentAmps, benchCurrentAmps, MathUtil.clamp(anchorBlend, 0.0, 0.62));
+		return MathUtil.lerp(
+				steadyCurrentAmps,
+				benchCurrentAmps,
+				MathUtil.clamp(anchorBlend, 0.0, MathUtil.clamp(maxAnchorBlend, 0.0, 1.0))
+		);
 	}
 
 	private double minimumRotorHealth() {
