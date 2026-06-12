@@ -712,6 +712,10 @@ public final class DroneBlackboxSample {
 			"ground_effect_drag_y_n",
 			"ground_effect_drag_z_n",
 			"ground_effect_drag_n",
+			"ground_effect_leveling_pitch_torque_nm",
+			"ground_effect_leveling_yaw_torque_nm",
+			"ground_effect_leveling_roll_torque_nm",
+			"ground_effect_leveling_torque_nm",
 			"rotor_wash_drag_x_n",
 			"rotor_wash_drag_y_n",
 			"rotor_wash_drag_z_n",
@@ -1081,6 +1085,7 @@ public final class DroneBlackboxSample {
 		Vec3 airframeBodyDrag = state.airframeBodyDragForceBodyNewtons();
 		Vec3 linearDampingDrag = state.linearDampingDragForceWorldNewtons();
 		Vec3 groundEffectDrag = state.groundEffectDragForceBodyNewtons();
+		Vec3 groundEffectLevelingTorque = state.groundEffectLevelingTorqueBodyNewtonMeters();
 		Vec3 rotorWashDrag = state.rotorWashDragForceBodyNewtons();
 		Vec3 rotorWallEffect = state.rotorWallEffectForceBodyNewtons();
 		Vec3 turbulenceTorque = state.windTurbulenceTorqueBodyNewtonMeters();
@@ -1812,6 +1817,10 @@ public final class DroneBlackboxSample {
 		row.add(groundEffectDrag.y(), "%.5f");
 		row.add(groundEffectDrag.z(), "%.5f");
 		row.add(groundEffectDrag.length(), "%.5f");
+		row.add(groundEffectLevelingTorque.x(), "%.6f");
+		row.add(groundEffectLevelingTorque.y(), "%.6f");
+		row.add(groundEffectLevelingTorque.z(), "%.6f");
+		row.add(groundEffectLevelingTorque.length(), "%.6f");
 		row.add(rotorWashDrag.x(), "%.5f");
 		row.add(rotorWashDrag.y(), "%.5f");
 		row.add(rotorWashDrag.z(), "%.5f");

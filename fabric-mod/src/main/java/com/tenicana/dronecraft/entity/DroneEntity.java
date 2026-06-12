@@ -2923,6 +2923,7 @@ public class DroneEntity extends PathfinderMob {
 		saveVec(output, "aero_airframe_lift_force", state.airframeLiftForceBody());
 		saveVec(output, "aero_airframe_drag_force", state.airframeDragForceBody());
 		saveVec(output, "aero_ground_effect_drag", state.groundEffectDragForceBody());
+		saveVec(output, "aero_ground_effect_leveling_torque", state.groundEffectLevelingTorqueBody());
 	}
 
 	private void loadAerodynamicTransientState(ValueInput input) {
@@ -2938,7 +2939,8 @@ public class DroneEntity extends PathfinderMob {
 				|| Double.isFinite(input.getDoubleOr("aero_wind_gust_phase_a", Double.NaN))
 				|| Double.isFinite(input.getDoubleOr("aero_airframe_separation", Double.NaN))
 				|| hasVec(input, "aero_rotor_wash_drag")
-				|| hasVec(input, "aero_airframe_drag_force");
+				|| hasVec(input, "aero_airframe_drag_force")
+				|| hasVec(input, "aero_ground_effect_leveling_torque");
 		if (!hasState) {
 			return;
 		}
@@ -2968,7 +2970,8 @@ public class DroneEntity extends PathfinderMob {
 				loadVec(input, "aero_dynamic_pressure_center", Vec3.ZERO),
 				loadVec(input, "aero_airframe_lift_force", Vec3.ZERO),
 				loadVec(input, "aero_airframe_drag_force", Vec3.ZERO),
-				loadVec(input, "aero_ground_effect_drag", Vec3.ZERO)
+				loadVec(input, "aero_ground_effect_drag", Vec3.ZERO),
+				loadVec(input, "aero_ground_effect_leveling_torque", Vec3.ZERO)
 		));
 	}
 

@@ -340,6 +340,10 @@ public final class OfflineFlightRecorder {
 			"ground_effect_drag_y_n",
 			"ground_effect_drag_z_n",
 			"ground_effect_drag_n",
+			"ground_effect_leveling_pitch_torque_nm",
+			"ground_effect_leveling_yaw_torque_nm",
+			"ground_effect_leveling_roll_torque_nm",
+			"ground_effect_leveling_torque_nm",
 			"rotor_wash_drag_x_n",
 			"rotor_wash_drag_y_n",
 			"rotor_wash_drag_z_n",
@@ -1394,6 +1398,7 @@ public final class OfflineFlightRecorder {
 		Vec3 airframeBodyDrag = state.airframeBodyDragForceBodyNewtons();
 		Vec3 linearDampingDrag = state.linearDampingDragForceWorldNewtons();
 		Vec3 groundEffectDrag = state.groundEffectDragForceBodyNewtons();
+		Vec3 groundEffectLevelingTorque = state.groundEffectLevelingTorqueBodyNewtonMeters();
 		Vec3 rotorWashDrag = state.rotorWashDragForceBodyNewtons();
 		Vec3 rotorWallEffect = state.rotorWallEffectForceBodyNewtons();
 		Vec3 turbulenceTorque = state.windTurbulenceTorqueBodyNewtonMeters();
@@ -1442,6 +1447,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
+						+ "%.6f,%.6f,%.6f,%.6f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.3f,%.3f,"
@@ -1750,6 +1756,10 @@ public final class OfflineFlightRecorder {
 				groundEffectDrag.y(),
 				groundEffectDrag.z(),
 				groundEffectDrag.length(),
+				groundEffectLevelingTorque.x(),
+				groundEffectLevelingTorque.y(),
+				groundEffectLevelingTorque.z(),
+				groundEffectLevelingTorque.length(),
 				rotorWashDrag.x(),
 				rotorWashDrag.y(),
 				rotorWashDrag.z(),

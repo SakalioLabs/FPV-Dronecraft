@@ -194,6 +194,7 @@ public final class DronePhysics {
 	private Vec3 airframeLiftForceBodyFiltered = Vec3.ZERO;
 	private Vec3 airframeDragForceBodyFiltered = Vec3.ZERO;
 	private Vec3 groundEffectDragForceBodyFiltered = Vec3.ZERO;
+	private Vec3 groundEffectLevelingTorqueBodyFiltered = Vec3.ZERO;
 	private double turbulencePhaseA;
 	private double turbulencePhaseB;
 	private double turbulencePhaseC;
@@ -315,7 +316,8 @@ public final class DronePhysics {
 			Vec3 dynamicPressureCenterOffsetBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
-			Vec3 groundEffectDragForceBody
+			Vec3 groundEffectDragForceBody,
+			Vec3 groundEffectLevelingTorqueBody
 	) {
 		public AerodynamicTransientState {
 			meanWindVelocityWorldMetersPerSecond = finiteVecOrZero(meanWindVelocityWorldMetersPerSecond);
@@ -330,6 +332,7 @@ public final class DronePhysics {
 			airframeLiftForceBody = finiteVecOrZero(airframeLiftForceBody);
 			airframeDragForceBody = finiteVecOrZero(airframeDragForceBody);
 			groundEffectDragForceBody = finiteVecOrZero(groundEffectDragForceBody);
+			groundEffectLevelingTorqueBody = finiteVecOrZero(groundEffectLevelingTorqueBody);
 		}
 	}
 
@@ -736,7 +739,8 @@ public final class DronePhysics {
 				dynamicPressureCenterOffsetBodyFiltered,
 				airframeLiftForceBodyFiltered,
 				airframeDragForceBodyFiltered,
-				groundEffectDragForceBodyFiltered
+				groundEffectDragForceBodyFiltered,
+				groundEffectLevelingTorqueBodyFiltered
 		);
 	}
 
@@ -778,6 +782,7 @@ public final class DronePhysics {
 		airframeLiftForceBodyFiltered = transientState.airframeLiftForceBody().clamp(-18.0, 18.0);
 		airframeDragForceBodyFiltered = transientState.airframeDragForceBody().clamp(-48.0, 48.0);
 		groundEffectDragForceBodyFiltered = transientState.groundEffectDragForceBody().clamp(-14.0, 14.0);
+		groundEffectLevelingTorqueBodyFiltered = transientState.groundEffectLevelingTorqueBody().clamp(-0.70, 0.70);
 
 		state.setEffectiveWindVelocityWorldMetersPerSecond(
 				meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond)
@@ -788,6 +793,7 @@ public final class DronePhysics {
 		state.setAirframeLiftForceBodyNewtons(airframeLiftForceBodyFiltered);
 		state.setAirframeBodyDragForceBodyNewtons(airframeDragForceBodyFiltered);
 		state.setGroundEffectDragForceBodyNewtons(groundEffectDragForceBodyFiltered);
+		state.setGroundEffectLevelingTorqueBodyNewtonMeters(groundEffectLevelingTorqueBodyFiltered);
 	}
 
 	private static boolean hasFiniteValue(double[] values, int index) {
@@ -859,8 +865,11 @@ public final class DronePhysics {
 		state.setPropwashTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setAirframeLiftForceBodyNewtons(Vec3.ZERO);
 		state.setGroundEffectDragForceBodyNewtons(Vec3.ZERO);
+		state.setGroundEffectLevelingTorqueBodyNewtonMeters(Vec3.ZERO);
 		rotorWashDragForceBodyFiltered = Vec3.ZERO;
 		rotorWashAirframeAngularDampingFiltered = Vec3.ZERO;
+		groundEffectDragForceBodyFiltered = Vec3.ZERO;
+		groundEffectLevelingTorqueBodyFiltered = Vec3.ZERO;
 		state.setRotorWashDragForceBodyNewtons(Vec3.ZERO);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(Vec3.ZERO);
 		state.setAirframeAngularDragTorqueBodyNewtonMeters(Vec3.ZERO);
@@ -1460,10 +1469,18 @@ public final class DronePhysics {
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
+		Vec3 groundEffectLevelingTorqueBody = updateGroundEffectLevelingTorque(
+				totalForceBody,
+				relativeAirVelocityBody,
+				environment,
+				dtSeconds
+		);
+		state.setGroundEffectLevelingTorqueBodyNewtonMeters(groundEffectLevelingTorqueBody);
 		totalTorqueBody = totalTorqueBody
 				.add(airframeTorqueBody)
 				.add(calculatePropwashTorque(input, relativeAirVelocityBody, angularVelocityBody, dtSeconds))
-				.add(turbulenceTorqueBody);
+				.add(turbulenceTorqueBody)
+				.add(groundEffectLevelingTorqueBody);
 		integrateLinear(totalForceBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, environment, effectiveWindVelocityWorld, dtSeconds);
 		updateBarometerMeasurement(environment, dtSeconds);
 		updateAccelerometerMeasurement(dtSeconds);
@@ -7125,6 +7142,111 @@ public final class DronePhysics {
 				0.0,
 				-relativeAirVelocityBody.z() * dragScale
 		).clamp(-14.0, 14.0);
+	}
+
+	private Vec3 updateGroundEffectLevelingTorque(
+			Vec3 totalForceBody,
+			Vec3 relativeAirVelocityBody,
+			DroneEnvironment environment,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyGroundEffectLevelingTorque(totalForceBody, relativeAirVelocityBody, environment);
+		if (dtSeconds <= 0.0) {
+			groundEffectLevelingTorqueBodyFiltered = target;
+			return groundEffectLevelingTorqueBodyFiltered;
+		}
+
+		double targetMagnitude = target.length();
+		double previousMagnitude = groundEffectLevelingTorqueBodyFiltered.length();
+		double shape = environment.groundEffectLevelingTorqueIntensity(config);
+		double buildTimeConstant = MathUtil.clamp(0.050 - 0.018 * shape, 0.030, 0.055);
+		double releaseTimeConstant = MathUtil.clamp(0.130 + 0.035 * shape, 0.095, 0.170);
+		double timeConstant = targetMagnitude > previousMagnitude ? buildTimeConstant : releaseTimeConstant;
+		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
+		groundEffectLevelingTorqueBodyFiltered = groundEffectLevelingTorqueBodyFiltered
+				.add(target.subtract(groundEffectLevelingTorqueBodyFiltered).multiply(alpha))
+				.clamp(-0.70, 0.70);
+		if (targetMagnitude <= 1.0e-7 && groundEffectLevelingTorqueBodyFiltered.lengthSquared() < 1.0e-10) {
+			groundEffectLevelingTorqueBodyFiltered = Vec3.ZERO;
+		}
+		return groundEffectLevelingTorqueBodyFiltered;
+	}
+
+	private Vec3 calculateSteadyGroundEffectLevelingTorque(
+			Vec3 totalForceBody,
+			Vec3 relativeAirVelocityBody,
+			DroneEnvironment environment
+	) {
+		if (config.groundEffectHeightMeters() <= 1.0e-6
+				|| environment.groundClearanceMeters() >= config.groundEffectHeightMeters()
+				|| totalForceBody.y() <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double shape = environment.groundEffectLevelingTorqueIntensity(config);
+		if (shape <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 worldUpBody = state.orientation().conjugate().rotate(WORLD_UP);
+		double upright = smoothStep(0.08, 0.55, worldUpBody.y());
+		if (upright <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 tiltAxisBody = BODY_ROTOR_AXIS.cross(worldUpBody);
+		tiltAxisBody = new Vec3(tiltAxisBody.x(), 0.0, tiltAxisBody.z());
+		double tiltMagnitude = tiltAxisBody.length();
+		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
+		if (tiltMagnitude <= 1.0e-6
+				&& Math.hypot(angularVelocityBody.x(), angularVelocityBody.z()) <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double thrustToWeight = totalForceBody.y()
+				/ Math.max(1.0e-6, config.massKg() * config.gravityMetersPerSecondSquared());
+		double rotorWash = smoothStep(0.12, 0.72, thrustToWeight);
+		if (rotorWash <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double lateralSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
+		double crossflowFade = 1.0 - 0.45 * smoothStep(5.0, 18.0, lateralSpeed);
+		double densityScale = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.0, 1.35);
+		double torqueScale = MathUtil.clamp(
+				config.massKg()
+						* config.gravityMetersPerSecondSquared()
+						* averageRotorRadiusMeters()
+						* config.groundEffectMaxThrustBoost()
+						* 0.62,
+				0.0,
+				0.70
+		);
+		double authority = torqueScale * shape * rotorWash * upright * crossflowFade * densityScale;
+		if (authority <= 1.0e-7) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 attitudeTorque = tiltAxisBody.multiply(authority);
+		double dampingCoefficient = authority * 0.18;
+		Vec3 dampingTorque = new Vec3(
+				-angularVelocityBody.x() * dampingCoefficient,
+				0.0,
+				-angularVelocityBody.z() * dampingCoefficient
+		).clamp(-authority * 0.55, authority * 0.55);
+		return attitudeTorque.add(dampingTorque).clamp(-0.70, 0.70);
+	}
+
+	private double averageRotorRadiusMeters() {
+		double sum = 0.0;
+		int count = 0;
+		for (RotorSpec rotor : config.rotors()) {
+			if (rotor.radiusMeters() > 0.0) {
+				sum += rotor.radiusMeters();
+				count++;
+			}
+		}
+		return count == 0 ? 0.0635 : sum / count;
 	}
 
 	private Vec3 updateAirframeLiftForce(Vec3 relativeAirVelocityBody, double airDensityRatio, double dtSeconds) {

@@ -3065,6 +3065,7 @@ class DronePhysicsTest {
 		assertVecClose(source.state().airframeBodyDragForceBodyNewtons(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
 		assertVecClose(source.state().airframeLiftForceBodyNewtons(), restored.state().airframeLiftForceBodyNewtons(), 1.0e-12);
 		assertVecClose(source.state().groundEffectDragForceBodyNewtons(), restored.state().groundEffectDragForceBodyNewtons(), 1.0e-12);
+		assertVecClose(source.state().groundEffectLevelingTorqueBodyNewtonMeters(), restored.state().groundEffectLevelingTorqueBodyNewtonMeters(), 1.0e-12);
 		assertEquals(source.state().airframeSeparatedFlowIntensity(), restored.state().airframeSeparatedFlowIntensity(), 1.0e-12);
 		assertEquals(source.aerodynamicTransientStateSnapshot().drydenRandomState(),
 				restored.aerodynamicTransientStateSnapshot().drydenRandomState());
@@ -5934,6 +5935,61 @@ class DronePhysicsTest {
 		assertTrue(halfRadius > oneRadius);
 		assertTrue(oneRadius > fourRadii);
 		assertEquals(1.0, effectHeight, 1.0e-9);
+	}
+
+	@Test
+	void groundEffectLevelingTorqueUsesZjuMomentHeightShape() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		double veryLow = DroneEnvironment.groundEffectLevelingTorqueIntensity(config, 0.05);
+		double nearPeak = DroneEnvironment.groundEffectLevelingTorqueIntensity(config, 0.20);
+		double high = DroneEnvironment.groundEffectLevelingTorqueIntensity(config, 0.30);
+		double cutoff = DroneEnvironment.groundEffectLevelingTorqueIntensity(config, config.groundEffectHeightMeters());
+
+		assertEquals(0.97, nearPeak, 0.04);
+		assertTrue(nearPeak > veryLow * 8.0, () -> "veryLow=" + veryLow + " nearPeak=" + nearPeak);
+		assertTrue(nearPeak > high * 2.5, () -> "nearPeak=" + nearPeak + " high=" + high);
+		assertEquals(0.0, cutoff, 1.0e-9);
+	}
+
+	@Test
+	void groundEffectLevelingTorqueRestoresTiltNearSurface() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0);
+		DroneEnvironment nearPeakGroundEffect = new DroneEnvironment(Vec3.ZERO, 1.0, 0.20);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		DronePhysics rolled = new DronePhysics(config);
+		DronePhysics pitched = new DronePhysics(config);
+		DronePhysics freeAir = new DronePhysics(config);
+		Quaternion rollTilt = rollOrientation(Math.toRadians(20.0));
+		Quaternion pitchTilt = pitchOrientation(Math.toRadians(20.0));
+
+		for (int i = 0; i < 120; i++) {
+			rolled.state().setOrientation(rollTilt);
+			rolled.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			pitched.state().setOrientation(pitchTilt);
+			pitched.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			freeAir.state().setOrientation(rollTilt);
+			freeAir.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			rolled.step(hover, 0.005, nearPeakGroundEffect);
+			pitched.step(hover, 0.005, nearPeakGroundEffect);
+			freeAir.step(hover, 0.005, DroneEnvironment.calm());
+		}
+
+		Vec3 rollTorque = rolled.state().groundEffectLevelingTorqueBodyNewtonMeters();
+		Vec3 pitchTorque = pitched.state().groundEffectLevelingTorqueBodyNewtonMeters();
+		assertTrue(rollTorque.z() < -0.020, () -> "rollTorque=" + rollTorque);
+		assertTrue(Math.abs(rollTorque.x()) < 0.004, () -> "rollTorque=" + rollTorque);
+		assertEquals(0.0, rollTorque.y(), 1.0e-12);
+		assertTrue(pitchTorque.x() < -0.020, () -> "pitchTorque=" + pitchTorque);
+		assertTrue(Math.abs(pitchTorque.z()) < 0.004, () -> "pitchTorque=" + pitchTorque);
+		assertEquals(0.0, pitchTorque.y(), 1.0e-12);
+		assertEquals(0.0, freeAir.state().groundEffectLevelingTorqueBodyNewtonMeters().length(), 1.0e-9);
 	}
 
 	@Test
@@ -9454,6 +9510,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_drag_equivalent_cda_m2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("airframe_drag_imav_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ground_effect_drag_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("ground_effect_leveling_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wash_drag_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wall_effect_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("barometer_altitude_m"));
@@ -9771,6 +9828,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_linear_k")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_equivalent_cda_m2")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "airframe_drag_imav_ratio")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "ground_effect_leveling_torque_nm")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_sensor_noise_m")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "barometer_pressure_port_error_m")])));
 		assertEquals(1.0, Double.parseDouble(firstRow[indexOf(header, "contact_surface_friction")]), 1.0e-9);
@@ -10684,6 +10742,11 @@ class DronePhysicsTest {
 	private static Quaternion rollOrientation(double rollRadians) {
 		double halfAngle = rollRadians * 0.5;
 		return new Quaternion(Math.cos(halfAngle), 0.0, 0.0, Math.sin(halfAngle));
+	}
+
+	private static Quaternion pitchOrientation(double pitchRadians) {
+		double halfAngle = pitchRadians * 0.5;
+		return new Quaternion(Math.cos(halfAngle), Math.sin(halfAngle), 0.0, 0.0);
 	}
 
 	private static int indexOf(String[] header, String column) {

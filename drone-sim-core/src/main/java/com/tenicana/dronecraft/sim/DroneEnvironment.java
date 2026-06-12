@@ -23,6 +23,10 @@ public record DroneEnvironment(
 	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
 	private static final double ZJU_GROUND_EFFECT_G1_METERS_SQUARED = 0.01804;
 	private static final double ZJU_GROUND_EFFECT_G2_METERS_SQUARED = 0.007339;
+	private static final double ZJU_GROUND_EFFECT_G3_METERS = -0.3365;
+	private static final double ZJU_GROUND_EFFECT_G4_METERS_SQUARED = 0.04126;
+	private static final double ZJU_GROUND_EFFECT_G5 = 0.06494;
+	private static final double ZJU_GROUND_EFFECT_LEVELING_TORQUE_PEAK_HEIGHT_METERS = 0.186;
 	private static final double RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST = 0.18;
 	private static final double MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION = 0.60;
 
@@ -212,6 +216,40 @@ public record DroneEnvironment(
 				clearance
 		);
 		return MathUtil.clamp(zjuHeightShape * cutoffFade, 0.0, 1.0);
+	}
+
+	public double groundEffectLevelingTorqueIntensity(DroneConfig config) {
+		return groundEffectLevelingTorqueIntensity(config, groundClearanceMeters);
+	}
+
+	public static double groundEffectLevelingTorqueIntensity(DroneConfig config, double groundClearanceMeters) {
+		if (groundClearanceMeters >= config.groundEffectHeightMeters() || config.groundEffectHeightMeters() <= 1.0e-6) {
+			return 0.0;
+		}
+
+		double clearance = Math.max(0.0, groundClearanceMeters);
+		double peakShape = zjuGroundEffectLevelingTorqueShape(ZJU_GROUND_EFFECT_LEVELING_TORQUE_PEAK_HEIGHT_METERS);
+		if (peakShape <= 1.0e-9) {
+			return 0.0;
+		}
+		double normalizedShape = zjuGroundEffectLevelingTorqueShape(clearance) / peakShape;
+		double cutoffFade = 1.0 - smoothStep(
+				config.groundEffectHeightMeters() * 0.80,
+				config.groundEffectHeightMeters(),
+				clearance
+		);
+		return MathUtil.clamp(normalizedShape * cutoffFade, 0.0, 1.0);
+	}
+
+	private static double zjuGroundEffectLevelingTorqueShape(double groundClearanceMeters) {
+		double clearance = Math.max(0.0, groundClearanceMeters);
+		double denominator = clearance * clearance
+				+ ZJU_GROUND_EFFECT_G3_METERS * clearance
+				+ ZJU_GROUND_EFFECT_G4_METERS_SQUARED;
+		if (denominator <= 1.0e-9) {
+			return 0.0;
+		}
+		return ZJU_GROUND_EFFECT_G5 * clearance / (denominator * denominator);
 	}
 
 	private static double groundEffectMaxExtraThrustFraction(DroneConfig config) {

@@ -190,6 +190,7 @@ public final class DroneState {
 	private double airframeDragImavReferenceRatio;
 	private Vec3 airframeLiftForceBodyNewtons = Vec3.ZERO;
 	private Vec3 groundEffectDragForceBodyNewtons = Vec3.ZERO;
+	private Vec3 groundEffectLevelingTorqueBodyNewtonMeters = Vec3.ZERO;
 	private Vec3 rotorWashDragForceBodyNewtons = Vec3.ZERO;
 	private Vec3 rotorWallEffectForceBodyNewtons = Vec3.ZERO;
 	private double propwashIntensity;
@@ -1544,6 +1545,7 @@ public final class DroneState {
 		vortexRingMaxThrustBuffetAmplitude = 0.0;
 		vortexRingBuffetForceBodyNewtons = Vec3.ZERO;
 		groundEffectDragForceBodyNewtons = Vec3.ZERO;
+		groundEffectLevelingTorqueBodyNewtonMeters = Vec3.ZERO;
 		rotorWashDragForceBodyNewtons = Vec3.ZERO;
 		rotorWallEffectForceBodyNewtons = Vec3.ZERO;
 		mixerSaturation = 0.0;
@@ -3264,6 +3266,14 @@ public final class DroneState {
 
 	void setGroundEffectDragForceBodyNewtons(Vec3 groundEffectDragForceBodyNewtons) {
 		this.groundEffectDragForceBodyNewtons = groundEffectDragForceBodyNewtons == null ? Vec3.ZERO : groundEffectDragForceBodyNewtons;
+	}
+
+	public Vec3 groundEffectLevelingTorqueBodyNewtonMeters() {
+		return groundEffectLevelingTorqueBodyNewtonMeters;
+	}
+
+	void setGroundEffectLevelingTorqueBodyNewtonMeters(Vec3 groundEffectLevelingTorqueBodyNewtonMeters) {
+		this.groundEffectLevelingTorqueBodyNewtonMeters = groundEffectLevelingTorqueBodyNewtonMeters == null ? Vec3.ZERO : groundEffectLevelingTorqueBodyNewtonMeters;
 	}
 
 	public Vec3 rotorWashDragForceBodyNewtons() {
