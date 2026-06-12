@@ -1978,6 +1978,10 @@ public final class DronePhysics {
 				0.80,
 				1.16
 		);
+		brakingSlewMultiplier = Math.min(
+				brakingSlewMultiplier,
+				MotorResponseCalibration.activeBrakingRuntimeSlewScaleOverSpinupProxy()
+		);
 		double referenceSlewRadiansPerSecondSquared = maxOmega / Math.max(0.005, config.motorTimeConstantSeconds());
 		double limitedOmega = previousOmega - referenceSlewRadiansPerSecondSquared * brakingSlewMultiplier * dtSeconds;
 		return Math.max(commandedOmega, limitedOmega);

@@ -2242,7 +2242,9 @@ class DronePhysicsTest {
 			maxActiveBrakingTorque = Math.max(maxActiveBrakingTorque, braked.state().rotorActiveBrakingTorqueBodyNewtonMeters().length());
 		}
 
-		assertTrue(braked.state().averageMotorPower(braked.config()) < coasting.state().averageMotorPower(coasting.config()) * 0.55);
+		assertTrue(braked.state().averageMotorPower(braked.config()) < coasting.state().averageMotorPower(coasting.config()) * 0.70,
+				() -> "brakedPower=" + braked.state().averageMotorPower(braked.config())
+						+ " coastingPower=" + coasting.state().averageMotorPower(coasting.config()));
 		assertTrue(maxBrakedCurrent > 1.8);
 		assertTrue(maxRegenerativeCurrent > 1.0);
 		assertTrue(Double.isFinite(maxActiveBrakingTorque));
@@ -2284,17 +2286,22 @@ class DronePhysicsTest {
 		double brakedFiftyMillisecondSlewRpmPerSecond = (brakedStartRpm - braked.state().averageMotorRpm()) / 0.050;
 		double maxRpm = base.rotors().get(0).maxOmegaRadiansPerSecond() * 60.0 / (Math.PI * 2.0);
 		double firstOrderSpinupReferenceSlewRpmPerSecond = maxRpm / base.motorTimeConstantSeconds();
+		double calibratedRuntimeSlewLimitRpmPerSecond = firstOrderSpinupReferenceSlewRpmPerSecond
+				* MotorResponseCalibration.activeBrakingRuntimeSlewScaleOverSpinupProxy();
 
-		assertTrue(brakedFirstFrameSlewRpmPerSecond < firstOrderSpinupReferenceSlewRpmPerSecond * 1.25,
+		assertTrue(brakedFirstFrameSlewRpmPerSecond < calibratedRuntimeSlewLimitRpmPerSecond * 1.08,
 				() -> "brakedFirstFrameSlew=" + brakedFirstFrameSlewRpmPerSecond
-						+ " reference=" + firstOrderSpinupReferenceSlewRpmPerSecond);
+						+ " calibratedLimit=" + calibratedRuntimeSlewLimitRpmPerSecond);
 		assertTrue(brakedFirstFrameSlewRpmPerSecond > coastingFirstFrameSlewRpmPerSecond * 1.08,
 				() -> "brakedFirstFrameSlew=" + brakedFirstFrameSlewRpmPerSecond
 						+ " coastingFirstFrameSlew=" + coastingFirstFrameSlewRpmPerSecond);
+		assertTrue(brakedFiftyMillisecondSlewRpmPerSecond < calibratedRuntimeSlewLimitRpmPerSecond * 1.08,
+				() -> "braked50msSlew=" + brakedFiftyMillisecondSlewRpmPerSecond
+						+ " calibratedLimit=" + calibratedRuntimeSlewLimitRpmPerSecond);
 		assertTrue(brakedFiftyMillisecondSlewRpmPerSecond > coastingFiftyMillisecondSlewRpmPerSecond * 1.30,
 				() -> "braked50msSlew=" + brakedFiftyMillisecondSlewRpmPerSecond
 						+ " coasting50msSlew=" + coastingFiftyMillisecondSlewRpmPerSecond);
-		assertTrue(braked.state().averageMotorRpm() < coasting.state().averageMotorRpm() * 0.30,
+		assertTrue(braked.state().averageMotorRpm() < coasting.state().averageMotorRpm() * 0.40,
 				() -> "brakedEndRpm=" + braked.state().averageMotorRpm()
 						+ " coastingEndRpm=" + coasting.state().averageMotorRpm());
 	}

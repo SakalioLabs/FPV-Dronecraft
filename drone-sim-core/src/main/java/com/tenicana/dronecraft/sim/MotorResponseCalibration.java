@@ -89,6 +89,8 @@ public final class MotorResponseCalibration {
 	public static final double OPEN_BENCH_PROPBENCH_AVG_ACCEL_OBSERVATION_WINDOW_MILLISECONDS = 7000.0;
 	public static final double OPEN_BENCH_PROPBENCH_FC_TELEMETRY_POLL_INTERVAL_MILLISECONDS = 200.0;
 	public static final double OPEN_BENCH_PROPBENCH_RPM_SCALE_CONSTANT = 41.0;
+	private static final double ACTIVE_BRAKING_RUNTIME_BLACKBOX_HEADROOM = 1.08;
+	private static final double ACTIVE_BRAKING_RUNTIME_SPINUP_PROXY_SCALE_MAX = 0.95;
 
 	private MotorResponseCalibration() {
 	}
@@ -256,6 +258,22 @@ public final class MotorResponseCalibration {
 				apDroneReference,
 				openBenchReference(config),
 				presetAudit(config, betaflightReference, apDroneReference)
+		);
+	}
+
+	public static double activeBrakingRuntimeSlewScaleOverSpinupProxy() {
+		double blackboxObservedScale = ratio(
+				BETAFLIGHT_OBSERVED_MAX_NEGATIVE_50MS_SLEW_RPM_PER_SECOND,
+				BETAFLIGHT_CURRENT_RACING_NOMINAL_SPINUP_SLEW_RPM_PER_SECOND
+		);
+		double adjacentBenchScale = ratio(
+				OPEN_BENCH_MAX_NEGATIVE_SLEW_50MS_MAX_RPM_PER_SECOND,
+				BETAFLIGHT_CURRENT_RACING_NOMINAL_SPINUP_SLEW_RPM_PER_SECOND
+		);
+		return MathUtil.clamp(
+				blackboxObservedScale * ACTIVE_BRAKING_RUNTIME_BLACKBOX_HEADROOM,
+				adjacentBenchScale,
+				ACTIVE_BRAKING_RUNTIME_SPINUP_PROXY_SCALE_MAX
 		);
 	}
 

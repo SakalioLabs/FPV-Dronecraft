@@ -61,6 +61,11 @@ class MotorResponseCalibrationTest {
 		assertEquals(0.253607776523989, preset.observedNegativeSlewOverActiveBrakingProxy(), 1.0e-12);
 		assertEquals(1.28658878846, preset.observedPositiveTauOverMotorTau(), 1.0e-12);
 		assertEquals(3.9430967524195557, preset.observedNegativeTauOverActiveBrakingTauProxy(), 1.0e-12);
+		double runtimeBrakingScale = MotorResponseCalibration.activeBrakingRuntimeSlewScaleOverSpinupProxy();
+		assertEquals(0.876468475666591, runtimeBrakingScale, 1.0e-15);
+		assertTrue(runtimeBrakingScale < 0.95);
+		assertTrue(runtimeBrakingScale > MotorResponseCalibration.OPEN_BENCH_MAX_NEGATIVE_SLEW_50MS_MAX_RPM_PER_SECOND
+				/ MotorResponseCalibration.BETAFLIGHT_CURRENT_RACING_NOMINAL_SPINUP_SLEW_RPM_PER_SECOND);
 		assertEquals(0.6789351320265299, preset.configuredMaxRpmOverBetaflightDecodedMaxRpm(), 1.0e-12);
 		assertEquals(11.403027150576492, preset.motorTauOverApDroneUrbanFirstOrderTauP50(), 1.0e-12);
 		assertEquals(0.9393787575130691, preset.motorTauOverApDroneUrbanLevelLagP50(), 1.0e-12);
