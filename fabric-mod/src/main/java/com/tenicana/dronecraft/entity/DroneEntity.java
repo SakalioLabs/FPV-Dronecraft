@@ -2579,6 +2579,7 @@ public class DroneEntity extends PathfinderMob {
 			output.putDouble("esc_cooling_factor_" + i, physics.state().escCoolingFactor(i));
 		}
 		saveRotorDynamicState(output);
+		saveAerodynamicTransientState(output);
 		double[] rotorHealth = physics.state().rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
@@ -2605,6 +2606,7 @@ public class DroneEntity extends PathfinderMob {
 		loadBatteryTransientState(input);
 		loadPowertrainThermalState(input);
 		loadRotorDynamicState(input);
+		loadAerodynamicTransientState(input);
 		physics.state().repairAllRotors();
 		for (int i = 0; i < physics.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
@@ -2764,6 +2766,118 @@ public class DroneEntity extends PathfinderMob {
 					vortexRingMaxBuffet
 			));
 		}
+	}
+
+	private void saveAerodynamicTransientState(ValueOutput output) {
+		DronePhysics.AerodynamicTransientState state = physics.aerodynamicTransientStateSnapshot();
+		saveVec(output, "aero_mean_wind", state.meanWindVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_wind_burble", state.windBurbleVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_dryden_first", state.drydenFirstOrderVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_dryden_lag", state.drydenTransverseLagVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_dryden_turbulence", state.drydenTurbulenceVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_wind_gust", state.windGustVelocityWorldMetersPerSecond());
+		output.putString("aero_dryden_random_state", Long.toString(state.drydenRandomState()));
+		output.putDouble("aero_dryden_spare_gaussian", state.drydenSpareGaussian());
+		output.putString("aero_dryden_has_spare", Boolean.toString(state.hasDrydenSpareGaussian()));
+		output.putString("aero_wind_initialized", Boolean.toString(state.windModelInitialized()));
+		output.putDouble("aero_wind_gust_phase_a", state.windGustPhaseA());
+		output.putDouble("aero_wind_gust_phase_b", state.windGustPhaseB());
+		output.putDouble("aero_wind_gust_phase_c", state.windGustPhaseC());
+		output.putDouble("aero_turbulence_phase_a", state.turbulencePhaseA());
+		output.putDouble("aero_turbulence_phase_b", state.turbulencePhaseB());
+		output.putDouble("aero_turbulence_phase_c", state.turbulencePhaseC());
+		output.putDouble("aero_airframe_separation", state.airframeSeparatedFlowIntensity());
+		output.putDouble("aero_airframe_separation_buffet_phase_a", state.airframeSeparationBuffetPhaseA());
+		output.putDouble("aero_airframe_separation_buffet_phase_b", state.airframeSeparationBuffetPhaseB());
+		saveVec(output, "aero_rotor_wash_drag", state.rotorWashDragForceBody());
+		saveVec(output, "aero_rotor_wash_angular_damping", state.rotorWashAirframeAngularDamping());
+		saveVec(output, "aero_dynamic_pressure_center", state.dynamicPressureCenterOffsetBody());
+		saveVec(output, "aero_airframe_lift_force", state.airframeLiftForceBody());
+		saveVec(output, "aero_airframe_drag_force", state.airframeDragForceBody());
+		saveVec(output, "aero_ground_effect_drag", state.groundEffectDragForceBody());
+	}
+
+	private void loadAerodynamicTransientState(ValueInput input) {
+		boolean hasState = hasVec(input, "aero_mean_wind")
+				|| hasVec(input, "aero_wind_burble")
+				|| hasVec(input, "aero_dryden_first")
+				|| hasVec(input, "aero_dryden_lag")
+				|| hasVec(input, "aero_dryden_turbulence")
+				|| hasVec(input, "aero_wind_gust")
+				|| input.getString("aero_dryden_random_state").isPresent()
+				|| input.getString("aero_dryden_has_spare").isPresent()
+				|| input.getString("aero_wind_initialized").isPresent()
+				|| Double.isFinite(input.getDoubleOr("aero_wind_gust_phase_a", Double.NaN))
+				|| Double.isFinite(input.getDoubleOr("aero_airframe_separation", Double.NaN))
+				|| hasVec(input, "aero_rotor_wash_drag")
+				|| hasVec(input, "aero_airframe_drag_force");
+		if (!hasState) {
+			return;
+		}
+
+		physics.restoreAerodynamicTransientState(new DronePhysics.AerodynamicTransientState(
+				loadVec(input, "aero_mean_wind", Vec3.ZERO),
+				loadVec(input, "aero_wind_burble", Vec3.ZERO),
+				loadVec(input, "aero_dryden_first", Vec3.ZERO),
+				loadVec(input, "aero_dryden_lag", Vec3.ZERO),
+				loadVec(input, "aero_dryden_turbulence", Vec3.ZERO),
+				loadVec(input, "aero_wind_gust", Vec3.ZERO),
+				loadLong(input, "aero_dryden_random_state", 0x6A09E667F3BCC909L),
+				input.getDoubleOr("aero_dryden_spare_gaussian", 0.0),
+				loadBoolean(input, "aero_dryden_has_spare", false),
+				loadBoolean(input, "aero_wind_initialized", true),
+				input.getDoubleOr("aero_wind_gust_phase_a", 0.0),
+				input.getDoubleOr("aero_wind_gust_phase_b", 0.0),
+				input.getDoubleOr("aero_wind_gust_phase_c", 0.0),
+				input.getDoubleOr("aero_turbulence_phase_a", 0.0),
+				input.getDoubleOr("aero_turbulence_phase_b", 0.0),
+				input.getDoubleOr("aero_turbulence_phase_c", 0.0),
+				input.getDoubleOr("aero_airframe_separation", 0.0),
+				input.getDoubleOr("aero_airframe_separation_buffet_phase_a", 0.0),
+				input.getDoubleOr("aero_airframe_separation_buffet_phase_b", 0.0),
+				loadVec(input, "aero_rotor_wash_drag", Vec3.ZERO),
+				loadVec(input, "aero_rotor_wash_angular_damping", Vec3.ZERO),
+				loadVec(input, "aero_dynamic_pressure_center", Vec3.ZERO),
+				loadVec(input, "aero_airframe_lift_force", Vec3.ZERO),
+				loadVec(input, "aero_airframe_drag_force", Vec3.ZERO),
+				loadVec(input, "aero_ground_effect_drag", Vec3.ZERO)
+		));
+	}
+
+	private static void saveVec(ValueOutput output, String prefix, Vec3 value) {
+		Vec3 safeValue = value == null || !value.isFinite() ? Vec3.ZERO : value;
+		output.putDouble(prefix + "_x", safeValue.x());
+		output.putDouble(prefix + "_y", safeValue.y());
+		output.putDouble(prefix + "_z", safeValue.z());
+	}
+
+	private static Vec3 loadVec(ValueInput input, String prefix, Vec3 fallback) {
+		Vec3 safeFallback = fallback == null ? Vec3.ZERO : fallback;
+		double x = input.getDoubleOr(prefix + "_x", safeFallback.x());
+		double y = input.getDoubleOr(prefix + "_y", safeFallback.y());
+		double z = input.getDoubleOr(prefix + "_z", safeFallback.z());
+		Vec3 value = new Vec3(x, y, z);
+		return value.isFinite() ? value : safeFallback;
+	}
+
+	private static boolean hasVec(ValueInput input, String prefix) {
+		return Double.isFinite(input.getDoubleOr(prefix + "_x", Double.NaN))
+				|| Double.isFinite(input.getDoubleOr(prefix + "_y", Double.NaN))
+				|| Double.isFinite(input.getDoubleOr(prefix + "_z", Double.NaN));
+	}
+
+	private static long loadLong(ValueInput input, String key, long fallback) {
+		return input.getString(key).map(value -> {
+			try {
+				return Long.parseLong(value);
+			} catch (NumberFormatException ignored) {
+				return fallback;
+			}
+		}).orElse(fallback);
+	}
+
+	private static boolean loadBoolean(ValueInput input, String key, boolean fallback) {
+		return input.getString(key).map(Boolean::parseBoolean).orElse(fallback);
 	}
 
 	private void saveEnvironmentOverride(ValueOutput output) {

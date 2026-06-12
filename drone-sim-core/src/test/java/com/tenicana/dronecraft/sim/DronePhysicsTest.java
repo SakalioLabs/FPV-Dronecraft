@@ -2970,6 +2970,54 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void restoredAerodynamicTransientStateContinuesWindAndAirframeFilters() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics source = new DronePhysics(config);
+		DronePhysics restored = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		Vec3 cruiseVelocity = new Vec3(8.0, -1.5, 13.0);
+		DroneEnvironment dirtyNearSurfaceWind = new DroneEnvironment(
+				new Vec3(10.0, 0.0, 2.0),
+				1.0,
+				0.12,
+				1.20,
+				0.75,
+				0.45,
+				Double.POSITIVE_INFINITY
+		);
+
+		for (int i = 0; i < 420; i++) {
+			holdInCruise(source, cruiseVelocity);
+			source.step(idle, 0.005, dirtyNearSurfaceWind);
+		}
+		DronePhysics.AerodynamicTransientState snapshot = source.aerodynamicTransientStateSnapshot();
+		assertTrue(snapshot.windGustVelocityWorldMetersPerSecond().length() > 0.10,
+				() -> "gust=" + snapshot.windGustVelocityWorldMetersPerSecond());
+		assertTrue(snapshot.airframeDragForceBody().length() > 0.30,
+				() -> "drag=" + snapshot.airframeDragForceBody());
+
+		holdInCruise(restored, cruiseVelocity);
+		restored.restoreAerodynamicTransientState(snapshot);
+		assertVecClose(snapshot.windGustVelocityWorldMetersPerSecond(), restored.state().windGustVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(snapshot.airframeDragForceBody(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
+		assertEquals(snapshot.airframeSeparatedFlowIntensity(), restored.state().airframeSeparatedFlowIntensity(), 1.0e-12);
+
+		holdInCruise(source, cruiseVelocity);
+		holdInCruise(restored, cruiseVelocity);
+		source.step(idle, 0.005, dirtyNearSurfaceWind);
+		restored.step(idle, 0.005, dirtyNearSurfaceWind);
+
+		assertVecClose(source.state().effectiveWindVelocityWorldMetersPerSecond(), restored.state().effectiveWindVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(source.state().windGustVelocityWorldMetersPerSecond(), restored.state().windGustVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(source.state().airframeBodyDragForceBodyNewtons(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
+		assertVecClose(source.state().airframeLiftForceBodyNewtons(), restored.state().airframeLiftForceBodyNewtons(), 1.0e-12);
+		assertVecClose(source.state().groundEffectDragForceBodyNewtons(), restored.state().groundEffectDragForceBodyNewtons(), 1.0e-12);
+		assertEquals(source.state().airframeSeparatedFlowIntensity(), restored.state().airframeSeparatedFlowIntensity(), 1.0e-12);
+		assertEquals(source.aerodynamicTransientStateSnapshot().drydenRandomState(),
+				restored.aerodynamicTransientStateSnapshot().drydenRandomState());
+	}
+
+	@Test
 	void atmosphericTurbulenceIsSlowerThanLocalizedDirtyAirBurble() {
 		DronePhysics openAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics localizedDirtyAir = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -10088,6 +10136,12 @@ class DronePhysicsTest {
 				.withControlReceiver(0.0, 0.0)
 				.withEscCommandSignal(0.0, 0.0)
 				.withRateSuper(Vec3.ZERO);
+	}
+
+	private static void assertVecClose(Vec3 expected, Vec3 actual, double tolerance) {
+		assertEquals(expected.x(), actual.x(), tolerance, () -> "expected=" + expected + " actual=" + actual);
+		assertEquals(expected.y(), actual.y(), tolerance, () -> "expected=" + expected + " actual=" + actual);
+		assertEquals(expected.z(), actual.z(), tolerance, () -> "expected=" + expected + " actual=" + actual);
 	}
 
 	private static void holdInStillAir(DronePhysics physics) {

@@ -289,6 +289,49 @@ public final class DronePhysics {
 		}
 	}
 
+	public record AerodynamicTransientState(
+			Vec3 meanWindVelocityWorldMetersPerSecond,
+			Vec3 windBurbleVelocityWorldMetersPerSecond,
+			Vec3 drydenFirstOrderVelocityWorldMetersPerSecond,
+			Vec3 drydenTransverseLagVelocityWorldMetersPerSecond,
+			Vec3 drydenTurbulenceVelocityWorldMetersPerSecond,
+			Vec3 windGustVelocityWorldMetersPerSecond,
+			long drydenRandomState,
+			double drydenSpareGaussian,
+			boolean hasDrydenSpareGaussian,
+			boolean windModelInitialized,
+			double windGustPhaseA,
+			double windGustPhaseB,
+			double windGustPhaseC,
+			double turbulencePhaseA,
+			double turbulencePhaseB,
+			double turbulencePhaseC,
+			double airframeSeparatedFlowIntensity,
+			double airframeSeparationBuffetPhaseA,
+			double airframeSeparationBuffetPhaseB,
+			Vec3 rotorWashDragForceBody,
+			Vec3 rotorWashAirframeAngularDamping,
+			Vec3 dynamicPressureCenterOffsetBody,
+			Vec3 airframeLiftForceBody,
+			Vec3 airframeDragForceBody,
+			Vec3 groundEffectDragForceBody
+	) {
+		public AerodynamicTransientState {
+			meanWindVelocityWorldMetersPerSecond = finiteVecOrZero(meanWindVelocityWorldMetersPerSecond);
+			windBurbleVelocityWorldMetersPerSecond = finiteVecOrZero(windBurbleVelocityWorldMetersPerSecond);
+			drydenFirstOrderVelocityWorldMetersPerSecond = finiteVecOrZero(drydenFirstOrderVelocityWorldMetersPerSecond);
+			drydenTransverseLagVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTransverseLagVelocityWorldMetersPerSecond);
+			drydenTurbulenceVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTurbulenceVelocityWorldMetersPerSecond);
+			windGustVelocityWorldMetersPerSecond = finiteVecOrZero(windGustVelocityWorldMetersPerSecond);
+			rotorWashDragForceBody = finiteVecOrZero(rotorWashDragForceBody);
+			rotorWashAirframeAngularDamping = finiteVecOrZero(rotorWashAirframeAngularDamping);
+			dynamicPressureCenterOffsetBody = finiteVecOrZero(dynamicPressureCenterOffsetBody);
+			airframeLiftForceBody = finiteVecOrZero(airframeLiftForceBody);
+			airframeDragForceBody = finiteVecOrZero(airframeDragForceBody);
+			groundEffectDragForceBody = finiteVecOrZero(groundEffectDragForceBody);
+		}
+	}
+
 	private record MotorCurrentEstimate(
 			double dischargeCurrentAmps,
 			double regenerativeCurrentAmps,
@@ -639,11 +682,103 @@ public final class DronePhysics {
 		updateEscSignalTelemetry();
 	}
 
+	public AerodynamicTransientState aerodynamicTransientStateSnapshot() {
+		return new AerodynamicTransientState(
+				meanWindVelocityWorldMetersPerSecond,
+				windBurbleVelocityWorldMetersPerSecond,
+				drydenFirstOrderVelocityWorldMetersPerSecond,
+				drydenTransverseLagVelocityWorldMetersPerSecond,
+				drydenTurbulenceVelocityWorldMetersPerSecond,
+				windGustVelocityWorldMetersPerSecond,
+				drydenRandomState,
+				drydenSpareGaussian,
+				hasDrydenSpareGaussian,
+				windModelInitialized,
+				windGustPhaseA,
+				windGustPhaseB,
+				windGustPhaseC,
+				turbulencePhaseA,
+				turbulencePhaseB,
+				turbulencePhaseC,
+				airframeSeparatedFlowIntensity,
+				airframeSeparationBuffetPhaseA,
+				airframeSeparationBuffetPhaseB,
+				rotorWashDragForceBodyFiltered,
+				rotorWashAirframeAngularDampingFiltered,
+				dynamicPressureCenterOffsetBodyFiltered,
+				airframeLiftForceBodyFiltered,
+				airframeDragForceBodyFiltered,
+				groundEffectDragForceBodyFiltered
+		);
+	}
+
+	public void restoreAerodynamicTransientState(AerodynamicTransientState transientState) {
+		if (transientState == null) {
+			return;
+		}
+
+		meanWindVelocityWorldMetersPerSecond = transientState.meanWindVelocityWorldMetersPerSecond().clamp(-80.0, 80.0);
+		windBurbleVelocityWorldMetersPerSecond = transientState.windBurbleVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		drydenFirstOrderVelocityWorldMetersPerSecond = transientState.drydenFirstOrderVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		drydenTransverseLagVelocityWorldMetersPerSecond = transientState.drydenTransverseLagVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		drydenTurbulenceVelocityWorldMetersPerSecond = transientState.drydenTurbulenceVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		windGustVelocityWorldMetersPerSecond = transientState.windGustVelocityWorldMetersPerSecond().clamp(-60.0, 60.0);
+		drydenRandomState = transientState.drydenRandomState();
+		boolean hasFiniteSpareGaussian = transientState.hasDrydenSpareGaussian()
+				&& Double.isFinite(transientState.drydenSpareGaussian());
+		drydenSpareGaussian = hasFiniteSpareGaussian
+				? MathUtil.clamp(transientState.drydenSpareGaussian(), -10.0, 10.0)
+				: 0.0;
+		hasDrydenSpareGaussian = hasFiniteSpareGaussian;
+		windModelInitialized = transientState.windModelInitialized();
+		windGustPhaseA = finitePhase(transientState.windGustPhaseA());
+		windGustPhaseB = finitePhase(transientState.windGustPhaseB());
+		windGustPhaseC = finitePhase(transientState.windGustPhaseC());
+		turbulencePhaseA = finitePhase(transientState.turbulencePhaseA());
+		turbulencePhaseB = finitePhase(transientState.turbulencePhaseB());
+		turbulencePhaseC = finitePhase(transientState.turbulencePhaseC());
+		airframeSeparatedFlowIntensity = MathUtil.clamp(
+				finiteOr(transientState.airframeSeparatedFlowIntensity(), 0.0),
+				0.0,
+				1.0
+		);
+		airframeSeparationBuffetPhaseA = finitePhase(transientState.airframeSeparationBuffetPhaseA());
+		airframeSeparationBuffetPhaseB = finitePhase(transientState.airframeSeparationBuffetPhaseB());
+		rotorWashDragForceBodyFiltered = transientState.rotorWashDragForceBody().clamp(-12.0, 12.0);
+		rotorWashAirframeAngularDampingFiltered = transientState.rotorWashAirframeAngularDamping().clamp(-0.25, 0.25);
+		dynamicPressureCenterOffsetBodyFiltered = transientState.dynamicPressureCenterOffsetBody().clamp(-0.040, 0.040);
+		airframeLiftForceBodyFiltered = transientState.airframeLiftForceBody().clamp(-18.0, 18.0);
+		airframeDragForceBodyFiltered = transientState.airframeDragForceBody().clamp(-48.0, 48.0);
+		groundEffectDragForceBodyFiltered = transientState.groundEffectDragForceBody().clamp(-14.0, 14.0);
+
+		state.setEffectiveWindVelocityWorldMetersPerSecond(
+				meanWindVelocityWorldMetersPerSecond.add(windGustVelocityWorldMetersPerSecond)
+		);
+		state.setWindGustVelocityWorldMetersPerSecond(windGustVelocityWorldMetersPerSecond);
+		state.setAirframeSeparatedFlowIntensity(airframeSeparatedFlowIntensity);
+		state.setRotorWashDragForceBodyNewtons(rotorWashDragForceBodyFiltered);
+		state.setAirframeLiftForceBodyNewtons(airframeLiftForceBodyFiltered);
+		state.setAirframeBodyDragForceBodyNewtons(airframeDragForceBodyFiltered);
+		state.setGroundEffectDragForceBodyNewtons(groundEffectDragForceBodyFiltered);
+	}
+
 	private static boolean hasFiniteValue(double[] values, int index) {
 		return values != null
 				&& index >= 0
 				&& index < values.length
 				&& Double.isFinite(values[index]);
+	}
+
+	private static Vec3 finiteVecOrZero(Vec3 value) {
+		return value == null || !value.isFinite() ? Vec3.ZERO : value;
+	}
+
+	private static double finiteOr(double value, double fallback) {
+		return Double.isFinite(value) ? value : fallback;
+	}
+
+	private static double finitePhase(double value) {
+		return Double.isFinite(value) ? value : 0.0;
 	}
 
 	public void resetControlLoops() {
