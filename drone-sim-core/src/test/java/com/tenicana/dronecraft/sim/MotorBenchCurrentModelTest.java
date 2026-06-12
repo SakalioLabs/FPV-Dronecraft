@@ -40,4 +40,30 @@ class MotorBenchCurrentModelTest {
 		assertEquals(19.0 / referenceCurrent, MotorBenchCurrentModel.mqtbHq5x4x3CurrentRatio(state), 1.0e-12);
 		assertEquals(19.0 - referenceCurrent, MotorBenchCurrentModel.mqtbHq5x4x3CurrentResidualAmps(state), 1.0e-12);
 	}
+
+	@Test
+	void mqtbHq5x4x3RotorSimilaritySelectsFiveInchTriBladeProps() {
+		assertEquals(
+				1.0,
+				MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(DroneConfig.racingQuad().rotors().get(0)),
+				1.0e-12
+		);
+		assertEquals(
+				0.0,
+				MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(
+						DroneConfig.racingQuad().withRotorBladeCount(2).rotors().get(0)
+				),
+				1.0e-12
+		);
+		assertEquals(
+				0.0,
+				MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(DroneConfig.cinewhoop().rotors().get(0)),
+				1.0e-12
+		);
+		assertEquals(
+				0.0,
+				MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(DroneConfig.heavyLift().rotors().get(0)),
+				1.0e-12
+		);
+	}
 }

@@ -7536,7 +7536,17 @@ public final class DronePhysics {
 						* smoothStep(0.12, 0.82, escOutput);
 		double curveCurrent = perMotorMaxCurrentAmps * MathUtil.clamp(normalizedLoad, 0.0, 1.20)
 				* coaxialElectricalPowerScale;
-		double propulsionCurrent = Math.max(Math.max(curveCurrent, shaftPowerCurrent), electricalModelCurrent)
+		double steadyPropulsionCurrent = Math.max(Math.max(curveCurrent, shaftPowerCurrent), electricalModelCurrent);
+		double anchoredSteadyPropulsionCurrent = motorBenchAnchoredSteadyMotorCurrentAmps(
+				index,
+				rotor,
+				steadyPropulsionCurrent,
+				thrustFraction,
+				aerodynamicLoadFactor,
+				propellerPowerLoadFactor,
+				brakingLoad
+		);
+		double propulsionCurrent = anchoredSteadyPropulsionCurrent
 				+ desyncCurrent
 				+ voltageLimitLossCurrent
 				+ 0.10 * currentRipple;
@@ -7604,6 +7614,61 @@ public final class DronePhysics {
 
 		double electricalCurrent = mechanicalPowerWatts / Math.max(1.0, state.batteryVoltage() * efficiency);
 		return MathUtil.clamp(electricalCurrent, 0.0, perMotorMaxCurrentAmps * 1.30);
+	}
+
+	private double motorBenchAnchoredSteadyMotorCurrentAmps(
+			int index,
+			RotorSpec rotor,
+			double steadyCurrentAmps,
+			double thrustFraction,
+			double aerodynamicLoadFactor,
+			double propellerPowerLoadFactor,
+			double brakingLoad
+	) {
+		double profileWeight = MotorBenchCurrentModel.mqtbHq5x4x3RotorSimilarity(rotor);
+		double benchCurrentAmps = MotorBenchCurrentModel.mqtbHq5x4x3CurrentAmpsForThrustNewtons(
+				state.rotorThrustNewtons(index)
+		);
+		if (profileWeight <= 1.0e-6
+				|| steadyCurrentAmps <= 1.0e-6
+				|| benchCurrentAmps <= 1.0e-6
+				|| steadyCurrentAmps <= benchCurrentAmps) {
+			return steadyCurrentAmps;
+		}
+
+		double activeRotor = smoothStep(0.06, 0.32, thrustFraction);
+		double midLoadConfidence = 1.0 - smoothStep(0.58, 0.82, thrustFraction);
+		double outputConfidence = 1.0 - smoothStep(0.64, 0.72, state.escOutputCommand(index));
+		double cleanLoadConfidence = 1.0 - smoothStep(0.035, 0.16, Math.abs(aerodynamicLoadFactor - 1.0));
+		double powerCurveConfidence = 1.0 - smoothStep(0.12, 0.42, Math.abs(propellerPowerLoadFactor - 1.0));
+		double rotorHealthConfidence = smoothStep(0.96, 0.995, minimumRotorHealth());
+		double transientPenalty = MathUtil.clamp(
+				0.80 * state.motorTrackingError(index)
+						+ 0.75 * state.escDesyncIntensity(index)
+						+ 0.45 * state.rotorWindmillingIntensity(index)
+						+ 0.55 * brakingLoad
+						+ 0.35 * motorVoltageHeadroomStress(index),
+				0.0,
+				1.0
+		);
+		double anchorBlend = 0.62
+				* profileWeight
+				* activeRotor
+				* midLoadConfidence
+				* outputConfidence
+				* cleanLoadConfidence
+				* powerCurveConfidence
+				* rotorHealthConfidence
+				* (1.0 - transientPenalty);
+		return MathUtil.lerp(steadyCurrentAmps, benchCurrentAmps, MathUtil.clamp(anchorBlend, 0.0, 0.62));
+	}
+
+	private double minimumRotorHealth() {
+		double minimum = 1.0;
+		for (double health : state.rotorHealth()) {
+			minimum = Math.min(minimum, health);
+		}
+		return minimum;
 	}
 
 	private double motorElectricalEfficiency(int index, double rpmFraction, double aerodynamicLoadFactor) {

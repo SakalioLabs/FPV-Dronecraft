@@ -3773,6 +3773,41 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void mqtbBenchAnchorPullsFiveInchTriBladeCurrentTowardBenchCurve() throws ReflectiveOperationException {
+		Method motorCurrentEstimate = DronePhysics.class.getDeclaredMethod(
+				"estimateMotorCurrent",
+				int.class
+		);
+		motorCurrentEstimate.setAccessible(true);
+
+		DroneConfig baseConfig = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.8, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics triBlade = new DronePhysics(baseConfig);
+		DronePhysics twoBlade = new DronePhysics(baseConfig.withRotorBladeCount(2));
+		preparePropellerPowerCurrentEstimate(triBlade, 0.62, 0.45, 1.0, 1.0);
+		preparePropellerPowerCurrentEstimate(twoBlade, 0.62, 0.45, 1.0, 1.0);
+		triBlade.state().setMotorShaftPowerWatts(0, 180.0);
+		twoBlade.state().setMotorShaftPowerWatts(0, 180.0);
+
+		double triBladeCurrent = recordDouble(motorCurrentEstimate.invoke(triBlade, 0), "dischargeCurrentAmps");
+		double twoBladeCurrent = recordDouble(motorCurrentEstimate.invoke(twoBlade, 0), "dischargeCurrentAmps");
+		double benchCurrent = MotorBenchCurrentModel.mqtbHq5x4x3CurrentAmpsForThrustNewtons(
+				triBlade.state().rotorThrustNewtons(0)
+		);
+
+		assertTrue(Math.abs(triBladeCurrent - benchCurrent) < Math.abs(twoBladeCurrent - benchCurrent) * 0.65,
+				() -> "triBladeCurrent=" + triBladeCurrent
+						+ " twoBladeCurrent=" + twoBladeCurrent
+						+ " benchCurrent=" + benchCurrent);
+		assertTrue(triBladeCurrent < twoBladeCurrent - 1.0,
+				() -> "triBladeCurrent=" + triBladeCurrent + " twoBladeCurrent=" + twoBladeCurrent);
+		assertTrue(triBladeCurrent > benchCurrent * 0.80,
+				() -> "triBladeCurrent=" + triBladeCurrent + " benchCurrent=" + benchCurrent);
+	}
+
+	@Test
 	void propellerPowerScaleShapesMotorSpinupLoad() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.035)
