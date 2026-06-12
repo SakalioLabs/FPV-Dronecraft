@@ -11,6 +11,7 @@ import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
+import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
 import com.tenicana.dronecraft.sim.Vec3;
 
 import java.io.IOException;
@@ -1208,6 +1209,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.foxeerDonut5145PropAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
+		SensorNoiseCalibration.ImuNoiseAudit imuNoiseAudit =
+				SensorNoiseCalibration.apDroneImuNoiseAudit(preset);
 		PropDamageVibrationAudit propDamageAudit = propDamageVibrationAudit(preset);
 
 		System.out.printf(Locale.ROOT, "Wrote %d samples to %s%n", report.samples(), outputPath.toAbsolutePath());
@@ -1434,6 +1437,31 @@ public final class OfflineFlightRecorder {
 				aiioRotorSpeedAudit.referenceBladePassOverTelemetryNyquist(),
 				aiioRotorSpeedAudit.referenceSampleFileCount(),
 				aiioRotorSpeedAudit.referenceSampleRateHertz()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone IMU noise audit: %s %s %dseg/%dfiles %.1fs gyro cfg %.5frad/s p50 %.5f p90 %.5f cfg/p90 %.2f strict %.5f cfg/strict %.2f accel cfg %.4fm/s2 p50 %.4f p90 %.4f cfg/p90 %.2f strict %.4f cfg/strict %.2f lpf %.0f/%.0fHz baro_quiet %.4fm rms %.4fm%n",
+				imuNoiseAudit.sourceId(),
+				imuNoiseAudit.lowMotionSelection(),
+				imuNoiseAudit.lowMotionSegmentCount(),
+				imuNoiseAudit.lowMotionSourceFileCount(),
+				imuNoiseAudit.lowMotionDurationSeconds(),
+				imuNoiseAudit.configuredGyroNoiseRadiansPerSecond(),
+				imuNoiseAudit.lowMotionGyroVectorRmsP50RadiansPerSecond(),
+				imuNoiseAudit.lowMotionGyroVectorRmsP90RadiansPerSecond(),
+				imuNoiseAudit.configuredGyroOverLowMotionP90(),
+				imuNoiseAudit.strictStaticGyroVectorRmsRadiansPerSecond(),
+				imuNoiseAudit.configuredGyroOverStrictStatic(),
+				imuNoiseAudit.configuredAccelerometerNoiseMetersPerSecondSquared(),
+				imuNoiseAudit.lowMotionAccelerometerVectorRmsP50MetersPerSecondSquared(),
+				imuNoiseAudit.lowMotionAccelerometerVectorRmsP90MetersPerSecondSquared(),
+				imuNoiseAudit.configuredAccelerometerOverLowMotionP90(),
+				imuNoiseAudit.strictStaticAccelerometerVectorRmsMetersPerSecondSquared(),
+				imuNoiseAudit.configuredAccelerometerOverStrictStatic(),
+				imuNoiseAudit.configuredGyroLowPassHertz(),
+				imuNoiseAudit.configuredAccelerometerLowPassHertz(),
+				imuNoiseAudit.configuredQuietBarometerNoiseAmplitudeMeters(),
+				imuNoiseAudit.configuredQuietBarometerNoiseRmsMeters()
 		);
 		System.out.printf(
 				Locale.ROOT,

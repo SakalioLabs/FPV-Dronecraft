@@ -105,6 +105,16 @@ class DronePhysicsTest {
 		assertEquals(1.5, config.batteryCapacityAmpHours(), 1.0e-12);
 		assertEquals(150.0, config.maxBatteryCurrentAmps(), 1.0e-12);
 		assertEquals(125.0, config.gyroLowPassCutoffHz(), 1.0e-12);
+		assertEquals(
+				DroneConfig.APDRONE_BLACKBOX_LOW_MOTION_GYRO_NOISE_RADIANS_PER_SECOND,
+				config.gyroNoiseStdDevRadiansPerSecond(),
+				1.0e-15
+		);
+		assertEquals(
+				DroneConfig.APDRONE_BLACKBOX_LOW_MOTION_ACCELEROMETER_NOISE_METERS_PER_SECOND_SQUARED,
+				config.accelerometerNoiseStdDevMetersPerSecondSquared(),
+				1.0e-15
+		);
 		assertEquals(Math.toRadians(1998.0), config.maxPitchRateRadiansPerSecond(), 1.0e-12);
 		assertEquals(Math.toRadians(1998.0), config.maxYawRateRadiansPerSecond(), 1.0e-12);
 		assertEquals(Math.toRadians(1998.0), config.maxRollRateRadiansPerSecond(), 1.0e-12);
@@ -10618,6 +10628,9 @@ class DronePhysicsTest {
 		assertTrue(text.contains("AI-IO rotor-speed audit"));
 		assertTrue(text.contains("low_dyn"));
 		assertTrue(text.contains("bpass_nyq"));
+		assertTrue(text.contains("APDrone IMU noise audit"));
+		assertTrue(text.contains("APDrone-Mendeley-Blackbox"));
+		assertTrue(text.contains("baro_quiet"));
 		assertTrue(text.contains("Prop damage vibration audit"));
 		assertTrue(text.contains("single_fault"));
 		assertTrue(text.contains("padre"));
