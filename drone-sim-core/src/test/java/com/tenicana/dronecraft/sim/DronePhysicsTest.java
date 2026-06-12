@@ -3661,6 +3661,35 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void propellerPowerScaleShapesMotorCurrentEstimate() throws ReflectiveOperationException {
+		Method motorCurrentEstimate = DronePhysics.class.getDeclaredMethod(
+				"estimateMotorCurrent",
+				int.class
+		);
+		motorCurrentEstimate.setAccessible(true);
+
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.8, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics staticProp = new DronePhysics(config);
+		DronePhysics forwardProp = new DronePhysics(config);
+		DronePhysics highLoadProp = new DronePhysics(config);
+		preparePropellerPowerCurrentEstimate(staticProp, 0.62, 0.45, 1.0, 1.0);
+		preparePropellerPowerCurrentEstimate(forwardProp, 0.62, 0.45, 1.0, 0.688);
+		preparePropellerPowerCurrentEstimate(highLoadProp, 0.62, 0.45, 1.0, 1.08);
+
+		double staticCurrent = recordDouble(motorCurrentEstimate.invoke(staticProp, 0), "dischargeCurrentAmps");
+		double forwardCurrent = recordDouble(motorCurrentEstimate.invoke(forwardProp, 0), "dischargeCurrentAmps");
+		double highLoadCurrent = recordDouble(motorCurrentEstimate.invoke(highLoadProp, 0), "dischargeCurrentAmps");
+
+		assertTrue(forwardCurrent < staticCurrent - 0.80,
+				() -> "staticCurrent=" + staticCurrent + " forwardCurrent=" + forwardCurrent);
+		assertTrue(highLoadCurrent > staticCurrent + 0.15,
+				() -> "staticCurrent=" + staticCurrent + " highLoadCurrent=" + highLoadCurrent);
+	}
+
+	@Test
 	void applyingBatteryPresetRecomputesVoltageFromStateOfCharge() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		for (int i = 0; i < 20; i++) {
@@ -10109,6 +10138,24 @@ class DronePhysicsTest {
 		Method accessor = record.getClass().getDeclaredMethod(accessorName);
 		accessor.setAccessible(true);
 		return (double) accessor.invoke(record);
+	}
+
+	private static void preparePropellerPowerCurrentEstimate(
+			DronePhysics physics,
+			double rpmFraction,
+			double thrustFraction,
+			double aerodynamicLoadFactor,
+			double propellerPowerScale
+	) {
+		RotorSpec rotor = physics.config().rotors().get(0);
+		physics.state().setBatteryVoltage(physics.config().nominalBatteryVoltage());
+		physics.state().setEscOutputCommand(0, rpmFraction);
+		physics.state().setMotorOmegaRadiansPerSecond(0, rotor.maxOmegaRadiansPerSecond() * rpmFraction);
+		physics.state().setMotorVoltageHeadroom(0, 0.45);
+		physics.state().setMotorShaftPowerWatts(0, 0.0);
+		physics.state().setRotorThrustNewtons(0, rotor.maxThrustNewtons() * thrustFraction);
+		physics.state().setRotorAerodynamicLoadFactor(0, aerodynamicLoadFactor);
+		physics.state().setRotorPropellerPowerScale(0, propellerPowerScale);
 	}
 
 	private static DroneEnvironment environmentWithAmbientTemperature(double ambientTemperatureCelsius) {

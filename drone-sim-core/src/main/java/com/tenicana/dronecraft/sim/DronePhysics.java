@@ -7183,7 +7183,8 @@ public final class DronePhysics {
 		double aerodynamicLoadFactor = state.rotorAerodynamicLoadFactor(index) <= 1.0e-6
 				? 1.0
 				: state.rotorAerodynamicLoadFactor(index);
-		double electricalEfficiency = motorElectricalEfficiency(index, rpmFraction, aerodynamicLoadFactor);
+		double propellerPowerLoadFactor = motorPropellerPowerLoadFactor(index, aerodynamicLoadFactor);
+		double electricalEfficiency = motorElectricalEfficiency(index, rpmFraction, propellerPowerLoadFactor);
 		double coaxialElectricalPowerScale = coaxialAllocationElectricalPowerScale(index);
 		if (escOutput <= 1.0e-6) {
 			double brakingRippleCurrent = brakingCurrent * 0.08 * smoothStep(0.02, 0.40, brakingLoad);
@@ -7198,8 +7199,8 @@ public final class DronePhysics {
 		}
 
 		double escCopperLoss = escOutput * escOutput;
-		double aerodynamicPower = rpmFraction * rpmFraction * rpmFraction * aerodynamicLoadFactor;
-		double loadedPropPower = Math.sqrt(thrustFraction) * rpmFraction * aerodynamicLoadFactor;
+		double aerodynamicPower = rpmFraction * rpmFraction * rpmFraction * propellerPowerLoadFactor;
+		double loadedPropPower = Math.sqrt(thrustFraction) * rpmFraction * propellerPowerLoadFactor;
 		double normalizedLoad = 0.12 * escCopperLoss + 0.34 * aerodynamicPower + 0.54 * loadedPropPower;
 		double shaftPowerCurrent = motorShaftPowerCurrentAmps(index, perMotorMaxCurrentAmps, electricalEfficiency);
 		double driveVoltage = motorDriveVoltage(
@@ -7217,7 +7218,7 @@ public final class DronePhysics {
 				* MathUtil.clamp(0.35 + 0.65 * escOutput, 0.0, 1.0);
 		double electricalModelCurrent = noLoadCurrent
 				+ busEquivalentWindingCurrent
-						* MathUtil.clamp(0.35 + 0.65 * aerodynamicLoadFactor, 0.25, 1.60)
+						* MathUtil.clamp(0.35 + 0.65 * propellerPowerLoadFactor, 0.25, 1.60)
 						* coaxialElectricalPowerScale;
 		double desyncCurrent = perMotorMaxCurrentAmps
 				* 0.22
@@ -7228,7 +7229,7 @@ public final class DronePhysics {
 				* (0.012 + 0.030 * MathUtil.clamp(rpmFraction, 0.0, 1.10))
 				* motorVoltageHeadroomStress(index)
 				* MathUtil.clamp(escOutput, 0.0, 1.0)
-				* MathUtil.clamp(0.75 + 0.25 * aerodynamicLoadFactor, 0.75, 1.25);
+				* MathUtil.clamp(0.75 + 0.25 * propellerPowerLoadFactor, 0.75, 1.25);
 		double currentRipple = phaseCurrent
 				* state.motorCommutationRippleIntensity(index)
 				* (0.22 + 0.78 * escOutput)
@@ -7254,6 +7255,20 @@ public final class DronePhysics {
 				currentRipple,
 				electricalEfficiency
 		);
+	}
+
+	private double motorPropellerPowerLoadFactor(int index, double aerodynamicLoadFactor) {
+		double loadFactor = aerodynamicLoadFactor <= 1.0e-6
+				? 1.0
+				: MathUtil.clamp(aerodynamicLoadFactor, 0.35, 2.0);
+		double propellerPowerScale = state.rotorPropellerPowerScale(index) <= 1.0e-6
+				? 1.0
+				: MathUtil.clamp(state.rotorPropellerPowerScale(index), 0.16, 1.08);
+		double blendedLoad = 0.55 * loadFactor + 0.45 * propellerPowerScale;
+		if (propellerPowerScale < 1.0) {
+			return MathUtil.clamp(Math.min(loadFactor, blendedLoad), 0.20, 2.0);
+		}
+		return MathUtil.clamp(Math.max(loadFactor, blendedLoad), 0.35, 2.0);
 	}
 
 	private double regenerativeBrakingFraction(double rpmFraction, double escOutput, double brakingLoad) {
