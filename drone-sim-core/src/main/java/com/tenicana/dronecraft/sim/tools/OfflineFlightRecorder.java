@@ -8,6 +8,7 @@ import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
+import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
@@ -1241,6 +1242,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.worstHorizontalLevelFlightRequirement(preset, 26.79, 1.0);
 		AirframeDragCalibration.RatmHighSpeedEnvelopeAudit ratmEnvelopeAudit =
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(preset);
+		HighAdvanceRotorCalibration.HighAdvanceAudit highAdvanceAudit =
+				HighAdvanceRotorCalibration.audit(preset);
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1424,6 +1427,35 @@ public final class OfflineFlightRecorder {
 				ratmEnvelopeAudit.configuredPerMotorCurrentOverRatmEscCurrent(),
 				ratmEnvelopeAudit.configuredRotorRadiusOverRatmPropRadius(),
 				ratmEnvelopeAudit.minimumBatteryVoltageAcrossGroup()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"High-advance prop audit: %s APC %d props/%d rows maxJ %.3f mu %.3f, rotor P/D %.3f blades %d, 5.1x5 thr_zeroJ %.3f pos_mu %.3f, 5x11 pos_mu %.3f; current uiucJ %.3f th/pw %.2f/%.2f vs APC %.2f/%.2f, fpvJ %.3f th/pw %.2f/%.2f vs APC %.2f/%.2f, x11J %.3f th/pw %.2f/%.2f vs APC %.2f/%.2f caveat axial-not-edgewise%n",
+				highAdvanceAudit.sourceId(),
+				highAdvanceAudit.selectedApcPropellerCount(),
+				highAdvanceAudit.selectedApcRowCount(),
+				highAdvanceAudit.selectedApcMaxAdvanceRatioJ(),
+				highAdvanceAudit.selectedApcMaxEquivalentProjectMu(),
+				highAdvanceAudit.representativeRotorPitchToDiameterRatio(),
+				highAdvanceAudit.representativeRotorBladeCount(),
+				highAdvanceAudit.fpvAdjacentThreeBladeReference().nearestZeroCtAdvanceRatioJ(),
+				highAdvanceAudit.fpvAdjacentThreeBladeReference().highestPositiveCtEquivalentProjectMu(),
+				highAdvanceAudit.extremeHighPitchReference().highestPositiveCtEquivalentProjectMu(),
+				highAdvanceAudit.uiucMeasuredRangeMax().targetEquivalentAdvanceRatioJ(),
+				highAdvanceAudit.uiucMeasuredRangeMax().currentThrustScale(),
+				highAdvanceAudit.uiucMeasuredRangeMax().currentPowerScale(),
+				highAdvanceAudit.uiucMeasuredRangeMax().apcCtOverStaticCt(),
+				highAdvanceAudit.uiucMeasuredRangeMax().apcCpOverStaticCp(),
+				highAdvanceAudit.fpvAdjacentLiftDissymmetryEnd().targetEquivalentAdvanceRatioJ(),
+				highAdvanceAudit.fpvAdjacentLiftDissymmetryEnd().currentThrustScale(),
+				highAdvanceAudit.fpvAdjacentLiftDissymmetryEnd().currentPowerScale(),
+				highAdvanceAudit.fpvAdjacentLiftDissymmetryEnd().apcCtOverStaticCt(),
+				highAdvanceAudit.fpvAdjacentLiftDissymmetryEnd().apcCpOverStaticCp(),
+				highAdvanceAudit.extremePitchHighAdvanceLossStart().targetEquivalentAdvanceRatioJ(),
+				highAdvanceAudit.extremePitchHighAdvanceLossStart().currentThrustScale(),
+				highAdvanceAudit.extremePitchHighAdvanceLossStart().currentPowerScale(),
+				highAdvanceAudit.extremePitchHighAdvanceLossStart().apcCtOverStaticCt(),
+				highAdvanceAudit.extremePitchHighAdvanceLossStart().apcCpOverStaticCp()
 		);
 		System.out.printf(
 				Locale.ROOT,

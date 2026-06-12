@@ -11054,6 +11054,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("RATM-500Hz-Speed-Envelope"));
 		assertTrue(text.contains(">=21m/s"));
 		assertTrue(text.contains("speed/limit"));
+		assertTrue(text.contains("High-advance prop audit"));
+		assertTrue(text.contains("APC-High-J-Axial-Propeller-Packet"));
+		assertTrue(text.contains("axial-not-edgewise"));
+		assertTrue(text.contains("5x11"));
 		assertTrue(text.contains("tilt"));
 		assertTrue(text.contains("reachable"));
 		assertTrue(text.contains("APDrone inertia audit"));

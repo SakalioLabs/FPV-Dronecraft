@@ -3149,11 +3149,11 @@ public final class DronePhysics {
 		return MathUtil.clamp(1.0 + assistingGain, 1.0, 2.35);
 	}
 
-	private static double rotorForwardAdvanceThrustScale(RotorSpec rotor, double advanceRatio) {
+	static double rotorForwardAdvanceThrustScale(RotorSpec rotor, double advanceRatio) {
 		return MathUtil.clamp(1.0 - rotorForwardAdvanceThrustLoss(rotor, advanceRatio), 0.12, 1.05);
 	}
 
-	private static double rotorForwardAdvancePowerScale(RotorSpec rotor, double advanceRatio) {
+	static double rotorForwardAdvancePowerScale(RotorSpec rotor, double advanceRatio) {
 		double propAdvanceRatio = rotorUiucEquivalentPropellerAdvanceRatio(rotor, advanceRatio);
 		double lowAdvanceLoss = 0.032 * smoothStep(0.08, 0.25, propAdvanceRatio);
 		double midAdvanceLoss = 0.280 * smoothStep(0.25, 0.45, propAdvanceRatio);
@@ -3162,7 +3162,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(1.0 - lowAdvanceLoss - midAdvanceLoss - highAdvanceLoss - postPeakLoss, 0.16, 1.08);
 	}
 
-	private static double rotorForwardAdvanceTorquePerThrustScale(RotorSpec rotor, double advanceRatio) {
+	static double rotorForwardAdvanceTorquePerThrustScale(RotorSpec rotor, double advanceRatio) {
 		double thrustScale = rotorForwardAdvanceThrustScale(rotor, advanceRatio);
 		double powerScale = rotorForwardAdvancePowerScale(rotor, advanceRatio);
 		return MathUtil.clamp(powerScale / Math.max(0.12, thrustScale), 0.65, 3.20);
@@ -3181,10 +3181,15 @@ public final class DronePhysics {
 		return 0.20 * smoothStep(0.95, 1.35, propAdvanceRatio);
 	}
 
-	private static double rotorUiucEquivalentPropellerAdvanceRatio(RotorSpec rotor, double advanceRatio) {
+	static double rotorUiucEquivalentPropellerAdvanceRatio(RotorSpec rotor, double advanceRatio) {
 		double pitchRelief = MathUtil.clamp(Math.sqrt(rotorBladePitchRatio(rotor)), 0.75, 1.45);
 		// UIUC prop data uses J = V / (nD), while rotorAdvanceRatio is mu = V / (omega R).
 		return Math.PI * MathUtil.clamp(advanceRatio, 0.0, 2.0) / pitchRelief;
+	}
+
+	static double rotorAdvanceRatioForUiucEquivalentPropellerAdvanceRatio(RotorSpec rotor, double propellerAdvanceRatioJ) {
+		double pitchRelief = MathUtil.clamp(Math.sqrt(rotorBladePitchRatio(rotor)), 0.75, 1.45);
+		return MathUtil.clamp(Math.max(0.0, propellerAdvanceRatioJ) * pitchRelief / Math.PI, 0.0, 2.0);
 	}
 
 	private static double rotorBladeStallIntensity(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
