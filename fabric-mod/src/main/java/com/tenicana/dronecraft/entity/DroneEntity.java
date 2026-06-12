@@ -2264,6 +2264,18 @@ public class DroneEntity extends PathfinderMob {
 		return entityData.get(BATTERY_EFFECTIVE_RESISTANCE);
 	}
 
+	public double getBatteryStateOfChargeResistanceScale() {
+		return physics.state().batteryStateOfChargeResistanceScale();
+	}
+
+	public double getBatteryTemperatureResistanceScale() {
+		return physics.state().batteryTemperatureResistanceScale();
+	}
+
+	public double getBatteryPolarizationResistanceScale() {
+		return physics.state().batteryPolarizationResistanceScale();
+	}
+
 	public float getBatteryRegenerativeCurrentAmps() {
 		return entityData.get(BATTERY_REGEN_CURRENT);
 	}

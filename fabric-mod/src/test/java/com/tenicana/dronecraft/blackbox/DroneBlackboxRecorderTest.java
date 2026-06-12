@@ -789,6 +789,24 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxBatteryRegenerativeCurrentAmps() >= 0.0);
 		assertTrue(summary.maxMotorRegenerativeCurrentAmps() >= 0.0);
 		assertTrue(summary.maxBatteryEffectiveResistanceOhms() > 0.0);
+		assertEquals(
+				maxOfColumns(lines, header, "battery_soc_resistance_scale"),
+				summary.maxBatteryStateOfChargeResistanceScale(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfColumns(lines, header, "battery_temp_resistance_scale"),
+				summary.maxBatteryTemperatureResistanceScale(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfColumns(lines, header, "battery_polarization_resistance_scale"),
+				summary.maxBatteryPolarizationResistanceScale(),
+				1.0e-5
+		);
+		assertTrue(summary.maxBatteryStateOfChargeResistanceScale() >= 1.0);
+		assertTrue(summary.maxBatteryTemperatureResistanceScale() >= 1.0);
+		assertTrue(summary.maxBatteryPolarizationResistanceScale() >= 1.0);
 		assertTrue(summary.maxBatteryVoltageSpike() >= 0.0);
 		assertTrue(summary.maxWindGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
@@ -804,6 +822,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("loop 10@200Hz"));
 		assertTrue(summary.formatForChat().contains("current-limit"));
 		assertTrue(summary.formatForChat().contains("ir"));
+		assertTrue(summary.formatForChat().contains("irx"));
 		assertTrue(summary.formatForChat().contains("ripple"));
 		assertTrue(summary.formatForChat().contains("imuP"));
 		assertTrue(summary.formatForChat().contains("batt-limit"));

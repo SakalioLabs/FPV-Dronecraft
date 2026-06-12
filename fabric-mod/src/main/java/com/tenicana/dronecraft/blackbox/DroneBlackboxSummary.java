@@ -17,6 +17,9 @@ public record DroneBlackboxSummary(
 		double maxMotorRegenerativeCurrentAmps,
 		double maxBatterySagVoltage,
 		double maxBatteryEffectiveResistanceOhms,
+		double maxBatteryStateOfChargeResistanceScale,
+		double maxBatteryTemperatureResistanceScale,
+		double maxBatteryPolarizationResistanceScale,
 		double maxBatteryVoltageSpike,
 		double maxBatteryBusRippleVoltage,
 		double maxImuSupplyNoiseIntensity,
@@ -146,6 +149,9 @@ public record DroneBlackboxSummary(
 		double maxMotorRegenCurrent = 0.0;
 		double maxSag = 0.0;
 		double maxEffectiveResistance = 0.0;
+		double maxSocResistanceScale = 1.0;
+		double maxTemperatureResistanceScale = 1.0;
+		double maxPolarizationResistanceScale = 1.0;
 		double maxVoltageSpike = 0.0;
 		double maxBusRipple = 0.0;
 		double maxImuSupplyNoise = 0.0;
@@ -277,6 +283,9 @@ public record DroneBlackboxSummary(
 					+ value(row, "battery_transient_sag_v")
 					+ valueOrDefault(row, "battery_slow_polarization_v", 0.0));
 			maxEffectiveResistance = Math.max(maxEffectiveResistance, value(row, "battery_effective_resistance_ohm"));
+			maxSocResistanceScale = Math.max(maxSocResistanceScale, valueOrDefault(row, "battery_soc_resistance_scale", 1.0));
+			maxTemperatureResistanceScale = Math.max(maxTemperatureResistanceScale, valueOrDefault(row, "battery_temp_resistance_scale", 1.0));
+			maxPolarizationResistanceScale = Math.max(maxPolarizationResistanceScale, valueOrDefault(row, "battery_polarization_resistance_scale", 1.0));
 			maxVoltageSpike = Math.max(maxVoltageSpike, value(row, "battery_voltage_spike_v"));
 			maxBusRipple = Math.max(maxBusRipple, value(row, "battery_bus_ripple_v"));
 			maxImuSupplyNoise = Math.max(maxImuSupplyNoise, value(row, "imu_supply_noise"));
@@ -588,6 +597,9 @@ public record DroneBlackboxSummary(
 				maxMotorRegenCurrent,
 				maxSag,
 				maxEffectiveResistance,
+				maxSocResistanceScale,
+				maxTemperatureResistanceScale,
+				maxPolarizationResistanceScale,
 				maxVoltageSpike,
 				maxBusRipple,
 				maxImuSupplyNoise,
@@ -713,7 +725,7 @@ public record DroneBlackboxSummary(
 		}
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% temp %.1f..%.1fC gust %.2fm/s shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				maxPhysicsSubsteps,
@@ -733,6 +745,9 @@ public record DroneBlackboxSummary(
 				minBatteryVoltage,
 				maxBatterySagVoltage,
 				maxBatteryEffectiveResistanceOhms * 1000.0,
+				maxBatteryStateOfChargeResistanceScale,
+				maxBatteryTemperatureResistanceScale,
+				maxBatteryPolarizationResistanceScale,
 				maxBatteryVoltageSpike,
 				maxBatteryBusRippleVoltage,
 				maxImuSupplyNoiseIntensity,
@@ -853,6 +868,9 @@ public record DroneBlackboxSummary(
 				0.0, // maxMotorRegenerativeCurrentAmps
 				0.0, // maxBatterySagVoltage
 				0.0, // maxBatteryEffectiveResistanceOhms
+				1.0, // maxBatteryStateOfChargeResistanceScale
+				1.0, // maxBatteryTemperatureResistanceScale
+				1.0, // maxBatteryPolarizationResistanceScale
 				0.0, // maxBatteryVoltageSpike
 				0.0, // maxBatteryBusRippleVoltage
 				0.0, // maxImuSupplyNoiseIntensity
