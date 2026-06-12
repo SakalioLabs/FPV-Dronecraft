@@ -2326,7 +2326,8 @@ public final class OfflineFlightRecorder {
 			RotorFlowObstructionModel.Result result = RotorFlowObstructionModel.fromDirectionalDistances(
 					distancesToBodyWalls(rotorClearance, WALL_SKIM_DIRECTION_BODY),
 					ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY,
-					sideFlowSampleMaxDistance(rotor)
+					sideFlowSampleMaxDistance(rotor),
+					rotor.radiusMeters()
 			);
 			obstructions[i] = result.intensity();
 			directions[i] = result.directionBody();

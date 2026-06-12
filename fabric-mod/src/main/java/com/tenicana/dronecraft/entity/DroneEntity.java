@@ -794,7 +794,8 @@ public class DroneEntity extends PathfinderMob {
 		RotorFlowObstructionModel.Result obstruction = RotorFlowObstructionModel.fromDirectionalDistances(
 				distancesMeters,
 				bodyDirections,
-				scanDistanceMeters
+				scanDistanceMeters,
+				rotor.radiusMeters()
 		);
 		return obstruction.intensity() <= 1.0e-6
 				? RotorFlowObstruction.CLEAR

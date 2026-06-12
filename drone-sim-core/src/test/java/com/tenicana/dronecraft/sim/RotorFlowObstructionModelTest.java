@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 
 class RotorFlowObstructionModelTest {
 	private static final double MAX_DISTANCE = 0.40;
+	private static final double ROTOR_RADIUS = 0.20;
 	private static final Vec3[] ROTOR_PLANE_DIRECTIONS = {
 			new Vec3(1.0, 0.0, 0.0),
 			new Vec3(-1.0, 0.0, 0.0),
@@ -17,6 +18,19 @@ class RotorFlowObstructionModelTest {
 			new Vec3(-1.0, 0.0, 1.0).normalized(),
 			new Vec3(-1.0, 0.0, -1.0).normalized()
 	};
+
+	@Test
+	void flatWallDiskBlockedFractionMatchesCircleSegmentGeometry() {
+		assertEquals(0.5, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.0), 1.0e-12);
+		assertEquals(0.4364442857847691, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.1), 1.0e-12);
+		assertEquals(0.3735300390523310, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.2), 1.0e-12);
+		assertEquals(0.3425188212371463, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.25), 1.0e-12);
+		assertEquals(0.3119188323905365, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.3), 1.0e-12);
+		assertEquals(0.1955011094778854, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.5), 1.0e-12);
+		assertEquals(0.0721468064071937, RotorFlowObstructionModel.flatWallDiskBlockedFraction(0.75), 1.0e-12);
+		assertEquals(0.0, RotorFlowObstructionModel.flatWallDiskBlockedFraction(1.0), 1.0e-12);
+		assertEquals(0.0, RotorFlowObstructionModel.flatWallDiskBlockedFraction(1.5), 1.0e-12);
+	}
 
 	@Test
 	void clearDistancesReturnNoRotorFlowObstruction() {
@@ -41,7 +55,8 @@ class RotorFlowObstructionModelTest {
 		RotorFlowObstructionModel.Result result = RotorFlowObstructionModel.fromDirectionalDistances(
 				distancesToWalls(clearance, new Vec3(1.0, 0.0, 0.0)),
 				ROTOR_PLANE_DIRECTIONS,
-				MAX_DISTANCE
+				MAX_DISTANCE,
+				ROTOR_RADIUS
 		);
 
 		double nearestRayOnly = RotorFlowObstructionModel.proximityFromDistance(clearance, MAX_DISTANCE);
@@ -57,12 +72,14 @@ class RotorFlowObstructionModelTest {
 		RotorFlowObstructionModel.Result singleWall = RotorFlowObstructionModel.fromDirectionalDistances(
 				distancesToWalls(0.04, new Vec3(1.0, 0.0, 0.0)),
 				ROTOR_PLANE_DIRECTIONS,
-				MAX_DISTANCE
+				MAX_DISTANCE,
+				ROTOR_RADIUS
 		);
 		RotorFlowObstructionModel.Result corner = RotorFlowObstructionModel.fromDirectionalDistances(
 				distancesToWalls(0.04, new Vec3(1.0, 0.0, 0.0), new Vec3(0.0, 0.0, 1.0)),
 				ROTOR_PLANE_DIRECTIONS,
-				MAX_DISTANCE
+				MAX_DISTANCE,
+				ROTOR_RADIUS
 		);
 
 		assertTrue(corner.intensity() > singleWall.intensity() + 0.04,
@@ -77,12 +94,14 @@ class RotorFlowObstructionModelTest {
 		RotorFlowObstructionModel.Result close = RotorFlowObstructionModel.fromDirectionalDistances(
 				distancesToWalls(0.04, new Vec3(1.0, 0.0, 0.0)),
 				ROTOR_PLANE_DIRECTIONS,
-				MAX_DISTANCE
+				MAX_DISTANCE,
+				ROTOR_RADIUS
 		);
 		RotorFlowObstructionModel.Result far = RotorFlowObstructionModel.fromDirectionalDistances(
 				distancesToWalls(0.24, new Vec3(1.0, 0.0, 0.0)),
 				ROTOR_PLANE_DIRECTIONS,
-				MAX_DISTANCE
+				MAX_DISTANCE,
+				ROTOR_RADIUS
 		);
 
 		assertTrue(far.intensity() < close.intensity() * 0.55,
@@ -101,7 +120,8 @@ class RotorFlowObstructionModelTest {
 						new Vec3(0.0, 0.0, -1.0)
 				),
 				ROTOR_PLANE_DIRECTIONS,
-				MAX_DISTANCE
+				MAX_DISTANCE,
+				ROTOR_RADIUS
 		);
 
 		assertTrue(result.intensity() > 0.99, () -> "intensity=" + result.intensity());

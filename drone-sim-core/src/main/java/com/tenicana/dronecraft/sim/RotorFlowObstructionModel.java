@@ -7,12 +7,22 @@ public final class RotorFlowObstructionModel {
 	}
 
 	public static Result fromDirectionalDistances(double[] distancesMeters, Vec3[] bodyDirections, double maxDistanceMeters) {
+		return fromDirectionalDistances(distancesMeters, bodyDirections, maxDistanceMeters, maxDistanceMeters * 0.50);
+	}
+
+	public static Result fromDirectionalDistances(
+			double[] distancesMeters,
+			Vec3[] bodyDirections,
+			double maxDistanceMeters,
+			double rotorRadiusMeters
+	) {
 		if (distancesMeters == null || bodyDirections == null || distancesMeters.length == 0 || maxDistanceMeters <= 1.0e-6) {
 			return CLEAR;
 		}
 
 		int count = Math.min(distancesMeters.length, bodyDirections.length);
 		double peakProximity = 0.0;
+		double closestDistanceMeters = Double.POSITIVE_INFINITY;
 		double weightedProximity = 0.0;
 		double totalWeight = 0.0;
 		Vec3 directionSum = Vec3.ZERO;
@@ -30,6 +40,9 @@ public final class RotorFlowObstructionModel {
 			double shapedProximity = Math.pow(proximity, 1.12);
 			double directionalProximity = Math.pow(proximity, 1.45);
 			peakProximity = Math.max(peakProximity, proximity);
+			if (Double.isFinite(distancesMeters[i])) {
+				closestDistanceMeters = Math.min(closestDistanceMeters, Math.max(0.0, distancesMeters[i]));
+			}
 			weightedProximity += sampleWeight * shapedProximity;
 			totalWeight += sampleWeight;
 			directionSum = directionSum.add(normalizedDirection.multiply(sampleWeight * directionalProximity));
@@ -41,7 +54,12 @@ public final class RotorFlowObstructionModel {
 		}
 
 		double diskCoverage = weightedProximity / totalWeight;
-		double intensity = MathUtil.clamp(0.70 * peakProximity + 0.30 * diskCoverage, 0.0, 1.0);
+		double segmentCoverage = normalizedFlatWallDiskCoverage(closestDistanceMeters, rotorRadiusMeters);
+		double intensity = MathUtil.clamp(
+				0.50 * peakProximity + 0.27 * segmentCoverage + 0.23 * diskCoverage,
+				0.0,
+				1.0
+		);
 		Vec3 direction = directionAuthority <= 1.0e-9 || directionSum.lengthSquared() <= 1.0e-9
 				? Vec3.ZERO
 				: directionSum.normalized();
@@ -53,6 +71,22 @@ public final class RotorFlowObstructionModel {
 			return 0.0;
 		}
 		return 1.0 - MathUtil.clamp(distanceMeters / maxDistanceMeters, 0.0, 1.0);
+	}
+
+	public static double flatWallDiskBlockedFraction(double clearanceOverRadius) {
+		if (!Double.isFinite(clearanceOverRadius)) {
+			return 0.0;
+		}
+		double x = MathUtil.clamp(clearanceOverRadius, -1.0, 1.0);
+		double segment = Math.acos(x) - x * Math.sqrt(Math.max(0.0, 1.0 - x * x));
+		return MathUtil.clamp(segment / Math.PI, 0.0, 1.0);
+	}
+
+	private static double normalizedFlatWallDiskCoverage(double clearanceMeters, double rotorRadiusMeters) {
+		if (!Double.isFinite(clearanceMeters) || !Double.isFinite(rotorRadiusMeters) || rotorRadiusMeters <= 1.0e-6) {
+			return 0.0;
+		}
+		return MathUtil.clamp(2.0 * flatWallDiskBlockedFraction(clearanceMeters / rotorRadiusMeters), 0.0, 1.0);
 	}
 
 	private static double sampleWeight(Vec3 normalizedDirection) {
