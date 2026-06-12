@@ -2241,6 +2241,43 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void batteryResistanceTelemetrySeparatesSocTemperatureAndAgingScales() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withBattery(16.8, 13.2, 0.020, 1000.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+
+		DronePhysics freshFull = batteryPhysicsAt(config, 1.0, 0.0, 25.0);
+		DronePhysics freshLow = batteryPhysicsAt(config, 0.10, 0.0, 25.0);
+		DronePhysics wornLow = batteryPhysicsAt(config, 0.10, 450.0, 25.0);
+		double coldReferenceCelsius = (42.0 - 32.0) * 5.0 / 9.0;
+		DronePhysics coldFull = batteryPhysicsAt(config, 1.0, 0.0, coldReferenceCelsius);
+
+		assertEquals(1.0, freshFull.state().batteryStateOfChargeResistanceScale(), 0.002);
+		assertEquals(1.030, freshLow.state().batteryStateOfChargeResistanceScale(), 0.004);
+		assertEquals(1.039, wornLow.state().batteryStateOfChargeResistanceScale(), 0.008);
+		assertEquals(1.0, freshFull.state().batteryTemperatureResistanceScale(), 0.002);
+		assertTrue(coldFull.state().batteryTemperatureResistanceScale()
+						> freshFull.state().batteryTemperatureResistanceScale() * 1.67,
+				() -> "warmTempScale=" + freshFull.state().batteryTemperatureResistanceScale()
+						+ " coldTempScale=" + coldFull.state().batteryTemperatureResistanceScale());
+		assertEquals(
+				reconstructedBatteryResistance(config, freshLow.state()),
+				freshLow.state().batteryEffectiveResistanceOhms(),
+				1.0e-9
+		);
+		assertEquals(
+				reconstructedBatteryResistance(config, wornLow.state()),
+				wornLow.state().batteryEffectiveResistanceOhms(),
+				1.0e-9
+		);
+		assertEquals(
+				reconstructedBatteryResistance(config, coldFull.state()),
+				coldFull.state().batteryEffectiveResistanceOhms(),
+				1.0e-9
+		);
+	}
+
+	@Test
 	void batterySagCurrentHeadroomTracksEffectiveResistance() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withBattery(16.8, 13.2, 0.018, 1.5, 90.0)
@@ -9419,6 +9456,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_effective_resistance_ohm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_resistance_aging_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_capacity_aging_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_soc_resistance_scale"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_temp_resistance_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_equivalent_cycles"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_regen_current_a"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_voltage_spike_v"));
@@ -9836,6 +9875,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_cooling_factor")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_thermal_limit")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_soc_resistance_scale")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_resistance_scale")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_polarization_resistance_scale")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "avg_motor_mechanical_loss_torque_nm")])));
 		assertTrue(maxColumn(lines, header, "motor_commutation_ripple") > 0.0);
@@ -9860,6 +9901,8 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "battery_20pct_sag_current_a") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_20pct_sag_current_margin") > 0.0);
 		assertTrue(maxColumn(lines, header, "battery_slow_polarization_v") > 0.0);
+		assertTrue(maxColumn(lines, header, "battery_soc_resistance_scale") >= 1.0);
+		assertTrue(maxColumn(lines, header, "battery_temp_resistance_scale") >= 1.0);
 		assertTrue(maxColumn(lines, header, "battery_polarization_resistance_scale") > 1.05);
 		assertTrue(maxColumn(lines, header, "battery_temp_c") >= 25.0);
 		assertTrue(maxColumn(lines, header, "avg_motor_mechanical_loss_torque_nm") > 0.0);
@@ -10207,6 +10250,29 @@ class DronePhysicsTest {
 		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
 		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
 		return physics.state().batteryEffectiveResistanceOhms();
+	}
+
+	private static DronePhysics batteryPhysicsAt(
+			DroneConfig config,
+			double stateOfCharge,
+			double equivalentCycles,
+			double ambientTemperatureCelsius
+	) {
+		DronePhysics physics = new DronePhysics(config);
+		physics.state().setBatteryEquivalentCycles(equivalentCycles);
+		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
+		double capacityAmpSeconds = config.batteryCapacityAmpHours() * 3600.0 * physics.state().batteryCapacityAgingScale();
+		physics.state().setBatteryAmpSecondsConsumed(capacityAmpSeconds * (1.0 - stateOfCharge));
+		physics.step(DroneInput.idle(), 0.005, environmentWithAmbientTemperature(ambientTemperatureCelsius));
+		return physics;
+	}
+
+	private static double reconstructedBatteryResistance(DroneConfig config, DroneState state) {
+		return config.batteryInternalResistanceOhms()
+				* state.batteryTemperatureResistanceScale()
+				* state.batteryStateOfChargeResistanceScale()
+				* state.batteryResistanceAgingScale()
+				* state.batteryPolarizationResistanceScale();
 	}
 
 	private static double recordDouble(Object record, String accessorName) throws ReflectiveOperationException {

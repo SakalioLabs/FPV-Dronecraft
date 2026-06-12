@@ -97,6 +97,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("esc_command_error"));
 		assertTrue(csv.contains("battery_resistance_aging_scale"));
 		assertTrue(csv.contains("battery_capacity_aging_scale"));
+		assertTrue(csv.contains("battery_soc_resistance_scale"));
+		assertTrue(csv.contains("battery_temp_resistance_scale"));
 		assertTrue(csv.contains("battery_polarization_resistance_scale"));
 		assertTrue(csv.contains("battery_slow_polarization_v"));
 		assertTrue(csv.contains("battery_20pct_sag_current_a"));
@@ -546,6 +548,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_effective_resistance_ohm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_20pct_sag_current_a")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_20pct_sag_current_margin")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "battery_soc_resistance_scale")]) >= 1.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "battery_temp_resistance_scale")]) >= 1.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "battery_polarization_resistance_scale")]) >= 1.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_slow_polarization_v")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_voltage_spike_v")]));

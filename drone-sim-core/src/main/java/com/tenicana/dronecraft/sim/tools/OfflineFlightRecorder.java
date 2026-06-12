@@ -513,6 +513,8 @@ public final class OfflineFlightRecorder {
 			"battery_cooling_factor",
 			"battery_thermal_limit",
 			"battery_capacity_aging_scale",
+			"battery_soc_resistance_scale",
+			"battery_temp_resistance_scale",
 			"battery_polarization_resistance_scale",
 			"battery_20pct_sag_current_a",
 			"battery_20pct_sag_current_margin",
@@ -1882,6 +1884,8 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.batteryCoolingFactor(), "%.5f");
 		appendExtra(builder, state.batteryThermalLimit(), "%.5f");
 		appendExtra(builder, state.batteryCapacityAgingScale(), "%.5f");
+		appendExtra(builder, state.batteryStateOfChargeResistanceScale(), "%.5f");
+		appendExtra(builder, state.batteryTemperatureResistanceScale(), "%.5f");
 		appendExtra(builder, state.batteryPolarizationResistanceScale(), "%.5f");
 		appendExtra(builder, state.batteryTwentyPercentSagCurrentAmps(), "%.3f");
 		appendExtra(builder, state.batteryTwentyPercentSagCurrentMargin(), "%.5f");

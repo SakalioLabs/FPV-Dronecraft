@@ -456,6 +456,8 @@ public final class DronePhysics {
 		this.state.setBatteryVoltage(config.nominalBatteryVoltage());
 		this.state.setBatteryOpenCircuitVoltage(config.nominalBatteryVoltage());
 		this.state.setBatteryEffectiveResistanceOhms(config.batteryInternalResistanceOhms());
+		this.state.setBatteryStateOfChargeResistanceScale(1.0);
+		this.state.setBatteryTemperatureResistanceScale(1.0);
 		updateBatterySagCurrentTelemetry(config.batteryInternalResistanceOhms());
 		this.pitchPid = new PidController(config.pitchGains());
 		this.yawPid = new PidController(config.yawGains());
@@ -8661,18 +8663,23 @@ public final class DronePhysics {
 		return MathUtil.clamp(target, 0.0, config.nominalBatteryVoltage() * 0.12);
 	}
 
-	private double temperatureAdjustedBatteryResistanceOhms(double batteryTemperatureCelsius, double ambientTemperatureCelsius) {
+	private double batteryTemperatureResistanceScale(double batteryTemperatureCelsius, double ambientTemperatureCelsius) {
 		double electricalTemperature = 0.78 * batteryTemperatureCelsius + 0.22 * ambientTemperatureCelsius;
 		double coldRise = Math.max(0.0, 25.0 - electricalTemperature);
 		double heatRise = Math.max(0.0, electricalTemperature - 45.0);
 		double deepColdRise = Math.max(0.0, coldRise - 6.0);
 		double scale = 1.0 + 0.024 * coldRise + 0.0030 * deepColdRise * deepColdRise + 0.0045 * heatRise;
-		return config.batteryInternalResistanceOhms() * MathUtil.clamp(scale, 0.72, 2.85);
+		return MathUtil.clamp(scale, 0.72, 2.85);
 	}
 
 	private double batteryElectricalResistanceOhms(double batteryTemperatureCelsius, double ambientTemperatureCelsius, double stateOfCharge) {
-		return temperatureAdjustedBatteryResistanceOhms(batteryTemperatureCelsius, ambientTemperatureCelsius)
-				* batteryStateOfChargeResistanceScale(stateOfCharge, state.batteryEquivalentCycles())
+		double temperatureScale = batteryTemperatureResistanceScale(batteryTemperatureCelsius, ambientTemperatureCelsius);
+		double stateOfChargeScale = batteryStateOfChargeResistanceScale(stateOfCharge, state.batteryEquivalentCycles());
+		state.setBatteryTemperatureResistanceScale(temperatureScale);
+		state.setBatteryStateOfChargeResistanceScale(stateOfChargeScale);
+		return config.batteryInternalResistanceOhms()
+				* temperatureScale
+				* stateOfChargeScale
 				* batteryAgingResistanceScale(state.batteryEquivalentCycles());
 	}
 
