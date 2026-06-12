@@ -9120,7 +9120,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(airCooling + wetCooling, 0.20, 4.0);
 	}
 
-	private static double batteryThermalLimit(double batteryTemperatureCelsius) {
+	static double batteryThermalLimit(double batteryTemperatureCelsius) {
 		if (batteryTemperatureCelsius <= 58.0) {
 			return 1.0;
 		}
@@ -9378,7 +9378,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(target, 0.0, config.nominalBatteryVoltage() * 0.12);
 	}
 
-	private double batteryTemperatureResistanceScale(double batteryTemperatureCelsius, double ambientTemperatureCelsius) {
+	static double batteryTemperatureResistanceScale(double batteryTemperatureCelsius, double ambientTemperatureCelsius) {
 		double electricalTemperature = 0.78 * batteryTemperatureCelsius + 0.22 * ambientTemperatureCelsius;
 		double coldRise = Math.max(0.0, 25.0 - electricalTemperature);
 		double heatRise = Math.max(0.0, electricalTemperature - 45.0);
@@ -9538,7 +9538,7 @@ public final class DronePhysics {
 		return 1.0 - 0.62 * smooth;
 	}
 
-	private static double temperatureAdjustedBatteryCurrentScale(double batteryTemperatureCelsius) {
+	static double temperatureAdjustedBatteryCurrentScale(double batteryTemperatureCelsius) {
 		double coldLoss = Math.max(0.0, 25.0 - batteryTemperatureCelsius) * 0.011;
 		double heatLoss = Math.max(0.0, batteryTemperatureCelsius - 42.0) * 0.006;
 		return MathUtil.clamp(1.0 - coldLoss - heatLoss, 0.52, 1.0);

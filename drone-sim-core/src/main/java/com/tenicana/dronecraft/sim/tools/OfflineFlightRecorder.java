@@ -8,6 +8,7 @@ import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
+import com.tenicana.dronecraft.sim.FpvLipoEsrCalibration;
 import com.tenicana.dronecraft.sim.HighAdvanceRotorCalibration;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
@@ -1251,6 +1252,8 @@ public final class OfflineFlightRecorder {
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(preset);
 		NeuroBemAirframeResidualCalibration.NeuroBemAirframeResidualAudit neuroBemResidualAudit =
 				NeuroBemAirframeResidualCalibration.audit(preset);
+		FpvLipoEsrCalibration.FpvLipoEsrAudit lipoEsrAudit =
+				FpvLipoEsrCalibration.audit(preset);
 		HighAdvanceRotorCalibration.HighAdvanceAudit highAdvanceAudit =
 				HighAdvanceRotorCalibration.audit(preset);
 		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
@@ -1479,6 +1482,45 @@ public final class OfflineFlightRecorder {
 				neuroBemResidualAudit.fastPacketSpeedBin().speedSampleP50MetersPerSecond(),
 				neuroBemResidualAudit.fastPacketSpeedBin().currentXDragAtP50SpeedNewtons(),
 				neuroBemResidualAudit.fastPacketSpeedBin().currentZDragAtP50SpeedNewtons()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"FPV LiPo ESR audit: %s rows %d anchors %d measured_cell %.3f/%.3f/%.3fmOhm measured_pack %.1f..%.1fmOhm, preset %dS %.2fAh %.0fA %.1fC %.3fmOhm/cell pack %.1fmOhm sag %.2fV %.1f%%, ir_formula %.1fA cfg %.2fx cold10 %.2fx, mendeley fresh/worn pack %.1f/%.1fmOhm sag %.2f/%.2fV 20pct %.0f/%.0fA, temp0 %.2fx/%.2fx sag %.2fV temp70 %.2fx/%.2fx sag %.2fV jeffco %.2f..%.2fx model %.2f..%.2fx caveat absolute-fpv-ir-vs-shape-priors%n",
+				lipoEsrAudit.sourceId(),
+				lipoEsrAudit.packetMetricRowCount(),
+				lipoEsrAudit.measuredRange().measuredPackCount(),
+				lipoEsrAudit.measuredRange().measuredPerCellIrMinMilliohms(),
+				lipoEsrAudit.measuredRange().measuredPerCellIrMedianMilliohms(),
+				lipoEsrAudit.measuredRange().measuredPerCellIrMaxMilliohms(),
+				lipoEsrAudit.measuredRange().measuredPackIrMinMilliohms(),
+				lipoEsrAudit.measuredRange().measuredPackIrMaxMilliohms(),
+				lipoEsrAudit.configuredPack().cells(),
+				lipoEsrAudit.configuredPack().capacityAmpHours(),
+				lipoEsrAudit.configuredPack().maxCurrentAmps(),
+				lipoEsrAudit.configuredPack().currentLimitC(),
+				lipoEsrAudit.configuredPack().perCellIrMilliohms(),
+				lipoEsrAudit.configuredPack().packResistanceOhms() * 1000.0,
+				lipoEsrAudit.configuredPack().sagAtCurrentLimitVolts(),
+				lipoEsrAudit.configuredPack().sagAtCurrentLimitPercentNominal(),
+				lipoEsrAudit.formulaGuardrail().irFormulaTrueCurrentAmps(),
+				lipoEsrAudit.formulaGuardrail().configuredCurrentOverIrFormulaCurrent(),
+				lipoEsrAudit.formulaGuardrail().configuredCurrentOverColdTenCdropCurrent(),
+				lipoEsrAudit.freshFullProjection().projectedPackResistanceOhms() * 1000.0,
+				lipoEsrAudit.wornTenPercentProjection().projectedPackResistanceOhms() * 1000.0,
+				lipoEsrAudit.freshFullProjection().configCurrentSagVolts(),
+				lipoEsrAudit.wornTenPercentProjection().configCurrentSagVolts(),
+				lipoEsrAudit.freshFullProjection().configCurrentForTwentyPercentNominalSagAmps(),
+				lipoEsrAudit.wornTenPercentProjection().configCurrentForTwentyPercentNominalSagAmps(),
+				lipoEsrAudit.coldZeroCelsius().resistanceScale(),
+				lipoEsrAudit.coldZeroCelsius().currentScale(),
+				lipoEsrAudit.coldZeroCelsius().sagAtTemperatureScaledLimitVolts(),
+				lipoEsrAudit.hotSeventyCelsius().resistanceScale(),
+				lipoEsrAudit.hotSeventyCelsius().currentScale(),
+				lipoEsrAudit.hotSeventyCelsius().sagAtTemperatureScaledLimitVolts(),
+				lipoEsrAudit.temperatureReference().jeffcoReferenceColdOverWarmIrMin(),
+				lipoEsrAudit.temperatureReference().jeffcoReferenceColdOverWarmIrMax(),
+				lipoEsrAudit.temperatureReference().currentModelOverJeffcoMin(),
+				lipoEsrAudit.temperatureReference().currentModelOverJeffcoMax()
 		);
 		System.out.printf(
 				Locale.ROOT,

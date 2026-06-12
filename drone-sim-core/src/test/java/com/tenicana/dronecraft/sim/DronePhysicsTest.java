@@ -11058,6 +11058,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("NeuroBEM-Drag-Residual-Packet"));
 		assertTrue(text.contains("0.772kg"));
 		assertTrue(text.contains("low-speed-residual-not-wind-tunnel-drag"));
+		assertTrue(text.contains("FPV LiPo ESR audit"));
+		assertTrue(text.contains("FPV-LiPo-ESR-Calibration-Packet"));
+		assertTrue(text.contains("absolute-fpv-ir-vs-shape-priors"));
+		assertTrue(text.contains("ir_formula"));
 		assertTrue(text.contains("High-advance prop audit"));
 		assertTrue(text.contains("APC-High-J-Axial-Propeller-Packet"));
 		assertTrue(text.contains("axial-not-edgewise"));
