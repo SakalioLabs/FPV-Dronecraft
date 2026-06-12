@@ -253,6 +253,8 @@ def fpvDroneRequiredSelfTestColumns = [
 		"ambient_temperature_c",
 		"rotor_0_water_immersion",
 		"rotor_5_water_immersion",
+		"rotor_0_precipitation_wetness",
+		"rotor_5_precipitation_wetness",
 		"ceiling_effect_multiplier",
 		"env_thrust_asymmetry",
 		"rotor_flow_obstruction",

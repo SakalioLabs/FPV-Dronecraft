@@ -616,7 +616,10 @@ public record DroneBlackboxSummary(
 					maxWaterImmersion,
 					Math.max(value(row, "water_immersion"), maxIndexedValue(row, "rotor_", "_water_immersion"))
 			);
-			maxPrecipitationWetness = Math.max(maxPrecipitationWetness, value(row, "precipitation_wetness"));
+			maxPrecipitationWetness = Math.max(
+					maxPrecipitationWetness,
+					Math.max(value(row, "precipitation_wetness"), maxIndexedValue(row, "rotor_", "_precipitation_wetness"))
+			);
 			double ambientTemperature = value(row, "ambient_temperature_c");
 			minAmbientTemperature = Math.min(minAmbientTemperature, ambientTemperature);
 			maxAmbientTemperature = Math.max(maxAmbientTemperature, ambientTemperature);

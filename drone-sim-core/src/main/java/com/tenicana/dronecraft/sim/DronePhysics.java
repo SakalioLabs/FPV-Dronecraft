@@ -1066,7 +1066,8 @@ public final class DronePhysics {
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorSpec rotor = config.rotors().get(i);
 			double rotorWaterImmersion = environment.rotorWaterImmersion(i);
-			double rotorWetnessForPreviousLoad = Math.max(precipitationWetness, rotorSurfaceWetness[i]);
+			double rotorPrecipitationWetness = environment.rotorPrecipitationWetness(i);
+			double rotorWetnessForPreviousLoad = Math.max(rotorPrecipitationWetness, rotorSurfaceWetness[i]);
 			double rotorWaterLoad = rotorWaterLoadFactor(rotorWaterImmersion);
 			double rotorPrecipitationLoad = rotorPrecipitationLoadFactor(rotorWetnessForPreviousLoad);
 			double escCommandOutput;
@@ -1285,7 +1286,7 @@ public final class DronePhysics {
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
 					rotorWaterImmersion,
-					precipitationWetness,
+					rotorPrecipitationWetness,
 					dtSeconds
 			);
 			double wetThrustScale = waterImmersionThrustScale(rotorWaterImmersion)
@@ -1346,7 +1347,7 @@ public final class DronePhysics {
 					+ rotorWakeInterferenceVibration(rotor, aerodynamicOmega, wakeInterference)
 					+ rotorWakeSwirlVibration(rotor, aerodynamicOmega, wakeSwirlSpeed)
 					+ rotorWaterIngestionVibration(rotor, aerodynamicOmega, rotorWaterImmersion)
-					+ rotorPrecipitationVibration(rotor, aerodynamicOmega, Math.max(precipitationWetness, rotorFilmWetness))
+					+ rotorPrecipitationVibration(rotor, aerodynamicOmega, Math.max(rotorPrecipitationWetness, rotorFilmWetness))
 					+ rotorCompressibilityVibration(rotor, aerodynamicOmega, rotorTipMach)
 					+ rotorImbalanceVibration(rotor, omega, state.rotorHealth(i))
 					+ rotorWindmillingVibration(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escElectricalOutput)
@@ -1390,7 +1391,7 @@ public final class DronePhysics {
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
-					+ rotorPrecipitationLoadFactor(Math.max(precipitationWetness, rotorFilmWetness)), 0.0, 2.0);
+					+ rotorPrecipitationLoadFactor(Math.max(rotorPrecipitationWetness, rotorFilmWetness)), 0.0, 2.0);
 			double coningIntensity = updateRotorConingIntensity(i, aerodynamicRotor, baseThrust, aerodynamicOmega, dtSeconds);
 			aerodynamicLoadFactor = MathUtil.clamp(aerodynamicLoadFactor + rotorConingLoadFactor(coningIntensity), 0.0, 2.0);
 			state.setRotorAerodynamicLoadFactor(i, aerodynamicLoadFactor);

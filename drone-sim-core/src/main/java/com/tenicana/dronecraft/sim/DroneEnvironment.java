@@ -13,6 +13,7 @@ public record DroneEnvironment(
 		Vec3[] rotorFlowObstructionDirectionsBody,
 		double[] rotorWaterImmersions,
 		double waterImmersionIntensity,
+		double[] rotorPrecipitationWetnesses,
 		double precipitationWetnessIntensity,
 		double ambientTemperatureCelsius
 ) {
@@ -71,7 +72,15 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double precipitationWetnessIntensity) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, precipitationWetnessIntensity, 25.0);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, null, precipitationWetnessIntensity, 25.0);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, 25.0);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double precipitationWetnessIntensity, double ambientTemperatureCelsius) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, null, precipitationWetnessIntensity, ambientTemperatureCelsius);
 	}
 
 	public DroneEnvironment {
@@ -104,6 +113,7 @@ public record DroneEnvironment(
 		rotorFlowObstructions = sanitizeUnitArray(rotorFlowObstructions);
 		rotorFlowObstructionDirectionsBody = sanitizeDirectionArray(rotorFlowObstructionDirectionsBody);
 		rotorWaterImmersions = sanitizeUnitArray(rotorWaterImmersions);
+		rotorPrecipitationWetnesses = sanitizeUnitArray(rotorPrecipitationWetnesses);
 		if (!Double.isFinite(waterImmersionIntensity)) {
 			waterImmersionIntensity = 0.0;
 		}
@@ -119,7 +129,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, 0.0, 25.0);
+		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0);
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {
@@ -415,6 +425,25 @@ public record DroneEnvironment(
 
 	public double[] rotorWaterImmersions() {
 		return rotorWaterImmersions.clone();
+	}
+
+	public double rotorPrecipitationWetness(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorPrecipitationWetnesses.length) {
+			return rotorPrecipitationWetnesses[rotorIndex];
+		}
+		return precipitationWetnessIntensity;
+	}
+
+	public double maxRotorPrecipitationWetness() {
+		double max = precipitationWetnessIntensity;
+		for (double wetness : rotorPrecipitationWetnesses) {
+			max = Math.max(max, wetness);
+		}
+		return max;
+	}
+
+	public double[] rotorPrecipitationWetnesses() {
+		return rotorPrecipitationWetnesses.clone();
 	}
 
 	private static double ceilingEffectHeightMeters(DroneConfig config) {

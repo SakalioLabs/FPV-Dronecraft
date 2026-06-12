@@ -39,6 +39,7 @@ class DroneBlackboxRecorderTest {
 				null,
 				new double[] {0.45, 0.0, 0.22, 0.0},
 				0.18,
+				new double[] {0.62, 0.36, 0.18, 0.0},
 				0.36,
 				7.5
 		);
@@ -301,6 +302,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("ambient_temperature_c"));
 		assertTrue(csv.contains("rotor_0_water_immersion"));
 		assertTrue(csv.contains("rotor_3_water_immersion"));
+		assertTrue(csv.contains("rotor_0_precipitation_wetness"));
+		assertTrue(csv.contains("rotor_3_precipitation_wetness"));
 		assertTrue(csv.contains("propwash_wake_intensity"));
 		assertTrue(csv.contains("vortex_ring_thrust_buffet"));
 		assertTrue(csv.contains("vortex_ring_max_thrust_buffet"));
@@ -620,6 +623,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(effectiveAirDensity > airDensity * 0.997);
 		assertEquals(0.45, Double.parseDouble(row[indexOf(header, "rotor_0_water_immersion")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_water_immersion")]), 0.0001);
+		assertEquals(0.62, Double.parseDouble(row[indexOf(header, "rotor_0_precipitation_wetness")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_precipitation_wetness")]), 0.0001);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_electrical_efficiency")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_0_electrical_efficiency")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "motor_voltage_headroom")]));
@@ -918,7 +923,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
 		assertTrue(summary.maxRotorBladePassRippleIntensity() > 0.0);
 		assertEquals(0.45, summary.maxWaterImmersionIntensity(), 0.0001);
-		assertEquals(0.36, summary.maxPrecipitationWetnessIntensity(), 0.0001);
+		assertEquals(0.62, summary.maxPrecipitationWetnessIntensity(), 0.0001);
 		assertTrue(summary.minRotorWetThrustScale() < 1.0);
 		assertTrue(summary.minRotorWetThrustScale() >= 0.08);
 		assertEquals(7.5, summary.minAmbientTemperatureCelsius(), 0.0001);
@@ -1445,6 +1450,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_0_damage_vibration")]), 1.0e-9);
 		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_7_arm_flex")]) >= 0.0);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_water_immersion")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_precipitation_wetness")]), 0.0001);
 		assertEquals(0.23, Double.parseDouble(row[indexOf(header, "prop_strike_7_severity")]), 0.0001);
 		assertEquals(1.12, Double.parseDouble(row[indexOf(header, "rotor_7_env_thrust_multiplier")]), 0.0001);
 		assertEquals(0.71, Double.parseDouble(row[indexOf(header, "rotor_7_flow_obstruction")]), 0.0001);

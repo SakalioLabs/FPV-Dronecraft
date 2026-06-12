@@ -852,6 +852,14 @@ public final class OfflineFlightRecorder {
 			"rotor_5_water_immersion",
 			"rotor_6_water_immersion",
 			"rotor_7_water_immersion",
+			"rotor_0_precipitation_wetness",
+			"rotor_1_precipitation_wetness",
+			"rotor_2_precipitation_wetness",
+			"rotor_3_precipitation_wetness",
+			"rotor_4_precipitation_wetness",
+			"rotor_5_precipitation_wetness",
+			"rotor_6_precipitation_wetness",
+			"rotor_7_precipitation_wetness",
 			"avg_motor_mechanical_loss_torque_nm",
 			"motor_0_mechanical_loss_torque_nm",
 			"motor_1_mechanical_loss_torque_nm",
@@ -3110,6 +3118,9 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, environment.precipitationWetnessIntensity(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorWaterImmersion(i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, environment.rotorPrecipitationWetness(i), "%.5f");
 		}
 		appendExtra(builder, state.averageMotorMechanicalLossTorqueNewtonMeters(), "%.6f");
 		for (int i = 0; i < 8; i++) {

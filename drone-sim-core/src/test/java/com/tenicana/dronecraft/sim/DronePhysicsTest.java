@@ -3707,6 +3707,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void environmentProvidesPerRotorPrecipitationWetnessFallbackAndClamping() {
+		DroneEnvironment environment = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				10.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				new double[] {-0.25, 0.25, 1.75, Double.NaN},
+				0.40,
+				25.0
+		);
+
+		assertEquals(0.0, environment.rotorPrecipitationWetness(0), 1.0e-12);
+		assertEquals(0.25, environment.rotorPrecipitationWetness(1), 1.0e-12);
+		assertEquals(1.0, environment.rotorPrecipitationWetness(2), 1.0e-12);
+		assertEquals(0.0, environment.rotorPrecipitationWetness(3), 1.0e-12);
+		assertEquals(0.40, environment.rotorPrecipitationWetness(4), 1.0e-12);
+		assertEquals(1.0, environment.maxRotorPrecipitationWetness(), 1.0e-12);
+
+		double[] wetnesses = environment.rotorPrecipitationWetnesses();
+		wetnesses[1] = 0.90;
+		assertEquals(0.25, environment.rotorPrecipitationWetness(1), 1.0e-12);
+	}
+
+	@Test
 	void standardAtmosphereDensityFallsWithAltitudeAndHeat() {
 		double seaLevelStandard = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0);
 		double mountainStandard = DroneEnvironment.standardAtmosphereAirDensityRatio(3000.0, -4.5);
@@ -7393,6 +7425,52 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void perRotorPrecipitationWetnessCreatesWetPropAsymmetry() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics wetCorner = new DronePhysics(config);
+		DroneInput input = new DroneInput(0.62, 0.0, 0.0, 0.0, true);
+		DroneEnvironment oneRainWetRotor = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				new double[] {0.92, 0.0, 0.0, 0.0},
+				0.23,
+				25.0
+		);
+
+		for (int i = 0; i < 180; i++) {
+			wetCorner.step(input, 0.005, oneRainWetRotor);
+		}
+
+		assertEquals(0.92, oneRainWetRotor.maxRotorPrecipitationWetness(), 1.0e-9);
+		assertTrue(wetCorner.state().rotorWetThrustScale(0)
+				< wetCorner.state().rotorWetThrustScale(1) - 0.020,
+				() -> "wet0=" + wetCorner.state().rotorWetThrustScale(0)
+						+ " wet1=" + wetCorner.state().rotorWetThrustScale(1));
+		assertTrue(wetCorner.state().rotorAerodynamicLoadFactor(0)
+				> wetCorner.state().rotorAerodynamicLoadFactor(1) + 0.04,
+				() -> "load0=" + wetCorner.state().rotorAerodynamicLoadFactor(0)
+						+ " load1=" + wetCorner.state().rotorAerodynamicLoadFactor(1));
+	}
+
+	@Test
 	void rotorSideFlowObstructionCreatesWallCushionForce() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
@@ -10191,6 +10269,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_wet_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_water_immersion"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_water_immersion"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_precipitation_wetness"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_precipitation_wetness"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_element_stall"));

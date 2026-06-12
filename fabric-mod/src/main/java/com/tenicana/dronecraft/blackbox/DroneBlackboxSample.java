@@ -579,6 +579,10 @@ public final class DroneBlackboxSample {
 			"rotor_1_water_immersion",
 			"rotor_2_water_immersion",
 			"rotor_3_water_immersion",
+			"rotor_0_precipitation_wetness",
+			"rotor_1_precipitation_wetness",
+			"rotor_2_precipitation_wetness",
+			"rotor_3_precipitation_wetness",
 			"wind_turbulence_pitch_torque_nm",
 			"wind_turbulence_yaw_torque_nm",
 			"wind_turbulence_roll_torque_nm",
@@ -1039,6 +1043,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_water_immersion",
 			"rotor_6_water_immersion",
 			"rotor_7_water_immersion",
+			"rotor_4_precipitation_wetness",
+			"rotor_5_precipitation_wetness",
+			"rotor_6_precipitation_wetness",
+			"rotor_7_precipitation_wetness",
 			"mqtb_hq5x4x3_current_a",
 			"mqtb_hq5x4x3_power_w",
 			"mqtb_hq5x4x3_current_ratio",
@@ -1725,6 +1733,10 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorWaterImmersion(1), "%.5f");
 		row.add(environment.rotorWaterImmersion(2), "%.5f");
 		row.add(environment.rotorWaterImmersion(3), "%.5f");
+		row.add(environment.rotorPrecipitationWetness(0), "%.5f");
+		row.add(environment.rotorPrecipitationWetness(1), "%.5f");
+		row.add(environment.rotorPrecipitationWetness(2), "%.5f");
+		row.add(environment.rotorPrecipitationWetness(3), "%.5f");
 		row.add(turbulenceTorque.x(), "%.6f");
 		row.add(turbulenceTorque.y(), "%.6f");
 		row.add(turbulenceTorque.z(), "%.6f");
@@ -2211,6 +2223,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorWaterImmersion(i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(environment.rotorPrecipitationWetness(i), "%.5f");
 		}
 	}
 

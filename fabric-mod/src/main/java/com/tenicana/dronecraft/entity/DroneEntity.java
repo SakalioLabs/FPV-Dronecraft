@@ -291,6 +291,12 @@ public class DroneEntity extends PathfinderMob {
 		}
 	}
 
+	private record PrecipitationWetness(double[] rotorWetnesses, double averageWetness) {
+		private static PrecipitationWetness dry(int rotorCount) {
+			return new PrecipitationWetness(new double[rotorCount], 0.0);
+		}
+	}
+
 	private record RotorPlaneSampleDirection(Vec3 bodyDirection, Vec3 worldDirection) {
 	}
 
@@ -577,7 +583,7 @@ public class DroneEntity extends PathfinderMob {
 		double ceilingClearance = ceilingClearanceMeters();
 		RotorEnvironmentEffects rotorEffects = sampleRotorEnvironmentEffects();
 		WaterImmersion waterImmersion = sampleWaterImmersion();
-		double precipitationWetness = precipitationWetnessIntensity(sourceWind.length());
+		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
 		double ambientTemperature = ambientTemperatureCelsius();
 		double turbulenceIntensity = MathUtil.clamp(
 				environmentOverride.turbulenceOr(weatherTurbulenceIntensity(sourceWind.length(), groundClearance))
@@ -585,7 +591,7 @@ public class DroneEntity extends PathfinderMob {
 						+ droneWake.turbulenceBoost()
 						+ ceilingTurbulenceBoost(ceilingClearance)
 						+ rotorEffects.maxFlowObstruction() * 0.24
-						+ precipitationWetness * 0.07,
+						+ precipitationWetness.averageWetness() * 0.07,
 				0.0,
 				1.5
 		);
@@ -602,25 +608,41 @@ public class DroneEntity extends PathfinderMob {
 				rotorEffects.flowObstructionDirectionsBody(),
 				waterImmersion.rotorImmersions(),
 				waterImmersion.averageImmersion(),
-				precipitationWetness,
+				precipitationWetness.rotorWetnesses(),
+				precipitationWetness.averageWetness(),
 				ambientTemperature
 		);
 	}
 
-	private double precipitationWetnessIntensity(double windSpeedMetersPerSecond) {
+	private PrecipitationWetness samplePrecipitationWetness(double windSpeedMetersPerSecond) {
+		int rotorCount = physics.config().rotors().size();
 		if (!level().isRaining()) {
-			return 0.0;
+			return PrecipitationWetness.dry(rotorCount);
 		}
 
 		BlockPos bodyPosition = BlockPos.containing(getX(), getY() + 0.35, getZ());
-		double exposure = precipitationExposureAt(bodyPosition);
-		if (exposure <= 1.0e-6) {
-			return 0.0;
-		}
-
 		double weatherWetness = level().isThundering() ? 0.78 : 0.45;
 		double windFactor = MathUtil.clamp(windSpeedMetersPerSecond / 9.0, 0.0, 1.0);
-		return MathUtil.clamp(weatherWetness * exposure * (0.82 + 0.18 * windFactor), 0.0, 1.0);
+		double wetnessScale = weatherWetness * (0.82 + 0.18 * windFactor);
+		double bodyWetness = wetnessScale * precipitationExposureAt(bodyPosition);
+		double weightedWetness = bodyWetness * 1.10;
+		double totalWeight = 1.10;
+		double[] rotorWetnesses = new double[rotorCount];
+		Vec3 bodyCenterWorld = new Vec3(getX(), getY(), getZ());
+		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
+		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
+
+		for (int i = 0; i < rotorCount; i++) {
+			RotorSpec rotor = physics.config().rotors().get(i);
+			Vec3 rotorCenterWorld = bodyCenterWorld.add(physics.state().orientation().rotate(rotor.positionBodyMeters()));
+			double rotorWetness = wetnessScale * rotorPrecipitationExposureAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld);
+			rotorWetnesses[i] = MathUtil.clamp(rotorWetness, 0.0, 1.0);
+			weightedWetness += rotorWetnesses[i];
+			totalWeight += 1.0;
+		}
+
+		double averageWetness = totalWeight <= 0.0 ? 0.0 : MathUtil.clamp(weightedWetness / totalWeight, 0.0, 1.0);
+		return new PrecipitationWetness(rotorWetnesses, averageWetness);
 	}
 
 	private double precipitationExposureAt(BlockPos position) {
@@ -628,6 +650,36 @@ public class DroneEntity extends PathfinderMob {
 			return 1.0;
 		}
 		return level().canSeeSky(position) ? 0.70 : 0.0;
+	}
+
+	private double rotorPrecipitationExposureAt(Vec3 rotorCenterWorld, RotorSpec rotor, Vec3 bodyXWorld, Vec3 bodyZWorld) {
+		double diskRadius = MathUtil.clamp(rotor.radiusMeters() * 2.4, 0.10, 0.26);
+		double upperDiskOffset = MathUtil.clamp(rotor.radiusMeters() * 0.35, 0.03, 0.10);
+		double exposure = 0.0;
+		double weight = 0.0;
+		exposure += precipitationExposureAt(BlockPos.containing(
+				rotorCenterWorld.x(),
+				rotorCenterWorld.y() + upperDiskOffset,
+				rotorCenterWorld.z()
+		)) * 0.40;
+		weight += 0.40;
+
+		Vec3[] diskOffsets = {
+				bodyXWorld.multiply(diskRadius),
+				bodyXWorld.multiply(-diskRadius),
+				bodyZWorld.multiply(diskRadius),
+				bodyZWorld.multiply(-diskRadius)
+		};
+		for (Vec3 offset : diskOffsets) {
+			Vec3 samplePosition = rotorCenterWorld.add(offset);
+			exposure += precipitationExposureAt(BlockPos.containing(
+					samplePosition.x(),
+					samplePosition.y() + upperDiskOffset,
+					samplePosition.z()
+			)) * 0.15;
+			weight += 0.15;
+		}
+		return weight <= 0.0 ? 0.0 : MathUtil.clamp(exposure / weight, 0.0, 1.0);
 	}
 
 	private double ambientTemperatureCelsius() {
