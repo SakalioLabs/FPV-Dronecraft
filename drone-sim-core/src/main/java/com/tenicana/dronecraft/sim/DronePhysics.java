@@ -4413,29 +4413,29 @@ public final class DronePhysics {
 		return rotorSurfaceWetness[index];
 	}
 
-	private static double waterImmersionThrustScale(double waterImmersionIntensity) {
+	static double waterImmersionThrustScale(double waterImmersionIntensity) {
 		double water = MathUtil.clamp(waterImmersionIntensity, 0.0, 1.0);
 		return MathUtil.clamp(1.0 - 0.82 * Math.pow(water, 0.72), 0.12, 1.0);
 	}
 
-	private static double precipitationThrustScale(double precipitationWetnessIntensity) {
+	static double precipitationThrustScale(double precipitationWetnessIntensity) {
 		double wetness = MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0);
 		// ICAS 2020 heavy-rain quadrotor CFD reports roughly 1.7-2.6% CT loss;
 		// keep pure rain milder than water immersion while retaining wet-prop texture.
 		return MathUtil.clamp(1.0 - 0.030 * Math.pow(wetness, 0.85), 0.96, 1.0);
 	}
 
-	private static double rotorWaterLoadFactor(double waterImmersionIntensity) {
+	static double rotorWaterLoadFactor(double waterImmersionIntensity) {
 		double water = MathUtil.clamp(waterImmersionIntensity, 0.0, 1.0);
 		return 0.82 * Math.pow(water, 0.78);
 	}
 
-	private static double rotorPrecipitationLoadFactor(double precipitationWetnessIntensity) {
+	static double rotorPrecipitationLoadFactor(double precipitationWetnessIntensity) {
 		double wetness = MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0);
 		return 0.13 * Math.pow(wetness, 1.15);
 	}
 
-	private static double rotorWaterIngestionVibration(RotorSpec rotor, double omegaRadiansPerSecond, double waterImmersionIntensity) {
+	static double rotorWaterIngestionVibration(RotorSpec rotor, double omegaRadiansPerSecond, double waterImmersionIntensity) {
 		double water = MathUtil.clamp(waterImmersionIntensity, 0.0, 1.0);
 		if (water <= 1.0e-6) {
 			return 0.0;
@@ -4445,7 +4445,7 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.48 * Math.pow(water, 0.65) * spinRatio, 0.0, 1.0);
 	}
 
-	private static double rotorPrecipitationVibration(RotorSpec rotor, double omegaRadiansPerSecond, double precipitationWetnessIntensity) {
+	static double rotorPrecipitationVibration(RotorSpec rotor, double omegaRadiansPerSecond, double precipitationWetnessIntensity) {
 		double wetness = MathUtil.clamp(precipitationWetnessIntensity, 0.0, 1.0);
 		if (wetness <= 1.0e-6) {
 			return 0.0;

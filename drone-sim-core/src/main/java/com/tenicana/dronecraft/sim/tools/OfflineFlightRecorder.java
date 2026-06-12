@@ -13,6 +13,7 @@ import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.MotorResponseCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
+import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
 import com.tenicana.dronecraft.sim.PropGeometryCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
@@ -1248,6 +1249,8 @@ public final class OfflineFlightRecorder {
 				HighAdvanceRotorCalibration.audit(preset);
 		PropGeometryCalibration.PropGeometryAudit propGeometryAudit =
 				PropGeometryCalibration.audit(preset);
+		PrecipitationWaterCalibration.PrecipitationWaterAudit precipitationWaterAudit =
+				PrecipitationWaterCalibration.audit(preset);
 		AirframeInertiaCalibration.ApDroneInertiaAudit apDroneInertiaAudit =
 				AirframeInertiaCalibration.apDroneInertiaAudit(preset);
 		MotorBenchCurrentModel.StaticPowertrainAudit tytoAudit =
@@ -1501,6 +1504,36 @@ public final class OfflineFlightRecorder {
 				propGeometryAudit.apcThin10x5Comparison().reference().geometryId(),
 				propGeometryAudit.apcThin10x5Comparison().currentGeometricPitchAngleOverReference70r(),
 				propGeometryAudit.apcThin10x5Comparison().currentPitchToDiameterOverReferenceLocal70r()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"Precipitation/water audit: %s rows %d refs %d rain/water/moist %d/%d/%d, ICAS-2020-heavy-rain-CT %.0fmmh loss %.2f/%.2f%% java %.2f%% ratios %.2f/%.2f, NWS water_gps %.3f/%.3f/%.3f wet %.3f/%.3f/%.3f java_loss %.2f/%.2f/%.2f%%, stress100 %.3fg/s impact %.4fx, water0.5@5m/s loss %.1f%% drag %.2fx, moist35 %.4f caveat wet-prop-not-immersion%n",
+				precipitationWaterAudit.sourceId(),
+				precipitationWaterAudit.packetMetricRowCount(),
+				precipitationWaterAudit.sourceReferenceCount(),
+				precipitationWaterAudit.rainScanScenarioCount(),
+				precipitationWaterAudit.waterImmersionScanScenarioCount(),
+				precipitationWaterAudit.moistAirDensityScenarioCount(),
+				precipitationWaterAudit.icas4319Rpm().equivalentRainRateMillimetersPerHour(),
+				precipitationWaterAudit.icas4319Rpm().ctLossPercent(),
+				precipitationWaterAudit.icas6528Rpm().ctLossPercent(),
+				precipitationWaterAudit.formula().javaFullWetnessThrustLossPercent(),
+				precipitationWaterAudit.icas4319Comparison().javaLossOverIcasLoss(),
+				precipitationWaterAudit.icas6528Comparison().javaLossOverIcasLoss(),
+				precipitationWaterAudit.nwsLightRain005InHour().allRotorsWaterGramsPerSecond(),
+				precipitationWaterAudit.nwsModerateRain025InHour().allRotorsWaterGramsPerSecond(),
+				precipitationWaterAudit.nwsFullWetness150InHour().allRotorsWaterGramsPerSecond(),
+				precipitationWaterAudit.nwsLightRain005InHour().precipitationWetnessProxy(),
+				precipitationWaterAudit.nwsModerateRain025InHour().precipitationWetnessProxy(),
+				precipitationWaterAudit.nwsFullWetness150InHour().precipitationWetnessProxy(),
+				precipitationWaterAudit.nwsLightRain005InHour().javaSourceThrustLossPercent(),
+				precipitationWaterAudit.nwsModerateRain025InHour().javaSourceThrustLossPercent(),
+				precipitationWaterAudit.nwsFullWetness150InHour().javaSourceThrustLossPercent(),
+				precipitationWaterAudit.stress100MillimetersPerHour().allRotorsWaterGramsPerSecond(),
+				precipitationWaterAudit.stress100MillimetersPerHour().rainImpactForceAllRotorsOverWeightAt8MetersPerSecond(),
+				precipitationWaterAudit.halfImmersionAt5MetersPerSecond().waterImmersionThrustLossPercent(),
+				precipitationWaterAudit.halfImmersionAt5MetersPerSecond().waterDragOverWeight(),
+				precipitationWaterAudit.hotFullWetMoistAir().moistAirDensityMultiplier()
 		);
 		System.out.printf(
 				Locale.ROOT,

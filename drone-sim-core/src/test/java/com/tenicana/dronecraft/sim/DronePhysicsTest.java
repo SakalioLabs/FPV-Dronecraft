@@ -11065,6 +11065,11 @@ class DronePhysicsTest {
 		assertTrue(text.contains("HQProp Durable 5x4.5x3 V1S"));
 		assertTrue(text.contains("UIUC"));
 		assertTrue(text.contains("geometry-not-slip"));
+		assertTrue(text.contains("Precipitation/water audit"));
+		assertTrue(text.contains("Precipitation-Water-Calibration-Packet"));
+		assertTrue(text.contains("ICAS-2020-heavy-rain-CT"));
+		assertTrue(text.contains("wet-prop-not-immersion"));
+		assertTrue(text.contains("water0.5@5m/s"));
 		assertTrue(text.contains("APDrone inertia audit"));
 		assertTrue(text.contains("APDrone-Mendeley-Inertia-PDF"));
 		assertTrue(text.contains("yaw_ratio"));
