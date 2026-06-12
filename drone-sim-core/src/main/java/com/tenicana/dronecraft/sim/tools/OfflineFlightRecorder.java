@@ -1280,6 +1280,14 @@ public final class OfflineFlightRecorder {
 				SurfaceNearfieldCalibration.audit(preset);
 		SurfaceNearfieldCalibration.JirsSurfaceEffectAudit jirsSurfaceEffectAudit =
 				surfaceNearfieldAudit.jirsSurfaceEffectAudit();
+		SurfaceNearfieldCalibration.JirsSurfaceCurveFitAudit jirsSurfaceCurveFitAudit =
+				jirsSurfaceEffectAudit.curveFit();
+		SurfaceNearfieldCalibration.JirsCurveFitRuntimeComparison[] jirsCurveComparisons =
+				jirsSurfaceCurveFitAudit.runtimeComparisons();
+		SurfaceNearfieldCalibration.JirsCurveFitRuntimeComparison jirsGroundOneRadius =
+				jirsCurveComparisons[1];
+		SurfaceNearfieldCalibration.JirsCurveFitRuntimeComparison jirsCeilingOneRadius =
+				jirsCurveComparisons[6];
 		SurfaceNearfieldCalibration.PartialSurfaceLeadAudit partialSurfaceLeadAudit =
 				surfaceNearfieldAudit.partialSurfaceLeadAudit();
 		CoaxialAllocationCalibration.CoaxialAllocationAudit coaxialAllocationAudit =
@@ -2045,11 +2053,23 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"JIRS surface-effect audit: %s DOI %s rows meas %d unc %d ground/ceiling/wall %d/%d/%d zip %dB files %d csv %d mat %d pdf %d, ground %.2f..%.2fR meas %.3f/%.3f runtime %.3f/%.3f, ceiling %.2f..%.2fR meas %.3f/%.3f runtime %.3f/%.3f, wall d/R %.2f..%.2f |F| %.3f/%.3fN |M| %.3f/%.3fNm uncF txc/du %.3f/%.3fN runtime1R %.3fN %.1f%%W runtimeFull %.3fN %.1f%%W strongestF %s %dpwm %.2fR strongestM %s %dpwm %.2fR caveat %s%n",
+				"JIRS surface-effect audit: %s DOI %s rows meas %d unc %d curve %d input %d groundFit A/k/R2 %.3f/%.3f/%.3f ceilingFit A/k/R2 %.3f/%.3f/%.3f runtime1R ground %.3f/%.3f ceiling %.3f/%.3f, ground/ceiling/wall %d/%d/%d zip %dB files %d csv %d mat %d pdf %d, ground %.2f..%.2fR meas %.3f/%.3f runtime %.3f/%.3f, ceiling %.2f..%.2fR meas %.3f/%.3f runtime %.3f/%.3f, wall d/R %.2f..%.2f |F| %.3f/%.3fN |M| %.3f/%.3fNm uncF txc/du %.3f/%.3fN runtime1R %.3fN %.1f%%W runtimeFull %.3fN %.1f%%W strongestF %s %dpwm %.2fR strongestM %s %dpwm %.2fR caveat %s%n",
 				jirsSurfaceEffectAudit.sourceId(),
 				jirsSurfaceEffectAudit.doi(),
 				jirsSurfaceEffectAudit.numericMeasurementRowCount(),
 				jirsSurfaceEffectAudit.uncertaintySummaryRowCount(),
+				jirsSurfaceCurveFitAudit.packetRowCount(),
+				jirsSurfaceCurveFitAudit.inputMeasurementRowCount(),
+				jirsSurfaceCurveFitAudit.groundFit().a(),
+				jirsSurfaceCurveFitAudit.groundFit().k(),
+				jirsSurfaceCurveFitAudit.groundFit().r2(),
+				jirsSurfaceCurveFitAudit.ceilingFit().a(),
+				jirsSurfaceCurveFitAudit.ceilingFit().k(),
+				jirsSurfaceCurveFitAudit.ceilingFit().r2(),
+				jirsGroundOneRadius.runtimeMultiplier(),
+				jirsGroundOneRadius.fitMultiplier(),
+				jirsCeilingOneRadius.runtimeMultiplier(),
+				jirsCeilingOneRadius.fitMultiplier(),
 				jirsSurfaceEffectAudit.ground().sampleCount(),
 				jirsSurfaceEffectAudit.ceiling().sampleCount(),
 				jirsSurfaceEffectAudit.wall().sampleCount(),

@@ -23,13 +23,13 @@ public record DroneEnvironment(
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
 	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
 	private static final double ZJU_GROUND_EFFECT_G1_METERS_SQUARED = 0.01804;
-	private static final double ZJU_GROUND_EFFECT_G2_METERS_SQUARED = 0.007339;
 	private static final double ZJU_GROUND_EFFECT_G3_METERS = -0.3365;
 	private static final double ZJU_GROUND_EFFECT_G4_METERS_SQUARED = 0.04126;
 	private static final double ZJU_GROUND_EFFECT_G5 = 0.06494;
 	private static final double ZJU_GROUND_EFFECT_LEVELING_TORQUE_PEAK_HEIGHT_METERS = 0.186;
 	private static final double RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST = 0.18;
 	private static final double MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION = 0.60;
+	private static final double MAX_CEILING_EFFECT_EXTRA_THRUST_FRACTION = 0.38;
 	private static final double PARTIAL_SURFACE_NEGLIGIBLE_DIAMETER_OVER_PROP_DIAMETER = 0.5;
 	private static final double PARTIAL_SURFACE_FULL_LIKE_DIAMETER_OVER_PROP_DIAMETER = 1.0;
 
@@ -207,7 +207,15 @@ public record DroneEnvironment(
 	}
 
 	public static double groundEffectThrustMultiplier(DroneConfig config, double groundClearanceMeters) {
-		return 1.0 + groundEffectMaxExtraThrustFraction(config) * groundEffectIntensity(config, groundClearanceMeters);
+		if (config == null
+				|| groundClearanceMeters >= config.groundEffectHeightMeters()
+				|| config.groundEffectHeightMeters() <= 1.0e-6) {
+			return 1.0;
+		}
+		double clearanceOverRadius = surfaceEffectClearanceOverRadius(config, groundClearanceMeters);
+		double extraLift = SurfaceNearfieldCalibration.jirsGroundCurveFitExtraLift(clearanceOverRadius)
+				* surfaceLiftBoostScale(config);
+		return 1.0 + MathUtil.clamp(extraLift, 0.0, MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION);
 	}
 
 	public double groundEffectIntensity(DroneConfig config) {
@@ -264,14 +272,26 @@ public record DroneEnvironment(
 		return ZJU_GROUND_EFFECT_G5 * clearance / (denominator * denominator);
 	}
 
-	private static double groundEffectMaxExtraThrustFraction(DroneConfig config) {
-		double zjuReferenceScale = ZJU_GROUND_EFFECT_G2_METERS_SQUARED
-				/ (ZJU_GROUND_EFFECT_G1_METERS_SQUARED * RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST);
+	private static double surfaceLiftBoostScale(DroneConfig config) {
+		if (config == null) {
+			return 0.0;
+		}
 		return MathUtil.clamp(
-				config.groundEffectMaxThrustBoost() * zjuReferenceScale,
+				config.groundEffectMaxThrustBoost() / RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST,
 				0.0,
-				MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION
+				MAX_GROUND_EFFECT_EXTRA_THRUST_FRACTION / RACING_QUAD_REFERENCE_GROUND_EFFECT_BOOST
 		);
+	}
+
+	private static double surfaceEffectClearanceOverRadius(DroneConfig config, double clearanceMeters) {
+		if (config == null || config.rotors().isEmpty()) {
+			return Double.POSITIVE_INFINITY;
+		}
+		RotorSpec rotor = config.rotors().get(0);
+		if (rotor.radiusMeters() <= 1.0e-9 || !Double.isFinite(clearanceMeters)) {
+			return Double.POSITIVE_INFINITY;
+		}
+		return Math.max(0.0, clearanceMeters) / rotor.radiusMeters();
 	}
 
 	public static double weightedGroundEffectThrustMultiplier(
@@ -301,8 +321,17 @@ public record DroneEnvironment(
 	}
 
 	public static double ceilingEffectThrustMultiplier(DroneConfig config, double ceilingClearanceMeters) {
-		double maxBoost = MathUtil.clamp(config.groundEffectMaxThrustBoost() * 0.75, 0.0, 0.22);
-		return 1.0 + maxBoost * ceilingEffectIntensity(config, ceilingClearanceMeters);
+		if (config == null) {
+			return 1.0;
+		}
+		double effectHeight = ceilingEffectHeightMeters(config);
+		if (ceilingClearanceMeters >= effectHeight || effectHeight <= 1.0e-6) {
+			return 1.0;
+		}
+		double clearanceOverRadius = surfaceEffectClearanceOverRadius(config, ceilingClearanceMeters);
+		double extraLift = SurfaceNearfieldCalibration.jirsCeilingCurveFitExtraLift(clearanceOverRadius)
+				* surfaceLiftBoostScale(config);
+		return 1.0 + MathUtil.clamp(extraLift, 0.0, MAX_CEILING_EFFECT_EXTRA_THRUST_FRACTION);
 	}
 
 	public static double weightedCeilingEffectThrustMultiplier(

@@ -40,7 +40,7 @@ public final class SurfaceNearfieldCalibration {
 	public static final String JIRS_SURFACE_EFFECT_DOI = "10.1007/s10846-024-02155-7";
 	public static final String JIRS_SURFACE_EFFECT_SUPPLEMENT_DOI = "10.5281/zenodo.11384638";
 	public static final String JIRS_SURFACE_EFFECT_CAVEAT =
-			"Raw larger-prop ground/ceiling/wall measurements; fit thrust multipliers and wall force/moment separately before retuning runtime.";
+			"Raw larger-prop measurements; ground/ceiling thrust uses curve-fit multipliers while wall force/moment remains separate before runtime retuning.";
 	public static final int JIRS_SUPPLEMENT_ZIP_SIZE_BYTES = 460164;
 	public static final int JIRS_SUPPLEMENT_ZIP_FILE_COUNT = 18;
 	public static final int JIRS_SUPPLEMENT_CSV_FILE_COUNT = 9;
@@ -84,6 +84,30 @@ public final class SurfaceNearfieldCalibration {
 	public static final double JIRS_DU2SRI_WALL_FORCE_UNCERTAINTY_P50_NEWTONS = 1.1100511642;
 	public static final double JIRS_TERRAXCUBE_WALL_MOMENT_UNCERTAINTY_P50_NEWTON_METERS = 0.00687397096237;
 	public static final double JIRS_DU2SRI_WALL_MOMENT_UNCERTAINTY_P50_NEWTON_METERS = 0.0560048097306;
+	public static final String JIRS_SURFACE_CURVE_FIT_SOURCE_ID = "JIRS-2024-Surface-Curve-Fit-Packet";
+	public static final String JIRS_SURFACE_CURVE_FIT_MODEL =
+			"multiplier = 1 + A * exp(-k * h_over_R)";
+	public static final int JIRS_SURFACE_CURVE_FIT_PACKET_ROW_COUNT = 196;
+	public static final int JIRS_SURFACE_CURVE_FIT_INPUT_MEASUREMENT_ROW_COUNT = 225;
+	public static final double JIRS_GROUND_CURVE_FIT_A = 0.576141774524;
+	public static final double JIRS_GROUND_CURVE_FIT_K = 1.9062;
+	public static final double JIRS_GROUND_CURVE_FIT_R2 = 0.980116586669;
+	public static final double JIRS_GROUND_CURVE_FIT_RMSE = 0.0159323160145;
+	public static final double JIRS_GROUND_CURVE_FIT_MAE = 0.0110665839276;
+	public static final int JIRS_GROUND_CURVE_FIT_SAMPLE_COUNT = 10;
+	public static final double JIRS_CEILING_CURVE_FIT_A = 0.384690708893;
+	public static final double JIRS_CEILING_CURVE_FIT_K = 1.38724;
+	public static final double JIRS_CEILING_CURVE_FIT_R2 = 0.951208172755;
+	public static final double JIRS_CEILING_CURVE_FIT_RMSE = 0.0194307382179;
+	public static final double JIRS_CEILING_CURVE_FIT_MAE = 0.0131115496255;
+	public static final int JIRS_CEILING_CURVE_FIT_SAMPLE_COUNT = 10;
+	private static final double[] JIRS_CURVE_FIT_RUNTIME_AUDIT_CLEARANCES_OVER_RADIUS = {
+			0.5,
+			1.0,
+			2.0,
+			4.0,
+			6.0
+	};
 
 	private SurfaceNearfieldCalibration() {
 	}
@@ -223,6 +247,48 @@ public final class SurfaceNearfieldCalibration {
 	) {
 	}
 
+	public record JirsCurveFit(
+			String effect,
+			double a,
+			double k,
+			double r2,
+			double rmse,
+			double mae,
+			int sampleCount
+	) {
+	}
+
+	public record JirsCurveFitRuntimeComparison(
+			String effect,
+			double clearanceOverRadius,
+			double runtimeMultiplier,
+			double fitMultiplier,
+			double runtimeOverFitMultiplier,
+			double runtimeExtraOverFitExtra
+	) {
+	}
+
+	public record JirsSurfaceCurveFitAudit(
+			String sourceId,
+			String model,
+			int packetRowCount,
+			int inputMeasurementRowCount,
+			JirsCurveFit groundFit,
+			JirsCurveFit ceilingFit,
+			JirsCurveFitRuntimeComparison[] runtimeComparisons
+	) {
+		public JirsSurfaceCurveFitAudit {
+			runtimeComparisons = runtimeComparisons == null
+					? new JirsCurveFitRuntimeComparison[0]
+					: runtimeComparisons.clone();
+		}
+
+		@Override
+		public JirsCurveFitRuntimeComparison[] runtimeComparisons() {
+			return runtimeComparisons.clone();
+		}
+	}
+
 	public record JirsSurfaceEffectAudit(
 			String sourceId,
 			String doi,
@@ -235,6 +301,7 @@ public final class SurfaceNearfieldCalibration {
 			int supplementPdfFileCount,
 			int numericMeasurementRowCount,
 			int uncertaintySummaryRowCount,
+			JirsSurfaceCurveFitAudit curveFit,
 			JirsThrustAnchor ground,
 			JirsThrustAnchor ceiling,
 			JirsWallAnchor wall
@@ -319,6 +386,7 @@ public final class SurfaceNearfieldCalibration {
 				JIRS_SUPPLEMENT_PDF_FILE_COUNT,
 				JIRS_NUMERIC_MEASUREMENT_ROW_COUNT,
 				JIRS_UNCERTAINTY_SUMMARY_ROW_COUNT,
+				jirsSurfaceCurveFitAudit(config),
 				jirsThrustAnchor(
 						config,
 						"ground",
@@ -344,6 +412,93 @@ public final class SurfaceNearfieldCalibration {
 						JIRS_CEILING_CLOSEST_FZ_RATIO_MAX
 				),
 				jirsWallAnchor(config)
+		);
+	}
+
+	public static double jirsGroundCurveFitExtraLift(double clearanceOverRadius) {
+		return jirsCurveFitExtraLift(clearanceOverRadius, JIRS_GROUND_CURVE_FIT_A, JIRS_GROUND_CURVE_FIT_K);
+	}
+
+	public static double jirsGroundCurveFitMultiplier(double clearanceOverRadius) {
+		return 1.0 + jirsGroundCurveFitExtraLift(clearanceOverRadius);
+	}
+
+	public static double jirsCeilingCurveFitExtraLift(double clearanceOverRadius) {
+		return jirsCurveFitExtraLift(clearanceOverRadius, JIRS_CEILING_CURVE_FIT_A, JIRS_CEILING_CURVE_FIT_K);
+	}
+
+	public static double jirsCeilingCurveFitMultiplier(double clearanceOverRadius) {
+		return 1.0 + jirsCeilingCurveFitExtraLift(clearanceOverRadius);
+	}
+
+	private static double jirsCurveFitExtraLift(double clearanceOverRadius, double a, double k) {
+		if (!Double.isFinite(clearanceOverRadius)) {
+			return 0.0;
+		}
+		double normalizedClearance = Math.max(0.0, clearanceOverRadius);
+		return Math.max(0.0, a * Math.exp(-k * normalizedClearance));
+	}
+
+	private static JirsSurfaceCurveFitAudit jirsSurfaceCurveFitAudit(DroneConfig config) {
+		return new JirsSurfaceCurveFitAudit(
+				JIRS_SURFACE_CURVE_FIT_SOURCE_ID,
+				JIRS_SURFACE_CURVE_FIT_MODEL,
+				JIRS_SURFACE_CURVE_FIT_PACKET_ROW_COUNT,
+				JIRS_SURFACE_CURVE_FIT_INPUT_MEASUREMENT_ROW_COUNT,
+				new JirsCurveFit(
+						"ground",
+						JIRS_GROUND_CURVE_FIT_A,
+						JIRS_GROUND_CURVE_FIT_K,
+						JIRS_GROUND_CURVE_FIT_R2,
+						JIRS_GROUND_CURVE_FIT_RMSE,
+						JIRS_GROUND_CURVE_FIT_MAE,
+						JIRS_GROUND_CURVE_FIT_SAMPLE_COUNT
+				),
+				new JirsCurveFit(
+						"ceiling",
+						JIRS_CEILING_CURVE_FIT_A,
+						JIRS_CEILING_CURVE_FIT_K,
+						JIRS_CEILING_CURVE_FIT_R2,
+						JIRS_CEILING_CURVE_FIT_RMSE,
+						JIRS_CEILING_CURVE_FIT_MAE,
+						JIRS_CEILING_CURVE_FIT_SAMPLE_COUNT
+				),
+				jirsCurveFitRuntimeComparisons(config)
+		);
+	}
+
+	private static JirsCurveFitRuntimeComparison[] jirsCurveFitRuntimeComparisons(DroneConfig config) {
+		JirsCurveFitRuntimeComparison[] comparisons =
+				new JirsCurveFitRuntimeComparison[JIRS_CURVE_FIT_RUNTIME_AUDIT_CLEARANCES_OVER_RADIUS.length * 2];
+		int index = 0;
+		for (double clearanceOverRadius : JIRS_CURVE_FIT_RUNTIME_AUDIT_CLEARANCES_OVER_RADIUS) {
+			comparisons[index++] = jirsCurveFitRuntimeComparison(config, "ground", clearanceOverRadius);
+		}
+		for (double clearanceOverRadius : JIRS_CURVE_FIT_RUNTIME_AUDIT_CLEARANCES_OVER_RADIUS) {
+			comparisons[index++] = jirsCurveFitRuntimeComparison(config, "ceiling", clearanceOverRadius);
+		}
+		return comparisons;
+	}
+
+	private static JirsCurveFitRuntimeComparison jirsCurveFitRuntimeComparison(
+			DroneConfig config,
+			String effect,
+			double clearanceOverRadius
+	) {
+		RotorSpec rotor = representativeRotor(config);
+		double clearanceMeters = rotor.radiusMeters() * clearanceOverRadius;
+		boolean ceiling = "ceiling".equals(effect);
+		double runtime = jirsSurfaceMultiplier(config, clearanceMeters, ceiling);
+		double fit = ceiling
+				? jirsCeilingCurveFitMultiplier(clearanceOverRadius)
+				: jirsGroundCurveFitMultiplier(clearanceOverRadius);
+		return new JirsCurveFitRuntimeComparison(
+				effect,
+				clearanceOverRadius,
+				runtime,
+				fit,
+				ratio(runtime, fit),
+				ratio(runtime - 1.0, fit - 1.0)
 		);
 	}
 

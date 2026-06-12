@@ -25,21 +25,21 @@ class SurfaceNearfieldCalibrationTest {
 		SurfaceNearfieldCalibration.GroundReferenceSample halfRadius = audit.halfRadiusGround();
 		assertEquals(0.5, halfRadius.clearanceOverRadius(), 1.0e-12);
 		assertEquals(0.03175, halfRadius.clearanceMeters(), 1.0e-12);
-		assertEquals(1.3852885300014108, halfRadius.currentGroundMultiplier(), 1.0e-15);
-		assertEquals(halfRadius.zjuGroundMultiplier(), halfRadius.currentGroundMultiplier(), 1.0e-15);
-		assertEquals(1.0, halfRadius.currentExtraOverZjuExtra(), 1.0e-15);
+		assertEquals(1.222127994323132, halfRadius.currentGroundMultiplier(), 1.0e-15);
+		assertEquals(1.3852885300014108, halfRadius.zjuGroundMultiplier(), 1.0e-15);
+		assertEquals(0.5765237660262522, halfRadius.currentExtraOverZjuExtra(), 1.0e-15);
 		assertEquals(1.3333333333333333, halfRadius.cheesemanGroundMultiplier(), 1.0e-15);
 		assertTrue(halfRadius.currentCeilingMultiplier() < halfRadius.currentGroundMultiplier());
 
 		SurfaceNearfieldCalibration.GroundReferenceSample oneRadius = audit.oneRadiusGround();
-		assertEquals(1.332498952304364, oneRadius.currentGroundMultiplier(), 1.0e-15);
+		assertEquals(1.0856401115902108, oneRadius.currentGroundMultiplier(), 1.0e-15);
 		assertEquals(1.332498952304364, oneRadius.zjuGroundMultiplier(), 1.0e-15);
-		assertEquals(1.2492177677853413, oneRadius.currentGroundOverCheeseman(), 1.0e-15);
-		assertEquals(1.11310774, oneRadius.currentCeilingMultiplier(), 1.0e-12);
-		assertEquals(0.835353557370564, oneRadius.currentCeilingOverGround(), 1.0e-15);
+		assertEquals(1.0177876046158227, oneRadius.currentGroundOverCheeseman(), 1.0e-15);
+		assertEquals(1.096081775587298, oneRadius.currentCeilingMultiplier(), 1.0e-12);
+		assertEquals(1.0096179791863003, oneRadius.currentCeilingOverGround(), 1.0e-15);
 
-		assertEquals(1.2147853317334425, audit.twoRadiusGround().currentGroundMultiplier(), 1.0e-15);
-		assertEquals(1.0888972333930909, audit.fourRadiusGround().currentGroundMultiplier(), 1.0e-15);
+		assertEquals(1.0127299026689103, audit.twoRadiusGround().currentGroundMultiplier(), 1.0e-15);
+		assertEquals(1.0002812683077769, audit.fourRadiusGround().currentGroundMultiplier(), 1.0e-15);
 	}
 
 	@Test
@@ -122,7 +122,7 @@ class SurfaceNearfieldCalibrationTest {
 		assertEquals("JIRS-2024-Surface-Effect-Packet", jirs.sourceId());
 		assertEquals("10.1007/s10846-024-02155-7", jirs.doi());
 		assertEquals("10.5281/zenodo.11384638", jirs.supplementDoi());
-		assertTrue(jirs.caveat().contains("wall force/moment separately"));
+		assertTrue(jirs.caveat().contains("wall force/moment"));
 		assertEquals(460164, jirs.supplementZipSizeBytes());
 		assertEquals(18, jirs.supplementZipFileCount());
 		assertEquals(9, jirs.supplementCsvFileCount());
@@ -130,6 +130,43 @@ class SurfaceNearfieldCalibrationTest {
 		assertEquals(1, jirs.supplementPdfFileCount());
 		assertEquals(225, jirs.numericMeasurementRowCount());
 		assertEquals(40, jirs.uncertaintySummaryRowCount());
+
+		SurfaceNearfieldCalibration.JirsSurfaceCurveFitAudit curveFit = jirs.curveFit();
+		assertEquals("JIRS-2024-Surface-Curve-Fit-Packet", curveFit.sourceId());
+		assertTrue(curveFit.model().contains("exp(-k * h_over_R)"));
+		assertEquals(196, curveFit.packetRowCount());
+		assertEquals(225, curveFit.inputMeasurementRowCount());
+		assertEquals("ground", curveFit.groundFit().effect());
+		assertEquals(0.576141774524, curveFit.groundFit().a(), 1.0e-12);
+		assertEquals(1.9062, curveFit.groundFit().k(), 1.0e-12);
+		assertEquals(0.980116586669, curveFit.groundFit().r2(), 1.0e-12);
+		assertEquals(0.0159323160145, curveFit.groundFit().rmse(), 1.0e-12);
+		assertEquals(0.0110665839276, curveFit.groundFit().mae(), 1.0e-12);
+		assertEquals(10, curveFit.groundFit().sampleCount());
+		assertEquals("ceiling", curveFit.ceilingFit().effect());
+		assertEquals(0.384690708893, curveFit.ceilingFit().a(), 1.0e-12);
+		assertEquals(1.38724, curveFit.ceilingFit().k(), 1.0e-12);
+		assertEquals(0.951208172755, curveFit.ceilingFit().r2(), 1.0e-12);
+		assertEquals(0.0194307382179, curveFit.ceilingFit().rmse(), 1.0e-12);
+		assertEquals(0.0131115496255, curveFit.ceilingFit().mae(), 1.0e-12);
+		assertEquals(10, curveFit.ceilingFit().sampleCount());
+		assertEquals(1.222127994323132,
+				SurfaceNearfieldCalibration.jirsGroundCurveFitMultiplier(0.5), 1.0e-15);
+		assertEquals(1.096081775587298,
+				SurfaceNearfieldCalibration.jirsCeilingCurveFitMultiplier(1.0), 1.0e-15);
+		SurfaceNearfieldCalibration.JirsCurveFitRuntimeComparison[] runtimeComparisons =
+				curveFit.runtimeComparisons();
+		assertEquals(10, runtimeComparisons.length);
+		assertEquals("ground", runtimeComparisons[0].effect());
+		assertEquals(0.5, runtimeComparisons[0].clearanceOverRadius(), 1.0e-12);
+		assertEquals(1.222127994323132, runtimeComparisons[0].runtimeMultiplier(), 1.0e-15);
+		assertEquals(runtimeComparisons[0].fitMultiplier(),
+				runtimeComparisons[0].runtimeMultiplier(), 1.0e-15);
+		assertEquals(1.0, runtimeComparisons[0].runtimeOverFitMultiplier(), 1.0e-15);
+		assertEquals("ceiling", runtimeComparisons[6].effect());
+		assertEquals(1.0, runtimeComparisons[6].clearanceOverRadius(), 1.0e-12);
+		assertEquals(1.096081775587298, runtimeComparisons[6].runtimeMultiplier(), 1.0e-15);
+		assertEquals(1.0, runtimeComparisons[6].runtimeExtraOverFitExtra(), 1.0e-15);
 
 		double rotorRadiusMeters = config.rotors().get(0).radiusMeters();
 		SurfaceNearfieldCalibration.JirsThrustAnchor ground = jirs.ground();
@@ -160,7 +197,7 @@ class SurfaceNearfieldCalibrationTest {
 				1.0e-15
 		);
 		assertTrue(ground.currentClosestMinOverMeasuredP50() > 1.0);
-		assertTrue(ground.currentClosestMaxOverMeasuredMax() > 1.0);
+		assertEquals(0.9673835011209799, ground.currentClosestMaxOverMeasuredMax(), 1.0e-15);
 
 		SurfaceNearfieldCalibration.JirsThrustAnchor ceiling = jirs.ceiling();
 		assertEquals("ceiling", ceiling.effect());
@@ -178,8 +215,8 @@ class SurfaceNearfieldCalibrationTest {
 				ceiling.currentMultiplierAtClosestMin(),
 				1.0e-15
 		);
-		assertTrue(ceiling.currentClosestMinOverMeasuredP50() < 1.0);
-		assertTrue(ceiling.currentClosestMaxOverMeasuredMax() < 1.0);
+		assertEquals(1.0137356995714861, ceiling.currentClosestMinOverMeasuredP50(), 1.0e-15);
+		assertEquals(0.9487942451541636, ceiling.currentClosestMaxOverMeasuredMax(), 1.0e-15);
 
 		SurfaceNearfieldCalibration.JirsWallAnchor wall = jirs.wall();
 		assertEquals(145, wall.sampleCount());
@@ -254,10 +291,10 @@ class SurfaceNearfieldCalibrationTest {
 		assertEquals(0.75, threeQuarter.plateDiameterOverPropDiameter(), 1.0e-12);
 		assertEquals(0.5625, threeQuarter.circularPatchAreaOverPropDiskArea(), 1.0e-12);
 		assertEquals(0.5, threeQuarter.gate(), 1.0e-12);
-		assertEquals(1.332498952304364, threeQuarter.fullGroundMultiplier(), 1.0e-15);
-		assertEquals(1.166249476152182, threeQuarter.gatedGroundMultiplier(), 1.0e-15);
-		assertEquals(1.11310774, threeQuarter.fullCeilingMultiplier(), 1.0e-12);
-		assertEquals(1.05655387, threeQuarter.gatedCeilingMultiplier(), 1.0e-12);
+		assertEquals(1.0856401115902108, threeQuarter.fullGroundMultiplier(), 1.0e-15);
+		assertEquals(1.0428200557951053, threeQuarter.gatedGroundMultiplier(), 1.0e-15);
+		assertEquals(1.096081775587298, threeQuarter.fullCeilingMultiplier(), 1.0e-12);
+		assertEquals(1.0480408877936491, threeQuarter.gatedCeilingMultiplier(), 1.0e-12);
 
 		assertEquals(1.0, audit.fullDiameterPatch().gate(), 1.0e-12);
 		assertEquals(audit.fullDiameterPatch().fullGroundMultiplier(),

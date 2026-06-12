@@ -6373,7 +6373,11 @@ class DronePhysicsTest {
 		DronePhysics freeAir = new DronePhysics(config);
 		DronePhysics nearGround = new DronePhysics(config);
 		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
-		DroneEnvironment groundEffect = new DroneEnvironment(Vec3.ZERO, 1.0, 0.12);
+		DroneEnvironment groundEffect = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				config.rotors().get(0).radiusMeters()
+		);
 
 		for (int i = 0; i < 600; i++) {
 			freeAir.step(hover, 0.005);
@@ -6384,7 +6388,7 @@ class DronePhysicsTest {
 	}
 
 	@Test
-	void racingQuadGroundEffectMatchesZjuHeightResponse() {
+	void racingQuadGroundEffectMatchesJirsCurveFitHeightResponse() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		double rotorRadius = config.rotors().get(0).radiusMeters();
 		double halfRadius = DroneEnvironment.groundEffectThrustMultiplier(config, rotorRadius * 0.5);
@@ -6392,9 +6396,9 @@ class DronePhysicsTest {
 		double fourRadii = DroneEnvironment.groundEffectThrustMultiplier(config, rotorRadius * 4.0);
 		double effectHeight = DroneEnvironment.groundEffectThrustMultiplier(config, config.groundEffectHeightMeters());
 
-		assertEquals(1.385, halfRadius, 0.020);
-		assertEquals(1.332, oneRadius, 0.020);
-		assertEquals(1.089, fourRadii, 0.012);
+		assertEquals(1.222, halfRadius, 0.002);
+		assertEquals(1.086, oneRadius, 0.002);
+		assertEquals(1.0003, fourRadii, 0.0005);
 		assertTrue(halfRadius > oneRadius);
 		assertTrue(oneRadius > fourRadii);
 		assertEquals(1.0, effectHeight, 1.0e-9);
