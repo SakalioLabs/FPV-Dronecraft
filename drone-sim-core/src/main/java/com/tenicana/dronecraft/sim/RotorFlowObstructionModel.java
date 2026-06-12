@@ -82,6 +82,11 @@ public final class RotorFlowObstructionModel {
 		return MathUtil.clamp(segment / Math.PI, 0.0, 1.0);
 	}
 
+	public static double thrustMultiplier(double obstructionIntensity) {
+		double obstruction = MathUtil.clamp(obstructionIntensity, 0.0, 1.0);
+		return MathUtil.clamp(1.0 - 0.10 * obstruction * obstruction * obstruction, 0.90, 1.0);
+	}
+
 	private static double normalizedFlatWallDiskCoverage(double clearanceMeters, double rotorRadiusMeters) {
 		if (!Double.isFinite(clearanceMeters) || !Double.isFinite(rotorRadiusMeters) || rotorRadiusMeters <= 1.0e-6) {
 			return 0.0;

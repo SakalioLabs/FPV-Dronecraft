@@ -776,7 +776,7 @@ public class DroneEntity extends PathfinderMob {
 			flowObstructionDirectionsBody[i] = flowObstruction.directionBody();
 			flowObstructions[i] = flowObstructionIntensity;
 			maxFlowObstruction = Math.max(maxFlowObstruction, flowObstructionIntensity);
-			double obstructionLoss = 1.0 - 0.24 * flowObstructionIntensity * flowObstructionIntensity;
+			double obstructionThrustMultiplier = RotorFlowObstructionModel.thrustMultiplier(flowObstructionIntensity);
 			multipliers[i] = DroneEnvironment.weightedGroundEffectThrustMultiplier(
 							physics.config(),
 							surfaceSample.groundClearancesMeters(),
@@ -787,7 +787,7 @@ public class DroneEntity extends PathfinderMob {
 							surfaceSample.ceilingClearancesMeters(),
 							surfaceSample.weights()
 					)
-					* MathUtil.clamp(obstructionLoss, 0.72, 1.0);
+					* obstructionThrustMultiplier;
 		}
 		return new RotorEnvironmentEffects(multipliers, flowObstructions, flowObstructionDirectionsBody, maxFlowObstruction);
 	}

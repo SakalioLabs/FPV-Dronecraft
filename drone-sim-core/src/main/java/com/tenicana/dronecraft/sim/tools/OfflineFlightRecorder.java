@@ -2306,7 +2306,7 @@ public final class OfflineFlightRecorder {
 				obstacleProximity,
 				0.0,
 				Double.POSITIVE_INFINITY,
-				null,
+				rotorFlow.thrustMultipliers(),
 				rotorFlow.obstructions(),
 				rotorFlow.directionsBody(),
 				null,
@@ -3313,6 +3313,18 @@ public final class OfflineFlightRecorder {
 
 	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double maxIntensity) {
 		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, 0.0);
+
+		private double[] thrustMultipliers() {
+			if (obstructions == null || obstructions.length == 0) {
+				return null;
+			}
+
+			double[] multipliers = new double[obstructions.length];
+			for (int i = 0; i < multipliers.length; i++) {
+				multipliers[i] = RotorFlowObstructionModel.thrustMultiplier(obstructions[i]);
+			}
+			return multipliers;
+		}
 	}
 
 	public static final class FlightReport {

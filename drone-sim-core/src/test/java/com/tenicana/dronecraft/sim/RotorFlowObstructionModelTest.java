@@ -33,6 +33,19 @@ class RotorFlowObstructionModelTest {
 	}
 
 	@Test
+	void thrustMultiplierKeepsSidewallLiftLossSmall() {
+		assertEquals(1.0, RotorFlowObstructionModel.thrustMultiplier(0.0), 1.0e-12);
+		assertEquals(0.90, RotorFlowObstructionModel.thrustMultiplier(1.0), 1.0e-12);
+
+		double tangentWall = RotorFlowObstructionModel.thrustMultiplier(0.66);
+		double closeWall = RotorFlowObstructionModel.thrustMultiplier(0.80);
+
+		assertTrue(tangentWall > 0.970 && tangentWall < 0.980, () -> "tangentWall=" + tangentWall);
+		assertTrue(closeWall < tangentWall, () -> "closeWall=" + closeWall + " tangentWall=" + tangentWall);
+		assertTrue(closeWall > 0.945, () -> "closeWall=" + closeWall);
+	}
+
+	@Test
 	void clearDistancesReturnNoRotorFlowObstruction() {
 		double[] distances = new double[ROTOR_PLANE_DIRECTIONS.length];
 		for (int i = 0; i < distances.length; i++) {
