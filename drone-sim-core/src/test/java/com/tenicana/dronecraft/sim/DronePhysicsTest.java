@@ -87,6 +87,7 @@ class DronePhysicsTest {
 		assertEquals(5.1 * 0.0254 * 0.5, rotor.radiusMeters(), 1.0e-12);
 		assertEquals(4.5 / 5.1, rotor.bladePitchToDiameterRatio(), 1.0e-12);
 		assertEquals(3, rotor.bladeCount());
+		assertEquals(DroneConfig.APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS, rotor.motorWindingResistanceOhms(), 1.0e-12);
 		assertEquals(
 				RotorSpec.estimatedUniformBladePropInertiaKgMetersSquared(rotor.radiusMeters(), 4.3),
 				rotor.rotorInertiaKgMetersSquared(),
@@ -121,6 +122,22 @@ class DronePhysicsTest {
 		assertTrue(config.inertiaKgMetersSquared().y() > config.inertiaKgMetersSquared().x());
 		assertTrue(config.inertiaKgMetersSquared().y() > config.inertiaKgMetersSquared().z());
 		assertTrue(config.bodyDragCoefficients().z() < DroneConfig.racingQuad().bodyDragCoefficients().z());
+	}
+
+	@Test
+	void apDroneMotorPdfResistanceOverridesCurrentLimitFallback() throws ReflectiveOperationException {
+		DroneConfig measured = DroneConfig.apDrone();
+		DroneConfig fallback = measured.withMotorWindingResistanceOhms(0.0);
+		Method method = DronePhysics.class.getDeclaredMethod("baseMotorWindingResistanceOhms", int.class);
+		method.setAccessible(true);
+
+		double measuredResistance = (double) method.invoke(new DronePhysics(measured), 0);
+		double fallbackResistance = (double) method.invoke(new DronePhysics(fallback), 0);
+
+		assertEquals(DroneConfig.APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS, measuredResistance, 1.0e-12);
+		assertEquals(0.0, fallback.rotors().get(0).motorWindingResistanceOhms(), 1.0e-12);
+		assertTrue(fallbackResistance > measuredResistance * 2.0, () -> "fallbackResistance=" + fallbackResistance);
+		assertTrue(fallbackResistance < measuredResistance * 3.0, () -> "fallbackResistance=" + fallbackResistance);
 	}
 
 	@Test
@@ -10540,6 +10557,10 @@ class DronePhysicsTest {
 		assertTrue(text.contains("Tyto x3nm static-powertrain audit"));
 		assertTrue(text.contains("max_thrust"));
 		assertTrue(text.contains("tyto_eq"));
+		assertTrue(text.contains("APDrone motor PDF audit"));
+		assertTrue(text.contains("YSIDO-2507-1800KV"));
+		assertTrue(text.contains("winding_r"));
+		assertTrue(text.contains("per_motor_current"));
 		assertTrue(text.contains("Tyto static yaw-torque audit"));
 		assertTrue(text.contains("yaw_qt"));
 		assertTrue(text.contains("fit_window"));

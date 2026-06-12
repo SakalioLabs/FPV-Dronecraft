@@ -63,6 +63,34 @@ class MotorBenchCurrentModelTest {
 	}
 
 	@Test
+	void apDroneMotorSpecAuditMatchesCachedMotorPdfReference() {
+		MotorBenchCurrentModel.ApDroneMotorSpecAudit audit =
+				MotorBenchCurrentModel.apDroneMotorSpecAudit(DroneConfig.apDrone());
+
+		assertEquals("YSIDO-2507-1800KV", audit.referenceId());
+		assertEquals(13.5, audit.configuredMaxRotorThrustNewtons(), 1.0e-12);
+		assertEquals(29137.63274949454, audit.configuredMaxRpm(), 1.0e-9);
+		assertEquals(0.0586, audit.configuredMotorWindingResistanceOhms(), 1.0e-12);
+		assertEquals(37.5, audit.configuredPerMotorPackCurrentAmps(), 1.0e-12);
+		assertEquals(1800.0, audit.referenceKvRpmPerVolt(), 1.0e-12);
+		assertEquals(1960.0, audit.betaflightKvRpmPerVolt(), 1.0e-12);
+		assertEquals(0.0586, audit.referenceMotorWindingResistanceOhms(), 1.0e-12);
+		assertEquals(42.0, audit.referenceContinuousCurrentAmps(), 1.0e-12);
+		assertEquals(14.5922952, audit.referenceHeadlineMaxThrustNewtons(), 1.0e-12);
+		assertEquals(14.1608026, audit.referenceBestVisibleMaxThrustNewtons(), 1.0e-12);
+		assertEquals(32.16, audit.referenceBestVisibleMaxCurrentAmps(), 1.0e-12);
+		assertEquals(24.39, audit.referenceBestVisibleMaxVoltageVolts(), 1.0e-12);
+		assertEquals(0.925145757742072, audit.configuredMaxThrustOverReferenceHeadline(), 1.0e-15);
+		assertEquals(0.9533357946815811, audit.configuredMaxThrustOverReferenceBestVisible(), 1.0e-15);
+		assertEquals(1.0, audit.configuredMotorWindingResistanceOverReference(), 1.0e-15);
+		assertEquals(0.8928571428571429, audit.configuredPerMotorPackCurrentOverReferenceContinuous(), 1.0e-15);
+		assertEquals(0.9635460565309041, audit.configuredMaxRpmOverReferenceKvFullCharge(), 1.0e-15);
+		assertEquals(1.0937549830891344, audit.configuredMaxRpmOverReferenceKvNominal(), 1.0e-15);
+		assertEquals(0.8848892355896057, audit.configuredMaxRpmOverBetaflightKvFullCharge(), 1.0e-15);
+		assertEquals(1.0044688620206337, audit.configuredMaxRpmOverBetaflightKvNominal(), 1.0e-15);
+	}
+
+	@Test
 	void aiioRotorSpeedTelemetryAuditMatchesResolvedMechanicalRpmScale() {
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit racingAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(DroneConfig.racingQuad());

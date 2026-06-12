@@ -2197,8 +2197,18 @@ public final class DronePhysics {
 		return MathUtil.clamp(config.nominalBatteryVoltage() / stallCurrent, 0.025, 2.5);
 	}
 
+	private double baseMotorWindingResistanceOhms(int index) {
+		if (index >= 0 && index < config.rotors().size()) {
+			double configuredResistance = config.rotors().get(index).motorWindingResistanceOhms();
+			if (configuredResistance > 0.0) {
+				return configuredResistance;
+			}
+		}
+		return inferredMotorWindingResistanceOhms();
+	}
+
 	private double temperatureAdjustedMotorWindingResistanceOhms(int index) {
-		return inferredMotorWindingResistanceOhms() * updateMotorWindingResistanceScale(index);
+		return baseMotorWindingResistanceOhms(index) * updateMotorWindingResistanceScale(index);
 	}
 
 	private double updateMotorWindingResistanceScale(int index) {

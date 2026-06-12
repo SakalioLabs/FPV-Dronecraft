@@ -26,6 +26,17 @@ public final class MotorBenchCurrentModel {
 	public static final int TYTO_DNQ_TORQUE_RATIO_FIT_POINT_COUNT = 14;
 	public static final double TYTO_DNQ_HIGH_THRUST_Q_OVER_T_MEAN_METERS = 0.0145697672667851;
 	public static final double TYTO_DNQ_Q_OVER_T_AT_MAX_THRUST_METERS = 0.014512651125968636;
+	public static final String APDRONE_MOTOR_PDF_SOURCE_ID = "YSIDO-2507-1800KV";
+	public static final double APDRONE_MOTOR_PDF_KV_RPM_PER_VOLT = 1800.0;
+	public static final double APDRONE_BETAFLIGHT_KV_RPM_PER_VOLT = 1960.0;
+	public static final double APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS =
+			DroneConfig.APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS;
+	public static final double APDRONE_MOTOR_PDF_CONTINUOUS_CURRENT_AMPS = 42.0;
+	public static final double APDRONE_MOTOR_PDF_HEADLINE_MAX_THRUST_NEWTONS = 14.5922952;
+	public static final double APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_THRUST_NEWTONS = 14.1608026;
+	public static final double APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_CURRENT_AMPS = 32.16;
+	public static final double APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_VOLTAGE_VOLTS = 24.39;
+	public static final double APDRONE_BATTERY_FILENAME_NOMINAL_VOLTAGE_VOLTS = 14.8;
 	public static final String AIIO_ROTOR_SPEED_SOURCE_ID = "AI-IO";
 	public static final int AIIO_EXTRACTED_TEST_SAMPLE_FILE_COUNT = 22;
 	public static final double AIIO_HDF5_SAMPLE_RATE_HERTZ = 100.00009536752259;
@@ -140,6 +151,31 @@ public final class MotorBenchCurrentModel {
 			double referenceFitWindowMinMeters,
 			double referenceFitWindowMaxMeters,
 			double configuredPositionWithinReferenceFitWindow
+	) {
+	}
+
+	public record ApDroneMotorSpecAudit(
+			String referenceId,
+			double configuredMaxRotorThrustNewtons,
+			double configuredMaxRpm,
+			double configuredMotorWindingResistanceOhms,
+			double configuredPerMotorPackCurrentAmps,
+			double referenceKvRpmPerVolt,
+			double betaflightKvRpmPerVolt,
+			double referenceMotorWindingResistanceOhms,
+			double referenceContinuousCurrentAmps,
+			double referenceHeadlineMaxThrustNewtons,
+			double referenceBestVisibleMaxThrustNewtons,
+			double referenceBestVisibleMaxCurrentAmps,
+			double referenceBestVisibleMaxVoltageVolts,
+			double configuredMaxThrustOverReferenceHeadline,
+			double configuredMaxThrustOverReferenceBestVisible,
+			double configuredMotorWindingResistanceOverReference,
+			double configuredPerMotorPackCurrentOverReferenceContinuous,
+			double configuredMaxRpmOverReferenceKvFullCharge,
+			double configuredMaxRpmOverReferenceKvNominal,
+			double configuredMaxRpmOverBetaflightKvFullCharge,
+			double configuredMaxRpmOverBetaflightKvNominal
 	) {
 	}
 
@@ -316,6 +352,46 @@ public final class MotorBenchCurrentModel {
 		);
 	}
 
+	public static ApDroneMotorSpecAudit apDroneMotorSpecAudit(DroneConfig config) {
+		double configuredMaxThrustNewtons = averageMaxRotorThrustNewtons(config);
+		double configuredMaxRpm = averageMaxRotorRpm(config);
+		double configuredMotorWindingResistance = averageMotorWindingResistanceOhms(config);
+		int rotorCount = config == null ? 0 : config.rotors().size();
+		double configuredPerMotorPackCurrent = rotorCount == 0
+				? 0.0
+				: config.maxBatteryCurrentAmps() / rotorCount;
+		double configuredFullChargeVoltage = config == null ? 0.0 : config.nominalBatteryVoltage();
+		double referenceKvFullChargeRpm = APDRONE_MOTOR_PDF_KV_RPM_PER_VOLT * configuredFullChargeVoltage;
+		double referenceKvNominalRpm = APDRONE_MOTOR_PDF_KV_RPM_PER_VOLT
+				* APDRONE_BATTERY_FILENAME_NOMINAL_VOLTAGE_VOLTS;
+		double betaflightKvFullChargeRpm = APDRONE_BETAFLIGHT_KV_RPM_PER_VOLT * configuredFullChargeVoltage;
+		double betaflightKvNominalRpm = APDRONE_BETAFLIGHT_KV_RPM_PER_VOLT
+				* APDRONE_BATTERY_FILENAME_NOMINAL_VOLTAGE_VOLTS;
+		return new ApDroneMotorSpecAudit(
+				APDRONE_MOTOR_PDF_SOURCE_ID,
+				configuredMaxThrustNewtons,
+				configuredMaxRpm,
+				configuredMotorWindingResistance,
+				configuredPerMotorPackCurrent,
+				APDRONE_MOTOR_PDF_KV_RPM_PER_VOLT,
+				APDRONE_BETAFLIGHT_KV_RPM_PER_VOLT,
+				APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS,
+				APDRONE_MOTOR_PDF_CONTINUOUS_CURRENT_AMPS,
+				APDRONE_MOTOR_PDF_HEADLINE_MAX_THRUST_NEWTONS,
+				APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_THRUST_NEWTONS,
+				APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_CURRENT_AMPS,
+				APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_VOLTAGE_VOLTS,
+				ratio(configuredMaxThrustNewtons, APDRONE_MOTOR_PDF_HEADLINE_MAX_THRUST_NEWTONS),
+				ratio(configuredMaxThrustNewtons, APDRONE_MOTOR_PDF_BEST_VISIBLE_MAX_THRUST_NEWTONS),
+				ratio(configuredMotorWindingResistance, APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS),
+				ratio(configuredPerMotorPackCurrent, APDRONE_MOTOR_PDF_CONTINUOUS_CURRENT_AMPS),
+				ratio(configuredMaxRpm, referenceKvFullChargeRpm),
+				ratio(configuredMaxRpm, referenceKvNominalRpm),
+				ratio(configuredMaxRpm, betaflightKvFullChargeRpm),
+				ratio(configuredMaxRpm, betaflightKvNominalRpm)
+		);
+	}
+
 	private static double powerLaw(double thrustNewtons, double coefficient, double exponent) {
 		if (!Double.isFinite(thrustNewtons) || thrustNewtons <= 0.0) {
 			return 0.0;
@@ -393,6 +469,18 @@ public final class MotorBenchCurrentModel {
 		double total = 0.0;
 		for (RotorSpec rotor : config.rotors()) {
 			total += rotor.yawTorquePerThrustMeter();
+		}
+		return total / config.rotors().size();
+	}
+
+	private static double averageMotorWindingResistanceOhms(DroneConfig config) {
+		if (config == null || config.rotors().isEmpty()) {
+			return 0.0;
+		}
+
+		double total = 0.0;
+		for (RotorSpec rotor : config.rotors()) {
+			total += rotor.motorWindingResistanceOhms();
 		}
 		return total / config.rotors().size();
 	}

@@ -78,6 +78,7 @@ public record DroneConfig(
 	public static final int DEFAULT_ESC_COMMAND_RESOLUTION_STEPS = DEFAULT_ESC_COMMAND_PROTOCOL.throttleSteps();
 	public static final double DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT = 1.0;
 	public static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE_COMMAND = 0.5439609800526073;
+	public static final double APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS = 0.0586;
 	public static final double LARGE_LIFT_PROP_PITCH_TO_DIAMETER_RATIO = 0.50;
 
 	public DroneConfig {
@@ -336,7 +337,8 @@ public record DroneConfig(
 				DEFAULT_ESC_COMMAND_RESOLUTION_STEPS,
 				EscCommandProtocol.DSHOT600)
 				.withRotorBladeCount(3)
-				.withRotorBladePitchToDiameterRatio(rotorPitchToDiameter);
+				.withRotorBladePitchToDiameterRatio(rotorPitchToDiameter)
+				.withMotorWindingResistanceOhms(APDRONE_MOTOR_PDF_WINDING_RESISTANCE_OHMS);
 	}
 
 	public static DroneConfig cinewhoop() {
@@ -1983,6 +1985,12 @@ public record DroneConfig(
 	public DroneConfig withRotorBladeCount(int bladeCount) {
 		return withRotors(rotors.stream()
 				.map(rotor -> rotor.withBladeCount(bladeCount))
+				.toList());
+	}
+
+	public DroneConfig withMotorWindingResistanceOhms(double motorWindingResistanceOhms) {
+		return withRotors(rotors.stream()
+				.map(rotor -> rotor.withMotorWindingResistanceOhms(motorWindingResistanceOhms))
 				.toList());
 	}
 

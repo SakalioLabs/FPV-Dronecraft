@@ -1198,6 +1198,8 @@ public final class OfflineFlightRecorder {
 				MotorBenchCurrentModel.tytoX3nmStaticPowertrainAudit(preset);
 		MotorBenchCurrentModel.StaticYawTorqueAudit tytoYawTorqueAudit =
 				MotorBenchCurrentModel.tytoStaticYawTorqueAudit(preset);
+		MotorBenchCurrentModel.ApDroneMotorSpecAudit apDroneMotorAudit =
+				MotorBenchCurrentModel.apDroneMotorSpecAudit(preset);
 		MotorBenchCurrentModel.RotorSpeedTelemetryAudit aiioRotorSpeedAudit =
 				MotorBenchCurrentModel.aiioRotorSpeedTelemetryAudit(preset);
 		PropDamageVibrationAudit propDamageAudit = propDamageVibrationAudit(preset);
@@ -1346,6 +1348,28 @@ public final class OfflineFlightRecorder {
 				tytoAudit.referenceMaxCurrentAmps(),
 				tytoAudit.referenceVoltageAtMaxThrust(),
 				tytoAudit.referenceFitR2()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"APDrone motor PDF audit: %s max_thrust %.2fN headline %.2fN ratio %.2f table %.2fN@%.1fA/%.1fV ratio %.2f, kv_rpm pdf %.2fx/%.2fx bf %.2fx/%.2fx, winding_r %.4f/%.4f ohm ratio %.2f, per_motor_current %.1f/%.1fA ratio %.2f%n",
+				apDroneMotorAudit.referenceId(),
+				apDroneMotorAudit.configuredMaxRotorThrustNewtons(),
+				apDroneMotorAudit.referenceHeadlineMaxThrustNewtons(),
+				apDroneMotorAudit.configuredMaxThrustOverReferenceHeadline(),
+				apDroneMotorAudit.referenceBestVisibleMaxThrustNewtons(),
+				apDroneMotorAudit.referenceBestVisibleMaxCurrentAmps(),
+				apDroneMotorAudit.referenceBestVisibleMaxVoltageVolts(),
+				apDroneMotorAudit.configuredMaxThrustOverReferenceBestVisible(),
+				apDroneMotorAudit.configuredMaxRpmOverReferenceKvFullCharge(),
+				apDroneMotorAudit.configuredMaxRpmOverReferenceKvNominal(),
+				apDroneMotorAudit.configuredMaxRpmOverBetaflightKvFullCharge(),
+				apDroneMotorAudit.configuredMaxRpmOverBetaflightKvNominal(),
+				apDroneMotorAudit.configuredMotorWindingResistanceOhms(),
+				apDroneMotorAudit.referenceMotorWindingResistanceOhms(),
+				apDroneMotorAudit.configuredMotorWindingResistanceOverReference(),
+				apDroneMotorAudit.configuredPerMotorPackCurrentAmps(),
+				apDroneMotorAudit.referenceContinuousCurrentAmps(),
+				apDroneMotorAudit.configuredPerMotorPackCurrentOverReferenceContinuous()
 		);
 		System.out.printf(
 				Locale.ROOT,
