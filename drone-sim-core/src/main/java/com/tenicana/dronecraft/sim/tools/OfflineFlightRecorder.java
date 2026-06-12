@@ -20,6 +20,7 @@ import com.tenicana.dronecraft.sim.NanodroneSysIdCalibration;
 import com.tenicana.dronecraft.sim.NeuroBemAirframeResidualCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
+import com.tenicana.dronecraft.sim.PropellerDamageCalibration;
 import com.tenicana.dronecraft.sim.PropGeometryCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
@@ -71,13 +72,9 @@ public final class OfflineFlightRecorder {
 	private static final double APDRONE_OPEN_FIELD_FLIGHT_2_P95_SPEED_METERS_PER_SECOND = 17.25;
 	private static final double APDRONE_OPEN_FIELD_FASTEST_SPEED_METERS_PER_SECOND = 18.72;
 	private static final int PROP_DAMAGE_AUDIT_ROTOR_INDEX = 0;
-	private static final double PROP_DAMAGE_AUDIT_DAMAGE = 0.75;
+	private static final double PROP_DAMAGE_AUDIT_DAMAGE = PropellerDamageCalibration.REFERENCE_AUDIT_DAMAGE;
 	private static final double PROP_DAMAGE_AUDIT_WARMUP_SECONDS = 2.0;
 	private static final double PROP_DAMAGE_AUDIT_SAMPLE_SECONDS = 6.0;
-	private static final double UAV_REALISTIC_FAULT_SINGLE_BROKEN_GYRO_RMS_RATIO = 1.566803460010257;
-	private static final double UAV_REALISTIC_FAULT_SINGLE_BROKEN_ACCEL_RMS_RATIO = 3.65539974853721;
-	private static final double PADRE_SINGLE_ROTOR_ACCEL_FEATURE_RMS_RATIO = 3.000977801285221;
-	private static final double PADRE_TWO_POSITION_ACCEL_FEATURE_RMS_RATIO = 3.125830267410634;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -2780,10 +2777,10 @@ public final class OfflineFlightRecorder {
 				healthy.maxRotorVibration(),
 				damaged.maxRotorVibration(),
 				damaged.maxRotorDamageVibration(),
-				UAV_REALISTIC_FAULT_SINGLE_BROKEN_GYRO_RMS_RATIO,
-				UAV_REALISTIC_FAULT_SINGLE_BROKEN_ACCEL_RMS_RATIO,
-				PADRE_SINGLE_ROTOR_ACCEL_FEATURE_RMS_RATIO,
-				PADRE_TWO_POSITION_ACCEL_FEATURE_RMS_RATIO
+				PropellerDamageCalibration.UAV_REALISTIC_SINGLE_BROKEN_GYRO_RMS_RATIO,
+				PropellerDamageCalibration.UAV_REALISTIC_SINGLE_BROKEN_ACCEL_RMS_RATIO,
+				PropellerDamageCalibration.PADRE_SINGLE_ROTOR_ACCEL_FEATURE_RMS_RATIO,
+				PropellerDamageCalibration.PADRE_TWO_POSITION_ACCEL_FEATURE_RMS_RATIO
 		);
 	}
 

@@ -2179,13 +2179,7 @@ public final class DronePhysics {
 			double radiusScale,
 			double diskDragScale
 	) {
-		double damage = 1.0 - MathUtil.clamp(rotorHealth, 0.0, 1.0);
-		if (damage <= 1.0e-6 || spinRatio <= 1.0e-6) {
-			return 0.0;
-		}
-		double profileArea = MathUtil.clamp(0.70 * Math.sqrt(radiusScale) + 0.30 * diskDragScale, 0.35, 4.0);
-		double spinLoad = spinRatio * spinRatio * MathUtil.clamp(0.65 + 0.35 * spinRatio, 0.65, 1.10);
-		return 0.0048 * profileArea * Math.pow(damage, 1.35) * spinLoad;
+		return PropellerDamageCalibration.profileDragTorque(rotorHealth, spinRatio, radiusScale, diskDragScale);
 	}
 
 	private static double motorBearingViscosityScale(double motorTemperatureCelsius) {
@@ -4236,10 +4230,7 @@ public final class DronePhysics {
 	}
 
 	private static double rotorEffectiveImbalanceIntensity(RotorSpec rotor, double rotorHealth) {
-		double healthyPropImbalance = MathUtil.clamp(rotor.imbalanceIntensity(), 0.0, 0.35);
-		double damage = 1.0 - MathUtil.clamp(rotorHealth, 0.0, 1.0);
-		double bentPropImbalance = damage * (0.10 + 0.18 * damage);
-		return MathUtil.clamp(healthyPropImbalance + bentPropImbalance, 0.0, 0.35);
+		return PropellerDamageCalibration.effectiveImbalanceIntensity(rotor, rotorHealth);
 	}
 
 	private static double rotorAdvanceRatio(RotorSpec rotor, Vec3 relativeAirVelocityBody, double omegaRadiansPerSecond) {
@@ -4252,34 +4243,15 @@ public final class DronePhysics {
 	}
 
 	private static double rotorDamageVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorHealth) {
-		double damage = 1.0 - MathUtil.clamp(rotorHealth, 0.0, 1.0);
-		if (damage <= 1.0e-6) {
-			return 0.0;
-		}
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		// Prop-fault datasets show damaged-prop sensor RMS rising once the rotor reaches ordinary hover RPM,
-		// even when the damaged rotor is far below its configured maximum speed.
-		double mildFault = 0.035 * smoothStep(0.02, 0.12, damage);
-		double bentBladeFault = 0.72 * Math.pow(smoothStep(0.12, 0.85, damage), 1.35);
-		double severeFault = 0.20 * smoothStep(0.70, 1.0, damage);
-		double operatingSpin = smoothStep(0.08, 0.42, spinRatio);
-		double centrifugalSpin = spinRatio * spinRatio;
-		double spinVisibility = MathUtil.clamp(0.55 * operatingSpin + 0.45 * centrifugalSpin, 0.0, 1.0);
-		return MathUtil.clamp((mildFault + bentBladeFault + severeFault) * spinVisibility, 0.0, 1.0);
+		return PropellerDamageCalibration.damageVibrationIntensity(rotor, omegaRadiansPerSecond, rotorHealth);
 	}
 
 	private static double rotorImbalanceVibration(RotorSpec rotor, double omegaRadiansPerSecond, double rotorHealth) {
-		double imbalance = rotorEffectiveImbalanceIntensity(rotor, rotorHealth);
-		if (imbalance <= 1.0e-7) {
-			return 0.0;
-		}
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		return MathUtil.clamp(imbalance * (0.18 + 0.82 * spinRatio * spinRatio), 0.0, 0.40);
+		return PropellerDamageCalibration.imbalanceVibrationIntensity(rotor, omegaRadiansPerSecond, rotorHealth);
 	}
 
 	private static double rotorHealthThrustScale(double rotorHealth) {
-		double health = MathUtil.clamp(rotorHealth, 0.0, 1.0);
-		return Math.pow(health, 1.10);
+		return PropellerDamageCalibration.thrustScale(rotorHealth);
 	}
 
 	private static double rotorSurfaceScrapeTargetScale(double surfaceScrapeIntensity) {
