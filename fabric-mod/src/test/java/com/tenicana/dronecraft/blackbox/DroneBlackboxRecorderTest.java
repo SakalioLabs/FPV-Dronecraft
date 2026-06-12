@@ -363,6 +363,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("gyro_bias_pitch_dps"));
 		assertTrue(csv.contains("gyro_clip"));
 		assertTrue(csv.contains("gyro_blade_pass_notch_hz"));
+		assertTrue(csv.contains("gyro_blade_pass_alias_1024_hz"));
+		assertTrue(csv.contains("gyro_blade_pass_alias_4000_hz"));
 		assertTrue(csv.contains("gyro_blade_pass_notch_attenuation"));
 		assertTrue(csv.contains("gyro_notch_spread_hz"));
 		assertTrue(csv.contains("gyro_rpm_harmonic_notch_attenuation"));
@@ -430,6 +432,8 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_bias_pitch_dps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_clip")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_blade_pass_notch_hz")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_blade_pass_alias_1024_hz")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_blade_pass_alias_4000_hz")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_blade_pass_notch_attenuation")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_notch_spread_hz")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "gyro_rpm_harmonic_notch_attenuation")]));

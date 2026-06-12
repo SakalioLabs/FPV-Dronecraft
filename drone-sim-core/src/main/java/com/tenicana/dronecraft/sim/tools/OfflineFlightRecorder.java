@@ -94,6 +94,8 @@ public final class OfflineFlightRecorder {
 			"gyro_notch_hz",
 			"gyro_notch_attenuation",
 			"gyro_blade_pass_notch_hz",
+			"gyro_blade_pass_alias_1024_hz",
+			"gyro_blade_pass_alias_4000_hz",
 			"gyro_blade_pass_notch_attenuation",
 			"linear_accel_x_mps2",
 			"linear_accel_y_mps2",
@@ -1358,7 +1360,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.3f,"
 						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,"
-						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.5f,%.3f,%.5f,"
+						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.5f,%.3f,%.3f,%.3f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.6f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.6f,%.6f,%.6f,%.6f,%.6f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.6f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
@@ -1442,6 +1444,8 @@ public final class OfflineFlightRecorder {
 				state.gyroDynamicNotchFrequencyHertz(),
 				state.gyroDynamicNotchAttenuation(),
 				state.gyroBladePassNotchFrequencyHertz(),
+				DronePhysics.sampledFrequencyAliasHertz(state.gyroBladePassNotchFrequencyHertz(), 1024.0),
+				DronePhysics.sampledFrequencyAliasHertz(state.gyroBladePassNotchFrequencyHertz(), 4000.0),
 				state.gyroBladePassNotchAttenuation(),
 				linearAcceleration.x(),
 				linearAcceleration.y(),

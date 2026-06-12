@@ -2871,6 +2871,19 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void sampledFrequencyAliasFoldsBladePassAboveNyquist() {
+		double hoverBladePass = DronePhysics.bladePassFrequencyHertz(13023.1, 3);
+
+		assertEquals(651.155, hoverBladePass, 1.0e-9);
+		assertEquals(372.845, DronePhysics.sampledFrequencyAliasHertz(hoverBladePass, 1024.0), 1.0e-9);
+		assertEquals(433.0, DronePhysics.sampledFrequencyAliasHertz(1457.0, 1024.0), 1.0e-9);
+		assertEquals(20.0, DronePhysics.sampledFrequencyAliasHertz(2068.0, 1024.0), 1.0e-9);
+		assertEquals(0.0, DronePhysics.bladePassAliasHertz(12000.0, 0, 1024.0), 1.0e-9);
+		assertEquals(0.0, DronePhysics.sampledFrequencyAliasHertz(Double.NaN, 1024.0), 1.0e-9);
+		assertEquals(0.0, DronePhysics.sampledFrequencyAliasHertz(650.0, 0.0), 1.0e-9);
+	}
+
+	@Test
 	void aerodynamicTelemetryTracksRelativeAirBodyAngles() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics physics = new DronePhysics(config);
@@ -9529,6 +9542,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_vibration"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_notch_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_notch_hz"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_alias_1024_hz"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_alias_4000_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_blade_pass_notch_attenuation"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_notch_spread_hz"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("gyro_rpm_harmonic_notch_attenuation"));
@@ -9738,6 +9753,8 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_0_windmilling")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "rotor_7_windmilling")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_hz")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_alias_1024_hz")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_alias_4000_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_blade_pass_notch_attenuation")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_notch_spread_hz")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "gyro_rpm_harmonic_notch_attenuation")])));

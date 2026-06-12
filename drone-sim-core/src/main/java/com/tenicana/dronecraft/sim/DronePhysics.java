@@ -410,6 +410,31 @@ public final class DronePhysics {
 		return mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS / 100.0;
 	}
 
+	public static double bladePassFrequencyHertz(double mechanicalRpm, int bladeCount) {
+		if (!Double.isFinite(mechanicalRpm) || mechanicalRpm <= 0.0 || bladeCount <= 0) {
+			return 0.0;
+		}
+		return mechanicalRpm * bladeCount / 60.0;
+	}
+
+	public static double sampledFrequencyAliasHertz(double frequencyHertz, double sampleRateHertz) {
+		if (!Double.isFinite(frequencyHertz)
+				|| !Double.isFinite(sampleRateHertz)
+				|| frequencyHertz <= 0.0
+				|| sampleRateHertz <= 0.0) {
+			return 0.0;
+		}
+		double folded = frequencyHertz % sampleRateHertz;
+		if (folded > sampleRateHertz * 0.5) {
+			folded = sampleRateHertz - folded;
+		}
+		return Math.max(0.0, folded);
+	}
+
+	public static double bladePassAliasHertz(double mechanicalRpm, int bladeCount, double sampleRateHertz) {
+		return sampledFrequencyAliasHertz(bladePassFrequencyHertz(mechanicalRpm, bladeCount), sampleRateHertz);
+	}
+
 	public static double betaflightEIntervalMicrosFromMechanicalRpm(double mechanicalRpm) {
 		double electricalRpm = mechanicalRpm * MOTOR_OUTRUNNER_POLE_PAIRS;
 		if (!Double.isFinite(electricalRpm) || electricalRpm <= 0.0) {
