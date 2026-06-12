@@ -37,10 +37,16 @@ public final class OfflineFlightRecorder {
 	private static final double APDRONE_AUTONOMY_UPPER_VOLTAGE = 18.0;
 	private static final double APDRONE_MAX_POWER_REFERENCE_SECONDS = 205.862266;
 	private static final double APDRONE_MAX_POWER_REFERENCE_MEAN_CURRENT_AMPS = 25.900383408869278;
+	private static final double APDRONE_MAX_POWER_REFERENCE_P95_CURRENT_AMPS = 42.06;
 	private static final double APDRONE_MAX_POWER_REFERENCE_THROTTLE = 0.9867448887828499;
+	private static final double APDRONE_MAX_POWER_REFERENCE_START_VOLTAGE = 16.648;
+	private static final double APDRONE_MAX_POWER_REFERENCE_MEAN_VOLTAGE = 14.334578187533713;
 	private static final double APDRONE_NORMAL_POWER_REFERENCE_SECONDS = 511.05425759999997;
 	private static final double APDRONE_NORMAL_POWER_REFERENCE_MEAN_CURRENT_AMPS = 9.30422120169919;
+	private static final double APDRONE_NORMAL_POWER_REFERENCE_P95_CURRENT_AMPS = 10.99;
 	private static final double APDRONE_NORMAL_POWER_REFERENCE_THROTTLE = 0.5439609800526073;
+	private static final double APDRONE_NORMAL_POWER_REFERENCE_START_VOLTAGE = 16.576;
+	private static final double APDRONE_NORMAL_POWER_REFERENCE_MEAN_VOLTAGE = 14.701756347346997;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
@@ -1005,6 +1011,48 @@ public final class OfflineFlightRecorder {
 		}
 	}
 
+	public record BatteryVoltageDropAudit(
+			double configuredResistanceOhms,
+			double normalMeanCurrentAmps,
+			double normalP95CurrentAmps,
+			double maxMeanCurrentAmps,
+			double maxP95CurrentAmps,
+			double deltaCurrentAmps,
+			double normalStartVoltage,
+			double maxStartVoltage,
+			double normalMeanVoltage,
+			double maxMeanVoltage,
+			double observedMeanVoltageDelta,
+			double normalConfiguredSagAtMeanCurrent,
+			double maxConfiguredSagAtMeanCurrent,
+			double configuredSagDelta,
+			double normalConfiguredSagAtP95Current,
+			double maxConfiguredSagAtP95Current,
+			double inferredResistanceProxyOhms,
+			double configuredOverInferredProxy,
+			double observedMeanVoltageDeltaOverConfiguredSagDelta,
+			double normalStartDropResistanceProxyOhms,
+			double maxStartDropResistanceProxyOhms,
+			double normalConfiguredOverStartDropProxy,
+			double maxConfiguredOverStartDropProxy
+	) {
+		public double configuredResistanceMilliohms() {
+			return configuredResistanceOhms * 1000.0;
+		}
+
+		public double inferredResistanceProxyMilliohms() {
+			return inferredResistanceProxyOhms * 1000.0;
+		}
+
+		public double normalStartDropResistanceProxyMilliohms() {
+			return normalStartDropResistanceProxyOhms * 1000.0;
+		}
+
+		public double maxStartDropResistanceProxyMilliohms() {
+			return maxStartDropResistanceProxyOhms * 1000.0;
+		}
+	}
+
 	private record StaticBatteryLoad(
 			double throttleCommand,
 			double meanCurrentAmps,
@@ -1207,6 +1255,7 @@ public final class OfflineFlightRecorder {
 		);
 		if ("apdrone".equals(presetName)) {
 			BatteryAutonomyEstimate[] autonomy = apDroneBatteryAutonomyEstimates(preset);
+			BatteryVoltageDropAudit voltageDrop = apDroneBatteryVoltageDropAudit(preset);
 			System.out.printf(
 					Locale.ROOT,
 					"APDrone battery-autonomy audit: %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA equiv_direct %.3f match %.1fA log/direct %.1fx; %s sim %.1fs/%.1fs ref %.1fs ratio %.2f current %.1fA/%.1fA ref %.1fA equiv_direct %.3f match %.1fA log/direct %.1fx%n",
@@ -1232,6 +1281,20 @@ public final class OfflineFlightRecorder {
 					autonomy[1].currentMatchedDirectThrottleCommand(),
 					autonomy[1].currentMatchedMeanCurrentAmps(),
 					autonomy[1].referenceThrottleToCurrentMatchedDirectThrottleRatio()
+			);
+			System.out.printf(
+					Locale.ROOT,
+					"APDrone ESR voltage-drop audit: config %.1fmOhm cross_proxy %.1fmOhm cfg/proxy %.2f sag_delta %.3fV obs_delta %.3fV obs/config %.2f; start_proxy normal %.1fmOhm max %.1fmOhm; p95_sag normal %.3fV max %.3fV%n",
+					voltageDrop.configuredResistanceMilliohms(),
+					voltageDrop.inferredResistanceProxyMilliohms(),
+					voltageDrop.configuredOverInferredProxy(),
+					voltageDrop.configuredSagDelta(),
+					voltageDrop.observedMeanVoltageDelta(),
+					voltageDrop.observedMeanVoltageDeltaOverConfiguredSagDelta(),
+					voltageDrop.normalStartDropResistanceProxyMilliohms(),
+					voltageDrop.maxStartDropResistanceProxyMilliohms(),
+					voltageDrop.normalConfiguredSagAtP95Current(),
+					voltageDrop.maxConfiguredSagAtP95Current()
 			);
 		}
 	}
@@ -1285,6 +1348,58 @@ public final class OfflineFlightRecorder {
 						BATTERY_AUTONOMY_MAX_SECONDS
 				)
 		};
+	}
+
+	public static BatteryVoltageDropAudit apDroneBatteryVoltageDropAudit() {
+		return apDroneBatteryVoltageDropAudit(DroneConfig.apDrone());
+	}
+
+	public static BatteryVoltageDropAudit apDroneBatteryVoltageDropAudit(DroneConfig config) {
+		double configuredResistance = config.batteryInternalResistanceOhms();
+		double normalMeanCurrent = APDRONE_NORMAL_POWER_REFERENCE_MEAN_CURRENT_AMPS;
+		double maxMeanCurrent = APDRONE_MAX_POWER_REFERENCE_MEAN_CURRENT_AMPS;
+		double deltaCurrent = maxMeanCurrent - normalMeanCurrent;
+		double normalMeanVoltage = APDRONE_NORMAL_POWER_REFERENCE_MEAN_VOLTAGE;
+		double maxMeanVoltage = APDRONE_MAX_POWER_REFERENCE_MEAN_VOLTAGE;
+		double observedMeanVoltageDelta = normalMeanVoltage - maxMeanVoltage;
+		double normalConfiguredSagAtMeanCurrent = normalMeanCurrent * configuredResistance;
+		double maxConfiguredSagAtMeanCurrent = maxMeanCurrent * configuredResistance;
+		double configuredSagDelta = maxConfiguredSagAtMeanCurrent - normalConfiguredSagAtMeanCurrent;
+		double normalConfiguredSagAtP95Current =
+				APDRONE_NORMAL_POWER_REFERENCE_P95_CURRENT_AMPS * configuredResistance;
+		double maxConfiguredSagAtP95Current =
+				APDRONE_MAX_POWER_REFERENCE_P95_CURRENT_AMPS * configuredResistance;
+		double inferredResistanceProxy = observedMeanVoltageDelta / Math.max(1.0e-9, deltaCurrent);
+		double normalStartDropResistanceProxy = (config.nominalBatteryVoltage()
+				- APDRONE_NORMAL_POWER_REFERENCE_START_VOLTAGE) / Math.max(1.0e-9, normalMeanCurrent);
+		double maxStartDropResistanceProxy = (config.nominalBatteryVoltage()
+				- APDRONE_MAX_POWER_REFERENCE_START_VOLTAGE) / Math.max(1.0e-9, maxMeanCurrent);
+
+		return new BatteryVoltageDropAudit(
+				configuredResistance,
+				normalMeanCurrent,
+				APDRONE_NORMAL_POWER_REFERENCE_P95_CURRENT_AMPS,
+				maxMeanCurrent,
+				APDRONE_MAX_POWER_REFERENCE_P95_CURRENT_AMPS,
+				deltaCurrent,
+				APDRONE_NORMAL_POWER_REFERENCE_START_VOLTAGE,
+				APDRONE_MAX_POWER_REFERENCE_START_VOLTAGE,
+				normalMeanVoltage,
+				maxMeanVoltage,
+				observedMeanVoltageDelta,
+				normalConfiguredSagAtMeanCurrent,
+				maxConfiguredSagAtMeanCurrent,
+				configuredSagDelta,
+				normalConfiguredSagAtP95Current,
+				maxConfiguredSagAtP95Current,
+				inferredResistanceProxy,
+				configuredResistance / Math.max(1.0e-9, inferredResistanceProxy),
+				observedMeanVoltageDelta / Math.max(1.0e-9, configuredSagDelta),
+				normalStartDropResistanceProxy,
+				maxStartDropResistanceProxy,
+				configuredResistance / Math.max(1.0e-9, normalStartDropResistanceProxy),
+				configuredResistance / Math.max(1.0e-9, maxStartDropResistanceProxy)
+		);
 	}
 
 	public static BatteryAutonomyEstimate estimateStaticBatteryAutonomy(

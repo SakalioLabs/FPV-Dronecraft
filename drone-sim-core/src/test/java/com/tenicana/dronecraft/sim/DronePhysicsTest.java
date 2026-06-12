@@ -10527,6 +10527,8 @@ class DronePhysicsTest {
 		RotorSpec rotor = preset.rotors().get(0);
 		OfflineFlightRecorder.BatteryAutonomyEstimate[] autonomy =
 				OfflineFlightRecorder.apDroneBatteryAutonomyEstimates(preset);
+		OfflineFlightRecorder.BatteryVoltageDropAudit voltageDrop =
+				OfflineFlightRecorder.apDroneBatteryVoltageDropAudit(preset);
 
 		assertEquals(4, preset.rotors().size());
 		assertTrue(Files.exists(output));
@@ -10576,6 +10578,29 @@ class DronePhysicsTest {
 		assertTrue(autonomy[0].consumedAmpHours() < 1.7);
 		assertTrue(autonomy[1].consumedAmpHours() > 1.0);
 		assertTrue(autonomy[1].consumedAmpHours() < 1.7);
+		assertEquals(0.016, voltageDrop.configuredResistanceOhms(), 1.0e-12);
+		assertEquals(9.30422120169919, voltageDrop.normalMeanCurrentAmps(), 1.0e-12);
+		assertEquals(10.99, voltageDrop.normalP95CurrentAmps(), 1.0e-12);
+		assertEquals(25.900383408869278, voltageDrop.maxMeanCurrentAmps(), 1.0e-12);
+		assertEquals(42.06, voltageDrop.maxP95CurrentAmps(), 1.0e-12);
+		assertEquals(16.59616220717009, voltageDrop.deltaCurrentAmps(), 1.0e-12);
+		assertEquals(16.576, voltageDrop.normalStartVoltage(), 1.0e-12);
+		assertEquals(16.648, voltageDrop.maxStartVoltage(), 1.0e-12);
+		assertEquals(14.701756347346997, voltageDrop.normalMeanVoltage(), 1.0e-12);
+		assertEquals(14.334578187533713, voltageDrop.maxMeanVoltage(), 1.0e-12);
+		assertEquals(0.3671781598132835, voltageDrop.observedMeanVoltageDelta(), 1.0e-12);
+		assertEquals(0.14886753922718707, voltageDrop.normalConfiguredSagAtMeanCurrent(), 1.0e-12);
+		assertEquals(0.41440613454190844, voltageDrop.maxConfiguredSagAtMeanCurrent(), 1.0e-12);
+		assertEquals(0.2655385953147214, voltageDrop.configuredSagDelta(), 1.0e-12);
+		assertEquals(0.17584, voltageDrop.normalConfiguredSagAtP95Current(), 1.0e-12);
+		assertEquals(0.67296, voltageDrop.maxConfiguredSagAtP95Current(), 1.0e-12);
+		assertEquals(0.02212428121813912, voltageDrop.inferredResistanceProxyOhms(), 1.0e-12);
+		assertEquals(0.7231873362232449, voltageDrop.configuredOverInferredProxy(), 1.0e-12);
+		assertEquals(1.3827675761336953, voltageDrop.observedMeanVoltageDeltaOverConfiguredSagDelta(), 1.0e-12);
+		assertEquals(0.024075093997022772, voltageDrop.normalStartDropResistanceProxyOhms(), 1.0e-12);
+		assertEquals(0.00586863899273207, voltageDrop.maxStartDropResistanceProxyOhms(), 1.0e-12);
+		assertEquals(0.6645872286927987, voltageDrop.normalConfiguredOverStartDropProxy(), 1.0e-12);
+		assertEquals(2.726356148302011, voltageDrop.maxConfiguredOverStartDropProxy(), 1.0e-12);
 	}
 
 	@Test
