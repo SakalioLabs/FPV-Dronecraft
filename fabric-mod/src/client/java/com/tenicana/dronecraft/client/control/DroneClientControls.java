@@ -43,7 +43,9 @@ public final class DroneClientControls {
 	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_E);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
-	private static final float GAMEPAD_COMMAND_DEADBAND = 0.12f;
+	private static final float GAMEPAD_COMMAND_DEADBAND = 0.14f;
+	private static final float GAMEPAD_COMMAND_EXPO = 0.65f;
+	private static final float GAMEPAD_COMMAND_SCALE = 0.72f;
 
 	private static float throttle;
 	private static boolean armed;
@@ -388,7 +390,14 @@ public final class DroneClientControls {
 	}
 
 	private static float commandAxis(float value) {
-		return deadband(value, Math.max(GAMEPAD_COMMAND_DEADBAND, config.gamepadDeadband()));
+		float centered = deadband(value, Math.max(GAMEPAD_COMMAND_DEADBAND, config.gamepadDeadband()));
+		float magnitude = Math.abs(centered);
+		if (magnitude <= 0.0f) {
+			return 0.0f;
+		}
+		float cubic = magnitude * magnitude * magnitude;
+		float curved = (1.0f - GAMEPAD_COMMAND_EXPO) * magnitude + GAMEPAD_COMMAND_EXPO * cubic;
+		return Math.copySign(curved * GAMEPAD_COMMAND_SCALE, centered);
 	}
 
 	private record ControlInput(float throttle, float pitch, float roll, float yaw, InputSource source) {

@@ -21,6 +21,23 @@ public final class DroneClientConfig {
 	private static final String FILE_NAME = "fpvdrone-client.json";
 	private static final float MIN_THROTTLE_CALIBRATION_SPAN = 0.05f;
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
+	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.10f;
+	private static final float DEFAULT_CAMERA_TILT_DEGREES = 18.0f;
+	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 0.42f;
+	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.24f;
+	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.45f;
+	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.25f;
+	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.025f;
+	private static final float DEFAULT_CAMERA_FOV_DEGREES = 115.0f;
+	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 3.0f;
+	private static final float LEGACY_CAMERA_TILT_DEGREES = 25.0f;
+	private static final float LEGACY_CAMERA_FORWARD_OFFSET_METERS = 0.16f;
+	private static final float LEGACY_CAMERA_UP_OFFSET_METERS = 0.16f;
+	private static final float LEGACY_CAMERA_VIBRATION_SCALE = 1.0f;
+	private static final float LEGACY_CAMERA_ROLLING_SHUTTER_SCALE = 0.55f;
+	private static final float LEGACY_CAMERA_LATENCY_SECONDS = 0.035f;
+	private static final float LEGACY_CAMERA_FOV_DEGREES = 105.0f;
+	private static final float LEGACY_CAMERA_DYNAMIC_FOV_DEGREES = 6.0f;
 
 	private boolean gamepadEnabled = true;
 	private int rollAxis = 2;
@@ -31,21 +48,21 @@ public final class DroneClientConfig {
 	private boolean pitchInverted = true;
 	private boolean yawInverted;
 	private boolean throttleInverted = true;
-	private float gamepadDeadband = 0.10f;
+	private float gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
 	private int armButton = -1;
 	private int disarmButton = -1;
 	private int throttleCalibrateButton = -1;
 	private boolean throttleCalibrated = true;
 	private float throttleCalibrationMin = 0.0f;
 	private float throttleCalibrationMax = 1.0f;
-	private float cameraTiltDegrees = 25.0f;
-	private float cameraForwardOffsetMeters = 0.16f;
-	private float cameraUpOffsetMeters = 0.16f;
-	private float cameraVibrationScale = 1.0f;
-	private float cameraRollingShutterScale = 0.55f;
-	private float cameraLatencySeconds = 0.035f;
-	private float cameraFovDegrees = 105.0f;
-	private float cameraDynamicFovDegrees = 6.0f;
+	private float cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
+	private float cameraForwardOffsetMeters = DEFAULT_CAMERA_FORWARD_OFFSET_METERS;
+	private float cameraUpOffsetMeters = DEFAULT_CAMERA_UP_OFFSET_METERS;
+	private float cameraVibrationScale = DEFAULT_CAMERA_VIBRATION_SCALE;
+	private float cameraRollingShutterScale = DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE;
+	private float cameraLatencySeconds = DEFAULT_CAMERA_LATENCY_SECONDS;
+	private float cameraFovDegrees = DEFAULT_CAMERA_FOV_DEGREES;
+	private float cameraDynamicFovDegrees = DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES;
 
 	public static DroneClientConfig defaults() {
 		return new DroneClientConfig().normalized();
@@ -314,33 +331,34 @@ public final class DroneClientConfig {
 			throttleCalibrated = false;
 		}
 		if (!Float.isFinite(gamepadDeadband)) {
-			gamepadDeadband = 0.10f;
+			gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
 		}
 		gamepadDeadband = Math.max(0.0f, Math.min(0.4f, gamepadDeadband));
 		if (!Float.isFinite(cameraTiltDegrees)) {
-			cameraTiltDegrees = 25.0f;
+			cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
 		}
 		if (!Float.isFinite(cameraForwardOffsetMeters)) {
-			cameraForwardOffsetMeters = 0.16f;
+			cameraForwardOffsetMeters = DEFAULT_CAMERA_FORWARD_OFFSET_METERS;
 		}
 		if (!Float.isFinite(cameraUpOffsetMeters)) {
-			cameraUpOffsetMeters = 0.16f;
+			cameraUpOffsetMeters = DEFAULT_CAMERA_UP_OFFSET_METERS;
 		}
 		if (!Float.isFinite(cameraVibrationScale)) {
-			cameraVibrationScale = 1.0f;
+			cameraVibrationScale = DEFAULT_CAMERA_VIBRATION_SCALE;
 		}
 		if (!Float.isFinite(cameraRollingShutterScale)) {
-			cameraRollingShutterScale = 0.55f;
+			cameraRollingShutterScale = DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE;
 		}
 		if (!Float.isFinite(cameraLatencySeconds)) {
-			cameraLatencySeconds = 0.035f;
+			cameraLatencySeconds = DEFAULT_CAMERA_LATENCY_SECONDS;
 		}
 		if (!Float.isFinite(cameraFovDegrees)) {
-			cameraFovDegrees = 105.0f;
+			cameraFovDegrees = DEFAULT_CAMERA_FOV_DEGREES;
 		}
 		if (!Float.isFinite(cameraDynamicFovDegrees)) {
-			cameraDynamicFovDegrees = 6.0f;
+			cameraDynamicFovDegrees = DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES;
 		}
+		migrateLegacyBlockedFpvCameraDefaults();
 		cameraTiltDegrees = Math.max(-15.0f, Math.min(70.0f, cameraTiltDegrees));
 		cameraForwardOffsetMeters = Math.max(-0.20f, Math.min(0.80f, cameraForwardOffsetMeters));
 		cameraUpOffsetMeters = Math.max(-0.20f, Math.min(0.60f, cameraUpOffsetMeters));
@@ -366,9 +384,35 @@ public final class DroneClientConfig {
 			yawAxis = 0;
 			throttleAxis = 1;
 			if (gamepadDeadband < 0.10f) {
-				gamepadDeadband = 0.10f;
+				gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
 			}
 		}
+	}
+
+	private void migrateLegacyBlockedFpvCameraDefaults() {
+		boolean legacyCamera = nearly(cameraTiltDegrees, LEGACY_CAMERA_TILT_DEGREES)
+				&& nearly(cameraForwardOffsetMeters, LEGACY_CAMERA_FORWARD_OFFSET_METERS)
+				&& nearly(cameraUpOffsetMeters, LEGACY_CAMERA_UP_OFFSET_METERS)
+				&& nearly(cameraVibrationScale, LEGACY_CAMERA_VIBRATION_SCALE)
+				&& nearly(cameraRollingShutterScale, LEGACY_CAMERA_ROLLING_SHUTTER_SCALE)
+				&& nearly(cameraLatencySeconds, LEGACY_CAMERA_LATENCY_SECONDS)
+				&& nearly(cameraFovDegrees, LEGACY_CAMERA_FOV_DEGREES)
+				&& nearly(cameraDynamicFovDegrees, LEGACY_CAMERA_DYNAMIC_FOV_DEGREES);
+		if (!legacyCamera) {
+			return;
+		}
+		cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
+		cameraForwardOffsetMeters = DEFAULT_CAMERA_FORWARD_OFFSET_METERS;
+		cameraUpOffsetMeters = DEFAULT_CAMERA_UP_OFFSET_METERS;
+		cameraVibrationScale = DEFAULT_CAMERA_VIBRATION_SCALE;
+		cameraRollingShutterScale = DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE;
+		cameraLatencySeconds = DEFAULT_CAMERA_LATENCY_SECONDS;
+		cameraFovDegrees = DEFAULT_CAMERA_FOV_DEGREES;
+		cameraDynamicFovDegrees = DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES;
+	}
+
+	private static boolean nearly(float value, float expected) {
+		return Math.abs(value - expected) <= 1.0e-4f;
 	}
 
 	private static int sanitizeAxis(int axis) {

@@ -123,7 +123,7 @@ public final class DroneHud {
 		int columnWidth = Math.max(68, width / 5);
 		drawMetric(graphics, font, x + 8, y + 7, "hud.fpvdrone.metric.altitude", oneDecimal(telemetry.altitude()), TEXT);
 		drawMetric(graphics, font, x + columnWidth + 8, y + 7, "hud.fpvdrone.metric.speed", oneDecimal(telemetry.speed()), TEXT);
-		drawMetric(graphics, font, x + columnWidth * 2 + 8, y + 7, "hud.fpvdrone.metric.rpm", integer(telemetry.rpm()), telemetry.rpm() > 1000.0f ? PRIMARY : MUTED);
+		drawMetric(graphics, font, x + columnWidth * 2 + 8, y + 7, "hud.fpvdrone.metric.rpm", compactRpm(telemetry), telemetry.armed() && telemetry.rpm() > 1000.0f ? PRIMARY : MUTED);
 		drawMetric(graphics, font, x + columnWidth * 3 + 8, y + 7, "hud.fpvdrone.metric.temp", integer(Math.max(telemetry.motorTemp(), telemetry.escTemp())), tempColor(telemetry));
 		drawMetric(graphics, font, x + columnWidth * 4 + 8, y + 7, "hud.fpvdrone.metric.health", percent(Math.min(telemetry.frameHealth(), telemetry.rotorHealth())), healthColor(telemetry));
 
@@ -225,6 +225,17 @@ public final class DroneHud {
 
 	private static String integer(float value) {
 		return String.format(Locale.ROOT, "%.0f", value);
+	}
+
+	private static String compactRpm(Telemetry telemetry) {
+		if (!telemetry.armed()) {
+			return "0";
+		}
+		float rpm = Math.max(0.0f, telemetry.rpm());
+		if (rpm >= 1000.0f) {
+			return String.format(Locale.ROOT, "%.1fk", rpm / 1000.0f);
+		}
+		return integer(rpm);
 	}
 
 	private record Telemetry(

@@ -19,6 +19,29 @@ import org.junit.jupiter.api.io.TempDir;
 
 class DronePhysicsTest {
 	@Test
+	void racingQuadDefaultsFavorPlayableSmallStickControl() {
+		DroneConfig config = DroneConfig.racingQuad();
+		double pitchCenterSensitivity = Math.toDegrees(config.maxPitchRateRadiansPerSecond())
+				* (1.0 - config.rateExpo().x())
+				* (1.0 - config.rateSuper().x());
+		double yawCenterSensitivity = Math.toDegrees(config.maxYawRateRadiansPerSecond())
+				* (1.0 - config.rateExpo().y())
+				* (1.0 - config.rateSuper().y());
+		double rollCenterSensitivity = Math.toDegrees(config.maxRollRateRadiansPerSecond())
+				* (1.0 - config.rateExpo().z())
+				* (1.0 - config.rateSuper().z());
+
+		assertEquals(480.0, Math.toDegrees(config.maxPitchRateRadiansPerSecond()), 1.0e-12);
+		assertEquals(360.0, Math.toDegrees(config.maxYawRateRadiansPerSecond()), 1.0e-12);
+		assertEquals(480.0, Math.toDegrees(config.maxRollRateRadiansPerSecond()), 1.0e-12);
+		assertTrue(pitchCenterSensitivity <= 165.0);
+		assertTrue(yawCenterSensitivity <= 170.0);
+		assertTrue(rollCenterSensitivity <= 165.0);
+		assertEquals(Math.toRadians(38.0), config.selfLevelMaxAngleRadians(), 1.0e-12);
+		assertEquals(0.045, config.rcCommandSmoothingTimeConstantSeconds(), 1.0e-12);
+	}
+
+	@Test
 	void hoverThrottleHoldsAltitudeApproximately() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -591,7 +614,7 @@ class DronePhysicsTest {
 		assertTrue(apDrone.rotors().get(0).positionBodyMeters().length() < racing.rotors().get(0).positionBodyMeters().length());
 		assertTrue(apDrone.rotors().get(0).radiusMeters() > racing.rotors().get(0).radiusMeters());
 		assertTrue(apDrone.maxRollRateRadiansPerSecond() > cinewhoop.maxRollRateRadiansPerSecond());
-		assertTrue(apDrone.maxRollRateRadiansPerSecond() < racing.maxRollRateRadiansPerSecond());
+		assertTrue(apDrone.maxRollRateRadiansPerSecond() > racing.maxRollRateRadiansPerSecond());
 		assertEquals(EscCommandProtocol.DSHOT600, apDrone.escCommandProtocol());
 		assertTrue(cinewhoop.maxRollRateRadiansPerSecond() < racing.maxRollRateRadiansPerSecond());
 		assertTrue(cinewhoop.bodyDragCoefficients().z() > racing.bodyDragCoefficients().z());
@@ -3957,13 +3980,14 @@ class DronePhysicsTest {
 	@Test
 	void batteryCurrentTracksPerMotorLoadDuringMixerWork() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withRateProfile(Vec3.ZERO, Vec3.ZERO)
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
 				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
 				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
 		DronePhysics hover = new DronePhysics(config);
 		DronePhysics roll = new DronePhysics(config);
 		DroneInput hoverInput = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
-		DroneInput rollInput = new DroneInput(config.hoverThrottle(), 0.0, 0.85, 0.0, true);
+		DroneInput rollInput = new DroneInput(config.hoverThrottle(), 0.0, 1.0, 0.0, true);
 
 		for (int i = 0; i < 160; i++) {
 			hover.step(hoverInput, 0.005);
@@ -4937,16 +4961,21 @@ class DronePhysicsTest {
 		halfStick.step(new DroneInput(0.5, 0.0, 0.5, 0.0, true), 0.005);
 		threeQuarterStick.step(new DroneInput(0.5, 0.0, 0.75, 0.0, true), 0.005);
 
+		double halfStickRateDegrees = shapedRateDegreesPerSecond(0.5, preset.rateExpo().z(), preset.rateSuper().z(), preset.maxRollRateRadiansPerSecond());
+		double threeQuarterStickRateDegrees = shapedRateDegreesPerSecond(0.75, preset.rateExpo().z(), preset.rateSuper().z(), preset.maxRollRateRadiansPerSecond());
+
 		assertEquals(
-				206.40234375,
+				halfStickRateDegrees,
 				Math.toDegrees(halfStick.state().targetRatesBodyRadiansPerSecond().z()),
 				1.0e-9
 		);
 		assertEquals(
-				391.00462646484374,
+				threeQuarterStickRateDegrees,
 				Math.toDegrees(threeQuarterStick.state().targetRatesBodyRadiansPerSecond().z()),
 				1.0e-9
 		);
+		assertTrue(halfStickRateDegrees < 125.0);
+		assertTrue(threeQuarterStickRateDegrees < 270.0);
 	}
 
 	@Test
@@ -11883,6 +11912,20 @@ class DronePhysicsTest {
 				.withControlReceiver(0.0, 0.0)
 				.withEscCommandSignal(0.0, 0.0)
 				.withRateSuper(Vec3.ZERO);
+	}
+
+	private static double shapedRateDegreesPerSecond(double input, double expo, double superRate, double maxRateRadiansPerSecond) {
+		double clamped = Math.max(-1.0, Math.min(1.0, input));
+		double expoClamped = Math.max(0.0, Math.min(1.0, expo));
+		double superRateClamped = Math.max(0.0, Math.min(0.95, superRate));
+		double centerSensitivityFraction = (1.0 - expoClamped) * (1.0 - superRateClamped);
+		double commandAbs = Math.abs(clamped);
+		double commandSquared = clamped * clamped;
+		double commandFifth = commandSquared * commandSquared * clamped;
+		double expoCurve = commandAbs * (commandFifth * expoClamped + clamped * (1.0 - expoClamped));
+		double stickMovementFraction = Math.max(0.0, 1.0 - centerSensitivityFraction);
+		double shaped = Math.max(-1.0, Math.min(1.0, clamped * centerSensitivityFraction + stickMovementFraction * expoCurve));
+		return Math.toDegrees(shaped * maxRateRadiansPerSecond);
 	}
 
 	private static void assertVecClose(Vec3 expected, Vec3 actual, double tolerance) {
