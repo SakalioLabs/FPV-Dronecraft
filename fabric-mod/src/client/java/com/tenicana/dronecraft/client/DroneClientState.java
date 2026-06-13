@@ -20,9 +20,10 @@ public final class DroneClientState {
 	private static boolean controlActive;
 	private static boolean physicalControllerPresent;
 	private static boolean virtualControllerEnabled;
+	private static boolean fpvViewEnabled;
 	private static boolean throttleCalibrated = true;
 	private static boolean throttleCalibrationActive;
-	private static FlightMode flightMode = FlightMode.ACRO;
+	private static FlightMode flightMode = FlightMode.HORIZON;
 	private static InputSource inputSource = InputSource.KEYBOARD;
 
 	private DroneClientState() {
@@ -50,7 +51,7 @@ public final class DroneClientState {
 		DroneClientState.controlActive = controlActive;
 		DroneClientState.physicalControllerPresent = physicalControllerPresent;
 		DroneClientState.virtualControllerEnabled = virtualControllerEnabled;
-		DroneClientState.flightMode = flightMode == null ? FlightMode.ACRO : flightMode;
+		DroneClientState.flightMode = flightMode == null ? FlightMode.HORIZON : flightMode;
 		DroneClientState.inputSource = inputSource;
 		DroneClientState.throttleCalibrated = throttleCalibrated;
 		DroneClientState.throttleCalibrationActive = throttleCalibrationActive;
@@ -61,6 +62,7 @@ public final class DroneClientState {
 			controlledDrone = null;
 			controlActive = false;
 			physicalControllerPresent = false;
+			fpvViewEnabled = false;
 			return;
 		}
 
@@ -80,6 +82,9 @@ public final class DroneClientState {
 		controlledDrone = ownedDrones.stream()
 				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(client.player)))
 				.orElse(null);
+		if (controlledDrone == null) {
+			fpvViewEnabled = false;
+		}
 	}
 
 	public static DroneEntity controlledDrone() {
@@ -98,6 +103,14 @@ public final class DroneClientState {
 		return virtualControllerEnabled;
 	}
 
+	public static boolean isFpvViewEnabled() {
+		return fpvViewEnabled;
+	}
+
+	public static void setFpvViewEnabled(boolean enabled) {
+		fpvViewEnabled = enabled;
+	}
+
 	public static boolean throttleCalibrated() {
 		return throttleCalibrated;
 	}
@@ -107,7 +120,7 @@ public final class DroneClientState {
 	}
 
 	public static boolean isFpvActive() {
-		return controlActive && armed && controlledDrone != null && controlledDrone.isAlive();
+		return fpvViewEnabled && controlledDrone != null && controlledDrone.isAlive();
 	}
 
 	public static float throttle() {

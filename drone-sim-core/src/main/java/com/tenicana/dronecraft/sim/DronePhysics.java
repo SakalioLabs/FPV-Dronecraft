@@ -583,6 +583,25 @@ public final class DronePhysics {
 		return state;
 	}
 
+	public void sleepAtRest(Vec3 positionMeters, DroneInput input) {
+		Vec3 safePosition = positionMeters == null ? state.positionMeters() : positionMeters;
+		state.setPositionMeters(safePosition);
+		state.setVelocityMetersPerSecond(Vec3.ZERO);
+		state.setLinearAccelerationWorldMetersPerSecondSquared(Vec3.ZERO);
+		state.setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		state.setAngularAccelerationBodyRadiansPerSecondSquared(Vec3.ZERO);
+		state.setGyroAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
+		state.setProcessedControlInput(input == null
+				? DroneInput.idle()
+				: new DroneInput(0.0, 0.0, 0.0, 0.0, normalized.armed(), normalized.linkActive(), normalized.flightMode()));
+		state.setContactTelemetry(0.0, 0.0, 0.0);
+		state.resetMotors();
+		resetControlLoops();
+		resetEscSignalModel();
+		resetEscRpmTelemetryModel();
+	}
+
 	public void restoreBatteryTransientState(
 			double slowPolarizationVoltage,
 			double temperatureCelsius,

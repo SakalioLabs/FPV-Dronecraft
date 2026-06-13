@@ -65,6 +65,7 @@ public class DroneEntity extends PathfinderMob {
 	private static final double PHYSICS_DT = 0.005;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final int PROP_STRIKE_COOLDOWN_TICKS = 4;
+	private static final double RESTING_GROUND_CLEARANCE_METERS = 0.055;
 	private static final double MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND = 2.0;
 	private static final double MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND = 1.8;
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -334,6 +335,7 @@ public class DroneEntity extends PathfinderMob {
 	public DroneEntity(EntityType<? extends DroneEntity> entityType, Level level) {
 		super(entityType, level);
 		setNoGravity(true);
+		setNoAi(true);
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {
@@ -561,6 +563,8 @@ public class DroneEntity extends PathfinderMob {
 	public void tick() {
 		super.tick();
 		setNoGravity(true);
+		setNoAi(true);
+		setTarget(null);
 
 		if (!level().isClientSide()) {
 			if (!simulationInitialized) {
@@ -603,13 +607,12 @@ public class DroneEntity extends PathfinderMob {
 			if (!airworthy && !bypassPhysics) {
 				input = new DroneInput(input.throttle(), input.pitch(), input.roll(), input.yaw(), false, input.linkActive(), input.flightMode());
 			}
-			input = ensureDebugActive(input);
 			DroneInput effectiveInput = input;
 			String reason = activeOwner == null
 					? "no-owner"
 					: (!input.linkActive() ? "link-lost" : (bypassPhysics ? "direct-disabled" : "physics-active"));
 
-			if (bypassPhysics && hasDebugControlInput && input.linkActive()) {
+			if (bypassPhysics && hasDebugControlInput && input.linkActive() && input.armed()) {
 				DroneInput debugInput = input;
 				effectiveInput = debugInput;
 				applyDebugFlight(debugInput);
@@ -629,11 +632,16 @@ public class DroneEntity extends PathfinderMob {
 						? "no-owner"
 						: (!input.linkActive() ? "link-lost" : (bypassPhysics ? reason : "physics-active"));
 				lastEnvironment = sampleEnvironment();
-				for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
-					physics.step(input, PHYSICS_DT, lastEnvironment);
+				if (shouldSleepOnGround(input)) {
+					sleepOnGround(input);
+					reason = "ground-idle";
+				} else {
+					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
+						physics.step(input, PHYSICS_DT, lastEnvironment);
+					}
+					applyPhysicsMovement(input);
+					samplePropStrikes();
 				}
-				applyPhysicsMovement();
-				samplePropStrikes();
 				updateSyncedFlightState(input);
 				recordBlackbox(input);
 				handleCompletedDiagnostic();
@@ -797,28 +805,6 @@ public class DroneEntity extends PathfinderMob {
 				|| Math.abs(input.pitch()) >= DEBUG_AXIS_MOTION_THRESHOLD
 				|| Math.abs(input.roll()) >= DEBUG_AXIS_MOTION_THRESHOLD
 				|| Math.abs(input.yaw()) >= DEBUG_AXIS_MOTION_THRESHOLD;
-	}
-
-	private DroneInput ensureDebugActive(DroneInput input) {
-		if (input == null || !input.linkActive() || input.armed()) {
-			return input;
-		}
-		boolean hasControlIntent = input.throttle() >= DEBUG_ARM_THRUST_THRESHOLD
-				|| Math.abs(input.pitch()) >= DEBUG_AXIS_MOTION_THRESHOLD
-				|| Math.abs(input.roll()) >= DEBUG_AXIS_MOTION_THRESHOLD
-				|| Math.abs(input.yaw()) >= DEBUG_AXIS_MOTION_THRESHOLD;
-		if (!hasControlIntent) {
-			return new DroneInput(0.0f, 0.0f, 0.0f, 0.0f, false, input.linkActive(), input.flightMode());
-		}
-		return new DroneInput(
-				input.throttle(),
-				input.pitch(),
-				input.roll(),
-				input.yaw(),
-				true,
-				input.linkActive(),
-				input.flightMode()
-		);
 	}
 
 	private float applyDebugAxisDeadband(float value) {
@@ -1349,7 +1335,39 @@ public class DroneEntity extends PathfinderMob {
 		return MathUtil.clamp(0.30 * proximity * proximity, 0.0, 0.45);
 	}
 
-	private void applyPhysicsMovement() {
+	private boolean shouldSleepOnGround(DroneInput input) {
+		if (input == null || !wantsGroundRest(input)) {
+			return false;
+		}
+		if (onGround() || verticalCollision) {
+			return true;
+		}
+		double clearance = groundClearanceMetersAt(new Vec3(getX(), getY(), getZ()));
+		return Double.isFinite(clearance)
+				&& clearance <= RESTING_GROUND_CLEARANCE_METERS
+				&& physics.state().velocityMetersPerSecond().y() <= 0.05;
+	}
+
+	private boolean wantsGroundRest(DroneInput input) {
+		if (input == null) {
+			return true;
+		}
+		if (!input.armed()) {
+			return true;
+		}
+		double throttleWake = Math.max(0.08, physics.config().hoverThrottle() * 0.45);
+		return input.throttle() <= throttleWake
+				&& Math.abs(input.pitch()) < 0.05
+				&& Math.abs(input.roll()) < 0.05
+				&& Math.abs(input.yaw()) < 0.05;
+	}
+
+	private void sleepOnGround(DroneInput input) {
+		physics.sleepAtRest(new Vec3(getX(), getY(), getZ()), input);
+		setDeltaMovement(0.0, 0.0, 0.0);
+	}
+
+	private void applyPhysicsMovement(DroneInput input) {
 		Vec3 targetPosition = physics.state().positionMeters();
 		Vec3 velocityBeforeCollision = physics.state().velocityMetersPerSecond();
 		double startX = getX();
@@ -1369,6 +1387,10 @@ public class DroneEntity extends PathfinderMob {
 		if (collided) {
 			Vec3 attemptedDelta = new Vec3(delta.x(), delta.y(), delta.z());
 			Vec3 actualDelta = new Vec3(getX() - startX, getY() - startY, getZ() - startZ);
+			if (input != null && wantsGroundRest(input) && verticalCollision && velocityBeforeCollision.y() <= 0.0) {
+				sleepOnGround(input);
+				return;
+			}
 			ContactDynamics.Response preliminaryContact = ContactDynamics.resolve(
 					velocityBeforeCollision,
 					attemptedDelta,
@@ -1410,7 +1432,7 @@ public class DroneEntity extends PathfinderMob {
 			physics.state().setContactTelemetry(0.0, 0.0, 0.0);
 		}
 		physics.state().setVelocityMetersPerSecond(velocity);
-		setDeltaMovement(velocity.x() / 20.0, velocity.y() / 20.0, velocity.z() / 20.0);
+		setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 	}
 
 	private void updateSyncedFlightState(DroneInput input) {
@@ -1564,6 +1586,8 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(LAST_PROP_STRIKE_ROTOR, lastPropStrikeRotorIndex);
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, (float) lastPropStrikeSeverity);
 		setYRot((float) Math.toDegrees(euler.y()));
+		setYHeadRot(getYRot());
+		yBodyRot = getYRot();
 	}
 
 	private void setPerRotorFlightState(double[] motorPower, double[] motorRpm, double[] rotorThrust, double[] rotorHealth) {

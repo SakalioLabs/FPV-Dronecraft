@@ -42,6 +42,44 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void sleepAtRestZerosMotionAndMotors() {
+		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+		physics.state().setPositionMeters(new Vec3(1.0, 4.0, -2.0));
+		physics.state().setVelocityMetersPerSecond(new Vec3(2.0, -3.0, 1.0));
+		physics.state().setAngularVelocityBodyRadiansPerSecond(new Vec3(0.5, -0.3, 0.2));
+		for (int i = 0; i < 120; i++) {
+			physics.step(new DroneInput(0.65, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON), 0.005);
+		}
+		assertTrue(physics.state().averageMotorRpm() > 1000.0);
+
+		physics.sleepAtRest(new Vec3(1.0, 0.72, -2.0), new DroneInput(0.0, 0.0, 0.0, 0.0, false, true, FlightMode.HORIZON));
+
+		assertEquals(new Vec3(1.0, 0.72, -2.0), physics.state().positionMeters());
+		assertEquals(0.0, physics.state().velocityMetersPerSecond().length(), 1.0e-12);
+		assertEquals(0.0, physics.state().angularVelocityBodyRadiansPerSecond().length(), 1.0e-12);
+		assertEquals(0.0, physics.state().averageMotorRpm(), 1.0e-12);
+		assertEquals(0.0, physics.state().averageMotorPower(physics.config()), 1.0e-12);
+		assertTrue(physics.state().processedControlInput().linkActive());
+		assertTrue(!physics.state().processedControlInput().armed());
+	}
+
+	@Test
+	void playableTakeoffThrottleClimbsWithRuntimeActuators() {
+		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+		physics.state().setPositionMeters(new Vec3(0.0, 3.0, 0.0));
+		DroneInput takeoff = new DroneInput(0.55, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+
+		for (int i = 0; i < 400; i++) {
+			physics.step(takeoff, 0.005);
+		}
+
+		assertTrue(physics.state().positionMeters().y() > 8.0, () -> "position=" + physics.state().positionMeters());
+		assertTrue(physics.state().velocityMetersPerSecond().y() > 4.0, () -> "velocity=" + physics.state().velocityMetersPerSecond());
+		assertTrue(physics.state().averageMotorRpm() > 12_000.0, () -> "rpm=" + physics.state().averageMotorRpm());
+		assertTrue(physics.state().processedControlInput().armed());
+	}
+
+	@Test
 	void rotorBladeCountIsPresetSpecific() {
 		assertEquals(3, DroneConfig.racingQuad().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.apDrone().rotors().get(0).bladeCount());

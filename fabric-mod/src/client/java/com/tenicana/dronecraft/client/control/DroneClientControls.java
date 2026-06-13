@@ -32,6 +32,7 @@ public final class DroneClientControls {
 	private static final KeyMapping ARM = register("key.fpvdrone.arm", GLFW.GLFW_KEY_R);
 	private static final KeyMapping FLIGHT_MODE = register("key.fpvdrone.flight_mode", GLFW.GLFW_KEY_M);
 	private static final KeyMapping VIRTUAL_CONTROLLER = register("key.fpvdrone.virtual_controller", GLFW.GLFW_KEY_V);
+	private static final KeyMapping FPV_VIEW = register("key.fpvdrone.fpv_view", GLFW.GLFW_KEY_B);
 	private static final KeyMapping GAMEPAD_TOGGLE = register("key.fpvdrone.gamepad_toggle", GLFW.GLFW_KEY_G);
 	private static final KeyMapping CONFIG_RELOAD = register("key.fpvdrone.reload_config", GLFW.GLFW_KEY_H);
 	private static final KeyMapping CONTROLLER_SETTINGS = register("key.fpvdrone.open_controller_settings", GLFW.GLFW_KEY_I);
@@ -44,7 +45,7 @@ public final class DroneClientControls {
 
 	private static float throttle;
 	private static boolean armed;
-	private static FlightMode flightMode = FlightMode.ACRO;
+	private static FlightMode flightMode = FlightMode.HORIZON;
 	private static boolean virtualControllerEnabled;
 	private static boolean gamepadEnabled = true;
 	private static boolean throttleCalibrationActive;
@@ -53,12 +54,11 @@ public final class DroneClientControls {
 	private static boolean gamepadArmButtonDown;
 	private static boolean gamepadDisarmButtonDown;
 	private static boolean gamepadCalibrateButtonDown;
-	private static boolean autoArmSampleInitialized;
-	private static float autoArmSampleThrottle;
-	private static float autoArmSamplePitch;
-	private static float autoArmSampleRoll;
-	private static float autoArmSampleYaw;
-	private static final float AUTO_ARM_MOVEMENT_DELTA = 0.11f;
+	private static boolean stickArmGestureLatched;
+	private static int stickArmGestureTicks;
+	private static final int ARM_GESTURE_HOLD_TICKS = 7;
+	private static final float ARM_GESTURE_THROTTLE_MAX = 0.10f;
+	private static final float ARM_GESTURE_AXIS_MIN = 0.72f;
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -92,10 +92,20 @@ public final class DroneClientControls {
 				);
 			}
 
+			while (FPV_VIEW.consumeClick()) {
+				boolean fpvEnabled = !DroneClientState.isFpvViewEnabled();
+				DroneClientState.setFpvViewEnabled(fpvEnabled);
+				client.player.displayClientMessage(
+						Component.translatable(fpvEnabled ? "message.fpvdrone.fpv_view_enabled" : "message.fpvdrone.fpv_view_disabled"),
+						true
+				);
+			}
+
 			boolean gamepadActive = gamepadEnabled && gamepadInput != null;
 			boolean controlActive = hasController || (virtualControllerEnabled && hasLinkedDrone) || gamepadActive;
 			if (!controlActive) {
-				autoArmSampleInitialized = false;
+				stickArmGestureLatched = false;
+				stickArmGestureTicks = 0;
 				DroneClientState.updateControls(
 						throttle,
 						0.0f,
@@ -120,7 +130,7 @@ public final class DroneClientControls {
 
 			while (FLIGHT_MODE.consumeClick()) {
 				flightMode = flightMode.next();
-				client.player.displayClientMessage(Component.literal("Drone mode: " + flightMode.name()), true);
+				client.player.displayClientMessage(Component.translatable("message.fpvdrone.flight_mode", flightMode.name()), true);
 			}
 
 			while (GAMEPAD_TOGGLE.consumeClick()) {
@@ -153,10 +163,13 @@ public final class DroneClientControls {
 
 			if (gamepadInput != null) {
 				handleGamepadButtons(client, gamepadInput);
-				autoArmFromJoystickMovement(gamepadInput);
+				handleStickArmGesture(client, gamepadInput);
 			}
 
 			ControlInput input = gamepadInput != null ? gamepadInputAsControl(gamepadInput) : keyboardInput(client);
+			if (gamepadInput != null && isStickArmGesture(gamepadInput)) {
+				input = new ControlInput(0.0f, 0.0f, 0.0f, 0.0f, InputSource.GAMEPAD);
+			}
 			throttle = input.throttle();
 			DroneClientState.updateControls(
 					input.throttle(),
@@ -207,49 +220,31 @@ public final class DroneClientControls {
 		}
 	}
 
-	private static void autoArmFromJoystickMovement(GamepadInput input) {
-		if (armed) {
-			autoArmSampleInitialized = false;
+	private static void handleStickArmGesture(Minecraft client, GamepadInput input) {
+		boolean gesture = isStickArmGesture(input);
+		if (!gesture) {
+			stickArmGestureTicks = 0;
+			stickArmGestureLatched = false;
 			return;
 		}
-
-		if (!Float.isFinite(input.throttle()) || !Float.isFinite(input.pitch()) || !Float.isFinite(input.roll()) || !Float.isFinite(input.yaw())) {
-			autoArmSampleInitialized = false;
+		if (stickArmGestureLatched) {
 			return;
 		}
-
-		if (!autoArmSampleInitialized) {
-			autoArmSampleInitialized = true;
-			autoArmSampleThrottle = input.throttle();
-			autoArmSamplePitch = input.pitch();
-			autoArmSampleRoll = input.roll();
-			autoArmSampleYaw = input.yaw();
+		stickArmGestureTicks++;
+		if (stickArmGestureTicks < ARM_GESTURE_HOLD_TICKS) {
 			return;
 		}
-
-		float throttleDelta = Math.abs(input.throttle() - autoArmSampleThrottle);
-		float pitchDelta = Math.abs(input.pitch() - autoArmSamplePitch);
-		float rollDelta = Math.abs(input.roll() - autoArmSampleRoll);
-		float yawDelta = Math.abs(input.yaw() - autoArmSampleYaw);
-		if (throttleDelta > AUTO_ARM_MOVEMENT_DELTA
-				|| pitchDelta > AUTO_ARM_MOVEMENT_DELTA
-				|| rollDelta > AUTO_ARM_MOVEMENT_DELTA
-				|| yawDelta > AUTO_ARM_MOVEMENT_DELTA) {
-			armed = true;
-			clientMessageAutoArmed();
-		}
-
-		autoArmSampleThrottle = input.throttle();
-		autoArmSamplePitch = input.pitch();
-		autoArmSampleRoll = input.roll();
-		autoArmSampleYaw = input.yaw();
+		armed = !armed;
+		stickArmGestureLatched = true;
+		client.player.displayClientMessage(Component.translatable(armed ? "message.fpvdrone.armed" : "message.fpvdrone.disarmed"), true);
 	}
 
-	private static void clientMessageAutoArmed() {
-		Minecraft client = Minecraft.getInstance();
-		if (client.player != null) {
-			client.player.displayClientMessage(Component.translatable("message.fpvdrone.auto_armed_hint"), true);
-		}
+	private static boolean isStickArmGesture(GamepadInput input) {
+		return input != null
+				&& input.throttle() <= ARM_GESTURE_THROTTLE_MAX
+				&& input.yaw() <= -ARM_GESTURE_AXIS_MIN
+				&& input.pitch() <= -ARM_GESTURE_AXIS_MIN
+				&& input.roll() >= ARM_GESTURE_AXIS_MIN;
 	}
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
