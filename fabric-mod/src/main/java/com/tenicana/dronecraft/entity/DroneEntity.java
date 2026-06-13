@@ -65,7 +65,8 @@ public class DroneEntity extends PathfinderMob {
 	private static final double PHYSICS_DT = 0.005;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final int PROP_STRIKE_COOLDOWN_TICKS = 4;
-	private static final double RESTING_GROUND_CLEARANCE_METERS = 0.055;
+	private static final double RESTING_GROUND_CLEARANCE_METERS = 0.10;
+	private static final double TAKEOFF_THRUST_TO_WEIGHT = 1.03;
 	private static final double MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND = 2.0;
 	private static final double MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND = 1.8;
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -568,7 +569,7 @@ public class DroneEntity extends PathfinderMob {
 
 		if (!level().isClientSide()) {
 			if (!simulationInitialized) {
-				physics.state().setPositionMeters(new Vec3(getX(), getY(), getZ()));
+				physics.state().setPositionMeters(entityPhysicsPosition());
 				simulationInitialized = true;
 			}
 
@@ -635,6 +636,18 @@ public class DroneEntity extends PathfinderMob {
 				if (shouldSleepOnGround(input)) {
 					sleepOnGround(input);
 					reason = "ground-idle";
+				} else if (shouldConstrainOnGround(input)) {
+					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
+						physics.step(input, PHYSICS_DT, lastEnvironment);
+					}
+					if (hasTakeoffAuthority(input)) {
+						applyPhysicsMovement(input);
+						samplePropStrikes();
+						reason = "takeoff-release";
+					} else {
+						constrainOnGround();
+						reason = "ground-spool";
+					}
 				} else {
 					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
 						physics.step(input, PHYSICS_DT, lastEnvironment);
@@ -789,7 +802,7 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(ROLL, 0.0f);
 		entityData.set(SPEED, (float) Math.sqrt(debugVelocityX * debugVelocityX + debugVelocityY * debugVelocityY + debugVelocityZ * debugVelocityZ));
 		entityData.set(MOTOR_POWER, (float) MathUtil.clamp(normalizedInput.throttle(), 0.0, 1.0));
-		entityData.set(BAROMETER_ALTITUDE, (float) getY());
+		entityData.set(BAROMETER_ALTITUDE, (float) entityPhysicsPosition().y());
 		entityData.set(BAROMETER_ERROR, 0.0f);
 		entityData.set(GROUND_EFFECT_LEVELING_TORQUE, airworthy ? 0.0f : 0.08f);
 	}
@@ -875,7 +888,8 @@ public class DroneEntity extends PathfinderMob {
 			return PrecipitationWetness.dry(rotorCount);
 		}
 
-		BlockPos bodyPosition = BlockPos.containing(getX(), getY() + 0.35, getZ());
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
+		BlockPos bodyPosition = BlockPos.containing(bodyCenterWorld.x(), bodyCenterWorld.y() + 0.18, bodyCenterWorld.z());
 		double weatherWetness = level().isThundering() ? 0.78 : 0.45;
 		double windFactor = MathUtil.clamp(windSpeedMetersPerSecond / 9.0, 0.0, 1.0);
 		double wetnessScale = weatherWetness * (0.82 + 0.18 * windFactor);
@@ -883,7 +897,6 @@ public class DroneEntity extends PathfinderMob {
 		double weightedWetness = bodyWetness * 1.10;
 		double totalWeight = 1.10;
 		double[] rotorWetnesses = new double[rotorCount];
-		Vec3 bodyCenterWorld = new Vec3(getX(), getY(), getZ());
 		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
 		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
 
@@ -938,10 +951,11 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private double ambientTemperatureCelsius() {
-		BlockPos position = BlockPos.containing(getX(), getY(), getZ());
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
+		BlockPos position = BlockPos.containing(bodyCenterWorld.x(), bodyCenterWorld.y(), bodyCenterWorld.z());
 		double biomeTemperature = level().getBiome(position).value().getBaseTemperature();
 		double temperature = 15.0 + (biomeTemperature - 0.5) * 18.0;
-		double altitudeCooling = Math.max(0.0, getY() - 64.0) * 0.015;
+		double altitudeCooling = Math.max(0.0, bodyCenterWorld.y() - 64.0) * 0.015;
 		long dayTime = level().getDayTime() % 24000L;
 		double dayPhase = dayTime / 24000.0;
 		double diurnalSwing = Math.cos((dayPhase - 0.25) * Math.PI * 2.0) * 3.0;
@@ -958,7 +972,7 @@ public class DroneEntity extends PathfinderMob {
 		double weightedWater = 0.0;
 		double totalWeight = 0.0;
 		double[] rotorWater = new double[rotorCount];
-		Vec3 bodyCenterWorld = new Vec3(getX(), getY(), getZ());
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
 		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
 
@@ -1020,7 +1034,7 @@ public class DroneEntity extends PathfinderMob {
 		double[] flowObstructions = new double[rotorCount];
 		Vec3[] flowObstructionDirectionsBody = new Vec3[rotorCount];
 		double maxFlowObstruction = 0.0;
-		Vec3 bodyCenterWorld = new Vec3(getX(), getY(), getZ());
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections();
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = physics.config().rotors().get(i);
@@ -1123,7 +1137,7 @@ public class DroneEntity extends PathfinderMob {
 		Vec3 totalWind = Vec3.ZERO;
 		double turbulence = 0.0;
 		double maxIntensity = 0.0;
-		Vec3 position = new Vec3(getX(), getY(), getZ());
+		Vec3 position = entityPhysicsPosition();
 		for (DroneEntity source : drones) {
 			DroneWakeAirflow wake = wakeFromDrone(source, position);
 			totalWind = totalWind.add(wake.windVelocityWorldMetersPerSecond());
@@ -1138,7 +1152,7 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private DroneWakeAirflow wakeFromDrone(DroneEntity source, Vec3 receiverPosition) {
-		Vec3 sourcePosition = new Vec3(source.getX(), source.getY(), source.getZ());
+		Vec3 sourcePosition = source.entityPhysicsPosition();
 		Vec3 offset = receiverPosition.subtract(sourcePosition);
 		double verticalDrop = sourcePosition.y() - receiverPosition.y();
 		if (verticalDrop < -0.25 || verticalDrop > 5.0) {
@@ -1219,7 +1233,7 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private double obstacleDistanceMeters(Vec3 direction, double maxDistanceMeters) {
-		return obstacleDistanceMetersFrom(new Vec3(getX(), getY() + 0.18, getZ()), direction, maxDistanceMeters);
+		return obstacleDistanceMetersFrom(entityPhysicsPosition(), direction, maxDistanceMeters);
 	}
 
 	private double obstacleDistanceMetersFrom(Vec3 startWorld, Vec3 direction, double maxDistanceMeters) {
@@ -1252,12 +1266,13 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private Vec3 weatherWindMetersPerSecond() {
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		double baseSpeed = level().isThundering() ? 8.0 : level().isRaining() ? 4.5 : 1.2;
-		double altitudeFactor = MathUtil.clamp((getY() - 64.0) / 96.0, 0.0, 1.0);
+		double altitudeFactor = MathUtil.clamp((bodyCenterWorld.y() - 64.0) / 96.0, 0.0, 1.0);
 		double speed = baseSpeed * (0.55 + altitudeFactor * 0.65);
 		double time = level().getGameTime() * 0.0015;
-		double angle = time + Math.sin(time * 0.37 + getX() * 0.01) * 0.45;
-		double gust = Math.sin(time * 3.1 + getZ() * 0.04) * speed * (level().isThundering() ? 0.32 : 0.16);
+		double angle = time + Math.sin(time * 0.37 + bodyCenterWorld.x() * 0.01) * 0.45;
+		double gust = Math.sin(time * 3.1 + bodyCenterWorld.z() * 0.04) * speed * (level().isThundering() ? 0.32 : 0.16);
 		return new Vec3(
 				Math.cos(angle) * speed + Math.cos(angle + 1.7) * gust,
 				0.0,
@@ -1266,9 +1281,10 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private double weatherTurbulenceIntensity(double windSpeedMetersPerSecond, double groundClearanceMeters) {
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		double weatherBase = level().isThundering() ? 0.72 : level().isRaining() ? 0.42 : 0.14;
 		double windFactor = MathUtil.clamp(windSpeedMetersPerSecond / 9.0, 0.0, 1.0);
-		double altitudeFactor = MathUtil.clamp((getY() - 72.0) / 96.0, 0.0, 0.55);
+		double altitudeFactor = MathUtil.clamp((bodyCenterWorld.y() - 72.0) / 96.0, 0.0, 0.55);
 		double mechanicalTurbulence = Double.isFinite(groundClearanceMeters)
 				? 0.18 * (1.0 - MathUtil.clamp(groundClearanceMeters / 6.0, 0.0, 1.0))
 				: 0.0;
@@ -1276,11 +1292,11 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private double airDensityRatio(double ambientTemperatureCelsius) {
-		return DroneEnvironment.standardAtmosphereAirDensityRatio(getY(), ambientTemperatureCelsius);
+		return DroneEnvironment.standardAtmosphereAirDensityRatio(entityPhysicsPosition().y(), ambientTemperatureCelsius);
 	}
 
 	private double groundClearanceMeters() {
-		return groundClearanceMetersAt(new Vec3(getX(), getY(), getZ()));
+		return groundClearanceMetersAt(entityPhysicsPosition());
 	}
 
 	private double groundClearanceMetersAt(Vec3 worldPosition) {
@@ -1301,7 +1317,7 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	private double ceilingClearanceMeters() {
-		return ceilingClearanceMetersAt(new Vec3(getX(), getY(), getZ()));
+		return ceilingClearanceMetersAt(entityPhysicsPosition());
 	}
 
 	private double ceilingClearanceMetersAt(Vec3 worldPosition) {
@@ -1335,35 +1351,83 @@ public class DroneEntity extends PathfinderMob {
 		return MathUtil.clamp(0.30 * proximity * proximity, 0.0, 0.45);
 	}
 
+	public double getPhysicsCenterYOffsetMeters() {
+		return physicsCenterYOffsetMeters();
+	}
+
+	private Vec3 entityPhysicsPosition() {
+		return new Vec3(getX(), getY() + physicsCenterYOffsetMeters(), getZ());
+	}
+
+	private double entityYFromPhysicsPosition(Vec3 physicsPosition) {
+		return physicsPosition.y() - physicsCenterYOffsetMeters();
+	}
+
+	private double physicsCenterYOffsetMeters() {
+		return Math.max(0.05, getBoundingBox().getYsize() * 0.5);
+	}
+
 	private boolean shouldSleepOnGround(DroneInput input) {
-		if (input == null || !wantsGroundRest(input)) {
+		if (input == null || !wantsGroundSleep(input)) {
 			return false;
 		}
 		if (onGround() || verticalCollision) {
 			return true;
 		}
-		double clearance = groundClearanceMetersAt(new Vec3(getX(), getY(), getZ()));
+		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		return Double.isFinite(clearance)
 				&& clearance <= RESTING_GROUND_CLEARANCE_METERS
 				&& physics.state().velocityMetersPerSecond().y() <= 0.05;
 	}
 
-	private boolean wantsGroundRest(DroneInput input) {
+	private boolean wantsGroundSleep(DroneInput input) {
 		if (input == null) {
 			return true;
 		}
-		if (!input.armed()) {
-			return true;
-		}
-		double throttleWake = Math.max(0.08, physics.config().hoverThrottle() * 0.45);
-		return input.throttle() <= throttleWake
+		return !input.armed()
+				&& input.throttle() <= 0.02
 				&& Math.abs(input.pitch()) < 0.05
 				&& Math.abs(input.roll()) < 0.05
 				&& Math.abs(input.yaw()) < 0.05;
 	}
 
+	private boolean shouldConstrainOnGround(DroneInput input) {
+		if (input == null || !input.armed()) {
+			return false;
+		}
+		if (onGround() || verticalCollision) {
+			return true;
+		}
+		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
+		return Double.isFinite(clearance) && clearance <= RESTING_GROUND_CLEARANCE_METERS;
+	}
+
+	private boolean hasTakeoffAuthority(DroneInput input) {
+		if (input == null || !input.armed()) {
+			return false;
+		}
+		double throttleRelease = Math.max(0.18, physics.config().hoverThrottle() * 0.95);
+		return input.throttle() >= throttleRelease
+				&& verticalRotorThrustNewtons() >= physics.config().massKg() * physics.config().gravityMetersPerSecondSquared() * TAKEOFF_THRUST_TO_WEIGHT;
+	}
+
+	private double verticalRotorThrustNewtons() {
+		double thrust = 0.0;
+		int rotorCount = Math.min(physics.config().rotors().size(), physics.state().motorCount());
+		for (int i = 0; i < rotorCount; i++) {
+			Vec3 thrustAxisWorld = physics.state().orientation().rotate(physics.config().rotors().get(i).thrustAxisBody());
+			thrust += physics.state().rotorThrustNewtons(i) * Math.max(0.0, thrustAxisWorld.y());
+		}
+		return thrust;
+	}
+
 	private void sleepOnGround(DroneInput input) {
-		physics.sleepAtRest(new Vec3(getX(), getY(), getZ()), input);
+		physics.sleepAtRest(entityPhysicsPosition(), input);
+		setDeltaMovement(0.0, 0.0, 0.0);
+	}
+
+	private void constrainOnGround() {
+		physics.constrainAtRest(entityPhysicsPosition());
 		setDeltaMovement(0.0, 0.0, 0.0);
 	}
 
@@ -1375,19 +1439,23 @@ public class DroneEntity extends PathfinderMob {
 		double startZ = getZ();
 		net.minecraft.world.phys.Vec3 delta = new net.minecraft.world.phys.Vec3(
 				targetPosition.x() - startX,
-				targetPosition.y() - startY,
+				entityYFromPhysicsPosition(targetPosition) - startY,
 				targetPosition.z() - startZ
 		);
 
 		move(MoverType.SELF, delta);
-		physics.state().setPositionMeters(new Vec3(getX(), getY(), getZ()));
+		physics.state().setPositionMeters(entityPhysicsPosition());
 		boolean collided = horizontalCollision || verticalCollision;
 
 		Vec3 velocity = physics.state().velocityMetersPerSecond();
 		if (collided) {
 			Vec3 attemptedDelta = new Vec3(delta.x(), delta.y(), delta.z());
 			Vec3 actualDelta = new Vec3(getX() - startX, getY() - startY, getZ() - startZ);
-			if (input != null && wantsGroundRest(input) && verticalCollision && velocityBeforeCollision.y() <= 0.0) {
+			if (input != null && shouldConstrainOnGround(input) && !hasTakeoffAuthority(input) && verticalCollision && velocityBeforeCollision.y() <= 0.0) {
+				constrainOnGround();
+				return;
+			}
+			if (input != null && wantsGroundSleep(input) && verticalCollision && velocityBeforeCollision.y() <= 0.0) {
 				sleepOnGround(input);
 				return;
 			}
@@ -1671,7 +1739,7 @@ public class DroneEntity extends PathfinderMob {
 		double frameSpeed = frameVelocity.length();
 		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
 		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
-		Vec3 bodyCenterWorld = new Vec3(getX(), getY(), getZ());
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
 
 		for (int i = 0; i < physics.config().rotors().size(); i++) {
 			RotorSpec rotor = physics.config().rotors().get(i);

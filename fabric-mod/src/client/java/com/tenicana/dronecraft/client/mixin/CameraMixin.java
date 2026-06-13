@@ -65,7 +65,7 @@ public abstract class CameraMixin {
 			delayedDroneId = drone.getId();
 		}
 
-		Vec3 rawPosition = drone.getPosition(partialTick);
+		Vec3 rawPosition = drone.getPosition(partialTick).add(0.0, drone.getPhysicsCenterYOffsetMeters(), 0.0);
 		double sampleTimeSeconds = Math.max(0.0, (drone.tickCount + partialTick) / 20.0);
 		FpvCameraPoseDelay.Pose delayedPose = FPV_POSE_DELAY.sample(
 				new FpvCameraPoseDelay.Pose(
