@@ -10,6 +10,7 @@ import java.nio.file.Path;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonSyntaxException;
+import net.minecraft.util.Mth;
 
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -18,17 +19,25 @@ import com.tenicana.dronecraft.FpvDronecraftMod;
 public final class DroneClientConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 	private static final String FILE_NAME = "fpvdrone-client.json";
+	private static final float MIN_THROTTLE_CALIBRATION_SPAN = 0.05f;
+	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
 
 	private boolean gamepadEnabled = true;
 	private int rollAxis = 0;
 	private int pitchAxis = 1;
-	private int yawAxis = 2;
-	private int throttleAxis = 3;
+	private int yawAxis = 3;
+	private int throttleAxis = 2;
 	private boolean rollInverted;
 	private boolean pitchInverted = true;
 	private boolean yawInverted;
 	private boolean throttleInverted = true;
 	private float gamepadDeadband = 0.06f;
+	private int armButton = -1;
+	private int disarmButton = -1;
+	private int throttleCalibrateButton = -1;
+	private boolean throttleCalibrated = true;
+	private float throttleCalibrationMin = 0.0f;
+	private float throttleCalibrationMax = 1.0f;
 	private float cameraTiltDegrees = 25.0f;
 	private float cameraForwardOffsetMeters = 0.16f;
 	private float cameraUpOffsetMeters = 0.16f;
@@ -123,6 +132,119 @@ public final class DroneClientConfig {
 		return gamepadDeadband;
 	}
 
+	public int armButton() {
+		return armButton;
+	}
+
+	public void setArmButton(int armButton) {
+		this.armButton = sanitizeButton(armButton);
+	}
+
+	public int disarmButton() {
+		return disarmButton;
+	}
+
+	public void setDisarmButton(int disarmButton) {
+		this.disarmButton = sanitizeButton(disarmButton);
+	}
+
+	public int throttleCalibrateButton() {
+		return throttleCalibrateButton;
+	}
+
+	public boolean hasArmControlsConfigured() {
+		return armButton >= 0 || disarmButton >= 0;
+	}
+
+	public void setThrottleCalibrateButton(int throttleCalibrateButton) {
+		this.throttleCalibrateButton = sanitizeButton(throttleCalibrateButton);
+	}
+
+	public void setRollAxis(int rollAxis) {
+		this.rollAxis = sanitizeAxis(rollAxis);
+	}
+
+	public void setPitchAxis(int pitchAxis) {
+		this.pitchAxis = sanitizeAxis(pitchAxis);
+	}
+
+	public void setYawAxis(int yawAxis) {
+		this.yawAxis = sanitizeAxis(yawAxis);
+	}
+
+	public void setThrottleAxis(int throttleAxis) {
+		this.throttleAxis = sanitizeAxis(throttleAxis);
+	}
+
+	public void setRollInverted(boolean rollInverted) {
+		this.rollInverted = rollInverted;
+	}
+
+	public void setPitchInverted(boolean pitchInverted) {
+		this.pitchInverted = pitchInverted;
+	}
+
+	public void setYawInverted(boolean yawInverted) {
+		this.yawInverted = yawInverted;
+	}
+
+	public void setThrottleInverted(boolean throttleInverted) {
+		this.throttleInverted = throttleInverted;
+	}
+
+	public boolean throttleCalibrated() {
+		return throttleCalibrated;
+	}
+
+	public float throttleCalibrationMin() {
+		return throttleCalibrationMin;
+	}
+
+	public float throttleCalibrationMax() {
+		return throttleCalibrationMax;
+	}
+
+	public float calibrateThrottle(float rawThrottle) {
+		if (!throttleCalibrated || throttleCalibrationMax <= throttleCalibrationMin + MIN_THROTTLE_CALIBRATION_SPAN) {
+			float endpointSnap = gamepadDeadband() * 0.5f;
+			if (rawThrottle <= endpointSnap) {
+				return 0.0f;
+			}
+			if (rawThrottle >= 1.0f - endpointSnap) {
+				return 1.0f;
+			}
+			return rawThrottle;
+		}
+		float normalized = (float) ((rawThrottle - throttleCalibrationMin) / (throttleCalibrationMax - throttleCalibrationMin));
+		return (float) Mth.clamp(normalized, 0.0, 1.0);
+	}
+
+	public void setThrottleCalibration(float min, float max) {
+		if (!Float.isFinite(min) || !Float.isFinite(max)) {
+			return;
+		}
+		float normalizedMin = Math.max(0.0f, Math.min(1.0f, min));
+		float normalizedMax = Math.max(0.0f, Math.min(1.0f, max));
+		if (normalizedMax < normalizedMin) {
+			float temp = normalizedMin;
+			normalizedMin = normalizedMax;
+			normalizedMax = temp;
+		}
+		float span = normalizedMax - normalizedMin;
+		if (span < MIN_THROTTLE_CALIBRATION_SPAN) {
+			return;
+		}
+		throttleCalibrationMin = normalizedMin;
+		throttleCalibrationMax = normalizedMax;
+		throttleCalibrated = true;
+	}
+
+	public void clearThrottleCalibration() {
+		throttleCalibrated = false;
+		throttleCalibrationMin = 0.0f;
+		throttleCalibrationMax = 1.0f;
+	}
+
 	public float cameraTiltDegrees() {
 		return cameraTiltDegrees;
 	}
@@ -155,6 +277,10 @@ public final class DroneClientConfig {
 		return cameraDynamicFovDegrees;
 	}
 
+	public float axisDetectionThreshold() {
+		return AXIS_DETECTION_THRESHOLD;
+	}
+
 	public boolean hasRequiredAxes(int axisCount) {
 		return axisCount > rollAxis
 				&& axisCount > pitchAxis
@@ -167,6 +293,25 @@ public final class DroneClientConfig {
 		pitchAxis = sanitizeAxis(pitchAxis);
 		yawAxis = sanitizeAxis(yawAxis);
 		throttleAxis = sanitizeAxis(throttleAxis);
+		armButton = sanitizeButton(armButton);
+		disarmButton = sanitizeButton(disarmButton);
+		throttleCalibrateButton = sanitizeButton(throttleCalibrateButton);
+		if (!Float.isFinite(throttleCalibrationMin)) {
+			throttleCalibrationMin = 0.0f;
+		}
+		if (!Float.isFinite(throttleCalibrationMax)) {
+			throttleCalibrationMax = 1.0f;
+		}
+		if (throttleCalibrationMax < throttleCalibrationMin) {
+			float temp = throttleCalibrationMin;
+			throttleCalibrationMin = throttleCalibrationMax;
+			throttleCalibrationMax = temp;
+		}
+		if (throttleCalibrationMax - throttleCalibrationMin < MIN_THROTTLE_CALIBRATION_SPAN) {
+			throttleCalibrationMin = 0.0f;
+			throttleCalibrationMax = 1.0f;
+			throttleCalibrated = false;
+		}
 		if (!Float.isFinite(gamepadDeadband)) {
 			gamepadDeadband = 0.06f;
 		}
@@ -208,5 +353,9 @@ public final class DroneClientConfig {
 
 	private static int sanitizeAxis(int axis) {
 		return Math.max(0, Math.min(31, axis));
+	}
+
+	private static int sanitizeButton(int button) {
+		return Math.max(-1, Math.min(31, button));
 	}
 }

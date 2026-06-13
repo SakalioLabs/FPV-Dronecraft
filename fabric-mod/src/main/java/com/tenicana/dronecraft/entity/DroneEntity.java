@@ -44,6 +44,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
+import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.registry.DroneItems;
@@ -255,6 +256,17 @@ public class DroneEntity extends PathfinderMob {
 	private DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
 	private String airframePreset = "racing_quad";
 	private UUID owner;
+	private float debugVelocityX;
+	private float debugVelocityY;
+	private float debugVelocityZ;
+	private float debugTargetVelocityX;
+	private float debugTargetVelocityY;
+	private float debugTargetVelocityZ;
+	private float debugTargetYawRate;
+	private float debugCommandThrottle;
+	private float debugCommandPitch;
+	private float debugCommandRoll;
+	private float debugCommandYaw;
 	private boolean simulationInitialized;
 	private double frameHealth = 1.0;
 	private int collisionDamageCooldown;
@@ -342,7 +354,11 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	public UUID getOwner() {
-		return owner;
+		return ownerFromSyncedData();
+	}
+
+	public boolean hasOwner() {
+		return getOwner() != null;
 	}
 
 	public boolean isOwnedBy(UUID playerId) {
@@ -557,22 +573,275 @@ public class DroneEntity extends PathfinderMob {
 			}
 			decrementRotorStrikeCooldowns();
 
-			DroneInput input = owner == null ? DroneInput.idle() : DroneControlManager.get(owner, tickCount, physics.state(), physics.config());
-			if (!isAirworthy()) {
+			UUID activeOwner = getOwner();
+			DroneInput rawInput = activeOwner == null ? DroneInput.idle() : DroneControlManager.get(activeOwner, tickCount, physics.state(), physics.config());
+			DroneControlManager.ActiveInput sample = DroneDebugSettings.ownerlessControlEnabled()
+					? DroneControlManager.latestActiveInput(tickCount)
+					: null;
+			boolean usedOwnerlessSample = false;
+			if (activeOwner == null && sample != null && sample.input() != null && sample.input().linkActive()) {
+				rawInput = sample.input();
+				UUID sampleOwner = sample.playerId();
+				if (sampleOwner != null) {
+					activeOwner = sampleOwner;
+					usedOwnerlessSample = true;
+					if (getOwner() == null) {
+						setOwner(sampleOwner);
+					}
+				}
+			}
+			if (rawInput == null) {
+				rawInput = DroneInput.idle();
+			}
+			DroneInput input = rawInput;
+			boolean airworthy = isAirworthy();
+			boolean bypassPhysics = DroneDebugSettings.bypassPhysicsEnabled();
+			boolean hasDebugControlInput = hasDebugControlIntent(input);
+			if (activeOwner == null) {
+				DroneDebugSettings.logNoOwnerInput(tickCount, level().getEntitiesOfClass(DroneEntity.class, getBoundingBox().inflate(24.0), drone -> true).size(), DroneDebugSettings.ownerlessControlEnabled(), activeOwner);
+			}
+			if (!airworthy && !bypassPhysics) {
 				input = new DroneInput(input.throttle(), input.pitch(), input.roll(), input.yaw(), false, input.linkActive(), input.flightMode());
 			}
+			input = ensureDebugActive(input);
+			DroneInput effectiveInput = input;
+			String reason = activeOwner == null
+					? "no-owner"
+					: (!input.linkActive() ? "link-lost" : (bypassPhysics ? "direct-disabled" : "physics-active"));
 
-			lastEnvironment = sampleEnvironment();
-			for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
-				physics.step(input, PHYSICS_DT, lastEnvironment);
+			if (bypassPhysics && hasDebugControlInput && input.linkActive()) {
+				DroneInput debugInput = input;
+				effectiveInput = debugInput;
+				applyDebugFlight(debugInput);
+				updateDebugFlightState(debugInput, airworthy);
+				recordBlackbox(input);
+				handleCompletedDiagnostic();
+				reason = debugInput.armed() ? "direct-active" : "direct-wait-arm";
+				if (usedOwnerlessSample) {
+					reason = "direct-ownerless";
+				}
+			} else {
+				debugTargetVelocityX = 0.0f;
+				debugTargetVelocityY = 0.0f;
+				debugTargetVelocityZ = 0.0f;
+				debugTargetYawRate = 0.0f;
+				reason = activeOwner == null
+						? "no-owner"
+						: (!input.linkActive() ? "link-lost" : (bypassPhysics ? reason : "physics-active"));
+				lastEnvironment = sampleEnvironment();
+				for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
+					physics.step(input, PHYSICS_DT, lastEnvironment);
+				}
+				applyPhysicsMovement();
+				samplePropStrikes();
+				updateSyncedFlightState(input);
+				recordBlackbox(input);
+				handleCompletedDiagnostic();
 			}
 
-			applyPhysicsMovement();
-			samplePropStrikes();
-			updateSyncedFlightState(input);
-			recordBlackbox(input);
-			handleCompletedDiagnostic();
+			DroneDebugSettings.logEntityTick(
+					this,
+					tickCount,
+					rawInput,
+					effectiveInput,
+					reason,
+					activeOwner,
+					debugTargetVelocityX,
+					debugTargetVelocityY,
+					debugTargetVelocityZ,
+					debugTargetYawRate,
+					airworthy,
+					activeOwner != null,
+					DroneDebugSettings.bypassPhysicsEnabled(),
+					getDeltaMovement()
+			);
 		}
+	}
+
+	private static final float DEBUG_THRUST_GAIN = 2.5f;
+	private static final float DEBUG_AXIS_GAIN = 1.45f;
+	private static final float DEBUG_YAW_GAIN = 2.4f;
+	private static final float DEBUG_INPUT_SMOOTH = 0.32f;
+	private static final float DEBUG_VELOCITY_SMOOTH = 0.26f;
+	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
+	private static final float DEBUG_AXIS_DEADBAND = 0.12f;
+	private static final float DEBUG_THRUST_MIN_CLIMB = 0.025f;
+	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
+	private static final float DEBUG_VELOCITY_LIMIT_XZ = 2.0f;
+	private static final float DEBUG_VELOCITY_LIMIT_Y = 2.8f;
+
+	private void applyDebugFlight(DroneInput input) {
+		float throttle = (float) MathUtil.clamp(input.throttle(), 0.0, 1.0);
+		float pitch = (float) MathUtil.clamp(input.pitch(), -1.0, 1.0);
+		float roll = (float) MathUtil.clamp(input.roll(), -1.0, 1.0);
+		float yaw = (float) MathUtil.clamp(input.yaw(), -1.0, 1.0);
+
+		float deadbandedPitch = applyDebugAxisDeadband(pitch);
+		float deadbandedRoll = applyDebugAxisDeadband(roll);
+		float deadbandedYaw = applyDebugAxisDeadband(yaw);
+
+		float smoothedThrottle = applyDebugAxisFilter(debugCommandThrottle, throttle, DEBUG_INPUT_SMOOTH, false);
+		float smoothedPitch = applyDebugAxisFilter(debugCommandPitch, deadbandedPitch, DEBUG_INPUT_SMOOTH, true);
+		float smoothedRoll = applyDebugAxisFilter(debugCommandRoll, deadbandedRoll, DEBUG_INPUT_SMOOTH, true);
+		float smoothedYaw = applyDebugAxisFilter(debugCommandYaw, deadbandedYaw, DEBUG_INPUT_SMOOTH, true);
+
+		debugCommandThrottle = smoothedThrottle;
+		debugCommandPitch = smoothedPitch;
+		debugCommandRoll = smoothedRoll;
+		debugCommandYaw = smoothedYaw;
+
+		float targetVx = smoothedRoll * DEBUG_AXIS_GAIN;
+		boolean shouldFly = input.armed() || smoothedThrottle > DEBUG_THRUST_DEADZONE || Math.abs(smoothedPitch) > DEBUG_MOVEMENT_EPSILON || Math.abs(smoothedRoll) > DEBUG_MOVEMENT_EPSILON;
+		float targetVy = shouldFly
+				? Math.max(0.0f, smoothedThrottle - DEBUG_THRUST_DEADZONE) * DEBUG_THRUST_GAIN
+				: 0.0f;
+		if (shouldFly && targetVy > 0.0f && targetVy < DEBUG_THRUST_MIN_CLIMB) {
+			targetVy = DEBUG_THRUST_MIN_CLIMB;
+		}
+		float targetVz = -smoothedPitch * DEBUG_AXIS_GAIN;
+		float targetYaw = smoothedYaw * DEBUG_YAW_GAIN;
+
+		if (!shouldFly) {
+			targetVx = 0.0f;
+			targetVy = 0.0f;
+			targetVz = 0.0f;
+			targetYaw = 0.0f;
+			debugVelocityX = 0.0f;
+			debugVelocityY = 0.0f;
+			debugVelocityZ = 0.0f;
+			debugCommandThrottle = 0.0f;
+			debugCommandPitch = 0.0f;
+			debugCommandRoll = 0.0f;
+			debugCommandYaw = 0.0f;
+			setDeltaMovement(0.0, 0.0, 0.0);
+		}
+		if (Math.abs(targetVx) < 0.015f) {
+			targetVx = 0.0f;
+		}
+		if (Math.abs(targetVy) < 0.010f) {
+			targetVy = 0.0f;
+		}
+		if (Math.abs(targetVz) < 0.015f) {
+			targetVz = 0.0f;
+		}
+		if (Math.abs(targetYaw) < 0.015f) {
+			targetYaw = 0.0f;
+		}
+
+		debugTargetVelocityX = targetVx;
+		debugTargetVelocityY = targetVy;
+		debugTargetVelocityZ = targetVz;
+		debugTargetYawRate = targetYaw;
+
+		debugVelocityX = debugVelocityX + (targetVx - debugVelocityX) * DEBUG_VELOCITY_SMOOTH;
+		debugVelocityY = debugVelocityY + (targetVy - debugVelocityY) * DEBUG_VELOCITY_SMOOTH;
+		debugVelocityZ = debugVelocityZ + (targetVz - debugVelocityZ) * DEBUG_VELOCITY_SMOOTH;
+		debugVelocityX = clampAxis(debugVelocityX, DEBUG_VELOCITY_LIMIT_XZ);
+		debugVelocityY = clampAxis(debugVelocityY, DEBUG_VELOCITY_LIMIT_Y);
+		debugVelocityZ = clampAxis(debugVelocityZ, DEBUG_VELOCITY_LIMIT_XZ);
+
+		float yawRadians = (float) Math.toRadians(getYRot());
+		float cos = (float) Math.cos(yawRadians);
+		float sin = (float) Math.sin(yawRadians);
+		float worldX = debugVelocityX * cos - debugVelocityZ * sin;
+		float worldZ = debugVelocityX * sin + debugVelocityZ * cos;
+		float deltaX = worldX / 20.0f;
+		float deltaY = debugVelocityY / 20.0f;
+		float deltaZ = worldZ / 20.0f;
+		float worldVelocityX = worldX;
+		float worldVelocityY = debugVelocityY;
+		float worldVelocityZ = worldZ;
+
+		setPos(
+				getX() + deltaX,
+				getY() + deltaY,
+				getZ() + deltaZ
+		);
+		setDeltaMovement(worldVelocityX, worldVelocityY, worldVelocityZ);
+		if (Math.abs(targetYaw) > 0.02f) {
+			setYRot(getYRot() + targetYaw);
+		}
+	}
+
+	private void updateDebugFlightState(DroneInput input, boolean airworthy) {
+		DroneInput normalizedInput = input.normalized();
+		entityData.set(ARMED, normalizedInput.armed());
+		entityData.set(FLIGHT_MODE, normalizedInput.flightMode().id());
+		syncAirframeLayout();
+		entityData.set(CONTROL_THROTTLE, (float) normalizedInput.throttle());
+		entityData.set(CONTROL_PITCH, (float) normalizedInput.pitch());
+		entityData.set(CONTROL_ROLL, (float) normalizedInput.roll());
+		entityData.set(CONTROL_YAW, (float) normalizedInput.yaw());
+		entityData.set(CONTROL_LINK_LOSS_SECONDS, 0.0f);
+		entityData.set(RAW_CONTROL_LINK_ACTIVE, normalizedInput.linkActive());
+		entityData.set(PROCESSED_CONTROL_LINK_ACTIVE, normalizedInput.linkActive());
+		entityData.set(CONTROL_FAILSAFE, false);
+		entityData.set(PITCH, (float) getXRot());
+		entityData.set(YAW, (float) getYRot());
+		entityData.set(ROLL, 0.0f);
+		entityData.set(SPEED, (float) Math.sqrt(debugVelocityX * debugVelocityX + debugVelocityY * debugVelocityY + debugVelocityZ * debugVelocityZ));
+		entityData.set(MOTOR_POWER, (float) MathUtil.clamp(normalizedInput.throttle(), 0.0, 1.0));
+		entityData.set(BAROMETER_ALTITUDE, (float) getY());
+		entityData.set(BAROMETER_ERROR, 0.0f);
+		entityData.set(GROUND_EFFECT_LEVELING_TORQUE, airworthy ? 0.0f : 0.08f);
+	}
+
+	private static final float DEBUG_ARM_THRUST_THRESHOLD = 0.005f;
+	private static final float DEBUG_AXIS_MOTION_THRESHOLD = 0.02f;
+
+	private static boolean hasDebugControlIntent(DroneInput input) {
+		if (input == null || !input.linkActive()) {
+			return false;
+		}
+		return input.throttle() >= DEBUG_ARM_THRUST_THRESHOLD
+				|| Math.abs(input.pitch()) >= DEBUG_AXIS_MOTION_THRESHOLD
+				|| Math.abs(input.roll()) >= DEBUG_AXIS_MOTION_THRESHOLD
+				|| Math.abs(input.yaw()) >= DEBUG_AXIS_MOTION_THRESHOLD;
+	}
+
+	private DroneInput ensureDebugActive(DroneInput input) {
+		if (input == null || !input.linkActive() || input.armed()) {
+			return input;
+		}
+		boolean hasControlIntent = input.throttle() >= DEBUG_ARM_THRUST_THRESHOLD
+				|| Math.abs(input.pitch()) >= DEBUG_AXIS_MOTION_THRESHOLD
+				|| Math.abs(input.roll()) >= DEBUG_AXIS_MOTION_THRESHOLD
+				|| Math.abs(input.yaw()) >= DEBUG_AXIS_MOTION_THRESHOLD;
+		if (!hasControlIntent) {
+			return new DroneInput(0.0f, 0.0f, 0.0f, 0.0f, false, input.linkActive(), input.flightMode());
+		}
+		return new DroneInput(
+				input.throttle(),
+				input.pitch(),
+				input.roll(),
+				input.yaw(),
+				true,
+				input.linkActive(),
+				input.flightMode()
+		);
+	}
+
+	private float applyDebugAxisDeadband(float value) {
+		float abs = Math.abs(value);
+		if (abs <= DEBUG_AXIS_DEADBAND) {
+			return 0.0f;
+		}
+		return Math.copySign((abs - DEBUG_AXIS_DEADBAND) / (1.0f - DEBUG_AXIS_DEADBAND), value);
+	}
+
+	private float applyDebugAxisFilter(float current, float target, float smoothing, boolean keepSign) {
+		float filtered = current + (target - current) * Math.max(0.0f, Math.min(1.0f, smoothing));
+		return keepSign ? filtered : Math.max(0.0f, filtered);
+	}
+
+	private float clampAxis(float value, float maxAbs) {
+		if (value > maxAbs) {
+			return maxAbs;
+		}
+		if (value < -maxAbs) {
+			return -maxAbs;
+		}
+		return value;
 	}
 
 	private DroneEnvironment sampleEnvironment() {

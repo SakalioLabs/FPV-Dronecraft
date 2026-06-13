@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 
 import net.minecraft.commands.CommandSourceStack;
@@ -26,6 +27,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
 import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -58,6 +60,24 @@ public final class DroneCommands {
 						.then(spawnPreset("coaxial_x8", DroneConfig::coaxialX8)))
 				.then(Commands.literal("status").executes(context -> flightStatus(context.getSource())))
 				.then(Commands.literal("repair").executes(context -> repair(context.getSource())))
+				.then(Commands.literal("debug")
+						.then(Commands.literal("trace")
+								.then(Commands.argument("enabled", BoolArgumentType.bool())
+										.executes(context -> setDebugTrace(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
+								)
+						)
+						.then(Commands.literal("ticklog")
+								.then(Commands.argument("enabled", BoolArgumentType.bool())
+										.executes(context -> setDebugTickLog(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
+								)
+						)
+						.then(Commands.literal("physics")
+								.then(Commands.argument("enabled", BoolArgumentType.bool())
+										.executes(context -> setDebugPhysics(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
+								)
+						)
+						.then(Commands.literal("status").executes(context -> debugStatus(context.getSource())))
+				)
 				.then(Commands.literal("fault")
 						.then(Commands.literal("rotor")
 								.then(Commands.argument("index", IntegerArgumentType.integer(0, 7))
@@ -629,6 +649,29 @@ public final class DroneCommands {
 	private static int presetList(CommandSourceStack source) {
 		source.sendSuccess(() -> Component.literal("Available drone presets: racing_quad, apdrone, cinewhoop, heavy_lift, hex_lift, octo_lift, coaxial_x8"), false);
 		return 7;
+	}
+
+	private static int setDebugTrace(CommandSourceStack source, boolean enabled) {
+		DroneDebugSettings.setControlLoggingEnabled(enabled);
+		source.sendSuccess(() -> Component.literal("Debug packet trace " + (enabled ? "enabled" : "disabled")), false);
+		return 1;
+	}
+
+	private static int setDebugTickLog(CommandSourceStack source, boolean enabled) {
+		DroneDebugSettings.setTickLoggingEnabled(enabled);
+		source.sendSuccess(() -> Component.literal("Debug tick log " + (enabled ? "enabled" : "disabled")), false);
+		return 1;
+	}
+
+	private static int setDebugPhysics(CommandSourceStack source, boolean enabled) {
+		DroneDebugSettings.setBypassPhysicsEnabled(enabled);
+		source.sendSuccess(() -> Component.literal("Direct control bypass physics " + (enabled ? "enabled" : "disabled")), false);
+		return 1;
+	}
+
+	private static int debugStatus(CommandSourceStack source) {
+		source.sendSuccess(() -> Component.literal(DroneDebugSettings.statusLine()), false);
+		return 1;
 	}
 
 	private static int environmentStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

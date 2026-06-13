@@ -16,7 +16,11 @@ public final class DroneControlManager {
 	private static final int DEFAULT_DIAGNOSTIC_DURATION_TICKS = 16 * TICKS_PER_SECOND;
 	private static final int MIN_DIAGNOSTIC_DURATION_TICKS = 6 * TICKS_PER_SECOND;
 	private static final int MAX_DIAGNOSTIC_DURATION_TICKS = 60 * TICKS_PER_SECOND;
+	private static final double AUTO_ARM_RATE_AXIS_THRESHOLD = 0.08;
+	private static final double AUTO_ARM_THROTTLE_THRESHOLD = 0.02;
+	private static final double AUTO_ARM_MOVEMENT_DELTA_THRESHOLD = 0.04;
 	private static final Map<UUID, TimedInput> INPUTS = new ConcurrentHashMap<>();
+	private static final Map<UUID, DroneInput> AUTO_ARM_REFERENCE_INPUTS = new ConcurrentHashMap<>();
 	private static final Map<UUID, DiagnosticScript> DIAGNOSTICS = new ConcurrentHashMap<>();
 	private static final Map<UUID, CompletedDiagnostic> COMPLETED_DIAGNOSTICS = new ConcurrentHashMap<>();
 
@@ -28,7 +32,91 @@ public final class DroneControlManager {
 	}
 
 	public static void update(UUID playerId, DroneInput input, int tickCount) {
-		INPUTS.put(playerId, new TimedInput(input, tickCount));
+		DroneInput sanitized = input == null ? DroneInput.idle() : maybeAutoArm(playerId, input, INPUTS.get(playerId));
+		INPUTS.put(playerId, new TimedInput(sanitized, tickCount));
+	}
+
+	private static DroneInput maybeAutoArm(UUID playerId, DroneInput input, TimedInput previousInput) {
+		if (input == null) {
+			AUTO_ARM_REFERENCE_INPUTS.remove(playerId);
+			return null;
+		}
+
+		if (input.armed() || !input.linkActive()) {
+			AUTO_ARM_REFERENCE_INPUTS.remove(playerId);
+			return input;
+		}
+
+		if (previousInput == null || previousInput.input() == null || previousInput.input().armed()) {
+			if (input.linkActive() && isControlActive(input)) {
+				AUTO_ARM_REFERENCE_INPUTS.remove(playerId);
+				return armedCopy(input);
+			}
+			AUTO_ARM_REFERENCE_INPUTS.put(playerId, input);
+			return input;
+		}
+
+		DroneInput reference = AUTO_ARM_REFERENCE_INPUTS.get(playerId);
+		if (reference == null) {
+			AUTO_ARM_REFERENCE_INPUTS.put(playerId, input);
+			return input;
+		}
+
+		if (isInputMoveDetected(reference, input)) {
+			AUTO_ARM_REFERENCE_INPUTS.remove(playerId);
+			return armedCopy(input);
+		}
+
+		if (isControlIdle(input)) {
+			AUTO_ARM_REFERENCE_INPUTS.put(playerId, input);
+		}
+
+		return input;
+	}
+
+	private static boolean isControlActive(DroneInput input) {
+		if (input == null) {
+			return false;
+		}
+		return input.throttle() > AUTO_ARM_THROTTLE_THRESHOLD
+				|| Math.abs(input.pitch()) > AUTO_ARM_RATE_AXIS_THRESHOLD
+				|| Math.abs(input.roll()) > AUTO_ARM_RATE_AXIS_THRESHOLD
+				|| Math.abs(input.yaw()) > AUTO_ARM_RATE_AXIS_THRESHOLD;
+	}
+
+	private static boolean isControlIdle(DroneInput input) {
+		if (input == null) {
+			return true;
+		}
+		return input.throttle() <= AUTO_ARM_THROTTLE_THRESHOLD
+				&& Math.abs(input.pitch()) <= AUTO_ARM_RATE_AXIS_THRESHOLD
+				&& Math.abs(input.roll()) <= AUTO_ARM_RATE_AXIS_THRESHOLD
+				&& Math.abs(input.yaw()) <= AUTO_ARM_RATE_AXIS_THRESHOLD;
+	}
+
+	private static boolean isInputMoveDetected(DroneInput reference, DroneInput input) {
+		double throttleDelta = Math.abs(input.throttle() - reference.throttle());
+		double pitchDelta = Math.abs(input.pitch() - reference.pitch());
+		double rollDelta = Math.abs(input.roll() - reference.roll());
+		double yawDelta = Math.abs(input.yaw() - reference.yaw());
+
+		return throttleDelta >= AUTO_ARM_MOVEMENT_DELTA_THRESHOLD
+				|| pitchDelta >= AUTO_ARM_RATE_AXIS_THRESHOLD
+				|| rollDelta >= AUTO_ARM_RATE_AXIS_THRESHOLD
+				|| yawDelta >= AUTO_ARM_RATE_AXIS_THRESHOLD
+				|| isControlActive(input);
+	}
+
+	private static DroneInput armedCopy(DroneInput input) {
+		return new DroneInput(
+				input.throttle(),
+				input.pitch(),
+				input.roll(),
+				input.yaw(),
+				true,
+				input.linkActive(),
+				input.flightMode()
+		).normalized();
 	}
 
 	public static DroneInput get(UUID playerId, int tickCount) {
@@ -46,6 +134,28 @@ public final class DroneControlManager {
 			return DroneInput.idle();
 		}
 		return input.input;
+	}
+
+	public static ActiveInput latestActiveInput(int tickCount) {
+		ActiveInput best = null;
+		for (Map.Entry<UUID, TimedInput> entry : INPUTS.entrySet()) {
+			TimedInput input = entry.getValue();
+			if (input == null || input.input() == null) {
+				continue;
+			}
+			int age = tickCount - input.tickCount();
+			if (age < 0 || age > INPUT_TIMEOUT_TICKS) {
+				continue;
+			}
+			if (!input.input.linkActive()) {
+				continue;
+			}
+			ActiveInput candidate = new ActiveInput(entry.getKey(), input.input, age);
+			if (best == null || age < best.ageTicks()) {
+				best = candidate;
+			}
+		}
+		return best;
 	}
 
 	public static int startDiagnostic(UUID playerId, int startTick, int durationTicks) {
@@ -99,6 +209,9 @@ public final class DroneControlManager {
 	}
 
 	private record TimedInput(DroneInput input, int tickCount) {
+	}
+
+	public record ActiveInput(UUID playerId, DroneInput input, int ageTicks) {
 	}
 
 	public record DiagnosticStatus(boolean active, int elapsedTicks, int durationTicks, String phase) {

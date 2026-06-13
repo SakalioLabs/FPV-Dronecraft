@@ -18,12 +18,14 @@ import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneHud {
 	private static final Identifier HUD_ID = Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "flight_hud");
-	private static final int PANEL_COLOR = 0x8A05070A;
-	private static final int BORDER_COLOR = 0xFF22E6C7;
-	private static final int TEXT_COLOR = 0xFFEAF7F3;
-	private static final int WARN_COLOR = 0xFFFFA94D;
-	private static final float BATTERY_BUS_RIPPLE_WARNING_MIN_VOLTS = 0.18f;
-	private static final float BATTERY_BUS_RIPPLE_WARNING_RATIO = 0.0125f;
+	private static final int TEXT = 0xFFF0F8FF;
+	private static final int PRIMARY = 0xFF00FFB2;
+	private static final int WARNING = 0xFFFFC266;
+	private static final int BACKDROP = 0xA80E1318;
+	private static final int BORDER = 0xCC1E2931;
+	private static final int HUD_MARGIN = 8;
+	private static final int HUD_WIDTH = 150;
+	private static final int HUD_HEIGHT = 44;
 
 	private DroneHud() {
 	}
@@ -37,597 +39,84 @@ public final class DroneHud {
 		if (client.player == null || client.options.hideGui) {
 			return;
 		}
-
-		DroneEntity drone = DroneClientState.controlledDrone();
 		if (!DroneClientState.hasController() && !DroneClientState.isFpvActive()) {
 			return;
 		}
 
+		DroneEntity drone = DroneClientState.controlledDrone();
 		Font font = client.font;
-		int x = 8;
-		int y = 8;
-		int width = 320;
-		int height = drone == null ? 38 : 307;
-		graphics.fill(x, y, x + width, y + height, PANEL_COLOR);
-		graphics.renderOutline(x, y, width, height, BORDER_COLOR);
-
+		int width = client.getWindow().getGuiScaledWidth();
+		int height = client.getWindow().getGuiScaledHeight();
 		boolean armed = drone == null ? DroneClientState.armed() : drone.isArmed();
-		String mode = armed ? Component.translatable("hud.fpvdrone.armed").getString() : Component.translatable("hud.fpvdrone.disarmed").getString();
-		String source = Component.translatable(DroneClientState.inputSource().translationKey()).getString();
-		FlightMode flightMode = drone == null ? DroneClientState.flightMode() : drone.getFlightMode();
-		graphics.drawString(font, Component.translatable("hud.fpvdrone.fpv").getString() + "  " + mode + "  " + flightMode.name() + "  " + source, x + 8, y + 7, armed ? BORDER_COLOR : WARN_COLOR, false);
+		FlightMode mode = drone == null ? DroneClientState.flightMode() : drone.getFlightMode();
+		float throttle = drone == null ? DroneClientState.throttle() : drone.getControlThrottle();
+		float pitch = drone == null ? 0.0f : drone.getRenderPitchRadians();
+		float roll = drone == null ? 0.0f : drone.getRenderRollRadians();
+		float yaw = drone == null ? 0.0f : drone.getRenderYawRadians();
+		float altitude = drone == null ? (float) client.player.getY() : (float) drone.getY();
+		float speed = drone == null ? (float) client.player.getDeltaMovement().length() : drone.getSpeedMetersPerSecond();
+		float battery = drone == null ? 1.0f : drone.getBatteryStateOfCharge();
+		float frameHealth = drone == null ? 1.0f : (float) drone.getFrameHealth();
+		float rotorHealth = drone == null ? 1.0f : (float) drone.getRotorHealth();
+		boolean link = drone != null && drone.isRawControlLinkActive();
 
-		drawBar(graphics, x + 8, y + 22, 102, 6, DroneClientState.throttle(), 0xFF2BE870);
-		graphics.drawString(font, percent("THR", DroneClientState.throttle()), x + 116, y + 20, TEXT_COLOR, false);
+		int tlX = HUD_MARGIN;
+		int trX = width - HUD_MARGIN - HUD_WIDTH;
+		int blX = HUD_MARGIN;
+		int brX = width - HUD_MARGIN - HUD_WIDTH;
+		int topY = HUD_MARGIN;
+		int bottomY = height - HUD_MARGIN - HUD_HEIGHT;
 
-		if (drone == null) {
-			graphics.drawString(font, "NO LINKED DRONE", x + 8, y + 31, WARN_COLOR, false);
-			return;
-		}
+		drawCornerPanel(graphics, tlX, topY, textColor(armed, drone), String.format(Locale.ROOT, "FPV %s", armed ? "ARM" : "DIS"),
+				String.format(Locale.ROOT, "MODE %s", mode.name()),
+				String.format(Locale.ROOT, "THR %3.0f%%", throttle * 100.0f),
+				String.format(Locale.ROOT, "LINK %s", link ? "OK" : "OFF"),
+				font);
 
-		float motorPower = drone.getMotorPower();
-		graphics.drawString(font, linkStatusLine(drone), x + 8, y + 35, linkStatusColor(drone), false);
-		graphics.drawString(font, commandLine(drone), x + 8, y + 46, drone.isControlFailsafeActive() ? WARN_COLOR : TEXT_COLOR, false);
-		graphics.drawString(font, targetRateLine(drone), x + 8, y + 57, TEXT_COLOR, false);
-		graphics.drawString(font, gyroRateLine(drone), x + 8, y + 68, rateTrackingColor(drone), false);
-		graphics.drawString(font, pidOutputLine(drone), x + 8, y + 79, pidStatusColor(drone), false);
-		graphics.drawString(font, estimatorLine(drone), x + 8, y + 90, estimatorStatusColor(drone), false);
+		drawCornerPanel(graphics, trX, topY, textColor(armed, drone), String.format(Locale.ROOT, "BAT %3.0f%%", battery * 100.0f),
+				String.format(Locale.ROOT, "ALT %5.1fm", altitude),
+				String.format(Locale.ROOT, "SPD %4.1fm/s", speed),
+				String.format(Locale.ROOT, "F/H %3.0f/%3.0f", frameHealth * 100.0f, rotorHealth * 100.0f),
+				font);
 
-		drawBar(graphics, x + 8, y + 103, 116, 6, motorPower, 0xFF48A8FF);
-		graphics.drawString(font, motorLine(drone, motorPower), x + 132, y + 101, TEXT_COLOR, false);
+		drawCornerPanel(graphics, blX, bottomY, textColor(armed, drone), String.format(Locale.ROOT, "ATT %+.0f/%+.0f", Math.toDegrees(pitch), Math.toDegrees(roll)),
+				String.format(Locale.ROOT, "YAW %+.0f", Math.toDegrees(yaw)),
+				String.format(Locale.ROOT, "PWR %d", armed ? 1 : 0),
+				String.format(Locale.ROOT, "HOLD"), font);
 
-		int rotorCount = visibleRotorCount(drone);
-		int motorBarGap = 4;
-		int motorBarWidth = Math.max(14, Math.min(34, (205 - motorBarGap * (rotorCount - 1)) / rotorCount));
-		graphics.drawString(font, "MOT" + rotorCount, x + 8, y + 115, TEXT_COLOR, false);
-		for (int i = 0; i < rotorCount; i++) {
-			float value = drone.getMotorPower(i);
-			int color = value > 0.92f ? WARN_COLOR : 0xFF48A8FF;
-			drawBar(graphics, x + 36 + i * (motorBarWidth + motorBarGap), y + 117, motorBarWidth, 5, value, color);
-		}
-
-		float batteryPercent = drone.getBatteryStateOfCharge();
-		graphics.drawString(font, rotorThrustLine(drone), x + 8, y + 128, TEXT_COLOR, false);
-
-		int batteryColor = batteryPercent < 0.25f
-				|| drone.getBatteryPowerLimit() < 0.9f
-				|| drone.getBatteryCurrentLimit() < 0.9f
-				|| drone.getBatteryVoltageSpike() > 0.35f
-				|| batteryBusRippleWarning(drone)
-				? WARN_COLOR
-				: 0xFF2BE870;
-		drawBar(graphics, x + 8, y + 143, 116, 6, batteryPercent, batteryColor);
-		graphics.drawString(font, batteryLine(drone), x + 126, y + 141, batteryColor == WARN_COLOR ? WARN_COLOR : TEXT_COLOR, false);
-
-		float health = Math.min(drone.getFrameHealth(), minRotorHealth(drone));
-		drawBar(graphics, x + 8, y + 158, 116, 6, health, health < 0.35f ? WARN_COLOR : 0xFFC8E83C);
-		graphics.drawString(font, damageLine(drone, health), x + 132, y + 156, damageStatusColor(drone, health), false);
-		graphics.drawString(font, rotorHealthLine(drone), x + 8, y + 169, damageStatusColor(drone, health), false);
-
-		String speed = String.format(
-				Locale.ROOT,
-				"SPD %4.1f C%3.1f/%3.1f/%3.1f A%3.0f",
-				drone.getSpeedMetersPerSecond(),
-				drone.getContactImpactSpeedMetersPerSecond(),
-				drone.getContactSlipSpeedMetersPerSecond(),
-				drone.getContactBounceSpeedMetersPerSecond(),
-				drone.getContactAngularImpulseDegreesPerSecond()
-		);
-		String altitude = altitudeLine(drone);
-		String attitude = String.format(
-				Locale.ROOT,
-				"P%4.0f R%4.0f Y%4.0f",
-				Math.toDegrees(drone.getRenderPitchRadians()),
-				Math.toDegrees(drone.getRenderRollRadians()),
-				Math.toDegrees(drone.getRenderYawRadians())
-		);
-		graphics.drawString(font, speed, x + 8, y + 183, speedStatusColor(drone), false);
-		graphics.drawString(font, altitude, x + 8, y + 194, barometerStatusColor(drone), false);
-		graphics.drawString(font, attitude, x + 8, y + 205, TEXT_COLOR, false);
-		int aeroColor = aerodynamicStatusColor(drone);
-		graphics.drawString(font, airflowStatusLine(drone), x + 8, y + 216, aeroColor, false);
-		graphics.drawString(font, propellerStatusLine(drone), x + 8, y + 227, aeroColor, false);
-		graphics.drawString(font, bladeStatusLine(drone), x + 8, y + 238, aeroColor, false);
-		graphics.drawString(font, wakeStatusLine(drone), x + 8, y + 249, aeroColor, false);
-		graphics.drawString(font, aeroTorqueLine(drone), x + 8, y + 260, aeroTorqueStatusColor(drone), false);
-		graphics.drawString(font, aeroForceLine(drone), x + 8, y + 271, aeroForceStatusColor(drone), false);
-		graphics.drawString(font, environmentLine(drone), x + 8, y + 282, environmentStatusColor(drone), false);
-		graphics.drawString(font, thermalLine(drone), x + 8, y + 293, thermalStatusColor(drone), false);
+		drawCornerPanel(graphics, brX, bottomY, textColor(armed, drone), "CTRL",
+				String.format(Locale.ROOT, "H %d", DroneClientState.hasController() ? 1 : 0),
+				String.format(Locale.ROOT, "F %s", armed ? "ARM" : "DIS"),
+				String.format(Locale.ROOT, "T %d", DroneClientState.hasController() ? 1 : 0),
+				font);
 	}
 
-	private static void drawBar(GuiGraphics graphics, int x, int y, int width, int height, float value, int color) {
-		graphics.fill(x, y, x + width, y + height, 0xFF1B2426);
-		int filled = Math.round(width * Math.max(0.0f, Math.min(1.0f, value)));
-		graphics.fill(x, y, x + filled, y + height, color);
+	private static int textColor(boolean armed, DroneEntity drone) {
+		return armed && (drone == null || drone.isRawControlLinkActive()) ? PRIMARY : WARNING;
 	}
 
-	private static String percent(String label, float value) {
-		return String.format(Locale.ROOT, "%s %3.0f%%", label, value * 100.0f);
-	}
+	private static void drawCornerPanel(
+			GuiGraphics graphics,
+			int x,
+			int y,
+			int color,
+			String title,
+			String line1,
+			String line2,
+			String line3,
+			Font font
+	) {
+		int right = x + HUD_WIDTH;
+		int bottom = y + HUD_HEIGHT;
 
-	private static String linkStatusLine(DroneEntity drone) {
-		String status;
-		if (drone.isControlFailsafeActive()) {
-			status = "FS";
-		} else if (drone.isRawControlLinkActive()) {
-			status = "OK";
-		} else {
-			status = "HOLD";
-		}
-		return String.format(Locale.ROOT, "RC %-4s LOSS %.2fs", status, drone.getControlLinkLossSeconds());
-	}
+		graphics.fill(x, y, right, bottom, BACKDROP);
+		graphics.fill(x, y, right, y + 2, BORDER);
+		graphics.drawString(font, Component.literal(title), x + 4, y + 3, color, false);
+		graphics.drawString(font, Component.literal(line1), x + 4, y + 13, color, false);
+		graphics.drawString(font, Component.literal(line2), x + 4, y + 22, TEXT, false);
+		graphics.drawString(font, Component.literal(line3), x + 4, y + 30, TEXT, false);
 
-	private static String commandLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"CMD T%3.0f P%+4.0f R%+4.0f Y%+4.0f",
-				drone.getControlThrottle() * 100.0f,
-				drone.getControlPitch() * 100.0f,
-				drone.getControlRoll() * 100.0f,
-				drone.getControlYaw() * 100.0f
-		);
-	}
-
-	private static String targetRateLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"TRG P%+4.0f Y%+4.0f R%+4.0f d/s",
-				drone.getTargetPitchRateDegreesPerSecond(),
-				drone.getTargetYawRateDegreesPerSecond(),
-				drone.getTargetRollRateDegreesPerSecond()
-		);
-	}
-
-	private static String motorLine(DroneEntity drone, float motorPower) {
-		return String.format(Locale.ROOT, "MTR%3.0f%% %4.1fk", motorPower * 100.0f, drone.getAverageMotorRpm() / 1000.0f);
-	}
-
-	private static String gyroRateLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"GYR P%+4.0f Y%+4.0f R%+4.0f N%3.0f/%2.0f C%2.0f P%2.0f",
-				drone.getGyroPitchRateDegreesPerSecond(),
-				drone.getGyroYawRateDegreesPerSecond(),
-				drone.getGyroRollRateDegreesPerSecond(),
-				drone.getGyroNotchFrequencyHertz(),
-				drone.getGyroNotchAttenuation() * 100.0f,
-				Math.max(drone.getGyroClipIntensity(), drone.getAccelerometerClipIntensity()) * 100.0f,
-				drone.getImuSupplyNoiseIntensity() * 100.0f
-		);
-	}
-
-	private static String pidOutputLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"PID %+.2f/%+.2f/%+.2f D%3.0f PA%2.0f IR%2.0f AG%.1f",
-				drone.getPidPitchOutputNewtonMeters(),
-				drone.getPidYawOutputNewtonMeters(),
-				drone.getPidRollOutputNewtonMeters(),
-				drone.getPidDTermLowPassCutoffHertz(),
-				drone.getPidAttenuation() * 100.0f,
-				drone.getPidIntegralRelax() * 100.0f,
-				drone.getAntiGravityBoost()
-		);
-	}
-
-	private static String estimatorLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"EST P%+4.0f Y%+4.0f R%+4.0f E%.1f T%2.0f",
-				drone.getEstimatedPitchDegrees(),
-				drone.getEstimatedYawDegrees(),
-				drone.getEstimatedRollDegrees(),
-				drone.getAttitudeEstimateErrorDegrees(),
-				drone.getAttitudeAccelerometerTrust() * 100.0f
-		);
-	}
-
-	private static String rotorThrustLine(DroneEntity drone) {
-		int rotorCount = visibleRotorCount(drone);
-		if (rotorCount <= 6) {
-			StringBuilder builder = new StringBuilder("THR N");
-			for (int i = 0; i < rotorCount; i++) {
-				builder.append(String.format(Locale.ROOT, " %4.1f", drone.getRotorThrustNewtons(i)));
-			}
-			return builder.toString();
-		}
-		return String.format(
-				Locale.ROOT,
-				"THR N n%d avg%4.1f min%4.1f max%4.1f",
-				rotorCount,
-				averageRotorThrust(drone, rotorCount),
-				minRotorThrust(drone, rotorCount),
-				maxRotorThrust(drone, rotorCount)
-		);
-	}
-
-	private static String batteryLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"%.1fV %.0fA R%.0f +%.1f Rp%.2f L%.0f",
-				drone.getBatteryVoltage(),
-				drone.getBatteryCurrentAmps(),
-				drone.getBatteryRegenerativeCurrentAmps(),
-				drone.getBatteryVoltageSpike(),
-				drone.getBatteryBusRippleVoltage(),
-				Math.min(drone.getBatteryPowerLimit(), drone.getBatteryCurrentLimit()) * 100.0f
-		);
-	}
-
-	private static boolean batteryBusRippleWarning(DroneEntity drone) {
-		float threshold = Math.max(
-				BATTERY_BUS_RIPPLE_WARNING_MIN_VOLTS,
-				Math.max(1.0f, drone.getBatteryVoltage()) * BATTERY_BUS_RIPPLE_WARNING_RATIO
-		);
-		return drone.getBatteryBusRippleVoltage() > threshold;
-	}
-
-	private static String damageLine(DroneEntity drone, float health) {
-		return String.format(
-				Locale.ROOT,
-				"DMG F%2.0f R%2.0f V%2.0f C%2.0f",
-				(1.0f - drone.getFrameHealth()) * 100.0f,
-				(1.0f - minRotorHealth(drone)) * 100.0f,
-				drone.getRotorVibration() * 100.0f,
-				drone.getRotorConingIntensity() * 100.0f
-		);
-	}
-
-	private static String rotorHealthLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"RHL n%d min%3.0f r%d avg%3.0f PS%d SC%2.0f %s",
-				visibleRotorCount(drone),
-				minRotorHealth(drone) * 100.0f,
-				weakestRotorIndex(drone),
-				averageRotorHealth(drone) * 100.0f,
-				drone.getPropStrikeCount(),
-				drone.getRotorSurfaceScrapeIntensity() * 100.0f,
-				lastPropStrikeLabel(drone)
-		);
-	}
-
-	private static String lastPropStrikeLabel(DroneEntity drone) {
-		int rotorIndex = drone.getLastPropStrikeRotorIndex();
-		double severity = drone.getLastPropStrikeSeverity();
-		if (rotorIndex < 0 || severity <= 0.0) {
-			return "--";
-		}
-		return String.format(Locale.ROOT, "r%d/%.2f", rotorIndex, severity);
-	}
-
-	private static float minRotorHealth(DroneEntity drone) {
-		float health = 1.0f;
-		int rotorCount = visibleRotorCount(drone);
-		for (int i = 0; i < rotorCount; i++) {
-			health = Math.min(health, drone.getRotorHealth(i));
-		}
-		return health;
-	}
-
-	private static float averageRotorHealth(DroneEntity drone) {
-		float sum = 0.0f;
-		int rotorCount = visibleRotorCount(drone);
-		for (int i = 0; i < rotorCount; i++) {
-			sum += drone.getRotorHealth(i);
-		}
-		return sum / rotorCount;
-	}
-
-	private static int weakestRotorIndex(DroneEntity drone) {
-		int weakest = 0;
-		float min = Float.POSITIVE_INFINITY;
-		int rotorCount = visibleRotorCount(drone);
-		for (int i = 0; i < rotorCount; i++) {
-			float health = drone.getRotorHealth(i);
-			if (health < min) {
-				min = health;
-				weakest = i;
-			}
-		}
-		return weakest;
-	}
-
-	private static float averageRotorThrust(DroneEntity drone, int rotorCount) {
-		float sum = 0.0f;
-		for (int i = 0; i < rotorCount; i++) {
-			sum += drone.getRotorThrustNewtons(i);
-		}
-		return sum / rotorCount;
-	}
-
-	private static float minRotorThrust(DroneEntity drone, int rotorCount) {
-		float min = Float.POSITIVE_INFINITY;
-		for (int i = 0; i < rotorCount; i++) {
-			min = Math.min(min, drone.getRotorThrustNewtons(i));
-		}
-		return Float.isFinite(min) ? min : 0.0f;
-	}
-
-	private static float maxRotorThrust(DroneEntity drone, int rotorCount) {
-		float max = 0.0f;
-		for (int i = 0; i < rotorCount; i++) {
-			max = Math.max(max, drone.getRotorThrustNewtons(i));
-		}
-		return max;
-	}
-
-	private static int visibleRotorCount(DroneEntity drone) {
-		return Math.max(1, Math.min(8, drone.getRotorCount()));
-	}
-
-	private static String altitudeLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"ALT %5.1f BAR %5.1f E%+4.1f",
-				drone.getY(),
-				drone.getBarometerAltitudeMeters(),
-				drone.getBarometerErrorMeters()
-		);
-	}
-
-	private static String airflowStatusLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"AIR AS%4.1f A%+3.0f S%+3.0f E%2.0f Iv%.1f IL%2.0f",
-				drone.getAirspeedMetersPerSecond(),
-				drone.getAngleOfAttackDegrees(),
-				drone.getSideslipDegrees(),
-				drone.getRotorTranslationalLiftIntensity() * 100.0f,
-				drone.getRotorInducedVelocityMetersPerSecond(),
-				(1.0f - drone.getRotorInducedLagThrustScale()) * 100.0f
-		);
-	}
-
-	private static String propellerStatusLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"PROP Mu%2.0f J%.2f PT%2.0f PW%2.0f RF%2.0f TM%2.0f MC%2.0f Re%2.0f",
-				drone.getRotorAdvanceRatio() * 100.0f,
-				drone.getRotorPropellerAdvanceRatioJ(),
-				drone.getRotorPropellerThrustScale() * 100.0f,
-				drone.getRotorPropellerPowerScale() * 100.0f,
-				drone.getRotorReverseFlowInboardFraction() * 100.0f,
-				drone.getRotorTipMach() * 100.0f,
-				(1.0f - drone.getRotorCompressibilityThrustScale()) * 100.0f,
-				drone.getRotorLowReynoldsLoss() * 100.0f
-		);
-	}
-
-	private static String bladeStatusLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"BLD BA%2.0f BS%2.0f BP%2.0f K%2.0f R%2.0f V%2.0f VB%2.0f",
-				drone.getRotorBladeAngleOfAttackDegrees(),
-				drone.getRotorBladeElementStallIntensity() * 100.0f,
-				drone.getRotorBladePassRippleIntensity() * 100.0f,
-				drone.getRotorInflowSkewIntensity() * 100.0f,
-				drone.getRotorStallIntensity() * 100.0f,
-				drone.getVortexRingStateIntensity() * 100.0f,
-				drone.getVortexRingThrustBuffetAmplitude() * 100.0f
-		);
-	}
-
-	private static String wakeStatusLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"WAK W%2.0f WL%2.0f CX%2.0f WW%2.0f SW%.1f WM%2.0f P%2.0f VF%.1f",
-				drone.getRotorWakeInterferenceIntensity() * 100.0f,
-				(1.0f - drone.getRotorWakeThrustScale()) * 100.0f,
-				drone.getRotorCoaxialLoadBias() * 100.0f,
-				(1.0f - drone.getRotorWetThrustScale()) * 100.0f,
-				drone.getRotorWakeSwirlVelocityMetersPerSecond(),
-				drone.getRotorWindmillingIntensity() * 100.0f,
-				drone.getPropwashIntensity() * 100.0f,
-				drone.getVortexRingBuffetForceNewtons()
-		);
-	}
-
-	private static String aeroTorqueLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"TRQ SP%2.0f FL%2.0f GL%.3f BD%.3f WT%.3f BT%.3f AT%.3f GT%.3f FT%.3f",
-				drone.getAirframeSeparatedFlowIntensity() * 100.0f,
-				drone.getRotorFlappingTiltDegrees(),
-				drone.getGroundEffectLevelingTorqueNewtonMeters(),
-				drone.getRotorBladeDissymmetryTorqueNewtonMeters(),
-				drone.getRotorWakeSwirlTorqueNewtonMeters(),
-				drone.getRotorActiveBrakingTorqueNewtonMeters(),
-				drone.getRotorAccelerationReactionTorqueNewtonMeters(),
-				drone.getRotorGyroscopicTorqueNewtonMeters(),
-				drone.getRotorFlappingTorqueNewtonMeters()
-		);
-	}
-
-	private static String aeroForceLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"FOR L%4.1f G%4.1f W%4.1f H%4.1f WL%4.1f",
-				drone.getAirframeLiftForceNewtons(),
-				drone.getGroundEffectDragForceNewtons(),
-				drone.getRotorWashDragForceNewtons(),
-				drone.getRotorInPlaneDragForceNewtons(),
-				drone.getRotorWallEffectForceNewtons()
-		);
-	}
-
-	private static String environmentLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"ENV W%2.0f A%2.0f G%2.0f Sh%2.0f O%2.0f B%2.0f Wt%2.0f Rn%2.0f",
-				drone.getWindSpeedMetersPerSecond(),
-				drone.getEffectiveWindSpeedMetersPerSecond(),
-				drone.getWindGustSpeedMetersPerSecond(),
-				drone.getWindShearAccelerationMetersPerSecondSquared(),
-				drone.getObstacleProximity() * 100.0f,
-				drone.getRotorFlowObstruction() * 100.0f,
-				drone.getWaterImmersionIntensity() * 100.0f,
-				drone.getPrecipitationWetnessIntensity() * 100.0f
-		);
-	}
-
-	private static String thermalLine(DroneEntity drone) {
-		return String.format(
-				Locale.ROOT,
-				"TMP A%+3.0f M%3.0f E%3.0f TL%3.0f/%3.0f H%2.0f mR%.2f D%2.0f L%.1f",
-				drone.getAmbientTemperatureCelsius(),
-				drone.getMotorTemperatureCelsius(),
-				drone.getEscTemperatureCelsius(),
-				drone.getMotorThermalLimit() * 100.0f,
-				drone.getEscThermalLimit() * 100.0f,
-				drone.getMotorVoltageHeadroom() * 100.0f,
-				drone.getMotorWindingResistanceScale(),
-				drone.getEscDesyncIntensity() * 100.0f,
-				drone.getRotorAerodynamicLoadFactor()
-		);
-	}
-
-	private static int aerodynamicStatusColor(DroneEntity drone) {
-		if (Math.abs(drone.getAngleOfAttackDegrees()) > 35.0f
-				|| Math.abs(drone.getSideslipDegrees()) > 35.0f
-				|| drone.getMixerSaturation() > 0.18f
-				|| drone.getPropwashIntensity() > 0.25f
-				|| drone.getVortexRingStateIntensity() > 0.25f
-				|| drone.getVortexRingThrustBuffetAmplitude() > 0.08f
-				|| drone.getVortexRingBuffetForceNewtons() > 0.20f
-				|| drone.getRotorAdvanceRatio() > 0.55f
-				|| drone.getRotorPropellerAdvanceRatioJ() > 0.45f
-				|| drone.getRotorPropellerPowerScale() < 0.80f
-				|| drone.getRotorReverseFlowInboardFraction() > 0.25f
-				|| drone.getRotorTipMach() > 0.70f
-				|| drone.getRotorCompressibilityThrustScale() < 0.94f
-				|| drone.getRotorLowReynoldsLoss() > 0.25f
-				|| drone.getRotorBladeAngleOfAttackDegrees() > 28.0f
-				|| drone.getRotorBladeElementStallIntensity() > 0.35f
-				|| drone.getRotorBladePassRippleIntensity() > 0.025f
-				|| drone.getRotorInPlaneDragForceNewtons() > 2.0f
-				|| drone.getRotorInducedLagThrustScale() < 0.93f
-				|| drone.getRotorWakeInterferenceIntensity() > 0.35f
-				|| drone.getRotorWakeThrustScale() < 0.94f
-				|| drone.getRotorCoaxialLoadBias() > 0.070f
-				|| drone.getRotorWetThrustScale() < 0.96f
-				|| drone.getRotorWakeSwirlVelocityMetersPerSecond() > 0.75f
-				|| drone.getRotorWindmillingIntensity() > 0.45f
-				|| drone.getRotorStallIntensity() > 0.35f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int environmentStatusColor(DroneEntity drone) {
-		if (drone.getDroneWakeIntensity() > 0.35f
-				|| drone.getCeilingEffectIntensity() > 0.35f
-				|| drone.getEnvironmentThrustAsymmetry() > 0.08f
-				|| drone.getRotorFlowObstruction() > 0.45f
-				|| drone.getWindGustSpeedMetersPerSecond() > 1.0f
-				|| drone.getWindShearAccelerationMetersPerSecondSquared() > 4.0f
-				|| drone.getTurbulenceIntensity() > 0.55f
-				|| drone.getObstacleProximity() > 0.55f
-				|| drone.getWaterImmersionIntensity() > 0.05f
-				|| drone.getPrecipitationWetnessIntensity() > 0.45f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int aeroTorqueStatusColor(DroneEntity drone) {
-		if (drone.getAirframeSeparatedFlowIntensity() > 0.55f
-				|| drone.getRotorFlappingTiltDegrees() > 8.0f
-				|| drone.getGroundEffectLevelingTorqueNewtonMeters() > 0.045f
-				|| drone.getRotorBladeDissymmetryTorqueNewtonMeters() > 0.015f
-				|| drone.getRotorWakeSwirlTorqueNewtonMeters() > 0.010f
-				|| drone.getRotorActiveBrakingTorqueNewtonMeters() > 0.015f
-				|| drone.getRotorAccelerationReactionTorqueNewtonMeters() > 0.015f
-				|| drone.getRotorGyroscopicTorqueNewtonMeters() > 0.012f
-				|| drone.getRotorFlappingTorqueNewtonMeters() > 0.012f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int aeroForceStatusColor(DroneEntity drone) {
-		if (drone.getAirframeLiftForceNewtons() > 6.0f
-				|| drone.getGroundEffectDragForceNewtons() > 6.0f
-				|| drone.getRotorWashDragForceNewtons() > 6.0f
-				|| drone.getRotorWallEffectForceNewtons() > 3.0f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int barometerStatusColor(DroneEntity drone) {
-		return Math.abs(drone.getBarometerErrorMeters()) > 1.5f ? WARN_COLOR : TEXT_COLOR;
-	}
-
-	private static int speedStatusColor(DroneEntity drone) {
-		if (drone.getContactImpactSpeedMetersPerSecond() > 3.2f
-				|| (drone.getContactSlipSpeedMetersPerSecond() > 4.0f && drone.getContactImpactSpeedMetersPerSecond() > 0.2f)
-				|| drone.getContactAngularImpulseDegreesPerSecond() > 520.0f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int linkStatusColor(DroneEntity drone) {
-		if (drone.isControlFailsafeActive() || !drone.isRawControlLinkActive()) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int rateTrackingColor(DroneEntity drone) {
-		float targetMagnitude = Math.abs(drone.getTargetPitchRateDegreesPerSecond())
-				+ Math.abs(drone.getTargetYawRateDegreesPerSecond())
-				+ Math.abs(drone.getTargetRollRateDegreesPerSecond());
-		float errorMagnitude = Math.abs(drone.getTargetPitchRateDegreesPerSecond() - drone.getGyroPitchRateDegreesPerSecond())
-				+ Math.abs(drone.getTargetYawRateDegreesPerSecond() - drone.getGyroYawRateDegreesPerSecond())
-				+ Math.abs(drone.getTargetRollRateDegreesPerSecond() - drone.getGyroRollRateDegreesPerSecond());
-		if ((targetMagnitude > 120.0f && errorMagnitude > targetMagnitude * 0.85f)
-				|| drone.getGyroClipIntensity() > 0.05f
-				|| drone.getAccelerometerClipIntensity() > 0.05f
-				|| drone.getImuSupplyNoiseIntensity() > 0.35f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int pidStatusColor(DroneEntity drone) {
-		if (drone.getPidAttenuation() < 0.70f || drone.getPidIntegralRelax() > 0.60f || drone.getAntiGravityBoost() > 1.5f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int damageStatusColor(DroneEntity drone, float health) {
-		if (health < 0.35f
-				|| drone.getRotorVibration() > 0.12f
-				|| drone.getRotorConingIntensity() > 0.35f
-				|| drone.getRotorSurfaceScrapeIntensity() > 0.28f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int estimatorStatusColor(DroneEntity drone) {
-		if (drone.getAttitudeEstimateErrorDegrees() > 12.0f || drone.getAttitudeAccelerometerTrust() < 0.20f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
-	}
-
-	private static int thermalStatusColor(DroneEntity drone) {
-		if (drone.getAmbientTemperatureCelsius() < -5.0f
-				|| drone.getAmbientTemperatureCelsius() > 42.0f
-				|| drone.getMotorTemperatureCelsius() > 95.0f
-				|| drone.getEscTemperatureCelsius() > 95.0f
-				|| drone.getMotorThermalLimit() < 0.95f
-				|| drone.getEscThermalLimit() < 0.95f
-				|| drone.getMotorVoltageHeadroom() < 0.18f
-				|| drone.getMotorWindingResistanceScale() > 1.25f
-				|| drone.getEscDesyncIntensity() > 0.20f
-				|| drone.getRotorAerodynamicLoadFactor() > 1.35f) {
-			return WARN_COLOR;
-		}
-		return TEXT_COLOR;
+		graphics.fill(x - 1, y, x, y + HUD_HEIGHT, BORDER);
+		graphics.fill(right, y, right + 1, y + HUD_HEIGHT, BORDER);
 	}
 }

@@ -20,13 +20,28 @@ public final class DroneClientState {
 	private static boolean controlActive;
 	private static boolean physicalControllerPresent;
 	private static boolean virtualControllerEnabled;
+	private static boolean throttleCalibrated = true;
+	private static boolean throttleCalibrationActive;
 	private static FlightMode flightMode = FlightMode.ACRO;
 	private static InputSource inputSource = InputSource.KEYBOARD;
 
 	private DroneClientState() {
 	}
 
-	public static void updateControls(float throttle, float pitch, float roll, float yaw, boolean armed, boolean controlActive, boolean physicalControllerPresent, boolean virtualControllerEnabled, FlightMode flightMode, InputSource inputSource) {
+	public static void updateControls(
+			float throttle,
+			float pitch,
+			float roll,
+			float yaw,
+			boolean armed,
+			boolean controlActive,
+			boolean physicalControllerPresent,
+			boolean virtualControllerEnabled,
+			FlightMode flightMode,
+			InputSource inputSource,
+			boolean throttleCalibrated,
+			boolean throttleCalibrationActive
+	) {
 		DroneClientState.throttle = throttle;
 		DroneClientState.pitch = pitch;
 		DroneClientState.roll = roll;
@@ -37,6 +52,8 @@ public final class DroneClientState {
 		DroneClientState.virtualControllerEnabled = virtualControllerEnabled;
 		DroneClientState.flightMode = flightMode == null ? FlightMode.ACRO : flightMode;
 		DroneClientState.inputSource = inputSource;
+		DroneClientState.throttleCalibrated = throttleCalibrated;
+		DroneClientState.throttleCalibrationActive = throttleCalibrationActive;
 	}
 
 	public static void refreshControlledDrone(Minecraft client) {
@@ -79,6 +96,14 @@ public final class DroneClientState {
 
 	public static boolean isVirtualControllerEnabled() {
 		return virtualControllerEnabled;
+	}
+
+	public static boolean throttleCalibrated() {
+		return throttleCalibrated;
+	}
+
+	public static boolean throttleCalibrationActive() {
+		return throttleCalibrationActive;
 	}
 
 	public static boolean isFpvActive() {
