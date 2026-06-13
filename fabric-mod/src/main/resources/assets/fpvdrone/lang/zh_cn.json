@@ -89,7 +89,7 @@
 	"screen.fpvdrone.stick_positions": "摇杆预览",
 	"screen.fpvdrone.stick_entry": "摇杆 %1$d（轴 %2$d/%3$d）：%4$s，%5$s",
 	"screen.fpvdrone.stick_label": "摇杆 %1$s",
-	"screen.fpvdrone.stick_pair_hint": "校准后按实际遥控器通道显示。",
+	"screen.fpvdrone.stick_pair_hint": "默认 Mode 2：左摇杆偏航/油门，右摇杆横滚/俯仰。",
 	"screen.fpvdrone.binding_target": "正在绑定：%s",
 	"screen.fpvdrone.status_move_axis": "请移动目标轴。",
 	"screen.fpvdrone.status_press_button": "请按下目标按钮。",

@@ -119,6 +119,26 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void zeroStickHorizonTakeoffRemainsLevel() {
+		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+		physics.state().setPositionMeters(new Vec3(0.0, 3.0, 0.0));
+		DroneInput takeoff = new DroneInput(0.55, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+
+		for (int i = 0; i < 400; i++) {
+			physics.step(takeoff, 0.005, DroneEnvironment.calm());
+		}
+
+		Vec3 eulerDegrees = physics.state().orientation().toEulerXYZRadians().multiply(180.0 / Math.PI);
+		Vec3 angularRateDegrees = physics.state().angularVelocityBodyRadiansPerSecond().multiply(180.0 / Math.PI);
+		assertEquals(0.0, eulerDegrees.x(), 2.0, () -> "euler=" + eulerDegrees);
+		assertEquals(0.0, eulerDegrees.z(), 2.0, () -> "euler=" + eulerDegrees);
+		assertEquals(0.0, angularRateDegrees.x(), 8.0, () -> "omega=" + angularRateDegrees);
+		assertEquals(0.0, angularRateDegrees.y(), 8.0, () -> "omega=" + angularRateDegrees);
+		assertEquals(0.0, angularRateDegrees.z(), 8.0, () -> "omega=" + angularRateDegrees);
+		assertTrue(physics.state().positionMeters().y() > 8.0, () -> "position=" + physics.state().positionMeters());
+	}
+
+	@Test
 	void rotorBladeCountIsPresetSpecific() {
 		assertEquals(3, DroneConfig.racingQuad().rotors().get(0).bladeCount());
 		assertEquals(3, DroneConfig.apDrone().rotors().get(0).bladeCount());

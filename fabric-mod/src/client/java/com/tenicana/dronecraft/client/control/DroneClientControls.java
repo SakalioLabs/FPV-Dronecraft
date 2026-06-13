@@ -43,6 +43,7 @@ public final class DroneClientControls {
 	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_E);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
+	private static final float GAMEPAD_COMMAND_DEADBAND = 0.12f;
 
 	private static float throttle;
 	private static boolean armed;
@@ -258,7 +259,13 @@ public final class DroneClientControls {
 	}
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
-		return new ControlInput(input.throttle(), input.pitch(), input.roll(), input.yaw(), InputSource.GAMEPAD);
+		return new ControlInput(
+				input.throttle(),
+				commandAxis(input.pitch()),
+				commandAxis(input.roll()),
+				commandAxis(input.yaw()),
+				InputSource.GAMEPAD
+		);
 	}
 
 	private static void toggleThrottleCalibration(Minecraft client, float currentRawThrottle) {
@@ -378,6 +385,10 @@ public final class DroneClientControls {
 			return 0.0f;
 		}
 		return Math.copySign((magnitude - deadband) / (1.0f - deadband), value);
+	}
+
+	private static float commandAxis(float value) {
+		return deadband(value, Math.max(GAMEPAD_COMMAND_DEADBAND, config.gamepadDeadband()));
 	}
 
 	private record ControlInput(float throttle, float pitch, float roll, float yaw, InputSource source) {

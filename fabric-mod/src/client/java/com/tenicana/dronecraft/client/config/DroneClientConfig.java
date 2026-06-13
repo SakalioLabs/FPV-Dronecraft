@@ -23,15 +23,15 @@ public final class DroneClientConfig {
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
 
 	private boolean gamepadEnabled = true;
-	private int rollAxis = 0;
-	private int pitchAxis = 1;
-	private int yawAxis = 3;
-	private int throttleAxis = 2;
+	private int rollAxis = 2;
+	private int pitchAxis = 3;
+	private int yawAxis = 0;
+	private int throttleAxis = 1;
 	private boolean rollInverted;
 	private boolean pitchInverted = true;
 	private boolean yawInverted;
 	private boolean throttleInverted = true;
-	private float gamepadDeadband = 0.06f;
+	private float gamepadDeadband = 0.10f;
 	private int armButton = -1;
 	private int disarmButton = -1;
 	private int throttleCalibrateButton = -1;
@@ -289,6 +289,7 @@ public final class DroneClientConfig {
 	}
 
 	private DroneClientConfig normalized() {
+		migrateLegacySwappedMode2Defaults();
 		rollAxis = sanitizeAxis(rollAxis);
 		pitchAxis = sanitizeAxis(pitchAxis);
 		yawAxis = sanitizeAxis(yawAxis);
@@ -313,7 +314,7 @@ public final class DroneClientConfig {
 			throttleCalibrated = false;
 		}
 		if (!Float.isFinite(gamepadDeadband)) {
-			gamepadDeadband = 0.06f;
+			gamepadDeadband = 0.10f;
 		}
 		gamepadDeadband = Math.max(0.0f, Math.min(0.4f, gamepadDeadband));
 		if (!Float.isFinite(cameraTiltDegrees)) {
@@ -349,6 +350,25 @@ public final class DroneClientConfig {
 		cameraFovDegrees = Math.max(70.0f, Math.min(130.0f, cameraFovDegrees));
 		cameraDynamicFovDegrees = Math.max(0.0f, Math.min(25.0f, cameraDynamicFovDegrees));
 		return this;
+	}
+
+	private void migrateLegacySwappedMode2Defaults() {
+		if (rollAxis == 0
+				&& pitchAxis == 1
+				&& yawAxis == 3
+				&& throttleAxis == 2
+				&& !rollInverted
+				&& pitchInverted
+				&& !yawInverted
+				&& throttleInverted) {
+			rollAxis = 2;
+			pitchAxis = 3;
+			yawAxis = 0;
+			throttleAxis = 1;
+			if (gamepadDeadband < 0.10f) {
+				gamepadDeadband = 0.10f;
+			}
+		}
 	}
 
 	private static int sanitizeAxis(int axis) {
