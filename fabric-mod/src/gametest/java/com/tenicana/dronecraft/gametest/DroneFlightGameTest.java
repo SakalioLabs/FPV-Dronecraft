@@ -1,0 +1,67 @@
+package com.tenicana.dronecraft.gametest;
+
+import java.util.Locale;
+import java.lang.reflect.Method;
+import java.util.UUID;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.gametest.framework.GameTestAssertException;
+import net.minecraft.gametest.framework.GameTestHelper;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+
+import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
+import net.fabricmc.fabric.api.gametest.v1.GameTest;
+
+import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.entity.DroneEntity;
+import com.tenicana.dronecraft.registry.DroneEntityTypes;
+import com.tenicana.dronecraft.sim.DroneConfig;
+
+public final class DroneFlightGameTest implements CustomTestMethodInvoker {
+	private static final UUID TEST_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f002");
+	private static final int DURATION_TICKS = 260;
+	private static final int ASSERT_TICKS = 170;
+
+	@Override
+	public void invokeTestMethod(GameTestHelper context, Method method) throws ReflectiveOperationException {
+		method.invoke(this, context);
+	}
+
+	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 360)
+	public void racingQuadDiagnosticClimbsInGame(GameTestHelper context) {
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
+		drone.setPersistenceRequired();
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(TEST_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		DroneControlManager.startDiagnostic(TEST_OWNER, drone.tickCount, DURATION_TICKS);
+
+		context.runAfterDelay(ASSERT_TICKS, () -> {
+			DroneControlManager.stopDiagnostic(TEST_OWNER);
+			assertTrue(!drone.isRemoved(), "drone was removed during GameTest");
+			assertTrue(drone.tickCount > 120, "drone did not tick enough in GameTest: " + drone.tickCount);
+			assertTrue(drone.blackbox().size() > 120, "blackbox did not collect enough samples: " + drone.blackbox().size());
+			assertTrue(drone.getY() > initialY + 0.35, String.format(
+					Locale.ROOT,
+					"drone did not climb: initial=%.3f final=%.3f",
+					initialY,
+					drone.getY()
+			));
+			assertTrue(Double.isFinite(drone.getSpeedMetersPerSecond()), "drone speed became non-finite");
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	private static void assertTrue(boolean condition, String message) {
+		if (!condition) {
+			throw new GameTestAssertException(Component.literal(message), 0);
+		}
+	}
+}
