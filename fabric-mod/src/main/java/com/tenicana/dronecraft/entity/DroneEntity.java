@@ -65,8 +65,12 @@ public class DroneEntity extends PathfinderMob {
 	private static final double PHYSICS_DT = 0.005;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final int PROP_STRIKE_COOLDOWN_TICKS = 4;
-	private static final double RESTING_GROUND_CLEARANCE_METERS = 0.10;
-	private static final double TAKEOFF_THRUST_TO_WEIGHT = 1.03;
+	private static final boolean PLAYABLE_STAGE_ONE_PHYSICS = true;
+	private static final double GROUND_LOCK_CLEARANCE_MARGIN_METERS = 0.12;
+	private static final double ADVANCED_EFFECTS_CLEARANCE_METERS = 1.25;
+	private static final double TAKEOFF_THRUST_TO_WEIGHT = 0.98;
+	private static final double TAKEOFF_POSITION_NUDGE_METERS = 0.045;
+	private static final double TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND = 0.42;
 	private static final double MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND = 2.0;
 	private static final double MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND = 1.8;
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -632,17 +636,21 @@ public class DroneEntity extends PathfinderMob {
 				reason = activeOwner == null
 						? "no-owner"
 						: (!input.linkActive() ? "link-lost" : (bypassPhysics ? reason : "physics-active"));
-				lastEnvironment = sampleEnvironment();
+				lastEnvironment = sampleActiveEnvironment(input);
 				if (shouldSleepOnGround(input)) {
 					sleepOnGround(input);
 					reason = "ground-idle";
 				} else if (shouldConstrainOnGround(input)) {
+					physics.levelAtRest(entityPhysicsPosition());
 					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
 						physics.step(input, PHYSICS_DT, lastEnvironment);
 					}
 					if (hasTakeoffAuthority(input)) {
+						prepareGroundTakeoff(input);
 						applyPhysicsMovement(input);
-						samplePropStrikes();
+						if (advancedContactEffectsActive(input)) {
+							samplePropStrikes();
+						}
 						reason = "takeoff-release";
 					} else {
 						constrainOnGround();
@@ -653,7 +661,9 @@ public class DroneEntity extends PathfinderMob {
 						physics.step(input, PHYSICS_DT, lastEnvironment);
 					}
 					applyPhysicsMovement(input);
-					samplePropStrikes();
+					if (advancedContactEffectsActive(input)) {
+						samplePropStrikes();
+					}
 				}
 				updateSyncedFlightState(input);
 				recordBlackbox(input);
@@ -880,6 +890,40 @@ public class DroneEntity extends PathfinderMob {
 				precipitationWetness.averageWetness(),
 				ambientTemperature
 		);
+	}
+
+	private DroneEnvironment sampleActiveEnvironment(DroneInput input) {
+		return advancedEnvironmentEffectsActive(input) ? sampleEnvironment() : samplePlayableStageOneEnvironment();
+	}
+
+	private DroneEnvironment samplePlayableStageOneEnvironment() {
+		double groundClearance = groundClearanceMeters();
+		double ambientTemperature = ambientTemperatureCelsius();
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
+				groundClearance,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				ambientTemperature
+		);
+	}
+
+	private boolean advancedEnvironmentEffectsActive(DroneInput input) {
+		if (PLAYABLE_STAGE_ONE_PHYSICS || input == null || !input.armed()) {
+			return false;
+		}
+		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
+		return !Double.isFinite(clearance) || clearance >= ADVANCED_EFFECTS_CLEARANCE_METERS;
 	}
 
 	private PrecipitationWetness samplePrecipitationWetness(double windSpeedMetersPerSecond) {
@@ -1376,7 +1420,7 @@ public class DroneEntity extends PathfinderMob {
 		}
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		return Double.isFinite(clearance)
-				&& clearance <= RESTING_GROUND_CLEARANCE_METERS
+				&& clearance <= groundLockClearanceMeters()
 				&& physics.state().velocityMetersPerSecond().y() <= 0.05;
 	}
 
@@ -1384,11 +1428,7 @@ public class DroneEntity extends PathfinderMob {
 		if (input == null) {
 			return true;
 		}
-		return !input.armed()
-				&& input.throttle() <= 0.02
-				&& Math.abs(input.pitch()) < 0.05
-				&& Math.abs(input.roll()) < 0.05
-				&& Math.abs(input.yaw()) < 0.05;
+		return !input.armed();
 	}
 
 	private boolean shouldConstrainOnGround(DroneInput input) {
@@ -1399,7 +1439,7 @@ public class DroneEntity extends PathfinderMob {
 			return true;
 		}
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
-		return Double.isFinite(clearance) && clearance <= RESTING_GROUND_CLEARANCE_METERS;
+		return Double.isFinite(clearance) && clearance <= groundLockClearanceMeters();
 	}
 
 	private boolean hasTakeoffAuthority(DroneInput input) {
@@ -1421,13 +1461,38 @@ public class DroneEntity extends PathfinderMob {
 		return thrust;
 	}
 
+	private double groundLockClearanceMeters() {
+		return physicsCenterYOffsetMeters() + GROUND_LOCK_CLEARANCE_MARGIN_METERS;
+	}
+
+	private void prepareGroundTakeoff(DroneInput input) {
+		Vec3 position = entityPhysicsPosition().add(new Vec3(0.0, TAKEOFF_POSITION_NUDGE_METERS, 0.0));
+		Vec3 velocity = physics.state().velocityMetersPerSecond();
+		double throttleLift = MathUtil.clamp(input.throttle(), 0.0, 1.0) * 0.35;
+		double minimumVerticalSpeed = TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND + throttleLift;
+		physics.state().setPositionMeters(position);
+		physics.state().setVelocityMetersPerSecond(new Vec3(
+				velocity.x(),
+				Math.max(velocity.y(), minimumVerticalSpeed),
+				velocity.z()
+		));
+	}
+
+	private boolean advancedContactEffectsActive(DroneInput input) {
+		if (PLAYABLE_STAGE_ONE_PHYSICS || input == null || !input.armed()) {
+			return false;
+		}
+		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
+		return !Double.isFinite(clearance) || clearance >= ADVANCED_EFFECTS_CLEARANCE_METERS;
+	}
+
 	private void sleepOnGround(DroneInput input) {
 		physics.sleepAtRest(entityPhysicsPosition(), input);
 		setDeltaMovement(0.0, 0.0, 0.0);
 	}
 
 	private void constrainOnGround() {
-		physics.constrainAtRest(entityPhysicsPosition());
+		physics.levelAtRest(entityPhysicsPosition());
 		setDeltaMovement(0.0, 0.0, 0.0);
 	}
 
@@ -1457,6 +1522,18 @@ public class DroneEntity extends PathfinderMob {
 			}
 			if (input != null && wantsGroundSleep(input) && verticalCollision && velocityBeforeCollision.y() <= 0.0) {
 				sleepOnGround(input);
+				return;
+			}
+			if (!advancedContactEffectsActive(input)) {
+				velocity = new Vec3(
+						horizontalCollision ? 0.0 : velocity.x(),
+						verticalCollision ? 0.0 : velocity.y(),
+						horizontalCollision ? 0.0 : velocity.z()
+				);
+				physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+				physics.state().setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
+				physics.state().setVelocityMetersPerSecond(velocity);
+				setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 				return;
 			}
 			ContactDynamics.Response preliminaryContact = ContactDynamics.resolve(

@@ -39,7 +39,7 @@ public final class DroneHud {
 
 	private static void render(GuiGraphics graphics, net.minecraft.client.DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || client.options.hideGui) {
+		if (client.player == null || client.options.hideGui || !DroneClientState.isHudEnabled()) {
 			return;
 		}
 		DroneEntity drone = DroneClientState.controlledDrone();

@@ -39,6 +39,8 @@ import com.tenicana.dronecraft.sim.Vec3;
 
 public final class DroneCommands {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
+	private static final double SPAWN_FORWARD_METERS = 1.65;
+	private static final double SPAWN_GROUND_OFFSET_METERS = 0.04;
 
 	private DroneCommands() {
 	}
@@ -298,7 +300,15 @@ public final class DroneCommands {
 		ServerPlayer player = source.getPlayerOrException();
 		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, player.level());
 		drone.setOwner(player.getUUID());
-		drone.setPos(player.getX(), player.getY() + 1.25, player.getZ());
+		net.minecraft.world.phys.Vec3 look = player.getLookAngle();
+		double horizontal = Math.hypot(look.x, look.z);
+		double forwardX = horizontal <= 1.0e-6 ? -Math.sin(Math.toRadians(player.getYRot())) : look.x / horizontal;
+		double forwardZ = horizontal <= 1.0e-6 ? Math.cos(Math.toRadians(player.getYRot())) : look.z / horizontal;
+		drone.setPos(
+				player.getX() + forwardX * SPAWN_FORWARD_METERS,
+				player.getY() + SPAWN_GROUND_OFFSET_METERS,
+				player.getZ() + forwardZ * SPAWN_FORWARD_METERS
+		);
 		drone.setYRot(player.getYRot());
 		drone.applyConfig(configFactory.get(), name);
 		player.level().addFreshEntity(drone);

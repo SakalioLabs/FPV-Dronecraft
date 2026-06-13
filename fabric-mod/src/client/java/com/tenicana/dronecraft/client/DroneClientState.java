@@ -21,6 +21,7 @@ public final class DroneClientState {
 	private static boolean physicalControllerPresent;
 	private static boolean virtualControllerEnabled;
 	private static boolean fpvViewEnabled;
+	private static boolean hudEnabled = true;
 	private static boolean throttleCalibrated = true;
 	private static boolean throttleCalibrationActive;
 	private static FlightMode flightMode = FlightMode.HORIZON;
@@ -109,6 +110,14 @@ public final class DroneClientState {
 
 	public static void setFpvViewEnabled(boolean enabled) {
 		fpvViewEnabled = enabled;
+	}
+
+	public static boolean isHudEnabled() {
+		return hudEnabled;
+	}
+
+	public static void setHudEnabled(boolean enabled) {
+		hudEnabled = enabled;
 	}
 
 	public static boolean throttleCalibrated() {

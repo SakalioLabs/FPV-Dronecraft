@@ -84,6 +84,25 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void levelAtRestKeepsMotorSpoolAndLevelsAttitude() {
+		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+		DroneInput spool = new DroneInput(0.34, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+		for (int i = 0; i < 160; i++) {
+			physics.step(spool, 0.005);
+		}
+		double rpmBeforeConstraint = physics.state().averageMotorRpm();
+		physics.state().setOrientation(new Quaternion(0.5, 0.5, 0.5, 0.5).normalized());
+
+		physics.levelAtRest(new Vec3(0.0, 0.175, 0.0));
+
+		assertEquals(new Vec3(0.0, 0.175, 0.0), physics.state().positionMeters());
+		assertEquals(Quaternion.IDENTITY, physics.state().orientation());
+		assertEquals(Quaternion.IDENTITY, physics.state().estimatedOrientation());
+		assertEquals(rpmBeforeConstraint, physics.state().averageMotorRpm(), 1.0e-12);
+		assertTrue(physics.state().processedControlInput().armed());
+	}
+
+	@Test
 	void playableTakeoffThrottleClimbsWithRuntimeActuators() {
 		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
 		physics.state().setPositionMeters(new Vec3(0.0, 3.0, 0.0));

@@ -33,6 +33,7 @@ public final class DroneClientControls {
 	private static final KeyMapping FLIGHT_MODE = register("key.fpvdrone.flight_mode", GLFW.GLFW_KEY_M);
 	private static final KeyMapping VIRTUAL_CONTROLLER = register("key.fpvdrone.virtual_controller", GLFW.GLFW_KEY_V);
 	private static final KeyMapping FPV_VIEW = register("key.fpvdrone.fpv_view", GLFW.GLFW_KEY_B);
+	private static final KeyMapping HUD_TOGGLE = register("key.fpvdrone.hud_toggle", GLFW.GLFW_KEY_N);
 	private static final KeyMapping GAMEPAD_TOGGLE = register("key.fpvdrone.gamepad_toggle", GLFW.GLFW_KEY_G);
 	private static final KeyMapping CONFIG_RELOAD = register("key.fpvdrone.reload_config", GLFW.GLFW_KEY_H);
 	private static final KeyMapping CONTROLLER_SETTINGS = register("key.fpvdrone.open_controller_settings", GLFW.GLFW_KEY_I);
@@ -97,6 +98,15 @@ public final class DroneClientControls {
 				DroneClientState.setFpvViewEnabled(fpvEnabled);
 				client.player.displayClientMessage(
 						Component.translatable(fpvEnabled ? "message.fpvdrone.fpv_view_enabled" : "message.fpvdrone.fpv_view_disabled"),
+						true
+				);
+			}
+
+			while (HUD_TOGGLE.consumeClick()) {
+				boolean hudEnabled = !DroneClientState.isHudEnabled();
+				DroneClientState.setHudEnabled(hudEnabled);
+				client.player.displayClientMessage(
+						Component.translatable(hudEnabled ? "message.fpvdrone.hud_enabled" : "message.fpvdrone.hud_disabled"),
 						true
 				);
 			}

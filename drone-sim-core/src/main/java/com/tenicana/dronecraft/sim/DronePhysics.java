@@ -587,6 +587,7 @@ public final class DronePhysics {
 		Vec3 safePosition = positionMeters == null ? state.positionMeters() : positionMeters;
 		state.setPositionMeters(safePosition);
 		constrainAtRestKinematics();
+		levelAtRestAttitude();
 		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
 		state.setProcessedControlInput(input == null
 				? DroneInput.idle()
@@ -603,6 +604,11 @@ public final class DronePhysics {
 		constrainAtRestKinematics();
 	}
 
+	public void levelAtRest(Vec3 positionMeters) {
+		constrainAtRest(positionMeters);
+		levelAtRestAttitude();
+	}
+
 	private void constrainAtRestKinematics() {
 		state.setVelocityMetersPerSecond(Vec3.ZERO);
 		state.setLinearAccelerationWorldMetersPerSecondSquared(Vec3.ZERO);
@@ -610,6 +616,11 @@ public final class DronePhysics {
 		state.setAngularAccelerationBodyRadiansPerSecondSquared(Vec3.ZERO);
 		state.setGyroAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 		state.setContactTelemetry(0.0, 0.0, 0.0);
+	}
+
+	private void levelAtRestAttitude() {
+		state.setOrientation(Quaternion.IDENTITY);
+		state.setEstimatedOrientation(Quaternion.IDENTITY);
 	}
 
 	public void restoreBatteryTransientState(

@@ -11,6 +11,9 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 
 public class DroneControllerItem extends Item {
+	private static final double SPAWN_FORWARD_METERS = 1.65;
+	private static final double SPAWN_GROUND_OFFSET_METERS = 0.04;
+
 	public DroneControllerItem(Properties properties) {
 		super(properties);
 	}
@@ -20,7 +23,15 @@ public class DroneControllerItem extends Item {
 		if (!level.isClientSide()) {
 			DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
 			drone.setOwner(player.getUUID());
-			drone.setPos(player.getX(), player.getY() + 1.25, player.getZ());
+			net.minecraft.world.phys.Vec3 look = player.getLookAngle();
+			double horizontal = Math.hypot(look.x, look.z);
+			double forwardX = horizontal <= 1.0e-6 ? -Math.sin(Math.toRadians(player.getYRot())) : look.x / horizontal;
+			double forwardZ = horizontal <= 1.0e-6 ? Math.cos(Math.toRadians(player.getYRot())) : look.z / horizontal;
+			drone.setPos(
+					player.getX() + forwardX * SPAWN_FORWARD_METERS,
+					player.getY() + SPAWN_GROUND_OFFSET_METERS,
+					player.getZ() + forwardZ * SPAWN_FORWARD_METERS
+			);
 			drone.setYRot(player.getYRot());
 			level.addFreshEntity(drone);
 			player.displayClientMessage(Component.translatable("message.fpvdrone.spawned"), true);
