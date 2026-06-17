@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.sim.ControlStickProfile;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 class PlayableFlightModelTest {
@@ -126,6 +127,18 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(step.pitchRadians()) < Math.toRadians(18.0));
 		assertTrue(Math.abs(step.rollRadians()) < Math.toRadians(14.0));
+	}
+
+	@Test
+	void angleModeTurnsSmallGamepadCorrectionsIntoFineTrim() {
+		float gentleStick = (float) ControlStickProfile.gamepadCommand(0.35, 0.10);
+		PlayableFlightModel.Step held = holdStick(FlightMode.ANGLE, 20, 0.42f, gentleStick, -gentleStick, gentleStick);
+
+		assertTrue(Math.abs(held.pitchRadians()) < Math.toRadians(0.30));
+		assertTrue(Math.abs(held.rollRadians()) < Math.toRadians(0.30));
+		assertTrue(Math.abs(held.targetVelocityX()) < 0.02f);
+		assertTrue(Math.abs(held.targetVelocityZ()) < 0.02f);
+		assertTrue(held.yawDegreesPerTick() < 0.01f);
 	}
 
 	@Test

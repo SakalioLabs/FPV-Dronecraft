@@ -30,13 +30,13 @@ class DroneClientStateTest {
 	}
 
 	@Test
-	void hudModeCyclesThroughMinimalFullAndOff() {
+	void hudModeCyclesFromMinimalToOffBeforeFullTelemetry() {
 		DroneClientState.setHudMode(DroneClientState.HudMode.MINIMAL);
 
-		assertEquals(DroneClientState.HudMode.FULL, DroneClientState.cycleHudMode());
-		assertTrue(DroneClientState.isHudEnabled());
 		assertEquals(DroneClientState.HudMode.OFF, DroneClientState.cycleHudMode());
 		assertFalse(DroneClientState.isHudEnabled());
+		assertEquals(DroneClientState.HudMode.FULL, DroneClientState.cycleHudMode());
+		assertTrue(DroneClientState.isHudEnabled());
 		assertEquals(DroneClientState.HudMode.MINIMAL, DroneClientState.cycleHudMode());
 		assertTrue(DroneClientState.isHudEnabled());
 	}

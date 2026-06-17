@@ -203,9 +203,9 @@ public final class DroneClientState {
 
 		public HudMode next() {
 			return switch (this) {
-				case MINIMAL -> FULL;
-				case FULL -> OFF;
-				case OFF -> MINIMAL;
+				case MINIMAL -> OFF;
+				case OFF -> FULL;
+				case FULL -> MINIMAL;
 			};
 		}
 

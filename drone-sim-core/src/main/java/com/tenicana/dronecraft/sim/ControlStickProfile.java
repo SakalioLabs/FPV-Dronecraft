@@ -1,8 +1,8 @@
 package com.tenicana.dronecraft.sim;
 
 public final class ControlStickProfile {
-	public static final double GAMEPAD_COMMAND_DEADBAND = 0.18;
-	public static final double GAMEPAD_COMMAND_EXPO = 0.95;
+	public static final double GAMEPAD_COMMAND_DEADBAND = 0.22;
+	public static final double GAMEPAD_COMMAND_EXPO = 0.97;
 	public static final double GAMEPAD_THROTTLE_EXPONENT = 2.0;
 	public static final double KEYBOARD_COMMAND_EXPO = 0.82;
 

@@ -217,7 +217,7 @@ final class PlayableFlightModel {
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (mode == null ? FlightMode.HORIZON : mode) {
-				case ANGLE -> new Profile(0.95f, 1.35f, radians(20.0f), radians(20.0f), radians(32.0f), radians(34.0f), radians(2.0f), radians(2.25f), 1.05f, 0.20f, radians(1.35f), 0.82f, 0.22f);
+				case ANGLE -> new Profile(0.78f, 1.10f, radians(16.0f), radians(16.0f), radians(28.0f), radians(30.0f), radians(1.4f), radians(1.55f), 0.70f, 0.16f, radians(0.95f), 0.78f, 0.16f);
 				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.16f, radians(1.85f), 0.88f, 0.20f);
 				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.16f, radians(3.80f), 0.995f, 0.22f);
 			};

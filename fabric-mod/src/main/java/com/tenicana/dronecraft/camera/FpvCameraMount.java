@@ -4,8 +4,8 @@ import net.minecraft.world.phys.Vec3;
 
 public final class FpvCameraMount {
 	public static final double COLLISION_CLEARANCE_METERS = 0.08;
-	public static final double MIN_CLEAR_FORWARD_OFFSET_METERS = 0.72;
-	public static final double MIN_CLEAR_UP_OFFSET_METERS = 0.42;
+	public static final double MIN_CLEAR_FORWARD_OFFSET_METERS = 0.95;
+	public static final double MIN_CLEAR_UP_OFFSET_METERS = 0.58;
 
 	private FpvCameraMount() {
 	}
