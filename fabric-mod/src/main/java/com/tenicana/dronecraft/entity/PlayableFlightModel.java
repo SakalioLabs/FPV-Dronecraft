@@ -49,9 +49,9 @@ final class PlayableFlightModel {
 			targetVelocityY = THRUST_MIN_CLIMB;
 		}
 
-		float velocityX = smooth(safePrevious.velocityX(), targetVelocityX, profile.velocitySmoothing());
-		float velocityY = smooth(safePrevious.velocityY(), targetVelocityY, profile.velocitySmoothing());
-		float velocityZ = smooth(safePrevious.velocityZ(), targetVelocityZ, profile.velocitySmoothing());
+		float velocityX = smooth(safePrevious.velocityX(), targetVelocityX, velocitySmoothing(safePrevious.velocityX(), targetVelocityX, profile));
+		float velocityY = smooth(safePrevious.velocityY(), targetVelocityY, velocitySmoothing(safePrevious.velocityY(), targetVelocityY, profile));
+		float velocityZ = smooth(safePrevious.velocityZ(), targetVelocityZ, velocitySmoothing(safePrevious.velocityZ(), targetVelocityZ, profile));
 		velocityX = clamp(velocityX, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
 		velocityY = clamp(velocityY, -VERTICAL_SPEED_LIMIT, VERTICAL_SPEED_LIMIT);
 		velocityZ = clamp(velocityZ, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
@@ -80,20 +80,7 @@ final class PlayableFlightModel {
 	private static Attitude attitude(FlightMode mode, Profile profile, float pitch, float roll, State previous) {
 		FlightMode safeMode = mode == null ? FlightMode.HORIZON : mode;
 		return switch (safeMode) {
-			case ANGLE -> new Attitude(
-					smoothLimited(
-							previous.pitchRadians(),
-							pitch * profile.maxPitchRadians(),
-							profile.attitudeSmoothing(),
-							profile.attitudeStepLimitRadians()
-					),
-					smoothLimited(
-							previous.rollRadians(),
-							roll * profile.maxRollRadians(),
-							profile.attitudeSmoothing(),
-							profile.attitudeStepLimitRadians()
-					)
-			);
+			case ANGLE -> angleAttitude(profile, pitch, roll, previous);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
 			case ACRO -> new Attitude(
 					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroPitchRadians()),
@@ -102,20 +89,37 @@ final class PlayableFlightModel {
 		};
 	}
 
+	private static Attitude angleAttitude(Profile profile, float pitch, float roll, State previous) {
+		return new Attitude(
+				smoothLimited(
+						previous.pitchRadians(),
+						pitch * profile.maxPitchRadians(),
+						attitudeSmoothing(pitch, profile),
+						attitudeStepLimitRadians(pitch, profile)
+				),
+				smoothLimited(
+						previous.rollRadians(),
+						roll * profile.maxRollRadians(),
+						attitudeSmoothing(roll, profile),
+						attitudeStepLimitRadians(roll, profile)
+				)
+		);
+	}
+
 	private static Attitude horizonAttitude(Profile profile, float pitch, float roll, State previous) {
 		float pitchBlend = smoothStep((Math.abs(pitch) - 0.62f) / 0.33f);
 		float rollBlend = smoothStep((Math.abs(roll) - 0.62f) / 0.33f);
 		float anglePitch = smoothLimited(
 				previous.pitchRadians(),
 				pitch * profile.maxPitchRadians(),
-				profile.attitudeSmoothing(),
-				profile.attitudeStepLimitRadians()
+				attitudeSmoothing(pitch, profile),
+				attitudeStepLimitRadians(pitch, profile)
 		);
 		float angleRoll = smoothLimited(
 				previous.rollRadians(),
 				roll * profile.maxRollRadians(),
-				profile.attitudeSmoothing(),
-				profile.attitudeStepLimitRadians()
+				attitudeSmoothing(roll, profile),
+				attitudeStepLimitRadians(roll, profile)
 		);
 		float ratePitch = heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroPitchRadians());
 		float rateRoll = heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroRollRadians());
@@ -123,6 +127,14 @@ final class PlayableFlightModel {
 				lerp(anglePitch, ratePitch, pitchBlend),
 				lerp(angleRoll, rateRoll, rollBlend)
 		);
+	}
+
+	private static float attitudeSmoothing(float command, Profile profile) {
+		return Math.abs(command) < 0.035f ? profile.attitudeRecenterSmoothing() : profile.attitudeSmoothing();
+	}
+
+	private static float attitudeStepLimitRadians(float command, Profile profile) {
+		return Math.abs(command) < 0.035f ? profile.attitudeRecenterStepLimitRadians() : profile.attitudeStepLimitRadians();
 	}
 
 	private static float heldRateAttitude(float previousRadians, float command, float rateRadiansPerTick, float centerDamping, float limitRadians) {
@@ -149,6 +161,14 @@ final class PlayableFlightModel {
 
 	private static float smooth(float current, float target, float smoothing) {
 		return current + (target - current) * clamp(smoothing, 0.0f, 1.0f);
+	}
+
+	private static float velocitySmoothing(float current, float target, Profile profile) {
+		boolean reversing = Math.signum(current) != 0.0f
+				&& Math.signum(target) != 0.0f
+				&& Math.signum(current) != Math.signum(target);
+		boolean braking = reversing || Math.abs(target) < Math.abs(current);
+		return braking ? profile.velocityBrakeSmoothing() : profile.velocitySmoothing();
 	}
 
 	private static float smoothLimited(float current, float target, float smoothing, float maxStep) {
@@ -212,17 +232,20 @@ final class PlayableFlightModel {
 			float yawDegreesPerTick,
 			float attitudeSmoothing,
 			float attitudeStepLimitRadians,
+			float attitudeRecenterSmoothing,
+			float attitudeRecenterStepLimitRadians,
 			float acroHoldDamping,
 			float velocitySmoothing,
+			float velocityBrakeSmoothing,
 			float hoverBand,
 			float descentGain,
 			float thrustGain
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (mode == null ? FlightMode.HORIZON : mode) {
-				case ANGLE -> new Profile(0.60f, 0.88f, radians(12.0f), radians(12.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.48f, 0.12f, radians(0.65f), 0.78f, 0.12f, 0.055f, 0.62f, 1.45f);
-				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.16f, radians(1.85f), 0.88f, 0.20f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
-				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.16f, radians(3.80f), 0.995f, 0.22f, 0.030f, 1.10f, 2.80f);
+				case ANGLE -> new Profile(0.60f, 0.88f, radians(12.0f), radians(12.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.48f, 0.12f, radians(0.65f), 0.46f, radians(3.0f), 0.78f, 0.12f, 0.30f, 0.055f, 0.62f, 1.45f);
+				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
+				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.030f, 1.10f, 2.80f);
 			};
 		}
 

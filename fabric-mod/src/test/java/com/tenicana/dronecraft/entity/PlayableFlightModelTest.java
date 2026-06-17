@@ -165,6 +165,47 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeBrakesHorizontalDriftWhenStickIsReleased() {
+		PlayableFlightModel.Step held = holdStick(FlightMode.ANGLE, 18, 0.45f, 1.0f, -1.0f, 0.0f);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ANGLE,
+				8,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(held)
+		);
+
+		assertTrue(Math.abs(held.velocityX()) > 0.35f);
+		assertTrue(Math.abs(held.velocityZ()) > 0.35f);
+		assertTrue(Math.abs(released.velocityX()) < 0.07f);
+		assertTrue(Math.abs(released.velocityZ()) < 0.07f);
+	}
+
+	@Test
+	void angleModeCatchesHoverAfterThrottleIsRecentered() {
+		PlayableFlightModel.Step climb = holdStick(FlightMode.ANGLE, 12, 0.60f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step hover = runFrom(
+				FlightMode.ANGLE,
+				8,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(climb)
+		);
+
+		assertTrue(climb.velocityY() > 0.45f);
+		assertEquals(0.0f, hover.targetVelocityY(), 1.0e-5f);
+		assertTrue(Math.abs(hover.velocityY()) < 0.06f);
+	}
+
+	@Test
 	void angleModeGivesGamepadCenterAStableHoverWindow() {
 		float centerThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
 		float slightClimbStick = (float) ControlStickProfile.gamepadThrottle(0.55);
