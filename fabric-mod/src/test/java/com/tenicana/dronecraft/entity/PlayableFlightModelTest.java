@@ -580,6 +580,36 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void yawRelativeVelocityMappingKeepsPitchAndRollAlignedWithDroneHeading() {
+		PlayableFlightModel.Velocity forwardYaw0 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, -1.0f, 0.0f);
+		PlayableFlightModel.Velocity forwardYaw90 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, -1.0f, 90.0f);
+		PlayableFlightModel.Velocity rightYaw90 = PlayableFlightModel.worldVelocityForYaw(1.0f, 0.0f, 0.0f, 90.0f);
+		PlayableFlightModel.Velocity forwardYaw180 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, -1.0f, 180.0f);
+
+		assertEquals(0.0f, forwardYaw0.x(), 1.0e-5f);
+		assertEquals(0.25f, forwardYaw0.y(), 1.0e-5f);
+		assertEquals(-1.0f, forwardYaw0.z(), 1.0e-5f);
+		assertEquals(1.0f, forwardYaw90.x(), 1.0e-5f);
+		assertEquals(0.25f, forwardYaw90.y(), 1.0e-5f);
+		assertEquals(0.0f, forwardYaw90.z(), 1.0e-5f);
+		assertEquals(0.0f, rightYaw90.x(), 1.0e-5f);
+		assertEquals(1.0f, rightYaw90.z(), 1.0e-5f);
+		assertEquals(0.0f, forwardYaw180.x(), 1.0e-5f);
+		assertEquals(0.25f, forwardYaw180.y(), 1.0e-5f);
+		assertEquals(1.0f, forwardYaw180.z(), 1.0e-5f);
+	}
+
+	@Test
+	void yawRelativeVelocityMappingRoundTripsCollisionAdjustedWorldVelocity() {
+		PlayableFlightModel.Velocity world = PlayableFlightModel.worldVelocityForYaw(0.35f, -0.20f, -0.80f, 135.0f);
+		PlayableFlightModel.Velocity local = PlayableFlightModel.localVelocityForYaw(world.x(), world.y(), world.z(), 135.0f);
+
+		assertEquals(0.35f, local.x(), 1.0e-5f);
+		assertEquals(-0.20f, local.y(), 1.0e-5f);
+		assertEquals(-0.80f, local.z(), 1.0e-5f);
+	}
+
+	@Test
 	void angleModeWithGentleTrainingPresetKeepsMidStickCalm() {
 		float mediumStick = (float) ControlStickProfile.gamepadCommand(0.70, 0.10, 1.00, 0.42);
 		float fullStick = (float) ControlStickProfile.gamepadCommand(1.0, 0.10, 1.00, 0.42);

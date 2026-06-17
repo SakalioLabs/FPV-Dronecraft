@@ -154,6 +154,28 @@ final class PlayableFlightModel {
 		return Math.abs(clamped) <= PLAYABLE_AXIS_NOISE_EPSILON ? 0.0f : clamped;
 	}
 
+	static Velocity worldVelocityForYaw(float localX, float localY, float localZ, float yawDegrees) {
+		float yawRadians = (float) Math.toRadians(yawDegrees);
+		float cos = (float) Math.cos(yawRadians);
+		float sin = (float) Math.sin(yawRadians);
+		return new Velocity(
+				localX * cos - localZ * sin,
+				localY,
+				localX * sin + localZ * cos
+		);
+	}
+
+	static Velocity localVelocityForYaw(float worldX, float worldY, float worldZ, float yawDegrees) {
+		float yawRadians = (float) Math.toRadians(yawDegrees);
+		float cos = (float) Math.cos(yawRadians);
+		float sin = (float) Math.sin(yawRadians);
+		return new Velocity(
+				worldX * cos + worldZ * sin,
+				worldY,
+				-worldX * sin + worldZ * cos
+		);
+	}
+
 	private static State previousStateForMode(FlightMode mode, Profile profile, State previous) {
 		if (previous == null) {
 			return State.zero(mode);
@@ -461,6 +483,9 @@ final class PlayableFlightModel {
 			float averageRpm,
 			FlightMode mode
 	) {
+	}
+
+	record Velocity(float x, float y, float z) {
 	}
 
 	private record Attitude(float pitchRadians, float rollRadians) {

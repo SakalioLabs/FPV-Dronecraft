@@ -838,19 +838,22 @@ public class DroneEntity extends Entity {
 		debugMotorPower = step.motorPower();
 		debugAverageMotorRpm = step.averageRpm();
 
-		float yawRadians = (float) Math.toRadians(getYRot());
-		float cos = (float) Math.cos(yawRadians);
-		float sin = (float) Math.sin(yawRadians);
-		float worldX = debugVelocityX * cos - debugVelocityZ * sin;
-		float worldZ = debugVelocityX * sin + debugVelocityZ * cos;
+		PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
+				debugVelocityX,
+				debugVelocityY,
+				debugVelocityZ,
+				getYRot()
+		);
+		float worldX = worldVelocity.x();
+		float worldZ = worldVelocity.z();
 		float deltaX = worldX / 20.0f;
-		float deltaY = debugVelocityY / 20.0f;
+		float deltaY = worldVelocity.y() / 20.0f;
 		float deltaZ = worldZ / 20.0f;
 		float worldVelocityX = worldX;
-		float worldVelocityY = debugVelocityY;
+		float worldVelocityY = worldVelocity.y();
 		float worldVelocityZ = worldZ;
 
-		applyDebugMovement(deltaX, deltaY, deltaZ, worldVelocityX, worldVelocityY, worldVelocityZ, cos, sin);
+		applyDebugMovement(deltaX, deltaY, deltaZ, worldVelocityX, worldVelocityY, worldVelocityZ, getYRot());
 		if (Math.abs(targetYaw) > 0.02f) {
 			setYRot(getYRot() + targetYaw);
 		}
@@ -864,8 +867,7 @@ public class DroneEntity extends Entity {
 			float worldVelocityX,
 			float worldVelocityY,
 			float worldVelocityZ,
-			float yawCos,
-			float yawSin
+			float yawDegrees
 	) {
 		double startX = getX();
 		double startY = getY();
@@ -887,9 +889,15 @@ public class DroneEntity extends Entity {
 			actualWorldVelocityY = worldVelocityY;
 		}
 
-		debugVelocityX = actualWorldVelocityX * yawCos + actualWorldVelocityZ * yawSin;
-		debugVelocityY = actualWorldVelocityY;
-		debugVelocityZ = -actualWorldVelocityX * yawSin + actualWorldVelocityZ * yawCos;
+		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
+				actualWorldVelocityX,
+				actualWorldVelocityY,
+				actualWorldVelocityZ,
+				yawDegrees
+		);
+		debugVelocityX = localVelocity.x();
+		debugVelocityY = localVelocity.y();
+		debugVelocityZ = localVelocity.z();
 		if (horizontalCollision) {
 			debugVelocityX = Math.abs(debugVelocityX) < 0.025f ? 0.0f : debugVelocityX;
 			debugVelocityZ = Math.abs(debugVelocityZ) < 0.025f ? 0.0f : debugVelocityZ;
