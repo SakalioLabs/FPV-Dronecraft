@@ -12,9 +12,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
+import com.tenicana.dronecraft.camera.FpvCameraMount;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
@@ -97,8 +100,9 @@ public abstract class CameraMixin {
 				config.cameraUpOffsetMeters() + shake.verticalMeters(),
 				-config.cameraForwardOffsetMeters() + shake.forwardMeters()
 		).rotate(bodyRotation);
-		Vec3 position = new Vec3(delayedPose.xMeters(), delayedPose.yMeters(), delayedPose.zMeters())
-				.add(cameraOffset.x(), cameraOffset.y(), cameraOffset.z());
+		Vec3 cameraOrigin = new Vec3(delayedPose.xMeters(), delayedPose.yMeters(), delayedPose.zMeters());
+		Vec3 desiredPosition = cameraOrigin.add(cameraOffset.x(), cameraOffset.y(), cameraOffset.z());
+		Vec3 position = collisionAdjustedCameraPosition(level, drone, cameraOrigin, desiredPosition);
 
 		setPosition(position);
 		setRotation(cameraYawDegrees, cameraPitchDegrees);
@@ -116,6 +120,23 @@ public abstract class CameraMixin {
 	private static void resetCameraDelay() {
 		FPV_POSE_DELAY.reset();
 		delayedDroneId = -1;
+	}
+
+	private static Vec3 collisionAdjustedCameraPosition(Level level, Entity entity, Vec3 origin, Vec3 desiredPosition) {
+		if (level == null || origin.distanceToSqr(desiredPosition) <= 1.0e-8) {
+			return desiredPosition;
+		}
+		HitResult hit = level.clip(new ClipContext(
+				origin,
+				desiredPosition,
+				ClipContext.Block.COLLIDER,
+				ClipContext.Fluid.NONE,
+				entity
+		));
+		if (hit.getType() == HitResult.Type.MISS) {
+			return desiredPosition;
+		}
+		return FpvCameraMount.retreatFromHit(origin, desiredPosition, hit.getLocation(), FpvCameraMount.COLLISION_CLEARANCE_METERS);
 	}
 
 	private static CameraShake cameraShake(DroneEntity drone, float partialTick, DroneClientConfig config) {
