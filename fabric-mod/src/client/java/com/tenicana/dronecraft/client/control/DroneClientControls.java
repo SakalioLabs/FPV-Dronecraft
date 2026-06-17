@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.client.control;
 
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
+import java.util.UUID;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import org.lwjgl.glfw.GLFW;
@@ -72,6 +73,7 @@ public final class DroneClientControls {
 	private static final StickArmGestureLatch STICK_ARM_GESTURE = new StickArmGestureLatch(ARM_GESTURE_HOLD_TICKS);
 	private static final FlightModeInputRamp MODE_SWITCH_RAMP = new FlightModeInputRamp(MODE_SWITCH_RAMP_TICKS);
 	private static final ControlInputSmoother INPUT_SMOOTHER = new ControlInputSmoother();
+	private static final DroneControlSession CONTROL_SESSION = new DroneControlSession();
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -91,6 +93,8 @@ public final class DroneClientControls {
 				STICK_ARM_GESTURE.reset();
 				MODE_SWITCH_RAMP.reset();
 				INPUT_SMOOTHER.reset();
+				CONTROL_SESSION.clear();
+				armed = false;
 				throttleCalibrationActive = false;
 				return;
 			}
@@ -98,6 +102,9 @@ public final class DroneClientControls {
 			boolean hasController = client.player.getMainHandItem().is(DroneItems.DRONE_CONTROLLER)
 					|| client.player.getOffhandItem().is(DroneItems.DRONE_CONTROLLER);
 			DroneClientState.refreshControlledDrone(client);
+			if (CONTROL_SESSION.updateControlledDrone(controlledDroneId())) {
+				resetControlSessionState();
+			}
 			boolean hasLinkedDrone = DroneClientState.controlledDrone() != null && DroneClientState.controlledDrone().isAlive();
 
 			while (VIRTUAL_CONTROLLER.consumeClick()) {
@@ -309,6 +316,18 @@ public final class DroneClientControls {
 		throttle = 0.0f;
 		INPUT_SMOOTHER.reset();
 		resetKeyboardAxes();
+	}
+
+	private static void resetControlSessionState() {
+		resetTransientControlState();
+		STICK_ARM_GESTURE.reset();
+		MODE_SWITCH_RAMP.reset();
+		armed = false;
+	}
+
+	private static UUID controlledDroneId() {
+		DroneEntity drone = DroneClientState.controlledDrone();
+		return drone == null ? null : drone.getUUID();
 	}
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
