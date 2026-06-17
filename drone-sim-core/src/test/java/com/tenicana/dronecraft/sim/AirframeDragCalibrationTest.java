@@ -60,6 +60,33 @@ class AirframeDragCalibrationTest {
 	}
 
 	@Test
+	void cdaGuardForwardSampleMatchesRuntimePhysicsTelemetry() {
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics physics = steadyCruise(config, new Vec3(0.0, 0.0, 10.0));
+		AirframeDragCalibration.CdaGuardSample forward10 =
+				AirframeDragCalibration.cdaGuardSample(config, AirframeDragCalibration.Axis.Z, 10.0);
+
+		double runtimeBodyDrag = -physics.state().airframeBodyDragForceBodyNewtons().z();
+		double runtimeLinearDrag = -physics.state().linearDampingDragForceWorldNewtons().z();
+
+		assertEquals(forward10.runtimeBodyDragForceNewtons(), runtimeBodyDrag, 0.03);
+		assertEquals(forward10.runtimeLinearDampingForceNewtons(), runtimeLinearDrag, 0.03);
+		assertEquals(forward10.runtimeTotalDragForceNewtons(), physics.state().airframeDragAlongFlowNewtons(), 0.04);
+		assertEquals(
+				forward10.runtimeEquivalentLinearCoefficient(),
+				physics.state().airframeDragEquivalentLinearCoefficient(),
+				0.004
+		);
+		assertEquals(
+				forward10.runtimeEquivalentCdAMetersSquared(),
+				physics.state().airframeDragEquivalentCdAMetersSquared(),
+				0.001
+		);
+		assertEquals(forward10.runtimeOverImavReference(), physics.state().airframeDragImavReferenceRatio(), 0.03);
+		assertTrue(forward10.linearAsQuadraticProjectionOverRuntime() > 8.0);
+	}
+
+	@Test
 	void ratmHighSpeedEnvelopeAuditKeepsRawEnvelopeSeparateFromCurrentDragModel() {
 		AirframeDragCalibration.RatmHighSpeedEnvelopeAudit audit =
 				AirframeDragCalibration.ratmHighSpeedEnvelopeAudit(DroneConfig.racingQuad());
@@ -112,5 +139,17 @@ class AirframeDragCalibrationTest {
 		assertTrue(audit.configuredMaxRpmOverRatmKvAtNominalVoltage() < 0.68);
 		assertEquals(22.5 / 55.0, audit.configuredPerMotorCurrentOverRatmEscCurrent(), 1.0e-12);
 		assertEquals(0.0635 / 0.0648, audit.configuredRotorRadiusOverRatmPropRadius(), 1.0e-12);
+	}
+
+	private static DronePhysics steadyCruise(DroneConfig config, Vec3 velocityMetersPerSecond) {
+		DronePhysics physics = new DronePhysics(config);
+		for (int i = 0; i < 160; i++) {
+			physics.state().setPositionMeters(new Vec3(0.0, 20.0, 0.0));
+			physics.state().setVelocityMetersPerSecond(velocityMetersPerSecond);
+			physics.state().setOrientation(Quaternion.IDENTITY);
+			physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			physics.step(DroneInput.idle(), 0.005, DroneEnvironment.calm());
+		}
+		return physics;
 	}
 }
