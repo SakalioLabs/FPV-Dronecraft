@@ -277,6 +277,7 @@ public class DroneEntity extends Entity {
 	private float debugCommandPitch;
 	private float debugCommandRoll;
 	private float debugCommandYaw;
+	private boolean debugFlightActiveLastTick;
 	private boolean simulationInitialized;
 	private double frameHealth = 1.0;
 	private int collisionDamageCooldown;
@@ -606,10 +607,12 @@ public class DroneEntity extends Entity {
 					? "no-owner"
 					: (!input.linkActive() ? "link-lost" : (bypassPhysics ? "direct-disabled" : "physics-active"));
 
-			if (bypassPhysics && input.linkActive() && input.armed()) {
+			boolean directFlightActive = bypassPhysics && input.linkActive() && input.armed();
+			if (directFlightActive) {
 				DroneInput debugInput = input;
 				effectiveInput = debugInput;
 				applyDebugFlight(debugInput);
+				debugFlightActiveLastTick = true;
 				updateDebugFlightState(debugInput, airworthy);
 				recordBlackbox(input);
 				handleCompletedDiagnostic();
@@ -622,6 +625,7 @@ public class DroneEntity extends Entity {
 				debugTargetVelocityY = 0.0f;
 				debugTargetVelocityZ = 0.0f;
 				debugTargetYawRate = 0.0f;
+				clearDebugFlightStateAfterDirectControl();
 				reason = activeOwner == null
 						? "no-owner"
 						: (!input.linkActive() ? "link-lost" : (bypassPhysics ? reason : "physics-active"));
@@ -813,6 +817,14 @@ public class DroneEntity extends Entity {
 		debugCommandYaw = 0.0f;
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+	}
+
+	private void clearDebugFlightStateAfterDirectControl() {
+		if (!debugFlightActiveLastTick) {
+			return;
+		}
+		clearDebugFlightState();
+		debugFlightActiveLastTick = false;
 	}
 
 	private boolean isNearGroundLocked() {
