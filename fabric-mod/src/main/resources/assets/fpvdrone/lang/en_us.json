@@ -68,6 +68,7 @@
 	"hud.fpvdrone.metric.temp": "TMP %sC",
 	"hud.fpvdrone.metric.health": "HLT %s",
 	"hud.fpvdrone.warn_ready": "READY",
+	"hud.fpvdrone.warn_arm_blocked": "LOW THR / CENTER",
 	"hud.fpvdrone.warn_locked": "LOCKED",
 	"hud.fpvdrone.warn_link": "CONTROL LINK LOST",
 	"hud.fpvdrone.warn_vrs": "VORTEX RING",

@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.HudMode;
+import com.tenicana.dronecraft.control.DroneArmSafetyRules;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.FlightMode;
 
@@ -73,6 +74,7 @@ public final class DroneHud {
 		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
 		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
+		Component armHint = armSafetyHint(telemetry);
 		Component throttle = Component.translatable("hud.fpvdrone.thr_short", percent(telemetry.throttle()));
 		Component altitude = Component.translatable("hud.fpvdrone.alt_short", oneDecimal(telemetry.altitude()));
 		Component speed = Component.translatable("hud.fpvdrone.spd_short", oneDecimal(telemetry.speed()));
@@ -84,6 +86,8 @@ public final class DroneHud {
 		drawString(graphics, font, armed, leftX, y, telemetry.armed() ? PRIMARY : WARNING);
 		if (!telemetry.linkOk() || telemetry.failsafe()) {
 			drawString(graphics, font, link, MARGIN, y + 11, DANGER);
+		} else if (armHint != null) {
+			drawString(graphics, font, armHint, MARGIN, y + 11, armSafetyColor(telemetry));
 		}
 
 		int rightX = screenWidth - MARGIN;
@@ -100,11 +104,15 @@ public final class DroneHud {
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
 		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
+		Component armHint = armSafetyHint(telemetry);
 		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
 		Component battery = Component.translatable("hud.fpvdrone.battery_value", percent(telemetry.battery()));
 		Component throttle = Component.translatable("hud.fpvdrone.throttle_value", percent(telemetry.throttle()));
 
 		int leftWidth = font.width(mode) + font.width(view) + font.width(armed) + font.width(link) + 30;
+		if (armHint != null) {
+			leftWidth += font.width(armHint) + 8;
+		}
 		int rightWidth = font.width(battery) + font.width(throttle) + 18;
 		graphics.fill(MARGIN - 3, y - 3, Math.min(screenWidth - MARGIN, MARGIN + leftWidth), y + 12, PANEL);
 		graphics.fill(Math.max(MARGIN, screenWidth - MARGIN - rightWidth), y - 3, screenWidth - MARGIN + 3, y + 12, PANEL);
@@ -115,6 +123,10 @@ public final class DroneHud {
 		x += font.width(view) + 8;
 		drawString(graphics, font, armed, x, y, telemetry.armed() ? PRIMARY : WARNING);
 		x += font.width(armed) + 8;
+		if (armHint != null) {
+			drawString(graphics, font, armHint, x, y, armSafetyColor(telemetry));
+			x += font.width(armHint) + 8;
+		}
 		drawString(graphics, font, link, x, y, telemetry.linkOk() ? PRIMARY : DANGER);
 
 		int rightX = screenWidth - MARGIN;
@@ -231,6 +243,35 @@ public final class DroneHud {
 		return telemetry.rpm() > RPM_SPINNING_THRESHOLD ? PRIMARY : MUTED;
 	}
 
+	private static Component armSafetyHint(Telemetry telemetry) {
+		if (telemetry.armed()) {
+			return null;
+		}
+		return Component.translatable(armSafetyKey(telemetry));
+	}
+
+	private static String armSafetyKey(Telemetry telemetry) {
+		return isArmBlockedForHud(
+				telemetry.armed(),
+				telemetry.throttle(),
+				telemetry.controlPitch(),
+				telemetry.controlRoll(),
+				telemetry.controlYaw())
+						? "hud.fpvdrone.warn_arm_blocked"
+						: "hud.fpvdrone.warn_ready";
+	}
+
+	private static int armSafetyColor(Telemetry telemetry) {
+		return isArmBlockedForHud(
+				telemetry.armed(),
+				telemetry.throttle(),
+				telemetry.controlPitch(),
+				telemetry.controlRoll(),
+				telemetry.controlYaw())
+						? WARNING
+						: PRIMARY;
+	}
+
 	private static void drawRight(GuiGraphics graphics, Font font, Component component, int rightX, int y, int color) {
 		graphics.drawString(font, component, rightX - font.width(component), y, color, false);
 	}
@@ -295,6 +336,14 @@ public final class DroneHud {
 		return Float.isFinite(rpm) ? Math.max(0.0f, rpm) : 0.0f;
 	}
 
+	static boolean isArmReadyForHud(boolean armed, float throttle, float pitch, float roll, float yaw) {
+		return !armed && DroneArmSafetyRules.canTransitionToArmed(throttle, pitch, roll, yaw);
+	}
+
+	static boolean isArmBlockedForHud(boolean armed, float throttle, float pitch, float roll, float yaw) {
+		return !armed && !DroneArmSafetyRules.canTransitionToArmed(throttle, pitch, roll, yaw);
+	}
+
 	private record Telemetry(
 			boolean armed,
 			boolean linkOk,
@@ -304,6 +353,9 @@ public final class DroneHud {
 			float throttle,
 			float pitch,
 			float roll,
+			float controlPitch,
+			float controlRoll,
+			float controlYaw,
 			float altitude,
 			float speed,
 			float verticalSpeed,
@@ -328,6 +380,9 @@ public final class DroneHud {
 						DroneClientState.throttle(),
 						0.0f,
 						0.0f,
+						DroneClientState.pitch(),
+						DroneClientState.roll(),
+						DroneClientState.yaw(),
 						(float) client.player.getY(),
 						(float) client.player.getDeltaMovement().length(),
 						0.0f,
@@ -351,6 +406,9 @@ public final class DroneHud {
 					drone.getControlThrottle(),
 					drone.getRenderPitchRadians(),
 					drone.getRenderRollRadians(),
+					drone.getControlPitch(),
+					drone.getControlRoll(),
+					drone.getControlYaw(),
 					(float) drone.getY(),
 					Math.max(drone.getSpeedMetersPerSecond(), drone.getAirspeedMetersPerSecond()),
 					drone.getBarometerVerticalSpeedMetersPerSecond(),

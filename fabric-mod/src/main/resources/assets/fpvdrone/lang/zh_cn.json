@@ -68,6 +68,7 @@
 	"hud.fpvdrone.metric.temp": "温度 %sC",
 	"hud.fpvdrone.metric.health": "健康 %s",
 	"hud.fpvdrone.warn_ready": "就绪",
+	"hud.fpvdrone.warn_arm_blocked": "降油门 / 回中",
 	"hud.fpvdrone.warn_locked": "已上锁",
 	"hud.fpvdrone.warn_link": "遥控链路丢失",
 	"hud.fpvdrone.warn_vrs": "涡环状态",
