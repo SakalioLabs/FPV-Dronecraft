@@ -10,10 +10,10 @@ class ControlStickProfileTest {
 	void gamepadProfileSoftensCenterWithoutLosingFullStick() {
 		assertEquals(0.0, ControlStickProfile.gamepadCommand(0.10, 0.10), 1.0e-12);
 		assertTrue(ControlStickProfile.gamepadCommand(0.35, 0.10) < 0.02);
-		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) > 0.04);
-		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) < 0.07);
-		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) > 0.22);
-		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) < 0.27);
+		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) > 0.03);
+		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) < 0.05);
+		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) > 0.20);
+		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) < 0.23);
 		assertEquals(1.0, ControlStickProfile.gamepadCommand(1.0, 0.10), 1.0e-12);
 		assertEquals(-1.0, ControlStickProfile.gamepadCommand(-1.0, 0.10), 1.0e-12);
 	}

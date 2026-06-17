@@ -511,8 +511,8 @@ class PlayableFlightModelTest {
 	void playableServerLayerPreservesClientShapedFineStickCommands() {
 		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 1.00, 0.42);
 
-		assertTrue(shapedHalfStick > 0.018f);
-		assertTrue(shapedHalfStick < 0.022f);
+		assertTrue(shapedHalfStick > 0.014f);
+		assertTrue(shapedHalfStick < 0.017f);
 		assertEquals(0.0f, PlayableFlightModel.playableAxisCommand(0.004f), 1.0e-6f);
 		assertEquals(shapedHalfStick, PlayableFlightModel.playableAxisCommand(shapedHalfStick), 1.0e-6f);
 		assertEquals(-shapedHalfStick, PlayableFlightModel.playableAxisCommand(-shapedHalfStick), 1.0e-6f);
