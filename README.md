@@ -12,6 +12,17 @@ The default `racing_quad` rotor speed scale is calibrated against open 5-inch FP
 The `apdrone` preset adds a compact APDrone/Mendeley FPV reference frame with 0.6284 kg mass, 0.095 m motor-center radius, mapped X/Y/Z inertia, Foxeer Donut 5145 5.1x4.5 tri-blade geometry with thrust coefficient and reaction-torque ratio anchored to a public Tyto Robotics Donut 5145 thrust screenshot, Blackbox low-motion IMU noise anchored to APDrone log P90 gyro/accelerometer RMS, Blackbox barometer noise anchored to APDrone low-motion detrended baroAlt P50, a 4S 1500 mAh battery, Betaflight 4.5 Actual-rate 670 deg/s setpoint envelope, urban eRPM/100 motor-RPM telemetry with a 14-pole/7-pole-pair motor setting, and DShot600 command-rate anchors. Its throttle command curve maps the APDrone normal-power archive's `54.4%` mean Betaflight throttle command to the preset's physical hover thrust while leaving full command near full thrust, separating RC/log command semantics from direct thrust fraction. Its offline run also prints inertia-axis, PID-sweep, battery-autonomy, ESR voltage-drop, control-response, rate-envelope, urban motor-RPM, IMU-noise, barometer-noise, and open-field speed-envelope audits against the APDrone Blackbox/Mendeley anchors.
 Rotor side-flow obstruction geometry also lives in `drone-sim-core`, so Minecraft wall sampling, offline flight logs, and future non-Fabric frontends share the same wall-clearance-to-rotor-blockage mapping.
 
+## Current Playability Checkpoint
+
+2026-06-18 focus: keep the physics rollout incremental and protect the playable baseline before enabling more aggressive aerodynamic effects.
+
+- The in-game default flight mode is `ANGLE`, so first-time takeoff behaves like a stabilized training mode instead of immediately entering full acro.
+- Arming is safety-gated by low throttle and centered sticks, with the Mode 2 bottom-corner stick gesture available for RC-style arm/disarm.
+- FPV and line-of-sight view are separate from arming; `B` toggles FPV, and `N` cycles the HUD through minimal, hidden, and full telemetry modes.
+- Gamepad/radio pitch, roll, and yaw now pass through configurable deadband, expo, rate scale, and per-tick slew limiting before being sent to the drone. This is intentionally a gameplay comfort layer: the physics stack still receives smooth commands, but light stick touches no longer jump directly to full controller authority.
+- The current tuning principle is "fly first, then add realism": takeoff, hover, low-speed correction, FPV visibility, and recoverable controls are treated as release gates before more complex vortex, propwash, side-flow, damage, and thermal effects are made stronger.
+- Latest headless server self-test on 2026-06-18 passed for a 12 second scripted flight: max altitude gain `2.59 m`, max speed `3.15 m/s`, peak average motor RPM telemetry `15.27k`, 240 samples, 200 Hz physics.
+
 ## Build
 
 ```powershell
@@ -192,27 +203,52 @@ The client creates `config/fpvdrone-client.json` on first launch. The default ma
 ```json
 {
   "gamepadEnabled": true,
-  "rollAxis": 0,
-  "pitchAxis": 1,
-  "yawAxis": 2,
-  "throttleAxis": 3,
+  "armButton": -1,
+  "disarmButton": -1,
+  "throttleCalibrateButton": -1,
+  "throttleCalibrated": true,
+  "throttleCalibrationMin": 0.0,
+  "throttleCalibrationMax": 1.0,
+  "rollAxis": 2,
+  "pitchAxis": 3,
+  "yawAxis": 0,
+  "throttleAxis": 1,
   "rollInverted": false,
   "pitchInverted": true,
   "yawInverted": false,
   "throttleInverted": true,
-  "gamepadDeadband": 0.06,
-  "cameraTiltDegrees": 25.0,
-  "cameraForwardOffsetMeters": 0.16,
-  "cameraUpOffsetMeters": 0.16,
-  "cameraVibrationScale": 1.0,
-  "cameraRollingShutterScale": 0.55,
-  "cameraLatencySeconds": 0.035,
-  "cameraFovDegrees": 105.0,
-  "cameraDynamicFovDegrees": 6.0
+  "gamepadDeadband": 0.10,
+  "gamepadExpo": 0.97,
+  "gamepadRollPitchRateScale": 0.72,
+  "gamepadYawRateScale": 0.70,
+  "gamepadAxisRisePerTick": 0.075,
+  "gamepadAxisFallPerTick": 0.18,
+  "cameraTiltDegrees": 14.0,
+  "cameraForwardOffsetMeters": 1.05,
+  "cameraUpOffsetMeters": 0.62,
+  "cameraVibrationScale": 0.12,
+  "cameraRollingShutterScale": 0.06,
+  "cameraLatencySeconds": 0.018,
+  "cameraFovDegrees": 112.0,
+  "cameraDynamicFovDegrees": 1.0
 }
 ```
 
-Stick axes use a centered deadband and are remapped back to full `-1..1` authority. Throttle is treated as a travel axis and mapped to `0..1`, with a small endpoint snap so real radio idle and full throttle values feel stable. The FPV camera has a fixed airframe-relative tilt, mount offset, configurable wide FOV, optional speed/throttle FOV stretch, and a small buffered pose delay, so you can tune a low-angle cinewhoop view, a steeper racing-camera view, or an analog/HD video-link feel without changing the physics. Camera vibration is driven by synced motor RPM, rotor-damage vibration, and propwash telemetry; set `cameraVibrationScale` to `0.0` for a locked-off view or up to `2.0` for a rougher action-camera feel. `cameraRollingShutterScale` adds CMOS-style jello from high-RPM roughness, and `cameraLatencySeconds` is clamped to `0.0..0.20` seconds. Edit the file, then press `H` in game to reload it.
+Stick axes use a centered deadband and are remapped back to full `-1..1` authority. Throttle is treated as a travel axis and mapped to `0..1`, with a small endpoint snap so real radio idle and full throttle values feel stable.
+
+`gamepadExpo`, `gamepadRollPitchRateScale`, `gamepadYawRateScale`, `gamepadAxisRisePerTick`, and `gamepadAxisFallPerTick` tune feel rather than airframe physics. Lower rate scale gives less maximum pitch/roll/yaw authority from the same stick throw. Higher expo softens the center stick. Lower rise speed makes new commands enter more gently; higher fall speed lets released or reversed sticks recover quickly. The shipped defaults are biased toward stable first flights; experienced acro pilots can raise the rate scales toward `1.0`.
+
+For arm/disarm and throttle-calibration from a generic RC transmitter:
+
+- Map `armButton` and `disarmButton` to the indices from your transmitter's HID/gamepad button list.
+- Map `throttleCalibrateButton` to a button you can dedicate to calibration.
+- Press the in-game `Calibrate Drone Throttle` key (`C` by default) when:
+  - gamepad is selected and linked drone input is active,
+  - then move throttle to full low and full high,
+  - then press again to save the range.
+- Press in-game `Arm / Disarm Drone` (`R` by default) if you prefer keyboard control.
+
+The FPV camera has a fixed airframe-relative tilt, mount offset, configurable wide FOV, optional speed/throttle FOV stretch, and a small buffered pose delay, so you can tune a low-angle cinewhoop view, a steeper racing-camera view, or an analog/HD video-link feel without changing the physics. Camera vibration is driven by synced motor RPM, rotor-damage vibration, and propwash telemetry; set `cameraVibrationScale` to `0.0` for a locked-off view or up to `2.0` for a rougher action-camera feel. `cameraRollingShutterScale` adds CMOS-style jello from high-RPM roughness, and `cameraLatencySeconds` is clamped to `0.0..0.20` seconds. Edit the file, then press `H` in game to reload it.
 
 ## Blackbox
 

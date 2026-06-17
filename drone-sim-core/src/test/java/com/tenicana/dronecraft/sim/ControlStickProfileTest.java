@@ -19,6 +19,16 @@ class ControlStickProfileTest {
 	}
 
 	@Test
+	void configurableGamepadRateKeepsExpoShapeButLimitsAuthority() {
+		double defaultHalfStick = ControlStickProfile.gamepadCommand(0.70, 0.10);
+		double softenedHalfStick = ControlStickProfile.gamepadCommand(0.70, 0.10, 0.97, 0.50);
+
+		assertEquals(defaultHalfStick * 0.50, softenedHalfStick, 1.0e-12);
+		assertEquals(0.50, ControlStickProfile.gamepadCommand(1.0, 0.10, 0.97, 0.50), 1.0e-12);
+		assertEquals(-0.50, ControlStickProfile.gamepadCommand(-1.0, 0.10, 0.97, 0.50), 1.0e-12);
+	}
+
+	@Test
 	void keyboardProfileRoundsBinaryKeysIntoUsableCommands() {
 		assertEquals(0.0, ControlStickProfile.keyboardCommand(0.0), 1.0e-12);
 		assertTrue(ControlStickProfile.keyboardCommand(0.25) < 0.14);

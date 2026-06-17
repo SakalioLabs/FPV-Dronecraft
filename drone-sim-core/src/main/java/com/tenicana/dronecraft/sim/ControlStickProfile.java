@@ -23,8 +23,13 @@ public final class ControlStickProfile {
 	}
 
 	public static double gamepadCommand(double value, double configuredDeadband) {
+		return gamepadCommand(value, configuredDeadband, GAMEPAD_COMMAND_EXPO, 1.0);
+	}
+
+	public static double gamepadCommand(double value, double configuredDeadband, double configuredExpo, double rateScale) {
 		double centered = applyDeadband(value, Math.max(GAMEPAD_COMMAND_DEADBAND, configuredDeadband));
-		return expoCommand(centered, GAMEPAD_COMMAND_EXPO);
+		double shaped = expoCommand(centered, configuredExpo);
+		return MathUtil.clamp(rateScale, 0.05, 1.0) * shaped;
 	}
 
 	public static double gamepadThrottle(double value) {

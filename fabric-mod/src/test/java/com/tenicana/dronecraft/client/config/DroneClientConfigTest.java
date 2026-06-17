@@ -20,6 +20,29 @@ class DroneClientConfigTest {
 		assertTrue(config.pitchInverted());
 		assertTrue(config.throttleInverted());
 		assertTrue(config.gamepadDeadband() >= 0.10f);
+		assertEquals(0.97f, config.gamepadExpo(), 1.0e-4f);
+		assertEquals(0.72f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.70f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.075f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.18f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+	}
+
+	@Test
+	void invalidGamepadFeelSettingsNormalizeToPlayableDefaults() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		setFloat(config, "gamepadExpo", Float.NaN);
+		setFloat(config, "gamepadRollPitchRateScale", 0.0f);
+		setFloat(config, "gamepadYawRateScale", -1.0f);
+		setFloat(config, "gamepadAxisRisePerTick", Float.NEGATIVE_INFINITY);
+		setFloat(config, "gamepadAxisFallPerTick", 0.0f);
+
+		config = normalize(config);
+
+		assertEquals(0.97f, config.gamepadExpo(), 1.0e-4f);
+		assertEquals(0.72f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.70f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.075f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.18f, config.gamepadAxisFallPerTick(), 1.0e-4f);
 	}
 
 	@Test

@@ -69,6 +69,7 @@ public final class DroneClientControls {
 	private static final int MODE_SWITCH_RAMP_TICKS = 8;
 	private static final StickArmGestureLatch STICK_ARM_GESTURE = new StickArmGestureLatch(ARM_GESTURE_HOLD_TICKS);
 	private static final FlightModeInputRamp MODE_SWITCH_RAMP = new FlightModeInputRamp(MODE_SWITCH_RAMP_TICKS);
+	private static final ControlInputSmoother INPUT_SMOOTHER = new ControlInputSmoother();
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -86,6 +87,7 @@ public final class DroneClientControls {
 				gamepadCalibrateButtonDown = false;
 				STICK_ARM_GESTURE.reset();
 				MODE_SWITCH_RAMP.reset();
+				INPUT_SMOOTHER.reset();
 				throttleCalibrationActive = false;
 				return;
 			}
@@ -127,6 +129,7 @@ public final class DroneClientControls {
 			if (!controlAuthorized) {
 				STICK_ARM_GESTURE.reset();
 				MODE_SWITCH_RAMP.reset();
+				INPUT_SMOOTHER.reset();
 				resetKeyboardAxes();
 				DroneClientState.updateControls(
 						throttle,
@@ -190,7 +193,10 @@ public final class DroneClientControls {
 
 			ControlInput input = gamepadInput != null ? gamepadInputAsControl(gamepadInput) : keyboardInput(client);
 			if (gamepadInput != null && isStickArmGesture(gamepadInput)) {
+				INPUT_SMOOTHER.reset();
 				input = new ControlInput(0.0f, 0.0f, 0.0f, 0.0f, InputSource.GAMEPAD);
+			} else if (input.source() == InputSource.GAMEPAD) {
+				input = smoothGamepadInput(input);
 			}
 			input = applyModeSwitchRamp(input);
 			throttle = input.throttle();
@@ -294,11 +300,22 @@ public final class DroneClientControls {
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
 		return new ControlInput(
 				(float) ControlStickProfile.gamepadThrottle(input.throttle()),
-				commandAxis(input.pitch()),
-				commandAxis(input.roll()),
-				commandAxis(input.yaw()),
+				commandAxis(input.pitch(), config.gamepadRollPitchRateScale()),
+				commandAxis(input.roll(), config.gamepadRollPitchRateScale()),
+				commandAxis(input.yaw(), config.gamepadYawRateScale()),
 				InputSource.GAMEPAD
 		);
+	}
+
+	private static ControlInput smoothGamepadInput(ControlInput input) {
+		ControlInputSmoother.Axes axes = INPUT_SMOOTHER.sample(
+				input.pitch(),
+				input.roll(),
+				input.yaw(),
+				config.gamepadAxisRisePerTick(),
+				config.gamepadAxisFallPerTick()
+		);
+		return new ControlInput(input.throttle(), axes.pitch(), axes.roll(), axes.yaw(), input.source());
 	}
 
 	private static ControlInput applyModeSwitchRamp(ControlInput input) {
@@ -454,7 +471,11 @@ public final class DroneClientControls {
 	}
 
 	private static float commandAxis(float value) {
-		return (float) ControlStickProfile.gamepadCommand(value, config.gamepadDeadband());
+		return commandAxis(value, 1.0f);
+	}
+
+	private static float commandAxis(float value, float rateScale) {
+		return (float) ControlStickProfile.gamepadCommand(value, config.gamepadDeadband(), config.gamepadExpo(), rateScale);
 	}
 
 	private record ControlInput(float throttle, float pitch, float roll, float yaw, InputSource source) {

@@ -22,6 +22,11 @@ public final class DroneClientConfig {
 	private static final float MIN_THROTTLE_CALIBRATION_SPAN = 0.05f;
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
 	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.10f;
+	private static final float DEFAULT_GAMEPAD_EXPO = 0.97f;
+	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.72f;
+	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.70f;
+	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.075f;
+	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.18f;
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 14.0f;
 	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.05f;
 	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.62f;
@@ -73,6 +78,11 @@ public final class DroneClientConfig {
 	private boolean yawInverted;
 	private boolean throttleInverted = true;
 	private float gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
+	private float gamepadExpo = DEFAULT_GAMEPAD_EXPO;
+	private float gamepadRollPitchRateScale = DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE;
+	private float gamepadYawRateScale = DEFAULT_GAMEPAD_YAW_RATE_SCALE;
+	private float gamepadAxisRisePerTick = DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK;
+	private float gamepadAxisFallPerTick = DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK;
 	private int armButton = -1;
 	private int disarmButton = -1;
 	private int throttleCalibrateButton = -1;
@@ -173,6 +183,26 @@ public final class DroneClientConfig {
 		return gamepadDeadband;
 	}
 
+	public float gamepadExpo() {
+		return gamepadExpo;
+	}
+
+	public float gamepadRollPitchRateScale() {
+		return gamepadRollPitchRateScale;
+	}
+
+	public float gamepadYawRateScale() {
+		return gamepadYawRateScale;
+	}
+
+	public float gamepadAxisRisePerTick() {
+		return gamepadAxisRisePerTick;
+	}
+
+	public float gamepadAxisFallPerTick() {
+		return gamepadAxisFallPerTick;
+	}
+
 	public int armButton() {
 		return armButton;
 	}
@@ -231,6 +261,26 @@ public final class DroneClientConfig {
 
 	public void setThrottleInverted(boolean throttleInverted) {
 		this.throttleInverted = throttleInverted;
+	}
+
+	public void setGamepadExpo(float gamepadExpo) {
+		this.gamepadExpo = gamepadExpo;
+	}
+
+	public void setGamepadRollPitchRateScale(float gamepadRollPitchRateScale) {
+		this.gamepadRollPitchRateScale = gamepadRollPitchRateScale;
+	}
+
+	public void setGamepadYawRateScale(float gamepadYawRateScale) {
+		this.gamepadYawRateScale = gamepadYawRateScale;
+	}
+
+	public void setGamepadAxisRisePerTick(float gamepadAxisRisePerTick) {
+		this.gamepadAxisRisePerTick = gamepadAxisRisePerTick;
+	}
+
+	public void setGamepadAxisFallPerTick(float gamepadAxisFallPerTick) {
+		this.gamepadAxisFallPerTick = gamepadAxisFallPerTick;
 	}
 
 	public boolean throttleCalibrated() {
@@ -358,6 +408,26 @@ public final class DroneClientConfig {
 			gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
 		}
 		gamepadDeadband = Math.max(0.0f, Math.min(0.4f, gamepadDeadband));
+		if (!Float.isFinite(gamepadExpo) || gamepadExpo <= 0.0f) {
+			gamepadExpo = DEFAULT_GAMEPAD_EXPO;
+		}
+		if (!Float.isFinite(gamepadRollPitchRateScale) || gamepadRollPitchRateScale <= 0.0f) {
+			gamepadRollPitchRateScale = DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE;
+		}
+		if (!Float.isFinite(gamepadYawRateScale) || gamepadYawRateScale <= 0.0f) {
+			gamepadYawRateScale = DEFAULT_GAMEPAD_YAW_RATE_SCALE;
+		}
+		if (!Float.isFinite(gamepadAxisRisePerTick) || gamepadAxisRisePerTick <= 0.0f) {
+			gamepadAxisRisePerTick = DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK;
+		}
+		if (!Float.isFinite(gamepadAxisFallPerTick) || gamepadAxisFallPerTick <= 0.0f) {
+			gamepadAxisFallPerTick = DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK;
+		}
+		gamepadExpo = Math.max(0.0f, Math.min(1.0f, gamepadExpo));
+		gamepadRollPitchRateScale = Math.max(0.20f, Math.min(1.0f, gamepadRollPitchRateScale));
+		gamepadYawRateScale = Math.max(0.20f, Math.min(1.0f, gamepadYawRateScale));
+		gamepadAxisRisePerTick = Math.max(0.01f, Math.min(1.0f, gamepadAxisRisePerTick));
+		gamepadAxisFallPerTick = Math.max(0.01f, Math.min(1.0f, gamepadAxisFallPerTick));
 		if (!Float.isFinite(cameraTiltDegrees)) {
 			cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
 		}
