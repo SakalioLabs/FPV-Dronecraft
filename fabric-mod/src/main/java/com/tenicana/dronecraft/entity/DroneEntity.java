@@ -1005,6 +1005,7 @@ public class DroneEntity extends Entity {
 			motorRpm[i] = Math.max(0.0, baseRpm * mix);
 			rotorThrust[i] = motorPower[i] * physics.config().rotors().get(i).maxThrustNewtons() * 0.45;
 		}
+		physics.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
 		setPerRotorFlightState(motorPower, motorRpm, rotorThrust, rotorHealth);
 	}
 

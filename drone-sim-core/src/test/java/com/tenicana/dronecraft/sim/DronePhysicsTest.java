@@ -96,6 +96,25 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void restoreDirectFlightTelemetryFeedsBlackboxState() {
+		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+		DroneInput input = new DroneInput(0.42, 0.10, -0.20, 0.05, true, true, FlightMode.HORIZON);
+		double[] motorPower = {0.28, 0.30, 0.32, 0.34};
+		double[] motorRpm = {5200.0, 5400.0, 5600.0, 5800.0};
+		double[] rotorThrust = {0.42, 0.46, 0.50, 0.54};
+
+		physics.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
+
+		assertEquals(input.normalized(), physics.state().rawControlInput());
+		assertEquals(input.normalized(), physics.state().processedControlInput());
+		assertEquals(5500.0, physics.state().averageMotorRpm(), 1.0e-9);
+		assertEquals(5500.0, physics.state().averageMotorRpmTelemetryRpm(), 1.0e-9);
+		assertEquals(1.0, physics.state().averageMotorRpmTelemetryValidity(), 1.0e-12);
+		assertEquals(0.50, physics.state().rotorThrustNewtons(2), 1.0e-12);
+		assertEquals(0.32, physics.state().escOutputCommand(2), 1.0e-12);
+	}
+
+	@Test
 	void constrainAtRestKeepsArmedMotorSpool() {
 		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
 		DroneInput spool = new DroneInput(0.32, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);

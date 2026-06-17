@@ -1,5 +1,6 @@
 package com.tenicana.dronecraft.diagnostic;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Constructor;
@@ -9,6 +10,8 @@ import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
 
 class DroneServerSelfTestTest {
 	@Test
@@ -68,6 +71,7 @@ class DroneServerSelfTestTest {
 
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest.csv"));
 
+		assertTrue(json.contains("\"flight_model\": \"simulation\""));
 		assertTrue(json.contains("\"max_battery_effective_resistance_ohm\": 0.024000"));
 		assertTrue(json.contains("\"max_battery_soc_resistance_scale\": 1.23000"));
 		assertTrue(json.contains("\"max_battery_temp_resistance_scale\": 1.34000"));
@@ -121,16 +125,49 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_airframe_drag_imav_ratio\": 1.21000"));
 	}
 
+	@Test
+	void reportJsonRecordsPlayableFlightModel(@TempDir Path tempDir) throws ReflectiveOperationException {
+		DroneServerSelfTest selfTest = newSelfTest(FlightModelMode.PLAYABLE);
+
+		String json = reportJson(selfTest, tempDir.resolve("server-selftest-playable.csv"));
+
+		assertTrue(json.contains("\"flight_model\": \"playable\""));
+	}
+
+	@Test
+	void parsesSelfTestFlightModelAliases() throws ReflectiveOperationException {
+		assertEquals(FlightModelMode.PLAYABLE, parseFlightModelMode("playable"));
+		assertEquals(FlightModelMode.PLAYABLE, parseFlightModelMode("bypass"));
+		assertEquals(FlightModelMode.SIMULATION, parseFlightModelMode("sim"));
+		assertEquals(FlightModelMode.SIMULATION, parseFlightModelMode("6dof"));
+		assertEquals(FlightModelMode.SIMULATION, parseFlightModelMode("unknown"));
+	}
+
 	private static DroneServerSelfTest newSelfTest() throws ReflectiveOperationException {
+		return newSelfTest(FlightModelMode.SIMULATION);
+	}
+
+	private static DroneServerSelfTest newSelfTest(FlightModelMode mode) throws ReflectiveOperationException {
 		Constructor<DroneServerSelfTest> constructor = DroneServerSelfTest.class.getDeclaredConstructor(int.class);
 		constructor.setAccessible(true);
-		return constructor.newInstance(12);
+		if (mode == FlightModelMode.SIMULATION) {
+			return constructor.newInstance(12);
+		}
+		Constructor<DroneServerSelfTest> modeConstructor = DroneServerSelfTest.class.getDeclaredConstructor(int.class, FlightModelMode.class);
+		modeConstructor.setAccessible(true);
+		return modeConstructor.newInstance(12, mode);
 	}
 
 	private static String reportJson(DroneServerSelfTest selfTest, Path csvPath) throws ReflectiveOperationException {
 		Method method = DroneServerSelfTest.class.getDeclaredMethod("reportJson", boolean.class, String.class, Path.class);
 		method.setAccessible(true);
 		return (String) method.invoke(selfTest, true, "passed", csvPath);
+	}
+
+	private static FlightModelMode parseFlightModelMode(String value) throws ReflectiveOperationException {
+		Method method = DroneServerSelfTest.class.getDeclaredMethod("parseFlightModelMode", String.class);
+		method.setAccessible(true);
+		return (FlightModelMode) method.invoke(null, value);
 	}
 
 	private static void setDouble(DroneServerSelfTest selfTest, String fieldName, double value) throws ReflectiveOperationException {

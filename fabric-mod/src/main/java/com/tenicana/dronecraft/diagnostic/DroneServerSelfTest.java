@@ -21,6 +21,7 @@ import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
+import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -33,6 +34,8 @@ public final class DroneServerSelfTest {
 	private static final String ENV_ENABLED = "FPVDRONE_SELFTEST";
 	private static final String PROPERTY_SECONDS = "fpvdrone.selftest.seconds";
 	private static final String ENV_SECONDS = "FPVDRONE_SELFTEST_SECONDS";
+	private static final String PROPERTY_FLIGHT_MODEL = "fpvdrone.selftest.flight_model";
+	private static final String ENV_FLIGHT_MODEL = "FPVDRONE_SELFTEST_FLIGHT_MODEL";
 	private static final int DEFAULT_SECONDS = 12;
 	private static final int POST_SCRIPT_TICKS = 1;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
@@ -46,6 +49,7 @@ public final class DroneServerSelfTest {
 	private static DroneServerSelfTest active;
 
 	private final int requestedSeconds;
+	private final FlightModelMode flightModelMode;
 	private DroneEntity drone;
 	private boolean started;
 	private boolean finished;
@@ -143,7 +147,12 @@ public final class DroneServerSelfTest {
 	private boolean previousBypassPhysicsEnabled;
 
 	private DroneServerSelfTest(int requestedSeconds) {
+		this(requestedSeconds, FlightModelMode.SIMULATION);
+	}
+
+	private DroneServerSelfTest(int requestedSeconds, FlightModelMode flightModelMode) {
 		this.requestedSeconds = requestedSeconds;
+		this.flightModelMode = flightModelMode == null ? FlightModelMode.SIMULATION : flightModelMode;
 	}
 
 	public static void initialize() {
@@ -151,9 +160,13 @@ public final class DroneServerSelfTest {
 			return;
 		}
 
-		active = new DroneServerSelfTest(requestedSeconds());
+		active = new DroneServerSelfTest(requestedSeconds(), requestedFlightModelMode());
 		ServerTickEvents.END_SERVER_TICK.register(server -> active.tick(server));
-		FpvDronecraftMod.LOGGER.info("FPV Dronecraft server self-test armed for {} seconds", active.requestedSeconds);
+		FpvDronecraftMod.LOGGER.info(
+				"FPV Dronecraft server self-test armed for {} seconds in {} mode",
+				active.requestedSeconds,
+				active.flightModelMode.id()
+		);
 	}
 
 	private void tick(MinecraftServer server) {
@@ -186,7 +199,7 @@ public final class DroneServerSelfTest {
 
 	private void start(ServerLevel level) {
 		previousBypassPhysicsEnabled = DroneDebugSettings.bypassPhysicsEnabled();
-		DroneDebugSettings.setBypassPhysicsEnabled(false);
+		DroneDebugSettings.setFlightModelMode(flightModelMode);
 		drone = new DroneEntity(DroneEntityTypes.DRONE, level);
 		drone.applyConfig(DroneConfig.racingQuad(), SELF_TEST_PRESET);
 		drone.setOwner(SELF_TEST_OWNER);
@@ -203,7 +216,14 @@ public final class DroneServerSelfTest {
 		durationTicks = DroneControlManager.startDiagnostic(SELF_TEST_OWNER, drone.tickCount, requestedSeconds * 20);
 		finishTick = durationTicks + POST_SCRIPT_TICKS;
 		started = true;
-		FpvDronecraftMod.LOGGER.info("FPV Dronecraft server self-test spawned drone at {}, {}, {} for {} ticks", initialX, initialY, initialZ, durationTicks);
+		FpvDronecraftMod.LOGGER.info(
+				"FPV Dronecraft server self-test spawned {} drone at {}, {}, {} for {} ticks",
+				flightModelMode.id(),
+				initialX,
+				initialY,
+				initialZ,
+				durationTicks
+		);
 	}
 
 	private static void buildSelfTestPlatform(ServerLevel level) {
@@ -368,16 +388,12 @@ public final class DroneServerSelfTest {
 		}
 		String csv = drone.blackbox().toCsv();
 		return drone.blackbox().size() >= durationTicks
-				&& maxAltitudeGain > 0.45
-				&& maxSpeed > 0.35
-				&& maxAirspeed > 0.25
+				&& maxAltitudeGain > minimumAltitudeGain()
+				&& maxSpeed > minimumSpeed()
+				&& maxAirspeed > minimumAirspeed()
 				&& maxMotorPower > 0.08
-				&& maxBatteryCurrent > 1.5
-				&& maxBatterySag > 0.01
-				&& maxBatteryEffectiveResistance > 0.001
-				&& rpmTelemetryExercised()
-				&& gyroRpmNotchExercised()
-				&& coaxialAllocationExercised()
+				&& modelSpecificTelemetryPassed()
+				&& blackboxContainsFlightModel(csv)
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_substeps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_dt_s")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_rate_hz")
@@ -608,6 +624,41 @@ public final class DroneServerSelfTest {
 				&& !csv.contains("Infinity");
 	}
 
+	private boolean modelSpecificTelemetryPassed() {
+		if (flightModelMode == FlightModelMode.PLAYABLE) {
+			return playableTelemetryExercised();
+		}
+		return maxBatteryCurrent > 1.5
+				&& maxBatterySag > 0.01
+				&& maxBatteryEffectiveResistance > 0.001
+				&& rpmTelemetryExercised()
+				&& gyroRpmNotchExercised()
+				&& coaxialAllocationExercised();
+	}
+
+	private boolean playableTelemetryExercised() {
+		return maxHorizontalDistance > 0.05
+				&& maxAverageMotorTelemetryRpm > 1000.0;
+	}
+
+	private double minimumAltitudeGain() {
+		return flightModelMode == FlightModelMode.PLAYABLE ? 0.30 : 0.45;
+	}
+
+	private double minimumSpeed() {
+		return flightModelMode == FlightModelMode.PLAYABLE ? 0.20 : 0.35;
+	}
+
+	private double minimumAirspeed() {
+		return flightModelMode == FlightModelMode.PLAYABLE ? 0.10 : 0.25;
+	}
+
+	private boolean blackboxContainsFlightModel(String csv) {
+		return DroneBlackboxSample.CSV_HEADER.contains("flight_model")
+				&& csv != null
+				&& csv.contains("," + flightModelMode.id() + ",");
+	}
+
 	private String failureReason() {
 		if (drone == null) {
 			return "drone_missing";
@@ -615,25 +666,37 @@ public final class DroneServerSelfTest {
 		if (drone.blackbox().size() < durationTicks) {
 			return "not_enough_blackbox_samples";
 		}
-		if (maxAltitudeGain <= 0.45) {
+		if (maxAltitudeGain <= minimumAltitudeGain()) {
 			return "insufficient_climb";
 		}
-		if (maxSpeed <= 0.35 || maxAirspeed <= 0.25) {
+		if (maxSpeed <= minimumSpeed() || maxAirspeed <= minimumAirspeed()) {
 			return "insufficient_motion";
 		}
-		if (maxMotorPower <= 0.08 || maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {
-			return "powertrain_not_exercised";
-		}
-		if (!rpmTelemetryExercised()) {
-			return "rpm_telemetry_not_exercised";
-		}
-		if (!gyroRpmNotchExercised()) {
-			return "gyro_rpm_notch_not_exercised";
-		}
-		if (!coaxialAllocationExercised()) {
-			return "coaxial_allocation_not_exercised";
-		}
 		String csv = drone.blackbox().toCsv();
+		if (maxMotorPower <= 0.08) {
+			return "motor_power_not_exercised";
+		}
+		if (!blackboxContainsFlightModel(csv)) {
+			return "flight_model_not_recorded";
+		}
+		if (flightModelMode == FlightModelMode.PLAYABLE) {
+			if (!playableTelemetryExercised()) {
+				return "playable_layer_not_exercised";
+			}
+		} else {
+			if (maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {
+				return "powertrain_not_exercised";
+			}
+			if (!rpmTelemetryExercised()) {
+				return "rpm_telemetry_not_exercised";
+			}
+			if (!gyroRpmNotchExercised()) {
+				return "gyro_rpm_notch_not_exercised";
+			}
+			if (!coaxialAllocationExercised()) {
+				return "coaxial_allocation_not_exercised";
+			}
+		}
 		if (!DroneBlackboxSample.CSV_HEADER.contains("airframe_rotor_count")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("physics_substeps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("physics_dt_s")
@@ -877,8 +940,9 @@ public final class DroneServerSelfTest {
 
 		Path directory = server.getFile("fpvdrone-selftest");
 		String timestamp = LocalDateTime.now().format(FILE_TIME);
-		Path csvPath = directory.resolve("server-selftest-" + timestamp + ".csv");
-		Path reportPath = directory.resolve("server-selftest-" + timestamp + ".json");
+		String filePrefix = "server-selftest-" + flightModelMode.id() + "-" + timestamp;
+		Path csvPath = directory.resolve(filePrefix + ".csv");
+		Path reportPath = directory.resolve(filePrefix + ".json");
 
 		try {
 			Files.createDirectories(directory);
@@ -900,9 +964,18 @@ public final class DroneServerSelfTest {
 		}
 
 		if (passed) {
-			FpvDronecraftMod.LOGGER.info("FPV Dronecraft server self-test passed; report {}", reportPath.toAbsolutePath());
+			FpvDronecraftMod.LOGGER.info(
+					"FPV Dronecraft {} server self-test passed; report {}",
+					flightModelMode.id(),
+					reportPath.toAbsolutePath()
+			);
 		} else {
-			FpvDronecraftMod.LOGGER.error("FPV Dronecraft server self-test failed: {}; report {}", reason, reportPath.toAbsolutePath());
+			FpvDronecraftMod.LOGGER.error(
+					"FPV Dronecraft {} server self-test failed: {}; report {}",
+					flightModelMode.id(),
+					reason,
+					reportPath.toAbsolutePath()
+			);
 		}
 		server.halt(false);
 	}
@@ -920,6 +993,7 @@ public final class DroneServerSelfTest {
 				"{\n"
 						+ "  \"passed\": %s,\n"
 						+ "  \"reason\": \"%s\",\n"
+						+ "  \"flight_model\": \"%s\",\n"
 						+ "  \"csv_column_count\": %d,\n"
 						+ "  \"airframe_rotor_count\": %d,\n"
 						+ "  \"physics_substeps_per_tick\": %d,\n"
@@ -1015,6 +1089,7 @@ public final class DroneServerSelfTest {
 						+ "}\n",
 				passed,
 				escapeJson(reason),
+				flightModelMode.id(),
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
 				drone == null ? 0 : drone.config().rotors().size(),
 				PHYSICS_STEPS_PER_TICK,
@@ -1124,6 +1199,29 @@ public final class DroneServerSelfTest {
 			return parseSeconds(environment);
 		}
 		return DEFAULT_SECONDS;
+	}
+
+	private static FlightModelMode requestedFlightModelMode() {
+		String property = System.getProperty(PROPERTY_FLIGHT_MODEL);
+		if (property != null && !property.isBlank()) {
+			return parseFlightModelMode(property);
+		}
+		String environment = System.getenv(ENV_FLIGHT_MODEL);
+		if (environment != null && !environment.isBlank()) {
+			return parseFlightModelMode(environment);
+		}
+		return FlightModelMode.SIMULATION;
+	}
+
+	private static FlightModelMode parseFlightModelMode(String value) {
+		if (value == null) {
+			return FlightModelMode.SIMULATION;
+		}
+		return switch (value.trim().toLowerCase(Locale.ROOT)) {
+			case "playable", "direct", "bypass" -> FlightModelMode.PLAYABLE;
+			case "sim", "simulation", "physics", "6dof" -> FlightModelMode.SIMULATION;
+			default -> FlightModelMode.SIMULATION;
+		};
 	}
 
 	private static int parseSeconds(String value) {

@@ -785,6 +785,44 @@ public final class DronePhysics {
 		updateEscSignalTelemetry();
 	}
 
+	public void restoreDirectFlightTelemetry(DroneInput input, double[] motorPower, double[] motorRpm, double[] rotorThrustNewtons) {
+		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
+		state.setRawControlInput(normalized);
+		state.setProcessedControlInput(normalized);
+		state.setControlLinkLossSeconds(normalized.linkActive() ? 0.0 : state.controlLinkLossSeconds());
+		state.setControlFailsafeActive(!normalized.linkActive());
+		state.setControlFrameTelemetry(0.0, receiverFrameIntervalSeconds(), 0.0);
+
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double power = normalized.armed() && hasFiniteValue(motorPower, i)
+					? MathUtil.clamp(motorPower[i], 0.0, 1.0)
+					: 0.0;
+			double rpm = normalized.armed() && hasFiniteValue(motorRpm, i)
+					? Math.max(0.0, motorRpm[i])
+					: 0.0;
+			double omega = MathUtil.clamp(rpm * (Math.PI * 2.0) / 60.0, 0.0, rotor.maxOmegaRadiansPerSecond() * 1.08);
+			double thrust = normalized.armed() && hasFiniteValue(rotorThrustNewtons, i)
+					? Math.max(0.0, rotorThrustNewtons[i])
+					: 0.0;
+
+			state.setMotorOmegaRadiansPerSecond(i, omega);
+			state.setMotorTargetOmegaRadiansPerSecond(i, omega);
+			state.setMotorAngularAccelerationRadiansPerSecondSquared(i, 0.0);
+			state.setMotorTrackingError(i, 0.0);
+			state.setMotorActuatorAuthority(i, normalized.armed() ? 1.0 : 0.0);
+			state.setEscOutputCommand(i, power);
+			state.setEscElectricalOutputCommand(i, power);
+			state.setEscElectricalOutputError(i, 0.0);
+			state.setMotorRpmTelemetry(i, omega, rpm >= ESC_RPM_TELEMETRY_MIN_VALID_MECHANICAL_RPM ? 1.0 : 0.0);
+			state.setRotorThrustNewtons(i, thrust);
+			state.setRotorForceBodyNewtons(i, new Vec3(0.0, thrust, 0.0));
+			state.setRotorTorqueBodyNewtonMeters(i, Vec3.ZERO);
+		}
+		updateEscSignalTelemetry();
+	}
+
 	public AerodynamicTransientState aerodynamicTransientStateSnapshot() {
 		return new AerodynamicTransientState(
 				meanWindVelocityWorldMetersPerSecond,
