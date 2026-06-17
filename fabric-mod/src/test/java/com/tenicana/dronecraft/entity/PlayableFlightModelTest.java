@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.sim.ControlStickProfile;
 import com.tenicana.dronecraft.sim.FlightMode;
 
@@ -537,6 +538,63 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void defaultTrainingClientTapStaysCalmAndRecenters() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		ClientTrainingAxes axes = new ClientTrainingAxes();
+		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ANGLE);
+		float hoverThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
+		float maxTapPitch = 0.0f;
+		float maxTapRoll = 0.0f;
+		float maxTapYaw = 0.0f;
+		float maxTapHorizontalTarget = 0.0f;
+
+		for (int i = 0; i < 12; i++) {
+			ClientTrainingAxes.Sample sample = axes.sample(config, 0.70f, -0.70f, 0.70f);
+			PlayableFlightModel.Step step = PlayableFlightModel.step(
+					FlightMode.ANGLE,
+					hoverThrottle,
+					sample.pitch(),
+					sample.roll(),
+					sample.yaw(),
+					hoverThrottle,
+					false,
+					state
+			);
+			state = stateFrom(step);
+			maxTapPitch = Math.max(maxTapPitch, Math.abs(step.pitchRadians()));
+			maxTapRoll = Math.max(maxTapRoll, Math.abs(step.rollRadians()));
+			maxTapYaw = Math.max(maxTapYaw, Math.abs(step.yawDegreesPerTick()));
+			maxTapHorizontalTarget = Math.max(maxTapHorizontalTarget, Math.max(Math.abs(step.targetVelocityX()), Math.abs(step.targetVelocityZ())));
+		}
+
+		PlayableFlightModel.Step released = null;
+		for (int i = 0; i < 8; i++) {
+			ClientTrainingAxes.Sample sample = axes.sample(config, 0.0f, 0.0f, 0.0f);
+			released = PlayableFlightModel.step(
+					FlightMode.ANGLE,
+					hoverThrottle,
+					sample.pitch(),
+					sample.roll(),
+					sample.yaw(),
+					hoverThrottle,
+					false,
+					state
+			);
+			state = stateFrom(released);
+		}
+
+		assertTrue(maxTapPitch < Math.toRadians(0.75), "maxTapPitchDeg=" + Math.toDegrees(maxTapPitch));
+		assertTrue(maxTapRoll < Math.toRadians(0.75), "maxTapRollDeg=" + Math.toDegrees(maxTapRoll));
+		assertTrue(maxTapYaw < 0.035f, "maxTapYawDegPerTick=" + maxTapYaw);
+		assertTrue(maxTapHorizontalTarget < 0.045f, "maxTapHorizontalTarget=" + maxTapHorizontalTarget);
+		assertTrue(Math.abs(released.pitchRadians()) < Math.toRadians(0.15));
+		assertTrue(Math.abs(released.rollRadians()) < Math.toRadians(0.15));
+		assertEquals(0.0f, released.yawDegreesPerTick(), 1.0e-6f);
+		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
+		assertEquals(0.0f, released.targetVelocityZ(), 1.0e-6f);
+	}
+
+	@Test
 	void acroModeHoldsAttitudeAfterStickRelease() {
 		PlayableFlightModel.Step held = holdStick(FlightMode.ACRO, 10, 0.45f, 0.90f, -0.80f, 0.0f);
 		PlayableFlightModel.Step released = runFrom(
@@ -625,5 +683,63 @@ class PlayableFlightModelTest {
 				step.yawDegreesPerTick(),
 				step.mode()
 		);
+	}
+
+	private static final class ClientTrainingAxes {
+		private float pitch;
+		private float roll;
+		private float yaw;
+
+		private Sample sample(DroneClientConfig config, float rawPitch, float rawRoll, float rawYaw) {
+			pitch = approachAxis(
+					pitch,
+					trainingCommand(config, rawPitch, config.gamepadRollPitchRateScale()),
+					config.gamepadAxisRisePerTick(),
+					config.gamepadAxisFallPerTick()
+			);
+			roll = approachAxis(
+					roll,
+					trainingCommand(config, rawRoll, config.gamepadRollPitchRateScale()),
+					config.gamepadAxisRisePerTick(),
+					config.gamepadAxisFallPerTick()
+			);
+			yaw = approachAxis(
+					yaw,
+					trainingCommand(config, rawYaw, config.gamepadYawRateScale()),
+					config.gamepadAxisRisePerTick(),
+					config.gamepadAxisFallPerTick()
+			);
+			return new Sample(pitch, roll, yaw);
+		}
+
+		private static float trainingCommand(DroneClientConfig config, float raw, float rateScale) {
+			return (float) ControlStickProfile.gamepadCommand(
+					raw,
+					config.gamepadDeadband(),
+					config.gamepadExpo(),
+					rateScale
+			);
+		}
+
+		private static float approachAxis(float current, float target, float risePerTick, float fallPerTick) {
+			float step = shouldUseRiseStep(current, target) ? risePerTick : fallPerTick;
+			if (current < target) {
+				return Math.min(target, current + step);
+			}
+			if (current > target) {
+				return Math.max(target, current - step);
+			}
+			return current;
+		}
+
+		private static boolean shouldUseRiseStep(float current, float target) {
+			if (Math.abs(target) <= Math.abs(current)) {
+				return false;
+			}
+			return current == 0.0f || target == 0.0f || Math.signum(current) == Math.signum(target);
+		}
+
+		private record Sample(float pitch, float roll, float yaw) {
+		}
 	}
 }
