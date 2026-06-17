@@ -209,7 +209,7 @@ public final class DroneControlManager {
 			double hoverThrottle = config == null ? 0.32 : MathUtil.clamp(config.hoverThrottle(), 0.08, 0.75);
 			double throttle = commandedThrottle(progress, state, hoverThrottle);
 			AxisCommand axes = axisCommand(progress);
-			return new DroneInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), armed, true, FlightMode.HORIZON).normalized();
+			return new DroneInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), armed, true, FlightMode.ANGLE).normalized();
 		}
 
 		private int elapsedTicks(int tickCount) {
@@ -283,7 +283,7 @@ public final class DroneControlManager {
 				return new AxisCommand(alternatingStep(progress, 0.40, 0.54, -0.22), 0.0, 0.0);
 			}
 			if (progress < 0.66) {
-				return new AxisCommand(0.0, 0.0, alternatingStep(progress, 0.54, 0.66, 0.34));
+				return new AxisCommand(0.0, 0.0, alternatingStep(progress, 0.54, 0.66, 0.56));
 			}
 			if (progress < 0.78) {
 				double local = (progress - 0.66) / 0.12;
