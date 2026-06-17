@@ -65,9 +65,8 @@ public final class DroneClientControls {
 	private static boolean gamepadArmButtonDown;
 	private static boolean gamepadDisarmButtonDown;
 	private static boolean gamepadCalibrateButtonDown;
-	private static boolean stickArmGestureLatched;
-	private static int stickArmGestureTicks;
 	private static final int ARM_GESTURE_HOLD_TICKS = 7;
+	private static final StickArmGestureLatch STICK_ARM_GESTURE = new StickArmGestureLatch(ARM_GESTURE_HOLD_TICKS);
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -83,6 +82,7 @@ public final class DroneClientControls {
 				gamepadArmButtonDown = false;
 				gamepadDisarmButtonDown = false;
 				gamepadCalibrateButtonDown = false;
+				STICK_ARM_GESTURE.reset();
 				throttleCalibrationActive = false;
 				return;
 			}
@@ -122,8 +122,7 @@ public final class DroneClientControls {
 					? gamepadInput()
 					: null;
 			if (!controlAuthorized) {
-				stickArmGestureLatched = false;
-				stickArmGestureTicks = 0;
+				STICK_ARM_GESTURE.reset();
 				resetKeyboardAxes();
 				DroneClientState.updateControls(
 						throttle,
@@ -237,21 +236,10 @@ public final class DroneClientControls {
 	}
 
 	private static void handleStickArmGesture(Minecraft client, GamepadInput input) {
-		boolean gesture = isStickArmGesture(input);
-		if (!gesture) {
-			stickArmGestureTicks = 0;
-			stickArmGestureLatched = false;
-			return;
-		}
-		if (stickArmGestureLatched) {
-			return;
-		}
-		stickArmGestureTicks++;
-		if (stickArmGestureTicks < ARM_GESTURE_HOLD_TICKS) {
+		if (!STICK_ARM_GESTURE.update(isStickArmGesture(input))) {
 			return;
 		}
 		armed = !armed;
-		stickArmGestureLatched = true;
 		client.player.displayClientMessage(Component.translatable(armed ? "message.fpvdrone.armed" : "message.fpvdrone.disarmed"), true);
 	}
 

@@ -11,6 +11,15 @@ final class PlayableFlightModel {
 	private static final float HOVER_BAND = 0.035f;
 	private static final float IDLE_RPM = 2200.0f;
 	private static final float MAX_RPM_DELTA = 13500.0f;
+	private static final float MODE_SWITCH_ANGLE_ATTITUDE_KEEP = 0.18f;
+	private static final float MODE_SWITCH_HORIZON_ATTITUDE_KEEP = 0.24f;
+	private static final float MODE_SWITCH_ACRO_ATTITUDE_KEEP = 1.0f;
+	private static final float MODE_SWITCH_ANGLE_YAW_KEEP = 0.10f;
+	private static final float MODE_SWITCH_HORIZON_YAW_KEEP = 0.18f;
+	private static final float MODE_SWITCH_ACRO_YAW_KEEP = 0.45f;
+	private static final float MODE_SWITCH_ANGLE_HORIZONTAL_KEEP = 0.45f;
+	private static final float MODE_SWITCH_HORIZON_HORIZONTAL_KEEP = 0.62f;
+	private static final float MODE_SWITCH_ACRO_HORIZONTAL_KEEP = 0.82f;
 
 	private PlayableFlightModel() {
 	}
@@ -25,15 +34,16 @@ final class PlayableFlightModel {
 			boolean nearGroundLocked,
 			State previous
 	) {
-		Profile profile = Profile.forMode(mode);
+		FlightMode safeMode = mode == null ? FlightMode.HORIZON : mode;
+		Profile profile = Profile.forMode(safeMode);
 		float safeThrottle = clamp(throttle, 0.0f, 1.0f);
 		float safePitch = clamp(pitch, -1.0f, 1.0f);
 		float safeRoll = clamp(roll, -1.0f, 1.0f);
 		float safeYaw = clamp(yaw, -1.0f, 1.0f);
 		float safeHover = clamp(hoverThrottle, 0.12f, 0.55f);
-		State safePrevious = previous == null ? State.ZERO : previous;
+		State safePrevious = previousStateForMode(safeMode, profile, previous);
 
-		Attitude attitude = attitude(mode, profile, safePitch, safeRoll, safePrevious);
+		Attitude attitude = attitude(safeMode, profile, safePitch, safeRoll, safePrevious);
 		float throttleAuthority = 0.75f + 0.25f * clamp(safeThrottle / Math.max(0.10f, safeHover), 0.0f, 1.35f);
 		float targetVelocityX = clamp(attitude.rollRadians() / profile.maxRollRadians(), -1.0f, 1.0f)
 				* profile.horizontalSpeedMetersPerSecond()
@@ -85,8 +95,51 @@ final class PlayableFlightModel {
 				attitude.rollRadians(),
 				yawDegreesPerTick,
 				motorPower,
-				averageRpm
+				averageRpm,
+				safeMode
 		);
+	}
+
+	private static State previousStateForMode(FlightMode mode, Profile profile, State previous) {
+		if (previous == null) {
+			return State.zero(mode);
+		}
+		if (previous.mode() == mode) {
+			return previous;
+		}
+		return new State(
+				previous.velocityX() * modeSwitchHorizontalKeep(mode),
+				previous.velocityY(),
+				previous.velocityZ() * modeSwitchHorizontalKeep(mode),
+				clamp(previous.pitchRadians() * modeSwitchAttitudeKeep(mode), -profile.maxPitchRadians(), profile.maxPitchRadians()),
+				clamp(previous.rollRadians() * modeSwitchAttitudeKeep(mode), -profile.maxRollRadians(), profile.maxRollRadians()),
+				previous.yawDegreesPerTick() * modeSwitchYawKeep(mode),
+				mode
+		);
+	}
+
+	private static float modeSwitchAttitudeKeep(FlightMode mode) {
+		return switch (mode) {
+			case ANGLE -> MODE_SWITCH_ANGLE_ATTITUDE_KEEP;
+			case HORIZON -> MODE_SWITCH_HORIZON_ATTITUDE_KEEP;
+			case ACRO -> MODE_SWITCH_ACRO_ATTITUDE_KEEP;
+		};
+	}
+
+	private static float modeSwitchYawKeep(FlightMode mode) {
+		return switch (mode) {
+			case ANGLE -> MODE_SWITCH_ANGLE_YAW_KEEP;
+			case HORIZON -> MODE_SWITCH_HORIZON_YAW_KEEP;
+			case ACRO -> MODE_SWITCH_ACRO_YAW_KEEP;
+		};
+	}
+
+	private static float modeSwitchHorizontalKeep(FlightMode mode) {
+		return switch (mode) {
+			case ANGLE -> MODE_SWITCH_ANGLE_HORIZONTAL_KEEP;
+			case HORIZON -> MODE_SWITCH_HORIZON_HORIZONTAL_KEEP;
+			case ACRO -> MODE_SWITCH_ACRO_HORIZONTAL_KEEP;
+		};
 	}
 
 	private static Attitude attitude(FlightMode mode, Profile profile, float pitch, float roll, State previous) {
@@ -223,15 +276,23 @@ final class PlayableFlightModel {
 		return Math.max(min, Math.min(max, value));
 	}
 
-	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick) {
-		static final State ZERO = new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode) {
+		static final State ZERO = zero(FlightMode.HORIZON);
 
 		State(float velocityX, float velocityY, float velocityZ) {
-			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f);
+			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, FlightMode.HORIZON);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, FlightMode.HORIZON);
+		}
+
+		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick) {
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, FlightMode.HORIZON);
+		}
+
+		static State zero(FlightMode mode) {
+			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, mode == null ? FlightMode.HORIZON : mode);
 		}
 	}
 
@@ -246,7 +307,8 @@ final class PlayableFlightModel {
 			float rollRadians,
 			float yawDegreesPerTick,
 			float motorPower,
-			float averageRpm
+			float averageRpm,
+			FlightMode mode
 	) {
 	}
 

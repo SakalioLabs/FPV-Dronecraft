@@ -277,6 +277,7 @@ public class DroneEntity extends Entity {
 	private float debugCommandPitch;
 	private float debugCommandRoll;
 	private float debugCommandYaw;
+	private FlightMode debugFlightMode = FlightMode.HORIZON;
 	private boolean debugFlightActiveLastTick;
 	private int debugFailsafeTicks;
 	private boolean simulationInitialized;
@@ -786,7 +787,7 @@ public class DroneEntity extends Entity {
 				smoothedYaw,
 				hoverThrottle,
 				nearGroundLocked,
-				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians, debugTargetYawRate)
+				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians, debugTargetYawRate, debugFlightMode)
 		);
 		float targetVx = step.targetVelocityX();
 		float targetVy = step.targetVelocityY();
@@ -828,6 +829,7 @@ public class DroneEntity extends Entity {
 		debugVelocityZ = step.velocityZ();
 		debugVisualPitchRadians = step.pitchRadians();
 		debugVisualRollRadians = step.rollRadians();
+		debugFlightMode = step.mode();
 		debugMotorPower = step.motorPower();
 		debugAverageMotorRpm = step.averageRpm();
 
@@ -939,6 +941,7 @@ public class DroneEntity extends Entity {
 		debugCommandPitch = 0.0f;
 		debugCommandRoll = 0.0f;
 		debugCommandYaw = 0.0f;
+		debugFlightMode = FlightMode.HORIZON;
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 	}

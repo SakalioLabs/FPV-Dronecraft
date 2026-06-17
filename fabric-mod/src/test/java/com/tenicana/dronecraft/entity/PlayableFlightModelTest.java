@@ -330,6 +330,29 @@ class PlayableFlightModelTest {
 		assertTrue(acro.yawDegreesPerTick() > angle.yawDegreesPerTick());
 	}
 
+	@Test
+	void switchingFromAcroToAngleReleasesHeldAttitude() {
+		PlayableFlightModel.Step acro = holdStick(FlightMode.ACRO, 14, 0.45f, 1.0f, -1.0f, 1.0f);
+		PlayableFlightModel.Step angle = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(acro)
+		);
+
+		assertTrue(Math.abs(acro.pitchRadians()) > Math.toRadians(55.0));
+		assertTrue(Math.abs(acro.rollRadians()) > Math.toRadians(55.0));
+		assertTrue(Math.abs(angle.pitchRadians()) < Math.toRadians(10.0));
+		assertTrue(Math.abs(angle.rollRadians()) < Math.toRadians(10.0));
+		assertTrue(Math.abs(angle.yawDegreesPerTick()) < 0.13f);
+		assertTrue(Math.abs(angle.targetVelocityX()) < 0.50f);
+		assertTrue(Math.abs(angle.targetVelocityZ()) < 0.50f);
+	}
+
 	private static PlayableFlightModel.Step holdStick(FlightMode mode, int ticks, float throttle, float pitch, float roll, float yaw) {
 		return runFrom(mode, ticks, throttle, pitch, roll, yaw, 0.20f, false, PlayableFlightModel.State.ZERO);
 	}
@@ -361,7 +384,8 @@ class PlayableFlightModelTest {
 				step.velocityZ(),
 				step.pitchRadians(),
 				step.rollRadians(),
-				step.yawDegreesPerTick()
+				step.yawDegreesPerTick(),
+				step.mode()
 		);
 	}
 }
