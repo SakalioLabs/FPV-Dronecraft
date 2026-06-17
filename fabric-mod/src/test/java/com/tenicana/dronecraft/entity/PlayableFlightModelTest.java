@@ -165,6 +165,37 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeSmoothsYawIntoAndOutOfTurns() {
+		PlayableFlightModel.Step first = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.ZERO
+		);
+		PlayableFlightModel.Step held = holdStick(FlightMode.ANGLE, 12, 0.45f, 0.0f, 0.0f, 1.0f);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ANGLE,
+				6,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(held)
+		);
+
+		assertTrue(first.yawDegreesPerTick() > 0.15f);
+		assertTrue(first.yawDegreesPerTick() < 0.25f);
+		assertTrue(held.yawDegreesPerTick() > 0.47f);
+		assertTrue(released.yawDegreesPerTick() < 0.02f);
+	}
+
+	@Test
 	void angleModeBrakesHorizontalDriftWhenStickIsReleased() {
 		PlayableFlightModel.Step held = holdStick(FlightMode.ANGLE, 18, 0.45f, 1.0f, -1.0f, 0.0f);
 		PlayableFlightModel.Step released = runFrom(
@@ -329,7 +360,8 @@ class PlayableFlightModelTest {
 				step.velocityY(),
 				step.velocityZ(),
 				step.pitchRadians(),
-				step.rollRadians()
+				step.rollRadians(),
+				step.yawDegreesPerTick()
 		);
 	}
 }

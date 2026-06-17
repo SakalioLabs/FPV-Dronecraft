@@ -786,7 +786,7 @@ public class DroneEntity extends Entity {
 				smoothedYaw,
 				hoverThrottle,
 				nearGroundLocked,
-				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians)
+				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians, debugTargetYawRate)
 		);
 		float targetVx = step.targetVelocityX();
 		float targetVy = step.targetVelocityY();

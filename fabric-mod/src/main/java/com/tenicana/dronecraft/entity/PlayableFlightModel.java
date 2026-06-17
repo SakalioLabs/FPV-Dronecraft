@@ -66,7 +66,12 @@ final class PlayableFlightModel {
 			velocityZ = smooth(velocityZ, 0.0f, profile.groundFrictionSmoothing());
 		}
 
-		float yawDegreesPerTick = safeYaw * profile.yawDegreesPerTick();
+		float targetYawDegreesPerTick = safeYaw * profile.yawDegreesPerTick();
+		float yawDegreesPerTick = smooth(
+				safePrevious.yawDegreesPerTick(),
+				targetYawDegreesPerTick,
+				yawSmoothing(safePrevious.yawDegreesPerTick(), targetYawDegreesPerTick, profile)
+		);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = IDLE_RPM + (float) Math.sqrt(safeThrottle) * MAX_RPM_DELTA;
 		return new Step(
@@ -189,6 +194,12 @@ final class PlayableFlightModel {
 				&& targetVelocityY <= 0.0f;
 	}
 
+	private static float yawSmoothing(float current, float target, Profile profile) {
+		boolean braking = Math.abs(target) < Math.abs(current)
+				|| (Math.signum(current) != 0.0f && Math.signum(target) != 0.0f && Math.signum(current) != Math.signum(target));
+		return braking ? profile.yawBrakeSmoothing() : profile.yawSmoothing();
+	}
+
 	private static float smoothLimited(float current, float target, float smoothing, float maxStep) {
 		float next = smooth(current, target, smoothing);
 		float delta = clamp(next - current, -Math.max(0.0f, maxStep), Math.max(0.0f, maxStep));
@@ -212,11 +223,15 @@ final class PlayableFlightModel {
 		return Math.max(min, Math.min(max, value));
 	}
 
-	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
-		static final State ZERO = new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick) {
+		static final State ZERO = new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
 
 		State(float velocityX, float velocityY, float velocityZ) {
-			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f);
+			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f);
+		}
+
+		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f);
 		}
 	}
 
@@ -248,6 +263,8 @@ final class PlayableFlightModel {
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float yawDegreesPerTick,
+			float yawSmoothing,
+			float yawBrakeSmoothing,
 			float attitudeSmoothing,
 			float attitudeStepLimitRadians,
 			float attitudeRecenterSmoothing,
@@ -263,9 +280,9 @@ final class PlayableFlightModel {
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (mode == null ? FlightMode.HORIZON : mode) {
-				case ANGLE -> new Profile(0.60f, 0.88f, radians(12.0f), radians(12.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.48f, 0.12f, radians(0.65f), 0.46f, radians(3.0f), 0.78f, 0.12f, 0.30f, 0.68f, 0.08f, 0.055f, 0.62f, 1.45f);
-				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
-				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.030f, 1.10f, 2.80f);
+				case ANGLE -> new Profile(0.60f, 0.88f, radians(12.0f), radians(12.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.48f, 0.42f, 0.62f, 0.12f, radians(0.65f), 0.46f, radians(3.0f), 0.78f, 0.12f, 0.30f, 0.68f, 0.08f, 0.055f, 0.62f, 1.45f);
+				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.85f, 0.74f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
+				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.95f, 0.40f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.030f, 1.10f, 2.80f);
 			};
 		}
 
