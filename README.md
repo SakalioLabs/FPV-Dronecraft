@@ -17,6 +17,7 @@
 - HUD 模式现在会写入客户端配置，隐藏 HUD 后重进游戏仍会保持隐藏。
 - 中英文语言文件现在有测试守护：设置界面、HUD 和客户端提示直接引用的 `fpvdrone` 翻译 key 必须同时存在于 `en_us` 和 `zh_cn`，避免遥控器设置界面出现未翻译 key。
 - FPV 相机的最终挂载点现在会把振动/jello 位移也计入清晰下限，旧配置或强振动不会再把视角短暂拉回机身附近，降低“画面被无人机挡住”的风险。
+- FPV 默认相机继续向机头外和机身上方移动：默认挂点为前 `1.12 m`、上 `0.68 m`，旧 `1.05/0.62` 清晰相机配置会自动迁移；测试会把所有内置机型的碰撞盒纳入校验，避免 FPV 视野再次被机身挡住。
 - 手柄/遥控器的俯仰、横滚、偏航经过死区、expo、倍率和每 tick 输入限速，再发送给无人机；默认 `Training` 档进一步降低了右摇杆中段和半杆响应，轻打杆不会直接把机体打歪。
 - `Training` 手感继续收敛：默认曲线改为纯三次 `expo=1.00`，横滚/俯仰倍率降到 `0.42`、偏航降到 `0.38`、输入进入速度降到 `0.032/tick`、回中速度提高到 `0.32/tick`；旧 `0.48/0.44` 训练档也会自动迁移，进一步减少“右杆轻碰就歪”的首飞挫败感。
 - 客户端真实手柄链路现在有包内测试覆盖：原始摇杆先做物理中心死区和校准，再进入 Training/Sport/Acro 控制曲线，避免只测理论曲线却漏掉游戏内实际发包路径。
@@ -280,8 +281,8 @@ The validator still covers the IMU offset columns, including `tune_imu_y_m` and 
   "gamepadAxisFallPerTick": 0.32,
   "hudMode": "MINIMAL",
   "cameraTiltDegrees": 14.0,
-  "cameraForwardOffsetMeters": 1.05,
-  "cameraUpOffsetMeters": 0.62,
+  "cameraForwardOffsetMeters": 1.12,
+  "cameraUpOffsetMeters": 0.68,
   "cameraVibrationScale": 0.12,
   "cameraRollingShutterScale": 0.06,
   "cameraLatencySeconds": 0.018,

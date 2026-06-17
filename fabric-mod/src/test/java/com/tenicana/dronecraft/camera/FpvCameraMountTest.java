@@ -1,10 +1,16 @@
 package com.tenicana.dronecraft.camera;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.phys.Vec3;
+
+import com.tenicana.dronecraft.client.config.DroneClientConfig;
+import com.tenicana.dronecraft.entity.DroneAirframeDimensions;
+import com.tenicana.dronecraft.sim.DroneConfig;
 
 class FpvCameraMountTest {
 	@Test
@@ -48,17 +54,41 @@ class FpvCameraMountTest {
 
 	@Test
 	void clearOffsetsKeepCameraOutOfAirframeEvenWithOldConfig() {
-		assertEquals(0.95, FpvCameraMount.clearForwardOffset(0.16), 1.0e-9);
-		assertEquals(0.58, FpvCameraMount.clearUpOffset(0.16), 1.0e-9);
-		assertEquals(1.05, FpvCameraMount.clearForwardOffset(1.05), 1.0e-9);
-		assertEquals(0.62, FpvCameraMount.clearUpOffset(0.62), 1.0e-9);
+		assertEquals(1.10, FpvCameraMount.clearForwardOffset(0.16), 1.0e-9);
+		assertEquals(0.66, FpvCameraMount.clearUpOffset(0.16), 1.0e-9);
+		assertEquals(1.12, FpvCameraMount.clearForwardOffset(1.12), 1.0e-9);
+		assertEquals(0.68, FpvCameraMount.clearUpOffset(0.68), 1.0e-9);
 	}
 
 	@Test
 	void clearOffsetsRemainClearAfterCameraShake() {
-		assertEquals(0.95, FpvCameraMount.clearForwardOffset(0.95, 0.20), 1.0e-9);
-		assertEquals(1.17, FpvCameraMount.clearForwardOffset(1.05, -0.12), 1.0e-9);
-		assertEquals(0.58, FpvCameraMount.clearUpOffset(0.58, -0.20), 1.0e-9);
-		assertEquals(0.68, FpvCameraMount.clearUpOffset(0.62, 0.06), 1.0e-9);
+		assertEquals(1.10, FpvCameraMount.clearForwardOffset(1.10, 0.20), 1.0e-9);
+		assertEquals(1.22, FpvCameraMount.clearForwardOffset(1.05, -0.12), 1.0e-9);
+		assertEquals(0.66, FpvCameraMount.clearUpOffset(0.66, -0.20), 1.0e-9);
+		assertEquals(0.74, FpvCameraMount.clearUpOffset(0.68, 0.06), 1.0e-9);
+	}
+
+	@Test
+	void defaultCameraMountClearsEveryBuiltInAirframe() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+
+		assertCameraClearsAirframe(config, DroneConfig.racingQuad());
+		assertCameraClearsAirframe(config, DroneConfig.apDrone());
+		assertCameraClearsAirframe(config, DroneConfig.cinewhoop());
+		assertCameraClearsAirframe(config, DroneConfig.heavyLift());
+		assertCameraClearsAirframe(config, DroneConfig.hexLift());
+		assertCameraClearsAirframe(config, DroneConfig.octoLift());
+		assertCameraClearsAirframe(config, DroneConfig.coaxialX8());
+	}
+
+	private static void assertCameraClearsAirframe(DroneClientConfig cameraConfig, DroneConfig droneConfig) {
+		EntityDimensions dimensions = DroneAirframeDimensions.forConfig(droneConfig);
+		double forward = FpvCameraMount.clearForwardOffset(cameraConfig.cameraForwardOffsetMeters());
+		double up = FpvCameraMount.clearUpOffset(cameraConfig.cameraUpOffsetMeters());
+
+		assertEquals(1.12, forward, 1.0e-6);
+		assertEquals(0.68, up, 1.0e-6);
+		assertTrue(forward >= dimensions.width() * 0.5 + 0.28);
+		assertTrue(up >= dimensions.height() * 0.5 + 0.40);
 	}
 }

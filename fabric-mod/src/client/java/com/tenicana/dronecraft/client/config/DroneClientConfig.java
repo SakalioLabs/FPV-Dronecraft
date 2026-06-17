@@ -45,13 +45,21 @@ public final class DroneClientConfig {
 	private static final float LEGACY_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK = 0.18f;
 	private static final float MAX_STICK_CENTER_OFFSET = 0.45f;
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 14.0f;
-	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.05f;
-	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.62f;
+	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.12f;
+	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.68f;
 	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.12f;
 	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.06f;
 	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.018f;
 	private static final float DEFAULT_CAMERA_FOV_DEGREES = 112.0f;
 	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 1.0f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_TILT_DEGREES = 14.0f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.05f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_UP_OFFSET_METERS = 0.62f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_VIBRATION_SCALE = 0.12f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.06f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_LATENCY_SECONDS = 0.018f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_FOV_DEGREES = 112.0f;
+	private static final float PREVIOUS_DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 1.0f;
 	private static final float CLEAR_CAMERA_TILT_DEGREES = 16.0f;
 	private static final float CLEAR_CAMERA_FORWARD_OFFSET_METERS = 0.82f;
 	private static final float CLEAR_CAMERA_UP_OFFSET_METERS = 0.52f;
@@ -652,7 +660,15 @@ public final class DroneClientConfig {
 				&& nearly(cameraLatencySeconds, CLEAR_CAMERA_LATENCY_SECONDS)
 				&& nearly(cameraFovDegrees, CLEAR_CAMERA_FOV_DEGREES)
 				&& nearly(cameraDynamicFovDegrees, CLEAR_CAMERA_DYNAMIC_FOV_DEGREES);
-		if (!legacyCamera && !previousDefaultCamera && !recentDefaultCamera && !clearDefaultCamera) {
+		boolean previousUnblockedDefaultCamera = nearly(cameraTiltDegrees, PREVIOUS_DEFAULT_CAMERA_TILT_DEGREES)
+				&& nearly(cameraForwardOffsetMeters, PREVIOUS_DEFAULT_CAMERA_FORWARD_OFFSET_METERS)
+				&& nearly(cameraUpOffsetMeters, PREVIOUS_DEFAULT_CAMERA_UP_OFFSET_METERS)
+				&& nearly(cameraVibrationScale, PREVIOUS_DEFAULT_CAMERA_VIBRATION_SCALE)
+				&& nearly(cameraRollingShutterScale, PREVIOUS_DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE)
+				&& nearly(cameraLatencySeconds, PREVIOUS_DEFAULT_CAMERA_LATENCY_SECONDS)
+				&& nearly(cameraFovDegrees, PREVIOUS_DEFAULT_CAMERA_FOV_DEGREES)
+				&& nearly(cameraDynamicFovDegrees, PREVIOUS_DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES);
+		if (!legacyCamera && !previousDefaultCamera && !recentDefaultCamera && !clearDefaultCamera && !previousUnblockedDefaultCamera) {
 			return;
 		}
 		cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
