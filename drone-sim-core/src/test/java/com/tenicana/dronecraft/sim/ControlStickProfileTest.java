@@ -41,7 +41,9 @@ class ControlStickProfileTest {
 		assertEquals(0.0, ControlStickProfile.gamepadThrottle(0.0), 1.0e-12);
 		assertTrue(ControlStickProfile.gamepadThrottle(0.45) > 0.16);
 		assertTrue(ControlStickProfile.gamepadThrottle(0.45) < 0.18);
+		assertEquals(0.20, ControlStickProfile.gamepadThrottle(0.48), 1.0e-12);
 		assertEquals(0.20, ControlStickProfile.gamepadThrottle(0.50), 1.0e-12);
+		assertEquals(0.20, ControlStickProfile.gamepadThrottle(0.52), 1.0e-12);
 		assertTrue(ControlStickProfile.gamepadThrottle(0.55) > 0.225);
 		assertTrue(ControlStickProfile.gamepadThrottle(0.55) < 0.235);
 		assertTrue(ControlStickProfile.gamepadThrottle(0.60) > 0.27);

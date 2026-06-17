@@ -5,6 +5,8 @@ public final class ControlStickProfile {
 	public static final double GAMEPAD_COMMAND_EXPO = 0.97;
 	public static final double GAMEPAD_THROTTLE_HOVER_STICK = 0.50;
 	public static final double GAMEPAD_THROTTLE_HOVER_COMMAND = 0.20;
+	public static final double GAMEPAD_THROTTLE_HOVER_DETENT = 0.02;
+	private static final double FLOAT_EDGE_EPSILON = 1.0e-9;
 	public static final double GAMEPAD_THROTTLE_LOW_EXPONENT = 1.60;
 	public static final double GAMEPAD_THROTTLE_HIGH_EXPONENT = 1.45;
 	public static final double KEYBOARD_COMMAND_EXPO = 0.90;
@@ -34,6 +36,9 @@ public final class ControlStickProfile {
 
 	public static double gamepadThrottle(double value) {
 		double clamped = MathUtil.clamp(value, 0.0, 1.0);
+		if (Math.abs(clamped - GAMEPAD_THROTTLE_HOVER_STICK) <= GAMEPAD_THROTTLE_HOVER_DETENT + FLOAT_EDGE_EPSILON) {
+			return GAMEPAD_THROTTLE_HOVER_COMMAND;
+		}
 		if (clamped <= GAMEPAD_THROTTLE_HOVER_STICK) {
 			double low = clamped / GAMEPAD_THROTTLE_HOVER_STICK;
 			return GAMEPAD_THROTTLE_HOVER_COMMAND * Math.pow(low, GAMEPAD_THROTTLE_LOW_EXPONENT);
