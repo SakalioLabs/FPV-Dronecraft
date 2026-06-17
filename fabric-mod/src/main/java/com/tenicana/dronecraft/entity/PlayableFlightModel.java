@@ -24,6 +24,13 @@ final class PlayableFlightModel {
 	private static final float MODE_SWITCH_ANGLE_HORIZONTAL_KEEP = 0.45f;
 	private static final float MODE_SWITCH_HORIZON_HORIZONTAL_KEEP = 0.62f;
 	private static final float MODE_SWITCH_ACRO_HORIZONTAL_KEEP = 0.82f;
+	private static final float LOW_THROTTLE_ANGLE_HORIZONTAL_AUTHORITY = 0.34f;
+	private static final float LOW_THROTTLE_HORIZON_HORIZONTAL_AUTHORITY = 0.42f;
+	private static final float LOW_THROTTLE_ACRO_HORIZONTAL_AUTHORITY = 0.60f;
+	private static final float MAX_HIGH_THROTTLE_HORIZONTAL_BOOST = 0.10f;
+	private static final float GROUND_ANGLE_HORIZONTAL_AUTHORITY_SCALE = 0.55f;
+	private static final float GROUND_HORIZON_HORIZONTAL_AUTHORITY_SCALE = 0.62f;
+	private static final float GROUND_ACRO_HORIZONTAL_AUTHORITY_SCALE = 0.74f;
 
 	private PlayableFlightModel() {
 	}
@@ -50,7 +57,7 @@ final class PlayableFlightModel {
 		Attitude attitude = attitude(safeMode, profile, safePitch, safeRoll, safePrevious);
 		float pitchRadians = settledAttitude(safeMode, safePitch, attitude.pitchRadians());
 		float rollRadians = settledAttitude(safeMode, safeRoll, attitude.rollRadians());
-		float throttleAuthority = 0.75f + 0.25f * clamp(safeThrottle / Math.max(0.10f, safeHover), 0.0f, 1.35f);
+		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, profile);
 		float targetVelocityX = clamp(rollRadians / profile.maxRollRadians(), -1.0f, 1.0f)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
@@ -247,6 +254,35 @@ final class PlayableFlightModel {
 			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * profile.thrustGain();
 		}
 		return centered / Math.max(0.10f, hoverThrottle) * profile.descentGain();
+	}
+
+	private static float horizontalThrottleAuthority(FlightMode mode, float throttle, float hoverThrottle, boolean nearGroundLocked, Profile profile) {
+		float liftWindowTop = hoverThrottle + profile.hoverBand() * 2.0f;
+		float liftProgress = smoothStep((throttle - THRUST_DEADZONE) / Math.max(0.10f, liftWindowTop - THRUST_DEADZONE));
+		float lowThrottleAuthority = lowThrottleHorizontalAuthority(mode);
+		float authority = lerp(lowThrottleAuthority, 1.0f, liftProgress);
+		float highThrottleProgress = smoothStep((throttle - liftWindowTop) / Math.max(0.16f, 0.50f - liftWindowTop));
+		authority += highThrottleProgress * MAX_HIGH_THROTTLE_HORIZONTAL_BOOST;
+		if (nearGroundLocked && throttle <= liftWindowTop) {
+			authority *= groundHorizontalAuthorityScale(mode);
+		}
+		return clamp(authority, 0.0f, 1.10f);
+	}
+
+	private static float lowThrottleHorizontalAuthority(FlightMode mode) {
+		return switch (mode == null ? FlightMode.HORIZON : mode) {
+			case ANGLE -> LOW_THROTTLE_ANGLE_HORIZONTAL_AUTHORITY;
+			case HORIZON -> LOW_THROTTLE_HORIZON_HORIZONTAL_AUTHORITY;
+			case ACRO -> LOW_THROTTLE_ACRO_HORIZONTAL_AUTHORITY;
+		};
+	}
+
+	private static float groundHorizontalAuthorityScale(FlightMode mode) {
+		return switch (mode == null ? FlightMode.HORIZON : mode) {
+			case ANGLE -> GROUND_ANGLE_HORIZONTAL_AUTHORITY_SCALE;
+			case HORIZON -> GROUND_HORIZON_HORIZONTAL_AUTHORITY_SCALE;
+			case ACRO -> GROUND_ACRO_HORIZONTAL_AUTHORITY_SCALE;
+		};
 	}
 
 	private static float smooth(float current, float target, float smoothing) {

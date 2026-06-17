@@ -362,6 +362,39 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeSoftensHorizontalAuthorityWhileGroundLockedNearHover() {
+		PlayableFlightModel.Step groundHover = runFrom(
+				FlightMode.ANGLE,
+				12,
+				0.20f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				0.20f,
+				true,
+				PlayableFlightModel.State.ZERO
+		);
+		PlayableFlightModel.Step poweredTakeoff = runFrom(
+				FlightMode.ANGLE,
+				12,
+				0.60f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				0.20f,
+				true,
+				PlayableFlightModel.State.ZERO
+		);
+
+		assertTrue(Math.abs(groundHover.targetVelocityX()) < 0.20f);
+		assertTrue(Math.abs(groundHover.targetVelocityZ()) < 0.20f);
+		assertTrue(Math.abs(groundHover.velocityX()) < 0.10f);
+		assertTrue(Math.abs(groundHover.velocityZ()) < 0.10f);
+		assertTrue(Math.abs(poweredTakeoff.targetVelocityX()) > Math.abs(groundHover.targetVelocityX()) * 1.8f);
+		assertTrue(Math.abs(poweredTakeoff.targetVelocityZ()) > Math.abs(groundHover.targetVelocityZ()) * 1.8f);
+	}
+
+	@Test
 	void angleModeGroundFrictionDoesNotMuffleTakeoffAuthority() {
 		PlayableFlightModel.Step step = runFrom(
 				FlightMode.ANGLE,
