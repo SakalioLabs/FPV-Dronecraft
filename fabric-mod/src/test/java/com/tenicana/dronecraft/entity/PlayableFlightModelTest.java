@@ -415,6 +415,48 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void lowAltitudeGuardSoftensHorizontalAuthorityWithoutBlockingVerticalFlight() {
+		PlayableFlightModel.Step normal = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.45f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				0.20f,
+				false,
+				1.0f,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+		PlayableFlightModel.Step guarded = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.45f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				0.20f,
+				false,
+				0.62f,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+		PlayableFlightModel.Step descending = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.10f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				0.62f,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+
+		assertTrue(Math.abs(guarded.targetVelocityX()) < Math.abs(normal.targetVelocityX()) * 0.70f);
+		assertTrue(Math.abs(guarded.targetVelocityZ()) < Math.abs(normal.targetVelocityZ()) * 0.70f);
+		assertEquals(normal.targetVelocityY(), guarded.targetVelocityY(), 1.0e-6f);
+		assertTrue(descending.targetVelocityY() < -0.10f);
+	}
+
+	@Test
 	void angleModeGivesGamepadCenterAStableHoverWindow() {
 		float centerThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
 		float slightClimbStick = (float) ControlStickProfile.gamepadThrottle(0.55);

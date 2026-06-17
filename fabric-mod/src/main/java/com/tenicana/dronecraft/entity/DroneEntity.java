@@ -71,6 +71,8 @@ public class DroneEntity extends Entity {
 	private static final double TAKEOFF_THRUST_TO_WEIGHT = 0.98;
 	private static final double TAKEOFF_POSITION_NUDGE_METERS = 0.045;
 	private static final double TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND = 0.42;
+	private static final double PLAYABLE_TAKEOFF_GUARD_RELEASE_CLEARANCE_METERS = 1.35;
+	private static final float PLAYABLE_TAKEOFF_GUARD_MIN_HORIZONTAL_SCALE = 0.62f;
 	private static final double MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND = 2.0;
 	private static final double MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND = 1.8;
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -777,6 +779,7 @@ public class DroneEntity extends Entity {
 		boolean shouldFly = input.armed() || smoothedThrottle > DEBUG_THRUST_DEADZONE || Math.abs(smoothedPitch) > DEBUG_MOVEMENT_EPSILON || Math.abs(smoothedRoll) > DEBUG_MOVEMENT_EPSILON;
 		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
 		boolean nearGroundLocked = isNearGroundLocked();
+		float lowAltitudeHorizontalAuthorityScale = playableLowAltitudeHorizontalAuthorityScale(nearGroundLocked);
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
 				input.flightMode(),
 				smoothedThrottle,
@@ -785,6 +788,7 @@ public class DroneEntity extends Entity {
 				smoothedYaw,
 				hoverThrottle,
 				nearGroundLocked,
+				lowAltitudeHorizontalAuthorityScale,
 				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians, debugTargetYawRate, debugFlightMode)
 		);
 		float targetVx = step.targetVelocityX();
@@ -964,6 +968,21 @@ public class DroneEntity extends Entity {
 		}
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		return Double.isFinite(clearance) && clearance <= groundLockClearanceMeters();
+	}
+
+	private float playableLowAltitudeHorizontalAuthorityScale(boolean nearGroundLocked) {
+		if (nearGroundLocked) {
+			return 1.0f;
+		}
+		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
+		if (!Double.isFinite(clearance)) {
+			return 1.0f;
+		}
+		double groundLockClearance = groundLockClearanceMeters();
+		double releaseClearance = Math.max(groundLockClearance + 0.05, PLAYABLE_TAKEOFF_GUARD_RELEASE_CLEARANCE_METERS);
+		double progress = MathUtil.clamp((clearance - groundLockClearance) / (releaseClearance - groundLockClearance), 0.0, 1.0);
+		double eased = progress * progress * (3.0 - 2.0 * progress);
+		return (float) MathUtil.lerp(PLAYABLE_TAKEOFF_GUARD_MIN_HORIZONTAL_SCALE, 1.0, eased);
 	}
 
 	private void updateDebugFlightState(DroneInput input, boolean airworthy) {

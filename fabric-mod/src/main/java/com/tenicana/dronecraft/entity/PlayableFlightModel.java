@@ -45,6 +45,20 @@ final class PlayableFlightModel {
 			boolean nearGroundLocked,
 			State previous
 	) {
+		return step(mode, throttle, pitch, roll, yaw, hoverThrottle, nearGroundLocked, 1.0f, previous);
+	}
+
+	static Step step(
+			FlightMode mode,
+			float throttle,
+			float pitch,
+			float roll,
+			float yaw,
+			float hoverThrottle,
+			boolean nearGroundLocked,
+			float lowAltitudeHorizontalAuthorityScale,
+			State previous
+	) {
 		FlightMode safeMode = mode == null ? FlightMode.HORIZON : mode;
 		Profile profile = Profile.forMode(safeMode);
 		float safeThrottle = clamp(throttle, 0.0f, 1.0f);
@@ -52,12 +66,13 @@ final class PlayableFlightModel {
 		float safeRoll = clamp(roll, -1.0f, 1.0f);
 		float safeYaw = clamp(yaw, -1.0f, 1.0f);
 		float safeHover = clamp(hoverThrottle, 0.12f, 0.55f);
+		float safeLowAltitudeHorizontalScale = clamp(lowAltitudeHorizontalAuthorityScale, 0.0f, 1.0f);
 		State safePrevious = previousStateForMode(safeMode, profile, previous);
 
 		Attitude attitude = attitude(safeMode, profile, safePitch, safeRoll, safePrevious);
 		float pitchRadians = settledAttitude(safeMode, safePitch, attitude.pitchRadians());
 		float rollRadians = settledAttitude(safeMode, safeRoll, attitude.rollRadians());
-		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, profile);
+		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		float targetVelocityX = clamp(rollRadians / profile.maxRollRadians(), -1.0f, 1.0f)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
@@ -256,13 +271,21 @@ final class PlayableFlightModel {
 		return centered / Math.max(0.10f, hoverThrottle) * profile.descentGain();
 	}
 
-	private static float horizontalThrottleAuthority(FlightMode mode, float throttle, float hoverThrottle, boolean nearGroundLocked, Profile profile) {
+	private static float horizontalThrottleAuthority(
+			FlightMode mode,
+			float throttle,
+			float hoverThrottle,
+			boolean nearGroundLocked,
+			float lowAltitudeHorizontalAuthorityScale,
+			Profile profile
+	) {
 		float liftWindowTop = hoverThrottle + profile.hoverBand() * 2.0f;
 		float liftProgress = smoothStep((throttle - THRUST_DEADZONE) / Math.max(0.10f, liftWindowTop - THRUST_DEADZONE));
 		float lowThrottleAuthority = lowThrottleHorizontalAuthority(mode);
 		float authority = lerp(lowThrottleAuthority, 1.0f, liftProgress);
 		float highThrottleProgress = smoothStep((throttle - liftWindowTop) / Math.max(0.16f, 0.50f - liftWindowTop));
 		authority += highThrottleProgress * MAX_HIGH_THROTTLE_HORIZONTAL_BOOST;
+		authority *= lowAltitudeHorizontalAuthorityScale;
 		if (nearGroundLocked && throttle <= liftWindowTop) {
 			authority *= groundHorizontalAuthorityScale(mode);
 		}
