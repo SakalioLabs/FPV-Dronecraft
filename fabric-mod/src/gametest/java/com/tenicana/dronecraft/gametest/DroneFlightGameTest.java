@@ -75,6 +75,21 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		});
 	}
 
+	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 60)
+	public void newDroneStartsInStableAngleMode(GameTestHelper context) {
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		context.runAfterDelay(2, () -> {
+			assertTrue(drone.getFlightMode() == FlightMode.ANGLE, "new drone did not default to stable angle mode: " + drone.getFlightMode());
+			drone.discard();
+			context.succeed();
+		});
+	}
+
 	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 140)
 	public void directFlightDisarmClearsPlayableAttitude(GameTestHelper context) {
 		ServerLevel level = context.getLevel();

@@ -11,6 +11,8 @@ import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneClientState {
+	public static final FlightMode DEFAULT_FLIGHT_MODE = FlightMode.ANGLE;
+
 	private static DroneEntity controlledDrone;
 	private static float throttle;
 	private static float pitch;
@@ -24,7 +26,7 @@ public final class DroneClientState {
 	private static HudMode hudMode = HudMode.MINIMAL;
 	private static boolean throttleCalibrated = true;
 	private static boolean throttleCalibrationActive;
-	private static FlightMode flightMode = FlightMode.HORIZON;
+	private static FlightMode flightMode = DEFAULT_FLIGHT_MODE;
 	private static InputSource inputSource = InputSource.KEYBOARD;
 
 	private DroneClientState() {
@@ -52,7 +54,7 @@ public final class DroneClientState {
 		DroneClientState.controlActive = controlActive;
 		DroneClientState.physicalControllerPresent = physicalControllerPresent;
 		DroneClientState.virtualControllerEnabled = virtualControllerEnabled;
-		DroneClientState.flightMode = flightMode == null ? FlightMode.HORIZON : flightMode;
+		DroneClientState.flightMode = flightMode == null ? DEFAULT_FLIGHT_MODE : flightMode;
 		DroneClientState.inputSource = inputSource;
 		DroneClientState.throttleCalibrated = throttleCalibrated;
 		DroneClientState.throttleCalibrationActive = throttleCalibrationActive;

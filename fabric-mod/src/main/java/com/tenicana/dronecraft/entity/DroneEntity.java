@@ -386,7 +386,7 @@ public class DroneEntity extends Entity {
 	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		builder.define(ARMED, false);
-		builder.define(FLIGHT_MODE, FlightMode.ACRO.id());
+		builder.define(FLIGHT_MODE, FlightMode.ANGLE.id());
 		builder.define(PITCH, 0.0f);
 		builder.define(YAW, 0.0f);
 		builder.define(ROLL, 0.0f);
@@ -574,7 +574,7 @@ public class DroneEntity extends Entity {
 			decrementRotorStrikeCooldowns();
 
 			UUID activeOwner = getOwner();
-			DroneInput rawInput = activeOwner == null ? DroneInput.idle() : DroneControlManager.get(activeOwner, tickCount, physics.state(), physics.config());
+			DroneInput rawInput = activeOwner == null ? stableIdleInput() : DroneControlManager.get(activeOwner, tickCount, physics.state(), physics.config());
 			DroneControlManager.ActiveInput sample = DroneDebugSettings.ownerlessControlEnabled()
 					? DroneControlManager.latestActiveInput(tickCount)
 					: null;
@@ -591,7 +591,7 @@ public class DroneEntity extends Entity {
 				}
 			}
 			if (rawInput == null) {
-				rawInput = DroneInput.idle();
+				rawInput = stableIdleInput();
 			}
 			DroneInput input = rawInput;
 			boolean airworthy = isAirworthy();
@@ -1024,6 +1024,10 @@ public class DroneEntity extends Entity {
 
 	private static final float DEBUG_ARM_THRUST_THRESHOLD = 0.005f;
 	private static final float DEBUG_AXIS_MOTION_THRESHOLD = 0.02f;
+
+	private static DroneInput stableIdleInput() {
+		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, FlightMode.ANGLE);
+	}
 
 	private static boolean hasDebugControlIntent(DroneInput input) {
 		if (input == null || !input.linkActive()) {
@@ -1796,7 +1800,7 @@ public class DroneEntity extends Entity {
 		Vec3 euler = physics.state().orientation().toEulerXYZRadians();
 		DroneInput processedInput = physics.state().processedControlInput();
 		entityData.set(ARMED, processedInput.armed());
-		entityData.set(FLIGHT_MODE, processedInput.flightMode().id());
+		entityData.set(FLIGHT_MODE, syncedFlightMode(input, processedInput).id());
 		syncAirframeLayout();
 		entityData.set(PITCH, (float) euler.x());
 		entityData.set(YAW, (float) euler.y());
@@ -1944,6 +1948,13 @@ public class DroneEntity extends Entity {
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, (float) lastPropStrikeSeverity);
 		setYRot((float) Math.toDegrees(euler.y()));
 		setYHeadRot(getYRot());
+	}
+
+	private FlightMode syncedFlightMode(DroneInput rawInput, DroneInput processedInput) {
+		if (getOwner() == null && rawInput != null && !rawInput.linkActive()) {
+			return FlightMode.ANGLE;
+		}
+		return processedInput == null ? FlightMode.ANGLE : processedInput.flightMode();
 	}
 
 	private void setPerRotorFlightState(double[] motorPower, double[] motorRpm, double[] rotorThrust, double[] rotorHealth) {

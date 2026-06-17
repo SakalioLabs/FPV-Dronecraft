@@ -56,7 +56,7 @@ public final class DroneClientControls {
 	private static float keyboardRollAxis;
 	private static float keyboardYawAxis;
 	private static boolean armed;
-	private static FlightMode flightMode = FlightMode.HORIZON;
+	private static FlightMode flightMode = DroneClientState.DEFAULT_FLIGHT_MODE;
 	private static boolean virtualControllerEnabled;
 	private static boolean gamepadEnabled = true;
 	private static boolean throttleCalibrationActive;

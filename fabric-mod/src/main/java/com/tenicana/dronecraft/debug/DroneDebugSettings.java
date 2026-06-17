@@ -17,7 +17,7 @@ public final class DroneDebugSettings {
 	private static final ConcurrentHashMap<UUID, Integer> LAST_TICK_LOG_TICK = new ConcurrentHashMap<>();
 	private static volatile boolean controlLoggingEnabled;
 	private static volatile boolean tickLoggingEnabled;
-	private static volatile boolean ownerlessControlEnabled = true;
+	private static volatile boolean ownerlessControlEnabled;
 	private static volatile boolean bypassPhysicsEnabled = true;
 
 	private DroneDebugSettings() {

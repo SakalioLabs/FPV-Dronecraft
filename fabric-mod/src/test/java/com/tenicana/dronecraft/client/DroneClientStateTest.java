@@ -6,7 +6,29 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.sim.FlightMode;
+
 class DroneClientStateTest {
+	@Test
+	void defaultsToAngleModeForFirstTimeControl() {
+		DroneClientState.updateControls(
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				false,
+				false,
+				false,
+				false,
+				null,
+				DroneClientState.InputSource.KEYBOARD,
+				true,
+				false
+		);
+
+		assertEquals(FlightMode.ANGLE, DroneClientState.flightMode());
+	}
+
 	@Test
 	void hudModeCyclesThroughMinimalFullAndOff() {
 		DroneClientState.setHudMode(DroneClientState.HudMode.MINIMAL);
