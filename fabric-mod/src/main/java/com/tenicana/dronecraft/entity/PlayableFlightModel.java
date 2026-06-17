@@ -9,6 +9,7 @@ final class PlayableFlightModel {
 	private static final float THRUST_MIN_CLIMB = 0.025f;
 	private static final float VERTICAL_SPEED_LIMIT = 2.8f;
 	private static final float HOVER_BAND = 0.035f;
+	private static final float PLAYABLE_AXIS_NOISE_EPSILON = 0.006f;
 	private static final float IDLE_RPM = 2200.0f;
 	private static final float MAX_RPM_DELTA = 13500.0f;
 	private static final float MODE_SWITCH_ANGLE_ATTITUDE_KEEP = 0.18f;
@@ -102,6 +103,14 @@ final class PlayableFlightModel {
 				averageRpm,
 				safeMode
 		);
+	}
+
+	static float playableAxisCommand(float value) {
+		if (!Float.isFinite(value)) {
+			return 0.0f;
+		}
+		float clamped = clamp(value, -1.0f, 1.0f);
+		return Math.abs(clamped) <= PLAYABLE_AXIS_NOISE_EPSILON ? 0.0f : clamped;
 	}
 
 	private static State previousStateForMode(FlightMode mode, Profile profile, State previous) {

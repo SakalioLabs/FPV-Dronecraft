@@ -722,8 +722,6 @@ public class DroneEntity extends Entity {
 	private static final float DEBUG_THROTTLE_SMOOTH = 0.24f;
 	private static final float DEBUG_AXIS_RISE_SMOOTH = 0.18f;
 	private static final float DEBUG_AXIS_FALL_SMOOTH = 0.44f;
-	private static final float DEBUG_AXIS_DEADBAND = 0.07f;
-	private static final float DEBUG_AXIS_RESPONSE_EXPO = 0.55f;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
 	private static final float DEBUG_FAILSAFE_THROTTLE_SCALE = 0.88f;
@@ -738,9 +736,9 @@ public class DroneEntity extends Entity {
 		float roll = (float) MathUtil.clamp(input.roll(), -1.0, 1.0);
 		float yaw = (float) MathUtil.clamp(input.yaw(), -1.0, 1.0);
 
-		float deadbandedPitch = applyDebugAxisDeadband(pitch);
-		float deadbandedRoll = applyDebugAxisDeadband(roll);
-		float deadbandedYaw = applyDebugAxisDeadband(yaw);
+		float playablePitch = PlayableFlightModel.playableAxisCommand(pitch);
+		float playableRoll = PlayableFlightModel.playableAxisCommand(roll);
+		float playableYaw = PlayableFlightModel.playableAxisCommand(yaw);
 
 		float smoothedThrottle = applyDebugAxisFilter(
 				debugCommandThrottle,
@@ -751,21 +749,21 @@ public class DroneEntity extends Entity {
 		);
 		float smoothedPitch = applyDebugAxisFilter(
 				debugCommandPitch,
-				deadbandedPitch,
+				playablePitch,
 				DEBUG_AXIS_RISE_SMOOTH,
 				DEBUG_AXIS_FALL_SMOOTH,
 				true
 		);
 		float smoothedRoll = applyDebugAxisFilter(
 				debugCommandRoll,
-				deadbandedRoll,
+				playableRoll,
 				DEBUG_AXIS_RISE_SMOOTH,
 				DEBUG_AXIS_FALL_SMOOTH,
 				true
 		);
 		float smoothedYaw = applyDebugAxisFilter(
 				debugCommandYaw,
-				deadbandedYaw,
+				playableYaw,
 				DEBUG_AXIS_RISE_SMOOTH,
 				DEBUG_AXIS_FALL_SMOOTH,
 				true
@@ -1040,17 +1038,6 @@ public class DroneEntity extends Entity {
 				|| Math.abs(input.pitch()) >= DEBUG_AXIS_MOTION_THRESHOLD
 				|| Math.abs(input.roll()) >= DEBUG_AXIS_MOTION_THRESHOLD
 				|| Math.abs(input.yaw()) >= DEBUG_AXIS_MOTION_THRESHOLD;
-	}
-
-	private float applyDebugAxisDeadband(float value) {
-		float abs = Math.abs(value);
-		if (abs <= DEBUG_AXIS_DEADBAND) {
-			return 0.0f;
-		}
-		float normalized = (abs - DEBUG_AXIS_DEADBAND) / (1.0f - DEBUG_AXIS_DEADBAND);
-		float curved = (1.0f - DEBUG_AXIS_RESPONSE_EXPO) * normalized
-				+ DEBUG_AXIS_RESPONSE_EXPO * normalized * normalized * normalized;
-		return Math.copySign(curved, value);
 	}
 
 	private float applyDebugAxisFilter(float current, float target, float riseSmoothing, float fallSmoothing, boolean keepSign) {

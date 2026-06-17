@@ -347,6 +347,17 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void playableServerLayerPreservesClientShapedFineStickCommands() {
+		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 0.97, 0.72);
+
+		assertTrue(shapedHalfStick > 0.035f);
+		assertTrue(shapedHalfStick < 0.050f);
+		assertEquals(0.0f, PlayableFlightModel.playableAxisCommand(0.004f), 1.0e-6f);
+		assertEquals(shapedHalfStick, PlayableFlightModel.playableAxisCommand(shapedHalfStick), 1.0e-6f);
+		assertEquals(-shapedHalfStick, PlayableFlightModel.playableAxisCommand(-shapedHalfStick), 1.0e-6f);
+	}
+
+	@Test
 	void acroModeHoldsAttitudeAfterStickRelease() {
 		PlayableFlightModel.Step held = holdStick(FlightMode.ACRO, 10, 0.45f, 0.90f, -0.80f, 0.0f);
 		PlayableFlightModel.Step released = runFrom(
