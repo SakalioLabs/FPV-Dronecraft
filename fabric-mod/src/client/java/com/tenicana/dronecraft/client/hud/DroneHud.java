@@ -29,6 +29,8 @@ public final class DroneHud {
 	private static final int LINE = 0xAA7BE7D6;
 	private static final int SHADOW = 0x70000000;
 	private static final int MARGIN = 8;
+	private static final float RPM_ACTIVE_THROTTLE_THRESHOLD = 0.06f;
+	private static final float RPM_SPINNING_THRESHOLD = 1000.0f;
 
 	private DroneHud() {
 	}
@@ -137,7 +139,7 @@ public final class DroneHud {
 		x += font.width(speed) + 10;
 		drawString(graphics, font, verticalSpeed, x, y, verticalSpeedColor(telemetry));
 		x += font.width(verticalSpeed) + 10;
-		drawString(graphics, font, rpm, x, y, telemetry.armed() && telemetry.rpm() > 1000.0f ? PRIMARY : MUTED);
+		drawString(graphics, font, rpm, x, y, rpmColor(telemetry));
 		x += font.width(rpm) + 10;
 		drawString(graphics, font, health, x, y, healthColor(telemetry));
 	}
@@ -222,6 +224,13 @@ public final class DroneHud {
 		return health < 0.35f ? DANGER : (health < 0.70f ? WARNING : PRIMARY);
 	}
 
+	private static int rpmColor(Telemetry telemetry) {
+		if (!telemetry.armed() || isIdleRpm(telemetry.armed(), telemetry.throttle(), telemetry.rpm())) {
+			return MUTED;
+		}
+		return telemetry.rpm() > RPM_SPINNING_THRESHOLD ? PRIMARY : MUTED;
+	}
+
 	private static void drawRight(GuiGraphics graphics, Font font, Component component, int rightX, int y, int color) {
 		graphics.drawString(font, component, rightX - font.width(component), y, color, false);
 	}
@@ -256,15 +265,34 @@ public final class DroneHud {
 		return String.format(Locale.ROOT, "%.0f", value);
 	}
 
-	private static String compactRpm(Telemetry telemetry) {
-		if (!telemetry.armed()) {
+	private static Component compactRpm(Telemetry telemetry) {
+		if (isIdleRpm(telemetry.armed(), telemetry.throttle(), telemetry.rpm())) {
+			return Component.translatable("hud.fpvdrone.rpm_idle");
+		}
+		return Component.literal(compactRpmText(telemetry.armed(), telemetry.rpm()));
+	}
+
+	static boolean isIdleRpm(boolean armed, float throttle, float rpm) {
+		float safeThrottle = Float.isFinite(throttle) ? Math.max(0.0f, throttle) : 0.0f;
+		float safeRpm = sanitizedRpm(rpm);
+		return armed
+				&& safeThrottle <= RPM_ACTIVE_THROTTLE_THRESHOLD
+				&& safeRpm > RPM_SPINNING_THRESHOLD;
+	}
+
+	static String compactRpmText(boolean armed, float rpm) {
+		if (!armed) {
 			return "0";
 		}
-		float rpm = Math.max(0.0f, telemetry.rpm());
-		if (rpm >= 1000.0f) {
-			return String.format(Locale.ROOT, "%.1fk", rpm / 1000.0f);
+		float safeRpm = sanitizedRpm(rpm);
+		if (safeRpm >= RPM_SPINNING_THRESHOLD) {
+			return String.format(Locale.ROOT, "%.1fk", safeRpm / 1000.0f);
 		}
-		return integer(rpm);
+		return integer(safeRpm);
+	}
+
+	private static float sanitizedRpm(float rpm) {
+		return Float.isFinite(rpm) ? Math.max(0.0f, rpm) : 0.0f;
 	}
 
 	private record Telemetry(

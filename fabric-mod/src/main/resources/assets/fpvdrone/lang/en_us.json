@@ -64,6 +64,7 @@
 	"hud.fpvdrone.metric.altitude": "ALT %sm",
 	"hud.fpvdrone.metric.speed": "SPD %sm/s",
 	"hud.fpvdrone.metric.rpm": "RPM %s",
+	"hud.fpvdrone.rpm_idle": "IDLE",
 	"hud.fpvdrone.metric.temp": "TMP %sC",
 	"hud.fpvdrone.metric.health": "HLT %s",
 	"hud.fpvdrone.warn_ready": "READY",
