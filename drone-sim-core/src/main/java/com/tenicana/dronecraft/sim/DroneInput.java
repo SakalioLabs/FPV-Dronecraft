@@ -9,8 +9,10 @@ public record DroneInput(
 		boolean linkActive,
 		FlightMode flightMode
 ) {
+	private static final FlightMode LEGACY_SIMULATION_FLIGHT_MODE = FlightMode.ACRO;
+
 	public DroneInput(double throttle, double pitch, double roll, double yaw, boolean armed, boolean linkActive) {
-		this(throttle, pitch, roll, yaw, armed, linkActive, FlightMode.ACRO);
+		this(throttle, pitch, roll, yaw, armed, linkActive, LEGACY_SIMULATION_FLIGHT_MODE);
 	}
 
 	public DroneInput(double throttle, double pitch, double roll, double yaw, boolean armed, FlightMode flightMode) {
@@ -18,11 +20,11 @@ public record DroneInput(
 	}
 
 	public DroneInput(double throttle, double pitch, double roll, double yaw, boolean armed) {
-		this(throttle, pitch, roll, yaw, armed, true, FlightMode.ACRO);
+		this(throttle, pitch, roll, yaw, armed, true, LEGACY_SIMULATION_FLIGHT_MODE);
 	}
 
 	public static DroneInput idle() {
-		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, FlightMode.ACRO);
+		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, FlightMode.DEFAULT_FIRST_FLIGHT);
 	}
 
 	public static DroneInput failsafe() {
@@ -37,7 +39,7 @@ public record DroneInput(
 				MathUtil.clamp(yaw, -1.0, 1.0),
 				armed,
 				linkActive,
-				flightMode == null ? FlightMode.ACRO : flightMode
+				flightMode == null ? FlightMode.DEFAULT_FIRST_FLIGHT : flightMode
 		);
 	}
 }

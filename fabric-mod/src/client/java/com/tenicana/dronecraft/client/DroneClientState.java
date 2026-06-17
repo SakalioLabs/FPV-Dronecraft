@@ -11,7 +11,7 @@ import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneClientState {
-	public static final FlightMode DEFAULT_FLIGHT_MODE = FlightMode.ANGLE;
+	public static final FlightMode DEFAULT_FLIGHT_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 
 	private static DroneEntity controlledDrone;
 	private static float throttle;

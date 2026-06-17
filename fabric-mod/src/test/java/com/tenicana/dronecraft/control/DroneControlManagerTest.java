@@ -113,6 +113,21 @@ class DroneControlManagerTest {
 		assertFalse(DroneControlManager.diagnosticStatus(playerId, 421).active());
 		assertFalse(afterExpiry.armed());
 		assertFalse(afterExpiry.linkActive());
+		assertEquals(FlightMode.DEFAULT_FIRST_FLIGHT, afterExpiry.flightMode());
+	}
+
+	@Test
+	void expiredManualInputReturnsFirstFlightIdleMode() {
+		UUID playerId = UUID.randomUUID();
+
+		DroneControlManager.update(playerId, new DroneInput(0.20, 0.0, 0.0, 0.0, true, true, FlightMode.ACRO), 10);
+		DroneInput active = DroneControlManager.get(playerId, 10);
+		DroneInput expired = DroneControlManager.get(playerId, 19);
+
+		assertEquals(FlightMode.ACRO, active.flightMode());
+		assertFalse(expired.armed());
+		assertFalse(expired.linkActive());
+		assertEquals(FlightMode.DEFAULT_FIRST_FLIGHT, expired.flightMode());
 	}
 
 	@Test

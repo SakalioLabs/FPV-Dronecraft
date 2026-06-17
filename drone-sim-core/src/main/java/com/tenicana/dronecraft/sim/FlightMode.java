@@ -5,6 +5,8 @@ public enum FlightMode {
 	ANGLE,
 	HORIZON;
 
+	public static final FlightMode DEFAULT_FIRST_FLIGHT = ANGLE;
+
 	public int id() {
 		return ordinal();
 	}
@@ -24,7 +26,7 @@ public enum FlightMode {
 	public static FlightMode byId(int id) {
 		FlightMode[] modes = values();
 		if (id < 0 || id >= modes.length) {
-			return ANGLE;
+			return DEFAULT_FIRST_FLIGHT;
 		}
 		return modes[id];
 	}

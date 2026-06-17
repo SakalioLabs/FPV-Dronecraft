@@ -42,7 +42,7 @@ public final class DroneState {
 	private double barometerSensorNoiseMeters;
 	private double barometerPressurePortErrorMeters;
 	private double barometerPropwashErrorMeters;
-	private FlightMode flightMode = FlightMode.ACRO;
+	private FlightMode flightMode = FlightMode.DEFAULT_FIRST_FLIGHT;
 	private Vec3 levelTargetAttitudeRadians = Vec3.ZERO;
 	private Vec3 levelAttitudeErrorRadians = Vec3.ZERO;
 	private double selfLevelBlend;
@@ -658,7 +658,7 @@ public final class DroneState {
 	}
 
 	void setFlightMode(FlightMode flightMode) {
-		this.flightMode = flightMode == null ? FlightMode.ACRO : flightMode;
+		this.flightMode = flightMode == null ? FlightMode.DEFAULT_FIRST_FLIGHT : flightMode;
 	}
 
 	public Vec3 levelTargetAttitudeRadians() {
