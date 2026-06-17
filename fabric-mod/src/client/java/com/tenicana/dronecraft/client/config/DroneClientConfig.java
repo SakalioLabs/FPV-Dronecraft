@@ -15,6 +15,7 @@ import net.minecraft.util.Mth;
 import net.fabricmc.loader.api.FabricLoader;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.client.DroneClientState.HudMode;
 
 public final class DroneClientConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -83,6 +84,7 @@ public final class DroneClientConfig {
 	private float gamepadYawRateScale = DEFAULT_GAMEPAD_YAW_RATE_SCALE;
 	private float gamepadAxisRisePerTick = DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK;
 	private float gamepadAxisFallPerTick = DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK;
+	private HudMode hudMode = HudMode.MINIMAL;
 	private int armButton = -1;
 	private int disarmButton = -1;
 	private int throttleCalibrateButton = -1;
@@ -224,6 +226,10 @@ public final class DroneClientConfig {
 		return next;
 	}
 
+	public HudMode hudMode() {
+		return hudMode;
+	}
+
 	public int armButton() {
 		return armButton;
 	}
@@ -311,6 +317,10 @@ public final class DroneClientConfig {
 		gamepadYawRateScale = safePreset.yawRateScale();
 		gamepadAxisRisePerTick = safePreset.axisRisePerTick();
 		gamepadAxisFallPerTick = safePreset.axisFallPerTick();
+	}
+
+	public void setHudMode(HudMode hudMode) {
+		this.hudMode = hudMode == null ? HudMode.MINIMAL : hudMode;
 	}
 
 	public boolean throttleCalibrated() {
@@ -458,6 +468,9 @@ public final class DroneClientConfig {
 		gamepadYawRateScale = Math.max(0.20f, Math.min(1.0f, gamepadYawRateScale));
 		gamepadAxisRisePerTick = Math.max(0.01f, Math.min(1.0f, gamepadAxisRisePerTick));
 		gamepadAxisFallPerTick = Math.max(0.01f, Math.min(1.0f, gamepadAxisFallPerTick));
+		if (hudMode == null) {
+			hudMode = HudMode.MINIMAL;
+		}
 		if (!Float.isFinite(cameraTiltDegrees)) {
 			cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
 		}

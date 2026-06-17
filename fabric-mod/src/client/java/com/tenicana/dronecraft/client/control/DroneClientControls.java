@@ -78,6 +78,7 @@ public final class DroneClientControls {
 	public static void initialize() {
 		config = DroneClientConfig.load();
 		gamepadEnabled = config.gamepadEnabled();
+		DroneClientState.setHudMode(config.hudMode());
 		throttleCalibrationActive = false;
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -116,6 +117,8 @@ public final class DroneClientControls {
 
 			while (HUD_TOGGLE.consumeClick()) {
 				DroneClientState.HudMode hudMode = DroneClientState.cycleHudMode();
+				config.setHudMode(hudMode);
+				config.save();
 				client.player.displayClientMessage(
 						Component.translatable(hudMode.translationKey()),
 						true
@@ -168,6 +171,7 @@ public final class DroneClientControls {
 			while (CONFIG_RELOAD.consumeClick()) {
 				config = DroneClientConfig.load();
 				gamepadEnabled = config.gamepadEnabled();
+				DroneClientState.setHudMode(config.hudMode());
 				gamepadArmButtonDown = false;
 				gamepadDisarmButtonDown = false;
 				gamepadCalibrateButtonDown = false;

@@ -8,6 +8,8 @@ import java.lang.reflect.Method;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.client.DroneClientState.HudMode;
+
 class DroneClientConfigTest {
 	@Test
 	void defaultsUseModeTwoStickLayout() {
@@ -25,6 +27,7 @@ class DroneClientConfigTest {
 		assertEquals(0.70f, config.gamepadYawRateScale(), 1.0e-4f);
 		assertEquals(0.075f, config.gamepadAxisRisePerTick(), 1.0e-4f);
 		assertEquals(0.18f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+		assertEquals(HudMode.MINIMAL, config.hudMode());
 	}
 
 	@Test
@@ -43,6 +46,17 @@ class DroneClientConfigTest {
 		assertEquals(0.70f, config.gamepadYawRateScale(), 1.0e-4f);
 		assertEquals(0.075f, config.gamepadAxisRisePerTick(), 1.0e-4f);
 		assertEquals(0.18f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+	}
+
+	@Test
+	void hudModePersistsAndNormalizes() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+
+		config.setHudMode(HudMode.OFF);
+		assertEquals(HudMode.OFF, normalize(config).hudMode());
+
+		setObject(config, "hudMode", null);
+		assertEquals(HudMode.MINIMAL, normalize(config).hudMode());
 	}
 
 	@Test
@@ -183,5 +197,11 @@ class DroneClientConfigTest {
 		Field field = DroneClientConfig.class.getDeclaredField(fieldName);
 		field.setAccessible(true);
 		field.setFloat(config, value);
+	}
+
+	private static void setObject(DroneClientConfig config, String fieldName, Object value) throws ReflectiveOperationException {
+		Field field = DroneClientConfig.class.getDeclaredField(fieldName);
+		field.setAccessible(true);
+		field.set(config, value);
 	}
 }

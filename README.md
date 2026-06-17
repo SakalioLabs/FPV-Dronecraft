@@ -1,50 +1,65 @@
 # FPV Dronecraft
 
-High-frequency multirotor drone simulation prototype for Minecraft/Fabric.
+这是一个面向 Minecraft/Fabric 的高频多旋翼无人机/穿越机模拟 Mod。项目目标不是做一个会飘起来的简单实体，而是在 Minecraft 世界里逐步实现可玩、可测试、可调参的 FPV 多轴无人机仿真系统。
 
-The project is intentionally split into two modules:
+项目分为两个主要模块：
 
-- `drone-sim-core`: pure Java 6DOF multirotor physics, PID rate control, motor dynamics, and mixer logic.
-- `fabric-mod`: Fabric shell that registers the drone entity, controller item, client controls, renderer, and networking.
+- `drone-sim-core`：纯 Java 物理核心，包含 6DOF 多旋翼动力学、PID/模式控制、电机/桨/电池/扰流等模型，便于离线测试。
+- `fabric-mod`：Minecraft/Fabric 接入层，包含无人机实体、遥控器物品、客户端控制、HUD、FPV 相机、网络同步和 GameTest。
 
-The simulator uses Minecraft as the world, renderer, input, and networking layer. Flight dynamics live in `drone-sim-core` so they can be tested and tuned without starting the game.
-The default `racing_quad` rotor speed scale is calibrated against open 5-inch FPV thrust-stand and UIUC propeller data; see `docs/fpv-sim-model-validation.md` and `docs/fpv-sim-data-sources.md` before changing rotor constants that feed RPM, tip Mach, blade-pass filtering, vibration, or motor current telemetry.
-The `apdrone` preset adds a compact APDrone/Mendeley FPV reference frame with 0.6284 kg mass, 0.095 m motor-center radius, mapped X/Y/Z inertia, Foxeer Donut 5145 5.1x4.5 tri-blade geometry with thrust coefficient and reaction-torque ratio anchored to a public Tyto Robotics Donut 5145 thrust screenshot, Blackbox low-motion IMU noise anchored to APDrone log P90 gyro/accelerometer RMS, Blackbox barometer noise anchored to APDrone low-motion detrended baroAlt P50, a 4S 1500 mAh battery, Betaflight 4.5 Actual-rate 670 deg/s setpoint envelope, urban eRPM/100 motor-RPM telemetry with a 14-pole/7-pole-pair motor setting, and DShot600 command-rate anchors. Its throttle command curve maps the APDrone normal-power archive's `54.4%` mean Betaflight throttle command to the preset's physical hover thrust while leaving full command near full thrust, separating RC/log command semantics from direct thrust fraction. Its offline run also prints inertia-axis, PID-sweep, battery-autonomy, ESR voltage-drop, control-response, rate-envelope, urban motor-RPM, IMU-noise, barometer-noise, and open-field speed-envelope audits against the APDrone Blackbox/Mendeley anchors.
-Rotor side-flow obstruction geometry also lives in `drone-sim-core`, so Minecraft wall sampling, offline flight logs, and future non-Fabric frontends share the same wall-clearance-to-rotor-blockage mapping.
+## 当前进展
 
-## Current Playability Checkpoint
+2026-06-18 的重点是先保证“能飞、能控、能调”，再逐步打开更复杂的空气动力学特性。
 
-2026-06-18 focus: keep the physics rollout incremental and protect the playable baseline before enabling more aggressive aerodynamic effects.
+- 默认飞行模式是 `ANGLE`，首次起飞更接近稳定训练模式，不会直接进入全手动 Acro。
+- 解锁需要低油门和摇杆回中；也支持 Mode 2 遥控器的双摇杆底角解锁/上锁手势。
+- 解锁和 FPV 视角已经分离：`B` 切换 FPV/目视飞行，`N` 切换 HUD 精简/隐藏/完整遥测。
+- HUD 模式现在会写入客户端配置，隐藏 HUD 后重进游戏仍会保持隐藏。
+- 手柄/遥控器的俯仰、横滚、偏航经过死区、expo、倍率和每 tick 输入限速，再发送给无人机，轻打杆不会直接给满控制权。
+- `I` 打开游戏内遥控器设置界面，`Feel` 按钮可循环 `Training`、`Sport`、`Acro` 三档手感，不用手动改 JSON。
+- 最新无头服务端自测通过：12 秒脚本飞行、最大爬升约 `2.59 m`、最大速度约 `3.26 m/s`、平均电机遥测峰值约 `15.27k RPM`、240 个样本、200 Hz 物理步进。
 
-- The in-game default flight mode is `ANGLE`, so first-time takeoff behaves like a stabilized training mode instead of immediately entering full acro.
-- Arming is safety-gated by low throttle and centered sticks, with the Mode 2 bottom-corner stick gesture available for RC-style arm/disarm.
-- FPV and line-of-sight view are separate from arming; `B` toggles FPV, and `N` cycles the HUD through minimal, hidden, and full telemetry modes.
-- Gamepad/radio pitch, roll, and yaw now pass through configurable deadband, expo, rate scale, and per-tick slew limiting before being sent to the drone. This is intentionally a gameplay comfort layer: the physics stack still receives smooth commands, but light stick touches no longer jump directly to full controller authority.
-- Press `I` to open the in-game controller settings screen. The `Feel` button cycles `Training`, `Sport`, and `Acro` presets, so a player can tune control response without leaving Minecraft or editing JSON by hand.
-- The current tuning principle is "fly first, then add realism": takeoff, hover, low-speed correction, FPV visibility, and recoverable controls are treated as release gates before more complex vortex, propwash, side-flow, damage, and thermal effects are made stronger.
-- Latest headless server self-test on 2026-06-18 passed for a 12 second scripted flight: max altitude gain `2.59 m`, max speed `3.39 m/s`, peak average motor RPM telemetry `15.28k`, 240 samples, 200 Hz physics.
+## 常用键位
 
-## Build
+- `R`：解锁 / 上锁无人机。
+- `B`：切换 FPV 视角和目视飞行。
+- `N`：切换 HUD 精简 / 隐藏 / 完整遥测，并保存偏好。
+- `I`：打开遥控器设置界面，绑定轴/按钮、校准油门、切换手感预设。
+- `H`：重新加载客户端配置文件。
+- `M`：切换飞行模式。
+- `V`：启用/关闭虚拟遥控器，方便没有手柄时测试。
+- `PageUp` / `PageDown`：键盘油门。
+- 方向键、`Z`、`X`：键盘俯仰/横滚/偏航测试输入。
+
+## 当前设计原则
+
+- 先解决可玩性：起飞、悬停、低速修正、视角清晰、HUD 不挡视野、遥控器可调。
+- 物理模型逐项打开：先保留稳定的基础飞行，再逐步增强桨洗、涡环、侧流遮挡、损伤、电池/电机热模型等复杂效应。
+- 每个改动都尽量有单元测试、GameTest 或无头服务端自测兜底，避免“这次能飞、下次又翻”的回归。
+
+下面保留了较完整的英文技术记录和调参说明，后续会逐步把关键内容迁移为中文。
+
+## 构建
 
 ```powershell
 .\gradlew.bat build
 ```
 
-The playable Fabric jar is generated at:
+可游玩的 Fabric Mod jar 会生成在：
 
 ```text
 fabric-mod/build/libs/fpv-dronecraft-fabric-0.1.0.jar
 ```
 
-## Offline Physics Benchmark
+## 离线物理基准
 
-You can generate a deterministic flight CSV without launching Minecraft:
+不启动 Minecraft 也可以生成确定性的飞行 CSV：
 
 ```powershell
 .\gradlew.bat :drone-sim-core:offlineFlight
 ```
 
-By default this writes:
+默认输出到：
 
 ```text
 drone-sim-core/build/offline-flight/racing_quad.csv
@@ -197,9 +212,9 @@ The same JSON report now carries airframe drag calibration peaks as `max_airfram
 The server self-test validator also requires `gyro_notch_hz`, `gyro_notch_attenuation`, `gyro_notch_spread_hz`, `gyro_blade_pass_notch_spread_hz`, `avg_motor_erpm100`, `motor_5_erpm100`, `avg_motor_einterval_us`, `motor_5_einterval_us`, `avg_motor_rpm_telemetry_valid`, `motor_5_rpm_telemetry_valid`, `tune_motor_pole_pairs`, `rotor_dynamic_inflow_tau_s`, `rotor_5_dynamic_inflow_tau_s`, `rotor_prop_thrust_scale`, `rotor_5_prop_thrust_scale`, `rotor_prop_power_scale`, `rotor_5_prop_power_scale`, `rotor_axial_gust_thrust_scale`, `rotor_5_axial_gust_thrust_scale`, `rotor_compressibility_thrust_scale`, `rotor_5_compressibility_thrust_scale`, `rotor_reynolds_number`, `rotor_5_reynolds_number`, `rotor_reynolds_index`, `rotor_5_reynolds_index`, `rotor_low_reynolds_loss`, `rotor_5_low_reynolds_loss`, `rotor_damage_vibration`, `rotor_5_damage_vibration`, `rotor_coning_angle_deg`, `rotor_5_coning_angle_deg`, `rotor_arm_flex_deflection_mm`, `rotor_5_arm_flex_deflection_mm`, `rotor_arm_flex_tilt_deg`, `rotor_5_arm_flex_tilt_deg`, `rotor_coaxial_load_bias_target`, `rotor_coaxial_load_bias_clipping`, `rotor_coaxial_allocation_load`, `rotor_coaxial_allocation_ratio`, `rotor_coaxial_allocation_mech_gain_pct`, `rotor_coaxial_allocation_elec_gain_pct`, and `rotor_coaxial_allocation_uncertainty_pct`, keeping the automated smoke path aligned with blackbox exports.
 The validator still covers the IMU offset columns, including `tune_imu_y_m` and `tune_imu_z_m`, alongside the new rotor H-force columns.
 
-## Gamepad / Radio Mapping
+## 手柄 / 遥控器设置
 
-The client creates `config/fpvdrone-client.json` on first launch. The default mapping is:
+客户端第一次启动时会生成 `config/fpvdrone-client.json`。当前默认配置如下：
 
 ```json
 {
@@ -224,6 +239,7 @@ The client creates `config/fpvdrone-client.json` on first launch. The default ma
   "gamepadYawRateScale": 0.70,
   "gamepadAxisRisePerTick": 0.075,
   "gamepadAxisFallPerTick": 0.18,
+  "hudMode": "MINIMAL",
   "cameraTiltDegrees": 14.0,
   "cameraForwardOffsetMeters": 1.05,
   "cameraUpOffsetMeters": 0.62,
@@ -235,29 +251,29 @@ The client creates `config/fpvdrone-client.json` on first launch. The default ma
 }
 ```
 
-Stick axes use a centered deadband and are remapped back to full `-1..1` authority. Throttle is treated as a travel axis and mapped to `0..1`, with a small endpoint snap so real radio idle and full throttle values feel stable.
+摇杆轴使用中心死区，并重新映射到完整的 `-1..1` 控制范围。油门按行程轴处理，映射到 `0..1`，并带有端点吸附，让真实遥控器的最低油门和最高油门更稳定。
 
-`gamepadExpo`, `gamepadRollPitchRateScale`, `gamepadYawRateScale`, `gamepadAxisRisePerTick`, and `gamepadAxisFallPerTick` tune feel rather than airframe physics. Lower rate scale gives less maximum pitch/roll/yaw authority from the same stick throw. Higher expo softens the center stick. Lower rise speed makes new commands enter more gently; higher fall speed lets released or reversed sticks recover quickly. The shipped defaults are biased toward stable first flights; experienced acro pilots can raise the rate scales toward `1.0`.
+`gamepadExpo`、`gamepadRollPitchRateScale`、`gamepadYawRateScale`、`gamepadAxisRisePerTick`、`gamepadAxisFallPerTick` 调整的是手感层，而不是机体物理。较低的 rate scale 会降低同样摇杆行程下的最大控制权；更高的 expo 会让中位更细腻；较低的 rise speed 会让新指令进入更柔和；较高的 fall speed 会让松杆或反打时更快恢复。默认值偏向稳定首飞，熟悉穿越机手感后可以把倍率逐步提高到接近 `1.0`。
 
-The in-game controller settings screen (`I` by default) exposes three feel presets:
+游戏内遥控器设置界面（默认 `I`）提供三档手感预设：
 
-- `Training`: default, stable center stick and slower command entry for first flights.
-- `Sport`: faster response while keeping some center-stick softness.
-- `Acro`: full roll/pitch/yaw authority with less expo and faster command slew for FPV-style flying.
+- `Training`：默认档，中位稳定，指令进入较慢，适合首飞和找手感。
+- `Sport`：响应更快，但保留一定中位柔和度。
+- `Acro`：完整俯仰/横滚/偏航控制权，expo 更低、输入限速更快，更接近 FPV 飞行。
 
-If you hand-edit the JSON to values that do not match a preset, the settings screen shows `Custom`; pressing the feel button again returns to `Training`.
+如果手动编辑 JSON 后参数不匹配任何预设，设置界面会显示 `Custom`；再次点击 `Feel` 会回到 `Training`。
 
-For arm/disarm and throttle-calibration from a generic RC transmitter:
+通用 RC 遥控器的解锁/上锁与油门校准：
 
-- Map `armButton` and `disarmButton` to the indices from your transmitter's HID/gamepad button list.
-- Map `throttleCalibrateButton` to a button you can dedicate to calibration.
-- Press the in-game `Calibrate Drone Throttle` key (`C` by default) when:
-  - gamepad is selected and linked drone input is active,
-  - then move throttle to full low and full high,
-  - then press again to save the range.
-- Press in-game `Arm / Disarm Drone` (`R` by default) if you prefer keyboard control.
+- 将 `armButton` 和 `disarmButton` 设为遥控器 HID/手柄按钮编号。
+- 将 `throttleCalibrateButton` 设为一个专门用于校准的按钮。
+- 按游戏内 `Calibrate Drone Throttle`（默认 `C`）开始校准：
+  - 确保手柄输入已启用且无人机已绑定；
+  - 将油门推到最低和最高；
+  - 再按一次保存范围。
+- 如果更喜欢键盘控制，可直接按 `Arm / Disarm Drone`（默认 `R`）。
 
-The FPV camera has a fixed airframe-relative tilt, mount offset, configurable wide FOV, optional speed/throttle FOV stretch, and a small buffered pose delay, so you can tune a low-angle cinewhoop view, a steeper racing-camera view, or an analog/HD video-link feel without changing the physics. Camera vibration is driven by synced motor RPM, rotor-damage vibration, and propwash telemetry; set `cameraVibrationScale` to `0.0` for a locked-off view or up to `2.0` for a rougher action-camera feel. `cameraRollingShutterScale` adds CMOS-style jello from high-RPM roughness, and `cameraLatencySeconds` is clamped to `0.0..0.20` seconds. Edit the file, then press `H` in game to reload it.
+FPV 相机支持机体相对倾角、安装偏移、宽 FOV、速度/油门动态 FOV、短延迟缓存等设置，因此可以调出低角度 cinewhoop、较陡竞速机相机或模拟图传延迟的感觉，而不需要改变物理模型。相机震动来自同步电机 RPM、桨损伤震动和桨洗遥测；`cameraVibrationScale` 设为 `0.0` 可以获得更稳定的视角，最高可到 `2.0`。`cameraRollingShutterScale` 提供高转速下的 CMOS 果冻感，`cameraLatencySeconds` 限制在 `0.0..0.20` 秒。修改配置文件后，在游戏内按 `H` 重新加载。
 
 ## Blackbox
 
