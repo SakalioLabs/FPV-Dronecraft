@@ -26,7 +26,6 @@ public final class DroneHud {
 	private static final int WARNING = 0xFFFFC14D;
 	private static final int DANGER = 0xFFFF5E5E;
 	private static final int PANEL = 0xA0101518;
-	private static final int PANEL_DARK = 0xC00A0E11;
 	private static final int LINE = 0xAA7BE7D6;
 	private static final int SHADOW = 0x70000000;
 	private static final int MARGIN = 8;
@@ -54,13 +53,40 @@ public final class DroneHud {
 		int screenHeight = client.getWindow().getGuiScaledHeight();
 
 		Telemetry telemetry = Telemetry.from(client, drone);
+		if (hudMode == HudMode.MINIMAL) {
+			drawMinimalOsd(graphics, font, screenWidth, screenHeight, telemetry);
+			return;
+		}
+
 		drawCompactStatus(graphics, font, screenWidth, telemetry);
 		if (DroneClientState.isFpvActive()) {
 			drawAttitude(graphics, screenWidth / 2, screenHeight / 2, telemetry);
 			drawSideScales(graphics, font, screenWidth, screenHeight, telemetry);
 		}
-		if (hudMode == HudMode.FULL) {
-			drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
+		drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
+	}
+
+	private static void drawMinimalOsd(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
+		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
+		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
+		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
+		Component throttle = Component.translatable("hud.fpvdrone.thr_short", percent(telemetry.throttle()));
+		Component altitude = Component.translatable("hud.fpvdrone.alt_short", oneDecimal(telemetry.altitude()));
+		Component speed = Component.translatable("hud.fpvdrone.spd_short", oneDecimal(telemetry.speed()));
+
+		int y = MARGIN;
+		drawString(graphics, font, mode, MARGIN, y, TEXT);
+		drawString(graphics, font, armed, MARGIN, y + 11, telemetry.armed() ? PRIMARY : WARNING);
+		if (!telemetry.linkOk() || telemetry.failsafe()) {
+			drawString(graphics, font, link, MARGIN, y + 22, DANGER);
+		}
+
+		int rightX = screenWidth - MARGIN;
+		drawRight(graphics, font, throttle, rightX, y, TEXT);
+		drawRight(graphics, font, altitude, rightX, y + 11, TEXT);
+		drawRight(graphics, font, speed, rightX, y + 22, TEXT);
+		if (telemetry.fpvView()) {
+			drawMinimalReticle(graphics, screenWidth / 2, screenHeight / 2, telemetry);
 		}
 	}
 
@@ -113,19 +139,6 @@ public final class DroneHud {
 		drawString(graphics, font, health, x, y, healthColor(telemetry));
 	}
 
-	private static void drawTopStatus(GuiGraphics graphics, Font font, int x, int y, int width, Telemetry telemetry) {
-		graphics.fill(x, y, x + width, y + 26, PANEL_DARK);
-		graphics.fill(x, y + 25, x + width, y + 26, LINE);
-
-		int col = Math.max(64, width / 6);
-		drawCentered(graphics, font, Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name()), x + col / 2, y + 5, TEXT);
-		drawCentered(graphics, font, Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los"), x + col + col / 2, y + 5, telemetry.fpvView() ? PRIMARY : TEXT);
-		drawCentered(graphics, font, Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed"), x + col * 2 + col / 2, y + 5, telemetry.armed() ? PRIMARY : WARNING);
-		drawCentered(graphics, font, Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost"), x + col * 3 + col / 2, y + 5, telemetry.linkOk() ? PRIMARY : DANGER);
-		drawCentered(graphics, font, Component.translatable("hud.fpvdrone.battery_value", percent(telemetry.battery())), x + col * 4 + col / 2, y + 5, batteryColor(telemetry));
-		drawCentered(graphics, font, Component.translatable("hud.fpvdrone.throttle_value", percent(telemetry.throttle())), x + width - col / 2, y + 5, TEXT);
-	}
-
 	private static void drawAttitude(GuiGraphics graphics, int centerX, int centerY, Telemetry telemetry) {
 		int radius = 42;
 		int rollOffset = Math.round(Mth.clamp((float) Math.toDegrees(telemetry.roll()), -45.0f, 45.0f) * 0.46f);
@@ -154,6 +167,14 @@ public final class DroneHud {
 		graphics.fill(centerX - 2, centerY - radius - 4, centerX + 3, centerY - radius, telemetry.armed() ? PRIMARY : WARNING);
 	}
 
+	private static void drawMinimalReticle(GuiGraphics graphics, int centerX, int centerY, Telemetry telemetry) {
+		int color = telemetry.armed() ? PRIMARY : WARNING;
+		graphics.fill(centerX - 9, centerY, centerX - 3, centerY + 1, color);
+		graphics.fill(centerX + 3, centerY, centerX + 10, centerY + 1, color);
+		graphics.fill(centerX, centerY - 9, centerX + 1, centerY - 3, color);
+		graphics.fill(centerX, centerY + 3, centerX + 1, centerY + 10, color);
+	}
+
 	private static void drawSideScales(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
 		int centerY = screenHeight / 2;
 		int scaleHeight = 70;
@@ -170,25 +191,6 @@ public final class DroneHud {
 		drawRight(graphics, font, Component.translatable("hud.fpvdrone.vs_short", signedOneDecimal(telemetry.verticalSpeed())), rightX + 28, top + 26, verticalSpeedColor(telemetry));
 	}
 
-	private static void drawBottomTelemetry(GuiGraphics graphics, Font font, int x, int y, int width, Telemetry telemetry) {
-		graphics.fill(x, y, x + width, y + 42, PANEL_DARK);
-		graphics.fill(x, y, x + width, y + 1, LINE);
-		int columnWidth = Math.max(68, width / 5);
-		drawMetric(graphics, font, x + 8, y + 7, "hud.fpvdrone.metric.altitude", oneDecimal(telemetry.altitude()), TEXT);
-		drawMetric(graphics, font, x + columnWidth + 8, y + 7, "hud.fpvdrone.metric.speed", oneDecimal(telemetry.speed()), TEXT);
-		drawMetric(graphics, font, x + columnWidth * 2 + 8, y + 7, "hud.fpvdrone.metric.rpm", compactRpm(telemetry), telemetry.armed() && telemetry.rpm() > 1000.0f ? PRIMARY : MUTED);
-		drawMetric(graphics, font, x + columnWidth * 3 + 8, y + 7, "hud.fpvdrone.metric.temp", integer(Math.max(telemetry.motorTemp(), telemetry.escTemp())), tempColor(telemetry));
-		drawMetric(graphics, font, x + columnWidth * 4 + 8, y + 7, "hud.fpvdrone.metric.health", percent(Math.min(telemetry.frameHealth(), telemetry.rotorHealth())), healthColor(telemetry));
-
-		int warnColor = warningColor(telemetry);
-		Component status = Component.translatable(warningKey(telemetry));
-		drawCentered(graphics, font, status, x + width / 2, y + 27, warnColor);
-	}
-
-	private static void drawMetric(GuiGraphics graphics, Font font, int x, int y, String key, String value, int color) {
-		drawString(graphics, font, Component.translatable(key, value), x, y, color);
-	}
-
 	private static void drawVerticalScale(GuiGraphics graphics, int x, int y, int width, int height, float value, int color) {
 		float clamped = Mth.clamp(value, 0.0f, 1.0f);
 		graphics.fill(x, y, x + width, y + height, PANEL);
@@ -196,36 +198,6 @@ public final class DroneHud {
 		graphics.fill(x + width - 1, y, x + width, y + height, LINE);
 		int filled = Math.round(height * clamped);
 		graphics.fill(x + 2, y + height - filled, x + width - 2, y + height - 2, color);
-	}
-
-	private static int warningColor(Telemetry telemetry) {
-		if (!telemetry.linkOk() || telemetry.failsafe()) {
-			return DANGER;
-		}
-		if (telemetry.vrs() > 0.25f || telemetry.propwash() > 0.35f || telemetry.battery() < 0.22f) {
-			return WARNING;
-		}
-		return PRIMARY;
-	}
-
-	private static String warningKey(Telemetry telemetry) {
-		if (!telemetry.linkOk() || telemetry.failsafe()) {
-			return "hud.fpvdrone.warn_link";
-		}
-		if (telemetry.vrs() > 0.25f) {
-			return "hud.fpvdrone.warn_vrs";
-		}
-		if (telemetry.propwash() > 0.35f) {
-			return "hud.fpvdrone.warn_propwash";
-		}
-		if (telemetry.battery() < 0.22f) {
-			return "hud.fpvdrone.warn_battery";
-		}
-		return telemetry.armed() ? "hud.fpvdrone.warn_ready" : "hud.fpvdrone.warn_locked";
-	}
-
-	private static int textColor(boolean ok) {
-		return ok ? PRIMARY : WARNING;
 	}
 
 	private static int batteryColor(Telemetry telemetry) {
@@ -242,18 +214,9 @@ public final class DroneHud {
 		return telemetry.verticalSpeed() < -1.5f ? WARNING : TEXT;
 	}
 
-	private static int tempColor(Telemetry telemetry) {
-		float temp = Math.max(telemetry.motorTemp(), telemetry.escTemp());
-		return temp > 95.0f ? DANGER : (temp > 75.0f ? WARNING : TEXT);
-	}
-
 	private static int healthColor(Telemetry telemetry) {
 		float health = Math.min(telemetry.frameHealth(), telemetry.rotorHealth());
 		return health < 0.35f ? DANGER : (health < 0.70f ? WARNING : PRIMARY);
-	}
-
-	private static void drawCentered(GuiGraphics graphics, Font font, Component component, int centerX, int y, int color) {
-		graphics.drawString(font, component, centerX - font.width(component) / 2, y, color, false);
 	}
 
 	private static void drawRight(GuiGraphics graphics, Font font, Component component, int rightX, int y, int color) {
