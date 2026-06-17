@@ -142,6 +142,29 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeTreatsMediumGamepadInputAsTrainingControl() {
+		float mediumStick = (float) ControlStickProfile.gamepadCommand(0.60, 0.10);
+		PlayableFlightModel.Step held = holdStick(FlightMode.ANGLE, 16, 0.42f, mediumStick, -mediumStick, mediumStick);
+
+		assertTrue(Math.abs(held.pitchRadians()) < Math.toRadians(1.6));
+		assertTrue(Math.abs(held.rollRadians()) < Math.toRadians(1.6));
+		assertTrue(Math.abs(held.targetVelocityX()) < 0.09f);
+		assertTrue(Math.abs(held.targetVelocityZ()) < 0.09f);
+		assertTrue(held.yawDegreesPerTick() < 0.07f);
+	}
+
+	@Test
+	void angleModeStillProvidesDeliberateFullStickAuthority() {
+		PlayableFlightModel.Step held = holdStick(FlightMode.ANGLE, 18, 0.45f, 1.0f, -1.0f, 1.0f);
+
+		assertTrue(Math.abs(held.pitchRadians()) > Math.toRadians(7.0));
+		assertTrue(Math.abs(held.rollRadians()) > Math.toRadians(7.0));
+		assertTrue(Math.abs(held.targetVelocityX()) > 0.35f);
+		assertTrue(Math.abs(held.targetVelocityZ()) > 0.35f);
+		assertTrue(held.yawDegreesPerTick() > 0.40f);
+	}
+
+	@Test
 	void angleModeGivesGamepadCenterAStableHoverWindow() {
 		float centerThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
 		float slightClimbStick = (float) ControlStickProfile.gamepadThrottle(0.55);

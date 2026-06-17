@@ -68,6 +68,7 @@ public final class DroneHud {
 
 	private static void drawMinimalOsd(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
+		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
 		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
 		Component throttle = Component.translatable("hud.fpvdrone.thr_short", percent(telemetry.throttle()));
@@ -75,16 +76,18 @@ public final class DroneHud {
 		Component speed = Component.translatable("hud.fpvdrone.spd_short", oneDecimal(telemetry.speed()));
 
 		int y = MARGIN;
-		drawString(graphics, font, mode, MARGIN, y, TEXT);
-		drawString(graphics, font, armed, MARGIN, y + 11, telemetry.armed() ? PRIMARY : WARNING);
+		int leftX = MARGIN;
+		leftX = drawInline(graphics, font, mode, leftX, y, TEXT);
+		leftX = drawInline(graphics, font, view, leftX, y, telemetry.fpvView() ? PRIMARY : MUTED);
+		drawString(graphics, font, armed, leftX, y, telemetry.armed() ? PRIMARY : WARNING);
 		if (!telemetry.linkOk() || telemetry.failsafe()) {
-			drawString(graphics, font, link, MARGIN, y + 22, DANGER);
+			drawString(graphics, font, link, MARGIN, y + 11, DANGER);
 		}
 
 		int rightX = screenWidth - MARGIN;
-		drawRight(graphics, font, throttle, rightX, y, TEXT);
-		drawRight(graphics, font, altitude, rightX, y + 11, TEXT);
-		drawRight(graphics, font, speed, rightX, y + 22, TEXT);
+		rightX = drawRightInline(graphics, font, speed, rightX, y, TEXT);
+		rightX = drawRightInline(graphics, font, altitude, rightX, y, TEXT);
+		drawRightInline(graphics, font, throttle, rightX, y, TEXT);
 		if (telemetry.fpvView()) {
 			drawMinimalReticle(graphics, screenWidth / 2, screenHeight / 2, telemetry);
 		}
@@ -225,6 +228,16 @@ public final class DroneHud {
 
 	private static void drawString(GuiGraphics graphics, Font font, Component component, int x, int y, int color) {
 		graphics.drawString(font, component, x, y, color, false);
+	}
+
+	private static int drawInline(GuiGraphics graphics, Font font, Component component, int x, int y, int color) {
+		drawString(graphics, font, component, x, y, color);
+		return x + font.width(component) + 8;
+	}
+
+	private static int drawRightInline(GuiGraphics graphics, Font font, Component component, int rightX, int y, int color) {
+		drawRight(graphics, font, component, rightX, y, color);
+		return rightX - font.width(component) - 10;
 	}
 
 	private static String percent(float value) {
