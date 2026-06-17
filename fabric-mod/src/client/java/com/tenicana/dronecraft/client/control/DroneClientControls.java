@@ -91,7 +91,6 @@ public final class DroneClientControls {
 					|| client.player.getOffhandItem().is(DroneItems.DRONE_CONTROLLER);
 			DroneClientState.refreshControlledDrone(client);
 			boolean hasLinkedDrone = DroneClientState.controlledDrone() != null && DroneClientState.controlledDrone().isAlive();
-			GamepadInput gamepadInput = gamepadEnabled ? gamepadInput() : null;
 
 			while (VIRTUAL_CONTROLLER.consumeClick()) {
 				virtualControllerEnabled = !virtualControllerEnabled;
@@ -118,9 +117,11 @@ public final class DroneClientControls {
 				);
 			}
 
-			boolean gamepadActive = gamepadEnabled && gamepadInput != null;
-			boolean controlActive = hasController || (virtualControllerEnabled && hasLinkedDrone) || gamepadActive;
-			if (!controlActive) {
+			boolean controlAuthorized = DroneControlAuthority.hasControlAuthority(hasController, virtualControllerEnabled, hasLinkedDrone);
+			GamepadInput gamepadInput = DroneControlAuthority.shouldUseGamepadInput(gamepadEnabled, hasController, virtualControllerEnabled, hasLinkedDrone)
+					? gamepadInput()
+					: null;
+			if (!controlAuthorized) {
 				stickArmGestureLatched = false;
 				stickArmGestureTicks = 0;
 				resetKeyboardAxes();
