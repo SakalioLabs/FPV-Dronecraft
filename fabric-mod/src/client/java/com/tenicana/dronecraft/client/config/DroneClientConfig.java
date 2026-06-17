@@ -28,6 +28,7 @@ public final class DroneClientConfig {
 	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.70f;
 	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.075f;
 	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.18f;
+	private static final float MAX_STICK_CENTER_OFFSET = 0.45f;
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 14.0f;
 	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.05f;
 	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.62f;
@@ -78,6 +79,9 @@ public final class DroneClientConfig {
 	private boolean pitchInverted = true;
 	private boolean yawInverted;
 	private boolean throttleInverted = true;
+	private float rollCenter;
+	private float pitchCenter;
+	private float yawCenter;
 	private float gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
 	private float gamepadExpo = DEFAULT_GAMEPAD_EXPO;
 	private float gamepadRollPitchRateScale = DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE;
@@ -179,6 +183,18 @@ public final class DroneClientConfig {
 
 	public boolean throttleInverted() {
 		return throttleInverted;
+	}
+
+	public float rollCenter() {
+		return rollCenter;
+	}
+
+	public float pitchCenter() {
+		return pitchCenter;
+	}
+
+	public float yawCenter() {
+		return yawCenter;
 	}
 
 	public float gamepadDeadband() {
@@ -290,6 +306,12 @@ public final class DroneClientConfig {
 		this.throttleInverted = throttleInverted;
 	}
 
+	public void setStickCenters(float rollCenter, float pitchCenter, float yawCenter) {
+		this.rollCenter = sanitizeStickCenter(rollCenter);
+		this.pitchCenter = sanitizeStickCenter(pitchCenter);
+		this.yawCenter = sanitizeStickCenter(yawCenter);
+	}
+
 	public void setGamepadExpo(float gamepadExpo) {
 		this.gamepadExpo = gamepadExpo;
 	}
@@ -348,6 +370,26 @@ public final class DroneClientConfig {
 		}
 		float normalized = (float) ((rawThrottle - throttleCalibrationMin) / (throttleCalibrationMax - throttleCalibrationMin));
 		return (float) Mth.clamp(normalized, 0.0, 1.0);
+	}
+
+	public float calibrateRollAxis(float rawAxis) {
+		return calibrateStickAxis(rawAxis, rollInverted, rollCenter);
+	}
+
+	public float calibratePitchAxis(float rawAxis) {
+		return calibrateStickAxis(rawAxis, pitchInverted, pitchCenter);
+	}
+
+	public float calibrateYawAxis(float rawAxis) {
+		return calibrateStickAxis(rawAxis, yawInverted, yawCenter);
+	}
+
+	public static float orientedStickAxis(float rawAxis, boolean inverted) {
+		float value = Float.isFinite(rawAxis) ? rawAxis : 0.0f;
+		if (inverted) {
+			value = -value;
+		}
+		return (float) Mth.clamp(value, -1.0, 1.0);
 	}
 
 	public void setThrottleCalibration(float min, float max) {
@@ -434,6 +476,9 @@ public final class DroneClientConfig {
 		if (!Float.isFinite(throttleCalibrationMax)) {
 			throttleCalibrationMax = 1.0f;
 		}
+		rollCenter = sanitizeStickCenter(rollCenter);
+		pitchCenter = sanitizeStickCenter(pitchCenter);
+		yawCenter = sanitizeStickCenter(yawCenter);
 		if (throttleCalibrationMax < throttleCalibrationMin) {
 			float temp = throttleCalibrationMin;
 			throttleCalibrationMin = throttleCalibrationMax;
@@ -578,6 +623,18 @@ public final class DroneClientConfig {
 
 	private static int sanitizeAxis(int axis) {
 		return Math.max(0, Math.min(31, axis));
+	}
+
+	private static float sanitizeStickCenter(float value) {
+		return Float.isFinite(value) ? (float) Mth.clamp(value, -MAX_STICK_CENTER_OFFSET, MAX_STICK_CENTER_OFFSET) : 0.0f;
+	}
+
+	private static float calibrateStickAxis(float rawAxis, boolean inverted, float center) {
+		float oriented = orientedStickAxis(rawAxis, inverted);
+		float safeCenter = sanitizeStickCenter(center);
+		float offset = oriented - safeCenter;
+		float travel = offset >= 0.0f ? 1.0f - safeCenter : 1.0f + safeCenter;
+		return (float) Mth.clamp(offset / Math.max(0.10f, travel), -1.0f, 1.0f);
 	}
 
 	private static int sanitizeButton(int button) {

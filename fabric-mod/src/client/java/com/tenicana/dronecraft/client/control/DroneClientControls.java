@@ -426,9 +426,9 @@ public final class DroneClientControls {
 			ByteBuffer buttons = GLFW.glfwGetJoystickButtons(joystick);
 			float rawThrottle = throttleAxisRaw(axes, config.throttleAxis(), config.throttleInverted());
 			float mappedThrottle = config.calibrateThrottle(rawThrottle);
-			float roll = stickAxis(axes, config.rollAxis(), config.rollInverted());
-			float pitch = stickAxis(axes, config.pitchAxis(), config.pitchInverted());
-			float yaw = stickAxis(axes, config.yawAxis(), config.yawInverted());
+			float roll = stickAxis(axes, config.rollAxis(), config::calibrateRollAxis);
+			float pitch = stickAxis(axes, config.pitchAxis(), config::calibratePitchAxis);
+			float yaw = stickAxis(axes, config.yawAxis(), config::calibrateYawAxis);
 
 			return new GamepadInput(
 					mappedThrottle,
@@ -456,15 +456,13 @@ public final class DroneClientControls {
 		return (float) Mth.clamp((value + 1.0f) * 0.5f, 0.0f, 1.0f);
 	}
 
-	private static float stickAxis(FloatBuffer axes, int axis, boolean inverted) {
+	private static float stickAxis(FloatBuffer axes, int axis, AxisCalibrator calibrator) {
 		if (axes == null || axis < 0 || axis >= axes.limit()) {
 			return 0.0f;
 		}
 		float value = axes.get(axis);
-		if (inverted) {
-			value = -value;
-		}
-		return (float) ControlStickProfile.applyDeadband(value, config.gamepadDeadband());
+		float calibrated = calibrator == null ? value : calibrator.calibrate(value);
+		return (float) ControlStickProfile.applyDeadband(calibrated, config.gamepadDeadband());
 	}
 
 	private static boolean isGamepadButtonPressed(ByteBuffer buttons, int button) {
@@ -493,5 +491,10 @@ public final class DroneClientControls {
 							   boolean armButtonPressed,
 							   boolean disarmButtonPressed,
 							   boolean calibrateButtonPressed) {
+	}
+
+	@FunctionalInterface
+	private interface AxisCalibrator {
+		float calibrate(float rawAxis);
 	}
 }

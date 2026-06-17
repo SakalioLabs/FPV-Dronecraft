@@ -27,6 +27,9 @@ class DroneClientConfigTest {
 		assertEquals(0.70f, config.gamepadYawRateScale(), 1.0e-4f);
 		assertEquals(0.075f, config.gamepadAxisRisePerTick(), 1.0e-4f);
 		assertEquals(0.18f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+		assertEquals(0.0f, config.rollCenter(), 1.0e-4f);
+		assertEquals(0.0f, config.pitchCenter(), 1.0e-4f);
+		assertEquals(0.0f, config.yawCenter(), 1.0e-4f);
 		assertEquals(HudMode.MINIMAL, config.hudMode());
 	}
 
@@ -79,6 +82,32 @@ class DroneClientConfigTest {
 		assertEquals(DroneClientConfig.ControlFeelPreset.CUSTOM, config.gamepadFeelPreset());
 		assertEquals(DroneClientConfig.ControlFeelPreset.TRAINING, config.nextGamepadFeelPreset());
 		assertEquals(0.72f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+	}
+
+	@Test
+	void stickCenterCalibrationRemovesGamepadDriftAndPreservesEndpoints() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		config.setStickCenters(0.18f, -0.12f, 0.09f);
+
+		assertEquals(0.0f, config.calibrateRollAxis(0.18f), 1.0e-5f);
+		assertEquals(0.0f, config.calibratePitchAxis(0.12f), 1.0e-5f);
+		assertEquals(0.0f, config.calibrateYawAxis(0.09f), 1.0e-5f);
+		assertEquals(1.0f, config.calibrateRollAxis(1.0f), 1.0e-5f);
+		assertEquals(-1.0f, config.calibrateRollAxis(-1.0f), 1.0e-5f);
+	}
+
+	@Test
+	void invalidStickCentersNormalizeToSafeOffsets() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		setFloat(config, "rollCenter", Float.NaN);
+		setFloat(config, "pitchCenter", 2.0f);
+		setFloat(config, "yawCenter", -2.0f);
+
+		config = normalize(config);
+
+		assertEquals(0.0f, config.rollCenter(), 1.0e-5f);
+		assertEquals(0.45f, config.pitchCenter(), 1.0e-5f);
+		assertEquals(-0.45f, config.yawCenter(), 1.0e-5f);
 	}
 
 	@Test

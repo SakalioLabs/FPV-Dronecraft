@@ -16,6 +16,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private static final String BUTTON_PREFIX = "button.fpvdrone.";
 	private static final float MIN_AXIS_CAPTURE_DELTA = 0.05f;
 	private static final float MIN_THROTTLE_CALIBRATION_RANGE = 0.05f;
+	private static final float MAX_CENTER_CAPTURE_OFFSET = 0.45f;
 	private static final int STICK_RENDER_SIZE = 34;
 	private static final int STICK_RENDER_RADIUS = 12;
 
@@ -43,6 +44,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private Button disarmButtonButton;
 	private Button calibrateButtonButton;
 	private Button throttleCalibrateButton;
+	private Button stickCenterCalibrateButton;
 	private Button feelPresetButton;
 	private Button refreshButton;
 	private Button closeButton;
@@ -120,6 +122,13 @@ public final class DroneControllerSettingsScreen extends Screen {
 				170,
 				Component.translatable("screen.fpvdrone.start_throttle_calibration"),
 				button -> toggleScreenThrottleCalibration()
+		);
+		stickCenterCalibrateButton = addButton(
+				xAxis + 182,
+				y,
+				132,
+				Component.translatable("screen.fpvdrone.calibrate_stick_center"),
+				button -> calibrateStickCenters()
 		);
 		y += rowHeight;
 
@@ -251,6 +260,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 						? "screen.fpvdrone.finish_throttle_calibration"
 						: "screen.fpvdrone.start_throttle_calibration"
 		));
+		stickCenterCalibrateButton.setMessage(Component.translatable("screen.fpvdrone.calibrate_stick_center"));
 		refreshButton.setMessage(Component.translatable("screen.fpvdrone.refresh"));
 		closeButton.setMessage(Component.translatable("gui.done"));
 	}
@@ -434,6 +444,44 @@ public final class DroneControllerSettingsScreen extends Screen {
 			}
 		}
 		updateButtonLabels();
+	}
+
+	private void calibrateStickCenters() {
+		if (captureThrottleInProgress) {
+			status = Component.translatable("screen.fpvdrone.status_finish_calibration_first");
+			return;
+		}
+		selectedJoystick = resolveConnectedJoystick();
+		refreshSnapshot();
+		if (selectedJoystick < 0 || !hasStickAxesSnapshot()) {
+			status = Component.translatable("screen.fpvdrone.status_no_center_target");
+			return;
+		}
+
+		float rollCenter = DroneClientConfig.orientedStickAxis(axesSnapshot[config.rollAxis()], config.rollInverted());
+		float pitchCenter = DroneClientConfig.orientedStickAxis(axesSnapshot[config.pitchAxis()], config.pitchInverted());
+		float yawCenter = DroneClientConfig.orientedStickAxis(axesSnapshot[config.yawAxis()], config.yawInverted());
+		if (Math.abs(rollCenter) > MAX_CENTER_CAPTURE_OFFSET
+				|| Math.abs(pitchCenter) > MAX_CENTER_CAPTURE_OFFSET
+				|| Math.abs(yawCenter) > MAX_CENTER_CAPTURE_OFFSET) {
+			status = Component.translatable("screen.fpvdrone.status_center_sticks_first");
+			return;
+		}
+
+		config.setStickCenters(rollCenter, pitchCenter, yawCenter);
+		config.save();
+		status = Component.translatable(
+				"screen.fpvdrone.status_center_saved",
+				String.format(Locale.ROOT, "% .3f", rollCenter),
+				String.format(Locale.ROOT, "% .3f", pitchCenter),
+				String.format(Locale.ROOT, "% .3f", yawCenter)
+		);
+	}
+
+	private boolean hasStickAxesSnapshot() {
+		return axesSnapshot.length > config.rollAxis()
+				&& axesSnapshot.length > config.pitchAxis()
+				&& axesSnapshot.length > config.yawAxis();
 	}
 
 	private void sampleThrottleCalibration() {
