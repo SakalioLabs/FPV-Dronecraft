@@ -84,15 +84,23 @@ class DronePhysicsTest {
 		}
 		assertTrue(physics.state().averageMotorRpm() > 1000.0);
 
-		physics.sleepAtRest(new Vec3(1.0, 0.72, -2.0), new DroneInput(0.0, 0.0, 0.0, 0.0, false, true, FlightMode.HORIZON));
+		DroneInput rawDisarmed = new DroneInput(0.37, 0.12, -0.09, 0.04, false, true, FlightMode.HORIZON);
+		DroneInput safeProcessed = new DroneInput(0.0, 0.0, 0.0, 0.0, false, true, FlightMode.HORIZON);
+
+		physics.sleepAtRest(new Vec3(1.0, 0.72, -2.0), rawDisarmed);
 
 		assertEquals(new Vec3(1.0, 0.72, -2.0), physics.state().positionMeters());
 		assertEquals(0.0, physics.state().velocityMetersPerSecond().length(), 1.0e-12);
 		assertEquals(0.0, physics.state().angularVelocityBodyRadiansPerSecond().length(), 1.0e-12);
 		assertEquals(0.0, physics.state().averageMotorRpm(), 1.0e-12);
 		assertEquals(0.0, physics.state().averageMotorPower(physics.config()), 1.0e-12);
+		assertEquals(rawDisarmed.normalized(), physics.state().rawControlInput());
+		assertEquals(safeProcessed.normalized(), physics.state().processedControlInput());
 		assertTrue(physics.state().processedControlInput().linkActive());
 		assertTrue(!physics.state().processedControlInput().armed());
+		assertTrue(!physics.state().controlFailsafeActive());
+		assertEquals(0.0, physics.state().controlLinkLossSeconds(), 1.0e-12);
+		assertEquals(0.37, physics.state().controlFrameError(), 1.0e-12);
 	}
 
 	@Test

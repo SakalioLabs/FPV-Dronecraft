@@ -23,6 +23,7 @@
 - 服务端可玩飞行层不再对客户端已经塑形过的摇杆命令重复套大死区/expo，只保留极小噪声门槛和限速；`ANGLE`/`HORIZON` 稳定模式会把松杆后的极小残余速度、姿态和偏航率收敛到 0，减少“没打杆还慢慢歪/转”的手感。
 - `playable` 可玩层新增低油门/贴地横向权限曲线：解锁后贴地悬停区会压低横滚、俯仰带来的水平速度，给足起飞油门后再恢复完整权限，减少刚离地轻推杆就窜歪的训练档手感问题。
 - 上锁、断链落地或退出 `playable` 直接飞行层时，会显式清空电机、ESC、RPM telemetry 和 per-rotor 推力，避免黑盒/HUD 在上锁后还显示上一帧的旧转速或旧推力。
+- 真实 `simulation` 物理层的地面休眠现在会同时记录 raw 输入、零油门 processed 输入、链路状态和 receiver frame error，避免上锁落地后黑盒/HUD 混入上一帧飞行命令。
 - 调试命令新增 `/fpvdrone debug mode playable|sim`，可以明确切换当前稳定可玩的 Minecraft 飞行层和 6DOF 物理仿真层，方便分阶段对比手感和物理问题。
 - 黑盒 CSV 和摘要现在记录 `flight_model`，能区分本次日志来自 `playable` 可玩飞行层还是 `simulation` 6DOF 仿真层，后续排查“能飞但手感差”和“物理层自己发散”会更直接。
 - `I` 打开游戏内遥控器设置界面，`Feel` 按钮可循环 `Training`、`Sport`、`Acro` 三档手感，不用手动改 JSON。

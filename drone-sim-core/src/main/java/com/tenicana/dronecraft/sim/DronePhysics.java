@@ -589,9 +589,15 @@ public final class DronePhysics {
 		constrainAtRestKinematics();
 		levelAtRestAttitude();
 		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
-		state.setProcessedControlInput(input == null
+		DroneInput processed = input == null
 				? DroneInput.idle()
-				: new DroneInput(0.0, 0.0, 0.0, 0.0, normalized.armed(), normalized.linkActive(), normalized.flightMode()));
+				: new DroneInput(0.0, 0.0, 0.0, 0.0, normalized.armed(), normalized.linkActive(), normalized.flightMode());
+		state.setRawControlInput(normalized);
+		state.setProcessedControlInput(processed);
+		controlLinkLossSeconds = normalized.linkActive() ? 0.0 : controlLinkLossSeconds;
+		state.setControlLinkLossSeconds(controlLinkLossSeconds);
+		state.setControlFailsafeActive(!normalized.linkActive());
+		state.setControlFrameTelemetry(0.0, receiverFrameIntervalSeconds(), controlFrameError(normalized, processed));
 		state.resetMotors();
 		resetControlLoops();
 		resetEscSignalModel();
