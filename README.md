@@ -20,8 +20,9 @@ Rotor side-flow obstruction geometry also lives in `drone-sim-core`, so Minecraf
 - Arming is safety-gated by low throttle and centered sticks, with the Mode 2 bottom-corner stick gesture available for RC-style arm/disarm.
 - FPV and line-of-sight view are separate from arming; `B` toggles FPV, and `N` cycles the HUD through minimal, hidden, and full telemetry modes.
 - Gamepad/radio pitch, roll, and yaw now pass through configurable deadband, expo, rate scale, and per-tick slew limiting before being sent to the drone. This is intentionally a gameplay comfort layer: the physics stack still receives smooth commands, but light stick touches no longer jump directly to full controller authority.
+- Press `I` to open the in-game controller settings screen. The `Feel` button cycles `Training`, `Sport`, and `Acro` presets, so a player can tune control response without leaving Minecraft or editing JSON by hand.
 - The current tuning principle is "fly first, then add realism": takeoff, hover, low-speed correction, FPV visibility, and recoverable controls are treated as release gates before more complex vortex, propwash, side-flow, damage, and thermal effects are made stronger.
-- Latest headless server self-test on 2026-06-18 passed for a 12 second scripted flight: max altitude gain `2.59 m`, max speed `3.15 m/s`, peak average motor RPM telemetry `15.27k`, 240 samples, 200 Hz physics.
+- Latest headless server self-test on 2026-06-18 passed for a 12 second scripted flight: max altitude gain `2.59 m`, max speed `3.39 m/s`, peak average motor RPM telemetry `15.28k`, 240 samples, 200 Hz physics.
 
 ## Build
 
@@ -237,6 +238,14 @@ The client creates `config/fpvdrone-client.json` on first launch. The default ma
 Stick axes use a centered deadband and are remapped back to full `-1..1` authority. Throttle is treated as a travel axis and mapped to `0..1`, with a small endpoint snap so real radio idle and full throttle values feel stable.
 
 `gamepadExpo`, `gamepadRollPitchRateScale`, `gamepadYawRateScale`, `gamepadAxisRisePerTick`, and `gamepadAxisFallPerTick` tune feel rather than airframe physics. Lower rate scale gives less maximum pitch/roll/yaw authority from the same stick throw. Higher expo softens the center stick. Lower rise speed makes new commands enter more gently; higher fall speed lets released or reversed sticks recover quickly. The shipped defaults are biased toward stable first flights; experienced acro pilots can raise the rate scales toward `1.0`.
+
+The in-game controller settings screen (`I` by default) exposes three feel presets:
+
+- `Training`: default, stable center stick and slower command entry for first flights.
+- `Sport`: faster response while keeping some center-stick softness.
+- `Acro`: full roll/pitch/yaw authority with less expo and faster command slew for FPV-style flying.
+
+If you hand-edit the JSON to values that do not match a preset, the settings screen shows `Custom`; pressing the feel button again returns to `Training`.
 
 For arm/disarm and throttle-calibration from a generic RC transmitter:
 

@@ -43,6 +43,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private Button disarmButtonButton;
 	private Button calibrateButtonButton;
 	private Button throttleCalibrateButton;
+	private Button feelPresetButton;
 	private Button refreshButton;
 	private Button closeButton;
 
@@ -119,6 +120,15 @@ public final class DroneControllerSettingsScreen extends Screen {
 				170,
 				Component.translatable("screen.fpvdrone.start_throttle_calibration"),
 				button -> toggleScreenThrottleCalibration()
+		);
+		y += rowHeight;
+
+		feelPresetButton = addButton(
+				xAxis,
+				y,
+				170,
+				Component.translatable("screen.fpvdrone.feel_entry", Component.translatable(config.gamepadFeelPreset().translationKey())),
+				button -> cycleGamepadFeelPreset()
 		);
 
 		refreshButton = addButton(
@@ -231,6 +241,10 @@ public final class DroneControllerSettingsScreen extends Screen {
 		armButtonButton.setMessage(labelButton(config.armButton(), "screen.fpvdrone.btn_arm"));
 		disarmButtonButton.setMessage(labelButton(config.disarmButton(), "screen.fpvdrone.btn_disarm"));
 		calibrateButtonButton.setMessage(labelButton(config.throttleCalibrateButton(), "screen.fpvdrone.btn_calibrate"));
+		feelPresetButton.setMessage(Component.translatable(
+				"screen.fpvdrone.feel_entry",
+				Component.translatable(config.gamepadFeelPreset().translationKey())
+		));
 
 		throttleCalibrateButton.setMessage(Component.translatable(
 				captureThrottleInProgress
@@ -383,6 +397,13 @@ public final class DroneControllerSettingsScreen extends Screen {
 		config.setThrottleInverted(!config.throttleInverted());
 		config.save();
 		updateButtonLabels();
+	}
+
+	private void cycleGamepadFeelPreset() {
+		DroneClientConfig.ControlFeelPreset preset = config.nextGamepadFeelPreset();
+		config.save();
+		updateButtonLabels();
+		status = Component.translatable("screen.fpvdrone.status_feel_preset", Component.translatable(preset.translationKey()));
 	}
 
 	private void toggleScreenThrottleCalibration() {

@@ -46,6 +46,28 @@ class DroneClientConfigTest {
 	}
 
 	@Test
+	void gamepadFeelPresetsExposePlayableInGameProfiles() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+
+		assertEquals(DroneClientConfig.ControlFeelPreset.TRAINING, config.gamepadFeelPreset());
+
+		DroneClientConfig.ControlFeelPreset next = config.nextGamepadFeelPreset();
+		assertEquals(DroneClientConfig.ControlFeelPreset.SPORT, next);
+		assertEquals(0.90f, config.gamepadExpo(), 1.0e-4f);
+		assertEquals(0.86f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.82f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.12f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.24f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+
+		setFloat(config, "gamepadRollPitchRateScale", 0.83f);
+		config = normalize(config);
+
+		assertEquals(DroneClientConfig.ControlFeelPreset.CUSTOM, config.gamepadFeelPreset());
+		assertEquals(DroneClientConfig.ControlFeelPreset.TRAINING, config.nextGamepadFeelPreset());
+		assertEquals(0.72f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+	}
+
+	@Test
 	void defaultsUseClearFpvCameraMount() {
 		DroneClientConfig config = DroneClientConfig.defaults();
 

@@ -115,6 +115,12 @@
 	"screen.fpvdrone.axis_normal": "Normal",
 	"screen.fpvdrone.start_throttle_calibration": "Start Throttle Calibration",
 	"screen.fpvdrone.finish_throttle_calibration": "Finish Throttle Calibration",
+	"screen.fpvdrone.feel_entry": "Feel: %s",
+	"screen.fpvdrone.feel_training": "Training",
+	"screen.fpvdrone.feel_sport": "Sport",
+	"screen.fpvdrone.feel_acro": "Acro",
+	"screen.fpvdrone.feel_custom": "Custom",
+	"screen.fpvdrone.status_feel_preset": "Controller feel preset: %s",
 	"screen.fpvdrone.refresh": "Refresh",
 	"screen.fpvdrone.throttle_calibration_running": "Throttle calibration running. Move throttle to both ends and press Finish.",
 	"screen.fpvdrone.throttle_calibration_range": "Calib range: %s ~ %s"

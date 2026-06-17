@@ -203,6 +203,27 @@ public final class DroneClientConfig {
 		return gamepadAxisFallPerTick;
 	}
 
+	public ControlFeelPreset gamepadFeelPreset() {
+		for (ControlFeelPreset preset : ControlFeelPreset.selectableValues()) {
+			if (preset.matches(
+					gamepadExpo,
+					gamepadRollPitchRateScale,
+					gamepadYawRateScale,
+					gamepadAxisRisePerTick,
+					gamepadAxisFallPerTick
+			)) {
+				return preset;
+			}
+		}
+		return ControlFeelPreset.CUSTOM;
+	}
+
+	public ControlFeelPreset nextGamepadFeelPreset() {
+		ControlFeelPreset next = gamepadFeelPreset().nextSelectable();
+		applyGamepadFeelPreset(next);
+		return next;
+	}
+
 	public int armButton() {
 		return armButton;
 	}
@@ -281,6 +302,15 @@ public final class DroneClientConfig {
 
 	public void setGamepadAxisFallPerTick(float gamepadAxisFallPerTick) {
 		this.gamepadAxisFallPerTick = gamepadAxisFallPerTick;
+	}
+
+	public void applyGamepadFeelPreset(ControlFeelPreset preset) {
+		ControlFeelPreset safePreset = preset == null || preset == ControlFeelPreset.CUSTOM ? ControlFeelPreset.TRAINING : preset;
+		gamepadExpo = safePreset.expo();
+		gamepadRollPitchRateScale = safePreset.rollPitchRateScale();
+		gamepadYawRateScale = safePreset.yawRateScale();
+		gamepadAxisRisePerTick = safePreset.axisRisePerTick();
+		gamepadAxisFallPerTick = safePreset.axisFallPerTick();
 	}
 
 	public boolean throttleCalibrated() {
@@ -539,5 +569,81 @@ public final class DroneClientConfig {
 
 	private static int sanitizeButton(int button) {
 		return Math.max(-1, Math.min(31, button));
+	}
+
+	public enum ControlFeelPreset {
+		TRAINING("screen.fpvdrone.feel_training", 0.97f, 0.72f, 0.70f, 0.075f, 0.18f),
+		SPORT("screen.fpvdrone.feel_sport", 0.90f, 0.86f, 0.82f, 0.12f, 0.24f),
+		ACRO("screen.fpvdrone.feel_acro", 0.75f, 1.00f, 1.00f, 0.20f, 0.35f),
+		CUSTOM("screen.fpvdrone.feel_custom", Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);
+
+		private static final ControlFeelPreset[] SELECTABLE = { TRAINING, SPORT, ACRO };
+		private final String translationKey;
+		private final float expo;
+		private final float rollPitchRateScale;
+		private final float yawRateScale;
+		private final float axisRisePerTick;
+		private final float axisFallPerTick;
+
+		ControlFeelPreset(
+				String translationKey,
+				float expo,
+				float rollPitchRateScale,
+				float yawRateScale,
+				float axisRisePerTick,
+				float axisFallPerTick
+		) {
+			this.translationKey = translationKey;
+			this.expo = expo;
+			this.rollPitchRateScale = rollPitchRateScale;
+			this.yawRateScale = yawRateScale;
+			this.axisRisePerTick = axisRisePerTick;
+			this.axisFallPerTick = axisFallPerTick;
+		}
+
+		public String translationKey() {
+			return translationKey;
+		}
+
+		float expo() {
+			return expo;
+		}
+
+		float rollPitchRateScale() {
+			return rollPitchRateScale;
+		}
+
+		float yawRateScale() {
+			return yawRateScale;
+		}
+
+		float axisRisePerTick() {
+			return axisRisePerTick;
+		}
+
+		float axisFallPerTick() {
+			return axisFallPerTick;
+		}
+
+		boolean matches(float expo, float rollPitchRateScale, float yawRateScale, float axisRisePerTick, float axisFallPerTick) {
+			return this != CUSTOM
+					&& nearly(this.expo, expo)
+					&& nearly(this.rollPitchRateScale, rollPitchRateScale)
+					&& nearly(this.yawRateScale, yawRateScale)
+					&& nearly(this.axisRisePerTick, axisRisePerTick)
+					&& nearly(this.axisFallPerTick, axisFallPerTick);
+		}
+
+		ControlFeelPreset nextSelectable() {
+			return switch (this) {
+				case TRAINING -> SPORT;
+				case SPORT -> ACRO;
+				case ACRO, CUSTOM -> TRAINING;
+			};
+		}
+
+		static ControlFeelPreset[] selectableValues() {
+			return SELECTABLE;
+		}
 	}
 }
