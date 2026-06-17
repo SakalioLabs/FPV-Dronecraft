@@ -134,8 +134,7 @@ public final class DroneClientControls {
 			if (!controlAuthorized) {
 				STICK_ARM_GESTURE.reset();
 				MODE_SWITCH_RAMP.reset();
-				INPUT_SMOOTHER.reset();
-				resetKeyboardAxes();
+				resetTransientControlState();
 				DroneClientState.updateControls(
 						throttle,
 						0.0f,
@@ -257,6 +256,7 @@ public final class DroneClientControls {
 		if (!STICK_ARM_GESTURE.update(isStickArmGesture(input))) {
 			return;
 		}
+		resetTransientControlState();
 		armed = !armed;
 		client.player.displayClientMessage(Component.translatable(armed ? "message.fpvdrone.armed" : "message.fpvdrone.disarmed"), true);
 	}
@@ -291,6 +291,7 @@ public final class DroneClientControls {
 				client.player.displayClientMessage(Component.translatable("message.fpvdrone.arm_blocked"), true);
 				return;
 			}
+			resetTransientControlState();
 			armed = true;
 			client.player.displayClientMessage(Component.translatable("message.fpvdrone.armed"), true);
 			return;
@@ -299,8 +300,15 @@ public final class DroneClientControls {
 		if (!armed) {
 			return;
 		}
+		resetTransientControlState();
 		armed = false;
 		client.player.displayClientMessage(Component.translatable("message.fpvdrone.disarmed"), true);
+	}
+
+	private static void resetTransientControlState() {
+		throttle = 0.0f;
+		INPUT_SMOOTHER.reset();
+		resetKeyboardAxes();
 	}
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
