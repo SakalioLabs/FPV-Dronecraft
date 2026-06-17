@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.client.DroneClientState.InputSource;
+
 class DroneHudTest {
 	@Test
 	void idleRpmUsesSemanticDisplayInsteadOfLargeNumericValue() {
@@ -48,5 +50,36 @@ class DroneHudTest {
 		assertTrue(DroneHud.isArmBlockedForHud(false, 0.42f, 0.0f, 0.0f, 0.0f));
 		assertTrue(DroneHud.isArmBlockedForHud(false, 0.02f, 0.38f, 0.0f, 0.0f));
 		assertTrue(DroneHud.isArmBlockedForHud(false, Float.NaN, 0.0f, 0.0f, 0.0f));
+	}
+
+	@Test
+	void inputSourceLabelsUseExistingTranslations() {
+		assertEquals("hud.fpvdrone.source_keyboard", DroneHud.inputSourceKey(InputSource.KEYBOARD));
+		assertEquals("hud.fpvdrone.source_keyboard", DroneHud.inputSourceKey(null));
+		assertEquals("hud.fpvdrone.source_gamepad", DroneHud.inputSourceKey(InputSource.GAMEPAD));
+	}
+
+	@Test
+	void throttleCalibrationLabelsPrioritizeActiveCalibration() {
+		assertEquals("hud.fpvdrone.throttle_calibrating", DroneHud.throttleCalibrationKey(true, true));
+		assertEquals("hud.fpvdrone.throttle_calibrating", DroneHud.throttleCalibrationKey(false, true));
+		assertEquals("hud.fpvdrone.throttle_calibrated", DroneHud.throttleCalibrationKey(true, false));
+		assertEquals("hud.fpvdrone.throttle_uncalibrated", DroneHud.throttleCalibrationKey(false, false));
+	}
+
+	@Test
+	void minimalHudOnlyShowsThrottleCalibrationWhenActionable() {
+		assertFalse(DroneHud.shouldShowMinimalThrottleCalibrationStatus(InputSource.KEYBOARD, true, false));
+		assertFalse(DroneHud.shouldShowMinimalThrottleCalibrationStatus(InputSource.GAMEPAD, true, false));
+		assertTrue(DroneHud.shouldShowMinimalThrottleCalibrationStatus(InputSource.KEYBOARD, false, false));
+		assertTrue(DroneHud.shouldShowMinimalThrottleCalibrationStatus(InputSource.GAMEPAD, true, true));
+	}
+
+	@Test
+	void fullHudShowsGamepadThrottleCalibrationState() {
+		assertFalse(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.KEYBOARD, true, false));
+		assertTrue(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.GAMEPAD, true, false));
+		assertTrue(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.KEYBOARD, false, false));
+		assertTrue(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.KEYBOARD, true, true));
 	}
 }

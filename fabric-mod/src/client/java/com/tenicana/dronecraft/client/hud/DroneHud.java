@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.HudMode;
+import com.tenicana.dronecraft.client.DroneClientState.InputSource;
 import com.tenicana.dronecraft.control.DroneArmSafetyRules;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.FlightMode;
@@ -72,8 +73,15 @@ public final class DroneHud {
 	private static void drawMinimalOsd(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
 		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
+		Component source = Component.translatable(inputSourceKey(telemetry.inputSource()));
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
 		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
+		Component throttleCalibration = shouldShowMinimalThrottleCalibrationStatus(
+				telemetry.inputSource(),
+				telemetry.throttleCalibrated(),
+				telemetry.throttleCalibrationActive())
+						? Component.translatable(throttleCalibrationKey(telemetry.throttleCalibrated(), telemetry.throttleCalibrationActive()))
+						: null;
 		Component armHint = armSafetyHint(telemetry);
 		Component throttle = Component.translatable("hud.fpvdrone.thr_short", percent(telemetry.throttle()));
 		Component altitude = Component.translatable("hud.fpvdrone.alt_short", oneDecimal(telemetry.altitude()));
@@ -83,9 +91,12 @@ public final class DroneHud {
 		int leftX = MARGIN;
 		leftX = drawInline(graphics, font, mode, leftX, y, TEXT);
 		leftX = drawInline(graphics, font, view, leftX, y, telemetry.fpvView() ? PRIMARY : MUTED);
+		leftX = drawInline(graphics, font, source, leftX, y, inputSourceColor(telemetry));
 		drawString(graphics, font, armed, leftX, y, telemetry.armed() ? PRIMARY : WARNING);
 		if (!telemetry.linkOk() || telemetry.failsafe()) {
 			drawString(graphics, font, link, MARGIN, y + 11, DANGER);
+		} else if (throttleCalibration != null) {
+			drawString(graphics, font, throttleCalibration, MARGIN, y + 11, throttleCalibrationColor(telemetry));
 		} else if (armHint != null) {
 			drawString(graphics, font, armHint, MARGIN, y + 11, armSafetyColor(telemetry));
 		}
@@ -103,13 +114,23 @@ public final class DroneHud {
 		int y = MARGIN;
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
 		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
+		Component source = Component.translatable(inputSourceKey(telemetry.inputSource()));
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
+		Component throttleCalibration = shouldShowThrottleCalibrationStatus(
+				telemetry.inputSource(),
+				telemetry.throttleCalibrated(),
+				telemetry.throttleCalibrationActive())
+						? Component.translatable(throttleCalibrationKey(telemetry.throttleCalibrated(), telemetry.throttleCalibrationActive()))
+						: null;
 		Component armHint = armSafetyHint(telemetry);
 		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
 		Component battery = Component.translatable("hud.fpvdrone.battery_value", percent(telemetry.battery()));
 		Component throttle = Component.translatable("hud.fpvdrone.throttle_value", percent(telemetry.throttle()));
 
-		int leftWidth = font.width(mode) + font.width(view) + font.width(armed) + font.width(link) + 30;
+		int leftWidth = font.width(mode) + font.width(view) + font.width(source) + font.width(armed) + font.width(link) + 38;
+		if (throttleCalibration != null) {
+			leftWidth += font.width(throttleCalibration) + 8;
+		}
 		if (armHint != null) {
 			leftWidth += font.width(armHint) + 8;
 		}
@@ -121,8 +142,14 @@ public final class DroneHud {
 		x += font.width(mode) + 8;
 		drawString(graphics, font, view, x, y, telemetry.fpvView() ? PRIMARY : MUTED);
 		x += font.width(view) + 8;
+		drawString(graphics, font, source, x, y, inputSourceColor(telemetry));
+		x += font.width(source) + 8;
 		drawString(graphics, font, armed, x, y, telemetry.armed() ? PRIMARY : WARNING);
 		x += font.width(armed) + 8;
+		if (throttleCalibration != null) {
+			drawString(graphics, font, throttleCalibration, x, y, throttleCalibrationColor(telemetry));
+			x += font.width(throttleCalibration) + 8;
+		}
 		if (armHint != null) {
 			drawString(graphics, font, armHint, x, y, armSafetyColor(telemetry));
 			x += font.width(armHint) + 8;
@@ -236,6 +263,17 @@ public final class DroneHud {
 		return health < 0.35f ? DANGER : (health < 0.70f ? WARNING : PRIMARY);
 	}
 
+	private static int inputSourceColor(Telemetry telemetry) {
+		return telemetry.inputSource() == InputSource.GAMEPAD ? PRIMARY : MUTED;
+	}
+
+	private static int throttleCalibrationColor(Telemetry telemetry) {
+		if (telemetry.throttleCalibrationActive() || !telemetry.throttleCalibrated()) {
+			return WARNING;
+		}
+		return MUTED;
+	}
+
 	private static int rpmColor(Telemetry telemetry) {
 		if (!telemetry.armed() || isIdleRpm(telemetry.armed(), telemetry.throttle(), telemetry.rpm())) {
 			return MUTED;
@@ -344,12 +382,34 @@ public final class DroneHud {
 		return !armed && !DroneArmSafetyRules.canTransitionToArmed(throttle, pitch, roll, yaw);
 	}
 
+	static String inputSourceKey(InputSource source) {
+		return source == InputSource.GAMEPAD ? "hud.fpvdrone.source_gamepad" : "hud.fpvdrone.source_keyboard";
+	}
+
+	static String throttleCalibrationKey(boolean calibrated, boolean calibrationActive) {
+		if (calibrationActive) {
+			return "hud.fpvdrone.throttle_calibrating";
+		}
+		return calibrated ? "hud.fpvdrone.throttle_calibrated" : "hud.fpvdrone.throttle_uncalibrated";
+	}
+
+	static boolean shouldShowThrottleCalibrationStatus(InputSource source, boolean calibrated, boolean calibrationActive) {
+		return calibrationActive || !calibrated || source == InputSource.GAMEPAD;
+	}
+
+	static boolean shouldShowMinimalThrottleCalibrationStatus(InputSource source, boolean calibrated, boolean calibrationActive) {
+		return calibrationActive || !calibrated;
+	}
+
 	private record Telemetry(
 			boolean armed,
 			boolean linkOk,
 			boolean failsafe,
 			boolean fpvView,
 			FlightMode mode,
+			InputSource inputSource,
+			boolean throttleCalibrated,
+			boolean throttleCalibrationActive,
 			float throttle,
 			float pitch,
 			float roll,
@@ -377,6 +437,9 @@ public final class DroneHud {
 						false,
 						DroneClientState.isFpvViewEnabled(),
 						DroneClientState.flightMode(),
+						DroneClientState.inputSource(),
+						DroneClientState.throttleCalibrated(),
+						DroneClientState.throttleCalibrationActive(),
 						DroneClientState.throttle(),
 						0.0f,
 						0.0f,
@@ -403,6 +466,9 @@ public final class DroneHud {
 					drone.isControlFailsafeActive(),
 					DroneClientState.isFpvViewEnabled(),
 					drone.getFlightMode(),
+					DroneClientState.inputSource(),
+					DroneClientState.throttleCalibrated(),
+					DroneClientState.throttleCalibrationActive(),
 					drone.getControlThrottle(),
 					drone.getRenderPitchRadians(),
 					drone.getRenderRollRadians(),
