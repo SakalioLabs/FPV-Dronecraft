@@ -400,6 +400,7 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_dt_s")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_rate_hz")
 				&& DroneBlackboxSample.CSV_HEADER.contains("flight_model")
+				&& DroneBlackboxSample.CSV_HEADER.contains("playable_low_altitude_authority")
 				&& DroneBlackboxSample.CSV_HEADER.contains("airframe_rotor_count")
 				&& DroneBlackboxSample.CSV_HEADER.contains("motor_5_rpm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_thrust_n")
@@ -926,6 +927,7 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("esc_thermal_limit")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("avg_esc_cooling_factor")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("flight_model")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("playable_low_altitude_authority")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("flight_mode")) {
 			return "blackbox_header_missing_required_columns";
 		}

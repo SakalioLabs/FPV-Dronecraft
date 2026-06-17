@@ -92,6 +92,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("physics_dt_s"));
 		assertTrue(csv.contains("physics_rate_hz"));
 		assertTrue(csv.contains("flight_model"));
+		assertTrue(csv.contains("playable_low_altitude_authority"));
 		assertTrue(csv.contains("control_frame_age_s"));
 		assertTrue(csv.contains("control_frame_error"));
 		assertTrue(csv.contains("esc_command_frame_age_s"));
@@ -1037,6 +1038,7 @@ class DroneBlackboxRecorderTest {
 				10,
 				0.005,
 				"playable",
+				0.62,
 				physics.state(),
 				input,
 				physics.state().averageMotorPower(config),
@@ -1055,6 +1057,7 @@ class DroneBlackboxRecorderTest {
 		String[] header = lines[0].split(",", -1);
 		String[] row = lines[1].split(",", -1);
 		assertEquals("playable", row[indexOf(header, "flight_model")]);
+		assertEquals(0.62, Double.parseDouble(row[indexOf(header, "playable_low_altitude_authority")]), 1.0e-5);
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(1, summary.playableFlightModelSamples());

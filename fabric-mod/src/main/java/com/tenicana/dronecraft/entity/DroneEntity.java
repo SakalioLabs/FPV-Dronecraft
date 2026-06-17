@@ -275,6 +275,7 @@ public class DroneEntity extends Entity {
 	private float debugTargetVelocityY;
 	private float debugTargetVelocityZ;
 	private float debugTargetYawRate;
+	private float debugLowAltitudeHorizontalAuthority = 1.0f;
 	private float debugCommandThrottle;
 	private float debugCommandPitch;
 	private float debugCommandRoll;
@@ -780,6 +781,7 @@ public class DroneEntity extends Entity {
 		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
 		boolean nearGroundLocked = isNearGroundLocked();
 		float lowAltitudeHorizontalAuthorityScale = playableLowAltitudeHorizontalAuthorityScale(nearGroundLocked);
+		debugLowAltitudeHorizontalAuthority = lowAltitudeHorizontalAuthorityScale;
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
 				input.flightMode(),
 				smoothedThrottle,
@@ -943,6 +945,7 @@ public class DroneEntity extends Entity {
 		debugVisualRollRadians = 0.0f;
 		debugMotorPower = 0.0f;
 		debugAverageMotorRpm = 0.0f;
+		debugLowAltitudeHorizontalAuthority = 1.0f;
 		debugCommandThrottle = 0.0f;
 		debugCommandPitch = 0.0f;
 		debugCommandRoll = 0.0f;
@@ -2487,6 +2490,7 @@ public class DroneEntity extends Entity {
 				PHYSICS_STEPS_PER_TICK,
 				PHYSICS_DT,
 				DroneDebugSettings.flightModelMode().id(),
+				DroneDebugSettings.flightModelMode() == DroneDebugSettings.FlightModelMode.PLAYABLE ? debugLowAltitudeHorizontalAuthority : 1.0,
 				physics.state(),
 				input,
 				physics.state().averageMotorPower(physics.config()),

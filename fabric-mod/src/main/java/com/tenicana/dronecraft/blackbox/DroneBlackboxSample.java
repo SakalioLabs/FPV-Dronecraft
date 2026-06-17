@@ -20,6 +20,7 @@ public final class DroneBlackboxSample {
 			"physics_dt_s",
 			"physics_rate_hz",
 			"flight_model",
+			"playable_low_altitude_authority",
 			"x",
 			"y",
 			"z",
@@ -1147,6 +1148,7 @@ public final class DroneBlackboxSample {
 				1,
 				0.0,
 				flightModel,
+				1.0,
 				state,
 				input,
 				motorPower,
@@ -1186,6 +1188,7 @@ public final class DroneBlackboxSample {
 				physicsSubsteps,
 				physicsDtSeconds,
 				DEFAULT_FLIGHT_MODEL,
+				1.0,
 				state,
 				input,
 				motorPower,
@@ -1207,6 +1210,48 @@ public final class DroneBlackboxSample {
 			int physicsSubsteps,
 			double physicsDtSeconds,
 			String flightModel,
+			DroneState state,
+			DroneInput input,
+			double motorPower,
+			double frameHealth,
+			double rotorHealth,
+			double collisionSeverity,
+			int propStrikeRotorIndex,
+			double propStrikeSeverity,
+			int propStrikeCount,
+			double[] propStrikeSeverityByRotor,
+			DroneEnvironment environment,
+			DroneConfig config
+	) {
+		return from(
+				gameTime,
+				tickCount,
+				physicsSubsteps,
+				physicsDtSeconds,
+				flightModel,
+				1.0,
+				state,
+				input,
+				motorPower,
+				frameHealth,
+				rotorHealth,
+				collisionSeverity,
+				propStrikeRotorIndex,
+				propStrikeSeverity,
+				propStrikeCount,
+				propStrikeSeverityByRotor,
+				environment,
+				config
+		);
+	}
+
+	public static DroneBlackboxSample from(
+			long gameTime,
+			int tickCount,
+			int physicsSubsteps,
+			double physicsDtSeconds,
+			String flightModel,
+			double playableLowAltitudeAuthority,
 			DroneState state,
 			DroneInput input,
 			double motorPower,
@@ -1294,6 +1339,7 @@ public final class DroneBlackboxSample {
 		double sanitizedPhysicsDtSeconds = Double.isFinite(physicsDtSeconds) && physicsDtSeconds > 0.0 ? physicsDtSeconds : 0.0;
 		double physicsRateHertz = sanitizedPhysicsDtSeconds > 0.0 ? 1.0 / sanitizedPhysicsDtSeconds : 0.0;
 		String sanitizedFlightModel = sanitizeFlightModel(flightModel);
+		double sanitizedPlayableLowAltitudeAuthority = unitOrOne(playableLowAltitudeAuthority);
 		double averageMotorPolePairs = averageMotorPolePairs(config);
 
 		CsvRow row = new CsvRow();
@@ -1303,6 +1349,7 @@ public final class DroneBlackboxSample {
 		row.add(sanitizedPhysicsDtSeconds, "%.5f");
 		row.add(physicsRateHertz, "%.3f");
 		row.add(sanitizedFlightModel);
+		row.add(sanitizedPlayableLowAltitudeAuthority, "%.5f");
 		row.add(position.x(), "%.5f");
 		row.add(position.y(), "%.5f");
 		row.add(position.z(), "%.5f");
@@ -2085,6 +2132,13 @@ public final class DroneBlackboxSample {
 
 	private static double valueOrOne(double[] values, int index) {
 		return index >= 0 && index < values.length ? values[index] : 1.0;
+	}
+
+	private static double unitOrOne(double value) {
+		if (!Double.isFinite(value)) {
+			return 1.0;
+		}
+		return Math.max(0.0, Math.min(1.0, value));
 	}
 
 	private static double motorTargetRpm(double omegaRadiansPerSecond) {
