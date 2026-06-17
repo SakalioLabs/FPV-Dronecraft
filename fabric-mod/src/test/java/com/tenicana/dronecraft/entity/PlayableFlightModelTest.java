@@ -457,6 +457,38 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void lowAltitudeGuardAlsoSoftensVisibleAttitudeAndYawDuringTakeoff() {
+		PlayableFlightModel.Step normal = runFrom(
+				FlightMode.ANGLE,
+				12,
+				0.60f,
+				1.0f,
+				-1.0f,
+				1.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+		PlayableFlightModel.Step guarded = runFrom(
+				FlightMode.ANGLE,
+				12,
+				0.60f,
+				1.0f,
+				-1.0f,
+				1.0f,
+				0.20f,
+				true,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+
+		assertEquals(normal.targetVelocityY(), guarded.targetVelocityY(), 1.0e-6f);
+		assertTrue(guarded.targetVelocityY() > 0.60f);
+		assertTrue(Math.abs(guarded.pitchRadians()) < Math.abs(normal.pitchRadians()) * 0.82f);
+		assertTrue(Math.abs(guarded.rollRadians()) < Math.abs(normal.rollRadians()) * 0.82f);
+		assertTrue(guarded.yawDegreesPerTick() < normal.yawDegreesPerTick() * 0.75f);
+	}
+
+	@Test
 	void angleModeGivesGamepadCenterAStableHoverWindow() {
 		float centerThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
 		float slightClimbStick = (float) ControlStickProfile.gamepadThrottle(0.55);

@@ -975,7 +975,7 @@ public class DroneEntity extends Entity {
 
 	private float playableLowAltitudeHorizontalAuthorityScale(boolean nearGroundLocked) {
 		if (nearGroundLocked) {
-			return 1.0f;
+			return PLAYABLE_TAKEOFF_GUARD_MIN_HORIZONTAL_SCALE;
 		}
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		if (!Double.isFinite(clearance)) {

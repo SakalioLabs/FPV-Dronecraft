@@ -69,9 +69,15 @@ final class PlayableFlightModel {
 		float safeLowAltitudeHorizontalScale = clamp(lowAltitudeHorizontalAuthorityScale, 0.0f, 1.0f);
 		State safePrevious = previousStateForMode(safeMode, profile, previous);
 
-		Attitude attitude = attitude(safeMode, profile, safePitch, safeRoll, safePrevious);
-		float pitchRadians = settledAttitude(safeMode, safePitch, attitude.pitchRadians());
-		float rollRadians = settledAttitude(safeMode, safeRoll, attitude.rollRadians());
+		float attitudeCommandAuthority = lowAltitudeAttitudeCommandAuthority(safeMode, nearGroundLocked, safeLowAltitudeHorizontalScale);
+		float yawCommandAuthority = lowAltitudeYawCommandAuthority(safeMode, nearGroundLocked, safeLowAltitudeHorizontalScale);
+		float attitudePitch = safePitch * attitudeCommandAuthority;
+		float attitudeRoll = safeRoll * attitudeCommandAuthority;
+		float yawCommand = safeYaw * yawCommandAuthority;
+
+		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious);
+		float pitchRadians = settledAttitude(safeMode, attitudePitch, attitude.pitchRadians());
+		float rollRadians = settledAttitude(safeMode, attitudeRoll, attitude.rollRadians());
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		float targetVelocityX = clamp(rollRadians / profile.maxRollRadians(), -1.0f, 1.0f)
 				* profile.horizontalSpeedMetersPerSecond()
@@ -114,7 +120,7 @@ final class PlayableFlightModel {
 		velocityY = settledVelocity(velocityY, targetVelocityY);
 		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
 
-		float targetYawDegreesPerTick = safeYaw * profile.yawDegreesPerTick();
+		float targetYawDegreesPerTick = yawCommand * profile.yawDegreesPerTick();
 		float yawDegreesPerTick = smooth(
 				safePrevious.yawDegreesPerTick(),
 				targetYawDegreesPerTick,
@@ -290,6 +296,32 @@ final class PlayableFlightModel {
 			authority *= groundHorizontalAuthorityScale(mode);
 		}
 		return clamp(authority, 0.0f, 1.10f);
+	}
+
+	private static float lowAltitudeAttitudeCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
+		float minimum = switch (mode == null ? FlightMode.HORIZON : mode) {
+			case ANGLE -> 0.68f;
+			case HORIZON -> 0.76f;
+			case ACRO -> 0.90f;
+		};
+		return lowAltitudeCommandAuthority(minimum, nearGroundLocked, lowAltitudeHorizontalAuthorityScale);
+	}
+
+	private static float lowAltitudeYawCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
+		float minimum = switch (mode == null ? FlightMode.HORIZON : mode) {
+			case ANGLE -> 0.66f;
+			case HORIZON -> 0.72f;
+			case ACRO -> 0.86f;
+		};
+		return lowAltitudeCommandAuthority(minimum, nearGroundLocked, lowAltitudeHorizontalAuthorityScale);
+	}
+
+	private static float lowAltitudeCommandAuthority(float minimum, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
+		float safeMinimum = clamp(minimum, 0.0f, 1.0f);
+		if (nearGroundLocked) {
+			return safeMinimum;
+		}
+		return lerp(safeMinimum, 1.0f, lowAltitudeHorizontalAuthorityScale);
 	}
 
 	private static float lowThrottleHorizontalAuthority(FlightMode mode) {
