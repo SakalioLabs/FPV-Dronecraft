@@ -23,6 +23,7 @@ import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.config.DroneControllerSettingsScreen;
 import com.tenicana.dronecraft.network.DroneControlPayload;
 import com.tenicana.dronecraft.registry.DroneItems;
+import com.tenicana.dronecraft.sim.ControlStickProfile;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneClientControls {
@@ -43,11 +44,13 @@ public final class DroneClientControls {
 	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_E);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
-	private static final float GAMEPAD_COMMAND_DEADBAND = 0.14f;
-	private static final float GAMEPAD_COMMAND_EXPO = 0.65f;
-	private static final float GAMEPAD_COMMAND_SCALE = 0.72f;
+	private static final float KEYBOARD_AXIS_RISE_PER_TICK = 0.075f;
+	private static final float KEYBOARD_AXIS_FALL_PER_TICK = 0.18f;
 
 	private static float throttle;
+	private static float keyboardPitchAxis;
+	private static float keyboardRollAxis;
+	private static float keyboardYawAxis;
 	private static boolean armed;
 	private static FlightMode flightMode = FlightMode.HORIZON;
 	private static boolean virtualControllerEnabled;
@@ -119,6 +122,7 @@ public final class DroneClientControls {
 			if (!controlActive) {
 				stickArmGestureLatched = false;
 				stickArmGestureTicks = 0;
+				resetKeyboardAxes();
 				DroneClientState.updateControls(
 						throttle,
 						0.0f,
@@ -262,7 +266,7 @@ public final class DroneClientControls {
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
 		return new ControlInput(
-				input.throttle(),
+				(float) ControlStickProfile.gamepadThrottle(input.throttle()),
 				commandAxis(input.pitch()),
 				commandAxis(input.roll()),
 				commandAxis(input.yaw()),
@@ -313,10 +317,37 @@ public final class DroneClientControls {
 		}
 		throttle = (float) Mth.clamp(throttle + throttleDelta, 0.0, 1.0);
 
-		float pitch = axis(client.options.keyDown.isDown(), client.options.keyUp.isDown());
-		float roll = axis(client.options.keyLeft.isDown(), client.options.keyRight.isDown());
-		float yaw = axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown());
-		return new ControlInput(throttle, pitch, roll, yaw, InputSource.KEYBOARD);
+		keyboardPitchAxis = approachKeyboardAxis(keyboardPitchAxis, axis(client.options.keyDown.isDown(), client.options.keyUp.isDown()));
+		keyboardRollAxis = approachKeyboardAxis(keyboardRollAxis, axis(client.options.keyLeft.isDown(), client.options.keyRight.isDown()));
+		keyboardYawAxis = approachKeyboardAxis(keyboardYawAxis, axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown()));
+		return new ControlInput(
+				throttle,
+				keyboardCommandAxis(keyboardPitchAxis),
+				keyboardCommandAxis(keyboardRollAxis),
+				keyboardCommandAxis(keyboardYawAxis),
+				InputSource.KEYBOARD
+		);
+	}
+
+	private static void resetKeyboardAxes() {
+		keyboardPitchAxis = 0.0f;
+		keyboardRollAxis = 0.0f;
+		keyboardYawAxis = 0.0f;
+	}
+
+	private static float approachKeyboardAxis(float current, float target) {
+		float step = Math.abs(target) > Math.abs(current) ? KEYBOARD_AXIS_RISE_PER_TICK : KEYBOARD_AXIS_FALL_PER_TICK;
+		if (current < target) {
+			return Math.min(target, current + step);
+		}
+		if (current > target) {
+			return Math.max(target, current - step);
+		}
+		return current;
+	}
+
+	private static float keyboardCommandAxis(float value) {
+		return (float) ControlStickProfile.keyboardCommand(value);
 	}
 
 	private static GamepadInput gamepadInput() {
@@ -371,7 +402,7 @@ public final class DroneClientControls {
 		if (inverted) {
 			value = -value;
 		}
-		return deadband(value, config.gamepadDeadband());
+		return (float) ControlStickProfile.applyDeadband(value, config.gamepadDeadband());
 	}
 
 	private static boolean isGamepadButtonPressed(ByteBuffer buttons, int button) {
@@ -381,23 +412,8 @@ public final class DroneClientControls {
 		return buttons.get(button) == GLFW.GLFW_PRESS;
 	}
 
-	private static float deadband(float value, float deadband) {
-		float magnitude = Math.abs(value);
-		if (magnitude <= deadband) {
-			return 0.0f;
-		}
-		return Math.copySign((magnitude - deadband) / (1.0f - deadband), value);
-	}
-
 	private static float commandAxis(float value) {
-		float centered = deadband(value, Math.max(GAMEPAD_COMMAND_DEADBAND, config.gamepadDeadband()));
-		float magnitude = Math.abs(centered);
-		if (magnitude <= 0.0f) {
-			return 0.0f;
-		}
-		float cubic = magnitude * magnitude * magnitude;
-		float curved = (1.0f - GAMEPAD_COMMAND_EXPO) * magnitude + GAMEPAD_COMMAND_EXPO * cubic;
-		return Math.copySign(curved * GAMEPAD_COMMAND_SCALE, centered);
+		return (float) ControlStickProfile.gamepadCommand(value, config.gamepadDeadband());
 	}
 
 	private record ControlInput(float throttle, float pitch, float roll, float yaw, InputSource source) {

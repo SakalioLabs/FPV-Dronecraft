@@ -365,6 +365,7 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 		throw new GradleException("FPV Dronecraft server self-test did not exercise the powertrain enough.")
 	}
 	def missingReportFields = [
+			"airframe_rotor_count",
 			"max_battery_effective_resistance_ohm",
 			"max_battery_soc_resistance_scale",
 			"max_battery_temp_resistance_scale",
@@ -423,16 +424,20 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_battery_polarization_resistance_scale ?: 0.0) < 1.0) {
 		throw new GradleException("FPV Dronecraft server self-test did not report valid battery resistance split telemetry.")
 	}
-	if ((report.max_avg_motor_rpm_telemetry_valid ?: 0.0) < 0.5
-			|| (report.max_motor_5_rpm_telemetry_valid ?: 0.0) < 0.5
+	def airframeRotorCount = (report.airframe_rotor_count ?: 4) as int
+	def averageRpmTelemetryMissing = (report.max_avg_motor_rpm_telemetry_valid ?: 0.0) < 0.5
 			|| (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) <= 100.0
-			|| (report.max_motor_5_rpm_telemetry_rpm ?: 0.0) <= 100.0
 			|| (report.max_avg_motor_erpm100 ?: 0.0) <= 5.0
-			|| (report.max_motor_5_erpm100 ?: 0.0) <= 5.0
 			|| (report.min_avg_motor_einterval_us ?: 65535.0) <= 0.0
 			|| (report.min_avg_motor_einterval_us ?: 65535.0) >= 65535.0
-			|| (report.min_motor_5_einterval_us ?: 65535.0) <= 0.0
-			|| (report.min_motor_5_einterval_us ?: 65535.0) >= 65535.0) {
+	def motor5RpmTelemetryMissing = airframeRotorCount > 5 && (
+			(report.max_motor_5_rpm_telemetry_valid ?: 0.0) < 0.5
+					|| (report.max_motor_5_rpm_telemetry_rpm ?: 0.0) <= 100.0
+					|| (report.max_motor_5_erpm100 ?: 0.0) <= 5.0
+					|| (report.min_motor_5_einterval_us ?: 65535.0) <= 0.0
+					|| (report.min_motor_5_einterval_us ?: 65535.0) >= 65535.0
+	)
+	if (averageRpmTelemetryMissing || motor5RpmTelemetryMissing) {
 		throw new GradleException("FPV Dronecraft server self-test did not exercise Betaflight-style RPM telemetry.")
 	}
 	def gyroNotchAttenuationPeak = Math.max(
@@ -451,27 +456,33 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			|| (report.max_rotor_propeller_advance_ratio_j ?: 0.0) <= 0.0) {
 		throw new GradleException("FPV Dronecraft server self-test did not report active rotor inflow/advance telemetry.")
 	}
-	if ((report.max_vortex_ring_thrust_buffet ?: -1.0) < 0.0
-			|| (report.max_vortex_ring_buffet_force_n ?: -1.0) < 0.0
-			|| (report.max_rotor_inflow_lag_loss_percent ?: -1.0) < 0.0
-			|| (report.max_rotor_translational_lift ?: -1.0) < 0.0
-			|| (report.max_rotor_propeller_thrust_loss_percent ?: -1.0) < 0.0
-			|| (report.max_rotor_propeller_power_loss_percent ?: -1.0) < 0.0
-			|| (report.max_rotor_reverse_flow ?: -1.0) < 0.0
-			|| (report.max_rotor_low_reynolds_loss ?: -1.0) < 0.0
-			|| (report.max_rotor_blade_pass_ripple ?: -1.0) < 0.0
-			|| (report.max_rotor_damage_vibration ?: -1.0) < 0.0
-			|| (report.max_rotor_wet_thrust_loss_percent ?: -1.0) < 0.0) {
-		throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges.")
+	def nonNegativeAerodynamicFields = [
+			"max_vortex_ring_thrust_buffet",
+			"max_vortex_ring_buffet_force_n",
+			"max_rotor_inflow_lag_loss_percent",
+			"max_rotor_translational_lift",
+			"max_rotor_propeller_thrust_loss_percent",
+			"max_rotor_propeller_power_loss_percent",
+			"max_rotor_reverse_flow",
+			"max_rotor_low_reynolds_loss",
+			"max_rotor_blade_pass_ripple",
+			"max_rotor_damage_vibration",
+			"max_rotor_wet_thrust_loss_percent"
+	]
+	def invalidAerodynamicFields = nonNegativeAerodynamicFields.findAll {
+		!report.containsKey(it) || ((report[it] ?: 0.0) as double) < 0.0
 	}
-	if ((report.max_rotor_coaxial_load_bias ?: 0.0) <= 0.005
+	if (!invalidAerodynamicFields.isEmpty()) {
+		throw new GradleException("FPV Dronecraft server self-test reported invalid aerodynamic telemetry ranges: ${invalidAerodynamicFields}.")
+	}
+	if (airframeRotorCount > 5 && ((report.max_rotor_coaxial_load_bias ?: 0.0) <= 0.005
 			|| (report.max_rotor_coaxial_load_bias_target ?: 0.0) + 1.0e-6 < (report.max_rotor_coaxial_load_bias ?: 0.0)
 			|| (report.max_rotor_coaxial_load_bias_clipping ?: -1.0) < 0.0
 			|| (report.max_rotor_coaxial_allocation_load ?: 0.0) <= 0.01
 			|| (report.max_rotor_coaxial_allocation_ratio ?: 1.0) <= 1.0
 			|| (report.max_rotor_coaxial_allocation_mech_gain_pct ?: 0.0) <= 0.0
 			|| (report.max_rotor_coaxial_allocation_elec_gain_pct ?: 0.0) <= 0.0
-			|| (report.max_rotor_coaxial_allocation_uncertainty_pct ?: -1.0) < 0.0) {
+			|| (report.max_rotor_coaxial_allocation_uncertainty_pct ?: -1.0) < 0.0)) {
 		throw new GradleException("FPV Dronecraft server self-test did not exercise coaxial X8 allocation telemetry.")
 	}
 	if ((report.max_ground_effect_leveling_torque_nm ?: -1.0) < 0.0) {

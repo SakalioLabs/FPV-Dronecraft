@@ -196,7 +196,7 @@ public final class DroneControlManager {
 				return 0.0;
 			}
 			if (progress < 0.04) {
-				return Math.max(0.06, hoverThrottle * 0.45);
+				return Math.max(0.10, hoverThrottle * 0.80);
 			}
 
 			double altitudeError = 0.0;
@@ -207,8 +207,8 @@ public final class DroneControlManager {
 			}
 
 			double throttleBias = profileThrottleBias(progress);
-			double throttle = hoverThrottle + altitudeError * 0.16 - verticalVelocity * 0.075 + throttleBias;
-			return MathUtil.clamp(throttle, 0.05, 0.88);
+			double throttle = hoverThrottle + altitudeError * 0.18 - verticalVelocity * 0.085 + throttleBias;
+			return MathUtil.clamp(throttle, 0.05, 0.96);
 		}
 
 		private double targetAltitudeMeters(double progress) {
@@ -230,7 +230,7 @@ public final class DroneControlManager {
 
 		private static double profileThrottleBias(double progress) {
 			if (progress < 0.26) {
-				return 0.08;
+				return 0.16;
 			}
 			if (progress >= 0.66 && progress < 0.78) {
 				return 0.15;

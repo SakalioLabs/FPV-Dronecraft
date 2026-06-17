@@ -37,8 +37,15 @@ class DronePhysicsTest {
 		assertTrue(pitchCenterSensitivity <= 165.0);
 		assertTrue(yawCenterSensitivity <= 170.0);
 		assertTrue(rollCenterSensitivity <= 165.0);
-		assertEquals(Math.toRadians(38.0), config.selfLevelMaxAngleRadians(), 1.0e-12);
-		assertEquals(0.045, config.rcCommandSmoothingTimeConstantSeconds(), 1.0e-12);
+		assertEquals(DroneConfig.DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT, config.throttleCommandCurveExponent(), 1.0e-12);
+		assertTrue(config.hoverThrottle() > 0.18 && config.hoverThrottle() < 0.22, () -> "hoverThrottle=" + config.hoverThrottle());
+		assertEquals(config.hoverThrottle(), ControlStickProfile.gamepadThrottle(0.45), 0.015);
+		assertEquals(0.055, config.motorIdleThrustFraction(), 1.0e-12);
+		assertEquals(Math.toRadians(32.0), config.selfLevelMaxAngleRadians(), 1.0e-12);
+		assertEquals(5.0, config.selfLevelRateGain(), 1.0e-12);
+		assertEquals(0.85, config.horizonTransitionEndStick(), 1.0e-12);
+		assertEquals(0.035, config.rcCommandSmoothingTimeConstantSeconds(), 1.0e-12);
+		assertEquals(0.020, config.rcCommandLatencySeconds(), 1.0e-12);
 	}
 
 	@Test
@@ -159,6 +166,59 @@ class DronePhysicsTest {
 		assertEquals(0.0, angularRateDegrees.y(), 8.0, () -> "omega=" + angularRateDegrees);
 		assertEquals(0.0, angularRateDegrees.z(), 8.0, () -> "omega=" + angularRateDegrees);
 		assertTrue(physics.state().positionMeters().y() > 8.0, () -> "position=" + physics.state().positionMeters());
+	}
+
+	@Test
+	void clientLikeHorizonInputsStayRecoverable() {
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics physics = new DronePhysics(config);
+		physics.state().setPositionMeters(new Vec3(0.0, 3.0, 0.0));
+		double maxPitchDegrees = 0.0;
+		double maxRollDegrees = 0.0;
+		double maxPitchRateDegrees = 0.0;
+		double maxRollRateDegrees = 0.0;
+
+		for (int i = 0; i < 1100; i++) {
+			double seconds = i * 0.005;
+			double throttle = seconds < 0.70
+					? config.hoverThrottle() + 0.10
+					: config.hoverThrottle() + 0.025;
+			double rawRoll = seconds >= 1.00 && seconds < 2.00
+					? 0.45
+					: (seconds >= 2.00 && seconds < 2.45 ? -0.35 : 0.0);
+			double rawPitch = seconds >= 2.80 && seconds < 3.55 ? -0.38 : 0.0;
+			double rawYaw = seconds >= 3.70 && seconds < 4.25 ? 0.35 : 0.0;
+			DroneInput input = new DroneInput(
+					throttle,
+					ControlStickProfile.gamepadCommand(rawPitch, 0.10),
+					ControlStickProfile.gamepadCommand(rawRoll, 0.10),
+					ControlStickProfile.gamepadCommand(rawYaw, 0.10),
+					true,
+					true,
+					FlightMode.HORIZON
+			);
+
+			physics.step(input, 0.005, DroneEnvironment.calm());
+			Vec3 eulerDegrees = physics.state().orientation().toEulerXYZRadians().multiply(180.0 / Math.PI);
+			Vec3 angularRateDegrees = physics.state().angularVelocityBodyRadiansPerSecond().multiply(180.0 / Math.PI);
+			maxPitchDegrees = Math.max(maxPitchDegrees, Math.abs(eulerDegrees.x()));
+			maxRollDegrees = Math.max(maxRollDegrees, Math.abs(eulerDegrees.z()));
+			maxPitchRateDegrees = Math.max(maxPitchRateDegrees, Math.abs(angularRateDegrees.x()));
+			maxRollRateDegrees = Math.max(maxRollRateDegrees, Math.abs(angularRateDegrees.z()));
+		}
+
+		Vec3 finalEulerDegrees = physics.state().orientation().toEulerXYZRadians().multiply(180.0 / Math.PI);
+		double observedMaxPitchDegrees = maxPitchDegrees;
+		double observedMaxRollDegrees = maxRollDegrees;
+		double observedMaxPitchRateDegrees = maxPitchRateDegrees;
+		double observedMaxRollRateDegrees = maxRollRateDegrees;
+		assertTrue(observedMaxPitchDegrees < 12.0, () -> "maxPitch=" + observedMaxPitchDegrees);
+		assertTrue(observedMaxRollDegrees < 10.0, () -> "maxRoll=" + observedMaxRollDegrees);
+		assertTrue(observedMaxPitchRateDegrees < 18.0, () -> "maxPitchRate=" + observedMaxPitchRateDegrees);
+		assertTrue(observedMaxRollRateDegrees < 35.0, () -> "maxRollRate=" + observedMaxRollRateDegrees);
+		assertEquals(0.0, finalEulerDegrees.x(), 8.0, () -> "finalEuler=" + finalEulerDegrees);
+		assertEquals(0.0, finalEulerDegrees.z(), 8.0, () -> "finalEuler=" + finalEulerDegrees);
+		assertTrue(physics.state().positionMeters().y() > 5.0, () -> "position=" + physics.state().positionMeters());
 	}
 
 	@Test

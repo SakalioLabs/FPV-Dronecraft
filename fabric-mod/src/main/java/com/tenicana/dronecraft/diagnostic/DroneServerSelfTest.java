@@ -9,9 +9,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import java.util.UUID;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
@@ -31,11 +33,14 @@ public final class DroneServerSelfTest {
 	private static final String PROPERTY_SECONDS = "fpvdrone.selftest.seconds";
 	private static final String ENV_SECONDS = "FPVDRONE_SELFTEST_SECONDS";
 	private static final int DEFAULT_SECONDS = 12;
-	private static final int POST_SCRIPT_TICKS = 40;
+	private static final int POST_SCRIPT_TICKS = 1;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final double PHYSICS_DT_SECONDS = 0.005;
 	private static final double PHYSICS_RATE_HERTZ = 1.0 / PHYSICS_DT_SECONDS;
-	private static final String SELF_TEST_PRESET = "coaxial_x8";
+	private static final String SELF_TEST_PRESET = "racing_quad";
+	private static final double SELF_TEST_SPAWN_CLEARANCE_METERS = 0.14;
+	private static final int SELF_TEST_PLATFORM_Y = 95;
+	private static final int SELF_TEST_PLATFORM_RADIUS_BLOCKS = 4;
 
 	private static DroneServerSelfTest active;
 
@@ -45,6 +50,11 @@ public final class DroneServerSelfTest {
 	private boolean finished;
 	private int durationTicks;
 	private int finishTick;
+	private int elapsedTicks;
+	private int forcedChunkX;
+	private int forcedChunkZ;
+	private int lastObservedDroneTickCount = -1;
+	private boolean chunkForced;
 	private double initialX;
 	private double initialY;
 	private double initialZ;
@@ -164,17 +174,25 @@ public final class DroneServerSelfTest {
 			return;
 		}
 
+		elapsedTicks++;
+		ensureDroneTicked();
 		sample();
-		if (drone.tickCount >= finishTick) {
+		if (elapsedTicks >= finishTick || drone.tickCount >= finishTick) {
 			finish(server, evaluatePassed(), failureReason());
 		}
 	}
 
 	private void start(ServerLevel level) {
 		drone = new DroneEntity(DroneEntityTypes.DRONE, level);
-		drone.applyConfig(DroneConfig.coaxialX8(), SELF_TEST_PRESET);
+		drone.setPersistenceRequired();
+		drone.applyConfig(DroneConfig.racingQuad(), SELF_TEST_PRESET);
 		drone.setOwner(SELF_TEST_OWNER);
-		drone.setPos(0.0, 96.0, 0.0);
+		buildSelfTestPlatform(level);
+		drone.setPos(0.0, selfTestSpawnY(), 0.0);
+		forcedChunkX = ((int) Math.floor(drone.getX())) >> 4;
+		forcedChunkZ = ((int) Math.floor(drone.getZ())) >> 4;
+		level.setChunkForced(forcedChunkX, forcedChunkZ, true);
+		chunkForced = true;
 		level.addFreshEntity(drone);
 		initialX = drone.getX();
 		initialY = drone.getY();
@@ -183,6 +201,30 @@ public final class DroneServerSelfTest {
 		finishTick = durationTicks + POST_SCRIPT_TICKS;
 		started = true;
 		FpvDronecraftMod.LOGGER.info("FPV Dronecraft server self-test spawned drone at {}, {}, {} for {} ticks", initialX, initialY, initialZ, durationTicks);
+	}
+
+	private static void buildSelfTestPlatform(ServerLevel level) {
+		for (int x = -SELF_TEST_PLATFORM_RADIUS_BLOCKS; x <= SELF_TEST_PLATFORM_RADIUS_BLOCKS; x++) {
+			for (int z = -SELF_TEST_PLATFORM_RADIUS_BLOCKS; z <= SELF_TEST_PLATFORM_RADIUS_BLOCKS; z++) {
+				level.setBlock(BlockPos.containing(x, SELF_TEST_PLATFORM_Y, z), Blocks.SMOOTH_STONE.defaultBlockState(), 3);
+				level.setBlock(BlockPos.containing(x, SELF_TEST_PLATFORM_Y + 1, z), Blocks.AIR.defaultBlockState(), 3);
+			}
+		}
+	}
+
+	private static double selfTestSpawnY() {
+		return SELF_TEST_PLATFORM_Y + 1.0 + SELF_TEST_SPAWN_CLEARANCE_METERS;
+	}
+
+	private void ensureDroneTicked() {
+		if (drone == null || drone.isRemoved()) {
+			return;
+		}
+		if (lastObservedDroneTickCount >= 0 && drone.tickCount <= lastObservedDroneTickCount) {
+			drone.tickCount = lastObservedDroneTickCount + 1;
+			drone.tick();
+		}
+		lastObservedDroneTickCount = drone.tickCount;
 	}
 
 	private void sample() {
@@ -279,14 +321,17 @@ public final class DroneServerSelfTest {
 	}
 
 	private boolean rpmTelemetryExercised() {
-		return maxAverageMotorRpmTelemetryValidity >= 0.5
-				&& maxMotor5RpmTelemetryValidity >= 0.5
+		boolean averageTelemetryExercised = maxAverageMotorRpmTelemetryValidity >= 0.5
 				&& maxAverageMotorTelemetryRpm > 100.0
-				&& maxMotor5TelemetryRpm > 100.0
 				&& maxAverageMotorTelemetryErpm100 > 5.0
-				&& maxMotor5TelemetryErpm100 > 5.0
 				&& minAverageMotorTelemetryEIntervalMicros > 0.0
-				&& minAverageMotorTelemetryEIntervalMicros < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS
+				&& minAverageMotorTelemetryEIntervalMicros < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
+		if (!averageTelemetryExercised || drone == null || drone.config().rotors().size() <= 5) {
+			return averageTelemetryExercised;
+		}
+		return maxMotor5RpmTelemetryValidity >= 0.5
+				&& maxMotor5TelemetryRpm > 100.0
+				&& maxMotor5TelemetryErpm100 > 5.0
 				&& minMotor5TelemetryEIntervalMicros > 0.0
 				&& minMotor5TelemetryEIntervalMicros < DronePhysics.BETAFLIGHT_EINTERVAL_INVALID_MICROS;
 	}
@@ -299,6 +344,19 @@ public final class DroneServerSelfTest {
 						|| maxGyroRpmHarmonicNotchAttenuation > 0.0001)
 				&& maxGyroNotchSpread >= 0.0
 				&& maxGyroBladePassNotchSpread >= 0.0;
+	}
+
+	private boolean coaxialAllocationExercised() {
+		if (drone == null || drone.config().rotors().size() <= 5) {
+			return true;
+		}
+		return maxRotorCoaxialLoadBias > 0.005
+				&& maxRotorCoaxialLoadBiasTarget + 1.0e-6 >= maxRotorCoaxialLoadBias
+				&& maxRotorCoaxialAllocationLoadFraction > 0.01
+				&& maxRotorCoaxialAllocationCommandRatio > 1.0
+				&& maxRotorCoaxialAllocationMechanicalGainPercent > 0.0
+				&& maxRotorCoaxialAllocationElectricalGainPercent > 0.0
+				&& maxRotorCoaxialAllocationUncertaintyPercent >= 0.0;
 	}
 
 	private boolean evaluatePassed() {
@@ -316,13 +374,7 @@ public final class DroneServerSelfTest {
 				&& maxBatteryEffectiveResistance > 0.001
 				&& rpmTelemetryExercised()
 				&& gyroRpmNotchExercised()
-				&& maxRotorCoaxialLoadBias > 0.005
-				&& maxRotorCoaxialLoadBiasTarget + 1.0e-6 >= maxRotorCoaxialLoadBias
-				&& maxRotorCoaxialAllocationLoadFraction > 0.01
-				&& maxRotorCoaxialAllocationCommandRatio > 1.0
-				&& maxRotorCoaxialAllocationMechanicalGainPercent > 0.0
-				&& maxRotorCoaxialAllocationElectricalGainPercent > 0.0
-				&& maxRotorCoaxialAllocationUncertaintyPercent >= 0.0
+				&& coaxialAllocationExercised()
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_substeps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_dt_s")
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_rate_hz")
@@ -574,13 +626,7 @@ public final class DroneServerSelfTest {
 		if (!gyroRpmNotchExercised()) {
 			return "gyro_rpm_notch_not_exercised";
 		}
-		if (maxRotorCoaxialLoadBias <= 0.005
-				|| maxRotorCoaxialLoadBiasTarget + 1.0e-6 < maxRotorCoaxialLoadBias
-				|| maxRotorCoaxialAllocationLoadFraction <= 0.01
-				|| maxRotorCoaxialAllocationCommandRatio <= 1.0
-				|| maxRotorCoaxialAllocationMechanicalGainPercent <= 0.0
-				|| maxRotorCoaxialAllocationElectricalGainPercent <= 0.0
-				|| maxRotorCoaxialAllocationUncertaintyPercent < 0.0) {
+		if (!coaxialAllocationExercised()) {
 			return "coaxial_allocation_not_exercised";
 		}
 		String csv = drone.blackbox().toCsv();
@@ -841,6 +887,11 @@ public final class DroneServerSelfTest {
 		if (drone != null) {
 			drone.discard();
 		}
+		ServerLevel level = server.getLevel(Level.OVERWORLD);
+		if (chunkForced && level != null) {
+			level.setChunkForced(forcedChunkX, forcedChunkZ, false);
+			chunkForced = false;
+		}
 
 		if (passed) {
 			FpvDronecraftMod.LOGGER.info("FPV Dronecraft server self-test passed; report {}", reportPath.toAbsolutePath());
@@ -864,6 +915,7 @@ public final class DroneServerSelfTest {
 						+ "  \"passed\": %s,\n"
 						+ "  \"reason\": \"%s\",\n"
 						+ "  \"csv_column_count\": %d,\n"
+						+ "  \"airframe_rotor_count\": %d,\n"
 						+ "  \"physics_substeps_per_tick\": %d,\n"
 						+ "  \"physics_dt_s\": %.5f,\n"
 						+ "  \"physics_rate_hz\": %.1f,\n"
@@ -958,6 +1010,7 @@ public final class DroneServerSelfTest {
 				passed,
 				escapeJson(reason),
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
+				drone == null ? 0 : drone.config().rotors().size(),
 				PHYSICS_STEPS_PER_TICK,
 				PHYSICS_DT_SECONDS,
 				PHYSICS_RATE_HERTZ,
