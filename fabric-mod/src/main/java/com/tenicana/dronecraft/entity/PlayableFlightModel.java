@@ -75,6 +75,10 @@ final class PlayableFlightModel {
 			velocityX = smooth(velocityX, 0.0f, profile.groundFrictionSmoothing());
 			velocityZ = smooth(velocityZ, 0.0f, profile.groundFrictionSmoothing());
 		}
+		if (shouldAirBrake(safeMode, safeThrottle, safeHover, safePitch, safeRoll, profile)) {
+			velocityX = smooth(velocityX, 0.0f, profile.airBrakeSmoothing());
+			velocityZ = smooth(velocityZ, 0.0f, profile.airBrakeSmoothing());
+		}
 
 		float targetYawDegreesPerTick = safeYaw * profile.yawDegreesPerTick();
 		float yawDegreesPerTick = smooth(
@@ -247,6 +251,14 @@ final class PlayableFlightModel {
 				&& targetVelocityY <= 0.0f;
 	}
 
+	private static boolean shouldAirBrake(FlightMode mode, float throttle, float hoverThrottle, float pitch, float roll, Profile profile) {
+		return mode != FlightMode.ACRO
+				&& profile.airBrakeSmoothing() > 0.0f
+				&& Math.abs(throttle - hoverThrottle) <= profile.airBrakeThrottleBand()
+				&& Math.abs(pitch) <= profile.airBrakeCommandThreshold()
+				&& Math.abs(roll) <= profile.airBrakeCommandThreshold();
+	}
+
 	private static float yawSmoothing(float current, float target, Profile profile) {
 		boolean braking = Math.abs(target) < Math.abs(current)
 				|| (Math.signum(current) != 0.0f && Math.signum(target) != 0.0f && Math.signum(current) != Math.signum(target));
@@ -336,15 +348,18 @@ final class PlayableFlightModel {
 			float velocityBrakeSmoothing,
 			float groundFrictionSmoothing,
 			float groundFrictionTargetVelocityThreshold,
+			float airBrakeSmoothing,
+			float airBrakeCommandThreshold,
+			float airBrakeThrottleBand,
 			float hoverBand,
 			float descentGain,
 			float thrustGain
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (mode == null ? FlightMode.HORIZON : mode) {
-				case ANGLE -> new Profile(0.60f, 0.88f, radians(12.0f), radians(12.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.48f, 0.42f, 0.62f, 0.12f, radians(0.65f), 0.46f, radians(3.0f), 0.78f, 0.12f, 0.30f, 0.68f, 0.08f, 0.055f, 0.62f, 1.45f);
-				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.85f, 0.74f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
-				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.95f, 0.40f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.030f, 1.10f, 2.80f);
+				case ANGLE -> new Profile(0.60f, 0.88f, radians(12.0f), radians(12.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.48f, 0.42f, 0.62f, 0.12f, radians(0.65f), 0.46f, radians(3.0f), 0.78f, 0.12f, 0.30f, 0.68f, 0.08f, 0.32f, 0.06f, 0.085f, 0.055f, 0.62f, 1.45f);
+				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.85f, 0.74f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, 0.24f, 0.055f, 0.075f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
+				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.95f, 0.40f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.0f, 0.0f, 0.0f, 0.030f, 1.10f, 2.80f);
 			};
 		}
 

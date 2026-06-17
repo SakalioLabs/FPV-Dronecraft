@@ -217,6 +217,54 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeAirBrakesHoverDriftWithCenteredSticks() {
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ANGLE,
+				4,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.70f,
+						0.0f,
+						-0.62f,
+						(float) Math.toRadians(2.0),
+						(float) Math.toRadians(-2.0),
+						0.0f,
+						FlightMode.ANGLE
+				)
+		);
+
+		assertTrue(Math.abs(released.velocityX()) < 0.06f);
+		assertTrue(Math.abs(released.velocityZ()) < 0.06f);
+		assertTrue(Math.abs(released.pitchRadians()) < Math.toRadians(1.0));
+		assertTrue(Math.abs(released.rollRadians()) < Math.toRadians(1.0));
+	}
+
+	@Test
+	void hoverAirBrakeDoesNotFightDeliberateAngleInput() {
+		PlayableFlightModel.Step step = runFrom(
+				FlightMode.ANGLE,
+				8,
+				0.20f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+
+		assertTrue(Math.abs(step.targetVelocityX()) > 0.18f);
+		assertTrue(Math.abs(step.targetVelocityZ()) > 0.18f);
+		assertTrue(Math.abs(step.velocityX()) > 0.08f);
+		assertTrue(Math.abs(step.velocityZ()) > 0.08f);
+	}
+
+	@Test
 	void angleModeCatchesHoverAfterThrottleIsRecentered() {
 		PlayableFlightModel.Step climb = holdStick(FlightMode.ANGLE, 12, 0.60f, 0.0f, 0.0f, 0.0f);
 		PlayableFlightModel.Step hover = runFrom(
