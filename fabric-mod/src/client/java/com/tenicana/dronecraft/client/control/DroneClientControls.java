@@ -21,9 +21,11 @@ import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.InputSource;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.config.DroneControllerSettingsScreen;
+import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.network.DroneControlPayload;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.ControlStickProfile;
+import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneClientControls {
@@ -368,14 +370,7 @@ public final class DroneClientControls {
 	}
 
 	private static ControlInput keyboardInput(Minecraft client) {
-		double throttleDelta = 0.0;
-		if (THROTTLE_UP.isDown()) {
-			throttleDelta += 0.014;
-		}
-		if (THROTTLE_DOWN.isDown()) {
-			throttleDelta -= 0.014;
-		}
-		throttle = (float) Mth.clamp(throttle + throttleDelta, 0.0, 1.0);
+		throttle = KeyboardControlShaper.adjustThrottle(throttle, keyboardThrottleDirection(), keyboardHoverThrottle());
 
 		keyboardPitchAxis = approachKeyboardAxis(keyboardPitchAxis, axis(PITCH_BACK.isDown(), PITCH_FORWARD.isDown()));
 		keyboardRollAxis = approachKeyboardAxis(keyboardRollAxis, axis(ROLL_LEFT.isDown(), ROLL_RIGHT.isDown()));
@@ -387,6 +382,19 @@ public final class DroneClientControls {
 				keyboardCommandAxis(keyboardYawAxis),
 				InputSource.KEYBOARD
 		);
+	}
+
+	private static int keyboardThrottleDirection() {
+		if (THROTTLE_UP.isDown() == THROTTLE_DOWN.isDown()) {
+			return 0;
+		}
+		return THROTTLE_UP.isDown() ? 1 : -1;
+	}
+
+	private static float keyboardHoverThrottle() {
+		DroneEntity drone = DroneClientState.controlledDrone();
+		double hoverThrottle = drone == null ? DroneConfig.racingQuad().hoverThrottle() : drone.config().hoverThrottle();
+		return (float) Mth.clamp(hoverThrottle, 0.05, 0.75);
 	}
 
 	private static void resetKeyboardAxes() {
