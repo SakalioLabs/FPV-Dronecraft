@@ -115,6 +115,31 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void clearDirectFlightTelemetryZerosMotorsAndKeepsControlContext() {
+		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+		DroneInput armed = new DroneInput(0.50, 0.12, -0.18, 0.07, true, true, FlightMode.HORIZON);
+		double[] motorPower = {0.35, 0.36, 0.37, 0.38};
+		double[] motorRpm = {6100.0, 6200.0, 6300.0, 6400.0};
+		double[] rotorThrust = {0.60, 0.62, 0.64, 0.66};
+		physics.restoreDirectFlightTelemetry(armed, motorPower, motorRpm, rotorThrust);
+		assertTrue(physics.state().averageMotorRpm() > 6000.0);
+		assertTrue(physics.state().averageMotorRpmTelemetryValidity() > 0.9);
+
+		DroneInput disarmed = new DroneInput(0.25, 0.03, -0.02, 0.01, false, true, FlightMode.ANGLE);
+		physics.clearDirectFlightTelemetry(disarmed);
+
+		assertEquals(disarmed.normalized(), physics.state().rawControlInput());
+		assertEquals(disarmed.normalized(), physics.state().processedControlInput());
+		assertEquals(0.0, physics.state().averageMotorRpm(), 1.0e-12);
+		assertEquals(0.0, physics.state().averageMotorRpmTelemetryRpm(), 1.0e-12);
+		assertEquals(0.0, physics.state().averageMotorRpmTelemetryValidity(), 1.0e-12);
+		assertEquals(0.0, physics.state().averageEscOutputCommand(), 1.0e-12);
+		assertEquals(0.0, physics.state().averageMotorCurrentAmps(), 1.0e-12);
+		assertEquals(0.0, physics.state().rotorThrustNewtons(2), 1.0e-12);
+		assertTrue(!physics.state().controlFailsafeActive());
+	}
+
+	@Test
 	void constrainAtRestKeepsArmedMotorSpool() {
 		DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
 		DroneInput spool = new DroneInput(0.32, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);

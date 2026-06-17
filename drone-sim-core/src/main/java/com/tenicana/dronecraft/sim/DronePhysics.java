@@ -823,6 +823,19 @@ public final class DronePhysics {
 		updateEscSignalTelemetry();
 	}
 
+	public void clearDirectFlightTelemetry(DroneInput input) {
+		DroneInput normalized = input == null ? DroneInput.idle() : input.normalized();
+		state.setRawControlInput(normalized);
+		state.setProcessedControlInput(normalized);
+		state.setControlLinkLossSeconds(normalized.linkActive() ? 0.0 : state.controlLinkLossSeconds());
+		state.setControlFailsafeActive(!normalized.linkActive());
+		state.setControlFrameTelemetry(0.0, receiverFrameIntervalSeconds(), 0.0);
+		state.resetMotors();
+		resetEscSignalModel();
+		resetEscRpmTelemetryModel();
+		updateEscSignalTelemetry();
+	}
+
 	public AerodynamicTransientState aerodynamicTransientStateSnapshot() {
 		return new AerodynamicTransientState(
 				meanWindVelocityWorldMetersPerSecond,

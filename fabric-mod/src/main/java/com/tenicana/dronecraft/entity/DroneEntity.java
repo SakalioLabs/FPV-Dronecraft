@@ -631,7 +631,7 @@ public class DroneEntity extends Entity {
 				applyDebugFailsafeFlight(failsafeInput);
 				if (isDebugFailsafeSettled()) {
 					float linkLossSeconds = directFailsafeLinkLossSeconds();
-					clearDebugFlightState();
+					clearDebugFlightState(groundedDirectFailsafeInput());
 					debugFlightActiveLastTick = false;
 					updateDebugFlightState(groundedDirectFailsafeInput(), airworthy, true, linkLossSeconds);
 					debugFailsafeTicks = 0;
@@ -648,7 +648,7 @@ public class DroneEntity extends Entity {
 				debugTargetVelocityY = 0.0f;
 				debugTargetVelocityZ = 0.0f;
 				debugTargetYawRate = 0.0f;
-				clearDebugFlightStateAfterDirectControl();
+				clearDebugFlightStateAfterDirectControl(input);
 				reason = activeOwner == null
 						? "no-owner"
 						: (!input.linkActive() ? "link-lost" : (bypassPhysics ? reason : "physics-active"));
@@ -797,7 +797,7 @@ public class DroneEntity extends Entity {
 			targetVy = 0.0f;
 			targetVz = 0.0f;
 			targetYaw = 0.0f;
-			clearDebugFlightState();
+			clearDebugFlightState(input);
 			setDeltaMovement(0.0, 0.0, 0.0);
 			debugTargetVelocityX = targetVx;
 			debugTargetVelocityY = targetVy;
@@ -928,6 +928,10 @@ public class DroneEntity extends Entity {
 	}
 
 	private void clearDebugFlightState() {
+		clearDebugFlightState(stableIdleInput());
+	}
+
+	private void clearDebugFlightState(DroneInput input) {
 		debugVelocityX = 0.0f;
 		debugVelocityY = 0.0f;
 		debugVelocityZ = 0.0f;
@@ -942,13 +946,14 @@ public class DroneEntity extends Entity {
 		debugFlightMode = FlightMode.HORIZON;
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		physics.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
 	}
 
-	private void clearDebugFlightStateAfterDirectControl() {
+	private void clearDebugFlightStateAfterDirectControl(DroneInput input) {
 		if (!debugFlightActiveLastTick) {
 			return;
 		}
-		clearDebugFlightState();
+		clearDebugFlightState(input);
 		debugFlightActiveLastTick = false;
 		debugFailsafeTicks = 0;
 	}
