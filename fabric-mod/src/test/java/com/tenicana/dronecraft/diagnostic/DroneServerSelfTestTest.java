@@ -17,6 +17,15 @@ class DroneServerSelfTestTest {
 	@Test
 	void reportJsonIncludesBatteryResistanceScaleAndAerodynamicTelemetry(@TempDir Path tempDir) throws ReflectiveOperationException {
 		DroneServerSelfTest selfTest = newSelfTest();
+		setDouble(selfTest, "initialX", 1.0);
+		setDouble(selfTest, "initialY", 80.0);
+		setDouble(selfTest, "initialZ", -2.0);
+		setDouble(selfTest, "finalX", 1.30);
+		setDouble(selfTest, "finalY", 80.12);
+		setDouble(selfTest, "finalZ", -1.60);
+		setDouble(selfTest, "finalSpeed", 0.08);
+		setDouble(selfTest, "finalAltitudeGain", 0.12);
+		setDouble(selfTest, "finalHorizontalDistance", 0.50);
 		setDouble(selfTest, "maxBatteryEffectiveResistance", 0.024);
 		setDouble(selfTest, "maxBatteryStateOfChargeResistanceScale", 1.23);
 		setDouble(selfTest, "maxBatteryTemperatureResistanceScale", 1.34);
@@ -72,6 +81,9 @@ class DroneServerSelfTestTest {
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest.csv"));
 
 		assertTrue(json.contains("\"flight_model\": \"simulation\""));
+		assertTrue(json.contains("\"final_speed_mps\": 0.08000"));
+		assertTrue(json.contains("\"final_altitude_gain_m\": 0.12000"));
+		assertTrue(json.contains("\"final_horizontal_distance_m\": 0.50000"));
 		assertTrue(json.contains("\"max_battery_effective_resistance_ohm\": 0.024000"));
 		assertTrue(json.contains("\"max_battery_soc_resistance_scale\": 1.23000"));
 		assertTrue(json.contains("\"max_battery_temp_resistance_scale\": 1.34000"));

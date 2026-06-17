@@ -405,6 +405,8 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"min_motor_5_einterval_us",
 			"max_avg_motor_rpm_telemetry_valid",
 			"max_motor_5_rpm_telemetry_valid",
+			"final_altitude_gain_m",
+			"final_horizontal_distance_m",
 			"max_gyro_notch_hz",
 			"max_gyro_notch_attenuation",
 			"max_gyro_notch_spread_hz",

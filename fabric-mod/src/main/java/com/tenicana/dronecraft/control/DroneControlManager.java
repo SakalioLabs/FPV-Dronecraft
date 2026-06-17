@@ -176,7 +176,7 @@ public final class DroneControlManager {
 				originAltitudeMeters = state.positionMeters().y();
 			}
 
-			boolean armed = progress < 0.975;
+			boolean armed = progress < 0.985;
 			double hoverThrottle = config == null ? 0.32 : MathUtil.clamp(config.hoverThrottle(), 0.08, 0.75);
 			double throttle = commandedThrottle(progress, state, hoverThrottle);
 			AxisCommand axes = axisCommand(progress);
@@ -220,10 +220,12 @@ public final class DroneControlManager {
 				offset = MathUtil.lerp(0.0, 1.8, smoothStep((progress - 0.10) / 0.16));
 			} else if (progress < 0.76) {
 				offset = 1.8 + 0.15 * Math.sin(progress * Math.PI * 10.0);
-			} else if (progress < 0.92) {
-				offset = MathUtil.lerp(1.8, 0.55, smoothStep((progress - 0.76) / 0.16));
+			} else if (progress < 0.88) {
+				offset = MathUtil.lerp(1.8, 0.40, smoothStep((progress - 0.76) / 0.12));
+			} else if (progress < 0.94) {
+				offset = MathUtil.lerp(0.40, -0.04, smoothStep((progress - 0.88) / 0.06));
 			} else {
-				offset = MathUtil.lerp(0.55, 0.20, smoothStep((progress - 0.92) / 0.08));
+				offset = -0.04;
 			}
 			return origin + offset;
 		}
@@ -242,7 +244,7 @@ public final class DroneControlManager {
 		}
 
 		private static AxisCommand axisCommand(double progress) {
-			if (progress < 0.26 || progress >= 0.92) {
+			if (progress < 0.26 || progress >= 0.88) {
 				return AxisCommand.ZERO;
 			}
 			if (progress < 0.40) {
@@ -258,7 +260,7 @@ public final class DroneControlManager {
 				double local = (progress - 0.66) / 0.12;
 				return new AxisCommand(-0.12, 0.18 * Math.sin(local * Math.PI * 2.0), 0.14);
 			}
-			if (progress < 0.92) {
+			if (progress < 0.88) {
 				return new AxisCommand(0.04, 0.0, 0.0);
 			}
 			return AxisCommand.ZERO;
@@ -288,10 +290,10 @@ public final class DroneControlManager {
 			if (progress < 0.78) {
 				return "throttle_punch";
 			}
-			if (progress < 0.92) {
+			if (progress < 0.88) {
 				return "descent";
 			}
-			if (progress < 0.975) {
+			if (progress < 0.985) {
 				return "settle";
 			}
 			return "disarm";

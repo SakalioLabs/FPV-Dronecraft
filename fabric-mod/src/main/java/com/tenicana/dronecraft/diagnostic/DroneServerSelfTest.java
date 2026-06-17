@@ -37,7 +37,7 @@ public final class DroneServerSelfTest {
 	private static final String PROPERTY_FLIGHT_MODEL = "fpvdrone.selftest.flight_model";
 	private static final String ENV_FLIGHT_MODEL = "FPVDRONE_SELFTEST_FLIGHT_MODEL";
 	private static final int DEFAULT_SECONDS = 12;
-	private static final int POST_SCRIPT_TICKS = 1;
+	private static final int POST_SCRIPT_TICKS = 10;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final double PHYSICS_DT_SECONDS = 0.005;
 	private static final double PHYSICS_RATE_HERTZ = 1.0 / PHYSICS_DT_SECONDS;
@@ -144,6 +144,8 @@ public final class DroneServerSelfTest {
 	private double finalY;
 	private double finalZ;
 	private double finalSpeed;
+	private double finalAltitudeGain;
+	private double finalHorizontalDistance;
 	private boolean previousBypassPhysicsEnabled;
 
 	private DroneServerSelfTest(int requestedSeconds) {
@@ -987,6 +989,8 @@ public final class DroneServerSelfTest {
 			finalY = drone.getY();
 			finalZ = drone.getZ();
 			finalSpeed = drone.getSpeedMetersPerSecond();
+			finalAltitudeGain = finalY - initialY;
+			finalHorizontalDistance = Math.hypot(finalX - initialX, finalZ - initialZ);
 		}
 		return String.format(
 				Locale.ROOT,
@@ -1008,6 +1012,8 @@ public final class DroneServerSelfTest {
 						+ "  \"final_y\": %.5f,\n"
 						+ "  \"final_z\": %.5f,\n"
 						+ "  \"final_speed_mps\": %.5f,\n"
+						+ "  \"final_altitude_gain_m\": %.5f,\n"
+						+ "  \"final_horizontal_distance_m\": %.5f,\n"
 						+ "  \"max_altitude_gain_m\": %.5f,\n"
 						+ "  \"max_horizontal_distance_m\": %.5f,\n"
 						+ "  \"max_speed_mps\": %.5f,\n"
@@ -1104,6 +1110,8 @@ public final class DroneServerSelfTest {
 				finalY,
 				finalZ,
 				finalSpeed,
+				finalAltitudeGain,
+				finalHorizontalDistance,
 				maxAltitudeGain,
 				maxHorizontalDistance,
 				maxSpeed,

@@ -43,6 +43,21 @@ class DroneControlManagerTest {
 		assertEquals("throttle_punch", DroneControlManager.diagnosticStatus(playerId, 330).phase());
 		assertTrue(punch.throttle() > config.hoverThrottle() + 0.10);
 
+		state.setPositionMeters(new Vec3(0.0, 80.35, 0.0));
+		state.setVelocityMetersPerSecond(Vec3.ZERO);
+		DroneInput softLanding = DroneControlManager.get(playerId, 400, state, config);
+		assertEquals("settle", DroneControlManager.diagnosticStatus(playerId, 400).phase());
+		assertTrue(softLanding.armed());
+		assertTrue(softLanding.throttle() > 0.05 && softLanding.throttle() < config.hoverThrottle());
+		assertEquals(0.0, softLanding.pitch(), 1.0e-12);
+		assertEquals(0.0, softLanding.roll(), 1.0e-12);
+		assertEquals(0.0, softLanding.yaw(), 1.0e-12);
+
+		DroneInput disarm = DroneControlManager.get(playerId, 416, state, config);
+		assertEquals("disarm", DroneControlManager.diagnosticStatus(playerId, 416).phase());
+		assertFalse(disarm.armed());
+		assertTrue(disarm.linkActive());
+
 		DroneInput afterExpiry = DroneControlManager.get(playerId, 421, state, config);
 		assertFalse(DroneControlManager.diagnosticStatus(playerId, 421).active());
 		assertFalse(afterExpiry.armed());
