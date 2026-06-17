@@ -71,6 +71,10 @@ public final class DroneServerSelfTest {
 	private double maxPlayableVisualRollDegrees;
 	private double maxPlayableVisualYawRateDegreesPerSecond;
 	private double finalPlayableVisualYawDriftDegrees;
+	private int playableNeutralSampleCount;
+	private double maxPlayableNeutralVisualPitchDegrees;
+	private double maxPlayableNeutralVisualRollDegrees;
+	private double maxPlayableNeutralVisualYawRateDegreesPerSecond;
 	private double maxSpeed;
 	private double maxAirspeed;
 	private double maxMotorPower;
@@ -1015,6 +1019,11 @@ public final class DroneServerSelfTest {
 				maxPlayableVisualRollDegrees = playableVisualStats.maxRollDegrees();
 				maxPlayableVisualYawRateDegreesPerSecond = playableVisualStats.maxYawRateDegreesPerSecond();
 				finalPlayableVisualYawDriftDegrees = playableVisualStats.finalYawDriftDegrees();
+				DroneBlackboxSummary.PlayableNeutralStats playableNeutralStats = summary.playableNeutralStats();
+				playableNeutralSampleCount = playableNeutralStats.sampleCount();
+				maxPlayableNeutralVisualPitchDegrees = playableNeutralStats.maxPitchDegrees();
+				maxPlayableNeutralVisualRollDegrees = playableNeutralStats.maxRollDegrees();
+				maxPlayableNeutralVisualYawRateDegreesPerSecond = playableNeutralStats.maxYawRateDegreesPerSecond();
 			}
 		}
 		double maxPlayableLowAltitudeSuppressionPercent = Math.max(0.0, (1.0 - minPlayableLowAltitudeAuthority) * 100.0);
@@ -1032,6 +1041,10 @@ public final class DroneServerSelfTest {
 						+ "  \"max_playable_visual_roll_deg\": %.4f,\n"
 						+ "  \"max_playable_visual_yaw_rate_dps\": %.4f,\n"
 						+ "  \"final_playable_visual_yaw_drift_deg\": %.4f,\n"
+						+ "  \"playable_neutral_sample_count\": %d,\n"
+						+ "  \"max_playable_neutral_visual_pitch_deg\": %.4f,\n"
+						+ "  \"max_playable_neutral_visual_roll_deg\": %.4f,\n"
+						+ "  \"max_playable_neutral_visual_yaw_rate_dps\": %.4f,\n"
 						+ "  \"csv_column_count\": %d,\n"
 						+ "  \"airframe_rotor_count\": %d,\n"
 						+ "  \"physics_substeps_per_tick\": %d,\n"
@@ -1137,6 +1150,10 @@ public final class DroneServerSelfTest {
 				maxPlayableVisualRollDegrees,
 				maxPlayableVisualYawRateDegreesPerSecond,
 				finalPlayableVisualYawDriftDegrees,
+				playableNeutralSampleCount,
+				maxPlayableNeutralVisualPitchDegrees,
+				maxPlayableNeutralVisualRollDegrees,
+				maxPlayableNeutralVisualYawRateDegreesPerSecond,
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
 				drone == null ? 0 : drone.config().rotors().size(),
 				PHYSICS_STEPS_PER_TICK,

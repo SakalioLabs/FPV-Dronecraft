@@ -148,6 +148,7 @@ public record DroneBlackboxSummary(
 	private static final FlightModelStats EMPTY_FLIGHT_MODEL_STATS = new FlightModelStats(0, 0);
 	private static final LowAltitudeStats EMPTY_LOW_ALTITUDE_STATS = new LowAltitudeStats(1.0);
 	private static final PlayableVisualStats EMPTY_PLAYABLE_VISUAL_STATS = new PlayableVisualStats(0.0, 0.0, 0.0, 0.0);
+	private static final PlayableNeutralStats EMPTY_PLAYABLE_NEUTRAL_STATS = new PlayableNeutralStats(0, 0.0, 0.0, 0.0);
 	private static final Map<DroneBlackboxSummary, IcingStats> ICING_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 	private static final Map<DroneBlackboxSummary, FlightModelStats> FLIGHT_MODEL_STATS =
@@ -155,6 +156,8 @@ public record DroneBlackboxSummary(
 	private static final Map<DroneBlackboxSummary, LowAltitudeStats> LOW_ALTITUDE_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 	private static final Map<DroneBlackboxSummary, PlayableVisualStats> PLAYABLE_VISUAL_STATS =
+			Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<DroneBlackboxSummary, PlayableNeutralStats> PLAYABLE_NEUTRAL_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 
 	public record WindSplit(
@@ -216,6 +219,20 @@ public record DroneBlackboxSummary(
 			maxRollDegrees = finiteNonNegativeOrZero(maxRollDegrees);
 			maxYawRateDegreesPerSecond = finiteNonNegativeOrZero(maxYawRateDegreesPerSecond);
 			finalYawDriftDegrees = finiteNonNegativeOrZero(finalYawDriftDegrees);
+		}
+	}
+
+	public record PlayableNeutralStats(
+			int sampleCount,
+			double maxPitchDegrees,
+			double maxRollDegrees,
+			double maxYawRateDegreesPerSecond
+	) {
+		public PlayableNeutralStats {
+			sampleCount = Math.max(0, sampleCount);
+			maxPitchDegrees = finiteNonNegativeOrZero(maxPitchDegrees);
+			maxRollDegrees = finiteNonNegativeOrZero(maxRollDegrees);
+			maxYawRateDegreesPerSecond = finiteNonNegativeOrZero(maxYawRateDegreesPerSecond);
 		}
 	}
 
@@ -365,6 +382,10 @@ public record DroneBlackboxSummary(
 		double maxPlayableVisualPitchDegrees = 0.0;
 		double maxPlayableVisualRollDegrees = 0.0;
 		double maxPlayableVisualYawRateDegreesPerSecond = 0.0;
+		int playableNeutralSamples = 0;
+		double maxPlayableNeutralVisualPitchDegrees = 0.0;
+		double maxPlayableNeutralVisualRollDegrees = 0.0;
+		double maxPlayableNeutralVisualYawRateDegreesPerSecond = 0.0;
 		double firstPlayableVisualYawDegrees = 0.0;
 		double lastPlayableVisualYawDegrees = 0.0;
 		boolean hasPlayableVisualYaw = false;
@@ -388,6 +409,12 @@ public record DroneBlackboxSummary(
 				maxPlayableVisualPitchDegrees = Math.max(maxPlayableVisualPitchDegrees, Math.abs(value(row, "playable_visual_pitch_deg")));
 				maxPlayableVisualRollDegrees = Math.max(maxPlayableVisualRollDegrees, Math.abs(value(row, "playable_visual_roll_deg")));
 				maxPlayableVisualYawRateDegreesPerSecond = Math.max(maxPlayableVisualYawRateDegreesPerSecond, Math.abs(value(row, "playable_visual_yaw_rate_dps")));
+				if (isPlayableNeutralControlSample(row)) {
+					playableNeutralSamples++;
+					maxPlayableNeutralVisualPitchDegrees = Math.max(maxPlayableNeutralVisualPitchDegrees, Math.abs(value(row, "playable_visual_pitch_deg")));
+					maxPlayableNeutralVisualRollDegrees = Math.max(maxPlayableNeutralVisualRollDegrees, Math.abs(value(row, "playable_visual_roll_deg")));
+					maxPlayableNeutralVisualYawRateDegreesPerSecond = Math.max(maxPlayableNeutralVisualYawRateDegreesPerSecond, Math.abs(value(row, "playable_visual_yaw_rate_dps")));
+				}
 				double playableVisualYawDegrees = value(row, "playable_visual_yaw_deg");
 				if (!hasPlayableVisualYaw) {
 					firstPlayableVisualYawDegrees = playableVisualYawDegrees;
@@ -913,6 +940,12 @@ public record DroneBlackboxSummary(
 				maxPlayableVisualYawRateDegreesPerSecond,
 				hasPlayableVisualYaw ? angleDifferenceDegrees(lastPlayableVisualYawDegrees, firstPlayableVisualYawDegrees) : 0.0
 		));
+		PLAYABLE_NEUTRAL_STATS.put(summary, new PlayableNeutralStats(
+				playableNeutralSamples,
+				maxPlayableNeutralVisualPitchDegrees,
+				maxPlayableNeutralVisualRollDegrees,
+				maxPlayableNeutralVisualYawRateDegreesPerSecond
+		));
 		return summary;
 	}
 
@@ -946,6 +979,10 @@ public record DroneBlackboxSummary(
 
 	public PlayableVisualStats playableVisualStats() {
 		return PLAYABLE_VISUAL_STATS.getOrDefault(this, EMPTY_PLAYABLE_VISUAL_STATS);
+	}
+
+	public PlayableNeutralStats playableNeutralStats() {
+		return PLAYABLE_NEUTRAL_STATS.getOrDefault(this, EMPTY_PLAYABLE_NEUTRAL_STATS);
 	}
 
 	public double maxWindDrydenSpeedMetersPerSecond() {
@@ -1296,6 +1333,13 @@ public record DroneBlackboxSummary(
 	private static boolean boolValue(String[] row, String column) {
 		int index = index(column);
 		return index < row.length && Boolean.parseBoolean(row[index]);
+	}
+
+	private static boolean isPlayableNeutralControlSample(String[] row) {
+		return (boolValue(row, "armed") || boolValue(row, "control_armed") || value(row, "motor_power") > 0.08)
+				&& Math.abs(value(row, "input_pitch")) <= 0.006
+				&& Math.abs(value(row, "input_roll")) <= 0.006
+				&& Math.abs(value(row, "input_yaw")) <= 0.006;
 	}
 
 	private static int intValue(String[] row, String column) {

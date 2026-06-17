@@ -1108,6 +1108,74 @@ class DroneBlackboxRecorderTest {
 	}
 
 	@Test
+	void blackboxSummaryReportsPlayableNeutralStickStability() {
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneEnvironment environment = DroneEnvironment.calm();
+		DroneInput neutral = new DroneInput(0.42, 0.0, 0.0, 0.0, true, true, FlightMode.ANGLE);
+		DroneInput commanded = new DroneInput(0.42, 0.10, 0.0, 0.25, true, true, FlightMode.ANGLE);
+
+		for (int i = 0; i < 10; i++) {
+			physics.step(neutral, 0.005, environment);
+		}
+		recorder.record(DroneBlackboxSample.from(
+				0,
+				0,
+				10,
+				0.005,
+				"playable",
+				1.0,
+				0.34,
+				0.0,
+				0.18,
+				0.05,
+				physics.state(),
+				neutral,
+				0.16,
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				environment,
+				config
+		));
+		recorder.record(DroneBlackboxSample.from(
+				1,
+				1,
+				10,
+				0.005,
+				"playable",
+				1.0,
+				3.0,
+				0.0,
+				2.0,
+				4.0,
+				physics.state(),
+				commanded,
+				0.16,
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				environment,
+				config
+		));
+
+		DroneBlackboxSummary.PlayableNeutralStats neutralStats = DroneBlackboxSummary.from(recorder).playableNeutralStats();
+		assertEquals(1, neutralStats.sampleCount());
+		assertEquals(0.34, neutralStats.maxPitchDegrees(), 1.0e-5);
+		assertEquals(0.18, neutralStats.maxRollDegrees(), 1.0e-5);
+		assertEquals(0.05, neutralStats.maxYawRateDegreesPerSecond(), 1.0e-5);
+	}
+
+	@Test
 	void blackboxCsvRecordsRotorIcingTelemetryFromFreezingWetFlight() {
 		DroneConfig config = DroneConfig.racingQuad();
 		DronePhysics physics = new DronePhysics(config);

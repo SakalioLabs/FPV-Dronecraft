@@ -28,6 +28,10 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxPlayableVisualRollDegrees", 4.2);
 		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 72.0);
 		setDouble(selfTest, "finalPlayableVisualYawDriftDegrees", 12.0);
+		setInt(selfTest, "playableNeutralSampleCount", 87);
+		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 0.34);
+		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 0.18);
+		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.05);
 		setDouble(selfTest, "finalSpeed", 0.08);
 		setDouble(selfTest, "finalAltitudeGain", 0.12);
 		setDouble(selfTest, "finalHorizontalDistance", 0.50);
@@ -93,6 +97,10 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_playable_visual_roll_deg\": 4.2000"));
 		assertTrue(json.contains("\"max_playable_visual_yaw_rate_dps\": 72.0000"));
 		assertTrue(json.contains("\"final_playable_visual_yaw_drift_deg\": 12.0000"));
+		assertTrue(json.contains("\"playable_neutral_sample_count\": 87"));
+		assertTrue(json.contains("\"max_playable_neutral_visual_pitch_deg\": 0.3400"));
+		assertTrue(json.contains("\"max_playable_neutral_visual_roll_deg\": 0.1800"));
+		assertTrue(json.contains("\"max_playable_neutral_visual_yaw_rate_dps\": 0.0500"));
 		assertTrue(json.contains("\"final_speed_mps\": 0.08000"));
 		assertTrue(json.contains("\"final_altitude_gain_m\": 0.12000"));
 		assertTrue(json.contains("\"final_horizontal_distance_m\": 0.50000"));
@@ -163,6 +171,8 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"max_playable_visual_roll_deg\": 0.0000"));
 		assertTrue(json.contains("\"max_playable_visual_yaw_rate_dps\": 0.0000"));
 		assertTrue(json.contains("\"final_playable_visual_yaw_drift_deg\": 0.0000"));
+		assertTrue(json.contains("\"playable_neutral_sample_count\": 0"));
+		assertTrue(json.contains("\"max_playable_neutral_visual_yaw_rate_dps\": 0.0000"));
 	}
 
 	@Test
@@ -231,5 +241,11 @@ class DroneServerSelfTestTest {
 		Field field = DroneServerSelfTest.class.getDeclaredField(fieldName);
 		field.setAccessible(true);
 		field.setDouble(selfTest, value);
+	}
+
+	private static void setInt(DroneServerSelfTest selfTest, String fieldName, int value) throws ReflectiveOperationException {
+		Field field = DroneServerSelfTest.class.getDeclaredField(fieldName);
+		field.setAccessible(true);
+		field.setInt(selfTest, value);
 	}
 }

@@ -424,6 +424,16 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 	if (playableFlightModel && (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) <= 1000.0) {
 		throw new GradleException("FPV Dronecraft playable self-test did not report active motor RPM telemetry.")
 	}
+	if (playableFlightModel) {
+		if ((report.playable_neutral_sample_count ?: 0) < 20) {
+			throw new GradleException("FPV Dronecraft playable self-test did not record enough neutral-stick flight samples: ${report.playable_neutral_sample_count}")
+		}
+		if ((report.max_playable_neutral_visual_pitch_deg ?: 0.0) > 1.5
+				|| (report.max_playable_neutral_visual_roll_deg ?: 0.0) > 1.5
+				|| (report.max_playable_neutral_visual_yaw_rate_dps ?: 0.0) > 0.35) {
+			throw new GradleException("FPV Dronecraft playable neutral-stick self-test drifted: pitch=${report.max_playable_neutral_visual_pitch_deg} roll=${report.max_playable_neutral_visual_roll_deg} yaw=${report.max_playable_neutral_visual_yaw_rate_dps}")
+		}
+	}
 	if (!playableFlightModel && ((report.max_battery_current_a ?: 0.0) <= 1.5 || (report.max_battery_sag_v ?: 0.0) <= 0.01)) {
 		throw new GradleException("FPV Dronecraft server self-test did not exercise the powertrain enough.")
 	}
@@ -433,6 +443,10 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 			"max_battery_soc_resistance_scale",
 			"max_battery_temp_resistance_scale",
 			"max_battery_polarization_resistance_scale",
+			"playable_neutral_sample_count",
+			"max_playable_neutral_visual_pitch_deg",
+			"max_playable_neutral_visual_roll_deg",
+			"max_playable_neutral_visual_yaw_rate_dps",
 			"max_avg_motor_rpm_telemetry_rpm",
 			"max_motor_5_rpm_telemetry_rpm",
 			"max_avg_motor_erpm100",
