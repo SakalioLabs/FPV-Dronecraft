@@ -348,13 +348,31 @@ class PlayableFlightModelTest {
 
 	@Test
 	void playableServerLayerPreservesClientShapedFineStickCommands() {
-		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 0.97, 0.72);
+		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 0.98, 0.55);
 
-		assertTrue(shapedHalfStick > 0.035f);
-		assertTrue(shapedHalfStick < 0.050f);
+		assertTrue(shapedHalfStick > 0.025f);
+		assertTrue(shapedHalfStick < 0.040f);
 		assertEquals(0.0f, PlayableFlightModel.playableAxisCommand(0.004f), 1.0e-6f);
 		assertEquals(shapedHalfStick, PlayableFlightModel.playableAxisCommand(shapedHalfStick), 1.0e-6f);
 		assertEquals(-shapedHalfStick, PlayableFlightModel.playableAxisCommand(-shapedHalfStick), 1.0e-6f);
+	}
+
+	@Test
+	void angleModeWithGentleTrainingPresetKeepsMidStickCalm() {
+		float mediumStick = (float) ControlStickProfile.gamepadCommand(0.70, 0.10, 0.98, 0.55);
+		float fullStick = (float) ControlStickProfile.gamepadCommand(1.0, 0.10, 0.98, 0.55);
+
+		PlayableFlightModel.Step medium = holdStick(FlightMode.ANGLE, 18, 0.42f, mediumStick, -mediumStick, mediumStick);
+		PlayableFlightModel.Step full = holdStick(FlightMode.ANGLE, 18, 0.45f, fullStick, -fullStick, fullStick);
+
+		assertTrue(Math.abs(medium.pitchRadians()) < Math.toRadians(1.8));
+		assertTrue(Math.abs(medium.rollRadians()) < Math.toRadians(1.8));
+		assertTrue(Math.abs(medium.targetVelocityX()) < 0.09f);
+		assertTrue(Math.abs(medium.targetVelocityZ()) < 0.09f);
+		assertTrue(medium.yawDegreesPerTick() < 0.07f);
+		assertTrue(Math.abs(full.pitchRadians()) > Math.toRadians(3.5));
+		assertTrue(Math.abs(full.rollRadians()) > Math.toRadians(3.5));
+		assertTrue(full.yawDegreesPerTick() > 0.20f);
 	}
 
 	@Test

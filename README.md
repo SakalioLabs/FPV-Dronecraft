@@ -15,7 +15,7 @@
 - 解锁需要低油门和摇杆回中；也支持 Mode 2 遥控器的双摇杆底角解锁/上锁手势。
 - 解锁和 FPV 视角已经分离：`B` 切换 FPV/目视飞行，`N` 切换 HUD 精简/隐藏/完整遥测。
 - HUD 模式现在会写入客户端配置，隐藏 HUD 后重进游戏仍会保持隐藏。
-- 手柄/遥控器的俯仰、横滚、偏航经过死区、expo、倍率和每 tick 输入限速，再发送给无人机，轻打杆不会直接给满控制权。
+- 手柄/遥控器的俯仰、横滚、偏航经过死区、expo、倍率和每 tick 输入限速，再发送给无人机；默认 `Training` 档进一步降低了右摇杆中段和半杆响应，轻打杆不会直接把机体打歪。
 - 遥控器设置界面新增“校准摇杆中心”，会记录横滚、俯仰、偏航三轴的静止偏移并在发包前扣掉，用来处理手柄中心漂移导致的无输入自转或缓慢偏移。
 - 服务端可玩飞行层不再对客户端已经塑形过的摇杆命令重复套大死区/expo，只保留极小噪声门槛和限速，避免“前半段没反应、过阈值突然歪”的手感。
 - 调试命令新增 `/fpvdrone debug mode playable|sim`，可以明确切换当前稳定可玩的 Minecraft 飞行层和 6DOF 物理仿真层，方便分阶段对比手感和物理问题。
@@ -255,11 +255,11 @@ The validator still covers the IMU offset columns, including `tune_imu_y_m` and 
   "yawInverted": false,
   "throttleInverted": true,
   "gamepadDeadband": 0.10,
-  "gamepadExpo": 0.97,
-  "gamepadRollPitchRateScale": 0.72,
-  "gamepadYawRateScale": 0.70,
-  "gamepadAxisRisePerTick": 0.075,
-  "gamepadAxisFallPerTick": 0.18,
+  "gamepadExpo": 0.98,
+  "gamepadRollPitchRateScale": 0.55,
+  "gamepadYawRateScale": 0.52,
+  "gamepadAxisRisePerTick": 0.055,
+  "gamepadAxisFallPerTick": 0.24,
   "hudMode": "MINIMAL",
   "cameraTiltDegrees": 14.0,
   "cameraForwardOffsetMeters": 1.05,
@@ -278,7 +278,7 @@ The validator still covers the IMU offset columns, including `tune_imu_y_m` and 
 
 游戏内遥控器设置界面（默认 `I`）提供三档手感预设：
 
-- `Training`：默认档，中位稳定，指令进入较慢，适合首飞和找手感。
+- `Training`：默认档，中位和半杆都更稳，指令进入较慢、松杆回中更快，适合首飞和找手感。
 - `Sport`：响应更快，但保留一定中位柔和度。
 - `Acro`：完整俯仰/横滚/偏航控制权，expo 更低、输入限速更快，更接近 FPV 飞行。
 
