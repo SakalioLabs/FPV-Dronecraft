@@ -10,6 +10,9 @@ final class PlayableFlightModel {
 	private static final float VERTICAL_SPEED_LIMIT = 2.8f;
 	private static final float HOVER_BAND = 0.035f;
 	private static final float PLAYABLE_AXIS_NOISE_EPSILON = 0.006f;
+	private static final float VELOCITY_SETTLE_EPSILON_MPS = 0.018f;
+	private static final float ATTITUDE_SETTLE_EPSILON_RADIANS = (float) Math.toRadians(0.20f);
+	private static final float YAW_SETTLE_EPSILON_DEGREES_PER_TICK = 0.020f;
 	private static final float IDLE_RPM = 2200.0f;
 	private static final float MAX_RPM_DELTA = 13500.0f;
 	private static final float MODE_SWITCH_ANGLE_ATTITUDE_KEEP = 0.18f;
@@ -45,11 +48,13 @@ final class PlayableFlightModel {
 		State safePrevious = previousStateForMode(safeMode, profile, previous);
 
 		Attitude attitude = attitude(safeMode, profile, safePitch, safeRoll, safePrevious);
+		float pitchRadians = settledAttitude(safeMode, safePitch, attitude.pitchRadians());
+		float rollRadians = settledAttitude(safeMode, safeRoll, attitude.rollRadians());
 		float throttleAuthority = 0.75f + 0.25f * clamp(safeThrottle / Math.max(0.10f, safeHover), 0.0f, 1.35f);
-		float targetVelocityX = clamp(attitude.rollRadians() / profile.maxRollRadians(), -1.0f, 1.0f)
+		float targetVelocityX = clamp(rollRadians / profile.maxRollRadians(), -1.0f, 1.0f)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
-		float targetVelocityZ = -clamp(attitude.pitchRadians() / profile.maxPitchRadians(), -1.0f, 1.0f)
+		float targetVelocityZ = -clamp(pitchRadians / profile.maxPitchRadians(), -1.0f, 1.0f)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
 		float targetVelocityY = verticalVelocity(safeThrottle, safeHover, profile);
@@ -66,6 +71,9 @@ final class PlayableFlightModel {
 		velocityX = clamp(velocityX, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
 		velocityY = clamp(velocityY, -VERTICAL_SPEED_LIMIT, VERTICAL_SPEED_LIMIT);
 		velocityZ = clamp(velocityZ, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
+		velocityX = settledVelocity(velocityX, targetVelocityX);
+		velocityY = settledVelocity(velocityY, targetVelocityY);
+		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
 		if (nearGroundLocked && velocityY < 0.0f) {
 			velocityY = 0.0f;
 		}
@@ -80,6 +88,9 @@ final class PlayableFlightModel {
 			velocityX = smooth(velocityX, 0.0f, profile.airBrakeSmoothing());
 			velocityZ = smooth(velocityZ, 0.0f, profile.airBrakeSmoothing());
 		}
+		velocityX = settledVelocity(velocityX, targetVelocityX);
+		velocityY = settledVelocity(velocityY, targetVelocityY);
+		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
 
 		float targetYawDegreesPerTick = safeYaw * profile.yawDegreesPerTick();
 		float yawDegreesPerTick = smooth(
@@ -87,6 +98,7 @@ final class PlayableFlightModel {
 				targetYawDegreesPerTick,
 				yawSmoothing(safePrevious.yawDegreesPerTick(), targetYawDegreesPerTick, profile)
 		);
+		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = IDLE_RPM + (float) Math.sqrt(safeThrottle) * MAX_RPM_DELTA;
 		return new Step(
@@ -96,8 +108,8 @@ final class PlayableFlightModel {
 				velocityX,
 				velocityY,
 				velocityZ,
-				attitude.pitchRadians(),
-				attitude.rollRadians(),
+				pitchRadians,
+				rollRadians,
 				yawDegreesPerTick,
 				motorPower,
 				averageRpm,
@@ -266,6 +278,28 @@ final class PlayableFlightModel {
 				&& Math.abs(throttle - hoverThrottle) <= profile.airBrakeThrottleBand()
 				&& Math.abs(pitch) <= profile.airBrakeCommandThreshold()
 				&& Math.abs(roll) <= profile.airBrakeCommandThreshold();
+	}
+
+	private static float settledAttitude(FlightMode mode, float command, float radians) {
+		if (mode != FlightMode.ACRO && Math.abs(command) <= PLAYABLE_AXIS_NOISE_EPSILON && Math.abs(radians) <= ATTITUDE_SETTLE_EPSILON_RADIANS) {
+			return 0.0f;
+		}
+		return radians;
+	}
+
+	private static float settledVelocity(float velocity, float targetVelocity) {
+		if (Math.abs(targetVelocity) <= VELOCITY_SETTLE_EPSILON_MPS && Math.abs(velocity) <= VELOCITY_SETTLE_EPSILON_MPS) {
+			return 0.0f;
+		}
+		return velocity;
+	}
+
+	private static float settledYawRate(float yawDegreesPerTick, float targetYawDegreesPerTick) {
+		if (Math.abs(targetYawDegreesPerTick) <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK
+				&& Math.abs(yawDegreesPerTick) <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK) {
+			return 0.0f;
+		}
+		return yawDegreesPerTick;
 	}
 
 	private static float yawSmoothing(float current, float target, Profile profile) {

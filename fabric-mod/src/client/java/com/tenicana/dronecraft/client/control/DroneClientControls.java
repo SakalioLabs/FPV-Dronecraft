@@ -462,7 +462,7 @@ public final class DroneClientControls {
 		}
 		float value = axes.get(axis);
 		float calibrated = calibrator == null ? value : calibrator.calibrate(value);
-		return (float) ControlStickProfile.applyDeadband(calibrated, config.gamepadDeadband());
+		return GamepadStickShaper.conditionedAxis(calibrated, config.gamepadDeadband());
 	}
 
 	private static boolean isGamepadButtonPressed(ByteBuffer buttons, int button) {
@@ -477,7 +477,7 @@ public final class DroneClientControls {
 	}
 
 	private static float commandAxis(float value, float rateScale) {
-		return (float) ControlStickProfile.gamepadCommand(value, config.gamepadDeadband(), config.gamepadExpo(), rateScale);
+		return GamepadStickShaper.commandFromConditionedAxis(value, config.gamepadDeadband(), config.gamepadExpo(), rateScale);
 	}
 
 	private record ControlInput(float throttle, float pitch, float roll, float yaw, InputSource source) {

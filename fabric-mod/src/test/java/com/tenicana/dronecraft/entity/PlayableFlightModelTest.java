@@ -245,6 +245,60 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeSnapsTinyReleasedDriftToRest() {
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.012f,
+						0.011f,
+						-0.010f,
+						(float) Math.toRadians(0.15),
+						(float) Math.toRadians(-0.14),
+						0.012f,
+						FlightMode.ANGLE
+				)
+		);
+
+		assertEquals(0.0f, released.velocityX(), 1.0e-6f);
+		assertEquals(0.0f, released.velocityY(), 1.0e-6f);
+		assertEquals(0.0f, released.velocityZ(), 1.0e-6f);
+		assertEquals(0.0f, released.pitchRadians(), 1.0e-6f);
+		assertEquals(0.0f, released.rollRadians(), 1.0e-6f);
+		assertEquals(0.0f, released.yawDegreesPerTick(), 1.0e-6f);
+	}
+
+	@Test
+	void acroModeDoesNotSnapTinyHeldAttitudeToLevel() {
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(0.15),
+						(float) Math.toRadians(-0.14),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertTrue(released.pitchRadians() > Math.toRadians(0.10));
+		assertTrue(released.rollRadians() < -Math.toRadians(0.10));
+	}
+
+	@Test
 	void hoverAirBrakeDoesNotFightDeliberateAngleInput() {
 		PlayableFlightModel.Step step = runFrom(
 				FlightMode.ANGLE,
