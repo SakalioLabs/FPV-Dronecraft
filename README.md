@@ -42,6 +42,7 @@
 - HUD 现在会在未解锁时显示“就绪”或“降油门 / 回中”，并复用同一套服务端解锁安全规则；这样按了解锁没反应时，玩家能直接看出是油门/摇杆状态不安全，而不是误以为物理模型或遥控链路坏了。
 - 服务端自测 JSON 现在直接写入 `flight_mode`，Gradle 会同时校验 JSON、`flight_mode` 和 `control_flight_mode` 三者一致；当前默认诊断链路明确锁定在玩家首飞用的 `ANGLE` 模式，避免之后误把 HORIZON/ACRO 的手感当成默认体验来调。
 - `playable` 无头自测现在会单独统计“右杆中立且已解锁/电机有输出”的稳定窗口：Gradle 要求至少 20 个中杆样本，且中杆可视 pitch/roll 不超过 `1.5 deg`、yaw rate 不超过 `0.35 dps`；最新默认 `ANGLE` playable 报告中杆样本 87 个，最大 pitch 约 `0.34 deg`、roll `0.00 deg`、yaw rate `0.00 dps`，用自动化方式守住“没打杆不自转/不乱歪”。
+- 键盘/虚拟遥控器输入现在单独走训练级整形器：短按 5 tick 只到 `0.25` 虚拟轴，整形后右杆命令小于 `0.06`，松开后一帧内基本回中；长按约 1 秒仍能到满舵，方便没有实体遥控器时微调起飞和目视飞行。
 
 ## 常用键位
 
@@ -147,17 +148,18 @@ To compare airframe presets or choose a custom output file:
 .\gradlew.bat :drone-sim-core:offlineFlight -Ppreset=coaxial_x8
 ```
 
-## Prototype Controls
+## 原型控制
 
-1. Add the `FPV Drone Controller` item from the FPV Dronecraft creative tab.
-2. Right-click with the controller to spawn and bind a drone, or run `/fpvdrone spawn` to spawn and bind the default racing quad.
-3. Hold the controller while flying, or press `V` to toggle the virtual controller for your nearest bound drone.
-4. Press `R` to arm or disarm.
-5. Use `Space` / `Left Shift` for throttle.
-6. Use `W` / `S` for pitch, `A` / `D` for roll, and `Q` / `E` for yaw.
-7. Press `M` to cycle `ACRO`, `ANGLE`, and `HORIZON` flight modes.
-8. Press `G` to toggle joystick/gamepad input. Press `H` to reload the client input config after editing it.
-9. Right-click an existing drone with the controller to bind it. Sneak-right-click it to repair frame and rotor damage.
+1. 从 FPV Dronecraft 创造物品栏拿到 `FPV Drone Controller`。
+2. 手持遥控器右键可生成并绑定无人机，也可以执行 `/fpvdrone spawn` 生成并绑定默认 `racing_quad`。
+3. 飞行时手持遥控器；没有实体遥控器时，按 `V` 可启用最近已绑定无人机的虚拟遥控器。
+4. 按 `R` 解锁或上锁。解锁前需要低油门、摇杆回中，或使用 Mode 2 底角手势。
+5. `PageUp` / `PageDown` 调整键盘油门。
+6. 方向键控制俯仰/横滚，`Z` / `X` 控制偏航。
+7. 按 `B` 切换 FPV 视角和目视飞行，按 `N` 循环 HUD 精简 / 隐藏 / 完整遥测。
+8. 按 `M` 切换 `ANGLE`、`HORIZON`、`ACRO` 飞行模式；默认首飞建议留在 `ANGLE`。
+9. 按 `G` 启用/关闭手柄输入，按 `I` 打开遥控器设置，按 `H` 重新加载客户端配置。
+10. 右键已有无人机可重新绑定；潜行右键可修复机架和旋翼损伤。
 
 For command-based setup and testing, use:
 

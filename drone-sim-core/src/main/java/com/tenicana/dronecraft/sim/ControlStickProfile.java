@@ -7,7 +7,7 @@ public final class ControlStickProfile {
 	public static final double GAMEPAD_THROTTLE_HOVER_COMMAND = 0.20;
 	public static final double GAMEPAD_THROTTLE_LOW_EXPONENT = 1.60;
 	public static final double GAMEPAD_THROTTLE_HIGH_EXPONENT = 1.45;
-	public static final double KEYBOARD_COMMAND_EXPO = 0.82;
+	public static final double KEYBOARD_COMMAND_EXPO = 0.90;
 
 	private ControlStickProfile() {
 	}

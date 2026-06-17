@@ -48,8 +48,6 @@ public final class DroneClientControls {
 	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_X);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
-	private static final float KEYBOARD_AXIS_RISE_PER_TICK = 0.075f;
-	private static final float KEYBOARD_AXIS_FALL_PER_TICK = 0.18f;
 
 	private static float throttle;
 	private static float keyboardPitchAxis;
@@ -398,18 +396,11 @@ public final class DroneClientControls {
 	}
 
 	private static float approachKeyboardAxis(float current, float target) {
-		float step = Math.abs(target) > Math.abs(current) ? KEYBOARD_AXIS_RISE_PER_TICK : KEYBOARD_AXIS_FALL_PER_TICK;
-		if (current < target) {
-			return Math.min(target, current + step);
-		}
-		if (current > target) {
-			return Math.max(target, current - step);
-		}
-		return current;
+		return KeyboardControlShaper.approachAxis(current, target);
 	}
 
 	private static float keyboardCommandAxis(float value) {
-		return (float) ControlStickProfile.keyboardCommand(value);
+		return KeyboardControlShaper.commandAxis(value);
 	}
 
 	private static GamepadInput gamepadInput() {

@@ -31,8 +31,8 @@ class ControlStickProfileTest {
 	@Test
 	void keyboardProfileRoundsBinaryKeysIntoUsableCommands() {
 		assertEquals(0.0, ControlStickProfile.keyboardCommand(0.0), 1.0e-12);
-		assertTrue(ControlStickProfile.keyboardCommand(0.25) < 0.14);
-		assertTrue(ControlStickProfile.keyboardCommand(0.50) < 0.22);
+		assertTrue(ControlStickProfile.keyboardCommand(0.25) < 0.06);
+		assertTrue(ControlStickProfile.keyboardCommand(0.50) < 0.18);
 		assertEquals(1.0, ControlStickProfile.keyboardCommand(1.0), 1.0e-12);
 	}
 
