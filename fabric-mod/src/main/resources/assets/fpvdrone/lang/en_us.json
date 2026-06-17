@@ -19,6 +19,7 @@
 	"message.fpvdrone.spawned": "Drone spawned and linked to you.",
 	"message.fpvdrone.armed": "Drone armed.",
 	"message.fpvdrone.disarmed": "Drone disarmed.",
+	"message.fpvdrone.arm_blocked": "Lower throttle and center sticks before arming.",
 	"message.fpvdrone.bound": "Drone linked to you.",
 	"message.fpvdrone.repaired": "Drone repaired and linked to you.",
 	"message.fpvdrone.gamepad_enabled": "Drone gamepad input enabled.",

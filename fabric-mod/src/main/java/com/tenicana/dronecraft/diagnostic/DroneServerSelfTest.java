@@ -20,6 +20,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -139,6 +140,7 @@ public final class DroneServerSelfTest {
 	private double finalY;
 	private double finalZ;
 	private double finalSpeed;
+	private boolean previousBypassPhysicsEnabled;
 
 	private DroneServerSelfTest(int requestedSeconds) {
 		this.requestedSeconds = requestedSeconds;
@@ -183,6 +185,8 @@ public final class DroneServerSelfTest {
 	}
 
 	private void start(ServerLevel level) {
+		previousBypassPhysicsEnabled = DroneDebugSettings.bypassPhysicsEnabled();
+		DroneDebugSettings.setBypassPhysicsEnabled(false);
 		drone = new DroneEntity(DroneEntityTypes.DRONE, level);
 		drone.applyConfig(DroneConfig.racingQuad(), SELF_TEST_PRESET);
 		drone.setOwner(SELF_TEST_OWNER);
@@ -867,6 +871,7 @@ public final class DroneServerSelfTest {
 	private void finish(MinecraftServer server, boolean passed, String reason) {
 		finished = true;
 		DroneControlManager.stopDiagnostic(SELF_TEST_OWNER);
+		DroneDebugSettings.setBypassPhysicsEnabled(previousBypassPhysicsEnabled);
 
 		Path directory = server.getFile("fpvdrone-selftest");
 		String timestamp = LocalDateTime.now().format(FILE_TIME);

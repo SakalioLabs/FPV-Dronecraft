@@ -602,7 +602,7 @@ public class DroneEntity extends Entity {
 					? "no-owner"
 					: (!input.linkActive() ? "link-lost" : (bypassPhysics ? "direct-disabled" : "physics-active"));
 
-			if (bypassPhysics && hasDebugControlInput && input.linkActive() && input.armed()) {
+			if (bypassPhysics && input.linkActive() && input.armed()) {
 				DroneInput debugInput = input;
 				effectiveInput = debugInput;
 				applyDebugFlight(debugInput);
@@ -689,6 +689,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private static final float DEBUG_THRUST_GAIN = 2.5f;
+	private static final float DEBUG_DESCENT_GAIN = 1.0f;
 	private static final float DEBUG_AXIS_GAIN = 1.45f;
 	private static final float DEBUG_YAW_GAIN = 2.4f;
 	private static final float DEBUG_INPUT_SMOOTH = 0.32f;
@@ -722,10 +723,13 @@ public class DroneEntity extends Entity {
 
 		float targetVx = smoothedRoll * DEBUG_AXIS_GAIN;
 		boolean shouldFly = input.armed() || smoothedThrottle > DEBUG_THRUST_DEADZONE || Math.abs(smoothedPitch) > DEBUG_MOVEMENT_EPSILON || Math.abs(smoothedRoll) > DEBUG_MOVEMENT_EPSILON;
-		float targetVy = shouldFly
-				? Math.max(0.0f, smoothedThrottle - DEBUG_THRUST_DEADZONE) * DEBUG_THRUST_GAIN
-				: 0.0f;
-		if (shouldFly && targetVy > 0.0f && targetVy < DEBUG_THRUST_MIN_CLIMB) {
+		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
+		float targetVy = shouldFly ? debugVerticalVelocity(smoothedThrottle, hoverThrottle) : 0.0f;
+		boolean nearGroundLocked = isNearGroundLocked();
+		if (shouldFly && nearGroundLocked && targetVy < 0.0f) {
+			targetVy = 0.0f;
+		}
+		if (shouldFly && smoothedThrottle > hoverThrottle && targetVy > 0.0f && targetVy < DEBUG_THRUST_MIN_CLIMB) {
 			targetVy = DEBUG_THRUST_MIN_CLIMB;
 		}
 		float targetVz = -smoothedPitch * DEBUG_AXIS_GAIN;
@@ -769,6 +773,9 @@ public class DroneEntity extends Entity {
 		debugVelocityX = clampAxis(debugVelocityX, DEBUG_VELOCITY_LIMIT_XZ);
 		debugVelocityY = clampAxis(debugVelocityY, DEBUG_VELOCITY_LIMIT_Y);
 		debugVelocityZ = clampAxis(debugVelocityZ, DEBUG_VELOCITY_LIMIT_XZ);
+		if (nearGroundLocked && debugVelocityY < 0.0f) {
+			debugVelocityY = 0.0f;
+		}
 
 		float yawRadians = (float) Math.toRadians(getYRot());
 		float cos = (float) Math.cos(yawRadians);
@@ -791,6 +798,28 @@ public class DroneEntity extends Entity {
 		if (Math.abs(targetYaw) > 0.02f) {
 			setYRot(getYRot() + targetYaw);
 		}
+	}
+
+	private float debugVerticalVelocity(float throttle, float hoverThrottle) {
+		if (throttle <= DEBUG_THRUST_DEADZONE) {
+			return -DEBUG_DESCENT_GAIN;
+		}
+		float centered = throttle - hoverThrottle;
+		if (Math.abs(centered) < 0.035f) {
+			return 0.0f;
+		}
+		if (centered > 0.0f) {
+			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * DEBUG_THRUST_GAIN;
+		}
+		return centered / Math.max(0.10f, hoverThrottle) * DEBUG_DESCENT_GAIN;
+	}
+
+	private boolean isNearGroundLocked() {
+		if (onGround() || verticalCollision) {
+			return true;
+		}
+		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
+		return Double.isFinite(clearance) && clearance <= groundLockClearanceMeters();
 	}
 
 	private void updateDebugFlightState(DroneInput input, boolean airworthy) {

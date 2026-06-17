@@ -64,8 +64,6 @@ public final class DroneClientControls {
 	private static boolean stickArmGestureLatched;
 	private static int stickArmGestureTicks;
 	private static final int ARM_GESTURE_HOLD_TICKS = 7;
-	private static final float ARM_GESTURE_THROTTLE_MAX = 0.10f;
-	private static final float ARM_GESTURE_AXIS_MIN = 0.72f;
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -141,8 +139,7 @@ public final class DroneClientControls {
 			}
 
 			while (ARM.consumeClick()) {
-				armed = !armed;
-				client.player.displayClientMessage(Component.translatable(armed ? "message.fpvdrone.armed" : "message.fpvdrone.disarmed"), true);
+				requestArmed(client, !armed, canArmWithKeyboard(client));
 			}
 
 			while (FLIGHT_MODE.consumeClick()) {
@@ -216,12 +213,10 @@ public final class DroneClientControls {
 		boolean calibratePressedEdge = input.calibrateButtonPressed() && !gamepadCalibrateButtonDown;
 
 		if (armPressedEdge && !input.disarmButtonPressed()) {
-			armed = true;
-			client.player.displayClientMessage(Component.translatable("message.fpvdrone.armed"), true);
+			requestArmed(client, true, canArmWithGamepadButton(input));
 		}
 		if (disarmPressedEdge && !input.armButtonPressed()) {
-			armed = false;
-			client.player.displayClientMessage(Component.translatable("message.fpvdrone.disarmed"), true);
+			requestArmed(client, false, true);
 		}
 		if (calibratePressedEdge) {
 			toggleThrottleCalibration(client, input.rawThrottle());
@@ -258,10 +253,44 @@ public final class DroneClientControls {
 
 	private static boolean isStickArmGesture(GamepadInput input) {
 		return input != null
-				&& input.throttle() <= ARM_GESTURE_THROTTLE_MAX
-				&& input.yaw() <= -ARM_GESTURE_AXIS_MIN
-				&& input.pitch() <= -ARM_GESTURE_AXIS_MIN
-				&& input.roll() >= ARM_GESTURE_AXIS_MIN;
+				&& DroneArmSafety.isStickArmGesture(input.throttle(), input.pitch(), input.roll(), input.yaw());
+	}
+
+	private static boolean canArmWithGamepadButton(GamepadInput input) {
+		return input != null
+				&& DroneArmSafety.canArmFromMomentaryControl(input.throttle(), input.pitch(), input.roll(), input.yaw());
+	}
+
+	private static boolean canArmWithKeyboard(Minecraft client) {
+		float pitch = largerMagnitude(keyboardPitchAxis, axis(client.options.keyDown.isDown(), client.options.keyUp.isDown()));
+		float roll = largerMagnitude(keyboardRollAxis, axis(client.options.keyLeft.isDown(), client.options.keyRight.isDown()));
+		float yaw = largerMagnitude(keyboardYawAxis, axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown()));
+		return DroneArmSafety.canArmFromMomentaryControl(throttle, pitch, roll, yaw);
+	}
+
+	private static float largerMagnitude(float current, float target) {
+		return Math.abs(current) >= Math.abs(target) ? current : target;
+	}
+
+	private static void requestArmed(Minecraft client, boolean targetArmed, boolean canArm) {
+		if (targetArmed) {
+			if (armed) {
+				return;
+			}
+			if (!canArm) {
+				client.player.displayClientMessage(Component.translatable("message.fpvdrone.arm_blocked"), true);
+				return;
+			}
+			armed = true;
+			client.player.displayClientMessage(Component.translatable("message.fpvdrone.armed"), true);
+			return;
+		}
+
+		if (!armed) {
+			return;
+		}
+		armed = false;
+		client.player.displayClientMessage(Component.translatable("message.fpvdrone.disarmed"), true);
 	}
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {

@@ -18,7 +18,7 @@ public final class DroneDebugSettings {
 	private static volatile boolean controlLoggingEnabled;
 	private static volatile boolean tickLoggingEnabled;
 	private static volatile boolean ownerlessControlEnabled = true;
-	private static volatile boolean bypassPhysicsEnabled;
+	private static volatile boolean bypassPhysicsEnabled = true;
 
 	private DroneDebugSettings() {
 	}

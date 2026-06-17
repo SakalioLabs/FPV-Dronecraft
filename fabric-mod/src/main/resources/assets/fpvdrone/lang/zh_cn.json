@@ -19,6 +19,7 @@
 	"message.fpvdrone.spawned": "无人机已生成并绑定到你。",
 	"message.fpvdrone.armed": "无人机已解锁。",
 	"message.fpvdrone.disarmed": "无人机已上锁。",
+	"message.fpvdrone.arm_blocked": "请先降到低油门并回中摇杆再解锁。",
 	"message.fpvdrone.bound": "无人机已绑定到你。",
 	"message.fpvdrone.repaired": "无人机已修复并绑定到你。",
 	"message.fpvdrone.gamepad_enabled": "手柄输入已启用。",
