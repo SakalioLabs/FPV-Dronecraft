@@ -55,7 +55,7 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
-	void stickCommandsProduceVelocityAndVisibleAttitude() {
+	void stickCommandsRampIntoVelocityAndVisibleAttitude() {
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
 				FlightMode.HORIZON,
 				0.45f,
@@ -67,39 +67,100 @@ class PlayableFlightModelTest {
 				PlayableFlightModel.State.ZERO
 		);
 
-		assertTrue(step.targetVelocityZ() < -0.50f);
-		assertTrue(step.targetVelocityX() < -0.35f);
-		assertTrue(step.pitchRadians() > Math.toRadians(15.0));
-		assertTrue(step.rollRadians() < -Math.toRadians(12.0));
+		assertTrue(step.targetVelocityZ() < -0.15f);
+		assertTrue(step.targetVelocityX() < -0.10f);
+		assertTrue(step.pitchRadians() < Math.toRadians(8.0));
+		assertTrue(step.rollRadians() > -Math.toRadians(8.0));
 		assertTrue(step.yawDegreesPerTick() > 0.4f);
 		assertTrue(step.averageRpm() > 9000.0f);
+
+		PlayableFlightModel.Step held = holdStick(FlightMode.HORIZON, 12, 0.45f, 0.50f, -0.40f, 0.25f);
+		assertTrue(held.targetVelocityZ() < -0.70f);
+		assertTrue(held.targetVelocityX() < -0.55f);
+		assertTrue(held.pitchRadians() > Math.toRadians(16.0));
+		assertTrue(held.rollRadians() < -Math.toRadians(13.0));
+	}
+
+	@Test
+	void angleModeRecentersReleasedSticks() {
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				FlightMode.ANGLE,
+				0.30f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(0.0f, 0.0f, 0.0f, (float) Math.toRadians(18.0), (float) Math.toRadians(-14.0))
+		);
+
+		assertTrue(Math.abs(step.pitchRadians()) < Math.toRadians(18.0));
+		assertTrue(Math.abs(step.rollRadians()) < Math.toRadians(14.0));
+	}
+
+	@Test
+	void acroModeHoldsAttitudeAfterStickRelease() {
+		PlayableFlightModel.Step held = holdStick(FlightMode.ACRO, 10, 0.45f, 0.90f, -0.80f, 0.0f);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ACRO,
+				6,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(held)
+		);
+
+		assertTrue(held.pitchRadians() > Math.toRadians(45.0));
+		assertTrue(held.rollRadians() < -Math.toRadians(40.0));
+		assertTrue(released.pitchRadians() > held.pitchRadians() * 0.95f);
+		assertTrue(released.rollRadians() < held.rollRadians() * 0.95f);
+		assertTrue(released.targetVelocityZ() < -1.50f);
 	}
 
 	@Test
 	void acroProfileHasMoreAuthorityThanAngleProfile() {
-		PlayableFlightModel.Step angle = PlayableFlightModel.step(
-				FlightMode.ANGLE,
-				0.45f,
-				1.0f,
-				1.0f,
-				1.0f,
-				0.20f,
-				false,
-				PlayableFlightModel.State.ZERO
-		);
-		PlayableFlightModel.Step acro = PlayableFlightModel.step(
-				FlightMode.ACRO,
-				0.45f,
-				1.0f,
-				1.0f,
-				1.0f,
-				0.20f,
-				false,
-				PlayableFlightModel.State.ZERO
-		);
+		PlayableFlightModel.Step angle = holdStick(FlightMode.ANGLE, 12, 0.45f, 1.0f, 1.0f, 1.0f);
+		PlayableFlightModel.Step acro = holdStick(FlightMode.ACRO, 12, 0.45f, 1.0f, 1.0f, 1.0f);
 
 		assertTrue(Math.abs(acro.targetVelocityZ()) > Math.abs(angle.targetVelocityZ()));
 		assertTrue(acro.pitchRadians() > angle.pitchRadians());
 		assertTrue(acro.yawDegreesPerTick() > angle.yawDegreesPerTick());
+	}
+
+	private static PlayableFlightModel.Step holdStick(FlightMode mode, int ticks, float throttle, float pitch, float roll, float yaw) {
+		return runFrom(mode, ticks, throttle, pitch, roll, yaw, 0.20f, false, PlayableFlightModel.State.ZERO);
+	}
+
+	private static PlayableFlightModel.Step runFrom(
+			FlightMode mode,
+			int ticks,
+			float throttle,
+			float pitch,
+			float roll,
+			float yaw,
+			float hoverThrottle,
+			boolean nearGroundLocked,
+			PlayableFlightModel.State state
+	) {
+		PlayableFlightModel.Step step = null;
+		PlayableFlightModel.State current = state;
+		for (int i = 0; i < ticks; i++) {
+			step = PlayableFlightModel.step(mode, throttle, pitch, roll, yaw, hoverThrottle, nearGroundLocked, current);
+			current = stateFrom(step);
+		}
+		return step;
+	}
+
+	private static PlayableFlightModel.State stateFrom(PlayableFlightModel.Step step) {
+		return new PlayableFlightModel.State(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
 	}
 }

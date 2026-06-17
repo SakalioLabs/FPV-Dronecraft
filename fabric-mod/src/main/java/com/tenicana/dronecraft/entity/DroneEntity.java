@@ -728,7 +728,7 @@ public class DroneEntity extends Entity {
 				smoothedYaw,
 				hoverThrottle,
 				nearGroundLocked,
-				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ)
+				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians)
 		);
 		float targetVx = step.targetVelocityX();
 		float targetVy = step.targetVelocityY();
@@ -740,18 +740,13 @@ public class DroneEntity extends Entity {
 			targetVy = 0.0f;
 			targetVz = 0.0f;
 			targetYaw = 0.0f;
-			debugVelocityX = 0.0f;
-			debugVelocityY = 0.0f;
-			debugVelocityZ = 0.0f;
-			debugVisualPitchRadians = 0.0f;
-			debugVisualRollRadians = 0.0f;
-			debugMotorPower = 0.0f;
-			debugAverageMotorRpm = 0.0f;
-			debugCommandThrottle = 0.0f;
-			debugCommandPitch = 0.0f;
-			debugCommandRoll = 0.0f;
-			debugCommandYaw = 0.0f;
+			clearDebugFlightState();
 			setDeltaMovement(0.0, 0.0, 0.0);
+			debugTargetVelocityX = targetVx;
+			debugTargetVelocityY = targetVy;
+			debugTargetVelocityZ = targetVz;
+			debugTargetYawRate = targetYaw;
+			return;
 		}
 		if (Math.abs(targetVx) < 0.015f) {
 			targetVx = 0.0f;
@@ -795,11 +790,29 @@ public class DroneEntity extends Entity {
 				getY() + deltaY,
 				getZ() + deltaZ
 		);
-		setDeltaMovement(worldVelocityX, worldVelocityY, worldVelocityZ);
+		physics.state().setPositionMeters(entityPhysicsPosition());
+		physics.state().setVelocityMetersPerSecond(new Vec3(worldVelocityX, worldVelocityY, worldVelocityZ));
+		setDeltaMovement(deltaX, deltaY, deltaZ);
 		if (Math.abs(targetYaw) > 0.02f) {
 			setYRot(getYRot() + targetYaw);
 		}
 		setXRot((float) Math.toDegrees(debugVisualPitchRadians));
+	}
+
+	private void clearDebugFlightState() {
+		debugVelocityX = 0.0f;
+		debugVelocityY = 0.0f;
+		debugVelocityZ = 0.0f;
+		debugVisualPitchRadians = 0.0f;
+		debugVisualRollRadians = 0.0f;
+		debugMotorPower = 0.0f;
+		debugAverageMotorRpm = 0.0f;
+		debugCommandThrottle = 0.0f;
+		debugCommandPitch = 0.0f;
+		debugCommandRoll = 0.0f;
+		debugCommandYaw = 0.0f;
+		physics.state().setPositionMeters(entityPhysicsPosition());
+		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 	}
 
 	private boolean isNearGroundLocked() {
