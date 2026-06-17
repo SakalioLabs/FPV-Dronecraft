@@ -719,13 +719,13 @@ public class DroneEntity extends Entity {
 	}
 
 	private static final float DEBUG_THROTTLE_SMOOTH = 0.24f;
-	private static final float DEBUG_AXIS_RISE_SMOOTH = 0.20f;
-	private static final float DEBUG_AXIS_FALL_SMOOTH = 0.42f;
-	private static final float DEBUG_AXIS_DEADBAND = 0.06f;
-	private static final float DEBUG_AXIS_RESPONSE_EXPO = 0.45f;
+	private static final float DEBUG_AXIS_RISE_SMOOTH = 0.18f;
+	private static final float DEBUG_AXIS_FALL_SMOOTH = 0.44f;
+	private static final float DEBUG_AXIS_DEADBAND = 0.07f;
+	private static final float DEBUG_AXIS_RESPONSE_EXPO = 0.55f;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
-	private static final float DEBUG_FAILSAFE_THROTTLE_SCALE = 0.45f;
+	private static final float DEBUG_FAILSAFE_THROTTLE_SCALE = 0.88f;
 	private static final float DEBUG_FAILSAFE_COMMAND_DAMPING = 0.28f;
 	private static final float DEBUG_FAILSAFE_HORIZONTAL_DAMPING = 0.72f;
 	private static final float DEBUG_FAILSAFE_SETTLED_HORIZONTAL_SPEED = 0.12f;

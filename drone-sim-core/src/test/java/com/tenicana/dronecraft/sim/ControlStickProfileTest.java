@@ -9,11 +9,11 @@ class ControlStickProfileTest {
 	@Test
 	void gamepadProfileSoftensCenterWithoutLosingFullStick() {
 		assertEquals(0.0, ControlStickProfile.gamepadCommand(0.10, 0.10), 1.0e-12);
-		assertTrue(ControlStickProfile.gamepadCommand(0.35, 0.10) < 0.04);
-		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) > 0.09);
-		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) < 0.11);
-		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) > 0.28);
-		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) < 0.33);
+		assertTrue(ControlStickProfile.gamepadCommand(0.35, 0.10) < 0.03);
+		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) > 0.07);
+		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) < 0.09);
+		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) > 0.25);
+		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) < 0.30);
 		assertEquals(1.0, ControlStickProfile.gamepadCommand(1.0, 0.10), 1.0e-12);
 		assertEquals(-1.0, ControlStickProfile.gamepadCommand(-1.0, 0.10), 1.0e-12);
 	}
@@ -22,7 +22,7 @@ class ControlStickProfileTest {
 	void keyboardProfileRoundsBinaryKeysIntoUsableCommands() {
 		assertEquals(0.0, ControlStickProfile.keyboardCommand(0.0), 1.0e-12);
 		assertTrue(ControlStickProfile.keyboardCommand(0.25) < 0.14);
-		assertTrue(ControlStickProfile.keyboardCommand(0.50) < 0.25);
+		assertTrue(ControlStickProfile.keyboardCommand(0.50) < 0.22);
 		assertEquals(1.0, ControlStickProfile.keyboardCommand(1.0), 1.0e-12);
 	}
 

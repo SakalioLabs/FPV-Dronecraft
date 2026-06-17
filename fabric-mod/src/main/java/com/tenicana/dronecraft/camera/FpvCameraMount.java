@@ -4,6 +4,8 @@ import net.minecraft.world.phys.Vec3;
 
 public final class FpvCameraMount {
 	public static final double COLLISION_CLEARANCE_METERS = 0.08;
+	public static final double MIN_CLEAR_FORWARD_OFFSET_METERS = 0.72;
+	public static final double MIN_CLEAR_UP_OFFSET_METERS = 0.42;
 
 	private FpvCameraMount() {
 	}
@@ -24,6 +26,20 @@ public final class FpvCameraMount {
 			return desired;
 		}
 		return origin.add(originToDesired.scale(safeDistance / length));
+	}
+
+	public static double clearForwardOffset(double configuredMeters) {
+		if (!Double.isFinite(configuredMeters)) {
+			return MIN_CLEAR_FORWARD_OFFSET_METERS;
+		}
+		return Math.max(MIN_CLEAR_FORWARD_OFFSET_METERS, configuredMeters);
+	}
+
+	public static double clearUpOffset(double configuredMeters) {
+		if (!Double.isFinite(configuredMeters)) {
+			return MIN_CLEAR_UP_OFFSET_METERS;
+		}
+		return Math.max(MIN_CLEAR_UP_OFFSET_METERS, configuredMeters);
 	}
 
 	private static boolean finite(Vec3 vector) {

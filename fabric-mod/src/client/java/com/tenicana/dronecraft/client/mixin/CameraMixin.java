@@ -95,10 +95,12 @@ public abstract class CameraMixin {
 				-pitchDegrees * Mth.DEG_TO_RAD,
 				-rollRadians
 		);
+		float clearForwardOffsetMeters = (float) FpvCameraMount.clearForwardOffset(config.cameraForwardOffsetMeters());
+		float clearUpOffsetMeters = (float) FpvCameraMount.clearUpOffset(config.cameraUpOffsetMeters());
 		Vector3f cameraOffset = new Vector3f(
 				shake.lateralMeters(),
-				config.cameraUpOffsetMeters() + shake.verticalMeters(),
-				-config.cameraForwardOffsetMeters() + shake.forwardMeters()
+				clearUpOffsetMeters + shake.verticalMeters(),
+				-clearForwardOffsetMeters + shake.forwardMeters()
 		).rotate(bodyRotation);
 		Vec3 cameraOrigin = new Vec3(delayedPose.xMeters(), delayedPose.yMeters(), delayedPose.zMeters());
 		Vec3 desiredPosition = cameraOrigin.add(cameraOffset.x(), cameraOffset.y(), cameraOffset.z());

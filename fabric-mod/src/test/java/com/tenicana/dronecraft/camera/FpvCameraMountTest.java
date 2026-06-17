@@ -45,4 +45,12 @@ class FpvCameraMountTest {
 		assertEquals(origin.y(), adjusted.y(), 1.0e-9);
 		assertEquals(origin.z(), adjusted.z(), 1.0e-9);
 	}
+
+	@Test
+	void clearOffsetsKeepCameraOutOfAirframeEvenWithOldConfig() {
+		assertEquals(0.72, FpvCameraMount.clearForwardOffset(0.16), 1.0e-9);
+		assertEquals(0.42, FpvCameraMount.clearUpOffset(0.16), 1.0e-9);
+		assertEquals(0.82, FpvCameraMount.clearForwardOffset(0.82), 1.0e-9);
+		assertEquals(0.52, FpvCameraMount.clearUpOffset(0.52), 1.0e-9);
+	}
 }
