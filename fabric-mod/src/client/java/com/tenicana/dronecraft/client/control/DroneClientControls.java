@@ -38,10 +38,14 @@ public final class DroneClientControls {
 	private static final KeyMapping GAMEPAD_TOGGLE = register("key.fpvdrone.gamepad_toggle", GLFW.GLFW_KEY_G);
 	private static final KeyMapping CONFIG_RELOAD = register("key.fpvdrone.reload_config", GLFW.GLFW_KEY_H);
 	private static final KeyMapping CONTROLLER_SETTINGS = register("key.fpvdrone.open_controller_settings", GLFW.GLFW_KEY_I);
-	private static final KeyMapping THROTTLE_UP = register("key.fpvdrone.throttle_up", GLFW.GLFW_KEY_SPACE);
-	private static final KeyMapping THROTTLE_DOWN = register("key.fpvdrone.throttle_down", GLFW.GLFW_KEY_LEFT_SHIFT);
-	private static final KeyMapping YAW_LEFT = register("key.fpvdrone.yaw_left", GLFW.GLFW_KEY_Q);
-	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_E);
+	private static final KeyMapping PITCH_FORWARD = register("key.fpvdrone.pitch_forward", GLFW.GLFW_KEY_UP);
+	private static final KeyMapping PITCH_BACK = register("key.fpvdrone.pitch_back", GLFW.GLFW_KEY_DOWN);
+	private static final KeyMapping ROLL_LEFT = register("key.fpvdrone.roll_left", GLFW.GLFW_KEY_LEFT);
+	private static final KeyMapping ROLL_RIGHT = register("key.fpvdrone.roll_right", GLFW.GLFW_KEY_RIGHT);
+	private static final KeyMapping THROTTLE_UP = register("key.fpvdrone.throttle_up", GLFW.GLFW_KEY_PAGE_UP);
+	private static final KeyMapping THROTTLE_DOWN = register("key.fpvdrone.throttle_down", GLFW.GLFW_KEY_PAGE_DOWN);
+	private static final KeyMapping YAW_LEFT = register("key.fpvdrone.yaw_left", GLFW.GLFW_KEY_Z);
+	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_X);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
 	private static final float KEYBOARD_AXIS_RISE_PER_TICK = 0.075f;
@@ -261,8 +265,8 @@ public final class DroneClientControls {
 	}
 
 	private static boolean canArmWithKeyboard(Minecraft client) {
-		float pitch = largerMagnitude(keyboardPitchAxis, axis(client.options.keyDown.isDown(), client.options.keyUp.isDown()));
-		float roll = largerMagnitude(keyboardRollAxis, axis(client.options.keyLeft.isDown(), client.options.keyRight.isDown()));
+		float pitch = largerMagnitude(keyboardPitchAxis, axis(PITCH_BACK.isDown(), PITCH_FORWARD.isDown()));
+		float roll = largerMagnitude(keyboardRollAxis, axis(ROLL_LEFT.isDown(), ROLL_RIGHT.isDown()));
 		float yaw = largerMagnitude(keyboardYawAxis, axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown()));
 		return DroneArmSafety.canArmFromMomentaryControl(throttle, pitch, roll, yaw);
 	}
@@ -345,8 +349,8 @@ public final class DroneClientControls {
 		}
 		throttle = (float) Mth.clamp(throttle + throttleDelta, 0.0, 1.0);
 
-		keyboardPitchAxis = approachKeyboardAxis(keyboardPitchAxis, axis(client.options.keyDown.isDown(), client.options.keyUp.isDown()));
-		keyboardRollAxis = approachKeyboardAxis(keyboardRollAxis, axis(client.options.keyLeft.isDown(), client.options.keyRight.isDown()));
+		keyboardPitchAxis = approachKeyboardAxis(keyboardPitchAxis, axis(PITCH_BACK.isDown(), PITCH_FORWARD.isDown()));
+		keyboardRollAxis = approachKeyboardAxis(keyboardRollAxis, axis(ROLL_LEFT.isDown(), ROLL_RIGHT.isDown()));
 		keyboardYawAxis = approachKeyboardAxis(keyboardYawAxis, axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown()));
 		return new ControlInput(
 				throttle,
