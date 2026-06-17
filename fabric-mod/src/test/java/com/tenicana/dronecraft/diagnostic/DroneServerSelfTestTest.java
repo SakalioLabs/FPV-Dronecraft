@@ -23,6 +23,7 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "finalX", 1.30);
 		setDouble(selfTest, "finalY", 80.12);
 		setDouble(selfTest, "finalZ", -1.60);
+		setDouble(selfTest, "minPlayableLowAltitudeAuthority", 0.62);
 		setDouble(selfTest, "finalSpeed", 0.08);
 		setDouble(selfTest, "finalAltitudeGain", 0.12);
 		setDouble(selfTest, "finalHorizontalDistance", 0.50);
@@ -81,6 +82,8 @@ class DroneServerSelfTestTest {
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest.csv"));
 
 		assertTrue(json.contains("\"flight_model\": \"simulation\""));
+		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 0.62000"));
+		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 38.000"));
 		assertTrue(json.contains("\"final_speed_mps\": 0.08000"));
 		assertTrue(json.contains("\"final_altitude_gain_m\": 0.12000"));
 		assertTrue(json.contains("\"final_horizontal_distance_m\": 0.50000"));
@@ -144,6 +147,8 @@ class DroneServerSelfTestTest {
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest-playable.csv"));
 
 		assertTrue(json.contains("\"flight_model\": \"playable\""));
+		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 1.00000"));
+		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 0.000"));
 	}
 
 	@Test

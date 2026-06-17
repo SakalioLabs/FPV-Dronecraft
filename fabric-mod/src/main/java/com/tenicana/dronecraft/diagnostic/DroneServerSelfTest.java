@@ -19,6 +19,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
+import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
@@ -65,6 +66,7 @@ public final class DroneServerSelfTest {
 	private double initialZ;
 	private double maxAltitudeGain;
 	private double maxHorizontalDistance;
+	private double minPlayableLowAltitudeAuthority = 1.0;
 	private double maxSpeed;
 	private double maxAirspeed;
 	private double maxMotorPower;
@@ -993,13 +995,19 @@ public final class DroneServerSelfTest {
 			finalSpeed = drone.getSpeedMetersPerSecond();
 			finalAltitudeGain = finalY - initialY;
 			finalHorizontalDistance = Math.hypot(finalX - initialX, finalZ - initialZ);
+			if (drone.blackbox().size() > 0) {
+				minPlayableLowAltitudeAuthority = DroneBlackboxSummary.from(drone.blackbox()).minPlayableLowAltitudeAuthority();
+			}
 		}
+		double maxPlayableLowAltitudeSuppressionPercent = Math.max(0.0, (1.0 - minPlayableLowAltitudeAuthority) * 100.0);
 		return String.format(
 				Locale.ROOT,
 				"{\n"
 						+ "  \"passed\": %s,\n"
 						+ "  \"reason\": \"%s\",\n"
 						+ "  \"flight_model\": \"%s\",\n"
+						+ "  \"min_playable_low_altitude_authority\": %.5f,\n"
+						+ "  \"max_playable_low_altitude_suppression_percent\": %.3f,\n"
 						+ "  \"csv_column_count\": %d,\n"
 						+ "  \"airframe_rotor_count\": %d,\n"
 						+ "  \"physics_substeps_per_tick\": %d,\n"
@@ -1098,6 +1106,8 @@ public final class DroneServerSelfTest {
 				passed,
 				escapeJson(reason),
 				flightModelMode.id(),
+				minPlayableLowAltitudeAuthority,
+				maxPlayableLowAltitudeSuppressionPercent,
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
 				drone == null ? 0 : drone.config().rotors().size(),
 				PHYSICS_STEPS_PER_TICK,

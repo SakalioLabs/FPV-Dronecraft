@@ -737,6 +737,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(4, summary.simulationFlightModelSamples());
 		assertEquals(10, summary.maxPhysicsSubsteps());
 		assertEquals(200.0, summary.maxPhysicsRateHertz(), 0.001);
+		assertEquals(1.0, summary.minPlayableLowAltitudeAuthority(), 1.0e-6);
 		assertTrue(summary.maxSpeedMetersPerSecond() >= 0.0);
 		assertUnitInterval(summary.maxAirframeSeparatedFlowIntensity());
 		assertTrue(summary.maxAirframeLiftForceNewtons() >= 0.0);
@@ -1062,7 +1063,8 @@ class DroneBlackboxRecorderTest {
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(1, summary.playableFlightModelSamples());
 		assertEquals(0, summary.simulationFlightModelSamples());
-		assertTrue(summary.formatForChat().contains("flight playable 1 sim 0"));
+		assertEquals(0.62, summary.minPlayableLowAltitudeAuthority(), 1.0e-5);
+		assertTrue(summary.formatForChat().contains("flight playable 1 sim 0 lowAlt 38%"));
 	}
 
 	@Test
