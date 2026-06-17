@@ -39,7 +39,9 @@ class DronePhysicsTest {
 		assertTrue(rollCenterSensitivity <= 165.0);
 		assertEquals(DroneConfig.DEFAULT_THROTTLE_COMMAND_CURVE_EXPONENT, config.throttleCommandCurveExponent(), 1.0e-12);
 		assertTrue(config.hoverThrottle() > 0.18 && config.hoverThrottle() < 0.22, () -> "hoverThrottle=" + config.hoverThrottle());
-		assertEquals(config.hoverThrottle(), ControlStickProfile.gamepadThrottle(0.45), 0.015);
+		assertEquals(config.hoverThrottle(), ControlStickProfile.gamepadThrottle(0.50), 0.005);
+		assertTrue(ControlStickProfile.gamepadThrottle(0.45) < config.hoverThrottle());
+		assertTrue(ControlStickProfile.gamepadThrottle(0.60) > config.hoverThrottle() + 0.05);
 		assertEquals(0.055, config.motorIdleThrustFraction(), 1.0e-12);
 		assertEquals(Math.toRadians(32.0), config.selfLevelMaxAngleRadians(), 1.0e-12);
 		assertEquals(5.0, config.selfLevelRateGain(), 1.0e-12);

@@ -142,6 +142,25 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeGivesGamepadCenterAStableHoverWindow() {
+		float centerThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
+		float slightClimbStick = (float) ControlStickProfile.gamepadThrottle(0.55);
+		float climbStick = (float) ControlStickProfile.gamepadThrottle(0.60);
+		float descentStick = (float) ControlStickProfile.gamepadThrottle(0.40);
+
+		PlayableFlightModel.Step center = holdStick(FlightMode.ANGLE, 8, centerThrottle, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step slightClimb = holdStick(FlightMode.ANGLE, 8, slightClimbStick, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step climb = holdStick(FlightMode.ANGLE, 8, climbStick, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step descent = holdStick(FlightMode.ANGLE, 8, descentStick, 0.0f, 0.0f, 0.0f);
+
+		assertEquals(0.0f, center.targetVelocityY(), 1.0e-5f);
+		assertEquals(0.0f, slightClimb.targetVelocityY(), 1.0e-5f);
+		assertTrue(climb.targetVelocityY() > 0.10f);
+		assertTrue(descent.targetVelocityY() < -0.10f);
+		assertTrue(descent.targetVelocityY() > -0.35f);
+	}
+
+	@Test
 	void acroModeHoldsAttitudeAfterStickRelease() {
 		PlayableFlightModel.Step held = holdStick(FlightMode.ACRO, 10, 0.45f, 0.90f, -0.80f, 0.0f);
 		PlayableFlightModel.Step released = runFrom(

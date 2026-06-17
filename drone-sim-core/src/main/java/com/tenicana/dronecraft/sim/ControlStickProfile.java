@@ -3,7 +3,10 @@ package com.tenicana.dronecraft.sim;
 public final class ControlStickProfile {
 	public static final double GAMEPAD_COMMAND_DEADBAND = 0.22;
 	public static final double GAMEPAD_COMMAND_EXPO = 0.97;
-	public static final double GAMEPAD_THROTTLE_EXPONENT = 2.0;
+	public static final double GAMEPAD_THROTTLE_HOVER_STICK = 0.50;
+	public static final double GAMEPAD_THROTTLE_HOVER_COMMAND = 0.20;
+	public static final double GAMEPAD_THROTTLE_LOW_EXPONENT = 1.60;
+	public static final double GAMEPAD_THROTTLE_HIGH_EXPONENT = 1.45;
 	public static final double KEYBOARD_COMMAND_EXPO = 0.82;
 
 	private ControlStickProfile() {
@@ -26,7 +29,13 @@ public final class ControlStickProfile {
 
 	public static double gamepadThrottle(double value) {
 		double clamped = MathUtil.clamp(value, 0.0, 1.0);
-		return Math.pow(clamped, GAMEPAD_THROTTLE_EXPONENT);
+		if (clamped <= GAMEPAD_THROTTLE_HOVER_STICK) {
+			double low = clamped / GAMEPAD_THROTTLE_HOVER_STICK;
+			return GAMEPAD_THROTTLE_HOVER_COMMAND * Math.pow(low, GAMEPAD_THROTTLE_LOW_EXPONENT);
+		}
+		double high = (clamped - GAMEPAD_THROTTLE_HOVER_STICK) / (1.0 - GAMEPAD_THROTTLE_HOVER_STICK);
+		return GAMEPAD_THROTTLE_HOVER_COMMAND
+				+ (1.0 - GAMEPAD_THROTTLE_HOVER_COMMAND) * Math.pow(high, GAMEPAD_THROTTLE_HIGH_EXPONENT);
 	}
 
 	public static double keyboardCommand(double value) {
