@@ -66,7 +66,9 @@ public final class DroneClientControls {
 	private static boolean gamepadDisarmButtonDown;
 	private static boolean gamepadCalibrateButtonDown;
 	private static final int ARM_GESTURE_HOLD_TICKS = 7;
+	private static final int MODE_SWITCH_RAMP_TICKS = 8;
 	private static final StickArmGestureLatch STICK_ARM_GESTURE = new StickArmGestureLatch(ARM_GESTURE_HOLD_TICKS);
+	private static final FlightModeInputRamp MODE_SWITCH_RAMP = new FlightModeInputRamp(MODE_SWITCH_RAMP_TICKS);
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -83,6 +85,7 @@ public final class DroneClientControls {
 				gamepadDisarmButtonDown = false;
 				gamepadCalibrateButtonDown = false;
 				STICK_ARM_GESTURE.reset();
+				MODE_SWITCH_RAMP.reset();
 				throttleCalibrationActive = false;
 				return;
 			}
@@ -123,6 +126,7 @@ public final class DroneClientControls {
 					: null;
 			if (!controlAuthorized) {
 				STICK_ARM_GESTURE.reset();
+				MODE_SWITCH_RAMP.reset();
 				resetKeyboardAxes();
 				DroneClientState.updateControls(
 						throttle,
@@ -147,6 +151,7 @@ public final class DroneClientControls {
 
 			while (FLIGHT_MODE.consumeClick()) {
 				flightMode = flightMode.next();
+				MODE_SWITCH_RAMP.trigger();
 				client.player.displayClientMessage(Component.translatable("message.fpvdrone.flight_mode", flightMode.name()), true);
 			}
 
@@ -187,6 +192,7 @@ public final class DroneClientControls {
 			if (gamepadInput != null && isStickArmGesture(gamepadInput)) {
 				input = new ControlInput(0.0f, 0.0f, 0.0f, 0.0f, InputSource.GAMEPAD);
 			}
+			input = applyModeSwitchRamp(input);
 			throttle = input.throttle();
 			DroneClientState.updateControls(
 					input.throttle(),
@@ -292,6 +298,20 @@ public final class DroneClientControls {
 				commandAxis(input.roll()),
 				commandAxis(input.yaw()),
 				InputSource.GAMEPAD
+		);
+	}
+
+	private static ControlInput applyModeSwitchRamp(ControlInput input) {
+		float scale = MODE_SWITCH_RAMP.sampleAndAdvance();
+		if (scale >= 0.999f) {
+			return input;
+		}
+		return new ControlInput(
+				input.throttle(),
+				input.pitch() * scale,
+				input.roll() * scale,
+				input.yaw() * scale,
+				input.source()
 		);
 	}
 
