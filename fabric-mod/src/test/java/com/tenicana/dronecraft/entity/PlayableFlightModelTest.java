@@ -540,6 +540,35 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeHonorsAirframeSpecificGamepadHoverDetent() {
+		float heavyHover = 0.40f;
+		float lowJitterThrottle = (float) ControlStickProfile.gamepadThrottle(0.48, heavyHover);
+		float centerThrottle = (float) ControlStickProfile.gamepadThrottle(0.50, heavyHover);
+		float highJitterThrottle = (float) ControlStickProfile.gamepadThrottle(0.52, heavyHover);
+		float slightClimbStick = (float) ControlStickProfile.gamepadThrottle(0.55, heavyHover);
+		float climbStick = (float) ControlStickProfile.gamepadThrottle(0.60, heavyHover);
+		float descentStick = (float) ControlStickProfile.gamepadThrottle(0.40, heavyHover);
+
+		PlayableFlightModel.Step lowJitter = holdStick(FlightMode.ANGLE, 8, lowJitterThrottle, 0.0f, 0.0f, 0.0f, heavyHover);
+		PlayableFlightModel.Step center = holdStick(FlightMode.ANGLE, 8, centerThrottle, 0.0f, 0.0f, 0.0f, heavyHover);
+		PlayableFlightModel.Step highJitter = holdStick(FlightMode.ANGLE, 8, highJitterThrottle, 0.0f, 0.0f, 0.0f, heavyHover);
+		PlayableFlightModel.Step slightClimb = holdStick(FlightMode.ANGLE, 8, slightClimbStick, 0.0f, 0.0f, 0.0f, heavyHover);
+		PlayableFlightModel.Step climb = holdStick(FlightMode.ANGLE, 8, climbStick, 0.0f, 0.0f, 0.0f, heavyHover);
+		PlayableFlightModel.Step descent = holdStick(FlightMode.ANGLE, 8, descentStick, 0.0f, 0.0f, 0.0f, heavyHover);
+
+		assertEquals(heavyHover, lowJitterThrottle, 1.0e-6f);
+		assertEquals(heavyHover, centerThrottle, 1.0e-6f);
+		assertEquals(heavyHover, highJitterThrottle, 1.0e-6f);
+		assertEquals(0.0f, lowJitter.targetVelocityY(), 1.0e-5f);
+		assertEquals(0.0f, center.targetVelocityY(), 1.0e-5f);
+		assertEquals(0.0f, highJitter.targetVelocityY(), 1.0e-5f);
+		assertEquals(0.0f, slightClimb.targetVelocityY(), 1.0e-5f);
+		assertTrue(climb.targetVelocityY() > 0.05f);
+		assertTrue(descent.targetVelocityY() < -0.15f);
+		assertTrue(descent.targetVelocityY() > -0.35f);
+	}
+
+	@Test
 	void playableServerLayerPreservesClientShapedFineStickCommands() {
 		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 1.00, 0.42);
 
@@ -682,6 +711,10 @@ class PlayableFlightModelTest {
 
 	private static PlayableFlightModel.Step holdStick(FlightMode mode, int ticks, float throttle, float pitch, float roll, float yaw) {
 		return runFrom(mode, ticks, throttle, pitch, roll, yaw, 0.20f, false, PlayableFlightModel.State.ZERO);
+	}
+
+	private static PlayableFlightModel.Step holdStick(FlightMode mode, int ticks, float throttle, float pitch, float roll, float yaw, float hoverThrottle) {
+		return runFrom(mode, ticks, throttle, pitch, roll, yaw, hoverThrottle, false, PlayableFlightModel.State.ZERO);
 	}
 
 	private static PlayableFlightModel.Step runFrom(

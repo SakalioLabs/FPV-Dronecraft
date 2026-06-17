@@ -313,7 +313,7 @@ public final class DroneClientControls {
 
 	private static ControlInput gamepadInputAsControl(GamepadInput input) {
 		return new ControlInput(
-				(float) ControlStickProfile.gamepadThrottle(input.throttle()),
+				(float) ControlStickProfile.gamepadThrottle(input.throttle(), currentHoverThrottle()),
 				commandAxis(input.pitch(), config.gamepadRollPitchRateScale()),
 				commandAxis(input.roll(), config.gamepadRollPitchRateScale()),
 				commandAxis(input.yaw(), config.gamepadYawRateScale()),
@@ -385,7 +385,7 @@ public final class DroneClientControls {
 	}
 
 	private static ControlInput keyboardInput(Minecraft client) {
-		throttle = KeyboardControlShaper.adjustThrottle(throttle, keyboardThrottleDirection(), keyboardHoverThrottle());
+		throttle = KeyboardControlShaper.adjustThrottle(throttle, keyboardThrottleDirection(), currentHoverThrottle());
 
 		keyboardPitchAxis = approachKeyboardAxis(keyboardPitchAxis, axis(PITCH_BACK.isDown(), PITCH_FORWARD.isDown()));
 		keyboardRollAxis = approachKeyboardAxis(keyboardRollAxis, axis(ROLL_LEFT.isDown(), ROLL_RIGHT.isDown()));
@@ -406,7 +406,7 @@ public final class DroneClientControls {
 		return THROTTLE_UP.isDown() ? 1 : -1;
 	}
 
-	private static float keyboardHoverThrottle() {
+	private static float currentHoverThrottle() {
 		DroneEntity drone = DroneClientState.controlledDrone();
 		double hoverThrottle = drone == null ? DroneConfig.racingQuad().hoverThrottle() : drone.config().hoverThrottle();
 		return (float) Mth.clamp(hoverThrottle, 0.05, 0.75);

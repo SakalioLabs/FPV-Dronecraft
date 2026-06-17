@@ -50,4 +50,15 @@ class ControlStickProfileTest {
 		assertTrue(ControlStickProfile.gamepadThrottle(0.60) < 0.29);
 		assertEquals(1.0, ControlStickProfile.gamepadThrottle(1.0), 1.0e-12);
 	}
+
+	@Test
+	void gamepadThrottleDetentCanTrackAirframeHoverCommand() {
+		assertEquals(0.40, ControlStickProfile.gamepadThrottle(0.48, 0.40), 1.0e-12);
+		assertEquals(0.40, ControlStickProfile.gamepadThrottle(0.50, 0.40), 1.0e-12);
+		assertEquals(0.40, ControlStickProfile.gamepadThrottle(0.52, 0.40), 1.0e-12);
+		assertTrue(ControlStickProfile.gamepadThrottle(0.45, 0.40) < 0.40);
+		assertTrue(ControlStickProfile.gamepadThrottle(0.60, 0.40) > 0.45);
+		assertTrue(ControlStickProfile.gamepadThrottle(0.60, 0.40) < 0.47);
+		assertEquals(0.20, ControlStickProfile.gamepadThrottle(0.50, Double.NaN), 1.0e-12);
+	}
 }

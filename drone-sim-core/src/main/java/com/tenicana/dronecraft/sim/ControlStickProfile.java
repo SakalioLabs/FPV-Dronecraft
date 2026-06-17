@@ -35,17 +35,22 @@ public final class ControlStickProfile {
 	}
 
 	public static double gamepadThrottle(double value) {
+		return gamepadThrottle(value, GAMEPAD_THROTTLE_HOVER_COMMAND);
+	}
+
+	public static double gamepadThrottle(double value, double hoverCommand) {
 		double clamped = MathUtil.clamp(value, 0.0, 1.0);
+		double safeHoverCommand = sanitizeHoverCommand(hoverCommand);
 		if (Math.abs(clamped - GAMEPAD_THROTTLE_HOVER_STICK) <= GAMEPAD_THROTTLE_HOVER_DETENT + FLOAT_EDGE_EPSILON) {
-			return GAMEPAD_THROTTLE_HOVER_COMMAND;
+			return safeHoverCommand;
 		}
 		if (clamped <= GAMEPAD_THROTTLE_HOVER_STICK) {
 			double low = clamped / GAMEPAD_THROTTLE_HOVER_STICK;
-			return GAMEPAD_THROTTLE_HOVER_COMMAND * Math.pow(low, GAMEPAD_THROTTLE_LOW_EXPONENT);
+			return safeHoverCommand * Math.pow(low, GAMEPAD_THROTTLE_LOW_EXPONENT);
 		}
 		double high = (clamped - GAMEPAD_THROTTLE_HOVER_STICK) / (1.0 - GAMEPAD_THROTTLE_HOVER_STICK);
-		return GAMEPAD_THROTTLE_HOVER_COMMAND
-				+ (1.0 - GAMEPAD_THROTTLE_HOVER_COMMAND) * Math.pow(high, GAMEPAD_THROTTLE_HIGH_EXPONENT);
+		return safeHoverCommand
+				+ (1.0 - safeHoverCommand) * Math.pow(high, GAMEPAD_THROTTLE_HIGH_EXPONENT);
 	}
 
 	public static double keyboardCommand(double value) {
@@ -62,5 +67,12 @@ public final class ControlStickProfile {
 		double cubic = magnitude * magnitude * magnitude;
 		double curved = (1.0 - safeExpo) * magnitude + safeExpo * cubic;
 		return Math.copySign(curved, clamped);
+	}
+
+	private static double sanitizeHoverCommand(double hoverCommand) {
+		if (!Double.isFinite(hoverCommand)) {
+			return GAMEPAD_THROTTLE_HOVER_COMMAND;
+		}
+		return MathUtil.clamp(hoverCommand, 0.0, 1.0);
 	}
 }
