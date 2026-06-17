@@ -36,6 +36,34 @@ class ControlInputSmootherTest {
 	}
 
 	@Test
+	void releasedSmallAxisResidualSnapsToZero() {
+		ControlInputSmoother smoother = new ControlInputSmoother();
+		for (int i = 0; i < 12; i++) {
+			smoother.sample(1.0f, -1.0f, 1.0f, 0.032f, 0.32f);
+		}
+
+		ControlInputSmoother.Axes released = smoother.sample(0.0f, 0.0f, 0.0f, 0.032f, 0.32f);
+
+		assertEquals(0.0f, released.pitch(), 1.0e-6f);
+		assertEquals(0.0f, released.roll(), 1.0e-6f);
+		assertEquals(0.0f, released.yaw(), 1.0e-6f);
+	}
+
+	@Test
+	void releasedLargeAxisResidualStillUsesBrakeStep() {
+		ControlInputSmoother smoother = new ControlInputSmoother();
+		for (int i = 0; i < 20; i++) {
+			smoother.sample(1.0f, 1.0f, 1.0f, 0.032f, 0.32f);
+		}
+
+		ControlInputSmoother.Axes released = smoother.sample(0.0f, 0.0f, 0.0f, 0.032f, 0.32f);
+
+		assertTrue(released.pitch() > 0.25f);
+		assertTrue(released.roll() > 0.25f);
+		assertTrue(released.yaw() > 0.25f);
+	}
+
+	@Test
 	void throttleRisesSmoothlyButReachesHoverQuickly() {
 		ControlInputSmoother smoother = new ControlInputSmoother();
 

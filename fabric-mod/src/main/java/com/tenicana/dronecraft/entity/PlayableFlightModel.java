@@ -3,6 +3,7 @@ package com.tenicana.dronecraft.entity;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 final class PlayableFlightModel {
+	private static final FlightMode DEFAULT_PLAYABLE_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 	private static final float DESCENT_GAIN = 1.0f;
 	private static final float THRUST_GAIN = 2.5f;
 	private static final float THRUST_DEADZONE = 0.005f;
@@ -59,7 +60,7 @@ final class PlayableFlightModel {
 			float lowAltitudeHorizontalAuthorityScale,
 			State previous
 	) {
-		FlightMode safeMode = mode == null ? FlightMode.HORIZON : mode;
+		FlightMode safeMode = safeMode(mode);
 		Profile profile = Profile.forMode(safeMode);
 		float safeThrottle = clamp(throttle, 0.0f, 1.0f);
 		float safePitch = clamp(pitch, -1.0f, 1.0f);
@@ -196,7 +197,7 @@ final class PlayableFlightModel {
 	}
 
 	private static Attitude attitude(FlightMode mode, Profile profile, float pitch, float roll, State previous) {
-		FlightMode safeMode = mode == null ? FlightMode.HORIZON : mode;
+		FlightMode safeMode = safeMode(mode);
 		return switch (safeMode) {
 			case ANGLE -> angleAttitude(profile, pitch, roll, previous);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
@@ -299,7 +300,7 @@ final class PlayableFlightModel {
 	}
 
 	private static float lowAltitudeAttitudeCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
-		float minimum = switch (mode == null ? FlightMode.HORIZON : mode) {
+		float minimum = switch (safeMode(mode)) {
 			case ANGLE -> 0.68f;
 			case HORIZON -> 0.76f;
 			case ACRO -> 0.90f;
@@ -308,7 +309,7 @@ final class PlayableFlightModel {
 	}
 
 	private static float lowAltitudeYawCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
-		float minimum = switch (mode == null ? FlightMode.HORIZON : mode) {
+		float minimum = switch (safeMode(mode)) {
 			case ANGLE -> 0.66f;
 			case HORIZON -> 0.72f;
 			case ACRO -> 0.86f;
@@ -325,7 +326,7 @@ final class PlayableFlightModel {
 	}
 
 	private static float lowThrottleHorizontalAuthority(FlightMode mode) {
-		return switch (mode == null ? FlightMode.HORIZON : mode) {
+		return switch (safeMode(mode)) {
 			case ANGLE -> LOW_THROTTLE_ANGLE_HORIZONTAL_AUTHORITY;
 			case HORIZON -> LOW_THROTTLE_HORIZON_HORIZONTAL_AUTHORITY;
 			case ACRO -> LOW_THROTTLE_ACRO_HORIZONTAL_AUTHORITY;
@@ -333,7 +334,7 @@ final class PlayableFlightModel {
 	}
 
 	private static float groundHorizontalAuthorityScale(FlightMode mode) {
-		return switch (mode == null ? FlightMode.HORIZON : mode) {
+		return switch (safeMode(mode)) {
 			case ANGLE -> GROUND_ANGLE_HORIZONTAL_AUTHORITY_SCALE;
 			case HORIZON -> GROUND_HORIZON_HORIZONTAL_AUTHORITY_SCALE;
 			case ACRO -> GROUND_ACRO_HORIZONTAL_AUTHORITY_SCALE;
@@ -422,23 +423,27 @@ final class PlayableFlightModel {
 		return Math.max(min, Math.min(max, value));
 	}
 
+	private static FlightMode safeMode(FlightMode mode) {
+		return mode == null ? DEFAULT_PLAYABLE_MODE : mode;
+	}
+
 	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode) {
-		static final State ZERO = zero(FlightMode.HORIZON);
+		static final State ZERO = zero(DEFAULT_PLAYABLE_MODE);
 
 		State(float velocityX, float velocityY, float velocityZ) {
-			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, FlightMode.HORIZON);
+			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, DEFAULT_PLAYABLE_MODE);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, FlightMode.HORIZON);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, DEFAULT_PLAYABLE_MODE);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, FlightMode.HORIZON);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, DEFAULT_PLAYABLE_MODE);
 		}
 
 		static State zero(FlightMode mode) {
-			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, mode == null ? FlightMode.HORIZON : mode);
+			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, safeMode(mode));
 		}
 	}
 
@@ -490,7 +495,7 @@ final class PlayableFlightModel {
 			float thrustGain
 	) {
 		private static Profile forMode(FlightMode mode) {
-			return switch (mode == null ? FlightMode.HORIZON : mode) {
+			return switch (safeMode(mode)) {
 				case ANGLE -> new Profile(0.54f, 0.78f, radians(10.0f), radians(10.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.40f, 0.34f, 0.72f, 0.10f, radians(0.50f), 0.54f, radians(3.0f), 0.78f, 0.10f, 0.36f, 0.72f, 0.08f, 0.38f, 0.06f, 0.085f, 0.055f, 0.62f, 1.45f);
 				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.85f, 0.74f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, 0.24f, 0.055f, 0.075f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
 				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.95f, 0.40f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.0f, 0.0f, 0.0f, 0.030f, 1.10f, 2.80f);

@@ -29,6 +29,31 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void nullModeFallsBackToFirstFlightAngle() {
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				null,
+				0.45f,
+				0.60f,
+				0.60f,
+				0.60f,
+				0.20f,
+				false,
+				null
+		);
+
+		assertEquals(FlightMode.DEFAULT_FIRST_FLIGHT, step.mode());
+		assertTrue(Math.abs(step.pitchRadians()) <= Math.toRadians(0.55));
+		assertTrue(Math.abs(step.rollRadians()) <= Math.toRadians(0.55));
+		assertTrue(step.yawDegreesPerTick() <= 0.25f);
+	}
+
+	@Test
+	void zeroPlayableStateUsesFirstFlightAngle() {
+		assertEquals(FlightMode.DEFAULT_FIRST_FLIGHT, PlayableFlightModel.State.ZERO.mode());
+		assertEquals(FlightMode.DEFAULT_FIRST_FLIGHT, PlayableFlightModel.State.zero(null).mode());
+	}
+
+	@Test
 	void lowThrottleDescendsUnlessGroundLocked() {
 		PlayableFlightModel.Step airborne = PlayableFlightModel.step(
 				FlightMode.HORIZON,
