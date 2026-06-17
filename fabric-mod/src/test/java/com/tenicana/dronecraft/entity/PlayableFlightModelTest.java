@@ -161,7 +161,7 @@ class PlayableFlightModelTest {
 		assertTrue(Math.abs(held.rollRadians()) > Math.toRadians(7.0));
 		assertTrue(Math.abs(held.targetVelocityX()) > 0.35f);
 		assertTrue(Math.abs(held.targetVelocityZ()) > 0.35f);
-		assertTrue(held.yawDegreesPerTick() > 0.40f);
+		assertTrue(held.yawDegreesPerTick() > 0.34f);
 	}
 
 	@Test
@@ -189,9 +189,9 @@ class PlayableFlightModelTest {
 				stateFrom(held)
 		);
 
-		assertTrue(first.yawDegreesPerTick() > 0.15f);
-		assertTrue(first.yawDegreesPerTick() < 0.25f);
-		assertTrue(held.yawDegreesPerTick() > 0.47f);
+		assertTrue(first.yawDegreesPerTick() > 0.12f);
+		assertTrue(first.yawDegreesPerTick() < 0.22f);
+		assertTrue(held.yawDegreesPerTick() > 0.35f);
 		assertTrue(released.yawDegreesPerTick() < 0.02f);
 	}
 
@@ -210,8 +210,8 @@ class PlayableFlightModelTest {
 				stateFrom(held)
 		);
 
-		assertTrue(Math.abs(held.velocityX()) > 0.35f);
-		assertTrue(Math.abs(held.velocityZ()) > 0.35f);
+		assertTrue(Math.abs(held.velocityX()) > 0.25f);
+		assertTrue(Math.abs(held.velocityZ()) > 0.25f);
 		assertTrue(Math.abs(released.velocityX()) < 0.07f);
 		assertTrue(Math.abs(released.velocityZ()) < 0.07f);
 	}
@@ -312,10 +312,10 @@ class PlayableFlightModelTest {
 				PlayableFlightModel.State.zero(FlightMode.ANGLE)
 		);
 
-		assertTrue(Math.abs(step.targetVelocityX()) > 0.18f);
-		assertTrue(Math.abs(step.targetVelocityZ()) > 0.18f);
-		assertTrue(Math.abs(step.velocityX()) > 0.08f);
-		assertTrue(Math.abs(step.velocityZ()) > 0.08f);
+		assertTrue(Math.abs(step.targetVelocityX()) > 0.15f);
+		assertTrue(Math.abs(step.targetVelocityZ()) > 0.15f);
+		assertTrue(Math.abs(step.velocityX()) > 0.055f);
+		assertTrue(Math.abs(step.velocityZ()) > 0.055f);
 	}
 
 	@Test
@@ -353,8 +353,8 @@ class PlayableFlightModelTest {
 				stateFrom(held)
 		);
 
-		assertTrue(Math.abs(held.velocityX()) > 0.35f);
-		assertTrue(Math.abs(held.velocityZ()) > 0.35f);
+		assertTrue(Math.abs(held.velocityX()) > 0.25f);
+		assertTrue(Math.abs(held.velocityZ()) > 0.25f);
 		assertEquals(0.0f, landed.targetVelocityY(), 1.0e-5f);
 		assertEquals(0.0f, landed.velocityY(), 1.0e-5f);
 		assertTrue(Math.abs(landed.velocityX()) < 0.03f);
@@ -533,7 +533,7 @@ class PlayableFlightModelTest {
 		assertTrue(medium.yawDegreesPerTick() < 0.07f);
 		assertTrue(Math.abs(full.pitchRadians()) > Math.toRadians(3.5));
 		assertTrue(Math.abs(full.rollRadians()) > Math.toRadians(3.5));
-		assertTrue(full.yawDegreesPerTick() > 0.17f);
+		assertTrue(full.yawDegreesPerTick() > 0.15f);
 	}
 
 	@Test

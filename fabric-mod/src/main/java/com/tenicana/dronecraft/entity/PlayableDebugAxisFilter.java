@@ -1,8 +1,10 @@
 package com.tenicana.dronecraft.entity;
 
 final class PlayableDebugAxisFilter {
+	static final float DEFAULT_RISE_SMOOTHING = 0.14f;
+	static final float DEFAULT_FALL_SMOOTHING = 0.68f;
 	private static final float RELEASE_SNAP = 0.015f;
-	private static final float REVERSAL_SNAP = 0.006f;
+	private static final float REVERSAL_SNAP = 0.008f;
 
 	private PlayableDebugAxisFilter() {
 	}

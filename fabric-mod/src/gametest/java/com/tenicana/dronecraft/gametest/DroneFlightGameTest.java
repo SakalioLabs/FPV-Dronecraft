@@ -48,7 +48,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		double initialY = drone.getY();
 		DroneControlManager.startDiagnostic(TEST_OWNER, drone.tickCount, DURATION_TICKS);
 
-		context.runAfterDelay(145, () -> {
+		context.runAfterDelay(160, () -> {
 			float yawRadians = drone.getRenderYawRadians();
 			assertTrue(Math.abs(yawRadians) > 0.006f, "direct flight did not yaw enough to verify camera units: " + yawRadians);
 			assertTrue(Math.abs(yawRadians) < 0.50f, "render yaw is not radians: " + yawRadians);
