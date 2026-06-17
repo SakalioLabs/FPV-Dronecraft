@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.diagnostic;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Constructor;
@@ -176,6 +177,28 @@ class DroneServerSelfTestTest {
 	}
 
 	@Test
+	void playableTelemetryRequiresStableNeutralWindow() throws ReflectiveOperationException {
+		DroneServerSelfTest selfTest = playableTelemetrySelfTest();
+
+		assertTrue(playableTelemetryExercised(selfTest));
+
+		setInt(selfTest, "playableNeutralSampleCount", 19);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 1.51);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 1.51);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.36);
+		assertFalse(playableTelemetryExercised(selfTest));
+	}
+
+	@Test
 	void reportFlightModeUsesBlackboxInputAndControlMode() throws ReflectiveOperationException {
 		String csv = String.join(
 				"\n",
@@ -219,6 +242,17 @@ class DroneServerSelfTestTest {
 		return modeConstructor.newInstance(12, mode);
 	}
 
+	private static DroneServerSelfTest playableTelemetrySelfTest() throws ReflectiveOperationException {
+		DroneServerSelfTest selfTest = newSelfTest(FlightModelMode.PLAYABLE);
+		setDouble(selfTest, "maxHorizontalDistance", 0.06);
+		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 1200.0);
+		setInt(selfTest, "playableNeutralSampleCount", 20);
+		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 1.5);
+		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 1.5);
+		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.35);
+		return selfTest;
+	}
+
 	private static String reportJson(DroneServerSelfTest selfTest, Path csvPath) throws ReflectiveOperationException {
 		Method method = DroneServerSelfTest.class.getDeclaredMethod("reportJson", boolean.class, String.class, Path.class);
 		method.setAccessible(true);
@@ -229,6 +263,12 @@ class DroneServerSelfTestTest {
 		Method method = DroneServerSelfTest.class.getDeclaredMethod("parseFlightModelMode", String.class);
 		method.setAccessible(true);
 		return (FlightModelMode) method.invoke(null, value);
+	}
+
+	private static boolean playableTelemetryExercised(DroneServerSelfTest selfTest) throws ReflectiveOperationException {
+		Method method = DroneServerSelfTest.class.getDeclaredMethod("playableTelemetryExercised");
+		method.setAccessible(true);
+		return (boolean) method.invoke(selfTest);
 	}
 
 	private static String reportFlightModeFromCsv(String csv) throws ReflectiveOperationException {

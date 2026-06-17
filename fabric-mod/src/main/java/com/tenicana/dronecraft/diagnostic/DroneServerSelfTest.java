@@ -46,6 +46,9 @@ public final class DroneServerSelfTest {
 	private static final double SELF_TEST_SPAWN_CLEARANCE_METERS = 0.14;
 	private static final int SELF_TEST_PLATFORM_Y = 95;
 	private static final int SELF_TEST_PLATFORM_RADIUS_BLOCKS = 4;
+	private static final int PLAYABLE_NEUTRAL_MIN_SAMPLES = 20;
+	private static final double PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES = 1.5;
+	private static final double PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 0.35;
 
 	private static DroneServerSelfTest active;
 
@@ -205,7 +208,9 @@ public final class DroneServerSelfTest {
 		ensureDroneTicked();
 		sample();
 		if (elapsedTicks >= finishTick || drone.tickCount >= finishTick) {
-			finish(server, evaluatePassed(), failureReason());
+			refreshFinalStateAndBlackboxSummary();
+			boolean passed = evaluatePassed();
+			finish(server, passed, failureReason());
 		}
 	}
 
@@ -655,7 +660,15 @@ public final class DroneServerSelfTest {
 
 	private boolean playableTelemetryExercised() {
 		return maxHorizontalDistance > 0.05
-				&& maxAverageMotorTelemetryRpm > 1000.0;
+				&& maxAverageMotorTelemetryRpm > 1000.0
+				&& playableNeutralTelemetryStable();
+	}
+
+	private boolean playableNeutralTelemetryStable() {
+		return playableNeutralSampleCount >= PLAYABLE_NEUTRAL_MIN_SAMPLES
+				&& maxPlayableNeutralVisualPitchDegrees <= PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES
+				&& maxPlayableNeutralVisualRollDegrees <= PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES
+				&& maxPlayableNeutralVisualYawRateDegreesPerSecond <= PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND;
 	}
 
 	private double minimumAltitudeGain() {
@@ -674,6 +687,33 @@ public final class DroneServerSelfTest {
 		return DroneBlackboxSample.CSV_HEADER.contains("flight_model")
 				&& csv != null
 				&& csv.contains("," + flightModelMode.id() + ",");
+	}
+
+	private void refreshFinalStateAndBlackboxSummary() {
+		if (drone == null) {
+			return;
+		}
+		finalX = drone.getX();
+		finalY = drone.getY();
+		finalZ = drone.getZ();
+		finalSpeed = drone.getSpeedMetersPerSecond();
+		finalAltitudeGain = finalY - initialY;
+		finalHorizontalDistance = Math.hypot(finalX - initialX, finalZ - initialZ);
+		if (drone.blackbox().size() <= 0) {
+			return;
+		}
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(drone.blackbox());
+		minPlayableLowAltitudeAuthority = summary.minPlayableLowAltitudeAuthority();
+		DroneBlackboxSummary.PlayableVisualStats playableVisualStats = summary.playableVisualStats();
+		maxPlayableVisualPitchDegrees = playableVisualStats.maxPitchDegrees();
+		maxPlayableVisualRollDegrees = playableVisualStats.maxRollDegrees();
+		maxPlayableVisualYawRateDegreesPerSecond = playableVisualStats.maxYawRateDegreesPerSecond();
+		finalPlayableVisualYawDriftDegrees = playableVisualStats.finalYawDriftDegrees();
+		DroneBlackboxSummary.PlayableNeutralStats playableNeutralStats = summary.playableNeutralStats();
+		playableNeutralSampleCount = playableNeutralStats.sampleCount();
+		maxPlayableNeutralVisualPitchDegrees = playableNeutralStats.maxPitchDegrees();
+		maxPlayableNeutralVisualRollDegrees = playableNeutralStats.maxRollDegrees();
+		maxPlayableNeutralVisualYawRateDegreesPerSecond = playableNeutralStats.maxYawRateDegreesPerSecond();
 	}
 
 	private String failureReason() {
@@ -697,8 +737,11 @@ public final class DroneServerSelfTest {
 			return "flight_model_not_recorded";
 		}
 		if (flightModelMode == FlightModelMode.PLAYABLE) {
-			if (!playableTelemetryExercised()) {
+			if (maxHorizontalDistance <= 0.05 || maxAverageMotorTelemetryRpm <= 1000.0) {
 				return "playable_layer_not_exercised";
+			}
+			if (!playableNeutralTelemetryStable()) {
+				return "playable_neutral_not_stable";
 			}
 		} else {
 			if (maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {
@@ -1004,28 +1047,7 @@ public final class DroneServerSelfTest {
 
 	private String reportJson(boolean passed, String reason, Path csvPath) {
 		int sampleCount = drone == null ? 0 : drone.blackbox().size();
-		if (drone != null) {
-			finalX = drone.getX();
-			finalY = drone.getY();
-			finalZ = drone.getZ();
-			finalSpeed = drone.getSpeedMetersPerSecond();
-			finalAltitudeGain = finalY - initialY;
-			finalHorizontalDistance = Math.hypot(finalX - initialX, finalZ - initialZ);
-			if (drone.blackbox().size() > 0) {
-				DroneBlackboxSummary summary = DroneBlackboxSummary.from(drone.blackbox());
-				minPlayableLowAltitudeAuthority = summary.minPlayableLowAltitudeAuthority();
-				DroneBlackboxSummary.PlayableVisualStats playableVisualStats = summary.playableVisualStats();
-				maxPlayableVisualPitchDegrees = playableVisualStats.maxPitchDegrees();
-				maxPlayableVisualRollDegrees = playableVisualStats.maxRollDegrees();
-				maxPlayableVisualYawRateDegreesPerSecond = playableVisualStats.maxYawRateDegreesPerSecond();
-				finalPlayableVisualYawDriftDegrees = playableVisualStats.finalYawDriftDegrees();
-				DroneBlackboxSummary.PlayableNeutralStats playableNeutralStats = summary.playableNeutralStats();
-				playableNeutralSampleCount = playableNeutralStats.sampleCount();
-				maxPlayableNeutralVisualPitchDegrees = playableNeutralStats.maxPitchDegrees();
-				maxPlayableNeutralVisualRollDegrees = playableNeutralStats.maxRollDegrees();
-				maxPlayableNeutralVisualYawRateDegreesPerSecond = playableNeutralStats.maxYawRateDegreesPerSecond();
-			}
-		}
+		refreshFinalStateAndBlackboxSummary();
 		double maxPlayableLowAltitudeSuppressionPercent = Math.max(0.0, (1.0 - minPlayableLowAltitudeAuthority) * 100.0);
 		String flightMode = drone == null ? "unknown" : reportFlightModeFromCsv(drone.blackbox().toCsv());
 		return String.format(
