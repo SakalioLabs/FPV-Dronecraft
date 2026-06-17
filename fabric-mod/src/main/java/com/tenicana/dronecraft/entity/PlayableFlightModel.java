@@ -81,8 +81,18 @@ final class PlayableFlightModel {
 		FlightMode safeMode = mode == null ? FlightMode.HORIZON : mode;
 		return switch (safeMode) {
 			case ANGLE -> new Attitude(
-					smooth(previous.pitchRadians(), pitch * profile.maxPitchRadians(), profile.attitudeSmoothing()),
-					smooth(previous.rollRadians(), roll * profile.maxRollRadians(), profile.attitudeSmoothing())
+					smoothLimited(
+							previous.pitchRadians(),
+							pitch * profile.maxPitchRadians(),
+							profile.attitudeSmoothing(),
+							profile.attitudeStepLimitRadians()
+					),
+					smoothLimited(
+							previous.rollRadians(),
+							roll * profile.maxRollRadians(),
+							profile.attitudeSmoothing(),
+							profile.attitudeStepLimitRadians()
+					)
 			);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
 			case ACRO -> new Attitude(
@@ -93,10 +103,20 @@ final class PlayableFlightModel {
 	}
 
 	private static Attitude horizonAttitude(Profile profile, float pitch, float roll, State previous) {
-		float pitchBlend = smoothStep((Math.abs(pitch) - 0.55f) / 0.35f);
-		float rollBlend = smoothStep((Math.abs(roll) - 0.55f) / 0.35f);
-		float anglePitch = smooth(previous.pitchRadians(), pitch * profile.maxPitchRadians(), profile.attitudeSmoothing());
-		float angleRoll = smooth(previous.rollRadians(), roll * profile.maxRollRadians(), profile.attitudeSmoothing());
+		float pitchBlend = smoothStep((Math.abs(pitch) - 0.62f) / 0.33f);
+		float rollBlend = smoothStep((Math.abs(roll) - 0.62f) / 0.33f);
+		float anglePitch = smoothLimited(
+				previous.pitchRadians(),
+				pitch * profile.maxPitchRadians(),
+				profile.attitudeSmoothing(),
+				profile.attitudeStepLimitRadians()
+		);
+		float angleRoll = smoothLimited(
+				previous.rollRadians(),
+				roll * profile.maxRollRadians(),
+				profile.attitudeSmoothing(),
+				profile.attitudeStepLimitRadians()
+		);
 		float ratePitch = heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroPitchRadians());
 		float rateRoll = heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroRollRadians());
 		return new Attitude(
@@ -129,6 +149,12 @@ final class PlayableFlightModel {
 
 	private static float smooth(float current, float target, float smoothing) {
 		return current + (target - current) * clamp(smoothing, 0.0f, 1.0f);
+	}
+
+	private static float smoothLimited(float current, float target, float smoothing, float maxStep) {
+		float next = smooth(current, target, smoothing);
+		float delta = clamp(next - current, -Math.max(0.0f, maxStep), Math.max(0.0f, maxStep));
+		return current + delta;
 	}
 
 	private static float lerp(float a, float b, float t) {
@@ -185,14 +211,15 @@ final class PlayableFlightModel {
 			float rollRateRadiansPerTick,
 			float yawDegreesPerTick,
 			float attitudeSmoothing,
+			float attitudeStepLimitRadians,
 			float acroHoldDamping,
 			float velocitySmoothing
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (mode == null ? FlightMode.HORIZON : mode) {
-				case ANGLE -> new Profile(1.25f, 1.65f, radians(24.0f), radians(24.0f), radians(36.0f), radians(38.0f), radians(2.8f), radians(3.2f), 1.75f, 0.30f, 0.86f, 0.30f);
-				case HORIZON -> new Profile(1.60f, 2.05f, radians(36.0f), radians(38.0f), radians(58.0f), radians(62.0f), radians(3.8f), radians(4.3f), 2.35f, 0.24f, 0.94f, 0.26f);
-				case ACRO -> new Profile(1.95f, 2.45f, radians(50.0f), radians(55.0f), radians(70.0f), radians(74.0f), radians(5.6f), radians(6.1f), 3.10f, 0.18f, 0.995f, 0.23f);
+				case ANGLE -> new Profile(1.05f, 1.45f, radians(22.0f), radians(22.0f), radians(34.0f), radians(36.0f), radians(2.3f), radians(2.6f), 1.25f, 0.22f, radians(1.65f), 0.84f, 0.24f);
+				case HORIZON -> new Profile(1.35f, 1.85f, radians(30.0f), radians(32.0f), radians(52.0f), radians(56.0f), radians(3.0f), radians(3.4f), 1.80f, 0.18f, radians(2.15f), 0.92f, 0.22f);
+				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.16f, radians(3.80f), 0.995f, 0.22f);
 			};
 		}
 

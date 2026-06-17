@@ -696,8 +696,11 @@ public class DroneEntity extends Entity {
 		return true;
 	}
 
-	private static final float DEBUG_INPUT_SMOOTH = 0.32f;
-	private static final float DEBUG_AXIS_DEADBAND = 0.12f;
+	private static final float DEBUG_THROTTLE_SMOOTH = 0.24f;
+	private static final float DEBUG_AXIS_RISE_SMOOTH = 0.20f;
+	private static final float DEBUG_AXIS_FALL_SMOOTH = 0.42f;
+	private static final float DEBUG_AXIS_DEADBAND = 0.06f;
+	private static final float DEBUG_AXIS_RESPONSE_EXPO = 0.45f;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
 
@@ -711,10 +714,34 @@ public class DroneEntity extends Entity {
 		float deadbandedRoll = applyDebugAxisDeadband(roll);
 		float deadbandedYaw = applyDebugAxisDeadband(yaw);
 
-		float smoothedThrottle = applyDebugAxisFilter(debugCommandThrottle, throttle, DEBUG_INPUT_SMOOTH, false);
-		float smoothedPitch = applyDebugAxisFilter(debugCommandPitch, deadbandedPitch, DEBUG_INPUT_SMOOTH, true);
-		float smoothedRoll = applyDebugAxisFilter(debugCommandRoll, deadbandedRoll, DEBUG_INPUT_SMOOTH, true);
-		float smoothedYaw = applyDebugAxisFilter(debugCommandYaw, deadbandedYaw, DEBUG_INPUT_SMOOTH, true);
+		float smoothedThrottle = applyDebugAxisFilter(
+				debugCommandThrottle,
+				throttle,
+				DEBUG_THROTTLE_SMOOTH,
+				DEBUG_THROTTLE_SMOOTH,
+				false
+		);
+		float smoothedPitch = applyDebugAxisFilter(
+				debugCommandPitch,
+				deadbandedPitch,
+				DEBUG_AXIS_RISE_SMOOTH,
+				DEBUG_AXIS_FALL_SMOOTH,
+				true
+		);
+		float smoothedRoll = applyDebugAxisFilter(
+				debugCommandRoll,
+				deadbandedRoll,
+				DEBUG_AXIS_RISE_SMOOTH,
+				DEBUG_AXIS_FALL_SMOOTH,
+				true
+		);
+		float smoothedYaw = applyDebugAxisFilter(
+				debugCommandYaw,
+				deadbandedYaw,
+				DEBUG_AXIS_RISE_SMOOTH,
+				DEBUG_AXIS_FALL_SMOOTH,
+				true
+		);
 
 		debugCommandThrottle = smoothedThrottle;
 		debugCommandPitch = smoothedPitch;
@@ -789,18 +816,57 @@ public class DroneEntity extends Entity {
 		float worldVelocityY = debugVelocityY;
 		float worldVelocityZ = worldZ;
 
-		setPos(
-				getX() + deltaX,
-				getY() + deltaY,
-				getZ() + deltaZ
-		);
-		physics.state().setPositionMeters(entityPhysicsPosition());
-		physics.state().setVelocityMetersPerSecond(new Vec3(worldVelocityX, worldVelocityY, worldVelocityZ));
-		setDeltaMovement(deltaX, deltaY, deltaZ);
+		applyDebugMovement(deltaX, deltaY, deltaZ, worldVelocityX, worldVelocityY, worldVelocityZ, cos, sin);
 		if (Math.abs(targetYaw) > 0.02f) {
 			setYRot(getYRot() + targetYaw);
 		}
 		setXRot((float) Math.toDegrees(debugVisualPitchRadians));
+	}
+
+	private void applyDebugMovement(
+			float deltaX,
+			float deltaY,
+			float deltaZ,
+			float worldVelocityX,
+			float worldVelocityY,
+			float worldVelocityZ,
+			float yawCos,
+			float yawSin
+	) {
+		double startX = getX();
+		double startY = getY();
+		double startZ = getZ();
+		move(MoverType.SELF, new net.minecraft.world.phys.Vec3(deltaX, deltaY, deltaZ));
+
+		double actualDeltaX = getX() - startX;
+		double actualDeltaY = getY() - startY;
+		double actualDeltaZ = getZ() - startZ;
+		float actualWorldVelocityX = (float) (actualDeltaX * 20.0);
+		float actualWorldVelocityY = (float) (actualDeltaY * 20.0);
+		float actualWorldVelocityZ = (float) (actualDeltaZ * 20.0);
+
+		if (!horizontalCollision) {
+			actualWorldVelocityX = worldVelocityX;
+			actualWorldVelocityZ = worldVelocityZ;
+		}
+		if (!verticalCollision) {
+			actualWorldVelocityY = worldVelocityY;
+		}
+
+		debugVelocityX = actualWorldVelocityX * yawCos + actualWorldVelocityZ * yawSin;
+		debugVelocityY = actualWorldVelocityY;
+		debugVelocityZ = -actualWorldVelocityX * yawSin + actualWorldVelocityZ * yawCos;
+		if (horizontalCollision) {
+			debugVelocityX = Math.abs(debugVelocityX) < 0.025f ? 0.0f : debugVelocityX;
+			debugVelocityZ = Math.abs(debugVelocityZ) < 0.025f ? 0.0f : debugVelocityZ;
+		}
+		if (verticalCollision) {
+			debugVelocityY = 0.0f;
+		}
+
+		physics.state().setPositionMeters(entityPhysicsPosition());
+		physics.state().setVelocityMetersPerSecond(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
+		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
 	}
 
 	private void clearDebugFlightState() {
@@ -911,10 +977,17 @@ public class DroneEntity extends Entity {
 		if (abs <= DEBUG_AXIS_DEADBAND) {
 			return 0.0f;
 		}
-		return Math.copySign((abs - DEBUG_AXIS_DEADBAND) / (1.0f - DEBUG_AXIS_DEADBAND), value);
+		float normalized = (abs - DEBUG_AXIS_DEADBAND) / (1.0f - DEBUG_AXIS_DEADBAND);
+		float curved = (1.0f - DEBUG_AXIS_RESPONSE_EXPO) * normalized
+				+ DEBUG_AXIS_RESPONSE_EXPO * normalized * normalized * normalized;
+		return Math.copySign(curved, value);
 	}
 
-	private float applyDebugAxisFilter(float current, float target, float smoothing, boolean keepSign) {
+	private float applyDebugAxisFilter(float current, float target, float riseSmoothing, float fallSmoothing, boolean keepSign) {
+		boolean fromCenter = Math.abs(current) < 1.0e-5f;
+		boolean sameDirection = fromCenter || Math.signum(current) == Math.signum(target);
+		boolean rising = sameDirection && Math.abs(target) > Math.abs(current);
+		float smoothing = rising ? riseSmoothing : fallSmoothing;
 		float filtered = current + (target - current) * Math.max(0.0f, Math.min(1.0f, smoothing));
 		return keepSign ? filtered : Math.max(0.0f, filtered);
 	}

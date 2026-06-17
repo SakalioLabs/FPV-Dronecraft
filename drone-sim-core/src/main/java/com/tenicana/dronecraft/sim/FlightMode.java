@@ -14,8 +14,11 @@ public enum FlightMode {
 	}
 
 	public FlightMode next() {
-		FlightMode[] modes = values();
-		return modes[(ordinal() + 1) % modes.length];
+		return switch (this) {
+			case HORIZON -> ANGLE;
+			case ANGLE -> ACRO;
+			case ACRO -> HORIZON;
+		};
 	}
 
 	public static FlightMode byId(int id) {

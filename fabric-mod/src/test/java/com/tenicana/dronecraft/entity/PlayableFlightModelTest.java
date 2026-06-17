@@ -67,18 +67,37 @@ class PlayableFlightModelTest {
 				PlayableFlightModel.State.ZERO
 		);
 
-		assertTrue(step.targetVelocityZ() < -0.15f);
-		assertTrue(step.targetVelocityX() < -0.10f);
-		assertTrue(step.pitchRadians() < Math.toRadians(8.0));
-		assertTrue(step.rollRadians() > -Math.toRadians(8.0));
+		assertTrue(step.targetVelocityZ() < -0.08f);
+		assertTrue(step.targetVelocityX() < -0.08f);
+		assertTrue(step.pitchRadians() < Math.toRadians(3.0));
+		assertTrue(step.rollRadians() > -Math.toRadians(3.0));
 		assertTrue(step.yawDegreesPerTick() > 0.4f);
 		assertTrue(step.averageRpm() > 9000.0f);
 
 		PlayableFlightModel.Step held = holdStick(FlightMode.HORIZON, 12, 0.45f, 0.50f, -0.40f, 0.25f);
-		assertTrue(held.targetVelocityZ() < -0.70f);
-		assertTrue(held.targetVelocityX() < -0.55f);
-		assertTrue(held.pitchRadians() > Math.toRadians(16.0));
-		assertTrue(held.rollRadians() < -Math.toRadians(13.0));
+		assertTrue(held.targetVelocityZ() < -0.60f);
+		assertTrue(held.targetVelocityX() < -0.45f);
+		assertTrue(held.pitchRadians() > Math.toRadians(12.0));
+		assertTrue(held.rollRadians() < -Math.toRadians(9.5));
+	}
+
+	@Test
+	void horizonModeLimitsFirstTickAttitudeForGentleInputs() {
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				FlightMode.HORIZON,
+				0.45f,
+				0.35f,
+				0.35f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.ZERO
+		);
+
+		assertTrue(Math.abs(step.pitchRadians()) <= Math.toRadians(2.2));
+		assertTrue(Math.abs(step.rollRadians()) <= Math.toRadians(2.2));
+		assertTrue(Math.abs(step.targetVelocityX()) < 0.11f);
+		assertTrue(Math.abs(step.targetVelocityZ()) < 0.11f);
 	}
 
 	@Test
@@ -113,11 +132,11 @@ class PlayableFlightModelTest {
 				stateFrom(held)
 		);
 
-		assertTrue(held.pitchRadians() > Math.toRadians(45.0));
-		assertTrue(held.rollRadians() < -Math.toRadians(40.0));
+		assertTrue(held.pitchRadians() > Math.toRadians(38.0));
+		assertTrue(held.rollRadians() < -Math.toRadians(34.0));
 		assertTrue(released.pitchRadians() > held.pitchRadians() * 0.95f);
 		assertTrue(released.rollRadians() < held.rollRadians() * 0.95f);
-		assertTrue(released.targetVelocityZ() < -1.50f);
+		assertTrue(released.targetVelocityZ() < -1.25f);
 	}
 
 	@Test

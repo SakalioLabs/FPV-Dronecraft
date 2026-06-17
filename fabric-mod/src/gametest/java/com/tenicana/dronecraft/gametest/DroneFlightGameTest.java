@@ -9,6 +9,7 @@ import net.minecraft.gametest.framework.GameTestAssertException;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.block.Blocks;
 
 import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
@@ -23,6 +24,7 @@ import com.tenicana.dronecraft.sim.FlightMode;
 public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 	private static final UUID TEST_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f002");
 	private static final UUID RESET_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f003");
+	private static final UUID CEILING_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f004");
 	private static final int DURATION_TICKS = 260;
 	private static final int ASSERT_TICKS = 170;
 
@@ -46,7 +48,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		context.runAfterDelay(145, () -> {
 			float yawRadians = drone.getRenderYawRadians();
-			assertTrue(Math.abs(yawRadians) > 0.02f, "direct flight did not yaw enough to verify camera units: " + yawRadians);
+			assertTrue(Math.abs(yawRadians) > 0.012f, "direct flight did not yaw enough to verify camera units: " + yawRadians);
 			assertTrue(Math.abs(yawRadians) < 0.50f, "render yaw is not radians: " + yawRadians);
 		});
 
@@ -108,6 +110,37 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 			assertTrue(
 					Math.abs(drone.getRenderRollRadians()) < Math.toRadians(5.0),
 					"direct flight kept stale roll after disarm/rearm: " + drone.getRenderRollRadians()
+			);
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 140)
+	public void directFlightRespectsCeilingCollision(GameTestHelper context) {
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
+		BlockPos ceiling = context.absolutePos(new BlockPos(1, 5, 1));
+		level.setBlock(ceiling, Blocks.STONE.defaultBlockState(), 3);
+
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(CEILING_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		DroneInput climb = new DroneInput(1.0, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, CEILING_OWNER, 1, 80, climb);
+
+		context.runAfterDelay(90, () -> {
+			assertTrue(
+					drone.getY() < initialY + 0.75,
+					String.format(Locale.ROOT, "direct flight ignored ceiling collision: initial=%.3f final=%.3f", initialY, drone.getY())
+			);
+			assertTrue(
+					drone.getDeltaMovement().y() <= 0.01,
+					"direct flight kept upward velocity after ceiling collision: " + drone.getDeltaMovement().y()
 			);
 			drone.discard();
 			context.succeed();
