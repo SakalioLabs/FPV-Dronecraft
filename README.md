@@ -35,6 +35,7 @@
 - 黑盒 CSV 新增 `playable_low_altitude_authority`，`playable` 日志能直接看到低空保护是否正在压低水平权限；后续排查“刚起飞歪”“轻杆过敏”时，不必只靠主观手感猜。
 - 服务端自测 JSON 现在会汇总 `min_playable_low_altitude_authority` 和最大低空压制百分比，`/fpvdrone blackbox summary` 也会显示 `lowAlt`；以后调低空起飞手感时，能从无头测试和游戏内摘要同时确认保护是否真的介入。
 - `playable` 低空保护现在同步压低刚起飞阶段的可视俯仰/横滚和偏航权限，不再只是压水平速度；满油门爬升仍不被限制，减少离地瞬间机身先大幅歪斜或自转带来的挫败感。
+- 黑盒 CSV、`/fpvdrone blackbox summary` 和无头服务端自测现在额外记录 `playable` 可玩层真实可视 pitch/roll、偏航速率和首尾 yaw 漂移；最新 playable 自测最大可视 pitch 约 `4.77 deg`、roll 约 `5.61 deg`、yaw rate 约 `9.98 dps`、最终 yaw 漂移 `0.00 deg`，后续调参可以直接看玩家画面姿态是否过敏或自转。
 
 ## 常用键位
 

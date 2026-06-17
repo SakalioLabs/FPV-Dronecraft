@@ -2484,13 +2484,18 @@ public class DroneEntity extends Entity {
 	}
 
 	private void recordBlackbox(DroneInput input) {
+		boolean playableMode = DroneDebugSettings.flightModelMode() == DroneDebugSettings.FlightModelMode.PLAYABLE;
 		blackbox.record(DroneBlackboxSample.from(
 				level().getGameTime(),
 				tickCount,
 				PHYSICS_STEPS_PER_TICK,
 				PHYSICS_DT,
 				DroneDebugSettings.flightModelMode().id(),
-				DroneDebugSettings.flightModelMode() == DroneDebugSettings.FlightModelMode.PLAYABLE ? debugLowAltitudeHorizontalAuthority : 1.0,
+				playableMode ? debugLowAltitudeHorizontalAuthority : 1.0,
+				playableMode ? Math.toDegrees(debugVisualPitchRadians) : 0.0,
+				playableMode ? getYRot() : 0.0,
+				playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
+				playableMode ? debugTargetYawRate * 20.0 : 0.0,
 				physics.state(),
 				input,
 				physics.state().averageMotorPower(physics.config()),

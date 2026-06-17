@@ -67,6 +67,10 @@ public final class DroneServerSelfTest {
 	private double maxAltitudeGain;
 	private double maxHorizontalDistance;
 	private double minPlayableLowAltitudeAuthority = 1.0;
+	private double maxPlayableVisualPitchDegrees;
+	private double maxPlayableVisualRollDegrees;
+	private double maxPlayableVisualYawRateDegreesPerSecond;
+	private double finalPlayableVisualYawDriftDegrees;
 	private double maxSpeed;
 	private double maxAirspeed;
 	private double maxMotorPower;
@@ -403,6 +407,10 @@ public final class DroneServerSelfTest {
 				&& DroneBlackboxSample.CSV_HEADER.contains("physics_rate_hz")
 				&& DroneBlackboxSample.CSV_HEADER.contains("flight_model")
 				&& DroneBlackboxSample.CSV_HEADER.contains("playable_low_altitude_authority")
+				&& DroneBlackboxSample.CSV_HEADER.contains("playable_visual_pitch_deg")
+				&& DroneBlackboxSample.CSV_HEADER.contains("playable_visual_yaw_deg")
+				&& DroneBlackboxSample.CSV_HEADER.contains("playable_visual_roll_deg")
+				&& DroneBlackboxSample.CSV_HEADER.contains("playable_visual_yaw_rate_dps")
 				&& DroneBlackboxSample.CSV_HEADER.contains("airframe_rotor_count")
 				&& DroneBlackboxSample.CSV_HEADER.contains("motor_5_rpm")
 				&& DroneBlackboxSample.CSV_HEADER.contains("rotor_5_thrust_n")
@@ -930,6 +938,10 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("avg_esc_cooling_factor")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("flight_model")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("playable_low_altitude_authority")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("playable_visual_pitch_deg")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("playable_visual_yaw_deg")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("playable_visual_roll_deg")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("playable_visual_yaw_rate_dps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("flight_mode")) {
 			return "blackbox_header_missing_required_columns";
 		}
@@ -996,7 +1008,13 @@ public final class DroneServerSelfTest {
 			finalAltitudeGain = finalY - initialY;
 			finalHorizontalDistance = Math.hypot(finalX - initialX, finalZ - initialZ);
 			if (drone.blackbox().size() > 0) {
-				minPlayableLowAltitudeAuthority = DroneBlackboxSummary.from(drone.blackbox()).minPlayableLowAltitudeAuthority();
+				DroneBlackboxSummary summary = DroneBlackboxSummary.from(drone.blackbox());
+				minPlayableLowAltitudeAuthority = summary.minPlayableLowAltitudeAuthority();
+				DroneBlackboxSummary.PlayableVisualStats playableVisualStats = summary.playableVisualStats();
+				maxPlayableVisualPitchDegrees = playableVisualStats.maxPitchDegrees();
+				maxPlayableVisualRollDegrees = playableVisualStats.maxRollDegrees();
+				maxPlayableVisualYawRateDegreesPerSecond = playableVisualStats.maxYawRateDegreesPerSecond();
+				finalPlayableVisualYawDriftDegrees = playableVisualStats.finalYawDriftDegrees();
 			}
 		}
 		double maxPlayableLowAltitudeSuppressionPercent = Math.max(0.0, (1.0 - minPlayableLowAltitudeAuthority) * 100.0);
@@ -1008,6 +1026,10 @@ public final class DroneServerSelfTest {
 						+ "  \"flight_model\": \"%s\",\n"
 						+ "  \"min_playable_low_altitude_authority\": %.5f,\n"
 						+ "  \"max_playable_low_altitude_suppression_percent\": %.3f,\n"
+						+ "  \"max_playable_visual_pitch_deg\": %.4f,\n"
+						+ "  \"max_playable_visual_roll_deg\": %.4f,\n"
+						+ "  \"max_playable_visual_yaw_rate_dps\": %.4f,\n"
+						+ "  \"final_playable_visual_yaw_drift_deg\": %.4f,\n"
 						+ "  \"csv_column_count\": %d,\n"
 						+ "  \"airframe_rotor_count\": %d,\n"
 						+ "  \"physics_substeps_per_tick\": %d,\n"
@@ -1108,6 +1130,10 @@ public final class DroneServerSelfTest {
 				flightModelMode.id(),
 				minPlayableLowAltitudeAuthority,
 				maxPlayableLowAltitudeSuppressionPercent,
+				maxPlayableVisualPitchDegrees,
+				maxPlayableVisualRollDegrees,
+				maxPlayableVisualYawRateDegreesPerSecond,
+				finalPlayableVisualYawDriftDegrees,
 				DroneBlackboxSample.CSV_HEADER.split(",", -1).length,
 				drone == null ? 0 : drone.config().rotors().size(),
 				PHYSICS_STEPS_PER_TICK,

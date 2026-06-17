@@ -21,6 +21,10 @@ public final class DroneBlackboxSample {
 			"physics_rate_hz",
 			"flight_model",
 			"playable_low_altitude_authority",
+			"playable_visual_pitch_deg",
+			"playable_visual_yaw_deg",
+			"playable_visual_roll_deg",
+			"playable_visual_yaw_rate_dps",
 			"x",
 			"y",
 			"z",
@@ -1189,6 +1193,10 @@ public final class DroneBlackboxSample {
 				physicsDtSeconds,
 				DEFAULT_FLIGHT_MODEL,
 				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
 				state,
 				input,
 				motorPower,
@@ -1230,6 +1238,10 @@ public final class DroneBlackboxSample {
 				physicsDtSeconds,
 				flightModel,
 				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
 				state,
 				input,
 				motorPower,
@@ -1252,6 +1264,56 @@ public final class DroneBlackboxSample {
 			double physicsDtSeconds,
 			String flightModel,
 			double playableLowAltitudeAuthority,
+			DroneState state,
+			DroneInput input,
+			double motorPower,
+			double frameHealth,
+			double rotorHealth,
+			double collisionSeverity,
+			int propStrikeRotorIndex,
+			double propStrikeSeverity,
+			int propStrikeCount,
+			double[] propStrikeSeverityByRotor,
+			DroneEnvironment environment,
+			DroneConfig config
+	) {
+		return from(
+				gameTime,
+				tickCount,
+				physicsSubsteps,
+				physicsDtSeconds,
+				flightModel,
+				playableLowAltitudeAuthority,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				state,
+				input,
+				motorPower,
+				frameHealth,
+				rotorHealth,
+				collisionSeverity,
+				propStrikeRotorIndex,
+				propStrikeSeverity,
+				propStrikeCount,
+				propStrikeSeverityByRotor,
+				environment,
+				config
+		);
+	}
+
+	public static DroneBlackboxSample from(
+			long gameTime,
+			int tickCount,
+			int physicsSubsteps,
+			double physicsDtSeconds,
+			String flightModel,
+			double playableLowAltitudeAuthority,
+			double playableVisualPitchDegrees,
+			double playableVisualYawDegrees,
+			double playableVisualRollDegrees,
+			double playableVisualYawRateDegreesPerSecond,
 			DroneState state,
 			DroneInput input,
 			double motorPower,
@@ -1340,6 +1402,10 @@ public final class DroneBlackboxSample {
 		double physicsRateHertz = sanitizedPhysicsDtSeconds > 0.0 ? 1.0 / sanitizedPhysicsDtSeconds : 0.0;
 		String sanitizedFlightModel = sanitizeFlightModel(flightModel);
 		double sanitizedPlayableLowAltitudeAuthority = unitOrOne(playableLowAltitudeAuthority);
+		double sanitizedPlayableVisualPitchDegrees = finiteOrZero(playableVisualPitchDegrees);
+		double sanitizedPlayableVisualYawDegrees = finiteOrZero(playableVisualYawDegrees);
+		double sanitizedPlayableVisualRollDegrees = finiteOrZero(playableVisualRollDegrees);
+		double sanitizedPlayableVisualYawRateDegreesPerSecond = finiteOrZero(playableVisualYawRateDegreesPerSecond);
 		double averageMotorPolePairs = averageMotorPolePairs(config);
 
 		CsvRow row = new CsvRow();
@@ -1350,6 +1416,10 @@ public final class DroneBlackboxSample {
 		row.add(physicsRateHertz, "%.3f");
 		row.add(sanitizedFlightModel);
 		row.add(sanitizedPlayableLowAltitudeAuthority, "%.5f");
+		row.add(sanitizedPlayableVisualPitchDegrees, "%.4f");
+		row.add(sanitizedPlayableVisualYawDegrees, "%.4f");
+		row.add(sanitizedPlayableVisualRollDegrees, "%.4f");
+		row.add(sanitizedPlayableVisualYawRateDegreesPerSecond, "%.4f");
 		row.add(position.x(), "%.5f");
 		row.add(position.y(), "%.5f");
 		row.add(position.z(), "%.5f");
@@ -2139,6 +2209,10 @@ public final class DroneBlackboxSample {
 			return 1.0;
 		}
 		return Math.max(0.0, Math.min(1.0, value));
+	}
+
+	private static double finiteOrZero(double value) {
+		return Double.isFinite(value) ? value : 0.0;
 	}
 
 	private static double motorTargetRpm(double omegaRadiansPerSecond) {

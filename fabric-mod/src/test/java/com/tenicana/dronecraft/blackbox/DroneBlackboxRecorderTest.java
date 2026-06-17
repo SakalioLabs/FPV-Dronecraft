@@ -93,6 +93,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("physics_rate_hz"));
 		assertTrue(csv.contains("flight_model"));
 		assertTrue(csv.contains("playable_low_altitude_authority"));
+		assertTrue(csv.contains("playable_visual_pitch_deg"));
+		assertTrue(csv.contains("playable_visual_yaw_deg"));
+		assertTrue(csv.contains("playable_visual_roll_deg"));
+		assertTrue(csv.contains("playable_visual_yaw_rate_dps"));
 		assertTrue(csv.contains("control_frame_age_s"));
 		assertTrue(csv.contains("control_frame_error"));
 		assertTrue(csv.contains("esc_command_frame_age_s"));
@@ -1040,6 +1044,34 @@ class DroneBlackboxRecorderTest {
 				0.005,
 				"playable",
 				0.62,
+				3.4,
+				5.0,
+				-2.6,
+				72.0,
+				physics.state(),
+				input,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				environment,
+				config
+		));
+		recorder.record(DroneBlackboxSample.from(
+				1,
+				1,
+				10,
+				0.005,
+				"playable",
+				0.74,
+				-2.1,
+				17.0,
+				4.2,
+				48.0,
 				physics.state(),
 				input,
 				physics.state().averageMotorPower(config),
@@ -1059,12 +1091,20 @@ class DroneBlackboxRecorderTest {
 		String[] row = lines[1].split(",", -1);
 		assertEquals("playable", row[indexOf(header, "flight_model")]);
 		assertEquals(0.62, Double.parseDouble(row[indexOf(header, "playable_low_altitude_authority")]), 1.0e-5);
+		assertEquals(3.4, Double.parseDouble(row[indexOf(header, "playable_visual_pitch_deg")]), 1.0e-5);
+		assertEquals(5.0, Double.parseDouble(row[indexOf(header, "playable_visual_yaw_deg")]), 1.0e-5);
+		assertEquals(-2.6, Double.parseDouble(row[indexOf(header, "playable_visual_roll_deg")]), 1.0e-5);
+		assertEquals(72.0, Double.parseDouble(row[indexOf(header, "playable_visual_yaw_rate_dps")]), 1.0e-5);
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
-		assertEquals(1, summary.playableFlightModelSamples());
+		assertEquals(2, summary.playableFlightModelSamples());
 		assertEquals(0, summary.simulationFlightModelSamples());
 		assertEquals(0.62, summary.minPlayableLowAltitudeAuthority(), 1.0e-5);
-		assertTrue(summary.formatForChat().contains("flight playable 1 sim 0 lowAlt 38%"));
+		assertEquals(3.4, summary.playableVisualStats().maxPitchDegrees(), 1.0e-5);
+		assertEquals(4.2, summary.playableVisualStats().maxRollDegrees(), 1.0e-5);
+		assertEquals(72.0, summary.playableVisualStats().maxYawRateDegreesPerSecond(), 1.0e-5);
+		assertEquals(12.0, summary.playableVisualStats().finalYawDriftDegrees(), 1.0e-5);
+		assertTrue(summary.formatForChat().contains("flight playable 2 sim 0 lowAlt 38% vis 3.4/4.2deg yaw 72.0dps drift 12.0deg"));
 	}
 
 	@Test

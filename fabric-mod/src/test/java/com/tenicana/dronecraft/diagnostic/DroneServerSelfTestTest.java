@@ -24,6 +24,10 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "finalY", 80.12);
 		setDouble(selfTest, "finalZ", -1.60);
 		setDouble(selfTest, "minPlayableLowAltitudeAuthority", 0.62);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 3.4);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 4.2);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 72.0);
+		setDouble(selfTest, "finalPlayableVisualYawDriftDegrees", 12.0);
 		setDouble(selfTest, "finalSpeed", 0.08);
 		setDouble(selfTest, "finalAltitudeGain", 0.12);
 		setDouble(selfTest, "finalHorizontalDistance", 0.50);
@@ -84,6 +88,10 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"flight_model\": \"simulation\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 0.62000"));
 		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 38.000"));
+		assertTrue(json.contains("\"max_playable_visual_pitch_deg\": 3.4000"));
+		assertTrue(json.contains("\"max_playable_visual_roll_deg\": 4.2000"));
+		assertTrue(json.contains("\"max_playable_visual_yaw_rate_dps\": 72.0000"));
+		assertTrue(json.contains("\"final_playable_visual_yaw_drift_deg\": 12.0000"));
 		assertTrue(json.contains("\"final_speed_mps\": 0.08000"));
 		assertTrue(json.contains("\"final_altitude_gain_m\": 0.12000"));
 		assertTrue(json.contains("\"final_horizontal_distance_m\": 0.50000"));
@@ -149,6 +157,10 @@ class DroneServerSelfTestTest {
 		assertTrue(json.contains("\"flight_model\": \"playable\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 1.00000"));
 		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 0.000"));
+		assertTrue(json.contains("\"max_playable_visual_pitch_deg\": 0.0000"));
+		assertTrue(json.contains("\"max_playable_visual_roll_deg\": 0.0000"));
+		assertTrue(json.contains("\"max_playable_visual_yaw_rate_dps\": 0.0000"));
+		assertTrue(json.contains("\"final_playable_visual_yaw_drift_deg\": 0.0000"));
 	}
 
 	@Test
