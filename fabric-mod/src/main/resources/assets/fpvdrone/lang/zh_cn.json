@@ -130,5 +130,7 @@
 	"screen.fpvdrone.status_feel_preset": "遥控手感预设：%s",
 	"screen.fpvdrone.refresh": "刷新",
 	"screen.fpvdrone.throttle_calibration_running": "油门校准中。请把油门打到上下端点后点击结束。",
-	"screen.fpvdrone.throttle_calibration_range": "当前校准范围：%s ~ %s"
+	"screen.fpvdrone.throttle_calibration_range": "当前校准范围：%s ~ %s",
+	"screen.fpvdrone.mapped_output": "输出 油%1$s 俯%2$s 横%3$s 偏%4$s",
+	"screen.fpvdrone.mapped_axes_missing": "检查轴绑定：有控制轴未连接。"
 }

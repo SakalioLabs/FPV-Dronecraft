@@ -11,6 +11,11 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
+import com.tenicana.dronecraft.client.DroneClientState;
+import com.tenicana.dronecraft.client.control.GamepadControlPreview;
+import com.tenicana.dronecraft.entity.DroneEntity;
+import com.tenicana.dronecraft.sim.DroneConfig;
+
 public final class DroneControllerSettingsScreen extends Screen {
 	private static final int MAX_AXES_TO_DISPLAY = 8;
 	private static final String BUTTON_PREFIX = "button.fpvdrone.";
@@ -221,7 +226,9 @@ public final class DroneControllerSettingsScreen extends Screen {
 			graphics.drawString(font, status, 12, y + 88, 0xFFCC99);
 		}
 
-		graphics.drawString(font, Component.translatable("screen.fpvdrone.stick_pair_hint"), 12, y + 102, 0x999999);
+		int outputY = status.getString().isEmpty() ? y + 88 : y + 102;
+		drawMappedOutputPreview(graphics, 12, outputY);
+		graphics.drawString(font, Component.translatable("screen.fpvdrone.stick_pair_hint"), 12, outputY + 14, 0x999999);
 	}
 
 	@Override
@@ -539,6 +546,43 @@ public final class DroneControllerSettingsScreen extends Screen {
 		if (captureTarget != CaptureTarget.NONE) {
 			graphics.drawString(font, Component.translatable("screen.fpvdrone.binding_target", bindingTargetLabel()), x, y + 84, 0xFFCC99);
 		}
+	}
+
+	private void drawMappedOutputPreview(GuiGraphics graphics, int x, int y) {
+		if (axesSnapshot.length == 0) {
+			return;
+		}
+		GamepadControlPreview.Preview preview = GamepadControlPreview.fromAxes(config, axesSnapshot, previewHoverThrottle());
+		graphics.drawString(
+				font,
+				Component.translatable(
+						"screen.fpvdrone.mapped_output",
+						percent(preview.throttleCommand()),
+						signed(preview.pitchCommand()),
+						signed(preview.rollCommand()),
+						signed(preview.yawCommand())
+				),
+				x,
+				y,
+				preview.allAxesPresent() ? 0xBFE8C8 : 0xFFAA66
+		);
+		if (!preview.allAxesPresent()) {
+			graphics.drawString(font, Component.translatable("screen.fpvdrone.mapped_axes_missing"), x, y + 10, 0xFFAA66);
+		}
+	}
+
+	private float previewHoverThrottle() {
+		DroneEntity drone = DroneClientState.controlledDrone();
+		double hoverThrottle = drone == null ? DroneConfig.racingQuad().hoverThrottle() : drone.config().hoverThrottle();
+		return (float) Math.max(0.05, Math.min(0.75, hoverThrottle));
+	}
+
+	private static String percent(float value) {
+		return String.format(Locale.ROOT, "%3.0f%%", value * 100.0f);
+	}
+
+	private static String signed(float value) {
+		return String.format(Locale.ROOT, "%+.3f", value);
 	}
 
 	private boolean isCaptureTargetButton(CaptureTarget target) {

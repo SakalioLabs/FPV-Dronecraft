@@ -130,5 +130,7 @@
 	"screen.fpvdrone.status_feel_preset": "Controller feel preset: %s",
 	"screen.fpvdrone.refresh": "Refresh",
 	"screen.fpvdrone.throttle_calibration_running": "Throttle calibration running. Move throttle to both ends and press Finish.",
-	"screen.fpvdrone.throttle_calibration_range": "Calib range: %s ~ %s"
+	"screen.fpvdrone.throttle_calibration_range": "Calib range: %s ~ %s",
+	"screen.fpvdrone.mapped_output": "Out T%1$s P%2$s R%3$s Y%4$s",
+	"screen.fpvdrone.mapped_axes_missing": "Check axis binding: assigned axis missing."
 }
