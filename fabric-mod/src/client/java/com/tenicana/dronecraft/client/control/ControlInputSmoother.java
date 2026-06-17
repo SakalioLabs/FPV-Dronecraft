@@ -3,6 +3,7 @@ package com.tenicana.dronecraft.client.control;
 import net.minecraft.util.Mth;
 
 final class ControlInputSmoother {
+	private float throttle;
 	private float pitch;
 	private float roll;
 	private float yaw;
@@ -16,7 +17,16 @@ final class ControlInputSmoother {
 		return new Axes(pitch, roll, yaw);
 	}
 
+	float sampleThrottle(float targetThrottle, float risePerTick, float fallPerTick) {
+		float safeRise = sanitizeStep(risePerTick, 0.08f);
+		float safeFall = sanitizeStep(fallPerTick, 0.14f);
+		float safeTarget = Mth.clamp(targetThrottle, 0.0f, 1.0f);
+		throttle = approach(throttle, safeTarget, safeTarget > throttle ? safeRise : safeFall);
+		return throttle;
+	}
+
 	void reset() {
+		throttle = 0.0f;
 		pitch = 0.0f;
 		roll = 0.0f;
 		yaw = 0.0f;
@@ -25,11 +35,15 @@ final class ControlInputSmoother {
 	private static float approachAxis(float current, float target, float risePerTick, float fallPerTick) {
 		float safeTarget = Mth.clamp(target, -1.0f, 1.0f);
 		float step = shouldUseRiseStep(current, safeTarget) ? risePerTick : fallPerTick;
-		if (current < safeTarget) {
-			return Math.min(safeTarget, current + step);
+		return approach(current, safeTarget, step);
+	}
+
+	private static float approach(float current, float target, float step) {
+		if (current < target) {
+			return Math.min(target, current + step);
 		}
-		if (current > safeTarget) {
-			return Math.max(safeTarget, current - step);
+		if (current > target) {
+			return Math.max(target, current - step);
 		}
 		return current;
 	}

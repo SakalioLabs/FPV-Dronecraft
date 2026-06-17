@@ -50,6 +50,8 @@ public final class DroneClientControls {
 	private static final KeyMapping YAW_RIGHT = register("key.fpvdrone.yaw_right", GLFW.GLFW_KEY_X);
 	private static final KeyMapping THROTTLE_CALIBRATE = register("key.fpvdrone.calibrate_throttle", GLFW.GLFW_KEY_C);
 	private static final float THROTTLE_CALIBRATION_MIN_SPAN = 0.05f;
+	private static final float GAMEPAD_THROTTLE_RISE_PER_TICK = 0.08f;
+	private static final float GAMEPAD_THROTTLE_FALL_PER_TICK = 0.14f;
 
 	private static float throttle;
 	private static float keyboardPitchAxis;
@@ -312,6 +314,11 @@ public final class DroneClientControls {
 	}
 
 	private static ControlInput smoothGamepadInput(ControlInput input) {
+		float throttle = INPUT_SMOOTHER.sampleThrottle(
+				input.throttle(),
+				GAMEPAD_THROTTLE_RISE_PER_TICK,
+				GAMEPAD_THROTTLE_FALL_PER_TICK
+		);
 		ControlInputSmoother.Axes axes = INPUT_SMOOTHER.sample(
 				input.pitch(),
 				input.roll(),
@@ -319,7 +326,7 @@ public final class DroneClientControls {
 				config.gamepadAxisRisePerTick(),
 				config.gamepadAxisFallPerTick()
 		);
-		return new ControlInput(input.throttle(), axes.pitch(), axes.roll(), axes.yaw(), input.source());
+		return new ControlInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), input.source());
 	}
 
 	private static ControlInput applyModeSwitchRamp(ControlInput input) {
