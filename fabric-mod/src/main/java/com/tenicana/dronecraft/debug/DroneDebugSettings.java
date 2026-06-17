@@ -12,6 +12,21 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
 
 public final class DroneDebugSettings {
+	public enum FlightModelMode {
+		PLAYABLE("playable"),
+		SIMULATION("simulation");
+
+		private final String id;
+
+		FlightModelMode(String id) {
+			this.id = id;
+		}
+
+		public String id() {
+			return id;
+		}
+	}
+
 	private static final UUID OWNERLESS_LOG_ID = new UUID(0L, 1L);
 	private static final ConcurrentHashMap<UUID, Integer> LAST_CONTROL_LOG_TICK = new ConcurrentHashMap<>();
 	private static final ConcurrentHashMap<UUID, Integer> LAST_TICK_LOG_TICK = new ConcurrentHashMap<>();
@@ -39,6 +54,10 @@ public final class DroneDebugSettings {
 		return bypassPhysicsEnabled;
 	}
 
+	public static FlightModelMode flightModelMode() {
+		return bypassPhysicsEnabled ? FlightModelMode.PLAYABLE : FlightModelMode.SIMULATION;
+	}
+
 	public static void setControlLoggingEnabled(boolean enabled) {
 		controlLoggingEnabled = enabled;
 	}
@@ -55,12 +74,16 @@ public final class DroneDebugSettings {
 		bypassPhysicsEnabled = enabled;
 	}
 
+	public static void setFlightModelMode(FlightModelMode mode) {
+		bypassPhysicsEnabled = mode == null || mode == FlightModelMode.PLAYABLE;
+	}
+
 	public static String statusLine() {
 		return String.format(
-				"debug[pkt=%s,tick=%s,physics=%s,ownerless=%s]",
+				"debug[pkt=%s,tick=%s,flight=%s,ownerless=%s]",
 				controlLoggingEnabled ? "on" : "off",
 				tickLoggingEnabled ? "on" : "off",
-				bypassPhysicsEnabled ? "direct" : "sim",
+				flightModelMode().id(),
 				ownerlessControlEnabled ? "on" : "off"
 		);
 	}

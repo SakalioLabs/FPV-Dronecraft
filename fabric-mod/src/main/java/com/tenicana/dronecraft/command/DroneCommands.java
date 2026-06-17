@@ -28,6 +28,7 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
+import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -77,6 +78,16 @@ public final class DroneCommands {
 								.then(Commands.argument("enabled", BoolArgumentType.bool())
 										.executes(context -> setDebugPhysics(context.getSource(), BoolArgumentType.getBool(context, "enabled")))
 								)
+						)
+						.then(Commands.literal("mode")
+								.then(Commands.literal("playable")
+										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.PLAYABLE)))
+								.then(Commands.literal("direct")
+										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.PLAYABLE)))
+								.then(Commands.literal("sim")
+										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.SIMULATION)))
+								.then(Commands.literal("simulation")
+										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.SIMULATION)))
 						)
 						.then(Commands.literal("status").executes(context -> debugStatus(context.getSource())))
 				)
@@ -675,13 +686,27 @@ public final class DroneCommands {
 
 	private static int setDebugPhysics(CommandSourceStack source, boolean enabled) {
 		DroneDebugSettings.setBypassPhysicsEnabled(enabled);
-		source.sendSuccess(() -> Component.literal("Direct control bypass physics " + (enabled ? "enabled" : "disabled")), false);
+		source.sendSuccess(() -> Component.literal("Legacy physics flag set to " + enabled + "; " + formatFlightModelMode()), false);
+		return 1;
+	}
+
+	private static int setDebugFlightModel(CommandSourceStack source, FlightModelMode mode) {
+		DroneDebugSettings.setFlightModelMode(mode);
+		source.sendSuccess(() -> Component.literal(formatFlightModelMode()), false);
 		return 1;
 	}
 
 	private static int debugStatus(CommandSourceStack source) {
 		source.sendSuccess(() -> Component.literal(DroneDebugSettings.statusLine()), false);
 		return 1;
+	}
+
+	private static String formatFlightModelMode() {
+		FlightModelMode mode = DroneDebugSettings.flightModelMode();
+		return switch (mode) {
+			case PLAYABLE -> "Flight model mode: playable/direct Minecraft control layer";
+			case SIMULATION -> "Flight model mode: simulation/6DOF physics";
+		};
 	}
 
 	private static int environmentStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
