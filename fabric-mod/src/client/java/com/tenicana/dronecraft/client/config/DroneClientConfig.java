@@ -23,11 +23,16 @@ public final class DroneClientConfig {
 	private static final float MIN_THROTTLE_CALIBRATION_SPAN = 0.05f;
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
 	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.10f;
-	private static final float DEFAULT_GAMEPAD_EXPO = 0.98f;
-	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.48f;
-	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.44f;
-	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.040f;
-	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.28f;
+	private static final float DEFAULT_GAMEPAD_EXPO = 1.00f;
+	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.42f;
+	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.38f;
+	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.032f;
+	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.32f;
+	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_EXPO = 0.98f;
+	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.48f;
+	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.44f;
+	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK = 0.040f;
+	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK = 0.28f;
 	private static final float RECENT_TRAINING_GAMEPAD_EXPO = 0.98f;
 	private static final float RECENT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.55f;
 	private static final float RECENT_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.52f;
@@ -584,6 +589,12 @@ public final class DroneClientConfig {
 
 	private void migrateLegacyTrainingFeelDefaults() {
 		if (matchesGamepadFeel(
+				PREVIOUS_SOFT_TRAINING_GAMEPAD_EXPO,
+				PREVIOUS_SOFT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
+				PREVIOUS_SOFT_TRAINING_GAMEPAD_YAW_RATE_SCALE,
+				PREVIOUS_SOFT_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK,
+				PREVIOUS_SOFT_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK
+		) || matchesGamepadFeel(
 				RECENT_TRAINING_GAMEPAD_EXPO,
 				RECENT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
 				RECENT_TRAINING_GAMEPAD_YAW_RATE_SCALE,
@@ -679,7 +690,7 @@ public final class DroneClientConfig {
 	}
 
 	public enum ControlFeelPreset {
-		TRAINING("screen.fpvdrone.feel_training", 0.98f, 0.48f, 0.44f, 0.040f, 0.28f),
+		TRAINING("screen.fpvdrone.feel_training", 1.00f, 0.42f, 0.38f, 0.032f, 0.32f),
 		SPORT("screen.fpvdrone.feel_sport", 0.90f, 0.86f, 0.82f, 0.12f, 0.24f),
 		ACRO("screen.fpvdrone.feel_acro", 0.75f, 1.00f, 1.00f, 0.20f, 0.35f),
 		CUSTOM("screen.fpvdrone.feel_custom", Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);
