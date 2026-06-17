@@ -19,6 +19,7 @@ public final class DroneBlackboxSample {
 			"physics_substeps",
 			"physics_dt_s",
 			"physics_rate_hz",
+			"flight_model",
 			"x",
 			"y",
 			"z",
@@ -1080,6 +1081,7 @@ public final class DroneBlackboxSample {
 			"mqtb_hq5x4x3_current_residual_a"
 	);
 	private static final int CSV_COLUMN_COUNT = CSV_HEADER.split(",", -1).length;
+	private static final String DEFAULT_FLIGHT_MODEL = "simulation";
 
 	private final String csvLine;
 
@@ -1106,8 +1108,45 @@ public final class DroneBlackboxSample {
 		return from(
 				gameTime,
 				tickCount,
+				DEFAULT_FLIGHT_MODEL,
+				state,
+				input,
+				motorPower,
+				frameHealth,
+				rotorHealth,
+				collisionSeverity,
+				propStrikeRotorIndex,
+				propStrikeSeverity,
+				propStrikeCount,
+				propStrikeSeverityByRotor,
+				environment,
+				config
+		);
+	}
+
+	public static DroneBlackboxSample from(
+			long gameTime,
+			int tickCount,
+			String flightModel,
+			DroneState state,
+			DroneInput input,
+			double motorPower,
+			double frameHealth,
+			double rotorHealth,
+			double collisionSeverity,
+			int propStrikeRotorIndex,
+			double propStrikeSeverity,
+			int propStrikeCount,
+			double[] propStrikeSeverityByRotor,
+			DroneEnvironment environment,
+			DroneConfig config
+	) {
+		return from(
+				gameTime,
+				tickCount,
 				1,
 				0.0,
+				flightModel,
 				state,
 				input,
 				motorPower,
@@ -1128,6 +1167,46 @@ public final class DroneBlackboxSample {
 			int tickCount,
 			int physicsSubsteps,
 			double physicsDtSeconds,
+			DroneState state,
+			DroneInput input,
+			double motorPower,
+			double frameHealth,
+			double rotorHealth,
+			double collisionSeverity,
+			int propStrikeRotorIndex,
+			double propStrikeSeverity,
+			int propStrikeCount,
+			double[] propStrikeSeverityByRotor,
+			DroneEnvironment environment,
+			DroneConfig config
+	) {
+		return from(
+				gameTime,
+				tickCount,
+				physicsSubsteps,
+				physicsDtSeconds,
+				DEFAULT_FLIGHT_MODEL,
+				state,
+				input,
+				motorPower,
+				frameHealth,
+				rotorHealth,
+				collisionSeverity,
+				propStrikeRotorIndex,
+				propStrikeSeverity,
+				propStrikeCount,
+				propStrikeSeverityByRotor,
+				environment,
+				config
+		);
+	}
+
+	public static DroneBlackboxSample from(
+			long gameTime,
+			int tickCount,
+			int physicsSubsteps,
+			double physicsDtSeconds,
+			String flightModel,
 			DroneState state,
 			DroneInput input,
 			double motorPower,
@@ -1214,6 +1293,7 @@ public final class DroneBlackboxSample {
 		int sanitizedPhysicsSubsteps = Math.max(0, physicsSubsteps);
 		double sanitizedPhysicsDtSeconds = Double.isFinite(physicsDtSeconds) && physicsDtSeconds > 0.0 ? physicsDtSeconds : 0.0;
 		double physicsRateHertz = sanitizedPhysicsDtSeconds > 0.0 ? 1.0 / sanitizedPhysicsDtSeconds : 0.0;
+		String sanitizedFlightModel = sanitizeFlightModel(flightModel);
 		double averageMotorPolePairs = averageMotorPolePairs(config);
 
 		CsvRow row = new CsvRow();
@@ -1222,6 +1302,7 @@ public final class DroneBlackboxSample {
 		row.add(sanitizedPhysicsSubsteps);
 		row.add(sanitizedPhysicsDtSeconds, "%.5f");
 		row.add(physicsRateHertz, "%.3f");
+		row.add(sanitizedFlightModel);
 		row.add(position.x(), "%.5f");
 		row.add(position.y(), "%.5f");
 		row.add(position.z(), "%.5f");
@@ -2478,6 +2559,23 @@ public final class DroneBlackboxSample {
 
 	private static double rotorSurfaceScrapeOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorSurfaceScrapeIntensity(index) : 0.0;
+	}
+
+	private static String sanitizeFlightModel(String flightModel) {
+		if (flightModel == null || flightModel.isBlank()) {
+			return DEFAULT_FLIGHT_MODEL;
+		}
+		String normalized = flightModel.trim().toLowerCase(Locale.ROOT);
+		StringBuilder builder = new StringBuilder(normalized.length());
+		for (int i = 0; i < normalized.length(); i++) {
+			char c = normalized.charAt(i);
+			if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+				builder.append(c);
+			} else {
+				builder.append('_');
+			}
+		}
+		return builder.length() == 0 ? DEFAULT_FLIGHT_MODEL : builder.toString();
 	}
 
 	public String toCsvLine() {

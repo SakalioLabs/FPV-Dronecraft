@@ -91,6 +91,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("physics_substeps"));
 		assertTrue(csv.contains("physics_dt_s"));
 		assertTrue(csv.contains("physics_rate_hz"));
+		assertTrue(csv.contains("flight_model"));
 		assertTrue(csv.contains("control_frame_age_s"));
 		assertTrue(csv.contains("control_frame_error"));
 		assertTrue(csv.contains("esc_command_frame_age_s"));
@@ -450,6 +451,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals("10", row[indexOf(header, "physics_substeps")]);
 		assertEquals(0.005, Double.parseDouble(row[indexOf(header, "physics_dt_s")]), 0.000001);
 		assertEquals(200.0, Double.parseDouble(row[indexOf(header, "physics_rate_hz")]), 0.001);
+		assertEquals("simulation", row[indexOf(header, "flight_model")]);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "control_frame_age_s")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "control_frame_interval_s")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "control_frame_error")]));
@@ -730,6 +732,8 @@ class DroneBlackboxRecorderTest {
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(4, summary.sampleCount());
+		assertEquals(0, summary.playableFlightModelSamples());
+		assertEquals(4, summary.simulationFlightModelSamples());
 		assertEquals(10, summary.maxPhysicsSubsteps());
 		assertEquals(200.0, summary.maxPhysicsRateHertz(), 0.001);
 		assertTrue(summary.maxSpeedMetersPerSecond() >= 0.0);
@@ -1014,6 +1018,48 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("rotor min"));
 		assertTrue(summary.formatForChat().contains("prop-strike"));
 		assertTrue(summary.formatForChat().contains("rc-frame"));
+	}
+
+	@Test
+	void blackboxCsvRecordsExplicitFlightModelMode() {
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneInput input = new DroneInput(0.52, 0.01, -0.02, 0.03, true, true, FlightMode.ANGLE);
+		DroneEnvironment environment = DroneEnvironment.calm();
+
+		for (int i = 0; i < 10; i++) {
+			physics.step(input, 0.005, environment);
+		}
+		recorder.record(DroneBlackboxSample.from(
+				0,
+				0,
+				10,
+				0.005,
+				"playable",
+				physics.state(),
+				input,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				environment,
+				config
+		));
+
+		String[] lines = recorder.toCsv().strip().split("\\R");
+		String[] header = lines[0].split(",", -1);
+		String[] row = lines[1].split(",", -1);
+		assertEquals("playable", row[indexOf(header, "flight_model")]);
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		assertEquals(1, summary.playableFlightModelSamples());
+		assertEquals(0, summary.simulationFlightModelSamples());
+		assertTrue(summary.formatForChat().contains("flight playable 1 sim 0"));
 	}
 
 	@Test

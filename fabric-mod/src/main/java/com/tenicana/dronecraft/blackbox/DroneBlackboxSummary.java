@@ -145,7 +145,10 @@ public record DroneBlackboxSummary(
 	private static final WindSplit EMPTY_WIND_SPLIT = new WindSplit(0.0, 0.0);
 	private static final AxialGustStats EMPTY_AXIAL_GUST_STATS = new AxialGustStats(1.0, 1.0);
 	private static final IcingStats EMPTY_ICING_STATS = new IcingStats(0.0, 1.0, 1.0);
+	private static final FlightModelStats EMPTY_FLIGHT_MODEL_STATS = new FlightModelStats(0, 0);
 	private static final Map<DroneBlackboxSummary, IcingStats> ICING_STATS =
+			Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<DroneBlackboxSummary, FlightModelStats> FLIGHT_MODEL_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 
 	public record WindSplit(
@@ -177,6 +180,16 @@ public record DroneBlackboxSummary(
 			maxRotorIcingSeverity = finiteNonNegativeOrZero(maxRotorIcingSeverity);
 			minRotorIcingThrustScale = finiteScaleOrOne(minRotorIcingThrustScale);
 			maxRotorIcingPowerScale = Math.max(1.0, finiteScaleOrOne(maxRotorIcingPowerScale));
+		}
+	}
+
+	private record FlightModelStats(
+			int playableSamples,
+			int simulationSamples
+	) {
+		public FlightModelStats {
+			playableSamples = Math.max(0, playableSamples);
+			simulationSamples = Math.max(0, simulationSamples);
 		}
 	}
 
@@ -320,9 +333,17 @@ public record DroneBlackboxSummary(
 		int propStrikeCount = 0;
 		int failsafeSamples = 0;
 		int collisionSamples = 0;
+		int playableFlightModelSamples = 0;
+		int simulationFlightModelSamples = 0;
 
 		for (DroneBlackboxSample sample : samples) {
 			String[] row = sample.toCsvLine().split(",", -1);
+			String flightModel = textValue(row, "flight_model");
+			if ("playable".equalsIgnoreCase(flightModel) || "direct".equalsIgnoreCase(flightModel)) {
+				playableFlightModelSamples++;
+			} else if ("simulation".equalsIgnoreCase(flightModel) || "sim".equalsIgnoreCase(flightModel)) {
+				simulationFlightModelSamples++;
+			}
 			maxPhysicsSubsteps = Math.max(maxPhysicsSubsteps, intValue(row, "physics_substeps"));
 			maxPhysicsRateHertz = Math.max(maxPhysicsRateHertz, value(row, "physics_rate_hz"));
 			maxSpeed = Math.max(maxSpeed, value(row, "speed_mps"));
@@ -832,11 +853,27 @@ public record DroneBlackboxSummary(
 				finiteOrOne(minRotorIcingThrustScale),
 				maxRotorIcingPowerScale
 		));
+		FLIGHT_MODEL_STATS.put(summary, new FlightModelStats(
+				playableFlightModelSamples,
+				simulationFlightModelSamples
+		));
 		return summary;
 	}
 
 	public boolean hasSamples() {
 		return sampleCount > 0;
+	}
+
+	public int playableFlightModelSamples() {
+		return flightModelStats().playableSamples();
+	}
+
+	public int simulationFlightModelSamples() {
+		return flightModelStats().simulationSamples();
+	}
+
+	private FlightModelStats flightModelStats() {
+		return FLIGHT_MODEL_STATS.getOrDefault(this, EMPTY_FLIGHT_MODEL_STATS);
 	}
 
 	public double maxWindDrydenSpeedMetersPerSecond() {
@@ -876,11 +913,14 @@ public record DroneBlackboxSummary(
 			return "Blackbox summary: no samples.";
 		}
 		IcingStats icingStats = icingStats();
+		FlightModelStats flightModelStats = flightModelStats();
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f agust %.2f..%.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% ice %.2f iceloss %.0f%% icepwr %.2f temp %.1f..%.1fC gust %.2fm/s dryden %.2f burble %.2f shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | flight playable %d sim %d | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f agust %.2f..%.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% ice %.2f iceloss %.0f%% icepwr %.2f temp %.1f..%.1fC gust %.2fm/s dryden %.2f burble %.2f shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
+				flightModelStats.playableSamples(),
+				flightModelStats.simulationSamples(),
 				maxPhysicsSubsteps,
 				maxPhysicsRateHertz,
 				maxSpeedMetersPerSecond,
@@ -1168,6 +1208,11 @@ public record DroneBlackboxSummary(
 		} catch (NumberFormatException ignored) {
 			return fallback;
 		}
+	}
+
+	private static String textValue(String[] row, String column) {
+		int index = index(column);
+		return index < row.length ? row[index] : "";
 	}
 
 	private static boolean boolValue(String[] row, String column) {

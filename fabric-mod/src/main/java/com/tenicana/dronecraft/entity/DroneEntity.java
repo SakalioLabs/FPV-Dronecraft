@@ -2461,6 +2461,7 @@ public class DroneEntity extends Entity {
 				tickCount,
 				PHYSICS_STEPS_PER_TICK,
 				PHYSICS_DT,
+				DroneDebugSettings.flightModelMode().id(),
 				physics.state(),
 				input,
 				physics.state().averageMotorPower(physics.config()),
