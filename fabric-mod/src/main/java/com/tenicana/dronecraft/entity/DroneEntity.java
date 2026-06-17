@@ -260,6 +260,7 @@ public class DroneEntity extends Entity {
 	private static final EntityDataAccessor<Float> ATTITUDE_ACCEL_TRUST = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final EntityDataAccessor<String> OWNER = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.STRING);
 	private static final EntityDataAccessor<Float> GROUND_EFFECT_LEVELING_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
+	private static final FlightMode DEFAULT_ENTITY_FLIGHT_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 
 	private DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
 	private String airframePreset = "racing_quad";
@@ -280,7 +281,7 @@ public class DroneEntity extends Entity {
 	private float debugCommandPitch;
 	private float debugCommandRoll;
 	private float debugCommandYaw;
-	private FlightMode debugFlightMode = FlightMode.HORIZON;
+	private FlightMode debugFlightMode = DEFAULT_ENTITY_FLIGHT_MODE;
 	private boolean debugFlightActiveLastTick;
 	private int debugFailsafeTicks;
 	private boolean simulationInitialized;
@@ -390,7 +391,7 @@ public class DroneEntity extends Entity {
 	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
 		builder.define(ARMED, false);
-		builder.define(FLIGHT_MODE, FlightMode.ANGLE.id());
+		builder.define(FLIGHT_MODE, DEFAULT_ENTITY_FLIGHT_MODE.id());
 		builder.define(PITCH, 0.0f);
 		builder.define(YAW, 0.0f);
 		builder.define(ROLL, 0.0f);
@@ -905,11 +906,11 @@ public class DroneEntity extends Entity {
 	private DroneInput directFailsafeInput() {
 		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
 		float throttle = hoverThrottle * DEBUG_FAILSAFE_THROTTLE_SCALE;
-		return new DroneInput(throttle, 0.0, 0.0, 0.0, true, false, FlightMode.ANGLE);
+		return new DroneInput(throttle, 0.0, 0.0, 0.0, true, false, DEFAULT_ENTITY_FLIGHT_MODE);
 	}
 
 	private DroneInput groundedDirectFailsafeInput() {
-		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, FlightMode.ANGLE);
+		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, DEFAULT_ENTITY_FLIGHT_MODE);
 	}
 
 	private void applyDebugFailsafeFlight(DroneInput input) {
@@ -950,7 +951,7 @@ public class DroneEntity extends Entity {
 		debugCommandPitch = 0.0f;
 		debugCommandRoll = 0.0f;
 		debugCommandYaw = 0.0f;
-		debugFlightMode = FlightMode.HORIZON;
+		debugFlightMode = DEFAULT_ENTITY_FLIGHT_MODE;
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 		physics.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
@@ -1055,7 +1056,7 @@ public class DroneEntity extends Entity {
 	private static final float DEBUG_AXIS_MOTION_THRESHOLD = 0.02f;
 
 	private static DroneInput stableIdleInput() {
-		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, FlightMode.ANGLE);
+		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, DEFAULT_ENTITY_FLIGHT_MODE);
 	}
 
 	private static boolean hasDebugControlIntent(DroneInput input) {
@@ -1965,9 +1966,9 @@ public class DroneEntity extends Entity {
 
 	private FlightMode syncedFlightMode(DroneInput rawInput, DroneInput processedInput) {
 		if (getOwner() == null && rawInput != null && !rawInput.linkActive()) {
-			return FlightMode.ANGLE;
+			return DEFAULT_ENTITY_FLIGHT_MODE;
 		}
-		return processedInput == null ? FlightMode.ANGLE : processedInput.flightMode();
+		return processedInput == null ? DEFAULT_ENTITY_FLIGHT_MODE : processedInput.flightMode();
 	}
 
 	private void setPerRotorFlightState(double[] motorPower, double[] motorRpm, double[] rotorThrust, double[] rotorHealth) {

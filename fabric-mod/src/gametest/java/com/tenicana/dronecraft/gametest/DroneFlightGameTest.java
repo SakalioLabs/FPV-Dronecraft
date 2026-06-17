@@ -85,7 +85,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		level.addFreshEntity(drone);
 
 		context.runAfterDelay(2, () -> {
-			assertTrue(drone.getFlightMode() == FlightMode.ANGLE, "new drone did not default to stable angle mode: " + drone.getFlightMode());
+			assertTrue(drone.getFlightMode() == FlightMode.DEFAULT_FIRST_FLIGHT, "new drone did not default to stable angle mode: " + drone.getFlightMode());
 			drone.discard();
 			context.succeed();
 		});
@@ -196,6 +196,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		context.runAfterDelay(78, () -> {
 			assertTrue(drone.isControlFailsafeActive(), "direct flight did not enter playable failsafe after link loss");
+			assertTrue(drone.getFlightMode() == FlightMode.DEFAULT_FIRST_FLIGHT, "direct failsafe did not fall back to stable angle mode: " + drone.getFlightMode());
 			assertTrue(!drone.isRawControlLinkActive(), "raw control link stayed active during failsafe");
 			assertTrue(!drone.isProcessedControlLinkActive(), "processed control link stayed active during failsafe");
 			assertTrue(drone.getControlLinkLossSeconds() > 0.0f, "failsafe did not report link-loss time");
