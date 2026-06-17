@@ -84,9 +84,11 @@ def fpvDroneRequiredSelfTestColumns = [
 		"y",
 		"z",
 		"speed_mps",
+		"armed",
 		"flight_mode",
 		"raw_link_active",
 		"control_throttle",
+		"control_armed",
 		"control_flight_mode",
 		"control_frame_error",
 		"motor_power",
@@ -323,6 +325,10 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 	if (!(flightModel in ["simulation", "playable"])) {
 		throw new GradleException("FPV Dronecraft server self-test report has an unknown flight_model=${report.flight_model}: ${reportFile}")
 	}
+	def flightMode = report.flight_mode?.toString()?.toLowerCase()
+	if (!(flightMode in ["acro", "angle", "horizon"])) {
+		throw new GradleException("FPV Dronecraft server self-test report has an unknown flight_mode=${report.flight_mode}: ${reportFile}")
+	}
 
 	def csvPath = report.csv?.toString()
 	if (csvPath == null || csvPath.isBlank()) {
@@ -349,14 +355,44 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 		throw new GradleException("FPV Dronecraft server self-test CSV is missing columns ${missingColumns}: ${csvFile}")
 	}
 
-	def mismatchedRow = lines.drop(1).findIndexOf { it.split(",", -1).length != header.length }
+	def rows = lines.drop(1).collect { it.split(",", -1) }
+	def mismatchedRow = rows.findIndexOf { it.length != header.length }
 	if (mismatchedRow >= 0) {
 		throw new GradleException("FPV Dronecraft server self-test CSV row ${mismatchedRow + 2} does not match ${header.length} header columns: ${csvFile}")
 	}
 	def flightModelColumn = header.toList().indexOf("flight_model")
-	def wrongFlightModelRow = lines.drop(1).findIndexOf { it.split(",", -1)[flightModelColumn].toLowerCase() != flightModel }
+	def wrongFlightModelRow = rows.findIndexOf { it[flightModelColumn].toLowerCase() != flightModel }
 	if (wrongFlightModelRow >= 0) {
 		throw new GradleException("FPV Dronecraft server self-test CSV row ${wrongFlightModelRow + 2} did not record flight_model=${flightModel}: ${csvFile}")
+	}
+	def flightModeColumn = header.toList().indexOf("flight_mode")
+	def controlFlightModeColumn = header.toList().indexOf("control_flight_mode")
+	def armedColumn = header.toList().indexOf("armed")
+	def controlArmedColumn = header.toList().indexOf("control_armed")
+	def motorPowerColumn = header.toList().indexOf("motor_power")
+	def csvNumberOrZero = { value ->
+		try {
+			return value.toString() as double
+		} catch (Exception ignored) {
+			return 0.0d
+		}
+	}
+	def activeFlightRows = rows.findAll {
+		it[armedColumn].toBoolean()
+				|| it[controlArmedColumn].toBoolean()
+				|| csvNumberOrZero(it[motorPowerColumn]) > 0.08d
+	}
+	if (activeFlightRows.isEmpty()) {
+		throw new GradleException("FPV Dronecraft server self-test CSV did not record any active flight samples: ${csvFile}")
+	}
+	def wrongFlightModeRow = rows.findIndexOf {
+		(it[armedColumn].toBoolean()
+				|| it[controlArmedColumn].toBoolean()
+				|| csvNumberOrZero(it[motorPowerColumn]) > 0.08d)
+				&& (it[flightModeColumn].toLowerCase() != flightMode || it[controlFlightModeColumn].toLowerCase() != flightMode)
+	}
+	if (wrongFlightModeRow >= 0) {
+		throw new GradleException("FPV Dronecraft server self-test active CSV row ${wrongFlightModeRow + 2} did not record flight_mode=${flightMode}: ${csvFile}")
 	}
 
 	def csvText = csvFile.getText("UTF-8")

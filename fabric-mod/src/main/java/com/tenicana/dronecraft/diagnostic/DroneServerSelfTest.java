@@ -1018,12 +1018,14 @@ public final class DroneServerSelfTest {
 			}
 		}
 		double maxPlayableLowAltitudeSuppressionPercent = Math.max(0.0, (1.0 - minPlayableLowAltitudeAuthority) * 100.0);
+		String flightMode = drone == null ? "unknown" : reportFlightModeFromCsv(drone.blackbox().toCsv());
 		return String.format(
 				Locale.ROOT,
 				"{\n"
 						+ "  \"passed\": %s,\n"
 						+ "  \"reason\": \"%s\",\n"
 						+ "  \"flight_model\": \"%s\",\n"
+						+ "  \"flight_mode\": \"%s\",\n"
 						+ "  \"min_playable_low_altitude_authority\": %.5f,\n"
 						+ "  \"max_playable_low_altitude_suppression_percent\": %.3f,\n"
 						+ "  \"max_playable_visual_pitch_deg\": %.4f,\n"
@@ -1128,6 +1130,7 @@ public final class DroneServerSelfTest {
 				passed,
 				escapeJson(reason),
 				flightModelMode.id(),
+				escapeJson(flightMode),
 				minPlayableLowAltitudeAuthority,
 				maxPlayableLowAltitudeSuppressionPercent,
 				maxPlayableVisualPitchDegrees,
@@ -1229,6 +1232,93 @@ public final class DroneServerSelfTest {
 				maxMixerSaturation,
 				escapeJson(csvPath.toAbsolutePath().toString())
 		);
+	}
+
+	private static String reportFlightModeFromCsv(String csv) {
+		if (csv == null || csv.isBlank()) {
+			return "unknown";
+		}
+		String[] lines = csv.split("\\R");
+		if (lines.length < 2) {
+			return "unknown";
+		}
+		String[] header = lines[0].split(",", -1);
+		int flightModeColumn = csvColumnIndex(header, "flight_mode");
+		int controlFlightModeColumn = csvColumnIndex(header, "control_flight_mode");
+		int armedColumn = csvColumnIndex(header, "armed");
+		int controlArmedColumn = csvColumnIndex(header, "control_armed");
+		int motorPowerColumn = csvColumnIndex(header, "motor_power");
+		if (flightModeColumn < 0 && controlFlightModeColumn < 0) {
+			return "unknown";
+		}
+		String fallbackFlightMode = "unknown";
+		for (int i = 1; i < lines.length; i++) {
+			if (lines[i].isBlank()) {
+				continue;
+			}
+			String[] row = lines[i].split(",", -1);
+			String rowFlightMode = reportFlightModeFromCsvRow(row, flightModeColumn, controlFlightModeColumn);
+			if ("unknown".equals(rowFlightMode)) {
+				continue;
+			}
+			if ("unknown".equals(fallbackFlightMode)) {
+				fallbackFlightMode = rowFlightMode;
+			}
+			if (isActiveCsvFlightSample(row, armedColumn, controlArmedColumn, motorPowerColumn)) {
+				return rowFlightMode;
+			}
+		}
+		return fallbackFlightMode;
+	}
+
+	private static String reportFlightModeFromCsvRow(String[] row, int flightModeColumn, int controlFlightModeColumn) {
+		String flightMode = normalizedFlightMode(csvValue(row, flightModeColumn));
+		String controlFlightMode = normalizedFlightMode(csvValue(row, controlFlightModeColumn));
+		if (isReportFlightMode(flightMode) && flightMode.equals(controlFlightMode)) {
+			return flightMode;
+		}
+		if (isReportFlightMode(controlFlightMode)) {
+			return controlFlightMode;
+		}
+		if (isReportFlightMode(flightMode)) {
+			return flightMode;
+		}
+		return "unknown";
+	}
+
+	private static int csvColumnIndex(String[] header, String column) {
+		for (int i = 0; i < header.length; i++) {
+			if (column.equals(header[i])) {
+				return i;
+			}
+		}
+		return -1;
+	}
+
+	private static String csvValue(String[] row, int column) {
+		return column >= 0 && column < row.length ? row[column] : "";
+	}
+
+	private static String normalizedFlightMode(String value) {
+		return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+	}
+
+	private static boolean isReportFlightMode(String value) {
+		return "acro".equals(value) || "angle".equals(value) || "horizon".equals(value);
+	}
+
+	private static boolean isActiveCsvFlightSample(String[] row, int armedColumn, int controlArmedColumn, int motorPowerColumn) {
+		return Boolean.parseBoolean(csvValue(row, armedColumn))
+				|| Boolean.parseBoolean(csvValue(row, controlArmedColumn))
+				|| parseCsvDouble(csvValue(row, motorPowerColumn)) > 0.08;
+	}
+
+	private static double parseCsvDouble(String value) {
+		try {
+			return Double.parseDouble(value);
+		} catch (NumberFormatException ignored) {
+			return 0.0;
+		}
 	}
 
 	private static boolean isEnabled() {

@@ -86,6 +86,7 @@ class DroneServerSelfTestTest {
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest.csv"));
 
 		assertTrue(json.contains("\"flight_model\": \"simulation\""));
+		assertTrue(json.contains("\"flight_mode\": \"unknown\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 0.62000"));
 		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 38.000"));
 		assertTrue(json.contains("\"max_playable_visual_pitch_deg\": 3.4000"));
@@ -155,12 +156,33 @@ class DroneServerSelfTestTest {
 		String json = reportJson(selfTest, tempDir.resolve("server-selftest-playable.csv"));
 
 		assertTrue(json.contains("\"flight_model\": \"playable\""));
+		assertTrue(json.contains("\"flight_mode\": \"unknown\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 1.00000"));
 		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 0.000"));
 		assertTrue(json.contains("\"max_playable_visual_pitch_deg\": 0.0000"));
 		assertTrue(json.contains("\"max_playable_visual_roll_deg\": 0.0000"));
 		assertTrue(json.contains("\"max_playable_visual_yaw_rate_dps\": 0.0000"));
 		assertTrue(json.contains("\"final_playable_visual_yaw_drift_deg\": 0.0000"));
+	}
+
+	@Test
+	void reportFlightModeUsesBlackboxInputAndControlMode() throws ReflectiveOperationException {
+		String csv = String.join(
+				"\n",
+				"game_time,flight_model,flight_mode,control_flight_mode,armed,control_armed,motor_power",
+				"1,playable,acro,acro,false,false,0.00000",
+				"2,playable,angle,angle,true,true,0.16624",
+				"3,playable,acro,acro,false,false,0.00000"
+		);
+		String controlOnlyCsv = String.join(
+				"\n",
+				"game_time,flight_model,flight_mode,control_flight_mode,armed,control_armed,motor_power",
+				"1,playable,,horizon,true,true,0.12000"
+		);
+
+		assertEquals("angle", reportFlightModeFromCsv(csv));
+		assertEquals("horizon", reportFlightModeFromCsv(controlOnlyCsv));
+		assertEquals("unknown", reportFlightModeFromCsv("game_time,flight_model\n1,playable"));
 	}
 
 	@Test
@@ -197,6 +219,12 @@ class DroneServerSelfTestTest {
 		Method method = DroneServerSelfTest.class.getDeclaredMethod("parseFlightModelMode", String.class);
 		method.setAccessible(true);
 		return (FlightModelMode) method.invoke(null, value);
+	}
+
+	private static String reportFlightModeFromCsv(String csv) throws ReflectiveOperationException {
+		Method method = DroneServerSelfTest.class.getDeclaredMethod("reportFlightModeFromCsv", String.class);
+		method.setAccessible(true);
+		return (String) method.invoke(null, csv);
 	}
 
 	private static void setDouble(DroneServerSelfTest selfTest, String fieldName, double value) throws ReflectiveOperationException {
