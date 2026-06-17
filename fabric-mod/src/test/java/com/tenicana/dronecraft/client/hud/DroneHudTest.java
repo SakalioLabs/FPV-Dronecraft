@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.client.DroneClientState.InputSource;
+import com.tenicana.dronecraft.client.config.DroneClientConfig;
 
 class DroneHudTest {
 	@Test
@@ -60,6 +61,15 @@ class DroneHudTest {
 	}
 
 	@Test
+	void controlFeelLabelsReuseControllerPresetTranslations() {
+		assertEquals("screen.fpvdrone.feel_training", DroneHud.controlFeelKey(null));
+		assertEquals("screen.fpvdrone.feel_training", DroneHud.controlFeelKey(DroneClientConfig.ControlFeelPreset.TRAINING));
+		assertEquals("screen.fpvdrone.feel_sport", DroneHud.controlFeelKey(DroneClientConfig.ControlFeelPreset.SPORT));
+		assertEquals("screen.fpvdrone.feel_acro", DroneHud.controlFeelKey(DroneClientConfig.ControlFeelPreset.ACRO));
+		assertEquals("screen.fpvdrone.feel_custom", DroneHud.controlFeelKey(DroneClientConfig.ControlFeelPreset.CUSTOM));
+	}
+
+	@Test
 	void throttleCalibrationLabelsPrioritizeActiveCalibration() {
 		assertEquals("hud.fpvdrone.throttle_calibrating", DroneHud.throttleCalibrationKey(true, true));
 		assertEquals("hud.fpvdrone.throttle_calibrating", DroneHud.throttleCalibrationKey(false, true));
@@ -81,5 +91,12 @@ class DroneHudTest {
 		assertTrue(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.GAMEPAD, true, false));
 		assertTrue(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.KEYBOARD, false, false));
 		assertTrue(DroneHud.shouldShowThrottleCalibrationStatus(InputSource.KEYBOARD, true, true));
+	}
+
+	@Test
+	void fullHudShowsControlFeelOnlyForGamepadInput() {
+		assertFalse(DroneHud.shouldShowControlFeelStatus(InputSource.KEYBOARD));
+		assertFalse(DroneHud.shouldShowControlFeelStatus(null));
+		assertTrue(DroneHud.shouldShowControlFeelStatus(InputSource.GAMEPAD));
 	}
 }

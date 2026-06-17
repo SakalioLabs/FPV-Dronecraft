@@ -16,6 +16,8 @@ import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.DroneClientState.HudMode;
 import com.tenicana.dronecraft.client.DroneClientState.InputSource;
+import com.tenicana.dronecraft.client.config.DroneClientConfig;
+import com.tenicana.dronecraft.client.control.DroneClientControls;
 import com.tenicana.dronecraft.control.DroneArmSafetyRules;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.FlightMode;
@@ -115,6 +117,9 @@ public final class DroneHud {
 		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
 		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
 		Component source = Component.translatable(inputSourceKey(telemetry.inputSource()));
+		Component feel = shouldShowControlFeelStatus(telemetry.inputSource())
+				? Component.translatable("hud.fpvdrone.feel_value", Component.translatable(controlFeelKey(telemetry.controlFeelPreset())))
+				: null;
 		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
 		Component throttleCalibration = shouldShowThrottleCalibrationStatus(
 				telemetry.inputSource(),
@@ -128,6 +133,9 @@ public final class DroneHud {
 		Component throttle = Component.translatable("hud.fpvdrone.throttle_value", percent(telemetry.throttle()));
 
 		int leftWidth = font.width(mode) + font.width(view) + font.width(source) + font.width(armed) + font.width(link) + 38;
+		if (feel != null) {
+			leftWidth += font.width(feel) + 8;
+		}
 		if (throttleCalibration != null) {
 			leftWidth += font.width(throttleCalibration) + 8;
 		}
@@ -144,6 +152,10 @@ public final class DroneHud {
 		x += font.width(view) + 8;
 		drawString(graphics, font, source, x, y, inputSourceColor(telemetry));
 		x += font.width(source) + 8;
+		if (feel != null) {
+			drawString(graphics, font, feel, x, y, MUTED);
+			x += font.width(feel) + 8;
+		}
 		drawString(graphics, font, armed, x, y, telemetry.armed() ? PRIMARY : WARNING);
 		x += font.width(armed) + 8;
 		if (throttleCalibration != null) {
@@ -393,12 +405,23 @@ public final class DroneHud {
 		return calibrated ? "hud.fpvdrone.throttle_calibrated" : "hud.fpvdrone.throttle_uncalibrated";
 	}
 
+	static String controlFeelKey(DroneClientConfig.ControlFeelPreset preset) {
+		DroneClientConfig.ControlFeelPreset safePreset = preset == null
+				? DroneClientConfig.ControlFeelPreset.TRAINING
+				: preset;
+		return safePreset.translationKey();
+	}
+
 	static boolean shouldShowThrottleCalibrationStatus(InputSource source, boolean calibrated, boolean calibrationActive) {
 		return calibrationActive || !calibrated || source == InputSource.GAMEPAD;
 	}
 
 	static boolean shouldShowMinimalThrottleCalibrationStatus(InputSource source, boolean calibrated, boolean calibrationActive) {
 		return calibrationActive || !calibrated;
+	}
+
+	static boolean shouldShowControlFeelStatus(InputSource source) {
+		return source == InputSource.GAMEPAD;
 	}
 
 	private record Telemetry(
@@ -408,6 +431,7 @@ public final class DroneHud {
 			boolean fpvView,
 			FlightMode mode,
 			InputSource inputSource,
+			DroneClientConfig.ControlFeelPreset controlFeelPreset,
 			boolean throttleCalibrated,
 			boolean throttleCalibrationActive,
 			float throttle,
@@ -438,6 +462,7 @@ public final class DroneHud {
 						DroneClientState.isFpvViewEnabled(),
 						DroneClientState.flightMode(),
 						DroneClientState.inputSource(),
+						DroneClientControls.config().gamepadFeelPreset(),
 						DroneClientState.throttleCalibrated(),
 						DroneClientState.throttleCalibrationActive(),
 						DroneClientState.throttle(),
@@ -467,6 +492,7 @@ public final class DroneHud {
 					DroneClientState.isFpvViewEnabled(),
 					drone.getFlightMode(),
 					DroneClientState.inputSource(),
+					DroneClientControls.config().gamepadFeelPreset(),
 					DroneClientState.throttleCalibrated(),
 					DroneClientState.throttleCalibrationActive(),
 					drone.getControlThrottle(),

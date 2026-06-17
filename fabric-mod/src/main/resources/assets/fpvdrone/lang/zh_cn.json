@@ -50,6 +50,7 @@
 	"hud.fpvdrone.throttle_calibrating": "油门校准中",
 	"hud.fpvdrone.source_keyboard": "键盘",
 	"hud.fpvdrone.source_gamepad": "手柄",
+	"hud.fpvdrone.feel_value": "手感 %s",
 	"hud.fpvdrone.mode_value": "模式 %s",
 	"hud.fpvdrone.view_fpv": "FPV",
 	"hud.fpvdrone.view_los": "目视",

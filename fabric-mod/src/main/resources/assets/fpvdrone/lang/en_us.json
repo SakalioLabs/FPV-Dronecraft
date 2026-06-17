@@ -50,6 +50,7 @@
 	"hud.fpvdrone.throttle_calibrating": "THR_CAL",
 	"hud.fpvdrone.source_keyboard": "KEYS",
 	"hud.fpvdrone.source_gamepad": "GAMEPAD",
+	"hud.fpvdrone.feel_value": "FEEL %s",
 	"hud.fpvdrone.mode_value": "MODE %s",
 	"hud.fpvdrone.view_fpv": "FPV",
 	"hud.fpvdrone.view_los": "LOS",
