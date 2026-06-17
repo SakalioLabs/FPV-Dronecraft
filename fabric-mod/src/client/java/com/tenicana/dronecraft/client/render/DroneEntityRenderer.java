@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.entity.RotorLayoutCodec;
 
@@ -45,10 +46,14 @@ public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntity
 			state.rotorSpinDirection[i] = layout.spinDirection(i);
 		}
 		state.armed = entity.isArmed();
+		state.hiddenInFpv = DroneClientState.isFpvActive() && DroneClientState.controlledDrone() == entity;
 	}
 
 	@Override
 	public void submit(DroneEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitter, CameraRenderState cameraState) {
+		if (state.hiddenInFpv) {
+			return;
+		}
 		super.submit(state, poseStack, submitter, cameraState);
 		poseStack.pushPose();
 		poseStack.scale(-1.0f, -1.0f, 1.0f);

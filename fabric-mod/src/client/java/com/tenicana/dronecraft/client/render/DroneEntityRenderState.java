@@ -16,4 +16,5 @@ public class DroneEntityRenderState extends EntityRenderState {
 	public final float[] rotorZModelUnits = new float[RotorLayoutCodec.MAX_RENDER_ROTORS];
 	public final int[] rotorSpinDirection = new int[RotorLayoutCodec.MAX_RENDER_ROTORS];
 	public boolean armed;
+	public boolean hiddenInFpv;
 }

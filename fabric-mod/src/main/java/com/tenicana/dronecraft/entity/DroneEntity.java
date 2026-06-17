@@ -265,6 +265,10 @@ public class DroneEntity extends Entity {
 	private float debugVelocityX;
 	private float debugVelocityY;
 	private float debugVelocityZ;
+	private float debugVisualPitchRadians;
+	private float debugVisualRollRadians;
+	private float debugMotorPower;
+	private float debugAverageMotorRpm;
 	private float debugTargetVelocityX;
 	private float debugTargetVelocityY;
 	private float debugTargetVelocityZ;
@@ -688,18 +692,10 @@ public class DroneEntity extends Entity {
 		return true;
 	}
 
-	private static final float DEBUG_THRUST_GAIN = 2.5f;
-	private static final float DEBUG_DESCENT_GAIN = 1.0f;
-	private static final float DEBUG_AXIS_GAIN = 1.45f;
-	private static final float DEBUG_YAW_GAIN = 2.4f;
 	private static final float DEBUG_INPUT_SMOOTH = 0.32f;
-	private static final float DEBUG_VELOCITY_SMOOTH = 0.26f;
-	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_AXIS_DEADBAND = 0.12f;
-	private static final float DEBUG_THRUST_MIN_CLIMB = 0.025f;
+	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
-	private static final float DEBUG_VELOCITY_LIMIT_XZ = 2.0f;
-	private static final float DEBUG_VELOCITY_LIMIT_Y = 2.8f;
 
 	private void applyDebugFlight(DroneInput input) {
 		float throttle = (float) MathUtil.clamp(input.throttle(), 0.0, 1.0);
@@ -721,19 +717,23 @@ public class DroneEntity extends Entity {
 		debugCommandRoll = smoothedRoll;
 		debugCommandYaw = smoothedYaw;
 
-		float targetVx = smoothedRoll * DEBUG_AXIS_GAIN;
 		boolean shouldFly = input.armed() || smoothedThrottle > DEBUG_THRUST_DEADZONE || Math.abs(smoothedPitch) > DEBUG_MOVEMENT_EPSILON || Math.abs(smoothedRoll) > DEBUG_MOVEMENT_EPSILON;
 		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
-		float targetVy = shouldFly ? debugVerticalVelocity(smoothedThrottle, hoverThrottle) : 0.0f;
 		boolean nearGroundLocked = isNearGroundLocked();
-		if (shouldFly && nearGroundLocked && targetVy < 0.0f) {
-			targetVy = 0.0f;
-		}
-		if (shouldFly && smoothedThrottle > hoverThrottle && targetVy > 0.0f && targetVy < DEBUG_THRUST_MIN_CLIMB) {
-			targetVy = DEBUG_THRUST_MIN_CLIMB;
-		}
-		float targetVz = -smoothedPitch * DEBUG_AXIS_GAIN;
-		float targetYaw = smoothedYaw * DEBUG_YAW_GAIN;
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				input.flightMode(),
+				smoothedThrottle,
+				smoothedPitch,
+				smoothedRoll,
+				smoothedYaw,
+				hoverThrottle,
+				nearGroundLocked,
+				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ)
+		);
+		float targetVx = step.targetVelocityX();
+		float targetVy = step.targetVelocityY();
+		float targetVz = step.targetVelocityZ();
+		float targetYaw = step.yawDegreesPerTick();
 
 		if (!shouldFly) {
 			targetVx = 0.0f;
@@ -743,6 +743,10 @@ public class DroneEntity extends Entity {
 			debugVelocityX = 0.0f;
 			debugVelocityY = 0.0f;
 			debugVelocityZ = 0.0f;
+			debugVisualPitchRadians = 0.0f;
+			debugVisualRollRadians = 0.0f;
+			debugMotorPower = 0.0f;
+			debugAverageMotorRpm = 0.0f;
 			debugCommandThrottle = 0.0f;
 			debugCommandPitch = 0.0f;
 			debugCommandRoll = 0.0f;
@@ -766,16 +770,13 @@ public class DroneEntity extends Entity {
 		debugTargetVelocityY = targetVy;
 		debugTargetVelocityZ = targetVz;
 		debugTargetYawRate = targetYaw;
-
-		debugVelocityX = debugVelocityX + (targetVx - debugVelocityX) * DEBUG_VELOCITY_SMOOTH;
-		debugVelocityY = debugVelocityY + (targetVy - debugVelocityY) * DEBUG_VELOCITY_SMOOTH;
-		debugVelocityZ = debugVelocityZ + (targetVz - debugVelocityZ) * DEBUG_VELOCITY_SMOOTH;
-		debugVelocityX = clampAxis(debugVelocityX, DEBUG_VELOCITY_LIMIT_XZ);
-		debugVelocityY = clampAxis(debugVelocityY, DEBUG_VELOCITY_LIMIT_Y);
-		debugVelocityZ = clampAxis(debugVelocityZ, DEBUG_VELOCITY_LIMIT_XZ);
-		if (nearGroundLocked && debugVelocityY < 0.0f) {
-			debugVelocityY = 0.0f;
-		}
+		debugVelocityX = step.velocityX();
+		debugVelocityY = step.velocityY();
+		debugVelocityZ = step.velocityZ();
+		debugVisualPitchRadians = step.pitchRadians();
+		debugVisualRollRadians = step.rollRadians();
+		debugMotorPower = step.motorPower();
+		debugAverageMotorRpm = step.averageRpm();
 
 		float yawRadians = (float) Math.toRadians(getYRot());
 		float cos = (float) Math.cos(yawRadians);
@@ -798,20 +799,7 @@ public class DroneEntity extends Entity {
 		if (Math.abs(targetYaw) > 0.02f) {
 			setYRot(getYRot() + targetYaw);
 		}
-	}
-
-	private float debugVerticalVelocity(float throttle, float hoverThrottle) {
-		if (throttle <= DEBUG_THRUST_DEADZONE) {
-			return -DEBUG_DESCENT_GAIN;
-		}
-		float centered = throttle - hoverThrottle;
-		if (Math.abs(centered) < 0.035f) {
-			return 0.0f;
-		}
-		if (centered > 0.0f) {
-			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * DEBUG_THRUST_GAIN;
-		}
-		return centered / Math.max(0.10f, hoverThrottle) * DEBUG_DESCENT_GAIN;
+		setXRot((float) Math.toDegrees(debugVisualPitchRadians));
 	}
 
 	private boolean isNearGroundLocked() {
@@ -835,14 +823,49 @@ public class DroneEntity extends Entity {
 		entityData.set(RAW_CONTROL_LINK_ACTIVE, normalizedInput.linkActive());
 		entityData.set(PROCESSED_CONTROL_LINK_ACTIVE, normalizedInput.linkActive());
 		entityData.set(CONTROL_FAILSAFE, false);
-		entityData.set(PITCH, (float) getXRot());
-		entityData.set(YAW, (float) getYRot());
-		entityData.set(ROLL, 0.0f);
+		entityData.set(PITCH, debugVisualPitchRadians);
+		entityData.set(YAW, (float) Math.toRadians(getYRot()));
+		entityData.set(ROLL, debugVisualRollRadians);
 		entityData.set(SPEED, (float) Math.sqrt(debugVelocityX * debugVelocityX + debugVelocityY * debugVelocityY + debugVelocityZ * debugVelocityZ));
-		entityData.set(MOTOR_POWER, (float) MathUtil.clamp(normalizedInput.throttle(), 0.0, 1.0));
+		entityData.set(MOTOR_POWER, normalizedInput.armed() ? debugMotorPower : 0.0f);
+		entityData.set(MOTOR_RPM, normalizedInput.armed() ? debugAverageMotorRpm : 0.0f);
+		setDirectPerRotorState(normalizedInput);
 		entityData.set(BAROMETER_ALTITUDE, (float) entityPhysicsPosition().y());
+		entityData.set(BAROMETER_VERTICAL_SPEED, debugVelocityY);
 		entityData.set(BAROMETER_ERROR, 0.0f);
 		entityData.set(GROUND_EFFECT_LEVELING_TORQUE, airworthy ? 0.0f : 0.08f);
+	}
+
+	private void setDirectPerRotorState(DroneInput input) {
+		int rotorCount = Math.max(1, physics.config().rotors().size());
+		double[] motorPower = new double[rotorCount];
+		double[] motorRpm = new double[rotorCount];
+		double[] rotorThrust = new double[rotorCount];
+		double[] rotorHealth = physics.state().rotorHealth();
+		double basePower = input.armed() ? debugMotorPower : 0.0;
+		double baseRpm = input.armed() ? debugAverageMotorRpm : 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			double mix = 1.0 + rotorMixerPreview(i, input);
+			motorPower[i] = MathUtil.clamp(basePower * mix, 0.0, 1.0);
+			motorRpm[i] = Math.max(0.0, baseRpm * mix);
+			rotorThrust[i] = motorPower[i] * physics.config().rotors().get(i).maxThrustNewtons() * 0.45;
+		}
+		setPerRotorFlightState(motorPower, motorRpm, rotorThrust, rotorHealth);
+	}
+
+	private double rotorMixerPreview(int rotorIndex, DroneInput input) {
+		double rollSign = switch (rotorIndex & 3) {
+			case 0, 3 -> 1.0;
+			default -> -1.0;
+		};
+		double pitchSign = switch (rotorIndex & 3) {
+			case 0, 1 -> 1.0;
+			default -> -1.0;
+		};
+		double yawSign = physics.config().rotors().get(rotorIndex).spinDirection();
+		return 0.04 * input.roll() * rollSign
+				+ 0.04 * input.pitch() * pitchSign
+				+ 0.025 * input.yaw() * yawSign;
 	}
 
 	private static final float DEBUG_ARM_THRUST_THRESHOLD = 0.005f;

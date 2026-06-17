@@ -41,6 +41,12 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		double initialY = drone.getY();
 		DroneControlManager.startDiagnostic(TEST_OWNER, drone.tickCount, DURATION_TICKS);
 
+		context.runAfterDelay(145, () -> {
+			float yawRadians = drone.getRenderYawRadians();
+			assertTrue(Math.abs(yawRadians) > 0.02f, "direct flight did not yaw enough to verify camera units: " + yawRadians);
+			assertTrue(Math.abs(yawRadians) < 0.50f, "render yaw is not radians: " + yawRadians);
+		});
+
 		context.runAfterDelay(ASSERT_TICKS, () -> {
 			DroneControlManager.stopDiagnostic(TEST_OWNER);
 			assertTrue(!drone.isRemoved(), "drone was removed during GameTest");
@@ -53,6 +59,11 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 					drone.getY()
 			));
 			assertTrue(Double.isFinite(drone.getSpeedMetersPerSecond()), "drone speed became non-finite");
+			assertTrue(Math.abs(drone.getRenderYawRadians()) < Math.PI * 2.0, "render yaw is not radians: " + drone.getRenderYawRadians());
+			assertTrue(Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(45.0), "render pitch is not a playable attitude: " + drone.getRenderPitchRadians());
+			assertTrue(Math.abs(drone.getRenderRollRadians()) < Math.toRadians(50.0), "render roll is not a playable attitude: " + drone.getRenderRollRadians());
+			assertTrue(drone.getAverageMotorRpm() > 2000.0f, "direct flight did not animate motor RPM: " + drone.getAverageMotorRpm());
+			assertTrue(drone.getAverageMotorRpm() < 18000.0f, "direct flight RPM is implausibly high: " + drone.getAverageMotorRpm());
 			drone.discard();
 			context.succeed();
 		});
