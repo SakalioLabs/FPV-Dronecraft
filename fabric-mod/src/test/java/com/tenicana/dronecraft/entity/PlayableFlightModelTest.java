@@ -477,10 +477,10 @@ class PlayableFlightModelTest {
 
 	@Test
 	void playableServerLayerPreservesClientShapedFineStickCommands() {
-		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 0.98, 0.55);
+		float shapedHalfStick = (float) ControlStickProfile.gamepadCommand(0.50, 0.10, 0.98, 0.48);
 
 		assertTrue(shapedHalfStick > 0.025f);
-		assertTrue(shapedHalfStick < 0.040f);
+		assertTrue(shapedHalfStick < 0.032f);
 		assertEquals(0.0f, PlayableFlightModel.playableAxisCommand(0.004f), 1.0e-6f);
 		assertEquals(shapedHalfStick, PlayableFlightModel.playableAxisCommand(shapedHalfStick), 1.0e-6f);
 		assertEquals(-shapedHalfStick, PlayableFlightModel.playableAxisCommand(-shapedHalfStick), 1.0e-6f);
@@ -488,8 +488,8 @@ class PlayableFlightModelTest {
 
 	@Test
 	void angleModeWithGentleTrainingPresetKeepsMidStickCalm() {
-		float mediumStick = (float) ControlStickProfile.gamepadCommand(0.70, 0.10, 0.98, 0.55);
-		float fullStick = (float) ControlStickProfile.gamepadCommand(1.0, 0.10, 0.98, 0.55);
+		float mediumStick = (float) ControlStickProfile.gamepadCommand(0.70, 0.10, 0.98, 0.48);
+		float fullStick = (float) ControlStickProfile.gamepadCommand(1.0, 0.10, 0.98, 0.48);
 
 		PlayableFlightModel.Step medium = holdStick(FlightMode.ANGLE, 18, 0.42f, mediumStick, -mediumStick, mediumStick);
 		PlayableFlightModel.Step full = holdStick(FlightMode.ANGLE, 18, 0.45f, fullStick, -fullStick, fullStick);

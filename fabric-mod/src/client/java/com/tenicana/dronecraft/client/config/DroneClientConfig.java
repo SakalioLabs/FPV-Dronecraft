@@ -24,10 +24,15 @@ public final class DroneClientConfig {
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
 	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.10f;
 	private static final float DEFAULT_GAMEPAD_EXPO = 0.98f;
-	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.55f;
-	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.52f;
-	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.055f;
-	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.24f;
+	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.48f;
+	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.44f;
+	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.040f;
+	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.28f;
+	private static final float RECENT_TRAINING_GAMEPAD_EXPO = 0.98f;
+	private static final float RECENT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.55f;
+	private static final float RECENT_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.52f;
+	private static final float RECENT_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK = 0.055f;
+	private static final float RECENT_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK = 0.24f;
 	private static final float LEGACY_TRAINING_GAMEPAD_EXPO = 0.97f;
 	private static final float LEGACY_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.72f;
 	private static final float LEGACY_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.70f;
@@ -578,13 +583,29 @@ public final class DroneClientConfig {
 	}
 
 	private void migrateLegacyTrainingFeelDefaults() {
-		if (nearly(gamepadExpo, LEGACY_TRAINING_GAMEPAD_EXPO)
-				&& nearly(gamepadRollPitchRateScale, LEGACY_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE)
-				&& nearly(gamepadYawRateScale, LEGACY_TRAINING_GAMEPAD_YAW_RATE_SCALE)
-				&& nearly(gamepadAxisRisePerTick, LEGACY_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK)
-				&& nearly(gamepadAxisFallPerTick, LEGACY_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK)) {
+		if (matchesGamepadFeel(
+				RECENT_TRAINING_GAMEPAD_EXPO,
+				RECENT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
+				RECENT_TRAINING_GAMEPAD_YAW_RATE_SCALE,
+				RECENT_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK,
+				RECENT_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK
+		) || matchesGamepadFeel(
+				LEGACY_TRAINING_GAMEPAD_EXPO,
+				LEGACY_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
+				LEGACY_TRAINING_GAMEPAD_YAW_RATE_SCALE,
+				LEGACY_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK,
+				LEGACY_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK
+		)) {
 			applyGamepadFeelPreset(ControlFeelPreset.TRAINING);
 		}
+	}
+
+	private boolean matchesGamepadFeel(float expo, float rollPitchRateScale, float yawRateScale, float axisRisePerTick, float axisFallPerTick) {
+		return nearly(gamepadExpo, expo)
+				&& nearly(gamepadRollPitchRateScale, rollPitchRateScale)
+				&& nearly(gamepadYawRateScale, yawRateScale)
+				&& nearly(gamepadAxisRisePerTick, axisRisePerTick)
+				&& nearly(gamepadAxisFallPerTick, axisFallPerTick);
 	}
 
 	private void migrateLegacyBlockedFpvCameraDefaults() {
@@ -658,7 +679,7 @@ public final class DroneClientConfig {
 	}
 
 	public enum ControlFeelPreset {
-		TRAINING("screen.fpvdrone.feel_training", 0.98f, 0.55f, 0.52f, 0.055f, 0.24f),
+		TRAINING("screen.fpvdrone.feel_training", 0.98f, 0.48f, 0.44f, 0.040f, 0.28f),
 		SPORT("screen.fpvdrone.feel_sport", 0.90f, 0.86f, 0.82f, 0.12f, 0.24f),
 		ACRO("screen.fpvdrone.feel_acro", 0.75f, 1.00f, 1.00f, 0.20f, 0.35f),
 		CUSTOM("screen.fpvdrone.feel_custom", Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);

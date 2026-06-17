@@ -23,10 +23,10 @@ class DroneClientConfigTest {
 		assertTrue(config.throttleInverted());
 		assertTrue(config.gamepadDeadband() >= 0.10f);
 		assertEquals(0.98f, config.gamepadExpo(), 1.0e-4f);
-		assertEquals(0.55f, config.gamepadRollPitchRateScale(), 1.0e-4f);
-		assertEquals(0.52f, config.gamepadYawRateScale(), 1.0e-4f);
-		assertEquals(0.055f, config.gamepadAxisRisePerTick(), 1.0e-4f);
-		assertEquals(0.24f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+		assertEquals(0.48f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.44f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.040f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.28f, config.gamepadAxisFallPerTick(), 1.0e-4f);
 		assertEquals(0.0f, config.rollCenter(), 1.0e-4f);
 		assertEquals(0.0f, config.pitchCenter(), 1.0e-4f);
 		assertEquals(0.0f, config.yawCenter(), 1.0e-4f);
@@ -45,10 +45,10 @@ class DroneClientConfigTest {
 		config = normalize(config);
 
 		assertEquals(0.98f, config.gamepadExpo(), 1.0e-4f);
-		assertEquals(0.55f, config.gamepadRollPitchRateScale(), 1.0e-4f);
-		assertEquals(0.52f, config.gamepadYawRateScale(), 1.0e-4f);
-		assertEquals(0.055f, config.gamepadAxisRisePerTick(), 1.0e-4f);
-		assertEquals(0.24f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+		assertEquals(0.48f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.44f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.040f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.28f, config.gamepadAxisFallPerTick(), 1.0e-4f);
 	}
 
 	@Test
@@ -81,7 +81,7 @@ class DroneClientConfigTest {
 
 		assertEquals(DroneClientConfig.ControlFeelPreset.CUSTOM, config.gamepadFeelPreset());
 		assertEquals(DroneClientConfig.ControlFeelPreset.TRAINING, config.nextGamepadFeelPreset());
-		assertEquals(0.55f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.48f, config.gamepadRollPitchRateScale(), 1.0e-4f);
 	}
 
 	@Test
@@ -97,10 +97,28 @@ class DroneClientConfigTest {
 
 		assertEquals(DroneClientConfig.ControlFeelPreset.TRAINING, config.gamepadFeelPreset());
 		assertEquals(0.98f, config.gamepadExpo(), 1.0e-4f);
-		assertEquals(0.55f, config.gamepadRollPitchRateScale(), 1.0e-4f);
-		assertEquals(0.52f, config.gamepadYawRateScale(), 1.0e-4f);
-		assertEquals(0.055f, config.gamepadAxisRisePerTick(), 1.0e-4f);
-		assertEquals(0.24f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+		assertEquals(0.48f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.44f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.040f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.28f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+	}
+
+	@Test
+	void recentTrainingDefaultsMigrateToSofterPreset() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		setFloat(config, "gamepadExpo", 0.98f);
+		setFloat(config, "gamepadRollPitchRateScale", 0.55f);
+		setFloat(config, "gamepadYawRateScale", 0.52f);
+		setFloat(config, "gamepadAxisRisePerTick", 0.055f);
+		setFloat(config, "gamepadAxisFallPerTick", 0.24f);
+
+		config = normalize(config);
+
+		assertEquals(DroneClientConfig.ControlFeelPreset.TRAINING, config.gamepadFeelPreset());
+		assertEquals(0.48f, config.gamepadRollPitchRateScale(), 1.0e-4f);
+		assertEquals(0.44f, config.gamepadYawRateScale(), 1.0e-4f);
+		assertEquals(0.040f, config.gamepadAxisRisePerTick(), 1.0e-4f);
+		assertEquals(0.28f, config.gamepadAxisFallPerTick(), 1.0e-4f);
 	}
 
 	@Test

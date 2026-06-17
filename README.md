@@ -18,6 +18,7 @@
 - 中英文语言文件现在有测试守护：设置界面、HUD 和客户端提示直接引用的 `fpvdrone` 翻译 key 必须同时存在于 `en_us` 和 `zh_cn`，避免遥控器设置界面出现未翻译 key。
 - FPV 相机的最终挂载点现在会把振动/jello 位移也计入清晰下限，旧配置或强振动不会再把视角短暂拉回机身附近，降低“画面被无人机挡住”的风险。
 - 手柄/遥控器的俯仰、横滚、偏航经过死区、expo、倍率和每 tick 输入限速，再发送给无人机；默认 `Training` 档进一步降低了右摇杆中段和半杆响应，轻打杆不会直接把机体打歪。
+- `Training` 手感再次收敛：横滚/俯仰默认倍率从 `0.55` 降到 `0.48`、偏航从 `0.52` 降到 `0.44`、输入进入速度从 `0.055/tick` 降到 `0.040/tick`，旧训练档配置会自动迁移，减少“右杆轻碰就歪”的首飞挫败感。
 - 客户端真实手柄链路现在有包内测试覆盖：原始摇杆先做物理中心死区和校准，再进入 Training/Sport/Acro 控制曲线，避免只测理论曲线却漏掉游戏内实际发包路径。
 - 遥控器设置界面新增“校准摇杆中心”，会记录横滚、俯仰、偏航三轴的静止偏移并在发包前扣掉，用来处理手柄中心漂移导致的无输入自转或缓慢偏移。
 - 服务端可玩飞行层不再对客户端已经塑形过的摇杆命令重复套大死区/expo，只保留极小噪声门槛和限速；`ANGLE`/`HORIZON` 稳定模式会把松杆后的极小残余速度、姿态和偏航率收敛到 0，减少“没打杆还慢慢歪/转”的手感。
@@ -265,10 +266,10 @@ The validator still covers the IMU offset columns, including `tune_imu_y_m` and 
   "throttleInverted": true,
   "gamepadDeadband": 0.10,
   "gamepadExpo": 0.98,
-  "gamepadRollPitchRateScale": 0.55,
-  "gamepadYawRateScale": 0.52,
-  "gamepadAxisRisePerTick": 0.055,
-  "gamepadAxisFallPerTick": 0.24,
+  "gamepadRollPitchRateScale": 0.48,
+  "gamepadYawRateScale": 0.44,
+  "gamepadAxisRisePerTick": 0.04,
+  "gamepadAxisFallPerTick": 0.28,
   "hudMode": "MINIMAL",
   "cameraTiltDegrees": 14.0,
   "cameraForwardOffsetMeters": 1.05,
