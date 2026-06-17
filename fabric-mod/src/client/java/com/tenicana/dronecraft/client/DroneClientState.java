@@ -21,7 +21,7 @@ public final class DroneClientState {
 	private static boolean physicalControllerPresent;
 	private static boolean virtualControllerEnabled;
 	private static boolean fpvViewEnabled;
-	private static boolean hudEnabled = true;
+	private static HudMode hudMode = HudMode.MINIMAL;
 	private static boolean throttleCalibrated = true;
 	private static boolean throttleCalibrationActive;
 	private static FlightMode flightMode = FlightMode.HORIZON;
@@ -113,11 +113,24 @@ public final class DroneClientState {
 	}
 
 	public static boolean isHudEnabled() {
-		return hudEnabled;
+		return hudMode != HudMode.OFF;
 	}
 
 	public static void setHudEnabled(boolean enabled) {
-		hudEnabled = enabled;
+		hudMode = enabled ? HudMode.MINIMAL : HudMode.OFF;
+	}
+
+	public static HudMode hudMode() {
+		return hudMode;
+	}
+
+	public static void setHudMode(HudMode mode) {
+		hudMode = mode == null ? HudMode.MINIMAL : mode;
+	}
+
+	public static HudMode cycleHudMode() {
+		hudMode = hudMode.next();
+		return hudMode;
 	}
 
 	public static boolean throttleCalibrated() {
@@ -168,6 +181,30 @@ public final class DroneClientState {
 
 		InputSource(String translationKey) {
 			this.translationKey = translationKey;
+		}
+
+		public String translationKey() {
+			return translationKey;
+		}
+	}
+
+	public enum HudMode {
+		MINIMAL("message.fpvdrone.hud_minimal"),
+		FULL("message.fpvdrone.hud_full"),
+		OFF("message.fpvdrone.hud_disabled");
+
+		private final String translationKey;
+
+		HudMode(String translationKey) {
+			this.translationKey = translationKey;
+		}
+
+		public HudMode next() {
+			return switch (this) {
+				case MINIMAL -> FULL;
+				case FULL -> OFF;
+				case OFF -> MINIMAL;
+			};
 		}
 
 		public String translationKey() {

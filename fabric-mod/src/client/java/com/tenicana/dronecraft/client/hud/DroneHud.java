@@ -14,6 +14,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.client.DroneClientState;
+import com.tenicana.dronecraft.client.DroneClientState.HudMode;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.FlightMode;
 
@@ -39,7 +40,8 @@ public final class DroneHud {
 
 	private static void render(GuiGraphics graphics, net.minecraft.client.DeltaTracker deltaTracker) {
 		Minecraft client = Minecraft.getInstance();
-		if (client.player == null || client.options.hideGui || !DroneClientState.isHudEnabled()) {
+		HudMode hudMode = DroneClientState.hudMode();
+		if (client.player == null || client.options.hideGui || hudMode == HudMode.OFF) {
 			return;
 		}
 		DroneEntity drone = DroneClientState.controlledDrone();
@@ -57,7 +59,9 @@ public final class DroneHud {
 			drawAttitude(graphics, screenWidth / 2, screenHeight / 2, telemetry);
 			drawSideScales(graphics, font, screenWidth, screenHeight, telemetry);
 		}
-		drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
+		if (hudMode == HudMode.FULL) {
+			drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
+		}
 	}
 
 	private static void drawCompactStatus(GuiGraphics graphics, Font font, int screenWidth, Telemetry telemetry) {

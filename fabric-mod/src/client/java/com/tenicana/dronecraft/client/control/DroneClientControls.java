@@ -107,10 +107,9 @@ public final class DroneClientControls {
 			}
 
 			while (HUD_TOGGLE.consumeClick()) {
-				boolean hudEnabled = !DroneClientState.isHudEnabled();
-				DroneClientState.setHudEnabled(hudEnabled);
+				DroneClientState.HudMode hudMode = DroneClientState.cycleHudMode();
 				client.player.displayClientMessage(
-						Component.translatable(hudEnabled ? "message.fpvdrone.hud_enabled" : "message.fpvdrone.hud_disabled"),
+						Component.translatable(hudMode.translationKey()),
 						true
 				);
 			}
