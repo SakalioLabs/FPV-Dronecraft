@@ -16,6 +16,52 @@ import com.tenicana.dronecraft.sim.Vec3;
 
 class DroneControlManagerTest {
 	@Test
+	void unsafeServerSideArmTransitionIsRejectedUntilControlsAreSafe() {
+		UUID playerId = UUID.randomUUID();
+
+		DroneControlManager.update(playerId, new DroneInput(0.65, 0.30, 0.0, 0.0, true, true, FlightMode.ANGLE), 10);
+		DroneInput blocked = DroneControlManager.get(playerId, 10);
+
+		assertFalse(blocked.armed());
+		assertTrue(blocked.linkActive());
+		assertEquals(0.65, blocked.throttle(), 1.0e-12);
+
+		DroneControlManager.update(playerId, new DroneInput(0.02, 0.0, 0.0, 0.0, true, true, FlightMode.ANGLE), 11);
+		DroneInput armed = DroneControlManager.get(playerId, 11);
+
+		assertTrue(armed.armed());
+		assertEquals(0.02, armed.throttle(), 1.0e-12);
+	}
+
+	@Test
+	void serverAcceptsModeTwoStickArmGesture() {
+		UUID playerId = UUID.randomUUID();
+
+		DroneControlManager.update(playerId, new DroneInput(0.03, -0.80, 0.80, -0.80, true, true, FlightMode.ANGLE), 20);
+		DroneInput armed = DroneControlManager.get(playerId, 20);
+
+		assertTrue(armed.armed());
+		assertEquals(-0.80, armed.pitch(), 1.0e-12);
+		assertEquals(0.80, armed.roll(), 1.0e-12);
+		assertEquals(-0.80, armed.yaw(), 1.0e-12);
+	}
+
+	@Test
+	void serverAllowsThrottleAfterSafeArmTransition() {
+		UUID playerId = UUID.randomUUID();
+
+		DroneControlManager.update(playerId, new DroneInput(0.02, 0.0, 0.0, 0.0, true, true, FlightMode.ANGLE), 30);
+		DroneControlManager.update(playerId, new DroneInput(0.70, 0.12, -0.10, 0.08, true, true, FlightMode.ANGLE), 31);
+		DroneInput flying = DroneControlManager.get(playerId, 31);
+
+		assertTrue(flying.armed());
+		assertEquals(0.70, flying.throttle(), 1.0e-12);
+		assertEquals(0.12, flying.pitch(), 1.0e-12);
+		assertEquals(-0.10, flying.roll(), 1.0e-12);
+		assertEquals(0.08, flying.yaw(), 1.0e-12);
+	}
+
+	@Test
 	void diagnosticScriptOverridesManualInputAndExpires() {
 		UUID playerId = UUID.randomUUID();
 		DroneControlManager.update(playerId, new DroneInput(0.2, 0.1, -0.1, 0.2, true, true, FlightMode.ACRO), 95);

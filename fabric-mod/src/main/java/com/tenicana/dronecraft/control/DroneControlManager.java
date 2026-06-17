@@ -28,7 +28,7 @@ public final class DroneControlManager {
 	}
 
 	public static void update(UUID playerId, DroneInput input, int tickCount) {
-		DroneInput sanitized = input == null ? DroneInput.idle() : input.normalized();
+		DroneInput sanitized = sanitizeManualInput(playerId, input, tickCount);
 		INPUTS.put(playerId, new TimedInput(sanitized, tickCount));
 	}
 
@@ -119,6 +119,35 @@ public final class DroneControlManager {
 		if (DIAGNOSTICS.remove(playerId, script)) {
 			COMPLETED_DIAGNOSTICS.put(playerId, script.completed(tickCount));
 		}
+	}
+
+	private static DroneInput sanitizeManualInput(UUID playerId, DroneInput input, int tickCount) {
+		DroneInput sanitized = input == null ? DroneInput.idle() : input.normalized();
+		if (!sanitized.armed()) {
+			return sanitized;
+		}
+		TimedInput previous = INPUTS.get(playerId);
+		boolean alreadyArmed = previous != null
+				&& tickCount - previous.tickCount() <= INPUT_TIMEOUT_TICKS
+				&& previous.input() != null
+				&& previous.input().armed();
+		if (alreadyArmed || DroneArmSafetyRules.canTransitionToArmed(
+				sanitized.throttle(),
+				sanitized.pitch(),
+				sanitized.roll(),
+				sanitized.yaw()
+		)) {
+			return sanitized;
+		}
+		return new DroneInput(
+				sanitized.throttle(),
+				sanitized.pitch(),
+				sanitized.roll(),
+				sanitized.yaw(),
+				false,
+				sanitized.linkActive(),
+				sanitized.flightMode()
+		);
 	}
 
 	private record TimedInput(DroneInput input, int tickCount) {

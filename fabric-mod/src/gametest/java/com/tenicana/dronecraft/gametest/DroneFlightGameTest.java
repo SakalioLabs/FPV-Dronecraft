@@ -28,6 +28,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 	private static final UUID FAILSAFE_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f005");
 	private static final int DURATION_TICKS = 260;
 	private static final int ASSERT_TICKS = 170;
+	private static final DroneInput SAFE_HORIZON_ARM = new DroneInput(0.02, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
 
 	@Override
 	public void invokeTestMethod(GameTestHelper context, Method method) throws ReflectiveOperationException {
@@ -103,7 +104,8 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		DroneInput tilted = new DroneInput(0.45, 0.95, -0.80, 0.0, true, true, FlightMode.HORIZON);
 		DroneInput disarmed = new DroneInput(0.0, 0.0, 0.0, 0.0, false, true, FlightMode.HORIZON);
 		DroneInput centeredRearm = new DroneInput(0.20, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
-		scheduleInput(context, drone, RESET_OWNER, 1, 36, tilted);
+		scheduleInput(context, drone, RESET_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, RESET_OWNER, 5, 36, tilted);
 		scheduleInput(context, drone, RESET_OWNER, 43, 55, disarmed);
 		scheduleInput(context, drone, RESET_OWNER, 58, 70, centeredRearm);
 
@@ -147,7 +149,8 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		double initialY = drone.getY();
 		DroneInput climb = new DroneInput(1.0, 0.0, 0.0, 0.0, true, true, FlightMode.HORIZON);
-		scheduleInput(context, drone, CEILING_OWNER, 1, 80, climb);
+		scheduleInput(context, drone, CEILING_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, CEILING_OWNER, 5, 80, climb);
 
 		context.runAfterDelay(90, () -> {
 			assertTrue(
@@ -176,7 +179,8 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		double initialY = drone.getY();
 		double[] speedBeforeLoss = new double[1];
 		DroneInput cruise = new DroneInput(0.56, 0.36, 0.20, 0.0, true, true, FlightMode.HORIZON);
-		scheduleInput(context, drone, FAILSAFE_OWNER, 1, 60, cruise);
+		scheduleInput(context, drone, FAILSAFE_OWNER, 1, 1, SAFE_HORIZON_ARM);
+		scheduleInput(context, drone, FAILSAFE_OWNER, 5, 60, cruise);
 
 		context.runAfterDelay(62, () -> {
 			speedBeforeLoss[0] = drone.getSpeedMetersPerSecond();
