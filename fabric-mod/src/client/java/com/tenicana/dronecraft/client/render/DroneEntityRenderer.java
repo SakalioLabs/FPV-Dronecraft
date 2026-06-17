@@ -1,18 +1,26 @@
 package com.tenicana.dronecraft.client.render;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.entity.MobRenderer;
+import net.minecraft.client.renderer.entity.EntityRenderer;
+import net.minecraft.client.renderer.state.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.resources.Identifier;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.entity.RotorLayoutCodec;
 
-public class DroneEntityRenderer extends MobRenderer<DroneEntity, DroneEntityRenderState, DroneEntityModel> {
+public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntityRenderState> {
 	private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "textures/entity/drone.png");
+	private final DroneEntityModel model;
 
 	public DroneEntityRenderer(EntityRendererProvider.Context context) {
-		super(context, new DroneEntityModel(context.bakeLayer(DroneModelLayers.DRONE)), 0.35f);
+		super(context);
+		this.model = new DroneEntityModel(context.bakeLayer(DroneModelLayers.DRONE));
+		this.shadowRadius = 0.28f;
 	}
 
 	@Override
@@ -40,7 +48,21 @@ public class DroneEntityRenderer extends MobRenderer<DroneEntity, DroneEntityRen
 	}
 
 	@Override
-	public Identifier getTextureLocation(DroneEntityRenderState state) {
-		return TEXTURE;
+	public void submit(DroneEntityRenderState state, PoseStack poseStack, SubmitNodeCollector submitter, CameraRenderState cameraState) {
+		super.submit(state, poseStack, submitter, cameraState);
+		poseStack.pushPose();
+		poseStack.scale(-1.0f, -1.0f, 1.0f);
+		poseStack.translate(0.0f, -1.501f, 0.0f);
+		submitter.submitModel(
+				model,
+				state,
+				poseStack,
+				model.renderType(TEXTURE),
+				state.lightCoords,
+				OverlayTexture.NO_OVERLAY,
+				-1,
+				null
+		);
+		poseStack.popPose();
 	}
 }

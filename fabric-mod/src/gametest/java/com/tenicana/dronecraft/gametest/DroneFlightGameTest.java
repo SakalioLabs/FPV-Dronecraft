@@ -33,7 +33,6 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		ServerLevel level = context.getLevel();
 		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
 		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
-		drone.setPersistenceRequired();
 		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
 		drone.setOwner(TEST_OWNER);
 		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);

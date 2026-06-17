@@ -50,14 +50,63 @@ public final class DroneHud {
 		Font font = client.font;
 		int screenWidth = client.getWindow().getGuiScaledWidth();
 		int screenHeight = client.getWindow().getGuiScaledHeight();
-		int hudWidth = Math.max(280, Math.min(560, screenWidth - MARGIN * 2));
-		int hudX = (screenWidth - hudWidth) / 2;
 
 		Telemetry telemetry = Telemetry.from(client, drone);
-		drawTopStatus(graphics, font, hudX, MARGIN, hudWidth, telemetry);
-		drawAttitude(graphics, screenWidth / 2, screenHeight / 2, telemetry);
-		drawSideScales(graphics, font, screenWidth, screenHeight, telemetry);
-		drawBottomTelemetry(graphics, font, hudX, screenHeight - MARGIN - 42, hudWidth, telemetry);
+		drawCompactStatus(graphics, font, screenWidth, telemetry);
+		if (DroneClientState.isFpvActive()) {
+			drawAttitude(graphics, screenWidth / 2, screenHeight / 2, telemetry);
+			drawSideScales(graphics, font, screenWidth, screenHeight, telemetry);
+		}
+		drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
+	}
+
+	private static void drawCompactStatus(GuiGraphics graphics, Font font, int screenWidth, Telemetry telemetry) {
+		int y = MARGIN;
+		Component mode = Component.translatable("hud.fpvdrone.mode_value", telemetry.mode().name());
+		Component view = Component.translatable(telemetry.fpvView() ? "hud.fpvdrone.view_fpv" : "hud.fpvdrone.view_los");
+		Component armed = Component.translatable(telemetry.armed() ? "hud.fpvdrone.armed" : "hud.fpvdrone.disarmed");
+		Component link = Component.translatable(telemetry.linkOk() ? "hud.fpvdrone.link_ok" : "hud.fpvdrone.link_lost");
+		Component battery = Component.translatable("hud.fpvdrone.battery_value", percent(telemetry.battery()));
+		Component throttle = Component.translatable("hud.fpvdrone.throttle_value", percent(telemetry.throttle()));
+
+		int leftWidth = font.width(mode) + font.width(view) + font.width(armed) + font.width(link) + 30;
+		int rightWidth = font.width(battery) + font.width(throttle) + 18;
+		graphics.fill(MARGIN - 3, y - 3, Math.min(screenWidth - MARGIN, MARGIN + leftWidth), y + 12, PANEL);
+		graphics.fill(Math.max(MARGIN, screenWidth - MARGIN - rightWidth), y - 3, screenWidth - MARGIN + 3, y + 12, PANEL);
+		int x = MARGIN;
+		drawString(graphics, font, mode, x, y, TEXT);
+		x += font.width(mode) + 8;
+		drawString(graphics, font, view, x, y, telemetry.fpvView() ? PRIMARY : MUTED);
+		x += font.width(view) + 8;
+		drawString(graphics, font, armed, x, y, telemetry.armed() ? PRIMARY : WARNING);
+		x += font.width(armed) + 8;
+		drawString(graphics, font, link, x, y, telemetry.linkOk() ? PRIMARY : DANGER);
+
+		int rightX = screenWidth - MARGIN;
+		drawRight(graphics, font, throttle, rightX, y, TEXT);
+		rightX -= font.width(throttle) + 10;
+		drawRight(graphics, font, battery, rightX, y, batteryColor(telemetry));
+	}
+
+	private static void drawCompactTelemetry(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
+		int y = screenHeight - MARGIN - 9;
+		Component altitude = Component.translatable("hud.fpvdrone.alt_short", oneDecimal(telemetry.altitude()));
+		Component speed = Component.translatable("hud.fpvdrone.spd_short", oneDecimal(telemetry.speed()));
+		Component verticalSpeed = Component.translatable("hud.fpvdrone.vs_short", signedOneDecimal(telemetry.verticalSpeed()));
+		Component rpm = Component.translatable("hud.fpvdrone.metric.rpm", compactRpm(telemetry));
+		Component health = Component.translatable("hud.fpvdrone.metric.health", percent(Math.min(telemetry.frameHealth(), telemetry.rotorHealth())));
+		int width = font.width(altitude) + font.width(speed) + font.width(verticalSpeed) + font.width(rpm) + font.width(health) + 42;
+		int x = Math.max(MARGIN, (screenWidth - width) / 2);
+		graphics.fill(x - 4, y - 3, Math.min(screenWidth - MARGIN, x + width + 4), y + 12, PANEL);
+		drawString(graphics, font, altitude, x, y, TEXT);
+		x += font.width(altitude) + 10;
+		drawString(graphics, font, speed, x, y, TEXT);
+		x += font.width(speed) + 10;
+		drawString(graphics, font, verticalSpeed, x, y, verticalSpeedColor(telemetry));
+		x += font.width(verticalSpeed) + 10;
+		drawString(graphics, font, rpm, x, y, telemetry.armed() && telemetry.rpm() > 1000.0f ? PRIMARY : MUTED);
+		x += font.width(rpm) + 10;
+		drawString(graphics, font, health, x, y, healthColor(telemetry));
 	}
 
 	private static void drawTopStatus(GuiGraphics graphics, Font font, int x, int y, int width, Telemetry telemetry) {
@@ -74,38 +123,38 @@ public final class DroneHud {
 	}
 
 	private static void drawAttitude(GuiGraphics graphics, int centerX, int centerY, Telemetry telemetry) {
-		int radius = 66;
-		int rollOffset = Math.round(Mth.clamp((float) Math.toDegrees(telemetry.roll()), -45.0f, 45.0f) * 0.75f);
-		int pitchOffset = Math.round(Mth.clamp((float) Math.toDegrees(telemetry.pitch()), -35.0f, 35.0f) * 1.15f);
+		int radius = 42;
+		int rollOffset = Math.round(Mth.clamp((float) Math.toDegrees(telemetry.roll()), -45.0f, 45.0f) * 0.46f);
+		int pitchOffset = Math.round(Mth.clamp((float) Math.toDegrees(telemetry.pitch()), -35.0f, 35.0f) * 0.78f);
 		int horizonY = centerY + pitchOffset;
 
-		graphics.fill(centerX - radius, horizonY - 1, centerX + radius, horizonY + 1, LINE);
-		graphics.fill(centerX - 1, centerY - 42, centerX + 1, centerY + 42, SHADOW);
-		graphics.fill(centerX - 18, centerY - 1, centerX - 5, centerY + 1, PRIMARY);
-		graphics.fill(centerX + 5, centerY - 1, centerX + 18, centerY + 1, PRIMARY);
+		graphics.fill(centerX - radius, horizonY, centerX + radius, horizonY + 1, LINE);
+		graphics.fill(centerX - 1, centerY - 26, centerX + 1, centerY + 27, SHADOW);
+		graphics.fill(centerX - 14, centerY - 1, centerX - 5, centerY + 1, PRIMARY);
+		graphics.fill(centerX + 5, centerY - 1, centerX + 14, centerY + 1, PRIMARY);
 		graphics.fill(centerX - 1, centerY - 5, centerX + 1, centerY + 6, PRIMARY);
 
 		for (int step = -3; step <= 3; step++) {
 			if (step == 0) {
 				continue;
 			}
-			int y = horizonY + step * 18;
-			if (Math.abs(y - centerY) > 62) {
+			int y = horizonY + step * 13;
+			if (Math.abs(y - centerY) > 42) {
 				continue;
 			}
-			int half = step % 2 == 0 ? 26 : 17;
+			int half = step % 2 == 0 ? 18 : 12;
 			graphics.fill(centerX - rollOffset - half, y, centerX - rollOffset - 5, y + 1, MUTED);
 			graphics.fill(centerX - rollOffset + 5, y, centerX - rollOffset + half, y + 1, MUTED);
 		}
 
-		graphics.fill(centerX - 2, centerY - radius - 6, centerX + 3, centerY - radius + 1, telemetry.armed() ? PRIMARY : WARNING);
+		graphics.fill(centerX - 2, centerY - radius - 4, centerX + 3, centerY - radius, telemetry.armed() ? PRIMARY : WARNING);
 	}
 
 	private static void drawSideScales(GuiGraphics graphics, Font font, int screenWidth, int screenHeight, Telemetry telemetry) {
 		int centerY = screenHeight / 2;
-		int scaleHeight = 96;
+		int scaleHeight = 70;
 		int leftX = MARGIN + 4;
-		int rightX = screenWidth - MARGIN - 46;
+		int rightX = screenWidth - MARGIN - 42;
 		int top = centerY - scaleHeight / 2;
 		drawVerticalScale(graphics, leftX, top, 12, scaleHeight, telemetry.throttle(), PRIMARY);
 		drawString(graphics, font, Component.translatable("hud.fpvdrone.thr_short", percent(telemetry.throttle())), leftX + 18, top + scaleHeight - 9, TEXT);

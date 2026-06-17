@@ -18,7 +18,6 @@ public final class FpvDronecraftMod implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		DroneEntityTypes.initialize();
-		DroneEntityTypes.registerAttributes();
 		DroneItems.initialize();
 		DroneNetworking.initialize();
 		DroneCommands.initialize();

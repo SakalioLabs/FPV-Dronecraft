@@ -1,6 +1,5 @@
 {
 	"item.fpvdrone.drone_controller": "FPV Drone Controller",
-	"item.fpvdrone.drone_spawn_egg": "FPV Drone Spawn Egg",
 	"entity.fpvdrone.drone": "FPV Drone",
 	"creativeTab.fpvdrone": "FPV Dronecraft",
 	"key.categories.fpvdrone": "FPV Dronecraft",

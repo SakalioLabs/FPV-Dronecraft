@@ -9,8 +9,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 
-import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
-
 import com.tenicana.dronecraft.FpvDronecraftMod;
 import com.tenicana.dronecraft.entity.DroneEntity;
 
@@ -33,9 +31,5 @@ public final class DroneEntityTypes {
 	}
 
 	public static void initialize() {
-	}
-
-	public static void registerAttributes() {
-		FabricDefaultAttributeRegistry.register(DRONE, DroneEntity.createAttributes());
 	}
 }

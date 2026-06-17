@@ -27,13 +27,13 @@ class DroneClientConfigTest {
 		DroneClientConfig config = DroneClientConfig.defaults();
 
 		assertEquals(18.0f, config.cameraTiltDegrees(), 1.0e-4f);
-		assertEquals(0.42f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.24f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.45f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(0.25f, config.cameraRollingShutterScale(), 1.0e-4f);
-		assertEquals(0.025f, config.cameraLatencySeconds(), 1.0e-4f);
-		assertEquals(115.0f, config.cameraFovDegrees(), 1.0e-4f);
-		assertEquals(3.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
+		assertEquals(0.68f, config.cameraForwardOffsetMeters(), 1.0e-4f);
+		assertEquals(0.34f, config.cameraUpOffsetMeters(), 1.0e-4f);
+		assertEquals(0.22f, config.cameraVibrationScale(), 1.0e-4f);
+		assertEquals(0.12f, config.cameraRollingShutterScale(), 1.0e-4f);
+		assertEquals(0.018f, config.cameraLatencySeconds(), 1.0e-4f);
+		assertEquals(118.0f, config.cameraFovDegrees(), 1.0e-4f);
+		assertEquals(2.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
 	}
 
 	@Test
@@ -73,13 +73,33 @@ class DroneClientConfigTest {
 		config = normalize(config);
 
 		assertEquals(18.0f, config.cameraTiltDegrees(), 1.0e-4f);
-		assertEquals(0.42f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.24f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.45f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(0.25f, config.cameraRollingShutterScale(), 1.0e-4f);
-		assertEquals(0.025f, config.cameraLatencySeconds(), 1.0e-4f);
-		assertEquals(115.0f, config.cameraFovDegrees(), 1.0e-4f);
-		assertEquals(3.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
+		assertEquals(0.68f, config.cameraForwardOffsetMeters(), 1.0e-4f);
+		assertEquals(0.34f, config.cameraUpOffsetMeters(), 1.0e-4f);
+		assertEquals(0.22f, config.cameraVibrationScale(), 1.0e-4f);
+		assertEquals(0.12f, config.cameraRollingShutterScale(), 1.0e-4f);
+		assertEquals(0.018f, config.cameraLatencySeconds(), 1.0e-4f);
+		assertEquals(118.0f, config.cameraFovDegrees(), 1.0e-4f);
+		assertEquals(2.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
+	}
+
+	@Test
+	void previousClearCameraDefaultsMigrateToNoseMountedView() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		setFloat(config, "cameraTiltDegrees", 18.0f);
+		setFloat(config, "cameraForwardOffsetMeters", 0.42f);
+		setFloat(config, "cameraUpOffsetMeters", 0.24f);
+		setFloat(config, "cameraVibrationScale", 0.45f);
+		setFloat(config, "cameraRollingShutterScale", 0.25f);
+		setFloat(config, "cameraLatencySeconds", 0.025f);
+		setFloat(config, "cameraFovDegrees", 115.0f);
+		setFloat(config, "cameraDynamicFovDegrees", 3.0f);
+
+		config = normalize(config);
+
+		assertEquals(0.68f, config.cameraForwardOffsetMeters(), 1.0e-4f);
+		assertEquals(0.34f, config.cameraUpOffsetMeters(), 1.0e-4f);
+		assertEquals(0.22f, config.cameraVibrationScale(), 1.0e-4f);
+		assertEquals(118.0f, config.cameraFovDegrees(), 1.0e-4f);
 	}
 
 	private static DroneClientConfig normalize(DroneClientConfig config) throws ReflectiveOperationException {

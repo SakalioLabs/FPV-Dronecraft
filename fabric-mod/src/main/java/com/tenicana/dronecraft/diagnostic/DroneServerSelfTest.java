@@ -184,7 +184,6 @@ public final class DroneServerSelfTest {
 
 	private void start(ServerLevel level) {
 		drone = new DroneEntity(DroneEntityTypes.DRONE, level);
-		drone.setPersistenceRequired();
 		drone.applyConfig(DroneConfig.racingQuad(), SELF_TEST_PRESET);
 		drone.setOwner(SELF_TEST_OWNER);
 		buildSelfTestPlatform(level);

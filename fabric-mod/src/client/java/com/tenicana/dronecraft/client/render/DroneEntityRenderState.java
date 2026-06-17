@@ -1,10 +1,10 @@
 package com.tenicana.dronecraft.client.render;
 
-import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 
 import com.tenicana.dronecraft.entity.RotorLayoutCodec;
 
-public class DroneEntityRenderState extends LivingEntityRenderState {
+public class DroneEntityRenderState extends EntityRenderState {
 	public float pitchRadians;
 	public float yawRadians;
 	public float rollRadians;

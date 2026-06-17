@@ -14,20 +14,20 @@ import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.tags.FluidTags;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.MoverType;
-import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.Pose;
-import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.level.ClipContext;
@@ -61,7 +61,7 @@ import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 
-public class DroneEntity extends PathfinderMob {
+public class DroneEntity extends Entity {
 	private static final double PHYSICS_DT = 0.005;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
 	private static final int PROP_STRIKE_COOLDOWN_TICKS = 4;
@@ -340,18 +340,10 @@ public class DroneEntity extends PathfinderMob {
 	public DroneEntity(EntityType<? extends DroneEntity> entityType, Level level) {
 		super(entityType, level);
 		setNoGravity(true);
-		setNoAi(true);
-	}
-
-	public static AttributeSupplier.Builder createAttributes() {
-		return PathfinderMob.createMobAttributes()
-				.add(Attributes.MAX_HEALTH, 8.0)
-				.add(Attributes.MOVEMENT_SPEED, 0.0)
-				.add(Attributes.FLYING_SPEED, 0.0);
 	}
 
 	@Override
-	protected EntityDimensions getDefaultDimensions(Pose pose) {
+	public EntityDimensions getDimensions(Pose pose) {
 		return DroneAirframeDimensions.forConfig(physics.config());
 	}
 
@@ -386,12 +378,7 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	@Override
-	protected void registerGoals() {
-	}
-
-	@Override
 	protected void defineSynchedData(SynchedEntityData.Builder builder) {
-		super.defineSynchedData(builder);
 		builder.define(ARMED, false);
 		builder.define(FLIGHT_MODE, FlightMode.ACRO.id());
 		builder.define(PITCH, 0.0f);
@@ -568,8 +555,6 @@ public class DroneEntity extends PathfinderMob {
 	public void tick() {
 		super.tick();
 		setNoGravity(true);
-		setNoAi(true);
-		setTarget(null);
 
 		if (!level().isClientSide()) {
 			if (!simulationInitialized) {
@@ -687,6 +672,20 @@ public class DroneEntity extends PathfinderMob {
 					getDeltaMovement()
 			);
 		}
+	}
+
+	@Override
+	public boolean hurtServer(ServerLevel level, DamageSource source, float amount) {
+		if (isRemoved() || amount <= 0.0f) {
+			return false;
+		}
+		markHurt();
+		frameHealth = Math.max(0.0, frameHealth - amount * 0.08);
+		updateDamageSyncedState();
+		if (frameHealth <= 0.0) {
+			discard();
+		}
+		return true;
 	}
 
 	private static final float DEBUG_THRUST_GAIN = 2.5f;
@@ -1732,7 +1731,6 @@ public class DroneEntity extends PathfinderMob {
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, (float) lastPropStrikeSeverity);
 		setYRot((float) Math.toDegrees(euler.y()));
 		setYHeadRot(getYRot());
-		yBodyRot = getYRot();
 	}
 
 	private void setPerRotorFlightState(double[] motorPower, double[] motorRpm, double[] rotorThrust, double[] rotorHealth) {
@@ -3212,9 +3210,9 @@ public class DroneEntity extends PathfinderMob {
 	}
 
 	@Override
-	protected InteractionResult mobInteract(Player player, InteractionHand hand) {
+	public InteractionResult interact(Player player, InteractionHand hand) {
 		if (!player.getItemInHand(hand).is(DroneItems.DRONE_CONTROLLER)) {
-			return InteractionResult.PASS;
+			return super.interact(player, hand);
 		}
 
 		if (!level().isClientSide()) {
@@ -3232,7 +3230,6 @@ public class DroneEntity extends PathfinderMob {
 
 	@Override
 	protected void addAdditionalSaveData(ValueOutput output) {
-		super.addAdditionalSaveData(output);
 		if (owner != null) {
 			output.putString("owner", owner.toString());
 		}
@@ -3261,7 +3258,6 @@ public class DroneEntity extends PathfinderMob {
 
 	@Override
 	protected void readAdditionalSaveData(ValueInput input) {
-		super.readAdditionalSaveData(input);
 		input.getString("owner").ifPresent(ownerId -> {
 			try {
 				setOwner(UUID.fromString(ownerId));

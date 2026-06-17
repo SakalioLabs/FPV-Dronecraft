@@ -11,7 +11,6 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.SpawnEggItem;
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 
@@ -25,12 +24,6 @@ public final class DroneItems {
 			new Item.Properties().stacksTo(1)
 	);
 
-	public static final Item DRONE_SPAWN_EGG = register(
-			"drone_spawn_egg",
-			SpawnEggItem::new,
-			new Item.Properties().spawnEgg(DroneEntityTypes.DRONE)
-	);
-
 	public static final ResourceKey<CreativeModeTab> DRONE_TAB_KEY = ResourceKey.create(
 			BuiltInRegistries.CREATIVE_MODE_TAB.key(),
 			Identifier.fromNamespaceAndPath(FpvDronecraftMod.MOD_ID, "dronecraft")
@@ -41,7 +34,6 @@ public final class DroneItems {
 			.title(Component.translatable("creativeTab.fpvdrone"))
 			.displayItems((parameters, output) -> {
 				output.accept(DRONE_CONTROLLER);
-				output.accept(DRONE_SPAWN_EGG);
 			})
 			.build();
 

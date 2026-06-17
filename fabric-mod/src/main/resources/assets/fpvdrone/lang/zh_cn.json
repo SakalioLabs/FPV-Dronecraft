@@ -1,6 +1,5 @@
 {
 	"item.fpvdrone.drone_controller": "FPV 无人机遥控器",
-	"item.fpvdrone.drone_spawn_egg": "FPV 无人机刷怪蛋",
 	"entity.fpvdrone.drone": "FPV 无人机",
 	"creativeTab.fpvdrone": "FPV 无人机工坊",
 	"key.categories.fpvdrone": "FPV 无人机工坊",

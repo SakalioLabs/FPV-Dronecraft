@@ -23,13 +23,21 @@ public final class DroneClientConfig {
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
 	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.10f;
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 18.0f;
-	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 0.42f;
-	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.24f;
-	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.45f;
-	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.25f;
-	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.025f;
-	private static final float DEFAULT_CAMERA_FOV_DEGREES = 115.0f;
-	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 3.0f;
+	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 0.68f;
+	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.34f;
+	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.22f;
+	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.12f;
+	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.018f;
+	private static final float DEFAULT_CAMERA_FOV_DEGREES = 118.0f;
+	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 2.0f;
+	private static final float PREVIOUS_CAMERA_TILT_DEGREES = 18.0f;
+	private static final float PREVIOUS_CAMERA_FORWARD_OFFSET_METERS = 0.42f;
+	private static final float PREVIOUS_CAMERA_UP_OFFSET_METERS = 0.24f;
+	private static final float PREVIOUS_CAMERA_VIBRATION_SCALE = 0.45f;
+	private static final float PREVIOUS_CAMERA_ROLLING_SHUTTER_SCALE = 0.25f;
+	private static final float PREVIOUS_CAMERA_LATENCY_SECONDS = 0.025f;
+	private static final float PREVIOUS_CAMERA_FOV_DEGREES = 115.0f;
+	private static final float PREVIOUS_CAMERA_DYNAMIC_FOV_DEGREES = 3.0f;
 	private static final float LEGACY_CAMERA_TILT_DEGREES = 25.0f;
 	private static final float LEGACY_CAMERA_FORWARD_OFFSET_METERS = 0.16f;
 	private static final float LEGACY_CAMERA_UP_OFFSET_METERS = 0.16f;
@@ -360,7 +368,7 @@ public final class DroneClientConfig {
 		}
 		migrateLegacyBlockedFpvCameraDefaults();
 		cameraTiltDegrees = Math.max(-15.0f, Math.min(70.0f, cameraTiltDegrees));
-		cameraForwardOffsetMeters = Math.max(-0.20f, Math.min(0.80f, cameraForwardOffsetMeters));
+		cameraForwardOffsetMeters = Math.max(-0.20f, Math.min(1.20f, cameraForwardOffsetMeters));
 		cameraUpOffsetMeters = Math.max(-0.20f, Math.min(0.60f, cameraUpOffsetMeters));
 		cameraVibrationScale = Math.max(0.0f, Math.min(2.0f, cameraVibrationScale));
 		cameraRollingShutterScale = Math.max(0.0f, Math.min(2.0f, cameraRollingShutterScale));
@@ -398,7 +406,15 @@ public final class DroneClientConfig {
 				&& nearly(cameraLatencySeconds, LEGACY_CAMERA_LATENCY_SECONDS)
 				&& nearly(cameraFovDegrees, LEGACY_CAMERA_FOV_DEGREES)
 				&& nearly(cameraDynamicFovDegrees, LEGACY_CAMERA_DYNAMIC_FOV_DEGREES);
-		if (!legacyCamera) {
+		boolean previousDefaultCamera = nearly(cameraTiltDegrees, PREVIOUS_CAMERA_TILT_DEGREES)
+				&& nearly(cameraForwardOffsetMeters, PREVIOUS_CAMERA_FORWARD_OFFSET_METERS)
+				&& nearly(cameraUpOffsetMeters, PREVIOUS_CAMERA_UP_OFFSET_METERS)
+				&& nearly(cameraVibrationScale, PREVIOUS_CAMERA_VIBRATION_SCALE)
+				&& nearly(cameraRollingShutterScale, PREVIOUS_CAMERA_ROLLING_SHUTTER_SCALE)
+				&& nearly(cameraLatencySeconds, PREVIOUS_CAMERA_LATENCY_SECONDS)
+				&& nearly(cameraFovDegrees, PREVIOUS_CAMERA_FOV_DEGREES)
+				&& nearly(cameraDynamicFovDegrees, PREVIOUS_CAMERA_DYNAMIC_FOV_DEGREES);
+		if (!legacyCamera && !previousDefaultCamera) {
 			return;
 		}
 		cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;

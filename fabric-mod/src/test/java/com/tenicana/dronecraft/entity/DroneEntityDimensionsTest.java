@@ -1,15 +1,24 @@
 package com.tenicana.dronecraft.entity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityDimensions;
+import net.minecraft.world.entity.PathfinderMob;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
 
 class DroneEntityDimensionsTest {
+	@Test
+	void droneEntityUsesMechanicalEntityBaseInsteadOfMobAi() {
+		assertTrue(Entity.class.isAssignableFrom(DroneEntity.class));
+		assertFalse(PathfinderMob.class.isAssignableFrom(DroneEntity.class));
+	}
+
 	@Test
 	void racingQuadKeepsCompactDefaultCollisionFootprint() {
 		EntityDimensions dimensions = DroneAirframeDimensions.forConfig(DroneConfig.racingQuad());
