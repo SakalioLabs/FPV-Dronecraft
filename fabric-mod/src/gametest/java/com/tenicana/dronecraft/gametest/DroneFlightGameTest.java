@@ -25,6 +25,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 	private static final UUID TEST_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f002");
 	private static final UUID RESET_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f003");
 	private static final UUID CEILING_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f004");
+	private static final UUID FAILSAFE_OWNER = UUID.fromString("00000000-0000-0000-0000-00000000f005");
 	private static final int DURATION_TICKS = 260;
 	private static final int ASSERT_TICKS = 170;
 
@@ -141,6 +142,59 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 			assertTrue(
 					drone.getDeltaMovement().y() <= 0.01,
 					"direct flight kept upward velocity after ceiling collision: " + drone.getDeltaMovement().y()
+			);
+			drone.discard();
+			context.succeed();
+		});
+	}
+
+	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 150)
+	public void directFlightLinkLossUsesPlayableFailsafe(GameTestHelper context) {
+		ServerLevel level = context.getLevel();
+		BlockPos spawn = context.absolutePos(new BlockPos(1, 5, 1));
+		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
+		drone.applyConfig(DroneConfig.racingQuad(), "racing_quad");
+		drone.setOwner(FAILSAFE_OWNER);
+		drone.setPos(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+		level.addFreshEntity(drone);
+
+		double initialY = drone.getY();
+		double[] speedBeforeLoss = new double[1];
+		DroneInput cruise = new DroneInput(0.56, 0.36, 0.20, 0.0, true, true, FlightMode.HORIZON);
+		scheduleInput(context, drone, FAILSAFE_OWNER, 1, 60, cruise);
+
+		context.runAfterDelay(62, () -> {
+			speedBeforeLoss[0] = drone.getSpeedMetersPerSecond();
+			assertTrue(drone.getY() > initialY + 0.12, String.format(
+					Locale.ROOT,
+					"test did not build airborne state before link loss: initial=%.3f current=%.3f",
+					initialY,
+					drone.getY()
+			));
+			assertTrue(speedBeforeLoss[0] > 0.15, "test did not build enough cruise speed before link loss: " + speedBeforeLoss[0]);
+			assertTrue(!drone.isControlFailsafeActive(), "failsafe activated before control packets timed out");
+		});
+
+		context.runAfterDelay(78, () -> {
+			assertTrue(drone.isControlFailsafeActive(), "direct flight did not enter playable failsafe after link loss");
+			assertTrue(!drone.isRawControlLinkActive(), "raw control link stayed active during failsafe");
+			assertTrue(!drone.isProcessedControlLinkActive(), "processed control link stayed active during failsafe");
+			assertTrue(drone.getControlLinkLossSeconds() > 0.0f, "failsafe did not report link-loss time");
+			assertTrue(
+					drone.getSpeedMetersPerSecond() <= speedBeforeLoss[0] + 0.25,
+					String.format(Locale.ROOT, "failsafe accelerated unexpectedly: before=%.3f after=%.3f", speedBeforeLoss[0], drone.getSpeedMetersPerSecond())
+			);
+			assertTrue(
+					drone.getY() > initialY - 0.05,
+					String.format(Locale.ROOT, "failsafe dropped too abruptly: initial=%.3f current=%.3f", initialY, drone.getY())
+			);
+			assertTrue(
+					Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(24.0),
+					"failsafe did not level pitch enough for playable recovery: " + drone.getRenderPitchRadians()
+			);
+			assertTrue(
+					Math.abs(drone.getRenderRollRadians()) < Math.toRadians(24.0),
+					"failsafe did not level roll enough for playable recovery: " + drone.getRenderRollRadians()
 			);
 			drone.discard();
 			context.succeed();

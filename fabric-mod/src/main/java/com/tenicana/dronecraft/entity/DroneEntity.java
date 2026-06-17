@@ -278,6 +278,7 @@ public class DroneEntity extends Entity {
 	private float debugCommandRoll;
 	private float debugCommandYaw;
 	private boolean debugFlightActiveLastTick;
+	private int debugFailsafeTicks;
 	private boolean simulationInitialized;
 	private double frameHealth = 1.0;
 	private int collisionDamageCooldown;
@@ -608,9 +609,11 @@ public class DroneEntity extends Entity {
 					: (!input.linkActive() ? "link-lost" : (bypassPhysics ? "direct-disabled" : "physics-active"));
 
 			boolean directFlightActive = bypassPhysics && input.linkActive() && input.armed();
+			boolean directFlightFailsafe = bypassPhysics && debugFlightActiveLastTick && !input.linkActive();
 			if (directFlightActive) {
 				DroneInput debugInput = input;
 				effectiveInput = debugInput;
+				debugFailsafeTicks = 0;
 				applyDebugFlight(debugInput);
 				debugFlightActiveLastTick = true;
 				updateDebugFlightState(debugInput, airworthy);
@@ -620,6 +623,25 @@ public class DroneEntity extends Entity {
 				if (usedOwnerlessSample) {
 					reason = "direct-ownerless";
 				}
+			} else if (directFlightFailsafe) {
+				debugFailsafeTicks++;
+				DroneInput failsafeInput = directFailsafeInput();
+				effectiveInput = failsafeInput;
+				applyDebugFailsafeFlight(failsafeInput);
+				if (isDebugFailsafeSettled()) {
+					float linkLossSeconds = directFailsafeLinkLossSeconds();
+					clearDebugFlightState();
+					debugFlightActiveLastTick = false;
+					updateDebugFlightState(groundedDirectFailsafeInput(), airworthy, true, linkLossSeconds);
+					debugFailsafeTicks = 0;
+					reason = "direct-failsafe-grounded";
+				} else {
+					debugFlightActiveLastTick = true;
+					updateDebugFlightState(failsafeInput, airworthy, true, directFailsafeLinkLossSeconds());
+					reason = activeOwner == null ? "direct-failsafe-no-owner" : "direct-failsafe";
+				}
+				recordBlackbox(failsafeInput);
+				handleCompletedDiagnostic();
 			} else {
 				debugTargetVelocityX = 0.0f;
 				debugTargetVelocityY = 0.0f;
@@ -703,6 +725,11 @@ public class DroneEntity extends Entity {
 	private static final float DEBUG_AXIS_RESPONSE_EXPO = 0.45f;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
+	private static final float DEBUG_FAILSAFE_THROTTLE_SCALE = 0.45f;
+	private static final float DEBUG_FAILSAFE_COMMAND_DAMPING = 0.28f;
+	private static final float DEBUG_FAILSAFE_HORIZONTAL_DAMPING = 0.72f;
+	private static final float DEBUG_FAILSAFE_SETTLED_HORIZONTAL_SPEED = 0.12f;
+	private static final float DEBUG_FAILSAFE_SETTLED_VERTICAL_SPEED = 0.08f;
 
 	private void applyDebugFlight(DroneInput input) {
 		float throttle = (float) MathUtil.clamp(input.throttle(), 0.0, 1.0);
@@ -869,6 +896,37 @@ public class DroneEntity extends Entity {
 		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
 	}
 
+	private DroneInput directFailsafeInput() {
+		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
+		float throttle = hoverThrottle * DEBUG_FAILSAFE_THROTTLE_SCALE;
+		return new DroneInput(throttle, 0.0, 0.0, 0.0, true, false, FlightMode.ANGLE);
+	}
+
+	private DroneInput groundedDirectFailsafeInput() {
+		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, FlightMode.ANGLE);
+	}
+
+	private void applyDebugFailsafeFlight(DroneInput input) {
+		debugCommandThrottle = Math.min(debugCommandThrottle, (float) input.throttle());
+		debugCommandPitch *= DEBUG_FAILSAFE_COMMAND_DAMPING;
+		debugCommandRoll *= DEBUG_FAILSAFE_COMMAND_DAMPING;
+		debugCommandYaw *= DEBUG_FAILSAFE_COMMAND_DAMPING;
+		debugVelocityX *= DEBUG_FAILSAFE_HORIZONTAL_DAMPING;
+		debugVelocityZ *= DEBUG_FAILSAFE_HORIZONTAL_DAMPING;
+		applyDebugFlight(input);
+	}
+
+	private boolean isDebugFailsafeSettled() {
+		double horizontalSpeed = Math.hypot(debugVelocityX, debugVelocityZ);
+		return isNearGroundLocked()
+				&& horizontalSpeed <= DEBUG_FAILSAFE_SETTLED_HORIZONTAL_SPEED
+				&& Math.abs(debugVelocityY) <= DEBUG_FAILSAFE_SETTLED_VERTICAL_SPEED;
+	}
+
+	private float directFailsafeLinkLossSeconds() {
+		return Math.max(0.05f, debugFailsafeTicks / 20.0f);
+	}
+
 	private void clearDebugFlightState() {
 		debugVelocityX = 0.0f;
 		debugVelocityY = 0.0f;
@@ -891,6 +949,7 @@ public class DroneEntity extends Entity {
 		}
 		clearDebugFlightState();
 		debugFlightActiveLastTick = false;
+		debugFailsafeTicks = 0;
 	}
 
 	private boolean isNearGroundLocked() {
@@ -902,6 +961,10 @@ public class DroneEntity extends Entity {
 	}
 
 	private void updateDebugFlightState(DroneInput input, boolean airworthy) {
+		updateDebugFlightState(input, airworthy, false, 0.0f);
+	}
+
+	private void updateDebugFlightState(DroneInput input, boolean airworthy, boolean failsafe, float linkLossSeconds) {
 		DroneInput normalizedInput = input.normalized();
 		entityData.set(ARMED, normalizedInput.armed());
 		entityData.set(FLIGHT_MODE, normalizedInput.flightMode().id());
@@ -910,10 +973,10 @@ public class DroneEntity extends Entity {
 		entityData.set(CONTROL_PITCH, (float) normalizedInput.pitch());
 		entityData.set(CONTROL_ROLL, (float) normalizedInput.roll());
 		entityData.set(CONTROL_YAW, (float) normalizedInput.yaw());
-		entityData.set(CONTROL_LINK_LOSS_SECONDS, 0.0f);
-		entityData.set(RAW_CONTROL_LINK_ACTIVE, normalizedInput.linkActive());
-		entityData.set(PROCESSED_CONTROL_LINK_ACTIVE, normalizedInput.linkActive());
-		entityData.set(CONTROL_FAILSAFE, false);
+		entityData.set(CONTROL_LINK_LOSS_SECONDS, Math.max(0.0f, linkLossSeconds));
+		entityData.set(RAW_CONTROL_LINK_ACTIVE, !failsafe && normalizedInput.linkActive());
+		entityData.set(PROCESSED_CONTROL_LINK_ACTIVE, !failsafe && normalizedInput.linkActive());
+		entityData.set(CONTROL_FAILSAFE, failsafe);
 		entityData.set(PITCH, debugVisualPitchRadians);
 		entityData.set(YAW, (float) Math.toRadians(getYRot()));
 		entityData.set(ROLL, debugVisualRollRadians);
