@@ -724,7 +724,7 @@ public class DroneEntity extends Entity {
 
 	private static final float DEBUG_THROTTLE_SMOOTH = 0.24f;
 	private static final float DEBUG_AXIS_RISE_SMOOTH = 0.18f;
-	private static final float DEBUG_AXIS_FALL_SMOOTH = 0.44f;
+	private static final float DEBUG_AXIS_FALL_SMOOTH = 0.56f;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
 	private static final float DEBUG_FAILSAFE_THROTTLE_SCALE = 0.88f;
@@ -1069,12 +1069,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private float applyDebugAxisFilter(float current, float target, float riseSmoothing, float fallSmoothing, boolean keepSign) {
-		boolean fromCenter = Math.abs(current) < 1.0e-5f;
-		boolean sameDirection = fromCenter || Math.signum(current) == Math.signum(target);
-		boolean rising = sameDirection && Math.abs(target) > Math.abs(current);
-		float smoothing = rising ? riseSmoothing : fallSmoothing;
-		float filtered = current + (target - current) * Math.max(0.0f, Math.min(1.0f, smoothing));
-		return keepSign ? filtered : Math.max(0.0f, filtered);
+		return PlayableDebugAxisFilter.filter(current, target, riseSmoothing, fallSmoothing, keepSign);
 	}
 
 	private float clampAxis(float value, float maxAbs) {
