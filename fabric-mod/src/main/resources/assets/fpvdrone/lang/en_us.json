@@ -114,6 +114,7 @@
 	"screen.fpvdrone.status_center_saved": "Stick centers saved. R/P/Y: %s / %s / %s",
 	"screen.fpvdrone.axis_entry": "%1$s: %2$s",
 	"screen.fpvdrone.button_entry": "%1$s: %2$s",
+	"screen.fpvdrone.unset": "Unset",
 	"screen.fpvdrone.axis_inverted": "Inverted",
 	"screen.fpvdrone.axis_normal": "Normal",
 	"screen.fpvdrone.start_throttle_calibration": "Start Throttle Calibration",

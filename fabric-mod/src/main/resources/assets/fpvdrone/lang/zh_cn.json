@@ -114,6 +114,7 @@
 	"screen.fpvdrone.status_center_saved": "摇杆中心已保存。横滚/俯仰/偏航：%s / %s / %s",
 	"screen.fpvdrone.axis_entry": "%1$s：%2$s",
 	"screen.fpvdrone.button_entry": "%1$s：%2$s",
+	"screen.fpvdrone.unset": "未设置",
 	"screen.fpvdrone.axis_inverted": "反向",
 	"screen.fpvdrone.axis_normal": "正向",
 	"screen.fpvdrone.start_throttle_calibration": "开始油门校准",
