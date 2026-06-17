@@ -35,11 +35,21 @@ public final class FpvCameraMount {
 		return Math.max(MIN_CLEAR_FORWARD_OFFSET_METERS, configuredMeters);
 	}
 
+	public static double clearForwardOffset(double configuredMeters, double forwardShakeMeters) {
+		double shake = Double.isFinite(forwardShakeMeters) ? forwardShakeMeters : 0.0;
+		return clearForwardOffset(clearForwardOffset(configuredMeters) - shake);
+	}
+
 	public static double clearUpOffset(double configuredMeters) {
 		if (!Double.isFinite(configuredMeters)) {
 			return MIN_CLEAR_UP_OFFSET_METERS;
 		}
 		return Math.max(MIN_CLEAR_UP_OFFSET_METERS, configuredMeters);
+	}
+
+	public static double clearUpOffset(double configuredMeters, double verticalShakeMeters) {
+		double shake = Double.isFinite(verticalShakeMeters) ? verticalShakeMeters : 0.0;
+		return clearUpOffset(clearUpOffset(configuredMeters) + shake);
 	}
 
 	private static boolean finite(Vec3 vector) {

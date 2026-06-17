@@ -53,4 +53,12 @@ class FpvCameraMountTest {
 		assertEquals(1.05, FpvCameraMount.clearForwardOffset(1.05), 1.0e-9);
 		assertEquals(0.62, FpvCameraMount.clearUpOffset(0.62), 1.0e-9);
 	}
+
+	@Test
+	void clearOffsetsRemainClearAfterCameraShake() {
+		assertEquals(0.95, FpvCameraMount.clearForwardOffset(0.95, 0.20), 1.0e-9);
+		assertEquals(1.17, FpvCameraMount.clearForwardOffset(1.05, -0.12), 1.0e-9);
+		assertEquals(0.58, FpvCameraMount.clearUpOffset(0.58, -0.20), 1.0e-9);
+		assertEquals(0.68, FpvCameraMount.clearUpOffset(0.62, 0.06), 1.0e-9);
+	}
 }
