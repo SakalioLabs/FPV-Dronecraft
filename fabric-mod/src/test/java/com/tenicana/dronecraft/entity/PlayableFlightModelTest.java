@@ -479,6 +479,36 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeBrakesVerticalSpeedWhenThrottleReturnsToHover() {
+		PlayableFlightModel.Step climb = runFrom(
+				FlightMode.ANGLE,
+				8,
+				0.60f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+		PlayableFlightModel.Step recovered = runFrom(
+				FlightMode.ANGLE,
+				4,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(climb)
+		);
+
+		assertTrue(climb.velocityY() > 0.30f, "climbVelocityY=" + climb.velocityY());
+		assertEquals(0.0f, recovered.targetVelocityY(), 1.0e-6f);
+		assertTrue(Math.abs(recovered.velocityY()) < 0.08f, "recoveredVelocityY=" + recovered.velocityY());
+	}
+
+	@Test
 	void lowAltitudeGuardSoftensHorizontalAuthorityWithoutBlockingVerticalFlight() {
 		PlayableFlightModel.Step normal = PlayableFlightModel.step(
 				FlightMode.ANGLE,

@@ -10,6 +10,7 @@ final class PlayableFlightModel {
 	private static final float THRUST_MIN_CLIMB = 0.025f;
 	private static final float VERTICAL_SPEED_LIMIT = 2.8f;
 	private static final float VERTICAL_HOVER_EDGE_SOFTENING = 0.0075f;
+	private static final float VERTICAL_HOVER_BRAKE_SMOOTHING = 0.56f;
 	private static final float HOVER_BAND = 0.035f;
 	private static final float PLAYABLE_AXIS_NOISE_EPSILON = 0.006f;
 	private static final float VELOCITY_SETTLE_EPSILON_MPS = 0.018f;
@@ -107,7 +108,7 @@ final class PlayableFlightModel {
 		}
 
 		float velocityX = smooth(safePrevious.velocityX(), targetVelocityX, velocitySmoothing(safePrevious.velocityX(), targetVelocityX, profile));
-		float velocityY = smooth(safePrevious.velocityY(), targetVelocityY, velocitySmoothing(safePrevious.velocityY(), targetVelocityY, profile));
+		float velocityY = smooth(safePrevious.velocityY(), targetVelocityY, verticalVelocitySmoothing(safePrevious.velocityY(), targetVelocityY, profile));
 		float velocityZ = smooth(safePrevious.velocityZ(), targetVelocityZ, velocitySmoothing(safePrevious.velocityZ(), targetVelocityZ, profile));
 		velocityX = clamp(velocityX, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
 		velocityY = clamp(velocityY, -VERTICAL_SPEED_LIMIT, VERTICAL_SPEED_LIMIT);
@@ -448,6 +449,14 @@ final class PlayableFlightModel {
 				&& Math.signum(current) != Math.signum(target);
 		boolean braking = reversing || Math.abs(target) < Math.abs(current);
 		return braking ? profile.velocityBrakeSmoothing() : profile.velocitySmoothing();
+	}
+
+	private static float verticalVelocitySmoothing(float current, float target, Profile profile) {
+		float smoothing = velocitySmoothing(current, target, profile);
+		if (Math.abs(target) <= VELOCITY_SETTLE_EPSILON_MPS && Math.abs(current) > VELOCITY_SETTLE_EPSILON_MPS) {
+			return Math.max(smoothing, VERTICAL_HOVER_BRAKE_SMOOTHING);
+		}
+		return smoothing;
 	}
 
 	private static boolean shouldGroundDamp(float throttle, float hoverThrottle, float targetVelocityX, float targetVelocityZ, Profile profile) {
