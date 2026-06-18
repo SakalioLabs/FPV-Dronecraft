@@ -12,6 +12,7 @@
 - 本轮给 `playable` 模式切换加入 6 tick 软接管窗口，并把该窗口接入实体状态保存：从 `HORIZON` 切到 `ACRO` 后，如果右杆已经回中，会温和刹掉旧水平速度和偏航残留，同时保留 Acro 的持姿特性；新增测试守住“切到 Acro 仍是 Acro，但不会继承过强旧状态突然甩出去”。
 - 无头服务端可玩层自测现在支持指定诊断飞行模式，并新增 `runPlayableHorizonServerSelfTest`：报告会写入并校验 `self_test_control_mode`，本轮 `HORIZON` 真服自测通过，最大可视 pitch/roll 约 `4.48/5.21 deg`，中杆窗口 87 个样本，neutral pitch 最大 `0.70 deg`、roll/yaw 为 0；这样第二档手感也进入 Minecraft 服务端级回归，而不只是在单元测试里存在。
 - `ACRO` 现在也有独立无头服务端回归入口 `runPlayableAcroServerSelfTest`：Acro 的中杆判定不再错误要求机身自动回水平，而是要求姿态/偏航权威被真实激活、松杆后 yaw rate 收住、持有姿态仍在可控范围内；本轮真服自测通过，最大可视 pitch/roll 约 `11.96/14.41 deg`、yaw rate 约 `27.64 dps`，中杆 yaw 为 0。
+- 客户端 `ACRO` 手感档从“满血竞速”改成更适合 Minecraft 游玩的渐进档：expo 提高到 `1.00`、roll/pitch scale 保留 `0.96` 满杆权威、yaw scale 降到 `0.84`、起杆从 `0.20/tick` 放慢到 `0.14/tick`，旧 Acro 配置会自动迁移；新增回归测试守住 70% 杆位 1 秒内仍是可控中段，而满杆仍能到大角度。
 - 当前 README 可以继续用中文维护；英文长段技术记录先保留在后面，新的研究和调参结论会优先写在中文进展区。
 
 这是一个面向 Minecraft/Fabric 的高频多旋翼无人机/穿越机模拟 Mod。项目目标不是做一个会飘起来的简单实体，而是在 Minecraft 世界里逐步实现可玩、可测试、可调参的 FPV 多轴无人机仿真系统。

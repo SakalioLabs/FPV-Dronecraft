@@ -43,6 +43,11 @@ public final class DroneClientConfig {
 	private static final float LEGACY_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.70f;
 	private static final float LEGACY_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK = 0.075f;
 	private static final float LEGACY_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK = 0.18f;
+	private static final float PREVIOUS_ACRO_GAMEPAD_EXPO = 0.75f;
+	private static final float PREVIOUS_ACRO_GAMEPAD_ROLL_PITCH_RATE_SCALE = 1.00f;
+	private static final float PREVIOUS_ACRO_GAMEPAD_YAW_RATE_SCALE = 1.00f;
+	private static final float PREVIOUS_ACRO_GAMEPAD_AXIS_RISE_PER_TICK = 0.20f;
+	private static final float PREVIOUS_ACRO_GAMEPAD_AXIS_FALL_PER_TICK = 0.35f;
 	private static final float MAX_STICK_CENTER_OFFSET = 0.45f;
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 14.0f;
 	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.12f;
@@ -486,7 +491,7 @@ public final class DroneClientConfig {
 
 	private DroneClientConfig normalized() {
 		migrateLegacySwappedMode2Defaults();
-		migrateLegacyTrainingFeelDefaults();
+		migrateLegacyGamepadFeelDefaults();
 		rollAxis = sanitizeAxis(rollAxis);
 		pitchAxis = sanitizeAxis(pitchAxis);
 		yawAxis = sanitizeAxis(yawAxis);
@@ -595,7 +600,7 @@ public final class DroneClientConfig {
 		}
 	}
 
-	private void migrateLegacyTrainingFeelDefaults() {
+	private void migrateLegacyGamepadFeelDefaults() {
 		if (matchesGamepadFeel(
 				PREVIOUS_SOFT_TRAINING_GAMEPAD_EXPO,
 				PREVIOUS_SOFT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
@@ -616,6 +621,14 @@ public final class DroneClientConfig {
 				LEGACY_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK
 		)) {
 			applyGamepadFeelPreset(ControlFeelPreset.TRAINING);
+		} else if (matchesGamepadFeel(
+				PREVIOUS_ACRO_GAMEPAD_EXPO,
+				PREVIOUS_ACRO_GAMEPAD_ROLL_PITCH_RATE_SCALE,
+				PREVIOUS_ACRO_GAMEPAD_YAW_RATE_SCALE,
+				PREVIOUS_ACRO_GAMEPAD_AXIS_RISE_PER_TICK,
+				PREVIOUS_ACRO_GAMEPAD_AXIS_FALL_PER_TICK
+		)) {
+			applyGamepadFeelPreset(ControlFeelPreset.ACRO);
 		}
 	}
 
@@ -708,7 +721,7 @@ public final class DroneClientConfig {
 	public enum ControlFeelPreset {
 		TRAINING("screen.fpvdrone.feel_training", 1.00f, 0.42f, 0.38f, 0.032f, 0.32f),
 		SPORT("screen.fpvdrone.feel_sport", 0.90f, 0.86f, 0.82f, 0.12f, 0.24f),
-		ACRO("screen.fpvdrone.feel_acro", 0.75f, 1.00f, 1.00f, 0.20f, 0.35f),
+		ACRO("screen.fpvdrone.feel_acro", 1.00f, 0.96f, 0.84f, 0.14f, 0.40f),
 		CUSTOM("screen.fpvdrone.feel_custom", Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);
 
 		private static final ControlFeelPreset[] SELECTABLE = { TRAINING, SPORT, ACRO };

@@ -717,6 +717,22 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroGamepadPresetKeepsMidStickProgressiveButKeepsFullAuthority() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		config.applyGamepadFeelPreset(DroneClientConfig.ControlFeelPreset.ACRO);
+		float hoverThrottle = (float) ControlStickProfile.gamepadThrottle(0.50);
+		PlayableFlightModel.Step midStick = runClientPresetStick(config, 20, 0.70f, -0.70f, 0.70f, hoverThrottle);
+		PlayableFlightModel.Step fullStick = runClientPresetStick(config, 20, 1.0f, -1.0f, 1.0f, hoverThrottle);
+
+		assertTrue(Math.abs(midStick.pitchRadians()) < Math.toRadians(20.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
+		assertTrue(Math.abs(midStick.rollRadians()) < Math.toRadians(22.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
+		assertTrue(midStick.yawDegreesPerTick() < 0.50f, "midYawDegPerTick=" + midStick.yawDegreesPerTick());
+		assertTrue(Math.abs(fullStick.pitchRadians()) > Math.toRadians(55.0), "fullPitchDeg=" + Math.toDegrees(fullStick.pitchRadians()));
+		assertTrue(Math.abs(fullStick.rollRadians()) > Math.toRadians(55.0), "fullRollDeg=" + Math.toDegrees(fullStick.rollRadians()));
+		assertTrue(fullStick.yawDegreesPerTick() > 2.0f, "fullYawDegPerTick=" + fullStick.yawDegreesPerTick());
+	}
+
+	@Test
 	void switchingFromAcroToAngleReleasesHeldAttitude() {
 		PlayableFlightModel.Step acro = holdStick(FlightMode.ACRO, 14, 0.45f, 1.0f, -1.0f, 1.0f);
 		PlayableFlightModel.Step angle = PlayableFlightModel.step(
@@ -811,6 +827,34 @@ class PlayableFlightModelTest {
 		for (int i = 0; i < ticks; i++) {
 			step = PlayableFlightModel.step(mode, throttle, pitch, roll, yaw, hoverThrottle, nearGroundLocked, current);
 			current = stateFrom(step);
+		}
+		return step;
+	}
+
+	private static PlayableFlightModel.Step runClientPresetStick(
+			DroneClientConfig config,
+			int ticks,
+			float rawPitch,
+			float rawRoll,
+			float rawYaw,
+			float hoverThrottle
+	) {
+		ClientTrainingAxes axes = new ClientTrainingAxes();
+		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
+		PlayableFlightModel.Step step = null;
+		for (int i = 0; i < ticks; i++) {
+			ClientTrainingAxes.Sample sample = axes.sample(config, rawPitch, rawRoll, rawYaw);
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					hoverThrottle,
+					sample.pitch(),
+					sample.roll(),
+					sample.yaw(),
+					hoverThrottle,
+					false,
+					state
+			);
+			state = stateFrom(step);
 		}
 		return step;
 	}
