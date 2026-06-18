@@ -446,6 +446,10 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 		throw new GradleException("FPV Dronecraft playable self-test did not report active motor RPM telemetry.")
 	}
 	if (playableFlightModel) {
+		def maxPlayableAverageMotorRpm = (report.max_avg_motor_rpm_telemetry_rpm ?: 0.0) as double
+		if (maxPlayableAverageMotorRpm > 11000.0) {
+			throw new GradleException("FPV Dronecraft playable self-test reported implausibly high average motor RPM telemetry: ${maxPlayableAverageMotorRpm}")
+		}
 		if ((report.playable_neutral_sample_count ?: 0) < 20) {
 			throw new GradleException("FPV Dronecraft playable self-test did not record enough neutral-stick flight samples: ${report.playable_neutral_sample_count}")
 		}

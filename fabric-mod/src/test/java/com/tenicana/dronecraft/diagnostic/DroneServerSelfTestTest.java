@@ -199,6 +199,10 @@ class DroneServerSelfTestTest {
 		selfTest = playableTelemetrySelfTest();
 		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.36);
 		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 11_000.1);
+		assertFalse(playableTelemetryExercised(selfTest));
 	}
 
 	@Test
@@ -231,6 +235,13 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
 		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
 		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.36);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
+		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 11_000.1);
 		assertFalse(playableTelemetryExercised(selfTest));
 	}
 
@@ -298,7 +309,7 @@ class DroneServerSelfTestTest {
 	private static DroneServerSelfTest playableTelemetrySelfTest(FlightMode controlMode) throws ReflectiveOperationException {
 		DroneServerSelfTest selfTest = newSelfTest(FlightModelMode.PLAYABLE, controlMode);
 		setDouble(selfTest, "maxHorizontalDistance", 0.06);
-		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 1200.0);
+		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 8700.0);
 		setInt(selfTest, "playableNeutralSampleCount", 20);
 		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 1.5);
 		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 1.5);
