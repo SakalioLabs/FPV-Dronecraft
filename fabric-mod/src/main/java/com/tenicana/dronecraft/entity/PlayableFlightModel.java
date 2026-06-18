@@ -15,7 +15,8 @@ final class PlayableFlightModel {
 	private static final float ATTITUDE_SETTLE_EPSILON_RADIANS = (float) Math.toRadians(0.20f);
 	private static final float YAW_SETTLE_EPSILON_DEGREES_PER_TICK = 0.020f;
 	private static final float IDLE_RPM = 2200.0f;
-	private static final float MAX_RPM_DELTA = 13500.0f;
+	private static final float HOVER_RPM = 6600.0f;
+	private static final float MAX_RPM = 12300.0f;
 	private static final float MODE_SWITCH_ANGLE_ATTITUDE_KEEP = 0.18f;
 	private static final float MODE_SWITCH_HORIZON_ATTITUDE_KEEP = 0.24f;
 	private static final float MODE_SWITCH_ACRO_ATTITUDE_KEEP = 1.0f;
@@ -145,7 +146,7 @@ final class PlayableFlightModel {
 		}
 		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
-		float averageRpm = IDLE_RPM + (float) Math.sqrt(safeThrottle) * MAX_RPM_DELTA;
+		float averageRpm = averageRpm(safeThrottle, safeHover);
 		return new Step(
 				targetVelocityX,
 				targetVelocityY,
@@ -354,6 +355,19 @@ final class PlayableFlightModel {
 			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * profile.thrustGain();
 		}
 		return centered / Math.max(0.10f, hoverThrottle) * profile.descentGain();
+	}
+
+	private static float averageRpm(float throttle, float hoverThrottle) {
+		if (throttle <= THRUST_DEADZONE) {
+			return IDLE_RPM;
+		}
+		float safeHover = clamp(hoverThrottle, 0.12f, 0.55f);
+		if (throttle <= safeHover) {
+			float progress = smoothStep(throttle / Math.max(THRUST_DEADZONE, safeHover));
+			return lerp(IDLE_RPM, HOVER_RPM, progress);
+		}
+		float progress = smoothStep((throttle - safeHover) / Math.max(0.10f, 1.0f - safeHover));
+		return lerp(HOVER_RPM, MAX_RPM, progress);
 	}
 
 	private static float horizontalThrottleAuthority(

@@ -29,6 +29,25 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void playableRpmTelemetryUsesHoverReferencedCurve() {
+		PlayableFlightModel.Step idle = holdStick(FlightMode.ANGLE, 1, 0.0f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step hover = holdStick(FlightMode.ANGLE, 1, 0.20f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step slightClimb = holdStick(FlightMode.ANGLE, 1, 0.22f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step punch = holdStick(FlightMode.ANGLE, 1, 0.80f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step heavyHover = holdStick(FlightMode.ANGLE, 1, 0.40f, 0.0f, 0.0f, 0.0f, 0.40f);
+
+		assertEquals(2200.0f, idle.averageRpm(), 1.0e-3f);
+		assertTrue(hover.averageRpm() > 6200.0f);
+		assertTrue(hover.averageRpm() < 7000.0f);
+		assertTrue(slightClimb.averageRpm() >= hover.averageRpm());
+		assertTrue(slightClimb.averageRpm() < 7000.0f);
+		assertTrue(punch.averageRpm() > 11000.0f);
+		assertTrue(punch.averageRpm() < 12400.0f);
+		assertTrue(heavyHover.averageRpm() > 6200.0f);
+		assertTrue(heavyHover.averageRpm() < 7000.0f);
+	}
+
+	@Test
 	void nullModeFallsBackToFirstFlightAngle() {
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
 				null,
@@ -99,7 +118,8 @@ class PlayableFlightModelTest {
 		assertTrue(step.pitchRadians() < Math.toRadians(3.0));
 		assertTrue(step.rollRadians() > -Math.toRadians(3.0));
 		assertTrue(step.yawDegreesPerTick() > 0.30f);
-		assertTrue(step.averageRpm() > 9000.0f);
+		assertTrue(step.averageRpm() > 7000.0f);
+		assertTrue(step.averageRpm() < 9000.0f);
 
 		PlayableFlightModel.Step held = holdStick(FlightMode.HORIZON, 12, 0.45f, 0.50f, -0.40f, 0.25f);
 		assertTrue(held.targetVelocityZ() < -0.35f);
