@@ -739,6 +739,54 @@ class PlayableFlightModelTest {
 		assertTrue(Math.abs(angle.targetVelocityZ()) < 0.50f);
 	}
 
+	@Test
+	void switchingFromHorizonToAcroSoftCapturesCenteredSticks() {
+		PlayableFlightModel.Step horizon = holdStick(FlightMode.HORIZON, 14, 0.45f, 1.0f, -1.0f, 1.0f);
+		PlayableFlightModel.Step firstAcro = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(horizon)
+		);
+		PlayableFlightModel.Step captured = runFrom(
+				FlightMode.ACRO,
+				6,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(horizon)
+		);
+		PlayableFlightModel.Step heldAfterCapture = runFrom(
+				FlightMode.ACRO,
+				6,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(captured)
+		);
+
+		assertTrue(Math.abs(horizon.pitchRadians()) > Math.toRadians(30.0));
+		assertTrue(Math.abs(horizon.rollRadians()) > Math.toRadians(30.0));
+		assertTrue(firstAcro.modeSwitchTicksRemaining() > 0);
+		assertTrue(Math.abs(captured.velocityX()) < Math.abs(firstAcro.velocityX()));
+		assertTrue(Math.abs(captured.velocityZ()) < Math.abs(firstAcro.velocityZ()));
+		assertTrue(Math.abs(captured.yawDegreesPerTick()) < Math.abs(firstAcro.yawDegreesPerTick()));
+		assertTrue(Math.abs(captured.pitchRadians()) > Math.toRadians(18.0));
+		assertTrue(Math.abs(captured.rollRadians()) > Math.toRadians(18.0));
+		assertTrue(Math.abs(heldAfterCapture.pitchRadians()) > Math.abs(captured.pitchRadians()) * 0.94f);
+		assertTrue(Math.abs(heldAfterCapture.rollRadians()) > Math.abs(captured.rollRadians()) * 0.94f);
+	}
+
 	private static PlayableFlightModel.Step holdStick(FlightMode mode, int ticks, float throttle, float pitch, float roll, float yaw) {
 		return runFrom(mode, ticks, throttle, pitch, roll, yaw, 0.20f, false, PlayableFlightModel.State.ZERO);
 	}
@@ -775,7 +823,8 @@ class PlayableFlightModelTest {
 				step.pitchRadians(),
 				step.rollRadians(),
 				step.yawDegreesPerTick(),
-				step.mode()
+				step.mode(),
+				step.modeSwitchTicksRemaining()
 		);
 	}
 

@@ -25,6 +25,14 @@ final class PlayableFlightModel {
 	private static final float MODE_SWITCH_ANGLE_HORIZONTAL_KEEP = 0.45f;
 	private static final float MODE_SWITCH_HORIZON_HORIZONTAL_KEEP = 0.62f;
 	private static final float MODE_SWITCH_ACRO_HORIZONTAL_KEEP = 0.82f;
+	private static final int MODE_SWITCH_SOFT_CAPTURE_TICKS = 6;
+	private static final float MODE_SWITCH_ANGLE_HORIZONTAL_BRAKE = 0.34f;
+	private static final float MODE_SWITCH_HORIZON_HORIZONTAL_BRAKE = 0.28f;
+	private static final float MODE_SWITCH_ACRO_HORIZONTAL_BRAKE = 0.18f;
+	private static final float MODE_SWITCH_ANGLE_YAW_BRAKE = 0.62f;
+	private static final float MODE_SWITCH_HORIZON_YAW_BRAKE = 0.52f;
+	private static final float MODE_SWITCH_ACRO_YAW_BRAKE = 0.42f;
+	private static final float MODE_SWITCH_ACRO_CENTERED_ATTITUDE_DAMPING = 0.965f;
 	private static final float LOW_THROTTLE_ANGLE_HORIZONTAL_AUTHORITY = 0.34f;
 	private static final float LOW_THROTTLE_HORIZON_HORIZONTAL_AUTHORITY = 0.42f;
 	private static final float LOW_THROTTLE_ACRO_HORIZONTAL_AUTHORITY = 0.60f;
@@ -117,6 +125,11 @@ final class PlayableFlightModel {
 			velocityX = smooth(velocityX, 0.0f, profile.airBrakeSmoothing());
 			velocityZ = smooth(velocityZ, 0.0f, profile.airBrakeSmoothing());
 		}
+		if (shouldModeSwitchBrakeHorizontal(safePrevious, safePitch, safeRoll)) {
+			float brake = modeSwitchHorizontalBrake(safeMode);
+			velocityX = smooth(velocityX, 0.0f, brake);
+			velocityZ = smooth(velocityZ, 0.0f, brake);
+		}
 		velocityX = settledVelocity(velocityX, targetVelocityX);
 		velocityY = settledVelocity(velocityY, targetVelocityY);
 		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
@@ -127,6 +140,9 @@ final class PlayableFlightModel {
 				targetYawDegreesPerTick,
 				yawSmoothing(safePrevious.yawDegreesPerTick(), targetYawDegreesPerTick, profile)
 		);
+		if (shouldModeSwitchBrakeYaw(safePrevious, safeYaw)) {
+			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(safeMode));
+		}
 		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = IDLE_RPM + (float) Math.sqrt(safeThrottle) * MAX_RPM_DELTA;
@@ -142,7 +158,8 @@ final class PlayableFlightModel {
 				yawDegreesPerTick,
 				motorPower,
 				averageRpm,
-				safeMode
+				safeMode,
+				nextModeSwitchTicksRemaining(safePrevious)
 		);
 	}
 
@@ -190,7 +207,8 @@ final class PlayableFlightModel {
 				clamp(previous.pitchRadians() * modeSwitchAttitudeKeep(mode), -profile.maxPitchRadians(), profile.maxPitchRadians()),
 				clamp(previous.rollRadians() * modeSwitchAttitudeKeep(mode), -profile.maxRollRadians(), profile.maxRollRadians()),
 				previous.yawDegreesPerTick() * modeSwitchYawKeep(mode),
-				mode
+				mode,
+				MODE_SWITCH_SOFT_CAPTURE_TICKS
 		);
 	}
 
@@ -218,14 +236,45 @@ final class PlayableFlightModel {
 		};
 	}
 
+	private static int nextModeSwitchTicksRemaining(State previous) {
+		return Math.max(0, previous.modeSwitchTicksRemaining() - 1);
+	}
+
+	private static boolean shouldModeSwitchBrakeHorizontal(State previous, float pitch, float roll) {
+		return previous.modeSwitchTicksRemaining() > 0
+				&& Math.abs(pitch) <= PLAYABLE_AXIS_NOISE_EPSILON
+				&& Math.abs(roll) <= PLAYABLE_AXIS_NOISE_EPSILON;
+	}
+
+	private static boolean shouldModeSwitchBrakeYaw(State previous, float yaw) {
+		return previous.modeSwitchTicksRemaining() > 0
+				&& Math.abs(yaw) <= PLAYABLE_AXIS_NOISE_EPSILON;
+	}
+
+	private static float modeSwitchHorizontalBrake(FlightMode mode) {
+		return switch (safeMode(mode)) {
+			case ANGLE -> MODE_SWITCH_ANGLE_HORIZONTAL_BRAKE;
+			case HORIZON -> MODE_SWITCH_HORIZON_HORIZONTAL_BRAKE;
+			case ACRO -> MODE_SWITCH_ACRO_HORIZONTAL_BRAKE;
+		};
+	}
+
+	private static float modeSwitchYawBrake(FlightMode mode) {
+		return switch (safeMode(mode)) {
+			case ANGLE -> MODE_SWITCH_ANGLE_YAW_BRAKE;
+			case HORIZON -> MODE_SWITCH_HORIZON_YAW_BRAKE;
+			case ACRO -> MODE_SWITCH_ACRO_YAW_BRAKE;
+		};
+	}
+
 	private static Attitude attitude(FlightMode mode, Profile profile, float pitch, float roll, State previous) {
 		FlightMode safeMode = safeMode(mode);
 		return switch (safeMode) {
 			case ANGLE -> angleAttitude(profile, pitch, roll, previous);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
 			case ACRO -> new Attitude(
-					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroPitchRadians()),
-					heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), profile.acroHoldDamping(), profile.maxAcroRollRadians())
+					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), acroHoldDamping(profile, pitch, previous), profile.maxAcroPitchRadians()),
+					heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), acroHoldDamping(profile, roll, previous), profile.maxAcroRollRadians())
 			);
 		};
 	}
@@ -268,6 +317,13 @@ final class PlayableFlightModel {
 				lerp(anglePitch, ratePitch, pitchBlend),
 				lerp(angleRoll, rateRoll, rollBlend)
 		);
+	}
+
+	private static float acroHoldDamping(Profile profile, float command, State previous) {
+		if (previous.modeSwitchTicksRemaining() > 0 && Math.abs(command) < 0.035f) {
+			return Math.min(profile.acroHoldDamping(), MODE_SWITCH_ACRO_CENTERED_ATTITUDE_DAMPING);
+		}
+		return profile.acroHoldDamping();
 	}
 
 	private static float attitudeSmoothing(float command, Profile profile) {
@@ -449,23 +505,32 @@ final class PlayableFlightModel {
 		return mode == null ? DEFAULT_PLAYABLE_MODE : mode;
 	}
 
-	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode) {
+	record State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode, int modeSwitchTicksRemaining) {
 		static final State ZERO = zero(DEFAULT_PLAYABLE_MODE);
 
+		State {
+			mode = safeMode(mode);
+			modeSwitchTicksRemaining = Math.max(0, modeSwitchTicksRemaining);
+		}
+
 		State(float velocityX, float velocityY, float velocityZ) {
-			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, DEFAULT_PLAYABLE_MODE);
+			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, DEFAULT_PLAYABLE_MODE, 0);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, DEFAULT_PLAYABLE_MODE);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, DEFAULT_PLAYABLE_MODE, 0);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, DEFAULT_PLAYABLE_MODE);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, DEFAULT_PLAYABLE_MODE, 0);
+		}
+
+		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode) {
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, 0);
 		}
 
 		static State zero(FlightMode mode) {
-			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, safeMode(mode));
+			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, safeMode(mode), 0);
 		}
 	}
 
@@ -481,7 +546,8 @@ final class PlayableFlightModel {
 			float yawDegreesPerTick,
 			float motorPower,
 			float averageRpm,
-			FlightMode mode
+			FlightMode mode,
+			int modeSwitchTicksRemaining
 	) {
 	}
 
