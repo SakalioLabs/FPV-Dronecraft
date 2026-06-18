@@ -9,6 +9,7 @@ final class PlayableFlightModel {
 	private static final float THRUST_DEADZONE = 0.005f;
 	private static final float THRUST_MIN_CLIMB = 0.025f;
 	private static final float VERTICAL_SPEED_LIMIT = 2.8f;
+	private static final float VERTICAL_HOVER_EDGE_SOFTENING = 0.0075f;
 	private static final float HOVER_BAND = 0.035f;
 	private static final float PLAYABLE_AXIS_NOISE_EPSILON = 0.006f;
 	private static final float VELOCITY_SETTLE_EPSILON_MPS = 0.018f;
@@ -99,7 +100,9 @@ final class PlayableFlightModel {
 		if (nearGroundLocked && targetVelocityY < 0.0f) {
 			targetVelocityY = 0.0f;
 		}
-		if (safeThrottle > safeHover && targetVelocityY > 0.0f && targetVelocityY < THRUST_MIN_CLIMB) {
+		if (safeThrottle > safeHover + profile.hoverBand() + VERTICAL_HOVER_EDGE_SOFTENING
+				&& targetVelocityY > 0.0f
+				&& targetVelocityY < THRUST_MIN_CLIMB) {
 			targetVelocityY = THRUST_MIN_CLIMB;
 		}
 
@@ -348,13 +351,15 @@ final class PlayableFlightModel {
 			return -profile.descentGain();
 		}
 		float centered = throttle - hoverThrottle;
-		if (Math.abs(centered) < profile.hoverBand()) {
+		float magnitude = Math.abs(centered);
+		if (magnitude < profile.hoverBand()) {
 			return 0.0f;
 		}
+		float edgeRamp = smoothStep((magnitude - profile.hoverBand()) / VERTICAL_HOVER_EDGE_SOFTENING);
 		if (centered > 0.0f) {
-			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * profile.thrustGain();
+			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * profile.thrustGain() * edgeRamp;
 		}
-		return centered / Math.max(0.10f, hoverThrottle) * profile.descentGain();
+		return centered / Math.max(0.10f, hoverThrottle) * profile.descentGain() * edgeRamp;
 	}
 
 	private static float averageRpm(float throttle, float hoverThrottle) {

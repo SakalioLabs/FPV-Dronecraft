@@ -29,6 +29,24 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void hoverBandEdgesRampWithoutVerticalSpeedJump() {
+		PlayableFlightModel.Step highInsideBand = holdStick(FlightMode.ANGLE, 1, 0.254f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step justAboveBand = holdStick(FlightMode.ANGLE, 1, 0.256f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step firmerClimb = holdStick(FlightMode.ANGLE, 1, 0.320f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step lowInsideBand = holdStick(FlightMode.ANGLE, 1, 0.146f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step justBelowBand = holdStick(FlightMode.ANGLE, 1, 0.144f, 0.0f, 0.0f, 0.0f);
+
+		assertEquals(0.0f, highInsideBand.targetVelocityY(), 1.0e-5f);
+		assertEquals(0.0f, lowInsideBand.targetVelocityY(), 1.0e-5f);
+		assertTrue(justAboveBand.targetVelocityY() > 0.0f);
+		assertTrue(justAboveBand.targetVelocityY() < 0.02f);
+		assertTrue(firmerClimb.targetVelocityY() > justAboveBand.targetVelocityY() * 8.0f);
+		assertTrue(firmerClimb.targetVelocityY() < 0.25f);
+		assertTrue(justBelowBand.targetVelocityY() < 0.0f);
+		assertTrue(justBelowBand.targetVelocityY() > -0.02f);
+	}
+
+	@Test
 	void playableRpmTelemetryUsesHoverReferencedCurve() {
 		PlayableFlightModel.Step idle = holdStick(FlightMode.ANGLE, 1, 0.0f, 0.0f, 0.0f, 0.0f);
 		PlayableFlightModel.Step hover = holdStick(FlightMode.ANGLE, 1, 0.20f, 0.0f, 0.0f, 0.0f);
