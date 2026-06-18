@@ -82,7 +82,7 @@ class DroneControlManagerTest {
 
 		DroneInput rollStep = DroneControlManager.get(playerId, 195, state, config);
 		assertEquals(FlightMode.ANGLE, rollStep.flightMode());
-		assertTrue(Math.abs(rollStep.roll()) > 0.20);
+		assertTrue(Math.abs(rollStep.roll()) > 0.40);
 		assertEquals("roll_step", DroneControlManager.diagnosticStatus(playerId, 195).phase());
 
 		DroneInput yawStep = DroneControlManager.get(playerId, 292, state, config);
@@ -156,7 +156,22 @@ class DroneControlManagerTest {
 		assertEquals(FlightMode.HORIZON, spool.flightMode());
 		assertEquals(FlightMode.HORIZON, rollStep.flightMode());
 		assertTrue(rollStep.armed());
-		assertTrue(Math.abs(rollStep.roll()) > 0.20);
+		assertTrue(Math.abs(rollStep.roll()) > 0.40);
+		DroneControlManager.stopDiagnostic(playerId);
+	}
+
+	@Test
+	void diagnosticScriptKeepsAcroExerciseCommandsManual() {
+		UUID playerId = UUID.randomUUID();
+		DroneConfig config = DroneConfig.racingQuad();
+		DroneState state = new DroneState(config.rotors().size());
+
+		DroneControlManager.startDiagnostic(playerId, 10, 240, false, FlightMode.ACRO);
+
+		DroneInput rollStep = DroneControlManager.get(playerId, 85, state, config);
+
+		assertEquals(FlightMode.ACRO, rollStep.flightMode());
+		assertEquals(0.24, Math.abs(rollStep.roll()), 1.0e-12);
 		DroneControlManager.stopDiagnostic(playerId);
 	}
 

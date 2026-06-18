@@ -214,7 +214,7 @@ public final class DroneControlManager {
 			boolean armed = progress < 0.985;
 			double hoverThrottle = config == null ? 0.32 : MathUtil.clamp(config.hoverThrottle(), 0.08, 0.75);
 			double throttle = commandedThrottle(progress, state, hoverThrottle);
-			AxisCommand axes = axisCommand(progress);
+			AxisCommand axes = axisCommand(progress, flightMode);
 			return new DroneInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), armed, true, flightMode).normalized();
 		}
 
@@ -278,27 +278,32 @@ public final class DroneControlManager {
 			return 0.0;
 		}
 
-		private static AxisCommand axisCommand(double progress) {
+		private static AxisCommand axisCommand(double progress, FlightMode flightMode) {
+			double horizontalScale = assistedHorizontalExerciseScale(flightMode);
 			if (progress < 0.26 || progress >= 0.88) {
 				return AxisCommand.ZERO;
 			}
 			if (progress < 0.40) {
-				return new AxisCommand(0.0, alternatingStep(progress, 0.26, 0.40, 0.24), 0.0);
+				return new AxisCommand(0.0, alternatingStep(progress, 0.26, 0.40, 0.24 * horizontalScale), 0.0);
 			}
 			if (progress < 0.54) {
-				return new AxisCommand(alternatingStep(progress, 0.40, 0.54, -0.22), 0.0, 0.0);
+				return new AxisCommand(alternatingStep(progress, 0.40, 0.54, -0.22 * horizontalScale), 0.0, 0.0);
 			}
 			if (progress < 0.66) {
 				return new AxisCommand(0.0, 0.0, alternatingStep(progress, 0.54, 0.66, 0.56));
 			}
 			if (progress < 0.78) {
 				double local = (progress - 0.66) / 0.12;
-				return new AxisCommand(-0.12, 0.18 * Math.sin(local * Math.PI * 2.0), 0.14);
+				return new AxisCommand(-0.12 * horizontalScale, 0.18 * horizontalScale * Math.sin(local * Math.PI * 2.0), 0.14);
 			}
 			if (progress < 0.88) {
 				return new AxisCommand(0.04, 0.0, 0.0);
 			}
 			return AxisCommand.ZERO;
+		}
+
+		private static double assistedHorizontalExerciseScale(FlightMode flightMode) {
+			return flightMode == FlightMode.ACRO ? 1.0 : 1.85;
 		}
 
 		private static double alternatingStep(double progress, double start, double end, double amplitude) {

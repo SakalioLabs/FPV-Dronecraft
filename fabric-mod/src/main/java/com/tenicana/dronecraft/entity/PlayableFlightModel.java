@@ -91,10 +91,10 @@ final class PlayableFlightModel {
 		float pitchRadians = settledAttitude(safeMode, attitudePitch, attitude.pitchRadians());
 		float rollRadians = settledAttitude(safeMode, attitudeRoll, attitude.rollRadians());
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
-		float targetVelocityX = clamp(rollRadians / profile.maxRollRadians(), -1.0f, 1.0f)
+		float targetVelocityX = horizontalVelocityCommand(rollRadians, profile.maxRollRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
-		float targetVelocityZ = -clamp(pitchRadians / profile.maxPitchRadians(), -1.0f, 1.0f)
+		float targetVelocityZ = -horizontalVelocityCommand(pitchRadians, profile.maxPitchRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
 		float targetVelocityY = verticalVelocity(safeThrottle, safeHover, profile);
@@ -397,6 +397,15 @@ final class PlayableFlightModel {
 		return clamp(authority, 0.0f, 1.10f);
 	}
 
+	private static float horizontalVelocityCommand(float attitudeRadians, float maxAttitudeRadians, Profile profile) {
+		float normalized = clamp(attitudeRadians / maxAttitudeRadians, -1.0f, 1.0f);
+		float magnitude = Math.abs(normalized);
+		float progress = smoothStep(magnitude / Math.max(0.001f, profile.horizontalVelocityLinearStart()));
+		float fineScale = clamp(profile.horizontalFineVelocityScale(), 0.0f, 1.0f);
+		float gain = lerp(fineScale, 1.0f, progress);
+		return Math.copySign(magnitude * gain, normalized);
+	}
+
 	private static float lowAltitudeAttitudeCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
 		float minimum = switch (safeMode(mode)) {
 			case ANGLE -> 0.68f;
@@ -610,14 +619,16 @@ final class PlayableFlightModel {
 			float airBrakeCommandThreshold,
 			float airBrakeThrottleBand,
 			float hoverBand,
+			float horizontalFineVelocityScale,
+			float horizontalVelocityLinearStart,
 			float descentGain,
 			float thrustGain
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (safeMode(mode)) {
-				case ANGLE -> new Profile(0.54f, 0.78f, radians(10.0f), radians(10.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.40f, 0.34f, 0.72f, 0.10f, radians(0.50f), 0.54f, radians(3.0f), 0.78f, 0.10f, 0.36f, 0.72f, 0.08f, 0.38f, 0.06f, 0.085f, 0.055f, 0.62f, 1.45f);
-				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.85f, 0.74f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, 0.24f, 0.055f, 0.075f, HOVER_BAND, DESCENT_GAIN, THRUST_GAIN);
-				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.95f, 0.40f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.0f, 0.0f, 0.0f, 0.030f, 1.10f, 2.80f);
+				case ANGLE -> new Profile(0.54f, 0.78f, radians(10.0f), radians(10.0f), radians(28.0f), radians(30.0f), radians(1.1f), radians(1.2f), 0.40f, 0.34f, 0.72f, 0.10f, radians(0.50f), 0.54f, radians(3.0f), 0.78f, 0.10f, 0.36f, 0.72f, 0.08f, 0.38f, 0.06f, 0.085f, 0.055f, 0.55f, 0.45f, 0.62f, 1.45f);
+				case HORIZON -> new Profile(1.25f, 1.65f, radians(26.0f), radians(28.0f), radians(48.0f), radians(52.0f), radians(2.6f), radians(2.9f), 1.55f, 0.85f, 0.74f, 0.16f, radians(1.85f), 0.28f, radians(3.0f), 0.88f, 0.20f, 0.26f, 0.58f, 0.12f, 0.24f, 0.055f, 0.075f, HOVER_BAND, 0.82f, 0.42f, DESCENT_GAIN, THRUST_GAIN);
+				case ACRO -> new Profile(1.85f, 2.35f, radians(46.0f), radians(50.0f), radians(68.0f), radians(72.0f), radians(4.8f), radians(5.3f), 2.70f, 0.95f, 0.40f, 0.16f, radians(3.80f), 0.16f, radians(3.80f), 0.995f, 0.22f, 0.22f, 0.42f, 0.14f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 1.10f, 2.80f);
 			};
 		}
 
