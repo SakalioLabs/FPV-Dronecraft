@@ -203,6 +203,10 @@ class DroneServerSelfTestTest {
 		selfTest = playableTelemetrySelfTest();
 		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 11_000.1);
 		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "finalHorizontalDistance", 0.301);
+		assertFalse(playableTelemetryExercised(selfTest));
 	}
 
 	@Test
@@ -214,6 +218,7 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 17.5);
 		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 3.0);
 		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.35);
+		setDouble(selfTest, "finalHorizontalDistance", 1.0);
 
 		assertTrue(playableTelemetryExercised(selfTest));
 

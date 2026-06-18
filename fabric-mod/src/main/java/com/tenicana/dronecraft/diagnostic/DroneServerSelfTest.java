@@ -56,6 +56,7 @@ public final class DroneServerSelfTest {
 	private static final double PLAYABLE_ACRO_MIN_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 8.0;
 	private static final double PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES = 18.0;
 	private static final double PLAYABLE_MAX_AVERAGE_MOTOR_RPM_TELEMETRY = 11000.0;
+	private static final double PLAYABLE_ASSISTED_MAX_FINAL_HORIZONTAL_DISTANCE_METERS = 0.30;
 
 	private static DroneServerSelfTest active;
 
@@ -676,7 +677,13 @@ public final class DroneServerSelfTest {
 		return maxHorizontalDistance > 0.05
 				&& maxAverageMotorTelemetryRpm > 1000.0
 				&& maxAverageMotorTelemetryRpm <= PLAYABLE_MAX_AVERAGE_MOTOR_RPM_TELEMETRY
+				&& playableAssistedFinalDriftStable()
 				&& playableModeTelemetryStable();
+	}
+
+	private boolean playableAssistedFinalDriftStable() {
+		return controlFlightMode == FlightMode.ACRO
+				|| finalHorizontalDistance <= PLAYABLE_ASSISTED_MAX_FINAL_HORIZONTAL_DISTANCE_METERS;
 	}
 
 	private boolean playableModeTelemetryStable() {
@@ -773,6 +780,9 @@ public final class DroneServerSelfTest {
 			}
 			if (maxAverageMotorTelemetryRpm > PLAYABLE_MAX_AVERAGE_MOTOR_RPM_TELEMETRY) {
 				return "playable_rpm_telemetry_too_high";
+			}
+			if (!playableAssistedFinalDriftStable()) {
+				return "playable_assisted_final_drift_too_high";
 			}
 			if (!playableModeTelemetryStable()) {
 				return controlFlightMode == FlightMode.ACRO ? "playable_acro_not_stable" : "playable_neutral_not_stable";
