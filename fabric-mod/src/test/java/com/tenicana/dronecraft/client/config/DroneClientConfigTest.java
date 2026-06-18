@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.client.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
@@ -211,6 +212,37 @@ class DroneClientConfigTest {
 		assertEquals(2, config.rollAxis());
 		assertEquals(3, config.pitchAxis());
 		assertTrue(config.gamepadDeadband() >= 0.08f);
+	}
+
+	@Test
+	void leftStickAxisSwapCorrectsYawThrottleAndClearsAxisSpecificCalibration() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		config.setYawAxis(1);
+		config.setThrottleAxis(0);
+		config.setStickCenters(0.0f, 0.0f, 0.11f);
+		config.setThrottleCalibration(0.18f, 0.82f);
+
+		config.swapYawThrottleAxes();
+
+		assertEquals(0, config.yawAxis());
+		assertEquals(1, config.throttleAxis());
+		assertEquals(0.0f, config.yawCenter(), 1.0e-5f);
+		assertFalse(config.throttleCalibrated());
+		assertEquals(0.0f, config.throttleCalibrationMin(), 1.0e-5f);
+		assertEquals(1.0f, config.throttleCalibrationMax(), 1.0e-5f);
+	}
+
+	@Test
+	void rightStickAxisSwapKeepsCentersAttachedToPhysicalAxes() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		config.setStickCenters(0.18f, -0.12f, 0.0f);
+
+		config.swapRollPitchAxes();
+
+		assertEquals(3, config.rollAxis());
+		assertEquals(2, config.pitchAxis());
+		assertEquals(-0.12f, config.rollCenter(), 1.0e-5f);
+		assertEquals(0.18f, config.pitchCenter(), 1.0e-5f);
 	}
 
 	@Test

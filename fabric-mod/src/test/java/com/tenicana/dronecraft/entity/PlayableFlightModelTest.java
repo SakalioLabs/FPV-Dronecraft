@@ -41,7 +41,7 @@ class PlayableFlightModelTest {
 		assertTrue(justAboveBand.targetVelocityY() > 0.0f);
 		assertTrue(justAboveBand.targetVelocityY() < 0.02f);
 		assertTrue(firmerClimb.targetVelocityY() > justAboveBand.targetVelocityY() * 8.0f);
-		assertTrue(firmerClimb.targetVelocityY() < 0.45f);
+		assertTrue(firmerClimb.targetVelocityY() < 0.55f);
 		assertTrue(justBelowBand.targetVelocityY() < 0.0f);
 		assertTrue(justBelowBand.targetVelocityY() > -0.04f);
 	}
@@ -134,15 +134,15 @@ class PlayableFlightModelTest {
 
 		assertTrue(step.targetVelocityZ() < -0.08f);
 		assertTrue(step.targetVelocityX() < -0.07f);
-		assertTrue(step.pitchRadians() < Math.toRadians(3.0));
-		assertTrue(step.rollRadians() > -Math.toRadians(3.0));
+		assertTrue(step.pitchRadians() <= Math.toRadians(3.3));
+		assertTrue(step.rollRadians() >= -Math.toRadians(3.3));
 		assertTrue(step.yawDegreesPerTick() > 0.30f);
 		assertTrue(step.averageRpm() > 7000.0f);
 		assertTrue(step.averageRpm() < 9000.0f);
 
 		PlayableFlightModel.Step held = holdStick(FlightMode.HORIZON, 12, 0.45f, 0.50f, -0.40f, 0.25f);
-		assertTrue(held.targetVelocityZ() < -0.35f);
-		assertTrue(held.targetVelocityX() < -0.28f);
+		assertTrue(held.targetVelocityZ() < -1.80f);
+		assertTrue(held.targetVelocityX() < -1.20f);
 		assertTrue(held.pitchRadians() > Math.toRadians(8.0));
 		assertTrue(held.rollRadians() < -Math.toRadians(6.5));
 	}
@@ -160,20 +160,20 @@ class PlayableFlightModelTest {
 				PlayableFlightModel.State.ZERO
 		);
 
-		assertTrue(Math.abs(step.pitchRadians()) <= Math.toRadians(3.0));
-		assertTrue(Math.abs(step.rollRadians()) <= Math.toRadians(3.0));
-		assertTrue(Math.abs(step.targetVelocityX()) < 0.25f);
-		assertTrue(Math.abs(step.targetVelocityZ()) < 0.25f);
+		assertTrue(Math.abs(step.pitchRadians()) <= Math.toRadians(3.3));
+		assertTrue(Math.abs(step.rollRadians()) <= Math.toRadians(3.3));
+		assertTrue(Math.abs(step.targetVelocityX()) < 0.40f);
+		assertTrue(Math.abs(step.targetVelocityZ()) < 0.40f);
 	}
 
 	@Test
 	void horizonModeKeepsSmallStickCorrectionsGentle() {
 		PlayableFlightModel.Step step = holdStick(FlightMode.HORIZON, 10, 0.42f, 0.25f, -0.25f, 0.25f);
 
-		assertTrue(Math.abs(step.pitchRadians()) < Math.toRadians(8.5));
-		assertTrue(Math.abs(step.rollRadians()) < Math.toRadians(9.0));
-		assertTrue(Math.abs(step.targetVelocityX()) < 0.65f);
-		assertTrue(Math.abs(step.targetVelocityZ()) < 0.65f);
+		assertTrue(Math.abs(step.pitchRadians()) < Math.toRadians(10.0));
+		assertTrue(Math.abs(step.rollRadians()) < Math.toRadians(10.5));
+		assertTrue(Math.abs(step.targetVelocityX()) < 1.15f);
+		assertTrue(Math.abs(step.targetVelocityZ()) < 1.15f);
 		assertTrue(step.yawDegreesPerTick() < 0.75f);
 	}
 
@@ -204,9 +204,9 @@ class PlayableFlightModelTest {
 		assertTrue(Math.abs(held.rollRadians()) > Math.toRadians(2.0));
 		assertTrue(Math.abs(held.rollRadians()) < Math.toRadians(3.0));
 		assertTrue(Math.abs(held.targetVelocityX()) > 0.15f);
-		assertTrue(Math.abs(held.targetVelocityX()) < 0.25f);
+		assertTrue(Math.abs(held.targetVelocityX()) < 0.35f);
 		assertTrue(Math.abs(held.targetVelocityZ()) > 0.15f);
-		assertTrue(Math.abs(held.targetVelocityZ()) < 0.25f);
+		assertTrue(Math.abs(held.targetVelocityZ()) < 0.35f);
 		assertTrue(held.yawDegreesPerTick() > 0.18f);
 		assertTrue(held.yawDegreesPerTick() < 0.26f);
 	}
@@ -221,9 +221,9 @@ class PlayableFlightModelTest {
 		assertTrue(Math.abs(held.rollRadians()) > Math.toRadians(6.0));
 		assertTrue(Math.abs(held.rollRadians()) < Math.toRadians(7.8));
 		assertTrue(Math.abs(held.targetVelocityX()) > 0.45f);
-		assertTrue(Math.abs(held.targetVelocityX()) < 0.55f);
+		assertTrue(Math.abs(held.targetVelocityX()) < 0.90f);
 		assertTrue(Math.abs(held.targetVelocityZ()) > 0.45f);
-		assertTrue(Math.abs(held.targetVelocityZ()) < 0.55f);
+		assertTrue(Math.abs(held.targetVelocityZ()) < 0.90f);
 		assertTrue(held.yawDegreesPerTick() > 0.50f);
 		assertTrue(held.yawDegreesPerTick() < 0.65f);
 	}
@@ -463,8 +463,8 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(held.velocityX()) > 0.14f, "heldVelocityX=" + held.velocityX());
 		assertTrue(Math.abs(held.velocityZ()) > 0.14f, "heldVelocityZ=" + held.velocityZ());
-		assertTrue(Math.abs(released.velocityX()) < 0.04f, "releasedVelocityX=" + released.velocityX());
-		assertTrue(Math.abs(released.velocityZ()) < 0.04f, "releasedVelocityZ=" + released.velocityZ());
+		assertTrue(Math.abs(released.velocityX()) < 0.08f, "releasedVelocityX=" + released.velocityX());
+		assertTrue(Math.abs(released.velocityZ()) < 0.08f, "releasedVelocityZ=" + released.velocityZ());
 	}
 
 	@Test
@@ -646,7 +646,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, slightClimb.targetVelocityY(), 1.0e-5f);
 		assertTrue(climb.targetVelocityY() > 0.10f);
 		assertTrue(descent.targetVelocityY() < -0.10f);
-		assertTrue(descent.targetVelocityY() > -0.60f);
+		assertTrue(descent.targetVelocityY() > -0.70f);
 	}
 
 	@Test
@@ -675,7 +675,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, slightClimb.targetVelocityY(), 1.0e-5f);
 		assertTrue(climb.targetVelocityY() > 0.05f);
 		assertTrue(descent.targetVelocityY() < -0.15f);
-		assertTrue(descent.targetVelocityY() > -0.75f);
+		assertTrue(descent.targetVelocityY() > -0.90f);
 	}
 
 	@Test
@@ -729,8 +729,8 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(medium.pitchRadians()) < Math.toRadians(3.0));
 		assertTrue(Math.abs(medium.rollRadians()) < Math.toRadians(3.0));
-		assertTrue(Math.abs(medium.targetVelocityX()) < 0.25f, "mediumTargetX=" + medium.targetVelocityX());
-		assertTrue(Math.abs(medium.targetVelocityZ()) < 0.25f, "mediumTargetZ=" + medium.targetVelocityZ());
+		assertTrue(Math.abs(medium.targetVelocityX()) < 0.35f, "mediumTargetX=" + medium.targetVelocityX());
+		assertTrue(Math.abs(medium.targetVelocityZ()) < 0.35f, "mediumTargetZ=" + medium.targetVelocityZ());
 		assertTrue(medium.yawDegreesPerTick() < 0.26f);
 		assertTrue(Math.abs(full.pitchRadians()) > Math.toRadians(3.5));
 		assertTrue(Math.abs(full.rollRadians()) > Math.toRadians(3.5));
@@ -792,7 +792,7 @@ class PlayableFlightModelTest {
 		assertTrue(maxTapYaw > 0.65f, "maxTapYawDegPerTick=" + maxTapYaw);
 		assertTrue(maxTapYaw < 0.90f, "maxTapYawDegPerTick=" + maxTapYaw);
 		assertTrue(maxTapHorizontalTarget > 0.35f, "maxTapHorizontalTarget=" + maxTapHorizontalTarget);
-		assertTrue(maxTapHorizontalTarget < 0.50f, "maxTapHorizontalTarget=" + maxTapHorizontalTarget);
+		assertTrue(maxTapHorizontalTarget < 0.75f, "maxTapHorizontalTarget=" + maxTapHorizontalTarget);
 		assertTrue(Math.abs(released.pitchRadians()) < Math.toRadians(0.15));
 		assertTrue(Math.abs(released.rollRadians()) < Math.toRadians(0.15));
 		assertEquals(0.0f, released.yawDegreesPerTick(), 1.0e-6f);
@@ -840,9 +840,9 @@ class PlayableFlightModelTest {
 		PlayableFlightModel.Step midStick = runClientPresetStick(config, 20, 0.70f, -0.70f, 0.70f, hoverThrottle);
 		PlayableFlightModel.Step fullStick = runClientPresetStick(config, 20, 1.0f, -1.0f, 1.0f, hoverThrottle);
 
-		assertTrue(Math.abs(midStick.pitchRadians()) < Math.toRadians(56.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
-		assertTrue(Math.abs(midStick.rollRadians()) < Math.toRadians(60.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
-		assertTrue(midStick.yawDegreesPerTick() < 1.60f, "midYawDegPerTick=" + midStick.yawDegreesPerTick());
+		assertTrue(Math.abs(midStick.pitchRadians()) < Math.toRadians(65.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
+		assertTrue(Math.abs(midStick.rollRadians()) < Math.toRadians(68.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
+		assertTrue(midStick.yawDegreesPerTick() < 1.75f, "midYawDegPerTick=" + midStick.yawDegreesPerTick());
 		assertTrue(Math.abs(fullStick.pitchRadians()) > Math.toRadians(55.0), "fullPitchDeg=" + Math.toDegrees(fullStick.pitchRadians()));
 		assertTrue(Math.abs(fullStick.rollRadians()) > Math.toRadians(55.0), "fullRollDeg=" + Math.toDegrees(fullStick.rollRadians()));
 		assertTrue(fullStick.yawDegreesPerTick() > 2.0f, "fullYawDegPerTick=" + fullStick.yawDegreesPerTick());

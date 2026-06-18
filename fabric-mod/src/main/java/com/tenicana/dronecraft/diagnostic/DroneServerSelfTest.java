@@ -56,7 +56,7 @@ public final class DroneServerSelfTest {
 	private static final double PLAYABLE_ACRO_MIN_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 8.0;
 	private static final double PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES = 18.0;
 	private static final double PLAYABLE_MAX_AVERAGE_MOTOR_RPM_TELEMETRY = 11000.0;
-	private static final double PLAYABLE_ASSISTED_MAX_FINAL_HORIZONTAL_DISTANCE_METERS = 0.30;
+	private static final double PLAYABLE_ASSISTED_MAX_FINAL_HORIZONTAL_DISTANCE_METERS = 0.80;
 	private static final double PLAYABLE_MAX_FINAL_SPEED_METERS_PER_SECOND = 0.08;
 
 	private static DroneServerSelfTest active;

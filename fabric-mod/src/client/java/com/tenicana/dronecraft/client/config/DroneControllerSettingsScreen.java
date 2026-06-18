@@ -17,13 +17,16 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.DroneConfig;
 
 public final class DroneControllerSettingsScreen extends Screen {
-	private static final int MAX_AXES_TO_DISPLAY = 8;
 	private static final String BUTTON_PREFIX = "button.fpvdrone.";
 	private static final float MIN_AXIS_CAPTURE_DELTA = 0.05f;
 	private static final float MIN_THROTTLE_CALIBRATION_RANGE = 0.05f;
 	private static final float MAX_CENTER_CAPTURE_OFFSET = 0.45f;
-	private static final int STICK_RENDER_SIZE = 34;
-	private static final int STICK_RENDER_RADIUS = 12;
+	private static final int REMOTE_STICK_MIN_SIZE = 96;
+	private static final int REMOTE_STICK_MAX_SIZE = 148;
+	private static final int REMOTE_STICK_MIN_GAP = 24;
+	private static final int REMOTE_STICK_MAX_GAP = 56;
+	private static final int REMOTE_BUTTON_HEIGHT = 20;
+	private static final int REMOTE_BUTTON_GAP = 4;
 
 	private enum CaptureTarget {
 		NONE,
@@ -45,6 +48,8 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private Button pitchInvertButton;
 	private Button yawInvertButton;
 	private Button throttleInvertButton;
+	private Button leftStickSwapButton;
+	private Button rightStickSwapButton;
 	private Button armButtonButton;
 	private Button disarmButtonButton;
 	private Button calibrateButtonButton;
@@ -79,75 +84,107 @@ public final class DroneControllerSettingsScreen extends Screen {
 		selectedJoystick = resolveConnectedJoystick();
 		refreshSnapshot();
 
-		int xAxis = 12;
-		int xInvert = 192;
-		int y = 36;
-		int rowHeight = 22;
+		int stickSize = remoteStickSize();
+		int stickGap = remoteStickGap();
+		int stickY = remoteStickTop(stickSize);
+		int leftX = leftStickX(stickSize, stickGap);
+		int rightX = rightStickX(stickGap);
+		int rowHeight = REMOTE_BUTTON_HEIGHT + REMOTE_BUTTON_GAP;
+		int buttonWidth = stickSize;
+		int halfButtonWidth = (buttonWidth - REMOTE_BUTTON_GAP) / 2;
+		int controlY = stickY + stickSize + 18;
 
-		rollAxisButton = addButton(xAxis, y, 170, Component.translatable(BUTTON_PREFIX + "roll_axis"), button -> startAxisCapture(CaptureTarget.ROLL_AXIS));
-		rollInvertButton = addButton(xInvert, y, 96, labelInvert(config.rollInverted()), button -> toggleRollInvert());
-		y += rowHeight;
-
-		pitchAxisButton = addButton(xAxis, y, 170, Component.translatable(BUTTON_PREFIX + "pitch_axis"), button -> startAxisCapture(CaptureTarget.PITCH_AXIS));
-		pitchInvertButton = addButton(xInvert, y, 96, labelInvert(config.pitchInverted()), button -> togglePitchInvert());
-		y += rowHeight;
-
-		yawAxisButton = addButton(xAxis, y, 170, Component.translatable(BUTTON_PREFIX + "yaw_axis"), button -> startAxisCapture(CaptureTarget.YAW_AXIS));
-		yawInvertButton = addButton(xInvert, y, 96, labelInvert(config.yawInverted()), button -> toggleYawInvert());
-		y += rowHeight;
-
+		yawAxisButton = addButton(leftX, controlY, buttonWidth, Component.translatable(BUTTON_PREFIX + "yaw_axis"), button -> startAxisCapture(CaptureTarget.YAW_AXIS));
 		throttleAxisButton = addButton(
-				xAxis,
-				y,
-				170,
+				leftX,
+				controlY + rowHeight,
+				buttonWidth,
 				Component.translatable(BUTTON_PREFIX + "throttle_axis"),
 				button -> startAxisCapture(CaptureTarget.THROTTLE_AXIS)
 		);
-		throttleInvertButton = addButton(xInvert, y, 96, labelInvert(config.throttleInverted()), button -> toggleThrottleInvert());
-		y += rowHeight + 8;
-
-		armButtonButton = addButton(xAxis, y, 170, Component.translatable(BUTTON_PREFIX + "arm_button"), button -> startButtonCapture(CaptureTarget.ARM_BUTTON));
-		y += rowHeight;
-
-		disarmButtonButton = addButton(xAxis, y, 170, Component.translatable(BUTTON_PREFIX + "disarm_button"), button -> startButtonCapture(CaptureTarget.DISARM_BUTTON));
-		y += rowHeight;
-
-		calibrateButtonButton = addButton(
-				xAxis,
-				y,
-				170,
-				Component.translatable(BUTTON_PREFIX + "calibrate_button"),
-				button -> startButtonCapture(CaptureTarget.CALIBRATE_BUTTON)
+		yawInvertButton = addButton(leftX, controlY + rowHeight * 2, halfButtonWidth, labelInvert(config.yawInverted()), button -> toggleYawInvert());
+		throttleInvertButton = addButton(
+				leftX + halfButtonWidth + REMOTE_BUTTON_GAP,
+				controlY + rowHeight * 2,
+				halfButtonWidth,
+				labelInvert(config.throttleInverted()),
+				button -> toggleThrottleInvert()
 		);
-		y += rowHeight + 8;
+		leftStickSwapButton = addButton(
+				leftX,
+				controlY + rowHeight * 3,
+				buttonWidth,
+				Component.translatable("screen.fpvdrone.swap_left_stick"),
+				button -> swapLeftStickAxes()
+		);
 
+		rollAxisButton = addButton(rightX, controlY, buttonWidth, Component.translatable(BUTTON_PREFIX + "roll_axis"), button -> startAxisCapture(CaptureTarget.ROLL_AXIS));
+		pitchAxisButton = addButton(rightX, controlY + rowHeight, buttonWidth, Component.translatable(BUTTON_PREFIX + "pitch_axis"), button -> startAxisCapture(CaptureTarget.PITCH_AXIS));
+		rollInvertButton = addButton(rightX, controlY + rowHeight * 2, halfButtonWidth, labelInvert(config.rollInverted()), button -> toggleRollInvert());
+		pitchInvertButton = addButton(
+				rightX + halfButtonWidth + REMOTE_BUTTON_GAP,
+				controlY + rowHeight * 2,
+				halfButtonWidth,
+				labelInvert(config.pitchInverted()),
+				button -> togglePitchInvert()
+		);
+		rightStickSwapButton = addButton(
+				rightX,
+				controlY + rowHeight * 3,
+				buttonWidth,
+				Component.translatable("screen.fpvdrone.swap_right_stick"),
+				button -> swapRightStickAxes()
+		);
+
+		int utilityY = Math.min(height - 52, controlY + rowHeight * 4 + 12);
+		int utilityWidth = Math.min(150, Math.max(116, stickSize));
+		int utilityGap = 6;
+		int utilityTotalWidth = utilityWidth * 3 + utilityGap * 2;
+		int utilityX = Math.max(12, width / 2 - utilityTotalWidth / 2);
 		throttleCalibrateButton = addButton(
-				xAxis,
-				y,
-				170,
+				utilityX,
+				utilityY,
+				utilityWidth,
 				Component.translatable("screen.fpvdrone.start_throttle_calibration"),
 				button -> toggleScreenThrottleCalibration()
 		);
 		stickCenterCalibrateButton = addButton(
-				xAxis + 182,
-				y,
-				132,
+				utilityX + utilityWidth + utilityGap,
+				utilityY,
+				utilityWidth,
 				Component.translatable("screen.fpvdrone.calibrate_stick_center"),
 				button -> calibrateStickCenters()
 		);
-		y += rowHeight;
-
 		feelPresetButton = addButton(
-				xAxis,
-				y,
-				170,
+				utilityX + (utilityWidth + utilityGap) * 2,
+				utilityY,
+				utilityWidth,
 				Component.translatable("screen.fpvdrone.feel_entry", Component.translatable(config.gamepadFeelPreset().translationKey())),
 				button -> cycleGamepadFeelPreset()
 		);
 
+		int bindY = utilityY + rowHeight;
+		int bindWidth = Math.max(88, Math.min(116, (width - 144) / 4));
+		int bindTotalWidth = bindWidth * 3 + utilityGap * 4 + 80 + 76;
+		int bindX = Math.max(12, width / 2 - bindTotalWidth / 2);
+		armButtonButton = addButton(bindX, bindY, bindWidth, Component.translatable(BUTTON_PREFIX + "arm_button"), button -> startButtonCapture(CaptureTarget.ARM_BUTTON));
+		disarmButtonButton = addButton(
+				bindX + bindWidth + utilityGap,
+				bindY,
+				bindWidth,
+				Component.translatable(BUTTON_PREFIX + "disarm_button"),
+				button -> startButtonCapture(CaptureTarget.DISARM_BUTTON)
+		);
+		calibrateButtonButton = addButton(
+				bindX + (bindWidth + utilityGap) * 2,
+				bindY,
+				bindWidth,
+				Component.translatable(BUTTON_PREFIX + "calibrate_button"),
+				button -> startButtonCapture(CaptureTarget.CALIBRATE_BUTTON)
+		);
 		refreshButton = addButton(
-				xAxis + 182,
-				y,
+				bindX + (bindWidth + utilityGap) * 3 + utilityGap,
+				bindY,
 				80,
 				Component.translatable("screen.fpvdrone.refresh"),
 				button -> {
@@ -159,8 +196,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 					updateButtonLabels();
 				}
 		);
-
-		closeButton = addButton(width - 92, y, 80, Component.translatable("gui.done"), button -> onClose());
+		closeButton = addButton(bindX + (bindWidth + utilityGap) * 3 + utilityGap + 86, bindY, 76, Component.translatable("gui.done"), button -> onClose());
 		updateButtonLabels();
 	}
 
@@ -193,42 +229,71 @@ public final class DroneControllerSettingsScreen extends Screen {
 	public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTicks) {
 		super.render(graphics, mouseX, mouseY, partialTicks);
 
-		int y = 12;
-		graphics.drawCenteredString(font, title, width / 2, y, 0xE0E0E0);
-		y += 16;
-		graphics.drawString(font, Component.translatable("screen.fpvdrone.instructions"), 12, y, 0xAAAAAA);
-		y += 20;
+		int stickSize = remoteStickSize();
+		int stickGap = remoteStickGap();
+		int stickY = remoteStickTop(stickSize);
+		int leftX = leftStickX(stickSize, stickGap);
+		int rightX = rightStickX(stickGap);
+		GamepadControlPreview.Preview preview = axesSnapshot.length == 0
+				? null
+				: GamepadControlPreview.fromAxes(config, axesSnapshot, previewHoverThrottle());
 
-		if (selectedJoystick >= 0) {
-			graphics.drawString(font, Component.translatable("screen.fpvdrone.connected_controller", selectedJoystick), 12, y, 0x66C0FF);
-		} else {
-			graphics.drawString(font, Component.translatable("screen.fpvdrone.no_controller"), 12, y, 0xFF6666);
-		}
-		y += 14;
+		graphics.drawCenteredString(font, title, width / 2, 10, 0xE8EEF9);
+		Component controllerStatus = selectedJoystick >= 0
+				? Component.translatable("screen.fpvdrone.connected_controller", selectedJoystick)
+				: Component.translatable("screen.fpvdrone.no_controller");
+		graphics.drawCenteredString(font, controllerStatus, width / 2, 25, selectedJoystick >= 0 ? 0x66C0FF : 0xFF6666);
 
-		drawAxisPreview(graphics, 12, y);
+		drawRemoteStick(
+				graphics,
+				leftX,
+				stickY,
+				stickSize,
+				Component.translatable("screen.fpvdrone.left_stick"),
+				Component.translatable("screen.fpvdrone.axis_yaw"),
+				Component.translatable("screen.fpvdrone.axis_throttle"),
+				preview == null ? 0.0f : preview.yawStick(),
+				preview == null ? 0.0f : preview.calibratedThrottle() * 2.0f - 1.0f,
+				preview == null || preview.yawAxisPresent(),
+				preview == null || preview.throttleAxisPresent()
+		);
+		drawRemoteStick(
+				graphics,
+				rightX,
+				stickY,
+				stickSize,
+				Component.translatable("screen.fpvdrone.right_stick"),
+				Component.translatable("screen.fpvdrone.axis_roll"),
+				Component.translatable("screen.fpvdrone.axis_pitch"),
+				preview == null ? 0.0f : preview.rollStick(),
+				preview == null ? 0.0f : preview.pitchStick(),
+				preview == null || preview.rollAxisPresent(),
+				preview == null || preview.pitchAxisPresent()
+		);
+
+		int infoY = Math.max(38, stickY - 12);
 		if (captureThrottleInProgress) {
-			graphics.drawString(font, Component.translatable("screen.fpvdrone.throttle_calibration_running"), 12, y + 66, 0xFFCC66);
-			graphics.drawString(
+			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.throttle_calibration_running"), width / 2, infoY, 0xFFCC66);
+			graphics.drawCenteredString(
 					font,
 					Component.translatable(
 							"screen.fpvdrone.throttle_calibration_range",
 							String.format(Locale.ROOT, "%.3f", capturedThrottleMin),
 							String.format(Locale.ROOT, "%.3f", capturedThrottleMax)
 					),
-					12,
-					y + 76,
+					width / 2,
+					infoY + 10,
 					0xFFCC66
 			);
+		} else if (captureTarget != CaptureTarget.NONE) {
+			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.binding_target", bindingTargetLabel()), width / 2, infoY, 0xFFCC99);
 		}
 
 		if (!status.getString().isEmpty()) {
-			graphics.drawString(font, status, 12, y + 88, 0xFFCC99);
+			graphics.drawCenteredString(font, status, width / 2, Math.min(height - 68, stickY + stickSize + 98), 0xFFCC99);
 		}
 
-		int outputY = status.getString().isEmpty() ? y + 88 : y + 102;
-		drawMappedOutputPreview(graphics, 12, outputY);
-		graphics.drawString(font, Component.translatable("screen.fpvdrone.stick_pair_hint"), 12, outputY + 14, 0x999999);
+		drawMappedOutputPreview(graphics, width / 2, Math.min(height - 80, stickY + stickSize + 84), preview);
 	}
 
 	@Override
@@ -237,8 +302,31 @@ public final class DroneControllerSettingsScreen extends Screen {
 		super.onClose();
 	}
 
+	private int remoteStickSize() {
+		int widthDriven = (width - REMOTE_STICK_MIN_GAP - 48) / 2;
+		int heightDriven = Math.max(REMOTE_STICK_MIN_SIZE, height - 260);
+		return Math.max(REMOTE_STICK_MIN_SIZE, Math.min(REMOTE_STICK_MAX_SIZE, Math.min(widthDriven, heightDriven)));
+	}
+
+	private int remoteStickGap() {
+		return Math.max(REMOTE_STICK_MIN_GAP, Math.min(REMOTE_STICK_MAX_GAP, width / 12));
+	}
+
+	private int remoteStickTop(int stickSize) {
+		int available = Math.max(0, height - stickSize - 170);
+		return Math.max(42, Math.min(72, available / 2 + 34));
+	}
+
+	private int leftStickX(int stickSize, int stickGap) {
+		return width / 2 - stickGap / 2 - stickSize;
+	}
+
+	private int rightStickX(int stickGap) {
+		return width / 2 + stickGap / 2;
+	}
+
 	private Button addButton(int x, int y, int width, Component message, Button.OnPress onPress) {
-		Button button = Button.builder(message, onPress).bounds(x, y, width, 20).build();
+		Button button = Button.builder(message, onPress).bounds(x, y, width, REMOTE_BUTTON_HEIGHT).build();
 		addRenderableWidget(button);
 		return button;
 	}
@@ -249,10 +337,12 @@ public final class DroneControllerSettingsScreen extends Screen {
 		yawAxisButton.setMessage(labelAxis(config.yawAxis(), "screen.fpvdrone.axis_yaw"));
 		throttleAxisButton.setMessage(labelAxis(config.throttleAxis(), "screen.fpvdrone.axis_throttle"));
 
-		rollInvertButton.setMessage(labelInvert(config.rollInverted()));
-		pitchInvertButton.setMessage(labelInvert(config.pitchInverted()));
-		yawInvertButton.setMessage(labelInvert(config.yawInverted()));
-		throttleInvertButton.setMessage(labelInvert(config.throttleInverted()));
+		rollInvertButton.setMessage(labelInvert("screen.fpvdrone.axis_roll", config.rollInverted()));
+		pitchInvertButton.setMessage(labelInvert("screen.fpvdrone.axis_pitch", config.pitchInverted()));
+		yawInvertButton.setMessage(labelInvert("screen.fpvdrone.axis_yaw", config.yawInverted()));
+		throttleInvertButton.setMessage(labelInvert("screen.fpvdrone.axis_throttle", config.throttleInverted()));
+		leftStickSwapButton.setMessage(Component.translatable("screen.fpvdrone.swap_left_stick"));
+		rightStickSwapButton.setMessage(Component.translatable("screen.fpvdrone.swap_right_stick"));
 
 		armButtonButton.setMessage(labelButton(config.armButton(), "screen.fpvdrone.btn_arm"));
 		disarmButtonButton.setMessage(labelButton(config.disarmButton(), "screen.fpvdrone.btn_disarm"));
@@ -286,6 +376,14 @@ public final class DroneControllerSettingsScreen extends Screen {
 
 	private Component labelInvert(boolean value) {
 		return Component.translatable(value ? "screen.fpvdrone.axis_inverted" : "screen.fpvdrone.axis_normal");
+	}
+
+	private Component labelInvert(String axisKey, boolean value) {
+		return Component.translatable(
+				"screen.fpvdrone.axis_direction_entry",
+				Component.translatable(axisKey),
+				Component.translatable(value ? "screen.fpvdrone.axis_inverted" : "screen.fpvdrone.axis_normal")
+		);
 	}
 
 	private void startAxisCapture(CaptureTarget target) {
@@ -416,6 +514,28 @@ public final class DroneControllerSettingsScreen extends Screen {
 		updateButtonLabels();
 	}
 
+	private void swapLeftStickAxes() {
+		if (captureThrottleInProgress) {
+			status = Component.translatable("screen.fpvdrone.status_finish_calibration_first");
+			return;
+		}
+		config.swapYawThrottleAxes();
+		config.save();
+		updateButtonLabels();
+		status = Component.translatable("screen.fpvdrone.status_left_stick_swapped");
+	}
+
+	private void swapRightStickAxes() {
+		if (captureThrottleInProgress) {
+			status = Component.translatable("screen.fpvdrone.status_finish_calibration_first");
+			return;
+		}
+		config.swapRollPitchAxes();
+		config.save();
+		updateButtonLabels();
+		status = Component.translatable("screen.fpvdrone.status_right_stick_swapped");
+	}
+
 	private void cycleGamepadFeelPreset() {
 		DroneClientConfig.ControlFeelPreset preset = config.nextGamepadFeelPreset();
 		config.save();
@@ -503,71 +623,56 @@ public final class DroneControllerSettingsScreen extends Screen {
 		capturedThrottleMax = Math.max(capturedThrottleMax, rawThrottle);
 	}
 
-	private void drawAxisPreview(GuiGraphics graphics, int x, int y) {
-		int lines = Math.min(axesSnapshot.length, MAX_AXES_TO_DISPLAY);
-		for (int i = 0; i < lines; i++) {
-			graphics.drawString(
-					font,
-					Component.translatable("screen.fpvdrone.axis_value", i, String.format(Locale.ROOT, "% .3f", axesSnapshot[i])),
-					x,
-					y + (i * 10),
-					0xCCD7E0
-			);
-		}
+	private void drawRemoteStick(
+			GuiGraphics graphics,
+			int x,
+			int y,
+			int size,
+			Component title,
+			Component horizontalLabel,
+			Component verticalLabel,
+			float horizontal,
+			float vertical,
+			boolean horizontalAxisPresent,
+			boolean verticalAxisPresent
+	) {
+		int centerX = x + size / 2;
+		int centerY = y + size / 2;
+		int radius = Math.max(28, size / 2 - 15);
+		int pointerX = centerX + Math.round(clamp(horizontal, -1.0f, 1.0f) * radius);
+		int pointerY = centerY - Math.round(clamp(vertical, -1.0f, 1.0f) * radius);
+		int frameColor = horizontalAxisPresent && verticalAxisPresent ? 0xFF31445D : 0xFF76512D;
 
-		int pairCount = lines / 2;
-		int pairX = x + 210;
-		int baseY = y + pairCount * 10 + 4;
-		graphics.drawString(font, Component.translatable("screen.fpvdrone.stick_positions"), 12, baseY - 12, 0x99CCFF);
-		for (int pair = 0; pair < pairCount; pair++) {
-			int axisX = pair * 2;
-			int axisY = axisX + 1;
-			float valueX = axesSnapshot[axisX];
-			float valueY = axesSnapshot[axisY];
+		graphics.fill(x - 2, y - 2, x + size + 2, y + size + 2, 0xAA05080D);
+		graphics.fill(x, y, x + size, y + size, 0xE5121A26);
+		graphics.fill(x, y, x + size, y + 1, frameColor);
+		graphics.fill(x, y + size - 1, x + size, y + size, frameColor);
+		graphics.fill(x, y, x + 1, y + size, frameColor);
+		graphics.fill(x + size - 1, y, x + size, y + size, frameColor);
+		graphics.fill(centerX - 1, y + 8, centerX + 1, y + size - 8, 0xFF445C7C);
+		graphics.fill(x + 8, centerY - 1, x + size - 8, centerY + 1, 0xFF445C7C);
+		graphics.fill(pointerX - 5, pointerY - 5, pointerX + 6, pointerY + 6, 0xFFE9F2FF);
+		graphics.fill(pointerX - 3, pointerY - 3, pointerX + 4, pointerY + 4, 0xFFFFB74D);
 
-			graphics.drawString(
-					font,
-					Component.translatable(
-							"screen.fpvdrone.stick_entry",
-							pair + 1,
-							axisX,
-							axisY,
-							String.format(Locale.ROOT, "% .3f", valueX),
-							String.format(Locale.ROOT, "% .3f", valueY)
-					),
-					pairX,
-					baseY + (pair * 34),
-					0xAACCEE
-			);
-
-			drawStickPreview(graphics, pairX + 140, baseY + (pair * 34) - 2, pair, valueX, valueY);
-		}
-
-		if (captureTarget != CaptureTarget.NONE) {
-			graphics.drawString(font, Component.translatable("screen.fpvdrone.binding_target", bindingTargetLabel()), x, y + 84, 0xFFCC99);
-		}
+		graphics.drawCenteredString(font, title, centerX, y - 12, 0xE8EEF9);
+		graphics.drawCenteredString(font, horizontalLabel, centerX, y + size + 3, horizontalAxisPresent ? 0xAACCEE : 0xFFAA66);
+		graphics.drawString(font, verticalLabel, x + 5, y + 5, verticalAxisPresent ? 0xAACCEE : 0xFFAA66);
 	}
 
-	private void drawMappedOutputPreview(GuiGraphics graphics, int x, int y) {
-		if (axesSnapshot.length == 0) {
+	private void drawMappedOutputPreview(GuiGraphics graphics, int centerX, int y, GamepadControlPreview.Preview preview) {
+		if (preview == null) {
 			return;
 		}
-		GamepadControlPreview.Preview preview = GamepadControlPreview.fromAxes(config, axesSnapshot, previewHoverThrottle());
-		graphics.drawString(
-				font,
-				Component.translatable(
-						"screen.fpvdrone.mapped_output",
-						percent(preview.throttleCommand()),
-						signed(preview.pitchCommand()),
-						signed(preview.rollCommand()),
-						signed(preview.yawCommand())
-				),
-				x,
-				y,
-				preview.allAxesPresent() ? 0xBFE8C8 : 0xFFAA66
+		Component output = Component.translatable(
+				"screen.fpvdrone.mapped_output",
+				percent(preview.throttleCommand()),
+				signed(preview.pitchCommand()),
+				signed(preview.rollCommand()),
+				signed(preview.yawCommand())
 		);
+		graphics.drawCenteredString(font, output, centerX, y, preview.allAxesPresent() ? 0xBFE8C8 : 0xFFAA66);
 		if (!preview.allAxesPresent()) {
-			graphics.drawString(font, Component.translatable("screen.fpvdrone.mapped_axes_missing"), x, y + 10, 0xFFAA66);
+			graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.mapped_axes_missing"), centerX, y + 10, 0xFFAA66);
 		}
 	}
 
@@ -590,19 +695,16 @@ public final class DroneControllerSettingsScreen extends Screen {
 	}
 
 	private Component bindingTargetLabel() {
-		return Component.translatable(
-				"screen.fpvdrone.binding_target",
-				switch (captureTarget) {
-					case NONE -> Component.literal("...");
-					case ROLL_AXIS -> Component.translatable("screen.fpvdrone.axis_roll");
-					case PITCH_AXIS -> Component.translatable("screen.fpvdrone.axis_pitch");
-					case YAW_AXIS -> Component.translatable("screen.fpvdrone.axis_yaw");
-					case THROTTLE_AXIS -> Component.translatable("screen.fpvdrone.axis_throttle");
-					case ARM_BUTTON -> Component.translatable("screen.fpvdrone.btn_arm");
-					case DISARM_BUTTON -> Component.translatable("screen.fpvdrone.btn_disarm");
-					case CALIBRATE_BUTTON -> Component.translatable("screen.fpvdrone.btn_calibrate");
-				}
-		);
+		return switch (captureTarget) {
+			case NONE -> Component.literal("...");
+			case ROLL_AXIS -> Component.translatable("screen.fpvdrone.axis_roll");
+			case PITCH_AXIS -> Component.translatable("screen.fpvdrone.axis_pitch");
+			case YAW_AXIS -> Component.translatable("screen.fpvdrone.axis_yaw");
+			case THROTTLE_AXIS -> Component.translatable("screen.fpvdrone.axis_throttle");
+			case ARM_BUTTON -> Component.translatable("screen.fpvdrone.btn_arm");
+			case DISARM_BUTTON -> Component.translatable("screen.fpvdrone.btn_disarm");
+			case CALIBRATE_BUTTON -> Component.translatable("screen.fpvdrone.btn_calibrate");
+		};
 	}
 
 	private int resolveConnectedJoystick() {
@@ -647,37 +749,10 @@ public final class DroneControllerSettingsScreen extends Screen {
 		return (float) Math.max(0.0, Math.min(1.0, (axisValue + 1.0) * 0.5));
 	}
 
-	private void drawStickPreview(GuiGraphics graphics, int x, int y, int stickIndex, float axisXValue, float axisYValue) {
-		int boxX = x;
-		int boxY = y;
-		int centerX = boxX + STICK_RENDER_SIZE / 2;
-		int centerY = boxY + STICK_RENDER_SIZE / 2;
-		int innerRadius = STICK_RENDER_RADIUS;
-		int pointerX = Math.round(axisXValue * innerRadius);
-		int pointerY = Math.round(-axisYValue * innerRadius);
-
-		graphics.fill(boxX, boxY, boxX + STICK_RENDER_SIZE, boxY + STICK_RENDER_SIZE, 0xFF2A2F40);
-		graphics.fill(
-				centerX - 1,
-				boxY,
-				centerX + 1,
-				boxY + STICK_RENDER_SIZE,
-				0xFF6A8CC9
-		);
-		graphics.fill(
-				boxX,
-				centerY - 1,
-				boxX + STICK_RENDER_SIZE,
-				centerY + 1,
-				0xFF6A8CC9
-		);
-		graphics.fill(
-				centerX + pointerX,
-				centerY + pointerY,
-				centerX + pointerX + 2,
-				centerY + pointerY + 2,
-				0xFFFFB74D
-		);
-		graphics.drawCenteredString(font, Component.translatable("screen.fpvdrone.stick_label", stickIndex + 1), x + STICK_RENDER_SIZE / 2 + 50, y + 2, 0xE8EEF9);
+	private static float clamp(float value, float min, float max) {
+		if (!Float.isFinite(value)) {
+			return min;
+		}
+		return Math.max(min, Math.min(max, value));
 	}
 }

@@ -324,19 +324,52 @@ public final class DroneClientConfig {
 	}
 
 	public void setRollAxis(int rollAxis) {
-		this.rollAxis = sanitizeAxis(rollAxis);
+		int nextAxis = sanitizeAxis(rollAxis);
+		if (this.rollAxis != nextAxis) {
+			rollCenter = 0.0f;
+		}
+		this.rollAxis = nextAxis;
 	}
 
 	public void setPitchAxis(int pitchAxis) {
-		this.pitchAxis = sanitizeAxis(pitchAxis);
+		int nextAxis = sanitizeAxis(pitchAxis);
+		if (this.pitchAxis != nextAxis) {
+			pitchCenter = 0.0f;
+		}
+		this.pitchAxis = nextAxis;
 	}
 
 	public void setYawAxis(int yawAxis) {
-		this.yawAxis = sanitizeAxis(yawAxis);
+		int nextAxis = sanitizeAxis(yawAxis);
+		if (this.yawAxis != nextAxis) {
+			yawCenter = 0.0f;
+		}
+		this.yawAxis = nextAxis;
 	}
 
 	public void setThrottleAxis(int throttleAxis) {
-		this.throttleAxis = sanitizeAxis(throttleAxis);
+		int nextAxis = sanitizeAxis(throttleAxis);
+		if (this.throttleAxis != nextAxis) {
+			clearThrottleCalibration();
+		}
+		this.throttleAxis = nextAxis;
+	}
+
+	public void swapYawThrottleAxes() {
+		int previousYawAxis = yawAxis;
+		yawAxis = throttleAxis;
+		throttleAxis = previousYawAxis;
+		yawCenter = 0.0f;
+		clearThrottleCalibration();
+	}
+
+	public void swapRollPitchAxes() {
+		int previousRollAxis = rollAxis;
+		rollAxis = pitchAxis;
+		pitchAxis = previousRollAxis;
+		float previousRollCenter = rollCenter;
+		rollCenter = pitchCenter;
+		pitchCenter = previousRollCenter;
 	}
 
 	public void setRollInverted(boolean rollInverted) {
