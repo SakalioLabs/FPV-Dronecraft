@@ -22,12 +22,17 @@ public final class DroneClientConfig {
 	private static final String FILE_NAME = "fpvdrone-client.json";
 	private static final float MIN_THROTTLE_CALIBRATION_SPAN = 0.05f;
 	private static final float AXIS_DETECTION_THRESHOLD = 0.05f;
-	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.10f;
-	private static final float DEFAULT_GAMEPAD_EXPO = 1.00f;
-	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.42f;
-	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.38f;
-	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.032f;
-	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.32f;
+	private static final float DEFAULT_GAMEPAD_DEADBAND = 0.08f;
+	private static final float DEFAULT_GAMEPAD_EXPO = 0.60f;
+	private static final float DEFAULT_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.86f;
+	private static final float DEFAULT_GAMEPAD_YAW_RATE_SCALE = 0.95f;
+	private static final float DEFAULT_GAMEPAD_AXIS_RISE_PER_TICK = 0.16f;
+	private static final float DEFAULT_GAMEPAD_AXIS_FALL_PER_TICK = 0.45f;
+	private static final float SLOW_TRAINING_GAMEPAD_EXPO = 1.00f;
+	private static final float SLOW_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.42f;
+	private static final float SLOW_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.38f;
+	private static final float SLOW_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK = 0.032f;
+	private static final float SLOW_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK = 0.32f;
 	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_EXPO = 0.98f;
 	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE = 0.48f;
 	private static final float PREVIOUS_SOFT_TRAINING_GAMEPAD_YAW_RATE_SCALE = 0.44f;
@@ -52,11 +57,19 @@ public final class DroneClientConfig {
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 16.0f;
 	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.20f;
 	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.72f;
-	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.08f;
-	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.04f;
-	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.012f;
-	private static final float DEFAULT_CAMERA_FOV_DEGREES = 116.0f;
-	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 1.0f;
+	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.02f;
+	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.0f;
+	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.006f;
+	private static final float DEFAULT_CAMERA_FOV_DEGREES = 96.0f;
+	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 0.0f;
+	private static final float WIDE_DEFAULT_CAMERA_TILT_DEGREES = 16.0f;
+	private static final float WIDE_DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.20f;
+	private static final float WIDE_DEFAULT_CAMERA_UP_OFFSET_METERS = 0.72f;
+	private static final float WIDE_DEFAULT_CAMERA_VIBRATION_SCALE = 0.08f;
+	private static final float WIDE_DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.04f;
+	private static final float WIDE_DEFAULT_CAMERA_LATENCY_SECONDS = 0.012f;
+	private static final float WIDE_DEFAULT_CAMERA_FOV_DEGREES = 116.0f;
+	private static final float WIDE_DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 1.0f;
 	private static final float CURRENT_DEFAULT_CAMERA_TILT_DEGREES = 14.0f;
 	private static final float CURRENT_DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.12f;
 	private static final float CURRENT_DEFAULT_CAMERA_UP_OFFSET_METERS = 0.68f;
@@ -602,7 +615,7 @@ public final class DroneClientConfig {
 			pitchAxis = 3;
 			yawAxis = 0;
 			throttleAxis = 1;
-			if (gamepadDeadband < 0.10f) {
+			if (gamepadDeadband < DEFAULT_GAMEPAD_DEADBAND) {
 				gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
 			}
 		}
@@ -610,6 +623,12 @@ public final class DroneClientConfig {
 
 	private void migrateLegacyGamepadFeelDefaults() {
 		if (matchesGamepadFeel(
+				SLOW_TRAINING_GAMEPAD_EXPO,
+				SLOW_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
+				SLOW_TRAINING_GAMEPAD_YAW_RATE_SCALE,
+				SLOW_TRAINING_GAMEPAD_AXIS_RISE_PER_TICK,
+				SLOW_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK
+		) || matchesGamepadFeel(
 				PREVIOUS_SOFT_TRAINING_GAMEPAD_EXPO,
 				PREVIOUS_SOFT_TRAINING_GAMEPAD_ROLL_PITCH_RATE_SCALE,
 				PREVIOUS_SOFT_TRAINING_GAMEPAD_YAW_RATE_SCALE,
@@ -629,6 +648,9 @@ public final class DroneClientConfig {
 				LEGACY_TRAINING_GAMEPAD_AXIS_FALL_PER_TICK
 		)) {
 			applyGamepadFeelPreset(ControlFeelPreset.TRAINING);
+			if (nearly(gamepadDeadband, 0.10f)) {
+				gamepadDeadband = DEFAULT_GAMEPAD_DEADBAND;
+			}
 		} else if (matchesGamepadFeel(
 				PREVIOUS_ACRO_GAMEPAD_EXPO,
 				PREVIOUS_ACRO_GAMEPAD_ROLL_PITCH_RATE_SCALE,
@@ -697,7 +719,15 @@ public final class DroneClientConfig {
 				&& nearly(cameraLatencySeconds, CURRENT_DEFAULT_CAMERA_LATENCY_SECONDS)
 				&& nearly(cameraFovDegrees, CURRENT_DEFAULT_CAMERA_FOV_DEGREES)
 				&& nearly(cameraDynamicFovDegrees, CURRENT_DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES);
-		if (!legacyCamera && !previousDefaultCamera && !recentDefaultCamera && !clearDefaultCamera && !previousUnblockedDefaultCamera && !currentDefaultCamera) {
+		boolean wideDefaultCamera = nearly(cameraTiltDegrees, WIDE_DEFAULT_CAMERA_TILT_DEGREES)
+				&& nearly(cameraForwardOffsetMeters, WIDE_DEFAULT_CAMERA_FORWARD_OFFSET_METERS)
+				&& nearly(cameraUpOffsetMeters, WIDE_DEFAULT_CAMERA_UP_OFFSET_METERS)
+				&& nearly(cameraVibrationScale, WIDE_DEFAULT_CAMERA_VIBRATION_SCALE)
+				&& nearly(cameraRollingShutterScale, WIDE_DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE)
+				&& nearly(cameraLatencySeconds, WIDE_DEFAULT_CAMERA_LATENCY_SECONDS)
+				&& nearly(cameraFovDegrees, WIDE_DEFAULT_CAMERA_FOV_DEGREES)
+				&& nearly(cameraDynamicFovDegrees, WIDE_DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES);
+		if (!legacyCamera && !previousDefaultCamera && !recentDefaultCamera && !clearDefaultCamera && !previousUnblockedDefaultCamera && !currentDefaultCamera && !wideDefaultCamera) {
 			return;
 		}
 		cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;
@@ -735,9 +765,9 @@ public final class DroneClientConfig {
 	}
 
 	public enum ControlFeelPreset {
-		TRAINING("screen.fpvdrone.feel_training", 1.00f, 0.42f, 0.38f, 0.032f, 0.32f),
-		SPORT("screen.fpvdrone.feel_sport", 0.90f, 0.86f, 0.82f, 0.12f, 0.24f),
-		ACRO("screen.fpvdrone.feel_acro", 1.00f, 0.96f, 0.84f, 0.14f, 0.40f),
+		TRAINING("screen.fpvdrone.feel_training", 0.60f, 0.86f, 0.95f, 0.16f, 0.45f),
+		SPORT("screen.fpvdrone.feel_sport", 0.48f, 1.00f, 1.00f, 0.22f, 0.50f),
+		ACRO("screen.fpvdrone.feel_acro", 0.70f, 1.00f, 1.00f, 0.25f, 0.55f),
 		CUSTOM("screen.fpvdrone.feel_custom", Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);
 
 		private static final ControlFeelPreset[] SELECTABLE = { TRAINING, SPORT, ACRO };

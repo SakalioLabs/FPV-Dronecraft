@@ -303,7 +303,11 @@ public final class DroneControlManager {
 		}
 
 		private static double assistedHorizontalExerciseScale(FlightMode flightMode) {
-			return flightMode == FlightMode.ACRO ? 1.0 : 1.85;
+			return switch (flightMode) {
+				case ANGLE -> 1.65;
+				case HORIZON -> 1.05;
+				case ACRO -> 1.0;
+			};
 		}
 
 		private static double alternatingStep(double progress, double start, double end, double amplitude) {

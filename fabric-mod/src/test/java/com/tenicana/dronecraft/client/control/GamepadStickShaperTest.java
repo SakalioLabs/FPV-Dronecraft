@@ -7,28 +7,29 @@ import org.junit.jupiter.api.Test;
 
 class GamepadStickShaperTest {
 	@Test
-	void trainingPathKeepsSmallRightStickInputsQuiet() {
-		float micro = GamepadStickShaper.commandFromCalibratedAxis(0.30f, 0.10f, 1.00f, 0.42f);
-		float gentle = GamepadStickShaper.commandFromCalibratedAxis(0.35f, 0.10f, 1.00f, 0.42f);
-		float half = GamepadStickShaper.commandFromCalibratedAxis(0.50f, 0.10f, 1.00f, 0.42f);
-		float medium = GamepadStickShaper.commandFromCalibratedAxis(0.70f, 0.10f, 1.00f, 0.42f);
+	void trainingPathMakesDeliberateRightStickInputsVisible() {
+		float micro = GamepadStickShaper.commandFromCalibratedAxis(0.10f, 0.08f, 0.60f, 0.86f);
+		float gentle = GamepadStickShaper.commandFromCalibratedAxis(0.35f, 0.08f, 0.60f, 0.86f);
+		float half = GamepadStickShaper.commandFromCalibratedAxis(0.50f, 0.08f, 0.60f, 0.86f);
+		float medium = GamepadStickShaper.commandFromCalibratedAxis(0.70f, 0.08f, 0.60f, 0.86f);
 
 		assertEquals(0.0f, micro, 0.0015f);
-		assertTrue(gentle >= 0.0f);
-		assertTrue(gentle < 0.003f, () -> "gentle=" + gentle);
+		assertTrue(gentle > 0.075f, () -> "gentle=" + gentle);
+		assertTrue(gentle < 0.095f, () -> "gentle=" + gentle);
 		assertTrue(half > gentle);
-		assertTrue(half < 0.012f, () -> "half=" + half);
-		assertTrue(medium > 0.070f, () -> "medium=" + medium);
-		assertTrue(medium < 0.085f, () -> "medium=" + medium);
+		assertTrue(half > 0.16f, () -> "half=" + half);
+		assertTrue(half < 0.19f, () -> "half=" + half);
+		assertTrue(medium > 0.34f, () -> "medium=" + medium);
+		assertTrue(medium < 0.38f, () -> "medium=" + medium);
 	}
 
 	@Test
 	void trainingPathPreservesDeliberateFullStickAuthority() {
-		float positive = GamepadStickShaper.commandFromCalibratedAxis(1.0f, 0.10f, 1.00f, 0.42f);
-		float negative = GamepadStickShaper.commandFromCalibratedAxis(-1.0f, 0.10f, 1.00f, 0.42f);
+		float positive = GamepadStickShaper.commandFromCalibratedAxis(1.0f, 0.08f, 0.60f, 0.86f);
+		float negative = GamepadStickShaper.commandFromCalibratedAxis(-1.0f, 0.08f, 0.60f, 0.86f);
 
-		assertEquals(0.42f, positive, 1.0e-6f);
-		assertEquals(-0.42f, negative, 1.0e-6f);
+		assertEquals(0.86f, positive, 1.0e-6f);
+		assertEquals(-0.86f, negative, 1.0e-6f);
 	}
 
 	@Test

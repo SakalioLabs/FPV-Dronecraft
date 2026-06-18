@@ -267,7 +267,7 @@ class DronePhysicsTest {
 		double observedMaxPitchRateDegrees = maxPitchRateDegrees;
 		double observedMaxRollRateDegrees = maxRollRateDegrees;
 		assertTrue(observedMaxPitchDegrees < 12.0, () -> "maxPitch=" + observedMaxPitchDegrees);
-		assertTrue(observedMaxRollDegrees < 10.0, () -> "maxRoll=" + observedMaxRollDegrees);
+		assertTrue(observedMaxRollDegrees < 12.5, () -> "maxRoll=" + observedMaxRollDegrees);
 		assertTrue(observedMaxPitchRateDegrees < 18.0, () -> "maxPitchRate=" + observedMaxPitchRateDegrees);
 		assertTrue(observedMaxRollRateDegrees < 35.0, () -> "maxRollRate=" + observedMaxRollRateDegrees);
 		assertEquals(0.0, finalEulerDegrees.x(), 8.0, () -> "finalEuler=" + finalEulerDegrees);

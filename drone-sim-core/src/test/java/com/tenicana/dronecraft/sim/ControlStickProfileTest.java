@@ -9,11 +9,12 @@ class ControlStickProfileTest {
 	@Test
 	void gamepadProfileSoftensCenterWithoutLosingFullStick() {
 		assertEquals(0.0, ControlStickProfile.gamepadCommand(0.10, 0.10), 1.0e-12);
-		assertTrue(ControlStickProfile.gamepadCommand(0.35, 0.10) < 0.02);
-		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) > 0.03);
-		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) < 0.05);
-		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) > 0.20);
-		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) < 0.23);
+		assertTrue(ControlStickProfile.gamepadCommand(0.35, 0.10) > 0.10);
+		assertTrue(ControlStickProfile.gamepadCommand(0.35, 0.10) < 0.14);
+		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) > 0.22);
+		assertTrue(ControlStickProfile.gamepadCommand(0.50, 0.10) < 0.24);
+		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) > 0.43);
+		assertTrue(ControlStickProfile.gamepadCommand(0.70, 0.10) < 0.46);
 		assertEquals(1.0, ControlStickProfile.gamepadCommand(1.0, 0.10), 1.0e-12);
 		assertEquals(-1.0, ControlStickProfile.gamepadCommand(-1.0, 0.10), 1.0e-12);
 	}
@@ -21,11 +22,11 @@ class ControlStickProfileTest {
 	@Test
 	void configurableGamepadRateKeepsExpoShapeButLimitsAuthority() {
 		double defaultHalfStick = ControlStickProfile.gamepadCommand(0.70, 0.10);
-		double softenedHalfStick = ControlStickProfile.gamepadCommand(0.70, 0.10, 0.97, 0.50);
+		double softenedHalfStick = ControlStickProfile.gamepadCommand(0.70, 0.10, 0.60, 0.50);
 
 		assertEquals(defaultHalfStick * 0.50, softenedHalfStick, 1.0e-12);
-		assertEquals(0.50, ControlStickProfile.gamepadCommand(1.0, 0.10, 0.97, 0.50), 1.0e-12);
-		assertEquals(-0.50, ControlStickProfile.gamepadCommand(-1.0, 0.10, 0.97, 0.50), 1.0e-12);
+		assertEquals(0.50, ControlStickProfile.gamepadCommand(1.0, 0.10, 0.60, 0.50), 1.0e-12);
+		assertEquals(-0.50, ControlStickProfile.gamepadCommand(-1.0, 0.10, 0.60, 0.50), 1.0e-12);
 	}
 
 	@Test

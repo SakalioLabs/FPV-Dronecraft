@@ -82,7 +82,7 @@ class DroneControlManagerTest {
 
 		DroneInput rollStep = DroneControlManager.get(playerId, 195, state, config);
 		assertEquals(FlightMode.ANGLE, rollStep.flightMode());
-		assertTrue(Math.abs(rollStep.roll()) > 0.40);
+		assertTrue(Math.abs(rollStep.roll()) > 0.38);
 		assertEquals("roll_step", DroneControlManager.diagnosticStatus(playerId, 195).phase());
 
 		DroneInput yawStep = DroneControlManager.get(playerId, 292, state, config);
@@ -156,7 +156,7 @@ class DroneControlManagerTest {
 		assertEquals(FlightMode.HORIZON, spool.flightMode());
 		assertEquals(FlightMode.HORIZON, rollStep.flightMode());
 		assertTrue(rollStep.armed());
-		assertTrue(Math.abs(rollStep.roll()) > 0.40);
+		assertTrue(Math.abs(rollStep.roll()) > 0.24);
 		DroneControlManager.stopDiagnostic(playerId);
 	}
 
