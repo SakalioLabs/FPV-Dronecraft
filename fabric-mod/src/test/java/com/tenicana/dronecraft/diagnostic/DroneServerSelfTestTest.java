@@ -207,6 +207,10 @@ class DroneServerSelfTestTest {
 		selfTest = playableTelemetrySelfTest();
 		setDouble(selfTest, "finalHorizontalDistance", 0.301);
 		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "finalSpeed", 0.081);
+		assertFalse(playableTelemetryExercised(selfTest));
 	}
 
 	@Test
@@ -247,6 +251,13 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
 		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
 		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 11_000.1);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
+		setDouble(selfTest, "finalSpeed", 0.081);
 		assertFalse(playableTelemetryExercised(selfTest));
 	}
 
