@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
+import com.tenicana.dronecraft.sim.FlightMode;
 
 class DroneServerSelfTestTest {
 	@Test
@@ -92,6 +93,7 @@ class DroneServerSelfTestTest {
 
 		assertTrue(json.contains("\"flight_model\": \"simulation\""));
 		assertTrue(json.contains("\"flight_mode\": \"unknown\""));
+		assertTrue(json.contains("\"self_test_control_mode\": \"angle\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 0.62000"));
 		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 38.000"));
 		assertTrue(json.contains("\"max_playable_visual_pitch_deg\": 3.4000"));
@@ -166,6 +168,7 @@ class DroneServerSelfTestTest {
 
 		assertTrue(json.contains("\"flight_model\": \"playable\""));
 		assertTrue(json.contains("\"flight_mode\": \"unknown\""));
+		assertTrue(json.contains("\"self_test_control_mode\": \"angle\""));
 		assertTrue(json.contains("\"min_playable_low_altitude_authority\": 1.00000"));
 		assertTrue(json.contains("\"max_playable_low_altitude_suppression_percent\": 0.000"));
 		assertTrue(json.contains("\"max_playable_visual_pitch_deg\": 0.0000"));
@@ -225,6 +228,10 @@ class DroneServerSelfTestTest {
 		assertEquals(FlightModelMode.SIMULATION, parseFlightModelMode("sim"));
 		assertEquals(FlightModelMode.SIMULATION, parseFlightModelMode("6dof"));
 		assertEquals(FlightModelMode.SIMULATION, parseFlightModelMode("unknown"));
+		assertEquals(FlightMode.HORIZON, parseControlFlightMode("horizon"));
+		assertEquals(FlightMode.ACRO, parseControlFlightMode("acro"));
+		assertEquals(FlightMode.ANGLE, parseControlFlightMode("stable"));
+		assertEquals(FlightMode.DEFAULT_FIRST_FLIGHT, parseControlFlightMode("unknown"));
 	}
 
 	private static DroneServerSelfTest newSelfTest() throws ReflectiveOperationException {
@@ -263,6 +270,12 @@ class DroneServerSelfTestTest {
 		Method method = DroneServerSelfTest.class.getDeclaredMethod("parseFlightModelMode", String.class);
 		method.setAccessible(true);
 		return (FlightModelMode) method.invoke(null, value);
+	}
+
+	private static FlightMode parseControlFlightMode(String value) throws ReflectiveOperationException {
+		Method method = DroneServerSelfTest.class.getDeclaredMethod("parseControlFlightMode", String.class);
+		method.setAccessible(true);
+		return (FlightMode) method.invoke(null, value);
 	}
 
 	private static boolean playableTelemetryExercised(DroneServerSelfTest selfTest) throws ReflectiveOperationException {

@@ -27,6 +27,7 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DronePhysics;
+import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneServerSelfTest {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -37,6 +38,8 @@ public final class DroneServerSelfTest {
 	private static final String ENV_SECONDS = "FPVDRONE_SELFTEST_SECONDS";
 	private static final String PROPERTY_FLIGHT_MODEL = "fpvdrone.selftest.flight_model";
 	private static final String ENV_FLIGHT_MODEL = "FPVDRONE_SELFTEST_FLIGHT_MODEL";
+	private static final String PROPERTY_CONTROL_MODE = "fpvdrone.selftest.control_mode";
+	private static final String ENV_CONTROL_MODE = "FPVDRONE_SELFTEST_CONTROL_MODE";
 	private static final int DEFAULT_SECONDS = 12;
 	private static final int POST_SCRIPT_TICKS = 10;
 	private static final int PHYSICS_STEPS_PER_TICK = 10;
@@ -54,6 +57,7 @@ public final class DroneServerSelfTest {
 
 	private final int requestedSeconds;
 	private final FlightModelMode flightModelMode;
+	private final FlightMode controlFlightMode;
 	private DroneEntity drone;
 	private boolean started;
 	private boolean finished;
@@ -166,8 +170,13 @@ public final class DroneServerSelfTest {
 	}
 
 	private DroneServerSelfTest(int requestedSeconds, FlightModelMode flightModelMode) {
+		this(requestedSeconds, flightModelMode, FlightMode.DEFAULT_FIRST_FLIGHT);
+	}
+
+	private DroneServerSelfTest(int requestedSeconds, FlightModelMode flightModelMode, FlightMode controlFlightMode) {
 		this.requestedSeconds = requestedSeconds;
 		this.flightModelMode = flightModelMode == null ? FlightModelMode.SIMULATION : flightModelMode;
+		this.controlFlightMode = controlFlightMode == null ? FlightMode.DEFAULT_FIRST_FLIGHT : controlFlightMode;
 	}
 
 	public static void initialize() {
@@ -175,12 +184,13 @@ public final class DroneServerSelfTest {
 			return;
 		}
 
-		active = new DroneServerSelfTest(requestedSeconds(), requestedFlightModelMode());
+		active = new DroneServerSelfTest(requestedSeconds(), requestedFlightModelMode(), requestedControlFlightMode());
 		ServerTickEvents.END_SERVER_TICK.register(server -> active.tick(server));
 		FpvDronecraftMod.LOGGER.info(
-				"FPV Dronecraft server self-test armed for {} seconds in {} mode",
+				"FPV Dronecraft server self-test armed for {} seconds in {} mode with {} flight mode",
 				active.requestedSeconds,
-				active.flightModelMode.id()
+				active.flightModelMode.id(),
+				active.controlFlightMode.csvName()
 		);
 	}
 
@@ -230,7 +240,7 @@ public final class DroneServerSelfTest {
 		initialX = drone.getX();
 		initialY = drone.getY();
 		initialZ = drone.getZ();
-		durationTicks = DroneControlManager.startDiagnostic(SELF_TEST_OWNER, drone.tickCount, requestedSeconds * 20);
+		durationTicks = DroneControlManager.startDiagnostic(SELF_TEST_OWNER, drone.tickCount, requestedSeconds * 20, false, controlFlightMode);
 		finishTick = durationTicks + POST_SCRIPT_TICKS;
 		started = true;
 		FpvDronecraftMod.LOGGER.info(
@@ -1057,6 +1067,7 @@ public final class DroneServerSelfTest {
 						+ "  \"reason\": \"%s\",\n"
 						+ "  \"flight_model\": \"%s\",\n"
 						+ "  \"flight_mode\": \"%s\",\n"
+						+ "  \"self_test_control_mode\": \"%s\",\n"
 						+ "  \"min_playable_low_altitude_authority\": %.5f,\n"
 						+ "  \"max_playable_low_altitude_suppression_percent\": %.3f,\n"
 						+ "  \"max_playable_visual_pitch_deg\": %.4f,\n"
@@ -1166,6 +1177,7 @@ public final class DroneServerSelfTest {
 				escapeJson(reason),
 				flightModelMode.id(),
 				escapeJson(flightMode),
+				controlFlightMode.csvName(),
 				minPlayableLowAltitudeAuthority,
 				maxPlayableLowAltitudeSuppressionPercent,
 				maxPlayableVisualPitchDegrees,
@@ -1388,6 +1400,18 @@ public final class DroneServerSelfTest {
 		return FlightModelMode.SIMULATION;
 	}
 
+	private static FlightMode requestedControlFlightMode() {
+		String property = System.getProperty(PROPERTY_CONTROL_MODE);
+		if (property != null && !property.isBlank()) {
+			return parseControlFlightMode(property);
+		}
+		String environment = System.getenv(ENV_CONTROL_MODE);
+		if (environment != null && !environment.isBlank()) {
+			return parseControlFlightMode(environment);
+		}
+		return FlightMode.DEFAULT_FIRST_FLIGHT;
+	}
+
 	private static FlightModelMode parseFlightModelMode(String value) {
 		if (value == null) {
 			return FlightModelMode.SIMULATION;
@@ -1396,6 +1420,18 @@ public final class DroneServerSelfTest {
 			case "playable", "direct", "bypass" -> FlightModelMode.PLAYABLE;
 			case "sim", "simulation", "physics", "6dof" -> FlightModelMode.SIMULATION;
 			default -> FlightModelMode.SIMULATION;
+		};
+	}
+
+	private static FlightMode parseControlFlightMode(String value) {
+		if (value == null) {
+			return FlightMode.DEFAULT_FIRST_FLIGHT;
+		}
+		return switch (value.trim().toLowerCase(Locale.ROOT)) {
+			case "acro" -> FlightMode.ACRO;
+			case "horizon" -> FlightMode.HORIZON;
+			case "angle", "training", "stable" -> FlightMode.ANGLE;
+			default -> FlightMode.DEFAULT_FIRST_FLIGHT;
 		};
 	}
 

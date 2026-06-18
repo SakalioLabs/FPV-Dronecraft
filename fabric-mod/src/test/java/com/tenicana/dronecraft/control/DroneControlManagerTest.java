@@ -143,6 +143,24 @@ class DroneControlManagerTest {
 	}
 
 	@Test
+	void diagnosticScriptCanRunInRequestedFlightMode() {
+		UUID playerId = UUID.randomUUID();
+		DroneConfig config = DroneConfig.racingQuad();
+		DroneState state = new DroneState(config.rotors().size());
+
+		DroneControlManager.startDiagnostic(playerId, 10, 240, false, FlightMode.HORIZON);
+
+		DroneInput spool = DroneControlManager.get(playerId, 10, state, config);
+		DroneInput rollStep = DroneControlManager.get(playerId, 85, state, config);
+
+		assertEquals(FlightMode.HORIZON, spool.flightMode());
+		assertEquals(FlightMode.HORIZON, rollStep.flightMode());
+		assertTrue(rollStep.armed());
+		assertTrue(Math.abs(rollStep.roll()) > 0.20);
+		DroneControlManager.stopDiagnostic(playerId);
+	}
+
+	@Test
 	void completedDiagnosticCarriesAutoSaveFlag() {
 		UUID playerId = UUID.randomUUID();
 		DroneConfig config = DroneConfig.racingQuad();

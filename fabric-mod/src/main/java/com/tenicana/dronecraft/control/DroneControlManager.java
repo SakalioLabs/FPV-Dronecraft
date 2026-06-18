@@ -76,8 +76,12 @@ public final class DroneControlManager {
 	}
 
 	public static int startDiagnostic(UUID playerId, int startTick, int durationTicks, boolean autoSaveBlackbox) {
+		return startDiagnostic(playerId, startTick, durationTicks, autoSaveBlackbox, FlightMode.DEFAULT_FIRST_FLIGHT);
+	}
+
+	public static int startDiagnostic(UUID playerId, int startTick, int durationTicks, boolean autoSaveBlackbox, FlightMode flightMode) {
 		int safeDuration = (int) MathUtil.clamp(durationTicks, MIN_DIAGNOSTIC_DURATION_TICKS, MAX_DIAGNOSTIC_DURATION_TICKS);
-		DIAGNOSTICS.put(playerId, new DiagnosticScript(startTick, safeDuration, autoSaveBlackbox));
+		DIAGNOSTICS.put(playerId, new DiagnosticScript(startTick, safeDuration, autoSaveBlackbox, flightMode));
 		COMPLETED_DIAGNOSTICS.remove(playerId);
 		return safeDuration;
 	}
@@ -177,12 +181,14 @@ public final class DroneControlManager {
 		private final int startTick;
 		private final int durationTicks;
 		private final boolean autoSaveBlackbox;
+		private final FlightMode flightMode;
 		private double originAltitudeMeters = Double.NaN;
 
-		private DiagnosticScript(int startTick, int durationTicks, boolean autoSaveBlackbox) {
+		private DiagnosticScript(int startTick, int durationTicks, boolean autoSaveBlackbox, FlightMode flightMode) {
 			this.startTick = startTick;
 			this.durationTicks = durationTicks;
 			this.autoSaveBlackbox = autoSaveBlackbox;
+			this.flightMode = flightMode == null ? FlightMode.DEFAULT_FIRST_FLIGHT : flightMode;
 		}
 
 		private boolean isExpired(int tickCount) {
@@ -209,7 +215,7 @@ public final class DroneControlManager {
 			double hoverThrottle = config == null ? 0.32 : MathUtil.clamp(config.hoverThrottle(), 0.08, 0.75);
 			double throttle = commandedThrottle(progress, state, hoverThrottle);
 			AxisCommand axes = axisCommand(progress);
-			return new DroneInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), armed, true, FlightMode.ANGLE).normalized();
+			return new DroneInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), armed, true, flightMode).normalized();
 		}
 
 		private int elapsedTicks(int tickCount) {

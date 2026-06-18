@@ -60,9 +60,14 @@ tasks.test {
 def fpvDroneSelfTestTaskRequested = gradle.startParameter.taskNames.any {
 	it == "runServerSelfTest" || it.endsWith(":runServerSelfTest")
 			|| it == "runPlayableServerSelfTest" || it.endsWith(":runPlayableServerSelfTest")
+			|| it == "runPlayableHorizonServerSelfTest" || it.endsWith(":runPlayableHorizonServerSelfTest")
 }
 def fpvDronePlayableSelfTestTaskRequested = gradle.startParameter.taskNames.any {
 	it == "runPlayableServerSelfTest" || it.endsWith(":runPlayableServerSelfTest")
+			|| it == "runPlayableHorizonServerSelfTest" || it.endsWith(":runPlayableHorizonServerSelfTest")
+}
+def fpvDronePlayableHorizonSelfTestTaskRequested = gradle.startParameter.taskNames.any {
+	it == "runPlayableHorizonServerSelfTest" || it.endsWith(":runPlayableHorizonServerSelfTest")
 }
 def fpvDroneSelfTestEnabled = providers.gradleProperty("fpvdroneSelfTest")
 		.map { it.toBoolean() }
@@ -71,6 +76,10 @@ def fpvDroneSelfTestEnabled = providers.gradleProperty("fpvdroneSelfTest")
 def fpvDroneSelfTestSeconds = providers.gradleProperty("fpvdroneSelfTestSeconds").orElse("12").get()
 def fpvDroneSelfTestFlightModel = providers.gradleProperty("fpvdroneSelfTestFlightModel")
 		.orElse(fpvDronePlayableSelfTestTaskRequested ? "playable" : "simulation")
+		.get()
+		.toLowerCase()
+def fpvDroneSelfTestControlMode = providers.gradleProperty("fpvdroneSelfTestControlMode")
+		.orElse(fpvDronePlayableHorizonSelfTestTaskRequested ? "horizon" : "angle")
 		.get()
 		.toLowerCase()
 def fpvDroneSelfTestMarker = layout.buildDirectory.file("fpvdrone-selftest-start.txt")
@@ -328,6 +337,13 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 	def flightMode = report.flight_mode?.toString()?.toLowerCase()
 	if (!(flightMode in ["acro", "angle", "horizon"])) {
 		throw new GradleException("FPV Dronecraft server self-test report has an unknown flight_mode=${report.flight_mode}: ${reportFile}")
+	}
+	def selfTestControlMode = (report.self_test_control_mode ?: "angle").toString().toLowerCase()
+	if (!(selfTestControlMode in ["acro", "angle", "horizon"])) {
+		throw new GradleException("FPV Dronecraft server self-test report has an unknown self_test_control_mode=${report.self_test_control_mode}: ${reportFile}")
+	}
+	if (selfTestControlMode != flightMode) {
+		throw new GradleException("FPV Dronecraft server self-test report flight_mode=${flightMode} does not match requested self_test_control_mode=${selfTestControlMode}: ${reportFile}")
 	}
 
 	def csvPath = report.csv?.toString()
@@ -588,9 +604,11 @@ tasks.named("runServer").configure {
 		environment "FPVDRONE_SELFTEST", "true"
 		environment "FPVDRONE_SELFTEST_SECONDS", fpvDroneSelfTestSeconds
 		environment "FPVDRONE_SELFTEST_FLIGHT_MODEL", fpvDroneSelfTestFlightModel
+		environment "FPVDRONE_SELFTEST_CONTROL_MODE", fpvDroneSelfTestControlMode
 		systemProperty "fpvdrone.selftest", "true"
 		systemProperty "fpvdrone.selftest.seconds", fpvDroneSelfTestSeconds
 		systemProperty "fpvdrone.selftest.flight_model", fpvDroneSelfTestFlightModel
+		systemProperty "fpvdrone.selftest.control_mode", fpvDroneSelfTestControlMode
 		doFirst {
 			def marker = fpvDroneSelfTestMarker.get().asFile
 			marker.parentFile.mkdirs()
@@ -639,6 +657,13 @@ tasks.register("runServerSelfTest") {
 tasks.register("runPlayableServerSelfTest") {
 	group = "verification"
 	description = "Runs a Minecraft dedicated-server FPV Dronecraft playable-flight diagnostic and checks the generated report."
+	dependsOn("runServer")
+	finalizedBy("assertServerSelfTest")
+}
+
+tasks.register("runPlayableHorizonServerSelfTest") {
+	group = "verification"
+	description = "Runs a Minecraft dedicated-server FPV Dronecraft Horizon-mode playable-flight diagnostic and checks the generated report."
 	dependsOn("runServer")
 	finalizedBy("assertServerSelfTest")
 }
