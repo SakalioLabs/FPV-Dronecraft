@@ -53,6 +53,23 @@ class DroneEntityDebugAxisFilterTest {
 	}
 
 	@Test
+	void throttleFallsBackIntoHoverBandFasterThanItRisesIntoPunch() {
+		float falling = 0.60f;
+		for (int i = 0; i < 4; i++) {
+			falling = PlayableDebugAxisFilter.throttle(falling, 0.20f);
+		}
+
+		float rising = 0.20f;
+		for (int i = 0; i < 4; i++) {
+			rising = PlayableDebugAxisFilter.throttle(rising, 0.60f);
+		}
+
+		assertTrue(falling < 0.255f, "falling=" + falling);
+		assertTrue(rising > falling + 0.12f, "rising=" + rising + " falling=" + falling);
+		assertTrue(rising < 0.48f, "rising=" + rising);
+	}
+
+	@Test
 	void nonFiniteAxisSamplesNormalizeBeforeFiltering() {
 		float invalidCurrent = PlayableDebugAxisFilter.filter(Float.NaN, 0.50f, RISE, FALL, true);
 		float invalidTarget = PlayableDebugAxisFilter.filter(0.20f, Float.NaN, RISE, FALL, true);
@@ -63,7 +80,7 @@ class DroneEntityDebugAxisFilterTest {
 
 	@Test
 	void throttleFilterDoesNotGoNegative() {
-		float filtered = PlayableDebugAxisFilter.filter(0.10f, -1.0f, RISE, FALL, false);
+		float filtered = PlayableDebugAxisFilter.throttle(0.10f, -1.0f);
 
 		assertEquals(0.0f, filtered, 1.0e-6f);
 	}

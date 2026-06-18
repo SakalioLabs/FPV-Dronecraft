@@ -724,7 +724,6 @@ public class DroneEntity extends Entity {
 		return true;
 	}
 
-	private static final float DEBUG_THROTTLE_SMOOTH = 0.24f;
 	private static final float DEBUG_AXIS_RISE_SMOOTH = PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING;
 	private static final float DEBUG_AXIS_FALL_SMOOTH = PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
@@ -745,13 +744,7 @@ public class DroneEntity extends Entity {
 		float playableRoll = PlayableFlightModel.playableAxisCommand(roll);
 		float playableYaw = PlayableFlightModel.playableAxisCommand(yaw);
 
-		float smoothedThrottle = applyDebugAxisFilter(
-				debugCommandThrottle,
-				throttle,
-				DEBUG_THROTTLE_SMOOTH,
-				DEBUG_THROTTLE_SMOOTH,
-				false
-		);
+		float smoothedThrottle = PlayableDebugAxisFilter.throttle(debugCommandThrottle, throttle);
 		float smoothedPitch = applyDebugAxisFilter(
 				debugCommandPitch,
 				playablePitch,
