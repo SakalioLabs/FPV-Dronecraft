@@ -61,13 +61,18 @@ def fpvDroneSelfTestTaskRequested = gradle.startParameter.taskNames.any {
 	it == "runServerSelfTest" || it.endsWith(":runServerSelfTest")
 			|| it == "runPlayableServerSelfTest" || it.endsWith(":runPlayableServerSelfTest")
 			|| it == "runPlayableHorizonServerSelfTest" || it.endsWith(":runPlayableHorizonServerSelfTest")
+			|| it == "runPlayableAcroServerSelfTest" || it.endsWith(":runPlayableAcroServerSelfTest")
 }
 def fpvDronePlayableSelfTestTaskRequested = gradle.startParameter.taskNames.any {
 	it == "runPlayableServerSelfTest" || it.endsWith(":runPlayableServerSelfTest")
 			|| it == "runPlayableHorizonServerSelfTest" || it.endsWith(":runPlayableHorizonServerSelfTest")
+			|| it == "runPlayableAcroServerSelfTest" || it.endsWith(":runPlayableAcroServerSelfTest")
 }
 def fpvDronePlayableHorizonSelfTestTaskRequested = gradle.startParameter.taskNames.any {
 	it == "runPlayableHorizonServerSelfTest" || it.endsWith(":runPlayableHorizonServerSelfTest")
+}
+def fpvDronePlayableAcroSelfTestTaskRequested = gradle.startParameter.taskNames.any {
+	it == "runPlayableAcroServerSelfTest" || it.endsWith(":runPlayableAcroServerSelfTest")
 }
 def fpvDroneSelfTestEnabled = providers.gradleProperty("fpvdroneSelfTest")
 		.map { it.toBoolean() }
@@ -79,7 +84,7 @@ def fpvDroneSelfTestFlightModel = providers.gradleProperty("fpvdroneSelfTestFlig
 		.get()
 		.toLowerCase()
 def fpvDroneSelfTestControlMode = providers.gradleProperty("fpvdroneSelfTestControlMode")
-		.orElse(fpvDronePlayableHorizonSelfTestTaskRequested ? "horizon" : "angle")
+		.orElse(fpvDronePlayableAcroSelfTestTaskRequested ? "acro" : (fpvDronePlayableHorizonSelfTestTaskRequested ? "horizon" : "angle"))
 		.get()
 		.toLowerCase()
 def fpvDroneSelfTestMarker = layout.buildDirectory.file("fpvdrone-selftest-start.txt")
@@ -444,7 +449,17 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 		if ((report.playable_neutral_sample_count ?: 0) < 20) {
 			throw new GradleException("FPV Dronecraft playable self-test did not record enough neutral-stick flight samples: ${report.playable_neutral_sample_count}")
 		}
-		if ((report.max_playable_neutral_visual_pitch_deg ?: 0.0) > 1.5
+		if (selfTestControlMode == "acro") {
+			def maxAcroVisualAttitude = Math.max((report.max_playable_visual_pitch_deg ?: 0.0) as double, (report.max_playable_visual_roll_deg ?: 0.0) as double)
+			if (maxAcroVisualAttitude < 8.0 || ((report.max_playable_visual_yaw_rate_dps ?: 0.0) as double) < 8.0) {
+				throw new GradleException("FPV Dronecraft playable Acro self-test did not exercise attitude/yaw authority enough: attitude=${maxAcroVisualAttitude} yaw=${report.max_playable_visual_yaw_rate_dps}")
+			}
+			if ((report.max_playable_neutral_visual_pitch_deg ?: 0.0) > 18.0
+					|| (report.max_playable_neutral_visual_roll_deg ?: 0.0) > 18.0
+					|| (report.max_playable_neutral_visual_yaw_rate_dps ?: 0.0) > 0.35) {
+				throw new GradleException("FPV Dronecraft playable Acro self-test did not settle after centered sticks: pitch=${report.max_playable_neutral_visual_pitch_deg} roll=${report.max_playable_neutral_visual_roll_deg} yaw=${report.max_playable_neutral_visual_yaw_rate_dps}")
+			}
+		} else if ((report.max_playable_neutral_visual_pitch_deg ?: 0.0) > 1.5
 				|| (report.max_playable_neutral_visual_roll_deg ?: 0.0) > 1.5
 				|| (report.max_playable_neutral_visual_yaw_rate_dps ?: 0.0) > 0.35) {
 			throw new GradleException("FPV Dronecraft playable neutral-stick self-test drifted: pitch=${report.max_playable_neutral_visual_pitch_deg} roll=${report.max_playable_neutral_visual_roll_deg} yaw=${report.max_playable_neutral_visual_yaw_rate_dps}")
@@ -664,6 +679,13 @@ tasks.register("runPlayableServerSelfTest") {
 tasks.register("runPlayableHorizonServerSelfTest") {
 	group = "verification"
 	description = "Runs a Minecraft dedicated-server FPV Dronecraft Horizon-mode playable-flight diagnostic and checks the generated report."
+	dependsOn("runServer")
+	finalizedBy("assertServerSelfTest")
+}
+
+tasks.register("runPlayableAcroServerSelfTest") {
+	group = "verification"
+	description = "Runs a Minecraft dedicated-server FPV Dronecraft Acro-mode playable-flight diagnostic and checks the generated report."
 	dependsOn("runServer")
 	finalizedBy("assertServerSelfTest")
 }

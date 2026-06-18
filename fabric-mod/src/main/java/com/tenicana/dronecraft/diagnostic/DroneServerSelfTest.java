@@ -52,6 +52,9 @@ public final class DroneServerSelfTest {
 	private static final int PLAYABLE_NEUTRAL_MIN_SAMPLES = 20;
 	private static final double PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES = 1.5;
 	private static final double PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 0.35;
+	private static final double PLAYABLE_ACRO_MIN_VISUAL_ATTITUDE_DEGREES = 8.0;
+	private static final double PLAYABLE_ACRO_MIN_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 8.0;
+	private static final double PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES = 18.0;
 
 	private static DroneServerSelfTest active;
 
@@ -671,13 +674,29 @@ public final class DroneServerSelfTest {
 	private boolean playableTelemetryExercised() {
 		return maxHorizontalDistance > 0.05
 				&& maxAverageMotorTelemetryRpm > 1000.0
-				&& playableNeutralTelemetryStable();
+				&& playableModeTelemetryStable();
+	}
+
+	private boolean playableModeTelemetryStable() {
+		if (controlFlightMode == FlightMode.ACRO) {
+			return playableAcroTelemetryStable();
+		}
+		return playableNeutralTelemetryStable();
 	}
 
 	private boolean playableNeutralTelemetryStable() {
 		return playableNeutralSampleCount >= PLAYABLE_NEUTRAL_MIN_SAMPLES
 				&& maxPlayableNeutralVisualPitchDegrees <= PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES
 				&& maxPlayableNeutralVisualRollDegrees <= PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES
+				&& maxPlayableNeutralVisualYawRateDegreesPerSecond <= PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND;
+	}
+
+	private boolean playableAcroTelemetryStable() {
+		return playableNeutralSampleCount >= PLAYABLE_NEUTRAL_MIN_SAMPLES
+				&& Math.max(maxPlayableVisualPitchDegrees, maxPlayableVisualRollDegrees) >= PLAYABLE_ACRO_MIN_VISUAL_ATTITUDE_DEGREES
+				&& maxPlayableVisualYawRateDegreesPerSecond >= PLAYABLE_ACRO_MIN_VISUAL_YAW_RATE_DEGREES_PER_SECOND
+				&& maxPlayableNeutralVisualPitchDegrees <= PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES
+				&& maxPlayableNeutralVisualRollDegrees <= PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES
 				&& maxPlayableNeutralVisualYawRateDegreesPerSecond <= PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND;
 	}
 
@@ -750,8 +769,8 @@ public final class DroneServerSelfTest {
 			if (maxHorizontalDistance <= 0.05 || maxAverageMotorTelemetryRpm <= 1000.0) {
 				return "playable_layer_not_exercised";
 			}
-			if (!playableNeutralTelemetryStable()) {
-				return "playable_neutral_not_stable";
+			if (!playableModeTelemetryStable()) {
+				return controlFlightMode == FlightMode.ACRO ? "playable_acro_not_stable" : "playable_neutral_not_stable";
 			}
 		} else {
 			if (maxBatteryCurrent <= 1.5 || maxBatterySag <= 0.01 || maxBatteryEffectiveResistance <= 0.001) {

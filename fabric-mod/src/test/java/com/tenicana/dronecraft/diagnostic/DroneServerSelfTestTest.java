@@ -202,6 +202,39 @@ class DroneServerSelfTestTest {
 	}
 
 	@Test
+	void playableAcroTelemetryAllowsHeldAttitudeButRequiresStableYaw() throws ReflectiveOperationException {
+		DroneServerSelfTest selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
+		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 17.5);
+		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 3.0);
+		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.35);
+
+		assertTrue(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 4.0);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 4.0);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
+		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 18.1);
+		assertFalse(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
+		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
+		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
+		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
+		setDouble(selfTest, "maxPlayableNeutralVisualYawRateDegreesPerSecond", 0.36);
+		assertFalse(playableTelemetryExercised(selfTest));
+	}
+
+	@Test
 	void reportFlightModeUsesBlackboxInputAndControlMode() throws ReflectiveOperationException {
 		String csv = String.join(
 				"\n",
@@ -239,18 +272,31 @@ class DroneServerSelfTestTest {
 	}
 
 	private static DroneServerSelfTest newSelfTest(FlightModelMode mode) throws ReflectiveOperationException {
+		return newSelfTest(mode, FlightMode.DEFAULT_FIRST_FLIGHT);
+	}
+
+	private static DroneServerSelfTest newSelfTest(FlightModelMode mode, FlightMode controlMode) throws ReflectiveOperationException {
 		Constructor<DroneServerSelfTest> constructor = DroneServerSelfTest.class.getDeclaredConstructor(int.class);
 		constructor.setAccessible(true);
-		if (mode == FlightModelMode.SIMULATION) {
+		if (mode == FlightModelMode.SIMULATION && controlMode == FlightMode.DEFAULT_FIRST_FLIGHT) {
 			return constructor.newInstance(12);
 		}
-		Constructor<DroneServerSelfTest> modeConstructor = DroneServerSelfTest.class.getDeclaredConstructor(int.class, FlightModelMode.class);
+		if (controlMode == FlightMode.DEFAULT_FIRST_FLIGHT) {
+			Constructor<DroneServerSelfTest> modeConstructor = DroneServerSelfTest.class.getDeclaredConstructor(int.class, FlightModelMode.class);
+			modeConstructor.setAccessible(true);
+			return modeConstructor.newInstance(12, mode);
+		}
+		Constructor<DroneServerSelfTest> modeConstructor = DroneServerSelfTest.class.getDeclaredConstructor(int.class, FlightModelMode.class, FlightMode.class);
 		modeConstructor.setAccessible(true);
-		return modeConstructor.newInstance(12, mode);
+		return modeConstructor.newInstance(12, mode, controlMode);
 	}
 
 	private static DroneServerSelfTest playableTelemetrySelfTest() throws ReflectiveOperationException {
-		DroneServerSelfTest selfTest = newSelfTest(FlightModelMode.PLAYABLE);
+		return playableTelemetrySelfTest(FlightMode.DEFAULT_FIRST_FLIGHT);
+	}
+
+	private static DroneServerSelfTest playableTelemetrySelfTest(FlightMode controlMode) throws ReflectiveOperationException {
+		DroneServerSelfTest selfTest = newSelfTest(FlightModelMode.PLAYABLE, controlMode);
 		setDouble(selfTest, "maxHorizontalDistance", 0.06);
 		setDouble(selfTest, "maxAverageMotorTelemetryRpm", 1200.0);
 		setInt(selfTest, "playableNeutralSampleCount", 20);
