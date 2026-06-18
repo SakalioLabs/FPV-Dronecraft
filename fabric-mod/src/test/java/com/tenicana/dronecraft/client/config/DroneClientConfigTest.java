@@ -170,13 +170,7 @@ class DroneClientConfigTest {
 	void defaultsUseClearFpvCameraMount() {
 		DroneClientConfig config = DroneClientConfig.defaults();
 
-		assertEquals(14.0f, config.cameraTiltDegrees(), 1.0e-4f);
-		assertEquals(1.12f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.68f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.12f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(0.06f, config.cameraRollingShutterScale(), 1.0e-4f);
-		assertEquals(0.018f, config.cameraLatencySeconds(), 1.0e-4f);
-		assertEquals(112.0f, config.cameraFovDegrees(), 1.0e-4f);
+		assertSightlineCameraDefaults(config);
 		assertEquals(1.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
 	}
 
@@ -216,13 +210,7 @@ class DroneClientConfigTest {
 
 		config = normalize(config);
 
-		assertEquals(14.0f, config.cameraTiltDegrees(), 1.0e-4f);
-		assertEquals(1.12f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.68f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.12f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(0.06f, config.cameraRollingShutterScale(), 1.0e-4f);
-		assertEquals(0.018f, config.cameraLatencySeconds(), 1.0e-4f);
-		assertEquals(112.0f, config.cameraFovDegrees(), 1.0e-4f);
+		assertSightlineCameraDefaults(config);
 		assertEquals(1.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
 	}
 
@@ -240,10 +228,8 @@ class DroneClientConfigTest {
 
 		config = normalize(config);
 
-		assertEquals(1.12f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.68f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.12f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(112.0f, config.cameraFovDegrees(), 1.0e-4f);
+		assertSightlineCameraDefaults(config);
+		assertEquals(1.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
 	}
 
 	@Test
@@ -260,11 +246,7 @@ class DroneClientConfigTest {
 
 		config = normalize(config);
 
-		assertEquals(14.0f, config.cameraTiltDegrees(), 1.0e-4f);
-		assertEquals(1.12f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.68f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.12f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(0.06f, config.cameraRollingShutterScale(), 1.0e-4f);
+		assertSightlineCameraDefaults(config);
 		assertEquals(1.0f, config.cameraDynamicFovDegrees(), 1.0e-4f);
 	}
 
@@ -282,10 +264,24 @@ class DroneClientConfigTest {
 
 		config = normalize(config);
 
-		assertEquals(1.12f, config.cameraForwardOffsetMeters(), 1.0e-4f);
-		assertEquals(0.68f, config.cameraUpOffsetMeters(), 1.0e-4f);
-		assertEquals(0.12f, config.cameraVibrationScale(), 1.0e-4f);
-		assertEquals(112.0f, config.cameraFovDegrees(), 1.0e-4f);
+		assertSightlineCameraDefaults(config);
+	}
+
+	@Test
+	void previousSightlineCameraDefaultsMigrateFartherForwardAndCalmer() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		setFloat(config, "cameraTiltDegrees", 14.0f);
+		setFloat(config, "cameraForwardOffsetMeters", 1.12f);
+		setFloat(config, "cameraUpOffsetMeters", 0.68f);
+		setFloat(config, "cameraVibrationScale", 0.12f);
+		setFloat(config, "cameraRollingShutterScale", 0.06f);
+		setFloat(config, "cameraLatencySeconds", 0.018f);
+		setFloat(config, "cameraFovDegrees", 112.0f);
+		setFloat(config, "cameraDynamicFovDegrees", 1.0f);
+
+		config = normalize(config);
+
+		assertSightlineCameraDefaults(config);
 	}
 
 	private static DroneClientConfig normalize(DroneClientConfig config) throws ReflectiveOperationException {
@@ -308,6 +304,16 @@ class DroneClientConfigTest {
 		assertEquals(0.84f, config.gamepadYawRateScale(), 1.0e-4f);
 		assertEquals(0.14f, config.gamepadAxisRisePerTick(), 1.0e-4f);
 		assertEquals(0.40f, config.gamepadAxisFallPerTick(), 1.0e-4f);
+	}
+
+	private static void assertSightlineCameraDefaults(DroneClientConfig config) {
+		assertEquals(16.0f, config.cameraTiltDegrees(), 1.0e-4f);
+		assertEquals(1.20f, config.cameraForwardOffsetMeters(), 1.0e-4f);
+		assertEquals(0.72f, config.cameraUpOffsetMeters(), 1.0e-4f);
+		assertEquals(0.08f, config.cameraVibrationScale(), 1.0e-4f);
+		assertEquals(0.04f, config.cameraRollingShutterScale(), 1.0e-4f);
+		assertEquals(0.012f, config.cameraLatencySeconds(), 1.0e-4f);
+		assertEquals(116.0f, config.cameraFovDegrees(), 1.0e-4f);
 	}
 
 	private static void setGamepadDeadband(DroneClientConfig config, float value) throws ReflectiveOperationException {

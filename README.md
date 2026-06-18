@@ -13,6 +13,7 @@
 - 无头服务端可玩层自测现在支持指定诊断飞行模式，并新增 `runPlayableHorizonServerSelfTest`：报告会写入并校验 `self_test_control_mode`，本轮 `HORIZON` 真服自测通过，最大可视 pitch/roll 约 `4.48/5.21 deg`，中杆窗口 87 个样本，neutral pitch 最大 `0.70 deg`、roll/yaw 为 0；这样第二档手感也进入 Minecraft 服务端级回归，而不只是在单元测试里存在。
 - `ACRO` 现在也有独立无头服务端回归入口 `runPlayableAcroServerSelfTest`：Acro 的中杆判定不再错误要求机身自动回水平，而是要求姿态/偏航权威被真实激活、松杆后 yaw rate 收住、持有姿态仍在可控范围内；本轮真服自测通过，最大可视 pitch/roll 约 `11.96/14.41 deg`、yaw rate 约 `27.64 dps`，中杆 yaw 为 0。
 - 客户端 `ACRO` 手感档从“满血竞速”改成更适合 Minecraft 游玩的渐进档：expo 提高到 `1.00`、roll/pitch scale 保留 `0.96` 满杆权威、yaw scale 降到 `0.84`、起杆从 `0.20/tick` 放慢到 `0.14/tick`，旧 Acro 配置会自动迁移；新增回归测试守住 70% 杆位 1 秒内仍是可控中段，而满杆仍能到大角度。
+- 默认 FPV 相机继续往“先看得清再谈高拟真”收敛：挂点推到 `1.20 m` 前 / `0.72 m` 上、默认视野到 `116 deg`、机载震动降到 `0.08`、rolling shutter 降到 `0.04`、相机延迟降到 `12 ms`；上一轮 `1.12/0.68/112 deg` 默认配置会自动迁移，新测试守住所有内置机架的机体外视线余量。
 - 当前 README 可以继续用中文维护；英文长段技术记录先保留在后面，新的研究和调参结论会优先写在中文进展区。
 
 这是一个面向 Minecraft/Fabric 的高频多旋翼无人机/穿越机模拟 Mod。项目目标不是做一个会飘起来的简单实体，而是在 Minecraft 世界里逐步实现可玩、可测试、可调参的 FPV 多轴无人机仿真系统。
@@ -35,7 +36,7 @@
 - HUD 模式现在会写入客户端配置，隐藏 HUD 后重进游戏仍会保持隐藏。
 - 中英文语言文件现在有测试守护：设置界面、HUD 和客户端提示直接引用的 `fpvdrone` 翻译 key 必须同时存在于 `en_us` 和 `zh_cn`，避免遥控器设置界面出现未翻译 key。
 - FPV 相机的最终挂载点现在会把振动/jello 位移也计入清晰下限，旧配置或强振动不会再把视角短暂拉回机身附近，降低“画面被无人机挡住”的风险。
-- FPV 默认相机继续向机头外和机身上方移动：默认挂点为前 `1.12 m`、上 `0.68 m`，旧 `1.05/0.62` 清晰相机配置会自动迁移；测试会把所有内置机型的碰撞盒纳入校验，避免 FPV 视野再次被机身挡住。
+- FPV 默认相机继续向机头外和机身上方移动：默认挂点为前 `1.20 m`、上 `0.72 m`，旧 `1.05/0.62` 和 `1.12/0.68` 清晰相机配置都会自动迁移；测试会把所有内置机型的碰撞盒纳入校验，避免 FPV 视野再次被机身挡住。
 - 手柄/遥控器的俯仰、横滚、偏航经过死区、expo、倍率和每 tick 输入限速，再发送给无人机；默认 `Training` 档进一步降低了右摇杆中段和半杆响应，轻打杆不会直接把机体打歪。
 - `Training` 手感继续收敛：默认曲线改为纯三次 `expo=1.00`，命令中心软区从 `0.22` 加宽到 `0.25`，横滚/俯仰倍率维持 `0.42`、偏航维持 `0.38`、输入进入速度维持 `0.032/tick`、回中速度维持 `0.32/tick`；旧 `0.48/0.44` 训练档也会自动迁移，进一步减少“右杆轻碰就歪”的首飞挫败感。
 - 客户端真实手柄链路现在有包内测试覆盖：原始摇杆先做物理中心死区和校准，再进入 Training/Sport/Acro 控制曲线，避免只测理论曲线却漏掉游戏内实际发包路径。
@@ -311,13 +312,13 @@ The validator still covers the IMU offset columns, including `tune_imu_y_m` and 
   "gamepadAxisRisePerTick": 0.032,
   "gamepadAxisFallPerTick": 0.32,
   "hudMode": "MINIMAL",
-  "cameraTiltDegrees": 14.0,
-  "cameraForwardOffsetMeters": 1.12,
-  "cameraUpOffsetMeters": 0.68,
-  "cameraVibrationScale": 0.12,
-  "cameraRollingShutterScale": 0.06,
-  "cameraLatencySeconds": 0.018,
-  "cameraFovDegrees": 112.0,
+  "cameraTiltDegrees": 16.0,
+  "cameraForwardOffsetMeters": 1.20,
+  "cameraUpOffsetMeters": 0.72,
+  "cameraVibrationScale": 0.08,
+  "cameraRollingShutterScale": 0.04,
+  "cameraLatencySeconds": 0.012,
+  "cameraFovDegrees": 116.0,
   "cameraDynamicFovDegrees": 1.0
 }
 ```
