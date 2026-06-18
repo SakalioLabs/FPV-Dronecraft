@@ -473,7 +473,7 @@ final class PlayableFlightModel {
 	private static boolean shouldAirBrake(FlightMode mode, float throttle, float hoverThrottle, float pitch, float roll, Profile profile) {
 		return mode != FlightMode.ACRO
 				&& profile.airBrakeSmoothing() > 0.0f
-				&& Math.abs(throttle - hoverThrottle) <= profile.airBrakeThrottleBand()
+				&& throttle >= hoverThrottle - profile.airBrakeThrottleBand()
 				&& Math.abs(pitch) <= profile.airBrakeCommandThreshold()
 				&& Math.abs(roll) <= profile.airBrakeCommandThreshold();
 	}

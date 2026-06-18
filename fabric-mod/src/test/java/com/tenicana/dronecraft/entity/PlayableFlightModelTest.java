@@ -426,6 +426,37 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void angleModeAirBrakesReleasedSticksDuringPoweredClimb() {
+		PlayableFlightModel.Step held = runFrom(
+				FlightMode.ANGLE,
+				12,
+				0.60f,
+				1.0f,
+				-1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ANGLE)
+		);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ANGLE,
+				4,
+				0.60f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(held)
+		);
+
+		assertTrue(Math.abs(held.velocityX()) > 0.14f, "heldVelocityX=" + held.velocityX());
+		assertTrue(Math.abs(held.velocityZ()) > 0.14f, "heldVelocityZ=" + held.velocityZ());
+		assertTrue(Math.abs(released.velocityX()) < 0.04f, "releasedVelocityX=" + released.velocityX());
+		assertTrue(Math.abs(released.velocityZ()) < 0.04f, "releasedVelocityZ=" + released.velocityZ());
+	}
+
+	@Test
 	void angleModeSoftensHorizontalAuthorityWhileGroundLockedNearHover() {
 		PlayableFlightModel.Step groundHover = runFrom(
 				FlightMode.ANGLE,
