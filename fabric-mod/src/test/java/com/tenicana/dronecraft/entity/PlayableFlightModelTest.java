@@ -862,6 +862,94 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void completedAcroRollDoesNotKeepCreatingSidewaysTarget() {
+		PlayableFlightModel.Step completedRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(360.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+		PlayableFlightModel.Step quarterRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(90.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertTrue(Math.abs(completedRoll.targetVelocityX()) < 1.0e-3f, "completedRollTargetX=" + completedRoll.targetVelocityX());
+		assertEquals(0.0f, completedRoll.velocityX(), 1.0e-3f);
+		assertTrue(Math.abs(quarterRoll.targetVelocityX()) > 24.0f, "quarterRollTargetX=" + quarterRoll.targetVelocityX());
+	}
+
+	@Test
+	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
+		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(360.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+		PlayableFlightModel.Step quarterLoop = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(90.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertTrue(Math.abs(completedLoop.targetVelocityZ()) < 1.0e-3f, "completedLoopTargetZ=" + completedLoop.targetVelocityZ());
+		assertEquals(0.0f, completedLoop.velocityZ(), 1.0e-3f);
+		assertTrue(Math.abs(quarterLoop.targetVelocityZ()) > 24.0f, "quarterLoopTargetZ=" + quarterLoop.targetVelocityZ());
+	}
+
+	@Test
 	void acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap() {
 		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -873,11 +961,23 @@ class PlayableFlightModelTest {
 				false,
 				PlayableFlightModel.State.zero(FlightMode.ACRO)
 		);
-		PlayableFlightModel.Step cruise = holdStick(FlightMode.ACRO, 54, 0.68f, 1.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step pitched = holdStick(FlightMode.ACRO, 7, 0.68f, 1.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step cruise = runFrom(
+				FlightMode.ACRO,
+				45,
+				0.68f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(pitched)
+		);
 
 		assertTrue(firstTick.targetVelocityZ() > 3.0f, "firstTargetZ=" + firstTick.targetVelocityZ());
 		assertTrue(firstTick.targetVelocityZ() < 5.0f, "firstTargetZ=" + firstTick.targetVelocityZ());
 		assertTrue(firstTick.velocityZ() < 0.90f, "firstVelocityZ=" + firstTick.velocityZ());
+		assertEquals(pitched.pitchRadians(), cruise.pitchRadians(), 1.0e-6f);
 		assertTrue(cruise.targetVelocityZ() >= 25.0f, "cruiseTargetZ=" + cruise.targetVelocityZ());
 		assertTrue(cruise.velocityZ() >= 25.0f, "cruiseVelocityZ=" + cruise.velocityZ());
 	}

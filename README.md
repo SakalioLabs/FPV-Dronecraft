@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-19，ACRO 翻滚后侧飞回归修复）
+
+本轮修复“尝试翻转一周后持续侧飞无法回正”的问题。根因是 ACRO 允许 pitch/roll 姿态角无限累计后，水平速度目标仍直接使用累计角度限幅；roll 到 360 度后数值仍远超最大横滚角，算法会持续给满侧向速度目标。
+
+- `PlayableFlightModel` 现在只在 ACRO 水平速度计算中把 pitch/roll 折算为周期等效倾斜：360 度回到 0，180 度倒飞附近不会被误当成满侧倾，90/270 度仍保留最大水平推力方向。
+- 姿态本身仍保持完整累计角度，FPV 相机和机体全向旋转能力不回退；修复只影响“倾斜量 -> 水平速度目标”的物理投影。
+- 新增回归测试覆盖完整 roll/pitch 一圈后 `targetVelocityX/Z` 归零，同时验证 90 度倾斜仍有强水平速度目标；ACRO 高速巡航测试改为真实飞法：前压建立姿态后松杆保持并加速到 `25m/s+`。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest` 和完整 `gradlew build`，其中包含 Fabric GameTest。
+
 ## 最新进展（2026-06-19，参考 do-a-barrel-roll 的全向 FPV 视角）
 
 本轮按“FPV 仍有回抽、旋转不通畅、无法全向旋转”的实测反馈收敛相机和 ACRO 姿态链路。参考 `enjarai/do-a-barrel-roll` 的核心思路后，重点从“给原版 yaw/pitch 相机补 roll”改成“直接维护完整相机姿态”。

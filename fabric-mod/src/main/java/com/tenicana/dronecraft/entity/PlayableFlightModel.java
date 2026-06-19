@@ -94,10 +94,10 @@ final class PlayableFlightModel {
 		float pitchRadians = settledAttitude(safeMode, attitudePitch, attitude.pitchRadians());
 		float rollRadians = settledAttitude(safeMode, attitudeRoll, attitude.rollRadians());
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
-		float targetVelocityX = -horizontalVelocityCommand(rollRadians, profile.maxRollRadians(), profile)
+		float targetVelocityX = -horizontalVelocityCommand(safeMode, rollRadians, profile.maxRollRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
-		float targetVelocityZ = horizontalVelocityCommand(pitchRadians, profile.maxPitchRadians(), profile)
+		float targetVelocityZ = horizontalVelocityCommand(safeMode, pitchRadians, profile.maxPitchRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
 		float targetVelocityY = attitudeAdjustedVerticalVelocity(
@@ -469,13 +469,24 @@ final class PlayableFlightModel {
 		return clamp(authority, 0.0f, 1.10f);
 	}
 
-	private static float horizontalVelocityCommand(float attitudeRadians, float maxAttitudeRadians, Profile profile) {
-		float normalized = clamp(attitudeRadians / maxAttitudeRadians, -1.0f, 1.0f);
+	private static float horizontalVelocityCommand(FlightMode mode, float attitudeRadians, float maxAttitudeRadians, Profile profile) {
+		float effectiveAttitudeRadians = horizontalVelocityAttitude(mode, attitudeRadians);
+		float normalized = clamp(effectiveAttitudeRadians / maxAttitudeRadians, -1.0f, 1.0f);
 		float magnitude = Math.abs(normalized);
 		float progress = smoothStep(magnitude / Math.max(0.001f, profile.horizontalVelocityLinearStart()));
 		float fineScale = clamp(profile.horizontalFineVelocityScale(), 0.0f, 1.0f);
 		float gain = lerp(fineScale, 1.0f, progress);
 		return Math.copySign(magnitude * gain, normalized);
+	}
+
+	private static float horizontalVelocityAttitude(FlightMode mode, float attitudeRadians) {
+		if (!Float.isFinite(attitudeRadians)) {
+			return 0.0f;
+		}
+		if (safeMode(mode) != FlightMode.ACRO) {
+			return attitudeRadians;
+		}
+		return (float) Math.asin(clamp((float) Math.sin(attitudeRadians), -1.0f, 1.0f));
 	}
 
 	private static float lowAltitudeAttitudeCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {
