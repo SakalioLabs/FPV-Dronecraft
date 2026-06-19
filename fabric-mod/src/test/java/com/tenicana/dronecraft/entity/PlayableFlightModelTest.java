@@ -43,7 +43,7 @@ class PlayableFlightModelTest {
 		assertTrue(firmerClimb.targetVelocityY() > justAboveBand.targetVelocityY() * 8.0f);
 		assertTrue(firmerClimb.targetVelocityY() < 0.55f);
 		assertTrue(justBelowBand.targetVelocityY() < 0.0f);
-		assertTrue(justBelowBand.targetVelocityY() > -0.04f);
+		assertTrue(justBelowBand.targetVelocityY() > -0.06f);
 	}
 
 	@Test
@@ -657,7 +657,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, slightClimb.targetVelocityY(), 1.0e-5f);
 		assertTrue(climb.targetVelocityY() > 0.10f);
 		assertTrue(descent.targetVelocityY() < -0.10f);
-		assertTrue(descent.targetVelocityY() > -0.70f);
+		assertTrue(descent.targetVelocityY() > -0.90f);
 	}
 
 	@Test
@@ -686,7 +686,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, slightClimb.targetVelocityY(), 1.0e-5f);
 		assertTrue(climb.targetVelocityY() > 0.05f);
 		assertTrue(descent.targetVelocityY() < -0.15f);
-		assertTrue(descent.targetVelocityY() > -0.90f);
+		assertTrue(descent.targetVelocityY() > -1.10f);
 	}
 
 	@Test
@@ -870,6 +870,60 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, released.targetVelocityZ(), 1.0e-6f);
 		assertTrue(released.velocityZ() > 17.0f, "releasedVelocityZ=" + released.velocityZ());
 		assertTrue(released.velocityZ() < 18.0f, "releasedVelocityZ=" + released.velocityZ());
+	}
+
+	@Test
+	void zeroThrottleFallsTenMetersAtGravityPace() {
+		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
+		float fallMeters = 0.0f;
+		PlayableFlightModel.Step step = null;
+		int ticks = 0;
+		while (fallMeters < 10.0f && ticks < 80) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			fallMeters += -step.velocityY() / 20.0f;
+			state = stateFrom(step);
+			ticks++;
+		}
+
+		assertTrue(ticks <= 45, "ticks=" + ticks + " fallMeters=" + fallMeters);
+		assertTrue(step != null && step.velocityY() < -8.0f, "velocityY=" + (step == null ? Float.NaN : step.velocityY()));
+	}
+
+	@Test
+	void zeroThrottleDoesNotCreateHorizontalThrustFromHeldAttitude() {
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(95.0),
+						(float) Math.toRadians(35.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertEquals(0.0f, step.targetVelocityX(), 1.0e-6f);
+		assertEquals(0.0f, step.targetVelocityZ(), 1.0e-6f);
+		assertEquals(0.0f, step.velocityX(), 1.0e-6f);
+		assertEquals(0.0f, step.velocityZ(), 1.0e-6f);
+		assertTrue(step.targetVelocityY() < -12.0f, "targetVelocityY=" + step.targetVelocityY());
 	}
 
 	@Test

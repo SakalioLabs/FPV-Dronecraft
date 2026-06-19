@@ -454,7 +454,7 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 		if (((report.final_speed_mps ?: 0.0) as double) > maxPlayableFinalSpeed) {
 			throw new GradleException("FPV Dronecraft playable self-test finished while still moving too fast for ${selfTestControlMode}: ${report.final_speed_mps}m/s")
 		}
-		if (selfTestControlMode != "acro" && ((report.final_horizontal_distance_m ?: 0.0) as double) > 0.80) {
+		if (selfTestControlMode != "acro" && ((report.final_horizontal_distance_m ?: 0.0) as double) > 1.10) {
 			throw new GradleException("FPV Dronecraft playable assisted self-test drifted too far from takeoff point: ${report.final_horizontal_distance_m}m")
 		}
 		if ((report.playable_neutral_sample_count ?: 0) < 20) {

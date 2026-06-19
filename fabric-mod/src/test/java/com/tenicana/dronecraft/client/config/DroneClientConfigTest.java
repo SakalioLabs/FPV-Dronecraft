@@ -348,6 +348,16 @@ class DroneClientConfigTest {
 		assertSightlineCameraDefaults(config);
 	}
 
+	@Test
+	void previousSightlineCameraLatencyMigratesToZeroDelay() throws ReflectiveOperationException {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		setFloat(config, "cameraLatencySeconds", 0.006f);
+
+		config = normalize(config);
+
+		assertSightlineCameraDefaults(config);
+	}
+
 	private static DroneClientConfig normalize(DroneClientConfig config) throws ReflectiveOperationException {
 		Method normalized = DroneClientConfig.class.getDeclaredMethod("normalized");
 		normalized.setAccessible(true);
@@ -376,7 +386,7 @@ class DroneClientConfigTest {
 		assertEquals(0.72f, config.cameraUpOffsetMeters(), 1.0e-4f);
 		assertEquals(0.02f, config.cameraVibrationScale(), 1.0e-4f);
 		assertEquals(0.0f, config.cameraRollingShutterScale(), 1.0e-4f);
-		assertEquals(0.006f, config.cameraLatencySeconds(), 1.0e-4f);
+		assertEquals(0.0f, config.cameraLatencySeconds(), 1.0e-4f);
 		assertEquals(96.0f, config.cameraFovDegrees(), 1.0e-4f);
 	}
 

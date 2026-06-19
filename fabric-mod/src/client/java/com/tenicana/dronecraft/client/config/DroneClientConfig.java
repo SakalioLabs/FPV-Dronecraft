@@ -64,9 +64,10 @@ public final class DroneClientConfig {
 	private static final float DEFAULT_CAMERA_UP_OFFSET_METERS = 0.72f;
 	private static final float DEFAULT_CAMERA_VIBRATION_SCALE = 0.02f;
 	private static final float DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE = 0.0f;
-	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.006f;
+	private static final float DEFAULT_CAMERA_LATENCY_SECONDS = 0.0f;
 	private static final float DEFAULT_CAMERA_FOV_DEGREES = 96.0f;
 	private static final float DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES = 0.0f;
+	private static final float PREVIOUS_SIGHTLINE_CAMERA_LATENCY_SECONDS = 0.006f;
 	private static final float WIDE_DEFAULT_CAMERA_TILT_DEGREES = 16.0f;
 	private static final float WIDE_DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.20f;
 	private static final float WIDE_DEFAULT_CAMERA_UP_OFFSET_METERS = 0.72f;
@@ -771,7 +772,15 @@ public final class DroneClientConfig {
 				&& nearly(cameraLatencySeconds, WIDE_DEFAULT_CAMERA_LATENCY_SECONDS)
 				&& nearly(cameraFovDegrees, WIDE_DEFAULT_CAMERA_FOV_DEGREES)
 				&& nearly(cameraDynamicFovDegrees, WIDE_DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES);
-		if (!legacyCamera && !previousDefaultCamera && !recentDefaultCamera && !clearDefaultCamera && !previousUnblockedDefaultCamera && !currentDefaultCamera && !wideDefaultCamera) {
+		boolean previousSightlineCamera = nearly(cameraTiltDegrees, DEFAULT_CAMERA_TILT_DEGREES)
+				&& nearly(cameraForwardOffsetMeters, DEFAULT_CAMERA_FORWARD_OFFSET_METERS)
+				&& nearly(cameraUpOffsetMeters, DEFAULT_CAMERA_UP_OFFSET_METERS)
+				&& nearly(cameraVibrationScale, DEFAULT_CAMERA_VIBRATION_SCALE)
+				&& nearly(cameraRollingShutterScale, DEFAULT_CAMERA_ROLLING_SHUTTER_SCALE)
+				&& nearly(cameraLatencySeconds, PREVIOUS_SIGHTLINE_CAMERA_LATENCY_SECONDS)
+				&& nearly(cameraFovDegrees, DEFAULT_CAMERA_FOV_DEGREES)
+				&& nearly(cameraDynamicFovDegrees, DEFAULT_CAMERA_DYNAMIC_FOV_DEGREES);
+		if (!legacyCamera && !previousDefaultCamera && !recentDefaultCamera && !clearDefaultCamera && !previousUnblockedDefaultCamera && !currentDefaultCamera && !wideDefaultCamera && !previousSightlineCamera) {
 			return;
 		}
 		cameraTiltDegrees = DEFAULT_CAMERA_TILT_DEGREES;

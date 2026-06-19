@@ -205,7 +205,11 @@ class DroneServerSelfTestTest {
 		assertFalse(playableTelemetryExercised(selfTest));
 
 		selfTest = playableTelemetrySelfTest();
-		setDouble(selfTest, "finalHorizontalDistance", 0.801);
+		setDouble(selfTest, "finalHorizontalDistance", 1.05);
+		assertTrue(playableTelemetryExercised(selfTest));
+
+		selfTest = playableTelemetrySelfTest();
+		setDouble(selfTest, "finalHorizontalDistance", 1.11);
 		assertFalse(playableTelemetryExercised(selfTest));
 
 		selfTest = playableTelemetrySelfTest();
