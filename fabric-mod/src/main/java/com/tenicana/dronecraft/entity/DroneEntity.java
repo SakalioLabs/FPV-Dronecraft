@@ -278,6 +278,13 @@ public class DroneEntity extends Entity {
 	private float debugTargetYawRate;
 	private float debugLowAltitudeHorizontalAuthority = 1.0f;
 	private int debugModeSwitchTicksRemaining;
+	private float previousRenderPitchRadians;
+	private float currentRenderPitchRadians;
+	private float previousRenderYawRadians;
+	private float currentRenderYawRadians;
+	private float previousRenderRollRadians;
+	private float currentRenderRollRadians;
+	private boolean renderAttitudeInitialized;
 	private float debugCommandThrottle;
 	private float debugCommandPitch;
 	private float debugCommandRoll;
@@ -567,6 +574,9 @@ public class DroneEntity extends Entity {
 	public void tick() {
 		super.tick();
 		setNoGravity(true);
+		if (level().isClientSide()) {
+			updateClientRenderAttitudeHistory();
+		}
 
 		if (!level().isClientSide()) {
 			if (!simulationInitialized) {
@@ -2605,6 +2615,86 @@ public class DroneEntity extends Entity {
 
 	public float getRenderRollRadians() {
 		return entityData.get(ROLL);
+	}
+
+	public float getInterpolatedRenderPitchRadians(float partialTick) {
+		ensureClientRenderAttitudeInitialized();
+		return interpolateLinear(previousRenderPitchRadians, currentRenderPitchRadians, partialTick);
+	}
+
+	public float getInterpolatedRenderYawRadians(float partialTick) {
+		ensureClientRenderAttitudeInitialized();
+		return interpolateRadians(previousRenderYawRadians, currentRenderYawRadians, partialTick);
+	}
+
+	public float getInterpolatedRenderRollRadians(float partialTick) {
+		ensureClientRenderAttitudeInitialized();
+		return interpolateRadians(previousRenderRollRadians, currentRenderRollRadians, partialTick);
+	}
+
+	private void updateClientRenderAttitudeHistory() {
+		float pitch = getRenderPitchRadians();
+		float yaw = getRenderYawRadians();
+		float roll = getRenderRollRadians();
+		if (!renderAttitudeInitialized) {
+			previousRenderPitchRadians = pitch;
+			currentRenderPitchRadians = pitch;
+			previousRenderYawRadians = yaw;
+			currentRenderYawRadians = yaw;
+			previousRenderRollRadians = roll;
+			currentRenderRollRadians = roll;
+			renderAttitudeInitialized = true;
+			return;
+		}
+		previousRenderPitchRadians = currentRenderPitchRadians;
+		currentRenderPitchRadians = pitch;
+		previousRenderYawRadians = currentRenderYawRadians;
+		currentRenderYawRadians = yaw;
+		previousRenderRollRadians = currentRenderRollRadians;
+		currentRenderRollRadians = roll;
+	}
+
+	private void ensureClientRenderAttitudeInitialized() {
+		if (!renderAttitudeInitialized) {
+			updateClientRenderAttitudeHistory();
+			return;
+		}
+		if (level().isClientSide()) {
+			syncClientRenderAttitudeTarget();
+		}
+	}
+
+	private void syncClientRenderAttitudeTarget() {
+		float pitch = getRenderPitchRadians();
+		float yaw = getRenderYawRadians();
+		float roll = getRenderRollRadians();
+		if (pitch == currentRenderPitchRadians && yaw == currentRenderYawRadians && roll == currentRenderRollRadians) {
+			return;
+		}
+		previousRenderPitchRadians = currentRenderPitchRadians;
+		currentRenderPitchRadians = pitch;
+		previousRenderYawRadians = currentRenderYawRadians;
+		currentRenderYawRadians = yaw;
+		previousRenderRollRadians = currentRenderRollRadians;
+		currentRenderRollRadians = roll;
+	}
+
+	private static float interpolateLinear(float start, float end, float partialTick) {
+		float t = clampPartialTick(partialTick);
+		return start + (end - start) * t;
+	}
+
+	private static float interpolateRadians(float start, float end, float partialTick) {
+		float t = clampPartialTick(partialTick);
+		float delta = (float) Math.atan2(Math.sin(end - start), Math.cos(end - start));
+		return start + delta * t;
+	}
+
+	private static float clampPartialTick(float partialTick) {
+		if (!Float.isFinite(partialTick)) {
+			return 0.0f;
+		}
+		return Math.max(0.0f, Math.min(1.0f, partialTick));
 	}
 
 	public float getMotorPower() {

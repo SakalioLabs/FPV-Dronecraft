@@ -46,6 +46,7 @@ final class PlayableFlightModel {
 	private static final float HORIZON_TILT_SINK_METERS_PER_SECOND = 1.85f;
 	private static final float ACRO_TILT_SINK_METERS_PER_SECOND = 2.75f;
 	private static final float INVERTED_THRUST_VERTICAL_PROJECTION_MIN = -0.45f;
+	private static final float PLAYABLE_TICK_SECONDS = 0.05f;
 
 	private PlayableFlightModel() {
 	}
@@ -118,9 +119,27 @@ final class PlayableFlightModel {
 			targetVelocityY = THRUST_MIN_CLIMB;
 		}
 
-		float velocityX = smooth(safePrevious.velocityX(), targetVelocityX, velocitySmoothing(safePrevious.velocityX(), targetVelocityX, profile));
-		float velocityY = smooth(safePrevious.velocityY(), targetVelocityY, verticalVelocitySmoothing(safePrevious.velocityY(), targetVelocityY, profile));
-		float velocityZ = smooth(safePrevious.velocityZ(), targetVelocityZ, velocitySmoothing(safePrevious.velocityZ(), targetVelocityZ, profile));
+		float velocityX = inertialVelocity(
+				safePrevious.velocityX(),
+				targetVelocityX,
+				velocitySmoothing(safePrevious.velocityX(), targetVelocityX, profile),
+				profile.horizontalAccelerationMetersPerSecondSquared(),
+				profile.horizontalBrakeAccelerationMetersPerSecondSquared()
+		);
+		float velocityY = inertialVelocity(
+				safePrevious.velocityY(),
+				targetVelocityY,
+				verticalVelocitySmoothing(safePrevious.velocityY(), targetVelocityY, profile),
+				profile.verticalAccelerationMetersPerSecondSquared(),
+				profile.verticalBrakeAccelerationMetersPerSecondSquared()
+		);
+		float velocityZ = inertialVelocity(
+				safePrevious.velocityZ(),
+				targetVelocityZ,
+				velocitySmoothing(safePrevious.velocityZ(), targetVelocityZ, profile),
+				profile.horizontalAccelerationMetersPerSecondSquared(),
+				profile.horizontalBrakeAccelerationMetersPerSecondSquared()
+		);
 		velocityX = clamp(velocityX, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
 		velocityY = clamp(velocityY, -VERTICAL_SPEED_LIMIT, VERTICAL_SPEED_LIMIT);
 		velocityZ = clamp(velocityZ, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
@@ -497,12 +516,22 @@ final class PlayableFlightModel {
 		return current + (target - current) * clamp(smoothing, 0.0f, 1.0f);
 	}
 
+	private static float inertialVelocity(float current, float target, float smoothing, float acceleration, float brakeAcceleration) {
+		float unconstrained = smooth(current, target, smoothing);
+		float accelerationLimit = isVelocityBraking(current, target) ? brakeAcceleration : acceleration;
+		float maxDelta = Math.max(0.0f, accelerationLimit) * PLAYABLE_TICK_SECONDS;
+		return current + clamp(unconstrained - current, -maxDelta, maxDelta);
+	}
+
 	private static float velocitySmoothing(float current, float target, Profile profile) {
+		return isVelocityBraking(current, target) ? profile.velocityBrakeSmoothing() : profile.velocitySmoothing();
+	}
+
+	private static boolean isVelocityBraking(float current, float target) {
 		boolean reversing = Math.signum(current) != 0.0f
 				&& Math.signum(target) != 0.0f
 				&& Math.signum(current) != Math.signum(target);
-		boolean braking = reversing || Math.abs(target) < Math.abs(current);
-		return braking ? profile.velocityBrakeSmoothing() : profile.velocitySmoothing();
+		return reversing || Math.abs(target) < Math.abs(current);
 	}
 
 	private static float verticalVelocitySmoothing(float current, float target, Profile profile) {
@@ -658,6 +687,10 @@ final class PlayableFlightModel {
 			float acroHoldDamping,
 			float velocitySmoothing,
 			float velocityBrakeSmoothing,
+			float horizontalAccelerationMetersPerSecondSquared,
+			float horizontalBrakeAccelerationMetersPerSecondSquared,
+			float verticalAccelerationMetersPerSecondSquared,
+			float verticalBrakeAccelerationMetersPerSecondSquared,
 			float groundFrictionSmoothing,
 			float groundFrictionTargetVelocityThreshold,
 			float airBrakeSmoothing,
@@ -671,9 +704,9 @@ final class PlayableFlightModel {
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (safeMode(mode)) {
-				case ANGLE -> new Profile(3.20f, 4.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.60f);
-				case HORIZON -> new Profile(6.20f, 8.00f, radians(46.0f), radians(48.0f), radians(80.0f), radians(84.0f), radians(6.3f), radians(6.8f), 3.55f, 0.82f, 0.70f, 0.22f, radians(3.8f), 0.30f, radians(5.2f), 0.93f, 0.18f, 0.28f, 0.56f, 0.16f, 0.18f, 0.060f, 0.09f, HOVER_BAND, 0.92f, 0.78f, 3.00f, THRUST_GAIN);
-				case ACRO -> new Profile(12.00f, 15.00f, radians(64.0f), radians(68.0f), radians(115.0f), radians(125.0f), radians(8.8f), radians(9.4f), 5.40f, 0.94f, 0.36f, 0.16f, radians(5.80f), 0.15f, radians(5.20f), 1.0f, 0.20f, 0.24f, 0.34f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.40f, 5.00f);
+				case ANGLE -> new Profile(3.20f, 4.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 4.50f, 7.50f, 5.50f, 8.00f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.60f);
+				case HORIZON -> new Profile(8.80f, 12.00f, radians(46.0f), radians(48.0f), radians(80.0f), radians(84.0f), radians(6.3f), radians(6.8f), 3.55f, 0.82f, 0.70f, 0.22f, radians(3.8f), 0.30f, radians(5.2f), 0.93f, 0.18f, 0.28f, 8.50f, 9.50f, 7.00f, 9.00f, 0.56f, 0.16f, 0.06f, 0.060f, 0.09f, HOVER_BAND, 0.92f, 0.78f, 3.00f, THRUST_GAIN);
+				case ACRO -> new Profile(25.00f, 32.00f, radians(64.0f), radians(68.0f), radians(115.0f), radians(125.0f), radians(8.8f), radians(9.4f), 5.40f, 0.94f, 0.36f, 0.18f, radians(5.80f), 0.15f, radians(5.20f), 1.0f, 0.28f, 0.18f, 14.00f, 8.00f, 8.50f, 11.00f, 0.34f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.40f, 5.00f);
 			};
 		}
 

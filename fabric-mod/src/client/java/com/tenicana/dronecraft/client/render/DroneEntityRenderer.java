@@ -32,9 +32,9 @@ public class DroneEntityRenderer extends EntityRenderer<DroneEntity, DroneEntity
 	@Override
 	public void extractRenderState(DroneEntity entity, DroneEntityRenderState state, float tickProgress) {
 		super.extractRenderState(entity, state, tickProgress);
-		state.pitchRadians = entity.getRenderPitchRadians();
-		state.yawRadians = entity.getRenderYawRadians();
-		state.rollRadians = entity.getRenderRollRadians();
+		state.pitchRadians = entity.getInterpolatedRenderPitchRadians(tickProgress);
+		state.yawRadians = entity.getInterpolatedRenderYawRadians(tickProgress);
+		state.rollRadians = entity.getInterpolatedRenderRollRadians(tickProgress);
 		state.motorPower = entity.getMotorPower();
 		RotorLayoutCodec.Layout layout = RotorLayoutCodec.decode(entity.getRotorLayout());
 		state.rotorCount = layout.rotorCount();

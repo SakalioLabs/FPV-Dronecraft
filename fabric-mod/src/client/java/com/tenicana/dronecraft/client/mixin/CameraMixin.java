@@ -75,9 +75,9 @@ public abstract class CameraMixin {
 						rawPosition.x(),
 						rawPosition.y(),
 						rawPosition.z(),
-						(float) Math.toDegrees(drone.getRenderYawRadians()),
-						(float) Math.toDegrees(drone.getRenderPitchRadians()),
-						drone.getRenderRollRadians(),
+						(float) Math.toDegrees(drone.getInterpolatedRenderYawRadians(partialTick)),
+						(float) Math.toDegrees(drone.getInterpolatedRenderPitchRadians(partialTick)),
+						drone.getInterpolatedRenderRollRadians(partialTick),
 						sampleTimeSeconds
 				),
 				config.cameraLatencySeconds()

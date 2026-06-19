@@ -180,9 +180,9 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 		double[] speedBeforeLoss = new double[1];
 		DroneInput cruise = new DroneInput(0.56, 0.36, 0.20, 0.0, true, true, FlightMode.HORIZON);
 		scheduleInput(context, drone, FAILSAFE_OWNER, 1, 1, SAFE_HORIZON_ARM);
-		scheduleInput(context, drone, FAILSAFE_OWNER, 5, 60, cruise);
+		scheduleInput(context, drone, FAILSAFE_OWNER, 5, 40, cruise);
 
-		context.runAfterDelay(62, () -> {
+		context.runAfterDelay(42, () -> {
 			speedBeforeLoss[0] = drone.getSpeedMetersPerSecond();
 			assertTrue(drone.getY() > initialY + 0.12, String.format(
 					Locale.ROOT,
@@ -194,7 +194,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 			assertTrue(!drone.isControlFailsafeActive(), "failsafe activated before control packets timed out");
 		});
 
-		context.runAfterDelay(78, () -> {
+		context.runAfterDelay(58, () -> {
 			assertTrue(drone.isControlFailsafeActive(), "direct flight did not enter playable failsafe after link loss");
 			assertTrue(drone.getFlightMode() == FlightMode.DEFAULT_FIRST_FLIGHT, "direct failsafe did not fall back to stable angle mode: " + drone.getFlightMode());
 			assertTrue(!drone.isRawControlLinkActive(), "raw control link stayed active during failsafe");

@@ -58,6 +58,7 @@ public final class DroneServerSelfTest {
 	private static final double PLAYABLE_MAX_AVERAGE_MOTOR_RPM_TELEMETRY = 11000.0;
 	private static final double PLAYABLE_ASSISTED_MAX_FINAL_HORIZONTAL_DISTANCE_METERS = 0.80;
 	private static final double PLAYABLE_MAX_FINAL_SPEED_METERS_PER_SECOND = 0.08;
+	private static final double PLAYABLE_ACRO_MAX_FINAL_SPEED_METERS_PER_SECOND = 34.0;
 
 	private static DroneServerSelfTest active;
 
@@ -684,7 +685,10 @@ public final class DroneServerSelfTest {
 	}
 
 	private boolean playableFinalSpeedStable() {
-		return finalSpeed <= PLAYABLE_MAX_FINAL_SPEED_METERS_PER_SECOND;
+		double maxFinalSpeed = controlFlightMode == FlightMode.ACRO
+				? PLAYABLE_ACRO_MAX_FINAL_SPEED_METERS_PER_SECOND
+				: PLAYABLE_MAX_FINAL_SPEED_METERS_PER_SECOND;
+		return finalSpeed <= maxFinalSpeed;
 	}
 
 	private boolean playableAssistedFinalDriftStable() {

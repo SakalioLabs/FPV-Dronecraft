@@ -173,8 +173,8 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(step.pitchRadians()) <= Math.toRadians(4.0));
 		assertTrue(Math.abs(step.rollRadians()) <= Math.toRadians(4.0));
-		assertTrue(Math.abs(step.targetVelocityX()) < 0.55f);
-		assertTrue(Math.abs(step.targetVelocityZ()) < 0.55f);
+		assertTrue(Math.abs(step.targetVelocityX()) < 0.82f);
+		assertTrue(Math.abs(step.targetVelocityZ()) < 0.82f);
 	}
 
 	@Test
@@ -183,8 +183,8 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(step.pitchRadians()) < Math.toRadians(11.5));
 		assertTrue(Math.abs(step.rollRadians()) < Math.toRadians(11.5));
-		assertTrue(Math.abs(step.targetVelocityX()) < 1.65f);
-		assertTrue(Math.abs(step.targetVelocityZ()) < 1.65f);
+		assertTrue(Math.abs(step.targetVelocityX()) < 2.45f);
+		assertTrue(Math.abs(step.targetVelocityZ()) < 2.45f);
 		assertTrue(step.yawDegreesPerTick() < 0.95f);
 	}
 
@@ -831,6 +831,45 @@ class PlayableFlightModelTest {
 		assertEquals(held.pitchRadians(), released.pitchRadians(), 1.0e-6f);
 		assertEquals(held.rollRadians(), released.rollRadians(), 1.0e-6f);
 		assertTrue(released.targetVelocityZ() > 6.0f);
+	}
+
+	@Test
+	void acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap() {
+		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step cruise = holdStick(FlightMode.ACRO, 54, 0.68f, 1.0f, 0.0f, 0.0f);
+
+		assertTrue(firstTick.targetVelocityZ() > 3.0f, "firstTargetZ=" + firstTick.targetVelocityZ());
+		assertTrue(firstTick.targetVelocityZ() < 5.0f, "firstTargetZ=" + firstTick.targetVelocityZ());
+		assertTrue(firstTick.velocityZ() < 0.90f, "firstVelocityZ=" + firstTick.velocityZ());
+		assertTrue(cruise.targetVelocityZ() >= 25.0f, "cruiseTargetZ=" + cruise.targetVelocityZ());
+		assertTrue(cruise.velocityZ() >= 25.0f, "cruiseVelocityZ=" + cruise.velocityZ());
+	}
+
+	@Test
+	void centeredSticksKeepMomentumInsteadOfZeroingVelocity() {
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(0.0f, 0.0f, 18.0f, 0.0f, 0.0f, 0.0f, FlightMode.ACRO)
+		);
+
+		assertEquals(0.0f, released.targetVelocityZ(), 1.0e-6f);
+		assertTrue(released.velocityZ() > 17.0f, "releasedVelocityZ=" + released.velocityZ());
+		assertTrue(released.velocityZ() < 18.0f, "releasedVelocityZ=" + released.velocityZ());
 	}
 
 	@Test
