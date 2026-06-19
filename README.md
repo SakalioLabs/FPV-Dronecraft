@@ -1,5 +1,16 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-19，参考 do-a-barrel-roll 的全向 FPV 视角）
+
+本轮按“FPV 仍有回抽、旋转不通畅、无法全向旋转”的实测反馈收敛相机和 ACRO 姿态链路。参考 `enjarai/do-a-barrel-roll` 的核心思路后，重点从“给原版 yaw/pitch 相机补 roll”改成“直接维护完整相机姿态”。
+- FPV 相机新增 `FpvCameraOrientation`，由无人机 yaw/pitch/roll 直接生成完整 Quaternion 和 `forwards/up/left` 三个正交方向轴；`CameraMixin` 不再先调用原版 `setRotation(yaw, pitch)` 再补 roll，而是直接写入 `Camera.rotation` 和方向向量，减少高速、大角度、倒飞时被原版二轴视角语义拉回的回抽感。
+- `Camera.xRot/yRot` 现在只作为兼容字段写入，并限制在 `-180..180`；真实画面方向以 Quaternion 为准。这样长时间翻滚不会让兼容角度无限增长，也不会再把完整姿态压回 Minecraft 原生 pitch/yaw 的有限表示。
+- FPV 挂点不再做类似第三人称相机的方块碰撞回退；机载相机现在固定在机体挂点上，高速贴地、侧滚或倒飞时不会因为挂点射线碰到方块而把画面突然拉回机体中心。
+- `ACRO` 从“最大 pitch 115 度 / roll 125 度”的伪 rate mode 改成真正的累计角速度控制：限制输入角速度，不限制累计姿态角。现在持续拉杆可以超过 360 度翻滚/俯仰，松杆后继续保持当前姿态；`ANGLE/HORIZON` 仍保留辅助/自稳角度限制。
+- 服务端 playable ACRO 自测规则同步更新：ACRO 中立窗口不再要求 pitch/roll 回到 70 度以内，只要求 yaw rate 收敛；否则会把正确的倒飞/翻滚保持误判成“不稳定”。
+- 新增 `FpvCameraOrientationTest` 覆盖水平前向、接近垂直、倒飞邻近姿态、超过一整圈 roll 的 Quaternion 正交和连续性；`PlayableFlightModelTest` 新增 ACRO 超过 360 度并松杆保持的回归测试。
+- 已通过针对性测试、完整 `gradlew build`、以及无头 `runPlayableAcroServerSelfTest`。本轮 ACRO 真服报告通过，最大可视 pitch/roll 约 `21.94/25.56 deg`，yaw rate 收敛为 `0.00 dps`；360 度全向能力由单元测试固定。
+
 ## 最新进展（2026-06-19，FPV 回抽、零油门重力与惯性）
 
 本轮继续按实测手感收敛：上一版 FPV 帧率改善后仍有“回抽”，同时 `playable` 可玩层的零油门下降太慢，10m 下落会像被空气托住一样拖到 5-6 秒。

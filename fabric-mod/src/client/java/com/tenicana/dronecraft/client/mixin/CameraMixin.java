@@ -12,12 +12,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.Camera;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
-import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import com.tenicana.dronecraft.camera.FpvCameraMount;
+import com.tenicana.dronecraft.camera.FpvCameraOrientation;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
@@ -36,9 +35,6 @@ public abstract class CameraMixin {
 	protected abstract void setPosition(Vec3 position);
 
 	@Shadow
-	protected abstract void setRotation(float yRot, float xRot);
-
-	@Shadow
 	@Final
 	private Quaternionf rotation;
 
@@ -53,6 +49,12 @@ public abstract class CameraMixin {
 	@Shadow
 	@Final
 	private Vector3f left;
+
+	@Shadow
+	private float xRot;
+
+	@Shadow
+	private float yRot;
 
 	@Inject(method = "setup", at = @At("RETURN"))
 	private void fpvdrone$setupFpvCamera(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
@@ -87,58 +89,38 @@ public abstract class CameraMixin {
 		float yawDegrees = delayedPose.yawDegrees();
 		float rollRadians = delayedPose.rollRadians();
 		CameraShake shake = cameraShake(drone, partialTick, config);
-		float cameraPitchDegrees = pitchDegrees - config.cameraTiltDegrees() + shake.pitchDegrees();
-		float cameraYawDegrees = yawDegrees + shake.yawDegrees();
-		float cameraRollRadians = rollRadians + shake.rollRadians();
-		Quaternionf bodyRotation = new Quaternionf().rotationYXZ(
-				(float) Math.PI - yawDegrees * Mth.DEG_TO_RAD,
-				-pitchDegrees * Mth.DEG_TO_RAD,
-				-rollRadians
+		FpvCameraOrientation.Orientation cameraOrientation = FpvCameraOrientation.fromFpvMount(
+				yawDegrees,
+				pitchDegrees,
+				rollRadians,
+				config.cameraTiltDegrees(),
+				shake.pitchDegrees(),
+				shake.yawDegrees(),
+				shake.rollRadians()
 		);
+		FpvCameraOrientation.Orientation bodyOrientation = FpvCameraOrientation.fromCameraAngles(yawDegrees, pitchDegrees, rollRadians);
 		float clearForwardOffsetMeters = (float) FpvCameraMount.clearForwardOffset(config.cameraForwardOffsetMeters(), shake.forwardMeters());
 		float clearUpOffsetMeters = (float) FpvCameraMount.clearUpOffset(config.cameraUpOffsetMeters(), shake.verticalMeters());
 		Vector3f cameraOffset = new Vector3f(
 				shake.lateralMeters(),
 				clearUpOffsetMeters,
 				-clearForwardOffsetMeters
-		).rotate(bodyRotation);
+		).rotate(bodyOrientation.rotation());
 		Vec3 cameraOrigin = new Vec3(delayedPose.xMeters(), delayedPose.yMeters(), delayedPose.zMeters());
 		Vec3 desiredPosition = cameraOrigin.add(cameraOffset.x(), cameraOffset.y(), cameraOffset.z());
-		Vec3 position = collisionAdjustedCameraPosition(level, drone, cameraOrigin, desiredPosition);
 
-		setPosition(position);
-		setRotation(cameraYawDegrees, cameraPitchDegrees);
-
-		rotation.rotationYXZ(
-				(float) Math.PI - cameraYawDegrees * Mth.DEG_TO_RAD,
-				-cameraPitchDegrees * Mth.DEG_TO_RAD,
-				-cameraRollRadians
-		);
-		new Vector3f(0.0f, 0.0f, -1.0f).rotate(rotation, forwards);
-		new Vector3f(0.0f, 1.0f, 0.0f).rotate(rotation, up);
-		new Vector3f(-1.0f, 0.0f, 0.0f).rotate(rotation, left);
+		setPosition(desiredPosition);
+		xRot = Mth.wrapDegrees(cameraOrientation.pitchDegrees());
+		yRot = Mth.wrapDegrees(cameraOrientation.yawDegrees());
+		rotation.set(cameraOrientation.rotation());
+		forwards.set(cameraOrientation.forwards());
+		up.set(cameraOrientation.up());
+		left.set(cameraOrientation.left());
 	}
 
 	private static void resetCameraDelay() {
 		FPV_POSE_DELAY.reset();
 		delayedDroneId = -1;
-	}
-
-	private static Vec3 collisionAdjustedCameraPosition(Level level, Entity entity, Vec3 origin, Vec3 desiredPosition) {
-		if (level == null || origin.distanceToSqr(desiredPosition) <= 1.0e-8) {
-			return desiredPosition;
-		}
-		HitResult hit = level.clip(new ClipContext(
-				origin,
-				desiredPosition,
-				ClipContext.Block.COLLIDER,
-				ClipContext.Fluid.NONE,
-				entity
-		));
-		if (hit.getType() == HitResult.Type.MISS) {
-			return desiredPosition;
-		}
-		return FpvCameraMount.retreatFromHit(origin, desiredPosition, hit.getLocation(), FpvCameraMount.COLLISION_CLEARANCE_METERS);
 	}
 
 	private static CameraShake cameraShake(DroneEntity drone, float partialTick, DroneClientConfig config) {

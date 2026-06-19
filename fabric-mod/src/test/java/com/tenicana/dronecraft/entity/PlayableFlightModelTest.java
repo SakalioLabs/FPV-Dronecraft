@@ -834,6 +834,34 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroModeAllowsContinuousFullPitchAndRollRotation() {
+		PlayableFlightModel.Step pitched = holdStick(FlightMode.ACRO, 46, 0.45f, 1.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 42, 0.45f, 0.0f, 1.0f, 0.0f);
+
+		assertTrue(pitched.pitchRadians() > Math.toRadians(360.0), "pitchDeg=" + Math.toDegrees(pitched.pitchRadians()));
+		assertTrue(rolled.rollRadians() > Math.toRadians(360.0), "rollDeg=" + Math.toDegrees(rolled.rollRadians()));
+	}
+
+	@Test
+	void acroModeHoldsFullRotationAfterStickRelease() {
+		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 42, 0.45f, 0.0f, 1.0f, 0.0f);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ACRO,
+				8,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(rolled)
+		);
+
+		assertEquals(rolled.rollRadians(), released.rollRadians(), 1.0e-6f);
+		assertTrue(Math.abs(released.rollRadians()) > Math.toRadians(360.0));
+	}
+
+	@Test
 	void acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap() {
 		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
 				FlightMode.ACRO,

@@ -238,12 +238,22 @@ final class PlayableFlightModel {
 				previous.velocityX() * modeSwitchHorizontalKeep(mode),
 				previous.velocityY(),
 				previous.velocityZ() * modeSwitchHorizontalKeep(mode),
-				clamp(previous.pitchRadians() * modeSwitchAttitudeKeep(mode), -profile.maxPitchRadians(), profile.maxPitchRadians()),
-				clamp(previous.rollRadians() * modeSwitchAttitudeKeep(mode), -profile.maxRollRadians(), profile.maxRollRadians()),
+				modeSwitchCapturedAttitude(mode, previous.pitchRadians() * modeSwitchAttitudeKeep(mode), profile.maxPitchRadians()),
+				modeSwitchCapturedAttitude(mode, previous.rollRadians() * modeSwitchAttitudeKeep(mode), profile.maxRollRadians()),
 				previous.yawDegreesPerTick() * modeSwitchYawKeep(mode),
 				mode,
 				MODE_SWITCH_SOFT_CAPTURE_TICKS
 		);
+	}
+
+	private static float modeSwitchCapturedAttitude(FlightMode mode, float attitudeRadians, float assistedLimitRadians) {
+		if (!Float.isFinite(attitudeRadians)) {
+			return 0.0f;
+		}
+		if (mode == FlightMode.ACRO) {
+			return attitudeRadians;
+		}
+		return clamp(attitudeRadians, -assistedLimitRadians, assistedLimitRadians);
 	}
 
 	private static float modeSwitchAttitudeKeep(FlightMode mode) {
@@ -307,8 +317,8 @@ final class PlayableFlightModel {
 			case ANGLE -> angleAttitude(profile, pitch, roll, previous);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
 			case ACRO -> new Attitude(
-					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), 1.0f, profile.maxAcroPitchRadians()),
-					heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), 1.0f, profile.maxAcroRollRadians())
+					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), 1.0f, Float.POSITIVE_INFINITY),
+					heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), 1.0f, Float.POSITIVE_INFINITY)
 			);
 		};
 	}

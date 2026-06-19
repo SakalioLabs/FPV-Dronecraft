@@ -240,8 +240,9 @@ class DroneServerSelfTestTest {
 		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
 		setDouble(selfTest, "maxPlayableVisualRollDegrees", 14.0);
 		setDouble(selfTest, "maxPlayableVisualYawRateDegreesPerSecond", 24.0);
-		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 70.1);
-		assertFalse(playableTelemetryExercised(selfTest));
+		setDouble(selfTest, "maxPlayableNeutralVisualPitchDegrees", 370.0);
+		setDouble(selfTest, "maxPlayableNeutralVisualRollDegrees", 365.0);
+		assertTrue(playableTelemetryExercised(selfTest));
 
 		selfTest = playableTelemetrySelfTest(FlightMode.ACRO);
 		setDouble(selfTest, "maxPlayableVisualPitchDegrees", 11.0);
