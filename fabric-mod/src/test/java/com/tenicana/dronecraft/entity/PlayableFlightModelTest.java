@@ -133,7 +133,7 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(step.targetVelocityZ() > 0.08f);
-		assertTrue(step.targetVelocityX() < -0.07f);
+		assertTrue(step.targetVelocityX() > 0.07f);
 		assertTrue(step.pitchRadians() <= Math.toRadians(4.0));
 		assertTrue(step.rollRadians() >= -Math.toRadians(4.0));
 		assertTrue(step.yawDegreesPerTick() > 0.30f);
@@ -142,9 +142,20 @@ class PlayableFlightModelTest {
 
 		PlayableFlightModel.Step held = holdStick(FlightMode.HORIZON, 12, 0.45f, 0.50f, -0.40f, 0.25f);
 		assertTrue(held.targetVelocityZ() > 1.80f);
-		assertTrue(held.targetVelocityX() < -1.20f);
+		assertTrue(held.targetVelocityX() > 1.20f);
 		assertTrue(held.pitchRadians() > Math.toRadians(8.0));
 		assertTrue(held.rollRadians() < -Math.toRadians(6.5));
+	}
+
+	@Test
+	void rollSideVelocityMatchesVisibleBankDirection() {
+		PlayableFlightModel.Step leftBank = holdStick(FlightMode.HORIZON, 18, 0.55f, 0.0f, -0.75f, 0.0f);
+		PlayableFlightModel.Step rightBank = holdStick(FlightMode.HORIZON, 18, 0.55f, 0.0f, 0.75f, 0.0f);
+
+		assertTrue(leftBank.rollRadians() < -Math.toRadians(8.0));
+		assertTrue(leftBank.targetVelocityX() > 1.8f);
+		assertTrue(rightBank.rollRadians() > Math.toRadians(8.0));
+		assertTrue(rightBank.targetVelocityX() < -1.8f);
 	}
 
 	@Test

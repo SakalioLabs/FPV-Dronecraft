@@ -94,7 +94,7 @@ final class PlayableFlightModel {
 		float pitchRadians = settledAttitude(safeMode, attitudePitch, attitude.pitchRadians());
 		float rollRadians = settledAttitude(safeMode, attitudeRoll, attitude.rollRadians());
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
-		float targetVelocityX = horizontalVelocityCommand(rollRadians, profile.maxRollRadians(), profile)
+		float targetVelocityX = -horizontalVelocityCommand(rollRadians, profile.maxRollRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
 		float targetVelocityZ = horizontalVelocityCommand(pitchRadians, profile.maxPitchRadians(), profile)

@@ -40,7 +40,8 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 				BODY,
 				CubeListBuilder.create()
 						.texOffs(0, 0).addBox(-4.0f, -2.0f, -6.0f, 8.0f, 4.0f, 12.0f)
-						.texOffs(32, 0).addBox(-2.0f, -2.8f, -3.0f, 4.0f, 1.0f, 6.0f),
+						.texOffs(32, 0).addBox(-2.0f, -2.8f, -3.0f, 4.0f, 1.0f, 6.0f)
+						.texOffs(32, 8).addBox(-1.5f, -2.7f, 4.4f, 3.0f, 1.4f, 2.8f),
 				PartPose.offset(0.0f, 20.0f, 0.0f)
 		);
 		for (int i = 0; i < RotorLayoutCodec.MAX_RENDER_ROTORS; i++) {
