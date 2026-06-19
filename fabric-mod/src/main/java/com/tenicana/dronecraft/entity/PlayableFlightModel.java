@@ -42,6 +42,10 @@ final class PlayableFlightModel {
 	private static final float GROUND_ANGLE_HORIZONTAL_AUTHORITY_SCALE = 0.12f;
 	private static final float GROUND_HORIZON_HORIZONTAL_AUTHORITY_SCALE = 0.30f;
 	private static final float GROUND_ACRO_HORIZONTAL_AUTHORITY_SCALE = 0.45f;
+	private static final float ANGLE_TILT_SINK_METERS_PER_SECOND = 1.15f;
+	private static final float HORIZON_TILT_SINK_METERS_PER_SECOND = 1.85f;
+	private static final float ACRO_TILT_SINK_METERS_PER_SECOND = 2.75f;
+	private static final float INVERTED_THRUST_VERTICAL_PROJECTION_MIN = -0.45f;
 
 	private PlayableFlightModel() {
 	}
@@ -96,7 +100,15 @@ final class PlayableFlightModel {
 		float targetVelocityZ = horizontalVelocityCommand(pitchRadians, profile.maxPitchRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
-		float targetVelocityY = verticalVelocity(safeThrottle, safeHover, profile);
+		float targetVelocityY = attitudeAdjustedVerticalVelocity(
+				safeMode,
+				safeThrottle,
+				safeHover,
+				pitchRadians,
+				rollRadians,
+				verticalVelocity(safeThrottle, safeHover, profile),
+				profile
+		);
 		if (nearGroundLocked && targetVelocityY < 0.0f) {
 			targetVelocityY = 0.0f;
 		}
@@ -353,6 +365,47 @@ final class PlayableFlightModel {
 			return centered / Math.max(0.10f, 1.0f - hoverThrottle) * profile.thrustGain() * edgeRamp;
 		}
 		return centered / Math.max(0.10f, hoverThrottle) * profile.descentGain() * edgeRamp;
+	}
+
+	private static float attitudeAdjustedVerticalVelocity(
+			FlightMode mode,
+			float throttle,
+			float hoverThrottle,
+			float pitchRadians,
+			float rollRadians,
+			float verticalVelocity,
+			Profile profile
+	) {
+		if (throttle <= THRUST_DEADZONE) {
+			return verticalVelocity;
+		}
+		float verticalProjection = verticalThrustProjection(pitchRadians, rollRadians);
+		float uprightProjection = clamp(verticalProjection, 0.0f, 1.0f);
+		float liftProgress = smoothStep(throttle / Math.max(THRUST_DEADZONE, hoverThrottle + profile.hoverBand()));
+		float tiltSink = tiltSinkMetersPerSecond(mode) * (1.0f - uprightProjection) * liftProgress;
+		if (verticalVelocity > 0.0f) {
+			float projectedClimb = verticalVelocity * clamp(verticalProjection, INVERTED_THRUST_VERTICAL_PROJECTION_MIN, 1.0f);
+			return projectedClimb - tiltSink;
+		}
+		if (verticalVelocity < 0.0f) {
+			return verticalVelocity - tiltSink * 0.45f;
+		}
+		return -tiltSink;
+	}
+
+	static float verticalThrustProjection(float pitchRadians, float rollRadians) {
+		if (!Float.isFinite(pitchRadians) || !Float.isFinite(rollRadians)) {
+			return 1.0f;
+		}
+		return clamp((float) (Math.cos(pitchRadians) * Math.cos(rollRadians)), -1.0f, 1.0f);
+	}
+
+	private static float tiltSinkMetersPerSecond(FlightMode mode) {
+		return switch (safeMode(mode)) {
+			case ANGLE -> ANGLE_TILT_SINK_METERS_PER_SECOND;
+			case HORIZON -> HORIZON_TILT_SINK_METERS_PER_SECOND;
+			case ACRO -> ACRO_TILT_SINK_METERS_PER_SECOND;
+		};
 	}
 
 	private static float averageRpm(float throttle, float hoverThrottle) {

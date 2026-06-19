@@ -24,6 +24,7 @@ import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.config.DroneControllerSettingsScreen;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.network.DroneControlPayload;
+import com.tenicana.dronecraft.network.DroneViewPayload;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.ControlStickProfile;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -118,6 +119,7 @@ public final class DroneClientControls {
 			while (FPV_VIEW.consumeClick()) {
 				boolean fpvEnabled = !DroneClientState.isFpvViewEnabled();
 				DroneClientState.setFpvViewEnabled(fpvEnabled);
+				sendFpvViewState(fpvEnabled);
 				client.player.displayClientMessage(
 						Component.translatable(fpvEnabled ? "message.fpvdrone.fpv_view_enabled" : "message.fpvdrone.fpv_view_disabled"),
 						true
@@ -156,6 +158,7 @@ public final class DroneClientControls {
 						config.throttleCalibrated(),
 						throttleCalibrationActive
 				);
+				sendFpvViewState(false);
 				return;
 			}
 
@@ -227,7 +230,12 @@ public final class DroneClientControls {
 					throttleCalibrationActive
 			);
 			ClientPlayNetworking.send(new DroneControlPayload(input.throttle(), input.pitch(), input.roll(), input.yaw(), armed, flightMode.id()));
+			sendFpvViewState(DroneClientState.isFpvViewEnabled());
 		});
+	}
+
+	private static void sendFpvViewState(boolean fpvView) {
+		ClientPlayNetworking.send(new DroneViewPayload(fpvView));
 	}
 
 	public static DroneClientConfig config() {

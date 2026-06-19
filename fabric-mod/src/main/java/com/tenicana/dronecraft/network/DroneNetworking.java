@@ -6,6 +6,7 @@ import java.util.List;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
@@ -15,11 +16,14 @@ import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneNetworking {
+	private static final double FPV_CAMERA_SEARCH_RADIUS = 512.0;
+
 	private DroneNetworking() {
 	}
 
 	public static void initialize() {
 		PayloadTypeRegistry.playC2S().register(DroneControlPayload.TYPE, DroneControlPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(DroneViewPayload.TYPE, DroneViewPayload.CODEC);
 		ServerPlayNetworking.registerGlobalReceiver(DroneControlPayload.TYPE, (payload, context) -> {
 			ServerPlayer player = context.player();
 			if (player == null) {
@@ -78,6 +82,48 @@ public final class DroneNetworking {
 				DroneControlManager.update(player.getUUID(), input, player.tickCount);
 			});
 		});
+		ServerPlayNetworking.registerGlobalReceiver(DroneViewPayload.TYPE, (payload, context) -> {
+			ServerPlayer player = context.player();
+			if (player == null) {
+				return;
+			}
+			context.server().execute(() -> updateFpvCamera(player, payload.fpvView()));
+		});
+	}
+
+	private static void updateFpvCamera(ServerPlayer player, boolean fpvView) {
+		if (player == null) {
+			return;
+		}
+		if (!fpvView) {
+			if (player.getCamera() instanceof DroneEntity) {
+				player.setCamera(player);
+			}
+			return;
+		}
+		DroneEntity drone = fpvCameraDrone(player);
+		if (drone != null && player.getCamera() != drone) {
+			player.setCamera(drone);
+		}
+	}
+
+	private static DroneEntity fpvCameraDrone(ServerPlayer player) {
+		Entity camera = player.getCamera();
+		if (camera instanceof DroneEntity drone
+				&& drone.isAlive()
+				&& drone.level() == player.level()
+				&& drone.isOwnedBy(player.getUUID())) {
+			return drone;
+		}
+
+		AABB search = player.getBoundingBox().inflate(FPV_CAMERA_SEARCH_RADIUS);
+		return player.level().getEntitiesOfClass(
+				DroneEntity.class,
+				search,
+				drone -> drone.isAlive() && drone.isOwnedBy(player.getUUID())
+		).stream()
+				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
+				.orElse(null);
 	}
 
 	private static boolean bindNearestDroneIfNeeded(ServerPlayer player, DroneInput input) {

@@ -617,7 +617,7 @@ class PlayableFlightModelTest {
 				PlayableFlightModel.State.zero(FlightMode.ANGLE)
 		);
 
-		assertEquals(normal.targetVelocityY(), guarded.targetVelocityY(), 1.0e-6f);
+		assertTrue(guarded.targetVelocityY() >= normal.targetVelocityY() - 1.0e-6f);
 		assertTrue(guarded.targetVelocityY() > 0.60f);
 		assertTrue(Math.abs(guarded.pitchRadians()) < Math.abs(normal.pitchRadians()) * 0.82f);
 		assertTrue(Math.abs(guarded.rollRadians()) < Math.abs(normal.rollRadians()) * 0.82f);
@@ -820,6 +820,37 @@ class PlayableFlightModelTest {
 		assertEquals(held.pitchRadians(), released.pitchRadians(), 1.0e-6f);
 		assertEquals(held.rollRadians(), released.rollRadians(), 1.0e-6f);
 		assertTrue(released.targetVelocityZ() > 6.0f);
+	}
+
+	@Test
+	void verticalThrustProjectionFollowsPitchAndRollAttitude() {
+		assertEquals(1.0f, PlayableFlightModel.verticalThrustProjection(0.0f, 0.0f), 1.0e-6f);
+		assertTrue(PlayableFlightModel.verticalThrustProjection((float) Math.toRadians(80.0), 0.0f) < 0.20f);
+		assertTrue(PlayableFlightModel.verticalThrustProjection((float) Math.toRadians(115.0), 0.0f) < 0.0f);
+		assertTrue(PlayableFlightModel.verticalThrustProjection(0.0f, (float) Math.toRadians(80.0)) < 0.20f);
+	}
+
+	@Test
+	void steepAcroPitchTurnsThrottleIntoForwardFlightInsteadOfWorldVerticalClimb() {
+		PlayableFlightModel.Step level = holdStick(FlightMode.ACRO, 16, 0.65f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step steep = holdStick(FlightMode.ACRO, 16, 0.65f, 1.0f, 0.0f, 0.0f);
+
+		assertTrue(level.targetVelocityY() > 2.0f, "levelTargetY=" + level.targetVelocityY());
+		assertTrue(steep.pitchRadians() > Math.toRadians(100.0), "steepPitchDeg=" + Math.toDegrees(steep.pitchRadians()));
+		assertTrue(steep.targetVelocityY() < 0.0f, "steepTargetY=" + steep.targetVelocityY());
+		assertTrue(steep.velocityY() < 0.0f, "steepVelocityY=" + steep.velocityY());
+		assertTrue(steep.targetVelocityZ() > 10.0f, "steepTargetZ=" + steep.targetVelocityZ());
+	}
+
+	@Test
+	void tiltedAcroHoverLosesVerticalLift() {
+		PlayableFlightModel.Step level = holdStick(FlightMode.ACRO, 12, 0.20f, 0.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step tilted = holdStick(FlightMode.ACRO, 12, 0.20f, 1.0f, 0.0f, 0.0f);
+
+		assertEquals(0.0f, level.targetVelocityY(), 1.0e-6f);
+		assertTrue(tilted.pitchRadians() > Math.toRadians(90.0), "tiltedPitchDeg=" + Math.toDegrees(tilted.pitchRadians()));
+		assertTrue(tilted.targetVelocityY() < -1.0f, "tiltedTargetY=" + tilted.targetVelocityY());
+		assertTrue(tilted.targetVelocityZ() > 10.0f, "tiltedTargetZ=" + tilted.targetVelocityZ());
 	}
 
 	@Test
