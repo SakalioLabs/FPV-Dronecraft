@@ -5,10 +5,10 @@ import com.tenicana.dronecraft.sim.FlightMode;
 final class PlayableFlightModel {
 	private static final FlightMode DEFAULT_PLAYABLE_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 	private static final float DESCENT_GAIN = 2.70f;
-	private static final float THRUST_GAIN = 3.40f;
+	private static final float THRUST_GAIN = 4.20f;
 	private static final float THRUST_DEADZONE = 0.005f;
 	private static final float THRUST_MIN_CLIMB = 0.025f;
-	private static final float VERTICAL_SPEED_LIMIT = 5.8f;
+	private static final float VERTICAL_SPEED_LIMIT = 7.2f;
 	private static final float VERTICAL_HOVER_EDGE_SOFTENING = 0.0075f;
 	private static final float VERTICAL_HOVER_BRAKE_SMOOTHING = 0.72f;
 	private static final float HOVER_BAND = 0.035f;
@@ -35,12 +35,11 @@ final class PlayableFlightModel {
 	private static final float MODE_SWITCH_ANGLE_YAW_BRAKE = 0.62f;
 	private static final float MODE_SWITCH_HORIZON_YAW_BRAKE = 0.52f;
 	private static final float MODE_SWITCH_ACRO_YAW_BRAKE = 0.42f;
-	private static final float MODE_SWITCH_ACRO_CENTERED_ATTITUDE_DAMPING = 0.965f;
 	private static final float LOW_THROTTLE_ANGLE_HORIZONTAL_AUTHORITY = 0.34f;
 	private static final float LOW_THROTTLE_HORIZON_HORIZONTAL_AUTHORITY = 0.42f;
-	private static final float LOW_THROTTLE_ACRO_HORIZONTAL_AUTHORITY = 0.60f;
-	private static final float MAX_HIGH_THROTTLE_HORIZONTAL_BOOST = 0.15f;
-	private static final float GROUND_ANGLE_HORIZONTAL_AUTHORITY_SCALE = 0.14f;
+	private static final float LOW_THROTTLE_ACRO_HORIZONTAL_AUTHORITY = 0.72f;
+	private static final float MAX_HIGH_THROTTLE_HORIZONTAL_BOOST = 0.20f;
+	private static final float GROUND_ANGLE_HORIZONTAL_AUTHORITY_SCALE = 0.12f;
 	private static final float GROUND_HORIZON_HORIZONTAL_AUTHORITY_SCALE = 0.30f;
 	private static final float GROUND_ACRO_HORIZONTAL_AUTHORITY_SCALE = 0.45f;
 
@@ -278,8 +277,8 @@ final class PlayableFlightModel {
 			case ANGLE -> angleAttitude(profile, pitch, roll, previous);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
 			case ACRO -> new Attitude(
-					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), acroHoldDamping(profile, pitch, previous), profile.maxAcroPitchRadians()),
-					heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), acroHoldDamping(profile, roll, previous), profile.maxAcroRollRadians())
+					heldRateAttitude(previous.pitchRadians(), pitch, profile.pitchRateRadiansPerTick(), 1.0f, profile.maxAcroPitchRadians()),
+					heldRateAttitude(previous.rollRadians(), roll, profile.rollRateRadiansPerTick(), 1.0f, profile.maxAcroRollRadians())
 			);
 		};
 	}
@@ -322,13 +321,6 @@ final class PlayableFlightModel {
 				lerp(anglePitch, ratePitch, pitchBlend),
 				lerp(angleRoll, rateRoll, rollBlend)
 		);
-	}
-
-	private static float acroHoldDamping(Profile profile, float command, State previous) {
-		if (previous.modeSwitchTicksRemaining() > 0 && Math.abs(command) < 0.035f) {
-			return Math.min(profile.acroHoldDamping(), MODE_SWITCH_ACRO_CENTERED_ATTITUDE_DAMPING);
-		}
-		return profile.acroHoldDamping();
 	}
 
 	private static float attitudeSmoothing(float command, Profile profile) {
@@ -626,9 +618,9 @@ final class PlayableFlightModel {
 	) {
 		private static Profile forMode(FlightMode mode) {
 			return switch (safeMode(mode)) {
-				case ANGLE -> new Profile(2.55f, 3.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.20f);
-				case HORIZON -> new Profile(4.40f, 5.80f, radians(40.0f), radians(42.0f), radians(68.0f), radians(72.0f), radians(5.2f), radians(5.6f), 2.90f, 0.82f, 0.70f, 0.22f, radians(3.2f), 0.32f, radians(4.8f), 0.93f, 0.18f, 0.28f, 0.56f, 0.16f, 0.22f, 0.065f, 0.09f, HOVER_BAND, 0.88f, 0.80f, DESCENT_GAIN, THRUST_GAIN);
-				case ACRO -> new Profile(6.80f, 8.80f, radians(58.0f), radians(62.0f), radians(82.0f), radians(86.0f), radians(7.4f), radians(8.0f), 3.90f, 0.92f, 0.38f, 0.16f, radians(5.20f), 0.15f, radians(5.20f), 0.996f, 0.20f, 0.24f, 0.38f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.00f, 4.10f);
+				case ANGLE -> new Profile(3.20f, 4.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.60f);
+				case HORIZON -> new Profile(6.20f, 8.00f, radians(46.0f), radians(48.0f), radians(80.0f), radians(84.0f), radians(6.3f), radians(6.8f), 3.55f, 0.82f, 0.70f, 0.22f, radians(3.8f), 0.30f, radians(5.2f), 0.93f, 0.18f, 0.28f, 0.56f, 0.16f, 0.18f, 0.060f, 0.09f, HOVER_BAND, 0.92f, 0.78f, 3.00f, THRUST_GAIN);
+				case ACRO -> new Profile(12.00f, 15.00f, radians(64.0f), radians(68.0f), radians(115.0f), radians(125.0f), radians(8.8f), radians(9.4f), 5.40f, 0.94f, 0.36f, 0.16f, radians(5.80f), 0.15f, radians(5.20f), 1.0f, 0.20f, 0.24f, 0.34f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.40f, 5.00f);
 			};
 		}
 

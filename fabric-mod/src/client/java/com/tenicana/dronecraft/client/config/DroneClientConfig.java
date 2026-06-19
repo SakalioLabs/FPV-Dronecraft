@@ -53,6 +53,11 @@ public final class DroneClientConfig {
 	private static final float PREVIOUS_ACRO_GAMEPAD_YAW_RATE_SCALE = 1.00f;
 	private static final float PREVIOUS_ACRO_GAMEPAD_AXIS_RISE_PER_TICK = 0.20f;
 	private static final float PREVIOUS_ACRO_GAMEPAD_AXIS_FALL_PER_TICK = 0.35f;
+	private static final float RECENT_ACRO_GAMEPAD_EXPO = 0.70f;
+	private static final float RECENT_ACRO_GAMEPAD_ROLL_PITCH_RATE_SCALE = 1.00f;
+	private static final float RECENT_ACRO_GAMEPAD_YAW_RATE_SCALE = 1.00f;
+	private static final float RECENT_ACRO_GAMEPAD_AXIS_RISE_PER_TICK = 0.25f;
+	private static final float RECENT_ACRO_GAMEPAD_AXIS_FALL_PER_TICK = 0.55f;
 	private static final float MAX_STICK_CENTER_OFFSET = 0.45f;
 	private static final float DEFAULT_CAMERA_TILT_DEGREES = 16.0f;
 	private static final float DEFAULT_CAMERA_FORWARD_OFFSET_METERS = 1.20f;
@@ -690,6 +695,12 @@ public final class DroneClientConfig {
 				PREVIOUS_ACRO_GAMEPAD_YAW_RATE_SCALE,
 				PREVIOUS_ACRO_GAMEPAD_AXIS_RISE_PER_TICK,
 				PREVIOUS_ACRO_GAMEPAD_AXIS_FALL_PER_TICK
+		) || matchesGamepadFeel(
+				RECENT_ACRO_GAMEPAD_EXPO,
+				RECENT_ACRO_GAMEPAD_ROLL_PITCH_RATE_SCALE,
+				RECENT_ACRO_GAMEPAD_YAW_RATE_SCALE,
+				RECENT_ACRO_GAMEPAD_AXIS_RISE_PER_TICK,
+				RECENT_ACRO_GAMEPAD_AXIS_FALL_PER_TICK
 		)) {
 			applyGamepadFeelPreset(ControlFeelPreset.ACRO);
 		}
@@ -800,7 +811,7 @@ public final class DroneClientConfig {
 	public enum ControlFeelPreset {
 		TRAINING("screen.fpvdrone.feel_training", 0.60f, 0.86f, 0.95f, 0.16f, 0.45f),
 		SPORT("screen.fpvdrone.feel_sport", 0.48f, 1.00f, 1.00f, 0.22f, 0.50f),
-		ACRO("screen.fpvdrone.feel_acro", 0.70f, 1.00f, 1.00f, 0.25f, 0.55f),
+		ACRO("screen.fpvdrone.feel_acro", 0.52f, 1.00f, 1.00f, 0.34f, 0.70f),
 		CUSTOM("screen.fpvdrone.feel_custom", Float.NaN, Float.NaN, Float.NaN, Float.NaN, Float.NaN);
 
 		private static final ControlFeelPreset[] SELECTABLE = { TRAINING, SPORT, ACRO };

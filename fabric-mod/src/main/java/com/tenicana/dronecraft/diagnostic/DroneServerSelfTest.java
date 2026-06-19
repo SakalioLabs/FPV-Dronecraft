@@ -48,13 +48,13 @@ public final class DroneServerSelfTest {
 	private static final String SELF_TEST_PRESET = "racing_quad";
 	private static final double SELF_TEST_SPAWN_CLEARANCE_METERS = 0.14;
 	private static final int SELF_TEST_PLATFORM_Y = 95;
-	private static final int SELF_TEST_PLATFORM_RADIUS_BLOCKS = 4;
+	private static final int SELF_TEST_PLATFORM_RADIUS_BLOCKS = 16;
 	private static final int PLAYABLE_NEUTRAL_MIN_SAMPLES = 20;
 	private static final double PLAYABLE_NEUTRAL_MAX_VISUAL_ATTITUDE_DEGREES = 1.5;
 	private static final double PLAYABLE_NEUTRAL_MAX_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 0.35;
 	private static final double PLAYABLE_ACRO_MIN_VISUAL_ATTITUDE_DEGREES = 8.0;
 	private static final double PLAYABLE_ACRO_MIN_VISUAL_YAW_RATE_DEGREES_PER_SECOND = 8.0;
-	private static final double PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES = 18.0;
+	private static final double PLAYABLE_ACRO_MAX_CENTERED_ATTITUDE_DEGREES = 70.0;
 	private static final double PLAYABLE_MAX_AVERAGE_MOTOR_RPM_TELEMETRY = 11000.0;
 	private static final double PLAYABLE_ASSISTED_MAX_FINAL_HORIZONTAL_DISTANCE_METERS = 0.80;
 	private static final double PLAYABLE_MAX_FINAL_SPEED_METERS_PER_SECOND = 0.08;
