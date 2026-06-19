@@ -132,7 +132,7 @@ class PlayableFlightModelTest {
 				PlayableFlightModel.State.ZERO
 		);
 
-		assertTrue(step.targetVelocityZ() < -0.08f);
+		assertTrue(step.targetVelocityZ() > 0.08f);
 		assertTrue(step.targetVelocityX() < -0.07f);
 		assertTrue(step.pitchRadians() <= Math.toRadians(4.0));
 		assertTrue(step.rollRadians() >= -Math.toRadians(4.0));
@@ -141,7 +141,7 @@ class PlayableFlightModelTest {
 		assertTrue(step.averageRpm() < 9000.0f);
 
 		PlayableFlightModel.Step held = holdStick(FlightMode.HORIZON, 12, 0.45f, 0.50f, -0.40f, 0.25f);
-		assertTrue(held.targetVelocityZ() < -1.80f);
+		assertTrue(held.targetVelocityZ() > 1.80f);
 		assertTrue(held.targetVelocityX() < -1.20f);
 		assertTrue(held.pitchRadians() > Math.toRadians(8.0));
 		assertTrue(held.rollRadians() < -Math.toRadians(6.5));
@@ -516,8 +516,8 @@ class PlayableFlightModelTest {
 
 		assertTrue(step.targetVelocityY() > 0.60f);
 		assertTrue(step.velocityY() > 0.35f);
-		assertTrue(step.targetVelocityZ() < -0.25f);
-		assertTrue(step.velocityZ() < -0.10f);
+		assertTrue(step.targetVelocityZ() > 0.25f);
+		assertTrue(step.velocityZ() > 0.10f);
 	}
 
 	@Test
@@ -691,32 +691,32 @@ class PlayableFlightModelTest {
 
 	@Test
 	void yawRelativeVelocityMappingKeepsPitchAndRollAlignedWithDroneHeading() {
-		PlayableFlightModel.Velocity forwardYaw0 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, -1.0f, 0.0f);
-		PlayableFlightModel.Velocity forwardYaw90 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, -1.0f, 90.0f);
+		PlayableFlightModel.Velocity forwardYaw0 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, 1.0f, 0.0f);
+		PlayableFlightModel.Velocity forwardYaw90 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, 1.0f, 90.0f);
 		PlayableFlightModel.Velocity rightYaw90 = PlayableFlightModel.worldVelocityForYaw(1.0f, 0.0f, 0.0f, 90.0f);
-		PlayableFlightModel.Velocity forwardYaw180 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, -1.0f, 180.0f);
+		PlayableFlightModel.Velocity forwardYaw180 = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.25f, 1.0f, 180.0f);
 
 		assertEquals(0.0f, forwardYaw0.x(), 1.0e-5f);
 		assertEquals(0.25f, forwardYaw0.y(), 1.0e-5f);
-		assertEquals(-1.0f, forwardYaw0.z(), 1.0e-5f);
-		assertEquals(1.0f, forwardYaw90.x(), 1.0e-5f);
+		assertEquals(1.0f, forwardYaw0.z(), 1.0e-5f);
+		assertEquals(-1.0f, forwardYaw90.x(), 1.0e-5f);
 		assertEquals(0.25f, forwardYaw90.y(), 1.0e-5f);
 		assertEquals(0.0f, forwardYaw90.z(), 1.0e-5f);
 		assertEquals(0.0f, rightYaw90.x(), 1.0e-5f);
 		assertEquals(1.0f, rightYaw90.z(), 1.0e-5f);
 		assertEquals(0.0f, forwardYaw180.x(), 1.0e-5f);
 		assertEquals(0.25f, forwardYaw180.y(), 1.0e-5f);
-		assertEquals(1.0f, forwardYaw180.z(), 1.0e-5f);
+		assertEquals(-1.0f, forwardYaw180.z(), 1.0e-5f);
 	}
 
 	@Test
 	void yawRelativeVelocityMappingRoundTripsCollisionAdjustedWorldVelocity() {
-		PlayableFlightModel.Velocity world = PlayableFlightModel.worldVelocityForYaw(0.35f, -0.20f, -0.80f, 135.0f);
+		PlayableFlightModel.Velocity world = PlayableFlightModel.worldVelocityForYaw(0.35f, -0.20f, 0.80f, 135.0f);
 		PlayableFlightModel.Velocity local = PlayableFlightModel.localVelocityForYaw(world.x(), world.y(), world.z(), 135.0f);
 
 		assertEquals(0.35f, local.x(), 1.0e-5f);
 		assertEquals(-0.20f, local.y(), 1.0e-5f);
-		assertEquals(-0.80f, local.z(), 1.0e-5f);
+		assertEquals(0.80f, local.z(), 1.0e-5f);
 	}
 
 	@Test
@@ -819,7 +819,7 @@ class PlayableFlightModelTest {
 		assertTrue(held.rollRadians() < -Math.toRadians(34.0));
 		assertEquals(held.pitchRadians(), released.pitchRadians(), 1.0e-6f);
 		assertEquals(held.rollRadians(), released.rollRadians(), 1.0e-6f);
-		assertTrue(released.targetVelocityZ() < -6.0f);
+		assertTrue(released.targetVelocityZ() > 6.0f);
 	}
 
 	@Test

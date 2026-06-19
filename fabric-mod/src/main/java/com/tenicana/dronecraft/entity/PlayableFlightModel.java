@@ -93,7 +93,7 @@ final class PlayableFlightModel {
 		float targetVelocityX = horizontalVelocityCommand(rollRadians, profile.maxRollRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
-		float targetVelocityZ = -horizontalVelocityCommand(pitchRadians, profile.maxPitchRadians(), profile)
+		float targetVelocityZ = horizontalVelocityCommand(pitchRadians, profile.maxPitchRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
 		float targetVelocityY = verticalVelocity(safeThrottle, safeHover, profile);
