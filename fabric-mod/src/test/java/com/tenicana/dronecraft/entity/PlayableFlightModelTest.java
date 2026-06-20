@@ -2210,6 +2210,55 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroYawTurnLoadOnlyAppearsAtHighSpeedYawRate() {
+		PlayableFlightModel.Velocity noYaw = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f
+		);
+		PlayableFlightModel.Velocity lowSpeed = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(5.0f, 0.0f, 0.0f),
+				5.0f
+		);
+		PlayableFlightModel.Velocity slowYaw = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f
+		);
+
+		assertEquals(0.0f, noYaw.x(), 1.0e-6f);
+		assertEquals(0.0f, noYaw.z(), 1.0e-6f);
+		assertEquals(0.0f, lowSpeed.x(), 1.0e-6f);
+		assertEquals(0.0f, lowSpeed.z(), 1.0e-6f);
+		assertEquals(0.0f, slowYaw.x(), 1.0e-6f);
+		assertEquals(0.0f, slowYaw.z(), 1.0e-6f);
+	}
+
+	@Test
+	void acroYawTurnLoadAddsEnergyCostToFastDiagonalTurns() {
+		PlayableFlightModel.Velocity straight = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				5.0f
+		);
+		PlayableFlightModel.Velocity diagonal = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				5.0f
+		);
+		float straightMagnitude = horizontalSpeed(straight.x(), straight.z());
+		float diagonalMagnitude = horizontalSpeed(diagonal.x(), diagonal.z());
+		float workAlongVelocity = diagonal.x() * 16.0f + diagonal.z() * 16.0f;
+
+		assertEquals(0.0f, straight.x(), 1.0e-6f);
+		assertTrue(straight.z() < -0.55f, "straightZ=" + straight.z());
+		assertTrue(straight.z() > -0.85f, "straightZ=" + straight.z());
+		assertTrue(diagonal.x() < -0.65f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -1.10f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -0.65f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -1.10f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonalMagnitude > straightMagnitude * 1.30f,
+				"diagonalMagnitude=" + diagonalMagnitude + " straightMagnitude=" + straightMagnitude);
+		assertTrue(workAlongVelocity < -20.0f, "workAlongVelocity=" + workAlongVelocity);
+	}
+
+	@Test
 	void acroDiagonalHighSpeedFlowGetsExtraSeparatedDragAndSideforce() {
 		PlayableFlightModel.Velocity forward = PlayableFlightModel.acroBodyAerodynamicAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
