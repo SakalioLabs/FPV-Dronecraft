@@ -3203,6 +3203,53 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawBodyRateLoadWithoutHidingPitchAoa() {
+		PlayableFlightModel.Velocity freshYaw = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledYaw = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity freshPitch = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledPitch = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				1.0f,
+				1.0f
+		);
+		float freshYawMagnitude = horizontalSpeed(freshYaw.x(), freshYaw.z());
+		float settledYawMagnitude = horizontalSpeed(settledYaw.x(), settledYaw.z());
+
+		assertTrue(freshYawMagnitude < settledYawMagnitude * 0.62f,
+				"freshYaw=" + freshYawMagnitude + " settledYaw=" + settledYawMagnitude);
+		assertTrue(freshYawMagnitude > settledYawMagnitude * 0.48f,
+				"freshYaw=" + freshYawMagnitude + " settledYaw=" + settledYawMagnitude);
+		assertTrue(settledYawMagnitude > 0.35f, "settledYaw=" + settledYawMagnitude);
+		assertEquals(settledPitch.x(), freshPitch.x(), 1.0e-6f);
+		assertEquals(settledPitch.y(), freshPitch.y(), 1.0e-6f);
+		assertEquals(settledPitch.z(), freshPitch.z(), 1.0e-6f);
+	}
+
+	@Test
 	void acroPitchPlaneLiftIsZeroInStraightCruise() {
 		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),

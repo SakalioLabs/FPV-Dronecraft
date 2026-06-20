@@ -1617,7 +1617,7 @@ final class PlayableFlightModel {
 		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity translationalLiftDragBodyAcceleration = acroTranslationalLiftDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
 		Velocity yawTurnLoadBodyAcceleration = acroYawTurnLoadBodyAcceleration(bodyVelocity, yawDegreesPerTick, acroAeroCrossflowLag);
-		Velocity bodyRateLoadBodyAcceleration = acroBodyRateLoadBodyAcceleration(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, yawDegreesPerTick, acroAeroCrossflowLag);
+		Velocity bodyRateLoadBodyAcceleration = acroBodyRateLoadBodyAcceleration(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, yawDegreesPerTick, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity thrustTurnLoadAcceleration = acroThrustVectorTurnLoadAcceleration(
 				previousVelocityX,
 				previousVelocityZ,
@@ -2481,6 +2481,17 @@ final class PlayableFlightModel {
 			float yawDegreesPerTick,
 			float acroAeroCrossflowLag
 	) {
+		return acroBodyRateLoadBodyAcceleration(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, yawDegreesPerTick, acroAeroCrossflowLag, acroAeroCrossflowLag);
+	}
+
+	static Velocity acroBodyRateLoadBodyAcceleration(
+			Velocity bodyVelocity,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick,
+			float yawDegreesPerTick,
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory
+	) {
 		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
 				+ bodyVelocity.y() * bodyVelocity.y()
 				+ bodyVelocity.z() * bodyVelocity.z();
@@ -2528,9 +2539,13 @@ final class PlayableFlightModel {
 				/ Math.max(0.001f, ACRO_BODY_RATE_LOAD_CROSSFLOW_FULL_RADIANS - ACRO_BODY_RATE_LOAD_CROSSFLOW_START_RADIANS));
 		float angleOfAttackExposure = smoothStep((angleOfAttack - ACRO_BODY_RATE_LOAD_CROSSFLOW_START_RADIANS)
 				/ Math.max(0.001f, ACRO_BODY_RATE_LOAD_CROSSFLOW_FULL_RADIANS - ACRO_BODY_RATE_LOAD_CROSSFLOW_START_RADIANS));
+		float lag = sanitizedCrossflowLag(acroAeroCrossflowLag);
 		float crossflowWeight = ACRO_BODY_RATE_LOAD_STRAIGHT_FLOW_WEIGHT
 				+ (1.0f - ACRO_BODY_RATE_LOAD_STRAIGHT_FLOW_WEIGHT)
-				* laggedCrossflowExposure(Math.max(sideslipExposure, angleOfAttackExposure), acroAeroCrossflowLag);
+				* Math.max(
+						clamp(sideslipExposure, 0.0f, 1.0f) * acroSidewashForceResponse(lag, acroSidewashMemory),
+						clamp(angleOfAttackExposure, 0.0f, 1.0f) * lag
+				);
 		float loadMagnitude = clamp(
 				apparentAcceleration
 						* ACRO_BODY_RATE_LOAD_ACCELERATION_GAIN
