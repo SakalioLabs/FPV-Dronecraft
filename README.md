@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 斜向桨盘 flapping 加强）
+本轮继续处理“斜向飞行像平移、不像真实穿越机”的手感问题。复核当前资料包后，最有价值的线索集中在 5 寸桨的前飞/横向来流：UIUC/IMAV/Kolaei/STARMAC 都指向同一个方向，即 FPV 速度区间里桨盘不会保持理想静态推力，横向穿盘会带来更明显的 flapping、H-force、推力 rolloff 和气动负载。
+- `PlayableFlightModel` 现在把 ACRO playable 层的 rotor flapping 从 `0.055` 提到 `0.075`，让 `16m/s right + 16m/s forward` 这种高速斜向横流更明显地产生反向桨盘偏转加速度，机体不再那么像在屏幕平面里被平移。
+- 为了保护已经调好的速度感和惯性距离，直线流基线权重从 `0.38` 降到 `0.28`。这样 `25m/s` 直线巡航的 flapping 基线基本不变，主要增强的是明显 sideslip/diagonal disk flow，而不是把正常前飞变成硬刹车。
+- 依据来自本仓库资料包：`docs/fpv-sim-model-validation.md` 记录 STARMAC II flapping 尺度检查，`docs/fpv-sim-data-sources.md` 记录 UIUC/IMAV/Kolaei 的 `J/mu` 与前飞桨盘趋势。这里仍是 playable 近似，不直接把大桨或非 5 寸曲线硬套到游戏手感上。
+- 回归测试已更新：powered diagonal disk flow 的 flapping 反向加速度从约 `0.4m/s^2` 级提高到约 `0.6m/s^2` 级；直线 `25m/s` 巡航 flapping 仍保持原区间，diagonal/straight 权重比提高到 `>3.0x`，避免斜飞继续像无代价侧移。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮自测因 25565 被占用临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-202645.json`。
+
 ## 最新进展（2026-06-20，ACRO 整圈 roll 后恢复窗口）
 本轮继续修你反馈的“翻转一周之后持续侧飞、无法回正”。前几轮已经把完整 roll 释放那一帧捕获到水平姿态，并把 body-right 侧滑压到很小；这次定位到实机手感里更明显的问题：捕获只在单帧生效，实体状态没有记住“刚完成一圈 roll”，所以后续数帧如果还有离散积分/输入滤波尾巴，侧滑可能重新显得像被锁住。
 - `PlayableFlightModel` 现在在完整 roll 捕获后开启一个短的 ACRO roll recovery window。窗口期间，只有当 roll 摇杆仍处于释放/回中尾段、机体姿态已经接近水平时，才继续把 body-right 残留侧滑压到约 `0.075m/s` 级别；一旦玩家主动打 roll，窗口立即取消，保留连续翻滚、刀锋和 rate mode 权限。

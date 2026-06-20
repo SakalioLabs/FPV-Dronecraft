@@ -132,10 +132,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_RADIUS_METERS = ACRO_PROP_DIAMETER_METERS * 0.5f;
 	private static final float ACRO_ROTOR_REFERENCE_MAX_RPM = 29137.0f;
 	private static final float ACRO_ROTOR_DISK_DRAG_COEFFICIENT = 0.0028f;
-	private static final float ACRO_ROTOR_FLAPPING_COEFFICIENT = 0.055f;
+	private static final float ACRO_ROTOR_FLAPPING_COEFFICIENT = 0.075f;
 	private static final float ACRO_ROTOR_FLAPPING_FULL_MU = 0.095f;
 	private static final float ACRO_ROTOR_FLAPPING_MAX_TILT_RADIANS = (float) Math.toRadians(18.0f);
-	private static final float ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT = 0.38f;
+	private static final float ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT = 0.28f;
 	private static final float ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS = (float) Math.toRadians(10.0f);
 	private static final float ACRO_ROTOR_FLAPPING_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_ROTOR_IN_PLANE_MAX_ACCELERATION = 5.0f;
