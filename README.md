@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 5 寸桨前进比推力 rolloff）
+本轮继续处理“斜向飞行像平移、不像真机”的手感问题。上一轮把高速惯性距离拉长后，这轮转到推力本身：资料包里 `docs/fpv-sim-model-validation.md` 反复提示 UIUC/IMAV/Mejzlik 等前飞资料显示，5 寸桨在 `J≈0.45` 附近已经出现明显 CT rolloff；旧 playable 模型在这个区域仍接近理想静态推力，容易让斜向/高速穿盘像几何推进器。
+- `PlayableFlightModel` 现在把 playable ACRO 的高前进比损失起点从 `J=0.25` 提前到 `J=0.18`，full 区间从 `J=1.00` 提前到 `J=0.82`。前向最大推力损失从 `20%` 提到 `30%`，明显侧向/斜向穿盘最大损失从 `36%` 提到 `42%`。
+- 这不是砍掉速度：`acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap` 仍验证 25m/s 巡航可以达到；调整重点是让 `12.5m/s`、`J≈0.45` 的前飞开始有约 `0.86..0.91` 的有效推力比例，并让 `25m/s` 纯侧向穿盘落到约 `0.55..0.62`，斜向穿盘也明显弱于鼻头前压的前飞。
+- 新增/更新回归测试覆盖：低速 `5m/s` 不削推力；`J≈0.45` 前飞必须有可见 rolloff；高速横向、斜向和鼻头前压前飞三者的推力损失顺序保持正确，避免再次退回“任意方向都像理想推力矢量”的平移感。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮自测因 25565 被占用临时使用 25566，结束后已恢复 25565；当前系统默认 Java 25 会在 Fabric bootstrap 触发 ASM 异常，已用便携 JDK 21 完成验证；报告为 `server-selftest-playable-20260620-210013.json`。
+
 ## 最新进展（2026-06-20，ACRO 高速惯性距离降阻）
 本轮继续处理“速度够了但斜向飞行仍像平移、真机惯性不够”的核心手感问题。复核资料包后，`docs/fpv-sim-model-validation.md` 和 `docs/fpv-sim-targeted-calibration-gap-hunt.md` 都指向同一处风险：当前阻力/阻尼若按物理解释，明显高于 IMAV/RPG/RotorPy/NASA/RATM 等参考，会把高速 coastdown 距离压得太短，手感像被游戏刹车粘住。
 - `PlayableFlightModel` 现在把 playable ACRO 的 forward linear drag 从 `0.18/s` 降到 `0.12/s`，lateral linear drag 从 `0.24/s` 降到 `0.16/s`。二次 CdA、侧滑 sideforce、induced drag、rotor flapping、in-plane H-force 和软超速阻尼都保留，所以不是取消空气阻力，而是先把“线性游戏刹车”降到更接近真实惯性的一档。

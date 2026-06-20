@@ -125,10 +125,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
 	private static final float ACRO_PROP_DIAMETER_METERS = 0.127f;
 	private static final float ACRO_ADVANCE_REFERENCE_MIN_RPM = 13000.0f;
-	private static final float ACRO_ADVANCE_LOSS_START_J = 0.25f;
-	private static final float ACRO_ADVANCE_LOSS_FULL_J = 1.00f;
-	private static final float ACRO_ADVANCE_MAX_THRUST_LOSS = 0.20f;
-	private static final float ACRO_ADVANCE_SIDEFLOW_MAX_THRUST_LOSS = 0.36f;
+	private static final float ACRO_ADVANCE_LOSS_START_J = 0.18f;
+	private static final float ACRO_ADVANCE_LOSS_FULL_J = 0.82f;
+	private static final float ACRO_ADVANCE_MAX_THRUST_LOSS = 0.30f;
+	private static final float ACRO_ADVANCE_SIDEFLOW_MAX_THRUST_LOSS = 0.42f;
 	private static final float ACRO_ADVANCE_SIDEFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
 	private static final float ACRO_ADVANCE_SIDEFLOW_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_ADVANCE_AXIAL_FLOW_WEIGHT = 0.18f;
