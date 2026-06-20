@@ -925,6 +925,66 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void debugFilteredFullRollReleaseDoesNotRemainInSideFlight() {
+		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
+		PlayableFlightModel.Step step = null;
+		float filteredRoll = 0.0f;
+		for (int i = 0; i < 50; i++) {
+			filteredRoll = PlayableDebugAxisFilter.filter(
+					filteredRoll,
+					1.0f,
+					PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING,
+					PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING,
+					true
+			);
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.50f,
+					0.0f,
+					filteredRoll,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			state = stateFrom(step);
+		}
+
+		for (int i = 0; i < 18; i++) {
+			filteredRoll = PlayableDebugAxisFilter.filter(
+					filteredRoll,
+					0.0f,
+					PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING,
+					PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING,
+					true
+			);
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.50f,
+					0.0f,
+					filteredRoll,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			state = stateFrom(step);
+		}
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
+
+		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertEquals(0.0f, step.targetVelocityX(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f, "bodySideVelocity=" + bodyVelocity.x());
+	}
+
+	@Test
 	void completedAcroRollDoesNotKeepCreatingSidewaysTarget() {
 		PlayableFlightModel.Step completedRoll = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -1390,6 +1450,87 @@ class PlayableFlightModelTest {
 		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
 		assertEquals(0, activeRoll.acroRollRecoveryTicksRemaining());
 		assertTrue(activeRoll.rollRadians() > Math.toRadians(3.0), "activeRollDeg=" + Math.toDegrees(activeRoll.rollRadians()));
+	}
+
+	@Test
+	void releasedFullRollInvertedDeadbandStillCompletesInsteadOfHoldingSideFlight() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				12.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(540.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(0.8)
+		);
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				released.velocityX(),
+				released.velocityY(),
+				released.velocityZ(),
+				released.pitchRadians(),
+				released.rollRadians()
+		);
+
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
+	void completedRollRecoverySuppressesPassiveTransverseMomentFromResidualSlip() {
+		PlayableFlightModel.State recovering = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(0.6),
+				8
+		);
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				recovering
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
+
+		assertEquals(0.0f, step.rollRadians(), 1.0e-6f);
+		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(step.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + step.acroRollRecoveryTicksRemaining());
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.10f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 12.0f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
 	@Test

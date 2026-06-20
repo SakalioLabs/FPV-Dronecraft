@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 整圈 roll 后侧飞复发修复）
+本轮针对“尝试翻转一周之后会持续侧飞、无法回正”的复发点继续收敛。前面已经能在整圈 roll 释放时捕获到水平并清理 body-right 侧滑，但还有两个漏口：一是 `540deg` 附近的完整 roll 释放死区仍可能不被当作动作结束；二是完整 roll 恢复窗口里，残余高速侧滑会触发 transverse-flow 被动 roll moment，把刚捕获到水平的机体又轻微带出 roll rate。
+- `PlayableFlightModel` 现在把完整旋转释放捕获窗口扩到精确半圈残差，避免完成一圈后因为惯性/滤波刚好停在旧 `170deg` 边界外而继续保留侧飞姿态。
+- 完整 roll recovery window 期间，如果 roll 摇杆仍处于释放尾巴且姿态接近水平，会临时压住残余 roll rate 和被动横流 roll 力矩，让恢复窗口真正结束，不再被空气动力近似项每帧重新推回侧飞。
+- 这不是 ACRO 自稳：只有“已经完成至少一整圈 roll 且处于松杆/滤波释放尾段”的恢复窗口触发；主动 roll 输入仍会立即取消恢复窗口，连续翻滚、刀锋、倒飞保持 rate mode 语义。
+- 新增回归测试覆盖：服务端实际 `PlayableDebugAxisFilter` 的满 roll 后松杆尾巴；`540deg roll + 残余 roll rate` 的旧死区；以及恢复窗口遇到 `16m/s right + 16m/s forward` 残余侧滑时不会再次生成 roll rate。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-213048.json`。
+
 ## 最新进展（2026-06-20，目视机头方向与 pitch 符号再修正）
 本轮先修一个会干扰目视飞行判断的视觉问题：之前虽然有“目视 pitch 修复”的测试，但测试辅助常量把模型局部 `-Z` 当作机头；实际模型的机头/相机凸起在局部 `+Z`，所以正 pitch 前飞时，真实可见机头仍可能表现成抬头。
 - `DroneEntityModel` 现在把模型前向语义统一到机头凸起所在的 `+Z`，并让 `bodyPitchRotationRadians` 直接使用 playable 正 pitch。这样物理正 pitch / 向前飞在目视视角中重新显示为机头下压。

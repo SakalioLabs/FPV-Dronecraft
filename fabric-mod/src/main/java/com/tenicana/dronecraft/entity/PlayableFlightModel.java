@@ -54,7 +54,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_COMMAND = 0.360f;
 	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS = (float) Math.toRadians(275.0f);
 	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_RATE_DELTA_RADIANS = (float) Math.toRadians(0.80f);
-	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(170.0f);
+	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.PI;
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
 	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.28f;
 	private static final int ACRO_COMPLETED_ROLL_RECOVERY_TICKS = 12;
@@ -629,6 +629,7 @@ final class PlayableFlightModel {
 		if (safeMode(mode) != FlightMode.ACRO) {
 			return AcroRateResponse.ZERO;
 		}
+		boolean completedRollRecoveryTail = isCompletedAcroRollRecoveryTail(mode, previous, roll);
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(
 				previous.velocityX(),
 				previous.velocityY(),
@@ -646,11 +647,22 @@ final class PlayableFlightModel {
 				bodyVelocity,
 				false
 		);
-		rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll);
+		if (completedRollRecoveryTail) {
+			rollRate = 0.0f;
+		} else {
+			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll);
+		}
 		return new AcroRateResponse(
 				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
 				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
 		);
+	}
+
+	private static boolean isCompletedAcroRollRecoveryTail(FlightMode mode, State previous, float rollCommand) {
+		return safeMode(mode) == FlightMode.ACRO
+				&& previous.acroRollRecoveryTicksRemaining() > 0
+				&& Math.abs(rollCommand) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND
+				&& Math.abs(signedRotationResidualRadians(previous.rollRadians())) <= ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS;
 	}
 
 	static float acroAerodynamicRateDamped(float rateRadiansPerTick, Velocity bodyVelocity, boolean pitchAxis) {
