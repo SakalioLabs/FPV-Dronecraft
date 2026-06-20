@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 整圈翻滚反向释放尾巴修复）
+本轮继续针对你反馈的“尝试翻转一周后持续侧飞、无法回正”收敛 playable ACRO。新的复盘点在于手柄和输入滤波的释放尾段：完成一整圈 roll 以后，摇杆回弹不一定总是同方向慢慢归零，实际经常会短暂出现一个反向小命令。旧逻辑把这个反向小尾巴当成玩家仍在主动保持姿态，导致整圈后的 60..150 度残余横滚没有被捕获，油门继续给出侧向推力，于是看起来像“翻完一圈后锁死侧飞”。
+- `PlayableFlightModel` 现在把“完成至少一整圈后的低幅摇杆命令”统一视为释放尾段：只要幅度低于释放阈值，就允许捕获到水平姿态并清掉残余 roll rate；明显主动的半杆/满杆仍然不会被捕获，刀锋、倒飞和持续翻滚的 ACRO rate 语义保持不变。
+- 完整 roll 捕获后仍会按机体系处理速度：body-right 方向的侧滑被压到可控范围，前向速度继续保留，所以它不是自动回正或粗暴清速，而是只清理动作结束帧的离散积分残留。
+- 新增回归测试覆盖 `428deg roll + 反向 -0.10 roll 尾巴 + 12m/s 横向速度 + 6m/s 前向速度`：释放后一帧必须捕获到 `0deg roll`、残余 roll rate 必须归零、横向 body slip 必须低于约 `1.12m/s`，同时前向速度保持在 `4.6m/s` 以上。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-194449.json`。
+
 ## 最新进展（2026-06-20，ACRO 横向来流弱偏航稳定）
 本轮继续朝“斜向飞行不要像平移贴图，而要像真实穿越机在空气里被横向来流咬住”的目标收敛。上一轮已经补了完整翻滚释放尾段；这轮定位到另一个手感缺口：原来的 playable ACRO 只有在 body-forward 为正时才产生 weathercock yaw，纯横向或近横向高速滑行时机头/速度矢量关系会冻结，玩家看到的就是“机体横着平移”。
 - `PlayableFlightModel` 现在保留已有前向 sideslip weathercock 逻辑，同时给 broadside/纯横向来流增加一条更弱的被动偏航路径。它只在 ACRO、横向速度足够大、主动 yaw 输入很小时出现；一旦玩家打 yaw，仍由主动 yaw 主导，不会偷走穿越机 rate mode 权限。

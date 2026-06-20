@@ -798,9 +798,8 @@ final class PlayableFlightModel {
 		if (Math.abs(command) <= PLAYABLE_AXIS_NOISE_EPSILON) {
 			return Math.abs(rotationResidual) <= releasedSnapRadians ? 0.0f : attitudeRadians;
 		}
-		boolean releasingPastCompletion = Math.abs(command) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND
-				&& Math.signum(command) == Math.signum(rotationResidual);
-		if (!releasingPastCompletion || Math.abs(rotationResidual) > releasedSnapRadians) {
+		boolean releaseTail = Math.abs(command) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND;
+		if (!releaseTail || Math.abs(rotationResidual) > releasedSnapRadians) {
 			return attitudeRadians;
 		}
 		return 0.0f;
