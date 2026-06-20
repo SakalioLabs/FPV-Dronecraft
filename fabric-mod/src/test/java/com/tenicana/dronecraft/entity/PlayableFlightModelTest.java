@@ -2190,6 +2190,50 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroTranslationalLiftDragCostsEnergyWhenLiftBoostAppears() {
+		PlayableFlightModel.Velocity stationary = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				12.5f,
+				0.68f,
+				0.20f
+		);
+		PlayableFlightModel.Velocity idleForward = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				12.5f,
+				0.0f,
+				0.20f
+		);
+		PlayableFlightModel.Velocity midForward = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				12.5f,
+				0.68f,
+				0.20f
+		);
+		PlayableFlightModel.Velocity diagonal = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				12.5f,
+				0.68f,
+				0.20f
+		);
+		float midForwardWork = midForward.z() * 12.5f;
+		float diagonalWork = diagonal.x() * 9.0f + diagonal.z() * 9.0f;
+
+		assertEquals(0.0f, stationary.x(), 1.0e-6f);
+		assertEquals(0.0f, stationary.z(), 1.0e-6f);
+		assertEquals(0.0f, idleForward.x(), 1.0e-6f);
+		assertEquals(0.0f, idleForward.z(), 1.0e-6f);
+		assertEquals(0.0f, midForward.x(), 1.0e-6f);
+		assertTrue(midForward.z() < -0.20f, "midForwardZ=" + midForward.z());
+		assertTrue(midForward.z() > -0.24f, "midForwardZ=" + midForward.z());
+		assertTrue(diagonal.x() < -0.045f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -0.045f, "diagonalZ=" + diagonal.z());
+		assertTrue(horizontalSpeed(diagonal.x(), diagonal.z()) < Math.abs(midForward.z()) * 0.50f,
+				"diagonal=" + horizontalSpeed(diagonal.x(), diagonal.z()) + " midForwardZ=" + midForward.z());
+		assertTrue(midForwardWork < -2.5f, "midForwardWork=" + midForwardWork);
+		assertTrue(diagonalWork < -0.8f, "diagonalWork=" + diagonalWork);
+	}
+
+	@Test
 	void acroAdvanceRatioUsesFiveInchPropJScale() {
 		float racingCruiseJ = PlayableFlightModel.acroRotorAdvanceRatio(
 				0.0f,

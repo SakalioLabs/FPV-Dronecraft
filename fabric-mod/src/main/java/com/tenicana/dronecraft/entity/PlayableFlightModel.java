@@ -209,6 +209,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_TRANSLATIONAL_LIFT_FADE_FULL_MU = 0.360f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_MAX_THRUST_GAIN = 0.055f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_SIDEFLOW_KEEP = 0.30f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_DRAG_GAIN = 0.32f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_DRAG_MAX_ACCELERATION = 0.75f;
 	private static final float ACRO_ROTOR_RADIUS_METERS = ACRO_PROP_DIAMETER_METERS * 0.5f;
 	private static final float ACRO_ROTOR_REFERENCE_MAX_RPM = 29137.0f;
 	private static final float ACRO_ROTOR_DISK_DRAG_COEFFICIENT = 0.0028f;
@@ -1381,6 +1383,7 @@ final class PlayableFlightModel {
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
 		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
 		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
+		Velocity translationalLiftDragBodyAcceleration = acroTranslationalLiftDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
 		Velocity yawTurnLoadBodyAcceleration = acroYawTurnLoadBodyAcceleration(bodyVelocity, yawDegreesPerTick);
 		Velocity bodyRateLoadBodyAcceleration = acroBodyRateLoadBodyAcceleration(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, yawDegreesPerTick);
 		Velocity thrustTurnLoadAcceleration = acroThrustVectorTurnLoadAcceleration(
@@ -1390,9 +1393,9 @@ final class PlayableFlightModel {
 				thrustAxis.z() * thrustAcceleration
 		);
 		Velocity rotorDiskAcceleration = yawLocalVelocityForAcroBody(
-				flappingBodyAcceleration.x() + inPlaneDragBodyAcceleration.x(),
-				flappingBodyAcceleration.y() + inPlaneDragBodyAcceleration.y(),
-				flappingBodyAcceleration.z() + inPlaneDragBodyAcceleration.z(),
+				flappingBodyAcceleration.x() + inPlaneDragBodyAcceleration.x() + translationalLiftDragBodyAcceleration.x(),
+				flappingBodyAcceleration.y() + inPlaneDragBodyAcceleration.y() + translationalLiftDragBodyAcceleration.y(),
+				flappingBodyAcceleration.z() + inPlaneDragBodyAcceleration.z() + translationalLiftDragBodyAcceleration.z(),
 				pitchRadians,
 				rollRadians
 		);
@@ -1573,6 +1576,35 @@ final class PlayableFlightModel {
 				* sideflowWeight
 				* rpmWeight;
 		return clamp(1.0f + gain, 1.0f, 1.0f + ACRO_TRANSLATIONAL_LIFT_MAX_THRUST_GAIN);
+	}
+
+	static Velocity acroTranslationalLiftDragBodyAcceleration(
+			Velocity bodyVelocity,
+			float thrustAcceleration,
+			float throttle,
+			float hoverThrottle
+	) {
+		float diskPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		if (diskPlaneSpeed <= 1.0e-6f || thrustAcceleration <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float thrustGain = acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle) - 1.0f;
+		if (thrustGain <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float accelerationMagnitude = clamp(
+				thrustAcceleration * thrustGain * ACRO_TRANSLATIONAL_LIFT_DRAG_GAIN,
+				0.0f,
+				ACRO_TRANSLATIONAL_LIFT_DRAG_MAX_ACCELERATION
+		);
+		if (accelerationMagnitude <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		return new Velocity(
+				-bodyVelocity.x() / diskPlaneSpeed * accelerationMagnitude,
+				0.0f,
+				-bodyVelocity.z() / diskPlaneSpeed * accelerationMagnitude
+		);
 	}
 
 	static Velocity acroRotorFlappingBodyAcceleration(

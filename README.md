@@ -1,11 +1,12 @@
 # FPV Dronecraft
 
-## 最新进展（2026-06-21，ACRO 旋翼平移升力增益）
+## 最新进展（2026-06-21，ACRO 旋翼平移升力与诱导阻力）
 本轮继续补真实穿越机手感里的“空气和桨盘在参与飞行”，不是再加速度倍率。RotorPy 的气动模型说明里把 translational lift/drag 列为高速/强机动时会变明显的旋翼气动项；结合 UIUC 小桨 advance-ratio 衰减和本仓库已有的 5 寸机 CdA/惯性锚点，这轮给 ACRO 可玩层加入一个很保守的有效推力增益：中等干净横向来流会让桨盘效率略升，但侧滑和高 advance ratio 会把它淡出。
 - `PlayableFlightModel` 新增 `acroTranslationalLiftThrustScale`，并把它乘进 ACRO 物理层有效推力。静止、低速、零油门不触发；`mu ~= 0.085..0.135` 的干净前向盘面流达到峰值，最大只给约 `5.5%` 推力增益；高 advance ratio 到 `mu ~= 0.36` 前逐步退回 `1.0`，避免覆盖 UIUC/forward-flow 的高速推力衰减。
+- 本轮进一步补上配套的 `acroTranslationalLiftDragBodyAcceleration`：ETL 不是白送推力，出现有效推力增益时会沿盘面来流方向加入很小的诱导阻力。当前标定下，`12.5m/s` 干净前向盘面流、`12.5m/s^2` 推力加速度时会产生约 `0.22m/s^2` 的前向阻力；斜向来流因 ETL 增益被压低，对应阻力也更小。
 - 侧滑不会被奖励成“平移”：同样速度下，`9m/s right + 9m/s forward` 的斜向来流增益明显低于 `12.5m/s` 直线前飞；`25m/s` 纯侧向横流只保留极弱增益。这样轻微前飞/巡航会有一点真机 ETL 的效率感，高速斜飞仍然主要由侧滑阻力、总动压耦合阻力、flapping、盘面阻力和动态入流决定。
-- 回归测试新增 `acroTranslationalLiftBoostsCleanMidSpeedFlowWithoutFlatteningSideSlip`，同时复测了 ACRO 巡航速度、高速斜向机体气动、25m/s coastdown、steep pitch 不变世界竖直爬升等边界，确保没有把前压机头又做回“推油门还往上飞”。
-- 已通过 targeted translational-lift/cruise/diagonal/coastdown 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-015729.json`。
+- 回归测试新增 `acroTranslationalLiftBoostsCleanMidSpeedFlowWithoutFlatteningSideSlip` 和 `acroTranslationalLiftDragCostsEnergyWhenLiftBoostAppears`，同时复测了 ACRO 巡航速度、高速斜向机体气动、25m/s coastdown、steep pitch 不变世界竖直爬升等边界，确保没有把前压机头又做回“推油门还往上飞”。
+- 已通过 targeted translational-lift/cruise/diagonal/coastdown 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-020259.json`。
 
 ## 最新进展（2026-06-21，ACRO 机体系总动压耦合阻力）
 本轮继续针对“斜向飞行像平移，不像真机在空气里咬着飞”的核心手感收敛。之前的 ACRO 已经有 1.10kg 级 5 寸机惯性、机体系 CdA、侧滑侧向力、旋翼盘阻力、flapping、动态入流和高转速双轴负载；这次补的是更基础的一层：机体阻力不能只看各轴自己的速度平方，高速斜飞时总空速本身也会抬高机体系每个暴露方向的动压。
