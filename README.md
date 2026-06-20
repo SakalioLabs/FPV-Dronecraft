@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，高速横滚释放预测与侧滑耦合收敛）
+本轮继续处理“尝试翻转一周之后会持续侧飞、无法回正”的复发反馈。新增复现发现：如果满 roll 后在约 `230..245deg` 的高速释放尾段松杆，旧模型还没有跨过 `250deg` 的 filtered-release 捕获阈值；虽然上一帧横滚率仍有 `8deg/tick+`，下一帧会停在约 `238deg` 的侧飞姿态，并留下 `6m/s+` 的局部侧向速度。
+
+- `PlayableFlightModel` 给 filtered release tail 增加了 `2 tick` 的角速度预测：只有当摇杆已经回中/处于释放尾巴，且上一帧角速度明显高于当前目标角速度时，才用这个极短预测判断是否进入完整 roll recovery。这样能吃掉“看起来已经翻完、实际只差一点”的侧飞边界；主动刀锋、低角速度停姿态和继续打 roll 仍不会被自动拉平。
+- 同步收紧高速斜飞的气动耦合：ACRO sideforce gain 从 `0.065` 提到 `0.092`，sideforce-induced drag 从 `0.42/1.35m/s^2` 提到 `0.50/1.60m/s^2`。它不是普通速度刹车，而是让 `16m/s right + 16m/s forward` 这种斜向来流更快洗掉横向分量，并付出可感但不过强的能量成本。
+- 新增回归测试 `filteredReleaseProjectedNearCompletedRollCapturesInsteadOfParkingSideways`：满 roll 26 tick 后松杆，要求进入 recovery window、roll rate 清零、body-right 侧向速度压回 `0.32m/s` 内；同时继续保留 `activeNearKnifeEdgeRollCommandDoesNotUseFilteredReleaseCapture`，防止主动刀锋被误吞。
+- 已通过 targeted ACRO 回归、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`。第一次自测在 `25565` 端口被占用时失败于 bind，随后临时改用 `25566` 通过，结束后已恢复 `25565`；报告为 `server-selftest-playable-20260620-235109.json`。
+
 ## 最新进展（2026-06-20，5 寸桨前飞/侧流推力滚降重标定）
 本轮继续处理“斜向飞行像平移、不像真机吃风”的手感问题。重新对照本仓库 `docs/fpv-sim-model-validation.md` 里的 UIUC 5 寸前飞拟合、RATM 高速窗口和 airframe drag calibration packet 后，发现 playable ACRO 的 advance-ratio 推力损失仍然太慷慨：旧测试允许 `12.5m/s` 巡航来流时仍保留约 `0.86..0.91` 的推力比例，而 UIUC 5 寸参考在等效 `J≈0.45` 附近的 CT/static CT 均值约 `0.55`。这会让高速侧飞/斜飞时桨盘几乎不吃风，视觉和操作上就容易像在平面里平移。
 

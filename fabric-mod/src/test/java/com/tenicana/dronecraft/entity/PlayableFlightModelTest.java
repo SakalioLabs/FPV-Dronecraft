@@ -1777,6 +1777,42 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void filteredReleaseProjectedNearCompletedRollCapturesInsteadOfParkingSideways() {
+		PlayableFlightModel.Step rolling = holdStick(FlightMode.ACRO, 26, 0.56f, 0.0f, 1.0f, 0.0f);
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.56f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(rolling)
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				released.velocityX(),
+				released.velocityY(),
+				released.velocityZ(),
+				released.pitchRadians(),
+				released.rollRadians()
+		);
+
+		assertTrue(rolling.rollRadians() > Math.toRadians(230.0), "rollingDeg=" + Math.toDegrees(rolling.rollRadians()));
+		assertTrue(rolling.rollRadians() < Math.toRadians(245.0), "rollingDeg=" + Math.toDegrees(rolling.rollRadians()));
+		assertTrue(rolling.acroRollRateRadiansPerTick() > Math.toRadians(8.0), "rollingRateDeg=" + Math.toDegrees(rolling.acroRollRateRadiansPerTick()));
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5,
+				"releasedRollDeg=" + Math.toDegrees(released.rollRadians())
+						+ " releasedRateDeg=" + Math.toDegrees(released.acroRollRateRadiansPerTick())
+						+ " recoveryTicks=" + released.acroRollRecoveryTicksRemaining()
+						+ " bodySideVelocity=" + bodyVelocity.x());
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(released.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + released.acroRollRecoveryTicksRemaining());
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f,
+				"bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
 		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -2296,8 +2332,10 @@ class PlayableFlightModelTest {
 		);
 		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
 
-		assertTrue(sideforce.x() < -0.25f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() < -0.32f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() > -0.42f, "sideforceX=" + sideforce.x());
 		assertTrue(sideforce.z() > 0.25f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.z() < 0.42f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
 	}
 
@@ -2330,12 +2368,14 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straightInducedDrag.x(), 1.0e-6f);
 		assertEquals(0.0f, straightInducedDrag.z(), 1.0e-6f);
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(diagonalInducedDrag.x() < -0.06f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.z() < -0.06f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(inducedDragMagnitude > 0.10f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(diagonalInducedDrag.x() < -0.12f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.x() > -0.18f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.z() < -0.12f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(diagonalInducedDrag.z() > -0.18f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(inducedDragMagnitude > 0.18f, "inducedDragMagnitude=" + inducedDragMagnitude);
 		assertTrue(inducedDragMagnitude < 0.24f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragWork < -2.0f, "inducedDragWork=" + inducedDragWork);
-		assertTrue(inducedDragWork > -5.5f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork < -3.8f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork > -5.2f, "inducedDragWork=" + inducedDragWork);
 	}
 
 	@Test
@@ -2451,9 +2491,11 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
 		assertTrue(forward.z() < -6.4f, "forwardZ=" + forward.z());
 		assertTrue(forward.z() > -7.2f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -5.9f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -3.6f, "diagonalZ=" + diagonal.z());
-		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 2.2f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.x() < -7.1f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -7.8f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -3.45f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -3.90f, "diagonalZ=" + diagonal.z());
+		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
 
 	@Test
@@ -2508,9 +2550,9 @@ class PlayableFlightModelTest {
 
 		assertTrue(forwardCoast.velocityZ() > 18.5f, "forwardCoastZ=" + forwardCoast.velocityZ());
 		assertTrue(forwardCoast.velocityZ() < 23.5f, "forwardCoastZ=" + forwardCoast.velocityZ());
-		assertTrue(diagonalSpeed > 14.0f, "diagonalSpeed=" + diagonalSpeed);
-		assertTrue(diagonalSpeed < 20.5f, "diagonalSpeed=" + diagonalSpeed);
-		assertTrue(Math.abs(diagonalCoast.velocityX()) < Math.abs(diagonalCoast.velocityZ()) * 0.90f,
+		assertTrue(diagonalSpeed > 15.5f, "diagonalSpeed=" + diagonalSpeed);
+		assertTrue(diagonalSpeed < 18.5f, "diagonalSpeed=" + diagonalSpeed);
+		assertTrue(Math.abs(diagonalCoast.velocityX()) < Math.abs(diagonalCoast.velocityZ()) * 0.84f,
 				"diagonalX=" + diagonalCoast.velocityX() + " diagonalZ=" + diagonalCoast.velocityZ());
 	}
 
