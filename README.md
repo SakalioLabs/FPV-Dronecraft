@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 横向线性阻尼降档，保留 broadside 惯性）
+这一轮继续围绕“斜向飞行不要像被平面刹住”的问题做标定。先对照资料包和当前 playable 数值：前向 `20 -> 5m/s` coastdown 现在约 `8.5s / 85.9m`，已经接近资料里 IMAV 质量匹配参考的 `7.6s / 82.2m`，所以前向惯性不是主短板；更可疑的是纯横向/大侧滑，旧 playable `20 -> 5m/s` 只有约 `2.8s / 28.3m`，body-right 分量容易被横向线性阻尼过早吃掉。
+- `ACRO_LATERAL_LINEAR_DRAG_PER_SECOND` 从 `0.19/s` 降到 `0.14/s`，与垂向线性阻尼同档。横向 CdA、分离流、侧滑侧力、侧滑诱导阻力和 sidewash memory 都保留，所以这不是取消横向空气阻力，而是先移除一截更像“游戏刹车”的线性耗能。
+- 新增 `acroBroadsideCoastKeepsInertiaWithoutBecomingFreeSideSlide` 回归：`20m/s` 纯横向释放后，`1s` 速度保持在约 `11.2..12.2m/s`，`2s` 仍有 `7.0..7.8m/s`，降到 `5m/s` 需要 `2.85..3.25s`、距离 `29..32m`；同时仍要求它不能变成无阻力横移。
+- 斜向 `16m/s right + 16m/s forward` 的 2 秒释放仍会从横滑弯回机头方向，body-right/body-forward 约 `0.65`，不是纯平移；静态斜飞阻力包线也同步收敛到新的 lateral damping。
+- 已通过 targeted coast/sidewash 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-060500.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧滑诱导阻力按侧洗平方建立）
 这一轮继续收敛“高速斜飞不要像平面平移，也不要刚切入就被硬刹”的手感。复查发现 `acroBodyAerodynamicAcceleration` 里的侧滑侧力已经按 `acroSidewashMemory` 延迟建立，但由侧力派生的 `acroSideslipInducedDragAcceleration` 仍用已经缩放后的侧力线性计算；也就是说 fresh sidewash 下侧力是约 `32%`，诱导阻力也会约 `32%` 建立。真实空气动力上这类由侧力带来的能量成本更接近随载荷平方增长，刚切入斜飞/翻滚后第一段不应该马上吃满平面刹车。
 - `acroBodyAerodynamicAcceleration` 现在先计算 settled 侧力，再按 `acroSidewashForceResponse(...)` 给实际侧力；诱导阻力改走新的三参数 `acroSideslipInducedDragAcceleration(bodyVelocity, settledSideforce, sidewashResponse)`，并按 `sidewashResponse^2` 建立。持续侧滑时结果与 settled/full-response 保持一致，fresh 侧滑时则保留更多横向惯性距离。

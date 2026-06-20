@@ -3902,8 +3902,8 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
 		assertTrue(forward.z() < -5.5f, "forwardZ=" + forward.z());
 		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -9.8f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.x() > -10.9f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() < -9.2f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -10.3f, "diagonalX=" + diagonal.x());
 		assertTrue(diagonal.z() < -2.45f, "diagonalZ=" + diagonal.z());
 		assertTrue(diagonal.z() > -3.20f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 6.8f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
@@ -3949,9 +3949,9 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(freshSlip.x()) < Math.abs(settledSlip.x()) * 0.90f,
 				"freshX=" + freshSlip.x() + " settledX=" + settledSlip.x());
-		assertTrue(Math.abs(freshSlip.x()) > Math.abs(settledSlip.x()) * 0.78f,
+		assertTrue(Math.abs(freshSlip.x()) > Math.abs(settledSlip.x()) * 0.75f,
 				"freshX=" + freshSlip.x() + " settledX=" + settledSlip.x());
-		assertTrue(settledSlip.x() < -9.8f, "settledX=" + settledSlip.x());
+		assertTrue(settledSlip.x() < -9.4f, "settledX=" + settledSlip.x());
 		assertEquals(pitchSettled.y(), pitchFresh.y(), 1.0e-6f);
 		assertEquals(pitchSettled.z(), pitchFresh.z(), 1.0e-6f);
 	}
@@ -4205,9 +4205,68 @@ class PlayableFlightModelTest {
 				"lateralAfterOneSecond=" + lateralAfterOneSecond + " forwardAfterOneSecond=" + forwardAfterOneSecond);
 		assertTrue(speedAfterTwoSeconds > 10.5f, "speedAfterTwoSeconds=" + speedAfterTwoSeconds);
 		assertTrue(trackDistanceMeters > 29.0f, "trackDistanceMeters=" + trackDistanceMeters);
-		assertTrue(Math.abs(lateralAfterTwoSeconds) < Math.abs(forwardAfterTwoSeconds) * 0.64f,
+		assertTrue(Math.abs(lateralAfterTwoSeconds) < Math.abs(forwardAfterTwoSeconds) * 0.68f,
 				"lateralAfterTwoSeconds=" + lateralAfterTwoSeconds + " forwardAfterTwoSeconds=" + forwardAfterTwoSeconds);
 		assertTrue(forwardAfterTwoSeconds > 9.0f, "forwardAfterTwoSeconds=" + forwardAfterTwoSeconds);
+	}
+
+	@Test
+	void acroBroadsideCoastKeepsInertiaWithoutBecomingFreeSideSlide() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				20.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step step = null;
+		float trackDistanceMeters = 0.0f;
+		float speedAfterOneSecond = Float.NaN;
+		float speedAfterTwoSeconds = Float.NaN;
+		float secondsToFiveMetersPerSecond = Float.NaN;
+		float distanceToFiveMetersPerSecond = Float.NaN;
+		for (int tick = 1; tick <= 80; tick++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.20f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			float speed = horizontalSpeed(step.velocityX(), step.velocityZ());
+			trackDistanceMeters += speed * 0.05f;
+			if (tick == 20) {
+				speedAfterOneSecond = speed;
+			}
+			if (tick == 40) {
+				speedAfterTwoSeconds = speed;
+			}
+			if (Float.isNaN(secondsToFiveMetersPerSecond) && speed <= 5.0f) {
+				secondsToFiveMetersPerSecond = tick * 0.05f;
+				distanceToFiveMetersPerSecond = trackDistanceMeters;
+				break;
+			}
+			state = stateFrom(step);
+		}
+
+		assertTrue(speedAfterOneSecond > 11.2f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterOneSecond < 12.2f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterTwoSeconds > 7.0f, "speedAfterTwoSeconds=" + speedAfterTwoSeconds);
+		assertTrue(speedAfterTwoSeconds < 7.8f, "speedAfterTwoSeconds=" + speedAfterTwoSeconds);
+		assertTrue(secondsToFiveMetersPerSecond > 2.85f, "secondsToFive=" + secondsToFiveMetersPerSecond);
+		assertTrue(secondsToFiveMetersPerSecond < 3.25f, "secondsToFive=" + secondsToFiveMetersPerSecond);
+		assertTrue(distanceToFiveMetersPerSecond > 29.0f, "distanceToFive=" + distanceToFiveMetersPerSecond);
+		assertTrue(distanceToFiveMetersPerSecond < 32.0f, "distanceToFive=" + distanceToFiveMetersPerSecond);
+		assertTrue(step != null && Math.abs(step.velocityZ()) < 1.0e-4f, "velocityZ=" + (step == null ? Float.NaN : step.velocityZ()));
 	}
 
 	@Test
