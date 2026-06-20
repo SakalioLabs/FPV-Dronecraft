@@ -3100,8 +3100,35 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, lowSpeedTurn.z(), 1.0e-6f);
 		assertEquals(0.0f, alignedFastThrust.z(), 1.0e-6f);
 		assertEquals(0.0f, fastTurn.x(), 1.0e-6f);
-		assertTrue(fastTurn.z() < -0.80f, "fastTurnZ=" + fastTurn.z());
-		assertTrue(fastTurn.z() > -0.98f, "fastTurnZ=" + fastTurn.z());
+		assertTrue(fastTurn.z() < -1.20f, "fastTurnZ=" + fastTurn.z());
+		assertTrue(fastTurn.z() > -1.36f, "fastTurnZ=" + fastTurn.z());
+	}
+
+	@Test
+	void acroThrustVectorTurnLoadMakesDiagonalSlipPayForChangingTrack() {
+		PlayableFlightModel.Velocity alignedDiagonal = PlayableFlightModel.acroThrustVectorTurnLoadAcceleration(
+				16.0f,
+				16.0f,
+				6.0f,
+				6.0f
+		);
+		PlayableFlightModel.Velocity sideThrustDiagonal = PlayableFlightModel.acroThrustVectorTurnLoadAcceleration(
+				16.0f,
+				16.0f,
+				8.0f,
+				0.0f
+		);
+		float loadMagnitude = horizontalSpeed(sideThrustDiagonal.x(), sideThrustDiagonal.z());
+		float workAlongVelocity = sideThrustDiagonal.x() * 16.0f + sideThrustDiagonal.z() * 16.0f;
+
+		assertEquals(0.0f, alignedDiagonal.x(), 1.0e-6f);
+		assertEquals(0.0f, alignedDiagonal.z(), 1.0e-6f);
+		assertTrue(sideThrustDiagonal.x() < -0.37f, "sideThrustDiagonalX=" + sideThrustDiagonal.x());
+		assertTrue(sideThrustDiagonal.x() > -0.52f, "sideThrustDiagonalX=" + sideThrustDiagonal.x());
+		assertEquals(sideThrustDiagonal.x(), sideThrustDiagonal.z(), 1.0e-6f);
+		assertTrue(loadMagnitude > 0.52f, "loadMagnitude=" + loadMagnitude);
+		assertTrue(loadMagnitude < 0.72f, "loadMagnitude=" + loadMagnitude);
+		assertTrue(workAlongVelocity < -11.5f, "workAlongVelocity=" + workAlongVelocity);
 	}
 
 	@Test

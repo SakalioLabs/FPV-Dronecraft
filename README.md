@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 推力矢量转弯负载）
+本轮继续收敛“斜向飞行像平移，而不是像真实穿越机带着质量和空气负载在转弯”的手感。复核 RotorPy、Faessler/RPG rotor-drag 模型和 TU Delft/OSU 高速多旋翼辨识资料后，这次不做全局加阻，也不做自动回正；重点放在高速时用推力矢量改变航迹所需付出的能量代价。
+- `PlayableFlightModel` 将 ACRO thrust-vector turn load 的 gain 从 `0.11` 提到 `0.16`，最大负载加速度从 `1.25m/s^2` 提到 `1.65m/s^2`。当推力水平分量和当前高速速度方向对齐时仍然没有额外负载；当 `25m/s` 前飞突然用侧向推力改航迹时，沿速度反向的能量损耗从约 `0.88m/s^2` 提到约 `1.28m/s^2`。
+- 新增 `acroThrustVectorTurnLoadMakesDiagonalSlipPayForChangingTrack`：锁住 `16m/s + 16m/s` 斜向惯性航迹里，如果推力方向仍沿航迹，不制造假阻力；如果用侧向推力改变航迹，会产生约 `0.52..0.72m/s^2` 的沿速度反向负载。这样斜飞仍有惯性，但高速下“硬拐/侧推”不再像无质量平移。
+- 这次改动和上一轮侧流 ETL 脏化、侧滑 sideforce 是互补关系：ETL 脏化减少错误升力，sideforce 弯流改变速度方向，turn load 则让改变航迹付出能量成本。三者都避免把 ACRO 做成自稳，目标是保留真实穿越机的惯性和速度，同时让斜向飞行更有重量感。
+- 已通过 targeted thrust-turn-load 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-032343.json`，ACRO playable 诊断通过，最大水平位移约 `16.17m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧流 ETL 脏化）
 本轮继续针对“翻滚/斜飞后一段时间持续侧飞、像平面平移而不是穿越机在空气里走线”的问题收敛。补充复核了 TU Delft 高速四旋翼辨识资料、OSU 多旋翼气动相互作用论文以及 FPV 竞速机架阻力经验资料：高速飞行里 sideslip/skew angle 不只是普通 Cd 阻力问题，干净前飞、斜向来流和纯侧流对桨盘/机架的作用不应该拿同一份 translational lift 增益。
 - `PlayableFlightModel` 将 ACRO translational lift 的侧流保留比例从 `0.30` 收紧到 `0.18`。干净前飞仍能获得中速 ETL 甜点，保留速度感；但 `9m/s right + 9m/s forward` 这类斜向侧滑不再白拿太多前飞升力，纯侧流只剩很小的脏 ETL 残余。
