@@ -119,6 +119,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_IN_PLANE_STRAIGHT_FLOW_WEIGHT = 0.10f;
 	private static final float ACRO_ROTOR_IN_PLANE_SIDESLIP_START_RADIANS = (float) Math.toRadians(12.0f);
 	private static final float ACRO_ROTOR_IN_PLANE_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(52.0f);
+	private static final float ACRO_OVERSPEED_SOFT_START_SCALE = 0.96f;
+	private static final float ACRO_OVERSPEED_LINEAR_DAMPING_PER_SECOND = 1.60f;
+	private static final float ACRO_OVERSPEED_QUADRATIC_DAMPING_PER_METER = 0.12f;
+	private static final float ACRO_OVERSPEED_HARD_LIMIT_SCALE = 1.45f;
 	private static final float ACRO_RATE_RISE_SMOOTHING = 0.62f;
 	private static final float ACRO_RATE_FALL_SMOOTHING = 0.74f;
 	private static final float ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK = (float) Math.toRadians(0.025f);
@@ -244,7 +248,7 @@ final class PlayableFlightModel {
 				velocityX,
 				0.0f,
 				velocityZ,
-				profile.horizontalSpeedLimitMetersPerSecond()
+				horizontalVelocityHardLimit(safeMode, profile)
 		);
 		velocityX = limitedHorizontalVelocity.x();
 		velocityY = clamp(velocityY, -VERTICAL_DESCENT_SPEED_LIMIT, VERTICAL_ASCENT_SPEED_LIMIT);
@@ -859,11 +863,34 @@ final class PlayableFlightModel {
 		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x() + rotorDiskAcceleration.x();
 		float accelerationY = thrustAxis.y() * thrustAcceleration - ACRO_GRAVITY_METERS_PER_SECOND_SQUARED + dragAcceleration.y() + rotorDiskAcceleration.y();
 		float accelerationZ = thrustAxis.z() * thrustAcceleration + dragAcceleration.z() + rotorDiskAcceleration.z();
+		Velocity overspeedAcceleration = acroOverspeedSoftBrakeAcceleration(
+				previousVelocityX,
+				previousVelocityZ,
+				profile.horizontalSpeedLimitMetersPerSecond()
+		);
+		accelerationX += overspeedAcceleration.x();
+		accelerationZ += overspeedAcceleration.z();
 		return limitHorizontalVector(
 				previousVelocityX + accelerationX * PLAYABLE_TICK_SECONDS,
 				previousVelocityY + accelerationY * PLAYABLE_TICK_SECONDS,
 				previousVelocityZ + accelerationZ * PLAYABLE_TICK_SECONDS,
-				profile.horizontalSpeedLimitMetersPerSecond()
+				acroHorizontalHardLimit(profile)
+		);
+	}
+
+	private static Velocity acroOverspeedSoftBrakeAcceleration(float velocityX, float velocityZ, float speedLimitMetersPerSecond) {
+		float softStart = Math.max(0.0f, speedLimitMetersPerSecond) * ACRO_OVERSPEED_SOFT_START_SCALE;
+		float horizontalSpeed = horizontalMagnitude(velocityX, velocityZ);
+		if (horizontalSpeed <= softStart || horizontalSpeed <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float excessSpeed = horizontalSpeed - softStart;
+		float accelerationMagnitude = excessSpeed
+				* (ACRO_OVERSPEED_LINEAR_DAMPING_PER_SECOND + ACRO_OVERSPEED_QUADRATIC_DAMPING_PER_METER * excessSpeed);
+		return new Velocity(
+				-velocityX / horizontalSpeed * accelerationMagnitude,
+				0.0f,
+				-velocityZ / horizontalSpeed * accelerationMagnitude
 		);
 	}
 
@@ -1354,6 +1381,16 @@ final class PlayableFlightModel {
 		}
 		float scale = limit / horizontalSpeed;
 		return new Velocity(velocityX * scale, velocityY, velocityZ * scale);
+	}
+
+	private static float horizontalVelocityHardLimit(FlightMode mode, Profile profile) {
+		return safeMode(mode) == FlightMode.ACRO
+				? acroHorizontalHardLimit(profile)
+				: profile.horizontalSpeedLimitMetersPerSecond();
+	}
+
+	private static float acroHorizontalHardLimit(Profile profile) {
+		return profile.horizontalSpeedLimitMetersPerSecond() * ACRO_OVERSPEED_HARD_LIMIT_SCALE;
 	}
 
 	private static float horizontalMagnitude(float x, float z) {

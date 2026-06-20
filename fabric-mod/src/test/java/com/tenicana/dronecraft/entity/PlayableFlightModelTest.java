@@ -2000,6 +2000,26 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroOverspeedUsesSoftDragInsteadOfHardHorizontalClamp() {
+		PlayableFlightModel.Step step = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(0.0f, 0.0f, 35.0f, 0.0f, 0.0f, 0.0f, FlightMode.ACRO)
+		);
+		float horizontalSpeed = horizontalSpeed(step.velocityX(), step.velocityZ());
+
+		assertTrue(horizontalSpeed > 32.4f, "horizontalSpeed=" + horizontalSpeed);
+		assertTrue(horizontalSpeed < 35.0f, "horizontalSpeed=" + horizontalSpeed);
+		assertTrue(step.velocityZ() > 32.4f, "velocityZ=" + step.velocityZ());
+		assertTrue(step.velocityZ() < 35.0f, "velocityZ=" + step.velocityZ());
+	}
+
+	@Test
 	void centeredSticksKeepMomentumInsteadOfZeroingVelocity() {
 		PlayableFlightModel.Step released = PlayableFlightModel.step(
 				FlightMode.ACRO,
