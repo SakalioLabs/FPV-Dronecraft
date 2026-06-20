@@ -51,6 +51,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_RADIANS = (float) Math.toRadians(40.0f);
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS = (float) Math.toRadians(4.0f);
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
+	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_COMMAND = 0.360f;
+	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS = (float) Math.toRadians(275.0f);
+	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_RATE_DELTA_RADIANS = (float) Math.toRadians(0.80f);
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(170.0f);
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
 	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.28f;
@@ -195,8 +198,22 @@ final class PlayableFlightModel {
 
 		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
-		float pitchRadians = completedAcroRotationAttitude(safeMode, attitudePitch, attitude.pitchRadians(), profile.maxPitchRadians());
-		float rollRadians = completedAcroRotationAttitude(safeMode, attitudeRoll, attitude.rollRadians(), profile.maxRollRadians());
+		float pitchRadians = completedAcroRotationAttitude(
+				safeMode,
+				attitudePitch,
+				attitude.pitchRadians(),
+				profile.maxPitchRadians(),
+				profile.pitchRateRadiansPerTick(),
+				safePrevious.acroPitchRateRadiansPerTick()
+		);
+		float rollRadians = completedAcroRotationAttitude(
+				safeMode,
+				attitudeRoll,
+				attitude.rollRadians(),
+				profile.maxRollRadians(),
+				profile.rollRateRadiansPerTick(),
+				safePrevious.acroRollRateRadiansPerTick()
+		);
 		boolean acroPitchCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.pitchRadians(), pitchRadians);
 		boolean acroRollCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.rollRadians(), rollRadians);
 		float acroPitchRateRadiansPerTick = acroPitchCaptured
@@ -889,10 +906,21 @@ final class PlayableFlightModel {
 		return acroBodyFrame(pitchRadians, rollRadians).up();
 	}
 
-	private static float completedAcroRotationAttitude(FlightMode mode, float command, float attitudeRadians, float completedRotationCaptureRadians) {
+	private static float completedAcroRotationAttitude(
+			FlightMode mode,
+			float command,
+			float attitudeRadians,
+			float completedRotationCaptureRadians,
+			float maxRateRadiansPerTick,
+			float previousRateRadiansPerTick
+	) {
+		boolean filteredReleaseTail = isFilteredCompletedAcroRotationReleaseTail(command, maxRateRadiansPerTick, previousRateRadiansPerTick);
+		float minimumCompletedRotation = filteredReleaseTail
+				? ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS
+				: ACRO_COMPLETED_ROTATION_MIN_RADIANS;
 		if (!Float.isFinite(attitudeRadians)
 				|| safeMode(mode) != FlightMode.ACRO
-				|| Math.abs(attitudeRadians) < ACRO_COMPLETED_ROTATION_MIN_RADIANS) {
+				|| Math.abs(attitudeRadians) < minimumCompletedRotation) {
 			return attitudeRadians;
 		}
 		float rotationResidual = signedRotationResidualRadians(attitudeRadians);
@@ -904,11 +932,27 @@ final class PlayableFlightModel {
 		if (Math.abs(command) <= PLAYABLE_AXIS_NOISE_EPSILON) {
 			return Math.abs(rotationResidual) <= releasedSnapRadians ? 0.0f : attitudeRadians;
 		}
-		boolean releaseTail = Math.abs(command) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND;
+		boolean releaseTail = Math.abs(command) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND || filteredReleaseTail;
 		if (!releaseTail || Math.abs(rotationResidual) > releasedSnapRadians) {
 			return attitudeRadians;
 		}
 		return 0.0f;
+	}
+
+	private static boolean isFilteredCompletedAcroRotationReleaseTail(
+			float command,
+			float maxRateRadiansPerTick,
+			float previousRateRadiansPerTick
+	) {
+		if (!Float.isFinite(command)
+				|| !Float.isFinite(maxRateRadiansPerTick)
+				|| !Float.isFinite(previousRateRadiansPerTick)
+				|| Math.abs(command) > ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_COMMAND) {
+			return false;
+		}
+		float targetRateMagnitude = Math.abs(command * maxRateRadiansPerTick);
+		float previousRateMagnitude = Math.abs(previousRateRadiansPerTick);
+		return previousRateMagnitude > targetRateMagnitude + ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_RATE_DELTA_RADIANS;
 	}
 
 	private static float signedRotationResidualRadians(float attitudeRadians) {

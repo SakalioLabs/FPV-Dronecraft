@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 近完整 roll 释放尾巴捕获）
+本轮继续修你刚反馈的“尝试翻转一周之后持续侧飞、无法回正”。这次定位到一个更贴近实操的漏口：手柄/键盘输入经过滤波后，玩家松开 roll 的第一帧可能还残留约 `0.30` 的命令；如果此时姿态在 `275..300deg` 这种接近完成一圈但还没跨过旧 `300deg` 门槛的位置，旧逻辑不会捕获到水平，油门会继续把机体停在近刀锋姿态上推，表现就是翻完以后持续侧飞。
+- `PlayableFlightModel` 现在会识别“上一帧 roll/pitch rate 很高、当前命令明显回落”的滤波释放尾巴。只有满足这个衰减特征时，才把近完整一圈的释放当作动作结束；普通半杆/主动刀锋仍不会被吞掉。
+- 完整/近完整 roll 捕获后仍按机体系处理速度：body-right 侧滑会被压到约 `0.32m/s` 以内，前向惯性保留在 `4.6m/s+`，所以这不是给 ACRO 加自稳回正，而是只清掉“动作结束帧卡在侧飞姿态”的离散积分残留。
+- 新增回归测试覆盖 `292deg roll + 8deg/tick 残余 roll rate + 0.30 滤波释放尾巴 + 12m/s 横向残留 + 6m/s 前向惯性`：必须捕获到 `0deg roll`、roll rate 清零、target side velocity 清零；同时又覆盖普通 `0.30` 主动 near-knife-edge roll 不会被误捕获。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮自测因 25565 被占用临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-203814.json`。
+
 ## 最新进展（2026-06-20，ACRO 斜向桨盘 flapping 加强）
 本轮继续处理“斜向飞行像平移、不像真实穿越机”的手感问题。复核当前资料包后，最有价值的线索集中在 5 寸桨的前飞/横向来流：UIUC/IMAV/Kolaei/STARMAC 都指向同一个方向，即 FPV 速度区间里桨盘不会保持理想静态推力，横向穿盘会带来更明显的 flapping、H-force、推力 rolloff 和气动负载。
 - `PlayableFlightModel` 现在把 ACRO playable 层的 rotor flapping 从 `0.055` 提到 `0.075`，让 `16m/s right + 16m/s forward` 这种高速斜向横流更明显地产生反向桨盘偏转加速度，机体不再那么像在屏幕平面里被平移。

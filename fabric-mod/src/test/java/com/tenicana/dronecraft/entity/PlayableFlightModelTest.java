@@ -1117,6 +1117,77 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void filteredHighRateReleaseNearFullRollCapturesInsteadOfParkingSideways() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				12.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(292.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(8.0)
+		);
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.30f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				released.velocityX(),
+				released.velocityY(),
+				released.velocityZ(),
+				released.pitchRadians(),
+				released.rollRadians()
+		);
+
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
+	void activeNearKnifeEdgeRollCommandDoesNotUseFilteredReleaseCapture() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				12.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(292.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(2.8)
+		);
+		PlayableFlightModel.Step active = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.30f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+
+		assertTrue(active.rollRadians() > Math.toRadians(294.0), "activeRollDeg=" + Math.toDegrees(active.rollRadians()));
+		assertTrue(Math.abs(active.targetVelocityX()) > 18.0f, "activeTargetX=" + active.targetVelocityX());
+		assertTrue(active.acroRollRateRadiansPerTick() > Math.toRadians(2.0), "activeRollRateDeg=" + Math.toDegrees(active.acroRollRateRadiansPerTick()));
+	}
+
+	@Test
 	void oppositeReleaseTailAfterFullRollCapturesAndStopsSideThrust() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				12.0f,
