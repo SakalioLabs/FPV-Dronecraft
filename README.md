@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 侧流 ETL 脏化）
+本轮继续针对“翻滚/斜飞后一段时间持续侧飞、像平面平移而不是穿越机在空气里走线”的问题收敛。补充复核了 TU Delft 高速四旋翼辨识资料、OSU 多旋翼气动相互作用论文以及 FPV 竞速机架阻力经验资料：高速飞行里 sideslip/skew angle 不只是普通 Cd 阻力问题，干净前飞、斜向来流和纯侧流对桨盘/机架的作用不应该拿同一份 translational lift 增益。
+- `PlayableFlightModel` 将 ACRO translational lift 的侧流保留比例从 `0.30` 收紧到 `0.18`。干净前飞仍能获得中速 ETL 甜点，保留速度感；但 `9m/s right + 9m/s forward` 这类斜向侧滑不再白拿太多前飞升力，纯侧流只剩很小的脏 ETL 残余。
+- 这不是给 ACRO 加自稳，也不是直接刹车。相反，它是减少错误方向上的“免费升力”：当飞机翻滚后机体系来流主要变成侧向时，升力/推力效率更接近被 skew flow 污染后的桨盘，而不是仍按机头正前方 clean inflow 处理。预期手感是斜飞仍有惯性，但不再像一个带升力补偿的平面滑块。
+- 回归测试新增 `acroTranslationalLiftTreatsSideflowAsDirtyEtL`，并更新 translational-lift drag 边界：锁住 clean forward ETL 仍强、diagonal gain 明显低于 clean gain、side gain 低于 diagonal gain，防止以后调参又把侧飞误做成前飞。
+- 已通过 targeted ETL 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-031742.json`，ACRO playable 诊断通过，最大水平位移约 `16.17m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧滑侧力弯流）
 本轮继续针对“斜向飞行像平移，而不是像真机在空气里飞”的手感收敛。复核 Faessler/RPG rotor-drag 模型、STARMAC 气动效应和 NASA 小型多旋翼相互作用气动资料后，重点不是继续加普通刹车：真实高速侧滑会让机体系相对来流产生侧力、桨盘 flapping / induced drag 和 rotor drag，这些力会改变速度方向，而不只是把速度数值沿原方向扣掉。
 - `PlayableFlightModel` 把 ACRO yaw-plane sideslip sideforce 从 `0.128` 提到 `0.185`，同时把对应 induced-drag gain 从 `0.56` 压到 `0.44`。这样 `16m/s right + 16m/s forward` 的斜向来流里，sideforce 从约 `0.47m/s^2` 提到约 `0.68m/s^2`，并且仍严格垂直于当前速度、不直接做功；附带的 induced drag 只小幅增加，用来保留真实能量损耗，而不是把它做成纯刹车。

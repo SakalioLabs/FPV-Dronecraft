@@ -224,7 +224,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_TRANSLATIONAL_LIFT_FADE_START_MU = 0.135f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_FADE_FULL_MU = 0.360f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_MAX_THRUST_GAIN = 0.055f;
-	private static final float ACRO_TRANSLATIONAL_LIFT_SIDEFLOW_KEEP = 0.30f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_SIDEFLOW_KEEP = 0.18f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_DRAG_GAIN = 0.32f;
 	private static final float ACRO_TRANSLATIONAL_LIFT_DRAG_MAX_ACCELERATION = 0.75f;
 	private static final float ACRO_ROTOR_RADIUS_METERS = ACRO_PROP_DIAMETER_METERS * 0.5f;

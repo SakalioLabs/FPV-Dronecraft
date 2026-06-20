@@ -2181,12 +2181,40 @@ class PlayableFlightModelTest {
 		assertEquals(1.0f, idleForward, 1.0e-6f);
 		assertTrue(midForward > 1.045f, "midForward=" + midForward);
 		assertTrue(midForward < 1.056f, "midForward=" + midForward);
-		assertTrue(diagonal > 1.010f, "diagonal=" + diagonal);
-		assertTrue(diagonal < midForward - 0.020f, "diagonal=" + diagonal + " midForward=" + midForward);
+		assertTrue(diagonal > 1.006f, "diagonal=" + diagonal);
+		assertTrue(diagonal < midForward - 0.030f, "diagonal=" + diagonal + " midForward=" + midForward);
 		assertTrue(fastForward > 1.005f, "fastForward=" + fastForward);
 		assertTrue(fastForward < 1.020f, "fastForward=" + fastForward);
-		assertTrue(fastSide > 1.001f, "fastSide=" + fastSide);
+		assertTrue(fastSide > 1.0005f, "fastSide=" + fastSide);
 		assertTrue(fastSide < fastForward, "fastSide=" + fastSide + " fastForward=" + fastForward);
+	}
+
+	@Test
+	void acroTranslationalLiftTreatsSideflowAsDirtyEtL() {
+		float cleanForward = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				0.68f,
+				0.20f
+		);
+		float diagonal = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				0.68f,
+				0.20f
+		);
+		float side = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(12.5f, 0.0f, 0.0f),
+				0.68f,
+				0.20f
+		);
+		float cleanGain = cleanForward - 1.0f;
+		float diagonalGain = diagonal - 1.0f;
+		float sideGain = side - 1.0f;
+
+		assertTrue(cleanGain > 0.045f, "cleanGain=" + cleanGain);
+		assertTrue(diagonalGain < cleanGain * 0.23f,
+				"diagonalGain=" + diagonalGain + " cleanGain=" + cleanGain);
+		assertTrue(sideGain < diagonalGain, "sideGain=" + sideGain + " diagonalGain=" + diagonalGain);
+		assertTrue(sideGain < cleanGain * 0.20f, "sideGain=" + sideGain + " cleanGain=" + cleanGain);
 	}
 
 	@Test
@@ -2225,12 +2253,12 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, midForward.x(), 1.0e-6f);
 		assertTrue(midForward.z() < -0.20f, "midForwardZ=" + midForward.z());
 		assertTrue(midForward.z() > -0.24f, "midForwardZ=" + midForward.z());
-		assertTrue(diagonal.x() < -0.045f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -0.045f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.x() < -0.025f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -0.025f, "diagonalZ=" + diagonal.z());
 		assertTrue(horizontalSpeed(diagonal.x(), diagonal.z()) < Math.abs(midForward.z()) * 0.50f,
 				"diagonal=" + horizontalSpeed(diagonal.x(), diagonal.z()) + " midForwardZ=" + midForward.z());
 		assertTrue(midForwardWork < -2.5f, "midForwardWork=" + midForwardWork);
-		assertTrue(diagonalWork < -0.8f, "diagonalWork=" + diagonalWork);
+		assertTrue(diagonalWork < -0.45f, "diagonalWork=" + diagonalWork);
 	}
 
 	@Test
