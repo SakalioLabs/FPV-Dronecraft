@@ -1989,6 +1989,77 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroRateInertiaLoadsHighSpeedDiagonalFlowWithoutTouchingLowSpeed() {
+		float lowSpeedRoll = PlayableFlightModel.acroRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 6.0f),
+				false
+		);
+		float straightCruiseRoll = PlayableFlightModel.acroRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				false
+		);
+		float diagonalRoll = PlayableFlightModel.acroRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				false
+		);
+		float pitchAoa = PlayableFlightModel.acroRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				true
+		);
+
+		assertEquals(1.0f, lowSpeedRoll, 1.0e-6f);
+		assertTrue(straightCruiseRoll > 0.92f, "straightCruiseRoll=" + straightCruiseRoll);
+		assertTrue(straightCruiseRoll < 0.97f, "straightCruiseRoll=" + straightCruiseRoll);
+		assertTrue(diagonalRoll > 0.80f, "diagonalRoll=" + diagonalRoll);
+		assertTrue(diagonalRoll < 0.87f, "diagonalRoll=" + diagonalRoll);
+		assertTrue(diagonalRoll < straightCruiseRoll - 0.06f, "diagonalRoll=" + diagonalRoll + " straightCruiseRoll=" + straightCruiseRoll);
+		assertTrue(pitchAoa > 0.84f, "pitchAoa=" + pitchAoa);
+		assertTrue(pitchAoa < 0.91f, "pitchAoa=" + pitchAoa);
+	}
+
+	@Test
+	void acroHighSpeedDiagonalFlowBuildsRollRateWithMoreWeight() {
+		PlayableFlightModel.Step lowSpeed = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step diagonalFlow = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f
+				)
+		);
+
+		assertTrue(lowSpeed.acroRollRateRadiansPerTick() > Math.toRadians(5.3), "lowSpeedRollRateDeg=" + Math.toDegrees(lowSpeed.acroRollRateRadiansPerTick()));
+		assertTrue(diagonalFlow.acroRollRateRadiansPerTick() > lowSpeed.acroRollRateRadiansPerTick() * 0.70f,
+				"diagonalRollRateDeg=" + Math.toDegrees(diagonalFlow.acroRollRateRadiansPerTick()) + " lowSpeedRollRateDeg=" + Math.toDegrees(lowSpeed.acroRollRateRadiansPerTick()));
+		assertTrue(diagonalFlow.acroRollRateRadiansPerTick() < lowSpeed.acroRollRateRadiansPerTick() * 0.86f,
+				"diagonalRollRateDeg=" + Math.toDegrees(diagonalFlow.acroRollRateRadiansPerTick()) + " lowSpeedRollRateDeg=" + Math.toDegrees(lowSpeed.acroRollRateRadiansPerTick()));
+	}
+
+	@Test
 	void bankedAcroPitchInputCreatesHeadingChangeWithoutYawStick() {
 		PlayableFlightModel.State banked = new PlayableFlightModel.State(
 				0.0f,

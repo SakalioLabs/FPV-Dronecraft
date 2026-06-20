@@ -102,6 +102,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROLL_AERO_RATE_DAMPING_MAX = 0.105f;
 	private static final float ACRO_AERO_RATE_CROSSFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
 	private static final float ACRO_AERO_RATE_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(58.0f);
+	private static final float ACRO_RATE_INERTIA_SPEED_START_METERS_PER_SECOND = 10.0f;
+	private static final float ACRO_RATE_INERTIA_SPEED_FULL_METERS_PER_SECOND = 28.0f;
+	private static final float ACRO_RATE_INERTIA_CROSSFLOW_START_RADIANS = (float) Math.toRadians(10.0f);
+	private static final float ACRO_RATE_INERTIA_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(55.0f);
+	private static final float ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT = 0.28f;
+	private static final float ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.16f;
+	private static final float ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.22f;
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -540,12 +547,12 @@ final class PlayableFlightModel {
 		);
 		return new AcroRateResponse(
 				acroAerodynamicRateDamped(
-						responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick()),
+						responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick(), bodyVelocity, true),
 						bodyVelocity,
 						true
 				),
 				acroAerodynamicRateDamped(
-						responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick()),
+						responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick(), bodyVelocity, false),
 						bodyVelocity,
 						false
 				)
@@ -590,13 +597,14 @@ final class PlayableFlightModel {
 		return axisMax * speedExposure * (0.55f + 0.45f * crossflowExposure);
 	}
 
-	private static float responsiveAcroRate(float previousRateRadiansPerTick, float targetRateRadiansPerTick) {
+	private static float responsiveAcroRate(float previousRateRadiansPerTick, float targetRateRadiansPerTick, Velocity bodyVelocity, boolean pitchAxis) {
 		if (!Float.isFinite(previousRateRadiansPerTick)) {
 			return targetRateRadiansPerTick;
 		}
 		float smoothing = isRateRising(previousRateRadiansPerTick, targetRateRadiansPerTick)
 				? ACRO_RATE_RISE_SMOOTHING
 				: ACRO_RATE_FALL_SMOOTHING;
+		smoothing *= acroRateInertiaSmoothingScale(bodyVelocity, pitchAxis);
 		float responsive = smooth(previousRateRadiansPerTick, targetRateRadiansPerTick, smoothing);
 		if (Math.abs(targetRateRadiansPerTick) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK
 				&& Math.abs(responsive) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
@@ -606,6 +614,37 @@ final class PlayableFlightModel {
 			return targetRateRadiansPerTick;
 		}
 		return responsive;
+	}
+
+	static float acroRateInertiaSmoothingScale(Velocity bodyVelocity, boolean pitchAxis) {
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
+				+ bodyVelocity.y() * bodyVelocity.y()
+				+ bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return 1.0f;
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float speedExposure = smoothStep((speed - ACRO_RATE_INERTIA_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_RATE_INERTIA_SPEED_FULL_METERS_PER_SECOND - ACRO_RATE_INERTIA_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return 1.0f;
+		}
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float sideslipExposure = smoothStep((sideslip - ACRO_RATE_INERTIA_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_RATE_INERTIA_CROSSFLOW_FULL_RADIANS - ACRO_RATE_INERTIA_CROSSFLOW_START_RADIANS));
+		float angleOfAttackExposure = smoothStep((angleOfAttack - ACRO_RATE_INERTIA_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_RATE_INERTIA_CROSSFLOW_FULL_RADIANS - ACRO_RATE_INERTIA_CROSSFLOW_START_RADIANS));
+		float crossflowExposure = pitchAxis
+				? Math.max(angleOfAttackExposure, sideslipExposure * 0.45f)
+				: Math.max(sideslipExposure, angleOfAttackExposure * 0.45f);
+		float flowLoad = ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT
+				+ (1.0f - ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT) * crossflowExposure;
+		float maxLoss = pitchAxis
+				? ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS
+				: ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS;
+		return clamp(1.0f - maxLoss * speedExposure * flowLoad, 0.70f, 1.0f);
 	}
 
 	private static boolean isRateRising(float currentRateRadiansPerTick, float targetRateRadiansPerTick) {

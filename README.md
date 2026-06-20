@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 高速斜向角惯性负载）
+本轮继续针对“斜向飞行像平移、不像真实穿越机”的核心手感收敛。复核后发现，playable ACRO 的线速度层已经有推力轴积分、机体系 CdA、分离流、侧滑侧向力、桨盘 flapping/H-force、高前进比推力软化和弱 weathercock yaw；但姿态层的 roll/pitch rate 响应仍偏理想化，主要靠固定平滑和空气阻尼，没有把真实 5 寸机的转动惯量、机体系横流负载转化成“角速度建立要吃一点力”的感觉。
+- `PlayableFlightModel` 新增 ACRO rate inertia smoothing：低速基本不介入；直线 25m/s 高速巡航只轻微降低 rate 建立；`16m/s right + 16m/s forward` 这种斜向横流会让 roll rate 建立明显更有重量，pitch 轴在大迎角下也会有类似负载。
+- 这不是自动回正，也不改最大速度/油门曲线/推力模型；它只影响 ACRO pitch/roll rate 从上一帧向目标 rate 逼近的速度。也就是说，玩家仍然可以全向翻滚、倒飞、刀锋飞行，但高速斜飞时机体不再像无质量贴图一样立刻换姿态。
+- 参考锚点来自当前资料包：`docs/fpv-sim-model-validation.md` 里 5 寸 `racingQuad` 的转动惯量半径量级已经接近 RotorS Hummingbird/PX4 Iris；同时 Betaflight rate 资料说明当前预设是偏快速 race/freestyle 的 rate 档。playable 层这次没有重写完整刚体角动力学，而是先把“真实惯量 + 高速气动载荷”压缩成一个可控的手感近似。
+- 新增回归测试覆盖：低速 roll inertia scale 必须为 `1.0`；直线高速只小幅降低；斜向横流 roll scale 必须低于直线巡航；完整 `step()` 下同样满 roll 输入在高速斜向来流中建立得比低速更重，但仍保留 70% 以上响应，避免变成迟钝或失控。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-195331.json`。
+
 ## 最新进展（2026-06-20，ACRO 整圈翻滚反向释放尾巴修复）
 本轮继续针对你反馈的“尝试翻转一周后持续侧飞、无法回正”收敛 playable ACRO。新的复盘点在于手柄和输入滤波的释放尾段：完成一整圈 roll 以后，摇杆回弹不一定总是同方向慢慢归零，实际经常会短暂出现一个反向小命令。旧逻辑把这个反向小尾巴当成玩家仍在主动保持姿态，导致整圈后的 60..150 度残余横滚没有被捕获，油门继续给出侧向推力，于是看起来像“翻完一圈后锁死侧飞”。
 - `PlayableFlightModel` 现在把“完成至少一整圈后的低幅摇杆命令”统一视为释放尾段：只要幅度低于释放阈值，就允许捕获到水平姿态并清掉残余 roll rate；明显主动的半杆/满杆仍然不会被捕获，刀锋、倒飞和持续翻滚的 ACRO rate 语义保持不变。
