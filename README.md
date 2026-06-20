@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 高速惯性距离降阻）
+本轮继续处理“速度够了但斜向飞行仍像平移、真机惯性不够”的核心手感问题。复核资料包后，`docs/fpv-sim-model-validation.md` 和 `docs/fpv-sim-targeted-calibration-gap-hunt.md` 都指向同一处风险：当前阻力/阻尼若按物理解释，明显高于 IMAV/RPG/RotorPy/NASA/RATM 等参考，会把高速 coastdown 距离压得太短，手感像被游戏刹车粘住。
+- `PlayableFlightModel` 现在把 playable ACRO 的 forward linear drag 从 `0.18/s` 降到 `0.12/s`，lateral linear drag 从 `0.24/s` 降到 `0.16/s`。二次 CdA、侧滑 sideforce、induced drag、rotor flapping、in-plane H-force 和软超速阻尼都保留，所以不是取消空气阻力，而是先把“线性游戏刹车”降到更接近真实惯性的一档。
+- 25m/s 松杆 coastdown 包线同步变长：1 秒后速度目标从约 `15.8..16.8m/s` 改为 `16.4..17.4m/s`，2 秒后从约 `10.8..12.2m/s` 改为 `12.0..13.8m/s`；距离包线也随之增加。这样高速前飞/斜飞释放后会有更长惯性尾巴，不会像速度矢量被每帧硬刹。
+- 斜向 `16m/s right + 16m/s forward` 的气动测试同步收敛到新阻尼：横向阻力仍明显强于纵向，保持“侧滑会被空气咬住”的特征，但不再把侧向速度过快吃掉，给玩家留出更真实的滑移和修正空间。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮自测因 25565 被占用临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-204519.json`。
+
 ## 最新进展（2026-06-20，ACRO 近完整 roll 释放尾巴捕获）
 本轮继续修你刚反馈的“尝试翻转一周之后持续侧飞、无法回正”。这次定位到一个更贴近实操的漏口：手柄/键盘输入经过滤波后，玩家松开 roll 的第一帧可能还残留约 `0.30` 的命令；如果此时姿态在 `275..300deg` 这种接近完成一圈但还没跨过旧 `300deg` 门槛的位置，旧逻辑不会捕获到水平，油门会继续把机体停在近刀锋姿态上推，表现就是翻完以后持续侧飞。
 - `PlayableFlightModel` 现在会识别“上一帧 roll/pitch rate 很高、当前命令明显回落”的滤波释放尾巴。只有满足这个衰减特征时，才把近完整一圈的释放当作动作结束；普通半杆/主动刀锋仍不会被吞掉。

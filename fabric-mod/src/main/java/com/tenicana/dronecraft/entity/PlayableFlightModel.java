@@ -69,8 +69,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_FORWARD_DRAG_AREA_SQUARE_METERS = 0.0216f;
 	private static final float ACRO_LATERAL_DRAG_AREA_SQUARE_METERS = 0.0269f;
 	private static final float ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS = 0.0180f;
-	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.18f;
-	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.24f;
+	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.12f;
+	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.16f;
 	private static final float ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND = 0.14f;
 	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_FORWARD_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_LATERAL_DRAG_AREA_SQUARE_METERS);

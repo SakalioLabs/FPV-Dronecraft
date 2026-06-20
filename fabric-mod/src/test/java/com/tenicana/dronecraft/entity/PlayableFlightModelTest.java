@@ -1979,11 +1979,11 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
-		assertTrue(forward.z() < -11.0f, "forwardZ=" + forward.z());
-		assertTrue(forward.z() > -13.0f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -8.2f, "diagonalX=" + diagonal.x());
+		assertTrue(forward.z() < -10.0f, "forwardZ=" + forward.z());
+		assertTrue(forward.z() > -11.2f, "forwardZ=" + forward.z());
+		assertTrue(diagonal.x() < -6.8f, "diagonalX=" + diagonal.x());
 		assertTrue(diagonal.z() < -5.0f, "diagonalZ=" + diagonal.z());
-		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 2.0f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 1.5f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
 
 	@Test
@@ -2437,14 +2437,14 @@ class PlayableFlightModelTest {
 			}
 		}
 
-		assertTrue(speedAfterOneSecond > 15.8f, "speedAfterOneSecond=" + speedAfterOneSecond);
-		assertTrue(speedAfterOneSecond < 16.8f, "speedAfterOneSecond=" + speedAfterOneSecond);
-		assertTrue(distanceAfterOneSecond > 19.0f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
-		assertTrue(distanceAfterOneSecond < 20.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
-		assertTrue(step != null && step.velocityZ() > 10.8f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
-		assertTrue(step != null && step.velocityZ() < 12.2f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
-		assertTrue(distanceMeters > 32.0f, "distanceAfterTwoSeconds=" + distanceMeters);
-		assertTrue(distanceMeters < 34.8f, "distanceAfterTwoSeconds=" + distanceMeters);
+		assertTrue(speedAfterOneSecond > 16.4f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterOneSecond < 17.4f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(distanceAfterOneSecond > 19.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
+		assertTrue(distanceAfterOneSecond < 21.6f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
+		assertTrue(step != null && step.velocityZ() > 12.0f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(step != null && step.velocityZ() < 13.8f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(distanceMeters > 34.5f, "distanceAfterTwoSeconds=" + distanceMeters);
+		assertTrue(distanceMeters < 37.8f, "distanceAfterTwoSeconds=" + distanceMeters);
 	}
 
 	@Test
