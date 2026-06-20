@@ -976,6 +976,51 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void releasedAcroRollWideOvershootSnapsToCompletedRotation() {
+		PlayableFlightModel.Step overshotRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(428.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+		PlayableFlightModel.Step trueKnifeEdge = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(450.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertEquals(Math.toRadians(360.0), overshotRoll.rollRadians(), 1.0e-5);
+		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
+		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
+		assertTrue(Math.abs(trueKnifeEdge.targetVelocityX()) > 24.0f, "trueKnifeEdgeTargetX=" + trueKnifeEdge.targetVelocityX());
+	}
+
+	@Test
 	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
 		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -1065,6 +1110,51 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void releasedAcroPitchWideOvershootSnapsToCompletedRotation() {
+		PlayableFlightModel.Step overshotLoop = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(425.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+		PlayableFlightModel.Step trueSteepLoop = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(450.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertEquals(Math.toRadians(360.0), overshotLoop.pitchRadians(), 1.0e-5);
+		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
+		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
+		assertTrue(Math.abs(trueSteepLoop.targetVelocityZ()) > 24.0f, "trueSteepLoopTargetZ=" + trueSteepLoop.targetVelocityZ());
+	}
+
+	@Test
 	void acroDiagonalCommandUsesSingleHorizontalSpeedEnvelope() {
 		PlayableFlightModel.Step diagonal = holdStick(FlightMode.ACRO, 7, 0.68f, 1.0f, 1.0f, 0.0f);
 		float horizontalTargetSpeed = horizontalSpeed(diagonal.targetVelocityX(), diagonal.targetVelocityZ());
@@ -1128,6 +1218,30 @@ class PlayableFlightModelTest {
 		assertTrue(diagonal.velocityZ() > 0.40f, "velocityZ=" + diagonal.velocityZ());
 		assertTrue(diagonal.velocityY() < -0.03f, "velocityY=" + diagonal.velocityY());
 		assertTrue(diagonal.velocityY() > -0.14f, "velocityY=" + diagonal.velocityY());
+	}
+
+	@Test
+	void acroBodyFrameVelocityRoundTripsAfterFullRollOffset() {
+		float pitchRadians = (float) Math.toRadians(37.0);
+		float rollRadians = (float) Math.toRadians(428.0);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				5.5f,
+				-1.25f,
+				18.0f,
+				pitchRadians,
+				rollRadians
+		);
+		PlayableFlightModel.Velocity yawLocalVelocity = PlayableFlightModel.yawLocalVelocityForAcroBody(
+				bodyVelocity.x(),
+				bodyVelocity.y(),
+				bodyVelocity.z(),
+				pitchRadians,
+				rollRadians
+		);
+
+		assertEquals(5.5f, yawLocalVelocity.x(), 1.0e-4f);
+		assertEquals(-1.25f, yawLocalVelocity.y(), 1.0e-4f);
+		assertEquals(18.0f, yawLocalVelocity.z(), 1.0e-4f);
 	}
 
 	@Test

@@ -49,6 +49,7 @@ final class PlayableFlightModel {
 	private static final float FULL_ROTATION_RADIANS = (float) (Math.PI * 2.0);
 	private static final float ACRO_COMPLETED_ROTATION_MIN_RADIANS = (float) Math.toRadians(300.0f);
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_RADIANS = (float) Math.toRadians(40.0f);
+	private static final float ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS = (float) Math.toRadians(4.0f);
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT = 3.35f;
 	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.18f;
@@ -102,8 +103,8 @@ final class PlayableFlightModel {
 		float yawCommand = safeYaw * yawCommandAuthority;
 
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious);
-		float pitchRadians = completedAcroRotationAttitude(safeMode, attitudePitch, attitude.pitchRadians());
-		float rollRadians = completedAcroRotationAttitude(safeMode, attitudeRoll, attitude.rollRadians());
+		float pitchRadians = completedAcroRotationAttitude(safeMode, attitudePitch, attitude.pitchRadians(), profile.maxPitchRadians());
+		float rollRadians = completedAcroRotationAttitude(safeMode, attitudeRoll, attitude.rollRadians(), profile.maxRollRadians());
 		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
 		rollRadians = settledAttitude(safeMode, attitudeRoll, rollRadians);
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
@@ -586,7 +587,7 @@ final class PlayableFlightModel {
 		);
 	}
 
-	private static float completedAcroRotationAttitude(FlightMode mode, float command, float attitudeRadians) {
+	private static float completedAcroRotationAttitude(FlightMode mode, float command, float attitudeRadians, float completedRotationCaptureRadians) {
 		if (!Float.isFinite(attitudeRadians)
 				|| safeMode(mode) != FlightMode.ACRO
 				|| Math.abs(command) > PLAYABLE_AXIS_NOISE_EPSILON
@@ -594,7 +595,11 @@ final class PlayableFlightModel {
 			return attitudeRadians;
 		}
 		float rotationResidual = signedRotationResidualRadians(attitudeRadians);
-		if (Math.abs(rotationResidual) > ACRO_COMPLETED_ROTATION_SNAP_RADIANS) {
+		float snapRadians = Math.max(
+				ACRO_COMPLETED_ROTATION_SNAP_RADIANS,
+				Math.max(0.0f, completedRotationCaptureRadians) + ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS
+		);
+		if (Math.abs(rotationResidual) > snapRadians) {
 			return attitudeRadians;
 		}
 		return attitudeRadians - rotationResidual;
@@ -693,7 +698,7 @@ final class PlayableFlightModel {
 			Profile profile
 	) {
 		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians, profile);
-		Velocity dragAcceleration = acroDragAcceleration(previousVelocityX, previousVelocityY, previousVelocityZ);
+		Velocity dragAcceleration = acroDragAcceleration(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * acroCollectiveThrustToWeight(throttle, hoverThrottle);
 		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x();
 		float accelerationY = thrustAxis.y() * thrustAcceleration - ACRO_GRAVITY_METERS_PER_SECOND_SQUARED + dragAcceleration.y();
@@ -718,16 +723,54 @@ final class PlayableFlightModel {
 		return 1.0f + clamp(climbProgress, 0.0f, 1.0f) * (ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT - 1.0f);
 	}
 
-	private static Velocity acroDragAcceleration(float velocityX, float velocityY, float velocityZ) {
+	static Velocity acroDragAcceleration(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
+		Velocity bodyDragAcceleration = new Velocity(
+				-dragAcceleration(bodyVelocity.x(), ACRO_LATERAL_LINEAR_DRAG_PER_SECOND, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER),
+				-dragAcceleration(bodyVelocity.y(), ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER),
+				-dragAcceleration(bodyVelocity.z(), ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER)
+		);
+		return yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), pitchRadians, rollRadians);
+	}
+
+	static Velocity acroBodyVelocityForYawLocal(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
+		AcroBodyFrame frame = acroBodyFrame(pitchRadians, rollRadians);
 		return new Velocity(
-				-dragAcceleration(velocityX, ACRO_LATERAL_LINEAR_DRAG_PER_SECOND, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER),
-				-dragAcceleration(velocityY, ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER),
-				-dragAcceleration(velocityZ, ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER)
+				dot(velocityX, velocityY, velocityZ, frame.right()),
+				dot(velocityX, velocityY, velocityZ, frame.up()),
+				dot(velocityX, velocityY, velocityZ, frame.forward())
+		);
+	}
+
+	static Velocity yawLocalVelocityForAcroBody(float bodyRight, float bodyUp, float bodyForward, float pitchRadians, float rollRadians) {
+		AcroBodyFrame frame = acroBodyFrame(pitchRadians, rollRadians);
+		return new Velocity(
+				frame.right().x() * bodyRight + frame.up().x() * bodyUp + frame.forward().x() * bodyForward,
+				frame.right().y() * bodyRight + frame.up().y() * bodyUp + frame.forward().y() * bodyForward,
+				frame.right().z() * bodyRight + frame.up().z() * bodyUp + frame.forward().z() * bodyForward
+		);
+	}
+
+	private static AcroBodyFrame acroBodyFrame(float pitchRadians, float rollRadians) {
+		float pitch = Float.isFinite(pitchRadians) ? pitchRadians : 0.0f;
+		float roll = Float.isFinite(rollRadians) ? rollRadians : 0.0f;
+		float sinPitch = (float) Math.sin(pitch);
+		float cosPitch = (float) Math.cos(pitch);
+		float sinRoll = (float) Math.sin(roll);
+		float cosRoll = (float) Math.cos(roll);
+		return new AcroBodyFrame(
+				new Velocity(cosRoll, cosPitch * sinRoll, sinPitch * sinRoll),
+				new Velocity(-sinRoll, cosPitch * cosRoll, sinPitch * cosRoll),
+				new Velocity(0.0f, -sinPitch, cosPitch)
 		);
 	}
 
 	private static float dragAcceleration(float velocity, float linearDragPerSecond, float quadraticDragPerMeter) {
 		return velocity * (linearDragPerSecond + quadraticDragPerMeter * Math.abs(velocity));
+	}
+
+	private static float dot(float x, float y, float z, Velocity axis) {
+		return x * axis.x() + y * axis.y() + z * axis.z();
 	}
 
 	private static Velocity limitHorizontalVector(float velocityX, float velocityY, float velocityZ, float limitMetersPerSecond) {
@@ -932,6 +975,9 @@ final class PlayableFlightModel {
 	}
 
 	private record Attitude(float pitchRadians, float rollRadians) {
+	}
+
+	private record AcroBodyFrame(Velocity right, Velocity up, Velocity forward) {
 	}
 
 	private record Profile(
