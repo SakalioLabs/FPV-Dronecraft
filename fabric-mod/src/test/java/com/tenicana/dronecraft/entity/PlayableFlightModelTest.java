@@ -1412,6 +1412,79 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void highSpeedFullRollReleaseDoesNotReenterPassiveSideFlightAfterRecoveryWindow() {
+		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
+		PlayableFlightModel.Step step = null;
+		for (int i = 0; i < 8; i++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.68f,
+					1.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			state = stateFrom(step);
+		}
+		for (int i = 0; i < 38; i++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.68f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			state = stateFrom(step);
+		}
+		for (int i = 0; i < 42; i++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.56f,
+					0.0f,
+					1.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			state = stateFrom(step);
+		}
+		for (int i = 0; i < 30; i++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.56f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			state = stateFrom(step);
+		}
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
+
+		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.75f,
+				"bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z()
+						+ " yawRate=" + step.yawDegreesPerTick());
+		assertTrue(bodyVelocity.z() > 12.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void activeRollInputCancelsCompletedRollRecoveryWindow() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				14.0f,

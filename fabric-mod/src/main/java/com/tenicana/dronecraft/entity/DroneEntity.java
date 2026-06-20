@@ -2666,7 +2666,7 @@ public class DroneEntity extends Entity {
 
 	public float getInterpolatedRenderPitchRadians(float partialTick) {
 		ensureClientRenderAttitudeInitialized();
-		return interpolateLinear(previousRenderPitchRadians, currentRenderPitchRadians, partialTick);
+		return interpolateRadians(previousRenderPitchRadians, currentRenderPitchRadians, partialTick);
 	}
 
 	public float getInterpolatedRenderYawRadians(float partialTick) {

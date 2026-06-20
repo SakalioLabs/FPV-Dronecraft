@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，完整翻转后的 FPV 姿态回抽修复）
+本轮针对“尝试翻转一周之后出现持续侧飞、无法回正”的新反馈，先把问题拆成物理残留和视角残留两条线验证。纯 `PlayableFlightModel` 高速前飞后完整 roll、松杆恢复的回归没有复现失控侧滑；真正发现的漏洞在客户端姿态插值：ACRO 已允许 pitch/roll 超过 360 度，但渲染 pitch 和 FPV 延迟缓冲里的 pitch 仍按普通线性数值插值，完整 pitch flip 捕获回 0 时会从 `358deg` 线性倒插到 `2deg`，视觉上穿过倒飞/侧飞姿态，像是翻完后画面一直横着抽不回来。
+- `DroneEntity#getInterpolatedRenderPitchRadians` 现在和 yaw/roll 一样使用最短角度插值，避免 ACRO pitch loop 从一整圈捕获回水平时出现 360 度数值回抽。
+- `FpvCameraPoseDelay` 的 pitch 延迟采样也改成角度插值；FPV 相机延迟不再把 `358deg -> 2deg` 当成反向转过 `356deg`，而是走最短的 `4deg` 过零路径。
+- 新增 `FpvCameraPoseDelayTest` 覆盖 pitch/roll 完整翻转捕获边界；新增 `PlayableFlightModelTest` 高速前飞后完整 roll、松杆 30 tick 的物理回归，确认恢复窗口结束后不会重新进入被动侧飞 roll rate，且前向惯性仍保留。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.camera.FpvCameraPoseDelayTest`、`:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`、7 个 Fabric GameTest，以及 JDK 21 下无头 `:fabric-mod:runPlayableAcroServerSelfTest`。服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-221002.json`。
+
 ## 最新进展（2026-06-20，ACRO 高速惯性滑行距离重标定）
 本轮继续围绕“斜向飞行像平移、缺少真实惯性距离”收敛 playable ACRO。根据本仓库 RATM 高速窗口和 drag guard 资料，旧 playable 前向阻力在 `25m/s` 级松杆滑行时仍偏像游戏刹车；这会让速度矢量太快被吸住，斜飞时缺少真实穿越机那种带重量的滑行。
 - `PlayableFlightModel` 将 ACRO 前向等效 CdA 从 `0.0216m^2` 降到 `0.0144m^2`，前向线性阻力从 `0.12/s` 降到 `0.075/s`；横向/竖向阻力保持不变，所以侧滑仍会被空气更快削掉，不是把整台机变成无阻力滑块。

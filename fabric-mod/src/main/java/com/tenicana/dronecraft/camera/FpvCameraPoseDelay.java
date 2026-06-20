@@ -146,7 +146,7 @@ public final class FpvCameraPoseDelay {
 					lerp(older.yMeters(), newer.yMeters(), boundedBlend),
 					lerp(older.zMeters(), newer.zMeters(), boundedBlend),
 					interpolateAngleDegrees(older.yawDegrees(), newer.yawDegrees(), boundedBlend),
-					(float) lerp(older.pitchDegrees(), newer.pitchDegrees(), boundedBlend),
+					interpolateAngleDegrees(older.pitchDegrees(), newer.pitchDegrees(), boundedBlend),
 					interpolateAngleRadians(older.rollRadians(), newer.rollRadians(), boundedBlend),
 					timeSeconds
 			);

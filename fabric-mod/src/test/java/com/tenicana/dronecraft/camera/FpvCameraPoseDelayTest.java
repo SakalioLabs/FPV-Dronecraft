@@ -31,6 +31,28 @@ class FpvCameraPoseDelayTest {
 	}
 
 	@Test
+	void interpolatesPitchAcrossFullFlipCaptureWithoutRewindingThroughInverted() {
+		FpvCameraPoseDelay delay = new FpvCameraPoseDelay();
+		delay.sample(pose(0.0, 0.0f, 358.0f, 0.0f, 0.00), 0.010);
+
+		FpvCameraPoseDelay.Pose delayed = delay.sample(pose(1.0, 0.0f, 2.0f, 0.0f, 0.02), 0.010);
+
+		assertTrue(delayed.pitchDegrees() > 359.9f || delayed.pitchDegrees() < 0.1f,
+				"pitchDegrees=" + delayed.pitchDegrees());
+	}
+
+	@Test
+	void interpolatesRollAcrossFullRollCaptureWithoutRewinding() {
+		FpvCameraPoseDelay delay = new FpvCameraPoseDelay();
+		delay.sample(pose(0.0, 0.0f, 0.0f, (float) Math.toRadians(358.0), 0.00), 0.010);
+
+		FpvCameraPoseDelay.Pose delayed = delay.sample(pose(1.0, 0.0f, 0.0f, (float) Math.toRadians(2.0), 0.02), 0.010);
+
+		float rollDegrees = (float) Math.toDegrees(delayed.rollRadians());
+		assertTrue(rollDegrees > 359.9f || rollDegrees < 0.1f, "rollDegrees=" + rollDegrees);
+	}
+
+	@Test
 	void zeroLatencyReturnsCurrentPose() {
 		FpvCameraPoseDelay delay = new FpvCameraPoseDelay();
 		delay.sample(pose(0.0, 0.0f, 0.00), 0.050);
@@ -44,5 +66,15 @@ class FpvCameraPoseDelayTest {
 
 	private static FpvCameraPoseDelay.Pose pose(double xMeters, float yawDegrees, double timeSeconds) {
 		return new FpvCameraPoseDelay.Pose(xMeters, 0.0, 0.0, yawDegrees, 0.0f, 0.0f, timeSeconds);
+	}
+
+	private static FpvCameraPoseDelay.Pose pose(
+			double xMeters,
+			float yawDegrees,
+			float pitchDegrees,
+			float rollRadians,
+			double timeSeconds
+	) {
+		return new FpvCameraPoseDelay.Pose(xMeters, 0.0, 0.0, yawDegrees, pitchDegrees, rollRadians, timeSeconds);
 	}
 }
