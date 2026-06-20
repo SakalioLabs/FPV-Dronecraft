@@ -2269,6 +2269,54 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroDynamicInflowThrustSagRequiresSpeedAndBodyRate() {
+		float stationary = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f
+		);
+		float fastNoRate = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float fastStraightRate = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(8.8),
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float diagonalRate = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f
+		);
+		float highThrottleDiagonalRate = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				1.0f,
+				0.20f
+		);
+
+		assertEquals(1.0f, stationary, 1.0e-6f);
+		assertEquals(1.0f, fastNoRate, 1.0e-6f);
+		assertTrue(fastStraightRate > 0.985f, "fastStraightRate=" + fastStraightRate);
+		assertTrue(fastStraightRate < 0.997f, "fastStraightRate=" + fastStraightRate);
+		assertTrue(diagonalRate > 0.940f, "diagonalRate=" + diagonalRate);
+		assertTrue(diagonalRate < 0.965f, "diagonalRate=" + diagonalRate);
+		assertTrue(highThrottleDiagonalRate < diagonalRate, "highThrottleDiagonalRate=" + highThrottleDiagonalRate + " diagonalRate=" + diagonalRate);
+		assertTrue(highThrottleDiagonalRate > 0.925f, "highThrottleDiagonalRate=" + highThrottleDiagonalRate);
+	}
+
+	@Test
 	void acroAirframeSeparationOnlyBuildsAtHighAngleFlow() {
 		float straightCruise = PlayableFlightModel.acroAirframeSeparationIntensity(0.0f, 0.0f, 25.0f);
 		float diagonalSideslip = PlayableFlightModel.acroAirframeSeparationIntensity(16.0f, 0.0f, 16.0f);

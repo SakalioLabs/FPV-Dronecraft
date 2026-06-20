@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 动态入流推力下陷）
+本轮继续减少“高速斜向改向像几何平移”的感觉，但仍然不靠继续加普通机体空阻。参考本仓库 `docs/fpv-sim-model-validation.md` 的 Motor and inflow response sanity：`racingQuad` 的 `rotor_inflow_tau=0.035s` 约为一倍半径 wake transit 的 `5.14x`、一倍直径 wake transit 的 `2.57x`，说明可玩层应保留一点入流/尾流滞后，而不是让推力矢量在高速机动中完全瞬时有效。
+- `PlayableFlightModel` 新增 `acroDynamicInflowThrustScale`，并把它乘进 ACRO 物理层的有效推力。它只在高速、有 pitch/roll 体轴角速度、且存在明显侧滑/迎角来流时产生几个百分点的推力下陷。
+- 低速、静止、无角速度、普通巡航不触发；高速直线单轴动作只约 `1%` 量级，高速斜向双轴动作约 `3%..6%`，满油门斜向双轴动作仍限制在约 `7.5%` 内。目标是增加“桨盘入流还没完全跟上”的重量感，而不是把飞机刹停。
+- 回归测试新增 `acroDynamicInflowThrustSagRequiresSpeedAndBodyRate`，锁住静止/无角速度为 `1.0`、直线高速单轴为弱影响、斜向双轴为更明显但受控的推力下陷；完整 `PlayableFlightModelTest` 继续覆盖起飞、巡航、整圈翻滚恢复和速度惯性边界。
+- 已通过 targeted rotor/inflow 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-014245.json`。
+
 ## 最新进展（2026-06-21，ACRO 高转速双轴陀螺负载）
 本轮继续围绕“斜向飞行和双轴机动像平移/欧拉角滑块”的手感收敛，没有再继续加普通空阻。参考本仓库 `docs/fpv-sim-model-validation.md` 里的 rotor inertia and gyroscopic torque sanity：当前 5 寸 racingQuad 的单桨惯量约 `5.376e-06 kg*m^2`，最大转速下单桨角动量约 `0.016 N*m*s`，720deg/s 体轴角速度时单桨陀螺力矩量级可到 `0.206 N*m`；但四桨对转会大量抵消，所以运行时只落成很弱的可玩层负载。
 - `PlayableFlightModel` 新增 `acroRotorGyroRateLoadFraction`：在 ACRO 的最终 pitch/roll rate 输出前，根据当前 RPM、体轴总角速度和 pitch+roll 双轴比例加入一个小比例缩放。高 RPM 对角满杆会损失约 `3%..8%` 角速度，单轴满杆只有约 `1%` 量级。
