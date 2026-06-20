@@ -1,5 +1,20 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，整圈翻滚后持续侧飞复发修正）
+本轮针对“尝试翻转一周之后会持续侧飞、无法回正”的新反馈继续收敛 playable ACRO。定位结果不是玩家手法问题，而是完整 roll 捕获后的恢复窗口把真实遥控器/输入滤波的回杆尾巴误判成新的主动 roll 命令：姿态刚被吸附回水平，接下来几帧如果 roll 轴还残留约 `0.2..0.3`，旧逻辑会立刻退出 recovery window，残余 body-right 侧向速度和横向来流力矩又会把飞机带回侧飞。
+
+- `PlayableFlightModel` 现在给完整 roll recovery 增加了随时间衰减的回杆尾巴容忍阈值：窗口开始时最高约 `0.42`，随后逐步回到原来的 `0.18`。这样松杆/滤波尾巴不会打断恢复，但 `0.65` 这类明确主动继续 roll 的输入仍会立刻接管，不会把 ACRO 改成自动回正。
+- 新增回归测试 `completedRollRecoverySurvivesModerateStickReturnTail`：先用 `428deg` 完整 roll 捕获，再连续 6 tick 保持 `0.28` 的中等回杆残留，要求 recovery window 仍然存活、roll rate 被钉回 0、body-right 侧向速度压到 `0.10m/s` 内，同时保留前向惯性。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest.completedRollRecoverySurvivesModerateStickReturnTail`、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本次服务端自测因 `25565` 被占用临时使用 `25566`，结束后已恢复；报告为 `server-selftest-playable-20260620-232010.json`。接下来仍要在客户端实飞里重点确认真实遥控器松杆后的尾巴是否还会触发二次侧飞。
+
+## 最新进展（2026-06-20，ACRO 高速角速度负载与目视 pitch 修正）
+本轮继续围绕“速度已经够，但斜向飞行像平移、不像真实穿越机有重量和惯性”的手感问题收敛。参考方向主要来自三类资料：本仓库 `docs/data/apdrone_inertia_reference.csv` 里的 APdrone 5 寸机质量/惯量锚点（约 `0.628kg`，惯量约 `0.0013..0.0025kg*m^2`）、`docs/fpv-sim-model-validation.md` 里 RATM/AI-IO/NeuroBEM 高速日志和残余力线索，以及 [RotorPy](https://github.com/spencerfolk/rotorpy) 对 multirotor 高速空气动力的拆分方式：机架二次阻力、rotor drag、blade flapping、induced drag 和一阶电机响应在悬停时不明显，但高速/有角速度/交叉流时会快速变得可感。Betaflight 的 [Rate Calculator](https://betaflight.com/docs/wiki/guides/current/Rate-Calculator) 也继续作为 ACRO rate 手感边界参考：真实穿越机不是速度目标控制器，而是摇杆到角速度的 rate mode。
+
+- `PlayableFlightModel` 新增 ACRO body-rate load：把当前 pitch/roll rate 和 yaw rate 转成 body-frame 角速度，用 `omega x v` 的量级估算机体在高速动作时扫过气流的附加载荷，再沿当前机体系空速反向做负功。它只在 `8m/s+`、角速度超过约 `70deg/s` 且交叉流明显时逐步出现；低速、无角速度、普通松杆滑行不会触发。
+- 这个项不是自动回正，也不是把 ACRO 改成自稳刹车。满 rate 的 `-16m/s right + 16m/s forward` 斜向气流约产生 `1.2m/s^2` 量级的附加载荷，每 tick 只吃掉约 `0.06m/s`，主要作用是让高速斜飞、滚转/俯仰组合动作更有重量、提前量和能量损失，而不是像贴图在平面里平移。
+- 修正目视/第三人称实体模型的 pitch 符号：旧测试只看模型局部坐标，没有覆盖 `DroneEntityRenderer` 的 `scale(-1,-1,1)` 变换，所以实际目视前飞可能显示成抬头。现在正 pitch / 前飞在最终渲染变换后重新显示为机头下压，FPV 相机矩阵不受影响。
+- 新增回归测试覆盖 body-rate load 的低速/无角速度不触发、高速斜向 rate 负功、直线巡航负载更弱，以及目视模型最终渲染变换后的 pitch 方向。已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest --tests com.tenicana.dronecraft.client.render.DroneEntityModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本次服务端自测因 `25565` 被占用临时使用 `25566`，结束后已恢复；报告为 `server-selftest-playable-20260620-230818.json`。
+
 ## 最新进展（2026-06-20，ACRO 接近整圈翻滚后的侧飞捕获）
 本轮针对你最新反馈的“尝试翻转一周之后会持续侧飞、无法回正”继续收敛 playable ACRO。复现点不在已经覆盖的 `360/428/540deg` 完整捕获，而是在更贴近玩家手感的释放尾段：如果 FPV 延迟和摇杆滤波让玩家在约 `260..270deg` 以为已经翻完并松杆，旧模型可能因为没跨过 `275deg` 释放捕获阈值而停在接近刀锋/侧飞姿态，角速度几乎归零但机体系侧向速度仍很大。
 

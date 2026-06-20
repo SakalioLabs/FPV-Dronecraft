@@ -1553,6 +1553,61 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void completedRollRecoverySurvivesModerateStickReturnTail() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				14.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(428.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(3.0)
+		);
+		PlayableFlightModel.Step captured = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Step recovered = runFrom(
+				FlightMode.ACRO,
+				6,
+				0.45f,
+				0.0f,
+				0.28f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(captured)
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				recovered.velocityX(),
+				recovered.velocityY(),
+				recovered.velocityZ(),
+				recovered.pitchRadians(),
+				recovered.rollRadians()
+		);
+
+		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "capturedRecoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
+		assertTrue(recovered.acroRollRecoveryTicksRemaining() > 0, "recoveredRecoveryTicks=" + recovered.acroRollRecoveryTicksRemaining());
+		assertEquals(0.0f, recovered.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, recovered.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.10f,
+				"bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z()
+						+ " recoveryTicks=" + recovered.acroRollRecoveryTicksRemaining());
+		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void releasedFullRollInvertedDeadbandStillCompletesInsteadOfHoldingSideFlight() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				12.0f,
@@ -2330,6 +2385,58 @@ class PlayableFlightModelTest {
 		assertTrue(diagonalMagnitude > straightMagnitude * 1.30f,
 				"diagonalMagnitude=" + diagonalMagnitude + " straightMagnitude=" + straightMagnitude);
 		assertTrue(workAlongVelocity < -20.0f, "workAlongVelocity=" + workAlongVelocity);
+	}
+
+	@Test
+	void acroBodyRateLoadOnlyAppearsAtHighSpeedWithBodyRate() {
+		PlayableFlightModel.Velocity noRate = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				0.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity lowSpeed = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-5.0f, 0.0f, 5.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f
+		);
+
+		assertEquals(0.0f, noRate.x(), 1.0e-6f);
+		assertEquals(0.0f, noRate.z(), 1.0e-6f);
+		assertEquals(0.0f, lowSpeed.x(), 1.0e-6f);
+		assertEquals(0.0f, lowSpeed.z(), 1.0e-6f);
+	}
+
+	@Test
+	void acroBodyRateLoadMakesFastDiagonalRatesFeelHeavierThanStraightCruise() {
+		PlayableFlightModel.Velocity straightPitch = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity diagonalRollPitch = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f
+		);
+		float straightMagnitude = horizontalSpeed(straightPitch.x(), straightPitch.z());
+		float diagonalMagnitude = horizontalSpeed(diagonalRollPitch.x(), diagonalRollPitch.z());
+		float diagonalWork = diagonalRollPitch.x() * -16.0f + diagonalRollPitch.z() * 16.0f;
+
+		assertEquals(0.0f, straightPitch.x(), 1.0e-6f);
+		assertTrue(straightPitch.z() < -0.12f, "straightZ=" + straightPitch.z());
+		assertTrue(straightPitch.z() > -0.26f, "straightZ=" + straightPitch.z());
+		assertTrue(diagonalRollPitch.x() > 0.70f, "diagonalX=" + diagonalRollPitch.x());
+		assertTrue(diagonalRollPitch.x() < 1.05f, "diagonalX=" + diagonalRollPitch.x());
+		assertTrue(diagonalRollPitch.z() < -0.70f, "diagonalZ=" + diagonalRollPitch.z());
+		assertTrue(diagonalRollPitch.z() > -1.05f, "diagonalZ=" + diagonalRollPitch.z());
+		assertTrue(diagonalMagnitude > straightMagnitude * 2.0f,
+				"diagonalMagnitude=" + diagonalMagnitude + " straightMagnitude=" + straightMagnitude);
+		assertTrue(diagonalWork < -22.0f, "diagonalWork=" + diagonalWork);
+		assertTrue(diagonalWork > -34.0f, "diagonalWork=" + diagonalWork);
 	}
 
 	@Test

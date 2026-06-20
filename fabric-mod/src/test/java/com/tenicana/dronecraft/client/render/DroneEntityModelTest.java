@@ -10,22 +10,22 @@ class DroneEntityModelTest {
 	void positivePlayablePitchRendersAsNoseDownInLineOfSightView() {
 		float playablePitch = (float) Math.toRadians(18.0);
 		float modelPitch = DroneEntityModel.bodyPitchRotationRadians(playablePitch);
-		float renderedForwardYOffset = DroneEntityModel.renderedBodyForwardYOffset(playablePitch);
+		float finalForwardYOffset = DroneEntityModel.renderedBodyForwardYOffsetAfterRendererTransform(playablePitch);
 
-		assertTrue(modelPitch > 0.0f);
-		assertEquals(playablePitch, modelPitch, 1.0e-6f);
-		assertTrue(renderedForwardYOffset > 0.0f);
+		assertTrue(modelPitch < 0.0f);
+		assertEquals(-playablePitch, modelPitch, 1.0e-6f);
+		assertTrue(finalForwardYOffset > 0.0f);
 	}
 
 	@Test
 	void negativePlayablePitchRendersAsNoseUpInLineOfSightView() {
 		float playablePitch = (float) Math.toRadians(-18.0);
-		float renderedForwardYOffset = DroneEntityModel.renderedBodyForwardYOffset(playablePitch);
+		float finalForwardYOffset = DroneEntityModel.renderedBodyForwardYOffsetAfterRendererTransform(playablePitch);
 
-		assertTrue(renderedForwardYOffset < 0.0f);
+		assertTrue(finalForwardYOffset < 0.0f);
 		assertEquals(
-				-DroneEntityModel.renderedBodyForwardYOffset(-playablePitch),
-				renderedForwardYOffset,
+				-DroneEntityModel.renderedBodyForwardYOffsetAfterRendererTransform(-playablePitch),
+				finalForwardYOffset,
 				1.0e-6f
 		);
 	}

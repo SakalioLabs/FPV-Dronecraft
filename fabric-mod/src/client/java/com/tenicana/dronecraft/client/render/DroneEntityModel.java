@@ -103,11 +103,15 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 	}
 
 	static float bodyPitchRotationRadians(float pitchRadians) {
-		return pitchRadians;
+		return -pitchRadians;
 	}
 
 	static float renderedBodyForwardYOffset(float pitchRadians) {
 		return BODY_FORWARD_Z * (float) Math.sin(bodyPitchRotationRadians(pitchRadians));
+	}
+
+	static float renderedBodyForwardYOffsetAfterRendererTransform(float pitchRadians) {
+		return -renderedBodyForwardYOffset(pitchRadians);
 	}
 
 	private static float phaseOffset(int index) {
