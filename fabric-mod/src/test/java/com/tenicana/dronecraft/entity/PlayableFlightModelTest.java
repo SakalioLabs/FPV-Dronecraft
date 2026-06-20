@@ -2051,12 +2051,12 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
-		assertTrue(highSideFlowScale > 0.55f, "highSideFlowScale=" + highSideFlowScale);
-		assertTrue(highSideFlowScale < 0.62f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(highSideFlowScale > 0.36f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(highSideFlowScale < 0.44f, "highSideFlowScale=" + highSideFlowScale);
 		assertTrue(diagonalSideFlowScale > highSideFlowScale, "diagonalSideFlowScale=" + diagonalSideFlowScale + " highSideFlowScale=" + highSideFlowScale);
-		assertTrue(diagonalSideFlowScale < 0.64f, "diagonalSideFlowScale=" + diagonalSideFlowScale);
-		assertTrue(noseDownForwardScale > diagonalSideFlowScale + 0.18f, "noseDownForwardScale=" + noseDownForwardScale + " diagonalSideFlowScale=" + diagonalSideFlowScale);
-		assertTrue(noseDownForwardScale < 0.86f, "noseDownForwardScale=" + noseDownForwardScale);
+		assertTrue(diagonalSideFlowScale < 0.46f, "diagonalSideFlowScale=" + diagonalSideFlowScale);
+		assertTrue(noseDownForwardScale > diagonalSideFlowScale + 0.12f, "noseDownForwardScale=" + noseDownForwardScale + " diagonalSideFlowScale=" + diagonalSideFlowScale);
+		assertTrue(noseDownForwardScale < 0.64f, "noseDownForwardScale=" + noseDownForwardScale);
 	}
 
 	@Test
@@ -2081,8 +2081,8 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
-		assertTrue(racingCruiseScale > 0.86f, "racingCruiseScale=" + racingCruiseScale);
-		assertTrue(racingCruiseScale < 0.91f, "racingCruiseScale=" + racingCruiseScale);
+		assertTrue(racingCruiseScale > 0.64f, "racingCruiseScale=" + racingCruiseScale);
+		assertTrue(racingCruiseScale < 0.71f, "racingCruiseScale=" + racingCruiseScale);
 	}
 
 	@Test

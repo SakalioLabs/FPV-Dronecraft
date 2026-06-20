@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，5 寸桨前飞/侧流推力滚降重标定）
+本轮继续处理“斜向飞行像平移、不像真机吃风”的手感问题。重新对照本仓库 `docs/fpv-sim-model-validation.md` 里的 UIUC 5 寸前飞拟合、RATM 高速窗口和 airframe drag calibration packet 后，发现 playable ACRO 的 advance-ratio 推力损失仍然太慷慨：旧测试允许 `12.5m/s` 巡航来流时仍保留约 `0.86..0.91` 的推力比例，而 UIUC 5 寸参考在等效 `J≈0.45` 附近的 CT/static CT 均值约 `0.55`。这会让高速侧飞/斜飞时桨盘几乎不吃风，视觉和操作上就容易像在平面里平移。
+
+- `PlayableFlightModel` 将 ACRO advance-ratio loss 的 full 区间从 `J=0.82` 提前到 `J=0.62`，最大前向/侧向来流推力损失从 `0.30/0.42` 提高到 `0.48/0.62`。低速 `5m/s` 仍基本不损失推力；`12.5m/s` 巡航推力比例现在收敛到约 `0.64..0.71`；`25m/s` 侧向/斜向来流会明显更重，减少贴图式横移感。
+- 这不是普通速度刹车，也不是降低最高速度：`acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap` 仍通过，`0.68` 油门的 ACRO 巡航仍能达到 `25m/s+`。区别是高速斜向动作需要更多油门和提前量，松杆后也更容易体现真实 5 寸机的能量成本。
+- 已更新 advance-ratio 回归测试区间，并通过完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本次服务端自测因 `25565` 被占用临时使用 `25566`，结束后已恢复；报告为 `server-selftest-playable-20260620-232810.json`。接下来仍建议客户端实飞重点试：高速 45 度斜飞、满 pitch 后带 roll 的穿门修正、以及 25m/s 左右松杆滑行，看是否更像“机体在穿空气”而不是屏幕平移。
+
 ## 最新进展（2026-06-20，整圈翻滚后持续侧飞复发修正）
 本轮针对“尝试翻转一周之后会持续侧飞、无法回正”的新反馈继续收敛 playable ACRO。定位结果不是玩家手法问题，而是完整 roll 捕获后的恢复窗口把真实遥控器/输入滤波的回杆尾巴误判成新的主动 roll 命令：姿态刚被吸附回水平，接下来几帧如果 roll 轴还残留约 `0.2..0.3`，旧逻辑会立刻退出 recovery window，残余 body-right 侧向速度和横向来流力矩又会把飞机带回侧飞。
 
