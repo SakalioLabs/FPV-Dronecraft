@@ -3590,6 +3590,88 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroYawRateInertiaLoadsSettledCrossflowWithoutKillingYawAuthority() {
+		float hoverScale = PlayableFlightModel.acroYawRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				0.45f,
+				0.20f,
+				0.0f
+		);
+		float idleScale = PlayableFlightModel.acroYawRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				0.0f,
+				0.20f,
+				0.0f
+		);
+		float straightScale = PlayableFlightModel.acroYawRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.45f,
+				0.20f,
+				1.0f
+		);
+		float freshDiagonalScale = PlayableFlightModel.acroYawRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.45f,
+				0.20f,
+				0.32f
+		);
+		float settledDiagonalScale = PlayableFlightModel.acroYawRateInertiaSmoothingScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.45f,
+				0.20f,
+				1.0f
+		);
+		PlayableFlightModel.Step calmYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step settledSlipYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						1.0f
+				)
+		);
+
+		assertEquals(1.0f, hoverScale, 1.0e-6f);
+		assertTrue(idleScale > 0.89f, "idleScale=" + idleScale);
+		assertTrue(idleScale < 0.91f, "idleScale=" + idleScale);
+		assertTrue(straightScale > 0.96f, "straightScale=" + straightScale);
+		assertTrue(straightScale < hoverScale, "straightScale=" + straightScale);
+		assertTrue(freshDiagonalScale < straightScale, "freshDiagonalScale=" + freshDiagonalScale + " straightScale=" + straightScale);
+		assertTrue(freshDiagonalScale > 0.94f, "freshDiagonalScale=" + freshDiagonalScale);
+		assertTrue(settledDiagonalScale < freshDiagonalScale, "settledDiagonalScale=" + settledDiagonalScale + " freshDiagonalScale=" + freshDiagonalScale);
+		assertTrue(settledDiagonalScale > 0.90f, "settledDiagonalScale=" + settledDiagonalScale);
+		assertTrue(settledSlipYaw.yawDegreesPerTick() < calmYaw.yawDegreesPerTick() * 0.89f,
+				"settledSlipYaw=" + settledSlipYaw.yawDegreesPerTick() + " calmYaw=" + calmYaw.yawDegreesPerTick());
+		assertTrue(settledSlipYaw.yawDegreesPerTick() > calmYaw.yawDegreesPerTick() * 0.82f,
+				"settledSlipYaw=" + settledSlipYaw.yawDegreesPerTick() + " calmYaw=" + calmYaw.yawDegreesPerTick());
+	}
+
+	@Test
 	void acroBodyRateYawCouplingAddsBankedPitchAndVerticalRollHeadingChange() {
 		float levelPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
 				0.0f,

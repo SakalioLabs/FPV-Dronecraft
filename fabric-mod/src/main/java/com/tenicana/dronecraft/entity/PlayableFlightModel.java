@@ -171,6 +171,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT = 0.28f;
 	private static final float ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.16f;
 	private static final float ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.22f;
+	private static final float ACRO_YAW_RATE_INERTIA_IDLE_KEEP = 0.90f;
+	private static final float ACRO_YAW_RATE_INERTIA_SPEED_START_METERS_PER_SECOND = 8.0f;
+	private static final float ACRO_YAW_RATE_INERTIA_SPEED_FULL_METERS_PER_SECOND = 28.0f;
+	private static final float ACRO_YAW_RATE_INERTIA_CROSSFLOW_START_RADIANS = (float) Math.toRadians(10.0f);
+	private static final float ACRO_YAW_RATE_INERTIA_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(55.0f);
+	private static final float ACRO_YAW_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT = 0.24f;
+	private static final float ACRO_YAW_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.10f;
 	private static final float ACRO_RESIDUAL_TORQUE_LOAD_SPEED_START_METERS_PER_SECOND = 10.0f;
 	private static final float ACRO_RESIDUAL_TORQUE_LOAD_SPEED_FULL_METERS_PER_SECOND = 28.0f;
 	private static final float ACRO_RESIDUAL_TORQUE_LOAD_RATE_START_RADIANS_PER_SECOND = (float) Math.toRadians(50.0f);
@@ -473,7 +480,20 @@ final class PlayableFlightModel {
 		float yawDegreesPerTick = smooth(
 				safePrevious.yawDegreesPerTick(),
 				targetYawDegreesPerTick,
-				yawSmoothing(safePrevious.yawDegreesPerTick(), targetYawDegreesPerTick, profile)
+				yawSmoothing(
+						safeMode,
+						safePrevious.yawDegreesPerTick(),
+						targetYawDegreesPerTick,
+						profile,
+						velocityX,
+						velocityY,
+						velocityZ,
+						pitchRadians,
+						rollRadians,
+						safeThrottle,
+						safeHover,
+						acroAeroCrossflowLag
+				)
 		);
 		if (shouldModeSwitchBrakeYaw(safePrevious, safeYaw)) {
 			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(safeMode));
@@ -934,6 +954,42 @@ final class PlayableFlightModel {
 				? ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS
 				: ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS;
 		return clamp(1.0f - maxLoss * speedExposure * flowLoad, 0.70f, 1.0f);
+	}
+
+	static float acroYawRateInertiaSmoothingScale(
+			Velocity bodyVelocity,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
+		float rpm = averageRpm(throttle, hoverThrottle);
+		float rpmProgress = smoothStep((rpm - IDLE_RPM) / Math.max(1.0f, HOVER_RPM - IDLE_RPM));
+		float rpmScale = lerp(ACRO_YAW_RATE_INERTIA_IDLE_KEEP, 1.0f, rpmProgress);
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
+				+ bodyVelocity.y() * bodyVelocity.y()
+				+ bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return rpmScale;
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float speedExposure = smoothStep((speed - ACRO_YAW_RATE_INERTIA_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_YAW_RATE_INERTIA_SPEED_FULL_METERS_PER_SECOND - ACRO_YAW_RATE_INERTIA_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return rpmScale;
+		}
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float crossflowExposure = laggedCrossflowExposure(Math.max(
+				smoothStep((sideslip - ACRO_YAW_RATE_INERTIA_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_YAW_RATE_INERTIA_CROSSFLOW_FULL_RADIANS - ACRO_YAW_RATE_INERTIA_CROSSFLOW_START_RADIANS)),
+				smoothStep((angleOfAttack - ACRO_YAW_RATE_INERTIA_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_YAW_RATE_INERTIA_CROSSFLOW_FULL_RADIANS - ACRO_YAW_RATE_INERTIA_CROSSFLOW_START_RADIANS))
+		), acroAeroCrossflowLag);
+		float flowLoad = ACRO_YAW_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT
+				+ (1.0f - ACRO_YAW_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT) * crossflowExposure;
+		float aerodynamicScale = 1.0f - ACRO_YAW_RATE_INERTIA_MAX_SMOOTHING_LOSS * speedExposure * flowLoad;
+		return clamp(rpmScale * aerodynamicScale, ACRO_YAW_RATE_INERTIA_IDLE_KEEP * (1.0f - ACRO_YAW_RATE_INERTIA_MAX_SMOOTHING_LOSS), 1.0f);
 	}
 
 	static float acroMotorRateAuthorityScale(
@@ -2722,6 +2778,28 @@ final class PlayableFlightModel {
 		boolean braking = Math.abs(target) < Math.abs(current)
 				|| (Math.signum(current) != 0.0f && Math.signum(target) != 0.0f && Math.signum(current) != Math.signum(target));
 		return braking ? profile.yawBrakeSmoothing() : profile.yawSmoothing();
+	}
+
+	private static float yawSmoothing(
+			FlightMode mode,
+			float current,
+			float target,
+			Profile profile,
+			float velocityX,
+			float velocityY,
+			float velocityZ,
+			float pitchRadians,
+			float rollRadians,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
+		float smoothing = yawSmoothing(current, target, profile);
+		if (safeMode(mode) != FlightMode.ACRO) {
+			return smoothing;
+		}
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
+		return smoothing * acroYawRateInertiaSmoothingScale(bodyVelocity, throttle, hoverThrottle, acroAeroCrossflowLag);
 	}
 
 	private static float smoothLimited(float current, float target, float smoothing, float maxStep) {

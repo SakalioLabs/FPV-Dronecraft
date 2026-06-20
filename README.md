@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO yaw 轴惯量响应）
+本轮继续沿着“斜向飞行不要像平面平移，而要像真实穿越机带着质量转入气流”的主线收敛。上一轮已经加强了横向来流的咬风；这轮不再继续加机体阻力，而是补主动 yaw 轴的惯量感：真实 5 寸机的航向变化依赖电机反扭矩和桨盘气动余量，高速侧滑或低油门时不应该像理想数学 yaw rate 源那样瞬间贴到目标速率。
+- `PlayableFlightModel` 新增 `acroYawRateInertiaSmoothingScale`，并只在 ACRO yaw smoothing 上应用。hover/低速下 scale 仍为 `1.0`，普通 yaw 手感不被闷掉；零油门附近保留约 `90%` yaw 响应，模拟 AirMode/电机怠速下仍有控制权；高速直线前飞只给很轻的航向惯量，高速斜向横流则随着 `acroAeroCrossflowLag` 建立逐步变重。
+- 这个改动不改变最终 yaw 目标，也不加入自动回正。它只是让 yaw 建立和释放有一点真实惯量尾巴，尤其是 `16m/s right + 16m/s forward` 这类稳态斜滑中，满 yaw 不再像屏幕平面直接旋转，而是略微受横流和电机余量影响，同时仍保留足够主动控制权。
+- 新增 `acroYawRateInertiaLoadsSettledCrossflowWithoutKillingYawAuthority`：锁住 hover scale、idle scale、直线高速 scale、fresh diagonal scale 和 settled diagonal scale 的顺序，并验证稳态斜滑下满 yaw 低于 calm yaw 但仍大于 `82%`，避免把 yaw 轴调死。
+- 已通过 yaw targeted 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-034945.json`，ACRO playable 诊断通过，最大水平位移约 `16.16m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 斜飞横向咬风再收敛）
 本轮继续处理你最新反馈的“翻滚一周之后持续侧飞、无法自然回到可控航迹”的手感问题。复查后确认 ACRO 速度积分本身已经不是目标速度回正，也不是平面速度插值；问题更像是持续 sideslip 下，机身横向迎风面积和 yaw-plane sideforce 还不够咬空气，导致 `16m/s right + 16m/s forward` 这类高速斜滑在两秒后仍然保留过多横向分量。
 - `PlayableFlightModel` 只加强横向来流相关项，不加全局前向阻力：ACRO lateral drag area 从 `0.0269m^2` 提到 `0.0340m^2`，lateral linear drag 从 `0.16/s` 提到 `0.19/s`。直线机头前飞的 forward drag 没有提高，避免把 25m/s 巡航和松杆 coastdown 重新做成“撞空气墙”。
