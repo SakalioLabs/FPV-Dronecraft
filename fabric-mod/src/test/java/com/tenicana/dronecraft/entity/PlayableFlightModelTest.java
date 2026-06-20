@@ -2245,6 +2245,72 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroTransverseFlowRollMomentBanksIntoHighSpeedSideslip() {
+		float straight = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.0f
+		);
+		float lowSpeedSide = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(6.0f, 0.0f, 0.0f),
+				0.0f
+		);
+		float rightSlip = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f
+		);
+		float leftSlip = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				0.0f
+		);
+		float activeRoll = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f
+		);
+
+		assertEquals(0.0f, straight, 1.0e-6f);
+		assertEquals(0.0f, lowSpeedSide, 1.0e-6f);
+		assertTrue(rightSlip > Math.toRadians(0.20), "rightSlipDeg=" + Math.toDegrees(rightSlip));
+		assertTrue(rightSlip < Math.toRadians(0.27), "rightSlipDeg=" + Math.toDegrees(rightSlip));
+		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
+		assertTrue(activeRoll > rightSlip * 0.06f, "activeRollDeg=" + Math.toDegrees(activeRoll));
+		assertTrue(activeRoll < rightSlip * 0.12f, "activeRollDeg=" + Math.toDegrees(activeRoll) + " rightSlipDeg=" + Math.toDegrees(rightSlip));
+	}
+
+	@Test
+	void acroHighSpeedSideslipAddsPassiveRollRateWithoutRollStick() {
+		PlayableFlightModel.State slipping = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step passive = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				slipping
+		);
+
+		assertTrue(passive.acroRollRateRadiansPerTick() > Math.toRadians(0.20),
+				"passiveRollRateDeg=" + Math.toDegrees(passive.acroRollRateRadiansPerTick()));
+		assertTrue(passive.acroRollRateRadiansPerTick() < Math.toRadians(0.27),
+				"passiveRollRateDeg=" + Math.toDegrees(passive.acroRollRateRadiansPerTick()));
+		assertEquals(passive.acroRollRateRadiansPerTick(), passive.rollRadians(), 1.0e-6f);
+		assertEquals(0.0f, passive.acroPitchRateRadiansPerTick(), 1.0e-6f);
+	}
+
+	@Test
 	void acroHighSpeedDiagonalFlowBuildsRollRateWithMoreWeight() {
 		PlayableFlightModel.Step lowSpeed = PlayableFlightModel.step(
 				FlightMode.ACRO,

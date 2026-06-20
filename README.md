@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 侧滑入流滚转力矩）
+本轮继续收敛“斜向飞行像平移、不像真机”的核心手感。上一轮已经把 5 寸桨高前进比推力 rolloff 提前到 `J≈0.45` 区间；这轮补的是姿态层：旧 playable ACRO 里横向/斜向来流主要只改变线加速度、阻力和推力软化，缺少“气流也会拧动机体”的弱力矩反馈，所以高速斜飞仍容易像在平面里滑。
+- `PlayableFlightModel` 现在新增 ACRO transverse-flow roll moment：低于约 `8m/s` 不介入，直线前飞不介入；在 `16m/s right + 16m/s forward` 这类高速侧滑/斜飞里，会产生约 `0.24deg/tick` 的被动 roll rate，让机体轻微向侧滑来流压过去，减少纯平移感。
+- 这不是自稳回正：满 roll 杆时该力矩会被压到约 `8%`，不会偷走主动翻滚、刀锋或连续 rate 操作；没有明显侧向来流时也不会把 ACRO 拉回水平。
+- 依据来自资料包中 Kolaei 2018 入流角 rotor `CMx` 横向来流滚转力矩线索，以及 NeuroBEM 残差力矩量级警告：真实小型多旋翼高速侧滑并不是只有平动阻力，残余气动力矩也会进入姿态手感。当前实现仍是 playable 近似，先补方向和量级，不硬套大桨系数。
+- 新增回归测试覆盖：低速/直线前飞力矩为 0；左右侧滑力矩符号对称；高速斜向侧滑的被动 roll rate 落在 `0.20..0.27deg/tick`；主动 roll 输入时该力矩被明显抑制。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测临时使用 25566，结束后已恢复 25565；当前系统默认 Java 25 仍会在 dedicated server bootstrap 触发 ASM 异常，服务端自测使用便携 JDK 21；报告为 `server-selftest-playable-20260620-210911.json`。
+
 ## 最新进展（2026-06-20，ACRO 5 寸桨前进比推力 rolloff）
 本轮继续处理“斜向飞行像平移、不像真机”的手感问题。上一轮把高速惯性距离拉长后，这轮转到推力本身：资料包里 `docs/fpv-sim-model-validation.md` 反复提示 UIUC/IMAV/Mejzlik 等前飞资料显示，5 寸桨在 `J≈0.45` 附近已经出现明显 CT rolloff；旧 playable 模型在这个区域仍接近理想静态推力，容易让斜向/高速穿盘像几何推进器。
 - `PlayableFlightModel` 现在把 playable ACRO 的高前进比损失起点从 `J=0.25` 提前到 `J=0.18`，full 区间从 `J=1.00` 提前到 `J=0.82`。前向最大推力损失从 `20%` 提到 `30%`，明显侧向/斜向穿盘最大损失从 `36%` 提到 `42%`。

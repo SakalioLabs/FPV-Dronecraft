@@ -120,6 +120,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT = 0.28f;
 	private static final float ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.16f;
 	private static final float ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.22f;
+	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
+	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
+	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_START_RADIANS = (float) Math.toRadians(14.0f);
+	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(62.0f);
+	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.34f);
+	private static final float ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS = 0.65f;
+	private static final float ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP = 0.08f;
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -629,17 +636,20 @@ final class PlayableFlightModel {
 				previous.pitchRadians(),
 				previous.rollRadians()
 		);
+		float pitchRate = acroAerodynamicRateDamped(
+				responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick(), bodyVelocity, true),
+				bodyVelocity,
+				true
+		);
+		float rollRate = acroAerodynamicRateDamped(
+				responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick(), bodyVelocity, false),
+				bodyVelocity,
+				false
+		);
+		rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll);
 		return new AcroRateResponse(
-				acroAerodynamicRateDamped(
-						responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick(), bodyVelocity, true),
-						bodyVelocity,
-						true
-				),
-				acroAerodynamicRateDamped(
-						responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick(), bodyVelocity, false),
-						bodyVelocity,
-						false
-				)
+				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
+				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
 		);
 	}
 
@@ -729,6 +739,31 @@ final class PlayableFlightModel {
 				? ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS
 				: ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS;
 		return clamp(1.0f - maxLoss * speedExposure * flowLoad, 0.70f, 1.0f);
+	}
+
+	static float acroTransverseFlowRollMomentRate(Velocity bodyVelocity, float rollCommand) {
+		float horizontalSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		if (horizontalSpeed <= 1.0e-6f || Math.abs(bodyVelocity.x()) <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float speedExposure = smoothStep((horizontalSpeed - ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_TRANSVERSE_MOMENT_SPEED_FULL_METERS_PER_SECOND - ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), Math.max(2.0f, Math.abs(bodyVelocity.z())));
+		float sideslipExposure = smoothStep((sideslip - ACRO_TRANSVERSE_MOMENT_SIDESLIP_START_RADIANS)
+				/ Math.max(0.001f, ACRO_TRANSVERSE_MOMENT_SIDESLIP_FULL_RADIANS - ACRO_TRANSVERSE_MOMENT_SIDESLIP_START_RADIANS));
+		if (sideslipExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float activeRollSuppression = smoothStep(Math.abs(rollCommand) / ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS);
+		float commandScale = lerp(1.0f, ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP, activeRollSuppression);
+		return Math.signum(bodyVelocity.x())
+				* ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK
+				* speedExposure
+				* sideslipExposure
+				* commandScale;
 	}
 
 	private static boolean isRateRising(float currentRateRadiansPerTick, float targetRateRadiansPerTick) {
