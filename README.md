@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 动态横流负载滞后）
+本轮继续沿着“斜飞/翻滚转换不要像平移或瞬间被空气抽回”的主线收敛。上一轮已经把横流滞后接到旋翼盘 flapping、盘面阻力、动态入流和推进损失；这次继续补上仍然瞬时生效的动态负载路径，让高速转动时的空气/桨盘负载也有建立过程。
+- `PlayableFlightModel` 现在把 `acroAeroCrossflowLag` 传入 `acroResidualTorqueRateLoadFraction`、`acroYawTurnLoadBodyAcceleration` 和 `acroBodyRateLoadBodyAcceleration`。这些路径原本在机体已经有高速侧滑/大迎角时会直接按完整横流暴露计算负载，现在只让直线流动基础项即时生效，侧滑/迎角额外项跟随 lag 建立。
+- 具体效果是：高速直线 pitch/roll/yaw 动作仍有基础速率负载，不会被削成无反馈；但 `16m/s right + 16m/s forward` 这类斜向横流里的 residual torque、yaw turn load、body-rate load 不会第一帧满量咬住机体。持续侧滑或持续大迎角后，这些真实空气负载仍会逐渐恢复完整强度。
+- 这次没有调最高速度、没有再加普通 CdA，也没有把 ACRO 做成自稳。它是把已有的真实动态负载从“几何瞬时开关”改成“流场逐步建立”，目标是减少翻滚一圈后横向力突然打满造成的抽动，同时保留高速机动时空气咬住机体的重量感。
+- 回归测试新增 `acroLaggedCrossflowSoftensFirstTickResidualTorqueLoad`、`acroLaggedCrossflowSoftensFirstTickYawTurnLoad`、`acroLaggedCrossflowSoftensFirstTickBodyRateLoad`，并继续保留旧的稳态重载测试，确保第一帧柔和、稳态仍真实、直线高速巡航不被误伤。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-024452.json`，ACRO playable 诊断通过，最大水平位移约 `17.88m`，最大速度约 `6.40m/s`，平均电机遥测峰值约 `6957 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 横流滞后扩展到旋翼盘）
 本轮继续收敛你实测的“翻滚一周后持续侧飞/回抽、旋转不够通畅”的问题。上一轮已经让机身气动力的侧滑/大迎角效应不再瞬时打满；这次把同一个横流滞后状态继续接到旋翼盘和被动力矩上，避免出现“机身气动力慢建立，但桨盘横流负载第一帧全量生效”的不一致。
 - `PlayableFlightModel` 现在会在 ACRO tick 前半段基于上一帧速度和姿态先更新 `acroAeroCrossflowLag`，再把它传入 pitch/roll rate 响应。横向入流滚转力矩与高迎角 pitch 被动力矩都会按该滞后量缩放，因此刚从翻滚/侧滑进入横流时不会立刻被被动力矩抽走；稳定侧滑后仍会逐步建立真实的空气咬合。

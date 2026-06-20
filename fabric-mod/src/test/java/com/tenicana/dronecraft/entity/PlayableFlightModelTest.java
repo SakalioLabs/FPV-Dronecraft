@@ -2724,6 +2724,110 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroLaggedCrossflowSoftensFirstTickResidualTorqueLoad() {
+		float straightCruise = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(6.0),
+				0.0f,
+				0.0f
+		);
+		float diagonalInitial = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(6.0),
+				(float) Math.toRadians(6.0),
+				0.32f
+		);
+		float diagonalSettled = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(6.0),
+				(float) Math.toRadians(6.0),
+				1.0f
+		);
+
+		assertEquals(0.0f, straightCruise, 1.0e-6f);
+		assertTrue(diagonalInitial > 0.004f, "diagonalInitial=" + diagonalInitial);
+		assertTrue(diagonalInitial < diagonalSettled * 0.45f,
+				"initial=" + diagonalInitial + " settled=" + diagonalSettled);
+		assertTrue(diagonalSettled > 0.017f, "diagonalSettled=" + diagonalSettled);
+	}
+
+	@Test
+	void acroLaggedCrossflowSoftensFirstTickYawTurnLoad() {
+		PlayableFlightModel.Velocity straightInitial = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				5.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettled = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				5.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity diagonalInitial = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				5.0f,
+				0.32f
+		);
+		PlayableFlightModel.Velocity diagonalSettled = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				5.0f,
+				1.0f
+		);
+		float straightMagnitude = horizontalSpeed(straightInitial.x(), straightInitial.z());
+		float diagonalInitialMagnitude = horizontalSpeed(diagonalInitial.x(), diagonalInitial.z());
+		float diagonalSettledMagnitude = horizontalSpeed(diagonalSettled.x(), diagonalSettled.z());
+
+		assertEquals(straightSettled.x(), straightInitial.x(), 1.0e-6f);
+		assertEquals(straightSettled.z(), straightInitial.z(), 1.0e-6f);
+		assertTrue(diagonalInitialMagnitude < diagonalSettledMagnitude * 0.75f,
+				"initial=" + diagonalInitialMagnitude + " settled=" + diagonalSettledMagnitude);
+		assertTrue(diagonalInitialMagnitude > straightMagnitude * 1.05f,
+				"initial=" + diagonalInitialMagnitude + " straight=" + straightMagnitude);
+	}
+
+	@Test
+	void acroLaggedCrossflowSoftensFirstTickBodyRateLoad() {
+		PlayableFlightModel.Velocity straightInitial = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettled = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				0.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity diagonalInitial = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				0.32f
+		);
+		PlayableFlightModel.Velocity diagonalSettled = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(9.0),
+				(float) Math.toRadians(9.0),
+				0.0f,
+				1.0f
+		);
+		float straightMagnitude = horizontalSpeed(straightInitial.x(), straightInitial.z());
+		float diagonalInitialMagnitude = horizontalSpeed(diagonalInitial.x(), diagonalInitial.z());
+		float diagonalSettledMagnitude = horizontalSpeed(diagonalSettled.x(), diagonalSettled.z());
+
+		assertEquals(straightSettled.x(), straightInitial.x(), 1.0e-6f);
+		assertEquals(straightSettled.z(), straightInitial.z(), 1.0e-6f);
+		assertTrue(diagonalInitialMagnitude < diagonalSettledMagnitude * 0.65f,
+				"initial=" + diagonalInitialMagnitude + " settled=" + diagonalSettledMagnitude);
+		assertTrue(diagonalInitialMagnitude > straightMagnitude * 1.55f,
+				"initial=" + diagonalInitialMagnitude + " straight=" + straightMagnitude);
+	}
+
+	@Test
 	void acroPitchPlaneLiftIsZeroInStraightCruise() {
 		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
