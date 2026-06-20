@@ -1,5 +1,11 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，目视前飞 pitch 符号回归修正）
+本轮先修一个明确的目视飞行回归：你反馈“目视状态下无人机向前时从压头变成了抬头”。问题集中在客户端 `DroneEntityModel` 的 pitch 符号，前一轮测试把 renderer 的 `scale(-1,-1,1)` 和模型机头前向点的最终 Y 偏移语义判断反了。
+- `DroneEntityModel.bodyPitchRotationRadians` 现在重新使用 `-pitchRadians`，让 playable 正 pitch / 前飞在第三人称目视模型上表现为机头下压，而不是抬头。
+- `DroneEntityModelTest` 同步改为固定这条实飞语义：正 playable pitch 的模型 pitch 为负值，经过 renderer transform 后机头前向点落到目视压头方向；负 playable pitch 对称显示为抬头。
+- 这个改动只影响 LOS/第三人称实体模型显示，不改变 FPV 相机矩阵，也不改变服务端 ACRO 物理、速度、空阻、惯性或斜滑侧向力。
+
 ## 最新进展（2026-06-21，ACRO 斜滑侧向力重标定）
 本轮继续处理“斜向飞行像平移、不像机体在空气里转弯”的手感问题。上一轮增强了大姿态下 pitch/roll 到航向的耦合；这轮把 yaw-plane sideforce 做得更明显一些，让 `16m/s right + 16m/s forward` 这类斜向来流的速度矢量更愿意往机头方向弯，而不是只靠横向阻力把侧向速度刹掉。
 - `PlayableFlightModel` 将 ACRO 侧滑侧向力增益从 `0.092` 提到 `0.128`，诱导阻力增益从 `0.50` 提到 `0.56`，诱导阻力上限从 `1.60m/s^2` 提到 `1.85m/s^2`。侧向力本身仍保持近似零做功，用来改变速度方向；诱导阻力只给明显斜滑追加能量成本。
