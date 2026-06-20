@@ -146,6 +146,15 @@ final class PlayableFlightModel {
 	private static final float ACRO_THRUST_TURN_LOAD_ACCELERATION_FULL = 8.0f;
 	private static final float ACRO_THRUST_TURN_LOAD_GAIN = 0.16f;
 	private static final float ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION = 1.65f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND = 10.0f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_SPEED_FULL_METERS_PER_SECOND = 28.0f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_START = 1.0f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_FULL = 8.0f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS = (float) Math.toRadians(10.0f);
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(58.0f);
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT = 0.24f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_GAIN = 0.095f;
+	private static final float ACRO_ROTOR_SIDEWASH_TURN_MAX_ACCELERATION = 0.90f;
 	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.28f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 0.70f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
@@ -1590,6 +1599,14 @@ final class PlayableFlightModel {
 				thrustAxis.x() * thrustAcceleration,
 				thrustAxis.z() * thrustAcceleration
 		);
+		Velocity sidewashTurnAcceleration = acroRotorSidewashTurnAcceleration(
+				previousVelocityX,
+				previousVelocityZ,
+				thrustAxis.x() * thrustAcceleration,
+				thrustAxis.z() * thrustAcceleration,
+				bodyVelocity,
+				acroAeroCrossflowLag
+		);
 		Velocity rotorDiskAcceleration = yawLocalVelocityForAcroBody(
 				flappingBodyAcceleration.x() + inPlaneDragBodyAcceleration.x() + translationalLiftDragBodyAcceleration.x(),
 				flappingBodyAcceleration.y() + inPlaneDragBodyAcceleration.y() + translationalLiftDragBodyAcceleration.y(),
@@ -1616,6 +1633,8 @@ final class PlayableFlightModel {
 		float accelerationZ = thrustAxis.z() * thrustAcceleration + dragAcceleration.z() + rotorDiskAcceleration.z() + yawTurnLoadAcceleration.z() + bodyRateLoadAcceleration.z();
 		accelerationX += thrustTurnLoadAcceleration.x();
 		accelerationZ += thrustTurnLoadAcceleration.z();
+		accelerationX += sidewashTurnAcceleration.x();
+		accelerationZ += sidewashTurnAcceleration.z();
 		Velocity overspeedAcceleration = acroOverspeedSoftBrakeAcceleration(
 				previousVelocityX,
 				previousVelocityZ,
@@ -2416,6 +2435,61 @@ final class PlayableFlightModel {
 				-velocityX / horizontalSpeed * loadMagnitude,
 				0.0f,
 				-velocityZ / horizontalSpeed * loadMagnitude
+		);
+	}
+
+	static Velocity acroRotorSidewashTurnAcceleration(
+			float velocityX,
+			float velocityZ,
+			float thrustAccelerationX,
+			float thrustAccelerationZ,
+			Velocity bodyVelocity,
+			float acroAeroCrossflowLag
+	) {
+		float horizontalSpeed = horizontalMagnitude(velocityX, velocityZ);
+		if (horizontalSpeed <= ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float signedPerpendicularAcceleration = (velocityX * thrustAccelerationZ - velocityZ * thrustAccelerationX)
+				/ Math.max(1.0e-6f, horizontalSpeed);
+		float perpendicularAcceleration = Math.abs(signedPerpendicularAcceleration);
+		if (perpendicularAcceleration <= ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_START) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float speedExposure = smoothStep((horizontalSpeed - ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_SPEED_FULL_METERS_PER_SECOND - ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND));
+		float turnExposure = smoothStep((perpendicularAcceleration - ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_START)
+				/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_FULL - ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_START));
+		float flowWeight = ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT;
+		if (bodyVelocity != null) {
+			float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+			float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+			float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+			float crossflowExposure = laggedCrossflowExposure(Math.max(
+					smoothStep((sideslip - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
+							/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)),
+					smoothStep((angleOfAttack - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
+							/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS))
+			), acroAeroCrossflowLag);
+			flowWeight += (1.0f - ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT) * crossflowExposure;
+		}
+		float accelerationMagnitude = clamp(
+				perpendicularAcceleration
+						* ACRO_ROTOR_SIDEWASH_TURN_GAIN
+						* speedExposure
+						* turnExposure
+						* flowWeight,
+				0.0f,
+				ACRO_ROTOR_SIDEWASH_TURN_MAX_ACCELERATION
+		);
+		if (accelerationMagnitude <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float direction = Math.signum(signedPerpendicularAcceleration);
+		return new Velocity(
+				-velocityZ / horizontalSpeed * accelerationMagnitude * direction,
+				0.0f,
+				velocityX / horizontalSpeed * accelerationMagnitude * direction
 		);
 	}
 

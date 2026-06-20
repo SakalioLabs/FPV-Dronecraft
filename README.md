@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 桨盘侧洗转弯曲率）
+本轮继续针对“斜向飞行速度够了，但像平面平移而不像真实穿越机走线”的核心手感收敛。复查本仓库 `docs/data/airframe_drag_calibration_packet.csv`、`docs/fpv-sim-data-sources.md`，并对照 [Faessler/RPG rotor-drag 高速轨迹模型](https://rpg.ifi.uzh.ch/docs/RAL18_Faessler.pdf) 和 [RotorPy](https://github.com/spencerfolk/rotorpy) 的 aerodynamic wrench 思路后，这轮不再继续堆全局阻力，而是补“推力矢量已经在改航迹时，桨盘/侧洗让航迹更愿意弯过去”的小曲率项。
+- `PlayableFlightModel` 新增 `acroRotorSidewashTurnAcceleration`，并接入 ACRO 速度积分。它读取当前水平速度、推力水平分量、机体系横流/迎角和 `acroAeroCrossflowLag`，只输出垂直于当前水平速度的加速度；也就是说它改变航迹方向，不沿速度方向凭空加速，也不做自动回正。
+- 当前标定非常保守：直线高速压坡只给约 `0.3m/s^2` 级别的额外曲率，持续 `16m/s right + 16m/s forward` 斜向横流下才建立到约 `0.7m/s^2`，上限 `0.90m/s^2`。这样刚进入斜飞仍保留惯性，横流建立后会更像机体和桨盘咬住空气转弯，而不是靠抽象平面阻尼把侧向速度洗掉。
+- 新增 `acroRotorSidewashTurnCurvesWithoutAddingPlanarEnergy`：锁住推力与速度同向时不产生假转弯、banked straight 只有轻微曲率、fresh diagonal 明显小于 settled diagonal，并验证该曲率项对水平速度点积为 `0`，防止以后把它误调成隐藏加速或隐藏刹车。
+- 已通过 targeted sidewash/thrust-turn-load 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-035844.json`，ACRO playable 诊断通过，最大水平位移约 `16.16m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO yaw 轴惯量响应）
 本轮继续沿着“斜向飞行不要像平面平移，而要像真实穿越机带着质量转入气流”的主线收敛。上一轮已经加强了横向来流的咬风；这轮不再继续加机体阻力，而是补主动 yaw 轴的惯量感：真实 5 寸机的航向变化依赖电机反扭矩和桨盘气动余量，高速侧滑或低油门时不应该像理想数学 yaw rate 源那样瞬间贴到目标速率。
 - `PlayableFlightModel` 新增 `acroYawRateInertiaSmoothingScale`，并只在 ACRO yaw smoothing 上应用。hover/低速下 scale 仍为 `1.0`，普通 yaw 手感不被闷掉；零油门附近保留约 `90%` yaw 响应，模拟 AirMode/电机怠速下仍有控制权；高速直线前飞只给很轻的航向惯量，高速斜向横流则随着 `acroAeroCrossflowLag` 建立逐步变重。

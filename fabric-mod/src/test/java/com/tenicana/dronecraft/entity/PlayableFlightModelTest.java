@@ -3132,6 +3132,62 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroRotorSidewashTurnCurvesWithoutAddingPlanarEnergy() {
+		PlayableFlightModel.Velocity alignedDiagonal = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				16.0f,
+				16.0f,
+				7.0f,
+				7.0f,
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f
+		);
+		PlayableFlightModel.Velocity bankedStraight = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				0.0f,
+				25.0f,
+				-14.0f,
+				0.0f,
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				1.0f
+		);
+		PlayableFlightModel.Velocity freshDiagonal = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				16.0f,
+				16.0f,
+				-8.0f,
+				8.0f,
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledDiagonal = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				16.0f,
+				16.0f,
+				-8.0f,
+				8.0f,
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f
+		);
+
+		float settledWork = settledDiagonal.x() * 16.0f + settledDiagonal.z() * 16.0f;
+		float bankedMagnitude = horizontalSpeed(bankedStraight.x(), bankedStraight.z());
+		float freshMagnitude = horizontalSpeed(freshDiagonal.x(), freshDiagonal.z());
+		float settledMagnitude = horizontalSpeed(settledDiagonal.x(), settledDiagonal.z());
+
+		assertEquals(0.0f, alignedDiagonal.x(), 1.0e-6f);
+		assertEquals(0.0f, alignedDiagonal.z(), 1.0e-6f);
+		assertTrue(bankedStraight.x() < -0.24f, "bankedStraightX=" + bankedStraight.x());
+		assertTrue(bankedStraight.x() > -0.36f, "bankedStraightX=" + bankedStraight.x());
+		assertEquals(0.0f, bankedStraight.z(), 1.0e-6f);
+		assertTrue(freshMagnitude > 0.19f, "freshMagnitude=" + freshMagnitude);
+		assertTrue(freshMagnitude < 0.28f, "freshMagnitude=" + freshMagnitude);
+		assertTrue(settledMagnitude > 0.68f, "settledMagnitude=" + settledMagnitude);
+		assertTrue(settledMagnitude < 0.82f, "settledMagnitude=" + settledMagnitude);
+		assertTrue(settledMagnitude > freshMagnitude * 2.8f,
+				"settledMagnitude=" + settledMagnitude + " freshMagnitude=" + freshMagnitude);
+		assertTrue(settledDiagonal.x() < -0.48f, "settledX=" + settledDiagonal.x());
+		assertTrue(settledDiagonal.z() > 0.48f, "settledZ=" + settledDiagonal.z());
+		assertEquals(0.0f, settledWork, 1.0e-4f);
+	}
+
+	@Test
 	void acroThrustVectorTurnLoadAddsEnergyCostWithoutChangingTurnDirection() {
 		PlayableFlightModel.State fastForward = new PlayableFlightModel.State(
 				0.0f,
