@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，目视飞行 pitch 显示符号修正）
+本轮补上一个明确的目视飞行问题：ACRO 前飞/正 pitch 在第三人称目视里不应该显示成抬头。这个改动只作用于实体模型渲染符号，不改变 FPV 相机矩阵、不改变服务端飞控物理、不改变速度/空阻/惯性参数。
+
+- `DroneEntityModel.bodyPitchRotationRadians` 现在直接使用 playable pitch 符号；结合 renderer 的 `scale(-1,-1,1)`，正 pitch 会让机头最终落到世界 Y 负方向，也就是目视中的压头，而负 pitch 会显示为抬头。
+- 更新 `DroneEntityModelTest` 的语义：正 playable pitch 必须在 renderer 变换后让机头下压，负 playable pitch 必须对称抬头，避免以后再次把模型空间/世界空间的 Y 轴符号写反。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.client.render.DroneEntityModelTest` 和完整 `gradlew build`（7 个 Fabric GameTest 通过）。下一次客户端实飞重点确认：目视模式前飞姿态与 FPV/物理前进方向一致，且这个修正没有影响 FPV 第一人称画面。
+
 ## 最新进展（2026-06-21，ACRO 低油门横流机架残余力矩）
 本轮继续处理“斜向/侧向飞行像屏幕平移”的手感问题，但没有再加普通速度刹车。上一版已经让 powered disk 在高速侧滑时产生横向来流 roll moment；这次补的是更弱的机架残余力矩：真实穿越机即使松油或低油门，高速侧滑时机架、机臂、相机座和桨盘附近的残余气动力也会轻微拧动姿态，不应该完全退化成只剩线性阻力的滑块。
 
