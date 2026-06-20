@@ -3068,6 +3068,43 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroResidualTorqueRateLoadRequiresHighSpeedCrossflowAndBodyRate() {
+		float lowSpeed = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(4.0f, 0.0f, 4.0f),
+				(float) Math.toRadians(8.0),
+				(float) Math.toRadians(8.0)
+		);
+		float straightFast = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(8.0),
+				0.0f
+		);
+		float passiveSlipMoment = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f,
+				(float) Math.toRadians(0.55)
+		);
+		float diagonalBodyRate = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(6.0),
+				(float) Math.toRadians(6.0)
+		);
+		float steepAoaBodyRate = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				new PlayableFlightModel.Velocity(0.0f, 12.0f, 16.0f),
+				(float) Math.toRadians(7.0),
+				0.0f
+		);
+
+		assertEquals(0.0f, lowSpeed, 1.0e-6f);
+		assertEquals(0.0f, straightFast, 1.0e-6f);
+		assertEquals(0.0f, passiveSlipMoment, 1.0e-6f);
+		assertTrue(diagonalBodyRate > 0.017f, "diagonalBodyRate=" + diagonalBodyRate);
+		assertTrue(diagonalBodyRate < 0.030f, "diagonalBodyRate=" + diagonalBodyRate);
+		assertTrue(steepAoaBodyRate > 0.006f, "steepAoaBodyRate=" + steepAoaBodyRate);
+		assertTrue(steepAoaBodyRate < 0.018f, "steepAoaBodyRate=" + steepAoaBodyRate);
+	}
+
+	@Test
 	void acroRotorGyroRateLoadRequiresHighRpmAndDiagonalBodyRates() {
 		float hoverRpm = PlayableFlightModel.acroRotorGyroRateLoadFraction(
 				(float) Math.toRadians(6.0),

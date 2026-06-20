@@ -165,6 +165,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT = 0.28f;
 	private static final float ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.16f;
 	private static final float ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.22f;
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_SPEED_START_METERS_PER_SECOND = 10.0f;
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_SPEED_FULL_METERS_PER_SECOND = 28.0f;
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_RATE_START_RADIANS_PER_SECOND = (float) Math.toRadians(50.0f);
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_RATE_FULL_RADIANS_PER_SECOND = (float) Math.toRadians(260.0f);
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(58.0f);
+	private static final float ACRO_RESIDUAL_TORQUE_LOAD_MAX_RATE_LOSS = 0.055f;
 	private static final float ACRO_ROTOR_GYRO_RATE_START_RADIANS_PER_SECOND = (float) Math.toRadians(70.0f);
 	private static final float ACRO_ROTOR_GYRO_RATE_FULL_RADIANS_PER_SECOND = (float) Math.toRadians(220.0f);
 	private static final float ACRO_ROTOR_GYRO_RPM_START_FRACTION = 0.22f;
@@ -770,6 +777,9 @@ final class PlayableFlightModel {
 						previous.acroPitchRateRadiansPerTick(),
 						pitch
 				);
+		float residualTorqueLoad = acroResidualTorqueRateLoadFraction(bodyVelocity, pitchRate, rollRate);
+		pitchRate *= 1.0f - residualTorqueLoad;
+		rollRate *= 1.0f - residualTorqueLoad;
 		float rotorGyroLoad = acroRotorGyroRateLoadFraction(pitchRate, rollRate, throttle, hoverThrottle);
 		pitchRate *= 1.0f - rotorGyroLoad;
 		rollRate *= 1.0f - rotorGyroLoad;
@@ -897,6 +907,52 @@ final class PlayableFlightModel {
 				? ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS
 				: ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS;
 		return clamp(1.0f - maxLoss * speedExposure * flowLoad, 0.70f, 1.0f);
+	}
+
+	static float acroResidualTorqueRateLoadFraction(
+			Velocity bodyVelocity,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick
+	) {
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
+				+ bodyVelocity.y() * bodyVelocity.y()
+				+ bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float speedExposure = smoothStep((speed - ACRO_RESIDUAL_TORQUE_LOAD_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_RESIDUAL_TORQUE_LOAD_SPEED_FULL_METERS_PER_SECOND - ACRO_RESIDUAL_TORQUE_LOAD_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+
+		float pitchRateRadiansPerSecond = finiteOrZero(pitchRateRadiansPerTick) / PLAYABLE_TICK_SECONDS;
+		float rollRateRadiansPerSecond = finiteOrZero(rollRateRadiansPerTick) / PLAYABLE_TICK_SECONDS;
+		float rateMagnitude = horizontalMagnitude(pitchRateRadiansPerSecond, rollRateRadiansPerSecond);
+		float rateExposure = smoothStep((rateMagnitude - ACRO_RESIDUAL_TORQUE_LOAD_RATE_START_RADIANS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_RESIDUAL_TORQUE_LOAD_RATE_FULL_RADIANS_PER_SECOND - ACRO_RESIDUAL_TORQUE_LOAD_RATE_START_RADIANS_PER_SECOND));
+		if (rateExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float crossflowExposure = Math.max(
+				smoothStep((sideslip - ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_FULL_RADIANS - ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_START_RADIANS)),
+				smoothStep((angleOfAttack - ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_FULL_RADIANS - ACRO_RESIDUAL_TORQUE_LOAD_CROSSFLOW_START_RADIANS))
+		);
+		if (crossflowExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+
+		return ACRO_RESIDUAL_TORQUE_LOAD_MAX_RATE_LOSS
+				* speedExposure
+				* rateExposure
+				* crossflowExposure;
 	}
 
 	static float acroRotorGyroRateLoadFraction(

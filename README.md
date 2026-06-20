@@ -1,5 +1,11 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高速交叉流残余扭矩负载）
+本轮继续把“斜向飞行像平移”的问题往真实穿越机手感收敛，但没有继续堆普通空气阻力。参考本仓库 `docs/fpv-sim-targeted-calibration-gap-hunt.md` 和 `docs/fpv-sim-model-validation.md` 里的 NeuroBEM/RATM 残余力/力矩资料：这些资料提示高速残余气动不能简单合并成一个 CdA，尤其 residual torque / torque-damping 会在有角速度和交叉流时给机体动作增加一点负载。
+- `PlayableFlightModel` 新增 `acroResidualTorqueRateLoadFraction`，放在 passive AOA/transverse-flow 力矩之后、rotor gyro 负载之前。它只看当前机体系速度、pitch/roll rate 和侧滑/迎角暴露：低速、直线高速巡航、低角速度、以及单纯的弱被动横流力矩都不触发。
+- 当前标定下，`16m/s right + 16m/s forward` 且 pitch/roll 均约 `6deg/tick` 的高速斜向动作会额外吃掉约 `2%` 角速度；`12m/s up + 16m/s forward` 的高迎角动作约 `1%` 级别。这个量级是“空气扭矩咬住一点”的重量感，不是自动回正，也不会让 ACRO 满杆失去连续翻滚能力。
+- 回归测试新增 `acroResidualTorqueRateLoadRequiresHighSpeedCrossflowAndBodyRate`，并复测高 RPM 双轴负载、横向入流滚转力矩、完整 `PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-021715.json`。
+
 ## 最新进展（2026-06-21，ACRO 横向入流滚转力矩 mu 窗口）
 本轮继续收敛“高速斜飞像贴图平移”的手感，但没有再加普通刹车。对照本仓库 `docs/data/kolaei2018_inflow_angle_rotor_packet.csv` 和 `docs/fpv-sim-data-sources.md` 里的 Kolaei 2018 入流角资料后，重点修正 playable ACRO 横向来流滚转力矩的前进比定义：该资料用 `mu = V/(Omega*R)` 描述横向/大入流角下的 `CMx` 滚转力矩趋势，当前可玩层应把它作为形状约束，而不是让 powered disk moment 在高 `mu` 区间无限饱和。
 - `PlayableFlightModel` 现在让 `acroTransverseFlowRollMomentRate` 复用已有的 `acroRotorDiskAdvanceRatioMu`，避免横向来流力矩和前面 ETL/flapping/H-force 使用两套不一致的盘面前进比口径。
