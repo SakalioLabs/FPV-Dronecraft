@@ -3610,6 +3610,38 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawCoupledDynamicPressureWithoutHidingPitchAoa() {
+		PlayableFlightModel.Velocity freshYaw = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledYaw = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity freshPitch = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledPitch = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				1.0f,
+				1.0f
+		);
+
+		assertTrue(Math.abs(freshYaw.x()) < Math.abs(settledYaw.x()) * 0.45f,
+				"freshYawX=" + freshYaw.x() + " settledYawX=" + settledYaw.x());
+		assertTrue(Math.abs(freshYaw.x()) > Math.abs(settledYaw.x()) * 0.25f,
+				"freshYawX=" + freshYaw.x() + " settledYawX=" + settledYaw.x());
+		assertTrue(settledYaw.x() < -0.78f, "settledYawX=" + settledYaw.x());
+		assertEquals(settledPitch.y(), freshPitch.y(), 1.0e-6f);
+		assertEquals(settledPitch.z(), freshPitch.z(), 1.0e-6f);
+	}
+
+	@Test
 	void acroHighSpeedCoastPreservesInertiaDistanceWhileSideslipWashesOut() {
 		PlayableFlightModel.Step forwardCoast = runFrom(
 				FlightMode.ACRO,

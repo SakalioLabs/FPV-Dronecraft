@@ -2198,7 +2198,7 @@ final class PlayableFlightModel {
 		float lag = sanitizedCrossflowLag(crossflowLag);
 		Velocity baseDragAcceleration = acroBaseBodyDragAcceleration(bodyVelocity, lag);
 		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z(), lag, sidewashMemory);
-		Velocity coupledDynamicPressureDragAcceleration = scaleVelocity(acroCoupledDynamicPressureDragAcceleration(bodyVelocity), lag);
+		Velocity coupledDynamicPressureDragAcceleration = acroCoupledDynamicPressureDragAcceleration(bodyVelocity, lag, sidewashMemory);
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
 		Velocity pitchLiftAcceleration = scaleVelocity(acroPitchPlaneLiftAcceleration(bodyVelocity, separation), lag);
 		float sidewashResponse = acroSidewashForceResponse(lag, sidewashMemory);
@@ -2234,6 +2234,10 @@ final class PlayableFlightModel {
 	}
 
 	static Velocity acroCoupledDynamicPressureDragAcceleration(Velocity bodyVelocity) {
+		return acroCoupledDynamicPressureDragAcceleration(bodyVelocity, 1.0f, 1.0f);
+	}
+
+	static Velocity acroCoupledDynamicPressureDragAcceleration(Velocity bodyVelocity, float crossflowLag, float sidewashMemory) {
 		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
 				+ bodyVelocity.y() * bodyVelocity.y()
 				+ bodyVelocity.z() * bodyVelocity.z();
@@ -2249,11 +2253,14 @@ final class PlayableFlightModel {
 		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
 		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
 		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float lag = sanitizedCrossflowLag(crossflowLag);
+		float yawCrossflowExposure = smoothStep((sideslip - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS));
+		float pitchCrossflowExposure = smoothStep((angleOfAttack - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS));
 		float crossflowExposure = Math.max(
-				smoothStep((sideslip - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)
-						/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)),
-				smoothStep((angleOfAttack - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)
-						/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS))
+				yawCrossflowExposure * acroSidewashForceResponse(lag, sidewashMemory),
+				pitchCrossflowExposure * lag
 		);
 		if (crossflowExposure <= 1.0e-6f) {
 			return new Velocity(0.0f, 0.0f, 0.0f);
