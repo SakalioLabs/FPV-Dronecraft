@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO body-rate 航向耦合）
+本轮继续收敛“斜向飞行像平移，而不是像真机在三维空间里飞”的手感问题。当前 playable ACRO 已经有机体系阻力、侧滑、桨盘 H-force 和高前进比推力软化，但 pitch/roll 的姿态控制仍偏游戏化：复合动作基本是两个独立角度累加，banked pitch 或机头接近垂直时的 roll 不会给航向带来足够的 body-rate 耦合。
+
+- `PlayableFlightModel` 现在给 ACRO 增加一层克制的 body-rate yaw coupling：大 roll 下继续打 pitch 会给机头航向一点随动，机头接近垂直时打 roll 也会产生受控的 heading 变化。这更接近真实 3D 姿态运动，也贴近 Do a Barrel Roll 那种“完全解锁 pitch/yaw/roll + banking”的参考方向。
+- 这不是自动回正，也不是自稳：只有当前帧存在 pitch/roll 角速度时触发，松杆定姿和纯惯性滑行不会自己转头；耦合量封顶在 `1.35 deg/tick`，主动 yaw 和已有 weathercock yaw 仍走原来的通道。
+- 新增回归测试覆盖：水平 pitch 不产生偷偷偏航；60 度 bank 下 pitch 输入会产生约 `0.8 deg/tick` 的航向耦合；88 度 pitch 下 roll 输入会产生约 `0.7 deg/tick` 的垂直滚转航向耦合；完整 `step()` 场景确认无 yaw stick 时 banked pitch 也能给出受控 heading change。
+- 已通过 `PlayableFlightModelTest` 定向测试、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；本轮自测临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-185856.json`。
+
 ## 最新进展（2026-06-20，ACRO 整圈 roll 侧滑锁死修复）
 本轮针对你新反馈的“尝试翻转一周之后会持续侧飞、无法回正”继续收敛 playable ACRO。问题不是普通的摇杆映射，而是整圈 roll 被捕获到水平姿态时，旧逻辑只按局部 X/Z 小速度做清零；如果翻滚过程中已经积累了较大的横向速度，它会被完整保留下来，玩家看到的就是机身回正了但还在侧向漂移。
 

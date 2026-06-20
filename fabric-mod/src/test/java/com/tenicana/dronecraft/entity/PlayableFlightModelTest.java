@@ -1778,6 +1778,78 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroBodyRateYawCouplingAddsBankedPitchAndVerticalRollHeadingChange() {
+		float levelPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
+				0.0f,
+				0.0f,
+				(float) Math.toRadians(4.0),
+				0.0f
+		);
+		float rightBankPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
+				0.0f,
+				(float) Math.toRadians(60.0),
+				(float) Math.toRadians(4.0),
+				0.0f
+		);
+		float leftBankPitch = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
+				0.0f,
+				(float) Math.toRadians(-60.0),
+				(float) Math.toRadians(4.0),
+				0.0f
+		);
+		float verticalRoll = PlayableFlightModel.acroBodyRateYawCouplingDegreesPerTick(
+				(float) Math.toRadians(88.0),
+				0.0f,
+				0.0f,
+				(float) Math.toRadians(4.5)
+		);
+
+		assertEquals(0.0f, levelPitch, 1.0e-6f);
+		assertTrue(rightBankPitch > 0.75f, "rightBankPitch=" + rightBankPitch);
+		assertTrue(rightBankPitch < 0.90f, "rightBankPitch=" + rightBankPitch);
+		assertEquals(-rightBankPitch, leftBankPitch, 1.0e-6f);
+		assertTrue(verticalRoll > 0.65f, "verticalRoll=" + verticalRoll);
+		assertTrue(verticalRoll < 0.85f, "verticalRoll=" + verticalRoll);
+	}
+
+	@Test
+	void bankedAcroPitchInputCreatesHeadingChangeWithoutYawStick() {
+		PlayableFlightModel.State banked = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				(float) Math.toRadians(60.0),
+				0.0f,
+				FlightMode.ACRO
+		);
+		PlayableFlightModel.Step levelPitch = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step bankedPitch = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				banked
+		);
+
+		assertEquals(0.0f, levelPitch.yawDegreesPerTick(), 1.0e-6f);
+		assertTrue(bankedPitch.yawDegreesPerTick() > 1.0f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertTrue(bankedPitch.yawDegreesPerTick() <= 1.35f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+	}
+
+	@Test
 	void acroBodyFrameVelocityRoundTripsAfterFullRollOffset() {
 		float pitchRadians = (float) Math.toRadians(37.0);
 		float rollRadians = (float) Math.toRadians(428.0);

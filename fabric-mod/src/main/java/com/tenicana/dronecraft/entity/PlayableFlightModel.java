@@ -89,6 +89,11 @@ final class PlayableFlightModel {
 	private static final float ACRO_SIDESLIP_YAW_DAMPING_GAIN = 0.018f;
 	private static final float ACRO_SIDESLIP_YAW_DAMPING_MAX = 0.13f;
 	private static final float ACRO_WEATHERCOCK_YAW_COMMAND_SUPPRESS = 0.45f;
+	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.24f;
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 0.70f;
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
+	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 1.35f;
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -280,6 +285,14 @@ final class PlayableFlightModel {
 			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(safeMode));
 		}
 		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
+		yawDegreesPerTick = acroBodyRateYawRate(
+				safeMode,
+				yawDegreesPerTick,
+				pitchRadians,
+				rollRadians,
+				acroPitchRateRadiansPerTick,
+				acroRollRateRadiansPerTick
+		);
 		yawDegreesPerTick = acroAerodynamicYawRate(
 				safeMode,
 				yawDegreesPerTick,
@@ -1173,6 +1186,56 @@ final class PlayableFlightModel {
 			return 0.0f;
 		}
 		return clamp(strength * ACRO_SIDESLIP_YAW_DAMPING_GAIN, 0.0f, ACRO_SIDESLIP_YAW_DAMPING_MAX);
+	}
+
+	private static float acroBodyRateYawRate(
+			FlightMode mode,
+			float yawDegreesPerTick,
+			float pitchRadians,
+			float rollRadians,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick
+	) {
+		if (safeMode(mode) != FlightMode.ACRO) {
+			return yawDegreesPerTick;
+		}
+		float yawCoupling = acroBodyRateYawCouplingDegreesPerTick(
+				pitchRadians,
+				rollRadians,
+				pitchRateRadiansPerTick,
+				rollRateRadiansPerTick
+		);
+		if (Math.abs(yawCoupling) <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK) {
+			return yawDegreesPerTick;
+		}
+		return settledYawRate(yawDegreesPerTick + yawCoupling, 0.0f);
+	}
+
+	static float acroBodyRateYawCouplingDegreesPerTick(
+			float pitchRadians,
+			float rollRadians,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick
+	) {
+		if (!Float.isFinite(pitchRateRadiansPerTick) || !Float.isFinite(rollRateRadiansPerTick)) {
+			return 0.0f;
+		}
+		float pitch = signedRotationResidualRadians(pitchRadians);
+		float roll = signedRotationResidualRadians(rollRadians);
+		float bankedPitchCoupling = pitchRateRadiansPerTick
+				* (float) Math.sin(roll)
+				* (0.35f + 0.65f * Math.abs((float) Math.cos(pitch)));
+		float verticalRollExposure = smoothStep((Math.abs(pitch) - ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS)
+				/ Math.max(0.001f, ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS - ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS));
+		float verticalRollCoupling = rollRateRadiansPerTick
+				* (float) Math.sin(pitch)
+				* verticalRollExposure
+				* ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT;
+		return clamp(
+				(float) Math.toDegrees((bankedPitchCoupling + verticalRollCoupling) * ACRO_BODY_RATE_YAW_COUPLING_SCALE),
+				-ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK,
+				ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK
+		);
 	}
 
 	private static float acroAerodynamicYawRate(
