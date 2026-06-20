@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 整圈 roll 后恢复窗口）
+本轮继续修你反馈的“翻转一周之后持续侧飞、无法回正”。前几轮已经把完整 roll 释放那一帧捕获到水平姿态，并把 body-right 侧滑压到很小；这次定位到实机手感里更明显的问题：捕获只在单帧生效，实体状态没有记住“刚完成一圈 roll”，所以后续数帧如果还有离散积分/输入滤波尾巴，侧滑可能重新显得像被锁住。
+- `PlayableFlightModel` 现在在完整 roll 捕获后开启一个短的 ACRO roll recovery window。窗口期间，只有当 roll 摇杆仍处于释放/回中尾段、机体姿态已经接近水平时，才继续把 body-right 残留侧滑压到约 `0.075m/s` 级别；一旦玩家主动打 roll，窗口立即取消，保留连续翻滚、刀锋和 rate mode 权限。
+- `DroneEntity` 现在持久保存这个恢复窗口的 tick 状态，避免服务端下一帧忘记刚刚完成过整圈 roll。它不是自稳回正，也不会清掉前向惯性；修的是整圈动作结束后的横向残留被误当作真实持续侧飞。
+- 新增回归测试覆盖 `428deg roll + 14m/s 横向残留 + 6m/s 前向惯性 + 残余 roll rate`：捕获后必须打开恢复窗口，继续回中飞行 8 tick 后 body-side velocity 必须低于 `0.10m/s`，前向速度仍保留；另有测试确认主动 roll 输入会取消恢复窗口。
+- 同轮顺手保留了目视模型 pitch 方向修复：物理正 pitch 对应机头下压时，第三人称/目视模型不再显示成抬头，方便目视飞行判断姿态。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest --tests com.tenicana.dronecraft.client.render.DroneEntityModelTest`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮自测因 25565 被占用临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-202008.json`。
+
 ## 最新进展（2026-06-20，ACRO 整圈 roll 后侧飞残留收紧）
 本轮针对你反馈的“尝试翻转一周之后会持续侧飞、无法回正”继续收敛 playable ACRO。复核发现，前面已经能把完整 roll 释放捕获到水平姿态，但捕获后仍允许最多约 `1.10m/s` 的 body-right 残留侧滑；在游戏视角里这会表现成机体看似回正了，却还在横着漂，尤其松杆后没有自稳刹车时很像“锁死侧飞”。
 - `PlayableFlightModel` 现在把完整 roll 捕获后的 body-right 侧滑余量从 `1.10m/s` 收紧到 `0.28m/s`。这只在“已经完成至少一整圈 roll 且处于松杆/释放尾段”的捕获帧触发，不影响主动刀锋、倒飞、连续翻滚或普通 ACRO rate 模式。

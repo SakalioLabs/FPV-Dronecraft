@@ -54,6 +54,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(170.0f);
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
 	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.28f;
+	private static final int ACRO_COMPLETED_ROLL_RECOVERY_TICKS = 12;
+	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SMOOTHING = 0.58f;
+	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.075f;
+	private static final float ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS = (float) Math.toRadians(24.0f);
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
@@ -203,6 +207,20 @@ final class PlayableFlightModel {
 				: acroRate.rollRateRadiansPerTick();
 		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
 		rollRadians = settledAttitude(safeMode, attitudeRoll, rollRadians);
+		int acroRollRecoveryTicksRemaining = nextAcroRollRecoveryTicksRemaining(
+				safeMode,
+				attitudeRoll,
+				rollRadians,
+				acroRollCaptured,
+				safePrevious.acroRollRecoveryTicksRemaining()
+		);
+		boolean acroRollRecoveryActive = shouldApplyCompletedAcroRollRecovery(
+				safeMode,
+				attitudeRoll,
+				rollRadians,
+				acroRollCaptured,
+				acroRollRecoveryTicksRemaining
+		);
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		Velocity horizontalTarget = horizontalTargetVelocity(safeMode, pitchRadians, rollRadians, throttleAuthority, profile);
 		float targetVelocityX = horizontalTarget.x();
@@ -257,8 +275,17 @@ final class PlayableFlightModel {
 		float velocityX = velocity.x();
 		float velocityY = velocity.y();
 		float velocityZ = velocity.z();
-		if (safeMode == FlightMode.ACRO && (acroPitchCaptured || acroRollCaptured)) {
-			Velocity trimmed = completedAcroRotationVelocityTrim(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, acroPitchCaptured, acroRollCaptured);
+		if (safeMode == FlightMode.ACRO && (acroPitchCaptured || acroRollCaptured || acroRollRecoveryActive)) {
+			Velocity trimmed = completedAcroRotationVelocityTrim(
+					velocityX,
+					velocityY,
+					velocityZ,
+					pitchRadians,
+					rollRadians,
+					acroPitchCaptured,
+					acroRollCaptured,
+					acroRollRecoveryActive
+			);
 			velocityX = trimmed.x();
 			velocityY = trimmed.y();
 			velocityZ = trimmed.z();
@@ -344,7 +371,8 @@ final class PlayableFlightModel {
 				acroPitchRateRadiansPerTick,
 				acroRollRateRadiansPerTick,
 				safeMode,
-				nextModeSwitchTicksRemaining(safePrevious)
+				nextModeSwitchTicksRemaining(safePrevious),
+				acroRollRecoveryTicksRemaining
 		);
 	}
 
@@ -441,6 +469,41 @@ final class PlayableFlightModel {
 
 	private static int nextModeSwitchTicksRemaining(State previous) {
 		return Math.max(0, previous.modeSwitchTicksRemaining() - 1);
+	}
+
+	private static int nextAcroRollRecoveryTicksRemaining(
+			FlightMode mode,
+			float rollCommand,
+			float rollRadians,
+			boolean rollCaptured,
+			int previousTicksRemaining
+	) {
+		if (safeMode(mode) != FlightMode.ACRO) {
+			return 0;
+		}
+		if (rollCaptured) {
+			return ACRO_COMPLETED_ROLL_RECOVERY_TICKS;
+		}
+		if (previousTicksRemaining <= 0
+				|| Math.abs(rollCommand) > ACRO_COMPLETED_ROTATION_RELEASE_COMMAND
+				|| Math.abs(signedRotationResidualRadians(rollRadians)) > ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS) {
+			return 0;
+		}
+		return previousTicksRemaining - 1;
+	}
+
+	private static boolean shouldApplyCompletedAcroRollRecovery(
+			FlightMode mode,
+			float rollCommand,
+			float rollRadians,
+			boolean rollCaptured,
+			int ticksRemaining
+	) {
+		return safeMode(mode) == FlightMode.ACRO
+				&& !rollCaptured
+				&& ticksRemaining > 0
+				&& Math.abs(rollCommand) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND
+				&& Math.abs(signedRotationResidualRadians(rollRadians)) <= ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS;
 	}
 
 	private static boolean shouldModeSwitchBrakeHorizontal(State previous, float pitch, float roll) {
@@ -1004,15 +1067,26 @@ final class PlayableFlightModel {
 			float pitchRadians,
 			float rollRadians,
 			boolean pitchCaptured,
-			boolean rollCaptured
+			boolean rollCaptured,
+			boolean rollRecoveryActive
 	) {
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
 		Velocity trimmedBodyVelocity = new Velocity(
-				rollCaptured ? completedAcroRollSideVelocityTrim(bodyVelocity.x()) : bodyVelocity.x(),
+				completedAcroRollSideVelocity(bodyVelocity.x(), rollCaptured, rollRecoveryActive),
 				bodyVelocity.y(),
 				pitchCaptured ? completedAcroRotationAxisVelocityTrim(bodyVelocity.z()) : bodyVelocity.z()
 		);
 		return yawLocalVelocityForAcroBody(trimmedBodyVelocity.x(), trimmedBodyVelocity.y(), trimmedBodyVelocity.z(), pitchRadians, rollRadians);
+	}
+
+	private static float completedAcroRollSideVelocity(float velocity, boolean rollCaptured, boolean rollRecoveryActive) {
+		if (rollCaptured) {
+			return completedAcroRollSideVelocityTrim(velocity);
+		}
+		if (rollRecoveryActive) {
+			return completedAcroRollSideVelocityRecovery(velocity);
+		}
+		return velocity;
 	}
 
 	private static float completedAcroRotationAxisVelocityTrim(float velocity) {
@@ -1032,6 +1106,15 @@ final class PlayableFlightModel {
 				residualMagnitude,
 				velocity
 		);
+	}
+
+	private static float completedAcroRollSideVelocityRecovery(float velocity) {
+		float recovered = smooth(velocity, 0.0f, ACRO_COMPLETED_ROLL_RECOVERY_SMOOTHING);
+		float magnitude = Math.abs(recovered);
+		if (magnitude <= ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND) {
+			return recovered;
+		}
+		return Math.copySign(ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND, recovered);
 	}
 
 	static float acroAdvanceRatioThrustScale(
@@ -1688,13 +1771,15 @@ final class PlayableFlightModel {
 			int modeSwitchTicksRemaining,
 			float acroCollectiveThrustToWeight,
 			float acroPitchRateRadiansPerTick,
-			float acroRollRateRadiansPerTick
+			float acroRollRateRadiansPerTick,
+			int acroRollRecoveryTicksRemaining
 	) {
 		static final State ZERO = zero(DEFAULT_PLAYABLE_MODE);
 
 		State {
 			mode = safeMode(mode);
 			modeSwitchTicksRemaining = Math.max(0, modeSwitchTicksRemaining);
+			acroRollRecoveryTicksRemaining = Math.max(0, acroRollRecoveryTicksRemaining);
 			acroCollectiveThrustToWeight = Float.isFinite(acroCollectiveThrustToWeight)
 					? clamp(acroCollectiveThrustToWeight, 0.0f, ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT)
 					: Float.NaN;
@@ -1703,23 +1788,23 @@ final class PlayableFlightModel {
 		}
 
 		State(float velocityX, float velocityY, float velocityZ) {
-			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, DEFAULT_PLAYABLE_MODE, 0, Float.NaN, Float.NaN, Float.NaN);
+			this(velocityX, velocityY, velocityZ, 0.0f, 0.0f, 0.0f, DEFAULT_PLAYABLE_MODE, 0, Float.NaN, Float.NaN, Float.NaN, 0);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, DEFAULT_PLAYABLE_MODE, 0, Float.NaN, Float.NaN, Float.NaN);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, 0.0f, DEFAULT_PLAYABLE_MODE, 0, Float.NaN, Float.NaN, Float.NaN, 0);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, DEFAULT_PLAYABLE_MODE, 0, Float.NaN, Float.NaN, Float.NaN);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, DEFAULT_PLAYABLE_MODE, 0, Float.NaN, Float.NaN, Float.NaN, 0);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, 0, Float.NaN, Float.NaN, Float.NaN);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, 0, Float.NaN, Float.NaN, Float.NaN, 0);
 		}
 
 		State(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians, float yawDegreesPerTick, FlightMode mode, int modeSwitchTicksRemaining) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, Float.NaN, Float.NaN, Float.NaN);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, Float.NaN, Float.NaN, Float.NaN, 0);
 		}
 
 		State(
@@ -1733,11 +1818,27 @@ final class PlayableFlightModel {
 				int modeSwitchTicksRemaining,
 				float acroCollectiveThrustToWeight
 		) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, Float.NaN, Float.NaN);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, Float.NaN, Float.NaN, 0);
+		}
+
+		State(
+				float velocityX,
+				float velocityY,
+				float velocityZ,
+				float pitchRadians,
+				float rollRadians,
+				float yawDegreesPerTick,
+				FlightMode mode,
+				int modeSwitchTicksRemaining,
+				float acroCollectiveThrustToWeight,
+				float acroPitchRateRadiansPerTick,
+				float acroRollRateRadiansPerTick
+		) {
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, acroPitchRateRadiansPerTick, acroRollRateRadiansPerTick, 0);
 		}
 
 		static State zero(FlightMode mode) {
-			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, safeMode(mode), 0, 0.0f, 0.0f, 0.0f);
+			return new State(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, safeMode(mode), 0, 0.0f, 0.0f, 0.0f, 0);
 		}
 	}
 
@@ -1757,7 +1858,8 @@ final class PlayableFlightModel {
 			float acroPitchRateRadiansPerTick,
 			float acroRollRateRadiansPerTick,
 			FlightMode mode,
-			int modeSwitchTicksRemaining
+			int modeSwitchTicksRemaining,
+			int acroRollRecoveryTicksRemaining
 	) {
 	}
 

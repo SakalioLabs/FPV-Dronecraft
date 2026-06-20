@@ -1229,6 +1229,99 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void releasedFullRollContinuesBleedingSideSlipDuringRecoveryWindow() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				14.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(428.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(3.0)
+		);
+		PlayableFlightModel.Step captured = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Step recovered = runFrom(
+				FlightMode.ACRO,
+				8,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(captured)
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				recovered.velocityX(),
+				recovered.velocityY(),
+				recovered.velocityZ(),
+				recovered.pitchRadians(),
+				recovered.rollRadians()
+		);
+
+		assertEquals(0.0f, captured.rollRadians(), 1.0e-5);
+		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
+		assertEquals(0.0f, recovered.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, recovered.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.10f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
+	void activeRollInputCancelsCompletedRollRecoveryWindow() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				14.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(428.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(3.0)
+		);
+		PlayableFlightModel.Step captured = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Step activeRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.65f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(captured)
+		);
+
+		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
+		assertEquals(0, activeRoll.acroRollRecoveryTicksRemaining());
+		assertTrue(activeRoll.rollRadians() > Math.toRadians(3.0), "activeRollDeg=" + Math.toDegrees(activeRoll.rollRadians()));
+	}
+
+	@Test
 	void releasedFullRollTailPastOldSnapWindowDoesNotParkSideways() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				12.0f,
@@ -2573,7 +2666,8 @@ class PlayableFlightModelTest {
 				step.modeSwitchTicksRemaining(),
 				step.acroCollectiveThrustToWeight(),
 				step.acroPitchRateRadiansPerTick(),
-				step.acroRollRateRadiansPerTick()
+				step.acroRollRateRadiansPerTick(),
+				step.acroRollRecoveryTicksRemaining()
 		);
 	}
 
