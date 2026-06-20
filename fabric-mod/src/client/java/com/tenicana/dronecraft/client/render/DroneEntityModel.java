@@ -103,7 +103,7 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 	}
 
 	static float bodyPitchRotationRadians(float pitchRadians) {
-		return -pitchRadians;
+		return pitchRadians;
 	}
 
 	static float renderedBodyForwardYOffset(float pitchRadians) {

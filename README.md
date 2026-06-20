@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，重新修正目视 pitch 符号，前飞目视不再抬头）
+这一轮先收敛你补充指出的“目视状态下无人机向前时从压头变成抬头”的问题。复查当前 playable 链路后确认：物理层里正 `pitchRadians` 仍代表机头下压，并会让 ACRO 推力轴产生前向分量；问题出在客户端 `DroneEntityModel` 对这个 pitch 又取了一次反号，导致目视/第三人称模型显示与物理姿态相反。
+- `DroneEntityModel.bodyPitchRotationRadians(...)` 改回直接使用 playable pitch：正 pitch / 前飞在目视模型上显示为机头下压，负 pitch 显示为抬头。这个改动只影响被渲染的无人机本体，不改 FPV 相机矩阵、不改服务端物理、不改速度/油门/空气动力常数。
+- 更新 `DroneEntityModelTest`，把合同写清楚：正 playable pitch 必须让可见机头下压，负 playable pitch 必须对称抬头，避免后续再被来回改反。
+- 同步复查了实体 playable 路径里的 yaw-local 速度重投影和已存在的整圈 roll 释放回归：当前 `applyDebugFlight` 开头会把上一帧局部速度重投影到当前 yaw，整圈捕获/滤波尾巴/高速 roll release 也已有覆盖。因此这轮没有再加新的隐藏回正或额外侧滑硬钳制，避免把 ACRO rate mode 继续往自稳手感推。
+- 已通过 `DroneEntityModelTest`、完整 `PlayableFlightModelTest` + `DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-065201.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 高速侧滑风标 yaw 增强，斜飞更少像平移）
 这一轮继续沿着“斜向飞行不要像屏幕平移”的主线收敛。复查当前 playable 代码后确认，ACRO 速度已经主要走物理加速度积分，`shouldAirBrake` 不作用于 ACRO，`settledVelocity` 也只是 `0.018m/s` 的近零归零阈值；剩余更像问题的是高速侧滑时的被动风标 yaw 太弱。对照 [RotorPy](https://github.com/spencerfolk/rotorpy) 的建模说明，高速多旋翼手感来自相对空速下的寄生阻力、rotor drag、blade flapping、induced/translational drag 等空气动力力/力矩，而不是一个目标速度控制器。因此这轮不改速度上限和油门，只让机头在明显侧滑里更愿意随来流转向。
 - `ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK` 从 `0.065` 提到 `0.085`，`ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK` 从 `0.48` 提到 `0.72`。`16m/s body-right + 16m/s body-forward` 的 settled 侧滑被动 yaw 从约 `0.38°/tick` 提到约 `0.50°/tick`，纯 broadside `18m/s` 也从弱风标提升到约 `0.25°/tick`。
