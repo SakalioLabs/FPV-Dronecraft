@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 物理中点姿态改用真实欧拉增量）
+这一轮继续收敛“斜向飞行像平移、姿态和轨迹不像同一台真机”的手感问题。上轮已经把 ACRO 姿态变化从经验欧拉投影改成三维体轴 frame 旋转，但复查后发现物理积分还残留一个很关键的不一致：`acroPhysicalVelocity` 的中点姿态仍拿 body pitch/roll rate 直接回推，而不是拿这帧实际写入 `pitchRadians / rollRadians` 的欧拉增量。大 bank 推 pitch、接近竖直时打 roll 的场景里，视觉/状态只变化了约 `1.4..1.9°` 欧拉角，但推力轴、空阻、桨盘侧洗等本帧物理会按 `5°+` 的体轴 rate 去回推中点，极端时会把本帧推力水平分量算到反方向。
+- `PlayableFlightModel` 现在分开传递两类 rate：body pitch/roll rate 继续用于电机/空气负载、动态入流、残余扭矩、陀螺/桨盘相关项；物理中点姿态则使用 `pitchRadians - previous.pitchRadians()` / `rollRadians - previous.rollRadians()` 这帧真实欧拉姿态增量。
+- 这不是降低 ACRO 权威，也不是加自稳；满杆 body rate 仍然保留。它修的是连续时间积分里的坐标一致性：推力轴、body velocity、airframe drag、rotor flapping、rotor in-plane drag、thrust-turn load、sidewash-turn load 都在与可见姿态相同的中点姿态上算。
+- 新增回归锁住两个容易反向的边界：`75°` bank 下满 pitch 第一帧必须沿机头方向给出正向速度分量；`78°` pitch 下满 roll 第一帧必须按真实欧拉 roll 增量给出正确横向速度分量。这两条会防止以后再把 body rate 当成欧拉中点姿态，重新制造“姿态在转、轨迹像平移/反向滑”的问题。
+- 已通过新增 midpoint 回归、banked/vertical body-rate targeted 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-071646.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 体轴姿态增量改为三维 frame 旋转，斜飞更少像欧拉平移）
 这一轮继续处理“斜向飞行像平移、不像真机”的主问题。复查 playable ACRO 后确认，速度、空阻、侧滑侧力、风标 yaw、侧洗记忆都已经有多轮收敛；更深的一处残留是姿态积分仍把体轴 pitch/roll rate 近似投到欧拉 pitch/roll 上。真实 rate mode 下，当前机体的 `right / up / forward` 轴会被体轴角速度旋转，再提取新的 yaw/pitch/roll；大 bank 时推 pitch 不应该继续像屏幕平面 pitch，大仰/俯时 roll 也不应该继续全量写成欧拉 roll。
 - `PlayableFlightModel` 新增 `acroBodyRateAttitudeDelta(...)`：先用当前 `acroBodyFrame` 组合 body pitch/roll rate 成一个角速度轴，用 Rodrigues 旋转当前 body frame，再从旋转后的 frame 提取连续 pitch/roll 增量。接近竖直姿态时，yaw 提取会混合 forward-heading 与 right-axis twist，避免 forward 近乎竖直时把 roll 错留在屏幕平面里。

@@ -5555,6 +5555,78 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void bankedAcroPitchUsesEulerAttitudeDeltaForPhysicsMidpoint() {
+		PlayableFlightModel.Step bankedPitch = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.65f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(75.0),
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f
+				)
+		);
+
+		assertTrue(bankedPitch.acroPitchRateRadiansPerTick() > Math.toRadians(5.0),
+				"bodyPitchRateDeg=" + Math.toDegrees(bankedPitch.acroPitchRateRadiansPerTick()));
+		assertTrue(bankedPitch.pitchRadians() > Math.toRadians(1.20),
+				"eulerPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians()));
+		assertTrue(bankedPitch.pitchRadians() < Math.toRadians(1.65),
+				"eulerPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians()));
+		assertTrue(bankedPitch.velocityZ() > 0.0f,
+				"velocityZ=" + bankedPitch.velocityZ() + " eulerPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians())
+						+ " bodyPitchRateDeg=" + Math.toDegrees(bankedPitch.acroPitchRateRadiansPerTick()));
+	}
+
+	@Test
+	void verticalAcroRollUsesEulerAttitudeDeltaForPhysicsMidpoint() {
+		PlayableFlightModel.Step verticalRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.65f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(78.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f
+				)
+		);
+
+		assertTrue(verticalRoll.acroRollRateRadiansPerTick() > Math.toRadians(5.0),
+				"bodyRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick()));
+		assertTrue(verticalRoll.rollRadians() > Math.toRadians(1.65),
+				"eulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
+		assertTrue(verticalRoll.rollRadians() < Math.toRadians(2.10),
+				"eulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
+		assertTrue(verticalRoll.velocityX() < 0.0f,
+				"velocityX=" + verticalRoll.velocityX() + " eulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians())
+						+ " bodyRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick()));
+	}
+
+	@Test
 	void acroBodyFrameVelocityRoundTripsAfterFullRollOffset() {
 		float pitchRadians = (float) Math.toRadians(37.0);
 		float rollRadians = (float) Math.toRadians(428.0);

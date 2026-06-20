@@ -424,6 +424,12 @@ final class PlayableFlightModel {
 				safePrevious.acroCollectiveThrustToWeight(),
 				targetCollectiveThrustToWeight
 		);
+		float acroEulerPitchRateRadiansPerTick = safeMode == FlightMode.ACRO
+				? pitchRadians - safePrevious.pitchRadians()
+				: 0.0f;
+		float acroEulerRollRateRadiansPerTick = safeMode == FlightMode.ACRO
+				? rollRadians - safePrevious.rollRadians()
+				: 0.0f;
 
 		Velocity velocity = velocityStep(
 				safeMode,
@@ -439,6 +445,8 @@ final class PlayableFlightModel {
 				pitchRadians,
 				rollRadians,
 				safePrevious.yawDegreesPerTick(),
+				acroEulerPitchRateRadiansPerTick,
+				acroEulerRollRateRadiansPerTick,
 				acroPitchRateRadiansPerTick,
 				acroRollRateRadiansPerTick,
 				acroAeroCrossflowLag,
@@ -1686,6 +1694,8 @@ final class PlayableFlightModel {
 			float pitchRadians,
 			float rollRadians,
 			float yawDegreesPerTick,
+			float eulerPitchRateRadiansPerTick,
+			float eulerRollRateRadiansPerTick,
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
@@ -1693,7 +1703,7 @@ final class PlayableFlightModel {
 			Profile profile
 	) {
 		if (safeMode(mode) == FlightMode.ACRO) {
-			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, profile);
+			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, eulerPitchRateRadiansPerTick, eulerRollRateRadiansPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, profile);
 		}
 		Velocity horizontalVelocity = horizontalVelocityStep(
 				previousVelocityX,
@@ -1751,14 +1761,16 @@ final class PlayableFlightModel {
 			float pitchRadians,
 			float rollRadians,
 			float yawDegreesPerTick,
+			float eulerPitchRateRadiansPerTick,
+			float eulerRollRateRadiansPerTick,
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
 			float acroSidewashMemory,
 			Profile profile
 	) {
-		float integrationPitchRadians = acroMidpointIntegrationAttitudeRadians(pitchRadians, pitchRateRadiansPerTick);
-		float integrationRollRadians = acroMidpointIntegrationAttitudeRadians(rollRadians, rollRateRadiansPerTick);
+		float integrationPitchRadians = acroMidpointIntegrationAttitudeRadians(pitchRadians, eulerPitchRateRadiansPerTick);
+		float integrationRollRadians = acroMidpointIntegrationAttitudeRadians(rollRadians, eulerRollRateRadiansPerTick);
 		Velocity thrustAxis = acroThrustAxis(integrationPitchRadians, integrationRollRadians);
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians);
 		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag, acroSidewashMemory);
