@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO yaw 转弯载荷改为同帧生效）
+这一轮继续收敛“机头已经在转，但高速斜飞/转向轨迹还像平移”的残留手感。复查 `PlayableFlightModel.step(...)` 后发现，速度积分发生在当前 `yawDegreesPerTick` 算出之前，所以 `acroPhysicalVelocity(...)` 里用于 `yaw-turn load` 和 yaw 参与的 `body-rate load` 仍吃的是上一帧 yaw。高速前飞或斜飞时玩家这一帧打 yaw，画面/实体 yaw 会更新，但空气/惯性转弯载荷晚一帧进入速度积分，容易造成“机头转了，速度矢量还直滑”的感觉。
+- `PlayableFlightModel` 新增 `yawRateStep(...)`，把原先的 yaw smoothing、mode-switch yaw brake、ACRO body-rate yaw coupling、sideslip weathercock / yaw damping 统一抽出来复用。
+- 速度积分前先用上一帧速度预测本帧 yaw rate，并把这个预测 yaw 传给 `acroPhysicalVelocity(...)`；速度积分后，再用更新后的速度重算最终 yaw rate。这样本帧玩家 yaw 输入会立刻参与高速转弯能量成本和侧滑载荷，但最终 yaw 仍按更新后的空气状态输出。
+- 新增 `acroYawCommandLoadsFastForwardVelocityInSameTick` 回归：`25m/s` 前飞时第一帧满 yaw 必须立刻让前向速度比无 yaw 情况额外下降，防止以后又退回“yaw 载荷晚一帧”的平移感。
+- 已通过新增 same-tick yaw-load 回归、相邻 yaw/body-rate load targeted 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-072319.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 物理中点姿态改用真实欧拉增量）
 这一轮继续收敛“斜向飞行像平移、姿态和轨迹不像同一台真机”的手感问题。上轮已经把 ACRO 姿态变化从经验欧拉投影改成三维体轴 frame 旋转，但复查后发现物理积分还残留一个很关键的不一致：`acroPhysicalVelocity` 的中点姿态仍拿 body pitch/roll rate 直接回推，而不是拿这帧实际写入 `pitchRadians / rollRadians` 的欧拉增量。大 bank 推 pitch、接近竖直时打 roll 的场景里，视觉/状态只变化了约 `1.4..1.9°` 欧拉角，但推力轴、空阻、桨盘侧洗等本帧物理会按 `5°+` 的体轴 rate 去回推中点，极端时会把本帧推力水平分量算到反方向。
 - `PlayableFlightModel` 现在分开传递两类 rate：body pitch/roll rate 继续用于电机/空气负载、动态入流、残余扭矩、陀螺/桨盘相关项；物理中点姿态则使用 `pitchRadians - previous.pitchRadians()` / `rollRadians - previous.rollRadians()` 这帧真实欧拉姿态增量。

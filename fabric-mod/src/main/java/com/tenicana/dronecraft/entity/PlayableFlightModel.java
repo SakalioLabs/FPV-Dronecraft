@@ -424,6 +424,26 @@ final class PlayableFlightModel {
 				safePrevious.acroCollectiveThrustToWeight(),
 				targetCollectiveThrustToWeight
 		);
+		float targetYawDegreesPerTick = yawCommand * profile.yawDegreesPerTick();
+		float predictedYawDegreesPerTick = yawRateStep(
+				safeMode,
+				safePrevious,
+				safeYaw,
+				yawCommand,
+				targetYawDegreesPerTick,
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				pitchRadians,
+				rollRadians,
+				safeThrottle,
+				safeHover,
+				acroAeroCrossflowLag,
+				acroSidewashMemory,
+				acroPitchRateRadiansPerTick,
+				acroRollRateRadiansPerTick,
+				profile
+		);
 		float acroEulerPitchRateRadiansPerTick = safeMode == FlightMode.ACRO
 				? pitchRadians - safePrevious.pitchRadians()
 				: 0.0f;
@@ -444,7 +464,7 @@ final class PlayableFlightModel {
 				collectiveThrustToWeight,
 				pitchRadians,
 				rollRadians,
-				safePrevious.yawDegreesPerTick(),
+				predictedYawDegreesPerTick,
 				acroEulerPitchRateRadiansPerTick,
 				acroEulerRollRateRadiansPerTick,
 				acroPitchRateRadiansPerTick,
@@ -506,50 +526,24 @@ final class PlayableFlightModel {
 		velocityY = settledVelocity(velocityY, targetVelocityY);
 		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
 
-		float targetYawDegreesPerTick = yawCommand * profile.yawDegreesPerTick();
-		float yawDegreesPerTick = smooth(
-				safePrevious.yawDegreesPerTick(),
+		float yawDegreesPerTick = yawRateStep(
+				safeMode,
+				safePrevious,
+				safeYaw,
+				yawCommand,
 				targetYawDegreesPerTick,
-				yawSmoothing(
-						safeMode,
-						safePrevious.yawDegreesPerTick(),
-						targetYawDegreesPerTick,
-						profile,
-						velocityX,
-						velocityY,
-						velocityZ,
-						pitchRadians,
-						rollRadians,
-						safeThrottle,
-						safeHover,
-						acroAeroCrossflowLag,
-						acroSidewashMemory
-				)
-		);
-		if (shouldModeSwitchBrakeYaw(safePrevious, safeYaw)) {
-			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(safeMode));
-		}
-		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
-		yawDegreesPerTick = acroBodyRateYawRate(
-				safeMode,
-				yawDegreesPerTick,
-				yawCommand,
-				pitchRadians,
-				rollRadians,
-				acroPitchRateRadiansPerTick,
-				acroRollRateRadiansPerTick
-		);
-		yawDegreesPerTick = acroAerodynamicYawRate(
-				safeMode,
-				yawDegreesPerTick,
-				yawCommand,
 				velocityX,
 				velocityY,
 				velocityZ,
 				pitchRadians,
 				rollRadians,
+				safeThrottle,
+				safeHover,
 				acroAeroCrossflowLag,
-				acroSidewashMemory
+				acroSidewashMemory,
+				acroPitchRateRadiansPerTick,
+				acroRollRateRadiansPerTick,
+				profile
 		);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = averageRpm(safeThrottle, safeHover);
@@ -3295,6 +3289,71 @@ final class PlayableFlightModel {
 			return 0.0f;
 		}
 		return yawDegreesPerTick;
+	}
+
+	private static float yawRateStep(
+			FlightMode mode,
+			State previous,
+			float safeYaw,
+			float yawCommand,
+			float targetYawDegreesPerTick,
+			float velocityX,
+			float velocityY,
+			float velocityZ,
+			float pitchRadians,
+			float rollRadians,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory,
+			float acroPitchRateRadiansPerTick,
+			float acroRollRateRadiansPerTick,
+			Profile profile
+	) {
+		float yawDegreesPerTick = smooth(
+				previous.yawDegreesPerTick(),
+				targetYawDegreesPerTick,
+				yawSmoothing(
+						mode,
+						previous.yawDegreesPerTick(),
+						targetYawDegreesPerTick,
+						profile,
+						velocityX,
+						velocityY,
+						velocityZ,
+						pitchRadians,
+						rollRadians,
+						throttle,
+						hoverThrottle,
+						acroAeroCrossflowLag,
+						acroSidewashMemory
+				)
+		);
+		if (shouldModeSwitchBrakeYaw(previous, safeYaw)) {
+			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(mode));
+		}
+		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
+		yawDegreesPerTick = acroBodyRateYawRate(
+				mode,
+				yawDegreesPerTick,
+				yawCommand,
+				pitchRadians,
+				rollRadians,
+				acroPitchRateRadiansPerTick,
+				acroRollRateRadiansPerTick
+		);
+		return acroAerodynamicYawRate(
+				mode,
+				yawDegreesPerTick,
+				yawCommand,
+				velocityX,
+				velocityY,
+				velocityZ,
+				pitchRadians,
+				rollRadians,
+				acroAeroCrossflowLag,
+				acroSidewashMemory
+		);
 	}
 
 	private static float yawSmoothing(float current, float target, Profile profile) {

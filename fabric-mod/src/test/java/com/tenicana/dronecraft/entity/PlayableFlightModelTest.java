@@ -3646,6 +3646,49 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroYawCommandLoadsFastForwardVelocityInSameTick() {
+		PlayableFlightModel.State fastForward = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f
+		);
+		PlayableFlightModel.Step noYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				fastForward
+		);
+		PlayableFlightModel.Step yaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				fastForward
+		);
+
+		assertTrue(yaw.yawDegreesPerTick() > 4.0f, "yawDegPerTick=" + yaw.yawDegreesPerTick());
+		assertTrue(yaw.velocityZ() < noYaw.velocityZ() - 0.025f,
+				"yawVelocityZ=" + yaw.velocityZ() + " noYawVelocityZ=" + noYaw.velocityZ());
+	}
+
+	@Test
 	void acroBodyRateLoadOnlyAppearsAtHighSpeedWithBodyRate() {
 		PlayableFlightModel.Velocity noRate = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
 				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f),
