@@ -53,7 +53,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(170.0f);
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
-	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 1.10f;
+	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.28f;
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
@@ -78,6 +78,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
 	private static final float ACRO_SIDEFORCE_GAIN = 0.065f;
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_GAIN = 0.42f;
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_START_RADIANS = (float) Math.toRadians(10.0f);
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_FULL_RADIANS = (float) Math.toRadians(58.0f);
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_MAX_ACCELERATION = 1.35f;
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND = 2.5f;
@@ -1228,10 +1232,11 @@ final class PlayableFlightModel {
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
 		Velocity pitchLiftAcceleration = acroPitchPlaneLiftAcceleration(bodyVelocity, separation);
 		Velocity sideforceAcceleration = acroSideslipSideforceAcceleration(bodyVelocity, separation);
+		Velocity sideforceInducedDragAcceleration = acroSideslipInducedDragAcceleration(bodyVelocity, sideforceAcceleration);
 		return new Velocity(
-				baseDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x(),
-				baseDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y(),
-				baseDragAcceleration.z() + separatedDragAcceleration.z() + pitchLiftAcceleration.z() + sideforceAcceleration.z()
+				baseDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x() + sideforceInducedDragAcceleration.x(),
+				baseDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y() + sideforceInducedDragAcceleration.y(),
+				baseDragAcceleration.z() + separatedDragAcceleration.z() + pitchLiftAcceleration.z() + sideforceAcceleration.z() + sideforceInducedDragAcceleration.z()
 		);
 	}
 
@@ -1291,6 +1296,33 @@ final class PlayableFlightModel {
 				-bodyVelocity.z() / yawPlaneSpeed * sideforceMagnitude,
 				0.0f,
 				bodyVelocity.x() / yawPlaneSpeed * sideforceMagnitude
+		);
+	}
+
+	static Velocity acroSideslipInducedDragAcceleration(Velocity bodyVelocity, Velocity sideforceAcceleration) {
+		float yawPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		float sideforceMagnitude = horizontalMagnitude(sideforceAcceleration.x(), sideforceAcceleration.z());
+		if (yawPlaneSpeed <= 1.0e-6f || sideforceMagnitude <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), Math.max(2.0f, Math.abs(bodyVelocity.z())));
+		float sideslipExposure = smoothStep((sideslip - ACRO_SIDEFORCE_INDUCED_DRAG_START_RADIANS)
+				/ Math.max(0.001f, ACRO_SIDEFORCE_INDUCED_DRAG_FULL_RADIANS - ACRO_SIDEFORCE_INDUCED_DRAG_START_RADIANS));
+		if (sideslipExposure <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float dragMagnitude = clamp(
+				sideforceMagnitude * ACRO_SIDEFORCE_INDUCED_DRAG_GAIN * sideslipExposure,
+				0.0f,
+				ACRO_SIDEFORCE_INDUCED_DRAG_MAX_ACCELERATION
+		);
+		if (dragMagnitude <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		return new Velocity(
+				-bodyVelocity.x() / yawPlaneSpeed * dragMagnitude,
+				0.0f,
+				-bodyVelocity.z() / yawPlaneSpeed * dragMagnitude
 		);
 	}
 

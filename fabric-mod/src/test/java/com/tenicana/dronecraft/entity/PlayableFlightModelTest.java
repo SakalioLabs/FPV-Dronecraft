@@ -1152,7 +1152,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
 		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) <= 1.12f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
 		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
@@ -1186,7 +1186,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
 		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(released.velocityX()) < 8.5f, "releasedVelocityX=" + released.velocityX());
+		assertTrue(Math.abs(released.velocityX()) < 0.32f, "releasedVelocityX=" + released.velocityX());
 	}
 
 	@Test
@@ -1224,7 +1224,7 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) <= 2.76f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(Math.abs(bodyVelocity.x()) <= 0.32f, "bodySideVelocity=" + bodyVelocity.x());
 		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
@@ -1265,7 +1265,7 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
 		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 1.05f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f, "bodySideVelocity=" + bodyVelocity.x());
 		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
@@ -1766,6 +1766,43 @@ class PlayableFlightModelTest {
 		assertTrue(sideforce.x() < -0.25f, "sideforceX=" + sideforce.x());
 		assertTrue(sideforce.z() > 0.25f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
+	}
+
+	@Test
+	void acroSideslipInducedDragMakesSideforceCostEnergy() {
+		PlayableFlightModel.Velocity straightVelocity = new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f);
+		PlayableFlightModel.Velocity straightSideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
+				straightVelocity,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightInducedDrag = PlayableFlightModel.acroSideslipInducedDragAcceleration(
+				straightVelocity,
+				straightSideforce
+		);
+		PlayableFlightModel.Velocity diagonalVelocity = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity diagonalSideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
+				diagonalVelocity,
+				0.30f
+		);
+		PlayableFlightModel.Velocity diagonalInducedDrag = PlayableFlightModel.acroSideslipInducedDragAcceleration(
+				diagonalVelocity,
+				diagonalSideforce
+		);
+		float sideforceWork = diagonalSideforce.x() * diagonalVelocity.x()
+				+ diagonalSideforce.z() * diagonalVelocity.z();
+		float inducedDragWork = diagonalInducedDrag.x() * diagonalVelocity.x()
+				+ diagonalInducedDrag.z() * diagonalVelocity.z();
+		float inducedDragMagnitude = horizontalSpeed(diagonalInducedDrag.x(), diagonalInducedDrag.z());
+
+		assertEquals(0.0f, straightInducedDrag.x(), 1.0e-6f);
+		assertEquals(0.0f, straightInducedDrag.z(), 1.0e-6f);
+		assertEquals(0.0f, sideforceWork, 1.0e-4f);
+		assertTrue(diagonalInducedDrag.x() < -0.06f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.z() < -0.06f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(inducedDragMagnitude > 0.10f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragMagnitude < 0.24f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragWork < -2.0f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork > -5.5f, "inducedDragWork=" + inducedDragWork);
 	}
 
 	@Test

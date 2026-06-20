@@ -1,5 +1,19 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 整圈 roll 后侧飞残留收紧）
+本轮针对你反馈的“尝试翻转一周之后会持续侧飞、无法回正”继续收敛 playable ACRO。复核发现，前面已经能把完整 roll 释放捕获到水平姿态，但捕获后仍允许最多约 `1.10m/s` 的 body-right 残留侧滑；在游戏视角里这会表现成机体看似回正了，却还在横着漂，尤其松杆后没有自稳刹车时很像“锁死侧飞”。
+- `PlayableFlightModel` 现在把完整 roll 捕获后的 body-right 侧滑余量从 `1.10m/s` 收紧到 `0.28m/s`。这只在“已经完成至少一整圈 roll 且处于松杆/释放尾段”的捕获帧触发，不影响主动刀锋、倒飞、连续翻滚或普通 ACRO rate 模式。
+- 前向惯性仍保留，所以不是给穿越机加自动回正；修的是动作结束帧把离散积分残留当作真实侧飞继续带走的问题。也就是说，翻完一圈松杆后应该回到可控的前向滑行，而不是长期横移。
+- 回归测试同步收紧：`428deg/507deg roll + 残余 roll rate + 12..14m/s 横向残留 + 6m/s 前向惯性` 的释放场景，捕获后 roll rate 必须归零、roll 必须归零、body-side velocity 必须低于约 `0.32m/s`，前向速度仍保持在 `4.6m/s` 以上。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-200744.json`。
+
+## 最新进展（2026-06-20，ACRO 侧滑诱导阻力）
+本轮继续处理“斜向飞行像平移、不像真实穿越机”的手感问题。上一轮补了高速斜向来流下的角惯性负载；这轮进一步检查线速度气动项，发现 playable ACRO 已有的 sideslip sideforce 会把斜向速度矢量往机头方向弯，但这个侧向力本身接近零做功，容易留下“空气免费帮我拐弯”的理想化味道。
+- `PlayableFlightModel` 现在在侧滑侧向力之外叠加一层很小的 sideslip induced drag：直线前飞不会触发；明显斜向/横向来流时，侧向力越强，越会沿当前水平来流反向吃掉一点能量。
+- 这层不改直线巡航速度、不改油门曲线，也不是自动回正；它只让“空气把横向速度掰向机头方向”的过程付出合理阻力，让斜飞更像有重量和气动代价的飞行，而不是纯几何平移。
+- 新增回归测试覆盖：直线 `25m/s` 前飞的 induced drag 必须为 0；`16m/s right + 16m/s forward` 斜向侧滑时，原侧向力对速度做功仍为 0，但新增诱导阻力必须对速度做负功，量级保持在约 `0.10..0.24m/s^2`，避免把它变成新的硬刹车。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-200058.json`。
+
 ## 最新进展（2026-06-20，ACRO 高速斜向角惯性负载）
 本轮继续针对“斜向飞行像平移、不像真实穿越机”的核心手感收敛。复核后发现，playable ACRO 的线速度层已经有推力轴积分、机体系 CdA、分离流、侧滑侧向力、桨盘 flapping/H-force、高前进比推力软化和弱 weathercock yaw；但姿态层的 roll/pitch rate 响应仍偏理想化，主要靠固定平滑和空气阻尼，没有把真实 5 寸机的转动惯量、机体系横流负载转化成“角速度建立要吃一点力”的感觉。
 - `PlayableFlightModel` 新增 ACRO rate inertia smoothing：低速基本不介入；直线 25m/s 高速巡航只轻微降低 rate 建立；`16m/s right + 16m/s forward` 这种斜向横流会让 roll rate 建立明显更有重量，pitch 轴在大迎角下也会有类似负载。
