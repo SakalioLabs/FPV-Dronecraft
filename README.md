@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 横向来流桨盘滚转力矩）
+本轮继续处理“高速斜飞像平移”的手感核心，但没有再加普通速度刹车。对照本仓库 `docs/data/kolaei2018_inflow_angle_rotor_packet.csv` 里的 Kolaei 2018 inflow-angle 旋翼资料后，重点补强 playable ACRO 中的横向来流滚转力矩：该资料明确记录同定义 `mu = V/(Omega*R)`，并把 `CMx` 滚转力矩列为横向/大入流角下的重要测量项。之前 playable 层已经有简化 `roll moment`，但量级偏轻，而且不看桨盘转速，容易在玩家侧感知成“侧着平移”。
+
+- `PlayableFlightModel` 现在让 `acroRateResponse` 把油门和悬停油门传入横向来流力矩计算；`acroTransverseFlowRollMomentRate` 不再只看速度和侧滑角，而是同时看桨盘是否真正有动力、以及当前 `mu` 是否进入横向来流区间。
+- 被动 roll moment 的默认高速侧滑量级从约 `0.23deg/tick` 提到约 `0.40deg/tick`，也就是从几乎感觉不到的轻微扰动提升到能让 20m/s 级斜向来流明显“带着机体滚”的程度；主动 roll 输入仍然优先，满杆时这条被动力矩只保留约 `8%`，不会抢杆或把 ACRO 改成自动回正。
+- 新增回归测试确认：直线巡航、低速侧移、低 `mu` 小速度和 idle 空转桨盘都不触发；`16m/s right + 16m/s forward` 的 powered disk 会触发可感 roll moment；完整 `step()` 中无 roll stick 的高速侧滑会产生更明显但受控的被动滚转。
+- 已通过定向横向来流测试和完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`。下一步仍应在客户端实飞里重点试高速 45 度斜飞、侧滑松杆、带油门的 bank turn，确认这个被动桨盘力矩是否让飞机更像“在空气里被扯着转弯”，而不是屏幕平移。
+
 ## 最新进展（2026-06-21，ACRO 高速推力改向负载）
 本轮继续收敛“速度够了，但高速斜向飞行还是有平移感，不像真实 5 寸穿越机在空气里带着重量转弯”的问题。参考方向来自本仓库的 RATM/NeuroBEM 高速残余力资料、`docs/fpv-sim-model-validation.md` 中对高前进比/机体阻力的校准记录，以及 RotorPy 把 multirotor 气动力拆成机体阻力、rotor drag、blade flapping、induced/translational drag 和电机动态的建模方式。
 

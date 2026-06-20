@@ -161,9 +161,11 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.22f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
+	private static final float ACRO_TRANSVERSE_MOMENT_MU_START = 0.055f;
+	private static final float ACRO_TRANSVERSE_MOMENT_MU_FULL = 0.220f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_START_RADIANS = (float) Math.toRadians(14.0f);
 	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(62.0f);
-	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.34f);
+	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.58f);
 	private static final float ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS = 0.65f;
 	private static final float ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP = 0.08f;
 	private static final float ACRO_AOA_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
@@ -252,7 +254,7 @@ final class PlayableFlightModel {
 		float attitudeRoll = safeRoll * attitudeCommandAuthority;
 		float yawCommand = safeYaw * yawCommandAuthority;
 
-		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, profile);
+		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(
 				safeMode,
@@ -691,7 +693,15 @@ final class PlayableFlightModel {
 		return clamp(updated, -limitRadians, limitRadians);
 	}
 
-	private static AcroRateResponse acroRateResponse(FlightMode mode, State previous, float pitch, float roll, Profile profile) {
+	private static AcroRateResponse acroRateResponse(
+			FlightMode mode,
+			State previous,
+			float pitch,
+			float roll,
+			float throttle,
+			float hoverThrottle,
+			Profile profile
+	) {
 		if (safeMode(mode) != FlightMode.ACRO) {
 			return AcroRateResponse.ZERO;
 		}
@@ -718,7 +728,7 @@ final class PlayableFlightModel {
 		if (completedRollRecoveryTail) {
 			rollRate = 0.0f;
 		} else {
-			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll);
+			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle);
 		}
 		pitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
 				* acroAngleOfAttackPitchMomentActivity(previous.acroPitchRateRadiansPerTick(), pitch);
@@ -849,8 +859,29 @@ final class PlayableFlightModel {
 	}
 
 	static float acroTransverseFlowRollMomentRate(Velocity bodyVelocity, float rollCommand) {
+		return acroTransverseFlowRollMomentRate(bodyVelocity, rollCommand, 0.45f, 0.20f);
+	}
+
+	static float acroTransverseFlowRollMomentRate(
+			Velocity bodyVelocity,
+			float rollCommand,
+			float throttle,
+			float hoverThrottle
+	) {
 		float horizontalSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
 		if (horizontalSpeed <= 1.0e-6f || Math.abs(bodyVelocity.x()) <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float rpm = averageRpm(throttle, hoverThrottle);
+		float activeDisk = smoothStep((rpm - IDLE_RPM) / Math.max(1.0f, HOVER_RPM - IDLE_RPM));
+		if (activeDisk <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float tipSpeed = rpm / 60.0f * (float) Math.PI * ACRO_PROP_DIAMETER_METERS;
+		float advanceRatioMu = horizontalSpeed / Math.max(1.0f, tipSpeed);
+		float muExposure = smoothStep((advanceRatioMu - ACRO_TRANSVERSE_MOMENT_MU_START)
+				/ Math.max(0.001f, ACRO_TRANSVERSE_MOMENT_MU_FULL - ACRO_TRANSVERSE_MOMENT_MU_START));
+		if (muExposure <= 1.0e-6f) {
 			return 0.0f;
 		}
 		float speedExposure = smoothStep((horizontalSpeed - ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND)
@@ -869,6 +900,8 @@ final class PlayableFlightModel {
 		return Math.signum(bodyVelocity.x())
 				* ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK
 				* speedExposure
+				* activeDisk
+				* muExposure
 				* sideslipExposure
 				* commandScale;
 	}

@@ -2927,11 +2927,39 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, straight, 1.0e-6f);
 		assertEquals(0.0f, lowSpeedSide, 1.0e-6f);
-		assertTrue(rightSlip > Math.toRadians(0.20), "rightSlipDeg=" + Math.toDegrees(rightSlip));
-		assertTrue(rightSlip < Math.toRadians(0.27), "rightSlipDeg=" + Math.toDegrees(rightSlip));
+		assertTrue(rightSlip > Math.toRadians(0.35), "rightSlipDeg=" + Math.toDegrees(rightSlip));
+		assertTrue(rightSlip < Math.toRadians(0.45), "rightSlipDeg=" + Math.toDegrees(rightSlip));
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 		assertTrue(activeRoll > rightSlip * 0.06f, "activeRollDeg=" + Math.toDegrees(activeRoll));
 		assertTrue(activeRoll < rightSlip * 0.12f, "activeRollDeg=" + Math.toDegrees(activeRoll) + " rightSlipDeg=" + Math.toDegrees(rightSlip));
+	}
+
+	@Test
+	void acroTransverseFlowRollMomentDependsOnPoweredDiskAdvanceRatio() {
+		PlayableFlightModel.Velocity fastSlip = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		float idleSlip = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				fastSlip,
+				0.0f,
+				0.0f,
+				0.20f
+		);
+		float poweredSlip = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				fastSlip,
+				0.0f,
+				0.45f,
+				0.20f
+		);
+		float lowMuSlip = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(2.0f, 0.0f, 2.0f),
+				0.0f,
+				1.0f,
+				0.20f
+		);
+
+		assertEquals(0.0f, idleSlip, 1.0e-6f);
+		assertEquals(0.0f, lowMuSlip, 1.0e-6f);
+		assertTrue(poweredSlip > Math.toRadians(0.35), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
+		assertTrue(poweredSlip < Math.toRadians(0.45), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
 	}
 
 	@Test
@@ -3055,9 +3083,9 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.acroRollRateRadiansPerTick() > Math.toRadians(0.20),
+		assertTrue(passive.acroRollRateRadiansPerTick() > Math.toRadians(0.35),
 				"passiveRollRateDeg=" + Math.toDegrees(passive.acroRollRateRadiansPerTick()));
-		assertTrue(passive.acroRollRateRadiansPerTick() < Math.toRadians(0.27),
+		assertTrue(passive.acroRollRateRadiansPerTick() < Math.toRadians(0.45),
 				"passiveRollRateDeg=" + Math.toDegrees(passive.acroRollRateRadiansPerTick()));
 		assertEquals(passive.acroRollRateRadiansPerTick(), passive.rollRadians(), 1.0e-6f);
 		assertEquals(0.0f, passive.acroPitchRateRadiansPerTick(), 1.0e-6f);
