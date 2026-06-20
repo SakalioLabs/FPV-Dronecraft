@@ -1,5 +1,15 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 横向来流桨盘偏转）
+本轮继续收敛“斜向飞行像平移、不像真机”的核心手感问题。前几轮已经把 playable ACRO 改成推力轴积分、机体系 CdA 空阻、高前进比推力软化、分离流侧滑力和弱 weathercock yaw；这次补的是桨盘本身在横向来流下的 in-plane/flapping 力，让高速斜飞时速度矢量不再只像一个平面目标速度被拖着走。
+
+- `PlayableFlightModel` 现在在 ACRO 速度积分里加入简化的横向来流桨盘偏转项：先把 yaw-local 速度投到机体系，按 5 寸桨 `mu = V / (omega R)` 计算横向来流响应，再把一个小的 body-frame in-plane 加速度投回当前 pitch/roll 姿态。
+- 量级锚定到完整物理核心的 `racingQuad` 默认值：`rotor_flapping = 0.055`，满响应参考 `mu ~= 0.095`，最大偏转仍守在 `18 deg` 内。直线高速巡航已有 CdA 阻力，所以 playable 层只给直线流保留较弱权重；侧滑/斜飞会明显加强，避免双算直线阻力又能处理你反馈的斜向平移感。
+- 力的方向不是自动回正，也不是把 ACRO 改成自稳：它只在有推力和桨盘平面来流时出现，方向主要反向咬住 body-frame 横向速度，并扣掉极小的垂直有效升力。玩家主动 pitch/roll/yaw 的 rate mode 语义不变。
+- 参考依据：Faessler/Franchi/Scaramuzza 的 rotor-drag 高速四轴模型说明高速飞行不能忽略机体系速度相关气动项；Bangura/Mahony 的 quadrotor rotor-blade 气动报告明确把 body-frame 水平力纳入旋翼建模；本仓库完整仿真核心已有 `rotor_flapping_tilt`、`rotor_in_plane_drag_force_n` 和 STARMAC II Fig. 9 flapping 尺度检查，本轮是把这层思路以可玩低阶形式落到 playable ACRO。
+- 新增回归测试覆盖：桨盘 flapping 使用 `mu = V/(omega R)` 而不是 UIUC 的 `J = V/(nD)`；`16m/s right + 16m/s forward` 的 powered diagonal disk flow 会得到约 `0.4m/s^2` 级反向桨盘 in-plane 加速度；直线 `25m/s` 巡航只保留较弱桨盘权重，避免过度刹车。
+- 已通过 `PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`。本轮服务端自测临时使用 25566，结束后已恢复 25565；报告文件为 `server-selftest-playable-20260620-181728.json`。
+
 ## 最新进展（2026-06-20，ACRO 侧滑 yaw 气动耦合）
 本轮继续沿着“斜向飞行还是有平移感”的核心反馈往下收敛。上一轮已经给 ACRO 平动加入分离流阻力和侧滑侧向力，但 yaw 角运动仍完全由玩家输入/滤波决定：高速前向侧滑时，机体没有任何空气动力 yaw 阻尼或顺风标趋势，视觉上仍可能像一个侧着滑动的点。
 

@@ -94,6 +94,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_ADVANCE_MAX_THRUST_LOSS = 0.20f;
 	private static final float ACRO_ADVANCE_MIN_THRUST_SCALE = 0.78f;
 	private static final float ACRO_ADVANCE_AXIAL_FLOW_WEIGHT = 0.18f;
+	private static final float ACRO_ROTOR_FLAPPING_COEFFICIENT = 0.055f;
+	private static final float ACRO_ROTOR_FLAPPING_FULL_MU = 0.095f;
+	private static final float ACRO_ROTOR_FLAPPING_MAX_TILT_RADIANS = (float) Math.toRadians(18.0f);
+	private static final float ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT = 0.38f;
+	private static final float ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS = (float) Math.toRadians(10.0f);
+	private static final float ACRO_ROTOR_FLAPPING_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_RATE_RISE_SMOOTHING = 0.62f;
 	private static final float ACRO_RATE_FALL_SMOOTHING = 0.74f;
 	private static final float ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK = (float) Math.toRadians(0.025f);
@@ -810,12 +816,21 @@ final class PlayableFlightModel {
 			Profile profile
 	) {
 		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians);
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		Velocity dragAcceleration = acroDragAcceleration(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians, throttle, hoverThrottle);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
-		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x();
-		float accelerationY = thrustAxis.y() * thrustAcceleration - ACRO_GRAVITY_METERS_PER_SECOND_SQUARED + dragAcceleration.y();
-		float accelerationZ = thrustAxis.z() * thrustAcceleration + dragAcceleration.z();
+		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
+		Velocity flappingAcceleration = yawLocalVelocityForAcroBody(
+				flappingBodyAcceleration.x(),
+				flappingBodyAcceleration.y(),
+				flappingBodyAcceleration.z(),
+				pitchRadians,
+				rollRadians
+		);
+		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x() + flappingAcceleration.x();
+		float accelerationY = thrustAxis.y() * thrustAcceleration - ACRO_GRAVITY_METERS_PER_SECOND_SQUARED + dragAcceleration.y() + flappingAcceleration.y();
+		float accelerationZ = thrustAxis.z() * thrustAcceleration + dragAcceleration.z() + flappingAcceleration.z();
 		return limitHorizontalVector(
 				previousVelocityX + accelerationX * PLAYABLE_TICK_SECONDS,
 				previousVelocityY + accelerationY * PLAYABLE_TICK_SECONDS,
@@ -873,6 +888,54 @@ final class PlayableFlightModel {
 		float rpm = Math.max(ACRO_ADVANCE_REFERENCE_MIN_RPM, averageRpm(throttle, hoverThrottle));
 		float revsPerSecond = rpm / 60.0f;
 		return effectiveFlowSpeed / Math.max(1.0f, revsPerSecond * ACRO_PROP_DIAMETER_METERS);
+	}
+
+	static Velocity acroRotorFlappingBodyAcceleration(
+			Velocity bodyVelocity,
+			float thrustAcceleration,
+			float throttle,
+			float hoverThrottle
+	) {
+		float diskPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		if (diskPlaneSpeed <= 1.0e-6f || thrustAcceleration <= 1.0e-6f || ACRO_ROTOR_FLAPPING_COEFFICIENT <= 0.0f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float advanceRatioMu = acroRotorDiskAdvanceRatioMu(bodyVelocity, throttle, hoverThrottle);
+		float advanceResponse = clamp(advanceRatioMu / ACRO_ROTOR_FLAPPING_FULL_MU, 0.0f, 1.0f);
+		float thrustFraction = clamp(
+				thrustAcceleration / (ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT),
+				0.0f,
+				1.0f
+		);
+		float diskLoadingResponse = clamp(0.72f + 0.28f * (float) Math.sqrt(thrustFraction), 0.0f, 1.0f);
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), Math.max(2.0f, Math.abs(bodyVelocity.z())));
+		float sideslipExposure = smoothStep((sideslip - ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS)
+				/ Math.max(0.001f, ACRO_ROTOR_FLAPPING_SIDESLIP_FULL_RADIANS - ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS));
+		float flowWeight = ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT
+				+ (1.0f - ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT) * sideslipExposure;
+		float tiltRadians = clamp(
+				ACRO_ROTOR_FLAPPING_COEFFICIENT * advanceResponse * diskLoadingResponse * flowWeight,
+				0.0f,
+				ACRO_ROTOR_FLAPPING_MAX_TILT_RADIANS
+		);
+		if (tiltRadians <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float tiltX = -bodyVelocity.x() / diskPlaneSpeed * tiltRadians;
+		float tiltZ = -bodyVelocity.z() / diskPlaneSpeed * tiltRadians;
+		float verticalLoss = thrustAcceleration * (1.0f - (float) Math.sqrt(Math.max(0.0f, 1.0f - tiltRadians * tiltRadians)));
+		return new Velocity(
+				tiltX * thrustAcceleration,
+				-verticalLoss,
+				tiltZ * thrustAcceleration
+		);
+	}
+
+	static float acroRotorDiskAdvanceRatioMu(Velocity bodyVelocity, float throttle, float hoverThrottle) {
+		float diskPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		float rpm = Math.max(ACRO_ADVANCE_REFERENCE_MIN_RPM, averageRpm(throttle, hoverThrottle));
+		float tipSpeed = rpm / 60.0f * (float) Math.PI * ACRO_PROP_DIAMETER_METERS;
+		return diskPlaneSpeed / Math.max(1.0f, tipSpeed);
 	}
 
 	private static float acroResponsiveCollectiveThrustToWeight(FlightMode mode, float previousCollectiveThrustToWeight, float targetCollectiveThrustToWeight) {
