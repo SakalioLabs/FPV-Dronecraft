@@ -86,11 +86,11 @@ final class PlayableFlightModel {
 	private static final float ACRO_PITCH_LIFT_GAIN = 0.090f;
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
-	private static final float ACRO_SIDEFORCE_GAIN = 0.092f;
-	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_GAIN = 0.50f;
+	private static final float ACRO_SIDEFORCE_GAIN = 0.128f;
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_GAIN = 0.56f;
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_START_RADIANS = (float) Math.toRadians(10.0f);
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_FULL_RADIANS = (float) Math.toRadians(58.0f);
-	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_MAX_ACCELERATION = 1.60f;
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_MAX_ACCELERATION = 1.85f;
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND = 2.5f;

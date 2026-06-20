@@ -2332,10 +2332,10 @@ class PlayableFlightModelTest {
 		);
 		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
 
-		assertTrue(sideforce.x() < -0.32f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.x() > -0.42f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.z() > 0.25f, "sideforceZ=" + sideforce.z());
-		assertTrue(sideforce.z() < 0.42f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.x() < -0.43f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() > -0.52f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.z() > 0.42f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.z() < 0.52f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
 	}
 
@@ -2368,14 +2368,14 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straightInducedDrag.x(), 1.0e-6f);
 		assertEquals(0.0f, straightInducedDrag.z(), 1.0e-6f);
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(diagonalInducedDrag.x() < -0.12f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.x() > -0.18f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.z() < -0.12f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(diagonalInducedDrag.z() > -0.18f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(inducedDragMagnitude > 0.18f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragMagnitude < 0.24f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragWork < -3.8f, "inducedDragWork=" + inducedDragWork);
-		assertTrue(inducedDragWork > -5.2f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(diagonalInducedDrag.x() < -0.19f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.x() > -0.24f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.z() < -0.19f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(diagonalInducedDrag.z() > -0.24f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(inducedDragMagnitude > 0.28f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragMagnitude < 0.34f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragWork < -6.1f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork > -7.6f, "inducedDragWork=" + inducedDragWork);
 	}
 
 	@Test

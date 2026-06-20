@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 斜滑侧向力重标定）
+本轮继续处理“斜向飞行像平移、不像机体在空气里转弯”的手感问题。上一轮增强了大姿态下 pitch/roll 到航向的耦合；这轮把 yaw-plane sideforce 做得更明显一些，让 `16m/s right + 16m/s forward` 这类斜向来流的速度矢量更愿意往机头方向弯，而不是只靠横向阻力把侧向速度刹掉。
+- `PlayableFlightModel` 将 ACRO 侧滑侧向力增益从 `0.092` 提到 `0.128`，诱导阻力增益从 `0.50` 提到 `0.56`，诱导阻力上限从 `1.60m/s^2` 提到 `1.85m/s^2`。侧向力本身仍保持近似零做功，用来改变速度方向；诱导阻力只给明显斜滑追加能量成本。
+- 当前标定下，`16/16m/s` 斜向来流的 sideforce 分量约为 `0.47m/s^2`，诱导阻力分量约为 `0.21m/s^2`。这比上一版更能让机体“咬住空气”拐过去，但不是把 ACRO 改成硬刹车或自动航向锁定。
+- 回归测试继续守住三条边界：直线 `25m/s` 前飞不触发侧滑诱导阻力；斜滑 sideforce 仍对速度近似零做功；`acroHighSpeedCoastPreservesInertiaDistanceWhileSideslipWashesOut` 和 thrust-vector turn load 仍通过，避免牺牲已经调好的速度感和惯性距离。
+- 已通过 targeted sideforce/diagonal/coastdown 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-011413.json`，ACRO 诊断通过，最终速度 `0.00m/s`，最大水平位移约 `16.79m`，最大速度约 `6.35m/s`。
+
 ## 最新进展（2026-06-21，ACRO 大姿态机体系航向耦合）
 本轮继续针对“全向旋转不通畅、高速下仍有回抽、翻滚后像持续侧飞”的 ACRO 手感收敛。前几轮已经把速度积分、推力轴、机体系空阻、侧滑、桨盘横流和整圈捕获逐层拆开；这次补的是大倾角下 pitch/roll 角速度和机头航向之间的耦合，让 banked pitch、接近垂直时的 roll 不再像简单欧拉角滑块，而更像真实穿越机会把姿态变化投成航向变化。
 - `PlayableFlightModel` 将 `ACRO_BODY_RATE_YAW_COUPLING_SCALE` 从 `0.24` 提到 `0.28`，并把被动 body-rate yaw coupling 上限从 `1.35deg/tick` 提到 `1.55deg/tick`。这不是自动回正，也不是航向锁定；只有 ACRO 大 bank/大 pitch 且玩家没有主动 yaw stick 抢权时才生效。
