@@ -1477,7 +1477,7 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.75f,
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.25f,
 				"bodySideVelocity=" + bodyVelocity.x()
 						+ " bodyForwardVelocity=" + bodyVelocity.z()
 						+ " yawRate=" + step.yawDegreesPerTick());
@@ -1503,7 +1503,7 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
-		assertTrue(Math.abs(bodyVelocity.x()) < 0.75f,
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.25f,
 				"bodySideVelocity=" + bodyVelocity.x()
 						+ " bodyForwardVelocity=" + bodyVelocity.z()
 						+ " yawDegrees=" + run.yawDegrees()
@@ -2548,12 +2548,12 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
-		assertTrue(forward.z() < -6.4f, "forwardZ=" + forward.z());
-		assertTrue(forward.z() > -7.2f, "forwardZ=" + forward.z());
+		assertTrue(forward.z() < -5.5f, "forwardZ=" + forward.z());
+		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
 		assertTrue(diagonal.x() < -7.1f, "diagonalX=" + diagonal.x());
 		assertTrue(diagonal.x() > -7.8f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -3.45f, "diagonalZ=" + diagonal.z());
-		assertTrue(diagonal.z() > -3.90f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() < -2.95f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -3.35f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
 
@@ -3443,8 +3443,8 @@ class PlayableFlightModelTest {
 			}
 		}
 
-		assertTrue(speedAfterOneSecond > 18.6f, "speedAfterOneSecond=" + speedAfterOneSecond);
-		assertTrue(speedAfterOneSecond < 19.7f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterOneSecond > 19.2f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterOneSecond < 20.3f, "speedAfterOneSecond=" + speedAfterOneSecond);
 		assertTrue(distanceAfterOneSecond > 21.5f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
 		assertTrue(distanceAfterOneSecond < 22.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
 		assertTrue(step != null && step.velocityZ() > 14.2f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));

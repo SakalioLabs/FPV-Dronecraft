@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 正向基准空阻与滑行惯性）
+本轮继续收敛“速度够了但手感仍像被空气刹住、翻滚后侧飞标准不够严”的问题。重点没有再堆普通刹车，而是把 playable ACRO 的直线基准空阻和斜向/侧向气动负载拆得更清楚：直线前飞松杆应该保留更长惯性，斜向来流仍要靠侧力、诱导阻力、分离流和桨盘力矩去洗掉横向分量。
+
+- `PlayableFlightModel` 将 ACRO 正向机体阻力面积从 `0.0144m^2` 降到 `0.0128m^2`，正向线性阻尼从 `0.075/s` 降到 `0.060/s`；`25m/s` 直线前飞的机体系正向减速度现在约 `-5.95m/s^2`，1 秒松杆滑行后速度约 `19.82m/s`，比上一版更有穿越机的滑行惯性。
+- 横向/斜向负载没有一起削弱：侧向阻力、侧滑侧向力、sideforce-induced drag、横向来流 roll moment 仍保留原量级；pitch-plane lift 也用 `0.085 -> 0.090` 的小幅增益补偿回原来的迎角升力量级，避免降低正向阻力时误伤机身迎角气动。
+- 翻滚后侧飞的回归标准进一步收紧：两个高速整圈 roll 释放测试（含 yaw reframe 场景）把允许残余 body-right 侧向速度从 `<0.75m/s` 收紧到 `<0.25m/s`，避免“测试算过了但实飞仍觉得横着拖”的灰区。
+- 已通过相关 targeted 回归、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`；本次服务端自测报告为 `server-selftest-playable-20260621-004015.json`。
+
 ## 最新进展（2026-06-21，ACRO 横向来流桨盘滚转力矩）
 本轮继续处理“高速斜飞像平移”的手感核心，但没有再加普通速度刹车。对照本仓库 `docs/data/kolaei2018_inflow_angle_rotor_packet.csv` 里的 Kolaei 2018 inflow-angle 旋翼资料后，重点补强 playable ACRO 中的横向来流滚转力矩：该资料明确记录同定义 `mu = V/(Omega*R)`，并把 `CMx` 滚转力矩列为横向/大入流角下的重要测量项。之前 playable 层已经有简化 `roll moment`，但量级偏轻，而且不看桨盘转速，容易在玩家侧感知成“侧着平移”。
 
