@@ -168,12 +168,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
 	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 2.35f;
 	private static final float ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS = 0.42f;
-	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_START_RADIANS = (float) Math.toRadians(50.0f);
-	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);
-	private static final float ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS = 0.54f;
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_START_RADIANS = (float) Math.toRadians(60.0f);
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS = 0.48f;
+	private static final float ACRO_BODY_RATE_VERTICAL_TWIST_YAW_START_RADIANS = (float) Math.toRadians(60.0f);
+	private static final float ACRO_BODY_RATE_VERTICAL_TWIST_YAW_FULL_RADIANS = (float) Math.toRadians(88.0f);
 	private static final float ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND = 9.0f;
 	private static final float ACRO_AERO_RATE_DAMPING_FULL_METERS_PER_SECOND = 28.0f;
 	private static final float ACRO_PITCH_AERO_RATE_DAMPING_MAX = 0.135f;
@@ -865,37 +861,82 @@ final class PlayableFlightModel {
 		bodyRollRate *= 1.0f - rotorGyroLoad;
 		bodyPitchRate = clamp(bodyPitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick());
 		bodyRollRate = clamp(bodyRollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick());
+		AcroBodyRateAttitudeDelta attitudeDelta = acroBodyRateAttitudeDelta(
+				previous.pitchRadians(),
+				previous.rollRadians(),
+				bodyPitchRate,
+				bodyRollRate
+		);
 		return new AcroRateResponse(
 				bodyPitchRate,
 				bodyRollRate,
-				acroProjectedEulerRate(bodyPitchRate, previous.rollRadians(), true),
-				acroProjectedEulerRate(bodyRollRate, previous.pitchRadians(), false)
+				attitudeDelta.pitchRateRadiansPerTick(),
+				attitudeDelta.rollRateRadiansPerTick()
 		);
 	}
 
-	private static float acroProjectedEulerRate(float rateRadiansPerTick, float crossAxisAttitudeRadians, boolean pitchRate) {
-		if (!Float.isFinite(rateRadiansPerTick) || Math.abs(rateRadiansPerTick) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
-			return rateRadiansPerTick;
+	static AcroBodyRateAttitudeDelta acroBodyRateAttitudeDelta(
+			float pitchRadians,
+			float rollRadians,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick
+	) {
+		float bodyPitchRate = finiteOrZero(pitchRateRadiansPerTick);
+		float bodyRollRate = finiteOrZero(rollRateRadiansPerTick);
+		if (Math.abs(bodyPitchRate) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK
+				&& Math.abs(bodyRollRate) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
+			return AcroBodyRateAttitudeDelta.ZERO;
 		}
-		return rateRadiansPerTick * acroBodyRateEulerProjectionScale(crossAxisAttitudeRadians, pitchRate);
+		float previousPitch = Float.isFinite(pitchRadians) ? pitchRadians : 0.0f;
+		float previousRoll = Float.isFinite(rollRadians) ? rollRadians : 0.0f;
+		AcroBodyFrame frame = acroBodyFrame(previousPitch, previousRoll);
+		Velocity angularAxis = new Velocity(
+				frame.right().x() * bodyPitchRate + frame.forward().x() * bodyRollRate,
+				frame.right().y() * bodyPitchRate + frame.forward().y() * bodyRollRate,
+				frame.right().z() * bodyPitchRate + frame.forward().z() * bodyRollRate
+		);
+		float angularStep = (float) Math.sqrt(angularAxis.x() * angularAxis.x()
+				+ angularAxis.y() * angularAxis.y()
+				+ angularAxis.z() * angularAxis.z());
+		if (angularStep <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
+			return AcroBodyRateAttitudeDelta.ZERO;
+		}
+		Velocity unitAxis = scaleVelocity(angularAxis, 1.0f / angularStep);
+		Velocity rotatedRight = rotateAroundAxis(frame.right(), unitAxis, angularStep);
+		Velocity rotatedUp = rotateAroundAxis(frame.up(), unitAxis, angularStep);
+		Velocity rotatedForward = rotateAroundAxis(frame.forward(), unitAxis, angularStep);
+		float forwardYawRadians = (float) Math.atan2(-rotatedForward.x(), rotatedForward.z());
+		float twistYawRadians = bodyTwistYawRadians(rotatedRight, previousPitch, previousRoll);
+		float verticalExposure = smoothStep((Math.abs(signedRotationResidualRadians(previousPitch)) - ACRO_BODY_RATE_VERTICAL_TWIST_YAW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_BODY_RATE_VERTICAL_TWIST_YAW_FULL_RADIANS - ACRO_BODY_RATE_VERTICAL_TWIST_YAW_START_RADIANS));
+		float yawRadians = forwardYawRadians + signedRotationResidualRadians(twistYawRadians - forwardYawRadians) * verticalExposure;
+		float yawDegrees = (float) Math.toDegrees(yawRadians);
+		Velocity localRight = localVelocityForYaw(rotatedRight.x(), rotatedRight.y(), rotatedRight.z(), yawDegrees);
+		Velocity localUp = localVelocityForYaw(rotatedUp.x(), rotatedUp.y(), rotatedUp.z(), yawDegrees);
+		Velocity localForward = localVelocityForYaw(rotatedForward.x(), rotatedForward.y(), rotatedForward.z(), yawDegrees);
+		float pitchResidual = (float) Math.atan2(-localForward.y(), localForward.z());
+		float rollResidual = (float) Math.atan2(-localUp.x(), localRight.x());
+		float nextPitch = continuousAttitudeFromResidual(previousPitch, pitchResidual);
+		float nextRoll = continuousAttitudeFromResidual(previousRoll, rollResidual);
+		return new AcroBodyRateAttitudeDelta(
+				nextPitch - previousPitch,
+				nextRoll - previousRoll
+		);
 	}
 
-	static float acroBodyRateEulerProjectionScale(float crossAxisAttitudeRadians, boolean pitchRate) {
-		if (!Float.isFinite(crossAxisAttitudeRadians)) {
-			return 1.0f;
+	private static float bodyTwistYawRadians(Velocity rotatedRight, float previousPitchRadians, float previousRollRadians) {
+		float previousPitch = Float.isFinite(previousPitchRadians) ? previousPitchRadians : 0.0f;
+		float previousRoll = Float.isFinite(previousRollRadians) ? previousRollRadians : 0.0f;
+		float expectedRightX = (float) Math.cos(previousRoll);
+		float expectedRightZ = (float) Math.sin(previousPitch) * (float) Math.sin(previousRoll);
+		float actualRightX = rotatedRight.x();
+		float actualRightZ = rotatedRight.z();
+		float cross = actualRightZ * expectedRightX - actualRightX * expectedRightZ;
+		float dot = actualRightX * expectedRightX + actualRightZ * expectedRightZ;
+		if (Math.abs(cross) <= 1.0e-6f && Math.abs(dot) <= 1.0e-6f) {
+			return 0.0f;
 		}
-		float attitude = Math.abs(signedRotationResidualRadians(crossAxisAttitudeRadians));
-		float start = pitchRate
-				? ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_START_RADIANS
-				: ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_START_RADIANS;
-		float full = pitchRate
-				? ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_FULL_RADIANS
-				: ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_FULL_RADIANS;
-		float maxLoss = pitchRate
-				? ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS
-				: ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS;
-		float exposure = smoothStep((attitude - start) / Math.max(0.001f, full - start));
-		return clamp(1.0f - maxLoss * exposure, 1.0f - maxLoss, 1.0f);
+		return (float) Math.atan2(cross, dot);
 	}
 
 	private static boolean isCompletedAcroRollRecoveryTail(FlightMode mode, State previous, float rollCommand) {
@@ -1610,6 +1651,13 @@ final class PlayableFlightModel {
 			return wrapped - FULL_ROTATION_RADIANS;
 		}
 		return wrapped;
+	}
+
+	private static float continuousAttitudeFromResidual(float previousRadians, float nextResidualRadians) {
+		float previous = Float.isFinite(previousRadians) ? previousRadians : 0.0f;
+		float previousResidual = signedRotationResidualRadians(previous);
+		float delta = signedRotationResidualRadians(nextResidualRadians - previousResidual);
+		return previous + delta;
 	}
 
 	private static boolean completedAcroAttitudeWasCaptured(FlightMode mode, float unsnappedRadians, float snappedRadians) {
@@ -3085,6 +3133,20 @@ final class PlayableFlightModel {
 		return x * axis.x() + y * axis.y() + z * axis.z();
 	}
 
+	private static Velocity rotateAroundAxis(Velocity vector, Velocity unitAxis, float radians) {
+		float cos = (float) Math.cos(radians);
+		float sin = (float) Math.sin(radians);
+		float dot = vector.x() * unitAxis.x() + vector.y() * unitAxis.y() + vector.z() * unitAxis.z();
+		float crossX = unitAxis.y() * vector.z() - unitAxis.z() * vector.y();
+		float crossY = unitAxis.z() * vector.x() - unitAxis.x() * vector.z();
+		float crossZ = unitAxis.x() * vector.y() - unitAxis.y() * vector.x();
+		return new Velocity(
+				vector.x() * cos + crossX * sin + unitAxis.x() * dot * (1.0f - cos),
+				vector.y() * cos + crossY * sin + unitAxis.y() * dot * (1.0f - cos),
+				vector.z() * cos + crossZ * sin + unitAxis.z() * dot * (1.0f - cos)
+		);
+	}
+
 	private static Velocity limitHorizontalVector(float velocityX, float velocityY, float velocityZ, float limitMetersPerSecond) {
 		float limit = Math.max(0.0f, limitMetersPerSecond);
 		float horizontalSpeed = horizontalMagnitude(velocityX, velocityZ);
@@ -3440,6 +3502,13 @@ final class PlayableFlightModel {
 			float eulerRollRateRadiansPerTick
 	) {
 		private static final AcroRateResponse ZERO = new AcroRateResponse(0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	record AcroBodyRateAttitudeDelta(
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick
+	) {
+		private static final AcroBodyRateAttitudeDelta ZERO = new AcroBodyRateAttitudeDelta(0.0f, 0.0f);
 	}
 
 	private record AcroBodyFrame(Velocity right, Velocity up, Velocity forward) {

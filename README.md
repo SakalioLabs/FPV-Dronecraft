@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 体轴姿态增量改为三维 frame 旋转，斜飞更少像欧拉平移）
+这一轮继续处理“斜向飞行像平移、不像真机”的主问题。复查 playable ACRO 后确认，速度、空阻、侧滑侧力、风标 yaw、侧洗记忆都已经有多轮收敛；更深的一处残留是姿态积分仍把体轴 pitch/roll rate 近似投到欧拉 pitch/roll 上。真实 rate mode 下，当前机体的 `right / up / forward` 轴会被体轴角速度旋转，再提取新的 yaw/pitch/roll；大 bank 时推 pitch 不应该继续像屏幕平面 pitch，大仰/俯时 roll 也不应该继续全量写成欧拉 roll。
+- `PlayableFlightModel` 新增 `acroBodyRateAttitudeDelta(...)`：先用当前 `acroBodyFrame` 组合 body pitch/roll rate 成一个角速度轴，用 Rodrigues 旋转当前 body frame，再从旋转后的 frame 提取连续 pitch/roll 增量。接近竖直姿态时，yaw 提取会混合 forward-heading 与 right-axis twist，避免 forward 近乎竖直时把 roll 错留在屏幕平面里。
+- `acroRateResponse` 现在用这个三维体轴增量写入 ACRO 的欧拉姿态变化；body pitch/roll rate 状态本身仍保留满权威，yaw 耦合/主动 yaw 优先级和封顶逻辑不在这一轮重调。这样不会把 ACRO 变成自稳，也不会削掉满杆 rate，只是让“同样的体轴 rate”在大 bank/竖直附近更像真实刚体姿态变化。
+- 回归改成锁住新合同：`75°` bank 下满 pitch 的欧拉 pitch 增量约为 body pitch rate 的 `0.24..0.28x`，而不是旧经验投影的 `0.55..0.62x`；`78°` pitch 下满 roll 的欧拉 roll 增量约为 body roll rate 的 `0.30..0.35x`。同时保留整圈 roll 连续性，`358° + 5°/tick` 仍继续向完整旋转推进，不会被残差 wrap 拉回去。
+- 更新了 ACRO gamepad/full-stick、模式切换和 release-hold 回归：这些测试现在看体轴 rate、姿态总量和水平目标合量，而不是只要求单个欧拉 pitch 很大。这样更符合真实穿越机“体轴在转，欧拉分解会随姿态改变”的手感。
+- 已通过 targeted banked/vertical body-rate 测试、完整 `PlayableFlightModelTest`、完整 `PlayableFlightModelTest` + `DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-070934.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，重新修正目视 pitch 符号，前飞目视不再抬头）
 这一轮先收敛你补充指出的“目视状态下无人机向前时从压头变成抬头”的问题。复查当前 playable 链路后确认：物理层里正 `pitchRadians` 仍代表机头下压，并会让 ACRO 推力轴产生前向分量；问题出在客户端 `DroneEntityModel` 对这个 pitch 又取了一次反号，导致目视/第三人称模型显示与物理姿态相反。
 - `DroneEntityModel.bodyPitchRotationRadians(...)` 改回直接使用 playable pitch：正 pitch / 前飞在目视模型上显示为机头下压，负 pitch 显示为抬头。这个改动只影响被渲染的无人机本体，不改 FPV 相机矩阵、不改服务端物理、不改速度/油门/空气动力常数。
