@@ -2146,11 +2146,69 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
-		assertTrue(forward.z() < -10.0f, "forwardZ=" + forward.z());
-		assertTrue(forward.z() > -11.2f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -6.8f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -5.0f, "diagonalZ=" + diagonal.z());
-		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 1.5f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+		assertTrue(forward.z() < -6.4f, "forwardZ=" + forward.z());
+		assertTrue(forward.z() > -7.2f, "forwardZ=" + forward.z());
+		assertTrue(diagonal.x() < -5.9f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -3.6f, "diagonalZ=" + diagonal.z());
+		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 2.2f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+	}
+
+	@Test
+	void acroHighSpeedCoastPreservesInertiaDistanceWhileSideslipWashesOut() {
+		PlayableFlightModel.Step forwardCoast = runFrom(
+				FlightMode.ACRO,
+				20,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						25.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f
+				)
+		);
+		PlayableFlightModel.Step diagonalCoast = runFrom(
+				FlightMode.ACRO,
+				20,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f
+				)
+		);
+		float diagonalSpeed = horizontalSpeed(diagonalCoast.velocityX(), diagonalCoast.velocityZ());
+
+		assertTrue(forwardCoast.velocityZ() > 18.5f, "forwardCoastZ=" + forwardCoast.velocityZ());
+		assertTrue(forwardCoast.velocityZ() < 23.5f, "forwardCoastZ=" + forwardCoast.velocityZ());
+		assertTrue(diagonalSpeed > 14.0f, "diagonalSpeed=" + diagonalSpeed);
+		assertTrue(diagonalSpeed < 20.5f, "diagonalSpeed=" + diagonalSpeed);
+		assertTrue(Math.abs(diagonalCoast.velocityX()) < Math.abs(diagonalCoast.velocityZ()) * 0.90f,
+				"diagonalX=" + diagonalCoast.velocityX() + " diagonalZ=" + diagonalCoast.velocityZ());
 	}
 
 	@Test
@@ -2820,14 +2878,14 @@ class PlayableFlightModelTest {
 			}
 		}
 
-		assertTrue(speedAfterOneSecond > 16.4f, "speedAfterOneSecond=" + speedAfterOneSecond);
-		assertTrue(speedAfterOneSecond < 17.4f, "speedAfterOneSecond=" + speedAfterOneSecond);
-		assertTrue(distanceAfterOneSecond > 19.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
-		assertTrue(distanceAfterOneSecond < 21.6f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
-		assertTrue(step != null && step.velocityZ() > 12.0f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
-		assertTrue(step != null && step.velocityZ() < 13.8f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
-		assertTrue(distanceMeters > 34.5f, "distanceAfterTwoSeconds=" + distanceMeters);
-		assertTrue(distanceMeters < 37.8f, "distanceAfterTwoSeconds=" + distanceMeters);
+		assertTrue(speedAfterOneSecond > 18.6f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterOneSecond < 19.7f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(distanceAfterOneSecond > 21.5f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
+		assertTrue(distanceAfterOneSecond < 22.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
+		assertTrue(step != null && step.velocityZ() > 14.2f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(step != null && step.velocityZ() < 16.4f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(distanceMeters > 38.2f, "distanceAfterTwoSeconds=" + distanceMeters);
+		assertTrue(distanceMeters < 40.8f, "distanceAfterTwoSeconds=" + distanceMeters);
 	}
 
 	@Test

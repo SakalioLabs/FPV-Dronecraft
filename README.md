@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 高速惯性滑行距离重标定）
+本轮继续围绕“斜向飞行像平移、缺少真实惯性距离”收敛 playable ACRO。根据本仓库 RATM 高速窗口和 drag guard 资料，旧 playable 前向阻力在 `25m/s` 级松杆滑行时仍偏像游戏刹车；这会让速度矢量太快被吸住，斜飞时缺少真实穿越机那种带重量的滑行。
+- `PlayableFlightModel` 将 ACRO 前向等效 CdA 从 `0.0216m^2` 降到 `0.0144m^2`，前向线性阻力从 `0.12/s` 降到 `0.075/s`；横向/竖向阻力保持不变，所以侧滑仍会被空气更快削掉，不是把整台机变成无阻力滑块。
+- 新增 coastdown 回归：`25m/s` 直线滑行 1 秒后保留约 `19m/s`，2 秒后仍在 `14..16m/s` 区间；`16m/s right + 16m/s forward` 的斜向滑行会保留总体速度，但侧向分量比前向分量更快洗掉。
+- 因前向 CdA 降低会间接削弱 weathercock 的力矩面积，本轮同步补偿 ACRO sideslip yaw/weathercock damping 增益，保持上一轮斜滑机头反馈量级，不让“滑行距离变长”退化成“平面平移更滑”。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`、7 个 Fabric GameTest，以及 JDK 21 下无头 `:fabric-mod:runPlayableAcroServerSelfTest`。服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-215901.json`。
+
 ## 最新进展（2026-06-20，ACRO 高速侧滑 yaw 载荷）
 本轮继续处理“斜向飞行像平移”的手感问题。当前 ACRO 已有机体系阻力、侧滑 sideforce、诱导阻力、桨盘 flapping/H-force、高前进比推力损失、transverse roll moment 和高迎角 pitch load；这次补的是 yaw 轴的高速侧滑反馈，让机头和速度矢量之间的空气交互更明显。
 - `PlayableFlightModel` 提高了 ACRO sideslip weathercock yaw：`16m/s right + 16m/s forward` 的无 yaw 输入斜滑现在约为 `0.30deg/tick` 被动转头，纯横向 broadside 仍保持弱反馈，避免变成自动航向锁定。

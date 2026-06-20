@@ -66,10 +66,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
 	private static final float ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT = 3.35f;
 	private static final float ACRO_ROTOR_COUNT = 4.0f;
-	private static final float ACRO_FORWARD_DRAG_AREA_SQUARE_METERS = 0.0216f;
+	private static final float ACRO_FORWARD_DRAG_AREA_SQUARE_METERS = 0.0144f;
 	private static final float ACRO_LATERAL_DRAG_AREA_SQUARE_METERS = 0.0269f;
 	private static final float ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS = 0.0180f;
-	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.12f;
+	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.075f;
 	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.16f;
 	private static final float ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND = 0.14f;
 	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_FORWARD_DRAG_AREA_SQUARE_METERS);
@@ -97,9 +97,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_WEATHERCOCK_LATERAL_FULL_METERS_PER_SECOND = 12.0f;
 	private static final float ACRO_WEATHERCOCK_BROADSIDE_BASE = 0.18f;
 	private static final float ACRO_WEATHERCOCK_BROADSIDE_LATERAL_WEIGHT = 0.16f;
-	private static final float ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK = 0.044f;
+	private static final float ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK = 0.054f;
 	private static final float ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK = 0.34f;
-	private static final float ACRO_SIDESLIP_YAW_DAMPING_GAIN = 0.018f;
+	private static final float ACRO_SIDESLIP_YAW_DAMPING_GAIN = 0.022f;
 	private static final float ACRO_SIDESLIP_YAW_DAMPING_MAX = 0.13f;
 	private static final float ACRO_WEATHERCOCK_YAW_COMMAND_SUPPRESS = 0.45f;
 	private static final float ACRO_SIDESLIP_YAW_LOAD_SPEED_START_METERS_PER_SECOND = 10.0f;
