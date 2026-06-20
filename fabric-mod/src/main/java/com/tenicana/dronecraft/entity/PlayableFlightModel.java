@@ -128,6 +128,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_BODY_RATE_LOAD_YAW_WEIGHT = 0.35f;
 	private static final float ACRO_BODY_RATE_LOAD_ACCELERATION_GAIN = 0.024f;
 	private static final float ACRO_BODY_RATE_LOAD_MAX_ACCELERATION = 2.20f;
+	private static final float ACRO_THRUST_TURN_LOAD_SPEED_START_METERS_PER_SECOND = 8.0f;
+	private static final float ACRO_THRUST_TURN_LOAD_SPEED_FULL_METERS_PER_SECOND = 24.0f;
+	private static final float ACRO_THRUST_TURN_LOAD_ACCELERATION_START = 1.20f;
+	private static final float ACRO_THRUST_TURN_LOAD_ACCELERATION_FULL = 8.0f;
+	private static final float ACRO_THRUST_TURN_LOAD_GAIN = 0.11f;
+	private static final float ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION = 1.25f;
 	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.24f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 0.70f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
@@ -1250,6 +1256,12 @@ final class PlayableFlightModel {
 		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
 		Velocity yawTurnLoadBodyAcceleration = acroYawTurnLoadBodyAcceleration(bodyVelocity, yawDegreesPerTick);
 		Velocity bodyRateLoadBodyAcceleration = acroBodyRateLoadBodyAcceleration(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, yawDegreesPerTick);
+		Velocity thrustTurnLoadAcceleration = acroThrustVectorTurnLoadAcceleration(
+				previousVelocityX,
+				previousVelocityZ,
+				thrustAxis.x() * thrustAcceleration,
+				thrustAxis.z() * thrustAcceleration
+		);
 		Velocity rotorDiskAcceleration = yawLocalVelocityForAcroBody(
 				flappingBodyAcceleration.x() + inPlaneDragBodyAcceleration.x(),
 				flappingBodyAcceleration.y() + inPlaneDragBodyAcceleration.y(),
@@ -1274,6 +1286,8 @@ final class PlayableFlightModel {
 		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x() + rotorDiskAcceleration.x() + yawTurnLoadAcceleration.x() + bodyRateLoadAcceleration.x();
 		float accelerationY = thrustAxis.y() * thrustAcceleration - ACRO_GRAVITY_METERS_PER_SECOND_SQUARED + dragAcceleration.y() + rotorDiskAcceleration.y() + yawTurnLoadAcceleration.y() + bodyRateLoadAcceleration.y();
 		float accelerationZ = thrustAxis.z() * thrustAcceleration + dragAcceleration.z() + rotorDiskAcceleration.z() + yawTurnLoadAcceleration.z() + bodyRateLoadAcceleration.z();
+		accelerationX += thrustTurnLoadAcceleration.x();
+		accelerationZ += thrustTurnLoadAcceleration.z();
 		Velocity overspeedAcceleration = acroOverspeedSoftBrakeAcceleration(
 				previousVelocityX,
 				previousVelocityZ,
@@ -1760,6 +1774,42 @@ final class PlayableFlightModel {
 				-bodyVelocity.x() / speed * loadMagnitude,
 				-bodyVelocity.y() / speed * loadMagnitude,
 				-bodyVelocity.z() / speed * loadMagnitude
+		);
+	}
+
+	static Velocity acroThrustVectorTurnLoadAcceleration(
+			float velocityX,
+			float velocityZ,
+			float thrustAccelerationX,
+			float thrustAccelerationZ
+	) {
+		float horizontalSpeed = horizontalMagnitude(velocityX, velocityZ);
+		float thrustHorizontalAcceleration = horizontalMagnitude(thrustAccelerationX, thrustAccelerationZ);
+		if (horizontalSpeed <= ACRO_THRUST_TURN_LOAD_SPEED_START_METERS_PER_SECOND
+				|| thrustHorizontalAcceleration <= ACRO_THRUST_TURN_LOAD_ACCELERATION_START) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float perpendicularAcceleration = Math.abs(velocityX * thrustAccelerationZ - velocityZ * thrustAccelerationX)
+				/ Math.max(1.0e-6f, horizontalSpeed);
+		if (perpendicularAcceleration <= ACRO_THRUST_TURN_LOAD_ACCELERATION_START) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float speedExposure = smoothStep((horizontalSpeed - ACRO_THRUST_TURN_LOAD_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_THRUST_TURN_LOAD_SPEED_FULL_METERS_PER_SECOND - ACRO_THRUST_TURN_LOAD_SPEED_START_METERS_PER_SECOND));
+		float turnExposure = smoothStep((perpendicularAcceleration - ACRO_THRUST_TURN_LOAD_ACCELERATION_START)
+				/ Math.max(0.001f, ACRO_THRUST_TURN_LOAD_ACCELERATION_FULL - ACRO_THRUST_TURN_LOAD_ACCELERATION_START));
+		float loadMagnitude = clamp(
+				perpendicularAcceleration * ACRO_THRUST_TURN_LOAD_GAIN * speedExposure * turnExposure,
+				0.0f,
+				ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION
+		);
+		if (loadMagnitude <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		return new Velocity(
+				-velocityX / horizontalSpeed * loadMagnitude,
+				0.0f,
+				-velocityZ / horizontalSpeed * loadMagnitude
 		);
 	}
 

@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高速推力改向负载）
+本轮继续收敛“速度够了，但高速斜向飞行还是有平移感，不像真实 5 寸穿越机在空气里带着重量转弯”的问题。参考方向来自本仓库的 RATM/NeuroBEM 高速残余力资料、`docs/fpv-sim-model-validation.md` 中对高前进比/机体阻力的校准记录，以及 RotorPy 把 multirotor 气动力拆成机体阻力、rotor drag、blade flapping、induced/translational drag 和电机动态的建模方式。
+
+- `PlayableFlightModel` 新增 ACRO thrust-vector turn load：当无人机已经在 `8..24m/s` 以上高速水平飞行，而当前推力水平分量主要在“横着改向”而不是顺着速度加速时，用 `|v x a_thrust| / |v|` 估计转弯负载，并沿当前水平速度反向加入一个很小的能量成本，最大约 `1.25m/s^2`。
+- 这不是普通速度刹车，也不是自动回正：低速起飞、悬停、直线加速、顺速度方向给油都不会触发；只有高速 bank/斜飞时推力大量用于改变速度方向，才会感觉更重、需要提前量，减少“屏幕平移”的味道。
+- 新增回归测试覆盖三类边界：低速/顺向推力不触发；`25m/s` 高速且推力近似垂直速度时出现约 `0.9m/s^2` 的负载；完整 `step()` 中 banked turn 会保留横向转向能力，但同时付出可测的前向能量成本。
+- 已通过完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`；本次服务端自测报告为 `server-selftest-playable-20260621-001841.json`。这一轮还不是最终手感完成版，但比之前更接近“真实穿越机高速改向会吃能量、会有转弯半径和空气负载”的方向。
+
 ## 最新进展（2026-06-20，高速横滚释放预测与侧滑耦合收敛）
 本轮继续处理“尝试翻转一周之后会持续侧飞、无法回正”的复发反馈。新增复现发现：如果满 roll 后在约 `230..245deg` 的高速释放尾段松杆，旧模型还没有跨过 `250deg` 的 filtered-release 捕获阈值；虽然上一帧横滚率仍有 `8deg/tick+`，下一帧会停在约 `238deg` 的侧飞姿态，并留下 `6m/s+` 的局部侧向速度。
 

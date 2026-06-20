@@ -2480,6 +2480,65 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroThrustVectorTurnLoadOnlyAppearsWhenThrustTurnsFastVelocity() {
+		PlayableFlightModel.Velocity lowSpeedTurn = PlayableFlightModel.acroThrustVectorTurnLoadAcceleration(
+				0.0f,
+				6.0f,
+				8.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity alignedFastThrust = PlayableFlightModel.acroThrustVectorTurnLoadAcceleration(
+				0.0f,
+				25.0f,
+				0.0f,
+				8.0f
+		);
+		PlayableFlightModel.Velocity fastTurn = PlayableFlightModel.acroThrustVectorTurnLoadAcceleration(
+				0.0f,
+				25.0f,
+				8.0f,
+				0.0f
+		);
+
+		assertEquals(0.0f, lowSpeedTurn.z(), 1.0e-6f);
+		assertEquals(0.0f, alignedFastThrust.z(), 1.0e-6f);
+		assertEquals(0.0f, fastTurn.x(), 1.0e-6f);
+		assertTrue(fastTurn.z() < -0.80f, "fastTurnZ=" + fastTurn.z());
+		assertTrue(fastTurn.z() > -0.98f, "fastTurnZ=" + fastTurn.z());
+	}
+
+	@Test
+	void acroThrustVectorTurnLoadAddsEnergyCostWithoutChangingTurnDirection() {
+		PlayableFlightModel.State fastForward = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				(float) Math.toRadians(45.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				2.30f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step bankedTurn = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.62f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				fastForward
+		);
+
+		assertTrue(bankedTurn.velocityX() < -0.18f, "velocityX=" + bankedTurn.velocityX());
+		assertTrue(bankedTurn.velocityZ() < 24.9f, "velocityZ=" + bankedTurn.velocityZ());
+		assertTrue(bankedTurn.velocityZ() > 24.2f, "velocityZ=" + bankedTurn.velocityZ());
+	}
+
+	@Test
 	void acroDiagonalHighSpeedFlowGetsExtraSeparatedDragAndSideforce() {
 		PlayableFlightModel.Velocity forward = PlayableFlightModel.acroBodyAerodynamicAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
