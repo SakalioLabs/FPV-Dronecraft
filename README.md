@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 体轴 rate 与欧拉积分拆分，减少翻滚后平面侧飞）
+这一轮继续处理“翻滚一周后持续侧飞、斜飞/大 bank 时机头和轨迹不像同一个三维刚体”的问题。复查 [do-a-barrel-roll](https://github.com/enjarai/do-a-barrel-roll) 后确认，它的核心不是在欧拉角上硬堆 pitch/yaw/roll，而是按当前 `facing / left / up` 向量做旋转：pitch 绕当前 left，yaw 绕当前 up，roll 绕当前 facing，最后再重新提取姿态。当前 playable ACRO 之前虽然已经加了 banked yaw coupling，但 `acroPitchRateRadiansPerTick` 同时被当作“机体系角速率状态”和“直接加到 Minecraft pitch/roll 的欧拉增量”，大倾角时要么仍像地平系滑块，要么会把摇杆权威一起吃掉。
+- `PlayableFlightModel` 现在把 ACRO rate 拆成两层：飞控状态、惯性负载、yaw 耦合继续保留未投影的机体系 body rate；真正积分到 `pitchRadians / rollRadians` 前，才按当前交叉姿态做欧拉投影。这样大 bank 下 pitch 会更多转成 heading/yaw，而不是把机体继续当屏幕平面 pitch，同时不会因为投影就让下一帧摇杆 rate 变小。
+- `ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS` 从旧的 `0.22` 收敛到 `0.54`，`ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS` 从 `0.18` 收敛到 `0.48`；yaw 耦合从 `0.42` 提到 `0.47`，vertical roll yaw 权重从 `0.70` 提到 `1.15`，但 `ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK` 仍封顶在 `2.35°/tick`。`60°` bank 下无 yaw-stick 的 full pitch step 现在约 `2.22°/tick` yaw，不再停在旧的 `2.15°/tick` 上限。
+- 这不是自动回正，也不是给 ACRO 加稳定模式。主动 yaw 仍优先；松杆后的完整 roll 捕获、侧洗记忆、横向惯性和之前的空气动力项不改变。这轮只修正“机体系角速度如何投影到 Minecraft 欧拉姿态/航向”的路径，让大 bank、vertical roll 和翻滚后的斜飞更像真实 rate mode。
+- 回归新增/更新了 `acroBankedPitchProjectsAwayFromPlanarEulerSlide`、`acroVerticalRollProjectsAwayFromPlanarEulerSlide`、`acroBodyRateYawCouplingAddsBankedPitchAndVerticalRollHeadingChange`、`bankedAcroPitchInputCreatesHeadingChangeWithoutYawStick` 和 ACRO gamepad 中杆边界。已通过 targeted 测试、完整 `PlayableFlightModelTest` + `DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-063446.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO banked pitch 体轴耦合增强，并修正目视 pitch 符号）
 这一轮继续处理“斜向飞行像平移，不像真机在三维姿态里飞”的手感问题。对照 [RotorPy](https://github.com/spencerfolk/rotorpy) / RotorPy 论文的建模思路：真实多旋翼高速机动不是只靠一个平面速度刹车，frame drag、rotor drag、blade flapping、induced/translational drag 和姿态角速度都会随相对空气速度共同作用。复查当前 playable 后发现，空气阻力和 sidewash 已经做了多轮收敛，下一处更像根因的是 ACRO 姿态链路：banked pitch / vertical roll 仍然只是保守地给 yaw 加一点补偿，太像地平系 pitch/roll 滑块。
 - `ACRO_BODY_RATE_YAW_COUPLING_SCALE` 从 `0.28` 提到 `0.42`，`ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK` 从 `1.55` 提到 `2.35`。`60°` bank 下 `4°/tick` pitch 的无 yaw-stick 航向耦合从约 `0.97°/tick` 提到约 `1.45°/tick`；完整 step 里的 banked pitch yaw 从约 `1.5°/tick` 提到约 `1.90°/tick`。

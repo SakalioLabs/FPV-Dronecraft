@@ -4637,11 +4637,11 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, levelPitch, 1.0e-6f);
-		assertTrue(rightBankPitch > 1.35f, "rightBankPitch=" + rightBankPitch);
-		assertTrue(rightBankPitch < 1.55f, "rightBankPitch=" + rightBankPitch);
+		assertTrue(rightBankPitch > 1.55f, "rightBankPitch=" + rightBankPitch);
+		assertTrue(rightBankPitch < 1.72f, "rightBankPitch=" + rightBankPitch);
 		assertEquals(-rightBankPitch, leftBankPitch, 1.0e-6f);
-		assertTrue(verticalRoll > 1.25f, "verticalRoll=" + verticalRoll);
-		assertTrue(verticalRoll < 1.40f, "verticalRoll=" + verticalRoll);
+		assertTrue(verticalRoll > 2.25f, "verticalRoll=" + verticalRoll);
+		assertTrue(verticalRoll <= 2.35f, "verticalRoll=" + verticalRoll);
 	}
 
 	@Test
@@ -5371,7 +5371,7 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, levelPitch.yawDegreesPerTick(), 1.0e-6f);
 		assertTrue(bankedPitch.yawDegreesPerTick() > 1.70f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
-		assertTrue(bankedPitch.yawDegreesPerTick() <= 2.15f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertTrue(bankedPitch.yawDegreesPerTick() <= 2.35f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
 	}
 
 	@Test
@@ -5450,12 +5450,24 @@ class PlayableFlightModelTest {
 				)
 		);
 
+		float bankedProjection = PlayableFlightModel.acroBodyRateEulerProjectionScale((float) Math.toRadians(75.0), true);
+
 		assertEquals(1.0f, PlayableFlightModel.acroBodyRateEulerProjectionScale(0.0f, true), 1.0e-6f);
-		assertTrue(PlayableFlightModel.acroBodyRateEulerProjectionScale((float) Math.toRadians(75.0), true) < 0.88f);
-		assertTrue(bankedPitch.acroPitchRateRadiansPerTick() < levelPitch.acroPitchRateRadiansPerTick() * 0.90f,
+		assertTrue(bankedProjection > 0.55f, "bankedProjection=" + bankedProjection);
+		assertTrue(bankedProjection < 0.62f, "bankedProjection=" + bankedProjection);
+		assertTrue(bankedPitch.acroPitchRateRadiansPerTick() > levelPitch.acroPitchRateRadiansPerTick() * 0.95f,
+				"bankedBodyPitchRateDeg=" + Math.toDegrees(bankedPitch.acroPitchRateRadiansPerTick())
+						+ " levelBodyPitchRateDeg=" + Math.toDegrees(levelPitch.acroPitchRateRadiansPerTick()));
+		assertTrue(bankedPitch.pitchRadians() < levelPitch.pitchRadians() * 0.70f,
 				"bankedPitchRateDeg=" + Math.toDegrees(bankedPitch.acroPitchRateRadiansPerTick())
-						+ " levelPitchRateDeg=" + Math.toDegrees(levelPitch.acroPitchRateRadiansPerTick()));
-		assertTrue(bankedPitch.yawDegreesPerTick() > 0.92f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+						+ " bankedEulerPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians())
+						+ " levelEulerPitchDeg=" + Math.toDegrees(levelPitch.pitchRadians()));
+		assertTrue(bankedPitch.pitchRadians() > levelPitch.pitchRadians() * 0.50f,
+				"bankedPitchRateDeg=" + Math.toDegrees(bankedPitch.acroPitchRateRadiansPerTick())
+						+ " bankedEulerPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians())
+						+ " levelEulerPitchDeg=" + Math.toDegrees(levelPitch.pitchRadians()));
+		assertTrue(bankedPitch.yawDegreesPerTick() > 1.90f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertTrue(bankedPitch.yawDegreesPerTick() <= 2.35f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
 		assertTrue(bankedPitch.pitchRadians() < Math.toRadians(80.0), "bankedPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians()));
 	}
 
@@ -5494,12 +5506,24 @@ class PlayableFlightModelTest {
 				)
 		);
 
+		float verticalRollProjection = PlayableFlightModel.acroBodyRateEulerProjectionScale((float) Math.toRadians(78.0), false);
+
 		assertEquals(1.0f, PlayableFlightModel.acroBodyRateEulerProjectionScale(0.0f, false), 1.0e-6f);
-		assertTrue(PlayableFlightModel.acroBodyRateEulerProjectionScale((float) Math.toRadians(78.0), false) < 0.90f);
-		assertTrue(verticalRoll.acroRollRateRadiansPerTick() < levelRoll.acroRollRateRadiansPerTick() * 0.92f,
+		assertTrue(verticalRollProjection > 0.63f, "verticalRollProjection=" + verticalRollProjection);
+		assertTrue(verticalRollProjection < 0.70f, "verticalRollProjection=" + verticalRollProjection);
+		assertTrue(verticalRoll.acroRollRateRadiansPerTick() > levelRoll.acroRollRateRadiansPerTick() * 0.95f,
+				"verticalBodyRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
+						+ " levelBodyRollDeg=" + Math.toDegrees(levelRoll.acroRollRateRadiansPerTick()));
+		assertTrue(verticalRoll.rollRadians() < levelRoll.rollRadians() * 0.75f,
 				"verticalRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
-						+ " levelRollRateDeg=" + Math.toDegrees(levelRoll.acroRollRateRadiansPerTick()));
-		assertTrue(verticalRoll.yawDegreesPerTick() > 0.75f, "verticalYaw=" + verticalRoll.yawDegreesPerTick());
+						+ " verticalEulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians())
+						+ " levelEulerRollDeg=" + Math.toDegrees(levelRoll.rollRadians()));
+		assertTrue(verticalRoll.rollRadians() > levelRoll.rollRadians() * 0.55f,
+				"verticalRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
+						+ " verticalEulerRollDeg=" + Math.toDegrees(verticalRoll.rollRadians())
+						+ " levelEulerRollDeg=" + Math.toDegrees(levelRoll.rollRadians()));
+		assertTrue(verticalRoll.yawDegreesPerTick() > 1.60f, "verticalYaw=" + verticalRoll.yawDegreesPerTick());
+		assertTrue(verticalRoll.yawDegreesPerTick() <= 2.35f, "verticalYaw=" + verticalRoll.yawDegreesPerTick());
 		assertTrue(verticalRoll.rollRadians() < Math.toRadians(83.0), "verticalRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
 	}
 
@@ -5794,7 +5818,7 @@ class PlayableFlightModelTest {
 		PlayableFlightModel.Step midStick = runClientPresetStick(config, 20, 0.70f, -0.70f, 0.70f, hoverThrottle);
 		PlayableFlightModel.Step fullStick = runClientPresetStick(config, 20, 1.0f, -1.0f, 1.0f, hoverThrottle);
 
-		assertTrue(Math.abs(midStick.pitchRadians()) > Math.toRadians(75.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
+		assertTrue(Math.abs(midStick.pitchRadians()) > Math.toRadians(70.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
 		assertTrue(Math.abs(midStick.pitchRadians()) < Math.toRadians(110.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
 		assertTrue(Math.abs(midStick.rollRadians()) > Math.toRadians(84.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
 		assertTrue(Math.abs(midStick.rollRadians()) < Math.toRadians(118.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));

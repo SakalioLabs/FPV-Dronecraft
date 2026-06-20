@@ -162,18 +162,18 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT = 0.24f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_GAIN = 0.095f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_MAX_ACCELERATION = 0.90f;
-	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.42f;
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 0.70f;
+	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.47f;
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 1.15f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
 	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 2.35f;
 	private static final float ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS = 0.42f;
 	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_START_RADIANS = (float) Math.toRadians(50.0f);
 	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);
-	private static final float ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS = 0.22f;
+	private static final float ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS = 0.54f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_START_RADIANS = (float) Math.toRadians(60.0f);
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);
-	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS = 0.18f;
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS = 0.48f;
 	private static final float ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND = 9.0f;
 	private static final float ACRO_AERO_RATE_DAMPING_FULL_METERS_PER_SECOND = 28.0f;
 	private static final float ACRO_PITCH_AERO_RATE_DAMPING_MAX = 0.135f;
@@ -369,10 +369,10 @@ final class PlayableFlightModel {
 		boolean acroRollCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.rollRadians(), rollRadians);
 		float acroPitchRateRadiansPerTick = acroPitchCaptured
 				? 0.0f
-				: acroRate.pitchRateRadiansPerTick();
+				: acroRate.bodyPitchRateRadiansPerTick();
 		float acroRollRateRadiansPerTick = acroRollCaptured
 				? 0.0f
-				: acroRate.rollRateRadiansPerTick();
+				: acroRate.bodyRollRateRadiansPerTick();
 		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
 		rollRadians = settledAttitude(safeMode, attitudeRoll, rollRadians);
 		int acroRollRecoveryTicksRemaining = nextAcroRollRecoveryTicksRemaining(
@@ -744,8 +744,8 @@ final class PlayableFlightModel {
 			case ANGLE -> angleAttitude(profile, pitch, roll, previous);
 			case HORIZON -> horizonAttitude(profile, pitch, roll, previous);
 			case ACRO -> new Attitude(
-					previous.pitchRadians() + acroRate.pitchRateRadiansPerTick(),
-					previous.rollRadians() + acroRate.rollRateRadiansPerTick()
+					previous.pitchRadians() + acroRate.eulerPitchRateRadiansPerTick(),
+					previous.rollRadians() + acroRate.eulerRollRateRadiansPerTick()
 			);
 		};
 	}
@@ -829,29 +829,27 @@ final class PlayableFlightModel {
 				previous.rollRadians()
 		);
 		float motorRateAuthority = acroMotorRateAuthorityScale(bodyVelocity, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
-		float pitchRate = acroAerodynamicRateDamped(
+		float bodyPitchRate = acroAerodynamicRateDamped(
 				responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick() * motorRateAuthority, bodyVelocity, true, acroAeroCrossflowLag, acroSidewashMemory),
 				bodyVelocity,
 				true,
 				acroAeroCrossflowLag,
 				acroSidewashMemory
 		);
-		float rollRate = acroAerodynamicRateDamped(
+		float bodyRollRate = acroAerodynamicRateDamped(
 				responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick() * motorRateAuthority, bodyVelocity, false, acroAeroCrossflowLag, acroSidewashMemory),
 				bodyVelocity,
 				false,
 				acroAeroCrossflowLag,
 				acroSidewashMemory
 		);
-		pitchRate = acroProjectedEulerRate(pitchRate, previous.rollRadians(), true);
-		rollRate = acroProjectedEulerRate(rollRate, previous.pitchRadians(), false);
 		if (completedRollRecoveryTail) {
-			rollRate = 0.0f;
+			bodyRollRate = 0.0f;
 		} else {
-			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
+			bodyRollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
 					* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
 		}
-		pitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
+		bodyPitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
 				* acroAngleOfAttackPitchMomentScale(
 						bodyVelocity,
 						previous.pitchRadians(),
@@ -859,15 +857,19 @@ final class PlayableFlightModel {
 						pitch
 				)
 				* sanitizedCrossflowLag(acroAeroCrossflowLag);
-		float residualTorqueLoad = acroResidualTorqueRateLoadFraction(bodyVelocity, pitchRate, rollRate, acroAeroCrossflowLag, acroSidewashMemory);
-		pitchRate *= 1.0f - residualTorqueLoad;
-		rollRate *= 1.0f - residualTorqueLoad;
-		float rotorGyroLoad = acroRotorGyroRateLoadFraction(pitchRate, rollRate, throttle, hoverThrottle);
-		pitchRate *= 1.0f - rotorGyroLoad;
-		rollRate *= 1.0f - rotorGyroLoad;
+		float residualTorqueLoad = acroResidualTorqueRateLoadFraction(bodyVelocity, bodyPitchRate, bodyRollRate, acroAeroCrossflowLag, acroSidewashMemory);
+		bodyPitchRate *= 1.0f - residualTorqueLoad;
+		bodyRollRate *= 1.0f - residualTorqueLoad;
+		float rotorGyroLoad = acroRotorGyroRateLoadFraction(bodyPitchRate, bodyRollRate, throttle, hoverThrottle);
+		bodyPitchRate *= 1.0f - rotorGyroLoad;
+		bodyRollRate *= 1.0f - rotorGyroLoad;
+		bodyPitchRate = clamp(bodyPitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick());
+		bodyRollRate = clamp(bodyRollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick());
 		return new AcroRateResponse(
-				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
-				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
+				bodyPitchRate,
+				bodyRollRate,
+				acroProjectedEulerRate(bodyPitchRate, previous.rollRadians(), true),
+				acroProjectedEulerRate(bodyRollRate, previous.pitchRadians(), false)
 		);
 	}
 
@@ -2920,12 +2922,14 @@ final class PlayableFlightModel {
 		}
 		float pitch = signedRotationResidualRadians(pitchRadians);
 		float roll = signedRotationResidualRadians(rollRadians);
-		float bankedPitchCoupling = pitchRateRadiansPerTick
+		float bodyPitchRateRadiansPerTick = pitchRateRadiansPerTick;
+		float bodyRollRateRadiansPerTick = rollRateRadiansPerTick;
+		float bankedPitchCoupling = bodyPitchRateRadiansPerTick
 				* (float) Math.sin(roll)
 				* (0.35f + 0.65f * Math.abs((float) Math.cos(pitch)));
 		float verticalRollExposure = smoothStep((Math.abs(pitch) - ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS)
 				/ Math.max(0.001f, ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS - ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS));
-		float verticalRollCoupling = rollRateRadiansPerTick
+		float verticalRollCoupling = bodyRollRateRadiansPerTick
 				* (float) Math.sin(pitch)
 				* verticalRollExposure
 				* ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT;
@@ -3429,8 +3433,13 @@ final class PlayableFlightModel {
 	private record Attitude(float pitchRadians, float rollRadians) {
 	}
 
-	private record AcroRateResponse(float pitchRateRadiansPerTick, float rollRateRadiansPerTick) {
-		private static final AcroRateResponse ZERO = new AcroRateResponse(0.0f, 0.0f);
+	private record AcroRateResponse(
+			float bodyPitchRateRadiansPerTick,
+			float bodyRollRateRadiansPerTick,
+			float eulerPitchRateRadiansPerTick,
+			float eulerRollRateRadiansPerTick
+	) {
+		private static final AcroRateResponse ZERO = new AcroRateResponse(0.0f, 0.0f, 0.0f, 0.0f);
 	}
 
 	private record AcroBodyFrame(Velocity right, Velocity up, Velocity forward) {
