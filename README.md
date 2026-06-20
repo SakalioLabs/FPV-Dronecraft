@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 大姿态机体系航向耦合）
+本轮继续针对“全向旋转不通畅、高速下仍有回抽、翻滚后像持续侧飞”的 ACRO 手感收敛。前几轮已经把速度积分、推力轴、机体系空阻、侧滑、桨盘横流和整圈捕获逐层拆开；这次补的是大倾角下 pitch/roll 角速度和机头航向之间的耦合，让 banked pitch、接近垂直时的 roll 不再像简单欧拉角滑块，而更像真实穿越机会把姿态变化投成航向变化。
+- `PlayableFlightModel` 将 `ACRO_BODY_RATE_YAW_COUPLING_SCALE` 从 `0.24` 提到 `0.28`，并把被动 body-rate yaw coupling 上限从 `1.35deg/tick` 提到 `1.55deg/tick`。这不是自动回正，也不是航向锁定；只有 ACRO 大 bank/大 pitch 且玩家没有主动 yaw stick 抢权时才生效。
+- 当前标定下，`60deg` 右横滚时给 `4deg/tick` pitch rate 会产生约 `0.97deg/tick` 的自然航向变化；`88deg` 接近垂直姿态下给 `4.5deg/tick` roll rate 会产生约 `0.88deg/tick` 的航向变化。主动 yaw 仍保持优先，满 yaw 输入仍在 `4.8..5.45deg/tick` 的玩家控制窗口内。
+- 回归测试同步收紧了 banked pitch、vertical roll、主动 yaw 抑制和 planar Euler slide 边界，防止后续又退回“大角度只是在屏幕平面里滑”的手感。
+- 已通过 targeted body-rate/yaw 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-010749.json`，ACRO 诊断通过，最终速度 `0.00m/s`，最大水平位移约 `16.79m`，最大可视 yaw rate 约 `55.26dps`。
+
 ## 最新进展（2026-06-21，目视飞行 pitch 显示符号修正）
 本轮补上一个明确的目视飞行问题：ACRO 前飞/正 pitch 在第三人称目视里不应该显示成抬头。这个改动只作用于实体模型渲染符号，不改变 FPV 相机矩阵、不改变服务端飞控物理、不改变速度/空阻/惯性参数。
 
