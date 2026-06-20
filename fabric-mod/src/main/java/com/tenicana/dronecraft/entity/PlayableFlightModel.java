@@ -50,8 +50,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_MIN_RADIANS = (float) Math.toRadians(300.0f);
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_RADIANS = (float) Math.toRadians(40.0f);
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS = (float) Math.toRadians(4.0f);
-	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.060f;
-	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(115.0f);
+	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
+	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(145.0f);
+	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
@@ -119,10 +120,12 @@ final class PlayableFlightModel {
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(safeMode, attitudePitch, attitude.pitchRadians(), profile.maxPitchRadians());
 		float rollRadians = completedAcroRotationAttitude(safeMode, attitudeRoll, attitude.rollRadians(), profile.maxRollRadians());
-		float acroPitchRateRadiansPerTick = completedAcroAttitudeWasCaptured(safeMode, attitude.pitchRadians(), pitchRadians)
+		boolean acroPitchCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.pitchRadians(), pitchRadians);
+		boolean acroRollCaptured = completedAcroAttitudeWasCaptured(safeMode, attitude.rollRadians(), rollRadians);
+		float acroPitchRateRadiansPerTick = acroPitchCaptured
 				? 0.0f
 				: acroRate.pitchRateRadiansPerTick();
-		float acroRollRateRadiansPerTick = completedAcroAttitudeWasCaptured(safeMode, attitude.rollRadians(), rollRadians)
+		float acroRollRateRadiansPerTick = acroRollCaptured
 				? 0.0f
 				: acroRate.rollRateRadiansPerTick();
 		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
@@ -181,6 +184,12 @@ final class PlayableFlightModel {
 		float velocityX = velocity.x();
 		float velocityY = velocity.y();
 		float velocityZ = velocity.z();
+		if (safeMode == FlightMode.ACRO && (acroPitchCaptured || acroRollCaptured)) {
+			Velocity trimmed = completedAcroRotationVelocityTrim(velocityX, velocityY, velocityZ, acroPitchCaptured, acroRollCaptured);
+			velocityX = trimmed.x();
+			velocityY = trimmed.y();
+			velocityZ = trimmed.z();
+		}
 		Velocity limitedHorizontalVelocity = limitHorizontalVector(
 				velocityX,
 				0.0f,
@@ -775,6 +784,24 @@ final class PlayableFlightModel {
 				previousVelocityZ + accelerationZ * PLAYABLE_TICK_SECONDS,
 				profile.horizontalSpeedLimitMetersPerSecond()
 		);
+	}
+
+	private static Velocity completedAcroRotationVelocityTrim(
+			float velocityX,
+			float velocityY,
+			float velocityZ,
+			boolean pitchCaptured,
+			boolean rollCaptured
+	) {
+		return new Velocity(
+				rollCaptured ? completedAcroRotationAxisVelocityTrim(velocityX) : velocityX,
+				velocityY,
+				pitchCaptured ? completedAcroRotationAxisVelocityTrim(velocityZ) : velocityZ
+		);
+	}
+
+	private static float completedAcroRotationAxisVelocityTrim(float velocity) {
+		return Math.abs(velocity) <= ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND ? 0.0f : velocity;
 	}
 
 	private static float acroResponsiveCollectiveThrustToWeight(FlightMode mode, float previousCollectiveThrustToWeight, float targetCollectiveThrustToWeight) {

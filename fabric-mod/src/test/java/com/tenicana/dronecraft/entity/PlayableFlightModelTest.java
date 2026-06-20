@@ -1085,6 +1085,37 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void filteredReleaseTailAfterFullRollDoesNotKeepSideFlying() {
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.10f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						1.35f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(480.0),
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.70f,
+						0.0f,
+						(float) Math.toRadians(4.0)
+				)
+		);
+
+		assertEquals(Math.toRadians(360.0), released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
+		assertEquals(0.0f, released.velocityX(), 1.0e-6f);
+	}
+
+	@Test
 	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
 		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -1216,6 +1247,37 @@ class PlayableFlightModelTest {
 		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
 		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
 		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
+	}
+
+	@Test
+	void filteredReleaseTailAfterFullPitchLoopDoesNotKeepForwardThrust() {
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.10f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						1.35f,
+						(float) Math.toRadians(480.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.70f,
+						(float) Math.toRadians(4.0),
+						0.0f
+				)
+		);
+
+		assertEquals(Math.toRadians(360.0), released.pitchRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroPitchRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(Math.abs(released.targetVelocityZ()) < 1.0e-3f, "releasedTargetZ=" + released.targetVelocityZ());
+		assertEquals(0.0f, released.velocityZ(), 1.0e-6f);
 	}
 
 	@Test
