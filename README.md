@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 高迎角 pitch 动态载荷）
+本轮继续把“全向机动后不像真实机体、容易有平面漂移感”的手感往真实穿越机收敛。上一轮已经补了高速侧滑下的 transverse-flow roll moment，但 pitch 轴还缺少一个对应的高速迎角载荷：快速俯仰/翻转后，如果机体系前向速度和垂直来流同时存在，真实气流会轻微吃掉 pitch rate 尾巴，而不是像理想数学姿态那样完全无负载滑过去。
+- `PlayableFlightModel` 新增 ACRO angle-of-attack pitch moment：低速、直线巡航、悬停、倒退来流都不介入；在 `18m/s` 前向、`10m/s` 垂直来流这类高速大迎角状态下，会产生约 `0.09deg/tick` 量级的弱 pitch 力矩。
+- 这不是自动回正：该力矩还加了 pitch-rate activity gate。松杆且 ACRO pitch rate 已经收住时，飞机继续保持当前姿态；只有刚做完动作、角速度还有尾巴，或者玩家仍在主动打 pitch 时，气动载荷才会出现。完整 build 里的巡航持姿与模式切换持姿回归测试已经覆盖这个边界。
+- 参考依据沿用本仓库研究资料里的 NeuroBEM 残余力矩线索和 Faessler/Franchi/Scaramuzza rotor-drag 速度相关力矩结构，但本轮只落成可玩层的克制近似项，避免一步加太多物理特性。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`、7 个 Fabric GameTest，以及 JDK 21 下的无头 `:fabric-mod:runPlayableAcroServerSelfTest`。服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-214228.json`。
+
 ## 最新进展（2026-06-20，ACRO 整圈 roll 后侧飞复发修复）
 本轮针对“尝试翻转一周之后会持续侧飞、无法回正”的复发点继续收敛。前面已经能在整圈 roll 释放时捕获到水平并清理 body-right 侧滑，但还有两个漏口：一是 `540deg` 附近的完整 roll 释放死区仍可能不被当作动作结束；二是完整 roll 恢复窗口里，残余高速侧滑会触发 transverse-flow 被动 roll moment，把刚捕获到水平的机体又轻微带出 roll rate。
 - `PlayableFlightModel` 现在把完整旋转释放捕获窗口扩到精确半圈残差，避免完成一圈后因为惯性/滤波刚好停在旧 `170deg` 边界外而继续保留侧飞姿态。

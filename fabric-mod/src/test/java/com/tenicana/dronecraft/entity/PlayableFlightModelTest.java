@@ -2418,6 +2418,101 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroAngleOfAttackPitchMomentFollowsHighSpeedAoaWithoutTouchingCruise() {
+		float straight = PlayableFlightModel.acroAngleOfAttackPitchMomentRate(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.0f
+		);
+		float lowSpeedClimb = PlayableFlightModel.acroAngleOfAttackPitchMomentRate(
+				new PlayableFlightModel.Velocity(0.0f, 4.0f, 4.0f),
+				0.0f
+		);
+		float positiveAoa = PlayableFlightModel.acroAngleOfAttackPitchMomentRate(
+				new PlayableFlightModel.Velocity(0.0f, 10.0f, 18.0f),
+				0.0f
+		);
+		float negativeAoa = PlayableFlightModel.acroAngleOfAttackPitchMomentRate(
+				new PlayableFlightModel.Velocity(0.0f, -10.0f, 18.0f),
+				0.0f
+		);
+		float activePitch = PlayableFlightModel.acroAngleOfAttackPitchMomentRate(
+				new PlayableFlightModel.Velocity(0.0f, 10.0f, 18.0f),
+				1.0f
+		);
+
+		assertEquals(0.0f, straight, 1.0e-6f);
+		assertEquals(0.0f, lowSpeedClimb, 1.0e-6f);
+		assertTrue(positiveAoa < -Math.toRadians(0.06), "positiveAoaDeg=" + Math.toDegrees(positiveAoa));
+		assertTrue(positiveAoa > -Math.toRadians(0.13), "positiveAoaDeg=" + Math.toDegrees(positiveAoa));
+		assertEquals(-positiveAoa, negativeAoa, 1.0e-6f);
+		assertTrue(Math.abs(activePitch) > Math.abs(positiveAoa) * 0.06f, "activePitchDeg=" + Math.toDegrees(activePitch));
+		assertTrue(Math.abs(activePitch) < Math.abs(positiveAoa) * 0.12f,
+				"activePitchDeg=" + Math.toDegrees(activePitch) + " positiveAoaDeg=" + Math.toDegrees(positiveAoa));
+		assertEquals(0.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentActivity(0.0f, 0.0f), 1.0e-6f);
+		assertEquals(1.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentActivity((float) Math.toRadians(1.2), 0.0f), 1.0e-6f);
+		assertEquals(1.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentActivity(0.0f, 0.5f), 1.0e-6f);
+	}
+
+	@Test
+	void acroHighSpeedAoaLoadsResidualPitchRateWithoutAutolevelingCruise() {
+		float residualPitchRate = (float) Math.toRadians(1.0f);
+		PlayableFlightModel.State straightCruise = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				18.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				residualPitchRate,
+				0.0f
+		);
+		PlayableFlightModel.State climbingAoa = new PlayableFlightModel.State(
+				0.0f,
+				10.0f,
+				18.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				residualPitchRate,
+				0.0f
+		);
+		PlayableFlightModel.Step straight = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				straightCruise
+		);
+		PlayableFlightModel.Step loaded = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				climbingAoa
+		);
+
+		assertTrue(loaded.acroPitchRateRadiansPerTick() > 0.0f,
+				"loadedPitchRateDeg=" + Math.toDegrees(loaded.acroPitchRateRadiansPerTick()));
+		assertTrue(straight.acroPitchRateRadiansPerTick() > loaded.acroPitchRateRadiansPerTick() + Math.toRadians(0.04),
+				"straightPitchRateDeg=" + Math.toDegrees(straight.acroPitchRateRadiansPerTick())
+						+ " loadedPitchRateDeg=" + Math.toDegrees(loaded.acroPitchRateRadiansPerTick()));
+		assertEquals(loaded.acroPitchRateRadiansPerTick(), loaded.pitchRadians(), 1.0e-6f);
+		assertEquals(0.0f, loaded.acroRollRateRadiansPerTick(), 1.0e-6f);
+	}
+
+	@Test
 	void acroHighSpeedSideslipAddsPassiveRollRateWithoutRollStick() {
 		PlayableFlightModel.State slipping = new PlayableFlightModel.State(
 				16.0f,

@@ -127,6 +127,16 @@ final class PlayableFlightModel {
 	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.34f);
 	private static final float ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS = 0.65f;
 	private static final float ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP = 0.08f;
+	private static final float ACRO_AOA_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
+	private static final float ACRO_AOA_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
+	private static final float ACRO_AOA_MOMENT_FORWARD_START_METERS_PER_SECOND = 2.5f;
+	private static final float ACRO_AOA_MOMENT_START_RADIANS = (float) Math.toRadians(10.0f);
+	private static final float ACRO_AOA_MOMENT_FULL_RADIANS = (float) Math.toRadians(58.0f);
+	private static final float ACRO_AOA_PITCH_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.30f);
+	private static final float ACRO_AOA_PITCH_COMMAND_SUPPRESS = 0.65f;
+	private static final float ACRO_AOA_PITCH_ACTIVE_KEEP = 0.08f;
+	private static final float ACRO_AOA_PITCH_ACTIVITY_START_RADIANS_PER_TICK = (float) Math.toRadians(0.35f);
+	private static final float ACRO_AOA_PITCH_ACTIVITY_FULL_RADIANS_PER_TICK = (float) Math.toRadians(1.10f);
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -652,6 +662,8 @@ final class PlayableFlightModel {
 		} else {
 			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll);
 		}
+		pitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
+				* acroAngleOfAttackPitchMomentActivity(previous.acroPitchRateRadiansPerTick(), pitch);
 		return new AcroRateResponse(
 				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
 				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
@@ -776,6 +788,46 @@ final class PlayableFlightModel {
 				* speedExposure
 				* sideslipExposure
 				* commandScale;
+	}
+
+	static float acroAngleOfAttackPitchMomentRate(Velocity bodyVelocity, float pitchCommand) {
+		float positiveForwardSpeed = Math.max(0.0f, bodyVelocity.z());
+		float verticalSpeed = bodyVelocity.y();
+		float pitchPlaneSpeed = horizontalMagnitude(verticalSpeed, positiveForwardSpeed);
+		if (positiveForwardSpeed <= ACRO_AOA_MOMENT_FORWARD_START_METERS_PER_SECOND
+				|| pitchPlaneSpeed <= 1.0e-6f
+				|| Math.abs(verticalSpeed) <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float speedExposure = smoothStep((pitchPlaneSpeed - ACRO_AOA_MOMENT_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_AOA_MOMENT_SPEED_FULL_METERS_PER_SECOND - ACRO_AOA_MOMENT_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float angleOfAttack = (float) Math.atan2(Math.abs(verticalSpeed), Math.max(2.0f, positiveForwardSpeed));
+		float aoaExposure = smoothStep((angleOfAttack - ACRO_AOA_MOMENT_START_RADIANS)
+				/ Math.max(0.001f, ACRO_AOA_MOMENT_FULL_RADIANS - ACRO_AOA_MOMENT_START_RADIANS));
+		if (aoaExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float activePitchSuppression = smoothStep(Math.abs(pitchCommand) / ACRO_AOA_PITCH_COMMAND_SUPPRESS);
+		float commandScale = lerp(1.0f, ACRO_AOA_PITCH_ACTIVE_KEEP, activePitchSuppression);
+		return -Math.signum(verticalSpeed)
+				* ACRO_AOA_PITCH_MOMENT_MAX_RATE_RADIANS_PER_TICK
+				* speedExposure
+				* aoaExposure
+				* commandScale;
+	}
+
+	static float acroAngleOfAttackPitchMomentActivity(float previousPitchRateRadiansPerTick, float pitchCommand) {
+		if (Math.abs(pitchCommand) > PLAYABLE_AXIS_NOISE_EPSILON) {
+			return 1.0f;
+		}
+		if (!Float.isFinite(previousPitchRateRadiansPerTick)) {
+			return 0.0f;
+		}
+		return smoothStep((Math.abs(previousPitchRateRadiansPerTick) - ACRO_AOA_PITCH_ACTIVITY_START_RADIANS_PER_TICK)
+				/ Math.max(0.001f, ACRO_AOA_PITCH_ACTIVITY_FULL_RADIANS_PER_TICK - ACRO_AOA_PITCH_ACTIVITY_START_RADIANS_PER_TICK));
 	}
 
 	private static boolean isRateRising(float currentRateRadiansPerTick, float targetRateRadiansPerTick) {
