@@ -1404,6 +1404,15 @@ class PlayableFlightModelTest {
 				0.68f,
 				0.20f
 		);
+		float diagonalSideFlowScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
 		float noseDownForwardScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
 				0.0f,
 				0.0f,
@@ -1415,10 +1424,29 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
-		assertTrue(highSideFlowScale > 0.78f, "highSideFlowScale=" + highSideFlowScale);
-		assertTrue(highSideFlowScale < 0.84f, "highSideFlowScale=" + highSideFlowScale);
-		assertTrue(noseDownForwardScale > highSideFlowScale + 0.08f, "noseDownForwardScale=" + noseDownForwardScale + " highSideFlowScale=" + highSideFlowScale);
-		assertTrue(noseDownForwardScale < 0.96f, "noseDownForwardScale=" + noseDownForwardScale);
+		assertTrue(highSideFlowScale > 0.62f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(highSideFlowScale < 0.70f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(diagonalSideFlowScale > highSideFlowScale, "diagonalSideFlowScale=" + diagonalSideFlowScale + " highSideFlowScale=" + highSideFlowScale);
+		assertTrue(diagonalSideFlowScale < 0.74f, "diagonalSideFlowScale=" + diagonalSideFlowScale);
+		assertTrue(noseDownForwardScale > diagonalSideFlowScale + 0.20f, "noseDownForwardScale=" + noseDownForwardScale + " diagonalSideFlowScale=" + diagonalSideFlowScale);
+		assertTrue(noseDownForwardScale < 0.97f, "noseDownForwardScale=" + noseDownForwardScale);
+	}
+
+	@Test
+	void acroAdvanceSideflowExposureSeparatesForwardAndLateralDiskFlow() {
+		float straight = PlayableFlightModel.acroAdvanceSideflowExposure(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		float diagonal = PlayableFlightModel.acroAdvanceSideflowExposure(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+		float side = PlayableFlightModel.acroAdvanceSideflowExposure(
+				new PlayableFlightModel.Velocity(25.0f, 0.0f, 0.0f)
+		);
+
+		assertEquals(0.0f, straight, 1.0e-6f);
+		assertTrue(diagonal > 0.85f, "diagonal=" + diagonal);
+		assertTrue(side > 0.99f, "side=" + side);
 	}
 
 	@Test

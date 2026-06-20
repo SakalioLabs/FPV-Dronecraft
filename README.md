@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 方向性高前进比推力软化）
+本轮继续处理“斜向飞行像平移、不像真机”的手感问题。当前 playable ACRO 已经有机体系 CdA、分离流、侧滑侧向力、weathercock yaw、桨盘 flapping 和 H-force，但高前进比推力软化仍偏保守：`J` 很高时最多只掉约 20% 推力，导致高速横向/斜向穿过桨盘时仍有点像理想推进器。
+
+- `PlayableFlightModel` 现在把高前进比推力损失按机体系穿盘方向分开：鼻头前压的前飞仍使用较温和的 20% 上限，保护已经可玩的 25m/s+ 前飞速度；纯侧向/明显斜侧向穿盘会提高到约 36% 上限，让斜飞/横飞更有掉高、掉速和提前量。
+- 方向判定使用 body-frame `right/forward` 的 sideflow exposure：直线前流为 `0`，`16m/s right + 16m/s forward` 的斜向来流接近满 exposure，纯横向穿盘为满 exposure。它不会自动扶平姿态，也不吞玩家主动 knife-edge，只改变桨在不利来流里的有效推力。
+- 依据继续来自仓库资料包里的 UIUC 5 寸桨前进比表、IMAV/RMIT 5 寸桨风洞线索和 `docs/fpv-sim-model-validation.md` 的 J/mu 警告：5 寸桨在 `J≈0.45` 时 CT/static 已可能只有约 `0.55`，所以 playable 原来的 20% 损失对侧向高速穿盘偏理想化。
+- 新增回归测试覆盖：低速不削推力；`25m/s` 纯横向穿盘缩到约 `0.62..0.70`；`16/16m/s` 斜向穿盘弱于鼻头前压前飞；直线前流 sideflow exposure 为 `0`，斜向/横向接近满值。
+- 已通过 `PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`。本轮服务端自测临时使用 25566，结束后已恢复 25565；报告文件为 `server-selftest-playable-20260620-184315.json`。
+
 ## 最新进展（2026-06-20，ACRO 满圈姿态归一化）
 本轮针对你最新反馈的“尝试翻转一周之后持续侧飞、无法回正”继续修。根因进一步收敛到 ACRO 整圈捕获的状态表示：旧逻辑会把完成动作后的姿态留在 `360°/720°` 这类数学等价角度上，目标速度虽然归零，但后续物理状态、释放尾巴、气动投影和调试遥测仍带着“大角度动作未真正结束”的历史，实机手感就会像翻完一圈后还在侧向拖飞。
 
