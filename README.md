@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 姿态中点积分与目视压头修正）
+本轮继续处理“高速斜飞/全向转动时像平面位移，而不是连续物理步长里的真实机体”的核心手感问题。复查 playable ACRO 后，发现一个很关键的积分细节：50ms tick 内 pitch/roll 已经在变化，但旧模型把 tick 末尾姿态直接用于整帧推力、阻力、桨盘进速和侧洗投影，这会让快速压杆、翻滚或斜向切入时看起来像下一帧姿态瞬间作用了一整帧。
+- `PlayableFlightModel.acroPhysicalVelocity` 现在使用 pitch/roll 的中点姿态进行物理投影：推力轴、机体系速度、advance-ratio thrust scale、机身阻力、桨盘/侧洗转弯、yaw turn load 和 body-rate load 都基于 `current attitude - 0.5 * rate`。这不是自稳，也不是改变最终姿态，只是让本 tick 的空气动力更像连续时间积分。
+- ACRO 的摇杆 rate、显示姿态、FPV 相机、yaw 积分和世界动量 rebase 都保持原语义；改动只影响本帧物理力/速度投影，目标是减少“末态姿态整帧生效”带来的瞬时平移感和高速斜飞回抽感。
+- 同步修正目视/第三人称模型的 pitch 显示符号：`DroneEntityModel.bodyPitchRotationRadians` 现在把 playable pitch 映射到模型压头方向，前飞正 pitch 在目视状态下重新表现为机头下压。这个修正不改 FPV 相机矩阵，也不改物理 pitch。
+- 新增/更新回归测试锁住中点姿态投影和模型 pitch 符号。已通过 targeted `PlayableFlightModelTest`、`DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-042439.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧洗记忆与斜飞气动尾迹）
 本轮继续针对“斜向飞行像平移，不像真机在空气里走线”的主问题收敛。复查现有 playable ACRO 后，问题不再是“没有侧向空气力”，而是很多横流/侧洗效果共用同一个即时 `acroAeroCrossflowLag`：基础阻力、侧滑侧力、桨盘侧洗转弯几乎一起起效。真机的横流进桨盘和机身侧滑力会有建立与释放尾迹，所以这轮加入一个专门的 sidewash memory。
 

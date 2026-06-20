@@ -896,6 +896,30 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroPhysicalAccelerationUsesMidpointAttitudeDuringFastRates() {
+		float currentPitch = (float) Math.toRadians(18.0);
+		float currentRoll = (float) Math.toRadians(-12.0);
+		float pitchRate = (float) Math.toRadians(6.0);
+		float rollRate = (float) Math.toRadians(-4.0);
+
+		assertEquals(
+				(float) Math.toRadians(15.0),
+				PlayableFlightModel.acroMidpointIntegrationAttitudeRadians(currentPitch, pitchRate),
+				1.0e-6f
+		);
+		assertEquals(
+				(float) Math.toRadians(-10.0),
+				PlayableFlightModel.acroMidpointIntegrationAttitudeRadians(currentRoll, rollRate),
+				1.0e-6f
+		);
+		assertEquals(
+				currentPitch,
+				PlayableFlightModel.acroMidpointIntegrationAttitudeRadians(currentPitch, 0.0f),
+				1.0e-6f
+		);
+	}
+
+	@Test
 	void acroModeAllowsContinuousFullPitchAndRollRotation() {
 		PlayableFlightModel.Step pitched = holdStick(FlightMode.ACRO, 48, 0.45f, 1.0f, 0.0f, 0.0f);
 		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 44, 0.45f, 0.0f, 1.0f, 0.0f);

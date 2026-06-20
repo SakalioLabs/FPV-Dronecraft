@@ -1600,11 +1600,13 @@ final class PlayableFlightModel {
 			float acroSidewashMemory,
 			Profile profile
 	) {
-		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians);
-		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
+		float integrationPitchRadians = acroMidpointIntegrationAttitudeRadians(pitchRadians, pitchRateRadiansPerTick);
+		float integrationRollRadians = acroMidpointIntegrationAttitudeRadians(rollRadians, rollRateRadiansPerTick);
+		Velocity thrustAxis = acroThrustAxis(integrationPitchRadians, integrationRollRadians);
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians);
 		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag, acroSidewashMemory);
-		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), pitchRadians, rollRadians);
-		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians, throttle, hoverThrottle, acroAeroCrossflowLag)
+		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), integrationPitchRadians, integrationRollRadians);
+		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians, throttle, hoverThrottle, acroAeroCrossflowLag)
 				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle)
 				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
@@ -1632,22 +1634,22 @@ final class PlayableFlightModel {
 				flappingBodyAcceleration.x() + inPlaneDragBodyAcceleration.x() + translationalLiftDragBodyAcceleration.x(),
 				flappingBodyAcceleration.y() + inPlaneDragBodyAcceleration.y() + translationalLiftDragBodyAcceleration.y(),
 				flappingBodyAcceleration.z() + inPlaneDragBodyAcceleration.z() + translationalLiftDragBodyAcceleration.z(),
-				pitchRadians,
-				rollRadians
+				integrationPitchRadians,
+				integrationRollRadians
 		);
 		Velocity yawTurnLoadAcceleration = yawLocalVelocityForAcroBody(
 				yawTurnLoadBodyAcceleration.x(),
 				yawTurnLoadBodyAcceleration.y(),
 				yawTurnLoadBodyAcceleration.z(),
-				pitchRadians,
-				rollRadians
+				integrationPitchRadians,
+				integrationRollRadians
 		);
 		Velocity bodyRateLoadAcceleration = yawLocalVelocityForAcroBody(
 				bodyRateLoadBodyAcceleration.x(),
 				bodyRateLoadBodyAcceleration.y(),
 				bodyRateLoadBodyAcceleration.z(),
-				pitchRadians,
-				rollRadians
+				integrationPitchRadians,
+				integrationRollRadians
 		);
 		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x() + rotorDiskAcceleration.x() + yawTurnLoadAcceleration.x() + bodyRateLoadAcceleration.x();
 		float accelerationY = thrustAxis.y() * thrustAcceleration - ACRO_GRAVITY_METERS_PER_SECOND_SQUARED + dragAcceleration.y() + rotorDiskAcceleration.y() + yawTurnLoadAcceleration.y() + bodyRateLoadAcceleration.y();
@@ -1669,6 +1671,17 @@ final class PlayableFlightModel {
 				previousVelocityZ + accelerationZ * PLAYABLE_TICK_SECONDS,
 				acroHorizontalHardLimit(profile)
 		);
+	}
+
+	static float acroMidpointIntegrationAttitudeRadians(float currentRadians, float rateRadiansPerTick) {
+		if (!Float.isFinite(currentRadians)) {
+			return 0.0f;
+		}
+		if (!Float.isFinite(rateRadiansPerTick)
+				|| Math.abs(rateRadiansPerTick) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
+			return currentRadians;
+		}
+		return currentRadians - rateRadiansPerTick * 0.5f;
 	}
 
 	private static Velocity acroOverspeedSoftBrakeAcceleration(float velocityX, float velocityZ, float speedLimitMetersPerSecond) {
