@@ -3161,6 +3161,46 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawTurnLoadAfterFastSlipEntry() {
+		PlayableFlightModel.Velocity straightFresh = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				5.0f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettled = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				5.0f,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity diagonalFresh = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				5.0f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity diagonalSettled = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				5.0f,
+				1.0f,
+				1.0f
+		);
+		float straightFreshMagnitude = horizontalSpeed(straightFresh.x(), straightFresh.z());
+		float diagonalFreshMagnitude = horizontalSpeed(diagonalFresh.x(), diagonalFresh.z());
+		float diagonalSettledMagnitude = horizontalSpeed(diagonalSettled.x(), diagonalSettled.z());
+
+		assertEquals(straightSettled.x(), straightFresh.x(), 1.0e-6f);
+		assertEquals(straightSettled.z(), straightFresh.z(), 1.0e-6f);
+		assertTrue(diagonalFreshMagnitude < diagonalSettledMagnitude * 0.70f,
+				"fresh=" + diagonalFreshMagnitude + " settled=" + diagonalSettledMagnitude);
+		assertTrue(diagonalFreshMagnitude > diagonalSettledMagnitude * 0.60f,
+				"fresh=" + diagonalFreshMagnitude + " settled=" + diagonalSettledMagnitude);
+		assertTrue(diagonalFreshMagnitude > straightFreshMagnitude * 1.10f,
+				"fresh=" + diagonalFreshMagnitude + " straight=" + straightFreshMagnitude);
+	}
+
+	@Test
 	void acroLaggedCrossflowSoftensFirstTickBodyRateLoad() {
 		PlayableFlightModel.Velocity straightInitial = PlayableFlightModel.acroBodyRateLoadBodyAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),

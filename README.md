@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 偏航转弯载荷接入侧洗记忆）
+这一轮继续收敛“翻滚/高速斜飞后像被平面拖着侧滑”的手感问题。复查发现大部分机身侧力、桨盘侧滑、动态入流、body-rate 负载和角速度控制链路已经接入 `acroSidewashMemory`，但 `acroYawTurnLoadBodyAcceleration` 仍只读较快的 `acroAeroCrossflowLag`。结果是刚翻滚或刚切进高速斜向飞行时，偏航转弯能量成本可能比真实侧洗建立得更快，容易把飞机过早按成 settled 横流状态。
+- `acroPhysicalVelocity` 现在把真实 `acroSidewashMemory` 传入 yaw-turn load；旧的三参数 helper 仍保持 `memory = lag` 的 settled 语义，避免已有静态标定漂移。
+- yaw-plane sideslip 现在通过 `acroYawSidewashExposure(...)` 计算：刚进入高速侧滑时保留更多侧向惯性，持续侧滑后侧洗记忆逐步建立，偏航转弯载荷再变重。直线高速 yaw 不受 memory 影响，所以这不是自动回正，也不是削弱普通转向。
+- 新增 `acroSidewashMemoryDelaysYawTurnLoadAfterFastSlipEntry` 回归：`16m/s right + 16m/s forward`、满 crossflow 但 fresh sidewash 的偏航转弯载荷必须明显低于 settled，同时仍高于直线巡航载荷，防止重新退回“完全无空气负载”。
+- 已通过 targeted yaw-turn 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-053041.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 角速度控制链接入侧洗记忆）
 本轮继续围绕“斜向飞行像平移、不像真机穿过空气”的核心手感收敛。复查发现，虽然机身侧力、桨盘侧滑、动态压阻力、动态入流和 body-rate 线性负载已经逐步接入 `acroSidewashMemory`，但 ACRO 的角速度控制链仍有几处把 yaw 侧滑和 pitch 迎角混成一个即时 crossflow：rate inertia smoothing、气动 rate damping、motor rate authority、yaw rate inertia smoothing 和 residual torque load。这样刚切入高速侧滑时，飞机的 pitch/roll/yaw 控制负载会过早进入 settled 横流状态，手感容易像“被平面拖着转”，而不是速度、姿态和空气负载逐步追上。
 
