@@ -19,6 +19,7 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 	private static final float ARM_BASE_LENGTH = 24.0f;
 	private static final float ARM_Y = -0.5f;
 	private static final float ROTOR_Y = -0.6f;
+	private static final float BODY_FORWARD_Z = -6.0f;
 
 	private final ModelPart body;
 	private final ModelPart[] arms = new ModelPart[RotorLayoutCodec.MAX_RENDER_ROTORS];
@@ -102,7 +103,11 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 	}
 
 	static float bodyPitchRotationRadians(float pitchRadians) {
-		return -pitchRadians;
+		return pitchRadians;
+	}
+
+	static float renderedBodyForwardYOffset(float pitchRadians) {
+		return BODY_FORWARD_Z * (float) Math.sin(bodyPitchRotationRadians(pitchRadians));
 	}
 
 	private static float phaseOffset(int index) {
