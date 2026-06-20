@@ -65,7 +65,7 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 	@Override
 	public void setupAnim(DroneEntityRenderState state) {
 		super.setupAnim(state);
-		body.xRot = state.pitchRadians;
+		body.xRot = bodyPitchRotationRadians(state.pitchRadians);
 		body.yRot = state.yawRadians;
 		body.zRot = state.rollRadians;
 
@@ -99,6 +99,10 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 
 	private static float rotorAngle(float ageInTicks, float rpm, int spinDirection, float phaseOffset) {
 		return spinDirection * ageInTicks * Math.max(0.0f, rpm) * RPM_TO_RADIANS_PER_TICK + phaseOffset;
+	}
+
+	static float bodyPitchRotationRadians(float pitchRadians) {
+		return -pitchRadians;
 	}
 
 	private static float phaseOffset(int index) {

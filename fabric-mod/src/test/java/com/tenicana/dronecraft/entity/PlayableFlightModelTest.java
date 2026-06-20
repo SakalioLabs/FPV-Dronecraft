@@ -1159,14 +1159,15 @@ class PlayableFlightModelTest {
 		PlayableFlightModel.Step diagonal = holdStick(FlightMode.ACRO, 7, 0.68f, 1.0f, 1.0f, 0.0f);
 		float horizontalTargetSpeed = horizontalSpeed(diagonal.targetVelocityX(), diagonal.targetVelocityZ());
 
-		assertTrue(Math.abs(diagonal.targetVelocityX()) > 15.0f, "targetX=" + diagonal.targetVelocityX());
-		assertTrue(Math.abs(diagonal.targetVelocityZ()) > 15.0f, "targetZ=" + diagonal.targetVelocityZ());
+		assertTrue(Math.abs(diagonal.targetVelocityX()) > 24.0f, "targetX=" + diagonal.targetVelocityX());
+		assertTrue(Math.abs(diagonal.targetVelocityZ()) > 9.0f, "targetZ=" + diagonal.targetVelocityZ());
+		assertTrue(Math.abs(diagonal.targetVelocityX()) > Math.abs(diagonal.targetVelocityZ()) * 2.35f);
 		assertTrue(horizontalTargetSpeed > 25.0f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
 		assertTrue(horizontalTargetSpeed < 27.6f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
 	}
 
 	@Test
-	void acroMidDiagonalUsesThrustConeProjectionInsteadOfPlanarAxisSum() {
+	void acroMidDiagonalUsesBodyUpThrustAxisInsteadOfPlanarAxisSum() {
 		PlayableFlightModel.Step diagonal = PlayableFlightModel.step(
 				FlightMode.ACRO,
 				0.45f,
@@ -1188,7 +1189,8 @@ class PlayableFlightModelTest {
 		float horizontalTargetSpeed = horizontalSpeed(diagonal.targetVelocityX(), diagonal.targetVelocityZ());
 
 		assertTrue(diagonal.targetVelocityX() < -17.0f, "targetX=" + diagonal.targetVelocityX());
-		assertTrue(diagonal.targetVelocityZ() > 18.0f, "targetZ=" + diagonal.targetVelocityZ());
+		assertTrue(diagonal.targetVelocityZ() > 14.0f, "targetZ=" + diagonal.targetVelocityZ());
+		assertTrue(Math.abs(diagonal.targetVelocityX()) > Math.abs(diagonal.targetVelocityZ()) * 1.35f);
 		assertTrue(horizontalTargetSpeed > 25.0f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
 		assertTrue(horizontalTargetSpeed < 26.1f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
 	}
@@ -1216,6 +1218,7 @@ class PlayableFlightModelTest {
 
 		assertTrue(diagonal.velocityX() < -0.40f, "velocityX=" + diagonal.velocityX());
 		assertTrue(diagonal.velocityZ() > 0.40f, "velocityZ=" + diagonal.velocityZ());
+		assertTrue(Math.abs(diagonal.velocityX()) > Math.abs(diagonal.velocityZ()) * 1.35f);
 		assertTrue(diagonal.velocityY() < -0.03f, "velocityY=" + diagonal.velocityY());
 		assertTrue(diagonal.velocityY() > -0.14f, "velocityY=" + diagonal.velocityY());
 	}

@@ -542,7 +542,7 @@ final class PlayableFlightModel {
 			float throttleAuthority,
 			Profile profile
 	) {
-		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians, profile);
+		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians);
 		float horizontalProjection = horizontalMagnitude(thrustAxis.x(), thrustAxis.z());
 		if (horizontalProjection <= 1.0e-6f || throttleAuthority <= 0.0f) {
 			return new Velocity(0.0f, 0.0f, 0.0f);
@@ -557,7 +557,7 @@ final class PlayableFlightModel {
 	}
 
 	private static float acroHorizontalThrustProjectionMagnitude(float pitchRadians, float rollRadians, Profile profile) {
-		return acroHorizontalThrustProjectionMagnitude(acroThrustAxis(pitchRadians, rollRadians, profile), profile);
+		return acroHorizontalThrustProjectionMagnitude(acroThrustAxis(pitchRadians, rollRadians), profile);
 	}
 
 	private static float acroHorizontalThrustProjectionMagnitude(Velocity thrustAxis, Profile profile) {
@@ -567,24 +567,8 @@ final class PlayableFlightModel {
 		return clamp(horizontalProjection / Math.max(0.10f, fullAuthorityProjection), 0.0f, 1.0f);
 	}
 
-	private static Velocity acroThrustAxis(float pitchRadians, float rollRadians, Profile profile) {
-		float verticalProjection = verticalThrustProjection(pitchRadians, rollRadians);
-		float horizontalProjection = (float) Math.sqrt(Math.max(0.0f, 1.0f - verticalProjection * verticalProjection));
-		if (horizontalProjection <= 1.0e-6f) {
-			return new Velocity(0.0f, verticalProjection, 0.0f);
-		}
-
-		float commandX = -horizontalVelocityCommand(FlightMode.ACRO, rollRadians, profile.maxRollRadians(), profile);
-		float commandZ = horizontalVelocityCommand(FlightMode.ACRO, pitchRadians, profile.maxPitchRadians(), profile);
-		float commandMagnitude = horizontalMagnitude(commandX, commandZ);
-		if (commandMagnitude <= 1.0e-6f) {
-			return new Velocity(0.0f, verticalProjection, 0.0f);
-		}
-		return new Velocity(
-				commandX / commandMagnitude * horizontalProjection,
-				verticalProjection,
-				commandZ / commandMagnitude * horizontalProjection
-		);
+	private static Velocity acroThrustAxis(float pitchRadians, float rollRadians) {
+		return acroBodyFrame(pitchRadians, rollRadians).up();
 	}
 
 	private static float completedAcroRotationAttitude(FlightMode mode, float command, float attitudeRadians, float completedRotationCaptureRadians) {
@@ -697,7 +681,7 @@ final class PlayableFlightModel {
 			float rollRadians,
 			Profile profile
 	) {
-		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians, profile);
+		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians);
 		Velocity dragAcceleration = acroDragAcceleration(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * acroCollectiveThrustToWeight(throttle, hoverThrottle);
 		float accelerationX = thrustAxis.x() * thrustAcceleration + dragAcceleration.x();
