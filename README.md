@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 侧滑侧力弯流）
+本轮继续针对“斜向飞行像平移，而不是像真机在空气里飞”的手感收敛。复核 Faessler/RPG rotor-drag 模型、STARMAC 气动效应和 NASA 小型多旋翼相互作用气动资料后，重点不是继续加普通刹车：真实高速侧滑会让机体系相对来流产生侧力、桨盘 flapping / induced drag 和 rotor drag，这些力会改变速度方向，而不只是把速度数值沿原方向扣掉。
+- `PlayableFlightModel` 把 ACRO yaw-plane sideslip sideforce 从 `0.128` 提到 `0.185`，同时把对应 induced-drag gain 从 `0.56` 压到 `0.44`。这样 `16m/s right + 16m/s forward` 的斜向来流里，sideforce 从约 `0.47m/s^2` 提到约 `0.68m/s^2`，并且仍严格垂直于当前速度、不直接做功；附带的 induced drag 只小幅增加，用来保留真实能量损耗，而不是把它做成纯刹车。
+- 这次的目标是让 sustained sideslip 的速度矢量更愿意被空气弯回机头方向：玩家会更容易感觉到“机身/桨盘在气流里咬住并转弯”，而不是侧向速度被一个抽象阻尼项平移式洗掉。前一轮的 broadside drag lag 负责“刚进入横流时先保留惯性”，这一轮负责“横流建立后主要先弯方向，再付出适量能量代价”。
+- 回归测试新增 `acroSideslipSideforceCurvesMoreThanItBrakesDiagonalSlip`，并更新 sideforce、induced-drag、diagonal aero 边界：锁住 sideforce 对速度不做功、sideforce magnitude 明显高于 induced-drag magnitude、斜向总气动仍有横向洗出但前向刹车允许被转弯侧力部分抵消。
+- 已通过 targeted sideforce/diagonal/coastdown 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-031011.json`，ACRO playable 诊断通过，最大水平位移约 `16.17m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO broadside 基础阻力滞后）
 本轮继续沿着“斜向飞行不要像几何平移，而要像真实穿越机在空气里带惯性滑出去再被气流咬住”的目标收敛。复核资料后，RotorPy/RPG 这类参考系统都把气动力放在机体系相对空速上处理：寄生阻力、rotor drag、blade flapping 和 actuator/motor lag 都不是一帧满量开关；本仓库 `docs/fpv-sim-model-validation.md` 也提示旧的 coastdown/drag 标定容易让速度过快被洗掉，造成“没有惯性”的手感。
 - `PlayableFlightModel` 新增 `acroBaseBodyDragAcceleration`，把基础机身阻力拆成两层：forward 轴阻力仍即时生效，保证直线巡航和 25m/s 速度包络不被放空；body-right/body-up 的额外 broadside 面积只随 `acroAeroCrossflowLag` 建立。也就是说刚进入 `16m/s right + 16m/s forward` 这类斜向横流时，侧向基础减速度从约 `-6m/s^2` 量级降到约 `-2.8m/s^2` 的干净轴向基线，随后才逐渐恢复到约 `-7.9m/s^2` 的稳态横流负载。

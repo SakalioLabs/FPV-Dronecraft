@@ -2879,11 +2879,33 @@ class PlayableFlightModelTest {
 		);
 		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
 
-		assertTrue(sideforce.x() < -0.43f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.x() > -0.52f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.z() > 0.42f, "sideforceZ=" + sideforce.z());
-		assertTrue(sideforce.z() < 0.52f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.x() < -0.63f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() > -0.74f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.z() > 0.63f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.z() < 0.74f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
+	}
+
+	@Test
+	void acroSideslipSideforceCurvesMoreThanItBrakesDiagonalSlip() {
+		PlayableFlightModel.Velocity diagonalVelocity = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity sideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
+				diagonalVelocity,
+				0.30f
+		);
+		PlayableFlightModel.Velocity inducedDrag = PlayableFlightModel.acroSideslipInducedDragAcceleration(
+				diagonalVelocity,
+				sideforce
+		);
+		float sideforceMagnitude = horizontalSpeed(sideforce.x(), sideforce.z());
+		float inducedDragMagnitude = horizontalSpeed(inducedDrag.x(), inducedDrag.z());
+		float sideforceWork = sideforce.x() * diagonalVelocity.x()
+				+ sideforce.z() * diagonalVelocity.z();
+
+		assertEquals(0.0f, sideforceWork, 1.0e-4f);
+		assertTrue(sideforceMagnitude > 0.90f, "sideforceMagnitude=" + sideforceMagnitude);
+		assertTrue(inducedDragMagnitude < sideforceMagnitude * 0.42f,
+				"sideforceMagnitude=" + sideforceMagnitude + " inducedDragMagnitude=" + inducedDragMagnitude);
 	}
 
 	@Test
@@ -2915,14 +2937,14 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straightInducedDrag.x(), 1.0e-6f);
 		assertEquals(0.0f, straightInducedDrag.z(), 1.0e-6f);
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(diagonalInducedDrag.x() < -0.19f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.x() > -0.24f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.z() < -0.19f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(diagonalInducedDrag.z() > -0.24f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(inducedDragMagnitude > 0.28f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragMagnitude < 0.34f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragWork < -6.1f, "inducedDragWork=" + inducedDragWork);
-		assertTrue(inducedDragWork > -7.6f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(diagonalInducedDrag.x() < -0.22f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.x() > -0.29f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.z() < -0.22f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(diagonalInducedDrag.z() > -0.29f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(inducedDragMagnitude > 0.31f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragMagnitude < 0.41f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragWork < -7.0f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork > -9.3f, "inducedDragWork=" + inducedDragWork);
 	}
 
 	@Test
@@ -3099,8 +3121,8 @@ class PlayableFlightModelTest {
 		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
 		assertTrue(diagonal.x() < -7.7f, "diagonalX=" + diagonal.x());
 		assertTrue(diagonal.x() > -8.4f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -3.25f, "diagonalZ=" + diagonal.z());
-		assertTrue(diagonal.z() > -3.80f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() < -3.15f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -3.75f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
 
