@@ -162,11 +162,11 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT = 0.24f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_GAIN = 0.095f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_MAX_ACCELERATION = 0.90f;
-	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.28f;
+	private static final float ACRO_BODY_RATE_YAW_COUPLING_SCALE = 0.42f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_YAW_WEIGHT = 0.70f;
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
-	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 1.55f;
+	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 2.35f;
 	private static final float ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS = 0.42f;
 	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_START_RADIANS = (float) Math.toRadians(50.0f);
 	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);

@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO banked pitch 体轴耦合增强，并修正目视 pitch 符号）
+这一轮继续处理“斜向飞行像平移，不像真机在三维姿态里飞”的手感问题。对照 [RotorPy](https://github.com/spencerfolk/rotorpy) / RotorPy 论文的建模思路：真实多旋翼高速机动不是只靠一个平面速度刹车，frame drag、rotor drag、blade flapping、induced/translational drag 和姿态角速度都会随相对空气速度共同作用。复查当前 playable 后发现，空气阻力和 sidewash 已经做了多轮收敛，下一处更像根因的是 ACRO 姿态链路：banked pitch / vertical roll 仍然只是保守地给 yaw 加一点补偿，太像地平系 pitch/roll 滑块。
+- `ACRO_BODY_RATE_YAW_COUPLING_SCALE` 从 `0.28` 提到 `0.42`，`ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK` 从 `1.55` 提到 `2.35`。`60°` bank 下 `4°/tick` pitch 的无 yaw-stick 航向耦合从约 `0.97°/tick` 提到约 `1.45°/tick`；完整 step 里的 banked pitch yaw 从约 `1.5°/tick` 提到约 `1.90°/tick`。
+- 这不是自动回正，也不是额外平面刹车：主动 yaw 输入仍优先，普通水平 pitch 不产生 yaw；增强只在大 bank / 大 pitch 姿态下把体轴角速度更明显投到航向变化上，让斜飞/翻滚后的轨迹更像机体在空气里转向，而不是屏幕平面平移。
+- 顺手按实测反馈修正目视/第三人称 pitch 符号：`DroneEntityModel.bodyPitchRotationRadians` 现在用 `-pitchRadians`，避免前飞时目视模型从压头显示成抬头。这个改动不改 FPV 相机矩阵，也不改服务端物理。
+- 已通过 targeted banked-body-rate / 模型 pitch 测试、完整 `PlayableFlightModelTest` + `DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-062012.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧滑侧力增强，斜飞先弯轨迹再付代价）
 这一轮继续收敛你反馈的“翻滚后/斜飞时像持续侧飞，轨迹不跟机头和气流自然耦合”的问题。复查当前 ACRO 分解后发现，`16m/s body-right + 16m/s body-forward` 的 settled 斜飞里，body-right 基础阻力约 `-6.59m/s²`，而实际弯轨迹的侧滑侧力只有约 `1.74m/s²`；fresh sidewash 时还只有约 `32%` 响应。这会让玩家感觉主要是在被横向刹车，而不是速度矢量被空气动力逐步弯向机头方向。
 - `ACRO_SIDEFORCE_GAIN` 从 `0.300` 提到 `0.360`。斜飞 settled 侧滑侧力从约 `1.74m/s²` 提到约 `2.09m/s²`，并且仍保持与速度垂直：侧力只负责弯轨迹，不凭空增减速度能量。
