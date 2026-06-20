@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO broadside 基础阻力滞后）
+本轮继续沿着“斜向飞行不要像几何平移，而要像真实穿越机在空气里带惯性滑出去再被气流咬住”的目标收敛。复核资料后，RotorPy/RPG 这类参考系统都把气动力放在机体系相对空速上处理：寄生阻力、rotor drag、blade flapping 和 actuator/motor lag 都不是一帧满量开关；本仓库 `docs/fpv-sim-model-validation.md` 也提示旧的 coastdown/drag 标定容易让速度过快被洗掉，造成“没有惯性”的手感。
+- `PlayableFlightModel` 新增 `acroBaseBodyDragAcceleration`，把基础机身阻力拆成两层：forward 轴阻力仍即时生效，保证直线巡航和 25m/s 速度包络不被放空；body-right/body-up 的额外 broadside 面积只随 `acroAeroCrossflowLag` 建立。也就是说刚进入 `16m/s right + 16m/s forward` 这类斜向横流时，侧向基础减速度从约 `-6m/s^2` 量级降到约 `-2.8m/s^2` 的干净轴向基线，随后才逐渐恢复到约 `-7.9m/s^2` 的稳态横流负载。
+- 这次不是削掉空气，也不是给 ACRO 加自稳。持续侧滑时，分离流、总动压耦合阻力、sideforce、induced drag、桨盘 flapping / in-plane drag 仍会逐步建立；改变的是“第一帧横向空气墙”被拆掉，让翻滚/斜飞后的速度先按惯性走一小段，再被空气和桨盘慢慢咬回来，手感上更接近真实穿越机的 slip + washout。
+- 回归测试新增 `acroBaseBodyDragKeepsStraightCruiseInstantButDelaysBroadsideArea` 和 `acroFreshDiagonalSlipCarriesMoreSideInertiaThanSettledCrossflow`，并更新 `acroLaggedCrossflowReducesFirstTickBroadsideDragWithoutRemovingBaseDrag`：锁住直线巡航不受 lag 影响、fresh diagonal slip 比 settled crossflow 保留更多 body-right 速度、稳态斜向横流仍保持明显 lateral washout。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-025957.json`，ACRO playable 诊断通过，最大水平位移约 `16.17m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 电机差动控制余量）
 本轮继续从“真实穿越机为什么不像几何平移”的方向收敛。前几轮已经补了机身/桨盘横流气动、动态入流、残余扭矩和横流滞后；这次补的是主动操控侧的一层：ACRO 的 pitch/roll rate 不能完全像理想角速度源，真实飞机需要靠四个电机和桨盘的差动推力来建立角速度，高速横流和低 RPM 都会影响这部分余量。
 - `PlayableFlightModel` 新增 `acroMotorRateAuthorityScale`，并在主动 pitch/roll rate 进入 `responsiveAcroRate` 前应用。hover/正常油门下直线高速前飞保持 `1.0` 权限，不削弱巡航；零油门附近保留约 `72%` 的 AirMode 式控制权，避免低油门完全失控；高速侧滑/大迎角横流在滞后建立后最多吃掉约 `10%` 主动 rate 权限。

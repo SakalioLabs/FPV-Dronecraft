@@ -3097,25 +3097,113 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
 		assertTrue(forward.z() < -5.5f, "forwardZ=" + forward.z());
 		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -8.0f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.x() > -8.8f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() < -7.7f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -8.4f, "diagonalX=" + diagonal.x());
 		assertTrue(diagonal.z() < -3.25f, "diagonalZ=" + diagonal.z());
 		assertTrue(diagonal.z() > -3.80f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
 
 	@Test
-	void acroLaggedCrossflowReducesFirstTickSideforceWithoutRemovingBaseDrag() {
+	void acroLaggedCrossflowReducesFirstTickBroadsideDragWithoutRemovingBaseDrag() {
 		PlayableFlightModel.Velocity bodyVelocity = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
 		PlayableFlightModel.Velocity baseOnly = PlayableFlightModel.acroBodyAerodynamicAcceleration(bodyVelocity, 0.0f);
 		PlayableFlightModel.Velocity firstTick = PlayableFlightModel.acroBodyAerodynamicAcceleration(bodyVelocity, 0.32f);
 		PlayableFlightModel.Velocity settled = PlayableFlightModel.acroBodyAerodynamicAcceleration(bodyVelocity, 1.0f);
 
-		assertTrue(baseOnly.x() < -6.2f, "baseOnlyX=" + baseOnly.x());
-		assertTrue(baseOnly.x() > -6.6f, "baseOnlyX=" + baseOnly.x());
-		assertTrue(firstTick.x() < baseOnly.x(), "firstTickX=" + firstTick.x() + " baseOnlyX=" + baseOnly.x());
-		assertTrue(firstTick.x() > settled.x(), "firstTickX=" + firstTick.x() + " settledX=" + settled.x());
-		assertTrue(settled.x() < -8.0f, "settledX=" + settled.x());
+		assertTrue(baseOnly.x() < -2.65f, "baseOnlyX=" + baseOnly.x());
+		assertTrue(baseOnly.x() > -2.95f, "baseOnlyX=" + baseOnly.x());
+		assertTrue(firstTick.x() < baseOnly.x() - 1.0f, "firstTickX=" + firstTick.x() + " baseOnlyX=" + baseOnly.x());
+		assertTrue(firstTick.x() > settled.x() + 2.0f, "firstTickX=" + firstTick.x() + " settledX=" + settled.x());
+		assertTrue(settled.x() < -7.7f, "settledX=" + settled.x());
+	}
+
+	@Test
+	void acroBaseBodyDragKeepsStraightCruiseInstantButDelaysBroadsideArea() {
+		PlayableFlightModel.Velocity straightInitial = PlayableFlightModel.acroBaseBodyDragAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettled = PlayableFlightModel.acroBaseBodyDragAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				1.0f
+		);
+		PlayableFlightModel.Velocity sideInitial = PlayableFlightModel.acroBaseBodyDragAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f
+		);
+		PlayableFlightModel.Velocity sideSettled = PlayableFlightModel.acroBaseBodyDragAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f
+		);
+
+		assertEquals(straightSettled.z(), straightInitial.z(), 1.0e-6f);
+		assertEquals(0.0f, straightInitial.x(), 1.0e-6f);
+		assertTrue(sideInitial.x() > sideSettled.x() + 2.8f,
+				"sideInitialX=" + sideInitial.x() + " sideSettledX=" + sideSettled.x());
+		assertTrue(sideInitial.z() < -2.65f, "sideInitialZ=" + sideInitial.z());
+		assertTrue(sideInitial.z() > -2.95f, "sideInitialZ=" + sideInitial.z());
+	}
+
+	@Test
+	void acroFreshDiagonalSlipCarriesMoreSideInertiaThanSettledCrossflow() {
+		PlayableFlightModel.State freshSlip = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				0.0f
+		);
+		PlayableFlightModel.State settledSlip = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f
+		);
+		PlayableFlightModel.Step fresh = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				freshSlip
+		);
+		PlayableFlightModel.Step settled = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				settledSlip
+		);
+
+		assertTrue(fresh.acroAeroCrossflowLag() < settled.acroAeroCrossflowLag(),
+				"freshLag=" + fresh.acroAeroCrossflowLag() + " settledLag=" + settled.acroAeroCrossflowLag());
+		assertTrue(fresh.velocityX() > settled.velocityX() + 0.10f,
+				"freshX=" + fresh.velocityX() + " settledX=" + settled.velocityX());
+		assertTrue(fresh.velocityX() < 16.0f, "freshX=" + fresh.velocityX());
+		assertTrue(settled.velocityX() < 15.7f, "settledX=" + settled.velocityX());
 	}
 
 	@Test

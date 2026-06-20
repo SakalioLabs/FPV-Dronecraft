@@ -2034,12 +2034,8 @@ final class PlayableFlightModel {
 	}
 
 	static Velocity acroBodyAerodynamicAcceleration(Velocity bodyVelocity, float crossflowLag) {
-		Velocity baseDragAcceleration = new Velocity(
-				-dragAcceleration(bodyVelocity.x(), ACRO_LATERAL_LINEAR_DRAG_PER_SECOND, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER),
-				-dragAcceleration(bodyVelocity.y(), ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER),
-				-dragAcceleration(bodyVelocity.z(), ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER)
-		);
 		float lag = Float.isFinite(crossflowLag) ? clamp(crossflowLag, 0.0f, 1.0f) : 0.0f;
+		Velocity baseDragAcceleration = acroBaseBodyDragAcceleration(bodyVelocity, lag);
 		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z()) * lag;
 		Velocity coupledDynamicPressureDragAcceleration = scaleVelocity(acroCoupledDynamicPressureDragAcceleration(bodyVelocity), lag);
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
@@ -2050,6 +2046,28 @@ final class PlayableFlightModel {
 				baseDragAcceleration.x() + coupledDynamicPressureDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x() + sideforceInducedDragAcceleration.x(),
 				baseDragAcceleration.y() + coupledDynamicPressureDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y() + sideforceInducedDragAcceleration.y(),
 				baseDragAcceleration.z() + coupledDynamicPressureDragAcceleration.z() + separatedDragAcceleration.z() + pitchLiftAcceleration.z() + sideforceAcceleration.z() + sideforceInducedDragAcceleration.z()
+		);
+	}
+
+	static Velocity acroBaseBodyDragAcceleration(Velocity bodyVelocity, float crossflowLag) {
+		float safeLag = sanitizedCrossflowLag(crossflowLag);
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float sideslipExposure = smoothStep((sideslip - ACRO_AERO_CROSSFLOW_LAG_START_RADIANS)
+				/ Math.max(0.001f, ACRO_AERO_CROSSFLOW_LAG_FULL_RADIANS - ACRO_AERO_CROSSFLOW_LAG_START_RADIANS));
+		float angleOfAttackExposure = smoothStep((angleOfAttack - ACRO_AERO_CROSSFLOW_LAG_START_RADIANS)
+				/ Math.max(0.001f, ACRO_AERO_CROSSFLOW_LAG_FULL_RADIANS - ACRO_AERO_CROSSFLOW_LAG_START_RADIANS));
+		float lateralBroadside = sideslipExposure * safeLag;
+		float verticalBroadside = angleOfAttackExposure * safeLag;
+		float lateralLinearDrag = lerp(ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_LATERAL_LINEAR_DRAG_PER_SECOND, lateralBroadside);
+		float lateralQuadraticDrag = lerp(ACRO_FORWARD_QUADRATIC_DRAG_PER_METER, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER, lateralBroadside);
+		float verticalLinearDrag = lerp(ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND, verticalBroadside);
+		float verticalQuadraticDrag = lerp(ACRO_FORWARD_QUADRATIC_DRAG_PER_METER, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER, verticalBroadside);
+		return new Velocity(
+				-dragAcceleration(bodyVelocity.x(), lateralLinearDrag, lateralQuadraticDrag),
+				-dragAcceleration(bodyVelocity.y(), verticalLinearDrag, verticalQuadraticDrag),
+				-dragAcceleration(bodyVelocity.z(), ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER)
 		);
 	}
 
