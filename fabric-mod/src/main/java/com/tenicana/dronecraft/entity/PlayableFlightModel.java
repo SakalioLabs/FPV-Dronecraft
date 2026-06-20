@@ -84,6 +84,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_WEATHERCOCK_FORWARD_FULL_METERS_PER_SECOND = 16.0f;
 	private static final float ACRO_WEATHERCOCK_LATERAL_START_METERS_PER_SECOND = 1.5f;
 	private static final float ACRO_WEATHERCOCK_LATERAL_FULL_METERS_PER_SECOND = 12.0f;
+	private static final float ACRO_WEATHERCOCK_BROADSIDE_BASE = 0.18f;
+	private static final float ACRO_WEATHERCOCK_BROADSIDE_LATERAL_WEIGHT = 0.16f;
 	private static final float ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK = 0.030f;
 	private static final float ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK = 0.22f;
 	private static final float ACRO_SIDESLIP_YAW_DAMPING_GAIN = 0.018f;
@@ -1350,20 +1352,31 @@ final class PlayableFlightModel {
 
 	private static float acroWeathercockStrength(Velocity bodyVelocity) {
 		float lateralSpeed = Math.abs(bodyVelocity.x());
-		float forwardSpeed = bodyVelocity.z();
-		if (lateralSpeed <= 1.0e-6f || forwardSpeed <= ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND) {
+		float positiveForwardSpeed = Math.max(0.0f, bodyVelocity.z());
+		float horizontalSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		if (lateralSpeed <= 1.0e-6f || horizontalSpeed <= ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND) {
 			return 0.0f;
 		}
 		float speedSquared = bodyVelocity.x() * bodyVelocity.x() + bodyVelocity.y() * bodyVelocity.y() + bodyVelocity.z() * bodyVelocity.z();
-		float sideslip = (float) Math.atan2(bodyVelocity.x(), Math.max(2.0f, forwardSpeed));
+		float sideslip = (float) Math.atan2(bodyVelocity.x(), Math.max(2.0f, positiveForwardSpeed));
 		float sideslipExposure = smoothStep((Math.abs(sideslip) - ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS)
 				/ Math.max(0.001f, ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS - ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS));
-		float forwardExposure = smoothStep((forwardSpeed - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND)
+		float forwardExposure = smoothStep((positiveForwardSpeed - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND)
 				/ Math.max(0.001f, ACRO_WEATHERCOCK_FORWARD_FULL_METERS_PER_SECOND - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND));
+		float forwardPresence = smoothStep(positiveForwardSpeed / Math.max(0.001f, ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND));
 		float lateralExposure = smoothStep((lateralSpeed - ACRO_WEATHERCOCK_LATERAL_START_METERS_PER_SECOND)
 				/ Math.max(0.001f, ACRO_WEATHERCOCK_LATERAL_FULL_METERS_PER_SECOND - ACRO_WEATHERCOCK_LATERAL_START_METERS_PER_SECOND));
+		float broadsideExposure = smoothStep((horizontalSpeed - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_WEATHERCOCK_FORWARD_FULL_METERS_PER_SECOND - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND));
 		float weathercockArea = (float) Math.sqrt(Math.max(0.0f, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER * ACRO_FORWARD_QUADRATIC_DRAG_PER_METER));
-		float exposure = sideslipExposure * (0.45f + 0.35f * forwardExposure + 0.20f * lateralExposure);
+		float forwardSlipExposure = sideslipExposure
+				* (0.45f + 0.35f * forwardExposure + 0.20f * lateralExposure)
+				* forwardPresence;
+		float broadsideSlipExposure = sideslipExposure
+				* broadsideExposure
+				* (ACRO_WEATHERCOCK_BROADSIDE_BASE + ACRO_WEATHERCOCK_BROADSIDE_LATERAL_WEIGHT * lateralExposure)
+				* (1.0f - forwardPresence);
+		float exposure = Math.max(forwardSlipExposure, broadsideSlipExposure);
 		return Math.max(0.0f, speedSquared * weathercockArea * exposure);
 	}
 

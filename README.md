@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 横向来流弱偏航稳定）
+本轮继续朝“斜向飞行不要像平移贴图，而要像真实穿越机在空气里被横向来流咬住”的目标收敛。上一轮已经补了完整翻滚释放尾段；这轮定位到另一个手感缺口：原来的 playable ACRO 只有在 body-forward 为正时才产生 weathercock yaw，纯横向或近横向高速滑行时机头/速度矢量关系会冻结，玩家看到的就是“机体横着平移”。
+- `PlayableFlightModel` 现在保留已有前向 sideslip weathercock 逻辑，同时给 broadside/纯横向来流增加一条更弱的被动偏航路径。它只在 ACRO、横向速度足够大、主动 yaw 输入很小时出现；一旦玩家打 yaw，仍由主动 yaw 主导，不会偷走穿越机 rate mode 权限。
+- 量级被刻意压小：`18m/s` 纯横向来流只产生约 `0.04..0.07 deg/tick` 的弱偏航，明显弱于 `16m/s right + 16m/s forward` 的前向侧滑偏航；目标是打破“平移锁死感”，不是把无人机做成自航向稳定的航模。
+- 参考方向来自高速四旋翼的机体系气动建模：Faessler/Franchi/Scaramuzza 的 rotor-drag 模型把高速阻力写成 `R D R^T v` 的机体系速度项，Abeywardena 等人的速度估计论文也强调 blade flapping 让机体系横向/纵向速度与加速度直接相关。这里的 broadside yaw 是 playable 层对这类机体系横向来流效果的克制近似。
+- 新增/更新回归测试覆盖：纯横向来流会产生弱 weathercock yaw；前向侧滑仍明显更强；纯横向侧滑会产生小 yaw damping；主动 yaw 输入仍保持 `>4.5 deg/tick`，不会被被动气动项压住。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-193655.json`。
+
 ## 最新进展（2026-06-20，ACRO 完整翻滚释放尾段侧飞修复）
 本轮针对“翻转一周之后持续侧飞、无法回正”的新反馈继续收敛 playable ACRO。根因进一步缩小到完整 roll 释放尾段：玩家完成一圈后松杆，如果滤波和残余角速度把累计 roll 推到旧捕捉窗口外一点点，物理层会停在约 150 度左右的等效横滚姿态；此时油门仍会产生强侧向推力，看起来就像翻完一圈后飞机锁死在侧飞。
 - `PlayableFlightModel` 将“已经完成至少一整圈并释放摇杆”的捕捉窗口从 `145deg` 放宽到 `170deg`。这只作用于完成整圈后的释放尾段，不改变普通 ACRO 半滚、刀锋飞行、倒飞和主动持续翻滚的 rate mode 语义。
