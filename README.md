@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 电机差动控制余量）
+本轮继续从“真实穿越机为什么不像几何平移”的方向收敛。前几轮已经补了机身/桨盘横流气动、动态入流、残余扭矩和横流滞后；这次补的是主动操控侧的一层：ACRO 的 pitch/roll rate 不能完全像理想角速度源，真实飞机需要靠四个电机和桨盘的差动推力来建立角速度，高速横流和低 RPM 都会影响这部分余量。
+- `PlayableFlightModel` 新增 `acroMotorRateAuthorityScale`，并在主动 pitch/roll rate 进入 `responsiveAcroRate` 前应用。hover/正常油门下直线高速前飞保持 `1.0` 权限，不削弱巡航；零油门附近保留约 `72%` 的 AirMode 式控制权，避免低油门完全失控；高速侧滑/大迎角横流在滞后建立后最多吃掉约 `10%` 主动 rate 权限。
+- 这不是自稳，也不是限速。它只让 `16m/s right + 16m/s forward` 这类斜向横流里的主动满杆滚转/俯仰带一点电机差动余量负载：第一帧因横流 lag 影响很轻，持续横流后才逐步变重。这样高速斜飞或翻滚转换时，姿态响应更像电机和桨在带着 5 寸机的重量转，而不是屏幕坐标直接旋转。
+- 回归测试新增 `acroMotorRateAuthorityKeepsAirmodeButLoadsSettledCrossflow` 和 `acroHighSpeedCrossflowMakesActiveRollRateFeelLoadedButControllable`：锁住低油门仍可控、hover/直线高速不被误伤、稳态斜向横流满杆更重但仍保留连续控制权。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-025034.json`，ACRO playable 诊断通过，最大水平位移约 `16.01m`，最大速度约 `6.69m/s`，平均电机遥测峰值约 `6946 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 动态横流负载滞后）
 本轮继续沿着“斜飞/翻滚转换不要像平移或瞬间被空气抽回”的主线收敛。上一轮已经把横流滞后接到旋翼盘 flapping、盘面阻力、动态入流和推进损失；这次继续补上仍然瞬时生效的动态负载路径，让高速转动时的空气/桨盘负载也有建立过程。
 - `PlayableFlightModel` 现在把 `acroAeroCrossflowLag` 传入 `acroResidualTorqueRateLoadFraction`、`acroYawTurnLoadBodyAcceleration` 和 `acroBodyRateLoadBodyAcceleration`。这些路径原本在机体已经有高速侧滑/大迎角时会直接按完整横流暴露计算负载，现在只让直线流动基础项即时生效，侧滑/迎角额外项跟随 lag 建立。

@@ -256,6 +256,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_RATE_RISE_SMOOTHING = 0.62f;
 	private static final float ACRO_RATE_FALL_SMOOTHING = 0.74f;
 	private static final float ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK = (float) Math.toRadians(0.025f);
+	private static final float ACRO_RATE_AUTHORITY_IDLE_KEEP = 0.72f;
+	private static final float ACRO_RATE_AUTHORITY_CROSSFLOW_SPEED_START_METERS_PER_SECOND = 10.0f;
+	private static final float ACRO_RATE_AUTHORITY_CROSSFLOW_SPEED_FULL_METERS_PER_SECOND = 28.0f;
+	private static final float ACRO_RATE_AUTHORITY_CROSSFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
+	private static final float ACRO_RATE_AUTHORITY_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(58.0f);
+	private static final float ACRO_RATE_AUTHORITY_MAX_CROSSFLOW_LOSS = 0.10f;
 
 	private PlayableFlightModel() {
 	}
@@ -771,13 +777,14 @@ final class PlayableFlightModel {
 				previous.pitchRadians(),
 				previous.rollRadians()
 		);
+		float motorRateAuthority = acroMotorRateAuthorityScale(bodyVelocity, throttle, hoverThrottle, acroAeroCrossflowLag);
 		float pitchRate = acroAerodynamicRateDamped(
-				responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick(), bodyVelocity, true),
+				responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick() * motorRateAuthority, bodyVelocity, true),
 				bodyVelocity,
 				true
 		);
 		float rollRate = acroAerodynamicRateDamped(
-				responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick(), bodyVelocity, false),
+				responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick() * motorRateAuthority, bodyVelocity, false),
 				bodyVelocity,
 				false
 		);
@@ -927,6 +934,40 @@ final class PlayableFlightModel {
 				? ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS
 				: ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS;
 		return clamp(1.0f - maxLoss * speedExposure * flowLoad, 0.70f, 1.0f);
+	}
+
+	static float acroMotorRateAuthorityScale(
+			Velocity bodyVelocity,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
+		float rpm = averageRpm(throttle, hoverThrottle);
+		float rpmProgress = smoothStep((rpm - IDLE_RPM) / Math.max(1.0f, HOVER_RPM - IDLE_RPM));
+		float rpmAuthority = lerp(ACRO_RATE_AUTHORITY_IDLE_KEEP, 1.0f, rpmProgress);
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
+				+ bodyVelocity.y() * bodyVelocity.y()
+				+ bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return rpmAuthority;
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float speedExposure = smoothStep((speed - ACRO_RATE_AUTHORITY_CROSSFLOW_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_RATE_AUTHORITY_CROSSFLOW_SPEED_FULL_METERS_PER_SECOND - ACRO_RATE_AUTHORITY_CROSSFLOW_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return rpmAuthority;
+		}
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float crossflowExposure = laggedCrossflowExposure(Math.max(
+				smoothStep((sideslip - ACRO_RATE_AUTHORITY_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_RATE_AUTHORITY_CROSSFLOW_FULL_RADIANS - ACRO_RATE_AUTHORITY_CROSSFLOW_START_RADIANS)),
+				smoothStep((angleOfAttack - ACRO_RATE_AUTHORITY_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_RATE_AUTHORITY_CROSSFLOW_FULL_RADIANS - ACRO_RATE_AUTHORITY_CROSSFLOW_START_RADIANS))
+		), acroAeroCrossflowLag);
+		float crossflowAuthority = 1.0f - ACRO_RATE_AUTHORITY_MAX_CROSSFLOW_LOSS * speedExposure * crossflowExposure;
+		return clamp(rpmAuthority * crossflowAuthority, ACRO_RATE_AUTHORITY_IDLE_KEEP * (1.0f - ACRO_RATE_AUTHORITY_MAX_CROSSFLOW_LOSS), 1.0f);
 	}
 
 	static float acroResidualTorqueRateLoadFraction(

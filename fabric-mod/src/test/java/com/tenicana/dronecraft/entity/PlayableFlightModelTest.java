@@ -3486,6 +3486,120 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroMotorRateAuthorityKeepsAirmodeButLoadsSettledCrossflow() {
+		float idleAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				0.0f,
+				0.20f,
+				0.0f
+		);
+		float hoverAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				0.20f,
+				0.20f,
+				0.0f
+		);
+		float straightCruiseAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float diagonalInitialAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.68f,
+				0.20f,
+				0.32f
+		);
+		float diagonalSettledAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float steepAoaAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(
+				new PlayableFlightModel.Velocity(0.0f, 12.0f, 16.0f),
+				0.68f,
+				0.20f,
+				1.0f
+		);
+
+		assertTrue(idleAuthority > 0.70f, "idleAuthority=" + idleAuthority);
+		assertTrue(idleAuthority < 0.75f, "idleAuthority=" + idleAuthority);
+		assertEquals(1.0f, hoverAuthority, 1.0e-6f);
+		assertEquals(1.0f, straightCruiseAuthority, 1.0e-6f);
+		assertTrue(diagonalInitialAuthority > 0.970f, "diagonalInitialAuthority=" + diagonalInitialAuthority);
+		assertTrue(diagonalSettledAuthority > 0.920f, "diagonalSettledAuthority=" + diagonalSettledAuthority);
+		assertTrue(diagonalSettledAuthority < 0.955f, "diagonalSettledAuthority=" + diagonalSettledAuthority);
+		assertTrue(diagonalInitialAuthority > diagonalSettledAuthority + 0.025f,
+				"initial=" + diagonalInitialAuthority + " settled=" + diagonalSettledAuthority);
+		assertTrue(steepAoaAuthority > 0.955f, "steepAoaAuthority=" + steepAoaAuthority);
+		assertTrue(steepAoaAuthority < 0.985f, "steepAoaAuthority=" + steepAoaAuthority);
+	}
+
+	@Test
+	void acroHighSpeedCrossflowMakesActiveRollRateFeelLoadedButControllable() {
+		PlayableFlightModel.State straightCruise = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f
+		);
+		PlayableFlightModel.State diagonalSlip = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f
+		);
+		PlayableFlightModel.Step straightRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				straightCruise
+		);
+		PlayableFlightModel.Step diagonalRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				diagonalSlip
+		);
+		float straightRate = Math.abs(straightRoll.acroRollRateRadiansPerTick());
+		float diagonalRate = Math.abs(diagonalRoll.acroRollRateRadiansPerTick());
+
+		assertTrue(straightRate > Math.toRadians(4.7), "straightRateDeg=" + Math.toDegrees(straightRate));
+		assertTrue(diagonalRate < straightRate * 0.90f,
+				"diagonalRateDeg=" + Math.toDegrees(diagonalRate) + " straightRateDeg=" + Math.toDegrees(straightRate));
+		assertTrue(diagonalRate > straightRate * 0.70f,
+				"diagonalRateDeg=" + Math.toDegrees(diagonalRate) + " straightRateDeg=" + Math.toDegrees(straightRate));
+	}
+
+	@Test
 	void acroResidualTorqueRateLoadRequiresHighSpeedCrossflowAndBodyRate() {
 		float lowSpeed = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
 				new PlayableFlightModel.Velocity(4.0f, 0.0f, 4.0f),
