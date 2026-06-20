@@ -1076,6 +1076,34 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroMidDiagonalUsesThrustConeProjectionInsteadOfPlanarAxisSum() {
+		PlayableFlightModel.Step diagonal = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(45.0),
+						(float) Math.toRadians(45.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+		float horizontalTargetSpeed = horizontalSpeed(diagonal.targetVelocityX(), diagonal.targetVelocityZ());
+
+		assertTrue(diagonal.targetVelocityX() < -17.0f, "targetX=" + diagonal.targetVelocityX());
+		assertTrue(diagonal.targetVelocityZ() > 18.0f, "targetZ=" + diagonal.targetVelocityZ());
+		assertTrue(horizontalTargetSpeed > 25.0f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
+		assertTrue(horizontalTargetSpeed < 26.1f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
+	}
+
+	@Test
 	void acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap() {
 		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
 				FlightMode.ACRO,

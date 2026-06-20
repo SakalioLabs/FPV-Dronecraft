@@ -103,12 +103,9 @@ final class PlayableFlightModel {
 		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
 		rollRadians = settledAttitude(safeMode, attitudeRoll, rollRadians);
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
-		float targetVelocityX = -horizontalVelocityCommand(safeMode, rollRadians, profile.maxRollRadians(), profile)
-				* profile.horizontalSpeedMetersPerSecond()
-				* throttleAuthority;
-		float targetVelocityZ = horizontalVelocityCommand(safeMode, pitchRadians, profile.maxPitchRadians(), profile)
-				* profile.horizontalSpeedMetersPerSecond()
-				* throttleAuthority;
+		Velocity horizontalTarget = horizontalTargetVelocity(safeMode, pitchRadians, rollRadians, throttleAuthority, profile);
+		float targetVelocityX = horizontalTarget.x();
+		float targetVelocityZ = horizontalTarget.z();
 		Velocity limitedHorizontalTarget = limitHorizontalVector(
 				targetVelocityX,
 				0.0f,
@@ -511,6 +508,55 @@ final class PlayableFlightModel {
 			return attitudeRadians;
 		}
 		return (float) Math.asin(clamp((float) Math.sin(attitudeRadians), -1.0f, 1.0f));
+	}
+
+	private static Velocity horizontalTargetVelocity(
+			FlightMode mode,
+			float pitchRadians,
+			float rollRadians,
+			float throttleAuthority,
+			Profile profile
+	) {
+		if (safeMode(mode) == FlightMode.ACRO) {
+			return acroThrustProjectionTargetVelocity(pitchRadians, rollRadians, throttleAuthority, profile);
+		}
+		return new Velocity(
+				-horizontalVelocityCommand(mode, rollRadians, profile.maxRollRadians(), profile)
+						* profile.horizontalSpeedMetersPerSecond()
+						* throttleAuthority,
+				0.0f,
+				horizontalVelocityCommand(mode, pitchRadians, profile.maxPitchRadians(), profile)
+						* profile.horizontalSpeedMetersPerSecond()
+						* throttleAuthority
+		);
+	}
+
+	private static Velocity acroThrustProjectionTargetVelocity(
+			float pitchRadians,
+			float rollRadians,
+			float throttleAuthority,
+			Profile profile
+	) {
+		float commandX = -horizontalVelocityCommand(FlightMode.ACRO, rollRadians, profile.maxRollRadians(), profile);
+		float commandZ = horizontalVelocityCommand(FlightMode.ACRO, pitchRadians, profile.maxPitchRadians(), profile);
+		float commandMagnitude = horizontalMagnitude(commandX, commandZ);
+		if (commandMagnitude <= 1.0e-6f || throttleAuthority <= 0.0f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float projectionMagnitude = acroHorizontalThrustProjectionMagnitude(pitchRadians, rollRadians, profile);
+		float targetSpeed = profile.horizontalSpeedMetersPerSecond() * throttleAuthority * projectionMagnitude;
+		return new Velocity(
+				commandX / commandMagnitude * targetSpeed,
+				0.0f,
+				commandZ / commandMagnitude * targetSpeed
+		);
+	}
+
+	private static float acroHorizontalThrustProjectionMagnitude(float pitchRadians, float rollRadians, Profile profile) {
+		float verticalProjection = verticalThrustProjection(pitchRadians, rollRadians);
+		float horizontalProjection = (float) Math.sqrt(Math.max(0.0f, 1.0f - verticalProjection * verticalProjection));
+		float fullAuthorityProjection = (float) Math.sin(Math.max(profile.maxPitchRadians(), profile.maxRollRadians()));
+		return clamp(horizontalProjection / Math.max(0.10f, fullAuthorityProjection), 0.0f, 1.0f);
 	}
 
 	private static float completedAcroRotationAttitude(FlightMode mode, float command, float attitudeRadians) {
