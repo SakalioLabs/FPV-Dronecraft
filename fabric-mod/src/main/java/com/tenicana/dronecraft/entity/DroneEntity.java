@@ -273,6 +273,7 @@ public class DroneEntity extends Entity {
 	private float debugVisualRollRadians;
 	private float debugMotorPower;
 	private float debugAverageMotorRpm;
+	private float debugAcroCollectiveThrustToWeight;
 	private float debugTargetVelocityX;
 	private float debugTargetVelocityY;
 	private float debugTargetVelocityZ;
@@ -798,7 +799,17 @@ public class DroneEntity extends Entity {
 				hoverThrottle,
 				nearGroundLocked,
 				lowAltitudeHorizontalAuthorityScale,
-				new PlayableFlightModel.State(debugVelocityX, debugVelocityY, debugVelocityZ, debugVisualPitchRadians, debugVisualRollRadians, debugTargetYawRate, debugFlightMode, debugModeSwitchTicksRemaining)
+				new PlayableFlightModel.State(
+						debugVelocityX,
+						debugVelocityY,
+						debugVelocityZ,
+						debugVisualPitchRadians,
+						debugVisualRollRadians,
+						debugTargetYawRate,
+						debugFlightMode,
+						debugModeSwitchTicksRemaining,
+						debugAcroCollectiveThrustToWeight
+				)
 		);
 		float targetVx = step.targetVelocityX();
 		float targetVy = step.targetVelocityY();
@@ -844,6 +855,7 @@ public class DroneEntity extends Entity {
 		debugModeSwitchTicksRemaining = step.modeSwitchTicksRemaining();
 		debugMotorPower = step.motorPower();
 		debugAverageMotorRpm = step.averageRpm();
+		debugAcroCollectiveThrustToWeight = step.acroCollectiveThrustToWeight();
 
 		PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
 				debugVelocityX,
@@ -981,6 +993,7 @@ public class DroneEntity extends Entity {
 		debugVisualRollRadians = 0.0f;
 		debugMotorPower = 0.0f;
 		debugAverageMotorRpm = 0.0f;
+		debugAcroCollectiveThrustToWeight = 0.0f;
 		debugLowAltitudeHorizontalAuthority = 1.0f;
 		debugModeSwitchTicksRemaining = 0;
 		debugCommandThrottle = 0.0f;

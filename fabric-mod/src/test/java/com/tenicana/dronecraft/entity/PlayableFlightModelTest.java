@@ -950,11 +950,11 @@ class PlayableFlightModelTest {
 						FlightMode.ACRO
 				)
 		);
-		PlayableFlightModel.Step realBank = PlayableFlightModel.step(
+		PlayableFlightModel.Step activeBank = PlayableFlightModel.step(
 				FlightMode.ACRO,
 				0.45f,
 				0.0f,
-				0.0f,
+				0.35f,
 				0.0f,
 				0.20f,
 				false,
@@ -972,7 +972,7 @@ class PlayableFlightModelTest {
 		assertEquals(Math.toRadians(360.0), overshotRoll.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
 		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
-		assertTrue(Math.abs(realBank.targetVelocityX()) > 24.0f, "realBankTargetX=" + realBank.targetVelocityX());
+		assertTrue(Math.abs(activeBank.targetVelocityX()) > 24.0f, "activeBankTargetX=" + activeBank.targetVelocityX());
 	}
 
 	@Test
@@ -995,11 +995,11 @@ class PlayableFlightModelTest {
 						FlightMode.ACRO
 				)
 		);
-		PlayableFlightModel.Step trueKnifeEdge = PlayableFlightModel.step(
+		PlayableFlightModel.Step activeKnifeEdge = PlayableFlightModel.step(
 				FlightMode.ACRO,
 				0.45f,
 				0.0f,
-				0.0f,
+				0.35f,
 				0.0f,
 				0.20f,
 				false,
@@ -1017,7 +1017,33 @@ class PlayableFlightModelTest {
 		assertEquals(Math.toRadians(360.0), overshotRoll.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
 		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
-		assertTrue(Math.abs(trueKnifeEdge.targetVelocityX()) > 24.0f, "trueKnifeEdgeTargetX=" + trueKnifeEdge.targetVelocityX());
+		assertTrue(Math.abs(activeKnifeEdge.targetVelocityX()) > 24.0f, "activeKnifeEdgeTargetX=" + activeKnifeEdge.targetVelocityX());
+	}
+
+	@Test
+	void releasedAcroRollNearKnifeEdgeCompletesTurnInsteadOfKeepingSideThrust() {
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(451.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertEquals(Math.toRadians(360.0), released.rollRadians(), 1.0e-5);
+		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
+		assertEquals(0.0f, released.velocityX(), 1.0e-3f);
 	}
 
 	@Test
@@ -1084,10 +1110,10 @@ class PlayableFlightModelTest {
 						FlightMode.ACRO
 				)
 		);
-		PlayableFlightModel.Step steepLoop = PlayableFlightModel.step(
+		PlayableFlightModel.Step activeSteepLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,
 				0.45f,
-				0.0f,
+				0.35f,
 				0.0f,
 				0.0f,
 				0.20f,
@@ -1106,7 +1132,7 @@ class PlayableFlightModelTest {
 		assertEquals(Math.toRadians(360.0), overshotLoop.pitchRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
 		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
-		assertTrue(Math.abs(steepLoop.targetVelocityZ()) > 24.0f, "steepLoopTargetZ=" + steepLoop.targetVelocityZ());
+		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
 	}
 
 	@Test
@@ -1129,10 +1155,10 @@ class PlayableFlightModelTest {
 						FlightMode.ACRO
 				)
 		);
-		PlayableFlightModel.Step trueSteepLoop = PlayableFlightModel.step(
+		PlayableFlightModel.Step activeSteepLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,
 				0.45f,
-				0.0f,
+				0.35f,
 				0.0f,
 				0.0f,
 				0.20f,
@@ -1151,7 +1177,7 @@ class PlayableFlightModelTest {
 		assertEquals(Math.toRadians(360.0), overshotLoop.pitchRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
 		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
-		assertTrue(Math.abs(trueSteepLoop.targetVelocityZ()) > 24.0f, "trueSteepLoopTargetZ=" + trueSteepLoop.targetVelocityZ());
+		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
 	}
 
 	@Test
@@ -1278,6 +1304,35 @@ class PlayableFlightModelTest {
 		assertEquals(pitched.pitchRadians(), cruise.pitchRadians(), 1.0e-6f);
 		assertTrue(cruise.targetVelocityZ() >= 25.0f, "cruiseTargetZ=" + cruise.targetVelocityZ());
 		assertTrue(cruise.velocityZ() >= 25.0f, "cruiseVelocityZ=" + cruise.velocityZ());
+	}
+
+	@Test
+	void acroCollectiveThrustRespondsWithMotorLagInsteadOfInstantStep() {
+		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step secondTick = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(firstTick)
+		);
+
+		assertTrue(firstTick.acroCollectiveThrustToWeight() > 1.20f, "firstThrustToWeight=" + firstTick.acroCollectiveThrustToWeight());
+		assertTrue(firstTick.acroCollectiveThrustToWeight() < 1.60f, "firstThrustToWeight=" + firstTick.acroCollectiveThrustToWeight());
+		assertTrue(secondTick.acroCollectiveThrustToWeight() > firstTick.acroCollectiveThrustToWeight(), "secondThrustToWeight=" + secondTick.acroCollectiveThrustToWeight());
+		assertTrue(secondTick.acroCollectiveThrustToWeight() < 2.20f, "secondThrustToWeight=" + secondTick.acroCollectiveThrustToWeight());
 	}
 
 	@Test
@@ -1566,7 +1621,8 @@ class PlayableFlightModelTest {
 				step.rollRadians(),
 				step.yawDegreesPerTick(),
 				step.mode(),
-				step.modeSwitchTicksRemaining()
+				step.modeSwitchTicksRemaining(),
+				step.acroCollectiveThrustToWeight()
 		);
 	}
 
