@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高速侧滑风标 yaw 增强，斜飞更少像平移）
+这一轮继续沿着“斜向飞行不要像屏幕平移”的主线收敛。复查当前 playable 代码后确认，ACRO 速度已经主要走物理加速度积分，`shouldAirBrake` 不作用于 ACRO，`settledVelocity` 也只是 `0.018m/s` 的近零归零阈值；剩余更像问题的是高速侧滑时的被动风标 yaw 太弱。对照 [RotorPy](https://github.com/spencerfolk/rotorpy) 的建模说明，高速多旋翼手感来自相对空速下的寄生阻力、rotor drag、blade flapping、induced/translational drag 等空气动力力/力矩，而不是一个目标速度控制器。因此这轮不改速度上限和油门，只让机头在明显侧滑里更愿意随来流转向。
+- `ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK` 从 `0.065` 提到 `0.085`，`ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK` 从 `0.48` 提到 `0.72`。`16m/s body-right + 16m/s body-forward` 的 settled 侧滑被动 yaw 从约 `0.38°/tick` 提到约 `0.50°/tick`，纯 broadside `18m/s` 也从弱风标提升到约 `0.25°/tick`。
+- 这不是自动回正，也不是稳定模式：它只在 ACRO、高速侧滑、没有主动 yaw stick 时作为空气风标力矩出现；主动 yaw 输入仍会压制这条路径，`activeYaw` 回归继续保持大于 `4.3..4.5°/tick`。
+- 保留 `acroSidewashMemory` 语义：刚切入侧滑时风标 yaw 仍按 fresh sidewash 延迟建立，持续侧滑后才接近 settled。这样刚翻滚/刚切进斜飞不会被瞬间吸正，但持续斜飞时机头会更明显地跟随空气，而不是一直横着滑。
+- 更新回归 `acroWeathercockYawClearlyTurnsNoseIntoSideslip`、`acroForwardSideslipAddsClearPassiveYawWithoutStealingActiveYaw`、`acroSidewashMemoryDelaysPassiveWeathercockYawAfterFastSlipEntry` 和 broadside passive yaw 测试。已通过 targeted 测试、完整 `PlayableFlightModelTest` + `DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-064303.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 体轴 rate 与欧拉积分拆分，减少翻滚后平面侧飞）
 这一轮继续处理“翻滚一周后持续侧飞、斜飞/大 bank 时机头和轨迹不像同一个三维刚体”的问题。复查 [do-a-barrel-roll](https://github.com/enjarai/do-a-barrel-roll) 后确认，它的核心不是在欧拉角上硬堆 pitch/yaw/roll，而是按当前 `facing / left / up` 向量做旋转：pitch 绕当前 left，yaw 绕当前 up，roll 绕当前 facing，最后再重新提取姿态。当前 playable ACRO 之前虽然已经加了 banked yaw coupling，但 `acroPitchRateRadiansPerTick` 同时被当作“机体系角速率状态”和“直接加到 Minecraft pitch/roll 的欧拉增量”，大倾角时要么仍像地平系滑块，要么会把摇杆权威一起吃掉。
 - `PlayableFlightModel` 现在把 ACRO rate 拆成两层：飞控状态、惯性负载、yaw 耦合继续保留未投影的机体系 body rate；真正积分到 `pitchRadians / rollRadians` 前，才按当前交叉姿态做欧拉投影。这样大 bank 下 pitch 会更多转成 heading/yaw，而不是把机体继续当屏幕平面 pitch，同时不会因为投影就让下一帧摇杆 rate 变小。

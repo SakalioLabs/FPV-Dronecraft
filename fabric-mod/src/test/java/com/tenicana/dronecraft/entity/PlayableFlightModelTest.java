@@ -4271,7 +4271,7 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
-	void acroWeathercockYawAlsoAppearsWeaklyInBroadsideSlip() {
+	void acroWeathercockYawClearlyTurnsNoseIntoSideslip() {
 		float straight = PlayableFlightModel.acroSideslipWeathercockYawDegreesPerTick(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
 		);
@@ -4286,10 +4286,10 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, straight, 1.0e-6f);
-		assertTrue(pureSide < -0.15f, "pureSide=" + pureSide);
-		assertTrue(pureSide > -0.23f, "pureSide=" + pureSide);
-		assertTrue(rightSlip < -0.32f, "rightSlip=" + rightSlip);
-		assertTrue(rightSlip > -0.43f, "rightSlip=" + rightSlip);
+		assertTrue(pureSide < -0.20f, "pureSide=" + pureSide);
+		assertTrue(pureSide > -0.30f, "pureSide=" + pureSide);
+		assertTrue(rightSlip < -0.46f, "rightSlip=" + rightSlip);
+		assertTrue(rightSlip > -0.58f, "rightSlip=" + rightSlip);
 		assertTrue(Math.abs(pureSide) < Math.abs(rightSlip) * 0.66f, "pureSide=" + pureSide + " rightSlip=" + rightSlip);
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 	}
@@ -4314,7 +4314,7 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
-	void acroForwardSideslipAddsSmallPassiveYawWithoutStealingActiveYaw() {
+	void acroForwardSideslipAddsClearPassiveYawWithoutStealingActiveYaw() {
 		PlayableFlightModel.State slipping = new PlayableFlightModel.State(
 				16.0f,
 				0.0f,
@@ -4352,8 +4352,8 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.yawDegreesPerTick() < -0.28f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(passive.yawDegreesPerTick() > -0.43f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() < -0.46f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.58f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(activeYaw.yawDegreesPerTick() > 4.30f, "activeYaw=" + activeYaw.yawDegreesPerTick());
 	}
 
@@ -4415,14 +4415,14 @@ class PlayableFlightModelTest {
 		assertTrue(fresh.acroAeroCrossflowLag() > 0.94f, "freshLag=" + fresh.acroAeroCrossflowLag());
 		assertTrue(fresh.acroSidewashMemory() < 0.25f, "freshMemory=" + fresh.acroSidewashMemory());
 		assertTrue(settled.acroSidewashMemory() > 0.96f, "settledMemory=" + settled.acroSidewashMemory());
-		assertTrue(fresh.yawDegreesPerTick() < -0.08f, "freshYaw=" + fresh.yawDegreesPerTick());
+		assertTrue(fresh.yawDegreesPerTick() < -0.12f, "freshYaw=" + fresh.yawDegreesPerTick());
 		assertTrue(fresh.yawDegreesPerTick() > settled.yawDegreesPerTick() * 0.40f,
 				"freshYaw=" + fresh.yawDegreesPerTick() + " settledYaw=" + settled.yawDegreesPerTick());
-		assertTrue(settled.yawDegreesPerTick() < -0.28f, "settledYaw=" + settled.yawDegreesPerTick());
+		assertTrue(settled.yawDegreesPerTick() < -0.46f, "settledYaw=" + settled.yawDegreesPerTick());
 	}
 
 	@Test
-	void acroBroadsideSlipAddsWeakPassiveYawWithoutStealingActiveYaw() {
+	void acroBroadsideSlipAddsPassiveYawWithoutStealingActiveYaw() {
 		PlayableFlightModel.State slipping = new PlayableFlightModel.State(
 				18.0f,
 				0.0f,
@@ -4460,8 +4460,8 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.yawDegreesPerTick() < -0.14f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(passive.yawDegreesPerTick() > -0.23f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() < -0.20f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.30f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
 	}
 
