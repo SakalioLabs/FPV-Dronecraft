@@ -69,10 +69,10 @@ final class PlayableFlightModel {
 	private static final float ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT = 3.35f;
 	private static final float ACRO_ROTOR_COUNT = 4.0f;
 	private static final float ACRO_FORWARD_DRAG_AREA_SQUARE_METERS = 0.0128f;
-	private static final float ACRO_LATERAL_DRAG_AREA_SQUARE_METERS = 0.0269f;
+	private static final float ACRO_LATERAL_DRAG_AREA_SQUARE_METERS = 0.0340f;
 	private static final float ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS = 0.0180f;
 	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.060f;
-	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.16f;
+	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.19f;
 	private static final float ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND = 0.14f;
 	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_FORWARD_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_LATERAL_DRAG_AREA_SQUARE_METERS);
@@ -92,8 +92,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_PITCH_LIFT_GAIN = 0.090f;
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
-	private static final float ACRO_SIDEFORCE_GAIN = 0.185f;
-	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_GAIN = 0.44f;
+	private static final float ACRO_SIDEFORCE_GAIN = 0.300f;
+	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_GAIN = 0.27f;
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_START_RADIANS = (float) Math.toRadians(10.0f);
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_FULL_RADIANS = (float) Math.toRadians(58.0f);
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_MAX_ACCELERATION = 1.85f;

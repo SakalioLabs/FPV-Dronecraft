@@ -2907,10 +2907,10 @@ class PlayableFlightModelTest {
 		);
 		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
 
-		assertTrue(sideforce.x() < -0.63f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.x() > -0.74f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.z() > 0.63f, "sideforceZ=" + sideforce.z());
-		assertTrue(sideforce.z() < 0.74f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.x() < -1.12f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() > -1.35f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.z() > 1.12f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.z() < 1.35f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
 	}
 
@@ -2931,8 +2931,8 @@ class PlayableFlightModelTest {
 				+ sideforce.z() * diagonalVelocity.z();
 
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(sideforceMagnitude > 0.90f, "sideforceMagnitude=" + sideforceMagnitude);
-		assertTrue(inducedDragMagnitude < sideforceMagnitude * 0.42f,
+		assertTrue(sideforceMagnitude > 1.65f, "sideforceMagnitude=" + sideforceMagnitude);
+		assertTrue(inducedDragMagnitude < sideforceMagnitude * 0.28f,
 				"sideforceMagnitude=" + sideforceMagnitude + " inducedDragMagnitude=" + inducedDragMagnitude);
 	}
 
@@ -3174,11 +3174,11 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
 		assertTrue(forward.z() < -5.5f, "forwardZ=" + forward.z());
 		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -7.7f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.x() > -8.4f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -3.15f, "diagonalZ=" + diagonal.z());
-		assertTrue(diagonal.z() > -3.75f, "diagonalZ=" + diagonal.z());
-		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.x() < -9.8f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -10.9f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -2.45f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -3.20f, "diagonalZ=" + diagonal.z());
+		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 6.8f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
 
 	@Test
@@ -3299,8 +3299,8 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straight.z(), 1.0e-6f);
 		assertEquals(0.0f, lowSpeedDiagonal.x(), 1.0e-6f);
 		assertEquals(0.0f, lowSpeedDiagonal.z(), 1.0e-6f);
-		assertTrue(fastDiagonal.x() < -0.70f, "fastDiagonalX=" + fastDiagonal.x());
-		assertTrue(fastDiagonal.x() > -0.95f, "fastDiagonalX=" + fastDiagonal.x());
+		assertTrue(fastDiagonal.x() < -0.78f, "fastDiagonalX=" + fastDiagonal.x());
+		assertTrue(fastDiagonal.x() > -1.05f, "fastDiagonalX=" + fastDiagonal.x());
 		assertTrue(fastDiagonal.z() < -0.30f, "fastDiagonalZ=" + fastDiagonal.z());
 		assertTrue(fastDiagonal.z() > -0.50f, "fastDiagonalZ=" + fastDiagonal.z());
 	}
@@ -3364,6 +3364,60 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroDiagonalCoastKeepsInertiaButCurvesTowardBodyForward() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step step = null;
+		float trackDistanceMeters = 0.0f;
+		float speedAfterOneSecond = Float.NaN;
+		float lateralAfterOneSecond = Float.NaN;
+		float forwardAfterOneSecond = Float.NaN;
+		for (int tick = 1; tick <= 40; tick++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.20f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			trackDistanceMeters += horizontalSpeed(step.velocityX(), step.velocityZ()) * 0.05f;
+			state = stateFrom(step);
+			if (tick == 20) {
+				speedAfterOneSecond = horizontalSpeed(step.velocityX(), step.velocityZ());
+				lateralAfterOneSecond = step.velocityX();
+				forwardAfterOneSecond = step.velocityZ();
+			}
+		}
+
+		float speedAfterTwoSeconds = step == null ? Float.NaN : horizontalSpeed(step.velocityX(), step.velocityZ());
+		float lateralAfterTwoSeconds = step == null ? Float.NaN : step.velocityX();
+		float forwardAfterTwoSeconds = step == null ? Float.NaN : step.velocityZ();
+
+		assertTrue(speedAfterOneSecond > 15.0f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(Math.abs(lateralAfterOneSecond) < Math.abs(forwardAfterOneSecond) * 0.82f,
+				"lateralAfterOneSecond=" + lateralAfterOneSecond + " forwardAfterOneSecond=" + forwardAfterOneSecond);
+		assertTrue(speedAfterTwoSeconds > 10.5f, "speedAfterTwoSeconds=" + speedAfterTwoSeconds);
+		assertTrue(trackDistanceMeters > 29.0f, "trackDistanceMeters=" + trackDistanceMeters);
+		assertTrue(Math.abs(lateralAfterTwoSeconds) < Math.abs(forwardAfterTwoSeconds) * 0.64f,
+				"lateralAfterTwoSeconds=" + lateralAfterTwoSeconds + " forwardAfterTwoSeconds=" + forwardAfterTwoSeconds);
+		assertTrue(forwardAfterTwoSeconds > 9.0f, "forwardAfterTwoSeconds=" + forwardAfterTwoSeconds);
+	}
+
+	@Test
 	void acroWeathercockYawAlsoAppearsWeaklyInBroadsideSlip() {
 		float straight = PlayableFlightModel.acroSideslipWeathercockYawDegreesPerTick(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
@@ -3381,8 +3435,8 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straight, 1.0e-6f);
 		assertTrue(pureSide < -0.15f, "pureSide=" + pureSide);
 		assertTrue(pureSide > -0.23f, "pureSide=" + pureSide);
-		assertTrue(rightSlip < -0.24f, "rightSlip=" + rightSlip);
-		assertTrue(rightSlip > -0.34f, "rightSlip=" + rightSlip);
+		assertTrue(rightSlip < -0.32f, "rightSlip=" + rightSlip);
+		assertTrue(rightSlip > -0.43f, "rightSlip=" + rightSlip);
 		assertTrue(Math.abs(pureSide) < Math.abs(rightSlip) * 0.66f, "pureSide=" + pureSide + " rightSlip=" + rightSlip);
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 	}
@@ -3438,8 +3492,8 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.yawDegreesPerTick() < -0.24f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(passive.yawDegreesPerTick() > -0.36f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() < -0.28f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.43f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
 	}
 

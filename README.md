@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 斜飞横向咬风再收敛）
+本轮继续处理你最新反馈的“翻滚一周之后持续侧飞、无法自然回到可控航迹”的手感问题。复查后确认 ACRO 速度积分本身已经不是目标速度回正，也不是平面速度插值；问题更像是持续 sideslip 下，机身横向迎风面积和 yaw-plane sideforce 还不够咬空气，导致 `16m/s right + 16m/s forward` 这类高速斜滑在两秒后仍然保留过多横向分量。
+- `PlayableFlightModel` 只加强横向来流相关项，不加全局前向阻力：ACRO lateral drag area 从 `0.0269m^2` 提到 `0.0340m^2`，lateral linear drag 从 `0.16/s` 提到 `0.19/s`。直线机头前飞的 forward drag 没有提高，避免把 25m/s 巡航和松杆 coastdown 重新做成“撞空气墙”。
+- yaw-plane sideslip sideforce 进一步从 `0.185` 提到 `0.300`，同时 induced-drag gain 从 `0.44` 降到 `0.27`。也就是说，横向滑行时更多用垂直于速度的侧力把航迹弯回机头方向，而不是靠额外能量损失硬刹车。新的单元测试继续锁住 sideforce 对当前速度不做功，并要求 sideforce magnitude 明显大于 induced drag。
+- 新增 `acroDiagonalCoastKeepsInertiaButCurvesTowardBodyForward`：从 `16m/s right + 16m/s forward` 斜向惯性开始，松杆 2 秒后仍必须保留 `>10.5m/s` 的水平速度、轨迹距离 `>29m`，但横向/前向速度比例必须收敛到 `<0.64`。这条测试专门防止“像平面平移一样一直侧飞”，同时也防止我用过强阻力把速度感吃掉。
+- 同步更新斜向总气动、crossflow dynamic-pressure、weathercock yaw 和主动 yaw 优先级的数值边界：横向切风现在会更重、更愿意转机头，但主动 yaw 仍保留足够权重，不会被被动 weathercock 偷走控制权。
+- 已通过完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-034158.json`，ACRO playable 诊断通过，最大水平位移约 `16.17m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，目视模式前飞压头修正）
 本轮处理一个你提过但不是主线的可见问题：目视状态下，向前飞时机体外观看起来从“压头”反成了“抬头”。复查后确认 `PlayableFlightModel` 的 pitch 符号仍用于飞控/FPV/遥测，问题在客户端实体模型把 pitch 又反了一次。
 - `DroneEntityModel.bodyPitchRotationRadians` 现在直接使用 playable pitch，不再取负。这样物理/FPV 相机仍沿用原来的 pitch 数据，只有第三人称/目视看到的无人机模型改回“正 pitch = Minecraft 模型低头方向”。
