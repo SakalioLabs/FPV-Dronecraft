@@ -2476,6 +2476,46 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawSeparationWithoutHidingPitchAoa() {
+		float freshYawSeparation = PlayableFlightModel.acroAirframeSeparationIntensity(
+				16.0f,
+				0.0f,
+				16.0f,
+				1.0f,
+				0.0f
+		);
+		float settledYawSeparation = PlayableFlightModel.acroAirframeSeparationIntensity(
+				16.0f,
+				0.0f,
+				16.0f,
+				1.0f,
+				1.0f
+		);
+		float freshPitchSeparation = PlayableFlightModel.acroAirframeSeparationIntensity(
+				0.0f,
+				16.0f,
+				16.0f,
+				1.0f,
+				0.0f
+		);
+		float settledPitchSeparation = PlayableFlightModel.acroAirframeSeparationIntensity(
+				0.0f,
+				16.0f,
+				16.0f,
+				1.0f,
+				1.0f
+		);
+
+		assertTrue(freshYawSeparation > 0.08f, "freshYawSeparation=" + freshYawSeparation);
+		assertTrue(freshYawSeparation < settledYawSeparation * 0.45f,
+				"freshYawSeparation=" + freshYawSeparation + " settledYawSeparation=" + settledYawSeparation);
+		assertTrue(settledYawSeparation > 0.22f, "settledYawSeparation=" + settledYawSeparation);
+		assertEquals(settledPitchSeparation, freshPitchSeparation, 1.0e-6f);
+		assertTrue(freshPitchSeparation > freshYawSeparation * 3.4f,
+				"freshPitchSeparation=" + freshPitchSeparation + " freshYawSeparation=" + freshYawSeparation);
+	}
+
+	@Test
 	void acroAeroCrossflowLagTargetNeedsFastCrossflow() {
 		float straightCruise = PlayableFlightModel.acroAeroCrossflowLagTarget(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
@@ -3424,6 +3464,39 @@ class PlayableFlightModelTest {
 		assertTrue(firstTick.x() < baseOnly.x() - 1.0f, "firstTickX=" + firstTick.x() + " baseOnlyX=" + baseOnly.x());
 		assertTrue(firstTick.x() > settled.x() + 2.0f, "firstTickX=" + firstTick.x() + " settledX=" + settled.x());
 		assertTrue(settled.x() < -7.7f, "settledX=" + settled.x());
+	}
+
+	@Test
+	void acroSidewashMemoryDelaysSeparatedBodyLoadsAfterFastSlipEntry() {
+		PlayableFlightModel.Velocity bodyVelocity = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity freshSlip = PlayableFlightModel.acroBodyAerodynamicAcceleration(
+				bodyVelocity,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledSlip = PlayableFlightModel.acroBodyAerodynamicAcceleration(
+				bodyVelocity,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity pitchFresh = PlayableFlightModel.acroBodyAerodynamicAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity pitchSettled = PlayableFlightModel.acroBodyAerodynamicAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				1.0f,
+				1.0f
+		);
+
+		assertTrue(Math.abs(freshSlip.x()) < Math.abs(settledSlip.x()) * 0.90f,
+				"freshX=" + freshSlip.x() + " settledX=" + settledSlip.x());
+		assertTrue(Math.abs(freshSlip.x()) > Math.abs(settledSlip.x()) * 0.78f,
+				"freshX=" + freshSlip.x() + " settledX=" + settledSlip.x());
+		assertTrue(settledSlip.x() < -9.8f, "settledX=" + settledSlip.x());
+		assertEquals(pitchSettled.y(), pitchFresh.y(), 1.0e-6f);
+		assertEquals(pitchSettled.z(), pitchFresh.z(), 1.0e-6f);
 	}
 
 	@Test

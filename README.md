@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 侧滑分离流接入侧洗记忆）
+本轮继续收敛“翻滚/斜飞后持续侧飞、像平面滑动而不像真实机体穿过空气”的手感问题。上一轮已经让横流 roll 和 weathercock yaw 读取 `acroSidewashMemory`，但机身分离流强度仍然直接乘即时 `acroAeroCrossflowLag`；这会让刚切入高速侧滑时，机身侧面积和 yaw-plane stall drag 太快打满，容易把飞机硬拽进持续横滑。
+- `acroAirframeSeparationIntensity` 现在增加带 `crossflowLag` 和 `sidewashMemory` 的重载，并把 pitch 迎角分离与 yaw 侧滑分离拆开：pitch/俯仰迎角仍按基础 lag 生效，保证机头前压/拉起的升力和阻力不被隐藏；yaw/侧滑分离则读取 `acroSidewashForceResponse(lag, memory)`，刚翻滚或刚进入斜飞时保留更多侧向惯性，持续侧滑后才逐渐被空气咬住。
+- `acroBodyAerodynamicAcceleration` 改用新的分离流重载，因此 separated-flow drag、侧滑侧力的 stall 负载会跟侧洗记忆连续建立；老的三参数 `acroAirframeSeparationIntensity` 保持 settled/full-response 语义，避免已有测试和文档里的静态标定语义漂移。
+- 这不是自动回正，也不是削掉空气力：`16m/s right + 16m/s forward` 的 fresh 状态仍有明显侧向阻力和侧向力，但比 settled 状态少一截；pure pitch 的气动结果在 memory 为 `0` 和 `1` 时完全一致，防止把机头压低时的迎角响应误做成“侧洗延迟”。
+- 新增 `acroSidewashMemoryDelaysYawSeparationWithoutHidingPitchAoa` 与 `acroSidewashMemoryDelaysSeparatedBodyLoadsAfterFastSlipEntry` 回归，已通过 targeted 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-044931.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧滑 weathercock yaw 接入侧洗记忆）
 本轮继续处理“高速斜飞时像平面滑块，而不是速度矢量和机头在空气里互相追逐”的手感问题。上一轮已经让横流 roll 力矩读取 `acroSidewashMemory`，但 passive weathercock yaw、yaw damping 和高侧滑主动 yaw 负载仍然直接读取当前侧滑速度；这会让机头被气流转向的反馈和侧力/侧洗/roll 的建立过程不一致。
 - `acroAerodynamicYawRate` 现在接收 `acroAeroCrossflowLag` 和 `acroSidewashMemory`，并把 sidewash response 同时作用到 passive weathercock yaw、侧滑 yaw damping、以及高侧滑下的主动 yaw command load。刚切入斜飞时机头不会瞬间被完整 weathercock 拉走；持续斜飞后，侧洗记忆建立，机头才更明显地追向气流方向。

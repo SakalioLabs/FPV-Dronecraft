@@ -2195,9 +2195,9 @@ final class PlayableFlightModel {
 	}
 
 	static Velocity acroBodyAerodynamicAcceleration(Velocity bodyVelocity, float crossflowLag, float sidewashMemory) {
-		float lag = Float.isFinite(crossflowLag) ? clamp(crossflowLag, 0.0f, 1.0f) : 0.0f;
+		float lag = sanitizedCrossflowLag(crossflowLag);
 		Velocity baseDragAcceleration = acroBaseBodyDragAcceleration(bodyVelocity, lag);
-		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z()) * lag;
+		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z(), lag, sidewashMemory);
 		Velocity coupledDynamicPressureDragAcceleration = scaleVelocity(acroCoupledDynamicPressureDragAcceleration(bodyVelocity), lag);
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
 		Velocity pitchLiftAcceleration = scaleVelocity(acroPitchPlaneLiftAcceleration(bodyVelocity, separation), lag);
@@ -2277,10 +2277,21 @@ final class PlayableFlightModel {
 	}
 
 	static float acroAirframeSeparationIntensity(float bodyRightVelocity, float bodyUpVelocity, float bodyForwardVelocity) {
+		return acroAirframeSeparationIntensity(bodyRightVelocity, bodyUpVelocity, bodyForwardVelocity, 1.0f, 1.0f);
+	}
+
+	static float acroAirframeSeparationIntensity(
+			float bodyRightVelocity,
+			float bodyUpVelocity,
+			float bodyForwardVelocity,
+			float crossflowLag,
+			float sidewashMemory
+	) {
 		float speedSquared = bodyRightVelocity * bodyRightVelocity + bodyUpVelocity * bodyUpVelocity + bodyForwardVelocity * bodyForwardVelocity;
 		if (speedSquared <= 1.0e-6f) {
 			return 0.0f;
 		}
+		float lag = sanitizedCrossflowLag(crossflowLag);
 		float forwardReference = Math.max(2.0f, Math.abs(bodyForwardVelocity));
 		float angleOfAttack = (float) Math.atan2(bodyUpVelocity, forwardReference);
 		float sideslip = (float) Math.atan2(bodyRightVelocity, forwardReference);
@@ -2288,6 +2299,8 @@ final class PlayableFlightModel {
 				/ Math.max(0.001f, ACRO_SEPARATION_AOA_FULL_RADIANS - ACRO_SEPARATION_AOA_START_RADIANS));
 		float yawSeparation = smoothStep((Math.abs(sideslip) - ACRO_SEPARATION_SIDESLIP_START_RADIANS)
 				/ Math.max(0.001f, ACRO_SEPARATION_SIDESLIP_FULL_RADIANS - ACRO_SEPARATION_SIDESLIP_START_RADIANS));
+		pitchSeparation *= lag;
+		yawSeparation *= acroSidewashForceResponse(lag, sidewashMemory);
 		return clamp(1.0f - (1.0f - pitchSeparation) * (1.0f - yawSeparation), 0.0f, 1.0f);
 	}
 
