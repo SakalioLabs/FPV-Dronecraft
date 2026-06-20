@@ -1104,6 +1104,33 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroMidDiagonalAcceleratesAlongCoupledThrustCone() {
+		PlayableFlightModel.Step diagonal = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(45.0),
+						(float) Math.toRadians(45.0),
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertTrue(diagonal.velocityX() < -0.40f, "velocityX=" + diagonal.velocityX());
+		assertTrue(diagonal.velocityZ() > 0.40f, "velocityZ=" + diagonal.velocityZ());
+		assertTrue(diagonal.velocityY() < -0.03f, "velocityY=" + diagonal.velocityY());
+		assertTrue(diagonal.velocityY() > -0.14f, "velocityY=" + diagonal.velocityY());
+	}
+
+	@Test
 	void acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap() {
 		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
 				FlightMode.ACRO,

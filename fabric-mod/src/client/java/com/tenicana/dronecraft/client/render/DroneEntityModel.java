@@ -65,7 +65,7 @@ public class DroneEntityModel extends EntityModel<DroneEntityRenderState> {
 	@Override
 	public void setupAnim(DroneEntityRenderState state) {
 		super.setupAnim(state);
-		body.xRot = -state.pitchRadians;
+		body.xRot = state.pitchRadians;
 		body.yRot = state.yawRadians;
 		body.zRot = state.rollRadians;
 

@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 3D 推力积分与惯性手感）
+本轮继续针对“斜向飞行还是像平移、不像真机”的手感问题收敛。前一版已经把 pitch/roll 合成到同一个推力锥目标里，但实际速度更新仍主要沿“水平目标速度”工作；这会让玩家感觉飞机被一个平面速度控制器拉着走，而不是被四轴的总推力、重力、惯性和空阻共同带着飞。
+- `PlayableFlightModel` 的 ACRO 实际速度更新改为 3D 推力轴积分：先由当前 pitch/roll 得到同一个单位推力轴，再按油门得到集体推力/重量比，最后用 `a = thrustAxis * thrustAcceleration - gravity + drag(v)` 积分速度。中等 pitch+roll 现在会同时产生侧向/前向加速和真实下沉，而不是只改两个水平速度目标。
+- 可玩层暂用 5 寸穿越机量级参数做手感锚点：质量按 `1.1kg` racing quad，悬停为 `1g`，满油门可玩上限设为约 `3.35g`，不直接把测试台极限推重比全塞进 Minecraft。前/侧/竖向空阻分开，侧向阻力略大于前向阻力，松杆后保留惯性但会被空气逐步吃掉。
+- 参考依据继续沿用并补强：[Faessler/Franchi/Scaramuzza rotor-drag 模型](http://rpg.ifi.uzh.ch/docs/RAL18_Faessler.pdf)和 UZH [`fpv.yaml`](https://raw.githubusercontent.com/uzh-rpg/rpg_quadrotor_control/master/control/position_controller/parameters/fpv.yaml) 说明高速四轴需要机体系阻力；Betaflight [Rate Calculator](https://betaflight.com/docs/wiki/guides/current/Rate-Calculator) / [Feed Forward](https://betaflight.com/docs/wiki/guides/current/Feed-Forward-2-0) 文档说明真机手感来自角速度响应和电机/前馈，而不是位置保持；[ADR-VINS/TII-RATM](https://arxiv.org/abs/2603.02742) 竞速数据给出 `20m/s+` 实飞速度锚点；[`do-a-barrel-roll`](https://github.com/enjarai/do-a-barrel-roll) 仍作为 Minecraft 全向相机/姿态交互参考。
+- 目视模型的 pitch 符号按当前实测反馈修回：正 pitch/向前飞在目视下应表现为机头前压，不再出现“向前飞看起来抬头”的 LOS 误导。
+- 新增回归测试约束 45 度 pitch+roll 的 ACRO 速度积分：同一个推力锥会给出前向/侧向加速，同时因为竖直投影不足而轻微下沉。`PlayableFlightModelTest` 已通过。
+- 无头 ACRO 可玩层自测同步修正：playable 简化路径没有完整空气动力学 `airspeed` 遥测时，只在 playable 模式下用实际 `max_speed` 作为运动判定兜底；完整仿真核心仍要求真实 `airspeed`。本轮 `runPlayableAcroServerSelfTest` 已通过，报告最大速度约 `5.44m/s`、水平位移约 `15.71m`、最大可视 pitch/roll 约 `21.94/25.56 deg`。
+
 ## 最新进展（2026-06-20，ACRO 斜向推力锥与目视 pitch 符号）
 
 本轮继续收敛“斜向飞行像平移、不像真机”的手感问题。上一版已经加了惯性、限速和机体系阻力，但 ACRO 水平目标仍是先分别按 pitch/roll 算两个平面速度轴，再拼成一个向量；这在中等斜向姿态下仍会有“二维平移摇杆”的味道。

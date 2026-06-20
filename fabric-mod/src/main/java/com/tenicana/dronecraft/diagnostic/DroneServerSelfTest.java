@@ -423,7 +423,7 @@ public final class DroneServerSelfTest {
 		return drone.blackbox().size() >= durationTicks
 				&& maxAltitudeGain > minimumAltitudeGain()
 				&& maxSpeed > minimumSpeed()
-				&& maxAirspeed > minimumAirspeed()
+				&& motionAirspeed() > minimumAirspeed()
 				&& maxMotorPower > 0.08
 				&& modelSpecificTelemetryPassed()
 				&& blackboxContainsFlightModel(csv)
@@ -728,6 +728,13 @@ public final class DroneServerSelfTest {
 		return flightModelMode == FlightModelMode.PLAYABLE ? 0.10 : 0.25;
 	}
 
+	private double motionAirspeed() {
+		if (flightModelMode == FlightModelMode.PLAYABLE) {
+			return Math.max(maxAirspeed, maxSpeed);
+		}
+		return maxAirspeed;
+	}
+
 	private boolean blackboxContainsFlightModel(String csv) {
 		return DroneBlackboxSample.CSV_HEADER.contains("flight_model")
 				&& csv != null
@@ -771,7 +778,7 @@ public final class DroneServerSelfTest {
 		if (maxAltitudeGain <= minimumAltitudeGain()) {
 			return "insufficient_climb";
 		}
-		if (maxSpeed <= minimumSpeed() || maxAirspeed <= minimumAirspeed()) {
+		if (maxSpeed <= minimumSpeed() || motionAirspeed() <= minimumAirspeed()) {
 			return "insufficient_motion";
 		}
 		String csv = drone.blackbox().toCsv();

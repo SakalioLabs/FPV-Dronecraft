@@ -433,11 +433,14 @@ def fpvDroneValidateSelfTestReport = { File reportFile ->
 	def minimumAltitudeGain = playableFlightModel ? 0.30 : 0.45
 	def minimumSpeed = playableFlightModel ? 0.20 : 0.35
 	def minimumAirspeed = playableFlightModel ? 0.10 : 0.25
+	def reportedMaxSpeed = (report.max_speed_mps ?: 0.0) as double
+	def reportedMaxAirspeed = (report.max_airspeed_mps ?: 0.0) as double
+	def motionAirspeed = playableFlightModel ? Math.max(reportedMaxAirspeed, reportedMaxSpeed) : reportedMaxAirspeed
 	if ((report.max_altitude_gain_m ?: 0.0) <= minimumAltitudeGain) {
 		throw new GradleException("FPV Dronecraft server self-test did not climb enough: ${report.max_altitude_gain_m}m")
 	}
-	if ((report.max_speed_mps ?: 0.0) <= minimumSpeed || (report.max_airspeed_mps ?: 0.0) <= minimumAirspeed) {
-		throw new GradleException("FPV Dronecraft server self-test did not move enough: speed=${report.max_speed_mps} airspeed=${report.max_airspeed_mps}")
+	if (reportedMaxSpeed <= minimumSpeed || motionAirspeed <= minimumAirspeed) {
+		throw new GradleException("FPV Dronecraft server self-test did not move enough: speed=${report.max_speed_mps} airspeed=${report.max_airspeed_mps} motionAirspeed=${motionAirspeed}")
 	}
 	if ((report.max_motor_power ?: 0.0) <= 0.08) {
 		throw new GradleException("FPV Dronecraft server self-test did not exercise motor power.")
