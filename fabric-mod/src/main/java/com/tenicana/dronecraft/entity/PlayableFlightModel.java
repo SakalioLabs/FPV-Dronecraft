@@ -203,6 +203,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_ADVANCE_SIDEFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
 	private static final float ACRO_ADVANCE_SIDEFLOW_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_ADVANCE_AXIAL_FLOW_WEIGHT = 0.18f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_MU_START = 0.030f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_MU_FULL = 0.085f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_FADE_START_MU = 0.135f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_FADE_FULL_MU = 0.360f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_MAX_THRUST_GAIN = 0.055f;
+	private static final float ACRO_TRANSLATIONAL_LIFT_SIDEFLOW_KEEP = 0.30f;
 	private static final float ACRO_ROTOR_RADIUS_METERS = ACRO_PROP_DIAMETER_METERS * 0.5f;
 	private static final float ACRO_ROTOR_REFERENCE_MAX_RPM = 29137.0f;
 	private static final float ACRO_ROTOR_DISK_DRAG_COEFFICIENT = 0.0028f;
@@ -1370,6 +1376,7 @@ final class PlayableFlightModel {
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		Velocity dragAcceleration = acroDragAcceleration(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians, throttle, hoverThrottle)
+				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle)
 				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
 		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
@@ -1544,6 +1551,28 @@ final class PlayableFlightModel {
 		float sideflow = (float) Math.atan2(Math.abs(bodyVelocity.x()), Math.max(2.0f, Math.abs(bodyVelocity.z())));
 		return smoothStep((sideflow - ACRO_ADVANCE_SIDEFLOW_START_RADIANS)
 				/ Math.max(0.001f, ACRO_ADVANCE_SIDEFLOW_FULL_RADIANS - ACRO_ADVANCE_SIDEFLOW_START_RADIANS));
+	}
+
+	static float acroTranslationalLiftThrustScale(Velocity bodyVelocity, float throttle, float hoverThrottle) {
+		float advanceRatioMu = acroRotorDiskAdvanceRatioMu(bodyVelocity, throttle, hoverThrottle);
+		if (advanceRatioMu <= ACRO_TRANSLATIONAL_LIFT_MU_START) {
+			return 1.0f;
+		}
+		float build = smoothStep((advanceRatioMu - ACRO_TRANSLATIONAL_LIFT_MU_START)
+				/ Math.max(0.001f, ACRO_TRANSLATIONAL_LIFT_MU_FULL - ACRO_TRANSLATIONAL_LIFT_MU_START));
+		float highAdvanceFade = 1.0f - smoothStep((advanceRatioMu - ACRO_TRANSLATIONAL_LIFT_FADE_START_MU)
+				/ Math.max(0.001f, ACRO_TRANSLATIONAL_LIFT_FADE_FULL_MU - ACRO_TRANSLATIONAL_LIFT_FADE_START_MU));
+		if (build <= 1.0e-6f || highAdvanceFade <= 1.0e-6f) {
+			return 1.0f;
+		}
+		float sideflowWeight = lerp(1.0f, ACRO_TRANSLATIONAL_LIFT_SIDEFLOW_KEEP, acroAdvanceSideflowExposure(bodyVelocity));
+		float rpmWeight = smoothStep((averageRpm(throttle, hoverThrottle) - IDLE_RPM) / Math.max(1.0f, HOVER_RPM - IDLE_RPM));
+		float gain = ACRO_TRANSLATIONAL_LIFT_MAX_THRUST_GAIN
+				* build
+				* highAdvanceFade
+				* sideflowWeight
+				* rpmWeight;
+		return clamp(1.0f + gain, 1.0f, 1.0f + ACRO_TRANSLATIONAL_LIFT_MAX_THRUST_GAIN);
 	}
 
 	static Velocity acroRotorFlappingBodyAcceleration(

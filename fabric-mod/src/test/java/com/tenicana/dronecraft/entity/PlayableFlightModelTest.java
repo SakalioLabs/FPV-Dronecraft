@@ -2139,6 +2139,57 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroTranslationalLiftBoostsCleanMidSpeedFlowWithoutFlatteningSideSlip() {
+		float stationary = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
+				0.68f,
+				0.20f
+		);
+		float slow = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 2.0f),
+				0.68f,
+				0.20f
+		);
+		float midForward = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				0.68f,
+				0.20f
+		);
+		float diagonal = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				0.68f,
+				0.20f
+		);
+		float fastForward = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.68f,
+				0.20f
+		);
+		float fastSide = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(25.0f, 0.0f, 0.0f),
+				0.68f,
+				0.20f
+		);
+		float idleForward = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				0.0f,
+				0.20f
+		);
+
+		assertEquals(1.0f, stationary, 1.0e-6f);
+		assertEquals(1.0f, slow, 1.0e-6f);
+		assertEquals(1.0f, idleForward, 1.0e-6f);
+		assertTrue(midForward > 1.045f, "midForward=" + midForward);
+		assertTrue(midForward < 1.056f, "midForward=" + midForward);
+		assertTrue(diagonal > 1.010f, "diagonal=" + diagonal);
+		assertTrue(diagonal < midForward - 0.020f, "diagonal=" + diagonal + " midForward=" + midForward);
+		assertTrue(fastForward > 1.005f, "fastForward=" + fastForward);
+		assertTrue(fastForward < 1.020f, "fastForward=" + fastForward);
+		assertTrue(fastSide > 1.001f, "fastSide=" + fastSide);
+		assertTrue(fastSide < fastForward, "fastSide=" + fastSide + " fastForward=" + fastForward);
+	}
+
+	@Test
 	void acroAdvanceRatioUsesFiveInchPropJScale() {
 		float racingCruiseJ = PlayableFlightModel.acroRotorAdvanceRatio(
 				0.0f,
