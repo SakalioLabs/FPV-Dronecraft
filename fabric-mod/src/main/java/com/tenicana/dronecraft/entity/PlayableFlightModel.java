@@ -300,7 +300,16 @@ final class PlayableFlightModel {
 		float attitudeRoll = safeRoll * attitudeCommandAuthority;
 		float yawCommand = safeYaw * yawCommandAuthority;
 
-		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, profile);
+		float acroAeroCrossflowLag = acroAeroCrossflowLag(
+				safeMode,
+				safePrevious.acroAeroCrossflowLag(),
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				safePrevious.pitchRadians(),
+				safePrevious.rollRadians()
+		);
+		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroAeroCrossflowLag, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(
 				safeMode,
@@ -380,15 +389,6 @@ final class PlayableFlightModel {
 				safeMode,
 				safePrevious.acroCollectiveThrustToWeight(),
 				targetCollectiveThrustToWeight
-		);
-		float acroAeroCrossflowLag = acroAeroCrossflowLag(
-				safeMode,
-				safePrevious.acroAeroCrossflowLag(),
-				safePrevious.velocityX(),
-				safePrevious.velocityY(),
-				safePrevious.velocityZ(),
-				pitchRadians,
-				rollRadians
 		);
 
 		Velocity velocity = velocityStep(
@@ -757,6 +757,7 @@ final class PlayableFlightModel {
 			float roll,
 			float throttle,
 			float hoverThrottle,
+			float acroAeroCrossflowLag,
 			Profile profile
 	) {
 		if (safeMode(mode) != FlightMode.ACRO) {
@@ -785,7 +786,8 @@ final class PlayableFlightModel {
 		if (completedRollRecoveryTail) {
 			rollRate = 0.0f;
 		} else {
-			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle);
+			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
+					* sanitizedCrossflowLag(acroAeroCrossflowLag);
 		}
 		pitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
 				* acroAngleOfAttackPitchMomentScale(
@@ -793,7 +795,8 @@ final class PlayableFlightModel {
 						previous.pitchRadians(),
 						previous.acroPitchRateRadiansPerTick(),
 						pitch
-				);
+				)
+				* sanitizedCrossflowLag(acroAeroCrossflowLag);
 		float residualTorqueLoad = acroResidualTorqueRateLoadFraction(bodyVelocity, pitchRate, rollRate);
 		pitchRate *= 1.0f - residualTorqueLoad;
 		rollRate *= 1.0f - residualTorqueLoad;
@@ -1466,12 +1469,12 @@ final class PlayableFlightModel {
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
 		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag);
 		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), pitchRadians, rollRadians);
-		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians, throttle, hoverThrottle)
+		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians, throttle, hoverThrottle, acroAeroCrossflowLag)
 				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle)
-				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle);
+				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
-		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
-		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
+		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag);
+		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag);
 		Velocity translationalLiftDragBodyAcceleration = acroTranslationalLiftDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle);
 		Velocity yawTurnLoadBodyAcceleration = acroYawTurnLoadBodyAcceleration(bodyVelocity, yawDegreesPerTick);
 		Velocity bodyRateLoadBodyAcceleration = acroBodyRateLoadBodyAcceleration(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, yawDegreesPerTick);
@@ -1604,10 +1607,23 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle
 	) {
+		return acroAdvanceRatioThrustScale(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, throttle, hoverThrottle, 1.0f);
+	}
+
+	static float acroAdvanceRatioThrustScale(
+			float velocityX,
+			float velocityY,
+			float velocityZ,
+			float pitchRadians,
+			float rollRadians,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
 		float advanceRatio = acroRotorAdvanceRatio(bodyVelocity, throttle, hoverThrottle);
 		float progress = smoothStep((advanceRatio - ACRO_ADVANCE_LOSS_START_J) / Math.max(0.05f, ACRO_ADVANCE_LOSS_FULL_J - ACRO_ADVANCE_LOSS_START_J));
-		float sideflowExposure = acroAdvanceSideflowExposure(bodyVelocity);
+		float sideflowExposure = laggedCrossflowExposure(acroAdvanceSideflowExposure(bodyVelocity), acroAeroCrossflowLag);
 		float maxLoss = lerp(ACRO_ADVANCE_MAX_THRUST_LOSS, ACRO_ADVANCE_SIDEFLOW_MAX_THRUST_LOSS, sideflowExposure);
 		float scale = 1.0f - maxLoss * progress;
 		return clamp(scale, 1.0f - maxLoss, 1.0f);
@@ -1702,6 +1718,16 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle
 	) {
+		return acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, 1.0f);
+	}
+
+	static Velocity acroRotorFlappingBodyAcceleration(
+			Velocity bodyVelocity,
+			float thrustAcceleration,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
 		float diskPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
 		if (diskPlaneSpeed <= 1.0e-6f || thrustAcceleration <= 1.0e-6f || ACRO_ROTOR_FLAPPING_COEFFICIENT <= 0.0f) {
 			return new Velocity(0.0f, 0.0f, 0.0f);
@@ -1718,7 +1744,7 @@ final class PlayableFlightModel {
 		float sideslipExposure = smoothStep((sideslip - ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS)
 				/ Math.max(0.001f, ACRO_ROTOR_FLAPPING_SIDESLIP_FULL_RADIANS - ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS));
 		float flowWeight = ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT
-				+ (1.0f - ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT) * sideslipExposure;
+				+ (1.0f - ACRO_ROTOR_FLAPPING_STRAIGHT_FLOW_WEIGHT) * laggedCrossflowExposure(sideslipExposure, acroAeroCrossflowLag);
 		float tiltRadians = clamp(
 				ACRO_ROTOR_FLAPPING_COEFFICIENT * advanceResponse * diskLoadingResponse * flowWeight,
 				0.0f,
@@ -1750,6 +1776,16 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle
 	) {
+		return acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, 1.0f);
+	}
+
+	static Velocity acroRotorInPlaneDragBodyAcceleration(
+			Velocity bodyVelocity,
+			float thrustAcceleration,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
 		float diskPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
 		if (diskPlaneSpeed <= 1.0e-6f || thrustAcceleration <= 1.0e-6f || ACRO_ROTOR_DISK_DRAG_COEFFICIENT <= 0.0f) {
 			return new Velocity(0.0f, 0.0f, 0.0f);
@@ -1768,7 +1804,7 @@ final class PlayableFlightModel {
 		float sideslipExposure = smoothStep((sideslip - ACRO_ROTOR_IN_PLANE_SIDESLIP_START_RADIANS)
 				/ Math.max(0.001f, ACRO_ROTOR_IN_PLANE_SIDESLIP_FULL_RADIANS - ACRO_ROTOR_IN_PLANE_SIDESLIP_START_RADIANS));
 		float flowWeight = ACRO_ROTOR_IN_PLANE_STRAIGHT_FLOW_WEIGHT
-				+ (1.0f - ACRO_ROTOR_IN_PLANE_STRAIGHT_FLOW_WEIGHT) * sideslipExposure;
+				+ (1.0f - ACRO_ROTOR_IN_PLANE_STRAIGHT_FLOW_WEIGHT) * laggedCrossflowExposure(sideslipExposure, acroAeroCrossflowLag);
 
 		float diskDragScale = clamp(ACRO_ROTOR_DISK_DRAG_COEFFICIENT / 0.0028f, 0.0f, 3.5f);
 		float thrustCoupledCoefficient = diskDragScale
@@ -1806,6 +1842,17 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle
 	) {
+		return acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, 1.0f);
+	}
+
+	static float acroDynamicInflowThrustScale(
+			Velocity bodyVelocity,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag
+	) {
 		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
 				+ bodyVelocity.y() * bodyVelocity.y()
 				+ bodyVelocity.z() * bodyVelocity.z();
@@ -1837,7 +1884,7 @@ final class PlayableFlightModel {
 						/ Math.max(0.001f, ACRO_DYNAMIC_INFLOW_CROSSFLOW_FULL_RADIANS - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS))
 		);
 		float flowWeight = ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT
-				+ (1.0f - ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT) * crossflow;
+				+ (1.0f - ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT) * laggedCrossflowExposure(crossflow, acroAeroCrossflowLag);
 		float rpmProgress = (averageRpm(throttle, hoverThrottle) - HOVER_RPM) / Math.max(1.0f, MAX_RPM - HOVER_RPM);
 		float rpmWeight = ACRO_DYNAMIC_INFLOW_RPM_IDLE_WEIGHT
 				+ (1.0f - ACRO_DYNAMIC_INFLOW_RPM_IDLE_WEIGHT) * smoothStep(rpmProgress);
@@ -1916,6 +1963,14 @@ final class PlayableFlightModel {
 		float angleOfAttackExposure = smoothStep((angleOfAttack - ACRO_AERO_CROSSFLOW_LAG_START_RADIANS)
 				/ Math.max(0.001f, ACRO_AERO_CROSSFLOW_LAG_FULL_RADIANS - ACRO_AERO_CROSSFLOW_LAG_START_RADIANS));
 		return clamp(speedExposure * Math.max(sideslipExposure, angleOfAttackExposure), 0.0f, 1.0f);
+	}
+
+	private static float laggedCrossflowExposure(float exposure, float acroAeroCrossflowLag) {
+		return clamp(finiteOrZero(exposure), 0.0f, 1.0f) * sanitizedCrossflowLag(acroAeroCrossflowLag);
+	}
+
+	private static float sanitizedCrossflowLag(float acroAeroCrossflowLag) {
+		return Float.isFinite(acroAeroCrossflowLag) ? clamp(acroAeroCrossflowLag, 0.0f, 1.0f) : 0.0f;
 	}
 
 	static Velocity acroDragAcceleration(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {

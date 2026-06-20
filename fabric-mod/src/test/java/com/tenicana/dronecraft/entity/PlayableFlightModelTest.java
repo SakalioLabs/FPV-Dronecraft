@@ -2490,6 +2490,240 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroLaggedCrossflowSoftensFirstTickRotorDiskLoads() {
+		PlayableFlightModel.Velocity straight = new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f);
+		PlayableFlightModel.Velocity diagonal = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity straightInitialFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettledFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity diagonalInitialFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				0.32f
+		);
+		PlayableFlightModel.Velocity diagonalSettledFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float straightMagnitude = horizontalSpeed(straightInitialFlap.x(), straightInitialFlap.z());
+		float diagonalInitialMagnitude = horizontalSpeed(diagonalInitialFlap.x(), diagonalInitialFlap.z());
+		float diagonalSettledMagnitude = horizontalSpeed(diagonalSettledFlap.x(), diagonalSettledFlap.z());
+
+		assertEquals(straightSettledFlap.x(), straightInitialFlap.x(), 1.0e-6f);
+		assertEquals(straightSettledFlap.z(), straightInitialFlap.z(), 1.0e-6f);
+		assertTrue(diagonalInitialMagnitude < diagonalSettledMagnitude * 0.70f,
+				"initial=" + diagonalInitialMagnitude + " settled=" + diagonalSettledMagnitude);
+		assertTrue(diagonalInitialMagnitude > straightMagnitude * 1.35f,
+				"initial=" + diagonalInitialMagnitude + " straight=" + straightMagnitude);
+	}
+
+	@Test
+	void acroLaggedCrossflowSoftensFirstTickRotorInPlaneDrag() {
+		PlayableFlightModel.Velocity straight = new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f);
+		PlayableFlightModel.Velocity diagonal = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity straightInitial = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettled = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity diagonalInitial = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				0.32f
+		);
+		PlayableFlightModel.Velocity diagonalSettled = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float straightMagnitude = horizontalSpeed(straightInitial.x(), straightInitial.z());
+		float diagonalInitialMagnitude = horizontalSpeed(diagonalInitial.x(), diagonalInitial.z());
+		float diagonalSettledMagnitude = horizontalSpeed(diagonalSettled.x(), diagonalSettled.z());
+
+		assertEquals(straightSettled.x(), straightInitial.x(), 1.0e-6f);
+		assertEquals(straightSettled.z(), straightInitial.z(), 1.0e-6f);
+		assertTrue(diagonalInitialMagnitude < diagonalSettledMagnitude * 0.58f,
+				"initial=" + diagonalInitialMagnitude + " settled=" + diagonalSettledMagnitude);
+		assertTrue(diagonalInitialMagnitude > straightMagnitude * 2.0f,
+				"initial=" + diagonalInitialMagnitude + " straight=" + straightMagnitude);
+	}
+
+	@Test
+	void acroLaggedCrossflowSoftensFirstTickThrustLossesWithoutTouchingStraightCruise() {
+		float straightInitialAdvance = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				0.0f
+		);
+		float straightSettledAdvance = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float diagonalInitialAdvance = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				0.32f
+		);
+		float diagonalSettledAdvance = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float straightInitialInflow = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(8.8),
+				0.0f,
+				0.68f,
+				0.20f,
+				0.0f
+		);
+		float straightSettledInflow = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				(float) Math.toRadians(8.8),
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f
+		);
+		float diagonalInitialInflow = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f,
+				0.32f
+		);
+		float diagonalSettledInflow = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f,
+				1.0f
+		);
+
+		assertEquals(straightSettledAdvance, straightInitialAdvance, 1.0e-6f);
+		assertTrue(diagonalInitialAdvance > diagonalSettledAdvance + 0.015f,
+				"initialAdvance=" + diagonalInitialAdvance + " settledAdvance=" + diagonalSettledAdvance);
+		assertEquals(straightSettledInflow, straightInitialInflow, 1.0e-6f);
+		assertTrue(diagonalInitialInflow > diagonalSettledInflow + 0.010f,
+				"initialInflow=" + diagonalInitialInflow + " settledInflow=" + diagonalSettledInflow);
+	}
+
+	@Test
+	void acroLaggedCrossflowSoftensFirstTickPassiveRollMoment() {
+		PlayableFlightModel.State risingLag = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				0.0f
+		);
+		PlayableFlightModel.State settledLag = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f
+		);
+		PlayableFlightModel.Step risingStep = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				risingLag
+		);
+		PlayableFlightModel.Step settledStep = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				settledLag
+		);
+		float risingRollRate = Math.abs(risingStep.acroRollRateRadiansPerTick());
+		float settledRollRate = Math.abs(settledStep.acroRollRateRadiansPerTick());
+
+		assertTrue(risingStep.acroAeroCrossflowLag() > 0.25f, "risingLag=" + risingStep.acroAeroCrossflowLag());
+		assertTrue(risingStep.acroAeroCrossflowLag() < 0.36f, "risingLag=" + risingStep.acroAeroCrossflowLag());
+		assertTrue(risingRollRate > Math.toRadians(0.05), "risingRollDeg=" + Math.toDegrees(risingRollRate));
+		assertTrue(risingRollRate < settledRollRate * 0.55f,
+				"risingRollDeg=" + Math.toDegrees(risingRollRate) + " settledRollDeg=" + Math.toDegrees(settledRollRate));
+		assertTrue(settledRollRate > Math.toRadians(0.40), "settledRollDeg=" + Math.toDegrees(settledRollRate));
+	}
+
+	@Test
 	void acroPitchPlaneLiftIsZeroInStraightCruise() {
 		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
@@ -3436,7 +3670,9 @@ class PlayableFlightModelTest {
 				0,
 				1.0f,
 				residualPitchRate,
-				0.0f
+				0.0f,
+				0,
+				1.0f
 		);
 		PlayableFlightModel.State passiveClimbingAoa = new PlayableFlightModel.State(
 				0.0f,
@@ -3449,7 +3685,9 @@ class PlayableFlightModelTest {
 				0,
 				1.0f,
 				0.0f,
-				0.0f
+				0.0f,
+				0,
+				1.0f
 		);
 		PlayableFlightModel.Step straight = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -3510,7 +3748,9 @@ class PlayableFlightModelTest {
 				0,
 				1.0f,
 				0.0f,
-				0.0f
+				0.0f,
+				0,
+				1.0f
 		);
 		PlayableFlightModel.Step passive = PlayableFlightModel.step(
 				FlightMode.ACRO,
