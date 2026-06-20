@@ -542,7 +542,9 @@ final class PlayableFlightModel {
 				velocityY,
 				velocityZ,
 				pitchRadians,
-				rollRadians
+				rollRadians,
+				acroAeroCrossflowLag,
+				acroSidewashMemory
 		);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = averageRpm(safeThrottle, safeHover);
@@ -2682,13 +2684,17 @@ final class PlayableFlightModel {
 			float velocityY,
 			float velocityZ,
 			float pitchRadians,
-			float rollRadians
+			float rollRadians,
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory
 	) {
 		if (safeMode(mode) != FlightMode.ACRO) {
 			return yawDegreesPerTick;
 		}
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
+		float sidewashResponse = acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
 		float commandLoad = acroSideslipYawCommandLoad(bodyVelocity)
+				* sidewashResponse
 				* smoothStep(Math.abs(yawCommand) / ACRO_SIDESLIP_YAW_LOAD_FULL_COMMAND);
 		float loadedYaw = commandLoad <= 1.0e-6f
 				? yawDegreesPerTick
@@ -2697,9 +2703,9 @@ final class PlayableFlightModel {
 		if (commandSuppression <= 1.0e-6f) {
 			return loadedYaw;
 		}
-		float damping = acroSideslipYawDampingSmoothing(bodyVelocity) * commandSuppression;
+		float damping = acroSideslipYawDampingSmoothing(bodyVelocity) * sidewashResponse * commandSuppression;
 		float dampedYaw = damping <= 1.0e-6f ? loadedYaw : smooth(loadedYaw, 0.0f, damping);
-		float weathercockYaw = acroSideslipWeathercockYawDegreesPerTick(bodyVelocity) * commandSuppression;
+		float weathercockYaw = acroSideslipWeathercockYawDegreesPerTick(bodyVelocity) * sidewashResponse * commandSuppression;
 		return settledYawRate(dampedYaw + weathercockYaw, 0.0f);
 	}
 

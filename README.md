@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 侧滑 weathercock yaw 接入侧洗记忆）
+本轮继续处理“高速斜飞时像平面滑块，而不是速度矢量和机头在空气里互相追逐”的手感问题。上一轮已经让横流 roll 力矩读取 `acroSidewashMemory`，但 passive weathercock yaw、yaw damping 和高侧滑主动 yaw 负载仍然直接读取当前侧滑速度；这会让机头被气流转向的反馈和侧力/侧洗/roll 的建立过程不一致。
+- `acroAerodynamicYawRate` 现在接收 `acroAeroCrossflowLag` 和 `acroSidewashMemory`，并把 sidewash response 同时作用到 passive weathercock yaw、侧滑 yaw damping、以及高侧滑下的主动 yaw command load。刚切入斜飞时机头不会瞬间被完整 weathercock 拉走；持续斜飞后，侧洗记忆建立，机头才更明显地追向气流方向。
+- 这仍然不是自动航向锁定：玩家主动打 yaw 时 command suppression 仍然优先，满 yaw 仍保留可用控制权；只是 settled 高速侧滑下 yaw 会比 calm yaw 稍重，符合“速度越高、横流越稳，偏航越有空气负载”的手感目标。
+- 新增 `acroSidewashMemoryDelaysPassiveWeathercockYawAfterFastSlipEntry` 回归，并把原有 passive yaw / broadside yaw / yaw command load 测试改成明确的 settled sidewash 语义。这样以后不会又把 weathercock 改回“第一帧瞬时满额”。
+- 已通过 yaw targeted 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-044006.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 横流滚转力矩接入侧洗记忆）
 本轮继续收敛“斜向飞行像平移，不像真机被空气咬住走线”的主手感问题。对照本地研究包里 Kolaei inflow-angle rotor `CMx` 线索、NeuroBEM 残差力矩量级，以及 RotorPy/Faessler 这类把相对气流拆成机身阻力、桨盘阻力和 flapping/rotor-drag 的参考系统后，确认当前 playable ACRO 还有一个不够连续的地方：横流滚转力矩虽然已经存在，但它只乘即时 `acroAeroCrossflowLag`，刚切入高速斜飞时仍可能太快把“机体被横流扭动”的姿态手感打满。
 - `acroRateResponse` 现在把 `acroSidewashMemory` 一起传入姿态速率链路；`acroTransverseFlowRollMomentRate` 的被动横流滚转力矩不再直接乘即时 lag，而是乘 `acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory)`。这样刚进入斜飞时仍保留速度惯性和姿态惯性，持续斜飞后气流/侧洗逐渐建立，机体才更明显地被横流推着滚入气流。

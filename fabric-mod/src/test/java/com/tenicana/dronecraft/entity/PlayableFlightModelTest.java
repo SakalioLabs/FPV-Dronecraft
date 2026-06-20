@@ -3700,7 +3700,14 @@ class PlayableFlightModelTest {
 				0.0f,
 				0.0f,
 				0.0f,
-				FlightMode.ACRO
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				1.0f
 		);
 		PlayableFlightModel.Step passive = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -3725,7 +3732,71 @@ class PlayableFlightModelTest {
 
 		assertTrue(passive.yawDegreesPerTick() < -0.28f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(passive.yawDegreesPerTick() > -0.43f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+		assertTrue(activeYaw.yawDegreesPerTick() > 4.30f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+	}
+
+	@Test
+	void acroSidewashMemoryDelaysPassiveWeathercockYawAfterFastSlipEntry() {
+		PlayableFlightModel.State freshSlip = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.State settledSlip = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Step fresh = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				freshSlip
+		);
+		PlayableFlightModel.Step settled = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				settledSlip
+		);
+
+		assertTrue(fresh.acroAeroCrossflowLag() > 0.94f, "freshLag=" + fresh.acroAeroCrossflowLag());
+		assertTrue(fresh.acroSidewashMemory() < 0.25f, "freshMemory=" + fresh.acroSidewashMemory());
+		assertTrue(settled.acroSidewashMemory() > 0.96f, "settledMemory=" + settled.acroSidewashMemory());
+		assertTrue(fresh.yawDegreesPerTick() < -0.08f, "freshYaw=" + fresh.yawDegreesPerTick());
+		assertTrue(fresh.yawDegreesPerTick() > settled.yawDegreesPerTick() * 0.40f,
+				"freshYaw=" + fresh.yawDegreesPerTick() + " settledYaw=" + settled.yawDegreesPerTick());
+		assertTrue(settled.yawDegreesPerTick() < -0.28f, "settledYaw=" + settled.yawDegreesPerTick());
 	}
 
 	@Test
@@ -3737,7 +3808,14 @@ class PlayableFlightModelTest {
 				0.0f,
 				0.0f,
 				0.0f,
-				FlightMode.ACRO
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				1.0f
 		);
 		PlayableFlightModel.Step passive = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -3804,7 +3882,14 @@ class PlayableFlightModelTest {
 						0.0f,
 						0.0f,
 						0.0f,
-						FlightMode.ACRO
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						1.0f,
+						1.0f
 				)
 		);
 
@@ -3816,7 +3901,7 @@ class PlayableFlightModelTest {
 		assertTrue(broadside < 0.06f, "broadside=" + broadside);
 		assertTrue(slippingYaw.yawDegreesPerTick() < calmYaw.yawDegreesPerTick() * 0.96f,
 				"slippingYaw=" + slippingYaw.yawDegreesPerTick() + " calmYaw=" + calmYaw.yawDegreesPerTick());
-		assertTrue(slippingYaw.yawDegreesPerTick() > calmYaw.yawDegreesPerTick() * 0.90f,
+		assertTrue(slippingYaw.yawDegreesPerTick() > calmYaw.yawDegreesPerTick() * 0.86f,
 				"slippingYaw=" + slippingYaw.yawDegreesPerTick() + " calmYaw=" + calmYaw.yawDegreesPerTick());
 	}
 
