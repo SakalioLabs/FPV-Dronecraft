@@ -1414,6 +1414,48 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroAirframeSeparationOnlyBuildsAtHighAngleFlow() {
+		float straightCruise = PlayableFlightModel.acroAirframeSeparationIntensity(0.0f, 0.0f, 25.0f);
+		float diagonalSideslip = PlayableFlightModel.acroAirframeSeparationIntensity(16.0f, 0.0f, 16.0f);
+		float broadside = PlayableFlightModel.acroAirframeSeparationIntensity(25.0f, 0.0f, 0.0f);
+
+		assertEquals(0.0f, straightCruise, 1.0e-6f);
+		assertTrue(diagonalSideslip > 0.22f, "diagonalSideslip=" + diagonalSideslip);
+		assertTrue(diagonalSideslip < 0.45f, "diagonalSideslip=" + diagonalSideslip);
+		assertTrue(broadside > 0.98f, "broadside=" + broadside);
+	}
+
+	@Test
+	void acroSideslipSideforceBendsDiagonalVelocityTowardBodyForward() {
+		PlayableFlightModel.Velocity sideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.30f
+		);
+		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
+
+		assertTrue(sideforce.x() < -0.25f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.z() > 0.25f, "sideforceZ=" + sideforce.z());
+		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
+	}
+
+	@Test
+	void acroDiagonalHighSpeedFlowGetsExtraSeparatedDragAndSideforce() {
+		PlayableFlightModel.Velocity forward = PlayableFlightModel.acroBodyAerodynamicAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		PlayableFlightModel.Velocity diagonal = PlayableFlightModel.acroBodyAerodynamicAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+
+		assertEquals(0.0f, forward.x(), 1.0e-6f);
+		assertTrue(forward.z() < -11.0f, "forwardZ=" + forward.z());
+		assertTrue(forward.z() > -13.0f, "forwardZ=" + forward.z());
+		assertTrue(diagonal.x() < -8.2f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -5.0f, "diagonalZ=" + diagonal.z());
+		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 2.0f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+	}
+
+	@Test
 	void acroBodyFrameVelocityRoundTripsAfterFullRollOffset() {
 		float pitchRadians = (float) Math.toRadians(37.0);
 		float rollRadians = (float) Math.toRadians(428.0);

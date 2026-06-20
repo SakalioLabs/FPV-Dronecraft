@@ -66,6 +66,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_FORWARD_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_LATERAL_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS);
+	private static final float ACRO_SEPARATION_AOA_START_RADIANS = (float) Math.toRadians(30.0f);
+	private static final float ACRO_SEPARATION_AOA_FULL_RADIANS = (float) Math.toRadians(66.0f);
+	private static final float ACRO_SEPARATION_SIDESLIP_START_RADIANS = (float) Math.toRadians(32.0f);
+	private static final float ACRO_SEPARATION_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(68.0f);
+	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
+	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
+	private static final float ACRO_SIDEFORCE_GAIN = 0.065f;
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -878,12 +885,80 @@ final class PlayableFlightModel {
 
 	static Velocity acroDragAcceleration(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
-		Velocity bodyDragAcceleration = new Velocity(
+		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity);
+		return yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), pitchRadians, rollRadians);
+	}
+
+	static Velocity acroBodyAerodynamicAcceleration(Velocity bodyVelocity) {
+		Velocity baseDragAcceleration = new Velocity(
 				-dragAcceleration(bodyVelocity.x(), ACRO_LATERAL_LINEAR_DRAG_PER_SECOND, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER),
 				-dragAcceleration(bodyVelocity.y(), ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER),
 				-dragAcceleration(bodyVelocity.z(), ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER)
 		);
-		return yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), pitchRadians, rollRadians);
+		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z());
+		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
+		Velocity sideforceAcceleration = acroSideslipSideforceAcceleration(bodyVelocity, separation);
+		return new Velocity(
+				baseDragAcceleration.x() + separatedDragAcceleration.x() + sideforceAcceleration.x(),
+				baseDragAcceleration.y() + separatedDragAcceleration.y() + sideforceAcceleration.y(),
+				baseDragAcceleration.z() + separatedDragAcceleration.z() + sideforceAcceleration.z()
+		);
+	}
+
+	static float acroAirframeSeparationIntensity(float bodyRightVelocity, float bodyUpVelocity, float bodyForwardVelocity) {
+		float speedSquared = bodyRightVelocity * bodyRightVelocity + bodyUpVelocity * bodyUpVelocity + bodyForwardVelocity * bodyForwardVelocity;
+		if (speedSquared <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float forwardReference = Math.max(2.0f, Math.abs(bodyForwardVelocity));
+		float angleOfAttack = (float) Math.atan2(bodyUpVelocity, forwardReference);
+		float sideslip = (float) Math.atan2(bodyRightVelocity, forwardReference);
+		float pitchSeparation = smoothStep((Math.abs(angleOfAttack) - ACRO_SEPARATION_AOA_START_RADIANS)
+				/ Math.max(0.001f, ACRO_SEPARATION_AOA_FULL_RADIANS - ACRO_SEPARATION_AOA_START_RADIANS));
+		float yawSeparation = smoothStep((Math.abs(sideslip) - ACRO_SEPARATION_SIDESLIP_START_RADIANS)
+				/ Math.max(0.001f, ACRO_SEPARATION_SIDESLIP_FULL_RADIANS - ACRO_SEPARATION_SIDESLIP_START_RADIANS));
+		return clamp(1.0f - (1.0f - pitchSeparation) * (1.0f - yawSeparation), 0.0f, 1.0f);
+	}
+
+	static Velocity acroSideslipSideforceAcceleration(Velocity bodyVelocity, float separation) {
+		float yawPlaneSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		if (yawPlaneSpeed <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float sideslip = (float) Math.atan2(bodyVelocity.x(), bodyVelocity.z());
+		float yawStall = smoothStep((Math.abs(sideslip) - ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS)
+				/ Math.max(0.001f, ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS - ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS));
+		float dynamicYawStall = Math.max(0.32f * yawStall, clamp(separation, 0.0f, 1.0f) * yawStall);
+		float stallScale = 1.0f - 0.50f * dynamicYawStall;
+		float sideforceCoefficient = ACRO_SIDEFORCE_GAIN
+				* (float) Math.sqrt(Math.max(0.0f, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER * ACRO_FORWARD_QUADRATIC_DRAG_PER_METER));
+		float sideforceMagnitude = sideforceCoefficient * yawPlaneSpeed * yawPlaneSpeed * (float) Math.sin(2.0f * sideslip) * stallScale;
+		return new Velocity(
+				-bodyVelocity.z() / yawPlaneSpeed * sideforceMagnitude,
+				0.0f,
+				bodyVelocity.x() / yawPlaneSpeed * sideforceMagnitude
+		);
+	}
+
+	private static Velocity acroSeparatedFlowDragAcceleration(Velocity bodyVelocity, float separation) {
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x() + bodyVelocity.y() * bodyVelocity.y() + bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f || separation <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float maxBroadsideDrag = Math.max(ACRO_LATERAL_QUADRATIC_DRAG_PER_METER, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER);
+		float broadsideCoefficient = 0.20f * maxBroadsideDrag
+				+ 0.14f * (float) Math.sqrt(Math.max(
+						0.0f,
+						(ACRO_LATERAL_QUADRATIC_DRAG_PER_METER + ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER)
+								* ACRO_FORWARD_QUADRATIC_DRAG_PER_METER
+				));
+		float separatedDragMagnitude = speedSquared * broadsideCoefficient * clamp(separation, 0.0f, 1.0f);
+		return new Velocity(
+				-bodyVelocity.x() / speed * separatedDragMagnitude,
+				-bodyVelocity.y() / speed * separatedDragMagnitude,
+				-bodyVelocity.z() / speed * separatedDragMagnitude
+		);
 	}
 
 	static Velocity acroBodyVelocityForYawLocal(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
