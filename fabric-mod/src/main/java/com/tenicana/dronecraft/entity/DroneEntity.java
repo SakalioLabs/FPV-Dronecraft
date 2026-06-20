@@ -278,6 +278,7 @@ public class DroneEntity extends Entity {
 	private float debugAcroRollRateRadiansPerTick;
 	private int debugAcroRollRecoveryTicksRemaining;
 	private float debugAcroAeroCrossflowLag;
+	private float debugAcroSidewashMemory;
 	private float debugTargetVelocityX;
 	private float debugTargetVelocityY;
 	private float debugTargetVelocityZ;
@@ -816,7 +817,8 @@ public class DroneEntity extends Entity {
 						debugAcroPitchRateRadiansPerTick,
 						debugAcroRollRateRadiansPerTick,
 						debugAcroRollRecoveryTicksRemaining,
-						debugAcroAeroCrossflowLag
+						debugAcroAeroCrossflowLag,
+						debugAcroSidewashMemory
 				)
 		);
 		float targetVx = step.targetVelocityX();
@@ -868,6 +870,7 @@ public class DroneEntity extends Entity {
 		debugAcroRollRateRadiansPerTick = step.acroRollRateRadiansPerTick();
 		debugAcroRollRecoveryTicksRemaining = step.acroRollRecoveryTicksRemaining();
 		debugAcroAeroCrossflowLag = step.acroAeroCrossflowLag();
+		debugAcroSidewashMemory = step.acroSidewashMemory();
 
 		float currentYawDegrees = getYRot();
 		float movementYawDegrees = PlayableMovementYaw.midpointForTick(currentYawDegrees, targetYaw);
@@ -1012,6 +1015,7 @@ public class DroneEntity extends Entity {
 		debugAcroRollRateRadiansPerTick = 0.0f;
 		debugAcroRollRecoveryTicksRemaining = 0;
 		debugAcroAeroCrossflowLag = 0.0f;
+		debugAcroSidewashMemory = 0.0f;
 		debugLowAltitudeHorizontalAuthority = 1.0f;
 		debugModeSwitchTicksRemaining = 0;
 		debugCommandThrottle = 0.0f;

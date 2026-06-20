@@ -103,6 +103,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_AERO_CROSSFLOW_LAG_FULL_RADIANS = (float) Math.toRadians(55.0f);
 	private static final float ACRO_AERO_CROSSFLOW_LAG_RISE_SMOOTHING = 0.34f;
 	private static final float ACRO_AERO_CROSSFLOW_LAG_FALL_SMOOTHING = 0.16f;
+	private static final float ACRO_SIDEWASH_MEMORY_SPEED_START_METERS_PER_SECOND = 6.0f;
+	private static final float ACRO_SIDEWASH_MEMORY_SPEED_FULL_METERS_PER_SECOND = 18.0f;
+	private static final float ACRO_SIDEWASH_MEMORY_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
+	private static final float ACRO_SIDEWASH_MEMORY_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(52.0f);
+	private static final float ACRO_SIDEWASH_MEMORY_RISE_SMOOTHING = 0.24f;
+	private static final float ACRO_SIDEWASH_MEMORY_FALL_SMOOTHING = 0.10f;
+	private static final float ACRO_SIDEWASH_FORCE_MIN_CROSSFLOW_RESPONSE = 0.32f;
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND = 2.5f;
@@ -331,6 +338,15 @@ final class PlayableFlightModel {
 				safePrevious.pitchRadians(),
 				safePrevious.rollRadians()
 		);
+		float acroSidewashMemory = acroSidewashMemory(
+				safeMode,
+				safePrevious.acroSidewashMemory(),
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				safePrevious.pitchRadians(),
+				safePrevious.rollRadians()
+		);
 		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroAeroCrossflowLag, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(
@@ -430,6 +446,7 @@ final class PlayableFlightModel {
 				acroPitchRateRadiansPerTick,
 				acroRollRateRadiansPerTick,
 				acroAeroCrossflowLag,
+				acroSidewashMemory,
 				profile
 		);
 		float velocityX = velocity.x();
@@ -547,7 +564,8 @@ final class PlayableFlightModel {
 				safeMode,
 				nextModeSwitchTicksRemaining(safePrevious),
 				acroRollRecoveryTicksRemaining,
-				acroAeroCrossflowLag
+				acroAeroCrossflowLag,
+				acroSidewashMemory
 		);
 	}
 
@@ -1514,10 +1532,11 @@ final class PlayableFlightModel {
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
+			float acroSidewashMemory,
 			Profile profile
 	) {
 		if (safeMode(mode) == FlightMode.ACRO) {
-			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, profile);
+			return acroPhysicalVelocity(previousVelocityX, previousVelocityY, previousVelocityZ, throttle, hoverThrottle, collectiveThrustToWeight, pitchRadians, rollRadians, yawDegreesPerTick, pitchRateRadiansPerTick, rollRateRadiansPerTick, acroAeroCrossflowLag, acroSidewashMemory, profile);
 		}
 		Velocity horizontalVelocity = horizontalVelocityStep(
 				previousVelocityX,
@@ -1578,11 +1597,12 @@ final class PlayableFlightModel {
 			float pitchRateRadiansPerTick,
 			float rollRateRadiansPerTick,
 			float acroAeroCrossflowLag,
+			float acroSidewashMemory,
 			Profile profile
 	) {
 		Velocity thrustAxis = acroThrustAxis(pitchRadians, rollRadians);
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians);
-		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag);
+		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), pitchRadians, rollRadians);
 		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, pitchRadians, rollRadians, throttle, hoverThrottle, acroAeroCrossflowLag)
 				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle)
@@ -1605,7 +1625,8 @@ final class PlayableFlightModel {
 				thrustAxis.x() * thrustAcceleration,
 				thrustAxis.z() * thrustAcceleration,
 				bodyVelocity,
-				acroAeroCrossflowLag
+				acroAeroCrossflowLag,
+				acroSidewashMemory
 		);
 		Velocity rotorDiskAcceleration = yawLocalVelocityForAcroBody(
 				flappingBodyAcceleration.x() + inPlaneDragBodyAcceleration.x() + translationalLiftDragBodyAcceleration.x(),
@@ -2090,12 +2111,57 @@ final class PlayableFlightModel {
 		return clamp(speedExposure * Math.max(sideslipExposure, angleOfAttackExposure), 0.0f, 1.0f);
 	}
 
+	static float acroSidewashMemory(
+			FlightMode mode,
+			float previousMemory,
+			float velocityX,
+			float velocityY,
+			float velocityZ,
+			float pitchRadians,
+			float rollRadians
+	) {
+		if (safeMode(mode) != FlightMode.ACRO) {
+			return 0.0f;
+		}
+		float safePreviousMemory = sanitizedSidewashMemory(previousMemory);
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
+		float targetMemory = acroSidewashMemoryTarget(bodyVelocity);
+		float smoothing = targetMemory >= safePreviousMemory
+				? ACRO_SIDEWASH_MEMORY_RISE_SMOOTHING
+				: ACRO_SIDEWASH_MEMORY_FALL_SMOOTHING;
+		return smooth(safePreviousMemory, targetMemory, smoothing);
+	}
+
+	static float acroSidewashMemoryTarget(Velocity bodyVelocity) {
+		float horizontalSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
+		if (horizontalSpeed <= ACRO_SIDEWASH_MEMORY_SPEED_START_METERS_PER_SECOND
+				|| Math.abs(bodyVelocity.x()) <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float speedExposure = smoothStep((horizontalSpeed - ACRO_SIDEWASH_MEMORY_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_SIDEWASH_MEMORY_SPEED_FULL_METERS_PER_SECOND - ACRO_SIDEWASH_MEMORY_SPEED_START_METERS_PER_SECOND));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), Math.max(2.0f, Math.abs(bodyVelocity.z())));
+		float sideslipExposure = smoothStep((sideslip - ACRO_SIDEWASH_MEMORY_SIDESLIP_START_RADIANS)
+				/ Math.max(0.001f, ACRO_SIDEWASH_MEMORY_SIDESLIP_FULL_RADIANS - ACRO_SIDEWASH_MEMORY_SIDESLIP_START_RADIANS));
+		return clamp(speedExposure * sideslipExposure, 0.0f, 1.0f);
+	}
+
+	static float acroSidewashForceResponse(float acroAeroCrossflowLag, float acroSidewashMemory) {
+		float lag = sanitizedCrossflowLag(acroAeroCrossflowLag);
+		float memory = sanitizedSidewashMemory(acroSidewashMemory);
+		return clamp(Math.max(memory, lag * ACRO_SIDEWASH_FORCE_MIN_CROSSFLOW_RESPONSE), 0.0f, 1.0f);
+	}
+
 	private static float laggedCrossflowExposure(float exposure, float acroAeroCrossflowLag) {
 		return clamp(finiteOrZero(exposure), 0.0f, 1.0f) * sanitizedCrossflowLag(acroAeroCrossflowLag);
 	}
 
 	private static float sanitizedCrossflowLag(float acroAeroCrossflowLag) {
 		return Float.isFinite(acroAeroCrossflowLag) ? clamp(acroAeroCrossflowLag, 0.0f, 1.0f) : 0.0f;
+	}
+
+	private static float sanitizedSidewashMemory(float acroSidewashMemory) {
+		return Float.isFinite(acroSidewashMemory) ? clamp(acroSidewashMemory, 0.0f, 1.0f) : 0.0f;
 	}
 
 	static Velocity acroDragAcceleration(float velocityX, float velocityY, float velocityZ, float pitchRadians, float rollRadians) {
@@ -2109,13 +2175,18 @@ final class PlayableFlightModel {
 	}
 
 	static Velocity acroBodyAerodynamicAcceleration(Velocity bodyVelocity, float crossflowLag) {
+		return acroBodyAerodynamicAcceleration(bodyVelocity, crossflowLag, crossflowLag);
+	}
+
+	static Velocity acroBodyAerodynamicAcceleration(Velocity bodyVelocity, float crossflowLag, float sidewashMemory) {
 		float lag = Float.isFinite(crossflowLag) ? clamp(crossflowLag, 0.0f, 1.0f) : 0.0f;
 		Velocity baseDragAcceleration = acroBaseBodyDragAcceleration(bodyVelocity, lag);
 		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z()) * lag;
 		Velocity coupledDynamicPressureDragAcceleration = scaleVelocity(acroCoupledDynamicPressureDragAcceleration(bodyVelocity), lag);
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
 		Velocity pitchLiftAcceleration = scaleVelocity(acroPitchPlaneLiftAcceleration(bodyVelocity, separation), lag);
-		Velocity sideforceAcceleration = scaleVelocity(acroSideslipSideforceAcceleration(bodyVelocity, separation), lag);
+		float sidewashResponse = acroSidewashForceResponse(lag, sidewashMemory);
+		Velocity sideforceAcceleration = scaleVelocity(acroSideslipSideforceAcceleration(bodyVelocity, separation), sidewashResponse);
 		Velocity sideforceInducedDragAcceleration = acroSideslipInducedDragAcceleration(bodyVelocity, sideforceAcceleration);
 		return new Velocity(
 				baseDragAcceleration.x() + coupledDynamicPressureDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x() + sideforceInducedDragAcceleration.x(),
@@ -2446,6 +2517,26 @@ final class PlayableFlightModel {
 			Velocity bodyVelocity,
 			float acroAeroCrossflowLag
 	) {
+		return acroRotorSidewashTurnAcceleration(
+				velocityX,
+				velocityZ,
+				thrustAccelerationX,
+				thrustAccelerationZ,
+				bodyVelocity,
+				acroAeroCrossflowLag,
+				acroAeroCrossflowLag
+		);
+	}
+
+	static Velocity acroRotorSidewashTurnAcceleration(
+			float velocityX,
+			float velocityZ,
+			float thrustAccelerationX,
+			float thrustAccelerationZ,
+			Velocity bodyVelocity,
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory
+	) {
 		float horizontalSpeed = horizontalMagnitude(velocityX, velocityZ);
 		if (horizontalSpeed <= ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND) {
 			return new Velocity(0.0f, 0.0f, 0.0f);
@@ -2470,7 +2561,7 @@ final class PlayableFlightModel {
 							/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)),
 					smoothStep((angleOfAttack - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
 							/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS))
-			), acroAeroCrossflowLag);
+			), acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory));
 			flowWeight += (1.0f - ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT) * crossflowExposure;
 		}
 		float accelerationMagnitude = clamp(
@@ -2920,7 +3011,8 @@ final class PlayableFlightModel {
 			float acroPitchRateRadiansPerTick,
 			float acroRollRateRadiansPerTick,
 			int acroRollRecoveryTicksRemaining,
-			float acroAeroCrossflowLag
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory
 	) {
 		static final State ZERO = zero(DEFAULT_PLAYABLE_MODE);
 
@@ -2934,6 +3026,7 @@ final class PlayableFlightModel {
 			acroPitchRateRadiansPerTick = Float.isFinite(acroPitchRateRadiansPerTick) ? acroPitchRateRadiansPerTick : Float.NaN;
 			acroRollRateRadiansPerTick = Float.isFinite(acroRollRateRadiansPerTick) ? acroRollRateRadiansPerTick : Float.NaN;
 			acroAeroCrossflowLag = Float.isFinite(acroAeroCrossflowLag) ? clamp(acroAeroCrossflowLag, 0.0f, 1.0f) : 0.0f;
+			acroSidewashMemory = Float.isFinite(acroSidewashMemory) ? clamp(acroSidewashMemory, 0.0f, 1.0f) : 0.0f;
 		}
 
 		State(float velocityX, float velocityY, float velocityZ) {
@@ -3000,7 +3093,25 @@ final class PlayableFlightModel {
 				float acroRollRateRadiansPerTick,
 				int acroRollRecoveryTicksRemaining
 		) {
-			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, acroPitchRateRadiansPerTick, acroRollRateRadiansPerTick, acroRollRecoveryTicksRemaining, 0.0f);
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, acroPitchRateRadiansPerTick, acroRollRateRadiansPerTick, acroRollRecoveryTicksRemaining, 0.0f, 0.0f);
+		}
+
+		State(
+				float velocityX,
+				float velocityY,
+				float velocityZ,
+				float pitchRadians,
+				float rollRadians,
+				float yawDegreesPerTick,
+				FlightMode mode,
+				int modeSwitchTicksRemaining,
+				float acroCollectiveThrustToWeight,
+				float acroPitchRateRadiansPerTick,
+				float acroRollRateRadiansPerTick,
+				int acroRollRecoveryTicksRemaining,
+				float acroAeroCrossflowLag
+		) {
+			this(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, yawDegreesPerTick, mode, modeSwitchTicksRemaining, acroCollectiveThrustToWeight, acroPitchRateRadiansPerTick, acroRollRateRadiansPerTick, acroRollRecoveryTicksRemaining, acroAeroCrossflowLag, acroAeroCrossflowLag);
 		}
 
 		static State zero(FlightMode mode) {
@@ -3026,7 +3137,8 @@ final class PlayableFlightModel {
 			FlightMode mode,
 			int modeSwitchTicksRemaining,
 			int acroRollRecoveryTicksRemaining,
-			float acroAeroCrossflowLag
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory
 	) {
 	}
 

@@ -2518,6 +2518,91 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryBuildsSlowerThanBaseCrossflowAndReleasesWithTail() {
+		PlayableFlightModel.State diagonalState = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step first = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				diagonalState
+		);
+		PlayableFlightModel.Step later = runFrom(
+				FlightMode.ACRO,
+				5,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(first)
+		);
+		PlayableFlightModel.Step release = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						22.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						1.0f,
+						1.0f
+				)
+		);
+
+		assertTrue(first.acroSidewashMemory() > 0.18f, "firstMemory=" + first.acroSidewashMemory());
+		assertTrue(first.acroSidewashMemory() < first.acroAeroCrossflowLag() * 0.78f,
+				"firstMemory=" + first.acroSidewashMemory() + " firstLag=" + first.acroAeroCrossflowLag());
+		assertTrue(later.acroSidewashMemory() > first.acroSidewashMemory() + 0.42f,
+				"firstMemory=" + first.acroSidewashMemory() + " laterMemory=" + later.acroSidewashMemory());
+		assertTrue(later.acroSidewashMemory() < 0.85f, "laterMemory=" + later.acroSidewashMemory());
+		assertTrue(release.acroSidewashMemory() > release.acroAeroCrossflowLag(),
+				"releaseMemory=" + release.acroSidewashMemory() + " releaseLag=" + release.acroAeroCrossflowLag());
+	}
+
+	@Test
+	void acroSidewashForceResponseUsesMemoryInsteadOfInstantFullSideforce() {
+		float firstTickResponse = PlayableFlightModel.acroSidewashForceResponse(0.32f, 0.10f);
+		float settledResponse = PlayableFlightModel.acroSidewashForceResponse(1.0f, 1.0f);
+		float wakeTailResponse = PlayableFlightModel.acroSidewashForceResponse(0.15f, 0.72f);
+
+		assertTrue(firstTickResponse > 0.09f, "firstTickResponse=" + firstTickResponse);
+		assertTrue(firstTickResponse < 0.12f, "firstTickResponse=" + firstTickResponse);
+		assertEquals(1.0f, settledResponse, 1.0e-6f);
+		assertTrue(wakeTailResponse > 0.70f, "wakeTailResponse=" + wakeTailResponse);
+		assertTrue(wakeTailResponse < 0.75f, "wakeTailResponse=" + wakeTailResponse);
+	}
+
+	@Test
 	void acroLaggedCrossflowSoftensFirstTickRotorDiskLoads() {
 		PlayableFlightModel.Velocity straight = new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f);
 		PlayableFlightModel.Velocity diagonal = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
@@ -5018,7 +5103,8 @@ class PlayableFlightModelTest {
 						state.acroPitchRateRadiansPerTick(),
 						state.acroRollRateRadiansPerTick(),
 						state.acroRollRecoveryTicksRemaining(),
-						state.acroAeroCrossflowLag()
+						state.acroAeroCrossflowLag(),
+						state.acroSidewashMemory()
 				);
 			}
 			PlayableFlightModel.Step step = PlayableFlightModel.step(
@@ -5055,7 +5141,8 @@ class PlayableFlightModelTest {
 				step.acroPitchRateRadiansPerTick(),
 				step.acroRollRateRadiansPerTick(),
 				step.acroRollRecoveryTicksRemaining(),
-				step.acroAeroCrossflowLag()
+				step.acroAeroCrossflowLag(),
+				step.acroSidewashMemory()
 		);
 	}
 

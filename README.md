@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 侧洗记忆与斜飞气动尾迹）
+本轮继续针对“斜向飞行像平移，不像真机在空气里走线”的主问题收敛。复查现有 playable ACRO 后，问题不再是“没有侧向空气力”，而是很多横流/侧洗效果共用同一个即时 `acroAeroCrossflowLag`：基础阻力、侧滑侧力、桨盘侧洗转弯几乎一起起效。真机的横流进桨盘和机身侧滑力会有建立与释放尾迹，所以这轮加入一个专门的 sidewash memory。
+
+- `PlayableFlightModel.State`/`Step` 新增 `acroSidewashMemory`。它只在 ACRO 下根据机体系横向速度、速度大小和侧滑角建立，建立速度比基础 crossflow lag 慢，释放也更慢。目的不是加自稳，而是让“刚切入斜飞时保留惯性，持续斜飞后空气逐渐咬住轨迹，退出横流后还有短尾迹”。
+- `acroBodyAerodynamicAcceleration` 的侧滑侧力、`acroRotorSidewashTurnAcceleration` 的桨盘侧洗转弯现在读取 `acroSidewashForceResponse(crossflowLag, sidewashMemory)`；基础阻力仍走原来的 crossflow lag。因此第一帧不会立刻给满侧力，稳定横流时仍能弯轨迹，释放时不会像开关一样突然消失。
+- `DroneEntity` 接入运行时 memory 字段，旧的 `State` 构造器保持兼容：历史测试里只传 `acroAeroCrossflowLag` 的“settled”状态会默认把 memory 设为相同值，避免把已有边界语义悄悄改掉。
+- 新增回归测试锁住 sidewash memory 比基础 crossflow 慢建立、释放保留尾迹，以及侧滑侧力第一帧使用 memory 响应而不是瞬间 full sideforce。已通过完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-041800.json`，ACRO playable 诊断通过，最大水平位移约 `16.53m`，最大速度约 `6.75m/s`，平均电机遥测峰值约 `6979 RPM`。
+
 ## 最新进展（2026-06-21，playable yaw 中点位移积分）
 本轮继续针对你反馈的“高速/斜向飞行还有回抽、旋转不通畅、像平面平移”的问题收敛。复查后确认目视模式下前飞压头的渲染符号当前已经由 `DroneEntityModelTest` 锁住，正 pitch 会让第三人称机体朝 Minecraft 里的低头方向显示，所以这次没有继续改 FPV/目视相机矩阵，重点放到实体移动积分本身。
 
