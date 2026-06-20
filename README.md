@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，目视模式前飞压头修正）
+本轮处理一个你提过但不是主线的可见问题：目视状态下，向前飞时机体外观看起来从“压头”反成了“抬头”。复查后确认 `PlayableFlightModel` 的 pitch 符号仍用于飞控/FPV/遥测，问题在客户端实体模型把 pitch 又反了一次。
+- `DroneEntityModel.bodyPitchRotationRadians` 现在直接使用 playable pitch，不再取负。这样物理/FPV 相机仍沿用原来的 pitch 数据，只有第三人称/目视看到的无人机模型改回“正 pitch = Minecraft 模型低头方向”。
+- 更新 `DroneEntityModelTest`，把旧的错误符号断言改成“正 playable pitch 使用正模型 X 旋转、负 playable pitch 使用抬头方向”，防止后续再把目视前飞改回抬头。
+- 这次没有改 ACRO 物理参数，也没有回退上一轮斜飞/转弯负载调参。它只是把目视模型的姿态显示和玩家对“机头前压”的直觉重新对齐，方便继续人工试飞判断真实手感。
+- 已通过 `DroneEntityModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-032816.json`，ACRO playable 诊断通过，最大水平位移约 `16.17m`，最大速度约 `6.53m/s`，平均电机遥测峰值约 `6985 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 推力矢量转弯负载）
 本轮继续收敛“斜向飞行像平移，而不是像真实穿越机带着质量和空气负载在转弯”的手感。复核 RotorPy、Faessler/RPG rotor-drag 模型和 TU Delft/OSU 高速多旋翼辨识资料后，这次不做全局加阻，也不做自动回正；重点放在高速时用推力矢量改变航迹所需付出的能量代价。
 - `PlayableFlightModel` 将 ACRO thrust-vector turn load 的 gain 从 `0.11` 提到 `0.16`，最大负载加速度从 `1.25m/s^2` 提到 `1.65m/s^2`。当推力水平分量和当前高速速度方向对齐时仍然没有额外负载；当 `25m/s` 前飞突然用侧向推力改航迹时，沿速度反向的能量损耗从约 `0.88m/s^2` 提到约 `1.28m/s^2`。
