@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 低油门横流机架残余力矩）
+本轮继续处理“斜向/侧向飞行像屏幕平移”的手感问题，但没有再加普通速度刹车。上一版已经让 powered disk 在高速侧滑时产生横向来流 roll moment；这次补的是更弱的机架残余力矩：真实穿越机即使松油或低油门，高速侧滑时机架、机臂、相机座和桨盘附近的残余气动力也会轻微拧动姿态，不应该完全退化成只剩线性阻力的滑块。
+
+- `PlayableFlightModel` 的 `acroTransverseFlowRollMomentRate` 现在拆成两层：原有的 powered disk moment 继续由 RPM、`mu`、侧滑角和速度控制；新增 airframe residual moment 只看高速横流和侧滑角，量级更小，用来覆盖低油门/松油侧滑时“空气仍在拧机体”的感觉。
+- 当前标定下，`16m/s right + 16m/s forward` 的 powered 侧滑 roll moment 从约 `0.40deg/tick` 提高到约 `0.516deg/tick`；idle/无动力同场景保留约 `0.112deg/tick` 的弱残余。满 roll 主动输入仍会把这条被动力矩压到约 `8%`，不会抢杆，也不会把 ACRO 改成自稳。
+- 回归测试同步锁住三类边界：低速/直线前飞不触发；idle 残余必须存在但 powered disk 仍至少是 idle 的 4 倍；完整 `step()` 中无 roll stick 的高速侧滑会产生更明显但受控的被动滚转。
+- 已通过完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`；本次服务端自测报告为 `server-selftest-playable-20260621-005734.json`，ACRO 诊断飞行通过，最终速度 `0.00m/s`，最大水平位移约 `16.73m`，平均电机遥测峰值约 `6993 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 大侧滑风标偏航重标定）
 本轮继续收敛“斜向飞行像屏幕平移、不像真机在空气里被带着转”的手感问题。上一轮已经把直线前飞的惯性拉长，问题就变得更清楚：如果纯侧滑和大侧风状态下机头几乎不受相对气流影响，玩家高速斜飞时会觉得速度矢量只是被平移，而不是整台 5 寸机在空气里带着重量、侧滑角和转弯半径运动。
 
