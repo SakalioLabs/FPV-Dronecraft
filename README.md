@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 旋翼盘面 H-force）
+本轮继续针对“斜向飞行像平移、不像真机”的手感问题做低阶物理补齐。上一轮已经加入横向来流下的桨盘 flapping 偏转；这次补上完整仿真核心里 `rotor_in_plane_drag_force_n` 对应的盘面 H-force：有推力的旋翼盘遇到横向穿盘气流时，会产生反向的 in-plane drag，而不只是靠机体 CdA 在空气里被动刹车。
+
+- `PlayableFlightModel` 的 ACRO 速度积分现在会同时叠加 flapping 偏转和 in-plane H-force，并把合成后的 body-frame 盘面加速度按当前 pitch/roll 姿态投回 yaw-local 速度坐标；所以全向翻滚、斜飞、侧飞时仍跟随机体姿态，不会退回屏幕平移。
+- 量级沿用完整 `racingQuad` 的 5 寸桨盘参数：四个桨盘、半径 `0.0635m`、盘面阻力系数 `0.0028`、参考最大转速约 `29137 RPM`，使用 `mu = V/(omega R)`、转速 active disk、推力耦合项和动态压 profile 项共同计算。
+- 为了保护已经校好的 25m/s 惯性滑行距离，直线巡航只保留很弱的 H-force 基线；明显 sideslip/diagonal flow 才接近完整盘面阻力权重。这一层是为斜飞提供提前量和“空气咬住”的重量感，不是给 ACRO 加自动回正。
+- 新增回归测试覆盖：零推力不产生 H-force；`16m/s right + 16m/s forward` 的 powered disk flow 会得到约 `1.0m/s^2` 级反向盘面加速度；直线 `25m/s` 巡航 H-force 明显弱于斜向侧滑，并且原有 25m/s coastdown 锚点继续通过。
+- 已通过 `PlayableFlightModelTest`；完整构建和服务端自测见下一轮验证记录。
+
 ## 最新进展（2026-06-20，ACRO 横向来流桨盘偏转）
 本轮继续收敛“斜向飞行像平移、不像真机”的核心手感问题。前几轮已经把 playable ACRO 改成推力轴积分、机体系 CdA 空阻、高前进比推力软化、分离流侧滑力和弱 weathercock yaw；这次补的是桨盘本身在横向来流下的 in-plane/flapping 力，让高速斜飞时速度矢量不再只像一个平面目标速度被拖着走。
 

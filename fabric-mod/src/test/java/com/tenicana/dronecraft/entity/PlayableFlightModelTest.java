@@ -1465,6 +1465,58 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroRotorInPlaneDragRequiresPoweredDiskFlow() {
+		PlayableFlightModel.Velocity idle = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f,
+				0.0f,
+				0.20f
+		);
+
+		assertEquals(0.0f, idle.x(), 1.0e-6f);
+		assertEquals(0.0f, idle.y(), 1.0e-6f);
+		assertEquals(0.0f, idle.z(), 1.0e-6f);
+	}
+
+	@Test
+	void acroRotorInPlaneDragOpposesPoweredDiagonalDiskFlow() {
+		PlayableFlightModel.Velocity diagonal = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				12.5f,
+				0.68f,
+				0.20f
+		);
+
+		assertTrue(diagonal.x() < -0.65f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -0.85f, "diagonalX=" + diagonal.x());
+		assertEquals(0.0f, diagonal.y(), 1.0e-6f);
+		assertTrue(diagonal.z() < -0.65f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -0.85f, "diagonalZ=" + diagonal.z());
+	}
+
+	@Test
+	void acroRotorInPlaneDragWeightsDiagonalSlipMoreThanStraightCruise() {
+		PlayableFlightModel.Velocity straight = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				12.5f,
+				0.68f,
+				0.20f
+		);
+		PlayableFlightModel.Velocity diagonal = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				12.5f,
+				0.68f,
+				0.20f
+		);
+
+		assertEquals(0.0f, straight.x(), 1.0e-6f);
+		assertTrue(straight.z() < -0.14f, "straightZ=" + straight.z());
+		assertTrue(straight.z() > -0.25f, "straightZ=" + straight.z());
+		assertTrue(horizontalSpeed(diagonal.x(), diagonal.z()) > Math.abs(straight.z()) * 2.2f,
+				"diagonal=" + horizontalSpeed(diagonal.x(), diagonal.z()) + " straightZ=" + straight.z());
+	}
+
+	@Test
 	void acroAirframeSeparationOnlyBuildsAtHighAngleFlow() {
 		float straightCruise = PlayableFlightModel.acroAirframeSeparationIntensity(0.0f, 0.0f, 25.0f);
 		float diagonalSideslip = PlayableFlightModel.acroAirframeSeparationIntensity(16.0f, 0.0f, 16.0f);
