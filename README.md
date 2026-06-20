@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 平移升力 sideflow 脏流接入侧洗记忆）
+这一轮继续沿着“斜飞不要像平面平移”的主线收敛。复查发现 `acroTranslationalLiftThrustScale` 还把侧向来流的 dirty ETL 权重直接用即时 `acroAdvanceSideflowExposure(...)` 计算：刚切进斜飞时，平移升力增益会立刻按 settled 侧流被压低，桨盘像瞬间进入脏横流，而不是随着侧洗/入流逐步建立。
+- `acroTranslationalLiftThrustScale` 现在增加带 `acroAeroCrossflowLag` / `acroSidewashMemory` 的重载，运行时由 `acroPhysicalVelocity` 传入真实 memory；旧三参数入口保持 settled 语义，避免已有静态调参和测试漂移。
+- `acroTranslationalLiftDragBodyAcceleration` 同步接入同一套 memory 语义，让 fresh 斜飞保留更多 clean-flow ETL 增益，同时也付出相匹配的诱导阻力成本；直线 clean-flow 不受 memory 影响。
+- 新增 `acroSidewashMemoryDelaysDirtyTranslationalLiftWithoutTouchingCleanFlow` 回归：`9m/s right + 9m/s forward` 在 fresh sidewash 下的 ETL gain 必须明显高于 settled，但仍低于纯直线 clean-flow；对应 ETL drag 也随 gain 增强，避免只加推力不加能量成本。
+- 已通过 targeted ETL 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-054847.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 桨盘侧洗转弯载荷拆分 yaw 侧滑与 pitch 迎角）
 这一轮继续清理“高速斜飞像平移”的剩余空气动力路径。复查发现 `acroRotorSidewashTurnAcceleration` 还把 yaw-plane sideslip 和 pitch-plane angle-of-attack 先取 `max(...)`，再整体乘 `acroSidewashForceResponse(lag, memory)`。这会让机头下压/拉起带来的 pitch 迎角响应也被当成 yaw 侧洗延迟处理，导致桨盘在 pitch 动作里的转弯载荷建立过慢，和真实穿越机“机身姿态变化立刻改变迎角/推力方向”的手感不一致。
 - `acroRotorSidewashTurnAcceleration` 现在把两条路径拆开：yaw 侧滑使用 `acroYawSidewashExposure(...)`，刚切入横向侧滑时逐步建立；pitch 迎角使用 `acroPitchLagExposure(...)`，不再受 `acroSidewashMemory` 隐藏。

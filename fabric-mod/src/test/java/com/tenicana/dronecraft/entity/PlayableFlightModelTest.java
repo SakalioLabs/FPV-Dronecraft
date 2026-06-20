@@ -2242,6 +2242,71 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysDirtyTranslationalLiftWithoutTouchingCleanFlow() {
+		float cleanFresh = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float cleanSettled = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 12.5f),
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		float diagonalFresh = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float diagonalSettled = PlayableFlightModel.acroTranslationalLiftThrustScale(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity diagonalFreshDrag = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity diagonalSettledDrag = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
+				new PlayableFlightModel.Velocity(9.0f, 0.0f, 9.0f),
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		float cleanGain = cleanFresh - 1.0f;
+		float freshGain = diagonalFresh - 1.0f;
+		float settledGain = diagonalSettled - 1.0f;
+		float freshDragMagnitude = horizontalSpeed(diagonalFreshDrag.x(), diagonalFreshDrag.z());
+		float settledDragMagnitude = horizontalSpeed(diagonalSettledDrag.x(), diagonalSettledDrag.z());
+
+		assertEquals(cleanSettled, cleanFresh, 1.0e-6f);
+		assertTrue(freshGain > settledGain * 3.1f,
+				"freshGain=" + freshGain + " settledGain=" + settledGain);
+		assertTrue(freshGain < cleanGain * 0.82f,
+				"freshGain=" + freshGain + " cleanGain=" + cleanGain);
+		assertTrue(settledGain < cleanGain * 0.24f,
+				"settledGain=" + settledGain + " cleanGain=" + cleanGain);
+		assertTrue(freshDragMagnitude > settledDragMagnitude * 3.1f,
+				"freshDrag=" + freshDragMagnitude + " settledDrag=" + settledDragMagnitude);
+		assertEquals(diagonalFreshDrag.x(), diagonalFreshDrag.z(), 1.0e-6f);
+		assertEquals(diagonalSettledDrag.x(), diagonalSettledDrag.z(), 1.0e-6f);
+	}
+
+	@Test
 	void acroTranslationalLiftDragCostsEnergyWhenLiftBoostAppears() {
 		PlayableFlightModel.Velocity stationary = PlayableFlightModel.acroTranslationalLiftDragBodyAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 0.0f),
