@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，playable yaw 中点位移积分）
+本轮继续针对你反馈的“高速/斜向飞行还有回抽、旋转不通畅、像平面平移”的问题收敛。复查后确认目视模式下前飞压头的渲染符号当前已经由 `DroneEntityModelTest` 锁住，正 pitch 会让第三人称机体朝 Minecraft 里的低头方向显示，所以这次没有继续改 FPV/目视相机矩阵，重点放到实体移动积分本身。
+
+- `DroneEntity.applyDebugFlight` 过去在同一个 tick 里先用旧 `getYRot()` 把机体系速度转成世界位移，然后 tick 末尾才把 yaw 更新到新朝向。这会造成玩家打 yaw 时，画面看起来像“机头已经转了，但位移还沿上一帧方向滑”，尤其高速斜飞时容易放大成回抽感或平面横移感。
+- 新增纯逻辑 helper `PlayableMovementYaw`，对可玩飞行的世界位移使用 yaw midpoint：`currentYaw + yawDelta * 0.5`。最终 yaw rate、ACRO rate 模式、速度惯性和世界动量 rebase 都不改，只把这一帧的位移投影放在旋转前后之间的位置，让转向和位移更像同一个连续物理步长。
+- 新增回归测试覆盖三件事：可见 yaw rate 会使用中点朝向；极小 yaw 噪声/NaN 不污染移动；`20m/s` 前向速度在 `10deg/tick` yaw 下会在同 tick 内开始弯入新航向，而不是整帧贴着旧航向直滑。
+- 已通过定向测试、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-040626.json`，ACRO playable 诊断通过，最大水平位移约 `16.53m`，最大速度约 `6.75m/s`，平均电机遥测峰值约 `6979 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 桨盘侧洗转弯曲率）
 本轮继续针对“斜向飞行速度够了，但像平面平移而不像真实穿越机走线”的核心手感收敛。复查本仓库 `docs/data/airframe_drag_calibration_packet.csv`、`docs/fpv-sim-data-sources.md`，并对照 [Faessler/RPG rotor-drag 高速轨迹模型](https://rpg.ifi.uzh.ch/docs/RAL18_Faessler.pdf) 和 [RotorPy](https://github.com/spencerfolk/rotorpy) 的 aerodynamic wrench 思路后，这轮不再继续堆全局阻力，而是补“推力矢量已经在改航迹时，桨盘/侧洗让航迹更愿意弯过去”的小曲率项。
 - `PlayableFlightModel` 新增 `acroRotorSidewashTurnAcceleration`，并接入 ACRO 速度积分。它读取当前水平速度、推力水平分量、机体系横流/迎角和 `acroAeroCrossflowLag`，只输出垂直于当前水平速度的加速度；也就是说它改变航迹方向，不沿速度方向凭空加速，也不做自动回正。

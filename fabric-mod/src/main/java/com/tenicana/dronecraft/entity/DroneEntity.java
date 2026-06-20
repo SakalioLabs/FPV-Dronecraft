@@ -869,11 +869,13 @@ public class DroneEntity extends Entity {
 		debugAcroRollRecoveryTicksRemaining = step.acroRollRecoveryTicksRemaining();
 		debugAcroAeroCrossflowLag = step.acroAeroCrossflowLag();
 
+		float currentYawDegrees = getYRot();
+		float movementYawDegrees = PlayableMovementYaw.midpointForTick(currentYawDegrees, targetYaw);
 		PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
 				debugVelocityX,
 				debugVelocityY,
 				debugVelocityZ,
-				getYRot()
+				movementYawDegrees
 		);
 		float worldX = worldVelocity.x();
 		float worldZ = worldVelocity.z();
@@ -884,9 +886,9 @@ public class DroneEntity extends Entity {
 		float worldVelocityY = worldVelocity.y();
 		float worldVelocityZ = worldZ;
 
-		applyDebugMovement(deltaX, deltaY, deltaZ, worldVelocityX, worldVelocityY, worldVelocityZ, getYRot());
-		if (Math.abs(targetYaw) > 0.02f) {
-			setYRot(getYRot() + targetYaw);
+		applyDebugMovement(deltaX, deltaY, deltaZ, worldVelocityX, worldVelocityY, worldVelocityZ, movementYawDegrees);
+		if (Math.abs(targetYaw) > PlayableMovementYaw.APPLY_EPSILON_DEGREES) {
+			setYRot(currentYawDegrees + targetYaw);
 		}
 		setXRot((float) Math.toDegrees(debugVisualPitchRadians));
 	}

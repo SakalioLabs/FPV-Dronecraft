@@ -84,4 +84,28 @@ class DroneEntityDebugAxisFilterTest {
 
 		assertEquals(0.0f, filtered, 1.0e-6f);
 	}
+
+	@Test
+	void playableMovementYawUsesMidpointHeadingForVisibleYawRate() {
+		assertEquals(12.5f, PlayableMovementYaw.midpointForTick(10.0f, 5.0f), 1.0e-6f);
+		assertEquals(7.5f, PlayableMovementYaw.midpointForTick(10.0f, -5.0f), 1.0e-6f);
+	}
+
+	@Test
+	void playableMovementYawKeepsCurrentHeadingForNoiseAndInvalidSamples() {
+		assertEquals(10.0f, PlayableMovementYaw.midpointForTick(10.0f, 0.02f), 1.0e-6f);
+		assertEquals(10.0f, PlayableMovementYaw.midpointForTick(10.0f, Float.NaN), 1.0e-6f);
+		assertEquals(2.0f, PlayableMovementYaw.midpointForTick(Float.NaN, 4.0f), 1.0e-6f);
+	}
+
+	@Test
+	void midpointYawCurvesForwardVelocityDuringTheSameTick() {
+		float midpointYaw = PlayableMovementYaw.midpointForTick(0.0f, 10.0f);
+		PlayableFlightModel.Velocity midpointVelocity = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.0f, 20.0f, midpointYaw);
+		PlayableFlightModel.Velocity oldHeadingVelocity = PlayableFlightModel.worldVelocityForYaw(0.0f, 0.0f, 20.0f, 0.0f);
+
+		assertTrue(midpointVelocity.x() < -1.7f, "midpointVelocity.x=" + midpointVelocity.x());
+		assertTrue(midpointVelocity.z() < oldHeadingVelocity.z(), "midpointVelocity.z=" + midpointVelocity.z());
+		assertTrue(midpointVelocity.z() > 19.8f, "midpointVelocity.z=" + midpointVelocity.z());
+	}
 }
