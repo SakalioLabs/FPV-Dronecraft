@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 角速度控制链接入侧洗记忆）
+本轮继续围绕“斜向飞行像平移、不像真机穿过空气”的核心手感收敛。复查发现，虽然机身侧力、桨盘侧滑、动态压阻力、动态入流和 body-rate 线性负载已经逐步接入 `acroSidewashMemory`，但 ACRO 的角速度控制链仍有几处把 yaw 侧滑和 pitch 迎角混成一个即时 crossflow：rate inertia smoothing、气动 rate damping、motor rate authority、yaw rate inertia smoothing 和 residual torque load。这样刚切入高速侧滑时，飞机的 pitch/roll/yaw 控制负载会过早进入 settled 横流状态，手感容易像“被平面拖着转”，而不是速度、姿态和空气负载逐步追上。
+
+- `acroRateResponse` 现在把 `acroSidewashMemory` 传入角速度链路：`responsiveAcroRate`、`acroAerodynamicRateDamped`、`acroMotorRateAuthorityScale` 和 `acroResidualTorqueRateLoadFraction` 都区分 yaw-plane sideslip 与 pitch-plane angle-of-attack。yaw 侧滑负载读 `acroSidewashForceResponse(lag, memory)`，pitch 迎角仍读基础 lag。
+- `yawSmoothing` / `acroYawRateInertiaSmoothingScale` 也接入同一语义，避免刚进入侧滑时 yaw 平滑和惯性负载瞬间按 settled 横流处理。旧 helper 继续保持 `memory = lag`，所以历史 settled 标定和旧测试入口不漂移。
+- 这不是自动回正，也不是削掉空气负载：fresh 高速侧滑仍会明显降低 roll/yaw 控制响应，但不再第一帧给满 settled 负载；持续侧滑后侧洗记忆建立，rate authority、阻尼和残余扭矩负载会逐步变重。pure pitch 迎角路径在 memory 为 `0` 和 `1` 时保持完全一致，防止机头压低/拉起响应被错误延迟。
+- 新增 `acroSidewashMemoryDelaysYawAngularControlLoadsWithoutHidingPitchAoa` 回归，并把 `acroHighSpeedDiagonalFlowBuildsRollRateWithMoreWeight` 改成 fresh-sidewash 语义：仍要求高速斜飞 roll rate 明显变重，但不要求第一帧达到 settled 侧洗负载。已通过 targeted 角速度测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。
+- 本轮服务端自测报告为 `server-selftest-playable-20260621-052310.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO body-rate 高速负载接入侧洗记忆）
 本轮继续收敛高速斜飞、翻滚切入后像“平面滑块”的手感。前几轮已经把机身侧力、分离流、weathercock yaw、桨盘侧滑、动态压阻力和动态入流逐步接入 `acroSidewashMemory`；这次复查后发现 `acroBodyRateLoadBodyAcceleration` 仍然把 yaw 侧滑和 pitch 迎角混进同一个即时 crossflow 权重，再直接乘较快的 `acroAeroCrossflowLag`。这会让刚进入高速侧滑并带 pitch/roll rate 时，高速角速度空气负载比侧洗记忆更早打满。
 

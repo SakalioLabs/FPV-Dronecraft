@@ -4439,6 +4439,69 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawAngularControlLoadsWithoutHidingPitchAoa() {
+		PlayableFlightModel.Velocity yawSlip = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity pitchAoa = new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f);
+		float freshYawDamping = PlayableFlightModel.acroAerodynamicRateDamping(yawSlip, false, 1.0f, 0.0f);
+		float settledYawDamping = PlayableFlightModel.acroAerodynamicRateDamping(yawSlip, false, 1.0f, 1.0f);
+		float freshYawInertia = PlayableFlightModel.acroRateInertiaSmoothingScale(yawSlip, false, 1.0f, 0.0f);
+		float settledYawInertia = PlayableFlightModel.acroRateInertiaSmoothingScale(yawSlip, false, 1.0f, 1.0f);
+		float freshAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(yawSlip, 0.68f, 0.20f, 1.0f, 0.0f);
+		float settledAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(yawSlip, 0.68f, 0.20f, 1.0f, 1.0f);
+		float freshTorqueLoad = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				yawSlip,
+				(float) Math.toRadians(6.0),
+				(float) Math.toRadians(6.0),
+				1.0f,
+				0.0f
+		);
+		float settledTorqueLoad = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				yawSlip,
+				(float) Math.toRadians(6.0),
+				(float) Math.toRadians(6.0),
+				1.0f,
+				1.0f
+		);
+		float freshPitchDamping = PlayableFlightModel.acroAerodynamicRateDamping(pitchAoa, true, 1.0f, 0.0f);
+		float settledPitchDamping = PlayableFlightModel.acroAerodynamicRateDamping(pitchAoa, true, 1.0f, 1.0f);
+		float freshPitchInertia = PlayableFlightModel.acroRateInertiaSmoothingScale(pitchAoa, true, 1.0f, 0.0f);
+		float settledPitchInertia = PlayableFlightModel.acroRateInertiaSmoothingScale(pitchAoa, true, 1.0f, 1.0f);
+		float freshPitchAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(pitchAoa, 0.68f, 0.20f, 1.0f, 0.0f);
+		float settledPitchAuthority = PlayableFlightModel.acroMotorRateAuthorityScale(pitchAoa, 0.68f, 0.20f, 1.0f, 1.0f);
+		float freshPitchTorqueLoad = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				pitchAoa,
+				(float) Math.toRadians(7.0),
+				0.0f,
+				1.0f,
+				0.0f
+		);
+		float settledPitchTorqueLoad = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
+				pitchAoa,
+				(float) Math.toRadians(7.0),
+				0.0f,
+				1.0f,
+				1.0f
+		);
+
+		assertTrue(freshYawDamping < settledYawDamping * 0.80f,
+				"freshYawDamping=" + freshYawDamping + " settledYawDamping=" + settledYawDamping);
+		assertTrue(freshYawDamping > settledYawDamping * 0.68f,
+				"freshYawDamping=" + freshYawDamping + " settledYawDamping=" + settledYawDamping);
+		assertTrue(freshYawInertia > settledYawInertia + 0.045f,
+				"freshYawInertia=" + freshYawInertia + " settledYawInertia=" + settledYawInertia);
+		assertTrue(freshAuthority > settledAuthority + 0.025f,
+				"freshAuthority=" + freshAuthority + " settledAuthority=" + settledAuthority);
+		assertTrue(freshTorqueLoad < settledTorqueLoad * 0.40f,
+				"freshTorqueLoad=" + freshTorqueLoad + " settledTorqueLoad=" + settledTorqueLoad);
+		assertTrue(freshTorqueLoad > settledTorqueLoad * 0.25f,
+				"freshTorqueLoad=" + freshTorqueLoad + " settledTorqueLoad=" + settledTorqueLoad);
+		assertEquals(settledPitchDamping, freshPitchDamping, 1.0e-6f);
+		assertEquals(settledPitchInertia, freshPitchInertia, 1.0e-6f);
+		assertEquals(settledPitchAuthority, freshPitchAuthority, 1.0e-6f);
+		assertEquals(settledPitchTorqueLoad, freshPitchTorqueLoad, 1.0e-6f);
+	}
+
+	@Test
 	void acroHighSpeedCrossflowMakesActiveRollRateFeelLoadedButControllable() {
 		PlayableFlightModel.State straightCruise = new PlayableFlightModel.State(
 				0.0f,
@@ -4928,7 +4991,7 @@ class PlayableFlightModelTest {
 		assertTrue(lowSpeed.acroRollRateRadiansPerTick() > Math.toRadians(5.3), "lowSpeedRollRateDeg=" + Math.toDegrees(lowSpeed.acroRollRateRadiansPerTick()));
 		assertTrue(diagonalFlow.acroRollRateRadiansPerTick() > lowSpeed.acroRollRateRadiansPerTick() * 0.70f,
 				"diagonalRollRateDeg=" + Math.toDegrees(diagonalFlow.acroRollRateRadiansPerTick()) + " lowSpeedRollRateDeg=" + Math.toDegrees(lowSpeed.acroRollRateRadiansPerTick()));
-		assertTrue(diagonalFlow.acroRollRateRadiansPerTick() < lowSpeed.acroRollRateRadiansPerTick() * 0.86f,
+		assertTrue(diagonalFlow.acroRollRateRadiansPerTick() < lowSpeed.acroRollRateRadiansPerTick() * 0.89f,
 				"diagonalRollRateDeg=" + Math.toDegrees(diagonalFlow.acroRollRateRadiansPerTick()) + " lowSpeedRollRateDeg=" + Math.toDegrees(lowSpeed.acroRollRateRadiansPerTick()));
 	}
 
