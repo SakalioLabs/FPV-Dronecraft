@@ -94,6 +94,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
 	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 1.35f;
+	private static final float ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND = 9.0f;
+	private static final float ACRO_AERO_RATE_DAMPING_FULL_METERS_PER_SECOND = 28.0f;
+	private static final float ACRO_PITCH_AERO_RATE_DAMPING_MAX = 0.135f;
+	private static final float ACRO_ROLL_AERO_RATE_DAMPING_MAX = 0.105f;
+	private static final float ACRO_AERO_RATE_CROSSFLOW_START_RADIANS = (float) Math.toRadians(12.0f);
+	private static final float ACRO_AERO_RATE_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(58.0f);
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -523,10 +529,63 @@ final class PlayableFlightModel {
 		if (safeMode(mode) != FlightMode.ACRO) {
 			return AcroRateResponse.ZERO;
 		}
-		return new AcroRateResponse(
-				responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick()),
-				responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick())
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(
+				previous.velocityX(),
+				previous.velocityY(),
+				previous.velocityZ(),
+				previous.pitchRadians(),
+				previous.rollRadians()
 		);
+		return new AcroRateResponse(
+				acroAerodynamicRateDamped(
+						responsiveAcroRate(previous.acroPitchRateRadiansPerTick(), pitch * profile.pitchRateRadiansPerTick()),
+						bodyVelocity,
+						true
+				),
+				acroAerodynamicRateDamped(
+						responsiveAcroRate(previous.acroRollRateRadiansPerTick(), roll * profile.rollRateRadiansPerTick()),
+						bodyVelocity,
+						false
+				)
+		);
+	}
+
+	static float acroAerodynamicRateDamped(float rateRadiansPerTick, Velocity bodyVelocity, boolean pitchAxis) {
+		if (Math.abs(rateRadiansPerTick) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
+			return rateRadiansPerTick;
+		}
+		float damping = acroAerodynamicRateDamping(bodyVelocity, pitchAxis);
+		if (damping <= 1.0e-6f) {
+			return rateRadiansPerTick;
+		}
+		return rateRadiansPerTick * (1.0f - damping);
+	}
+
+	static float acroAerodynamicRateDamping(Velocity bodyVelocity, boolean pitchAxis) {
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
+				+ bodyVelocity.y() * bodyVelocity.y()
+				+ bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float speedExposure = smoothStep((speed - ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_AERO_RATE_DAMPING_FULL_METERS_PER_SECOND - ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float sideslipExposure = smoothStep((sideslip - ACRO_AERO_RATE_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_AERO_RATE_CROSSFLOW_FULL_RADIANS - ACRO_AERO_RATE_CROSSFLOW_START_RADIANS));
+		float angleOfAttackExposure = smoothStep((angleOfAttack - ACRO_AERO_RATE_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_AERO_RATE_CROSSFLOW_FULL_RADIANS - ACRO_AERO_RATE_CROSSFLOW_START_RADIANS));
+		float crossflowExposure = pitchAxis
+				? Math.max(angleOfAttackExposure, sideslipExposure * 0.35f)
+				: Math.max(sideslipExposure, angleOfAttackExposure * 0.35f);
+		float axisMax = pitchAxis ? ACRO_PITCH_AERO_RATE_DAMPING_MAX : ACRO_ROLL_AERO_RATE_DAMPING_MAX;
+		return axisMax * speedExposure * (0.55f + 0.45f * crossflowExposure);
 	}
 
 	private static float responsiveAcroRate(float previousRateRadiansPerTick, float targetRateRadiansPerTick) {

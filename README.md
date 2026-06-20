@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 高速角速度空气阻尼）
+本轮继续处理“斜向/高速机动还是有点像数学旋转、平移感偏重”的手感问题。当前 playable ACRO 已经有推力轴积分、机体系 CdA、分离流、侧滑侧向力、桨盘 H-force、高前进比推力软化和 body-rate yaw 耦合；这次补的是高速动态压下的 pitch/roll rate 空气动力阻尼，让高速前飞、斜飞、横飞时机体旋转也能感到一点真实空气负载。
+
+- `PlayableFlightModel` 现在在 ACRO pitch/roll rate 响应后加入一层机体系相对风阻尼：低速基本为 `0`，到 FPV 速度区间后按总速度、AOA/sideslip 暴露逐步增强。pitch 轴更看重迎角，roll 轴更看重侧滑/横向穿流。
+- 这不是自动回正，也不是自稳；它只削一点当前角速度，最大阻尼保持在克制范围内，仍保留穿越机全向 rate mode 和主动翻滚权限。目的是让高速斜飞/横飞时机体不是“无代价几何旋转”，而是像在气流里滚/俯仰。
+- 参考依据继续沿用高速四轴 body-frame 气动建模方向：Faessler/Franchi/Scaramuzza rotor-drag 说明高速轨迹需要显式气动项，Bangura/Mahony 的 blade-element 资料把水平力与功率放在机体系，NeuroBEM/竞速数据也说明高速/激烈动作中经典一阶模型的残余力矩不可忽略；Do a Barrel Roll 仍作为 Minecraft 全向姿态交互参考，而不是物理来源。
+- 新增回归测试覆盖：低速不产生角速度空气阻尼；`25m/s` 直线巡航给 pitch/roll 很小阻尼；`16m/s right + 16m/s forward` 斜向侧滑的 roll 阻尼强于直线巡航；有迎角的高速流会给 pitch rate 阻尼；单次阻尼不会吃掉超过约 10% 的主动 rate。
+- 已通过 `PlayableFlightModelTest` 定向测试、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-192022.json`。
+
 ## 最新进展（2026-06-20，目视 pitch 渲染方向修复）
 本轮补一个会明显影响目视飞行判断的视觉一致性问题：playable 物理里正 pitch 表示机头下压，但第三人称/目视模型曾经把这个 pitch 反号套到机体上，导致“向前飞/压头”在画面里看起来像抬头，和 FPV 相机、飞控内部姿态不一致。
 

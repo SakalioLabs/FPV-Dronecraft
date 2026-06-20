@@ -1813,6 +1813,57 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroAerodynamicRateDampingOnlyBuildsAtFpvSpeeds() {
+		float lowSpeed = PlayableFlightModel.acroAerodynamicRateDamping(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 6.0f),
+				true
+		);
+		float fastForwardPitch = PlayableFlightModel.acroAerodynamicRateDamping(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				true
+		);
+		float fastForwardRoll = PlayableFlightModel.acroAerodynamicRateDamping(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				false
+		);
+
+		assertEquals(0.0f, lowSpeed, 1.0e-6f);
+		assertTrue(fastForwardPitch > 0.055f, "fastForwardPitch=" + fastForwardPitch);
+		assertTrue(fastForwardPitch < 0.095f, "fastForwardPitch=" + fastForwardPitch);
+		assertTrue(fastForwardRoll > 0.040f, "fastForwardRoll=" + fastForwardRoll);
+		assertTrue(fastForwardRoll < 0.075f, "fastForwardRoll=" + fastForwardRoll);
+	}
+
+	@Test
+	void acroAerodynamicRateDampingWeightsDiagonalSlipMoreThanStraightCruise() {
+		float straightRoll = PlayableFlightModel.acroAerodynamicRateDamping(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				false
+		);
+		float diagonalRoll = PlayableFlightModel.acroAerodynamicRateDamping(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				false
+		);
+		float pitchAoa = PlayableFlightModel.acroAerodynamicRateDamping(
+				new PlayableFlightModel.Velocity(0.0f, 10.0f, 18.0f),
+				true
+		);
+		float rawRate = (float) Math.toRadians(4.0);
+		float dampedRate = PlayableFlightModel.acroAerodynamicRateDamped(
+				rawRate,
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				false
+		);
+
+		assertTrue(diagonalRoll > straightRoll * 1.25f, "diagonalRoll=" + diagonalRoll + " straightRoll=" + straightRoll);
+		assertTrue(diagonalRoll < 0.095f, "diagonalRoll=" + diagonalRoll);
+		assertTrue(pitchAoa > 0.055f, "pitchAoa=" + pitchAoa);
+		assertTrue(pitchAoa < 0.080f, "pitchAoa=" + pitchAoa);
+		assertTrue(dampedRate < rawRate, "dampedRate=" + dampedRate + " rawRate=" + rawRate);
+		assertTrue(dampedRate > rawRate * 0.90f, "dampedRate=" + dampedRate + " rawRate=" + rawRate);
+	}
+
+	@Test
 	void bankedAcroPitchInputCreatesHeadingChangeWithoutYawStick() {
 		PlayableFlightModel.State banked = new PlayableFlightModel.State(
 				0.0f,
