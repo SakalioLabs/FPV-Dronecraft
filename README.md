@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 机体系总动压耦合阻力）
+本轮继续针对“斜向飞行像平移，不像真机在空气里咬着飞”的核心手感收敛。之前的 ACRO 已经有 1.10kg 级 5 寸机惯性、机体系 CdA、侧滑侧向力、旋翼盘阻力、flapping、动态入流和高转速双轴负载；这次补的是更基础的一层：机体阻力不能只看各轴自己的速度平方，高速斜飞时总空速本身也会抬高机体系每个暴露方向的动压。
+- 参考方向来自 RotorPy 这类带气动 wrench 的多旋翼仿真：其 README 明确把寄生阻力视为随相对空速快速变强的二次阻力，并把 rotor drag、flapping、induced drag、translational lift/drag 都列为高速/强机动时不可忽略的项；UIUC Propeller Database 继续作为小桨 advance ratio 衰减参考，UZH-FPV/RATM 这类竞速数据继续作为 `20m/s+` 速度包络锚点。
+- `PlayableFlightModel` 新增 `acroCoupledDynamicPressureDragAcceleration`。直线 `25m/s` 前飞、低速斜飞都不触发；当 body-frame 侧滑或迎角超过约 `8deg` 且速度进入 `6..24m/s` 区间时，按 `totalSpeed - abs(axisSpeed)` 给横向、竖向、前向二次阻力补上总动压差额，并限制每轴额外减速度不超过 `2.20m/s^2`。
+- 当前标定下，`16m/s right + 16m/s forward` 的斜向来流会额外产生约 `-0.78m/s^2` 横向、`-0.37m/s^2` 前向减速度；完整机体气动加速度从约 `x=-7.5,z=-3.1m/s^2` 收紧到约 `x=-8.36,z=-3.5m/s^2`。这会让高速斜飞更快洗掉侧向能量，但不会把直线巡航改成刹车。
+- 回归测试新增 `acroCoupledDynamicPressureDragLoadsCrossflowWithoutChangingStraightCruise`，并同步收紧 `acroDiagonalHighSpeedFlowGetsExtraSeparatedDragAndSideforce`。已通过 targeted crossflow/diagonal/coastdown 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-015123.json`。
+
 ## 最新进展（2026-06-21，ACRO 动态入流推力下陷）
 本轮继续减少“高速斜向改向像几何平移”的感觉，但仍然不靠继续加普通机体空阻。参考本仓库 `docs/fpv-sim-model-validation.md` 的 Motor and inflow response sanity：`racingQuad` 的 `rotor_inflow_tau=0.035s` 约为一倍半径 wake transit 的 `5.14x`、一倍直径 wake transit 的 `2.57x`，说明可玩层应保留一点入流/尾流滞后，而不是让推力矢量在高速机动中完全瞬时有效。
 - `PlayableFlightModel` 新增 `acroDynamicInflowThrustScale`，并把它乘进 ACRO 物理层的有效推力。它只在高速、有 pitch/roll 体轴角速度、且存在明显侧滑/迎角来流时产生几个百分点的推力下陷。

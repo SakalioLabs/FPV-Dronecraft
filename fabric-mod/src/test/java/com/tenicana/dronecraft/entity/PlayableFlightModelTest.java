@@ -2598,11 +2598,33 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, forward.x(), 1.0e-6f);
 		assertTrue(forward.z() < -5.5f, "forwardZ=" + forward.z());
 		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
-		assertTrue(diagonal.x() < -7.1f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.x() > -7.8f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -2.95f, "diagonalZ=" + diagonal.z());
-		assertTrue(diagonal.z() > -3.35f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.x() < -8.0f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.x() > -8.8f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -3.25f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.z() > -3.80f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+	}
+
+	@Test
+	void acroCoupledDynamicPressureDragLoadsCrossflowWithoutChangingStraightCruise() {
+		PlayableFlightModel.Velocity straight = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		PlayableFlightModel.Velocity lowSpeedDiagonal = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(3.0f, 0.0f, 3.0f)
+		);
+		PlayableFlightModel.Velocity fastDiagonal = PlayableFlightModel.acroCoupledDynamicPressureDragAcceleration(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+
+		assertEquals(0.0f, straight.x(), 1.0e-6f);
+		assertEquals(0.0f, straight.z(), 1.0e-6f);
+		assertEquals(0.0f, lowSpeedDiagonal.x(), 1.0e-6f);
+		assertEquals(0.0f, lowSpeedDiagonal.z(), 1.0e-6f);
+		assertTrue(fastDiagonal.x() < -0.70f, "fastDiagonalX=" + fastDiagonal.x());
+		assertTrue(fastDiagonal.x() > -0.95f, "fastDiagonalX=" + fastDiagonal.x());
+		assertTrue(fastDiagonal.z() < -0.30f, "fastDiagonalZ=" + fastDiagonal.z());
+		assertTrue(fastDiagonal.z() > -0.50f, "fastDiagonalZ=" + fastDiagonal.z());
 	}
 
 	@Test

@@ -77,6 +77,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_FORWARD_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_LATERAL_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS);
+	private static final float ACRO_COUPLED_DYNAMIC_PRESSURE_SPEED_START_METERS_PER_SECOND = 6.0f;
+	private static final float ACRO_COUPLED_DYNAMIC_PRESSURE_SPEED_FULL_METERS_PER_SECOND = 24.0f;
+	private static final float ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS = (float) Math.toRadians(8.0f);
+	private static final float ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(55.0f);
+	private static final float ACRO_COUPLED_DYNAMIC_PRESSURE_EXTRA_GAIN = 0.55f;
+	private static final float ACRO_COUPLED_DYNAMIC_PRESSURE_MAX_ACCELERATION = 2.20f;
 	private static final float ACRO_SEPARATION_AOA_START_RADIANS = (float) Math.toRadians(30.0f);
 	private static final float ACRO_SEPARATION_AOA_FULL_RADIANS = (float) Math.toRadians(66.0f);
 	private static final float ACRO_SEPARATION_SIDESLIP_START_RADIANS = (float) Math.toRadians(32.0f);
@@ -1731,15 +1737,59 @@ final class PlayableFlightModel {
 				-dragAcceleration(bodyVelocity.z(), ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER)
 		);
 		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z());
+		Velocity coupledDynamicPressureDragAcceleration = acroCoupledDynamicPressureDragAcceleration(bodyVelocity);
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
 		Velocity pitchLiftAcceleration = acroPitchPlaneLiftAcceleration(bodyVelocity, separation);
 		Velocity sideforceAcceleration = acroSideslipSideforceAcceleration(bodyVelocity, separation);
 		Velocity sideforceInducedDragAcceleration = acroSideslipInducedDragAcceleration(bodyVelocity, sideforceAcceleration);
 		return new Velocity(
-				baseDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x() + sideforceInducedDragAcceleration.x(),
-				baseDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y() + sideforceInducedDragAcceleration.y(),
-				baseDragAcceleration.z() + separatedDragAcceleration.z() + pitchLiftAcceleration.z() + sideforceAcceleration.z() + sideforceInducedDragAcceleration.z()
+				baseDragAcceleration.x() + coupledDynamicPressureDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x() + sideforceInducedDragAcceleration.x(),
+				baseDragAcceleration.y() + coupledDynamicPressureDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y() + sideforceInducedDragAcceleration.y(),
+				baseDragAcceleration.z() + coupledDynamicPressureDragAcceleration.z() + separatedDragAcceleration.z() + pitchLiftAcceleration.z() + sideforceAcceleration.z() + sideforceInducedDragAcceleration.z()
 		);
+	}
+
+	static Velocity acroCoupledDynamicPressureDragAcceleration(Velocity bodyVelocity) {
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
+				+ bodyVelocity.y() * bodyVelocity.y()
+				+ bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float speed = (float) Math.sqrt(speedSquared);
+		float speedExposure = smoothStep((speed - ACRO_COUPLED_DYNAMIC_PRESSURE_SPEED_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_SPEED_FULL_METERS_PER_SECOND - ACRO_COUPLED_DYNAMIC_PRESSURE_SPEED_START_METERS_PER_SECOND));
+		if (speedExposure <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
+		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
+		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float crossflowExposure = Math.max(
+				smoothStep((sideslip - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)),
+				smoothStep((angleOfAttack - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS)
+						/ Math.max(0.001f, ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_FULL_RADIANS - ACRO_COUPLED_DYNAMIC_PRESSURE_CROSSFLOW_START_RADIANS))
+		);
+		if (crossflowExposure <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float gain = ACRO_COUPLED_DYNAMIC_PRESSURE_EXTRA_GAIN * speedExposure * crossflowExposure;
+		return new Velocity(
+				coupledAxisDynamicPressureDrag(bodyVelocity.x(), speed, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER, gain),
+				coupledAxisDynamicPressureDrag(bodyVelocity.y(), speed, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER, gain),
+				coupledAxisDynamicPressureDrag(bodyVelocity.z(), speed, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER, gain)
+		);
+	}
+
+	private static float coupledAxisDynamicPressureDrag(float axisVelocity, float totalSpeed, float quadraticDragPerMeter, float gain) {
+		float axisSpeed = Math.abs(axisVelocity);
+		float extraDynamicPressureSpeed = Math.max(0.0f, totalSpeed - axisSpeed);
+		if (axisSpeed <= 1.0e-6f || extraDynamicPressureSpeed <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float accelerationMagnitude = quadraticDragPerMeter * axisSpeed * extraDynamicPressureSpeed * gain;
+		return -Math.signum(axisVelocity) * clamp(accelerationMagnitude, 0.0f, ACRO_COUPLED_DYNAMIC_PRESSURE_MAX_ACCELERATION);
 	}
 
 	static float acroAirframeSeparationIntensity(float bodyRightVelocity, float bodyUpVelocity, float bodyForwardVelocity) {
