@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO crossflow/迎角 lag 改为按当前姿态进入物理）
+这一轮继续收敛“斜向机动像平移、翻滚/俯仰后速度矢量和机体姿态不够贴合”的手感问题。复查 `PlayableFlightModel.step(...)` 后发现，上一轮已经把 body-rate 姿态积分和 yaw 转弯载荷对齐到了同帧，但 `acroAeroCrossflowLag(...)` / `acroSidewashMemory(...)` 仍在一开始只用上一帧的 `pitchRadians / rollRadians` 计算。结果是高速前飞时玩家这一帧把机头压进迎角区，推力轴、body velocity、空阻积分已经按新姿态算了，crossflow lag 和迎角相关载荷却仍晚一帧才建立，视觉上就容易残留“机体在转，轨迹像先平移一下”的假感。
+- `PlayableFlightModel` 现在把 ACRO 空气状态拆成两段：`acroRateResponse(...)` 仍使用上一帧 crossflow/sidewash，避免角速度响应被当前帧姿态突然抢走；速度积分、yaw 转弯载荷、写回 `Step` 的 crossflow/sidewash 状态，则在完成本帧 pitch/roll 捕获、roll recovery 和姿态归一化之后，按当前姿态重新计算。
+- 这个改动不是加自稳，也不是加粗暴刹车；它只修正离散仿真的时间对齐。实际效果是高速 pitch/roll 进入迎角或侧滑区时，机身 CdA、分离流、pitch-plane lift、dynamic pressure、桨盘相关载荷会更早跟上可见姿态，同时保留 yaw sidewash memory 的慢建立语义。
+- 新增 `acroCrossflowLagUsesCurrentPitchAttitudeDuringFastAoaEntry` 回归：`25m/s` 前飞、连续压头进入迎角区时，第二帧必须已经建立一个很小但非零的 crossflow lag，防止以后退回“当前机头已经压下去，但迎角载荷晚一帧”的平移感。
+- 参考了另一研究流程写入的 `docs/fpv-sim-model-validation.md`：5 寸桨的 UIUC/RMIT/IMAV 前进比资料说明高前进比会显著改变推力和载荷，但被动阻力不能无脑加大，否则惯性距离会过短。本轮因此优先修同帧姿态/空气状态一致性，而不是继续堆阻力常数。
+- 已通过新增 crossflow-lag 回归、相邻 full-roll release / yaw / sidewash targeted 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-073657.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO yaw 转弯载荷改为同帧生效）
 这一轮继续收敛“机头已经在转，但高速斜飞/转向轨迹还像平移”的残留手感。复查 `PlayableFlightModel.step(...)` 后发现，速度积分发生在当前 `yawDegreesPerTick` 算出之前，所以 `acroPhysicalVelocity(...)` 里用于 `yaw-turn load` 和 yaw 参与的 `body-rate load` 仍吃的是上一帧 yaw。高速前飞或斜飞时玩家这一帧打 yaw，画面/实体 yaw 会更新，但空气/惯性转弯载荷晚一帧进入速度积分，容易造成“机头转了，速度矢量还直滑”的感觉。
 - `PlayableFlightModel` 新增 `yawRateStep(...)`，把原先的 yaw smoothing、mode-switch yaw brake、ACRO body-rate yaw coupling、sideslip weathercock / yaw damping 统一抽出来复用。

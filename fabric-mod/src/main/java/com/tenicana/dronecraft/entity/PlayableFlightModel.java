@@ -325,7 +325,7 @@ final class PlayableFlightModel {
 		float attitudeRoll = safeRoll * attitudeCommandAuthority;
 		float yawCommand = safeYaw * yawCommandAuthority;
 
-		float acroAeroCrossflowLag = acroAeroCrossflowLag(
+		float acroRateCrossflowLag = acroAeroCrossflowLag(
 				safeMode,
 				safePrevious.acroAeroCrossflowLag(),
 				safePrevious.velocityX(),
@@ -334,7 +334,7 @@ final class PlayableFlightModel {
 				safePrevious.pitchRadians(),
 				safePrevious.rollRadians()
 		);
-		float acroSidewashMemory = acroSidewashMemory(
+		float acroRateSidewashMemory = acroSidewashMemory(
 				safeMode,
 				safePrevious.acroSidewashMemory(),
 				safePrevious.velocityX(),
@@ -343,7 +343,7 @@ final class PlayableFlightModel {
 				safePrevious.pitchRadians(),
 				safePrevious.rollRadians()
 		);
-		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroAeroCrossflowLag, acroSidewashMemory, profile);
+		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroRateCrossflowLag, acroRateSidewashMemory, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(
 				safeMode,
@@ -389,6 +389,24 @@ final class PlayableFlightModel {
 			rollRadians = 0.0f;
 			acroRollRateRadiansPerTick = 0.0f;
 		}
+		float acroAeroCrossflowLag = acroAeroCrossflowLag(
+				safeMode,
+				safePrevious.acroAeroCrossflowLag(),
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				pitchRadians,
+				rollRadians
+		);
+		float acroSidewashMemory = acroSidewashMemory(
+				safeMode,
+				safePrevious.acroSidewashMemory(),
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				pitchRadians,
+				rollRadians
+		);
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		Velocity horizontalTarget = horizontalTargetVelocity(safeMode, pitchRadians, rollRadians, throttleAuthority, profile);
 		float targetVelocityX = horizontalTarget.x();

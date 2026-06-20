@@ -922,6 +922,53 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroCrossflowLagUsesCurrentPitchAttitudeDuringFastAoaEntry() {
+		PlayableFlightModel.Step first = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.65f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						25.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						0.0f,
+						0.0f
+				)
+		);
+		PlayableFlightModel.Step second = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.65f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(first)
+		);
+
+		assertTrue(first.pitchRadians() < Math.toRadians(6.0), "firstPitchDeg=" + Math.toDegrees(first.pitchRadians()));
+		assertEquals(0.0f, first.acroAeroCrossflowLag(), 1.0e-6f);
+		assertTrue(second.pitchRadians() > Math.toRadians(10.0), "secondPitchDeg=" + Math.toDegrees(second.pitchRadians()));
+		assertTrue(second.acroAeroCrossflowLag() > 0.004f,
+				"secondLag=" + second.acroAeroCrossflowLag() + " secondPitchDeg=" + Math.toDegrees(second.pitchRadians()));
+		assertTrue(second.acroAeroCrossflowLag() < 0.020f,
+				"secondLag=" + second.acroAeroCrossflowLag() + " secondPitchDeg=" + Math.toDegrees(second.pitchRadians()));
+	}
+
+	@Test
 	void acroModeAllowsContinuousFullPitchAndRollRotation() {
 		PlayableFlightModel.Step pitched = holdStick(FlightMode.ACRO, 48, 0.45f, 1.0f, 0.0f, 0.0f);
 		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 44, 0.45f, 0.0f, 1.0f, 0.0f);
