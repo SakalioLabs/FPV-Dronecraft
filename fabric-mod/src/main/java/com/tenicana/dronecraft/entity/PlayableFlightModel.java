@@ -52,12 +52,12 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS = (float) Math.toRadians(4.0f);
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
 	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_COMMAND = 0.360f;
-	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS = (float) Math.toRadians(275.0f);
+	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_MIN_RADIANS = (float) Math.toRadians(250.0f);
 	private static final float ACRO_COMPLETED_ROTATION_FILTERED_RELEASE_RATE_DELTA_RADIANS = (float) Math.toRadians(0.80f);
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.PI;
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
 	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.28f;
-	private static final int ACRO_COMPLETED_ROLL_RECOVERY_TICKS = 12;
+	private static final int ACRO_COMPLETED_ROLL_RECOVERY_TICKS = 28;
 	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SMOOTHING = 0.58f;
 	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.075f;
 	private static final float ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS = (float) Math.toRadians(24.0f);
@@ -276,6 +276,10 @@ final class PlayableFlightModel {
 				acroRollCaptured,
 				acroRollRecoveryTicksRemaining
 		);
+		if (acroRollRecoveryActive) {
+			rollRadians = 0.0f;
+			acroRollRateRadiansPerTick = 0.0f;
+		}
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		Velocity horizontalTarget = horizontalTargetVelocity(safeMode, pitchRadians, rollRadians, throttleAuthority, profile);
 		float targetVelocityX = horizontalTarget.x();

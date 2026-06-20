@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 接近整圈翻滚后的侧飞捕获）
+本轮针对你最新反馈的“尝试翻转一周之后会持续侧飞、无法回正”继续收敛 playable ACRO。复现点不在已经覆盖的 `360/428/540deg` 完整捕获，而是在更贴近玩家手感的释放尾段：如果 FPV 延迟和摇杆滤波让玩家在约 `260..270deg` 以为已经翻完并松杆，旧模型可能因为没跨过 `275deg` 释放捕获阈值而停在接近刀锋/侧飞姿态，角速度几乎归零但机体系侧向速度仍很大。
+
+- `PlayableFlightModel` 将“滤波释放尾段视为整圈完成”的最低角度从 `275deg` 放宽到 `250deg`。它只在松杆/释放尾巴且上一帧角速度明显高于当前指令时生效，主动 roll 输入、连续翻滚和故意保持刀锋仍不会被偷走。
+- 完整 roll recovery window 从 `12 tick` 延长到 `28 tick`，并且在窗口内把 roll 残差和 roll rate 一起钉回 0；这只作用于已经捕获的整圈 roll 恢复阶段，用来清掉残余侧滑和被动横流 roll 力矩，不是普通 ACRO 松杆自稳。
+- 新增回归测试覆盖两类之前漏掉的场景：实体真实 tick 顺序里的 yaw 重投影不会让高速整圈 roll 后重新侧飞；`264deg + 残余 roll rate` 的松杆释放会捕获回水平并把 body-right 侧向速度压低，而不是停在 `8m/s+` 侧滑里。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过），以及 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`。服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-225539.json`。
+
 ## 最新进展（2026-06-20，ACRO 高速斜飞转弯载荷）
 本轮继续处理“速度够了但斜向飞行仍像平移、不像真实穿越机有重量和转弯半径”的手感问题。已有 playable ACRO 现在包含机体系空阻、分离流、侧滑侧向力、诱导阻力、桨盘 flapping/H-force、高前进比推力 rolloff、气动 yaw/weathercock、横向来流滚转力矩和高姿态体轴投影；这次补的是持续高速 yaw/斜向转弯时的惯性载荷。
 

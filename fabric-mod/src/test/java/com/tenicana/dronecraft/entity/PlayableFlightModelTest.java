@@ -1485,6 +1485,33 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void highSpeedFullRollReleaseWithYawReframeDoesNotKeepSideFlying() {
+		YawReframedRun run = YawReframedRun.zero(FlightMode.ACRO);
+		run = runYawReframedFrom(run, 8, 0.68f, 1.0f, 0.0f, 0.0f);
+		run = runYawReframedFrom(run, 38, 0.68f, 0.0f, 0.0f, 0.0f);
+		run = runYawReframedFrom(run, 42, 0.56f, 0.0f, 1.0f, 0.0f);
+		run = runYawReframedFrom(run, 50, 0.56f, 0.0f, 0.0f, 0.0f);
+
+		PlayableFlightModel.Step step = run.step();
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
+
+		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.75f,
+				"bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z()
+						+ " yawDegrees=" + run.yawDegrees()
+						+ " yawRate=" + step.yawDegreesPerTick());
+		assertTrue(bodyVelocity.z() > 12.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void activeRollInputCancelsCompletedRollRecoveryWindow() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				14.0f,
@@ -1645,6 +1672,53 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
 		assertTrue(Math.abs(bodyVelocity.x()) < 0.32f, "bodySideVelocity=" + bodyVelocity.x());
 		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
+	void releasedNearCompletedRollWithRateTailCompletesInsteadOfRemainingSideways() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				10.0f,
+				0.0f,
+				8.0f,
+				0.0f,
+				(float) Math.toRadians(264.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(4.2)
+		);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ACRO,
+				24,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				released.velocityX(),
+				released.velocityY(),
+				released.velocityZ(),
+				released.pitchRadians(),
+				released.rollRadians()
+		);
+
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5,
+				"rollDeg=" + Math.toDegrees(released.rollRadians())
+						+ " rollRateDeg=" + Math.toDegrees(released.acroRollRateRadiansPerTick())
+						+ " recoveryTicks=" + released.acroRollRecoveryTicksRemaining()
+						+ " bodySideVelocity=" + bodyVelocity.x());
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-4f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 0.40f,
+				"bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z()
+						+ " rollDeg=" + Math.toDegrees(released.rollRadians()));
+		assertTrue(bodyVelocity.z() > 5.0f, "bodyForwardVelocity=" + bodyVelocity.z());
 	}
 
 	@Test
@@ -3421,6 +3495,60 @@ class PlayableFlightModelTest {
 		return step;
 	}
 
+	private static YawReframedRun runYawReframedFrom(
+			YawReframedRun run,
+			int ticks,
+			float throttle,
+			float pitch,
+			float roll,
+			float yawCommand
+	) {
+		YawReframedRun current = run;
+		for (int i = 0; i < ticks; i++) {
+			PlayableFlightModel.State state = current.state();
+			if (Math.abs(current.yawDegrees() - current.velocityYawDegrees()) > 1.0e-4f) {
+				PlayableFlightModel.Velocity reframed = PlayableFlightModel.reframeVelocityForYaw(
+						state.velocityX(),
+						state.velocityY(),
+						state.velocityZ(),
+						current.velocityYawDegrees(),
+						current.yawDegrees()
+				);
+				state = new PlayableFlightModel.State(
+						reframed.x(),
+						reframed.y(),
+						reframed.z(),
+						state.pitchRadians(),
+						state.rollRadians(),
+						state.yawDegreesPerTick(),
+						state.mode(),
+						state.modeSwitchTicksRemaining(),
+						state.acroCollectiveThrustToWeight(),
+						state.acroPitchRateRadiansPerTick(),
+						state.acroRollRateRadiansPerTick(),
+						state.acroRollRecoveryTicksRemaining()
+				);
+			}
+			PlayableFlightModel.Step step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					throttle,
+					pitch,
+					roll,
+					yawCommand,
+					0.20f,
+					false,
+					state
+			);
+			current = new YawReframedRun(
+					stateFrom(step),
+					step,
+					current.yawDegrees() + step.yawDegreesPerTick(),
+					current.yawDegrees()
+			);
+		}
+		return current;
+	}
+
 	private static PlayableFlightModel.State stateFrom(PlayableFlightModel.Step step) {
 		return new PlayableFlightModel.State(
 				step.velocityX(),
@@ -3440,6 +3568,18 @@ class PlayableFlightModelTest {
 
 	private static float horizontalSpeed(float x, float z) {
 		return (float) Math.sqrt(x * x + z * z);
+	}
+
+	private record YawReframedRun(
+			PlayableFlightModel.State state,
+			PlayableFlightModel.Step step,
+			float yawDegrees,
+			float velocityYawDegrees
+	) {
+		private static YawReframedRun zero(FlightMode mode) {
+			PlayableFlightModel.State state = PlayableFlightModel.State.zero(mode);
+			return new YawReframedRun(state, null, 0.0f, 0.0f);
+		}
 	}
 
 	private static final class ClientTrainingAxes {
