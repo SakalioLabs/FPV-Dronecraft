@@ -2631,11 +2631,11 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, straight, 1.0e-6f);
-		assertTrue(pureSide < -0.035f, "pureSide=" + pureSide);
-		assertTrue(pureSide > -0.070f, "pureSide=" + pureSide);
+		assertTrue(pureSide < -0.15f, "pureSide=" + pureSide);
+		assertTrue(pureSide > -0.23f, "pureSide=" + pureSide);
 		assertTrue(rightSlip < -0.24f, "rightSlip=" + rightSlip);
 		assertTrue(rightSlip > -0.34f, "rightSlip=" + rightSlip);
-		assertTrue(Math.abs(pureSide) < Math.abs(rightSlip) * 0.36f, "pureSide=" + pureSide + " rightSlip=" + rightSlip);
+		assertTrue(Math.abs(pureSide) < Math.abs(rightSlip) * 0.66f, "pureSide=" + pureSide + " rightSlip=" + rightSlip);
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 	}
 
@@ -2652,8 +2652,8 @@ class PlayableFlightModelTest {
 		);
 
 		assertEquals(0.0f, straight, 1.0e-6f);
-		assertTrue(pureSide > 0.020f, "pureSide=" + pureSide);
-		assertTrue(pureSide < 0.050f, "pureSide=" + pureSide);
+		assertTrue(pureSide > 0.055f, "pureSide=" + pureSide);
+		assertTrue(pureSide < 0.085f, "pureSide=" + pureSide);
 		assertTrue(diagonal > 0.10f, "diagonal=" + diagonal);
 		assertTrue(diagonal <= 0.13f, "diagonal=" + diagonal);
 	}
@@ -2727,8 +2727,8 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.yawDegreesPerTick() < -0.045f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(passive.yawDegreesPerTick() > -0.11f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() < -0.14f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.23f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
 	}
 

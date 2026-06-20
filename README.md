@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 大侧滑风标偏航重标定）
+本轮继续收敛“斜向飞行像屏幕平移、不像真机在空气里被带着转”的手感问题。上一轮已经把直线前飞的惯性拉长，问题就变得更清楚：如果纯侧滑和大侧风状态下机头几乎不受相对气流影响，玩家高速斜飞时会觉得速度矢量只是被平移，而不是整台 5 寸机在空气里带着重量、侧滑角和转弯半径运动。
+
+- `PlayableFlightModel` 提高了 ACRO broadside weathercock 的基准量级：纯横向 `16m/s` 侧滑的被动 yaw 现在约 `-0.175deg/tick`（约 `3.5deg/s`），不再是旧版接近感觉不到的 `~1deg/s`；`16m/s right + 16m/s forward` 这类斜向来流仍保持更强的机头迎风趋势。
+- 这不是自动回正，也不是把 ACRO 改成航向锁定：只有明显侧滑/高速来流才触发，主动 yaw 输入仍然优先，满 yaw 仍保持 `>4.5deg/tick` 的玩家权限；松杆时只是给机体一个更真实的“相对气流会把机头带向迎风方向”的弱力矩。
+- 同步收紧 yaw damping 测试边界，让纯侧滑下的 yaw 阻尼从旧量级提升到约 `0.063`，避免高速侧飞时机头像无空气阻力的贴图一样继续横着滑。
+- 已通过完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`；本次服务端自测报告为 `server-selftest-playable-20260621-004820.json`，ACRO 诊断飞行通过，最终速度 `0.00m/s`，最大水平位移约 `16.73m`，平均电机遥测峰值约 `6993 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 正向基准空阻与滑行惯性）
 本轮继续收敛“速度够了但手感仍像被空气刹住、翻滚后侧飞标准不够严”的问题。重点没有再堆普通刹车，而是把 playable ACRO 的直线基准空阻和斜向/侧向气动负载拆得更清楚：直线前飞松杆应该保留更长惯性，斜向来流仍要靠侧力、诱导阻力、分离流和桨盘力矩去洗掉横向分量。
 
