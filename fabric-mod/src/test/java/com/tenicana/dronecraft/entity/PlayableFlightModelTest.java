@@ -2424,6 +2424,72 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroAeroCrossflowLagTargetNeedsFastCrossflow() {
+		float straightCruise = PlayableFlightModel.acroAeroCrossflowLagTarget(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		float slowBroadside = PlayableFlightModel.acroAeroCrossflowLagTarget(
+				new PlayableFlightModel.Velocity(3.0f, 0.0f, 0.0f)
+		);
+		float diagonalSideslip = PlayableFlightModel.acroAeroCrossflowLagTarget(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+		float broadside = PlayableFlightModel.acroAeroCrossflowLagTarget(
+				new PlayableFlightModel.Velocity(25.0f, 0.0f, 0.0f)
+		);
+
+		assertEquals(0.0f, straightCruise, 1.0e-6f);
+		assertEquals(0.0f, slowBroadside, 1.0e-6f);
+		assertTrue(diagonalSideslip > 0.82f, "diagonalSideslip=" + diagonalSideslip);
+		assertTrue(diagonalSideslip < 0.95f, "diagonalSideslip=" + diagonalSideslip);
+		assertTrue(broadside > 0.99f, "broadside=" + broadside);
+	}
+
+	@Test
+	void acroAeroCrossflowLagBuildsOverTicks() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step first = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Step later = runFrom(
+				FlightMode.ACRO,
+				5,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				stateFrom(first)
+		);
+
+		assertTrue(first.acroAeroCrossflowLag() > 0.25f, "firstLag=" + first.acroAeroCrossflowLag());
+		assertTrue(first.acroAeroCrossflowLag() < 0.36f, "firstLag=" + first.acroAeroCrossflowLag());
+		assertTrue(later.acroAeroCrossflowLag() > first.acroAeroCrossflowLag() + 0.18f,
+				"firstLag=" + first.acroAeroCrossflowLag() + " laterLag=" + later.acroAeroCrossflowLag());
+		assertTrue(later.acroAeroCrossflowLag() < 0.95f, "laterLag=" + later.acroAeroCrossflowLag());
+	}
+
+	@Test
 	void acroPitchPlaneLiftIsZeroInStraightCruise() {
 		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
@@ -2698,6 +2764,20 @@ class PlayableFlightModelTest {
 		assertTrue(diagonal.z() < -3.25f, "diagonalZ=" + diagonal.z());
 		assertTrue(diagonal.z() > -3.80f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 3.4f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
+	}
+
+	@Test
+	void acroLaggedCrossflowReducesFirstTickSideforceWithoutRemovingBaseDrag() {
+		PlayableFlightModel.Velocity bodyVelocity = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity baseOnly = PlayableFlightModel.acroBodyAerodynamicAcceleration(bodyVelocity, 0.0f);
+		PlayableFlightModel.Velocity firstTick = PlayableFlightModel.acroBodyAerodynamicAcceleration(bodyVelocity, 0.32f);
+		PlayableFlightModel.Velocity settled = PlayableFlightModel.acroBodyAerodynamicAcceleration(bodyVelocity, 1.0f);
+
+		assertTrue(baseOnly.x() < -6.2f, "baseOnlyX=" + baseOnly.x());
+		assertTrue(baseOnly.x() > -6.6f, "baseOnlyX=" + baseOnly.x());
+		assertTrue(firstTick.x() < baseOnly.x(), "firstTickX=" + firstTick.x() + " baseOnlyX=" + baseOnly.x());
+		assertTrue(firstTick.x() > settled.x(), "firstTickX=" + firstTick.x() + " settledX=" + settled.x());
+		assertTrue(settled.x() < -8.0f, "settledX=" + settled.x());
 	}
 
 	@Test
@@ -4122,7 +4202,8 @@ class PlayableFlightModelTest {
 						state.acroCollectiveThrustToWeight(),
 						state.acroPitchRateRadiansPerTick(),
 						state.acroRollRateRadiansPerTick(),
-						state.acroRollRecoveryTicksRemaining()
+						state.acroRollRecoveryTicksRemaining(),
+						state.acroAeroCrossflowLag()
 				);
 			}
 			PlayableFlightModel.Step step = PlayableFlightModel.step(
@@ -4158,7 +4239,8 @@ class PlayableFlightModelTest {
 				step.acroCollectiveThrustToWeight(),
 				step.acroPitchRateRadiansPerTick(),
 				step.acroRollRateRadiansPerTick(),
-				step.acroRollRecoveryTicksRemaining()
+				step.acroRollRecoveryTicksRemaining(),
+				step.acroAeroCrossflowLag()
 		);
 	}
 

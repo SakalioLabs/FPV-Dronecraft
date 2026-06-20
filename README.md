@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 横流气动滞后）
+本轮继续针对“高速斜飞/翻滚后像屏幕平移或突然被空气抽回”的核心手感问题收敛。改动重点不是继续堆普通空阻，而是把已经存在的侧滑/大迎角气动力做成有建立时间的状态量：真实机体、桨盘附近流场和分离流不会在一个 tick 内从 0 瞬间满量生效。
+- `PlayableFlightModel` 新增 `acroAeroCrossflowLagTarget` 和状态字段 `acroAeroCrossflowLag`。目标值只在 ACRO 下、高速且有明显侧滑/迎角时建立：速度窗口约 `4..14m/s`，横流角窗口约 `8..55deg`；上升平滑 `0.34`，衰减平滑 `0.16`，让横流气动负载快进慢退。
+- ACRO 物理层现在用该滞后量缩放耦合动压阻力、分离流阻力、pitch-plane lift、sideslip sideforce 和 sideforce-induced drag；基础机身阻力保持即时生效。这样直线巡航不变，高速斜飞第一帧不会像撞上空气墙，但持续侧滑会逐步洗掉横向能量。
+- `DroneEntity` 增加 `debugAcroAeroCrossflowLag` 并在服务端实体 tick 中持久化，避免纯模型测试有状态、进游戏后每帧被重置的问题。`State`/`Step` 同步扩展，并保留旧构造函数兼容现有测试。
+- 回归测试新增 `acroAeroCrossflowLagTargetNeedsFastCrossflow`、`acroAeroCrossflowLagBuildsOverTicks`、`acroLaggedCrossflowReducesFirstTickSideforceWithoutRemovingBaseDrag`，锁住“慢建立但不取消基础阻力”的边界。`16m/s right + 16m/s forward` 场景下第一 tick 横流滞后约 `0.30`，后续几帧继续建立，稳定后才接近完整气动洗出。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-022729.json`，ACRO playable 诊断通过，最大水平位移约 `16.76m`，最大速度约 `6.31m/s`，平均电机遥测峰值约 `6952 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 高速交叉流残余扭矩负载）
 本轮继续把“斜向飞行像平移”的问题往真实穿越机手感收敛，但没有继续堆普通空气阻力。参考本仓库 `docs/fpv-sim-targeted-calibration-gap-hunt.md` 和 `docs/fpv-sim-model-validation.md` 里的 NeuroBEM/RATM 残余力/力矩资料：这些资料提示高速残余气动不能简单合并成一个 CdA，尤其 residual torque / torque-damping 会在有角速度和交叉流时给机体动作增加一点负载。
 - `PlayableFlightModel` 新增 `acroResidualTorqueRateLoadFraction`，放在 passive AOA/transverse-flow 力矩之后、rotor gyro 负载之前。它只看当前机体系速度、pitch/roll rate 和侧滑/迎角暴露：低速、直线高速巡航、低角速度、以及单纯的弱被动横流力矩都不触发。
