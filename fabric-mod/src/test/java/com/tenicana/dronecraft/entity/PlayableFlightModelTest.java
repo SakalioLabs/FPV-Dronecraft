@@ -2861,6 +2861,72 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysPassiveTransverseRollMomentAfterFastSlipEntry() {
+		PlayableFlightModel.State freshSidewash = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.State settledSidewash = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Step freshStep = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				freshSidewash
+		);
+		PlayableFlightModel.Step settledStep = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				settledSidewash
+		);
+		float freshRollRate = Math.abs(freshStep.acroRollRateRadiansPerTick());
+		float settledRollRate = Math.abs(settledStep.acroRollRateRadiansPerTick());
+
+		assertTrue(freshStep.acroAeroCrossflowLag() > 0.94f, "freshLag=" + freshStep.acroAeroCrossflowLag());
+		assertTrue(freshStep.acroSidewashMemory() < 0.25f, "freshMemory=" + freshStep.acroSidewashMemory());
+		assertTrue(settledStep.acroSidewashMemory() > 0.96f, "settledMemory=" + settledStep.acroSidewashMemory());
+		assertTrue(freshRollRate > Math.toRadians(0.08), "freshRollDeg=" + Math.toDegrees(freshRollRate));
+		assertTrue(freshRollRate < settledRollRate * 0.32f,
+				"freshRollDeg=" + Math.toDegrees(freshRollRate) + " settledRollDeg=" + Math.toDegrees(settledRollRate));
+		assertTrue(settledRollRate > Math.toRadians(0.40), "settledRollDeg=" + Math.toDegrees(settledRollRate));
+	}
+
+	@Test
 	void acroLaggedCrossflowSoftensFirstTickResidualTorqueLoad() {
 		float straightCruise = PlayableFlightModel.acroResidualTorqueRateLoadFraction(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),

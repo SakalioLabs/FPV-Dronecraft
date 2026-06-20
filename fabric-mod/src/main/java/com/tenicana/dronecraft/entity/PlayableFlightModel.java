@@ -347,7 +347,7 @@ final class PlayableFlightModel {
 				safePrevious.pitchRadians(),
 				safePrevious.rollRadians()
 		);
-		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroAeroCrossflowLag, profile);
+		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroAeroCrossflowLag, acroSidewashMemory, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(
 				safeMode,
@@ -811,6 +811,7 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle,
 			float acroAeroCrossflowLag,
+			float acroSidewashMemory,
 			Profile profile
 	) {
 		if (safeMode(mode) != FlightMode.ACRO) {
@@ -841,7 +842,7 @@ final class PlayableFlightModel {
 			rollRate = 0.0f;
 		} else {
 			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
-					* sanitizedCrossflowLag(acroAeroCrossflowLag);
+					* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
 		}
 		pitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
 				* acroAngleOfAttackPitchMomentScale(

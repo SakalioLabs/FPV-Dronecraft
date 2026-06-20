@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 横流滚转力矩接入侧洗记忆）
+本轮继续收敛“斜向飞行像平移，不像真机被空气咬住走线”的主手感问题。对照本地研究包里 Kolaei inflow-angle rotor `CMx` 线索、NeuroBEM 残差力矩量级，以及 RotorPy/Faessler 这类把相对气流拆成机身阻力、桨盘阻力和 flapping/rotor-drag 的参考系统后，确认当前 playable ACRO 还有一个不够连续的地方：横流滚转力矩虽然已经存在，但它只乘即时 `acroAeroCrossflowLag`，刚切入高速斜飞时仍可能太快把“机体被横流扭动”的姿态手感打满。
+- `acroRateResponse` 现在把 `acroSidewashMemory` 一起传入姿态速率链路；`acroTransverseFlowRollMomentRate` 的被动横流滚转力矩不再直接乘即时 lag，而是乘 `acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory)`。这样刚进入斜飞时仍保留速度惯性和姿态惯性，持续斜飞后气流/侧洗逐渐建立，机体才更明显地被横流推着滚入气流。
+- 这不是 ACRO 自稳：松杆不会自动回水平，主动 roll 输入仍会压制被动横流力矩；完整 roll 恢复窗口仍保持优先，避免翻滚完成后又被残余侧滑重新带出侧飞。改动只让“被动气动力矩的建立速度”与上一轮侧洗力/侧洗转弯保持同一套记忆语义。
+- 新增 `acroSidewashMemoryDelaysPassiveTransverseRollMomentAfterFastSlipEntry` 回归：即使 crossflow lag 已接近满值，只要 sidewash memory 还未建立，第一帧被动横流 roll rate 也必须明显低于 settled 状态；memory 建立后才回到原来的高侧滑滚转力矩量级。
+- 已通过 targeted passive-roll 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-043259.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 姿态中点积分与目视压头修正）
 本轮继续处理“高速斜飞/全向转动时像平面位移，而不是连续物理步长里的真实机体”的核心手感问题。复查 playable ACRO 后，发现一个很关键的积分细节：50ms tick 内 pitch/roll 已经在变化，但旧模型把 tick 末尾姿态直接用于整帧推力、阻力、桨盘进速和侧洗投影，这会让快速压杆、翻滚或斜向切入时看起来像下一帧姿态瞬间作用了一整帧。
 - `PlayableFlightModel.acroPhysicalVelocity` 现在使用 pitch/roll 的中点姿态进行物理投影：推力轴、机体系速度、advance-ratio thrust scale、机身阻力、桨盘/侧洗转弯、yaw turn load 和 body-rate load 都基于 `current attitude - 0.5 * rate`。这不是自稳，也不是改变最终姿态，只是让本 tick 的空气动力更像连续时间积分。
