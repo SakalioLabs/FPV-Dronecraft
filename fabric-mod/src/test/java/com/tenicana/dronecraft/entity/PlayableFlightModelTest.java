@@ -3484,10 +3484,10 @@ class PlayableFlightModelTest {
 		);
 		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
 
-		assertTrue(sideforce.x() < -1.12f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.x() > -1.35f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.z() > 1.12f, "sideforceZ=" + sideforce.z());
-		assertTrue(sideforce.z() < 1.35f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.x() < -1.35f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() > -1.65f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.z() > 1.35f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.z() < 1.65f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
 	}
 
@@ -3508,7 +3508,8 @@ class PlayableFlightModelTest {
 				+ sideforce.z() * diagonalVelocity.z();
 
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(sideforceMagnitude > 1.65f, "sideforceMagnitude=" + sideforceMagnitude);
+		assertTrue(sideforceMagnitude > 2.00f, "sideforceMagnitude=" + sideforceMagnitude);
+		assertTrue(sideforceMagnitude < 2.25f, "sideforceMagnitude=" + sideforceMagnitude);
 		assertTrue(inducedDragMagnitude < sideforceMagnitude * 0.28f,
 				"sideforceMagnitude=" + sideforceMagnitude + " inducedDragMagnitude=" + inducedDragMagnitude);
 	}
@@ -3542,14 +3543,14 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straightInducedDrag.x(), 1.0e-6f);
 		assertEquals(0.0f, straightInducedDrag.z(), 1.0e-6f);
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(diagonalInducedDrag.x() < -0.22f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.x() > -0.29f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.z() < -0.22f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(diagonalInducedDrag.z() > -0.29f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(inducedDragMagnitude > 0.31f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragMagnitude < 0.41f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragWork < -7.0f, "inducedDragWork=" + inducedDragWork);
-		assertTrue(inducedDragWork > -9.3f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(diagonalInducedDrag.x() < -0.29f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.x() > -0.36f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.z() < -0.29f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(diagonalInducedDrag.z() > -0.36f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(inducedDragMagnitude > 0.43f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragMagnitude < 0.52f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragWork < -9.5f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork > -11.2f, "inducedDragWork=" + inducedDragWork);
 	}
 
 	@Test
