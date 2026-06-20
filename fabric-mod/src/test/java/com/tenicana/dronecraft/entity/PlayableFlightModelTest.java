@@ -3700,6 +3700,60 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawRotorSidewashTurnWithoutHidingPitchAoa() {
+		PlayableFlightModel.Velocity yawFresh = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				16.0f,
+				16.0f,
+				-8.0f,
+				8.0f,
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity yawSettled = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				16.0f,
+				16.0f,
+				-8.0f,
+				8.0f,
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity pitchFresh = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				0.0f,
+				25.0f,
+				-8.0f,
+				0.0f,
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity pitchSettled = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				0.0f,
+				25.0f,
+				-8.0f,
+				0.0f,
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				1.0f,
+				1.0f
+		);
+		float yawFreshMagnitude = horizontalSpeed(yawFresh.x(), yawFresh.z());
+		float yawSettledMagnitude = horizontalSpeed(yawSettled.x(), yawSettled.z());
+		float pitchFreshMagnitude = horizontalSpeed(pitchFresh.x(), pitchFresh.z());
+
+		assertTrue(yawFreshMagnitude < yawSettledMagnitude * 0.58f,
+				"yawFresh=" + yawFreshMagnitude + " yawSettled=" + yawSettledMagnitude);
+		assertTrue(yawFreshMagnitude > yawSettledMagnitude * 0.42f,
+				"yawFresh=" + yawFreshMagnitude + " yawSettled=" + yawSettledMagnitude);
+		assertEquals(pitchSettled.x(), pitchFresh.x(), 1.0e-6f);
+		assertEquals(pitchSettled.z(), pitchFresh.z(), 1.0e-6f);
+		assertTrue(pitchFreshMagnitude > yawFreshMagnitude * 1.35f,
+				"pitchFresh=" + pitchFreshMagnitude + " yawFresh=" + yawFreshMagnitude);
+		assertTrue(pitchFresh.x() < -0.55f, "pitchFreshX=" + pitchFresh.x());
+		assertTrue(pitchFresh.x() > -0.68f, "pitchFreshX=" + pitchFresh.x());
+	}
+
+	@Test
 	void acroThrustVectorTurnLoadAddsEnergyCostWithoutChangingTurnDirection() {
 		PlayableFlightModel.State fastForward = new PlayableFlightModel.State(
 				0.0f,

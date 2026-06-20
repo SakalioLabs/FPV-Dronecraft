@@ -2784,12 +2784,13 @@ final class PlayableFlightModel {
 			float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
 			float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
 			float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
-			float crossflowExposure = laggedCrossflowExposure(Math.max(
-					smoothStep((sideslip - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
-							/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)),
-					smoothStep((angleOfAttack - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
-							/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS))
-			), acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory));
+			float sideslipExposure = smoothStep((sideslip - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
+					/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS));
+			float angleOfAttackExposure = smoothStep((angleOfAttack - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS)
+					/ Math.max(0.001f, ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_FULL_RADIANS - ACRO_ROTOR_SIDEWASH_TURN_CROSSFLOW_START_RADIANS));
+			float yawCrossflow = acroYawSidewashExposure(sideslipExposure, acroAeroCrossflowLag, acroSidewashMemory);
+			float pitchCrossflow = acroPitchLagExposure(angleOfAttackExposure, acroAeroCrossflowLag);
+			float crossflowExposure = Math.max(yawCrossflow, pitchCrossflow);
 			flowWeight += (1.0f - ACRO_ROTOR_SIDEWASH_TURN_STRAIGHT_FLOW_WEIGHT) * crossflowExposure;
 		}
 		float accelerationMagnitude = clamp(
