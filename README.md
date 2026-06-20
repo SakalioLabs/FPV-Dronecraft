@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高前进比侧向推力损失接入侧洗记忆，并修正目视 pitch）
+这一轮继续收敛“高速斜向飞行像平面平移”的手感。复查剩余 ACRO 物理链路后发现，`acroAdvanceRatioThrustScale` 的基础高前进比 prop rolloff 已经存在，但侧向来流的额外推力损失仍只读较快的 `acroAeroCrossflowLag`。这样刚翻滚或刚切进斜飞时，桨盘侧向来流损失可能比机身/桨盘侧洗记忆更早进入 settled 状态，造成第一段动作显得被贴在平面里滑。
+- `acroAdvanceRatioThrustScale` 现在增加带 `acroSidewashMemory` 的重载，运行时由 `acroPhysicalVelocity` 传入真实 memory；旧 helper 仍保持 `memory = lag`，所以已有静态标定和旧测试入口不漂移。
+- 侧向来流额外损失现在通过 `acroYawSidewashExposure(...)` 建立：直线高速 prop rolloff 仍即时有效，pitch 迎角/机头下压路径不被隐藏；只有 yaw-plane 侧滑的额外 sideflow loss 会在 fresh 侧洗时更轻，持续斜飞后再逐步变重。
+- 同轮修正目视/第三人称模型 pitch 符号：`DroneEntityModel.bodyPitchRotationRadians` 重新直接使用 playable pitch。结合 renderer 的 `scale(-1,-1,1)` 和机头局部 `+Z` 语义，正 pitch / 前飞在目视模型上重新显示为机头下压，负 pitch 显示为抬头；不改 FPV 相机矩阵和服务端物理。
+- 新增 `acroSidewashMemoryDelaysYawAdvanceRatioLossWithoutHidingPitchAoa` 与更新 `DroneEntityModelTest` 回归。已通过 targeted advance-ratio / 模型测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-053741.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 偏航转弯载荷接入侧洗记忆）
 这一轮继续收敛“翻滚/高速斜飞后像被平面拖着侧滑”的手感问题。复查发现大部分机身侧力、桨盘侧滑、动态入流、body-rate 负载和角速度控制链路已经接入 `acroSidewashMemory`，但 `acroYawTurnLoadBodyAcceleration` 仍只读较快的 `acroAeroCrossflowLag`。结果是刚翻滚或刚切进高速斜向飞行时，偏航转弯能量成本可能比真实侧洗建立得更快，容易把飞机过早按成 settled 横流状态。
 - `acroPhysicalVelocity` 现在把真实 `acroSidewashMemory` 传入 yaw-turn load；旧的三参数 helper 仍保持 `memory = lag` 的 settled 语义，避免已有静态标定漂移。

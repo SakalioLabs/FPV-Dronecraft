@@ -2970,6 +2970,84 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawAdvanceRatioLossWithoutHidingPitchAoa() {
+		float straightFresh = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float straightSettled = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		float diagonalFresh = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float diagonalSettled = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		float pitchFresh = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				(float) Math.toRadians(60.0),
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float pitchSettled = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				(float) Math.toRadians(60.0),
+				0.0f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+
+		assertEquals(straightSettled, straightFresh, 1.0e-6f);
+		assertEquals(pitchSettled, pitchFresh, 1.0e-6f);
+		assertTrue(diagonalFresh > diagonalSettled + 0.015f,
+				"fresh=" + diagonalFresh + " settled=" + diagonalSettled);
+		assertTrue(diagonalFresh < pitchFresh,
+				"fresh=" + diagonalFresh + " pitch=" + pitchFresh);
+		assertTrue(diagonalSettled < 0.46f, "settled=" + diagonalSettled);
+	}
+
+	@Test
 	void acroLaggedCrossflowSoftensFirstTickPassiveRollMoment() {
 		PlayableFlightModel.State risingLag = new PlayableFlightModel.State(
 				16.0f,
