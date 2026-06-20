@@ -1350,6 +1350,70 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroHighAdvanceFlowSoftensPropThrustAtSpeed() {
+		float lowSpeedScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				5.0f,
+				(float) Math.toRadians(45.0),
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float highSideFlowScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				25.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float noseDownForwardScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				25.0f,
+				(float) Math.toRadians(60.0),
+				0.0f,
+				0.68f,
+				0.20f
+		);
+
+		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
+		assertTrue(highSideFlowScale > 0.78f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(highSideFlowScale < 0.84f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(noseDownForwardScale > highSideFlowScale + 0.08f, "noseDownForwardScale=" + noseDownForwardScale + " highSideFlowScale=" + highSideFlowScale);
+		assertTrue(noseDownForwardScale < 0.96f, "noseDownForwardScale=" + noseDownForwardScale);
+	}
+
+	@Test
+	void acroAdvanceRatioUsesFiveInchPropJScale() {
+		float racingCruiseJ = PlayableFlightModel.acroRotorAdvanceRatio(
+				0.0f,
+				0.0f,
+				12.5f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float fastSideJ = PlayableFlightModel.acroRotorAdvanceRatio(
+				25.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+
+		assertTrue(racingCruiseJ > 0.44f, "racingCruiseJ=" + racingCruiseJ);
+		assertTrue(racingCruiseJ < 0.46f, "racingCruiseJ=" + racingCruiseJ);
+		assertTrue(fastSideJ > 0.89f, "fastSideJ=" + fastSideJ);
+		assertTrue(fastSideJ < 0.92f, "fastSideJ=" + fastSideJ);
+	}
+
+	@Test
 	void acroBodyFrameVelocityRoundTripsAfterFullRollOffset() {
 		float pitchRadians = (float) Math.toRadians(37.0);
 		float rollRadians = (float) Math.toRadians(428.0);
