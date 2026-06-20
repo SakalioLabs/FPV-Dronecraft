@@ -92,7 +92,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_PITCH_LIFT_GAIN = 0.090f;
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
-	private static final float ACRO_SIDEFORCE_GAIN = 0.360f;
+	private static final float ACRO_SIDEFORCE_GAIN = 0.430f;
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_GAIN = 0.27f;
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_START_RADIANS = (float) Math.toRadians(10.0f);
 	private static final float ACRO_SIDEFORCE_INDUCED_DRAG_FULL_RADIANS = (float) Math.toRadians(58.0f);
@@ -211,8 +211,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_TRANSVERSE_MOMENT_HIGH_MU_KEEP = 0.45f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_START_RADIANS = (float) Math.toRadians(14.0f);
 	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(62.0f);
-	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.58f);
-	private static final float ACRO_TRANSVERSE_AIRFRAME_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.16f);
+	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.74f);
+	private static final float ACRO_TRANSVERSE_AIRFRAME_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.19f);
 	private static final float ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS = 0.65f;
 	private static final float ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP = 0.08f;
 	private static final float ACRO_AOA_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;

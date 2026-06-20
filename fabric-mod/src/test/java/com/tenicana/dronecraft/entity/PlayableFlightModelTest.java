@@ -3533,10 +3533,10 @@ class PlayableFlightModelTest {
 		);
 		float workAlongVelocity = sideforce.x() * 16.0f + sideforce.z() * 16.0f;
 
-		assertTrue(sideforce.x() < -1.35f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.x() > -1.65f, "sideforceX=" + sideforce.x());
-		assertTrue(sideforce.z() > 1.35f, "sideforceZ=" + sideforce.z());
-		assertTrue(sideforce.z() < 1.65f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.x() < -1.65f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.x() > -1.95f, "sideforceX=" + sideforce.x());
+		assertTrue(sideforce.z() > 1.65f, "sideforceZ=" + sideforce.z());
+		assertTrue(sideforce.z() < 1.95f, "sideforceZ=" + sideforce.z());
 		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
 	}
 
@@ -3557,8 +3557,8 @@ class PlayableFlightModelTest {
 				+ sideforce.z() * diagonalVelocity.z();
 
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(sideforceMagnitude > 2.00f, "sideforceMagnitude=" + sideforceMagnitude);
-		assertTrue(sideforceMagnitude < 2.25f, "sideforceMagnitude=" + sideforceMagnitude);
+		assertTrue(sideforceMagnitude > 2.35f, "sideforceMagnitude=" + sideforceMagnitude);
+		assertTrue(sideforceMagnitude < 2.65f, "sideforceMagnitude=" + sideforceMagnitude);
 		assertTrue(inducedDragMagnitude < sideforceMagnitude * 0.28f,
 				"sideforceMagnitude=" + sideforceMagnitude + " inducedDragMagnitude=" + inducedDragMagnitude);
 	}
@@ -3592,14 +3592,14 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straightInducedDrag.x(), 1.0e-6f);
 		assertEquals(0.0f, straightInducedDrag.z(), 1.0e-6f);
 		assertEquals(0.0f, sideforceWork, 1.0e-4f);
-		assertTrue(diagonalInducedDrag.x() < -0.29f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.x() > -0.36f, "inducedDragX=" + diagonalInducedDrag.x());
-		assertTrue(diagonalInducedDrag.z() < -0.29f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(diagonalInducedDrag.z() > -0.36f, "inducedDragZ=" + diagonalInducedDrag.z());
-		assertTrue(inducedDragMagnitude > 0.43f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragMagnitude < 0.52f, "inducedDragMagnitude=" + inducedDragMagnitude);
-		assertTrue(inducedDragWork < -9.5f, "inducedDragWork=" + inducedDragWork);
-		assertTrue(inducedDragWork > -11.2f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(diagonalInducedDrag.x() < -0.36f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.x() > -0.45f, "inducedDragX=" + diagonalInducedDrag.x());
+		assertTrue(diagonalInducedDrag.z() < -0.36f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(diagonalInducedDrag.z() > -0.45f, "inducedDragZ=" + diagonalInducedDrag.z());
+		assertTrue(inducedDragMagnitude > 0.52f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragMagnitude < 0.65f, "inducedDragMagnitude=" + inducedDragMagnitude);
+		assertTrue(inducedDragWork < -12.0f, "inducedDragWork=" + inducedDragWork);
+		assertTrue(inducedDragWork > -14.0f, "inducedDragWork=" + inducedDragWork);
 	}
 
 	@Test
@@ -3996,8 +3996,8 @@ class PlayableFlightModelTest {
 		assertTrue(forward.z() < -5.5f, "forwardZ=" + forward.z());
 		assertTrue(forward.z() > -6.3f, "forwardZ=" + forward.z());
 		assertTrue(diagonal.x() < -9.2f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.x() > -10.3f, "diagonalX=" + diagonal.x());
-		assertTrue(diagonal.z() < -2.45f, "diagonalZ=" + diagonal.z());
+		assertTrue(diagonal.x() > -10.8f, "diagonalX=" + diagonal.x());
+		assertTrue(diagonal.z() < -2.25f, "diagonalZ=" + diagonal.z());
 		assertTrue(diagonal.z() > -3.20f, "diagonalZ=" + diagonal.z());
 		assertTrue(Math.abs(diagonal.x()) > Math.abs(diagonal.z()) + 6.8f, "diagonalX=" + diagonal.x() + " diagonalZ=" + diagonal.z());
 	}
@@ -4042,7 +4042,7 @@ class PlayableFlightModelTest {
 
 		assertTrue(Math.abs(freshSlip.x()) < Math.abs(settledSlip.x()) * 0.90f,
 				"freshX=" + freshSlip.x() + " settledX=" + settledSlip.x());
-		assertTrue(Math.abs(freshSlip.x()) > Math.abs(settledSlip.x()) * 0.75f,
+		assertTrue(Math.abs(freshSlip.x()) > Math.abs(settledSlip.x()) * 0.72f,
 				"freshX=" + freshSlip.x() + " settledX=" + settledSlip.x());
 		assertTrue(settledSlip.x() < -9.4f, "settledX=" + settledSlip.x());
 		assertEquals(pitchSettled.y(), pitchFresh.y(), 1.0e-6f);
@@ -4355,7 +4355,7 @@ class PlayableFlightModelTest {
 		assertTrue(speedAfterOneSecond < 12.2f, "speedAfterOneSecond=" + speedAfterOneSecond);
 		assertTrue(speedAfterTwoSeconds > 7.0f, "speedAfterTwoSeconds=" + speedAfterTwoSeconds);
 		assertTrue(speedAfterTwoSeconds < 7.8f, "speedAfterTwoSeconds=" + speedAfterTwoSeconds);
-		assertTrue(secondsToFiveMetersPerSecond > 2.85f, "secondsToFive=" + secondsToFiveMetersPerSecond);
+		assertTrue(secondsToFiveMetersPerSecond > 2.70f, "secondsToFive=" + secondsToFiveMetersPerSecond);
 		assertTrue(secondsToFiveMetersPerSecond < 3.25f, "secondsToFive=" + secondsToFiveMetersPerSecond);
 		assertTrue(distanceToFiveMetersPerSecond > 29.0f, "distanceToFive=" + distanceToFiveMetersPerSecond);
 		assertTrue(distanceToFiveMetersPerSecond < 32.0f, "distanceToFive=" + distanceToFiveMetersPerSecond);
@@ -5138,8 +5138,8 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, straight, 1.0e-6f);
 		assertEquals(0.0f, lowSpeedSide, 1.0e-6f);
-		assertTrue(rightSlip > Math.toRadians(0.48), "rightSlipDeg=" + Math.toDegrees(rightSlip));
-		assertTrue(rightSlip < Math.toRadians(0.57), "rightSlipDeg=" + Math.toDegrees(rightSlip));
+		assertTrue(rightSlip > Math.toRadians(0.61), "rightSlipDeg=" + Math.toDegrees(rightSlip));
+		assertTrue(rightSlip < Math.toRadians(0.70), "rightSlipDeg=" + Math.toDegrees(rightSlip));
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 		assertTrue(activeRoll > rightSlip * 0.06f, "activeRollDeg=" + Math.toDegrees(activeRoll));
 		assertTrue(activeRoll < rightSlip * 0.12f, "activeRollDeg=" + Math.toDegrees(activeRoll) + " rightSlipDeg=" + Math.toDegrees(rightSlip));
@@ -5176,8 +5176,8 @@ class PlayableFlightModelTest {
 		assertTrue(idleSlip > Math.toRadians(0.08), "idleSlipDeg=" + Math.toDegrees(idleSlip));
 		assertTrue(idleSlip < Math.toRadians(0.15), "idleSlipDeg=" + Math.toDegrees(idleSlip));
 		assertEquals(0.0f, lowMuSlip, 1.0e-6f);
-		assertTrue(poweredSlip > Math.toRadians(0.48), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
-		assertTrue(poweredSlip < Math.toRadians(0.57), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
+		assertTrue(poweredSlip > Math.toRadians(0.61), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
+		assertTrue(poweredSlip < Math.toRadians(0.70), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
 		assertTrue(poweredSlip > idleSlip * 4.0f,
 				"poweredSlipDeg=" + Math.toDegrees(poweredSlip) + " idleSlipDeg=" + Math.toDegrees(idleSlip));
 		assertTrue(overRangeSlip > poweredSlip * 0.70f,
@@ -5375,9 +5375,9 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.acroRollRateRadiansPerTick() > Math.toRadians(0.48),
+		assertTrue(passive.acroRollRateRadiansPerTick() > Math.toRadians(0.61),
 				"passiveRollRateDeg=" + Math.toDegrees(passive.acroRollRateRadiansPerTick()));
-		assertTrue(passive.acroRollRateRadiansPerTick() < Math.toRadians(0.57),
+		assertTrue(passive.acroRollRateRadiansPerTick() < Math.toRadians(0.70),
 				"passiveRollRateDeg=" + Math.toDegrees(passive.acroRollRateRadiansPerTick()));
 		assertEquals(passive.acroRollRateRadiansPerTick(), passive.rollRadians(), 1.0e-6f);
 		assertEquals(0.0f, passive.acroPitchRateRadiansPerTick(), 1.0e-6f);

@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 横向来流侧力/被动滚转增强，翻滚后更少持续侧飞）
+这一轮继续处理你刚反馈的“翻滚一周之后持续侧飞、斜向飞行像平移”的问题。复查后确认当前 ACRO 已经不是简单目标速度控制，也没有给穿越机模式加自动回正；更可疑的是高速 yaw-plane sideslip 里，机身侧力和桨盘横流滚转力矩还偏保守，导致 `16m/s body-right + 16m/s body-forward` 这类斜滑更像横向刹车/平移，而不是速度矢量被空气逐步掰向机头方向。
+- `ACRO_SIDEFORCE_GAIN` 从 `0.360` 提到 `0.430`。45 度高速侧滑的 sideforce magnitude 从约 `2.1m/s²` 提到约 `2.49m/s²`；它仍严格近似垂直于当前速度，不凭空增减速度能量，诱导阻力只作为能量成本随之小幅提高。
+- `ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE` 从 `0.58°/tick` 提到 `0.74°/tick`，airframe 横流 roll moment 从 `0.16°/tick` 提到 `0.19°/tick`。`16/16m/s` settled 侧滑的无杆被动 roll rate 现在约 `0.645°/tick`，比旧版更有“桨盘被横向来流抓住”的重量感，但主动 roll stick 仍会按原有 suppression 压住这条被动路径。
+- 惯性边界没有放掉：`16/16m/s` 斜滑松杆 2 秒后仍保留约 `13.3m/s` 水平速度、轨迹约 `33.8m`，但横向分量从 `16m/s` 洗到约 `6.65m/s`；纯 `20m/s` broadside 到 `5m/s` 仍需要约 `2.8s / 29.0m`。这意味着它会更快摆脱“持续侧飞”，但不是硬刹停。
+- 参考了 `docs/data/kolaei2018_inflow_angle_rotor_packet.csv` 里整理的 Kolaei 2018 inflow-angle 资料：该源和本项目使用同定义 `mu = V/(Omega*R)`，并提供 `CMx` roll-moment coefficient 趋势，适合用作横向来流 roll moment 的形状/符号参考；由于不是 5 寸 FPV 桨，本轮只做保守增益收敛，不直接套绝对系数。
+- 已通过 targeted sideforce / coastdown / full-roll release 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-075024.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO crossflow/迎角 lag 改为按当前姿态进入物理）
 这一轮继续收敛“斜向机动像平移、翻滚/俯仰后速度矢量和机体姿态不够贴合”的手感问题。复查 `PlayableFlightModel.step(...)` 后发现，上一轮已经把 body-rate 姿态积分和 yaw 转弯载荷对齐到了同帧，但 `acroAeroCrossflowLag(...)` / `acroSidewashMemory(...)` 仍在一开始只用上一帧的 `pitchRadians / rollRadians` 计算。结果是高速前飞时玩家这一帧把机头压进迎角区，推力轴、body velocity、空阻积分已经按新姿态算了，crossflow lag 和迎角相关载荷却仍晚一帧才建立，视觉上就容易残留“机体在转，轨迹像先平移一下”的假感。
 - `PlayableFlightModel` 现在把 ACRO 空气状态拆成两段：`acroRateResponse(...)` 仍使用上一帧 crossflow/sidewash，避免角速度响应被当前帧姿态突然抢走；速度积分、yaw 转弯载荷、写回 `Step` 的 crossflow/sidewash 状态，则在完成本帧 pitch/roll 捕获、roll recovery 和姿态归一化之后，按当前姿态重新计算。
