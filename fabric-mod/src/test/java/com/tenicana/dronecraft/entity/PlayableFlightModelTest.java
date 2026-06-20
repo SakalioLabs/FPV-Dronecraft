@@ -2171,8 +2171,8 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, straight, 1.0e-6f);
 		assertTrue(pureSide < -0.035f, "pureSide=" + pureSide);
 		assertTrue(pureSide > -0.070f, "pureSide=" + pureSide);
-		assertTrue(rightSlip < -0.16f, "rightSlip=" + rightSlip);
-		assertTrue(rightSlip > -0.22f, "rightSlip=" + rightSlip);
+		assertTrue(rightSlip < -0.24f, "rightSlip=" + rightSlip);
+		assertTrue(rightSlip > -0.34f, "rightSlip=" + rightSlip);
 		assertTrue(Math.abs(pureSide) < Math.abs(rightSlip) * 0.36f, "pureSide=" + pureSide + " rightSlip=" + rightSlip);
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 	}
@@ -2228,8 +2228,8 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.yawDegreesPerTick() < -0.08f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(passive.yawDegreesPerTick() > -0.24f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() < -0.24f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.36f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
 	}
 
@@ -2265,9 +2265,64 @@ class PlayableFlightModelTest {
 				slipping
 		);
 
-		assertTrue(passive.yawDegreesPerTick() < -0.025f, "passiveYaw=" + passive.yawDegreesPerTick());
-		assertTrue(passive.yawDegreesPerTick() > -0.095f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() < -0.045f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.11f, "passiveYaw=" + passive.yawDegreesPerTick());
 		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+	}
+
+	@Test
+	void acroSideslipYawCommandLoadMakesHighSpeedYawFeelHeavier() {
+		float straight = PlayableFlightModel.acroSideslipYawCommandLoad(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		float lowSpeedSide = PlayableFlightModel.acroSideslipYawCommandLoad(
+				new PlayableFlightModel.Velocity(6.0f, 0.0f, 6.0f)
+		);
+		float diagonal = PlayableFlightModel.acroSideslipYawCommandLoad(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+		float broadside = PlayableFlightModel.acroSideslipYawCommandLoad(
+				new PlayableFlightModel.Velocity(18.0f, 0.0f, 0.0f)
+		);
+		PlayableFlightModel.Step calmYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step slippingYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO
+				)
+		);
+
+		assertEquals(0.0f, straight, 1.0e-6f);
+		assertEquals(0.0f, lowSpeedSide, 1.0e-6f);
+		assertTrue(diagonal > 0.06f, "diagonal=" + diagonal);
+		assertTrue(diagonal < 0.09f, "diagonal=" + diagonal);
+		assertTrue(broadside > 0.035f, "broadside=" + broadside);
+		assertTrue(broadside < 0.06f, "broadside=" + broadside);
+		assertTrue(slippingYaw.yawDegreesPerTick() < calmYaw.yawDegreesPerTick() * 0.96f,
+				"slippingYaw=" + slippingYaw.yawDegreesPerTick() + " calmYaw=" + calmYaw.yawDegreesPerTick());
+		assertTrue(slippingYaw.yawDegreesPerTick() > calmYaw.yawDegreesPerTick() * 0.90f,
+				"slippingYaw=" + slippingYaw.yawDegreesPerTick() + " calmYaw=" + calmYaw.yawDegreesPerTick());
 	}
 
 	@Test

@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 高速侧滑 yaw 载荷）
+本轮继续处理“斜向飞行像平移”的手感问题。当前 ACRO 已有机体系阻力、侧滑 sideforce、诱导阻力、桨盘 flapping/H-force、高前进比推力损失、transverse roll moment 和高迎角 pitch load；这次补的是 yaw 轴的高速侧滑反馈，让机头和速度矢量之间的空气交互更明显。
+- `PlayableFlightModel` 提高了 ACRO sideslip weathercock yaw：`16m/s right + 16m/s forward` 的无 yaw 输入斜滑现在约为 `0.30deg/tick` 被动转头，纯横向 broadside 仍保持弱反馈，避免变成自动航向锁定。
+- 新增 ACRO sideslip yaw command load：高速侧滑下主动 yaw 会有约 `4%..8%` 的空气载荷损失，满 yaw 仍保持足够快，但不再像完全无空气阻力的贴图旋转。
+- 新增回归测试覆盖：直线巡航/低速侧滑不加 yaw 载荷；高速斜滑和 broadside 载荷分档；主动 yaw 在斜滑中比静止略重但不被偷走；passive weathercock 的左右符号保持对称。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`、7 个 Fabric GameTest，以及 JDK 21 下无头 `:fabric-mod:runPlayableAcroServerSelfTest`。服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-215040.json`。
+
 ## 最新进展（2026-06-20，ACRO 高迎角 pitch 动态载荷）
 本轮继续把“全向机动后不像真实机体、容易有平面漂移感”的手感往真实穿越机收敛。上一轮已经补了高速侧滑下的 transverse-flow roll moment，但 pitch 轴还缺少一个对应的高速迎角载荷：快速俯仰/翻转后，如果机体系前向速度和垂直来流同时存在，真实气流会轻微吃掉 pitch rate 尾巴，而不是像理想数学姿态那样完全无负载滑过去。
 - `PlayableFlightModel` 新增 ACRO angle-of-attack pitch moment：低速、直线巡航、悬停、倒退来流都不介入；在 `18m/s` 前向、`10m/s` 垂直来流这类高速大迎角状态下，会产生约 `0.09deg/tick` 量级的弱 pitch 力矩。
