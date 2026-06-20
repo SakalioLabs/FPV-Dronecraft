@@ -2755,6 +2755,93 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysRotorDiskSideLoadsAfterFastSlipEntry() {
+		PlayableFlightModel.Velocity straight = new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f);
+		PlayableFlightModel.Velocity diagonal = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity straightFreshFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettledFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity freshFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledFlap = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity straightFreshInPlane = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity straightSettledInPlane = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				straight,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Velocity freshInPlane = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		PlayableFlightModel.Velocity settledInPlane = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
+				diagonal,
+				12.5f,
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		float freshFlapMagnitude = horizontalSpeed(freshFlap.x(), freshFlap.z());
+		float settledFlapMagnitude = horizontalSpeed(settledFlap.x(), settledFlap.z());
+		float freshInPlaneMagnitude = horizontalSpeed(freshInPlane.x(), freshInPlane.z());
+		float settledInPlaneMagnitude = horizontalSpeed(settledInPlane.x(), settledInPlane.z());
+
+		assertEquals(straightSettledFlap.x(), straightFreshFlap.x(), 1.0e-6f);
+		assertEquals(straightSettledFlap.z(), straightFreshFlap.z(), 1.0e-6f);
+		assertEquals(straightSettledInPlane.x(), straightFreshInPlane.x(), 1.0e-6f);
+		assertEquals(straightSettledInPlane.z(), straightFreshInPlane.z(), 1.0e-6f);
+		assertTrue(freshFlapMagnitude < settledFlapMagnitude * 0.62f,
+				"freshFlap=" + freshFlapMagnitude + " settledFlap=" + settledFlapMagnitude);
+		assertTrue(freshFlapMagnitude > settledFlapMagnitude * 0.45f,
+				"freshFlap=" + freshFlapMagnitude + " settledFlap=" + settledFlapMagnitude);
+		assertTrue(freshInPlaneMagnitude < settledInPlaneMagnitude * 0.50f,
+				"freshInPlane=" + freshInPlaneMagnitude + " settledInPlane=" + settledInPlaneMagnitude);
+		assertTrue(freshInPlaneMagnitude > settledInPlaneMagnitude * 0.25f,
+				"freshInPlane=" + freshInPlaneMagnitude + " settledInPlane=" + settledInPlaneMagnitude);
+	}
+
+	@Test
 	void acroLaggedCrossflowSoftensFirstTickThrustLossesWithoutTouchingStraightCruise() {
 		float straightInitialAdvance = PlayableFlightModel.acroAdvanceRatioThrustScale(
 				0.0f,

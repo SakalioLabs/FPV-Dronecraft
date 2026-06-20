@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 桨盘侧滑负载接入侧洗记忆）
+本轮继续处理“高速斜飞/翻滚切入时像平面滑动”的手感细节。前几轮已经把机身侧力、分离流、weathercock yaw、横流 roll 和 coupled dynamic pressure 接入 `acroSidewashMemory`；复查后发现桨盘 flapping 与 rotor in-plane drag 的侧滑权重仍只读取较快的 `acroAeroCrossflowLag`。这会让刚切入高速侧滑时，桨盘侧向气动比机身侧洗记忆更早打满。
+- `acroRotorFlappingBodyAcceleration` 与 `acroRotorInPlaneDragBodyAcceleration` 现在增加带 `acroSidewashMemory` 的重载，运行时由 `acroPhysicalVelocity` 传入真实 memory。旧的 5 参数 helper 保持兼容，仍按 `memory = lag` 的 settled 语义工作，避免历史测试语义漂移。
+- 直线前飞的 straight-flow 权重不变；只有 yaw-plane sideslip exposure 乘 `acroSidewashForceResponse(lag, memory)`。因此刚翻滚或刚进入斜飞时，桨盘不会瞬间给满 flapping/in-plane drag；持续侧滑后，侧洗记忆建立，桨盘才逐渐更明显地咬住横流。
+- 新增 `acroSidewashMemoryDelaysRotorDiskSideLoadsAfterFastSlipEntry` 回归，锁住 `crossflowLag=1` 但 `sidewashMemory=0` 时桨盘侧滑负载明显低于 settled，同时直线前飞完全不受 memory 影响。已通过 targeted 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。
+- 本轮服务端自测报告为 `server-selftest-playable-20260621-050004.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 侧滑动态压阻力接入侧洗记忆）
 本轮继续沿着“高速斜飞不要像平面滑块”的主线收敛。上一轮已经把 yaw 侧滑分离流接入 `acroSidewashMemory`，但 `acroCoupledDynamicPressureDragAcceleration` 仍然把 pitch 迎角和 yaw 侧滑混成一个即时 crossflow exposure，再由运行时整体乘 `acroAeroCrossflowLag`；这会让刚翻滚或刚切入斜飞时，额外动态压阻力比侧洗/侧力/侧滑分离更早打满。
 - `acroCoupledDynamicPressureDragAcceleration` 现在增加带 `crossflowLag` 和 `sidewashMemory` 的重载。旧的一参数方法仍代表 settled/full-response 语义；运行时 `acroBodyAerodynamicAcceleration` 改用三参数版本。
