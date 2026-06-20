@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 动态入流推力损失接入侧洗记忆）
+本轮继续收敛高速斜飞/翻滚切入的“平面感”。前几轮已经把机身、桨盘和 yaw/roll 横流项逐步接入 `acroSidewashMemory`；复查后发现 `acroDynamicInflowThrustScale` 仍把 yaw 侧滑和 pitch 迎角混成一个即时 crossflow，再直接乘较快的 `acroAeroCrossflowLag`。这会让刚进入高速侧滑并带 pitch/roll rate 时，桨盘动态入流推力软化比侧洗记忆更早打满。
+- `acroDynamicInflowThrustScale` 现在增加带 `acroSidewashMemory` 的重载，运行时由 `acroPhysicalVelocity` 传入真实 memory；旧的 6 参数 helper 保持 `memory = lag`，因此历史测试语义不变。
+- 新逻辑把 yaw-plane sideslip 和 pitch-plane angle-of-attack 分开：yaw 侧滑动态入流损失乘 `acroSidewashForceResponse(lag, memory)`，pitch 迎角损失仍乘基础 lag。刚翻滚/刚切入斜飞时不会瞬间掉完整推力，持续侧滑后推力软化逐步建立；机头压低或拉起时的 pitch 迎角响应不被隐藏。
+- 新增 `acroSidewashMemoryDelaysYawDynamicInflowLossWithoutHidingPitchAoa` 回归，锁住 fresh yaw 比 settled yaw 保留更多推力，同时 pure pitch 在 memory 为 `0` 和 `1` 时完全一致。已通过 targeted 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。
+- 本轮服务端自测报告为 `server-selftest-playable-20260621-050452.json`，ACRO playable 诊断通过，最大水平位移约 `16.41m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 桨盘侧滑负载接入侧洗记忆）
 本轮继续处理“高速斜飞/翻滚切入时像平面滑动”的手感细节。前几轮已经把机身侧力、分离流、weathercock yaw、横流 roll 和 coupled dynamic pressure 接入 `acroSidewashMemory`；复查后发现桨盘 flapping 与 rotor in-plane drag 的侧滑权重仍只读取较快的 `acroAeroCrossflowLag`。这会让刚切入高速侧滑时，桨盘侧向气动比机身侧洗记忆更早打满。
 - `acroRotorFlappingBodyAcceleration` 与 `acroRotorInPlaneDragBodyAcceleration` 现在增加带 `acroSidewashMemory` 的重载，运行时由 `acroPhysicalVelocity` 传入真实 memory。旧的 5 参数 helper 保持兼容，仍按 `memory = lag` 的 settled 语义工作，避免历史测试语义漂移。

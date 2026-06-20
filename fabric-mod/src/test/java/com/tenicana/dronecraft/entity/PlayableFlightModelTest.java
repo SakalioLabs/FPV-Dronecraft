@@ -2464,6 +2464,51 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryDelaysYawDynamicInflowLossWithoutHidingPitchAoa() {
+		float freshYaw = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float settledYaw = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+		float freshPitch = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f,
+				1.0f,
+				0.0f
+		);
+		float settledPitch = PlayableFlightModel.acroDynamicInflowThrustScale(
+				new PlayableFlightModel.Velocity(0.0f, 16.0f, 16.0f),
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				0.68f,
+				0.20f,
+				1.0f,
+				1.0f
+		);
+
+		assertTrue(freshYaw > settledYaw + 0.010f, "freshYaw=" + freshYaw + " settledYaw=" + settledYaw);
+		assertTrue(freshYaw < 0.985f, "freshYaw=" + freshYaw);
+		assertTrue(settledYaw < 0.965f, "settledYaw=" + settledYaw);
+		assertEquals(settledPitch, freshPitch, 1.0e-6f);
+	}
+
+	@Test
 	void acroAirframeSeparationOnlyBuildsAtHighAngleFlow() {
 		float straightCruise = PlayableFlightModel.acroAirframeSeparationIntensity(0.0f, 0.0f, 25.0f);
 		float diagonalSideslip = PlayableFlightModel.acroAirframeSeparationIntensity(16.0f, 0.0f, 16.0f);

@@ -1611,7 +1611,7 @@ final class PlayableFlightModel {
 		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), integrationPitchRadians, integrationRollRadians);
 		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians, throttle, hoverThrottle, acroAeroCrossflowLag)
 				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle)
-				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag);
+				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
 		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
@@ -2030,7 +2030,7 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle
 	) {
-		return acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, 1.0f);
+		return acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, 1.0f, 1.0f);
 	}
 
 	static float acroDynamicInflowThrustScale(
@@ -2040,6 +2040,18 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle,
 			float acroAeroCrossflowLag
+	) {
+		return acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag, acroAeroCrossflowLag);
+	}
+
+	static float acroDynamicInflowThrustScale(
+			Velocity bodyVelocity,
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick,
+			float throttle,
+			float hoverThrottle,
+			float acroAeroCrossflowLag,
+			float acroSidewashMemory
 	) {
 		float speedSquared = bodyVelocity.x() * bodyVelocity.x()
 				+ bodyVelocity.y() * bodyVelocity.y()
@@ -2065,14 +2077,17 @@ final class PlayableFlightModel {
 		float forwardReference = Math.max(2.0f, Math.abs(bodyVelocity.z()));
 		float sideslip = (float) Math.atan2(Math.abs(bodyVelocity.x()), forwardReference);
 		float angleOfAttack = (float) Math.atan2(Math.abs(bodyVelocity.y()), forwardReference);
+		float lag = sanitizedCrossflowLag(acroAeroCrossflowLag);
+		float yawCrossflow = smoothStep((sideslip - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_DYNAMIC_INFLOW_CROSSFLOW_FULL_RADIANS - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS));
+		float pitchCrossflow = smoothStep((angleOfAttack - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS)
+				/ Math.max(0.001f, ACRO_DYNAMIC_INFLOW_CROSSFLOW_FULL_RADIANS - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS));
 		float crossflow = Math.max(
-				smoothStep((sideslip - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS)
-						/ Math.max(0.001f, ACRO_DYNAMIC_INFLOW_CROSSFLOW_FULL_RADIANS - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS)),
-				smoothStep((angleOfAttack - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS)
-						/ Math.max(0.001f, ACRO_DYNAMIC_INFLOW_CROSSFLOW_FULL_RADIANS - ACRO_DYNAMIC_INFLOW_CROSSFLOW_START_RADIANS))
+				yawCrossflow * acroSidewashForceResponse(lag, acroSidewashMemory),
+				pitchCrossflow * lag
 		);
 		float flowWeight = ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT
-				+ (1.0f - ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT) * laggedCrossflowExposure(crossflow, acroAeroCrossflowLag);
+				+ (1.0f - ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT) * crossflow;
 		float rpmProgress = (averageRpm(throttle, hoverThrottle) - HOVER_RPM) / Math.max(1.0f, MAX_RPM - HOVER_RPM);
 		float rpmWeight = ACRO_DYNAMIC_INFLOW_RPM_IDLE_WEIGHT
 				+ (1.0f - ACRO_DYNAMIC_INFLOW_RPM_IDLE_WEIGHT) * smoothStep(rpmProgress);
