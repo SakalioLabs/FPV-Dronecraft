@@ -113,6 +113,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_FULL_RADIANS = (float) Math.toRadians(78.0f);
 	private static final float ACRO_BODY_RATE_YAW_COUPLING_MAX_DEGREES_PER_TICK = 1.35f;
+	private static final float ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS = 0.42f;
+	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_START_RADIANS = (float) Math.toRadians(50.0f);
+	private static final float ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);
+	private static final float ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS = 0.22f;
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_START_RADIANS = (float) Math.toRadians(60.0f);
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_FULL_RADIANS = (float) Math.toRadians(88.0f);
+	private static final float ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS = 0.18f;
 	private static final float ACRO_AERO_RATE_DAMPING_START_METERS_PER_SECOND = 9.0f;
 	private static final float ACRO_AERO_RATE_DAMPING_FULL_METERS_PER_SECOND = 28.0f;
 	private static final float ACRO_PITCH_AERO_RATE_DAMPING_MAX = 0.135f;
@@ -378,6 +385,7 @@ final class PlayableFlightModel {
 		yawDegreesPerTick = acroBodyRateYawRate(
 				safeMode,
 				yawDegreesPerTick,
+				yawCommand,
 				pitchRadians,
 				rollRadians,
 				acroPitchRateRadiansPerTick,
@@ -663,6 +671,8 @@ final class PlayableFlightModel {
 				bodyVelocity,
 				false
 		);
+		pitchRate = acroProjectedEulerRate(pitchRate, previous.rollRadians(), true);
+		rollRate = acroProjectedEulerRate(rollRate, previous.pitchRadians(), false);
 		if (completedRollRecoveryTail) {
 			rollRate = 0.0f;
 		} else {
@@ -674,6 +684,31 @@ final class PlayableFlightModel {
 				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
 				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
 		);
+	}
+
+	private static float acroProjectedEulerRate(float rateRadiansPerTick, float crossAxisAttitudeRadians, boolean pitchRate) {
+		if (!Float.isFinite(rateRadiansPerTick) || Math.abs(rateRadiansPerTick) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK) {
+			return rateRadiansPerTick;
+		}
+		return rateRadiansPerTick * acroBodyRateEulerProjectionScale(crossAxisAttitudeRadians, pitchRate);
+	}
+
+	static float acroBodyRateEulerProjectionScale(float crossAxisAttitudeRadians, boolean pitchRate) {
+		if (!Float.isFinite(crossAxisAttitudeRadians)) {
+			return 1.0f;
+		}
+		float attitude = Math.abs(signedRotationResidualRadians(crossAxisAttitudeRadians));
+		float start = pitchRate
+				? ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_START_RADIANS
+				: ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_START_RADIANS;
+		float full = pitchRate
+				? ACRO_BODY_RATE_BANKED_PITCH_PROJECTION_FULL_RADIANS
+				: ACRO_BODY_RATE_VERTICAL_ROLL_PROJECTION_FULL_RADIANS;
+		float maxLoss = pitchRate
+				? ACRO_BODY_RATE_BANKED_PITCH_MAX_EULER_LOSS
+				: ACRO_BODY_RATE_VERTICAL_ROLL_MAX_EULER_LOSS;
+		float exposure = smoothStep((attitude - start) / Math.max(0.001f, full - start));
+		return clamp(1.0f - maxLoss * exposure, 1.0f - maxLoss, 1.0f);
 	}
 
 	private static boolean isCompletedAcroRollRecoveryTail(FlightMode mode, State previous, float rollCommand) {
@@ -1581,6 +1616,7 @@ final class PlayableFlightModel {
 	private static float acroBodyRateYawRate(
 			FlightMode mode,
 			float yawDegreesPerTick,
+			float yawCommand,
 			float pitchRadians,
 			float rollRadians,
 			float pitchRateRadiansPerTick,
@@ -1598,6 +1634,11 @@ final class PlayableFlightModel {
 		if (Math.abs(yawCoupling) <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK) {
 			return yawDegreesPerTick;
 		}
+		float commandSuppression = 1.0f - smoothStep(Math.abs(yawCommand) / ACRO_BODY_RATE_YAW_COMMAND_SUPPRESS);
+		if (commandSuppression <= 1.0e-6f) {
+			return yawDegreesPerTick;
+		}
+		yawCoupling *= commandSuppression;
 		return settledYawRate(yawDegreesPerTick + yawCoupling, 0.0f);
 	}
 

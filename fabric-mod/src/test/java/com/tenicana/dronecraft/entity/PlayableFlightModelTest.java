@@ -2783,7 +2783,11 @@ class PlayableFlightModelTest {
 				0.0f,
 				(float) Math.toRadians(60.0),
 				0.0f,
-				FlightMode.ACRO
+				FlightMode.ACRO,
+				0,
+				0.0f,
+				0.0f,
+				0.0f
 		);
 		PlayableFlightModel.Step levelPitch = PlayableFlightModel.step(
 				FlightMode.ACRO,
@@ -2809,6 +2813,135 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, levelPitch.yawDegreesPerTick(), 1.0e-6f);
 		assertTrue(bankedPitch.yawDegreesPerTick() > 1.0f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
 		assertTrue(bankedPitch.yawDegreesPerTick() <= 1.35f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+	}
+
+	@Test
+	void activeYawKeepsPriorityOverBankedBodyRateCoupling() {
+		PlayableFlightModel.State banked = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				(float) Math.toRadians(60.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				0.0f,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step passive = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				banked
+		);
+		PlayableFlightModel.Step activeYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				banked
+		);
+
+		assertTrue(passive.yawDegreesPerTick() > 1.0f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(activeYaw.yawDegreesPerTick() > 4.80f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+		assertTrue(activeYaw.yawDegreesPerTick() < 5.45f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+	}
+
+	@Test
+	void acroBankedPitchProjectsAwayFromPlanarEulerSlide() {
+		PlayableFlightModel.Step levelPitch = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step bankedPitch = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(75.0),
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						0.0f,
+						0.0f,
+						0.0f
+				)
+		);
+
+		assertEquals(1.0f, PlayableFlightModel.acroBodyRateEulerProjectionScale(0.0f, true), 1.0e-6f);
+		assertTrue(PlayableFlightModel.acroBodyRateEulerProjectionScale((float) Math.toRadians(75.0), true) < 0.88f);
+		assertTrue(bankedPitch.acroPitchRateRadiansPerTick() < levelPitch.acroPitchRateRadiansPerTick() * 0.90f,
+				"bankedPitchRateDeg=" + Math.toDegrees(bankedPitch.acroPitchRateRadiansPerTick())
+						+ " levelPitchRateDeg=" + Math.toDegrees(levelPitch.acroPitchRateRadiansPerTick()));
+		assertTrue(bankedPitch.yawDegreesPerTick() > 0.80f, "bankedYaw=" + bankedPitch.yawDegreesPerTick());
+		assertTrue(bankedPitch.pitchRadians() < Math.toRadians(80.0), "bankedPitchDeg=" + Math.toDegrees(bankedPitch.pitchRadians()));
+	}
+
+	@Test
+	void acroVerticalRollProjectsAwayFromPlanarEulerSlide() {
+		PlayableFlightModel.Step levelRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step verticalRoll = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						0.0f,
+						0.0f,
+						0.0f,
+						(float) Math.toRadians(78.0),
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						0.0f,
+						0.0f,
+						0.0f
+				)
+		);
+
+		assertEquals(1.0f, PlayableFlightModel.acroBodyRateEulerProjectionScale(0.0f, false), 1.0e-6f);
+		assertTrue(PlayableFlightModel.acroBodyRateEulerProjectionScale((float) Math.toRadians(78.0), false) < 0.90f);
+		assertTrue(verticalRoll.acroRollRateRadiansPerTick() < levelRoll.acroRollRateRadiansPerTick() * 0.92f,
+				"verticalRollRateDeg=" + Math.toDegrees(verticalRoll.acroRollRateRadiansPerTick())
+						+ " levelRollRateDeg=" + Math.toDegrees(levelRoll.acroRollRateRadiansPerTick()));
+		assertTrue(verticalRoll.yawDegreesPerTick() > 0.65f, "verticalYaw=" + verticalRoll.yawDegreesPerTick());
+		assertTrue(verticalRoll.rollRadians() < Math.toRadians(83.0), "verticalRollDeg=" + Math.toDegrees(verticalRoll.rollRadians()));
 	}
 
 	@Test
@@ -3102,9 +3235,9 @@ class PlayableFlightModelTest {
 		PlayableFlightModel.Step midStick = runClientPresetStick(config, 20, 0.70f, -0.70f, 0.70f, hoverThrottle);
 		PlayableFlightModel.Step fullStick = runClientPresetStick(config, 20, 1.0f, -1.0f, 1.0f, hoverThrottle);
 
-		assertTrue(Math.abs(midStick.pitchRadians()) > Math.toRadians(80.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
+		assertTrue(Math.abs(midStick.pitchRadians()) > Math.toRadians(75.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
 		assertTrue(Math.abs(midStick.pitchRadians()) < Math.toRadians(110.0), "midPitchDeg=" + Math.toDegrees(midStick.pitchRadians()));
-		assertTrue(Math.abs(midStick.rollRadians()) > Math.toRadians(86.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
+		assertTrue(Math.abs(midStick.rollRadians()) > Math.toRadians(84.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
 		assertTrue(Math.abs(midStick.rollRadians()) < Math.toRadians(118.0), "midRollDeg=" + Math.toDegrees(midStick.rollRadians()));
 		assertTrue(midStick.yawDegreesPerTick() < 2.85f, "midYawDegPerTick=" + midStick.yawDegreesPerTick());
 		assertTrue(Math.abs(fullStick.pitchRadians()) > Math.toRadians(105.0), "fullPitchDeg=" + Math.toDegrees(fullStick.pitchRadians()));

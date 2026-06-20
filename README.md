@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 翻滚后侧飞与主动 yaw 优先级）
+本轮继续针对你反馈的“翻转一周之后持续侧飞、无法回正”收敛 playable ACRO。之前已经修过整圈 roll/pitch 捕获、释放尾巴、侧滑清理和 FPV 姿态插值；这次补的是高姿态操纵链路里的另一个缺口：pitch/roll 仍然像两个独立欧拉角滑块一样累积，接近侧立或倒立时容易把体轴动作表现成屏幕平面侧滑。
+
+- `PlayableFlightModel` 现在给 ACRO 的 pitch/roll rate 增加高姿态体轴投影：大 bank 时 pitch rate 会少量转化为航向变化而不是继续平面 pitch 累积；接近垂直俯仰时 roll rate 也会少量投影，减少翻滚/倒飞后“机体已经回来了但速度和姿态像横着抽不回来”的感觉。
+- 投影做得很保守：约 50/60 度后才开始介入，最大只削掉约 22%/18% 的平面欧拉角速率；这不是 ACRO 自稳，松杆不会自动回水平，满杆 pitch/roll 仍保留穿越机 rate mode 的连续全向翻滚权限。
+- 修正 `banked pitch / vertical roll` 的隐式 yaw 耦合：无 yaw stick 时它继续提供真实的 heading change；但玩家主动打 yaw 时，这条耦合会淡出，避免满 yaw 被 banked pitch/roll 抵消，解决“偏航像没实现/反应弱”的一部分手感问题。
+- 新增回归测试覆盖：主动 yaw 优先于 banked body-rate coupling；banked pitch 和 vertical roll 在高姿态下会投影，避免纯二维欧拉角滑动；手柄 ACRO preset 中杆仍渐进、满杆仍保持 pitch/roll/yaw 权限。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过），以及 JDK 21 无头 `:fabric-mod:runPlayableAcroServerSelfTest`。服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-222817.json`。
+
 ## 最新进展（2026-06-20，完整翻转后的 FPV 姿态回抽修复）
 本轮针对“尝试翻转一周之后出现持续侧飞、无法回正”的新反馈，先把问题拆成物理残留和视角残留两条线验证。纯 `PlayableFlightModel` 高速前飞后完整 roll、松杆恢复的回归没有复现失控侧滑；真正发现的漏洞在客户端姿态插值：ACRO 已允许 pitch/roll 超过 360 度，但渲染 pitch 和 FPV 延迟缓冲里的 pitch 仍按普通线性数值插值，完整 pitch flip 捕获回 0 时会从 `358deg` 线性倒插到 `2deg`，视觉上穿过倒飞/侧飞姿态，像是翻完后画面一直横着抽不回来。
 - `DroneEntity#getInterpolatedRenderPitchRadians` 现在和 yaw/roll 一样使用最短角度插值，避免 ACRO pitch loop 从一整圈捕获回水平时出现 360 度数值回抽。
