@@ -2410,8 +2410,9 @@ final class PlayableFlightModel {
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
 		Velocity pitchLiftAcceleration = scaleVelocity(acroPitchPlaneLiftAcceleration(bodyVelocity, separation), lag);
 		float sidewashResponse = acroSidewashForceResponse(lag, sidewashMemory);
-		Velocity sideforceAcceleration = scaleVelocity(acroSideslipSideforceAcceleration(bodyVelocity, separation), sidewashResponse);
-		Velocity sideforceInducedDragAcceleration = acroSideslipInducedDragAcceleration(bodyVelocity, sideforceAcceleration);
+		Velocity settledSideforceAcceleration = acroSideslipSideforceAcceleration(bodyVelocity, separation);
+		Velocity sideforceAcceleration = scaleVelocity(settledSideforceAcceleration, sidewashResponse);
+		Velocity sideforceInducedDragAcceleration = acroSideslipInducedDragAcceleration(bodyVelocity, settledSideforceAcceleration, sidewashResponse);
 		return new Velocity(
 				baseDragAcceleration.x() + coupledDynamicPressureDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x() + sideforceInducedDragAcceleration.x(),
 				baseDragAcceleration.y() + coupledDynamicPressureDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y() + sideforceInducedDragAcceleration.y(),
@@ -2588,6 +2589,11 @@ final class PlayableFlightModel {
 				0.0f,
 				-bodyVelocity.z() / yawPlaneSpeed * dragMagnitude
 		);
+	}
+
+	static Velocity acroSideslipInducedDragAcceleration(Velocity bodyVelocity, Velocity sideforceAcceleration, float sidewashResponse) {
+		float response = clamp(finiteOrZero(sidewashResponse), 0.0f, 1.0f);
+		return scaleVelocity(acroSideslipInducedDragAcceleration(bodyVelocity, sideforceAcceleration), response * response);
 	}
 
 	static Velocity acroYawTurnLoadBodyAcceleration(Velocity bodyVelocity, float yawDegreesPerTick) {

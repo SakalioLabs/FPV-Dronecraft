@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 侧滑诱导阻力按侧洗平方建立）
+这一轮继续收敛“高速斜飞不要像平面平移，也不要刚切入就被硬刹”的手感。复查发现 `acroBodyAerodynamicAcceleration` 里的侧滑侧力已经按 `acroSidewashMemory` 延迟建立，但由侧力派生的 `acroSideslipInducedDragAcceleration` 仍用已经缩放后的侧力线性计算；也就是说 fresh sidewash 下侧力是约 `32%`，诱导阻力也会约 `32%` 建立。真实空气动力上这类由侧力带来的能量成本更接近随载荷平方增长，刚切入斜飞/翻滚后第一段不应该马上吃满平面刹车。
+- `acroBodyAerodynamicAcceleration` 现在先计算 settled 侧力，再按 `acroSidewashForceResponse(...)` 给实际侧力；诱导阻力改走新的三参数 `acroSideslipInducedDragAcceleration(bodyVelocity, settledSideforce, sidewashResponse)`，并按 `sidewashResponse^2` 建立。持续侧滑时结果与 settled/full-response 保持一致，fresh 侧滑时则保留更多横向惯性距离。
+- 旧的二参数 `acroSideslipInducedDragAcceleration` 仍代表 settled/full-response 静态标定语义；新的三参数入口只用于运行时侧洗记忆包线，避免把已有测试、资料标定和旧 helper 语义一起漂移。
+- 新增 `acroSidewashMemoryBuildsSideslipInducedDragSlowerThanSideforce` 回归：直线 `25m/s` 仍不产生侧滑诱导阻力；`16m/s right + 16m/s forward` 在 fresh sidewash 下的诱导阻力必须约为 settled 的 `9%..12%`，而不是和侧力同样按 `32%` 线性建立。
+- 已通过 targeted 侧滑/惯性测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-055651.json`，ACRO playable 诊断通过，最大水平位移约 `16.39m`，最大速度约 `6.71m/s`，平均电机遥测峰值约 `6984 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 平移升力 sideflow 脏流接入侧洗记忆）
 这一轮继续沿着“斜飞不要像平面平移”的主线收敛。复查发现 `acroTranslationalLiftThrustScale` 还把侧向来流的 dirty ETL 权重直接用即时 `acroAdvanceSideflowExposure(...)` 计算：刚切进斜飞时，平移升力增益会立刻按 settled 侧流被压低，桨盘像瞬间进入脏横流，而不是随着侧洗/入流逐步建立。
 - `acroTranslationalLiftThrustScale` 现在增加带 `acroAeroCrossflowLag` / `acroSidewashMemory` 的重载，运行时由 `acroPhysicalVelocity` 传入真实 memory；旧三参数入口保持 settled 语义，避免已有静态调参和测试漂移。

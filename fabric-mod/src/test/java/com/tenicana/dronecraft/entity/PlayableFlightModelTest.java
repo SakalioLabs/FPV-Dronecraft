@@ -3553,6 +3553,47 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryBuildsSideslipInducedDragSlowerThanSideforce() {
+		PlayableFlightModel.Velocity straightVelocity = new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f);
+		PlayableFlightModel.Velocity straightSideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
+				straightVelocity,
+				0.0f
+		);
+		PlayableFlightModel.Velocity diagonalVelocity = new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f);
+		PlayableFlightModel.Velocity diagonalSideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
+				diagonalVelocity,
+				0.30f
+		);
+		float freshSidewashResponse = PlayableFlightModel.acroSidewashForceResponse(1.0f, 0.0f);
+		PlayableFlightModel.Velocity straightFreshDrag = PlayableFlightModel.acroSideslipInducedDragAcceleration(
+				straightVelocity,
+				straightSideforce,
+				freshSidewashResponse
+		);
+		PlayableFlightModel.Velocity freshDrag = PlayableFlightModel.acroSideslipInducedDragAcceleration(
+				diagonalVelocity,
+				diagonalSideforce,
+				freshSidewashResponse
+		);
+		PlayableFlightModel.Velocity settledDrag = PlayableFlightModel.acroSideslipInducedDragAcceleration(
+				diagonalVelocity,
+				diagonalSideforce,
+				1.0f
+		);
+		float freshDragMagnitude = horizontalSpeed(freshDrag.x(), freshDrag.z());
+		float settledDragMagnitude = horizontalSpeed(settledDrag.x(), settledDrag.z());
+
+		assertEquals(0.0f, straightFreshDrag.x(), 1.0e-6f);
+		assertEquals(0.0f, straightFreshDrag.z(), 1.0e-6f);
+		assertTrue(freshSidewashResponse > 0.31f, "freshSidewashResponse=" + freshSidewashResponse);
+		assertTrue(freshSidewashResponse < 0.33f, "freshSidewashResponse=" + freshSidewashResponse);
+		assertTrue(freshDragMagnitude > settledDragMagnitude * 0.09f,
+				"freshDragMagnitude=" + freshDragMagnitude + " settledDragMagnitude=" + settledDragMagnitude);
+		assertTrue(freshDragMagnitude < settledDragMagnitude * 0.12f,
+				"freshDragMagnitude=" + freshDragMagnitude + " settledDragMagnitude=" + settledDragMagnitude);
+	}
+
+	@Test
 	void acroYawTurnLoadOnlyAppearsAtHighSpeedYawRate() {
 		PlayableFlightModel.Velocity noYaw = PlayableFlightModel.acroYawTurnLoadBodyAcceleration(
 				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
