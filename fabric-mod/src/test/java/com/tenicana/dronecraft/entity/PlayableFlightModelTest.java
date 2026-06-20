@@ -2903,6 +2903,89 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroRotorGyroRateLoadRequiresHighRpmAndDiagonalBodyRates() {
+		float hoverRpm = PlayableFlightModel.acroRotorGyroRateLoadFraction(
+				(float) Math.toRadians(6.0),
+				(float) Math.toRadians(6.0),
+				0.20f,
+				0.20f
+		);
+		float singleAxis = PlayableFlightModel.acroRotorGyroRateLoadFraction(
+				(float) Math.toRadians(8.8),
+				0.0f,
+				1.0f,
+				0.20f
+		);
+		float sportDiagonal = PlayableFlightModel.acroRotorGyroRateLoadFraction(
+				(float) Math.toRadians(5.8),
+				(float) Math.toRadians(5.8),
+				0.68f,
+				0.20f
+		);
+		float fullDiagonal = PlayableFlightModel.acroRotorGyroRateLoadFraction(
+				(float) Math.toRadians(8.8),
+				(float) Math.toRadians(9.4),
+				1.0f,
+				0.20f
+		);
+
+		assertEquals(0.0f, hoverRpm, 1.0e-6f);
+		assertTrue(singleAxis > 0.008f, "singleAxis=" + singleAxis);
+		assertTrue(singleAxis < 0.018f, "singleAxis=" + singleAxis);
+		assertTrue(sportDiagonal > 0.032f, "sportDiagonal=" + sportDiagonal);
+		assertTrue(sportDiagonal < 0.050f, "sportDiagonal=" + sportDiagonal);
+		assertTrue(fullDiagonal > 0.070f, "fullDiagonal=" + fullDiagonal);
+		assertTrue(fullDiagonal < 0.086f, "fullDiagonal=" + fullDiagonal);
+	}
+
+	@Test
+	void acroHighRpmDiagonalStickCarriesRotorGyroWeight() {
+		PlayableFlightModel.Step pitchOnly = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				1.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step rollOnly = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				0.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step diagonal = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.68f,
+				1.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+
+		assertTrue(diagonal.acroPitchRateRadiansPerTick() < pitchOnly.acroPitchRateRadiansPerTick() * 0.98f,
+				"diagonalPitchRateDeg=" + Math.toDegrees(diagonal.acroPitchRateRadiansPerTick())
+						+ " pitchOnlyDeg=" + Math.toDegrees(pitchOnly.acroPitchRateRadiansPerTick()));
+		assertTrue(diagonal.acroPitchRateRadiansPerTick() > pitchOnly.acroPitchRateRadiansPerTick() * 0.94f,
+				"diagonalPitchRateDeg=" + Math.toDegrees(diagonal.acroPitchRateRadiansPerTick())
+						+ " pitchOnlyDeg=" + Math.toDegrees(pitchOnly.acroPitchRateRadiansPerTick()));
+		assertTrue(diagonal.acroRollRateRadiansPerTick() < rollOnly.acroRollRateRadiansPerTick() * 0.98f,
+				"diagonalRollRateDeg=" + Math.toDegrees(diagonal.acroRollRateRadiansPerTick())
+						+ " rollOnlyDeg=" + Math.toDegrees(rollOnly.acroRollRateRadiansPerTick()));
+		assertTrue(diagonal.acroRollRateRadiansPerTick() > rollOnly.acroRollRateRadiansPerTick() * 0.94f,
+				"diagonalRollRateDeg=" + Math.toDegrees(diagonal.acroRollRateRadiansPerTick())
+						+ " rollOnlyDeg=" + Math.toDegrees(rollOnly.acroRollRateRadiansPerTick()));
+	}
+
+	@Test
 	void acroTransverseFlowRollMomentBanksIntoHighSpeedSideslip() {
 		float straight = PlayableFlightModel.acroTransverseFlowRollMomentRate(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),

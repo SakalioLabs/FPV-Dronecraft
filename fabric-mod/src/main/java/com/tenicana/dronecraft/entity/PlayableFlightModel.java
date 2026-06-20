@@ -159,6 +159,11 @@ final class PlayableFlightModel {
 	private static final float ACRO_RATE_INERTIA_STRAIGHT_FLOW_WEIGHT = 0.28f;
 	private static final float ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.16f;
 	private static final float ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS = 0.22f;
+	private static final float ACRO_ROTOR_GYRO_RATE_START_RADIANS_PER_SECOND = (float) Math.toRadians(70.0f);
+	private static final float ACRO_ROTOR_GYRO_RATE_FULL_RADIANS_PER_SECOND = (float) Math.toRadians(220.0f);
+	private static final float ACRO_ROTOR_GYRO_RPM_START_FRACTION = 0.22f;
+	private static final float ACRO_ROTOR_GYRO_SINGLE_AXIS_WEIGHT = 0.18f;
+	private static final float ACRO_ROTOR_GYRO_DIAGONAL_RATE_LOAD_MAX = 0.085f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
 	private static final float ACRO_TRANSVERSE_MOMENT_MU_START = 0.055f;
@@ -739,6 +744,9 @@ final class PlayableFlightModel {
 						previous.acroPitchRateRadiansPerTick(),
 						pitch
 				);
+		float rotorGyroLoad = acroRotorGyroRateLoadFraction(pitchRate, rollRate, throttle, hoverThrottle);
+		pitchRate *= 1.0f - rotorGyroLoad;
+		rollRate *= 1.0f - rotorGyroLoad;
 		return new AcroRateResponse(
 				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
 				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
@@ -863,6 +871,37 @@ final class PlayableFlightModel {
 				? ACRO_PITCH_RATE_INERTIA_MAX_SMOOTHING_LOSS
 				: ACRO_ROLL_RATE_INERTIA_MAX_SMOOTHING_LOSS;
 		return clamp(1.0f - maxLoss * speedExposure * flowLoad, 0.70f, 1.0f);
+	}
+
+	static float acroRotorGyroRateLoadFraction(
+			float pitchRateRadiansPerTick,
+			float rollRateRadiansPerTick,
+			float throttle,
+			float hoverThrottle
+	) {
+		float pitchRate = Math.abs(finiteOrZero(pitchRateRadiansPerTick)) / PLAYABLE_TICK_SECONDS;
+		float rollRate = Math.abs(finiteOrZero(rollRateRadiansPerTick)) / PLAYABLE_TICK_SECONDS;
+		float rateMagnitude = horizontalMagnitude(pitchRate, rollRate);
+		if (rateMagnitude <= ACRO_ROTOR_GYRO_RATE_START_RADIANS_PER_SECOND) {
+			return 0.0f;
+		}
+		float rpm = averageRpm(throttle, hoverThrottle);
+		float rpmProgress = (rpm - HOVER_RPM) / Math.max(1.0f, MAX_RPM - HOVER_RPM);
+		float rpmExposure = smoothStep((rpmProgress - ACRO_ROTOR_GYRO_RPM_START_FRACTION)
+				/ Math.max(0.001f, 1.0f - ACRO_ROTOR_GYRO_RPM_START_FRACTION));
+		if (rpmExposure <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float rateExposure = smoothStep((rateMagnitude - ACRO_ROTOR_GYRO_RATE_START_RADIANS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_ROTOR_GYRO_RATE_FULL_RADIANS_PER_SECOND - ACRO_ROTOR_GYRO_RATE_START_RADIANS_PER_SECOND));
+		float largestAxisRate = Math.max(pitchRate, rollRate);
+		float diagonalWeight = largestAxisRate <= 1.0e-6f
+				? 0.0f
+				: Math.min(pitchRate, rollRate) / largestAxisRate;
+		return ACRO_ROTOR_GYRO_DIAGONAL_RATE_LOAD_MAX
+				* rpmExposure
+				* rateExposure
+				* (ACRO_ROTOR_GYRO_SINGLE_AXIS_WEIGHT + (1.0f - ACRO_ROTOR_GYRO_SINGLE_AXIS_WEIGHT) * diagonalWeight);
 	}
 
 	static float acroTransverseFlowRollMomentRate(Velocity bodyVelocity, float rollCommand) {

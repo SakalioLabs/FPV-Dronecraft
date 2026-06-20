@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高转速双轴陀螺负载）
+本轮继续围绕“斜向飞行和双轴机动像平移/欧拉角滑块”的手感收敛，没有再继续加普通空阻。参考本仓库 `docs/fpv-sim-model-validation.md` 里的 rotor inertia and gyroscopic torque sanity：当前 5 寸 racingQuad 的单桨惯量约 `5.376e-06 kg*m^2`，最大转速下单桨角动量约 `0.016 N*m*s`，720deg/s 体轴角速度时单桨陀螺力矩量级可到 `0.206 N*m`；但四桨对转会大量抵消，所以运行时只落成很弱的可玩层负载。
+- `PlayableFlightModel` 新增 `acroRotorGyroRateLoadFraction`：在 ACRO 的最终 pitch/roll rate 输出前，根据当前 RPM、体轴总角速度和 pitch+roll 双轴比例加入一个小比例缩放。高 RPM 对角满杆会损失约 `3%..8%` 角速度，单轴满杆只有约 `1%` 量级。
+- 这不是自动回正，也不是速度刹车：低油门、hover 附近和中油门基础 ramp 基本不触发；单轴 pitch/roll 连续翻滚仍保留，主要让高油门双轴动作更有“桨盘和转子在带重量”的感觉。
+- 回归测试覆盖：hover RPM 不触发；单轴和双轴负载分档；`0.68` 油门双轴满杆在完整 `step()` 中比单轴略重但仍保持 `94%+` 权限；旧的中油门 ACRO rate ramp 继续通过，避免让基础操控变钝。
+- 已通过 targeted gyro/rate 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-013713.json`。
+
 ## 最新进展（2026-06-21，ACRO 高迎角弱被动 pitch 载荷）
 本轮继续收敛“高速斜飞/翻转后仍有点像理想刚体平移”的 ACRO 手感，但刻意避免把它做成自动回正。上一版高迎角 pitch 载荷只在玩家打 pitch 杆，或上一帧还留有 pitch rate 尾巴时生效；这样能防止自稳味道，但在某些松杆后的高迎角来流里又会显得机体太“无空气”。
 - `PlayableFlightModel` 新增 `acroAngleOfAttackPitchMomentScale`：高迎角 pitch moment 现在有一个很弱的被动保留量，零 pitch / 零杆量下约保留 36% 的载荷，让 `18m/s` 前向、`10m/s` 垂向来流这类场景能产生约 `0.03deg/tick` 的轻微 pitch 响应。
