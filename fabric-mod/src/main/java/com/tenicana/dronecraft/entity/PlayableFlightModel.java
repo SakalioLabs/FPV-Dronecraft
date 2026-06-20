@@ -71,6 +71,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_SEPARATION_AOA_FULL_RADIANS = (float) Math.toRadians(66.0f);
 	private static final float ACRO_SEPARATION_SIDESLIP_START_RADIANS = (float) Math.toRadians(32.0f);
 	private static final float ACRO_SEPARATION_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(68.0f);
+	private static final float ACRO_PITCH_LIFT_AOA_STALL_START_RADIANS = (float) Math.toRadians(34.0f);
+	private static final float ACRO_PITCH_LIFT_AOA_STALL_FULL_RADIANS = (float) Math.toRadians(72.0f);
+	private static final float ACRO_PITCH_LIFT_GAIN = 0.085f;
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
 	private static final float ACRO_SIDEFORCE_GAIN = 0.065f;
@@ -105,7 +108,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_FLAPPING_SIDESLIP_START_RADIANS = (float) Math.toRadians(10.0f);
 	private static final float ACRO_ROTOR_FLAPPING_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
 	private static final float ACRO_ROTOR_IN_PLANE_MAX_ACCELERATION = 5.0f;
-	private static final float ACRO_ROTOR_IN_PLANE_STRAIGHT_FLOW_WEIGHT = 0.12f;
+	private static final float ACRO_ROTOR_IN_PLANE_STRAIGHT_FLOW_WEIGHT = 0.10f;
 	private static final float ACRO_ROTOR_IN_PLANE_SIDESLIP_START_RADIANS = (float) Math.toRadians(12.0f);
 	private static final float ACRO_ROTOR_IN_PLANE_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(52.0f);
 	private static final float ACRO_RATE_RISE_SMOOTHING = 0.62f;
@@ -712,14 +715,14 @@ final class PlayableFlightModel {
 		);
 		float releasedSnapRadians = Math.max(snapRadians, ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS);
 		if (Math.abs(command) <= PLAYABLE_AXIS_NOISE_EPSILON) {
-			return Math.abs(rotationResidual) <= releasedSnapRadians ? attitudeRadians - rotationResidual : attitudeRadians;
+			return Math.abs(rotationResidual) <= releasedSnapRadians ? 0.0f : attitudeRadians;
 		}
 		boolean releasingPastCompletion = Math.abs(command) <= ACRO_COMPLETED_ROTATION_RELEASE_COMMAND
 				&& Math.signum(command) == Math.signum(rotationResidual);
 		if (!releasingPastCompletion || Math.abs(rotationResidual) > releasedSnapRadians) {
 			return attitudeRadians;
 		}
-		return attitudeRadians - rotationResidual;
+		return 0.0f;
 	}
 
 	private static float signedRotationResidualRadians(float attitudeRadians) {
@@ -1045,11 +1048,12 @@ final class PlayableFlightModel {
 		);
 		float separation = acroAirframeSeparationIntensity(bodyVelocity.x(), bodyVelocity.y(), bodyVelocity.z());
 		Velocity separatedDragAcceleration = acroSeparatedFlowDragAcceleration(bodyVelocity, separation);
+		Velocity pitchLiftAcceleration = acroPitchPlaneLiftAcceleration(bodyVelocity, separation);
 		Velocity sideforceAcceleration = acroSideslipSideforceAcceleration(bodyVelocity, separation);
 		return new Velocity(
-				baseDragAcceleration.x() + separatedDragAcceleration.x() + sideforceAcceleration.x(),
-				baseDragAcceleration.y() + separatedDragAcceleration.y() + sideforceAcceleration.y(),
-				baseDragAcceleration.z() + separatedDragAcceleration.z() + sideforceAcceleration.z()
+				baseDragAcceleration.x() + separatedDragAcceleration.x() + pitchLiftAcceleration.x() + sideforceAcceleration.x(),
+				baseDragAcceleration.y() + separatedDragAcceleration.y() + pitchLiftAcceleration.y() + sideforceAcceleration.y(),
+				baseDragAcceleration.z() + separatedDragAcceleration.z() + pitchLiftAcceleration.z() + sideforceAcceleration.z()
 		);
 	}
 
@@ -1066,6 +1070,30 @@ final class PlayableFlightModel {
 		float yawSeparation = smoothStep((Math.abs(sideslip) - ACRO_SEPARATION_SIDESLIP_START_RADIANS)
 				/ Math.max(0.001f, ACRO_SEPARATION_SIDESLIP_FULL_RADIANS - ACRO_SEPARATION_SIDESLIP_START_RADIANS));
 		return clamp(1.0f - (1.0f - pitchSeparation) * (1.0f - yawSeparation), 0.0f, 1.0f);
+	}
+
+	static Velocity acroPitchPlaneLiftAcceleration(Velocity bodyVelocity, float separation) {
+		float pitchPlaneSpeed = horizontalMagnitude(bodyVelocity.y(), bodyVelocity.z());
+		if (pitchPlaneSpeed <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x() + bodyVelocity.y() * bodyVelocity.y() + bodyVelocity.z() * bodyVelocity.z();
+		if (speedSquared <= 1.0e-6f) {
+			return new Velocity(0.0f, 0.0f, 0.0f);
+		}
+		float angleOfAttack = (float) Math.atan2(bodyVelocity.y(), bodyVelocity.z());
+		float pitchStall = smoothStep((Math.abs(angleOfAttack) - ACRO_PITCH_LIFT_AOA_STALL_START_RADIANS)
+				/ Math.max(0.001f, ACRO_PITCH_LIFT_AOA_STALL_FULL_RADIANS - ACRO_PITCH_LIFT_AOA_STALL_START_RADIANS));
+		float dynamicPitchStall = Math.max(0.32f * pitchStall, clamp(separation, 0.0f, 1.0f) * pitchStall);
+		float stallScale = 1.0f - 0.55f * dynamicPitchStall;
+		float liftCoefficient = ACRO_PITCH_LIFT_GAIN
+				* (float) Math.sqrt(Math.max(0.0f, ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER * ACRO_FORWARD_QUADRATIC_DRAG_PER_METER));
+		float liftMagnitude = liftCoefficient * speedSquared * (float) Math.sin(2.0f * angleOfAttack) * stallScale;
+		return new Velocity(
+				0.0f,
+				bodyVelocity.z() / pitchPlaneSpeed * liftMagnitude,
+				-bodyVelocity.y() / pitchPlaneSpeed * liftMagnitude
+		);
 	}
 
 	static Velocity acroSideslipSideforceAcceleration(Velocity bodyVelocity, float separation) {

@@ -920,7 +920,7 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(rolled.rollRadians() > Math.toRadians(360.0), "rolledDeg=" + Math.toDegrees(rolled.rollRadians()));
-		assertEquals(Math.toRadians(360.0), released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
 	}
 
@@ -963,6 +963,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
+		assertEquals(0.0f, completedRoll.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(completedRoll.targetVelocityX()) < 1.0e-3f, "completedRollTargetX=" + completedRoll.targetVelocityX());
 		assertEquals(0.0f, completedRoll.velocityX(), 1.0e-3f);
 		assertTrue(Math.abs(quarterRoll.targetVelocityX()) > 24.0f, "quarterRollTargetX=" + quarterRoll.targetVelocityX());
@@ -1007,7 +1008,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), overshotRoll.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, overshotRoll.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
 		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
 		assertTrue(Math.abs(activeBank.targetVelocityX()) > 24.0f, "activeBankTargetX=" + activeBank.targetVelocityX());
@@ -1052,7 +1053,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), overshotRoll.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, overshotRoll.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotRoll.targetVelocityX()) < 1.0e-3f, "overshotRollTargetX=" + overshotRoll.targetVelocityX());
 		assertEquals(0.0f, overshotRoll.velocityX(), 1.0e-3f);
 		assertTrue(Math.abs(activeKnifeEdge.targetVelocityX()) > 24.0f, "activeKnifeEdgeTargetX=" + activeKnifeEdge.targetVelocityX());
@@ -1079,7 +1080,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
 		assertEquals(0.0f, released.velocityX(), 1.0e-3f);
 	}
@@ -1109,10 +1110,43 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
 		assertTrue(Math.abs(released.targetVelocityX()) < 1.0e-3f, "releasedTargetX=" + released.targetVelocityX());
 		assertEquals(0.0f, released.velocityX(), 1.0e-6f);
+	}
+
+	@Test
+	void releasedFullRollWithResidualSlipNormalizesAndBleedsSideVelocity() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				12.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				(float) Math.toRadians(428.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(3.0)
+		);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ACRO,
+				20,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
+		assertTrue(Math.abs(released.velocityX()) < 8.5f, "releasedVelocityX=" + released.velocityX());
 	}
 
 	@Test
@@ -1154,6 +1188,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
+		assertEquals(0.0f, completedLoop.pitchRadians(), 1.0e-5);
 		assertTrue(Math.abs(completedLoop.targetVelocityZ()) < 1.0e-3f, "completedLoopTargetZ=" + completedLoop.targetVelocityZ());
 		assertEquals(0.0f, completedLoop.velocityZ(), 1.0e-3f);
 		assertTrue(Math.abs(quarterLoop.targetVelocityZ()) > 24.0f, "quarterLoopTargetZ=" + quarterLoop.targetVelocityZ());
@@ -1198,7 +1233,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), overshotLoop.pitchRadians(), 1.0e-5);
+		assertEquals(0.0f, overshotLoop.pitchRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
 		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
 		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
@@ -1243,7 +1278,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), overshotLoop.pitchRadians(), 1.0e-5);
+		assertEquals(0.0f, overshotLoop.pitchRadians(), 1.0e-5);
 		assertTrue(Math.abs(overshotLoop.targetVelocityZ()) < 1.0e-3f, "overshotLoopTargetZ=" + overshotLoop.targetVelocityZ());
 		assertEquals(0.0f, overshotLoop.velocityZ(), 1.0e-3f);
 		assertTrue(Math.abs(activeSteepLoop.targetVelocityZ()) > 24.0f, "activeSteepLoopTargetZ=" + activeSteepLoop.targetVelocityZ());
@@ -1274,7 +1309,7 @@ class PlayableFlightModelTest {
 				)
 		);
 
-		assertEquals(Math.toRadians(360.0), released.pitchRadians(), 1.0e-5);
+		assertEquals(0.0f, released.pitchRadians(), 1.0e-5);
 		assertEquals(0.0f, released.acroPitchRateRadiansPerTick(), 1.0e-6f);
 		assertTrue(Math.abs(released.targetVelocityZ()) < 1.0e-3f, "releasedTargetZ=" + released.targetVelocityZ());
 		assertEquals(0.0f, released.velocityZ(), 1.0e-6f);
@@ -1529,6 +1564,50 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroPitchPlaneLiftIsZeroInStraightCruise() {
+		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f),
+				0.0f
+		);
+
+		assertEquals(0.0f, lift.x(), 1.0e-6f);
+		assertEquals(0.0f, lift.y(), 1.0e-6f);
+		assertEquals(0.0f, lift.z(), 1.0e-6f);
+	}
+
+	@Test
+	void acroPitchPlaneLiftBendsPositiveAoaFlowUpAndBack() {
+		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 8.0f, 18.0f),
+				0.0f
+		);
+		float workAlongVelocity = lift.y() * 8.0f + lift.z() * 18.0f;
+
+		assertEquals(0.0f, lift.x(), 1.0e-6f);
+		assertTrue(lift.y() > 0.20f, "liftY=" + lift.y());
+		assertTrue(lift.y() < 0.35f, "liftY=" + lift.y());
+		assertTrue(lift.z() < -0.08f, "liftZ=" + lift.z());
+		assertTrue(lift.z() > -0.18f, "liftZ=" + lift.z());
+		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
+	}
+
+	@Test
+	void acroPitchPlaneLiftBendsNegativeAoaFlowDownAndBack() {
+		PlayableFlightModel.Velocity lift = PlayableFlightModel.acroPitchPlaneLiftAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, -8.0f, 18.0f),
+				0.0f
+		);
+		float workAlongVelocity = lift.y() * -8.0f + lift.z() * 18.0f;
+
+		assertEquals(0.0f, lift.x(), 1.0e-6f);
+		assertTrue(lift.y() < -0.20f, "liftY=" + lift.y());
+		assertTrue(lift.y() > -0.35f, "liftY=" + lift.y());
+		assertTrue(lift.z() < -0.08f, "liftZ=" + lift.z());
+		assertTrue(lift.z() > -0.18f, "liftZ=" + lift.z());
+		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
+	}
+
+	@Test
 	void acroSideslipSideforceBendsDiagonalVelocityTowardBodyForward() {
 		PlayableFlightModel.Velocity sideforce = PlayableFlightModel.acroSideslipSideforceAcceleration(
 				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
@@ -1775,7 +1854,7 @@ class PlayableFlightModelTest {
 		assertTrue(speedAfterOneSecond < 16.8f, "speedAfterOneSecond=" + speedAfterOneSecond);
 		assertTrue(distanceAfterOneSecond > 19.0f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
 		assertTrue(distanceAfterOneSecond < 20.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
-		assertTrue(step != null && step.velocityZ() > 11.0f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(step != null && step.velocityZ() > 10.8f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
 		assertTrue(step != null && step.velocityZ() < 12.2f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
 		assertTrue(distanceMeters > 32.0f, "distanceAfterTwoSeconds=" + distanceMeters);
 		assertTrue(distanceMeters < 34.8f, "distanceAfterTwoSeconds=" + distanceMeters);
