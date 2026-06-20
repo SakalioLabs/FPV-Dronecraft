@@ -1,5 +1,14 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 侧滑 yaw 气动耦合）
+本轮继续沿着“斜向飞行还是有平移感”的核心反馈往下收敛。上一轮已经给 ACRO 平动加入分离流阻力和侧滑侧向力，但 yaw 角运动仍完全由玩家输入/滤波决定：高速前向侧滑时，机体没有任何空气动力 yaw 阻尼或顺风标趋势，视觉上仍可能像一个侧着滑动的点。
+
+- `PlayableFlightModel` 现在在 ACRO yaw rate 末端加入很小的被动气动项：当机体系同时有前向速度和侧向速度时，会计算 sideslip exposure、前向/侧向速度 exposure 和 CdA 派生面积，得到弱 `weathercock` yaw bias 与 yaw damping。
+- 这个效果只在前向侧滑时出现：直线 25m/s 巡航为 `0`，纯横移也为 `0`；约 `16m/s right + 16m/s forward` 的斜滑会产生约 `0.2 deg/tick` 以内的被动 yaw，并提供约 `0.1` 级 yaw 阻尼。
+- 主动 yaw 输入会压制这层被动气动，避免玩家想做 yaw/knife-edge/连续动作时被系统抢杆；它也不会改变 pitch/roll 自稳语义，只是让高速斜滑时机头和速度之间有一点真实空气动力耦合。
+- 新增回归测试覆盖 weathercock yaw 的符号、量级、直线/纯横移不触发、侧滑 yaw damping 的范围，以及 `step()` 中松杆高速斜滑会出现小被动 yaw、满 yaw 输入仍保持主控权限。
+- 已通过 `PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`。本轮服务端自测临时使用 25566，结束后已恢复 25565；报告文件为 `server-selftest-playable-20260620-180809.json`。
+
 ## 最新进展（2026-06-20，ACRO 分离流与侧滑侧向力）
 本轮继续处理“速度够了，但斜向飞行仍像平移”的核心手感问题。这次没有再调最高速度，也没有把 ACRO 改成自稳，而是把完整 6DoF 仿真里已经存在的空气动力思路移到 playable 层：高速斜飞/横飞时，机体不应只受到 right/up/forward 三轴基础阻力，还应在大攻角/大侧滑时出现分离流阻力，并在中等侧滑角产生把速度矢量往机头方向弯的侧向力。
 

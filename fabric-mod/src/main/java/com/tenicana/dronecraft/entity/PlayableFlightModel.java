@@ -73,6 +73,17 @@ final class PlayableFlightModel {
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_START_RADIANS = (float) Math.toRadians(35.0f);
 	private static final float ACRO_SIDEFORCE_SIDESLIP_STALL_FULL_RADIANS = (float) Math.toRadians(75.0f);
 	private static final float ACRO_SIDEFORCE_GAIN = 0.065f;
+	private static final float ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
+	private static final float ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);
+	private static final float ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND = 2.5f;
+	private static final float ACRO_WEATHERCOCK_FORWARD_FULL_METERS_PER_SECOND = 16.0f;
+	private static final float ACRO_WEATHERCOCK_LATERAL_START_METERS_PER_SECOND = 1.5f;
+	private static final float ACRO_WEATHERCOCK_LATERAL_FULL_METERS_PER_SECOND = 12.0f;
+	private static final float ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK = 0.030f;
+	private static final float ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK = 0.22f;
+	private static final float ACRO_SIDESLIP_YAW_DAMPING_GAIN = 0.018f;
+	private static final float ACRO_SIDESLIP_YAW_DAMPING_MAX = 0.13f;
+	private static final float ACRO_WEATHERCOCK_YAW_COMMAND_SUPPRESS = 0.45f;
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -249,6 +260,16 @@ final class PlayableFlightModel {
 			yawDegreesPerTick = smooth(yawDegreesPerTick, 0.0f, modeSwitchYawBrake(safeMode));
 		}
 		yawDegreesPerTick = settledYawRate(yawDegreesPerTick, targetYawDegreesPerTick);
+		yawDegreesPerTick = acroAerodynamicYawRate(
+				safeMode,
+				yawDegreesPerTick,
+				yawCommand,
+				velocityX,
+				velocityY,
+				velocityZ,
+				pitchRadians,
+				rollRadians
+		);
 		float motorPower = safeThrottle <= THRUST_DEADZONE ? 0.14f : clamp(0.14f + safeThrottle * 0.86f, 0.0f, 1.0f);
 		float averageRpm = averageRpm(safeThrottle, safeHover);
 		return new Step(
@@ -938,6 +959,69 @@ final class PlayableFlightModel {
 				0.0f,
 				bodyVelocity.x() / yawPlaneSpeed * sideforceMagnitude
 		);
+	}
+
+	static float acroSideslipWeathercockYawDegreesPerTick(Velocity bodyVelocity) {
+		float strength = acroWeathercockStrength(bodyVelocity);
+		if (strength <= 1.0e-6f) {
+			return 0.0f;
+		}
+		return clamp(
+				-Math.signum(bodyVelocity.x()) * strength * ACRO_WEATHERCOCK_YAW_GAIN_DEGREES_PER_TICK,
+				-ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK,
+				ACRO_WEATHERCOCK_YAW_MAX_DEGREES_PER_TICK
+		);
+	}
+
+	static float acroSideslipYawDampingSmoothing(Velocity bodyVelocity) {
+		float strength = acroWeathercockStrength(bodyVelocity);
+		if (strength <= 1.0e-6f) {
+			return 0.0f;
+		}
+		return clamp(strength * ACRO_SIDESLIP_YAW_DAMPING_GAIN, 0.0f, ACRO_SIDESLIP_YAW_DAMPING_MAX);
+	}
+
+	private static float acroAerodynamicYawRate(
+			FlightMode mode,
+			float yawDegreesPerTick,
+			float yawCommand,
+			float velocityX,
+			float velocityY,
+			float velocityZ,
+			float pitchRadians,
+			float rollRadians
+	) {
+		if (safeMode(mode) != FlightMode.ACRO) {
+			return yawDegreesPerTick;
+		}
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
+		float commandSuppression = 1.0f - smoothStep(Math.abs(yawCommand) / ACRO_WEATHERCOCK_YAW_COMMAND_SUPPRESS);
+		if (commandSuppression <= 1.0e-6f) {
+			return yawDegreesPerTick;
+		}
+		float damping = acroSideslipYawDampingSmoothing(bodyVelocity) * commandSuppression;
+		float dampedYaw = damping <= 1.0e-6f ? yawDegreesPerTick : smooth(yawDegreesPerTick, 0.0f, damping);
+		float weathercockYaw = acroSideslipWeathercockYawDegreesPerTick(bodyVelocity) * commandSuppression;
+		return settledYawRate(dampedYaw + weathercockYaw, 0.0f);
+	}
+
+	private static float acroWeathercockStrength(Velocity bodyVelocity) {
+		float lateralSpeed = Math.abs(bodyVelocity.x());
+		float forwardSpeed = bodyVelocity.z();
+		if (lateralSpeed <= 1.0e-6f || forwardSpeed <= ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND) {
+			return 0.0f;
+		}
+		float speedSquared = bodyVelocity.x() * bodyVelocity.x() + bodyVelocity.y() * bodyVelocity.y() + bodyVelocity.z() * bodyVelocity.z();
+		float sideslip = (float) Math.atan2(bodyVelocity.x(), Math.max(2.0f, forwardSpeed));
+		float sideslipExposure = smoothStep((Math.abs(sideslip) - ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS)
+				/ Math.max(0.001f, ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS - ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS));
+		float forwardExposure = smoothStep((forwardSpeed - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_WEATHERCOCK_FORWARD_FULL_METERS_PER_SECOND - ACRO_WEATHERCOCK_FORWARD_START_METERS_PER_SECOND));
+		float lateralExposure = smoothStep((lateralSpeed - ACRO_WEATHERCOCK_LATERAL_START_METERS_PER_SECOND)
+				/ Math.max(0.001f, ACRO_WEATHERCOCK_LATERAL_FULL_METERS_PER_SECOND - ACRO_WEATHERCOCK_LATERAL_START_METERS_PER_SECOND));
+		float weathercockArea = (float) Math.sqrt(Math.max(0.0f, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER * ACRO_FORWARD_QUADRATIC_DRAG_PER_METER));
+		float exposure = sideslipExposure * (0.45f + 0.35f * forwardExposure + 0.20f * lateralExposure);
+		return Math.max(0.0f, speedSquared * weathercockArea * exposure);
 	}
 
 	private static Velocity acroSeparatedFlowDragAcceleration(Velocity bodyVelocity, float separation) {

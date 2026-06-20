@@ -1456,6 +1456,79 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroWeathercockYawOnlyAppearsWithForwardSideslip() {
+		float straight = PlayableFlightModel.acroSideslipWeathercockYawDegreesPerTick(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		float pureSide = PlayableFlightModel.acroSideslipWeathercockYawDegreesPerTick(
+				new PlayableFlightModel.Velocity(18.0f, 0.0f, 0.0f)
+		);
+		float rightSlip = PlayableFlightModel.acroSideslipWeathercockYawDegreesPerTick(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+		float leftSlip = PlayableFlightModel.acroSideslipWeathercockYawDegreesPerTick(
+				new PlayableFlightModel.Velocity(-16.0f, 0.0f, 16.0f)
+		);
+
+		assertEquals(0.0f, straight, 1.0e-6f);
+		assertEquals(0.0f, pureSide, 1.0e-6f);
+		assertTrue(rightSlip < -0.16f, "rightSlip=" + rightSlip);
+		assertTrue(rightSlip > -0.22f, "rightSlip=" + rightSlip);
+		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
+	}
+
+	@Test
+	void acroSideslipYawDampingScalesWithForwardSlip() {
+		float straight = PlayableFlightModel.acroSideslipYawDampingSmoothing(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)
+		);
+		float diagonal = PlayableFlightModel.acroSideslipYawDampingSmoothing(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f)
+		);
+
+		assertEquals(0.0f, straight, 1.0e-6f);
+		assertTrue(diagonal > 0.10f, "diagonal=" + diagonal);
+		assertTrue(diagonal <= 0.13f, "diagonal=" + diagonal);
+	}
+
+	@Test
+	void acroForwardSideslipAddsSmallPassiveYawWithoutStealingActiveYaw() {
+		PlayableFlightModel.State slipping = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO
+		);
+		PlayableFlightModel.Step passive = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				slipping
+		);
+		PlayableFlightModel.Step activeYaw = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				1.0f,
+				0.20f,
+				false,
+				slipping
+		);
+
+		assertTrue(passive.yawDegreesPerTick() < -0.08f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(passive.yawDegreesPerTick() > -0.24f, "passiveYaw=" + passive.yawDegreesPerTick());
+		assertTrue(activeYaw.yawDegreesPerTick() > 4.5f, "activeYaw=" + activeYaw.yawDegreesPerTick());
+	}
+
+	@Test
 	void acroBodyFrameVelocityRoundTripsAfterFullRollOffset() {
 		float pitchRadians = (float) Math.toRadians(37.0);
 		float rollRadians = (float) Math.toRadians(428.0);
