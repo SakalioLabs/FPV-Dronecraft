@@ -1394,6 +1394,50 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroHighSpeedCoastdownMatchesFiveInchDragEnvelope() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				25.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO
+		);
+		PlayableFlightModel.Step step = null;
+		float distanceMeters = 0.0f;
+		float speedAfterOneSecond = Float.NaN;
+		float distanceAfterOneSecond = Float.NaN;
+		for (int tick = 1; tick <= 40; tick++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.45f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			distanceMeters += step.velocityZ() * 0.05f;
+			state = stateFrom(step);
+			if (tick == 20) {
+				speedAfterOneSecond = step.velocityZ();
+				distanceAfterOneSecond = distanceMeters;
+			}
+		}
+
+		assertTrue(speedAfterOneSecond > 15.8f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(speedAfterOneSecond < 16.8f, "speedAfterOneSecond=" + speedAfterOneSecond);
+		assertTrue(distanceAfterOneSecond > 19.0f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
+		assertTrue(distanceAfterOneSecond < 20.8f, "distanceAfterOneSecond=" + distanceAfterOneSecond);
+		assertTrue(step != null && step.velocityZ() > 11.0f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(step != null && step.velocityZ() < 12.2f, "speedAfterTwoSeconds=" + (step == null ? Float.NaN : step.velocityZ()));
+		assertTrue(distanceMeters > 32.0f, "distanceAfterTwoSeconds=" + distanceMeters);
+		assertTrue(distanceMeters < 34.8f, "distanceAfterTwoSeconds=" + distanceMeters);
+	}
+
+	@Test
 	void centeredSticksKeepMomentumInsteadOfZeroingVelocity() {
 		PlayableFlightModel.Step released = PlayableFlightModel.step(
 				FlightMode.ACRO,

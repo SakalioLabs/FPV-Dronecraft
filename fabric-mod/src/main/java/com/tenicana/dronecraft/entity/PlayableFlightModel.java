@@ -53,13 +53,18 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.060f;
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(115.0f);
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
+	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
+	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
 	private static final float ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT = 3.35f;
+	private static final float ACRO_FORWARD_DRAG_AREA_SQUARE_METERS = 0.0216f;
+	private static final float ACRO_LATERAL_DRAG_AREA_SQUARE_METERS = 0.0269f;
+	private static final float ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS = 0.0180f;
 	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.18f;
 	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.24f;
 	private static final float ACRO_VERTICAL_LINEAR_DRAG_PER_SECOND = 0.14f;
-	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = 0.012f;
-	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = 0.015f;
-	private static final float ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER = 0.010f;
+	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_FORWARD_DRAG_AREA_SQUARE_METERS);
+	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_LATERAL_DRAG_AREA_SQUARE_METERS);
+	private static final float ACRO_VERTICAL_QUADRATIC_DRAG_PER_METER = bodyQuadraticDragPerMeter(ACRO_VERTICAL_DRAG_AREA_SQUARE_METERS);
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
 	private static final float ACRO_THRUST_FALL_SMOOTHING = 0.68f;
 	private static final float ACRO_THRUST_SETTLE_EPSILON = 0.004f;
@@ -845,6 +850,10 @@ final class PlayableFlightModel {
 
 	private static float dragAcceleration(float velocity, float linearDragPerSecond, float quadraticDragPerMeter) {
 		return velocity * (linearDragPerSecond + quadraticDragPerMeter * Math.abs(velocity));
+	}
+
+	private static float bodyQuadraticDragPerMeter(float dragAreaSquareMeters) {
+		return 0.5f * ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER * dragAreaSquareMeters / ACRO_REFERENCE_MASS_KILOGRAMS;
 	}
 
 	private static float dot(float x, float y, float z, Velocity axis) {
