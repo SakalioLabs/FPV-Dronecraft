@@ -1150,6 +1150,45 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void releasedFullRollWithFastSideSlipCapsBodySideVelocityButKeepsForwardInertia() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				14.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(428.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(3.0)
+		);
+		PlayableFlightModel.Step released = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				released.velocityX(),
+				released.velocityY(),
+				released.velocityZ(),
+				released.pitchRadians(),
+				released.rollRadians()
+		);
+
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) <= 2.76f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
 		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,

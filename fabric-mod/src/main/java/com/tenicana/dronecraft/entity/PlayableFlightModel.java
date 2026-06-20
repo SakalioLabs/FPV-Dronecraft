@@ -53,6 +53,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(145.0f);
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
+	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 2.75f;
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
@@ -229,7 +230,7 @@ final class PlayableFlightModel {
 		float velocityY = velocity.y();
 		float velocityZ = velocity.z();
 		if (safeMode == FlightMode.ACRO && (acroPitchCaptured || acroRollCaptured)) {
-			Velocity trimmed = completedAcroRotationVelocityTrim(velocityX, velocityY, velocityZ, acroPitchCaptured, acroRollCaptured);
+			Velocity trimmed = completedAcroRotationVelocityTrim(velocityX, velocityY, velocityZ, pitchRadians, rollRadians, acroPitchCaptured, acroRollCaptured);
 			velocityX = trimmed.x();
 			velocityY = trimmed.y();
 			velocityZ = trimmed.z();
@@ -857,18 +858,37 @@ final class PlayableFlightModel {
 			float velocityX,
 			float velocityY,
 			float velocityZ,
+			float pitchRadians,
+			float rollRadians,
 			boolean pitchCaptured,
 			boolean rollCaptured
 	) {
-		return new Velocity(
-				rollCaptured ? completedAcroRotationAxisVelocityTrim(velocityX) : velocityX,
-				velocityY,
-				pitchCaptured ? completedAcroRotationAxisVelocityTrim(velocityZ) : velocityZ
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(velocityX, velocityY, velocityZ, pitchRadians, rollRadians);
+		Velocity trimmedBodyVelocity = new Velocity(
+				rollCaptured ? completedAcroRollSideVelocityTrim(bodyVelocity.x()) : bodyVelocity.x(),
+				bodyVelocity.y(),
+				pitchCaptured ? completedAcroRotationAxisVelocityTrim(bodyVelocity.z()) : bodyVelocity.z()
 		);
+		return yawLocalVelocityForAcroBody(trimmedBodyVelocity.x(), trimmedBodyVelocity.y(), trimmedBodyVelocity.z(), pitchRadians, rollRadians);
 	}
 
 	private static float completedAcroRotationAxisVelocityTrim(float velocity) {
 		return Math.abs(velocity) <= ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND ? 0.0f : velocity;
+	}
+
+	private static float completedAcroRollSideVelocityTrim(float velocity) {
+		float magnitude = Math.abs(velocity);
+		if (magnitude <= ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND) {
+			return 0.0f;
+		}
+		float residualMagnitude = Math.min(
+				magnitude - ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND,
+				ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND
+		);
+		return Math.copySign(
+				residualMagnitude,
+				velocity
+		);
 	}
 
 	static float acroAdvanceRatioThrustScale(
