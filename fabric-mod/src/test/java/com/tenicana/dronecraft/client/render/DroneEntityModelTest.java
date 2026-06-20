@@ -12,8 +12,8 @@ class DroneEntityModelTest {
 		float modelPitch = DroneEntityModel.bodyPitchRotationRadians(playablePitch);
 		float renderedForwardYOffset = DroneEntityModel.renderedBodyForwardYOffset(playablePitch);
 
-		assertTrue(modelPitch < 0.0f);
-		assertEquals(-playablePitch, modelPitch, 1.0e-6f);
+		assertTrue(modelPitch > 0.0f);
+		assertEquals(playablePitch, modelPitch, 1.0e-6f);
 		assertTrue(renderedForwardYOffset > 0.0f);
 	}
 

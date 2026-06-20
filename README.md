@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，目视机头方向与 pitch 符号再修正）
+本轮先修一个会干扰目视飞行判断的视觉问题：之前虽然有“目视 pitch 修复”的测试，但测试辅助常量把模型局部 `-Z` 当作机头；实际模型的机头/相机凸起在局部 `+Z`，所以正 pitch 前飞时，真实可见机头仍可能表现成抬头。
+- `DroneEntityModel` 现在把模型前向语义统一到机头凸起所在的 `+Z`，并让 `bodyPitchRotationRadians` 直接使用 playable 正 pitch。这样物理正 pitch / 向前飞在目视视角中重新显示为机头下压。
+- `DroneEntityModelTest` 同步改成检查 `+Z` 机头的 Y 位移：正 pitch 必须让机头下压，负 pitch 必须让机头上抬，并保留正负幅度对称断言。
+- 这次只改第三人称/目视实体模型，不改 FPV 相机矩阵，也不改 ACRO 物理模型；上一轮侧滑入流滚转力矩和高前进比推力 rolloff 保持不变。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.client.render.DroneEntityModelTest`、`PlayableFlightModelTest + DroneEntityModelTest` 定向组合、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测临时使用 25566，结束后已恢复 25565；报告为 `server-selftest-playable-20260620-211612.json`。
+
 ## 最新进展（2026-06-20，ACRO 侧滑入流滚转力矩）
 本轮继续收敛“斜向飞行像平移、不像真机”的核心手感。上一轮已经把 5 寸桨高前进比推力 rolloff 提前到 `J≈0.45` 区间；这轮补的是姿态层：旧 playable ACRO 里横向/斜向来流主要只改变线加速度、阻力和推力软化，缺少“气流也会拧动机体”的弱力矩反馈，所以高速斜飞仍容易像在平面里滑。
 - `PlayableFlightModel` 现在新增 ACRO transverse-flow roll moment：低于约 `8m/s` 不介入，直线前飞不介入；在 `16m/s right + 16m/s forward` 这类高速侧滑/斜飞里，会产生约 `0.24deg/tick` 的被动 roll rate，让机体轻微向侧滑来流压过去，减少纯平移感。
