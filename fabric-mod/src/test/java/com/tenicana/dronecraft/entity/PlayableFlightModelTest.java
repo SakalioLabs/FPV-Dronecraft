@@ -2999,6 +2999,28 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentActivity(0.0f, 0.0f), 1.0e-6f);
 		assertEquals(1.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentActivity((float) Math.toRadians(1.2), 0.0f), 1.0e-6f);
 		assertEquals(1.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentActivity(0.0f, 0.5f), 1.0e-6f);
+		PlayableFlightModel.Velocity climbingAoaVelocity = new PlayableFlightModel.Velocity(0.0f, 10.0f, 18.0f);
+		float passiveScale = PlayableFlightModel.acroAngleOfAttackPitchMomentScale(climbingAoaVelocity, 0.0f, 0.0f, 0.0f);
+		assertTrue(passiveScale > 0.30f);
+		assertTrue(passiveScale < 0.42f);
+		assertEquals(0.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentScale(
+				climbingAoaVelocity,
+				(float) Math.toRadians(25.0),
+				0.0f,
+				0.0f
+		), 1.0e-6f);
+		assertEquals(1.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentScale(
+				climbingAoaVelocity,
+				(float) Math.toRadians(25.0),
+				(float) Math.toRadians(1.2),
+				0.0f
+		), 1.0e-6f);
+		assertEquals(1.0f, PlayableFlightModel.acroAngleOfAttackPitchMomentScale(
+				climbingAoaVelocity,
+				(float) Math.toRadians(25.0),
+				0.0f,
+				0.5f
+		), 1.0e-6f);
 	}
 
 	@Test
@@ -3030,6 +3052,19 @@ class PlayableFlightModelTest {
 				residualPitchRate,
 				0.0f
 		);
+		PlayableFlightModel.State passiveClimbingAoa = new PlayableFlightModel.State(
+				0.0f,
+				10.0f,
+				18.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f
+		);
 		PlayableFlightModel.Step straight = PlayableFlightModel.step(
 				FlightMode.ACRO,
 				0.45f,
@@ -3050,14 +3085,30 @@ class PlayableFlightModelTest {
 				false,
 				climbingAoa
 		);
+		PlayableFlightModel.Step passive = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				passiveClimbingAoa
+		);
 
 		assertTrue(loaded.acroPitchRateRadiansPerTick() > 0.0f,
 				"loadedPitchRateDeg=" + Math.toDegrees(loaded.acroPitchRateRadiansPerTick()));
 		assertTrue(straight.acroPitchRateRadiansPerTick() > loaded.acroPitchRateRadiansPerTick() + Math.toRadians(0.04),
 				"straightPitchRateDeg=" + Math.toDegrees(straight.acroPitchRateRadiansPerTick())
 						+ " loadedPitchRateDeg=" + Math.toDegrees(loaded.acroPitchRateRadiansPerTick()));
+		assertTrue(passive.acroPitchRateRadiansPerTick() < -Math.toRadians(0.025),
+				"passivePitchRateDeg=" + Math.toDegrees(passive.acroPitchRateRadiansPerTick()));
+		assertTrue(passive.acroPitchRateRadiansPerTick() > -Math.toRadians(0.050),
+				"passivePitchRateDeg=" + Math.toDegrees(passive.acroPitchRateRadiansPerTick()));
 		assertEquals(loaded.acroPitchRateRadiansPerTick(), loaded.pitchRadians(), 1.0e-6f);
+		assertEquals(passive.acroPitchRateRadiansPerTick(), passive.pitchRadians(), 1.0e-6f);
 		assertEquals(0.0f, loaded.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertEquals(0.0f, passive.acroRollRateRadiansPerTick(), 1.0e-6f);
 	}
 
 	@Test

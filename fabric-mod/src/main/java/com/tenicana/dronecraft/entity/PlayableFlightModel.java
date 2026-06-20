@@ -177,6 +177,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_AOA_PITCH_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.30f);
 	private static final float ACRO_AOA_PITCH_COMMAND_SUPPRESS = 0.65f;
 	private static final float ACRO_AOA_PITCH_ACTIVE_KEEP = 0.08f;
+	private static final float ACRO_AOA_PITCH_PASSIVE_KEEP = 0.36f;
 	private static final float ACRO_AOA_PITCH_ACTIVITY_START_RADIANS_PER_TICK = (float) Math.toRadians(0.35f);
 	private static final float ACRO_AOA_PITCH_ACTIVITY_FULL_RADIANS_PER_TICK = (float) Math.toRadians(1.10f);
 	private static final float ACRO_THRUST_RISE_SMOOTHING = 0.55f;
@@ -732,7 +733,12 @@ final class PlayableFlightModel {
 			rollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle);
 		}
 		pitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
-				* acroAngleOfAttackPitchMomentActivity(previous.acroPitchRateRadiansPerTick(), pitch);
+				* acroAngleOfAttackPitchMomentScale(
+						bodyVelocity,
+						previous.pitchRadians(),
+						previous.acroPitchRateRadiansPerTick(),
+						pitch
+				);
 		return new AcroRateResponse(
 				clamp(pitchRate, -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick()),
 				clamp(rollRate, -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick())
@@ -946,6 +952,30 @@ final class PlayableFlightModel {
 		}
 		return smoothStep((Math.abs(previousPitchRateRadiansPerTick) - ACRO_AOA_PITCH_ACTIVITY_START_RADIANS_PER_TICK)
 				/ Math.max(0.001f, ACRO_AOA_PITCH_ACTIVITY_FULL_RADIANS_PER_TICK - ACRO_AOA_PITCH_ACTIVITY_START_RADIANS_PER_TICK));
+	}
+
+	static float acroAngleOfAttackPitchMomentScale(
+			Velocity bodyVelocity,
+			float pitchRadians,
+			float previousPitchRateRadiansPerTick,
+			float pitchCommand
+	) {
+		float activity = acroAngleOfAttackPitchMomentActivity(previousPitchRateRadiansPerTick, pitchCommand);
+		float passive = acroAngleOfAttackPassivePitchMomentScale(bodyVelocity, pitchRadians);
+		return passive + (1.0f - passive) * activity;
+	}
+
+	private static float acroAngleOfAttackPassivePitchMomentScale(Velocity bodyVelocity, float pitchRadians) {
+		float verticalSpeed = bodyVelocity.y();
+		if (!Float.isFinite(verticalSpeed) || Math.abs(verticalSpeed) <= 1.0e-6f) {
+			return 0.0f;
+		}
+		float pitchResidual = signedRotationResidualRadians(pitchRadians);
+		float momentDirection = -Math.signum(verticalSpeed);
+		if (Math.abs(pitchResidual) > Math.toRadians(2.0f) && pitchResidual * momentDirection < 0.0f) {
+			return 0.0f;
+		}
+		return ACRO_AOA_PITCH_PASSIVE_KEEP;
 	}
 
 	private static boolean isRateRising(float currentRateRadiansPerTick, float targetRateRadiansPerTick) {

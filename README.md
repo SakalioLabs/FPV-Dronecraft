@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高迎角弱被动 pitch 载荷）
+本轮继续收敛“高速斜飞/翻转后仍有点像理想刚体平移”的 ACRO 手感，但刻意避免把它做成自动回正。上一版高迎角 pitch 载荷只在玩家打 pitch 杆，或上一帧还留有 pitch rate 尾巴时生效；这样能防止自稳味道，但在某些松杆后的高迎角来流里又会显得机体太“无空气”。
+- `PlayableFlightModel` 新增 `acroAngleOfAttackPitchMomentScale`：高迎角 pitch moment 现在有一个很弱的被动保留量，零 pitch / 零杆量下约保留 36% 的载荷，让 `18m/s` 前向、`10m/s` 垂向来流这类场景能产生约 `0.03deg/tick` 的轻微 pitch 响应。
+- 这条被动项加入了“禁止自动回正”边界：如果当前 pitch 姿态已经明显偏离 0，而被动 AOA 力矩方向会把 pitch residual 拉回水平，就直接禁用。主动打 pitch 杆或仍有残余 pitch rate 时，原有完整气动载荷仍生效，用来表现动作中的空气负载。
+- 回归测试新增两层保护：中立姿态高迎角允许弱被动 pitch rate；普通 ACRO 高速巡航和 HORIZON 切 ACRO 的居中杆软捕获不能被这条弱被动项慢慢拉回 pitch，避免重新出现“穿越机自己回正”的手感。
+- 已通过 targeted AOA/cruise/mode-switch 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-012837.json`。
+
 ## 最新进展（2026-06-21，目视前飞 pitch 符号回归修正）
 本轮先修一个明确的目视飞行回归：你反馈“目视状态下无人机向前时从压头变成了抬头”。问题集中在客户端 `DroneEntityModel` 的 pitch 符号，前一轮测试把 renderer 的 `scale(-1,-1,1)` 和模型机头前向点的最终 Y 偏移语义判断反了。
 - `DroneEntityModel.bodyPitchRotationRadians` 现在重新使用 `-pitchRadians`，让 playable 正 pitch / 前飞在第三人称目视模型上表现为机头下压，而不是抬头。
