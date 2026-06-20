@@ -46,6 +46,13 @@ final class PlayableFlightModel {
 	private static final float ACRO_TILT_SINK_METERS_PER_SECOND = 2.75f;
 	private static final float INVERTED_THRUST_VERTICAL_PROJECTION_MIN = -0.45f;
 	private static final float PLAYABLE_TICK_SECONDS = 0.05f;
+	private static final float FULL_ROTATION_RADIANS = (float) (Math.PI * 2.0);
+	private static final float ACRO_COMPLETED_ROTATION_MIN_RADIANS = (float) Math.toRadians(300.0f);
+	private static final float ACRO_COMPLETED_ROTATION_SNAP_RADIANS = (float) Math.toRadians(40.0f);
+	private static final float ACRO_FORWARD_LINEAR_DRAG_PER_SECOND = 0.18f;
+	private static final float ACRO_LATERAL_LINEAR_DRAG_PER_SECOND = 0.24f;
+	private static final float ACRO_FORWARD_QUADRATIC_DRAG_PER_METER = 0.012f;
+	private static final float ACRO_LATERAL_QUADRATIC_DRAG_PER_METER = 0.015f;
 
 	private PlayableFlightModel() {
 	}
@@ -91,8 +98,10 @@ final class PlayableFlightModel {
 		float yawCommand = safeYaw * yawCommandAuthority;
 
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious);
-		float pitchRadians = settledAttitude(safeMode, attitudePitch, attitude.pitchRadians());
-		float rollRadians = settledAttitude(safeMode, attitudeRoll, attitude.rollRadians());
+		float pitchRadians = completedAcroRotationAttitude(safeMode, attitudePitch, attitude.pitchRadians());
+		float rollRadians = completedAcroRotationAttitude(safeMode, attitudeRoll, attitude.rollRadians());
+		pitchRadians = settledAttitude(safeMode, attitudePitch, pitchRadians);
+		rollRadians = settledAttitude(safeMode, attitudeRoll, rollRadians);
 		float throttleAuthority = horizontalThrottleAuthority(safeMode, safeThrottle, safeHover, nearGroundLocked, safeLowAltitudeHorizontalScale, profile);
 		float targetVelocityX = -horizontalVelocityCommand(safeMode, rollRadians, profile.maxRollRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
@@ -100,6 +109,14 @@ final class PlayableFlightModel {
 		float targetVelocityZ = horizontalVelocityCommand(safeMode, pitchRadians, profile.maxPitchRadians(), profile)
 				* profile.horizontalSpeedMetersPerSecond()
 				* throttleAuthority;
+		Velocity limitedHorizontalTarget = limitHorizontalVector(
+				targetVelocityX,
+				0.0f,
+				targetVelocityZ,
+				horizontalTargetSpeedLimit(profile, throttleAuthority)
+		);
+		targetVelocityX = limitedHorizontalTarget.x();
+		targetVelocityZ = limitedHorizontalTarget.z();
 		float targetVelocityY = attitudeAdjustedVerticalVelocity(
 				safeMode,
 				safeThrottle,
@@ -118,13 +135,15 @@ final class PlayableFlightModel {
 			targetVelocityY = THRUST_MIN_CLIMB;
 		}
 
-		float velocityX = inertialVelocity(
+		Velocity horizontalVelocity = horizontalVelocityStep(
+				safeMode,
 				safePrevious.velocityX(),
+				safePrevious.velocityZ(),
 				targetVelocityX,
-				velocitySmoothing(safePrevious.velocityX(), targetVelocityX, profile),
-				profile.horizontalAccelerationMetersPerSecondSquared(),
-				profile.horizontalBrakeAccelerationMetersPerSecondSquared()
+				targetVelocityZ,
+				profile
 		);
+		float velocityX = horizontalVelocity.x();
 		float velocityY = inertialVelocity(
 				safePrevious.velocityY(),
 				targetVelocityY,
@@ -132,16 +151,16 @@ final class PlayableFlightModel {
 				profile.verticalAccelerationMetersPerSecondSquared(),
 				profile.verticalBrakeAccelerationMetersPerSecondSquared()
 		);
-		float velocityZ = inertialVelocity(
-				safePrevious.velocityZ(),
-				targetVelocityZ,
-				velocitySmoothing(safePrevious.velocityZ(), targetVelocityZ, profile),
-				profile.horizontalAccelerationMetersPerSecondSquared(),
-				profile.horizontalBrakeAccelerationMetersPerSecondSquared()
+		float velocityZ = horizontalVelocity.z();
+		Velocity limitedHorizontalVelocity = limitHorizontalVector(
+				velocityX,
+				0.0f,
+				velocityZ,
+				profile.horizontalSpeedLimitMetersPerSecond()
 		);
-		velocityX = clamp(velocityX, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
+		velocityX = limitedHorizontalVelocity.x();
 		velocityY = clamp(velocityY, -VERTICAL_DESCENT_SPEED_LIMIT, VERTICAL_ASCENT_SPEED_LIMIT);
-		velocityZ = clamp(velocityZ, -profile.horizontalSpeedLimitMetersPerSecond(), profile.horizontalSpeedLimitMetersPerSecond());
+		velocityZ = limitedHorizontalVelocity.z();
 		velocityX = settledVelocity(velocityX, targetVelocityX);
 		velocityY = settledVelocity(velocityY, targetVelocityY);
 		velocityZ = settledVelocity(velocityZ, targetVelocityZ);
@@ -225,6 +244,11 @@ final class PlayableFlightModel {
 				worldY,
 				-worldX * sin + worldZ * cos
 		);
+	}
+
+	static Velocity reframeVelocityForYaw(float localX, float localY, float localZ, float fromYawDegrees, float toYawDegrees) {
+		Velocity world = worldVelocityForYaw(localX, localY, localZ, fromYawDegrees);
+		return localVelocityForYaw(world.x(), world.y(), world.z(), toYawDegrees);
 	}
 
 	private static State previousStateForMode(FlightMode mode, Profile profile, State previous) {
@@ -487,6 +511,116 @@ final class PlayableFlightModel {
 			return attitudeRadians;
 		}
 		return (float) Math.asin(clamp((float) Math.sin(attitudeRadians), -1.0f, 1.0f));
+	}
+
+	private static float completedAcroRotationAttitude(FlightMode mode, float command, float attitudeRadians) {
+		if (!Float.isFinite(attitudeRadians)
+				|| safeMode(mode) != FlightMode.ACRO
+				|| Math.abs(command) > PLAYABLE_AXIS_NOISE_EPSILON
+				|| Math.abs(attitudeRadians) < ACRO_COMPLETED_ROTATION_MIN_RADIANS) {
+			return attitudeRadians;
+		}
+		float rotationResidual = signedRotationResidualRadians(attitudeRadians);
+		if (Math.abs(rotationResidual) > ACRO_COMPLETED_ROTATION_SNAP_RADIANS) {
+			return attitudeRadians;
+		}
+		return attitudeRadians - rotationResidual;
+	}
+
+	private static float signedRotationResidualRadians(float attitudeRadians) {
+		if (!Float.isFinite(attitudeRadians)) {
+			return 0.0f;
+		}
+		float wrapped = (float) Math.IEEEremainder(attitudeRadians, FULL_ROTATION_RADIANS);
+		if (wrapped <= -Math.PI) {
+			return wrapped + FULL_ROTATION_RADIANS;
+		}
+		if (wrapped > Math.PI) {
+			return wrapped - FULL_ROTATION_RADIANS;
+		}
+		return wrapped;
+	}
+
+	private static float horizontalTargetSpeedLimit(Profile profile, float throttleAuthority) {
+		float throttleLimitedSpeed = profile.horizontalSpeedMetersPerSecond() * Math.max(0.0f, throttleAuthority);
+		return Math.min(profile.horizontalSpeedLimitMetersPerSecond(), throttleLimitedSpeed);
+	}
+
+	private static Velocity horizontalVelocityStep(
+			FlightMode mode,
+			float previousVelocityX,
+			float previousVelocityZ,
+			float targetVelocityX,
+			float targetVelocityZ,
+			Profile profile
+	) {
+		if (safeMode(mode) == FlightMode.ACRO) {
+			return acroPhysicalHorizontalVelocity(previousVelocityX, previousVelocityZ, targetVelocityX, targetVelocityZ, profile);
+		}
+		return new Velocity(
+				inertialVelocity(
+						previousVelocityX,
+						targetVelocityX,
+						velocitySmoothing(previousVelocityX, targetVelocityX, profile),
+						profile.horizontalAccelerationMetersPerSecondSquared(),
+						profile.horizontalBrakeAccelerationMetersPerSecondSquared()
+				),
+				0.0f,
+				inertialVelocity(
+						previousVelocityZ,
+						targetVelocityZ,
+						velocitySmoothing(previousVelocityZ, targetVelocityZ, profile),
+						profile.horizontalAccelerationMetersPerSecondSquared(),
+						profile.horizontalBrakeAccelerationMetersPerSecondSquared()
+				)
+		);
+	}
+
+	private static Velocity acroPhysicalHorizontalVelocity(
+			float previousVelocityX,
+			float previousVelocityZ,
+			float targetVelocityX,
+			float targetVelocityZ,
+			Profile profile
+	) {
+		float commandReferenceSpeed = Math.max(1.0f, profile.horizontalSpeedMetersPerSecond() * 1.10f);
+		float commandX = targetVelocityX / commandReferenceSpeed;
+		float commandZ = targetVelocityZ / commandReferenceSpeed;
+		float commandMagnitude = horizontalMagnitude(commandX, commandZ);
+		if (commandMagnitude > 1.0f) {
+			commandX /= commandMagnitude;
+			commandZ /= commandMagnitude;
+		}
+
+		float speed = horizontalMagnitude(previousVelocityX, previousVelocityZ);
+		float accelerationX = commandX * profile.horizontalAccelerationMetersPerSecondSquared()
+				- dragAcceleration(previousVelocityX, speed, ACRO_LATERAL_LINEAR_DRAG_PER_SECOND, ACRO_LATERAL_QUADRATIC_DRAG_PER_METER);
+		float accelerationZ = commandZ * profile.horizontalAccelerationMetersPerSecondSquared()
+				- dragAcceleration(previousVelocityZ, speed, ACRO_FORWARD_LINEAR_DRAG_PER_SECOND, ACRO_FORWARD_QUADRATIC_DRAG_PER_METER);
+		return limitHorizontalVector(
+				previousVelocityX + accelerationX * PLAYABLE_TICK_SECONDS,
+				0.0f,
+				previousVelocityZ + accelerationZ * PLAYABLE_TICK_SECONDS,
+				profile.horizontalSpeedLimitMetersPerSecond()
+		);
+	}
+
+	private static float dragAcceleration(float velocity, float horizontalSpeed, float linearDragPerSecond, float quadraticDragPerMeter) {
+		return velocity * (linearDragPerSecond + quadraticDragPerMeter * horizontalSpeed);
+	}
+
+	private static Velocity limitHorizontalVector(float velocityX, float velocityY, float velocityZ, float limitMetersPerSecond) {
+		float limit = Math.max(0.0f, limitMetersPerSecond);
+		float horizontalSpeed = horizontalMagnitude(velocityX, velocityZ);
+		if (horizontalSpeed <= limit || horizontalSpeed <= 1.0e-6f) {
+			return new Velocity(velocityX, velocityY, velocityZ);
+		}
+		float scale = limit / horizontalSpeed;
+		return new Velocity(velocityX * scale, velocityY, velocityZ * scale);
+	}
+
+	private static float horizontalMagnitude(float x, float z) {
+		return (float) Math.sqrt(x * x + z * z);
 	}
 
 	private static float lowAltitudeAttitudeCommandAuthority(FlightMode mode, boolean nearGroundLocked, float lowAltitudeHorizontalAuthorityScale) {

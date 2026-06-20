@@ -268,6 +268,7 @@ public class DroneEntity extends Entity {
 	private float debugVelocityX;
 	private float debugVelocityY;
 	private float debugVelocityZ;
+	private float debugVelocityYawDegrees;
 	private float debugVisualPitchRadians;
 	private float debugVisualRollRadians;
 	private float debugMotorPower;
@@ -745,6 +746,7 @@ public class DroneEntity extends Entity {
 	private static final float DEBUG_FAILSAFE_SETTLED_VERTICAL_SPEED = 0.08f;
 
 	private void applyDebugFlight(DroneInput input) {
+		rebaseDebugVelocityToCurrentYaw();
 		float throttle = (float) MathUtil.clamp(input.throttle(), 0.0, 1.0);
 		float pitch = (float) MathUtil.clamp(input.pitch(), -1.0, 1.0);
 		float roll = (float) MathUtil.clamp(input.roll(), -1.0, 1.0);
@@ -903,6 +905,7 @@ public class DroneEntity extends Entity {
 		debugVelocityX = localVelocity.x();
 		debugVelocityY = localVelocity.y();
 		debugVelocityZ = localVelocity.z();
+		debugVelocityYawDegrees = yawDegrees;
 		if (horizontalCollision) {
 			debugVelocityX = Math.abs(debugVelocityX) < 0.025f ? 0.0f : debugVelocityX;
 			debugVelocityZ = Math.abs(debugVelocityZ) < 0.025f ? 0.0f : debugVelocityZ;
@@ -914,6 +917,24 @@ public class DroneEntity extends Entity {
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
 		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
+	}
+
+	private void rebaseDebugVelocityToCurrentYaw() {
+		float currentYawDegrees = getYRot();
+		if (Math.abs(currentYawDegrees - debugVelocityYawDegrees) <= 1.0e-4f) {
+			return;
+		}
+		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.reframeVelocityForYaw(
+				debugVelocityX,
+				debugVelocityY,
+				debugVelocityZ,
+				debugVelocityYawDegrees,
+				currentYawDegrees
+		);
+		debugVelocityX = localVelocity.x();
+		debugVelocityY = localVelocity.y();
+		debugVelocityZ = localVelocity.z();
+		debugVelocityYawDegrees = currentYawDegrees;
 	}
 
 	private DroneInput directFailsafeInput() {
@@ -955,6 +976,7 @@ public class DroneEntity extends Entity {
 		debugVelocityX = 0.0f;
 		debugVelocityY = 0.0f;
 		debugVelocityZ = 0.0f;
+		debugVelocityYawDegrees = getYRot();
 		debugVisualPitchRadians = 0.0f;
 		debugVisualRollRadians = 0.0f;
 		debugMotorPower = 0.0f;
