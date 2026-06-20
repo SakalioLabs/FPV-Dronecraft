@@ -174,6 +174,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
 	private static final float ACRO_TRANSVERSE_MOMENT_MU_START = 0.055f;
 	private static final float ACRO_TRANSVERSE_MOMENT_MU_FULL = 0.220f;
+	private static final float ACRO_TRANSVERSE_MOMENT_MU_FADE_START = 0.300f;
+	private static final float ACRO_TRANSVERSE_MOMENT_MU_FADE_FULL = 0.700f;
+	private static final float ACRO_TRANSVERSE_MOMENT_HIGH_MU_KEEP = 0.45f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_START_RADIANS = (float) Math.toRadians(14.0f);
 	private static final float ACRO_TRANSVERSE_MOMENT_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(62.0f);
 	private static final float ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.58f);
@@ -959,14 +962,12 @@ final class PlayableFlightModel {
 		float activeDisk = smoothStep((rpm - IDLE_RPM) / Math.max(1.0f, HOVER_RPM - IDLE_RPM));
 		float poweredMoment = 0.0f;
 		if (activeDisk > 1.0e-6f) {
-			float tipSpeed = rpm / 60.0f * (float) Math.PI * ACRO_PROP_DIAMETER_METERS;
-			float advanceRatioMu = horizontalSpeed / Math.max(1.0f, tipSpeed);
-			float muExposure = smoothStep((advanceRatioMu - ACRO_TRANSVERSE_MOMENT_MU_START)
-					/ Math.max(0.001f, ACRO_TRANSVERSE_MOMENT_MU_FULL - ACRO_TRANSVERSE_MOMENT_MU_START));
+			float advanceRatioMu = acroRotorDiskAdvanceRatioMu(bodyVelocity, throttle, hoverThrottle);
+			float muShape = acroTransverseFlowPoweredMuShape(advanceRatioMu);
 			poweredMoment = ACRO_TRANSVERSE_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK
 					* speedExposure
 					* activeDisk
-					* muExposure
+					* muShape
 					* sideslipExposure;
 		}
 		float activeRollSuppression = smoothStep(Math.abs(rollCommand) / ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS);
@@ -974,6 +975,18 @@ final class PlayableFlightModel {
 		return Math.signum(bodyVelocity.x())
 				* (airframeMoment + poweredMoment)
 				* commandScale;
+	}
+
+	static float acroTransverseFlowPoweredMuShape(float advanceRatioMu) {
+		if (advanceRatioMu <= ACRO_TRANSVERSE_MOMENT_MU_START) {
+			return 0.0f;
+		}
+		float build = smoothStep((advanceRatioMu - ACRO_TRANSVERSE_MOMENT_MU_START)
+				/ Math.max(0.001f, ACRO_TRANSVERSE_MOMENT_MU_FULL - ACRO_TRANSVERSE_MOMENT_MU_START));
+		float highMuFade = smoothStep((advanceRatioMu - ACRO_TRANSVERSE_MOMENT_MU_FADE_START)
+				/ Math.max(0.001f, ACRO_TRANSVERSE_MOMENT_MU_FADE_FULL - ACRO_TRANSVERSE_MOMENT_MU_FADE_START));
+		float highMuScale = lerp(1.0f, ACRO_TRANSVERSE_MOMENT_HIGH_MU_KEEP, highMuFade);
+		return clamp(build * highMuScale, 0.0f, 1.0f);
 	}
 
 	static float acroAngleOfAttackPitchMomentRate(Velocity bodyVelocity, float pitchCommand) {

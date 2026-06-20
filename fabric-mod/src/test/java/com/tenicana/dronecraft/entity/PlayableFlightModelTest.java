@@ -3203,6 +3203,12 @@ class PlayableFlightModelTest {
 				1.0f,
 				0.20f
 		);
+		float overRangeSlip = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(30.0f, 0.0f, 30.0f),
+				0.0f,
+				0.45f,
+				0.20f
+		);
 
 		assertTrue(idleSlip > Math.toRadians(0.08), "idleSlipDeg=" + Math.toDegrees(idleSlip));
 		assertTrue(idleSlip < Math.toRadians(0.15), "idleSlipDeg=" + Math.toDegrees(idleSlip));
@@ -3211,6 +3217,21 @@ class PlayableFlightModelTest {
 		assertTrue(poweredSlip < Math.toRadians(0.57), "poweredSlipDeg=" + Math.toDegrees(poweredSlip));
 		assertTrue(poweredSlip > idleSlip * 4.0f,
 				"poweredSlipDeg=" + Math.toDegrees(poweredSlip) + " idleSlipDeg=" + Math.toDegrees(idleSlip));
+		assertTrue(overRangeSlip > poweredSlip * 0.70f,
+				"overRangeSlipDeg=" + Math.toDegrees(overRangeSlip) + " poweredSlipDeg=" + Math.toDegrees(poweredSlip));
+		assertTrue(overRangeSlip < poweredSlip * 0.95f,
+				"overRangeSlipDeg=" + Math.toDegrees(overRangeSlip) + " poweredSlipDeg=" + Math.toDegrees(poweredSlip));
+	}
+
+	@Test
+	void acroTransverseFlowPoweredMuShapeUsesKolaeiRangeWithoutHardExtrapolation() {
+		assertEquals(0.0f, PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.03f), 1.0e-6f);
+		assertTrue(PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.14f) > 0.45f);
+		assertTrue(PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.24f) > 0.96f);
+		assertTrue(PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.45f) > 0.68f);
+		assertTrue(PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.45f) < 0.85f);
+		assertTrue(PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.72f) > 0.42f);
+		assertTrue(PlayableFlightModel.acroTransverseFlowPoweredMuShape(0.72f) < 0.48f);
 	}
 
 	@Test

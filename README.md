@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 横向入流滚转力矩 mu 窗口）
+本轮继续收敛“高速斜飞像贴图平移”的手感，但没有再加普通刹车。对照本仓库 `docs/data/kolaei2018_inflow_angle_rotor_packet.csv` 和 `docs/fpv-sim-data-sources.md` 里的 Kolaei 2018 入流角资料后，重点修正 playable ACRO 横向来流滚转力矩的前进比定义：该资料用 `mu = V/(Omega*R)` 描述横向/大入流角下的 `CMx` 滚转力矩趋势，当前可玩层应把它作为形状约束，而不是让 powered disk moment 在高 `mu` 区间无限饱和。
+- `PlayableFlightModel` 现在让 `acroTransverseFlowRollMomentRate` 复用已有的 `acroRotorDiskAdvanceRatioMu`，避免横向来流力矩和前面 ETL/flapping/H-force 使用两套不一致的盘面前进比口径。
+- 新增 `acroTransverseFlowPoweredMuShape`：`mu <= 0.055` 不触发，`mu ~= 0.22..0.30` 保持完整 powered disk moment，超过 Kolaei 资料主要覆盖的 `mu ~= 0.30` 后逐步降到保守残留量。这样 `16m/s right + 16m/s forward` 这类斜飞仍有约 `0.5deg/tick` 的被动滚转咬合感，而 `30/30m/s` 的超高速斜飞不会因为外推过头继续线性变强。
+- 这不是自动回正：主动 roll stick 仍会按原有 `ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP` 抢回控制权，低油门也只保留很小的 airframe residual moment；目标只是让高速横向入流下的桨盘非对称力矩更像真实旋翼数据提示的形状。
+- 回归测试新增 `acroTransverseFlowPoweredMuShapeUsesKolaeiRangeWithoutHardExtrapolation`，并扩展 `acroTransverseFlowRollMomentDependsOnPoweredDiskAdvanceRatio` 覆盖高 `mu` 外推边界。已通过 targeted transverse-flow 测试、完整 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build`（7 个 Fabric GameTest 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-020952.json`。
+
 ## 最新进展（2026-06-21，ACRO 旋翼平移升力与诱导阻力）
 本轮继续补真实穿越机手感里的“空气和桨盘在参与飞行”，不是再加速度倍率。RotorPy 的气动模型说明里把 translational lift/drag 列为高速/强机动时会变明显的旋翼气动项；结合 UIUC 小桨 advance-ratio 衰减和本仓库已有的 5 寸机 CdA/惯性锚点，这轮给 ACRO 可玩层加入一个很保守的有效推力增益：中等干净横向来流会让桨盘效率略升，但侧滑和高 advance ratio 会把它淡出。
 - `PlayableFlightModel` 新增 `acroTranslationalLiftThrustScale`，并把它乘进 ACRO 物理层有效推力。静止、低速、零油门不触发；`mu ~= 0.085..0.135` 的干净前向盘面流达到峰值，最大只给约 `5.5%` 推力增益；高 advance ratio 到 `mu ~= 0.36` 前逐步退回 `1.0`，避免覆盖 UIUC/forward-flow 的高速推力衰减。
