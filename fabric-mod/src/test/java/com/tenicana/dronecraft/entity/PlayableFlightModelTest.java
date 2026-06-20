@@ -852,15 +852,53 @@ class PlayableFlightModelTest {
 
 		assertTrue(held.pitchRadians() > Math.toRadians(38.0));
 		assertTrue(held.rollRadians() < -Math.toRadians(34.0));
-		assertEquals(held.pitchRadians(), released.pitchRadians(), 1.0e-6f);
-		assertEquals(held.rollRadians(), released.rollRadians(), 1.0e-6f);
+		assertTrue(released.pitchRadians() >= held.pitchRadians(), "heldPitch=" + held.pitchRadians() + " releasedPitch=" + released.pitchRadians());
+		assertTrue(released.pitchRadians() < held.pitchRadians() + Math.toRadians(3.5), "releasedPitchDeg=" + Math.toDegrees(released.pitchRadians()));
+		assertTrue(released.rollRadians() <= held.rollRadians(), "heldRoll=" + held.rollRadians() + " releasedRoll=" + released.rollRadians());
+		assertTrue(released.rollRadians() > held.rollRadians() - Math.toRadians(3.5), "releasedRollDeg=" + Math.toDegrees(released.rollRadians()));
+		assertEquals(0.0f, released.acroPitchRateRadiansPerTick(), 1.0e-3f);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-3f);
 		assertTrue(released.targetVelocityZ() > 6.0f);
 	}
 
 	@Test
+	void acroPitchAndRollRatesRampInsteadOfInstantAttitudeStep() {
+		PlayableFlightModel.Step firstTick = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				1.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+		PlayableFlightModel.Step settled = runFrom(
+				FlightMode.ACRO,
+				8,
+				0.45f,
+				1.0f,
+				1.0f,
+				0.0f,
+				0.20f,
+				false,
+				PlayableFlightModel.State.zero(FlightMode.ACRO)
+		);
+
+		assertTrue(firstTick.acroPitchRateRadiansPerTick() > Math.toRadians(3.5), "firstPitchRateDeg=" + Math.toDegrees(firstTick.acroPitchRateRadiansPerTick()));
+		assertTrue(firstTick.acroPitchRateRadiansPerTick() < Math.toRadians(7.0), "firstPitchRateDeg=" + Math.toDegrees(firstTick.acroPitchRateRadiansPerTick()));
+		assertTrue(firstTick.acroRollRateRadiansPerTick() > Math.toRadians(3.8), "firstRollRateDeg=" + Math.toDegrees(firstTick.acroRollRateRadiansPerTick()));
+		assertTrue(firstTick.acroRollRateRadiansPerTick() < Math.toRadians(7.4), "firstRollRateDeg=" + Math.toDegrees(firstTick.acroRollRateRadiansPerTick()));
+		assertTrue(settled.acroPitchRateRadiansPerTick() > Math.toRadians(8.4), "settledPitchRateDeg=" + Math.toDegrees(settled.acroPitchRateRadiansPerTick()));
+		assertTrue(settled.acroRollRateRadiansPerTick() > Math.toRadians(8.9), "settledRollRateDeg=" + Math.toDegrees(settled.acroRollRateRadiansPerTick()));
+		assertTrue(firstTick.pitchRadians() < Math.toRadians(7.0), "firstPitchDeg=" + Math.toDegrees(firstTick.pitchRadians()));
+		assertTrue(settled.pitchRadians() > Math.toRadians(58.0), "settledPitchDeg=" + Math.toDegrees(settled.pitchRadians()));
+	}
+
+	@Test
 	void acroModeAllowsContinuousFullPitchAndRollRotation() {
-		PlayableFlightModel.Step pitched = holdStick(FlightMode.ACRO, 46, 0.45f, 1.0f, 0.0f, 0.0f);
-		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 42, 0.45f, 0.0f, 1.0f, 0.0f);
+		PlayableFlightModel.Step pitched = holdStick(FlightMode.ACRO, 48, 0.45f, 1.0f, 0.0f, 0.0f);
+		PlayableFlightModel.Step rolled = holdStick(FlightMode.ACRO, 44, 0.45f, 0.0f, 1.0f, 0.0f);
 
 		assertTrue(pitched.pitchRadians() > Math.toRadians(360.0), "pitchDeg=" + Math.toDegrees(pitched.pitchRadians()));
 		assertTrue(rolled.rollRadians() > Math.toRadians(360.0), "rollDeg=" + Math.toDegrees(rolled.rollRadians()));
@@ -1182,11 +1220,11 @@ class PlayableFlightModelTest {
 
 	@Test
 	void acroDiagonalCommandUsesSingleHorizontalSpeedEnvelope() {
-		PlayableFlightModel.Step diagonal = holdStick(FlightMode.ACRO, 7, 0.68f, 1.0f, 1.0f, 0.0f);
+		PlayableFlightModel.Step diagonal = holdStick(FlightMode.ACRO, 9, 0.68f, 1.0f, 1.0f, 0.0f);
 		float horizontalTargetSpeed = horizontalSpeed(diagonal.targetVelocityX(), diagonal.targetVelocityZ());
 
 		assertTrue(Math.abs(diagonal.targetVelocityX()) > 24.0f, "targetX=" + diagonal.targetVelocityX());
-		assertTrue(Math.abs(diagonal.targetVelocityZ()) > 9.0f, "targetZ=" + diagonal.targetVelocityZ());
+		assertTrue(Math.abs(diagonal.targetVelocityZ()) > 4.5f, "targetZ=" + diagonal.targetVelocityZ());
 		assertTrue(Math.abs(diagonal.targetVelocityX()) > Math.abs(diagonal.targetVelocityZ()) * 2.35f);
 		assertTrue(horizontalTargetSpeed > 25.0f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
 		assertTrue(horizontalTargetSpeed < 27.6f, "horizontalTargetSpeed=" + horizontalTargetSpeed);
@@ -1298,10 +1336,11 @@ class PlayableFlightModelTest {
 				stateFrom(pitched)
 		);
 
-		assertTrue(firstTick.targetVelocityZ() > 3.0f, "firstTargetZ=" + firstTick.targetVelocityZ());
+		assertTrue(firstTick.targetVelocityZ() > 2.2f, "firstTargetZ=" + firstTick.targetVelocityZ());
 		assertTrue(firstTick.targetVelocityZ() < 5.0f, "firstTargetZ=" + firstTick.targetVelocityZ());
 		assertTrue(firstTick.velocityZ() < 0.90f, "firstVelocityZ=" + firstTick.velocityZ());
-		assertEquals(pitched.pitchRadians(), cruise.pitchRadians(), 1.0e-6f);
+		assertTrue(cruise.pitchRadians() >= pitched.pitchRadians(), "pitchedDeg=" + Math.toDegrees(pitched.pitchRadians()) + " cruiseDeg=" + Math.toDegrees(cruise.pitchRadians()));
+		assertTrue(cruise.pitchRadians() < pitched.pitchRadians() + Math.toRadians(4.5), "cruiseDeg=" + Math.toDegrees(cruise.pitchRadians()));
 		assertTrue(cruise.targetVelocityZ() >= 25.0f, "cruiseTargetZ=" + cruise.targetVelocityZ());
 		assertTrue(cruise.velocityZ() >= 25.0f, "cruiseVelocityZ=" + cruise.velocityZ());
 	}
@@ -1622,7 +1661,9 @@ class PlayableFlightModelTest {
 				step.yawDegreesPerTick(),
 				step.mode(),
 				step.modeSwitchTicksRemaining(),
-				step.acroCollectiveThrustToWeight()
+				step.acroCollectiveThrustToWeight(),
+				step.acroPitchRateRadiansPerTick(),
+				step.acroRollRateRadiansPerTick()
 		);
 	}
 

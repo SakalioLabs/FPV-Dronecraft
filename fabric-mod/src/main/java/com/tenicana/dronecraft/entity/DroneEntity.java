@@ -274,6 +274,8 @@ public class DroneEntity extends Entity {
 	private float debugMotorPower;
 	private float debugAverageMotorRpm;
 	private float debugAcroCollectiveThrustToWeight;
+	private float debugAcroPitchRateRadiansPerTick;
+	private float debugAcroRollRateRadiansPerTick;
 	private float debugTargetVelocityX;
 	private float debugTargetVelocityY;
 	private float debugTargetVelocityZ;
@@ -808,7 +810,9 @@ public class DroneEntity extends Entity {
 						debugTargetYawRate,
 						debugFlightMode,
 						debugModeSwitchTicksRemaining,
-						debugAcroCollectiveThrustToWeight
+						debugAcroCollectiveThrustToWeight,
+						debugAcroPitchRateRadiansPerTick,
+						debugAcroRollRateRadiansPerTick
 				)
 		);
 		float targetVx = step.targetVelocityX();
@@ -856,6 +860,8 @@ public class DroneEntity extends Entity {
 		debugMotorPower = step.motorPower();
 		debugAverageMotorRpm = step.averageRpm();
 		debugAcroCollectiveThrustToWeight = step.acroCollectiveThrustToWeight();
+		debugAcroPitchRateRadiansPerTick = step.acroPitchRateRadiansPerTick();
+		debugAcroRollRateRadiansPerTick = step.acroRollRateRadiansPerTick();
 
 		PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
 				debugVelocityX,
@@ -994,6 +1000,8 @@ public class DroneEntity extends Entity {
 		debugMotorPower = 0.0f;
 		debugAverageMotorRpm = 0.0f;
 		debugAcroCollectiveThrustToWeight = 0.0f;
+		debugAcroPitchRateRadiansPerTick = 0.0f;
+		debugAcroRollRateRadiansPerTick = 0.0f;
 		debugLowAltitudeHorizontalAuthority = 1.0f;
 		debugModeSwitchTicksRemaining = 0;
 		debugCommandThrottle = 0.0f;
