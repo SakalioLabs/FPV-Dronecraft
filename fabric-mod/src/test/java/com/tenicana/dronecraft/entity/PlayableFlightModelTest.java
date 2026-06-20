@@ -1189,6 +1189,47 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void releasedFullRollTailPastOldSnapWindowDoesNotParkSideways() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				12.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(507.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(0.8)
+		);
+		PlayableFlightModel.Step released = runFrom(
+				FlightMode.ACRO,
+				12,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				released.velocityX(),
+				released.velocityY(),
+				released.velocityZ(),
+				released.pitchRadians(),
+				released.rollRadians()
+		);
+
+		assertEquals(0.0f, released.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, released.acroRollRateRadiansPerTick(), 1.0e-6f);
+		assertEquals(0.0f, released.targetVelocityX(), 1.0e-6f);
+		assertTrue(Math.abs(bodyVelocity.x()) < 1.05f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 4.6f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void completedAcroPitchLoopDoesNotKeepCreatingForwardTarget() {
 		PlayableFlightModel.Step completedLoop = PlayableFlightModel.step(
 				FlightMode.ACRO,

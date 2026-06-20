@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-20，ACRO 完整翻滚释放尾段侧飞修复）
+本轮针对“翻转一周之后持续侧飞、无法回正”的新反馈继续收敛 playable ACRO。根因进一步缩小到完整 roll 释放尾段：玩家完成一圈后松杆，如果滤波和残余角速度把累计 roll 推到旧捕捉窗口外一点点，物理层会停在约 150 度左右的等效横滚姿态；此时油门仍会产生强侧向推力，看起来就像翻完一圈后飞机锁死在侧飞。
+- `PlayableFlightModel` 将“已经完成至少一整圈并释放摇杆”的捕捉窗口从 `145deg` 放宽到 `170deg`。这只作用于完成整圈后的释放尾段，不改变普通 ACRO 半滚、刀锋飞行、倒飞和主动持续翻滚的 rate mode 语义。
+- 完整 roll 捕捉后的 body-right 侧滑残差上限从 `2.75m/s` 收紧到 `1.10m/s`。也就是说，完成一圈时不会把翻滚积分误差留下来继续横着拖飞，但前向惯性仍会保留，不会把速度粗暴清零。
+- 新增回归测试覆盖 `507deg roll + 残余 roll rate + 12m/s 横向速度 + 6m/s 前向速度` 的释放尾段：12 tick 后 roll 必须归零、残余 roll rate 必须归零、横向 body slip 必须低于 `1.05m/s`，前向速度仍保持在 `4.6m/s` 以上。
+- 已通过 `:fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightModelTest`、完整 `gradlew build` 和无头 `runPlayableAcroServerSelfTest`；25565 被占用时临时使用 25566，结束后已恢复 25565，报告为 `server-selftest-playable-20260620-192935.json`。
+
 ## 最新进展（2026-06-20，ACRO 高速角速度空气阻尼）
 本轮继续处理“斜向/高速机动还是有点像数学旋转、平移感偏重”的手感问题。当前 playable ACRO 已经有推力轴积分、机体系 CdA、分离流、侧滑侧向力、桨盘 H-force、高前进比推力软化和 body-rate yaw 耦合；这次补的是高速动态压下的 pitch/roll rate 空气动力阻尼，让高速前飞、斜飞、横飞时机体旋转也能感到一点真实空气负载。
 

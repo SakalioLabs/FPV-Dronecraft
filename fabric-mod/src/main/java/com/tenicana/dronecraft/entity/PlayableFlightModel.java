@@ -51,9 +51,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_RADIANS = (float) Math.toRadians(40.0f);
 	private static final float ACRO_COMPLETED_ROTATION_SNAP_MARGIN_RADIANS = (float) Math.toRadians(4.0f);
 	private static final float ACRO_COMPLETED_ROTATION_RELEASE_COMMAND = 0.180f;
-	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(145.0f);
+	private static final float ACRO_COMPLETED_ROTATION_RELEASE_SNAP_RADIANS = (float) Math.toRadians(170.0f);
 	private static final float ACRO_COMPLETED_ROTATION_DRIFT_TRIM_SPEED_METERS_PER_SECOND = 2.75f;
-	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 2.75f;
+	private static final float ACRO_COMPLETED_ROLL_SIDE_SLIP_MAX_METERS_PER_SECOND = 1.10f;
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
