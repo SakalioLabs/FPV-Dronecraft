@@ -151,8 +151,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_THRUST_TURN_LOAD_SPEED_FULL_METERS_PER_SECOND = 24.0f;
 	private static final float ACRO_THRUST_TURN_LOAD_ACCELERATION_START = 1.20f;
 	private static final float ACRO_THRUST_TURN_LOAD_ACCELERATION_FULL = 8.0f;
-	private static final float ACRO_THRUST_TURN_LOAD_GAIN = 0.16f;
-	private static final float ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION = 1.65f;
+	private static final float ACRO_THRUST_TURN_LOAD_GAIN = 0.18f;
+	private static final float ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION = 1.80f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND = 8.0f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_SPEED_FULL_METERS_PER_SECOND = 27.0f;
 	private static final float ACRO_ROTOR_SIDEWASH_TURN_ACCELERATION_START = 1.0f;

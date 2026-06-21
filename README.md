@@ -1,5 +1,11 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高速推力改向负载小幅增强）
+这一轮继续处理“斜飞/高速转向像平移”的手感残留。上一轮已经让中速桨盘侧洗更早建立，这次没有动直线 drag、没有降低 `25m/s` 速度包络，而是小幅增强 `acroThrustVectorTurnLoadAcceleration`：当飞机已经高速水平飞行，而当前推力主要用于横向改变速度方向时，需要付出更明显的能量成本。
+- `ACRO_THRUST_TURN_LOAD_GAIN` 从 `0.16` 提到 `0.18`，`ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION` 从 `1.65m/s^2` 提到 `1.80m/s^2`。低速、悬停、推力与速度同向的直线巡航仍不触发这条负载；它只作用在高速度下“推力横着改向”的场景。
+- 收紧 `acroThrustVectorTurnLoadOnlyAppearsWhenThrustTurnsFastVelocity` 与 `acroThrustVectorTurnLoadMakesDiagonalSlipPayForChangingTrack`：`25m/s` 速度下横向 `8m/s^2` 推力改向现在约产生 `1.4m/s^2` 级别的能量成本；`16/16m/s` 斜向滑行横向改向也必须有更明确的负功，同时上限锁住，避免变成硬刹车。
+- 已通过 thrust-turn targeted、`acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap`、`acroDiagonalReleaseDoesNotBecomeLongPoweredStrafe`、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-091745.json`，playable ACRO 诊断通过，最大水平位移约 `16.19m`，最大速度约 `6.63m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 中速桨盘侧洗转弯提前建立）
 这一轮继续沿着“速度够了，但斜飞还像平移、不像真实穿越机在空气里带着惯性转弯”的主线收敛。前几轮已经把前向惯性、侧滑侧力、翻滚恢复和高 RPM 组合动作重量感守住了，所以这次没有再加全局 drag，也没有降低 25m/s 速度包络；重点改的是 `acroRotorSidewashTurnAcceleration` 的建立速度区间，让桨盘侧洗引导的航迹弯曲在中速门口/翻滚恢复后的速度区也能更早出现。
 - `ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND` 从 `10.0` 下调到 `8.0`，`ACRO_ROTOR_SIDEWASH_TURN_SPEED_FULL_METERS_PER_SECOND` 从 `28.0` 收到 `27.0`。这条力仍然严格近似垂直于当前水平速度，只改变航迹方向，不凭空增加平面速度，也不是自动回正。

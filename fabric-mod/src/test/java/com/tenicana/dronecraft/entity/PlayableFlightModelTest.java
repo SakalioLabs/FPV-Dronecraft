@@ -3979,8 +3979,8 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, lowSpeedTurn.z(), 1.0e-6f);
 		assertEquals(0.0f, alignedFastThrust.z(), 1.0e-6f);
 		assertEquals(0.0f, fastTurn.x(), 1.0e-6f);
-		assertTrue(fastTurn.z() < -1.20f, "fastTurnZ=" + fastTurn.z());
-		assertTrue(fastTurn.z() > -1.36f, "fastTurnZ=" + fastTurn.z());
+		assertTrue(fastTurn.z() < -1.35f, "fastTurnZ=" + fastTurn.z());
+		assertTrue(fastTurn.z() > -1.52f, "fastTurnZ=" + fastTurn.z());
 	}
 
 	@Test
@@ -4003,11 +4003,12 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, alignedDiagonal.x(), 1.0e-6f);
 		assertEquals(0.0f, alignedDiagonal.z(), 1.0e-6f);
 		assertTrue(sideThrustDiagonal.x() < -0.37f, "sideThrustDiagonalX=" + sideThrustDiagonal.x());
-		assertTrue(sideThrustDiagonal.x() > -0.52f, "sideThrustDiagonalX=" + sideThrustDiagonal.x());
+		assertTrue(sideThrustDiagonal.x() > -0.58f, "sideThrustDiagonalX=" + sideThrustDiagonal.x());
 		assertEquals(sideThrustDiagonal.x(), sideThrustDiagonal.z(), 1.0e-6f);
-		assertTrue(loadMagnitude > 0.52f, "loadMagnitude=" + loadMagnitude);
-		assertTrue(loadMagnitude < 0.72f, "loadMagnitude=" + loadMagnitude);
-		assertTrue(workAlongVelocity < -11.5f, "workAlongVelocity=" + workAlongVelocity);
+		assertTrue(loadMagnitude > 0.58f, "loadMagnitude=" + loadMagnitude);
+		assertTrue(loadMagnitude < 0.80f, "loadMagnitude=" + loadMagnitude);
+		assertTrue(workAlongVelocity < -13.0f, "workAlongVelocity=" + workAlongVelocity);
+		assertTrue(workAlongVelocity > -18.5f, "workAlongVelocity=" + workAlongVelocity);
 	}
 
 	@Test
