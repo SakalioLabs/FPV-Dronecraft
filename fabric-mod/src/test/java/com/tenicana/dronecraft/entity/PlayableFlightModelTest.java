@@ -2272,10 +2272,10 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
-		assertTrue(highSideFlowScale > 0.36f, "highSideFlowScale=" + highSideFlowScale);
-		assertTrue(highSideFlowScale < 0.44f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(highSideFlowScale > 0.32f, "highSideFlowScale=" + highSideFlowScale);
+		assertTrue(highSideFlowScale < 0.38f, "highSideFlowScale=" + highSideFlowScale);
 		assertTrue(diagonalSideFlowScale > highSideFlowScale, "diagonalSideFlowScale=" + diagonalSideFlowScale + " highSideFlowScale=" + highSideFlowScale);
-		assertTrue(diagonalSideFlowScale < 0.46f, "diagonalSideFlowScale=" + diagonalSideFlowScale);
+		assertTrue(diagonalSideFlowScale < 0.39f, "diagonalSideFlowScale=" + diagonalSideFlowScale);
 		assertTrue(noseDownForwardScale > diagonalSideFlowScale + 0.12f, "noseDownForwardScale=" + noseDownForwardScale + " diagonalSideFlowScale=" + diagonalSideFlowScale);
 		assertTrue(noseDownForwardScale < 0.64f, "noseDownForwardScale=" + noseDownForwardScale);
 	}
@@ -2304,6 +2304,44 @@ class PlayableFlightModelTest {
 		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
 		assertTrue(racingCruiseScale > 0.62f, "racingCruiseScale=" + racingCruiseScale);
 		assertTrue(racingCruiseScale < 0.69f, "racingCruiseScale=" + racingCruiseScale);
+	}
+
+	@Test
+	void acroHighAdvanceDiagonalSideflowCarriesNearBroadsidePropLoss() {
+		float straightCruiseScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				0.0f,
+				0.0f,
+				20.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float diagonalSideflowScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+		float broadsideScale = PlayableFlightModel.acroAdvanceRatioThrustScale(
+				22.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.68f,
+				0.20f
+		);
+
+		assertTrue(straightCruiseScale > 0.49f, "straightCruiseScale=" + straightCruiseScale);
+		assertTrue(diagonalSideflowScale < straightCruiseScale * 0.74f,
+				"diagonalSideflowScale=" + diagonalSideflowScale + " straightCruiseScale=" + straightCruiseScale);
+		assertTrue(diagonalSideflowScale > broadsideScale, "diagonalSideflowScale=" + diagonalSideflowScale + " broadsideScale=" + broadsideScale);
+		assertTrue(diagonalSideflowScale < broadsideScale + 0.020f,
+				"diagonalSideflowScale=" + diagonalSideflowScale + " broadsideScale=" + broadsideScale);
 	}
 
 	@Test

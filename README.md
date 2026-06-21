@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 斜向盘面来流推进损失增强）
+这一轮继续处理“速度够了，但斜向飞行还像平移、不像真机在空气里带着惯性和负载转弯”的手感问题。复查本地资料包后，这次没有继续加全局机体阻力：`docs/data/airframe_drag_calibration_packet.csv` 已经提示核心预设 drag 很容易偏高，粗暴加阻力会吃掉 25m/s 的速度感。更合适的小步是只增强高前进比下的斜向/横向桨盘来流损失，让推力在侧流里不能像理想数学向量一样无损改向。
+
+- `ACRO_ADVANCE_SIDEFLOW_MAX_THRUST_LOSS` 从 `0.62` 提到 `0.66`。直线前飞的 `ACRO_ADVANCE_MAX_THRUST_LOSS` 仍是 `0.50`，所以机头前压巡航和 25m/s 速度门槛不被这轮直接削弱；纯横流和 45 度斜向横流会更明显损失推进效率。
+- 依据来自 `docs/fpv-sim-model-validation.md` 中 UIUC 5 寸桨前进比资料、IMAV/RATM/RPG 速度包络，以及 `airframe_drag_calibration_packet` 的 caveat：真实感问题不应靠全局刹车解决，而应把桨盘在高前进比和侧向来流下的效率衰减单独建模。
+- 新增 `acroHighAdvanceDiagonalSideflowCarriesNearBroadsidePropLoss`，锁住 45 度斜向来流必须接近纯横流推进损失，同时仍明显区别于直线巡航。同步收紧 `acroHighAdvanceFlowSoftensPropThrustAtSpeed` 的横流边界。
+- 已通过 targeted 高前进比/斜飞释放/25m/s 巡航测试，以及完整 `PlayableFlightModelTest`。下一步还需要继续跑完整构建和无头服务端自测，并在实机手感反馈后判断是否继续调 dynamic inflow 或 roll/pitch body-rate 负载。
+
 ## 最新进展（2026-06-21，ACRO 高速推力改向负载小幅增强）
 这一轮继续处理“斜飞/高速转向像平移”的手感残留。上一轮已经让中速桨盘侧洗更早建立，这次没有动直线 drag、没有降低 `25m/s` 速度包络，而是小幅增强 `acroThrustVectorTurnLoadAcceleration`：当飞机已经高速水平飞行，而当前推力主要用于横向改变速度方向时，需要付出更明显的能量成本。
 - `ACRO_THRUST_TURN_LOAD_GAIN` 从 `0.16` 提到 `0.18`，`ACRO_THRUST_TURN_LOAD_MAX_ACCELERATION` 从 `1.65m/s^2` 提到 `1.80m/s^2`。低速、悬停、推力与速度同向的直线巡航仍不触发这条负载；它只作用在高速度下“推力横着改向”的场景。
