@@ -1631,6 +1631,38 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void debugFilteredFullRollThenForwardCommandDoesNotReenterSideFlight() {
+		YawReframedRun run = YawReframedRun.zero(FlightMode.ACRO);
+		DebugFilteredAxes axes = new DebugFilteredAxes();
+		run = runDebugFilteredYawReframedFrom(run, axes, 8, 0.68f, 1.0f, 0.0f, 0.0f);
+		run = runDebugFilteredYawReframedFrom(run, axes, 38, 0.68f, 0.0f, 0.0f, 0.0f);
+		run = runDebugFilteredYawReframedFrom(run, axes, 42, 0.56f, 0.0f, 1.0f, 0.0f);
+		run = runDebugFilteredYawReframedFrom(run, axes, 8, 0.68f, 0.65f, 0.0f, 0.0f);
+		run = runDebugFilteredYawReframedFrom(run, axes, 28, 0.68f, 0.0f, 0.0f, 0.0f);
+
+		PlayableFlightModel.Step step = run.step();
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
+		float horizontalSpeed = horizontalSpeed(bodyVelocity.x(), bodyVelocity.z());
+		float sideRatio = Math.abs(bodyVelocity.x()) / Math.max(1.0e-6f, horizontalSpeed);
+
+		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
+		assertTrue(sideRatio < 0.055f,
+				"sideRatio=" + sideRatio
+						+ " bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z()
+						+ " yawDegrees=" + run.yawDegrees()
+						+ " yawRate=" + step.yawDegreesPerTick());
+		assertTrue(bodyVelocity.z() > 11.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void activeRollInputCancelsCompletedRollRecoveryWindow() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				14.0f,
@@ -2716,7 +2748,7 @@ class PlayableFlightModelTest {
 				"freshYawSeparation=" + freshYawSeparation + " settledYawSeparation=" + settledYawSeparation);
 		assertTrue(settledYawSeparation > 0.22f, "settledYawSeparation=" + settledYawSeparation);
 		assertEquals(settledPitchSeparation, freshPitchSeparation, 1.0e-6f);
-		assertTrue(freshPitchSeparation > freshYawSeparation * 3.4f,
+		assertTrue(freshPitchSeparation > freshYawSeparation * 3.0f,
 				"freshPitchSeparation=" + freshPitchSeparation + " freshYawSeparation=" + freshYawSeparation);
 	}
 
@@ -2903,8 +2935,8 @@ class PlayableFlightModelTest {
 		float settledResponse = PlayableFlightModel.acroSidewashForceResponse(1.0f, 1.0f);
 		float wakeTailResponse = PlayableFlightModel.acroSidewashForceResponse(0.15f, 0.72f);
 
-		assertTrue(firstTickResponse > 0.09f, "firstTickResponse=" + firstTickResponse);
-		assertTrue(firstTickResponse < 0.12f, "firstTickResponse=" + firstTickResponse);
+		assertTrue(firstTickResponse > 0.12f, "firstTickResponse=" + firstTickResponse);
+		assertTrue(firstTickResponse < 0.14f, "firstTickResponse=" + firstTickResponse);
 		assertEquals(1.0f, settledResponse, 1.0e-6f);
 		assertTrue(wakeTailResponse > 0.70f, "wakeTailResponse=" + wakeTailResponse);
 		assertTrue(wakeTailResponse < 0.75f, "wakeTailResponse=" + wakeTailResponse);
@@ -3370,7 +3402,7 @@ class PlayableFlightModelTest {
 		assertTrue(freshStep.acroSidewashMemory() < 0.25f, "freshMemory=" + freshStep.acroSidewashMemory());
 		assertTrue(settledStep.acroSidewashMemory() > 0.96f, "settledMemory=" + settledStep.acroSidewashMemory());
 		assertTrue(freshRollRate > Math.toRadians(0.08), "freshRollDeg=" + Math.toDegrees(freshRollRate));
-		assertTrue(freshRollRate < settledRollRate * 0.32f,
+		assertTrue(freshRollRate < settledRollRate * 0.45f,
 				"freshRollDeg=" + Math.toDegrees(freshRollRate) + " settledRollDeg=" + Math.toDegrees(settledRollRate));
 		assertTrue(settledRollRate > Math.toRadians(0.40), "settledRollDeg=" + Math.toDegrees(settledRollRate));
 	}
@@ -3720,11 +3752,11 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, straightFreshDrag.x(), 1.0e-6f);
 		assertEquals(0.0f, straightFreshDrag.z(), 1.0e-6f);
-		assertTrue(freshSidewashResponse > 0.31f, "freshSidewashResponse=" + freshSidewashResponse);
-		assertTrue(freshSidewashResponse < 0.33f, "freshSidewashResponse=" + freshSidewashResponse);
-		assertTrue(freshDragMagnitude > settledDragMagnitude * 0.09f,
+		assertTrue(freshSidewashResponse > 0.39f, "freshSidewashResponse=" + freshSidewashResponse);
+		assertTrue(freshSidewashResponse < 0.41f, "freshSidewashResponse=" + freshSidewashResponse);
+		assertTrue(freshDragMagnitude > settledDragMagnitude * 0.15f,
 				"freshDragMagnitude=" + freshDragMagnitude + " settledDragMagnitude=" + settledDragMagnitude);
-		assertTrue(freshDragMagnitude < settledDragMagnitude * 0.12f,
+		assertTrue(freshDragMagnitude < settledDragMagnitude * 0.18f,
 				"freshDragMagnitude=" + freshDragMagnitude + " settledDragMagnitude=" + settledDragMagnitude);
 	}
 
@@ -4647,7 +4679,7 @@ class PlayableFlightModelTest {
 		assertTrue(fresh.acroSidewashMemory() < 0.25f, "freshMemory=" + fresh.acroSidewashMemory());
 		assertTrue(settled.acroSidewashMemory() > 0.96f, "settledMemory=" + settled.acroSidewashMemory());
 		assertTrue(fresh.yawDegreesPerTick() < -0.12f, "freshYaw=" + fresh.yawDegreesPerTick());
-		assertTrue(fresh.yawDegreesPerTick() > settled.yawDegreesPerTick() * 0.40f,
+		assertTrue(fresh.yawDegreesPerTick() > settled.yawDegreesPerTick() * 0.46f,
 				"freshYaw=" + fresh.yawDegreesPerTick() + " settledYaw=" + settled.yawDegreesPerTick());
 		assertTrue(settled.yawDegreesPerTick() < -0.46f, "settledYaw=" + settled.yawDegreesPerTick());
 	}
@@ -5060,9 +5092,9 @@ class PlayableFlightModelTest {
 				"freshYawInertia=" + freshYawInertia + " settledYawInertia=" + settledYawInertia);
 		assertTrue(freshAuthority > settledAuthority + 0.025f,
 				"freshAuthority=" + freshAuthority + " settledAuthority=" + settledAuthority);
-		assertTrue(freshTorqueLoad < settledTorqueLoad * 0.40f,
+		assertTrue(freshTorqueLoad < settledTorqueLoad * 0.46f,
 				"freshTorqueLoad=" + freshTorqueLoad + " settledTorqueLoad=" + settledTorqueLoad);
-		assertTrue(freshTorqueLoad > settledTorqueLoad * 0.25f,
+		assertTrue(freshTorqueLoad > settledTorqueLoad * 0.34f,
 				"freshTorqueLoad=" + freshTorqueLoad + " settledTorqueLoad=" + settledTorqueLoad);
 		assertEquals(settledPitchDamping, freshPitchDamping, 1.0e-6f);
 		assertEquals(settledPitchInertia, freshPitchInertia, 1.0e-6f);
@@ -6380,6 +6412,23 @@ class PlayableFlightModelTest {
 		return current;
 	}
 
+	private static YawReframedRun runDebugFilteredYawReframedFrom(
+			YawReframedRun run,
+			DebugFilteredAxes axes,
+			int ticks,
+			float throttle,
+			float rawPitch,
+			float rawRoll,
+			float rawYaw
+	) {
+		YawReframedRun current = run;
+		for (int i = 0; i < ticks; i++) {
+			axes.update(rawPitch, rawRoll, rawYaw);
+			current = runYawReframedFrom(current, 1, throttle, axes.pitch(), axes.roll(), axes.yaw());
+		}
+		return current;
+	}
+
 	private static PlayableFlightModel.State stateFrom(PlayableFlightModel.Step step) {
 		return new PlayableFlightModel.State(
 				step.velocityX(),
@@ -6412,6 +6461,40 @@ class PlayableFlightModelTest {
 		private static YawReframedRun zero(FlightMode mode) {
 			PlayableFlightModel.State state = PlayableFlightModel.State.zero(mode);
 			return new YawReframedRun(state, null, 0.0f, 0.0f);
+		}
+	}
+
+	private static final class DebugFilteredAxes {
+		private float pitch;
+		private float roll;
+		private float yaw;
+
+		private void update(float rawPitch, float rawRoll, float rawYaw) {
+			pitch = filterAxis(pitch, rawPitch);
+			roll = filterAxis(roll, rawRoll);
+			yaw = filterAxis(yaw, rawYaw);
+		}
+
+		private float pitch() {
+			return pitch;
+		}
+
+		private float roll() {
+			return roll;
+		}
+
+		private float yaw() {
+			return yaw;
+		}
+
+		private static float filterAxis(float current, float target) {
+			return PlayableDebugAxisFilter.filter(
+					current,
+					target,
+					PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING,
+					PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING,
+					true
+			);
 		}
 	}
 

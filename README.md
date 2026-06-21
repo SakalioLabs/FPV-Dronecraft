@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 新入侧滑响应增强，斜飞更早有空气载荷）
+这一轮继续沿着“速度已经够，但斜向飞行/翻滚后还会像平面平移”的主问题做小步收敛。复查本地资料包后，关键结论仍然是不该继续粗暴加全局 drag：playable ACRO 的前向惯性距离已经接近 IMAV 5 寸质量匹配锚点，真正更像手感问题的是刚切入 yaw-plane 侧滑时，sidewash 记忆还没建立，侧力、诱导阻力、被动 roll/yaw 载荷和控制载荷只有旧的 `0.32x` 初始响应，第一段容易显得太“滑”、太像横向平移。
+- `ACRO_SIDEWASH_FORCE_MIN_CROSSFLOW_RESPONSE` 从 `0.32` 提到 `0.40`。这不会延长 `sidewash memory` 尾巴，也不会把 ACRO 改成自稳；它只让有明显 crossflow 但 wake 还没完全 settled 的前几帧更早产生空气载荷。持续侧滑的 settled 响应仍然是 `1.0`，直线前飞和 pitch-plane 迎角路径不被 yaw-sidewash memory 隐藏。
+- 更新了对应回归边界：fresh sidewash 下的侧滑诱导阻力现在约为 settled 的 `15%..18%`，被动横流 roll/yaw、残余扭矩载荷和分离流都按新的 `0.40x` 初始响应建立，但仍明显低于 settled，不会刚切进侧滑就被硬吸正。
+- 新增 `debugFilteredFullRollThenForwardCommandDoesNotReenterSideFlight`：按实体端摇杆平滑、yaw reframe、先加速、完整 roll、松 roll 后短促压头前飞的真实输入序列跑完后，roll 必须回到 `0`，body-side 速度占比必须小于 `5.5%`，防止“翻滚后继续前飞又重新进入持续侧飞”的回归。
+- 已通过 targeted sidewash / 斜飞 / full-roll 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-083538.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，完整翻滚 capture 后按修正速度刷新 crossflow/sidewash）
 这一轮继续针对“翻滚一周后仍持续侧飞、回正后还拖着横流尾巴”的问题做小步收敛。复查 `PlayableFlightModel.step(...)` 后发现：完整 roll capture / recovery 会先把机体 roll 归零，并用 `completedAcroRotationVelocityTrim(...)` 把 body-side velocity 压到很小残差；但本 tick 写回的 `acroAeroCrossflowLag` 和 `acroSidewashMemory` 仍然是按 trim 前的高侧滑速度计算的。结果是速度已经被收回，空气状态却还保留上一帧的大横流记忆，下一帧继续影响被动 yaw、roll 载荷和侧滑力。
 - `PlayableFlightModel` 现在只在 ACRO 完整翻滚 capture / roll recovery 触发 velocity trim 后，用 trim 后的实际速度重新刷新本 tick 的 `acroAeroCrossflowLag` / `acroSidewashMemory`。这不是自动回正，也不是降低普通斜飞惯性；普通 ACRO 斜飞、broadside coast 和主动全向旋转路径不走这条修正。
