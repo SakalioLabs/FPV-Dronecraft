@@ -163,6 +163,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 ```powershell
 ./gradlew :drone-sim-core:test --tests com.tenicana.dronecraft.sim.SimulationFlightGoldenTraceTest
 ./gradlew :fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest
+./gradlew :fabric-mod:flightModelComparison
 ```
 
 完整完成标准仍包括：

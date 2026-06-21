@@ -57,6 +57,17 @@ tasks.test {
 	useJUnitPlatform()
 }
 
+tasks.register("flightModelComparison", JavaExec) {
+	group = "verification"
+	description = "Runs the playable-vs-simulation flight model shadow comparison and writes a CSV diff."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.entity.FlightModelComparisonRunner")
+	doFirst {
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("flight-comparison/comparison.csv").get().asFile.absolutePath
+		args(outputFile)
+	}
+}
+
 def fpvDroneSelfTestTaskRequested = gradle.startParameter.taskNames.any {
 	it == "runServerSelfTest" || it.endsWith(":runServerSelfTest")
 			|| it == "runPlayableServerSelfTest" || it.endsWith(":runPlayableServerSelfTest")
