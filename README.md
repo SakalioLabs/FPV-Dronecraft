@@ -1,5 +1,11 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，完整翻滚 capture 后按修正速度刷新 crossflow/sidewash）
+这一轮继续针对“翻滚一周后仍持续侧飞、回正后还拖着横流尾巴”的问题做小步收敛。复查 `PlayableFlightModel.step(...)` 后发现：完整 roll capture / recovery 会先把机体 roll 归零，并用 `completedAcroRotationVelocityTrim(...)` 把 body-side velocity 压到很小残差；但本 tick 写回的 `acroAeroCrossflowLag` 和 `acroSidewashMemory` 仍然是按 trim 前的高侧滑速度计算的。结果是速度已经被收回，空气状态却还保留上一帧的大横流记忆，下一帧继续影响被动 yaw、roll 载荷和侧滑力。
+- `PlayableFlightModel` 现在只在 ACRO 完整翻滚 capture / roll recovery 触发 velocity trim 后，用 trim 后的实际速度重新刷新本 tick 的 `acroAeroCrossflowLag` / `acroSidewashMemory`。这不是自动回正，也不是降低普通斜飞惯性；普通 ACRO 斜飞、broadside coast 和主动全向旋转路径不走这条修正。
+- 新增回归 `completedRollCaptureRefreshesAeroMemoryFromTrimmedSideSlip`：从 `14m/s body-right + 6m/s forward`、crossflow/sidewash 已饱和、roll 约 `428°` 的释放状态进入 capture 后，body-side velocity 必须压到 `0.28m/s` 以内；同时 lag/memory 必须从饱和区降到 `0.80..0.90`，证明空气状态开始跟随 trim 后速度释放，但没有被硬清零。
+- 已通过 targeted full-roll / sidewash 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-082159.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO sidewash memory 释放加快，横流尾巴不再拖一整秒）
 这一轮继续收敛“斜向飞行/翻滚后还像横向平移”的残留手感。复查后确认前向惯性和 45 度斜滑的主要阻力已经在可用范围内，所以没有继续加硬刹车，也没有削弱主动 ACRO rate；这次只处理一个更细的尾部问题：`sidewash memory` 在气流已经重新对准机头方向后释放太慢，容易让上一段横流状态继续影响侧力、yaw 载荷和桨盘相关响应。
 - `ACRO_SIDEWASH_MEMORY_FALL_SMOOTHING` 从 `0.10` 提到 `0.14`。进入侧滑时的建立速度不变，横流/斜滑时的重量感仍保留；但当机体速度已经回到基本顺机头方向时，横流记忆约 1 秒内会降到 `0.07` 以下，不再把上一段侧滑尾巴拖得过长。

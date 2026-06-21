@@ -1485,6 +1485,52 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void completedRollCaptureRefreshesAeroMemoryFromTrimmedSideSlip() {
+		PlayableFlightModel.State slippingRoll = new PlayableFlightModel.State(
+				14.0f,
+				0.0f,
+				6.0f,
+				0.0f,
+				(float) Math.toRadians(428.0),
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.70f,
+				0.0f,
+				(float) Math.toRadians(3.0),
+				0,
+				1.0f,
+				1.0f
+		);
+		PlayableFlightModel.Step captured = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				slippingRoll
+		);
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				captured.velocityX(),
+				captured.velocityY(),
+				captured.velocityZ(),
+				captured.pitchRadians(),
+				captured.rollRadians()
+		);
+
+		assertEquals(0.0f, captured.rollRadians(), 1.0e-5);
+		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
+		assertTrue(Math.abs(bodyVelocity.x()) <= 0.28f, "bodySideVelocity=" + bodyVelocity.x());
+		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
+		assertTrue(captured.acroAeroCrossflowLag() > 0.80f, "lag=" + captured.acroAeroCrossflowLag());
+		assertTrue(captured.acroAeroCrossflowLag() < 0.90f, "lag=" + captured.acroAeroCrossflowLag());
+		assertTrue(captured.acroSidewashMemory() > 0.80f, "memory=" + captured.acroSidewashMemory());
+		assertTrue(captured.acroSidewashMemory() < 0.90f, "memory=" + captured.acroSidewashMemory());
+	}
+
+	@Test
 	void highSpeedFullRollReleaseDoesNotReenterPassiveSideFlightAfterRecoveryWindow() {
 		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
 		PlayableFlightModel.Step step = null;

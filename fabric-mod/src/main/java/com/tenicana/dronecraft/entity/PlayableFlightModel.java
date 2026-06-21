@@ -511,6 +511,24 @@ final class PlayableFlightModel {
 			velocityX = trimmed.x();
 			velocityY = trimmed.y();
 			velocityZ = trimmed.z();
+			acroAeroCrossflowLag = acroAeroCrossflowLag(
+					safeMode,
+					safePrevious.acroAeroCrossflowLag(),
+					velocityX,
+					velocityY,
+					velocityZ,
+					pitchRadians,
+					rollRadians
+			);
+			acroSidewashMemory = acroSidewashMemory(
+					safeMode,
+					safePrevious.acroSidewashMemory(),
+					velocityX,
+					velocityY,
+					velocityZ,
+					pitchRadians,
+					rollRadians
+			);
 		}
 		Velocity limitedHorizontalVelocity = limitHorizontalVector(
 				velocityX,
