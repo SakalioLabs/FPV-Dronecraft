@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -18,6 +19,14 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 	private DroneConfig config = DroneConfig.racingQuad();
 	private DronePhysics physics = new DronePhysics(config);
 	private FlightModelDiagnostics diagnostics = FlightModelDiagnostics.empty();
+
+	public SimulationFlightModelAdapter() {
+	}
+
+	public SimulationFlightModelAdapter(DronePhysics physics) {
+		this.physics = Objects.requireNonNull(physics, "physics");
+		this.config = physics.config();
+	}
 
 	@Override
 	public String id() {

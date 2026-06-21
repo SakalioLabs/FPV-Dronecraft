@@ -60,6 +60,9 @@ import com.tenicana.dronecraft.sim.PidGains;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.flight.FlightModel;
+import com.tenicana.dronecraft.sim.flight.FlightStepContext;
+import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
 
 public class DroneEntity extends Entity {
 	private static final double PHYSICS_DT = 0.005;
@@ -263,6 +266,7 @@ public class DroneEntity extends Entity {
 	private static final FlightMode DEFAULT_ENTITY_FLIGHT_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 
 	private DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+	private FlightModel simulationFlightModel = new SimulationFlightModelAdapter(physics);
 	private String airframePreset = "racing_quad";
 	private UUID owner;
 	private float debugVelocityX;
@@ -681,7 +685,7 @@ public class DroneEntity extends Entity {
 				} else if (shouldConstrainOnGround(input)) {
 					physics.levelAtRest(entityPhysicsPosition());
 					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
-						physics.step(input, PHYSICS_DT, lastEnvironment);
+						stepSimulationFlightModel(input, PHYSICS_DT, lastEnvironment);
 					}
 					if (hasTakeoffAuthority(input)) {
 						prepareGroundTakeoff(input);
@@ -696,7 +700,7 @@ public class DroneEntity extends Entity {
 					}
 				} else {
 					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
-						physics.step(input, PHYSICS_DT, lastEnvironment);
+						stepSimulationFlightModel(input, PHYSICS_DT, lastEnvironment);
 					}
 					applyPhysicsMovement(input);
 					if (advancedContactEffectsActive(input)) {
@@ -894,6 +898,17 @@ public class DroneEntity extends Entity {
 			setYRot(currentYawDegrees + targetYaw);
 		}
 		setXRot((float) Math.toDegrees(debugVisualPitchRadians));
+	}
+
+	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
+		simulationFlightModel.step(new FlightStepContext(
+				input,
+				simulationFlightModel.snapshot(),
+				environment,
+				dtSeconds,
+				tickCount,
+				physics.config()
+		));
 	}
 
 	private void applyDebugMovement(
@@ -3583,6 +3598,7 @@ public class DroneEntity extends Entity {
 		replacement.state().setEstimatedOrientation(previousState.estimatedOrientation());
 		replacement.state().setAngularVelocityBodyRadiansPerSecond(previousState.angularVelocityBodyRadiansPerSecond());
 		physics = replacement;
+		simulationFlightModel = new SimulationFlightModelAdapter(physics);
 	}
 
 	private static String normalizeAirframePreset(String presetName) {
