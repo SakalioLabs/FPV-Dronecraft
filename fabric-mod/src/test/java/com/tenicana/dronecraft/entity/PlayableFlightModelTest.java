@@ -2268,8 +2268,8 @@ class PlayableFlightModelTest {
 		);
 
 		assertTrue(lowSpeedScale > 0.99f, "lowSpeedScale=" + lowSpeedScale);
-		assertTrue(racingCruiseScale > 0.64f, "racingCruiseScale=" + racingCruiseScale);
-		assertTrue(racingCruiseScale < 0.71f, "racingCruiseScale=" + racingCruiseScale);
+		assertTrue(racingCruiseScale > 0.62f, "racingCruiseScale=" + racingCruiseScale);
+		assertTrue(racingCruiseScale < 0.69f, "racingCruiseScale=" + racingCruiseScale);
 	}
 
 	@Test

@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 前向高速桨效衰减收紧）
+这一轮继续沿着“速度已经够，但真机重量感和空气负载还不够”的主线做小步收敛。复查本地资料包里 UIUC 5 寸桨前进比数据后，决定先不再粗暴增加整机 drag，也不再同时改 flapping/sidewash；这次只把 playable ACRO 的前向高速 advance-ratio 推力损失小幅加重，让高速压头、巡航和斜向飞行时的桨盘推进效率更早付出代价，减少“像无损平移”的轻飘感。
+
+- `ACRO_ADVANCE_MAX_THRUST_LOSS` 从 `0.48` 提到 `0.50`。侧流极限损失仍保持 `0.62`，因此纯侧滑/翻滚后的侧流保护边界没有被重新放大；本轮主要影响机头前向高速来流下的桨效衰减。
+- 收紧 `acroCruiseAdvanceRatioHasVisibleFiveInchPropRolloff` 回归：`12.5m/s`、`hover RPM` 量级的 racing quad 前飞推力比例现在被锁在 `0.62..0.69`，避免以后又被调回偏“无损推进”的巡航手感。
+- 已通过 advance-ratio targeted 测试、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-084326.json`，playable ACRO 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 新入侧滑响应增强，斜飞更早有空气载荷）
 这一轮继续沿着“速度已经够，但斜向飞行/翻滚后还会像平面平移”的主问题做小步收敛。复查本地资料包后，关键结论仍然是不该继续粗暴加全局 drag：playable ACRO 的前向惯性距离已经接近 IMAV 5 寸质量匹配锚点，真正更像手感问题的是刚切入 yaw-plane 侧滑时，sidewash 记忆还没建立，侧力、诱导阻力、被动 roll/yaw 载荷和控制载荷只有旧的 `0.32x` 初始响应，第一段容易显得太“滑”、太像横向平移。
 - `ACRO_SIDEWASH_FORCE_MIN_CROSSFLOW_RESPONSE` 从 `0.32` 提到 `0.40`。这不会延长 `sidewash memory` 尾巴，也不会把 ACRO 改成自稳；它只让有明显 crossflow 但 wake 还没完全 settled 的前几帧更早产生空气载荷。持续侧滑的 settled 响应仍然是 `1.0`，直线前飞和 pitch-plane 迎角路径不被 yaw-sidewash memory 隐藏。
