@@ -108,7 +108,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_SIDEWASH_MEMORY_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
 	private static final float ACRO_SIDEWASH_MEMORY_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(52.0f);
 	private static final float ACRO_SIDEWASH_MEMORY_RISE_SMOOTHING = 0.24f;
-	private static final float ACRO_SIDEWASH_MEMORY_FALL_SMOOTHING = 0.10f;
+	private static final float ACRO_SIDEWASH_MEMORY_FALL_SMOOTHING = 0.14f;
 	private static final float ACRO_SIDEWASH_FORCE_MIN_CROSSFLOW_RESPONSE = 0.32f;
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_START_RADIANS = (float) Math.toRadians(7.0f);
 	private static final float ACRO_WEATHERCOCK_SIDESLIP_FULL_RADIANS = (float) Math.toRadians(48.0f);

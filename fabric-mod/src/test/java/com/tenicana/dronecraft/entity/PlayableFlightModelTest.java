@@ -2813,6 +2813,45 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroSidewashMemoryReleasesWithinOneSecondAfterFlowRealigns() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				0.0f,
+				0.0f,
+				22.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				1.0f,
+				1.0f
+		);
+
+		PlayableFlightModel.Step afterOneSecond = runFrom(
+				FlightMode.ACRO,
+				20,
+				0.20f,
+				0.0f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				state
+		);
+
+		assertTrue(afterOneSecond.acroSidewashMemory() < 0.07f,
+				"memory=" + afterOneSecond.acroSidewashMemory());
+		assertTrue(afterOneSecond.acroSidewashMemory() > afterOneSecond.acroAeroCrossflowLag(),
+				"memory=" + afterOneSecond.acroSidewashMemory() + " lag=" + afterOneSecond.acroAeroCrossflowLag());
+		assertTrue(afterOneSecond.velocityZ() > 15.0f,
+				"velocityZ=" + afterOneSecond.velocityZ());
+	}
+
+	@Test
 	void acroSidewashForceResponseUsesMemoryInsteadOfInstantFullSideforce() {
 		float firstTickResponse = PlayableFlightModel.acroSidewashForceResponse(0.32f, 0.10f);
 		float settledResponse = PlayableFlightModel.acroSidewashForceResponse(1.0f, 1.0f);

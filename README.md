@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO sidewash memory 释放加快，横流尾巴不再拖一整秒）
+这一轮继续收敛“斜向飞行/翻滚后还像横向平移”的残留手感。复查后确认前向惯性和 45 度斜滑的主要阻力已经在可用范围内，所以没有继续加硬刹车，也没有削弱主动 ACRO rate；这次只处理一个更细的尾部问题：`sidewash memory` 在气流已经重新对准机头方向后释放太慢，容易让上一段横流状态继续影响侧力、yaw 载荷和桨盘相关响应。
+- `ACRO_SIDEWASH_MEMORY_FALL_SMOOTHING` 从 `0.10` 提到 `0.14`。进入侧滑时的建立速度不变，横流/斜滑时的重量感仍保留；但当机体速度已经回到基本顺机头方向时，横流记忆约 1 秒内会降到 `0.07` 以下，不再把上一段侧滑尾巴拖得过长。
+- 新增回归 `acroSidewashMemoryReleasesWithinOneSecondAfterFlowRealigns`：从饱和横流记忆切回 `22m/s` 直线前向气流后，1 秒内 `acroSidewashMemory < 0.07`，同时前向速度仍大于 `15m/s`，证明这不是把速度硬刹掉。
+- 这轮改动继续保护之前刚锁住的边界：`acroDiagonalReleaseDoesNotBecomeLongPoweredStrafe`、broadside coast、full-roll side-slip cap 和 roll recovery 都通过；也就是说翻滚/斜滑释放更干净，但前向滑行距离和主动全向旋转语义没有被改成自稳。
+- 已通过 targeted sidewash / diagonal / broadside / full-roll 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build` 和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-081214.json`，ACRO playable 诊断通过，最大水平位移约 `16.26m`，最大速度约 `6.65m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 被动横流 roll 加入 rate-hold，斜滑不再变成长距离平移）
 这一轮继续沿着“速度已经够，但斜向飞行像平移、不像真机”的问题收敛。重新量化后发现，前向惯性其实已经贴近资料锚点：playable ACRO 从 `20m/s` 前飞松杆滑到 `5m/s` 约 `7.60s / 79.97m`，和资料包里 IMAV 5 寸质量匹配参考的 `7.6s / 82m` 很接近，不该继续加前向刹车。真正的问题出在 `16m/s body-right + 16m/s body-forward` 这种 45 度斜滑：上一轮增强横流 roll moment 后，松杆状态下被动侧滑力矩会把机身留下约 `9.6°` 横滚，悬停油门又把这点 bank 变成持续水平推力，导致 20 秒后仍没有降到 `5m/s`，观感上就会像“被平移着滑走”。
 - `PlayableFlightModel` 新增 `acroPassiveRateHoldLimitedTransverseRollMoment(...)`：保留高速横流进入时的第一下被动 roll kick，让“桨盘被横向来流抓住”的重量感还在；但当 roll stick 回中、且上一帧 roll rate 已经被同方向横流力矩带起来后，用 rate-hold 把后续同方向被动力矩压到约 `12%`。主动 roll 输入、反向修正和完整 ACRO rate 权威不受这条限制影响。
