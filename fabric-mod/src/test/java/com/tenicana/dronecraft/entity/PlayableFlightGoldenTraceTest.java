@@ -120,10 +120,7 @@ class PlayableFlightGoldenTraceTest {
 					harness.setAirborne();
 					harness.setLocalVelocity(12.0f, 0.0f, 0.0f);
 				}),
-				scenario("wind_field", 64, constant(0.54, 0.35, 0.0, 0.0, true, FlightMode.HORIZON), harness -> {
-					harness.setAirborne();
-					harness.setWindVelocity(new Vec3(5.0, 0.0, -2.0));
-				}),
+				scenario("wind_field", 64, constant(0.54, 0.35, 0.0, 0.0, true, FlightMode.HORIZON), ScenarioSetup::setAirborne, (tick, harness) -> tick == 0 ? "ENVIRONMENT_WIND_UNREPRESENTED" : "NONE"),
 				scenario("ground_contact", 48, constant(0.28, 0.0, 0.0, 0.0, true, FlightMode.HORIZON), harness -> {
 					harness.setPosition(new Vec3(0.0, 0.20, 0.0));
 					harness.setNearGroundLocked(true);
@@ -174,7 +171,6 @@ class PlayableFlightGoldenTraceTest {
 	private static final class DirectRouteHarness {
 		private final DroneConfig config;
 		private Vec3 position = new Vec3(0.0, 20.0, 0.0);
-		private Vec3 windVelocity = Vec3.ZERO;
 		private Vec3 lastWorldVelocity = Vec3.ZERO;
 		private Vec3 lastBodyVelocity = Vec3.ZERO;
 		private Vec3 lastBodyRate = Vec3.ZERO;
@@ -227,10 +223,6 @@ class PlayableFlightGoldenTraceTest {
 			debugVelocityY = y;
 			debugVelocityZ = z;
 			debugVelocityYawDegrees = yawDegrees;
-		}
-
-		void setWindVelocity(Vec3 windVelocity) {
-			this.windVelocity = windVelocity == null ? Vec3.ZERO : windVelocity;
 		}
 
 		void setNearGroundLocked(boolean nearGroundLocked) {
@@ -346,12 +338,12 @@ class PlayableFlightGoldenTraceTest {
 					debugVelocityZ,
 					movementYawDegrees
 			);
-			lastWorldVelocity = new Vec3(worldVelocity.x() + windVelocity.x(), worldVelocity.y() + windVelocity.y(), worldVelocity.z() + windVelocity.z());
+			lastWorldVelocity = new Vec3(worldVelocity.x(), worldVelocity.y(), worldVelocity.z());
 			position = position.add(lastWorldVelocity.multiply(DT_SECONDS));
 			PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
-					(float) (lastWorldVelocity.x() - windVelocity.x()),
-					(float) (lastWorldVelocity.y() - windVelocity.y()),
-					(float) (lastWorldVelocity.z() - windVelocity.z()),
+					(float) lastWorldVelocity.x(),
+					(float) lastWorldVelocity.y(),
+					(float) lastWorldVelocity.z(),
 					movementYawDegrees
 			);
 			debugVelocityX = localVelocity.x();
