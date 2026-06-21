@@ -1524,10 +1524,12 @@ class PlayableFlightModelTest {
 		assertTrue(captured.acroRollRecoveryTicksRemaining() > 0, "recoveryTicks=" + captured.acroRollRecoveryTicksRemaining());
 		assertTrue(Math.abs(bodyVelocity.x()) <= 0.28f, "bodySideVelocity=" + bodyVelocity.x());
 		assertTrue(bodyVelocity.z() > 4.0f, "bodyForwardVelocity=" + bodyVelocity.z());
-		assertTrue(captured.acroAeroCrossflowLag() > 0.80f, "lag=" + captured.acroAeroCrossflowLag());
-		assertTrue(captured.acroAeroCrossflowLag() < 0.90f, "lag=" + captured.acroAeroCrossflowLag());
-		assertTrue(captured.acroSidewashMemory() > 0.80f, "memory=" + captured.acroSidewashMemory());
-		assertTrue(captured.acroSidewashMemory() < 0.90f, "memory=" + captured.acroSidewashMemory());
+		assertTrue(captured.acroAeroCrossflowLag() > 0.34f, "lag=" + captured.acroAeroCrossflowLag());
+		assertTrue(captured.acroAeroCrossflowLag() < 0.42f, "lag=" + captured.acroAeroCrossflowLag());
+		assertTrue(captured.acroSidewashMemory() > 0.26f, "memory=" + captured.acroSidewashMemory());
+		assertTrue(captured.acroSidewashMemory() < 0.34f, "memory=" + captured.acroSidewashMemory());
+		assertTrue(captured.acroSidewashMemory() < captured.acroAeroCrossflowLag(),
+				"memory=" + captured.acroSidewashMemory() + " lag=" + captured.acroAeroCrossflowLag());
 	}
 
 	@Test
@@ -1596,6 +1598,8 @@ class PlayableFlightModelTest {
 
 		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
 		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
+		assertTrue(step.acroAeroCrossflowLag() < 0.16f, "lag=" + step.acroAeroCrossflowLag());
+		assertTrue(step.acroSidewashMemory() < 0.10f, "memory=" + step.acroSidewashMemory());
 		assertTrue(Math.abs(bodyVelocity.x()) < 0.25f,
 				"bodySideVelocity=" + bodyVelocity.x()
 						+ " bodyForwardVelocity=" + bodyVelocity.z()
@@ -2736,12 +2740,13 @@ class PlayableFlightModelTest {
 
 		assertEquals(1.0f, stationary, 1.0e-6f);
 		assertEquals(1.0f, fastNoRate, 1.0e-6f);
-		assertTrue(fastStraightRate > 0.985f, "fastStraightRate=" + fastStraightRate);
-		assertTrue(fastStraightRate < 0.997f, "fastStraightRate=" + fastStraightRate);
-		assertTrue(diagonalRate > 0.940f, "diagonalRate=" + diagonalRate);
-		assertTrue(diagonalRate < 0.965f, "diagonalRate=" + diagonalRate);
+		assertTrue(fastStraightRate > 0.987f, "fastStraightRate=" + fastStraightRate);
+		assertTrue(fastStraightRate < 0.993f, "fastStraightRate=" + fastStraightRate);
+		assertTrue(diagonalRate > 0.936f, "diagonalRate=" + diagonalRate);
+		assertTrue(diagonalRate < 0.946f, "diagonalRate=" + diagonalRate);
 		assertTrue(highThrottleDiagonalRate < diagonalRate, "highThrottleDiagonalRate=" + highThrottleDiagonalRate + " diagonalRate=" + diagonalRate);
-		assertTrue(highThrottleDiagonalRate > 0.925f, "highThrottleDiagonalRate=" + highThrottleDiagonalRate);
+		assertTrue(highThrottleDiagonalRate > 0.924f, "highThrottleDiagonalRate=" + highThrottleDiagonalRate);
+		assertTrue(highThrottleDiagonalRate < 0.934f, "highThrottleDiagonalRate=" + highThrottleDiagonalRate);
 	}
 
 	@Test

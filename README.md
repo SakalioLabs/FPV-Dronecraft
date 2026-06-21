@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 完整滚转后侧流记忆刷新 + 高速动态进气负载增强）
+这一轮继续针对“翻转一周之后持续侧飞无法回正”和“高速斜向机动还是有点像平移”的反馈收敛。实现上没有继续粗暴增加全局机体 drag，也没有降低 `25m/s` 的直线速度目标；这次只处理两个更接近真实问题的局部路径：完整 roll capture/recovery 后的旧横流记忆，以及高速斜向带杆时的动力盘动态进气损失。
+
+- 完整 roll capture 或 roll recovery 触发速度修剪后，`acroAeroCrossflowLag` / `acroSidewashMemory` 现在会按修剪后的实际速度快速刷新。旧逻辑虽然已经把 body-side velocity 压到很小，但空气状态还会从饱和侧滑按普通速度慢慢衰减，容易让下一段输入继续被“上一圈翻滚留下的横流尾巴”影响；现在 capture 当帧会把 lag 降到约 `0.38`、memory 降到约 `0.30`，恢复窗口结束时继续压到更低，避免翻完一圈后还像被侧滑状态拖住。
+- `ACRO_DYNAMIC_INFLOW_MAX_THRUST_LOSS` 从 `0.075` 提到 `0.088`。这只在 ACRO 下同时满足“有较高空速 + 有 pitch/roll body-rate”时生效；直线高速无杆仍是 `1.0`，直线轻俯仰约 `0.990`，`16/16m/s` 斜向同时俯仰+横滚约 `0.941`，全油门斜向约 `0.929`。目标是让高速斜向翻滚/修正更有动力盘负载，而不是给巡航套刹车。
+- 更新回归：`completedRollCaptureRefreshesAeroMemoryFromTrimmedSideSlip` 改为锁住完成滚转后的侧流记忆快速卸载；`highSpeedFullRollReleaseDoesNotReenterPassiveSideFlightAfterRecoveryWindow` 增加恢复窗口后的 lag/memory 上限；`acroDynamicInflowThrustSagRequiresSpeedAndBodyRate` 收紧到本轮动态进气调校边界。
+- 已通过 targeted full-roll/yaw-reframe/client ACRO preset/25m/s cruise/diagonal release/dynamic-inflow 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-093850.json`，playable ACRO 诊断通过，最大水平位移约 `16.19m`，最大速度约 `6.63m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 斜向盘面来流推进损失增强）
 这一轮继续处理“速度够了，但斜向飞行还像平移、不像真机在空气里带着惯性和负载转弯”的手感问题。复查本地资料包后，这次没有继续加全局机体阻力：`docs/data/airframe_drag_calibration_packet.csv` 已经提示核心预设 drag 很容易偏高，粗暴加阻力会吃掉 25m/s 的速度感。更合适的小步是只增强高前进比下的斜向/横向桨盘来流损失，让推力在侧流里不能像理想数学向量一样无损改向。
 

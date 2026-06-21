@@ -63,6 +63,8 @@ final class PlayableFlightModel {
 	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SMOOTHING = 0.58f;
 	private static final float ACRO_COMPLETED_ROLL_RECOVERY_SIDE_SLIP_MAX_METERS_PER_SECOND = 0.075f;
 	private static final float ACRO_COMPLETED_ROLL_RECOVERY_ATTITUDE_RADIANS = (float) Math.toRadians(24.0f);
+	private static final float ACRO_COMPLETED_ROLL_AERO_LAG_KEEP = 0.45f;
+	private static final float ACRO_COMPLETED_ROLL_SIDEWASH_MEMORY_KEEP = 0.35f;
 	private static final float ACRO_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665f;
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
@@ -270,7 +272,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_DYNAMIC_INFLOW_CROSSFLOW_FULL_RADIANS = (float) Math.toRadians(55.0f);
 	private static final float ACRO_DYNAMIC_INFLOW_STRAIGHT_FLOW_WEIGHT = 0.35f;
 	private static final float ACRO_DYNAMIC_INFLOW_RPM_IDLE_WEIGHT = 0.40f;
-	private static final float ACRO_DYNAMIC_INFLOW_MAX_THRUST_LOSS = 0.075f;
+	private static final float ACRO_DYNAMIC_INFLOW_MAX_THRUST_LOSS = 0.088f;
 	private static final float ACRO_OVERSPEED_SOFT_START_SCALE = 0.96f;
 	private static final float ACRO_OVERSPEED_LINEAR_DAMPING_PER_SECOND = 1.60f;
 	private static final float ACRO_OVERSPEED_QUADRATIC_DAMPING_PER_METER = 0.12f;
@@ -511,9 +513,16 @@ final class PlayableFlightModel {
 			velocityX = trimmed.x();
 			velocityY = trimmed.y();
 			velocityZ = trimmed.z();
+			boolean rollRecoveryAeroRefresh = acroRollCaptured || acroRollRecoveryActive;
+			float previousRollRecoveryLag = rollRecoveryAeroRefresh
+					? safePrevious.acroAeroCrossflowLag() * ACRO_COMPLETED_ROLL_AERO_LAG_KEEP
+					: safePrevious.acroAeroCrossflowLag();
+			float previousRollRecoveryMemory = rollRecoveryAeroRefresh
+					? safePrevious.acroSidewashMemory() * ACRO_COMPLETED_ROLL_SIDEWASH_MEMORY_KEEP
+					: safePrevious.acroSidewashMemory();
 			acroAeroCrossflowLag = acroAeroCrossflowLag(
 					safeMode,
-					safePrevious.acroAeroCrossflowLag(),
+					previousRollRecoveryLag,
 					velocityX,
 					velocityY,
 					velocityZ,
@@ -522,7 +531,7 @@ final class PlayableFlightModel {
 			);
 			acroSidewashMemory = acroSidewashMemory(
 					safeMode,
-					safePrevious.acroSidewashMemory(),
+					previousRollRecoveryMemory,
 					velocityX,
 					velocityY,
 					velocityZ,
