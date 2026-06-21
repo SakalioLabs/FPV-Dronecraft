@@ -1663,6 +1663,40 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroPresetFullRollReleaseTailThenForwardCommandDoesNotReenterSideFlight() {
+		DroneClientConfig config = DroneClientConfig.defaults();
+		config.applyGamepadFeelPreset(DroneClientConfig.ControlFeelPreset.ACRO);
+		YawReframedRun run = YawReframedRun.zero(FlightMode.ACRO);
+		ClientTrainingAxes axes = new ClientTrainingAxes();
+		run = runClientPresetYawReframedFrom(run, axes, config, 8, 0.68f, 1.0f, 0.0f, 0.0f);
+		run = runClientPresetYawReframedFrom(run, axes, config, 38, 0.68f, 0.0f, 0.0f, 0.0f);
+		run = runClientPresetYawReframedFrom(run, axes, config, 42, 0.56f, 0.0f, 1.0f, 0.0f);
+		run = runClientPresetYawReframedFrom(run, axes, config, 10, 0.68f, 0.72f, 0.0f, 0.0f);
+		run = runClientPresetYawReframedFrom(run, axes, config, 30, 0.68f, 0.0f, 0.0f, 0.0f);
+
+		PlayableFlightModel.Step step = run.step();
+		PlayableFlightModel.Velocity bodyVelocity = PlayableFlightModel.acroBodyVelocityForYawLocal(
+				step.velocityX(),
+				step.velocityY(),
+				step.velocityZ(),
+				step.pitchRadians(),
+				step.rollRadians()
+		);
+		float horizontalSpeed = horizontalSpeed(bodyVelocity.x(), bodyVelocity.z());
+		float sideRatio = Math.abs(bodyVelocity.x()) / Math.max(1.0e-6f, horizontalSpeed);
+
+		assertEquals(0.0f, step.rollRadians(), 1.0e-5);
+		assertEquals(0.0f, step.acroRollRateRadiansPerTick(), 1.0e-4f);
+		assertTrue(sideRatio < 0.052f,
+				"sideRatio=" + sideRatio
+						+ " bodySideVelocity=" + bodyVelocity.x()
+						+ " bodyForwardVelocity=" + bodyVelocity.z()
+						+ " yawDegrees=" + run.yawDegrees()
+						+ " yawRate=" + step.yawDegreesPerTick());
+		assertTrue(bodyVelocity.z() > 10.8f, "bodyForwardVelocity=" + bodyVelocity.z());
+	}
+
+	@Test
 	void activeRollInputCancelsCompletedRollRecoveryWindow() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				14.0f,
@@ -4023,13 +4057,33 @@ class PlayableFlightModelTest {
 		assertEquals(0.0f, bankedStraight.z(), 1.0e-6f);
 		assertTrue(freshMagnitude > 0.19f, "freshMagnitude=" + freshMagnitude);
 		assertTrue(freshMagnitude < 0.28f, "freshMagnitude=" + freshMagnitude);
-		assertTrue(settledMagnitude > 0.68f, "settledMagnitude=" + settledMagnitude);
-		assertTrue(settledMagnitude < 0.82f, "settledMagnitude=" + settledMagnitude);
+		assertTrue(settledMagnitude > 0.76f, "settledMagnitude=" + settledMagnitude);
+		assertTrue(settledMagnitude < 0.90f, "settledMagnitude=" + settledMagnitude);
 		assertTrue(settledMagnitude > freshMagnitude * 2.8f,
 				"settledMagnitude=" + settledMagnitude + " freshMagnitude=" + freshMagnitude);
 		assertTrue(settledDiagonal.x() < -0.48f, "settledX=" + settledDiagonal.x());
 		assertTrue(settledDiagonal.z() > 0.48f, "settledZ=" + settledDiagonal.z());
 		assertEquals(0.0f, settledWork, 1.0e-4f);
+	}
+
+	@Test
+	void acroRotorSidewashTurnBuildsThroughMediumSpeedGateExitWithoutAddingEnergy() {
+		PlayableFlightModel.Velocity mediumDiagonal = PlayableFlightModel.acroRotorSidewashTurnAcceleration(
+				8.5f,
+				8.5f,
+				-7.0f,
+				7.0f,
+				new PlayableFlightModel.Velocity(8.5f, 0.0f, 8.5f),
+				1.0f
+		);
+		float magnitude = horizontalSpeed(mediumDiagonal.x(), mediumDiagonal.z());
+		float workAlongVelocity = mediumDiagonal.x() * 8.5f + mediumDiagonal.z() * 8.5f;
+
+		assertTrue(magnitude > 0.075f, "magnitude=" + magnitude);
+		assertTrue(magnitude < 0.135f, "magnitude=" + magnitude);
+		assertTrue(mediumDiagonal.x() < -0.050f, "mediumX=" + mediumDiagonal.x());
+		assertTrue(mediumDiagonal.z() > 0.050f, "mediumZ=" + mediumDiagonal.z());
+		assertEquals(0.0f, workAlongVelocity, 1.0e-4f);
 	}
 
 	@Test
@@ -6442,6 +6496,24 @@ class PlayableFlightModelTest {
 		for (int i = 0; i < ticks; i++) {
 			axes.update(rawPitch, rawRoll, rawYaw);
 			current = runYawReframedFrom(current, 1, throttle, axes.pitch(), axes.roll(), axes.yaw());
+		}
+		return current;
+	}
+
+	private static YawReframedRun runClientPresetYawReframedFrom(
+			YawReframedRun run,
+			ClientTrainingAxes axes,
+			DroneClientConfig config,
+			int ticks,
+			float throttle,
+			float rawPitch,
+			float rawRoll,
+			float rawYaw
+	) {
+		YawReframedRun current = run;
+		for (int i = 0; i < ticks; i++) {
+			ClientTrainingAxes.Sample sample = axes.sample(config, rawPitch, rawRoll, rawYaw);
+			current = runYawReframedFrom(current, 1, throttle, sample.pitch(), sample.roll(), sample.yaw());
 		}
 		return current;
 	}

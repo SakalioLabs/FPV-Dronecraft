@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 中速桨盘侧洗转弯提前建立）
+这一轮继续沿着“速度够了，但斜飞还像平移、不像真实穿越机在空气里带着惯性转弯”的主线收敛。前几轮已经把前向惯性、侧滑侧力、翻滚恢复和高 RPM 组合动作重量感守住了，所以这次没有再加全局 drag，也没有降低 25m/s 速度包络；重点改的是 `acroRotorSidewashTurnAcceleration` 的建立速度区间，让桨盘侧洗引导的航迹弯曲在中速门口/翻滚恢复后的速度区也能更早出现。
+- `ACRO_ROTOR_SIDEWASH_TURN_SPEED_START_METERS_PER_SECOND` 从 `10.0` 下调到 `8.0`，`ACRO_ROTOR_SIDEWASH_TURN_SPEED_FULL_METERS_PER_SECOND` 从 `28.0` 收到 `27.0`。这条力仍然严格近似垂直于当前水平速度，只改变航迹方向，不凭空增加平面速度，也不是自动回正。
+- 新增 `acroRotorSidewashTurnBuildsThroughMediumSpeedGateExitWithoutAddingEnergy`：`8.5/8.5m/s` 中速斜向来流、推力横向改向时，sidewash turn 必须有 `0.075..0.135m/s^2` 的轻量曲率，同时对速度点乘为 `0`，防止以后误调成隐藏加速或隐藏刹车。
+- 新增 `acroPresetFullRollReleaseTailThenForwardCommandDoesNotReenterSideFlight`：使用客户端 ACRO 预设的真实 expo/rise/fall 轴平滑、yaw reframe、完整 roll、松杆尾巴和短促前推输入序列，要求最终 roll/rate 归零、body-side 速度占比 `<5.2%`，覆盖你反馈的“翻一圈后持续侧飞”在客户端输入链上的回归。
+- 已通过 targeted sidewash/full-roll 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-091157.json`，playable ACRO 诊断通过，最大水平位移约 `16.19m`，最大速度约 `6.63m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 高 RPM 斜向转子陀螺负载增强）
 这一轮继续处理“斜向动作缺少真机重量感”的主线。复查本地资料后，重点没有继续放在全局 drag：`docs/fpv-sim-model-validation.md` 里已经反复提示当前 drag 很容易高估，继续加阻力会吃掉速度感；更合适的小步是补强高 RPM 下组合 pitch+roll 的转子惯量/陀螺负载，让斜向动作不像理想数学 rate 源一样轻。
 
