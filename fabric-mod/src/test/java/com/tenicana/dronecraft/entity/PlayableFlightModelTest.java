@@ -4304,6 +4304,60 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroDiagonalReleaseDoesNotBecomeLongPoweredStrafe() {
+		PlayableFlightModel.State state = new PlayableFlightModel.State(
+				16.0f,
+				0.0f,
+				16.0f,
+				0.0f,
+				0.0f,
+				0.0f,
+				FlightMode.ACRO,
+				0,
+				1.0f,
+				0.0f,
+				0.0f,
+				0,
+				0.0f,
+				0.0f
+		);
+		PlayableFlightModel.Step step = null;
+		float trackDistanceMeters = 0.0f;
+		float secondsToFiveMetersPerSecond = Float.NaN;
+		float distanceToFiveMetersPerSecond = Float.NaN;
+		float rollAtFiveMetersPerSecond = Float.NaN;
+		for (int tick = 1; tick <= 180; tick++) {
+			step = PlayableFlightModel.step(
+					FlightMode.ACRO,
+					0.20f,
+					0.0f,
+					0.0f,
+					0.0f,
+					0.20f,
+					false,
+					state
+			);
+			float speed = horizontalSpeed(step.velocityX(), step.velocityZ());
+			trackDistanceMeters += speed * 0.05f;
+			if (Float.isNaN(secondsToFiveMetersPerSecond) && speed <= 5.0f) {
+				secondsToFiveMetersPerSecond = tick * 0.05f;
+				distanceToFiveMetersPerSecond = trackDistanceMeters;
+				rollAtFiveMetersPerSecond = step.rollRadians();
+				break;
+			}
+			state = stateFrom(step);
+		}
+
+		assertTrue(!Float.isNaN(secondsToFiveMetersPerSecond), "finalSpeed=" + (step == null ? Float.NaN : horizontalSpeed(step.velocityX(), step.velocityZ())));
+		assertTrue(secondsToFiveMetersPerSecond > 6.40f, "secondsToFive=" + secondsToFiveMetersPerSecond);
+		assertTrue(secondsToFiveMetersPerSecond < 8.20f, "secondsToFive=" + secondsToFiveMetersPerSecond);
+		assertTrue(distanceToFiveMetersPerSecond > 70.0f, "distanceToFive=" + distanceToFiveMetersPerSecond);
+		assertTrue(distanceToFiveMetersPerSecond < 84.0f, "distanceToFive=" + distanceToFiveMetersPerSecond);
+		assertTrue(Math.abs(rollAtFiveMetersPerSecond) < Math.toRadians(7.5f),
+				"rollAtFiveDeg=" + Math.toDegrees(rollAtFiveMetersPerSecond));
+	}
+
+	@Test
 	void acroBroadsideCoastKeepsInertiaWithoutBecomingFreeSideSlide() {
 		PlayableFlightModel.State state = new PlayableFlightModel.State(
 				20.0f,
@@ -5143,6 +5197,42 @@ class PlayableFlightModelTest {
 		assertEquals(-rightSlip, leftSlip, 1.0e-6f);
 		assertTrue(activeRoll > rightSlip * 0.06f, "activeRollDeg=" + Math.toDegrees(activeRoll));
 		assertTrue(activeRoll < rightSlip * 0.12f, "activeRollDeg=" + Math.toDegrees(activeRoll) + " rightSlipDeg=" + Math.toDegrees(rightSlip));
+	}
+
+	@Test
+	void acroPassiveTransverseRollMomentIsRateHoldLimitedAfterInitialKick() {
+		float passiveMoment = PlayableFlightModel.acroTransverseFlowRollMomentRate(
+				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),
+				0.0f
+		);
+		float initialKick = PlayableFlightModel.acroPassiveRateHoldLimitedTransverseRollMoment(
+				passiveMoment,
+				0.0f,
+				0.0f
+		);
+		float heldSameDirection = PlayableFlightModel.acroPassiveRateHoldLimitedTransverseRollMoment(
+				passiveMoment,
+				(float) Math.toRadians(0.42f),
+				0.0f
+		);
+		float oppositeCorrection = PlayableFlightModel.acroPassiveRateHoldLimitedTransverseRollMoment(
+				passiveMoment,
+				(float) Math.toRadians(-0.42f),
+				0.0f
+		);
+		float activeRoll = PlayableFlightModel.acroPassiveRateHoldLimitedTransverseRollMoment(
+				passiveMoment,
+				(float) Math.toRadians(0.42f),
+				0.35f
+		);
+
+		assertEquals(passiveMoment, initialKick, 1.0e-6f);
+		assertTrue(heldSameDirection < passiveMoment * 0.16f,
+				"heldDeg=" + Math.toDegrees(heldSameDirection) + " passiveDeg=" + Math.toDegrees(passiveMoment));
+		assertTrue(heldSameDirection > passiveMoment * 0.10f,
+				"heldDeg=" + Math.toDegrees(heldSameDirection) + " passiveDeg=" + Math.toDegrees(passiveMoment));
+		assertEquals(passiveMoment, oppositeCorrection, 1.0e-6f);
+		assertEquals(passiveMoment, activeRoll, 1.0e-6f);
 	}
 
 	@Test

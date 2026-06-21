@@ -1,5 +1,12 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 被动横流 roll 加入 rate-hold，斜滑不再变成长距离平移）
+这一轮继续沿着“速度已经够，但斜向飞行像平移、不像真机”的问题收敛。重新量化后发现，前向惯性其实已经贴近资料锚点：playable ACRO 从 `20m/s` 前飞松杆滑到 `5m/s` 约 `7.60s / 79.97m`，和资料包里 IMAV 5 寸质量匹配参考的 `7.6s / 82m` 很接近，不该继续加前向刹车。真正的问题出在 `16m/s body-right + 16m/s body-forward` 这种 45 度斜滑：上一轮增强横流 roll moment 后，松杆状态下被动侧滑力矩会把机身留下约 `9.6°` 横滚，悬停油门又把这点 bank 变成持续水平推力，导致 20 秒后仍没有降到 `5m/s`，观感上就会像“被平移着滑走”。
+- `PlayableFlightModel` 新增 `acroPassiveRateHoldLimitedTransverseRollMoment(...)`：保留高速横流进入时的第一下被动 roll kick，让“桨盘被横向来流抓住”的重量感还在；但当 roll stick 回中、且上一帧 roll rate 已经被同方向横流力矩带起来后，用 rate-hold 把后续同方向被动力矩压到约 `12%`。主动 roll 输入、反向修正和完整 ACRO rate 权威不受这条限制影响。
+- 这不是自动回正，也不是把 ACRO 改成自稳。真实 FPV rate mode 下，摇杆回中代表目标角速度为零，飞控会抵消持续外部力矩；本轮只是避免空气扰动绕过角速度保持、无限积分成永久 bank。玩家自己打出来并保持的姿态仍由玩家负责。
+- 新回归 `acroDiagonalReleaseDoesNotBecomeLongPoweredStrafe` 锁住 45 度斜滑释放：`16/16m/s` 松杆后现在约 `7.15s / 76.01m` 降到 `5m/s`，同时 roll 残留低于 `7.5°`；纯 `20m/s` broadside 仍需要约 `3.20s / 31.85m` 降到 `5m/s`，没有变成硬刹。前向 `20 -> 5m/s` 仍保持 `7.60s / 79.97m` 的真实惯性量级。
+- 已通过 targeted rate-hold / 斜滑释放 / broadside / passive roll 回归、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-080301.json`，ACRO playable 诊断通过。
+
 ## 最新进展（2026-06-21，ACRO 横向来流侧力/被动滚转增强，翻滚后更少持续侧飞）
 这一轮继续处理你刚反馈的“翻滚一周之后持续侧飞、斜向飞行像平移”的问题。复查后确认当前 ACRO 已经不是简单目标速度控制，也没有给穿越机模式加自动回正；更可疑的是高速 yaw-plane sideslip 里，机身侧力和桨盘横流滚转力矩还偏保守，导致 `16m/s body-right + 16m/s body-forward` 这类斜滑更像横向刹车/平移，而不是速度矢量被空气逐步掰向机头方向。
 - `ACRO_SIDEFORCE_GAIN` 从 `0.360` 提到 `0.430`。45 度高速侧滑的 sideforce magnitude 从约 `2.1m/s²` 提到约 `2.49m/s²`；它仍严格近似垂直于当前速度，不凭空增减速度能量，诱导阻力只作为能量成本随之小幅提高。

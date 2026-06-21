@@ -215,6 +215,9 @@ final class PlayableFlightModel {
 	private static final float ACRO_TRANSVERSE_AIRFRAME_ROLL_MOMENT_MAX_RATE_RADIANS_PER_TICK = (float) Math.toRadians(0.19f);
 	private static final float ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS = 0.65f;
 	private static final float ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP = 0.08f;
+	private static final float ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_START_RADIANS_PER_TICK = (float) Math.toRadians(0.07f);
+	private static final float ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_FULL_RADIANS_PER_TICK = (float) Math.toRadians(0.34f);
+	private static final float ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_KEEP = 0.12f;
 	private static final float ACRO_AOA_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
 	private static final float ACRO_AOA_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
 	private static final float ACRO_AOA_MOMENT_FORWARD_START_METERS_PER_SECOND = 2.5f;
@@ -862,8 +865,13 @@ final class PlayableFlightModel {
 		if (completedRollRecoveryTail) {
 			bodyRollRate = 0.0f;
 		} else {
-			bodyRollRate += acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
+			float transverseRollMoment = acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
 					* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
+			bodyRollRate += acroPassiveRateHoldLimitedTransverseRollMoment(
+					transverseRollMoment,
+					previous.acroRollRateRadiansPerTick(),
+					roll
+			);
 		}
 		bodyPitchRate += acroAngleOfAttackPitchMomentRate(bodyVelocity, pitch)
 				* acroAngleOfAttackPitchMomentScale(
@@ -1354,6 +1362,22 @@ final class PlayableFlightModel {
 		return Math.signum(bodyVelocity.x())
 				* (airframeMoment + poweredMoment)
 				* commandScale;
+	}
+
+	static float acroPassiveRateHoldLimitedTransverseRollMoment(
+			float transverseRollMomentRadiansPerTick,
+			float previousRollRateRadiansPerTick,
+			float rollCommand
+	) {
+		if (Math.abs(rollCommand) > PLAYABLE_AXIS_NOISE_EPSILON
+				|| Math.abs(transverseRollMomentRadiansPerTick) <= ACRO_RATE_SETTLE_EPSILON_RADIANS_PER_TICK
+				|| !Float.isFinite(previousRollRateRadiansPerTick)
+				|| Math.signum(previousRollRateRadiansPerTick) != Math.signum(transverseRollMomentRadiansPerTick)) {
+			return transverseRollMomentRadiansPerTick;
+		}
+		float holdExposure = smoothStep((Math.abs(previousRollRateRadiansPerTick) - ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_START_RADIANS_PER_TICK)
+				/ Math.max(0.001f, ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_FULL_RADIANS_PER_TICK - ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_START_RADIANS_PER_TICK));
+		return transverseRollMomentRadiansPerTick * lerp(1.0f, ACRO_TRANSVERSE_PASSIVE_RATE_HOLD_KEEP, holdExposure);
 	}
 
 	static float acroTransverseFlowPoweredMuShape(float advanceRatioMu) {
