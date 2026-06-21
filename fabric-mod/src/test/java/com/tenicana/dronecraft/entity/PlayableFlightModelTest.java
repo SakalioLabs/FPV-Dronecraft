@@ -2556,6 +2556,23 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void acroRotorFlappingKeepsConservativeStarmacScaleAtLowForwardFlow() {
+		float hoverThrustAcceleration = 9.80665f;
+		PlayableFlightModel.Velocity straight = PlayableFlightModel.acroRotorFlappingBodyAcceleration(
+				new PlayableFlightModel.Velocity(0.0f, 0.0f, 3.4f),
+				hoverThrustAcceleration,
+				0.20f,
+				0.20f
+		);
+
+		float tiltDegrees = (float) Math.toDegrees(horizontalSpeed(straight.x(), straight.z()) / hoverThrustAcceleration);
+
+		assertEquals(0.0f, straight.x(), 1.0e-6f);
+		assertTrue(tiltDegrees > 0.45f, "tiltDegrees=" + tiltDegrees);
+		assertTrue(tiltDegrees < 0.60f, "tiltDegrees=" + tiltDegrees);
+	}
+
+	@Test
 	void acroRotorInPlaneDragRequiresPoweredDiskFlow() {
 		PlayableFlightModel.Velocity idle = PlayableFlightModel.acroRotorInPlaneDragBodyAcceleration(
 				new PlayableFlightModel.Velocity(16.0f, 0.0f, 16.0f),

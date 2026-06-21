@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，目视压头修正 + ACRO flapping 小幅增强）
+这一轮先把一个会干扰人工试飞判断的可见问题重新收紧：目视/第三人称里正 `pitchRadians` 前飞会显示成抬头。复查 `ModelPart.translateAndRotate` 后确认，Minecraft `ModelPart` 用 `Quaternionf.rotationZYX(z,y,x)`，正 `xRot` 会先把局部 `+Z` 机头点转到负 Y，再被 `DroneEntityRenderer` 的 `scale(-1,-1,1)` 翻成正 Y；旧测试 helper 的符号假设是反的，所以测试绿但画面仍可能反。
+
+- `DroneEntityModel.bodyPitchRotationRadians(...)` 改为 `-pitchRadians`，并把 `renderedBodyForwardYOffset(...)` 改成按真实 `xRot` 几何计算。正 playable pitch / 前飞现在在最终 renderer 变换后显示为机头下压，负 pitch 对称显示为抬头；这不改 FPV 相机矩阵、不改服务端物理和飞控输入。
+- 物理主线继续小步增强 ACRO 桨盘 flapping：`ACRO_ROTOR_FLAPPING_COEFFICIENT` 从 `0.075` 提到 `0.081`。参考本地 STARMAC Fig. 9 低精度资料，它只作为量级 sanity check；本轮仍保持保守，没有直接追到 3.4m/s 实测约 `1.12°`，但让低速来流下的 playable flapping 不再过轻。
+- 新增 `acroRotorFlappingKeepsConservativeStarmacScaleAtLowForwardFlow`：`3.4m/s` 干净前向来流、hover thrust 下的 flapping 代理角被锁在 `0.45°..0.60°`，同时保留 `acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap` 的 `25m/s` 速度门槛，避免用 flapping 把速度感吃掉。
+- 已通过目视模型 targeted、flapping/斜飞/full-roll targeted、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-085431.json`，playable ACRO 诊断通过，最大水平位移约 `16.19m`，最大速度约 `6.63m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，ACRO 前向高速桨效衰减收紧）
 这一轮继续沿着“速度已经够，但真机重量感和空气负载还不够”的主线做小步收敛。复查本地资料包里 UIUC 5 寸桨前进比数据后，决定先不再粗暴增加整机 drag，也不再同时改 flapping/sidewash；这次只把 playable ACRO 的前向高速 advance-ratio 推力损失小幅加重，让高速压头、巡航和斜向飞行时的桨盘推进效率更早付出代价，减少“像无损平移”的轻飘感。
 
