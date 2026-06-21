@@ -5250,8 +5250,8 @@ class PlayableFlightModelTest {
 		assertTrue(singleAxis < 0.018f, "singleAxis=" + singleAxis);
 		assertTrue(sportDiagonal > 0.032f, "sportDiagonal=" + sportDiagonal);
 		assertTrue(sportDiagonal < 0.050f, "sportDiagonal=" + sportDiagonal);
-		assertTrue(fullDiagonal > 0.070f, "fullDiagonal=" + fullDiagonal);
-		assertTrue(fullDiagonal < 0.086f, "fullDiagonal=" + fullDiagonal);
+		assertTrue(fullDiagonal > 0.078f, "fullDiagonal=" + fullDiagonal);
+		assertTrue(fullDiagonal < 0.090f, "fullDiagonal=" + fullDiagonal);
 	}
 
 	@Test

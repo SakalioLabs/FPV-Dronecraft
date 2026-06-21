@@ -201,7 +201,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_ROTOR_GYRO_RATE_FULL_RADIANS_PER_SECOND = (float) Math.toRadians(220.0f);
 	private static final float ACRO_ROTOR_GYRO_RPM_START_FRACTION = 0.22f;
 	private static final float ACRO_ROTOR_GYRO_SINGLE_AXIS_WEIGHT = 0.18f;
-	private static final float ACRO_ROTOR_GYRO_DIAGONAL_RATE_LOAD_MAX = 0.085f;
+	private static final float ACRO_ROTOR_GYRO_DIAGONAL_RATE_LOAD_MAX = 0.088f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_START_METERS_PER_SECOND = 8.0f;
 	private static final float ACRO_TRANSVERSE_MOMENT_SPEED_FULL_METERS_PER_SECOND = 24.0f;
 	private static final float ACRO_TRANSVERSE_MOMENT_MU_START = 0.055f;

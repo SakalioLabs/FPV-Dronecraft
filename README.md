@@ -1,5 +1,13 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-21，ACRO 高 RPM 斜向转子陀螺负载增强）
+这一轮继续处理“斜向动作缺少真机重量感”的主线。复查本地资料后，重点没有继续放在全局 drag：`docs/fpv-sim-model-validation.md` 里已经反复提示当前 drag 很容易高估，继续加阻力会吃掉速度感；更合适的小步是补强高 RPM 下组合 pitch+roll 的转子惯量/陀螺负载，让斜向动作不像理想数学 rate 源一样轻。
+
+- `ACRO_ROTOR_GYRO_DIAGONAL_RATE_LOAD_MAX` 从 `0.085` 提到 `0.088`。这只影响高 RPM 且 pitch/roll 同时有明显 body-rate 的 ACRO 路径；单轴动作、低速、悬停和直线速度包络基本不受影响。
+- 更新 `acroRotorGyroRateLoadRequiresHighRpmAndDiagonalBodyRates` 边界：full diagonal gyro load 现在锁在 `0.078..0.090`，比旧边界更明确地保留一点 5 寸桨高转速组合动作的惯量感，但仍远低于会“锁死”旋转的量级。
+- 调参时特意保留 `acroCruiseCanReachFpvSpeedWithoutInstantVelocitySnap` 的 `25m/s` 速度门槛：尝试过更高的 `0.091` 会让巡航速度只差约 `0.002m/s` 掉出门槛，因此本轮收回到 `0.088`，优先保护你要求的速度感。
+- 已通过 gyro/斜飞/full-roll/25m/s targeted、完整 `PlayableFlightModelTest`、完整 `:fabric-mod:test`、完整 `gradlew build`（Fabric GameTest 7/7 通过）和无头 `:fabric-mod:runPlayableAcroServerSelfTest`。本轮服务端自测报告为 `server-selftest-playable-20260621-090207.json`，playable ACRO 诊断通过，最大水平位移约 `16.19m`，最大速度约 `6.63m/s`，平均电机遥测峰值约 `6983 RPM`。
+
 ## 最新进展（2026-06-21，目视压头修正 + ACRO flapping 小幅增强）
 这一轮先把一个会干扰人工试飞判断的可见问题重新收紧：目视/第三人称里正 `pitchRadians` 前飞会显示成抬头。复查 `ModelPart.translateAndRotate` 后确认，Minecraft `ModelPart` 用 `Quaternionf.rotationZYX(z,y,x)`，正 `xRot` 会先把局部 `+Z` 机头点转到负 Y，再被 `DroneEntityRenderer` 的 `scale(-1,-1,1)` 翻成正 Y；旧测试 helper 的符号假设是反的，所以测试绿但画面仍可能反。
 
