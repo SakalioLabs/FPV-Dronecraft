@@ -2860,71 +2860,35 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getAverageMotorRpmTelemetryRpm() {
-		return simulationRuntime.state().averageMotorRpmTelemetryRpm();
+		return simulationRuntime.averageMotorRpmTelemetryRpm();
 	}
 
 	public double getMotorRpmTelemetryRpm(int index) {
-		if (index < 0 || index >= simulationRuntime.state().motorCount()) {
-			return 0.0;
-		}
-		return simulationRuntime.state().motorRpmTelemetryRpm(index);
+		return simulationRuntime.motorRpmTelemetryRpm(index);
 	}
 
 	public double getAverageMotorRpmTelemetryValidity() {
-		return simulationRuntime.state().averageMotorRpmTelemetryValidity();
+		return simulationRuntime.averageMotorRpmTelemetryValidity();
 	}
 
 	public double getMotorRpmTelemetryValidity(int index) {
-		if (index < 0 || index >= simulationRuntime.state().motorCount()) {
-			return 0.0;
-		}
-		return simulationRuntime.state().motorRpmTelemetryValidity(index);
+		return simulationRuntime.motorRpmTelemetryValidity(index);
 	}
 
 	public double getAverageMotorTelemetryErpm100() {
-		return SimulationFlightRuntime.betaflightErpm100FromMechanicalRpm(
-				simulationRuntime.state().averageMotorRpmTelemetryRpm(),
-				averageMotorPolePairs()
-		);
+		return simulationRuntime.averageMotorTelemetryErpm100();
 	}
 
 	public double getMotorTelemetryErpm100(int index) {
-		return SimulationFlightRuntime.betaflightErpm100FromMechanicalRpm(getMotorRpmTelemetryRpm(index), motorPolePairs(index));
+		return simulationRuntime.motorTelemetryErpm100(index);
 	}
 
 	public double getAverageMotorTelemetryEIntervalMicros() {
-		return SimulationFlightRuntime.betaflightEIntervalMicrosFromTelemetryRpm(
-				simulationRuntime.state().averageMotorRpmTelemetryRpm(),
-				simulationRuntime.state().averageMotorRpmTelemetryValidity(),
-				averageMotorPolePairs()
-		);
+		return simulationRuntime.averageMotorTelemetryEIntervalMicros();
 	}
 
 	public double getMotorTelemetryEIntervalMicros(int index) {
-		return SimulationFlightRuntime.betaflightEIntervalMicrosFromTelemetryRpm(
-				getMotorRpmTelemetryRpm(index),
-				getMotorRpmTelemetryValidity(index),
-				motorPolePairs(index)
-		);
-	}
-
-	private double averageMotorPolePairs() {
-		DroneConfig config = simulationRuntime.config();
-		if (config.rotors().isEmpty()) {
-			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
-		}
-		return config.rotors().stream()
-				.mapToDouble(RotorSpec::motorPolePairs)
-				.average()
-				.orElse(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
-	}
-
-	private double motorPolePairs(int index) {
-		DroneConfig config = simulationRuntime.config();
-		if (index < 0 || index >= config.rotors().size()) {
-			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
-		}
-		return config.rotors().get(index).motorPolePairs();
+		return simulationRuntime.motorTelemetryEIntervalMicros(index);
 	}
 
 	public float getMotorTemperatureCelsius() {

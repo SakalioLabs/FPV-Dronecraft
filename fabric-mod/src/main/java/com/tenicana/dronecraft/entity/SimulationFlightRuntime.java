@@ -7,6 +7,7 @@ import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
+import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 import com.tenicana.dronecraft.sim.flight.FlightModel;
 import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
@@ -97,6 +98,71 @@ final class SimulationFlightRuntime {
 
 	void setBatteryEquivalentCycles(double equivalentCycles) {
 		physics.state().setBatteryEquivalentCycles(equivalentCycles);
+	}
+
+	double averageMotorRpmTelemetryRpm() {
+		return physics.state().averageMotorRpmTelemetryRpm();
+	}
+
+	double motorRpmTelemetryRpm(int index) {
+		if (index < 0 || index >= physics.state().motorCount()) {
+			return 0.0;
+		}
+		return physics.state().motorRpmTelemetryRpm(index);
+	}
+
+	double averageMotorRpmTelemetryValidity() {
+		return physics.state().averageMotorRpmTelemetryValidity();
+	}
+
+	double motorRpmTelemetryValidity(int index) {
+		if (index < 0 || index >= physics.state().motorCount()) {
+			return 0.0;
+		}
+		return physics.state().motorRpmTelemetryValidity(index);
+	}
+
+	double averageMotorTelemetryErpm100() {
+		return betaflightErpm100FromMechanicalRpm(averageMotorRpmTelemetryRpm(), averageMotorPolePairs());
+	}
+
+	double motorTelemetryErpm100(int index) {
+		return betaflightErpm100FromMechanicalRpm(motorRpmTelemetryRpm(index), motorPolePairs(index));
+	}
+
+	double averageMotorTelemetryEIntervalMicros() {
+		return betaflightEIntervalMicrosFromTelemetryRpm(
+				averageMotorRpmTelemetryRpm(),
+				averageMotorRpmTelemetryValidity(),
+				averageMotorPolePairs()
+		);
+	}
+
+	double motorTelemetryEIntervalMicros(int index) {
+		return betaflightEIntervalMicrosFromTelemetryRpm(
+				motorRpmTelemetryRpm(index),
+				motorRpmTelemetryValidity(index),
+				motorPolePairs(index)
+		);
+	}
+
+	private double averageMotorPolePairs() {
+		DroneConfig config = physics.config();
+		if (config.rotors().isEmpty()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().stream()
+				.mapToDouble(RotorSpec::motorPolePairs)
+				.average()
+				.orElse(RotorSpec.DEFAULT_MOTOR_POLE_PAIRS);
+	}
+
+	private double motorPolePairs(int index) {
+		DroneConfig config = physics.config();
+		if (index < 0 || index >= config.rotors().size()) {
+			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
+		}
+		return config.rotors().get(index).motorPolePairs();
 	}
 
 	FlightModel flightModel() {

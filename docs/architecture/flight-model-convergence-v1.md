@@ -1,5 +1,13 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 读侧遥测投影增量
+
+- `SimulationFlightRuntime` 已承接电机 RPM 遥测、RPM 有效性、Betaflight eRPM/100 和 e-period 微秒投影。
+- `DroneEntity` 的对应 public getter 现在只委托给 `SimulationFlightRuntime`，不再直接读取 `DroneState` 的 RPM 遥测字段，也不再在实体层计算 motor pole-pair 或 Betaflight 协议投影。
+- `DroneEntityFlightModelRoutingTest` 新增边界断言，防止 RPM/Betaflight 遥测投影重新散落回实体层。
+- 本轮没有修改飞行参数、控制参数、相机参数、气动模型或 golden trace 容差。
+- 剩余读侧直读仍包括环境采样、碰撞几何、存档字段、layout 信息和大量 HUD/诊断 telemetry，后续需要继续收敛成 runtime/telemetry snapshot。
+
 本文档记录 `refactor/unified-flight-contract-v1` 的第一阶段架构收敛方案。目标是在不改变
 `PlayableFlightModel` 与 `DronePhysics` 数值行为的前提下，统一飞行模型契约、状态边界、路由、
 诊断和对比工具。

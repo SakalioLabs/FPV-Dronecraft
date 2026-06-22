@@ -28,6 +28,11 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(source.contains("simulationRuntime.state().damageAllRotors"), "rotor damage writes should stay behind SimulationFlightRuntime");
 		assertFalse(source.contains("simulationRuntime.state().repairAllRotors"), "rotor repair writes should stay behind SimulationFlightRuntime");
 		assertFalse(source.contains("simulationRuntime.state().setBattery"), "battery persistence writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().motorRpmTelemetry"), "motor RPM telemetry reads should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().averageMotorRpmTelemetry"), "average motor RPM telemetry reads should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("SimulationFlightRuntime.betaflight"), "Betaflight telemetry projection should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("private double averageMotorPolePairs"), "motor pole-pair telemetry projection should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("private double motorPolePairs"), "per-motor pole-pair telemetry projection should stay behind SimulationFlightRuntime");
 		assertTrue(source.contains("SimulationFlightRuntime simulationRuntime"), "DroneEntity should hold simulation internals behind a runtime facade");
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
