@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 ground/takeoff 投影增量
+
+- `SimulationFlightRuntime` 已承接 ground/ceiling clearance 射线长度、ceiling effect height、低速下沉判断、起飞油门阈值、垂直推力阈值和起飞释放运动学写入。
+- `DroneEntity` 的 ground sleep、ground spool、takeoff release 判断不再直接读取 simulation state/config。
+- 本增量只移动 ground/takeoff 边界，保留原有 `0.05 m/s` 下沉判断、`0.95 * hoverThrottle`、`TAKEOFF_THRUST_TO_WEIGHT` 和 release vertical-speed 语义。
+
 ## 2026-06-22 direct/playable 输入与遥测投影增量
 
 - `SimulationFlightRuntime` 已承接 owner control input、flight model context config、playable/simulation snapshot、direct failsafe hover throttle 和 direct per-rotor telemetry 预览。

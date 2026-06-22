@@ -1648,7 +1648,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double groundClearanceMetersAt(Vec3 worldPosition) {
-		double rayLength = Math.max(1.0, simulationRuntime.config().groundEffectHeightMeters() + 0.5);
+		double rayLength = simulationRuntime.groundEffectRayLength(1.0, 0.5);
 		net.minecraft.world.phys.Vec3 start = new net.minecraft.world.phys.Vec3(worldPosition.x(), worldPosition.y() + 0.08, worldPosition.z());
 		net.minecraft.world.phys.Vec3 end = start.add(0.0, -rayLength, 0.0);
 		HitResult hit = level().clip(new ClipContext(
@@ -1669,7 +1669,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double ceilingClearanceMetersAt(Vec3 worldPosition) {
-		double rayLength = Math.max(1.0, simulationRuntime.config().groundEffectHeightMeters() * 1.25 + 0.5);
+		double rayLength = simulationRuntime.groundEffectRayLength(1.25, 0.5);
 		net.minecraft.world.phys.Vec3 start = new net.minecraft.world.phys.Vec3(worldPosition.x(), worldPosition.y() + 0.18, worldPosition.z());
 		net.minecraft.world.phys.Vec3 end = start.add(0.0, rayLength, 0.0);
 		HitResult hit = level().clip(new ClipContext(
@@ -1686,7 +1686,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double ceilingTurbulenceBoost(double ceilingClearanceMeters) {
-		double effectHeight = simulationRuntime.config().groundEffectHeightMeters() * 1.25;
+		double effectHeight = simulationRuntime.ceilingEffectHeightMeters();
 		if (effectHeight <= 1.0e-6 || !Double.isFinite(ceilingClearanceMeters)) {
 			return 0.0;
 		}
@@ -1725,7 +1725,7 @@ public class DroneEntity extends Entity {
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		return Double.isFinite(clearance)
 				&& clearance <= groundLockClearanceMeters()
-				&& simulationRuntime.state().velocityMetersPerSecond().y() <= 0.05;
+				&& simulationRuntime.verticalVelocityAtOrBelow(0.05);
 	}
 
 	private boolean wantsGroundSleep(DroneInput input) {
@@ -1750,19 +1750,9 @@ public class DroneEntity extends Entity {
 		if (input == null || !input.armed()) {
 			return false;
 		}
-		double throttleRelease = Math.max(0.18, simulationRuntime.config().hoverThrottle() * 0.95);
+		double throttleRelease = simulationRuntime.takeoffThrottleRelease(0.18, 0.95);
 		return input.throttle() >= throttleRelease
-				&& verticalRotorThrustNewtons() >= simulationRuntime.config().massKg() * simulationRuntime.config().gravityMetersPerSecondSquared() * TAKEOFF_THRUST_TO_WEIGHT;
-	}
-
-	private double verticalRotorThrustNewtons() {
-		double thrust = 0.0;
-		int rotorCount = Math.min(simulationRuntime.config().rotors().size(), simulationRuntime.state().motorCount());
-		for (int i = 0; i < rotorCount; i++) {
-			Vec3 thrustAxisWorld = simulationRuntime.state().orientation().rotate(simulationRuntime.config().rotors().get(i).thrustAxisBody());
-			thrust += simulationRuntime.state().rotorThrustNewtons(i) * Math.max(0.0, thrustAxisWorld.y());
-		}
-		return thrust;
+				&& simulationRuntime.verticalRotorThrustNewtons() >= simulationRuntime.takeoffThrustThresholdNewtons(TAKEOFF_THRUST_TO_WEIGHT);
 	}
 
 	private double groundLockClearanceMeters() {
@@ -1772,14 +1762,9 @@ public class DroneEntity extends Entity {
 	private void prepareGroundTakeoff(DroneInput input) {
 		FlightStateSnapshot before = simulationEntitySnapshot();
 		Vec3 position = entityPhysicsPosition().add(new Vec3(0.0, TAKEOFF_POSITION_NUDGE_METERS, 0.0));
-		Vec3 velocity = simulationRuntime.state().velocityMetersPerSecond();
 		double throttleLift = MathUtil.clamp(input.throttle(), 0.0, 1.0) * 0.35;
 		double minimumVerticalSpeed = TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND + throttleLift;
-		simulationRuntime.setPositionAndVelocityMeters(position, new Vec3(
-				velocity.x(),
-				Math.max(velocity.y(), minimumVerticalSpeed),
-				velocity.z()
-		));
+		simulationRuntime.releaseGroundTakeoff(position, minimumVerticalSpeed);
 		applySimulationResolvedState(before, StateCorrectionReason.GROUND_STABILIZATION, "TAKEOFF_RELEASE");
 	}
 

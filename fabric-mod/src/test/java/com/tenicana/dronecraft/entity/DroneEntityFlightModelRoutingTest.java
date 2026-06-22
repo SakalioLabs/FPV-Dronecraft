@@ -51,6 +51,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private DroneInput directFailsafeInput"),
 				source.indexOf("private static final float DEBUG_ARM_THRUST_THRESHOLD")
 		);
+		String groundTakeoffMethods = source.substring(
+				source.indexOf("private double groundClearanceMetersAt"),
+				source.indexOf("private boolean advancedContactEffectsActive")
+		);
 		String damageSyncMethods = source.substring(
 				source.indexOf("private boolean isAirworthy"),
 				source.indexOf("private void recordBlackbox")
@@ -114,6 +118,14 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(directControlMethods.contains("simulationRuntime.clampedHoverThrottle("), "direct failsafe throttle should be projected by SimulationFlightRuntime");
 		assertFalse(directControlMethods.contains("simulationRuntime.state()"), "direct control telemetry should not read DroneState directly");
 		assertFalse(directControlMethods.contains("simulationRuntime.config()"), "direct control telemetry should not read DroneConfig directly");
+		assertTrue(groundTakeoffMethods.contains("simulationRuntime.groundEffectRayLength("), "ground clearance ray lengths should be projected by SimulationFlightRuntime");
+		assertTrue(groundTakeoffMethods.contains("simulationRuntime.ceilingEffectHeightMeters()"), "ceiling effect height should be projected by SimulationFlightRuntime");
+		assertTrue(groundTakeoffMethods.contains("simulationRuntime.verticalVelocityAtOrBelow("), "ground sleep velocity checks should be projected by SimulationFlightRuntime");
+		assertTrue(groundTakeoffMethods.contains("simulationRuntime.takeoffThrottleRelease("), "takeoff throttle threshold should be projected by SimulationFlightRuntime");
+		assertTrue(groundTakeoffMethods.contains("simulationRuntime.verticalRotorThrustNewtons()"), "vertical rotor thrust should be projected by SimulationFlightRuntime");
+		assertTrue(groundTakeoffMethods.contains("simulationRuntime.releaseGroundTakeoff("), "takeoff release kinematics should be projected by SimulationFlightRuntime");
+		assertFalse(groundTakeoffMethods.contains("simulationRuntime.state()"), "ground/takeoff helpers should not read DroneState directly");
+		assertFalse(groundTakeoffMethods.contains("simulationRuntime.config()"), "ground/takeoff helpers should not read DroneConfig directly");
 		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");

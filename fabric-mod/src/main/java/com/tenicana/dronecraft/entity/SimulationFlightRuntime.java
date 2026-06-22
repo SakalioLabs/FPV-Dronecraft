@@ -79,6 +79,45 @@ final class SimulationFlightRuntime {
 		return MathUtil.clamp(physics.config().hoverThrottle(), min, max);
 	}
 
+	double groundEffectRayLength(double multiplier, double offsetMeters) {
+		return Math.max(1.0, physics.config().groundEffectHeightMeters() * multiplier + offsetMeters);
+	}
+
+	double ceilingEffectHeightMeters() {
+		return physics.config().groundEffectHeightMeters() * 1.25;
+	}
+
+	boolean verticalVelocityAtOrBelow(double maxMetersPerSecond) {
+		return physics.state().velocityMetersPerSecond().y() <= maxMetersPerSecond;
+	}
+
+	double takeoffThrottleRelease(double minThrottle, double hoverThrottleScale) {
+		return Math.max(minThrottle, physics.config().hoverThrottle() * hoverThrottleScale);
+	}
+
+	double takeoffThrustThresholdNewtons(double thrustToWeight) {
+		return physics.config().massKg() * physics.config().gravityMetersPerSecondSquared() * thrustToWeight;
+	}
+
+	double verticalRotorThrustNewtons() {
+		double thrust = 0.0;
+		int rotorCount = Math.min(physics.config().rotors().size(), physics.state().motorCount());
+		for (int i = 0; i < rotorCount; i++) {
+			Vec3 thrustAxisWorld = physics.state().orientation().rotate(physics.config().rotors().get(i).thrustAxisBody());
+			thrust += physics.state().rotorThrustNewtons(i) * Math.max(0.0, thrustAxisWorld.y());
+		}
+		return thrust;
+	}
+
+	void releaseGroundTakeoff(Vec3 positionMeters, double minimumVerticalSpeedMetersPerSecond) {
+		Vec3 velocity = physics.state().velocityMetersPerSecond();
+		setPositionAndVelocityMeters(positionMeters, new Vec3(
+				velocity.x(),
+				Math.max(velocity.y(), minimumVerticalSpeedMetersPerSecond),
+				velocity.z()
+		));
+	}
+
 	FlightStateSnapshot flightStateSnapshot(Vec3 positionWorldMeters, Quaternion attitude, FlightMode flightMode, boolean armed) {
 		return flightStateSnapshot(
 				positionWorldMeters,
