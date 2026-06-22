@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
@@ -10,8 +11,21 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+
+import com.tenicana.dronecraft.sim.flight.ActuatorOutput;
+import com.tenicana.dronecraft.sim.flight.FlightModelDiagnostics;
+import com.tenicana.dronecraft.sim.flight.FlightModelInitializationContext;
+import com.tenicana.dronecraft.sim.flight.FlightModelRouter;
+import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
+import com.tenicana.dronecraft.sim.flight.FlightStepContext;
+import com.tenicana.dronecraft.sim.flight.FlightStepResult;
+import com.tenicana.dronecraft.sim.flight.ForceTorqueDiagnostics;
+import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
+import com.tenicana.dronecraft.sim.flight.StateCorrection;
+import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 
 class SimulationFlightGoldenTraceTest {
 	private static final String UPDATE_PROPERTY = "fpvdrone.updateGoldenTraces";
@@ -68,6 +82,41 @@ class SimulationFlightGoldenTraceTest {
 			fail("Missing golden trace " + golden + ". Re-run with " + UPDATE_PROPERTY + "=true or FPVDRONE_UPDATE_GOLDEN_TRACES=true to generate it.");
 		}
 		assertTraceMatches(Files.readAllLines(golden, StandardCharsets.UTF_8), actual);
+	}
+
+	@Test
+	void simulationAdapterRouterMatchesDronePhysicsTickByTick() {
+		for (Scenario scenario : scenarios()) {
+			DroneConfig config = scenario.config().create();
+			DronePhysics direct = new DronePhysics(config);
+			scenario.setup().apply(direct);
+			SimulationFlightModelAdapter adapter = new SimulationFlightModelAdapter();
+			FlightModelRouter router = new FlightModelRouter(List.of(adapter), SimulationFlightModelAdapter.ID);
+			router.initialize(new FlightModelInitializationContext(config, snapshot(direct), scenario.environment().at(0), 0L));
+
+			for (int tick = 0; tick < scenario.ticks(); tick++) {
+				DroneInput input = scenario.input().at(tick, config).normalized();
+				DroneEnvironment environment = scenario.environment().at(tick);
+				String mutation = scenario.beforeStep().apply(tick, direct);
+				applyMutationToRouter(router, direct, mutation);
+
+				direct.step(input, DT_SECONDS, environment);
+				FlightStepResult routeResult = router.step(new FlightStepContext(
+						input,
+						router.snapshot(),
+						environment,
+						DT_SECONDS,
+						tick,
+						config
+				));
+
+				assertSnapshotClose(scenario.name(), tick, snapshot(direct), routeResult.nextState());
+				assertActuatorClose(scenario.name(), tick, actuatorOutput(direct), routeResult.actuatorOutput());
+				assertForceTorqueClose(scenario.name(), tick, forceTorqueDiagnostics(direct), routeResult.forceTorqueDiagnostics());
+				assertEquals(List.of(), routeResult.stateCorrections(), firstDifference(scenario.name(), tick, "state_corrections", List.of(), routeResult.stateCorrections()));
+				assertDiagnosticsClose(scenario.name(), tick, diagnostics(direct, environment), routeResult.diagnostics());
+			}
+		}
 	}
 
 	private static boolean updateGoldenTraces() {
@@ -170,6 +219,181 @@ class SimulationFlightGoldenTraceTest {
 				.withEscCommandSignal(0.0, 0.0)
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
 				.withRateSuper(Vec3.ZERO);
+	}
+
+	private static void applyMutationToRouter(FlightModelRouter router, DronePhysics direct, String mutation) {
+		if ("RESET_RESPAWN".equals(mutation)) {
+			router.reset(snapshot(direct));
+			return;
+		}
+		if ("COLLISION_CONSTRAINT".equals(mutation)) {
+			router.applyResolvedState(
+					snapshot(direct),
+					new StateCorrection(StateCorrectionReason.COLLISION_CONTACT_SOLVE, "COLLISION_CONSTRAINT", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+			);
+		}
+	}
+
+	private static FlightStateSnapshot snapshot(DronePhysics physics) {
+		DroneState state = physics.state();
+		DroneInput processed = state.processedControlInput().normalized();
+		return new FlightStateSnapshot(
+				state.positionMeters(),
+				state.velocityMetersPerSecond(),
+				state.orientation(),
+				state.angularVelocityBodyRadiansPerSecond(),
+				processed.flightMode(),
+				processed.armed()
+		);
+	}
+
+	private static ActuatorOutput actuatorOutput(DronePhysics physics) {
+		DroneState state = physics.state();
+		return new ActuatorOutput(
+				state.motorPower(physics.config()),
+				state.motorRpm(),
+				state.rotorThrustNewtons()
+		);
+	}
+
+	private static ForceTorqueDiagnostics forceTorqueDiagnostics(DronePhysics physics) {
+		DroneState state = physics.state();
+		Vec3 forceBody = sum(state.rotorForceBodyNewtons())
+				.add(state.airframeBodyDragForceBodyNewtons())
+				.add(state.airframeLiftForceBodyNewtons())
+				.add(state.groundEffectDragForceBodyNewtons())
+				.add(state.rotorWashDragForceBodyNewtons())
+				.add(state.rotorWallEffectForceBodyNewtons())
+				.add(state.vortexRingBuffetForceBodyNewtons());
+		Vec3 forceWorld = state.orientation().rotate(forceBody)
+				.add(state.linearDampingDragForceWorldNewtons());
+		Vec3 torqueBody = sum(state.rotorTorqueBodyNewtonMeters())
+				.add(state.pidOutputTorqueBodyNewtonMeters())
+				.add(state.rotorInflowSkewTorqueBodyNewtonMeters())
+				.add(state.rotorBladeDissymmetryTorqueBodyNewtonMeters())
+				.add(state.rotorWakeSwirlTorqueBodyNewtonMeters())
+				.add(state.rotorFlappingTorqueBodyNewtonMeters())
+				.add(state.rotorActiveBrakingTorqueBodyNewtonMeters())
+				.add(state.rotorInertiaTorqueBodyNewtonMeters())
+				.add(state.rotorAccelerationReactionTorqueBodyNewtonMeters())
+				.add(state.rotorGyroscopicTorqueBodyNewtonMeters())
+				.add(state.rotorAngularDragTorqueBodyNewtonMeters())
+				.add(state.groundEffectLevelingTorqueBodyNewtonMeters())
+				.add(state.propwashTorqueBodyNewtonMeters())
+				.add(state.windTurbulenceTorqueBodyNewtonMeters())
+				.add(state.airframeAerodynamicTorqueBodyNewtonMeters())
+				.add(state.airframePressureCenterTorqueBodyNewtonMeters())
+				.add(state.airframeAngularDragTorqueBodyNewtonMeters())
+				.add(state.mixerOutputTorqueBodyNewtonMeters());
+		return new ForceTorqueDiagnostics(
+				forceWorld,
+				forceBody,
+				torqueBody,
+				state.linearAccelerationWorldMetersPerSecondSquared()
+		);
+	}
+
+	private static Map<String, String> diagnostics(DronePhysics physics, DroneEnvironment environment) {
+		DroneState state = physics.state();
+		return Map.of(
+				"motor_count", Integer.toString(state.motorCount()),
+				"average_motor_rpm", Double.toString(state.averageMotorRpm()),
+				"average_motor_power", Double.toString(state.averageMotorPower(physics.config())),
+				"average_rotor_thrust_n", Double.toString(averageRotorThrust(state)),
+				"environment_ground_clearance_m", Double.toString(environment.groundClearanceMeters()),
+				"environment_air_density_ratio", Double.toString(environment.airDensityRatio())
+		);
+	}
+
+	private static void assertSnapshotClose(String scenario, int tick, FlightStateSnapshot expected, FlightStateSnapshot actual) {
+		assertVecClose(scenario, tick, "position", expected.positionWorldMeters(), actual.positionWorldMeters());
+		assertVecClose(scenario, tick, "world_velocity", expected.velocityWorldMetersPerSecond(), actual.velocityWorldMetersPerSecond());
+		assertVecClose(scenario, tick, "body_velocity", expected.velocityBodyMetersPerSecond(), actual.velocityBodyMetersPerSecond());
+		assertQuaternionClose(scenario, tick, "quaternion", expected.attitude(), actual.attitude());
+		assertVecClose(scenario, tick, "angular_rate", expected.angularVelocityBodyRadiansPerSecond(), actual.angularVelocityBodyRadiansPerSecond());
+		assertEquals(expected.flightMode(), actual.flightMode(), () -> firstDifference(scenario, tick, "flight_mode", expected.flightMode(), actual.flightMode()));
+		assertEquals(expected.armed(), actual.armed(), () -> firstDifference(scenario, tick, "armed", expected.armed(), actual.armed()));
+		assertTrue(actual.isFinite(), () -> firstDifference(scenario, tick, "finite", true, false));
+	}
+
+	private static void assertActuatorClose(String scenario, int tick, ActuatorOutput expected, ActuatorOutput actual) {
+		assertArrayClose(scenario, tick, "actuator.motor_power", expected.motorPower(), actual.motorPower());
+		assertArrayClose(scenario, tick, "actuator.motor_rpm", expected.motorRpm(), actual.motorRpm());
+		assertArrayClose(scenario, tick, "actuator.rotor_thrust_n", expected.rotorThrustNewtons(), actual.rotorThrustNewtons());
+	}
+
+	private static void assertForceTorqueClose(String scenario, int tick, ForceTorqueDiagnostics expected, ForceTorqueDiagnostics actual) {
+		assertVecClose(scenario, tick, "force_world_n", expected.forceWorldNewtons(), actual.forceWorldNewtons());
+		assertVecClose(scenario, tick, "force_body_n", expected.forceBodyNewtons(), actual.forceBodyNewtons());
+		assertVecClose(scenario, tick, "torque_body_nm", expected.torqueBodyNewtonMeters(), actual.torqueBodyNewtonMeters());
+		assertVecClose(scenario, tick, "linear_accel_world_mps2", expected.linearAccelerationWorldMetersPerSecondSquared(), actual.linearAccelerationWorldMetersPerSecondSquared());
+	}
+
+	private static void assertDiagnosticsClose(String scenario, int tick, Map<String, String> expected, FlightModelDiagnostics actual) {
+		assertTrue(actual.finite(), () -> firstDifference(scenario, tick, "diagnostics.finite", true, false));
+		for (Map.Entry<String, String> entry : expected.entrySet()) {
+			String actualValue = actual.values().get(entry.getKey());
+			assertTrue(actualValue != null, () -> firstDifference(scenario, tick, "diagnostics." + entry.getKey(), entry.getValue(), "<missing>"));
+			assertNumberClose(scenario, tick, "diagnostics." + entry.getKey(), Double.parseDouble(entry.getValue()), Double.parseDouble(actualValue));
+		}
+	}
+
+	private static void assertArrayClose(String scenario, int tick, String field, double[] expected, double[] actual) {
+		assertEquals(expected.length, actual.length, () -> firstDifference(scenario, tick, field + ".length", expected.length, actual.length));
+		for (int i = 0; i < expected.length; i++) {
+			assertNumberClose(scenario, tick, field + "[" + i + "]", expected[i], actual[i]);
+		}
+	}
+
+	private static void assertVecClose(String scenario, int tick, String field, Vec3 expected, Vec3 actual) {
+		assertNumberClose(scenario, tick, field + ".x", expected.x(), actual.x());
+		assertNumberClose(scenario, tick, field + ".y", expected.y(), actual.y());
+		assertNumberClose(scenario, tick, field + ".z", expected.z(), actual.z());
+	}
+
+	private static void assertQuaternionClose(String scenario, int tick, String field, Quaternion expected, Quaternion actual) {
+		assertNumberClose(scenario, tick, field + ".w", expected.w(), actual.w());
+		assertNumberClose(scenario, tick, field + ".x", expected.x(), actual.x());
+		assertNumberClose(scenario, tick, field + ".y", expected.y(), actual.y());
+		assertNumberClose(scenario, tick, field + ".z", expected.z(), actual.z());
+	}
+
+	private static void assertNumberClose(String scenario, int tick, String field, double expected, double actual) {
+		if (Double.compare(expected, actual) == 0) {
+			return;
+		}
+		double scale = Math.max(Math.abs(expected), Math.abs(actual));
+		double allowed = Math.max(ABS_TOLERANCE, REL_TOLERANCE * scale);
+		double diff = Math.abs(expected - actual);
+		if (diff > allowed) {
+			double relative = scale <= 0.0 ? diff : diff / scale;
+			fail(firstDifference(scenario, tick, field, expected, actual)
+					+ " abs=" + diff
+					+ " rel=" + relative
+					+ " allowed=" + allowed
+					+ " source=SimulationFlightModelAdapter route must preserve DronePhysics direct call order");
+		}
+	}
+
+	private static String firstDifference(String scenario, int tick, String field, Object expected, Object actual) {
+		return "first route-equivalence difference scenario=" + scenario
+				+ " tick=" + tick
+				+ " field=" + field
+				+ " expected=" + expected
+				+ " actual=" + actual;
+	}
+
+	private static Vec3 sum(Vec3[] values) {
+		Vec3 sum = Vec3.ZERO;
+		if (values == null) {
+			return sum;
+		}
+		for (Vec3 value : values) {
+			if (value != null) {
+				sum = sum.add(value);
+			}
+		}
+		return sum;
 	}
 
 	private static void setAirborne(DronePhysics physics) {

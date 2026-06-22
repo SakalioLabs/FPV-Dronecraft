@@ -48,8 +48,12 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 
 	@Override
 	public void reset(FlightStateSnapshot state) {
-		physics = new DronePhysics(config);
-		applySnapshot(state == null ? FlightStateSnapshot.zero() : state);
+		FlightStateSnapshot safeState = state == null ? FlightStateSnapshot.zero() : state;
+		physics.sleepAtRest(
+				safeState.positionWorldMeters(),
+				new DroneInput(0.0, 0.0, 0.0, 0.0, safeState.armed(), true, safeState.flightMode())
+		);
+		applySnapshot(safeState);
 		diagnostics = diagnosticsFor(List.of(new StateCorrection(StateCorrectionReason.RESET_TELEPORT, "RESET", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)), DroneEnvironment.calm());
 	}
 
