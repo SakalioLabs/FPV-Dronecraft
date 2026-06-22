@@ -2536,7 +2536,7 @@ public class DroneEntity extends Entity {
 
 	private void recordBlackbox(DroneInput input) {
 		boolean playableMode = DroneDebugSettings.flightModelMode() == DroneDebugSettings.FlightModelMode.PLAYABLE;
-		blackbox.record(DroneBlackboxSample.from(
+		blackbox.record(simulationRuntime.blackboxSample(
 				level().getGameTime(),
 				tickCount,
 				PHYSICS_STEPS_PER_TICK,
@@ -2547,18 +2547,14 @@ public class DroneEntity extends Entity {
 				playableMode ? getYRot() : 0.0,
 				playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
 				playableMode ? debugTargetYawRate * 20.0 : 0.0,
-				simulationRuntime.state(),
 				input,
-				simulationRuntime.state().averageMotorPower(simulationRuntime.config()),
 				frameHealth,
-				simulationRuntime.state().averageRotorHealth(),
 				lastCollisionSeverity,
 				maxPropStrikeRotorIndexThisTick(),
 				maxPropStrikeSeverityThisTick(),
 				propStrikeCount,
 				propStrikeSeverityThisTick,
-				lastEnvironment,
-				simulationRuntime.config()
+				lastEnvironment
 		));
 		lastCollisionSeverity *= 0.86;
 		if (lastCollisionSeverity < 0.001) {
@@ -3487,7 +3483,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public DroneConfig config() {
-		return simulationRuntime.config();
+		return simulationRuntime.currentConfig();
 	}
 
 	public DroneEnvironmentOverride environmentOverride() {
@@ -3946,7 +3942,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void saveConfig(ValueOutput output) {
-		DroneConfig config = simulationRuntime.config();
+		DroneConfig config = simulationRuntime.currentConfig();
 		RotorSpec rotor = config.rotors().get(0);
 		output.putString("airframe_preset", airframePreset);
 		output.putDouble("tune_mass_kg", config.massKg());

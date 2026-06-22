@@ -3,6 +3,7 @@ package com.tenicana.dronecraft.entity;
 import java.util.Arrays;
 import java.util.UUID;
 
+import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -36,6 +37,10 @@ final class SimulationFlightRuntime {
 	}
 
 	DroneConfig config() {
+		return physics.config();
+	}
+
+	DroneConfig currentConfig() {
 		return physics.config();
 	}
 
@@ -171,6 +176,54 @@ final class SimulationFlightRuntime {
 			}
 		}
 		return bestIndex;
+	}
+
+	DroneBlackboxSample blackboxSample(
+			long gameTime,
+			int tickCount,
+			int physicsSubsteps,
+			double physicsDtSeconds,
+			String flightModel,
+			double playableLowAltitudeAuthority,
+			double playableVisualPitchDegrees,
+			double playableVisualYawDegrees,
+			double playableVisualRollDegrees,
+			double playableVisualYawRateDegreesPerSecond,
+			DroneInput input,
+			double frameHealth,
+			double collisionSeverity,
+			int propStrikeRotorIndex,
+			double propStrikeSeverity,
+			int propStrikeCount,
+			double[] propStrikeSeverityByRotor,
+			DroneEnvironment environment
+	) {
+		DroneState state = physics.state();
+		DroneConfig config = physics.config();
+		return DroneBlackboxSample.from(
+				gameTime,
+				tickCount,
+				physicsSubsteps,
+				physicsDtSeconds,
+				flightModel,
+				playableLowAltitudeAuthority,
+				playableVisualPitchDegrees,
+				playableVisualYawDegrees,
+				playableVisualRollDegrees,
+				playableVisualYawRateDegreesPerSecond,
+				state,
+				input,
+				state.averageMotorPower(config),
+				frameHealth,
+				state.averageRotorHealth(),
+				collisionSeverity,
+				propStrikeRotorIndex,
+				propStrikeSeverity,
+				propStrikeCount,
+				propStrikeSeverityByRotor,
+				environment,
+				config
+		);
 	}
 
 	DroneWakeSource droneWakeSource() {

@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 blackbox/config 边界增量
+
+- `SimulationFlightRuntime.blackboxSample(...)` 已承接 blackbox 采样所需的 `DroneState`、`DroneConfig`、average motor power 和 average rotor health 读取。
+- `DroneEntity.config()` 与 `saveConfig(...)` 改为通过 `SimulationFlightRuntime.currentConfig()` 明确跨 runtime 边界访问配置。
+- 本增量不改变 CSV 字段、配置保存字段、公开 `DroneEntity.config()` 返回值或 blackbox 记录时机。
+
 ## 2026-06-22 prop strike / collision damage 投影增量
 
 - `SimulationFlightRuntime.PropStrikeState` 已承接 prop strike 采样所需的机体速度、rotor geometry 和 motor omega。
