@@ -10,7 +10,7 @@
 - Simulation 路由等价测试已新增：旧路径为 `DronePhysics` 直接路径，新路径为 `SimulationFlightModelAdapter -> FlightModelRouter -> step`。
 - 两组测试使用相同初始状态、模型配置、`dt`、环境、输入序列和 reset 时机，覆盖 idle、hover、throttle step、pitch、roll、yaw、diagonal pitch+roll、full roll、forward cruise、lateral initial velocity、wind、reset/respawn 等场景。
 - 逐 tick 比较字段包括 position、world velocity、body velocity、quaternion、body angular rate、actuator/motor output、armed、flight mode、StateCorrection 事件，以及旧路径能表达的 diagnostics 字段。
-- 当前本地结果：两条新路由在既有容差内与旧路径逐 tick 等价，当前首个差异为无。未重新生成 golden trace，未修改 baseline，未放宽预先存在的容差。
+- 当前本地结果：两条新路由在既有容差内与旧路径逐 tick 等价，当前首个差异为无。初始 playable wind trace 曾在 `8aac930` 修正：旧场景错误地把环境风直接加入 world velocity；该修正发生在 adapter/router 接入之前。自 `8aac930` 基线冻结后，后续路由、适配器和 `DroneEntity` 接入没有重新生成 golden 文件，也没有放宽预先存在的容差。
 - 过程中曾捕获 simulation reset 场景首个差异：`reset_respawn` tick 20 的 `position.y` 约 `8.019e-6`，来源是 adapter reset 重新构造 `DronePhysics`，而旧路径复用同一对象并走 `sleepAtRest(...)`。修复后 adapter reset 改为同实例 reset/apply snapshot，当前等价测试通过。
 
 ### DroneEntity 实际执行集成测试
@@ -24,10 +24,10 @@
 本阶段采用方案 1：不支持活动实体运行时切换。
 
 - 每个 `DroneEntity` 在初始化/生成时固定 `fixedFlightModelId`。
-- 全局 debug flight model mode 只影响之后生成或 reset/read 的实体；已经在飞行或已生成的实体不会因为每 tick 读取全局设置而静默切换后端。
+- 全局 debug flight model mode 只影响之后新生成的实体；已经在飞行或已生成的实体不会因为每 tick 读取全局设置而静默切换后端。
 - `DroneEntity` tick 现在依据实体固定 ID 决定 playable 或 simulation 路由；playable 固定实体的 idle/disarm/reset tick 也继续走 playable adapter/router，不再落入 simulation backend。
-- 固定 model ID 会随实体保存为 `flight_model_id`，旧存档没有该字段时才按当前 debug mode 初始化。
-- debug 命令提示已明确包含：`existing drones keep their current model, 需要重生/reset 后生效`。
+- 普通 reset 不切换模型；固定 model ID 会随实体保存为 `flight_model_id`，已保存实体重新载入时继续使用保存值，旧存档没有该字段时才按当前 debug mode 初始化。
+- debug 命令提示已明确说明：只影响之后新生成的无人机；现有和已保存无人机继续使用持久化的 `flight_model_id`，旧存档缺少该字段时才使用当前全局默认值。
 - GameTest 已证明活动 playable 实体在全局 mode 改为 simulation 后仍保持 `legacy_playable_direct`，活动 simulation 实体在全局 mode 改为 playable 后仍保持 `simulation_drone_physics`。
 
 ### CI 验证矩阵
@@ -375,7 +375,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 ### 客观修复的 bug
 
-- 修正 simulation wind golden trace 的基线文件内容，使其与重构前记录器输出一致；这是基线采集/文件同步问题，不是飞行参数改动。
+- `8aac930` 修正初始 playable wind golden trace，使其与重构前记录器输出一致；旧场景错误地把环境风直接加入 world velocity。该修正发生在 adapter/router 接入之前，不是飞行参数改动；自 `8aac930` 基线冻结后，后续路由、适配器和 `DroneEntity` 接入没有重新生成 golden 文件，也没有放宽容差。
 - `SimulationFlightModelAdapter.applyResolvedState(...)` 现在只在 reset/teleport/model initialization/network correction 时同步 attitude estimator，普通 entity move/contact correction 保留 estimator 的旧路径演化；该修复由 adapter 测试约束，避免 state correction 误伤仿真内部估计器。
 - 新增序列化缺字段/非有限数拒绝测试；当前实现会在缺字段、`NaN`、`Infinity` 或非法布尔/模式值时失败。
 

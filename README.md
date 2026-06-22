@@ -4,10 +4,10 @@
 
 本轮只收口 `refactor/unified-flight-contract-v1` 的 V1 门禁，没有修改 master，没有进入 V2，也没有做任何手感或气动参数调参。
 
-- Playable 已增加逐 tick route-equivalence：`DirectRouteHarness` 对比 `LegacyPlayableFlightModelAdapter -> FlightModelRouter -> step`。当前本地结果为既有容差内完全等价，首个差异为无。
+- Playable 已增加逐 tick route-equivalence：`DirectRouteHarness` 对比 `LegacyPlayableFlightModelAdapter -> FlightModelRouter -> step`。当前本地结果为既有容差内完全等价，首个差异为无。初始 playable wind trace 曾在 `8aac930` 修正：旧场景错误地把环境风直接加入 world velocity；该修正发生在 adapter/router 接入之前。自 `8aac930` 基线冻结后，后续路由、适配器和 `DroneEntity` 接入没有重新生成 golden 文件，也没有放宽容差。
 - Simulation 已增加逐 tick route-equivalence：`DronePhysics` 直接路径对比 `SimulationFlightModelAdapter -> FlightModelRouter -> step`。曾捕获 `reset_respawn` tick 20 的 `position.y` 差异约 `8.019e-6`，来源是 adapter reset 重新构造物理对象；修复后当前等价测试通过，首个差异为无。
 - 新增实际执行的 `DroneEntity` GameTest，覆盖 playable/simulation 初始化与连续 tick、reset、collision-free movement、resolved state 写回、model ID/capabilities 和非有限值检查。本地 `:fabric-mod:runGameTest` 通过，9 个 required GameTest 全绿。
-- 运行时切换采用方案 1：本阶段不支持活动实体静默切换 flight model。每个 `DroneEntity` 生成/读取时固定 model ID；全局 debug mode 只影响之后生成或 reset/read 的实体；命令提示包含 `需要重生/reset 后生效`。
+- 运行时切换采用方案 1：本阶段不支持活动实体静默切换 flight model。每个现有 `DroneEntity` 固定并持久化自己的 `flight_model_id`；全局 debug mode 只影响之后新生成的实体；普通 reset 不切换模型；已保存实体重新载入时继续使用保存的 `flight_model_id`；旧存档没有该字段时才使用当前全局默认值。
 - 新增 GitHub Actions CI 矩阵：运行 `:drone-sim-core:test`、`:fabric-mod:test`、`build`、golden/route-equivalence、dependency boundary、serialization round-trip、GameTest，以及 4 个 dedicated server self-test，并禁止 `FPVDRONE_UPDATE_GOLDEN_TRACES=true`。
 - 远端 CI 地址会在 draft PR 创建并触发 Actions 后生成；当前本地分支尚未合并，不应宣布 V1 已完成。
 

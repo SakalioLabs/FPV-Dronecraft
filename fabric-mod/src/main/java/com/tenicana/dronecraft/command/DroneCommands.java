@@ -851,7 +851,7 @@ public final class DroneCommands {
 			case PLAYABLE -> "Flight model mode: playable/direct Minecraft control layer";
 			case SIMULATION -> "Flight model mode: simulation/6DOF physics";
 		};
-		return description + "; existing drones keep their current model, 需要重生/reset 后生效";
+		return description + "; affects only newly spawned drones. Existing and saved drones keep their persisted flight_model_id; legacy saves without that field use the current global default.";
 	}
 
 	private static int environmentStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

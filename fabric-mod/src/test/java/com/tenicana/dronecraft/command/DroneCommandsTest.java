@@ -55,20 +55,21 @@ class DroneCommandsTest {
 	}
 
 	@Test
-	void flightModelModeMessageRequiresRespawnOrReset() throws Exception {
+	void flightModelModeMessageExplainsPersistedEntityPolicy() throws Exception {
 		Method method = DroneCommands.class.getDeclaredMethod("formatFlightModelMode");
 		method.setAccessible(true);
 
 		DroneDebugSettings.setFlightModelMode(DroneDebugSettings.FlightModelMode.PLAYABLE);
 		String playable = (String) method.invoke(null);
 		assertTrue(playable.contains("playable/direct"), playable);
-		assertTrue(playable.contains("需要重生/reset 后生效"), playable);
+		assertTrue(playable.contains("affects only newly spawned drones"), playable);
+		assertTrue(playable.contains("persisted flight_model_id"), playable);
 
 		DroneDebugSettings.setFlightModelMode(DroneDebugSettings.FlightModelMode.SIMULATION);
 		String simulation = (String) method.invoke(null);
 		assertTrue(simulation.contains("simulation/6DOF"), simulation);
-		assertTrue(simulation.contains("existing drones keep their current model"), simulation);
-		assertTrue(simulation.contains("需要重生/reset 后生效"), simulation);
+		assertTrue(simulation.contains("Existing and saved drones keep their persisted flight_model_id"), simulation);
+		assertTrue(simulation.contains("legacy saves without that field use the current global default"), simulation);
 		DroneDebugSettings.setFlightModelMode(DroneDebugSettings.FlightModelMode.PLAYABLE);
 	}
 
