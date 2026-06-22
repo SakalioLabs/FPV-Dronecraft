@@ -1,16 +1,23 @@
 package com.tenicana.dronecraft.entity;
 
 import java.util.Arrays;
+import java.util.UUID;
 
+import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
+import com.tenicana.dronecraft.sim.FlightMode;
+import com.tenicana.dronecraft.sim.MathUtil;
+import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.flight.ActuatorOutput;
 import com.tenicana.dronecraft.sim.flight.FlightModel;
+import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
 import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
 
 import net.minecraft.world.entity.EntityDimensions;
@@ -58,6 +65,59 @@ final class SimulationFlightRuntime {
 
 	boolean isRotorIndexValid(int rotorIndex) {
 		return rotorIndex >= 0 && rotorIndex < rotorCount();
+	}
+
+	DroneInput controlInput(UUID owner, int tickCount) {
+		return DroneControlManager.get(owner, tickCount, physics.state(), physics.config());
+	}
+
+	DroneConfig flightModelConfig() {
+		return physics.config();
+	}
+
+	double clampedHoverThrottle(double min, double max) {
+		return MathUtil.clamp(physics.config().hoverThrottle(), min, max);
+	}
+
+	FlightStateSnapshot flightStateSnapshot(Vec3 positionWorldMeters, Quaternion attitude, FlightMode flightMode, boolean armed) {
+		return flightStateSnapshot(
+				positionWorldMeters,
+				attitude,
+				physics.state().angularVelocityBodyRadiansPerSecond(),
+				flightMode,
+				armed
+		);
+	}
+
+	FlightStateSnapshot flightStateSnapshot(
+			Vec3 positionWorldMeters,
+			Quaternion attitude,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			FlightMode flightMode,
+			boolean armed
+	) {
+		DroneState state = physics.state();
+		return new FlightStateSnapshot(
+				positionWorldMeters,
+				state.velocityMetersPerSecond(),
+				attitude,
+				angularVelocityBodyRadiansPerSecond,
+				flightMode,
+				armed
+		);
+	}
+
+	FlightStateSnapshot simulationStateSnapshot() {
+		DroneState state = physics.state();
+		DroneInput processed = state.processedControlInput().normalized();
+		return new FlightStateSnapshot(
+				state.positionMeters(),
+				state.velocityMetersPerSecond(),
+				state.orientation(),
+				state.angularVelocityBodyRadiansPerSecond(),
+				processed.flightMode(),
+				processed.armed()
+		);
 	}
 
 	void setPositionMeters(Vec3 positionMeters) {
@@ -552,8 +612,55 @@ final class SimulationFlightRuntime {
 		physics.clearDirectFlightTelemetry(input);
 	}
 
+	DirectPerRotorTelemetry restoreDirectPerRotorTelemetry(
+			DroneInput input,
+			ActuatorOutput actuatorOutput,
+			double debugMotorPower,
+			double debugAverageMotorRpm
+	) {
+		int rotorCount = Math.max(1, rotorCount());
+		double[] motorPower = new double[rotorCount];
+		double[] motorRpm = new double[rotorCount];
+		double[] rotorThrust = new double[rotorCount];
+		double[] rotorHealth = physics.state().rotorHealth();
+		double[] modelMotorPower = actuatorOutput.motorPower();
+		double[] modelMotorRpm = actuatorOutput.motorRpm();
+		double[] modelRotorThrust = actuatorOutput.rotorThrustNewtons();
+		double basePower = input.armed() ? debugMotorPower : 0.0;
+		double baseRpm = input.armed() ? debugAverageMotorRpm : 0.0;
+		for (int i = 0; i < rotorCount; i++) {
+			double mix = 1.0 + rotorMixerPreview(i, input);
+			motorPower[i] = input.armed() && i < modelMotorPower.length
+					? MathUtil.clamp(modelMotorPower[i], 0.0, 1.0)
+					: MathUtil.clamp(basePower * mix, 0.0, 1.0);
+			motorRpm[i] = input.armed() && i < modelMotorRpm.length
+					? Math.max(0.0, modelMotorRpm[i])
+					: Math.max(0.0, baseRpm * mix);
+			rotorThrust[i] = input.armed() && i < modelRotorThrust.length
+					? Math.max(0.0, modelRotorThrust[i])
+					: motorPower[i] * physics.config().rotors().get(i).maxThrustNewtons() * 0.45;
+		}
+		restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
+		return new DirectPerRotorTelemetry(motorPower, motorRpm, rotorThrust, rotorHealth);
+	}
+
 	void restoreDirectFlightTelemetry(DroneInput input, double[] motorPower, double[] motorRpm, double[] rotorThrust) {
 		physics.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
+	}
+
+	private double rotorMixerPreview(int rotorIndex, DroneInput input) {
+		double rollSign = switch (rotorIndex & 3) {
+			case 0, 3 -> 1.0;
+			default -> -1.0;
+		};
+		double pitchSign = switch (rotorIndex & 3) {
+			case 0, 1 -> 1.0;
+			default -> -1.0;
+		};
+		double yawSign = physics.config().rotors().get(rotorIndex).spinDirection();
+		return 0.04 * input.roll() * rollSign
+				+ 0.04 * input.pitch() * pitchSign
+				+ 0.025 * input.yaw() * yawSign;
 	}
 
 	void sleepAtRest(Vec3 positionMeters, DroneInput input) {
@@ -620,6 +727,40 @@ final class SimulationFlightRuntime {
 	record RotorHealthState(double averageRotorHealth, double[] rotorHealth) {
 		RotorHealthState {
 			rotorHealth = copyOrNull(rotorHealth);
+		}
+
+		@Override
+		public double[] rotorHealth() {
+			return copyOrNull(rotorHealth);
+		}
+	}
+
+	record DirectPerRotorTelemetry(
+			double[] motorPower,
+			double[] motorRpm,
+			double[] rotorThrust,
+			double[] rotorHealth
+	) {
+		DirectPerRotorTelemetry {
+			motorPower = copyOrNull(motorPower);
+			motorRpm = copyOrNull(motorRpm);
+			rotorThrust = copyOrNull(rotorThrust);
+			rotorHealth = copyOrNull(rotorHealth);
+		}
+
+		@Override
+		public double[] motorPower() {
+			return copyOrNull(motorPower);
+		}
+
+		@Override
+		public double[] motorRpm() {
+			return copyOrNull(motorRpm);
+		}
+
+		@Override
+		public double[] rotorThrust() {
+			return copyOrNull(rotorThrust);
 		}
 
 		@Override

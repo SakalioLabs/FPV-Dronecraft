@@ -611,7 +611,7 @@ public class DroneEntity extends Entity {
 			decrementRotorStrikeCooldowns();
 
 			UUID activeOwner = getOwner();
-			DroneInput rawInput = activeOwner == null ? stableIdleInput() : DroneControlManager.get(activeOwner, tickCount, simulationRuntime.state(), simulationRuntime.config());
+			DroneInput rawInput = activeOwner == null ? stableIdleInput() : simulationRuntime.controlInput(activeOwner, tickCount);
 			DroneControlManager.ActiveInput sample = DroneDebugSettings.ownerlessControlEnabled()
 					? DroneControlManager.latestActiveInput(tickCount)
 					: null;
@@ -794,7 +794,7 @@ public class DroneEntity extends Entity {
 		flightModels.select(LegacyPlayableFlightModelAdapter.ID);
 		if (!playableInitialized) {
 			flightModels.initialize(new FlightModelInitializationContext(
-					simulationRuntime.config(),
+					simulationRuntime.flightModelConfig(),
 					playableEntitySnapshot(input),
 					environment,
 					tickCount
@@ -810,7 +810,7 @@ public class DroneEntity extends Entity {
 				environment,
 				1.0 / 20.0,
 				tickCount,
-				simulationRuntime.config(),
+				simulationRuntime.flightModelConfig(),
 				modelConfiguration
 		));
 	}
@@ -846,11 +846,9 @@ public class DroneEntity extends Entity {
 	}
 
 	private FlightStateSnapshot playableEntitySnapshot(DroneInput input) {
-		return new FlightStateSnapshot(
+		return simulationRuntime.flightStateSnapshot(
 				entityPhysicsPosition(),
-				simulationRuntime.state().velocityMetersPerSecond(),
 				attitudeQuaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
-				simulationRuntime.state().angularVelocityBodyRadiansPerSecond(),
 				input == null ? debugFlightMode : input.flightMode(),
 				input != null && input.armed()
 		);
@@ -858,9 +856,8 @@ public class DroneEntity extends Entity {
 
 	private FlightStateSnapshot playableResolvedSnapshot(FlightStateSnapshot modelState, DroneInput input) {
 		double resolvedYawDegrees = yawDegrees(modelState.attitude());
-		return new FlightStateSnapshot(
+		return simulationRuntime.flightStateSnapshot(
 				entityPhysicsPosition(),
-				simulationRuntime.state().velocityMetersPerSecond(),
 				attitudeQuaternion(resolvedYawDegrees, debugVisualPitchRadians, debugVisualRollRadians),
 				modelState.angularVelocityBodyRadiansPerSecond(),
 				debugFlightMode,
@@ -869,16 +866,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private FlightStateSnapshot simulationEntitySnapshot() {
-		DroneState state = simulationRuntime.state();
-		DroneInput processed = state.processedControlInput().normalized();
-		return new FlightStateSnapshot(
-				state.positionMeters(),
-				state.velocityMetersPerSecond(),
-				state.orientation(),
-				state.angularVelocityBodyRadiansPerSecond(),
-				processed.flightMode(),
-				processed.armed()
-		);
+		return simulationRuntime.simulationStateSnapshot();
 	}
 
 	private void applyResolvedFlightModelState(String modelId, FlightStateSnapshot resolvedState, StateCorrection correction) {
@@ -984,7 +972,7 @@ public class DroneEntity extends Entity {
 				environment,
 				dtSeconds,
 				tickCount,
-				simulationRuntime.config()
+				simulationRuntime.flightModelConfig()
 		));
 	}
 
@@ -1038,7 +1026,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private DroneInput directFailsafeInput() {
-		float hoverThrottle = (float) MathUtil.clamp(simulationRuntime.config().hoverThrottle(), 0.12, 0.55);
+		float hoverThrottle = (float) simulationRuntime.clampedHoverThrottle(0.12, 0.55);
 		float throttle = hoverThrottle * DEBUG_FAILSAFE_THROTTLE_SCALE;
 		return new DroneInput(throttle, 0.0, 0.0, 0.0, true, false, DEFAULT_ENTITY_FLIGHT_MODE);
 	}
@@ -1143,45 +1131,13 @@ public class DroneEntity extends Entity {
 	}
 
 	private void setDirectPerRotorState(DroneInput input) {
-		int rotorCount = Math.max(1, simulationRuntime.config().rotors().size());
-		double[] motorPower = new double[rotorCount];
-		double[] motorRpm = new double[rotorCount];
-		double[] rotorThrust = new double[rotorCount];
-		double[] rotorHealth = simulationRuntime.state().rotorHealth();
-		double[] modelMotorPower = playableActuatorOutput.motorPower();
-		double[] modelMotorRpm = playableActuatorOutput.motorRpm();
-		double[] modelRotorThrust = playableActuatorOutput.rotorThrustNewtons();
-		double basePower = input.armed() ? debugMotorPower : 0.0;
-		double baseRpm = input.armed() ? debugAverageMotorRpm : 0.0;
-		for (int i = 0; i < rotorCount; i++) {
-			double mix = 1.0 + rotorMixerPreview(i, input);
-			motorPower[i] = input.armed() && i < modelMotorPower.length
-					? MathUtil.clamp(modelMotorPower[i], 0.0, 1.0)
-					: MathUtil.clamp(basePower * mix, 0.0, 1.0);
-			motorRpm[i] = input.armed() && i < modelMotorRpm.length
-					? Math.max(0.0, modelMotorRpm[i])
-					: Math.max(0.0, baseRpm * mix);
-			rotorThrust[i] = input.armed() && i < modelRotorThrust.length
-					? Math.max(0.0, modelRotorThrust[i])
-					: motorPower[i] * simulationRuntime.config().rotors().get(i).maxThrustNewtons() * 0.45;
-		}
-		simulationRuntime.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
-		setPerRotorFlightState(motorPower, motorRpm, rotorThrust, rotorHealth);
-	}
-
-	private double rotorMixerPreview(int rotorIndex, DroneInput input) {
-		double rollSign = switch (rotorIndex & 3) {
-			case 0, 3 -> 1.0;
-			default -> -1.0;
-		};
-		double pitchSign = switch (rotorIndex & 3) {
-			case 0, 1 -> 1.0;
-			default -> -1.0;
-		};
-		double yawSign = simulationRuntime.config().rotors().get(rotorIndex).spinDirection();
-		return 0.04 * input.roll() * rollSign
-				+ 0.04 * input.pitch() * pitchSign
-				+ 0.025 * input.yaw() * yawSign;
+		SimulationFlightRuntime.DirectPerRotorTelemetry telemetry = simulationRuntime.restoreDirectPerRotorTelemetry(
+				input,
+				playableActuatorOutput,
+				debugMotorPower,
+				debugAverageMotorRpm
+		);
+		setPerRotorFlightState(telemetry.motorPower(), telemetry.motorRpm(), telemetry.rotorThrust(), telemetry.rotorHealth());
 	}
 
 	private static final float DEBUG_ARM_THRUST_THRESHOLD = 0.005f;

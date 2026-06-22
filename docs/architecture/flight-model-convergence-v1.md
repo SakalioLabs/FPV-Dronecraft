@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 direct/playable 输入与遥测投影增量
+
+- `SimulationFlightRuntime` 已承接 owner control input、flight model context config、playable/simulation snapshot、direct failsafe hover throttle 和 direct per-rotor telemetry 预览。
+- `DroneEntity` 的 direct/playable 调试飞行路径不再直接把 `DroneState`/`DroneConfig` 传给控制输入、快照和每桨遥测计算。
+- 本增量只移动读取边界，保留原有 failsafe throttle clamp、rotor mixer preview、actuator fallback 和模型输出角速度语义。
+
 ## 2026-06-22 rotor health 投影增量
 
 - `SimulationFlightRuntime.RotorHealthState` 已承接 rotor health / average rotor health 的 damage sync 读取。

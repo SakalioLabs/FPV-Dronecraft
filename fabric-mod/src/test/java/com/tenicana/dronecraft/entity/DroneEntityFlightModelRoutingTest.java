@@ -39,6 +39,18 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("public void applyConfig(DroneConfig config, String presetName)"),
 				source.indexOf("private void replaceSimulationRuntime")
 		);
+		String tickMethod = source.substring(
+				source.indexOf("public void tick()"),
+				source.indexOf("private void applyDebugFlight")
+		);
+		String playableStepMethods = source.substring(
+				source.indexOf("private void applyDebugFlight"),
+				source.indexOf("private void applyDebugMovement")
+		);
+		String directControlMethods = source.substring(
+				source.indexOf("private DroneInput directFailsafeInput"),
+				source.indexOf("private static final float DEBUG_ARM_THRUST_THRESHOLD")
+		);
 		String damageSyncMethods = source.substring(
 				source.indexOf("private boolean isAirworthy"),
 				source.indexOf("private void recordBlackbox")
@@ -91,6 +103,17 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(dimensionsMethod.contains("simulationRuntime.config()"), "airframe dimensions should be projected by SimulationFlightRuntime");
 		assertFalse(layoutMethod.contains("simulationRuntime.config()"), "airframe layout should be projected by SimulationFlightRuntime");
 		assertFalse(applyConfigMethod.contains("simulationRuntime.config()"), "config comparison should be projected by SimulationFlightRuntime");
+		assertTrue(tickMethod.contains("simulationRuntime.controlInput(activeOwner, tickCount)"), "owner control input should be projected by SimulationFlightRuntime");
+		assertFalse(tickMethod.contains("DroneControlManager.get(activeOwner"), "DroneEntity should not pass DroneState/DroneConfig into control input directly");
+		assertTrue(playableStepMethods.contains("simulationRuntime.flightModelConfig()"), "flight model context config should cross the runtime boundary");
+		assertTrue(playableStepMethods.contains("simulationRuntime.flightStateSnapshot("), "playable snapshots should be projected by SimulationFlightRuntime");
+		assertTrue(playableStepMethods.contains("simulationRuntime.simulationStateSnapshot()"), "simulation snapshots should be projected by SimulationFlightRuntime");
+		assertFalse(playableStepMethods.contains("simulationRuntime.state()"), "playable/simulation snapshots should not read DroneState directly");
+		assertFalse(playableStepMethods.contains("simulationRuntime.config()"), "playable/simulation model stepping should not read DroneConfig directly");
+		assertTrue(directControlMethods.contains("simulationRuntime.restoreDirectPerRotorTelemetry("), "direct per-rotor telemetry should be projected by SimulationFlightRuntime");
+		assertTrue(directControlMethods.contains("simulationRuntime.clampedHoverThrottle("), "direct failsafe throttle should be projected by SimulationFlightRuntime");
+		assertFalse(directControlMethods.contains("simulationRuntime.state()"), "direct control telemetry should not read DroneState directly");
+		assertFalse(directControlMethods.contains("simulationRuntime.config()"), "direct control telemetry should not read DroneConfig directly");
 		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");
