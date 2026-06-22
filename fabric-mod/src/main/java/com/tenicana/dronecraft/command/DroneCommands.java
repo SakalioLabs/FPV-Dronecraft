@@ -8,6 +8,10 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import com.mojang.brigadier.CommandDispatcher;
@@ -26,6 +30,7 @@ import net.minecraft.world.phys.AABB;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSummary;
+import com.tenicana.dronecraft.blackbox.DroneFlightTraceFiles;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
@@ -42,6 +47,10 @@ public final class DroneCommands {
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 	private static final double SPAWN_FORWARD_METERS = 1.65;
 	private static final double SPAWN_GROUND_OFFSET_METERS = 0.04;
+	private static final Map<UUID, FpvDiagSession> FPVDIAG_SESSIONS = new ConcurrentHashMap<>();
+
+	private record FpvDiagSession(int startTick, LocalDateTime startedAt, String commitSha) {
+	}
 
 	private DroneCommands() {
 	}
@@ -280,6 +289,10 @@ public final class DroneCommands {
 								.then(tuneParameter("rc_resolution", 0.0, 65535.0, (config, value) -> config.withControlReceiver(config.rcFrameRateHertz(), value)))
 								.then(tuneParameter("attitude_accel_gain", 0.0, 10.0, (config, value) -> config.withAttitudeEstimator(value, config.attitudeEstimatorAccelerometerTrustMarginMetersPerSecondSquared())))
 								.then(tuneParameter("attitude_accel_trust", 0.1, 12.0, (config, value) -> config.withAttitudeEstimator(config.attitudeEstimatorAccelerometerCorrectionGain(), value))))));
+		dispatcher.register(Commands.literal("fpvdiag")
+				.then(Commands.literal("start").executes(context -> fpvdiagStart(context.getSource())))
+				.then(Commands.literal("status").executes(context -> fpvdiagStatus(context.getSource())))
+				.then(Commands.literal("stop").executes(context -> fpvdiagStop(context.getSource()))));
 	}
 
 	private static LiteralArgumentBuilder<CommandSourceStack> tuneParameter(String name, TuningSetter setter) {
@@ -587,6 +600,137 @@ public final class DroneCommands {
 
 		source.sendSuccess(() -> Component.literal("Blackbox saved: " + output.toAbsolutePath()), false);
 		return drone.blackbox().size();
+	}
+
+	private static int fpvdiagStart(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		DroneEntity drone = findOwnedDrone(source);
+		if (drone == null) {
+			source.sendFailure(Component.literal("No linked drone found nearby."));
+			return 0;
+		}
+
+		ServerPlayer player = source.getPlayerOrException();
+		if (FPVDIAG_SESSIONS.containsKey(player.getUUID())) {
+			source.sendFailure(Component.literal("FPV diagnostic trace is already recording. Use /fpvdiag stop first."));
+			return 0;
+		}
+
+		String commitSha = currentCommitSha();
+		FPVDIAG_SESSIONS.put(player.getUUID(), new FpvDiagSession(drone.tickCount, LocalDateTime.now(), commitSha));
+		drone.blackbox().clear();
+		source.sendSuccess(
+				() -> Component.literal("FPV diagnostic trace started: samples cleared, commit " + DroneFlightTraceFiles.safeCommitSha(commitSha) + "."),
+				false
+		);
+		return 1;
+	}
+
+	private static int fpvdiagStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		DroneEntity drone = findOwnedDrone(source);
+		if (drone == null) {
+			source.sendFailure(Component.literal("No linked drone found nearby."));
+			return 0;
+		}
+
+		ServerPlayer player = source.getPlayerOrException();
+		FpvDiagSession session = FPVDIAG_SESSIONS.get(player.getUUID());
+		if (session == null) {
+			source.sendSuccess(
+					() -> Component.literal("FPV diagnostic trace idle. Blackbox samples: " + drone.blackbox().size() + "/" + drone.blackbox().capacity()),
+					false
+			);
+			return 0;
+		}
+
+		double elapsedSeconds = Math.max(0, drone.tickCount - session.startTick()) / 20.0;
+		source.sendSuccess(
+				() -> Component.literal(String.format(
+						java.util.Locale.ROOT,
+						"FPV diagnostic trace active: %.1fs, samples %d/%d, commit %s.",
+						elapsedSeconds,
+						drone.blackbox().size(),
+						drone.blackbox().capacity(),
+						DroneFlightTraceFiles.safeCommitSha(session.commitSha())
+				)),
+				false
+		);
+		return 1;
+	}
+
+	private static int fpvdiagStop(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
+		DroneEntity drone = findOwnedDrone(source);
+		if (drone == null) {
+			source.sendFailure(Component.literal("No linked drone found nearby."));
+			return 0;
+		}
+
+		ServerPlayer player = source.getPlayerOrException();
+		FpvDiagSession session = FPVDIAG_SESSIONS.remove(player.getUUID());
+		if (session == null) {
+			source.sendFailure(Component.literal("No FPV diagnostic trace is recording."));
+			return 0;
+		}
+
+		Path directory = source.getServer().getFile(DroneFlightTraceFiles.DIRECTORY_NAME);
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(drone.blackbox());
+		Path output;
+		try {
+			output = DroneFlightTraceFiles.write(
+					directory,
+					player.getUUID(),
+					session.startedAt(),
+					session.commitSha(),
+					drone.blackbox().toCsv()
+			);
+		} catch (IOException exception) {
+			source.sendFailure(Component.literal("Failed to save FPV diagnostic trace: " + exception.getMessage()));
+			return 0;
+		}
+
+		String summaryText = summary.hasSamples() ? summary.formatForChat() : "Blackbox summary: no samples.";
+		source.sendSuccess(
+				() -> Component.literal("FPV diagnostic trace saved: " + output.toAbsolutePath() + " | " + summaryText),
+				false
+		);
+		return Math.max(1, drone.blackbox().size());
+	}
+
+	private static String currentCommitSha() {
+		String configuredSha = firstKnownCommitSha(
+				System.getProperty("fpvdrone.git.sha"),
+				System.getProperty("fpvdrone.commitSha"),
+				System.getenv("GIT_COMMIT")
+		);
+		if (!"unknown".equals(configuredSha)) {
+			return configuredSha;
+		}
+		try {
+			Process process = new ProcessBuilder("git", "rev-parse", "--short=12", "HEAD")
+					.redirectErrorStream(true)
+					.start();
+			if (!process.waitFor(2, TimeUnit.SECONDS)) {
+				process.destroyForcibly();
+				return "unknown";
+			}
+			if (process.exitValue() != 0) {
+				return "unknown";
+			}
+			return new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8).trim();
+		} catch (IOException | InterruptedException exception) {
+			if (exception instanceof InterruptedException) {
+				Thread.currentThread().interrupt();
+			}
+			return "unknown";
+		}
+	}
+
+	private static String firstKnownCommitSha(String... candidates) {
+		for (String candidate : candidates) {
+			if (!"unknown".equals(DroneFlightTraceFiles.safeCommitSha(candidate))) {
+				return candidate;
+			}
+		}
+		return "unknown";
 	}
 
 	private static int diagnosticStart(CommandSourceStack source, int seconds) throws com.mojang.brigadier.exceptions.CommandSyntaxException {
