@@ -30,6 +30,14 @@ final class SimulationFlightRuntime {
 		return physics.config();
 	}
 
+	int rotorCount() {
+		return physics.config().rotors().size();
+	}
+
+	int motorCount() {
+		return physics.state().motorCount();
+	}
+
 	void setPositionMeters(Vec3 positionMeters) {
 		physics.state().setPositionMeters(positionMeters);
 	}
@@ -283,6 +291,44 @@ final class SimulationFlightRuntime {
 		return physics.state().gyroBladePassNotchSpreadHertz();
 	}
 
+	BatteryTransientState batteryTransientStateSnapshot() {
+		DroneState state = physics.state();
+		return new BatteryTransientState(
+				state.batterySlowPolarizationVoltage(),
+				state.batteryTemperatureCelsius(),
+				state.batteryCoolingFactor(),
+				state.batteryThermalLimit()
+		);
+	}
+
+	PersistenceState persistenceStateSnapshot() {
+		DroneState state = physics.state();
+		int motorCount = state.motorCount();
+		double[] motorTemperaturesCelsius = new double[motorCount];
+		double[] escTemperaturesCelsius = new double[motorCount];
+		double[] motorCoolingFactors = new double[motorCount];
+		double[] escCoolingFactors = new double[motorCount];
+		for (int i = 0; i < motorCount; i++) {
+			motorTemperaturesCelsius[i] = state.motorTemperatureCelsius(i);
+			escTemperaturesCelsius[i] = state.escTemperatureCelsius(i);
+			motorCoolingFactors[i] = state.motorCoolingFactor(i);
+			escCoolingFactors[i] = state.escCoolingFactor(i);
+		}
+		return new PersistenceState(
+				state.batteryAmpSecondsConsumed(),
+				state.batteryEquivalentCycles(),
+				state.batterySlowPolarizationVoltage(),
+				state.batteryTemperatureCelsius(),
+				state.batteryCoolingFactor(),
+				state.batteryThermalLimit(),
+				motorTemperaturesCelsius,
+				escTemperaturesCelsius,
+				motorCoolingFactors,
+				escCoolingFactors,
+				state.rotorHealth()
+		);
+	}
+
 	SyncedFlightTelemetry syncedTelemetry(DroneEnvironment environment) {
 		DroneState state = physics.state();
 		DroneConfig config = physics.config();
@@ -531,6 +577,60 @@ final class SimulationFlightRuntime {
 			double motorPolePairs
 	) {
 		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(mechanicalRpm, telemetryValidity, motorPolePairs);
+	}
+
+	record BatteryTransientState(
+			double slowPolarizationVoltage,
+			double temperatureCelsius,
+			double coolingFactor,
+			double thermalLimit
+	) {}
+
+	record PersistenceState(
+			double batteryAmpSecondsConsumed,
+			double batteryEquivalentCycles,
+			double batterySlowPolarizationVoltage,
+			double batteryTemperatureCelsius,
+			double batteryCoolingFactor,
+			double batteryThermalLimit,
+			double[] motorTemperaturesCelsius,
+			double[] escTemperaturesCelsius,
+			double[] motorCoolingFactors,
+			double[] escCoolingFactors,
+			double[] rotorHealth
+	) {
+		PersistenceState {
+			motorTemperaturesCelsius = copyOrNull(motorTemperaturesCelsius);
+			escTemperaturesCelsius = copyOrNull(escTemperaturesCelsius);
+			motorCoolingFactors = copyOrNull(motorCoolingFactors);
+			escCoolingFactors = copyOrNull(escCoolingFactors);
+			rotorHealth = copyOrNull(rotorHealth);
+		}
+
+		@Override
+		public double[] motorTemperaturesCelsius() {
+			return copyOrNull(motorTemperaturesCelsius);
+		}
+
+		@Override
+		public double[] escTemperaturesCelsius() {
+			return copyOrNull(escTemperaturesCelsius);
+		}
+
+		@Override
+		public double[] motorCoolingFactors() {
+			return copyOrNull(motorCoolingFactors);
+		}
+
+		@Override
+		public double[] escCoolingFactors() {
+			return copyOrNull(escCoolingFactors);
+		}
+
+		@Override
+		public double[] rotorHealth() {
+			return copyOrNull(rotorHealth);
+		}
 	}
 
 	record SyncedFlightTelemetry(

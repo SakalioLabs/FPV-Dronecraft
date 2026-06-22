@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 存档投影 snapshot 增量
+
+- `SimulationFlightRuntime.PersistenceState` 已承接 `DroneEntity.addAdditionalSaveData(...)` 中的 battery、powertrain thermal 与 rotor health 持久化读取。
+- `SimulationFlightRuntime.BatteryTransientState`、`rotorCount()` 与 `motorCount()` 已用于 load/save 辅助路径，减少 entity 层直接读取 simulation state/config 的存档投影。
+- 本增量不修改任何存档 key、默认值或恢复顺序；dynamic/aerodynamic transient 字段仍沿用既有专用 snapshot。
+
 ## 2026-06-22 同步遥测 snapshot 增量
 
 - `SimulationFlightRuntime.SyncedFlightTelemetry` 已承接 `DroneEntity.updateSyncedFlightState(...)` 中的 HUD/网络同步遥测读取与单位投影。

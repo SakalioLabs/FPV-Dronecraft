@@ -19,6 +19,14 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private void updateSyncedFlightState"),
 				source.indexOf("private FlightMode syncedFlightMode")
 		);
+		String saveMethod = source.substring(
+				source.indexOf("protected void addAdditionalSaveData"),
+				source.indexOf("protected void readAdditionalSaveData")
+		);
+		String loadBatteryMethod = source.substring(
+				source.indexOf("private void loadBatteryTransientState"),
+				source.indexOf("private void saveRotorDynamicState")
+		);
 
 		assertFalse(source.contains("physics.step("), "DroneEntity should call FlightModel.step instead of DronePhysics.step directly");
 		assertFalse(source.contains("PlayableFlightModel."), "DroneEntity should route playable math through LegacyPlayableFlightModelAdapter");
@@ -60,6 +68,10 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(syncedFlightStateMethod.contains("simulationRuntime.syncedTelemetry(lastEnvironment)"), "synced entity telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(syncedFlightStateMethod.contains("simulationRuntime.state()"), "synced entity telemetry should not read DroneState directly");
 		assertFalse(syncedFlightStateMethod.contains("simulationRuntime.config()"), "synced entity telemetry should not read DroneConfig directly");
+		assertTrue(saveMethod.contains("simulationRuntime.persistenceStateSnapshot()"), "simulation persistence should be projected by SimulationFlightRuntime");
+		assertFalse(saveMethod.contains("simulationRuntime.state()"), "simulation persistence should not read DroneState directly");
+		assertTrue(loadBatteryMethod.contains("simulationRuntime.batteryTransientStateSnapshot()"), "battery transient defaults should be projected by SimulationFlightRuntime");
+		assertFalse(loadBatteryMethod.contains("simulationRuntime.state()"), "battery transient defaults should not read DroneState directly");
 		assertTrue(source.contains("SimulationFlightRuntime simulationRuntime"), "DroneEntity should hold simulation internals behind a runtime facade");
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");

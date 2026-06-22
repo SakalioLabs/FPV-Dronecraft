@@ -3654,21 +3654,26 @@ public class DroneEntity extends Entity {
 			output.putString("owner", owner.toString());
 		}
 		output.putDouble("frame_health", frameHealth);
-		output.putDouble("battery_amp_seconds_consumed", simulationRuntime.state().batteryAmpSecondsConsumed());
-		output.putDouble("battery_equivalent_cycles", simulationRuntime.state().batteryEquivalentCycles());
-		output.putDouble("battery_slow_polarization_v", simulationRuntime.state().batterySlowPolarizationVoltage());
-		output.putDouble("battery_temp_c", simulationRuntime.state().batteryTemperatureCelsius());
-		output.putDouble("battery_cooling_factor", simulationRuntime.state().batteryCoolingFactor());
-		output.putDouble("battery_thermal_limit", simulationRuntime.state().batteryThermalLimit());
-		for (int i = 0; i < simulationRuntime.state().motorCount(); i++) {
-			output.putDouble("motor_temperature_c_" + i, simulationRuntime.state().motorTemperatureCelsius(i));
-			output.putDouble("esc_temperature_c_" + i, simulationRuntime.state().escTemperatureCelsius(i));
-			output.putDouble("motor_cooling_factor_" + i, simulationRuntime.state().motorCoolingFactor(i));
-			output.putDouble("esc_cooling_factor_" + i, simulationRuntime.state().escCoolingFactor(i));
+		SimulationFlightRuntime.PersistenceState persistence = simulationRuntime.persistenceStateSnapshot();
+		output.putDouble("battery_amp_seconds_consumed", persistence.batteryAmpSecondsConsumed());
+		output.putDouble("battery_equivalent_cycles", persistence.batteryEquivalentCycles());
+		output.putDouble("battery_slow_polarization_v", persistence.batterySlowPolarizationVoltage());
+		output.putDouble("battery_temp_c", persistence.batteryTemperatureCelsius());
+		output.putDouble("battery_cooling_factor", persistence.batteryCoolingFactor());
+		output.putDouble("battery_thermal_limit", persistence.batteryThermalLimit());
+		double[] motorTemperaturesCelsius = persistence.motorTemperaturesCelsius();
+		double[] escTemperaturesCelsius = persistence.escTemperaturesCelsius();
+		double[] motorCoolingFactors = persistence.motorCoolingFactors();
+		double[] escCoolingFactors = persistence.escCoolingFactors();
+		for (int i = 0; i < motorTemperaturesCelsius.length; i++) {
+			output.putDouble("motor_temperature_c_" + i, motorTemperaturesCelsius[i]);
+			output.putDouble("esc_temperature_c_" + i, escTemperaturesCelsius[i]);
+			output.putDouble("motor_cooling_factor_" + i, motorCoolingFactors[i]);
+			output.putDouble("esc_cooling_factor_" + i, escCoolingFactors[i]);
 		}
 		saveRotorDynamicState(output);
 		saveAerodynamicTransientState(output);
-		double[] rotorHealth = simulationRuntime.state().rotorHealth();
+		double[] rotorHealth = persistence.rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
 		}
@@ -3695,7 +3700,7 @@ public class DroneEntity extends Entity {
 		loadRotorDynamicState(input);
 		loadAerodynamicTransientState(input);
 		simulationRuntime.repairAllRotors();
-		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
+		for (int i = 0; i < simulationRuntime.rotorCount(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
 			simulationRuntime.damageRotor(i, 1.0 - health);
 		}
@@ -3714,12 +3719,12 @@ public class DroneEntity extends Entity {
 			return;
 		}
 
-		DroneState state = simulationRuntime.state();
+		SimulationFlightRuntime.BatteryTransientState current = simulationRuntime.batteryTransientStateSnapshot();
 		simulationRuntime.restoreBatteryTransientState(
-				Double.isFinite(slowPolarization) ? slowPolarization : state.batterySlowPolarizationVoltage(),
-				Double.isFinite(temperatureCelsius) ? temperatureCelsius : state.batteryTemperatureCelsius(),
-				Double.isFinite(coolingFactor) ? coolingFactor : state.batteryCoolingFactor(),
-				Double.isFinite(thermalLimit) ? thermalLimit : state.batteryThermalLimit()
+				Double.isFinite(slowPolarization) ? slowPolarization : current.slowPolarizationVoltage(),
+				Double.isFinite(temperatureCelsius) ? temperatureCelsius : current.temperatureCelsius(),
+				Double.isFinite(coolingFactor) ? coolingFactor : current.coolingFactor(),
+				Double.isFinite(thermalLimit) ? thermalLimit : current.thermalLimit()
 		);
 	}
 
@@ -3736,7 +3741,7 @@ public class DroneEntity extends Entity {
 		double[] wakeCarryover = dynamicState.rotorInducedWakeCarryoverIntensity();
 		double[] surfaceWetness = dynamicState.rotorSurfaceWetness();
 		double[] icingSeverity = dynamicState.rotorIcingSeverity();
-		for (int i = 0; i < simulationRuntime.state().motorCount(); i++) {
+		for (int i = 0; i < simulationRuntime.motorCount(); i++) {
 			output.putDouble("motor_omega_rad_s_" + i, motorOmega[i]);
 			output.putDouble("esc_output_command_" + i, escOutput[i]);
 			output.putDouble("esc_electrical_output_command_" + i, escElectricalOutput[i]);
@@ -3757,7 +3762,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void loadPowertrainThermalState(ValueInput input) {
-		int count = simulationRuntime.config().rotors().size();
+		int count = simulationRuntime.rotorCount();
 		double[] motorTemperaturesCelsius = new double[count];
 		double[] escTemperaturesCelsius = new double[count];
 		double[] motorCoolingFactors = new double[count];
@@ -3791,7 +3796,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void loadRotorDynamicState(ValueInput input) {
-		int count = simulationRuntime.config().rotors().size();
+		int count = simulationRuntime.rotorCount();
 		double[] motorOmega = new double[count];
 		double[] escOutput = new double[count];
 		double[] escElectricalOutput = new double[count];
