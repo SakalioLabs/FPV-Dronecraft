@@ -4844,6 +4844,99 @@ class PlayableFlightModelTest {
 	}
 
 	@Test
+	void smallAcroYawCommandKeepsCommandedDirectionDuringOpposingSideslip() {
+		PlayableFlightModel.Step rightCommand = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				0.08f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						1.0f,
+						1.0f
+				)
+		);
+		PlayableFlightModel.Step leftCommand = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.45f,
+				0.0f,
+				0.0f,
+				-0.08f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						-16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						1.0f,
+						1.0f
+				)
+		);
+
+		assertTrue(rightCommand.yawDegreesPerTick() > 0.0f, "rightCommandYaw=" + rightCommand.yawDegreesPerTick());
+		assertTrue(leftCommand.yawDegreesPerTick() < 0.0f, "leftCommandYaw=" + leftCommand.yawDegreesPerTick());
+	}
+
+	@Test
+	void activeAcroPitchDoesNotInheritPassiveRollFromYawSideslip() {
+		PlayableFlightModel.Step pitchOnly = PlayableFlightModel.step(
+				FlightMode.ACRO,
+				0.55f,
+				0.55f,
+				0.0f,
+				0.0f,
+				0.20f,
+				false,
+				new PlayableFlightModel.State(
+						16.0f,
+						0.0f,
+						16.0f,
+						0.0f,
+						0.0f,
+						0.0f,
+						FlightMode.ACRO,
+						0,
+						1.0f,
+						0.0f,
+						0.0f,
+						0,
+						1.0f,
+						1.0f
+				)
+		);
+
+		assertTrue(Math.abs(pitchOnly.acroPitchRateRadiansPerTick()) > Math.toRadians(2.0),
+				"pitchRateDeg=" + Math.toDegrees(pitchOnly.acroPitchRateRadiansPerTick()));
+		assertTrue(Math.abs(pitchOnly.acroRollRateRadiansPerTick()) < Math.toRadians(0.12),
+				"rollRateDeg=" + Math.toDegrees(pitchOnly.acroRollRateRadiansPerTick()));
+		assertTrue(Math.abs(pitchOnly.rollRadians()) < Math.toRadians(0.12),
+				"rollDeg=" + Math.toDegrees(pitchOnly.rollRadians()));
+	}
+
+	@Test
 	void acroSideslipYawCommandLoadMakesHighSpeedYawFeelHeavier() {
 		float straight = PlayableFlightModel.acroSideslipYawCommandLoad(
 				new PlayableFlightModel.Velocity(0.0f, 0.0f, 25.0f)

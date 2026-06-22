@@ -348,7 +348,7 @@ final class PlayableFlightModel {
 				safePrevious.pitchRadians(),
 				safePrevious.rollRadians()
 		);
-		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, safeThrottle, safeHover, acroRateCrossflowLag, acroRateSidewashMemory, profile);
+		AcroRateResponse acroRate = acroRateResponse(safeMode, safePrevious, attitudePitch, attitudeRoll, yawCommand, safeThrottle, safeHover, acroRateCrossflowLag, acroRateSidewashMemory, profile);
 		Attitude attitude = attitude(safeMode, profile, attitudePitch, attitudeRoll, safePrevious, acroRate);
 		float pitchRadians = completedAcroRotationAttitude(
 				safeMode,
@@ -857,6 +857,7 @@ final class PlayableFlightModel {
 			State previous,
 			float pitch,
 			float roll,
+			float yawCommand,
 			float throttle,
 			float hoverThrottle,
 			float acroAeroCrossflowLag,
@@ -892,7 +893,7 @@ final class PlayableFlightModel {
 		if (completedRollRecoveryTail) {
 			bodyRollRate = 0.0f;
 		} else {
-			float transverseRollMoment = acroTransverseFlowRollMomentRate(bodyVelocity, roll, throttle, hoverThrottle)
+			float transverseRollMoment = acroTransverseFlowRollMomentRate(bodyVelocity, pitch, roll, yawCommand, throttle, hoverThrottle)
 					* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
 			bodyRollRate += acroPassiveRateHoldLimitedTransverseRollMoment(
 					transverseRollMoment,
@@ -1354,6 +1355,17 @@ final class PlayableFlightModel {
 			float throttle,
 			float hoverThrottle
 	) {
+		return acroTransverseFlowRollMomentRate(bodyVelocity, 0.0f, rollCommand, 0.0f, throttle, hoverThrottle);
+	}
+
+	static float acroTransverseFlowRollMomentRate(
+			Velocity bodyVelocity,
+			float pitchCommand,
+			float rollCommand,
+			float yawCommand,
+			float throttle,
+			float hoverThrottle
+	) {
 		float horizontalSpeed = horizontalMagnitude(bodyVelocity.x(), bodyVelocity.z());
 		if (horizontalSpeed <= 1.0e-6f || Math.abs(bodyVelocity.x()) <= 1.0e-6f) {
 			return 0.0f;
@@ -1384,8 +1396,18 @@ final class PlayableFlightModel {
 					* muShape
 					* sideslipExposure;
 		}
-		float activeRollSuppression = smoothStep(Math.abs(rollCommand) / ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS);
-		float commandScale = lerp(1.0f, ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP, activeRollSuppression);
+		float activeYawCommand = Math.abs(finiteOrZero(yawCommand)) < ACRO_WEATHERCOCK_YAW_COMMAND_SUPPRESS
+				? Math.abs(finiteOrZero(yawCommand))
+				: 0.0f;
+		float activePitchCommand = Math.abs(finiteOrZero(pitchCommand)) <= ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS
+				? Math.abs(finiteOrZero(pitchCommand))
+				: 0.0f;
+		float activeCommand = Math.max(
+				Math.abs(finiteOrZero(rollCommand)),
+				Math.max(activePitchCommand, activeYawCommand)
+		);
+		float activeCommandSuppression = smoothStep(activeCommand / ACRO_TRANSVERSE_ROLL_COMMAND_SUPPRESS);
+		float commandScale = lerp(1.0f, ACRO_TRANSVERSE_ROLL_ACTIVE_KEEP, activeCommandSuppression);
 		return Math.signum(bodyVelocity.x())
 				* (airframeMoment + poweredMoment)
 				* commandScale;
@@ -3411,7 +3433,8 @@ final class PlayableFlightModel {
 				acroPitchRateRadiansPerTick,
 				acroRollRateRadiansPerTick
 		);
-		return acroAerodynamicYawRate(
+		float commandedYawDegreesPerTick = yawDegreesPerTick;
+		float aerodynamicYawDegreesPerTick = acroAerodynamicYawRate(
 				mode,
 				yawDegreesPerTick,
 				yawCommand,
@@ -3423,6 +3446,39 @@ final class PlayableFlightModel {
 				acroAeroCrossflowLag,
 				acroSidewashMemory
 		);
+		return preserveActiveYawCommandDirection(
+				mode,
+				yawCommand,
+				targetYawDegreesPerTick,
+				commandedYawDegreesPerTick,
+				aerodynamicYawDegreesPerTick
+		);
+	}
+
+	private static float preserveActiveYawCommandDirection(
+			FlightMode mode,
+			float yawCommand,
+			float targetYawDegreesPerTick,
+			float commandedYawDegreesPerTick,
+			float yawDegreesPerTick
+	) {
+		if (safeMode(mode) != FlightMode.ACRO || Math.abs(yawCommand) <= PLAYABLE_AXIS_NOISE_EPSILON) {
+			return yawDegreesPerTick;
+		}
+		float commandSign = Math.signum(yawCommand);
+		if (commandSign == 0.0f
+				|| Math.abs(yawDegreesPerTick) <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK
+				|| Math.signum(yawDegreesPerTick) == commandSign) {
+			return yawDegreesPerTick;
+		}
+		float reference = Math.signum(commandedYawDegreesPerTick) == commandSign
+				? commandedYawDegreesPerTick
+				: targetYawDegreesPerTick;
+		float magnitude = Math.min(Math.abs(finiteOrZero(reference)), Math.abs(yawDegreesPerTick));
+		if (magnitude <= YAW_SETTLE_EPSILON_DEGREES_PER_TICK) {
+			magnitude = Math.abs(finiteOrZero(reference));
+		}
+		return commandSign * magnitude;
 	}
 
 	private static float yawSmoothing(float current, float target, Profile profile) {
