@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.entity;
 
 import java.util.Arrays;
 
+import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
@@ -25,6 +26,77 @@ final class SimulationFlightRuntime {
 
 	DroneConfig config() {
 		return physics.config();
+	}
+
+	void setPositionMeters(Vec3 positionMeters) {
+		physics.state().setPositionMeters(positionMeters);
+	}
+
+	void setVelocityMetersPerSecond(Vec3 velocityMetersPerSecond) {
+		physics.state().setVelocityMetersPerSecond(velocityMetersPerSecond);
+	}
+
+	void setPositionAndVelocityMeters(Vec3 positionMeters, Vec3 velocityMetersPerSecond) {
+		setPositionMeters(positionMeters);
+		setVelocityMetersPerSecond(velocityMetersPerSecond);
+	}
+
+	void setAngularVelocityBodyRadiansPerSecond(Vec3 angularVelocityBodyRadiansPerSecond) {
+		physics.state().setAngularVelocityBodyRadiansPerSecond(angularVelocityBodyRadiansPerSecond);
+	}
+
+	void addAngularVelocityBodyRadiansPerSecond(Vec3 deltaBodyRadiansPerSecond, double min, double max) {
+		physics.state().setAngularVelocityBodyRadiansPerSecond(
+				physics.state().angularVelocityBodyRadiansPerSecond().add(deltaBodyRadiansPerSecond).clamp(min, max)
+		);
+	}
+
+	void setContactTelemetry(double impactSpeedMetersPerSecond, double slipSpeedMetersPerSecond, double bounceSpeedMetersPerSecond) {
+		physics.state().setContactTelemetry(impactSpeedMetersPerSecond, slipSpeedMetersPerSecond, bounceSpeedMetersPerSecond);
+	}
+
+	void setContactTelemetry(
+			double impactSpeedMetersPerSecond,
+			double slipSpeedMetersPerSecond,
+			double bounceSpeedMetersPerSecond,
+			Vec3 angularImpulseBodyRadiansPerSecond,
+			ContactDynamics.ContactSurface contactSurface
+	) {
+		physics.state().setContactTelemetry(
+				impactSpeedMetersPerSecond,
+				slipSpeedMetersPerSecond,
+				bounceSpeedMetersPerSecond,
+				angularImpulseBodyRadiansPerSecond,
+				contactSurface
+		);
+	}
+
+	void setContactSurfaceTelemetry(ContactDynamics.ContactSurface contactSurface) {
+		physics.state().setContactSurfaceTelemetry(contactSurface);
+	}
+
+	void addRotorSurfaceScrapeIntensity(int rotorIndex, double scrapeIntensity) {
+		physics.state().addRotorSurfaceScrapeIntensity(rotorIndex, scrapeIntensity);
+	}
+
+	void damageAllRotors(double damage) {
+		physics.state().damageAllRotors(damage);
+	}
+
+	void damageRotor(int rotorIndex, double damage) {
+		physics.state().damageRotor(rotorIndex, damage);
+	}
+
+	void repairAllRotors() {
+		physics.state().repairAllRotors();
+	}
+
+	void setBatteryAmpSecondsConsumed(double ampSecondsConsumed) {
+		physics.state().setBatteryAmpSecondsConsumed(ampSecondsConsumed);
+	}
+
+	void setBatteryEquivalentCycles(double equivalentCycles) {
+		physics.state().setBatteryEquivalentCycles(equivalentCycles);
 	}
 
 	FlightModel flightModel() {

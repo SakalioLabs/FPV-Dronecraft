@@ -20,6 +20,14 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(source.contains("PlayableFlightModel."), "DroneEntity should route playable math through LegacyPlayableFlightModelAdapter");
 		assertFalse(source.contains("DronePhysics"), "DroneEntity should not construct or type the simulation internals directly");
 		assertFalse(source.contains("new DronePhysics"), "simulation runtime construction should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().setPositionMeters"), "canonical position writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().setVelocityMetersPerSecond"), "canonical velocity writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().setAngularVelocityBodyRadiansPerSecond"), "canonical angular-rate writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().setContactTelemetry"), "contact state writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().damageRotor"), "rotor damage writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().damageAllRotors"), "rotor damage writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().repairAllRotors"), "rotor repair writes should stay behind SimulationFlightRuntime");
+		assertFalse(source.contains("simulationRuntime.state().setBattery"), "battery persistence writes should stay behind SimulationFlightRuntime");
 		assertTrue(source.contains("SimulationFlightRuntime simulationRuntime"), "DroneEntity should hold simulation internals behind a runtime facade");
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");

@@ -601,7 +601,7 @@ public class DroneEntity extends Entity {
 
 		if (!level().isClientSide()) {
 			if (!simulationInitialized) {
-				simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
+				simulationRuntime.setPositionMeters(entityPhysicsPosition());
 				simulationInitialized = true;
 			}
 
@@ -1030,8 +1030,10 @@ public class DroneEntity extends Entity {
 			debugVelocityY = 0.0f;
 		}
 
-		simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
-		simulationRuntime.state().setVelocityMetersPerSecond(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
+		simulationRuntime.setPositionAndVelocityMeters(
+				entityPhysicsPosition(),
+				new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ)
+		);
 		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
 	}
 
@@ -1084,8 +1086,7 @@ public class DroneEntity extends Entity {
 		debugFlightMode = DEFAULT_ENTITY_FLIGHT_MODE;
 		playableActuatorOutput = ActuatorOutput.empty();
 		playableInitialized = false;
-		simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
-		simulationRuntime.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		simulationRuntime.setPositionAndVelocityMeters(entityPhysicsPosition(), Vec3.ZERO);
 		simulationRuntime.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
 		applyResolvedFlightModelState(
 				LegacyPlayableFlightModelAdapter.ID,
@@ -1818,8 +1819,7 @@ public class DroneEntity extends Entity {
 		Vec3 velocity = simulationRuntime.state().velocityMetersPerSecond();
 		double throttleLift = MathUtil.clamp(input.throttle(), 0.0, 1.0) * 0.35;
 		double minimumVerticalSpeed = TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND + throttleLift;
-		simulationRuntime.state().setPositionMeters(position);
-		simulationRuntime.state().setVelocityMetersPerSecond(new Vec3(
+		simulationRuntime.setPositionAndVelocityMeters(position, new Vec3(
 				velocity.x(),
 				Math.max(velocity.y(), minimumVerticalSpeed),
 				velocity.z()
@@ -1867,7 +1867,7 @@ public class DroneEntity extends Entity {
 		);
 
 		move(MoverType.SELF, delta);
-		simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
+		simulationRuntime.setPositionMeters(entityPhysicsPosition());
 		boolean collided = horizontalCollision || verticalCollision;
 
 		Vec3 velocity = simulationRuntime.state().velocityMetersPerSecond();
@@ -1888,9 +1888,9 @@ public class DroneEntity extends Entity {
 						verticalCollision ? 0.0 : velocity.y(),
 						horizontalCollision ? 0.0 : velocity.z()
 				);
-				simulationRuntime.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-				simulationRuntime.state().setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
-				simulationRuntime.state().setVelocityMetersPerSecond(velocity);
+				simulationRuntime.setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+				simulationRuntime.setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
+				simulationRuntime.setVelocityMetersPerSecond(velocity);
 				setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 				applySimulationResolvedState(before, StateCorrectionReason.COLLISION_CONTACT_SOLVE, "SIMPLE_CONTACT_SOLVE");
 				return;
@@ -1921,10 +1921,8 @@ public class DroneEntity extends Entity {
 					contactSurface
 			);
 			velocity = contact.velocityMetersPerSecond();
-			simulationRuntime.state().setAngularVelocityBodyRadiansPerSecond(
-					simulationRuntime.state().angularVelocityBodyRadiansPerSecond().add(angularImpulse).clamp(-40.0, 40.0)
-			);
-			simulationRuntime.state().setContactTelemetry(
+			simulationRuntime.addAngularVelocityBodyRadiansPerSecond(angularImpulse, -40.0, 40.0);
+			simulationRuntime.setContactTelemetry(
 					contact.impactSpeedMetersPerSecond(),
 					contact.slipSpeedMetersPerSecond(),
 					contact.bounceSpeedMetersPerSecond(),
@@ -1933,9 +1931,9 @@ public class DroneEntity extends Entity {
 			);
 			applyCollisionDamage(velocityBeforeCollision, contact.impactSpeedMetersPerSecond());
 		} else {
-			simulationRuntime.state().setContactTelemetry(0.0, 0.0, 0.0);
+			simulationRuntime.setContactTelemetry(0.0, 0.0, 0.0);
 		}
-		simulationRuntime.state().setVelocityMetersPerSecond(velocity);
+		simulationRuntime.setVelocityMetersPerSecond(velocity);
 		setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 		applySimulationResolvedState(
 				before,
@@ -2173,10 +2171,10 @@ public class DroneEntity extends Entity {
 		double severity = Math.min(1.0, (impactSpeed - 3.2) / 16.0);
 		lastCollisionSeverity = Math.max(lastCollisionSeverity, severity);
 		frameHealth = Math.max(0.0, frameHealth - severity * 0.22);
-		simulationRuntime.state().damageAllRotors(severity * 0.04);
+		simulationRuntime.damageAllRotors(severity * 0.04);
 
 		int rotorIndex = exposedRotorIndex(impactVelocity);
-		simulationRuntime.state().damageRotor(rotorIndex, severity * 0.34);
+		simulationRuntime.damageRotor(rotorIndex, severity * 0.34);
 		collisionDamageCooldown = 6;
 	}
 
@@ -2201,14 +2199,14 @@ public class DroneEntity extends Entity {
 			}
 
 			double scrapeIntensity = propScrapeIntensity(tipSpeed, frameSpeed) * contactSurface.scrapeMultiplier();
-			simulationRuntime.state().setContactSurfaceTelemetry(contactSurface);
-			simulationRuntime.state().addRotorSurfaceScrapeIntensity(i, scrapeIntensity);
+			simulationRuntime.setContactSurfaceTelemetry(contactSurface);
+			simulationRuntime.addRotorSurfaceScrapeIntensity(i, scrapeIntensity);
 			if (rotorStrikeCooldownTicks[i] > 0) {
 				continue;
 			}
 
 			double severity = propStrikeSeverity(tipSpeed, frameSpeed, contactSurface);
-			simulationRuntime.state().damageRotor(i, severity);
+			simulationRuntime.damageRotor(i, severity);
 			frameHealth = Math.max(0.0, frameHealth - severity * 0.035);
 			lastCollisionSeverity = Math.max(lastCollisionSeverity, severity);
 			propStrikeSeverityThisTick[i] = Math.max(propStrikeSeverityThisTick[i], severity);
@@ -2558,7 +2556,7 @@ public class DroneEntity extends Entity {
 
 	private void repair() {
 		frameHealth = 1.0;
-		simulationRuntime.state().repairAllRotors();
+		simulationRuntime.repairAllRotors();
 		simulationRuntime.resetControlLoops();
 		lastCollisionSeverity = 0.0;
 		clearPropStrikePulse();
@@ -2588,7 +2586,7 @@ public class DroneEntity extends Entity {
 			return false;
 		}
 
-		simulationRuntime.state().damageRotor(rotorIndex, safeDamage);
+		simulationRuntime.damageRotor(rotorIndex, safeDamage);
 		if (recordAsPropStrike) {
 			lastCollisionSeverity = Math.max(lastCollisionSeverity, safeDamage);
 			ensureRotorStrikeArrays();
@@ -3723,16 +3721,16 @@ public class DroneEntity extends Entity {
 		frameHealth = input.getDoubleOr("frame_health", 1.0);
 		loadEnvironmentOverride(input);
 		loadConfig(input);
-		simulationRuntime.state().setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
-		simulationRuntime.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
+		simulationRuntime.setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
+		simulationRuntime.setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		loadBatteryTransientState(input);
 		loadPowertrainThermalState(input);
 		loadRotorDynamicState(input);
 		loadAerodynamicTransientState(input);
-		simulationRuntime.state().repairAllRotors();
+		simulationRuntime.repairAllRotors();
 		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
-			simulationRuntime.state().damageRotor(i, 1.0 - health);
+			simulationRuntime.damageRotor(i, 1.0 - health);
 		}
 		updateDamageSyncedState();
 	}
