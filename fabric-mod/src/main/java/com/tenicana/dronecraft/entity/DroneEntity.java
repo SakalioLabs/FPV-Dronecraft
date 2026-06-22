@@ -1790,8 +1790,9 @@ public class DroneEntity extends Entity {
 
 	private void applyPhysicsMovement(DroneInput input) {
 		FlightStateSnapshot before = simulationEntitySnapshot();
-		Vec3 targetPosition = simulationRuntime.state().positionMeters();
-		Vec3 velocityBeforeCollision = simulationRuntime.state().velocityMetersPerSecond();
+		SimulationFlightRuntime.MovementState movementState = simulationRuntime.movementState();
+		Vec3 targetPosition = movementState.positionMeters();
+		Vec3 velocityBeforeCollision = movementState.velocityMetersPerSecond();
 		double startX = getX();
 		double startY = getY();
 		double startZ = getZ();
@@ -1805,7 +1806,7 @@ public class DroneEntity extends Entity {
 		simulationRuntime.setPositionMeters(entityPhysicsPosition());
 		boolean collided = horizontalCollision || verticalCollision;
 
-		Vec3 velocity = simulationRuntime.state().velocityMetersPerSecond();
+		Vec3 velocity = velocityBeforeCollision;
 		if (collided) {
 			Vec3 attemptedDelta = new Vec3(delta.x(), delta.y(), delta.z());
 			Vec3 actualDelta = new Vec3(getX() - startX, getY() - startY, getZ() - startZ);
@@ -1846,9 +1847,7 @@ public class DroneEntity extends Entity {
 					verticalCollision,
 					contactSurface
 			);
-			Vec3 angularImpulse = ContactDynamics.angularVelocityImpulseBody(
-					simulationRuntime.config(),
-					simulationRuntime.state().orientation(),
+			Vec3 angularImpulse = simulationRuntime.contactAngularVelocityImpulseBody(
 					velocityBeforeCollision,
 					contact.contactNormalWorld(),
 					contact.impactSpeedMetersPerSecond(),

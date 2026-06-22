@@ -118,6 +118,29 @@ final class SimulationFlightRuntime {
 		));
 	}
 
+	MovementState movementState() {
+		DroneState state = physics.state();
+		return new MovementState(state.positionMeters(), state.velocityMetersPerSecond());
+	}
+
+	Vec3 contactAngularVelocityImpulseBody(
+			Vec3 velocityBeforeCollision,
+			Vec3 contactNormalWorld,
+			double impactSpeedMetersPerSecond,
+			double slipSpeedMetersPerSecond,
+			ContactDynamics.ContactSurface contactSurface
+	) {
+		return ContactDynamics.angularVelocityImpulseBody(
+				physics.config(),
+				physics.state().orientation(),
+				velocityBeforeCollision,
+				contactNormalWorld,
+				impactSpeedMetersPerSecond,
+				slipSpeedMetersPerSecond,
+				contactSurface
+		);
+	}
+
 	DroneWakeSource droneWakeSource() {
 		DroneState state = physics.state();
 		DroneConfig config = physics.config();
@@ -857,6 +880,8 @@ final class SimulationFlightRuntime {
 			Vec3 velocityMetersPerSecond,
 			double wakeRadiusMeters
 	) {}
+
+	record MovementState(Vec3 positionMeters, Vec3 velocityMetersPerSecond) {}
 
 	record RotorGeometry(
 			RotorSpec[] rotors,

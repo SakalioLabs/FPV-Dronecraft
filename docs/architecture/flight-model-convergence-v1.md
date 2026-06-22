@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 movement/collision 投影增量
+
+- `SimulationFlightRuntime.MovementState` 已承接实体移动前的目标位置和碰撞前速度读取。
+- `SimulationFlightRuntime.contactAngularVelocityImpulseBody(...)` 已承接接触角冲量所需的 config/orientation 读取。
+- 本增量只移动 `applyPhysicsMovement(...)` 的读取边界，保留原有 Minecraft `move(...)`、simple contact、advanced contact、damage 和 state correction 语义。
+
 ## 2026-06-22 rotor environment geometry 投影增量
 
 - `SimulationFlightRuntime.RotorGeometry` 已承接 rotor 列表、body X/Z 世界方向和 rotor 世界偏移投影。

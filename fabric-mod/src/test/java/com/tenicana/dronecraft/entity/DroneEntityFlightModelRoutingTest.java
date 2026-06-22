@@ -63,6 +63,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private PrecipitationWetness samplePrecipitationWetness"),
 				source.indexOf("private DroneWakeAirflow sampleDroneWakeAirflow")
 		);
+		String movementMethods = source.substring(
+				source.indexOf("private void applyPhysicsMovement"),
+				source.indexOf("private void updateSyncedFlightState")
+		);
 		String damageSyncMethods = source.substring(
 				source.indexOf("private boolean isAirworthy"),
 				source.indexOf("private void recordBlackbox")
@@ -143,6 +147,10 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedCeilingEffectThrustMultiplier("), "ceiling effect weighting should be projected by SimulationFlightRuntime");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.state()"), "rotor environment sampling should not read DroneState directly");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.config()"), "rotor environment sampling should not read DroneConfig directly");
+		assertTrue(movementMethods.contains("simulationRuntime.movementState()"), "movement state should be projected by SimulationFlightRuntime");
+		assertTrue(movementMethods.contains("simulationRuntime.contactAngularVelocityImpulseBody("), "contact angular impulse should be projected by SimulationFlightRuntime");
+		assertFalse(movementMethods.contains("simulationRuntime.state()"), "physics movement should not read DroneState directly");
+		assertFalse(movementMethods.contains("simulationRuntime.config()"), "physics movement should not read DroneConfig directly");
 		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");
