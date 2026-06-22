@@ -15,6 +15,10 @@ final class DroneArmSafety {
 		return DroneArmSafetyRules.canArmFromMomentaryControl(throttle, pitch, roll, yaw);
 	}
 
+	static ArmSafetyCheck.Result checkMomentaryArm(float throttle, float pitch, float roll, float yaw) {
+		return ArmSafetyCheck.canArmFromMomentaryControl(throttle, pitch, roll, yaw);
+	}
+
 	static boolean isStickArmGesture(float throttle, float pitch, float roll, float yaw) {
 		return DroneArmSafetyRules.isStickArmGesture(throttle, pitch, roll, yaw);
 	}

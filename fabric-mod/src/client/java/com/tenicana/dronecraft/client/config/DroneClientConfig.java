@@ -126,6 +126,8 @@ public final class DroneClientConfig {
 	private static final float LEGACY_CAMERA_DYNAMIC_FOV_DEGREES = 6.0f;
 
 	private boolean gamepadEnabled = true;
+	private String preferredGamepadGuid = "";
+	private String preferredGamepadName = "";
 	private int rollAxis = 2;
 	private int pitchAxis = 3;
 	private int yawAxis = 0;
@@ -206,6 +208,24 @@ public final class DroneClientConfig {
 
 	public void setGamepadEnabled(boolean gamepadEnabled) {
 		this.gamepadEnabled = gamepadEnabled;
+	}
+
+	public String preferredGamepadGuid() {
+		return preferredGamepadGuid == null ? "" : preferredGamepadGuid;
+	}
+
+	public String preferredGamepadName() {
+		return preferredGamepadName == null ? "" : preferredGamepadName;
+	}
+
+	public void setPreferredGamepadDevice(String guid, String name) {
+		preferredGamepadGuid = sanitizeText(guid);
+		preferredGamepadName = sanitizeText(name);
+	}
+
+	public void clearPreferredGamepadDevice() {
+		preferredGamepadGuid = "";
+		preferredGamepadName = "";
 	}
 
 	public int rollAxis() {
@@ -552,6 +572,8 @@ public final class DroneClientConfig {
 	private DroneClientConfig normalized() {
 		migrateLegacySwappedMode2Defaults();
 		migrateLegacyGamepadFeelDefaults();
+		preferredGamepadGuid = sanitizeText(preferredGamepadGuid);
+		preferredGamepadName = sanitizeText(preferredGamepadName);
 		rollAxis = sanitizeAxis(rollAxis);
 		pitchAxis = sanitizeAxis(pitchAxis);
 		yawAxis = sanitizeAxis(yawAxis);
@@ -815,6 +837,10 @@ public final class DroneClientConfig {
 
 	private static int sanitizeButton(int button) {
 		return Math.max(-1, Math.min(31, button));
+	}
+
+	private static String sanitizeText(String value) {
+		return value == null ? "" : value.trim();
 	}
 
 	public enum ControlFeelPreset {

@@ -1,7 +1,5 @@
 package com.tenicana.dronecraft.client.control;
 
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 import java.util.UUID;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -26,7 +24,6 @@ import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.network.DroneControlPayload;
 import com.tenicana.dronecraft.network.DroneViewPayload;
 import com.tenicana.dronecraft.registry.DroneItems;
-import com.tenicana.dronecraft.sim.ControlStickProfile;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.FlightMode;
 
@@ -66,15 +63,16 @@ public final class DroneClientControls {
 	private static boolean throttleCalibrationActive;
 	private static float sampledThrottleMin = 0.0f;
 	private static float sampledThrottleMax = 1.0f;
-	private static boolean gamepadArmButtonDown;
-	private static boolean gamepadDisarmButtonDown;
-	private static boolean gamepadCalibrateButtonDown;
+	private static boolean disabledControllerActivityWarned;
+	private static int payloadSequence;
 	private static final int ARM_GESTURE_HOLD_TICKS = 7;
 	private static final int MODE_SWITCH_RAMP_TICKS = 8;
 	private static final StickArmGestureLatch STICK_ARM_GESTURE = new StickArmGestureLatch(ARM_GESTURE_HOLD_TICKS);
 	private static final FlightModeInputRamp MODE_SWITCH_RAMP = new FlightModeInputRamp(MODE_SWITCH_RAMP_TICKS);
 	private static final ControlInputSmoother INPUT_SMOOTHER = new ControlInputSmoother();
 	private static final DroneControlSession CONTROL_SESSION = new DroneControlSession();
+	private static final ControllerButtonEdgeTracker BUTTON_EDGE_TRACKER = new ControllerButtonEdgeTracker();
+	private static final JoystickProvider JOYSTICKS = GlfwJoystickProvider.INSTANCE;
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -88,15 +86,14 @@ public final class DroneClientControls {
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player == null || client.level == null) {
-				gamepadArmButtonDown = false;
-				gamepadDisarmButtonDown = false;
-				gamepadCalibrateButtonDown = false;
+				BUTTON_EDGE_TRACKER.reset();
 				STICK_ARM_GESTURE.reset();
 				MODE_SWITCH_RAMP.reset();
 				INPUT_SMOOTHER.reset();
 				CONTROL_SESSION.clear();
 				armed = false;
 				throttleCalibrationActive = false;
+				disabledControllerActivityWarned = false;
 				return;
 			}
 
@@ -136,14 +133,51 @@ public final class DroneClientControls {
 				);
 			}
 
+			gamepadEnabled = config.gamepadEnabled();
 			boolean controlAuthorized = DroneControlAuthority.hasControlAuthority(hasController, virtualControllerEnabled, hasLinkedDrone);
-			GamepadInput gamepadInput = DroneControlAuthority.shouldUseGamepadInput(gamepadEnabled, hasController, virtualControllerEnabled, hasLinkedDrone)
-					? gamepadInput()
+			GamepadInputPath.Decision gamepadDecision = GamepadInputPath.evaluate(
+					config,
+					JOYSTICKS,
+					hasController,
+					virtualControllerEnabled,
+					hasLinkedDrone,
+					currentHoverThrottle(),
+					true
+			);
+			if (gamepadDecision.frame().resolution().migrated()) {
+				config.save();
+			}
+			if (gamepadDecision.disabledControllerActivity() && !disabledControllerActivityWarned) {
+				disabledControllerActivityWarned = true;
+				client.player.displayClientMessage(Component.translatable("message.fpvdrone.gamepad_input_detected_disabled"), true);
+			}
+			if (gamepadEnabled) {
+				disabledControllerActivityWarned = false;
+			}
+			GamepadInputFrame gamepadInput = gamepadDecision.hasUsableGamepadInput()
+					? gamepadDecision.frame()
 					: null;
 			if (!controlAuthorized) {
+				while (ARM.consumeClick()) {
+					displayArmBlocked(client, ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY));
+				}
 				STICK_ARM_GESTURE.reset();
 				MODE_SWITCH_RAMP.reset();
 				resetTransientControlState();
+				ControllerInputDiagnostics.Snapshot diagnostics = ControllerInputDiagnostics.fromRuntime(
+						client.player.tickCount,
+						gamepadDecision,
+						new ClientControlInput(throttle, 0.0f, 0.0f, 0.0f, InputSource.KEYBOARD),
+						gamepadEnabled,
+						hasController,
+						hasLinkedDrone,
+						false,
+						armed,
+						ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY),
+						ControllerInputDiagnostics.ControllerPayloadTrace.empty()
+				);
+				ControllerInputDiagnostics.record(diagnostics, client.player.tickCount);
+				DroneClientState.setControllerDiagnostics(diagnostics);
 				DroneClientState.updateControls(
 						throttle,
 						0.0f,
@@ -183,9 +217,7 @@ public final class DroneClientControls {
 				config = DroneClientConfig.load();
 				gamepadEnabled = config.gamepadEnabled();
 				DroneClientState.setHudMode(config.hudMode());
-				gamepadArmButtonDown = false;
-				gamepadDisarmButtonDown = false;
-				gamepadCalibrateButtonDown = false;
+				BUTTON_EDGE_TRACKER.reset();
 				client.player.displayClientMessage(Component.translatable("message.fpvdrone.config_reloaded", DroneClientConfig.path().toAbsolutePath().toString()), true);
 			}
 
@@ -206,15 +238,37 @@ public final class DroneClientControls {
 				handleStickArmGesture(client, gamepadInput);
 			}
 
-			ControlInput input = gamepadInput != null ? gamepadInputAsControl(gamepadInput) : keyboardInput(client);
+			ClientControlInput input = gamepadInput != null ? gamepadInputAsControl(gamepadInput) : keyboardInput(client);
 			if (gamepadInput != null && isStickArmGesture(gamepadInput)) {
 				INPUT_SMOOTHER.reset();
-				input = new ControlInput(0.0f, 0.0f, 0.0f, 0.0f, InputSource.GAMEPAD);
+				input = new ClientControlInput(0.0f, 0.0f, 0.0f, 0.0f, InputSource.GAMEPAD);
 			} else if (input.source() == InputSource.GAMEPAD) {
 				input = smoothGamepadInput(input);
 			}
 			input = applyModeSwitchRamp(input);
 			throttle = input.throttle();
+			ControllerInputDiagnostics.ControllerPayloadTrace payloadTrace = new ControllerInputDiagnostics.ControllerPayloadTrace(
+					++payloadSequence,
+					input.throttle(),
+					input.pitch(),
+					input.roll(),
+					input.yaw(),
+					armed
+			);
+			ControllerInputDiagnostics.Snapshot diagnostics = ControllerInputDiagnostics.fromRuntime(
+					client.player.tickCount,
+					gamepadDecision,
+					input,
+					gamepadEnabled,
+					hasController,
+					hasLinkedDrone,
+					controlAuthorized,
+					armed,
+					armCheckForDiagnostics(input),
+					payloadTrace
+			);
+			ControllerInputDiagnostics.record(diagnostics, client.player.tickCount);
+			DroneClientState.setControllerDiagnostics(diagnostics);
 			DroneClientState.updateControls(
 					input.throttle(),
 					input.pitch(),
@@ -242,24 +296,18 @@ public final class DroneClientControls {
 		return config;
 	}
 
-	private static void handleGamepadButtons(Minecraft client, GamepadInput input) {
-		boolean armPressedEdge = input.armButtonPressed() && !gamepadArmButtonDown;
-		boolean disarmPressedEdge = input.disarmButtonPressed() && !gamepadDisarmButtonDown;
-		boolean calibratePressedEdge = input.calibrateButtonPressed() && !gamepadCalibrateButtonDown;
+	private static void handleGamepadButtons(Minecraft client, GamepadInputFrame input) {
+		ControllerButtonEdgeTracker.ButtonEdges edges = BUTTON_EDGE_TRACKER.sample(input);
 
-		if (armPressedEdge && !input.disarmButtonPressed()) {
+		if (edges.armPressed() && !input.disarmButtonPressed()) {
 			requestArmed(client, true, canArmWithGamepadButton(input));
 		}
-		if (disarmPressedEdge && !input.armButtonPressed()) {
-			requestArmed(client, false, true);
+		if (edges.disarmPressed() && !input.armButtonPressed()) {
+			requestArmed(client, false, ArmSafetyCheck.Result.ok());
 		}
-		if (calibratePressedEdge) {
+		if (edges.calibratePressed()) {
 			toggleThrottleCalibration(client, input.rawThrottle());
 		}
-
-		gamepadArmButtonDown = input.armButtonPressed();
-		gamepadDisarmButtonDown = input.disarmButtonPressed();
-		gamepadCalibrateButtonDown = input.calibrateButtonPressed();
 
 		if (throttleCalibrationActive && Float.isFinite(input.rawThrottle())) {
 			sampledThrottleMin = Math.min(sampledThrottleMin, input.rawThrottle());
@@ -267,7 +315,7 @@ public final class DroneClientControls {
 		}
 	}
 
-	private static void handleStickArmGesture(Minecraft client, GamepadInput input) {
+	private static void handleStickArmGesture(Minecraft client, GamepadInputFrame input) {
 		if (!STICK_ARM_GESTURE.update(isStickArmGesture(input))) {
 			return;
 		}
@@ -276,34 +324,42 @@ public final class DroneClientControls {
 		client.player.displayClientMessage(Component.translatable(armed ? "message.fpvdrone.armed" : "message.fpvdrone.disarmed"), true);
 	}
 
-	private static boolean isStickArmGesture(GamepadInput input) {
+	private static boolean isStickArmGesture(GamepadInputFrame input) {
 		return input != null
 				&& DroneArmSafety.isStickArmGesture(input.throttle(), input.pitch(), input.roll(), input.yaw());
 	}
 
-	private static boolean canArmWithGamepadButton(GamepadInput input) {
-		return input != null
-				&& DroneArmSafety.canArmFromMomentaryControl(input.throttle(), input.pitch(), input.roll(), input.yaw());
+	private static ArmSafetyCheck.Result canArmWithGamepadButton(GamepadInputFrame input) {
+		if (config.armButton() < 0) {
+			return ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.ARM_BUTTON_UNCONFIGURED);
+		}
+		if (input == null || !input.usable()) {
+			return ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_GAMEPAD_DEVICE);
+		}
+		return DroneArmSafety.checkMomentaryArm(input.throttle(), input.pitch(), input.roll(), input.yaw());
 	}
 
-	private static boolean canArmWithKeyboard(Minecraft client) {
+	private static ArmSafetyCheck.Result canArmWithKeyboard(Minecraft client) {
 		float pitch = largerMagnitude(keyboardPitchAxis, axis(PITCH_BACK.isDown(), PITCH_FORWARD.isDown()));
 		float roll = largerMagnitude(keyboardRollAxis, axis(ROLL_LEFT.isDown(), ROLL_RIGHT.isDown()));
 		float yaw = largerMagnitude(keyboardYawAxis, axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown()));
-		return DroneArmSafety.canArmFromMomentaryControl(throttle, pitch, roll, yaw);
+		return DroneArmSafety.checkMomentaryArm(throttle, pitch, roll, yaw);
 	}
 
 	private static float largerMagnitude(float current, float target) {
 		return Math.abs(current) >= Math.abs(target) ? current : target;
 	}
 
-	private static void requestArmed(Minecraft client, boolean targetArmed, boolean canArm) {
+	private static void requestArmed(Minecraft client, boolean targetArmed, ArmSafetyCheck.Result armCheck) {
 		if (targetArmed) {
 			if (armed) {
 				return;
 			}
-			if (!canArm) {
-				client.player.displayClientMessage(Component.translatable("message.fpvdrone.arm_blocked"), true);
+			ArmSafetyCheck.Result safeArmCheck = armCheck == null
+					? ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY)
+					: armCheck;
+			if (!safeArmCheck.allowed()) {
+				displayArmBlocked(client, safeArmCheck);
 				return;
 			}
 			resetTransientControlState();
@@ -318,6 +374,13 @@ public final class DroneClientControls {
 		resetTransientControlState();
 		armed = false;
 		client.player.displayClientMessage(Component.translatable("message.fpvdrone.disarmed"), true);
+	}
+
+	private static void displayArmBlocked(Minecraft client, ArmSafetyCheck.Result armCheck) {
+		ArmSafetyCheck.Result safeArmCheck = armCheck == null
+				? ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY)
+				: armCheck;
+		client.player.displayClientMessage(Component.translatable(safeArmCheck.reason().translationKey()), true);
 	}
 
 	private static void resetTransientControlState() {
@@ -338,17 +401,11 @@ public final class DroneClientControls {
 		return drone == null ? null : drone.getUUID();
 	}
 
-	private static ControlInput gamepadInputAsControl(GamepadInput input) {
-		return new ControlInput(
-				(float) ControlStickProfile.gamepadThrottle(input.throttle(), currentHoverThrottle()),
-				commandAxis(input.pitch(), config.gamepadRollPitchRateScale()),
-				commandAxis(input.roll(), config.gamepadRollPitchRateScale()),
-				commandAxis(input.yaw(), config.gamepadYawRateScale()),
-				InputSource.GAMEPAD
-		);
+	private static ClientControlInput gamepadInputAsControl(GamepadInputFrame input) {
+		return input.controlInput();
 	}
 
-	private static ControlInput smoothGamepadInput(ControlInput input) {
+	private static ClientControlInput smoothGamepadInput(ClientControlInput input) {
 		float throttle = INPUT_SMOOTHER.sampleThrottle(
 				input.throttle(),
 				GAMEPAD_THROTTLE_RISE_PER_TICK,
@@ -361,15 +418,15 @@ public final class DroneClientControls {
 				config.gamepadAxisRisePerTick(),
 				config.gamepadAxisFallPerTick()
 		);
-		return new ControlInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), input.source());
+		return new ClientControlInput(throttle, axes.pitch(), axes.roll(), axes.yaw(), input.source());
 	}
 
-	private static ControlInput applyModeSwitchRamp(ControlInput input) {
+	private static ClientControlInput applyModeSwitchRamp(ClientControlInput input) {
 		float scale = MODE_SWITCH_RAMP.sampleAndAdvance();
 		if (scale >= 0.999f) {
 			return input;
 		}
-		return new ControlInput(
+		return new ClientControlInput(
 				input.throttle(),
 				input.pitch() * scale,
 				input.roll() * scale,
@@ -411,13 +468,13 @@ public final class DroneClientControls {
 		return positive ? 1.0f : -1.0f;
 	}
 
-	private static ControlInput keyboardInput(Minecraft client) {
+	private static ClientControlInput keyboardInput(Minecraft client) {
 		throttle = KeyboardControlShaper.adjustThrottle(throttle, keyboardThrottleDirection(), currentHoverThrottle());
 
 		keyboardPitchAxis = approachKeyboardAxis(keyboardPitchAxis, axis(PITCH_BACK.isDown(), PITCH_FORWARD.isDown()));
 		keyboardRollAxis = approachKeyboardAxis(keyboardRollAxis, axis(ROLL_LEFT.isDown(), ROLL_RIGHT.isDown()));
 		keyboardYawAxis = approachKeyboardAxis(keyboardYawAxis, axis(YAW_LEFT.isDown(), YAW_RIGHT.isDown()));
-		return new ControlInput(
+		return new ClientControlInput(
 				throttle,
 				keyboardCommandAxis(keyboardPitchAxis),
 				keyboardCommandAxis(keyboardRollAxis),
@@ -453,89 +510,16 @@ public final class DroneClientControls {
 		return KeyboardControlShaper.commandAxis(value);
 	}
 
-	private static GamepadInput gamepadInput() {
-		for (int joystick = GLFW.GLFW_JOYSTICK_1; joystick <= GLFW.GLFW_JOYSTICK_LAST; joystick++) {
-			if (!GLFW.glfwJoystickPresent(joystick)) {
-				continue;
-			}
-
-			FloatBuffer axes = GLFW.glfwGetJoystickAxes(joystick);
-			if (axes == null || axes.limit() <= 0) {
-				continue;
-			}
-
-			ByteBuffer buttons = GLFW.glfwGetJoystickButtons(joystick);
-			float rawThrottle = throttleAxisRaw(axes, config.throttleAxis(), config.throttleInverted());
-			float mappedThrottle = config.calibrateThrottle(rawThrottle);
-			float roll = stickAxis(axes, config.rollAxis(), config::calibrateRollAxis);
-			float pitch = stickAxis(axes, config.pitchAxis(), config::calibratePitchAxis);
-			float yaw = stickAxis(axes, config.yawAxis(), config::calibrateYawAxis);
-
-			return new GamepadInput(
-					mappedThrottle,
-					pitch,
-					roll,
-					yaw,
-					rawThrottle,
-					isGamepadButtonPressed(buttons, config.armButton()),
-					isGamepadButtonPressed(buttons, config.disarmButton()),
-					isGamepadButtonPressed(buttons, config.throttleCalibrateButton())
-			);
+	private static ArmSafetyCheck.Result armCheckForDiagnostics(ClientControlInput input) {
+		if (armed) {
+			return ArmSafetyCheck.Result.ok();
 		}
-
-		return null;
-	}
-
-	private static float throttleAxisRaw(FloatBuffer axes, int axis, boolean inverted) {
-		if (axes == null || axis < 0 || axis >= axes.limit()) {
-			return 0.0f;
+		if (input == null) {
+			return ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY);
 		}
-		float value = axes.get(axis);
-		if (inverted) {
-			value = -value;
+		if (input.source() == InputSource.GAMEPAD && config.armButton() < 0) {
+			return ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.ARM_BUTTON_UNCONFIGURED);
 		}
-		return (float) Mth.clamp((value + 1.0f) * 0.5f, 0.0f, 1.0f);
-	}
-
-	private static float stickAxis(FloatBuffer axes, int axis, AxisCalibrator calibrator) {
-		if (axes == null || axis < 0 || axis >= axes.limit()) {
-			return 0.0f;
-		}
-		float value = axes.get(axis);
-		float calibrated = calibrator == null ? value : calibrator.calibrate(value);
-		return GamepadStickShaper.conditionedAxis(calibrated, config.gamepadDeadband());
-	}
-
-	private static boolean isGamepadButtonPressed(ByteBuffer buttons, int button) {
-		if (buttons == null || button < 0 || button >= buttons.limit()) {
-			return false;
-		}
-		return buttons.get(button) == GLFW.GLFW_PRESS;
-	}
-
-	private static float commandAxis(float value) {
-		return commandAxis(value, 1.0f);
-	}
-
-	private static float commandAxis(float value, float rateScale) {
-		return GamepadStickShaper.commandFromConditionedAxis(value, config.gamepadDeadband(), config.gamepadExpo(), rateScale);
-	}
-
-	private record ControlInput(float throttle, float pitch, float roll, float yaw, InputSource source) {
-	}
-
-	private record GamepadInput(float throttle,
-							   float pitch,
-							   float roll,
-							   float yaw,
-							   float rawThrottle,
-							   boolean armButtonPressed,
-							   boolean disarmButtonPressed,
-							   boolean calibrateButtonPressed) {
-	}
-
-	@FunctionalInterface
-	private interface AxisCalibrator {
-		float calibrate(float rawAxis);
+		return DroneArmSafety.checkMomentaryArm(input.throttle(), input.pitch(), input.roll(), input.yaw());
 	}
 }

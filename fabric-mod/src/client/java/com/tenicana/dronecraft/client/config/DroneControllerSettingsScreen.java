@@ -1,10 +1,6 @@
 package com.tenicana.dronecraft.client.config;
 
-import java.nio.ByteBuffer;
-import java.nio.FloatBuffer;
 import java.util.Locale;
-
-import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
@@ -12,7 +8,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 import com.tenicana.dronecraft.client.DroneClientState;
+import com.tenicana.dronecraft.client.control.ControllerInputDiagnostics;
+import com.tenicana.dronecraft.client.control.GamepadDeviceResolver;
 import com.tenicana.dronecraft.client.control.GamepadControlPreview;
+import com.tenicana.dronecraft.client.control.GlfwJoystickProvider;
+import com.tenicana.dronecraft.client.control.JoystickProvider;
+import com.tenicana.dronecraft.client.control.JoystickSnapshot;
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.sim.DroneConfig;
 
@@ -27,6 +28,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private static final int REMOTE_STICK_MAX_GAP = 56;
 	private static final int REMOTE_BUTTON_HEIGHT = 20;
 	private static final int REMOTE_BUTTON_GAP = 4;
+	private static final byte BUTTON_PRESSED = 1;
 
 	private enum CaptureTarget {
 		NONE,
@@ -56,9 +58,18 @@ public final class DroneControllerSettingsScreen extends Screen {
 	private Button throttleCalibrateButton;
 	private Button stickCenterCalibrateButton;
 	private Button feelPresetButton;
+	private Button gamepadEnabledButton;
 	private Button refreshButton;
 	private Button closeButton;
 
+	private final JoystickProvider joystickProvider = GlfwJoystickProvider.INSTANCE;
+	private GamepadDeviceResolver.Resolution controllerResolution = new GamepadDeviceResolver.Resolution(
+			java.util.List.of(),
+			null,
+			GamepadDeviceResolver.Status.NO_DEVICES,
+			false
+	);
+	private JoystickSnapshot selectedController;
 	private int selectedJoystick;
 	private float[] axesSnapshot = new float[0];
 	private byte[] previousButtons = new byte[0];
@@ -81,8 +92,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	@Override
 	protected void init() {
 		super.init();
-		selectedJoystick = resolveConnectedJoystick();
-		refreshSnapshot();
+		refreshSelectedController(true);
 
 		int stickSize = remoteStickSize();
 		int stickGap = remoteStickGap();
@@ -139,7 +149,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 		int utilityY = Math.min(height - 52, controlY + rowHeight * 4 + 12);
 		int utilityWidth = Math.min(150, Math.max(116, stickSize));
 		int utilityGap = 6;
-		int utilityTotalWidth = utilityWidth * 3 + utilityGap * 2;
+		int utilityTotalWidth = utilityWidth * 4 + utilityGap * 3;
 		int utilityX = Math.max(12, width / 2 - utilityTotalWidth / 2);
 		throttleCalibrateButton = addButton(
 				utilityX,
@@ -161,6 +171,13 @@ public final class DroneControllerSettingsScreen extends Screen {
 				utilityWidth,
 				Component.translatable("screen.fpvdrone.feel_entry", Component.translatable(config.gamepadFeelPreset().translationKey())),
 				button -> cycleGamepadFeelPreset()
+		);
+		gamepadEnabledButton = addButton(
+				utilityX + (utilityWidth + utilityGap) * 3,
+				utilityY,
+				utilityWidth,
+				Component.translatable(config.gamepadEnabled() ? "screen.fpvdrone.gamepad_enabled" : "screen.fpvdrone.gamepad_disabled"),
+				button -> toggleGamepadEnabled()
 		);
 
 		int bindY = utilityY + rowHeight;
@@ -188,10 +205,11 @@ public final class DroneControllerSettingsScreen extends Screen {
 				80,
 				Component.translatable("screen.fpvdrone.refresh"),
 				button -> {
-					selectedJoystick = resolveConnectedJoystick();
-					refreshSnapshot();
-					status = selectedJoystick >= 0
-							? Component.translatable("screen.fpvdrone.detected_controller", selectedJoystick)
+					config.clearPreferredGamepadDevice();
+					refreshSelectedController(true);
+					config.save();
+					status = selectedController != null
+							? Component.translatable("screen.fpvdrone.detected_controller", selectedController.name())
 							: Component.translatable("screen.fpvdrone.no_controller");
 					updateButtonLabels();
 				}
@@ -203,8 +221,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	@Override
 	public void tick() {
 		super.tick();
-		selectedJoystick = resolveConnectedJoystick();
-		refreshSnapshot();
+		refreshSelectedController(true);
 
 		if (captureTarget == CaptureTarget.NONE) {
 			if (captureThrottleInProgress) {
@@ -239,10 +256,17 @@ public final class DroneControllerSettingsScreen extends Screen {
 				: GamepadControlPreview.fromAxes(config, axesSnapshot, previewHoverThrottle());
 
 		graphics.drawCenteredString(font, title, width / 2, 10, 0xE8EEF9);
-		Component controllerStatus = selectedJoystick >= 0
-				? Component.translatable("screen.fpvdrone.connected_controller", selectedJoystick)
+		Component controllerStatus = selectedController != null
+				? Component.translatable("screen.fpvdrone.connected_controller", selectedController.name())
 				: Component.translatable("screen.fpvdrone.no_controller");
-		graphics.drawCenteredString(font, controllerStatus, width / 2, 25, selectedJoystick >= 0 ? 0x66C0FF : 0xFF6666);
+		graphics.drawCenteredString(font, controllerStatus, width / 2, 25, selectedController != null && config.gamepadEnabled() ? 0x66C0FF : 0xFFAA66);
+		graphics.drawCenteredString(
+				font,
+				Component.translatable(config.gamepadEnabled() ? "screen.fpvdrone.gamepad_input_enabled" : "screen.fpvdrone.gamepad_input_disabled"),
+				width / 2,
+				35,
+				config.gamepadEnabled() ? 0x66FFAA : 0xFFAA66
+		);
 
 		drawRemoteStick(
 				graphics,
@@ -351,6 +375,11 @@ public final class DroneControllerSettingsScreen extends Screen {
 				"screen.fpvdrone.feel_entry",
 				Component.translatable(config.gamepadFeelPreset().translationKey())
 		));
+		gamepadEnabledButton.setMessage(Component.translatable(
+				config.gamepadEnabled()
+						? "screen.fpvdrone.gamepad_enabled"
+						: "screen.fpvdrone.gamepad_disabled"
+		));
 
 		throttleCalibrateButton.setMessage(Component.translatable(
 				captureThrottleInProgress
@@ -392,21 +421,18 @@ public final class DroneControllerSettingsScreen extends Screen {
 			return;
 		}
 
-		selectedJoystick = resolveConnectedJoystick();
-		if (selectedJoystick < 0) {
+		refreshSelectedController(true);
+		if (selectedController == null) {
 			status = Component.translatable("screen.fpvdrone.no_controller");
 			return;
 		}
-		FloatBuffer axes = GLFW.glfwGetJoystickAxes(selectedJoystick);
-		if (axes == null || axes.limit() == 0) {
+		float[] axes = selectedController.axes();
+		if (axes.length == 0) {
 			status = Component.translatable("screen.fpvdrone.no_axis_data");
 			return;
 		}
 
-		captureAxisSnapshot = new float[axes.limit()];
-		for (int i = 0; i < axes.limit(); i++) {
-			captureAxisSnapshot[i] = axes.get(i);
-		}
+		captureAxisSnapshot = axes;
 		captureTarget = target;
 		status = Component.translatable("screen.fpvdrone.status_move_axis");
 	}
@@ -417,8 +443,8 @@ public final class DroneControllerSettingsScreen extends Screen {
 			return;
 		}
 
-		selectedJoystick = resolveConnectedJoystick();
-		if (selectedJoystick < 0) {
+		refreshSelectedController(true);
+		if (selectedController == null) {
 			status = Component.translatable("screen.fpvdrone.no_controller");
 			return;
 		}
@@ -428,15 +454,19 @@ public final class DroneControllerSettingsScreen extends Screen {
 	}
 
 	private void pollAxisCapture() {
-		FloatBuffer axes = GLFW.glfwGetJoystickAxes(selectedJoystick);
-		if (axes == null || axes.limit() != captureAxisSnapshot.length) {
+		refreshSelectedController(false);
+		if (selectedController == null) {
+			return;
+		}
+		float[] axes = selectedController.axes();
+		if (axes.length != captureAxisSnapshot.length) {
 			return;
 		}
 
 		int bestAxis = -1;
 		float bestDelta = MIN_AXIS_CAPTURE_DELTA;
-		for (int i = 0; i < axes.limit(); i++) {
-			float delta = Math.abs(axes.get(i) - captureAxisSnapshot[i]);
+		for (int i = 0; i < axes.length; i++) {
+			float delta = Math.abs(axes[i] - captureAxisSnapshot[i]);
 			if (delta > bestDelta) {
 				bestDelta = delta;
 				bestAxis = i;
@@ -467,7 +497,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 			return;
 		}
 		for (int i = 0; i < buttons.length; i++) {
-			if (buttons[i] == GLFW.GLFW_PRESS && (i >= previousButtons.length || previousButtons[i] != GLFW.GLFW_PRESS)) {
+			if (buttons[i] == BUTTON_PRESSED && (i >= previousButtons.length || previousButtons[i] != BUTTON_PRESSED)) {
 				assignButtonBinding(captureTarget, i);
 				break;
 			}
@@ -545,9 +575,8 @@ public final class DroneControllerSettingsScreen extends Screen {
 
 	private void toggleScreenThrottleCalibration() {
 		if (!captureThrottleInProgress) {
-			selectedJoystick = resolveConnectedJoystick();
-			refreshSnapshot();
-			if (selectedJoystick < 0 || config.throttleAxis() >= axesSnapshot.length) {
+			refreshSelectedController(true);
+			if (selectedController == null || config.throttleAxis() >= axesSnapshot.length) {
 				status = Component.translatable("screen.fpvdrone.status_no_calib_target");
 				return;
 			}
@@ -573,14 +602,22 @@ public final class DroneControllerSettingsScreen extends Screen {
 		updateButtonLabels();
 	}
 
+	private void toggleGamepadEnabled() {
+		config.setGamepadEnabled(!config.gamepadEnabled());
+		config.save();
+		updateButtonLabels();
+		status = Component.translatable(config.gamepadEnabled()
+				? "screen.fpvdrone.status_gamepad_enabled"
+				: "screen.fpvdrone.status_gamepad_disabled");
+	}
+
 	private void calibrateStickCenters() {
 		if (captureThrottleInProgress) {
 			status = Component.translatable("screen.fpvdrone.status_finish_calibration_first");
 			return;
 		}
-		selectedJoystick = resolveConnectedJoystick();
-		refreshSnapshot();
-		if (selectedJoystick < 0 || !hasStickAxesSnapshot()) {
+		refreshSelectedController(true);
+		if (selectedController == null || !hasStickAxesSnapshot()) {
 			status = Component.translatable("screen.fpvdrone.status_no_center_target");
 			return;
 		}
@@ -612,7 +649,7 @@ public final class DroneControllerSettingsScreen extends Screen {
 	}
 
 	private void sampleThrottleCalibration() {
-		if (selectedJoystick < 0 || config.throttleAxis() >= axesSnapshot.length) {
+		if (selectedController == null || config.throttleAxis() >= axesSnapshot.length) {
 			captureThrottleInProgress = false;
 			status = Component.translatable("screen.fpvdrone.status_calib_stopped");
 			updateButtonLabels();
@@ -707,39 +744,22 @@ public final class DroneControllerSettingsScreen extends Screen {
 		};
 	}
 
-	private int resolveConnectedJoystick() {
-		for (int joystick = GLFW.GLFW_JOYSTICK_1; joystick <= GLFW.GLFW_JOYSTICK_LAST; joystick++) {
-			if (GLFW.glfwJoystickPresent(joystick)) {
-				return joystick;
-			}
+	private void refreshSelectedController(boolean allowLegacyMigration) {
+		controllerResolution = GamepadDeviceResolver.resolve(config, joystickProvider, allowLegacyMigration);
+		if (controllerResolution.migrated()) {
+			config.save();
 		}
-		return -1;
-	}
-
-	private void refreshSnapshot() {
-		FloatBuffer axes = selectedJoystick >= 0 ? GLFW.glfwGetJoystickAxes(selectedJoystick) : null;
-		float[] nextAxes = axes == null ? new float[0] : new float[axes.limit()];
-		if (axes != null) {
-			for (int i = 0; i < axes.limit(); i++) {
-				nextAxes[i] = axes.get(i);
-			}
-		}
-		axesSnapshot = nextAxes;
+		selectedController = controllerResolution.selected();
+		selectedJoystick = selectedController == null ? -1 : selectedController.glfwId();
+		axesSnapshot = selectedController == null ? new float[0] : selectedController.axes();
+		ControllerInputDiagnostics.updateCalibrationDevice(selectedController);
 	}
 
 	private byte[] snapshotButtons(int joystick) {
-		if (joystick < 0) {
+		if (joystick < 0 || selectedController == null || selectedController.glfwId() != joystick) {
 			return new byte[0];
 		}
-		ByteBuffer buttons = GLFW.glfwGetJoystickButtons(joystick);
-		if (buttons == null) {
-			return new byte[0];
-		}
-		byte[] snapshot = new byte[buttons.limit()];
-		for (int i = 0; i < buttons.limit(); i++) {
-			snapshot[i] = buttons.get(i);
-		}
-		return snapshot;
+		return selectedController.buttons();
 	}
 
 	private float throttleAxisRaw(float axisValue, boolean inverted) {

@@ -69,6 +69,7 @@ public final class DroneHud {
 			drawAttitude(graphics, screenWidth / 2, screenHeight / 2, telemetry);
 			drawSideScales(graphics, font, screenWidth, screenHeight, telemetry);
 		}
+		drawControllerDiagnostics(graphics, font, screenWidth);
 		drawCompactTelemetry(graphics, font, screenWidth, screenHeight, telemetry);
 	}
 
@@ -193,6 +194,29 @@ public final class DroneHud {
 		drawString(graphics, font, rpm, x, y, rpmColor(telemetry));
 		x += font.width(rpm) + 10;
 		drawString(graphics, font, health, x, y, healthColor(telemetry));
+	}
+
+	private static void drawControllerDiagnostics(GuiGraphics graphics, Font font, int screenWidth) {
+		com.tenicana.dronecraft.client.control.ControllerInputDiagnostics.Snapshot diagnostics = DroneClientState.controllerDiagnostics();
+		int maxWidth = Math.max(120, screenWidth - MARGIN * 2);
+		String[] lines = {
+				"CTRL " + (diagnostics.gamepadEnabled() ? "EN" : "DIS") + " sel " + diagnostics.selectedRuntimeDevice(),
+				"CAL " + diagnostics.calibrationSelectedDevice() + " status " + diagnostics.resolverStatus(),
+				"RAW " + diagnostics.rawAxes(),
+				"MAP " + diagnostics.mappedAxes() + " CAL " + diagnostics.calibratedControls(),
+				"OUT " + diagnostics.smoothedControls() + " SRC " + diagnostics.inputSource(),
+				"ARM " + (diagnostics.armed() ? "armed" : diagnostics.armBlockReason()) + " " + diagnostics.payload()
+		};
+		int y = MARGIN + 18;
+		int width = 0;
+		for (String line : lines) {
+			width = Math.max(width, font.width(trimToWidth(font, line, maxWidth - 8)));
+		}
+		graphics.fill(MARGIN - 3, y - 3, Math.min(screenWidth - MARGIN, MARGIN + width + 7), y + lines.length * 10 + 1, PANEL);
+		for (int i = 0; i < lines.length; i++) {
+			int color = i == 0 && !diagnostics.gamepadEnabled() ? WARNING : (diagnostics.inputSource() == InputSource.GAMEPAD ? PRIMARY : MUTED);
+			drawString(graphics, font, Component.literal(trimToWidth(font, lines[i], maxWidth - 8)), MARGIN, y + i * 10, color);
+		}
 	}
 
 	private static void drawAttitude(GuiGraphics graphics, int centerX, int centerY, Telemetry telemetry) {
@@ -328,6 +352,24 @@ public final class DroneHud {
 
 	private static void drawString(GuiGraphics graphics, Font font, Component component, int x, int y, int color) {
 		graphics.drawString(font, component, x, y, color, false);
+	}
+
+	private static String trimToWidth(Font font, String text, int maxWidth) {
+		String safeText = text == null ? "" : text;
+		if (font.width(safeText) <= maxWidth) {
+			return safeText;
+		}
+		String suffix = "...";
+		int suffixWidth = font.width(suffix);
+		StringBuilder builder = new StringBuilder();
+		for (int i = 0; i < safeText.length(); i++) {
+			char c = safeText.charAt(i);
+			if (font.width(builder.toString()) + font.width(String.valueOf(c)) + suffixWidth > maxWidth) {
+				break;
+			}
+			builder.append(c);
+		}
+		return builder.append(suffix).toString();
 	}
 
 	private static int drawInline(GuiGraphics graphics, Font font, Component component, int x, int y, int color) {

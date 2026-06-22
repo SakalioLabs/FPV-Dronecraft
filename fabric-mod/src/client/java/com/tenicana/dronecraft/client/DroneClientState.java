@@ -8,6 +8,7 @@ import net.minecraft.world.phys.AABB;
 
 import com.tenicana.dronecraft.entity.DroneEntity;
 import com.tenicana.dronecraft.registry.DroneItems;
+import com.tenicana.dronecraft.client.control.ControllerInputDiagnostics;
 import com.tenicana.dronecraft.sim.FlightMode;
 
 public final class DroneClientState {
@@ -28,6 +29,7 @@ public final class DroneClientState {
 	private static boolean throttleCalibrationActive;
 	private static FlightMode flightMode = DEFAULT_FLIGHT_MODE;
 	private static InputSource inputSource = InputSource.KEYBOARD;
+	private static ControllerInputDiagnostics.Snapshot controllerDiagnostics = ControllerInputDiagnostics.Snapshot.empty();
 
 	private DroneClientState() {
 	}
@@ -173,6 +175,14 @@ public final class DroneClientState {
 
 	public static InputSource inputSource() {
 		return inputSource;
+	}
+
+	public static ControllerInputDiagnostics.Snapshot controllerDiagnostics() {
+		return controllerDiagnostics;
+	}
+
+	public static void setControllerDiagnostics(ControllerInputDiagnostics.Snapshot diagnostics) {
+		controllerDiagnostics = diagnostics == null ? ControllerInputDiagnostics.Snapshot.empty() : diagnostics;
 	}
 
 	public enum InputSource {
