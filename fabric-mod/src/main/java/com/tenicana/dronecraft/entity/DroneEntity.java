@@ -63,6 +63,7 @@ import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 import com.tenicana.dronecraft.sim.flight.ActuatorOutput;
 import com.tenicana.dronecraft.sim.flight.FlightModel;
+import com.tenicana.dronecraft.sim.flight.FlightModelCapabilities;
 import com.tenicana.dronecraft.sim.flight.FlightModelInitializationContext;
 import com.tenicana.dronecraft.sim.flight.FlightModelRouter;
 import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
@@ -375,6 +376,22 @@ public class DroneEntity extends Entity {
 
 	public static double physicsRateHertz() {
 		return 1.0 / PHYSICS_DT;
+	}
+
+	public String activeFlightModelIdForDiagnostics() {
+		return flightModels.activeModel().id();
+	}
+
+	public FlightModelCapabilities activeFlightModelCapabilitiesForDiagnostics() {
+		return flightModels.activeModel().capabilities();
+	}
+
+	public boolean activeFlightModelSnapshotFiniteForDiagnostics() {
+		return flightModels.snapshot().isFinite();
+	}
+
+	public Vec3 activeFlightModelPositionWorldMetersForDiagnostics() {
+		return flightModels.snapshot().positionWorldMeters();
 	}
 
 	public DroneEntity(EntityType<? extends DroneEntity> entityType, Level level) {
