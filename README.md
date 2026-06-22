@@ -1,5 +1,16 @@
 # FPV Dronecraft
 
+## 最新进展（2026-06-22，V1 路由等价与运行时切换策略）
+
+本轮只收口 `refactor/unified-flight-contract-v1` 的 V1 门禁，没有修改 master，没有进入 V2，也没有做任何手感或气动参数调参。
+
+- Playable 已增加逐 tick route-equivalence：`DirectRouteHarness` 对比 `LegacyPlayableFlightModelAdapter -> FlightModelRouter -> step`。当前本地结果为既有容差内完全等价，首个差异为无。
+- Simulation 已增加逐 tick route-equivalence：`DronePhysics` 直接路径对比 `SimulationFlightModelAdapter -> FlightModelRouter -> step`。曾捕获 `reset_respawn` tick 20 的 `position.y` 差异约 `8.019e-6`，来源是 adapter reset 重新构造物理对象；修复后当前等价测试通过，首个差异为无。
+- 新增实际执行的 `DroneEntity` GameTest，覆盖 playable/simulation 初始化与连续 tick、reset、collision-free movement、resolved state 写回、model ID/capabilities 和非有限值检查。本地 `:fabric-mod:runGameTest` 通过，9 个 required GameTest 全绿。
+- 运行时切换采用方案 1：本阶段不支持活动实体静默切换 flight model。每个 `DroneEntity` 生成/读取时固定 model ID；全局 debug mode 只影响之后生成或 reset/read 的实体；命令提示包含 `需要重生/reset 后生效`。
+- 新增 GitHub Actions CI 矩阵：运行 `:drone-sim-core:test`、`:fabric-mod:test`、`build`、golden/route-equivalence、dependency boundary、serialization round-trip、GameTest，以及 4 个 dedicated server self-test，并禁止 `FPVDRONE_UPDATE_GOLDEN_TRACES=true`。
+- 远端 CI 地址会在 draft PR 创建并触发 Actions 后生成；当前本地分支尚未合并，不应宣布 V1 已完成。
+
 ## 最新进展（2026-06-21，ACRO 完整滚转后侧流记忆刷新 + 高速动态进气负载增强）
 这一轮继续针对“翻转一周之后持续侧飞无法回正”和“高速斜向机动还是有点像平移”的反馈收敛。实现上没有继续粗暴增加全局机体 drag，也没有降低 `25m/s` 的直线速度目标；这次只处理两个更接近真实问题的局部路径：完整 roll capture/recovery 后的旧横流记忆，以及高速斜向带杆时的动力盘动态进气损失。
 

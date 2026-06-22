@@ -1,5 +1,68 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 V1 门禁收口状态
+
+本节记录 `refactor/unified-flight-contract-v1` 上本轮门禁收口。当前不得视为 V1 已合并完成：远端 GitHub Actions 需要在 draft PR 创建后跑完，且本阶段不进入 V2、数值模型合并或任何手感/气动调参。
+
+### 新旧路径逐 tick 等价
+
+- Playable 路由等价测试已新增：旧路径为 `DirectRouteHarness`，新路径为 `LegacyPlayableFlightModelAdapter -> FlightModelRouter -> step`。
+- Simulation 路由等价测试已新增：旧路径为 `DronePhysics` 直接路径，新路径为 `SimulationFlightModelAdapter -> FlightModelRouter -> step`。
+- 两组测试使用相同初始状态、模型配置、`dt`、环境、输入序列和 reset 时机，覆盖 idle、hover、throttle step、pitch、roll、yaw、diagonal pitch+roll、full roll、forward cruise、lateral initial velocity、wind、reset/respawn 等场景。
+- 逐 tick 比较字段包括 position、world velocity、body velocity、quaternion、body angular rate、actuator/motor output、armed、flight mode、StateCorrection 事件，以及旧路径能表达的 diagnostics 字段。
+- 当前本地结果：两条新路由在既有容差内与旧路径逐 tick 等价，当前首个差异为无。未重新生成 golden trace，未修改 baseline，未放宽预先存在的容差。
+- 过程中曾捕获 simulation reset 场景首个差异：`reset_respawn` tick 20 的 `position.y` 约 `8.019e-6`，来源是 adapter reset 重新构造 `DronePhysics`，而旧路径复用同一对象并走 `sleepAtRest(...)`。修复后 adapter reset 改为同实例 reset/apply snapshot，当前等价测试通过。
+
+### DroneEntity 实际执行集成测试
+
+- `DroneEntity` 的源码字符串边界测试保留，但不再作为唯一行为验证。
+- 新增实际执行的 Fabric GameTest，覆盖 playable 初始化与连续 tick、simulation 初始化与连续 tick、reset、collision-free movement、resolved state 写回、model ID、capabilities 和非有限值检查。
+- 当前本地结果：`:fabric-mod:runGameTest` 通过，9 个 required GameTest 全部通过。
+
+### 运行时模型切换策略
+
+本阶段采用方案 1：不支持活动实体运行时切换。
+
+- 每个 `DroneEntity` 在初始化/生成时固定 `fixedFlightModelId`。
+- 全局 debug flight model mode 只影响之后生成或 reset/read 的实体；已经在飞行或已生成的实体不会因为每 tick 读取全局设置而静默切换后端。
+- `DroneEntity` tick 现在依据实体固定 ID 决定 playable 或 simulation 路由；playable 固定实体的 idle/disarm/reset tick 也继续走 playable adapter/router，不再落入 simulation backend。
+- 固定 model ID 会随实体保存为 `flight_model_id`，旧存档没有该字段时才按当前 debug mode 初始化。
+- debug 命令提示已明确包含：`existing drones keep their current model, 需要重生/reset 后生效`。
+- GameTest 已证明活动 playable 实体在全局 mode 改为 simulation 后仍保持 `legacy_playable_direct`，活动 simulation 实体在全局 mode 改为 playable 后仍保持 `simulation_drone_physics`。
+
+### CI 验证矩阵
+
+新增 `.github/workflows/ci.yml`，远端 PR/branch 触发后至少运行：
+
+- `./gradlew --no-daemon :drone-sim-core:test`
+- `./gradlew --no-daemon :fabric-mod:test`
+- `./gradlew --no-daemon build`
+- simulation golden trace + route equivalence
+- playable golden trace + route equivalence
+- dependency boundary tests
+- serialization round-trip tests
+- `./gradlew --no-daemon :fabric-mod:runGameTest`
+- 4 个 dedicated server self-test：simulation、playable angle、playable horizon、playable acro，并上传原始 JSON/CSV artifacts
+
+CI workflow 全局设置 `FPVDRONE_UPDATE_GOLDEN_TRACES=false`，并在每个 job 开始时显式拒绝 `FPVDRONE_UPDATE_GOLDEN_TRACES=true`。
+
+### 本地验证命令
+
+```powershell
+.\gradlew.bat --no-daemon :fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest --tests com.tenicana.dronecraft.entity.LegacyPlayableFlightModelAdapterTest
+.\gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.SimulationFlightGoldenTraceTest --tests com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapterTest
+.\gradlew.bat --no-daemon :fabric-mod:runGameTest
+.\gradlew.bat --no-daemon :fabric-mod:test --tests com.tenicana.dronecraft.command.DroneCommandsTest --tests com.tenicana.dronecraft.debug.DroneDebugSettingsTest --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest
+```
+
+### V2 留存问题
+
+- 是否进行 playable 与 simulation 的数值模型合并仍留到 V2。
+- 若未来产品确实需要活动实体运行时切换，必须实现显式 model handoff，而不能恢复每 tick 静默 select。
+- `DronePhysics` 内部 sleep/ground/level 类状态写入仍可在 V2 细化为更完整的 state correction 事件。
+- playable adapter 对 wind、air density、turbulence 等 environment 字段仍是 lossy diagnostics，因为旧 playable 模型没有无损输入槽位。
+- 更深层 canonical state/config 所有权统一、推进器/电机接口统一、环境/碰撞输入统一仍留给 V2。
+
 ## 2026-06-22 blackbox/config 边界增量
 
 - `SimulationFlightRuntime.blackboxSample(...)` 已承接 blackbox 采样所需的 `DroneState`、`DroneConfig`、average motor power 和 average rotor health 读取。
