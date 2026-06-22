@@ -134,7 +134,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 | --- | --- | --- | --- | --- |
 | `drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java` | `step` 线性积分 | position、world velocity | A | 由 `SimulationFlightModelAdapter` 通过 `FlightStepResult.nextState` 暴露 |
 | `drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java` | `step` 角速度/姿态积分 | quaternion、body angular rate | A | 由 `SimulationFlightModelAdapter` 通过 snapshot 暴露 |
-| `drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java` | `sleepAtRest`、`constrainAtRest`、`levelAtRest` | position、velocity、attitude、angular rate | B/C | 后续接入 router 时必须输出 `GROUND_STABILIZATION` 或 `RESET_TELEPORT` |
+| `drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java` | `sleepAtRest`、`constrainAtRest`、`levelAtRest` | position、velocity、attitude、angular rate | B/C | entity 调用后通过 facade 输出 `GROUND_STABILIZATION`；核心内部事件边界仍需细化 |
 | `drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java` | attitude estimator | estimated orientation | A | 非权威姿态，保留为 diagnostics/telemetry |
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | direct playable 初始化 | physics position | C | 后续由 playable adapter initialize/reset 承接 |
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyDebugFlight` idle clear | entity delta movement、debug velocity | E | `LegacyPlayableFlightModelAdapter` 已输出 `GROUND_STABILIZATION / IDLE_CLEAR` |
@@ -151,7 +151,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 ### 尚需收敛的 correction
 
 - `DroneEntity` 替换机体布局时复制旧状态属于 model selection/init，应输出 `MODEL_INITIALIZATION`。
-- `DronePhysics.sleepAtRest`、`constrainAtRest`、`levelAtRest` 目前仍是核心方法内部状态写入；接入 facade 时需要在 adapter 或 router 层转换为 state correction event。
+- `DronePhysics.sleepAtRest`、`constrainAtRest`、`levelAtRest` 目前仍是核心方法内部状态写入；entity 层已补充 state correction event，后续需要继续把核心内部事件拆细。
 - Playable adapter 已记录 wind、air density、turbulence 等无法表达的 environment 字段为 lossy diagnostics；后续 convergence report 必须保留这类 loss map。
 
 ## 验证入口
@@ -183,6 +183,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 - simulation 路径已通过 `SimulationFlightModelAdapter` 和 `FlightModelRouter` 进入统一 `FlightModel` 边界。
 - playable 路径已通过 `LegacyPlayableFlightModelAdapter` 和 `FlightModelRouter` 进入统一 `FlightModel` 边界；`DroneEntity` 不再直接调用 `PlayableFlightModel.*` 或 `DronePhysics.step(...)`。
+- `DroneEntity` 不再直接 import、new 或持有 `DronePhysics`；simulation 构造、layout replacement 以及 transient snapshot/restore 已收进 `SimulationFlightRuntime`。
 - `FlightModel.applyResolvedState(...)` 用于把 Minecraft entity move / collision 后的解析状态显式回灌到当前模型，避免把 entity 层状态写入静默藏在模型外部。
 - simulation entity move、ground sleep/level、takeoff release 与 collision contact solve 已经通过 `applySimulationResolvedState(...)` 输出 `NORMAL_INTEGRATION`、`GROUND_STABILIZATION` 或 `COLLISION_CONTACT_SOLVE`。
 - `FlightStepContext.modelConfiguration` 仅承载 adapter 级选项；当前用于 failsafe damping 这类旧 playable 路径已有行为，不新增手感或气动物理参数。
@@ -193,6 +194,8 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 ```powershell
 ./gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightSerializationCodecTest --tests com.tenicana.dronecraft.sim.flight.FlightStateSnapshotTest
+./gradlew.bat --no-daemon :fabric-mod:test --tests com.tenicana.dronecraft.entity.SimulationFlightRuntimeTest --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest
+./gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.SimulationFlightGoldenTraceTest :fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest :fabric-mod:flightModelComparison
 ./gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightModelRouterTest :fabric-mod:test --tests com.tenicana.dronecraft.command.DroneCommandsTest --tests com.tenicana.dronecraft.blackbox.DroneFlightTraceFilesTest --tests com.tenicana.dronecraft.entity.LegacyPlayableFlightModelAdapterTest --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest
 ./gradlew.bat --no-daemon :drone-sim-core:test :fabric-mod:test
 ./gradlew.bat --no-daemon :fabric-mod:flightModelComparison
@@ -205,8 +208,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 尚未完成的收敛门禁：
 
-- 推送本分支并提供 draft PR 或明确分支地址
-- DroneEntity 仍保留部分与 `DronePhysics` 状态/telemetry 的历史耦合，后续需继续收敛状态所有权与 correction 事件。
+- DroneEntity 仍通过 `SimulationFlightRuntime.state()` / `config()` 暴露 simulation state/config 给 telemetry、伤害、碰撞接触、存档和 layout replacement；后续需继续收敛状态所有权与 correction 事件。
 
 任何后续契约、适配器、路由或诊断改动都必须先通过上述 golden trace，证明 playable 与 simulation 的现有输出没有因重构漂移。
 
@@ -218,6 +220,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 - `SimulationFlightModelAdapter` 包装 `DronePhysics`，`LegacyPlayableFlightModelAdapter` 包装 `PlayableFlightModel`；两者均不修改原数值算法。
 - `FlightModelRouter` 已成为 playable 与 simulation 的统一 step/snapshot/diagnostics 入口。
 - `DroneEntity` 的 playable tick 不再直接调用 `PlayableFlightModel.step(...)`，simulation tick 不再直接调用 `DronePhysics.step(...)`；entity movement/collision 后的解析状态通过 `FlightModel.applyResolvedState(...)` 回灌。
+- `SimulationFlightRuntime` 已把 `DronePhysics` 的构造、替换、transient state snapshot/restore 和 Betaflight telemetry 编码从 `DroneEntity` 中移出。
 - 默认 playable 路径、显式 simulation 路径、现有 debug/self-test 配置、网络协议和存档字段保持兼容。
 - 结构性重构前建立了 playable 与 simulation golden trace，并用重构后测试持续比较，避免把行为漂移合法化。
 - `/fpvdiag start|status|stop` 已实现为默认关闭的真人录制入口，不启动时没有持续磁盘写入；停止后写入 `fpvdiag-traces`。
@@ -232,7 +235,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 ### 只发现但未修改的问题
 
-- `DroneEntity` 仍持有 `DronePhysics`，并直接读取大量 `physics.state()` / `physics.config()` 用于 telemetry、伤害、碰撞接触、存档和 layout replacement。第一阶段已经把两套模型的 step 路由统一，但状态所有权尚未彻底从 entity 层抽离。
+- `DroneEntity` 仍通过 `SimulationFlightRuntime.state()` / `config()` 读取大量 simulation state/config，用于 telemetry、伤害、碰撞接触、存档和 layout replacement。第一阶段已经移除直接 `DronePhysics` 持有和 step 耦合，但状态所有权尚未彻底从 entity 层抽离。
 - `DroneEntity` 替换机体布局时复制旧状态属于 model initialization/reset 类事件；当前已在审计中列出，仍需后续把这一类 replacement 更完整地纳入 `StateCorrectionReason.MODEL_INITIALIZATION`。
 - `DronePhysics.sleepAtRest`、`constrainAtRest`、`levelAtRest` 仍是核心模型内部的直接状态写入；entity 层已经在调用后补充 `GROUND_STABILIZATION` correction，但核心内部事件边界还可以继续细化。
 - playable adapter 对 wind、air density、turbulence 等 environment 字段仍是 lossy diagnostics，因为旧 playable 模型本身没有等价输入；本阶段只记录，不猜测性改物理。
@@ -277,4 +280,4 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 - 分支：`refactor/unified-flight-contract-v1`
 - 分支地址：`https://github.com/SakalioLabs/FPV-Dronecraft/tree/refactor/unified-flight-contract-v1`
-- 当前结论：行为保持型契约、adapter、router、golden trace、shadow comparison、一键录制器和 round-trip 测试已经落地；严格意义上的“DroneEntity 完全不直接耦合 `DronePhysics` 内部状态”尚未完成，已作为第二阶段首要候选继续推进。
+- 当前结论：行为保持型契约、adapter、router、golden trace、shadow comparison、一键录制器、round-trip 测试和 `SimulationFlightRuntime` 边界已经落地；严格意义上的状态所有权统一尚未完成，已作为第二阶段首要候选继续推进。

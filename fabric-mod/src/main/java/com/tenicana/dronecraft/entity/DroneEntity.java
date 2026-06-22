@@ -53,7 +53,6 @@ import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneEnvironmentOverride;
 import com.tenicana.dronecraft.sim.DroneInput;
-import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.FlightMode;
 import com.tenicana.dronecraft.sim.MathUtil;
@@ -272,9 +271,9 @@ public class DroneEntity extends Entity {
 	private static final EntityDataAccessor<Float> GROUND_EFFECT_LEVELING_TORQUE = SynchedEntityData.defineId(DroneEntity.class, EntityDataSerializers.FLOAT);
 	private static final FlightMode DEFAULT_ENTITY_FLIGHT_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 
-	private DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+	private SimulationFlightRuntime simulationRuntime = new SimulationFlightRuntime(DroneConfig.racingQuad());
 	private FlightModel playableFlightModel = new LegacyPlayableFlightModelAdapter();
-	private FlightModel simulationFlightModel = new SimulationFlightModelAdapter(physics);
+	private FlightModel simulationFlightModel = simulationRuntime.flightModel();
 	private FlightModelRouter flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), LegacyPlayableFlightModelAdapter.ID);
 	private String airframePreset = "racing_quad";
 	private UUID owner;
@@ -385,7 +384,7 @@ public class DroneEntity extends Entity {
 
 	@Override
 	public EntityDimensions getDimensions(Pose pose) {
-		return DroneAirframeDimensions.forConfig(physics.config());
+		return DroneAirframeDimensions.forConfig(simulationRuntime.config());
 	}
 
 	public void setOwner(UUID owner) {
@@ -602,7 +601,7 @@ public class DroneEntity extends Entity {
 
 		if (!level().isClientSide()) {
 			if (!simulationInitialized) {
-				physics.state().setPositionMeters(entityPhysicsPosition());
+				simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
 				simulationInitialized = true;
 			}
 
@@ -612,7 +611,7 @@ public class DroneEntity extends Entity {
 			decrementRotorStrikeCooldowns();
 
 			UUID activeOwner = getOwner();
-			DroneInput rawInput = activeOwner == null ? stableIdleInput() : DroneControlManager.get(activeOwner, tickCount, physics.state(), physics.config());
+			DroneInput rawInput = activeOwner == null ? stableIdleInput() : DroneControlManager.get(activeOwner, tickCount, simulationRuntime.state(), simulationRuntime.config());
 			DroneControlManager.ActiveInput sample = DroneDebugSettings.ownerlessControlEnabled()
 					? DroneControlManager.latestActiveInput(tickCount)
 					: null;
@@ -795,7 +794,7 @@ public class DroneEntity extends Entity {
 		flightModels.select(LegacyPlayableFlightModelAdapter.ID);
 		if (!playableInitialized) {
 			flightModels.initialize(new FlightModelInitializationContext(
-					physics.config(),
+					simulationRuntime.config(),
 					playableEntitySnapshot(input),
 					environment,
 					tickCount
@@ -811,7 +810,7 @@ public class DroneEntity extends Entity {
 				environment,
 				1.0 / 20.0,
 				tickCount,
-				physics.config(),
+				simulationRuntime.config(),
 				modelConfiguration
 		));
 	}
@@ -849,9 +848,9 @@ public class DroneEntity extends Entity {
 	private FlightStateSnapshot playableEntitySnapshot(DroneInput input) {
 		return new FlightStateSnapshot(
 				entityPhysicsPosition(),
-				physics.state().velocityMetersPerSecond(),
+				simulationRuntime.state().velocityMetersPerSecond(),
 				attitudeQuaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
-				physics.state().angularVelocityBodyRadiansPerSecond(),
+				simulationRuntime.state().angularVelocityBodyRadiansPerSecond(),
 				input == null ? debugFlightMode : input.flightMode(),
 				input != null && input.armed()
 		);
@@ -861,7 +860,7 @@ public class DroneEntity extends Entity {
 		double resolvedYawDegrees = yawDegrees(modelState.attitude());
 		return new FlightStateSnapshot(
 				entityPhysicsPosition(),
-				physics.state().velocityMetersPerSecond(),
+				simulationRuntime.state().velocityMetersPerSecond(),
 				attitudeQuaternion(resolvedYawDegrees, debugVisualPitchRadians, debugVisualRollRadians),
 				modelState.angularVelocityBodyRadiansPerSecond(),
 				debugFlightMode,
@@ -870,7 +869,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private FlightStateSnapshot simulationEntitySnapshot() {
-		DroneState state = physics.state();
+		DroneState state = simulationRuntime.state();
 		DroneInput processed = state.processedControlInput().normalized();
 		return new FlightStateSnapshot(
 				state.positionMeters(),
@@ -985,7 +984,7 @@ public class DroneEntity extends Entity {
 				environment,
 				dtSeconds,
 				tickCount,
-				physics.config()
+				simulationRuntime.config()
 		));
 	}
 
@@ -1031,13 +1030,13 @@ public class DroneEntity extends Entity {
 			debugVelocityY = 0.0f;
 		}
 
-		physics.state().setPositionMeters(entityPhysicsPosition());
-		physics.state().setVelocityMetersPerSecond(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
+		simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
+		simulationRuntime.state().setVelocityMetersPerSecond(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
 		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
 	}
 
 	private DroneInput directFailsafeInput() {
-		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
+		float hoverThrottle = (float) MathUtil.clamp(simulationRuntime.config().hoverThrottle(), 0.12, 0.55);
 		float throttle = hoverThrottle * DEBUG_FAILSAFE_THROTTLE_SCALE;
 		return new DroneInput(throttle, 0.0, 0.0, 0.0, true, false, DEFAULT_ENTITY_FLIGHT_MODE);
 	}
@@ -1085,9 +1084,9 @@ public class DroneEntity extends Entity {
 		debugFlightMode = DEFAULT_ENTITY_FLIGHT_MODE;
 		playableActuatorOutput = ActuatorOutput.empty();
 		playableInitialized = false;
-		physics.state().setPositionMeters(entityPhysicsPosition());
-		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
-		physics.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
+		simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
+		simulationRuntime.state().setVelocityMetersPerSecond(Vec3.ZERO);
+		simulationRuntime.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
 		applyResolvedFlightModelState(
 				LegacyPlayableFlightModelAdapter.ID,
 				playableEntitySnapshot(input),
@@ -1143,11 +1142,11 @@ public class DroneEntity extends Entity {
 	}
 
 	private void setDirectPerRotorState(DroneInput input) {
-		int rotorCount = Math.max(1, physics.config().rotors().size());
+		int rotorCount = Math.max(1, simulationRuntime.config().rotors().size());
 		double[] motorPower = new double[rotorCount];
 		double[] motorRpm = new double[rotorCount];
 		double[] rotorThrust = new double[rotorCount];
-		double[] rotorHealth = physics.state().rotorHealth();
+		double[] rotorHealth = simulationRuntime.state().rotorHealth();
 		double[] modelMotorPower = playableActuatorOutput.motorPower();
 		double[] modelMotorRpm = playableActuatorOutput.motorRpm();
 		double[] modelRotorThrust = playableActuatorOutput.rotorThrustNewtons();
@@ -1163,9 +1162,9 @@ public class DroneEntity extends Entity {
 					: Math.max(0.0, baseRpm * mix);
 			rotorThrust[i] = input.armed() && i < modelRotorThrust.length
 					? Math.max(0.0, modelRotorThrust[i])
-					: motorPower[i] * physics.config().rotors().get(i).maxThrustNewtons() * 0.45;
+					: motorPower[i] * simulationRuntime.config().rotors().get(i).maxThrustNewtons() * 0.45;
 		}
-		physics.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
+		simulationRuntime.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
 		setPerRotorFlightState(motorPower, motorRpm, rotorThrust, rotorHealth);
 	}
 
@@ -1178,7 +1177,7 @@ public class DroneEntity extends Entity {
 			case 0, 1 -> 1.0;
 			default -> -1.0;
 		};
-		double yawSign = physics.config().rotors().get(rotorIndex).spinDirection();
+		double yawSign = simulationRuntime.config().rotors().get(rotorIndex).spinDirection();
 		return 0.04 * input.roll() * rollSign
 				+ 0.04 * input.pitch() * pitchSign
 				+ 0.025 * input.yaw() * yawSign;
@@ -1275,7 +1274,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private PrecipitationWetness samplePrecipitationWetness(double windSpeedMetersPerSecond) {
-		int rotorCount = physics.config().rotors().size();
+		int rotorCount = simulationRuntime.config().rotors().size();
 		if (!level().isRaining()) {
 			return PrecipitationWetness.dry(rotorCount);
 		}
@@ -1289,12 +1288,12 @@ public class DroneEntity extends Entity {
 		double weightedWetness = bodyWetness * 1.10;
 		double totalWeight = 1.10;
 		double[] rotorWetnesses = new double[rotorCount];
-		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
-		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
+		Vec3 bodyXWorld = simulationRuntime.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
+		Vec3 bodyZWorld = simulationRuntime.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
 
 		for (int i = 0; i < rotorCount; i++) {
-			RotorSpec rotor = physics.config().rotors().get(i);
-			Vec3 rotorCenterWorld = bodyCenterWorld.add(physics.state().orientation().rotate(rotor.positionBodyMeters()));
+			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
+			Vec3 rotorCenterWorld = bodyCenterWorld.add(simulationRuntime.state().orientation().rotate(rotor.positionBodyMeters()));
 			double rotorWetness = wetnessScale * rotorPrecipitationExposureAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld);
 			rotorWetnesses[i] = MathUtil.clamp(rotorWetness, 0.0, 1.0);
 			weightedWetness += rotorWetnesses[i];
@@ -1356,7 +1355,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private WaterImmersion sampleWaterImmersion() {
-		int rotorCount = physics.config().rotors().size();
+		int rotorCount = simulationRuntime.config().rotors().size();
 		if (rotorCount <= 0) {
 			return WaterImmersion.dry(0);
 		}
@@ -1365,8 +1364,8 @@ public class DroneEntity extends Entity {
 		double totalWeight = 0.0;
 		double[] rotorWater = new double[rotorCount];
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
-		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
-		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
+		Vec3 bodyXWorld = simulationRuntime.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
+		Vec3 bodyZWorld = simulationRuntime.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
 
 		weightedWater += waterSampleAt(bodyCenterWorld) * 1.35;
 		totalWeight += 1.35;
@@ -1376,8 +1375,8 @@ public class DroneEntity extends Entity {
 		totalWeight += 0.55;
 
 		for (int i = 0; i < rotorCount; i++) {
-			RotorSpec rotor = physics.config().rotors().get(i);
-			Vec3 rotorCenterWorld = bodyCenterWorld.add(physics.state().orientation().rotate(rotor.positionBodyMeters()));
+			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
+			Vec3 rotorCenterWorld = bodyCenterWorld.add(simulationRuntime.state().orientation().rotate(rotor.positionBodyMeters()));
 			double rotorImmersion = rotorWaterImmersionAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld);
 			rotorWater[i] = rotorImmersion;
 			weightedWater += rotorImmersion * 1.30;
@@ -1417,7 +1416,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private RotorEnvironmentEffects sampleRotorEnvironmentEffects() {
-		int rotorCount = physics.config().rotors().size();
+		int rotorCount = simulationRuntime.config().rotors().size();
 		if (rotorCount <= 0) {
 			return RotorEnvironmentEffects.calm(0);
 		}
@@ -1429,8 +1428,8 @@ public class DroneEntity extends Entity {
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections();
 		for (int i = 0; i < rotorCount; i++) {
-			RotorSpec rotor = physics.config().rotors().get(i);
-			Vec3 rotorCenterWorld = bodyCenterWorld.add(physics.state().orientation().rotate(rotor.positionBodyMeters()));
+			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
+			Vec3 rotorCenterWorld = bodyCenterWorld.add(simulationRuntime.state().orientation().rotate(rotor.positionBodyMeters()));
 			RotorDiskSurfaceSample surfaceSample = rotorDiskSurfaceSample(rotorCenterWorld, rotor, rotorPlaneDirections);
 			RotorFlowObstruction flowObstruction = rotorSideFlowObstruction(rotorCenterWorld, rotor, rotorPlaneDirections);
 			double flowObstructionIntensity = flowObstruction.intensity();
@@ -1439,12 +1438,12 @@ public class DroneEntity extends Entity {
 			maxFlowObstruction = Math.max(maxFlowObstruction, flowObstructionIntensity);
 			double obstructionThrustMultiplier = RotorFlowObstructionModel.thrustMultiplier(flowObstructionIntensity);
 			multipliers[i] = DroneEnvironment.weightedGroundEffectThrustMultiplier(
-							physics.config(),
+							simulationRuntime.config(),
 							surfaceSample.groundClearancesMeters(),
 							surfaceSample.weights()
 					)
 					* DroneEnvironment.weightedCeilingEffectThrustMultiplier(
-							physics.config(),
+							simulationRuntime.config(),
 							surfaceSample.ceilingClearancesMeters(),
 							surfaceSample.weights()
 					)
@@ -1488,7 +1487,7 @@ public class DroneEntity extends Entity {
 		for (int i = 0; i < bodyDirections.length; i++) {
 			directions[i] = new RotorPlaneSampleDirection(
 					bodyDirections[i],
-					physics.state().orientation().rotate(bodyDirections[i]).normalized()
+					simulationRuntime.state().orientation().rotate(bodyDirections[i]).normalized()
 			);
 		}
 		return directions;
@@ -1557,20 +1556,20 @@ public class DroneEntity extends Entity {
 			return DroneWakeAirflow.CALM;
 		}
 
-		double motorPower = source.physics.state().averageMotorPower(source.physics.config());
+		double motorPower = source.simulationRuntime.state().averageMotorPower(source.simulationRuntime.config());
 		if (!source.isArmed() || motorPower < 0.08) {
 			return DroneWakeAirflow.CALM;
 		}
 
 		double lateralFactor = 1.0 - MathUtil.clamp(lateralDistance / Math.max(0.1, wakeRadius), 0.0, 1.0);
 		double verticalFactor = MathUtil.clamp(1.0 - verticalDrop / 5.0, 0.0, 1.0);
-		double inducedVelocity = source.physics.state().averageRotorInducedVelocityMetersPerSecond();
+		double inducedVelocity = source.simulationRuntime.state().averageRotorInducedVelocityMetersPerSecond();
 		double intensity = MathUtil.clamp(motorPower * (0.35 + 0.65 * verticalFactor) * lateralFactor * lateralFactor, 0.0, 1.5);
 		if (intensity <= 1.0e-4) {
 			return DroneWakeAirflow.CALM;
 		}
 
-		Vec3 carrierVelocity = source.physics.state().velocityMetersPerSecond().multiply(0.18 * intensity);
+		Vec3 carrierVelocity = source.simulationRuntime.state().velocityMetersPerSecond().multiply(0.18 * intensity);
 		double downwashMetersPerSecond = MathUtil.clamp(inducedVelocity * (0.45 + motorPower) * intensity, 0.0, 12.0);
 		Vec3 wind = new Vec3(carrierVelocity.x(), -downwashMetersPerSecond, carrierVelocity.z());
 		double turbulence = MathUtil.clamp(0.18 + intensity * 0.72, 0.0, 0.85);
@@ -1579,7 +1578,7 @@ public class DroneEntity extends Entity {
 
 	private static double sourceWakeRadiusMeters(DroneEntity source) {
 		double radius = 0.35;
-		for (RotorSpec rotor : source.physics.config().rotors()) {
+		for (RotorSpec rotor : source.simulationRuntime.config().rotors()) {
 			radius = Math.max(radius, rotor.positionBodyMeters().length() + rotor.radiusMeters() * 2.5);
 		}
 		return MathUtil.clamp(radius, 0.35, 1.25);
@@ -1692,7 +1691,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double groundClearanceMetersAt(Vec3 worldPosition) {
-		double rayLength = Math.max(1.0, physics.config().groundEffectHeightMeters() + 0.5);
+		double rayLength = Math.max(1.0, simulationRuntime.config().groundEffectHeightMeters() + 0.5);
 		net.minecraft.world.phys.Vec3 start = new net.minecraft.world.phys.Vec3(worldPosition.x(), worldPosition.y() + 0.08, worldPosition.z());
 		net.minecraft.world.phys.Vec3 end = start.add(0.0, -rayLength, 0.0);
 		HitResult hit = level().clip(new ClipContext(
@@ -1713,7 +1712,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double ceilingClearanceMetersAt(Vec3 worldPosition) {
-		double rayLength = Math.max(1.0, physics.config().groundEffectHeightMeters() * 1.25 + 0.5);
+		double rayLength = Math.max(1.0, simulationRuntime.config().groundEffectHeightMeters() * 1.25 + 0.5);
 		net.minecraft.world.phys.Vec3 start = new net.minecraft.world.phys.Vec3(worldPosition.x(), worldPosition.y() + 0.18, worldPosition.z());
 		net.minecraft.world.phys.Vec3 end = start.add(0.0, rayLength, 0.0);
 		HitResult hit = level().clip(new ClipContext(
@@ -1730,7 +1729,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double ceilingTurbulenceBoost(double ceilingClearanceMeters) {
-		double effectHeight = physics.config().groundEffectHeightMeters() * 1.25;
+		double effectHeight = simulationRuntime.config().groundEffectHeightMeters() * 1.25;
 		if (effectHeight <= 1.0e-6 || !Double.isFinite(ceilingClearanceMeters)) {
 			return 0.0;
 		}
@@ -1769,7 +1768,7 @@ public class DroneEntity extends Entity {
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		return Double.isFinite(clearance)
 				&& clearance <= groundLockClearanceMeters()
-				&& physics.state().velocityMetersPerSecond().y() <= 0.05;
+				&& simulationRuntime.state().velocityMetersPerSecond().y() <= 0.05;
 	}
 
 	private boolean wantsGroundSleep(DroneInput input) {
@@ -1794,17 +1793,17 @@ public class DroneEntity extends Entity {
 		if (input == null || !input.armed()) {
 			return false;
 		}
-		double throttleRelease = Math.max(0.18, physics.config().hoverThrottle() * 0.95);
+		double throttleRelease = Math.max(0.18, simulationRuntime.config().hoverThrottle() * 0.95);
 		return input.throttle() >= throttleRelease
-				&& verticalRotorThrustNewtons() >= physics.config().massKg() * physics.config().gravityMetersPerSecondSquared() * TAKEOFF_THRUST_TO_WEIGHT;
+				&& verticalRotorThrustNewtons() >= simulationRuntime.config().massKg() * simulationRuntime.config().gravityMetersPerSecondSquared() * TAKEOFF_THRUST_TO_WEIGHT;
 	}
 
 	private double verticalRotorThrustNewtons() {
 		double thrust = 0.0;
-		int rotorCount = Math.min(physics.config().rotors().size(), physics.state().motorCount());
+		int rotorCount = Math.min(simulationRuntime.config().rotors().size(), simulationRuntime.state().motorCount());
 		for (int i = 0; i < rotorCount; i++) {
-			Vec3 thrustAxisWorld = physics.state().orientation().rotate(physics.config().rotors().get(i).thrustAxisBody());
-			thrust += physics.state().rotorThrustNewtons(i) * Math.max(0.0, thrustAxisWorld.y());
+			Vec3 thrustAxisWorld = simulationRuntime.state().orientation().rotate(simulationRuntime.config().rotors().get(i).thrustAxisBody());
+			thrust += simulationRuntime.state().rotorThrustNewtons(i) * Math.max(0.0, thrustAxisWorld.y());
 		}
 		return thrust;
 	}
@@ -1816,11 +1815,11 @@ public class DroneEntity extends Entity {
 	private void prepareGroundTakeoff(DroneInput input) {
 		FlightStateSnapshot before = simulationEntitySnapshot();
 		Vec3 position = entityPhysicsPosition().add(new Vec3(0.0, TAKEOFF_POSITION_NUDGE_METERS, 0.0));
-		Vec3 velocity = physics.state().velocityMetersPerSecond();
+		Vec3 velocity = simulationRuntime.state().velocityMetersPerSecond();
 		double throttleLift = MathUtil.clamp(input.throttle(), 0.0, 1.0) * 0.35;
 		double minimumVerticalSpeed = TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND + throttleLift;
-		physics.state().setPositionMeters(position);
-		physics.state().setVelocityMetersPerSecond(new Vec3(
+		simulationRuntime.state().setPositionMeters(position);
+		simulationRuntime.state().setVelocityMetersPerSecond(new Vec3(
 				velocity.x(),
 				Math.max(velocity.y(), minimumVerticalSpeed),
 				velocity.z()
@@ -1838,7 +1837,7 @@ public class DroneEntity extends Entity {
 
 	private void sleepOnGround(DroneInput input) {
 		FlightStateSnapshot before = simulationEntitySnapshot();
-		physics.sleepAtRest(entityPhysicsPosition(), input);
+		simulationRuntime.sleepAtRest(entityPhysicsPosition(), input);
 		setDeltaMovement(0.0, 0.0, 0.0);
 		applySimulationResolvedState(before, StateCorrectionReason.GROUND_STABILIZATION, "SLEEP_AT_REST");
 	}
@@ -1850,14 +1849,14 @@ public class DroneEntity extends Entity {
 
 	private void levelSimulationAtRest(String detail) {
 		FlightStateSnapshot before = simulationEntitySnapshot();
-		physics.levelAtRest(entityPhysicsPosition());
+		simulationRuntime.levelAtRest(entityPhysicsPosition());
 		applySimulationResolvedState(before, StateCorrectionReason.GROUND_STABILIZATION, detail);
 	}
 
 	private void applyPhysicsMovement(DroneInput input) {
 		FlightStateSnapshot before = simulationEntitySnapshot();
-		Vec3 targetPosition = physics.state().positionMeters();
-		Vec3 velocityBeforeCollision = physics.state().velocityMetersPerSecond();
+		Vec3 targetPosition = simulationRuntime.state().positionMeters();
+		Vec3 velocityBeforeCollision = simulationRuntime.state().velocityMetersPerSecond();
 		double startX = getX();
 		double startY = getY();
 		double startZ = getZ();
@@ -1868,10 +1867,10 @@ public class DroneEntity extends Entity {
 		);
 
 		move(MoverType.SELF, delta);
-		physics.state().setPositionMeters(entityPhysicsPosition());
+		simulationRuntime.state().setPositionMeters(entityPhysicsPosition());
 		boolean collided = horizontalCollision || verticalCollision;
 
-		Vec3 velocity = physics.state().velocityMetersPerSecond();
+		Vec3 velocity = simulationRuntime.state().velocityMetersPerSecond();
 		if (collided) {
 			Vec3 attemptedDelta = new Vec3(delta.x(), delta.y(), delta.z());
 			Vec3 actualDelta = new Vec3(getX() - startX, getY() - startY, getZ() - startZ);
@@ -1889,9 +1888,9 @@ public class DroneEntity extends Entity {
 						verticalCollision ? 0.0 : velocity.y(),
 						horizontalCollision ? 0.0 : velocity.z()
 				);
-				physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
-				physics.state().setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
-				physics.state().setVelocityMetersPerSecond(velocity);
+				simulationRuntime.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+				simulationRuntime.state().setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
+				simulationRuntime.state().setVelocityMetersPerSecond(velocity);
 				setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 				applySimulationResolvedState(before, StateCorrectionReason.COLLISION_CONTACT_SOLVE, "SIMPLE_CONTACT_SOLVE");
 				return;
@@ -1913,8 +1912,8 @@ public class DroneEntity extends Entity {
 					contactSurface
 			);
 			Vec3 angularImpulse = ContactDynamics.angularVelocityImpulseBody(
-					physics.config(),
-					physics.state().orientation(),
+					simulationRuntime.config(),
+					simulationRuntime.state().orientation(),
 					velocityBeforeCollision,
 					contact.contactNormalWorld(),
 					contact.impactSpeedMetersPerSecond(),
@@ -1922,10 +1921,10 @@ public class DroneEntity extends Entity {
 					contactSurface
 			);
 			velocity = contact.velocityMetersPerSecond();
-			physics.state().setAngularVelocityBodyRadiansPerSecond(
-					physics.state().angularVelocityBodyRadiansPerSecond().add(angularImpulse).clamp(-40.0, 40.0)
+			simulationRuntime.state().setAngularVelocityBodyRadiansPerSecond(
+					simulationRuntime.state().angularVelocityBodyRadiansPerSecond().add(angularImpulse).clamp(-40.0, 40.0)
 			);
-			physics.state().setContactTelemetry(
+			simulationRuntime.state().setContactTelemetry(
 					contact.impactSpeedMetersPerSecond(),
 					contact.slipSpeedMetersPerSecond(),
 					contact.bounceSpeedMetersPerSecond(),
@@ -1934,9 +1933,9 @@ public class DroneEntity extends Entity {
 			);
 			applyCollisionDamage(velocityBeforeCollision, contact.impactSpeedMetersPerSecond());
 		} else {
-			physics.state().setContactTelemetry(0.0, 0.0, 0.0);
+			simulationRuntime.state().setContactTelemetry(0.0, 0.0, 0.0);
 		}
-		physics.state().setVelocityMetersPerSecond(velocity);
+		simulationRuntime.state().setVelocityMetersPerSecond(velocity);
 		setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
 		applySimulationResolvedState(
 				before,
@@ -1946,8 +1945,8 @@ public class DroneEntity extends Entity {
 	}
 
 	private void updateSyncedFlightState(DroneInput input) {
-		Vec3 euler = physics.state().orientation().toEulerXYZRadians();
-		DroneInput processedInput = physics.state().processedControlInput();
+		Vec3 euler = simulationRuntime.state().orientation().toEulerXYZRadians();
+		DroneInput processedInput = simulationRuntime.state().processedControlInput();
 		entityData.set(ARMED, processedInput.armed());
 		entityData.set(FLIGHT_MODE, syncedFlightMode(input, processedInput).id());
 		syncAirframeLayout();
@@ -1958,140 +1957,140 @@ public class DroneEntity extends Entity {
 		entityData.set(CONTROL_PITCH, (float) processedInput.pitch());
 		entityData.set(CONTROL_ROLL, (float) processedInput.roll());
 		entityData.set(CONTROL_YAW, (float) processedInput.yaw());
-		entityData.set(CONTROL_LINK_LOSS_SECONDS, (float) physics.state().controlLinkLossSeconds());
+		entityData.set(CONTROL_LINK_LOSS_SECONDS, (float) simulationRuntime.state().controlLinkLossSeconds());
 		entityData.set(RAW_CONTROL_LINK_ACTIVE, input.linkActive());
 		entityData.set(PROCESSED_CONTROL_LINK_ACTIVE, processedInput.linkActive());
-		entityData.set(CONTROL_FAILSAFE, physics.state().controlFailsafeActive());
-		Vec3 targetRates = physics.state().targetRatesBodyRadiansPerSecond();
-		Vec3 gyroRates = physics.state().gyroAngularVelocityBodyRadiansPerSecond();
-		Vec3 pidOutput = physics.state().pidOutputTorqueBodyNewtonMeters();
-		Vec3 estimatedEuler = physics.state().estimatedOrientation().toEulerXYZRadians();
-		Vec3 attitudeError = physics.state().attitudeEstimateErrorRadians();
+		entityData.set(CONTROL_FAILSAFE, simulationRuntime.state().controlFailsafeActive());
+		Vec3 targetRates = simulationRuntime.state().targetRatesBodyRadiansPerSecond();
+		Vec3 gyroRates = simulationRuntime.state().gyroAngularVelocityBodyRadiansPerSecond();
+		Vec3 pidOutput = simulationRuntime.state().pidOutputTorqueBodyNewtonMeters();
+		Vec3 estimatedEuler = simulationRuntime.state().estimatedOrientation().toEulerXYZRadians();
+		Vec3 attitudeError = simulationRuntime.state().attitudeEstimateErrorRadians();
 		entityData.set(TARGET_PITCH_RATE, (float) Math.toDegrees(targetRates.x()));
 		entityData.set(TARGET_YAW_RATE, (float) Math.toDegrees(targetRates.y()));
 		entityData.set(TARGET_ROLL_RATE, (float) Math.toDegrees(targetRates.z()));
 		entityData.set(GYRO_PITCH_RATE, (float) Math.toDegrees(gyroRates.x()));
 		entityData.set(GYRO_YAW_RATE, (float) Math.toDegrees(gyroRates.y()));
 		entityData.set(GYRO_ROLL_RATE, (float) Math.toDegrees(gyroRates.z()));
-		entityData.set(GYRO_CLIP, (float) physics.state().gyroClipIntensity());
-		entityData.set(ACCEL_CLIP, (float) physics.state().accelerometerClipIntensity());
-		entityData.set(IMU_SUPPLY_NOISE, (float) physics.state().imuSupplyNoiseIntensity());
-		entityData.set(GYRO_NOTCH_FREQUENCY, (float) physics.state().gyroDynamicNotchFrequencyHertz());
-		entityData.set(GYRO_NOTCH_ATTENUATION, (float) physics.state().gyroDynamicNotchAttenuation());
+		entityData.set(GYRO_CLIP, (float) simulationRuntime.state().gyroClipIntensity());
+		entityData.set(ACCEL_CLIP, (float) simulationRuntime.state().accelerometerClipIntensity());
+		entityData.set(IMU_SUPPLY_NOISE, (float) simulationRuntime.state().imuSupplyNoiseIntensity());
+		entityData.set(GYRO_NOTCH_FREQUENCY, (float) simulationRuntime.state().gyroDynamicNotchFrequencyHertz());
+		entityData.set(GYRO_NOTCH_ATTENUATION, (float) simulationRuntime.state().gyroDynamicNotchAttenuation());
 		entityData.set(PID_PITCH_OUTPUT, (float) pidOutput.x());
 		entityData.set(PID_YAW_OUTPUT, (float) pidOutput.y());
 		entityData.set(PID_ROLL_OUTPUT, (float) pidOutput.z());
-		entityData.set(PID_ATTENUATION, (float) physics.state().pidAttenuation());
-		entityData.set(PID_INTEGRAL_RELAX, (float) physics.state().pidIntegralRelax());
-		entityData.set(PID_DTERM_LPF_CUTOFF, (float) physics.state().pidDTermLowPassCutoffHertz());
-		entityData.set(ANTI_GRAVITY_BOOST, (float) physics.state().antiGravityBoost());
+		entityData.set(PID_ATTENUATION, (float) simulationRuntime.state().pidAttenuation());
+		entityData.set(PID_INTEGRAL_RELAX, (float) simulationRuntime.state().pidIntegralRelax());
+		entityData.set(PID_DTERM_LPF_CUTOFF, (float) simulationRuntime.state().pidDTermLowPassCutoffHertz());
+		entityData.set(ANTI_GRAVITY_BOOST, (float) simulationRuntime.state().antiGravityBoost());
 		entityData.set(ESTIMATED_PITCH, (float) Math.toDegrees(estimatedEuler.x()));
 		entityData.set(ESTIMATED_YAW, (float) Math.toDegrees(estimatedEuler.y()));
 		entityData.set(ESTIMATED_ROLL, (float) Math.toDegrees(estimatedEuler.z()));
 		entityData.set(ATTITUDE_ESTIMATE_ERROR, (float) Math.toDegrees(attitudeError.length()));
-		entityData.set(ATTITUDE_ACCEL_TRUST, (float) physics.state().attitudeEstimatorAccelerometerTrust());
-		entityData.set(MOTOR_POWER, (float) physics.state().averageMotorPower(physics.config()));
-		entityData.set(MOTOR_RPM, (float) physics.state().averageMotorRpm());
-		entityData.set(MOTOR_TEMPERATURE, (float) physics.state().maxMotorTemperatureCelsius());
-		entityData.set(MOTOR_THERMAL_LIMIT, (float) physics.state().motorThermalLimit());
-		entityData.set(MOTOR_VOLTAGE_HEADROOM, (float) physics.state().minMotorVoltageHeadroom());
-		entityData.set(MOTOR_WINDING_RESISTANCE_SCALE, (float) physics.state().maxMotorWindingResistanceScale());
-		entityData.set(ESC_TEMPERATURE, (float) physics.state().maxEscTemperatureCelsius());
-		entityData.set(ESC_THERMAL_LIMIT, (float) physics.state().escThermalLimit());
-		entityData.set(ESC_COOLING_FACTOR, (float) physics.state().averageEscCoolingFactor());
-		entityData.set(ESC_DESYNC, (float) physics.state().maxEscDesyncIntensity());
-		entityData.set(ROTOR_AERODYNAMIC_LOAD, (float) physics.state().averageRotorAerodynamicLoadFactor());
-		entityData.set(ROTOR_IN_PLANE_DRAG_FORCE, (float) physics.state().maxRotorInPlaneDragForceNewtons());
-		double[] motorPower = physics.state().motorPower(physics.config());
-		double[] motorRpm = physics.state().motorRpm();
-		double[] rotorThrust = physics.state().rotorThrustNewtons();
-		double[] rotorHealth = physics.state().rotorHealth();
+		entityData.set(ATTITUDE_ACCEL_TRUST, (float) simulationRuntime.state().attitudeEstimatorAccelerometerTrust());
+		entityData.set(MOTOR_POWER, (float) simulationRuntime.state().averageMotorPower(simulationRuntime.config()));
+		entityData.set(MOTOR_RPM, (float) simulationRuntime.state().averageMotorRpm());
+		entityData.set(MOTOR_TEMPERATURE, (float) simulationRuntime.state().maxMotorTemperatureCelsius());
+		entityData.set(MOTOR_THERMAL_LIMIT, (float) simulationRuntime.state().motorThermalLimit());
+		entityData.set(MOTOR_VOLTAGE_HEADROOM, (float) simulationRuntime.state().minMotorVoltageHeadroom());
+		entityData.set(MOTOR_WINDING_RESISTANCE_SCALE, (float) simulationRuntime.state().maxMotorWindingResistanceScale());
+		entityData.set(ESC_TEMPERATURE, (float) simulationRuntime.state().maxEscTemperatureCelsius());
+		entityData.set(ESC_THERMAL_LIMIT, (float) simulationRuntime.state().escThermalLimit());
+		entityData.set(ESC_COOLING_FACTOR, (float) simulationRuntime.state().averageEscCoolingFactor());
+		entityData.set(ESC_DESYNC, (float) simulationRuntime.state().maxEscDesyncIntensity());
+		entityData.set(ROTOR_AERODYNAMIC_LOAD, (float) simulationRuntime.state().averageRotorAerodynamicLoadFactor());
+		entityData.set(ROTOR_IN_PLANE_DRAG_FORCE, (float) simulationRuntime.state().maxRotorInPlaneDragForceNewtons());
+		double[] motorPower = simulationRuntime.state().motorPower(simulationRuntime.config());
+		double[] motorRpm = simulationRuntime.state().motorRpm();
+		double[] rotorThrust = simulationRuntime.state().rotorThrustNewtons();
+		double[] rotorHealth = simulationRuntime.state().rotorHealth();
 		setPerRotorFlightState(motorPower, motorRpm, rotorThrust, rotorHealth);
-		entityData.set(ROTOR_VIBRATION, (float) physics.state().rotorVibration());
-		entityData.set(ROTOR_CONING_INTENSITY, (float) physics.state().averageRotorConingIntensity());
-		entityData.set(ROTOR_STALL_INTENSITY, (float) physics.state().averageRotorStallIntensity());
-		entityData.set(ROTOR_FLAPPING_TILT, (float) Math.toDegrees(physics.state().averageRotorFlappingTiltRadians()));
-		entityData.set(ROTOR_SURFACE_SCRAPE, (float) physics.state().maxRotorSurfaceScrapeIntensity());
-		entityData.set(ROTOR_TRANSLATIONAL_LIFT, (float) physics.state().averageRotorTranslationalLiftIntensity());
-		entityData.set(ROTOR_ADVANCE_RATIO, (float) physics.state().maxRotorAdvanceRatio());
-		entityData.set(ROTOR_PROPELLER_ADVANCE_RATIO_J, (float) physics.state().maxRotorPropellerAdvanceRatioJ());
-		entityData.set(ROTOR_PROPELLER_THRUST_SCALE, (float) physics.state().minRotorPropellerThrustScale());
-		entityData.set(ROTOR_PROPELLER_POWER_SCALE, (float) physics.state().minRotorPropellerPowerScale());
-		entityData.set(ROTOR_REVERSE_FLOW, (float) physics.state().maxRotorReverseFlowInboardFraction());
-		entityData.set(ROTOR_TIP_MACH, (float) physics.state().maxRotorTipMach());
-		entityData.set(ROTOR_COMPRESSIBILITY_THRUST_SCALE, (float) physics.state().minRotorCompressibilityThrustScale());
-		entityData.set(ROTOR_LOW_REYNOLDS_LOSS, (float) physics.state().maxRotorLowReynoldsLoss());
-		entityData.set(ROTOR_BLADE_AOA, (float) Math.toDegrees(physics.state().maxAbsRotorBladeAngleOfAttackRadians()));
-		entityData.set(ROTOR_BLADE_ELEMENT_STALL, (float) physics.state().maxRotorBladeElementStallIntensity());
-		entityData.set(ROTOR_BLADE_PASS_RIPPLE, (float) physics.state().maxRotorBladePassRippleIntensity());
-		entityData.set(ROTOR_BLADE_DISSYMMETRY_TORQUE, (float) physics.state().rotorBladeDissymmetryTorqueBodyNewtonMeters().length());
-		entityData.set(ROTOR_INFLOW_SKEW, (float) physics.state().rotorInflowSkewIntensity());
-		entityData.set(ROTOR_INDUCED_VELOCITY, (float) physics.state().maxRotorInducedVelocityMetersPerSecond());
-		entityData.set(ROTOR_INDUCED_LAG_THRUST_SCALE, (float) physics.state().minRotorInducedLagThrustScale());
-		entityData.set(ROTOR_WAKE_INTERFERENCE, (float) physics.state().maxRotorWakeInterferenceIntensity());
-		entityData.set(ROTOR_WAKE_THRUST_SCALE, (float) physics.state().minRotorWakeThrustScale());
-		entityData.set(ROTOR_COAXIAL_LOAD_BIAS, (float) physics.state().maxAbsRotorCoaxialLoadBias());
-		entityData.set(ROTOR_WET_THRUST_SCALE, (float) physics.state().minRotorWetThrustScale());
-		entityData.set(ROTOR_WAKE_SWIRL, (float) physics.state().maxRotorWakeSwirlVelocityMetersPerSecond());
-		entityData.set(ROTOR_WINDMILLING, (float) physics.state().maxRotorWindmillingIntensity());
-		entityData.set(ROTOR_WAKE_SWIRL_TORQUE, (float) physics.state().rotorWakeSwirlTorqueBodyNewtonMeters().length());
-		entityData.set(ROTOR_ACTIVE_BRAKING_TORQUE, (float) physics.state().rotorActiveBrakingTorqueBodyNewtonMeters().length());
-		entityData.set(ROTOR_ACCELERATION_REACTION_TORQUE, (float) physics.state().rotorAccelerationReactionTorqueBodyNewtonMeters().length());
-		entityData.set(ROTOR_GYROSCOPIC_TORQUE, (float) physics.state().rotorGyroscopicTorqueBodyNewtonMeters().length());
-		entityData.set(ROTOR_FLAPPING_TORQUE, (float) physics.state().rotorFlappingTorqueBodyNewtonMeters().length());
-		entityData.set(MIXER_SATURATION, (float) physics.state().mixerSaturation());
-		entityData.set(PROPWASH_INTENSITY, (float) physics.state().propwashIntensity());
-		entityData.set(VORTEX_RING_STATE, (float) physics.state().vortexRingStateIntensity());
-		entityData.set(VORTEX_RING_THRUST_BUFFET, (float) physics.state().maxVortexRingThrustBuffetAmplitude());
-		entityData.set(VORTEX_RING_BUFFET_FORCE, (float) physics.state().vortexRingBuffetForceBodyNewtons().length());
-		entityData.set(GROUND_EFFECT_MULTIPLIER, (float) lastEnvironment.groundEffectThrustMultiplier(physics.config()));
-		entityData.set(CEILING_EFFECT_MULTIPLIER, (float) lastEnvironment.ceilingEffectThrustMultiplier(physics.config()));
-		entityData.set(CEILING_EFFECT_INTENSITY, (float) lastEnvironment.ceilingEffectIntensity(physics.config()));
-		entityData.set(ENV_THRUST_ASYMMETRY, (float) lastEnvironment.rotorThrustAsymmetry(physics.config()));
+		entityData.set(ROTOR_VIBRATION, (float) simulationRuntime.state().rotorVibration());
+		entityData.set(ROTOR_CONING_INTENSITY, (float) simulationRuntime.state().averageRotorConingIntensity());
+		entityData.set(ROTOR_STALL_INTENSITY, (float) simulationRuntime.state().averageRotorStallIntensity());
+		entityData.set(ROTOR_FLAPPING_TILT, (float) Math.toDegrees(simulationRuntime.state().averageRotorFlappingTiltRadians()));
+		entityData.set(ROTOR_SURFACE_SCRAPE, (float) simulationRuntime.state().maxRotorSurfaceScrapeIntensity());
+		entityData.set(ROTOR_TRANSLATIONAL_LIFT, (float) simulationRuntime.state().averageRotorTranslationalLiftIntensity());
+		entityData.set(ROTOR_ADVANCE_RATIO, (float) simulationRuntime.state().maxRotorAdvanceRatio());
+		entityData.set(ROTOR_PROPELLER_ADVANCE_RATIO_J, (float) simulationRuntime.state().maxRotorPropellerAdvanceRatioJ());
+		entityData.set(ROTOR_PROPELLER_THRUST_SCALE, (float) simulationRuntime.state().minRotorPropellerThrustScale());
+		entityData.set(ROTOR_PROPELLER_POWER_SCALE, (float) simulationRuntime.state().minRotorPropellerPowerScale());
+		entityData.set(ROTOR_REVERSE_FLOW, (float) simulationRuntime.state().maxRotorReverseFlowInboardFraction());
+		entityData.set(ROTOR_TIP_MACH, (float) simulationRuntime.state().maxRotorTipMach());
+		entityData.set(ROTOR_COMPRESSIBILITY_THRUST_SCALE, (float) simulationRuntime.state().minRotorCompressibilityThrustScale());
+		entityData.set(ROTOR_LOW_REYNOLDS_LOSS, (float) simulationRuntime.state().maxRotorLowReynoldsLoss());
+		entityData.set(ROTOR_BLADE_AOA, (float) Math.toDegrees(simulationRuntime.state().maxAbsRotorBladeAngleOfAttackRadians()));
+		entityData.set(ROTOR_BLADE_ELEMENT_STALL, (float) simulationRuntime.state().maxRotorBladeElementStallIntensity());
+		entityData.set(ROTOR_BLADE_PASS_RIPPLE, (float) simulationRuntime.state().maxRotorBladePassRippleIntensity());
+		entityData.set(ROTOR_BLADE_DISSYMMETRY_TORQUE, (float) simulationRuntime.state().rotorBladeDissymmetryTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_INFLOW_SKEW, (float) simulationRuntime.state().rotorInflowSkewIntensity());
+		entityData.set(ROTOR_INDUCED_VELOCITY, (float) simulationRuntime.state().maxRotorInducedVelocityMetersPerSecond());
+		entityData.set(ROTOR_INDUCED_LAG_THRUST_SCALE, (float) simulationRuntime.state().minRotorInducedLagThrustScale());
+		entityData.set(ROTOR_WAKE_INTERFERENCE, (float) simulationRuntime.state().maxRotorWakeInterferenceIntensity());
+		entityData.set(ROTOR_WAKE_THRUST_SCALE, (float) simulationRuntime.state().minRotorWakeThrustScale());
+		entityData.set(ROTOR_COAXIAL_LOAD_BIAS, (float) simulationRuntime.state().maxAbsRotorCoaxialLoadBias());
+		entityData.set(ROTOR_WET_THRUST_SCALE, (float) simulationRuntime.state().minRotorWetThrustScale());
+		entityData.set(ROTOR_WAKE_SWIRL, (float) simulationRuntime.state().maxRotorWakeSwirlVelocityMetersPerSecond());
+		entityData.set(ROTOR_WINDMILLING, (float) simulationRuntime.state().maxRotorWindmillingIntensity());
+		entityData.set(ROTOR_WAKE_SWIRL_TORQUE, (float) simulationRuntime.state().rotorWakeSwirlTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_ACTIVE_BRAKING_TORQUE, (float) simulationRuntime.state().rotorActiveBrakingTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_ACCELERATION_REACTION_TORQUE, (float) simulationRuntime.state().rotorAccelerationReactionTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_GYROSCOPIC_TORQUE, (float) simulationRuntime.state().rotorGyroscopicTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_FLAPPING_TORQUE, (float) simulationRuntime.state().rotorFlappingTorqueBodyNewtonMeters().length());
+		entityData.set(MIXER_SATURATION, (float) simulationRuntime.state().mixerSaturation());
+		entityData.set(PROPWASH_INTENSITY, (float) simulationRuntime.state().propwashIntensity());
+		entityData.set(VORTEX_RING_STATE, (float) simulationRuntime.state().vortexRingStateIntensity());
+		entityData.set(VORTEX_RING_THRUST_BUFFET, (float) simulationRuntime.state().maxVortexRingThrustBuffetAmplitude());
+		entityData.set(VORTEX_RING_BUFFET_FORCE, (float) simulationRuntime.state().vortexRingBuffetForceBodyNewtons().length());
+		entityData.set(GROUND_EFFECT_MULTIPLIER, (float) lastEnvironment.groundEffectThrustMultiplier(simulationRuntime.config()));
+		entityData.set(CEILING_EFFECT_MULTIPLIER, (float) lastEnvironment.ceilingEffectThrustMultiplier(simulationRuntime.config()));
+		entityData.set(CEILING_EFFECT_INTENSITY, (float) lastEnvironment.ceilingEffectIntensity(simulationRuntime.config()));
+		entityData.set(ENV_THRUST_ASYMMETRY, (float) lastEnvironment.rotorThrustAsymmetry(simulationRuntime.config()));
 		entityData.set(ROTOR_FLOW_OBSTRUCTION, (float) lastEnvironment.maxRotorFlowObstruction());
 		entityData.set(WATER_IMMERSION, (float) lastEnvironment.maxRotorWaterImmersion());
 		entityData.set(PRECIPITATION_WETNESS, (float) lastEnvironment.precipitationWetnessIntensity());
 		entityData.set(AMBIENT_TEMPERATURE, (float) lastEnvironment.ambientTemperatureCelsius());
-		Vec3 effectiveWind = physics.state().effectiveWindVelocityWorldMetersPerSecond();
+		Vec3 effectiveWind = simulationRuntime.state().effectiveWindVelocityWorldMetersPerSecond();
 		entityData.set(WIND_SPEED, (float) lastEnvironment.windVelocityWorldMetersPerSecond().length());
 		entityData.set(EFFECTIVE_WIND_SPEED, (float) effectiveWind.length());
-		entityData.set(WIND_GUST_SPEED, (float) physics.state().windGustSpeedMetersPerSecond());
-		entityData.set(WIND_SHEAR_ACCELERATION, (float) physics.state().windShearAccelerationMetersPerSecondSquared());
+		entityData.set(WIND_GUST_SPEED, (float) simulationRuntime.state().windGustSpeedMetersPerSecond());
+		entityData.set(WIND_SHEAR_ACCELERATION, (float) simulationRuntime.state().windShearAccelerationMetersPerSecondSquared());
 		entityData.set(TURBULENCE_INTENSITY, (float) lastEnvironment.turbulenceIntensity());
 		entityData.set(OBSTACLE_PROXIMITY, (float) lastEnvironment.obstacleProximity());
 		entityData.set(DRONE_WAKE_INTENSITY, (float) lastEnvironment.droneWakeIntensity());
-		entityData.set(AIRSPEED, (float) physics.state().airspeedMetersPerSecond());
-		entityData.set(ANGLE_OF_ATTACK, (float) Math.toDegrees(physics.state().angleOfAttackRadians()));
-		entityData.set(SIDESLIP, (float) Math.toDegrees(physics.state().sideslipRadians()));
-		entityData.set(AIRFRAME_SEPARATED_FLOW, (float) physics.state().airframeSeparatedFlowIntensity());
-		entityData.set(AIRFRAME_LIFT_FORCE, (float) physics.state().airframeLiftForceBodyNewtons().length());
-		entityData.set(GROUND_EFFECT_DRAG_FORCE, (float) physics.state().groundEffectDragForceBodyNewtons().length());
-		entityData.set(GROUND_EFFECT_LEVELING_TORQUE, (float) physics.state().groundEffectLevelingTorqueBodyNewtonMeters().length());
-		entityData.set(ROTOR_WASH_DRAG_FORCE, (float) physics.state().rotorWashDragForceBodyNewtons().length());
-		entityData.set(ROTOR_WALL_EFFECT_FORCE, (float) physics.state().rotorWallEffectForceBodyNewtons().length());
-		entityData.set(BAROMETER_ALTITUDE, (float) physics.state().barometerAltitudeMeters());
-		entityData.set(BAROMETER_VERTICAL_SPEED, (float) physics.state().barometerVerticalSpeedMetersPerSecond());
-		entityData.set(BAROMETER_PRESSURE, (float) physics.state().barometerPressureHectopascals());
-		entityData.set(BAROMETER_ERROR, (float) physics.state().barometerErrorMeters());
-		entityData.set(SPEED, (float) physics.state().speedMetersPerSecond());
-		entityData.set(CONTACT_IMPACT_SPEED, (float) physics.state().contactImpactSpeedMetersPerSecond());
-		entityData.set(CONTACT_SLIP_SPEED, (float) physics.state().contactSlipSpeedMetersPerSecond());
-		entityData.set(CONTACT_BOUNCE_SPEED, (float) physics.state().contactBounceSpeedMetersPerSecond());
-		entityData.set(CONTACT_ANGULAR_IMPULSE, (float) Math.toDegrees(physics.state().contactAngularImpulseBodyRadiansPerSecond().length()));
-		entityData.set(BATTERY_VOLTAGE, (float) physics.state().batteryVoltage());
-		entityData.set(BATTERY_SAG, (float) physics.state().batteryTotalSagVoltage());
-		entityData.set(BATTERY_EFFECTIVE_RESISTANCE, (float) physics.state().batteryEffectiveResistanceOhms());
-		entityData.set(BATTERY_REGEN_CURRENT, (float) physics.state().batteryRegenerativeCurrentAmps());
-		entityData.set(BATTERY_VOLTAGE_SPIKE, (float) physics.state().batteryVoltageSpike());
-		entityData.set(BATTERY_BUS_RIPPLE, (float) physics.state().batteryBusRippleVoltage());
-		entityData.set(BATTERY_STATE_OF_CHARGE, (float) physics.state().batteryStateOfCharge());
-		entityData.set(BATTERY_CURRENT, (float) physics.state().batteryCurrentAmps());
-		entityData.set(BATTERY_TWENTY_PERCENT_SAG_CURRENT, (float) physics.state().batteryTwentyPercentSagCurrentAmps());
-		entityData.set(BATTERY_TWENTY_PERCENT_SAG_CURRENT_MARGIN, (float) physics.state().batteryTwentyPercentSagCurrentMargin());
-		entityData.set(BATTERY_CURRENT_LIMIT, (float) physics.state().batteryCurrentLimit());
-		entityData.set(BATTERY_POWER_LIMIT, (float) physics.state().batteryPowerLimit());
+		entityData.set(AIRSPEED, (float) simulationRuntime.state().airspeedMetersPerSecond());
+		entityData.set(ANGLE_OF_ATTACK, (float) Math.toDegrees(simulationRuntime.state().angleOfAttackRadians()));
+		entityData.set(SIDESLIP, (float) Math.toDegrees(simulationRuntime.state().sideslipRadians()));
+		entityData.set(AIRFRAME_SEPARATED_FLOW, (float) simulationRuntime.state().airframeSeparatedFlowIntensity());
+		entityData.set(AIRFRAME_LIFT_FORCE, (float) simulationRuntime.state().airframeLiftForceBodyNewtons().length());
+		entityData.set(GROUND_EFFECT_DRAG_FORCE, (float) simulationRuntime.state().groundEffectDragForceBodyNewtons().length());
+		entityData.set(GROUND_EFFECT_LEVELING_TORQUE, (float) simulationRuntime.state().groundEffectLevelingTorqueBodyNewtonMeters().length());
+		entityData.set(ROTOR_WASH_DRAG_FORCE, (float) simulationRuntime.state().rotorWashDragForceBodyNewtons().length());
+		entityData.set(ROTOR_WALL_EFFECT_FORCE, (float) simulationRuntime.state().rotorWallEffectForceBodyNewtons().length());
+		entityData.set(BAROMETER_ALTITUDE, (float) simulationRuntime.state().barometerAltitudeMeters());
+		entityData.set(BAROMETER_VERTICAL_SPEED, (float) simulationRuntime.state().barometerVerticalSpeedMetersPerSecond());
+		entityData.set(BAROMETER_PRESSURE, (float) simulationRuntime.state().barometerPressureHectopascals());
+		entityData.set(BAROMETER_ERROR, (float) simulationRuntime.state().barometerErrorMeters());
+		entityData.set(SPEED, (float) simulationRuntime.state().speedMetersPerSecond());
+		entityData.set(CONTACT_IMPACT_SPEED, (float) simulationRuntime.state().contactImpactSpeedMetersPerSecond());
+		entityData.set(CONTACT_SLIP_SPEED, (float) simulationRuntime.state().contactSlipSpeedMetersPerSecond());
+		entityData.set(CONTACT_BOUNCE_SPEED, (float) simulationRuntime.state().contactBounceSpeedMetersPerSecond());
+		entityData.set(CONTACT_ANGULAR_IMPULSE, (float) Math.toDegrees(simulationRuntime.state().contactAngularImpulseBodyRadiansPerSecond().length()));
+		entityData.set(BATTERY_VOLTAGE, (float) simulationRuntime.state().batteryVoltage());
+		entityData.set(BATTERY_SAG, (float) simulationRuntime.state().batteryTotalSagVoltage());
+		entityData.set(BATTERY_EFFECTIVE_RESISTANCE, (float) simulationRuntime.state().batteryEffectiveResistanceOhms());
+		entityData.set(BATTERY_REGEN_CURRENT, (float) simulationRuntime.state().batteryRegenerativeCurrentAmps());
+		entityData.set(BATTERY_VOLTAGE_SPIKE, (float) simulationRuntime.state().batteryVoltageSpike());
+		entityData.set(BATTERY_BUS_RIPPLE, (float) simulationRuntime.state().batteryBusRippleVoltage());
+		entityData.set(BATTERY_STATE_OF_CHARGE, (float) simulationRuntime.state().batteryStateOfCharge());
+		entityData.set(BATTERY_CURRENT, (float) simulationRuntime.state().batteryCurrentAmps());
+		entityData.set(BATTERY_TWENTY_PERCENT_SAG_CURRENT, (float) simulationRuntime.state().batteryTwentyPercentSagCurrentAmps());
+		entityData.set(BATTERY_TWENTY_PERCENT_SAG_CURRENT_MARGIN, (float) simulationRuntime.state().batteryTwentyPercentSagCurrentMargin());
+		entityData.set(BATTERY_CURRENT_LIMIT, (float) simulationRuntime.state().batteryCurrentLimit());
+		entityData.set(BATTERY_POWER_LIMIT, (float) simulationRuntime.state().batteryPowerLimit());
 		entityData.set(FRAME_HEALTH, (float) frameHealth);
-		entityData.set(ROTOR_HEALTH, (float) physics.state().averageRotorHealth());
+		entityData.set(ROTOR_HEALTH, (float) simulationRuntime.state().averageRotorHealth());
 		entityData.set(PROP_STRIKE_COUNT, propStrikeCount);
 		entityData.set(LAST_PROP_STRIKE_ROTOR, lastPropStrikeRotorIndex);
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, (float) lastPropStrikeSeverity);
@@ -2146,12 +2145,12 @@ public class DroneEntity extends Entity {
 	}
 
 	private int syncedRotorCount() {
-		return Math.max(1, Math.min(8, physics.config().rotors().size()));
+		return Math.max(1, Math.min(8, simulationRuntime.config().rotors().size()));
 	}
 
 	private void syncAirframeLayout() {
 		entityData.set(ROTOR_COUNT, syncedRotorCount());
-		entityData.set(ROTOR_LAYOUT, RotorLayoutCodec.encode(physics.config()));
+		entityData.set(ROTOR_LAYOUT, RotorLayoutCodec.encode(simulationRuntime.config()));
 	}
 
 	private static double valueOrZero(double[] values, int index) {
@@ -2174,24 +2173,24 @@ public class DroneEntity extends Entity {
 		double severity = Math.min(1.0, (impactSpeed - 3.2) / 16.0);
 		lastCollisionSeverity = Math.max(lastCollisionSeverity, severity);
 		frameHealth = Math.max(0.0, frameHealth - severity * 0.22);
-		physics.state().damageAllRotors(severity * 0.04);
+		simulationRuntime.state().damageAllRotors(severity * 0.04);
 
 		int rotorIndex = exposedRotorIndex(impactVelocity);
-		physics.state().damageRotor(rotorIndex, severity * 0.34);
+		simulationRuntime.state().damageRotor(rotorIndex, severity * 0.34);
 		collisionDamageCooldown = 6;
 	}
 
 	private void samplePropStrikes() {
 		ensureRotorStrikeArrays();
-		Vec3 frameVelocity = physics.state().velocityMetersPerSecond();
+		Vec3 frameVelocity = simulationRuntime.state().velocityMetersPerSecond();
 		double frameSpeed = frameVelocity.length();
-		Vec3 bodyXWorld = physics.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
-		Vec3 bodyZWorld = physics.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
+		Vec3 bodyXWorld = simulationRuntime.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
+		Vec3 bodyZWorld = simulationRuntime.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 
-		for (int i = 0; i < physics.config().rotors().size(); i++) {
-			RotorSpec rotor = physics.config().rotors().get(i);
-			double tipSpeed = physics.state().motorOmegaRadiansPerSecond(i) * rotor.radiusMeters();
+		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
+			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
+			double tipSpeed = simulationRuntime.state().motorOmegaRadiansPerSecond(i) * rotor.radiusMeters();
 			if (tipSpeed < MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND && frameSpeed < MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND) {
 				continue;
 			}
@@ -2202,14 +2201,14 @@ public class DroneEntity extends Entity {
 			}
 
 			double scrapeIntensity = propScrapeIntensity(tipSpeed, frameSpeed) * contactSurface.scrapeMultiplier();
-			physics.state().setContactSurfaceTelemetry(contactSurface);
-			physics.state().addRotorSurfaceScrapeIntensity(i, scrapeIntensity);
+			simulationRuntime.state().setContactSurfaceTelemetry(contactSurface);
+			simulationRuntime.state().addRotorSurfaceScrapeIntensity(i, scrapeIntensity);
 			if (rotorStrikeCooldownTicks[i] > 0) {
 				continue;
 			}
 
 			double severity = propStrikeSeverity(tipSpeed, frameSpeed, contactSurface);
-			physics.state().damageRotor(i, severity);
+			simulationRuntime.state().damageRotor(i, severity);
 			frameHealth = Math.max(0.0, frameHealth - severity * 0.035);
 			lastCollisionSeverity = Math.max(lastCollisionSeverity, severity);
 			propStrikeSeverityThisTick[i] = Math.max(propStrikeSeverityThisTick[i], severity);
@@ -2221,7 +2220,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private ContactDynamics.ContactSurface rotorDiskContactSurface(Vec3 bodyCenterWorld, Vec3 bodyXWorld, Vec3 bodyZWorld, RotorSpec rotor) {
-		Vec3 rotorCenterWorld = bodyCenterWorld.add(physics.state().orientation().rotate(rotor.positionBodyMeters()));
+		Vec3 rotorCenterWorld = bodyCenterWorld.add(simulationRuntime.state().orientation().rotate(rotor.positionBodyMeters()));
 		double radius = effectivePropStrikeRadius(rotor);
 		Vec3[] diskSamples = {
 				Vec3.ZERO,
@@ -2520,7 +2519,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void ensureRotorStrikeArrays() {
-		int rotorCount = physics.config().rotors().size();
+		int rotorCount = simulationRuntime.config().rotors().size();
 		if (rotorStrikeCooldownTicks.length == rotorCount && propStrikeSeverityThisTick.length == rotorCount) {
 			return;
 		}
@@ -2539,11 +2538,11 @@ public class DroneEntity extends Entity {
 	}
 
 	private int exposedRotorIndex(Vec3 impactVelocityWorld) {
-		Vec3 impactBody = physics.state().orientation().conjugate().rotate(impactVelocityWorld).normalized();
+		Vec3 impactBody = simulationRuntime.state().orientation().conjugate().rotate(impactVelocityWorld).normalized();
 		int bestIndex = 0;
 		double bestDot = Double.NEGATIVE_INFINITY;
-		for (int i = 0; i < physics.config().rotors().size(); i++) {
-			RotorSpec rotor = physics.config().rotors().get(i);
+		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
+			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
 			double dot = rotor.positionBodyMeters().normalized().dot(impactBody);
 			if (dot > bestDot) {
 				bestDot = dot;
@@ -2554,13 +2553,13 @@ public class DroneEntity extends Entity {
 	}
 
 	private boolean isAirworthy() {
-		return frameHealth > 0.12 && physics.state().averageRotorHealth() > 0.18;
+		return frameHealth > 0.12 && simulationRuntime.state().averageRotorHealth() > 0.18;
 	}
 
 	private void repair() {
 		frameHealth = 1.0;
-		physics.state().repairAllRotors();
-		physics.resetControlLoops();
+		simulationRuntime.state().repairAllRotors();
+		simulationRuntime.resetControlLoops();
 		lastCollisionSeverity = 0.0;
 		clearPropStrikePulse();
 		propStrikeCount = 0;
@@ -2569,7 +2568,7 @@ public class DroneEntity extends Entity {
 		entityData.set(FRAME_HEALTH, 1.0f);
 		entityData.set(ROTOR_HEALTH, 1.0f);
 		syncAirframeLayout();
-		setPerRotorHealthState(physics.state().rotorHealth());
+		setPerRotorHealthState(simulationRuntime.state().rotorHealth());
 		entityData.set(PROP_STRIKE_COUNT, 0);
 		entityData.set(LAST_PROP_STRIKE_ROTOR, -1);
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, 0.0f);
@@ -2580,7 +2579,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public boolean injectRotorFault(int rotorIndex, double damage, boolean recordAsPropStrike) {
-		if (rotorIndex < 0 || rotorIndex >= physics.config().rotors().size()) {
+		if (rotorIndex < 0 || rotorIndex >= simulationRuntime.config().rotors().size()) {
 			return false;
 		}
 
@@ -2589,7 +2588,7 @@ public class DroneEntity extends Entity {
 			return false;
 		}
 
-		physics.state().damageRotor(rotorIndex, safeDamage);
+		simulationRuntime.state().damageRotor(rotorIndex, safeDamage);
 		if (recordAsPropStrike) {
 			lastCollisionSeverity = Math.max(lastCollisionSeverity, safeDamage);
 			ensureRotorStrikeArrays();
@@ -2604,9 +2603,9 @@ public class DroneEntity extends Entity {
 	}
 
 	private void updateDamageSyncedState() {
-		double[] rotorHealth = physics.state().rotorHealth();
+		double[] rotorHealth = simulationRuntime.state().rotorHealth();
 		entityData.set(FRAME_HEALTH, (float) frameHealth);
-		entityData.set(ROTOR_HEALTH, (float) physics.state().averageRotorHealth());
+		entityData.set(ROTOR_HEALTH, (float) simulationRuntime.state().averageRotorHealth());
 		syncAirframeLayout();
 		setPerRotorHealthState(rotorHealth);
 		entityData.set(PROP_STRIKE_COUNT, propStrikeCount);
@@ -2627,18 +2626,18 @@ public class DroneEntity extends Entity {
 				playableMode ? getYRot() : 0.0,
 				playableMode ? Math.toDegrees(debugVisualRollRadians) : 0.0,
 				playableMode ? debugTargetYawRate * 20.0 : 0.0,
-				physics.state(),
+				simulationRuntime.state(),
 				input,
-				physics.state().averageMotorPower(physics.config()),
+				simulationRuntime.state().averageMotorPower(simulationRuntime.config()),
 				frameHealth,
-				physics.state().averageRotorHealth(),
+				simulationRuntime.state().averageRotorHealth(),
 				lastCollisionSeverity,
 				maxPropStrikeRotorIndexThisTick(),
 				maxPropStrikeSeverityThisTick(),
 				propStrikeCount,
 				propStrikeSeverityThisTick,
 				lastEnvironment,
-				physics.config()
+				simulationRuntime.config()
 		));
 		lastCollisionSeverity *= 0.86;
 		if (lastCollisionSeverity < 0.001) {
@@ -2863,48 +2862,48 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getAverageMotorRpmTelemetryRpm() {
-		return physics.state().averageMotorRpmTelemetryRpm();
+		return simulationRuntime.state().averageMotorRpmTelemetryRpm();
 	}
 
 	public double getMotorRpmTelemetryRpm(int index) {
-		if (index < 0 || index >= physics.state().motorCount()) {
+		if (index < 0 || index >= simulationRuntime.state().motorCount()) {
 			return 0.0;
 		}
-		return physics.state().motorRpmTelemetryRpm(index);
+		return simulationRuntime.state().motorRpmTelemetryRpm(index);
 	}
 
 	public double getAverageMotorRpmTelemetryValidity() {
-		return physics.state().averageMotorRpmTelemetryValidity();
+		return simulationRuntime.state().averageMotorRpmTelemetryValidity();
 	}
 
 	public double getMotorRpmTelemetryValidity(int index) {
-		if (index < 0 || index >= physics.state().motorCount()) {
+		if (index < 0 || index >= simulationRuntime.state().motorCount()) {
 			return 0.0;
 		}
-		return physics.state().motorRpmTelemetryValidity(index);
+		return simulationRuntime.state().motorRpmTelemetryValidity(index);
 	}
 
 	public double getAverageMotorTelemetryErpm100() {
-		return DronePhysics.betaflightErpm100FromMechanicalRpm(
-				physics.state().averageMotorRpmTelemetryRpm(),
+		return SimulationFlightRuntime.betaflightErpm100FromMechanicalRpm(
+				simulationRuntime.state().averageMotorRpmTelemetryRpm(),
 				averageMotorPolePairs()
 		);
 	}
 
 	public double getMotorTelemetryErpm100(int index) {
-		return DronePhysics.betaflightErpm100FromMechanicalRpm(getMotorRpmTelemetryRpm(index), motorPolePairs(index));
+		return SimulationFlightRuntime.betaflightErpm100FromMechanicalRpm(getMotorRpmTelemetryRpm(index), motorPolePairs(index));
 	}
 
 	public double getAverageMotorTelemetryEIntervalMicros() {
-		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
-				physics.state().averageMotorRpmTelemetryRpm(),
-				physics.state().averageMotorRpmTelemetryValidity(),
+		return SimulationFlightRuntime.betaflightEIntervalMicrosFromTelemetryRpm(
+				simulationRuntime.state().averageMotorRpmTelemetryRpm(),
+				simulationRuntime.state().averageMotorRpmTelemetryValidity(),
 				averageMotorPolePairs()
 		);
 	}
 
 	public double getMotorTelemetryEIntervalMicros(int index) {
-		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(
+		return SimulationFlightRuntime.betaflightEIntervalMicrosFromTelemetryRpm(
 				getMotorRpmTelemetryRpm(index),
 				getMotorRpmTelemetryValidity(index),
 				motorPolePairs(index)
@@ -2912,7 +2911,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double averageMotorPolePairs() {
-		DroneConfig config = physics.config();
+		DroneConfig config = simulationRuntime.config();
 		if (config.rotors().isEmpty()) {
 			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
 		}
@@ -2923,7 +2922,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private double motorPolePairs(int index) {
-		DroneConfig config = physics.config();
+		DroneConfig config = simulationRuntime.config();
 		if (index < 0 || index >= config.rotors().size()) {
 			return RotorSpec.DEFAULT_MOTOR_POLE_PAIRS;
 		}
@@ -2963,15 +2962,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getEscCommandFrameAgeSeconds() {
-		return physics.state().escCommandFrameAgeSeconds();
+		return simulationRuntime.state().escCommandFrameAgeSeconds();
 	}
 
 	public double getEscCommandFrameIntervalSeconds() {
-		return physics.state().escCommandFrameIntervalSeconds();
+		return simulationRuntime.state().escCommandFrameIntervalSeconds();
 	}
 
 	public double getEscCommandError() {
-		return physics.state().escCommandError();
+		return simulationRuntime.state().escCommandError();
 	}
 
 	public float getRotorAerodynamicLoadFactor() {
@@ -3005,7 +3004,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getRotorDamageVibration() {
-		return (float) physics.state().maxRotorDamageVibration();
+		return (float) simulationRuntime.state().maxRotorDamageVibration();
 	}
 
 	public float getRotorConingIntensity() {
@@ -3089,7 +3088,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getRotorDynamicInflowTimeConstantSeconds() {
-		return (float) physics.state().maxRotorDynamicInflowTimeConstantSeconds();
+		return (float) simulationRuntime.state().maxRotorDynamicInflowTimeConstantSeconds();
 	}
 
 	public float getRotorWakeInterferenceIntensity() {
@@ -3105,31 +3104,31 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getRotorCoaxialLoadBiasTarget() {
-		return (float) physics.state().maxAbsRotorCoaxialLoadBiasTarget();
+		return (float) simulationRuntime.state().maxAbsRotorCoaxialLoadBiasTarget();
 	}
 
 	public float getRotorCoaxialLoadBiasClipping() {
-		return (float) physics.state().maxRotorCoaxialLoadBiasClipping();
+		return (float) simulationRuntime.state().maxRotorCoaxialLoadBiasClipping();
 	}
 
 	public float getRotorCoaxialAllocationLoadFraction() {
-		return (float) physics.state().maxRotorCoaxialAllocationLoadFraction();
+		return (float) simulationRuntime.state().maxRotorCoaxialAllocationLoadFraction();
 	}
 
 	public float getRotorCoaxialAllocationCommandRatio() {
-		return (float) physics.state().maxRotorCoaxialAllocationCommandRatio();
+		return (float) simulationRuntime.state().maxRotorCoaxialAllocationCommandRatio();
 	}
 
 	public float getRotorCoaxialAllocationMechanicalGainPercent() {
-		return (float) physics.state().maxRotorCoaxialAllocationMechanicalGainPercent();
+		return (float) simulationRuntime.state().maxRotorCoaxialAllocationMechanicalGainPercent();
 	}
 
 	public float getRotorCoaxialAllocationElectricalGainPercent() {
-		return (float) physics.state().maxRotorCoaxialAllocationElectricalGainPercent();
+		return (float) simulationRuntime.state().maxRotorCoaxialAllocationElectricalGainPercent();
 	}
 
 	public float getRotorCoaxialAllocationUncertaintyPercent() {
-		return (float) physics.state().maxRotorCoaxialAllocationUncertaintyPercent();
+		return (float) simulationRuntime.state().maxRotorCoaxialAllocationUncertaintyPercent();
 	}
 
 	public float getRotorWetThrustScale() {
@@ -3137,15 +3136,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getRotorIcingSeverity() {
-		return physics.state().maxRotorIcingSeverity();
+		return simulationRuntime.state().maxRotorIcingSeverity();
 	}
 
 	public double getRotorIcingThrustScale() {
-		return physics.state().minRotorIcingThrustScale();
+		return simulationRuntime.state().minRotorIcingThrustScale();
 	}
 
 	public double getRotorIcingPowerScale() {
-		return physics.state().maxRotorIcingPowerScale();
+		return simulationRuntime.state().maxRotorIcingPowerScale();
 	}
 
 	public float getRotorWakeSwirlVelocityMetersPerSecond() {
@@ -3273,27 +3272,27 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getAirframeBodyDragForceNewtons() {
-		return (float) physics.state().airframeBodyDragForceBodyNewtons().length();
+		return (float) simulationRuntime.state().airframeBodyDragForceBodyNewtons().length();
 	}
 
 	public float getLinearDampingDragForceNewtons() {
-		return (float) physics.state().linearDampingDragForceWorldNewtons().length();
+		return (float) simulationRuntime.state().linearDampingDragForceWorldNewtons().length();
 	}
 
 	public float getAirframeDragAlongFlowNewtons() {
-		return (float) physics.state().airframeDragAlongFlowNewtons();
+		return (float) simulationRuntime.state().airframeDragAlongFlowNewtons();
 	}
 
 	public float getAirframeDragEquivalentLinearCoefficient() {
-		return (float) physics.state().airframeDragEquivalentLinearCoefficient();
+		return (float) simulationRuntime.state().airframeDragEquivalentLinearCoefficient();
 	}
 
 	public float getAirframeDragEquivalentCdAMetersSquared() {
-		return (float) physics.state().airframeDragEquivalentCdAMetersSquared();
+		return (float) simulationRuntime.state().airframeDragEquivalentCdAMetersSquared();
 	}
 
 	public float getAirframeDragImavReferenceRatio() {
-		return (float) physics.state().airframeDragImavReferenceRatio();
+		return (float) simulationRuntime.state().airframeDragImavReferenceRatio();
 	}
 
 	public float getGroundEffectDragForceNewtons() {
@@ -3361,15 +3360,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getBatteryStateOfChargeResistanceScale() {
-		return physics.state().batteryStateOfChargeResistanceScale();
+		return simulationRuntime.state().batteryStateOfChargeResistanceScale();
 	}
 
 	public double getBatteryTemperatureResistanceScale() {
-		return physics.state().batteryTemperatureResistanceScale();
+		return simulationRuntime.state().batteryTemperatureResistanceScale();
 	}
 
 	public double getBatteryPolarizationResistanceScale() {
-		return physics.state().batteryPolarizationResistanceScale();
+		return simulationRuntime.state().batteryPolarizationResistanceScale();
 	}
 
 	public float getBatteryRegenerativeCurrentAmps() {
@@ -3426,7 +3425,7 @@ public class DroneEntity extends Entity {
 			case 5 -> entityData.get(ROTOR_5_HEALTH);
 			case 6 -> entityData.get(ROTOR_6_HEALTH);
 			case 7 -> entityData.get(ROTOR_7_HEALTH);
-			default -> (float) valueOrOne(physics.state().rotorHealth(), index);
+			default -> (float) valueOrOne(simulationRuntime.state().rotorHealth(), index);
 		};
 	}
 
@@ -3463,15 +3462,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getControlFrameAgeSeconds() {
-		return physics.state().controlFrameAgeSeconds();
+		return simulationRuntime.state().controlFrameAgeSeconds();
 	}
 
 	public double getControlFrameIntervalSeconds() {
-		return physics.state().controlFrameIntervalSeconds();
+		return simulationRuntime.state().controlFrameIntervalSeconds();
 	}
 
 	public double getControlFrameError() {
-		return physics.state().controlFrameError();
+		return simulationRuntime.state().controlFrameError();
 	}
 
 	public boolean isRawControlLinkActive() {
@@ -3531,23 +3530,23 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getGyroNotchSpreadHertz() {
-		return physics.state().gyroDynamicNotchSpreadHertz();
+		return simulationRuntime.state().gyroDynamicNotchSpreadHertz();
 	}
 
 	public double getGyroRpmHarmonicNotchAttenuation() {
-		return physics.state().gyroRpmHarmonicNotchAttenuation();
+		return simulationRuntime.state().gyroRpmHarmonicNotchAttenuation();
 	}
 
 	public double getGyroBladePassNotchFrequencyHertz() {
-		return physics.state().gyroBladePassNotchFrequencyHertz();
+		return simulationRuntime.state().gyroBladePassNotchFrequencyHertz();
 	}
 
 	public double getGyroBladePassNotchAttenuation() {
-		return physics.state().gyroBladePassNotchAttenuation();
+		return simulationRuntime.state().gyroBladePassNotchAttenuation();
 	}
 
 	public double getGyroBladePassNotchSpreadHertz() {
-		return physics.state().gyroBladePassNotchSpreadHertz();
+		return simulationRuntime.state().gyroBladePassNotchSpreadHertz();
 	}
 
 	public float getPidPitchOutputNewtonMeters() {
@@ -3603,7 +3602,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public DroneConfig config() {
-		return physics.config();
+		return simulationRuntime.config();
 	}
 
 	public DroneEnvironmentOverride environmentOverride() {
@@ -3624,30 +3623,23 @@ public class DroneEntity extends Entity {
 
 	public void applyConfig(DroneConfig config, String presetName) {
 		airframePreset = normalizeAirframePreset(presetName);
-		boolean rotorCountChanged = config.rotors().size() != physics.config().rotors().size();
+		boolean rotorCountChanged = config.rotors().size() != simulationRuntime.config().rotors().size();
 		if (rotorCountChanged) {
-			replacePhysics(config);
+			replaceSimulationRuntime(config);
 			resetPropStrikeTelemetry();
 		} else {
-			physics.applyConfig(config);
+			simulationRuntime.applyConfig(config);
 		}
-		physics.resetControlLoops();
+		simulationRuntime.resetControlLoops();
 		ensureRotorStrikeArrays();
 		syncAirframeLayout();
 		refreshDimensions();
 		updateDamageSyncedState();
 	}
 
-	private void replacePhysics(DroneConfig config) {
-		DroneState previousState = physics.state();
-		DronePhysics replacement = new DronePhysics(config);
-		replacement.state().setPositionMeters(previousState.positionMeters());
-		replacement.state().setVelocityMetersPerSecond(previousState.velocityMetersPerSecond());
-		replacement.state().setOrientation(previousState.orientation());
-		replacement.state().setEstimatedOrientation(previousState.estimatedOrientation());
-		replacement.state().setAngularVelocityBodyRadiansPerSecond(previousState.angularVelocityBodyRadiansPerSecond());
-		physics = replacement;
-		simulationFlightModel = new SimulationFlightModelAdapter(physics);
+	private void replaceSimulationRuntime(DroneConfig config) {
+		simulationRuntime.replaceConfigPreservingKinematics(config);
+		simulationFlightModel = simulationRuntime.flightModel();
 		flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), LegacyPlayableFlightModelAdapter.ID);
 		playableInitialized = false;
 	}
@@ -3697,21 +3689,21 @@ public class DroneEntity extends Entity {
 			output.putString("owner", owner.toString());
 		}
 		output.putDouble("frame_health", frameHealth);
-		output.putDouble("battery_amp_seconds_consumed", physics.state().batteryAmpSecondsConsumed());
-		output.putDouble("battery_equivalent_cycles", physics.state().batteryEquivalentCycles());
-		output.putDouble("battery_slow_polarization_v", physics.state().batterySlowPolarizationVoltage());
-		output.putDouble("battery_temp_c", physics.state().batteryTemperatureCelsius());
-		output.putDouble("battery_cooling_factor", physics.state().batteryCoolingFactor());
-		output.putDouble("battery_thermal_limit", physics.state().batteryThermalLimit());
-		for (int i = 0; i < physics.state().motorCount(); i++) {
-			output.putDouble("motor_temperature_c_" + i, physics.state().motorTemperatureCelsius(i));
-			output.putDouble("esc_temperature_c_" + i, physics.state().escTemperatureCelsius(i));
-			output.putDouble("motor_cooling_factor_" + i, physics.state().motorCoolingFactor(i));
-			output.putDouble("esc_cooling_factor_" + i, physics.state().escCoolingFactor(i));
+		output.putDouble("battery_amp_seconds_consumed", simulationRuntime.state().batteryAmpSecondsConsumed());
+		output.putDouble("battery_equivalent_cycles", simulationRuntime.state().batteryEquivalentCycles());
+		output.putDouble("battery_slow_polarization_v", simulationRuntime.state().batterySlowPolarizationVoltage());
+		output.putDouble("battery_temp_c", simulationRuntime.state().batteryTemperatureCelsius());
+		output.putDouble("battery_cooling_factor", simulationRuntime.state().batteryCoolingFactor());
+		output.putDouble("battery_thermal_limit", simulationRuntime.state().batteryThermalLimit());
+		for (int i = 0; i < simulationRuntime.state().motorCount(); i++) {
+			output.putDouble("motor_temperature_c_" + i, simulationRuntime.state().motorTemperatureCelsius(i));
+			output.putDouble("esc_temperature_c_" + i, simulationRuntime.state().escTemperatureCelsius(i));
+			output.putDouble("motor_cooling_factor_" + i, simulationRuntime.state().motorCoolingFactor(i));
+			output.putDouble("esc_cooling_factor_" + i, simulationRuntime.state().escCoolingFactor(i));
 		}
 		saveRotorDynamicState(output);
 		saveAerodynamicTransientState(output);
-		double[] rotorHealth = physics.state().rotorHealth();
+		double[] rotorHealth = simulationRuntime.state().rotorHealth();
 		for (int i = 0; i < rotorHealth.length; i++) {
 			output.putDouble("rotor_health_" + i, rotorHealth[i]);
 		}
@@ -3731,16 +3723,16 @@ public class DroneEntity extends Entity {
 		frameHealth = input.getDoubleOr("frame_health", 1.0);
 		loadEnvironmentOverride(input);
 		loadConfig(input);
-		physics.state().setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
-		physics.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
+		simulationRuntime.state().setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
+		simulationRuntime.state().setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		loadBatteryTransientState(input);
 		loadPowertrainThermalState(input);
 		loadRotorDynamicState(input);
 		loadAerodynamicTransientState(input);
-		physics.state().repairAllRotors();
-		for (int i = 0; i < physics.config().rotors().size(); i++) {
+		simulationRuntime.state().repairAllRotors();
+		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
 			double health = input.getDoubleOr("rotor_health_" + i, 1.0);
-			physics.state().damageRotor(i, 1.0 - health);
+			simulationRuntime.state().damageRotor(i, 1.0 - health);
 		}
 		updateDamageSyncedState();
 	}
@@ -3757,8 +3749,8 @@ public class DroneEntity extends Entity {
 			return;
 		}
 
-		DroneState state = physics.state();
-		physics.restoreBatteryTransientState(
+		DroneState state = simulationRuntime.state();
+		simulationRuntime.restoreBatteryTransientState(
 				Double.isFinite(slowPolarization) ? slowPolarization : state.batterySlowPolarizationVoltage(),
 				Double.isFinite(temperatureCelsius) ? temperatureCelsius : state.batteryTemperatureCelsius(),
 				Double.isFinite(coolingFactor) ? coolingFactor : state.batteryCoolingFactor(),
@@ -3767,7 +3759,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void saveRotorDynamicState(ValueOutput output) {
-		DronePhysics.RotorDynamicState dynamicState = physics.rotorDynamicStateSnapshot();
+		SimulationFlightRuntime.RotorDynamicState dynamicState = simulationRuntime.rotorDynamicStateSnapshot();
 		double[] motorOmega = dynamicState.motorOmegaRadiansPerSecond();
 		double[] escOutput = dynamicState.escOutputCommand();
 		double[] escElectricalOutput = dynamicState.escElectricalOutputCommand();
@@ -3779,7 +3771,7 @@ public class DroneEntity extends Entity {
 		double[] wakeCarryover = dynamicState.rotorInducedWakeCarryoverIntensity();
 		double[] surfaceWetness = dynamicState.rotorSurfaceWetness();
 		double[] icingSeverity = dynamicState.rotorIcingSeverity();
-		for (int i = 0; i < physics.state().motorCount(); i++) {
+		for (int i = 0; i < simulationRuntime.state().motorCount(); i++) {
 			output.putDouble("motor_omega_rad_s_" + i, motorOmega[i]);
 			output.putDouble("esc_output_command_" + i, escOutput[i]);
 			output.putDouble("esc_electrical_output_command_" + i, escElectricalOutput[i]);
@@ -3800,7 +3792,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void loadPowertrainThermalState(ValueInput input) {
-		int count = physics.config().rotors().size();
+		int count = simulationRuntime.config().rotors().size();
 		double[] motorTemperaturesCelsius = new double[count];
 		double[] escTemperaturesCelsius = new double[count];
 		double[] motorCoolingFactors = new double[count];
@@ -3824,7 +3816,7 @@ public class DroneEntity extends Entity {
 		}
 
 		if (hasThermalState) {
-			physics.restorePowertrainThermalState(
+			simulationRuntime.restorePowertrainThermalState(
 					motorTemperaturesCelsius,
 					escTemperaturesCelsius,
 					motorCoolingFactors,
@@ -3834,7 +3826,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void loadRotorDynamicState(ValueInput input) {
-		int count = physics.config().rotors().size();
+		int count = simulationRuntime.config().rotors().size();
 		double[] motorOmega = new double[count];
 		double[] escOutput = new double[count];
 		double[] escElectricalOutput = new double[count];
@@ -3898,7 +3890,7 @@ public class DroneEntity extends Entity {
 				|| Double.isFinite(vortexRingMaxBuffet);
 
 		if (hasDynamicState) {
-			physics.restoreRotorDynamicState(new DronePhysics.RotorDynamicState(
+			simulationRuntime.restoreRotorDynamicState(new SimulationFlightRuntime.RotorDynamicState(
 					motorOmega,
 					escOutput,
 					escElectricalOutput,
@@ -3920,7 +3912,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void saveAerodynamicTransientState(ValueOutput output) {
-		DronePhysics.AerodynamicTransientState state = physics.aerodynamicTransientStateSnapshot();
+		SimulationFlightRuntime.AerodynamicTransientState state = simulationRuntime.aerodynamicTransientStateSnapshot();
 		saveVec(output, "aero_mean_wind", state.meanWindVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_wind_burble", state.windBurbleVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_dryden_first", state.drydenFirstOrderVelocityWorldMetersPerSecond());
@@ -3968,7 +3960,7 @@ public class DroneEntity extends Entity {
 			return;
 		}
 
-		physics.restoreAerodynamicTransientState(new DronePhysics.AerodynamicTransientState(
+		simulationRuntime.restoreAerodynamicTransientState(new SimulationFlightRuntime.AerodynamicTransientState(
 				loadVec(input, "aero_mean_wind", Vec3.ZERO),
 				loadVec(input, "aero_wind_burble", Vec3.ZERO),
 				loadVec(input, "aero_dryden_first", Vec3.ZERO),
@@ -4064,7 +4056,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void saveConfig(ValueOutput output) {
-		DroneConfig config = physics.config();
+		DroneConfig config = simulationRuntime.config();
 		RotorSpec rotor = config.rotors().get(0);
 		output.putString("airframe_preset", airframePreset);
 		output.putDouble("tune_mass_kg", config.massKg());
