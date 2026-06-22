@@ -1,0 +1,121 @@
+name: CI Verification
+
+on:
+  push:
+    branches:
+      - master
+      - "refactor/**"
+      - "codex/**"
+  pull_request:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+env:
+  FPVDRONE_UPDATE_GOLDEN_TRACES: "false"
+
+jobs:
+  verification-matrix:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: drone-sim-core tests
+            command: ./gradlew --no-daemon :drone-sim-core:test
+          - name: fabric-mod tests
+            command: ./gradlew --no-daemon :fabric-mod:test
+          - name: full build
+            command: ./gradlew --no-daemon build
+          - name: simulation golden and route equivalence
+            command: ./gradlew --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.SimulationFlightGoldenTraceTest
+          - name: playable golden and route equivalence
+            command: ./gradlew --no-daemon :fabric-mod:test --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest
+          - name: dependency boundary tests
+            command: |
+              ./gradlew --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightCoreDependencyBoundaryTest
+              ./gradlew --no-daemon :fabric-mod:test --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest
+          - name: serialization round-trip tests
+            command: |
+              ./gradlew --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightSerializationCodecTest --tests com.tenicana.dronecraft.sim.flight.FlightStateSnapshotTest
+              ./gradlew --no-daemon :fabric-mod:test --tests com.tenicana.dronecraft.entity.RotorLayoutCodecTest
+          - name: DroneEntity GameTest integration
+            command: ./gradlew --no-daemon :fabric-mod:runGameTest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Prepare Gradle wrapper
+        run: chmod +x ./gradlew
+
+      - name: Refuse golden trace regeneration
+        run: |
+          if [ "${FPVDRONE_UPDATE_GOLDEN_TRACES}" = "true" ]; then
+            echo "CI must not run with FPVDRONE_UPDATE_GOLDEN_TRACES=true"
+            exit 1
+          fi
+
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
+
+  server-self-test-matrix:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: simulation server self-test
+            task: :fabric-mod:runServerSelfTest
+          - name: playable angle server self-test
+            task: :fabric-mod:runPlayableServerSelfTest
+          - name: playable horizon server self-test
+            task: :fabric-mod:runPlayableHorizonServerSelfTest
+          - name: playable acro server self-test
+            task: :fabric-mod:runPlayableAcroServerSelfTest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Prepare Gradle wrapper and EULA
+        run: |
+          chmod +x ./gradlew
+          mkdir -p fabric-mod/run
+          printf "eula=true\n" > fabric-mod/run/eula.txt
+
+      - name: Refuse golden trace regeneration
+        run: |
+          if [ "${FPVDRONE_UPDATE_GOLDEN_TRACES}" = "true" ]; then
+            echo "CI must not run with FPVDRONE_UPDATE_GOLDEN_TRACES=true"
+            exit 1
+          fi
+
+      - name: Run ${{ matrix.name }}
+        run: ./gradlew --no-daemon ${{ matrix.task }} -PfpvdroneSelfTestSeconds=12
+
+      - name: Upload raw self-test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }} reports
+          path: fabric-mod/run/fpvdrone-selftest
+          if-no-files-found: ignore
