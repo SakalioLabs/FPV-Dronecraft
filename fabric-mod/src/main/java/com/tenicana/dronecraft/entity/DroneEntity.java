@@ -2924,15 +2924,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getEscCommandFrameAgeSeconds() {
-		return simulationRuntime.state().escCommandFrameAgeSeconds();
+		return simulationRuntime.escCommandFrameAgeSeconds();
 	}
 
 	public double getEscCommandFrameIntervalSeconds() {
-		return simulationRuntime.state().escCommandFrameIntervalSeconds();
+		return simulationRuntime.escCommandFrameIntervalSeconds();
 	}
 
 	public double getEscCommandError() {
-		return simulationRuntime.state().escCommandError();
+		return simulationRuntime.escCommandError();
 	}
 
 	public float getRotorAerodynamicLoadFactor() {
@@ -2966,7 +2966,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getRotorDamageVibration() {
-		return (float) simulationRuntime.state().maxRotorDamageVibration();
+		return simulationRuntime.rotorDamageVibration();
 	}
 
 	public float getRotorConingIntensity() {
@@ -3050,7 +3050,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getRotorDynamicInflowTimeConstantSeconds() {
-		return (float) simulationRuntime.state().maxRotorDynamicInflowTimeConstantSeconds();
+		return simulationRuntime.rotorDynamicInflowTimeConstantSeconds();
 	}
 
 	public float getRotorWakeInterferenceIntensity() {
@@ -3066,31 +3066,31 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getRotorCoaxialLoadBiasTarget() {
-		return (float) simulationRuntime.state().maxAbsRotorCoaxialLoadBiasTarget();
+		return simulationRuntime.rotorCoaxialLoadBiasTarget();
 	}
 
 	public float getRotorCoaxialLoadBiasClipping() {
-		return (float) simulationRuntime.state().maxRotorCoaxialLoadBiasClipping();
+		return simulationRuntime.rotorCoaxialLoadBiasClipping();
 	}
 
 	public float getRotorCoaxialAllocationLoadFraction() {
-		return (float) simulationRuntime.state().maxRotorCoaxialAllocationLoadFraction();
+		return simulationRuntime.rotorCoaxialAllocationLoadFraction();
 	}
 
 	public float getRotorCoaxialAllocationCommandRatio() {
-		return (float) simulationRuntime.state().maxRotorCoaxialAllocationCommandRatio();
+		return simulationRuntime.rotorCoaxialAllocationCommandRatio();
 	}
 
 	public float getRotorCoaxialAllocationMechanicalGainPercent() {
-		return (float) simulationRuntime.state().maxRotorCoaxialAllocationMechanicalGainPercent();
+		return simulationRuntime.rotorCoaxialAllocationMechanicalGainPercent();
 	}
 
 	public float getRotorCoaxialAllocationElectricalGainPercent() {
-		return (float) simulationRuntime.state().maxRotorCoaxialAllocationElectricalGainPercent();
+		return simulationRuntime.rotorCoaxialAllocationElectricalGainPercent();
 	}
 
 	public float getRotorCoaxialAllocationUncertaintyPercent() {
-		return (float) simulationRuntime.state().maxRotorCoaxialAllocationUncertaintyPercent();
+		return simulationRuntime.rotorCoaxialAllocationUncertaintyPercent();
 	}
 
 	public float getRotorWetThrustScale() {
@@ -3098,15 +3098,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getRotorIcingSeverity() {
-		return simulationRuntime.state().maxRotorIcingSeverity();
+		return simulationRuntime.rotorIcingSeverity();
 	}
 
 	public double getRotorIcingThrustScale() {
-		return simulationRuntime.state().minRotorIcingThrustScale();
+		return simulationRuntime.rotorIcingThrustScale();
 	}
 
 	public double getRotorIcingPowerScale() {
-		return simulationRuntime.state().maxRotorIcingPowerScale();
+		return simulationRuntime.rotorIcingPowerScale();
 	}
 
 	public float getRotorWakeSwirlVelocityMetersPerSecond() {
@@ -3234,27 +3234,27 @@ public class DroneEntity extends Entity {
 	}
 
 	public float getAirframeBodyDragForceNewtons() {
-		return (float) simulationRuntime.state().airframeBodyDragForceBodyNewtons().length();
+		return simulationRuntime.airframeBodyDragForceNewtons();
 	}
 
 	public float getLinearDampingDragForceNewtons() {
-		return (float) simulationRuntime.state().linearDampingDragForceWorldNewtons().length();
+		return simulationRuntime.linearDampingDragForceNewtons();
 	}
 
 	public float getAirframeDragAlongFlowNewtons() {
-		return (float) simulationRuntime.state().airframeDragAlongFlowNewtons();
+		return simulationRuntime.airframeDragAlongFlowNewtons();
 	}
 
 	public float getAirframeDragEquivalentLinearCoefficient() {
-		return (float) simulationRuntime.state().airframeDragEquivalentLinearCoefficient();
+		return simulationRuntime.airframeDragEquivalentLinearCoefficient();
 	}
 
 	public float getAirframeDragEquivalentCdAMetersSquared() {
-		return (float) simulationRuntime.state().airframeDragEquivalentCdAMetersSquared();
+		return simulationRuntime.airframeDragEquivalentCdAMetersSquared();
 	}
 
 	public float getAirframeDragImavReferenceRatio() {
-		return (float) simulationRuntime.state().airframeDragImavReferenceRatio();
+		return simulationRuntime.airframeDragImavReferenceRatio();
 	}
 
 	public float getGroundEffectDragForceNewtons() {
@@ -3322,15 +3322,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getBatteryStateOfChargeResistanceScale() {
-		return simulationRuntime.state().batteryStateOfChargeResistanceScale();
+		return simulationRuntime.batteryStateOfChargeResistanceScale();
 	}
 
 	public double getBatteryTemperatureResistanceScale() {
-		return simulationRuntime.state().batteryTemperatureResistanceScale();
+		return simulationRuntime.batteryTemperatureResistanceScale();
 	}
 
 	public double getBatteryPolarizationResistanceScale() {
-		return simulationRuntime.state().batteryPolarizationResistanceScale();
+		return simulationRuntime.batteryPolarizationResistanceScale();
 	}
 
 	public float getBatteryRegenerativeCurrentAmps() {
@@ -3387,7 +3387,7 @@ public class DroneEntity extends Entity {
 			case 5 -> entityData.get(ROTOR_5_HEALTH);
 			case 6 -> entityData.get(ROTOR_6_HEALTH);
 			case 7 -> entityData.get(ROTOR_7_HEALTH);
-			default -> (float) valueOrOne(simulationRuntime.state().rotorHealth(), index);
+			default -> simulationRuntime.rotorHealthOrOne(index);
 		};
 	}
 
@@ -3424,15 +3424,15 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getControlFrameAgeSeconds() {
-		return simulationRuntime.state().controlFrameAgeSeconds();
+		return simulationRuntime.controlFrameAgeSeconds();
 	}
 
 	public double getControlFrameIntervalSeconds() {
-		return simulationRuntime.state().controlFrameIntervalSeconds();
+		return simulationRuntime.controlFrameIntervalSeconds();
 	}
 
 	public double getControlFrameError() {
-		return simulationRuntime.state().controlFrameError();
+		return simulationRuntime.controlFrameError();
 	}
 
 	public boolean isRawControlLinkActive() {
@@ -3492,23 +3492,23 @@ public class DroneEntity extends Entity {
 	}
 
 	public double getGyroNotchSpreadHertz() {
-		return simulationRuntime.state().gyroDynamicNotchSpreadHertz();
+		return simulationRuntime.gyroDynamicNotchSpreadHertz();
 	}
 
 	public double getGyroRpmHarmonicNotchAttenuation() {
-		return simulationRuntime.state().gyroRpmHarmonicNotchAttenuation();
+		return simulationRuntime.gyroRpmHarmonicNotchAttenuation();
 	}
 
 	public double getGyroBladePassNotchFrequencyHertz() {
-		return simulationRuntime.state().gyroBladePassNotchFrequencyHertz();
+		return simulationRuntime.gyroBladePassNotchFrequencyHertz();
 	}
 
 	public double getGyroBladePassNotchAttenuation() {
-		return simulationRuntime.state().gyroBladePassNotchAttenuation();
+		return simulationRuntime.gyroBladePassNotchAttenuation();
 	}
 
 	public double getGyroBladePassNotchSpreadHertz() {
-		return simulationRuntime.state().gyroBladePassNotchSpreadHertz();
+		return simulationRuntime.gyroBladePassNotchSpreadHertz();
 	}
 
 	public float getPidPitchOutputNewtonMeters() {

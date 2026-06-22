@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 简单诊断 getter 投影增量
+
+- `SimulationFlightRuntime` 已承接 ESC frame/error、rotor damage/dynamic inflow/coaxial/icing、airframe drag、battery resistance scale、control frame 和 gyro notch/blade-pass 等纯 scalar 诊断 getter。
+- `DroneEntity` 对这些 public getter 仅保留委托，不再直接读取对应 `DroneState` 字段。
+- 本增量不触碰 tick 同步、环境采样、碰撞几何、存档恢复或任何飞行/手感参数；仍属于读侧边界收敛。
+
 ## 2026-06-22 读侧遥测投影增量
 
 - `SimulationFlightRuntime` 已承接电机 RPM 遥测、RPM 有效性、Betaflight eRPM/100 和 e-period 微秒投影。

@@ -146,6 +146,142 @@ final class SimulationFlightRuntime {
 		);
 	}
 
+	double escCommandFrameAgeSeconds() {
+		return physics.state().escCommandFrameAgeSeconds();
+	}
+
+	double escCommandFrameIntervalSeconds() {
+		return physics.state().escCommandFrameIntervalSeconds();
+	}
+
+	double escCommandError() {
+		return physics.state().escCommandError();
+	}
+
+	float rotorDamageVibration() {
+		return (float) physics.state().maxRotorDamageVibration();
+	}
+
+	float rotorDynamicInflowTimeConstantSeconds() {
+		return (float) physics.state().maxRotorDynamicInflowTimeConstantSeconds();
+	}
+
+	float rotorCoaxialLoadBiasTarget() {
+		return (float) physics.state().maxAbsRotorCoaxialLoadBiasTarget();
+	}
+
+	float rotorCoaxialLoadBiasClipping() {
+		return (float) physics.state().maxRotorCoaxialLoadBiasClipping();
+	}
+
+	float rotorCoaxialAllocationLoadFraction() {
+		return (float) physics.state().maxRotorCoaxialAllocationLoadFraction();
+	}
+
+	float rotorCoaxialAllocationCommandRatio() {
+		return (float) physics.state().maxRotorCoaxialAllocationCommandRatio();
+	}
+
+	float rotorCoaxialAllocationMechanicalGainPercent() {
+		return (float) physics.state().maxRotorCoaxialAllocationMechanicalGainPercent();
+	}
+
+	float rotorCoaxialAllocationElectricalGainPercent() {
+		return (float) physics.state().maxRotorCoaxialAllocationElectricalGainPercent();
+	}
+
+	float rotorCoaxialAllocationUncertaintyPercent() {
+		return (float) physics.state().maxRotorCoaxialAllocationUncertaintyPercent();
+	}
+
+	double rotorIcingSeverity() {
+		return physics.state().maxRotorIcingSeverity();
+	}
+
+	double rotorIcingThrustScale() {
+		return physics.state().minRotorIcingThrustScale();
+	}
+
+	double rotorIcingPowerScale() {
+		return physics.state().maxRotorIcingPowerScale();
+	}
+
+	float airframeBodyDragForceNewtons() {
+		return (float) physics.state().airframeBodyDragForceBodyNewtons().length();
+	}
+
+	float linearDampingDragForceNewtons() {
+		return (float) physics.state().linearDampingDragForceWorldNewtons().length();
+	}
+
+	float airframeDragAlongFlowNewtons() {
+		return (float) physics.state().airframeDragAlongFlowNewtons();
+	}
+
+	float airframeDragEquivalentLinearCoefficient() {
+		return (float) physics.state().airframeDragEquivalentLinearCoefficient();
+	}
+
+	float airframeDragEquivalentCdAMetersSquared() {
+		return (float) physics.state().airframeDragEquivalentCdAMetersSquared();
+	}
+
+	float airframeDragImavReferenceRatio() {
+		return (float) physics.state().airframeDragImavReferenceRatio();
+	}
+
+	double batteryStateOfChargeResistanceScale() {
+		return physics.state().batteryStateOfChargeResistanceScale();
+	}
+
+	double batteryTemperatureResistanceScale() {
+		return physics.state().batteryTemperatureResistanceScale();
+	}
+
+	double batteryPolarizationResistanceScale() {
+		return physics.state().batteryPolarizationResistanceScale();
+	}
+
+	float rotorHealthOrOne(int index) {
+		double[] rotorHealth = physics.state().rotorHealth();
+		if (index < 0 || index >= rotorHealth.length) {
+			return 1.0f;
+		}
+		return (float) rotorHealth[index];
+	}
+
+	double controlFrameAgeSeconds() {
+		return physics.state().controlFrameAgeSeconds();
+	}
+
+	double controlFrameIntervalSeconds() {
+		return physics.state().controlFrameIntervalSeconds();
+	}
+
+	double controlFrameError() {
+		return physics.state().controlFrameError();
+	}
+
+	double gyroDynamicNotchSpreadHertz() {
+		return physics.state().gyroDynamicNotchSpreadHertz();
+	}
+
+	double gyroRpmHarmonicNotchAttenuation() {
+		return physics.state().gyroRpmHarmonicNotchAttenuation();
+	}
+
+	double gyroBladePassNotchFrequencyHertz() {
+		return physics.state().gyroBladePassNotchFrequencyHertz();
+	}
+
+	double gyroBladePassNotchAttenuation() {
+		return physics.state().gyroBladePassNotchAttenuation();
+	}
+
+	double gyroBladePassNotchSpreadHertz() {
+		return physics.state().gyroBladePassNotchSpreadHertz();
+	}
+
 	private double averageMotorPolePairs() {
 		DroneConfig config = physics.config();
 		if (config.rotors().isEmpty()) {
