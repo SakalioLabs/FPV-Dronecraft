@@ -276,6 +276,7 @@ public class DroneEntity extends Entity {
 	private FlightModel playableFlightModel = new LegacyPlayableFlightModelAdapter();
 	private FlightModel simulationFlightModel = simulationRuntime.flightModel();
 	private FlightModelRouter flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), LegacyPlayableFlightModelAdapter.ID);
+	private String fixedFlightModelId = flightModelIdFromDebugSettings();
 	private String airframePreset = "racing_quad";
 	private UUID owner;
 	private float debugVelocityX;
@@ -394,9 +395,35 @@ public class DroneEntity extends Entity {
 		return flightModels.snapshot().positionWorldMeters();
 	}
 
+	public String fixedFlightModelIdForDiagnostics() {
+		return fixedFlightModelId;
+	}
+
+	private void selectFixedFlightModel() {
+		flightModels.select(fixedFlightModelId);
+	}
+
+	private boolean usesPlayableFlightModel() {
+		return LegacyPlayableFlightModelAdapter.ID.equals(fixedFlightModelId);
+	}
+
+	private static String flightModelIdFromDebugSettings() {
+		return DroneDebugSettings.flightModelMode() == DroneDebugSettings.FlightModelMode.SIMULATION
+				? SimulationFlightModelAdapter.ID
+				: LegacyPlayableFlightModelAdapter.ID;
+	}
+
+	private static String normalizeFlightModelId(String modelId) {
+		if (SimulationFlightModelAdapter.ID.equals(modelId) || "simulation".equals(modelId) || "sim".equals(modelId)) {
+			return SimulationFlightModelAdapter.ID;
+		}
+		return LegacyPlayableFlightModelAdapter.ID;
+	}
+
 	public DroneEntity(EntityType<? extends DroneEntity> entityType, Level level) {
 		super(entityType, level);
 		setNoGravity(true);
+		selectFixedFlightModel();
 	}
 
 	@Override
@@ -649,8 +676,7 @@ public class DroneEntity extends Entity {
 			}
 			DroneInput input = rawInput;
 			boolean airworthy = isAirworthy();
-			boolean bypassPhysics = DroneDebugSettings.bypassPhysicsEnabled();
-			boolean hasDebugControlInput = hasDebugControlIntent(input);
+			boolean bypassPhysics = usesPlayableFlightModel();
 			if (activeOwner == null) {
 				DroneDebugSettings.logNoOwnerInput(tickCount, level().getEntitiesOfClass(DroneEntity.class, getBoundingBox().inflate(24.0), drone -> true).size(), DroneDebugSettings.ownerlessControlEnabled(), activeOwner);
 			}
@@ -696,6 +722,21 @@ public class DroneEntity extends Entity {
 				}
 				recordBlackbox(failsafeInput);
 				handleCompletedDiagnostic();
+			} else if (bypassPhysics) {
+				DroneInput debugInput = input;
+				effectiveInput = debugInput;
+				debugFailsafeTicks = 0;
+				if (!debugInput.armed()) {
+					clearDebugFlightStateAfterDirectControl(debugInput);
+				}
+				applyDebugFlight(debugInput, false);
+				debugFlightActiveLastTick = false;
+				updateDebugFlightState(debugInput, airworthy);
+				recordBlackbox(debugInput);
+				handleCompletedDiagnostic();
+				reason = activeOwner == null
+						? "direct-idle-no-owner"
+						: (!debugInput.linkActive() ? "direct-idle-link-lost" : "direct-idle");
 			} else {
 				debugTargetVelocityX = 0.0f;
 				debugTargetVelocityY = 0.0f;
@@ -752,7 +793,7 @@ public class DroneEntity extends Entity {
 					debugTargetYawRate,
 					airworthy,
 					activeOwner != null,
-					DroneDebugSettings.bypassPhysicsEnabled(),
+					bypassPhysics,
 					getDeltaMovement()
 			);
 		}
@@ -2552,13 +2593,16 @@ public class DroneEntity extends Entity {
 	}
 
 	private void recordBlackbox(DroneInput input) {
-		boolean playableMode = DroneDebugSettings.flightModelMode() == DroneDebugSettings.FlightModelMode.PLAYABLE;
+		boolean playableMode = usesPlayableFlightModel();
+		String flightModelModeId = playableMode
+				? DroneDebugSettings.FlightModelMode.PLAYABLE.id()
+				: DroneDebugSettings.FlightModelMode.SIMULATION.id();
 		blackbox.record(simulationRuntime.blackboxSample(
 				level().getGameTime(),
 				tickCount,
 				PHYSICS_STEPS_PER_TICK,
 				PHYSICS_DT,
-				DroneDebugSettings.flightModelMode().id(),
+				flightModelModeId,
 				playableMode ? debugLowAltitudeHorizontalAuthority : 1.0,
 				playableMode ? Math.toDegrees(debugVisualPitchRadians) : 0.0,
 				playableMode ? getYRot() : 0.0,
@@ -3538,8 +3582,10 @@ public class DroneEntity extends Entity {
 	private void replaceSimulationRuntime(DroneConfig config) {
 		simulationRuntime.replaceConfigPreservingKinematics(config);
 		simulationFlightModel = simulationRuntime.flightModel();
-		flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), LegacyPlayableFlightModelAdapter.ID);
+		flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), fixedFlightModelId);
+		selectFixedFlightModel();
 		playableInitialized = false;
+		simulationInitialized = false;
 	}
 
 	private static String normalizeAirframePreset(String presetName) {
@@ -3586,6 +3632,7 @@ public class DroneEntity extends Entity {
 		if (owner != null) {
 			output.putString("owner", owner.toString());
 		}
+		output.putString("flight_model_id", fixedFlightModelId);
 		output.putDouble("frame_health", frameHealth);
 		SimulationFlightRuntime.PersistenceState persistence = simulationRuntime.persistenceStateSnapshot();
 		output.putDouble("battery_amp_seconds_consumed", persistence.batteryAmpSecondsConsumed());
@@ -3623,9 +3670,12 @@ public class DroneEntity extends Entity {
 				setOwner(null);
 			}
 		});
+		fixedFlightModelId = normalizeFlightModelId(input.getString("flight_model_id").orElse(flightModelIdFromDebugSettings()));
+		selectFixedFlightModel();
 		frameHealth = input.getDoubleOr("frame_health", 1.0);
 		loadEnvironmentOverride(input);
 		loadConfig(input);
+		selectFixedFlightModel();
 		simulationRuntime.setBatteryAmpSecondsConsumed(input.getDoubleOr("battery_amp_seconds_consumed", 0.0));
 		simulationRuntime.setBatteryEquivalentCycles(input.getDoubleOr("battery_equivalent_cycles", 0.0));
 		loadBatteryTransientState(input);

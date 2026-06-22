@@ -847,10 +847,11 @@ public final class DroneCommands {
 
 	private static String formatFlightModelMode() {
 		FlightModelMode mode = DroneDebugSettings.flightModelMode();
-		return switch (mode) {
+		String description = switch (mode) {
 			case PLAYABLE -> "Flight model mode: playable/direct Minecraft control layer";
 			case SIMULATION -> "Flight model mode: simulation/6DOF physics";
 		};
+		return description + "; existing drones keep their current model, 需要重生/reset 后生效";
 	}
 
 	private static int environmentStatus(CommandSourceStack source) throws com.mojang.brigadier.exceptions.CommandSyntaxException {

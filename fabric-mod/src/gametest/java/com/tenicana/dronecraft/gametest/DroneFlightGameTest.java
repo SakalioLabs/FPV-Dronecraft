@@ -45,6 +45,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 360)
 	public void racingQuadDiagnosticClimbsInGame(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
 		ServerLevel level = context.getLevel();
 		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
 		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
@@ -119,6 +120,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		context.runAfterDelay(55, () -> {
 			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.activeFlightModelIdForDiagnostics()), "playable entity did not execute through playable router model: " + drone.activeFlightModelIdForDiagnostics());
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.fixedFlightModelIdForDiagnostics()), "playable entity did not pin its fixed model: " + drone.fixedFlightModelIdForDiagnostics());
 			FlightModelCapabilities capabilities = drone.activeFlightModelCapabilitiesForDiagnostics();
 			assertTrue(capabilities.motorTelemetry(), "playable router did not expose motor telemetry capability");
 			assertTrue(capabilities.assistedStateCorrection(), "playable router did not expose assisted correction capability");
@@ -126,9 +128,16 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 			assertTrue(drone.activeFlightModelSnapshotFiniteForDiagnostics(), "playable router snapshot became non-finite");
 			assertTrue(drone.getY() > initialY + 0.10, String.format(Locale.ROOT, "playable entity did not move in open air: initial=%.3f current=%.3f", initialY, drone.getY()));
 			assertModelPositionMatchesEntity(drone, "playable");
+			DroneDebugSettings.setFlightModelMode(FlightModelMode.SIMULATION);
+		});
+
+		context.runAfterDelay(66, () -> {
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.fixedFlightModelIdForDiagnostics()), "active playable entity changed fixed model after global mode switch: " + drone.fixedFlightModelIdForDiagnostics());
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.activeFlightModelIdForDiagnostics()), "active playable entity changed router model after global mode switch: " + drone.activeFlightModelIdForDiagnostics());
 		});
 
 		context.runAfterDelay(96, () -> {
+			assertTrue(LEGACY_PLAYABLE_MODEL_ID.equals(drone.activeFlightModelIdForDiagnostics()), "playable reset silently changed route: " + drone.activeFlightModelIdForDiagnostics());
 			assertTrue(drone.activeFlightModelSnapshotFiniteForDiagnostics(), "playable reset produced non-finite router snapshot");
 			assertModelPositionMatchesEntity(drone, "playable reset");
 			assertTrue(Math.abs(drone.getRenderPitchRadians()) < Math.toRadians(5.0), "playable reset kept stale pitch: " + drone.getRenderPitchRadians());
@@ -157,6 +166,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 		context.runAfterDelay(95, () -> {
 			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.activeFlightModelIdForDiagnostics()), "simulation entity did not execute through simulation router model: " + drone.activeFlightModelIdForDiagnostics());
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.fixedFlightModelIdForDiagnostics()), "simulation entity did not pin its fixed model: " + drone.fixedFlightModelIdForDiagnostics());
 			FlightModelCapabilities capabilities = drone.activeFlightModelCapabilitiesForDiagnostics();
 			assertTrue(capabilities.motorTelemetry(), "simulation router did not expose motor telemetry capability");
 			assertTrue(capabilities.highFidelityPowertrain(), "simulation router did not expose high-fidelity powertrain capability");
@@ -172,6 +182,11 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 			));
 			assertModelPositionMatchesEntity(drone, "simulation");
 			DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
+		});
+
+		context.runAfterDelay(112, () -> {
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.fixedFlightModelIdForDiagnostics()), "active simulation entity changed fixed model after global mode switch: " + drone.fixedFlightModelIdForDiagnostics());
+			assertTrue(SimulationFlightModelAdapter.ID.equals(drone.activeFlightModelIdForDiagnostics()), "active simulation entity changed router model after global mode switch: " + drone.activeFlightModelIdForDiagnostics());
 			drone.discard();
 			context.succeed();
 		});
@@ -179,6 +194,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 140)
 	public void directFlightDisarmClearsPlayableAttitude(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
 		ServerLevel level = context.getLevel();
 		BlockPos spawn = context.absolutePos(new BlockPos(1, 5, 1));
 		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
@@ -222,6 +238,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 140)
 	public void directFlightRespectsCeilingCollision(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
 		ServerLevel level = context.getLevel();
 		BlockPos spawn = context.absolutePos(new BlockPos(1, 4, 1));
 		BlockPos ceiling = context.absolutePos(new BlockPos(1, 5, 1));
@@ -254,6 +271,7 @@ public final class DroneFlightGameTest implements CustomTestMethodInvoker {
 
 	@GameTest(structure = "fabric-gametest-api-v1:empty", maxTicks = 150)
 	public void directFlightLinkLossUsesPlayableFailsafe(GameTestHelper context) {
+		DroneDebugSettings.setFlightModelMode(FlightModelMode.PLAYABLE);
 		ServerLevel level = context.getLevel();
 		BlockPos spawn = context.absolutePos(new BlockPos(1, 5, 1));
 		DroneEntity drone = new DroneEntity(DroneEntityTypes.DRONE, level);
