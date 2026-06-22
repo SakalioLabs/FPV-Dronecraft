@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 同步遥测 snapshot 增量
+
+- `SimulationFlightRuntime.SyncedFlightTelemetry` 已承接 `DroneEntity.updateSyncedFlightState(...)` 中的 HUD/网络同步遥测读取与单位投影。
+- `DroneEntity.updateSyncedFlightState(...)` 现在只消费 runtime snapshot 并写入 `entityData`，该方法内部不再直接读取 `simulationRuntime.state()` 或 `simulationRuntime.config()`。
+- 本增量不改变任何 `entityData` 字段、存档字段、网络协议字段、飞行参数或 golden trace 容差；剩余 direct read 主要集中在环境采样、碰撞/接触几何、layout、存档和调试记录投影。
+
 ## 2026-06-22 简单诊断 getter 投影增量
 
 - `SimulationFlightRuntime` 已承接 ESC frame/error、rotor damage/dynamic inflow/coaxial/icing、airframe drag、battery resistance scale、control frame 和 gyro notch/blade-pass 等纯 scalar 诊断 getter。

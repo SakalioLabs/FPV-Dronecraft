@@ -4,6 +4,7 @@ import java.util.Arrays;
 
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.DroneState;
@@ -282,6 +283,151 @@ final class SimulationFlightRuntime {
 		return physics.state().gyroBladePassNotchSpreadHertz();
 	}
 
+	SyncedFlightTelemetry syncedTelemetry(DroneEnvironment environment) {
+		DroneState state = physics.state();
+		DroneConfig config = physics.config();
+		Vec3 targetRates = state.targetRatesBodyRadiansPerSecond();
+		Vec3 gyroRates = state.gyroAngularVelocityBodyRadiansPerSecond();
+		Vec3 estimatedEuler = state.estimatedOrientation().toEulerXYZRadians();
+		Vec3 effectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
+		return new SyncedFlightTelemetry(
+				state.processedControlInput(),
+				state.orientation().toEulerXYZRadians(),
+				new Vec3(Math.toDegrees(targetRates.x()), Math.toDegrees(targetRates.y()), Math.toDegrees(targetRates.z())),
+				new Vec3(Math.toDegrees(gyroRates.x()), Math.toDegrees(gyroRates.y()), Math.toDegrees(gyroRates.z())),
+				state.pidOutputTorqueBodyNewtonMeters(),
+				new Vec3(Math.toDegrees(estimatedEuler.x()), Math.toDegrees(estimatedEuler.y()), Math.toDegrees(estimatedEuler.z())),
+				Math.toDegrees(state.attitudeEstimateErrorRadians().length()),
+				state.motorPower(config),
+				state.motorRpm(),
+				state.rotorThrustNewtons(),
+				state.rotorHealth(),
+				new ControlTelemetry(
+						(float) state.controlLinkLossSeconds(),
+						state.controlFailsafeActive(),
+						(float) state.pidAttenuation(),
+						(float) state.pidIntegralRelax(),
+						(float) state.pidDTermLowPassCutoffHertz(),
+						(float) state.antiGravityBoost(),
+						(float) state.attitudeEstimatorAccelerometerTrust()
+				),
+				new ImuTelemetry(
+						(float) state.gyroClipIntensity(),
+						(float) state.accelerometerClipIntensity(),
+						(float) state.imuSupplyNoiseIntensity(),
+						(float) state.gyroDynamicNotchFrequencyHertz(),
+						(float) state.gyroDynamicNotchAttenuation()
+				),
+				new MotorTelemetry(
+						(float) state.averageMotorPower(config),
+						(float) state.averageMotorRpm(),
+						(float) state.maxMotorTemperatureCelsius(),
+						(float) state.motorThermalLimit(),
+						(float) state.minMotorVoltageHeadroom(),
+						(float) state.maxMotorWindingResistanceScale(),
+						(float) state.maxEscTemperatureCelsius(),
+						(float) state.escThermalLimit(),
+						(float) state.averageEscCoolingFactor(),
+						(float) state.maxEscDesyncIntensity(),
+						(float) state.averageRotorAerodynamicLoadFactor(),
+						(float) state.maxRotorInPlaneDragForceNewtons()
+				),
+				new RotorTelemetry(
+						(float) state.rotorVibration(),
+						(float) state.averageRotorConingIntensity(),
+						(float) state.averageRotorStallIntensity(),
+						(float) Math.toDegrees(state.averageRotorFlappingTiltRadians()),
+						(float) state.maxRotorSurfaceScrapeIntensity(),
+						(float) state.averageRotorTranslationalLiftIntensity(),
+						(float) state.maxRotorAdvanceRatio(),
+						(float) state.maxRotorPropellerAdvanceRatioJ(),
+						(float) state.minRotorPropellerThrustScale(),
+						(float) state.minRotorPropellerPowerScale(),
+						(float) state.maxRotorReverseFlowInboardFraction(),
+						(float) state.maxRotorTipMach(),
+						(float) state.minRotorCompressibilityThrustScale(),
+						(float) state.maxRotorLowReynoldsLoss(),
+						(float) Math.toDegrees(state.maxAbsRotorBladeAngleOfAttackRadians()),
+						(float) state.maxRotorBladeElementStallIntensity(),
+						(float) state.maxRotorBladePassRippleIntensity(),
+						(float) state.rotorBladeDissymmetryTorqueBodyNewtonMeters().length(),
+						(float) state.rotorInflowSkewIntensity(),
+						(float) state.maxRotorInducedVelocityMetersPerSecond(),
+						(float) state.minRotorInducedLagThrustScale(),
+						(float) state.maxRotorWakeInterferenceIntensity(),
+						(float) state.minRotorWakeThrustScale(),
+						(float) state.maxAbsRotorCoaxialLoadBias(),
+						(float) state.minRotorWetThrustScale(),
+						(float) state.maxRotorWakeSwirlVelocityMetersPerSecond(),
+						(float) state.maxRotorWindmillingIntensity(),
+						(float) state.rotorWakeSwirlTorqueBodyNewtonMeters().length(),
+						(float) state.rotorActiveBrakingTorqueBodyNewtonMeters().length(),
+						(float) state.rotorAccelerationReactionTorqueBodyNewtonMeters().length(),
+						(float) state.rotorGyroscopicTorqueBodyNewtonMeters().length(),
+						(float) state.rotorFlappingTorqueBodyNewtonMeters().length(),
+						(float) state.mixerSaturation(),
+						(float) state.propwashIntensity(),
+						(float) state.vortexRingStateIntensity(),
+						(float) state.maxVortexRingThrustBuffetAmplitude(),
+						(float) state.vortexRingBuffetForceBodyNewtons().length()
+				),
+				new EnvironmentTelemetry(
+						(float) environment.groundEffectThrustMultiplier(config),
+						(float) environment.ceilingEffectThrustMultiplier(config),
+						(float) environment.ceilingEffectIntensity(config),
+						(float) environment.rotorThrustAsymmetry(config),
+						(float) environment.maxRotorFlowObstruction(),
+						(float) environment.maxRotorWaterImmersion(),
+						(float) environment.precipitationWetnessIntensity(),
+						(float) environment.ambientTemperatureCelsius(),
+						(float) environment.windVelocityWorldMetersPerSecond().length(),
+						(float) effectiveWind.length(),
+						(float) state.windGustSpeedMetersPerSecond(),
+						(float) state.windShearAccelerationMetersPerSecondSquared(),
+						(float) environment.turbulenceIntensity(),
+						(float) environment.obstacleProximity(),
+						(float) environment.droneWakeIntensity()
+				),
+				new AirframeTelemetry(
+						(float) state.airspeedMetersPerSecond(),
+						(float) Math.toDegrees(state.angleOfAttackRadians()),
+						(float) Math.toDegrees(state.sideslipRadians()),
+						(float) state.airframeSeparatedFlowIntensity(),
+						(float) state.airframeLiftForceBodyNewtons().length(),
+						(float) state.groundEffectDragForceBodyNewtons().length(),
+						(float) state.groundEffectLevelingTorqueBodyNewtonMeters().length(),
+						(float) state.rotorWashDragForceBodyNewtons().length(),
+						(float) state.rotorWallEffectForceBodyNewtons().length(),
+						(float) state.barometerAltitudeMeters(),
+						(float) state.barometerVerticalSpeedMetersPerSecond(),
+						(float) state.barometerPressureHectopascals(),
+						(float) state.barometerErrorMeters(),
+						(float) state.speedMetersPerSecond()
+				),
+				new ContactTelemetry(
+						(float) state.contactImpactSpeedMetersPerSecond(),
+						(float) state.contactSlipSpeedMetersPerSecond(),
+						(float) state.contactBounceSpeedMetersPerSecond(),
+						(float) Math.toDegrees(state.contactAngularImpulseBodyRadiansPerSecond().length())
+				),
+				new BatteryTelemetry(
+						(float) state.batteryVoltage(),
+						(float) state.batteryTotalSagVoltage(),
+						(float) state.batteryEffectiveResistanceOhms(),
+						(float) state.batteryRegenerativeCurrentAmps(),
+						(float) state.batteryVoltageSpike(),
+						(float) state.batteryBusRippleVoltage(),
+						(float) state.batteryStateOfCharge(),
+						(float) state.batteryCurrentAmps(),
+						(float) state.batteryTwentyPercentSagCurrentAmps(),
+						(float) state.batteryTwentyPercentSagCurrentMargin(),
+						(float) state.batteryCurrentLimit(),
+						(float) state.batteryPowerLimit()
+				),
+				(float) state.averageRotorHealth()
+		);
+	}
+
 	private double averageMotorPolePairs() {
 		DroneConfig config = physics.config();
 		if (config.rotors().isEmpty()) {
@@ -386,6 +532,186 @@ final class SimulationFlightRuntime {
 	) {
 		return DronePhysics.betaflightEIntervalMicrosFromTelemetryRpm(mechanicalRpm, telemetryValidity, motorPolePairs);
 	}
+
+	record SyncedFlightTelemetry(
+			DroneInput processedInput,
+			Vec3 eulerRadians,
+			Vec3 targetRatesDegreesPerSecond,
+			Vec3 gyroRatesDegreesPerSecond,
+			Vec3 pidOutputTorqueNewtonMeters,
+			Vec3 estimatedEulerDegrees,
+			double attitudeEstimateErrorDegrees,
+			double[] motorPower,
+			double[] motorRpm,
+			double[] rotorThrustNewtons,
+			double[] rotorHealth,
+			ControlTelemetry control,
+			ImuTelemetry imu,
+			MotorTelemetry motor,
+			RotorTelemetry rotor,
+			EnvironmentTelemetry environment,
+			AirframeTelemetry airframe,
+			ContactTelemetry contact,
+			BatteryTelemetry battery,
+			float averageRotorHealth
+	) {
+		SyncedFlightTelemetry {
+			motorPower = copyOrNull(motorPower);
+			motorRpm = copyOrNull(motorRpm);
+			rotorThrustNewtons = copyOrNull(rotorThrustNewtons);
+			rotorHealth = copyOrNull(rotorHealth);
+		}
+
+		@Override
+		public double[] motorPower() {
+			return copyOrNull(motorPower);
+		}
+
+		@Override
+		public double[] motorRpm() {
+			return copyOrNull(motorRpm);
+		}
+
+		@Override
+		public double[] rotorThrustNewtons() {
+			return copyOrNull(rotorThrustNewtons);
+		}
+
+		@Override
+		public double[] rotorHealth() {
+			return copyOrNull(rotorHealth);
+		}
+	}
+
+	record ControlTelemetry(
+			float controlLinkLossSeconds,
+			boolean controlFailsafe,
+			float pidAttenuation,
+			float pidIntegralRelax,
+			float pidDTermLowPassCutoffHertz,
+			float antiGravityBoost,
+			float attitudeAccelerometerTrust
+	) {}
+
+	record ImuTelemetry(
+			float gyroClipIntensity,
+			float accelerometerClipIntensity,
+			float imuSupplyNoiseIntensity,
+			float gyroNotchFrequencyHertz,
+			float gyroNotchAttenuation
+	) {}
+
+	record MotorTelemetry(
+			float averageMotorPower,
+			float averageMotorRpm,
+			float maxMotorTemperatureCelsius,
+			float motorThermalLimit,
+			float minMotorVoltageHeadroom,
+			float maxMotorWindingResistanceScale,
+			float maxEscTemperatureCelsius,
+			float escThermalLimit,
+			float averageEscCoolingFactor,
+			float maxEscDesyncIntensity,
+			float averageRotorAerodynamicLoadFactor,
+			float maxRotorInPlaneDragForceNewtons
+	) {}
+
+	record RotorTelemetry(
+			float rotorVibration,
+			float averageRotorConingIntensity,
+			float averageRotorStallIntensity,
+			float averageRotorFlappingTiltDegrees,
+			float maxRotorSurfaceScrapeIntensity,
+			float averageRotorTranslationalLiftIntensity,
+			float maxRotorAdvanceRatio,
+			float maxRotorPropellerAdvanceRatioJ,
+			float minRotorPropellerThrustScale,
+			float minRotorPropellerPowerScale,
+			float maxRotorReverseFlowInboardFraction,
+			float maxRotorTipMach,
+			float minRotorCompressibilityThrustScale,
+			float maxRotorLowReynoldsLoss,
+			float maxAbsRotorBladeAngleOfAttackDegrees,
+			float maxRotorBladeElementStallIntensity,
+			float maxRotorBladePassRippleIntensity,
+			float rotorBladeDissymmetryTorqueNewtonMeters,
+			float rotorInflowSkewIntensity,
+			float maxRotorInducedVelocityMetersPerSecond,
+			float minRotorInducedLagThrustScale,
+			float maxRotorWakeInterferenceIntensity,
+			float minRotorWakeThrustScale,
+			float maxAbsRotorCoaxialLoadBias,
+			float minRotorWetThrustScale,
+			float maxRotorWakeSwirlVelocityMetersPerSecond,
+			float maxRotorWindmillingIntensity,
+			float rotorWakeSwirlTorqueNewtonMeters,
+			float rotorActiveBrakingTorqueNewtonMeters,
+			float rotorAccelerationReactionTorqueNewtonMeters,
+			float rotorGyroscopicTorqueNewtonMeters,
+			float rotorFlappingTorqueNewtonMeters,
+			float mixerSaturation,
+			float propwashIntensity,
+			float vortexRingStateIntensity,
+			float maxVortexRingThrustBuffetAmplitude,
+			float vortexRingBuffetForceNewtons
+	) {}
+
+	record EnvironmentTelemetry(
+			float groundEffectMultiplier,
+			float ceilingEffectMultiplier,
+			float ceilingEffectIntensity,
+			float rotorThrustAsymmetry,
+			float rotorFlowObstruction,
+			float waterImmersionIntensity,
+			float precipitationWetnessIntensity,
+			float ambientTemperatureCelsius,
+			float windSpeedMetersPerSecond,
+			float effectiveWindSpeedMetersPerSecond,
+			float windGustSpeedMetersPerSecond,
+			float windShearAccelerationMetersPerSecondSquared,
+			float turbulenceIntensity,
+			float obstacleProximity,
+			float droneWakeIntensity
+	) {}
+
+	record AirframeTelemetry(
+			float airspeedMetersPerSecond,
+			float angleOfAttackDegrees,
+			float sideslipDegrees,
+			float airframeSeparatedFlowIntensity,
+			float airframeLiftForceNewtons,
+			float groundEffectDragForceNewtons,
+			float groundEffectLevelingTorqueNewtonMeters,
+			float rotorWashDragForceNewtons,
+			float rotorWallEffectForceNewtons,
+			float barometerAltitudeMeters,
+			float barometerVerticalSpeedMetersPerSecond,
+			float barometerPressureHectopascals,
+			float barometerErrorMeters,
+			float speedMetersPerSecond
+	) {}
+
+	record ContactTelemetry(
+			float contactImpactSpeedMetersPerSecond,
+			float contactSlipSpeedMetersPerSecond,
+			float contactBounceSpeedMetersPerSecond,
+			float contactAngularImpulseDegreesPerSecond
+	) {}
+
+	record BatteryTelemetry(
+			float batteryVoltage,
+			float batterySagVoltage,
+			float batteryEffectiveResistanceOhms,
+			float batteryRegenerativeCurrentAmps,
+			float batteryVoltageSpike,
+			float batteryBusRippleVoltage,
+			float batteryStateOfCharge,
+			float batteryCurrentAmps,
+			float batteryTwentyPercentSagCurrentAmps,
+			float batteryTwentyPercentSagCurrentMargin,
+			float batteryCurrentLimit,
+			float batteryPowerLimit
+	) {}
 
 	record RotorDynamicState(
 			double[] motorOmegaRadiansPerSecond,

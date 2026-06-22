@@ -15,6 +15,10 @@ class DroneEntityFlightModelRoutingTest {
 	@Test
 	void entityRoutesPlayableAndSimulationStepsThroughFlightModelFacade() throws IOException {
 		String source = Files.readString(droneEntitySource(), StandardCharsets.UTF_8);
+		String syncedFlightStateMethod = source.substring(
+				source.indexOf("private void updateSyncedFlightState"),
+				source.indexOf("private FlightMode syncedFlightMode")
+		);
 
 		assertFalse(source.contains("physics.step("), "DroneEntity should call FlightModel.step instead of DronePhysics.step directly");
 		assertFalse(source.contains("PlayableFlightModel."), "DroneEntity should route playable math through LegacyPlayableFlightModelAdapter");
@@ -53,6 +57,9 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(source.contains("simulationRuntime.state().gyroDynamicNotchSpread"), "gyro notch telemetry reads should stay behind SimulationFlightRuntime");
 		assertFalse(source.contains("simulationRuntime.state().gyroRpmHarmonicNotchAttenuation"), "gyro RPM notch telemetry reads should stay behind SimulationFlightRuntime");
 		assertFalse(source.contains("simulationRuntime.state().gyroBladePass"), "gyro blade-pass telemetry reads should stay behind SimulationFlightRuntime");
+		assertTrue(syncedFlightStateMethod.contains("simulationRuntime.syncedTelemetry(lastEnvironment)"), "synced entity telemetry should be projected by SimulationFlightRuntime");
+		assertFalse(syncedFlightStateMethod.contains("simulationRuntime.state()"), "synced entity telemetry should not read DroneState directly");
+		assertFalse(syncedFlightStateMethod.contains("simulationRuntime.config()"), "synced entity telemetry should not read DroneConfig directly");
 		assertTrue(source.contains("SimulationFlightRuntime simulationRuntime"), "DroneEntity should hold simulation internals behind a runtime facade");
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
