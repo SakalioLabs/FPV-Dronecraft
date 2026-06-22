@@ -68,6 +68,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	private int debugAcroRollRecoveryTicksRemaining;
 	private float debugAcroAeroCrossflowLag;
 	private float debugAcroSidewashMemory;
+	private DroneInput lastInput = DroneInput.idle();
 	private FlightModelDiagnostics diagnostics = FlightModelDiagnostics.empty();
 
 	@Override
@@ -104,6 +105,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		debugAcroRollRecoveryTicksRemaining = 0;
 		debugAcroAeroCrossflowLag = 0.0f;
 		debugAcroSidewashMemory = 0.0f;
+		lastInput = DroneInput.idle();
 		debugModeSwitchTicksRemaining = 0;
 		debugFlightMode = safeState.flightMode();
 		diagnostics = FlightModelDiagnostics.empty();
@@ -144,6 +146,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		config = context.config();
 		applyStepOptions(context);
 		DroneInput input = context.input();
+		lastInput = input;
 		DroneEnvironment environment = context.environment();
 		List<StateCorrection> corrections = new ArrayList<>();
 		List<String> lossyFields = lossyEnvironmentFields(environment);
@@ -215,9 +218,9 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 			return result(corrections);
 		}
 
-		debugVelocityX = settledVelocity(step.velocityX(), 0.015f);
-		debugVelocityY = settledVelocity(step.velocityY(), 0.010f);
-		debugVelocityZ = settledVelocity(step.velocityZ(), 0.015f);
+		debugVelocityX = step.velocityX();
+		debugVelocityY = step.velocityY();
+		debugVelocityZ = step.velocityZ();
 		debugVisualPitchRadians = step.pitchRadians();
 		debugVisualRollRadians = step.rollRadians();
 		debugFlightMode = step.mode();
@@ -320,9 +323,9 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 			default -> -1.0;
 		};
 		double yawSign = config.rotors().get(rotorIndex).spinDirection();
-		return 0.04 * debugCommandRoll * rollSign
-				+ 0.04 * debugCommandPitch * pitchSign
-				+ 0.025 * debugCommandYaw * yawSign;
+		return 0.04 * lastInput.roll() * rollSign
+				+ 0.04 * lastInput.pitch() * pitchSign
+				+ 0.025 * lastInput.yaw() * yawSign;
 	}
 
 	private FlightModelDiagnostics diagnosticsFor(DroneEnvironment environment, List<StateCorrection> corrections, List<String> lossyFields) {

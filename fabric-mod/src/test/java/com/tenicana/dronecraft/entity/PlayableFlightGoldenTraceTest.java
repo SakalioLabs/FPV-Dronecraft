@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.entity;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 import java.io.IOException;
@@ -10,15 +11,26 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.DroneInput;
 import com.tenicana.dronecraft.sim.FlightMode;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.flight.ActuatorOutput;
+import com.tenicana.dronecraft.sim.flight.FlightModelDiagnostics;
+import com.tenicana.dronecraft.sim.flight.FlightModelInitializationContext;
+import com.tenicana.dronecraft.sim.flight.FlightModelRouter;
+import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
+import com.tenicana.dronecraft.sim.flight.FlightStepContext;
+import com.tenicana.dronecraft.sim.flight.FlightStepResult;
+import com.tenicana.dronecraft.sim.flight.StateCorrection;
+import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 
 class PlayableFlightGoldenTraceTest {
 	private static final String UPDATE_PROPERTY = "fpvdrone.updateGoldenTraces";
@@ -81,6 +93,44 @@ class PlayableFlightGoldenTraceTest {
 			fail("Missing golden trace " + golden + ". Re-run with " + UPDATE_PROPERTY + "=true or FPVDRONE_UPDATE_GOLDEN_TRACES=true to generate it.");
 		}
 		assertTraceMatches(Files.readAllLines(golden, StandardCharsets.UTF_8), actual);
+	}
+
+	@Test
+	void playableAdapterRouterMatchesDirectRouteTickByTick() {
+		for (Scenario scenario : scenarios()) {
+			DroneConfig config = scenario.config().create();
+			DirectRouteHarness direct = new DirectRouteHarness(config);
+			scenario.setup().apply(direct);
+			LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+			FlightModelRouter router = new FlightModelRouter(List.of(adapter), LegacyPlayableFlightModelAdapter.ID);
+			router.initialize(new FlightModelInitializationContext(config, direct.snapshot(), playableEnvironment(scenario, 0, direct), 0L));
+
+			for (int tick = 0; tick < scenario.ticks(); tick++) {
+				DroneInput input = scenario.input().at(tick, config).normalized();
+				String mutation = scenario.beforeStep().apply(tick, direct);
+				applyMutationToRouter(router, direct, mutation);
+				DroneEnvironment environment = playableEnvironment(scenario, tick, direct);
+				FlightStepResult routeResult = router.step(new FlightStepContext(
+						input,
+						router.snapshot(),
+						environment,
+						DT_SECONDS,
+						tick,
+						config
+				));
+				direct.step(input, mutation);
+
+				assertSnapshotClose(scenario.name(), tick, direct.snapshot(), routeResult.nextState());
+				assertActuatorClose(scenario.name(), tick, direct.actuatorOutput(input), routeResult.actuatorOutput());
+				assertCorrectionEvents(scenario.name(), tick, direct.stateCorrectionEvents(), routeResult.stateCorrections());
+				assertDiagnosticsClose(scenario.name(), tick, direct.diagnostics(environment), routeResult.diagnostics());
+				assertEquals(
+						direct.lossyFields(environment),
+						routeResult.diagnostics().lossyFields(),
+						"scenario=" + scenario.name() + " tick=" + tick + " lossy diagnostics changed"
+				);
+			}
+		}
 	}
 
 	private static boolean updateGoldenTraces() {
@@ -168,6 +218,107 @@ class PlayableFlightGoldenTraceTest {
 		return (tick, config) -> new DroneInput(throttle, pitch, roll, yaw, armed, true, mode);
 	}
 
+	private static DroneEnvironment playableEnvironment(Scenario scenario, int tick, DirectRouteHarness harness) {
+		if ("wind_field".equals(scenario.name())) {
+			return new DroneEnvironment(new Vec3(5.0, 0.0, -2.0), 1.0, Double.POSITIVE_INFINITY);
+		}
+		if (harness.nearGroundLocked) {
+			return new DroneEnvironment(Vec3.ZERO, 1.0, 0.08);
+		}
+		return DroneEnvironment.calm();
+	}
+
+	private static void applyMutationToRouter(FlightModelRouter router, DirectRouteHarness direct, String mutation) {
+		if ("RESET_RESPAWN".equals(mutation)) {
+			router.reset(direct.snapshot());
+			return;
+		}
+		if ("COLLISION_CONSTRAINT".equals(mutation)) {
+			router.applyResolvedState(
+					direct.snapshot(),
+					new StateCorrection(StateCorrectionReason.COLLISION_CONTACT_SOLVE, "COLLISION_CONSTRAINT", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+			);
+		}
+	}
+
+	private static void assertSnapshotClose(String scenario, int tick, FlightStateSnapshot expected, FlightStateSnapshot actual) {
+		assertVecClose(scenario, tick, "position", expected.positionWorldMeters(), actual.positionWorldMeters());
+		assertVecClose(scenario, tick, "world_velocity", expected.velocityWorldMetersPerSecond(), actual.velocityWorldMetersPerSecond());
+		assertVecClose(scenario, tick, "body_velocity", expected.velocityBodyMetersPerSecond(), actual.velocityBodyMetersPerSecond());
+		assertQuaternionClose(scenario, tick, "quaternion", expected.attitude(), actual.attitude());
+		assertVecClose(scenario, tick, "angular_rate", expected.angularVelocityBodyRadiansPerSecond(), actual.angularVelocityBodyRadiansPerSecond());
+		assertEquals(expected.flightMode(), actual.flightMode(), () -> firstDifference(scenario, tick, "flight_mode", expected.flightMode(), actual.flightMode()));
+		assertEquals(expected.armed(), actual.armed(), () -> firstDifference(scenario, tick, "armed", expected.armed(), actual.armed()));
+		assertTrue(actual.isFinite(), () -> firstDifference(scenario, tick, "finite", true, false));
+	}
+
+	private static void assertActuatorClose(String scenario, int tick, ActuatorOutput expected, ActuatorOutput actual) {
+		assertArrayClose(scenario, tick, "actuator.motor_power", expected.motorPower(), actual.motorPower());
+		assertArrayClose(scenario, tick, "actuator.motor_rpm", expected.motorRpm(), actual.motorRpm());
+		assertArrayClose(scenario, tick, "actuator.rotor_thrust_n", expected.rotorThrustNewtons(), actual.rotorThrustNewtons());
+	}
+
+	private static void assertCorrectionEvents(String scenario, int tick, List<String> expected, List<StateCorrection> actual) {
+		List<String> actualEvents = actual.stream()
+				.map(correction -> correction.reason().name() + ":" + correction.detail())
+				.toList();
+		assertEquals(expected, actualEvents, () -> firstDifference(scenario, tick, "state_corrections", expected, actualEvents));
+	}
+
+	private static void assertDiagnosticsClose(String scenario, int tick, Map<String, String> expected, FlightModelDiagnostics actual) {
+		assertTrue(actual.finite(), () -> firstDifference(scenario, tick, "diagnostics.finite", true, false));
+		for (Map.Entry<String, String> entry : expected.entrySet()) {
+			String actualValue = actual.values().get(entry.getKey());
+			assertTrue(actualValue != null, () -> firstDifference(scenario, tick, "diagnostics." + entry.getKey(), entry.getValue(), "<missing>"));
+			assertNumberClose(scenario, tick, "diagnostics." + entry.getKey(), Double.parseDouble(entry.getValue()), Double.parseDouble(actualValue));
+		}
+	}
+
+	private static void assertArrayClose(String scenario, int tick, String field, double[] expected, double[] actual) {
+		assertEquals(expected.length, actual.length, () -> firstDifference(scenario, tick, field + ".length", expected.length, actual.length));
+		for (int i = 0; i < expected.length; i++) {
+			assertNumberClose(scenario, tick, field + "[" + i + "]", expected[i], actual[i]);
+		}
+	}
+
+	private static void assertVecClose(String scenario, int tick, String field, Vec3 expected, Vec3 actual) {
+		assertNumberClose(scenario, tick, field + ".x", expected.x(), actual.x());
+		assertNumberClose(scenario, tick, field + ".y", expected.y(), actual.y());
+		assertNumberClose(scenario, tick, field + ".z", expected.z(), actual.z());
+	}
+
+	private static void assertQuaternionClose(String scenario, int tick, String field, Quaternion expected, Quaternion actual) {
+		assertNumberClose(scenario, tick, field + ".w", expected.w(), actual.w());
+		assertNumberClose(scenario, tick, field + ".x", expected.x(), actual.x());
+		assertNumberClose(scenario, tick, field + ".y", expected.y(), actual.y());
+		assertNumberClose(scenario, tick, field + ".z", expected.z(), actual.z());
+	}
+
+	private static void assertNumberClose(String scenario, int tick, String field, double expected, double actual) {
+		if (Double.compare(expected, actual) == 0) {
+			return;
+		}
+		double scale = Math.max(Math.abs(expected), Math.abs(actual));
+		double allowed = Math.max(ABS_TOLERANCE, REL_TOLERANCE * scale);
+		double diff = Math.abs(expected - actual);
+		if (diff > allowed) {
+			double relative = scale <= 0.0 ? diff : diff / scale;
+			fail(firstDifference(scenario, tick, field, expected, actual)
+					+ " abs=" + diff
+					+ " rel=" + relative
+					+ " allowed=" + allowed
+					+ " source=LegacyPlayableFlightModelAdapter route must preserve DirectRouteHarness call order");
+		}
+	}
+
+	private static String firstDifference(String scenario, int tick, String field, Object expected, Object actual) {
+		return "first route-equivalence difference scenario=" + scenario
+				+ " tick=" + tick
+				+ " field=" + field
+				+ " expected=" + expected
+				+ " actual=" + actual;
+	}
+
 	private static final class DirectRouteHarness {
 		private final DroneConfig config;
 		private Vec3 position = new Vec3(0.0, 20.0, 0.0);
@@ -198,6 +349,8 @@ class PlayableFlightGoldenTraceTest {
 		private int debugAcroRollRecoveryTicksRemaining;
 		private float debugAcroAeroCrossflowLag;
 		private float debugAcroSidewashMemory;
+		private boolean lastArmed;
+		private List<String> lastStateCorrectionEvents = List.of();
 		private String lastCorrection = "NONE";
 
 		DirectRouteHarness(DroneConfig config) {
@@ -233,9 +386,11 @@ class PlayableFlightGoldenTraceTest {
 			this.position = position;
 			yawDegrees = 0.0f;
 			clearDebugFlightState();
+			lastArmed = false;
 		}
 
 		void step(DroneInput input, String correction) {
+			List<String> correctionEvents = new ArrayList<>();
 			rebaseDebugVelocityToCurrentYaw();
 			float throttle = clamp((float) input.throttle(), 0.0f, 1.0f);
 			float pitch = clamp((float) input.pitch(), -1.0f, 1.0f);
@@ -263,6 +418,7 @@ class PlayableFlightGoldenTraceTest {
 			float previousPitch = debugVisualPitchRadians;
 			float previousRoll = debugVisualRollRadians;
 			float previousYaw = yawDegrees;
+			int previousRecoveryTicks = debugAcroRollRecoveryTicksRemaining;
 			float hoverThrottle = clamp((float) config.hoverThrottle(), 0.12f, 0.55f);
 			float lowAltitudeHorizontalAuthorityScale = nearGroundLocked ? LOW_ALTITUDE_LOCKED_AUTHORITY : 1.0f;
 			PlayableFlightModel.Step step = PlayableFlightModel.step(
@@ -299,6 +455,9 @@ class PlayableFlightGoldenTraceTest {
 			if (!shouldFly) {
 				clearDebugFlightState();
 				lastCorrection = correction.equals("NONE") ? "IDLE_CLEAR" : correction;
+				lastArmed = input.armed();
+				correctionEvents.add(StateCorrectionReason.GROUND_STABILIZATION.name() + ":IDLE_CLEAR");
+				lastStateCorrectionEvents = List.copyOf(correctionEvents);
 				return;
 			}
 			if (Math.abs(targetVx) < 0.015f) {
@@ -330,6 +489,9 @@ class PlayableFlightGoldenTraceTest {
 			debugAcroRollRecoveryTicksRemaining = step.acroRollRecoveryTicksRemaining();
 			debugAcroAeroCrossflowLag = step.acroAeroCrossflowLag();
 			debugAcroSidewashMemory = step.acroSidewashMemory();
+			if (previousRecoveryTicks == 0 && debugAcroRollRecoveryTicksRemaining > 0) {
+				correctionEvents.add(StateCorrectionReason.COMPLETED_ROLL_VELOCITY_TRIM.name() + ":ACRO_ROLL_RECOVERY_STARTED");
+			}
 
 			float movementYawDegrees = PlayableMovementYaw.midpointForTick(yawDegrees, targetYaw);
 			PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
@@ -360,7 +522,102 @@ class PlayableFlightGoldenTraceTest {
 					Math.toRadians(yawDegrees - previousYaw) / DT_SECONDS,
 					(debugVisualRollRadians - previousRoll) / DT_SECONDS
 			);
+			lastArmed = input.armed();
+			lastStateCorrectionEvents = List.copyOf(correctionEvents);
 			lastCorrection = correction;
+		}
+
+		FlightStateSnapshot snapshot() {
+			PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
+					debugVelocityX,
+					debugVelocityY,
+					debugVelocityZ,
+					debugVelocityYawDegrees
+			);
+			Vec3 velocityWorld = new Vec3(worldVelocity.x(), worldVelocity.y(), worldVelocity.z());
+			Quaternion attitude = attitudeQuaternion(yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
+			return new FlightStateSnapshot(
+					position,
+					velocityWorld,
+					attitude,
+					lastBodyRate,
+					debugFlightMode,
+					lastArmed
+			);
+		}
+
+		ActuatorOutput actuatorOutput(DroneInput input) {
+			List<RotorSpec> rotors = config.rotors();
+			double[] motorPower = new double[rotors.size()];
+			double[] motorRpm = new double[rotors.size()];
+			double[] rotorThrust = new double[rotors.size()];
+			for (int i = 0; i < rotors.size(); i++) {
+				double mix = 1.0 + rotorMixerPreview(i, input);
+				motorPower[i] = clamp((float) ((input.armed() ? debugMotorPower : 0.0) * mix), 0.0f, 1.0f);
+				motorRpm[i] = Math.max(0.0, (input.armed() ? debugAverageMotorRpm : 0.0) * mix);
+				rotorThrust[i] = motorPower[i] * rotors.get(i).maxThrustNewtons() * 0.45;
+			}
+			return new ActuatorOutput(motorPower, motorRpm, rotorThrust);
+		}
+
+		List<String> stateCorrectionEvents() {
+			return lastStateCorrectionEvents;
+		}
+
+		Map<String, String> diagnostics(DroneEnvironment environment) {
+			return Map.ofEntries(
+					Map.entry("yaw_degrees", Float.toString(yawDegrees)),
+					Map.entry("velocity_yaw_degrees", Float.toString(debugVelocityYawDegrees)),
+					Map.entry("velocity_body_x_mps", Float.toString(debugVelocityX)),
+					Map.entry("velocity_body_y_mps", Float.toString(debugVelocityY)),
+					Map.entry("velocity_body_z_mps", Float.toString(debugVelocityZ)),
+					Map.entry("visual_pitch_radians", Float.toString(debugVisualPitchRadians)),
+					Map.entry("visual_roll_radians", Float.toString(debugVisualRollRadians)),
+					Map.entry("target_yaw_degrees_per_tick", Float.toString(debugTargetYawRate)),
+					Map.entry("command_throttle", Float.toString(debugCommandThrottle)),
+					Map.entry("command_pitch", Float.toString(debugCommandPitch)),
+					Map.entry("command_roll", Float.toString(debugCommandRoll)),
+					Map.entry("command_yaw", Float.toString(debugCommandYaw)),
+					Map.entry("motor_power", Float.toString(debugMotorPower)),
+					Map.entry("average_motor_rpm", Float.toString(debugAverageMotorRpm)),
+					Map.entry("low_altitude_horizontal_authority_scale", Float.toString(nearGroundLocked ? LOW_ALTITUDE_LOCKED_AUTHORITY : 1.0f)),
+					Map.entry("flight_mode", Integer.toString(debugFlightMode.id())),
+					Map.entry("mode_switch_ticks_remaining", Integer.toString(debugModeSwitchTicksRemaining)),
+					Map.entry("acro_collective_thrust_to_weight", Float.toString(debugAcroCollectiveThrustToWeight)),
+					Map.entry("acro_pitch_rate_radians_per_tick", Float.toString(debugAcroPitchRateRadiansPerTick)),
+					Map.entry("acro_roll_rate_radians_per_tick", Float.toString(debugAcroRollRateRadiansPerTick)),
+					Map.entry("acro_roll_recovery_ticks_remaining", Integer.toString(debugAcroRollRecoveryTicksRemaining)),
+					Map.entry("acro_aero_crossflow_lag", Float.toString(debugAcroAeroCrossflowLag)),
+					Map.entry("acro_sidewash_memory", Float.toString(debugAcroSidewashMemory)),
+					Map.entry("ground_clearance_m", Double.toString(environment.groundClearanceMeters())),
+					Map.entry("ground_lock_threshold_m", "0.3")
+			);
+		}
+
+		List<String> lossyFields(DroneEnvironment environment) {
+			List<String> lossy = new ArrayList<>();
+			if (environment.windVelocityWorldMetersPerSecond().length() > 1.0e-9) {
+				lossy.add("environment.windVelocityWorldMetersPerSecond");
+			}
+			if (Math.abs(environment.airDensityRatio() - 1.0) > 1.0e-9) {
+				lossy.add("environment.airDensityRatio");
+			}
+			if (environment.turbulenceIntensity() > 1.0e-9) {
+				lossy.add("environment.turbulenceIntensity");
+			}
+			if (environment.obstacleProximity() > 1.0e-9) {
+				lossy.add("environment.obstacleProximity");
+			}
+			if (Double.isFinite(environment.ceilingClearanceMeters())) {
+				lossy.add("environment.ceilingClearanceMeters");
+			}
+			if (environment.rotorThrustMultipliers() != null) {
+				lossy.add("environment.rotorThrustMultipliers");
+			}
+			if (environment.rotorFlowObstructions() != null) {
+				lossy.add("environment.rotorFlowObstructions");
+			}
+			return lossy;
 		}
 
 		String snapshotLine(String scenario, int tick, DroneInput input) {
