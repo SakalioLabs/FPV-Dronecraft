@@ -181,5 +181,31 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 ## 当前状态
 
-本文件仅描述行为保持型收敛的第一阶段边界。任何后续契约、适配器、路由或诊断改动都必须先通过上述
-golden trace，证明 playable 与 simulation 的现有输出没有因重构漂移。
+截至 2026-06-22，本分支已完成以下行为保持型收敛工作：
+
+- simulation 路径已通过 `SimulationFlightModelAdapter` 和 `FlightModelRouter` 进入统一 `FlightModel` 边界。
+- playable 路径已通过 `LegacyPlayableFlightModelAdapter` 和 `FlightModelRouter` 进入统一 `FlightModel` 边界；`DroneEntity` 不再直接调用 `PlayableFlightModel.*` 或 `DronePhysics.step(...)`。
+- `FlightModel.applyResolvedState(...)` 用于把 Minecraft entity move / collision 后的解析状态显式回灌到当前模型，避免把 entity 层状态写入静默藏在模型外部。
+- `FlightStepContext.modelConfiguration` 仅承载 adapter 级选项；当前用于 failsafe damping 这类旧 playable 路径已有行为，不新增手感或气动物理参数。
+- `/fpvdiag start|status|stop` 已实现为默认关闭的一键真人录制入口；停止后写入服务器目录 `fpvdiag-traces`，文件名包含开始时间、commit SHA 和玩家 UUID。
+
+本轮已通过的本地验证：
+
+```powershell
+./gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightModelRouterTest :fabric-mod:test --tests com.tenicana.dronecraft.command.DroneCommandsTest --tests com.tenicana.dronecraft.blackbox.DroneFlightTraceFilesTest --tests com.tenicana.dronecraft.entity.LegacyPlayableFlightModelAdapterTest --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest
+./gradlew.bat --no-daemon :drone-sim-core:test :fabric-mod:test
+./gradlew.bat --no-daemon :fabric-mod:flightModelComparison
+./gradlew.bat --no-daemon build
+./gradlew.bat --no-daemon :fabric-mod:runServerSelfTest
+./gradlew.bat --no-daemon :fabric-mod:runPlayableServerSelfTest
+./gradlew.bat --no-daemon :fabric-mod:runPlayableHorizonServerSelfTest
+./gradlew.bat --no-daemon :fabric-mod:runPlayableAcroServerSelfTest
+```
+
+尚未完成的收敛门禁：
+
+- 最终 convergence report
+- 推送本分支并提供 draft PR 或明确分支地址
+- DroneEntity 仍保留部分与 `DronePhysics` 状态/telemetry 的历史耦合，后续需继续收敛状态所有权与 correction 事件。
+
+任何后续契约、适配器、路由或诊断改动都必须先通过上述 golden trace，证明 playable 与 simulation 的现有输出没有因重构漂移。
