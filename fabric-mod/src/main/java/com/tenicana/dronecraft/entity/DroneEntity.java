@@ -1500,6 +1500,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private DroneWakeAirflow wakeFromDrone(DroneEntity source, Vec3 receiverPosition) {
+		SimulationFlightRuntime.DroneWakeSource wakeSource = source.simulationRuntime.droneWakeSource();
 		Vec3 sourcePosition = source.entityPhysicsPosition();
 		Vec3 offset = receiverPosition.subtract(sourcePosition);
 		double verticalDrop = sourcePosition.y() - receiverPosition.y();
@@ -1508,37 +1509,29 @@ public class DroneEntity extends Entity {
 		}
 
 		double lateralDistance = Math.hypot(offset.x(), offset.z());
-		double wakeRadius = sourceWakeRadiusMeters(source) + verticalDrop * 0.35;
+		double wakeRadius = wakeSource.wakeRadiusMeters() + verticalDrop * 0.35;
 		if (lateralDistance > wakeRadius) {
 			return DroneWakeAirflow.CALM;
 		}
 
-		double motorPower = source.simulationRuntime.state().averageMotorPower(source.simulationRuntime.config());
+		double motorPower = wakeSource.averageMotorPower();
 		if (!source.isArmed() || motorPower < 0.08) {
 			return DroneWakeAirflow.CALM;
 		}
 
 		double lateralFactor = 1.0 - MathUtil.clamp(lateralDistance / Math.max(0.1, wakeRadius), 0.0, 1.0);
 		double verticalFactor = MathUtil.clamp(1.0 - verticalDrop / 5.0, 0.0, 1.0);
-		double inducedVelocity = source.simulationRuntime.state().averageRotorInducedVelocityMetersPerSecond();
+		double inducedVelocity = wakeSource.averageRotorInducedVelocityMetersPerSecond();
 		double intensity = MathUtil.clamp(motorPower * (0.35 + 0.65 * verticalFactor) * lateralFactor * lateralFactor, 0.0, 1.5);
 		if (intensity <= 1.0e-4) {
 			return DroneWakeAirflow.CALM;
 		}
 
-		Vec3 carrierVelocity = source.simulationRuntime.state().velocityMetersPerSecond().multiply(0.18 * intensity);
+		Vec3 carrierVelocity = wakeSource.velocityMetersPerSecond().multiply(0.18 * intensity);
 		double downwashMetersPerSecond = MathUtil.clamp(inducedVelocity * (0.45 + motorPower) * intensity, 0.0, 12.0);
 		Vec3 wind = new Vec3(carrierVelocity.x(), -downwashMetersPerSecond, carrierVelocity.z());
 		double turbulence = MathUtil.clamp(0.18 + intensity * 0.72, 0.0, 0.85);
 		return new DroneWakeAirflow(wind, turbulence, intensity);
-	}
-
-	private static double sourceWakeRadiusMeters(DroneEntity source) {
-		double radius = 0.35;
-		for (RotorSpec rotor : source.simulationRuntime.config().rotors()) {
-			radius = Math.max(radius, rotor.positionBodyMeters().length() + rotor.radiusMeters() * 2.5);
-		}
-		return MathUtil.clamp(radius, 0.35, 1.25);
 	}
 
 	private ObstacleAirflow sampleObstacleAirflow(Vec3 weatherWindMetersPerSecond) {

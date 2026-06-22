@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 drone wake 投影增量
+
+- `SimulationFlightRuntime.DroneWakeSource` 已承接 wake source 的平均电机功率、平均诱导速度、机体速度和尾流半径计算。
+- `DroneEntity` 的 `sampleDroneWakeAirflow(...)` / `wakeFromDrone(...)` 不再直接读取其他无人机的 simulation state/config。
+- 本增量只移动尾流源读取边界，保留原有 vertical drop、wake radius、motorPower、inducedVelocity、carrierVelocity 和 turbulence 公式。
+
 ## 2026-06-22 ground/takeoff 投影增量
 
 - `SimulationFlightRuntime` 已承接 ground/ceiling clearance 射线长度、ceiling effect height、低速下沉判断、起飞油门阈值、垂直推力阈值和起飞释放运动学写入。

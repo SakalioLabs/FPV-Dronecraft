@@ -55,6 +55,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private double groundClearanceMetersAt"),
 				source.indexOf("private boolean advancedContactEffectsActive")
 		);
+		String droneWakeMethods = source.substring(
+				source.indexOf("private DroneWakeAirflow sampleDroneWakeAirflow"),
+				source.indexOf("private ObstacleAirflow sampleObstacleAirflow")
+		);
 		String damageSyncMethods = source.substring(
 				source.indexOf("private boolean isAirworthy"),
 				source.indexOf("private void recordBlackbox")
@@ -126,6 +130,9 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(groundTakeoffMethods.contains("simulationRuntime.releaseGroundTakeoff("), "takeoff release kinematics should be projected by SimulationFlightRuntime");
 		assertFalse(groundTakeoffMethods.contains("simulationRuntime.state()"), "ground/takeoff helpers should not read DroneState directly");
 		assertFalse(groundTakeoffMethods.contains("simulationRuntime.config()"), "ground/takeoff helpers should not read DroneConfig directly");
+		assertTrue(droneWakeMethods.contains("source.simulationRuntime.droneWakeSource()"), "drone wake source telemetry should be projected by SimulationFlightRuntime");
+		assertFalse(droneWakeMethods.contains("simulationRuntime.state()"), "drone wake sampling should not read DroneState directly");
+		assertFalse(droneWakeMethods.contains("simulationRuntime.config()"), "drone wake sampling should not read DroneConfig directly");
 		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");

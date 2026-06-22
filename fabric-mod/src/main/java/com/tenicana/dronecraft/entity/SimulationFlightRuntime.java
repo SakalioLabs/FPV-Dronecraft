@@ -118,6 +118,21 @@ final class SimulationFlightRuntime {
 		));
 	}
 
+	DroneWakeSource droneWakeSource() {
+		DroneState state = physics.state();
+		DroneConfig config = physics.config();
+		double radius = 0.35;
+		for (RotorSpec rotor : config.rotors()) {
+			radius = Math.max(radius, rotor.positionBodyMeters().length() + rotor.radiusMeters() * 2.5);
+		}
+		return new DroneWakeSource(
+				state.averageMotorPower(config),
+				state.averageRotorInducedVelocityMetersPerSecond(),
+				state.velocityMetersPerSecond(),
+				MathUtil.clamp(radius, 0.35, 1.25)
+		);
+	}
+
 	FlightStateSnapshot flightStateSnapshot(Vec3 positionWorldMeters, Quaternion attitude, FlightMode flightMode, boolean armed) {
 		return flightStateSnapshot(
 				positionWorldMeters,
@@ -807,6 +822,13 @@ final class SimulationFlightRuntime {
 			return copyOrNull(rotorHealth);
 		}
 	}
+
+	record DroneWakeSource(
+			double averageMotorPower,
+			double averageRotorInducedVelocityMetersPerSecond,
+			Vec3 velocityMetersPerSecond,
+			double wakeRadiusMeters
+	) {}
 
 	record PersistenceState(
 			double batteryAmpSecondsConsumed,
