@@ -67,6 +67,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private void applyPhysicsMovement"),
 				source.indexOf("private void updateSyncedFlightState")
 		);
+		String propStrikeMethods = source.substring(
+				source.indexOf("private void applyCollisionDamage"),
+				source.indexOf("private boolean isAirworthy")
+		);
 		String damageSyncMethods = source.substring(
 				source.indexOf("private boolean isAirworthy"),
 				source.indexOf("private void recordBlackbox")
@@ -151,6 +155,11 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(movementMethods.contains("simulationRuntime.contactAngularVelocityImpulseBody("), "contact angular impulse should be projected by SimulationFlightRuntime");
 		assertFalse(movementMethods.contains("simulationRuntime.state()"), "physics movement should not read DroneState directly");
 		assertFalse(movementMethods.contains("simulationRuntime.config()"), "physics movement should not read DroneConfig directly");
+		assertTrue(propStrikeMethods.contains("simulationRuntime.exposedRotorIndex("), "collision damage rotor selection should be projected by SimulationFlightRuntime");
+		assertTrue(propStrikeMethods.contains("simulationRuntime.propStrikeState()"), "prop strike state should be projected by SimulationFlightRuntime");
+		assertTrue(propStrikeMethods.contains("simulationRuntime.rotorCount()"), "prop strike array sizing should use the runtime boundary");
+		assertFalse(propStrikeMethods.contains("simulationRuntime.state()"), "prop strike helpers should not read DroneState directly");
+		assertFalse(propStrikeMethods.contains("simulationRuntime.config()"), "prop strike helpers should not read DroneConfig directly");
 		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");

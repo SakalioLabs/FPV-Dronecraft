@@ -141,6 +141,38 @@ final class SimulationFlightRuntime {
 		);
 	}
 
+	PropStrikeState propStrikeState() {
+		DroneState state = physics.state();
+		DroneConfig config = physics.config();
+		int rotorCount = config.rotors().size();
+		double[] motorOmegaRadiansPerSecond = new double[rotorCount];
+		for (int i = 0; i < rotorCount; i++) {
+			motorOmegaRadiansPerSecond[i] = state.motorOmegaRadiansPerSecond(i);
+		}
+		return new PropStrikeState(
+				state.velocityMetersPerSecond(),
+				rotorGeometry(),
+				motorOmegaRadiansPerSecond
+		);
+	}
+
+	int exposedRotorIndex(Vec3 impactVelocityWorld) {
+		DroneState state = physics.state();
+		DroneConfig config = physics.config();
+		Vec3 impactBody = state.orientation().conjugate().rotate(impactVelocityWorld).normalized();
+		int bestIndex = 0;
+		double bestDot = Double.NEGATIVE_INFINITY;
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double dot = rotor.positionBodyMeters().normalized().dot(impactBody);
+			if (dot > bestDot) {
+				bestDot = dot;
+				bestIndex = i;
+			}
+		}
+		return bestIndex;
+	}
+
 	DroneWakeSource droneWakeSource() {
 		DroneState state = physics.state();
 		DroneConfig config = physics.config();
@@ -882,6 +914,45 @@ final class SimulationFlightRuntime {
 	) {}
 
 	record MovementState(Vec3 positionMeters, Vec3 velocityMetersPerSecond) {}
+
+	record PropStrikeState(
+			Vec3 frameVelocityMetersPerSecond,
+			RotorGeometry rotorGeometry,
+			double[] motorOmegaRadiansPerSecond
+	) {
+		PropStrikeState {
+			motorOmegaRadiansPerSecond = copyOrNull(motorOmegaRadiansPerSecond);
+		}
+
+		int rotorCount() {
+			return rotorGeometry.rotorCount();
+		}
+
+		RotorSpec rotor(int index) {
+			return rotorGeometry.rotor(index);
+		}
+
+		Vec3 rotorPositionWorldOffset(int index) {
+			return rotorGeometry.rotorPositionWorldOffset(index);
+		}
+
+		Vec3 bodyXWorld() {
+			return rotorGeometry.bodyXWorld();
+		}
+
+		Vec3 bodyZWorld() {
+			return rotorGeometry.bodyZWorld();
+		}
+
+		double motorOmegaRadiansPerSecond(int index) {
+			return motorOmegaRadiansPerSecond[index];
+		}
+
+		@Override
+		public double[] motorOmegaRadiansPerSecond() {
+			return copyOrNull(motorOmegaRadiansPerSecond);
+		}
+	}
 
 	record RotorGeometry(
 			RotorSpec[] rotors,

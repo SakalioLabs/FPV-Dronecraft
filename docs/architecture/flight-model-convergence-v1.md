@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 prop strike / collision damage 投影增量
+
+- `SimulationFlightRuntime.PropStrikeState` 已承接 prop strike 采样所需的机体速度、rotor geometry 和 motor omega。
+- `SimulationFlightRuntime.exposedRotorIndex(...)` 已承接碰撞损伤按 impact direction 选择暴露 rotor 的 config/orientation 读取。
+- 本增量只移动 prop strike / collision damage 边界，保留原有 tip speed、frame speed、surface scrape、cooldown、damage severity 和 frame health 语义。
+
 ## 2026-06-22 movement/collision 投影增量
 
 - `SimulationFlightRuntime.MovementState` 已承接实体移动前的目标位置和碰撞前速度读取。

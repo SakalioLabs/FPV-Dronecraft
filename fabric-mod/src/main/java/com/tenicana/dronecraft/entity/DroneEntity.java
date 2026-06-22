@@ -2110,27 +2110,29 @@ public class DroneEntity extends Entity {
 		frameHealth = Math.max(0.0, frameHealth - severity * 0.22);
 		simulationRuntime.damageAllRotors(severity * 0.04);
 
-		int rotorIndex = exposedRotorIndex(impactVelocity);
+		int rotorIndex = simulationRuntime.exposedRotorIndex(impactVelocity);
 		simulationRuntime.damageRotor(rotorIndex, severity * 0.34);
 		collisionDamageCooldown = 6;
 	}
 
 	private void samplePropStrikes() {
 		ensureRotorStrikeArrays();
-		Vec3 frameVelocity = simulationRuntime.state().velocityMetersPerSecond();
+		SimulationFlightRuntime.PropStrikeState propStrikeState = simulationRuntime.propStrikeState();
+		Vec3 frameVelocity = propStrikeState.frameVelocityMetersPerSecond();
 		double frameSpeed = frameVelocity.length();
-		Vec3 bodyXWorld = simulationRuntime.state().orientation().rotate(new Vec3(1.0, 0.0, 0.0));
-		Vec3 bodyZWorld = simulationRuntime.state().orientation().rotate(new Vec3(0.0, 0.0, 1.0));
+		Vec3 bodyXWorld = propStrikeState.bodyXWorld();
+		Vec3 bodyZWorld = propStrikeState.bodyZWorld();
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 
-		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
-			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
-			double tipSpeed = simulationRuntime.state().motorOmegaRadiansPerSecond(i) * rotor.radiusMeters();
+		for (int i = 0; i < propStrikeState.rotorCount(); i++) {
+			RotorSpec rotor = propStrikeState.rotor(i);
+			double tipSpeed = propStrikeState.motorOmegaRadiansPerSecond(i) * rotor.radiusMeters();
 			if (tipSpeed < MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND && frameSpeed < MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND) {
 				continue;
 			}
 
-			ContactDynamics.ContactSurface contactSurface = rotorDiskContactSurface(bodyCenterWorld, bodyXWorld, bodyZWorld, rotor);
+			Vec3 rotorCenterWorld = bodyCenterWorld.add(propStrikeState.rotorPositionWorldOffset(i));
+			ContactDynamics.ContactSurface contactSurface = rotorDiskContactSurface(rotorCenterWorld, bodyXWorld, bodyZWorld, rotor);
 			if (contactSurface == null) {
 				continue;
 			}
@@ -2154,8 +2156,7 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private ContactDynamics.ContactSurface rotorDiskContactSurface(Vec3 bodyCenterWorld, Vec3 bodyXWorld, Vec3 bodyZWorld, RotorSpec rotor) {
-		Vec3 rotorCenterWorld = bodyCenterWorld.add(simulationRuntime.state().orientation().rotate(rotor.positionBodyMeters()));
+	private ContactDynamics.ContactSurface rotorDiskContactSurface(Vec3 rotorCenterWorld, Vec3 bodyXWorld, Vec3 bodyZWorld, RotorSpec rotor) {
 		double radius = effectivePropStrikeRadius(rotor);
 		Vec3[] diskSamples = {
 				Vec3.ZERO,
@@ -2454,7 +2455,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void ensureRotorStrikeArrays() {
-		int rotorCount = simulationRuntime.config().rotors().size();
+		int rotorCount = simulationRuntime.rotorCount();
 		if (rotorStrikeCooldownTicks.length == rotorCount && propStrikeSeverityThisTick.length == rotorCount) {
 			return;
 		}
@@ -2470,21 +2471,6 @@ public class DroneEntity extends Entity {
 
 	private static net.minecraft.world.phys.Vec3 toMinecraftVec(Vec3 vector) {
 		return new net.minecraft.world.phys.Vec3(vector.x(), vector.y(), vector.z());
-	}
-
-	private int exposedRotorIndex(Vec3 impactVelocityWorld) {
-		Vec3 impactBody = simulationRuntime.state().orientation().conjugate().rotate(impactVelocityWorld).normalized();
-		int bestIndex = 0;
-		double bestDot = Double.NEGATIVE_INFINITY;
-		for (int i = 0; i < simulationRuntime.config().rotors().size(); i++) {
-			RotorSpec rotor = simulationRuntime.config().rotors().get(i);
-			double dot = rotor.positionBodyMeters().normalized().dot(impactBody);
-			if (dot > bestDot) {
-				bestDot = dot;
-				bestIndex = i;
-			}
-		}
-		return bestIndex;
 	}
 
 	private boolean isAirworthy() {
