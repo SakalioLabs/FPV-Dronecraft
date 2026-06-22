@@ -186,11 +186,13 @@ E 类必须输出显式 `StateCorrection`，例如：
 - `FlightModel.applyResolvedState(...)` 用于把 Minecraft entity move / collision 后的解析状态显式回灌到当前模型，避免把 entity 层状态写入静默藏在模型外部。
 - simulation entity move、ground sleep/level、takeoff release 与 collision contact solve 已经通过 `applySimulationResolvedState(...)` 输出 `NORMAL_INTEGRATION`、`GROUND_STABILIZATION` 或 `COLLISION_CONTACT_SOLVE`。
 - `FlightStepContext.modelConfiguration` 仅承载 adapter 级选项；当前用于 failsafe damping 这类旧 playable 路径已有行为，不新增手感或气动物理参数。
+- `FlightSerializationCodec` 已为 canonical state、input 和 model id 提供纯 Java 键值序列化 round-trip，缺字段和非有限数会失败。
 - `/fpvdiag start|status|stop` 已实现为默认关闭的一键真人录制入口；停止后写入服务器目录 `fpvdiag-traces`，文件名包含开始时间、commit SHA 和玩家 UUID。
 
 本轮已通过的本地验证：
 
 ```powershell
+./gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightSerializationCodecTest --tests com.tenicana.dronecraft.sim.flight.FlightStateSnapshotTest
 ./gradlew.bat --no-daemon :drone-sim-core:test --tests com.tenicana.dronecraft.sim.flight.FlightModelRouterTest :fabric-mod:test --tests com.tenicana.dronecraft.command.DroneCommandsTest --tests com.tenicana.dronecraft.blackbox.DroneFlightTraceFilesTest --tests com.tenicana.dronecraft.entity.LegacyPlayableFlightModelAdapterTest --tests com.tenicana.dronecraft.entity.DroneEntityFlightModelRoutingTest --tests com.tenicana.dronecraft.entity.PlayableFlightGoldenTraceTest
 ./gradlew.bat --no-daemon :drone-sim-core:test :fabric-mod:test
 ./gradlew.bat --no-daemon :fabric-mod:flightModelComparison
@@ -203,8 +205,76 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 尚未完成的收敛门禁：
 
-- 最终 convergence report
 - 推送本分支并提供 draft PR 或明确分支地址
 - DroneEntity 仍保留部分与 `DronePhysics` 状态/telemetry 的历史耦合，后续需继续收敛状态所有权与 correction 事件。
 
 任何后续契约、适配器、路由或诊断改动都必须先通过上述 golden trace，证明 playable 与 simulation 的现有输出没有因重构漂移。
+
+## 最终收敛报告
+
+### 已完成的行为保持型架构收敛
+
+- 新增纯 Java `FlightModel` 契约族：`FlightStepContext`、`FlightStepResult`、`FlightStateSnapshot`、`FlightModelCapabilities`、`StateCorrection`、`FlightModelDiagnostics`。
+- `SimulationFlightModelAdapter` 包装 `DronePhysics`，`LegacyPlayableFlightModelAdapter` 包装 `PlayableFlightModel`；两者均不修改原数值算法。
+- `FlightModelRouter` 已成为 playable 与 simulation 的统一 step/snapshot/diagnostics 入口。
+- `DroneEntity` 的 playable tick 不再直接调用 `PlayableFlightModel.step(...)`，simulation tick 不再直接调用 `DronePhysics.step(...)`；entity movement/collision 后的解析状态通过 `FlightModel.applyResolvedState(...)` 回灌。
+- 默认 playable 路径、显式 simulation 路径、现有 debug/self-test 配置、网络协议和存档字段保持兼容。
+- 结构性重构前建立了 playable 与 simulation golden trace，并用重构后测试持续比较，避免把行为漂移合法化。
+- `/fpvdiag start|status|stop` 已实现为默认关闭的真人录制入口，不启动时没有持续磁盘写入；停止后写入 `fpvdiag-traces`。
+- `FlightSerializationCodec` 覆盖 canonical model id、input 和 state 的序列化 round-trip，防止模型选择、输入或状态字段静默丢失。
+- `FlightModelComparisonRunner` 可以离线运行同一 canonical 场景下的 playable/simulation shadow comparison，并输出逐 tick 差异。
+
+### 客观修复的 bug
+
+- 修正 simulation wind golden trace 的基线文件内容，使其与重构前记录器输出一致；这是基线采集/文件同步问题，不是飞行参数改动。
+- `SimulationFlightModelAdapter.applyResolvedState(...)` 现在只在 reset/teleport/model initialization/network correction 时同步 attitude estimator，普通 entity move/contact correction 保留 estimator 的旧路径演化；该修复由 adapter 测试约束，避免 state correction 误伤仿真内部估计器。
+- 新增序列化缺字段/非有限数拒绝测试；当前实现会在缺字段、`NaN`、`Infinity` 或非法布尔/模式值时失败。
+
+### 只发现但未修改的问题
+
+- `DroneEntity` 仍持有 `DronePhysics`，并直接读取大量 `physics.state()` / `physics.config()` 用于 telemetry、伤害、碰撞接触、存档和 layout replacement。第一阶段已经把两套模型的 step 路由统一，但状态所有权尚未彻底从 entity 层抽离。
+- `DroneEntity` 替换机体布局时复制旧状态属于 model initialization/reset 类事件；当前已在审计中列出，仍需后续把这一类 replacement 更完整地纳入 `StateCorrectionReason.MODEL_INITIALIZATION`。
+- `DronePhysics.sleepAtRest`、`constrainAtRest`、`levelAtRest` 仍是核心模型内部的直接状态写入；entity 层已经在调用后补充 `GROUND_STABILIZATION` correction，但核心内部事件边界还可以继续细化。
+- playable adapter 对 wind、air density、turbulence 等 environment 字段仍是 lossy diagnostics，因为旧 playable 模型本身没有等价输入；本阶段只记录，不猜测性改物理。
+- shadow comparison 显示两套模型从同一 canonical state 起步会快速产生明显差异，说明它们是不同语义模型；这些差异不能自动用于判断哪一套“手感更好”。
+
+### 两套模型的差异
+
+- playable 以游戏内可玩手感和辅助修正为中心，状态中存在 Euler/render projection、failsafe damping、direct telemetry restore 等路径。
+- simulation 以 `DronePhysics` 的高保真动力学为中心，包含电机、ESC、电池、转子气动、IMU/估计器、环境与接触遥测等大量内部状态。
+- playable adapter 的 actuator output 主要来自直接遥测/旧模型结果；simulation adapter 可以暴露更细的 motor、rotor thrust、force/torque 和 powertrain diagnostics。
+- playable 对部分 environment 输入无损表达能力不足；simulation 对环境、碰撞、动力系统 transient 的内部状态更完整。
+- 两套模型的 shadow delta 是研究语义距离的工具，不是本阶段的调参依据。
+
+### 未来可以共享的模块
+
+- canonical input/state/frame serialization。
+- world/body 坐标转换与 quaternion 工具。
+- `StateCorrection` 事件分类和 trace schema。
+- shadow scenario runner、golden trace recorder、finite/quaternion/dt 不变量测试。
+- actuator/motor telemetry 的公共投影层。
+- 录制文件命名、commit SHA 解析和诊断输出格式。
+
+### 未来不能在没有人工试飞时决定的项目
+
+- playable 与 simulation 谁应该作为最终默认手感模型。
+- rate/expo/deadband、辅助阈值、速度包线、相机参数和 FPV 视觉舒适度。
+- 是否削弱或删除 playable assist，例如回正、速度限制、ground stabilization。
+- 气动系数、drag、sidewash、crossflow、dynamic inflow、gyro、flapping、thrust loss 等参数取值。
+- 哪些 shadow delta 属于“错误”，哪些只是两套模型语义不同。
+- 高速穿越机模式和大疆式自稳模式之间的产品体验取舍。
+
+### 第二阶段候选顺序
+
+1. 统一坐标和状态所有权。
+2. 统一刚体积分。
+3. 统一环境与碰撞输入。
+4. 统一推进器/电机接口。
+5. 判断气动实现是否适合共享。
+6. 将 playable 差异逐步限制为 controller、assist 和明确的 `StateCorrection`。
+
+### 第一阶段交付状态
+
+- 分支：`refactor/unified-flight-contract-v1`
+- 分支地址：`https://github.com/SakalioLabs/FPV-Dronecraft/tree/refactor/unified-flight-contract-v1`
+- 当前结论：行为保持型契约、adapter、router、golden trace、shadow comparison、一键录制器和 round-trip 测试已经落地；严格意义上的“DroneEntity 完全不直接耦合 `DronePhysics` 内部状态”尚未完成，已作为第二阶段首要候选继续推进。
