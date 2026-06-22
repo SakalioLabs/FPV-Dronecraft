@@ -64,7 +64,7 @@
 
 - `SimulationFlightRuntime.SyncedFlightTelemetry` 已承接 `DroneEntity.updateSyncedFlightState(...)` 中的 HUD/网络同步遥测读取与单位投影。
 - `DroneEntity.updateSyncedFlightState(...)` 现在只消费 runtime snapshot 并写入 `entityData`，该方法内部不再直接读取 `simulationRuntime.state()` 或 `simulationRuntime.config()`。
-- 本增量不改变任何 `entityData` 字段、存档字段、网络协议字段、飞行参数或 golden trace 容差；剩余 direct read 主要集中在环境采样、碰撞/接触几何、layout、存档和调试记录投影。
+- 本增量不改变任何 `entityData` 字段、存档字段、网络协议字段、飞行参数或 golden trace 容差；当时尚未覆盖的环境采样、碰撞/接触几何、layout、存档和调试记录投影已在后续增量中继续收敛。
 
 ## 2026-06-22 简单诊断 getter 投影增量
 
@@ -78,7 +78,7 @@
 - `DroneEntity` 的对应 public getter 现在只委托给 `SimulationFlightRuntime`，不再直接读取 `DroneState` 的 RPM 遥测字段，也不再在实体层计算 motor pole-pair 或 Betaflight 协议投影。
 - `DroneEntityFlightModelRoutingTest` 新增边界断言，防止 RPM/Betaflight 遥测投影重新散落回实体层。
 - 本轮没有修改飞行参数、控制参数、相机参数、气动模型或 golden trace 容差。
-- 剩余读侧直读仍包括环境采样、碰撞几何、存档字段、layout 信息和大量 HUD/诊断 telemetry，后续需要继续收敛成 runtime/telemetry snapshot。
+- 本增量之后尚未覆盖的环境采样、碰撞几何、存档字段、layout 信息和 HUD/诊断 telemetry 已在后续增量中继续收敛成 runtime/telemetry snapshot 与显式投影入口。
 
 本文档记录 `refactor/unified-flight-contract-v1` 的第一阶段架构收敛方案。目标是在不改变
 `PlayableFlightModel` 与 `DronePhysics` 数值行为的前提下，统一飞行模型契约、状态边界、路由、
@@ -289,7 +289,8 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 尚未完成的收敛门禁：
 
-- DroneEntity 仍通过 `SimulationFlightRuntime.state()` / `config()` 读取 simulation state/config 给 telemetry、环境采样、碰撞几何、存档字段和 layout 信息；后续需继续把这些读侧投影收敛为明确的 runtime/telemetry snapshot。
+- `DroneEntity` 已不再直接调用 `SimulationFlightRuntime.state()` / `config()` 读取 simulation state/config；telemetry、环境采样、碰撞几何、存档字段和 layout 信息均通过 `SimulationFlightRuntime` 的显式投影入口读取。
+- 后续仍可继续把 runtime 内部的 canonical state/config 所有权做得更细，例如 replacement/model initialization 的 correction 颗粒度、核心模型内部 state correction 事件和可选的纯 `ConfigSnapshot`。
 
 任何后续契约、适配器、路由或诊断改动都必须先通过上述 golden trace，证明 playable 与 simulation 的现有输出没有因重构漂移。
 
@@ -317,7 +318,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 ### 只发现但未修改的问题
 
-- `DroneEntity` 仍通过 `SimulationFlightRuntime.state()` / `config()` 读取大量 simulation state/config，用于 telemetry、环境采样、碰撞几何、存档字段和 layout 信息。第一阶段已经移除直接 `DronePhysics` 持有、step 耦合和主要内部状态写入，但读侧投影尚未彻底从 entity 层抽离。
+- `DroneEntity` 仍保留公开 `config()` 兼容入口和既有存档字段语义，但 entity 层现在通过 `SimulationFlightRuntime.currentConfig()` 读取；未来若要进一步纯化，可以引入完整 `ConfigSnapshot`，但本阶段为兼容网络、存档和旧调用方没有移除这些公开 API。
 - `DroneEntity` 替换机体布局时复制旧状态属于 model initialization/reset 类事件；当前已在审计中列出，仍需后续把这一类 replacement 更完整地纳入 `StateCorrectionReason.MODEL_INITIALIZATION`。
 - `DronePhysics.sleepAtRest`、`constrainAtRest`、`levelAtRest` 仍是核心模型内部的直接状态写入；entity 层已经在调用后补充 `GROUND_STABILIZATION` correction，但核心内部事件边界还可以继续细化。
 - playable adapter 对 wind、air density、turbulence 等 environment 字段仍是 lossy diagnostics，因为旧 playable 模型本身没有等价输入；本阶段只记录，不猜测性改物理。
@@ -362,4 +363,4 @@ E 类必须输出显式 `StateCorrection`，例如：
 
 - 分支：`refactor/unified-flight-contract-v1`
 - 分支地址：`https://github.com/SakalioLabs/FPV-Dronecraft/tree/refactor/unified-flight-contract-v1`
-- 当前结论：行为保持型契约、adapter、router、golden trace、shadow comparison、一键录制器、round-trip 测试和 `SimulationFlightRuntime` 写侧边界已经落地；严格意义上的读侧状态所有权统一尚未完成，已作为第二阶段首要候选继续推进。
+- 当前结论：行为保持型契约、adapter、router、golden trace、shadow comparison、一键录制器、round-trip 测试和 `SimulationFlightRuntime` 读写侧投影边界已经落地；更深层的 canonical state/config 所有权统一仍作为第二阶段首要候选继续推进。
