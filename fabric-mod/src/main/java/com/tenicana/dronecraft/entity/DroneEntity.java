@@ -694,7 +694,7 @@ public class DroneEntity extends Entity {
 					sleepOnGround(input);
 					reason = "ground-idle";
 				} else if (shouldConstrainOnGround(input)) {
-					physics.levelAtRest(entityPhysicsPosition());
+					levelSimulationAtRest("GROUND_SPOOL_LEVEL");
 					for (int i = 0; i < PHYSICS_STEPS_PER_TICK; i++) {
 						stepSimulationFlightModel(input, PHYSICS_DT, lastEnvironment);
 					}
@@ -778,9 +778,10 @@ public class DroneEntity extends Entity {
 		StateCorrectionReason correctionReason = horizontalCollision || verticalCollision
 				? StateCorrectionReason.COLLISION_CONTACT_SOLVE
 				: StateCorrectionReason.NORMAL_INTEGRATION;
-		flightModels.applyResolvedState(
+		applyResolvedFlightModelState(
+				LegacyPlayableFlightModelAdapter.ID,
 				playableResolvedSnapshot(result.nextState(), normalizedInput),
-				new StateCorrection(correctionReason, correctionReason.name(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+				stateCorrection(correctionReason, correctionReason.name(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
 		);
 		if (!hasCorrection(result, StateCorrectionReason.GROUND_STABILIZATION)) {
 			setYRot((float) yawDegrees(result.nextState().attitude()));
@@ -865,6 +866,55 @@ public class DroneEntity extends Entity {
 				modelState.angularVelocityBodyRadiansPerSecond(),
 				debugFlightMode,
 				input != null && input.armed()
+		);
+	}
+
+	private FlightStateSnapshot simulationEntitySnapshot() {
+		DroneState state = physics.state();
+		DroneInput processed = state.processedControlInput().normalized();
+		return new FlightStateSnapshot(
+				state.positionMeters(),
+				state.velocityMetersPerSecond(),
+				state.orientation(),
+				state.angularVelocityBodyRadiansPerSecond(),
+				processed.flightMode(),
+				processed.armed()
+		);
+	}
+
+	private void applyResolvedFlightModelState(String modelId, FlightStateSnapshot resolvedState, StateCorrection correction) {
+		flightModels.select(modelId);
+		flightModels.applyResolvedState(resolvedState, correction);
+	}
+
+	private void applySimulationResolvedState(FlightStateSnapshot before, StateCorrectionReason reason, String detail) {
+		FlightStateSnapshot after = simulationEntitySnapshot();
+		applyResolvedFlightModelState(
+				SimulationFlightModelAdapter.ID,
+				after,
+				stateCorrection(
+						reason,
+						detail,
+						after.positionWorldMeters().subtract(before.positionWorldMeters()),
+						after.velocityWorldMetersPerSecond().subtract(before.velocityWorldMetersPerSecond()),
+						after.angularVelocityBodyRadiansPerSecond().subtract(before.angularVelocityBodyRadiansPerSecond())
+				)
+		);
+	}
+
+	private static StateCorrection stateCorrection(
+			StateCorrectionReason reason,
+			String detail,
+			Vec3 positionDeltaWorldMeters,
+			Vec3 velocityDeltaWorldMetersPerSecond,
+			Vec3 angularVelocityDeltaBodyRadiansPerSecond
+	) {
+		return new StateCorrection(
+				reason,
+				detail,
+				positionDeltaWorldMeters,
+				velocityDeltaWorldMetersPerSecond,
+				angularVelocityDeltaBodyRadiansPerSecond
 		);
 	}
 
@@ -1038,6 +1088,11 @@ public class DroneEntity extends Entity {
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 		physics.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
+		applyResolvedFlightModelState(
+				LegacyPlayableFlightModelAdapter.ID,
+				playableEntitySnapshot(input),
+				stateCorrection(StateCorrectionReason.RESET_TELEPORT, "DIRECT_CLEAR", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+		);
 	}
 
 	private void clearDebugFlightStateAfterDirectControl(DroneInput input) {
@@ -1759,6 +1814,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private void prepareGroundTakeoff(DroneInput input) {
+		FlightStateSnapshot before = simulationEntitySnapshot();
 		Vec3 position = entityPhysicsPosition().add(new Vec3(0.0, TAKEOFF_POSITION_NUDGE_METERS, 0.0));
 		Vec3 velocity = physics.state().velocityMetersPerSecond();
 		double throttleLift = MathUtil.clamp(input.throttle(), 0.0, 1.0) * 0.35;
@@ -1769,6 +1825,7 @@ public class DroneEntity extends Entity {
 				Math.max(velocity.y(), minimumVerticalSpeed),
 				velocity.z()
 		));
+		applySimulationResolvedState(before, StateCorrectionReason.GROUND_STABILIZATION, "TAKEOFF_RELEASE");
 	}
 
 	private boolean advancedContactEffectsActive(DroneInput input) {
@@ -1780,16 +1837,25 @@ public class DroneEntity extends Entity {
 	}
 
 	private void sleepOnGround(DroneInput input) {
+		FlightStateSnapshot before = simulationEntitySnapshot();
 		physics.sleepAtRest(entityPhysicsPosition(), input);
 		setDeltaMovement(0.0, 0.0, 0.0);
+		applySimulationResolvedState(before, StateCorrectionReason.GROUND_STABILIZATION, "SLEEP_AT_REST");
 	}
 
 	private void constrainOnGround() {
-		physics.levelAtRest(entityPhysicsPosition());
+		levelSimulationAtRest("GROUND_CONSTRAINT");
 		setDeltaMovement(0.0, 0.0, 0.0);
 	}
 
+	private void levelSimulationAtRest(String detail) {
+		FlightStateSnapshot before = simulationEntitySnapshot();
+		physics.levelAtRest(entityPhysicsPosition());
+		applySimulationResolvedState(before, StateCorrectionReason.GROUND_STABILIZATION, detail);
+	}
+
 	private void applyPhysicsMovement(DroneInput input) {
+		FlightStateSnapshot before = simulationEntitySnapshot();
 		Vec3 targetPosition = physics.state().positionMeters();
 		Vec3 velocityBeforeCollision = physics.state().velocityMetersPerSecond();
 		double startX = getX();
@@ -1827,6 +1893,7 @@ public class DroneEntity extends Entity {
 				physics.state().setContactTelemetry(velocityBeforeCollision.length(), 0.0, 0.0);
 				physics.state().setVelocityMetersPerSecond(velocity);
 				setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
+				applySimulationResolvedState(before, StateCorrectionReason.COLLISION_CONTACT_SOLVE, "SIMPLE_CONTACT_SOLVE");
 				return;
 			}
 			ContactDynamics.Response preliminaryContact = ContactDynamics.resolve(
@@ -1871,6 +1938,11 @@ public class DroneEntity extends Entity {
 		}
 		physics.state().setVelocityMetersPerSecond(velocity);
 		setDeltaMovement(velocity.x() * 0.05, velocity.y() * 0.05, velocity.z() * 0.05);
+		applySimulationResolvedState(
+				before,
+				collided ? StateCorrectionReason.COLLISION_CONTACT_SOLVE : StateCorrectionReason.NORMAL_INTEGRATION,
+				collided ? "CONTACT_SOLVE" : "ENTITY_MOVE_RESOLUTION"
+		);
 	}
 
 	private void updateSyncedFlightState(DroneInput input) {

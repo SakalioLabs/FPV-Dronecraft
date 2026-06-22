@@ -139,19 +139,17 @@ E 类必须输出显式 `StateCorrection`，例如：
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | direct playable 初始化 | physics position | C | 后续由 playable adapter initialize/reset 承接 |
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyDebugFlight` idle clear | entity delta movement、debug velocity | E | `LegacyPlayableFlightModelAdapter` 已输出 `GROUND_STABILIZATION / IDLE_CLEAR` |
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyDebugFlight` yaw/pitch write | entity yaw、entity pitch | A/E | 后续 facade 接入时保留为 render/entity projection，不作为权威 quaternion |
-| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyDebugMovement` | entity move、physics position、physics velocity | A/B | 无碰撞时 A；碰撞时 B，后续需要显式 `COLLISION_CONTACT_SOLVE` |
-| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `clearDebugFlightState` | physics position、velocity、direct telemetry | C/E | 后续需要 `RESET_TELEPORT` 或 `GROUND_STABILIZATION` |
-| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `prepareGroundTakeoff` | position nudge、minimum vertical velocity | E | 后续需要显式 `GROUND_STABILIZATION` 或 takeoff assist correction |
-| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyPhysicsMovement` | entity move、physics position | A/B | 无碰撞时 A；碰撞时 B |
-| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | horizontal/vertical collision solve | velocity、delta movement、angular rate | B | 后续需要 `COLLISION_CONTACT_SOLVE` |
+| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyDebugMovement` | entity move、physics position、physics velocity | A/B | 通过 `applyResolvedFlightModelState` 回灌；无碰撞为 `NORMAL_INTEGRATION`，碰撞为 `COLLISION_CONTACT_SOLVE` |
+| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `clearDebugFlightState` | physics position、velocity、direct telemetry | C/E | 通过 playable facade 回灌 `RESET_TELEPORT / DIRECT_CLEAR` |
+| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `prepareGroundTakeoff` | position nudge、minimum vertical velocity | E | 通过 simulation facade 回灌 `GROUND_STABILIZATION / TAKEOFF_RELEASE` |
+| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | `applyPhysicsMovement` | entity move、physics position | A/B | 通过 `applySimulationResolvedState` 回灌；无碰撞为 `NORMAL_INTEGRATION`，碰撞为 `COLLISION_CONTACT_SOLVE` |
+| `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | horizontal/vertical collision solve | velocity、delta movement、angular rate | B | 简化接触与高级接触均输出 `COLLISION_CONTACT_SOLVE` |
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java` | entity replacement / layout switch | position、velocity、orientation、estimated orientation、angular rate | C | 后续需要 `MODEL_INITIALIZATION` 或 `RESET_TELEPORT` |
 | `fabric-mod/src/main/java/com/tenicana/dronecraft/entity/LegacyPlayableFlightModelAdapter.java` | initialize/reset from canonical snapshot | position、local velocity、Euler projection | C/F | diagnostics 记录 `initial_state.euler_attitude_projection` |
 | `drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/flight/SimulationFlightModelAdapter.java` | initialize/reset from canonical snapshot | position、velocity、quaternion、estimated orientation、angular rate | C | reset 已输出 `RESET_TELEPORT` |
 
 ### 尚需收敛的 correction
 
-- `DroneEntity.applyDebugMovement` 需要在发生 horizontal/vertical collision 时输出 `COLLISION_CONTACT_SOLVE`。
-- `DroneEntity.prepareGroundTakeoff` 的位置 nudge 与最小上升速度属于玩家辅助，应输出显式 correction。
 - `DroneEntity` 替换机体布局时复制旧状态属于 model selection/init，应输出 `MODEL_INITIALIZATION`。
 - `DronePhysics.sleepAtRest`、`constrainAtRest`、`levelAtRest` 目前仍是核心方法内部状态写入；接入 facade 时需要在 adapter 或 router 层转换为 state correction event。
 - Playable adapter 已记录 wind、air density、turbulence 等无法表达的 environment 字段为 lossy diagnostics；后续 convergence report 必须保留这类 loss map。
@@ -186,6 +184,7 @@ E 类必须输出显式 `StateCorrection`，例如：
 - simulation 路径已通过 `SimulationFlightModelAdapter` 和 `FlightModelRouter` 进入统一 `FlightModel` 边界。
 - playable 路径已通过 `LegacyPlayableFlightModelAdapter` 和 `FlightModelRouter` 进入统一 `FlightModel` 边界；`DroneEntity` 不再直接调用 `PlayableFlightModel.*` 或 `DronePhysics.step(...)`。
 - `FlightModel.applyResolvedState(...)` 用于把 Minecraft entity move / collision 后的解析状态显式回灌到当前模型，避免把 entity 层状态写入静默藏在模型外部。
+- simulation entity move、ground sleep/level、takeoff release 与 collision contact solve 已经通过 `applySimulationResolvedState(...)` 输出 `NORMAL_INTEGRATION`、`GROUND_STABILIZATION` 或 `COLLISION_CONTACT_SOLVE`。
 - `FlightStepContext.modelConfiguration` 仅承载 adapter 级选项；当前用于 failsafe damping 这类旧 playable 路径已有行为，不新增手感或气动物理参数。
 - `/fpvdiag start|status|stop` 已实现为默认关闭的一键真人录制入口；停止后写入服务器目录 `fpvdiag-traces`，文件名包含开始时间、commit SHA 和玩家 UUID。
 

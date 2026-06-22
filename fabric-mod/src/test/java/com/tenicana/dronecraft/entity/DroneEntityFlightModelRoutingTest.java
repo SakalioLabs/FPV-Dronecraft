@@ -22,6 +22,10 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
 		assertTrue(source.contains("FlightModelRouter flightModels"), "DroneEntity should route active models through the common facade");
 		assertTrue(source.contains("flightModels.step(new FlightStepContext("), "model steps should cross the common FlightStepContext boundary");
+		assertTrue(source.contains("applySimulationResolvedState"), "simulation state corrections should be routed back through the facade");
+		assertTrue(source.contains("StateCorrectionReason.COLLISION_CONTACT_SOLVE"), "collision movement should report an explicit state correction");
+		assertTrue(source.contains("\"TAKEOFF_RELEASE\""), "takeoff assist should report an explicit state correction");
+		assertTrue(source.contains("\"DIRECT_CLEAR\""), "direct playable reset should report an explicit state correction");
 	}
 
 	private static Path droneEntitySource() {

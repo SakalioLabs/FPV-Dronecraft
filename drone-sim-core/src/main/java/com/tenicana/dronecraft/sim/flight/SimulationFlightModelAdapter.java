@@ -55,7 +55,10 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 
 	@Override
 	public void applyResolvedState(FlightStateSnapshot state, StateCorrection correction) {
-		applySnapshot(state == null ? FlightStateSnapshot.zero() : state);
+		applySnapshot(
+				state == null ? FlightStateSnapshot.zero() : state,
+				shouldSynchronizeEstimator(correction)
+		);
 		List<StateCorrection> corrections = correction == null ? List.of() : List.of(correction);
 		diagnostics = diagnosticsFor(corrections, DroneEnvironment.calm());
 	}
@@ -103,12 +106,27 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 	}
 
 	private void applySnapshot(FlightStateSnapshot snapshot) {
+		applySnapshot(snapshot, true);
+	}
+
+	private void applySnapshot(FlightStateSnapshot snapshot, boolean synchronizeEstimator) {
 		DroneState state = physics.state();
 		state.setPositionMeters(snapshot.positionWorldMeters());
 		state.setVelocityMetersPerSecond(snapshot.velocityWorldMetersPerSecond());
 		state.setOrientation(snapshot.attitude());
-		state.setEstimatedOrientation(snapshot.attitude());
+		if (synchronizeEstimator) {
+			state.setEstimatedOrientation(snapshot.attitude());
+		}
 		state.setAngularVelocityBodyRadiansPerSecond(snapshot.angularVelocityBodyRadiansPerSecond());
+	}
+
+	private static boolean shouldSynchronizeEstimator(StateCorrection correction) {
+		if (correction == null) {
+			return false;
+		}
+		return correction.reason() == StateCorrectionReason.RESET_TELEPORT
+				|| correction.reason() == StateCorrectionReason.MODEL_INITIALIZATION
+				|| correction.reason() == StateCorrectionReason.NETWORK_CORRECTION;
 	}
 
 	private ActuatorOutput actuatorOutput() {

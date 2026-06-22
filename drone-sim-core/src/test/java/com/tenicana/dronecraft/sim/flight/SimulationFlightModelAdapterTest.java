@@ -72,6 +72,39 @@ class SimulationFlightModelAdapterTest {
 		assertEquals(warmerBattery, adapter.physics().config());
 	}
 
+	@Test
+	void resolvedContactStatePreservesEstimatorButResetSynchronizesIt() {
+		DroneConfig config = deterministic(DroneConfig.racingQuad());
+		SimulationFlightModelAdapter adapter = new SimulationFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(config, FlightStateSnapshot.zero(FlightMode.HORIZON), DroneEnvironment.calm(), 0L));
+		Quaternion estimator = new Quaternion(0.98, 0.01, 0.14, 0.02).normalized();
+		Quaternion resolvedAttitude = new Quaternion(0.97, 0.03, 0.23, 0.01).normalized();
+		adapter.physics().state().setEstimatedOrientation(estimator);
+		FlightStateSnapshot resolved = new FlightStateSnapshot(
+				new Vec3(1.0, 2.0, 3.0),
+				new Vec3(0.5, -0.25, 0.75),
+				resolvedAttitude,
+				new Vec3(0.1, 0.2, 0.3),
+				FlightMode.HORIZON,
+				true
+		);
+
+		adapter.applyResolvedState(
+				resolved,
+				new StateCorrection(StateCorrectionReason.COLLISION_CONTACT_SOLVE, "TEST_CONTACT", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+		);
+
+		assertQuaternionClose(resolvedAttitude, adapter.physics().state().orientation(), 1.0e-12);
+		assertQuaternionClose(estimator, adapter.physics().state().estimatedOrientation(), 1.0e-12);
+
+		adapter.applyResolvedState(
+				resolved,
+				new StateCorrection(StateCorrectionReason.RESET_TELEPORT, "TEST_RESET", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+		);
+
+		assertQuaternionClose(resolvedAttitude, adapter.physics().state().estimatedOrientation(), 1.0e-12);
+	}
+
 	private static DroneConfig deterministic(DroneConfig config) {
 		return config
 				.withControlLink(0.0, 0.0, config.rcFailsafeTimeoutSeconds())
