@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 rotor environment geometry 投影增量
+
+- `SimulationFlightRuntime.RotorGeometry` 已承接 rotor 列表、body X/Z 世界方向和 rotor 世界偏移投影。
+- 降雨湿度、水浸、rotor ground/ceiling surface sample、侧向遮挡采样不再直接读取 simulation state/config。
+- 本增量只移动 rotor environment 几何与 ground/ceiling multiplier 边界，保留原有采样权重、disk radius、obstruction scan 和 thrust multiplier 公式。
+
 ## 2026-06-22 drone wake 投影增量
 
 - `SimulationFlightRuntime.DroneWakeSource` 已承接 wake source 的平均电机功率、平均诱导速度、机体速度和尾流半径计算。

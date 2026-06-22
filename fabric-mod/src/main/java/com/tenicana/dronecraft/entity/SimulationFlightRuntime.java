@@ -133,6 +133,34 @@ final class SimulationFlightRuntime {
 		);
 	}
 
+	RotorGeometry rotorGeometry() {
+		DroneState state = physics.state();
+		DroneConfig config = physics.config();
+		RotorSpec[] rotors = config.rotors().toArray(new RotorSpec[0]);
+		Vec3[] rotorPositionWorldOffsets = new Vec3[rotors.length];
+		for (int i = 0; i < rotors.length; i++) {
+			rotorPositionWorldOffsets[i] = state.orientation().rotate(rotors[i].positionBodyMeters());
+		}
+		return new RotorGeometry(
+				rotors,
+				state.orientation().rotate(new Vec3(1.0, 0.0, 0.0)),
+				state.orientation().rotate(new Vec3(0.0, 0.0, 1.0)),
+				rotorPositionWorldOffsets
+		);
+	}
+
+	Vec3 rotorPlaneWorldDirection(Vec3 bodyDirection) {
+		return physics.state().orientation().rotate(bodyDirection).normalized();
+	}
+
+	double weightedGroundEffectThrustMultiplier(double[] groundClearancesMeters, double[] weights) {
+		return DroneEnvironment.weightedGroundEffectThrustMultiplier(physics.config(), groundClearancesMeters, weights);
+	}
+
+	double weightedCeilingEffectThrustMultiplier(double[] ceilingClearancesMeters, double[] weights) {
+		return DroneEnvironment.weightedCeilingEffectThrustMultiplier(physics.config(), ceilingClearancesMeters, weights);
+	}
+
 	FlightStateSnapshot flightStateSnapshot(Vec3 positionWorldMeters, Quaternion attitude, FlightMode flightMode, boolean armed) {
 		return flightStateSnapshot(
 				positionWorldMeters,
@@ -830,6 +858,40 @@ final class SimulationFlightRuntime {
 			double wakeRadiusMeters
 	) {}
 
+	record RotorGeometry(
+			RotorSpec[] rotors,
+			Vec3 bodyXWorld,
+			Vec3 bodyZWorld,
+			Vec3[] rotorPositionWorldOffsets
+	) {
+		RotorGeometry {
+			rotors = copyOrNull(rotors);
+			rotorPositionWorldOffsets = copyOrNull(rotorPositionWorldOffsets);
+		}
+
+		int rotorCount() {
+			return rotors.length;
+		}
+
+		RotorSpec rotor(int index) {
+			return rotors[index];
+		}
+
+		Vec3 rotorPositionWorldOffset(int index) {
+			return rotorPositionWorldOffsets[index];
+		}
+
+		@Override
+		public RotorSpec[] rotors() {
+			return copyOrNull(rotors);
+		}
+
+		@Override
+		public Vec3[] rotorPositionWorldOffsets() {
+			return copyOrNull(rotorPositionWorldOffsets);
+		}
+	}
+
 	record PersistenceState(
 			double batteryAmpSecondsConsumed,
 			double batteryEquivalentCycles,
@@ -1279,6 +1341,14 @@ final class SimulationFlightRuntime {
 	}
 
 	private static double[] copyOrNull(double[] values) {
+		return values == null ? null : Arrays.copyOf(values, values.length);
+	}
+
+	private static RotorSpec[] copyOrNull(RotorSpec[] values) {
+		return values == null ? null : Arrays.copyOf(values, values.length);
+	}
+
+	private static Vec3[] copyOrNull(Vec3[] values) {
 		return values == null ? null : Arrays.copyOf(values, values.length);
 	}
 }

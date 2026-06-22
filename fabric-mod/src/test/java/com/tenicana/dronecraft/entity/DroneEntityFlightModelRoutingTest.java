@@ -59,6 +59,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("private DroneWakeAirflow sampleDroneWakeAirflow"),
 				source.indexOf("private ObstacleAirflow sampleObstacleAirflow")
 		);
+		String rotorEnvironmentMethods = source.substring(
+				source.indexOf("private PrecipitationWetness samplePrecipitationWetness"),
+				source.indexOf("private DroneWakeAirflow sampleDroneWakeAirflow")
+		);
 		String damageSyncMethods = source.substring(
 				source.indexOf("private boolean isAirworthy"),
 				source.indexOf("private void recordBlackbox")
@@ -133,6 +137,12 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(droneWakeMethods.contains("source.simulationRuntime.droneWakeSource()"), "drone wake source telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(droneWakeMethods.contains("simulationRuntime.state()"), "drone wake sampling should not read DroneState directly");
 		assertFalse(droneWakeMethods.contains("simulationRuntime.config()"), "drone wake sampling should not read DroneConfig directly");
+		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.rotorGeometry()"), "rotor geometry should be projected by SimulationFlightRuntime");
+		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.rotorPlaneWorldDirection("), "rotor sample directions should be projected by SimulationFlightRuntime");
+		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedGroundEffectThrustMultiplier("), "ground effect weighting should be projected by SimulationFlightRuntime");
+		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedCeilingEffectThrustMultiplier("), "ceiling effect weighting should be projected by SimulationFlightRuntime");
+		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.state()"), "rotor environment sampling should not read DroneState directly");
+		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.config()"), "rotor environment sampling should not read DroneConfig directly");
 		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
 		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");
