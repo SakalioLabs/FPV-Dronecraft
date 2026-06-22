@@ -11,6 +11,10 @@ public interface FlightModel {
 
 	FlightStepResult step(FlightStepContext context);
 
+	default void applyResolvedState(FlightStateSnapshot state, StateCorrection correction) {
+		reset(state);
+	}
+
 	FlightStateSnapshot snapshot();
 
 	FlightModelDiagnostics diagnostics();

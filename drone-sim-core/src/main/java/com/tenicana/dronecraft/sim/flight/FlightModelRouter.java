@@ -55,6 +55,10 @@ public final class FlightModelRouter {
 		activeModel.reset(state);
 	}
 
+	public void applyResolvedState(FlightStateSnapshot state, StateCorrection correction) {
+		activeModel.applyResolvedState(state, correction);
+	}
+
 	public FlightStepResult step(FlightStepContext context) {
 		return activeModel.step(context);
 	}

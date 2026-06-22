@@ -9,6 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 
 import net.minecraft.core.BlockPos;
@@ -57,12 +58,20 @@ import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.FlightMode;
 import com.tenicana.dronecraft.sim.MathUtil;
 import com.tenicana.dronecraft.sim.PidGains;
+import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
+import com.tenicana.dronecraft.sim.flight.ActuatorOutput;
 import com.tenicana.dronecraft.sim.flight.FlightModel;
+import com.tenicana.dronecraft.sim.flight.FlightModelInitializationContext;
+import com.tenicana.dronecraft.sim.flight.FlightModelRouter;
+import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
 import com.tenicana.dronecraft.sim.flight.FlightStepContext;
+import com.tenicana.dronecraft.sim.flight.FlightStepResult;
 import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
+import com.tenicana.dronecraft.sim.flight.StateCorrection;
+import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 
 public class DroneEntity extends Entity {
 	private static final double PHYSICS_DT = 0.005;
@@ -74,8 +83,6 @@ public class DroneEntity extends Entity {
 	private static final double TAKEOFF_THRUST_TO_WEIGHT = 0.98;
 	private static final double TAKEOFF_POSITION_NUDGE_METERS = 0.045;
 	private static final double TAKEOFF_MIN_VERTICAL_SPEED_METERS_PER_SECOND = 0.42;
-	private static final double PLAYABLE_TAKEOFF_GUARD_RELEASE_CLEARANCE_METERS = 1.35;
-	private static final float PLAYABLE_TAKEOFF_GUARD_MIN_HORIZONTAL_SCALE = 0.62f;
 	private static final double MIN_PROP_STRIKE_TIP_SPEED_METERS_PER_SECOND = 2.0;
 	private static final double MIN_PROP_STRIKE_FRAME_SPEED_METERS_PER_SECOND = 1.8;
 	private static final DateTimeFormatter FILE_TIME = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -266,7 +273,9 @@ public class DroneEntity extends Entity {
 	private static final FlightMode DEFAULT_ENTITY_FLIGHT_MODE = FlightMode.DEFAULT_FIRST_FLIGHT;
 
 	private DronePhysics physics = new DronePhysics(DroneConfig.racingQuad());
+	private FlightModel playableFlightModel = new LegacyPlayableFlightModelAdapter();
 	private FlightModel simulationFlightModel = new SimulationFlightModelAdapter(physics);
+	private FlightModelRouter flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), LegacyPlayableFlightModelAdapter.ID);
 	private String airframePreset = "racing_quad";
 	private UUID owner;
 	private float debugVelocityX;
@@ -288,6 +297,7 @@ public class DroneEntity extends Entity {
 	private float debugTargetVelocityZ;
 	private float debugTargetYawRate;
 	private float debugLowAltitudeHorizontalAuthority = 1.0f;
+	private ActuatorOutput playableActuatorOutput = ActuatorOutput.empty();
 	private int debugModeSwitchTicksRemaining;
 	private float previousRenderPitchRadians;
 	private float currentRenderPitchRadians;
@@ -304,6 +314,7 @@ public class DroneEntity extends Entity {
 	private boolean debugFlightActiveLastTick;
 	private int debugFailsafeTicks;
 	private boolean simulationInitialized;
+	private boolean playableInitialized;
 	private double frameHealth = 1.0;
 	private int collisionDamageCooldown;
 	private int[] rotorStrikeCooldownTicks = new int[4];
@@ -641,7 +652,7 @@ public class DroneEntity extends Entity {
 				DroneInput debugInput = input;
 				effectiveInput = debugInput;
 				debugFailsafeTicks = 0;
-				applyDebugFlight(debugInput);
+				applyDebugFlight(debugInput, false);
 				debugFlightActiveLastTick = true;
 				updateDebugFlightState(debugInput, airworthy);
 				recordBlackbox(input);
@@ -654,7 +665,7 @@ public class DroneEntity extends Entity {
 				debugFailsafeTicks++;
 				DroneInput failsafeInput = directFailsafeInput();
 				effectiveInput = failsafeInput;
-				applyDebugFailsafeFlight(failsafeInput);
+				applyDebugFlight(failsafeInput, true);
 				if (isDebugFailsafeSettled()) {
 					float linkLossSeconds = directFailsafeLinkLossSeconds();
 					clearDebugFlightState(groundedDirectFailsafeInput());
@@ -745,165 +756,182 @@ public class DroneEntity extends Entity {
 		return true;
 	}
 
-	private static final float DEBUG_AXIS_RISE_SMOOTH = PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING;
-	private static final float DEBUG_AXIS_FALL_SMOOTH = PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING;
-	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
-	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
 	private static final float DEBUG_FAILSAFE_THROTTLE_SCALE = 0.88f;
-	private static final float DEBUG_FAILSAFE_COMMAND_DAMPING = 0.28f;
-	private static final float DEBUG_FAILSAFE_HORIZONTAL_DAMPING = 0.72f;
 	private static final float DEBUG_FAILSAFE_SETTLED_HORIZONTAL_SPEED = 0.12f;
 	private static final float DEBUG_FAILSAFE_SETTLED_VERTICAL_SPEED = 0.08f;
 
-	private void applyDebugFlight(DroneInput input) {
-		rebaseDebugVelocityToCurrentYaw();
-		float throttle = (float) MathUtil.clamp(input.throttle(), 0.0, 1.0);
-		float pitch = (float) MathUtil.clamp(input.pitch(), -1.0, 1.0);
-		float roll = (float) MathUtil.clamp(input.roll(), -1.0, 1.0);
-		float yaw = (float) MathUtil.clamp(input.yaw(), -1.0, 1.0);
-
-		float playablePitch = PlayableFlightModel.playableAxisCommand(pitch);
-		float playableRoll = PlayableFlightModel.playableAxisCommand(roll);
-		float playableYaw = PlayableFlightModel.playableAxisCommand(yaw);
-
-		float smoothedThrottle = PlayableDebugAxisFilter.throttle(debugCommandThrottle, throttle);
-		float smoothedPitch = applyDebugAxisFilter(
-				debugCommandPitch,
-				playablePitch,
-				DEBUG_AXIS_RISE_SMOOTH,
-				DEBUG_AXIS_FALL_SMOOTH,
-				true
-		);
-		float smoothedRoll = applyDebugAxisFilter(
-				debugCommandRoll,
-				playableRoll,
-				DEBUG_AXIS_RISE_SMOOTH,
-				DEBUG_AXIS_FALL_SMOOTH,
-				true
-		);
-		float smoothedYaw = applyDebugAxisFilter(
-				debugCommandYaw,
-				playableYaw,
-				DEBUG_AXIS_RISE_SMOOTH,
-				DEBUG_AXIS_FALL_SMOOTH,
-				true
-		);
-
-		debugCommandThrottle = smoothedThrottle;
-		debugCommandPitch = smoothedPitch;
-		debugCommandRoll = smoothedRoll;
-		debugCommandYaw = smoothedYaw;
-
-		boolean shouldFly = input.armed() || smoothedThrottle > DEBUG_THRUST_DEADZONE || Math.abs(smoothedPitch) > DEBUG_MOVEMENT_EPSILON || Math.abs(smoothedRoll) > DEBUG_MOVEMENT_EPSILON;
-		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
-		boolean nearGroundLocked = isNearGroundLocked();
-		float lowAltitudeHorizontalAuthorityScale = playableLowAltitudeHorizontalAuthorityScale(nearGroundLocked);
-		debugLowAltitudeHorizontalAuthority = lowAltitudeHorizontalAuthorityScale;
-		PlayableFlightModel.Step step = PlayableFlightModel.step(
-				input.flightMode(),
-				smoothedThrottle,
-				smoothedPitch,
-				smoothedRoll,
-				smoothedYaw,
-				hoverThrottle,
-				nearGroundLocked,
-				lowAltitudeHorizontalAuthorityScale,
-				new PlayableFlightModel.State(
-						debugVelocityX,
-						debugVelocityY,
-						debugVelocityZ,
-						debugVisualPitchRadians,
-						debugVisualRollRadians,
-						debugTargetYawRate,
-						debugFlightMode,
-						debugModeSwitchTicksRemaining,
-						debugAcroCollectiveThrustToWeight,
-						debugAcroPitchRateRadiansPerTick,
-						debugAcroRollRateRadiansPerTick,
-						debugAcroRollRecoveryTicksRemaining,
-						debugAcroAeroCrossflowLag,
-						debugAcroSidewashMemory
-				)
-		);
-		float targetVx = step.targetVelocityX();
-		float targetVy = step.targetVelocityY();
-		float targetVz = step.targetVelocityZ();
-		float targetYaw = step.yawDegreesPerTick();
-
-		if (!shouldFly) {
-			targetVx = 0.0f;
-			targetVy = 0.0f;
-			targetVz = 0.0f;
-			targetYaw = 0.0f;
-			clearDebugFlightState(input);
-			setDeltaMovement(0.0, 0.0, 0.0);
-			debugTargetVelocityX = targetVx;
-			debugTargetVelocityY = targetVy;
-			debugTargetVelocityZ = targetVz;
-			debugTargetYawRate = targetYaw;
-			return;
-		}
-		if (Math.abs(targetVx) < 0.015f) {
-			targetVx = 0.0f;
-		}
-		if (Math.abs(targetVy) < 0.010f) {
-			targetVy = 0.0f;
-		}
-		if (Math.abs(targetVz) < 0.015f) {
-			targetVz = 0.0f;
-		}
-		if (Math.abs(targetYaw) < 0.015f) {
-			targetYaw = 0.0f;
-		}
-
-		debugTargetVelocityX = targetVx;
-		debugTargetVelocityY = targetVy;
-		debugTargetVelocityZ = targetVz;
-		debugTargetYawRate = targetYaw;
-		debugVelocityX = step.velocityX();
-		debugVelocityY = step.velocityY();
-		debugVelocityZ = step.velocityZ();
-		debugVisualPitchRadians = step.pitchRadians();
-		debugVisualRollRadians = step.rollRadians();
-		debugFlightMode = step.mode();
-		debugModeSwitchTicksRemaining = step.modeSwitchTicksRemaining();
-		debugMotorPower = step.motorPower();
-		debugAverageMotorRpm = step.averageRpm();
-		debugAcroCollectiveThrustToWeight = step.acroCollectiveThrustToWeight();
-		debugAcroPitchRateRadiansPerTick = step.acroPitchRateRadiansPerTick();
-		debugAcroRollRateRadiansPerTick = step.acroRollRateRadiansPerTick();
-		debugAcroRollRecoveryTicksRemaining = step.acroRollRecoveryTicksRemaining();
-		debugAcroAeroCrossflowLag = step.acroAeroCrossflowLag();
-		debugAcroSidewashMemory = step.acroSidewashMemory();
-
-		float currentYawDegrees = getYRot();
-		float movementYawDegrees = PlayableMovementYaw.midpointForTick(currentYawDegrees, targetYaw);
-		PlayableFlightModel.Velocity worldVelocity = PlayableFlightModel.worldVelocityForYaw(
-				debugVelocityX,
-				debugVelocityY,
-				debugVelocityZ,
+	private void applyDebugFlight(DroneInput input, boolean failsafeDamping) {
+		DroneInput normalizedInput = input == null ? stableIdleInput() : input.normalized();
+		FlightStepResult result = stepPlayableFlightModel(normalizedInput, failsafeDamping);
+		syncPlayableDebugFields(result);
+		Vec3 worldVelocity = result.nextState().velocityWorldMetersPerSecond();
+		float movementYawDegrees = diagnosticFloat(result, "velocity_yaw_degrees", getYRot());
+		applyDebugMovement(
+				(float) (worldVelocity.x() / 20.0),
+				(float) (worldVelocity.y() / 20.0),
+				(float) (worldVelocity.z() / 20.0),
+				(float) worldVelocity.x(),
+				(float) worldVelocity.y(),
+				(float) worldVelocity.z(),
 				movementYawDegrees
 		);
-		float worldX = worldVelocity.x();
-		float worldZ = worldVelocity.z();
-		float deltaX = worldX / 20.0f;
-		float deltaY = worldVelocity.y() / 20.0f;
-		float deltaZ = worldZ / 20.0f;
-		float worldVelocityX = worldX;
-		float worldVelocityY = worldVelocity.y();
-		float worldVelocityZ = worldZ;
-
-		applyDebugMovement(deltaX, deltaY, deltaZ, worldVelocityX, worldVelocityY, worldVelocityZ, movementYawDegrees);
-		if (Math.abs(targetYaw) > PlayableMovementYaw.APPLY_EPSILON_DEGREES) {
-			setYRot(currentYawDegrees + targetYaw);
+		StateCorrectionReason correctionReason = horizontalCollision || verticalCollision
+				? StateCorrectionReason.COLLISION_CONTACT_SOLVE
+				: StateCorrectionReason.NORMAL_INTEGRATION;
+		flightModels.applyResolvedState(
+				playableResolvedSnapshot(result.nextState(), normalizedInput),
+				new StateCorrection(correctionReason, correctionReason.name(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+		);
+		if (!hasCorrection(result, StateCorrectionReason.GROUND_STABILIZATION)) {
+			setYRot((float) yawDegrees(result.nextState().attitude()));
+			setXRot((float) Math.toDegrees(debugVisualPitchRadians));
 		}
-		setXRot((float) Math.toDegrees(debugVisualPitchRadians));
+	}
+
+	private FlightStepResult stepPlayableFlightModel(DroneInput input, boolean failsafeDamping) {
+		DroneEnvironment environment = samplePlayableStageOneEnvironment();
+		lastEnvironment = environment;
+		flightModels.select(LegacyPlayableFlightModelAdapter.ID);
+		if (!playableInitialized) {
+			flightModels.initialize(new FlightModelInitializationContext(
+					physics.config(),
+					playableEntitySnapshot(input),
+					environment,
+					tickCount
+			));
+			playableInitialized = true;
+		}
+		Map<String, String> modelConfiguration = failsafeDamping
+				? Map.of(LegacyPlayableFlightModelAdapter.OPTION_FAILSAFE_DAMPING, "true")
+				: Map.of();
+		return flightModels.step(new FlightStepContext(
+				input,
+				flightModels.snapshot(),
+				environment,
+				1.0 / 20.0,
+				tickCount,
+				physics.config(),
+				modelConfiguration
+		));
+	}
+
+	private void syncPlayableDebugFields(FlightStepResult result) {
+		Map<String, String> diagnostics = result.diagnostics().values();
+		playableActuatorOutput = result.actuatorOutput();
+		debugTargetVelocityX = diagnosticFloat(diagnostics, "velocity_body_x_mps", 0.0f);
+		debugTargetVelocityY = diagnosticFloat(diagnostics, "velocity_body_y_mps", 0.0f);
+		debugTargetVelocityZ = diagnosticFloat(diagnostics, "velocity_body_z_mps", 0.0f);
+		debugVelocityX = debugTargetVelocityX;
+		debugVelocityY = debugTargetVelocityY;
+		debugVelocityZ = debugTargetVelocityZ;
+		debugVelocityYawDegrees = diagnosticFloat(diagnostics, "velocity_yaw_degrees", getYRot());
+		debugVisualPitchRadians = diagnosticFloat(diagnostics, "visual_pitch_radians", 0.0f);
+		debugVisualRollRadians = diagnosticFloat(diagnostics, "visual_roll_radians", 0.0f);
+		debugTargetYawRate = diagnosticFloat(diagnostics, "target_yaw_degrees_per_tick", 0.0f);
+		debugCommandThrottle = diagnosticFloat(diagnostics, "command_throttle", 0.0f);
+		debugCommandPitch = diagnosticFloat(diagnostics, "command_pitch", 0.0f);
+		debugCommandRoll = diagnosticFloat(diagnostics, "command_roll", 0.0f);
+		debugCommandYaw = diagnosticFloat(diagnostics, "command_yaw", 0.0f);
+		debugMotorPower = (float) result.actuatorOutput().averageMotorPower();
+		debugAverageMotorRpm = (float) result.actuatorOutput().averageMotorRpm();
+		debugLowAltitudeHorizontalAuthority = diagnosticFloat(diagnostics, "low_altitude_horizontal_authority_scale", 1.0f);
+		debugFlightMode = FlightMode.byId(diagnosticInt(diagnostics, "flight_mode", result.nextState().flightMode().id()));
+		debugModeSwitchTicksRemaining = diagnosticInt(diagnostics, "mode_switch_ticks_remaining", 0);
+		debugAcroCollectiveThrustToWeight = diagnosticFloat(diagnostics, "acro_collective_thrust_to_weight", 0.0f);
+		debugAcroPitchRateRadiansPerTick = diagnosticFloat(diagnostics, "acro_pitch_rate_radians_per_tick", 0.0f);
+		debugAcroRollRateRadiansPerTick = diagnosticFloat(diagnostics, "acro_roll_rate_radians_per_tick", 0.0f);
+		debugAcroRollRecoveryTicksRemaining = diagnosticInt(diagnostics, "acro_roll_recovery_ticks_remaining", 0);
+		debugAcroAeroCrossflowLag = diagnosticFloat(diagnostics, "acro_aero_crossflow_lag", 0.0f);
+		debugAcroSidewashMemory = diagnosticFloat(diagnostics, "acro_sidewash_memory", 0.0f);
+	}
+
+	private FlightStateSnapshot playableEntitySnapshot(DroneInput input) {
+		return new FlightStateSnapshot(
+				entityPhysicsPosition(),
+				physics.state().velocityMetersPerSecond(),
+				attitudeQuaternion(getYRot(), debugVisualPitchRadians, debugVisualRollRadians),
+				physics.state().angularVelocityBodyRadiansPerSecond(),
+				input == null ? debugFlightMode : input.flightMode(),
+				input != null && input.armed()
+		);
+	}
+
+	private FlightStateSnapshot playableResolvedSnapshot(FlightStateSnapshot modelState, DroneInput input) {
+		double resolvedYawDegrees = yawDegrees(modelState.attitude());
+		return new FlightStateSnapshot(
+				entityPhysicsPosition(),
+				physics.state().velocityMetersPerSecond(),
+				attitudeQuaternion(resolvedYawDegrees, debugVisualPitchRadians, debugVisualRollRadians),
+				modelState.angularVelocityBodyRadiansPerSecond(),
+				debugFlightMode,
+				input != null && input.armed()
+		);
+	}
+
+	private static boolean hasCorrection(FlightStepResult result, StateCorrectionReason reason) {
+		for (StateCorrection correction : result.stateCorrections()) {
+			if (correction.reason() == reason) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static float diagnosticFloat(FlightStepResult result, String key, float fallback) {
+		return diagnosticFloat(result.diagnostics().values(), key, fallback);
+	}
+
+	private static float diagnosticFloat(Map<String, String> diagnostics, String key, float fallback) {
+		String value = diagnostics.get(key);
+		if (value == null) {
+			return fallback;
+		}
+		try {
+			float parsed = Float.parseFloat(value);
+			return Float.isFinite(parsed) ? parsed : fallback;
+		} catch (NumberFormatException ignored) {
+			return fallback;
+		}
+	}
+
+	private static int diagnosticInt(Map<String, String> diagnostics, String key, int fallback) {
+		String value = diagnostics.get(key);
+		if (value == null) {
+			return fallback;
+		}
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException ignored) {
+			return fallback;
+		}
+	}
+
+	private static Quaternion attitudeQuaternion(double yawDegrees, double pitchRadians, double rollRadians) {
+		Quaternion yaw = axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
+		Quaternion pitch = axisAngle(1.0, 0.0, 0.0, pitchRadians);
+		Quaternion roll = axisAngle(0.0, 0.0, 1.0, rollRadians);
+		return yaw.multiply(pitch).multiply(roll).normalized();
+	}
+
+	private static Quaternion yawQuaternion(double yawDegrees) {
+		return axisAngle(0.0, 1.0, 0.0, Math.toRadians(yawDegrees));
+	}
+
+	private static Quaternion axisAngle(double x, double y, double z, double radians) {
+		double half = radians * 0.5;
+		double sin = Math.sin(half);
+		return new Quaternion(Math.cos(half), x * sin, y * sin, z * sin).normalized();
+	}
+
+	private static double yawDegrees(Quaternion attitude) {
+		return Math.toDegrees(attitude.toEulerXYZRadians().y());
 	}
 
 	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
-		simulationFlightModel.step(new FlightStepContext(
+		flightModels.select(SimulationFlightModelAdapter.ID);
+		flightModels.step(new FlightStepContext(
 				input,
-				simulationFlightModel.snapshot(),
+				flightModels.snapshot(),
 				environment,
 				dtSeconds,
 				tickCount,
@@ -940,15 +968,10 @@ public class DroneEntity extends Entity {
 			actualWorldVelocityY = worldVelocityY;
 		}
 
-		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
-				actualWorldVelocityX,
-				actualWorldVelocityY,
-				actualWorldVelocityZ,
-				yawDegrees
-		);
-		debugVelocityX = localVelocity.x();
-		debugVelocityY = localVelocity.y();
-		debugVelocityZ = localVelocity.z();
+		Vec3 localVelocity = yawQuaternion(yawDegrees).conjugate().rotate(new Vec3(actualWorldVelocityX, actualWorldVelocityY, actualWorldVelocityZ));
+		debugVelocityX = (float) localVelocity.x();
+		debugVelocityY = (float) localVelocity.y();
+		debugVelocityZ = (float) localVelocity.z();
 		debugVelocityYawDegrees = yawDegrees;
 		if (horizontalCollision) {
 			debugVelocityX = Math.abs(debugVelocityX) < 0.025f ? 0.0f : debugVelocityX;
@@ -963,24 +986,6 @@ public class DroneEntity extends Entity {
 		setDeltaMovement(actualDeltaX, actualDeltaY, actualDeltaZ);
 	}
 
-	private void rebaseDebugVelocityToCurrentYaw() {
-		float currentYawDegrees = getYRot();
-		if (Math.abs(currentYawDegrees - debugVelocityYawDegrees) <= 1.0e-4f) {
-			return;
-		}
-		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.reframeVelocityForYaw(
-				debugVelocityX,
-				debugVelocityY,
-				debugVelocityZ,
-				debugVelocityYawDegrees,
-				currentYawDegrees
-		);
-		debugVelocityX = localVelocity.x();
-		debugVelocityY = localVelocity.y();
-		debugVelocityZ = localVelocity.z();
-		debugVelocityYawDegrees = currentYawDegrees;
-	}
-
 	private DroneInput directFailsafeInput() {
 		float hoverThrottle = (float) MathUtil.clamp(physics.config().hoverThrottle(), 0.12, 0.55);
 		float throttle = hoverThrottle * DEBUG_FAILSAFE_THROTTLE_SCALE;
@@ -989,16 +994,6 @@ public class DroneEntity extends Entity {
 
 	private DroneInput groundedDirectFailsafeInput() {
 		return new DroneInput(0.0, 0.0, 0.0, 0.0, false, false, DEFAULT_ENTITY_FLIGHT_MODE);
-	}
-
-	private void applyDebugFailsafeFlight(DroneInput input) {
-		debugCommandThrottle = Math.min(debugCommandThrottle, (float) input.throttle());
-		debugCommandPitch *= DEBUG_FAILSAFE_COMMAND_DAMPING;
-		debugCommandRoll *= DEBUG_FAILSAFE_COMMAND_DAMPING;
-		debugCommandYaw *= DEBUG_FAILSAFE_COMMAND_DAMPING;
-		debugVelocityX *= DEBUG_FAILSAFE_HORIZONTAL_DAMPING;
-		debugVelocityZ *= DEBUG_FAILSAFE_HORIZONTAL_DAMPING;
-		applyDebugFlight(input);
 	}
 
 	private boolean isDebugFailsafeSettled() {
@@ -1038,6 +1033,8 @@ public class DroneEntity extends Entity {
 		debugCommandRoll = 0.0f;
 		debugCommandYaw = 0.0f;
 		debugFlightMode = DEFAULT_ENTITY_FLIGHT_MODE;
+		playableActuatorOutput = ActuatorOutput.empty();
+		playableInitialized = false;
 		physics.state().setPositionMeters(entityPhysicsPosition());
 		physics.state().setVelocityMetersPerSecond(Vec3.ZERO);
 		physics.clearDirectFlightTelemetry(input == null ? stableIdleInput() : input);
@@ -1058,21 +1055,6 @@ public class DroneEntity extends Entity {
 		}
 		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
 		return Double.isFinite(clearance) && clearance <= groundLockClearanceMeters();
-	}
-
-	private float playableLowAltitudeHorizontalAuthorityScale(boolean nearGroundLocked) {
-		if (nearGroundLocked) {
-			return PLAYABLE_TAKEOFF_GUARD_MIN_HORIZONTAL_SCALE;
-		}
-		double clearance = groundClearanceMetersAt(entityPhysicsPosition());
-		if (!Double.isFinite(clearance)) {
-			return 1.0f;
-		}
-		double groundLockClearance = groundLockClearanceMeters();
-		double releaseClearance = Math.max(groundLockClearance + 0.05, PLAYABLE_TAKEOFF_GUARD_RELEASE_CLEARANCE_METERS);
-		double progress = MathUtil.clamp((clearance - groundLockClearance) / (releaseClearance - groundLockClearance), 0.0, 1.0);
-		double eased = progress * progress * (3.0 - 2.0 * progress);
-		return (float) MathUtil.lerp(PLAYABLE_TAKEOFF_GUARD_MIN_HORIZONTAL_SCALE, 1.0, eased);
 	}
 
 	private void updateDebugFlightState(DroneInput input, boolean airworthy) {
@@ -1111,13 +1093,22 @@ public class DroneEntity extends Entity {
 		double[] motorRpm = new double[rotorCount];
 		double[] rotorThrust = new double[rotorCount];
 		double[] rotorHealth = physics.state().rotorHealth();
+		double[] modelMotorPower = playableActuatorOutput.motorPower();
+		double[] modelMotorRpm = playableActuatorOutput.motorRpm();
+		double[] modelRotorThrust = playableActuatorOutput.rotorThrustNewtons();
 		double basePower = input.armed() ? debugMotorPower : 0.0;
 		double baseRpm = input.armed() ? debugAverageMotorRpm : 0.0;
 		for (int i = 0; i < rotorCount; i++) {
 			double mix = 1.0 + rotorMixerPreview(i, input);
-			motorPower[i] = MathUtil.clamp(basePower * mix, 0.0, 1.0);
-			motorRpm[i] = Math.max(0.0, baseRpm * mix);
-			rotorThrust[i] = motorPower[i] * physics.config().rotors().get(i).maxThrustNewtons() * 0.45;
+			motorPower[i] = input.armed() && i < modelMotorPower.length
+					? MathUtil.clamp(modelMotorPower[i], 0.0, 1.0)
+					: MathUtil.clamp(basePower * mix, 0.0, 1.0);
+			motorRpm[i] = input.armed() && i < modelMotorRpm.length
+					? Math.max(0.0, modelMotorRpm[i])
+					: Math.max(0.0, baseRpm * mix);
+			rotorThrust[i] = input.armed() && i < modelRotorThrust.length
+					? Math.max(0.0, modelRotorThrust[i])
+					: motorPower[i] * physics.config().rotors().get(i).maxThrustNewtons() * 0.45;
 		}
 		physics.restoreDirectFlightTelemetry(input, motorPower, motorRpm, rotorThrust);
 		setPerRotorFlightState(motorPower, motorRpm, rotorThrust, rotorHealth);
@@ -1153,20 +1144,6 @@ public class DroneEntity extends Entity {
 				|| Math.abs(input.pitch()) >= DEBUG_AXIS_MOTION_THRESHOLD
 				|| Math.abs(input.roll()) >= DEBUG_AXIS_MOTION_THRESHOLD
 				|| Math.abs(input.yaw()) >= DEBUG_AXIS_MOTION_THRESHOLD;
-	}
-
-	private float applyDebugAxisFilter(float current, float target, float riseSmoothing, float fallSmoothing, boolean keepSign) {
-		return PlayableDebugAxisFilter.filter(current, target, riseSmoothing, fallSmoothing, keepSign);
-	}
-
-	private float clampAxis(float value, float maxAbs) {
-		if (value > maxAbs) {
-			return maxAbs;
-		}
-		if (value < -maxAbs) {
-			return -maxAbs;
-		}
-		return value;
 	}
 
 	private DroneEnvironment sampleEnvironment() {
@@ -3599,6 +3576,8 @@ public class DroneEntity extends Entity {
 		replacement.state().setAngularVelocityBodyRadiansPerSecond(previousState.angularVelocityBodyRadiansPerSecond());
 		physics = replacement;
 		simulationFlightModel = new SimulationFlightModelAdapter(physics);
+		flightModels = new FlightModelRouter(List.of(playableFlightModel, simulationFlightModel), LegacyPlayableFlightModelAdapter.ID);
+		playableInitialized = false;
 	}
 
 	private static String normalizeAirframePreset(String presetName) {

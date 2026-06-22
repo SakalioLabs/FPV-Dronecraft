@@ -26,11 +26,14 @@ import com.tenicana.dronecraft.sim.flight.StateCorrection;
 import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 
 final class LegacyPlayableFlightModelAdapter implements FlightModel {
-	private static final String ID = "legacy_playable_direct";
+	static final String ID = "legacy_playable_direct";
+	static final String OPTION_FAILSAFE_DAMPING = "legacy_playable.failsafe_damping";
 	private static final float DEBUG_AXIS_RISE_SMOOTH = PlayableDebugAxisFilter.DEFAULT_RISE_SMOOTHING;
 	private static final float DEBUG_AXIS_FALL_SMOOTH = PlayableDebugAxisFilter.DEFAULT_FALL_SMOOTHING;
 	private static final float DEBUG_THRUST_DEADZONE = 0.005f;
 	private static final float DEBUG_MOVEMENT_EPSILON = 0.015f;
+	private static final float DEBUG_FAILSAFE_COMMAND_DAMPING = 0.28f;
+	private static final float DEBUG_FAILSAFE_HORIZONTAL_DAMPING = 0.72f;
 	private static final float LOW_ALTITUDE_LOCKED_AUTHORITY = 0.62f;
 	private static final double APPROXIMATE_GROUND_LOCK_CLEARANCE_METERS = 0.30;
 	private static final double PLAYABLE_TAKEOFF_GUARD_RELEASE_CLEARANCE_METERS = 1.35;
@@ -87,26 +90,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	@Override
 	public void reset(FlightStateSnapshot state) {
 		FlightStateSnapshot safeState = state == null ? FlightStateSnapshot.zero() : state;
-		positionWorldMeters = safeState.positionWorldMeters();
-		lastWorldVelocityMetersPerSecond = safeState.velocityWorldMetersPerSecond();
-		Vec3 euler = safeState.attitude().toEulerXYZRadians();
-		debugVisualPitchRadians = (float) euler.x();
-		yawDegrees = (float) Math.toDegrees(euler.y());
-		debugVisualRollRadians = (float) euler.z();
-		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
-				(float) lastWorldVelocityMetersPerSecond.x(),
-				(float) lastWorldVelocityMetersPerSecond.y(),
-				(float) lastWorldVelocityMetersPerSecond.z(),
-				yawDegrees
-		);
-		debugVelocityX = localVelocity.x();
-		debugVelocityY = localVelocity.y();
-		debugVelocityZ = localVelocity.z();
-		debugVelocityYawDegrees = yawDegrees;
-		lastAttitude = attitudeQuaternion(yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
-		lastBodyVelocityMetersPerSecond = lastAttitude.conjugate().rotate(lastWorldVelocityMetersPerSecond);
-		lastBodyRateRadiansPerSecond = safeState.angularVelocityBodyRadiansPerSecond();
-		lastArmed = safeState.armed();
+		syncResolvedState(safeState);
 		debugCommandThrottle = 0.0f;
 		debugCommandPitch = 0.0f;
 		debugCommandRoll = 0.0f;
@@ -126,8 +110,39 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 	}
 
 	@Override
+	public void applyResolvedState(FlightStateSnapshot state, StateCorrection correction) {
+		FlightStateSnapshot safeState = state == null ? FlightStateSnapshot.zero(debugFlightMode) : state;
+		if (correction != null
+				&& (correction.reason() == StateCorrectionReason.RESET_TELEPORT
+				|| correction.reason() == StateCorrectionReason.MODEL_INITIALIZATION
+				|| correction.reason() == StateCorrectionReason.NETWORK_CORRECTION)) {
+			syncResolvedState(safeState);
+		} else {
+			positionWorldMeters = safeState.positionWorldMeters();
+			lastWorldVelocityMetersPerSecond = safeState.velocityWorldMetersPerSecond();
+			PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
+					(float) lastWorldVelocityMetersPerSecond.x(),
+					(float) lastWorldVelocityMetersPerSecond.y(),
+					(float) lastWorldVelocityMetersPerSecond.z(),
+					debugVelocityYawDegrees
+			);
+			debugVelocityX = localVelocity.x();
+			debugVelocityY = localVelocity.y();
+			debugVelocityZ = localVelocity.z();
+			lastAttitude = attitudeQuaternion(yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
+			lastBodyVelocityMetersPerSecond = lastAttitude.conjugate().rotate(lastWorldVelocityMetersPerSecond);
+			lastBodyRateRadiansPerSecond = safeState.angularVelocityBodyRadiansPerSecond();
+			lastArmed = safeState.armed();
+			debugFlightMode = safeState.flightMode();
+		}
+		List<StateCorrection> corrections = correction == null ? List.of() : List.of(correction);
+		diagnostics = diagnosticsFor(DroneEnvironment.calm(), corrections, List.of());
+	}
+
+	@Override
 	public FlightStepResult step(FlightStepContext context) {
 		config = context.config();
+		applyStepOptions(context);
 		DroneInput input = context.input();
 		DroneEnvironment environment = context.environment();
 		List<StateCorrection> corrections = new ArrayList<>();
@@ -314,11 +329,67 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		Map<String, String> values = new LinkedHashMap<>();
 		values.put("yaw_degrees", Float.toString(yawDegrees));
 		values.put("velocity_yaw_degrees", Float.toString(debugVelocityYawDegrees));
+		values.put("velocity_body_x_mps", Float.toString(debugVelocityX));
+		values.put("velocity_body_y_mps", Float.toString(debugVelocityY));
+		values.put("velocity_body_z_mps", Float.toString(debugVelocityZ));
+		values.put("visual_pitch_radians", Float.toString(debugVisualPitchRadians));
+		values.put("visual_roll_radians", Float.toString(debugVisualRollRadians));
+		values.put("target_yaw_degrees_per_tick", Float.toString(debugTargetYawRate));
+		values.put("command_throttle", Float.toString(debugCommandThrottle));
+		values.put("command_pitch", Float.toString(debugCommandPitch));
+		values.put("command_roll", Float.toString(debugCommandRoll));
+		values.put("command_yaw", Float.toString(debugCommandYaw));
+		values.put("motor_power", Float.toString(debugMotorPower));
+		values.put("average_motor_rpm", Float.toString(debugAverageMotorRpm));
+		values.put("low_altitude_horizontal_authority_scale", Float.toString(lowAltitudeHorizontalAuthorityScale(environment, nearGroundLocked(environment))));
+		values.put("flight_mode", Integer.toString(debugFlightMode.id()));
 		values.put("mode_switch_ticks_remaining", Integer.toString(debugModeSwitchTicksRemaining));
+		values.put("acro_collective_thrust_to_weight", Float.toString(debugAcroCollectiveThrustToWeight));
+		values.put("acro_pitch_rate_radians_per_tick", Float.toString(debugAcroPitchRateRadiansPerTick));
+		values.put("acro_roll_rate_radians_per_tick", Float.toString(debugAcroRollRateRadiansPerTick));
 		values.put("acro_roll_recovery_ticks_remaining", Integer.toString(debugAcroRollRecoveryTicksRemaining));
+		values.put("acro_aero_crossflow_lag", Float.toString(debugAcroAeroCrossflowLag));
+		values.put("acro_sidewash_memory", Float.toString(debugAcroSidewashMemory));
 		values.put("ground_clearance_m", Double.toString(environment.groundClearanceMeters()));
 		values.put("ground_lock_threshold_m", Double.toString(APPROXIMATE_GROUND_LOCK_CLEARANCE_METERS));
 		return new FlightModelDiagnostics(snapshot().isFinite(), values, corrections, lossyFields);
+	}
+
+	private void applyStepOptions(FlightStepContext context) {
+		if (!Boolean.parseBoolean(context.modelConfiguration().getOrDefault(OPTION_FAILSAFE_DAMPING, "false"))) {
+			return;
+		}
+		debugCommandThrottle = Math.min(debugCommandThrottle, (float) context.input().throttle());
+		debugCommandPitch *= DEBUG_FAILSAFE_COMMAND_DAMPING;
+		debugCommandRoll *= DEBUG_FAILSAFE_COMMAND_DAMPING;
+		debugCommandYaw *= DEBUG_FAILSAFE_COMMAND_DAMPING;
+		debugVelocityX *= DEBUG_FAILSAFE_HORIZONTAL_DAMPING;
+		debugVelocityZ *= DEBUG_FAILSAFE_HORIZONTAL_DAMPING;
+	}
+
+	private void syncResolvedState(FlightStateSnapshot state) {
+		FlightStateSnapshot safeState = state == null ? FlightStateSnapshot.zero(debugFlightMode) : state;
+		positionWorldMeters = safeState.positionWorldMeters();
+		lastWorldVelocityMetersPerSecond = safeState.velocityWorldMetersPerSecond();
+		Vec3 euler = safeState.attitude().toEulerXYZRadians();
+		debugVisualPitchRadians = (float) euler.x();
+		yawDegrees = (float) Math.toDegrees(euler.y());
+		debugVisualRollRadians = (float) euler.z();
+		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
+				(float) lastWorldVelocityMetersPerSecond.x(),
+				(float) lastWorldVelocityMetersPerSecond.y(),
+				(float) lastWorldVelocityMetersPerSecond.z(),
+				yawDegrees
+		);
+		debugVelocityX = localVelocity.x();
+		debugVelocityY = localVelocity.y();
+		debugVelocityZ = localVelocity.z();
+		debugVelocityYawDegrees = yawDegrees;
+		lastAttitude = attitudeQuaternion(yawDegrees, debugVisualPitchRadians, debugVisualRollRadians);
+		lastBodyVelocityMetersPerSecond = lastAttitude.conjugate().rotate(lastWorldVelocityMetersPerSecond);
+		lastBodyRateRadiansPerSecond = safeState.angularVelocityBodyRadiansPerSecond();
+		lastArmed = safeState.armed();
+		debugFlightMode = safeState.flightMode();
 	}
 
 	private List<String> lossyEnvironmentFields(DroneEnvironment environment) {

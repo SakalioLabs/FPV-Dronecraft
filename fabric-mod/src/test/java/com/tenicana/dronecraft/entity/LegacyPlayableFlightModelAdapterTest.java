@@ -15,6 +15,7 @@ import com.tenicana.dronecraft.sim.flight.FlightModelInitializationContext;
 import com.tenicana.dronecraft.sim.flight.FlightStateSnapshot;
 import com.tenicana.dronecraft.sim.flight.FlightStepContext;
 import com.tenicana.dronecraft.sim.flight.FlightStepResult;
+import com.tenicana.dronecraft.sim.flight.StateCorrection;
 import com.tenicana.dronecraft.sim.flight.StateCorrectionReason;
 
 class LegacyPlayableFlightModelAdapterTest {
@@ -97,9 +98,51 @@ class LegacyPlayableFlightModelAdapterTest {
 		assertEquals(0.0, result.actuatorOutput().averageMotorPower(), 1.0e-12);
 	}
 
+	@Test
+	void resolvedIntegrationStateDoesNotFoldContinuousAcroRoll() {
+		DroneConfig config = DroneConfig.racingQuad();
+		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(
+				config,
+				new FlightStateSnapshot(new Vec3(0.0, 20.0, 0.0), Vec3.ZERO, null, Vec3.ZERO, FlightMode.ACRO, true),
+				DroneEnvironment.calm(),
+				0L
+		));
+
+		FlightStepResult result = null;
+		for (int tick = 0; tick < 140; tick++) {
+			result = adapter.step(new FlightStepContext(
+					new DroneInput(0.66, 0.0, 1.0, 0.0, true, true, FlightMode.ACRO),
+					adapter.snapshot(),
+					DroneEnvironment.calm(),
+					0.05,
+					tick,
+					config
+			));
+			if (Math.abs(diagnosticFloat(result, "visual_roll_radians")) > 2.5f) {
+				break;
+			}
+		}
+
+		float rollBefore = diagnosticFloat(result, "visual_roll_radians");
+		adapter.applyResolvedState(
+				result.nextState(),
+				new StateCorrection(StateCorrectionReason.NORMAL_INTEGRATION, "TEST_WORLD_RESOLUTION", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+		);
+		float rollAfter = Float.parseFloat(adapter.diagnostics().values().get("visual_roll_radians"));
+
+		assertTrue(Math.abs(rollBefore) > 2.5f, "rollBefore=" + rollBefore);
+		assertEquals(rollBefore, rollAfter, 1.0e-6f);
+	}
+
 	private static void assertVecClose(Vec3 expected, Vec3 actual, double tolerance) {
 		assertEquals(expected.x(), actual.x(), tolerance, () -> "expected=" + expected + " actual=" + actual);
 		assertEquals(expected.y(), actual.y(), tolerance, () -> "expected=" + expected + " actual=" + actual);
 		assertEquals(expected.z(), actual.z(), tolerance, () -> "expected=" + expected + " actual=" + actual);
+	}
+
+	private static float diagnosticFloat(FlightStepResult result, String key) {
+		String value = result.diagnostics().values().get(key);
+		return value == null ? 0.0f : Float.parseFloat(value);
 	}
 }

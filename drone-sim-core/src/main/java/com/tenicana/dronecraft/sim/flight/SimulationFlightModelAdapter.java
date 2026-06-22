@@ -54,6 +54,13 @@ public final class SimulationFlightModelAdapter implements FlightModel {
 	}
 
 	@Override
+	public void applyResolvedState(FlightStateSnapshot state, StateCorrection correction) {
+		applySnapshot(state == null ? FlightStateSnapshot.zero() : state);
+		List<StateCorrection> corrections = correction == null ? List.of() : List.of(correction);
+		diagnostics = diagnosticsFor(corrections, DroneEnvironment.calm());
+	}
+
+	@Override
 	public FlightStepResult step(FlightStepContext context) {
 		List<StateCorrection> corrections = new ArrayList<>();
 		if (!context.config().equals(config)) {

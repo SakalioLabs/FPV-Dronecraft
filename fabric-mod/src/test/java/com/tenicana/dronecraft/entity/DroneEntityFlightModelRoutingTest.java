@@ -13,12 +13,15 @@ import org.junit.jupiter.api.Test;
 
 class DroneEntityFlightModelRoutingTest {
 	@Test
-	void entityRoutesSimulationStepsThroughFlightModelFacade() throws IOException {
+	void entityRoutesPlayableAndSimulationStepsThroughFlightModelFacade() throws IOException {
 		String source = Files.readString(droneEntitySource(), StandardCharsets.UTF_8);
 
 		assertFalse(source.contains("physics.step("), "DroneEntity should call FlightModel.step instead of DronePhysics.step directly");
+		assertFalse(source.contains("PlayableFlightModel."), "DroneEntity should route playable math through LegacyPlayableFlightModelAdapter");
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
-		assertTrue(source.contains("simulationFlightModel.step(new FlightStepContext("), "simulation steps should cross the common FlightStepContext boundary");
+		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
+		assertTrue(source.contains("FlightModelRouter flightModels"), "DroneEntity should route active models through the common facade");
+		assertTrue(source.contains("flightModels.step(new FlightStepContext("), "model steps should cross the common FlightStepContext boundary");
 	}
 
 	private static Path droneEntitySource() {
