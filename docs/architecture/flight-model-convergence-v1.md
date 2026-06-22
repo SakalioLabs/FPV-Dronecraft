@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 rotor health 投影增量
+
+- `SimulationFlightRuntime.RotorHealthState` 已承接 rotor health / average rotor health 的 damage sync 读取。
+- `DroneEntity` 的 airworthy 判断、repair 后同步、fault 注入下标校验和 `updateDamageSyncedState(...)` 不再直接读取 simulation state/config。
+- 本增量只移动健康状态读取边界，不改变伤害、修复、prop strike 计数或同步字段。
+
 ## 2026-06-22 layout/config 投影增量
 
 - `SimulationFlightRuntime` 已承接 airframe dimensions、synced rotor count、rotor layout code 和 config rotor-count comparison。

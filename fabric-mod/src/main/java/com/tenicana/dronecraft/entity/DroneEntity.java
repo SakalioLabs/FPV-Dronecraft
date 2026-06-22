@@ -2554,7 +2554,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private boolean isAirworthy() {
-		return frameHealth > 0.12 && simulationRuntime.state().averageRotorHealth() > 0.18;
+		return frameHealth > 0.12 && simulationRuntime.averageRotorHealth() > 0.18;
 	}
 
 	private void repair() {
@@ -2569,7 +2569,7 @@ public class DroneEntity extends Entity {
 		entityData.set(FRAME_HEALTH, 1.0f);
 		entityData.set(ROTOR_HEALTH, 1.0f);
 		syncAirframeLayout();
-		setPerRotorHealthState(simulationRuntime.state().rotorHealth());
+		setPerRotorHealthState(simulationRuntime.rotorHealthState().rotorHealth());
 		entityData.set(PROP_STRIKE_COUNT, 0);
 		entityData.set(LAST_PROP_STRIKE_ROTOR, -1);
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, 0.0f);
@@ -2580,7 +2580,7 @@ public class DroneEntity extends Entity {
 	}
 
 	public boolean injectRotorFault(int rotorIndex, double damage, boolean recordAsPropStrike) {
-		if (rotorIndex < 0 || rotorIndex >= simulationRuntime.config().rotors().size()) {
+		if (!simulationRuntime.isRotorIndexValid(rotorIndex)) {
 			return false;
 		}
 
@@ -2604,11 +2604,11 @@ public class DroneEntity extends Entity {
 	}
 
 	private void updateDamageSyncedState() {
-		double[] rotorHealth = simulationRuntime.state().rotorHealth();
+		SimulationFlightRuntime.RotorHealthState rotorHealthState = simulationRuntime.rotorHealthState();
 		entityData.set(FRAME_HEALTH, (float) frameHealth);
-		entityData.set(ROTOR_HEALTH, (float) simulationRuntime.state().averageRotorHealth());
+		entityData.set(ROTOR_HEALTH, (float) rotorHealthState.averageRotorHealth());
 		syncAirframeLayout();
-		setPerRotorHealthState(rotorHealth);
+		setPerRotorHealthState(rotorHealthState.rotorHealth());
 		entityData.set(PROP_STRIKE_COUNT, propStrikeCount);
 		entityData.set(LAST_PROP_STRIKE_ROTOR, lastPropStrikeRotorIndex);
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, (float) lastPropStrikeSeverity);

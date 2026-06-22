@@ -56,6 +56,10 @@ final class SimulationFlightRuntime {
 		return config.rotors().size() != rotorCount();
 	}
 
+	boolean isRotorIndexValid(int rotorIndex) {
+		return rotorIndex >= 0 && rotorIndex < rotorCount();
+	}
+
 	void setPositionMeters(Vec3 positionMeters) {
 		physics.state().setPositionMeters(positionMeters);
 	}
@@ -275,6 +279,15 @@ final class SimulationFlightRuntime {
 			return 1.0f;
 		}
 		return (float) rotorHealth[index];
+	}
+
+	double averageRotorHealth() {
+		return physics.state().averageRotorHealth();
+	}
+
+	RotorHealthState rotorHealthState() {
+		DroneState state = physics.state();
+		return new RotorHealthState(state.averageRotorHealth(), state.rotorHealth());
 	}
 
 	double controlFrameAgeSeconds() {
@@ -603,6 +616,17 @@ final class SimulationFlightRuntime {
 			double coolingFactor,
 			double thermalLimit
 	) {}
+
+	record RotorHealthState(double averageRotorHealth, double[] rotorHealth) {
+		RotorHealthState {
+			rotorHealth = copyOrNull(rotorHealth);
+		}
+
+		@Override
+		public double[] rotorHealth() {
+			return copyOrNull(rotorHealth);
+		}
+	}
 
 	record PersistenceState(
 			double batteryAmpSecondsConsumed,

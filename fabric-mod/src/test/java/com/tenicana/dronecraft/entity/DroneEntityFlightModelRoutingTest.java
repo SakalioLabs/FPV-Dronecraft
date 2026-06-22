@@ -39,6 +39,10 @@ class DroneEntityFlightModelRoutingTest {
 				source.indexOf("public void applyConfig(DroneConfig config, String presetName)"),
 				source.indexOf("private void replaceSimulationRuntime")
 		);
+		String damageSyncMethods = source.substring(
+				source.indexOf("private boolean isAirworthy"),
+				source.indexOf("private void recordBlackbox")
+		);
 
 		assertFalse(source.contains("physics.step("), "DroneEntity should call FlightModel.step instead of DronePhysics.step directly");
 		assertFalse(source.contains("PlayableFlightModel."), "DroneEntity should route playable math through LegacyPlayableFlightModelAdapter");
@@ -87,6 +91,9 @@ class DroneEntityFlightModelRoutingTest {
 		assertFalse(dimensionsMethod.contains("simulationRuntime.config()"), "airframe dimensions should be projected by SimulationFlightRuntime");
 		assertFalse(layoutMethod.contains("simulationRuntime.config()"), "airframe layout should be projected by SimulationFlightRuntime");
 		assertFalse(applyConfigMethod.contains("simulationRuntime.config()"), "config comparison should be projected by SimulationFlightRuntime");
+		assertTrue(damageSyncMethods.contains("simulationRuntime.rotorHealthState()"), "rotor health telemetry should be projected by SimulationFlightRuntime");
+		assertFalse(damageSyncMethods.contains("simulationRuntime.state()"), "damage sync should not read DroneState directly");
+		assertFalse(damageSyncMethods.contains("simulationRuntime.config()"), "damage sync should not read DroneConfig directly");
 		assertTrue(source.contains("SimulationFlightRuntime simulationRuntime"), "DroneEntity should hold simulation internals behind a runtime facade");
 		assertTrue(source.contains("FlightModel simulationFlightModel"), "DroneEntity should own simulation through the common FlightModel contract");
 		assertTrue(source.contains("FlightModel playableFlightModel"), "DroneEntity should own playable through the common FlightModel contract");
