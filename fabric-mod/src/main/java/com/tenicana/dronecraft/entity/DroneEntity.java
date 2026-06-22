@@ -384,7 +384,7 @@ public class DroneEntity extends Entity {
 
 	@Override
 	public EntityDimensions getDimensions(Pose pose) {
-		return DroneAirframeDimensions.forConfig(simulationRuntime.config());
+		return simulationRuntime.airframeDimensions();
 	}
 
 	public void setOwner(UUID owner) {
@@ -2146,12 +2146,12 @@ public class DroneEntity extends Entity {
 	}
 
 	private int syncedRotorCount() {
-		return Math.max(1, Math.min(8, simulationRuntime.config().rotors().size()));
+		return simulationRuntime.syncedRotorCount();
 	}
 
 	private void syncAirframeLayout() {
 		entityData.set(ROTOR_COUNT, syncedRotorCount());
-		entityData.set(ROTOR_LAYOUT, RotorLayoutCodec.encode(simulationRuntime.config()));
+		entityData.set(ROTOR_LAYOUT, simulationRuntime.rotorLayoutCode());
 	}
 
 	private static double valueOrZero(double[] values, int index) {
@@ -3588,7 +3588,7 @@ public class DroneEntity extends Entity {
 
 	public void applyConfig(DroneConfig config, String presetName) {
 		airframePreset = normalizeAirframePreset(presetName);
-		boolean rotorCountChanged = config.rotors().size() != simulationRuntime.config().rotors().size();
+		boolean rotorCountChanged = simulationRuntime.hasDifferentRotorCount(config);
 		if (rotorCountChanged) {
 			replaceSimulationRuntime(config);
 			resetPropStrikeTelemetry();

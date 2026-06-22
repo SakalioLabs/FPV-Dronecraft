@@ -13,6 +13,8 @@ import com.tenicana.dronecraft.sim.Vec3;
 import com.tenicana.dronecraft.sim.flight.FlightModel;
 import com.tenicana.dronecraft.sim.flight.SimulationFlightModelAdapter;
 
+import net.minecraft.world.entity.EntityDimensions;
+
 final class SimulationFlightRuntime {
 	private DronePhysics physics;
 	private FlightModel flightModel;
@@ -36,6 +38,22 @@ final class SimulationFlightRuntime {
 
 	int motorCount() {
 		return physics.state().motorCount();
+	}
+
+	EntityDimensions airframeDimensions() {
+		return DroneAirframeDimensions.forConfig(physics.config());
+	}
+
+	int syncedRotorCount() {
+		return Math.max(1, Math.min(8, rotorCount()));
+	}
+
+	String rotorLayoutCode() {
+		return RotorLayoutCodec.encode(physics.config());
+	}
+
+	boolean hasDifferentRotorCount(DroneConfig config) {
+		return config.rotors().size() != rotorCount();
 	}
 
 	void setPositionMeters(Vec3 positionMeters) {

@@ -1,5 +1,11 @@
 # Flight Model Convergence V1
 
+## 2026-06-22 layout/config 投影增量
+
+- `SimulationFlightRuntime` 已承接 airframe dimensions、synced rotor count、rotor layout code 和 config rotor-count comparison。
+- `DroneEntity.getDimensions(...)`、`syncAirframeLayout(...)` 与配置切换判断不再直接读取 `simulationRuntime.config()`。
+- `saveConfig(...)` 仍保留显式配置字段序列化，后续应作为单独 config snapshot 收敛，不与 layout 投影混合。
+
 ## 2026-06-22 存档投影 snapshot 增量
 
 - `SimulationFlightRuntime.PersistenceState` 已承接 `DroneEntity.addAdditionalSaveData(...)` 中的 battery、powertrain thermal 与 rotor health 持久化读取。
