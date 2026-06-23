@@ -72,7 +72,9 @@ public final class DroneClientControls {
 	private static final ControlInputSmoother INPUT_SMOOTHER = new ControlInputSmoother();
 	private static final DroneControlSession CONTROL_SESSION = new DroneControlSession();
 	private static final ControllerButtonEdgeTracker BUTTON_EDGE_TRACKER = new ControllerButtonEdgeTracker();
+	private static final ControllerActivityKeepalive CONTROLLER_ACTIVITY_KEEPALIVE = new ControllerActivityKeepalive();
 	private static final JoystickProvider JOYSTICKS = GlfwJoystickProvider.INSTANCE;
+	private static final UserActivityNotifier USER_ACTIVITY_NOTIFIER = MinecraftUserActivityNotifier.INSTANCE;
 	private static DroneClientConfig config = DroneClientConfig.defaults();
 
 	private DroneClientControls() {
@@ -91,6 +93,7 @@ public final class DroneClientControls {
 				MODE_SWITCH_RAMP.reset();
 				INPUT_SMOOTHER.reset();
 				CONTROL_SESSION.clear();
+				CONTROLLER_ACTIVITY_KEEPALIVE.reset();
 				armed = false;
 				throttleCalibrationActive = false;
 				disabledControllerActivityWarned = false;
@@ -174,7 +177,8 @@ public final class DroneClientControls {
 						false,
 						armed,
 						ArmSafetyCheck.Result.blocked(ArmSafetyCheck.Reason.NO_CONTROL_AUTHORITY),
-						ControllerInputDiagnostics.ControllerPayloadTrace.empty()
+						ControllerInputDiagnostics.ControllerPayloadTrace.empty(),
+						ControllerActivityKeepalive.Result.idle(USER_ACTIVITY_NOTIFIER)
 				);
 				ControllerInputDiagnostics.record(diagnostics, client.player.tickCount);
 				DroneClientState.setControllerDiagnostics(diagnostics);
@@ -233,9 +237,13 @@ public final class DroneClientControls {
 				toggleThrottleCalibration(client, gamepadInput.rawThrottle());
 			}
 
+			ControllerButtonEdgeTracker.ButtonEdges buttonEdges = ControllerButtonEdgeTracker.ButtonEdges.none();
 			if (gamepadInput != null) {
-				handleGamepadButtons(client, gamepadInput);
+				buttonEdges = BUTTON_EDGE_TRACKER.sample(gamepadInput);
+				handleGamepadButtons(client, gamepadInput, buttonEdges);
 				handleStickArmGesture(client, gamepadInput);
+			} else {
+				BUTTON_EDGE_TRACKER.reset();
 			}
 
 			ClientControlInput input = gamepadInput != null ? gamepadInputAsControl(gamepadInput) : keyboardInput(client);
@@ -247,6 +255,16 @@ public final class DroneClientControls {
 			}
 			input = applyModeSwitchRamp(input);
 			throttle = input.throttle();
+			ControllerActivityKeepalive.Result activityResult = CONTROLLER_ACTIVITY_KEEPALIVE.sample(
+					client.player.tickCount,
+					gamepadDecision,
+					input,
+					hasLinkedDrone,
+					controlAuthorized,
+					armed,
+					buttonEdges,
+					USER_ACTIVITY_NOTIFIER
+			);
 			ControllerInputDiagnostics.ControllerPayloadTrace payloadTrace = new ControllerInputDiagnostics.ControllerPayloadTrace(
 					++payloadSequence,
 					input.throttle(),
@@ -265,7 +283,8 @@ public final class DroneClientControls {
 					controlAuthorized,
 					armed,
 					armCheckForDiagnostics(input),
-					payloadTrace
+					payloadTrace,
+					activityResult
 			);
 			ControllerInputDiagnostics.record(diagnostics, client.player.tickCount);
 			DroneClientState.setControllerDiagnostics(diagnostics);
@@ -296,9 +315,7 @@ public final class DroneClientControls {
 		return config;
 	}
 
-	private static void handleGamepadButtons(Minecraft client, GamepadInputFrame input) {
-		ControllerButtonEdgeTracker.ButtonEdges edges = BUTTON_EDGE_TRACKER.sample(input);
-
+	private static void handleGamepadButtons(Minecraft client, GamepadInputFrame input, ControllerButtonEdgeTracker.ButtonEdges edges) {
 		if (edges.armPressed() && !input.disarmButtonPressed()) {
 			requestArmed(client, true, canArmWithGamepadButton(input));
 		}
@@ -394,6 +411,7 @@ public final class DroneClientControls {
 		STICK_ARM_GESTURE.reset();
 		MODE_SWITCH_RAMP.reset();
 		armed = false;
+		CONTROLLER_ACTIVITY_KEEPALIVE.reset();
 	}
 
 	private static UUID controlledDroneId() {

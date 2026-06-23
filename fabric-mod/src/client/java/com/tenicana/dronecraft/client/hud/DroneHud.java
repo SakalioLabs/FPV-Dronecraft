@@ -205,6 +205,8 @@ public final class DroneHud {
 				"RAW " + diagnostics.rawAxes(),
 				"MAP " + diagnostics.mappedAxes() + " CAL " + diagnostics.calibratedControls(),
 				"OUT " + diagnostics.smoothedControls() + " SRC " + diagnostics.inputSource(),
+				"AFK " + diagnostics.inactivityElapsedMillis() + "ms " + diagnostics.reduceFpsWhen() + "/" + diagnostics.fpsCapReason() + " FPS " + diagnostics.currentFps()
+						+ " ACT " + diagnostics.meaningfulControllerActivity() + " REP " + diagnostics.userActivityReported(),
 				"ARM " + (diagnostics.armed() ? "armed" : diagnostics.armBlockReason()) + " " + diagnostics.payload()
 		};
 		int y = MARGIN + 18;

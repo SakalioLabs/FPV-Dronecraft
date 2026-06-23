@@ -27,5 +27,12 @@ final class ControllerButtonEdgeTracker {
 	}
 
 	record ButtonEdges(boolean armPressed, boolean disarmPressed, boolean calibratePressed) {
+		static ButtonEdges none() {
+			return new ButtonEdges(false, false, false);
+		}
+
+		boolean anyPressed() {
+			return armPressed || disarmPressed || calibratePressed;
+		}
 	}
 }
