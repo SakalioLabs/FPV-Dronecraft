@@ -53,6 +53,47 @@ java {
 	withSourcesJar()
 }
 
+def fpvDronePresetDistributionDir = layout.buildDirectory.dir("fpvdrone-distributions")
+def fpvDroneRemapJar = tasks.named("remapJar")
+
+tasks.register("legacyHeavyRacingQuadJar", Copy) {
+	group = "build"
+	description = "Copies the normal remapped mod jar as the frozen legacy-heavy-racing-quad test build."
+	dependsOn(fpvDroneRemapJar)
+
+	from(fpvDroneRemapJar.flatMap { it.archiveFile })
+	into(fpvDronePresetDistributionDir)
+	rename { "legacy-heavy-racing-quad.jar" }
+}
+
+tasks.register("fiveInchAgileCandidateJar", Zip) {
+	group = "build"
+	description = "Builds a remapped mod jar variant whose default playable preset resource selects 5inch_agile_candidate."
+	dependsOn(fpvDroneRemapJar)
+
+	archiveFileName = "5inch-agile-candidate.jar"
+	destinationDirectory = fpvDronePresetDistributionDir
+	duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+	from({ zipTree(fpvDroneRemapJar.get().archiveFile.get().asFile) }) {
+		exclude "assets/fpvdrone/default_playable_preset.txt"
+	}
+	from(layout.buildDirectory.file("generated/fpvdrone/5inch-agile-candidate/default_playable_preset.txt")) {
+		into "assets/fpvdrone"
+	}
+	doFirst {
+		def presetFile = layout.buildDirectory.file("generated/fpvdrone/5inch-agile-candidate/default_playable_preset.txt").get().asFile
+		presetFile.parentFile.mkdirs()
+		presetFile.text = "5inch_agile_candidate\n"
+	}
+}
+
+tasks.register("playablePresetJars") {
+	group = "build"
+	description = "Builds both legacy-heavy-racing-quad.jar and 5inch-agile-candidate.jar test artifacts."
+	dependsOn("legacyHeavyRacingQuadJar", "fiveInchAgileCandidateJar")
+}
+
 tasks.test {
 	useJUnitPlatform()
 }

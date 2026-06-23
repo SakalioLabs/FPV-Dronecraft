@@ -20,9 +20,29 @@ class PlayableFlightAuthorityMetricsTest {
 	private static final int REPORT_TICKS = 180;
 
 	@Test
-	void writesLegacyAcroAuthorityBaselineReport() throws IOException {
-		List<ScenarioResult> results = List.of(
+	void writesAcroAuthorityBaselineVersusCandidateReport() throws IOException {
+		List<ScenarioResult> legacy = scenarioSet(PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD);
+		List<ScenarioResult> candidate = scenarioSet(PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE);
+
+		for (ScenarioResult result : combined(legacy, candidate)) {
+			assertTrue(result.finite(), result.preset().id() + "/" + result.id() + " produced non-finite values");
+			assertTrue(result.maxAchievedRollRateDps() >= 0.0f);
+			assertTrue(result.maxEffectiveCollectiveThrustToWeight() >= 0.0f);
+		}
+
+		Path report = Path.of(System.getProperty(
+				"fpvdrone.flightAuthorityReport",
+				"build/reports/fpvdrone/agile-flight-authority-baseline-vs-candidate.md"
+		));
+		Files.createDirectories(report.getParent());
+		Files.writeString(report, renderReport(legacy, candidate), StandardCharsets.UTF_8);
+		assertTrue(Files.exists(report));
+	}
+
+	private static List<ScenarioResult> scenarioSet(PlayableFlightPreset preset) {
+		return List.of(
 				runScenario(
+						preset,
 						"stationary_hover_full_roll",
 						"Static hover, full right roll",
 						new ControlPlan(0.62f, 0.0f, 1.0f, 0.0f),
@@ -30,6 +50,7 @@ class PlayableFlightAuthorityMetricsTest {
 						REPORT_TICKS
 				),
 				runScenario(
+						preset,
 						"forward_20mps_full_roll",
 						"20 m/s forward, full right roll",
 						new ControlPlan(0.66f, 0.0f, 1.0f, 0.0f),
@@ -37,47 +58,36 @@ class PlayableFlightAuthorityMetricsTest {
 						REPORT_TICKS
 				),
 				runScenario(
+						preset,
 						"diagonal_pitch_roll",
 						"Diagonal full pitch + roll",
 						new ControlPlan(0.66f, 1.0f, 1.0f, 0.0f),
 						new PlayableFlightModel.State(0.0f, 0.0f, 12.0f, 0.0f, 0.0f, 0.0f, FlightMode.ACRO),
 						REPORT_TICKS
 				),
-				runReversalScenario(),
+				runReversalScenario(preset),
 				runScenario(
+						preset,
 						"forward_sink_pullout",
 						"20 m/s forward, -8 m/s sink, full throttle pullout",
-						new ControlPlan(1.0f, 1.0f, 0.0f, 0.0f),
+						new ControlPlan(1.0f, 0.0f, 0.0f, 0.0f),
 						new PlayableFlightModel.State(0.0f, -8.0f, 20.0f, (float) Math.toRadians(-18.0), 0.0f, 0.0f, FlightMode.ACRO),
 						REPORT_TICKS
 				),
 				runScenario(
+						preset,
 						"high_speed_diagonal_pullout",
 						"High speed diagonal, -6 m/s sink, pitch+roll pullout",
 						new ControlPlan(1.0f, 1.0f, -0.55f, 0.0f),
 						new PlayableFlightModel.State(12.0f, -6.0f, 22.0f, (float) Math.toRadians(-16.0), (float) Math.toRadians(12.0), 0.0f, FlightMode.ACRO),
 						REPORT_TICKS
 				),
-				runReleaseScenario()
+				runReleaseScenario(preset)
 		);
-
-		for (ScenarioResult result : results) {
-			assertTrue(result.finite(), result.id() + " produced non-finite values");
-			assertTrue(result.maxAchievedRollRateDps() >= 0.0f);
-			assertTrue(result.maxEffectiveCollectiveThrustToWeight() >= 0.0f);
-		}
-
-		Path report = Path.of(System.getProperty(
-				"fpvdrone.flightAuthorityReport",
-				"build/reports/fpvdrone/agile-flight-authority-baseline.md"
-		));
-		Files.createDirectories(report.getParent());
-		Files.writeString(report, renderReport(results), StandardCharsets.UTF_8);
-		assertTrue(Files.exists(report));
 	}
 
-	private static ScenarioResult runReversalScenario() {
-		RunAccumulator run = new RunAccumulator("roll_reversal", "Full right roll then full left roll reversal");
+	private static ScenarioResult runReversalScenario(PlayableFlightPreset preset) {
+		RunAccumulator run = new RunAccumulator(preset, "roll_reversal", "Full right roll then full left roll reversal");
 		PlayableFlightModel.State state = PlayableFlightModel.State.zero(FlightMode.ACRO);
 		int reversalTick = 26;
 		for (int tick = 0; tick < REPORT_TICKS; tick++) {
@@ -87,8 +97,8 @@ class PlayableFlightAuthorityMetricsTest {
 		return run.finish(reversalTick);
 	}
 
-	private static ScenarioResult runReleaseScenario() {
-		RunAccumulator run = new RunAccumulator("cruise_release", "Cruise, then centered sticks recovery");
+	private static ScenarioResult runReleaseScenario(PlayableFlightPreset preset) {
+		RunAccumulator run = new RunAccumulator(preset, "cruise_release", "Cruise, then centered sticks recovery");
 		PlayableFlightModel.State state = new PlayableFlightModel.State(0.0f, 0.0f, 16.0f, (float) Math.toRadians(14.0), 0.0f, 0.0f, FlightMode.ACRO);
 		for (int tick = 0; tick < REPORT_TICKS; tick++) {
 			ControlPlan controls = tick < 70
@@ -100,13 +110,14 @@ class PlayableFlightAuthorityMetricsTest {
 	}
 
 	private static ScenarioResult runScenario(
+			PlayableFlightPreset preset,
 			String id,
 			String label,
 			ControlPlan controls,
 			PlayableFlightModel.State initialState,
 			int ticks
 	) {
-		RunAccumulator run = new RunAccumulator(id, label);
+		RunAccumulator run = new RunAccumulator(preset, id, label);
 		PlayableFlightModel.State state = initialState;
 		for (int tick = 0; tick < ticks; tick++) {
 			state = stepAndRecord(run, state, controls, tick);
@@ -121,7 +132,7 @@ class PlayableFlightAuthorityMetricsTest {
 			int tick
 	) {
 		PlayableFlightModel.AcroAuthorityDiagnostics authority = PlayableFlightModel.acroAuthorityDiagnostics(
-				PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD,
+				run.preset(),
 				state,
 				controls.throttle(),
 				controls.pitch(),
@@ -130,7 +141,7 @@ class PlayableFlightAuthorityMetricsTest {
 				HOVER_THROTTLE
 		);
 		PlayableFlightModel.Step step = PlayableFlightModel.step(
-				PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD,
+				run.preset(),
 				FlightMode.ACRO,
 				controls.throttle(),
 				controls.pitch(),
@@ -160,15 +171,24 @@ class PlayableFlightAuthorityMetricsTest {
 		);
 	}
 
-	private static String renderReport(List<ScenarioResult> results) {
+	private static List<ScenarioResult> combined(List<ScenarioResult> legacy, List<ScenarioResult> candidate) {
+		List<ScenarioResult> results = new ArrayList<>(legacy.size() + candidate.size());
+		results.addAll(legacy);
+		results.addAll(candidate);
+		return results;
+	}
+
+	private static String renderReport(List<ScenarioResult> legacy, List<ScenarioResult> candidate) {
+		List<ScenarioResult> results = combined(legacy, candidate);
 		StringBuilder report = new StringBuilder();
-		report.append("# Agile flight authority baseline\n\n");
-		report.append("Preset: `").append(PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD.id()).append("`\n\n");
-		report.append("This report freezes the current playable ACRO behavior before adding an agile 5-inch candidate. It records metrics only; it does not update golden traces or tune parameters.\n\n");
-		report.append("| Scenario | Max commanded roll dps | Max achieved roll dps | Rise 10-90 ms | Reversal ms | 360 roll s | Pullout loss m | Max T/W | Min combined thrust scale | First bottleneck |\n");
-		report.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n");
+		report.append("# Agile flight authority baseline versus candidate\n\n");
+		report.append("This report compares the frozen `legacy_heavy_racing_quad` playable ACRO behavior against the explicit `5inch_agile_candidate`. It records metrics only; it does not update golden traces.\n\n");
+		report.append("| Preset | Scenario | Max commanded roll dps | Max achieved roll dps | Rise 10-90 ms | Reversal ms | 360 roll s | Pullout loss m | Max T/W | Min combined thrust scale | First bottleneck |\n");
+		report.append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |\n");
 		for (ScenarioResult result : results) {
 			report.append("| ")
+					.append(result.preset().id())
+					.append(" | ")
 					.append(result.label())
 					.append(" | ")
 					.append(format(result.maxCommandedRollRateDps()))
@@ -191,10 +211,12 @@ class PlayableFlightAuthorityMetricsTest {
 					.append(" |\n");
 		}
 		report.append("\n## Layer minima\n\n");
-		report.append("| Scenario | Motor authority | Rate smoothing | Aero rate keep | Residual torque keep | Rotor gyro keep | Advance scale | Dynamic inflow scale | Vertical thrust T/W |\n");
-		report.append("| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
+		report.append("| Preset | Scenario | Motor authority | Rate smoothing | Aero rate keep | Residual torque keep | Rotor gyro keep | Advance scale | Dynamic inflow scale | Vertical thrust T/W |\n");
+		report.append("| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |\n");
 		for (ScenarioResult result : results) {
 			report.append("| ")
+					.append(result.preset().id())
+					.append(" | ")
 					.append(result.label())
 					.append(" | ")
 					.append(format(result.minMotorAuthority()))
@@ -228,6 +250,7 @@ class PlayableFlightAuthorityMetricsTest {
 	}
 
 	private record ScenarioResult(
+			PlayableFlightPreset preset,
 			String id,
 			String label,
 			boolean finite,
@@ -252,6 +275,7 @@ class PlayableFlightAuthorityMetricsTest {
 	}
 
 	private static final class RunAccumulator {
+		private final PlayableFlightPreset preset;
 		private final String id;
 		private final String label;
 		private final List<Float> achievedRollRates = new ArrayList<>();
@@ -275,9 +299,14 @@ class PlayableFlightAuthorityMetricsTest {
 		private int firstBottleneckTick = -1;
 		private String firstBottleneck = "none";
 
-		private RunAccumulator(String id, String label) {
+		private RunAccumulator(PlayableFlightPreset preset, String id, String label) {
+			this.preset = preset;
 			this.id = id;
 			this.label = label;
+		}
+
+		private PlayableFlightPreset preset() {
+			return preset;
 		}
 
 		private void record(
@@ -323,6 +352,7 @@ class PlayableFlightAuthorityMetricsTest {
 			float reversal = reversalTick >= 0 ? reversalTimeMs(reversalTick) : Float.NaN;
 			float roll360 = firstRoll360Tick < 0 ? Float.NaN : (firstRoll360Tick + 1) * TICK_SECONDS;
 			return new ScenarioResult(
+					preset,
 					id,
 					label,
 					finite,
