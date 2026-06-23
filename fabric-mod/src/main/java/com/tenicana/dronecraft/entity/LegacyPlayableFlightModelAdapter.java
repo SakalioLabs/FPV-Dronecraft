@@ -347,6 +347,9 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		values.put("command_yaw", Float.toString(debugCommandYaw));
 		values.put("motor_power", Float.toString(debugMotorPower));
 		values.put("average_motor_rpm", Float.toString(debugAverageMotorRpm));
+		values.put("estimated_mechanical_rpm", Float.toString(debugAverageMotorRpm));
+		values.put("rotor_reference_rpm", Float.toString(PlayableFlightModel.acroRotorReferenceMaxRpm()));
+		values.put("motor_command_percent", Float.toString(debugMotorPower * 100.0f));
 		values.put("low_altitude_horizontal_authority_scale", Float.toString(lowAltitudeHorizontalAuthorityScale(environment, nearGroundLocked(environment))));
 		values.put("flight_mode", Integer.toString(debugFlightMode.id()));
 		values.put("mode_switch_ticks_remaining", Integer.toString(debugModeSwitchTicksRemaining));

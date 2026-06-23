@@ -47,6 +47,8 @@ class LegacyPlayableFlightModelAdapterTest {
 		assertTrue(adapter.capabilities().lossyStateMapping());
 		assertTrue(result.nextState().isFinite());
 		assertTrue(result.actuatorOutput().averageMotorRpm() > 0.0);
+		assertTrue(Double.parseDouble(result.diagnostics().values().get("estimated_mechanical_rpm")) > 0.0);
+		assertTrue(Double.parseDouble(result.diagnostics().values().get("rotor_reference_rpm")) > result.actuatorOutput().averageMotorRpm());
 		assertEquals(FlightMode.HORIZON, result.nextState().flightMode());
 	}
 

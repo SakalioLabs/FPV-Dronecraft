@@ -642,6 +642,10 @@ final class PlayableFlightModel {
 		return Math.abs(clamped) <= PLAYABLE_AXIS_NOISE_EPSILON ? 0.0f : clamped;
 	}
 
+	static float acroRotorReferenceMaxRpm() {
+		return ACRO_ROTOR_REFERENCE_MAX_RPM;
+	}
+
 	static Velocity worldVelocityForYaw(float localX, float localY, float localZ, float yawDegrees) {
 		float yawRadians = (float) Math.toRadians(yawDegrees);
 		float cos = (float) Math.cos(yawRadians);
