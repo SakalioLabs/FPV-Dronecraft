@@ -300,7 +300,7 @@ final class PlayableFlightModel {
 			boolean nearGroundLocked,
 			State previous
 	) {
-		return step(mode, throttle, pitch, roll, yaw, hoverThrottle, nearGroundLocked, 1.0f, previous);
+		return step(PlayableFlightPreset.defaultPreset(), mode, throttle, pitch, roll, yaw, hoverThrottle, nearGroundLocked, 1.0f, previous);
 	}
 
 	static Step step(
@@ -314,8 +314,23 @@ final class PlayableFlightModel {
 			float lowAltitudeHorizontalAuthorityScale,
 			State previous
 	) {
+		return step(PlayableFlightPreset.defaultPreset(), mode, throttle, pitch, roll, yaw, hoverThrottle, nearGroundLocked, lowAltitudeHorizontalAuthorityScale, previous);
+	}
+
+	static Step step(
+			PlayableFlightPreset preset,
+			FlightMode mode,
+			float throttle,
+			float pitch,
+			float roll,
+			float yaw,
+			float hoverThrottle,
+			boolean nearGroundLocked,
+			float lowAltitudeHorizontalAuthorityScale,
+			State previous
+	) {
 		FlightMode safeMode = safeMode(mode);
-		Profile profile = Profile.forMode(safeMode);
+		Profile profile = Profile.forMode(preset, safeMode);
 		float safeThrottle = clamp(throttle, 0.0f, 1.0f);
 		float safePitch = clamp(pitch, -1.0f, 1.0f);
 		float safeRoll = clamp(roll, -1.0f, 1.0f);
@@ -928,6 +943,162 @@ final class PlayableFlightModel {
 				bodyRollRate,
 				attitudeDelta.pitchRateRadiansPerTick(),
 				attitudeDelta.rollRateRadiansPerTick()
+		);
+	}
+
+	static AcroAuthorityDiagnostics acroAuthorityDiagnostics(
+			PlayableFlightPreset preset,
+			State previous,
+			float throttle,
+			float pitch,
+			float roll,
+			float yaw,
+			float hoverThrottle
+	) {
+		Profile profile = Profile.forMode(preset, FlightMode.ACRO);
+		State safePrevious = previousStateForMode(FlightMode.ACRO, profile, previous);
+		float safeThrottle = clamp(throttle, 0.0f, 1.0f);
+		float safePitch = clamp(pitch, -1.0f, 1.0f);
+		float safeRoll = clamp(roll, -1.0f, 1.0f);
+		float safeYaw = clamp(yaw, -1.0f, 1.0f);
+		float safeHover = clamp(hoverThrottle, 0.12f, 0.55f);
+		float acroAeroCrossflowLag = acroAeroCrossflowLag(
+				FlightMode.ACRO,
+				safePrevious.acroAeroCrossflowLag(),
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				safePrevious.pitchRadians(),
+				safePrevious.rollRadians()
+		);
+		float acroSidewashMemory = acroSidewashMemory(
+				FlightMode.ACRO,
+				safePrevious.acroSidewashMemory(),
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				safePrevious.pitchRadians(),
+				safePrevious.rollRadians()
+		);
+		Velocity bodyVelocity = acroBodyVelocityForYawLocal(
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				safePrevious.pitchRadians(),
+				safePrevious.rollRadians()
+		);
+		float motorRateAuthority = acroMotorRateAuthorityScale(bodyVelocity, safeThrottle, safeHover, acroAeroCrossflowLag, acroSidewashMemory);
+		float targetPitchRate = safePitch * profile.pitchRateRadiansPerTick();
+		float targetRollRate = safeRoll * profile.rollRateRadiansPerTick();
+		float motorLimitedPitchRate = targetPitchRate * motorRateAuthority;
+		float motorLimitedRollRate = targetRollRate * motorRateAuthority;
+		float responsivePitchRate = responsiveAcroRate(safePrevious.acroPitchRateRadiansPerTick(), motorLimitedPitchRate, bodyVelocity, true, acroAeroCrossflowLag, acroSidewashMemory);
+		float responsiveRollRate = responsiveAcroRate(safePrevious.acroRollRateRadiansPerTick(), motorLimitedRollRate, bodyVelocity, false, acroAeroCrossflowLag, acroSidewashMemory);
+		float aerodynamicPitchDamping = acroAerodynamicRateDamping(bodyVelocity, true, acroAeroCrossflowLag, acroSidewashMemory);
+		float aerodynamicRollDamping = acroAerodynamicRateDamping(bodyVelocity, false, acroAeroCrossflowLag, acroSidewashMemory);
+		float aerodynamicPitchRate = responsivePitchRate * (1.0f - aerodynamicPitchDamping);
+		float aerodynamicRollRate = responsiveRollRate * (1.0f - aerodynamicRollDamping);
+		float transverseRollMoment = acroTransverseFlowRollMomentRate(bodyVelocity, safePitch, safeRoll, safeYaw, safeThrottle, safeHover)
+				* acroSidewashForceResponse(acroAeroCrossflowLag, acroSidewashMemory);
+		float passiveRollMoment = acroPassiveRateHoldLimitedTransverseRollMoment(
+				transverseRollMoment,
+				safePrevious.acroRollRateRadiansPerTick(),
+				safeRoll
+		);
+		float pitchMoment = acroAngleOfAttackPitchMomentRate(bodyVelocity, safePitch)
+				* acroAngleOfAttackPitchMomentScale(
+						bodyVelocity,
+						safePrevious.pitchRadians(),
+						safePrevious.acroPitchRateRadiansPerTick(),
+						safePitch
+				)
+				* sanitizedCrossflowLag(acroAeroCrossflowLag);
+		float momentPitchRate = aerodynamicPitchRate + pitchMoment;
+		float momentRollRate = aerodynamicRollRate + passiveRollMoment;
+		float residualTorqueLoad = acroResidualTorqueRateLoadFraction(bodyVelocity, momentPitchRate, momentRollRate, acroAeroCrossflowLag, acroSidewashMemory);
+		float residualPitchRate = momentPitchRate * (1.0f - residualTorqueLoad);
+		float residualRollRate = momentRollRate * (1.0f - residualTorqueLoad);
+		float rotorGyroLoad = acroRotorGyroRateLoadFraction(residualPitchRate, residualRollRate, safeThrottle, safeHover);
+		float finalPitchRate = clamp(residualPitchRate * (1.0f - rotorGyroLoad), -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick());
+		float finalRollRate = clamp(residualRollRate * (1.0f - rotorGyroLoad), -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick());
+		float targetCollectiveThrustToWeight = acroCollectiveThrustToWeight(safeThrottle, safeHover);
+		float responsiveCollectiveThrustToWeight = acroResponsiveCollectiveThrustToWeight(
+				FlightMode.ACRO,
+				safePrevious.acroCollectiveThrustToWeight(),
+				targetCollectiveThrustToWeight
+		);
+		float integrationPitchRadians = acroMidpointIntegrationAttitudeRadians(safePrevious.pitchRadians() + finalPitchRate, finalPitchRate);
+		float integrationRollRadians = acroMidpointIntegrationAttitudeRadians(safePrevious.rollRadians() + finalRollRate, finalRollRate);
+		Velocity thrustAxis = acroThrustAxis(integrationPitchRadians, integrationRollRadians);
+		Velocity thrustBodyVelocity = acroBodyVelocityForYawLocal(
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				integrationPitchRadians,
+				integrationRollRadians
+		);
+		float advanceRatioThrustScale = acroAdvanceRatioThrustScale(
+				safePrevious.velocityX(),
+				safePrevious.velocityY(),
+				safePrevious.velocityZ(),
+				integrationPitchRadians,
+				integrationRollRadians,
+				safeThrottle,
+				safeHover,
+				acroAeroCrossflowLag,
+				acroSidewashMemory
+		);
+		float translationalLiftThrustScale = acroTranslationalLiftThrustScale(
+				thrustBodyVelocity,
+				safeThrottle,
+				safeHover,
+				acroAeroCrossflowLag,
+				acroSidewashMemory
+		);
+		float dynamicInflowThrustScale = acroDynamicInflowThrustScale(
+				thrustBodyVelocity,
+				finalPitchRate,
+				finalRollRate,
+				safeThrottle,
+				safeHover,
+				acroAeroCrossflowLag,
+				acroSidewashMemory
+		);
+		float combinedThrustScale = advanceRatioThrustScale * translationalLiftThrustScale * dynamicInflowThrustScale;
+		float effectiveCollectiveThrustToWeight = responsiveCollectiveThrustToWeight * combinedThrustScale;
+		return new AcroAuthorityDiagnostics(
+				safePitch,
+				safeRoll,
+				profile.pitchRateRadiansPerTick(),
+				profile.rollRateRadiansPerTick(),
+				targetPitchRate,
+				targetRollRate,
+				motorRateAuthority,
+				motorLimitedPitchRate,
+				motorLimitedRollRate,
+				responsivePitchRate,
+				responsiveRollRate,
+				aerodynamicPitchDamping,
+				aerodynamicRollDamping,
+				aerodynamicPitchRate,
+				aerodynamicRollRate,
+				pitchMoment,
+				passiveRollMoment,
+				residualTorqueLoad,
+				residualPitchRate,
+				residualRollRate,
+				rotorGyroLoad,
+				finalPitchRate,
+				finalRollRate,
+				targetCollectiveThrustToWeight,
+				responsiveCollectiveThrustToWeight,
+				advanceRatioThrustScale,
+				translationalLiftThrustScale,
+				dynamicInflowThrustScale,
+				combinedThrustScale,
+				effectiveCollectiveThrustToWeight,
+				thrustAxis.y(),
+				effectiveCollectiveThrustToWeight * thrustAxis.y()
 		);
 	}
 
@@ -3707,6 +3878,42 @@ final class PlayableFlightModel {
 		private static final AcroBodyRateAttitudeDelta ZERO = new AcroBodyRateAttitudeDelta(0.0f, 0.0f);
 	}
 
+	record AcroAuthorityDiagnostics(
+			float inputPitch,
+			float inputRoll,
+			float basePitchRateRadiansPerTick,
+			float baseRollRateRadiansPerTick,
+			float targetPitchRateRadiansPerTick,
+			float targetRollRateRadiansPerTick,
+			float motorRateAuthority,
+			float motorLimitedPitchRateRadiansPerTick,
+			float motorLimitedRollRateRadiansPerTick,
+			float responsivePitchRateRadiansPerTick,
+			float responsiveRollRateRadiansPerTick,
+			float aerodynamicPitchDamping,
+			float aerodynamicRollDamping,
+			float aerodynamicPitchRateRadiansPerTick,
+			float aerodynamicRollRateRadiansPerTick,
+			float pitchMomentRateRadiansPerTick,
+			float passiveRollMomentRateRadiansPerTick,
+			float residualTorqueLoad,
+			float residualPitchRateRadiansPerTick,
+			float residualRollRateRadiansPerTick,
+			float rotorGyroLoad,
+			float finalPitchRateRadiansPerTick,
+			float finalRollRateRadiansPerTick,
+			float targetCollectiveThrustToWeight,
+			float responsiveCollectiveThrustToWeight,
+			float advanceRatioThrustScale,
+			float translationalLiftThrustScale,
+			float dynamicInflowThrustScale,
+			float combinedThrustScale,
+			float effectiveCollectiveThrustToWeight,
+			float thrustAxisVerticalProjection,
+			float effectiveVerticalThrustToWeight
+	) {
+	}
+
 	private record AcroBodyFrame(Velocity right, Velocity up, Velocity forward) {
 	}
 
@@ -3744,7 +3951,7 @@ final class PlayableFlightModel {
 			float descentGain,
 			float thrustGain
 	) {
-		private static Profile forMode(FlightMode mode) {
+		private static Profile forMode(PlayableFlightPreset preset, FlightMode mode) {
 			return switch (safeMode(mode)) {
 				case ANGLE -> new Profile(3.20f, 4.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 4.50f, 7.50f, 10.50f, 12.00f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.60f);
 				case HORIZON -> new Profile(8.80f, 12.00f, radians(46.0f), radians(48.0f), radians(80.0f), radians(84.0f), radians(6.3f), radians(6.8f), 3.55f, 0.82f, 0.70f, 0.22f, radians(3.8f), 0.30f, radians(5.2f), 0.93f, 0.18f, 0.28f, 8.50f, 9.50f, 10.80f, 13.00f, 0.56f, 0.16f, 0.06f, 0.060f, 0.09f, HOVER_BAND, 0.92f, 0.78f, 3.00f, THRUST_GAIN);
