@@ -615,11 +615,14 @@ final class SimulationFlightRuntime {
 		DroneConfig config = physics.config();
 		Vec3 targetRates = state.targetRatesBodyRadiansPerSecond();
 		Vec3 gyroRates = state.gyroAngularVelocityBodyRadiansPerSecond();
+		Quaternion orientation = state.orientation();
+		Vec3 euler = orientation.toEulerXYZRadians();
 		Vec3 estimatedEuler = state.estimatedOrientation().toEulerXYZRadians();
 		Vec3 effectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		return new SyncedFlightTelemetry(
 				state.processedControlInput(),
-				state.orientation().toEulerXYZRadians(),
+				euler,
+				FlightAttitudeProjection.headingYawDegrees(orientation, Math.toDegrees(euler.y())),
 				new Vec3(Math.toDegrees(targetRates.x()), Math.toDegrees(targetRates.y()), Math.toDegrees(targetRates.z())),
 				new Vec3(Math.toDegrees(gyroRates.x()), Math.toDegrees(gyroRates.y()), Math.toDegrees(gyroRates.z())),
 				state.pidOutputTorqueBodyNewtonMeters(),
@@ -1091,6 +1094,7 @@ final class SimulationFlightRuntime {
 	record SyncedFlightTelemetry(
 			DroneInput processedInput,
 			Vec3 eulerRadians,
+			double headingYawDegrees,
 			Vec3 targetRatesDegreesPerSecond,
 			Vec3 gyroRatesDegreesPerSecond,
 			Vec3 pidOutputTorqueNewtonMeters,

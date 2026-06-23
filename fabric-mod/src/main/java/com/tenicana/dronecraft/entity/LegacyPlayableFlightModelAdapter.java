@@ -376,7 +376,7 @@ final class LegacyPlayableFlightModelAdapter implements FlightModel {
 		lastWorldVelocityMetersPerSecond = safeState.velocityWorldMetersPerSecond();
 		Vec3 euler = safeState.attitude().toEulerXYZRadians();
 		debugVisualPitchRadians = (float) euler.x();
-		yawDegrees = (float) Math.toDegrees(euler.y());
+		yawDegrees = (float) FlightAttitudeProjection.headingYawDegrees(safeState.attitude(), yawDegrees);
 		debugVisualRollRadians = (float) euler.z();
 		PlayableFlightModel.Velocity localVelocity = PlayableFlightModel.localVelocityForYaw(
 				(float) lastWorldVelocityMetersPerSecond.x(),

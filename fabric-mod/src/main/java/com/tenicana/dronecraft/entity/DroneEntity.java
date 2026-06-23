@@ -1019,7 +1019,7 @@ public class DroneEntity extends Entity {
 	}
 
 	private static double yawDegrees(Quaternion attitude) {
-		return Math.toDegrees(attitude.toEulerXYZRadians().y());
+		return FlightAttitudeProjection.headingYawDegrees(attitude, 0.0);
 	}
 
 	private void stepSimulationFlightModel(DroneInput input, double dtSeconds, DroneEnvironment environment) {
@@ -1945,12 +1945,13 @@ public class DroneEntity extends Entity {
 		SimulationFlightRuntime.ContactTelemetry contact = telemetry.contact();
 		SimulationFlightRuntime.BatteryTelemetry battery = telemetry.battery();
 		Vec3 euler = telemetry.eulerRadians();
+		double headingYawRadians = Math.toRadians(telemetry.headingYawDegrees());
 		DroneInput processedInput = telemetry.processedInput();
 		entityData.set(ARMED, processedInput.armed());
 		entityData.set(FLIGHT_MODE, syncedFlightMode(input, processedInput).id());
 		syncAirframeLayout();
 		entityData.set(PITCH, (float) euler.x());
-		entityData.set(YAW, (float) euler.y());
+		entityData.set(YAW, (float) headingYawRadians);
 		entityData.set(ROLL, (float) euler.z());
 		entityData.set(CONTROL_THROTTLE, (float) processedInput.throttle());
 		entityData.set(CONTROL_PITCH, (float) processedInput.pitch());
@@ -2087,7 +2088,7 @@ public class DroneEntity extends Entity {
 		entityData.set(PROP_STRIKE_COUNT, propStrikeCount);
 		entityData.set(LAST_PROP_STRIKE_ROTOR, lastPropStrikeRotorIndex);
 		entityData.set(LAST_PROP_STRIKE_SEVERITY, (float) lastPropStrikeSeverity);
-		setYRot((float) Math.toDegrees(euler.y()));
+		setYRot((float) telemetry.headingYawDegrees());
 		setYHeadRot(getYRot());
 	}
 

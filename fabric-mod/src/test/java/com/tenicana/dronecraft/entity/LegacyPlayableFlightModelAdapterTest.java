@@ -135,6 +135,44 @@ class LegacyPlayableFlightModelAdapterTest {
 		assertEquals(rollBefore, rollAfter, 1.0e-6f);
 	}
 
+	@Test
+	void resolvedIntegrationStateDoesNotFoldContinuousAcroYawPastNinetyDegrees() {
+		DroneConfig config = DroneConfig.racingQuad();
+		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(
+				config,
+				new FlightStateSnapshot(new Vec3(0.0, 20.0, 0.0), Vec3.ZERO, null, Vec3.ZERO, FlightMode.ACRO, true),
+				DroneEnvironment.calm(),
+				0L
+		));
+
+		FlightStepResult result = null;
+		for (int tick = 0; tick < 80; tick++) {
+			result = adapter.step(new FlightStepContext(
+					new DroneInput(0.52, 0.0, 0.0, 1.0, true, true, FlightMode.ACRO),
+					adapter.snapshot(),
+					DroneEnvironment.calm(),
+					0.05,
+					tick,
+					config
+			));
+			if (diagnosticFloat(result, "yaw_degrees") > 120.0f) {
+				break;
+			}
+		}
+
+		float yawBefore = diagnosticFloat(result, "yaw_degrees");
+		adapter.applyResolvedState(
+				result.nextState(),
+				new StateCorrection(StateCorrectionReason.RESET_TELEPORT, "TEST_HEADING_SNAPSHOT", Vec3.ZERO, Vec3.ZERO, Vec3.ZERO)
+		);
+		float yawAfter = Float.parseFloat(adapter.diagnostics().values().get("yaw_degrees"));
+
+		assertTrue(yawBefore > 120.0f, "yawBefore=" + yawBefore);
+		assertEquals(0.0, angularDifferenceDegrees(yawBefore, yawAfter), 1.0e-4,
+				() -> "yawBefore=" + yawBefore + " yawAfter=" + yawAfter);
+	}
+
 	private static void assertVecClose(Vec3 expected, Vec3 actual, double tolerance) {
 		assertEquals(expected.x(), actual.x(), tolerance, () -> "expected=" + expected + " actual=" + actual);
 		assertEquals(expected.y(), actual.y(), tolerance, () -> "expected=" + expected + " actual=" + actual);
@@ -144,5 +182,16 @@ class LegacyPlayableFlightModelAdapterTest {
 	private static float diagnosticFloat(FlightStepResult result, String key) {
 		String value = result.diagnostics().values().get(key);
 		return value == null ? 0.0f : Float.parseFloat(value);
+	}
+
+	private static double angularDifferenceDegrees(double expected, double actual) {
+		double difference = actual - expected;
+		while (difference > 180.0) {
+			difference -= 360.0;
+		}
+		while (difference < -180.0) {
+			difference += 360.0;
+		}
+		return difference;
 	}
 }
