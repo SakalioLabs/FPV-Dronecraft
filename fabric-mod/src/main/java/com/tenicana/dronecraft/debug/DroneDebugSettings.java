@@ -5,6 +5,7 @@ import java.util.UUID;
 import java.util.Locale;
 
 import com.tenicana.dronecraft.FpvDronecraftMod;
+import com.tenicana.dronecraft.entity.PlayableFlightPreset;
 import com.tenicana.dronecraft.sim.DroneInput;
 
 import net.minecraft.server.level.ServerPlayer;
@@ -34,6 +35,7 @@ public final class DroneDebugSettings {
 	private static volatile boolean tickLoggingEnabled;
 	private static volatile boolean ownerlessControlEnabled;
 	private static volatile boolean bypassPhysicsEnabled = true;
+	private static volatile PlayableFlightPreset playablePreset = PlayableFlightPreset.defaultPreset();
 
 	private DroneDebugSettings() {
 	}
@@ -58,6 +60,10 @@ public final class DroneDebugSettings {
 		return bypassPhysicsEnabled ? FlightModelMode.PLAYABLE : FlightModelMode.SIMULATION;
 	}
 
+	public static PlayableFlightPreset playablePreset() {
+		return playablePreset;
+	}
+
 	public static void setControlLoggingEnabled(boolean enabled) {
 		controlLoggingEnabled = enabled;
 	}
@@ -78,12 +84,17 @@ public final class DroneDebugSettings {
 		bypassPhysicsEnabled = mode == null || mode == FlightModelMode.PLAYABLE;
 	}
 
+	public static void setPlayablePreset(PlayableFlightPreset preset) {
+		playablePreset = preset == null ? PlayableFlightPreset.defaultPreset() : preset;
+	}
+
 	public static String statusLine() {
 		return String.format(
-				"debug[pkt=%s,tick=%s,flight=%s,ownerless=%s]",
+				"debug[pkt=%s,tick=%s,flight=%s,playable_preset=%s,ownerless=%s]",
 				controlLoggingEnabled ? "on" : "off",
 				tickLoggingEnabled ? "on" : "off",
 				flightModelMode().id(),
+				playablePreset.id(),
 				ownerlessControlEnabled ? "on" : "off"
 		);
 	}

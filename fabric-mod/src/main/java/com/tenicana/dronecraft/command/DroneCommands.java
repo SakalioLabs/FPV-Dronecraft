@@ -35,6 +35,7 @@ import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.debug.DroneDebugSettings.FlightModelMode;
 import com.tenicana.dronecraft.entity.DroneEntity;
+import com.tenicana.dronecraft.entity.PlayableFlightPreset;
 import com.tenicana.dronecraft.registry.DroneEntityTypes;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
@@ -97,6 +98,12 @@ public final class DroneCommands {
 										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.SIMULATION)))
 								.then(Commands.literal("simulation")
 										.executes(context -> setDebugFlightModel(context.getSource(), FlightModelMode.SIMULATION)))
+						)
+						.then(Commands.literal("playablepreset")
+								.then(Commands.literal("legacy_heavy_racing_quad")
+										.executes(context -> setPlayablePreset(context.getSource(), PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD)))
+								.then(Commands.literal("5inch_agile_candidate")
+										.executes(context -> setPlayablePreset(context.getSource(), PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE)))
 						)
 						.then(Commands.literal("status").executes(context -> debugStatus(context.getSource())))
 				)
@@ -837,6 +844,12 @@ public final class DroneCommands {
 	private static int setDebugFlightModel(CommandSourceStack source, FlightModelMode mode) {
 		DroneDebugSettings.setFlightModelMode(mode);
 		source.sendSuccess(() -> Component.literal(formatFlightModelMode()), false);
+		return 1;
+	}
+
+	private static int setPlayablePreset(CommandSourceStack source, PlayableFlightPreset preset) {
+		DroneDebugSettings.setPlayablePreset(preset);
+		source.sendSuccess(() -> Component.literal("Playable preset: " + preset.id() + "; this affects the playable/direct control layer only. Use legacy_heavy_racing_quad for the frozen baseline or 5inch_agile_candidate for explicit agile ACRO testing."), false);
 		return 1;
 	}
 

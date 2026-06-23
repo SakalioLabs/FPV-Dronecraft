@@ -69,6 +69,7 @@ final class PlayableFlightModel {
 	private static final float ACRO_REFERENCE_MASS_KILOGRAMS = 1.10f;
 	private static final float ACRO_AIR_DENSITY_KILOGRAMS_PER_CUBIC_METER = 1.225f;
 	private static final float ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT = 3.35f;
+	private static final float ACRO_STATE_COLLECTIVE_THRUST_TO_WEIGHT_MAX = 5.20f;
 	private static final float ACRO_ROTOR_COUNT = 4.0f;
 	private static final float ACRO_FORWARD_DRAG_AREA_SQUARE_METERS = 0.0128f;
 	private static final float ACRO_LATERAL_DRAG_AREA_SQUARE_METERS = 0.0340f;
@@ -456,7 +457,7 @@ final class PlayableFlightModel {
 				&& targetVelocityY < THRUST_MIN_CLIMB) {
 			targetVelocityY = THRUST_MIN_CLIMB;
 		}
-		float targetCollectiveThrustToWeight = acroCollectiveThrustToWeight(safeThrottle, safeHover);
+		float targetCollectiveThrustToWeight = acroCollectiveThrustToWeight(safeThrottle, safeHover, profile);
 		float collectiveThrustToWeight = acroResponsiveCollectiveThrustToWeight(
 				safeMode,
 				safePrevious.acroCollectiveThrustToWeight(),
@@ -1021,7 +1022,7 @@ final class PlayableFlightModel {
 		float rotorGyroLoad = acroRotorGyroRateLoadFraction(residualPitchRate, residualRollRate, safeThrottle, safeHover);
 		float finalPitchRate = clamp(residualPitchRate * (1.0f - rotorGyroLoad), -profile.pitchRateRadiansPerTick(), profile.pitchRateRadiansPerTick());
 		float finalRollRate = clamp(residualRollRate * (1.0f - rotorGyroLoad), -profile.rollRateRadiansPerTick(), profile.rollRateRadiansPerTick());
-		float targetCollectiveThrustToWeight = acroCollectiveThrustToWeight(safeThrottle, safeHover);
+		float targetCollectiveThrustToWeight = acroCollectiveThrustToWeight(safeThrottle, safeHover, profile);
 		float responsiveCollectiveThrustToWeight = acroResponsiveCollectiveThrustToWeight(
 				FlightMode.ACRO,
 				safePrevious.acroCollectiveThrustToWeight(),
@@ -1037,7 +1038,7 @@ final class PlayableFlightModel {
 				integrationPitchRadians,
 				integrationRollRadians
 		);
-		float advanceRatioThrustScale = acroAdvanceRatioThrustScale(
+		float advanceRatioThrustScale = acroProfileThrustLossScale(acroAdvanceRatioThrustScale(
 				safePrevious.velocityX(),
 				safePrevious.velocityY(),
 				safePrevious.velocityZ(),
@@ -1047,7 +1048,7 @@ final class PlayableFlightModel {
 				safeHover,
 				acroAeroCrossflowLag,
 				acroSidewashMemory
-		);
+		), profile);
 		float translationalLiftThrustScale = acroTranslationalLiftThrustScale(
 				thrustBodyVelocity,
 				safeThrottle,
@@ -1055,7 +1056,7 @@ final class PlayableFlightModel {
 				acroAeroCrossflowLag,
 				acroSidewashMemory
 		);
-		float dynamicInflowThrustScale = acroDynamicInflowThrustScale(
+		float dynamicInflowThrustScale = acroProfileThrustLossScale(acroDynamicInflowThrustScale(
 				thrustBodyVelocity,
 				finalPitchRate,
 				finalRollRate,
@@ -1063,7 +1064,7 @@ final class PlayableFlightModel {
 				safeHover,
 				acroAeroCrossflowLag,
 				acroSidewashMemory
-		);
+		), profile);
 		float combinedThrustScale = advanceRatioThrustScale * translationalLiftThrustScale * dynamicInflowThrustScale;
 		float effectiveCollectiveThrustToWeight = responsiveCollectiveThrustToWeight * combinedThrustScale;
 		return new AcroAuthorityDiagnostics(
@@ -2031,9 +2032,9 @@ final class PlayableFlightModel {
 		Velocity bodyVelocity = acroBodyVelocityForYawLocal(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians);
 		Velocity bodyDragAcceleration = acroBodyAerodynamicAcceleration(bodyVelocity, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity dragAcceleration = yawLocalVelocityForAcroBody(bodyDragAcceleration.x(), bodyDragAcceleration.y(), bodyDragAcceleration.z(), integrationPitchRadians, integrationRollRadians);
-		float thrustScale = acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory)
+		float thrustScale = acroProfileThrustLossScale(acroAdvanceRatioThrustScale(previousVelocityX, previousVelocityY, previousVelocityZ, integrationPitchRadians, integrationRollRadians, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory), profile)
 				* acroTranslationalLiftThrustScale(bodyVelocity, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory)
-				* acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
+				* acroProfileThrustLossScale(acroDynamicInflowThrustScale(bodyVelocity, pitchRateRadiansPerTick, rollRateRadiansPerTick, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory), profile);
 		float thrustAcceleration = ACRO_GRAVITY_METERS_PER_SECOND_SQUARED * collectiveThrustToWeight * thrustScale;
 		Velocity flappingBodyAcceleration = acroRotorFlappingBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
 		Velocity inPlaneDragBodyAcceleration = acroRotorInPlaneDragBodyAcceleration(bodyVelocity, thrustAcceleration, throttle, hoverThrottle, acroAeroCrossflowLag, acroSidewashMemory);
@@ -2590,6 +2591,10 @@ final class PlayableFlightModel {
 	}
 
 	private static float acroCollectiveThrustToWeight(float throttle, float hoverThrottle) {
+		return acroCollectiveThrustToWeight(throttle, hoverThrottle, null);
+	}
+
+	private static float acroCollectiveThrustToWeight(float throttle, float hoverThrottle, Profile profile) {
 		if (throttle <= THRUST_DEADZONE) {
 			return 0.0f;
 		}
@@ -2598,7 +2603,18 @@ final class PlayableFlightModel {
 			return clamp(throttle / safeHover, 0.0f, 1.0f);
 		}
 		float climbProgress = (throttle - safeHover) / Math.max(0.10f, 1.0f - safeHover);
-		return 1.0f + clamp(climbProgress, 0.0f, 1.0f) * (ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT - 1.0f);
+		float fullThrottleThrustToWeight = ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT
+				* (profile == null ? 1.0f : profile.acroCollectiveThrustScale());
+		return 1.0f + clamp(climbProgress, 0.0f, 1.0f) * (fullThrottleThrustToWeight - 1.0f);
+	}
+
+	private static float acroProfileThrustLossScale(float thrustScale, Profile profile) {
+		float safeScale = Float.isFinite(thrustScale) ? thrustScale : 1.0f;
+		if (safeScale >= 1.0f || profile == null) {
+			return safeScale;
+		}
+		float lossScale = clamp(profile.acroThrustLossScale(), 0.0f, 1.0f);
+		return 1.0f - (1.0f - safeScale) * lossScale;
 	}
 
 	private static float acroAeroCrossflowLag(
@@ -3735,7 +3751,7 @@ final class PlayableFlightModel {
 			modeSwitchTicksRemaining = Math.max(0, modeSwitchTicksRemaining);
 			acroRollRecoveryTicksRemaining = Math.max(0, acroRollRecoveryTicksRemaining);
 			acroCollectiveThrustToWeight = Float.isFinite(acroCollectiveThrustToWeight)
-					? clamp(acroCollectiveThrustToWeight, 0.0f, ACRO_FULL_THROTTLE_THRUST_TO_WEIGHT)
+					? clamp(acroCollectiveThrustToWeight, 0.0f, ACRO_STATE_COLLECTIVE_THRUST_TO_WEIGHT_MAX)
 					: Float.NaN;
 			acroPitchRateRadiansPerTick = Float.isFinite(acroPitchRateRadiansPerTick) ? acroPitchRateRadiansPerTick : Float.NaN;
 			acroRollRateRadiansPerTick = Float.isFinite(acroRollRateRadiansPerTick) ? acroRollRateRadiansPerTick : Float.NaN;
@@ -3949,13 +3965,22 @@ final class PlayableFlightModel {
 			float horizontalFineVelocityScale,
 			float horizontalVelocityLinearStart,
 			float descentGain,
-			float thrustGain
+			float thrustGain,
+			float acroCollectiveThrustScale,
+			float acroThrustLossScale
 	) {
 		private static Profile forMode(PlayableFlightPreset preset, FlightMode mode) {
 			return switch (safeMode(mode)) {
-				case ANGLE -> new Profile(3.20f, 4.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 4.50f, 7.50f, 10.50f, 12.00f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.60f);
-				case HORIZON -> new Profile(8.80f, 12.00f, radians(46.0f), radians(48.0f), radians(80.0f), radians(84.0f), radians(6.3f), radians(6.8f), 3.55f, 0.82f, 0.70f, 0.22f, radians(3.8f), 0.30f, radians(5.2f), 0.93f, 0.18f, 0.28f, 8.50f, 9.50f, 10.80f, 13.00f, 0.56f, 0.16f, 0.06f, 0.060f, 0.09f, HOVER_BAND, 0.92f, 0.78f, 3.00f, THRUST_GAIN);
-				case ACRO -> new Profile(25.00f, 32.00f, radians(64.0f), radians(68.0f), radians(115.0f), radians(125.0f), radians(8.8f), radians(9.4f), 5.40f, 0.94f, 0.36f, 0.18f, radians(5.80f), 0.15f, radians(5.20f), 1.0f, 0.28f, 0.18f, 14.00f, 8.00f, 11.50f, 13.50f, 0.34f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.40f, 5.00f);
+				case ANGLE -> new Profile(3.20f, 4.40f, radians(24.0f), radians(24.0f), radians(48.0f), radians(48.0f), radians(3.0f), radians(3.2f), 1.75f, 0.58f, 0.78f, 0.24f, radians(2.6f), 0.74f, radians(7.2f), 0.84f, 0.20f, 0.42f, 4.50f, 7.50f, 10.50f, 12.00f, 0.74f, 0.12f, 0.48f, 0.070f, 0.10f, 0.055f, 0.82f, 0.85f, DESCENT_GAIN, 3.60f, 1.0f, 1.0f);
+				case HORIZON -> new Profile(8.80f, 12.00f, radians(46.0f), radians(48.0f), radians(80.0f), radians(84.0f), radians(6.3f), radians(6.8f), 3.55f, 0.82f, 0.70f, 0.22f, radians(3.8f), 0.30f, radians(5.2f), 0.93f, 0.18f, 0.28f, 8.50f, 9.50f, 10.80f, 13.00f, 0.56f, 0.16f, 0.06f, 0.060f, 0.09f, HOVER_BAND, 0.92f, 0.78f, 3.00f, THRUST_GAIN, 1.0f, 1.0f);
+				case ACRO -> acroProfile(PlayableFlightPreset.byId(preset == null ? null : preset.id()));
+			};
+		}
+
+		private static Profile acroProfile(PlayableFlightPreset preset) {
+			return switch (preset) {
+				case FIVE_INCH_AGILE_CANDIDATE -> new Profile(34.00f, 48.00f, radians(64.0f), radians(68.0f), radians(360.0f), radians(360.0f), radians(31.0f), radians(34.0f), 6.80f, 0.94f, 0.36f, 0.18f, radians(5.80f), 0.15f, radians(5.20f), 1.0f, 0.24f, 0.16f, 18.00f, 11.00f, 14.00f, 17.00f, 0.34f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.40f, 5.00f, 1.28f, 0.55f);
+				case LEGACY_HEAVY_RACING_QUAD -> new Profile(25.00f, 32.00f, radians(64.0f), radians(68.0f), radians(115.0f), radians(125.0f), radians(8.8f), radians(9.4f), 5.40f, 0.94f, 0.36f, 0.18f, radians(5.80f), 0.15f, radians(5.20f), 1.0f, 0.28f, 0.18f, 14.00f, 8.00f, 11.50f, 13.50f, 0.34f, 0.18f, 0.0f, 0.0f, 0.0f, 0.030f, 1.0f, 1.0f, 3.40f, 5.00f, 1.0f, 1.0f);
 			};
 		}
 

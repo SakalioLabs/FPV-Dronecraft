@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -99,6 +101,39 @@ class LegacyPlayableFlightModelAdapterTest {
 	}
 
 	@Test
+	void playablePresetOptionRoutesIntoFlightStep() {
+		DroneConfig config = DroneConfig.racingQuad();
+		LegacyPlayableFlightModelAdapter legacy = initializedAdapter(config, FlightMode.ACRO);
+		LegacyPlayableFlightModelAdapter agile = initializedAdapter(config, FlightMode.ACRO);
+
+		FlightStepResult legacyResult = legacy.step(new FlightStepContext(
+				new DroneInput(0.68, 0.0, 1.0, 0.0, true, true, FlightMode.ACRO),
+				legacy.snapshot(),
+				DroneEnvironment.calm(),
+				0.05,
+				1L,
+				config,
+				Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD.id())
+		));
+		FlightStepResult agileResult = agile.step(new FlightStepContext(
+				new DroneInput(0.68, 0.0, 1.0, 0.0, true, true, FlightMode.ACRO),
+				agile.snapshot(),
+				DroneEnvironment.calm(),
+				0.05,
+				1L,
+				config,
+				Map.of(LegacyPlayableFlightModelAdapter.OPTION_PLAYABLE_PRESET, PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id())
+		));
+
+		assertEquals(PlayableFlightPreset.LEGACY_HEAVY_RACING_QUAD.id(), legacyResult.diagnostics().values().get("playable_preset"));
+		assertEquals(PlayableFlightPreset.FIVE_INCH_AGILE_CANDIDATE.id(), agileResult.diagnostics().values().get("playable_preset"));
+		assertTrue(
+				diagnosticFloat(agileResult, "acro_roll_rate_radians_per_tick")
+						> diagnosticFloat(legacyResult, "acro_roll_rate_radians_per_tick") * 2.0f
+		);
+	}
+
+	@Test
 	void resolvedIntegrationStateDoesNotFoldContinuousAcroRoll() {
 		DroneConfig config = DroneConfig.racingQuad();
 		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
@@ -182,6 +217,17 @@ class LegacyPlayableFlightModelAdapterTest {
 	private static float diagnosticFloat(FlightStepResult result, String key) {
 		String value = result.diagnostics().values().get(key);
 		return value == null ? 0.0f : Float.parseFloat(value);
+	}
+
+	private static LegacyPlayableFlightModelAdapter initializedAdapter(DroneConfig config, FlightMode mode) {
+		LegacyPlayableFlightModelAdapter adapter = new LegacyPlayableFlightModelAdapter();
+		adapter.initialize(new FlightModelInitializationContext(
+				config,
+				new FlightStateSnapshot(new Vec3(0.0, 20.0, 0.0), Vec3.ZERO, null, Vec3.ZERO, mode, true),
+				DroneEnvironment.calm(),
+				0L
+		));
+		return adapter;
 	}
 
 	private static double angularDifferenceDegrees(double expected, double actual) {

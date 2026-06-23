@@ -3,7 +3,8 @@ package com.tenicana.dronecraft.entity;
 import java.util.Locale;
 
 public enum PlayableFlightPreset {
-	LEGACY_HEAVY_RACING_QUAD("legacy_heavy_racing_quad");
+	LEGACY_HEAVY_RACING_QUAD("legacy_heavy_racing_quad"),
+	FIVE_INCH_AGILE_CANDIDATE("5inch_agile_candidate");
 
 	private final String id;
 
