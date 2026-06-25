@@ -24,6 +24,28 @@ class DroneClientControlsCameraSafetyTest {
 	}
 
 	@Test
+	void lostDroneAfterRefreshStillSendsFpvOffPacket() throws IOException {
+		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
+		String lostDroneBranch = source.substring(
+				source.indexOf("boolean fpvRequestedBeforeRefresh"),
+				source.indexOf("while (VIRTUAL_CONTROLLER.consumeClick())")
+		);
+		String forcedDisable = source.substring(
+				source.indexOf("private static void disableFpvView(Minecraft client, boolean notifyServer, boolean forceNotifyServer)"),
+				source.indexOf("public static DroneClientConfig config()")
+		);
+
+		assertTrue(
+				lostDroneBranch.contains("disableFpvView(client, true, true);"),
+				"if refreshControlledDrone clears the FPV flag after losing a drone, the client must still force an FPV-off packet"
+		);
+		assertTrue(
+				forcedDisable.contains("if (notifyServer && (wasEnabled || forceNotifyServer))"),
+				"forced FPV disable must notify the server even when local state was already cleared"
+		);
+	}
+
+	@Test
 	void clientTickSweepsDroneCameraWhenFpvIsNoLongerActive() throws IOException {
 		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
 		String restoreInvalidDroneCamera = source.substring(

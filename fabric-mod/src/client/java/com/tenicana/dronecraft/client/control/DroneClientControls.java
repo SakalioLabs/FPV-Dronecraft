@@ -106,7 +106,7 @@ public final class DroneClientControls {
 			}
 			boolean hasLinkedDrone = DroneClientState.hasControlledDrone(client);
 			if (fpvRequestedBeforeRefresh && !hasLinkedDrone) {
-				disableFpvView(client, true);
+				disableFpvView(client, true, true);
 			}
 
 			while (VIRTUAL_CONTROLLER.consumeClick()) {
@@ -318,10 +318,14 @@ public final class DroneClientControls {
 	}
 
 	private static void disableFpvView(Minecraft client, boolean notifyServer) {
+		disableFpvView(client, notifyServer, false);
+	}
+
+	private static void disableFpvView(Minecraft client, boolean notifyServer, boolean forceNotifyServer) {
 		boolean wasEnabled = DroneClientState.isFpvViewEnabled();
 		DroneClientState.setFpvViewEnabled(false);
 		restoreVanillaCamera(client);
-		if (notifyServer && wasEnabled) {
+		if (notifyServer && (wasEnabled || forceNotifyServer)) {
 			sendFpvViewState(false);
 		}
 	}
