@@ -4,16 +4,16 @@
 
 ## 常驻分支
 
-### `main`
+### `master`
 
 稳定发布主线。
 
 - 只接受已经验证为玩家可用的版本。
 - 用于打 tag、发 release、生成玩家下载包。
 - 不直接承载大规模手感试验或物理模型试验。
-- 进入 `main` 的代码必须来自 `playable/dev` 或短期 `integration/vNext`，并且 CI 全绿。
+- 进入 `master` 的代码必须来自 `playable/dev` 或短期 `integration/vNext`，并且 CI 全绿。
 
-当前 GitHub 默认分支仍可能是历史遗留的 `master`。在 GitHub 仓库设置切换默认分支前，`master` 只作为兼容别名保留，不再作为新的研发入口。
+当前 GitHub 默认分支是 `master`。项目不再额外维护 `main` 作为稳定主线别名。
 
 ### `playable/dev`
 
@@ -74,7 +74,7 @@
 - 不常驻。
 - 从 `playable/dev` 创建。
 - 只做发布前集成、冲突解决、版本号、文档、迁移说明、最终验收。
-- 发布并合回 `main` 后删除。
+- 发布并合回 `master` 后删除。
 
 ## 推荐流转
 
@@ -86,16 +86,16 @@ playable/dev
   └─ 玩家体验稳定后，进入 integration/vNext
 
 integration/vNext
-  └─ 发布验收通过后，合入 main 并打 tag
+  └─ 发布验收通过后，合入 master 并打 tag
 
-main
+master
   └─ 只发布玩家可用版本
 ```
 
 ## 分支清理规则
 
 - `codex/*`、`diagnose/*`、`refactor/*` 默认视为短期工作分支。
-- 短期分支的提交如果已经被 `main`、`playable/dev` 或 `sim/lab` 包含，应删除远端分支。
+- 短期分支的提交如果已经被 `master`、`playable/dev` 或 `sim/lab` 包含，应删除远端分支。
 - 正被其他 worktree 使用的本地分支可以暂时保留，但不再作为协作入口。
 - 删除前必须确认：
 

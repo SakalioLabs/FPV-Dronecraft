@@ -3,7 +3,6 @@ name: CI Verification
 on:
   push:
     branches:
-      - main
       - master
       - "playable/**"
       - "sim/**"
@@ -12,7 +11,6 @@ on:
       - "codex/**"
   pull_request:
     branches:
-      - main
       - master
 
 permissions:
