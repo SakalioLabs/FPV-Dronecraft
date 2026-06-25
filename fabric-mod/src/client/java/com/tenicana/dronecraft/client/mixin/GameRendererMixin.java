@@ -21,7 +21,12 @@ public abstract class GameRendererMixin {
 	private void fpvdrone$overrideFpvFov(Camera camera, float partialTick, boolean useFovSetting,
 			CallbackInfoReturnable<Float> cir) {
 		DroneEntity drone = DroneClientState.controlledDrone();
-		if (!DroneClientState.isFpvActive(Minecraft.getInstance().level) || drone == null) {
+		Minecraft client = Minecraft.getInstance();
+		if (!DroneClientState.isFpvActive(client.level)
+				|| drone == null
+				|| drone.level() != client.level
+				|| drone.isRemoved()
+				|| !drone.isAlive()) {
 			return;
 		}
 

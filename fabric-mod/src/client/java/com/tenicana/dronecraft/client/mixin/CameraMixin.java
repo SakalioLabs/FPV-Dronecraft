@@ -30,6 +30,7 @@ public abstract class CameraMixin {
 	private static final float RPM_TO_RADIANS_PER_TICK = (float) (Math.PI * 2.0 / 1200.0);
 	private static final FpvCameraPoseDelay FPV_POSE_DELAY = new FpvCameraPoseDelay();
 	private static int delayedDroneId = -1;
+	private static Level delayedLevel;
 
 	@Shadow
 	protected abstract void setPosition(Vec3 position);
@@ -59,15 +60,16 @@ public abstract class CameraMixin {
 	@Inject(method = "setup", at = @At("RETURN"))
 	private void fpvdrone$setupFpvCamera(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
 		DroneEntity drone = DroneClientState.controlledDrone();
-		if (!DroneClientState.isFpvActive(level) || drone == null) {
+		if (!DroneClientState.isFpvActive(level) || drone == null || drone.level() != level || drone.isRemoved() || !drone.isAlive()) {
 			resetCameraDelay();
 			return;
 		}
 
 		DroneClientConfig config = DroneClientControls.config();
-		if (drone.getId() != delayedDroneId) {
+		if (drone.getId() != delayedDroneId || level != delayedLevel) {
 			FPV_POSE_DELAY.reset();
 			delayedDroneId = drone.getId();
+			delayedLevel = level;
 		}
 
 		Vec3 rawPosition = drone.getPosition(partialTick).add(0.0, drone.getPhysicsCenterYOffsetMeters(), 0.0);
@@ -121,6 +123,7 @@ public abstract class CameraMixin {
 	private static void resetCameraDelay() {
 		FPV_POSE_DELAY.reset();
 		delayedDroneId = -1;
+		delayedLevel = null;
 	}
 
 	private static CameraShake cameraShake(DroneEntity drone, float partialTick, DroneClientConfig config) {
