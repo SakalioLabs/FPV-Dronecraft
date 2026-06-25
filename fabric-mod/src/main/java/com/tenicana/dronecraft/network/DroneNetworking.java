@@ -3,6 +3,8 @@ package com.tenicana.dronecraft.network;
 import java.util.Comparator;
 import java.util.List;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -92,6 +94,13 @@ public final class DroneNetworking {
 			context.server().execute(() -> updateFpvCamera(player, payload.fpvView()));
 		});
 		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> restorePlayerCamera(handler.player));
+		ServerPlayerEvents.JOIN.register(DroneNetworking::restorePlayerCamera);
+		ServerPlayerEvents.LEAVE.register(DroneNetworking::restorePlayerCamera);
+		ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {
+			restorePlayerCamera(oldPlayer);
+			restorePlayerCamera(newPlayer);
+		});
+		ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> restorePlayerCamera(player));
 		ServerTickEvents.END_SERVER_TICK.register(server -> server.getPlayerList().getPlayers().forEach(DroneNetworking::restoreInvalidDroneCamera));
 	}
 

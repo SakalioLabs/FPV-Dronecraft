@@ -12,6 +12,40 @@ import org.junit.jupiter.api.Test;
 
 class DroneNetworkingCameraSafetyTest {
 	@Test
+	void serverRestoresPlayerCameraOnPlayerLifecycleBoundaries() throws IOException {
+		String source = Files.readString(droneNetworkingSource(), StandardCharsets.UTF_8);
+
+		assertTrue(
+				source.contains("import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;"),
+				"server player world-change events must be available as an explicit camera reset boundary"
+		);
+		assertTrue(
+				source.contains("import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;"),
+				"server player join/leave/respawn events must be available as camera reset boundaries"
+		);
+		assertTrue(
+				source.contains("ServerPlayerEvents.JOIN.register(DroneNetworking::restorePlayerCamera);"),
+				"joining a world must force the server camera back to the player"
+		);
+		assertTrue(
+				source.contains("ServerPlayerEvents.LEAVE.register(DroneNetworking::restorePlayerCamera);"),
+				"leaving a world must restore the server camera before player data is saved"
+		);
+		assertTrue(
+				source.contains("ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> {"),
+				"respawn must be an explicit camera reset boundary"
+		);
+		assertTrue(
+				source.contains("restorePlayerCamera(oldPlayer);") && source.contains("restorePlayerCamera(newPlayer);"),
+				"respawn must restore both old and new player camera references"
+		);
+		assertTrue(
+				source.contains("ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> restorePlayerCamera(player));"),
+				"changing server worlds must restore the player camera immediately instead of waiting for a later tick sweep"
+		);
+	}
+
+	@Test
 	void fpvViewPacketsAlwaysRestorePlayerWhenFpvIsDisabledOrNoDroneIsValid() throws IOException {
 		String source = Files.readString(droneNetworkingSource(), StandardCharsets.UTF_8);
 		String updateFpvCamera = source.substring(
