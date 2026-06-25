@@ -27,6 +27,14 @@ class MinecraftAttackSanitizerMixinTest {
 				source.contains("cir.setReturnValue(false);"),
 				"invalid drone entity attacks must be cancelled instead of reaching vanilla attack handling"
 		);
+		String crosshairInvalidBranch = source.substring(
+				source.indexOf("if (fpvdrone$isInvalidDroneTarget(crosshairPickEntity))"),
+				source.indexOf("if (invalidAttackTarget)")
+		);
+		assertTrue(
+				crosshairInvalidBranch.contains("invalidAttackTarget = true;"),
+				"stale crosshair-only drone targets must also cancel the attack before vanilla can use them"
+		);
 	}
 
 	@Test

@@ -34,6 +34,7 @@ public abstract class MinecraftAttackSanitizerMixin {
 		}
 		if (fpvdrone$isInvalidDroneTarget(crosshairPickEntity)) {
 			crosshairPickEntity = null;
+			invalidAttackTarget = true;
 		}
 		if (invalidAttackTarget) {
 			cir.setReturnValue(false);
