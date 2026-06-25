@@ -28,11 +28,15 @@ class FpvCameraMixinSafetyTest {
 				"FPV pose delay must track the world as well as the entity id"
 		);
 		assertTrue(
-				setup.contains("drone.level() != level") && setup.contains("drone.isRemoved()") && setup.contains("!drone.isAlive()"),
+				setup.contains("ClientCameraSafety.isUsableFpvDroneReference(")
+						&& setup.contains("DroneClientState.isFpvActive(level)")
+						&& setup.contains("drone != null && drone.level() == level")
+						&& setup.contains("drone != null && drone.isRemoved()")
+						&& setup.contains("drone != null && drone.isAlive()"),
 				"Camera setup must reject stale, removed, dead or cross-world controlled-drone references"
 		);
 		assertTrue(
-				setup.contains("if (drone.getId() != delayedDroneId || level != delayedLevel)"),
+				setup.contains("ClientCameraSafety.shouldResetFpvPoseDelay(drone.getId(), delayedDroneId, level, delayedLevel)"),
 				"entity ids can be reused in a new world, so the camera delay cache must reset on level changes"
 		);
 		assertTrue(
@@ -62,9 +66,11 @@ class FpvCameraMixinSafetyTest {
 				"FOV override must be tied to active FPV in the current client level"
 		);
 		assertTrue(
-				override.contains("drone.level() != client.level")
-						&& override.contains("drone.isRemoved()")
-						&& override.contains("!drone.isAlive()"),
+				override.contains("ClientCameraSafety.isUsableFpvDroneReference(")
+						&& override.contains("DroneClientState.isFpvActive(client.level)")
+						&& override.contains("drone != null && drone.level() == client.level")
+						&& override.contains("drone != null && drone.isRemoved()")
+						&& override.contains("drone != null && drone.isAlive()"),
 				"FOV override must not run for stale, removed, dead or cross-world drone references"
 		);
 	}

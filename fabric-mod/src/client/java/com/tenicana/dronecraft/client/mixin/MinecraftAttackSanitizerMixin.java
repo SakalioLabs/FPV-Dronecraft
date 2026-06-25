@@ -13,6 +13,8 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
+import com.tenicana.dronecraft.client.camera.ClientCameraSafety;
+
 @Mixin(Minecraft.class)
 public abstract class MinecraftAttackSanitizerMixin {
 	@Shadow
@@ -52,6 +54,12 @@ public abstract class MinecraftAttackSanitizerMixin {
 	}
 
 	private boolean fpvdrone$isInvalidEntityTarget(Entity entity) {
-		return entity != null && (level == null || entity.level() != level || entity.isRemoved() || !entity.isAlive());
+		return ClientCameraSafety.isInvalidEntityTarget(
+				entity != null,
+				level != null,
+				entity != null && entity.level() == level,
+				entity != null && entity.isRemoved(),
+				entity != null && entity.isAlive()
+		);
 	}
 }

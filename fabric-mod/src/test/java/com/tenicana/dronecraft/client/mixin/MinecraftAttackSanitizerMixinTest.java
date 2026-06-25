@@ -70,7 +70,11 @@ class MinecraftAttackSanitizerMixinTest {
 				"null hit targets must be ignored"
 		);
 		assertTrue(
-				invalidTargetCheck.contains("level == null || entity.level() != level || entity.isRemoved() || !entity.isAlive()"),
+				invalidTargetCheck.contains("ClientCameraSafety.isInvalidEntityTarget(")
+						&& invalidTargetCheck.contains("level != null")
+						&& invalidTargetCheck.contains("entity != null && entity.level() == level")
+						&& invalidTargetCheck.contains("entity != null && entity.isRemoved()")
+						&& invalidTargetCheck.contains("entity != null && entity.isAlive()"),
 				"stale targets must include null-level, cross-world, removed and dead entities"
 		);
 		assertTrue(

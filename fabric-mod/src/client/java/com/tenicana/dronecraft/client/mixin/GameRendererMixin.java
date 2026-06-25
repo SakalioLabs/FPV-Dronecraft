@@ -10,6 +10,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
 
+import com.tenicana.dronecraft.client.camera.ClientCameraSafety;
 import com.tenicana.dronecraft.client.DroneClientState;
 import com.tenicana.dronecraft.client.config.DroneClientConfig;
 import com.tenicana.dronecraft.client.control.DroneClientControls;
@@ -22,11 +23,13 @@ public abstract class GameRendererMixin {
 			CallbackInfoReturnable<Float> cir) {
 		DroneEntity drone = DroneClientState.controlledDrone();
 		Minecraft client = Minecraft.getInstance();
-		if (!DroneClientState.isFpvActive(client.level)
-				|| drone == null
-				|| drone.level() != client.level
-				|| drone.isRemoved()
-				|| !drone.isAlive()) {
+		if (!ClientCameraSafety.isUsableFpvDroneReference(
+				DroneClientState.isFpvActive(client.level),
+				drone != null,
+				drone != null && drone.level() == client.level,
+				drone != null && drone.isRemoved(),
+				drone != null && drone.isAlive()
+		)) {
 			return;
 		}
 
