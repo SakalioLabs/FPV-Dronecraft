@@ -450,11 +450,21 @@ public final class DroneClientControls {
 	}
 
 	private static void restoreVanillaCamera(Minecraft client) {
-		if (client == null || client.player == null) {
+		if (client == null) {
+			return;
+		}
+		clearStaleHitTargets(client);
+		if (client.player == null) {
 			return;
 		}
 		if (client.getCameraEntity() != client.player) {
 			client.setCameraEntity(client.player);
+		}
+	}
+
+	private static void clearStaleHitTargets(Minecraft client) {
+		if (client == null) {
+			return;
 		}
 		MinecraftCameraStateAccessor cameraState = (MinecraftCameraStateAccessor) client;
 		cameraState.fpvdrone$setCrosshairPickEntity(null);

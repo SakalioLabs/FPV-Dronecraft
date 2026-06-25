@@ -72,12 +72,18 @@ class DroneClientControlsCameraSafetyTest {
 		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
 		String restoreVanillaCamera = source.substring(
 				source.indexOf("private static void restoreVanillaCamera"),
+				source.indexOf("private static void clearStaleHitTargets")
+		);
+		String clearStaleHitTargets = source.substring(
+				source.indexOf("private static void clearStaleHitTargets"),
 				source.indexOf("private static void restoreInvalidDroneCamera")
 		);
 
+		assertTrue(restoreVanillaCamera.contains("clearStaleHitTargets(client);"), "vanilla camera restore must clear stale hit targets before player-dependent camera restore");
+		assertTrue(restoreVanillaCamera.indexOf("clearStaleHitTargets(client);") < restoreVanillaCamera.indexOf("if (client.player == null)"), "hit targets must still be cleared when client.player is null during disconnect");
 		assertTrue(restoreVanillaCamera.contains("client.setCameraEntity(client.player)"), "vanilla camera restore must point cameraEntity back at the player");
-		assertTrue(restoreVanillaCamera.contains("fpvdrone$setCrosshairPickEntity(null)"), "vanilla camera restore must clear stale crosshair entity picks");
-		assertTrue(restoreVanillaCamera.contains("fpvdrone$setHitResult(null)"), "vanilla camera restore must clear stale hit results");
+		assertTrue(clearStaleHitTargets.contains("fpvdrone$setCrosshairPickEntity(null)"), "vanilla camera restore must clear stale crosshair entity picks");
+		assertTrue(clearStaleHitTargets.contains("fpvdrone$setHitResult(null)"), "vanilla camera restore must clear stale hit results");
 	}
 
 	private static Path droneClientControlsSource() {
