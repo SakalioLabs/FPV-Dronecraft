@@ -1,0 +1,196 @@
+row_type,name,metric,value,unit,source,note
+apdrone_dataset_metadata,APdrone,doi,10.17632/zgsvdtxnfh.2,,https://data.mendeley.com/datasets/zgsvdtxnfh/2,Mendeley Data v2.
+apdrone_dataset_metadata,APdrone,published_date,2025-06-13,,https://data.mendeley.com/datasets/zgsvdtxnfh/2,
+apdrone_dataset_metadata,APdrone,file_count_from_public_api,173,files,https://data.mendeley.com/datasets/zgsvdtxnfh/2,
+apdrone_dataset_metadata,APdrone,csv_file_count_from_public_api,25,files,https://data.mendeley.com/datasets/zgsvdtxnfh/2,
+apdrone_dataset_metadata,APdrone,archive_file_count_from_public_api,14,files,https://data.mendeley.com/datasets/zgsvdtxnfh/2,RAR archives are inventoried but not downloaded by default.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,firmware_line,Betaflight / STM32F7X2 (S7X2) 4.5.0 Jun 25 2024 / 06:12:00 (c155f5830) MSP API: 1.46,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,board_name,FOXEERF722V4,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,gyro_lpf1_static_hz,125,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,gyro_lpf2_static_hz,250,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,dyn_notch_count,1,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,dyn_notch_q,500,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,dyn_notch_min_hz,100,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,dyn_notch_max_hz,600,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,rc_smoothing,ON,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,rc_smoothing_auto_factor,30,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,serialrx_provider,CRSF,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,blackbox_sample_rate,1/2,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,blackbox_disable_motors,ON,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,blackbox_disable_rpm,ON,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,blackbox_disable_bat,OFF,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,blackbox_disable_gps,OFF,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,motor_kv,1960,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,motor_pwm_protocol,DSHOT600,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,motor_pwm_rate,480,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,motor_poles,14,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,dshot_bidir,ON,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,bat_capacity,1500,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,vbat_scale,110,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,ibata_scale,400,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,p_pitch,135,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,i_pitch,155,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,d_pitch,90,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,p_roll,65,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,i_roll,85,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,d_roll,60,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,p_yaw,140,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,i_yaw,100,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,d_yaw,90,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,rates_type,ACTUAL,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,roll_rate_limit,1998,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,pitch_rate_limit,1998,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,yaw_rate_limit,1998,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,roll_rc_rate,7,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,pitch_rc_rate,7,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_betaflight_config_setting,Betaflight Configuration for F722,yaw_rc_rate,7,,docs/data/raw/apdrone_zgsvdtxnfh_v2/betaflight_configuration_for_f722.txt,Extracted from APdrone Betaflight dump.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,Product,Blackbox flight data recorder by Nicholas Sherlock,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,firmwareType,3,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,firmware,4.5,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,firmwarePatch,0,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,firmwareVersion,4.5.0,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,Firmware date,Jun 25 2024 06:12:00,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,Craft name,APdrone,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,looptime,125,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,gyro_sync_denom,1,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,pid_process_denom,2,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,vbatscale,110,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,vbatref,1649,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,currentMeterScale,400,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_blackbox_metadata,Selected Flight.csv,currentMeterOffset,0,,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Header rows before the Blackbox CSV table.
+apdrone_selected_flight_metric,Selected Flight.csv,sample_rows,166936,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,
+apdrone_selected_flight_metric,Selected Flight.csv,duration_s,83.318656,s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Computed from time column in microseconds.
+apdrone_selected_flight_metric,Selected Flight.csv,estimated_log_rate_hz,2003.5728852851394,Hz,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Rows over duration; config reports blackbox_sample_rate=1/2.
+apdrone_selected_flight_metric,Selected Flight.csv,column_count,33,columns,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"loopIteration, time, setpoint[0], setpoint[1], setpoint[2], setpoint[3], vbatLatest, amperageLatest, baroAlt, gyroADC[0], gyroADC[1], gyroADC[2], accSmooth[0], accSmooth[1], accSmooth[2], flightModeFlags, stateFlags, failsafePhase, rxSignalReceived, rxFlightChannelsValid, GPS_numSat, GPS_coord[0], GPS_coord[1], GPS_altitude, GPS_speed, GPS_ground_course, heading[0], heading[1], heading[2], rcCommands[0], rcCommands[1], rcCommands[2], rcCommands[3]"
+apdrone_selected_flight_metric,Selected Flight.csv,valid_gps_rows,166935,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,
+apdrone_selected_flight_metric,Selected Flight.csv,armed_rows_bit0,166919,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,
+apdrone_selected_flight_metric,vbatLatest,n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,vbatLatest,min,15.54,V,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,vbatLatest,p05,15.68,V,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,vbatLatest,median,15.93,V,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,vbatLatest,mean,15.981184166387118,V,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,vbatLatest,p95,16.44,V,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,vbatLatest,max,16.58,V,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox export appears to store centivolts.
+apdrone_selected_flight_metric,GPS_speed,n,166935.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_speed,min,0.0,m/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_speed,p05,0.01,m/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_speed,median,1.38,m/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_speed,mean,1.5879677718872616,m/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_speed,p95,4.04,m/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_speed,max,5.75,m/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS_speed interpreted as cm/s.
+apdrone_selected_flight_metric,GPS_altitude,n,166935.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,GPS_altitude,min,262.0,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,GPS_altitude,p05,262.03,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,GPS_altitude,median,262.24,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,GPS_altitude,mean,262.27365974780605,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,GPS_altitude,p95,262.67,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,GPS_altitude,max,262.77,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Betaflight GPS altitude interpreted as cm.
+apdrone_selected_flight_metric,baroAlt,n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,baroAlt,min,-2.57,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,baroAlt,p05,-0.88,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,baroAlt,median,2.73,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,baroAlt,mean,2.6578005942397085,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,baroAlt,p95,6.35,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,baroAlt,max,7.73,m,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Blackbox baro altitude interpreted as cm relative altitude.
+apdrone_selected_flight_metric,GPS_numSat,n,166935.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,GPS_numSat,min,25.0,satellites,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,GPS_numSat,p05,26.0,satellites,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,GPS_numSat,median,28.0,satellites,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,GPS_numSat,mean,27.876652589331176,satellites,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,GPS_numSat,p95,29.0,satellites,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,GPS_numSat,max,29.0,satellites,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,GPS satellite count.
+apdrone_selected_flight_metric,rcCommands[0],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[0],min,-184.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[0],p05,-29.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[0],median,1.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[0],mean,0.6420125077874156,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[0],p95,25.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[0],max,260.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],min,-270.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],p05,-46.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],median,-1.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],mean,-1.8766113959840898,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],p95,50.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[1],max,297.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],min,-176.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],p05,-37.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],median,0.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],mean,0.06857717927828628,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],p95,15.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[2],max,218.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],min,0.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],p05,0.0,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],median,49.9,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],mean,41.76994716538075,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],p95,54.5,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,rcCommands[3],max,59.7,blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Throttle command in exported Blackbox units.
+apdrone_selected_flight_metric,setpoint[0],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[0],min,-184.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[0],p05,-29.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[0],median,1.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[0],mean,0.6420125077874156,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[0],p95,25.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[0],max,260.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Roll setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],min,-270.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],p05,-46.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],median,-1.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],mean,-1.8766113959840898,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],p95,50.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[1],max,297.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Pitch setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],min,-176.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],p05,-37.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],median,0.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],mean,0.06857717927828628,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],p95,15.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,setpoint[2],max,218.0,deg/s_or_blackbox_units,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Yaw setpoint; cross-check units before direct fit.
+apdrone_selected_flight_metric,gyroADC[0],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[0],min,-330.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[0],p05,-31.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[0],median,0.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[0],mean,-0.4852578233574544,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[0],p95,28.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[0],max,541.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],min,-281.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],p05,-49.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],median,0.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],mean,-0.04691019312790531,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],p95,53.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[1],max,403.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],min,-178.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],p05,-38.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],median,0.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],mean,-0.12263981406047826,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],p95,19.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_metric,gyroADC[2],max,227.0,rad/s,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Gyro export appears already scaled to rad/s-like units.
+apdrone_selected_flight_current_metric,amperageLatest_raw,n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_raw,min,0.0,raw,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_raw,p05,0.0,raw,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_raw,median,177.0,raw,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_raw,mean,155.29999520774427,raw,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_raw,p95,237.0,raw,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_raw,max,377.0,raw,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Do not use as absolute current without confirming Betaflight current-unit scaling.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,min,0.0,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,p05,0.0,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,median,1.77,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,mean,1.552999952077443,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,p95,2.37,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,max,3.77,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Centiamps interpretation yields implausibly low FPV current here.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,n,166936.0,rows,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,min,0.0,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,p05,0.0,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,median,17.7,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,mean,15.529999520774428,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,p95,23.7,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,max,37.7,A,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,"Deciamps interpretation gives plausible 5-inch light-flight current, but still needs sensor calibration."
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,integrated_energy_wh,0.571336756434716,Wh,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Integrated vbatLatest times candidate current scaling.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_centiamps,integrated_capacity_mah,35.94243345277771,mAh,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Integrated candidate current scaling over flight duration.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,integrated_energy_wh,5.713367564346711,Wh,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Integrated vbatLatest times candidate current scaling.
+apdrone_selected_flight_current_metric,amperageLatest_candidate_deciamps,integrated_capacity_mah,359.4243345277434,mAh,docs/data/raw/apdrone_zgsvdtxnfh_v2/selected_flight.csv,Integrated candidate current scaling over flight duration.
