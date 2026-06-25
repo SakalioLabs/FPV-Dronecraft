@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.client.Camera;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
 
@@ -20,7 +21,7 @@ public abstract class GameRendererMixin {
 	private void fpvdrone$overrideFpvFov(Camera camera, float partialTick, boolean useFovSetting,
 			CallbackInfoReturnable<Float> cir) {
 		DroneEntity drone = DroneClientState.controlledDrone();
-		if (!DroneClientState.isFpvActive() || drone == null) {
+		if (!DroneClientState.isFpvActive(Minecraft.getInstance().level) || drone == null) {
 			return;
 		}
 

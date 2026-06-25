@@ -6,6 +6,7 @@
 		"CameraMixin",
 		"FramerateLimitTrackerAccessor",
 		"GameRendererMixin",
+		"MinecraftCameraStateAccessor",
 		"MinecraftFramerateLimitTrackerAccessor"
 	],
 	"injectors": {

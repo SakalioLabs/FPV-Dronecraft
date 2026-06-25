@@ -59,7 +59,7 @@ public abstract class CameraMixin {
 	@Inject(method = "setup", at = @At("RETURN"))
 	private void fpvdrone$setupFpvCamera(Level level, Entity entity, boolean detached, boolean thirdPersonReverse, float partialTick, CallbackInfo ci) {
 		DroneEntity drone = DroneClientState.controlledDrone();
-		if (!DroneClientState.isFpvActive() || drone == null) {
+		if (!DroneClientState.isFpvActive(level) || drone == null) {
 			resetCameraDelay();
 			return;
 		}

@@ -96,23 +96,20 @@ public final class DroneNetworking {
 			return;
 		}
 		if (!fpvView) {
-			if (player.getCamera() instanceof DroneEntity) {
-				player.setCamera(player);
-			}
+			restorePlayerCamera(player);
 			return;
 		}
 		DroneEntity drone = fpvCameraDrone(player);
-		if (drone != null && player.getCamera() != drone) {
+		if (drone == null) {
+			restorePlayerCamera(player);
+		} else if (player.getCamera() != drone) {
 			player.setCamera(drone);
 		}
 	}
 
 	private static DroneEntity fpvCameraDrone(ServerPlayer player) {
 		Entity camera = player.getCamera();
-		if (camera instanceof DroneEntity drone
-				&& drone.isAlive()
-				&& drone.level() == player.level()
-				&& drone.isOwnedBy(player.getUUID())) {
+		if (camera instanceof DroneEntity drone && isValidFpvCameraDrone(player, drone)) {
 			return drone;
 		}
 
@@ -120,10 +117,25 @@ public final class DroneNetworking {
 		return player.level().getEntitiesOfClass(
 				DroneEntity.class,
 				search,
-				drone -> drone.isAlive() && drone.isOwnedBy(player.getUUID())
+				drone -> isValidFpvCameraDrone(player, drone)
 		).stream()
 				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(player)))
 				.orElse(null);
+	}
+
+	private static void restorePlayerCamera(ServerPlayer player) {
+		if (player != null && player.getCamera() != player) {
+			player.setCamera(player);
+		}
+	}
+
+	private static boolean isValidFpvCameraDrone(ServerPlayer player, DroneEntity drone) {
+		return player != null
+				&& drone != null
+				&& drone.isAlive()
+				&& !drone.isRemoved()
+				&& drone.level() == player.level()
+				&& drone.isOwnedBy(player.getUUID());
 	}
 
 	private static boolean bindNearestDroneIfNeeded(ServerPlayer player, DroneInput input) {

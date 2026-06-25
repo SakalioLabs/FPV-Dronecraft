@@ -4,6 +4,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 
 import com.tenicana.dronecraft.entity.DroneEntity;
@@ -64,25 +65,23 @@ public final class DroneClientState {
 
 	public static void refreshControlledDrone(Minecraft client) {
 		if (client.player == null || client.level == null) {
-			controlledDrone = null;
-			controlActive = false;
-			physicalControllerPresent = false;
-			fpvViewEnabled = false;
+			resetTransientFlightState();
 			return;
 		}
 
 		physicalControllerPresent = client.player.getMainHandItem().is(DroneItems.DRONE_CONTROLLER)
 				|| client.player.getOffhandItem().is(DroneItems.DRONE_CONTROLLER);
 
-		if (controlledDrone != null && controlledDrone.isAlive() && controlledDrone.isOwnedBy(client.player.getUUID())) {
+		if (isControlledDroneValid(client)) {
 			return;
 		}
 
+		controlledDrone = null;
 		AABB search = client.player.getBoundingBox().inflate(256.0);
 		List<DroneEntity> ownedDrones = client.level.getEntitiesOfClass(
 				DroneEntity.class,
 				search,
-				drone -> drone.isAlive() && drone.isOwnedBy(client.player.getUUID())
+				drone -> isDroneUsableInLevel(drone, client.level) && drone.isOwnedBy(client.player.getUUID())
 		);
 		controlledDrone = ownedDrones.stream()
 				.min(Comparator.comparingDouble(drone -> drone.distanceToSqr(client.player)))
@@ -94,6 +93,38 @@ public final class DroneClientState {
 
 	public static DroneEntity controlledDrone() {
 		return controlledDrone;
+	}
+
+	public static boolean hasControlledDrone(Minecraft client) {
+		return isControlledDroneValid(client);
+	}
+
+	public static boolean isControlledDroneValid(Minecraft client) {
+		return client != null
+				&& client.player != null
+				&& isDroneUsableInLevel(controlledDrone, client.level)
+				&& controlledDrone.isOwnedBy(client.player.getUUID());
+	}
+
+	public static boolean isControlledDroneValid(Level level) {
+		return isDroneUsableInLevel(controlledDrone, level);
+	}
+
+	public static void resetTransientFlightState() {
+		controlledDrone = null;
+		throttle = 0.0f;
+		pitch = 0.0f;
+		roll = 0.0f;
+		yaw = 0.0f;
+		armed = false;
+		controlActive = false;
+		physicalControllerPresent = false;
+		virtualControllerEnabled = false;
+		fpvViewEnabled = false;
+		throttleCalibrationActive = false;
+		flightMode = DEFAULT_FLIGHT_MODE;
+		inputSource = InputSource.KEYBOARD;
+		controllerDiagnostics = ControllerInputDiagnostics.Snapshot.empty();
 	}
 
 	public static boolean hasController() {
@@ -146,7 +177,12 @@ public final class DroneClientState {
 	}
 
 	public static boolean isFpvActive() {
-		return fpvViewEnabled && controlledDrone != null && controlledDrone.isAlive();
+		Minecraft client = Minecraft.getInstance();
+		return client != null && isFpvActive(client.level);
+	}
+
+	public static boolean isFpvActive(Level level) {
+		return fpvViewEnabled && isControlledDroneValid(level);
 	}
 
 	public static float throttle() {
@@ -183,6 +219,14 @@ public final class DroneClientState {
 
 	public static void setControllerDiagnostics(ControllerInputDiagnostics.Snapshot diagnostics) {
 		controllerDiagnostics = diagnostics == null ? ControllerInputDiagnostics.Snapshot.empty() : diagnostics;
+	}
+
+	private static boolean isDroneUsableInLevel(DroneEntity drone, Level level) {
+		return drone != null
+				&& level != null
+				&& drone.level() == level
+				&& drone.isAlive()
+				&& !drone.isRemoved();
 	}
 
 	public enum InputSource {
