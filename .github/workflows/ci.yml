@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - master
+      - "playable/**"
+      - "sim/**"
+      - "integration/**"
       - "refactor/**"
       - "codex/**"
   pull_request:
