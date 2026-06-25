@@ -3,7 +3,9 @@ package com.tenicana.dronecraft.network;
 import java.util.Comparator;
 import java.util.List;
 
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
@@ -89,6 +91,8 @@ public final class DroneNetworking {
 			}
 			context.server().execute(() -> updateFpvCamera(player, payload.fpvView()));
 		});
+		ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> restorePlayerCamera(handler.player));
+		ServerTickEvents.END_SERVER_TICK.register(server -> server.getPlayerList().getPlayers().forEach(DroneNetworking::restoreInvalidDroneCamera));
 	}
 
 	private static void updateFpvCamera(ServerPlayer player, boolean fpvView) {
@@ -126,6 +130,16 @@ public final class DroneNetworking {
 	private static void restorePlayerCamera(ServerPlayer player) {
 		if (player != null && player.getCamera() != player) {
 			player.setCamera(player);
+		}
+	}
+
+	private static void restoreInvalidDroneCamera(ServerPlayer player) {
+		if (player == null) {
+			return;
+		}
+		Entity camera = player.getCamera();
+		if (camera instanceof DroneEntity drone && !isValidFpvCameraDrone(player, drone)) {
+			restorePlayerCamera(player);
 		}
 	}
 
