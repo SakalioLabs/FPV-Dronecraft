@@ -17,7 +17,7 @@ class MinecraftAttackSanitizerMixinTest {
 
 		assertTrue(
 				source.contains("@Inject(method = \"startAttack\", at = @At(\"HEAD\"), cancellable = true)"),
-				"stale drone entity targets must be sanitized before Minecraft sends the attack packet"
+				"stale entity targets must be sanitized before Minecraft sends the attack packet"
 		);
 		assertTrue(
 				source.contains("CallbackInfoReturnable<Boolean>"),
@@ -25,7 +25,7 @@ class MinecraftAttackSanitizerMixinTest {
 		);
 		assertTrue(
 				source.contains("@Inject(method = \"startUseItem\", at = @At(\"HEAD\"), cancellable = true)"),
-				"stale drone entity targets must also be sanitized before vanilla sends use/interact packets"
+				"stale entity targets must also be sanitized before vanilla sends use/interact packets"
 		);
 		assertTrue(
 				source.contains("CallbackInfo ci"),
@@ -40,7 +40,7 @@ class MinecraftAttackSanitizerMixinTest {
 				"invalid drone entity use interactions must be cancelled instead of reaching vanilla use handling"
 		);
 		String crosshairInvalidBranch = source.substring(
-				source.indexOf("if (fpvdrone$isInvalidDroneTarget(crosshairPickEntity))"),
+				source.indexOf("if (fpvdrone$isInvalidEntityTarget(crosshairPickEntity))"),
 				source.indexOf("return invalidTarget;")
 		);
 		assertTrue(
@@ -50,15 +50,15 @@ class MinecraftAttackSanitizerMixinTest {
 	}
 
 	@Test
-	void sanitizerOnlyDropsInvalidDroneEntityTargets() throws IOException {
+	void sanitizerOnlyDropsInvalidEntityTargets() throws IOException {
 		String source = Files.readString(mixinSource(), StandardCharsets.UTF_8);
 		String invalidTargetCheck = source.substring(
-				source.indexOf("private boolean fpvdrone$isInvalidDroneTarget"),
+				source.indexOf("private boolean fpvdrone$isInvalidEntityTarget"),
 				source.lastIndexOf("}")
 		);
 
 		assertTrue(
-				source.contains("private boolean fpvdrone$clearInvalidDroneTarget()"),
+				source.contains("private boolean fpvdrone$clearInvalidEntityTarget()"),
 				"attack and use sanitizers should share the same stale-target clearing path"
 		);
 		assertTrue(
@@ -66,12 +66,12 @@ class MinecraftAttackSanitizerMixinTest {
 				"the sanitizer should only inspect entity hit results"
 		);
 		assertTrue(
-				invalidTargetCheck.contains("entity instanceof DroneEntity drone"),
-				"ordinary entities must not be treated as stale drone camera targets"
+				invalidTargetCheck.contains("entity != null"),
+				"null hit targets must be ignored"
 		);
 		assertTrue(
-				invalidTargetCheck.contains("level == null || drone.level() != level || drone.isRemoved() || !drone.isAlive()"),
-				"stale drone targets must include null-level, cross-world, removed and dead entities"
+				invalidTargetCheck.contains("level == null || entity.level() != level || entity.isRemoved() || !entity.isAlive()"),
+				"stale targets must include null-level, cross-world, removed and dead entities"
 		);
 		assertTrue(
 				source.contains("hitResult = null;"),

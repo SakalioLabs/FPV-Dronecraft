@@ -13,8 +13,6 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 
-import com.tenicana.dronecraft.entity.DroneEntity;
-
 @Mixin(Minecraft.class)
 public abstract class MinecraftAttackSanitizerMixin {
 	@Shadow
@@ -28,33 +26,32 @@ public abstract class MinecraftAttackSanitizerMixin {
 
 	@Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
 	private void fpvdrone$cancelInvalidDroneEntityAttack(CallbackInfoReturnable<Boolean> cir) {
-		if (fpvdrone$clearInvalidDroneTarget()) {
+		if (fpvdrone$clearInvalidEntityTarget()) {
 			cir.setReturnValue(false);
 		}
 	}
 
 	@Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
 	private void fpvdrone$cancelInvalidDroneEntityUse(CallbackInfo ci) {
-		if (fpvdrone$clearInvalidDroneTarget()) {
+		if (fpvdrone$clearInvalidEntityTarget()) {
 			ci.cancel();
 		}
 	}
 
-	private boolean fpvdrone$clearInvalidDroneTarget() {
+	private boolean fpvdrone$clearInvalidEntityTarget() {
 		boolean invalidTarget = false;
-		if (hitResult instanceof EntityHitResult entityHit && fpvdrone$isInvalidDroneTarget(entityHit.getEntity())) {
+		if (hitResult instanceof EntityHitResult entityHit && fpvdrone$isInvalidEntityTarget(entityHit.getEntity())) {
 			hitResult = null;
 			invalidTarget = true;
 		}
-		if (fpvdrone$isInvalidDroneTarget(crosshairPickEntity)) {
+		if (fpvdrone$isInvalidEntityTarget(crosshairPickEntity)) {
 			crosshairPickEntity = null;
 			invalidTarget = true;
 		}
 		return invalidTarget;
 	}
 
-	private boolean fpvdrone$isInvalidDroneTarget(Entity entity) {
-		return entity instanceof DroneEntity drone
-				&& (level == null || drone.level() != level || drone.isRemoved() || !drone.isAlive());
+	private boolean fpvdrone$isInvalidEntityTarget(Entity entity) {
+		return entity != null && (level == null || entity.level() != level || entity.isRemoved() || !entity.isAlive());
 	}
 }
