@@ -11,7 +11,10 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -90,6 +93,15 @@ public final class DroneClientControls {
 
 		ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> resetClientRuntimeState(client));
 		ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> resetClientRuntimeState(client));
+		ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, world) -> resetClientRuntimeState(client));
+		ClientLifecycleEvents.CLIENT_STOPPING.register(DroneClientControls::resetClientRuntimeState);
+		ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
+			if (entity == DroneClientState.controlledDrone()) {
+				Minecraft client = Minecraft.getInstance();
+				disableFpvView(client, true, true);
+				resetClientRuntimeState(client);
+			}
+		});
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
 			if (client.player == null || client.level == null) {
@@ -314,6 +326,9 @@ public final class DroneClientControls {
 	}
 
 	private static void sendFpvViewState(boolean fpvView) {
+		if (!ClientPlayNetworking.canSend(DroneViewPayload.TYPE)) {
+			return;
+		}
 		ClientPlayNetworking.send(new DroneViewPayload(fpvView));
 	}
 

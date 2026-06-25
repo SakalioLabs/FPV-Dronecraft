@@ -12,6 +12,74 @@ import org.junit.jupiter.api.Test;
 
 class DroneClientControlsCameraSafetyTest {
 	@Test
+	void lifecycleBoundariesResetFpvStateAndControlledDroneReferences() throws IOException {
+		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
+		String initialize = source.substring(
+				source.indexOf("public static void initialize()"),
+				source.indexOf("private static void sendFpvViewState")
+		);
+
+		assertTrue(
+				source.contains("import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientWorldEvents;"),
+				"client world-change events must be available as an explicit cross-world camera reset boundary"
+		);
+		assertTrue(
+				source.contains("import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;"),
+				"client stopping must be available as a last-chance camera reset boundary"
+		);
+		assertTrue(
+				source.contains("import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;"),
+				"controlled-drone unloads must be handled before stale entity references can survive"
+		);
+		assertTrue(
+				initialize.contains("ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, world) -> resetClientRuntimeState(client));"),
+				"changing to a new client world must clear transient FPV state before the new world starts ticking"
+		);
+		assertTrue(
+				initialize.contains("ClientLifecycleEvents.CLIENT_STOPPING.register(DroneClientControls::resetClientRuntimeState);"),
+				"closing the client while in FPV must restore the local camera state"
+		);
+		assertTrue(
+				initialize.contains("ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {"),
+				"the controlled drone unloading from the client world must be observed directly"
+		);
+		assertTrue(
+				initialize.contains("if (entity == DroneClientState.controlledDrone())"),
+				"only the currently controlled drone should trigger the unload reset"
+		);
+		assertTrue(
+				initialize.contains("disableFpvView(client, true, true);"),
+				"controlled-drone unload must force an FPV-off packet when the play connection is still sendable"
+		);
+		assertTrue(
+				initialize.contains("resetClientRuntimeState(client);"),
+				"controlled-drone unload must clear stale controlled-drone and input state"
+		);
+	}
+
+	@Test
+	void fpvViewPacketsAreOnlySentWhenPlayNetworkingCanSend() throws IOException {
+		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
+		String sendFpvViewState = source.substring(
+				source.indexOf("private static void sendFpvViewState"),
+				source.indexOf("private static void disableFpvView")
+		);
+
+		assertTrue(
+				sendFpvViewState.contains("ClientPlayNetworking.canSend(DroneViewPayload.TYPE)"),
+				"FPV-off recovery must not throw if a lifecycle reset runs after the play connection is gone"
+		);
+		assertTrue(
+				sendFpvViewState.contains("return;"),
+				"non-sendable lifecycle windows must skip the packet and still complete local recovery"
+		);
+		assertTrue(
+				sendFpvViewState.contains("ClientPlayNetworking.send(new DroneViewPayload(fpvView));"),
+				"sendable play connections must still receive the explicit FPV state packet"
+		);
+	}
+
+	@Test
 	void fpvToggleOffUsesUnifiedCameraRestorePath() throws IOException {
 		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
 		String fpvToggle = source.substring(
