@@ -119,8 +119,12 @@ public final class DroneClientControls {
 
 			while (FPV_VIEW.consumeClick()) {
 				boolean fpvEnabled = !DroneClientState.isFpvViewEnabled();
-				DroneClientState.setFpvViewEnabled(fpvEnabled);
-				sendFpvViewState(fpvEnabled);
+				if (fpvEnabled) {
+					DroneClientState.setFpvViewEnabled(true);
+					sendFpvViewState(true);
+				} else {
+					disableFpvView(client, true);
+				}
 				client.player.displayClientMessage(
 						Component.translatable(fpvEnabled ? "message.fpvdrone.fpv_view_enabled" : "message.fpvdrone.fpv_view_disabled"),
 						true
@@ -303,6 +307,7 @@ public final class DroneClientControls {
 					config.throttleCalibrated(),
 					throttleCalibrationActive
 			);
+			restoreInvalidDroneCamera(client);
 			ClientPlayNetworking.send(new DroneControlPayload(input.throttle(), input.pitch(), input.roll(), input.yaw(), armed, flightMode.id()));
 			sendFpvViewState(DroneClientState.isFpvViewEnabled());
 		});
@@ -450,6 +455,15 @@ public final class DroneClientControls {
 		MinecraftCameraStateAccessor cameraState = (MinecraftCameraStateAccessor) client;
 		cameraState.fpvdrone$setCrosshairPickEntity(null);
 		cameraState.fpvdrone$setHitResult(null);
+	}
+
+	private static void restoreInvalidDroneCamera(Minecraft client) {
+		if (client == null || client.player == null || client.level == null) {
+			return;
+		}
+		if (client.getCameraEntity() instanceof DroneEntity && !DroneClientState.isFpvActive(client.level)) {
+			restoreVanillaCamera(client);
+		}
 	}
 
 	private static UUID controlledDroneId() {
