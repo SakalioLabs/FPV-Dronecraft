@@ -96,8 +96,8 @@ public final class DroneClientControls {
 		ClientWorldEvents.AFTER_CLIENT_WORLD_CHANGE.register((client, world) -> resetClientRuntimeState(client));
 		ClientLifecycleEvents.CLIENT_STOPPING.register(DroneClientControls::resetClientRuntimeState);
 		ClientEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {
-			if (entity == DroneClientState.controlledDrone()) {
-				Minecraft client = Minecraft.getInstance();
+			Minecraft client = Minecraft.getInstance();
+			if (entity == DroneClientState.controlledDrone() || client.getCameraEntity() == entity) {
 				disableFpvView(client, true, true);
 				resetClientRuntimeState(client);
 			}
@@ -320,9 +320,16 @@ public final class DroneClientControls {
 					throttleCalibrationActive
 			);
 			restoreInvalidDroneCamera(client);
-			ClientPlayNetworking.send(new DroneControlPayload(input.throttle(), input.pitch(), input.roll(), input.yaw(), armed, flightMode.id()));
+			sendControlInput(input);
 			sendFpvViewState(DroneClientState.isFpvViewEnabled());
 		});
+	}
+
+	private static void sendControlInput(ClientControlInput input) {
+		if (!ClientPlayNetworking.canSend(DroneControlPayload.TYPE)) {
+			return;
+		}
+		ClientPlayNetworking.send(new DroneControlPayload(input.throttle(), input.pitch(), input.roll(), input.yaw(), armed, flightMode.id()));
 	}
 
 	private static void sendFpvViewState(boolean fpvView) {

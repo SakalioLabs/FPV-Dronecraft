@@ -24,6 +24,10 @@ class DroneNetworkingCameraSafetyTest {
 				"server player join/leave/respawn events must be available as camera reset boundaries"
 		);
 		assertTrue(
+				source.contains("import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;"),
+				"server entity unload events must be available as an immediate stale camera boundary"
+		);
+		assertTrue(
 				source.contains("ServerPlayerEvents.JOIN.register(DroneNetworking::restorePlayerCamera);"),
 				"joining a world must force the server camera back to the player"
 		);
@@ -42,6 +46,14 @@ class DroneNetworkingCameraSafetyTest {
 		assertTrue(
 				source.contains("ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> restorePlayerCamera(player));"),
 				"changing server worlds must restore the player camera immediately instead of waiting for a later tick sweep"
+		);
+		assertTrue(
+				source.contains("ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> {"),
+				"unloading a drone entity must immediately restore any player camera still pointing at it"
+		);
+		assertTrue(
+				source.contains("player.getCamera() == entity"),
+				"server drone unload recovery must target players whose camera still references that exact entity"
 		);
 	}
 

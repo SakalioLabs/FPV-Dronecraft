@@ -24,16 +24,28 @@ class MinecraftAttackSanitizerMixinTest {
 				"startAttack returns boolean, so the sanitizer must be able to cancel the attack cleanly"
 		);
 		assertTrue(
+				source.contains("@Inject(method = \"startUseItem\", at = @At(\"HEAD\"), cancellable = true)"),
+				"stale drone entity targets must also be sanitized before vanilla sends use/interact packets"
+		);
+		assertTrue(
+				source.contains("CallbackInfo ci"),
+				"startUseItem returns void, so the sanitizer must be able to cancel use handling cleanly"
+		);
+		assertTrue(
 				source.contains("cir.setReturnValue(false);"),
 				"invalid drone entity attacks must be cancelled instead of reaching vanilla attack handling"
 		);
+		assertTrue(
+				source.contains("ci.cancel();"),
+				"invalid drone entity use interactions must be cancelled instead of reaching vanilla use handling"
+		);
 		String crosshairInvalidBranch = source.substring(
 				source.indexOf("if (fpvdrone$isInvalidDroneTarget(crosshairPickEntity))"),
-				source.indexOf("if (invalidAttackTarget)")
+				source.indexOf("return invalidTarget;")
 		);
 		assertTrue(
-				crosshairInvalidBranch.contains("invalidAttackTarget = true;"),
-				"stale crosshair-only drone targets must also cancel the attack before vanilla can use them"
+				crosshairInvalidBranch.contains("invalidTarget = true;"),
+				"stale crosshair-only drone targets must also cancel before vanilla can use them"
 		);
 	}
 
@@ -45,6 +57,10 @@ class MinecraftAttackSanitizerMixinTest {
 				source.lastIndexOf("}")
 		);
 
+		assertTrue(
+				source.contains("private boolean fpvdrone$clearInvalidDroneTarget()"),
+				"attack and use sanitizers should share the same stale-target clearing path"
+		);
 		assertTrue(
 				source.contains("hitResult instanceof EntityHitResult entityHit"),
 				"the sanitizer should only inspect entity hit results"

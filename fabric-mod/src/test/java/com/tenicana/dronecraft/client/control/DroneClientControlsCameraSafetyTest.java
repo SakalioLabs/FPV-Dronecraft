@@ -44,8 +44,8 @@ class DroneClientControlsCameraSafetyTest {
 				"the controlled drone unloading from the client world must be observed directly"
 		);
 		assertTrue(
-				initialize.contains("if (entity == DroneClientState.controlledDrone())"),
-				"only the currently controlled drone should trigger the unload reset"
+				initialize.contains("if (entity == DroneClientState.controlledDrone() || client.getCameraEntity() == entity)"),
+				"controlled-drone unload or direct camera-entity unload must trigger the reset"
 		);
 		assertTrue(
 				initialize.contains("disableFpvView(client, true, true);"),
@@ -60,11 +60,19 @@ class DroneClientControlsCameraSafetyTest {
 	@Test
 	void fpvViewPacketsAreOnlySentWhenPlayNetworkingCanSend() throws IOException {
 		String source = Files.readString(droneClientControlsSource(), StandardCharsets.UTF_8);
+		String sendControlInput = source.substring(
+				source.indexOf("private static void sendControlInput"),
+				source.indexOf("private static void sendFpvViewState")
+		);
 		String sendFpvViewState = source.substring(
 				source.indexOf("private static void sendFpvViewState"),
 				source.indexOf("private static void disableFpvView")
 		);
 
+		assertTrue(
+				sendControlInput.contains("ClientPlayNetworking.canSend(DroneControlPayload.TYPE)"),
+				"control payload sends must also be skipped after the play connection is no longer sendable"
+		);
 		assertTrue(
 				sendFpvViewState.contains("ClientPlayNetworking.canSend(DroneViewPayload.TYPE)"),
 				"FPV-off recovery must not throw if a lifecycle reset runs after the play connection is gone"
