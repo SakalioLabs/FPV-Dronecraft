@@ -841,24 +841,52 @@ public record DroneEnvironment(
 			return 1.0;
 		}
 
-		double weightedMultiplier = 0.0;
+		double supportedWeightedMultiplier = 0.0;
+		double supportedWeight = 0.0;
 		double totalWeight = 0.0;
 		for (int i = 0; i < clearancesMeters.length; i++) {
 			double weight = weights != null && i < weights.length ? weights[i] : 1.0;
 			if (!Double.isFinite(weight) || weight <= 0.0) {
 				continue;
 			}
+			totalWeight += weight;
 			double clearance = clearancesMeters[i];
+			if (!Double.isFinite(clearance)) {
+				continue;
+			}
 			double multiplier = ceiling
 					? ceilingEffectThrustMultiplier(config, clearance)
 					: groundEffectThrustMultiplier(config, clearance);
-			weightedMultiplier += multiplier * weight;
-			totalWeight += weight;
+			supportedWeightedMultiplier += multiplier * weight;
+			supportedWeight += weight;
 		}
-		if (totalWeight <= 1.0e-9) {
+		if (totalWeight <= 1.0e-9 || supportedWeight <= 1.0e-9) {
 			return 1.0;
 		}
-		return MathUtil.clamp(weightedMultiplier / totalWeight, 0.35, 2.0);
+		double supportedCoverage = MathUtil.clamp(supportedWeight / totalWeight, 0.0, 1.0);
+		double patchDiameterMeters = partialSurfaceCoveragePatchDiameterMeters(config, supportedCoverage);
+		double partialSurfaceGate = partialSurfaceEffectGate(config, patchDiameterMeters);
+		double supportedAverageMultiplier = supportedWeightedMultiplier / supportedWeight;
+		return MathUtil.clamp(1.0 + (supportedAverageMultiplier - 1.0) * partialSurfaceGate, 0.35, 2.0);
+	}
+
+	private static double partialSurfaceCoveragePatchDiameterMeters(
+			DroneConfig config,
+			double supportedCoverageFraction
+	) {
+		if (config == null || config.rotors().isEmpty() || !Double.isFinite(supportedCoverageFraction)) {
+			return 0.0;
+		}
+		double coverage = MathUtil.clamp(supportedCoverageFraction, 0.0, 1.0);
+		if (coverage <= 0.0) {
+			return 0.0;
+		}
+		RotorSpec rotor = config.rotors().get(0);
+		double propellerDiameterMeters = rotor.radiusMeters() * 2.0;
+		if (propellerDiameterMeters <= 1.0e-9) {
+			return 0.0;
+		}
+		return propellerDiameterMeters * Math.sqrt(coverage);
 	}
 
 	private static double smoothStep(double edge0, double edge1, double value) {

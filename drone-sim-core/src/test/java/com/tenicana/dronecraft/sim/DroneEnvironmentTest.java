@@ -159,4 +159,43 @@ class DroneEnvironmentTest {
 				1.0e-9
 		);
 	}
+
+	@Test
+	void weightedSurfaceEffectsUsePartialPatchCoverageGate() {
+		DroneConfig config = DroneConfig.racingQuad();
+		double rotorRadius = config.rotors().get(0).radiusMeters();
+		double fullGround = DroneEnvironment.groundEffectThrustMultiplier(config, rotorRadius);
+		double fullCeiling = DroneEnvironment.ceilingEffectThrustMultiplier(config, rotorRadius);
+
+		double[] fullSurface = {rotorRadius, rotorRadius, rotorRadius, rotorRadius};
+		double[] evenWeights = {1.0, 1.0, 1.0, 1.0};
+		assertEquals(fullGround,
+				DroneEnvironment.weightedGroundEffectThrustMultiplier(config, fullSurface, evenWeights),
+				1.0e-12);
+		assertEquals(fullCeiling,
+				DroneEnvironment.weightedCeilingEffectThrustMultiplier(config, fullSurface, evenWeights),
+				1.0e-12);
+
+		double[] quarterSupported = {
+				rotorRadius,
+				Double.POSITIVE_INFINITY,
+				Double.POSITIVE_INFINITY,
+				Double.POSITIVE_INFINITY
+		};
+		assertEquals(1.0,
+				DroneEnvironment.weightedGroundEffectThrustMultiplier(config, quarterSupported, evenWeights),
+				1.0e-12);
+		assertEquals(1.0,
+				DroneEnvironment.weightedCeilingEffectThrustMultiplier(config, quarterSupported, evenWeights),
+				1.0e-12);
+
+		double[] partialSupported = {rotorRadius, Double.POSITIVE_INFINITY};
+		double[] partialWeights = {0.5625, 0.4375};
+		assertEquals(1.0 + (fullGround - 1.0) * 0.5,
+				DroneEnvironment.weightedGroundEffectThrustMultiplier(config, partialSupported, partialWeights),
+				1.0e-12);
+		assertEquals(1.0 + (fullCeiling - 1.0) * 0.5,
+				DroneEnvironment.weightedCeilingEffectThrustMultiplier(config, partialSupported, partialWeights),
+				1.0e-12);
+	}
 }

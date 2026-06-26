@@ -913,7 +913,7 @@ The packet separates three concepts that should not be collapsed into one scalar
 | `racingQuad` negligible/full-like patch diameter | `0.0635 / 0.127 m` |
 | Minecraft 1 m block / `racingQuad` prop diameter | `7.87D` |
 
-Interpretation: full Minecraft blocks are effectively infinite ground/ceiling for one 5-inch rotor, but local edges, ledges, holes, and partial-contact geometry should gate the ground/ceiling multiplier by support area. The packet stores a conservative smooth gate candidate from `0` at `0.5D` to `1` at `1.0D`, but that is only a placeholder until the AIAA curve figures or tables are digitized.
+Interpretation: full Minecraft blocks are effectively infinite ground/ceiling for one 5-inch rotor, but local edges, ledges, holes, and partial-contact geometry should gate the ground/ceiling multiplier by support area. Runtime rotor-disk samples now convert supported sample coverage into an equivalent circular patch diameter and apply the packet's conservative smooth gate from `0` at `0.5D` to `1` at `1.0D`; the curve is still a placeholder until the AIAA figures or tables are digitized.
 
 | Preset | h/R | current ground | current ceiling | Cheeseman ground | AAU/Kan hover proxy | ceiling/ground |
 |---|---:|---:|---:|---:|---:|---:|
