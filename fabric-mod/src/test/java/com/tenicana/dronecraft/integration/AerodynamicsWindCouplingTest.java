@@ -129,6 +129,37 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void windSamplePreservesExplicitA4mcGustVectorWhenPresent() {
+		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
+				true,
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(9.0, 0.0, 0.0),
+				new Vec3(0.0, 2.0, -1.0),
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				1.0,
+				0.0,
+				true,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				3L,
+				0.0,
+				0.0
+		);
+
+		assertEquals(new Vec3(0.0, 2.0, -1.0), sample.gustVelocityWorldMetersPerSecond());
+		assertEquals(Math.sqrt(5.0), sample.gustSpeedMetersPerSecond(), 1.0e-9);
+		assertEquals(new Vec3(0.0, 2.0, -1.0), AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(sample));
+	}
+
+	@Test
 	void a4mcGustAddsBoundedNaturalTurbulenceEnergy() {
 		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
 				true,

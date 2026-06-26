@@ -14,7 +14,7 @@ The first integration keeps that boundary explicit:
 
 ## Implemented Path
 
-`Aerodynamics4McWindBridge` reflects against `AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3, SamplePolicy)`. A trusted sample feeds `DroneEnvironment` as natural wind, including the current stage-one playable environment when Aerodynamics4MC is installed:
+`Aerodynamics4McWindBridge` reflects against `AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3, SamplePolicy)`. It binds A4MC's explicit `gustVelocityVector()` when available and falls back to `effectiveVelocityVector() - meanVelocityVector()` for older bridge-compatible APIs. A trusted sample feeds `DroneEnvironment` as natural wind, including the current stage-one playable environment when Aerodynamics4MC is installed:
 
 - effective wind becomes the base wind vector after confidence/freshness weighting against Minecraft weather or calm fallback,
 - API turbulence becomes the natural turbulence floor,

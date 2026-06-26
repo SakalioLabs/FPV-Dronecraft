@@ -63,6 +63,7 @@ public final class Aerodynamics4McWindBridge {
 					sampleClass.getMethod("isTrustedForGameplay"),
 					sampleClass.getMethod("meanVelocityVector"),
 					sampleClass.getMethod("effectiveVelocityVector"),
+					methodOrNull(sampleClass, "gustVelocityVector"),
 					sampleClass.getMethod("turbulenceIntensity"),
 					sampleClass.getMethod("windShearMagnitudePerBlock"),
 					sampleClass.getMethod("shelterFactor"),
@@ -124,6 +125,7 @@ public final class Aerodynamics4McWindBridge {
 		private final Method isTrustedForGameplay;
 		private final Method meanVelocityVector;
 		private final Method effectiveVelocityVector;
+		private final Method gustVelocityVector;
 		private final Method turbulenceIntensity;
 		private final Method windShearMagnitudePerBlock;
 		private final Method shelterFactor;
@@ -153,6 +155,7 @@ public final class Aerodynamics4McWindBridge {
 				Method isTrustedForGameplay,
 				Method meanVelocityVector,
 				Method effectiveVelocityVector,
+				Method gustVelocityVector,
 				Method turbulenceIntensity,
 				Method windShearMagnitudePerBlock,
 				Method shelterFactor,
@@ -181,6 +184,7 @@ public final class Aerodynamics4McWindBridge {
 			this.isTrustedForGameplay = isTrustedForGameplay;
 			this.meanVelocityVector = meanVelocityVector;
 			this.effectiveVelocityVector = effectiveVelocityVector;
+			this.gustVelocityVector = gustVelocityVector;
 			this.turbulenceIntensity = turbulenceIntensity;
 			this.windShearMagnitudePerBlock = windShearMagnitudePerBlock;
 			this.shelterFactor = shelterFactor;
@@ -232,10 +236,16 @@ public final class Aerodynamics4McWindBridge {
 						optionalLong(worldDeltaEpoch, sample),
 						optionalLong(l2Epoch, sample)
 				);
+				Vec3 meanVelocity = vec(meanVelocityVector.invoke(sample));
+				Vec3 effectiveVelocity = vec(effectiveVelocityVector.invoke(sample));
+				Vec3 gustVelocity = gustVelocityVector == null
+						? effectiveVelocity.subtract(meanVelocity)
+						: vec(gustVelocityVector.invoke(sample));
 				return new WindSample(
 						true,
-						vec(meanVelocityVector.invoke(sample)),
-						vec(effectiveVelocityVector.invoke(sample)),
+						meanVelocity,
+						effectiveVelocity,
+						gustVelocity,
 						number(turbulenceIntensity.invoke(sample)),
 						number(windShearMagnitudePerBlock.invoke(sample)),
 						number(shelterFactor.invoke(sample)),
@@ -314,6 +324,7 @@ public final class Aerodynamics4McWindBridge {
 			boolean hasFlow,
 			Vec3 meanVelocityWorldMetersPerSecond,
 			Vec3 effectiveVelocityWorldMetersPerSecond,
+			Vec3 gustVelocityWorldMetersPerSecond,
 			double turbulenceIntensity,
 			double windShearMagnitudePerBlock,
 			double shelterFactor,
@@ -332,9 +343,59 @@ public final class Aerodynamics4McWindBridge {
 			double ablStability,
 			double ablMixingStrength
 	) {
+		public WindSample(
+				boolean hasFlow,
+				Vec3 meanVelocityWorldMetersPerSecond,
+				Vec3 effectiveVelocityWorldMetersPerSecond,
+				double turbulenceIntensity,
+				double windShearMagnitudePerBlock,
+				double shelterFactor,
+				double updraftMetersPerSecond,
+				boolean hasAmbientTemperature,
+				double ambientTemperatureCelsius,
+				boolean hasHumidity,
+				double humidity,
+				double confidence,
+				double pressureAnomalyPascals,
+				boolean trustedForGameplay,
+				boolean localVoxelFlow,
+				String sourceLevel,
+				String sourceAuthority,
+				long freshnessAgeTicks,
+				double ablStability,
+				double ablMixingStrength
+		) {
+			this(
+					hasFlow,
+					meanVelocityWorldMetersPerSecond,
+					effectiveVelocityWorldMetersPerSecond,
+					null,
+					turbulenceIntensity,
+					windShearMagnitudePerBlock,
+					shelterFactor,
+					updraftMetersPerSecond,
+					hasAmbientTemperature,
+					ambientTemperatureCelsius,
+					hasHumidity,
+					humidity,
+					confidence,
+					pressureAnomalyPascals,
+					trustedForGameplay,
+					localVoxelFlow,
+					sourceLevel,
+					sourceAuthority,
+					freshnessAgeTicks,
+					ablStability,
+					ablMixingStrength
+			);
+		}
+
 		public WindSample {
 			meanVelocityWorldMetersPerSecond = sanitizeVec(meanVelocityWorldMetersPerSecond);
 			effectiveVelocityWorldMetersPerSecond = sanitizeVec(effectiveVelocityWorldMetersPerSecond);
+			gustVelocityWorldMetersPerSecond = gustVelocityWorldMetersPerSecond == null
+					? effectiveVelocityWorldMetersPerSecond.subtract(meanVelocityWorldMetersPerSecond)
+					: sanitizeVec(gustVelocityWorldMetersPerSecond);
 			turbulenceIntensity = finiteClamped(turbulenceIntensity, 0.0, 1.5, 0.0);
 			windShearMagnitudePerBlock = finiteClamped(windShearMagnitudePerBlock, 0.0, 5.0, 0.0);
 			shelterFactor = finiteClamped(shelterFactor, 0.0, 1.0, 0.0);
@@ -384,10 +445,6 @@ public final class Aerodynamics4McWindBridge {
 					0.0,
 					0.0
 			);
-		}
-
-		public Vec3 gustVelocityWorldMetersPerSecond() {
-			return effectiveVelocityWorldMetersPerSecond.subtract(meanVelocityWorldMetersPerSecond);
 		}
 
 		public double gustSpeedMetersPerSecond() {
