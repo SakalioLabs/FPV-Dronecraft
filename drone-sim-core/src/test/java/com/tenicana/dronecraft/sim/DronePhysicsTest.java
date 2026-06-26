@@ -9971,6 +9971,12 @@ class DronePhysicsTest {
 						> clean.state().rotorAerodynamicLoadFactor(0) + 0.015,
 				() -> "cleanLoad=" + clean.state().rotorAerodynamicLoadFactor(0)
 						+ " gradientLoad=" + gradient.state().rotorAerodynamicLoadFactor(0));
+		assertTrue(gradient.state().rotorStallIntensity(0)
+						> clean.state().rotorStallIntensity(0) + 0.05,
+				() -> "cleanStall=" + clean.state().rotorStallIntensity(0)
+						+ " gradientStall=" + gradient.state().rotorStallIntensity(0));
+		assertTrue(gradient.state().rotorStallIntensity(0) < 0.18,
+				() -> "gradientStall=" + gradient.state().rotorStallIntensity(0));
 		assertTrue(gradient.state().rotorFlappingTiltRadians(0)
 						> gradient.state().rotorFlappingTiltRadians(1) + Math.toRadians(0.8),
 				() -> "rotor0TiltDeg=" + Math.toDegrees(gradient.state().rotorFlappingTiltRadians(0))

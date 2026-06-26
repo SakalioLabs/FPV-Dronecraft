@@ -1386,6 +1386,7 @@ public final class DronePhysics {
 					kinematicRotorStall,
 					bladeElement.stallIntensity(),
 					bladeDissymmetry.intensity(),
+					rotorDiskWindGradientStallIntensity(aerodynamicRotor, rotorDiskWindGradientBody, aerodynamicOmega),
 					dtSeconds
 			);
 			state.setRotorBladeAngleOfAttackRadians(i, bladeElement.angleOfAttackRadians());
@@ -3296,6 +3297,7 @@ public final class DronePhysics {
 			double kinematicStallIntensity,
 			double bladeElementStallIntensity,
 			double bladeDissymmetryIntensity,
+			double diskWindGradientStallIntensity,
 			double dtSeconds
 	) {
 		if (dtSeconds <= 0.0) {
@@ -3309,7 +3311,8 @@ public final class DronePhysics {
 				omegaRadiansPerSecond,
 				kinematicStallIntensity,
 				bladeElementStallIntensity,
-				bladeDissymmetryIntensity
+				bladeDissymmetryIntensity,
+				diskWindGradientStallIntensity
 		);
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		double advanceRatio = rotorAdvanceRatio(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
@@ -3347,7 +3350,8 @@ public final class DronePhysics {
 			double omegaRadiansPerSecond,
 			double kinematicStallIntensity,
 			double bladeElementStallIntensity,
-			double bladeDissymmetryIntensity
+			double bladeDissymmetryIntensity,
+			double diskWindGradientStallIntensity
 	) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		if (spinRatio <= 0.08) {
@@ -3367,7 +3371,11 @@ public final class DronePhysics {
 		double highAdvanceBias = 0.020
 				* smoothStep(0.54, 0.88, advanceRatio)
 				* smoothStep(0.22, 0.58, spinRatio);
-		double targetStall = Math.max(MathUtil.clamp(kinematicStallIntensity, 0.0, 1.0), elementDrivenStall)
+		double localGradientStall = MathUtil.clamp(diskWindGradientStallIntensity, 0.0, 0.16);
+		double targetStall = Math.max(
+				Math.max(MathUtil.clamp(kinematicStallIntensity, 0.0, 1.0), elementDrivenStall),
+				localGradientStall
+		)
 				+ highAdvanceBias;
 		return MathUtil.clamp(targetStall * activeRotor, 0.0, 1.0);
 	}
@@ -5227,6 +5235,24 @@ public final class DronePhysics {
 		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.12), 0.0, 1.0);
 		return MathUtil.clamp(0.18 * Math.pow(gradientRatio, 0.80) * smoothStep(0.08, 0.50, spinRatio), 0.0, 0.18);
+	}
+
+	private static double rotorDiskWindGradientStallIntensity(
+			RotorSpec rotor,
+			Vec3 diskWindGradientBody,
+			double omegaRadiansPerSecond
+	) {
+		double gradientSpeed = rotorDiskWindGradientInPlaneBody(rotor, diskWindGradientBody).length();
+		if (gradientSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		if (spinRatio <= 0.08) {
+			return 0.0;
+		}
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.10), 0.0, 1.0);
+		return MathUtil.clamp(0.14 * smoothStep(0.10, 0.48, gradientRatio) * smoothStep(0.12, 0.50, spinRatio), 0.0, 0.14);
 	}
 
 	private static Vec3 rotorDiskWindGradientInPlaneBody(RotorSpec rotor, Vec3 diskWindGradientBody) {
