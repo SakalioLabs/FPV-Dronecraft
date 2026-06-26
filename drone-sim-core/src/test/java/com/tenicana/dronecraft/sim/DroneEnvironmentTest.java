@@ -91,6 +91,7 @@ class DroneEnvironmentTest {
 				"A4MC Core!",
 				true,
 				4.0,
+				2.0,
 				12_000.0,
 				12.0,
 				-1.0,
@@ -114,6 +115,7 @@ class DroneEnvironmentTest {
 		assertEquals("a4mc_core_", environment.windSourceId());
 		assertEquals(true, environment.windSourceTrustedForGameplay());
 		assertEquals(1.0, environment.windSourceConfidence(), 1.0e-9);
+		assertEquals(1.5, environment.windSourceTurbulenceIntensity(), 1.0e-9);
 		assertEquals(5000.0, environment.windSourcePressureAnomalyPascals(), 1.0e-9);
 		assertEquals(5.0, environment.windShearMagnitudePerBlock(), 1.0e-9);
 		assertEquals(0.0, environment.windShelterFactor(), 1.0e-9);

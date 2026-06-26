@@ -48,6 +48,7 @@ class DroneBlackboxRecorderTest {
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				true,
 				0.82,
+				0.24,
 				-1450.0,
 				0.37,
 				0.44,
@@ -443,6 +444,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
 		assertTrue(csv.contains("wind_source"));
 		assertTrue(csv.contains("wind_source_confidence"));
+		assertTrue(csv.contains("wind_source_turbulence"));
 		assertTrue(csv.contains("wind_source_quality"));
 		assertTrue(csv.contains("wind_source_pressure_anomaly_pa"));
 		assertTrue(csv.contains("wind_source_shelter_factor"));
@@ -694,6 +696,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals("aerodynamics4mc", row[indexOf(header, "wind_source")]);
 		assertEquals("true", row[indexOf(header, "wind_source_trusted")]);
 		assertEquals(0.82, Double.parseDouble(row[indexOf(header, "wind_source_confidence")]), 1.0e-5);
+		assertEquals(0.24, Double.parseDouble(row[indexOf(header, "wind_source_turbulence")]), 1.0e-5);
 		assertEquals(0.82, Double.parseDouble(row[indexOf(header, "wind_source_quality")]), 1.0e-5);
 		assertEquals(-1450.0, Double.parseDouble(row[indexOf(header, "wind_source_pressure_anomaly_pa")]), 1.0e-5);
 		assertEquals(0.37, Double.parseDouble(row[indexOf(header, "wind_source_shear_mag_per_block")]), 1.0e-5);
@@ -840,6 +843,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(3.10, windSourceStats.maxEffectiveSpeedMetersPerSecond(), 1.0e-5);
 		assertEquals(1.35, windSourceStats.maxGustSpeedMetersPerSecond(), 1.0e-5);
 		assertEquals(0.82, windSourceStats.maxConfidence(), 1.0e-5);
+		assertEquals(0.24, windSourceStats.maxTurbulenceIntensity(), 1.0e-5);
 		assertEquals(0.82, windSourceStats.maxQualityFactor(), 1.0e-5);
 		assertEquals(1450.0, windSourceStats.maxAbsPressureAnomalyPascals(), 1.0e-5);
 		assertEquals(0.44, windSourceStats.maxShelterFactor(), 1.0e-5);
@@ -1097,6 +1101,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("stale 0"));
 		assertTrue(summary.formatForChat().contains("srcwind 2.20/3.10/1.35"));
 		assertTrue(summary.formatForChat().contains("conf 0.82"));
+		assertTrue(summary.formatForChat().contains("srcturb 0.24"));
 		assertTrue(summary.formatForChat().contains("q 0.82"));
 		assertTrue(summary.formatForChat().contains("p 1450Pa"));
 		assertTrue(summary.formatForChat().contains("shelter 0.44"));
@@ -1193,6 +1198,7 @@ class DroneBlackboxRecorderTest {
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				false,
 				0.71,
+				0.33,
 				920.0,
 				0.22,
 				0.31,
@@ -1244,12 +1250,14 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0, windSourceStats.l2SourceSamples());
 		assertEquals(12.0, windSourceStats.maxFreshnessAgeTicks(), 1.0e-5);
 		assertEquals(0.71, windSourceStats.maxConfidence(), 1.0e-5);
+		assertEquals(0.33, windSourceStats.maxTurbulenceIntensity(), 1.0e-5);
 		assertEquals(0.0, windSourceStats.maxQualityFactor(), 1.0e-5);
 		assertEquals(920.0, windSourceStats.maxAbsPressureAnomalyPascals(), 1.0e-5);
 		assertTrue(summary.formatForChat().contains("a4mc 1/1"));
 		assertTrue(summary.formatForChat().contains("trusted 0 untrusted 1"));
 		assertTrue(summary.formatForChat().contains("src 0/1/0"));
 		assertTrue(summary.formatForChat().contains("conf 0.71"));
+		assertTrue(summary.formatForChat().contains("srcturb 0.33"));
 		assertTrue(summary.formatForChat().contains("q 0.00"));
 	}
 

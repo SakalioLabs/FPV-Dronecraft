@@ -1064,6 +1064,7 @@ public final class OfflineFlightRecorder {
 			"wind_a4mc_source_gust_y_mps",
 			"wind_a4mc_source_gust_z_mps",
 			"wind_a4mc_terrain_shear_speed_mps",
+			"wind_source_turbulence",
 			"wind_source_quality",
 			"mqtb_hq5x4x3_current_a",
 			"mqtb_hq5x4x3_power_w",
@@ -3369,6 +3370,7 @@ public final class OfflineFlightRecorder {
 				a4mcWallSkim ? DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC : DroneEnvironment.WIND_SOURCE_INTERNAL,
 				a4mcWallSkim,
 				a4mcWallSkim ? WALL_SKIM_A4MC_SOURCE_CONFIDENCE : 0.0,
+				a4mcWallSkim ? turbulenceIntensity : 0.0,
 				a4mcWallSkim ? WALL_SKIM_A4MC_PRESSURE_ANOMALY_PASCALS : 0.0,
 				a4mcWallSkim ? WALL_SKIM_A4MC_SHEAR_MAGNITUDE_PER_BLOCK : 0.0,
 				a4mcWallSkim ? WALL_SKIM_A4MC_SHELTER_FACTOR : 0.0,
@@ -4378,6 +4380,7 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, a4mcSourceGust.y(), "%.5f");
 		appendExtra(builder, a4mcSourceGust.z(), "%.5f");
 		appendExtra(builder, state.a4mcTerrainShearSpeedMetersPerSecond(), "%.5f");
+		appendExtra(builder, environment.windSourceTurbulenceIntensity(), "%.5f");
 		appendExtra(builder, environment.windSourceQualityFactor(), "%.5f");
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalCurrentAmps(state), "%.3f");
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalElectricalPowerWatts(state), "%.3f");
