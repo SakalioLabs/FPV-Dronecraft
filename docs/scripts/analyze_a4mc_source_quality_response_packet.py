@@ -12,7 +12,8 @@ confidence A4MC source diagnostics fade before they drive source gust,
 terrain-shear, local ventilation, and duplicated local-obstacle attenuation.
 It also tracks raw A4MC source turbulence as a separate input so the generated
 packet mirrors the blackbox `wind_source_turbulence` telemetry and the core
-quality-gated natural turbulence floor.
+quality-gated natural turbulence floor. A separate ABL matrix mirrors the core
+Dryden intensity and time-scale modifiers for stable/unstable mixed layers.
 """
 
 from __future__ import annotations
@@ -38,6 +39,8 @@ FRESHNESS_AGES_TICKS = [0, 40, 100, 160]
 SHELTER_FACTORS = [0.0, 0.74]
 SHEAR_LEVELS_PER_BLOCK = [0.0, 0.58, 1.35]
 SOURCE_TURBULENCE_LEVELS = [0.0, 0.24, 0.65]
+ABL_STABILITY_LEVELS = [-0.90, 0.0, 0.90]
+ABL_MIXING_LEVELS = [0.0, 0.64, 0.90]
 
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
@@ -48,6 +51,7 @@ REFERENCE_SOURCE_GUST_MPS = 4.0
 REFERENCE_SOURCE_GUST_VECTOR_Y_MPS = 3.0
 REFERENCE_UPDRAFT_MPS = 0.18
 REFERENCE_DIRTY_AIR = 0.0
+REFERENCE_ABL_TURBULENCE_INTENSITY = 0.55
 
 LOCAL_VOXEL_BASE_COVERAGE = 0.32
 LOCAL_VOXEL_SHELTER_COVERAGE = 0.48
@@ -202,6 +206,56 @@ def natural_turbulence_response(source_turbulence: float, shear: float, shelter:
     }
 
 
+def dryden_abl_response(base_turbulence: float, abl_stability: float, abl_mixing: float, quality: float) -> dict[str, float]:
+    adopted_stability = clamp(abl_stability * quality, -1.0, 1.0)
+    adopted_mixing = clamp(abl_mixing * quality, 0.0, 1.0)
+    safe_base_turbulence = clamp(base_turbulence, 0.0, 1.8)
+    if adopted_mixing <= 1.0e-6 and abs(adopted_stability) <= 1.0e-6:
+        return {
+            "core_adopted_abl_stability": adopted_stability,
+            "core_adopted_abl_mixing_strength": adopted_mixing,
+            "core_dryden_intensity_proxy": safe_base_turbulence,
+            "core_dryden_horizontal_time_scale_multiplier": 1.0,
+            "core_dryden_vertical_time_scale_multiplier": 1.0,
+        }
+
+    unstable = max(0.0, adopted_stability)
+    stable = max(0.0, -adopted_stability)
+    mixing_multiplier = (
+        1.0
+        + 0.18 * adopted_mixing
+        + 0.42 * unstable * adopted_mixing
+        - 0.34 * stable * (0.85 + 0.15 * (1.0 - adopted_mixing))
+    )
+    convective_floor = (
+        0.22
+        * unstable
+        * adopted_mixing
+        * smooth_step(1.0, 8.0, REFERENCE_MEAN_WIND_MPS)
+    )
+    mixed_unstable = unstable * adopted_mixing
+    stable_persistence = stable * (0.75 + 0.25 * (1.0 - adopted_mixing))
+    return {
+        "core_adopted_abl_stability": adopted_stability,
+        "core_adopted_abl_mixing_strength": adopted_mixing,
+        "core_dryden_intensity_proxy": clamp(
+            safe_base_turbulence * clamp(mixing_multiplier, 0.55, 1.70) + convective_floor,
+            0.0,
+            1.8,
+        ),
+        "core_dryden_horizontal_time_scale_multiplier": clamp(
+            1.0 - 0.16 * adopted_mixing - 0.24 * mixed_unstable + 0.45 * stable_persistence,
+            0.55,
+            1.55,
+        ),
+        "core_dryden_vertical_time_scale_multiplier": clamp(
+            1.0 - 0.25 * adopted_mixing - 0.30 * mixed_unstable + 0.70 * stable_persistence,
+            0.45,
+            1.80,
+        ),
+    }
+
+
 def ventilation_efficiency(shelter: float, quality: float) -> float:
     adopted_shelter = clamp(shelter * quality, 0.0, 1.0)
     return clamp(1.0 - 0.20 * adopted_shelter, 0.80, 1.0)
@@ -225,6 +279,20 @@ def scenario_name(
         f"{trust}_conf_{confidence:.2f}_age_{age_ticks}"
         f"_shelter_{shelter:.2f}_shear_{shear:.2f}_turb_{source_turbulence:.2f}"
     ).replace(".", "p")
+
+
+def abl_scenario_name(
+    trusted: bool,
+    confidence: float,
+    age_ticks: int,
+    abl_stability: float,
+    abl_mixing: float,
+) -> str:
+    trust = "trusted" if trusted else "untrusted"
+    return (
+        f"{trust}_conf_{confidence:.2f}_age_{age_ticks}"
+        f"_abl_{abl_stability:.2f}_mix_{abl_mixing:.2f}"
+    ).replace(".", "p").replace("-", "neg")
 
 
 def add_metric(
@@ -355,14 +423,71 @@ def add_response_matrix(rows: list[dict[str, str]]) -> None:
             )
 
 
+def add_abl_response_matrix(rows: list[dict[str, str]]) -> None:
+    scenarios = [
+        (True, confidence, age, abl_stability, abl_mixing)
+        for confidence in CONFIDENCE_LEVELS
+        for age in FRESHNESS_AGES_TICKS
+        for abl_stability in ABL_STABILITY_LEVELS
+        for abl_mixing in ABL_MIXING_LEVELS
+    ]
+    scenarios.append((False, 1.0, 0, 0.90, 0.90))
+    for trusted, confidence, age, abl_stability, abl_mixing in scenarios:
+        quality = source_quality(trusted, confidence, age)
+        dryden = dryden_abl_response(
+            REFERENCE_ABL_TURBULENCE_INTENSITY,
+            abl_stability,
+            abl_mixing,
+            quality,
+        )
+        metrics = {
+            "input_trusted_for_gameplay": (trusted, "bool"),
+            "input_confidence": (confidence, "fraction"),
+            "input_freshness_age_ticks": (age, "ticks"),
+            "input_abl_stability": (abl_stability, "fraction"),
+            "input_abl_mixing_strength": (abl_mixing, "fraction"),
+            "input_base_turbulence_intensity": (REFERENCE_ABL_TURBULENCE_INTENSITY, "fraction"),
+            "source_freshness_factor": (source_freshness_factor(age), "fraction"),
+            "source_quality_factor": (quality, "fraction"),
+            "core_adopted_abl_stability": (dryden["core_adopted_abl_stability"], "fraction"),
+            "core_adopted_abl_mixing_strength": (dryden["core_adopted_abl_mixing_strength"], "fraction"),
+            "core_dryden_intensity_proxy": (dryden["core_dryden_intensity_proxy"], "fraction"),
+            "core_dryden_horizontal_time_scale_multiplier": (
+                dryden["core_dryden_horizontal_time_scale_multiplier"],
+                "multiplier",
+            ),
+            "core_dryden_vertical_time_scale_multiplier": (
+                dryden["core_dryden_vertical_time_scale_multiplier"],
+                "multiplier",
+            ),
+        }
+        name = abl_scenario_name(trusted, confidence, age, abl_stability, abl_mixing)
+        for metric, (value, unit) in metrics.items():
+            add_metric(
+                rows,
+                row_type="a4mc_source_quality_packet_abl_response_matrix",
+                name=name,
+                metric=metric,
+                value=value,
+                unit=unit,
+                source_file=DRONE_PHYSICS_SOURCE,
+                source_url=f"{DRONE_ENVIRONMENT_SOURCE}; {DRONE_ENTITY_SOURCE}; {A4MC_GAMEPLAY_SAMPLE_SOURCE}",
+                evidence_role="current_a4mc_abl_quality_response_matrix",
+                note="Synthetic A4MC ABL response matrix for source-quality-gated Dryden intensity and time-scale tuning.",
+            )
+
+
 def add_summary(rows: list[dict[str, str]]) -> None:
     trusted_wall_skim_quality = source_quality(True, 0.86, 0)
     trusted_wall_skim = terrain_shear_response(0.58, 0.74, trusted_wall_skim_quality)
     trusted_wall_skim_turbulence = natural_turbulence_response(0.24, 0.58, 0.74, trusted_wall_skim_quality)
+    trusted_unstable_abl = dryden_abl_response(REFERENCE_ABL_TURBULENCE_INTENSITY, 0.90, 0.90, trusted_wall_skim_quality)
+    trusted_stable_abl = dryden_abl_response(REFERENCE_ABL_TURBULENCE_INTENSITY, -0.90, 0.90, trusted_wall_skim_quality)
     half_quality = source_quality(True, 0.5, 0)
     stale_quality = source_quality(True, 1.0, 160)
     summary_metrics = {
         "matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_FACTORS) * len(SHEAR_LEVELS_PER_BLOCK) * len(SOURCE_TURBULENCE_LEVELS) + 1,
+        "abl_matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(ABL_STABILITY_LEVELS) * len(ABL_MIXING_LEVELS) + 1,
         "wall_skim_reference_source_quality": trusted_wall_skim_quality,
         "wall_skim_reference_adopted_source_turbulence": trusted_wall_skim_turbulence["core_adopted_source_turbulence_intensity"],
         "wall_skim_reference_natural_turbulence_proxy": trusted_wall_skim_turbulence["core_natural_turbulence_intensity_proxy"],
@@ -370,6 +495,10 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "wall_skim_reference_terrain_signal": trusted_wall_skim["terrain_signal"],
         "wall_skim_reference_terrain_vector_peak_proxy_mps": trusted_wall_skim["terrain_shear_vector_peak_proxy_mps"],
         "wall_skim_reference_ventilation_efficiency": ventilation_efficiency(0.74, trusted_wall_skim_quality),
+        "unstable_mixed_abl_dryden_intensity_proxy": trusted_unstable_abl["core_dryden_intensity_proxy"],
+        "unstable_mixed_abl_vertical_time_scale_multiplier": trusted_unstable_abl["core_dryden_vertical_time_scale_multiplier"],
+        "stable_mixed_abl_dryden_intensity_proxy": trusted_stable_abl["core_dryden_intensity_proxy"],
+        "stable_mixed_abl_vertical_time_scale_multiplier": trusted_stable_abl["core_dryden_vertical_time_scale_multiplier"],
         "half_confidence_source_quality": half_quality,
         "half_confidence_source_gust_y_peak_mps": a4mc_source_gust_y_mps(half_quality),
         "stale_source_quality": stale_quality,
@@ -400,7 +529,7 @@ def add_method(rows: list[dict[str, str]]) -> None:
             "This packet mirrors current source-quality formulas rather than field-test data. "
             "Use it to verify that confidence/freshness changes fade A4MC transient forcing before fitting "
             "source-turbulence floors, disk-gradient thrust loss, terrain-shear gust strength, "
-            "or local-voxel ventilation coefficients."
+            "ABL Dryden response, or local-voxel ventilation coefficients."
         ),
         unit="text",
         source_file=DRONE_PHYSICS_SOURCE,
@@ -413,6 +542,7 @@ def build_rows() -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     add_source_inventory(rows)
     add_response_matrix(rows)
+    add_abl_response_matrix(rows)
     add_summary(rows)
     add_method(rows)
     return rows
