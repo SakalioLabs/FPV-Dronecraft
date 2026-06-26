@@ -3570,6 +3570,22 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblMixingShapesDrydenTimeScale() {
+		DroneEnvironment neutralAbl = a4mcAblWind(0.55, 0.0, 0.0);
+		DroneEnvironment unstableMixedAbl = a4mcAblWind(0.55, 0.90, 0.90);
+		DroneEnvironment stableMixedAbl = a4mcAblWind(0.55, -0.90, 0.90);
+
+		double neutralStepRate = drydenNormalizedStepRateForEnvironment(neutralAbl);
+		double unstableStepRate = drydenNormalizedStepRateForEnvironment(unstableMixedAbl);
+		double stableStepRate = drydenNormalizedStepRateForEnvironment(stableMixedAbl);
+
+		assertTrue(unstableStepRate > neutralStepRate * 1.12,
+				() -> "unstable=" + unstableStepRate + " neutral=" + neutralStepRate);
+		assertTrue(stableStepRate < neutralStepRate * 0.94,
+				() -> "stable=" + stableStepRate + " neutral=" + neutralStepRate);
+	}
+
+	@Test
 	void restoredAerodynamicTransientStateContinuesWindAndAirframeFilters() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics source = new DronePhysics(config);
@@ -12402,6 +12418,34 @@ class DronePhysicsTest {
 			}
 		}
 		return Math.sqrt(sumSquared / samples);
+	}
+
+	private static double drydenNormalizedStepRateForEnvironment(DroneEnvironment environment) {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		double sumSquared = 0.0;
+		double sumDeltaSquared = 0.0;
+		int samples = 0;
+		int deltaSamples = 0;
+		Vec3 previous = Vec3.ZERO;
+		boolean hasPrevious = false;
+		for (int i = 0; i < 1800; i++) {
+			physics.step(idle, 0.005, environment);
+			if (i >= 240) {
+				Vec3 current = physics.state().drydenTurbulenceVelocityWorldMetersPerSecond();
+				sumSquared += current.lengthSquared();
+				samples++;
+				if (hasPrevious) {
+					sumDeltaSquared += current.subtract(previous).lengthSquared();
+					deltaSamples++;
+				}
+				previous = current;
+				hasPrevious = true;
+			}
+		}
+		double rms = Math.sqrt(sumSquared / samples);
+		double deltaRms = Math.sqrt(sumDeltaSquared / deltaSamples);
+		return deltaRms / Math.max(1.0e-9, rms);
 	}
 
 	private static double averageRotorThrust(DroneState state) {

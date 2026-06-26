@@ -6294,10 +6294,23 @@ public final class DronePhysics {
 		}
 
 		DrydenTurbulenceModel.Parameters dryden = DrydenTurbulenceModel.lowAltitude(drydenReferenceAltitudeMeters(environment), windSpeed);
+		DrydenAblTimeScale drydenAblTimeScale = drydenAblTimeScale(environment);
 		double intensityScale = MathUtil.clamp(atmosphericTurbulence / 1.8, 0.0, 1.0);
-		double longitudinalTau = MathUtil.clamp(dryden.longitudinalTimeConstantSeconds(), 0.10, 12.0);
-		double lateralTau = MathUtil.clamp(dryden.lateralTimeConstantSeconds(), 0.10, 12.0);
-		double verticalTau = MathUtil.clamp(dryden.verticalTimeConstantSeconds(), 0.05, 6.0);
+		double longitudinalTau = MathUtil.clamp(
+				dryden.longitudinalTimeConstantSeconds() * drydenAblTimeScale.horizontalMultiplier(),
+				0.10,
+				12.0
+		);
+		double lateralTau = MathUtil.clamp(
+				dryden.lateralTimeConstantSeconds() * drydenAblTimeScale.horizontalMultiplier(),
+				0.10,
+				12.0
+		);
+		double verticalTau = MathUtil.clamp(
+				dryden.verticalTimeConstantSeconds() * drydenAblTimeScale.verticalMultiplier(),
+				0.05,
+				6.0
+		);
 
 		Vec3 longitudinalAxis = horizontalWindAxis(targetMeanWind);
 		Vec3 lateralAxis = new Vec3(-longitudinalAxis.z(), 0.0, longitudinalAxis.x());
@@ -6366,6 +6379,30 @@ public final class DronePhysics {
 		return MathUtil.clamp(baseTurbulence * MathUtil.clamp(mixingMultiplier, 0.55, 1.70) + convectiveFloor, 0.0, 1.8);
 	}
 
+	private static DrydenAblTimeScale drydenAblTimeScale(DroneEnvironment environment) {
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability(), -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength(), 0.0, 1.0);
+		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
+			return DrydenAblTimeScale.NEUTRAL;
+		}
+
+		double unstable = Math.max(0.0, ablStability);
+		double stable = Math.max(0.0, -ablStability);
+		double mixedUnstable = unstable * ablMixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - ablMixing));
+		double horizontalMultiplier = MathUtil.clamp(
+				1.0 - 0.16 * ablMixing - 0.24 * mixedUnstable + 0.45 * stablePersistence,
+				0.55,
+				1.55
+		);
+		double verticalMultiplier = MathUtil.clamp(
+				1.0 - 0.25 * ablMixing - 0.30 * mixedUnstable + 0.70 * stablePersistence,
+				0.45,
+				1.80
+		);
+		return new DrydenAblTimeScale(horizontalMultiplier, verticalMultiplier);
+	}
+
 	private double updateDrydenAxis(double currentValue, double sigmaMetersPerSecond, double timeConstantSeconds, double dtSeconds) {
 		double phi = Math.exp(-dtSeconds / Math.max(1.0e-6, timeConstantSeconds));
 		double innovationScale = sigmaMetersPerSecond * Math.sqrt(Math.max(0.0, 1.0 - phi * phi));
@@ -6399,6 +6436,10 @@ public final class DronePhysics {
 		value = (value ^ (value >>> 27)) * 0x94D049BB133111EBL;
 		value = value ^ (value >>> 31);
 		return (value >>> 11) * 0x1.0p-53;
+	}
+
+	private record DrydenAblTimeScale(double horizontalMultiplier, double verticalMultiplier) {
+		private static final DrydenAblTimeScale NEUTRAL = new DrydenAblTimeScale(1.0, 1.0);
 	}
 
 	private static double drydenReferenceAltitudeMeters(DroneEnvironment environment) {
