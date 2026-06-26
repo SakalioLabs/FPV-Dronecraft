@@ -172,6 +172,8 @@ public record DroneBlackboxSummary(
 			Collections.synchronizedMap(new WeakHashMap<>());
 	private static final Map<DroneBlackboxSummary, DiskGradientStats> DISK_GRADIENT_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<DroneBlackboxSummary, Double> AIRFRAME_PRESSURE_CENTER_TORQUE =
+			Collections.synchronizedMap(new WeakHashMap<>());
 
 	public record WindSplit(
 			double maxDrydenSpeedMetersPerSecond,
@@ -420,6 +422,7 @@ public record DroneBlackboxSummary(
 		double maxRotorFlappingTorque = 0.0;
 		double maxRotorAngularDrag = 0.0;
 		double maxAirframeAngularDrag = 0.0;
+		double maxAirframePressureCenterTorque = 0.0;
 		double maxAirframeSeparation = 0.0;
 		double maxAirframeLift = 0.0;
 		double maxAirframeBodyDrag = 0.0;
@@ -840,6 +843,15 @@ public record DroneBlackboxSummary(
 					maxAirframeAngularDrag,
 					Math.sqrt(angularDragPitch * angularDragPitch + angularDragYaw * angularDragYaw + angularDragRoll * angularDragRoll)
 			);
+			double pressureCenterPitch = valueOrDefault(row, "airframe_pressure_center_pitch_torque_nm", 0.0);
+			double pressureCenterYaw = valueOrDefault(row, "airframe_pressure_center_yaw_torque_nm", 0.0);
+			double pressureCenterRoll = valueOrDefault(row, "airframe_pressure_center_roll_torque_nm", 0.0);
+			maxAirframePressureCenterTorque = Math.max(
+					maxAirframePressureCenterTorque,
+					Math.sqrt(pressureCenterPitch * pressureCenterPitch
+							+ pressureCenterYaw * pressureCenterYaw
+							+ pressureCenterRoll * pressureCenterRoll)
+			);
 			maxAirframeSeparation = Math.max(maxAirframeSeparation, value(row, "airframe_separation"));
 			maxAirframeLift = Math.max(maxAirframeLift, value(row, "airframe_lift_n"));
 			maxAirframeBodyDrag = Math.max(maxAirframeBodyDrag, valueOrDefault(row, "airframe_body_drag_n", 0.0));
@@ -1204,6 +1216,7 @@ public record DroneBlackboxSummary(
 				maxRotorDiskGradientStall
 		));
 		BAROMETER_STATS.put(summary, new BarometerStats(maxBarometerPressurePortError));
+		AIRFRAME_PRESSURE_CENTER_TORQUE.put(summary, finiteNonNegativeOrZero(maxAirframePressureCenterTorque));
 		PRECIPITATION_STATS.put(summary, new PrecipitationStats(
 				finiteOrZero(minRotorPrecipitationWetness),
 				maxRotorPrecipitationWetness
@@ -1349,6 +1362,10 @@ public record DroneBlackboxSummary(
 		return BAROMETER_STATS.getOrDefault(this, EMPTY_BAROMETER_STATS);
 	}
 
+	public double maxAirframePressureCenterTorqueNewtonMeters() {
+		return AIRFRAME_PRESSURE_CENTER_TORQUE.getOrDefault(this, 0.0);
+	}
+
 	public PrecipitationStats precipitationStats() {
 		return PRECIPITATION_STATS.getOrDefault(this, EMPTY_PRECIPITATION_STATS);
 	}
@@ -1393,7 +1410,7 @@ public record DroneBlackboxSummary(
 		WindSourceStats windSourceStats = windSourceStats();
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | flight playable %d sim %d lowAlt %.0f%% vis %.1f/%.1fdeg yaw %.1fdps drift %.1fdeg | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f agust %.2f..%.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f dg %.1f%%/%.2f/%.2f/%.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm port %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f rrain %.2f..%.2f wetloss %.0f%% ice %.2f iceloss %.0f%% icepwr %.2f temp %.1f..%.1fC gust %.2fm/s dryden %.2f burble %.2f a4mcsrc %.2f a4mcup %.2f a4mcshr %.2f shear %.2fm/s2 a4mc %d/%d trusted %d untrusted %d l2 %d src %d/%d/%d age %.0ft stale %d srcwind %.2f/%.2f/%.2f conf %.2f srcturb %.2f q %.2f p %.0fPa shelter %.2f srcshear %.2f/m updraft %.2fm/s abl %.2f mix %.2f diskgrad %.2fm/s pgrad %.2fm/s lvoxres %.2f a4mcsh %.2f a4mcvent %.2f/%.2f ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | flight playable %d sim %d lowAlt %.0f%% vis %.1f/%.1fdeg yaw %.1fdps drift %.1fdeg | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f agust %.2f..%.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f dg %.1f%%/%.2f/%.2f/%.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f pc %.3fNm sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm port %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f rrain %.2f..%.2f wetloss %.0f%% ice %.2f iceloss %.0f%% icepwr %.2f temp %.1f..%.1fC gust %.2fm/s dryden %.2f burble %.2f a4mcsrc %.2f a4mcup %.2f a4mcshr %.2f shear %.2fm/s2 a4mc %d/%d trusted %d untrusted %d l2 %d src %d/%d/%d age %.0ft stale %d srcwind %.2f/%.2f/%.2f conf %.2f srcturb %.2f q %.2f p %.0fPa shelter %.2f srcshear %.2f/m updraft %.2fm/s abl %.2f mix %.2f diskgrad %.2fm/s pgrad %.2fm/s lvoxres %.2f a4mcsh %.2f a4mcvent %.2f/%.2f ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				flightModelStats.playableSamples(),
@@ -1480,6 +1497,7 @@ public record DroneBlackboxSummary(
 				maxRotorFlappingTorqueNewtonMeters,
 				maxRotorAngularDragTorqueNewtonMeters,
 				maxAirframeAngularDragTorqueNewtonMeters,
+				maxAirframePressureCenterTorqueNewtonMeters(),
 				maxAirframeSeparatedFlowIntensity,
 				maxAirframeLiftForceNewtons,
 				maxAirframeBodyDragForceNewtons,

@@ -13278,6 +13278,18 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorConingAngleRadians() > 0.0);
 		assertTrue(report.maxRotorWindmillingIntensity() > 0.10);
 		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.015);
+		assertEquals(
+				maxVectorLength(
+						lines,
+						header,
+						"airframe_pressure_center_pitch_torque_nm",
+						"airframe_pressure_center_yaw_torque_nm",
+						"airframe_pressure_center_roll_torque_nm"
+				),
+				report.maxAirframePressureCenterTorqueNewtonMeters(),
+				1.0e-5
+		);
+		assertTrue(report.maxAirframePressureCenterTorqueNewtonMeters() > 0.001);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
 		assertTrue(report.maxEscTemperatureCelsius() >= 25.0);
 		assertTrue(report.minEscThermalLimit() > 0.0);
@@ -13306,6 +13318,7 @@ class DronePhysicsTest {
 		assertTrue(text.contains("max_ground_level="));
 		assertTrue(text.contains("max_wind_quality="));
 		assertTrue(text.contains("min_a4mc_vent="));
+		assertTrue(text.contains("max_pc_torque="));
 		assertTrue(text.contains("Airframe IMAV body-drag fit"));
 		assertTrue(text.contains("Airframe base-drag level-flight envelope"));
 		assertTrue(text.contains("AI-IO14"));

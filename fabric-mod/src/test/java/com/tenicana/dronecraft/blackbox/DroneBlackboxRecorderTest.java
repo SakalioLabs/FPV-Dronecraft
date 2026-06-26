@@ -931,6 +931,17 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxLinearDampingDragForceNewtons() >= 0.0);
 		assertTrue(summary.maxGroundEffectDragForceNewtons() >= 0.0);
 		assertEquals(
+				maxVectorLength(
+						lines,
+						header,
+						"airframe_pressure_center_pitch_torque_nm",
+						"airframe_pressure_center_yaw_torque_nm",
+						"airframe_pressure_center_roll_torque_nm"
+				),
+				summary.maxAirframePressureCenterTorqueNewtonMeters(),
+				1.0e-5
+		);
+		assertEquals(
 				maxOfColumns(lines, header, "ground_effect_leveling_torque_nm"),
 				summary.maxGroundEffectLevelingTorqueNewtonMeters(),
 				1.0e-5
@@ -1216,6 +1227,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("pgrad 0.11m/s"));
 		assertTrue(summary.formatForChat().contains("lvoxres 0.61"));
 		assertTrue(summary.formatForChat().contains("a4mcvent"));
+		assertTrue(summary.formatForChat().contains("pc "));
 		assertTrue(summary.formatForChat().contains("mix-edge"));
 		assertTrue(summary.formatForChat().contains("mix-head"));
 		assertTrue(summary.formatForChat().contains("regen"));
@@ -2088,6 +2100,27 @@ class DroneBlackboxRecorderTest {
 				String[] row = lines[i].split(",", -1);
 				max = Math.max(max, Math.abs(Double.parseDouble(row[index])));
 			}
+		}
+		return max;
+	}
+
+	private static double maxVectorLength(
+			String[] lines,
+			String[] header,
+			String xColumn,
+			String yColumn,
+			String zColumn
+	) {
+		int xIndex = indexOf(header, xColumn);
+		int yIndex = indexOf(header, yColumn);
+		int zIndex = indexOf(header, zColumn);
+		double max = 0.0;
+		for (int i = 1; i < lines.length; i++) {
+			String[] row = lines[i].split(",", -1);
+			double x = Double.parseDouble(row[xIndex]);
+			double y = Double.parseDouble(row[yIndex]);
+			double z = Double.parseDouble(row[zIndex]);
+			max = Math.max(max, Math.sqrt(x * x + y * y + z * z));
 		}
 		return max;
 	}
