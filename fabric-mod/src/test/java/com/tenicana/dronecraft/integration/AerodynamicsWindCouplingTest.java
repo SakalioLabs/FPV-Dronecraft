@@ -335,6 +335,20 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorDiskPressureBlendAppliesSampleQualityBeforeRuntimeOutputs() {
+		double sourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
+		AerodynamicsWindCoupling.RotorDiskPressureBlend rawBlend = oneSidedPressureBlend(220.0);
+		AerodynamicsWindCoupling.RotorDiskPressureBlend qualityWeightedBlend = oneSidedPressureBlend(220.0, 0.86, 0L);
+		Vec3 rawEquivalentWindGradient = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(rawBlend);
+		Vec3 qualityWeightedEquivalentWindGradient =
+				AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(qualityWeightedBlend);
+
+		assertEquals(rawEquivalentWindGradient.x() * sourceQuality, qualityWeightedEquivalentWindGradient.x(), 1.0e-12);
+		assertEquals(0.0, qualityWeightedEquivalentWindGradient.y(), 1.0e-12);
+		assertEquals(0.0, qualityWeightedEquivalentWindGradient.z(), 1.0e-12);
+	}
+
+	@Test
 	void rotorDiskPressureBlendTreatsMissingEdgesAsCenterPressure() {
 		AerodynamicsWindCoupling.RotorDiskPressureBlend blend = AerodynamicsWindCoupling.rotorDiskPressureBlend(
 				windSampleWithPressureAnomaly(500.0, true, 20L),
@@ -889,9 +903,17 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	private static AerodynamicsWindCoupling.RotorDiskPressureBlend oneSidedPressureBlend(double edgePressureDeltaPascals) {
+		return oneSidedPressureBlend(edgePressureDeltaPascals, 1.0, 0L);
+	}
+
+	private static AerodynamicsWindCoupling.RotorDiskPressureBlend oneSidedPressureBlend(
+			double edgePressureDeltaPascals,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		return AerodynamicsWindCoupling.rotorDiskPressureBlend(
-				windSampleWithPressureAnomaly(0.0, true, 0L),
-				oneSidedPressureSamples(edgePressureDeltaPascals),
+				windSampleWithPressureAnomaly(0.0, true, freshnessAgeTicks, confidence),
+				oneSidedPressureSamples(edgePressureDeltaPascals, confidence, freshnessAgeTicks),
 				rotorDiskSampleDirectionsBody(),
 				rotorDiskSampleWeights(),
 				ROTOR_DISK_SURFACE_CENTER_WEIGHT
@@ -899,17 +921,29 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample[] oneSidedPressureSamples(double edgePressureDeltaPascals) {
-		Aerodynamics4McWindBridge.WindSample[] samples = centerPressureSamples();
-		samples[0] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, 0L);
-		samples[4] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, 0L);
-		samples[5] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, 0L);
+		return oneSidedPressureSamples(edgePressureDeltaPascals, 1.0, 0L);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] oneSidedPressureSamples(
+			double edgePressureDeltaPascals,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		Aerodynamics4McWindBridge.WindSample[] samples = centerPressureSamples(confidence, freshnessAgeTicks);
+		samples[0] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, freshnessAgeTicks, confidence);
+		samples[4] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, freshnessAgeTicks, confidence);
+		samples[5] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, freshnessAgeTicks, confidence);
 		return samples;
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample[] centerPressureSamples() {
+		return centerPressureSamples(1.0, 0L);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] centerPressureSamples(double confidence, long freshnessAgeTicks) {
 		Aerodynamics4McWindBridge.WindSample[] samples = new Aerodynamics4McWindBridge.WindSample[8];
 		for (int i = 0; i < samples.length; i++) {
-			samples[i] = windSampleWithPressureAnomaly(0.0, true, 0L);
+			samples[i] = windSampleWithPressureAnomaly(0.0, true, freshnessAgeTicks, confidence);
 		}
 		return samples;
 	}
@@ -1092,6 +1126,15 @@ class AerodynamicsWindCouplingTest {
 			boolean localVoxelFlow,
 			long freshnessAgeTicks
 	) {
+		return windSampleWithPressureAnomaly(pressureAnomalyPascals, localVoxelFlow, freshnessAgeTicks, 1.0);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithPressureAnomaly(
+			double pressureAnomalyPascals,
+			boolean localVoxelFlow,
+			long freshnessAgeTicks,
+			double confidence
+	) {
 		return new Aerodynamics4McWindBridge.WindSample(
 				true,
 				Vec3.ZERO,
@@ -1104,7 +1147,7 @@ class AerodynamicsWindCouplingTest {
 				0.0,
 				false,
 				0.0,
-				1.0,
+				confidence,
 				pressureAnomalyPascals,
 				true,
 				localVoxelFlow,

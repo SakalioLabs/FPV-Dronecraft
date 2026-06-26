@@ -167,6 +167,10 @@ class DroneEntityFlightModelRoutingTest {
 				"rotor A4MC center wind should use mean wind instead of effective gust wind");
 		assertFalse(rotorEnvironmentMethods.contains("AerodynamicsWindCoupling.sourceWeightedWind(bodyAeroWind, rotorWind)"),
 				"rotor A4MC disk field should not fold coherent source gust into disk wind");
+		assertFalse(rotorEnvironmentMethods.contains(".multiply(bodySourceQuality)"),
+				"rotor A4MC disk/local voxel samples should be confidence/freshness gated before the disk blend");
+		assertFalse(rotorEnvironmentMethods.contains("* bodySourceQuality"),
+				"rotor A4MC disk/local voxel outputs should not apply body source quality a second time");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.state()"), "rotor environment sampling should not read DroneState directly");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.config()"), "rotor environment sampling should not read DroneConfig directly");
 		assertTrue(movementMethods.contains("simulationRuntime.movementState()"), "movement state should be projected by SimulationFlightRuntime");
