@@ -1771,10 +1771,10 @@ public class DroneEntity extends Entity {
 		);
 		double maxFlowObstruction = 0.0;
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
-		RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections();
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotorGeometry.rotor(i);
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
+			RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections(rotor);
 			RotorDiskSurfaceSample surfaceSample = rotorDiskSurfaceSample(rotorCenterWorld, rotor, rotorPlaneDirections);
 			groundSurfaceCoverages[i] = surfaceSample.groundSurfaceCoverage();
 			ceilingSurfaceCoverages[i] = surfaceSample.ceilingSurfaceCoverage();
@@ -1850,7 +1850,6 @@ public class DroneEntity extends Entity {
 				? bodyWind.meanVelocityWorldMetersPerSecond()
 				: baselineWindVelocityWorldMetersPerSecond;
 		Vec3 bodyAeroWind = bodyWind.meanVelocityWorldMetersPerSecond();
-		RotorPlaneSampleDirection[] sampleDirections = rotorPlaneSampleDirections();
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotorGeometry.rotor(i);
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
@@ -1862,6 +1861,7 @@ public class DroneEntity extends Entity {
 			Vec3 centerWind = AerodynamicsWindCoupling.sourceWeightedMeanWind(bodyAeroWind, rotorWind);
 			Vec3 rotorAxisWorld = simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody());
 			double sampleRadius = rotor.radiusMeters() * ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE;
+			RotorPlaneSampleDirection[] sampleDirections = rotorPlaneSampleDirections(rotor);
 			Aerodynamics4McWindBridge.WindSample[] sampleWinds = new Aerodynamics4McWindBridge.WindSample[sampleDirections.length];
 			Vec3[] sampleDirectionsBody = new Vec3[sampleDirections.length];
 			double[] sampleWeights = new double[sampleDirections.length];
@@ -1952,7 +1952,7 @@ public class DroneEntity extends Entity {
 		);
 	}
 
-	private RotorPlaneSampleDirection[] rotorPlaneSampleDirections() {
+	private RotorPlaneSampleDirection[] rotorPlaneSampleDirections(RotorSpec rotor) {
 		Vec3[] bodyDirections = {
 				new Vec3(1.0, 0.0, 0.0),
 				new Vec3(-1.0, 0.0, 0.0),
@@ -1964,10 +1964,12 @@ public class DroneEntity extends Entity {
 				new Vec3(-1.0, 0.0, -1.0).normalized()
 		};
 		RotorPlaneSampleDirection[] directions = new RotorPlaneSampleDirection[bodyDirections.length];
+		Vec3 rotorAxisBody = rotor == null ? new Vec3(0.0, 1.0, 0.0) : rotor.thrustAxisBody();
 		for (int i = 0; i < bodyDirections.length; i++) {
+			Vec3 bodyDirection = AerodynamicsWindCoupling.rotorDiskSampleDirectionBody(bodyDirections[i], rotorAxisBody);
 			directions[i] = new RotorPlaneSampleDirection(
-					bodyDirections[i],
-					simulationRuntime.rotorPlaneWorldDirection(bodyDirections[i])
+					bodyDirection,
+					simulationRuntime.rotorPlaneWorldDirection(bodyDirection)
 			);
 		}
 		return directions;

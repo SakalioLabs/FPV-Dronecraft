@@ -444,6 +444,45 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorDiskSampleDirectionPreservesVerticalRotorDiskDirections() {
+		Vec3 direction = AerodynamicsWindCoupling.rotorDiskSampleDirectionBody(
+				new Vec3(1.0, 0.0, 1.0),
+				new Vec3(0.0, 1.0, 0.0)
+		);
+
+		assertEquals(new Vec3(1.0, 0.0, 1.0).normalized(), direction);
+		assertEquals(1.0, direction.length(), 1.0e-12);
+	}
+
+	@Test
+	void rotorDiskSampleDirectionProjectsCantedRotorDiskDirections() {
+		double cant = Math.toRadians(30.0);
+		Vec3 rotorAxisBody = new Vec3(Math.sin(cant), Math.cos(cant), 0.0).normalized();
+		Vec3 direction = AerodynamicsWindCoupling.rotorDiskSampleDirectionBody(
+				new Vec3(1.0, 0.0, 0.0),
+				rotorAxisBody
+		);
+
+		assertEquals(1.0, direction.length(), 1.0e-12);
+		assertEquals(0.0, direction.dot(rotorAxisBody), 1.0e-12);
+		assertEquals(Math.cos(cant), direction.x(), 1.0e-12);
+		assertEquals(-Math.sin(cant), direction.y(), 1.0e-12);
+		assertEquals(0.0, direction.z(), 1.0e-12);
+	}
+
+	@Test
+	void rotorDiskSampleDirectionFallsBackWhenSeedParallelsRotorAxis() {
+		Vec3 direction = AerodynamicsWindCoupling.rotorDiskSampleDirectionBody(
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(1.0, 0.0, 0.0)
+		);
+
+		assertEquals(1.0, direction.length(), 1.0e-12);
+		assertEquals(0.0, direction.dot(new Vec3(1.0, 0.0, 0.0)), 1.0e-12);
+		assertEquals(new Vec3(0.0, 1.0, 0.0), direction);
+	}
+
+	@Test
 	void rotorDiskShelterBlendCapturesDirectionalA4mcShelterGradient() {
 		AerodynamicsWindCoupling.RotorDiskShelterBlend blend = AerodynamicsWindCoupling.rotorDiskShelterBlend(
 				windSampleWithLocalVoxelShelter(0.25, true, 20L),

@@ -322,6 +322,25 @@ public final class AerodynamicsWindCoupling {
 		return sample.gustVelocityWorldMetersPerSecond().multiply(sourceQualityFactor(sample));
 	}
 
+	public static Vec3 rotorDiskSampleDirectionBody(Vec3 nominalBodyDirection, Vec3 rotorAxisBody) {
+		Vec3 nominal = finiteVec(nominalBodyDirection);
+		if (nominal.lengthSquared() <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+		Vec3 axis = finiteVec(rotorAxisBody).normalized();
+		if (axis.lengthSquared() <= 1.0e-12) {
+			return nominal.normalized();
+		}
+		Vec3 projected = nominal.subtract(axis.multiply(nominal.dot(axis)));
+		if (projected.lengthSquared() <= 1.0e-12) {
+			Vec3 fallback = Math.abs(axis.y()) < 0.92
+					? new Vec3(0.0, 1.0, 0.0)
+					: new Vec3(1.0, 0.0, 0.0);
+			projected = fallback.subtract(axis.multiply(fallback.dot(axis)));
+		}
+		return projected.lengthSquared() <= 1.0e-12 ? Vec3.ZERO : projected.normalized();
+	}
+
 	public static RotorDiskWindBlend rotorDiskWindBlend(
 			Vec3 centerWindWorldMetersPerSecond,
 			Vec3 rotorAxisWorld,
