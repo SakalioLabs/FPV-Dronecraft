@@ -82,6 +82,8 @@ public final class OfflineFlightRecorder {
 	private static final double WALL_SKIM_A4MC_SHEAR_MAGNITUDE_PER_BLOCK = 0.58;
 	private static final double WALL_SKIM_A4MC_UPDRAFT_METERS_PER_SECOND = 0.18;
 	private static final double WALL_SKIM_A4MC_PRESSURE_ANOMALY_PASCALS = -220.0;
+	private static final double WALL_SKIM_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PASCALS = 1600.0;
+	private static final double WALL_SKIM_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS = 2.4;
 	private static final double WALL_SKIM_A4MC_HUMIDITY = 0.45;
 	private static final double WALL_SKIM_A4MC_ABL_STABILITY = -0.18;
 	private static final double WALL_SKIM_A4MC_ABL_MIXING_STRENGTH = 0.64;
@@ -3335,6 +3337,7 @@ public final class OfflineFlightRecorder {
 		RotorFlowObstructionProfile rotorFlow = rotorFlowObstructionFor(config, frame.phase());
 		double obstacleProximity = rotorFlow.maxIntensity();
 		boolean a4mcWallSkim = rotorFlow.hasA4mcShelterObstructions();
+		Vec3[] a4mcPressureDiskGradient = a4mcPressureGradientDiskWindFor(config, frame.phase());
 		double turbulenceIntensity = MathUtil.clamp(
 				windVelocityWorldMetersPerSecond.length() / 12.0
 						+ 0.18 * obstacleProximity
@@ -3359,7 +3362,7 @@ public final class OfflineFlightRecorder {
 				frame.precipitationWetnessIntensity(),
 				ambientTemperatureCelsius,
 				null,
-				null,
+				a4mcPressureDiskGradient,
 				rotorFlow.a4mcShelterObstructions(),
 				a4mcWallSkim ? DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC : DroneEnvironment.WIND_SOURCE_INTERNAL,
 				a4mcWallSkim,
@@ -3440,6 +3443,37 @@ public final class OfflineFlightRecorder {
 			obstructions[i] = MathUtil.clamp(0.035 + 0.115 * wallSide, 0.0, 0.18);
 		}
 		return obstructions;
+	}
+
+	private static Vec3[] a4mcPressureGradientDiskWindFor(DroneConfig config, String phase) {
+		if (!"wall_skim".equals(phase)) {
+			return null;
+		}
+
+		int rotorCount = config.rotors().size();
+		Vec3[] gradients = new Vec3[rotorCount];
+		double maxAbsProjection = maxAbsRotorProjection(config, WALL_SKIM_DIRECTION_BODY);
+		if (maxAbsProjection <= 1.0e-9) {
+			for (int i = 0; i < rotorCount; i++) {
+				gradients[i] = Vec3.ZERO;
+			}
+			return gradients;
+		}
+
+		double basePressureDeltaPascals = Math.abs(WALL_SKIM_A4MC_PRESSURE_ANOMALY_PASCALS);
+		for (int i = 0; i < rotorCount; i++) {
+			double projection = config.rotors().get(i).positionBodyMeters().dot(WALL_SKIM_DIRECTION_BODY);
+			double wallSide = MathUtil.clamp(0.5 + 0.5 * projection / maxAbsProjection, 0.0, 1.0);
+			double pressureDeltaPascals = basePressureDeltaPascals * (0.40 + 0.60 * wallSide);
+			double windEquivalentMetersPerSecond = MathUtil.clamp(
+					pressureDeltaPascals / WALL_SKIM_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PASCALS
+							* WALL_SKIM_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS,
+					0.0,
+					WALL_SKIM_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS
+			);
+			gradients[i] = WALL_SKIM_DIRECTION_BODY.multiply(windEquivalentMetersPerSecond);
+		}
+		return gradients;
 	}
 
 	private static double combineObstructionIntensity(double first, double second) {

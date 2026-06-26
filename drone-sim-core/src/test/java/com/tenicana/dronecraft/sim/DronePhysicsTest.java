@@ -11551,6 +11551,7 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
 		assertTrue(maxColumn(lines, header, "rotor_wall_effect_n") > 0.04);
 		assertTrue(maxColumn(lines, header, "rotor_0_flow_obstruction") >= 0.0);
+		assertTrue(maxColumn(lines, header, "rotor_disk_wind_gradient_mps") > 0.20);
 		assertTrue(maxColumn(lines, header, "rotor_a4mc_shelter_obstruction") > 0.12);
 		assertTrue(maxColumn(lines, header, "rotor_0_a4mc_shelter_obstruction") > 0.12);
 		assertTrue(maxColumn(lines, header, "rotor_3_a4mc_shelter_obstruction") > 0.12);
@@ -11574,6 +11575,7 @@ class DronePhysicsTest {
 		boolean sawLightPropFault = false;
 		double maxWallSkimFlowObstruction = 0.0;
 		double maxWallSkimA4mcShelterObstruction = 0.0;
+		double maxWallSkimDiskWindGradient = 0.0;
 		double minWallSkimThrustMultiplier = 1.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
@@ -11582,9 +11584,11 @@ class DronePhysicsTest {
 				for (int rotorIndex = 0; rotorIndex < 4; rotorIndex++) {
 					double flowObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_flow_obstruction")]);
 					double a4mcShelterObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_a4mc_shelter_obstruction")]);
+					double diskWindGradient = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_disk_wind_gradient_mps")]);
 					double thrustMultiplier = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_env_thrust_multiplier")]);
 					maxWallSkimFlowObstruction = Math.max(maxWallSkimFlowObstruction, flowObstruction);
 					maxWallSkimA4mcShelterObstruction = Math.max(maxWallSkimA4mcShelterObstruction, a4mcShelterObstruction);
+					maxWallSkimDiskWindGradient = Math.max(maxWallSkimDiskWindGradient, diskWindGradient);
 					minWallSkimThrustMultiplier = Math.min(minWallSkimThrustMultiplier, thrustMultiplier);
 					assertTrue(flowObstruction >= a4mcShelterObstruction);
 					assertEquals(
@@ -11602,6 +11606,7 @@ class DronePhysicsTest {
 		assertTrue(sawWallSkim);
 		assertTrue(maxWallSkimFlowObstruction > 0.25, "maxWallSkimFlowObstruction=" + maxWallSkimFlowObstruction);
 		assertTrue(maxWallSkimA4mcShelterObstruction > 0.12, "maxWallSkimA4mcShelterObstruction=" + maxWallSkimA4mcShelterObstruction);
+		assertTrue(maxWallSkimDiskWindGradient > 0.20, "maxWallSkimDiskWindGradient=" + maxWallSkimDiskWindGradient);
 		assertTrue(minWallSkimThrustMultiplier < 0.995, "minWallSkimThrustMultiplier=" + minWallSkimThrustMultiplier);
 		assertTrue(minWallSkimThrustMultiplier > 0.94, "minWallSkimThrustMultiplier=" + minWallSkimThrustMultiplier);
 		assertTrue(sawRainBurst);
