@@ -134,6 +134,51 @@ public final class AerodynamicsWindCoupling {
 		return MathUtil.clamp(sample.humidity(), 0.0, 1.0) * sourceQualityFactor(sample);
 	}
 
+	public static RotorDiskWindBlend rotorDiskWindBlend(
+			Vec3 centerWindWorldMetersPerSecond,
+			Vec3 rotorAxisWorld,
+			Vec3[] sampleWindVelocitiesWorldMetersPerSecond,
+			Vec3[] sampleDirectionsBody,
+			double[] sampleWeights,
+			double centerWeight
+	) {
+		Vec3 centerWind = finiteVec(centerWindWorldMetersPerSecond);
+		Vec3 axisWorld = finiteVec(rotorAxisWorld).normalized();
+		double safeCenterWeight = positiveWeight(centerWeight);
+		Vec3 weightedWind = centerWind.multiply(safeCenterWeight);
+		double totalWeight = safeCenterWeight;
+		Vec3 gradientBody = Vec3.ZERO;
+		double gradientWeight = 0.0;
+		double centerAxialWind = centerWind.dot(axisWorld);
+		int sampleCount = Math.min(
+				lengthOf(sampleWindVelocitiesWorldMetersPerSecond),
+				Math.min(lengthOf(sampleDirectionsBody), lengthOf(sampleWeights))
+		);
+		for (int i = 0; i < sampleCount; i++) {
+			double weight = positiveWeight(sampleWeights[i]);
+			if (weight <= 0.0) {
+				continue;
+			}
+			Vec3 sampleWind = finiteVecOrFallback(sampleWindVelocitiesWorldMetersPerSecond[i], centerWind);
+			weightedWind = weightedWind.add(sampleWind.multiply(weight));
+			totalWeight += weight;
+			Vec3 directionBody = finiteVec(sampleDirectionsBody[i]);
+			if (directionBody.lengthSquared() <= 1.0e-12 || axisWorld.lengthSquared() <= 1.0e-12) {
+				continue;
+			}
+			double axialDelta = sampleWind.dot(axisWorld) - centerAxialWind;
+			gradientBody = gradientBody.add(directionBody.multiply(axialDelta * weight));
+			gradientWeight += weight;
+		}
+		Vec3 meanWind = totalWeight <= 1.0e-9
+				? centerWind
+				: weightedWind.multiply(1.0 / totalWeight);
+		Vec3 gradient = gradientWeight <= 1.0e-9
+				? Vec3.ZERO
+				: gradientBody.multiply(1.0 / gradientWeight);
+		return new RotorDiskWindBlend(meanWind, gradient);
+	}
+
 	public static double sourceQualityFactor(Aerodynamics4McWindBridge.WindSample sample) {
 		if (sample == null) {
 			return 0.0;
@@ -173,5 +218,32 @@ public final class AerodynamicsWindCoupling {
 				/ (double) (SOURCE_ZERO_TRUST_AGE_TICKS - SOURCE_FULL_TRUST_AGE_TICKS);
 		double smooth = t * t * (3.0 - 2.0 * t);
 		return 1.0 - smooth;
+	}
+
+	private static int lengthOf(Object[] values) {
+		return values == null ? 0 : values.length;
+	}
+
+	private static int lengthOf(double[] values) {
+		return values == null ? 0 : values.length;
+	}
+
+	private static Vec3 finiteVec(Vec3 value) {
+		return finiteVecOrFallback(value, Vec3.ZERO);
+	}
+
+	private static Vec3 finiteVecOrFallback(Vec3 value, Vec3 fallback) {
+		return value == null || !value.isFinite() ? fallback : value;
+	}
+
+	private static double positiveWeight(double weight) {
+		return Double.isFinite(weight) && weight > 0.0 ? weight : 0.0;
+	}
+
+	public record RotorDiskWindBlend(Vec3 meanWindWorldMetersPerSecond, Vec3 gradientBodyMetersPerSecond) {
+		public RotorDiskWindBlend {
+			meanWindWorldMetersPerSecond = finiteVec(meanWindWorldMetersPerSecond);
+			gradientBodyMetersPerSecond = finiteVec(gradientBodyMetersPerSecond);
+		}
 	}
 }

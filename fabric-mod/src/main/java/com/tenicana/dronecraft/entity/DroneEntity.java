@@ -1723,34 +1723,34 @@ public class DroneEntity extends Entity {
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
 			Aerodynamics4McWindBridge.WindSample rotorWind = Aerodynamics4McWindBridge.sampleGameplay(serverLevel, rotorCenterWorld);
 			Vec3 centerWind = AerodynamicsWindCoupling.sourceWeightedWind(bodyAeroWind, rotorWind);
-			Vec3 weightedWind = centerWind.multiply(ROTOR_DISK_SURFACE_CENTER_WEIGHT);
-			double totalWeight = ROTOR_DISK_SURFACE_CENTER_WEIGHT;
-			Vec3 diskGradientBody = Vec3.ZERO;
-			double gradientWeight = 0.0;
 			Vec3 rotorAxisWorld = simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody());
-			double centerAxialWind = centerWind.dot(rotorAxisWorld);
 			double sampleRadius = rotor.radiusMeters() * ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE;
+			Vec3[] sampleVelocities = new Vec3[sampleDirections.length];
+			Vec3[] sampleDirectionsBody = new Vec3[sampleDirections.length];
+			double[] sampleWeights = new double[sampleDirections.length];
 			for (int sampleIndex = 0; sampleIndex < sampleDirections.length; sampleIndex++) {
 				RotorPlaneSampleDirection direction = sampleDirections[sampleIndex];
 				double weight = sampleIndex < 4 ? ROTOR_DISK_SURFACE_CARDINAL_WEIGHT : ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT;
 				Vec3 samplePosition = rotorCenterWorld.add(direction.worldDirection().multiply(sampleRadius));
 				Aerodynamics4McWindBridge.WindSample sampleWind = Aerodynamics4McWindBridge.sampleGameplay(serverLevel, samplePosition);
-				if (!sampleWind.hasFlow()) {
-					continue;
-				}
-				Vec3 sampleVelocity = AerodynamicsWindCoupling.sourceWeightedWind(centerWind, sampleWind);
-				weightedWind = weightedWind.add(sampleVelocity.multiply(weight));
-				totalWeight += weight;
-				double axialDelta = sampleVelocity.dot(rotorAxisWorld) - centerAxialWind;
-				diskGradientBody = diskGradientBody.add(direction.bodyDirection().multiply(axialDelta * weight));
-				gradientWeight += weight;
+				sampleVelocities[sampleIndex] = AerodynamicsWindCoupling.sourceWeightedWind(centerWind, sampleWind);
+				sampleDirectionsBody[sampleIndex] = direction.bodyDirection();
+				sampleWeights[sampleIndex] = weight;
 			}
-			Vec3 diskMeanWind = weightedWind.multiply(1.0 / Math.max(1.0e-6, totalWeight));
+			AerodynamicsWindCoupling.RotorDiskWindBlend diskWind = AerodynamicsWindCoupling.rotorDiskWindBlend(
+					centerWind,
+					rotorAxisWorld,
+					sampleVelocities,
+					sampleDirectionsBody,
+					sampleWeights,
+					ROTOR_DISK_SURFACE_CENTER_WEIGHT
+			);
+			Vec3 diskMeanWind = diskWind.meanWindWorldMetersPerSecond();
 			Vec3 localDelta = diskMeanWind.subtract(bodyAeroWind).multiply(bodySourceQuality);
 			rotorWindVelocities[i] = safeBaselineWind.add(localDelta);
-			rotorDiskWindGradients[i] = gradientWeight <= 1.0e-6
-					? Vec3.ZERO
-					: diskGradientBody.multiply(bodySourceQuality / gradientWeight).clamp(-12.0, 12.0);
+			rotorDiskWindGradients[i] = diskWind.gradientBodyMetersPerSecond()
+					.multiply(bodySourceQuality)
+					.clamp(-12.0, 12.0);
 		}
 		return new RotorWindFieldSamples(rotorWindVelocities, rotorDiskWindGradients);
 	}

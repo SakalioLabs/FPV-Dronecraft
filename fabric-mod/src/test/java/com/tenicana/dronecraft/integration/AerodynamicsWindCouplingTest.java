@@ -227,6 +227,48 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorDiskWindBlendKeepsMissingEdgeWeightsConservative() {
+		AerodynamicsWindCoupling.RotorDiskWindBlend blend = AerodynamicsWindCoupling.rotorDiskWindBlend(
+				Vec3.ZERO,
+				new Vec3(0.0, 1.0, 0.0),
+				new Vec3[] {
+						new Vec3(0.0, 4.0, 0.0),
+						null
+				},
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(-1.0, 0.0, 0.0)
+				},
+				new double[] { 1.0, 1.0 },
+				1.0
+		);
+
+		assertEquals(0.0, blend.meanWindWorldMetersPerSecond().x(), 1.0e-9);
+		assertEquals(4.0 / 3.0, blend.meanWindWorldMetersPerSecond().y(), 1.0e-9);
+		assertEquals(0.0, blend.meanWindWorldMetersPerSecond().z(), 1.0e-9);
+		assertEquals(new Vec3(2.0, 0.0, 0.0), blend.gradientBodyMetersPerSecond());
+	}
+
+	@Test
+	void rotorDiskWindBlendFallsBackToCenterWhenEdgesAreMissing() {
+		Vec3 centerWind = new Vec3(2.0, 0.5, -1.0);
+		AerodynamicsWindCoupling.RotorDiskWindBlend blend = AerodynamicsWindCoupling.rotorDiskWindBlend(
+				centerWind,
+				new Vec3(0.0, 3.0, 0.0),
+				new Vec3[] { null, new Vec3(Double.NaN, 1.0, 0.0) },
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(-1.0, 0.0, 0.0)
+				},
+				new double[] { 0.25, 0.25 },
+				0.5
+		);
+
+		assertEquals(centerWind, blend.meanWindWorldMetersPerSecond());
+		assertEquals(Vec3.ZERO, blend.gradientBodyMetersPerSecond());
+	}
+
+	@Test
 	void sourceWeightedAtmosphereScalarsUseSourceQuality() {
 		Aerodynamics4McWindBridge.WindSample sample = windSampleWithAtmosphere(100L);
 
