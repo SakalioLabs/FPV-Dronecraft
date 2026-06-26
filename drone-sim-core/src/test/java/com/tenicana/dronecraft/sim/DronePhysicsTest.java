@@ -10603,6 +10603,58 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcTangentialPressureGradientDoesNotMoveAirframePressureCenter() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics radial = new DronePhysics(config);
+		DronePhysics tangential = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		Vec3[] rightSideRadialPressureGradient = {
+				new Vec3(2.4, 0.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				new Vec3(2.4, 0.0, 0.0)
+		};
+		double tangentComponent = 2.4 / Math.sqrt(2.0);
+		Vec3[] rightSideTangentialPressureGradient = {
+				new Vec3(-tangentComponent, 0.0, tangentComponent),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				new Vec3(tangentComponent, 0.0, tangentComponent)
+		};
+		DroneEnvironment radialEnvironment = a4mcPressureGradientPressureCenterWind(
+				rightSideRadialPressureGradient,
+				true,
+				1.0,
+				0L
+		);
+		DroneEnvironment tangentialEnvironment = a4mcPressureGradientPressureCenterWind(
+				rightSideTangentialPressureGradient,
+				true,
+				1.0,
+				0L
+		);
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(radial, straightVelocity);
+			holdInCruise(tangential, straightVelocity);
+			radial.step(DroneInput.idle(), 0.005, radialEnvironment);
+			tangential.step(DroneInput.idle(), 0.005, tangentialEnvironment);
+		}
+
+		Vec3 radialTorque = radial.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 tangentialTorque = tangential.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertTrue(Math.abs(radialTorque.y()) > 0.003, () -> "radialTorque=" + radialTorque);
+		assertTrue(
+				Math.abs(tangentialTorque.y()) < Math.abs(radialTorque.y()) * 0.20,
+				() -> "radialTorque=" + radialTorque + " tangentialTorque=" + tangentialTorque
+		);
+		assertTrue(Math.abs(tangentialTorque.y()) < 0.001, () -> "tangentialTorque=" + tangentialTorque);
+	}
+
+	@Test
 	void adoptedA4mcPressureGradientPressureCenterDoesNotDoubleGateRotorSignals() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

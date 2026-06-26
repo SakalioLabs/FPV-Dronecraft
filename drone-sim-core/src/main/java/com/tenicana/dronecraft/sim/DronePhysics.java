@@ -6078,10 +6078,9 @@ public final class DronePhysics {
 		for (int i = 0; i < count; i++) {
 			double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(i), 0.0, 1.0);
 			double shelterObstruction = MathUtil.clamp(environment.rotorA4mcShelterObstruction(i), 0.0, 1.0);
-			double pressureGradientSignal = smoothStep(
-					0.15,
-					1.80,
-					environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(i).length()
+			double pressureGradientSignal = a4mcLocalVoxelPressureCenterGradientSignal(
+					i,
+					environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(i)
 			);
 			double signal = localVoxelCoverage + 0.65 * shelterObstruction + 0.85 * pressureGradientSignal;
 			signals[i] = signal;
@@ -6119,6 +6118,20 @@ public final class DronePhysics {
 				0.0,
 				-weightedDeficitCentroid.z() * 0.44 * strength
 		).clamp(-0.024, 0.024);
+	}
+
+	private double a4mcLocalVoxelPressureCenterGradientSignal(int rotorIndex, Vec3 pressureGradientWindBody) {
+		if (pressureGradientWindBody == null || !pressureGradientWindBody.isFinite()
+				|| rotorIndex < 0 || rotorIndex >= config.rotors().size()) {
+			return 0.0;
+		}
+		Vec3 rotorPosition = config.rotors().get(rotorIndex).positionBodyMeters();
+		Vec3 rotorRadialBody = new Vec3(rotorPosition.x(), 0.0, rotorPosition.z());
+		if (rotorRadialBody.lengthSquared() <= 1.0e-12) {
+			return 0.0;
+		}
+		double radialPressureGradientSpeed = Math.abs(pressureGradientWindBody.dot(rotorRadialBody.normalized()));
+		return smoothStep(0.15, 1.80, radialPressureGradientSpeed);
 	}
 
 	private Vec3 a4mcLocalVoxelRotorWashPressureCenterForceBody(

@@ -147,37 +147,54 @@ PRESSURE_CENTER_ROTOR_SCENARIOS = [
         "symmetric_clean",
         [1.0, 1.0, 1.0, 1.0],
         [0.0, 0.0, 0.0, 0.0],
-        [0.0, 0.0, 0.0, 0.0],
+        [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
     ),
     (
         "offline_wall_skim_proxy",
         [0.62, 0.62, 0.62, 0.62],
         [0.04239, 0.01696, 0.01696, 0.04239],
-        [0.08013, 0.03205, 0.03205, 0.08013],
+        [(0.08013, 0.08013), (-0.03205, 0.03205), (-0.03205, -0.03205), (0.08013, -0.08013)],
     ),
     (
         "right_shelter_wall",
         [0.35, 0.94, 0.94, 0.35],
         [0.18, 0.02, 0.02, 0.18],
-        [0.0, 0.0, 0.0, 0.0],
+        [(0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0)],
     ),
     (
         "right_pressure_step",
         [1.0, 1.0, 1.0, 1.0],
         [0.0, 0.0, 0.0, 0.0],
-        [2.4, 0.0, 0.0, 2.4],
+        [(2.4, 0.0), (0.0, 0.0), (0.0, 0.0), (2.4, 0.0)],
     ),
     (
         "right_combined_wall_pressure",
         [0.35, 0.94, 0.94, 0.35],
         [0.18, 0.02, 0.02, 0.18],
-        [2.4, 0.0, 0.0, 2.4],
+        [(2.4, 0.0), (0.0, 0.0), (0.0, 0.0), (2.4, 0.0)],
+    ),
+    (
+        "right_tangential_pressure_step",
+        [1.0, 1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [
+            (
+                -LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS / math.sqrt(2.0),
+                LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS / math.sqrt(2.0),
+            ),
+            (0.0, 0.0),
+            (0.0, 0.0),
+            (
+                LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS / math.sqrt(2.0),
+                LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS / math.sqrt(2.0),
+            ),
+        ],
     ),
     (
         "front_combined_wall_pressure",
         [0.35, 0.35, 0.94, 0.94],
         [0.18, 0.18, 0.02, 0.02],
-        [2.4, 2.4, 0.0, 0.0],
+        [(0.0, 2.4), (0.0, 2.4), (0.0, 0.0), (0.0, 0.0)],
     ),
 ]
 
@@ -373,12 +390,36 @@ def shelter_obstruction(mean_shelter: float, gradient: float) -> float:
 def pressure_center_signal(
     local_voxel_residual: float,
     shelter_gradient_obstruction: float,
-    pressure_gradient_wind_mps: float,
+    pressure_gradient_wind_xz_mps: object,
+    rotor_index: int,
 ) -> float:
     local_voxel_coverage = clamp(1.0 - local_voxel_residual, 0.0, 1.0)
     shelter_obstruction = clamp(shelter_gradient_obstruction, 0.0, 1.0)
-    pressure_gradient_signal = smooth_step(0.15, 1.80, abs(pressure_gradient_wind_mps))
+    pressure_gradient_signal = smooth_step(
+        0.15,
+        1.80,
+        pressure_center_radial_gradient_mps(pressure_gradient_wind_xz_mps, rotor_index),
+    )
     return local_voxel_coverage + 0.65 * shelter_obstruction + 0.85 * pressure_gradient_signal
+
+
+def pressure_center_radial_gradient_mps(pressure_gradient_wind_xz_mps: object, rotor_index: int) -> float:
+    gradient_x, gradient_z = pressure_gradient_xz(pressure_gradient_wind_xz_mps)
+    position_x, position_z = PRESSURE_CENTER_ROTOR_POSITIONS_XZ_M[rotor_index]
+    radius = math.hypot(position_x, position_z)
+    if radius <= 1.0e-9:
+        return 0.0
+    radial_x = position_x / radius
+    radial_z = position_z / radius
+    return abs(gradient_x * radial_x + gradient_z * radial_z)
+
+
+def pressure_gradient_xz(pressure_gradient_wind_xz_mps: object) -> tuple[float, float]:
+    if isinstance(pressure_gradient_wind_xz_mps, (tuple, list)):
+        x = float(pressure_gradient_wind_xz_mps[0]) if len(pressure_gradient_wind_xz_mps) > 0 else 0.0
+        z = float(pressure_gradient_wind_xz_mps[1]) if len(pressure_gradient_wind_xz_mps) > 1 else 0.0
+        return x, z
+    return float(pressure_gradient_wind_xz_mps), 0.0
 
 
 def pressure_center_hover_wash_gate(induced_velocity_mps: float, thrust_to_weight: float) -> float:
@@ -413,8 +454,12 @@ def pressure_center_response(
     rotor_wash_induced_mps: float = 0.0,
     rotor_wash_thrust_to_weight: float = 0.0,
 ) -> dict[str, float]:
+    radial_pressure_gradients = [
+        pressure_center_radial_gradient_mps(pressure_gradient_winds_mps[i], i)
+        for i in range(4)
+    ]
     signals = [
-        pressure_center_signal(residuals[i], shelter_obstructions[i], pressure_gradient_winds_mps[i])
+        pressure_center_signal(residuals[i], shelter_obstructions[i], pressure_gradient_winds_mps[i], i)
         for i in range(4)
     ]
     mean_signal = sum(signals) / len(signals)
@@ -460,6 +505,10 @@ def pressure_center_response(
         "rotor1_pressure_center_signal": signals[1],
         "rotor2_pressure_center_signal": signals[2],
         "rotor3_pressure_center_signal": signals[3],
+        "rotor0_pressure_center_radial_gradient_mps": radial_pressure_gradients[0],
+        "rotor1_pressure_center_radial_gradient_mps": radial_pressure_gradients[1],
+        "rotor2_pressure_center_radial_gradient_mps": radial_pressure_gradients[2],
+        "rotor3_pressure_center_radial_gradient_mps": radial_pressure_gradients[3],
         "mean_pressure_center_signal": mean_signal if source_available else 0.0,
         "pressure_center_weighted_centroid_x_m": centroid_x,
         "pressure_center_weighted_centroid_z_m": centroid_z,
@@ -1021,6 +1070,10 @@ def add_pressure_center_matrix(rows: list[dict[str, str]]) -> None:
         "rotor1_pressure_center_signal": "fraction",
         "rotor2_pressure_center_signal": "fraction",
         "rotor3_pressure_center_signal": "fraction",
+        "rotor0_pressure_center_radial_gradient_mps": "m/s",
+        "rotor1_pressure_center_radial_gradient_mps": "m/s",
+        "rotor2_pressure_center_radial_gradient_mps": "m/s",
+        "rotor3_pressure_center_radial_gradient_mps": "m/s",
         "mean_pressure_center_signal": "fraction",
         "pressure_center_weighted_centroid_x_m": "m",
         "pressure_center_weighted_centroid_z_m": "m",
@@ -1066,7 +1119,7 @@ def add_pressure_center_matrix(rows: list[dict[str, str]]) -> None:
                         source_file=DRONE_PHYSICS_SOURCE,
                         source_url="docs/data/a4mc_local_voxel_coupling_packet.csv",
                         evidence_role="local_voxel_pressure_center_matrix",
-                        note="Adopted asymmetric local-voxel rotor signals move the bounded core airframe pressure center; source quality only gates availability.",
+                        note="Adopted asymmetric local-voxel rotor signals move the bounded core airframe pressure center; pressure-gradient contribution is radial-projection gated while disk-gradient rotor loading still uses the full vector.",
                     )
 
 
@@ -1094,6 +1147,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     pressure_center_right_combined_hover_name = "right_combined_wall_pressure_quality_1_flow_powered_hover"
     pressure_center_right_combined_half_quality_name = "right_combined_wall_pressure_quality_0p5_flow_fast_cruise"
     pressure_center_front_combined_name = "front_combined_wall_pressure_quality_1_flow_fast_cruise"
+    pressure_center_right_tangential_name = "right_tangential_pressure_step_quality_1_flow_fast_cruise"
     pressure_center_quality_zero_name = "right_combined_wall_pressure_quality_0_flow_fast_cruise"
     ventilation_wall_skim_name = "wall_skim_full_quality"
     ventilation_half_quality_name = "wall_skim_half_quality"
@@ -1293,6 +1347,24 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 "pressure_center_offset_z_m",
             ),
             "m",
+        ),
+        "right_tangential_pressure_center_offset_magnitude_m": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_right_tangential_name,
+                "pressure_center_offset_magnitude_m",
+            ),
+            "m",
+        ),
+        "right_tangential_pressure_center_radial_gradient_mps": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_right_tangential_name,
+                "rotor0_pressure_center_radial_gradient_mps",
+            ),
+            "m/s",
         ),
         "quality_zero_pressure_center_offset_magnitude_m": (
             find_metric(

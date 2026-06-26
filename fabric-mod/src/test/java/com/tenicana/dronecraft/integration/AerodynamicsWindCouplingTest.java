@@ -30,14 +30,14 @@ class AerodynamicsWindCouplingTest {
 		Map<String, Double> summary = localVoxelPacketSummary();
 		double wallSkimSourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
 
-		assertEquals(37, summary.size());
+		assertEquals(40, summary.size());
 		assertEquals(48.0, summaryMetric(summary, "quality_residual_scenario_count"), 1.0e-9);
 		assertEquals(48.0, summaryMetric(summary, "precipitation_exposure_scenario_count"), 1.0e-9);
 		assertEquals(6.0, summaryMetric(summary, "rotor_residual_fallback_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "pressure_gradient_scenario_count"), 1.0e-9);
 		assertEquals(36.0, summaryMetric(summary, "pressure_contrast_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "shelter_gradient_scenario_count"), 1.0e-9);
-		assertEquals(54.0, summaryMetric(summary, "pressure_center_scenario_count"), 1.0e-9);
+		assertEquals(84.0, summaryMetric(summary, "pressure_center_scenario_count"), 1.0e-9);
 		assertEquals(6.0, summaryMetric(summary, "ventilation_scenario_count"), 1.0e-9);
 		assertEquals(ROTOR_DISK_SURFACE_CENTER_WEIGHT, summaryMetric(summary, "disk_sample_center_weight"), 1.0e-12);
 		assertEquals(ROTOR_DISK_SURFACE_CARDINAL_WEIGHT, summaryMetric(summary, "disk_sample_cardinal_weight"), 1.0e-12);
@@ -115,6 +115,16 @@ class AerodynamicsWindCouplingTest {
 				1.0e-15
 		);
 		assertEquals(-0.024, summaryMetric(summary, "front_combined_pressure_center_offset_z_m"), 1.0e-15);
+		assertEquals(
+				0.0,
+				summaryMetric(summary, "right_tangential_pressure_center_offset_magnitude_m"),
+				1.0e-15
+		);
+		assertEquals(
+				0.0,
+				summaryMetric(summary, "right_tangential_pressure_center_radial_gradient_mps"),
+				1.0e-12
+		);
 		assertEquals(0.0, summaryMetric(summary, "quality_zero_pressure_center_offset_magnitude_m"), 1.0e-15);
 
 		DroneEnvironment wallSkimVentilation = a4mcVentilationEnvironment(
