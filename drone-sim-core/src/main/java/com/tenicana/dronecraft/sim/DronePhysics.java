@@ -6384,12 +6384,36 @@ public final class DronePhysics {
 		double sourceQuality = a4mcWindSourceQualityFactor(environment);
 		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock() * sourceQuality, 0.0, 5.0);
 		double shelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
-		double tau = MathUtil.clamp(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter, 0.060, 0.240);
+		double tau = MathUtil.clamp(
+				(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter)
+						* a4mcTerrainShearAblTimeScaleMultiplier(environment),
+				0.045,
+				0.360
+		);
 		double alpha = MathUtil.expSmoothing(dtSeconds, tau);
 		a4mcTerrainShearVelocityWorldMetersPerSecond = a4mcTerrainShearVelocityWorldMetersPerSecond.add(
 				target.subtract(a4mcTerrainShearVelocityWorldMetersPerSecond).multiply(alpha)
 		);
 		return a4mcTerrainShearVelocityWorldMetersPerSecond;
+	}
+
+	private static double a4mcTerrainShearAblTimeScaleMultiplier(DroneEnvironment environment) {
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
+		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double unstable = Math.max(0.0, ablStability);
+		double stable = Math.max(0.0, -ablStability);
+		double mixedUnstable = unstable * ablMixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - ablMixing));
+		return MathUtil.clamp(
+				1.0 - 0.20 * ablMixing - 0.25 * mixedUnstable + 0.55 * stablePersistence,
+				0.55,
+				1.65
+		);
 	}
 
 	private Vec3 a4mcTerrainShearWindTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {

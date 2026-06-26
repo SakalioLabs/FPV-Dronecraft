@@ -3707,6 +3707,57 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblStabilityShapesTerrainShearResponseAndDecay() {
+		DroneEnvironment neutralShear = a4mcTerrainShearWind(1.10, 0.0, 0.65, true, 1.0, 0L, 0.0, 0.0);
+		DroneEnvironment mixedUnstableShear = a4mcTerrainShearWind(1.10, 0.0, 0.65, true, 1.0, 0L, 0.85, 1.0);
+		DroneEnvironment stableShear = a4mcTerrainShearWind(1.10, 0.0, 0.65, true, 1.0, 0L, -0.85, 0.10);
+		DronePhysics neutral = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics mixedUnstable = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics stable = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+
+		for (int i = 0; i < 40; i++) {
+			neutral.step(idle, 0.005, neutralShear);
+			mixedUnstable.step(idle, 0.005, mixedUnstableShear);
+			stable.step(idle, 0.005, stableShear);
+		}
+		double neutralEarly = neutral.state().a4mcTerrainShearSpeedMetersPerSecond();
+		double mixedEarly = mixedUnstable.state().a4mcTerrainShearSpeedMetersPerSecond();
+		double stableEarly = stable.state().a4mcTerrainShearSpeedMetersPerSecond();
+
+		assertTrue(mixedEarly > neutralEarly * 1.12,
+				() -> "mixedEarly=" + mixedEarly + " neutralEarly=" + neutralEarly);
+		assertTrue(stableEarly < neutralEarly * 0.90,
+				() -> "stableEarly=" + stableEarly + " neutralEarly=" + neutralEarly);
+
+		for (int i = 0; i < 260; i++) {
+			neutral.step(idle, 0.005, neutralShear);
+			mixedUnstable.step(idle, 0.005, mixedUnstableShear);
+			stable.step(idle, 0.005, stableShear);
+		}
+		double neutralBuilt = neutral.state().a4mcTerrainShearSpeedMetersPerSecond();
+		double mixedBuilt = mixedUnstable.state().a4mcTerrainShearSpeedMetersPerSecond();
+		double stableBuilt = stable.state().a4mcTerrainShearSpeedMetersPerSecond();
+		DroneEnvironment neutralCalm = a4mcTerrainShearWind(0.0, 0.0, 0.0, true, 1.0, 0L, 0.0, 0.0);
+		DroneEnvironment mixedCalm = a4mcTerrainShearWind(0.0, 0.0, 0.0, true, 1.0, 0L, 0.85, 1.0);
+		DroneEnvironment stableCalm = a4mcTerrainShearWind(0.0, 0.0, 0.0, true, 1.0, 0L, -0.85, 0.10);
+
+		for (int i = 0; i < 45; i++) {
+			neutral.step(idle, 0.005, neutralCalm);
+			mixedUnstable.step(idle, 0.005, mixedCalm);
+			stable.step(idle, 0.005, stableCalm);
+		}
+		double neutralDecayRatio = neutral.state().a4mcTerrainShearSpeedMetersPerSecond() / Math.max(1.0e-9, neutralBuilt);
+		double mixedDecayRatio = mixedUnstable.state().a4mcTerrainShearSpeedMetersPerSecond() / Math.max(1.0e-9, mixedBuilt);
+		double stableDecayRatio = stable.state().a4mcTerrainShearSpeedMetersPerSecond() / Math.max(1.0e-9, stableBuilt);
+
+		assertTrue(mixedDecayRatio < neutralDecayRatio * 0.82,
+				() -> "mixedDecayRatio=" + mixedDecayRatio + " neutralDecayRatio=" + neutralDecayRatio);
+		assertTrue(stableDecayRatio > neutralDecayRatio * 1.18,
+				() -> "stableDecayRatio=" + stableDecayRatio + " neutralDecayRatio=" + neutralDecayRatio);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -13179,6 +13230,28 @@ class DronePhysicsTest {
 			double confidence,
 			long freshnessAgeTicks
 	) {
+		return a4mcTerrainShearWind(
+				shearMagnitudePerBlock,
+				updraftMetersPerSecond,
+				shelterFactor,
+				trustedForGameplay,
+				confidence,
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
+	}
+
+	private static DroneEnvironment a4mcTerrainShearWind(
+			double shearMagnitudePerBlock,
+			double updraftMetersPerSecond,
+			double shelterFactor,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks,
+			double ablStability,
+			double ablMixingStrength
+	) {
 		return new DroneEnvironment(
 				new Vec3(7.0, 0.0, 0.0),
 				1.0,
@@ -13216,8 +13289,8 @@ class DronePhysicsTest {
 				0.0,
 				false,
 				0.0,
-				0.0,
-				0.0
+				ablStability,
+				ablMixingStrength
 		);
 	}
 
