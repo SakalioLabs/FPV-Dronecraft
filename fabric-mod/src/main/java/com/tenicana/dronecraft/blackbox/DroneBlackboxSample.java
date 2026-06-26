@@ -634,6 +634,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_flow_obstruction",
 			"rotor_2_flow_obstruction",
 			"rotor_3_flow_obstruction",
+			"rotor_local_voxel_obstacle_residual",
+			"rotor_0_local_voxel_obstacle_residual",
+			"rotor_1_local_voxel_obstacle_residual",
+			"rotor_2_local_voxel_obstacle_residual",
+			"rotor_3_local_voxel_obstacle_residual",
 			"rotor_a4mc_shelter_obstruction",
 			"rotor_0_a4mc_shelter_obstruction",
 			"rotor_1_a4mc_shelter_obstruction",
@@ -1185,6 +1190,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_4_local_voxel_obstacle_residual",
+			"rotor_5_local_voxel_obstacle_residual",
+			"rotor_6_local_voxel_obstacle_residual",
+			"rotor_7_local_voxel_obstacle_residual",
 			"rotor_4_a4mc_shelter_obstruction",
 			"rotor_5_a4mc_shelter_obstruction",
 			"rotor_6_a4mc_shelter_obstruction",
@@ -2131,6 +2140,11 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorFlowObstruction(1), "%.5f");
 		row.add(environment.rotorFlowObstruction(2), "%.5f");
 		row.add(environment.rotorFlowObstruction(3), "%.5f");
+		row.add(environment.minRotorLocalVoxelObstacleResidual(), "%.5f");
+		row.add(environment.rotorLocalVoxelObstacleResidual(0), "%.5f");
+		row.add(environment.rotorLocalVoxelObstacleResidual(1), "%.5f");
+		row.add(environment.rotorLocalVoxelObstacleResidual(2), "%.5f");
+		row.add(environment.rotorLocalVoxelObstacleResidual(3), "%.5f");
 		row.add(environment.maxRotorA4mcShelterObstruction(), "%.5f");
 		row.add(environment.rotorA4mcShelterObstruction(0), "%.5f");
 		row.add(environment.rotorA4mcShelterObstruction(1), "%.5f");
@@ -2784,6 +2798,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorFlowObstruction(i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(environment.rotorLocalVoxelObstacleResidual(i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorA4mcShelterObstruction(i), "%.5f");

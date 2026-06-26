@@ -11285,6 +11285,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ceiling_surface_gate"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_flow_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flow_obstruction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_local_voxel_obstacle_residual"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_local_voxel_obstacle_residual"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_disk_wind_gradient_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_disk_wind_gradient_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_a4mc_shelter_obstruction"));
@@ -11731,6 +11733,8 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
 		assertTrue(maxColumn(lines, header, "rotor_wall_effect_n") > 0.04);
 		assertTrue(maxColumn(lines, header, "rotor_0_flow_obstruction") >= 0.0);
+		assertEquals(0.62, minColumn(lines, header, "rotor_local_voxel_obstacle_residual"), 1.0e-5);
+		assertEquals(0.62, minColumn(lines, header, "rotor_0_local_voxel_obstacle_residual"), 1.0e-5);
 		assertTrue(maxColumn(lines, header, "rotor_disk_wind_gradient_mps") > 0.20);
 		assertTrue(maxColumn(lines, header, "rotor_a4mc_shelter_obstruction") > 0.12);
 		assertTrue(maxColumn(lines, header, "rotor_0_a4mc_shelter_obstruction") > 0.12);

@@ -20,6 +20,7 @@ class DroneEnvironmentTest {
 				new Vec3(50.0, -50.0, 0.0)
 		};
 		double[] shelterObstructions = {0.12, Double.NaN, 2.5};
+		double[] localVoxelObstacleResiduals = {0.42, Double.NaN, -2.0, 2.5};
 
 		DroneEnvironment environment = new DroneEnvironment(
 				meanWind,
@@ -39,7 +40,8 @@ class DroneEnvironmentTest {
 				25.0,
 				rotorWinds,
 				diskGradients,
-				shelterObstructions
+				shelterObstructions,
+				localVoxelObstacleResiduals
 		);
 
 		assertEquals(new Vec3(2.5, 1.0, -1.0), environment.rotorWindVelocityWorldMetersPerSecond(0));
@@ -56,6 +58,12 @@ class DroneEnvironmentTest {
 		assertEquals(1.0, environment.rotorA4mcShelterObstruction(2), 1.0e-9);
 		assertEquals(0.0, environment.rotorA4mcShelterObstruction(3), 1.0e-9);
 		assertEquals(1.0, environment.maxRotorA4mcShelterObstruction(), 1.0e-9);
+		assertEquals(0.42, environment.rotorLocalVoxelObstacleResidual(0), 1.0e-9);
+		assertEquals(1.0, environment.rotorLocalVoxelObstacleResidual(1), 1.0e-9);
+		assertEquals(0.0, environment.rotorLocalVoxelObstacleResidual(2), 1.0e-9);
+		assertEquals(1.0, environment.rotorLocalVoxelObstacleResidual(3), 1.0e-9);
+		assertEquals(1.0, environment.rotorLocalVoxelObstacleResidual(4), 1.0e-9);
+		assertEquals(0.0, environment.minRotorLocalVoxelObstacleResidual(), 1.0e-9);
 
 		Vec3[] copy = environment.rotorWindVelocityWorldMetersPerSecond();
 		copy[0] = new Vec3(9.0, 9.0, 9.0);
@@ -66,6 +74,9 @@ class DroneEnvironmentTest {
 		double[] shelterCopy = environment.rotorA4mcShelterObstructions();
 		shelterCopy[0] = 0.99;
 		assertEquals(0.12, environment.rotorA4mcShelterObstruction(0), 1.0e-9);
+		double[] residualCopy = environment.rotorLocalVoxelObstacleResiduals();
+		residualCopy[0] = 0.99;
+		assertEquals(0.42, environment.rotorLocalVoxelObstacleResidual(0), 1.0e-9);
 	}
 
 	@Test

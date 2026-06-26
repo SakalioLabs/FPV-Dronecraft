@@ -1050,6 +1050,8 @@ public final class DroneServerSelfTest {
 				|| !DroneBlackboxSample.CSV_HEADER.contains("wind_source_humidity")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_disk_wind_gradient_mps")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_disk_wind_gradient_mps")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_local_voxel_obstacle_residual")
+				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_local_voxel_obstacle_residual")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_a4mc_shelter_obstruction")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("rotor_5_a4mc_shelter_obstruction")
 				|| !DroneBlackboxSample.CSV_HEADER.contains("water_immersion")

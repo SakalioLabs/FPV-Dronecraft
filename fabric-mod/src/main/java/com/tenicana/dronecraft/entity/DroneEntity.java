@@ -348,6 +348,7 @@ public class DroneEntity extends Entity {
 			Vec3[] rotorWindVelocityWorldMetersPerSecond,
 			Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
 			double[] rotorA4mcShelterObstructions,
+			double[] localVoxelObstacleResiduals,
 			double maxFlowObstruction
 	) {
 		private static RotorEnvironmentEffects calm(int rotorCount) {
@@ -365,6 +366,7 @@ public class DroneEntity extends Entity {
 					new Vec3[rotorCount],
 					new Vec3[0],
 					new Vec3[0],
+					new double[0],
 					new double[0],
 					0.0
 			);
@@ -1386,7 +1388,8 @@ public class DroneEntity extends Entity {
 				rotorEffects.groundSurfaceCoverages(),
 				rotorEffects.ceilingSurfaceCoverages(),
 				rotorEffects.groundSurfaceGates(),
-				rotorEffects.ceilingSurfaceGates()
+				rotorEffects.ceilingSurfaceGates(),
+				rotorEffects.localVoxelObstacleResiduals()
 		);
 	}
 
@@ -1475,7 +1478,8 @@ public class DroneEntity extends Entity {
 				null,
 				null,
 				null,
-				null
+				null,
+				rotorWindField.localVoxelObstacleResiduals()
 		);
 	}
 
@@ -1741,6 +1745,7 @@ public class DroneEntity extends Entity {
 		double[] ceilingSurfaceGates = new double[rotorCount];
 		double[] flowObstructions = new double[rotorCount];
 		Vec3[] flowObstructionDirectionsBody = new Vec3[rotorCount];
+		double[] localVoxelObstacleResiduals = new double[rotorCount];
 		RotorWindFieldSamples rotorWindField = sampleAerodynamicsRotorWindField(
 				externalWind,
 				baselineWindVelocityWorldMetersPerSecond,
@@ -1759,6 +1764,7 @@ public class DroneEntity extends Entity {
 			ceilingSurfaceGates[i] = surfaceSample.ceilingSurfaceGate();
 			RotorFlowObstruction flowObstruction = rotorSideFlowObstruction(rotorCenterWorld, rotor, rotorPlaneDirections);
 			double rotorLocalVoxelObstacleResidual = rotorWindField.localVoxelObstacleResidual(i, localVoxelObstacleResidual);
+			localVoxelObstacleResiduals[i] = rotorLocalVoxelObstacleResidual;
 			flowObstruction = combineRotorFlowObstructions(
 					scaledRotorFlowObstruction(flowObstruction, rotorLocalVoxelObstacleResidual),
 					rotorWindField.localVoxelShelterObstruction(i)
@@ -1789,6 +1795,7 @@ public class DroneEntity extends Entity {
 				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
 				rotorWindField.rotorDiskWindGradientBodyMetersPerSecond(),
 				rotorWindField.localVoxelShelterObstructions(),
+				localVoxelObstacleResiduals,
 				maxFlowObstruction
 		);
 	}
