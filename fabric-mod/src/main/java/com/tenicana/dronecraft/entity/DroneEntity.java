@@ -366,6 +366,7 @@ public class DroneEntity extends Entity {
 			double meanSpeedMetersPerSecond,
 			double effectiveSpeedMetersPerSecond,
 			double gustSpeedMetersPerSecond,
+			Vec3 gustVelocityWorldMetersPerSecond,
 			boolean hasTemperature,
 			double temperatureCelsius,
 			boolean hasHumidity,
@@ -1321,7 +1322,8 @@ public class DroneEntity extends Entity {
 				windSource.hasHumidity(),
 				windSource.humidity(),
 				windSource.ablStability(),
-				windSource.ablMixingStrength()
+				windSource.ablMixingStrength(),
+				windSource.gustVelocityWorldMetersPerSecond()
 		);
 	}
 
@@ -1399,7 +1401,8 @@ public class DroneEntity extends Entity {
 				windSource.hasHumidity(),
 				windSource.humidity(),
 				windSource.ablStability(),
-				windSource.ablMixingStrength()
+				windSource.ablMixingStrength(),
+				windSource.gustVelocityWorldMetersPerSecond()
 		);
 	}
 
@@ -1424,6 +1427,7 @@ public class DroneEntity extends Entity {
 					0.0,
 					0.0,
 					0.0,
+					Vec3.ZERO,
 					false,
 					0.0,
 					false,
@@ -1452,6 +1456,7 @@ public class DroneEntity extends Entity {
 					AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(externalWind),
 					AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(externalWind),
 					AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(externalWind),
+					AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(externalWind),
 					hasSourceTemperature,
 					hasSourceTemperature
 							? AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(
@@ -1480,6 +1485,7 @@ public class DroneEntity extends Entity {
 				0.0,
 				0.0,
 				0.0,
+				Vec3.ZERO,
 				false,
 				0.0,
 				false,

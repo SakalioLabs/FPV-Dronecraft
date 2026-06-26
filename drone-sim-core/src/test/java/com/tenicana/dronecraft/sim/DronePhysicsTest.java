@@ -3549,6 +3549,23 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcSourceGustVectorSetsCoherentAirMassDirection() {
+		DronePhysics gusty = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment vectorGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0));
+
+		for (int i = 0; i < 260; i++) {
+			gusty.step(idle, 0.005, vectorGust);
+		}
+
+		Vec3 source = gusty.state().a4mcSourceGustVelocityWorldMetersPerSecond();
+		assertTrue(source.y() > 0.35, "source=" + source);
+		assertEquals(0.0, source.x(), 1.0e-9);
+		assertEquals(0.0, source.z(), 1.0e-9);
+		assertTrue(source.length() < 0.80, "source=" + source);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -12418,6 +12435,10 @@ class DronePhysicsTest {
 	}
 
 	private static DroneEnvironment a4mcSourceGustWind(double sourceGustSpeedMetersPerSecond) {
+		return a4mcSourceGustWind(sourceGustSpeedMetersPerSecond, Vec3.ZERO);
+	}
+
+	private static DroneEnvironment a4mcSourceGustWind(double sourceGustSpeedMetersPerSecond, Vec3 sourceGustVelocity) {
 		return new DroneEnvironment(
 				new Vec3(7.0, 0.0, 0.0),
 				1.0,
@@ -12455,7 +12476,8 @@ class DronePhysicsTest {
 				false,
 				0.0,
 				0.0,
-				0.0
+				0.0,
+				sourceGustVelocity
 		);
 	}
 

@@ -155,6 +155,13 @@ public final class AerodynamicsWindCoupling {
 		return sample.gustSpeedMetersPerSecond() * sourceQualityFactor(sample);
 	}
 
+	public static Vec3 sourceWeightedGustVelocityWorldMetersPerSecond(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow()) {
+			return Vec3.ZERO;
+		}
+		return sample.gustVelocityWorldMetersPerSecond().multiply(sourceQualityFactor(sample));
+	}
+
 	public static RotorDiskWindBlend rotorDiskWindBlend(
 			Vec3 centerWindWorldMetersPerSecond,
 			Vec3 rotorAxisWorld,

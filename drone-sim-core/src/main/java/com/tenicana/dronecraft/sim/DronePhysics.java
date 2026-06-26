@@ -6265,15 +6265,29 @@ public final class DronePhysics {
 		if (!DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC.equals(environment.windSourceId())) {
 			return Vec3.ZERO;
 		}
-		double sourceGustSpeed = MathUtil.clamp(environment.windSourceGustSpeedMetersPerSecond(), 0.0, 12.0);
+		Vec3 sourceGustVelocity = environment.windSourceGustVelocityWorldMetersPerSecond();
+		double sourceGustVectorMagnitude = sourceGustVelocity.length();
+		double sourceGustVectorSpeed = MathUtil.clamp(sourceGustVectorMagnitude, 0.0, 12.0);
+		double sourceGustSpeed = MathUtil.clamp(
+				Math.max(environment.windSourceGustSpeedMetersPerSecond(), sourceGustVectorSpeed),
+				0.0,
+				12.0
+		);
 		if (sourceGustSpeed <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
 
 		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
 		double windGate = smoothStep(0.3, 5.0, Math.max(horizontalWindSpeed, sourceGustSpeed));
-		double gustSignal = MathUtil.clamp(sourceGustSpeed * windGate, 0.0, 8.0);
 		double dirtyGain = MathUtil.clamp(0.72 + 0.10 * dirtyAir, 0.72, 0.94);
+		if (sourceGustVectorSpeed > 1.0e-6) {
+			double vectorScale = MathUtil.clamp(sourceGustSpeed / Math.max(sourceGustVectorMagnitude, 1.0e-6), 0.0, 1.0);
+			return sourceGustVelocity
+					.multiply(0.22 * windGate * dirtyGain * vectorScale)
+					.clamp(-2.0, 2.0);
+		}
+
+		double gustSignal = MathUtil.clamp(sourceGustSpeed * windGate, 0.0, 8.0);
 		Vec3 windAxis = horizontalWindAxis(targetMeanWind);
 		Vec3 crossAxis = new Vec3(-windAxis.z(), 0.0, windAxis.x());
 		double along = Math.sin(windGustPhaseA * 1.11 + 0.35) * gustSignal * 0.18;

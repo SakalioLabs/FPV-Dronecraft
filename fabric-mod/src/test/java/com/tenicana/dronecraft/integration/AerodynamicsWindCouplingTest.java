@@ -347,12 +347,15 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(5.0, AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(fresh), 1.0e-9);
 		assertEquals(10.0, AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(fresh), 1.0e-9);
 		assertEquals(5.0, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(fresh), 1.0e-9);
+		assertEquals(new Vec3(3.0, 0.0, 4.0), AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(fresh));
 		assertEquals(2.5, AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(halfStale), 1.0e-9);
 		assertEquals(5.0, AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(halfStale), 1.0e-9);
 		assertEquals(2.5, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(halfStale), 1.0e-9);
+		assertEquals(new Vec3(1.5, 0.0, 2.0), AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(halfStale));
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(stale), 1.0e-9);
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(stale), 1.0e-9);
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(stale), 1.0e-9);
+		assertEquals(Vec3.ZERO, AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(stale));
 	}
 
 	@Test

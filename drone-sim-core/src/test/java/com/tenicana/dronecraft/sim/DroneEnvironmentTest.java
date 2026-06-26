@@ -97,7 +97,8 @@ class DroneEnvironmentTest {
 				true,
 				1.8,
 				2.0,
-				1.8
+				1.8,
+				new Vec3(64.0, -64.0, 12.0)
 		);
 
 		assertEquals("a4mc_core_", environment.windSourceId());
@@ -120,6 +121,7 @@ class DroneEnvironmentTest {
 		assertEquals(1.0, environment.windSourceHumidity(), 1.0e-9);
 		assertEquals(1.0, environment.windSourceAblStability(), 1.0e-9);
 		assertEquals(1.0, environment.windSourceAblMixingStrength(), 1.0e-9);
+		assertEquals(new Vec3(30.0, -30.0, 12.0), environment.windSourceGustVelocityWorldMetersPerSecond());
 	}
 
 	@Test
