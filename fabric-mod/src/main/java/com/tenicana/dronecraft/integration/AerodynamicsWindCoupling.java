@@ -9,6 +9,8 @@ public final class AerodynamicsWindCoupling {
 	private static final double LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL = 0.28;
 	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42;
 	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22;
+	private static final double LOCAL_VOXEL_PRESSURE_TURBULENCE_FULL_SCALE_PASCALS = 1800.0;
+	private static final double MAX_LOCAL_VOXEL_PRESSURE_TURBULENCE_BOOST = 0.16;
 	private static final double SOURCE_GUST_TURBULENCE_GAIN_PER_MPS = 0.065;
 	private static final double MAX_SOURCE_GUST_TURBULENCE_BOOST = 0.26;
 	private static final long SOURCE_FULL_TRUST_AGE_TICKS = 40L;
@@ -109,6 +111,15 @@ public final class AerodynamicsWindCoupling {
 		turbulence += sourceQuality * MathUtil.clamp(sample.windShearMagnitudePerBlock() * 0.45, 0.0, 0.35);
 		turbulence += sourceQuality * MathUtil.clamp(sample.shelterFactor() * 0.20, 0.0, 0.20);
 		turbulence += sourceQuality * MathUtil.clamp(Math.abs(sample.updraftMetersPerSecond()) * 0.025, 0.0, 0.18);
+		if (sample.localVoxelFlow()) {
+			double localPressureSignal = Math.abs(sample.pressureAnomalyPascals())
+					/ LOCAL_VOXEL_PRESSURE_TURBULENCE_FULL_SCALE_PASCALS;
+			turbulence += sourceQuality * MathUtil.clamp(
+					localPressureSignal * MAX_LOCAL_VOXEL_PRESSURE_TURBULENCE_BOOST,
+					0.0,
+					MAX_LOCAL_VOXEL_PRESSURE_TURBULENCE_BOOST
+			);
+		}
 		turbulence += sourceQuality * MathUtil.clamp(
 				sample.gustSpeedMetersPerSecond() * SOURCE_GUST_TURBULENCE_GAIN_PER_MPS,
 				0.0,

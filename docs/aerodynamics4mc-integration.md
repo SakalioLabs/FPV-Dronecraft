@@ -19,6 +19,7 @@ The first integration keeps that boundary explicit:
 - effective wind becomes the base wind vector after confidence/freshness weighting against Minecraft weather or calm fallback,
 - API turbulence becomes the natural turbulence floor,
 - shear and shelter add bounded dirty-air turbulence,
+- trusted local L2 pressure anomaly/proxy adds a small capped turbulence boost, so block-edge or duct pressure disturbance can excite rotor response without turning coarse weather pressure into local CFD forcing,
 - A4MC shear/updraft/shelter diagnostics add a bounded terrain-shear gust component to the effective air mass, making blackbox wind-shear acceleration respond to local voxel flow instead of only mean wind changes,
 - gust vector, with gust-speed fallback for older bridges, adds a bounded unresolved turbulence boost plus a small coherent A4MC source-gust air-mass component, so effective-wind steps also excite Dryden-scale rotor response without impersonating terrain shear,
 - API temperature and humidity are confidence/freshness weighted before replacing biome-derived ambient temperature or contributing to moist-air density relief,
