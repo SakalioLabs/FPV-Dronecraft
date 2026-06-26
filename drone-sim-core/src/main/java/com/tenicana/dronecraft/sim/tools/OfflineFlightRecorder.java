@@ -76,6 +76,16 @@ public final class OfflineFlightRecorder {
 	private static final double PROP_DAMAGE_AUDIT_WARMUP_SECONDS = 2.0;
 	private static final double PROP_DAMAGE_AUDIT_SAMPLE_SECONDS = 6.0;
 	private static final Vec3 WALL_SKIM_DIRECTION_BODY = new Vec3(1.0, 0.0, 0.0);
+	private static final double WALL_SKIM_A4MC_LOCAL_OBSTACLE_RESIDUAL = 0.62;
+	private static final double WALL_SKIM_A4MC_SOURCE_CONFIDENCE = 0.86;
+	private static final double WALL_SKIM_A4MC_SHELTER_FACTOR = 0.74;
+	private static final double WALL_SKIM_A4MC_SHEAR_MAGNITUDE_PER_BLOCK = 0.58;
+	private static final double WALL_SKIM_A4MC_UPDRAFT_METERS_PER_SECOND = 0.18;
+	private static final double WALL_SKIM_A4MC_PRESSURE_ANOMALY_PASCALS = -220.0;
+	private static final double WALL_SKIM_A4MC_HUMIDITY = 0.45;
+	private static final double WALL_SKIM_A4MC_ABL_STABILITY = -0.18;
+	private static final double WALL_SKIM_A4MC_ABL_MIXING_STRENGTH = 0.64;
+	private static final long WALL_SKIM_A4MC_FRESHNESS_AGE_TICKS = 2L;
 	private static final Vec3[] ROTOR_SIDE_FLOW_SAMPLE_DIRECTIONS_BODY = {
 			new Vec3(1.0, 0.0, 0.0),
 			new Vec3(-1.0, 0.0, 0.0),
@@ -3324,8 +3334,11 @@ public final class OfflineFlightRecorder {
 		double groundClearance = Math.max(0.0, altitude);
 		RotorFlowObstructionProfile rotorFlow = rotorFlowObstructionFor(config, frame.phase());
 		double obstacleProximity = rotorFlow.maxIntensity();
+		boolean a4mcWallSkim = rotorFlow.hasA4mcShelterObstructions();
 		double turbulenceIntensity = MathUtil.clamp(
-				windVelocityWorldMetersPerSecond.length() / 12.0 + 0.18 * obstacleProximity,
+				windVelocityWorldMetersPerSecond.length() / 12.0
+						+ 0.18 * obstacleProximity
+						+ (a4mcWallSkim ? 0.10 * WALL_SKIM_A4MC_SHELTER_FACTOR : 0.0),
 				0.0,
 				0.55
 		);
@@ -3342,8 +3355,32 @@ public final class OfflineFlightRecorder {
 				rotorFlow.directionsBody(),
 				null,
 				0.0,
+				null,
 				frame.precipitationWetnessIntensity(),
-				ambientTemperatureCelsius
+				ambientTemperatureCelsius,
+				null,
+				null,
+				rotorFlow.a4mcShelterObstructions(),
+				a4mcWallSkim ? DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC : DroneEnvironment.WIND_SOURCE_INTERNAL,
+				a4mcWallSkim,
+				a4mcWallSkim ? WALL_SKIM_A4MC_SOURCE_CONFIDENCE : 0.0,
+				a4mcWallSkim ? WALL_SKIM_A4MC_PRESSURE_ANOMALY_PASCALS : 0.0,
+				a4mcWallSkim ? WALL_SKIM_A4MC_SHEAR_MAGNITUDE_PER_BLOCK : 0.0,
+				a4mcWallSkim ? WALL_SKIM_A4MC_SHELTER_FACTOR : 0.0,
+				a4mcWallSkim ? WALL_SKIM_A4MC_UPDRAFT_METERS_PER_SECOND : 0.0,
+				a4mcWallSkim,
+				a4mcWallSkim ? "l2" : DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
+				a4mcWallSkim ? "server_authoritative" : DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
+				a4mcWallSkim ? WALL_SKIM_A4MC_FRESHNESS_AGE_TICKS : -1L,
+				a4mcWallSkim ? windVelocityWorldMetersPerSecond.length() : 0.0,
+				a4mcWallSkim ? windVelocityWorldMetersPerSecond.length() : 0.0,
+				0.0,
+				a4mcWallSkim,
+				a4mcWallSkim ? ambientTemperatureCelsius : 0.0,
+				a4mcWallSkim,
+				a4mcWallSkim ? WALL_SKIM_A4MC_HUMIDITY : 0.0,
+				a4mcWallSkim ? WALL_SKIM_A4MC_ABL_STABILITY : 0.0,
+				a4mcWallSkim ? WALL_SKIM_A4MC_ABL_MIXING_STRENGTH : 0.0
 		);
 	}
 
@@ -3355,6 +3392,7 @@ public final class OfflineFlightRecorder {
 		int rotorCount = config.rotors().size();
 		double[] obstructions = new double[rotorCount];
 		Vec3[] directions = new Vec3[rotorCount];
+		double[] a4mcShelterObstructions = a4mcShelterGradientObstructionsFor(config, phase);
 		double bodyCenterClearance = maxRotorProjection(config, WALL_SKIM_DIRECTION_BODY)
 				+ WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS;
 		double maxIntensity = 0.0;
@@ -3368,18 +3406,78 @@ public final class OfflineFlightRecorder {
 					sideFlowSampleMaxDistance(rotor),
 					rotor.radiusMeters()
 			);
-			obstructions[i] = result.intensity();
-			directions[i] = result.directionBody();
-			maxIntensity = Math.max(maxIntensity, result.intensity());
+			double localObstacle = result.intensity() * WALL_SKIM_A4MC_LOCAL_OBSTACLE_RESIDUAL;
+			double shelterObstruction = i < a4mcShelterObstructions.length ? a4mcShelterObstructions[i] : 0.0;
+			double combinedIntensity = combineObstructionIntensity(localObstacle, shelterObstruction);
+			obstructions[i] = combinedIntensity;
+			directions[i] = combineObstructionDirection(
+					result.directionBody(),
+					localObstacle,
+					WALL_SKIM_DIRECTION_BODY,
+					shelterObstruction
+			);
+			maxIntensity = Math.max(maxIntensity, combinedIntensity);
 		}
 
-		return new RotorFlowObstructionProfile(obstructions, directions, maxIntensity);
+		return new RotorFlowObstructionProfile(obstructions, directions, a4mcShelterObstructions, maxIntensity);
+	}
+
+	private static double[] a4mcShelterGradientObstructionsFor(DroneConfig config, String phase) {
+		if (!"wall_skim".equals(phase)) {
+			return null;
+		}
+
+		int rotorCount = config.rotors().size();
+		double[] obstructions = new double[rotorCount];
+		double maxAbsProjection = maxAbsRotorProjection(config, WALL_SKIM_DIRECTION_BODY);
+		if (maxAbsProjection <= 1.0e-9) {
+			return obstructions;
+		}
+
+		for (int i = 0; i < rotorCount; i++) {
+			double projection = config.rotors().get(i).positionBodyMeters().dot(WALL_SKIM_DIRECTION_BODY);
+			double wallSide = MathUtil.clamp(0.5 + 0.5 * projection / maxAbsProjection, 0.0, 1.0);
+			obstructions[i] = MathUtil.clamp(0.035 + 0.115 * wallSide, 0.0, 0.18);
+		}
+		return obstructions;
+	}
+
+	private static double combineObstructionIntensity(double first, double second) {
+		double firstIntensity = MathUtil.clamp(Double.isFinite(first) ? first : 0.0, 0.0, 1.0);
+		double secondIntensity = MathUtil.clamp(Double.isFinite(second) ? second : 0.0, 0.0, 1.0);
+		return MathUtil.clamp(1.0 - (1.0 - firstIntensity) * (1.0 - secondIntensity), 0.0, 1.0);
+	}
+
+	private static Vec3 combineObstructionDirection(
+			Vec3 firstDirection,
+			double firstIntensity,
+			Vec3 secondDirection,
+			double secondIntensity
+	) {
+		Vec3 combined = weightedDirection(firstDirection, firstIntensity).add(weightedDirection(secondDirection, secondIntensity));
+		return combined.lengthSquared() <= 1.0e-9 ? Vec3.ZERO : combined.normalized();
+	}
+
+	private static Vec3 weightedDirection(Vec3 direction, double intensity) {
+		if (direction == null || direction.lengthSquared() <= 1.0e-9 || intensity <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		return direction.normalized().multiply(MathUtil.clamp(intensity, 0.0, 1.0));
 	}
 
 	private static double maxRotorProjection(DroneConfig config, Vec3 directionBody) {
 		double maxProjection = 0.0;
 		for (RotorSpec rotor : config.rotors()) {
 			maxProjection = Math.max(maxProjection, rotor.positionBodyMeters().dot(directionBody));
+		}
+		return maxProjection;
+	}
+
+	private static double maxAbsRotorProjection(DroneConfig config, Vec3 directionBody) {
+		double maxProjection = 0.0;
+		Vec3 direction = directionBody.normalized();
+		for (RotorSpec rotor : config.rotors()) {
+			maxProjection = Math.max(maxProjection, Math.abs(rotor.positionBodyMeters().dot(direction)));
 		}
 		return maxProjection;
 	}
@@ -4356,8 +4454,20 @@ public final class OfflineFlightRecorder {
 	) {
 	}
 
-	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double maxIntensity) {
-		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, 0.0);
+	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double[] a4mcShelterObstructions, double maxIntensity) {
+		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, null, 0.0);
+
+		private boolean hasA4mcShelterObstructions() {
+			if (a4mcShelterObstructions == null) {
+				return false;
+			}
+			for (double obstruction : a4mcShelterObstructions) {
+				if (Double.isFinite(obstruction) && obstruction > 1.0e-6) {
+					return true;
+				}
+			}
+			return false;
+		}
 
 		private double[] thrustMultipliers() {
 			if (obstructions == null || obstructions.length == 0) {

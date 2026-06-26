@@ -11551,6 +11551,11 @@ class DronePhysicsTest {
 		assertTrue(maxColumn(lines, header, "obstacle_proximity") > 0.25);
 		assertTrue(maxColumn(lines, header, "rotor_wall_effect_n") > 0.04);
 		assertTrue(maxColumn(lines, header, "rotor_0_flow_obstruction") >= 0.0);
+		assertTrue(maxColumn(lines, header, "rotor_a4mc_shelter_obstruction") > 0.12);
+		assertTrue(maxColumn(lines, header, "rotor_0_a4mc_shelter_obstruction") > 0.12);
+		assertTrue(maxColumn(lines, header, "rotor_3_a4mc_shelter_obstruction") > 0.12);
+		assertTrue(maxColumn(lines, header, "rotor_1_a4mc_shelter_obstruction") < 0.05);
+		assertTrue(maxColumn(lines, header, "rotor_2_a4mc_shelter_obstruction") < 0.05);
 		assertTrue(minColumn(lines, header, "rotor_0_env_thrust_multiplier") > 0.0);
 		assertEquals(0.0, maxColumn(lines, header, "water_immersion"), 1.0e-9);
 		assertTrue(maxColumn(lines, header, "precipitation_wetness") > 0.95);
@@ -11568,6 +11573,7 @@ class DronePhysicsTest {
 		boolean sawRainBurst = false;
 		boolean sawLightPropFault = false;
 		double maxWallSkimFlowObstruction = 0.0;
+		double maxWallSkimA4mcShelterObstruction = 0.0;
 		double minWallSkimThrustMultiplier = 1.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
@@ -11575,9 +11581,12 @@ class DronePhysicsTest {
 				sawWallSkim = true;
 				for (int rotorIndex = 0; rotorIndex < 4; rotorIndex++) {
 					double flowObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_flow_obstruction")]);
+					double a4mcShelterObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_a4mc_shelter_obstruction")]);
 					double thrustMultiplier = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_env_thrust_multiplier")]);
 					maxWallSkimFlowObstruction = Math.max(maxWallSkimFlowObstruction, flowObstruction);
+					maxWallSkimA4mcShelterObstruction = Math.max(maxWallSkimA4mcShelterObstruction, a4mcShelterObstruction);
 					minWallSkimThrustMultiplier = Math.min(minWallSkimThrustMultiplier, thrustMultiplier);
+					assertTrue(flowObstruction >= a4mcShelterObstruction);
 					assertEquals(
 							RotorFlowObstructionModel.thrustMultiplier(flowObstruction),
 							thrustMultiplier,
@@ -11592,6 +11601,7 @@ class DronePhysicsTest {
 		}
 		assertTrue(sawWallSkim);
 		assertTrue(maxWallSkimFlowObstruction > 0.25, "maxWallSkimFlowObstruction=" + maxWallSkimFlowObstruction);
+		assertTrue(maxWallSkimA4mcShelterObstruction > 0.12, "maxWallSkimA4mcShelterObstruction=" + maxWallSkimA4mcShelterObstruction);
 		assertTrue(minWallSkimThrustMultiplier < 0.995, "minWallSkimThrustMultiplier=" + minWallSkimThrustMultiplier);
 		assertTrue(minWallSkimThrustMultiplier > 0.94, "minWallSkimThrustMultiplier=" + minWallSkimThrustMultiplier);
 		assertTrue(sawRainBurst);
@@ -11688,6 +11698,7 @@ class DronePhysicsTest {
 				report.maxWindA4mcTerrainShearSpeedMetersPerSecond(),
 				1.0e-5
 		);
+		assertTrue(maxColumn(lines, header, "wind_a4mc_terrain_shear_speed_mps") > 0.02);
 		assertTrue(report.maxWindShearAccelerationMetersPerSecondSquared() > 0.10);
 		assertTrue(report.maxRotorWallEffectForceNewtons() > 0.04);
 		assertTrue(report.maxContactImpactSpeedMetersPerSecond() >= 0.0);

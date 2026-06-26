@@ -33,9 +33,11 @@ When trusted Aerodynamics4MC samples are available, `fabric-mod` samples each ro
 
 In the advanced environment path, local obstacle scans, drone wake, water, precipitation, ground effect, ceiling effect, and rotor disk obstruction remain active on top of the sampled wind. If Aerodynamics4MC reports trusted local L2 voxel flow, FPV Dronecraft treats A4MC shelter as having already explained part of the wall/tunnel wind shadow and attenuates only the duplicated local obstacle airflow plus rotor side-flow obstruction. Rotor-center A4MC samples now refine that attenuation per rotor, so the wall-side rotor at a tunnel mouth can shed more duplicated Minecraft obstruction than the exposed rotor instead of inheriting only the body-center shelter residual. The same trusted local shelter also reduces motor and ESC ventilation cooling by a bounded amount, so flying through sheltered voxel wakes can carry a small thermal penalty without replacing the existing electrical and propwash heat models. Rotor ground effect, ceiling effect, wet props, precipitation, and drone wake stay independent. In the stage-one playable path, the environment remains calm unless Aerodynamics4MC or an explicit `/fpvdrone environment` override provides wind or turbulence.
 
+The offline `wall_skim` trace now carries a synthetic trusted A4MC L2 local-voxel profile. It attenuates duplicated geometric wall obstruction with a local obstacle residual, injects a per-rotor A4MC shelter-gradient obstruction biased toward the wall-side rotors, and records both the explicit A4MC shelter obstruction and the combined rotor flow obstruction. This gives the CSV regression suite a stable block-edge/tunnel-mouth proxy before live Aerodynamics4MC worlds are available in automated tests.
+
 ## Next Research Steps
 
 - Calibrate the disk-gradient thrust-loss, load, vibration, and flapping coefficients against blackbox traces near block edges and tunnel mouths.
-- Build blackbox regression traces that compare Aerodynamics4MC confidence, shelter, and shear against observed rotor axial gust response near block edges and tunnel mouths.
+- Extend the synthetic A4MC wall-skim trace into a small packet matrix that varies confidence, shelter, shear, and source freshness against observed rotor axial gust response near block edges and tunnel mouths.
 - Validate A4MC-driven gust response against the existing `wind_gust_calibration_packet` and `rotor_forward_flow_reference` data.
 - Explore optional client-only visualization using A4MC local L2 while keeping server flight dynamics authoritative.
