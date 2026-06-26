@@ -10424,6 +10424,60 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void adoptedA4mcLocalVoxelPressureCenterDoesNotDoubleGateRotorSignals() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics fullQuality = new DronePhysics(config);
+		DronePhysics halfQuality = new DronePhysics(config);
+		DronePhysics stale = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		double[] adoptedLocalVoxelResiduals = {0.35, 0.94, 0.94, 0.35};
+		double[] adoptedShelterObstructions = {0.18, 0.02, 0.02, 0.18};
+		DroneEnvironment fullQualityEnvironment = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				1.0,
+				0L,
+				adoptedLocalVoxelResiduals,
+				adoptedShelterObstructions
+		);
+		DroneEnvironment halfQualityEnvironment = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				0.50,
+				0L,
+				adoptedLocalVoxelResiduals,
+				adoptedShelterObstructions
+		);
+		DroneEnvironment staleEnvironment = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				1.0,
+				160L,
+				adoptedLocalVoxelResiduals,
+				adoptedShelterObstructions
+		);
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(fullQuality, straightVelocity);
+			holdInCruise(halfQuality, straightVelocity);
+			holdInCruise(stale, straightVelocity);
+			fullQuality.step(DroneInput.idle(), 0.005, fullQualityEnvironment);
+			halfQuality.step(DroneInput.idle(), 0.005, halfQualityEnvironment);
+			stale.step(DroneInput.idle(), 0.005, staleEnvironment);
+		}
+
+		Vec3 fullTorque = fullQuality.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 halfTorque = halfQuality.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 staleTorque = stale.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertEquals(fullTorque.y(), halfTorque.y(), 1.0e-9);
+		assertTrue(Math.abs(fullTorque.y()) > 0.006, () -> "fullTorque=" + fullTorque);
+		assertTrue(Math.abs(staleTorque.y()) < 0.0015, () -> "staleTorque=" + staleTorque);
+	}
+
+	@Test
 	void a4mcPressureGradientAsymmetryMovesAirframePressureCenter() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -10461,6 +10515,58 @@ class DronePhysicsTest {
 		Vec3 freshTorque = freshLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
 		Vec3 staleTorque = staleLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
 		assertTrue(Math.abs(freshTorque.y()) > 0.006, () -> "freshTorque=" + freshTorque);
+		assertTrue(Math.abs(staleTorque.y()) < 0.0015, () -> "staleTorque=" + staleTorque);
+	}
+
+	@Test
+	void adoptedA4mcPressureGradientPressureCenterDoesNotDoubleGateRotorSignals() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics fullQuality = new DronePhysics(config);
+		DronePhysics halfQuality = new DronePhysics(config);
+		DronePhysics stale = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		Vec3[] adoptedPressureGradients = {
+				new Vec3(2.4, 0.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				new Vec3(2.4, 0.0, 0.0)
+		};
+		DroneEnvironment fullQualityEnvironment = a4mcPressureGradientPressureCenterWind(
+				adoptedPressureGradients,
+				true,
+				1.0,
+				0L
+		);
+		DroneEnvironment halfQualityEnvironment = a4mcPressureGradientPressureCenterWind(
+				adoptedPressureGradients,
+				true,
+				0.50,
+				0L
+		);
+		DroneEnvironment staleEnvironment = a4mcPressureGradientPressureCenterWind(
+				adoptedPressureGradients,
+				true,
+				1.0,
+				160L
+		);
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(fullQuality, straightVelocity);
+			holdInCruise(halfQuality, straightVelocity);
+			holdInCruise(stale, straightVelocity);
+			fullQuality.step(DroneInput.idle(), 0.005, fullQualityEnvironment);
+			halfQuality.step(DroneInput.idle(), 0.005, halfQualityEnvironment);
+			stale.step(DroneInput.idle(), 0.005, staleEnvironment);
+		}
+
+		Vec3 fullTorque = fullQuality.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 halfTorque = halfQuality.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 staleTorque = stale.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertEquals(fullTorque.y(), halfTorque.y(), 1.0e-9);
+		assertTrue(Math.abs(fullTorque.y()) > 0.006, () -> "fullTorque=" + fullTorque);
 		assertTrue(Math.abs(staleTorque.y()) < 0.0015, () -> "staleTorque=" + staleTorque);
 	}
 

@@ -6106,7 +6106,7 @@ public final class DronePhysics {
 		}
 
 		double speedGate = smoothStep(2.0, 12.0, airspeedMetersPerSecond);
-		double strength = MathUtil.clamp(meanSignal * sourceQuality * speedGate, 0.0, 1.0);
+		double strength = MathUtil.clamp(meanSignal * speedGate, 0.0, 1.0);
 		if (strength <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
