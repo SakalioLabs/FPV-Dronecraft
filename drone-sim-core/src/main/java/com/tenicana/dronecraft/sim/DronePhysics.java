@@ -9914,9 +9914,8 @@ public final class DronePhysics {
 			return 1.0;
 		}
 		double bodyShelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
-		double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(rotorIndex), 0.0, 1.0)
-				* sourceQuality;
-		double rotorShelterObstruction = environment.rotorA4mcShelterObstruction(rotorIndex) * sourceQuality;
+		double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(rotorIndex), 0.0, 1.0);
+		double rotorShelterObstruction = MathUtil.clamp(environment.rotorA4mcShelterObstruction(rotorIndex), 0.0, 1.0);
 		double ventilationLoss = 0.20 * bodyShelter
 				+ 0.12 * localVoxelCoverage
 				+ 0.18 * rotorShelterObstruction;
@@ -9941,8 +9940,8 @@ public final class DronePhysics {
 		}
 
 		double bodyShelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
-		double averageLocalVoxelCoverage = localVoxelCoverageSum / sampleCount * sourceQuality;
-		double averageShelterObstruction = shelterObstructionSum / sampleCount * sourceQuality;
+		double averageLocalVoxelCoverage = localVoxelCoverageSum / sampleCount;
+		double averageShelterObstruction = shelterObstructionSum / sampleCount;
 		double ventilationLoss = 0.14 * bodyShelter
 				+ 0.08 * averageLocalVoxelCoverage
 				+ 0.10 * averageShelterObstruction;

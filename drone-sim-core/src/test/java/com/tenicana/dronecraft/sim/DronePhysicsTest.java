@@ -5298,6 +5298,46 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void adoptedA4mcLocalVoxelVentilationDoesNotDoubleGateRotorArrays() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorThermal(40.0, 0.18, 200.0, 240.0)
+				.withBattery(16.8, 16.7, 0.0, 12.0, 90.0);
+		DronePhysics fullQuality = new DronePhysics(config);
+		DronePhysics halfQuality = new DronePhysics(config);
+		Vec3 crossflow = new Vec3(10.0, 0.0, 0.0);
+		DroneInput loaded = new DroneInput(0.52, 0.0, 0.0, 0.0, true);
+		double[] adoptedLocalVoxelResiduals = {0.74, 0.74, 0.90, 0.90};
+		double[] adoptedShelterObstructions = {0.08, 0.08, 0.04, 0.04};
+		DroneEnvironment fullQualityEnvironment = a4mcShelterCoolingWind(
+				0.0,
+				true,
+				1.0,
+				0L,
+				adoptedLocalVoxelResiduals,
+				adoptedShelterObstructions
+		);
+		DroneEnvironment halfQualityEnvironment = a4mcShelterCoolingWind(
+				0.0,
+				true,
+				0.50,
+				0L,
+				adoptedLocalVoxelResiduals,
+				adoptedShelterObstructions
+		);
+
+		holdInCoolingCrossflow(fullQuality, crossflow);
+		holdInCoolingCrossflow(halfQuality, crossflow);
+		fullQuality.step(loaded, 0.005, fullQualityEnvironment);
+		halfQuality.step(loaded, 0.005, halfQualityEnvironment);
+
+		assertEquals(fullQuality.state().averageMotorCoolingFactor(), halfQuality.state().averageMotorCoolingFactor(), 1.0e-9);
+		assertEquals(fullQuality.state().averageEscCoolingFactor(), halfQuality.state().averageEscCoolingFactor(), 1.0e-9);
+		assertEquals(fullQuality.state().batteryCoolingFactor(), halfQuality.state().batteryCoolingFactor(), 1.0e-9);
+	}
+
+	@Test
 	void recirculatedDirtyAirReducesMotorAndEscCooling() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -8790,8 +8830,8 @@ class DronePhysicsTest {
 				true,
 				0.50,
 				0L,
-				localVoxelResiduals,
-				shelterObstructions
+				adoptedLocalVoxelResiduals(localVoxelResiduals, 0.50),
+				scaledUnitArray(shelterObstructions, 0.50)
 		);
 
 		exposed.step(DroneInput.idle(), 0.005, exposedA4mc);
@@ -14006,6 +14046,31 @@ class DronePhysicsTest {
 				rotorLocalVoxelObstacleResiduals,
 				null
 		);
+	}
+
+	private static double[] adoptedLocalVoxelResiduals(double[] fullQualityResiduals, double sourceQuality) {
+		if (fullQualityResiduals == null) {
+			return null;
+		}
+		double safeQuality = MathUtil.clamp(sourceQuality, 0.0, 1.0);
+		double[] adopted = new double[fullQualityResiduals.length];
+		for (int i = 0; i < fullQualityResiduals.length; i++) {
+			double fullQualityCoverage = MathUtil.clamp(1.0 - fullQualityResiduals[i], 0.0, 1.0);
+			adopted[i] = MathUtil.clamp(1.0 - fullQualityCoverage * safeQuality, 0.0, 1.0);
+		}
+		return adopted;
+	}
+
+	private static double[] scaledUnitArray(double[] values, double scale) {
+		if (values == null) {
+			return null;
+		}
+		double safeScale = MathUtil.clamp(scale, 0.0, 1.0);
+		double[] scaled = new double[values.length];
+		for (int i = 0; i < values.length; i++) {
+			scaled[i] = MathUtil.clamp(values[i] * safeScale, 0.0, 1.0);
+		}
+		return scaled;
 	}
 
 	private static DroneEnvironment a4mcPressureGradientPressureCenterWind(
