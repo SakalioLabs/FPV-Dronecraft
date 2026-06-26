@@ -45,6 +45,9 @@ public final class OfflineFlightRecorder {
 	public static final double DEFAULT_DURATION_SECONDS = 16.0;
 	public static final int SAMPLE_EVERY_STEPS = 4;
 	private static final double WALL_SKIM_CLOSEST_ROTOR_CLEARANCE_METERS = 0.075;
+	private static final double WALL_SKIM_A4MC_PRECIPITATION_WETNESS = 0.72;
+	private static final double WALL_SKIM_A4MC_PRECIPITATION_SHELTER_RELIEF = 0.72;
+	private static final double WALL_SKIM_A4MC_PRECIPITATION_MIN_EXPOSURE = 0.24;
 	private static final double RAIN_BURST_PRECIPITATION_WETNESS = 1.0;
 	private static final int LIGHT_PROP_FAULT_ROTOR_INDEX = 0;
 	private static final double LIGHT_PROP_FAULT_DAMAGE = 0.10;
@@ -3292,7 +3295,15 @@ public final class OfflineFlightRecorder {
 			return frame("crosswind_settle", hover + 0.04, 0.0, 0.0, 0.0, new Vec3(5.0, 0.0, 0.0));
 		}
 		if (timeSeconds < 10.15) {
-			return frame("wall_skim", hover + 0.05, 0.0, 0.04, 0.0, new Vec3(5.0, 0.0, 0.0));
+			return frame(
+					"wall_skim",
+					hover + 0.05,
+					0.0,
+					0.04,
+					0.0,
+					new Vec3(5.0, 0.0, 0.0),
+					WALL_SKIM_A4MC_PRECIPITATION_WETNESS
+			);
 		}
 		if (timeSeconds < 10.5) {
 			return frame("roll_step", 0.52, 0.0, 0.85, 0.0, new Vec3(5.0, 0.0, 0.0));
@@ -3402,6 +3413,7 @@ public final class OfflineFlightRecorder {
 		double obstacleProximity = rotorFlow.maxIntensity();
 		boolean a4mcWallSkim = rotorFlow.hasA4mcShelterObstructions();
 		Vec3[] a4mcPressureDiskGradient = a4mcPressureGradientDiskWindFor(config, frame.phase());
+		double[] rotorPrecipitationWetnesses = rotorPrecipitationWetnessesFor(config, frame);
 		double turbulenceIntensity = MathUtil.clamp(
 				windVelocityWorldMetersPerSecond.length() / 12.0
 						+ 0.18 * obstacleProximity
@@ -3422,7 +3434,7 @@ public final class OfflineFlightRecorder {
 				rotorFlow.directionsBody(),
 				null,
 				0.0,
-				null,
+				rotorPrecipitationWetnesses,
 				frame.precipitationWetnessIntensity(),
 				ambientTemperatureCelsius,
 				null,
@@ -3457,6 +3469,49 @@ public final class OfflineFlightRecorder {
 				rotorFlow.localVoxelObstacleResiduals(),
 				a4mcPressureDiskGradient
 		);
+	}
+
+	private static double[] rotorPrecipitationWetnessesFor(DroneConfig config, ScriptFrame frame) {
+		int rotorCount = config.rotors().size();
+		double wetness = MathUtil.clamp(frame.precipitationWetnessIntensity(), 0.0, 1.0);
+		if (rotorCount <= 0 || wetness <= 1.0e-9) {
+			return null;
+		}
+
+		double[] wetnesses = new double[rotorCount];
+		for (int i = 0; i < rotorCount; i++) {
+			double exposure = "wall_skim".equals(frame.phase())
+					? wallSkimA4mcPrecipitationExposureFactor(config, i)
+					: 1.0;
+			wetnesses[i] = MathUtil.clamp(wetness * exposure, 0.0, 1.0);
+		}
+		return wetnesses;
+	}
+
+	private static double wallSkimA4mcPrecipitationExposureFactor(DroneConfig config, int rotorIndex) {
+		double shelter = wallSkimA4mcPrecipitationShelterFactor(config, rotorIndex);
+		return MathUtil.clamp(
+				1.0 - shelter * WALL_SKIM_A4MC_PRECIPITATION_SHELTER_RELIEF,
+				WALL_SKIM_A4MC_PRECIPITATION_MIN_EXPOSURE,
+				1.0
+		);
+	}
+
+	private static double wallSkimA4mcPrecipitationShelterFactor(DroneConfig config, int rotorIndex) {
+		double maxAbsProjection = maxAbsRotorProjection(config, WALL_SKIM_DIRECTION_BODY);
+		if (rotorIndex < 0 || rotorIndex >= config.rotors().size() || maxAbsProjection <= 1.0e-9) {
+			return 0.0;
+		}
+
+		double projection = config.rotors().get(rotorIndex).positionBodyMeters().dot(WALL_SKIM_DIRECTION_BODY);
+		double wallSide = MathUtil.clamp(0.5 + 0.5 * projection / maxAbsProjection, 0.0, 1.0);
+		double rawShelter = MathUtil.clamp(
+				WALL_SKIM_A4MC_SHELTER_CENTER_FACTOR
+						+ WALL_SKIM_A4MC_SHELTER_FACTOR * wallSkimA4mcWallSideSignalFraction(wallSide),
+				0.0,
+				1.0
+		);
+		return MathUtil.clamp(rawShelter * WALL_SKIM_A4MC_SOURCE_CONFIDENCE, 0.0, 1.0);
 	}
 
 	private static RotorFlowObstructionProfile rotorFlowObstructionFor(DroneConfig config, String phase) {

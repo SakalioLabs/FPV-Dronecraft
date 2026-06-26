@@ -12931,21 +12931,39 @@ class DronePhysicsTest {
 		double maxWallSkimFlowObstruction = 0.0;
 		double maxWallSkimA4mcShelterObstruction = 0.0;
 		double maxWallSkimDiskWindGradient = 0.0;
+		double maxWallSkimBodyPrecipitationWetness = 0.0;
+		double minWallSkimRotorPrecipitationWetness = 1.0;
+		double maxWallSkimRotorPrecipitationWetness = 0.0;
 		double minWallSkimThrustMultiplier = 1.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			if ("wall_skim".equals(row[phaseIndex])) {
 				sawWallSkim = true;
+				double bodyPrecipitationWetness = Double.parseDouble(row[indexOf(header, "precipitation_wetness")]);
+				maxWallSkimBodyPrecipitationWetness = Math.max(
+						maxWallSkimBodyPrecipitationWetness,
+						bodyPrecipitationWetness
+				);
 				for (int rotorIndex = 0; rotorIndex < 4; rotorIndex++) {
 					double flowObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_flow_obstruction")]);
 					double a4mcShelterObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_a4mc_shelter_obstruction")]);
 					double diskWindGradient = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_disk_wind_gradient_mps")]);
 					double thrustMultiplier = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_env_thrust_multiplier")]);
+					double rotorPrecipitationWetness = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_precipitation_wetness")]);
 					maxWallSkimFlowObstruction = Math.max(maxWallSkimFlowObstruction, flowObstruction);
 					maxWallSkimA4mcShelterObstruction = Math.max(maxWallSkimA4mcShelterObstruction, a4mcShelterObstruction);
 					maxWallSkimDiskWindGradient = Math.max(maxWallSkimDiskWindGradient, diskWindGradient);
+					minWallSkimRotorPrecipitationWetness = Math.min(
+							minWallSkimRotorPrecipitationWetness,
+							rotorPrecipitationWetness
+					);
+					maxWallSkimRotorPrecipitationWetness = Math.max(
+							maxWallSkimRotorPrecipitationWetness,
+							rotorPrecipitationWetness
+					);
 					minWallSkimThrustMultiplier = Math.min(minWallSkimThrustMultiplier, thrustMultiplier);
 					assertTrue(flowObstruction >= a4mcShelterObstruction);
+					assertTrue(rotorPrecipitationWetness < bodyPrecipitationWetness);
 					assertEquals(
 							RotorFlowObstructionModel.thrustMultiplier(flowObstruction),
 							thrustMultiplier,
@@ -12962,6 +12980,17 @@ class DronePhysicsTest {
 		assertTrue(maxWallSkimFlowObstruction > 0.25, "maxWallSkimFlowObstruction=" + maxWallSkimFlowObstruction);
 		assertEquals(0.04239, maxWallSkimA4mcShelterObstruction, 1.0e-5);
 		assertEquals(0.08013, maxWallSkimDiskWindGradient, 1.0e-5);
+		assertEquals(0.72, maxWallSkimBodyPrecipitationWetness, 1.0e-5);
+		assertTrue(
+				maxWallSkimRotorPrecipitationWetness < maxWallSkimBodyPrecipitationWetness * 0.70,
+				"maxWallSkimRotorPrecipitationWetness=" + maxWallSkimRotorPrecipitationWetness
+						+ " maxWallSkimBodyPrecipitationWetness=" + maxWallSkimBodyPrecipitationWetness
+		);
+		assertTrue(
+				minWallSkimRotorPrecipitationWetness < maxWallSkimRotorPrecipitationWetness * 0.75,
+				"minWallSkimRotorPrecipitationWetness=" + minWallSkimRotorPrecipitationWetness
+						+ " maxWallSkimRotorPrecipitationWetness=" + maxWallSkimRotorPrecipitationWetness
+		);
 		assertEquals(0.99668, minWallSkimThrustMultiplier, 1.0e-5);
 		assertTrue(sawRainBurst);
 		assertTrue(sawLightPropFault);
