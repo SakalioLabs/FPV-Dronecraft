@@ -4172,6 +4172,7 @@ public class DroneEntity extends Entity {
 		saveVec(output, "aero_dryden_first", state.drydenFirstOrderVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_dryden_lag", state.drydenTransverseLagVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_dryden_turbulence", state.drydenTurbulenceVelocityWorldMetersPerSecond());
+		saveVec(output, "aero_a4mc_terrain_shear", state.a4mcTerrainShearVelocityWorldMetersPerSecond());
 		saveVec(output, "aero_wind_gust", state.windGustVelocityWorldMetersPerSecond());
 		output.putString("aero_dryden_random_state", Long.toString(state.drydenRandomState()));
 		output.putDouble("aero_dryden_spare_gaussian", state.drydenSpareGaussian());
@@ -4201,6 +4202,7 @@ public class DroneEntity extends Entity {
 				|| hasVec(input, "aero_dryden_first")
 				|| hasVec(input, "aero_dryden_lag")
 				|| hasVec(input, "aero_dryden_turbulence")
+				|| hasVec(input, "aero_a4mc_terrain_shear")
 				|| hasVec(input, "aero_wind_gust")
 				|| input.getString("aero_dryden_random_state").isPresent()
 				|| input.getString("aero_dryden_has_spare").isPresent()
@@ -4220,6 +4222,7 @@ public class DroneEntity extends Entity {
 				loadVec(input, "aero_dryden_first", Vec3.ZERO),
 				loadVec(input, "aero_dryden_lag", Vec3.ZERO),
 				loadVec(input, "aero_dryden_turbulence", Vec3.ZERO),
+				loadVec(input, "aero_a4mc_terrain_shear", Vec3.ZERO),
 				loadVec(input, "aero_wind_gust", Vec3.ZERO),
 				loadLong(input, "aero_dryden_random_state", 0x6A09E667F3BCC909L),
 				input.getDoubleOr("aero_dryden_spare_gaussian", 0.0),

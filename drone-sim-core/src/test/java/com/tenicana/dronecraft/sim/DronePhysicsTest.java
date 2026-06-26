@@ -3443,6 +3443,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcShearDiagnosticsAddTerrainShearGustTelemetry() {
+		DronePhysics smooth = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics sheared = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment smoothA4mcWind = a4mcTerrainShearWind(0.0, 0.0);
+		DroneEnvironment shearedA4mcWind = a4mcTerrainShearWind(1.35, 2.4);
+
+		for (int i = 0; i < 260; i++) {
+			smooth.step(idle, 0.005, smoothA4mcWind);
+			sheared.step(idle, 0.005, shearedA4mcWind);
+		}
+
+		double smoothMaxGust = 0.0;
+		double shearedMaxGust = 0.0;
+		double shearedMaxAcceleration = 0.0;
+		for (int i = 0; i < 240; i++) {
+			smooth.step(idle, 0.005, smoothA4mcWind);
+			sheared.step(idle, 0.005, shearedA4mcWind);
+			smoothMaxGust = Math.max(smoothMaxGust, smooth.state().windGustSpeedMetersPerSecond());
+			shearedMaxGust = Math.max(shearedMaxGust, sheared.state().windGustSpeedMetersPerSecond());
+			shearedMaxAcceleration = Math.max(
+					shearedMaxAcceleration,
+					sheared.state().windShearAccelerationMetersPerSecondSquared()
+			);
+		}
+
+		assertEquals(0.0, smoothMaxGust, 1.0e-9);
+		assertTrue(shearedMaxGust > 0.18, "shearedMaxGust=" + shearedMaxGust);
+		assertTrue(shearedMaxAcceleration > 0.25, "shearedMaxAcceleration=" + shearedMaxAcceleration);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -12260,6 +12292,48 @@ class DronePhysicsTest {
 				0.0,
 				ablStability,
 				ablMixingStrength
+		);
+	}
+
+	private static DroneEnvironment a4mcTerrainShearWind(double shearMagnitudePerBlock, double updraftMetersPerSecond) {
+		return new DroneEnvironment(
+				new Vec3(7.0, 0.0, 0.0),
+				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				1.0,
+				0.0,
+				shearMagnitudePerBlock,
+				0.0,
+				updraftMetersPerSecond,
+				false,
+				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
+				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
+				-1L,
+				7.0,
+				7.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0
 		);
 	}
 
