@@ -11,6 +11,8 @@ public final class AerodynamicsWindCoupling {
 	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22;
 	private static final double LOCAL_VOXEL_PRESSURE_TURBULENCE_FULL_SCALE_PASCALS = 1800.0;
 	private static final double MAX_LOCAL_VOXEL_PRESSURE_TURBULENCE_BOOST = 0.16;
+	private static final double LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PASCALS = 1600.0;
+	private static final double LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS = 2.4;
 	private static final double SOURCE_GUST_TURBULENCE_GAIN_PER_MPS = 0.065;
 	private static final double MAX_SOURCE_GUST_TURBULENCE_BOOST = 0.26;
 	private static final long SOURCE_FULL_TRUST_AGE_TICKS = 40L;
@@ -151,6 +153,26 @@ public final class AerodynamicsWindCoupling {
 			return 0.0;
 		}
 		return sample.pressureAnomalyPascals() * sourceQualityFactor(sample);
+	}
+
+	private static double localVoxelPressureAnomalyOrFallback(
+			Aerodynamics4McWindBridge.WindSample sample,
+			double fallbackPressureAnomalyPascals
+	) {
+		double fallback = Double.isFinite(fallbackPressureAnomalyPascals)
+				? MathUtil.clamp(fallbackPressureAnomalyPascals, -5000.0, 5000.0)
+				: 0.0;
+		if (sample == null || !sample.hasFlow() || !sample.localVoxelFlow()) {
+			return fallback;
+		}
+		double sourceQuality = sourceQualityFactor(sample);
+		if (sourceQuality <= 1.0e-9) {
+			return fallback;
+		}
+		double pressure = Double.isFinite(sample.pressureAnomalyPascals())
+				? MathUtil.clamp(sample.pressureAnomalyPascals(), -5000.0, 5000.0)
+				: 0.0;
+		return fallback * (1.0 - sourceQuality) + pressure * sourceQuality;
 	}
 
 	public static double sourceWeightedTemperatureCelsius(
@@ -312,6 +334,61 @@ public final class AerodynamicsWindCoupling {
 		return new RotorDiskShelterBlend(meanShelter, gradient);
 	}
 
+	public static RotorDiskPressureBlend rotorDiskPressureBlend(
+			Aerodynamics4McWindBridge.WindSample centerSample,
+			Aerodynamics4McWindBridge.WindSample[] sampleWindSamples,
+			Vec3[] sampleDirectionsBody,
+			double[] sampleWeights,
+			double centerWeight
+	) {
+		double centerPressure = localVoxelPressureAnomalyOrFallback(centerSample, 0.0);
+		double safeCenterWeight = positiveWeight(centerWeight);
+		double weightedPressure = centerPressure * safeCenterWeight;
+		double totalWeight = safeCenterWeight;
+		Vec3 gradientBody = Vec3.ZERO;
+		double gradientWeight = 0.0;
+		int sampleCount = Math.min(
+				lengthOf(sampleWindSamples),
+				Math.min(lengthOf(sampleDirectionsBody), lengthOf(sampleWeights))
+		);
+		for (int i = 0; i < sampleCount; i++) {
+			double weight = positiveWeight(sampleWeights[i]);
+			if (weight <= 0.0) {
+				continue;
+			}
+			double samplePressure = localVoxelPressureAnomalyOrFallback(sampleWindSamples[i], centerPressure);
+			weightedPressure += samplePressure * weight;
+			totalWeight += weight;
+			Vec3 directionBody = finiteVec(sampleDirectionsBody[i]);
+			if (directionBody.lengthSquared() <= 1.0e-12) {
+				continue;
+			}
+			gradientBody = gradientBody.add(directionBody.multiply((samplePressure - centerPressure) * weight));
+			gradientWeight += weight;
+		}
+		double meanPressure = totalWeight <= 1.0e-9 ? centerPressure : weightedPressure / totalWeight;
+		Vec3 gradient = gradientWeight <= 1.0e-9 ? Vec3.ZERO : gradientBody.multiply(1.0 / gradientWeight);
+		return new RotorDiskPressureBlend(meanPressure, gradient);
+	}
+
+	public static Vec3 localVoxelPressureGradientWindEquivalent(RotorDiskPressureBlend blend) {
+		if (blend == null) {
+			return Vec3.ZERO;
+		}
+		Vec3 gradientBody = blend.gradientBodyPascals();
+		double gradientMagnitude = gradientBody.length();
+		if (gradientMagnitude <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		double windEquivalentMagnitude = MathUtil.clamp(
+				gradientMagnitude / LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PASCALS
+						* LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS,
+				0.0,
+				LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS
+		);
+		return gradientBody.multiply(windEquivalentMagnitude / gradientMagnitude);
+	}
+
 	public static double localVoxelShelterGradientObstruction(RotorDiskShelterBlend blend) {
 		if (blend == null) {
 			return 0.0;
@@ -400,6 +477,15 @@ public final class AerodynamicsWindCoupling {
 		public RotorDiskShelterBlend {
 			meanShelterFactor = Double.isFinite(meanShelterFactor) ? MathUtil.clamp(meanShelterFactor, 0.0, 1.0) : 0.0;
 			gradientBody = finiteVec(gradientBody).clamp(-1.0, 1.0);
+		}
+	}
+
+	public record RotorDiskPressureBlend(double meanPressureAnomalyPascals, Vec3 gradientBodyPascals) {
+		public RotorDiskPressureBlend {
+			meanPressureAnomalyPascals = Double.isFinite(meanPressureAnomalyPascals)
+					? MathUtil.clamp(meanPressureAnomalyPascals, -5000.0, 5000.0)
+					: 0.0;
+			gradientBodyPascals = finiteVec(gradientBodyPascals).clamp(-5000.0, 5000.0);
 		}
 	}
 }

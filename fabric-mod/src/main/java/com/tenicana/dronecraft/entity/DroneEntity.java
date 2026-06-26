@@ -1801,10 +1801,19 @@ public class DroneEntity extends Entity {
 					sampleWeights,
 					ROTOR_DISK_SURFACE_CENTER_WEIGHT
 			);
+			AerodynamicsWindCoupling.RotorDiskPressureBlend diskPressure = AerodynamicsWindCoupling.rotorDiskPressureBlend(
+					rotorWind,
+					sampleWinds,
+					sampleDirectionsBody,
+					sampleWeights,
+					ROTOR_DISK_SURFACE_CENTER_WEIGHT
+			);
 			Vec3 diskMeanWind = diskWind.meanWindWorldMetersPerSecond();
 			Vec3 localDelta = diskMeanWind.subtract(bodyAeroWind).multiply(bodySourceQuality);
 			rotorWindVelocities[i] = safeBaselineWind.add(localDelta);
+			Vec3 pressureGradientWind = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(diskPressure);
 			rotorDiskWindGradients[i] = diskWind.gradientBodyMetersPerSecond()
+					.add(pressureGradientWind)
 					.multiply(bodySourceQuality)
 					.clamp(-12.0, 12.0);
 			double shelterObstruction = AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(diskShelter) * bodySourceQuality;

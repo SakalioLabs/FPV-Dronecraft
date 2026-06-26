@@ -179,6 +179,53 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorDiskPressureBlendAddsEquivalentA4mcDiskGradient() {
+		AerodynamicsWindCoupling.RotorDiskPressureBlend blend = AerodynamicsWindCoupling.rotorDiskPressureBlend(
+				windSampleWithPressureAnomaly(100.0, true, 20L),
+				new Aerodynamics4McWindBridge.WindSample[] {
+						windSampleWithPressureAnomaly(900.0, true, 20L),
+						windSampleWithPressureAnomaly(-300.0, true, 20L)
+				},
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(-1.0, 0.0, 0.0)
+				},
+				new double[] { 1.0, 1.0 },
+				1.0
+		);
+
+		assertEquals(700.0 / 3.0, blend.meanPressureAnomalyPascals(), 1.0e-9);
+		assertEquals(new Vec3(600.0, 0.0, 0.0), blend.gradientBodyPascals());
+		Vec3 equivalentWindGradient = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(blend);
+		assertEquals(0.9, equivalentWindGradient.x(), 1.0e-9);
+		assertEquals(0.0, equivalentWindGradient.y(), 1.0e-9);
+		assertEquals(0.0, equivalentWindGradient.z(), 1.0e-9);
+	}
+
+	@Test
+	void rotorDiskPressureBlendTreatsMissingEdgesAsCenterPressure() {
+		AerodynamicsWindCoupling.RotorDiskPressureBlend blend = AerodynamicsWindCoupling.rotorDiskPressureBlend(
+				windSampleWithPressureAnomaly(500.0, true, 20L),
+				new Aerodynamics4McWindBridge.WindSample[] {
+						null,
+						windSampleWithPressureAnomaly(-500.0, true, 200L),
+						windSampleWithPressureAnomaly(-500.0, false, 20L)
+				},
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(-1.0, 0.0, 0.0),
+						new Vec3(0.0, 0.0, 1.0)
+				},
+				new double[] { 1.0, 1.0, 1.0 },
+				1.0
+		);
+
+		assertEquals(500.0, blend.meanPressureAnomalyPascals(), 1.0e-9);
+		assertEquals(Vec3.ZERO, blend.gradientBodyPascals());
+		assertEquals(Vec3.ZERO, AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(blend));
+	}
+
+	@Test
 	void windSampleAdapterUsesSanitizedA4mcTelemetry() {
 		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
 				true,
