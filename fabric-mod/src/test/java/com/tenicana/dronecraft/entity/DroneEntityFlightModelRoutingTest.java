@@ -191,6 +191,14 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(source.contains("StateCorrectionReason.COLLISION_CONTACT_SOLVE"), "collision movement should report an explicit state correction");
 		assertTrue(source.contains("\"TAKEOFF_RELEASE\""), "takeoff assist should report an explicit state correction");
 		assertTrue(source.contains("\"DIRECT_CLEAR\""), "direct playable reset should report an explicit state correction");
+		String baseDensityCall = "environmentOverride.airDensityOr(airDensityRatio(ambientTemperature))";
+		assertTrue(source.contains(baseDensityCall), "environment density should start from altitude/temperature only");
+		assertTrue(source.indexOf(baseDensityCall) != source.lastIndexOf(baseDensityCall),
+				"both simulation and stage-one environments should use the base density call");
+		assertFalse(source.contains("airDensityRatio(ambientTemperature, windSource.adoptedPressureAnomalyPascals())"),
+				"A4MC pressure anomaly must be applied once in DroneEnvironment.effectiveAirDensityRatio()");
+		assertFalse(source.contains("private double airDensityRatio(double ambientTemperatureCelsius, double pressureAnomalyPascals)"),
+				"DroneEntity should not keep a pressure-aware base density helper");
 	}
 
 	private static Path droneEntitySource() {

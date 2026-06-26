@@ -1368,7 +1368,7 @@ public class DroneEntity extends Entity {
 		);
 		return new DroneEnvironment(
 				obstacleAirflow.windVelocityWorldMetersPerSecond(),
-				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.adoptedPressureAnomalyPascals())),
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
 				groundClearance,
 				turbulenceIntensity,
 				obstacleAirflow.obstacleProximity(),
@@ -1459,7 +1459,7 @@ public class DroneEntity extends Entity {
 		);
 		return new DroneEnvironment(
 				sourceWind,
-				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.adoptedPressureAnomalyPascals())),
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
 				groundClearance,
 				environmentOverride.turbulenceOr(naturalTurbulence),
 				0.0,
@@ -2234,14 +2234,9 @@ public class DroneEntity extends Entity {
 	}
 
 	private double airDensityRatio(double ambientTemperatureCelsius) {
-		return airDensityRatio(ambientTemperatureCelsius, 0.0);
-	}
-
-	private double airDensityRatio(double ambientTemperatureCelsius, double pressureAnomalyPascals) {
 		return DroneEnvironment.standardAtmosphereAirDensityRatio(
 				entityPhysicsPosition().y(),
-				ambientTemperatureCelsius,
-				pressureAnomalyPascals
+				ambientTemperatureCelsius
 		);
 	}
 
