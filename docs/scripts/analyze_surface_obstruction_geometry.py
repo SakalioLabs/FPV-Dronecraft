@@ -110,8 +110,9 @@ def proximity_from_distance(distance_m: float, max_distance_m: float) -> float:
     return 1.0 - clamp(distance_m / max_distance_m, 0.0, 1.0)
 
 
-def obstruction_intensity_for_flat_wall(clearance_m: float, max_distance_m: float) -> float:
+def obstruction_intensity_for_flat_wall(clearance_m: float, max_distance_m: float, rotor_radius_m: float) -> float:
     peak_proximity = 0.0
+    closest_distance_m = math.inf
     weighted_proximity = 0.0
     total_weight = 0.0
     for direction in SAMPLE_DIRECTIONS:
@@ -121,16 +122,23 @@ def obstruction_intensity_for_flat_wall(clearance_m: float, max_distance_m: floa
         shaped_proximity = proximity**1.12
         weight = sample_weight(direction)
         peak_proximity = max(peak_proximity, proximity)
+        if math.isfinite(distance_m):
+            closest_distance_m = min(closest_distance_m, max(0.0, distance_m))
         weighted_proximity += weight * shaped_proximity
         total_weight += weight
     if total_weight <= 1.0e-9 or peak_proximity <= 1.0e-6:
         return 0.0
     disk_coverage = weighted_proximity / total_weight
-    return clamp(0.70 * peak_proximity + 0.30 * disk_coverage, 0.0, 1.0)
+    segment_coverage = clamp(
+        2.0 * disk_segment_blocked_fraction(closest_distance_m / max(1.0e-9, rotor_radius_m)),
+        0.0,
+        1.0,
+    )
+    return clamp(0.50 * peak_proximity + 0.27 * segment_coverage + 0.23 * disk_coverage, 0.0, 1.0)
 
 
 def runtime_side_flow_scan_distance_m(radius_m: float) -> float:
-    return clamp(radius_m * 2.4 + 0.22, 0.32, 0.82)
+    return clamp(radius_m * 6.5, 0.32, 0.70)
 
 
 def offline_wall_skim_scan_distance_m(radius_m: float) -> float:
@@ -167,7 +175,8 @@ def wall_effect_force_n(
 
 
 def obstruction_thrust_multiplier(obstruction: float) -> float:
-    return clamp(1.0 - 0.24 * obstruction * obstruction, 0.72, 1.0)
+    obstruction = clamp(obstruction, 0.0, 1.0)
+    return clamp(1.0 - 0.10 * obstruction * obstruction * obstruction, 0.90, 1.0)
 
 
 def combine_obstruction_intensity(first: float, second: float) -> float:
@@ -352,8 +361,8 @@ def main() -> None:
         for clearance_over_r in CLEARANCE_OVER_R:
             clearance_m = clearance_over_r * preset.rotor_radius_m
             blocked = disk_segment_blocked_fraction(clearance_over_r)
-            runtime_obstruction = obstruction_intensity_for_flat_wall(clearance_m, runtime_scan)
-            offline_geometric = obstruction_intensity_for_flat_wall(clearance_m, offline_scan)
+            runtime_obstruction = obstruction_intensity_for_flat_wall(clearance_m, runtime_scan, preset.rotor_radius_m)
+            offline_geometric = obstruction_intensity_for_flat_wall(clearance_m, offline_scan, preset.rotor_radius_m)
             offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric)
             thrust_multiplier = obstruction_thrust_multiplier(runtime_obstruction)
             two_rotor_vehicle_multiplier = 1.0 - 2.0 / preset.rotor_count * (1.0 - thrust_multiplier)
@@ -394,8 +403,8 @@ def main() -> None:
         closest_clearance_m = 0.04
         runtime_scan = runtime_side_flow_scan_distance_m(preset.rotor_radius_m)
         offline_scan = offline_wall_skim_scan_distance_m(preset.rotor_radius_m)
-        runtime_obstruction = obstruction_intensity_for_flat_wall(closest_clearance_m, runtime_scan)
-        offline_geometric = obstruction_intensity_for_flat_wall(closest_clearance_m, offline_scan)
+        runtime_obstruction = obstruction_intensity_for_flat_wall(closest_clearance_m, runtime_scan, preset.rotor_radius_m)
+        offline_geometric = obstruction_intensity_for_flat_wall(closest_clearance_m, offline_scan, preset.rotor_radius_m)
         offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric)
         wall_force = wall_effect_force_n(preset, runtime_obstruction)
         rows.append(

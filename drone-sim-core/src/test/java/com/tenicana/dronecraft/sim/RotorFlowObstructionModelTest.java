@@ -46,6 +46,51 @@ class RotorFlowObstructionModelTest {
 	}
 
 	@Test
+	void tangentSidewallSeparatesDirtyAirLossFromAttractionForce() {
+		DroneConfig config = DroneConfig.racingQuad();
+		RotorSpec rotor = config.rotors().get(0);
+		double maxDistance = Math.max(0.32, Math.min(0.70, rotor.radiusMeters() * 6.5));
+		RotorFlowObstructionModel.Result result = RotorFlowObstructionModel.fromDirectionalDistances(
+				distancesToWalls(rotor.radiusMeters(), new Vec3(1.0, 0.0, 0.0)),
+				ROTOR_PLANE_DIRECTIONS,
+				maxDistance,
+				rotor.radiusMeters()
+		);
+
+		assertEquals(0.0, RotorFlowObstructionModel.flatWallDiskBlockedFraction(1.0), 1.0e-12);
+		assertTrue(result.intensity() > 0.45 && result.intensity() < 0.52,
+				() -> "intensity=" + result.intensity());
+		double thrustMultiplier = RotorFlowObstructionModel.thrustMultiplier(result.intensity());
+		assertTrue(thrustMultiplier > 0.985, () -> "thrustMultiplier=" + thrustMultiplier);
+
+		double hoverThrust = config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size();
+		double hoverSpinRatio = Math.sqrt(hoverThrust / rotor.maxThrustNewtons());
+		double hoverOmega = rotor.maxOmegaRadiansPerSecond() * hoverSpinRatio;
+		Vec3 hoverWallForce = DronePhysics.calculateSteadyRotorWallEffectForce(
+				rotor,
+				Vec3.ZERO,
+				hoverOmega,
+				hoverThrust,
+				result.intensity(),
+				result.directionBody()
+		);
+		Vec3 fastWallForce = DronePhysics.calculateSteadyRotorWallEffectForce(
+				rotor,
+				new Vec3(12.0, 0.0, 0.0),
+				hoverOmega,
+				hoverThrust,
+				result.intensity(),
+				result.directionBody()
+		);
+
+		double dirtyAirLossNewtons = hoverThrust * (1.0 - thrustMultiplier);
+		assertTrue(hoverWallForce.length() > dirtyAirLossNewtons * 3.0,
+				() -> "wallForce=" + hoverWallForce.length() + " dirtyAirLoss=" + dirtyAirLossNewtons);
+		assertTrue(fastWallForce.length() < hoverWallForce.length() * 0.25,
+				() -> "hoverWallForce=" + hoverWallForce + " fastWallForce=" + fastWallForce);
+	}
+
+	@Test
 	void clearDistancesReturnNoRotorFlowObstruction() {
 		double[] distances = new double[ROTOR_PLANE_DIRECTIONS.length];
 		for (int i = 0; i < distances.length; i++) {

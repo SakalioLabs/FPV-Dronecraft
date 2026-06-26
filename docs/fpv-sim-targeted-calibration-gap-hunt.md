@@ -125,7 +125,7 @@ Affected fields:
 
 Current symptom:
 
-- The current model now has raw and fitted packets for ground/ceiling/wall rows, but sidewall total-thrust data are weak and current wall loss/force behavior still needs a runtime mapping decision: attraction/moment versus gameplay dirty-air thrust loss.
+- The current model now has raw and fitted packets for ground/ceiling/wall rows, plus a dedicated wall-obstruction response packet that separates ideal disk overlap, dirty-air thrust loss, and wall-attraction force. Sidewall total-thrust data are still weak, but the runtime mapping is now auditable instead of being treated as one scalar.
 
 Targeted data leads:
 
@@ -140,8 +140,9 @@ Recommended extraction:
 
 - ZJU equation-level rows are already in `docs/data/surface_nearfield_calibration_packet.csv` and mirrored as `surface_nearfield_*`: at `racingQuad h/R=1`, current ground multiplier is `1.144` versus ZJU `1.332`, and the current extra thrust is `0.433x` ZJU's extra. Keep these as formula-level anchors.
 - `docs/data/partial_surface_effect_lead_packet.csv` now maps the partial-surface threshold to current presets: `racingQuad` should treat support patches below about `0.0635 m` diameter as negligible and around `0.127 m` as full-like for one rotor; one full Minecraft block is `7.87D`, so full blocks still behave as large/infinite surfaces. Runtime rotor-disk ground/ceiling sampling now converts supported sample weight into an equivalent circular patch diameter and applies the same `0.5D..1.0D` gate, so local edges, ledges, and holes attenuate near-field lift before raw curve digitization is available.
-- `docs/data/surface_jirs2024_curve_fit_packet.csv` now provides fitted surface rows: at `h/R=1`, ground and ceiling fit to `1.0856x` and `1.0961x`; current `racingQuad` is `1.054x` and `1.016x` those fits. For walls, terraXcube absolute force has usable distance fit quality (`R2=0.923`), but the pooled fit is weak (`R2=0.225`) and current `racingQuad d/R=1` two-rotor wall force is `3.39x` the pooled fit.
-- Keep wall attraction/moment calibration separate from vehicle-wide thrust loss. Next work is not raw data collection for this source; it is deciding whether the existing runtime wall force is a physical attraction/moment term, a dirty-air/gameplay term, or two capped terms.
+- `docs/data/surface_jirs2024_curve_fit_packet.csv` now provides fitted surface rows: at `h/R=1`, ground and ceiling fit to `1.0856x` and `1.0961x`; current `racingQuad` is `1.054x` and `1.016x` those fits. For walls, terraXcube absolute force has usable distance fit quality (`R2=0.923`), but the pooled fit is weak (`R2=0.225`) and current `racingQuad d/R=1` two-rotor wall force is `2.11x` the pooled fit.
+- `docs/data/wall_obstruction_response_packet.csv` now records the current wall split explicitly: at `racingQuad d/R=1`, ideal disk overlap is `0`, runtime obstruction is `0.487`, two affected rotors lose only `0.58%` equivalent vehicle thrust, and wall force is `0.032x` weight. At `d/R=0.25`, ideal overlap is `0.343`, runtime obstruction is `0.743`, two-rotor thrust loss is `2.05%`, and wall force is `0.063x` weight.
+- Keep wall attraction/moment calibration separate from vehicle-wide thrust loss. Next work is fitting wall-force and dirty-air caps against geometry-matched traces or literature rows, not treating ordinary sidewall proximity as a large clean thrust-loss term.
 
 ### VRS And Propwash
 
