@@ -2687,7 +2687,7 @@ public final class DronePhysics {
 		if (pressureGradientWind == null || !pressureGradientWind.isFinite()) {
 			return Vec3.ZERO;
 		}
-		return pressureGradientWind.multiply(sourceQuality);
+		return pressureGradientWind;
 	}
 
 	private Vec3 rotorActiveBrakingTorque(

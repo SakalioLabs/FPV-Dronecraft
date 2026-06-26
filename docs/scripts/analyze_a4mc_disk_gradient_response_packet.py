@@ -226,7 +226,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
         ),
         (
             "fpv_drone_entity_disk_sampler",
-            "DroneEntity samples rotor-center and disk-edge A4MC flow, blends wind and pressure gradients, then quality-gates the disk gradient before passing it into the core.",
+            "DroneEntity samples rotor-center and disk-edge A4MC flow, applies per-sample quality during wind and pressure-gradient blending, then passes adopted disk gradients into the core.",
             DRONE_ENTITY_SOURCE,
         ),
         (
