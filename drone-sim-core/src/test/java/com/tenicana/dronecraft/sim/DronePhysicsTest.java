@@ -11004,6 +11004,64 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcPressureGradientWindFeedsRotorDiskGradientLoads() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics fresh = new DronePhysics(config);
+		DronePhysics stale = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		Vec3[] pressureGradients = {
+				new Vec3(12.0, 0.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		};
+		DroneEnvironment freshPressureGradient = a4mcPressureGradientPressureCenterWind(
+				pressureGradients,
+				true,
+				1.0,
+				0L
+		);
+		DroneEnvironment stalePressureGradient = a4mcPressureGradientPressureCenterWind(
+				pressureGradients,
+				true,
+				1.0,
+				160L
+		);
+
+		for (int i = 0; i < 260; i++) {
+			holdInStillAir(fresh);
+			holdInStillAir(stale);
+			fresh.step(hover, 0.005, freshPressureGradient);
+			stale.step(hover, 0.005, stalePressureGradient);
+		}
+
+		assertEquals(0.0, freshPressureGradient.maxRotorDiskWindGradientMetersPerSecond(), 1.0e-9);
+		assertTrue(fresh.state().rotorFlappingTiltRadians(0)
+						> stale.state().rotorFlappingTiltRadians(0) + Math.toRadians(0.8),
+				() -> "freshTiltDeg=" + Math.toDegrees(fresh.state().rotorFlappingTiltRadians(0))
+						+ " staleTiltDeg=" + Math.toDegrees(stale.state().rotorFlappingTiltRadians(0)));
+		assertTrue(fresh.state().rotorForceBodyNewtons(0).x()
+						> stale.state().rotorForceBodyNewtons(0).x() + 0.04,
+				() -> "freshForce=" + fresh.state().rotorForceBodyNewtons(0)
+						+ " staleForce=" + stale.state().rotorForceBodyNewtons(0));
+		assertTrue(fresh.state().rotorAerodynamicLoadFactor(0)
+						> stale.state().rotorAerodynamicLoadFactor(0) + 0.015,
+				() -> "freshLoad=" + fresh.state().rotorAerodynamicLoadFactor(0)
+						+ " staleLoad=" + stale.state().rotorAerodynamicLoadFactor(0));
+		assertTrue(fresh.state().rotorStallIntensity(0)
+						> stale.state().rotorStallIntensity(0) + 0.05,
+				() -> "freshStall=" + fresh.state().rotorStallIntensity(0)
+						+ " staleStall=" + stale.state().rotorStallIntensity(0));
+	}
+
+	@Test
 	void inducedInflowLagsThrottlePunchWithoutChangingSteadyThrust() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)

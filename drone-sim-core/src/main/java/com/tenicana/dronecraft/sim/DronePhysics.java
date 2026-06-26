@@ -1212,7 +1212,7 @@ public final class DronePhysics {
 			Vec3 rotorArmBody = rotorArmBodyWithFlex(rotor, nominalRotorArmBody, previousRotorArmFlex);
 			RotorSpec aerodynamicRotor = rotorWithArmFlexedThrustAxis(rotor, nominalRotorArmBody, previousRotorArmFlex);
 			Vec3 rotorLocalWindDeltaBody = rotorLocalWindDeltaBody(environment, i);
-			Vec3 rotorDiskWindGradientBody = environment.rotorDiskWindGradientBodyMetersPerSecond(i);
+			Vec3 rotorDiskWindGradientBody = rotorEffectiveDiskWindGradientBody(environment, i);
 			Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody
 					.subtract(rotorLocalWindDeltaBody)
 					.add(angularVelocityBody.cross(rotorArmBody))
@@ -2647,6 +2647,42 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 		return state.orientation().conjugate().rotate(rotorDeltaWorld);
+	}
+
+	private static Vec3 rotorEffectiveDiskWindGradientBody(DroneEnvironment environment, int rotorIndex) {
+		if (environment == null) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 diskGradient = environment.rotorDiskWindGradientBodyMetersPerSecond(rotorIndex);
+		Vec3 pressureGradient = a4mcRotorPressureGradientDiskWindBody(environment, rotorIndex);
+		double pressureSpeed = pressureGradient.length();
+		if (pressureSpeed <= 1.0e-6) {
+			return diskGradient;
+		}
+
+		Vec3 pressureGradientUnit = pressureGradient.multiply(1.0 / pressureSpeed);
+		double existingGradientCoverage = Math.max(0.0, diskGradient.dot(pressureGradientUnit));
+		double residualFraction = MathUtil.clamp((pressureSpeed - existingGradientCoverage) / pressureSpeed, 0.0, 1.0);
+		if (residualFraction <= 1.0e-6) {
+			return diskGradient;
+		}
+		return diskGradient.add(pressureGradient.multiply(residualFraction)).clamp(-12.0, 12.0);
+	}
+
+	private static Vec3 a4mcRotorPressureGradientDiskWindBody(DroneEnvironment environment, int rotorIndex) {
+		if (environment == null || !environment.windSourceLocalVoxelFlow()) {
+			return Vec3.ZERO;
+		}
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+		Vec3 pressureGradientWind = environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(rotorIndex);
+		if (pressureGradientWind == null || !pressureGradientWind.isFinite()) {
+			return Vec3.ZERO;
+		}
+		return pressureGradientWind.multiply(sourceQuality);
 	}
 
 	private Vec3 rotorActiveBrakingTorque(
