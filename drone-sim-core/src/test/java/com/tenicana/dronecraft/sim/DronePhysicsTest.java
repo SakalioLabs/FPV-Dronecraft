@@ -4699,6 +4699,21 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcSourceTemperatureAdjustsEffectiveDensityWithFreshness() {
+		DroneEnvironment neutralA4mc = a4mcThermalHumidityEnvironment(1.0, 25.0, 25.0, 0.0, true, 1.0, 0L);
+		DroneEnvironment coldA4mc = a4mcThermalHumidityEnvironment(1.0, 25.0, 5.0, 0.0, true, 1.0, 0L);
+		DroneEnvironment hotA4mc = a4mcThermalHumidityEnvironment(1.0, 25.0, 45.0, 0.0, true, 1.0, 0L);
+		DroneEnvironment staleColdA4mc = a4mcThermalHumidityEnvironment(1.0, 25.0, 5.0, 0.0, true, 1.0, 160L);
+
+		assertEquals(1.0, neutralA4mc.effectiveAirDensityRatio(), 1.0e-12);
+		assertTrue(coldA4mc.effectiveAirDensityRatio() > neutralA4mc.effectiveAirDensityRatio() * 1.06,
+				() -> "coldDensity=" + coldA4mc.effectiveAirDensityRatio());
+		assertTrue(hotA4mc.effectiveAirDensityRatio() < neutralA4mc.effectiveAirDensityRatio() * 0.94,
+				() -> "hotDensity=" + hotA4mc.effectiveAirDensityRatio());
+		assertEquals(neutralA4mc.effectiveAirDensityRatio(), staleColdA4mc.effectiveAirDensityRatio(), 1.0e-12);
+	}
+
+	@Test
 	void batteryCurrentTracksPerMotorLoadDuringMixerWork() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withRateProfile(Vec3.ZERO, Vec3.ZERO)
@@ -6126,6 +6141,46 @@ class DronePhysicsTest {
 		assertTrue(trustedLowPressure.state().barometerErrorMeters() > neutral.state().barometerErrorMeters() + 0.45,
 				() -> "neutralBaroError=" + neutral.state().barometerErrorMeters()
 						+ " trustedLowPressureBaroError=" + trustedLowPressure.state().barometerErrorMeters());
+	}
+
+	@Test
+	void a4mcPressureAnomalyChangesEffectiveDensityAndRotorThrust() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics lowPressure = new DronePhysics(config);
+		DronePhysics highPressure = new DronePhysics(config);
+		DronePhysics staleHighPressure = new DronePhysics(config);
+		DroneInput input = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		DroneEnvironment lowPressureAir = a4mcStaticPortPressureWind(-4500.0, 0.0, false, true, 1.0, 0L);
+		DroneEnvironment highPressureAir = a4mcStaticPortPressureWind(4500.0, 0.0, false, true, 1.0, 0L);
+		DroneEnvironment staleHighPressureAir = a4mcStaticPortPressureWind(4500.0, 0.0, false, true, 1.0, 160L);
+
+		for (int i = 0; i < 260; i++) {
+			holdInStillAir(lowPressure);
+			holdInStillAir(highPressure);
+			holdInStillAir(staleHighPressure);
+			lowPressure.step(input, 0.005, lowPressureAir);
+			highPressure.step(input, 0.005, highPressureAir);
+			staleHighPressure.step(input, 0.005, staleHighPressureAir);
+		}
+
+		assertTrue(lowPressureAir.effectiveAirDensityRatio() < 0.958,
+				() -> "lowDensity=" + lowPressureAir.effectiveAirDensityRatio());
+		assertTrue(highPressureAir.effectiveAirDensityRatio() > 1.040,
+				() -> "highDensity=" + highPressureAir.effectiveAirDensityRatio());
+		assertEquals(1.0, staleHighPressureAir.effectiveAirDensityRatio(), 1.0e-12);
+		assertTrue(averageRotorThrust(highPressure.state()) > averageRotorThrust(lowPressure.state()) * 1.045,
+				() -> "highThrust=" + averageRotorThrust(highPressure.state())
+						+ " lowThrust=" + averageRotorThrust(lowPressure.state()));
+		assertTrue(averageRotorThrust(highPressure.state()) > averageRotorThrust(staleHighPressure.state()) + 0.025,
+				() -> "highThrust=" + averageRotorThrust(highPressure.state())
+						+ " staleThrust=" + averageRotorThrust(staleHighPressure.state()));
 	}
 
 	@Test
@@ -13470,6 +13525,26 @@ class DronePhysicsTest {
 			double confidence,
 			long freshnessAgeTicks
 	) {
+		return a4mcThermalHumidityEnvironment(
+				airDensityRatio,
+				ambientTemperatureCelsius,
+				ambientTemperatureCelsius,
+				humidity,
+				trustedForGameplay,
+				confidence,
+				freshnessAgeTicks
+		);
+	}
+
+	private static DroneEnvironment a4mcThermalHumidityEnvironment(
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double sourceTemperatureCelsius,
+			double humidity,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				airDensityRatio,
@@ -13505,7 +13580,7 @@ class DronePhysicsTest {
 				0.0,
 				0.0,
 				true,
-				ambientTemperatureCelsius,
+				sourceTemperatureCelsius,
 				true,
 				humidity,
 				0.0,

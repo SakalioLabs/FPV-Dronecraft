@@ -781,8 +781,10 @@ class DroneBlackboxRecorderTest {
 		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]), 0.0001);
 		double airDensity = Double.parseDouble(row[indexOf(header, "air_density_ratio")]);
 		double effectiveAirDensity = Double.parseDouble(row[indexOf(header, "effective_air_density_ratio")]);
-		assertTrue(effectiveAirDensity < airDensity);
-		assertTrue(effectiveAirDensity > airDensity * 0.997);
+		double expectedEffectiveAirDensity = environment.effectiveAirDensityRatio();
+		assertEquals(expectedEffectiveAirDensity, effectiveAirDensity, 2.0e-5);
+		assertTrue(effectiveAirDensity < airDensity * 0.992);
+		assertTrue(effectiveAirDensity > airDensity * 0.985);
 		assertEquals(0.45, Double.parseDouble(row[indexOf(header, "rotor_0_water_immersion")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_water_immersion")]), 0.0001);
 		assertEquals(0.62, Double.parseDouble(row[indexOf(header, "rotor_0_precipitation_wetness")]), 0.0001);

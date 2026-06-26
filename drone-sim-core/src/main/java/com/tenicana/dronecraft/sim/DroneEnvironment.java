@@ -705,11 +705,21 @@ public record DroneEnvironment(
 	}
 
 	public double effectiveAirDensityRatio() {
+		double adoptedTemperatureCelsius = adoptedWindSourceTemperatureCelsius(ambientTemperatureCelsius);
 		return MathUtil.clamp(
-				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, ambientHumidity()),
+				airDensityRatio
+						* pressureAnomalyAirDensityMultiplier(adoptedWindSourcePressureAnomalyPascals())
+						* temperatureAirDensityMultiplier(ambientTemperatureCelsius, adoptedTemperatureCelsius)
+						* moistAirDensityMultiplier(adoptedTemperatureCelsius, ambientHumidity()),
 				0.35,
 				1.35
 		);
+	}
+
+	private static double temperatureAirDensityMultiplier(double referenceTemperatureCelsius, double airTemperatureCelsius) {
+		double referenceKelvin = MathUtil.clamp(referenceTemperatureCelsius + 273.15, 233.15, 338.15);
+		double airKelvin = MathUtil.clamp(airTemperatureCelsius + 273.15, 233.15, 338.15);
+		return referenceKelvin / airKelvin;
 	}
 
 	public double ambientHumidity() {
