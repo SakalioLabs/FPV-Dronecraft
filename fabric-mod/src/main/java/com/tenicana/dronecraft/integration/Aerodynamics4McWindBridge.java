@@ -386,6 +386,14 @@ public final class Aerodynamics4McWindBridge {
 			);
 		}
 
+		public Vec3 gustVelocityWorldMetersPerSecond() {
+			return effectiveVelocityWorldMetersPerSecond.subtract(meanVelocityWorldMetersPerSecond);
+		}
+
+		public double gustSpeedMetersPerSecond() {
+			return gustVelocityWorldMetersPerSecond().length();
+		}
+
 		private static Vec3 sanitizeVec(Vec3 vector) {
 			return vector == null || !vector.isFinite() ? Vec3.ZERO : vector.clamp(-30.0, 30.0);
 		}

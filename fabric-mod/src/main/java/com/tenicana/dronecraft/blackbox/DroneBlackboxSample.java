@@ -557,6 +557,9 @@ public final class DroneBlackboxSample {
 			"wind_source_level",
 			"wind_source_authority",
 			"wind_source_freshness_age_ticks",
+			"wind_source_mean_speed_mps",
+			"wind_source_effective_speed_mps",
+			"wind_source_gust_speed_mps",
 			"wind_source_has_temperature",
 			"wind_source_temperature_c",
 			"wind_source_has_humidity",
@@ -1956,6 +1959,9 @@ public final class DroneBlackboxSample {
 		row.add(environment.windSourceLevel());
 		row.add(environment.windSourceAuthority());
 		row.add(environment.windSourceFreshnessAgeTicks());
+		row.add(environment.windSourceMeanSpeedMetersPerSecond(), "%.5f");
+		row.add(environment.windSourceEffectiveSpeedMetersPerSecond(), "%.5f");
+		row.add(environment.windSourceGustSpeedMetersPerSecond(), "%.5f");
 		row.add(environment.windSourceHasTemperature());
 		row.add(environment.windSourceTemperatureCelsius(), "%.3f");
 		row.add(environment.windSourceHasHumidity());

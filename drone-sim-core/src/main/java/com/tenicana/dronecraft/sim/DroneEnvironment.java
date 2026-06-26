@@ -29,6 +29,9 @@ public record DroneEnvironment(
 		String windSourceLevel,
 		String windSourceAuthority,
 		long windSourceFreshnessAgeTicks,
+		double windSourceMeanSpeedMetersPerSecond,
+		double windSourceEffectiveSpeedMetersPerSecond,
+		double windSourceGustSpeedMetersPerSecond,
 		boolean windSourceHasTemperature,
 		double windSourceTemperatureCelsius,
 		boolean windSourceHasHumidity,
@@ -123,7 +126,7 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, false, 0.0, false, 0.0, 0.0, 0.0);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public DroneEnvironment {
@@ -182,6 +185,9 @@ public record DroneEnvironment(
 		windSourceFreshnessAgeTicks = windSourceFreshnessAgeTicks < 0L
 				? -1L
 				: Math.min(windSourceFreshnessAgeTicks, 1_000_000L);
+		windSourceMeanSpeedMetersPerSecond = sanitizeWindSourceSpeed(windSourceMeanSpeedMetersPerSecond);
+		windSourceEffectiveSpeedMetersPerSecond = sanitizeWindSourceSpeed(windSourceEffectiveSpeedMetersPerSecond);
+		windSourceGustSpeedMetersPerSecond = sanitizeWindSourceSpeed(windSourceGustSpeedMetersPerSecond);
 		if (!windSourceHasTemperature || !Double.isFinite(windSourceTemperatureCelsius)) {
 			windSourceHasTemperature = false;
 			windSourceTemperatureCelsius = 0.0;
@@ -217,7 +223,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, false, 0.0, false, 0.0, 0.0, 0.0);
+		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {
@@ -562,6 +568,10 @@ public record DroneEnvironment(
 		return Double.isFinite(value)
 				? MathUtil.clamp(value, -MAX_WIND_SOURCE_PRESSURE_ANOMALY_PASCALS, MAX_WIND_SOURCE_PRESSURE_ANOMALY_PASCALS)
 				: 0.0;
+	}
+
+	private static double sanitizeWindSourceSpeed(double value) {
+		return Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 30.0) : 0.0;
 	}
 
 	public double rotorThrustMultiplier(int rotorIndex, DroneConfig config) {

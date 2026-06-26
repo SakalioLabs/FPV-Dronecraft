@@ -55,8 +55,8 @@ class AerodynamicsWindCouplingTest {
 	void windSampleAdapterUsesSanitizedA4mcTelemetry() {
 		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
 				true,
-				Vec3.ZERO,
-				Vec3.ZERO,
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(1.0, 2.0, 0.0),
 				0.0,
 				0.0,
 				0.75,
@@ -77,5 +77,6 @@ class AerodynamicsWindCouplingTest {
 		);
 
 		assertEquals(0.456, AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(sample), 1.0e-9);
+		assertEquals(2.0, sample.gustSpeedMetersPerSecond(), 1.0e-9);
 	}
 }
