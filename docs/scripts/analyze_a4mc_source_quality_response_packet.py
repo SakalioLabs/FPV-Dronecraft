@@ -14,6 +14,8 @@ It also tracks raw A4MC source turbulence as a separate input so the generated
 packet mirrors the blackbox `wind_source_turbulence` telemetry and the core
 quality-gated natural turbulence floor. A separate ABL matrix mirrors the core
 Dryden intensity and time-scale modifiers for stable/unstable mixed layers.
+A dedicated updraft matrix mirrors the core's adopted A4MC vertical air-mass
+split so thermals and downdrafts can be tuned independently from terrain shear.
 """
 
 from __future__ import annotations
@@ -41,6 +43,9 @@ SHEAR_LEVELS_PER_BLOCK = [0.0, 0.58, 1.35]
 SOURCE_TURBULENCE_LEVELS = [0.0, 0.24, 0.65]
 ABL_STABILITY_LEVELS = [-0.90, 0.0, 0.90]
 ABL_MIXING_LEVELS = [0.0, 0.64, 0.90]
+UPDRAFT_LEVELS_MPS = [-12.0, -4.0, -1.0, 0.0, 0.18, 1.0, 4.0, 12.0]
+UPDRAFT_LOCAL_VOXEL_FLOW = [True, False]
+UPDRAFT_ABL_MIXING_LEVELS = [0.0, 0.90]
 
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
@@ -52,6 +57,9 @@ REFERENCE_SOURCE_GUST_VECTOR_Y_MPS = 3.0
 REFERENCE_UPDRAFT_MPS = 0.18
 REFERENCE_DIRTY_AIR = 0.0
 REFERENCE_ABL_TURBULENCE_INTENSITY = 0.55
+REFERENCE_HOVER_SPIN_RATIO = 0.44695088387
+REFERENCE_HOVER_TIP_SPEED_MPS = 86.5997042568
+UPDRAFT_RESPONSE_DT_SECONDS = 0.005
 
 LOCAL_VOXEL_BASE_COVERAGE = 0.32
 LOCAL_VOXEL_SHELTER_COVERAGE = 0.48
@@ -91,6 +99,8 @@ def value_text(value: object) -> str:
     if isinstance(value, float):
         if not math.isfinite(value):
             return ""
+        if abs(value) < 1.0e-12:
+            value = 0.0
         return f"{value:.12g}"
     return str(value)
 
@@ -104,6 +114,12 @@ def smooth_step(edge0: float, edge1: float, value: float) -> float:
         return 1.0 if value >= edge1 else 0.0
     t = clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0)
     return t * t * (3.0 - 2.0 * t)
+
+
+def exp_smoothing(dt: float, time_constant: float) -> float:
+    if time_constant <= 1.0e-9:
+        return 1.0
+    return 1.0 - math.exp(-dt / time_constant)
 
 
 def source_freshness_factor(age_ticks: int) -> float:
@@ -180,6 +196,69 @@ def terrain_shear_response(shear: float, shelter: float, quality: float) -> dict
             along_peak * along_peak + cross_peak * cross_peak + vertical_peak * vertical_peak
         ),
     }
+
+
+def a4mc_updraft_response(
+    raw_updraft_mps: float,
+    local_voxel_flow: bool,
+    abl_mixing_strength: float,
+    quality: float,
+) -> dict[str, float]:
+    source_updraft = clamp(raw_updraft_mps * quality, -12.0, 12.0)
+    if abs(source_updraft) <= 1.0e-6 or quality <= 1.0e-9:
+        source_updraft = 0.0
+        target = 0.0
+    else:
+        local_voxel_gain = 1.0 if local_voxel_flow else 0.72
+        abl_mixing_gain = clamp(0.84 + 0.18 * abl_mixing_strength, 0.72, 1.08)
+        response_gain = clamp(
+            local_voxel_gain
+            * abl_mixing_gain
+            * (0.50 + 0.22 * smooth_step(0.35, 4.0, abs(source_updraft))),
+            0.30,
+            0.90,
+        )
+        target = clamp(source_updraft * response_gain, -4.5, 4.5)
+
+    target_magnitude = abs(target)
+    source_response = smooth_step(0.10, 1.0, quality)
+    tau = clamp(
+        0.22 - 0.065 * smooth_step(0.25, 4.0, target_magnitude) - 0.040 * source_response,
+        0.070,
+        0.260,
+    )
+    alpha_200hz = exp_smoothing(UPDRAFT_RESPONSE_DT_SECONDS, tau)
+    settled_0p5s = target * (1.0 - math.exp(-0.5 / tau))
+    settled_1p0s = target * (1.0 - math.exp(-1.0 / tau))
+    return {
+        "core_updraft_source_mps": source_updraft,
+        "core_updraft_target_mps": target,
+        "core_updraft_response_tau_s": tau,
+        "core_updraft_alpha_200hz": alpha_200hz,
+        "core_updraft_settled_0p5s_mps": settled_0p5s,
+        "core_updraft_settled_1p0s_mps": settled_1p0s,
+        "core_hover_rotor_axial_gust_scale_after_1s": rotor_axial_gust_thrust_scale_proxy(settled_1p0s),
+    }
+
+
+def rotor_axial_gust_thrust_scale_proxy(adopted_updraft_mps: float) -> float:
+    axial_velocity = -adopted_updraft_mps
+    axial_speed = abs(axial_velocity)
+    if axial_speed <= 0.35:
+        return 1.0
+
+    axial_ratio = axial_speed / max(2.5, REFERENCE_HOVER_TIP_SPEED_MPS * 0.22)
+    severity = smooth_step(0.16, 0.58, axial_ratio)
+    if severity <= 1.0e-6:
+        return 1.0
+
+    low_rpm_authority = 1.0 - smooth_step(0.14, 0.32, REFERENCE_HOVER_SPIN_RATIO)
+    if axial_velocity > 0.0:
+        adverse_loss = (0.22 + 0.58 * low_rpm_authority) * severity
+        return clamp(1.0 - adverse_loss, 0.18, 1.0)
+
+    assisting_gain = (0.36 + 0.96 * low_rpm_authority) * severity
+    return clamp(1.0 + assisting_gain, 1.0, 2.35)
 
 
 def natural_turbulence_response(source_turbulence: float, shear: float, shelter: float, quality: float) -> dict[str, float]:
@@ -295,6 +374,22 @@ def abl_scenario_name(
     ).replace(".", "p").replace("-", "neg")
 
 
+def updraft_scenario_name(
+    trusted: bool,
+    confidence: float,
+    age_ticks: int,
+    updraft_mps: float,
+    local_voxel_flow: bool,
+    abl_mixing: float,
+) -> str:
+    trust = "trusted" if trusted else "untrusted"
+    local = "local" if local_voxel_flow else "coarse"
+    return (
+        f"{trust}_conf_{confidence:.2f}_age_{age_ticks}"
+        f"_updraft_{updraft_mps:.2f}_{local}_mix_{abl_mixing:.2f}"
+    ).replace(".", "p").replace("-", "neg")
+
+
 def add_metric(
     rows: list[dict[str, str]],
     *,
@@ -335,7 +430,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
             "DronePhysics_a4mc_transients",
             DRONE_PHYSICS_SOURCE,
             "current_core_transient_response",
-            "Consumes quality-gated A4MC source gust, terrain shear, ABL, and local-voxel ventilation diagnostics.",
+            "Consumes quality-gated A4MC source gust, independent updraft, terrain shear, ABL, and local-voxel ventilation diagnostics.",
         ),
         (
             "DroneEntity_a4mc_boundary",
@@ -347,7 +442,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
             "A4MC_GameplayWindSample_API",
             A4MC_GAMEPLAY_SAMPLE_SOURCE,
             "reference_mod_api",
-            "Reference API exposes trusted gameplay wind samples with confidence, shelter, shear, pressure, turbulence, and freshness inputs.",
+            "Reference API exposes trusted gameplay wind samples with confidence, shelter, shear, updraft, pressure, turbulence, and freshness inputs.",
         ),
     ]
     for name, source_file, role, note in sources:
@@ -477,24 +572,89 @@ def add_abl_response_matrix(rows: list[dict[str, str]]) -> None:
             )
 
 
+def add_updraft_response_matrix(rows: list[dict[str, str]]) -> None:
+    scenarios = [
+        (True, confidence, age, updraft, local_voxel_flow, abl_mixing)
+        for confidence in CONFIDENCE_LEVELS
+        for age in FRESHNESS_AGES_TICKS
+        for updraft in UPDRAFT_LEVELS_MPS
+        for local_voxel_flow in UPDRAFT_LOCAL_VOXEL_FLOW
+        for abl_mixing in UPDRAFT_ABL_MIXING_LEVELS
+    ]
+    scenarios.append((False, 1.0, 0, 12.0, True, 0.90))
+    for trusted, confidence, age, updraft, local_voxel_flow, abl_mixing in scenarios:
+        quality = source_quality(trusted, confidence, age)
+        response = a4mc_updraft_response(updraft, local_voxel_flow, abl_mixing, quality)
+        metrics = {
+            "input_trusted_for_gameplay": (trusted, "bool"),
+            "input_confidence": (confidence, "fraction"),
+            "input_freshness_age_ticks": (age, "ticks"),
+            "input_raw_updraft_mps": (updraft, "m/s"),
+            "input_local_voxel_flow": (local_voxel_flow, "bool"),
+            "input_abl_mixing_strength": (abl_mixing, "fraction"),
+            "source_freshness_factor": (source_freshness_factor(age), "fraction"),
+            "source_quality_factor": (quality, "fraction"),
+            "core_updraft_source_mps": (response["core_updraft_source_mps"], "m/s"),
+            "core_updraft_target_mps": (response["core_updraft_target_mps"], "m/s"),
+            "core_updraft_response_tau_s": (response["core_updraft_response_tau_s"], "s"),
+            "core_updraft_alpha_200hz": (response["core_updraft_alpha_200hz"], "fraction"),
+            "core_updraft_settled_0p5s_mps": (response["core_updraft_settled_0p5s_mps"], "m/s"),
+            "core_updraft_settled_1p0s_mps": (response["core_updraft_settled_1p0s_mps"], "m/s"),
+            "core_hover_rotor_axial_gust_scale_after_1s": (
+                response["core_hover_rotor_axial_gust_scale_after_1s"],
+                "multiplier",
+            ),
+        }
+        name = updraft_scenario_name(trusted, confidence, age, updraft, local_voxel_flow, abl_mixing)
+        for metric, (value, unit) in metrics.items():
+            add_metric(
+                rows,
+                row_type="a4mc_source_quality_packet_updraft_response_matrix",
+                name=name,
+                metric=metric,
+                value=value,
+                unit=unit,
+                source_file=DRONE_PHYSICS_SOURCE,
+                source_url=f"{DRONE_ENVIRONMENT_SOURCE}; {DRONE_ENTITY_SOURCE}; {A4MC_GAMEPLAY_SAMPLE_SOURCE}",
+                evidence_role="current_a4mc_updraft_quality_response_matrix",
+                note="Synthetic A4MC adopted-updraft response matrix for confidence, freshness, local-voxel, and ABL-mixing tuning.",
+            )
+
+
 def add_summary(rows: list[dict[str, str]]) -> None:
     trusted_wall_skim_quality = source_quality(True, 0.86, 0)
     trusted_wall_skim = terrain_shear_response(0.58, 0.74, trusted_wall_skim_quality)
     trusted_wall_skim_turbulence = natural_turbulence_response(0.24, 0.58, 0.74, trusted_wall_skim_quality)
     trusted_unstable_abl = dryden_abl_response(REFERENCE_ABL_TURBULENCE_INTENSITY, 0.90, 0.90, trusted_wall_skim_quality)
     trusted_stable_abl = dryden_abl_response(REFERENCE_ABL_TURBULENCE_INTENSITY, -0.90, 0.90, trusted_wall_skim_quality)
+    trusted_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 1.0)
+    trusted_full_downdraft = a4mc_updraft_response(-12.0, True, 0.90, 1.0)
+    wall_skim_updraft = a4mc_updraft_response(REFERENCE_UPDRAFT_MPS, True, 0.90, trusted_wall_skim_quality)
+    half_confidence_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.50)
+    stale_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.0)
     half_quality = source_quality(True, 0.5, 0)
     stale_quality = source_quality(True, 1.0, 160)
     summary_metrics = {
         "matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_FACTORS) * len(SHEAR_LEVELS_PER_BLOCK) * len(SOURCE_TURBULENCE_LEVELS) + 1,
         "abl_matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(ABL_STABILITY_LEVELS) * len(ABL_MIXING_LEVELS) + 1,
+        "updraft_matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(UPDRAFT_LEVELS_MPS) * len(UPDRAFT_LOCAL_VOXEL_FLOW) * len(UPDRAFT_ABL_MIXING_LEVELS) + 1,
         "wall_skim_reference_source_quality": trusted_wall_skim_quality,
         "wall_skim_reference_adopted_source_turbulence": trusted_wall_skim_turbulence["core_adopted_source_turbulence_intensity"],
         "wall_skim_reference_natural_turbulence_proxy": trusted_wall_skim_turbulence["core_natural_turbulence_intensity_proxy"],
         "wall_skim_reference_source_gust_y_peak_mps": a4mc_source_gust_y_mps(trusted_wall_skim_quality),
+        "wall_skim_reference_updraft_target_mps": wall_skim_updraft["core_updraft_target_mps"],
+        "wall_skim_reference_updraft_settled_1p0s_mps": wall_skim_updraft["core_updraft_settled_1p0s_mps"],
         "wall_skim_reference_terrain_signal": trusted_wall_skim["terrain_signal"],
         "wall_skim_reference_terrain_vector_peak_proxy_mps": trusted_wall_skim["terrain_shear_vector_peak_proxy_mps"],
         "wall_skim_reference_ventilation_efficiency": ventilation_efficiency(0.74, trusted_wall_skim_quality),
+        "trusted_full_updraft_target_mps": trusted_full_updraft["core_updraft_target_mps"],
+        "trusted_full_updraft_settled_1p0s_mps": trusted_full_updraft["core_updraft_settled_1p0s_mps"],
+        "trusted_full_updraft_hover_axial_gust_scale": trusted_full_updraft["core_hover_rotor_axial_gust_scale_after_1s"],
+        "trusted_full_downdraft_target_mps": trusted_full_downdraft["core_updraft_target_mps"],
+        "trusted_full_downdraft_settled_1p0s_mps": trusted_full_downdraft["core_updraft_settled_1p0s_mps"],
+        "trusted_full_downdraft_hover_axial_gust_scale": trusted_full_downdraft["core_hover_rotor_axial_gust_scale_after_1s"],
+        "half_confidence_full_updraft_target_mps": half_confidence_full_updraft["core_updraft_target_mps"],
+        "stale_full_updraft_target_mps": stale_full_updraft["core_updraft_target_mps"],
         "unstable_mixed_abl_dryden_intensity_proxy": trusted_unstable_abl["core_dryden_intensity_proxy"],
         "unstable_mixed_abl_vertical_time_scale_multiplier": trusted_unstable_abl["core_dryden_vertical_time_scale_multiplier"],
         "stable_mixed_abl_dryden_intensity_proxy": trusted_stable_abl["core_dryden_intensity_proxy"],
@@ -529,7 +689,7 @@ def add_method(rows: list[dict[str, str]]) -> None:
             "This packet mirrors current source-quality formulas rather than field-test data. "
             "Use it to verify that confidence/freshness changes fade A4MC transient forcing before fitting "
             "source-turbulence floors, disk-gradient thrust loss, terrain-shear gust strength, "
-            "ABL Dryden response, or local-voxel ventilation coefficients."
+            "independent updraft adoption, ABL Dryden response, or local-voxel ventilation coefficients."
         ),
         unit="text",
         source_file=DRONE_PHYSICS_SOURCE,
@@ -543,6 +703,7 @@ def build_rows() -> list[dict[str, str]]:
     add_source_inventory(rows)
     add_response_matrix(rows)
     add_abl_response_matrix(rows)
+    add_updraft_response_matrix(rows)
     add_summary(rows)
     add_method(rows)
     return rows
@@ -569,7 +730,15 @@ def sync_summary(packet_rows: Iterable[dict[str, str]]) -> int:
         row for row in summary_rows
         if not row.get("category", "").startswith("a4mc_source_quality_packet_")
     ]
-    write_csv(SUMMARY, kept + synced_rows)
+    insert_at = next(
+        (
+            index
+            for index, row in enumerate(kept)
+            if row.get("category", "").startswith("a4mc_disk_gradient_packet_")
+        ),
+        len(kept),
+    )
+    write_csv(SUMMARY, kept[:insert_at] + synced_rows + kept[insert_at:])
     return len(synced_rows)
 
 
