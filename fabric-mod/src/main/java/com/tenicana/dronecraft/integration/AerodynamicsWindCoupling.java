@@ -184,14 +184,26 @@ public final class AerodynamicsWindCoupling {
 		double explicitVerticalGust = sourceGustVelocity == null || !sourceGustVelocity.isFinite()
 				? 0.0
 				: sourceGustVelocity.y();
-		if (Math.abs(explicitVerticalGust) <= 1.0e-6
-				|| Math.signum(sourceUpdraft) != Math.signum(explicitVerticalGust)) {
-			return sourceUpdraft;
+		sourceUpdraft = removeOverlappingVerticalFlow(sourceUpdraft, explicitVerticalGust);
+		Vec3 meanVelocity = sample.meanVelocityWorldMetersPerSecond();
+		double representedMeanVerticalFlow = meanVelocity == null || !meanVelocity.isFinite()
+				? 0.0
+				: meanVelocity.y();
+		sourceUpdraft = removeOverlappingVerticalFlow(sourceUpdraft, representedMeanVerticalFlow);
+		return MathUtil.clamp(sourceUpdraft, -12.0, 12.0);
+	}
+
+	private static double removeOverlappingVerticalFlow(double verticalSignal, double alreadyRepresentedVerticalFlow) {
+		if (Math.abs(verticalSignal) <= 1.0e-6 || Math.abs(alreadyRepresentedVerticalFlow) <= 1.0e-6) {
+			return verticalSignal;
 		}
-		if (Math.abs(sourceUpdraft) <= Math.abs(explicitVerticalGust)) {
+		if (Math.signum(verticalSignal) != Math.signum(alreadyRepresentedVerticalFlow)) {
+			return verticalSignal;
+		}
+		if (Math.abs(verticalSignal) <= Math.abs(alreadyRepresentedVerticalFlow)) {
 			return 0.0;
 		}
-		return MathUtil.clamp(sourceUpdraft - explicitVerticalGust, -12.0, 12.0);
+		return verticalSignal - alreadyRepresentedVerticalFlow;
 	}
 
 	public static Vec3 sourceWeightedEffectiveWind(Vec3 fallbackWindWorldMetersPerSecond, Aerodynamics4McWindBridge.WindSample sample) {

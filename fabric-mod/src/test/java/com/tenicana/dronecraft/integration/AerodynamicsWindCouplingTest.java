@@ -501,6 +501,32 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void updraftTurbulenceDoesNotDoubleCountAdoptedMeanVerticalWind() {
+		Aerodynamics4McWindBridge.WindSample meanUpdraftOnly = windSampleWithMeanUpdraftAndSourceGust(
+				new Vec3(2.0, 3.0, 0.0),
+				3.0,
+				Vec3.ZERO,
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample residualMeanUpdraft = windSampleWithMeanUpdraftAndSourceGust(
+				new Vec3(2.0, 2.0, 0.0),
+				5.0,
+				Vec3.ZERO,
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample residualMeanUpdraftWithGust = windSampleWithMeanUpdraftAndSourceGust(
+				new Vec3(2.0, 2.0, 0.0),
+				7.0,
+				new Vec3(0.0, 2.0, 0.0),
+				20L
+		);
+
+		assertEquals(0.10, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, meanUpdraftOnly), 1.0e-9);
+		assertEquals(0.175, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, residualMeanUpdraft), 1.0e-9);
+		assertEquals(0.305, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, residualMeanUpdraftWithGust), 1.0e-9);
+	}
+
+	@Test
 	void localA4mcPressureProxyAddsBoundedNaturalTurbulenceEnergy() {
 		Aerodynamics4McWindBridge.WindSample localPressure = windSampleWithPressureAnomaly(900.0, true, 20L);
 		Aerodynamics4McWindBridge.WindSample cappedLocalPressure = windSampleWithPressureAnomaly(-4000.0, true, 20L);
@@ -1041,11 +1067,21 @@ class AerodynamicsWindCouplingTest {
 			Vec3 sourceGustVelocity,
 			long freshnessAgeTicks
 	) {
+		return windSampleWithMeanUpdraftAndSourceGust(Vec3.ZERO, updraftMetersPerSecond, sourceGustVelocity, freshnessAgeTicks);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithMeanUpdraftAndSourceGust(
+			Vec3 meanVelocity,
+			double updraftMetersPerSecond,
+			Vec3 sourceGustVelocity,
+			long freshnessAgeTicks
+	) {
+		Vec3 safeMeanVelocity = meanVelocity == null ? Vec3.ZERO : meanVelocity;
 		Vec3 safeSourceGust = sourceGustVelocity == null ? Vec3.ZERO : sourceGustVelocity;
 		return new Aerodynamics4McWindBridge.WindSample(
 				true,
-				Vec3.ZERO,
-				Vec3.ZERO,
+				safeMeanVelocity,
+				safeMeanVelocity.add(safeSourceGust),
 				safeSourceGust,
 				0.0,
 				0.0,

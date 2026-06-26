@@ -281,11 +281,20 @@ def rotor_axial_gust_thrust_scale_proxy(adopted_updraft_mps: float) -> float:
     return clamp(1.0 + assisting_gain, 1.0, 2.35)
 
 
-def natural_turbulence_response(source_turbulence: float, shear: float, shelter: float, quality: float) -> dict[str, float]:
+def natural_turbulence_response(
+    source_turbulence: float,
+    shear: float,
+    shelter: float,
+    quality: float,
+    represented_mean_vertical_mps: float = 0.0,
+    explicit_vertical_gust_mps: float = 0.0,
+) -> dict[str, float]:
     adopted_source_turbulence = clamp(source_turbulence, 0.0, 1.5) * quality
     shear_boost = quality * clamp(shear * 0.45, 0.0, 0.35)
     shelter_boost = quality * clamp(shelter * 0.20, 0.0, 0.20)
-    updraft_boost = quality * clamp(abs(REFERENCE_UPDRAFT_MPS) * 0.025, 0.0, 0.18)
+    separated_updraft = remove_overlapping_vertical_flow(REFERENCE_UPDRAFT_MPS, explicit_vertical_gust_mps)
+    separated_updraft = remove_overlapping_vertical_flow(separated_updraft, represented_mean_vertical_mps)
+    updraft_boost = quality * clamp(abs(separated_updraft) * 0.025, 0.0, 0.18)
     source_gust_boost = quality * clamp(
         REFERENCE_SOURCE_GUST_MPS * SOURCE_GUST_TURBULENCE_GAIN_PER_MPS,
         0.0,
