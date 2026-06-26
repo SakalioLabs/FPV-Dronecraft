@@ -329,10 +329,10 @@ def add_wall_skim_rows(rows: list[dict[str, str]]) -> None:
                 metric=metric,
                 value=value,
                 unit=metric_units[metric],
-                source_file="docs/data/surface_obstruction_geometry_reference.csv",
-                source_url=DRONE_ENTITY_SOURCE,
+                source_file=DRONE_PHYSICS_SOURCE,
+                source_url=f"{DRONE_ENTITY_SOURCE}; docs/data/a4mc_local_voxel_coupling_packet.csv",
                 evidence_role="offline_a4mc_wall_skim_disk_gradient_reference",
-                note="Offline wall_skim pressure-gradient disk wind passed through the current source-quality gate at hover spin.",
+                note="Direct core disk-gradient sensitivity probe; the Fabric local-voxel bridge output is audited separately before this response surface.",
             )
 
 

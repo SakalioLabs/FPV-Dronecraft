@@ -79,11 +79,19 @@ public final class OfflineFlightRecorder {
 	private static final double WALL_SKIM_A4MC_LOCAL_OBSTACLE_RESIDUAL = 0.62;
 	private static final double WALL_SKIM_A4MC_SOURCE_CONFIDENCE = 0.86;
 	private static final double WALL_SKIM_A4MC_SHELTER_FACTOR = 0.74;
+	private static final double WALL_SKIM_A4MC_SHELTER_CENTER_FACTOR = 0.35;
 	private static final double WALL_SKIM_A4MC_SHEAR_MAGNITUDE_PER_BLOCK = 0.58;
 	private static final double WALL_SKIM_A4MC_UPDRAFT_METERS_PER_SECOND = 0.18;
 	private static final double WALL_SKIM_A4MC_PRESSURE_ANOMALY_PASCALS = -220.0;
 	private static final double WALL_SKIM_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PASCALS = 1600.0;
 	private static final double WALL_SKIM_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS = 2.4;
+	private static final double WALL_SKIM_A4MC_DISK_CENTER_WEIGHT = 0.36;
+	private static final double WALL_SKIM_A4MC_DISK_CARDINAL_WEIGHT = 0.11;
+	private static final double WALL_SKIM_A4MC_DISK_DIAGONAL_WEIGHT = 0.05;
+	private static final double WALL_SKIM_A4MC_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42;
+	private static final double WALL_SKIM_A4MC_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22;
+	private static final double WALL_SKIM_A4MC_SIDE_SIGNAL_MIN_FRACTION = 0.40;
+	private static final double WALL_SKIM_A4MC_SIDE_SIGNAL_RANGE = 0.60;
 	private static final double WALL_SKIM_A4MC_HUMIDITY = 0.45;
 	private static final double WALL_SKIM_A4MC_ABL_STABILITY = -0.18;
 	private static final double WALL_SKIM_A4MC_ABL_MIXING_STRENGTH = 0.64;
@@ -3506,7 +3514,11 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < rotorCount; i++) {
 			double projection = config.rotors().get(i).positionBodyMeters().dot(WALL_SKIM_DIRECTION_BODY);
 			double wallSide = MathUtil.clamp(0.5 + 0.5 * projection / maxAbsProjection, 0.0, 1.0);
-			obstructions[i] = MathUtil.clamp(0.035 + 0.115 * wallSide, 0.0, 0.18);
+			obstructions[i] = MathUtil.clamp(
+					wallSkimA4mcShelterGradientObstruction() * wallSkimA4mcWallSideSignalFraction(wallSide),
+					0.0,
+					WALL_SKIM_A4MC_SHELTER_GRADIENT_MAX_OBSTRUCTION
+			);
 		}
 		return obstructions;
 	}
@@ -3530,7 +3542,10 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < rotorCount; i++) {
 			double projection = config.rotors().get(i).positionBodyMeters().dot(WALL_SKIM_DIRECTION_BODY);
 			double wallSide = MathUtil.clamp(0.5 + 0.5 * projection / maxAbsProjection, 0.0, 1.0);
-			double pressureDeltaPascals = basePressureDeltaPascals * (0.40 + 0.60 * wallSide);
+			double pressureDeltaPascals = basePressureDeltaPascals
+					* wallSkimA4mcWallSideSignalFraction(wallSide)
+					* WALL_SKIM_A4MC_SOURCE_CONFIDENCE
+					* wallSkimA4mcOneSidedDiskGradientWeight();
 			double windEquivalentMetersPerSecond = MathUtil.clamp(
 					pressureDeltaPascals / WALL_SKIM_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PASCALS
 							* WALL_SKIM_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS,
@@ -3540,6 +3555,59 @@ public final class OfflineFlightRecorder {
 			gradients[i] = WALL_SKIM_DIRECTION_BODY.multiply(windEquivalentMetersPerSecond);
 		}
 		return gradients;
+	}
+
+	private static double wallSkimA4mcWallSideSignalFraction(double wallSide) {
+		return MathUtil.clamp(
+				WALL_SKIM_A4MC_SIDE_SIGNAL_MIN_FRACTION + WALL_SKIM_A4MC_SIDE_SIGNAL_RANGE * wallSide,
+				0.0,
+				1.0
+		);
+	}
+
+	private static double wallSkimA4mcOneSidedDiskGradientWeight() {
+		double edgeWeight = 4.0 * WALL_SKIM_A4MC_DISK_CARDINAL_WEIGHT
+				+ 4.0 * WALL_SKIM_A4MC_DISK_DIAGONAL_WEIGHT;
+		if (edgeWeight <= 1.0e-9) {
+			return 0.0;
+		}
+		return (WALL_SKIM_A4MC_DISK_CARDINAL_WEIGHT
+				+ 2.0 * WALL_SKIM_A4MC_DISK_DIAGONAL_WEIGHT / Math.sqrt(2.0)) / edgeWeight;
+	}
+
+	private static double wallSkimA4mcShelterGradientObstruction() {
+		double sourceQuality = WALL_SKIM_A4MC_SOURCE_CONFIDENCE;
+		double adoptedCenterShelter = WALL_SKIM_A4MC_SHELTER_CENTER_FACTOR * sourceQuality;
+		double rawEdgeShelter = MathUtil.clamp(
+				WALL_SKIM_A4MC_SHELTER_CENTER_FACTOR + WALL_SKIM_A4MC_SHELTER_FACTOR,
+				0.0,
+				1.0
+		);
+		double adoptedEdgeShelter = adoptedCenterShelter * (1.0 - sourceQuality) + rawEdgeShelter * sourceQuality;
+		double adoptedUnaffectedEdgeShelter = adoptedCenterShelter * (1.0 - sourceQuality)
+				+ WALL_SKIM_A4MC_SHELTER_CENTER_FACTOR * sourceQuality;
+		double gradient = (adoptedEdgeShelter - adoptedUnaffectedEdgeShelter)
+				* wallSkimA4mcOneSidedDiskGradientWeight();
+		double edgeWeight = 4.0 * WALL_SKIM_A4MC_DISK_CARDINAL_WEIGHT
+				+ 4.0 * WALL_SKIM_A4MC_DISK_DIAGONAL_WEIGHT;
+		double affectedEdgeWeight = WALL_SKIM_A4MC_DISK_CARDINAL_WEIGHT
+				+ 2.0 * WALL_SKIM_A4MC_DISK_DIAGONAL_WEIGHT;
+		double totalWeight = WALL_SKIM_A4MC_DISK_CENTER_WEIGHT + edgeWeight;
+		double meanShelter = totalWeight <= 1.0e-9 ? adoptedCenterShelter : MathUtil.clamp(
+				(
+						adoptedCenterShelter * WALL_SKIM_A4MC_DISK_CENTER_WEIGHT
+								+ adoptedEdgeShelter * affectedEdgeWeight
+								+ adoptedUnaffectedEdgeShelter * (edgeWeight - affectedEdgeWeight)
+				) / totalWeight,
+				0.0,
+				1.0
+		);
+		double shelterGate = 0.35 + 0.65 * meanShelter;
+		return MathUtil.clamp(
+				WALL_SKIM_A4MC_SHELTER_GRADIENT_OBSTRUCTION_GAIN * Math.abs(gradient) * shelterGate,
+				0.0,
+				WALL_SKIM_A4MC_SHELTER_GRADIENT_MAX_OBSTRUCTION
+		);
 	}
 
 	private static double combineObstructionIntensity(double first, double second) {

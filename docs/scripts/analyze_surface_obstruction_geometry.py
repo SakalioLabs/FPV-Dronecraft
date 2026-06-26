@@ -26,10 +26,18 @@ CURRENT_ENTITY_SAMPLER = "fabric-mod/src/main/java/com/tenicana/dronecraft/entit
 CURRENT_PHYSICS = "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"
 CURRENT_OFFLINE_RECORDER = "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/tools/OfflineFlightRecorder.java"
 OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL = 0.62
-OFFLINE_A4MC_WALL_SIDE_SHELTER_OBSTRUCTION = 0.15
+OFFLINE_A4MC_SOURCE_CONFIDENCE = 0.86
+OFFLINE_A4MC_WALL_SIDE_SIGNAL_FRACTION = 1.0
+OFFLINE_A4MC_SHELTER_CENTER_FACTOR = 0.35
+OFFLINE_A4MC_SHELTER_EDGE_DELTA = 0.74
+OFFLINE_A4MC_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42
+OFFLINE_A4MC_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22
 OFFLINE_A4MC_PRESSURE_ANOMALY_PA = -220.0
 OFFLINE_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PA = 1600.0
 OFFLINE_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS = 2.4
+ROTOR_DISK_SURFACE_CENTER_WEIGHT = 0.36
+ROTOR_DISK_SURFACE_CARDINAL_WEIGHT = 0.11
+ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT = 0.05
 
 
 @dataclass(frozen=True)
@@ -183,19 +191,72 @@ def combine_obstruction_intensity(first: float, second: float) -> float:
     return clamp(1.0 - (1.0 - clamp(first, 0.0, 1.0)) * (1.0 - clamp(second, 0.0, 1.0)), 0.0, 1.0)
 
 
-def offline_wall_skim_a4mc_profile(
-    geometric_obstruction: float,
-    shelter_gradient_obstruction: float = OFFLINE_A4MC_WALL_SIDE_SHELTER_OBSTRUCTION,
-) -> OfflineWallSkimA4mcProfile:
-    residual = clamp(geometric_obstruction, 0.0, 1.0) * OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL
-    shelter = clamp(shelter_gradient_obstruction, 0.0, 1.0)
-    pressure_delta_pa = abs(OFFLINE_A4MC_PRESSURE_ANOMALY_PA)
-    pressure_gradient_disk_wind_mps = clamp(
-        pressure_delta_pa / OFFLINE_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PA
+def one_sided_disk_gradient_weight() -> float:
+    edge_weight = 4.0 * ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 4.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT
+    if edge_weight <= 1.0e-9:
+        return 0.0
+    return (
+        ROTOR_DISK_SURFACE_CARDINAL_WEIGHT
+        + 2.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT / math.sqrt(2.0)
+    ) / edge_weight
+
+
+def offline_wall_skim_a4mc_shelter_obstruction() -> float:
+    quality = OFFLINE_A4MC_SOURCE_CONFIDENCE
+    adopted_center_shelter = OFFLINE_A4MC_SHELTER_CENTER_FACTOR * quality
+    raw_edge_shelter = clamp(
+        OFFLINE_A4MC_SHELTER_CENTER_FACTOR + OFFLINE_A4MC_SHELTER_EDGE_DELTA,
+        0.0,
+        1.0,
+    )
+    adopted_edge_shelter = adopted_center_shelter * (1.0 - quality) + raw_edge_shelter * quality
+    adopted_unaffected_edge_shelter = (
+        adopted_center_shelter * (1.0 - quality)
+        + OFFLINE_A4MC_SHELTER_CENTER_FACTOR * quality
+    )
+    gradient = (adopted_edge_shelter - adopted_unaffected_edge_shelter) * one_sided_disk_gradient_weight()
+    edge_weight = 4.0 * ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 4.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT
+    affected_edge_weight = ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 2.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT
+    total_weight = ROTOR_DISK_SURFACE_CENTER_WEIGHT + edge_weight
+    mean_shelter = clamp(
+        (
+            adopted_center_shelter * ROTOR_DISK_SURFACE_CENTER_WEIGHT
+            + adopted_edge_shelter * affected_edge_weight
+            + adopted_unaffected_edge_shelter * (edge_weight - affected_edge_weight)
+        ) / total_weight,
+        0.0,
+        1.0,
+    )
+    shelter_gate = 0.35 + 0.65 * mean_shelter
+    return clamp(
+        OFFLINE_A4MC_SHELTER_GRADIENT_OBSTRUCTION_GAIN * abs(gradient) * shelter_gate,
+        0.0,
+        OFFLINE_A4MC_SHELTER_GRADIENT_MAX_OBSTRUCTION,
+    )
+
+
+def offline_wall_skim_a4mc_pressure_disk_gradient_mps() -> float:
+    adopted_pressure_gradient_pa = (
+        abs(OFFLINE_A4MC_PRESSURE_ANOMALY_PA)
+        * OFFLINE_A4MC_SOURCE_CONFIDENCE
+        * OFFLINE_A4MC_WALL_SIDE_SIGNAL_FRACTION
+        * one_sided_disk_gradient_weight()
+    )
+    return clamp(
+        adopted_pressure_gradient_pa / OFFLINE_A4MC_PRESSURE_GRADIENT_FULL_SCALE_PA
         * OFFLINE_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS,
         0.0,
         OFFLINE_A4MC_PRESSURE_GRADIENT_MAX_WIND_EQUIVALENT_MPS,
     )
+
+
+def offline_wall_skim_a4mc_profile(
+    geometric_obstruction: float,
+    shelter_gradient_obstruction: float = offline_wall_skim_a4mc_shelter_obstruction(),
+) -> OfflineWallSkimA4mcProfile:
+    residual = clamp(geometric_obstruction, 0.0, 1.0) * OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL
+    shelter = clamp(shelter_gradient_obstruction, 0.0, 1.0)
+    pressure_gradient_disk_wind_mps = offline_wall_skim_a4mc_pressure_disk_gradient_mps()
     return OfflineWallSkimA4mcProfile(
         geometric_obstruction=clamp(geometric_obstruction, 0.0, 1.0),
         local_obstacle_residual=OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL,
