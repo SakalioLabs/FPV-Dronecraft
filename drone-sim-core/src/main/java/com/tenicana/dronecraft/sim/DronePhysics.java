@@ -6216,8 +6216,9 @@ public final class DronePhysics {
 	}
 
 	private double dirtyAirIntensity(DroneEnvironment environment) {
+		double atmosphericTurbulence = atmosphericTurbulenceIntensity(environment);
 		return MathUtil.clamp(
-				environment.turbulenceIntensity()
+				atmosphericTurbulence
 						+ 0.26 * environment.obstacleProximity()
 						+ 0.18 * environment.droneWakeIntensity()
 						+ 0.12 * environment.ceilingEffectIntensity(config)
@@ -6506,7 +6507,7 @@ public final class DronePhysics {
 	}
 
 	private static double localizedWindBurbleIntensity(DroneEnvironment environment, double dirtyAir) {
-		double ambientTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.5);
+		double ambientTurbulence = MathUtil.clamp(atmosphericTurbulenceIntensity(environment), 0.0, 1.5);
 		double localDirtyAir = Math.max(0.0, dirtyAir - ambientTurbulence);
 		return MathUtil.clamp(localDirtyAir + 0.18 * ambientTurbulence, 0.0, 1.8);
 	}
@@ -6669,7 +6670,7 @@ public final class DronePhysics {
 	}
 
 	private static double atmosphericDrydenIntensity(DroneEnvironment environment) {
-		double baseTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
+		double baseTurbulence = MathUtil.clamp(atmosphericTurbulenceIntensity(environment), 0.0, 1.8);
 		double sourceQuality = a4mcWindSourceQualityFactor(environment);
 		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
 		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
@@ -6692,6 +6693,10 @@ public final class DronePhysics {
 				* ablMixing
 				* smoothStep(1.0, 8.0, horizontalWindSpeed);
 		return MathUtil.clamp(baseTurbulence * MathUtil.clamp(mixingMultiplier, 0.55, 1.70) + convectiveFloor, 0.0, 1.8);
+	}
+
+	private static double atmosphericTurbulenceIntensity(DroneEnvironment environment) {
+		return Math.max(environment.turbulenceIntensity(), environment.adoptedWindSourceTurbulenceIntensity());
 	}
 
 	private static DrydenAblTimeScale drydenAblTimeScale(DroneEnvironment environment) {

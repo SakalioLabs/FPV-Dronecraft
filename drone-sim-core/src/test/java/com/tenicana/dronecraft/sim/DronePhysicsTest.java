@@ -3981,6 +3981,24 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcRawSourceTurbulenceActsAsCoreDrydenFloor() {
+		DroneEnvironment explicitEnvironmentTurbulence = a4mcAblWind(0.45, 0.0, 0.0);
+		DroneEnvironment rawSourceOnly = a4mcAblWind(0.0, 0.0, 0.0, true, 1.0, 0L, 0.45);
+		DroneEnvironment halfStaleRawSource = a4mcAblWind(0.0, 0.0, 0.0, true, 1.0, 100L, 0.45);
+		DroneEnvironment staleRawSource = a4mcAblWind(0.0, 0.0, 0.0, true, 1.0, 160L, 0.45);
+
+		double explicitRms = drydenRmsForEnvironment(explicitEnvironmentTurbulence);
+		double rawSourceRms = drydenRmsForEnvironment(rawSourceOnly);
+		double halfStaleRms = drydenRmsForEnvironment(halfStaleRawSource);
+		double staleRms = drydenRmsForEnvironment(staleRawSource);
+
+		assertEquals(explicitRms, rawSourceRms, 1.0e-12);
+		assertTrue(halfStaleRms > staleRms + 0.10,
+				() -> "halfStale=" + halfStaleRms + " stale=" + staleRms);
+		assertEquals(0.0, staleRms, 1.0e-12);
+	}
+
+	@Test
 	void restoredAerodynamicTransientStateContinuesWindAndAirframeFilters() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics source = new DronePhysics(config);
@@ -13226,6 +13244,26 @@ class DronePhysicsTest {
 			double confidence,
 			long freshnessAgeTicks
 	) {
+		return a4mcAblWind(
+				turbulenceIntensity,
+				ablStability,
+				ablMixingStrength,
+				trustedForGameplay,
+				confidence,
+				freshnessAgeTicks,
+				turbulenceIntensity
+		);
+	}
+
+	private static DroneEnvironment a4mcAblWind(
+			double turbulenceIntensity,
+			double ablStability,
+			double ablMixingStrength,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks,
+			double sourceTurbulenceIntensity
+	) {
 		return new DroneEnvironment(
 				new Vec3(9.0, 0.0, 0.0),
 				1.0,
@@ -13247,7 +13285,7 @@ class DronePhysicsTest {
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				trustedForGameplay,
 				confidence,
-				turbulenceIntensity,
+				sourceTurbulenceIntensity,
 				0.0,
 				0.0,
 				0.0,
