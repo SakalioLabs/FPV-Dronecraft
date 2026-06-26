@@ -149,6 +149,7 @@ public record DroneBlackboxSummary(
 	private static final LowAltitudeStats EMPTY_LOW_ALTITUDE_STATS = new LowAltitudeStats(1.0);
 	private static final PlayableVisualStats EMPTY_PLAYABLE_VISUAL_STATS = new PlayableVisualStats(0.0, 0.0, 0.0, 0.0);
 	private static final PlayableNeutralStats EMPTY_PLAYABLE_NEUTRAL_STATS = new PlayableNeutralStats(0, 0.0, 0.0, 0.0);
+	private static final WindSourceStats EMPTY_WIND_SOURCE_STATS = new WindSourceStats(0, 0, 0, 0.0, 0.0, 0.0, 0.0, 0.0);
 	private static final Map<DroneBlackboxSummary, IcingStats> ICING_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 	private static final Map<DroneBlackboxSummary, FlightModelStats> FLIGHT_MODEL_STATS =
@@ -158,6 +159,8 @@ public record DroneBlackboxSummary(
 	private static final Map<DroneBlackboxSummary, PlayableVisualStats> PLAYABLE_VISUAL_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 	private static final Map<DroneBlackboxSummary, PlayableNeutralStats> PLAYABLE_NEUTRAL_STATS =
+			Collections.synchronizedMap(new WeakHashMap<>());
+	private static final Map<DroneBlackboxSummary, WindSourceStats> WIND_SOURCE_STATS =
 			Collections.synchronizedMap(new WeakHashMap<>());
 
 	public record WindSplit(
@@ -233,6 +236,28 @@ public record DroneBlackboxSummary(
 			maxPitchDegrees = finiteNonNegativeOrZero(maxPitchDegrees);
 			maxRollDegrees = finiteNonNegativeOrZero(maxRollDegrees);
 			maxYawRateDegreesPerSecond = finiteNonNegativeOrZero(maxYawRateDegreesPerSecond);
+		}
+	}
+
+	public record WindSourceStats(
+			int aerodynamics4McSamples,
+			int trustedSourceSamples,
+			int localVoxelFlowSamples,
+			double maxConfidence,
+			double maxShelterFactor,
+			double maxShearMagnitudePerBlock,
+			double maxAbsUpdraftMetersPerSecond,
+			double maxRotorDiskWindGradientMetersPerSecond
+	) {
+		public WindSourceStats {
+			aerodynamics4McSamples = Math.max(0, aerodynamics4McSamples);
+			trustedSourceSamples = Math.max(0, trustedSourceSamples);
+			localVoxelFlowSamples = Math.max(0, localVoxelFlowSamples);
+			maxConfidence = unitOrZero(maxConfidence);
+			maxShelterFactor = unitOrZero(maxShelterFactor);
+			maxShearMagnitudePerBlock = finiteNonNegativeOrZero(maxShearMagnitudePerBlock);
+			maxAbsUpdraftMetersPerSecond = finiteNonNegativeOrZero(maxAbsUpdraftMetersPerSecond);
+			maxRotorDiskWindGradientMetersPerSecond = finiteNonNegativeOrZero(maxRotorDiskWindGradientMetersPerSecond);
 		}
 	}
 
@@ -360,6 +385,14 @@ public record DroneBlackboxSummary(
 		double maxWindDryden = 0.0;
 		double maxWindBurble = 0.0;
 		double maxWindShear = 0.0;
+		int aerodynamics4McSamples = 0;
+		int trustedSourceSamples = 0;
+		int localVoxelFlowSamples = 0;
+		double maxWindSourceConfidence = 0.0;
+		double maxWindSourceShelter = 0.0;
+		double maxWindSourceShear = 0.0;
+		double maxAbsWindSourceUpdraft = 0.0;
+		double maxRotorDiskWindGradient = 0.0;
 		double maxCeilingEffect = 1.0;
 		double maxEnvironmentAsymmetry = 0.0;
 		double maxRotorFlowObstruction = 0.0;
@@ -765,6 +798,26 @@ public record DroneBlackboxSummary(
 			maxWindDryden = Math.max(maxWindDryden, valueOrDefault(row, "wind_dryden_speed_mps", 0.0));
 			maxWindBurble = Math.max(maxWindBurble, valueOrDefault(row, "wind_burble_speed_mps", 0.0));
 			maxWindShear = Math.max(maxWindShear, value(row, "wind_shear_accel_mps2"));
+			if ("aerodynamics4mc".equalsIgnoreCase(textValue(row, "wind_source"))) {
+				aerodynamics4McSamples++;
+			}
+			if (boolValue(row, "wind_source_trusted")) {
+				trustedSourceSamples++;
+			}
+			if (boolValue(row, "wind_source_local_voxel_flow")) {
+				localVoxelFlowSamples++;
+			}
+			maxWindSourceConfidence = Math.max(maxWindSourceConfidence, valueOrDefault(row, "wind_source_confidence", 0.0));
+			maxWindSourceShelter = Math.max(maxWindSourceShelter, valueOrDefault(row, "wind_source_shelter_factor", 0.0));
+			maxWindSourceShear = Math.max(maxWindSourceShear, valueOrDefault(row, "wind_source_shear_mag_per_block", 0.0));
+			maxAbsWindSourceUpdraft = Math.max(maxAbsWindSourceUpdraft, Math.abs(valueOrDefault(row, "wind_source_updraft_mps", 0.0)));
+			maxRotorDiskWindGradient = Math.max(
+					maxRotorDiskWindGradient,
+					Math.max(
+							valueOrDefault(row, "rotor_disk_wind_gradient_mps", 0.0),
+							maxIndexedValue(row, "rotor_", "_disk_wind_gradient_mps")
+					)
+			);
 			maxCeilingEffect = Math.max(maxCeilingEffect, value(row, "ceiling_effect_multiplier"));
 			maxEnvironmentAsymmetry = Math.max(maxEnvironmentAsymmetry, value(row, "env_thrust_asymmetry"));
 			maxRotorFlowObstruction = Math.max(maxRotorFlowObstruction, value(row, "rotor_flow_obstruction"));
@@ -946,6 +999,16 @@ public record DroneBlackboxSummary(
 				maxPlayableNeutralVisualRollDegrees,
 				maxPlayableNeutralVisualYawRateDegreesPerSecond
 		));
+		WIND_SOURCE_STATS.put(summary, new WindSourceStats(
+				aerodynamics4McSamples,
+				trustedSourceSamples,
+				localVoxelFlowSamples,
+				maxWindSourceConfidence,
+				maxWindSourceShelter,
+				maxWindSourceShear,
+				maxAbsWindSourceUpdraft,
+				maxRotorDiskWindGradient
+		));
 		return summary;
 	}
 
@@ -983,6 +1046,10 @@ public record DroneBlackboxSummary(
 
 	public PlayableNeutralStats playableNeutralStats() {
 		return PLAYABLE_NEUTRAL_STATS.getOrDefault(this, EMPTY_PLAYABLE_NEUTRAL_STATS);
+	}
+
+	public WindSourceStats windSourceStats() {
+		return WIND_SOURCE_STATS.getOrDefault(this, EMPTY_WIND_SOURCE_STATS);
 	}
 
 	public double maxWindDrydenSpeedMetersPerSecond() {
@@ -1024,9 +1091,10 @@ public record DroneBlackboxSummary(
 		IcingStats icingStats = icingStats();
 		FlightModelStats flightModelStats = flightModelStats();
 		PlayableVisualStats playableVisualStats = playableVisualStats();
+		WindSourceStats windSourceStats = windSourceStats();
 		return String.format(
 				Locale.ROOT,
-				"Blackbox %.1fs/%d samples | flight playable %d sim %d lowAlt %.0f%% vis %.1f/%.1fdeg yaw %.1fdps drift %.1fdeg | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f agust %.2f..%.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% ice %.2f iceloss %.0f%% icepwr %.2f temp %.1f..%.1fC gust %.2fm/s dryden %.2f burble %.2f shear %.2fm/s2 ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
+				"Blackbox %.1fs/%d samples | flight playable %d sim %d lowAlt %.0f%% vis %.1f/%.1fdeg yaw %.1fdps drift %.1fdeg | loop %d@%.0fHz | max speed %.2fm/s air %.2fm/s contact %.2f/%.2f/%.2fm/s %.0fd/s surface %.2f..%.2f/%.2f..%.2f/%.2f..%.2f | battery min %.2fV sag %.2fV ir %.1fmOhm irx %.2f/%.2f/%.2f spike %.2fV ripple %.3fV imuP %.2f current %.1fA regen %.1fA motor-regen %.3fA soc %.1f%% current-limit %.2f temp %.1fC batt-limit %.2f | propwash %.2f VRS %.2f vrsbuf %.0f%% vrsF %.2fN ind %.2fm/s iloss %.0f%% ETL %.2f adv %.2f J %.2f pthr %.2f ppwr %.2f agust %.2f..%.2f rev %.2f tipmach %.2f machloss %.0f%% lowre %.2f bpass %.3f load %.2f hforce %.2fN mech-loss %.4fNm track %.3f auth %.2f skew %.2f bdiss %.3fNm rwake %.2f coax %.3f target %.3f clip %.3f cload %.2f cratio %.2f cgain %.1f/%.1f%% cunc %.1f%% swirl %.2fm/s wmill %.2f swirlT %.3fNm brakeT %.3fNm accelT %.3fNm gyroT %.3fNm flapT %.3fNm rdamp %.3f ang-drag %.3f sep %.2f lift %.2fN bodyD %.2fN linD %.2fN cushion %.2fN glev %.3fNm wash %.2fN wall %.2fN baro err %.2fm wash %.2fm min %.1fhPa wake %.2f water %.2f rain %.2f wetloss %.0f%% ice %.2f iceloss %.0f%% icepwr %.2f temp %.1f..%.1fC gust %.2fm/s dryden %.2f burble %.2f shear %.2fm/s2 a4mc %d/%d trusted %d l2 %d conf %.2f shelter %.2f srcshear %.2f/m updraft %.2fm/s diskgrad %.2fm/s ceil %.2f/%s asym %.2f block %.2f stall %.2f vib %.2f dvib %.2f coning %.2f/%.1fdeg flap %.1fdeg flex %.2f %.2fmm %.1fdeg scrape %.2f mixer %.2f mix-auth %.2f mix-edge %.2f/%.2f mix-head %.2f/%.2f desync %.2f | motor %.1fC eff %.2f headroom %.2f mR %.2f esc %.1fC limit %.2f rotor min %.1f%% prop-strike %d samples max %.2f count %d | alt %.1fm link-loss %.2fs rc-frame %.3fs err %.4f failsafe %d collision %d",
 				durationSeconds,
 				sampleCount,
 				flightModelStats.playableSamples(),
@@ -1133,6 +1201,15 @@ public record DroneBlackboxSummary(
 				maxWindDrydenSpeedMetersPerSecond(),
 				maxWindBurbleSpeedMetersPerSecond(),
 				maxWindShearAccelerationMetersPerSecondSquared,
+				windSourceStats.aerodynamics4McSamples(),
+				sampleCount,
+				windSourceStats.trustedSourceSamples(),
+				windSourceStats.localVoxelFlowSamples(),
+				windSourceStats.maxConfidence(),
+				windSourceStats.maxShelterFactor(),
+				windSourceStats.maxShearMagnitudePerBlock(),
+				windSourceStats.maxAbsUpdraftMetersPerSecond(),
+				windSourceStats.maxRotorDiskWindGradientMetersPerSecond(),
 				maxCeilingEffectMultiplier,
 				formatCeilingClearance(minCeilingClearanceMeters),
 				maxEnvironmentThrustAsymmetry,
@@ -1428,6 +1505,10 @@ public record DroneBlackboxSummary(
 
 	private static double unitOrOne(double value) {
 		return Double.isFinite(value) ? Math.max(0.0, Math.min(1.0, value)) : 1.0;
+	}
+
+	private static double unitOrZero(double value) {
+		return Double.isFinite(value) ? Math.max(0.0, Math.min(1.0, value)) : 0.0;
 	}
 
 	private static double angleDifferenceDegrees(double a, double b) {
