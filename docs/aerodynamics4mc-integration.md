@@ -41,6 +41,7 @@ The offline `wall_skim` trace now carries a synthetic trusted A4MC L2 local-voxe
 ## Next Research Steps
 
 - Use `docs/data/a4mc_disk_gradient_response_packet.csv` as the current-formula response surface before calibrating disk-gradient thrust-loss, load, vibration, stall, and flapping coefficients against blackbox traces near block edges and tunnel mouths.
+- `A4mcDiskGradientCalibrationTest` now locks the packet summary against Java-side formulas and reflectively checks the corresponding `DronePhysics` disk-gradient response helpers.
 - Use `docs/data/a4mc_source_quality_response_packet.csv` to fit source-quality, raw source turbulence, ABL stability/mixing, shelter, shear, and freshness coefficients against observed rotor axial gust response near block edges and tunnel mouths.
 - Validate A4MC-driven gust response against the existing `wind_gust_calibration_packet` and `rotor_forward_flow_reference` data.
 - Explore optional client-only visualization using A4MC local L2 while keeping server flight dynamics authoritative.
