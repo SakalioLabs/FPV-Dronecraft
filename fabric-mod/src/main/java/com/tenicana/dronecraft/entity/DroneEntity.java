@@ -1247,9 +1247,11 @@ public class DroneEntity extends Entity {
 
 	private DroneEnvironment sampleEnvironment() {
 		Aerodynamics4McWindBridge.WindSample externalWind = sampleAerodynamicsWind();
+		double fallbackAmbientTemperature = ambientTemperatureCelsius();
 		WindSourceTelemetry windSource = windSourceTelemetry(
 				DroneEnvironment.WIND_SOURCE_MINECRAFT_WEATHER,
-				externalWind
+				externalWind,
+				fallbackAmbientTemperature
 		);
 		Vec3 naturalWind = AerodynamicsWindCoupling.sourceWeightedWind(weatherWindMetersPerSecond(), externalWind);
 		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
@@ -1268,9 +1270,9 @@ public class DroneEntity extends Entity {
 		);
 		WaterImmersion waterImmersion = sampleWaterImmersion();
 		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
-		double ambientTemperature = externalWind.hasAmbientTemperature()
-				? externalWind.ambientTemperatureCelsius()
-				: ambientTemperatureCelsius();
+		double ambientTemperature = windSource.hasTemperature()
+				? windSource.temperatureCelsius()
+				: fallbackAmbientTemperature;
 		double naturalTurbulence = naturalTurbulenceIntensity(sourceWind.length(), groundClearance, externalWind);
 		double turbulenceIntensity = MathUtil.clamp(
 				environmentOverride.turbulenceOr(naturalTurbulence)
@@ -1345,15 +1347,17 @@ public class DroneEntity extends Entity {
 	private DroneEnvironment samplePlayableStageOneEnvironment() {
 		double groundClearance = groundClearanceMeters();
 		Aerodynamics4McWindBridge.WindSample externalWind = sampleAerodynamicsWind();
+		double fallbackAmbientTemperature = ambientTemperatureCelsius();
 		WindSourceTelemetry windSource = windSourceTelemetry(
 				DroneEnvironment.WIND_SOURCE_CALM,
-				externalWind
+				externalWind,
+				fallbackAmbientTemperature
 		);
 		Vec3 naturalWind = AerodynamicsWindCoupling.sourceWeightedWind(Vec3.ZERO, externalWind);
 		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
-		double ambientTemperature = externalWind.hasAmbientTemperature()
-				? externalWind.ambientTemperatureCelsius()
-				: ambientTemperatureCelsius();
+		double ambientTemperature = windSource.hasTemperature()
+				? windSource.temperatureCelsius()
+				: fallbackAmbientTemperature;
 		double naturalTurbulence = externalWind.hasFlow()
 				? naturalTurbulenceIntensity(sourceWind.length(), groundClearance, externalWind)
 				: 0.0;
@@ -1401,7 +1405,8 @@ public class DroneEntity extends Entity {
 
 	private WindSourceTelemetry windSourceTelemetry(
 			String fallbackSourceId,
-			Aerodynamics4McWindBridge.WindSample externalWind
+			Aerodynamics4McWindBridge.WindSample externalWind,
+			double fallbackAmbientTemperatureCelsius
 	) {
 		if (environmentOverride.windEnabled()) {
 			return new WindSourceTelemetry(
@@ -1428,14 +1433,18 @@ public class DroneEntity extends Entity {
 			);
 		}
 		if (externalWind != null && externalWind.hasFlow()) {
+			double sourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(externalWind);
+			boolean atmosphericSourceActive = sourceQuality > 1.0e-9;
+			boolean hasSourceTemperature = atmosphericSourceActive && externalWind.hasAmbientTemperature();
+			boolean hasSourceHumidity = atmosphericSourceActive && externalWind.hasHumidity();
 			return new WindSourceTelemetry(
 					DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 					externalWind.trustedForGameplay(),
 					externalWind.confidence(),
-					externalWind.pressureAnomalyPascals(),
-					externalWind.windShearMagnitudePerBlock(),
-					externalWind.shelterFactor(),
-					externalWind.updraftMetersPerSecond(),
+					AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(externalWind),
+					externalWind.windShearMagnitudePerBlock() * sourceQuality,
+					externalWind.shelterFactor() * sourceQuality,
+					externalWind.updraftMetersPerSecond() * sourceQuality,
 					externalWind.localVoxelFlow(),
 					externalWind.sourceLevel(),
 					externalWind.sourceAuthority(),
@@ -1443,12 +1452,17 @@ public class DroneEntity extends Entity {
 					externalWind.meanVelocityWorldMetersPerSecond().length(),
 					externalWind.effectiveVelocityWorldMetersPerSecond().length(),
 					externalWind.gustSpeedMetersPerSecond(),
-					externalWind.hasAmbientTemperature(),
-					externalWind.ambientTemperatureCelsius(),
-					externalWind.hasHumidity(),
-					externalWind.humidity(),
-					externalWind.ablStability(),
-					externalWind.ablMixingStrength()
+					hasSourceTemperature,
+					hasSourceTemperature
+							? AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(
+									fallbackAmbientTemperatureCelsius,
+									externalWind
+							)
+							: 0.0,
+					hasSourceHumidity,
+					AerodynamicsWindCoupling.sourceWeightedHumidity(externalWind),
+					externalWind.ablStability() * sourceQuality,
+					externalWind.ablMixingStrength() * sourceQuality
 			);
 		}
 		return new WindSourceTelemetry(

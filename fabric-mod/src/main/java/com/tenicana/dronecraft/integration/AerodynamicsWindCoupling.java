@@ -102,6 +102,38 @@ public final class AerodynamicsWindCoupling {
 		return fallback.multiply(1.0 - sourceQuality).add(sourceWind.multiply(sourceQuality));
 	}
 
+	public static double sourceWeightedPressureAnomalyPascals(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow()) {
+			return 0.0;
+		}
+		return sample.pressureAnomalyPascals() * sourceQualityFactor(sample);
+	}
+
+	public static double sourceWeightedTemperatureCelsius(
+			double fallbackTemperatureCelsius,
+			Aerodynamics4McWindBridge.WindSample sample
+	) {
+		double fallback = Double.isFinite(fallbackTemperatureCelsius)
+				? MathUtil.clamp(fallbackTemperatureCelsius, -40.0, 65.0)
+				: 25.0;
+		if (sample == null || !sample.hasFlow() || !sample.hasAmbientTemperature()) {
+			return fallback;
+		}
+		double sourceQuality = sourceQualityFactor(sample);
+		if (sourceQuality <= 1.0e-9) {
+			return fallback;
+		}
+		double sourceTemperature = MathUtil.clamp(sample.ambientTemperatureCelsius(), -40.0, 65.0);
+		return fallback * (1.0 - sourceQuality) + sourceTemperature * sourceQuality;
+	}
+
+	public static double sourceWeightedHumidity(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow() || !sample.hasHumidity()) {
+			return 0.0;
+		}
+		return MathUtil.clamp(sample.humidity(), 0.0, 1.0) * sourceQualityFactor(sample);
+	}
+
 	public static double sourceQualityFactor(Aerodynamics4McWindBridge.WindSample sample) {
 		if (sample == null) {
 			return 0.0;

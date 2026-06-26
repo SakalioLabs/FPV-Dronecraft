@@ -226,6 +226,24 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedWind(fallback, null));
 	}
 
+	@Test
+	void sourceWeightedAtmosphereScalarsUseSourceQuality() {
+		Aerodynamics4McWindBridge.WindSample sample = windSampleWithAtmosphere(100L);
+
+		assertEquals(500.0, AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(sample), 1.0e-9);
+		assertEquals(30.0, AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(20.0, sample), 1.0e-9);
+		assertEquals(0.4, AerodynamicsWindCoupling.sourceWeightedHumidity(sample), 1.0e-9);
+	}
+
+	@Test
+	void staleAtmosphereScalarsFallBack() {
+		Aerodynamics4McWindBridge.WindSample sample = windSampleWithAtmosphere(200L);
+
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(sample), 1.0e-9);
+		assertEquals(20.0, AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(20.0, sample), 1.0e-9);
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedHumidity(sample), 1.0e-9);
+	}
+
 	private static Aerodynamics4McWindBridge.WindSample windSampleWithEffectiveWind(Vec3 effectiveWind, long freshnessAgeTicks) {
 		return new Aerodynamics4McWindBridge.WindSample(
 				true,
@@ -241,6 +259,31 @@ class AerodynamicsWindCouplingTest {
 				0.0,
 				1.0,
 				0.0,
+				true,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithAtmosphere(long freshnessAgeTicks) {
+		return new Aerodynamics4McWindBridge.WindSample(
+				true,
+				Vec3.ZERO,
+				new Vec3(4.0, 0.0, 0.0),
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				true,
+				40.0,
+				true,
+				0.8,
+				1.0,
+				1000.0,
 				true,
 				true,
 				"L2",
