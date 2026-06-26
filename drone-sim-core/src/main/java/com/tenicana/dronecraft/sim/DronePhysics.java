@@ -6313,22 +6313,77 @@ public final class DronePhysics {
 		double dirtyGain = MathUtil.clamp(0.72 + 0.10 * dirtyAir, 0.72, 0.94);
 		if (sourceGustVectorSpeed > 1.0e-6) {
 			double vectorScale = MathUtil.clamp(sourceGustSpeed / Math.max(sourceGustVectorMagnitude, 1.0e-6), 0.0, 1.0);
-			return sourceGustVelocity
+			return a4mcSourceGustAblShapedVelocity(environment, sourceGustVelocity)
 					.multiply(0.22 * windGate * dirtyGain * vectorScale)
 					.clamp(-2.0, 2.0);
 		}
 
-		double gustSignal = MathUtil.clamp(sourceGustSpeed * windGate, 0.0, 8.0);
+		double gustSignal = MathUtil.clamp(sourceGustSpeed * windGate * a4mcSourceGustAblScalarMultiplier(environment), 0.0, 8.0);
 		Vec3 windAxis = horizontalWindAxis(targetMeanWind);
 		Vec3 crossAxis = new Vec3(-windAxis.z(), 0.0, windAxis.x());
 		double along = Math.sin(windGustPhaseA * 1.11 + 0.35) * gustSignal * 0.18;
 		double cross = Math.sin(windGustPhaseB * 0.97 + 1.85) * gustSignal * 0.28;
-		double vertical = Math.sin(windGustPhaseC * 1.29 + 2.40) * gustSignal * 0.10;
+		double vertical = Math.sin(windGustPhaseC * 1.29 + 2.40)
+				* gustSignal
+				* 0.10
+				* a4mcSourceGustAblVerticalMultiplier(environment);
 		return windAxis.multiply(along)
 				.add(crossAxis.multiply(cross))
 				.add(WORLD_UP.multiply(vertical))
 				.multiply(dirtyGain)
 				.clamp(-2.0, 2.0);
+	}
+
+	private static Vec3 a4mcSourceGustAblShapedVelocity(DroneEnvironment environment, Vec3 sourceGustVelocity) {
+		Vec3 gust = sourceGustVelocity == null || !sourceGustVelocity.isFinite() ? Vec3.ZERO : sourceGustVelocity;
+		if (gust.lengthSquared() <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+		double horizontalGain = a4mcSourceGustAblHorizontalMultiplier(environment);
+		double verticalGain = a4mcSourceGustAblVerticalMultiplier(environment);
+		return new Vec3(
+				gust.x() * horizontalGain,
+				gust.y() * verticalGain,
+				gust.z() * horizontalGain
+		).clamp(-12.0, 12.0);
+	}
+
+	private static double a4mcSourceGustAblScalarMultiplier(DroneEnvironment environment) {
+		A4mcAblShape shape = a4mcAblShape(environment);
+		return MathUtil.clamp(
+				1.0 + 0.10 * shape.ablMixing() + 0.18 * shape.mixedUnstable() - 0.16 * shape.stableSuppression(),
+				0.72,
+				1.25
+		);
+	}
+
+	private static double a4mcSourceGustAblHorizontalMultiplier(DroneEnvironment environment) {
+		A4mcAblShape shape = a4mcAblShape(environment);
+		return MathUtil.clamp(
+				1.0 + 0.06 * shape.ablMixing() + 0.10 * shape.mixedUnstable() - 0.12 * shape.stableSuppression(),
+				0.76,
+				1.18
+		);
+	}
+
+	private static double a4mcSourceGustAblVerticalMultiplier(DroneEnvironment environment) {
+		A4mcAblShape shape = a4mcAblShape(environment);
+		return MathUtil.clamp(
+				1.0 + 0.22 * shape.ablMixing() + 0.44 * shape.mixedUnstable() - 0.52 * shape.stableSuppression(),
+				0.45,
+				1.55
+		);
+	}
+
+	private static A4mcAblShape a4mcAblShape(DroneEnvironment environment) {
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
+		double unstable = Math.max(0.0, ablStability);
+		double stable = Math.max(0.0, -ablStability);
+		double mixedUnstable = unstable * ablMixing;
+		double stableSuppression = stable * (0.75 + 0.25 * (1.0 - ablMixing));
+		return new A4mcAblShape(ablMixing, mixedUnstable, stableSuppression);
 	}
 
 	private Vec3 updateA4mcUpdraftWind(DroneEnvironment environment, double dtSeconds) {
@@ -6662,6 +6717,9 @@ public final class DronePhysics {
 
 	private record DrydenAblTimeScale(double horizontalMultiplier, double verticalMultiplier) {
 		private static final DrydenAblTimeScale NEUTRAL = new DrydenAblTimeScale(1.0, 1.0);
+	}
+
+	private record A4mcAblShape(double ablMixing, double mixedUnstable, double stableSuppression) {
 	}
 
 	private static double drydenReferenceAltitudeMeters(DroneEnvironment environment) {

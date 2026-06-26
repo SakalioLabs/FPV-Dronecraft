@@ -3576,6 +3576,49 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblStabilityShapesSourceGustVectorVerticalMixing() {
+		DroneEnvironment neutralGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 0L, 0.0, 0.0);
+		DroneEnvironment mixedUnstableGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 0L, 0.85, 1.0);
+		DroneEnvironment stableGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 0L, -0.85, 0.10);
+		DronePhysics neutral = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics mixedUnstable = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics stable = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+
+		for (int i = 0; i < 80; i++) {
+			neutral.step(idle, 0.005, neutralGust);
+			mixedUnstable.step(idle, 0.005, mixedUnstableGust);
+			stable.step(idle, 0.005, stableGust);
+		}
+		Vec3 neutralSource = neutral.state().a4mcSourceGustVelocityWorldMetersPerSecond();
+		Vec3 mixedSource = mixedUnstable.state().a4mcSourceGustVelocityWorldMetersPerSecond();
+		Vec3 stableSource = stable.state().a4mcSourceGustVelocityWorldMetersPerSecond();
+
+		assertEquals(0.0, neutralSource.x(), 1.0e-9);
+		assertEquals(0.0, mixedSource.x(), 1.0e-9);
+		assertEquals(0.0, stableSource.x(), 1.0e-9);
+		assertTrue(mixedSource.y() > neutralSource.y() * 1.45,
+				() -> "mixedSource=" + mixedSource + " neutralSource=" + neutralSource);
+		assertTrue(stableSource.y() < neutralSource.y() * 0.70,
+				() -> "stableSource=" + stableSource + " neutralSource=" + neutralSource);
+	}
+
+	@Test
+	void a4mcAblStabilityShapesSourceGustScalarFallback() {
+		DroneEnvironment neutralGust = a4mcSourceGustWind(4.0, Vec3.ZERO, true, 1.0, 0L, 0.0, 0.0);
+		DroneEnvironment mixedUnstableGust = a4mcSourceGustWind(4.0, Vec3.ZERO, true, 1.0, 0L, 0.85, 1.0);
+		DroneEnvironment stableGust = a4mcSourceGustWind(4.0, Vec3.ZERO, true, 1.0, 0L, -0.85, 0.10);
+		double neutralPeak = maxA4mcSourceGustFor(neutralGust);
+		double mixedPeak = maxA4mcSourceGustFor(mixedUnstableGust);
+		double stablePeak = maxA4mcSourceGustFor(stableGust);
+
+		assertTrue(mixedPeak > neutralPeak * 1.12,
+				() -> "mixedPeak=" + mixedPeak + " neutralPeak=" + neutralPeak);
+		assertTrue(stablePeak < neutralPeak * 0.92,
+				() -> "stablePeak=" + stablePeak + " neutralPeak=" + neutralPeak);
+	}
+
+	@Test
 	void a4mcUpdraftAddsSignedVerticalAirMassAndRotorAxialGust() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics smooth = new DronePhysics(config);
@@ -13220,6 +13263,26 @@ class DronePhysicsTest {
 			double confidence,
 			long freshnessAgeTicks
 	) {
+		return a4mcSourceGustWind(
+				sourceGustSpeedMetersPerSecond,
+				sourceGustVelocity,
+				trustedForGameplay,
+				confidence,
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
+	}
+
+	private static DroneEnvironment a4mcSourceGustWind(
+			double sourceGustSpeedMetersPerSecond,
+			Vec3 sourceGustVelocity,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks,
+			double ablStability,
+			double ablMixingStrength
+	) {
 		return new DroneEnvironment(
 				new Vec3(7.0, 0.0, 0.0),
 				1.0,
@@ -13257,8 +13320,8 @@ class DronePhysicsTest {
 				0.0,
 				false,
 				0.0,
-				0.0,
-				0.0,
+				ablStability,
+				ablMixingStrength,
 				sourceGustVelocity
 		);
 	}
