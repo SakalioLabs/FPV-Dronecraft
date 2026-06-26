@@ -546,6 +546,9 @@ public final class DroneBlackboxSample {
 			"wind_dryden_speed_mps",
 			"wind_burble_speed_mps",
 			"wind_a4mc_source_gust_speed_mps",
+			"wind_a4mc_source_gust_x_mps",
+			"wind_a4mc_source_gust_y_mps",
+			"wind_a4mc_source_gust_z_mps",
 			"wind_a4mc_terrain_shear_speed_mps",
 			"wind_shear_accel_mps2",
 			"wind_source",
@@ -562,6 +565,9 @@ public final class DroneBlackboxSample {
 			"wind_source_mean_speed_mps",
 			"wind_source_effective_speed_mps",
 			"wind_source_gust_speed_mps",
+			"wind_source_gust_x_mps",
+			"wind_source_gust_y_mps",
+			"wind_source_gust_z_mps",
 			"wind_source_has_temperature",
 			"wind_source_temperature_c",
 			"wind_source_has_humidity",
@@ -1403,6 +1409,8 @@ public final class DroneBlackboxSample {
 		Vec3 rotorAngularDragTorque = state.rotorAngularDragTorqueBodyNewtonMeters();
 		Vec3 relativeAir = state.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 effectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
+		Vec3 a4mcSourceGust = state.a4mcSourceGustVelocityWorldMetersPerSecond();
+		Vec3 windSourceGust = environment.windSourceGustVelocityWorldMetersPerSecond();
 		Vec3 contactAngularImpulse = state.contactAngularImpulseBodyRadiansPerSecond();
 		double[] motorPowers = state.motorPower(config);
 		double[] escElectricalOutputs = state.escElectricalOutputCommand();
@@ -1950,6 +1958,9 @@ public final class DroneBlackboxSample {
 		row.add(state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windBurbleSpeedMetersPerSecond(), "%.5f");
 		row.add(state.a4mcSourceGustSpeedMetersPerSecond(), "%.5f");
+		row.add(a4mcSourceGust.x(), "%.5f");
+		row.add(a4mcSourceGust.y(), "%.5f");
+		row.add(a4mcSourceGust.z(), "%.5f");
 		row.add(state.a4mcTerrainShearSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windShearAccelerationMetersPerSecondSquared(), "%.5f");
 		row.add(environment.windSourceId());
@@ -1966,6 +1977,9 @@ public final class DroneBlackboxSample {
 		row.add(environment.windSourceMeanSpeedMetersPerSecond(), "%.5f");
 		row.add(environment.windSourceEffectiveSpeedMetersPerSecond(), "%.5f");
 		row.add(environment.windSourceGustSpeedMetersPerSecond(), "%.5f");
+		row.add(windSourceGust.x(), "%.5f");
+		row.add(windSourceGust.y(), "%.5f");
+		row.add(windSourceGust.z(), "%.5f");
 		row.add(environment.windSourceHasTemperature());
 		row.add(environment.windSourceTemperatureCelsius(), "%.3f");
 		row.add(environment.windSourceHasHumidity());

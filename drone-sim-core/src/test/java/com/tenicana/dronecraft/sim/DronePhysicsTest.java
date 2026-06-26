@@ -10972,6 +10972,9 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_dryden_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_burble_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_speed_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_x_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_y_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_z_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_terrain_shear_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_shear_accel_mps2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_impact_mps"));

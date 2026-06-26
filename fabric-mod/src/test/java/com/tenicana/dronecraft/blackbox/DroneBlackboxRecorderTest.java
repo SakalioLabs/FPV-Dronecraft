@@ -63,7 +63,8 @@ class DroneBlackboxRecorderTest {
 				true,
 				0.61,
 				0.73,
-				0.66
+				0.66,
+				new Vec3(2.0, -1.0, 0.5)
 		);
 
 		for (int tick = 0; tick < 4; tick++) {
@@ -431,6 +432,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_dryden_speed_mps"));
 		assertTrue(csv.contains("wind_burble_speed_mps"));
 		assertTrue(csv.contains("wind_a4mc_source_gust_speed_mps"));
+		assertTrue(csv.contains("wind_a4mc_source_gust_x_mps"));
+		assertTrue(csv.contains("wind_a4mc_source_gust_y_mps"));
+		assertTrue(csv.contains("wind_a4mc_source_gust_z_mps"));
 		assertTrue(csv.contains("wind_a4mc_terrain_shear_speed_mps"));
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
 		assertTrue(csv.contains("wind_source"));
@@ -443,6 +447,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_source_mean_speed_mps"));
 		assertTrue(csv.contains("wind_source_effective_speed_mps"));
 		assertTrue(csv.contains("wind_source_gust_speed_mps"));
+		assertTrue(csv.contains("wind_source_gust_x_mps"));
+		assertTrue(csv.contains("wind_source_gust_y_mps"));
+		assertTrue(csv.contains("wind_source_gust_z_mps"));
 		assertTrue(csv.contains("wind_source_humidity"));
 		assertTrue(csv.contains("wind_source_abl_stability"));
 		assertTrue(csv.contains("wind_source_abl_mixing_strength"));
@@ -674,6 +681,9 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_dryden_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_burble_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_speed_mps")]));
+		assertTrue(Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_x_mps")]) > 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_y_mps")]) < 0.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_z_mps")]) > 0.0);
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_a4mc_terrain_shear_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_shear_accel_mps2")]));
 		assertEquals("aerodynamics4mc", row[indexOf(header, "wind_source")]);
@@ -690,6 +700,9 @@ class DroneBlackboxRecorderTest {
 		assertEquals(2.20, Double.parseDouble(row[indexOf(header, "wind_source_mean_speed_mps")]), 1.0e-5);
 		assertEquals(3.10, Double.parseDouble(row[indexOf(header, "wind_source_effective_speed_mps")]), 1.0e-5);
 		assertEquals(1.35, Double.parseDouble(row[indexOf(header, "wind_source_gust_speed_mps")]), 1.0e-5);
+		assertEquals(2.0, Double.parseDouble(row[indexOf(header, "wind_source_gust_x_mps")]), 1.0e-5);
+		assertEquals(-1.0, Double.parseDouble(row[indexOf(header, "wind_source_gust_y_mps")]), 1.0e-5);
+		assertEquals(0.5, Double.parseDouble(row[indexOf(header, "wind_source_gust_z_mps")]), 1.0e-5);
 		assertEquals("true", row[indexOf(header, "wind_source_has_temperature")]);
 		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "wind_source_temperature_c")]), 1.0e-5);
 		assertEquals("true", row[indexOf(header, "wind_source_has_humidity")]);

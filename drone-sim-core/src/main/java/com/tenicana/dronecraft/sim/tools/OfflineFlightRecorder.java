@@ -1039,6 +1039,9 @@ public final class OfflineFlightRecorder {
 			"wind_dryden_speed_mps",
 			"wind_burble_speed_mps",
 			"wind_a4mc_source_gust_speed_mps",
+			"wind_a4mc_source_gust_x_mps",
+			"wind_a4mc_source_gust_y_mps",
+			"wind_a4mc_source_gust_z_mps",
 			"wind_a4mc_terrain_shear_speed_mps",
 			"mqtb_hq5x4x3_current_a",
 			"mqtb_hq5x4x3_power_w",
@@ -4214,6 +4217,7 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.gyroRpmHarmonicNotchAttenuation(), "%.5f");
 		appendExtra(builder, state.gyroBladePassNotchSpreadHertz(), "%.3f");
 		Vec3 vortexRingBuffetForce = state.vortexRingBuffetForceBodyNewtons();
+		Vec3 a4mcSourceGust = state.a4mcSourceGustVelocityWorldMetersPerSecond();
 		appendExtra(builder, state.vortexRingThrustBuffetAmplitude(), "%.5f");
 		appendExtra(builder, state.maxVortexRingThrustBuffetAmplitude(), "%.5f");
 		appendExtra(builder, vortexRingBuffetForce.x(), "%.5f");
@@ -4223,6 +4227,9 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
 		appendExtra(builder, state.windBurbleSpeedMetersPerSecond(), "%.5f");
 		appendExtra(builder, state.a4mcSourceGustSpeedMetersPerSecond(), "%.5f");
+		appendExtra(builder, a4mcSourceGust.x(), "%.5f");
+		appendExtra(builder, a4mcSourceGust.y(), "%.5f");
+		appendExtra(builder, a4mcSourceGust.z(), "%.5f");
 		appendExtra(builder, state.a4mcTerrainShearSpeedMetersPerSecond(), "%.5f");
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalCurrentAmps(state), "%.3f");
 		appendExtra(builder, MotorBenchCurrentModel.mqtbHq5x4x3TotalElectricalPowerWatts(state), "%.3f");
