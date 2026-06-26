@@ -118,6 +118,72 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void trustedLocalVoxelShelterReducesPrecipitationExposure() {
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor((Aerodynamics4McWindBridge.WindSample) null), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				true,
+				true,
+				false,
+				1.0,
+				1.0,
+				0L
+		), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				true,
+				false,
+				true,
+				1.0,
+				1.0,
+				0L
+		), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				true,
+				true,
+				true,
+				1.0,
+				0.0,
+				0L
+		), 1.0e-9);
+		assertEquals(0.28, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				true,
+				true,
+				true,
+				1.0,
+				1.0,
+				0L
+		), 1.0e-9);
+		assertEquals(0.82, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				true,
+				true,
+				true,
+				0.5,
+				0.5,
+				0L
+		), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				true,
+				true,
+				true,
+				1.0,
+				1.0,
+				160L
+		), 1.0e-9);
+	}
+
+	@Test
+	void rotorDiskShelterBlendMapsToPrecipitationExposure() {
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				new AerodynamicsWindCoupling.RotorDiskShelterBlend(0.0, Vec3.ZERO)
+		), 1.0e-9);
+		assertEquals(0.46, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				new AerodynamicsWindCoupling.RotorDiskShelterBlend(0.75, Vec3.ZERO)
+		), 1.0e-9);
+		assertEquals(0.28, AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(
+				new AerodynamicsWindCoupling.RotorDiskShelterBlend(1.0, Vec3.ZERO)
+		), 1.0e-9);
+	}
+
+	@Test
 	void sourceQualityUsesConfidenceAndFreshnessAge() {
 		assertEquals(1.0, AerodynamicsWindCoupling.sourceQualityFactor(
 				true,

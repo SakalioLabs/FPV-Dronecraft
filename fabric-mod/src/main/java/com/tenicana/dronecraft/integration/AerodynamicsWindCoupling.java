@@ -9,6 +9,8 @@ public final class AerodynamicsWindCoupling {
 	private static final double LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL = 0.28;
 	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42;
 	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22;
+	private static final double LOCAL_VOXEL_PRECIPITATION_SHELTER_RELIEF = 0.72;
+	private static final double LOCAL_VOXEL_PRECIPITATION_MIN_EXPOSURE = 0.24;
 	private static final double LOCAL_VOXEL_PRESSURE_TURBULENCE_FULL_SCALE_PASCALS = 1800.0;
 	private static final double MAX_LOCAL_VOXEL_PRESSURE_TURBULENCE_BOOST = 0.16;
 	private static final double LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PASCALS = 1600.0;
@@ -67,6 +69,43 @@ public final class AerodynamicsWindCoupling {
 		}
 		double shelter = Double.isFinite(sample.shelterFactor()) ? MathUtil.clamp(sample.shelterFactor(), 0.0, 1.0) : 0.0;
 		return fallback * (1.0 - sourceQuality) + shelter * sourceQuality;
+	}
+
+	public static double localVoxelPrecipitationExposureFactor(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null) {
+			return 1.0;
+		}
+		return localVoxelPrecipitationExposureFactor(
+				sample.hasFlow(),
+				sample.trustedForGameplay(),
+				sample.localVoxelFlow(),
+				sample.confidence(),
+				sample.shelterFactor(),
+				sample.freshnessAgeTicks()
+		);
+	}
+
+	public static double localVoxelPrecipitationExposureFactor(RotorDiskShelterBlend blend) {
+		if (blend == null) {
+			return 1.0;
+		}
+		return precipitationExposureFactorForAdoptedShelter(blend.meanShelterFactor());
+	}
+
+	static double localVoxelPrecipitationExposureFactor(
+			boolean hasFlow,
+			boolean trustedForGameplay,
+			boolean localVoxelFlow,
+			double confidence,
+			double shelterFactor,
+			long freshnessAgeTicks
+	) {
+		if (!hasFlow || !trustedForGameplay || !localVoxelFlow) {
+			return 1.0;
+		}
+		double sourceQuality = sourceQualityFactor(hasFlow, trustedForGameplay, confidence, freshnessAgeTicks);
+		double shelter = Double.isFinite(shelterFactor) ? MathUtil.clamp(shelterFactor, 0.0, 1.0) : 0.0;
+		return precipitationExposureFactorForAdoptedShelter(shelter * sourceQuality);
 	}
 
 	static double localVoxelObstacleResidualFactor(
@@ -445,6 +484,15 @@ public final class AerodynamicsWindCoupling {
 				LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN * gradient * shelterGate,
 				0.0,
 				LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION
+		);
+	}
+
+	private static double precipitationExposureFactorForAdoptedShelter(double adoptedShelterFactor) {
+		double shelter = Double.isFinite(adoptedShelterFactor) ? MathUtil.clamp(adoptedShelterFactor, 0.0, 1.0) : 0.0;
+		return MathUtil.clamp(
+				1.0 - shelter * LOCAL_VOXEL_PRECIPITATION_SHELTER_RELIEF,
+				LOCAL_VOXEL_PRECIPITATION_MIN_EXPOSURE,
+				1.0
 		);
 	}
 

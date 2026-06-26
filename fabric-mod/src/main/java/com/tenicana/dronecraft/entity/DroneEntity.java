@@ -350,8 +350,17 @@ public class DroneEntity extends Entity {
 			Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond,
 			double[] rotorA4mcShelterObstructions,
 			double[] localVoxelObstacleResiduals,
+			double[] precipitationExposureFactors,
 			double maxFlowObstruction
 	) {
+		private double precipitationExposureFactor(int rotorIndex, double fallbackFactor) {
+			if (precipitationExposureFactors == null || rotorIndex < 0 || rotorIndex >= precipitationExposureFactors.length) {
+				return fallbackFactor;
+			}
+			double factor = precipitationExposureFactors[rotorIndex];
+			return Double.isFinite(factor) ? MathUtil.clamp(factor, 0.0, 1.0) : fallbackFactor;
+		}
+
 		private static RotorEnvironmentEffects calm(int rotorCount) {
 			double[] multipliers = new double[rotorCount];
 			for (int i = 0; i < multipliers.length; i++) {
@@ -370,13 +379,14 @@ public class DroneEntity extends Entity {
 					new Vec3[0],
 					new double[0],
 					new double[0],
+					new double[0],
 					0.0
 			);
 		}
 	}
 
-	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond, double[] localVoxelObstacleResiduals, double[] localVoxelShelterObstructions, Vec3[] localVoxelShelterDirectionsBody) {
-		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null, null, null, null, null);
+	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond, double[] localVoxelObstacleResiduals, double[] localVoxelShelterObstructions, Vec3[] localVoxelShelterDirectionsBody, double[] localVoxelPrecipitationExposureFactors) {
+		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null, null, null, null, null, null);
 
 		private double localVoxelObstacleResidual(int rotorIndex, double fallbackResidual) {
 			if (localVoxelObstacleResiduals == null || rotorIndex < 0 || rotorIndex >= localVoxelObstacleResiduals.length) {
@@ -384,6 +394,14 @@ public class DroneEntity extends Entity {
 			}
 			double residual = localVoxelObstacleResiduals[rotorIndex];
 			return Double.isFinite(residual) ? MathUtil.clamp(residual, 0.0, 1.0) : fallbackResidual;
+		}
+
+		private double localVoxelPrecipitationExposureFactor(int rotorIndex, double fallbackFactor) {
+			if (localVoxelPrecipitationExposureFactors == null || rotorIndex < 0 || rotorIndex >= localVoxelPrecipitationExposureFactors.length) {
+				return fallbackFactor;
+			}
+			double factor = localVoxelPrecipitationExposureFactors[rotorIndex];
+			return Double.isFinite(factor) ? MathUtil.clamp(factor, 0.0, 1.0) : fallbackFactor;
 		}
 
 		private RotorFlowObstruction localVoxelShelterObstruction(int rotorIndex) {
@@ -1331,7 +1349,7 @@ public class DroneEntity extends Entity {
 				localVoxelObstacleResidual
 		);
 		WaterImmersion waterImmersion = sampleWaterImmersion();
-		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
+		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length(), externalWind, rotorEffects);
 		double ambientTemperature = windSource.hasTemperature()
 				? windSource.temperatureCelsius()
 				: fallbackAmbientTemperature;
@@ -1587,7 +1605,11 @@ public class DroneEntity extends Entity {
 		return !Double.isFinite(clearance) || clearance >= ADVANCED_EFFECTS_CLEARANCE_METERS;
 	}
 
-	private PrecipitationWetness samplePrecipitationWetness(double windSpeedMetersPerSecond) {
+	private PrecipitationWetness samplePrecipitationWetness(
+			double windSpeedMetersPerSecond,
+			Aerodynamics4McWindBridge.WindSample externalWind,
+			RotorEnvironmentEffects rotorEffects
+	) {
 		SimulationFlightRuntime.RotorGeometry rotorGeometry = simulationRuntime.rotorGeometry();
 		int rotorCount = rotorGeometry.rotorCount();
 		if (!level().isRaining()) {
@@ -1599,7 +1621,8 @@ public class DroneEntity extends Entity {
 		double weatherWetness = level().isThundering() ? 0.78 : 0.45;
 		double windFactor = MathUtil.clamp(windSpeedMetersPerSecond / 9.0, 0.0, 1.0);
 		double wetnessScale = weatherWetness * (0.82 + 0.18 * windFactor);
-		double bodyWetness = wetnessScale * precipitationExposureAt(bodyPosition);
+		double bodyPrecipitationExposureFactor = AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(externalWind);
+		double bodyWetness = wetnessScale * precipitationExposureAt(bodyPosition) * bodyPrecipitationExposureFactor;
 		double weightedWetness = bodyWetness * 1.10;
 		double totalWeight = 1.10;
 		double[] rotorWetnesses = new double[rotorCount];
@@ -1609,7 +1632,12 @@ public class DroneEntity extends Entity {
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotorGeometry.rotor(i);
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
-			double rotorWetness = wetnessScale * rotorPrecipitationExposureAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld);
+			double rotorPrecipitationExposureFactor = rotorEffects == null
+					? bodyPrecipitationExposureFactor
+					: rotorEffects.precipitationExposureFactor(i, bodyPrecipitationExposureFactor);
+			double rotorWetness = wetnessScale
+					* rotorPrecipitationExposureAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld)
+					* rotorPrecipitationExposureFactor;
 			rotorWetnesses[i] = MathUtil.clamp(rotorWetness, 0.0, 1.0);
 			weightedWetness += rotorWetnesses[i];
 			totalWeight += 1.0;
@@ -1801,6 +1829,7 @@ public class DroneEntity extends Entity {
 				rotorWindField.rotorA4mcPressureGradientWindBodyMetersPerSecond(),
 				rotorWindField.localVoxelShelterObstructions(),
 				localVoxelObstacleResiduals,
+				rotorWindField.localVoxelPrecipitationExposureFactors(),
 				maxFlowObstruction
 		);
 	}
@@ -1829,6 +1858,7 @@ public class DroneEntity extends Entity {
 		double[] rotorLocalVoxelObstacleResiduals = new double[rotorCount];
 		double[] rotorLocalVoxelShelterObstructions = new double[rotorCount];
 		Vec3[] rotorLocalVoxelShelterDirectionsBody = new Vec3[rotorCount];
+		double[] rotorLocalVoxelPrecipitationExposureFactors = new double[rotorCount];
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		Vec3 safeBaselineWind = baselineWindVelocityWorldMetersPerSecond == null || !baselineWindVelocityWorldMetersPerSecond.isFinite()
 				? bodyWind.effectiveVelocityWorldMetersPerSecond()
@@ -1893,6 +1923,8 @@ public class DroneEntity extends Entity {
 			rotorLocalVoxelShelterDirectionsBody[i] = shelterObstruction <= 1.0e-6
 					? Vec3.ZERO
 					: diskShelter.gradientBody().normalized();
+			rotorLocalVoxelPrecipitationExposureFactors[i] =
+					AerodynamicsWindCoupling.localVoxelPrecipitationExposureFactor(diskShelter);
 		}
 		return new RotorWindFieldSamples(
 				rotorWindVelocities,
@@ -1900,7 +1932,8 @@ public class DroneEntity extends Entity {
 				rotorA4mcPressureGradientWinds,
 				rotorLocalVoxelObstacleResiduals,
 				rotorLocalVoxelShelterObstructions,
-				rotorLocalVoxelShelterDirectionsBody
+				rotorLocalVoxelShelterDirectionsBody,
+				rotorLocalVoxelPrecipitationExposureFactors
 		);
 	}
 
