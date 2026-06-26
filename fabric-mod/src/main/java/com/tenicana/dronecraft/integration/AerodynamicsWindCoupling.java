@@ -29,6 +29,19 @@ public final class AerodynamicsWindCoupling {
 		);
 	}
 
+	public static double localVoxelObstacleResidualFactorOrFallback(
+			Aerodynamics4McWindBridge.WindSample sample,
+			double fallbackResidual
+	) {
+		double fallback = Double.isFinite(fallbackResidual)
+				? MathUtil.clamp(fallbackResidual, LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL, 1.0)
+				: 1.0;
+		if (sample == null || !sample.hasFlow()) {
+			return fallback;
+		}
+		return localVoxelObstacleResidualFactor(sample);
+	}
+
 	static double localVoxelObstacleResidualFactor(
 			boolean hasFlow,
 			boolean trustedForGameplay,

@@ -100,6 +100,43 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorLocalVoxelResidualOverridesBodyFallbackWhenSampleIsUsable() {
+		double bodyShelteredResidual = AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(
+				true,
+				true,
+				true,
+				1.0,
+				1.0
+		);
+		Aerodynamics4McWindBridge.WindSample exposedRotor = windSampleWithLocalVoxelShelter(0.0, true, 20L);
+		Aerodynamics4McWindBridge.WindSample shelteredRotor = windSampleWithLocalVoxelShelter(1.0, true, 20L);
+		Aerodynamics4McWindBridge.WindSample coarseRotor = windSampleWithLocalVoxelShelter(1.0, false, 20L);
+		Aerodynamics4McWindBridge.WindSample staleRotor = windSampleWithLocalVoxelShelter(1.0, true, 200L);
+
+		assertEquals(0.28, bodyShelteredResidual, 1.0e-9);
+		assertEquals(0.68, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+				exposedRotor,
+				bodyShelteredResidual
+		), 1.0e-9);
+		assertEquals(0.28, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+				shelteredRotor,
+				1.0
+		), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+				coarseRotor,
+				bodyShelteredResidual
+		), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+				staleRotor,
+				bodyShelteredResidual
+		), 1.0e-9);
+		assertEquals(bodyShelteredResidual, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+				null,
+				bodyShelteredResidual
+		), 1.0e-9);
+	}
+
+	@Test
 	void windSampleAdapterUsesSanitizedA4mcTelemetry() {
 		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
 				true,
@@ -448,6 +485,35 @@ class AerodynamicsWindCouplingTest {
 				1000.0,
 				true,
 				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithLocalVoxelShelter(
+			double shelterFactor,
+			boolean localVoxelFlow,
+			long freshnessAgeTicks
+	) {
+		return new Aerodynamics4McWindBridge.WindSample(
+				true,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				shelterFactor,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				1.0,
+				0.0,
+				true,
+				localVoxelFlow,
 				"L2",
 				"SERVER_AUTHORITATIVE",
 				freshnessAgeTicks,
