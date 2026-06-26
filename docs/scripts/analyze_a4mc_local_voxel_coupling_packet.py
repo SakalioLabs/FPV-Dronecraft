@@ -9,8 +9,10 @@ Outputs:
 This packet mirrors the fabric-side AerodynamicsWindCoupling formulas that turn
 trusted A4MC L2 local voxel samples into duplicate-obstacle attenuation,
 pressure-gradient disk-wind equivalents, and shelter-gradient side obstruction.
-It complements the core disk-gradient packet by making the Minecraft sampling
-preprocessor auditable before live A4MC tunnel-mouth traces are available.
+It also mirrors the core pressure-center offset that consumes those adopted
+per-rotor local-voxel signals. It complements the core disk-gradient packet by
+making the Minecraft sampling preprocessor and its body-scale moment path
+auditable before live A4MC tunnel-mouth traces are available.
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ SUMMARY = DATA / "fpv_model_validation_summary.csv"
 
 A4MC_COUPLING_SOURCE = "fabric-mod/src/main/java/com/tenicana/dronecraft/integration/AerodynamicsWindCoupling.java"
 DRONE_ENTITY_SOURCE = "fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java"
+DRONE_PHYSICS_SOURCE = "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"
 LOCAL_VOXEL_DISK_SAMPLING_SOURCES = f"{A4MC_COUPLING_SOURCE}; {DRONE_ENTITY_SOURCE}"
 A4MC_GAMEPLAY_SAMPLE_SOURCE = "_reference/Aerodynamics4MC-Core/api/src/main/java/com/aerodynamics4mc/api/GameplayWindSample.java"
 
@@ -39,6 +42,8 @@ LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22
 LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PA = 1600.0
 LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS = 2.4
 MAX_LOCAL_VOXEL_PRESSURE_PA = 5000.0
+RACING_QUAD_ARM_M = 0.18 / math.sqrt(2.0)
+PRESSURE_CENTER_MAX_OFFSET_M = 0.024
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
 
@@ -52,6 +57,52 @@ SHELTER_LEVELS = [0.0, 0.35, 0.74, 1.0]
 PRESSURE_DELTAS_PA = [0.0, 220.0, 800.0, 1600.0, 3200.0]
 PRESSURE_CENTER_CONTRASTS_PA = [0.0, 3200.0, 10000.0]
 SHELTER_GRADIENT_DELTAS = [0.0, 0.15, 0.35, 0.74, 1.0]
+PRESSURE_CENTER_AIRSPEEDS_MPS = [0.0, 6.0, 18.0]
+PRESSURE_CENTER_SOURCE_QUALITY_LEVELS = [0.0, 0.5, 1.0]
+PRESSURE_CENTER_ROTOR_POSITIONS_XZ_M = [
+    (RACING_QUAD_ARM_M, RACING_QUAD_ARM_M),
+    (-RACING_QUAD_ARM_M, RACING_QUAD_ARM_M),
+    (-RACING_QUAD_ARM_M, -RACING_QUAD_ARM_M),
+    (RACING_QUAD_ARM_M, -RACING_QUAD_ARM_M),
+]
+PRESSURE_CENTER_ROTOR_SCENARIOS = [
+    (
+        "symmetric_clean",
+        [1.0, 1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 0.0],
+    ),
+    (
+        "offline_wall_skim_proxy",
+        [0.62, 0.62, 0.62, 0.62],
+        [0.04239, 0.01696, 0.01696, 0.04239],
+        [0.08013, 0.03205, 0.03205, 0.08013],
+    ),
+    (
+        "right_shelter_wall",
+        [0.35, 0.94, 0.94, 0.35],
+        [0.18, 0.02, 0.02, 0.18],
+        [0.0, 0.0, 0.0, 0.0],
+    ),
+    (
+        "right_pressure_step",
+        [1.0, 1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0],
+        [2.4, 0.0, 0.0, 2.4],
+    ),
+    (
+        "right_combined_wall_pressure",
+        [0.35, 0.94, 0.94, 0.35],
+        [0.18, 0.02, 0.02, 0.18],
+        [2.4, 0.0, 0.0, 2.4],
+    ),
+    (
+        "front_combined_wall_pressure",
+        [0.35, 0.35, 0.94, 0.94],
+        [0.18, 0.18, 0.02, 0.02],
+        [2.4, 2.4, 0.0, 0.0],
+    ),
+]
 
 
 def repo_path(path: Path) -> str:
@@ -180,6 +231,72 @@ def shelter_obstruction(mean_shelter: float, gradient: float) -> float:
     )
 
 
+def pressure_center_signal(
+    local_voxel_residual: float,
+    shelter_gradient_obstruction: float,
+    pressure_gradient_wind_mps: float,
+) -> float:
+    local_voxel_coverage = clamp(1.0 - local_voxel_residual, 0.0, 1.0)
+    shelter_obstruction = clamp(shelter_gradient_obstruction, 0.0, 1.0)
+    pressure_gradient_signal = smooth_step(0.15, 1.80, abs(pressure_gradient_wind_mps))
+    return local_voxel_coverage + 0.65 * shelter_obstruction + 0.85 * pressure_gradient_signal
+
+
+def pressure_center_response(
+    residuals: list[float],
+    shelter_obstructions: list[float],
+    pressure_gradient_winds_mps: list[float],
+    airspeed_mps: float,
+    source_quality: float,
+) -> dict[str, float]:
+    signals = [
+        pressure_center_signal(residuals[i], shelter_obstructions[i], pressure_gradient_winds_mps[i])
+        for i in range(4)
+    ]
+    mean_signal = sum(signals) / len(signals)
+    speed_gate = smooth_step(2.0, 12.0, airspeed_mps)
+    source_available = source_quality > 1.0e-9
+    if not source_available or mean_signal <= 1.0e-6:
+        strength = 0.0
+        centroid_x = 0.0
+        centroid_z = 0.0
+        offset_x = 0.0
+        offset_z = 0.0
+    else:
+        centroid_x = 0.0
+        centroid_z = 0.0
+        for i, signal in enumerate(signals):
+            anomaly = signal - mean_signal
+            position_x, position_z = PRESSURE_CENTER_ROTOR_POSITIONS_XZ_M[i]
+            centroid_x += position_x * anomaly
+            centroid_z += position_z * anomaly
+        centroid_x /= len(signals)
+        centroid_z /= len(signals)
+        strength = clamp(mean_signal * speed_gate, 0.0, 1.0)
+        offset_x = clamp(-centroid_x * 0.68 * strength, -PRESSURE_CENTER_MAX_OFFSET_M, PRESSURE_CENTER_MAX_OFFSET_M)
+        offset_z = clamp(-centroid_z * 0.44 * strength, -PRESSURE_CENTER_MAX_OFFSET_M, PRESSURE_CENTER_MAX_OFFSET_M)
+    offset_magnitude = math.hypot(offset_x, offset_z)
+    return {
+        "input_source_quality_factor": source_quality,
+        "input_airspeed_mps": airspeed_mps,
+        "source_available": source_available,
+        "rotor0_pressure_center_signal": signals[0],
+        "rotor1_pressure_center_signal": signals[1],
+        "rotor2_pressure_center_signal": signals[2],
+        "rotor3_pressure_center_signal": signals[3],
+        "mean_pressure_center_signal": mean_signal if source_available else 0.0,
+        "pressure_center_weighted_centroid_x_m": centroid_x,
+        "pressure_center_weighted_centroid_z_m": centroid_z,
+        "pressure_center_speed_gate": speed_gate if source_available else 0.0,
+        "pressure_center_strength": strength,
+        "pressure_center_offset_x_m": offset_x,
+        "pressure_center_offset_z_m": offset_z,
+        "pressure_center_offset_magnitude_m": offset_magnitude,
+        "pressure_center_offset_cap_fraction": offset_magnitude / PRESSURE_CENTER_MAX_OFFSET_M,
+        "source_quality_is_availability_gate": 1.0 if source_available else 0.0,
+    }
+
+
 def add_metric(
     rows: list[dict[str, str]],
     *,
@@ -226,6 +343,12 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
             "a4mc_gameplay_sample",
             "GameplayWindSample exposes source confidence, freshness, pressure anomaly, shelter, and local voxel authority used by this bridge.",
             A4MC_GAMEPLAY_SAMPLE_SOURCE,
+            "",
+        ),
+        (
+            "fpv_core_pressure_center_response",
+            "DronePhysics maps adopted asymmetric local-voxel residual, shelter, and pressure-gradient rotor signals into a bounded airframe pressure-center offset.",
+            DRONE_PHYSICS_SOURCE,
             "",
         ),
     ]
@@ -561,6 +684,56 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
                     )
 
 
+def add_pressure_center_matrix(rows: list[dict[str, str]]) -> None:
+    metric_units = {
+        "input_source_quality_factor": "fraction",
+        "input_airspeed_mps": "m/s",
+        "source_available": "bool",
+        "rotor0_pressure_center_signal": "fraction",
+        "rotor1_pressure_center_signal": "fraction",
+        "rotor2_pressure_center_signal": "fraction",
+        "rotor3_pressure_center_signal": "fraction",
+        "mean_pressure_center_signal": "fraction",
+        "pressure_center_weighted_centroid_x_m": "m",
+        "pressure_center_weighted_centroid_z_m": "m",
+        "pressure_center_speed_gate": "fraction",
+        "pressure_center_strength": "fraction",
+        "pressure_center_offset_x_m": "m",
+        "pressure_center_offset_z_m": "m",
+        "pressure_center_offset_magnitude_m": "m",
+        "pressure_center_offset_cap_fraction": "fraction",
+        "source_quality_is_availability_gate": "bool",
+    }
+    for scenario_name, residuals, shelter_obstructions, pressure_gradient_winds in PRESSURE_CENTER_ROTOR_SCENARIOS:
+        for source_quality_value in PRESSURE_CENTER_SOURCE_QUALITY_LEVELS:
+            for airspeed in PRESSURE_CENTER_AIRSPEEDS_MPS:
+                response = pressure_center_response(
+                    residuals,
+                    shelter_obstructions,
+                    pressure_gradient_winds,
+                    airspeed,
+                    source_quality_value,
+                )
+                name = (
+                    f"{scenario_name}"
+                    f"_quality_{scenario_token(source_quality_value)}"
+                    f"_airspeed_{scenario_token(airspeed)}"
+                )
+                for metric, value in response.items():
+                    add_metric(
+                        rows,
+                        row_type="a4mc_local_voxel_packet_pressure_center_matrix",
+                        name=name,
+                        metric=metric,
+                        value=value,
+                        unit=metric_units[metric],
+                        source_file=DRONE_PHYSICS_SOURCE,
+                        source_url="docs/data/a4mc_local_voxel_coupling_packet.csv",
+                        evidence_role="local_voxel_pressure_center_matrix",
+                        note="Adopted asymmetric local-voxel rotor signals move the bounded core airframe pressure center; source quality only gates availability.",
+                    )
+
+
 def find_metric(rows: list[dict[str, str]], row_type: str, name: str, metric: str) -> float:
     for row in rows:
         if row["row_type"] == row_type and row["name"] == name and row["metric"] == metric:
@@ -578,6 +751,11 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     pressure_saturated_name = "confidence_0p5_age_0_pressure_contrast_10000pa"
     shelter_name = "confidence_0p86_age_0_shelter_delta_0p74"
     stale_shelter_name = "confidence_0p86_age_160_shelter_delta_0p74"
+    pressure_center_wall_skim_name = "offline_wall_skim_proxy_quality_1_airspeed_18"
+    pressure_center_right_combined_name = "right_combined_wall_pressure_quality_1_airspeed_18"
+    pressure_center_right_combined_half_quality_name = "right_combined_wall_pressure_quality_0p5_airspeed_18"
+    pressure_center_front_combined_name = "front_combined_wall_pressure_quality_1_airspeed_18"
+    pressure_center_quality_zero_name = "right_combined_wall_pressure_quality_0_airspeed_18"
     summary = {
         "quality_residual_scenario_count": (
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_LEVELS),
@@ -594,6 +772,12 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         ),
         "shelter_gradient_scenario_count": (
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_GRADIENT_DELTAS),
+            "count",
+        ),
+        "pressure_center_scenario_count": (
+            len(PRESSURE_CENTER_ROTOR_SCENARIOS)
+            * len(PRESSURE_CENTER_SOURCE_QUALITY_LEVELS)
+            * len(PRESSURE_CENTER_AIRSPEEDS_MPS),
             "count",
         ),
         "disk_sample_center_weight": (ROTOR_DISK_SURFACE_CENTER_WEIGHT, "weight"),
@@ -689,6 +873,51 @@ def add_summary(rows: list[dict[str, str]]) -> None:
             ),
             "fraction",
         ),
+        "wall_skim_pressure_center_offset_magnitude_m": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_wall_skim_name,
+                "pressure_center_offset_magnitude_m",
+            ),
+            "m",
+        ),
+        "right_combined_pressure_center_offset_x_m": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_right_combined_name,
+                "pressure_center_offset_x_m",
+            ),
+            "m",
+        ),
+        "right_combined_half_quality_offset_x_m": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_right_combined_half_quality_name,
+                "pressure_center_offset_x_m",
+            ),
+            "m",
+        ),
+        "front_combined_pressure_center_offset_z_m": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_front_combined_name,
+                "pressure_center_offset_z_m",
+            ),
+            "m",
+        ),
+        "quality_zero_pressure_center_offset_magnitude_m": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_quality_zero_name,
+                "pressure_center_offset_magnitude_m",
+            ),
+            "m",
+        ),
     }
     for metric, (value, unit) in summary.items():
         add_metric(
@@ -727,6 +956,7 @@ def build_rows() -> list[dict[str, str]]:
     add_pressure_gradient_matrix(rows)
     add_pressure_contrast_matrix(rows)
     add_shelter_gradient_matrix(rows)
+    add_pressure_center_matrix(rows)
     add_summary(rows)
     return rows
 
