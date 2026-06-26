@@ -6412,7 +6412,7 @@ public final class DronePhysics {
 		if (sourceQuality <= 1.0e-9) {
 			return Vec3.ZERO;
 		}
-		double sourceUpdraft = MathUtil.clamp(environment.windUpdraftMetersPerSecond() * sourceQuality, -12.0, 12.0);
+		double sourceUpdraft = a4mcSeparatedUpdraftMetersPerSecond(environment, sourceQuality);
 		if (Math.abs(sourceUpdraft) <= 1.0e-6) {
 			return Vec3.ZERO;
 		}
@@ -6426,6 +6426,22 @@ public final class DronePhysics {
 				0.90
 		);
 		return WORLD_UP.multiply(MathUtil.clamp(sourceUpdraft * responseGain, -4.5, 4.5));
+	}
+
+	private static double a4mcSeparatedUpdraftMetersPerSecond(DroneEnvironment environment, double sourceQuality) {
+		double sourceUpdraft = MathUtil.clamp(environment.windUpdraftMetersPerSecond() * sourceQuality, -12.0, 12.0);
+		if (Math.abs(sourceUpdraft) <= 1.0e-6) {
+			return 0.0;
+		}
+		Vec3 sourceGustVelocity = environment.windSourceGustVelocityWorldMetersPerSecond();
+		if (sourceGustVelocity == null || !sourceGustVelocity.isFinite()) {
+			return sourceUpdraft;
+		}
+		double explicitVerticalGust = MathUtil.clamp(sourceGustVelocity.y() * sourceQuality, -12.0, 12.0);
+		if (Math.abs(explicitVerticalGust) <= 1.0e-6) {
+			return sourceUpdraft;
+		}
+		return MathUtil.clamp(sourceUpdraft - explicitVerticalGust, -12.0, 12.0);
 	}
 
 	private static double a4mcUpdraftAblTargetMultiplier(DroneEnvironment environment) {
@@ -6516,7 +6532,7 @@ public final class DronePhysics {
 		}
 		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock() * sourceQuality, 0.0, 5.0);
 		double shelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
-		double updraft = MathUtil.clamp(environment.windUpdraftMetersPerSecond() * sourceQuality, -12.0, 12.0);
+		double updraft = a4mcSeparatedUpdraftMetersPerSecond(environment, sourceQuality);
 		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
 		double shelterWindGate = smoothStep(0.8, 7.0, horizontalWindSpeed);
 		if (shearMagnitude <= 1.0e-6 && Math.abs(updraft) <= 1.0e-6 && (shelter <= 1.0e-6 || shelterWindGate <= 1.0e-6)) {

@@ -3619,6 +3619,42 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcUpdraftSplitDoesNotDoubleCountExplicitVerticalSourceGust() {
+		DroneEnvironment pureUpdraft = a4mcUpdraftOnlyWind(3.0);
+		DroneEnvironment duplicatedGustUpdraft = a4mcUpdraftWithSourceGustWind(3.0, new Vec3(0.0, 3.0, 0.0));
+		DroneEnvironment meanUpdraftWithGust = a4mcUpdraftWithSourceGustWind(5.0, new Vec3(0.0, 3.0, 0.0));
+		DronePhysics pure = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics duplicate = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics separated = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+
+		for (int i = 0; i < 520; i++) {
+			pure.step(idle, 0.005, pureUpdraft);
+			duplicate.step(idle, 0.005, duplicatedGustUpdraft);
+			separated.step(idle, 0.005, meanUpdraftWithGust);
+		}
+
+		double pureUpdraftSpeed = pure.state().a4mcUpdraftSpeedMetersPerSecond();
+		double duplicateUpdraftSpeed = duplicate.state().a4mcUpdraftSpeedMetersPerSecond();
+		double separatedUpdraftSpeed = separated.state().a4mcUpdraftSpeedMetersPerSecond();
+		assertTrue(pureUpdraftSpeed > 1.0, "pureUpdraftSpeed=" + pureUpdraftSpeed);
+		assertTrue(duplicate.state().a4mcSourceGustSpeedMetersPerSecond() > 0.35,
+				() -> "duplicateSourceGust=" + duplicate.state().a4mcSourceGustVelocityWorldMetersPerSecond());
+		assertTrue(duplicateUpdraftSpeed < pureUpdraftSpeed * 0.08,
+				() -> "duplicateUpdraftSpeed=" + duplicateUpdraftSpeed + " pureUpdraftSpeed=" + pureUpdraftSpeed);
+		assertTrue(separatedUpdraftSpeed > pureUpdraftSpeed * 0.40,
+				() -> "separatedUpdraftSpeed=" + separatedUpdraftSpeed + " pureUpdraftSpeed=" + pureUpdraftSpeed);
+		assertTrue(separatedUpdraftSpeed < pureUpdraftSpeed * 0.95,
+				() -> "separatedUpdraftSpeed=" + separatedUpdraftSpeed + " pureUpdraftSpeed=" + pureUpdraftSpeed);
+		assertTrue(
+				duplicate.state().a4mcTerrainShearSpeedMetersPerSecond()
+						< pure.state().a4mcTerrainShearSpeedMetersPerSecond() * 0.15,
+				"duplicateTerrainShear=" + duplicate.state().a4mcTerrainShearSpeedMetersPerSecond()
+						+ " pureTerrainShear=" + pure.state().a4mcTerrainShearSpeedMetersPerSecond()
+		);
+	}
+
+	@Test
 	void a4mcUpdraftAddsSignedVerticalAirMassAndRotorAxialGust() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics smooth = new DronePhysics(config);
@@ -13109,6 +13145,51 @@ class DronePhysicsTest {
 				0.0,
 				ablStability,
 				ablMixingStrength
+		);
+	}
+
+	private static DroneEnvironment a4mcUpdraftWithSourceGustWind(double updraftMetersPerSecond, Vec3 sourceGustVelocity) {
+		Vec3 safeSourceGust = sourceGustVelocity == null ? Vec3.ZERO : sourceGustVelocity;
+		return new DroneEnvironment(
+				new Vec3(7.0, 0.0, 0.0),
+				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				updraftMetersPerSecond,
+				true,
+				"l2",
+				"server_authoritative",
+				0L,
+				7.0,
+				7.0,
+				safeSourceGust.length(),
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				safeSourceGust
 		);
 	}
 
