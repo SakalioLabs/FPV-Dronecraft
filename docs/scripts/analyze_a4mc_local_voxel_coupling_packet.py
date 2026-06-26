@@ -318,6 +318,8 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
         "input_freshness_age_ticks": "ticks",
         "input_center_shelter": "fraction",
         "input_edge_shelter_delta": "fraction",
+        "sample_edge_shelter_factor": "fraction",
+        "adopted_edge_shelter_delta": "fraction",
         "core_source_quality": "fraction",
         "disk_mean_shelter_factor": "fraction",
         "disk_shelter_gradient_body_x": "fraction",
@@ -329,14 +331,18 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
         for age in FRESHNESS_AGES_TICKS:
             quality = source_quality(True, confidence, age)
             for edge_delta in SHELTER_GRADIENT_DELTAS:
-                gradient = disk_sample_gradient(edge_delta)
-                mean_shelter = clamp(disk_mean(center_shelter, edge_delta), 0.0, 1.0)
+                edge_shelter = clamp(center_shelter + edge_delta, 0.0, 1.0)
+                adopted_edge_delta = edge_shelter - center_shelter
+                gradient = disk_sample_gradient(adopted_edge_delta)
+                mean_shelter = clamp(disk_mean(center_shelter, adopted_edge_delta), 0.0, 1.0)
                 obstruction = shelter_obstruction(mean_shelter, gradient)
                 metrics = {
                     "input_confidence": confidence,
                     "input_freshness_age_ticks": age,
                     "input_center_shelter": center_shelter,
                     "input_edge_shelter_delta": edge_delta,
+                    "sample_edge_shelter_factor": edge_shelter,
+                    "adopted_edge_shelter_delta": adopted_edge_delta,
                     "core_source_quality": quality,
                     "disk_mean_shelter_factor": mean_shelter,
                     "disk_shelter_gradient_body_x": gradient,

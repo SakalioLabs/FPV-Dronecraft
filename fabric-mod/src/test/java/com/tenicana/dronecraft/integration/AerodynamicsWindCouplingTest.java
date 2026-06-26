@@ -4,11 +4,68 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.Vec3;
 
 class AerodynamicsWindCouplingTest {
+	private static final double ROTOR_DISK_SURFACE_CENTER_WEIGHT = 0.36;
+	private static final double ROTOR_DISK_SURFACE_CARDINAL_WEIGHT = 0.11;
+	private static final double ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT = 0.05;
+
+	@Test
+	void generatedLocalVoxelCouplingPacketSummaryMatchesRuntimeFormulas() throws IOException {
+		Map<String, Double> summary = localVoxelPacketSummary();
+		double wallSkimSourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
+
+		assertEquals(11, summary.size());
+		assertEquals(48.0, summaryMetric(summary, "quality_residual_scenario_count"), 1.0e-9);
+		assertEquals(60.0, summaryMetric(summary, "pressure_gradient_scenario_count"), 1.0e-9);
+		assertEquals(60.0, summaryMetric(summary, "shelter_gradient_scenario_count"), 1.0e-9);
+		assertEquals(ROTOR_DISK_SURFACE_CENTER_WEIGHT, summaryMetric(summary, "disk_sample_center_weight"), 1.0e-12);
+		assertEquals(ROTOR_DISK_SURFACE_CARDINAL_WEIGHT, summaryMetric(summary, "disk_sample_cardinal_weight"), 1.0e-12);
+		assertEquals(ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT, summaryMetric(summary, "disk_sample_diagonal_weight"), 1.0e-12);
+
+		assertEquals(
+				AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(true, true, true, 0.86, 0.74, 0L),
+				summaryMetric(summary, "wall_skim_quality_0p86_shelter_0p74_residual"),
+				1.0e-12
+		);
+
+		AerodynamicsWindCoupling.RotorDiskPressureBlend wallSkimPressure = oneSidedPressureBlend(220.0);
+		Vec3 wallSkimPressureWind = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(wallSkimPressure);
+		assertEquals(
+				wallSkimPressureWind.x() * wallSkimSourceQuality,
+				summaryMetric(summary, "wall_skim_pressure_220pa_quality_weighted_gradient_mps"),
+				1.0e-12
+		);
+		assertEquals(0.0, wallSkimPressureWind.y(), 1.0e-12);
+		assertEquals(0.0, wallSkimPressureWind.z(), 1.0e-12);
+
+		Vec3 maxPressureWind = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(oneSidedPressureBlend(3200.0));
+		assertEquals(
+				maxPressureWind.x(),
+				summaryMetric(summary, "max_pressure_quality_weighted_gradient_mps"),
+				1.0e-11
+		);
+
+		AerodynamicsWindCoupling.RotorDiskShelterBlend wallSkimShelter = oneSidedShelterBlend(0.35, 0.74);
+		assertEquals(
+				AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(wallSkimShelter) * wallSkimSourceQuality,
+				summaryMetric(summary, "wall_skim_shelter_delta_0p74_obstruction"),
+				1.0e-12
+		);
+		assertEquals(0.0, summaryMetric(summary, "stale_shelter_delta_0p74_obstruction"), 1.0e-12);
+	}
+
 	@Test
 	void unavailableOrCoarseWindKeepsLocalObstructionModel() {
 		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(null), 1.0e-9);
@@ -590,6 +647,164 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(Vec3.ZERO, AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(sample));
 		assertEquals(0.10, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, sample), 1.0e-9);
 		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(sample), 1.0e-9);
+	}
+
+	private static Map<String, Double> localVoxelPacketSummary() throws IOException {
+		Path packet = findRepoRoot().resolve("docs/data/a4mc_local_voxel_coupling_packet.csv");
+		List<String> lines = Files.readAllLines(packet);
+		assertFalse(lines.isEmpty(), "Local voxel coupling packet is empty: " + packet);
+		List<String> header = parseCsvLine(lines.get(0));
+		int rowTypeColumn = columnIndex(header, "row_type");
+		int metricColumn = columnIndex(header, "metric");
+		int valueColumn = columnIndex(header, "value");
+		Map<String, Double> summary = new HashMap<>();
+		for (int i = 1; i < lines.size(); i++) {
+			List<String> columns = parseCsvLine(lines.get(i));
+			assertEquals(header.size(), columns.size(), "CSV column mismatch at " + packet + ":" + (i + 1));
+			if ("a4mc_local_voxel_packet_summary".equals(columns.get(rowTypeColumn))) {
+				summary.put(columns.get(metricColumn), Double.parseDouble(columns.get(valueColumn)));
+			}
+		}
+		assertFalse(summary.isEmpty(), "Local voxel coupling packet has no summary rows: " + packet);
+		return summary;
+	}
+
+	private static Path findRepoRoot() {
+		Path current = Path.of("").toAbsolutePath();
+		for (Path path = current; path != null; path = path.getParent()) {
+			if (Files.isRegularFile(path.resolve("settings.gradle"))
+					&& Files.isRegularFile(path.resolve("docs/data/a4mc_local_voxel_coupling_packet.csv"))) {
+				return path;
+			}
+		}
+		throw new AssertionError("Could not locate repository root from " + current);
+	}
+
+	private static List<String> parseCsvLine(String line) {
+		List<String> values = new ArrayList<>();
+		StringBuilder value = new StringBuilder();
+		boolean quoted = false;
+		for (int i = 0; i < line.length(); i++) {
+			char character = line.charAt(i);
+			if (quoted) {
+				if (character == '"') {
+					if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
+						value.append('"');
+						i++;
+					} else {
+						quoted = false;
+					}
+				} else {
+					value.append(character);
+				}
+			} else if (character == '"') {
+				quoted = true;
+			} else if (character == ',') {
+				values.add(value.toString());
+				value.setLength(0);
+			} else {
+				value.append(character);
+			}
+		}
+		values.add(value.toString());
+		return values;
+	}
+
+	private static int columnIndex(List<String> header, String name) {
+		int index = header.indexOf(name);
+		assertTrue(index >= 0, "Missing CSV column " + name);
+		return index;
+	}
+
+	private static double summaryMetric(Map<String, Double> summary, String metric) {
+		Double value = summary.get(metric);
+		assertTrue(value != null, "Missing local voxel packet summary metric " + metric);
+		return value;
+	}
+
+	private static AerodynamicsWindCoupling.RotorDiskPressureBlend oneSidedPressureBlend(double edgePressureDeltaPascals) {
+		return AerodynamicsWindCoupling.rotorDiskPressureBlend(
+				windSampleWithPressureAnomaly(0.0, true, 0L),
+				oneSidedPressureSamples(edgePressureDeltaPascals),
+				rotorDiskSampleDirectionsBody(),
+				rotorDiskSampleWeights(),
+				ROTOR_DISK_SURFACE_CENTER_WEIGHT
+		);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] oneSidedPressureSamples(double edgePressureDeltaPascals) {
+		Aerodynamics4McWindBridge.WindSample[] samples = centerPressureSamples();
+		samples[0] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, 0L);
+		samples[4] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, 0L);
+		samples[5] = windSampleWithPressureAnomaly(edgePressureDeltaPascals, true, 0L);
+		return samples;
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] centerPressureSamples() {
+		Aerodynamics4McWindBridge.WindSample[] samples = new Aerodynamics4McWindBridge.WindSample[8];
+		for (int i = 0; i < samples.length; i++) {
+			samples[i] = windSampleWithPressureAnomaly(0.0, true, 0L);
+		}
+		return samples;
+	}
+
+	private static AerodynamicsWindCoupling.RotorDiskShelterBlend oneSidedShelterBlend(
+			double centerShelter,
+			double edgeShelterDelta
+	) {
+		return AerodynamicsWindCoupling.rotorDiskShelterBlend(
+				windSampleWithLocalVoxelShelter(centerShelter, true, 0L),
+				oneSidedShelterSamples(centerShelter, edgeShelterDelta),
+				rotorDiskSampleDirectionsBody(),
+				rotorDiskSampleWeights(),
+				ROTOR_DISK_SURFACE_CENTER_WEIGHT
+		);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] oneSidedShelterSamples(
+			double centerShelter,
+			double edgeShelterDelta
+	) {
+		Aerodynamics4McWindBridge.WindSample[] samples = centerShelterSamples(centerShelter);
+		double edgeShelter = centerShelter + edgeShelterDelta;
+		samples[0] = windSampleWithLocalVoxelShelter(edgeShelter, true, 0L);
+		samples[4] = windSampleWithLocalVoxelShelter(edgeShelter, true, 0L);
+		samples[5] = windSampleWithLocalVoxelShelter(edgeShelter, true, 0L);
+		return samples;
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] centerShelterSamples(double centerShelter) {
+		Aerodynamics4McWindBridge.WindSample[] samples = new Aerodynamics4McWindBridge.WindSample[8];
+		for (int i = 0; i < samples.length; i++) {
+			samples[i] = windSampleWithLocalVoxelShelter(centerShelter, true, 0L);
+		}
+		return samples;
+	}
+
+	private static Vec3[] rotorDiskSampleDirectionsBody() {
+		return new Vec3[] {
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(-1.0, 0.0, 0.0),
+				new Vec3(0.0, 0.0, 1.0),
+				new Vec3(0.0, 0.0, -1.0),
+				new Vec3(1.0, 0.0, 1.0).normalized(),
+				new Vec3(1.0, 0.0, -1.0).normalized(),
+				new Vec3(-1.0, 0.0, 1.0).normalized(),
+				new Vec3(-1.0, 0.0, -1.0).normalized()
+		};
+	}
+
+	private static double[] rotorDiskSampleWeights() {
+		return new double[] {
+				ROTOR_DISK_SURFACE_CARDINAL_WEIGHT,
+				ROTOR_DISK_SURFACE_CARDINAL_WEIGHT,
+				ROTOR_DISK_SURFACE_CARDINAL_WEIGHT,
+				ROTOR_DISK_SURFACE_CARDINAL_WEIGHT,
+				ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT,
+				ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT,
+				ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT,
+				ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT
+		};
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample windSampleWithEffectiveWind(Vec3 effectiveWind, long freshnessAgeTicks) {
