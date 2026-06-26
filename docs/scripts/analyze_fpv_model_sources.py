@@ -5231,9 +5231,9 @@ def summarize_body_drag(
             weight = mass * G if math.isfinite(mass) and mass > 0.0 else float("nan")
             for speed in (10.0, 20.0):
                 v2 = speed * speed
-                axis_x = linear + body_x if math.isfinite(body_x) else float("nan")
-                axis_y = linear + body_y if math.isfinite(body_y) else float("nan")
-                axis_z = linear + body_z if math.isfinite(body_z) else float("nan")
+                axis_x_force = runtime_drag_force(linear, body_x, speed) if math.isfinite(body_x) else float("nan")
+                axis_y_force = runtime_drag_force(linear, body_y, speed) if math.isfinite(body_y) else float("nan")
+                axis_z_force = runtime_drag_force(linear, body_z, speed) if math.isfinite(body_z) else float("nan")
                 rows.append(
                     {
                         "kind": source_name,
@@ -5243,13 +5243,13 @@ def summarize_body_drag(
                         "body_drag_x": body_x,
                         "body_drag_y": body_y,
                         "body_drag_z": body_z,
-                        "axis_x_drag_force_n": axis_x * v2 if math.isfinite(axis_x) else float("nan"),
-                        "axis_y_drag_force_n": axis_y * v2 if math.isfinite(axis_y) else float("nan"),
-                        "axis_z_drag_force_n": axis_z * v2 if math.isfinite(axis_z) else float("nan"),
-                        "axis_x_drag_over_weight": axis_x * v2 / weight if weight > 0.0 and math.isfinite(axis_x) else float("nan"),
-                        "axis_z_drag_over_weight": axis_z * v2 / weight if weight > 0.0 and math.isfinite(axis_z) else float("nan"),
-                        "axis_x_equiv_cda_m2": 2.0 * axis_x / RHO if math.isfinite(axis_x) else float("nan"),
-                        "axis_z_equiv_cda_m2": 2.0 * axis_z / RHO if math.isfinite(axis_z) else float("nan"),
+                        "axis_x_drag_force_n": axis_x_force,
+                        "axis_y_drag_force_n": axis_y_force,
+                        "axis_z_drag_force_n": axis_z_force,
+                        "axis_x_drag_over_weight": axis_x_force / weight if weight > 0.0 and math.isfinite(axis_x_force) else float("nan"),
+                        "axis_z_drag_over_weight": axis_z_force / weight if weight > 0.0 and math.isfinite(axis_z_force) else float("nan"),
+                        "axis_x_equiv_cda_m2": runtime_equivalent_cda(linear, body_x, speed) if math.isfinite(body_x) else float("nan"),
+                        "axis_z_equiv_cda_m2": runtime_equivalent_cda(linear, body_z, speed) if math.isfinite(body_z) else float("nan"),
                         "source": row.get("url", source_ref),
                     }
                 )
@@ -5266,6 +5266,31 @@ def equivalent_cda_from_quadratic_coefficient(coefficient_n_per_m_s2: float) -> 
 
 def dynamic_pressure_pa(speed_m_s: float, rho: float = RHO) -> float:
     return 0.5 * rho * speed_m_s * speed_m_s
+
+
+def runtime_drag_force(linear_k_n_per_m_s: float, quadratic_c_n_per_m_s2: float, speed_m_s: float) -> float:
+    speed = max(0.0, speed_m_s)
+    return max(0.0, linear_k_n_per_m_s) * speed + max(0.0, quadratic_c_n_per_m_s2) * speed * speed
+
+
+def runtime_equivalent_linear_k(linear_k_n_per_m_s: float, quadratic_c_n_per_m_s2: float, speed_m_s: float) -> float:
+    speed = max(0.0, speed_m_s)
+    if speed <= 1.0e-12:
+        return float("nan")
+    return runtime_drag_force(linear_k_n_per_m_s, quadratic_c_n_per_m_s2, speed) / speed
+
+
+def runtime_equivalent_quadratic_c(linear_k_n_per_m_s: float, quadratic_c_n_per_m_s2: float, speed_m_s: float) -> float:
+    speed = max(0.0, speed_m_s)
+    if speed <= 1.0e-12:
+        return float("nan")
+    return runtime_drag_force(linear_k_n_per_m_s, quadratic_c_n_per_m_s2, speed) / (speed * speed)
+
+
+def runtime_equivalent_cda(linear_k_n_per_m_s: float, quadratic_c_n_per_m_s2: float, speed_m_s: float) -> float:
+    return equivalent_cda_from_quadratic_coefficient(
+        runtime_equivalent_quadratic_c(linear_k_n_per_m_s, quadratic_c_n_per_m_s2, speed_m_s)
+    )
 
 
 def linear_drag_coastdown_metrics(mass_kg: float, linear_k_n_per_m_s: float, start_speed_m_s: float, end_speed_m_s: float) -> dict[str, float]:
@@ -5300,6 +5325,59 @@ def quadratic_drag_coastdown_metrics(mass_kg: float, quadratic_c_n_per_m_s2: flo
         "initial_decel_m_s2": quadratic_c_n_per_m_s2 * start_speed_m_s * start_speed_m_s / mass_kg,
         "final_decel_m_s2": quadratic_c_n_per_m_s2 * end_speed_m_s * end_speed_m_s / mass_kg,
     }
+
+
+def linear_quadratic_drag_coastdown_metrics(
+    mass_kg: float,
+    linear_k_n_per_m_s: float,
+    quadratic_c_n_per_m_s2: float,
+    start_speed_m_s: float,
+    end_speed_m_s: float,
+) -> dict[str, float]:
+    if (
+        mass_kg <= 0.0
+        or start_speed_m_s <= end_speed_m_s
+        or end_speed_m_s <= 0.0
+        or (linear_k_n_per_m_s <= 0.0 and quadratic_c_n_per_m_s2 <= 0.0)
+    ):
+        return {
+            "time_s": float("nan"),
+            "distance_m": float("nan"),
+            "initial_decel_m_s2": float("nan"),
+            "final_decel_m_s2": float("nan"),
+        }
+    linear = max(0.0, linear_k_n_per_m_s)
+    quadratic = max(0.0, quadratic_c_n_per_m_s2)
+    if linear <= 1.0e-12:
+        return quadratic_drag_coastdown_metrics(mass_kg, quadratic, start_speed_m_s, end_speed_m_s)
+    if quadratic <= 1.0e-12:
+        return linear_drag_coastdown_metrics(mass_kg, linear, start_speed_m_s, end_speed_m_s)
+    return {
+        "time_s": mass_kg
+        / linear
+        * math.log(
+            start_speed_m_s
+            * (linear + quadratic * end_speed_m_s)
+            / (end_speed_m_s * (linear + quadratic * start_speed_m_s))
+        ),
+        "distance_m": mass_kg
+        / quadratic
+        * math.log((linear + quadratic * start_speed_m_s) / (linear + quadratic * end_speed_m_s)),
+        "initial_decel_m_s2": runtime_drag_force(linear, quadratic, start_speed_m_s) / mass_kg,
+        "final_decel_m_s2": runtime_drag_force(linear, quadratic, end_speed_m_s) / mass_kg,
+    }
+
+
+def linear_quadratic_terminal_speed_m_s(force_n: float, linear_k_n_per_m_s: float, quadratic_c_n_per_m_s2: float) -> float:
+    if force_n <= 0.0:
+        return 0.0
+    linear = max(0.0, linear_k_n_per_m_s)
+    quadratic = max(0.0, quadratic_c_n_per_m_s2)
+    if quadratic <= 1.0e-12:
+        return force_n / linear if linear > 1.0e-12 else float("nan")
+    if linear <= 1.0e-12:
+        return math.sqrt(force_n / quadratic)
+    return (-linear + math.sqrt(linear * linear + 4.0 * quadratic * force_n)) / (2.0 * quadratic)
 
 
 def ratm_release_asset_summary_rows() -> list[dict[str, float | str]]:
@@ -6216,8 +6294,8 @@ def summarize_airframe_drag_reference(
                 speed = float(sequence["vmax_m_s"])
                 for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z")):
                     body_c = float(preset[body_key])
-                    total_c = linear + body_c
-                    drag_force = total_c * speed * speed
+                    total_c = runtime_equivalent_quadratic_c(linear, body_c, speed)
+                    drag_force = runtime_drag_force(linear, body_c, speed)
                     required_total_thrust = math.hypot(weight, drag_force)
                     rows.append(
                         {
@@ -6296,8 +6374,8 @@ def summarize_airframe_drag_reference(
             for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z")):
                 speed = RATM_HIGH_SPEED_FLOOR_M_S
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                drag_force = total_c * speed * speed
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, speed)
+                drag_force = runtime_drag_force(linear, body_c, speed)
                 required_total_thrust = math.hypot(weight, drag_force)
                 rows.append(
                     {
@@ -6344,8 +6422,8 @@ def summarize_airframe_drag_reference(
             ):
                 for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z")):
                     body_c = float(preset[body_key])
-                    total_c = linear + body_c
-                    drag_force = total_c * speed * speed
+                    total_c = runtime_equivalent_quadratic_c(linear, body_c, speed)
+                    drag_force = runtime_drag_force(linear, body_c, speed)
                     required_total_thrust = math.hypot(weight, drag_force)
                     rows.append(
                         {
@@ -6380,9 +6458,9 @@ def summarize_airframe_drag_reference(
             imav_equiv_quadratic = imav_k / speed
             for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z"), ("y", "body_drag_y")):
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                force = total_c * speed * speed
-                effective_linear = total_c * speed
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, speed)
+                force = runtime_drag_force(linear, body_c, speed)
+                effective_linear = runtime_equivalent_linear_k(linear, body_c, speed)
                 rows.append(
                     {
                         "row_type": "current_preset_drag_scan",
@@ -6406,7 +6484,7 @@ def summarize_airframe_drag_reference(
                         "current_effective_linear_k_over_imav_mass_fit": effective_linear / imav_k if imav_k > 0.0 else float("nan"),
                         "current_cda_over_imav_mass_fit_at_speed": total_c / imav_equiv_quadratic if imav_equiv_quadratic > 0.0 else float("nan"),
                         "dynamic_pressure_pa": dynamic_pressure_pa(speed),
-                        "note": "Current code uses quadratic force. IMAV fit is used as a mass-matched linear low-speed drag reference; y-axis comparison is included for completeness but horizontal x/z are the closest body-drag analogs.",
+                        "note": "Current code uses linear damping plus quadratic body drag. The total quadratic field is the speed-specific equivalent c = F/v^2; IMAV fit is used as a mass-matched linear low-speed drag reference.",
                     }
                 )
         if nasa_small_quad_summary_row is not None and preset["preset"] in ("racingQuad", "cinewhoop"):
@@ -6414,8 +6492,9 @@ def summarize_airframe_drag_reference(
             reference_cda = float(nasa_small_quad_summary_row["equivalent_cda_m2_median"])
             for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z")):
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                current_cda = equivalent_cda_from_quadratic_coefficient(total_c)
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, 10.0)
+                current_drag_10 = runtime_drag_force(linear, body_c, 10.0)
+                current_cda = runtime_equivalent_cda(linear, body_c, 10.0)
                 row = {
                     "row_type": "current_vs_nasa_bare_airframe_drag_area",
                     "name": f"{preset['preset']}_{axis}_vs_NASA_Fig30_small_quad_0deg_median",
@@ -6435,9 +6514,9 @@ def summarize_airframe_drag_reference(
                     "current_cda_over_nasa_small_quad_median": current_cda / reference_cda if reference_cda > 0.0 else float("nan"),
                     "current_c_over_nasa_small_quad_median": total_c / reference_c if reference_c > 0.0 else float("nan"),
                     "reference_drag_force_10m_s_n_median": reference_c * 100.0,
-                    "current_drag_force_10m_s_n": total_c * 100.0,
-                    "current_drag_force_10m_s_over_nasa_small_quad_median": total_c / reference_c if reference_c > 0.0 else float("nan"),
-                    "note": "Compares current base quadratic body drag with a low-precision NASA Fig. 30 bare-airframe flat-plate-area median for small quadcopters at 0 deg pitch.",
+                    "current_drag_force_10m_s_n": current_drag_10,
+                    "current_drag_force_10m_s_over_nasa_small_quad_median": current_drag_10 / (reference_c * 100.0) if reference_c > 0.0 else float("nan"),
+                    "note": "Compares current linear-plus-quadratic base drag with a low-precision NASA Fig. 30 bare-airframe flat-plate-area median for small quadcopters at 0 deg pitch.",
                 }
                 rows.append(row)
                 nasa_bare_rows.append(row)
@@ -6448,9 +6527,10 @@ def summarize_airframe_drag_reference(
             reference_drag_n = float(nasa_powered_summary_row["drag_force_n_median"])
             for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z")):
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                current_drag_at_reference_speed = total_c * reference_speed_m_s * reference_speed_m_s
-                current_cda = equivalent_cda_from_quadratic_coefficient(total_c)
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, reference_speed_m_s)
+                current_drag_at_reference_speed = runtime_drag_force(linear, body_c, reference_speed_m_s)
+                current_cda = runtime_equivalent_cda(linear, body_c, reference_speed_m_s)
+                current_drag_10 = runtime_drag_force(linear, body_c, 10.0)
                 row = {
                     "row_type": "current_vs_nasa_powered_full_airframe_drag",
                     "name": f"{preset['preset']}_{axis}_vs_NASA_Fig18_20_22_powered_0deg_mid_rpm_median",
@@ -6476,16 +6556,16 @@ def summarize_airframe_drag_reference(
                     "current_cda_over_nasa_powered_median": current_cda / reference_cda if reference_cda > 0.0 else float("nan"),
                     "current_c_over_nasa_powered_median": total_c / reference_c if reference_c > 0.0 else float("nan"),
                     "reference_drag_force_10m_s_n_median": reference_c * 100.0,
-                    "current_drag_force_10m_s_n": total_c * 100.0,
-                    "current_drag_force_10m_s_over_nasa_powered_median": total_c / reference_c if reference_c > 0.0 else float("nan"),
-                    "note": "Compares current base quadratic horizontal drag with a low-precision NASA powered full-airframe 0 deg mid-RPM median at q=0.48 lb/ft^2.",
+                    "current_drag_force_10m_s_n": current_drag_10,
+                    "current_drag_force_10m_s_over_nasa_powered_median": current_drag_10 / (reference_c * 100.0) if reference_c > 0.0 else float("nan"),
+                    "note": "Compares current linear-plus-quadratic horizontal drag with a low-precision NASA powered full-airframe 0 deg mid-RPM median at q=0.48 lb/ft^2.",
                 }
                 rows.append(row)
                 nasa_powered_rows.append(row)
         for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z")):
             body_c = float(preset[body_key])
-            total_c = linear + body_c
-            current_force = total_c * icas_forward_speed * icas_forward_speed
+            total_c = runtime_equivalent_quadratic_c(linear, body_c, icas_forward_speed)
+            current_force = runtime_drag_force(linear, body_c, icas_forward_speed)
             rows.append(
                 {
                     "row_type": "current_vs_icas_forward_flight_drag",
@@ -6508,15 +6588,16 @@ def summarize_airframe_drag_reference(
                     "note": "Current horizontal drag at the ICAS 2020 forward-flight speed versus the paper's CFD drag force. The vehicles are not identical; use this as an order-of-magnitude check.",
                 }
             )
-        vertical_c = linear + float(preset["body_drag_y"])
-        current_terminal_speed = math.sqrt(weight / vertical_c) if vertical_c > 0.0 else float("nan")
+        vertical_body_c = float(preset["body_drag_y"])
+        current_terminal_speed = linear_quadratic_terminal_speed_m_s(weight, linear, vertical_body_c)
         for rotor_rpm, terminal_speed, paper_cd in (
             (0.0, 29.31, 0.69),
             (4319.0, 27.97, 0.76),
             (6528.0, 25.78, 0.89),
         ):
             reference_c = icas_weight / (terminal_speed * terminal_speed)
-            current_force_at_reference_speed = vertical_c * terminal_speed * terminal_speed
+            current_force_at_reference_speed = runtime_drag_force(linear, vertical_body_c, terminal_speed)
+            vertical_c = runtime_equivalent_quadratic_c(linear, vertical_body_c, terminal_speed)
             rows.append(
                 {
                     "row_type": "current_vs_icas_freefall_terminal_drag",
@@ -6533,22 +6614,22 @@ def summarize_airframe_drag_reference(
                     "reference_paper_drag_coefficient": paper_cd,
                     "reference_equivalent_quadratic_c_n_per_m_s2": reference_c,
                     "current_linear_drag_coefficient": linear,
-                    "current_body_drag_coefficient_axis": float(preset["body_drag_y"]),
+                    "current_body_drag_coefficient_axis": vertical_body_c,
                     "current_total_quadratic_c_n_per_m_s2": vertical_c,
                     "current_terminal_velocity_m_s": current_terminal_speed,
                     "current_terminal_velocity_over_icas": current_terminal_speed / terminal_speed if terminal_speed > 0.0 else float("nan"),
                     "current_force_at_icas_terminal_speed_n": current_force_at_reference_speed,
                     "current_force_at_icas_terminal_speed_over_preset_weight": current_force_at_reference_speed / weight if weight > 0.0 else float("nan"),
                     "current_c_over_icas_terminal_equiv_c": vertical_c / reference_c if reference_c > 0.0 else float("nan"),
-                    "note": "Project Y is vertical. This compares the current vertical quadratic drag term against ICAS 2020 CFD freefall terminal-speed equivalents.",
+                    "note": "Project Y is vertical. This compares the current vertical linear-plus-quadratic drag terms against ICAS 2020 CFD freefall terminal-speed equivalents.",
                 }
             )
         for speed in (5.0, 9.0, 10.0, 20.0, 30.0):
             for rpg_axis, current_axis, body_key, k_key in rpg_axis_mappings:
                 rpg_k = float(rpg_drag[k_key])
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                current_force = total_c * speed * speed
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, speed)
+                current_force = runtime_drag_force(linear, body_c, speed)
                 rpg_linear_k = mass * rpg_k if math.isfinite(rpg_k) else float("nan")
                 rpg_force = rpg_linear_k * speed if math.isfinite(rpg_linear_k) else float("nan")
                 rpg_equiv_c = rpg_linear_k / speed if math.isfinite(rpg_linear_k) and speed > 0.0 else float("nan")
@@ -6583,8 +6664,8 @@ def summarize_airframe_drag_reference(
             imav_coastdown = linear_drag_coastdown_metrics(mass, imav_k, start_speed, end_speed)
             for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z"), ("y", "body_drag_y")):
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                current_coastdown = quadratic_drag_coastdown_metrics(mass, total_c, start_speed, end_speed)
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, start_speed)
+                current_coastdown = linear_quadratic_drag_coastdown_metrics(mass, linear, body_c, start_speed, end_speed)
                 rows.append(
                     {
                         "row_type": "current_vs_imav_coastdown",
@@ -6600,8 +6681,8 @@ def summarize_airframe_drag_reference(
                         "body_drag_coefficient_axis": body_c,
                         "total_quadratic_c_n_per_m_s2": total_c,
                         "imav_mass_fit_linear_k_n_per_m_s": imav_k,
-                        "current_equivalent_linear_k_at_start_n_per_m_s": total_c * start_speed,
-                        "current_equivalent_linear_k_at_end_n_per_m_s": total_c * end_speed,
+                        "current_equivalent_linear_k_at_start_n_per_m_s": runtime_equivalent_linear_k(linear, body_c, start_speed),
+                        "current_equivalent_linear_k_at_end_n_per_m_s": runtime_equivalent_linear_k(linear, body_c, end_speed),
                         "imav_time_s": imav_coastdown["time_s"],
                         "current_time_s": current_coastdown["time_s"],
                         "current_time_over_imav": current_coastdown["time_s"] / imav_coastdown["time_s"] if imav_coastdown["time_s"] > 0.0 else float("nan"),
@@ -6614,7 +6695,7 @@ def summarize_airframe_drag_reference(
                         "imav_final_decel_m_s2": imav_coastdown["final_decel_m_s2"],
                         "current_final_decel_m_s2": current_coastdown["final_decel_m_s2"],
                         "current_final_decel_over_imav": current_coastdown["final_decel_m_s2"] / imav_coastdown["final_decel_m_s2"] if imav_coastdown["final_decel_m_s2"] > 0.0 else float("nan"),
-                        "note": "Closed-form passive speed decay with thrust set to zero. IMAV reference uses F=kV; current preset uses F=cV^2. The 12.5 to 2.5 m/s pair stays inside the IMAV reported speed range; 20 to 5 m/s is an FPV high-speed extrapolation.",
+                        "note": "Closed-form passive speed decay with thrust set to zero. IMAV reference uses F=kV; current preset uses F=kV+cV^2. The 12.5 to 2.5 m/s pair stays inside the IMAV reported speed range; 20 to 5 m/s is an FPV high-speed extrapolation.",
                     }
                 )
         for start_speed, end_speed in ((12.5, 2.5), (20.0, 5.0)):
@@ -6623,10 +6704,10 @@ def summarize_airframe_drag_reference(
                 if not math.isfinite(rpg_k) or rpg_k <= 0.0:
                     continue
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, start_speed)
                 rpg_linear_k = mass * rpg_k
                 rpg_coastdown = linear_drag_coastdown_metrics(mass, rpg_linear_k, start_speed, end_speed)
-                current_coastdown = quadratic_drag_coastdown_metrics(mass, total_c, start_speed, end_speed)
+                current_coastdown = linear_quadratic_drag_coastdown_metrics(mass, linear, body_c, start_speed, end_speed)
                 rows.append(
                     {
                         "row_type": "current_vs_rpg_rotor_drag_coastdown",
@@ -6664,12 +6745,13 @@ def summarize_airframe_drag_reference(
                 )
         for speed in imav_speeds:
             target_total_c = imav_k / speed
-            linear_only_force = linear * speed * speed
+            linear_only_force = linear * speed
             imav_force = imav_k * speed
             for axis, body_key in (("x", "body_drag_x"), ("z", "body_drag_z"), ("y", "body_drag_y")):
                 body_c = float(preset[body_key])
-                total_c = linear + body_c
-                target_body_c = target_total_c - linear
+                total_c = runtime_equivalent_quadratic_c(linear, body_c, speed)
+                target_body_c = (imav_force - linear * speed) / (speed * speed)
+                target_body_c = target_body_c if math.isfinite(target_body_c) else float("nan")
                 rows.append(
                     {
                         "row_type": "current_vs_imav_drag_calibration_target",
@@ -6689,11 +6771,11 @@ def summarize_airframe_drag_reference(
                         "target_body_drag_coefficient_axis_if_linear_unchanged": target_body_c,
                         "target_body_drag_nonnegative_possible": int(target_body_c >= 0.0),
                         "current_total_scale_to_match_imav": target_total_c / total_c if total_c > 0.0 else float("nan"),
-                        "current_linear_scale_to_match_imav_if_body_zero": target_total_c / linear if linear > 0.0 else float("nan"),
+                        "current_linear_scale_to_match_imav_if_body_zero": imav_k / linear if linear > 0.0 else float("nan"),
                         "current_body_scale_to_match_imav_if_linear_zero": target_total_c / body_c if body_c > 0.0 else float("nan"),
                         "linear_only_force_over_imav": linear_only_force / imav_force if imav_force > 0.0 else float("nan"),
-                        "current_total_force_over_imav": (total_c * speed * speed) / imav_force if imav_force > 0.0 else float("nan"),
-                        "note": "Direct tuning target for matching the IMAV mass-fit linear drag at a specific speed with this project's quadratic drag form. Negative target body coefficient means the current linearDragCoefficient alone is already above the reference.",
+                        "current_total_force_over_imav": runtime_drag_force(linear, body_c, speed) / imav_force if imav_force > 0.0 else float("nan"),
+                        "note": "Direct tuning target for matching the IMAV mass-fit linear drag at a specific speed with this project's linear-plus-quadratic drag form. Negative target body coefficient means the current linearDragCoefficient alone is already above the reference.",
                     }
                 )
 
@@ -18047,7 +18129,7 @@ def write_markdown(
     drag_note = f"`racingQuad` base drag at 10 m/s is `{fmt(float(racing_drag_10['axis_x_drag_force_n']))}` N on body X and `{fmt(float(racing_drag_10['axis_z_drag_force_n']))}` N on body Z before separated-flow additions, equal to `{fmt(float(racing_drag_10['axis_x_drag_over_weight']), 2)}x` and `{fmt(float(racing_drag_10['axis_z_drag_over_weight']), 2)}x` vehicle weight."
     if rotorpy_drag_10 is not None:
         drag_note += f" RotorPy Hummingbird's comparable 10 m/s body-drag-only X/Z forces are `{fmt(float(rotorpy_drag_10['axis_x_drag_force_n']))}`/`{fmt(float(rotorpy_drag_10['axis_z_drag_force_n']))}` N."
-    lines.append(f"- {drag_note} Treat the current drag coefficients as very strong unless intentionally gameplay-scaled.")
+    lines.append(f"- {drag_note} Treat those values as runtime linear-plus-quadratic force-law rows, not a single speed-independent CdA.")
     lines.append(f"- The IMAV 2022 quadrotor drag fit gives a mass-matched `racingQuad` low-speed linear drag coefficient of `{fmt(float(racing_airframe_drag_x_10['imav_mass_fit_linear_k_n_per_m_s']))}` N/(m/s), or `{fmt(float(racing_airframe_drag_x_10['imav_mass_fit_drag_force_n']))}` N at 10 m/s. Current X/Z drag at 10 m/s is `{fmt(float(racing_airframe_drag_x_10['current_force_over_imav_mass_fit']), 1)}x`/`{fmt(float(racing_airframe_drag_z_10['current_force_over_imav_mass_fit']), 1)}x` that mass-fit reference, with equivalent CdA `{fmt(float(racing_airframe_drag_x_10['equivalent_cda_m2']))}`/`{fmt(float(racing_airframe_drag_z_10['equivalent_cda_m2']))}` m^2.")
     if isinstance(nasa_small_quad_0deg_summary, dict) and isinstance(racing_x_nasa_bare_0deg, dict):
         lines.append(f"- Low-precision digitization of NASA Fig. 30 bare-airframe wind-tunnel drag gives a small-quad 0 deg median `Drag/q` of `{fmt(float(nasa_small_quad_0deg_summary['drag_over_q_ft2_median']), 3)} ft^2` (`CdA {fmt(float(nasa_small_quad_0deg_summary['equivalent_cda_m2_median']))} m^2`). Current `racingQuad` X-axis equivalent CdA is `{fmt(float(racing_x_nasa_bare_0deg['current_equivalent_cda_m2']))} m^2`, or `{fmt(float(racing_x_nasa_bare_0deg['current_cda_over_nasa_small_quad_median']), 1)}x` that bare-airframe median. This is an independent wind-tunnel sign that the current base body drag is much larger than physical bare-frame drag.")
@@ -18055,7 +18137,7 @@ def write_markdown(
         lines.append(f"- Low-precision digitization of NASA Figs. 18/20/22 powered full-airframe drag at `q=0.48 lb/ft^2`, yaw/pitch 0 deg gives a mid-RPM small-quad median of `{fmt(float(nasa_powered_full_airframe_0deg_summary['drag_force_n_median']))}` N at `{fmt(float(nasa_powered_full_airframe_0deg_summary['wind_speed_from_q_m_s']))}` m/s (`CdA {fmt(float(nasa_powered_full_airframe_0deg_summary['equivalent_cda_m2_median']))} m^2`). Current `racingQuad` X-axis base drag at the same speed is `{fmt(float(racing_x_nasa_powered_0deg['current_drag_force_at_reference_speed_n']))}` N, `{fmt(float(racing_x_nasa_powered_0deg['current_drag_force_at_reference_speed_over_nasa_powered_median']), 1)}x` that powered wind-tunnel median.")
     if isinstance(nasa_powered_lift_0deg_summary, dict) and isinstance(racing_nasa_powered_lift_scale, dict):
         lines.append(f"- The matching NASA powered lift plots, Figs. 17/19/21, give a mid-RPM small-quad median lift of `{fmt(float(nasa_powered_lift_0deg_summary['lift_force_n_median']))}` N at median `{fmt(float(nasa_powered_lift_0deg_summary['mid_rpm_median']), 0)}` RPM, about `{fmt(float(nasa_powered_lift_0deg_summary['lift_over_nominal_flight_weight_median']), 2)}x` Table 1 nominal flight weight with total CT `{fmt(float(nasa_powered_lift_0deg_summary['effective_total_ct_table1_median']))}`. Per-rotor effective `k` is about `{fmt(float(nasa_powered_lift_0deg_summary['effective_per_rotor_lift_k_n_per_rad_s2_median']))}` N/(rad/s)^2. Current `racingQuad` uses `k={fmt(float(racing_nasa_powered_lift_scale['current_per_rotor_k_n_per_rad_s2']))}`, so at the same RPM it produces only `{fmt(float(racing_nasa_powered_lift_scale['current_same_rpm_thrust_over_reference_lift']), 2)}x` the NASA median lift; matching that lift would need about `{fmt(float(racing_nasa_powered_lift_scale['current_rpm_for_reference_lift_n']), 0)}` RPM, `{fmt(float(racing_nasa_powered_lift_scale['current_rpm_for_reference_lift_over_hover_rpm']), 2)}x` current hover RPM. This is a prop-scale sanity check, not a direct 5-inch fit.")
-    lines.append(f"- Matching the same IMAV `racingQuad` 10 m/s reference with this project's quadratic drag form would need total X-axis coefficient `{fmt(float(racing_airframe_target_x_10['target_total_quadratic_c_n_per_m_s2']))}` N/(m/s)^2, but the current `linearDragCoefficient` alone is `{fmt(float(racing_airframe_target_x_10['current_linear_drag_coefficient']))}`. Therefore changing only `bodyDragCoefficients.x` cannot reach the IMAV target without reducing the shared linear term; the current total X coefficient would need a `{fmt(float(racing_airframe_target_x_10['current_total_scale_to_match_imav']), 3)}x` scale.")
+    lines.append(f"- Matching the same IMAV `racingQuad` 10 m/s reference with this project's linear-plus-quadratic drag form needs speed-specific equivalent X-axis coefficient `{fmt(float(racing_airframe_target_x_10['target_total_quadratic_c_n_per_m_s2']))}` N/(m/s)^2. With `linearDragCoefficient={fmt(float(racing_airframe_target_x_10['current_linear_drag_coefficient']))}` N/(m/s), the remaining X body coefficient target is `{fmt(float(racing_airframe_target_x_10['target_body_drag_coefficient_axis_if_linear_unchanged']))}` N/(m/s)^2 and the current total X force is `{fmt(float(racing_airframe_target_x_10['current_total_force_over_imav']), 2)}x` the IMAV reference.")
     lines.append(f"- UZH/RPG's FPV rotor-drag controller uses mass-normalized horizontal `k_drag_x/y = {fmt(float(racing_airframe_rpg_x_10['rpg_mass_normalized_drag_1_s']))}/{fmt(float(racing_airframe_rpg_z_10['rpg_mass_normalized_drag_1_s']))} 1/s`. Mapping RPG x/y to this project's horizontal X/Z, the 10 m/s `racingQuad` linear-rotor-drag forces are `{fmt(float(racing_airframe_rpg_x_10['rpg_linear_drag_force_n']))}`/`{fmt(float(racing_airframe_rpg_z_10['rpg_linear_drag_force_n']))}` N, while current X/Z forces are `{fmt(float(racing_airframe_rpg_x_10['current_drag_force_n']))}`/`{fmt(float(racing_airframe_rpg_z_10['current_drag_force_n']))}` N, or `{fmt(float(racing_airframe_rpg_x_10['current_over_rpg_force']), 2)}x`/`{fmt(float(racing_airframe_rpg_z_10['current_over_rpg_force']), 2)}x` the RPG-derived reference.")
     lines.append(f"- ICAS 2020 CFD reports `{fmt(float(racing_airframe_icas_forward_x['reference_drag_force_n']))}` N drag for a 1.4 kg quadrotor in `{fmt(float(racing_airframe_icas_forward_x['speed_m_s']), 1)}` m/s forward flight. The current `racingQuad` X-axis base drag at the same speed is `{fmt(float(racing_airframe_icas_forward_x['current_drag_force_n']))}` N, `{fmt(float(racing_airframe_icas_forward_x['current_over_icas_drag_force']), 1)}x` that CFD value; its vertical drag-only terminal-speed estimate is `{fmt(float(racing_airframe_icas_freefall_y['current_terminal_velocity_m_s']))}` m/s versus the ICAS no-prop freefall `{fmt(float(racing_airframe_icas_freefall_y['reference_terminal_velocity_m_s']))}` m/s.")
     lines.append(f"- UZH-FPV's public SplitS1 racing sequence reports peak speed `{fmt(float(racing_airframe_uzh_splits1['reference_vmax_m_s']))}` m/s (`{fmt(float(racing_airframe_uzh_splits1['reference_vmax_km_h']), 1)} km/h`). At that speed the current `racingQuad` X-axis drag is `{fmt(float(racing_airframe_uzh_splits1['current_drag_force_at_reference_vmax_n']))}` N, `{fmt(float(racing_airframe_uzh_splits1['current_drag_force_over_horizontal_thrust_margin']), 2)}x` its level-flight horizontal thrust margin; required total thrust is `{fmt(float(racing_airframe_uzh_splits1['required_total_thrust_over_current_total_max']), 2)}x` configured max. This strongly supports reducing/calibrating the high-speed drag model if the preset should reach real FPV racing envelopes.")
@@ -18761,7 +18843,7 @@ def write_markdown(
             f"{fmt(float(item['current_initial_decel_over_rpg']), 2)}x |"
         )
     lines.append("")
-    lines.append("The important warning is formula-level: the current linear coefficient is already a quadratic force term, not a small Stokes-like linear damping term. For `racingQuad`, `linear + body-X/Z` gives equivalent `CdA` near `0.30 m^2`, about `1.7x` vehicle weight at 10 m/s and about `6.8x` vehicle weight at 20 m/s before separated-flow additions. The calibration-target rows show that, at the IMAV 10 m/s reference point, the shared `linearDragCoefficient` by itself exceeds the total quadratic coefficient needed to match the measured mass-fit drag. If this is meant to model real aerodynamic body drag, it is very high; if it is a gameplay stability damper, it should be documented as such and kept separate from physical CdA claims.")
+    lines.append("The important warning is formula-level: the current `linearDragCoefficient` is a runtime linear damping term in `N/(m/s)`, while `bodyDragCoefficients` are quadratic terms. Any equivalent CdA or equivalent quadratic coefficient is therefore speed-specific. For `racingQuad`, the 10 m/s X/Z base drag is now close to the IMAV mass-fit force before separated-flow additions, but NASA bare/powered wind-tunnel rows remain independent CdA lower/upper anchors. Keep physical CdA, rotor drag, residual powered-flight forces, and any gameplay damping as separate model surfaces.")
     lines.append("")
     lines.append("## Standard atmosphere, Reynolds, and tip Mach sanity")
     lines.append("")
@@ -20732,7 +20814,10 @@ def main() -> None:
         BETAFLIGHT_PUBLIC_LOG_URL,
         ACP_CARBON_FIBER_COMPOSITE_PROPERTIES_URL,
     ):
-        fetch_text(url)
+        try:
+            fetch_text(url)
+        except Exception as error:
+            print(f"Warning: skipped cache prefetch for {url}: {error}")
 
     five_in_rows = [row for row in mqtb if "5x" in str(row["prop"]) or "5.1x" in str(row["prop"])]
     five_in_k = statistics.fmean(float(row["k_n_per_rad2"]) for row in five_in_rows[:8])

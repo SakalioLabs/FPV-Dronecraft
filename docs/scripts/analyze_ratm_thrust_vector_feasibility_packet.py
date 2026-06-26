@@ -20,6 +20,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
 
+from airframe_runtime_drag_law import drag_force
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
@@ -167,6 +169,11 @@ def current_reference() -> dict[str, float]:
     return {
         "mass_kg": mass,
         "weight_n": weight,
+        "linear_drag_k_n_per_m_s": metrics.get("current_racing_linear_drag_k_n_per_m_s", 0.0),
+        "body_drag_c_n_per_m_s2": metrics.get(
+            "current_racing_body_drag_c_n_per_m_s2",
+            metrics["current_racing_drag_c_n_per_m_s2"],
+        ),
         "drag_c_n_per_m_s2": metrics["current_racing_drag_c_n_per_m_s2"],
         "horizontal_margin_n": horizontal_margin,
         "max_thrust_n": math.hypot(horizontal_margin, weight),
@@ -225,7 +232,11 @@ def analyze_sample(row: dict[str, str], current: dict[str, float]) -> dict[str, 
     forward_command_proxy = thrust_mean * projection_abs if math.isfinite(thrust_mean) and math.isfinite(projection_abs) else math.nan
     total_command_proxy = thrust_sum / 4.0 if math.isfinite(thrust_sum) else math.nan
 
-    current_drag = current["drag_c_n_per_m_s2"] * speed * speed if math.isfinite(speed) else math.nan
+    current_drag = (
+        drag_force(current["linear_drag_k_n_per_m_s"], current["body_drag_c_n_per_m_s2"], speed)
+        if math.isfinite(speed)
+        else math.nan
+    )
     current_drag_over_max = safe_ratio(current_drag, current["max_thrust_n"])
     required_total_over_max = safe_ratio(math.hypot(current["weight_n"], current_drag), current["max_thrust_n"]) if math.isfinite(current_drag) else math.nan
     required_tilt_deg = math.degrees(math.atan2(current_drag, current["weight_n"])) if math.isfinite(current_drag) else math.nan

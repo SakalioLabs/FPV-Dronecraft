@@ -18,6 +18,8 @@ import math
 from pathlib import Path
 from typing import Callable, Iterable
 
+from airframe_runtime_drag_law import corrected_rows
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
@@ -350,7 +352,7 @@ def add_current_drag(rows: list[dict[str, str]], airframe_rows: list[dict[str, s
             source_file=AIRFRAME,
             metrics=metrics,
             evidence_level="current_project_model",
-            note="Current racingQuad quadratic drag scan before separated-flow additions.",
+            note="Current racingQuad runtime linear-plus-quadratic drag scan before separated-flow additions.",
         )
 
 
@@ -384,7 +386,7 @@ def add_reference_comparisons(rows: list[dict[str, str]], airframe_rows: list[di
             metrics=imav_metrics,
             source_url_key="reference_source",
             evidence_level="paper_drag_fit_comparison",
-            note="Direct target for matching IMAV mass-fit drag in this project's quadratic coefficient form.",
+            note="Direct target for matching IMAV mass-fit drag in this project's linear-plus-quadratic coefficient form.",
         )
 
     nasa_metrics = [
@@ -846,7 +848,8 @@ def add_summary(
         metric="scope_and_caveat",
         value=(
             "Do not fit a physical CdA from sparse powered GPS deceleration alone. Use wind-tunnel/paper rows for "
-            "physical drag scale, flight-log rows for envelope feasibility, and keep any gameplay damping separate."
+            "physical drag scale, flight-log rows for envelope feasibility, and keep runtime linear damping separate "
+            "from quadratic CdA projection."
         ),
         unit="text",
         source_file=OUTPUT,
@@ -857,7 +860,7 @@ def add_summary(
 
 def build_rows() -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
-    airframe_rows = read_rows(AIRFRAME)
+    airframe_rows = corrected_rows(read_rows(AIRFRAME))
     apdrone_rows = read_rows(APDRONE_PACKET)
     aiio_rows = read_rows(AIIO_SAMPLE)
 

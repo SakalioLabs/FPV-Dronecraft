@@ -8,8 +8,8 @@ Outputs:
 The broader airframe drag tables already contain wind-tunnel digitization,
 paper fits, open-source model coefficients, and flight-envelope checks. This
 packet is narrower: it keeps the force-law/CdA scale guardrails that should be
-checked before treating the current quadratic damping coefficients as physical
-airframe drag.
+checked before treating the current linear damping plus quadratic body drag as
+physical airframe drag.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ import csv
 import math
 from pathlib import Path
 from typing import Callable, Iterable
+
+from airframe_runtime_drag_law import corrected_rows
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -40,6 +42,7 @@ MANCHESTER_URL = "https://research.manchester.ac.uk/en/studentTheses/theoretical
 SUMMARY_NAME = "airframe_cda_guard_summary"
 RACING_AXES = ("x", "z")
 RACING_SPEEDS = (5.0, 9.0, 10.0, 20.0)
+SCALE_GUARD_SPEED_MPS = 10.0
 
 
 def repo_path(path: Path) -> str:
@@ -93,6 +96,11 @@ def safe_ratio(numerator: float, denominator: float, min_denominator: float = 1.
     if not math.isfinite(numerator) or not math.isfinite(denominator) or abs(denominator) < min_denominator:
         return math.nan
     return numerator / denominator
+
+
+def runtime_drag_force(linear_k_n_per_m_s: float, quadratic_c_n_per_m_s2: float, speed_m_s: float) -> float:
+    speed = max(0.0, speed_m_s)
+    return max(0.0, linear_k_n_per_m_s) * speed + max(0.0, quadratic_c_n_per_m_s2) * speed * speed
 
 
 def require_one(rows: list[dict[str, str]], predicate: Callable[[dict[str, str]], bool]) -> dict[str, str]:
@@ -309,7 +317,7 @@ def add_source_inventory(rows: list[dict[str, object]], airframe_rows: list[dict
 def add_current_drag_rows(rows: list[dict[str, object]], airframe_rows: list[dict[str, str]]) -> None:
     metrics = [
         ("speed_m_s", "m/s"),
-        ("linear_drag_coefficient", "N/(m/s)^2"),
+        ("linear_drag_coefficient", "N/(m/s)"),
         ("body_drag_coefficient_axis", "N/(m/s)^2"),
         ("total_quadratic_c_n_per_m_s2", "N/(m/s)^2"),
         ("drag_force_n", "N"),
@@ -329,7 +337,7 @@ def add_current_drag_rows(rows: list[dict[str, object]], airframe_rows: list[dic
                 source_file=AIRFRAME,
                 metrics=metrics,
                 evidence_role="current_project_drag_coefficient_projection",
-                note="Current racingQuad base drag before extra separated-flow terms.",
+                note="Current racingQuad runtime linear-plus-quadratic base drag before extra separated-flow terms.",
             )
 
 
@@ -338,7 +346,7 @@ def add_imav_guard_rows(rows: list[dict[str, object]], airframe_rows: list[dict[
         ("speed_m_s", "m/s"),
         ("imav_drag_force_n", "N"),
         ("target_total_quadratic_c_n_per_m_s2", "N/(m/s)^2"),
-        ("current_linear_drag_coefficient", "N/(m/s)^2"),
+        ("current_linear_drag_coefficient", "N/(m/s)"),
         ("current_body_drag_coefficient_axis", "N/(m/s)^2"),
         ("target_body_drag_coefficient_axis_if_linear_unchanged", "N/(m/s)^2"),
         ("target_body_drag_nonnegative_possible", "boolean"),
@@ -369,7 +377,7 @@ def add_imav_guard_rows(rows: list[dict[str, object]], airframe_rows: list[dict[
                 metrics=metrics,
                 source_url_key="reference_source",
                 evidence_role="5in_imav_mass_fit_guard",
-                note="Speed-specific conversion of the IMAV D=kV fit into the project's F=c*v^2 coefficient form.",
+                note="Speed-specific conversion of the IMAV D=kV fit into the project's F=k*v+c*v^2 coefficient form.",
             )
 
 
@@ -596,6 +604,10 @@ def add_scale_guard_rows(rows: list[dict[str, object]], airframe_rows: list[dict
     current_body = f(current_x10, "body_drag_coefficient_axis")
     current_drag_10 = f(current_x10, "drag_force_n")
     for name, target_c, target_force, source_url, role, note in targets:
+        linear_force = runtime_drag_force(current_linear, 0.0, SCALE_GUARD_SPEED_MPS)
+        target_body_if_linear_unchanged = (
+            (target_force - linear_force) / (SCALE_GUARD_SPEED_MPS * SCALE_GUARD_SPEED_MPS)
+        )
         derived = {
             "target_total_quadratic_c_n_per_m_s2": target_c,
             "target_drag_force_10m_s_n": target_force,
@@ -605,9 +617,9 @@ def add_scale_guard_rows(rows: list[dict[str, object]], airframe_rows: list[dict
             "current_drag_force_10m_s_n": current_drag_10,
             "current_total_scale_to_target": safe_ratio(target_c, current_c),
             "current_drag_force_over_target": safe_ratio(current_drag_10, target_force),
-            "target_body_if_linear_unchanged": target_c - current_linear,
-            "target_body_nonnegative_possible": 1.0 if target_c >= current_linear else 0.0,
-            "linear_only_over_target_total_c": safe_ratio(current_linear, target_c),
+            "target_body_if_linear_unchanged": target_body_if_linear_unchanged,
+            "target_body_nonnegative_possible": 1.0 if target_body_if_linear_unchanged >= 0.0 else 0.0,
+            "linear_only_force_over_target_force": safe_ratio(linear_force, target_force),
             "body_only_scale_if_linear_zero": safe_ratio(target_c, current_body),
         }
         for metric, value in derived.items():
@@ -615,14 +627,14 @@ def add_scale_guard_rows(rows: list[dict[str, object]], airframe_rows: list[dict
                 "target_total_quadratic_c_n_per_m_s2": "N/(m/s)^2",
                 "target_drag_force_10m_s_n": "N",
                 "current_total_quadratic_c_n_per_m_s2": "N/(m/s)^2",
-                "current_linear_drag_coefficient": "N/(m/s)^2",
+                "current_linear_drag_coefficient": "N/(m/s)",
                 "current_body_drag_coefficient_axis": "N/(m/s)^2",
                 "current_drag_force_10m_s_n": "N",
                 "current_total_scale_to_target": "ratio",
                 "current_drag_force_over_target": "ratio",
                 "target_body_if_linear_unchanged": "N/(m/s)^2",
                 "target_body_nonnegative_possible": "boolean",
-                "linear_only_over_target_total_c": "ratio",
+                "linear_only_force_over_target_force": "ratio",
                 "body_only_scale_if_linear_zero": "ratio",
             }[metric]
             add_metric(
@@ -772,10 +784,10 @@ def add_summary_rows(
         name="method",
         metric="scope_and_caveat",
         value=(
-            "Treat the current racingQuad linearDragCoefficient plus bodyDragCoefficients as gameplay damping "
-            "unless they are re-fit. The shared quadratic linearDragCoefficient alone exceeds the IMAV, NASA "
-            "bare-airframe, and NASA powered-airframe total drag targets, so a physical CdA fit requires changing "
-            "the shared term, not only per-axis bodyDragCoefficients."
+            "Treat the current racingQuad linearDragCoefficient as runtime linear damping in N/(m/s), not as a "
+            "quadratic CdA coefficient. The speed-specific equivalent CdA from linear damping plus body drag "
+            "should be compared against wind-tunnel targets, while the old linear-as-quadratic projection remains "
+            "only a guardrail for spotting unit mistakes."
         ),
         unit="text",
         source_file=OUTPUT,
@@ -787,7 +799,7 @@ def add_summary_rows(
 
 def build_rows() -> list[dict[str, object]]:
     rows: list[dict[str, object]] = []
-    airframe_rows = read_rows(AIRFRAME)
+    airframe_rows = corrected_rows(read_rows(AIRFRAME))
     packet_rows = read_rows(AIRFRAME_PACKET)
     ratm_rows = read_rows(RATM_PACKET)
     add_source_inventory(rows, airframe_rows, packet_rows)

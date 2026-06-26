@@ -19,6 +19,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Iterable
 
+from airframe_runtime_drag_law import drag_force, equivalent_quadratic_c
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
@@ -151,6 +153,8 @@ def current_reference() -> dict[str, float]:
                 "weight_n": weight_n,
                 "max_thrust_n": float(row["current_total_max_thrust_n"]),
                 "horizontal_margin_n": float(row["current_horizontal_thrust_margin_n"]),
+                "linear_drag_k_n_per_m_s": float(row["current_linear_drag_coefficient"]),
+                "body_drag_c_n_per_m_s2": float(row["current_body_drag_coefficient_axis"]),
                 "drag_c_n_per_m_s2": float(row["current_total_quadratic_c_n_per_m_s2"]),
             }
     raise LookupError("missing racingQuad current_vs_ratm_speed_floor row in airframe_drag_reference.csv")
@@ -171,7 +175,8 @@ def derived_rows_for_window(rows: list[dict[str, str]], current: dict[str, float
     time = [parse_float(row, "elapsed_time") for row in ordered]
     derived: list[dict[str, float | str]] = []
     mass = current["mass_kg"]
-    drag_c = current["drag_c_n_per_m_s2"]
+    linear_drag_k = current["linear_drag_k_n_per_m_s"]
+    body_drag_c = current["body_drag_c_n_per_m_s2"]
     for index, row in enumerate(ordered):
         if index == 0 or index == len(ordered) - 1:
             speed_rate = math.nan
@@ -184,11 +189,11 @@ def derived_rows_for_window(rows: list[dict[str, str]], current: dict[str, float
             else:
                 speed_rate = math.nan
                 horizontal_speed_rate = math.nan
-        drag_force = drag_c * speed[index] * speed[index] if math.isfinite(speed[index]) else math.nan
-        drag_decel = drag_force / mass if math.isfinite(drag_force) else math.nan
+        current_drag_force = drag_force(linear_drag_k, body_drag_c, speed[index]) if math.isfinite(speed[index]) else math.nan
+        drag_decel = current_drag_force / mass if math.isfinite(current_drag_force) else math.nan
         apparent_decel = max(0.0, -speed_rate) if math.isfinite(speed_rate) else math.nan
         apparent_decel_force = mass * apparent_decel if math.isfinite(apparent_decel) else math.nan
-        required_total = math.hypot(current["weight_n"], drag_force) if math.isfinite(drag_force) else math.nan
+        required_total = math.hypot(current["weight_n"], current_drag_force) if math.isfinite(current_drag_force) else math.nan
         derived.append(
             {
                 "archive": row["archive"],
@@ -202,10 +207,10 @@ def derived_rows_for_window(rows: list[dict[str, str]], current: dict[str, float
                 "horizontal_speed_rate_m_s2": horizontal_speed_rate,
                 "apparent_decel_m_s2": apparent_decel,
                 "apparent_decel_force_n": apparent_decel_force,
-                "current_drag_force_n": drag_force,
+                "current_drag_force_n": current_drag_force,
                 "current_drag_decel_m_s2": drag_decel,
                 "current_drag_decel_over_abs_speed_rate": safe_ratio(drag_decel, abs(speed_rate)),
-                "current_drag_force_over_apparent_decel_force": safe_ratio(drag_force, apparent_decel_force),
+                "current_drag_force_over_apparent_decel_force": safe_ratio(current_drag_force, apparent_decel_force),
                 "current_required_total_thrust_over_max": safe_ratio(required_total, current["max_thrust_n"]),
                 "thrust_mean": thrust_mean(row),
                 "channels_thrust_us": parse_float(row, "channels_thrust"),
@@ -230,7 +235,18 @@ def add_source_inventory(rows: list[dict[str, object]], current: dict[str, float
         ("high_speed_threshold_m_s", HIGH_SPEED_THRESHOLD_M_S, "m/s", README_URL),
         ("held_speed_rate_threshold_m_s2", HELD_SPEED_RATE_THRESHOLD_M_S2, "m/s^2", repo_path(OUTPUT)),
         ("current_racing_mass_kg", current["mass_kg"], "kg", repo_path(AIRFRAME_REFERENCE)),
-        ("current_racing_drag_c_n_per_m_s2", current["drag_c_n_per_m_s2"], "N/(m/s)^2", repo_path(AIRFRAME_REFERENCE)),
+        ("current_racing_linear_drag_k_n_per_m_s", current["linear_drag_k_n_per_m_s"], "N/(m/s)", repo_path(AIRFRAME_REFERENCE)),
+        ("current_racing_body_drag_c_n_per_m_s2", current["body_drag_c_n_per_m_s2"], "N/(m/s)^2", repo_path(AIRFRAME_REFERENCE)),
+        (
+            "current_racing_drag_c_n_per_m_s2",
+            equivalent_quadratic_c(
+                current["linear_drag_k_n_per_m_s"],
+                current["body_drag_c_n_per_m_s2"],
+                HIGH_SPEED_THRESHOLD_M_S,
+            ),
+            "N/(m/s)^2",
+            repo_path(AIRFRAME_REFERENCE),
+        ),
         ("current_racing_horizontal_margin_n", current["horizontal_margin_n"], "N", repo_path(AIRFRAME_REFERENCE)),
     ]
     for metric, value, unit, source_url in source_metrics:
