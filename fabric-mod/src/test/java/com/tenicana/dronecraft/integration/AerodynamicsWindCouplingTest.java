@@ -503,6 +503,31 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void sourceWeightedMeanWindKeepsSourceGustOutOfBaseWind() {
+		Vec3 fallback = new Vec3(0.0, 0.0, 2.0);
+		Aerodynamics4McWindBridge.WindSample fresh = windSampleWithMeanAndEffectiveWind(
+				new Vec3(2.0, 0.0, 0.0),
+				new Vec3(6.0, 0.0, 0.0),
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample halfStale = windSampleWithMeanAndEffectiveWind(
+				new Vec3(2.0, 0.0, 0.0),
+				new Vec3(6.0, 0.0, 0.0),
+				100L
+		);
+		Aerodynamics4McWindBridge.WindSample stale = windSampleWithMeanAndEffectiveWind(
+				new Vec3(2.0, 0.0, 0.0),
+				new Vec3(6.0, 0.0, 0.0),
+				200L
+		);
+
+		assertEquals(new Vec3(2.0, 0.0, 0.0), AerodynamicsWindCoupling.sourceWeightedMeanWind(fallback, fresh));
+		assertEquals(new Vec3(1.0, 0.0, 1.0), AerodynamicsWindCoupling.sourceWeightedMeanWind(fallback, halfStale));
+		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedMeanWind(fallback, stale));
+		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedMeanWind(fallback, null));
+	}
+
+	@Test
 	void rotorDiskWindBlendKeepsMissingEdgeWeightsConservative() {
 		AerodynamicsWindCoupling.RotorDiskWindBlend blend = AerodynamicsWindCoupling.rotorDiskWindBlend(
 				Vec3.ZERO,

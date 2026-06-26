@@ -1315,7 +1315,7 @@ public class DroneEntity extends Entity {
 				externalWind,
 				fallbackAmbientTemperature
 		);
-		Vec3 naturalWind = AerodynamicsWindCoupling.sourceWeightedWind(weatherWindMetersPerSecond(), externalWind);
+		Vec3 naturalWind = AerodynamicsWindCoupling.sourceWeightedMeanWind(weatherWindMetersPerSecond(), externalWind);
 		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
 		DroneWakeAirflow droneWake = sampleDroneWakeAirflow();
 		double localVoxelObstacleResidual = AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(externalWind);
@@ -1424,7 +1424,7 @@ public class DroneEntity extends Entity {
 				externalWind,
 				fallbackAmbientTemperature
 		);
-		Vec3 naturalWind = AerodynamicsWindCoupling.sourceWeightedWind(Vec3.ZERO, externalWind);
+		Vec3 naturalWind = AerodynamicsWindCoupling.sourceWeightedMeanWind(Vec3.ZERO, externalWind);
 		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
 		double ambientTemperature = windSource.hasTemperature()
 				? windSource.temperatureCelsius()

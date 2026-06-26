@@ -173,6 +173,24 @@ public final class AerodynamicsWindCoupling {
 		return fallback.multiply(1.0 - sourceQuality).add(sourceWind.multiply(sourceQuality));
 	}
 
+	public static Vec3 sourceWeightedMeanWind(Vec3 fallbackWindWorldMetersPerSecond, Aerodynamics4McWindBridge.WindSample sample) {
+		Vec3 fallback = fallbackWindWorldMetersPerSecond == null || !fallbackWindWorldMetersPerSecond.isFinite()
+				? Vec3.ZERO
+				: fallbackWindWorldMetersPerSecond;
+		if (sample == null || !sample.hasFlow()) {
+			return fallback;
+		}
+		double sourceQuality = sourceQualityFactor(sample);
+		if (sourceQuality <= 1.0e-9) {
+			return fallback;
+		}
+		Vec3 sourceWind = sample.meanVelocityWorldMetersPerSecond();
+		if (sourceQuality >= 1.0 - 1.0e-9) {
+			return sourceWind;
+		}
+		return fallback.multiply(1.0 - sourceQuality).add(sourceWind.multiply(sourceQuality));
+	}
+
 	public static double sourceWeightedPressureAnomalyPascals(Aerodynamics4McWindBridge.WindSample sample) {
 		if (sample == null || !sample.hasFlow()) {
 			return 0.0;
