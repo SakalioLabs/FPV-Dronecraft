@@ -14,6 +14,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
+import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.Vec3;
 
 class AerodynamicsWindCouplingTest {
@@ -99,6 +100,45 @@ class AerodynamicsWindCouplingTest {
 		);
 		assertEquals(-0.024, summaryMetric(summary, "front_combined_pressure_center_offset_z_m"), 1.0e-15);
 		assertEquals(0.0, summaryMetric(summary, "quality_zero_pressure_center_offset_magnitude_m"), 1.0e-15);
+	}
+
+	@Test
+	void generatedSourceQualityPressurePacketSummaryTracksRuntimeFormulas() throws IOException {
+		Map<String, Double> summary = sourceQualityPacketSummary();
+		double wallSkimSourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
+		double halfQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.50, 0L);
+
+		assertEquals(45, summary.size());
+		assertEquals(325.0, summaryMetric(summary, "pressure_matrix_scenario_count"), 1.0e-9);
+		assertEquals(
+				DroneEnvironment.pressureAnomalyAirDensityMultiplier(-4500.0),
+				summaryMetric(summary, "trusted_low_pressure_neg4500_density_multiplier"),
+				1.0e-9
+		);
+		assertEquals(
+				DroneEnvironment.pressureAnomalyAirDensityMultiplier(4500.0),
+				summaryMetric(summary, "trusted_high_pressure_4500_density_multiplier"),
+				1.0e-9
+		);
+		assertEquals(1.0, summaryMetric(summary, "stale_high_pressure_4500_density_multiplier"), 1.0e-12);
+		assertEquals(-12.0 * wallSkimSourceQuality / 100.0,
+				summaryMetric(summary, "wall_skim_pressure_neg12pa_barometer_delta_hpa"), 1.0e-9);
+		assertEquals(
+				staticPortPressureErrorMeters(-12.0 * wallSkimSourceQuality, 0.74, 0.38, 0.042393),
+				summaryMetric(summary, "wall_skim_pressure_neg12pa_static_port_error_m"),
+				1.0e-9
+		);
+		assertEquals(
+				staticPortPressureErrorMeters(-12.0 * halfQuality, 0.74, 0.38, 0.042393),
+				summaryMetric(summary, "wall_skim_pressure_neg12pa_half_quality_static_port_error_m"),
+				1.0e-9
+		);
+		assertEquals(0.65, summaryMetric(summary, "wall_skim_pressure_neg220pa_static_port_error_m"), 1.0e-12);
+		assertTrue(
+				summaryMetric(summary, "open_air_pressure_neg12pa_static_port_error_m")
+						< summaryMetric(summary, "wall_skim_pressure_neg12pa_static_port_error_m")
+		);
+		assertEquals(0.0, summaryMetric(summary, "coarse_pressure_neg12pa_static_port_error_m"), 1.0e-12);
 	}
 
 	@Test
@@ -942,9 +982,17 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	private static Map<String, Double> localVoxelPacketSummary() throws IOException {
-		Path packet = findRepoRoot().resolve("docs/data/a4mc_local_voxel_coupling_packet.csv");
+		return packetSummary("docs/data/a4mc_local_voxel_coupling_packet.csv", "a4mc_local_voxel_packet_summary");
+	}
+
+	private static Map<String, Double> sourceQualityPacketSummary() throws IOException {
+		return packetSummary("docs/data/a4mc_source_quality_response_packet.csv", "a4mc_source_quality_packet_summary");
+	}
+
+	private static Map<String, Double> packetSummary(String packetPath, String summaryRowType) throws IOException {
+		Path packet = findRepoRoot().resolve(packetPath);
 		List<String> lines = Files.readAllLines(packet);
-		assertFalse(lines.isEmpty(), "Local voxel coupling packet is empty: " + packet);
+		assertFalse(lines.isEmpty(), "Packet is empty: " + packet);
 		List<String> header = parseCsvLine(lines.get(0));
 		int rowTypeColumn = columnIndex(header, "row_type");
 		int metricColumn = columnIndex(header, "metric");
@@ -953,11 +1001,11 @@ class AerodynamicsWindCouplingTest {
 		for (int i = 1; i < lines.size(); i++) {
 			List<String> columns = parseCsvLine(lines.get(i));
 			assertEquals(header.size(), columns.size(), "CSV column mismatch at " + packet + ":" + (i + 1));
-			if ("a4mc_local_voxel_packet_summary".equals(columns.get(rowTypeColumn))) {
+			if (summaryRowType.equals(columns.get(rowTypeColumn))) {
 				summary.put(columns.get(metricColumn), Double.parseDouble(columns.get(valueColumn)));
 			}
 		}
-		assertFalse(summary.isEmpty(), "Local voxel coupling packet has no summary rows: " + packet);
+		assertFalse(summary.isEmpty(), "Packet has no " + summaryRowType + " rows: " + packet);
 		return summary;
 	}
 
@@ -1010,8 +1058,23 @@ class AerodynamicsWindCouplingTest {
 
 	private static double summaryMetric(Map<String, Double> summary, String metric) {
 		Double value = summary.get(metric);
-		assertTrue(value != null, "Missing local voxel packet summary metric " + metric);
+		assertTrue(value != null, "Missing packet summary metric " + metric);
 		return value;
+	}
+
+	private static double staticPortPressureErrorMeters(
+			double adoptedPressureAnomalyPascals,
+			double shelterFactor,
+			double localVoxelCoverage,
+			double shelterObstruction
+	) {
+		double exposure = clamp(0.35 + 0.35 * shelterFactor + 0.18 * localVoxelCoverage + 0.12 * shelterObstruction, 0.25, 1.0);
+		double density = 1.225 * DroneEnvironment.pressureAnomalyAirDensityMultiplier(adoptedPressureAnomalyPascals);
+		return clamp(-adoptedPressureAnomalyPascals / (density * 9.80665) * exposure, -0.65, 0.65);
+	}
+
+	private static double clamp(double value, double lower, double upper) {
+		return Math.min(Math.max(value, lower), upper);
 	}
 
 	private static AerodynamicsWindCoupling.RotorDiskPressureBlend oneSidedPressureBlend(double edgePressureDeltaPascals) {

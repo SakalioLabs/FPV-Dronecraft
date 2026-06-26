@@ -16,6 +16,9 @@ quality-gated natural turbulence floor. A separate ABL matrix mirrors the core
 Dryden intensity and time-scale modifiers for stable/unstable mixed layers.
 A dedicated updraft matrix mirrors the core's adopted A4MC vertical air-mass
 split so thermals and downdrafts can be tuned independently from terrain shear.
+A dedicated pressure matrix mirrors A4MC pressure-anomaly adoption into density,
+barometer pressure, and local L2 static-port bias so pressure traces can be
+reviewed without rerunning the full simulator.
 """
 
 from __future__ import annotations
@@ -46,9 +49,19 @@ ABL_MIXING_LEVELS = [0.0, 0.64, 0.90]
 UPDRAFT_LEVELS_MPS = [-12.0, -4.0, -1.0, 0.0, 0.18, 1.0, 4.0, 12.0]
 UPDRAFT_LOCAL_VOXEL_FLOW = [True, False]
 UPDRAFT_ABL_MIXING_LEVELS = [0.0, 0.90]
+PRESSURE_FRESHNESS_AGES_TICKS = [0, 100, 160]
+PRESSURE_ANOMALY_LEVELS_PASCALS = [-4500.0, -220.0, -24.0, -12.0, 0.0, 12.0, 24.0, 220.0, 4500.0]
+PRESSURE_LOCAL_VOXEL_FLOW = [True, False]
+PRESSURE_CONTEXTS = [
+    ("open_air", 0.0, 0.0, 0.0),
+    ("wall_skim", 0.74, 0.38, 0.042393),
+]
 
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
+SEA_LEVEL_PRESSURE_PASCALS = 101325.0
+SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225
+STANDARD_GRAVITY_METERS_PER_SECOND_SQUARED = 9.80665
 SOURCE_GUST_TURBULENCE_GAIN_PER_MPS = 0.065
 MAX_SOURCE_GUST_TURBULENCE_BOOST = 0.26
 REFERENCE_MEAN_WIND_MPS = 7.0
@@ -296,6 +309,65 @@ def rotor_axial_gust_thrust_scale_proxy(adopted_updraft_mps: float) -> float:
     return clamp(1.0 + assisting_gain, 1.0, 2.35)
 
 
+def sanitize_pressure_anomaly_pascals(pressure_anomaly_pascals: float) -> float:
+    if not math.isfinite(pressure_anomaly_pascals):
+        return 0.0
+    return clamp(pressure_anomaly_pascals, -5000.0, 5000.0)
+
+
+def pressure_anomaly_air_density_multiplier(pressure_anomaly_pascals: float) -> float:
+    return clamp(
+        (SEA_LEVEL_PRESSURE_PASCALS + sanitize_pressure_anomaly_pascals(pressure_anomaly_pascals))
+        / SEA_LEVEL_PRESSURE_PASCALS,
+        0.90,
+        1.10,
+    )
+
+
+def a4mc_pressure_response(
+    raw_pressure_anomaly_pascals: float,
+    local_voxel_flow: bool,
+    shelter_factor: float,
+    local_voxel_coverage: float,
+    shelter_obstruction: float,
+    quality: float,
+) -> dict[str, float]:
+    adopted_pressure = sanitize_pressure_anomaly_pascals(raw_pressure_anomaly_pascals * quality)
+    density_ratio = pressure_anomaly_air_density_multiplier(adopted_pressure)
+    exposure = clamp(
+        0.35
+        + 0.35 * clamp(shelter_factor, 0.0, 1.0)
+        + 0.18 * clamp(local_voxel_coverage, 0.0, 1.0)
+        + 0.12 * clamp(shelter_obstruction, 0.0, 1.0),
+        0.25,
+        1.0,
+    )
+    local_static_port_available = (
+        local_voxel_flow
+        and quality > 1.0e-9
+        and abs(adopted_pressure) > 1.0e-6
+    )
+    if local_static_port_available:
+        density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * clamp(density_ratio, 0.35, 1.35)
+        pressure_height = -adopted_pressure / max(
+            1.0e-6,
+            density * STANDARD_GRAVITY_METERS_PER_SECOND_SQUARED,
+        )
+        static_port_error = clamp(pressure_height * exposure, -0.65, 0.65)
+    else:
+        static_port_error = 0.0
+
+    return {
+        "core_adopted_pressure_anomaly_pa": adopted_pressure,
+        "core_pressure_air_density_multiplier": density_ratio,
+        "core_effective_air_density_ratio_proxy": density_ratio,
+        "core_barometric_pressure_delta_hpa": adopted_pressure / 100.0,
+        "core_static_port_exposure": exposure,
+        "core_steady_static_port_error_m": static_port_error,
+        "core_local_static_port_available": 1.0 if local_static_port_available else 0.0,
+    }
+
+
 def natural_turbulence_response(
     source_turbulence: float,
     shear: float,
@@ -434,6 +506,22 @@ def updraft_scenario_name(
     ).replace(".", "p").replace("-", "neg")
 
 
+def pressure_scenario_name(
+    trusted: bool,
+    confidence: float,
+    age_ticks: int,
+    pressure_anomaly_pascals: float,
+    local_voxel_flow: bool,
+    pressure_context: str,
+) -> str:
+    trust = "trusted" if trusted else "untrusted"
+    local = "local" if local_voxel_flow else "coarse"
+    return (
+        f"{trust}_conf_{confidence:.2f}_age_{age_ticks}"
+        f"_pressure_{pressure_anomaly_pascals:.0f}pa_{local}_{pressure_context}"
+    ).replace(".", "p").replace("-", "neg")
+
+
 def add_metric(
     rows: list[dict[str, str]],
     *,
@@ -470,12 +558,12 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
             "current_core_quality_gate",
             "Defines the trust/confidence/freshness source-quality factor used by core physics.",
         ),
-		(
-			"DronePhysics_a4mc_transients",
-			DRONE_PHYSICS_SOURCE,
-			"current_core_transient_response",
-			"Consumes quality-gated A4MC source gust, de-overlapped independent updraft, terrain shear, ABL, and local-voxel ventilation diagnostics.",
-		),
+        (
+            "DronePhysics_a4mc_transients",
+            DRONE_PHYSICS_SOURCE,
+            "current_core_transient_response",
+            "Consumes quality-gated A4MC source gust, de-overlapped independent updraft, terrain shear, ABL, pressure, and local-voxel ventilation diagnostics.",
+        ),
         (
             "DroneEntity_a4mc_boundary",
             DRONE_ENTITY_SOURCE,
@@ -665,6 +753,92 @@ def add_updraft_response_matrix(rows: list[dict[str, str]]) -> None:
             )
 
 
+def add_pressure_response_matrix(rows: list[dict[str, str]]) -> None:
+    scenarios = [
+        (
+            True,
+            confidence,
+            age,
+            pressure_anomaly,
+            local_voxel_flow,
+            pressure_context,
+            shelter_factor,
+            local_voxel_coverage,
+            shelter_obstruction,
+        )
+        for confidence in CONFIDENCE_LEVELS
+        for age in PRESSURE_FRESHNESS_AGES_TICKS
+        for pressure_anomaly in PRESSURE_ANOMALY_LEVELS_PASCALS
+        for local_voxel_flow in PRESSURE_LOCAL_VOXEL_FLOW
+        for pressure_context, shelter_factor, local_voxel_coverage, shelter_obstruction in PRESSURE_CONTEXTS
+    ]
+    scenarios.append((False, 1.0, 0, -220.0, True, "wall_skim", 0.74, 0.38, 0.042393))
+    for (
+        trusted,
+        confidence,
+        age,
+        pressure_anomaly,
+        local_voxel_flow,
+        pressure_context,
+        shelter_factor,
+        local_voxel_coverage,
+        shelter_obstruction,
+    ) in scenarios:
+        quality = source_quality(trusted, confidence, age)
+        response = a4mc_pressure_response(
+            pressure_anomaly,
+            local_voxel_flow,
+            shelter_factor,
+            local_voxel_coverage,
+            shelter_obstruction,
+            quality,
+        )
+        metrics = {
+            "input_trusted_for_gameplay": (trusted, "bool"),
+            "input_confidence": (confidence, "fraction"),
+            "input_freshness_age_ticks": (age, "ticks"),
+            "input_raw_pressure_anomaly_pa": (pressure_anomaly, "Pa"),
+            "input_local_voxel_flow": (local_voxel_flow, "bool"),
+            "input_pressure_context": (pressure_context, "label"),
+            "input_shelter_factor": (shelter_factor, "fraction"),
+            "input_local_voxel_coverage": (local_voxel_coverage, "fraction"),
+            "input_shelter_obstruction": (shelter_obstruction, "fraction"),
+            "source_freshness_factor": (source_freshness_factor(age), "fraction"),
+            "source_quality_factor": (quality, "fraction"),
+            "core_adopted_pressure_anomaly_pa": (response["core_adopted_pressure_anomaly_pa"], "Pa"),
+            "core_pressure_air_density_multiplier": (response["core_pressure_air_density_multiplier"], "multiplier"),
+            "core_effective_air_density_ratio_proxy": (
+                response["core_effective_air_density_ratio_proxy"],
+                "multiplier",
+            ),
+            "core_barometric_pressure_delta_hpa": (response["core_barometric_pressure_delta_hpa"], "hPa"),
+            "core_static_port_exposure": (response["core_static_port_exposure"], "fraction"),
+            "core_steady_static_port_error_m": (response["core_steady_static_port_error_m"], "m"),
+            "core_local_static_port_available": (response["core_local_static_port_available"], "bool"),
+        }
+        name = pressure_scenario_name(
+            trusted,
+            confidence,
+            age,
+            pressure_anomaly,
+            local_voxel_flow,
+            pressure_context,
+        )
+        for metric, (value, unit) in metrics.items():
+            add_metric(
+                rows,
+                row_type="a4mc_source_quality_packet_pressure_response_matrix",
+                name=name,
+                metric=metric,
+                value=value,
+                unit=unit,
+                source_file=DRONE_PHYSICS_SOURCE,
+                source_url=f"{DRONE_ENVIRONMENT_SOURCE}; {DRONE_ENTITY_SOURCE}; {A4MC_GAMEPLAY_SAMPLE_SOURCE}",
+                evidence_role="current_a4mc_pressure_quality_response_matrix",
+                note="Synthetic A4MC pressure-anomaly matrix for source-quality-gated density, barometer pressure, and local static-port tuning.",
+            )
+
+
 def add_summary(rows: list[dict[str, str]]) -> None:
     trusted_wall_skim_quality = source_quality(True, 0.86, 0)
     trusted_wall_skim = terrain_shear_response(0.58, 0.74, trusted_wall_skim_quality)
@@ -694,10 +868,19 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     stale_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.0)
     half_quality = source_quality(True, 0.5, 0)
     stale_quality = source_quality(True, 1.0, 160)
+    wall_skim_pressure_neg12 = a4mc_pressure_response(-12.0, True, 0.74, 0.38, 0.042393, trusted_wall_skim_quality)
+    wall_skim_pressure_neg12_half_quality = a4mc_pressure_response(-12.0, True, 0.74, 0.38, 0.042393, half_quality)
+    wall_skim_pressure_neg220 = a4mc_pressure_response(-220.0, True, 0.74, 0.38, 0.042393, trusted_wall_skim_quality)
+    open_air_pressure_neg12 = a4mc_pressure_response(-12.0, True, 0.0, 0.0, 0.0, trusted_wall_skim_quality)
+    coarse_pressure_neg12 = a4mc_pressure_response(-12.0, False, 0.74, 0.38, 0.042393, trusted_wall_skim_quality)
+    trusted_low_pressure = a4mc_pressure_response(-4500.0, True, 0.0, 0.0, 0.0, 1.0)
+    trusted_high_pressure = a4mc_pressure_response(4500.0, True, 0.0, 0.0, 0.0, 1.0)
+    stale_high_pressure = a4mc_pressure_response(4500.0, True, 0.0, 0.0, 0.0, stale_quality)
     summary_metrics = {
         "matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_FACTORS) * len(SHEAR_LEVELS_PER_BLOCK) * len(SOURCE_TURBULENCE_LEVELS) + 1,
         "abl_matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(ABL_STABILITY_LEVELS) * len(ABL_MIXING_LEVELS) + 1,
         "updraft_matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(UPDRAFT_LEVELS_MPS) * len(UPDRAFT_LOCAL_VOXEL_FLOW) * len(UPDRAFT_ABL_MIXING_LEVELS) + 1,
+        "pressure_matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(PRESSURE_FRESHNESS_AGES_TICKS) * len(PRESSURE_ANOMALY_LEVELS_PASCALS) * len(PRESSURE_LOCAL_VOXEL_FLOW) * len(PRESSURE_CONTEXTS) + 1,
         "wall_skim_reference_source_quality": trusted_wall_skim_quality,
         "wall_skim_reference_adopted_source_turbulence": trusted_wall_skim_turbulence["core_adopted_source_turbulence_intensity"],
         "wall_skim_reference_natural_turbulence_proxy": trusted_wall_skim_turbulence["core_natural_turbulence_intensity_proxy"],
@@ -726,13 +909,35 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "unstable_mixed_abl_vertical_time_scale_multiplier": trusted_unstable_abl["core_dryden_vertical_time_scale_multiplier"],
         "stable_mixed_abl_dryden_intensity_proxy": trusted_stable_abl["core_dryden_intensity_proxy"],
         "stable_mixed_abl_vertical_time_scale_multiplier": trusted_stable_abl["core_dryden_vertical_time_scale_multiplier"],
+        "wall_skim_pressure_neg12pa_static_port_error_m": wall_skim_pressure_neg12["core_steady_static_port_error_m"],
+        "wall_skim_pressure_neg12pa_half_quality_static_port_error_m": wall_skim_pressure_neg12_half_quality["core_steady_static_port_error_m"],
+        "wall_skim_pressure_neg12pa_barometer_delta_hpa": wall_skim_pressure_neg12["core_barometric_pressure_delta_hpa"],
+        "wall_skim_pressure_neg220pa_static_port_error_m": wall_skim_pressure_neg220["core_steady_static_port_error_m"],
+        "open_air_pressure_neg12pa_static_port_error_m": open_air_pressure_neg12["core_steady_static_port_error_m"],
+        "coarse_pressure_neg12pa_static_port_error_m": coarse_pressure_neg12["core_steady_static_port_error_m"],
+        "trusted_low_pressure_neg4500_density_multiplier": trusted_low_pressure["core_pressure_air_density_multiplier"],
+        "trusted_high_pressure_4500_density_multiplier": trusted_high_pressure["core_pressure_air_density_multiplier"],
+        "stale_high_pressure_4500_density_multiplier": stale_high_pressure["core_pressure_air_density_multiplier"],
         "half_confidence_source_quality": half_quality,
         "half_confidence_source_gust_y_peak_mps": a4mc_source_gust_y_mps(half_quality),
         "stale_source_quality": stale_quality,
         "stale_source_gust_y_peak_mps": a4mc_source_gust_y_mps(stale_quality),
     }
     for metric, value in summary_metrics.items():
-        unit = "count" if metric.endswith("_count") else "m/s" if metric.endswith("_mps") or metric.endswith("_terrain_signal") else "fraction"
+        if metric.endswith("_count"):
+            unit = "count"
+        elif metric.endswith("_mps") or metric.endswith("_terrain_signal"):
+            unit = "m/s"
+        elif metric.endswith("_pa"):
+            unit = "Pa"
+        elif metric.endswith("_hpa"):
+            unit = "hPa"
+        elif metric.endswith("_m"):
+            unit = "m"
+        elif metric.endswith("_multiplier"):
+            unit = "multiplier"
+        else:
+            unit = "fraction"
         add_metric(
             rows,
             row_type="a4mc_source_quality_packet_summary",
@@ -756,7 +961,8 @@ def add_method(rows: list[dict[str, str]]) -> None:
             "This packet mirrors current source-quality formulas rather than field-test data. "
             "Use it to verify that confidence/freshness changes fade A4MC transient forcing before fitting "
             "source-turbulence floors, disk-gradient thrust loss, terrain-shear gust strength, "
-            "de-overlapped independent updraft adoption, ABL Dryden response, or local-voxel ventilation coefficients."
+            "de-overlapped independent updraft adoption, ABL Dryden response, pressure-anomaly density/barometer "
+            "response, or local-voxel ventilation coefficients."
         ),
         unit="text",
         source_file=DRONE_PHYSICS_SOURCE,
@@ -771,6 +977,7 @@ def build_rows() -> list[dict[str, str]]:
     add_response_matrix(rows)
     add_abl_response_matrix(rows)
     add_updraft_response_matrix(rows)
+    add_pressure_response_matrix(rows)
     add_summary(rows)
     add_method(rows)
     return rows
