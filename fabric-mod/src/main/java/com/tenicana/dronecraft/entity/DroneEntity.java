@@ -1725,22 +1725,21 @@ public class DroneEntity extends Entity {
 			Vec3 centerWind = AerodynamicsWindCoupling.sourceWeightedWind(bodyAeroWind, rotorWind);
 			Vec3 rotorAxisWorld = simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody());
 			double sampleRadius = rotor.radiusMeters() * ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE;
-			Vec3[] sampleVelocities = new Vec3[sampleDirections.length];
+			Aerodynamics4McWindBridge.WindSample[] sampleWinds = new Aerodynamics4McWindBridge.WindSample[sampleDirections.length];
 			Vec3[] sampleDirectionsBody = new Vec3[sampleDirections.length];
 			double[] sampleWeights = new double[sampleDirections.length];
 			for (int sampleIndex = 0; sampleIndex < sampleDirections.length; sampleIndex++) {
 				RotorPlaneSampleDirection direction = sampleDirections[sampleIndex];
 				double weight = sampleIndex < 4 ? ROTOR_DISK_SURFACE_CARDINAL_WEIGHT : ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT;
 				Vec3 samplePosition = rotorCenterWorld.add(direction.worldDirection().multiply(sampleRadius));
-				Aerodynamics4McWindBridge.WindSample sampleWind = Aerodynamics4McWindBridge.sampleGameplay(serverLevel, samplePosition);
-				sampleVelocities[sampleIndex] = AerodynamicsWindCoupling.sourceWeightedWind(centerWind, sampleWind);
+				sampleWinds[sampleIndex] = Aerodynamics4McWindBridge.sampleGameplay(serverLevel, samplePosition);
 				sampleDirectionsBody[sampleIndex] = direction.bodyDirection();
 				sampleWeights[sampleIndex] = weight;
 			}
 			AerodynamicsWindCoupling.RotorDiskWindBlend diskWind = AerodynamicsWindCoupling.rotorDiskWindBlend(
 					centerWind,
 					rotorAxisWorld,
-					sampleVelocities,
+					sampleWinds,
 					sampleDirectionsBody,
 					sampleWeights,
 					ROTOR_DISK_SURFACE_CENTER_WEIGHT

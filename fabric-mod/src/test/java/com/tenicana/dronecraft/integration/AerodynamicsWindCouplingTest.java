@@ -269,6 +269,55 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorDiskWindBlendFadesStaleEdgeSamplesTowardCenterWind() {
+		Vec3 centerWind = Vec3.ZERO;
+		Vec3 rotorAxis = new Vec3(0.0, 1.0, 0.0);
+		Vec3[] directions = {
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(-1.0, 0.0, 0.0)
+		};
+		double[] weights = { 1.0, 1.0 };
+
+		AerodynamicsWindCoupling.RotorDiskWindBlend freshEdges = AerodynamicsWindCoupling.rotorDiskWindBlend(
+				centerWind,
+				rotorAxis,
+				new Aerodynamics4McWindBridge.WindSample[] {
+						windSampleWithEffectiveWind(new Vec3(0.0, 4.0, 0.0), 20L),
+						windSampleWithEffectiveWind(new Vec3(0.0, -4.0, 0.0), 20L)
+				},
+				directions,
+				weights,
+				1.0
+		);
+		AerodynamicsWindCoupling.RotorDiskWindBlend halfStaleEdge = AerodynamicsWindCoupling.rotorDiskWindBlend(
+				centerWind,
+				rotorAxis,
+				new Aerodynamics4McWindBridge.WindSample[] {
+						windSampleWithEffectiveWind(new Vec3(0.0, 4.0, 0.0), 20L),
+						windSampleWithEffectiveWind(new Vec3(0.0, -4.0, 0.0), 100L)
+				},
+				directions,
+				weights,
+				1.0
+		);
+		AerodynamicsWindCoupling.RotorDiskWindBlend staleEdge = AerodynamicsWindCoupling.rotorDiskWindBlend(
+				centerWind,
+				rotorAxis,
+				new Aerodynamics4McWindBridge.WindSample[] {
+						windSampleWithEffectiveWind(new Vec3(0.0, 4.0, 0.0), 20L),
+						windSampleWithEffectiveWind(new Vec3(0.0, -4.0, 0.0), 200L)
+				},
+				directions,
+				weights,
+				1.0
+		);
+
+		assertEquals(new Vec3(4.0, 0.0, 0.0), freshEdges.gradientBodyMetersPerSecond());
+		assertEquals(new Vec3(3.0, 0.0, 0.0), halfStaleEdge.gradientBodyMetersPerSecond());
+		assertEquals(new Vec3(2.0, 0.0, 0.0), staleEdge.gradientBodyMetersPerSecond());
+	}
+
+	@Test
 	void sourceWeightedAtmosphereScalarsUseSourceQuality() {
 		Aerodynamics4McWindBridge.WindSample sample = windSampleWithAtmosphere(100L);
 

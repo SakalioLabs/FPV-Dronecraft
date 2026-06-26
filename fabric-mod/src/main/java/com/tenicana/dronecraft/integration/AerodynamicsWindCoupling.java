@@ -179,6 +179,30 @@ public final class AerodynamicsWindCoupling {
 		return new RotorDiskWindBlend(meanWind, gradient);
 	}
 
+	public static RotorDiskWindBlend rotorDiskWindBlend(
+			Vec3 centerWindWorldMetersPerSecond,
+			Vec3 rotorAxisWorld,
+			Aerodynamics4McWindBridge.WindSample[] sampleWindSamples,
+			Vec3[] sampleDirectionsBody,
+			double[] sampleWeights,
+			double centerWeight
+	) {
+		Vec3 centerWind = finiteVec(centerWindWorldMetersPerSecond);
+		int sampleCount = lengthOf(sampleWindSamples);
+		Vec3[] sampleWindVelocities = new Vec3[sampleCount];
+		for (int i = 0; i < sampleCount; i++) {
+			sampleWindVelocities[i] = sourceWeightedWind(centerWind, sampleWindSamples[i]);
+		}
+		return rotorDiskWindBlend(
+				centerWind,
+				rotorAxisWorld,
+				sampleWindVelocities,
+				sampleDirectionsBody,
+				sampleWeights,
+				centerWeight
+		);
+	}
+
 	public static double sourceQualityFactor(Aerodynamics4McWindBridge.WindSample sample) {
 		if (sample == null) {
 			return 0.0;
