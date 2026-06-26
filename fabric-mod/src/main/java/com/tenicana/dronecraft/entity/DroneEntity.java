@@ -427,6 +427,7 @@ public class DroneEntity extends Entity {
 			double confidence,
 			double turbulenceIntensity,
 			double pressureAnomalyPascals,
+			double adoptedPressureAnomalyPascals,
 			double windShearMagnitudePerBlock,
 			double shelterFactor,
 			double updraftMetersPerSecond,
@@ -1367,7 +1368,7 @@ public class DroneEntity extends Entity {
 		);
 		return new DroneEnvironment(
 				obstacleAirflow.windVelocityWorldMetersPerSecond(),
-				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.pressureAnomalyPascals())),
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.adoptedPressureAnomalyPascals())),
 				groundClearance,
 				turbulenceIntensity,
 				obstacleAirflow.obstacleProximity(),
@@ -1458,7 +1459,7 @@ public class DroneEntity extends Entity {
 		);
 		return new DroneEnvironment(
 				sourceWind,
-				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.pressureAnomalyPascals())),
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.adoptedPressureAnomalyPascals())),
 				groundClearance,
 				environmentOverride.turbulenceOr(naturalTurbulence),
 				0.0,
@@ -1521,6 +1522,7 @@ public class DroneEntity extends Entity {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
 					false,
 					DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
 					DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
@@ -1552,6 +1554,7 @@ public class DroneEntity extends Entity {
 					externalWind.trustedForGameplay(),
 					externalWind.confidence(),
 					externalWind.turbulenceIntensity(),
+					externalWind.pressureAnomalyPascals(),
 					AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(externalWind),
 					externalWind.windShearMagnitudePerBlock(),
 					externalWind.shelterFactor(),
@@ -1577,6 +1580,7 @@ public class DroneEntity extends Entity {
 				fallbackSourceId,
 				true,
 				1.0,
+				0.0,
 				0.0,
 				0.0,
 				0.0,

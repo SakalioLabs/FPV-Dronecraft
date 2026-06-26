@@ -6014,11 +6014,11 @@ class DronePhysicsTest {
 		assertTrue(trustedLowPressure.state().barometerPressurePortErrorMeters() > 0.55,
 				() -> "trustedLowPressurePort=" + trustedLowPressure.state().barometerPressurePortErrorMeters());
 		assertTrue(halfQualityLowPressure.state().barometerPressurePortErrorMeters()
-						> trustedLowPressure.state().barometerPressurePortErrorMeters() * 0.40,
+						> trustedLowPressure.state().barometerPressurePortErrorMeters() * 0.45,
 				() -> "trustedLowPressurePort=" + trustedLowPressure.state().barometerPressurePortErrorMeters()
 						+ " halfQualityLowPressurePort=" + halfQualityLowPressure.state().barometerPressurePortErrorMeters());
 		assertTrue(halfQualityLowPressure.state().barometerPressurePortErrorMeters()
-						< trustedLowPressure.state().barometerPressurePortErrorMeters() * 0.70,
+						< trustedLowPressure.state().barometerPressurePortErrorMeters() * 0.58,
 				() -> "trustedLowPressurePort=" + trustedLowPressure.state().barometerPressurePortErrorMeters()
 						+ " halfQualityLowPressurePort=" + halfQualityLowPressure.state().barometerPressurePortErrorMeters());
 		assertTrue(trustedHighPressure.state().barometerPressurePortErrorMeters() < -0.55,

@@ -9075,7 +9075,7 @@ public final class DronePhysics {
 				barometerFilteredAltitudeMeters,
 				environment.airDensityRatio(),
 				environment.ambientTemperatureCelsius(),
-				environment.windSourcePressureAnomalyPascals()
+				environment.adoptedWindSourcePressureAnomalyPascals()
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
 		state.setBarometerSensorNoiseMeters(sensorNoise);
@@ -9176,7 +9176,7 @@ public final class DronePhysics {
 		if (sourceQuality <= 1.0e-9) {
 			return 0.0;
 		}
-		double pressureAnomalyPascals = environment.windSourcePressureAnomalyPascals();
+		double pressureAnomalyPascals = environment.adoptedWindSourcePressureAnomalyPascals();
 		if (Math.abs(pressureAnomalyPascals) <= 1.0e-6) {
 			return 0.0;
 		}
@@ -9202,7 +9202,7 @@ public final class DronePhysics {
 		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER
 				* MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double pressureHeightMeters = -pressureAnomalyPascals / Math.max(1.0e-6, density * config.gravityMetersPerSecondSquared());
-		return MathUtil.clamp(pressureHeightMeters * sourceQuality * exposure, -0.65, 0.65);
+		return MathUtil.clamp(pressureHeightMeters * exposure, -0.65, 0.65);
 	}
 
 	private double barometerLinearDynamicPressureErrorMeters(Vec3 relativeAirVelocityBody) {

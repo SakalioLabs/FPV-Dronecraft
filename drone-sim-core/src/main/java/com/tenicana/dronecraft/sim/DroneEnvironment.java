@@ -726,6 +726,13 @@ public record DroneEnvironment(
 		return MathUtil.clamp(windSourceHumidity * windSourceQualityFactor(), 0.0, 1.0);
 	}
 
+	public double adoptedWindSourcePressureAnomalyPascals() {
+		if (!WIND_SOURCE_AERODYNAMICS4MC.equals(windSourceId)) {
+			return 0.0;
+		}
+		return sanitizePressureAnomalyPascals(windSourcePressureAnomalyPascals * windSourceQualityFactor());
+	}
+
 	public double adoptedWindSourceTemperatureCelsius(double fallbackAmbientTemperatureCelsius) {
 		double fallback = Double.isFinite(fallbackAmbientTemperatureCelsius)
 				? MathUtil.clamp(fallbackAmbientTemperatureCelsius, -40.0, 65.0)

@@ -202,6 +202,28 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void adoptedWindSourcePressureUsesSourceQuality() {
+		DroneEnvironment fresh = environmentWithWindSourcePressure(true, 1.0, 0L, -1200.0);
+		DroneEnvironment halfStale = environmentWithWindSourcePressure(true, 1.0, 100L, -1200.0);
+		DroneEnvironment stale = environmentWithWindSourcePressure(true, 1.0, 160L, -1200.0);
+		DroneEnvironment untrusted = environmentWithWindSourcePressure(false, 1.0, 0L, -1200.0);
+		DroneEnvironment internal = environmentWithWindSourcePressure(
+				DroneEnvironment.WIND_SOURCE_INTERNAL,
+				true,
+				1.0,
+				0L,
+				-1200.0
+		);
+
+		assertEquals(-1200.0, fresh.windSourcePressureAnomalyPascals(), 1.0e-9);
+		assertEquals(-1200.0, fresh.adoptedWindSourcePressureAnomalyPascals(), 1.0e-9);
+		assertEquals(-600.0, halfStale.adoptedWindSourcePressureAnomalyPascals(), 1.0e-9);
+		assertEquals(0.0, stale.adoptedWindSourcePressureAnomalyPascals(), 1.0e-9);
+		assertEquals(0.0, untrusted.adoptedWindSourcePressureAnomalyPascals(), 1.0e-9);
+		assertEquals(0.0, internal.adoptedWindSourcePressureAnomalyPascals(), 1.0e-9);
+	}
+
+	@Test
 	void pressureAnomalyAdjustsDensityAndBarometerPressure() {
 		double neutral = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0);
 		double lowPressure = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, -2200.0);
@@ -301,11 +323,49 @@ class DroneEnvironmentTest {
 			double temperatureCelsius
 	) {
 		return windSourceScalarEnvironment(
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				trusted,
 				confidence,
 				freshnessAgeTicks,
+				0.0,
 				true,
 				temperatureCelsius,
+				false,
+				0.0,
+				0.0
+		);
+	}
+
+	private static DroneEnvironment environmentWithWindSourcePressure(
+			boolean trusted,
+			double confidence,
+			long freshnessAgeTicks,
+			double pressureAnomalyPascals
+	) {
+		return environmentWithWindSourcePressure(
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				trusted,
+				confidence,
+				freshnessAgeTicks,
+				pressureAnomalyPascals
+		);
+	}
+
+	private static DroneEnvironment environmentWithWindSourcePressure(
+			String sourceId,
+			boolean trusted,
+			double confidence,
+			long freshnessAgeTicks,
+			double pressureAnomalyPascals
+	) {
+		return windSourceScalarEnvironment(
+				sourceId,
+				trusted,
+				confidence,
+				freshnessAgeTicks,
+				pressureAnomalyPascals,
+				true,
+				-8.0,
 				false,
 				0.0,
 				0.0
@@ -320,9 +380,11 @@ class DroneEnvironmentTest {
 			double precipitationWetness
 	) {
 		return windSourceScalarEnvironment(
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				trusted,
 				confidence,
 				freshnessAgeTicks,
+				0.0,
 				true,
 				-8.0,
 				true,
@@ -332,9 +394,11 @@ class DroneEnvironmentTest {
 	}
 
 	private static DroneEnvironment windSourceScalarEnvironment(
+			String sourceId,
 			boolean trusted,
 			double confidence,
 			long freshnessAgeTicks,
+			double pressureAnomalyPascals,
 			boolean hasTemperature,
 			double temperatureCelsius,
 			boolean hasHumidity,
@@ -360,11 +424,11 @@ class DroneEnvironmentTest {
 				null,
 				null,
 				null,
-				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				sourceId,
 				trusted,
 				confidence,
 				0.0,
-				0.0,
+				pressureAnomalyPascals,
 				0.0,
 				0.0,
 				0.0,
