@@ -26,8 +26,8 @@ class A4mcDiskGradientCalibrationTest {
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(0.33, audit.wallSkimReferenceRawPressureGradientMetersPerSecond(), 1.0e-12);
 		assertEquals(0.86, audit.wallSkimReferenceSourceQuality(), 1.0e-12);
-		assertEquals(0.362510389912, audit.hoverTiltStartRawGradientAtWallSkimQualityMetersPerSecond(), 1.0e-12);
-		assertEquals(0.563905050975, audit.hoverThrustLossStartRawGradientAtWallSkimQualityMetersPerSecond(), 1.0e-12);
+		assertEquals(0.311758935325, audit.hoverTiltStartRawGradientAtWallSkimQualityMetersPerSecond(), 1.0e-12);
+		assertEquals(0.484958343838, audit.hoverThrustLossStartRawGradientAtWallSkimQualityMetersPerSecond(), 1.0e-12);
 
 		A4mcDiskGradientCalibration.DiskGradientResponse wallSkim = audit.wallSkimHover();
 		assertEquals("racingQuad", wallSkim.presetName());
@@ -35,18 +35,18 @@ class A4mcDiskGradientCalibrationTest {
 		assertEquals(0.33, wallSkim.rawGradientMetersPerSecond(), 1.0e-12);
 		assertEquals(0.86, wallSkim.sourceQualityFactor(), 1.0e-12);
 		assertEquals(0.44695088387, wallSkim.spinRatio(), 1.0e-12);
-		assertEquals(0.2838, wallSkim.adoptedGradientMetersPerSecond(), 1.0e-15);
+		assertEquals(0.33, wallSkim.adoptedGradientMetersPerSecond(), 1.0e-15);
 		assertEquals(86.5997042568, wallSkim.tipSpeedMetersPerSecond(), 1.0e-10);
-		assertEquals(0.00327714745028, wallSkim.gradientOverTipSpeed(), 1.0e-14);
+		assertEquals(0.00381063657009, wallSkim.gradientOverTipSpeed(), 1.0e-14);
 		assertEquals(0.199765092593, wallSkim.steadyThrustFractionProxy(), 1.0e-12);
 		assertEquals(2.69682875, wallSkim.steadyThrustNewtonsProxy(), 1.0e-12);
 		assertEquals(1.0, wallSkim.thrustScale(), 1.0e-15);
 		assertEquals(0.0, wallSkim.thrustLossFraction(), 1.0e-15);
-		assertEquals(0.00572544737809, wallSkim.loadFactor(), 1.0e-14);
-		assertEquals(0.00965737602413, wallSkim.vibration(), 1.0e-14);
+		assertEquals(0.00650857245551, wallSkim.loadFactor(), 1.0e-14);
+		assertEquals(0.0108958315556, wallSkim.vibration(), 1.0e-14);
 		assertEquals(0.0, wallSkim.stallIntensity(), 1.0e-15);
-		assertEquals(0.0, wallSkim.flappingTiltDegrees(), 1.0e-15);
-		assertEquals(1.0, wallSkim.verticalForceScaleProxy(), 1.0e-15);
+		assertEquals(0.000177494850399, wallSkim.flappingTiltDegrees(), 1.0e-15);
+		assertEquals(0.999999999995, wallSkim.verticalForceScaleProxy(), 1.0e-12);
 	}
 
 	@Test

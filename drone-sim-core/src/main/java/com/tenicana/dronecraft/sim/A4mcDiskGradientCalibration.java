@@ -13,7 +13,7 @@ public final class A4mcDiskGradientCalibration {
 
 	public static final String SOURCE_ID = "A4MC-Disk-Gradient-Response-Packet";
 	public static final String CAVEAT =
-			"Synthetic packet mirrors current Java response formulas; use as a coefficient audit before live A4MC blackbox fitting.";
+			"Synthetic packet mirrors current Java response formulas with source quality as an availability gate; use as a coefficient audit before live A4MC blackbox fitting.";
 	public static final int SOURCE_REFERENCE_COUNT = 4;
 	public static final int PRESET_SAMPLE_COUNT = 4;
 	public static final int SPIN_STATE_SAMPLE_COUNT = 4;
@@ -134,7 +134,7 @@ public final class A4mcDiskGradientCalibration {
 		RotorSpec rotor = representativeRotor(config);
 		double sourceQuality = MathUtil.clamp(sourceQualityFactor, 0.0, 1.0);
 		double rawGradient = MathUtil.clamp(rawGradientMetersPerSecond, 0.0, MAX_DISK_GRADIENT_METERS_PER_SECOND);
-		double adoptedGradient = MathUtil.clamp(rawGradient * sourceQuality, 0.0, MAX_DISK_GRADIENT_METERS_PER_SECOND);
+		double adoptedGradient = sourceQuality <= EPSILON ? 0.0 : rawGradient;
 		double spin = MathUtil.clamp(spinRatio, 0.0, 1.0);
 		double maxOmega = rotor.maxOmegaRadiansPerSecond();
 		double omega = maxOmega * spin;
@@ -244,7 +244,7 @@ public final class A4mcDiskGradientCalibration {
 		if (!Double.isFinite(adoptedThreshold) || !Double.isFinite(sourceQuality) || sourceQuality <= EPSILON) {
 			return 0.0;
 		}
-		return adoptedThreshold / sourceQuality;
+		return MathUtil.clamp(adoptedThreshold, 0.0, MAX_DISK_GRADIENT_METERS_PER_SECOND);
 	}
 
 	private static double diskGradientThrustScale(RotorSpec rotor, double adoptedGradient, double omegaRadiansPerSecond) {

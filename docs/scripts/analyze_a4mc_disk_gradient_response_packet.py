@@ -7,9 +7,10 @@ Outputs:
 Aerodynamics4MC can expose local L2 mean-wind and pressure differences across
 a rotor disk. FPV Dronecraft converts those differences into a bounded
 `rotorDiskWindGradientBodyMetersPerSecond` signal, then the core model maps that
-signal into thrust loss, aerodynamic load, vibration, dynamic-stall onset, and
-flapping tilt. This packet mirrors the current Java formulas so blackbox
-block-edge or tunnel-mouth traces can fit those coefficients later.
+already-adopted signal into thrust loss, aerodynamic load, vibration,
+dynamic-stall onset, and flapping tilt. This packet mirrors the current Java
+formulas so blackbox block-edge or tunnel-mouth traces can fit those
+coefficients later.
 """
 
 from __future__ import annotations
@@ -32,6 +33,7 @@ A4MC_GAMEPLAY_SAMPLE_SOURCE = "https://github.com/MozillaFiredoge/Aerodynamics4M
 A4MC_MINECRAFT_API_SOURCE = "https://github.com/MozillaFiredoge/Aerodynamics4MC-Core/blob/main/src/main/java/com/aerodynamics4mc/api/minecraft/AeroMinecraftWindApi.java"
 
 G = 9.80665
+EPSILON = 1.0e-12
 MAX_DISK_GRADIENT_MPS = 12.0
 MAX_GRADIENT_TILT_RADIANS = math.radians(4.5)
 MAX_GRADIENT_THRUST_LOSS = 0.045
@@ -125,7 +127,7 @@ def core_disk_gradient_response(
 ) -> dict[str, float]:
     source_quality = clamp(source_quality, 0.0, 1.0)
     raw_gradient_mps = clamp(raw_gradient_mps, 0.0, MAX_DISK_GRADIENT_MPS)
-    adopted_gradient = clamp(raw_gradient_mps * source_quality, 0.0, MAX_DISK_GRADIENT_MPS)
+    adopted_gradient = 0.0 if source_quality <= EPSILON else raw_gradient_mps
     spin_ratio = clamp(spin_ratio, 0.0, 1.0)
     max_omega = preset.max_omega_rad_s
     tip_speed = max_omega * spin_ratio * preset.rotor_radius_m
@@ -290,7 +292,7 @@ def add_response_matrix(rows: list[dict[str, str]]) -> None:
                             source_file=DRONE_PHYSICS_SOURCE,
                             source_url=f"{DRONE_ENTITY_SOURCE}; {A4MC_GAMEPLAY_SAMPLE_SOURCE}",
                             evidence_role="current_core_disk_gradient_response_matrix",
-                            note="Synthetic A4MC disk-gradient response matrix mirroring current core formulas before blackbox fitting.",
+                            note="Synthetic A4MC adopted disk-gradient response matrix mirroring current core formulas before blackbox fitting.",
                         )
 
 
@@ -353,8 +355,8 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     rq_quality_zero_name = "racingQuad_hover_raw_12_quality_0"
     racing_quad = next(preset for preset in PRESETS if preset.name == "racingQuad")
     rq_hover_tip_speed = racing_quad.max_omega_rad_s * racing_quad.hover_spin_ratio * racing_quad.rotor_radius_m
-    rq_hover_tilt_start_raw_gradient = (0.03 * max(1.0, rq_hover_tip_speed * 0.12)) / OFFLINE_WALL_SKIM_SOURCE_QUALITY
-    rq_hover_thrust_loss_start_raw_gradient = (0.04 * max(1.0, rq_hover_tip_speed * 0.14)) / OFFLINE_WALL_SKIM_SOURCE_QUALITY
+    rq_hover_tilt_start_raw_gradient = 0.03 * max(1.0, rq_hover_tip_speed * 0.12)
+    rq_hover_thrust_loss_start_raw_gradient = 0.04 * max(1.0, rq_hover_tip_speed * 0.14)
     summary = {
         "matrix_scenario_count": (scenario_count, "count"),
         "wall_skim_reference_raw_pressure_gradient_mps": (OFFLINE_WALL_SKIM_PRESSURE_GRADIENT_MPS, "m/s"),
@@ -423,8 +425,8 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         name="method",
         metric="scope_and_caveat",
         value=(
-            "Synthetic packet mirrors current Java response formulas; use it as a coefficient audit and "
-            "blackbox fitting surface, not as independent CFD validation."
+            "Synthetic packet mirrors current Java response formulas with source quality as an availability gate; "
+            "use it as a coefficient audit and blackbox fitting surface, not as independent CFD validation."
         ),
         unit="text",
         source_file=repo_path(OUTPUT),
