@@ -41,6 +41,14 @@ LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42
 LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22
 LOCAL_VOXEL_PRECIPITATION_SHELTER_RELIEF = 0.72
 LOCAL_VOXEL_PRECIPITATION_MIN_EXPOSURE = 0.24
+LOCAL_VOXEL_ROTOR_VENTILATION_BODY_SHELTER_LOSS = 0.20
+LOCAL_VOXEL_ROTOR_VENTILATION_COVERAGE_LOSS = 0.12
+LOCAL_VOXEL_ROTOR_VENTILATION_SHELTER_OBSTRUCTION_LOSS = 0.18
+LOCAL_VOXEL_ROTOR_MIN_VENTILATION_EFFICIENCY = 0.72
+LOCAL_VOXEL_PACK_VENTILATION_BODY_SHELTER_LOSS = 0.14
+LOCAL_VOXEL_PACK_VENTILATION_COVERAGE_LOSS = 0.08
+LOCAL_VOXEL_PACK_VENTILATION_SHELTER_OBSTRUCTION_LOSS = 0.10
+LOCAL_VOXEL_PACK_MIN_VENTILATION_EFFICIENCY = 0.78
 LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PA = 1600.0
 LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS = 2.4
 MAX_LOCAL_VOXEL_PRESSURE_PA = 5000.0
@@ -66,6 +74,62 @@ PRESSURE_CENTER_ROTOR_POSITIONS_XZ_M = [
     (-RACING_QUAD_ARM_M, RACING_QUAD_ARM_M),
     (-RACING_QUAD_ARM_M, -RACING_QUAD_ARM_M),
     (RACING_QUAD_ARM_M, -RACING_QUAD_ARM_M),
+]
+VENTILATION_SCENARIOS = [
+    (
+        "exposed_open_air",
+        True,
+        1.0,
+        0,
+        0.0,
+        [1.0, 1.0, 1.0, 1.0],
+        [0.0, 0.0, 0.0, 0.0],
+    ),
+    (
+        "coarse_wall_skim",
+        False,
+        1.0,
+        0,
+        0.85,
+        [0.50, 0.50, 0.80, 0.80],
+        [0.16, 0.16, 0.08, 0.08],
+    ),
+    (
+        "stale_wall_skim",
+        True,
+        0.86,
+        160,
+        0.85,
+        [0.50, 0.50, 0.80, 0.80],
+        [0.16, 0.16, 0.08, 0.08],
+    ),
+    (
+        "wall_skim_full_quality",
+        True,
+        1.0,
+        0,
+        0.85,
+        [0.50, 0.50, 0.80, 0.80],
+        [0.16, 0.16, 0.08, 0.08],
+    ),
+    (
+        "wall_skim_half_quality",
+        True,
+        0.50,
+        0,
+        0.85,
+        [0.75, 0.75, 0.90, 0.90],
+        [0.08, 0.08, 0.04, 0.04],
+    ),
+    (
+        "full_tunnel_clamped",
+        True,
+        1.0,
+        0,
+        1.0,
+        [0.0, 0.0, 0.0, 0.0],
+        [1.0, 1.0, 1.0, 1.0],
+    ),
 ]
 PRESSURE_CENTER_ROTOR_SCENARIOS = [
     (
@@ -173,6 +237,59 @@ def precipitation_exposure_factor(shelter: float, quality: float) -> float:
     return clamp(
         1.0 - adopted_shelter_factor * LOCAL_VOXEL_PRECIPITATION_SHELTER_RELIEF,
         LOCAL_VOXEL_PRECIPITATION_MIN_EXPOSURE,
+        1.0,
+    )
+
+
+def rotor_ventilation_efficiency(
+    *,
+    local_voxel_flow: bool,
+    source_quality_value: float,
+    body_shelter_factor: float,
+    rotor_residual: float,
+    rotor_shelter_obstruction: float,
+) -> float:
+    if not local_voxel_flow or source_quality_value <= 1.0e-9:
+        return 1.0
+    body_shelter = clamp(body_shelter_factor * source_quality_value, 0.0, 1.0)
+    local_voxel_coverage = clamp(1.0 - rotor_residual, 0.0, 1.0)
+    shelter_obstruction_value = clamp(rotor_shelter_obstruction, 0.0, 1.0)
+    ventilation_loss = (
+        LOCAL_VOXEL_ROTOR_VENTILATION_BODY_SHELTER_LOSS * body_shelter
+        + LOCAL_VOXEL_ROTOR_VENTILATION_COVERAGE_LOSS * local_voxel_coverage
+        + LOCAL_VOXEL_ROTOR_VENTILATION_SHELTER_OBSTRUCTION_LOSS * shelter_obstruction_value
+    )
+    return clamp(
+        1.0 - ventilation_loss,
+        LOCAL_VOXEL_ROTOR_MIN_VENTILATION_EFFICIENCY,
+        1.0,
+    )
+
+
+def pack_ventilation_efficiency(
+    *,
+    local_voxel_flow: bool,
+    source_quality_value: float,
+    body_shelter_factor: float,
+    rotor_residuals: list[float],
+    rotor_shelter_obstructions: list[float],
+) -> float:
+    if not local_voxel_flow or source_quality_value <= 1.0e-9:
+        return 1.0
+    sample_count = max(1, len(rotor_residuals))
+    average_coverage = sum(clamp(1.0 - residual, 0.0, 1.0) for residual in rotor_residuals) / sample_count
+    average_shelter_obstruction = (
+        sum(clamp(value, 0.0, 1.0) for value in rotor_shelter_obstructions) / sample_count
+    )
+    body_shelter = clamp(body_shelter_factor * source_quality_value, 0.0, 1.0)
+    ventilation_loss = (
+        LOCAL_VOXEL_PACK_VENTILATION_BODY_SHELTER_LOSS * body_shelter
+        + LOCAL_VOXEL_PACK_VENTILATION_COVERAGE_LOSS * average_coverage
+        + LOCAL_VOXEL_PACK_VENTILATION_SHELTER_OBSTRUCTION_LOSS * average_shelter_obstruction
+    )
+    return clamp(
+        1.0 - ventilation_loss,
+        LOCAL_VOXEL_PACK_MIN_VENTILATION_EFFICIENCY,
         1.0,
     )
 
@@ -340,7 +457,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
     sources = [
         (
             "fabric_a4mc_local_voxel_coupling",
-            "AerodynamicsWindCoupling maps trusted local L2 A4MC samples into obstacle residual, pressure-gradient disk wind, and shelter-gradient side obstruction.",
+            "AerodynamicsWindCoupling maps trusted local L2 A4MC samples into obstacle residual, precipitation exposure, pressure-gradient disk wind, and shelter-gradient side obstruction.",
             A4MC_COUPLING_SOURCE,
             "",
         ),
@@ -358,7 +475,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
         ),
         (
             "fpv_core_pressure_center_response",
-            "DronePhysics maps adopted asymmetric local-voxel residual, shelter, and pressure-gradient rotor signals into a bounded airframe pressure-center offset.",
+            "DronePhysics maps adopted asymmetric local-voxel residual, shelter, and pressure-gradient rotor signals into a bounded airframe pressure-center offset and local-voxel thermal ventilation loss.",
             DRONE_PHYSICS_SOURCE,
             "",
         ),
@@ -464,6 +581,107 @@ def add_precipitation_exposure_matrix(rows: list[dict[str, str]]) -> None:
                         evidence_role="local_voxel_precipitation_exposure_matrix",
                         note="Source-quality-gated A4MC shelter attenuation of direct rain exposure before wet-prop film loading.",
                     )
+
+
+def add_ventilation_matrix(rows: list[dict[str, str]]) -> None:
+    metric_units = {
+        "input_confidence": "fraction",
+        "input_freshness_age_ticks": "ticks",
+        "input_local_voxel_flow": "bool",
+        "input_body_shelter_factor": "fraction",
+        "core_source_quality": "fraction",
+        "adopted_body_shelter_factor": "fraction",
+        "average_local_voxel_coverage": "fraction",
+        "average_shelter_obstruction": "fraction",
+        "rotor0_local_voxel_coverage": "fraction",
+        "rotor0_shelter_obstruction": "fraction",
+        "rotor0_ventilation_efficiency": "multiplier",
+        "rotor1_local_voxel_coverage": "fraction",
+        "rotor1_shelter_obstruction": "fraction",
+        "rotor1_ventilation_efficiency": "multiplier",
+        "rotor2_local_voxel_coverage": "fraction",
+        "rotor2_shelter_obstruction": "fraction",
+        "rotor2_ventilation_efficiency": "multiplier",
+        "rotor3_local_voxel_coverage": "fraction",
+        "rotor3_shelter_obstruction": "fraction",
+        "rotor3_ventilation_efficiency": "multiplier",
+        "minimum_rotor_ventilation_efficiency": "multiplier",
+        "pack_ventilation_efficiency": "multiplier",
+        "pack_minus_min_rotor_efficiency": "multiplier",
+    }
+    for (
+        name,
+        local_voxel_flow,
+        confidence,
+        age,
+        body_shelter,
+        rotor_residuals,
+        rotor_shelter_obstructions,
+    ) in VENTILATION_SCENARIOS:
+        quality = source_quality(True, confidence, age)
+        local_voxel_coverages = [
+            clamp(1.0 - residual, 0.0, 1.0)
+            for residual in rotor_residuals
+        ]
+        rotor_efficiencies = [
+            rotor_ventilation_efficiency(
+                local_voxel_flow=local_voxel_flow,
+                source_quality_value=quality,
+                body_shelter_factor=body_shelter,
+                rotor_residual=rotor_residuals[i],
+                rotor_shelter_obstruction=rotor_shelter_obstructions[i],
+            )
+            for i in range(4)
+        ]
+        average_coverage = sum(local_voxel_coverages) / len(local_voxel_coverages)
+        average_shelter_obstruction = (
+            sum(clamp(value, 0.0, 1.0) for value in rotor_shelter_obstructions)
+            / len(rotor_shelter_obstructions)
+        )
+        pack_efficiency = pack_ventilation_efficiency(
+            local_voxel_flow=local_voxel_flow,
+            source_quality_value=quality,
+            body_shelter_factor=body_shelter,
+            rotor_residuals=rotor_residuals,
+            rotor_shelter_obstructions=rotor_shelter_obstructions,
+        )
+        metrics = {
+            "input_confidence": confidence,
+            "input_freshness_age_ticks": age,
+            "input_local_voxel_flow": local_voxel_flow,
+            "input_body_shelter_factor": body_shelter,
+            "core_source_quality": quality,
+            "adopted_body_shelter_factor": (
+                clamp(body_shelter * quality, 0.0, 1.0)
+                if local_voxel_flow and quality > 1.0e-9
+                else 0.0
+            ),
+            "average_local_voxel_coverage": average_coverage,
+            "average_shelter_obstruction": average_shelter_obstruction,
+            "minimum_rotor_ventilation_efficiency": min(rotor_efficiencies),
+            "pack_ventilation_efficiency": pack_efficiency,
+            "pack_minus_min_rotor_efficiency": pack_efficiency - min(rotor_efficiencies),
+        }
+        for rotor_index in range(4):
+            metrics[f"rotor{rotor_index}_local_voxel_coverage"] = local_voxel_coverages[rotor_index]
+            metrics[f"rotor{rotor_index}_shelter_obstruction"] = clamp(
+                rotor_shelter_obstructions[rotor_index],
+                0.0,
+                1.0,
+            )
+            metrics[f"rotor{rotor_index}_ventilation_efficiency"] = rotor_efficiencies[rotor_index]
+        for metric, value in metrics.items():
+            add_metric(
+                rows,
+                row_type="a4mc_local_voxel_packet_ventilation_matrix",
+                name=name,
+                metric=metric,
+                value=value,
+                unit=metric_units[metric],
+                source_file=DRONE_PHYSICS_SOURCE,
+                evidence_role="local_voxel_thermal_ventilation_matrix",
+                note="A4MC local-voxel shelter reduces motor/ESC rotor ventilation and whole-pack cooling only when trusted fresh local L2 flow is available.",
+            )
 
 
 def local_obstacle_residual_or_body_fallback(
@@ -812,6 +1030,11 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     pressure_center_right_combined_half_quality_name = "right_combined_wall_pressure_quality_0p5_airspeed_18"
     pressure_center_front_combined_name = "front_combined_wall_pressure_quality_1_airspeed_18"
     pressure_center_quality_zero_name = "right_combined_wall_pressure_quality_0_airspeed_18"
+    ventilation_wall_skim_name = "wall_skim_full_quality"
+    ventilation_half_quality_name = "wall_skim_half_quality"
+    ventilation_coarse_name = "coarse_wall_skim"
+    ventilation_stale_name = "stale_wall_skim"
+    ventilation_clamped_tunnel_name = "full_tunnel_clamped"
     summary = {
         "quality_residual_scenario_count": (
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_LEVELS),
@@ -840,6 +1063,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
             * len(PRESSURE_CENTER_AIRSPEEDS_MPS),
             "count",
         ),
+        "ventilation_scenario_count": (len(VENTILATION_SCENARIOS), "count"),
         "disk_sample_center_weight": (ROTOR_DISK_SURFACE_CENTER_WEIGHT, "weight"),
         "disk_sample_cardinal_weight": (ROTOR_DISK_SURFACE_CARDINAL_WEIGHT, "weight"),
         "disk_sample_diagonal_weight": (ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT, "weight"),
@@ -1005,6 +1229,78 @@ def add_summary(rows: list[dict[str, str]]) -> None:
             ),
             "m",
         ),
+        "wall_skim_rotor0_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_wall_skim_name,
+                "rotor0_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "wall_skim_pack_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_wall_skim_name,
+                "pack_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "half_quality_wall_skim_rotor0_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_half_quality_name,
+                "rotor0_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "half_quality_wall_skim_pack_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_half_quality_name,
+                "pack_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "coarse_wall_skim_rotor0_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_coarse_name,
+                "rotor0_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "stale_wall_skim_pack_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_stale_name,
+                "pack_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "clamped_tunnel_rotor0_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_clamped_tunnel_name,
+                "rotor0_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
+        "clamped_tunnel_pack_ventilation_efficiency": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_ventilation_matrix",
+                ventilation_clamped_tunnel_name,
+                "pack_ventilation_efficiency",
+            ),
+            "multiplier",
+        ),
     }
     for metric, (value, unit) in summary.items():
         add_metric(
@@ -1026,12 +1322,12 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         metric="scope_and_caveat",
         value=(
             "Synthetic packet mirrors current fabric-side A4MC local-voxel coupling formulas. "
-            "It is a bridge audit for pressure/shelter preprocessing, not independent CFD validation."
+            "It is a bridge and thermal-path audit for pressure/shelter preprocessing, not independent CFD validation."
         ),
         unit="text",
         source_file=repo_path(OUTPUT),
         evidence_role="method_caveat",
-        note="Use with a4mc_disk_gradient_response_packet.csv to separate bridge preprocessing from core rotor response.",
+        note="Use with a4mc_disk_gradient_response_packet.csv to separate bridge preprocessing, rotor response, and thermal ventilation coupling.",
     )
 
 
@@ -1040,6 +1336,7 @@ def build_rows() -> list[dict[str, str]]:
     add_source_inventory(rows)
     add_quality_residual_matrix(rows)
     add_precipitation_exposure_matrix(rows)
+    add_ventilation_matrix(rows)
     add_rotor_residual_fallback_matrix(rows)
     add_pressure_gradient_matrix(rows)
     add_pressure_contrast_matrix(rows)

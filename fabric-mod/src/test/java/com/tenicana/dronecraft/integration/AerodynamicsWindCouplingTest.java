@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -15,6 +17,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import com.tenicana.dronecraft.sim.DroneEnvironment;
+import com.tenicana.dronecraft.sim.DronePhysics;
 import com.tenicana.dronecraft.sim.Vec3;
 
 class AerodynamicsWindCouplingTest {
@@ -23,11 +26,11 @@ class AerodynamicsWindCouplingTest {
 	private static final double ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT = 0.05;
 
 	@Test
-	void generatedLocalVoxelCouplingPacketSummaryMatchesRuntimeFormulas() throws IOException {
+	void generatedLocalVoxelCouplingPacketSummaryMatchesRuntimeFormulas() throws Exception {
 		Map<String, Double> summary = localVoxelPacketSummary();
 		double wallSkimSourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
 
-		assertEquals(28, summary.size());
+		assertEquals(37, summary.size());
 		assertEquals(48.0, summaryMetric(summary, "quality_residual_scenario_count"), 1.0e-9);
 		assertEquals(48.0, summaryMetric(summary, "precipitation_exposure_scenario_count"), 1.0e-9);
 		assertEquals(6.0, summaryMetric(summary, "rotor_residual_fallback_scenario_count"), 1.0e-9);
@@ -35,6 +38,7 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(36.0, summaryMetric(summary, "pressure_contrast_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "shelter_gradient_scenario_count"), 1.0e-9);
 		assertEquals(54.0, summaryMetric(summary, "pressure_center_scenario_count"), 1.0e-9);
+		assertEquals(6.0, summaryMetric(summary, "ventilation_scenario_count"), 1.0e-9);
 		assertEquals(ROTOR_DISK_SURFACE_CENTER_WEIGHT, summaryMetric(summary, "disk_sample_center_weight"), 1.0e-12);
 		assertEquals(ROTOR_DISK_SURFACE_CARDINAL_WEIGHT, summaryMetric(summary, "disk_sample_cardinal_weight"), 1.0e-12);
 		assertEquals(ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT, summaryMetric(summary, "disk_sample_diagonal_weight"), 1.0e-12);
@@ -112,6 +116,87 @@ class AerodynamicsWindCouplingTest {
 		);
 		assertEquals(-0.024, summaryMetric(summary, "front_combined_pressure_center_offset_z_m"), 1.0e-15);
 		assertEquals(0.0, summaryMetric(summary, "quality_zero_pressure_center_offset_magnitude_m"), 1.0e-15);
+
+		DroneEnvironment wallSkimVentilation = a4mcVentilationEnvironment(
+				0.85,
+				true,
+				1.0,
+				0L,
+				new double[] {0.50, 0.50, 0.80, 0.80},
+				new double[] {0.16, 0.16, 0.08, 0.08}
+		);
+		DroneEnvironment halfQualityVentilation = a4mcVentilationEnvironment(
+				0.85,
+				true,
+				0.50,
+				0L,
+				new double[] {0.75, 0.75, 0.90, 0.90},
+				new double[] {0.08, 0.08, 0.04, 0.04}
+		);
+		DroneEnvironment coarseVentilation = a4mcVentilationEnvironment(
+				0.85,
+				false,
+				1.0,
+				0L,
+				new double[] {0.50, 0.50, 0.80, 0.80},
+				new double[] {0.16, 0.16, 0.08, 0.08}
+		);
+		DroneEnvironment staleVentilation = a4mcVentilationEnvironment(
+				0.85,
+				true,
+				0.86,
+				160L,
+				new double[] {0.50, 0.50, 0.80, 0.80},
+				new double[] {0.16, 0.16, 0.08, 0.08}
+		);
+		DroneEnvironment clampedTunnelVentilation = a4mcVentilationEnvironment(
+				1.0,
+				true,
+				1.0,
+				0L,
+				new double[] {0.0, 0.0, 0.0, 0.0},
+				new double[] {1.0, 1.0, 1.0, 1.0}
+		);
+		assertEquals(
+				invokeA4mcLocalVoxelVentilationEfficiency(wallSkimVentilation, 0),
+				summaryMetric(summary, "wall_skim_rotor0_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcPackVentilationEfficiency(wallSkimVentilation, 4),
+				summaryMetric(summary, "wall_skim_pack_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcLocalVoxelVentilationEfficiency(halfQualityVentilation, 0),
+				summaryMetric(summary, "half_quality_wall_skim_rotor0_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcPackVentilationEfficiency(halfQualityVentilation, 4),
+				summaryMetric(summary, "half_quality_wall_skim_pack_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcLocalVoxelVentilationEfficiency(coarseVentilation, 0),
+				summaryMetric(summary, "coarse_wall_skim_rotor0_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcPackVentilationEfficiency(staleVentilation, 4),
+				summaryMetric(summary, "stale_wall_skim_pack_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcLocalVoxelVentilationEfficiency(clampedTunnelVentilation, 0),
+				summaryMetric(summary, "clamped_tunnel_rotor0_ventilation_efficiency"),
+				1.0e-12
+		);
+		assertEquals(
+				invokeA4mcPackVentilationEfficiency(clampedTunnelVentilation, 4),
+				summaryMetric(summary, "clamped_tunnel_pack_ventilation_efficiency"),
+				1.0e-12
+		);
 	}
 
 	@Test
@@ -999,6 +1084,94 @@ class AerodynamicsWindCouplingTest {
 
 	private static Map<String, Double> sourceQualityPacketSummary() throws IOException {
 		return packetSummary("docs/data/a4mc_source_quality_response_packet.csv", "a4mc_source_quality_packet_summary");
+	}
+
+	private static DroneEnvironment a4mcVentilationEnvironment(
+			double shelterFactor,
+			boolean localVoxelFlow,
+			double confidence,
+			long freshnessAgeTicks,
+			double[] rotorLocalVoxelObstacleResiduals,
+			double[] rotorA4mcShelterObstructions
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				rotorA4mcShelterObstructions,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				confidence,
+				0.0,
+				0.0,
+				0.0,
+				shelterFactor,
+				0.0,
+				localVoxelFlow,
+				"l2",
+				"server_authoritative",
+				freshnessAgeTicks,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				null,
+				null,
+				null,
+				null,
+				rotorLocalVoxelObstacleResiduals,
+				null
+		);
+	}
+
+	private static double invokeA4mcLocalVoxelVentilationEfficiency(DroneEnvironment environment, int rotorIndex)
+			throws ReflectiveOperationException {
+		Method method = DronePhysics.class.getDeclaredMethod(
+				"a4mcLocalVoxelVentilationEfficiency",
+				DroneEnvironment.class,
+				int.class
+		);
+		method.setAccessible(true);
+		try {
+			return (double) method.invoke(null, environment, rotorIndex);
+		} catch (InvocationTargetException exception) {
+			throw new AssertionError(exception.getCause());
+		}
+	}
+
+	private static double invokeA4mcPackVentilationEfficiency(DroneEnvironment environment, int rotorCount)
+			throws ReflectiveOperationException {
+		Method method = DronePhysics.class.getDeclaredMethod(
+				"a4mcPackVentilationEfficiency",
+				DroneEnvironment.class,
+				int.class
+		);
+		method.setAccessible(true);
+		try {
+			return (double) method.invoke(null, environment, rotorCount);
+		} catch (InvocationTargetException exception) {
+			throw new AssertionError(exception.getCause());
+		}
 	}
 
 	private static Map<String, Double> packetSummary(String packetPath, String summaryRowType) throws IOException {
