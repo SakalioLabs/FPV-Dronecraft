@@ -545,6 +545,7 @@ public final class DroneBlackboxSample {
 			"wind_gust_speed_mps",
 			"wind_dryden_speed_mps",
 			"wind_burble_speed_mps",
+			"wind_a4mc_terrain_shear_speed_mps",
 			"wind_shear_accel_mps2",
 			"wind_source",
 			"wind_source_trusted",
@@ -1947,6 +1948,7 @@ public final class DroneBlackboxSample {
 		row.add(state.windGustSpeedMetersPerSecond(), "%.5f");
 		row.add(state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windBurbleSpeedMetersPerSecond(), "%.5f");
+		row.add(state.a4mcTerrainShearSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windShearAccelerationMetersPerSecondSquared(), "%.5f");
 		row.add(environment.windSourceId());
 		row.add(environment.windSourceTrustedForGameplay());
