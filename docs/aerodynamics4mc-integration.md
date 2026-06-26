@@ -19,6 +19,7 @@ The first integration keeps that boundary explicit:
 - effective wind becomes the base wind vector,
 - API turbulence becomes the natural turbulence floor,
 - shear and shelter add bounded dirty-air turbulence,
+- gust speed adds a bounded unresolved turbulence boost so effective-wind steps also excite Dryden-scale rotor response,
 - API temperature can replace the biome-derived ambient temperature, and API humidity contributes to moist-air density relief,
 - pressure anomaly adjusts air-density ratio and barometer pressure while staying bounded for L2 proxy values,
 - source level, authority, and freshness age are preserved for L0/L1/L2 regression analysis,

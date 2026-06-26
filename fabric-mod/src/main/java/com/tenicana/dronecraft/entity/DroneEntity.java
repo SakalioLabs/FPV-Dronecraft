@@ -1340,14 +1340,8 @@ public class DroneEntity extends Entity {
 			double groundClearanceMeters,
 			Aerodynamics4McWindBridge.WindSample externalWind
 	) {
-		double turbulence = weatherTurbulenceIntensity(windSpeedMetersPerSecond, groundClearanceMeters);
-		if (externalWind != null && externalWind.hasFlow()) {
-			turbulence = Math.max(turbulence, externalWind.turbulenceIntensity());
-			turbulence += MathUtil.clamp(externalWind.windShearMagnitudePerBlock() * 0.45, 0.0, 0.35);
-			turbulence += MathUtil.clamp(externalWind.shelterFactor() * 0.20, 0.0, 0.20);
-			turbulence += MathUtil.clamp(Math.abs(externalWind.updraftMetersPerSecond()) * 0.025, 0.0, 0.18);
-		}
-		return MathUtil.clamp(turbulence, 0.0, 1.5);
+		double weatherTurbulence = weatherTurbulenceIntensity(windSpeedMetersPerSecond, groundClearanceMeters);
+		return AerodynamicsWindCoupling.naturalTurbulenceIntensity(weatherTurbulence, externalWind);
 	}
 
 	private DroneEnvironment samplePlayableStageOneEnvironment() {
