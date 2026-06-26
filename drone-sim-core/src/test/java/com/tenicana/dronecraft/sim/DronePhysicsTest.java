@@ -4202,6 +4202,45 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblMixingShapesSurfaceBoundaryLayerProfile() throws ReflectiveOperationException {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		Method boundaryLayerMeanWind = DronePhysics.class.getDeclaredMethod(
+				"boundaryLayerMeanWind",
+				DroneEnvironment.class
+		);
+		Method dirtyAirIntensity = DronePhysics.class.getDeclaredMethod(
+				"dirtyAirIntensity",
+				DroneEnvironment.class
+		);
+		boundaryLayerMeanWind.setAccessible(true);
+		dirtyAirIntensity.setAccessible(true);
+		DroneEnvironment neutral = a4mcBoundaryLayerWind(0.08, Double.POSITIVE_INFINITY, 0.0, 0.0, true, 1.0, -1L);
+		DroneEnvironment unstableMixed = a4mcBoundaryLayerWind(0.08, Double.POSITIVE_INFINITY, 0.90, 0.90, true, 1.0, 0L);
+		DroneEnvironment stableLowMixing = a4mcBoundaryLayerWind(0.08, Double.POSITIVE_INFINITY, -0.90, 0.10, true, 1.0, 0L);
+		DroneEnvironment staleUnstable = a4mcBoundaryLayerWind(0.08, Double.POSITIVE_INFINITY, 0.90, 0.90, true, 1.0, 160L);
+
+		double neutralWind = ((Vec3) boundaryLayerMeanWind.invoke(physics, neutral)).x();
+		double unstableWind = ((Vec3) boundaryLayerMeanWind.invoke(physics, unstableMixed)).x();
+		double stableWind = ((Vec3) boundaryLayerMeanWind.invoke(physics, stableLowMixing)).x();
+		double staleWind = ((Vec3) boundaryLayerMeanWind.invoke(physics, staleUnstable)).x();
+		double neutralDirtyAir = (double) dirtyAirIntensity.invoke(physics, neutral);
+		double unstableDirtyAir = (double) dirtyAirIntensity.invoke(physics, unstableMixed);
+		double stableDirtyAir = (double) dirtyAirIntensity.invoke(physics, stableLowMixing);
+		double staleDirtyAir = (double) dirtyAirIntensity.invoke(physics, staleUnstable);
+
+		assertTrue(unstableWind > neutralWind * 1.60,
+				() -> "unstableWind=" + unstableWind + " neutralWind=" + neutralWind);
+		assertTrue(stableWind < neutralWind * 0.60,
+				() -> "stableWind=" + stableWind + " neutralWind=" + neutralWind);
+		assertEquals(neutralWind, staleWind, 1.0e-12);
+		assertTrue(unstableDirtyAir < neutralDirtyAir * 0.55,
+				() -> "unstableDirtyAir=" + unstableDirtyAir + " neutralDirtyAir=" + neutralDirtyAir);
+		assertTrue(stableDirtyAir > neutralDirtyAir * 1.20,
+				() -> "stableDirtyAir=" + stableDirtyAir + " neutralDirtyAir=" + neutralDirtyAir);
+		assertEquals(neutralDirtyAir, staleDirtyAir, 1.0e-12);
+	}
+
+	@Test
 	void airframeLiftAddsBodyForceFromAngleOfAttackAndSideslip() {
 		DroneConfig cleanConfig = directControl(DroneConfig.racingQuad()).withBodyDragCoefficients(Vec3.ZERO);
 		DroneConfig liftingConfig = cleanConfig.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32));
@@ -13309,6 +13348,57 @@ class DronePhysicsTest {
 
 	private static DroneEnvironment a4mcAblWind(double turbulenceIntensity, double ablStability, double ablMixingStrength) {
 		return a4mcAblWind(turbulenceIntensity, ablStability, ablMixingStrength, true, 1.0, -1L);
+	}
+
+	private static DroneEnvironment a4mcBoundaryLayerWind(
+			double groundClearanceMeters,
+			double ceilingClearanceMeters,
+			double ablStability,
+			double ablMixingStrength,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		return new DroneEnvironment(
+				new Vec3(10.0, 0.0, 0.0),
+				1.0,
+				groundClearanceMeters,
+				0.0,
+				0.0,
+				0.0,
+				ceilingClearanceMeters,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				trustedForGameplay,
+				confidence,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				"l1",
+				"server_authoritative",
+				freshnessAgeTicks,
+				10.0,
+				10.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				ablStability,
+				ablMixingStrength
+		);
 	}
 
 	private static DroneEnvironment a4mcAblWind(
