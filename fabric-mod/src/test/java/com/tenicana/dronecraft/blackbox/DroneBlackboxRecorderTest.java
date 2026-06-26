@@ -829,6 +829,7 @@ class DroneBlackboxRecorderTest {
 		DroneBlackboxSummary.WindSourceStats windSourceStats = summary.windSourceStats();
 		assertEquals(4, windSourceStats.aerodynamics4McSamples());
 		assertEquals(4, windSourceStats.trustedSourceSamples());
+		assertEquals(0, windSourceStats.untrustedAerodynamics4McSamples());
 		assertEquals(4, windSourceStats.localVoxelFlowSamples());
 		assertEquals(0, windSourceStats.l0SourceSamples());
 		assertEquals(0, windSourceStats.l1SourceSamples());
@@ -1089,6 +1090,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("a4mcsrc"));
 		assertTrue(summary.formatForChat().contains("a4mc 4/4"));
 		assertTrue(summary.formatForChat().contains("trusted 4"));
+		assertTrue(summary.formatForChat().contains("untrusted 0"));
 		assertTrue(summary.formatForChat().contains("l2 4"));
 		assertTrue(summary.formatForChat().contains("src 0/0/4"));
 		assertTrue(summary.formatForChat().contains("age 7t"));
@@ -1162,6 +1164,93 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("rotor min"));
 		assertTrue(summary.formatForChat().contains("prop-strike"));
 		assertTrue(summary.formatForChat().contains("rc-frame"));
+	}
+
+	@Test
+	void blackboxSummarySeparatesUntrustedAerodynamics4McSamples() {
+		DroneConfig config = DroneConfig.racingQuad();
+		DronePhysics physics = new DronePhysics(config);
+		DroneBlackboxRecorder recorder = new DroneBlackboxRecorder(4);
+		DroneInput input = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true, true, FlightMode.ACRO);
+		DroneEnvironment environment = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				false,
+				0.71,
+				920.0,
+				0.22,
+				0.31,
+				-0.40,
+				true,
+				"l1",
+				"client_local",
+				12L,
+				1.20,
+				1.40,
+				0.60,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				new Vec3(0.45, 0.0, 0.20)
+		);
+
+		physics.step(input, 0.005, environment);
+		recorder.record(DroneBlackboxSample.from(
+				42,
+				42,
+				1,
+				0.005,
+				physics.state(),
+				input,
+				physics.state().averageMotorPower(config),
+				1.0,
+				physics.state().averageRotorHealth(),
+				0.0,
+				-1,
+				0.0,
+				0,
+				new double[4],
+				environment,
+				config
+		));
+
+		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
+		DroneBlackboxSummary.WindSourceStats windSourceStats = summary.windSourceStats();
+		assertEquals(1, windSourceStats.aerodynamics4McSamples());
+		assertEquals(0, windSourceStats.trustedSourceSamples());
+		assertEquals(1, windSourceStats.untrustedAerodynamics4McSamples());
+		assertEquals(1, windSourceStats.localVoxelFlowSamples());
+		assertEquals(0, windSourceStats.l0SourceSamples());
+		assertEquals(1, windSourceStats.l1SourceSamples());
+		assertEquals(0, windSourceStats.l2SourceSamples());
+		assertEquals(12.0, windSourceStats.maxFreshnessAgeTicks(), 1.0e-5);
+		assertEquals(0.71, windSourceStats.maxConfidence(), 1.0e-5);
+		assertEquals(0.0, windSourceStats.maxQualityFactor(), 1.0e-5);
+		assertEquals(920.0, windSourceStats.maxAbsPressureAnomalyPascals(), 1.0e-5);
+		assertTrue(summary.formatForChat().contains("a4mc 1/1"));
+		assertTrue(summary.formatForChat().contains("trusted 0 untrusted 1"));
+		assertTrue(summary.formatForChat().contains("src 0/1/0"));
+		assertTrue(summary.formatForChat().contains("conf 0.71"));
+		assertTrue(summary.formatForChat().contains("q 0.00"));
 	}
 
 	@Test
