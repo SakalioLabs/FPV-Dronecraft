@@ -18,7 +18,7 @@ public final class SurfaceNearfieldCalibration {
 
 	public static final String SOURCE_ID = "Surface-Nearfield-Calibration-Packet";
 	public static final String CAVEAT = "Ground cushion, ceiling cushion, wall obstruction, and wall side-force are separate near-field paths.";
-	public static final int PACKET_METRIC_ROW_COUNT = 708;
+	public static final int PACKET_METRIC_ROW_COUNT = 739;
 	public static final int SOURCE_REFERENCE_COUNT = 4;
 	public static final int GROUND_CEILING_SCAN_ROW_COUNT = 120;
 	public static final int WALL_RUNTIME_MAPPING_ROW_COUNT = 160;

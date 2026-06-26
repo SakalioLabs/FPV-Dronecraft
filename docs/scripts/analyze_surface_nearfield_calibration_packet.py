@@ -20,6 +20,7 @@ from typing import Iterable
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
 OUTPUT = DATA / "surface_nearfield_calibration_packet.csv"
+SUMMARY = DATA / "fpv_model_validation_summary.csv"
 
 ZJU = DATA / "zju_ground_effect_model_reference.csv"
 OBSTRUCTION = DATA / "surface_obstruction_geometry_reference.csv"
@@ -229,6 +230,7 @@ def add_wall_mapping(rows: list[dict[str, str]], obstruction_rows: list[dict[str
             ("current_offline_wall_skim_local_obstacle_residual", "multiplier"),
             ("current_offline_wall_skim_residual_obstruction", "fraction"),
             ("current_offline_wall_skim_a4mc_shelter_obstruction", "fraction"),
+            ("current_offline_wall_skim_a4mc_pressure_disk_gradient_mps", "m/s"),
             ("current_offline_wall_skim_obstruction", "fraction"),
             ("current_offline_wall_skim_thrust_multiplier_per_affected_rotor", "multiplier"),
         ]:
@@ -241,7 +243,7 @@ def add_wall_mapping(rows: list[dict[str, str]], obstruction_rows: list[dict[str
                 unit=unit,
                 source_file=OBSTRUCTION,
                 source_url=row.get("source_url", ""),
-                note="Offline wall_skim synthetic A4MC L2 profile decomposes duplicated geometry residual and shelter-gradient obstruction.",
+                note="Offline wall_skim synthetic A4MC L2 profile decomposes duplicated geometry residual, shelter-gradient obstruction, and pressure-gradient disk wind.",
             )
 
     for row in obstruction_rows:
@@ -307,6 +309,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     rq_full_obstruction_force = find_metric(rows, "surface_nearfield_current_wall_force", "racingQuad_obstruction_1.0_speed_0.0", "two_rotor_wall_force_over_weight")
     rq_offline_wall_skim_geometry = find_metric(rows, "surface_nearfield_offline_a4mc_wall_skim", "racingQuad_offline_wall_skim_closest_rotor", "current_offline_wall_skim_geometric_obstruction")
     rq_offline_wall_skim_combined = find_metric(rows, "surface_nearfield_offline_a4mc_wall_skim", "racingQuad_offline_wall_skim_closest_rotor", "current_offline_wall_skim_obstruction")
+    rq_offline_wall_skim_pressure_disk_gradient = find_metric(rows, "surface_nearfield_offline_a4mc_wall_skim", "racingQuad_offline_wall_skim_closest_rotor", "current_offline_wall_skim_a4mc_pressure_disk_gradient_mps")
     rq_offline_wall_skim_ratio = rq_offline_wall_skim_combined / rq_offline_wall_skim_geometry if rq_offline_wall_skim_geometry > 1.0e-9 else math.nan
 
     summary = {
@@ -320,6 +323,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "racingQuad_full_obstruction_two_rotor_wall_force_over_weight": (rq_full_obstruction_force, "weight fraction"),
         "racingQuad_offline_a4mc_wall_skim_combined_obstruction": (rq_offline_wall_skim_combined, "fraction"),
         "racingQuad_offline_a4mc_wall_skim_combined_over_geometry": (rq_offline_wall_skim_ratio, "ratio"),
+        "racingQuad_offline_a4mc_wall_skim_pressure_disk_gradient": (rq_offline_wall_skim_pressure_disk_gradient, "m/s"),
     }
     for metric, (value, unit) in summary.items():
         add_metric(
@@ -373,10 +377,45 @@ def write_csv(path: Path, rows: Iterable[dict[str, str]]) -> None:
         writer.writerows(row_list)
 
 
+def sync_summary(packet_rows: Iterable[dict[str, str]]) -> int:
+    summary_rows = read_rows(SUMMARY) if SUMMARY.exists() else []
+    synced_rows = [
+        {
+            "category": row["row_type"],
+            "name": row["name"],
+            "metric": row["metric"],
+            "value": row["value"],
+            "unit": row["unit"],
+            "source": row.get("source_url") or row.get("source_file", ""),
+            "source_file": row.get("source_file", ""),
+            "source_url": row.get("source_url", ""),
+            "evidence_role": "",
+            "note": row.get("note", ""),
+        }
+        for row in packet_rows
+    ]
+    first_nearfield = next(
+        (index for index, row in enumerate(summary_rows) if row.get("category", "").startswith("surface_nearfield_")),
+        len(summary_rows),
+    )
+    before = [
+        row for row in summary_rows[:first_nearfield]
+        if not row.get("category", "").startswith("surface_nearfield_")
+    ]
+    after = [
+        row for row in summary_rows[first_nearfield:]
+        if not row.get("category", "").startswith("surface_nearfield_")
+    ]
+    write_csv(SUMMARY, before + synced_rows + after)
+    return len(synced_rows)
+
+
 def main() -> None:
     rows = build_rows()
     write_csv(OUTPUT, rows)
+    synced = sync_summary(rows)
     print(f"Wrote {repo_path(OUTPUT)} with {len(rows)} rows")
+    print(f"Synced {synced} rows into {repo_path(SUMMARY)}")
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ class SurfaceNearfieldCalibrationTest {
 
 		assertEquals("Surface-Nearfield-Calibration-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("separate near-field paths"));
-		assertEquals(708, audit.packetMetricRowCount());
+		assertEquals(739, audit.packetMetricRowCount());
 		assertEquals(4, audit.sourceReferenceCount());
 		assertEquals(120, audit.groundCeilingScanRowCount());
 		assertEquals(160, audit.wallRuntimeMappingRowCount());

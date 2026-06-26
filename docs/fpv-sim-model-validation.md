@@ -865,7 +865,7 @@ Sources: [AAU quadcopter ground/ceiling/wall thesis](https://projekter.aau.dk/pr
 
 The ground/ceiling table scans current Java formulas at `clearance = h/R * rotor_radius`. The Cheeseman-Bennett and AAU/Kan columns are not direct fit targets; they are reference curves for the expected order of magnitude and effect range. The wall table scans the current steady lateral wall-force proxy at hover thrust.
 
-Generated near-surface calibration packet CSV: `docs/data/surface_nearfield_calibration_packet.csv`. It condenses selected ZJU ground-effect checks, Cheeseman/AAU ground curves, current ground/ceiling rows, wall clearance mappings, wall-force scans, and published sidewall anchors into `708` narrow metrics. These rows are mirrored into `docs/data/fpv_model_validation_summary.csv` as `surface_nearfield_*` categories.
+Generated near-surface calibration packet CSV: `docs/data/surface_nearfield_calibration_packet.csv`. It condenses selected ZJU ground-effect checks, Cheeseman/AAU ground curves, current ground/ceiling rows, wall clearance mappings, wall-force scans, offline A4MC wall-skim shelter/pressure disk-gradient metrics, and published sidewall anchors into `739` narrow metrics. These rows are mirrored into `docs/data/fpv_model_validation_summary.csv` as `surface_nearfield_*` categories.
 
 Generated partial-surface lead packet CSV: `docs/data/partial_surface_effect_lead_packet.csv`. It adds `74` `partial_surface_effect_lead_packet_*` rows from Wichita SOAR metadata for Cai/Gunasekaran/Ol's partial ground/ceiling paper. The repository item exposes the DOI and abstract but no public full-text bundle, so the packet is an area-gating/digitization lead rather than raw curve data.
 
