@@ -2114,7 +2114,7 @@ public final class DroneBlackboxSample {
 		row.add(environment.windSourceAblMixingStrength(), "%.5f");
 		row.add(environment.airDensityRatio(), "%.5f");
 		row.add(environment.effectiveAirDensityRatio(), "%.5f");
-		row.add(environment.ambientTemperatureCelsius(), "%.3f");
+		row.add(environment.effectiveAmbientTemperatureCelsius(), "%.3f");
 		row.add(groundClearance, "%.5f");
 		row.add(environment.groundEffectThrustMultiplier(config), "%.5f");
 		row.add(ceilingClearance, "%.5f");

@@ -436,7 +436,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
             "DroneEntity_a4mc_boundary",
             DRONE_ENTITY_SOURCE,
             "current_fabric_boundary",
-            "Passes raw A4MC transient diagnostics while keeping pressure, temperature, and humidity preweighted as environment scalars.",
+            "Passes raw A4MC transient and atmospheric diagnostics while the core owns quality-gated pressure, temperature, and humidity adoption.",
         ),
         (
             "A4MC_GameplayWindSample_API",

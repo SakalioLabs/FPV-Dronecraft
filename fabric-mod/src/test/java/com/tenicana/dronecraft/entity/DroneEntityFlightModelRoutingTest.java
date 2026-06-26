@@ -199,6 +199,14 @@ class DroneEntityFlightModelRoutingTest {
 				"A4MC pressure anomaly must be applied once in DroneEnvironment.effectiveAirDensityRatio()");
 		assertFalse(source.contains("private double airDensityRatio(double ambientTemperatureCelsius, double pressureAnomalyPascals)"),
 				"DroneEntity should not keep a pressure-aware base density helper");
+		String baseTemperatureAssignment = "double ambientTemperature = fallbackAmbientTemperature;";
+		assertTrue(source.contains(baseTemperatureAssignment), "environment base temperature should remain the Minecraft fallback");
+		assertTrue(source.indexOf(baseTemperatureAssignment) != source.lastIndexOf(baseTemperatureAssignment),
+				"both simulation and stage-one environments should pass fallback temperature into DroneEnvironment");
+		assertFalse(source.contains("adoptedTemperatureCelsius"),
+				"A4MC temperature must be applied once in DroneEnvironment.effectiveAmbientTemperatureCelsius()");
+		assertFalse(source.contains("sourceWeightedTemperatureCelsius("),
+				"DroneEntity should pass raw A4MC source temperature instead of pre-weighting it");
 	}
 
 	private static Path droneEntitySource() {

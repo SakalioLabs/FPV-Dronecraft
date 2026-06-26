@@ -1298,7 +1298,12 @@ public final class DronePhysics {
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega
 			));
-			double rotorTipMach = rotorTipMach(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, environment.ambientTemperatureCelsius());
+			double rotorTipMach = rotorTipMach(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					aerodynamicOmega,
+					environment.effectiveAmbientTemperatureCelsius()
+			);
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
 			state.setRotorCompressibilityThrustScale(i, compressibilityThrustScale);
@@ -1308,21 +1313,21 @@ public final class DronePhysics {
 					aerodynamicRotor,
 					aerodynamicOmega,
 					airDensity,
-					environment.ambientTemperatureCelsius(),
+					environment.effectiveAmbientTemperatureCelsius(),
 					ambientHumidity
 			));
 			state.setRotorReynoldsIndex(i, rotorLowReynoldsIndex(
 					aerodynamicRotor,
 					aerodynamicOmega,
 					airDensity,
-					environment.ambientTemperatureCelsius(),
+					environment.effectiveAmbientTemperatureCelsius(),
 					ambientHumidity
 			));
 			double lowReynoldsLoss = rotorLowReynoldsLoss(
 					aerodynamicRotor,
 					aerodynamicOmega,
 					airDensity,
-					environment.ambientTemperatureCelsius(),
+					environment.effectiveAmbientTemperatureCelsius(),
 					ambientHumidity
 			);
 			state.setRotorLowReynoldsLoss(i, lowReynoldsLoss);
@@ -1355,7 +1360,7 @@ public final class DronePhysics {
 							Math.max(rotorPrecipitationWetness, rotorFilmWetness),
 							frozenHumidityIcingWetness(environment)
 					),
-					environment.ambientTemperatureCelsius(),
+					environment.effectiveAmbientTemperatureCelsius(),
 					dtSeconds
 			);
 			double icingThrustScale = IcingRotorCalibration.icingThrustScale(icingSeverity);
@@ -4636,7 +4641,7 @@ public final class DronePhysics {
 			return 0.0;
 		}
 		return IcingRotorCalibration.freezingHumidityEquivalentWetness(
-				environment.ambientTemperatureCelsius(),
+				environment.effectiveAmbientTemperatureCelsius(),
 				adoptedHumidity
 		);
 	}
@@ -9334,7 +9339,7 @@ public final class DronePhysics {
 		state.setBarometerPressureHectopascals(DroneEnvironment.barometricPressureHectopascals(
 				barometerFilteredAltitudeMeters,
 				environment.airDensityRatio(),
-				environment.ambientTemperatureCelsius(),
+				environment.effectiveAmbientTemperatureCelsius(),
 				environment.adoptedWindSourcePressureAnomalyPascals()
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
@@ -9812,7 +9817,7 @@ public final class DronePhysics {
 			state.setMotorCoolingFactor(i, coolingFactor);
 			double coolingRate = config.motorCoolingRatePerSecond()
 					* coolingFactor
-					* (temperature - environment.ambientTemperatureCelsius());
+					* (temperature - environment.effectiveAmbientTemperatureCelsius());
 			state.setMotorTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
 			updateMotorWindingResistanceScale(i);
 		}
@@ -9853,7 +9858,7 @@ public final class DronePhysics {
 			double coolingRate = config.motorCoolingRatePerSecond()
 					* 0.90
 					* coolingFactor
-					* (temperature - environment.ambientTemperatureCelsius());
+					* (temperature - environment.effectiveAmbientTemperatureCelsius());
 			state.setEscTemperatureCelsius(i, temperature + (heatRate - coolingRate) * dtSeconds);
 			state.setEscThermalLimit(i, escThermalLimit(state.escTemperatureCelsius(i)));
 		}
@@ -10013,9 +10018,9 @@ public final class DronePhysics {
 			double dtSeconds
 	) {
 		if (!batteryThermalInitialized) {
-			state.setBatteryTemperatureCelsius(environment.ambientTemperatureCelsius());
+			state.setBatteryTemperatureCelsius(environment.effectiveAmbientTemperatureCelsius());
 			state.setBatteryCoolingFactor(1.0);
-			state.setBatteryThermalLimit(batteryThermalLimit(environment.ambientTemperatureCelsius()));
+			state.setBatteryThermalLimit(batteryThermalLimit(environment.effectiveAmbientTemperatureCelsius()));
 			batteryThermalInitialized = true;
 		}
 
@@ -10025,7 +10030,7 @@ public final class DronePhysics {
 		double currentLoad = MathUtil.clamp(dischargeCurrentAmps / maxCurrent, 0.0, 2.0);
 		double regenLoad = MathUtil.clamp(regenerativeCurrentAmps / maxCurrent, 0.0, 1.5);
 		double rippleLoad = MathUtil.clamp(state.averageMotorCurrentRippleAmps() / Math.max(1.0, maxCurrent / Math.max(1, state.motorCount())), 0.0, 1.8);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.ambientTemperatureCelsius(), currentBatteryStateOfCharge())
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(packTemperature, environment.effectiveAmbientTemperatureCelsius(), currentBatteryStateOfCharge())
 				* state.batteryPolarizationResistanceScale();
 		double resistanceScale = config.batteryInternalResistanceOhms() <= 1.0e-9
 				? 0.0
@@ -10040,7 +10045,7 @@ public final class DronePhysics {
 		double coolingRate = config.motorCoolingRatePerSecond()
 				* 0.28
 				* coolingFactor
-				* (packTemperature - environment.ambientTemperatureCelsius());
+				* (packTemperature - environment.effectiveAmbientTemperatureCelsius());
 		state.setBatteryTemperatureCelsius(packTemperature + (heatRate - coolingRate) * dtSeconds);
 		state.setBatteryThermalLimit(batteryThermalLimit(state.batteryTemperatureCelsius()));
 	}
@@ -10083,7 +10088,7 @@ public final class DronePhysics {
 		double dischargeCurrentAmps = Math.max(0.0, netCurrentAmps);
 		state.setBatteryResistanceAgingScale(batteryAgingResistanceScale(state.batteryEquivalentCycles()));
 		double polarizationScale = updateBatteryPolarizationResistanceScale(dischargeCurrentAmps, stateOfCharge, dtSeconds);
-		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.ambientTemperatureCelsius(), stateOfCharge)
+		double batteryResistanceOhms = batteryElectricalResistanceOhms(state.batteryTemperatureCelsius(), environment.effectiveAmbientTemperatureCelsius(), stateOfCharge)
 				* polarizationScale;
 		state.setBatteryEffectiveResistanceOhms(batteryResistanceOhms);
 		updateBatterySagCurrentTelemetry(batteryResistanceOhms);

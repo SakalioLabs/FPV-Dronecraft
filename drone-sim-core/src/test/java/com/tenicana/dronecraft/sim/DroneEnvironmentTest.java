@@ -202,6 +202,19 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void effectiveAirDensityAdoptsWindSourceTemperatureOnce() {
+		DroneEnvironment halfStale = environmentWithWindSourceTemperature(true, 1.0, 100L, 40.0);
+
+		assertEquals(-8.0, halfStale.ambientTemperatureCelsius(), 1.0e-12);
+		assertEquals(16.0, halfStale.effectiveAmbientTemperatureCelsius(), 1.0e-12);
+		double singleAdoptionDensity = (273.15 - 8.0) / (273.15 + 16.0);
+		double doubleAdoptionDensity = (273.15 - 8.0) / (273.15 + 28.0);
+
+		assertEquals(singleAdoptionDensity, halfStale.effectiveAirDensityRatio(), 1.0e-12);
+		assertTrue(halfStale.effectiveAirDensityRatio() > doubleAdoptionDensity + 0.02);
+	}
+
+	@Test
 	void adoptedWindSourcePressureUsesSourceQuality() {
 		DroneEnvironment fresh = environmentWithWindSourcePressure(true, 1.0, 0L, -1200.0);
 		DroneEnvironment halfStale = environmentWithWindSourcePressure(true, 1.0, 100L, -1200.0);

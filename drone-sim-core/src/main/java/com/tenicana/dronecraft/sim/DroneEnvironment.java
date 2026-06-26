@@ -705,7 +705,7 @@ public record DroneEnvironment(
 	}
 
 	public double effectiveAirDensityRatio() {
-		double adoptedTemperatureCelsius = adoptedWindSourceTemperatureCelsius(ambientTemperatureCelsius);
+		double adoptedTemperatureCelsius = effectiveAmbientTemperatureCelsius();
 		return MathUtil.clamp(
 				airDensityRatio
 						* pressureAnomalyAirDensityMultiplier(adoptedWindSourcePressureAnomalyPascals())
@@ -714,6 +714,10 @@ public record DroneEnvironment(
 				0.35,
 				1.35
 		);
+	}
+
+	public double effectiveAmbientTemperatureCelsius() {
+		return adoptedWindSourceTemperatureCelsius(ambientTemperatureCelsius);
 	}
 
 	private static double temperatureAirDensityMultiplier(double referenceTemperatureCelsius, double airTemperatureCelsius) {
@@ -787,7 +791,7 @@ public record DroneEnvironment(
 	}
 
 	public double moistAirDynamicViscosityMultiplier() {
-		return moistAirDynamicViscosityMultiplier(ambientTemperatureCelsius, ambientHumidity());
+		return moistAirDynamicViscosityMultiplier(effectiveAmbientTemperatureCelsius(), ambientHumidity());
 	}
 
 	public static double moistAirDynamicViscosityMultiplier(double ambientTemperatureCelsius, double humidity) {
@@ -807,7 +811,7 @@ public record DroneEnvironment(
 	}
 
 	public double moistAirCoolingMultiplier() {
-		return moistAirCoolingMultiplier(ambientTemperatureCelsius, ambientHumidity());
+		return moistAirCoolingMultiplier(effectiveAmbientTemperatureCelsius(), ambientHumidity());
 	}
 
 	public static double moistAirCoolingMultiplier(double ambientTemperatureCelsius, double humidity) {

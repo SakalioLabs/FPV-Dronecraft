@@ -717,7 +717,7 @@ final class SimulationFlightRuntime {
 						(float) environment.maxRotorFlowObstruction(),
 						(float) environment.maxRotorWaterImmersion(),
 						(float) environment.precipitationWetnessIntensity(),
-						(float) environment.ambientTemperatureCelsius(),
+						(float) environment.effectiveAmbientTemperatureCelsius(),
 						(float) environment.windVelocityWorldMetersPerSecond().length(),
 						(float) effectiveWind.length(),
 						(float) state.windGustSpeedMetersPerSecond(),
