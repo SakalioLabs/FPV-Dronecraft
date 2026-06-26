@@ -197,6 +197,10 @@ class DroneEntityFlightModelRoutingTest {
 				"both simulation and stage-one environments should use the base density call");
 		assertFalse(source.contains("airDensityRatio(ambientTemperature, windSource.adoptedPressureAnomalyPascals())"),
 				"A4MC pressure anomaly must be applied once in DroneEnvironment.effectiveAirDensityRatio()");
+		assertFalse(source.contains("adoptedPressureAnomalyPascals"),
+				"DroneEntity should pass raw A4MC pressure anomaly into DroneEnvironment");
+		assertFalse(source.contains("sourceWeightedPressureAnomalyPascals("),
+				"DroneEntity should not pre-weight A4MC pressure anomaly before the core quality gate");
 		assertFalse(source.contains("private double airDensityRatio(double ambientTemperatureCelsius, double pressureAnomalyPascals)"),
 				"DroneEntity should not keep a pressure-aware base density helper");
 		String baseTemperatureAssignment = "double ambientTemperature = fallbackAmbientTemperature;";
