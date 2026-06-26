@@ -6140,9 +6140,11 @@ public final class DronePhysics {
 				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
 		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dtSeconds);
+		Vec3 a4mcSourceGust = a4mcSourceGustWind(environment, targetMeanWind, dirtyAir);
 		Vec3 a4mcTerrainShear = updateA4mcTerrainShearWind(environment, targetMeanWind, dirtyAir, dtSeconds);
 		windGustVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond
 				.add(drydenTurbulence)
+				.add(a4mcSourceGust)
 				.add(a4mcTerrainShear);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
@@ -6248,6 +6250,31 @@ public final class DronePhysics {
 				.multiply(gustScale)
 				.add(upstreamBurble)
 				.multiply(burbleScale);
+	}
+
+	private Vec3 a4mcSourceGustWind(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
+		if (!DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC.equals(environment.windSourceId())) {
+			return Vec3.ZERO;
+		}
+		double sourceGustSpeed = MathUtil.clamp(environment.windSourceGustSpeedMetersPerSecond(), 0.0, 12.0);
+		if (sourceGustSpeed <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double windGate = smoothStep(0.3, 5.0, Math.max(horizontalWindSpeed, sourceGustSpeed));
+		double gustSignal = MathUtil.clamp(sourceGustSpeed * windGate, 0.0, 8.0);
+		double dirtyGain = MathUtil.clamp(0.72 + 0.10 * dirtyAir, 0.72, 0.94);
+		Vec3 windAxis = horizontalWindAxis(targetMeanWind);
+		Vec3 crossAxis = new Vec3(-windAxis.z(), 0.0, windAxis.x());
+		double along = Math.sin(windGustPhaseA * 1.11 + 0.35) * gustSignal * 0.18;
+		double cross = Math.sin(windGustPhaseB * 0.97 + 1.85) * gustSignal * 0.28;
+		double vertical = Math.sin(windGustPhaseC * 1.29 + 2.40) * gustSignal * 0.10;
+		return windAxis.multiply(along)
+				.add(crossAxis.multiply(cross))
+				.add(WORLD_UP.multiply(vertical))
+				.multiply(dirtyGain)
+				.clamp(-2.0, 2.0);
 	}
 
 	private static double localizedWindBurbleIntensity(DroneEnvironment environment, double dirtyAir) {

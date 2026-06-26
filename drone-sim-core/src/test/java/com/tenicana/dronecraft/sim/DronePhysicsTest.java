@@ -3508,6 +3508,36 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcSourceGustSpeedAddsCoherentAirMassGust() {
+		DronePhysics smooth = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics gusty = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment smoothA4mcWind = a4mcSourceGustWind(0.0);
+		DroneEnvironment gustyA4mcWind = a4mcSourceGustWind(4.0);
+
+		for (int i = 0; i < 260; i++) {
+			smooth.step(idle, 0.005, smoothA4mcWind);
+			gusty.step(idle, 0.005, gustyA4mcWind);
+		}
+
+		double smoothMaxGust = 0.0;
+		double gustyMaxGust = 0.0;
+		double gustyMaxTerrainShear = 0.0;
+		for (int i = 0; i < 240; i++) {
+			smooth.step(idle, 0.005, smoothA4mcWind);
+			gusty.step(idle, 0.005, gustyA4mcWind);
+			smoothMaxGust = Math.max(smoothMaxGust, smooth.state().windGustSpeedMetersPerSecond());
+			gustyMaxGust = Math.max(gustyMaxGust, gusty.state().windGustSpeedMetersPerSecond());
+			gustyMaxTerrainShear = Math.max(gustyMaxTerrainShear, gusty.state().a4mcTerrainShearSpeedMetersPerSecond());
+		}
+
+		assertEquals(0.0, smoothMaxGust, 1.0e-9);
+		assertTrue(gustyMaxGust > 0.20, "gustyMaxGust=" + gustyMaxGust);
+		assertTrue(gustyMaxGust < 1.40, "gustyMaxGust=" + gustyMaxGust);
+		assertEquals(0.0, gustyMaxTerrainShear, 1.0e-9);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -12363,6 +12393,48 @@ class DronePhysicsTest {
 
 	private static DroneEnvironment a4mcTerrainShearWind(double shearMagnitudePerBlock, double updraftMetersPerSecond) {
 		return a4mcTerrainShearWind(shearMagnitudePerBlock, updraftMetersPerSecond, 0.0);
+	}
+
+	private static DroneEnvironment a4mcSourceGustWind(double sourceGustSpeedMetersPerSecond) {
+		return new DroneEnvironment(
+				new Vec3(7.0, 0.0, 0.0),
+				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
+				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
+				-1L,
+				7.0,
+				7.0,
+				sourceGustSpeedMetersPerSecond,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0
+		);
 	}
 
 	private static DroneEnvironment a4mcTerrainShearWind(
