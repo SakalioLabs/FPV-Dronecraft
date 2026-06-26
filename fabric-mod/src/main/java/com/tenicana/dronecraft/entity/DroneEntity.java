@@ -347,6 +347,7 @@ public class DroneEntity extends Entity {
 			Vec3[] flowObstructionDirectionsBody,
 			Vec3[] rotorWindVelocityWorldMetersPerSecond,
 			Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+			Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond,
 			double[] rotorA4mcShelterObstructions,
 			double[] localVoxelObstacleResiduals,
 			double maxFlowObstruction
@@ -366,6 +367,7 @@ public class DroneEntity extends Entity {
 					new Vec3[rotorCount],
 					new Vec3[0],
 					new Vec3[0],
+					new Vec3[0],
 					new double[0],
 					new double[0],
 					0.0
@@ -373,8 +375,8 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] localVoxelObstacleResiduals, double[] localVoxelShelterObstructions, Vec3[] localVoxelShelterDirectionsBody) {
-		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null, null, null, null);
+	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond, double[] localVoxelObstacleResiduals, double[] localVoxelShelterObstructions, Vec3[] localVoxelShelterDirectionsBody) {
+		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null, null, null, null, null);
 
 		private double localVoxelObstacleResidual(int rotorIndex, double fallbackResidual) {
 			if (localVoxelObstacleResiduals == null || rotorIndex < 0 || rotorIndex >= localVoxelObstacleResiduals.length) {
@@ -1389,7 +1391,8 @@ public class DroneEntity extends Entity {
 				rotorEffects.ceilingSurfaceCoverages(),
 				rotorEffects.groundSurfaceGates(),
 				rotorEffects.ceilingSurfaceGates(),
-				rotorEffects.localVoxelObstacleResiduals()
+				rotorEffects.localVoxelObstacleResiduals(),
+				rotorEffects.rotorA4mcPressureGradientWindBodyMetersPerSecond()
 		);
 	}
 
@@ -1479,7 +1482,8 @@ public class DroneEntity extends Entity {
 				null,
 				null,
 				null,
-				rotorWindField.localVoxelObstacleResiduals()
+				rotorWindField.localVoxelObstacleResiduals(),
+				rotorWindField.rotorA4mcPressureGradientWindBodyMetersPerSecond()
 		);
 	}
 
@@ -1794,6 +1798,7 @@ public class DroneEntity extends Entity {
 				flowObstructionDirectionsBody,
 				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
 				rotorWindField.rotorDiskWindGradientBodyMetersPerSecond(),
+				rotorWindField.rotorA4mcPressureGradientWindBodyMetersPerSecond(),
 				rotorWindField.localVoxelShelterObstructions(),
 				localVoxelObstacleResiduals,
 				maxFlowObstruction
@@ -1820,6 +1825,7 @@ public class DroneEntity extends Entity {
 
 		Vec3[] rotorWindVelocities = new Vec3[rotorCount];
 		Vec3[] rotorDiskWindGradients = new Vec3[rotorCount];
+		Vec3[] rotorA4mcPressureGradientWinds = new Vec3[rotorCount];
 		double[] rotorLocalVoxelObstacleResiduals = new double[rotorCount];
 		double[] rotorLocalVoxelShelterObstructions = new double[rotorCount];
 		Vec3[] rotorLocalVoxelShelterDirectionsBody = new Vec3[rotorCount];
@@ -1877,6 +1883,7 @@ public class DroneEntity extends Entity {
 			Vec3 localDelta = diskMeanWind.subtract(bodyAeroWind).multiply(bodySourceQuality);
 			rotorWindVelocities[i] = safeBaselineWind.add(localDelta);
 			Vec3 pressureGradientWind = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(diskPressure);
+			rotorA4mcPressureGradientWinds[i] = pressureGradientWind.multiply(bodySourceQuality).clamp(-12.0, 12.0);
 			rotorDiskWindGradients[i] = diskWind.gradientBodyMetersPerSecond()
 					.add(pressureGradientWind)
 					.multiply(bodySourceQuality)
@@ -1890,6 +1897,7 @@ public class DroneEntity extends Entity {
 		return new RotorWindFieldSamples(
 				rotorWindVelocities,
 				rotorDiskWindGradients,
+				rotorA4mcPressureGradientWinds,
 				rotorLocalVoxelObstacleResiduals,
 				rotorLocalVoxelShelterObstructions,
 				rotorLocalVoxelShelterDirectionsBody

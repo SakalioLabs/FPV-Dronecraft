@@ -21,6 +21,11 @@ class DroneEnvironmentTest {
 		};
 		double[] shelterObstructions = {0.12, Double.NaN, 2.5};
 		double[] localVoxelObstacleResiduals = {0.42, Double.NaN, -2.0, 2.5};
+		Vec3[] pressureGradientWinds = {
+				new Vec3(0.18, 0.0, 0.0),
+				null,
+				new Vec3(-50.0, 50.0, 0.0)
+		};
 
 		DroneEnvironment environment = new DroneEnvironment(
 				meanWind,
@@ -41,7 +46,8 @@ class DroneEnvironmentTest {
 				rotorWinds,
 				diskGradients,
 				shelterObstructions,
-				localVoxelObstacleResiduals
+				localVoxelObstacleResiduals,
+				pressureGradientWinds
 		);
 
 		assertEquals(new Vec3(2.5, 1.0, -1.0), environment.rotorWindVelocityWorldMetersPerSecond(0));
@@ -64,6 +70,12 @@ class DroneEnvironmentTest {
 		assertEquals(1.0, environment.rotorLocalVoxelObstacleResidual(3), 1.0e-9);
 		assertEquals(1.0, environment.rotorLocalVoxelObstacleResidual(4), 1.0e-9);
 		assertEquals(0.0, environment.minRotorLocalVoxelObstacleResidual(), 1.0e-9);
+		assertEquals(new Vec3(0.18, 0.0, 0.0), environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(0));
+		assertEquals(Vec3.ZERO, environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(1));
+		assertEquals(new Vec3(-12.0, 12.0, 0.0), environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(2));
+		assertEquals(Vec3.ZERO, environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(3));
+		assertEquals(0.18, environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(0), 1.0e-9);
+		assertEquals(Math.sqrt(288.0), environment.maxRotorA4mcPressureGradientWindMetersPerSecond(), 1.0e-9);
 
 		Vec3[] copy = environment.rotorWindVelocityWorldMetersPerSecond();
 		copy[0] = new Vec3(9.0, 9.0, 9.0);
@@ -77,6 +89,9 @@ class DroneEnvironmentTest {
 		double[] residualCopy = environment.rotorLocalVoxelObstacleResiduals();
 		residualCopy[0] = 0.99;
 		assertEquals(0.42, environment.rotorLocalVoxelObstacleResidual(0), 1.0e-9);
+		Vec3[] pressureGradientCopy = environment.rotorA4mcPressureGradientWindBodyMetersPerSecond();
+		pressureGradientCopy[0] = new Vec3(9.0, 9.0, 9.0);
+		assertEquals(new Vec3(0.18, 0.0, 0.0), environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(0));
 	}
 
 	@Test

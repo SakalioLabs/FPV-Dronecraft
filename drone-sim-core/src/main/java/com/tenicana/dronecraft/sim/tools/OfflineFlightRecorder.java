@@ -736,6 +736,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_disk_wind_gradient_mps",
 			"rotor_6_disk_wind_gradient_mps",
 			"rotor_7_disk_wind_gradient_mps",
+			"rotor_a4mc_pressure_gradient_wind_mps",
+			"rotor_0_a4mc_pressure_gradient_wind_mps",
+			"rotor_1_a4mc_pressure_gradient_wind_mps",
+			"rotor_2_a4mc_pressure_gradient_wind_mps",
+			"rotor_3_a4mc_pressure_gradient_wind_mps",
+			"rotor_4_a4mc_pressure_gradient_wind_mps",
+			"rotor_5_a4mc_pressure_gradient_wind_mps",
+			"rotor_6_a4mc_pressure_gradient_wind_mps",
+			"rotor_7_a4mc_pressure_gradient_wind_mps",
 			"rotor_dynamic_inflow_tau_s",
 			"rotor_0_dynamic_inflow_tau_s",
 			"rotor_1_dynamic_inflow_tau_s",
@@ -3437,7 +3446,8 @@ public final class OfflineFlightRecorder {
 				null,
 				null,
 				null,
-				rotorFlow.localVoxelObstacleResiduals()
+				rotorFlow.localVoxelObstacleResiduals(),
+				a4mcPressureDiskGradient
 		);
 	}
 
@@ -4268,6 +4278,10 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorDiskWindGradientMagnitudeMetersPerSecond(i), "%.5f");
+		}
+		appendExtra(builder, environment.maxRotorA4mcPressureGradientWindMetersPerSecond(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorDynamicInflowTimeConstantSeconds(), "%.5f");
 		for (int i = 0; i < 8; i++) {

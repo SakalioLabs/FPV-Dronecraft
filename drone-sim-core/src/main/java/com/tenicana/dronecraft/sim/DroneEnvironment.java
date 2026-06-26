@@ -45,7 +45,8 @@ public record DroneEnvironment(
 		double[] rotorCeilingSurfaceCoverages,
 		double[] rotorGroundSurfaceGates,
 		double[] rotorCeilingSurfaceGates,
-		double[] rotorLocalVoxelObstacleResiduals
+		double[] rotorLocalVoxelObstacleResiduals,
+		Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond
 ) {
 	public static final String WIND_SOURCE_INTERNAL = "internal";
 	public static final String WIND_SOURCE_CALM = "calm";
@@ -144,7 +145,11 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] rotorA4mcShelterObstructions, double[] rotorLocalVoxelObstacleResiduals) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, rotorA4mcShelterObstructions, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0, Vec3.ZERO, null, null, null, null, rotorLocalVoxelObstacleResiduals);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, rotorA4mcShelterObstructions, rotorLocalVoxelObstacleResiduals, null);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] rotorA4mcShelterObstructions, double[] rotorLocalVoxelObstacleResiduals, Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, rotorA4mcShelterObstructions, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0, Vec3.ZERO, null, null, null, null, rotorLocalVoxelObstacleResiduals, rotorA4mcPressureGradientWindBodyMetersPerSecond);
 	}
 
 	public DroneEnvironment(
@@ -228,6 +233,7 @@ public record DroneEnvironment(
 				windSourceAblStability,
 				windSourceAblMixingStrength,
 				Vec3.ZERO,
+				null,
 				null,
 				null,
 				null,
@@ -322,6 +328,7 @@ public record DroneEnvironment(
 				null,
 				null,
 				null,
+				null,
 				null
 		);
 	}
@@ -408,6 +415,7 @@ public record DroneEnvironment(
 				windSourceAblStability,
 				windSourceAblMixingStrength,
 				Vec3.ZERO,
+				null,
 				null,
 				null,
 				null,
@@ -499,6 +507,7 @@ public record DroneEnvironment(
 				windSourceAblStability,
 				windSourceAblMixingStrength,
 				windSourceGustVelocityWorldMetersPerSecond,
+				null,
 				null,
 				null,
 				null,
@@ -546,6 +555,7 @@ public record DroneEnvironment(
 		rotorGroundSurfaceGates = sanitizeUnitArray(rotorGroundSurfaceGates);
 		rotorCeilingSurfaceGates = sanitizeUnitArray(rotorCeilingSurfaceGates);
 		rotorLocalVoxelObstacleResiduals = sanitizeUnitArrayOrOne(rotorLocalVoxelObstacleResiduals);
+		rotorA4mcPressureGradientWindBodyMetersPerSecond = sanitizeDiskWindGradientArray(rotorA4mcPressureGradientWindBodyMetersPerSecond);
 		windSourceId = sanitizeWindSourceId(windSourceId);
 		if (!Double.isFinite(windSourceConfidence)) {
 			windSourceConfidence = 0.0;
@@ -1274,6 +1284,29 @@ public record DroneEnvironment(
 
 	public double[] rotorLocalVoxelObstacleResiduals() {
 		return rotorLocalVoxelObstacleResiduals.clone();
+	}
+
+	public Vec3 rotorA4mcPressureGradientWindBodyMetersPerSecond(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorA4mcPressureGradientWindBodyMetersPerSecond.length) {
+			return rotorA4mcPressureGradientWindBodyMetersPerSecond[rotorIndex];
+		}
+		return Vec3.ZERO;
+	}
+
+	public double rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(int rotorIndex) {
+		return rotorA4mcPressureGradientWindBodyMetersPerSecond(rotorIndex).length();
+	}
+
+	public double maxRotorA4mcPressureGradientWindMetersPerSecond() {
+		double max = 0.0;
+		for (Vec3 wind : rotorA4mcPressureGradientWindBodyMetersPerSecond) {
+			max = Math.max(max, wind.length());
+		}
+		return max;
+	}
+
+	public Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond() {
+		return rotorA4mcPressureGradientWindBodyMetersPerSecond.clone();
 	}
 
 	private static double ceilingEffectHeightMeters(DroneConfig config) {

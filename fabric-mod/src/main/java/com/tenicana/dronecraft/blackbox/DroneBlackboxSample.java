@@ -649,6 +649,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_disk_wind_gradient_mps",
 			"rotor_2_disk_wind_gradient_mps",
 			"rotor_3_disk_wind_gradient_mps",
+			"rotor_a4mc_pressure_gradient_wind_mps",
+			"rotor_0_a4mc_pressure_gradient_wind_mps",
+			"rotor_1_a4mc_pressure_gradient_wind_mps",
+			"rotor_2_a4mc_pressure_gradient_wind_mps",
+			"rotor_3_a4mc_pressure_gradient_wind_mps",
 			"propwash_intensity",
 			"propwash_wake_intensity",
 			"vortex_ring_state",
@@ -1202,6 +1207,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_disk_wind_gradient_mps",
 			"rotor_6_disk_wind_gradient_mps",
 			"rotor_7_disk_wind_gradient_mps",
+			"rotor_4_a4mc_pressure_gradient_wind_mps",
+			"rotor_5_a4mc_pressure_gradient_wind_mps",
+			"rotor_6_a4mc_pressure_gradient_wind_mps",
+			"rotor_7_a4mc_pressure_gradient_wind_mps",
 			"rotor_4_water_immersion",
 			"rotor_5_water_immersion",
 			"rotor_6_water_immersion",
@@ -2155,6 +2164,11 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(1), "%.5f");
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(2), "%.5f");
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(3), "%.5f");
+		row.add(environment.maxRotorA4mcPressureGradientWindMetersPerSecond(), "%.5f");
+		row.add(environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(0), "%.5f");
+		row.add(environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(1), "%.5f");
+		row.add(environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(2), "%.5f");
+		row.add(environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(3), "%.5f");
 		row.add(state.propwashIntensity(), "%.4f");
 		row.add(state.propwashWakeIntensity(), "%.4f");
 		row.add(state.vortexRingStateIntensity(), "%.4f");
@@ -2807,6 +2821,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(environment.rotorA4mcPressureGradientWindMagnitudeMetersPerSecond(i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorWaterImmersion(i), "%.5f");
