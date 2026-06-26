@@ -6309,8 +6309,9 @@ public final class DronePhysics {
 
 	private Vec3 updateA4mcTerrainShearWind(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir, double dtSeconds) {
 		Vec3 target = a4mcTerrainShearWindTarget(environment, targetMeanWind, dirtyAir);
-		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock(), 0.0, 5.0);
-		double shelter = MathUtil.clamp(environment.windShelterFactor(), 0.0, 1.0);
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock() * sourceQuality, 0.0, 5.0);
+		double shelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
 		double tau = MathUtil.clamp(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter, 0.060, 0.240);
 		double alpha = MathUtil.expSmoothing(dtSeconds, tau);
 		a4mcTerrainShearVelocityWorldMetersPerSecond = a4mcTerrainShearVelocityWorldMetersPerSecond.add(

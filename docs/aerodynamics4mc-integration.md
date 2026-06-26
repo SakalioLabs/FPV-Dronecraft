@@ -26,7 +26,7 @@ The first integration keeps that boundary explicit:
 - pressure anomaly is confidence/freshness weighted before adjusting air-density ratio and barometer pressure while staying bounded for L2 proxy values,
 - source level, authority, and freshness age are preserved for L0/L1/L2 regression analysis, with stale source samples faded out of base wind, atmospheric scalar, local voxel, disk-gradient, and turbulence coupling,
 - raw A4MC mean/effective/gust speed split is preserved alongside confidence/freshness/source-quality telemetry, while adopted base wind and core transients use the shared quality gate,
-- the core flight model now applies the same trust/confidence/freshness quality gate to A4MC source-gust, terrain-shear, and local-voxel ventilation transients, so direct `DroneEnvironment` callers cannot excite those paths with stale or untrusted samples,
+- the core flight model now applies the same trust/confidence/freshness quality gate to A4MC source-gust, terrain-shear target/decay, and local-voxel ventilation transients, so direct `DroneEnvironment` callers cannot excite or reshape those paths with stale or untrusted samples,
 - untrusted A4MC flow samples remain visible as zero-quality wind-source telemetry instead of being collapsed into `unavailable`, making client-local or otherwise non-authoritative sources auditable without letting them affect server physics,
 - ABL stability and mixing modulate the core Dryden turbulence intensity and correlation time: unstable mixed layers strengthen and quicken gust response, while stable layers damp and slow it.
 

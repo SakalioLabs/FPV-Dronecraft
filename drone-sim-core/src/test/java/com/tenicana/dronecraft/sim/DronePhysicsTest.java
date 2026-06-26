@@ -3598,6 +3598,39 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcTerrainShearFilterIgnoresUntrustedSourceDiagnostics() {
+		DronePhysics rawUntrusted = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics neutralUntrusted = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment trustedShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, true, 1.0, 0L);
+		DroneEnvironment rawUntrustedShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, false, 1.0, 0L);
+		DroneEnvironment neutralUntrustedShear = a4mcTerrainShearWind(0.0, 0.0, 0.0, false, 1.0, 0L);
+
+		for (int i = 0; i < 320; i++) {
+			rawUntrusted.step(idle, 0.005, trustedShear);
+			neutralUntrusted.step(idle, 0.005, trustedShear);
+		}
+		assertVecClose(
+				rawUntrusted.state().a4mcTerrainShearVelocityWorldMetersPerSecond(),
+				neutralUntrusted.state().a4mcTerrainShearVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+		assertTrue(rawUntrusted.state().a4mcTerrainShearSpeedMetersPerSecond() > 0.02);
+
+		for (int i = 0; i < 32; i++) {
+			rawUntrusted.step(idle, 0.005, rawUntrustedShear);
+			neutralUntrusted.step(idle, 0.005, neutralUntrustedShear);
+		}
+
+		assertVecClose(
+				rawUntrusted.state().a4mcTerrainShearVelocityWorldMetersPerSecond(),
+				neutralUntrusted.state().a4mcTerrainShearVelocityWorldMetersPerSecond(),
+				1.0e-12
+		);
+		assertTrue(rawUntrusted.state().a4mcTerrainShearSpeedMetersPerSecond() > 0.0);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
