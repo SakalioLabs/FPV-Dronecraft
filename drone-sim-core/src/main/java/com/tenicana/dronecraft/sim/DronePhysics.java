@@ -9405,7 +9405,7 @@ public final class DronePhysics {
 		double boardAirflow = 0.58 + 0.42 * state.motorCoolingFactor(rotorIndex) + rotorWashCooling;
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
-		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment);
+		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment, rotorIndex);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		return MathUtil.clamp(
 				boardAirflow * densityFactor * obstructionLoss * recirculationEfficiency * localShelterEfficiency,
@@ -9429,7 +9429,7 @@ public final class DronePhysics {
 		double rotorWashCooling = 0.92 * state.motorPower(config, rotorIndex) * (0.45 + 0.55 * state.escElectricalOutputCommand(rotorIndex));
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
-		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment);
+		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment, rotorIndex);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		return MathUtil.clamp(
 				(1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss * recirculationEfficiency * localShelterEfficiency,
@@ -9438,7 +9438,7 @@ public final class DronePhysics {
 		);
 	}
 
-	private static double a4mcLocalVoxelVentilationEfficiency(DroneEnvironment environment) {
+	private static double a4mcLocalVoxelVentilationEfficiency(DroneEnvironment environment, int rotorIndex) {
 		if (!environment.windSourceLocalVoxelFlow()) {
 			return 1.0;
 		}
@@ -9446,8 +9446,13 @@ public final class DronePhysics {
 		if (sourceQuality <= 1.0e-9) {
 			return 1.0;
 		}
-		double shelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
-		return MathUtil.clamp(1.0 - 0.20 * shelter, 0.80, 1.0);
+		double bodyShelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
+		double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(rotorIndex), 0.0, 1.0);
+		double rotorShelterObstruction = environment.rotorA4mcShelterObstruction(rotorIndex);
+		double ventilationLoss = 0.20 * bodyShelter
+				+ 0.12 * localVoxelCoverage
+				+ 0.18 * rotorShelterObstruction;
+		return MathUtil.clamp(1.0 - ventilationLoss, 0.72, 1.0);
 	}
 
 	private double recirculatedAirCoolingLoss(DroneEnvironment environment) {

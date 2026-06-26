@@ -4929,13 +4929,16 @@ class DronePhysicsTest {
 		DronePhysics exposed = new DronePhysics(config);
 		DronePhysics coarseShelter = new DronePhysics(config);
 		DronePhysics localShelter = new DronePhysics(config);
+		DronePhysics asymmetricLocalShelter = new DronePhysics(config);
 		for (int i = 0; i < exposed.state().motorCount(); i++) {
 			exposed.state().setMotorTemperatureCelsius(i, 86.0);
 			coarseShelter.state().setMotorTemperatureCelsius(i, 86.0);
 			localShelter.state().setMotorTemperatureCelsius(i, 86.0);
+			asymmetricLocalShelter.state().setMotorTemperatureCelsius(i, 86.0);
 			exposed.state().setEscTemperatureCelsius(i, 82.0);
 			coarseShelter.state().setEscTemperatureCelsius(i, 82.0);
 			localShelter.state().setEscTemperatureCelsius(i, 82.0);
+			asymmetricLocalShelter.state().setEscTemperatureCelsius(i, 82.0);
 		}
 
 		DroneInput loaded = new DroneInput(0.54, 0.0, 0.0, 0.0, true);
@@ -4943,14 +4946,22 @@ class DronePhysicsTest {
 		DroneEnvironment exposedA4mc = a4mcShelterCoolingWind(0.0, true);
 		DroneEnvironment coarseA4mcShelter = a4mcShelterCoolingWind(0.85, false);
 		DroneEnvironment localA4mcShelter = a4mcShelterCoolingWind(0.85, true);
+		DroneEnvironment asymmetricA4mcShelter = a4mcShelterCoolingWind(
+				0.85,
+				true,
+				new double[] {0.48, 1.0, 1.0, 0.48},
+				new double[] {0.18, 0.0, 0.0, 0.18}
+		);
 
 		for (int i = 0; i < 260; i++) {
 			holdInCoolingCrossflow(exposed, crossflow);
 			holdInCoolingCrossflow(coarseShelter, crossflow);
 			holdInCoolingCrossflow(localShelter, crossflow);
+			holdInCoolingCrossflow(asymmetricLocalShelter, crossflow);
 			exposed.step(loaded, 0.005, exposedA4mc);
 			coarseShelter.step(loaded, 0.005, coarseA4mcShelter);
 			localShelter.step(loaded, 0.005, localA4mcShelter);
+			asymmetricLocalShelter.step(loaded, 0.005, asymmetricA4mcShelter);
 		}
 
 		assertEquals(exposed.state().averageMotorCoolingFactor(), coarseShelter.state().averageMotorCoolingFactor(), 1.0e-9);
@@ -4965,6 +4976,17 @@ class DronePhysicsTest {
 				() -> "exposedEscCooling=" + exposed.state().averageEscCoolingFactor()
 						+ " localShelterEscCooling=" + localShelter.state().averageEscCoolingFactor()
 		);
+		assertTrue(
+				asymmetricLocalShelter.state().motorCoolingFactor(0) < asymmetricLocalShelter.state().motorCoolingFactor(1) * 0.92,
+				() -> "wallMotorCooling=" + asymmetricLocalShelter.state().motorCoolingFactor(0)
+						+ " openMotorCooling=" + asymmetricLocalShelter.state().motorCoolingFactor(1)
+		);
+		assertTrue(
+				asymmetricLocalShelter.state().escCoolingFactor(0) < asymmetricLocalShelter.state().escCoolingFactor(1) * 0.94,
+				() -> "wallEscCooling=" + asymmetricLocalShelter.state().escCoolingFactor(0)
+						+ " openEscCooling=" + asymmetricLocalShelter.state().escCoolingFactor(1)
+		);
+		assertTrue(asymmetricLocalShelter.state().motorTemperatureCelsius(0) > asymmetricLocalShelter.state().motorTemperatureCelsius(1) + 0.05);
 		assertTrue(localShelter.state().averageMotorTemperatureCelsius() > exposed.state().averageMotorTemperatureCelsius() + 0.20);
 		assertTrue(localShelter.state().maxEscTemperatureCelsius() > exposed.state().maxEscTemperatureCelsius() + 0.10);
 	}
@@ -12793,6 +12815,15 @@ class DronePhysicsTest {
 	}
 
 	private static DroneEnvironment a4mcShelterCoolingWind(double shelterFactor, boolean localVoxelFlow) {
+		return a4mcShelterCoolingWind(shelterFactor, localVoxelFlow, null, null);
+	}
+
+	private static DroneEnvironment a4mcShelterCoolingWind(
+			double shelterFactor,
+			boolean localVoxelFlow,
+			double[] rotorLocalVoxelObstacleResiduals,
+			double[] rotorA4mcShelterObstructions
+	) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				1.0,
@@ -12811,6 +12842,7 @@ class DronePhysicsTest {
 				25.0,
 				null,
 				null,
+				rotorA4mcShelterObstructions,
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				true,
 				1.0,
@@ -12831,7 +12863,14 @@ class DronePhysicsTest {
 				false,
 				0.0,
 				0.0,
-				0.0
+				0.0,
+				Vec3.ZERO,
+				null,
+				null,
+				null,
+				null,
+				rotorLocalVoxelObstacleResiduals,
+				null
 		);
 	}
 
