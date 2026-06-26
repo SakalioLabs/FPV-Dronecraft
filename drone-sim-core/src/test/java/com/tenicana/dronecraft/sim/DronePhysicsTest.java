@@ -3566,6 +3566,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcSourceQualityGatesCoreGustAndTerrainShear() {
+		DroneEnvironment trustedGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 0L);
+		DroneEnvironment lowConfidenceGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 0.50, 0L);
+		DroneEnvironment staleGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 160L);
+		DroneEnvironment trustedShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, true, 1.0, 0L);
+		DroneEnvironment lowConfidenceShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, true, 0.50, 0L);
+		DroneEnvironment untrustedShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, false, 1.0, 0L);
+
+		double trustedSourceGust = maxA4mcSourceGustFor(trustedGust);
+		double lowConfidenceSourceGust = maxA4mcSourceGustFor(lowConfidenceGust);
+		double staleSourceGust = maxA4mcSourceGustFor(staleGust);
+		double trustedTerrainShear = maxA4mcTerrainShearFor(trustedShear);
+		double lowConfidenceTerrainShear = maxA4mcTerrainShearFor(lowConfidenceShear);
+		double untrustedTerrainShear = maxA4mcTerrainShearFor(untrustedShear);
+
+		assertTrue(trustedSourceGust > 0.35, "trustedSourceGust=" + trustedSourceGust);
+		assertTrue(
+				lowConfidenceSourceGust > trustedSourceGust * 0.35
+						&& lowConfidenceSourceGust < trustedSourceGust * 0.65,
+				"trustedSourceGust=" + trustedSourceGust + " lowConfidenceSourceGust=" + lowConfidenceSourceGust
+		);
+		assertEquals(0.0, staleSourceGust, 1.0e-12);
+		assertTrue(trustedTerrainShear > 0.18, "trustedTerrainShear=" + trustedTerrainShear);
+		assertTrue(
+				lowConfidenceTerrainShear > trustedTerrainShear * 0.20
+						&& lowConfidenceTerrainShear < trustedTerrainShear * 0.70,
+				"trustedTerrainShear=" + trustedTerrainShear + " lowConfidenceTerrainShear=" + lowConfidenceTerrainShear
+		);
+		assertEquals(0.0, untrustedTerrainShear, 1.0e-12);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -12558,52 +12590,15 @@ class DronePhysicsTest {
 	}
 
 	private static DroneEnvironment a4mcSourceGustWind(double sourceGustSpeedMetersPerSecond, Vec3 sourceGustVelocity) {
-		return new DroneEnvironment(
-				new Vec3(7.0, 0.0, 0.0),
-				1.0,
-				6.0,
-				0.0,
-				0.0,
-				0.0,
-				Double.POSITIVE_INFINITY,
-				null,
-				null,
-				null,
-				null,
-				0.0,
-				null,
-				0.0,
-				25.0,
-				null,
-				null,
-				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
-				true,
-				1.0,
-				0.0,
-				0.0,
-				0.0,
-				0.0,
-				false,
-				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
-				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
-				-1L,
-				7.0,
-				7.0,
-				sourceGustSpeedMetersPerSecond,
-				false,
-				0.0,
-				false,
-				0.0,
-				0.0,
-				0.0,
-				sourceGustVelocity
-		);
+		return a4mcSourceGustWind(sourceGustSpeedMetersPerSecond, sourceGustVelocity, true, 1.0, -1L);
 	}
 
-	private static DroneEnvironment a4mcTerrainShearWind(
-			double shearMagnitudePerBlock,
-			double updraftMetersPerSecond,
-			double shelterFactor
+	private static DroneEnvironment a4mcSourceGustWind(
+			double sourceGustSpeedMetersPerSecond,
+			Vec3 sourceGustVelocity,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
 	) {
 		return new DroneEnvironment(
 				new Vec3(7.0, 0.0, 0.0),
@@ -12624,8 +12619,66 @@ class DronePhysicsTest {
 				null,
 				null,
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
-				true,
+				trustedForGameplay,
+				confidence,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
+				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
+				freshnessAgeTicks,
+				7.0,
+				7.0,
+				sourceGustSpeedMetersPerSecond,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				sourceGustVelocity
+		);
+	}
+
+	private static DroneEnvironment a4mcTerrainShearWind(
+			double shearMagnitudePerBlock,
+			double updraftMetersPerSecond,
+			double shelterFactor
+	) {
+		return a4mcTerrainShearWind(shearMagnitudePerBlock, updraftMetersPerSecond, shelterFactor, true, 1.0, -1L);
+	}
+
+	private static DroneEnvironment a4mcTerrainShearWind(
+			double shearMagnitudePerBlock,
+			double updraftMetersPerSecond,
+			double shelterFactor,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		return new DroneEnvironment(
+				new Vec3(7.0, 0.0, 0.0),
 				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				trustedForGameplay,
+				confidence,
 				0.0,
 				shearMagnitudePerBlock,
 				shelterFactor,
@@ -12633,7 +12686,7 @@ class DronePhysicsTest {
 				false,
 				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
 				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
-				-1L,
+				freshnessAgeTicks,
 				7.0,
 				7.0,
 				0.0,
@@ -12644,6 +12697,28 @@ class DronePhysicsTest {
 				0.0,
 				0.0
 		);
+	}
+
+	private static double maxA4mcSourceGustFor(DroneEnvironment environment) {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		double maxSourceGust = 0.0;
+		for (int i = 0; i < 260; i++) {
+			physics.step(idle, 0.005, environment);
+			maxSourceGust = Math.max(maxSourceGust, physics.state().a4mcSourceGustSpeedMetersPerSecond());
+		}
+		return maxSourceGust;
+	}
+
+	private static double maxA4mcTerrainShearFor(DroneEnvironment environment) {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		double maxTerrainShear = 0.0;
+		for (int i = 0; i < 520; i++) {
+			physics.step(idle, 0.005, environment);
+			maxTerrainShear = Math.max(maxTerrainShear, physics.state().a4mcTerrainShearSpeedMetersPerSecond());
+		}
+		return maxTerrainShear;
 	}
 
 	private static double drydenRmsForEnvironment(DroneEnvironment environment) {

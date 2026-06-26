@@ -6262,14 +6262,15 @@ public final class DronePhysics {
 	}
 
 	private Vec3 a4mcSourceGustWind(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
-		if (!DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC.equals(environment.windSourceId())) {
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
 			return Vec3.ZERO;
 		}
-		Vec3 sourceGustVelocity = environment.windSourceGustVelocityWorldMetersPerSecond();
+		Vec3 sourceGustVelocity = environment.windSourceGustVelocityWorldMetersPerSecond().multiply(sourceQuality);
 		double sourceGustVectorMagnitude = sourceGustVelocity.length();
 		double sourceGustVectorSpeed = MathUtil.clamp(sourceGustVectorMagnitude, 0.0, 12.0);
 		double sourceGustSpeed = MathUtil.clamp(
-				Math.max(environment.windSourceGustSpeedMetersPerSecond(), sourceGustVectorSpeed),
+				Math.max(environment.windSourceGustSpeedMetersPerSecond() * sourceQuality, sourceGustVectorSpeed),
 				0.0,
 				12.0
 		);
@@ -6319,12 +6320,13 @@ public final class DronePhysics {
 	}
 
 	private Vec3 a4mcTerrainShearWindTarget(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir) {
-		if (!DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC.equals(environment.windSourceId())) {
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
 			return Vec3.ZERO;
 		}
-		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock(), 0.0, 5.0);
-		double shelter = MathUtil.clamp(environment.windShelterFactor(), 0.0, 1.0);
-		double updraft = MathUtil.clamp(environment.windUpdraftMetersPerSecond(), -12.0, 12.0);
+		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock() * sourceQuality, 0.0, 5.0);
+		double shelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
+		double updraft = MathUtil.clamp(environment.windUpdraftMetersPerSecond() * sourceQuality, -12.0, 12.0);
 		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
 		double shelterWindGate = smoothStep(0.8, 7.0, horizontalWindSpeed);
 		if (shearMagnitude <= 1.0e-6 && Math.abs(updraft) <= 1.0e-6 && (shelter <= 1.0e-6 || shelterWindGate <= 1.0e-6)) {
@@ -6354,6 +6356,13 @@ public final class DronePhysics {
 				.add(WORLD_UP.multiply(vertical))
 				.multiply(dirtyGain)
 				.clamp(-3.0, 3.0);
+	}
+
+	private static double a4mcWindSourceQualityFactor(DroneEnvironment environment) {
+		if (!DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC.equals(environment.windSourceId())) {
+			return 0.0;
+		}
+		return environment.windSourceQualityFactor();
 	}
 
 	private Vec3 updateDrydenTurbulence(DroneEnvironment environment, Vec3 targetMeanWind, double dtSeconds) {
@@ -9355,12 +9364,14 @@ public final class DronePhysics {
 	}
 
 	private static double a4mcLocalVoxelVentilationEfficiency(DroneEnvironment environment) {
-		if (!DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC.equals(environment.windSourceId())
-				|| !environment.windSourceTrustedForGameplay()
-				|| !environment.windSourceLocalVoxelFlow()) {
+		if (!environment.windSourceLocalVoxelFlow()) {
 			return 1.0;
 		}
-		double shelter = MathUtil.clamp(environment.windShelterFactor(), 0.0, 1.0);
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
+			return 1.0;
+		}
+		double shelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
 		return MathUtil.clamp(1.0 - 0.20 * shelter, 0.80, 1.0);
 	}
 

@@ -135,6 +135,15 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void windSourceQualityFadesWithConfidenceTrustAndFreshness() {
+		assertEquals(1.0, DroneEnvironment.windSourceQualityFactor(true, 1.0, -1L), 1.0e-9);
+		assertEquals(0.50, DroneEnvironment.windSourceQualityFactor(true, 0.50, 0L), 1.0e-9);
+		assertEquals(0.25, DroneEnvironment.windSourceQualityFactor(true, 0.50, 100L), 1.0e-9);
+		assertEquals(0.0, DroneEnvironment.windSourceQualityFactor(true, 1.0, 160L), 1.0e-9);
+		assertEquals(0.0, DroneEnvironment.windSourceQualityFactor(false, 1.0, 0L), 1.0e-9);
+	}
+
+	@Test
 	void pressureAnomalyAdjustsDensityAndBarometerPressure() {
 		double neutral = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0);
 		double lowPressure = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, -2200.0);

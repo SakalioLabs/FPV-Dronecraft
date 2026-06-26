@@ -52,6 +52,8 @@ public record DroneEnvironment(
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
 	private static final double MAX_WIND_SOURCE_PRESSURE_ANOMALY_PASCALS = 5000.0;
+	private static final long WIND_SOURCE_FULL_TRUST_AGE_TICKS = 40L;
+	private static final long WIND_SOURCE_ZERO_TRUST_AGE_TICKS = 160L;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
@@ -514,6 +516,42 @@ public record DroneEnvironment(
 				0.90,
 				1.10
 		);
+	}
+
+	public double windSourceQualityFactor() {
+		return windSourceQualityFactor(
+				windSourceTrustedForGameplay,
+				windSourceConfidence,
+				windSourceFreshnessAgeTicks
+		);
+	}
+
+	public static double windSourceQualityFactor(
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		if (!trustedForGameplay) {
+			return 0.0;
+		}
+		double trust = Double.isFinite(confidence) ? MathUtil.clamp(confidence, 0.0, 1.0) : 0.0;
+		return trust * windSourceFreshnessFactor(freshnessAgeTicks);
+	}
+
+	public static double windSourceFreshnessFactor(long freshnessAgeTicks) {
+		if (freshnessAgeTicks < 0L) {
+			return 1.0;
+		}
+		if (freshnessAgeTicks <= WIND_SOURCE_FULL_TRUST_AGE_TICKS) {
+			return 1.0;
+		}
+		if (freshnessAgeTicks >= WIND_SOURCE_ZERO_TRUST_AGE_TICKS) {
+			return 0.0;
+		}
+		double t = (freshnessAgeTicks - WIND_SOURCE_FULL_TRUST_AGE_TICKS)
+				/ (double) (WIND_SOURCE_ZERO_TRUST_AGE_TICKS - WIND_SOURCE_FULL_TRUST_AGE_TICKS);
+		double smooth = t * t * (3.0 - 2.0 * t);
+		return 1.0 - smooth;
 	}
 
 	public static double speedOfSoundMetersPerSecond(double ambientTemperatureCelsius) {
