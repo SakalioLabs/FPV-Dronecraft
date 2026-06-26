@@ -7,6 +7,7 @@ Inputs:
 
 Output:
   docs/data/apdrone_drag_calibration_packet.csv
+  docs/data/fpv_model_validation_summary.csv rows with category apdrone_drag_*
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
 OUT = DATA / "apdrone_drag_calibration_packet.csv"
+SUMMARY = DATA / "fpv_model_validation_summary.csv"
 APDRONE_SOURCE_PAGE = "https://data.mendeley.com/datasets/zgsvdtxnfh/2"
 APDRONE_DOI = "10.17632/zgsvdtxnfh.2"
 
@@ -27,17 +29,21 @@ def read_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
-def write_rows(rows: list[dict[str, object]]) -> None:
+def write_csv(path: Path, rows: list[dict[str, object]]) -> None:
     fieldnames: list[str] = []
     for row in rows:
         for key in row:
             if key not in fieldnames:
                 fieldnames.append(key)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    with OUT.open("w", newline="", encoding="utf-8") as handle:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def write_rows(rows: list[dict[str, object]]) -> None:
+    write_csv(OUT, rows)
 
 
 def f(value: str | float | int) -> float:
@@ -72,6 +78,26 @@ def add_metric(
     )
 
 
+def sync_summary(rows: list[dict[str, object]]) -> int:
+    existing: list[dict[str, object]] = read_rows(SUMMARY) if SUMMARY.exists() else []
+    kept = [row for row in existing if not str(row.get("category", "")).startswith("apdrone_drag_")]
+    added: list[dict[str, object]] = []
+    for row in rows:
+        added.append(
+            {
+                "category": row["row_type"],
+                "name": row["name"],
+                "metric": row["metric"],
+                "value": row["value"],
+                "unit": row["unit"],
+                "source": row.get("source", ""),
+                "note": row.get("note", ""),
+            }
+        )
+    write_csv(SUMMARY, kept + added)
+    return len(added)
+
+
 def main() -> None:
     envelope = read_rows(DATA / "apdrone_drag_speed_envelope_reference.csv")
     dynamics = read_rows(DATA / "apdrone_open_field_speed_dynamics_reference.csv")
@@ -86,7 +112,7 @@ def main() -> None:
         value="apdrone_drag_speed_envelope_reference.csv; apdrone_open_field_speed_dynamics_reference.csv; apdrone_open_field_trim_candidate_reference.csv",
         unit="",
         source=APDRONE_SOURCE_PAGE,
-        note="APdrone open-field GPS rows lack attitude and wind; this packet is a drag sanity/envelope table, not a final CdA fit.",
+        note="APdrone open-field GPS rows lack attitude and wind; this packet is a drag sanity/envelope table, not a final CdA fit. Project drag uses runtime F=kV+cV^2.",
     )
 
     for row in envelope:
@@ -96,6 +122,11 @@ def main() -> None:
                 ("mass_kg", "kg"),
                 ("max_total_thrust_n", "N"),
                 ("level_horizontal_thrust_margin_n", "N"),
+                ("force_law", "text"),
+                ("linear_drag_coefficient_n_per_mps", "N/(m/s)"),
+                ("body_drag_x_n_per_mps2", "N/(m/s)^2"),
+                ("body_drag_z_n_per_mps2", "N/(m/s)^2"),
+                ("total_drag_reference_speed_m_s", "m/s"),
                 ("total_drag_x_n_per_mps2", "N/(m/s)^2"),
                 ("total_drag_z_n_per_mps2", "N/(m/s)^2"),
                 ("equivalent_cda_x_m2", "m^2"),
@@ -111,7 +142,7 @@ def main() -> None:
                     value=row.get(metric, ""),
                     unit=unit,
                     source=row.get("source_page", ""),
-                    note="Current project quadratic drag model parsed by APdrone Mendeley analysis.",
+                    note=row.get("note", "Current project runtime linear-plus-quadratic drag model parsed by APdrone Mendeley analysis."),
                 )
 
     for row in envelope:
@@ -145,6 +176,9 @@ def main() -> None:
         name = f"apDrone_x_{speed_point}"
         for metric, unit in (
             ("speed_m_s", "m/s"),
+            ("force_law", "text"),
+            ("linear_drag_coefficient_n_per_mps", "N/(m/s)"),
+            ("body_drag_coefficient_n_per_mps2", "N/(m/s)^2"),
             ("total_drag_coefficient_n_per_mps2", "N/(m/s)^2"),
             ("required_drag_force_n", "N"),
             ("drag_over_level_margin", "fraction"),
@@ -161,7 +195,7 @@ def main() -> None:
                 value=row.get(metric, ""),
                 unit=unit,
                 source=row.get("speed_source_page") or APDRONE_SOURCE_PAGE,
-                note="Full-thrust level-flight upper-bound check using GPS ground speed as airspeed proxy.",
+                note=row.get("note", "Full-thrust level-flight upper-bound check using GPS ground speed as airspeed proxy."),
             )
 
     for row in dynamics:
@@ -229,7 +263,9 @@ def main() -> None:
             )
 
     write_rows(rows)
+    synced = sync_summary(rows)
     print(f"Wrote {OUT.relative_to(ROOT).as_posix()} with {len(rows)} rows")
+    print(f"Synced {synced} rows into {SUMMARY.relative_to(ROOT).as_posix()}")
 
 
 if __name__ == "__main__":

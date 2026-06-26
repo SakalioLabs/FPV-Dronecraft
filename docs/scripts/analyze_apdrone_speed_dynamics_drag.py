@@ -18,6 +18,8 @@ import csv
 import math
 from pathlib import Path
 
+from airframe_runtime_drag_law import drag_force, equivalent_quadratic_c
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
@@ -237,20 +239,26 @@ def dynamic_label(accel: float) -> str:
     return "quasi_steady"
 
 
-def load_drag_coefficients() -> dict[tuple[str, str], float]:
-    coeffs: dict[tuple[str, str], float] = {}
+def load_drag_models() -> dict[tuple[str, str], dict[str, float]]:
+    models: dict[tuple[str, str], dict[str, float]] = {}
     if not DRAG_ENVELOPE.exists():
-        return coeffs
+        return models
     with DRAG_ENVELOPE.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             if row.get("row_type") != "apdrone_drag_speed_constraint":
                 continue
             preset = row.get("preset", "")
             axis = row.get("axis", "")
-            coeff = parse_float(row.get("total_drag_coefficient_n_per_mps2"))
-            if preset and axis and math.isfinite(coeff):
-                coeffs.setdefault((preset, axis), coeff)
-    return coeffs
+            linear = parse_float(row.get("linear_drag_coefficient_n_per_mps"))
+            body = parse_float(row.get("body_drag_coefficient_n_per_mps2"))
+            legacy_coeff = parse_float(row.get("total_drag_coefficient_n_per_mps2"))
+            if not math.isfinite(linear):
+                linear = 0.0
+            if not math.isfinite(body) and math.isfinite(legacy_coeff):
+                body = legacy_coeff
+            if preset and axis and math.isfinite(body):
+                models.setdefault((preset, axis), {"linear": linear, "body": body})
+    return models
 
 
 def add_method_rows(rows: list[dict[str, str | int | float]]) -> None:
@@ -264,12 +272,48 @@ def add_method_rows(rows: list[dict[str, str | int | float]]) -> None:
             "window_2s_half_width_s": 1.0,
             "mass_kg": APDRONE_MASS_KG,
             "air_density_kg_m3": AIR_DENSITY,
-            "note": "GPS ground-speed/course dynamics only. Wind, attitude, vertical motion, and horizontal propulsive force are unknown; apparent drag coefficients are diagnostic, not fitted CdA.",
+            "note": "GPS ground-speed/course dynamics only. Wind, attitude, vertical motion, and horizontal propulsive force are unknown; apparent drag coefficients are diagnostic, not fitted CdA. Project drag columns use runtime F=kV+cV^2 and speed-specific equivalent coefficients.",
         }
     )
 
 
-def add_event_rows(rows: list[dict[str, str | int | float]], events: list[dict[str, str | int | float]], coeffs: dict[tuple[str, str], float]) -> None:
+def refresh_drag_model_columns(rows: list[dict[str, str | int | float]], models: dict[tuple[str, str], dict[str, float]]) -> None:
+    for row in rows:
+        row_type = row.get("row_type")
+        if row_type == "apdrone_open_field_gps_dynamic_speed_bin_summary":
+            speed = parse_float(str(row.get("speed_mean_m_s", "")))
+            apparent = parse_float(str(row.get("apparent_decel_coeff_p50", "")))
+            for preset in ("apDrone", "racingQuad"):
+                for axis in ("x", "z"):
+                    model = models.get((preset, axis), {})
+                    linear = model.get("linear", float("nan"))
+                    body = model.get("body", float("nan"))
+                    coeff = equivalent_quadratic_c(linear, body, speed)
+                    row[f"{preset}_{axis}_drag_coeff"] = coeff
+                    row[f"{preset}_{axis}_drag_force_at_mean_speed_n"] = (
+                        drag_force(linear, body, speed) if math.isfinite(coeff) else float("nan")
+                    )
+                    row[f"apparent_decel_coeff_p50_over_{preset}_{axis}"] = (
+                        apparent / coeff if math.isfinite(apparent) and coeff > 0.0 else float("nan")
+                    )
+        elif row_type == "apdrone_open_field_gps_dynamic_event":
+            speed = parse_float(str(row.get("speed_m_s", "")))
+            apparent = parse_float(str(row.get("apparent_signed_drag_coeff_from_speed_slope", "")))
+            for preset in ("apDrone", "racingQuad"):
+                for axis in ("x", "z"):
+                    model = models.get((preset, axis), {})
+                    linear = model.get("linear", float("nan"))
+                    body = model.get("body", float("nan"))
+                    coeff = equivalent_quadratic_c(linear, body, speed)
+                    row[f"{preset}_{axis}_drag_force_n_at_speed"] = (
+                        drag_force(linear, body, speed) if math.isfinite(coeff) else float("nan")
+                    )
+                    row[f"apparent_coeff_over_{preset}_{axis}"] = (
+                        apparent / coeff if math.isfinite(apparent) and coeff > 0.0 else float("nan")
+                    )
+
+
+def add_event_rows(rows: list[dict[str, str | int | float]], events: list[dict[str, str | int | float]], models: dict[tuple[str, str], dict[str, float]]) -> None:
     # Keep high-speed and deceleration rows; low-speed rows are summarized in bins.
     selected = [
         event
@@ -287,8 +331,13 @@ def add_event_rows(rows: list[dict[str, str | int | float]], events: list[dict[s
         }
         for preset in ("apDrone", "racingQuad"):
             for axis in ("x", "z"):
-                coeff = coeffs.get((preset, axis), float("nan"))
-                row[f"{preset}_{axis}_drag_force_n_at_speed"] = coeff * speed * speed if math.isfinite(coeff) else float("nan")
+                model = models.get((preset, axis), {})
+                linear = model.get("linear", float("nan"))
+                body = model.get("body", float("nan"))
+                coeff = equivalent_quadratic_c(linear, body, speed)
+                row[f"{preset}_{axis}_drag_force_n_at_speed"] = (
+                    drag_force(linear, body, speed) if math.isfinite(coeff) else float("nan")
+                )
                 row[f"apparent_coeff_over_{preset}_{axis}"] = (
                     float(event["apparent_signed_drag_coeff_from_speed_slope"]) / coeff
                     if math.isfinite(float(event["apparent_signed_drag_coeff_from_speed_slope"])) and coeff > 0.0
@@ -330,7 +379,7 @@ def add_flight_summary_rows(rows: list[dict[str, str | int | float]], events_by_
         )
 
 
-def add_bin_summary_rows(rows: list[dict[str, str | int | float]], events: list[dict[str, str | int | float]], coeffs: dict[tuple[str, str], float]) -> None:
+def add_bin_summary_rows(rows: list[dict[str, str | int | float]], events: list[dict[str, str | int | float]], models: dict[tuple[str, str], dict[str, float]]) -> None:
     for lo, hi in SPEED_BINS:
         bucket = [
             event
@@ -391,9 +440,14 @@ def add_bin_summary_rows(rows: list[dict[str, str | int | float]], events: list[
         mean_speed = float(row["speed_mean_m_s"])
         for preset in ("apDrone", "racingQuad"):
             for axis in ("x", "z"):
-                coeff = coeffs.get((preset, axis), float("nan"))
+                model = models.get((preset, axis), {})
+                linear = model.get("linear", float("nan"))
+                body = model.get("body", float("nan"))
+                coeff = equivalent_quadratic_c(linear, body, mean_speed)
                 row[f"{preset}_{axis}_drag_coeff"] = coeff
-                row[f"{preset}_{axis}_drag_force_at_mean_speed_n"] = coeff * mean_speed * mean_speed if math.isfinite(coeff) else float("nan")
+                row[f"{preset}_{axis}_drag_force_at_mean_speed_n"] = (
+                    drag_force(linear, body, mean_speed) if math.isfinite(coeff) else float("nan")
+                )
                 row[f"apparent_decel_coeff_p50_over_{preset}_{axis}"] = (
                     percentile(decel_coeffs, 0.50) / coeff if decel_coeffs and coeff > 0.0 else float("nan")
                 )
@@ -403,16 +457,22 @@ def add_bin_summary_rows(rows: list[dict[str, str | int | float]], events: list[
 def build_rows() -> list[dict[str, str | int | float]]:
     rows: list[dict[str, str | int | float]] = []
     add_method_rows(rows)
-    coeffs = load_drag_coefficients()
+    models = load_drag_models()
+    raw_paths = sorted(OPEN_FIELD_DIR.glob("Flight_*.csv"))
+    if not raw_paths and OUTPUT.exists():
+        with OUTPUT.open(newline="", encoding="utf-8") as handle:
+            existing_rows: list[dict[str, str | int | float]] = [dict(row) for row in csv.DictReader(handle)]
+        refresh_drag_model_columns(existing_rows, models)
+        return [{key: finite_or_blank(value) for key, value in row.items()} for row in existing_rows]
     events_by_file: dict[str, list[dict[str, str | int | float]]] = {}
-    for path in sorted(OPEN_FIELD_DIR.glob("Flight_*.csv")):
+    for path in raw_paths:
         events = read_gps_events(path)
         annotate_dynamics(events)
         events_by_file[path.name] = events
     events = [event for file_events in events_by_file.values() for event in file_events]
     add_flight_summary_rows(rows, events_by_file)
-    add_bin_summary_rows(rows, events, coeffs)
-    add_event_rows(rows, events, coeffs)
+    add_bin_summary_rows(rows, events, models)
+    add_event_rows(rows, events, models)
     return [{key: finite_or_blank(value) for key, value in row.items()} for row in rows]
 
 

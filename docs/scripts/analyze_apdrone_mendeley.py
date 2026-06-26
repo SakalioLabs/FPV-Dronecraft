@@ -35,6 +35,8 @@ import time
 import urllib.request
 from pathlib import Path
 
+from airframe_runtime_drag_law import drag_force, equivalent_cda, equivalent_quadratic_c, terminal_speed_m_s
+
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "docs" / "data"
@@ -47,6 +49,7 @@ SOURCE_PAGE = f"https://data.mendeley.com/datasets/{DATASET_ID}/{DATASET_VERSION
 ARTICLE_PAGE = "https://www.sciencedirect.com/science/article/pii/S2468067225000501"
 ARTICLE_DOI = "10.1016/j.ohx.2025.e00672"
 PUBLIC_API_BASE = f"https://data.mendeley.com/public-api/datasets/{DATASET_ID}"
+PROJECT_DRAG_REFERENCE_SPEED_M_S = 10.0
 HEADERS = {
     "Accept": "application/vnd.mendeley-public-dataset.1+json",
     "User-Agent": "Mozilla/5.0 fpv-sim-data-validation",
@@ -1324,14 +1327,12 @@ def parse_project_drone_preset_model(preset_name: str) -> dict[str, str | float 
     weight_n = mass_kg * gravity
     max_total_thrust_n = rotor_count * max_rotor_thrust
     level_horizontal_thrust_margin_n = math.sqrt(max(max_total_thrust_n**2 - weight_n**2, 0.0))
-    total_drag_x = linear_drag + body_drag_x
-    total_drag_y = linear_drag + body_drag_y
-    total_drag_z = linear_drag + body_drag_z
+    total_drag_x = equivalent_quadratic_c(linear_drag, body_drag_x, PROJECT_DRAG_REFERENCE_SPEED_M_S)
+    total_drag_y = equivalent_quadratic_c(linear_drag, body_drag_y, PROJECT_DRAG_REFERENCE_SPEED_M_S)
+    total_drag_z = equivalent_quadratic_c(linear_drag, body_drag_z, PROJECT_DRAG_REFERENCE_SPEED_M_S)
 
-    def drag_limited_speed(coefficient: float) -> float:
-        if coefficient <= 0.0:
-            return float("nan")
-        return math.sqrt(level_horizontal_thrust_margin_n / coefficient)
+    def drag_limited_speed(body_drag: float) -> float:
+        return terminal_speed_m_s(level_horizontal_thrust_margin_n, linear_drag, body_drag)
 
     row = {
         "row_type": "project_preset_model",
@@ -1353,15 +1354,17 @@ def parse_project_drone_preset_model(preset_name: str) -> dict[str, str | float 
         "thrust_coefficient_n_per_rad2_s2": thrust_coefficient if thrust_coefficient is not None else "",
         "yaw_torque_per_thrust_m": yaw_torque_per_thrust if yaw_torque_per_thrust is not None else "",
         "rotor_radius_m": rotor_radius if rotor_radius is not None else "",
+        "linear_drag_coefficient_n_per_mps": linear_drag,
         "linear_drag_coefficient_n_per_mps2": linear_drag,
+        "total_drag_reference_speed_m_s": PROJECT_DRAG_REFERENCE_SPEED_M_S,
         "body_drag_x_n_per_mps2": body_drag_x,
         "body_drag_y_n_per_mps2": body_drag_y,
         "body_drag_z_n_per_mps2": body_drag_z,
         "total_drag_x_n_per_mps2": total_drag_x,
         "total_drag_y_n_per_mps2": total_drag_y,
         "total_drag_z_n_per_mps2": total_drag_z,
-        "drag_limited_level_speed_x_m_s": drag_limited_speed(total_drag_x),
-        "drag_limited_level_speed_z_m_s": drag_limited_speed(total_drag_z),
+        "drag_limited_level_speed_x_m_s": drag_limited_speed(body_drag_x),
+        "drag_limited_level_speed_z_m_s": drag_limited_speed(body_drag_z),
         "nominal_battery_voltage_v": nominal_voltage,
         "empty_battery_voltage_v": empty_voltage,
         "battery_internal_resistance_ohm": battery_resistance,
@@ -1376,7 +1379,7 @@ def parse_project_drone_preset_model(preset_name: str) -> dict[str, str | float 
         "esc_command_protocol": esc_protocol,
         "rotor_blade_count": rotor_blade_count,
         "rotor_blade_pitch_to_diameter_ratio": blade_pitch_to_diameter_ratio,
-        "note": "Parsed from DroneConfig.java. Drag-limited speed assumes level flight, full configured thrust, and the current quadratic base drag path F=(linearDragCoefficient+bodyAxisDrag)*V^2.",
+        "note": f"Parsed from DroneConfig.java. Runtime drag is F=linearDragCoefficient*V+bodyAxisDrag*V^2; total_drag_* columns are equivalent quadratic coefficients at {PROJECT_DRAG_REFERENCE_SPEED_M_S:g} m/s for CSV compatibility.",
     }
     return {key: finite_or_blank(value) for key, value in row.items()}
 
@@ -2405,6 +2408,34 @@ def summarize_apdrone_open_field_speed_current_bins(
     archive_row = find_inventory_row(inventory_rows, str(open_dataset["folder_path"]), archive_filename)
     extract_dir = Path(open_dataset["extract_dir"])
     flight_csvs = extracted_flight_csvs(extract_dir)
+    presets = {
+        "racingQuad": parse_project_drone_preset_model("racingQuad"),
+        "apDrone": parse_project_drone_preset_model("apDrone"),
+    }
+    if not flight_csvs:
+        existing = DATA / "apdrone_open_field_speed_current_bins_reference.csv"
+        if existing.exists():
+            with existing.open(newline="", encoding="utf-8") as handle:
+                existing_rows: list[dict[str, str | float | int]] = [dict(row) for row in csv.DictReader(handle)]
+            for row in existing_rows:
+                speed_mean = csv_float(row.get("gps_speed_mean_m_s"))
+                speed_sq_mean = csv_float(row.get("speed_squared_mean_m2_s2"))
+                for preset_name, preset in presets.items():
+                    linear_x, body_x = project_drag_terms(preset, "x")
+                    linear_z, body_z = project_drag_terms(preset, "z")
+                    row[f"{preset_name}_project_drag_x_at_mean_speed_n"] = average_runtime_drag_force(
+                        linear_x,
+                        body_x,
+                        speed_mean,
+                        speed_sq_mean,
+                    )
+                    row[f"{preset_name}_project_drag_z_at_mean_speed_n"] = average_runtime_drag_force(
+                        linear_z,
+                        body_z,
+                        speed_mean,
+                        speed_sq_mean,
+                    )
+            return [{key: finite_or_blank(value) for key, value in row.items()} for row in existing_rows]
     add(
         {
             "row_type": "apdrone_open_field_speed_bin_metadata",
@@ -2490,11 +2521,6 @@ def summarize_apdrone_open_field_speed_current_bins(
                     return line_no
         raise RuntimeError(f"Could not find Blackbox data header in {path}")
 
-    presets = {
-        "racingQuad": parse_project_drone_preset_model("racingQuad"),
-        "apDrone": parse_project_drone_preset_model("apDrone"),
-    }
-
     scenario_buckets = make_buckets()
 
     def emit_bucket(
@@ -2550,10 +2576,20 @@ def summarize_apdrone_open_field_speed_current_bins(
             "note": "Rows are grouped by GPS ground speed. These are not steady-state force-balance bins unless acceleration/wind/attitude are separately filtered.",
         }
         for preset_name, preset in presets.items():
-            drag_x = csv_float(preset.get("total_drag_x_n_per_mps2"))
-            drag_z = csv_float(preset.get("total_drag_z_n_per_mps2"))
-            row[f"{preset_name}_project_drag_x_at_mean_speed_n"] = drag_x * speed_sq_mean
-            row[f"{preset_name}_project_drag_z_at_mean_speed_n"] = drag_z * speed_sq_mean
+            linear_x, body_x = project_drag_terms(preset, "x")
+            linear_z, body_z = project_drag_terms(preset, "z")
+            row[f"{preset_name}_project_drag_x_at_mean_speed_n"] = average_runtime_drag_force(
+                linear_x,
+                body_x,
+                speed_mean,
+                speed_sq_mean,
+            )
+            row[f"{preset_name}_project_drag_z_at_mean_speed_n"] = average_runtime_drag_force(
+                linear_z,
+                body_z,
+                speed_mean,
+                speed_sq_mean,
+            )
         add(row)
 
     for path in flight_csvs:
@@ -2617,6 +2653,30 @@ def csv_float(value: object) -> float:
     except (TypeError, ValueError):
         return float("nan")
     return number if math.isfinite(number) else float("nan")
+
+
+def project_drag_terms(row: dict[str, object], axis: str) -> tuple[float, float]:
+    linear = csv_float(row.get("linear_drag_coefficient_n_per_mps"))
+    if not math.isfinite(linear):
+        linear = csv_float(row.get("linear_drag_coefficient_n_per_mps2"))
+    body = csv_float(row.get(f"body_drag_{axis}_n_per_mps2"))
+    return linear, body
+
+
+def average_runtime_drag_force(
+    linear_k_n_per_m_s: float,
+    quadratic_c_n_per_m_s2: float,
+    speed_mean_m_s: float,
+    speed_sq_mean_m2_s2: float,
+) -> float:
+    if not (
+        math.isfinite(linear_k_n_per_m_s)
+        and math.isfinite(quadratic_c_n_per_m_s2)
+        and math.isfinite(speed_mean_m_s)
+        and math.isfinite(speed_sq_mean_m2_s2)
+    ):
+        return float("nan")
+    return linear_k_n_per_m_s * speed_mean_m_s + quadratic_c_n_per_m_s2 * speed_sq_mean_m2_s2
 
 
 def first_row(
@@ -2737,15 +2797,15 @@ def summarize_apdrone_flight_vs_model(
     for preset in presets:
         preset_name = str(preset["preset"])
         margin = csv_float(preset.get("level_horizontal_thrust_margin_n"))
-        drag_x = csv_float(preset.get("total_drag_x_n_per_mps2"))
-        drag_z = csv_float(preset.get("total_drag_z_n_per_mps2"))
+        linear_x, body_drag_x = project_drag_terms(preset, "x")
+        linear_z, body_drag_z = project_drag_terms(preset, "z")
         limit_x = csv_float(preset.get("drag_limited_level_speed_x_m_s"))
         limit_z = csv_float(preset.get("drag_limited_level_speed_z_m_s"))
         for speed_name, speed, note in speed_points:
             if not math.isfinite(speed):
                 continue
-            drag_force_x = drag_x * speed**2
-            drag_force_z = drag_z * speed**2
+            drag_force_x = drag_force(linear_x, body_drag_x, speed)
+            drag_force_z = drag_force(linear_z, body_drag_z, speed)
             add(
                 {
                     "row_type": "apdrone_speed_vs_project_drag",
@@ -2964,8 +3024,10 @@ def summarize_apdrone_drag_speed_envelope(
     ]
     for preset in preset_rows:
         preset_name = str(preset.get("preset", ""))
-        drag_x = csv_float(preset.get("total_drag_x_n_per_mps2"))
-        drag_z = csv_float(preset.get("total_drag_z_n_per_mps2"))
+        linear_x, body_x = project_drag_terms(preset, "x")
+        linear_z, body_z = project_drag_terms(preset, "z")
+        drag_x = equivalent_quadratic_c(linear_x, body_x, PROJECT_DRAG_REFERENCE_SPEED_M_S)
+        drag_z = equivalent_quadratic_c(linear_z, body_z, PROJECT_DRAG_REFERENCE_SPEED_M_S)
         add(
             {
                 "row_type": "project_preset_drag_model",
@@ -2975,13 +3037,18 @@ def summarize_apdrone_drag_speed_envelope(
                 "mass_kg": preset.get("mass_kg", ""),
                 "max_total_thrust_n": preset.get("max_total_thrust_n", ""),
                 "level_horizontal_thrust_margin_n": preset.get("level_horizontal_thrust_margin_n", ""),
+                "force_law": "F=linearDragCoefficient*V+bodyAxisDrag*V^2",
+                "linear_drag_coefficient_n_per_mps": linear_x,
+                "total_drag_reference_speed_m_s": PROJECT_DRAG_REFERENCE_SPEED_M_S,
+                "body_drag_x_n_per_mps2": body_x,
+                "body_drag_z_n_per_mps2": body_z,
                 "total_drag_x_n_per_mps2": drag_x,
                 "total_drag_z_n_per_mps2": drag_z,
-                "equivalent_cda_x_m2": 2.0 * drag_x / STANDARD_AIR_DENSITY_KG_M3,
-                "equivalent_cda_z_m2": 2.0 * drag_z / STANDARD_AIR_DENSITY_KG_M3,
+                "equivalent_cda_x_m2": equivalent_cda(linear_x, body_x, PROJECT_DRAG_REFERENCE_SPEED_M_S),
+                "equivalent_cda_z_m2": equivalent_cda(linear_z, body_z, PROJECT_DRAG_REFERENCE_SPEED_M_S),
                 "drag_limited_level_speed_x_m_s": preset.get("drag_limited_level_speed_x_m_s", ""),
                 "drag_limited_level_speed_z_m_s": preset.get("drag_limited_level_speed_z_m_s", ""),
-                "note": "Project quadratic drag model only; equivalent CdA is a force-equivalent conversion for F=cV^2, not a measured wind-tunnel CdA.",
+                "note": f"Project runtime drag model. total_drag_* and equivalent CdA are force-equivalent values at {PROJECT_DRAG_REFERENCE_SPEED_M_S:g} m/s, not measured wind-tunnel CdA.",
             }
         )
 
@@ -2993,11 +3060,14 @@ def summarize_apdrone_drag_speed_envelope(
             preset_name = str(preset.get("preset", ""))
             margin = csv_float(preset.get("level_horizontal_thrust_margin_n"))
             for axis in ["x", "z"]:
-                coefficient = csv_float(preset.get(f"total_drag_{axis}_n_per_mps2"))
-                speed_limit = csv_float(preset.get(f"drag_limited_level_speed_{axis}_m_s"))
-                if coefficient <= 0.0 or margin <= 0.0:
+                linear, body = project_drag_terms(preset, axis)
+                if not (math.isfinite(linear) and math.isfinite(body) and margin > 0.0):
                     continue
-                required_drag = coefficient * speed**2
+                required_drag = drag_force(linear, body, speed)
+                if required_drag <= 0.0:
+                    continue
+                coefficient = equivalent_quadratic_c(linear, body, speed)
+                speed_limit = terminal_speed_m_s(margin, linear, body)
                 allowable_coefficient = margin / speed**2
                 add(
                     {
@@ -3011,8 +3081,11 @@ def summarize_apdrone_drag_speed_envelope(
                         "source_scope": point.get("source_scope", ""),
                         "flight_filename": point.get("flight_filename", ""),
                         "standard_air_density_kg_m3": STANDARD_AIR_DENSITY_KG_M3,
+                        "force_law": "F=linearDragCoefficient*V+bodyAxisDrag*V^2",
+                        "linear_drag_coefficient_n_per_mps": linear,
+                        "body_drag_coefficient_n_per_mps2": body,
                         "total_drag_coefficient_n_per_mps2": coefficient,
-                        "equivalent_cda_m2": 2.0 * coefficient / STANDARD_AIR_DENSITY_KG_M3,
+                        "equivalent_cda_m2": equivalent_cda(linear, body, speed),
                         "level_horizontal_thrust_margin_n": margin,
                         "required_drag_force_n": required_drag,
                         "residual_horizontal_margin_n": margin - required_drag,
@@ -3022,7 +3095,7 @@ def summarize_apdrone_drag_speed_envelope(
                         "coefficient_over_max_allowable": coefficient / allowable_coefficient,
                         "drag_limited_level_speed_m_s": speed_limit,
                         "speed_over_drag_limited": speed / speed_limit if speed_limit > 0.0 else "",
-                        "note": "If coefficient_over_max_allowable exceeds 1, this simplified full-thrust level-flight check cannot sustain the logged GPS speed on that project axis.",
+                        "note": "If coefficient_over_max_allowable exceeds 1, this simplified full-thrust level-flight check cannot sustain the logged GPS speed on that project axis. Coefficient and CdA are speed-point equivalents of the runtime linear-plus-quadratic drag law.",
                     }
                 )
 
@@ -3265,7 +3338,8 @@ def summarize_apdrone_preset_source_match(
 
     for field, unit, note in [
         ("battery_internal_resistance_ohm", "ohm", "No direct APdrone pack ESR measurement has been extracted yet."),
-        ("linear_drag_coefficient_n_per_mps2", "N/(m/s)^2", "No direct APdrone airframe drag fit is available; use apdrone_flight_vs_model_reference.csv as a speed-envelope sanity check."),
+        ("linear_drag_coefficient_n_per_mps", "N/(m/s)", "No direct APdrone airframe linear damping fit is available; use apdrone_flight_vs_model_reference.csv as a speed-envelope sanity check."),
+        ("linear_drag_coefficient_n_per_mps2", "N/(m/s)", "Backward-compatible alias for the runtime linear damping coefficient; it is not a quadratic drag coefficient."),
         ("body_drag_x_n_per_mps2", "N/(m/s)^2", "No direct APdrone axis-specific drag fit is available."),
         ("body_drag_z_n_per_mps2", "N/(m/s)^2", "No direct APdrone axis-specific drag fit is available."),
         ("max_rotor_thrust_n", "N", "APdrone exact motor/prop thrust table is still missing; current value needs static-thrust or RPM/current validation."),
