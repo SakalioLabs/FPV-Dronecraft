@@ -1706,7 +1706,15 @@ public final class DronePhysics {
 		state.setAirframeLiftForceBodyNewtons(airframeLiftBody);
 		Vec3 rotorWashDragBody = updateRotorWashDragForce(totalForceBody, relativeAirVelocityBody, airDensity, dtSeconds);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragBody);
-		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(relativeAirVelocityBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, airDensity, dtSeconds);
+		Vec3 airframeTorqueBody = calculateAirframeAerodynamicTorque(
+				relativeAirVelocityBody,
+				rotorWashDragBody,
+				airframeLiftBody,
+				airframeDragBody,
+				environment,
+				airDensity,
+				dtSeconds
+		);
 		state.setAirframeAerodynamicTorqueBodyNewtonMeters(airframeTorqueBody);
 		Vec3 turbulenceTorqueBody = calculateWindTurbulenceTorque(environment, relativeAirVelocityBody, dtSeconds);
 		state.setWindTurbulenceTorqueBodyNewtonMeters(turbulenceTorqueBody);
@@ -5803,6 +5811,7 @@ public final class DronePhysics {
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
+			DroneEnvironment environment,
 			double airDensityRatio,
 			double dtSeconds
 	) {
@@ -5812,6 +5821,7 @@ public final class DronePhysics {
 				rotorWashDragForceBody,
 				airframeLiftForceBody,
 				airframeDragForceBody,
+				environment,
 				airDensityRatio,
 				dtSeconds
 		);
@@ -5895,10 +5905,15 @@ public final class DronePhysics {
 			Vec3 rotorWashDragForceBody,
 			Vec3 airframeLiftForceBody,
 			Vec3 airframeDragForceBody,
+			DroneEnvironment environment,
 			double airDensityRatio,
 			double dtSeconds
 	) {
-		Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(relativeAirVelocityBody, dtSeconds);
+		Vec3 dynamicPressureCenterOffsetBody = updateDynamicPressureCenterOffsetBody(
+				relativeAirVelocityBody,
+				environment,
+				dtSeconds
+		);
 		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
 				.add(dynamicPressureCenterOffsetBody)
 				.subtract(config.centerOfMassOffsetBodyMeters());
@@ -5912,8 +5927,12 @@ public final class DronePhysics {
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
 	}
 
-	private Vec3 updateDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody, double dtSeconds) {
-		Vec3 target = calculateSteadyDynamicPressureCenterOffsetBody(relativeAirVelocityBody);
+	private Vec3 updateDynamicPressureCenterOffsetBody(
+			Vec3 relativeAirVelocityBody,
+			DroneEnvironment environment,
+			double dtSeconds
+	) {
+		Vec3 target = calculateSteadyDynamicPressureCenterOffsetBody(relativeAirVelocityBody, environment);
 		if (dtSeconds <= 0.0) {
 			dynamicPressureCenterOffsetBodyFiltered = target;
 			return dynamicPressureCenterOffsetBodyFiltered;
@@ -5932,12 +5951,16 @@ public final class DronePhysics {
 		return dynamicPressureCenterOffsetBodyFiltered;
 	}
 
-	private Vec3 calculateSteadyDynamicPressureCenterOffsetBody(Vec3 relativeAirVelocityBody) {
+	private Vec3 calculateSteadyDynamicPressureCenterOffsetBody(
+			Vec3 relativeAirVelocityBody,
+			DroneEnvironment environment
+	) {
 		double speed = relativeAirVelocityBody.length();
 		if (speed < 2.0) {
 			return Vec3.ZERO;
 		}
 
+		Vec3 a4mcLocalOffset = a4mcLocalVoxelPressureCenterOffsetBody(environment, speed);
 		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
 		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
 		double sideslip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
@@ -5948,14 +5971,14 @@ public final class DronePhysics {
 				1.0
 		);
 		if (angleIntensity <= 1.0e-6) {
-			return Vec3.ZERO;
+			return a4mcLocalOffset;
 		}
 
 		double speedScale = smoothStep(3.0, 18.0, speed);
 		double separationBias = 0.35 + 0.65 * effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
 		double migrationScale = speedScale * separationBias * angleIntensity;
 		if (migrationScale <= 1.0e-6) {
-			return Vec3.ZERO;
+			return a4mcLocalOffset;
 		}
 
 		double lateralShift = -0.018 * Math.sin(sideslip) * migrationScale;
@@ -5965,7 +5988,62 @@ public final class DronePhysics {
 				* (Math.abs(Math.sin(angleOfAttack)) + 0.70 * Math.abs(Math.sin(sideslip)))
 				* migrationScale
 				* forwardFlowFraction;
-		return new Vec3(lateralShift, verticalShift, aftShift).clamp(-0.040, 0.040);
+		return new Vec3(lateralShift, verticalShift, aftShift)
+				.add(a4mcLocalOffset)
+				.clamp(-0.040, 0.040);
+	}
+
+	private Vec3 a4mcLocalVoxelPressureCenterOffsetBody(DroneEnvironment environment, double airspeedMetersPerSecond) {
+		if (environment == null || !environment.windSourceLocalVoxelFlow()) {
+			return Vec3.ZERO;
+		}
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
+			return Vec3.ZERO;
+		}
+		int count = Math.min(state.motorCount(), config.rotors().size());
+		if (count <= 0) {
+			return Vec3.ZERO;
+		}
+
+		double[] signals = new double[count];
+		double signalSum = 0.0;
+		for (int i = 0; i < count; i++) {
+			double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(i), 0.0, 1.0);
+			double shelterObstruction = MathUtil.clamp(environment.rotorA4mcShelterObstruction(i), 0.0, 1.0);
+			double signal = localVoxelCoverage + 0.65 * shelterObstruction;
+			signals[i] = signal;
+			signalSum += signal;
+		}
+		double meanSignal = signalSum / count;
+		if (meanSignal <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+
+		Vec3 weightedDeficitCentroid = Vec3.ZERO;
+		for (int i = 0; i < count; i++) {
+			double anomaly = signals[i] - meanSignal;
+			if (Math.abs(anomaly) <= 1.0e-6) {
+				continue;
+			}
+			Vec3 position = config.rotors().get(i).positionBodyMeters();
+			weightedDeficitCentroid = weightedDeficitCentroid.add(position.multiply(anomaly));
+		}
+		weightedDeficitCentroid = weightedDeficitCentroid.multiply(1.0 / count);
+		if (weightedDeficitCentroid.lengthSquared() <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+
+		double speedGate = smoothStep(2.0, 12.0, airspeedMetersPerSecond);
+		double strength = MathUtil.clamp(meanSignal * sourceQuality * speedGate, 0.0, 1.0);
+		if (strength <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		return new Vec3(
+				-weightedDeficitCentroid.x() * 0.68 * strength,
+				0.0,
+				-weightedDeficitCentroid.z() * 0.44 * strength
+		).clamp(-0.024, 0.024);
 	}
 
 	private Vec3 calculateAirframeAngularDragTorque(

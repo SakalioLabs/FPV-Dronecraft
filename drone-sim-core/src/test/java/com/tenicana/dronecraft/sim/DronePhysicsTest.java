@@ -10198,6 +10198,60 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcLocalVoxelAsymmetryMovesAirframePressureCenter() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics freshLocal = new DronePhysics(config);
+		DronePhysics staleLocal = new DronePhysics(config);
+		DronePhysics coarseSource = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		double[] rightSideResiduals = {0.35, 0.94, 0.94, 0.35};
+		double[] rightSideShelterObstructions = {0.18, 0.02, 0.02, 0.18};
+		DroneEnvironment freshAsymmetry = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				1.0,
+				0L,
+				rightSideResiduals,
+				rightSideShelterObstructions
+		);
+		DroneEnvironment staleAsymmetry = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				1.0,
+				160L,
+				rightSideResiduals,
+				rightSideShelterObstructions
+		);
+		DroneEnvironment coarseAsymmetry = a4mcShelterCoolingWind(
+				0.65,
+				false,
+				1.0,
+				0L,
+				rightSideResiduals,
+				rightSideShelterObstructions
+		);
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(freshLocal, straightVelocity);
+			holdInCruise(staleLocal, straightVelocity);
+			holdInCruise(coarseSource, straightVelocity);
+			freshLocal.step(DroneInput.idle(), 0.005, freshAsymmetry);
+			staleLocal.step(DroneInput.idle(), 0.005, staleAsymmetry);
+			coarseSource.step(DroneInput.idle(), 0.005, coarseAsymmetry);
+		}
+
+		Vec3 freshTorque = freshLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 staleTorque = staleLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 coarseTorque = coarseSource.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertTrue(Math.abs(freshTorque.y()) > 0.006, () -> "freshTorque=" + freshTorque);
+		assertTrue(Math.abs(staleTorque.y()) < 0.0015, () -> "staleTorque=" + staleTorque);
+		assertTrue(Math.abs(coarseTorque.y()) < 0.0015, () -> "coarseTorque=" + coarseTorque);
+	}
+
+	@Test
 	void rotorOutwardCantTiltsThrustAxesAndReducesVerticalLift() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
