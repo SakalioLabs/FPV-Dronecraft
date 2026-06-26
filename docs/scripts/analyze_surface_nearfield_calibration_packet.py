@@ -221,6 +221,30 @@ def add_wall_mapping(rows: list[dict[str, str]], obstruction_rows: list[dict[str
             )
 
     for row in obstruction_rows:
+        if row.get("row_type") != "current_offline_wall_skim_closest_rotor":
+            continue
+        name = f"{row['preset']}_offline_wall_skim_closest_rotor"
+        for metric, unit in [
+            ("current_offline_wall_skim_geometric_obstruction", "fraction"),
+            ("current_offline_wall_skim_local_obstacle_residual", "multiplier"),
+            ("current_offline_wall_skim_residual_obstruction", "fraction"),
+            ("current_offline_wall_skim_a4mc_shelter_obstruction", "fraction"),
+            ("current_offline_wall_skim_obstruction", "fraction"),
+            ("current_offline_wall_skim_thrust_multiplier_per_affected_rotor", "multiplier"),
+        ]:
+            add_metric(
+                rows,
+                row_type="surface_nearfield_offline_a4mc_wall_skim",
+                name=name,
+                metric=metric,
+                value=try_float(row[metric]),
+                unit=unit,
+                source_file=OBSTRUCTION,
+                source_url=row.get("source_url", ""),
+                note="Offline wall_skim synthetic A4MC L2 profile decomposes duplicated geometry residual and shelter-gradient obstruction.",
+            )
+
+    for row in obstruction_rows:
         if row.get("row_type") != "published_wall_effect_anchor":
             continue
         add_metric(
@@ -281,6 +305,9 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     rq_wall_025_force = find_metric(rows, "surface_nearfield_wall_runtime_mapping", "racingQuad_clearance_over_r_0.25", "two_affected_rotors_wall_force_over_weight")
     rq_wall_1_vehicle = find_metric(rows, "surface_nearfield_wall_runtime_mapping", "racingQuad_clearance_over_r_1.0", "two_affected_rotors_vehicle_thrust_multiplier")
     rq_full_obstruction_force = find_metric(rows, "surface_nearfield_current_wall_force", "racingQuad_obstruction_1.0_speed_0.0", "two_rotor_wall_force_over_weight")
+    rq_offline_wall_skim_geometry = find_metric(rows, "surface_nearfield_offline_a4mc_wall_skim", "racingQuad_offline_wall_skim_closest_rotor", "current_offline_wall_skim_geometric_obstruction")
+    rq_offline_wall_skim_combined = find_metric(rows, "surface_nearfield_offline_a4mc_wall_skim", "racingQuad_offline_wall_skim_closest_rotor", "current_offline_wall_skim_obstruction")
+    rq_offline_wall_skim_ratio = rq_offline_wall_skim_combined / rq_offline_wall_skim_geometry if rq_offline_wall_skim_geometry > 1.0e-9 else math.nan
 
     summary = {
         "racingQuad_hR1_current_ground_multiplier": (rq_h1_current, "multiplier"),
@@ -291,6 +318,8 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "racingQuad_wall_0p25R_two_rotor_wall_force_over_weight": (rq_wall_025_force, "weight fraction"),
         "racingQuad_wall_1R_two_rotor_vehicle_thrust_loss": (1.0 - rq_wall_1_vehicle, "fraction"),
         "racingQuad_full_obstruction_two_rotor_wall_force_over_weight": (rq_full_obstruction_force, "weight fraction"),
+        "racingQuad_offline_a4mc_wall_skim_combined_obstruction": (rq_offline_wall_skim_combined, "fraction"),
+        "racingQuad_offline_a4mc_wall_skim_combined_over_geometry": (rq_offline_wall_skim_ratio, "ratio"),
     }
     for metric, (value, unit) in summary.items():
         add_metric(

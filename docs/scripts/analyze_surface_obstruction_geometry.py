@@ -24,6 +24,9 @@ CARTER_AIAA_2020 = "https://par.nsf.gov/servlets/purl/10267925"
 CURRENT_FLOW_MODEL = "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/RotorFlowObstructionModel.java"
 CURRENT_ENTITY_SAMPLER = "fabric-mod/src/main/java/com/tenicana/dronecraft/entity/DroneEntity.java"
 CURRENT_PHYSICS = "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/DronePhysics.java"
+CURRENT_OFFLINE_RECORDER = "drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/tools/OfflineFlightRecorder.java"
+OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL = 0.62
+OFFLINE_A4MC_WALL_SIDE_SHELTER_OBSTRUCTION = 0.15
 
 
 @dataclass(frozen=True)
@@ -49,6 +52,19 @@ class Preset:
     @property
     def hover_spin_ratio(self) -> float:
         return math.sqrt(max(0.0, self.hover_thrust_fraction))
+
+
+@dataclass(frozen=True)
+class OfflineWallSkimA4mcProfile:
+    geometric_obstruction: float
+    local_obstacle_residual: float
+    residual_obstruction: float
+    shelter_gradient_obstruction: float
+    combined_obstruction: float
+
+    @property
+    def thrust_multiplier(self) -> float:
+        return obstruction_thrust_multiplier(self.combined_obstruction)
 
 
 PRESETS = [
@@ -150,6 +166,25 @@ def obstruction_thrust_multiplier(obstruction: float) -> float:
     return clamp(1.0 - 0.24 * obstruction * obstruction, 0.72, 1.0)
 
 
+def combine_obstruction_intensity(first: float, second: float) -> float:
+    return clamp(1.0 - (1.0 - clamp(first, 0.0, 1.0)) * (1.0 - clamp(second, 0.0, 1.0)), 0.0, 1.0)
+
+
+def offline_wall_skim_a4mc_profile(
+    geometric_obstruction: float,
+    shelter_gradient_obstruction: float = OFFLINE_A4MC_WALL_SIDE_SHELTER_OBSTRUCTION,
+) -> OfflineWallSkimA4mcProfile:
+    residual = clamp(geometric_obstruction, 0.0, 1.0) * OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL
+    shelter = clamp(shelter_gradient_obstruction, 0.0, 1.0)
+    return OfflineWallSkimA4mcProfile(
+        geometric_obstruction=clamp(geometric_obstruction, 0.0, 1.0),
+        local_obstacle_residual=OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL,
+        residual_obstruction=residual,
+        shelter_gradient_obstruction=shelter,
+        combined_obstruction=combine_obstruction_intensity(residual, shelter),
+    )
+
+
 def row(row_type: str, **values: object) -> dict[str, object]:
     base: dict[str, object] = {
         "row_type": row_type,
@@ -163,7 +198,12 @@ def row(row_type: str, **values: object) -> dict[str, object]:
         "disk_segment_blocked_fraction": "",
         "current_runtime_obstruction": "",
         "current_offline_wall_skim_obstruction": "",
+        "current_offline_wall_skim_geometric_obstruction": "",
+        "current_offline_wall_skim_local_obstacle_residual": "",
+        "current_offline_wall_skim_residual_obstruction": "",
+        "current_offline_wall_skim_a4mc_shelter_obstruction": "",
         "current_runtime_thrust_multiplier_per_affected_rotor": "",
+        "current_offline_wall_skim_thrust_multiplier_per_affected_rotor": "",
         "two_affected_rotors_vehicle_thrust_multiplier": "",
         "four_affected_rotors_vehicle_thrust_multiplier": "",
         "wall_force_per_affected_rotor_n": "",
@@ -300,7 +340,8 @@ def main() -> None:
             clearance_m = clearance_over_r * preset.rotor_radius_m
             blocked = disk_segment_blocked_fraction(clearance_over_r)
             runtime_obstruction = obstruction_intensity_for_flat_wall(clearance_m, runtime_scan)
-            offline_obstruction = obstruction_intensity_for_flat_wall(clearance_m, offline_scan)
+            offline_geometric = obstruction_intensity_for_flat_wall(clearance_m, offline_scan)
+            offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric)
             thrust_multiplier = obstruction_thrust_multiplier(runtime_obstruction)
             two_rotor_vehicle_multiplier = 1.0 - 2.0 / preset.rotor_count * (1.0 - thrust_multiplier)
             four_rotor_vehicle_multiplier = thrust_multiplier
@@ -317,8 +358,13 @@ def main() -> None:
                     scan_distance_over_r=runtime_scan / preset.rotor_radius_m,
                     disk_segment_blocked_fraction=blocked,
                     current_runtime_obstruction=runtime_obstruction,
-                    current_offline_wall_skim_obstruction=offline_obstruction,
+                    current_offline_wall_skim_obstruction=offline_a4mc.combined_obstruction,
+                    current_offline_wall_skim_geometric_obstruction=offline_a4mc.geometric_obstruction,
+                    current_offline_wall_skim_local_obstacle_residual=offline_a4mc.local_obstacle_residual,
+                    current_offline_wall_skim_residual_obstruction=offline_a4mc.residual_obstruction,
+                    current_offline_wall_skim_a4mc_shelter_obstruction=offline_a4mc.shelter_gradient_obstruction,
                     current_runtime_thrust_multiplier_per_affected_rotor=thrust_multiplier,
+                    current_offline_wall_skim_thrust_multiplier_per_affected_rotor=offline_a4mc.thrust_multiplier,
                     two_affected_rotors_vehicle_thrust_multiplier=two_rotor_vehicle_multiplier,
                     four_affected_rotors_vehicle_thrust_multiplier=four_rotor_vehicle_multiplier,
                     wall_force_per_affected_rotor_n=wall_force,
@@ -326,7 +372,7 @@ def main() -> None:
                     two_affected_rotors_wall_force_over_weight=2.0 * wall_force / preset.weight_n,
                     hover_thrust_per_rotor_n=preset.hover_thrust_per_rotor_n,
                     hover_spin_ratio=preset.hover_spin_ratio,
-                    note="Runtime uses an obstacle sampling horizon much larger than rotor radius, so obstruction remains high even when geometric disk overlap is zero.",
+                    note="Runtime uses an obstacle sampling horizon much larger than rotor radius; offline wall_skim now records the A4MC local-residual plus shelter-gradient proxy separately from geometric obstruction.",
                 )
             )
 
@@ -335,13 +381,14 @@ def main() -> None:
         runtime_scan = runtime_side_flow_scan_distance_m(preset.rotor_radius_m)
         offline_scan = offline_wall_skim_scan_distance_m(preset.rotor_radius_m)
         runtime_obstruction = obstruction_intensity_for_flat_wall(closest_clearance_m, runtime_scan)
-        offline_obstruction = obstruction_intensity_for_flat_wall(closest_clearance_m, offline_scan)
+        offline_geometric = obstruction_intensity_for_flat_wall(closest_clearance_m, offline_scan)
+        offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric)
         wall_force = wall_effect_force_n(preset, runtime_obstruction)
         rows.append(
             row(
                 "current_offline_wall_skim_closest_rotor",
                 source="current Java formulas",
-                source_url="drone-sim-core/src/main/java/com/tenicana/dronecraft/sim/tools/OfflineFlightRecorder.java",
+                source_url=CURRENT_OFFLINE_RECORDER,
                 preset=preset.name,
                 clearance_over_r=closest_clearance_m / preset.rotor_radius_m,
                 clearance_m=closest_clearance_m,
@@ -349,14 +396,19 @@ def main() -> None:
                 scan_distance_over_r=offline_scan / preset.rotor_radius_m,
                 disk_segment_blocked_fraction=disk_segment_blocked_fraction(closest_clearance_m / preset.rotor_radius_m),
                 current_runtime_obstruction=runtime_obstruction,
-                current_offline_wall_skim_obstruction=offline_obstruction,
+                current_offline_wall_skim_obstruction=offline_a4mc.combined_obstruction,
+                current_offline_wall_skim_geometric_obstruction=offline_a4mc.geometric_obstruction,
+                current_offline_wall_skim_local_obstacle_residual=offline_a4mc.local_obstacle_residual,
+                current_offline_wall_skim_residual_obstruction=offline_a4mc.residual_obstruction,
+                current_offline_wall_skim_a4mc_shelter_obstruction=offline_a4mc.shelter_gradient_obstruction,
                 current_runtime_thrust_multiplier_per_affected_rotor=obstruction_thrust_multiplier(runtime_obstruction),
+                current_offline_wall_skim_thrust_multiplier_per_affected_rotor=offline_a4mc.thrust_multiplier,
                 wall_force_per_affected_rotor_n=wall_force,
                 two_affected_rotors_wall_force_n=2.0 * wall_force,
                 two_affected_rotors_wall_force_over_weight=2.0 * wall_force / preset.weight_n,
                 hover_thrust_per_rotor_n=preset.hover_thrust_per_rotor_n,
                 hover_spin_ratio=preset.hover_spin_ratio,
-                note="Offline diagnostic wall_skim keeps the closest rotor about 0.04 m from the wall; this row expresses that scene in rotor-radius units.",
+                note="Offline diagnostic wall_skim keeps the closest rotor about 0.04 m from the wall, attenuates duplicated geometry by an A4MC local obstacle residual, then adds a wall-side shelter-gradient obstruction.",
             )
         )
 
