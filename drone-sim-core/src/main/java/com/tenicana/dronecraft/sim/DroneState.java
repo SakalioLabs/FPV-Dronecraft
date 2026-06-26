@@ -188,6 +188,7 @@ public final class DroneState {
 	private Vec3 windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windBurbleVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 a4mcSourceGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 a4mcTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private double windShearAccelerationMetersPerSecondSquared;
 	private double airspeedMetersPerSecond;
@@ -3443,6 +3444,20 @@ public final class DroneState {
 
 	public double windBurbleSpeedMetersPerSecond() {
 		return windBurbleVelocityWorldMetersPerSecond.length();
+	}
+
+	public Vec3 a4mcSourceGustVelocityWorldMetersPerSecond() {
+		return a4mcSourceGustVelocityWorldMetersPerSecond;
+	}
+
+	void setA4mcSourceGustVelocityWorldMetersPerSecond(Vec3 a4mcSourceGustVelocityWorldMetersPerSecond) {
+		this.a4mcSourceGustVelocityWorldMetersPerSecond = a4mcSourceGustVelocityWorldMetersPerSecond == null
+				? Vec3.ZERO
+				: a4mcSourceGustVelocityWorldMetersPerSecond;
+	}
+
+	public double a4mcSourceGustSpeedMetersPerSecond() {
+		return a4mcSourceGustVelocityWorldMetersPerSecond.length();
 	}
 
 	public Vec3 a4mcTerrainShearVelocityWorldMetersPerSecond() {

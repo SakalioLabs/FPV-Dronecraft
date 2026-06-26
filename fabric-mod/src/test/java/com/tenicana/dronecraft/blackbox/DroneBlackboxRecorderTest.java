@@ -430,6 +430,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_gust_speed_mps"));
 		assertTrue(csv.contains("wind_dryden_speed_mps"));
 		assertTrue(csv.contains("wind_burble_speed_mps"));
+		assertTrue(csv.contains("wind_a4mc_source_gust_speed_mps"));
 		assertTrue(csv.contains("wind_a4mc_terrain_shear_speed_mps"));
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
 		assertTrue(csv.contains("wind_source"));
@@ -672,6 +673,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_gust_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_dryden_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_burble_speed_mps")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_a4mc_terrain_shear_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_shear_accel_mps2")]));
 		assertEquals("aerodynamics4mc", row[indexOf(header, "wind_source")]);
@@ -1016,6 +1018,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxWindGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindDrydenSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindBurbleSpeedMetersPerSecond() >= 0.0);
+		assertTrue(summary.maxWindA4mcSourceGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindA4mcTerrainShearSpeedMetersPerSecond() >= 0.0);
 		assertEquals(
 				maxOfColumns(lines, header, "wind_dryden_speed_mps"),
@@ -1025,6 +1028,11 @@ class DroneBlackboxRecorderTest {
 		assertEquals(
 				maxOfColumns(lines, header, "wind_burble_speed_mps"),
 				summary.maxWindBurbleSpeedMetersPerSecond(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfColumns(lines, header, "wind_a4mc_source_gust_speed_mps"),
+				summary.maxWindA4mcSourceGustSpeedMetersPerSecond(),
 				1.0e-5
 		);
 		assertEquals(
@@ -1054,6 +1062,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("mix-auth"));
 		assertTrue(summary.formatForChat().contains("dryden"));
 		assertTrue(summary.formatForChat().contains("burble"));
+		assertTrue(summary.formatForChat().contains("a4mcsrc"));
 		assertTrue(summary.formatForChat().contains("a4mc 4/4"));
 		assertTrue(summary.formatForChat().contains("trusted 4"));
 		assertTrue(summary.formatForChat().contains("l2 4"));

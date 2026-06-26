@@ -3522,19 +3522,30 @@ class DronePhysicsTest {
 
 		double smoothMaxGust = 0.0;
 		double gustyMaxGust = 0.0;
+		double gustyMaxSourceGust = 0.0;
 		double gustyMaxTerrainShear = 0.0;
 		for (int i = 0; i < 240; i++) {
 			smooth.step(idle, 0.005, smoothA4mcWind);
 			gusty.step(idle, 0.005, gustyA4mcWind);
 			smoothMaxGust = Math.max(smoothMaxGust, smooth.state().windGustSpeedMetersPerSecond());
 			gustyMaxGust = Math.max(gustyMaxGust, gusty.state().windGustSpeedMetersPerSecond());
+			gustyMaxSourceGust = Math.max(gustyMaxSourceGust, gusty.state().a4mcSourceGustSpeedMetersPerSecond());
 			gustyMaxTerrainShear = Math.max(gustyMaxTerrainShear, gusty.state().a4mcTerrainShearSpeedMetersPerSecond());
 		}
 
 		assertEquals(0.0, smoothMaxGust, 1.0e-9);
 		assertTrue(gustyMaxGust > 0.20, "gustyMaxGust=" + gustyMaxGust);
 		assertTrue(gustyMaxGust < 1.40, "gustyMaxGust=" + gustyMaxGust);
+		assertEquals(gustyMaxGust, gustyMaxSourceGust, 1.0e-9);
 		assertEquals(0.0, gustyMaxTerrainShear, 1.0e-9);
+		assertVecClose(
+				gusty.state().windGustVelocityWorldMetersPerSecond(),
+				gusty.state().drydenTurbulenceVelocityWorldMetersPerSecond()
+						.add(gusty.state().windBurbleVelocityWorldMetersPerSecond())
+						.add(gusty.state().a4mcSourceGustVelocityWorldMetersPerSecond())
+						.add(gusty.state().a4mcTerrainShearVelocityWorldMetersPerSecond()),
+				1.0e-12
+		);
 	}
 
 	@Test
@@ -3573,11 +3584,13 @@ class DronePhysicsTest {
 				.subtract(repeat.state().windGustVelocityWorldMetersPerSecond()).length(), 1.0e-12);
 		assertTrue(physics.state().drydenTurbulenceSpeedMetersPerSecond() > 0.05);
 		assertTrue(physics.state().windBurbleSpeedMetersPerSecond() > 0.0);
+		assertEquals(0.0, physics.state().a4mcSourceGustSpeedMetersPerSecond(), 1.0e-12);
 		assertEquals(0.0, physics.state().a4mcTerrainShearSpeedMetersPerSecond(), 1.0e-12);
 		assertVecClose(
 				physics.state().windGustVelocityWorldMetersPerSecond(),
 				physics.state().drydenTurbulenceVelocityWorldMetersPerSecond()
 						.add(physics.state().windBurbleVelocityWorldMetersPerSecond())
+						.add(physics.state().a4mcSourceGustVelocityWorldMetersPerSecond())
 						.add(physics.state().a4mcTerrainShearVelocityWorldMetersPerSecond()),
 				1.0e-12
 		);
@@ -3647,6 +3660,7 @@ class DronePhysicsTest {
 		assertVecClose(snapshot.windGustVelocityWorldMetersPerSecond(), restored.state().windGustVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.drydenTurbulenceVelocityWorldMetersPerSecond(), restored.state().drydenTurbulenceVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.windBurbleVelocityWorldMetersPerSecond(), restored.state().windBurbleVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(snapshot.a4mcSourceGustVelocityWorldMetersPerSecond(), restored.state().a4mcSourceGustVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.a4mcTerrainShearVelocityWorldMetersPerSecond(), restored.state().a4mcTerrainShearVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.airframeDragForceBody(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
 		assertEquals(snapshot.airframeSeparatedFlowIntensity(), restored.state().airframeSeparatedFlowIntensity(), 1.0e-12);
@@ -3660,6 +3674,7 @@ class DronePhysicsTest {
 		assertVecClose(source.state().windGustVelocityWorldMetersPerSecond(), restored.state().windGustVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().drydenTurbulenceVelocityWorldMetersPerSecond(), restored.state().drydenTurbulenceVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().windBurbleVelocityWorldMetersPerSecond(), restored.state().windBurbleVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(source.state().a4mcSourceGustVelocityWorldMetersPerSecond(), restored.state().a4mcSourceGustVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().a4mcTerrainShearVelocityWorldMetersPerSecond(), restored.state().a4mcTerrainShearVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().airframeBodyDragForceBodyNewtons(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
 		assertVecClose(source.state().airframeLiftForceBodyNewtons(), restored.state().airframeLiftForceBodyNewtons(), 1.0e-12);
@@ -10939,6 +10954,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_gust_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_dryden_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_burble_speed_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_terrain_shear_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_shear_accel_mps2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_impact_mps"));
@@ -11578,6 +11594,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxWindGustSpeedMetersPerSecond() > 0.05);
 		assertTrue(report.maxWindDrydenSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxWindBurbleSpeedMetersPerSecond() > 0.0);
+		assertTrue(report.maxWindA4mcSourceGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxWindA4mcTerrainShearSpeedMetersPerSecond() >= 0.0);
 		assertEquals(
 				maxColumn(lines, header, "wind_dryden_speed_mps"),
@@ -11587,6 +11604,11 @@ class DronePhysicsTest {
 		assertEquals(
 				maxColumn(lines, header, "wind_burble_speed_mps"),
 				report.maxWindBurbleSpeedMetersPerSecond(),
+				1.0e-5
+		);
+		assertEquals(
+				maxColumn(lines, header, "wind_a4mc_source_gust_speed_mps"),
+				report.maxWindA4mcSourceGustSpeedMetersPerSecond(),
 				1.0e-5
 		);
 		assertEquals(

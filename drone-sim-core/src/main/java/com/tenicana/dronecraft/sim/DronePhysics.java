@@ -164,6 +164,7 @@ public final class DronePhysics {
 	private Vec3 drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
+	private Vec3 a4mcSourceGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 a4mcTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private Vec3 windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 	private long drydenRandomState = 0x6A09E667F3BCC909L;
@@ -277,6 +278,7 @@ public final class DronePhysics {
 			Vec3 drydenFirstOrderVelocityWorldMetersPerSecond,
 			Vec3 drydenTransverseLagVelocityWorldMetersPerSecond,
 			Vec3 drydenTurbulenceVelocityWorldMetersPerSecond,
+			Vec3 a4mcSourceGustVelocityWorldMetersPerSecond,
 			Vec3 a4mcTerrainShearVelocityWorldMetersPerSecond,
 			Vec3 windGustVelocityWorldMetersPerSecond,
 			long drydenRandomState,
@@ -306,6 +308,7 @@ public final class DronePhysics {
 			drydenFirstOrderVelocityWorldMetersPerSecond = finiteVecOrZero(drydenFirstOrderVelocityWorldMetersPerSecond);
 			drydenTransverseLagVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTransverseLagVelocityWorldMetersPerSecond);
 			drydenTurbulenceVelocityWorldMetersPerSecond = finiteVecOrZero(drydenTurbulenceVelocityWorldMetersPerSecond);
+			a4mcSourceGustVelocityWorldMetersPerSecond = finiteVecOrZero(a4mcSourceGustVelocityWorldMetersPerSecond);
 			a4mcTerrainShearVelocityWorldMetersPerSecond = finiteVecOrZero(a4mcTerrainShearVelocityWorldMetersPerSecond);
 			windGustVelocityWorldMetersPerSecond = finiteVecOrZero(windGustVelocityWorldMetersPerSecond);
 			rotorWashDragForceBody = finiteVecOrZero(rotorWashDragForceBody);
@@ -854,6 +857,7 @@ public final class DronePhysics {
 				drydenFirstOrderVelocityWorldMetersPerSecond,
 				drydenTransverseLagVelocityWorldMetersPerSecond,
 				drydenTurbulenceVelocityWorldMetersPerSecond,
+				a4mcSourceGustVelocityWorldMetersPerSecond,
 				a4mcTerrainShearVelocityWorldMetersPerSecond,
 				windGustVelocityWorldMetersPerSecond,
 				drydenRandomState,
@@ -889,6 +893,7 @@ public final class DronePhysics {
 		drydenFirstOrderVelocityWorldMetersPerSecond = transientState.drydenFirstOrderVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
 		drydenTransverseLagVelocityWorldMetersPerSecond = transientState.drydenTransverseLagVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
 		drydenTurbulenceVelocityWorldMetersPerSecond = transientState.drydenTurbulenceVelocityWorldMetersPerSecond().clamp(-40.0, 40.0);
+		a4mcSourceGustVelocityWorldMetersPerSecond = transientState.a4mcSourceGustVelocityWorldMetersPerSecond().clamp(-12.0, 12.0);
 		a4mcTerrainShearVelocityWorldMetersPerSecond = transientState.a4mcTerrainShearVelocityWorldMetersPerSecond().clamp(-12.0, 12.0);
 		windGustVelocityWorldMetersPerSecond = transientState.windGustVelocityWorldMetersPerSecond().clamp(-60.0, 60.0);
 		drydenRandomState = transientState.drydenRandomState();
@@ -926,6 +931,7 @@ public final class DronePhysics {
 		state.setWindGustVelocityWorldMetersPerSecond(windGustVelocityWorldMetersPerSecond);
 		state.setDrydenTurbulenceVelocityWorldMetersPerSecond(drydenTurbulenceVelocityWorldMetersPerSecond);
 		state.setWindBurbleVelocityWorldMetersPerSecond(windBurbleVelocityWorldMetersPerSecond);
+		state.setA4mcSourceGustVelocityWorldMetersPerSecond(a4mcSourceGustVelocityWorldMetersPerSecond);
 		state.setA4mcTerrainShearVelocityWorldMetersPerSecond(a4mcTerrainShearVelocityWorldMetersPerSecond);
 		state.setAirframeSeparatedFlowIntensity(airframeSeparatedFlowIntensity);
 		state.setRotorWashDragForceBodyNewtons(rotorWashDragForceBodyFiltered);
@@ -6103,12 +6109,14 @@ public final class DronePhysics {
 			drydenFirstOrderVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTransverseLagVelocityWorldMetersPerSecond = Vec3.ZERO;
 			drydenTurbulenceVelocityWorldMetersPerSecond = Vec3.ZERO;
+			a4mcSourceGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 			a4mcTerrainShearVelocityWorldMetersPerSecond = Vec3.ZERO;
 			windGustVelocityWorldMetersPerSecond = Vec3.ZERO;
 			state.setEffectiveWindVelocityWorldMetersPerSecond(targetMeanWind);
 			state.setWindGustVelocityWorldMetersPerSecond(Vec3.ZERO);
 			state.setDrydenTurbulenceVelocityWorldMetersPerSecond(Vec3.ZERO);
 			state.setWindBurbleVelocityWorldMetersPerSecond(Vec3.ZERO);
+			state.setA4mcSourceGustVelocityWorldMetersPerSecond(Vec3.ZERO);
 			state.setA4mcTerrainShearVelocityWorldMetersPerSecond(Vec3.ZERO);
 			state.setWindShearAccelerationMetersPerSecondSquared(0.0);
 			return targetMeanWind;
@@ -6140,11 +6148,11 @@ public final class DronePhysics {
 				targetBurble.subtract(windBurbleVelocityWorldMetersPerSecond).multiply(burbleAlpha)
 		);
 		Vec3 drydenTurbulence = updateDrydenTurbulence(environment, targetMeanWind, dtSeconds);
-		Vec3 a4mcSourceGust = a4mcSourceGustWind(environment, targetMeanWind, dirtyAir);
+		a4mcSourceGustVelocityWorldMetersPerSecond = a4mcSourceGustWind(environment, targetMeanWind, dirtyAir);
 		Vec3 a4mcTerrainShear = updateA4mcTerrainShearWind(environment, targetMeanWind, dirtyAir, dtSeconds);
 		windGustVelocityWorldMetersPerSecond = windBurbleVelocityWorldMetersPerSecond
 				.add(drydenTurbulence)
-				.add(a4mcSourceGust)
+				.add(a4mcSourceGustVelocityWorldMetersPerSecond)
 				.add(a4mcTerrainShear);
 
 		Vec3 previousEffectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
@@ -6154,6 +6162,7 @@ public final class DronePhysics {
 		state.setWindGustVelocityWorldMetersPerSecond(windGustVelocityWorldMetersPerSecond);
 		state.setDrydenTurbulenceVelocityWorldMetersPerSecond(drydenTurbulence);
 		state.setWindBurbleVelocityWorldMetersPerSecond(windBurbleVelocityWorldMetersPerSecond);
+		state.setA4mcSourceGustVelocityWorldMetersPerSecond(a4mcSourceGustVelocityWorldMetersPerSecond);
 		state.setA4mcTerrainShearVelocityWorldMetersPerSecond(a4mcTerrainShear);
 		state.setWindShearAccelerationMetersPerSecondSquared(shearAcceleration);
 		return effectiveWind;
