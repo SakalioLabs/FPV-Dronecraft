@@ -11082,6 +11082,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_y_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_z_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_terrain_shear_speed_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_source_quality"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_shear_accel_mps2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_impact_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_slip_mps"));
@@ -11739,6 +11740,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxWindBurbleSpeedMetersPerSecond() > 0.0);
 		assertTrue(report.maxWindA4mcSourceGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxWindA4mcTerrainShearSpeedMetersPerSecond() >= 0.0);
+		assertEquals(0.86, report.maxWindSourceQualityFactor(), 1.0e-5);
 		assertEquals(
 				maxColumn(lines, header, "wind_dryden_speed_mps"),
 				report.maxWindDrydenSpeedMetersPerSecond(),
@@ -11759,7 +11761,13 @@ class DronePhysicsTest {
 				report.maxWindA4mcTerrainShearSpeedMetersPerSecond(),
 				1.0e-5
 		);
+		assertEquals(
+				maxColumn(lines, header, "wind_source_quality"),
+				report.maxWindSourceQualityFactor(),
+				1.0e-5
+		);
 		assertTrue(maxColumn(lines, header, "wind_a4mc_terrain_shear_speed_mps") > 0.02);
+		assertTrue(maxColumn(lines, header, "wind_source_quality") > 0.80);
 		assertTrue(report.maxWindShearAccelerationMetersPerSecondSquared() > 0.10);
 		assertTrue(report.maxRotorWallEffectForceNewtons() > 0.04);
 		assertTrue(report.maxContactImpactSpeedMetersPerSecond() >= 0.0);
@@ -11862,6 +11870,7 @@ class DronePhysicsTest {
 		assertTrue(text.contains("notch="));
 		assertTrue(text.contains("bpass_notch="));
 		assertTrue(text.contains("max_ground_level="));
+		assertTrue(text.contains("max_wind_quality="));
 		assertTrue(text.contains("Airframe IMAV body-drag fit"));
 		assertTrue(text.contains("Airframe base-drag level-flight envelope"));
 		assertTrue(text.contains("AI-IO14"));

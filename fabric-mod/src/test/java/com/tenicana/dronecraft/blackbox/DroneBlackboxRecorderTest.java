@@ -443,6 +443,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
 		assertTrue(csv.contains("wind_source"));
 		assertTrue(csv.contains("wind_source_confidence"));
+		assertTrue(csv.contains("wind_source_quality"));
 		assertTrue(csv.contains("wind_source_pressure_anomaly_pa"));
 		assertTrue(csv.contains("wind_source_shelter_factor"));
 		assertTrue(csv.contains("wind_source_level"));
@@ -693,6 +694,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals("aerodynamics4mc", row[indexOf(header, "wind_source")]);
 		assertEquals("true", row[indexOf(header, "wind_source_trusted")]);
 		assertEquals(0.82, Double.parseDouble(row[indexOf(header, "wind_source_confidence")]), 1.0e-5);
+		assertEquals(0.82, Double.parseDouble(row[indexOf(header, "wind_source_quality")]), 1.0e-5);
 		assertEquals(-1450.0, Double.parseDouble(row[indexOf(header, "wind_source_pressure_anomaly_pa")]), 1.0e-5);
 		assertEquals(0.37, Double.parseDouble(row[indexOf(header, "wind_source_shear_mag_per_block")]), 1.0e-5);
 		assertEquals(0.44, Double.parseDouble(row[indexOf(header, "wind_source_shelter_factor")]), 1.0e-5);
@@ -837,6 +839,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(3.10, windSourceStats.maxEffectiveSpeedMetersPerSecond(), 1.0e-5);
 		assertEquals(1.35, windSourceStats.maxGustSpeedMetersPerSecond(), 1.0e-5);
 		assertEquals(0.82, windSourceStats.maxConfidence(), 1.0e-5);
+		assertEquals(0.82, windSourceStats.maxQualityFactor(), 1.0e-5);
 		assertEquals(1450.0, windSourceStats.maxAbsPressureAnomalyPascals(), 1.0e-5);
 		assertEquals(0.44, windSourceStats.maxShelterFactor(), 1.0e-5);
 		assertEquals(0.37, windSourceStats.maxShearMagnitudePerBlock(), 1.0e-5);
@@ -1092,6 +1095,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("stale 0"));
 		assertTrue(summary.formatForChat().contains("srcwind 2.20/3.10/1.35"));
 		assertTrue(summary.formatForChat().contains("conf 0.82"));
+		assertTrue(summary.formatForChat().contains("q 0.82"));
 		assertTrue(summary.formatForChat().contains("p 1450Pa"));
 		assertTrue(summary.formatForChat().contains("shelter 0.44"));
 		assertTrue(summary.formatForChat().contains("srcshear 0.37/m"));

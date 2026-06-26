@@ -554,6 +554,7 @@ public final class DroneBlackboxSample {
 			"wind_source",
 			"wind_source_trusted",
 			"wind_source_confidence",
+			"wind_source_quality",
 			"wind_source_pressure_anomaly_pa",
 			"wind_source_shear_mag_per_block",
 			"wind_source_shelter_factor",
@@ -1975,6 +1976,7 @@ public final class DroneBlackboxSample {
 		row.add(environment.windSourceId());
 		row.add(environment.windSourceTrustedForGameplay());
 		row.add(environment.windSourceConfidence(), "%.5f");
+		row.add(environment.windSourceQualityFactor(), "%.5f");
 		row.add(environment.windSourcePressureAnomalyPascals(), "%.3f");
 		row.add(environment.windShearMagnitudePerBlock(), "%.5f");
 		row.add(environment.windShelterFactor(), "%.5f");
