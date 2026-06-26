@@ -610,6 +610,7 @@ public final class OfflineFlightRecorder {
 			"imu_supply_noise",
 			"battery_temp_c",
 			"battery_cooling_factor",
+			"a4mc_pack_ventilation_efficiency",
 			"battery_thermal_limit",
 			"battery_capacity_aging_scale",
 			"battery_soc_resistance_scale",
@@ -738,6 +739,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_a4mc_shelter_obstruction",
 			"rotor_6_a4mc_shelter_obstruction",
 			"rotor_7_a4mc_shelter_obstruction",
+			"rotor_a4mc_ventilation_efficiency",
+			"rotor_0_a4mc_ventilation_efficiency",
+			"rotor_1_a4mc_ventilation_efficiency",
+			"rotor_2_a4mc_ventilation_efficiency",
+			"rotor_3_a4mc_ventilation_efficiency",
+			"rotor_4_a4mc_ventilation_efficiency",
+			"rotor_5_a4mc_ventilation_efficiency",
+			"rotor_6_a4mc_ventilation_efficiency",
+			"rotor_7_a4mc_ventilation_efficiency",
 			"rotor_disk_wind_gradient_mps",
 			"rotor_0_disk_wind_gradient_mps",
 			"rotor_1_disk_wind_gradient_mps",
@@ -4335,6 +4345,7 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.imuSupplyNoiseIntensity(), "%.5f");
 		appendExtra(builder, state.batteryTemperatureCelsius(), "%.3f");
 		appendExtra(builder, state.batteryCoolingFactor(), "%.5f");
+		appendExtra(builder, state.a4mcPackVentilationEfficiency(), "%.5f");
 		appendExtra(builder, state.batteryThermalLimit(), "%.5f");
 		appendExtra(builder, state.batteryCapacityAgingScale(), "%.5f");
 		appendExtra(builder, state.batteryStateOfChargeResistanceScale(), "%.5f");
@@ -4397,6 +4408,11 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, environment.maxRotorA4mcShelterObstruction(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorA4mcShelterObstruction(i), "%.5f");
+		}
+		double[] rotorA4mcVentilationEfficiency = state.rotorA4mcVentilationEfficiency();
+		appendExtra(builder, state.minRotorA4mcVentilationEfficiency(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrOne(rotorA4mcVentilationEfficiency, i), "%.5f");
 		}
 		appendExtra(builder, environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
 		for (int i = 0; i < 8; i++) {

@@ -12395,6 +12395,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_bus_ripple_v"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_temp_c"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_cooling_factor"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("a4mc_pack_ventilation_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_thermal_limit"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("battery_polarization_resistance_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("avg_motor_mechanical_loss_torque_nm"));
@@ -12449,6 +12450,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_pressure_gradient_wind_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_a4mc_shelter_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_shelter_obstruction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_a4mc_ventilation_efficiency"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_ventilation_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_element_stall"));
@@ -12852,6 +12855,7 @@ class DronePhysicsTest {
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "imu_supply_noise")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_c")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_cooling_factor")])));
+		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "a4mc_pack_ventilation_efficiency")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_thermal_limit")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_soc_resistance_scale")])));
 		assertTrue(Double.isFinite(Double.parseDouble(firstRow[indexOf(header, "battery_temp_resistance_scale")])));
@@ -12934,25 +12938,37 @@ class DronePhysicsTest {
 		double maxWallSkimBodyPrecipitationWetness = 0.0;
 		double minWallSkimRotorPrecipitationWetness = 1.0;
 		double maxWallSkimRotorPrecipitationWetness = 0.0;
+		double minWallSkimRotorA4mcVentilationEfficiency = 1.0;
+		double minWallSkimPackA4mcVentilationEfficiency = 1.0;
 		double minWallSkimThrustMultiplier = 1.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			if ("wall_skim".equals(row[phaseIndex])) {
 				sawWallSkim = true;
 				double bodyPrecipitationWetness = Double.parseDouble(row[indexOf(header, "precipitation_wetness")]);
+				double packVentilationEfficiency = Double.parseDouble(row[indexOf(header, "a4mc_pack_ventilation_efficiency")]);
 				maxWallSkimBodyPrecipitationWetness = Math.max(
 						maxWallSkimBodyPrecipitationWetness,
 						bodyPrecipitationWetness
 				);
+				minWallSkimPackA4mcVentilationEfficiency = Math.min(
+						minWallSkimPackA4mcVentilationEfficiency,
+						packVentilationEfficiency
+				);
 				for (int rotorIndex = 0; rotorIndex < 4; rotorIndex++) {
 					double flowObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_flow_obstruction")]);
 					double a4mcShelterObstruction = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_a4mc_shelter_obstruction")]);
+					double rotorA4mcVentilationEfficiency = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_a4mc_ventilation_efficiency")]);
 					double diskWindGradient = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_disk_wind_gradient_mps")]);
 					double thrustMultiplier = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_env_thrust_multiplier")]);
 					double rotorPrecipitationWetness = Double.parseDouble(row[indexOf(header, "rotor_" + rotorIndex + "_precipitation_wetness")]);
 					maxWallSkimFlowObstruction = Math.max(maxWallSkimFlowObstruction, flowObstruction);
 					maxWallSkimA4mcShelterObstruction = Math.max(maxWallSkimA4mcShelterObstruction, a4mcShelterObstruction);
 					maxWallSkimDiskWindGradient = Math.max(maxWallSkimDiskWindGradient, diskWindGradient);
+					minWallSkimRotorA4mcVentilationEfficiency = Math.min(
+							minWallSkimRotorA4mcVentilationEfficiency,
+							rotorA4mcVentilationEfficiency
+					);
 					minWallSkimRotorPrecipitationWetness = Math.min(
 							minWallSkimRotorPrecipitationWetness,
 							rotorPrecipitationWetness
@@ -12963,6 +12979,7 @@ class DronePhysicsTest {
 					);
 					minWallSkimThrustMultiplier = Math.min(minWallSkimThrustMultiplier, thrustMultiplier);
 					assertTrue(flowObstruction >= a4mcShelterObstruction);
+					assertTrue(rotorA4mcVentilationEfficiency <= 1.0);
 					assertTrue(rotorPrecipitationWetness < bodyPrecipitationWetness);
 					assertEquals(
 							RotorFlowObstructionModel.thrustMultiplier(flowObstruction),
@@ -12990,6 +13007,14 @@ class DronePhysicsTest {
 				minWallSkimRotorPrecipitationWetness < maxWallSkimRotorPrecipitationWetness * 0.75,
 				"minWallSkimRotorPrecipitationWetness=" + minWallSkimRotorPrecipitationWetness
 						+ " maxWallSkimRotorPrecipitationWetness=" + maxWallSkimRotorPrecipitationWetness
+		);
+		assertTrue(
+				minWallSkimRotorA4mcVentilationEfficiency < 1.0,
+				"minWallSkimRotorA4mcVentilationEfficiency=" + minWallSkimRotorA4mcVentilationEfficiency
+		);
+		assertTrue(
+				minWallSkimPackA4mcVentilationEfficiency < 1.0,
+				"minWallSkimPackA4mcVentilationEfficiency=" + minWallSkimPackA4mcVentilationEfficiency
 		);
 		assertEquals(0.99668, minWallSkimThrustMultiplier, 1.0e-5);
 		assertTrue(sawRainBurst);

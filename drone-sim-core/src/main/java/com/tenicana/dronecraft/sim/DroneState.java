@@ -94,6 +94,7 @@ public final class DroneState {
 	private double[] motorRegenerativeCurrentAmps;
 	private double[] motorTemperatureCelsius;
 	private double[] motorCoolingFactor;
+	private double[] rotorA4mcVentilationEfficiency;
 	private double[] rotorThrustNewtons;
 	private Vec3[] rotorForceBodyNewtons;
 	private Vec3[] rotorTorqueBodyNewtonMeters;
@@ -173,6 +174,7 @@ public final class DroneState {
 	private double batteryTwentyPercentSagCurrentMargin;
 	private double batteryTemperatureCelsius = 25.0;
 	private double batteryCoolingFactor = 1.0;
+	private double a4mcPackVentilationEfficiency = 1.0;
 	private double batteryThermalLimit = 1.0;
 	private double batteryAmpSecondsConsumed;
 	private double batteryEquivalentCycles;
@@ -261,6 +263,7 @@ public final class DroneState {
 		motorRegenerativeCurrentAmps = new double[motorCount];
 		motorTemperatureCelsius = new double[motorCount];
 		motorCoolingFactor = new double[motorCount];
+		rotorA4mcVentilationEfficiency = new double[motorCount];
 		rotorThrustNewtons = new double[motorCount];
 		rotorForceBodyNewtons = new Vec3[motorCount];
 		rotorTorqueBodyNewtonMeters = new Vec3[motorCount];
@@ -326,6 +329,7 @@ public final class DroneState {
 		Arrays.fill(motorWindingResistanceScale, 1.0);
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
+		Arrays.fill(rotorA4mcVentilationEfficiency, 1.0);
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
 		Arrays.fill(rotorDynamicInflowTimeConstantSeconds, 0.0);
 		Arrays.fill(rotorPropellerThrustScale, 1.0);
@@ -1505,6 +1509,26 @@ public final class DroneState {
 		motorCoolingFactor[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.20, 4.0) : 1.0;
 	}
 
+	public double rotorA4mcVentilationEfficiency(int index) {
+		return rotorA4mcVentilationEfficiency[index];
+	}
+
+	public double[] rotorA4mcVentilationEfficiency() {
+		return Arrays.copyOf(rotorA4mcVentilationEfficiency, rotorA4mcVentilationEfficiency.length);
+	}
+
+	void setRotorA4mcVentilationEfficiency(int index, double value) {
+		rotorA4mcVentilationEfficiency[index] = Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 1.0;
+	}
+
+	public double minRotorA4mcVentilationEfficiency() {
+		double min = 1.0;
+		for (double efficiency : rotorA4mcVentilationEfficiency) {
+			min = Math.min(min, efficiency);
+		}
+		return min;
+	}
+
 	public double averageMotorCoolingFactor() {
 		double sum = 0.0;
 		for (double factor : motorCoolingFactor) {
@@ -1558,6 +1582,8 @@ public final class DroneState {
 		Arrays.fill(motorCurrentAmps, 0.0);
 		Arrays.fill(motorRegenerativeCurrentAmps, 0.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
+		Arrays.fill(rotorA4mcVentilationEfficiency, 1.0);
+		a4mcPackVentilationEfficiency = 1.0;
 		Arrays.fill(rotorThrustNewtons, 0.0);
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
@@ -3378,6 +3404,16 @@ public final class DroneState {
 	void setBatteryCoolingFactor(double batteryCoolingFactor) {
 		this.batteryCoolingFactor = Double.isFinite(batteryCoolingFactor)
 				? MathUtil.clamp(batteryCoolingFactor, 0.20, 4.0)
+				: 1.0;
+	}
+
+	public double a4mcPackVentilationEfficiency() {
+		return a4mcPackVentilationEfficiency;
+	}
+
+	void setA4mcPackVentilationEfficiency(double a4mcPackVentilationEfficiency) {
+		this.a4mcPackVentilationEfficiency = Double.isFinite(a4mcPackVentilationEfficiency)
+				? MathUtil.clamp(a4mcPackVentilationEfficiency, 0.0, 1.0)
 				: 1.0;
 	}
 

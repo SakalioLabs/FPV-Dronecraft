@@ -9879,6 +9879,7 @@ public final class DronePhysics {
 		double obstructionLoss = 1.0 - 0.36 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
 		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment, rotorIndex);
+		state.setRotorA4mcVentilationEfficiency(rotorIndex, localShelterEfficiency);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double moistAirCooling = environment.moistAirCoolingMultiplier();
 		return MathUtil.clamp(
@@ -9904,6 +9905,7 @@ public final class DronePhysics {
 		double obstructionLoss = 1.0 - 0.48 * environment.rotorFlowObstruction(rotorIndex);
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
 		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment, rotorIndex);
+		state.setRotorA4mcVentilationEfficiency(rotorIndex, localShelterEfficiency);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double moistAirCooling = environment.moistAirCoolingMultiplier();
 		return MathUtil.clamp(
@@ -10063,6 +10065,7 @@ public final class DronePhysics {
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double recirculationEfficiency = 1.0 - 0.58 * recirculatedAirCoolingLoss(environment);
 		double localShelterEfficiency = a4mcPackVentilationEfficiency(environment, state.motorCount());
+		state.setA4mcPackVentilationEfficiency(localShelterEfficiency);
 		double moistAirCooling = environment.moistAirCoolingMultiplier();
 		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
 				* densityFactor

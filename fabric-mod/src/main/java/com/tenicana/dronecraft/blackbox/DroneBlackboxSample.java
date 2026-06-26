@@ -530,6 +530,7 @@ public final class DroneBlackboxSample {
 			"battery_power_limit",
 			"battery_temp_c",
 			"battery_cooling_factor",
+			"a4mc_pack_ventilation_efficiency",
 			"battery_thermal_limit",
 			"frame_health",
 			"rotor_health",
@@ -644,6 +645,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_a4mc_shelter_obstruction",
 			"rotor_2_a4mc_shelter_obstruction",
 			"rotor_3_a4mc_shelter_obstruction",
+			"rotor_a4mc_ventilation_efficiency",
+			"rotor_0_a4mc_ventilation_efficiency",
+			"rotor_1_a4mc_ventilation_efficiency",
+			"rotor_2_a4mc_ventilation_efficiency",
+			"rotor_3_a4mc_ventilation_efficiency",
 			"rotor_disk_wind_gradient_mps",
 			"rotor_0_disk_wind_gradient_mps",
 			"rotor_1_disk_wind_gradient_mps",
@@ -1203,6 +1209,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_a4mc_shelter_obstruction",
 			"rotor_6_a4mc_shelter_obstruction",
 			"rotor_7_a4mc_shelter_obstruction",
+			"rotor_4_a4mc_ventilation_efficiency",
+			"rotor_5_a4mc_ventilation_efficiency",
+			"rotor_6_a4mc_ventilation_efficiency",
+			"rotor_7_a4mc_ventilation_efficiency",
 			"rotor_4_disk_wind_gradient_mps",
 			"rotor_5_disk_wind_gradient_mps",
 			"rotor_6_disk_wind_gradient_mps",
@@ -2045,6 +2055,7 @@ public final class DroneBlackboxSample {
 		row.add(state.batteryPowerLimit(), "%.5f");
 		row.add(state.batteryTemperatureCelsius(), "%.3f");
 		row.add(state.batteryCoolingFactor(), "%.5f");
+		row.add(state.a4mcPackVentilationEfficiency(), "%.5f");
 		row.add(state.batteryThermalLimit(), "%.5f");
 		row.add(frameHealth, "%.4f");
 		row.add(rotorHealth, "%.5f");
@@ -2159,6 +2170,11 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorA4mcShelterObstruction(1), "%.5f");
 		row.add(environment.rotorA4mcShelterObstruction(2), "%.5f");
 		row.add(environment.rotorA4mcShelterObstruction(3), "%.5f");
+		row.add(state.minRotorA4mcVentilationEfficiency(), "%.5f");
+		row.add(state.rotorA4mcVentilationEfficiency(0), "%.5f");
+		row.add(state.rotorA4mcVentilationEfficiency(1), "%.5f");
+		row.add(state.rotorA4mcVentilationEfficiency(2), "%.5f");
+		row.add(state.rotorA4mcVentilationEfficiency(3), "%.5f");
 		row.add(environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(0), "%.5f");
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(1), "%.5f");
@@ -2818,6 +2834,10 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorA4mcShelterObstruction(i), "%.5f");
+		}
+		double[] rotorA4mcVentilationEfficiency = state.rotorA4mcVentilationEfficiency();
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrOne(rotorA4mcVentilationEfficiency, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(i), "%.5f");

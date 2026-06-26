@@ -370,6 +370,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_a4mc_shelter_obstruction"));
 		assertTrue(csv.contains("rotor_0_a4mc_shelter_obstruction"));
 		assertTrue(csv.contains("rotor_7_a4mc_shelter_obstruction"));
+		assertTrue(csv.contains("a4mc_pack_ventilation_efficiency"));
+		assertTrue(csv.contains("rotor_a4mc_ventilation_efficiency"));
+		assertTrue(csv.contains("rotor_0_a4mc_ventilation_efficiency"));
+		assertTrue(csv.contains("rotor_7_a4mc_ventilation_efficiency"));
 		assertTrue(csv.contains("water_immersion"));
 		assertTrue(csv.contains("precipitation_wetness"));
 		assertTrue(csv.contains("effective_air_density_ratio"));
@@ -459,6 +463,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("imu_supply_noise"));
 		assertTrue(csv.contains("battery_temp_c"));
 		assertTrue(csv.contains("battery_cooling_factor"));
+		assertTrue(csv.contains("a4mc_pack_ventilation_efficiency"));
 		assertTrue(csv.contains("battery_thermal_limit"));
 		assertTrue(csv.contains("effective_wind_x_mps"));
 		assertTrue(csv.contains("effective_wind_y_mps"));
@@ -713,6 +718,7 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "imu_supply_noise")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_temp_c")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_cooling_factor")]));
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "a4mc_pack_ventilation_efficiency")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "battery_thermal_limit")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "effective_wind_x_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_gust_speed_mps")]));
@@ -772,6 +778,10 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.16, Double.parseDouble(row[indexOf(header, "rotor_a4mc_shelter_obstruction")]), 1.0e-5);
 		assertEquals(0.16, Double.parseDouble(row[indexOf(header, "rotor_0_a4mc_shelter_obstruction")]), 1.0e-5);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_a4mc_shelter_obstruction")]), 1.0e-9);
+		assertTrue(Double.parseDouble(row[indexOf(header, "a4mc_pack_ventilation_efficiency")]) < 1.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_a4mc_ventilation_efficiency")]) < 1.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "rotor_0_a4mc_ventilation_efficiency")]) < 1.0);
+		assertEquals(1.0, Double.parseDouble(row[indexOf(header, "rotor_7_a4mc_ventilation_efficiency")]), 1.0e-9);
 		assertEquals(0.61, Double.parseDouble(row[indexOf(header, "rotor_local_voxel_obstacle_residual")]), 1.0e-5);
 		assertEquals(0.61, Double.parseDouble(row[indexOf(header, "rotor_0_local_voxel_obstacle_residual")]), 1.0e-5);
 		assertEquals(0.74, Double.parseDouble(row[indexOf(header, "rotor_2_local_voxel_obstacle_residual")]), 1.0e-5);
