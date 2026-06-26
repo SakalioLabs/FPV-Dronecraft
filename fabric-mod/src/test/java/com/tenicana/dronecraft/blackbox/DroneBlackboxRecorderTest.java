@@ -919,6 +919,8 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.11, windSourceStats.maxRotorA4mcPressureGradientWindMetersPerSecond(), 1.0e-5);
 		assertEquals(0.16, windSourceStats.maxRotorA4mcShelterObstruction(), 1.0e-5);
 		assertEquals(0.61, windSourceStats.minRotorLocalVoxelObstacleResidual(), 1.0e-5);
+		assertTrue(windSourceStats.minRotorA4mcVentilationEfficiency() < 1.0);
+		assertTrue(windSourceStats.minA4mcPackVentilationEfficiency() < 1.0);
 		assertEquals(10, summary.maxPhysicsSubsteps());
 		assertEquals(200.0, summary.maxPhysicsRateHertz(), 0.001);
 		assertEquals(1.0, summary.minPlayableLowAltitudeAuthority(), 1.0e-6);
@@ -1213,6 +1215,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("diskgrad 0.42m/s"));
 		assertTrue(summary.formatForChat().contains("pgrad 0.11m/s"));
 		assertTrue(summary.formatForChat().contains("lvoxres 0.61"));
+		assertTrue(summary.formatForChat().contains("a4mcvent"));
 		assertTrue(summary.formatForChat().contains("mix-edge"));
 		assertTrue(summary.formatForChat().contains("mix-head"));
 		assertTrue(summary.formatForChat().contains("regen"));
