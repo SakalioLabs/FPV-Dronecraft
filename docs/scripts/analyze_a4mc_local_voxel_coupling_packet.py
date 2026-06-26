@@ -39,6 +39,8 @@ LOCAL_VOXEL_SHELTER_COVERAGE = 0.48
 LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL = 0.28
 LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42
 LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22
+LOCAL_VOXEL_PRECIPITATION_SHELTER_RELIEF = 0.72
+LOCAL_VOXEL_PRECIPITATION_MIN_EXPOSURE = 0.24
 LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PA = 1600.0
 LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS = 2.4
 MAX_LOCAL_VOXEL_PRESSURE_PA = 5000.0
@@ -164,6 +166,15 @@ def local_obstacle_residual(shelter: float, quality: float) -> float:
         LOCAL_VOXEL_BASE_COVERAGE + LOCAL_VOXEL_SHELTER_COVERAGE * clamp(shelter, 0.0, 1.0)
     )
     return clamp(1.0 - coverage, LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL, 1.0)
+
+
+def precipitation_exposure_factor(shelter: float, quality: float) -> float:
+    adopted_shelter_factor = clamp(shelter, 0.0, 1.0) * quality
+    return clamp(
+        1.0 - adopted_shelter_factor * LOCAL_VOXEL_PRECIPITATION_SHELTER_RELIEF,
+        LOCAL_VOXEL_PRECIPITATION_MIN_EXPOSURE,
+        1.0,
+    )
 
 
 def disk_sample_gradient(edge_delta: float) -> float:
@@ -409,6 +420,49 @@ def add_quality_residual_matrix(rows: list[dict[str, str]]) -> None:
                         source_file=A4MC_COUPLING_SOURCE,
                         evidence_role="local_voxel_obstacle_residual_matrix",
                         note="Source-quality-gated attenuation of duplicate geometric wall/tunnel obstruction.",
+                    )
+
+
+def add_precipitation_exposure_matrix(rows: list[dict[str, str]]) -> None:
+    metric_units = {
+        "input_confidence": "fraction",
+        "input_freshness_age_ticks": "ticks",
+        "input_shelter_factor": "fraction",
+        "core_source_quality": "fraction",
+        "adopted_precipitation_shelter_factor": "fraction",
+        "precipitation_exposure_factor": "multiplier",
+        "direct_precipitation_removed_fraction": "fraction",
+    }
+    for confidence in CONFIDENCE_LEVELS:
+        for age in FRESHNESS_AGES_TICKS:
+            for shelter in SHELTER_LEVELS:
+                quality = source_quality(True, confidence, age)
+                adopted_shelter_factor = clamp(shelter, 0.0, 1.0) * quality
+                exposure = precipitation_exposure_factor(shelter, quality)
+                metrics = {
+                    "input_confidence": confidence,
+                    "input_freshness_age_ticks": age,
+                    "input_shelter_factor": shelter,
+                    "core_source_quality": quality,
+                    "adopted_precipitation_shelter_factor": adopted_shelter_factor,
+                    "precipitation_exposure_factor": exposure,
+                    "direct_precipitation_removed_fraction": 1.0 - exposure,
+                }
+                name = (
+                    f"confidence_{scenario_token(confidence)}"
+                    f"_age_{age}_shelter_{scenario_token(shelter)}"
+                )
+                for metric, value in metrics.items():
+                    add_metric(
+                        rows,
+                        row_type="a4mc_local_voxel_packet_precipitation_exposure_matrix",
+                        name=name,
+                        metric=metric,
+                        value=value,
+                        unit=metric_units[metric],
+                        source_file=A4MC_COUPLING_SOURCE,
+                        evidence_role="local_voxel_precipitation_exposure_matrix",
+                        note="Source-quality-gated A4MC shelter attenuation of direct rain exposure before wet-prop film loading.",
                     )
 
 
@@ -746,6 +800,8 @@ def find_metric(rows: list[dict[str, str]], row_type: str, name: str, metric: st
 
 def add_summary(rows: list[dict[str, str]]) -> None:
     quality_name = "confidence_0p86_age_0_shelter_0p74"
+    full_shelter_name = "confidence_1_age_0_shelter_1"
+    stale_shelter_precipitation_name = "confidence_0p86_age_160_shelter_0p74"
     pressure_name = "confidence_0p86_age_0_pressure_delta_220pa"
     pressure_max_name = "confidence_1_age_0_pressure_delta_3200pa"
     pressure_saturated_name = "confidence_0p5_age_0_pressure_contrast_10000pa"
@@ -758,6 +814,10 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     pressure_center_quality_zero_name = "right_combined_wall_pressure_quality_0_airspeed_18"
     summary = {
         "quality_residual_scenario_count": (
+            len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_LEVELS),
+            "count",
+        ),
+        "precipitation_exposure_scenario_count": (
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_LEVELS),
             "count",
         ),
@@ -789,6 +849,33 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 "a4mc_local_voxel_packet_quality_residual_matrix",
                 quality_name,
                 "core_local_obstacle_residual_factor",
+            ),
+            "multiplier",
+        ),
+        "wall_skim_quality_0p86_shelter_0p74_precipitation_exposure": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_precipitation_exposure_matrix",
+                quality_name,
+                "precipitation_exposure_factor",
+            ),
+            "multiplier",
+        ),
+        "trusted_full_shelter_precipitation_exposure": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_precipitation_exposure_matrix",
+                full_shelter_name,
+                "precipitation_exposure_factor",
+            ),
+            "multiplier",
+        ),
+        "stale_wall_skim_precipitation_exposure": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_precipitation_exposure_matrix",
+                stale_shelter_precipitation_name,
+                "precipitation_exposure_factor",
             ),
             "multiplier",
         ),
@@ -952,6 +1039,7 @@ def build_rows() -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     add_source_inventory(rows)
     add_quality_residual_matrix(rows)
+    add_precipitation_exposure_matrix(rows)
     add_rotor_residual_fallback_matrix(rows)
     add_pressure_gradient_matrix(rows)
     add_pressure_contrast_matrix(rows)
