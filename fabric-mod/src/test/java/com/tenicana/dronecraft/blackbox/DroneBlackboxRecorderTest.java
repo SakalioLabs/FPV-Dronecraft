@@ -1063,6 +1063,12 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxControlFrameAgeSeconds() >= 0.0);
 		assertTrue(summary.maxControlFrameError() >= 0.0);
 		assertTrue(summary.maxBarometerErrorMeters() >= 0.0);
+		assertEquals(
+				maxAbsOfColumns(lines, header, "barometer_pressure_port_error_m"),
+				summary.maxBarometerPressurePortErrorMeters(),
+				1.0e-5
+		);
+		assertTrue(summary.maxBarometerPressurePortErrorMeters() >= 0.0);
 		assertTrue(summary.maxBarometerPropwashErrorMeters() >= 0.0);
 		assertTrue(summary.minBarometerPressureHectopascals() > 0.0);
 		assertTrue(summary.maxEscTemperatureCelsius() >= 25.0);
@@ -1233,6 +1239,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("flex"));
 		assertTrue(summary.formatForChat().contains("scrape"));
 		assertTrue(summary.formatForChat().contains("baro"));
+		assertTrue(summary.formatForChat().contains("port"));
 		assertTrue(summary.formatForChat().contains("esc"));
 		assertTrue(summary.formatForChat().contains("wake"));
 		assertTrue(summary.formatForChat().contains("water"));
