@@ -10,6 +10,9 @@ DroneEnvironment, DronePhysics, and the fabric bridge. It keeps the next
 wall-skim/tunnel-mouth tuning step auditable by showing how stale or low
 confidence A4MC source diagnostics fade before they drive source gust,
 terrain-shear, local ventilation, and duplicated local-obstacle attenuation.
+It also tracks raw A4MC source turbulence as a separate input so the generated
+packet mirrors the blackbox `wind_source_turbulence` telemetry and the core
+quality-gated natural turbulence floor.
 """
 
 from __future__ import annotations
@@ -34,9 +37,12 @@ CONFIDENCE_LEVELS = [1.0, 0.86, 0.5]
 FRESHNESS_AGES_TICKS = [0, 40, 100, 160]
 SHELTER_FACTORS = [0.0, 0.74]
 SHEAR_LEVELS_PER_BLOCK = [0.0, 0.58, 1.35]
+SOURCE_TURBULENCE_LEVELS = [0.0, 0.24, 0.65]
 
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
+SOURCE_GUST_TURBULENCE_GAIN_PER_MPS = 0.065
+MAX_SOURCE_GUST_TURBULENCE_BOOST = 0.26
 REFERENCE_MEAN_WIND_MPS = 7.0
 REFERENCE_SOURCE_GUST_MPS = 4.0
 REFERENCE_SOURCE_GUST_VECTOR_Y_MPS = 3.0
@@ -172,6 +178,30 @@ def terrain_shear_response(shear: float, shelter: float, quality: float) -> dict
     }
 
 
+def natural_turbulence_response(source_turbulence: float, shear: float, shelter: float, quality: float) -> dict[str, float]:
+    adopted_source_turbulence = clamp(source_turbulence, 0.0, 1.5) * quality
+    shear_boost = quality * clamp(shear * 0.45, 0.0, 0.35)
+    shelter_boost = quality * clamp(shelter * 0.20, 0.0, 0.20)
+    updraft_boost = quality * clamp(abs(REFERENCE_UPDRAFT_MPS) * 0.025, 0.0, 0.18)
+    source_gust_boost = quality * clamp(
+        REFERENCE_SOURCE_GUST_MPS * SOURCE_GUST_TURBULENCE_GAIN_PER_MPS,
+        0.0,
+        MAX_SOURCE_GUST_TURBULENCE_BOOST,
+    )
+    return {
+        "core_adopted_source_turbulence_intensity": adopted_source_turbulence,
+        "core_natural_turbulence_intensity_proxy": clamp(
+            max(REFERENCE_DIRTY_AIR, adopted_source_turbulence)
+            + shear_boost
+            + shelter_boost
+            + updraft_boost
+            + source_gust_boost,
+            0.0,
+            1.5,
+        ),
+    }
+
+
 def ventilation_efficiency(shelter: float, quality: float) -> float:
     adopted_shelter = clamp(shelter * quality, 0.0, 1.0)
     return clamp(1.0 - 0.20 * adopted_shelter, 0.80, 1.0)
@@ -188,11 +218,12 @@ def scenario_name(
     age_ticks: int,
     shelter: float,
     shear: float,
+    source_turbulence: float,
 ) -> str:
     trust = "trusted" if trusted else "untrusted"
     return (
         f"{trust}_conf_{confidence:.2f}_age_{age_ticks}"
-        f"_shelter_{shelter:.2f}_shear_{shear:.2f}"
+        f"_shelter_{shelter:.2f}_shear_{shear:.2f}_turb_{source_turbulence:.2f}"
     ).replace(".", "p")
 
 
@@ -267,25 +298,36 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
 
 def add_response_matrix(rows: list[dict[str, str]]) -> None:
     scenarios = [
-        (True, confidence, age, shelter, shear)
+        (True, confidence, age, shelter, shear, source_turbulence)
         for confidence in CONFIDENCE_LEVELS
         for age in FRESHNESS_AGES_TICKS
         for shelter in SHELTER_FACTORS
         for shear in SHEAR_LEVELS_PER_BLOCK
+        for source_turbulence in SOURCE_TURBULENCE_LEVELS
     ]
-    scenarios.append((False, 1.0, 0, 0.74, 1.35))
-    for trusted, confidence, age, shelter, shear in scenarios:
+    scenarios.append((False, 1.0, 0, 0.74, 1.35, 0.65))
+    for trusted, confidence, age, shelter, shear, source_turbulence in scenarios:
         quality = source_quality(trusted, confidence, age)
         terrain = terrain_shear_response(shear, shelter, quality)
+        turbulence = natural_turbulence_response(source_turbulence, shear, shelter, quality)
         metrics = {
             "input_trusted_for_gameplay": (trusted, "bool"),
             "input_confidence": (confidence, "fraction"),
             "input_freshness_age_ticks": (age, "ticks"),
             "input_shelter_factor": (shelter, "fraction"),
             "input_shear_per_block": (shear, "1/block"),
+            "input_source_turbulence_intensity": (source_turbulence, "fraction"),
             "source_freshness_factor": (source_freshness_factor(age), "fraction"),
             "source_quality_factor": (quality, "fraction"),
             "core_source_gust_y_peak_mps": (a4mc_source_gust_y_mps(quality), "m/s"),
+            "core_adopted_source_turbulence_intensity": (
+                turbulence["core_adopted_source_turbulence_intensity"],
+                "fraction",
+            ),
+            "core_natural_turbulence_intensity_proxy": (
+                turbulence["core_natural_turbulence_intensity_proxy"],
+                "fraction",
+            ),
             "core_local_voxel_ventilation_efficiency": (ventilation_efficiency(shelter, quality), "multiplier"),
             "core_local_obstacle_residual_factor": (local_obstacle_residual(shelter, quality), "multiplier"),
             "core_adopted_shear_per_block": (terrain["adopted_shear_per_block"], "1/block"),
@@ -297,7 +339,7 @@ def add_response_matrix(rows: list[dict[str, str]]) -> None:
             "core_terrain_shear_vertical_peak_mps": (terrain["terrain_shear_vertical_peak_mps"], "m/s"),
             "core_terrain_shear_vector_peak_proxy_mps": (terrain["terrain_shear_vector_peak_proxy_mps"], "m/s"),
         }
-        name = scenario_name(trusted, confidence, age, shelter, shear)
+        name = scenario_name(trusted, confidence, age, shelter, shear, source_turbulence)
         for metric, (value, unit) in metrics.items():
             add_metric(
                 rows,
@@ -309,18 +351,21 @@ def add_response_matrix(rows: list[dict[str, str]]) -> None:
                 source_file=DRONE_PHYSICS_SOURCE,
                 source_url=f"{DRONE_ENVIRONMENT_SOURCE}; {DRONE_ENTITY_SOURCE}; {A4MC_GAMEPLAY_SAMPLE_SOURCE}",
                 evidence_role="current_a4mc_quality_response_matrix",
-                note="Synthetic A4MC wall-skim/tunnel-mouth response matrix for confidence, freshness, shelter, and shear tuning.",
+                note="Synthetic A4MC wall-skim/tunnel-mouth response matrix for confidence, freshness, shelter, shear, and source-turbulence tuning.",
             )
 
 
 def add_summary(rows: list[dict[str, str]]) -> None:
     trusted_wall_skim_quality = source_quality(True, 0.86, 0)
     trusted_wall_skim = terrain_shear_response(0.58, 0.74, trusted_wall_skim_quality)
+    trusted_wall_skim_turbulence = natural_turbulence_response(0.24, 0.58, 0.74, trusted_wall_skim_quality)
     half_quality = source_quality(True, 0.5, 0)
     stale_quality = source_quality(True, 1.0, 160)
     summary_metrics = {
-        "matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_FACTORS) * len(SHEAR_LEVELS_PER_BLOCK) + 1,
+        "matrix_scenario_count": len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_FACTORS) * len(SHEAR_LEVELS_PER_BLOCK) * len(SOURCE_TURBULENCE_LEVELS) + 1,
         "wall_skim_reference_source_quality": trusted_wall_skim_quality,
+        "wall_skim_reference_adopted_source_turbulence": trusted_wall_skim_turbulence["core_adopted_source_turbulence_intensity"],
+        "wall_skim_reference_natural_turbulence_proxy": trusted_wall_skim_turbulence["core_natural_turbulence_intensity_proxy"],
         "wall_skim_reference_source_gust_y_peak_mps": a4mc_source_gust_y_mps(trusted_wall_skim_quality),
         "wall_skim_reference_terrain_signal": trusted_wall_skim["terrain_signal"],
         "wall_skim_reference_terrain_vector_peak_proxy_mps": trusted_wall_skim["terrain_shear_vector_peak_proxy_mps"],
@@ -354,7 +399,8 @@ def add_method(rows: list[dict[str, str]]) -> None:
         value=(
             "This packet mirrors current source-quality formulas rather than field-test data. "
             "Use it to verify that confidence/freshness changes fade A4MC transient forcing before fitting "
-            "disk-gradient thrust loss, terrain-shear gust strength, or local-voxel ventilation coefficients."
+            "source-turbulence floors, disk-gradient thrust loss, terrain-shear gust strength, "
+            "or local-voxel ventilation coefficients."
         ),
         unit="text",
         source_file=DRONE_PHYSICS_SOURCE,

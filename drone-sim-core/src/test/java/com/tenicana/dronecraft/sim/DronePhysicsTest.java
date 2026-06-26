@@ -11115,6 +11115,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_y_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_z_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_terrain_shear_speed_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_source_turbulence"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_source_quality"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_shear_accel_mps2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("contact_impact_mps"));
@@ -11774,6 +11775,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxWindA4mcSourceGustSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxWindA4mcTerrainShearSpeedMetersPerSecond() >= 0.0);
 		assertEquals(0.86, report.maxWindSourceQualityFactor(), 1.0e-5);
+		assertTrue(report.maxWindSourceTurbulenceIntensity() > 0.0);
 		assertEquals(
 				maxColumn(lines, header, "wind_dryden_speed_mps"),
 				report.maxWindDrydenSpeedMetersPerSecond(),
@@ -11799,7 +11801,13 @@ class DronePhysicsTest {
 				report.maxWindSourceQualityFactor(),
 				1.0e-5
 		);
+		assertEquals(
+				maxColumn(lines, header, "wind_source_turbulence"),
+				report.maxWindSourceTurbulenceIntensity(),
+				1.0e-5
+		);
 		assertTrue(maxColumn(lines, header, "wind_a4mc_terrain_shear_speed_mps") > 0.02);
+		assertTrue(maxColumn(lines, header, "wind_source_turbulence") > 0.0);
 		assertTrue(maxColumn(lines, header, "wind_source_quality") > 0.80);
 		assertTrue(report.maxWindShearAccelerationMetersPerSecondSquared() > 0.10);
 		assertTrue(report.maxRotorWallEffectForceNewtons() > 0.04);

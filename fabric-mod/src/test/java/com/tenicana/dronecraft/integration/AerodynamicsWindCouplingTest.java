@@ -317,6 +317,17 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rawA4mcSourceTurbulenceIsQualityGatedIntoNaturalTurbulence() {
+		Aerodynamics4McWindBridge.WindSample fresh = windSampleWithSourceTurbulence(0.80, 20L);
+		Aerodynamics4McWindBridge.WindSample halfStale = windSampleWithSourceTurbulence(0.80, 100L);
+		Aerodynamics4McWindBridge.WindSample stale = windSampleWithSourceTurbulence(0.80, 200L);
+
+		assertEquals(0.80, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, fresh), 1.0e-9);
+		assertEquals(0.40, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, halfStale), 1.0e-9);
+		assertEquals(0.10, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, stale), 1.0e-9);
+	}
+
+	@Test
 	void localA4mcPressureProxyAddsBoundedNaturalTurbulenceEnergy() {
 		Aerodynamics4McWindBridge.WindSample localPressure = windSampleWithPressureAnomaly(900.0, true, 20L);
 		Aerodynamics4McWindBridge.WindSample cappedLocalPressure = windSampleWithPressureAnomaly(-4000.0, true, 20L);
@@ -583,6 +594,31 @@ class AerodynamicsWindCouplingTest {
 
 	private static Aerodynamics4McWindBridge.WindSample windSampleWithEffectiveWind(Vec3 effectiveWind, long freshnessAgeTicks) {
 		return windSampleWithMeanAndEffectiveWind(Vec3.ZERO, effectiveWind, freshnessAgeTicks);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithSourceTurbulence(double turbulenceIntensity, long freshnessAgeTicks) {
+		return new Aerodynamics4McWindBridge.WindSample(
+				true,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				turbulenceIntensity,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				1.0,
+				0.0,
+				true,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample windSampleWithMeanAndEffectiveWind(
