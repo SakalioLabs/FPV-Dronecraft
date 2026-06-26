@@ -42,6 +42,8 @@ In the advanced environment path, local obstacle scans, drone wake, water, preci
 
 The offline `wall_skim` trace now carries a synthetic trusted A4MC L2 local-voxel profile. It attenuates duplicated geometric wall obstruction with a local obstacle residual, injects per-rotor A4MC shelter-gradient obstruction and pressure-gradient-equivalent disk wind biased toward the wall-side rotors, applies a rainy local-shelter pass that lowers each valid rotor's precipitation wetness below the body rain value according to its synthetic A4MC shelter, and records the explicit source-quality factor, local voxel obstacle residual, A4MC shelter obstruction, separated A4MC pressure-gradient wind, total disk-gradient magnitude, combined rotor flow obstruction, body precipitation wetness, per-rotor precipitation wetness, pack ventilation efficiency, and aggregate/per-rotor rotor ventilation efficiency. This gives the CSV regression suite a stable rainy block-edge/tunnel-mouth proxy before live Aerodynamics4MC worlds are available in automated tests.
 
+The offline recorder `Summary:` line now also prints `min_a4mc_vent=rotor/pack`, letting quick CLI runs audit the same minimum A4MC ventilation-efficiency loss that the CSV columns preserve sample by sample.
+
 ## Next Research Steps
 
 - Use `docs/data/a4mc_disk_gradient_response_packet.csv` as the current-formula response surface before calibrating disk-gradient thrust-loss, load, vibration, stall, and flapping coefficients against blackbox traces near block edges and tunnel mouths.

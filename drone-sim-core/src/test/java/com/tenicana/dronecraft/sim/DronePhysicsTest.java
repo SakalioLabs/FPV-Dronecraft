@@ -13129,9 +13129,21 @@ class DronePhysicsTest {
 				report.maxWindSourceTurbulenceIntensity(),
 				1.0e-5
 		);
+		assertEquals(
+				minColumn(lines, header, "rotor_a4mc_ventilation_efficiency"),
+				report.minRotorA4mcVentilationEfficiency(),
+				1.0e-5
+		);
+		assertEquals(
+				minColumn(lines, header, "a4mc_pack_ventilation_efficiency"),
+				report.minA4mcPackVentilationEfficiency(),
+				1.0e-5
+		);
 		assertTrue(maxColumn(lines, header, "wind_a4mc_terrain_shear_speed_mps") > 0.02);
 		assertTrue(maxColumn(lines, header, "wind_source_turbulence") > 0.0);
 		assertTrue(maxColumn(lines, header, "wind_source_quality") > 0.80);
+		assertTrue(report.minRotorA4mcVentilationEfficiency() < 1.0);
+		assertTrue(report.minA4mcPackVentilationEfficiency() < 1.0);
 		assertTrue(report.maxWindShearAccelerationMetersPerSecondSquared() > 0.10);
 		assertTrue(report.maxRotorWallEffectForceNewtons() > 0.04);
 		assertTrue(report.maxContactImpactSpeedMetersPerSecond() >= 0.0);
@@ -13235,6 +13247,7 @@ class DronePhysicsTest {
 		assertTrue(text.contains("bpass_notch="));
 		assertTrue(text.contains("max_ground_level="));
 		assertTrue(text.contains("max_wind_quality="));
+		assertTrue(text.contains("min_a4mc_vent="));
 		assertTrue(text.contains("Airframe IMAV body-drag fit"));
 		assertTrue(text.contains("Airframe base-drag level-flight envelope"));
 		assertTrue(text.contains("AI-IO14"));
