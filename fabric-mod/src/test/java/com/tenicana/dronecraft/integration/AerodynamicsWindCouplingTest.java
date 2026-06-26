@@ -212,4 +212,42 @@ class AerodynamicsWindCouplingTest {
 
 		assertEquals(0.12, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.12, sample), 1.0e-9);
 	}
+
+	@Test
+	void sourceWeightedWindFadesTowardFallbackAsQualityDrops() {
+		Vec3 fallback = new Vec3(0.0, 0.0, 2.0);
+		Aerodynamics4McWindBridge.WindSample fresh = windSampleWithEffectiveWind(new Vec3(4.0, 0.0, 0.0), 20L);
+		Aerodynamics4McWindBridge.WindSample halfStale = windSampleWithEffectiveWind(new Vec3(4.0, 0.0, 0.0), 100L);
+		Aerodynamics4McWindBridge.WindSample stale = windSampleWithEffectiveWind(new Vec3(4.0, 0.0, 0.0), 200L);
+
+		assertEquals(new Vec3(4.0, 0.0, 0.0), AerodynamicsWindCoupling.sourceWeightedWind(fallback, fresh));
+		assertEquals(new Vec3(2.0, 0.0, 1.0), AerodynamicsWindCoupling.sourceWeightedWind(fallback, halfStale));
+		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedWind(fallback, stale));
+		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedWind(fallback, null));
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithEffectiveWind(Vec3 effectiveWind, long freshnessAgeTicks) {
+		return new Aerodynamics4McWindBridge.WindSample(
+				true,
+				Vec3.ZERO,
+				effectiveWind,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				1.0,
+				0.0,
+				true,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
+	}
 }

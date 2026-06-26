@@ -16,13 +16,13 @@ The first integration keeps that boundary explicit:
 
 `Aerodynamics4McWindBridge` reflects against `AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3, SamplePolicy)`. A trusted sample feeds `DroneEnvironment` as natural wind, including the current stage-one playable environment when Aerodynamics4MC is installed:
 
-- effective wind becomes the base wind vector,
+- effective wind becomes the base wind vector after confidence/freshness weighting against Minecraft weather or calm fallback,
 - API turbulence becomes the natural turbulence floor,
 - shear and shelter add bounded dirty-air turbulence,
 - gust speed adds a bounded unresolved turbulence boost so effective-wind steps also excite Dryden-scale rotor response,
 - API temperature can replace the biome-derived ambient temperature, and API humidity contributes to moist-air density relief,
 - pressure anomaly adjusts air-density ratio and barometer pressure while staying bounded for L2 proxy values,
-- source level, authority, and freshness age are preserved for L0/L1/L2 regression analysis, with stale source samples faded out of local voxel and turbulence coupling,
+- source level, authority, and freshness age are preserved for L0/L1/L2 regression analysis, with stale source samples faded out of base wind, local voxel, disk-gradient, and turbulence coupling,
 - mean/effective/gust speed split is preserved so A4MC gust forcing can be separated from steady terrain wind in blackbox analysis,
 - ABL stability and mixing modulate the core Dryden turbulence intensity: unstable mixed layers strengthen large-scale gust response, while stable layers damp it.
 
