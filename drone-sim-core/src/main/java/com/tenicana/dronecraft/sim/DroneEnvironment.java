@@ -714,9 +714,16 @@ public record DroneEnvironment(
 	public double ambientHumidity() {
 		double ambientHumidity = precipitationWetnessIntensity;
 		if (windSourceHasHumidity) {
-			ambientHumidity = Math.max(ambientHumidity, windSourceHumidity);
+			ambientHumidity = Math.max(ambientHumidity, adoptedWindSourceHumidity());
 		}
 		return MathUtil.clamp(ambientHumidity, 0.0, 1.0);
+	}
+
+	public double adoptedWindSourceHumidity() {
+		if (!windSourceHasHumidity) {
+			return 0.0;
+		}
+		return MathUtil.clamp(windSourceHumidity * windSourceQualityFactor(), 0.0, 1.0);
 	}
 
 	public static double moistAirDensityMultiplier(double ambientTemperatureCelsius, double precipitationWetnessIntensity) {

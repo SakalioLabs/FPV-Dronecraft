@@ -7951,6 +7951,45 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcFreezingHumidityIcingRespectsSourceQuality() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics trusted = new DronePhysics(config);
+		DronePhysics untrusted = new DronePhysics(config);
+		DronePhysics stale = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneEnvironment trustedHumidity = a4mcThermalHumidityEnvironment(1.0, -8.0, 1.0, true, 1.0, 0L);
+		DroneEnvironment untrustedHumidity = a4mcThermalHumidityEnvironment(1.0, -8.0, 1.0, false, 1.0, 0L);
+		DroneEnvironment staleHumidity = a4mcThermalHumidityEnvironment(1.0, -8.0, 1.0, true, 1.0, 160L);
+
+		for (int i = 0; i < 6000; i++) {
+			trusted.step(highLoad, 0.010, trustedHumidity);
+			untrusted.step(highLoad, 0.010, untrustedHumidity);
+			stale.step(highLoad, 0.010, staleHumidity);
+		}
+
+		assertEquals(1.0, trustedHumidity.windSourceHumidity(), 1.0e-12);
+		assertEquals(1.0, untrustedHumidity.windSourceHumidity(), 1.0e-12);
+		assertEquals(1.0, staleHumidity.windSourceHumidity(), 1.0e-12);
+		assertEquals(1.0, trustedHumidity.adoptedWindSourceHumidity(), 1.0e-12);
+		assertEquals(0.0, untrustedHumidity.adoptedWindSourceHumidity(), 1.0e-12);
+		assertEquals(0.0, staleHumidity.adoptedWindSourceHumidity(), 1.0e-12);
+		assertTrue(trusted.state().maxRotorIcingSeverity() > 0.035,
+				() -> "trustedSeverity=" + trusted.state().maxRotorIcingSeverity());
+		assertTrue(untrusted.state().maxRotorIcingSeverity() < 1.0e-8,
+				() -> "untrustedSeverity=" + untrusted.state().maxRotorIcingSeverity());
+		assertTrue(stale.state().maxRotorIcingSeverity() < 1.0e-8,
+				() -> "staleSeverity=" + stale.state().maxRotorIcingSeverity());
+	}
+
+	@Test
 	void wetPropFilmDriesSlowerWhenRotorsStop() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
@@ -13050,6 +13089,17 @@ class DronePhysicsTest {
 			double ambientTemperatureCelsius,
 			double humidity
 	) {
+		return a4mcThermalHumidityEnvironment(airDensityRatio, ambientTemperatureCelsius, humidity, true, 1.0, -1L);
+	}
+
+	private static DroneEnvironment a4mcThermalHumidityEnvironment(
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double humidity,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				airDensityRatio,
@@ -13070,8 +13120,8 @@ class DronePhysicsTest {
 				null,
 				null,
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
-				true,
-				1.0,
+				trustedForGameplay,
+				confidence,
 				0.0,
 				0.0,
 				0.0,
@@ -13080,7 +13130,7 @@ class DronePhysicsTest {
 				false,
 				"l1",
 				"server_authoritative",
-				-1L,
+				freshnessAgeTicks,
 				0.0,
 				0.0,
 				0.0,

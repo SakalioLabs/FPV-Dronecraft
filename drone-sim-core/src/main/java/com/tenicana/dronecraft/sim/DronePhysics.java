@@ -4527,9 +4527,13 @@ public final class DronePhysics {
 		if (environment == null || !environment.windSourceHasHumidity()) {
 			return 0.0;
 		}
+		double adoptedHumidity = environment.adoptedWindSourceHumidity();
+		if (adoptedHumidity <= 1.0e-9) {
+			return 0.0;
+		}
 		return IcingRotorCalibration.freezingHumidityEquivalentWetness(
 				environment.ambientTemperatureCelsius(),
-				environment.windSourceHumidity()
+				adoptedHumidity
 		);
 	}
 

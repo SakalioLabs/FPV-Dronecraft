@@ -1548,7 +1548,7 @@ public class DroneEntity extends Entity {
 							)
 							: 0.0,
 					hasSourceHumidity,
-					AerodynamicsWindCoupling.sourceWeightedHumidity(externalWind),
+					hasSourceHumidity ? externalWind.humidity() : 0.0,
 					externalWind.ablStability(),
 					externalWind.ablMixingStrength()
 			);

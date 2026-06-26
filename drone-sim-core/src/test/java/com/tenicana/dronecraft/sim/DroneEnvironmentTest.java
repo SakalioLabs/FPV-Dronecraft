@@ -172,6 +172,22 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void adoptedWindSourceHumidityUsesSourceQuality() {
+		DroneEnvironment fresh = environmentWithWindSourceHumidity(true, 1.0, 0L, 0.80);
+		DroneEnvironment halfStale = environmentWithWindSourceHumidity(true, 1.0, 100L, 0.80);
+		DroneEnvironment stale = environmentWithWindSourceHumidity(true, 1.0, 160L, 0.80);
+		DroneEnvironment untrusted = environmentWithWindSourceHumidity(false, 1.0, 0L, 0.80);
+		DroneEnvironment rainyStale = environmentWithWindSourceHumidity(true, 1.0, 160L, 0.80, 0.35);
+
+		assertEquals(0.80, fresh.windSourceHumidity(), 1.0e-9);
+		assertEquals(0.80, fresh.adoptedWindSourceHumidity(), 1.0e-9);
+		assertEquals(0.40, halfStale.adoptedWindSourceHumidity(), 1.0e-9);
+		assertEquals(0.0, stale.adoptedWindSourceHumidity(), 1.0e-9);
+		assertEquals(0.0, untrusted.adoptedWindSourceHumidity(), 1.0e-9);
+		assertEquals(0.35, rainyStale.ambientHumidity(), 1.0e-9);
+	}
+
+	@Test
 	void pressureAnomalyAdjustsDensityAndBarometerPressure() {
 		double neutral = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0);
 		double lowPressure = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, -2200.0);
@@ -253,5 +269,64 @@ class DroneEnvironmentTest {
 		assertEquals(1.0 + (fullCeiling - 1.0) * 0.5,
 				DroneEnvironment.weightedCeilingEffectThrustMultiplier(config, partialSupported, partialWeights),
 				1.0e-12);
+	}
+
+	private static DroneEnvironment environmentWithWindSourceHumidity(
+			boolean trusted,
+			double confidence,
+			long freshnessAgeTicks,
+			double humidity
+	) {
+		return environmentWithWindSourceHumidity(trusted, confidence, freshnessAgeTicks, humidity, 0.0);
+	}
+
+	private static DroneEnvironment environmentWithWindSourceHumidity(
+			boolean trusted,
+			double confidence,
+			long freshnessAgeTicks,
+			double humidity,
+			double precipitationWetness
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				precipitationWetness,
+				-8.0,
+				null,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				trusted,
+				confidence,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				"l1",
+				"server_authoritative",
+				freshnessAgeTicks,
+				0.0,
+				0.0,
+				0.0,
+				true,
+				-8.0,
+				true,
+				humidity,
+				0.0,
+				0.0
+		);
 	}
 }
