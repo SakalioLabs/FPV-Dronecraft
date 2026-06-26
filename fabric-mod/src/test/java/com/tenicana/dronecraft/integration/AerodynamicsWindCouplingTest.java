@@ -26,10 +26,11 @@ class AerodynamicsWindCouplingTest {
 		Map<String, Double> summary = localVoxelPacketSummary();
 		double wallSkimSourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
 
-		assertEquals(14, summary.size());
+		assertEquals(18, summary.size());
 		assertEquals(48.0, summaryMetric(summary, "quality_residual_scenario_count"), 1.0e-9);
 		assertEquals(6.0, summaryMetric(summary, "rotor_residual_fallback_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "pressure_gradient_scenario_count"), 1.0e-9);
+		assertEquals(36.0, summaryMetric(summary, "pressure_contrast_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "shelter_gradient_scenario_count"), 1.0e-9);
 		assertEquals(ROTOR_DISK_SURFACE_CENTER_WEIGHT, summaryMetric(summary, "disk_sample_center_weight"), 1.0e-12);
 		assertEquals(ROTOR_DISK_SURFACE_CARDINAL_WEIGHT, summaryMetric(summary, "disk_sample_cardinal_weight"), 1.0e-12);
@@ -63,6 +64,17 @@ class AerodynamicsWindCouplingTest {
 				summaryMetric(summary, "max_pressure_quality_weighted_gradient_mps"),
 				1.0e-11
 		);
+		AerodynamicsWindCoupling.RotorDiskPressureBlend halfQualityPressureContrast =
+				oneSidedPressureContrastBlend(-5000.0, 5000.0, 0.50, 0L);
+		Vec3 halfQualityPressureContrastWind =
+				AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(halfQualityPressureContrast);
+		assertEquals(
+				halfQualityPressureContrastWind.x(),
+				summaryMetric(summary, "saturated_pressure_contrast_runtime_weighted_gradient_mps"),
+				1.0e-10
+		);
+		assertEquals(1.2, summaryMetric(summary, "saturated_pressure_contrast_post_equivalent_scaled_mps"), 1.0e-12);
+		assertTrue(summaryMetric(summary, "saturated_pressure_contrast_quality_first_ratio") > 1.70);
 
 		AerodynamicsWindCoupling.RotorDiskShelterBlend wallSkimShelter = oneSidedShelterBlend(0.35, 0.74);
 		assertEquals(
@@ -344,6 +356,29 @@ class AerodynamicsWindCouplingTest {
 				AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(qualityWeightedBlend);
 
 		assertEquals(rawEquivalentWindGradient.x() * sourceQuality, qualityWeightedEquivalentWindGradient.x(), 1.0e-12);
+		assertEquals(0.0, qualityWeightedEquivalentWindGradient.y(), 1.0e-12);
+		assertEquals(0.0, qualityWeightedEquivalentWindGradient.z(), 1.0e-12);
+	}
+
+	@Test
+	void rotorDiskPressureBlendAppliesQualityBeforePressureWindSaturation() {
+		double sourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.50, 0L);
+		AerodynamicsWindCoupling.RotorDiskPressureBlend rawBlend =
+				oneSidedPressureContrastBlend(-5000.0, 5000.0, 1.0, 0L);
+		AerodynamicsWindCoupling.RotorDiskPressureBlend qualityWeightedBlend =
+				oneSidedPressureContrastBlend(-5000.0, 5000.0, 0.50, 0L);
+		Vec3 rawEquivalentWindGradient = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(rawBlend);
+		Vec3 qualityWeightedEquivalentWindGradient =
+				AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(qualityWeightedBlend);
+		double adoptedPressureContrast = (5000.0 - -5000.0) * sourceQuality;
+		double adoptedGradient = adoptedPressureContrast
+				* (ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 2.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT / Math.sqrt(2.0))
+				/ (4.0 * ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 4.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT);
+		double expectedQualityFirstWind = adoptedGradient / 1600.0 * 2.4;
+
+		assertEquals(2.4, rawEquivalentWindGradient.x(), 1.0e-12);
+		assertEquals(expectedQualityFirstWind, qualityWeightedEquivalentWindGradient.x(), 1.0e-12);
+		assertTrue(qualityWeightedEquivalentWindGradient.x() > rawEquivalentWindGradient.x() * sourceQuality);
 		assertEquals(0.0, qualityWeightedEquivalentWindGradient.y(), 1.0e-12);
 		assertEquals(0.0, qualityWeightedEquivalentWindGradient.z(), 1.0e-12);
 	}
@@ -946,6 +981,21 @@ class AerodynamicsWindCouplingTest {
 		);
 	}
 
+	private static AerodynamicsWindCoupling.RotorDiskPressureBlend oneSidedPressureContrastBlend(
+			double centerPressurePascals,
+			double edgePressurePascals,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		return AerodynamicsWindCoupling.rotorDiskPressureBlend(
+				windSampleWithPressureAnomaly(centerPressurePascals, true, freshnessAgeTicks, confidence),
+				oneSidedPressureContrastSamples(centerPressurePascals, edgePressurePascals, confidence, freshnessAgeTicks),
+				rotorDiskSampleDirectionsBody(),
+				rotorDiskSampleWeights(),
+				ROTOR_DISK_SURFACE_CENTER_WEIGHT
+		);
+	}
+
 	private static Aerodynamics4McWindBridge.WindSample[] oneSidedPressureSamples(double edgePressureDeltaPascals) {
 		return oneSidedPressureSamples(edgePressureDeltaPascals, 1.0, 0L);
 	}
@@ -962,14 +1012,39 @@ class AerodynamicsWindCouplingTest {
 		return samples;
 	}
 
+	private static Aerodynamics4McWindBridge.WindSample[] oneSidedPressureContrastSamples(
+			double centerPressurePascals,
+			double edgePressurePascals,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		Aerodynamics4McWindBridge.WindSample[] samples = centerPressureSamples(
+				centerPressurePascals,
+				confidence,
+				freshnessAgeTicks
+		);
+		samples[0] = windSampleWithPressureAnomaly(edgePressurePascals, true, freshnessAgeTicks, confidence);
+		samples[4] = windSampleWithPressureAnomaly(edgePressurePascals, true, freshnessAgeTicks, confidence);
+		samples[5] = windSampleWithPressureAnomaly(edgePressurePascals, true, freshnessAgeTicks, confidence);
+		return samples;
+	}
+
 	private static Aerodynamics4McWindBridge.WindSample[] centerPressureSamples() {
 		return centerPressureSamples(1.0, 0L);
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample[] centerPressureSamples(double confidence, long freshnessAgeTicks) {
+		return centerPressureSamples(0.0, confidence, freshnessAgeTicks);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] centerPressureSamples(
+			double pressureAnomalyPascals,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		Aerodynamics4McWindBridge.WindSample[] samples = new Aerodynamics4McWindBridge.WindSample[8];
 		for (int i = 0; i < samples.length; i++) {
-			samples[i] = windSampleWithPressureAnomaly(0.0, true, freshnessAgeTicks, confidence);
+			samples[i] = windSampleWithPressureAnomaly(pressureAnomalyPascals, true, freshnessAgeTicks, confidence);
 		}
 		return samples;
 	}

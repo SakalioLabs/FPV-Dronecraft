@@ -38,6 +38,7 @@ LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42
 LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22
 LOCAL_VOXEL_PRESSURE_GRADIENT_FULL_SCALE_PA = 1600.0
 LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS = 2.4
+MAX_LOCAL_VOXEL_PRESSURE_PA = 5000.0
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
 
@@ -49,6 +50,7 @@ CONFIDENCE_LEVELS = [1.0, 0.86, 0.5]
 FRESHNESS_AGES_TICKS = [0, 40, 100, 160]
 SHELTER_LEVELS = [0.0, 0.35, 0.74, 1.0]
 PRESSURE_DELTAS_PA = [0.0, 220.0, 800.0, 1600.0, 3200.0]
+PRESSURE_CENTER_CONTRASTS_PA = [0.0, 3200.0, 10000.0]
 SHELTER_GRADIENT_DELTAS = [0.0, 0.15, 0.35, 0.74, 1.0]
 
 
@@ -141,6 +143,10 @@ def pressure_wind_equivalent(gradient_pa: float) -> float:
         0.0,
         LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS,
     )
+
+
+def adopted_pressure(pressure_pa: float, quality: float) -> float:
+    return clamp(pressure_pa, -MAX_LOCAL_VOXEL_PRESSURE_PA, MAX_LOCAL_VOXEL_PRESSURE_PA) * quality
 
 
 def shelter_obstruction(mean_shelter: float, gradient: float) -> float:
@@ -361,15 +367,17 @@ def add_pressure_gradient_matrix(rows: list[dict[str, str]]) -> None:
         for age in FRESHNESS_AGES_TICKS:
             quality = source_quality(True, confidence, age)
             for pressure_delta in PRESSURE_DELTAS_PA:
-                gradient_pa = disk_sample_gradient(pressure_delta)
+                edge_pressure = clamp(pressure_delta, -MAX_LOCAL_VOXEL_PRESSURE_PA, MAX_LOCAL_VOXEL_PRESSURE_PA)
+                gradient_pa = disk_sample_gradient(edge_pressure)
                 wind_equiv = pressure_wind_equivalent(gradient_pa)
-                weighted_wind = wind_equiv * quality
+                adopted_gradient_pa = disk_sample_gradient(adopted_pressure(edge_pressure, quality))
+                weighted_wind = pressure_wind_equivalent(adopted_gradient_pa)
                 metrics = {
                     "input_confidence": confidence,
                     "input_freshness_age_ticks": age,
                     "input_edge_pressure_delta_pa": pressure_delta,
                     "core_source_quality": quality,
-                    "disk_pressure_mean_pa": disk_mean(0.0, pressure_delta),
+                    "disk_pressure_mean_pa": disk_mean(0.0, edge_pressure),
                     "disk_pressure_gradient_body_x_pa": gradient_pa,
                     "pressure_gradient_wind_equivalent_mps": wind_equiv,
                     "quality_weighted_disk_gradient_mps": weighted_wind,
@@ -390,6 +398,72 @@ def add_pressure_gradient_matrix(rows: list[dict[str, str]]) -> None:
                         source_file=LOCAL_VOXEL_DISK_SAMPLING_SOURCES,
                         evidence_role="local_voxel_pressure_gradient_matrix",
                         note="Single-sided rotor-disk pressure contrast converted into equivalent disk-wind gradient before core disk-gradient response.",
+                    )
+
+
+def add_pressure_contrast_matrix(rows: list[dict[str, str]]) -> None:
+    metric_units = {
+        "input_confidence": "fraction",
+        "input_freshness_age_ticks": "ticks",
+        "input_center_pressure_pa": "Pa",
+        "input_edge_pressure_pa": "Pa",
+        "input_pressure_contrast_pa": "Pa",
+        "core_source_quality": "fraction",
+        "raw_disk_pressure_gradient_body_x_pa": "Pa",
+        "raw_pressure_gradient_wind_equivalent_mps": "m/s",
+        "adopted_disk_pressure_gradient_body_x_pa": "Pa",
+        "runtime_weighted_disk_gradient_mps": "m/s",
+        "post_equivalent_quality_scaled_mps": "m/s",
+        "quality_first_over_post_equivalent": "ratio",
+    }
+    for confidence in CONFIDENCE_LEVELS:
+        for age in FRESHNESS_AGES_TICKS:
+            quality = source_quality(True, confidence, age)
+            for contrast in PRESSURE_CENTER_CONTRASTS_PA:
+                center_pressure = -0.5 * contrast
+                edge_pressure = 0.5 * contrast
+                raw_center = clamp(center_pressure, -MAX_LOCAL_VOXEL_PRESSURE_PA, MAX_LOCAL_VOXEL_PRESSURE_PA)
+                raw_edge = clamp(edge_pressure, -MAX_LOCAL_VOXEL_PRESSURE_PA, MAX_LOCAL_VOXEL_PRESSURE_PA)
+                raw_gradient = disk_sample_gradient(raw_edge - raw_center)
+                raw_equivalent = pressure_wind_equivalent(raw_gradient)
+                adopted_center = adopted_pressure(center_pressure, quality)
+                adopted_edge = adopted_pressure(edge_pressure, quality)
+                adopted_gradient = disk_sample_gradient(adopted_edge - adopted_center)
+                runtime_weighted = pressure_wind_equivalent(adopted_gradient)
+                post_equivalent_scaled = raw_equivalent * quality
+                metrics = {
+                    "input_confidence": confidence,
+                    "input_freshness_age_ticks": age,
+                    "input_center_pressure_pa": center_pressure,
+                    "input_edge_pressure_pa": edge_pressure,
+                    "input_pressure_contrast_pa": contrast,
+                    "core_source_quality": quality,
+                    "raw_disk_pressure_gradient_body_x_pa": raw_gradient,
+                    "raw_pressure_gradient_wind_equivalent_mps": raw_equivalent,
+                    "adopted_disk_pressure_gradient_body_x_pa": adopted_gradient,
+                    "runtime_weighted_disk_gradient_mps": runtime_weighted,
+                    "post_equivalent_quality_scaled_mps": post_equivalent_scaled,
+                    "quality_first_over_post_equivalent": (
+                        runtime_weighted / post_equivalent_scaled
+                        if post_equivalent_scaled > 1.0e-9
+                        else 0.0
+                    ),
+                }
+                name = (
+                    f"confidence_{scenario_token(confidence)}"
+                    f"_age_{age}_pressure_contrast_{scenario_token(contrast)}pa"
+                )
+                for metric, value in metrics.items():
+                    add_metric(
+                        rows,
+                        row_type="a4mc_local_voxel_packet_pressure_contrast_matrix",
+                        name=name,
+                        metric=metric,
+                        value=value,
+                        unit=metric_units[metric],
+                        source_file=LOCAL_VOXEL_DISK_SAMPLING_SOURCES,
+                        evidence_role="local_voxel_pressure_contrast_matrix",
+                        note="Symmetric center/edge pressure contrast verifies quality is applied before the pressure-to-wind saturation curve.",
                     )
 
 
@@ -462,6 +536,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     quality_name = "confidence_0p86_age_0_shelter_0p74"
     pressure_name = "confidence_0p86_age_0_pressure_delta_220pa"
     pressure_max_name = "confidence_1_age_0_pressure_delta_3200pa"
+    pressure_saturated_name = "confidence_0p5_age_0_pressure_contrast_10000pa"
     shelter_name = "confidence_0p86_age_0_shelter_delta_0p74"
     stale_shelter_name = "confidence_0p86_age_160_shelter_delta_0p74"
     summary = {
@@ -472,6 +547,10 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "rotor_residual_fallback_scenario_count": (6, "count"),
         "pressure_gradient_scenario_count": (
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(PRESSURE_DELTAS_PA),
+            "count",
+        ),
+        "pressure_contrast_scenario_count": (
+            len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(PRESSURE_CENTER_CONTRASTS_PA),
             "count",
         ),
         "shelter_gradient_scenario_count": (
@@ -525,6 +604,33 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 "quality_weighted_disk_gradient_mps",
             ),
             "m/s",
+        ),
+        "saturated_pressure_contrast_runtime_weighted_gradient_mps": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_contrast_matrix",
+                pressure_saturated_name,
+                "runtime_weighted_disk_gradient_mps",
+            ),
+            "m/s",
+        ),
+        "saturated_pressure_contrast_post_equivalent_scaled_mps": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_contrast_matrix",
+                pressure_saturated_name,
+                "post_equivalent_quality_scaled_mps",
+            ),
+            "m/s",
+        ),
+        "saturated_pressure_contrast_quality_first_ratio": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_contrast_matrix",
+                pressure_saturated_name,
+                "quality_first_over_post_equivalent",
+            ),
+            "ratio",
         ),
         "wall_skim_shelter_delta_0p74_obstruction": (
             find_metric(
@@ -580,6 +686,7 @@ def build_rows() -> list[dict[str, str]]:
     add_quality_residual_matrix(rows)
     add_rotor_residual_fallback_matrix(rows)
     add_pressure_gradient_matrix(rows)
+    add_pressure_contrast_matrix(rows)
     add_shelter_gradient_matrix(rows)
     add_summary(rows)
     return rows
