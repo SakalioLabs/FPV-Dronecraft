@@ -7997,6 +7997,55 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcHumidityReducesThermalVentilationCooling() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 3.0, 90.0)
+				.withMotorThermal(68.0, 0.18, 200.0, 240.0);
+		DronePhysics dry = new DronePhysics(config);
+		DronePhysics humid = new DronePhysics(config);
+		double hotAmbientCelsius = 45.0;
+		DroneEnvironment dryA4mc = a4mcThermalHumidityEnvironment(1.0, hotAmbientCelsius, 0.0);
+		double humidityDensityCompensation = 1.0 / DroneEnvironment.moistAirDensityMultiplier(hotAmbientCelsius, 1.0);
+		DroneEnvironment humidA4mc = a4mcThermalHumidityEnvironment(humidityDensityCompensation, hotAmbientCelsius, 1.0);
+		DroneInput loaded = new DroneInput(0.58, 0.0, 0.0, 0.0, true);
+		Vec3 crossflow = new Vec3(10.0, 0.0, 0.0);
+
+		dry.step(DroneInput.idle(), 0.005, dryA4mc);
+		humid.step(DroneInput.idle(), 0.005, humidA4mc);
+		for (int i = 0; i < dry.state().motorCount(); i++) {
+			dry.state().setMotorTemperatureCelsius(i, 86.0);
+			humid.state().setMotorTemperatureCelsius(i, 86.0);
+			dry.state().setEscTemperatureCelsius(i, 82.0);
+			humid.state().setEscTemperatureCelsius(i, 82.0);
+		}
+		dry.state().setBatteryTemperatureCelsius(72.0);
+		humid.state().setBatteryTemperatureCelsius(72.0);
+
+		for (int i = 0; i < 300; i++) {
+			holdInCoolingCrossflow(dry, crossflow);
+			holdInCoolingCrossflow(humid, crossflow);
+			dry.step(loaded, 0.005, dryA4mc);
+			humid.step(loaded, 0.005, humidA4mc);
+		}
+
+		assertEquals(dryA4mc.effectiveAirDensityRatio(), humidA4mc.effectiveAirDensityRatio(), 0.002);
+		assertTrue(humidA4mc.moistAirCoolingMultiplier() < dryA4mc.moistAirCoolingMultiplier() * 0.94);
+		assertTrue(humid.state().averageMotorCoolingFactor() < dry.state().averageMotorCoolingFactor() * 0.96,
+				() -> "dryMotorCooling=" + dry.state().averageMotorCoolingFactor()
+						+ " humidMotorCooling=" + humid.state().averageMotorCoolingFactor());
+		assertTrue(humid.state().averageEscCoolingFactor() < dry.state().averageEscCoolingFactor() * 0.96,
+				() -> "dryEscCooling=" + dry.state().averageEscCoolingFactor()
+						+ " humidEscCooling=" + humid.state().averageEscCoolingFactor());
+		assertTrue(humid.state().batteryCoolingFactor() < dry.state().batteryCoolingFactor() * 0.96,
+				() -> "dryBatteryCooling=" + dry.state().batteryCoolingFactor()
+						+ " humidBatteryCooling=" + humid.state().batteryCoolingFactor());
+		assertTrue(humid.state().averageMotorTemperatureCelsius() > dry.state().averageMotorTemperatureCelsius() + 0.08);
+		assertTrue(humid.state().batteryTemperatureCelsius() > dry.state().batteryTemperatureCelsius() + 0.12);
+	}
+
+	@Test
 	void ambientTemperatureChangesBatterySagAndThermalEquilibrium() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig thermalConfig = directControl(DroneConfig.racingQuad())
@@ -12953,6 +13002,54 @@ class DronePhysicsTest {
 				0.0,
 				0.0,
 				ambientTemperatureCelsius
+		);
+	}
+
+	private static DroneEnvironment a4mcThermalHumidityEnvironment(
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double humidity
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				airDensityRatio,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				ambientTemperatureCelsius,
+				null,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				"l1",
+				"server_authoritative",
+				-1L,
+				0.0,
+				0.0,
+				0.0,
+				true,
+				ambientTemperatureCelsius,
+				true,
+				humidity,
+				0.0,
+				0.0
 		);
 	}
 

@@ -704,15 +704,19 @@ public record DroneEnvironment(
 	}
 
 	public double effectiveAirDensityRatio() {
+		return MathUtil.clamp(
+				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, ambientHumidity()),
+				0.35,
+				1.35
+		);
+	}
+
+	public double ambientHumidity() {
 		double ambientHumidity = precipitationWetnessIntensity;
 		if (windSourceHasHumidity) {
 			ambientHumidity = Math.max(ambientHumidity, windSourceHumidity);
 		}
-		return MathUtil.clamp(
-				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, ambientHumidity),
-				0.35,
-				1.35
-		);
+		return MathUtil.clamp(ambientHumidity, 0.0, 1.0);
 	}
 
 	public static double moistAirDensityMultiplier(double ambientTemperatureCelsius, double precipitationWetnessIntensity) {
@@ -729,6 +733,26 @@ public record DroneEnvironment(
 		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
 		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF * vaporPressureFraction * wetness;
 		return MathUtil.clamp(1.0 - densityRelief, 0.94, 1.0);
+	}
+
+	public double moistAirCoolingMultiplier() {
+		return moistAirCoolingMultiplier(ambientTemperatureCelsius, ambientHumidity());
+	}
+
+	public static double moistAirCoolingMultiplier(double ambientTemperatureCelsius, double humidity) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double wetness = MathUtil.clamp(humidity, 0.0, 1.0);
+		if (wetness <= 1.0e-9) {
+			return 1.0;
+		}
+
+		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
+		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
+		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
+		double coolingRelief = wetness * (0.030 + 0.45 * vaporPressureFraction);
+		return MathUtil.clamp(1.0 - coolingRelief, 0.90, 1.0);
 	}
 
 	private static double saturationVaporPressureHectopascals(double ambientTemperatureCelsius) {

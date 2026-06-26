@@ -9590,8 +9590,9 @@ public final class DronePhysics {
 		double recirculationEfficiency = 1.0 - 0.78 * recirculatedAirCoolingLoss(environment);
 		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment, rotorIndex);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCooling = environment.moistAirCoolingMultiplier();
 		return MathUtil.clamp(
-				boardAirflow * densityFactor * obstructionLoss * recirculationEfficiency * localShelterEfficiency,
+				boardAirflow * densityFactor * moistAirCooling * obstructionLoss * recirculationEfficiency * localShelterEfficiency,
 				0.20,
 				4.0
 		);
@@ -9614,8 +9615,9 @@ public final class DronePhysics {
 		double recirculationEfficiency = 1.0 - recirculatedAirCoolingLoss(environment);
 		double localShelterEfficiency = a4mcLocalVoxelVentilationEfficiency(environment, rotorIndex);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
+		double moistAirCooling = environment.moistAirCoolingMultiplier();
 		return MathUtil.clamp(
-				(1.0 + freestreamCooling + rotorWashCooling) * densityFactor * obstructionLoss * recirculationEfficiency * localShelterEfficiency,
+				(1.0 + freestreamCooling + rotorWashCooling) * densityFactor * moistAirCooling * obstructionLoss * recirculationEfficiency * localShelterEfficiency,
 				0.20,
 				4.0
 		);
@@ -9772,8 +9774,10 @@ public final class DronePhysics {
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double recirculationEfficiency = 1.0 - 0.58 * recirculatedAirCoolingLoss(environment);
 		double localShelterEfficiency = a4mcPackVentilationEfficiency(environment, state.motorCount());
+		double moistAirCooling = environment.moistAirCoolingMultiplier();
 		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
 				* densityFactor
+				* moistAirCooling
 				* recirculationEfficiency
 				* localShelterEfficiency;
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
