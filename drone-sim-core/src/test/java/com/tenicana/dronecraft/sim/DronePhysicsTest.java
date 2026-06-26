@@ -9755,6 +9755,121 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void perRotorLocalWindFeedsAxialGustModel() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics physics = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		Vec3[] rotorWinds = {
+				new Vec3(0.0, 9.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		};
+		DroneEnvironment localUpdraft = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				rotorWinds
+		);
+
+		for (int i = 0; i < 260; i++) {
+			holdInStillAir(physics);
+			physics.step(hover, 0.005, localUpdraft);
+		}
+
+		assertTrue(physics.state().rotorAxialGustThrustScale(0) > 1.08,
+				() -> "rotor0=" + physics.state().rotorAxialGustThrustScale(0));
+		assertEquals(1.0, physics.state().rotorAxialGustThrustScale(1), 0.03);
+		assertTrue(physics.state().rotorAxialGustThrustScale(0)
+						> physics.state().rotorAxialGustThrustScale(1) + 0.08,
+				() -> "rotor0=" + physics.state().rotorAxialGustThrustScale(0)
+						+ " rotor1=" + physics.state().rotorAxialGustThrustScale(1));
+	}
+
+	@Test
+	void rotorDiskWindGradientTiltsLoadedRotorDisk() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withRotorDiskDragCoefficient(0.0)
+				.withMotorTimeConstantSeconds(0.005)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics clean = new DronePhysics(config);
+		DronePhysics gradient = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		Vec3[] diskGradients = {
+				new Vec3(12.0, 0.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
+		};
+		DroneEnvironment cleanAir = DroneEnvironment.calm();
+		DroneEnvironment diskGradientAir = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				diskGradients
+		);
+
+		for (int i = 0; i < 260; i++) {
+			holdInStillAir(clean);
+			holdInStillAir(gradient);
+			clean.step(hover, 0.005, cleanAir);
+			gradient.step(hover, 0.005, diskGradientAir);
+		}
+
+		assertTrue(gradient.state().rotorFlappingTiltRadians(0)
+						> clean.state().rotorFlappingTiltRadians(0) + Math.toRadians(0.8),
+				() -> "cleanTiltDeg=" + Math.toDegrees(clean.state().rotorFlappingTiltRadians(0))
+						+ " gradientTiltDeg=" + Math.toDegrees(gradient.state().rotorFlappingTiltRadians(0)));
+		assertTrue(gradient.state().rotorForceBodyNewtons(0).x()
+						> clean.state().rotorForceBodyNewtons(0).x() + 0.04,
+				() -> "cleanForce=" + clean.state().rotorForceBodyNewtons(0)
+						+ " gradientForce=" + gradient.state().rotorForceBodyNewtons(0));
+		assertTrue(gradient.state().rotorAerodynamicLoadFactor(0)
+						> clean.state().rotorAerodynamicLoadFactor(0) + 0.015,
+				() -> "cleanLoad=" + clean.state().rotorAerodynamicLoadFactor(0)
+						+ " gradientLoad=" + gradient.state().rotorAerodynamicLoadFactor(0));
+		assertTrue(gradient.state().rotorFlappingTiltRadians(0)
+						> gradient.state().rotorFlappingTiltRadians(1) + Math.toRadians(0.8),
+				() -> "rotor0TiltDeg=" + Math.toDegrees(gradient.state().rotorFlappingTiltRadians(0))
+						+ " rotor1TiltDeg=" + Math.toDegrees(gradient.state().rotorFlappingTiltRadians(1)));
+	}
+
+	@Test
 	void inducedInflowLagsThrottlePunchWithoutChangingSteadyThrust() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withMotorTimeConstantSeconds(0.005)
@@ -10759,6 +10874,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_env_thrust_multiplier"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_flow_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flow_obstruction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_disk_wind_gradient_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_disk_wind_gradient_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_element_stall"));

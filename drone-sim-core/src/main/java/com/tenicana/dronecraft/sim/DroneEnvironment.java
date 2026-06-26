@@ -15,8 +15,27 @@ public record DroneEnvironment(
 		double waterImmersionIntensity,
 		double[] rotorPrecipitationWetnesses,
 		double precipitationWetnessIntensity,
-		double ambientTemperatureCelsius
+		double ambientTemperatureCelsius,
+		Vec3[] rotorWindVelocityWorldMetersPerSecond,
+		Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+		String windSourceId,
+		boolean windSourceTrustedForGameplay,
+		double windSourceConfidence,
+		double windShearMagnitudePerBlock,
+		double windShelterFactor,
+		double windUpdraftMetersPerSecond,
+		boolean windSourceLocalVoxelFlow,
+		boolean windSourceHasTemperature,
+		double windSourceTemperatureCelsius,
+		boolean windSourceHasHumidity,
+		double windSourceHumidity
 ) {
+	public static final String WIND_SOURCE_INTERNAL = "internal";
+	public static final String WIND_SOURCE_CALM = "calm";
+	public static final String WIND_SOURCE_MINECRAFT_WEATHER = "minecraft_weather";
+	public static final String WIND_SOURCE_AERODYNAMICS4MC = "aerodynamics4mc";
+	public static final String WIND_SOURCE_ENVIRONMENT_OVERRIDE = "environment_override";
+
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
@@ -85,6 +104,18 @@ public record DroneEnvironment(
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, null, precipitationWetnessIntensity, ambientTemperatureCelsius);
 	}
 
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, null);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, null);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0);
+	}
+
 	public DroneEnvironment {
 		if (windVelocityWorldMetersPerSecond == null) {
 			windVelocityWorldMetersPerSecond = Vec3.ZERO;
@@ -116,6 +147,37 @@ public record DroneEnvironment(
 		rotorFlowObstructionDirectionsBody = sanitizeDirectionArray(rotorFlowObstructionDirectionsBody);
 		rotorWaterImmersions = sanitizeUnitArray(rotorWaterImmersions);
 		rotorPrecipitationWetnesses = sanitizeUnitArray(rotorPrecipitationWetnesses);
+		rotorWindVelocityWorldMetersPerSecond = sanitizeWindArray(rotorWindVelocityWorldMetersPerSecond);
+		rotorDiskWindGradientBodyMetersPerSecond = sanitizeDiskWindGradientArray(rotorDiskWindGradientBodyMetersPerSecond);
+		windSourceId = sanitizeWindSourceId(windSourceId);
+		if (!Double.isFinite(windSourceConfidence)) {
+			windSourceConfidence = 0.0;
+		}
+		windSourceConfidence = MathUtil.clamp(windSourceConfidence, 0.0, 1.0);
+		if (!Double.isFinite(windShearMagnitudePerBlock)) {
+			windShearMagnitudePerBlock = 0.0;
+		}
+		windShearMagnitudePerBlock = MathUtil.clamp(windShearMagnitudePerBlock, 0.0, 5.0);
+		if (!Double.isFinite(windShelterFactor)) {
+			windShelterFactor = 0.0;
+		}
+		windShelterFactor = MathUtil.clamp(windShelterFactor, 0.0, 1.0);
+		if (!Double.isFinite(windUpdraftMetersPerSecond)) {
+			windUpdraftMetersPerSecond = 0.0;
+		}
+		windUpdraftMetersPerSecond = MathUtil.clamp(windUpdraftMetersPerSecond, -12.0, 12.0);
+		if (!windSourceHasTemperature || !Double.isFinite(windSourceTemperatureCelsius)) {
+			windSourceHasTemperature = false;
+			windSourceTemperatureCelsius = 0.0;
+		} else {
+			windSourceTemperatureCelsius = MathUtil.clamp(windSourceTemperatureCelsius, -40.0, 65.0);
+		}
+		if (!windSourceHasHumidity || !Double.isFinite(windSourceHumidity)) {
+			windSourceHasHumidity = false;
+			windSourceHumidity = 0.0;
+		} else {
+			windSourceHumidity = MathUtil.clamp(windSourceHumidity, 0.0, 1.0);
+		}
 		if (!Double.isFinite(waterImmersionIntensity)) {
 			waterImmersionIntensity = 0.0;
 		}
@@ -131,7 +193,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0);
+		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0);
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {
@@ -537,6 +599,40 @@ public record DroneEnvironment(
 		return rotorPrecipitationWetnesses.clone();
 	}
 
+	public Vec3 rotorWindVelocityWorldMetersPerSecond(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorWindVelocityWorldMetersPerSecond.length) {
+			return rotorWindVelocityWorldMetersPerSecond[rotorIndex];
+		}
+		return windVelocityWorldMetersPerSecond;
+	}
+
+	public Vec3[] rotorWindVelocityWorldMetersPerSecond() {
+		return rotorWindVelocityWorldMetersPerSecond.clone();
+	}
+
+	public Vec3 rotorDiskWindGradientBodyMetersPerSecond(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorDiskWindGradientBodyMetersPerSecond.length) {
+			return rotorDiskWindGradientBodyMetersPerSecond[rotorIndex];
+		}
+		return Vec3.ZERO;
+	}
+
+	public double rotorDiskWindGradientMagnitudeMetersPerSecond(int rotorIndex) {
+		return rotorDiskWindGradientBodyMetersPerSecond(rotorIndex).length();
+	}
+
+	public double maxRotorDiskWindGradientMetersPerSecond() {
+		double max = 0.0;
+		for (Vec3 gradient : rotorDiskWindGradientBodyMetersPerSecond) {
+			max = Math.max(max, gradient.length());
+		}
+		return max;
+	}
+
+	public Vec3[] rotorDiskWindGradientBodyMetersPerSecond() {
+		return rotorDiskWindGradientBodyMetersPerSecond.clone();
+	}
+
 	private static double ceilingEffectHeightMeters(DroneConfig config) {
 		if (config.groundEffectHeightMeters() <= 1.0e-6) {
 			return 0.0;
@@ -589,5 +685,50 @@ public record DroneEnvironment(
 			}
 		}
 		return sanitized;
+	}
+
+	private static Vec3[] sanitizeWindArray(Vec3[] values) {
+		if (values == null || values.length == 0) {
+			return new Vec3[0];
+		}
+
+		Vec3[] sanitized = values.clone();
+		for (int i = 0; i < sanitized.length; i++) {
+			Vec3 value = sanitized[i];
+			sanitized[i] = value == null || !value.isFinite() ? Vec3.ZERO : value.clamp(-30.0, 30.0);
+		}
+		return sanitized;
+	}
+
+	private static Vec3[] sanitizeDiskWindGradientArray(Vec3[] values) {
+		if (values == null || values.length == 0) {
+			return new Vec3[0];
+		}
+
+		Vec3[] sanitized = values.clone();
+		for (int i = 0; i < sanitized.length; i++) {
+			Vec3 value = sanitized[i];
+			sanitized[i] = value == null || !value.isFinite() ? Vec3.ZERO : value.clamp(-12.0, 12.0);
+		}
+		return sanitized;
+	}
+
+	private static String sanitizeWindSourceId(String value) {
+		if (value == null || value.isBlank()) {
+			return WIND_SOURCE_INTERNAL;
+		}
+		String trimmed = value.trim();
+		StringBuilder builder = new StringBuilder(trimmed.length());
+		for (int i = 0; i < trimmed.length(); i++) {
+			char c = trimmed.charAt(i);
+			if (c >= 'A' && c <= 'Z') {
+				builder.append((char) (c + 32));
+			} else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+				builder.append(c);
+			} else {
+				builder.append('_');
+			}
+		}
+		return builder.length() == 0 ? WIND_SOURCE_INTERNAL : builder.toString();
 	}
 }

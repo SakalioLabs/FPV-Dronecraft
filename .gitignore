@@ -9,3 +9,4 @@ out/
 hs_err_pid*
 replay_pid*
 docs/data/raw/
+_reference/

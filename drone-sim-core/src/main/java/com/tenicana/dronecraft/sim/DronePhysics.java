@@ -17,6 +17,8 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_NATURAL_FREQUENCY_HERTZ = 24.0;
 	private static final double ROTOR_ARM_FLEX_DAMPING_RATIO = 0.42;
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
+	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_TILT_RADIANS = Math.toRadians(4.5);
+	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS = 0.045;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = CoaxialAllocationCalibration.LOAD_BIAS_MAX;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
@@ -1190,7 +1192,10 @@ public final class DronePhysics {
 			double previousRotorArmFlex = rotorArmFlexIntensity[i];
 			Vec3 rotorArmBody = rotorArmBodyWithFlex(rotor, nominalRotorArmBody, previousRotorArmFlex);
 			RotorSpec aerodynamicRotor = rotorWithArmFlexedThrustAxis(rotor, nominalRotorArmBody, previousRotorArmFlex);
+			Vec3 rotorLocalWindDeltaBody = rotorLocalWindDeltaBody(environment, i);
+			Vec3 rotorDiskWindGradientBody = environment.rotorDiskWindGradientBodyMetersPerSecond(i);
 			Vec3 rotorRelativeAirVelocityBody = relativeAirVelocityBody
+					.subtract(rotorLocalWindDeltaBody)
 					.add(angularVelocityBody.cross(rotorArmBody))
 					.add(rotorWakeInterference.downwashVelocityBodyMetersPerSecond(i))
 					.add(wakeSwirlVelocityBody);
@@ -1346,6 +1351,11 @@ public final class DronePhysics {
 					aerodynamicOmega,
 					state.rotorTranslationalLiftIntensity(i)
 			);
+			double diskWindGradientThrustScale = rotorDiskWindGradientThrustScale(
+					aerodynamicRotor,
+					rotorDiskWindGradientBody,
+					aerodynamicOmega
+			);
 			BladeElementAerodynamics bladeElement = updateRotorBladeElementAerodynamics(
 					i,
 					aerodynamicRotor,
@@ -1435,6 +1445,7 @@ public final class DronePhysics {
 					)
 					+ compressibilityLoad
 					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor)
+					+ rotorDiskWindGradientLoadFactor(aerodynamicRotor, rotorDiskWindGradientBody, aerodynamicOmega)
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
@@ -1457,6 +1468,7 @@ public final class DronePhysics {
 					* inflowLagScale
 					* bladeElement.thrustScale()
 					* bladeDissymmetry.thrustScale()
+					* diskWindGradientThrustScale
 					* lowReynoldsThrustScale
 					* coningThrustScale
 					* compressibilityThrustScale
@@ -1503,9 +1515,12 @@ public final class DronePhysics {
 			double thrust = nominalThrust * bladePassRipple.thrustScale() * stallBuffet.thrustScale() * vortexBuffet.thrustScale();
 			state.setRotorThrustNewtons(i, thrust);
 			state.setRotorBladePassRippleIntensity(i, bladePassRipple.intensity());
-			rotorVibrationSum += bladePassRipple.vibration() + stallBuffet.vibration() + vortexBuffet.vibration();
+			rotorVibrationSum += bladePassRipple.vibration()
+					+ stallBuffet.vibration()
+					+ vortexBuffet.vibration()
+					+ rotorDiskWindGradientVibration(aerodynamicRotor, rotorDiskWindGradientBody, aerodynamicOmega);
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
-			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, thrust, dtSeconds);
+			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, rotorDiskWindGradientBody, aerodynamicOmega, thrust, dtSeconds);
 			Vec3 flappingTorque = rotorArmBody.cross(flappingForceBody);
 			rotorFlappingTorqueSum = rotorFlappingTorqueSum.add(flappingTorque);
 			Vec3 imbalanceForceBody = updateRotorImbalanceForce(i, aerodynamicRotor, state.rotorHealth(i), omega, thrust, dtSeconds);
@@ -2563,6 +2578,22 @@ public final class DronePhysics {
 		private Vec3 totalTorque() {
 			return accelerationReactionTorque.add(gyroscopicReactionTorque);
 		}
+	}
+
+	private Vec3 rotorLocalWindDeltaBody(
+			DroneEnvironment environment,
+			int rotorIndex
+	) {
+		Vec3 rotorWindWorld = environment.rotorWindVelocityWorldMetersPerSecond(rotorIndex);
+		if (rotorWindWorld == null || !rotorWindWorld.isFinite()) {
+			return Vec3.ZERO;
+		}
+		Vec3 baselineWindWorld = environment.windVelocityWorldMetersPerSecond();
+		Vec3 rotorDeltaWorld = rotorWindWorld.subtract(baselineWindWorld);
+		if (rotorDeltaWorld.lengthSquared() <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+		return state.orientation().conjugate().rotate(rotorDeltaWorld);
 	}
 
 	private Vec3 rotorActiveBrakingTorque(
@@ -5065,11 +5096,13 @@ public final class DronePhysics {
 			int index,
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
+			Vec3 diskWindGradientBody,
 			double omegaRadiansPerSecond,
 			double thrustNewtons,
 			double dtSeconds
 	) {
-		Vec3 targetTiltBody = rotorFlappingTargetTiltBody(rotor, relativeAirVelocityBody, omegaRadiansPerSecond, thrustNewtons);
+		Vec3 targetTiltBody = rotorFlappingTargetTiltBody(rotor, relativeAirVelocityBody, omegaRadiansPerSecond, thrustNewtons)
+				.add(rotorDiskWindGradientTargetTiltBody(rotor, diskWindGradientBody, omegaRadiansPerSecond, thrustNewtons));
 		Vec3 previousTiltBody = rotorFlappingTiltBody[index];
 		double previousMagnitude = previousTiltBody.length();
 		double targetMagnitude = targetTiltBody.length();
@@ -5117,6 +5150,84 @@ public final class DronePhysics {
 				* diskLoadingResponse;
 		Vec3 transverseUnit = transverseVelocityBody.multiply(1.0 / transverseSpeed);
 		return transverseUnit.multiply(-tilt);
+	}
+
+	private static Vec3 rotorDiskWindGradientTargetTiltBody(
+			RotorSpec rotor,
+			Vec3 diskWindGradientBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons
+	) {
+		Vec3 gradientInDisk = rotorDiskWindGradientInPlaneBody(rotor, diskWindGradientBody);
+		double gradientSpeed = gradientInDisk.length();
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		if (gradientSpeed <= 1.0e-6 || thrustNewtons <= 1.0e-6 || spinRatio <= 0.06) {
+			return Vec3.ZERO;
+		}
+
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.12), 0.0, 1.0);
+		double thrustFraction = MathUtil.clamp(thrustNewtons / rotor.maxThrustNewtons(), 0.0, 1.0);
+		double tilt = ROTOR_DISK_WIND_GRADIENT_MAX_TILT_RADIANS
+				* smoothStep(0.03, 0.42, gradientRatio)
+				* smoothStep(0.10, 0.55, spinRatio)
+				* MathUtil.clamp(0.55 + 0.45 * Math.sqrt(thrustFraction), 0.0, 1.0);
+		return gradientInDisk.multiply(1.0 / gradientSpeed).multiply(tilt);
+	}
+
+	private static double rotorDiskWindGradientThrustScale(
+			RotorSpec rotor,
+			Vec3 diskWindGradientBody,
+			double omegaRadiansPerSecond
+	) {
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		if (spinRatio <= 0.06) {
+			return 1.0;
+		}
+		double gradientSpeed = rotorDiskWindGradientInPlaneBody(rotor, diskWindGradientBody).length();
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.14), 0.0, 1.0);
+		double loss = ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS
+				* smoothStep(0.04, 0.58, gradientRatio)
+				* smoothStep(0.10, 0.55, spinRatio);
+		return MathUtil.clamp(1.0 - loss, 1.0 - ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS, 1.0);
+	}
+
+	private static double rotorDiskWindGradientLoadFactor(
+			RotorSpec rotor,
+			Vec3 diskWindGradientBody,
+			double omegaRadiansPerSecond
+	) {
+		double gradientSpeed = rotorDiskWindGradientInPlaneBody(rotor, diskWindGradientBody).length();
+		if (gradientSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.16), 0.0, 1.0);
+		return MathUtil.clamp(0.18 * Math.pow(gradientRatio, 0.85) * smoothStep(0.10, 0.55, spinRatio), 0.0, 0.18);
+	}
+
+	private static double rotorDiskWindGradientVibration(
+			RotorSpec rotor,
+			Vec3 diskWindGradientBody,
+			double omegaRadiansPerSecond
+	) {
+		double gradientSpeed = rotorDiskWindGradientInPlaneBody(rotor, diskWindGradientBody).length();
+		if (gradientSpeed <= 1.0e-6) {
+			return 0.0;
+		}
+		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double gradientRatio = MathUtil.clamp(gradientSpeed / Math.max(1.0, tipSpeed * 0.12), 0.0, 1.0);
+		return MathUtil.clamp(0.18 * Math.pow(gradientRatio, 0.80) * smoothStep(0.08, 0.50, spinRatio), 0.0, 0.18);
+	}
+
+	private static Vec3 rotorDiskWindGradientInPlaneBody(RotorSpec rotor, Vec3 diskWindGradientBody) {
+		if (diskWindGradientBody == null || !diskWindGradientBody.isFinite()) {
+			return Vec3.ZERO;
+		}
+		return projectOntoRotorDisk(diskWindGradientBody, rotorAxisBody(rotor)).clamp(-12.0, 12.0);
 	}
 
 	private static double rotorInflowSkewIntensity(

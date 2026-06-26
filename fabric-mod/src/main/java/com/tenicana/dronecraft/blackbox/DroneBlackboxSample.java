@@ -546,6 +546,17 @@ public final class DroneBlackboxSample {
 			"wind_dryden_speed_mps",
 			"wind_burble_speed_mps",
 			"wind_shear_accel_mps2",
+			"wind_source",
+			"wind_source_trusted",
+			"wind_source_confidence",
+			"wind_source_shear_mag_per_block",
+			"wind_source_shelter_factor",
+			"wind_source_updraft_mps",
+			"wind_source_local_voxel_flow",
+			"wind_source_has_temperature",
+			"wind_source_temperature_c",
+			"wind_source_has_humidity",
+			"wind_source_humidity",
 			"air_density_ratio",
 			"effective_air_density_ratio",
 			"ambient_temperature_c",
@@ -563,6 +574,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_flow_obstruction",
 			"rotor_2_flow_obstruction",
 			"rotor_3_flow_obstruction",
+			"rotor_disk_wind_gradient_mps",
+			"rotor_0_disk_wind_gradient_mps",
+			"rotor_1_disk_wind_gradient_mps",
+			"rotor_2_disk_wind_gradient_mps",
+			"rotor_3_disk_wind_gradient_mps",
 			"propwash_intensity",
 			"propwash_wake_intensity",
 			"vortex_ring_state",
@@ -1072,6 +1088,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_4_disk_wind_gradient_mps",
+			"rotor_5_disk_wind_gradient_mps",
+			"rotor_6_disk_wind_gradient_mps",
+			"rotor_7_disk_wind_gradient_mps",
 			"rotor_4_water_immersion",
 			"rotor_5_water_immersion",
 			"rotor_6_water_immersion",
@@ -1919,6 +1939,17 @@ public final class DroneBlackboxSample {
 		row.add(state.drydenTurbulenceSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windBurbleSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windShearAccelerationMetersPerSecondSquared(), "%.5f");
+		row.add(environment.windSourceId());
+		row.add(environment.windSourceTrustedForGameplay());
+		row.add(environment.windSourceConfidence(), "%.5f");
+		row.add(environment.windShearMagnitudePerBlock(), "%.5f");
+		row.add(environment.windShelterFactor(), "%.5f");
+		row.add(environment.windUpdraftMetersPerSecond(), "%.5f");
+		row.add(environment.windSourceLocalVoxelFlow());
+		row.add(environment.windSourceHasTemperature());
+		row.add(environment.windSourceTemperatureCelsius(), "%.3f");
+		row.add(environment.windSourceHasHumidity());
+		row.add(environment.windSourceHumidity(), "%.5f");
 		row.add(environment.airDensityRatio(), "%.5f");
 		row.add(environment.effectiveAirDensityRatio(), "%.5f");
 		row.add(environment.ambientTemperatureCelsius(), "%.3f");
@@ -1936,6 +1967,11 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorFlowObstruction(1), "%.5f");
 		row.add(environment.rotorFlowObstruction(2), "%.5f");
 		row.add(environment.rotorFlowObstruction(3), "%.5f");
+		row.add(environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
+		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(0), "%.5f");
+		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(1), "%.5f");
+		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(2), "%.5f");
+		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(3), "%.5f");
 		row.add(state.propwashIntensity(), "%.4f");
 		row.add(state.propwashWakeIntensity(), "%.4f");
 		row.add(state.vortexRingStateIntensity(), "%.4f");
@@ -2483,6 +2519,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorFlowObstruction(i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorWaterImmersion(i), "%.5f");

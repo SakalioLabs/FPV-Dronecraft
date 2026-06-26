@@ -41,7 +41,20 @@ class DroneBlackboxRecorderTest {
 				0.18,
 				new double[] {0.62, 0.36, 0.18, 0.0},
 				0.36,
-				7.5
+				7.5,
+				null,
+				new Vec3[] {new Vec3(0.42, 0.0, 0.0), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO},
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				0.82,
+				0.37,
+				0.44,
+				1.25,
+				true,
+				true,
+				7.5,
+				true,
+				0.61
 		);
 
 		for (int tick = 0; tick < 4; tick++) {
@@ -309,6 +322,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_flow_obstruction"));
 		assertTrue(csv.contains("rotor_0_flow_obstruction"));
 		assertTrue(csv.contains("rotor_3_flow_obstruction"));
+		assertTrue(csv.contains("rotor_disk_wind_gradient_mps"));
+		assertTrue(csv.contains("rotor_0_disk_wind_gradient_mps"));
+		assertTrue(csv.contains("rotor_3_disk_wind_gradient_mps"));
 		assertTrue(csv.contains("water_immersion"));
 		assertTrue(csv.contains("precipitation_wetness"));
 		assertTrue(csv.contains("effective_air_density_ratio"));
@@ -406,6 +422,10 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_dryden_speed_mps"));
 		assertTrue(csv.contains("wind_burble_speed_mps"));
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
+		assertTrue(csv.contains("wind_source"));
+		assertTrue(csv.contains("wind_source_confidence"));
+		assertTrue(csv.contains("wind_source_shelter_factor"));
+		assertTrue(csv.contains("wind_source_humidity"));
 		assertTrue(csv.contains("gyro_bias_pitch_dps"));
 		assertTrue(csv.contains("gyro_clip"));
 		assertTrue(csv.contains("gyro_blade_pass_notch_hz"));
@@ -634,6 +654,20 @@ class DroneBlackboxRecorderTest {
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_dryden_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_burble_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_shear_accel_mps2")]));
+		assertEquals("aerodynamics4mc", row[indexOf(header, "wind_source")]);
+		assertEquals("true", row[indexOf(header, "wind_source_trusted")]);
+		assertEquals(0.82, Double.parseDouble(row[indexOf(header, "wind_source_confidence")]), 1.0e-5);
+		assertEquals(0.37, Double.parseDouble(row[indexOf(header, "wind_source_shear_mag_per_block")]), 1.0e-5);
+		assertEquals(0.44, Double.parseDouble(row[indexOf(header, "wind_source_shelter_factor")]), 1.0e-5);
+		assertEquals(1.25, Double.parseDouble(row[indexOf(header, "wind_source_updraft_mps")]), 1.0e-5);
+		assertEquals("true", row[indexOf(header, "wind_source_local_voxel_flow")]);
+		assertEquals("true", row[indexOf(header, "wind_source_has_temperature")]);
+		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "wind_source_temperature_c")]), 1.0e-5);
+		assertEquals("true", row[indexOf(header, "wind_source_has_humidity")]);
+		assertEquals(0.61, Double.parseDouble(row[indexOf(header, "wind_source_humidity")]), 1.0e-5);
+		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_disk_wind_gradient_mps")]), 1.0e-5);
+		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_0_disk_wind_gradient_mps")]), 1.0e-5);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_disk_wind_gradient_mps")]), 1.0e-9);
 		assertEquals(0.18, Double.parseDouble(row[indexOf(header, "water_immersion")]), 0.0001);
 		assertEquals(0.36, Double.parseDouble(row[indexOf(header, "precipitation_wetness")]), 0.0001);
 		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]), 0.0001);
@@ -1700,6 +1734,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.23, Double.parseDouble(row[indexOf(header, "prop_strike_7_severity")]), 0.0001);
 		assertEquals(1.12, Double.parseDouble(row[indexOf(header, "rotor_7_env_thrust_multiplier")]), 0.0001);
 		assertEquals(0.71, Double.parseDouble(row[indexOf(header, "rotor_7_flow_obstruction")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_wind_gradient_mps")]), 0.0001);
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(0.80, summary.minRotorHealth(), 0.0001);

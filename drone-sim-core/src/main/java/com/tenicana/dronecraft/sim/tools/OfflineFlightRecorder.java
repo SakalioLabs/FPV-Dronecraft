@@ -665,6 +665,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_disk_wind_gradient_mps",
+			"rotor_0_disk_wind_gradient_mps",
+			"rotor_1_disk_wind_gradient_mps",
+			"rotor_2_disk_wind_gradient_mps",
+			"rotor_3_disk_wind_gradient_mps",
+			"rotor_4_disk_wind_gradient_mps",
+			"rotor_5_disk_wind_gradient_mps",
+			"rotor_6_disk_wind_gradient_mps",
+			"rotor_7_disk_wind_gradient_mps",
 			"rotor_dynamic_inflow_tau_s",
 			"rotor_0_dynamic_inflow_tau_s",
 			"rotor_1_dynamic_inflow_tau_s",
@@ -4031,6 +4040,10 @@ public final class OfflineFlightRecorder {
 		}
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorFlowObstruction(i), "%.5f");
+		}
+		appendExtra(builder, environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, environment.rotorDiskWindGradientMagnitudeMetersPerSecond(i), "%.5f");
 		}
 		appendExtra(builder, state.averageRotorDynamicInflowTimeConstantSeconds(), "%.5f");
 		for (int i = 0; i < 8; i++) {

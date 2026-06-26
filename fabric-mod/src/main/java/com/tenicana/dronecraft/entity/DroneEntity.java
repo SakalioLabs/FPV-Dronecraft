@@ -47,6 +47,7 @@ import com.tenicana.dronecraft.blackbox.DroneBlackboxRecorder;
 import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
+import com.tenicana.dronecraft.integration.Aerodynamics4McWindBridge;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -335,14 +336,33 @@ public class DroneEntity extends Entity {
 		private static final DroneWakeAirflow CALM = new DroneWakeAirflow(Vec3.ZERO, 0.0, 0.0);
 	}
 
-	private record RotorEnvironmentEffects(double[] thrustMultipliers, double[] flowObstructions, Vec3[] flowObstructionDirectionsBody, double maxFlowObstruction) {
+	private record RotorEnvironmentEffects(double[] thrustMultipliers, double[] flowObstructions, Vec3[] flowObstructionDirectionsBody, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double maxFlowObstruction) {
 		private static RotorEnvironmentEffects calm(int rotorCount) {
 			double[] multipliers = new double[rotorCount];
 			for (int i = 0; i < multipliers.length; i++) {
 				multipliers[i] = 1.0;
 			}
-			return new RotorEnvironmentEffects(multipliers, new double[rotorCount], new Vec3[rotorCount], 0.0);
+			return new RotorEnvironmentEffects(multipliers, new double[rotorCount], new Vec3[rotorCount], new Vec3[0], new Vec3[0], 0.0);
 		}
+	}
+
+	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond) {
+		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null);
+	}
+
+	private record WindSourceTelemetry(
+			String sourceId,
+			boolean trustedForGameplay,
+			double confidence,
+			double windShearMagnitudePerBlock,
+			double shelterFactor,
+			double updraftMetersPerSecond,
+			boolean localVoxelFlow,
+			boolean hasTemperature,
+			double temperatureCelsius,
+			boolean hasHumidity,
+			double humidity
+	) {
 	}
 
 	private record WaterImmersion(double[] rotorImmersions, double averageImmersion) {
@@ -1216,17 +1236,31 @@ public class DroneEntity extends Entity {
 	}
 
 	private DroneEnvironment sampleEnvironment() {
-		Vec3 sourceWind = environmentOverride.windOr(weatherWindMetersPerSecond());
+		Aerodynamics4McWindBridge.WindSample externalWind = sampleAerodynamicsWind();
+		WindSourceTelemetry windSource = windSourceTelemetry(
+				DroneEnvironment.WIND_SOURCE_MINECRAFT_WEATHER,
+				externalWind
+		);
+		Vec3 naturalWind = externalWind.hasFlow()
+				? externalWind.effectiveVelocityWorldMetersPerSecond()
+				: weatherWindMetersPerSecond();
+		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
 		DroneWakeAirflow droneWake = sampleDroneWakeAirflow();
 		ObstacleAirflow obstacleAirflow = sampleObstacleAirflow(sourceWind.add(droneWake.windVelocityWorldMetersPerSecond()));
 		double groundClearance = groundClearanceMeters();
 		double ceilingClearance = ceilingClearanceMeters();
-		RotorEnvironmentEffects rotorEffects = sampleRotorEnvironmentEffects();
+		RotorEnvironmentEffects rotorEffects = sampleRotorEnvironmentEffects(
+				externalWind,
+				obstacleAirflow.windVelocityWorldMetersPerSecond()
+		);
 		WaterImmersion waterImmersion = sampleWaterImmersion();
 		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
-		double ambientTemperature = ambientTemperatureCelsius();
+		double ambientTemperature = externalWind.hasAmbientTemperature()
+				? externalWind.ambientTemperatureCelsius()
+				: ambientTemperatureCelsius();
+		double naturalTurbulence = naturalTurbulenceIntensity(sourceWind.length(), groundClearance, externalWind);
 		double turbulenceIntensity = MathUtil.clamp(
-				environmentOverride.turbulenceOr(weatherTurbulenceIntensity(sourceWind.length(), groundClearance))
+				environmentOverride.turbulenceOr(naturalTurbulence)
 						+ obstacleAirflow.turbulenceBoost()
 						+ droneWake.turbulenceBoost()
 						+ ceilingTurbulenceBoost(ceilingClearance)
@@ -1250,7 +1284,20 @@ public class DroneEntity extends Entity {
 				waterImmersion.averageImmersion(),
 				precipitationWetness.rotorWetnesses(),
 				precipitationWetness.averageWetness(),
-				ambientTemperature
+				ambientTemperature,
+				rotorEffects.rotorWindVelocityWorldMetersPerSecond(),
+				rotorEffects.rotorDiskWindGradientBodyMetersPerSecond(),
+				windSource.sourceId(),
+				windSource.trustedForGameplay(),
+				windSource.confidence(),
+				windSource.windShearMagnitudePerBlock(),
+				windSource.shelterFactor(),
+				windSource.updraftMetersPerSecond(),
+				windSource.localVoxelFlow(),
+				windSource.hasTemperature(),
+				windSource.temperatureCelsius(),
+				windSource.hasHumidity(),
+				windSource.humidity()
 		);
 	}
 
@@ -1258,14 +1305,50 @@ public class DroneEntity extends Entity {
 		return advancedEnvironmentEffectsActive(input) ? sampleEnvironment() : samplePlayableStageOneEnvironment();
 	}
 
+	private Aerodynamics4McWindBridge.WindSample sampleAerodynamicsWind() {
+		return level() instanceof ServerLevel serverLevel
+				? Aerodynamics4McWindBridge.sampleGameplay(serverLevel, entityPhysicsPosition())
+				: Aerodynamics4McWindBridge.WindSample.unavailable();
+	}
+
+	private double naturalTurbulenceIntensity(
+			double windSpeedMetersPerSecond,
+			double groundClearanceMeters,
+			Aerodynamics4McWindBridge.WindSample externalWind
+	) {
+		double turbulence = weatherTurbulenceIntensity(windSpeedMetersPerSecond, groundClearanceMeters);
+		if (externalWind != null && externalWind.hasFlow()) {
+			turbulence = Math.max(turbulence, externalWind.turbulenceIntensity());
+			turbulence += MathUtil.clamp(externalWind.windShearMagnitudePerBlock() * 0.45, 0.0, 0.35);
+			turbulence += MathUtil.clamp(externalWind.shelterFactor() * 0.20, 0.0, 0.20);
+			turbulence += MathUtil.clamp(Math.abs(externalWind.updraftMetersPerSecond()) * 0.025, 0.0, 0.18);
+		}
+		return MathUtil.clamp(turbulence, 0.0, 1.5);
+	}
+
 	private DroneEnvironment samplePlayableStageOneEnvironment() {
 		double groundClearance = groundClearanceMeters();
-		double ambientTemperature = ambientTemperatureCelsius();
+		Aerodynamics4McWindBridge.WindSample externalWind = sampleAerodynamicsWind();
+		WindSourceTelemetry windSource = windSourceTelemetry(
+				DroneEnvironment.WIND_SOURCE_CALM,
+				externalWind
+		);
+		Vec3 naturalWind = externalWind.hasFlow()
+				? externalWind.effectiveVelocityWorldMetersPerSecond()
+				: Vec3.ZERO;
+		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
+		double ambientTemperature = externalWind.hasAmbientTemperature()
+				? externalWind.ambientTemperatureCelsius()
+				: ambientTemperatureCelsius();
+		double naturalTurbulence = externalWind.hasFlow()
+				? naturalTurbulenceIntensity(sourceWind.length(), groundClearance, externalWind)
+				: 0.0;
+		RotorWindFieldSamples rotorWindField = sampleAerodynamicsRotorWindField(externalWind, sourceWind);
 		return new DroneEnvironment(
-				Vec3.ZERO,
+				sourceWind,
 				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
 				groundClearance,
-				0.0,
+				environmentOverride.turbulenceOr(naturalTurbulence),
 				0.0,
 				0.0,
 				Double.POSITIVE_INFINITY,
@@ -1276,7 +1359,69 @@ public class DroneEntity extends Entity {
 				0.0,
 				null,
 				0.0,
-				ambientTemperature
+				ambientTemperature,
+				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
+				rotorWindField.rotorDiskWindGradientBodyMetersPerSecond(),
+				windSource.sourceId(),
+				windSource.trustedForGameplay(),
+				windSource.confidence(),
+				windSource.windShearMagnitudePerBlock(),
+				windSource.shelterFactor(),
+				windSource.updraftMetersPerSecond(),
+				windSource.localVoxelFlow(),
+				windSource.hasTemperature(),
+				windSource.temperatureCelsius(),
+				windSource.hasHumidity(),
+				windSource.humidity()
+		);
+	}
+
+	private WindSourceTelemetry windSourceTelemetry(
+			String fallbackSourceId,
+			Aerodynamics4McWindBridge.WindSample externalWind
+	) {
+		if (environmentOverride.windEnabled()) {
+			return new WindSourceTelemetry(
+					DroneEnvironment.WIND_SOURCE_ENVIRONMENT_OVERRIDE,
+					true,
+					1.0,
+					0.0,
+					0.0,
+					0.0,
+					false,
+					false,
+					0.0,
+					false,
+					0.0
+			);
+		}
+		if (externalWind != null && externalWind.hasFlow()) {
+			return new WindSourceTelemetry(
+					DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+					externalWind.trustedForGameplay(),
+					externalWind.confidence(),
+					externalWind.windShearMagnitudePerBlock(),
+					externalWind.shelterFactor(),
+					externalWind.updraftMetersPerSecond(),
+					externalWind.localVoxelFlow(),
+					externalWind.hasAmbientTemperature(),
+					externalWind.ambientTemperatureCelsius(),
+					externalWind.hasHumidity(),
+					externalWind.humidity()
+			);
+		}
+		return new WindSourceTelemetry(
+				fallbackSourceId,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				false,
+				0.0,
+				false,
+				0.0
 		);
 	}
 
@@ -1432,7 +1577,10 @@ public class DroneEntity extends Entity {
 		return level().getFluidState(position).is(FluidTags.WATER) ? 1.0 : 0.0;
 	}
 
-	private RotorEnvironmentEffects sampleRotorEnvironmentEffects() {
+	private RotorEnvironmentEffects sampleRotorEnvironmentEffects(
+			Aerodynamics4McWindBridge.WindSample externalWind,
+			Vec3 baselineWindVelocityWorldMetersPerSecond
+	) {
 		SimulationFlightRuntime.RotorGeometry rotorGeometry = simulationRuntime.rotorGeometry();
 		int rotorCount = rotorGeometry.rotorCount();
 		if (rotorCount <= 0) {
@@ -1442,6 +1590,7 @@ public class DroneEntity extends Entity {
 		double[] multipliers = new double[rotorCount];
 		double[] flowObstructions = new double[rotorCount];
 		Vec3[] flowObstructionDirectionsBody = new Vec3[rotorCount];
+		RotorWindFieldSamples rotorWindField = sampleAerodynamicsRotorWindField(externalWind, baselineWindVelocityWorldMetersPerSecond);
 		double maxFlowObstruction = 0.0;
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections();
@@ -1465,7 +1614,74 @@ public class DroneEntity extends Entity {
 					)
 					* obstructionThrustMultiplier;
 		}
-		return new RotorEnvironmentEffects(multipliers, flowObstructions, flowObstructionDirectionsBody, maxFlowObstruction);
+		return new RotorEnvironmentEffects(
+				multipliers,
+				flowObstructions,
+				flowObstructionDirectionsBody,
+				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
+				rotorWindField.rotorDiskWindGradientBodyMetersPerSecond(),
+				maxFlowObstruction
+		);
+	}
+
+	private RotorWindFieldSamples sampleAerodynamicsRotorWindField(
+			Aerodynamics4McWindBridge.WindSample bodyWind,
+			Vec3 baselineWindVelocityWorldMetersPerSecond
+	) {
+		if (environmentOverride.windEnabled() || bodyWind == null || !bodyWind.hasFlow() || !(level() instanceof ServerLevel serverLevel)) {
+			return RotorWindFieldSamples.NONE;
+		}
+		SimulationFlightRuntime.RotorGeometry rotorGeometry = simulationRuntime.rotorGeometry();
+		int rotorCount = rotorGeometry.rotorCount();
+		if (rotorCount <= 0) {
+			return RotorWindFieldSamples.NONE;
+		}
+
+		Vec3[] rotorWindVelocities = new Vec3[rotorCount];
+		Vec3[] rotorDiskWindGradients = new Vec3[rotorCount];
+		Vec3 bodyCenterWorld = entityPhysicsPosition();
+		Vec3 safeBaselineWind = baselineWindVelocityWorldMetersPerSecond == null || !baselineWindVelocityWorldMetersPerSecond.isFinite()
+				? bodyWind.effectiveVelocityWorldMetersPerSecond()
+				: baselineWindVelocityWorldMetersPerSecond;
+		Vec3 bodyAeroWind = bodyWind.effectiveVelocityWorldMetersPerSecond();
+		RotorPlaneSampleDirection[] sampleDirections = rotorPlaneSampleDirections();
+		for (int i = 0; i < rotorCount; i++) {
+			RotorSpec rotor = rotorGeometry.rotor(i);
+			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
+			Aerodynamics4McWindBridge.WindSample rotorWind = Aerodynamics4McWindBridge.sampleGameplay(serverLevel, rotorCenterWorld);
+			Vec3 centerWind = rotorWind.hasFlow()
+					? rotorWind.effectiveVelocityWorldMetersPerSecond()
+					: bodyAeroWind;
+			Vec3 weightedWind = centerWind.multiply(ROTOR_DISK_SURFACE_CENTER_WEIGHT);
+			double totalWeight = ROTOR_DISK_SURFACE_CENTER_WEIGHT;
+			Vec3 diskGradientBody = Vec3.ZERO;
+			double gradientWeight = 0.0;
+			Vec3 rotorAxisWorld = simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody());
+			double centerAxialWind = centerWind.dot(rotorAxisWorld);
+			double sampleRadius = rotor.radiusMeters() * ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE;
+			for (int sampleIndex = 0; sampleIndex < sampleDirections.length; sampleIndex++) {
+				RotorPlaneSampleDirection direction = sampleDirections[sampleIndex];
+				double weight = sampleIndex < 4 ? ROTOR_DISK_SURFACE_CARDINAL_WEIGHT : ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT;
+				Vec3 samplePosition = rotorCenterWorld.add(direction.worldDirection().multiply(sampleRadius));
+				Aerodynamics4McWindBridge.WindSample sampleWind = Aerodynamics4McWindBridge.sampleGameplay(serverLevel, samplePosition);
+				if (!sampleWind.hasFlow()) {
+					continue;
+				}
+				Vec3 sampleVelocity = sampleWind.effectiveVelocityWorldMetersPerSecond();
+				weightedWind = weightedWind.add(sampleVelocity.multiply(weight));
+				totalWeight += weight;
+				double axialDelta = sampleVelocity.dot(rotorAxisWorld) - centerAxialWind;
+				diskGradientBody = diskGradientBody.add(direction.bodyDirection().multiply(axialDelta * weight));
+				gradientWeight += weight;
+			}
+			Vec3 diskMeanWind = weightedWind.multiply(1.0 / Math.max(1.0e-6, totalWeight));
+			Vec3 localDelta = diskMeanWind.subtract(bodyAeroWind);
+			rotorWindVelocities[i] = safeBaselineWind.add(localDelta);
+			rotorDiskWindGradients[i] = gradientWeight <= 1.0e-6
+					? Vec3.ZERO
+					: diskGradientBody.multiply(1.0 / gradientWeight).clamp(-12.0, 12.0);
+		}
+		return new RotorWindFieldSamples(rotorWindVelocities, rotorDiskWindGradients);
 	}
 
 	private RotorDiskSurfaceSample rotorDiskSurfaceSample(Vec3 rotorCenterWorld, RotorSpec rotor, RotorPlaneSampleDirection[] sampleDirections) {
