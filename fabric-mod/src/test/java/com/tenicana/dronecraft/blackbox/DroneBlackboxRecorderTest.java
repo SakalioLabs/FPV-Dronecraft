@@ -221,6 +221,18 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_0_aerodynamic_load"));
 		assertTrue(csv.contains("rotor_3_aerodynamic_load"));
+		assertTrue(csv.contains("rotor_disk_gradient_thrust_loss"));
+		assertTrue(csv.contains("rotor_0_disk_gradient_thrust_loss"));
+		assertTrue(csv.contains("rotor_7_disk_gradient_thrust_loss"));
+		assertTrue(csv.contains("rotor_disk_gradient_load"));
+		assertTrue(csv.contains("rotor_0_disk_gradient_load"));
+		assertTrue(csv.contains("rotor_7_disk_gradient_load"));
+		assertTrue(csv.contains("rotor_disk_gradient_vibration"));
+		assertTrue(csv.contains("rotor_0_disk_gradient_vibration"));
+		assertTrue(csv.contains("rotor_7_disk_gradient_vibration"));
+		assertTrue(csv.contains("rotor_disk_gradient_stall"));
+		assertTrue(csv.contains("rotor_0_disk_gradient_stall"));
+		assertTrue(csv.contains("rotor_7_disk_gradient_stall"));
 		assertTrue(csv.contains("rotor_in_plane_drag_force_n"));
 		assertTrue(csv.contains("rotor_0_in_plane_drag_force_n"));
 		assertTrue(csv.contains("rotor_7_in_plane_drag_force_n"));
@@ -721,6 +733,18 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_disk_wind_gradient_mps")]), 1.0e-5);
 		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_0_disk_wind_gradient_mps")]), 1.0e-5);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_disk_wind_gradient_mps")]), 1.0e-9);
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_disk_gradient_thrust_loss")]));
+		assertUnitInterval(Double.parseDouble(row[indexOf(header, "rotor_0_disk_gradient_thrust_loss")]));
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_gradient_thrust_loss")]), 1.0e-9);
+		assertNonNegativeFinite(Double.parseDouble(row[indexOf(header, "rotor_disk_gradient_load")]));
+		assertNonNegativeFinite(Double.parseDouble(row[indexOf(header, "rotor_0_disk_gradient_load")]));
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_gradient_load")]), 1.0e-9);
+		assertNonNegativeFinite(Double.parseDouble(row[indexOf(header, "rotor_disk_gradient_vibration")]));
+		assertNonNegativeFinite(Double.parseDouble(row[indexOf(header, "rotor_0_disk_gradient_vibration")]));
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_gradient_vibration")]), 1.0e-9);
+		assertNonNegativeFinite(Double.parseDouble(row[indexOf(header, "rotor_disk_gradient_stall")]));
+		assertNonNegativeFinite(Double.parseDouble(row[indexOf(header, "rotor_0_disk_gradient_stall")]));
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_gradient_stall")]), 1.0e-9);
 		assertEquals(0.16, Double.parseDouble(row[indexOf(header, "rotor_a4mc_shelter_obstruction")]), 1.0e-5);
 		assertEquals(0.16, Double.parseDouble(row[indexOf(header, "rotor_0_a4mc_shelter_obstruction")]), 1.0e-5);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_a4mc_shelter_obstruction")]), 1.0e-9);
@@ -1071,6 +1095,26 @@ class DroneBlackboxRecorderTest {
 		);
 		assertTrue(summary.maxWindShearAccelerationMetersPerSecondSquared() >= 0.0);
 		assertTrue(summary.maxRotorBladePassRippleIntensity() > 0.0);
+		assertEquals(
+				maxOfRotorColumns(lines, header, "rotor_disk_gradient_thrust_loss", "_disk_gradient_thrust_loss"),
+				summary.maxRotorDiskGradientThrustLossFraction(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfRotorColumns(lines, header, "rotor_disk_gradient_load", "_disk_gradient_load"),
+				summary.maxRotorDiskGradientLoadFactor(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfRotorColumns(lines, header, "rotor_disk_gradient_vibration", "_disk_gradient_vibration"),
+				summary.maxRotorDiskGradientVibration(),
+				1.0e-5
+		);
+		assertEquals(
+				maxOfRotorColumns(lines, header, "rotor_disk_gradient_stall", "_disk_gradient_stall"),
+				summary.maxRotorDiskGradientStallIntensity(),
+				1.0e-5
+		);
 		assertEquals(0.45, summary.maxWaterImmersionIntensity(), 0.0001);
 		assertEquals(0.62, summary.maxPrecipitationWetnessIntensity(), 0.0001);
 		assertTrue(summary.minRotorWetThrustScale() < 1.0);
@@ -1128,6 +1172,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("lowre"));
 		assertTrue(summary.formatForChat().contains("bpass"));
 		assertTrue(summary.formatForChat().contains("load"));
+		assertTrue(summary.formatForChat().contains("dg "));
 		assertTrue(summary.formatForChat().contains("skew"));
 		assertTrue(summary.formatForChat().contains("bdiss"));
 		assertTrue(summary.formatForChat().contains("rwake"));
@@ -1979,10 +2024,23 @@ class DroneBlackboxRecorderTest {
 		return min;
 	}
 
+	private static double maxOfRotorColumns(String[] lines, String[] header, String aggregateColumn, String rotorSuffix) {
+		double max = maxOfColumns(lines, header, aggregateColumn);
+		for (int rotor = 0; rotor < 8; rotor++) {
+			max = Math.max(max, maxOfColumns(lines, header, "rotor_" + rotor + rotorSuffix));
+		}
+		return max;
+	}
+
 	private static void assertUnitInterval(double value) {
 		assertTrue(Double.isFinite(value));
 		assertTrue(value >= 0.0);
 		assertTrue(value <= 1.0);
+	}
+
+	private static void assertNonNegativeFinite(double value) {
+		assertTrue(Double.isFinite(value));
+		assertTrue(value >= 0.0);
 	}
 
 	private static DroneConfig withCommonGains(DroneConfig config, PidGains gains) {

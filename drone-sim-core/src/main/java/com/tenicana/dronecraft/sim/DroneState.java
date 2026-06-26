@@ -117,6 +117,10 @@ public final class DroneState {
 	private double[] rotorBladeDissymmetryIntensity;
 	private double[] rotorBladePassRippleIntensity;
 	private double[] rotorAerodynamicLoadFactor;
+	private double[] rotorDiskWindGradientThrustLossFraction;
+	private double[] rotorDiskWindGradientLoadFactor;
+	private double[] rotorDiskWindGradientVibration;
+	private double[] rotorDiskWindGradientStallIntensity;
 	private double[] rotorInPlaneDragForceNewtons;
 	private double[] rotorFlappingForceNewtons;
 	private double[] rotorFlappingTiltRadians;
@@ -279,6 +283,10 @@ public final class DroneState {
 		rotorBladeDissymmetryIntensity = new double[motorCount];
 		rotorBladePassRippleIntensity = new double[motorCount];
 		rotorAerodynamicLoadFactor = new double[motorCount];
+		rotorDiskWindGradientThrustLossFraction = new double[motorCount];
+		rotorDiskWindGradientLoadFactor = new double[motorCount];
+		rotorDiskWindGradientVibration = new double[motorCount];
+		rotorDiskWindGradientStallIntensity = new double[motorCount];
 		rotorInPlaneDragForceNewtons = new double[motorCount];
 		rotorFlappingForceNewtons = new double[motorCount];
 		rotorFlappingTiltRadians = new double[motorCount];
@@ -2244,6 +2252,122 @@ public final class DroneState {
 			sum += loadFactor;
 		}
 		return sum / rotorAerodynamicLoadFactor.length;
+	}
+
+	public double rotorDiskWindGradientThrustLossFraction(int index) {
+		return rotorDiskWindGradientThrustLossFraction[index];
+	}
+
+	public double[] rotorDiskWindGradientThrustLossFraction() {
+		return Arrays.copyOf(rotorDiskWindGradientThrustLossFraction, rotorDiskWindGradientThrustLossFraction.length);
+	}
+
+	void setRotorDiskWindGradientThrustLossFraction(int index, double value) {
+		rotorDiskWindGradientThrustLossFraction[index] =
+				Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 1.0) : 0.0;
+	}
+
+	public double averageRotorDiskWindGradientThrustLossFraction() {
+		double sum = 0.0;
+		for (double loss : rotorDiskWindGradientThrustLossFraction) {
+			sum += loss;
+		}
+		return sum / rotorDiskWindGradientThrustLossFraction.length;
+	}
+
+	public double maxRotorDiskWindGradientThrustLossFraction() {
+		double max = 0.0;
+		for (double loss : rotorDiskWindGradientThrustLossFraction) {
+			max = Math.max(max, loss);
+		}
+		return max;
+	}
+
+	public double rotorDiskWindGradientLoadFactor(int index) {
+		return rotorDiskWindGradientLoadFactor[index];
+	}
+
+	public double[] rotorDiskWindGradientLoadFactor() {
+		return Arrays.copyOf(rotorDiskWindGradientLoadFactor, rotorDiskWindGradientLoadFactor.length);
+	}
+
+	void setRotorDiskWindGradientLoadFactor(int index, double value) {
+		rotorDiskWindGradientLoadFactor[index] =
+				Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 0.18) : 0.0;
+	}
+
+	public double averageRotorDiskWindGradientLoadFactor() {
+		double sum = 0.0;
+		for (double load : rotorDiskWindGradientLoadFactor) {
+			sum += load;
+		}
+		return sum / rotorDiskWindGradientLoadFactor.length;
+	}
+
+	public double maxRotorDiskWindGradientLoadFactor() {
+		double max = 0.0;
+		for (double load : rotorDiskWindGradientLoadFactor) {
+			max = Math.max(max, load);
+		}
+		return max;
+	}
+
+	public double rotorDiskWindGradientVibration(int index) {
+		return rotorDiskWindGradientVibration[index];
+	}
+
+	public double[] rotorDiskWindGradientVibration() {
+		return Arrays.copyOf(rotorDiskWindGradientVibration, rotorDiskWindGradientVibration.length);
+	}
+
+	void setRotorDiskWindGradientVibration(int index, double value) {
+		rotorDiskWindGradientVibration[index] =
+				Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 0.18) : 0.0;
+	}
+
+	public double averageRotorDiskWindGradientVibration() {
+		double sum = 0.0;
+		for (double vibration : rotorDiskWindGradientVibration) {
+			sum += vibration;
+		}
+		return sum / rotorDiskWindGradientVibration.length;
+	}
+
+	public double maxRotorDiskWindGradientVibration() {
+		double max = 0.0;
+		for (double vibration : rotorDiskWindGradientVibration) {
+			max = Math.max(max, vibration);
+		}
+		return max;
+	}
+
+	public double rotorDiskWindGradientStallIntensity(int index) {
+		return rotorDiskWindGradientStallIntensity[index];
+	}
+
+	public double[] rotorDiskWindGradientStallIntensity() {
+		return Arrays.copyOf(rotorDiskWindGradientStallIntensity, rotorDiskWindGradientStallIntensity.length);
+	}
+
+	void setRotorDiskWindGradientStallIntensity(int index, double value) {
+		rotorDiskWindGradientStallIntensity[index] =
+				Double.isFinite(value) ? MathUtil.clamp(value, 0.0, 0.16) : 0.0;
+	}
+
+	public double averageRotorDiskWindGradientStallIntensity() {
+		double sum = 0.0;
+		for (double stall : rotorDiskWindGradientStallIntensity) {
+			sum += stall;
+		}
+		return sum / rotorDiskWindGradientStallIntensity.length;
+	}
+
+	public double maxRotorDiskWindGradientStallIntensity() {
+		double max = 0.0;
+		for (double stall : rotorDiskWindGradientStallIntensity) {
+			max = Math.max(max, stall);
+		}
+		return max;
 	}
 
 	public double rotorInPlaneDragForceNewtons(int index) {

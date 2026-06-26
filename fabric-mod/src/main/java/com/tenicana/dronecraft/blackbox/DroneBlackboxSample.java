@@ -359,6 +359,26 @@ public final class DroneBlackboxSample {
 			"rotor_1_aerodynamic_load",
 			"rotor_2_aerodynamic_load",
 			"rotor_3_aerodynamic_load",
+			"rotor_disk_gradient_thrust_loss",
+			"rotor_0_disk_gradient_thrust_loss",
+			"rotor_1_disk_gradient_thrust_loss",
+			"rotor_2_disk_gradient_thrust_loss",
+			"rotor_3_disk_gradient_thrust_loss",
+			"rotor_disk_gradient_load",
+			"rotor_0_disk_gradient_load",
+			"rotor_1_disk_gradient_load",
+			"rotor_2_disk_gradient_load",
+			"rotor_3_disk_gradient_load",
+			"rotor_disk_gradient_vibration",
+			"rotor_0_disk_gradient_vibration",
+			"rotor_1_disk_gradient_vibration",
+			"rotor_2_disk_gradient_vibration",
+			"rotor_3_disk_gradient_vibration",
+			"rotor_disk_gradient_stall",
+			"rotor_0_disk_gradient_stall",
+			"rotor_1_disk_gradient_stall",
+			"rotor_2_disk_gradient_stall",
+			"rotor_3_disk_gradient_stall",
 			"rotor_in_plane_drag_force_n",
 			"rotor_0_in_plane_drag_force_n",
 			"rotor_1_in_plane_drag_force_n",
@@ -1036,6 +1056,22 @@ public final class DroneBlackboxSample {
 			"rotor_5_blade_pass_ripple",
 			"rotor_6_blade_pass_ripple",
 			"rotor_7_blade_pass_ripple",
+			"rotor_4_disk_gradient_thrust_loss",
+			"rotor_5_disk_gradient_thrust_loss",
+			"rotor_6_disk_gradient_thrust_loss",
+			"rotor_7_disk_gradient_thrust_loss",
+			"rotor_4_disk_gradient_load",
+			"rotor_5_disk_gradient_load",
+			"rotor_6_disk_gradient_load",
+			"rotor_7_disk_gradient_load",
+			"rotor_4_disk_gradient_vibration",
+			"rotor_5_disk_gradient_vibration",
+			"rotor_6_disk_gradient_vibration",
+			"rotor_7_disk_gradient_vibration",
+			"rotor_4_disk_gradient_stall",
+			"rotor_5_disk_gradient_stall",
+			"rotor_6_disk_gradient_stall",
+			"rotor_7_disk_gradient_stall",
 			"rotor_4_in_plane_drag_force_n",
 			"rotor_5_in_plane_drag_force_n",
 			"rotor_6_in_plane_drag_force_n",
@@ -1782,6 +1818,26 @@ public final class DroneBlackboxSample {
 		row.add(rotorAerodynamicLoadOrZero(state, 1), "%.5f");
 		row.add(rotorAerodynamicLoadOrZero(state, 2), "%.5f");
 		row.add(rotorAerodynamicLoadOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorDiskWindGradientThrustLossFraction(), "%.5f");
+		row.add(rotorDiskWindGradientThrustLossOrZero(state, 0), "%.5f");
+		row.add(rotorDiskWindGradientThrustLossOrZero(state, 1), "%.5f");
+		row.add(rotorDiskWindGradientThrustLossOrZero(state, 2), "%.5f");
+		row.add(rotorDiskWindGradientThrustLossOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorDiskWindGradientLoadFactor(), "%.5f");
+		row.add(rotorDiskWindGradientLoadOrZero(state, 0), "%.5f");
+		row.add(rotorDiskWindGradientLoadOrZero(state, 1), "%.5f");
+		row.add(rotorDiskWindGradientLoadOrZero(state, 2), "%.5f");
+		row.add(rotorDiskWindGradientLoadOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorDiskWindGradientVibration(), "%.5f");
+		row.add(rotorDiskWindGradientVibrationOrZero(state, 0), "%.5f");
+		row.add(rotorDiskWindGradientVibrationOrZero(state, 1), "%.5f");
+		row.add(rotorDiskWindGradientVibrationOrZero(state, 2), "%.5f");
+		row.add(rotorDiskWindGradientVibrationOrZero(state, 3), "%.5f");
+		row.add(state.averageRotorDiskWindGradientStallIntensity(), "%.5f");
+		row.add(rotorDiskWindGradientStallOrZero(state, 0), "%.5f");
+		row.add(rotorDiskWindGradientStallOrZero(state, 1), "%.5f");
+		row.add(rotorDiskWindGradientStallOrZero(state, 2), "%.5f");
+		row.add(rotorDiskWindGradientStallOrZero(state, 3), "%.5f");
 		row.add(state.averageRotorInPlaneDragForceNewtons(), "%.4f");
 		row.add(rotorInPlaneDragForceOrZero(state, 0), "%.4f");
 		row.add(rotorInPlaneDragForceOrZero(state, 1), "%.4f");
@@ -2373,6 +2429,10 @@ public final class DroneBlackboxSample {
 		double[] rotorBladeElementStall = state.rotorBladeElementStallIntensity();
 		double[] rotorBladeDissymmetry = state.rotorBladeDissymmetryIntensity();
 		double[] rotorBladePassRipple = state.rotorBladePassRippleIntensity();
+		double[] rotorDiskGradientThrustLoss = state.rotorDiskWindGradientThrustLossFraction();
+		double[] rotorDiskGradientLoad = state.rotorDiskWindGradientLoadFactor();
+		double[] rotorDiskGradientVibration = state.rotorDiskWindGradientVibration();
+		double[] rotorDiskGradientStall = state.rotorDiskWindGradientStallIntensity();
 		double[] rotorInPlaneDrag = state.rotorInPlaneDragForceNewtons();
 		double[] rotorFlappingTilt = state.rotorFlappingTiltRadians();
 		double[] rotorConing = state.rotorConingIntensity();
@@ -2518,6 +2578,18 @@ public final class DroneBlackboxSample {
 			row.add(valueOrZero(rotorBladePassRipple, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorDiskGradientThrustLoss, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorDiskGradientLoad, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorDiskGradientVibration, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(valueOrZero(rotorDiskGradientStall, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
 			row.add(valueOrZero(rotorInPlaneDrag, i), "%.4f");
 		}
 		for (int i = 4; i < 8; i++) {
@@ -2594,6 +2666,22 @@ public final class DroneBlackboxSample {
 
 	private static double rotorDamageVibrationOrZero(DroneState state, int index) {
 		return index < state.motorCount() ? state.rotorDamageVibration(index) : 0.0;
+	}
+
+	private static double rotorDiskWindGradientThrustLossOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorDiskWindGradientThrustLossFraction(index) : 0.0;
+	}
+
+	private static double rotorDiskWindGradientLoadOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorDiskWindGradientLoadFactor(index) : 0.0;
+	}
+
+	private static double rotorDiskWindGradientVibrationOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorDiskWindGradientVibration(index) : 0.0;
+	}
+
+	private static double rotorDiskWindGradientStallOrZero(DroneState state, int index) {
+		return index < state.motorCount() ? state.rotorDiskWindGradientStallIntensity(index) : 0.0;
 	}
 
 	private static double escDesyncOrZero(DroneState state, int index) {

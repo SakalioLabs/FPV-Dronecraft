@@ -1368,6 +1368,25 @@ public final class DronePhysics {
 					rotorDiskWindGradientBody,
 					aerodynamicOmega
 			);
+			double diskWindGradientLoadFactor = rotorDiskWindGradientLoadFactor(
+					aerodynamicRotor,
+					rotorDiskWindGradientBody,
+					aerodynamicOmega
+			);
+			double diskWindGradientVibration = rotorDiskWindGradientVibration(
+					aerodynamicRotor,
+					rotorDiskWindGradientBody,
+					aerodynamicOmega
+			);
+			double diskWindGradientStallIntensity = rotorDiskWindGradientStallIntensity(
+					aerodynamicRotor,
+					rotorDiskWindGradientBody,
+					aerodynamicOmega
+			);
+			state.setRotorDiskWindGradientThrustLossFraction(i, 1.0 - diskWindGradientThrustScale);
+			state.setRotorDiskWindGradientLoadFactor(i, diskWindGradientLoadFactor);
+			state.setRotorDiskWindGradientVibration(i, diskWindGradientVibration);
+			state.setRotorDiskWindGradientStallIntensity(i, diskWindGradientStallIntensity);
 			BladeElementAerodynamics bladeElement = updateRotorBladeElementAerodynamics(
 					i,
 					aerodynamicRotor,
@@ -1392,7 +1411,7 @@ public final class DronePhysics {
 					kinematicRotorStall,
 					bladeElement.stallIntensity(),
 					bladeDissymmetry.intensity(),
-					rotorDiskWindGradientStallIntensity(aerodynamicRotor, rotorDiskWindGradientBody, aerodynamicOmega),
+					diskWindGradientStallIntensity,
 					dtSeconds
 			);
 			state.setRotorBladeAngleOfAttackRadians(i, bladeElement.angleOfAttackRadians());
@@ -1458,7 +1477,7 @@ public final class DronePhysics {
 					)
 					+ compressibilityLoad
 					+ rotorLowReynoldsLoadFactor(lowReynoldsLoss, aerodynamicOmega, aerodynamicRotor)
-					+ rotorDiskWindGradientLoadFactor(aerodynamicRotor, rotorDiskWindGradientBody, aerodynamicOmega)
+					+ diskWindGradientLoadFactor
 					+ bladeElement.loadFactor()
 					+ bladeDissymmetry.loadFactor()
 					+ rotorWaterLoad
@@ -1531,7 +1550,7 @@ public final class DronePhysics {
 			rotorVibrationSum += bladePassRipple.vibration()
 					+ stallBuffet.vibration()
 					+ vortexBuffet.vibration()
-					+ rotorDiskWindGradientVibration(aerodynamicRotor, rotorDiskWindGradientBody, aerodynamicOmega);
+					+ diskWindGradientVibration;
 			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, rotorDiskWindGradientBody, aerodynamicOmega, thrust, dtSeconds);
 			Vec3 flappingTorque = rotorArmBody.cross(flappingForceBody);
