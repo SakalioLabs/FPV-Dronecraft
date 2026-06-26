@@ -153,10 +153,25 @@ def a4mc_source_gust_y_mps(quality: float) -> float:
     return source_gust_vector_y * 0.22 * wind_gate * dirty_gain * vector_scale
 
 
-def terrain_shear_response(shear: float, shelter: float, quality: float) -> dict[str, float]:
+def terrain_shear_response(
+    shear: float,
+    shelter: float,
+    quality: float,
+    raw_updraft_mps: float = REFERENCE_UPDRAFT_MPS,
+    represented_mean_vertical_mps: float = 0.0,
+    explicit_vertical_gust_mps: float = 0.0,
+) -> dict[str, float]:
     adopted_shear = clamp(shear * quality, 0.0, 5.0)
     adopted_shelter = clamp(shelter * quality, 0.0, 1.0)
-    adopted_updraft = clamp(REFERENCE_UPDRAFT_MPS * quality, -12.0, 12.0)
+    adopted_updraft = clamp(raw_updraft_mps * quality, -12.0, 12.0)
+    adopted_updraft = remove_overlapping_vertical_flow(
+        adopted_updraft,
+        clamp(explicit_vertical_gust_mps * quality, -12.0, 12.0),
+    )
+    adopted_updraft = remove_overlapping_vertical_flow(
+        adopted_updraft,
+        clamp(represented_mean_vertical_mps, -12.0, 12.0),
+    )
     shelter_wind_gate = smooth_step(0.8, 7.0, REFERENCE_MEAN_WIND_MPS)
     if adopted_shear <= 1.0e-6 and abs(adopted_updraft) <= 1.0e-6 and (
         adopted_shelter <= 1.0e-6 or shelter_wind_gate <= 1.0e-6
@@ -661,6 +676,20 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     wall_skim_updraft = a4mc_updraft_response(REFERENCE_UPDRAFT_MPS, True, 0.90, trusted_wall_skim_quality)
     mean_overlap_updraft = a4mc_updraft_response(3.0, True, 0.90, 1.0, represented_mean_vertical_mps=3.0)
     residual_mean_overlap_updraft = a4mc_updraft_response(5.0, True, 0.90, 1.0, represented_mean_vertical_mps=2.0)
+    mean_overlap_terrain = terrain_shear_response(
+        0.0,
+        0.0,
+        1.0,
+        raw_updraft_mps=3.0,
+        represented_mean_vertical_mps=3.0,
+    )
+    residual_mean_overlap_terrain = terrain_shear_response(
+        0.0,
+        0.0,
+        1.0,
+        raw_updraft_mps=5.0,
+        represented_mean_vertical_mps=2.0,
+    )
     half_confidence_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.50)
     stale_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.0)
     half_quality = source_quality(True, 0.5, 0)
@@ -685,8 +714,12 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "trusted_full_downdraft_settled_1p0s_mps": trusted_full_downdraft["core_updraft_settled_1p0s_mps"],
         "trusted_full_downdraft_hover_axial_gust_scale": trusted_full_downdraft["core_hover_rotor_axial_gust_scale_after_1s"],
         "mean_overlap_updraft_target_mps": mean_overlap_updraft["core_updraft_target_mps"],
+        "mean_overlap_terrain_adopted_updraft_mps": mean_overlap_terrain["adopted_updraft_mps"],
+        "mean_overlap_terrain_vector_peak_proxy_mps": mean_overlap_terrain["terrain_shear_vector_peak_proxy_mps"],
         "residual_mean_overlap_updraft_source_mps": residual_mean_overlap_updraft["core_updraft_source_mps"],
         "residual_mean_overlap_updraft_target_mps": residual_mean_overlap_updraft["core_updraft_target_mps"],
+        "residual_mean_overlap_terrain_adopted_updraft_mps": residual_mean_overlap_terrain["adopted_updraft_mps"],
+        "residual_mean_overlap_terrain_signal": residual_mean_overlap_terrain["terrain_signal"],
         "half_confidence_full_updraft_target_mps": half_confidence_full_updraft["core_updraft_target_mps"],
         "stale_full_updraft_target_mps": stale_full_updraft["core_updraft_target_mps"],
         "unstable_mixed_abl_dryden_intensity_proxy": trusted_unstable_abl["core_dryden_intensity_proxy"],
@@ -699,7 +732,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "stale_source_gust_y_peak_mps": a4mc_source_gust_y_mps(stale_quality),
     }
     for metric, value in summary_metrics.items():
-        unit = "count" if metric.endswith("_count") else "m/s" if metric.endswith("_mps") else "fraction"
+        unit = "count" if metric.endswith("_count") else "m/s" if metric.endswith("_mps") or metric.endswith("_terrain_signal") else "fraction"
         add_metric(
             rows,
             row_type="a4mc_source_quality_packet_summary",

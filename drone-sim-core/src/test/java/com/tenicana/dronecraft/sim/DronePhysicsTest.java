@@ -3711,6 +3711,7 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(0.0, meanOnly.state().a4mcUpdraftSpeedMetersPerSecond(), 1.0e-9);
+		assertEquals(0.0, meanOnly.state().a4mcTerrainShearSpeedMetersPerSecond(), 1.0e-9);
 		assertTrue(meanOnly.state().effectiveWindVelocityWorldMetersPerSecond().y() > 2.0,
 				() -> "effectiveWind=" + meanOnly.state().effectiveWindVelocityWorldMetersPerSecond());
 		assertTrue(residual.state().a4mcUpdraftSpeedMetersPerSecond() > 1.0,
@@ -3718,6 +3719,8 @@ class DronePhysicsTest {
 		assertTrue(residual.state().a4mcUpdraftSpeedMetersPerSecond()
 						< maxA4mcUpdraftFor(a4mcUpdraftOnlyWind(5.0)) * 0.75,
 				() -> "residualUpdraft=" + residual.state().a4mcUpdraftSpeedMetersPerSecond());
+		assertTrue(residual.state().a4mcTerrainShearSpeedMetersPerSecond() > 0.05,
+				() -> "residualTerrainShear=" + residual.state().a4mcTerrainShearSpeedMetersPerSecond());
 	}
 
 	@Test
