@@ -9528,7 +9528,7 @@ public final class DronePhysics {
 		double motorRailCoupling = 0.35 + 0.65 * state.averageMotorPower(config);
 		double noiseAmplitude = SensorNoiseCalibration.QUIET_BAROMETER_ACCEL_NOISE_TO_ALTITUDE_AMPLITUDE
 				* config.accelerometerNoiseStdDevMetersPerSecondSquared()
-				+ 0.040 * environment.turbulenceIntensity()
+				+ 0.040 * atmosphericTurbulenceIntensity(environment)
 				+ 0.090 * state.rotorVibration()
 				+ 0.035 * state.propwashIntensity()
 				+ (0.055 * state.batteryBusRippleVoltage() + 0.030 * state.imuSupplyNoiseIntensity()) * motorRailCoupling;

@@ -6032,6 +6032,40 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void trustedA4mcTurbulenceFeedsBarometerSensorNoise() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0);
+		DronePhysics fresh = new DronePhysics(config);
+		DronePhysics stale = new DronePhysics(config);
+		DroneEnvironment freshA4mcTurbulence = a4mcAblWind(0.0, 0.0, 0.0, true, 1.0, 0L, 1.20);
+		DroneEnvironment staleA4mcTurbulence = a4mcAblWind(0.0, 0.0, 0.0, true, 1.0, 160L, 1.20);
+		double maxFreshSensorNoise = 0.0;
+		double maxStaleSensorNoise = 0.0;
+
+		for (int i = 0; i < 220; i++) {
+			holdAtBarometerProbe(fresh);
+			holdAtBarometerProbe(stale);
+			fresh.step(DroneInput.idle(), 0.005, freshA4mcTurbulence);
+			stale.step(DroneInput.idle(), 0.005, staleA4mcTurbulence);
+			maxFreshSensorNoise = Math.max(maxFreshSensorNoise, Math.abs(fresh.state().barometerSensorNoiseMeters()));
+			maxStaleSensorNoise = Math.max(maxStaleSensorNoise, Math.abs(stale.state().barometerSensorNoiseMeters()));
+		}
+
+		assertEquals(1.20, freshA4mcTurbulence.windSourceTurbulenceIntensity(), 1.0e-12);
+		assertEquals(1.20, freshA4mcTurbulence.adoptedWindSourceTurbulenceIntensity(), 1.0e-12);
+		assertEquals(0.0, staleA4mcTurbulence.adoptedWindSourceTurbulenceIntensity(), 1.0e-12);
+		double finalMaxFreshSensorNoise = maxFreshSensorNoise;
+		double finalMaxStaleSensorNoise = maxStaleSensorNoise;
+		assertTrue(finalMaxFreshSensorNoise > 0.035, () -> "maxFreshSensorNoise=" + finalMaxFreshSensorNoise);
+		assertTrue(finalMaxStaleSensorNoise < 1.0e-9, () -> "maxStaleSensorNoise=" + finalMaxStaleSensorNoise);
+		assertTrue(Math.abs(fresh.state().barometerVerticalSpeedMetersPerSecond()) > 0.03,
+				() -> "freshBaroVSpeed=" + fresh.state().barometerVerticalSpeedMetersPerSecond());
+	}
+
+	@Test
 	void barometerModelsAirspeedStaticPortPressureError() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
