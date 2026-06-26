@@ -1,6 +1,8 @@
 package com.tenicana.dronecraft.integration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -535,6 +537,48 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(sample), 1.0e-9);
 		assertEquals(20.0, AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(20.0, sample), 1.0e-9);
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedHumidity(sample), 1.0e-9);
+	}
+
+	@Test
+	void untrustedA4mcFlowRemainsAuditableButHasZeroPhysicsQuality() {
+		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
+				true,
+				new Vec3(2.0, 0.0, 0.0),
+				new Vec3(6.0, 0.0, 0.0),
+				new Vec3(3.0, 0.0, 1.0),
+				0.45,
+				0.80,
+				0.60,
+				1.40,
+				true,
+				35.0,
+				true,
+				0.72,
+				0.73,
+				-900.0,
+				false,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				12L,
+				-0.40,
+				0.75
+		);
+		Vec3 fallbackWind = new Vec3(1.0, 0.0, 2.0);
+
+		assertTrue(sample.hasFlow());
+		assertFalse(sample.trustedForGameplay());
+		assertEquals(0.73, sample.confidence(), 1.0e-9);
+		assertEquals("l2", sample.sourceLevel());
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceQualityFactor(sample), 1.0e-9);
+		assertEquals(fallbackWind, AerodynamicsWindCoupling.sourceWeightedWind(fallbackWind, sample));
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(sample), 1.0e-9);
+		assertEquals(20.0, AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(20.0, sample), 1.0e-9);
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedHumidity(sample), 1.0e-9);
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(sample), 1.0e-9);
+		assertEquals(Vec3.ZERO, AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(sample));
+		assertEquals(0.10, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, sample), 1.0e-9);
+		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(sample), 1.0e-9);
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample windSampleWithEffectiveWind(Vec3 effectiveWind, long freshnessAgeTicks) {

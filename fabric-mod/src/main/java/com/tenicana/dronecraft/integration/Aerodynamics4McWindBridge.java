@@ -222,7 +222,7 @@ public final class Aerodynamics4McWindBridge {
 				}
 				boolean hasUsableFlow = bool(hasFlow, sample);
 				boolean trusted = bool(isTrustedForGameplay, sample);
-				if (!hasUsableFlow || !trusted) {
+				if (!hasUsableFlow) {
 					return WindSample.unavailable();
 				}
 				boolean hasSampleTemperature = bool(hasTemperature, sample);
@@ -419,7 +419,6 @@ public final class Aerodynamics4McWindBridge {
 			freshnessAgeTicks = freshnessAgeTicks < 0L ? -1L : Math.min(freshnessAgeTicks, 1_000_000L);
 			ablStability = finiteClamped(ablStability, -1.0, 1.0, 0.0);
 			ablMixingStrength = finiteClamped(ablMixingStrength, 0.0, 1.0, 0.0);
-			hasFlow = hasFlow && trustedForGameplay;
 		}
 
 		public static WindSample unavailable() {
