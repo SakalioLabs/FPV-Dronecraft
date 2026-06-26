@@ -6233,7 +6233,8 @@ public final class DronePhysics {
 	private Vec3 updateA4mcTerrainShearWind(DroneEnvironment environment, Vec3 targetMeanWind, double dirtyAir, double dtSeconds) {
 		Vec3 target = a4mcTerrainShearWindTarget(environment, targetMeanWind, dirtyAir);
 		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock(), 0.0, 5.0);
-		double tau = MathUtil.clamp(0.18 - 0.035 * Math.min(2.0, shearMagnitude), 0.070, 0.240);
+		double shelter = MathUtil.clamp(environment.windShelterFactor(), 0.0, 1.0);
+		double tau = MathUtil.clamp(0.18 - 0.035 * Math.min(2.0, shearMagnitude) - 0.025 * shelter, 0.060, 0.240);
 		double alpha = MathUtil.expSmoothing(dtSeconds, tau);
 		a4mcTerrainShearVelocityWorldMetersPerSecond = a4mcTerrainShearVelocityWorldMetersPerSecond.add(
 				target.subtract(a4mcTerrainShearVelocityWorldMetersPerSecond).multiply(alpha)
@@ -6246,21 +6247,27 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 		double shearMagnitude = MathUtil.clamp(environment.windShearMagnitudePerBlock(), 0.0, 5.0);
+		double shelter = MathUtil.clamp(environment.windShelterFactor(), 0.0, 1.0);
 		double updraft = MathUtil.clamp(environment.windUpdraftMetersPerSecond(), -12.0, 12.0);
-		if (shearMagnitude <= 1.0e-6 && Math.abs(updraft) <= 1.0e-6) {
+		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double shelterWindGate = smoothStep(0.8, 7.0, horizontalWindSpeed);
+		if (shearMagnitude <= 1.0e-6 && Math.abs(updraft) <= 1.0e-6 && (shelter <= 1.0e-6 || shelterWindGate <= 1.0e-6)) {
 			return Vec3.ZERO;
 		}
 
 		Vec3 windAxis = horizontalWindAxis(targetMeanWind);
 		Vec3 crossAxis = new Vec3(-windAxis.z(), 0.0, windAxis.x());
-		double horizontalWindSpeed = Math.hypot(targetMeanWind.x(), targetMeanWind.z());
+		double shelterSignal = shelter
+				* shelterWindGate
+				* (0.20 + 0.12 * smoothStep(0.25, 2.0, shearMagnitude));
 		double terrainSignal = MathUtil.clamp(
 				0.42 * shearMagnitude * (0.50 + 0.50 * smoothStep(0.6, 7.0, horizontalWindSpeed))
-						+ 0.10 * Math.abs(updraft),
+						+ 0.10 * Math.abs(updraft)
+						+ shelterSignal,
 				0.0,
 				2.40
 		);
-		double dirtyGain = MathUtil.clamp(0.72 + 0.18 * dirtyAir, 0.72, 1.04);
+		double dirtyGain = MathUtil.clamp(0.72 + 0.18 * dirtyAir + 0.10 * shelter * shelterWindGate, 0.72, 1.10);
 		double along = Math.sin(windGustPhaseA * 0.73 + 0.40) * terrainSignal * 0.35;
 		double cross = Math.sin(windGustPhaseB * 0.91 + 1.10) * terrainSignal * 0.55;
 		double vertical = Math.sin(windGustPhaseC * 0.67 + 2.00)

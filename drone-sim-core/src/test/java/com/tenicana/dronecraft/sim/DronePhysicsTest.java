@@ -3478,6 +3478,36 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcShelterStrengthensTerrainShearGustTelemetry() {
+		DronePhysics exposed = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics sheltered = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment exposedA4mcWind = a4mcTerrainShearWind(0.75, 0.0, 0.0);
+		DroneEnvironment shelteredA4mcWind = a4mcTerrainShearWind(0.75, 0.0, 0.80);
+
+		for (int i = 0; i < 260; i++) {
+			exposed.step(idle, 0.005, exposedA4mcWind);
+			sheltered.step(idle, 0.005, shelteredA4mcWind);
+		}
+
+		double exposedMaxTerrainShear = 0.0;
+		double shelteredMaxTerrainShear = 0.0;
+		for (int i = 0; i < 240; i++) {
+			exposed.step(idle, 0.005, exposedA4mcWind);
+			sheltered.step(idle, 0.005, shelteredA4mcWind);
+			exposedMaxTerrainShear = Math.max(exposedMaxTerrainShear, exposed.state().a4mcTerrainShearSpeedMetersPerSecond());
+			shelteredMaxTerrainShear = Math.max(shelteredMaxTerrainShear, sheltered.state().a4mcTerrainShearSpeedMetersPerSecond());
+		}
+
+		assertTrue(exposedMaxTerrainShear > 0.05, "exposedMaxTerrainShear=" + exposedMaxTerrainShear);
+		assertTrue(
+				shelteredMaxTerrainShear > exposedMaxTerrainShear * 1.25,
+				"exposedMaxTerrainShear=" + exposedMaxTerrainShear + " shelteredMaxTerrainShear=" + shelteredMaxTerrainShear
+		);
+		assertTrue(shelteredMaxTerrainShear < 1.40, "shelteredMaxTerrainShear=" + shelteredMaxTerrainShear);
+	}
+
+	@Test
 	void dirtyAirMassUsesDrydenScaleGustTelemetry() {
 		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
 		DronePhysics repeat = new DronePhysics(directControl(DroneConfig.racingQuad()));
@@ -12310,6 +12340,14 @@ class DronePhysicsTest {
 	}
 
 	private static DroneEnvironment a4mcTerrainShearWind(double shearMagnitudePerBlock, double updraftMetersPerSecond) {
+		return a4mcTerrainShearWind(shearMagnitudePerBlock, updraftMetersPerSecond, 0.0);
+	}
+
+	private static DroneEnvironment a4mcTerrainShearWind(
+			double shearMagnitudePerBlock,
+			double updraftMetersPerSecond,
+			double shelterFactor
+	) {
 		return new DroneEnvironment(
 				new Vec3(7.0, 0.0, 0.0),
 				1.0,
@@ -12333,7 +12371,7 @@ class DronePhysicsTest {
 				1.0,
 				0.0,
 				shearMagnitudePerBlock,
-				0.0,
+				shelterFactor,
 				updraftMetersPerSecond,
 				false,
 				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
