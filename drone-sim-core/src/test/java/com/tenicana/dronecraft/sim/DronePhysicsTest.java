@@ -6301,6 +6301,81 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcMoistAirViscosityFeedsRotorReynoldsNumber() throws ReflectiveOperationException {
+		DroneConfig smallPropConfig = directControl(DroneConfig.racingQuad())
+				.withRotorRadiusMeters(0.020)
+				.withRotorBladePitchMeters(0.016)
+				.withMotorTimeConstantSeconds(0.005)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 120.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		double hotAmbientCelsius = 55.0;
+		DroneEnvironment dryHot = a4mcThermalHumidityEnvironment(1.0, hotAmbientCelsius, 0.0);
+		DroneEnvironment densityCompensatedHumidHot = a4mcThermalHumidityEnvironment(
+				1.0 / DroneEnvironment.moistAirDensityMultiplier(hotAmbientCelsius, 1.0),
+				hotAmbientCelsius,
+				1.0
+		);
+		DronePhysics dry = new DronePhysics(smallPropConfig);
+		DronePhysics humid = new DronePhysics(smallPropConfig);
+		DroneInput cruise = new DroneInput(0.34, 0.0, 0.0, 0.0, true);
+
+		for (int i = 0; i < 220; i++) {
+			dry.state().setOrientation(Quaternion.IDENTITY);
+			humid.state().setOrientation(Quaternion.IDENTITY);
+			dry.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			humid.state().setVelocityMetersPerSecond(Vec3.ZERO);
+			dry.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			humid.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			dry.step(cruise, 0.005, dryHot);
+			humid.step(cruise, 0.005, densityCompensatedHumidHot);
+		}
+
+		assertEquals(1.0, dryHot.effectiveAirDensityRatio(), 1.0e-12);
+		assertEquals(1.0, densityCompensatedHumidHot.effectiveAirDensityRatio(), 0.002);
+		assertTrue(humid.state().averageRotorReynoldsNumber() > dry.state().averageRotorReynoldsNumber() * 1.025,
+				() -> "dryRe=" + dry.state().averageRotorReynoldsNumber()
+						+ " humidRe=" + humid.state().averageRotorReynoldsNumber());
+		assertTrue(humid.state().averageRotorReynoldsIndex() > dry.state().averageRotorReynoldsIndex() * 1.025,
+				() -> "dryReIndex=" + dry.state().averageRotorReynoldsIndex()
+						+ " humidReIndex=" + humid.state().averageRotorReynoldsIndex());
+
+		Method lowReynoldsLoss = DronePhysics.class.getDeclaredMethod(
+				"rotorLowReynoldsLoss",
+				RotorSpec.class,
+				double.class,
+				double.class,
+				double.class,
+				double.class
+		);
+		lowReynoldsLoss.setAccessible(true);
+		RotorSpec partialLowReProp = smallPropConfig.rotors().get(0)
+				.withRadiusMeters(0.050)
+				.withBladePitchToDiameterRatio(0.40);
+		double partialLowReOmega = partialLowReProp.maxOmegaRadiansPerSecond() * 0.20;
+		double dryLowReLoss = (double) lowReynoldsLoss.invoke(
+				null,
+				partialLowReProp,
+				partialLowReOmega,
+				1.0,
+				hotAmbientCelsius,
+				0.0
+		);
+		double humidLowReLoss = (double) lowReynoldsLoss.invoke(
+				null,
+				partialLowReProp,
+				partialLowReOmega,
+				1.0,
+				hotAmbientCelsius,
+				1.0
+		);
+		assertTrue(humidLowReLoss < dryLowReLoss,
+				() -> "dryLowRe=" + dryLowReLoss + " humidLowRe=" + humidLowReLoss);
+	}
+
+	@Test
 	void lowReynoldsProxyUsesRepresentativeBladeChord() throws ReflectiveOperationException {
 		Method lowReynoldsLoss = DronePhysics.class.getDeclaredMethod(
 				"rotorLowReynoldsLoss",

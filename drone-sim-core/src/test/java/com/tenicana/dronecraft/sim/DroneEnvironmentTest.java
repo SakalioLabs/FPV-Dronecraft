@@ -273,6 +273,18 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void moistAirDynamicViscosityMultiplierTracksHumidityAndTemperature() {
+		double dryHot = DroneEnvironment.moistAirDynamicViscosityMultiplier(45.0, 0.0);
+		double mildHumid = DroneEnvironment.moistAirDynamicViscosityMultiplier(20.0, 1.0);
+		double hotHumid = DroneEnvironment.moistAirDynamicViscosityMultiplier(45.0, 1.0);
+
+		assertEquals(1.0, dryHot, 1.0e-12);
+		assertTrue(mildHumid < dryHot);
+		assertTrue(hotHumid < mildHumid);
+		assertTrue(hotHumid >= 0.96);
+	}
+
+	@Test
 	void weightedSurfaceEffectsUsePartialPatchCoverageGate() {
 		DroneConfig config = DroneConfig.racingQuad();
 		double rotorRadius = config.rotors().get(0).radiusMeters();

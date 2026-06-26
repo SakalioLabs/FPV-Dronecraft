@@ -1077,6 +1077,7 @@ public final class DronePhysics {
 		Vec3 totalTorqueBody = Vec3.ZERO;
 		double voltageScale = MathUtil.clamp(state.batteryVoltage() / config.nominalBatteryVoltage(), 0.55, 1.03);
 		double airDensity = environment.effectiveAirDensityRatio();
+		double ambientHumidity = environment.ambientHumidity();
 		double waterImmersion = environment.waterImmersionIntensity();
 		double precipitationWetness = environment.precipitationWetnessIntensity();
 		Vec3 effectiveWindVelocityWorld = updateAirMassWind(environment, dtSeconds);
@@ -1307,19 +1308,22 @@ public final class DronePhysics {
 					aerodynamicRotor,
 					aerodynamicOmega,
 					airDensity,
-					environment.ambientTemperatureCelsius()
+					environment.ambientTemperatureCelsius(),
+					ambientHumidity
 			));
 			state.setRotorReynoldsIndex(i, rotorLowReynoldsIndex(
 					aerodynamicRotor,
 					aerodynamicOmega,
 					airDensity,
-					environment.ambientTemperatureCelsius()
+					environment.ambientTemperatureCelsius(),
+					ambientHumidity
 			));
 			double lowReynoldsLoss = rotorLowReynoldsLoss(
 					aerodynamicRotor,
 					aerodynamicOmega,
 					airDensity,
-					environment.ambientTemperatureCelsius()
+					environment.ambientTemperatureCelsius(),
+					ambientHumidity
 			);
 			state.setRotorLowReynoldsLoss(i, lowReynoldsLoss);
 			double surfaceEffectThrustMultiplier = updateRotorSurfaceEffectThrustMultiplier(
@@ -3915,6 +3919,16 @@ public final class DronePhysics {
 			double airDensityRatio,
 			double ambientTemperatureCelsius
 	) {
+		return rotorLowReynoldsLoss(rotor, omegaRadiansPerSecond, airDensityRatio, ambientTemperatureCelsius, 0.0);
+	}
+
+	private static double rotorLowReynoldsLoss(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
 		if (spinRatio <= 0.08) {
 			return 0.0;
@@ -3929,7 +3943,8 @@ public final class DronePhysics {
 				rotor,
 				omegaRadiansPerSecond,
 				airDensityRatio,
-				ambientTemperatureCelsius
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 		double lowReynolds = 1.0 - smoothStep(0.52, 1.05, reynoldsIndex);
 		return MathUtil.clamp(lowReynolds * smallPropFactor * smoothStep(0.10, 0.34, spinRatio), 0.0, 1.0);
@@ -3941,13 +3956,23 @@ public final class DronePhysics {
 			double airDensityRatio,
 			double ambientTemperatureCelsius
 	) {
+		return rotorReynoldsNumber(rotor, omegaRadiansPerSecond, airDensityRatio, ambientTemperatureCelsius, 0.0);
+	}
+
+	private static double rotorReynoldsNumber(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		double stationSpeed = 0.75 * rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		if (stationSpeed <= 1.0e-9) {
 			return 0.0;
 		}
 		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * Math.max(0.0, airDensityRatio);
 		double dynamicViscosity = REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS
-				* airDynamicViscosityRatio(ambientTemperatureCelsius);
+				* airDynamicViscosityRatio(ambientTemperatureCelsius, ambientHumidity);
 		return MathUtil.clamp(
 				density * stationSpeed * rotor.representativeBladeChordMeters() / Math.max(1.0e-9, dynamicViscosity),
 				0.0,
@@ -3961,9 +3986,19 @@ public final class DronePhysics {
 			double airDensityRatio,
 			double ambientTemperatureCelsius
 	) {
+		return rotorLowReynoldsIndex(rotor, omegaRadiansPerSecond, airDensityRatio, ambientTemperatureCelsius, 0.0);
+	}
+
+	private static double rotorLowReynoldsIndex(
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double densityViscosityRatio = MathUtil.clamp(
-				Math.max(0.0, airDensityRatio) / airDynamicViscosityRatio(ambientTemperatureCelsius),
+				Math.max(0.0, airDensityRatio) / airDynamicViscosityRatio(ambientTemperatureCelsius, ambientHumidity),
 				0.20,
 				1.90
 		);
@@ -3979,6 +4014,10 @@ public final class DronePhysics {
 	}
 
 	private static double airDynamicViscosityRatio(double ambientTemperatureCelsius) {
+		return airDynamicViscosityRatio(ambientTemperatureCelsius, 0.0);
+	}
+
+	private static double airDynamicViscosityRatio(double ambientTemperatureCelsius, double ambientHumidity) {
 		if (!Double.isFinite(ambientTemperatureCelsius)) {
 			ambientTemperatureCelsius = MOTOR_AMBIENT_TEMPERATURE_CELSIUS;
 		}
@@ -3986,7 +4025,11 @@ public final class DronePhysics {
 		double ratio = Math.pow(temperatureKelvin / REFERENCE_AIR_TEMPERATURE_KELVIN, 1.5)
 				* (REFERENCE_AIR_TEMPERATURE_KELVIN + AIR_SUTHERLAND_CONSTANT_KELVIN)
 				/ (temperatureKelvin + AIR_SUTHERLAND_CONSTANT_KELVIN);
-		return MathUtil.clamp(ratio, 0.70, 1.20);
+		return MathUtil.clamp(
+				ratio * DroneEnvironment.moistAirDynamicViscosityMultiplier(ambientTemperatureCelsius, ambientHumidity),
+				0.64,
+				1.20
+		);
 	}
 
 	private static double rotorLowReynoldsThrustScale(double lowReynoldsLoss) {

@@ -65,6 +65,7 @@ public record DroneEnvironment(
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
 	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
+	private static final double WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF = 0.26;
 	private static final double ZJU_GROUND_EFFECT_G1_METERS_SQUARED = 0.01804;
 	private static final double ZJU_GROUND_EFFECT_G3_METERS = -0.3365;
 	private static final double ZJU_GROUND_EFFECT_G4_METERS_SQUARED = 0.04126;
@@ -773,6 +774,26 @@ public record DroneEnvironment(
 		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
 		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF * vaporPressureFraction * wetness;
 		return MathUtil.clamp(1.0 - densityRelief, 0.94, 1.0);
+	}
+
+	public double moistAirDynamicViscosityMultiplier() {
+		return moistAirDynamicViscosityMultiplier(ambientTemperatureCelsius, ambientHumidity());
+	}
+
+	public static double moistAirDynamicViscosityMultiplier(double ambientTemperatureCelsius, double humidity) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double wetness = MathUtil.clamp(humidity, 0.0, 1.0);
+		if (wetness <= 1.0e-9) {
+			return 1.0;
+		}
+
+		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
+		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
+		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
+		double viscosityRelief = WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF * vaporPressureFraction * wetness;
+		return MathUtil.clamp(1.0 - viscosityRelief, 0.92, 1.0);
 	}
 
 	public double moistAirCoolingMultiplier() {
