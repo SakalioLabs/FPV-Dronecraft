@@ -5805,6 +5805,62 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcLocalPressureAnomalyBiasesBarometerStaticPortError() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
+				.withRotorImbalanceIntensity(0.0)
+				.withMotorIdleAndAirmode(0.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0);
+		DronePhysics neutral = new DronePhysics(config);
+		DronePhysics trustedLowPressure = new DronePhysics(config);
+		DronePhysics halfQualityLowPressure = new DronePhysics(config);
+		DronePhysics coarseLowPressure = new DronePhysics(config);
+		DronePhysics staleLowPressure = new DronePhysics(config);
+		DronePhysics trustedHighPressure = new DronePhysics(config);
+		DroneInput idle = DroneInput.idle();
+		DroneEnvironment neutralA4mc = a4mcStaticPortPressureWind(0.0, 0.0, true, true, 1.0, 0L);
+		DroneEnvironment trustedLocalLowPressure = a4mcStaticPortPressureWind(-12.0, 0.82, true, true, 1.0, 0L);
+		DroneEnvironment halfQualityLocalLowPressure = a4mcStaticPortPressureWind(-12.0, 0.82, true, true, 0.50, 0L);
+		DroneEnvironment coarseLocalLowPressure = a4mcStaticPortPressureWind(-12.0, 0.82, false, true, 1.0, 0L);
+		DroneEnvironment staleLocalLowPressure = a4mcStaticPortPressureWind(-12.0, 0.82, true, true, 1.0, 160L);
+		DroneEnvironment trustedLocalHighPressure = a4mcStaticPortPressureWind(12.0, 0.82, true, true, 1.0, 0L);
+
+		for (int i = 0; i < 220; i++) {
+			holdAtBarometerProbe(neutral);
+			holdAtBarometerProbe(trustedLowPressure);
+			holdAtBarometerProbe(halfQualityLowPressure);
+			holdAtBarometerProbe(coarseLowPressure);
+			holdAtBarometerProbe(staleLowPressure);
+			holdAtBarometerProbe(trustedHighPressure);
+			neutral.step(idle, 0.005, neutralA4mc);
+			trustedLowPressure.step(idle, 0.005, trustedLocalLowPressure);
+			halfQualityLowPressure.step(idle, 0.005, halfQualityLocalLowPressure);
+			coarseLowPressure.step(idle, 0.005, coarseLocalLowPressure);
+			staleLowPressure.step(idle, 0.005, staleLocalLowPressure);
+			trustedHighPressure.step(idle, 0.005, trustedLocalHighPressure);
+		}
+
+		assertEquals(0.0, neutral.state().barometerPressurePortErrorMeters(), 1.0e-9);
+		assertEquals(0.0, coarseLowPressure.state().barometerPressurePortErrorMeters(), 1.0e-9);
+		assertEquals(0.0, staleLowPressure.state().barometerPressurePortErrorMeters(), 1.0e-9);
+		assertTrue(trustedLowPressure.state().barometerPressurePortErrorMeters() > 0.55,
+				() -> "trustedLowPressurePort=" + trustedLowPressure.state().barometerPressurePortErrorMeters());
+		assertTrue(halfQualityLowPressure.state().barometerPressurePortErrorMeters()
+						> trustedLowPressure.state().barometerPressurePortErrorMeters() * 0.40,
+				() -> "trustedLowPressurePort=" + trustedLowPressure.state().barometerPressurePortErrorMeters()
+						+ " halfQualityLowPressurePort=" + halfQualityLowPressure.state().barometerPressurePortErrorMeters());
+		assertTrue(halfQualityLowPressure.state().barometerPressurePortErrorMeters()
+						< trustedLowPressure.state().barometerPressurePortErrorMeters() * 0.70,
+				() -> "trustedLowPressurePort=" + trustedLowPressure.state().barometerPressurePortErrorMeters()
+						+ " halfQualityLowPressurePort=" + halfQualityLowPressure.state().barometerPressurePortErrorMeters());
+		assertTrue(trustedHighPressure.state().barometerPressurePortErrorMeters() < -0.55,
+				() -> "trustedHighPressurePort=" + trustedHighPressure.state().barometerPressurePortErrorMeters());
+		assertTrue(trustedLowPressure.state().barometerErrorMeters() > neutral.state().barometerErrorMeters() + 0.45,
+				() -> "neutralBaroError=" + neutral.state().barometerErrorMeters()
+						+ " trustedLowPressureBaroError=" + trustedLowPressure.state().barometerErrorMeters());
+	}
+
+	@Test
 	void barometerStaticPortPressureErrorBuildsAndRecoversWithLag() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0)
@@ -12767,6 +12823,10 @@ class DronePhysicsTest {
 		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
 	}
 
+	private static void holdAtBarometerProbe(DronePhysics physics) {
+		holdInStillAir(physics);
+	}
+
 	private static void holdInCoolingCrossflow(DronePhysics physics, Vec3 velocityMetersPerSecond) {
 		physics.state().setOrientation(Quaternion.IDENTITY);
 		physics.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
@@ -12983,6 +13043,64 @@ class DronePhysicsTest {
 				null,
 				null,
 				rotorLocalVoxelObstacleResiduals,
+				null
+		);
+	}
+
+	private static DroneEnvironment a4mcStaticPortPressureWind(
+			double pressureAnomalyPascals,
+			double shelterFactor,
+			boolean localVoxelFlow,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				new double[] {0.18, 0.14, 0.06, 0.06},
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				trustedForGameplay,
+				confidence,
+				0.0,
+				pressureAnomalyPascals,
+				0.0,
+				shelterFactor,
+				0.0,
+				localVoxelFlow,
+				"l2",
+				"server_authoritative",
+				freshnessAgeTicks,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				null,
+				null,
+				null,
+				null,
+				new double[] {0.42, 0.46, 0.82, 0.86},
 				null
 		);
 	}

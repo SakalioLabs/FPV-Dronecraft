@@ -8972,7 +8972,11 @@ public final class DronePhysics {
 	}
 
 	private double calculateSteadyBarometerPressurePortErrorMeters(DroneEnvironment environment) {
-		return barometerDynamicPressureErrorMeters(environment);
+		return MathUtil.clamp(
+				barometerDynamicPressureErrorMeters(environment) + a4mcLocalStaticPortPressureErrorMeters(environment),
+				-1.8,
+				2.2
+		);
 	}
 
 	private double calculateSteadyBarometerPropwashErrorMeters(DroneEnvironment environment) {
@@ -9003,6 +9007,43 @@ public final class DronePhysics {
 		double linearPressureError = barometerLinearDynamicPressureErrorMeters(relativeAirVelocityBody);
 		double rotationalPressureError = barometerRotationalDynamicPressureErrorMeters();
 		return MathUtil.clamp(densityScale * (linearPressureError + rotationalPressureError), -1.8, 2.2);
+	}
+
+	private double a4mcLocalStaticPortPressureErrorMeters(DroneEnvironment environment) {
+		if (!environment.windSourceLocalVoxelFlow()) {
+			return 0.0;
+		}
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
+			return 0.0;
+		}
+		double pressureAnomalyPascals = environment.windSourcePressureAnomalyPascals();
+		if (Math.abs(pressureAnomalyPascals) <= 1.0e-6) {
+			return 0.0;
+		}
+
+		int sampleCount = Math.max(1, state.motorCount());
+		double localVoxelCoverageSum = 0.0;
+		double shelterObstructionSum = 0.0;
+		for (int i = 0; i < sampleCount; i++) {
+			localVoxelCoverageSum += MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(i), 0.0, 1.0);
+			shelterObstructionSum += environment.rotorA4mcShelterObstruction(i);
+		}
+
+		double localVoxelCoverage = localVoxelCoverageSum / sampleCount;
+		double shelterObstruction = shelterObstructionSum / sampleCount;
+		double exposure = MathUtil.clamp(
+				0.35
+						+ 0.35 * environment.windShelterFactor()
+						+ 0.18 * localVoxelCoverage
+						+ 0.12 * shelterObstruction,
+				0.25,
+				1.0
+		);
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER
+				* MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
+		double pressureHeightMeters = -pressureAnomalyPascals / Math.max(1.0e-6, density * config.gravityMetersPerSecondSquared());
+		return MathUtil.clamp(pressureHeightMeters * sourceQuality * exposure, -0.65, 0.65);
 	}
 
 	private double barometerLinearDynamicPressureErrorMeters(Vec3 relativeAirVelocityBody) {
