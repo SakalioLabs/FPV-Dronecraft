@@ -6441,8 +6441,9 @@ public final class DronePhysics {
 
 	private static double atmosphericDrydenIntensity(DroneEnvironment environment) {
 		double baseTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
-		double ablStability = MathUtil.clamp(environment.windSourceAblStability(), -1.0, 1.0);
-		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength(), 0.0, 1.0);
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
 		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
 			return baseTurbulence;
 		}
@@ -6465,8 +6466,9 @@ public final class DronePhysics {
 	}
 
 	private static DrydenAblTimeScale drydenAblTimeScale(DroneEnvironment environment) {
-		double ablStability = MathUtil.clamp(environment.windSourceAblStability(), -1.0, 1.0);
-		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength(), 0.0, 1.0);
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
 		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
 			return DrydenAblTimeScale.NEUTRAL;
 		}

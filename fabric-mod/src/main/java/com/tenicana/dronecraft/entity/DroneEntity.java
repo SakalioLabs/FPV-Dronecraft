@@ -1476,17 +1476,17 @@ public class DroneEntity extends Entity {
 					externalWind.trustedForGameplay(),
 					externalWind.confidence(),
 					AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(externalWind),
-					externalWind.windShearMagnitudePerBlock() * sourceQuality,
-					externalWind.shelterFactor() * sourceQuality,
-					externalWind.updraftMetersPerSecond() * sourceQuality,
+					externalWind.windShearMagnitudePerBlock(),
+					externalWind.shelterFactor(),
+					externalWind.updraftMetersPerSecond(),
 					externalWind.localVoxelFlow(),
 					externalWind.sourceLevel(),
 					externalWind.sourceAuthority(),
 					externalWind.freshnessAgeTicks(),
-					AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(externalWind),
-					AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(externalWind),
-					AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(externalWind),
-					AerodynamicsWindCoupling.sourceWeightedGustVelocityWorldMetersPerSecond(externalWind),
+					externalWind.meanVelocityWorldMetersPerSecond().length(),
+					externalWind.effectiveVelocityWorldMetersPerSecond().length(),
+					externalWind.gustVelocityWorldMetersPerSecond().length(),
+					externalWind.gustVelocityWorldMetersPerSecond(),
 					hasSourceTemperature,
 					hasSourceTemperature
 							? AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(
@@ -1496,8 +1496,8 @@ public class DroneEntity extends Entity {
 							: 0.0,
 					hasSourceHumidity,
 					AerodynamicsWindCoupling.sourceWeightedHumidity(externalWind),
-					externalWind.ablStability() * sourceQuality,
-					externalWind.ablMixingStrength() * sourceQuality
+					externalWind.ablStability(),
+					externalWind.ablMixingStrength()
 			);
 		}
 		return new WindSourceTelemetry(

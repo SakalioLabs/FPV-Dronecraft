@@ -3678,6 +3678,30 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblMixingFadesWithSourceQuality() {
+		DroneEnvironment neutralAbl = a4mcAblWind(0.55, 0.0, 0.0);
+		DroneEnvironment trustedAbl = a4mcAblWind(0.55, 0.90, 0.90, true, 1.0, 0L);
+		DroneEnvironment lowConfidenceAbl = a4mcAblWind(0.55, 0.90, 0.90, true, 0.50, 0L);
+		DroneEnvironment staleAbl = a4mcAblWind(0.55, 0.90, 0.90, true, 1.0, 160L);
+
+		double neutralDrydenRms = drydenRmsForEnvironment(neutralAbl);
+		double trustedDrydenRms = drydenRmsForEnvironment(trustedAbl);
+		double lowConfidenceDrydenRms = drydenRmsForEnvironment(lowConfidenceAbl);
+		double staleDrydenRms = drydenRmsForEnvironment(staleAbl);
+
+		assertTrue(trustedDrydenRms > neutralDrydenRms * 1.30,
+				() -> "trusted=" + trustedDrydenRms + " neutral=" + neutralDrydenRms);
+		assertTrue(
+				lowConfidenceDrydenRms > neutralDrydenRms
+						&& lowConfidenceDrydenRms < trustedDrydenRms,
+				() -> "lowConfidence=" + lowConfidenceDrydenRms
+						+ " neutral=" + neutralDrydenRms
+						+ " trusted=" + trustedDrydenRms
+		);
+		assertEquals(neutralDrydenRms, staleDrydenRms, 1.0e-12);
+	}
+
+	@Test
 	void restoredAerodynamicTransientStateContinuesWindAndAirframeFilters() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics source = new DronePhysics(config);
@@ -12498,6 +12522,17 @@ class DronePhysicsTest {
 	}
 
 	private static DroneEnvironment a4mcAblWind(double turbulenceIntensity, double ablStability, double ablMixingStrength) {
+		return a4mcAblWind(turbulenceIntensity, ablStability, ablMixingStrength, true, 1.0, -1L);
+	}
+
+	private static DroneEnvironment a4mcAblWind(
+			double turbulenceIntensity,
+			double ablStability,
+			double ablMixingStrength,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		return new DroneEnvironment(
 				new Vec3(9.0, 0.0, 0.0),
 				1.0,
@@ -12517,8 +12552,8 @@ class DronePhysicsTest {
 				null,
 				null,
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
-				true,
-				1.0,
+				trustedForGameplay,
+				confidence,
 				0.0,
 				0.0,
 				0.0,
@@ -12526,7 +12561,7 @@ class DronePhysicsTest {
 				false,
 				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
 				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
-				-1L,
+				freshnessAgeTicks,
 				0.0,
 				0.0,
 				0.0,
