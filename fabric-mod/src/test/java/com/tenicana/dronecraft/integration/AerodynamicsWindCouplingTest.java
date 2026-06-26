@@ -66,6 +66,7 @@ class AerodynamicsWindCouplingTest {
 				false,
 				0.0,
 				0.80,
+				-1250.0,
 				true,
 				true,
 				0.0,

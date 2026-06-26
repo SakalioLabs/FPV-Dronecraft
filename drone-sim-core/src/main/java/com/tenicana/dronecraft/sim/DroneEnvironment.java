@@ -21,6 +21,7 @@ public record DroneEnvironment(
 		String windSourceId,
 		boolean windSourceTrustedForGameplay,
 		double windSourceConfidence,
+		double windSourcePressureAnomalyPascals,
 		double windShearMagnitudePerBlock,
 		double windShelterFactor,
 		double windUpdraftMetersPerSecond,
@@ -39,6 +40,8 @@ public record DroneEnvironment(
 	public static final String WIND_SOURCE_ENVIRONMENT_OVERRIDE = "environment_override";
 
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
+	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
+	private static final double MAX_WIND_SOURCE_PRESSURE_ANOMALY_PASCALS = 5000.0;
 	private static final double STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN = 288.15;
 	private static final double STANDARD_LAPSE_RATE_KELVIN_PER_METER = 0.0065;
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
@@ -115,7 +118,7 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0, 0.0, 0.0);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public DroneEnvironment {
@@ -156,6 +159,7 @@ public record DroneEnvironment(
 			windSourceConfidence = 0.0;
 		}
 		windSourceConfidence = MathUtil.clamp(windSourceConfidence, 0.0, 1.0);
+		windSourcePressureAnomalyPascals = sanitizePressureAnomalyPascals(windSourcePressureAnomalyPascals);
 		if (!Double.isFinite(windShearMagnitudePerBlock)) {
 			windShearMagnitudePerBlock = 0.0;
 		}
@@ -203,7 +207,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0, 0.0, 0.0);
+		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {
@@ -213,6 +217,14 @@ public record DroneEnvironment(
 	}
 
 	public static double standardAtmosphereAirDensityRatio(double altitudeMeters, double ambientTemperatureCelsius) {
+		return standardAtmosphereAirDensityRatio(altitudeMeters, ambientTemperatureCelsius, 0.0);
+	}
+
+	public static double standardAtmosphereAirDensityRatio(
+			double altitudeMeters,
+			double ambientTemperatureCelsius,
+			double pressureAnomalyPascals
+	) {
 		if (!Double.isFinite(ambientTemperatureCelsius)) {
 			ambientTemperatureCelsius = 25.0;
 		}
@@ -220,7 +232,16 @@ public record DroneEnvironment(
 		double densityRatio = standardAtmospherePressureRatio(altitudeMeters)
 				* STANDARD_SEA_LEVEL_TEMPERATURE_KELVIN
 				/ ambientKelvin;
-		return MathUtil.clamp(densityRatio, 0.35, 1.35);
+		return MathUtil.clamp(densityRatio * pressureAnomalyAirDensityMultiplier(pressureAnomalyPascals), 0.35, 1.35);
+	}
+
+	public static double pressureAnomalyAirDensityMultiplier(double pressureAnomalyPascals) {
+		return MathUtil.clamp(
+				(SEA_LEVEL_PRESSURE_PASCALS + sanitizePressureAnomalyPascals(pressureAnomalyPascals))
+						/ SEA_LEVEL_PRESSURE_PASCALS,
+				0.90,
+				1.10
+		);
 	}
 
 	public static double speedOfSoundMetersPerSecond(double ambientTemperatureCelsius) {
@@ -232,8 +253,12 @@ public record DroneEnvironment(
 	}
 
 	public double effectiveAirDensityRatio() {
+		double ambientHumidity = precipitationWetnessIntensity;
+		if (windSourceHasHumidity) {
+			ambientHumidity = Math.max(ambientHumidity, windSourceHumidity);
+		}
 		return MathUtil.clamp(
-				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, precipitationWetnessIntensity),
+				airDensityRatio * moistAirDensityMultiplier(ambientTemperatureCelsius, ambientHumidity),
 				0.35,
 				1.35
 		);
@@ -265,13 +290,24 @@ public record DroneEnvironment(
 			double airDensityRatio,
 			double ambientTemperatureCelsius
 	) {
+		return barometricPressureHectopascals(altitudeMeters, airDensityRatio, ambientTemperatureCelsius, 0.0);
+	}
+
+	public static double barometricPressureHectopascals(
+			double altitudeMeters,
+			double airDensityRatio,
+			double ambientTemperatureCelsius,
+			double pressureAnomalyPascals
+	) {
 		if (!Double.isFinite(airDensityRatio)) {
 			airDensityRatio = standardAtmosphereAirDensityRatio(altitudeMeters, ambientTemperatureCelsius);
 		}
 		double densityPressureScale = MathUtil.clamp(0.97 + 0.03 * airDensityRatio, 0.94, 1.05);
-		return SEA_LEVEL_PRESSURE_HECTOPASCALS
+		double pressure = SEA_LEVEL_PRESSURE_HECTOPASCALS
 				* standardAtmospherePressureRatio(altitudeMeters)
-				* densityPressureScale;
+				* densityPressureScale
+				+ sanitizePressureAnomalyPascals(pressureAnomalyPascals) / 100.0;
+		return MathUtil.clamp(pressure, 50.0, 1100.0);
 	}
 
 	public double groundEffectThrustMultiplier(DroneConfig config) {
@@ -510,6 +546,12 @@ public record DroneEnvironment(
 		}
 		double t = MathUtil.clamp((value - edge0) / (edge1 - edge0), 0.0, 1.0);
 		return t * t * (3.0 - 2.0 * t);
+	}
+
+	private static double sanitizePressureAnomalyPascals(double value) {
+		return Double.isFinite(value)
+				? MathUtil.clamp(value, -MAX_WIND_SOURCE_PRESSURE_ANOMALY_PASCALS, MAX_WIND_SOURCE_PRESSURE_ANOMALY_PASCALS)
+				: 0.0;
 	}
 
 	public double rotorThrustMultiplier(int rotorIndex, DroneConfig config) {

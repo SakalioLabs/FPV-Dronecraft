@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -80,6 +81,7 @@ class DroneEnvironmentTest {
 				"A4MC Core!",
 				true,
 				4.0,
+				12_000.0,
 				12.0,
 				-1.0,
 				48.0,
@@ -95,6 +97,7 @@ class DroneEnvironmentTest {
 		assertEquals("a4mc_core_", environment.windSourceId());
 		assertEquals(true, environment.windSourceTrustedForGameplay());
 		assertEquals(1.0, environment.windSourceConfidence(), 1.0e-9);
+		assertEquals(5000.0, environment.windSourcePressureAnomalyPascals(), 1.0e-9);
 		assertEquals(5.0, environment.windShearMagnitudePerBlock(), 1.0e-9);
 		assertEquals(0.0, environment.windShelterFactor(), 1.0e-9);
 		assertEquals(12.0, environment.windUpdraftMetersPerSecond(), 1.0e-9);
@@ -105,5 +108,20 @@ class DroneEnvironmentTest {
 		assertEquals(1.0, environment.windSourceHumidity(), 1.0e-9);
 		assertEquals(1.0, environment.windSourceAblStability(), 1.0e-9);
 		assertEquals(1.0, environment.windSourceAblMixingStrength(), 1.0e-9);
+	}
+
+	@Test
+	void pressureAnomalyAdjustsDensityAndBarometerPressure() {
+		double neutral = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0);
+		double lowPressure = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, -2200.0);
+		double highPressure = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, 2200.0);
+
+		assertTrue(lowPressure < neutral);
+		assertTrue(highPressure > neutral);
+		assertEquals(
+				DroneEnvironment.barometricPressureHectopascals(0.0, neutral, 15.0) - 22.0,
+				DroneEnvironment.barometricPressureHectopascals(0.0, neutral, 15.0, -2200.0),
+				1.0e-9
+		);
 	}
 }

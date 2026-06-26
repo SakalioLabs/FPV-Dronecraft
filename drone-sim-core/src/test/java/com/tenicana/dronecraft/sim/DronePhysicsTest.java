@@ -4039,14 +4039,21 @@ class DronePhysicsTest {
 		double mountainStandard = DroneEnvironment.standardAtmosphereAirDensityRatio(3000.0, -4.5);
 		double hotSeaLevel = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 38.0);
 		double coldSeaLevel = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, -10.0);
+		double stormLowSeaLevel = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, -2200.0);
 
 		assertEquals(1.0, seaLevelStandard, 0.02);
 		assertTrue(mountainStandard < seaLevelStandard * 0.80);
 		assertTrue(hotSeaLevel < seaLevelStandard);
 		assertTrue(coldSeaLevel > seaLevelStandard);
+		assertTrue(stormLowSeaLevel < seaLevelStandard);
 		assertTrue(DroneEnvironment.speedOfSoundMetersPerSecond(-10.0) < DroneEnvironment.speedOfSoundMetersPerSecond(35.0));
 		assertTrue(DroneEnvironment.barometricPressureHectopascals(3000.0, mountainStandard, -4.5) < 730.0);
 		assertTrue(DroneEnvironment.barometricPressureHectopascals(0.0, seaLevelStandard, 15.0) > 1000.0);
+		assertEquals(
+				DroneEnvironment.barometricPressureHectopascals(0.0, seaLevelStandard, 15.0) - 22.0,
+				DroneEnvironment.barometricPressureHectopascals(0.0, seaLevelStandard, 15.0, -2200.0),
+				1.0e-9
+		);
 	}
 
 	@Test
@@ -12236,6 +12243,7 @@ class DronePhysicsTest {
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				true,
 				1.0,
+				0.0,
 				0.0,
 				0.0,
 				0.0,

@@ -355,6 +355,7 @@ public class DroneEntity extends Entity {
 			String sourceId,
 			boolean trustedForGameplay,
 			double confidence,
+			double pressureAnomalyPascals,
 			double windShearMagnitudePerBlock,
 			double shelterFactor,
 			double updraftMetersPerSecond,
@@ -1279,7 +1280,7 @@ public class DroneEntity extends Entity {
 		);
 		return new DroneEnvironment(
 				obstacleAirflow.windVelocityWorldMetersPerSecond(),
-				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.pressureAnomalyPascals())),
 				groundClearance,
 				turbulenceIntensity,
 				obstacleAirflow.obstacleProximity(),
@@ -1298,6 +1299,7 @@ public class DroneEntity extends Entity {
 				windSource.sourceId(),
 				windSource.trustedForGameplay(),
 				windSource.confidence(),
+				windSource.pressureAnomalyPascals(),
 				windSource.windShearMagnitudePerBlock(),
 				windSource.shelterFactor(),
 				windSource.updraftMetersPerSecond(),
@@ -1356,7 +1358,7 @@ public class DroneEntity extends Entity {
 		RotorWindFieldSamples rotorWindField = sampleAerodynamicsRotorWindField(externalWind, sourceWind);
 		return new DroneEnvironment(
 				sourceWind,
-				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature)),
+				environmentOverride.airDensityOr(airDensityRatio(ambientTemperature, windSource.pressureAnomalyPascals())),
 				groundClearance,
 				environmentOverride.turbulenceOr(naturalTurbulence),
 				0.0,
@@ -1375,6 +1377,7 @@ public class DroneEntity extends Entity {
 				windSource.sourceId(),
 				windSource.trustedForGameplay(),
 				windSource.confidence(),
+				windSource.pressureAnomalyPascals(),
 				windSource.windShearMagnitudePerBlock(),
 				windSource.shelterFactor(),
 				windSource.updraftMetersPerSecond(),
@@ -1400,6 +1403,7 @@ public class DroneEntity extends Entity {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
 					false,
 					false,
 					0.0,
@@ -1414,6 +1418,7 @@ public class DroneEntity extends Entity {
 					DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 					externalWind.trustedForGameplay(),
 					externalWind.confidence(),
+					externalWind.pressureAnomalyPascals(),
 					externalWind.windShearMagnitudePerBlock(),
 					externalWind.shelterFactor(),
 					externalWind.updraftMetersPerSecond(),
@@ -1430,6 +1435,7 @@ public class DroneEntity extends Entity {
 				fallbackSourceId,
 				true,
 				1.0,
+				0.0,
 				0.0,
 				0.0,
 				0.0,
@@ -1936,7 +1942,15 @@ public class DroneEntity extends Entity {
 	}
 
 	private double airDensityRatio(double ambientTemperatureCelsius) {
-		return DroneEnvironment.standardAtmosphereAirDensityRatio(entityPhysicsPosition().y(), ambientTemperatureCelsius);
+		return airDensityRatio(ambientTemperatureCelsius, 0.0);
+	}
+
+	private double airDensityRatio(double ambientTemperatureCelsius, double pressureAnomalyPascals) {
+		return DroneEnvironment.standardAtmosphereAirDensityRatio(
+				entityPhysicsPosition().y(),
+				ambientTemperatureCelsius,
+				pressureAnomalyPascals
+		);
 	}
 
 	private double groundClearanceMeters() {

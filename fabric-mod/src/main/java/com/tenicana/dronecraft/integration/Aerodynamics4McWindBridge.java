@@ -72,6 +72,7 @@ public final class Aerodynamics4McWindBridge {
 					sampleClass.getMethod("hasHumidity"),
 					sampleClass.getMethod("humidity"),
 					sampleClass.getMethod("confidence"),
+					methodOrNull(sampleClass, "pressure"),
 					methodOrNull(sampleClass, "hasLocalL2Modifier"),
 					methodOrNull(sampleClass, "ablStability"),
 					methodOrNull(sampleClass, "ablMixingStrength"),
@@ -127,6 +128,7 @@ public final class Aerodynamics4McWindBridge {
 		private final Method hasHumidity;
 		private final Method humidity;
 		private final Method confidence;
+		private final Method pressure;
 		private final Method hasLocalL2Modifier;
 		private final Method ablStability;
 		private final Method ablMixingStrength;
@@ -150,6 +152,7 @@ public final class Aerodynamics4McWindBridge {
 				Method hasHumidity,
 				Method humidity,
 				Method confidence,
+				Method pressure,
 				Method hasLocalL2Modifier,
 				Method ablStability,
 				Method ablMixingStrength,
@@ -172,6 +175,7 @@ public final class Aerodynamics4McWindBridge {
 			this.hasHumidity = hasHumidity;
 			this.humidity = humidity;
 			this.confidence = confidence;
+			this.pressure = pressure;
 			this.hasLocalL2Modifier = hasLocalL2Modifier;
 			this.ablStability = ablStability;
 			this.ablMixingStrength = ablMixingStrength;
@@ -215,6 +219,7 @@ public final class Aerodynamics4McWindBridge {
 						hasSampleHumidity,
 						number(humidity.invoke(sample)),
 						number(confidence.invoke(sample)),
+						optionalNumber(pressure, sample),
 						trusted,
 						hasLocalL2Modifier != null && bool(hasLocalL2Modifier, sample),
 						optionalNumber(ablStability, sample),
@@ -271,6 +276,7 @@ public final class Aerodynamics4McWindBridge {
 			boolean hasHumidity,
 			double humidity,
 			double confidence,
+			double pressureAnomalyPascals,
 			boolean trustedForGameplay,
 			boolean localVoxelFlow,
 			double ablStability,
@@ -296,6 +302,7 @@ public final class Aerodynamics4McWindBridge {
 				humidity = MathUtil.clamp(humidity, 0.0, 1.0);
 			}
 			confidence = finiteClamped(confidence, 0.0, 1.0, 0.0);
+			pressureAnomalyPascals = finiteClamped(pressureAnomalyPascals, -5000.0, 5000.0, 0.0);
 			ablStability = finiteClamped(ablStability, -1.0, 1.0, 0.0);
 			ablMixingStrength = finiteClamped(ablMixingStrength, 0.0, 1.0, 0.0);
 			hasFlow = hasFlow && trustedForGameplay;
@@ -313,6 +320,7 @@ public final class Aerodynamics4McWindBridge {
 					false,
 					0.0,
 					false,
+					0.0,
 					0.0,
 					0.0,
 					false,

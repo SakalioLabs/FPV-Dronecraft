@@ -8652,7 +8652,8 @@ public final class DronePhysics {
 		state.setBarometerPressureHectopascals(DroneEnvironment.barometricPressureHectopascals(
 				barometerFilteredAltitudeMeters,
 				environment.airDensityRatio(),
-				environment.ambientTemperatureCelsius()
+				environment.ambientTemperatureCelsius(),
+				environment.windSourcePressureAnomalyPascals()
 		));
 		state.setBarometerErrorMeters(barometerFilteredAltitudeMeters - trueAltitude);
 		state.setBarometerSensorNoiseMeters(sensorNoise);
