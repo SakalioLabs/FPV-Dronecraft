@@ -11107,6 +11107,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flow_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_disk_wind_gradient_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_disk_wind_gradient_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_a4mc_shelter_obstruction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_shelter_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_blade_aoa_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_element_stall"));

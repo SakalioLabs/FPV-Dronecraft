@@ -337,13 +337,13 @@ public class DroneEntity extends Entity {
 		private static final DroneWakeAirflow CALM = new DroneWakeAirflow(Vec3.ZERO, 0.0, 0.0);
 	}
 
-	private record RotorEnvironmentEffects(double[] thrustMultipliers, double[] flowObstructions, Vec3[] flowObstructionDirectionsBody, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double maxFlowObstruction) {
+	private record RotorEnvironmentEffects(double[] thrustMultipliers, double[] flowObstructions, Vec3[] flowObstructionDirectionsBody, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] rotorA4mcShelterObstructions, double maxFlowObstruction) {
 		private static RotorEnvironmentEffects calm(int rotorCount) {
 			double[] multipliers = new double[rotorCount];
 			for (int i = 0; i < multipliers.length; i++) {
 				multipliers[i] = 1.0;
 			}
-			return new RotorEnvironmentEffects(multipliers, new double[rotorCount], new Vec3[rotorCount], new Vec3[0], new Vec3[0], 0.0);
+			return new RotorEnvironmentEffects(multipliers, new double[rotorCount], new Vec3[rotorCount], new Vec3[0], new Vec3[0], new double[0], 0.0);
 		}
 	}
 
@@ -1327,6 +1327,7 @@ public class DroneEntity extends Entity {
 				ambientTemperature,
 				rotorEffects.rotorWindVelocityWorldMetersPerSecond(),
 				rotorEffects.rotorDiskWindGradientBodyMetersPerSecond(),
+				rotorEffects.rotorA4mcShelterObstructions(),
 				windSource.sourceId(),
 				windSource.trustedForGameplay(),
 				windSource.confidence(),
@@ -1410,6 +1411,7 @@ public class DroneEntity extends Entity {
 				ambientTemperature,
 				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
 				rotorWindField.rotorDiskWindGradientBodyMetersPerSecond(),
+				rotorWindField.localVoxelShelterObstructions(),
 				windSource.sourceId(),
 				windSource.trustedForGameplay(),
 				windSource.confidence(),
@@ -1728,6 +1730,7 @@ public class DroneEntity extends Entity {
 				flowObstructionDirectionsBody,
 				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
 				rotorWindField.rotorDiskWindGradientBodyMetersPerSecond(),
+				rotorWindField.localVoxelShelterObstructions(),
 				maxFlowObstruction
 		);
 	}

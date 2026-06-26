@@ -591,6 +591,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_flow_obstruction",
 			"rotor_2_flow_obstruction",
 			"rotor_3_flow_obstruction",
+			"rotor_a4mc_shelter_obstruction",
+			"rotor_0_a4mc_shelter_obstruction",
+			"rotor_1_a4mc_shelter_obstruction",
+			"rotor_2_a4mc_shelter_obstruction",
+			"rotor_3_a4mc_shelter_obstruction",
 			"rotor_disk_wind_gradient_mps",
 			"rotor_0_disk_wind_gradient_mps",
 			"rotor_1_disk_wind_gradient_mps",
@@ -1105,6 +1110,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_4_a4mc_shelter_obstruction",
+			"rotor_5_a4mc_shelter_obstruction",
+			"rotor_6_a4mc_shelter_obstruction",
+			"rotor_7_a4mc_shelter_obstruction",
 			"rotor_4_disk_wind_gradient_mps",
 			"rotor_5_disk_wind_gradient_mps",
 			"rotor_6_disk_wind_gradient_mps",
@@ -2003,6 +2012,11 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorFlowObstruction(1), "%.5f");
 		row.add(environment.rotorFlowObstruction(2), "%.5f");
 		row.add(environment.rotorFlowObstruction(3), "%.5f");
+		row.add(environment.maxRotorA4mcShelterObstruction(), "%.5f");
+		row.add(environment.rotorA4mcShelterObstruction(0), "%.5f");
+		row.add(environment.rotorA4mcShelterObstruction(1), "%.5f");
+		row.add(environment.rotorA4mcShelterObstruction(2), "%.5f");
+		row.add(environment.rotorA4mcShelterObstruction(3), "%.5f");
 		row.add(environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(0), "%.5f");
 		row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(1), "%.5f");
@@ -2555,6 +2569,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorFlowObstruction(i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(environment.rotorA4mcShelterObstruction(i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorDiskWindGradientMagnitudeMetersPerSecond(i), "%.5f");

@@ -19,6 +19,7 @@ class DroneEnvironmentTest {
 				null,
 				new Vec3(50.0, -50.0, 0.0)
 		};
+		double[] shelterObstructions = {0.12, Double.NaN, 2.5};
 
 		DroneEnvironment environment = new DroneEnvironment(
 				meanWind,
@@ -37,7 +38,8 @@ class DroneEnvironmentTest {
 				0.0,
 				25.0,
 				rotorWinds,
-				diskGradients
+				diskGradients,
+				shelterObstructions
 		);
 
 		assertEquals(new Vec3(2.5, 1.0, -1.0), environment.rotorWindVelocityWorldMetersPerSecond(0));
@@ -49,6 +51,11 @@ class DroneEnvironmentTest {
 		assertEquals(new Vec3(12.0, -12.0, 0.0), environment.rotorDiskWindGradientBodyMetersPerSecond(2));
 		assertEquals(Vec3.ZERO, environment.rotorDiskWindGradientBodyMetersPerSecond(3));
 		assertEquals(Math.sqrt(288.0), environment.maxRotorDiskWindGradientMetersPerSecond(), 1.0e-9);
+		assertEquals(0.12, environment.rotorA4mcShelterObstruction(0), 1.0e-9);
+		assertEquals(0.0, environment.rotorA4mcShelterObstruction(1), 1.0e-9);
+		assertEquals(1.0, environment.rotorA4mcShelterObstruction(2), 1.0e-9);
+		assertEquals(0.0, environment.rotorA4mcShelterObstruction(3), 1.0e-9);
+		assertEquals(1.0, environment.maxRotorA4mcShelterObstruction(), 1.0e-9);
 
 		Vec3[] copy = environment.rotorWindVelocityWorldMetersPerSecond();
 		copy[0] = new Vec3(9.0, 9.0, 9.0);
@@ -56,6 +63,9 @@ class DroneEnvironmentTest {
 		Vec3[] gradientCopy = environment.rotorDiskWindGradientBodyMetersPerSecond();
 		gradientCopy[0] = new Vec3(9.0, 9.0, 9.0);
 		assertEquals(new Vec3(0.5, 0.0, 0.0), environment.rotorDiskWindGradientBodyMetersPerSecond(0));
+		double[] shelterCopy = environment.rotorA4mcShelterObstructions();
+		shelterCopy[0] = 0.99;
+		assertEquals(0.12, environment.rotorA4mcShelterObstruction(0), 1.0e-9);
 	}
 
 	@Test

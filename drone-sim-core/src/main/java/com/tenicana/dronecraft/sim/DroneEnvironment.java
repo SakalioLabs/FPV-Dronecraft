@@ -18,6 +18,7 @@ public record DroneEnvironment(
 		double ambientTemperatureCelsius,
 		Vec3[] rotorWindVelocityWorldMetersPerSecond,
 		Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+		double[] rotorA4mcShelterObstructions,
 		String windSourceId,
 		boolean windSourceTrustedForGameplay,
 		double windSourceConfidence,
@@ -127,7 +128,11 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, null, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0);
+	}
+
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] rotorA4mcShelterObstructions) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, rotorA4mcShelterObstructions, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public DroneEnvironment(
@@ -187,6 +192,173 @@ public record DroneEnvironment(
 				ambientTemperatureCelsius,
 				rotorWindVelocityWorldMetersPerSecond,
 				rotorDiskWindGradientBodyMetersPerSecond,
+				null,
+				windSourceId,
+				windSourceTrustedForGameplay,
+				windSourceConfidence,
+				windSourcePressureAnomalyPascals,
+				windShearMagnitudePerBlock,
+				windShelterFactor,
+				windUpdraftMetersPerSecond,
+				windSourceLocalVoxelFlow,
+				windSourceLevel,
+				windSourceAuthority,
+				windSourceFreshnessAgeTicks,
+				windSourceMeanSpeedMetersPerSecond,
+				windSourceEffectiveSpeedMetersPerSecond,
+				windSourceGustSpeedMetersPerSecond,
+				windSourceHasTemperature,
+				windSourceTemperatureCelsius,
+				windSourceHasHumidity,
+				windSourceHumidity,
+				windSourceAblStability,
+				windSourceAblMixingStrength,
+				Vec3.ZERO
+		);
+	}
+
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+			String windSourceId,
+			boolean windSourceTrustedForGameplay,
+			double windSourceConfidence,
+			double windSourcePressureAnomalyPascals,
+			double windShearMagnitudePerBlock,
+			double windShelterFactor,
+			double windUpdraftMetersPerSecond,
+			boolean windSourceLocalVoxelFlow,
+			String windSourceLevel,
+			String windSourceAuthority,
+			long windSourceFreshnessAgeTicks,
+			double windSourceMeanSpeedMetersPerSecond,
+			double windSourceEffectiveSpeedMetersPerSecond,
+			double windSourceGustSpeedMetersPerSecond,
+			boolean windSourceHasTemperature,
+			double windSourceTemperatureCelsius,
+			boolean windSourceHasHumidity,
+			double windSourceHumidity,
+			double windSourceAblStability,
+			double windSourceAblMixingStrength,
+			Vec3 windSourceGustVelocityWorldMetersPerSecond
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorWindVelocityWorldMetersPerSecond,
+				rotorDiskWindGradientBodyMetersPerSecond,
+				null,
+				windSourceId,
+				windSourceTrustedForGameplay,
+				windSourceConfidence,
+				windSourcePressureAnomalyPascals,
+				windShearMagnitudePerBlock,
+				windShelterFactor,
+				windUpdraftMetersPerSecond,
+				windSourceLocalVoxelFlow,
+				windSourceLevel,
+				windSourceAuthority,
+				windSourceFreshnessAgeTicks,
+				windSourceMeanSpeedMetersPerSecond,
+				windSourceEffectiveSpeedMetersPerSecond,
+				windSourceGustSpeedMetersPerSecond,
+				windSourceHasTemperature,
+				windSourceTemperatureCelsius,
+				windSourceHasHumidity,
+				windSourceHumidity,
+				windSourceAblStability,
+				windSourceAblMixingStrength,
+				windSourceGustVelocityWorldMetersPerSecond
+		);
+	}
+
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+			double[] rotorA4mcShelterObstructions,
+			String windSourceId,
+			boolean windSourceTrustedForGameplay,
+			double windSourceConfidence,
+			double windSourcePressureAnomalyPascals,
+			double windShearMagnitudePerBlock,
+			double windShelterFactor,
+			double windUpdraftMetersPerSecond,
+			boolean windSourceLocalVoxelFlow,
+			String windSourceLevel,
+			String windSourceAuthority,
+			long windSourceFreshnessAgeTicks,
+			double windSourceMeanSpeedMetersPerSecond,
+			double windSourceEffectiveSpeedMetersPerSecond,
+			double windSourceGustSpeedMetersPerSecond,
+			boolean windSourceHasTemperature,
+			double windSourceTemperatureCelsius,
+			boolean windSourceHasHumidity,
+			double windSourceHumidity,
+			double windSourceAblStability,
+			double windSourceAblMixingStrength
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorWindVelocityWorldMetersPerSecond,
+				rotorDiskWindGradientBodyMetersPerSecond,
+				rotorA4mcShelterObstructions,
 				windSourceId,
 				windSourceTrustedForGameplay,
 				windSourceConfidence,
@@ -244,6 +416,7 @@ public record DroneEnvironment(
 		rotorPrecipitationWetnesses = sanitizeUnitArray(rotorPrecipitationWetnesses);
 		rotorWindVelocityWorldMetersPerSecond = sanitizeWindArray(rotorWindVelocityWorldMetersPerSecond);
 		rotorDiskWindGradientBodyMetersPerSecond = sanitizeDiskWindGradientArray(rotorDiskWindGradientBodyMetersPerSecond);
+		rotorA4mcShelterObstructions = sanitizeUnitArray(rotorA4mcShelterObstructions);
 		windSourceId = sanitizeWindSourceId(windSourceId);
 		if (!Double.isFinite(windSourceConfidence)) {
 			windSourceConfidence = 0.0;
@@ -790,6 +963,25 @@ public record DroneEnvironment(
 
 	public Vec3[] rotorDiskWindGradientBodyMetersPerSecond() {
 		return rotorDiskWindGradientBodyMetersPerSecond.clone();
+	}
+
+	public double rotorA4mcShelterObstruction(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorA4mcShelterObstructions.length) {
+			return rotorA4mcShelterObstructions[rotorIndex];
+		}
+		return 0.0;
+	}
+
+	public double maxRotorA4mcShelterObstruction() {
+		double max = 0.0;
+		for (double obstruction : rotorA4mcShelterObstructions) {
+			max = Math.max(max, obstruction);
+		}
+		return max;
+	}
+
+	public double[] rotorA4mcShelterObstructions() {
+		return rotorA4mcShelterObstructions.clone();
 	}
 
 	private static double ceilingEffectHeightMeters(DroneConfig config) {

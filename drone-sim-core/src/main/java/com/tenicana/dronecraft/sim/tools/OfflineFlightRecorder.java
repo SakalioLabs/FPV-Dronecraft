@@ -665,6 +665,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_a4mc_shelter_obstruction",
+			"rotor_0_a4mc_shelter_obstruction",
+			"rotor_1_a4mc_shelter_obstruction",
+			"rotor_2_a4mc_shelter_obstruction",
+			"rotor_3_a4mc_shelter_obstruction",
+			"rotor_4_a4mc_shelter_obstruction",
+			"rotor_5_a4mc_shelter_obstruction",
+			"rotor_6_a4mc_shelter_obstruction",
+			"rotor_7_a4mc_shelter_obstruction",
 			"rotor_disk_wind_gradient_mps",
 			"rotor_0_disk_wind_gradient_mps",
 			"rotor_1_disk_wind_gradient_mps",
@@ -4047,6 +4056,10 @@ public final class OfflineFlightRecorder {
 		}
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorFlowObstruction(i), "%.5f");
+		}
+		appendExtra(builder, environment.maxRotorA4mcShelterObstruction(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, environment.rotorA4mcShelterObstruction(i), "%.5f");
 		}
 		appendExtra(builder, environment.maxRotorDiskWindGradientMetersPerSecond(), "%.5f");
 		for (int i = 0; i < 8; i++) {

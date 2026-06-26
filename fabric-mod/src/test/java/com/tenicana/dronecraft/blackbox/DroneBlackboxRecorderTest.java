@@ -44,6 +44,7 @@ class DroneBlackboxRecorderTest {
 				7.5,
 				null,
 				new Vec3[] {new Vec3(0.42, 0.0, 0.0), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO},
+				new double[] {0.16, 0.0, 0.08, 0.0},
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				true,
 				0.82,
@@ -335,6 +336,9 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("rotor_disk_wind_gradient_mps"));
 		assertTrue(csv.contains("rotor_0_disk_wind_gradient_mps"));
 		assertTrue(csv.contains("rotor_3_disk_wind_gradient_mps"));
+		assertTrue(csv.contains("rotor_a4mc_shelter_obstruction"));
+		assertTrue(csv.contains("rotor_0_a4mc_shelter_obstruction"));
+		assertTrue(csv.contains("rotor_7_a4mc_shelter_obstruction"));
 		assertTrue(csv.contains("water_immersion"));
 		assertTrue(csv.contains("precipitation_wetness"));
 		assertTrue(csv.contains("effective_air_density_ratio"));
@@ -712,6 +716,9 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_disk_wind_gradient_mps")]), 1.0e-5);
 		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_0_disk_wind_gradient_mps")]), 1.0e-5);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_disk_wind_gradient_mps")]), 1.0e-9);
+		assertEquals(0.16, Double.parseDouble(row[indexOf(header, "rotor_a4mc_shelter_obstruction")]), 1.0e-5);
+		assertEquals(0.16, Double.parseDouble(row[indexOf(header, "rotor_0_a4mc_shelter_obstruction")]), 1.0e-5);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_a4mc_shelter_obstruction")]), 1.0e-9);
 		assertEquals(0.18, Double.parseDouble(row[indexOf(header, "water_immersion")]), 0.0001);
 		assertEquals(0.36, Double.parseDouble(row[indexOf(header, "precipitation_wetness")]), 0.0001);
 		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]), 0.0001);
@@ -837,6 +844,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.73, windSourceStats.maxAbsAblStability(), 1.0e-5);
 		assertEquals(0.66, windSourceStats.maxAblMixingStrength(), 1.0e-5);
 		assertEquals(0.42, windSourceStats.maxRotorDiskWindGradientMetersPerSecond(), 1.0e-5);
+		assertEquals(0.16, windSourceStats.maxRotorA4mcShelterObstruction(), 1.0e-5);
 		assertEquals(10, summary.maxPhysicsSubsteps());
 		assertEquals(200.0, summary.maxPhysicsRateHertz(), 0.001);
 		assertEquals(1.0, summary.minPlayableLowAltitudeAuthority(), 1.0e-6);
@@ -1827,6 +1835,7 @@ class DroneBlackboxRecorderTest {
 		assertEquals(1.12, Double.parseDouble(row[indexOf(header, "rotor_7_env_thrust_multiplier")]), 0.0001);
 		assertEquals(0.71, Double.parseDouble(row[indexOf(header, "rotor_7_flow_obstruction")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_wind_gradient_mps")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_a4mc_shelter_obstruction")]), 0.0001);
 
 		DroneBlackboxSummary summary = DroneBlackboxSummary.from(recorder);
 		assertEquals(0.80, summary.minRotorHealth(), 0.0001);
