@@ -4929,15 +4929,18 @@ class DronePhysicsTest {
 		DronePhysics exposed = new DronePhysics(config);
 		DronePhysics coarseShelter = new DronePhysics(config);
 		DronePhysics localShelter = new DronePhysics(config);
+		DronePhysics halfQualityLocalShelter = new DronePhysics(config);
 		DronePhysics asymmetricLocalShelter = new DronePhysics(config);
 		for (int i = 0; i < exposed.state().motorCount(); i++) {
 			exposed.state().setMotorTemperatureCelsius(i, 86.0);
 			coarseShelter.state().setMotorTemperatureCelsius(i, 86.0);
 			localShelter.state().setMotorTemperatureCelsius(i, 86.0);
+			halfQualityLocalShelter.state().setMotorTemperatureCelsius(i, 86.0);
 			asymmetricLocalShelter.state().setMotorTemperatureCelsius(i, 86.0);
 			exposed.state().setEscTemperatureCelsius(i, 82.0);
 			coarseShelter.state().setEscTemperatureCelsius(i, 82.0);
 			localShelter.state().setEscTemperatureCelsius(i, 82.0);
+			halfQualityLocalShelter.state().setEscTemperatureCelsius(i, 82.0);
 			asymmetricLocalShelter.state().setEscTemperatureCelsius(i, 82.0);
 		}
 
@@ -4946,6 +4949,7 @@ class DronePhysicsTest {
 		DroneEnvironment exposedA4mc = a4mcShelterCoolingWind(0.0, true);
 		DroneEnvironment coarseA4mcShelter = a4mcShelterCoolingWind(0.85, false);
 		DroneEnvironment localA4mcShelter = a4mcShelterCoolingWind(0.85, true);
+		DroneEnvironment halfQualityA4mcShelter = a4mcShelterCoolingWind(0.85, true, 0.50, 0L, null, null);
 		DroneEnvironment asymmetricA4mcShelter = a4mcShelterCoolingWind(
 				0.85,
 				true,
@@ -4957,10 +4961,12 @@ class DronePhysicsTest {
 			holdInCoolingCrossflow(exposed, crossflow);
 			holdInCoolingCrossflow(coarseShelter, crossflow);
 			holdInCoolingCrossflow(localShelter, crossflow);
+			holdInCoolingCrossflow(halfQualityLocalShelter, crossflow);
 			holdInCoolingCrossflow(asymmetricLocalShelter, crossflow);
 			exposed.step(loaded, 0.005, exposedA4mc);
 			coarseShelter.step(loaded, 0.005, coarseA4mcShelter);
 			localShelter.step(loaded, 0.005, localA4mcShelter);
+			halfQualityLocalShelter.step(loaded, 0.005, halfQualityA4mcShelter);
 			asymmetricLocalShelter.step(loaded, 0.005, asymmetricA4mcShelter);
 		}
 
@@ -4975,6 +4981,23 @@ class DronePhysicsTest {
 				localShelter.state().averageEscCoolingFactor() < exposed.state().averageEscCoolingFactor() * 0.88,
 				() -> "exposedEscCooling=" + exposed.state().averageEscCoolingFactor()
 						+ " localShelterEscCooling=" + localShelter.state().averageEscCoolingFactor()
+		);
+		assertTrue(
+				halfQualityLocalShelter.state().averageMotorCoolingFactor()
+						> localShelter.state().averageMotorCoolingFactor() * 1.06,
+				() -> "fullQualityMotorCooling=" + localShelter.state().averageMotorCoolingFactor()
+						+ " halfQualityMotorCooling=" + halfQualityLocalShelter.state().averageMotorCoolingFactor()
+		);
+		assertTrue(
+				halfQualityLocalShelter.state().averageEscCoolingFactor()
+						> localShelter.state().averageEscCoolingFactor() * 1.06,
+				() -> "fullQualityEscCooling=" + localShelter.state().averageEscCoolingFactor()
+						+ " halfQualityEscCooling=" + halfQualityLocalShelter.state().averageEscCoolingFactor()
+		);
+		assertTrue(
+				halfQualityLocalShelter.state().averageMotorCoolingFactor() < exposed.state().averageMotorCoolingFactor() * 0.97,
+				() -> "exposedMotorCooling=" + exposed.state().averageMotorCoolingFactor()
+						+ " halfQualityMotorCooling=" + halfQualityLocalShelter.state().averageMotorCoolingFactor()
 		);
 		assertTrue(
 				asymmetricLocalShelter.state().motorCoolingFactor(0) < asymmetricLocalShelter.state().motorCoolingFactor(1) * 0.92,
@@ -8116,6 +8139,78 @@ class DronePhysicsTest {
 		assertTrue(recirculated.state().batteryTemperatureCelsius() > clean.state().batteryTemperatureCelsius() + 1.0,
 				() -> "cleanBatteryTemp=" + clean.state().batteryTemperatureCelsius()
 						+ " recirculatedBatteryTemp=" + recirculated.state().batteryTemperatureCelsius());
+	}
+
+	@Test
+	void a4mcLocalShelterReducesBatteryVentilationCooling() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 3.0, 90.0)
+				.withMotorThermal(0.0, 0.50, 200.0, 240.0);
+		DronePhysics exposed = new DronePhysics(config);
+		DronePhysics coarseShelter = new DronePhysics(config);
+		DronePhysics localShelter = new DronePhysics(config);
+		DronePhysics halfQualityShelter = new DronePhysics(config);
+		DroneInput loaded = new DroneInput(0.56, 0.0, 0.0, 0.0, true);
+		Vec3 crossflow = new Vec3(10.0, 0.0, 0.0);
+		double[] localVoxelResiduals = {0.50, 0.50, 0.80, 0.80};
+		double[] shelterObstructions = {0.16, 0.16, 0.08, 0.08};
+		DroneEnvironment exposedA4mc = a4mcShelterCoolingWind(0.0, true);
+		DroneEnvironment coarseA4mcShelter = a4mcShelterCoolingWind(
+				0.85,
+				false,
+				localVoxelResiduals,
+				shelterObstructions
+		);
+		DroneEnvironment localA4mcShelter = a4mcShelterCoolingWind(
+				0.85,
+				true,
+				localVoxelResiduals,
+				shelterObstructions
+		);
+		DroneEnvironment halfQualityA4mcShelter = a4mcShelterCoolingWind(
+				0.85,
+				true,
+				0.50,
+				0L,
+				localVoxelResiduals,
+				shelterObstructions
+		);
+
+		exposed.step(DroneInput.idle(), 0.005, exposedA4mc);
+		coarseShelter.step(DroneInput.idle(), 0.005, coarseA4mcShelter);
+		localShelter.step(DroneInput.idle(), 0.005, localA4mcShelter);
+		halfQualityShelter.step(DroneInput.idle(), 0.005, halfQualityA4mcShelter);
+		exposed.state().setBatteryTemperatureCelsius(72.0);
+		coarseShelter.state().setBatteryTemperatureCelsius(72.0);
+		localShelter.state().setBatteryTemperatureCelsius(72.0);
+		halfQualityShelter.state().setBatteryTemperatureCelsius(72.0);
+
+		for (int i = 0; i < 300; i++) {
+			holdInCoolingCrossflow(exposed, crossflow);
+			holdInCoolingCrossflow(coarseShelter, crossflow);
+			holdInCoolingCrossflow(localShelter, crossflow);
+			holdInCoolingCrossflow(halfQualityShelter, crossflow);
+			exposed.step(loaded, 0.005, exposedA4mc);
+			coarseShelter.step(loaded, 0.005, coarseA4mcShelter);
+			localShelter.step(loaded, 0.005, localA4mcShelter);
+			halfQualityShelter.step(loaded, 0.005, halfQualityA4mcShelter);
+		}
+
+		assertEquals(exposed.state().batteryCoolingFactor(), coarseShelter.state().batteryCoolingFactor(), 1.0e-9);
+		assertTrue(localShelter.state().batteryCoolingFactor() < exposed.state().batteryCoolingFactor() * 0.90,
+				() -> "exposedBatteryCooling=" + exposed.state().batteryCoolingFactor()
+						+ " localShelterBatteryCooling=" + localShelter.state().batteryCoolingFactor());
+		assertTrue(halfQualityShelter.state().batteryCoolingFactor() > localShelter.state().batteryCoolingFactor() * 1.06,
+				() -> "fullQualityBatteryCooling=" + localShelter.state().batteryCoolingFactor()
+						+ " halfQualityBatteryCooling=" + halfQualityShelter.state().batteryCoolingFactor());
+		assertTrue(halfQualityShelter.state().batteryCoolingFactor() < exposed.state().batteryCoolingFactor() * 0.96,
+				() -> "exposedBatteryCooling=" + exposed.state().batteryCoolingFactor()
+						+ " halfQualityBatteryCooling=" + halfQualityShelter.state().batteryCoolingFactor());
+		assertTrue(localShelter.state().batteryTemperatureCelsius() > exposed.state().batteryTemperatureCelsius() + 0.50,
+				() -> "exposedBatteryTemp=" + exposed.state().batteryTemperatureCelsius()
+						+ " localShelterBatteryTemp=" + localShelter.state().batteryTemperatureCelsius());
 	}
 
 	@Test
@@ -12824,6 +12919,24 @@ class DronePhysicsTest {
 			double[] rotorLocalVoxelObstacleResiduals,
 			double[] rotorA4mcShelterObstructions
 	) {
+		return a4mcShelterCoolingWind(
+				shelterFactor,
+				localVoxelFlow,
+				1.0,
+				0L,
+				rotorLocalVoxelObstacleResiduals,
+				rotorA4mcShelterObstructions
+		);
+	}
+
+	private static DroneEnvironment a4mcShelterCoolingWind(
+			double shelterFactor,
+			boolean localVoxelFlow,
+			double confidence,
+			long freshnessAgeTicks,
+			double[] rotorLocalVoxelObstacleResiduals,
+			double[] rotorA4mcShelterObstructions
+	) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				1.0,
@@ -12845,7 +12958,7 @@ class DronePhysicsTest {
 				rotorA4mcShelterObstructions,
 				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
 				true,
-				1.0,
+				confidence,
 				0.0,
 				0.0,
 				0.0,
@@ -12854,7 +12967,7 @@ class DronePhysicsTest {
 				localVoxelFlow,
 				"l2",
 				"server_authoritative",
-				0L,
+				freshnessAgeTicks,
 				0.0,
 				0.0,
 				0.0,

@@ -9447,12 +9447,39 @@ public final class DronePhysics {
 			return 1.0;
 		}
 		double bodyShelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
-		double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(rotorIndex), 0.0, 1.0);
-		double rotorShelterObstruction = environment.rotorA4mcShelterObstruction(rotorIndex);
+		double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(rotorIndex), 0.0, 1.0)
+				* sourceQuality;
+		double rotorShelterObstruction = environment.rotorA4mcShelterObstruction(rotorIndex) * sourceQuality;
 		double ventilationLoss = 0.20 * bodyShelter
 				+ 0.12 * localVoxelCoverage
 				+ 0.18 * rotorShelterObstruction;
 		return MathUtil.clamp(1.0 - ventilationLoss, 0.72, 1.0);
+	}
+
+	private static double a4mcPackVentilationEfficiency(DroneEnvironment environment, int rotorCount) {
+		if (!environment.windSourceLocalVoxelFlow()) {
+			return 1.0;
+		}
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		if (sourceQuality <= 1.0e-9) {
+			return 1.0;
+		}
+
+		int sampleCount = Math.max(1, rotorCount);
+		double localVoxelCoverageSum = 0.0;
+		double shelterObstructionSum = 0.0;
+		for (int i = 0; i < sampleCount; i++) {
+			localVoxelCoverageSum += MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(i), 0.0, 1.0);
+			shelterObstructionSum += environment.rotorA4mcShelterObstruction(i);
+		}
+
+		double bodyShelter = MathUtil.clamp(environment.windShelterFactor() * sourceQuality, 0.0, 1.0);
+		double averageLocalVoxelCoverage = localVoxelCoverageSum / sampleCount * sourceQuality;
+		double averageShelterObstruction = shelterObstructionSum / sampleCount * sourceQuality;
+		double ventilationLoss = 0.14 * bodyShelter
+				+ 0.08 * averageLocalVoxelCoverage
+				+ 0.10 * averageShelterObstruction;
+		return MathUtil.clamp(1.0 - ventilationLoss, 0.78, 1.0);
 	}
 
 	private double recirculatedAirCoolingLoss(DroneEnvironment environment) {
@@ -9561,9 +9588,11 @@ public final class DronePhysics {
 		double rotorWashCooling = 0.35 * state.averageMotorPower(config);
 		double densityFactor = MathUtil.clamp(environment.effectiveAirDensityRatio(), 0.35, 1.35);
 		double recirculationEfficiency = 1.0 - 0.58 * recirculatedAirCoolingLoss(environment);
+		double localShelterEfficiency = a4mcPackVentilationEfficiency(environment, state.motorCount());
 		double airCooling = (0.55 + 0.45 * airspeedCooling + rotorWashCooling)
 				* densityFactor
-				* recirculationEfficiency;
+				* recirculationEfficiency
+				* localShelterEfficiency;
 		double wetCooling = 1.40 * MathUtil.clamp(environment.waterImmersionIntensity(), 0.0, 1.0)
 				+ 0.22 * MathUtil.clamp(environment.precipitationWetnessIntensity(), 0.0, 1.0);
 		return MathUtil.clamp(airCooling + wetCooling, 0.20, 4.0);
