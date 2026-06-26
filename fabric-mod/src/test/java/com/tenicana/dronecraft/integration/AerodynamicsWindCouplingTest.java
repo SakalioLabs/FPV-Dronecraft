@@ -556,16 +556,16 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
-	void sourceWeightedWindFadesTowardFallbackAsQualityDrops() {
+	void sourceWeightedEffectiveWindFadesTowardFallbackAsQualityDrops() {
 		Vec3 fallback = new Vec3(0.0, 0.0, 2.0);
 		Aerodynamics4McWindBridge.WindSample fresh = windSampleWithEffectiveWind(new Vec3(4.0, 0.0, 0.0), 20L);
 		Aerodynamics4McWindBridge.WindSample halfStale = windSampleWithEffectiveWind(new Vec3(4.0, 0.0, 0.0), 100L);
 		Aerodynamics4McWindBridge.WindSample stale = windSampleWithEffectiveWind(new Vec3(4.0, 0.0, 0.0), 200L);
 
-		assertEquals(new Vec3(4.0, 0.0, 0.0), AerodynamicsWindCoupling.sourceWeightedWind(fallback, fresh));
-		assertEquals(new Vec3(2.0, 0.0, 1.0), AerodynamicsWindCoupling.sourceWeightedWind(fallback, halfStale));
-		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedWind(fallback, stale));
-		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedWind(fallback, null));
+		assertEquals(new Vec3(4.0, 0.0, 0.0), AerodynamicsWindCoupling.sourceWeightedEffectiveWind(fallback, fresh));
+		assertEquals(new Vec3(2.0, 0.0, 1.0), AerodynamicsWindCoupling.sourceWeightedEffectiveWind(fallback, halfStale));
+		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedEffectiveWind(fallback, stale));
+		assertEquals(fallback, AerodynamicsWindCoupling.sourceWeightedEffectiveWind(fallback, null));
 	}
 
 	@Test
@@ -649,8 +649,8 @@ class AerodynamicsWindCouplingTest {
 				centerWind,
 				rotorAxis,
 				new Aerodynamics4McWindBridge.WindSample[] {
-						windSampleWithEffectiveWind(new Vec3(0.0, 4.0, 0.0), 20L),
-						windSampleWithEffectiveWind(new Vec3(0.0, -4.0, 0.0), 20L)
+						windSampleWithMeanAndEffectiveWind(new Vec3(0.0, 4.0, 0.0), new Vec3(0.0, 6.0, 0.0), 20L),
+						windSampleWithMeanAndEffectiveWind(new Vec3(0.0, -4.0, 0.0), new Vec3(0.0, -6.0, 0.0), 20L)
 				},
 				directions,
 				weights,
@@ -660,8 +660,8 @@ class AerodynamicsWindCouplingTest {
 				centerWind,
 				rotorAxis,
 				new Aerodynamics4McWindBridge.WindSample[] {
-						windSampleWithEffectiveWind(new Vec3(0.0, 4.0, 0.0), 20L),
-						windSampleWithEffectiveWind(new Vec3(0.0, -4.0, 0.0), 100L)
+						windSampleWithMeanAndEffectiveWind(new Vec3(0.0, 4.0, 0.0), new Vec3(0.0, 6.0, 0.0), 20L),
+						windSampleWithMeanAndEffectiveWind(new Vec3(0.0, -4.0, 0.0), new Vec3(0.0, -6.0, 0.0), 100L)
 				},
 				directions,
 				weights,
@@ -671,8 +671,8 @@ class AerodynamicsWindCouplingTest {
 				centerWind,
 				rotorAxis,
 				new Aerodynamics4McWindBridge.WindSample[] {
-						windSampleWithEffectiveWind(new Vec3(0.0, 4.0, 0.0), 20L),
-						windSampleWithEffectiveWind(new Vec3(0.0, -4.0, 0.0), 200L)
+						windSampleWithMeanAndEffectiveWind(new Vec3(0.0, 4.0, 0.0), new Vec3(0.0, 6.0, 0.0), 20L),
+						windSampleWithMeanAndEffectiveWind(new Vec3(0.0, -4.0, 0.0), new Vec3(0.0, -6.0, 0.0), 200L)
 				},
 				directions,
 				weights,
@@ -682,6 +682,45 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(new Vec3(4.0, 0.0, 0.0), freshEdges.gradientBodyMetersPerSecond());
 		assertEquals(new Vec3(3.0, 0.0, 0.0), halfStaleEdge.gradientBodyMetersPerSecond());
 		assertEquals(new Vec3(2.0, 0.0, 0.0), staleEdge.gradientBodyMetersPerSecond());
+	}
+
+	@Test
+	void rotorDiskWindBlendUsesMeanWindAndLeavesCoherentGustSeparated() {
+		Aerodynamics4McWindBridge.WindSample gustyEdge = new Aerodynamics4McWindBridge.WindSample(
+				true,
+				new Vec3(4.0, 1.0, 0.0),
+				new Vec3(9.0, 3.0, 0.0),
+				new Vec3(5.0, 2.0, 0.0),
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				1.0,
+				0.0,
+				true,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				20L,
+				0.0,
+				0.0
+		);
+
+		AerodynamicsWindCoupling.RotorDiskWindBlend blend = AerodynamicsWindCoupling.rotorDiskWindBlend(
+				new Vec3(2.0, 0.0, 0.0),
+				new Vec3(0.0, 1.0, 0.0),
+				new Aerodynamics4McWindBridge.WindSample[] { gustyEdge },
+				new Vec3[] { new Vec3(1.0, 0.0, 0.0) },
+				new double[] { 1.0 },
+				1.0
+		);
+
+		assertEquals(new Vec3(3.0, 0.5, 0.0), blend.meanWindWorldMetersPerSecond());
+		assertEquals(1.0, blend.gradientBodyMetersPerSecond().x(), 1.0e-9);
 	}
 
 	@Test
@@ -766,7 +805,7 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(0.73, sample.confidence(), 1.0e-9);
 		assertEquals("l2", sample.sourceLevel());
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceQualityFactor(sample), 1.0e-9);
-		assertEquals(fallbackWind, AerodynamicsWindCoupling.sourceWeightedWind(fallbackWind, sample));
+		assertEquals(fallbackWind, AerodynamicsWindCoupling.sourceWeightedEffectiveWind(fallbackWind, sample));
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedPressureAnomalyPascals(sample), 1.0e-9);
 		assertEquals(20.0, AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(20.0, sample), 1.0e-9);
 		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedHumidity(sample), 1.0e-9);

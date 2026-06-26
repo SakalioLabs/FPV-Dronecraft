@@ -194,7 +194,7 @@ public final class AerodynamicsWindCoupling {
 		return MathUtil.clamp(sourceUpdraft - explicitVerticalGust, -12.0, 12.0);
 	}
 
-	public static Vec3 sourceWeightedWind(Vec3 fallbackWindWorldMetersPerSecond, Aerodynamics4McWindBridge.WindSample sample) {
+	public static Vec3 sourceWeightedEffectiveWind(Vec3 fallbackWindWorldMetersPerSecond, Aerodynamics4McWindBridge.WindSample sample) {
 		Vec3 fallback = fallbackWindWorldMetersPerSecond == null || !fallbackWindWorldMetersPerSecond.isFinite()
 				? Vec3.ZERO
 				: fallbackWindWorldMetersPerSecond;
@@ -367,7 +367,7 @@ public final class AerodynamicsWindCoupling {
 		int sampleCount = lengthOf(sampleWindSamples);
 		Vec3[] sampleWindVelocities = new Vec3[sampleCount];
 		for (int i = 0; i < sampleCount; i++) {
-			sampleWindVelocities[i] = sourceWeightedWind(centerWind, sampleWindSamples[i]);
+			sampleWindVelocities[i] = sourceWeightedMeanWind(centerWind, sampleWindSamples[i]);
 		}
 		return rotorDiskWindBlend(
 				centerWind,

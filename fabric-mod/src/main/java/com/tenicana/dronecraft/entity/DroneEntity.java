@@ -1847,9 +1847,9 @@ public class DroneEntity extends Entity {
 		double[] rotorLocalVoxelPrecipitationExposureFactors = new double[rotorCount];
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		Vec3 safeBaselineWind = baselineWindVelocityWorldMetersPerSecond == null || !baselineWindVelocityWorldMetersPerSecond.isFinite()
-				? bodyWind.effectiveVelocityWorldMetersPerSecond()
+				? bodyWind.meanVelocityWorldMetersPerSecond()
 				: baselineWindVelocityWorldMetersPerSecond;
-		Vec3 bodyAeroWind = bodyWind.effectiveVelocityWorldMetersPerSecond();
+		Vec3 bodyAeroWind = bodyWind.meanVelocityWorldMetersPerSecond();
 		RotorPlaneSampleDirection[] sampleDirections = rotorPlaneSampleDirections();
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotorGeometry.rotor(i);
@@ -1859,7 +1859,7 @@ public class DroneEntity extends Entity {
 					rotorWind,
 					bodyLocalVoxelObstacleResidual
 			);
-			Vec3 centerWind = AerodynamicsWindCoupling.sourceWeightedWind(bodyAeroWind, rotorWind);
+			Vec3 centerWind = AerodynamicsWindCoupling.sourceWeightedMeanWind(bodyAeroWind, rotorWind);
 			Vec3 rotorAxisWorld = simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody());
 			double sampleRadius = rotor.radiusMeters() * ROTOR_DISK_SURFACE_SAMPLE_RADIUS_SCALE;
 			Aerodynamics4McWindBridge.WindSample[] sampleWinds = new Aerodynamics4McWindBridge.WindSample[sampleDirections.length];

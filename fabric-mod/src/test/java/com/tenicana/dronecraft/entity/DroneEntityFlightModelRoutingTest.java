@@ -161,6 +161,12 @@ class DroneEntityFlightModelRoutingTest {
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.rotorPlaneWorldDirection("), "rotor sample directions should be projected by SimulationFlightRuntime");
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedGroundEffectThrustMultiplier("), "ground effect weighting should be projected by SimulationFlightRuntime");
 		assertTrue(rotorEnvironmentMethods.contains("simulationRuntime.weightedCeilingEffectThrustMultiplier("), "ceiling effect weighting should be projected by SimulationFlightRuntime");
+		assertTrue(rotorEnvironmentMethods.contains("bodyWind.meanVelocityWorldMetersPerSecond()"),
+				"rotor A4MC disk field should be referenced to mean wind while source gust remains a core transient");
+		assertTrue(rotorEnvironmentMethods.contains("AerodynamicsWindCoupling.sourceWeightedMeanWind(bodyAeroWind, rotorWind)"),
+				"rotor A4MC center wind should use mean wind instead of effective gust wind");
+		assertFalse(rotorEnvironmentMethods.contains("AerodynamicsWindCoupling.sourceWeightedWind(bodyAeroWind, rotorWind)"),
+				"rotor A4MC disk field should not fold coherent source gust into disk wind");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.state()"), "rotor environment sampling should not read DroneState directly");
 		assertFalse(rotorEnvironmentMethods.contains("simulationRuntime.config()"), "rotor environment sampling should not read DroneConfig directly");
 		assertTrue(movementMethods.contains("simulationRuntime.movementState()"), "movement state should be projected by SimulationFlightRuntime");
