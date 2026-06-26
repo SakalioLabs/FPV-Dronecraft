@@ -3487,6 +3487,22 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblMixingShapesDrydenTurbulence() {
+		DroneEnvironment neutralAbl = a4mcAblWind(0.55, 0.0, 0.0);
+		DroneEnvironment unstableMixedAbl = a4mcAblWind(0.55, 0.90, 0.90);
+		DroneEnvironment stableMixedAbl = a4mcAblWind(0.55, -0.90, 0.90);
+
+		double neutralDrydenRms = drydenRmsForEnvironment(neutralAbl);
+		double unstableDrydenRms = drydenRmsForEnvironment(unstableMixedAbl);
+		double stableDrydenRms = drydenRmsForEnvironment(stableMixedAbl);
+
+		assertTrue(unstableDrydenRms > neutralDrydenRms * 1.30,
+				() -> "unstable=" + unstableDrydenRms + " neutral=" + neutralDrydenRms);
+		assertTrue(stableDrydenRms < neutralDrydenRms * 0.94,
+				() -> "stable=" + stableDrydenRms + " neutral=" + neutralDrydenRms);
+	}
+
+	@Test
 	void restoredAerodynamicTransientStateContinuesWindAndAirframeFilters() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics source = new DronePhysics(config);
@@ -12196,6 +12212,56 @@ class DronePhysicsTest {
 				precipitationWetness,
 				ambientTemperatureCelsius
 		);
+	}
+
+	private static DroneEnvironment a4mcAblWind(double turbulenceIntensity, double ablStability, double ablMixingStrength) {
+		return new DroneEnvironment(
+				new Vec3(9.0, 0.0, 0.0),
+				1.0,
+				6.0,
+				turbulenceIntensity,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				false,
+				0.0,
+				false,
+				0.0,
+				ablStability,
+				ablMixingStrength
+		);
+	}
+
+	private static double drydenRmsForEnvironment(DroneEnvironment environment) {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		double sumSquared = 0.0;
+		int samples = 0;
+		for (int i = 0; i < 1800; i++) {
+			physics.step(idle, 0.005, environment);
+			if (i >= 240) {
+				sumSquared += physics.state().drydenTurbulenceVelocityWorldMetersPerSecond().lengthSquared();
+				samples++;
+			}
+		}
+		return Math.sqrt(sumSquared / samples);
 	}
 
 	private static double averageRotorThrust(DroneState state) {

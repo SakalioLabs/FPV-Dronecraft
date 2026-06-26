@@ -362,7 +362,9 @@ public class DroneEntity extends Entity {
 			boolean hasTemperature,
 			double temperatureCelsius,
 			boolean hasHumidity,
-			double humidity
+			double humidity,
+			double ablStability,
+			double ablMixingStrength
 	) {
 	}
 
@@ -1303,7 +1305,9 @@ public class DroneEntity extends Entity {
 				windSource.hasTemperature(),
 				windSource.temperatureCelsius(),
 				windSource.hasHumidity(),
-				windSource.humidity()
+				windSource.humidity(),
+				windSource.ablStability(),
+				windSource.ablMixingStrength()
 		);
 	}
 
@@ -1378,7 +1382,9 @@ public class DroneEntity extends Entity {
 				windSource.hasTemperature(),
 				windSource.temperatureCelsius(),
 				windSource.hasHumidity(),
-				windSource.humidity()
+				windSource.humidity(),
+				windSource.ablStability(),
+				windSource.ablMixingStrength()
 		);
 	}
 
@@ -1398,6 +1404,8 @@ public class DroneEntity extends Entity {
 					false,
 					0.0,
 					false,
+					0.0,
+					0.0,
 					0.0
 			);
 		}
@@ -1413,7 +1421,9 @@ public class DroneEntity extends Entity {
 					externalWind.hasAmbientTemperature(),
 					externalWind.ambientTemperatureCelsius(),
 					externalWind.hasHumidity(),
-					externalWind.humidity()
+					externalWind.humidity(),
+					externalWind.ablStability(),
+					externalWind.ablMixingStrength()
 			);
 		}
 		return new WindSourceTelemetry(
@@ -1427,6 +1437,8 @@ public class DroneEntity extends Entity {
 				false,
 				0.0,
 				false,
+				0.0,
+				0.0,
 				0.0
 		);
 	}

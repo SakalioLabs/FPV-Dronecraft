@@ -67,7 +67,9 @@ class AerodynamicsWindCouplingTest {
 				0.0,
 				0.80,
 				true,
-				true
+				true,
+				0.0,
+				0.0
 		);
 
 		assertEquals(0.456, AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(sample), 1.0e-9);

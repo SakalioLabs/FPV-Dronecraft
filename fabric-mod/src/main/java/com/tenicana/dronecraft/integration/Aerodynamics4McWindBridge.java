@@ -73,6 +73,8 @@ public final class Aerodynamics4McWindBridge {
 					sampleClass.getMethod("humidity"),
 					sampleClass.getMethod("confidence"),
 					methodOrNull(sampleClass, "hasLocalL2Modifier"),
+					methodOrNull(sampleClass, "ablStability"),
+					methodOrNull(sampleClass, "ablMixingStrength"),
 					vectorClass.getMethod("x"),
 					vectorClass.getMethod("y"),
 					vectorClass.getMethod("z")
@@ -126,6 +128,8 @@ public final class Aerodynamics4McWindBridge {
 		private final Method humidity;
 		private final Method confidence;
 		private final Method hasLocalL2Modifier;
+		private final Method ablStability;
+		private final Method ablMixingStrength;
 		private final Method vecX;
 		private final Method vecY;
 		private final Method vecZ;
@@ -147,6 +151,8 @@ public final class Aerodynamics4McWindBridge {
 				Method humidity,
 				Method confidence,
 				Method hasLocalL2Modifier,
+				Method ablStability,
+				Method ablMixingStrength,
 				Method vecX,
 				Method vecY,
 				Method vecZ
@@ -167,6 +173,8 @@ public final class Aerodynamics4McWindBridge {
 			this.humidity = humidity;
 			this.confidence = confidence;
 			this.hasLocalL2Modifier = hasLocalL2Modifier;
+			this.ablStability = ablStability;
+			this.ablMixingStrength = ablMixingStrength;
 			this.vecX = vecX;
 			this.vecY = vecY;
 			this.vecZ = vecZ;
@@ -208,7 +216,9 @@ public final class Aerodynamics4McWindBridge {
 						number(humidity.invoke(sample)),
 						number(confidence.invoke(sample)),
 						trusted,
-						hasLocalL2Modifier != null && bool(hasLocalL2Modifier, sample)
+						hasLocalL2Modifier != null && bool(hasLocalL2Modifier, sample),
+						optionalNumber(ablStability, sample),
+						optionalNumber(ablMixingStrength, sample)
 				);
 			} catch (InvocationTargetException error) {
 				disableAfterFailure(error.getCause() == null ? error : error.getCause());
@@ -239,6 +249,10 @@ public final class Aerodynamics4McWindBridge {
 		return value instanceof Number number ? number.doubleValue() : 0.0;
 	}
 
+	private static double optionalNumber(Method method, Object target) throws ReflectiveOperationException {
+		return method == null ? 0.0 : number(method.invoke(target));
+	}
+
 	private static void disableAfterFailure(Throwable error) {
 		sampler = UnavailableSampler.INSTANCE;
 		FpvDronecraftMod.LOGGER.warn("Aerodynamics4MC wind bridge disabled after sampling failure", error);
@@ -258,7 +272,9 @@ public final class Aerodynamics4McWindBridge {
 			double humidity,
 			double confidence,
 			boolean trustedForGameplay,
-			boolean localVoxelFlow
+			boolean localVoxelFlow,
+			double ablStability,
+			double ablMixingStrength
 	) {
 		public WindSample {
 			meanVelocityWorldMetersPerSecond = sanitizeVec(meanVelocityWorldMetersPerSecond);
@@ -280,6 +296,8 @@ public final class Aerodynamics4McWindBridge {
 				humidity = MathUtil.clamp(humidity, 0.0, 1.0);
 			}
 			confidence = finiteClamped(confidence, 0.0, 1.0, 0.0);
+			ablStability = finiteClamped(ablStability, -1.0, 1.0, 0.0);
+			ablMixingStrength = finiteClamped(ablMixingStrength, 0.0, 1.0, 0.0);
 			hasFlow = hasFlow && trustedForGameplay;
 		}
 
@@ -298,7 +316,9 @@ public final class Aerodynamics4McWindBridge {
 					0.0,
 					0.0,
 					false,
-					false
+					false,
+					0.0,
+					0.0
 			);
 		}
 

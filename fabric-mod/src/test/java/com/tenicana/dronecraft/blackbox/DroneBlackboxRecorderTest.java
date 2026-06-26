@@ -54,7 +54,9 @@ class DroneBlackboxRecorderTest {
 				true,
 				7.5,
 				true,
-				0.61
+				0.61,
+				0.73,
+				0.66
 		);
 
 		for (int tick = 0; tick < 4; tick++) {
@@ -426,6 +428,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_source_confidence"));
 		assertTrue(csv.contains("wind_source_shelter_factor"));
 		assertTrue(csv.contains("wind_source_humidity"));
+		assertTrue(csv.contains("wind_source_abl_stability"));
+		assertTrue(csv.contains("wind_source_abl_mixing_strength"));
 		assertTrue(csv.contains("gyro_bias_pitch_dps"));
 		assertTrue(csv.contains("gyro_clip"));
 		assertTrue(csv.contains("gyro_blade_pass_notch_hz"));
@@ -665,6 +669,8 @@ class DroneBlackboxRecorderTest {
 		assertEquals(7.5, Double.parseDouble(row[indexOf(header, "wind_source_temperature_c")]), 1.0e-5);
 		assertEquals("true", row[indexOf(header, "wind_source_has_humidity")]);
 		assertEquals(0.61, Double.parseDouble(row[indexOf(header, "wind_source_humidity")]), 1.0e-5);
+		assertEquals(0.73, Double.parseDouble(row[indexOf(header, "wind_source_abl_stability")]), 1.0e-5);
+		assertEquals(0.66, Double.parseDouble(row[indexOf(header, "wind_source_abl_mixing_strength")]), 1.0e-5);
 		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_disk_wind_gradient_mps")]), 1.0e-5);
 		assertEquals(0.42, Double.parseDouble(row[indexOf(header, "rotor_0_disk_wind_gradient_mps")]), 1.0e-5);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_3_disk_wind_gradient_mps")]), 1.0e-9);
@@ -781,6 +787,8 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.44, windSourceStats.maxShelterFactor(), 1.0e-5);
 		assertEquals(0.37, windSourceStats.maxShearMagnitudePerBlock(), 1.0e-5);
 		assertEquals(1.25, windSourceStats.maxAbsUpdraftMetersPerSecond(), 1.0e-5);
+		assertEquals(0.73, windSourceStats.maxAbsAblStability(), 1.0e-5);
+		assertEquals(0.66, windSourceStats.maxAblMixingStrength(), 1.0e-5);
 		assertEquals(0.42, windSourceStats.maxRotorDiskWindGradientMetersPerSecond(), 1.0e-5);
 		assertEquals(10, summary.maxPhysicsSubsteps());
 		assertEquals(200.0, summary.maxPhysicsRateHertz(), 0.001);
@@ -1015,6 +1023,8 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("shelter 0.44"));
 		assertTrue(summary.formatForChat().contains("srcshear 0.37/m"));
 		assertTrue(summary.formatForChat().contains("updraft 1.25m/s"));
+		assertTrue(summary.formatForChat().contains("abl 0.73"));
+		assertTrue(summary.formatForChat().contains("mix 0.66"));
 		assertTrue(summary.formatForChat().contains("diskgrad 0.42m/s"));
 		assertTrue(summary.formatForChat().contains("mix-edge"));
 		assertTrue(summary.formatForChat().contains("mix-head"));

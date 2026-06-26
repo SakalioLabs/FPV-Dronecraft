@@ -557,6 +557,8 @@ public final class DroneBlackboxSample {
 			"wind_source_temperature_c",
 			"wind_source_has_humidity",
 			"wind_source_humidity",
+			"wind_source_abl_stability",
+			"wind_source_abl_mixing_strength",
 			"air_density_ratio",
 			"effective_air_density_ratio",
 			"ambient_temperature_c",
@@ -1950,6 +1952,8 @@ public final class DroneBlackboxSample {
 		row.add(environment.windSourceTemperatureCelsius(), "%.3f");
 		row.add(environment.windSourceHasHumidity());
 		row.add(environment.windSourceHumidity(), "%.5f");
+		row.add(environment.windSourceAblStability(), "%.5f");
+		row.add(environment.windSourceAblMixingStrength(), "%.5f");
 		row.add(environment.airDensityRatio(), "%.5f");
 		row.add(environment.effectiveAirDensityRatio(), "%.5f");
 		row.add(environment.ambientTemperatureCelsius(), "%.3f");

@@ -87,6 +87,8 @@ class DroneEnvironmentTest {
 				true,
 				120.0,
 				true,
+				1.8,
+				2.0,
 				1.8
 		);
 
@@ -101,5 +103,7 @@ class DroneEnvironmentTest {
 		assertEquals(65.0, environment.windSourceTemperatureCelsius(), 1.0e-9);
 		assertEquals(true, environment.windSourceHasHumidity());
 		assertEquals(1.0, environment.windSourceHumidity(), 1.0e-9);
+		assertEquals(1.0, environment.windSourceAblStability(), 1.0e-9);
+		assertEquals(1.0, environment.windSourceAblMixingStrength(), 1.0e-9);
 	}
 }

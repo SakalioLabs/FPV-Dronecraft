@@ -6280,7 +6280,28 @@ public final class DronePhysics {
 	}
 
 	private static double atmosphericDrydenIntensity(DroneEnvironment environment) {
-		return MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
+		double baseTurbulence = MathUtil.clamp(environment.turbulenceIntensity(), 0.0, 1.8);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability(), -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength(), 0.0, 1.0);
+		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
+			return baseTurbulence;
+		}
+
+		double unstable = Math.max(0.0, ablStability);
+		double stable = Math.max(0.0, -ablStability);
+		double mixingMultiplier = 1.0
+				+ 0.18 * ablMixing
+				+ 0.42 * unstable * ablMixing
+				- 0.34 * stable * (0.85 + 0.15 * (1.0 - ablMixing));
+		double horizontalWindSpeed = Math.hypot(
+				environment.windVelocityWorldMetersPerSecond().x(),
+				environment.windVelocityWorldMetersPerSecond().z()
+		);
+		double convectiveFloor = 0.22
+				* unstable
+				* ablMixing
+				* smoothStep(1.0, 8.0, horizontalWindSpeed);
+		return MathUtil.clamp(baseTurbulence * MathUtil.clamp(mixingMultiplier, 0.55, 1.70) + convectiveFloor, 0.0, 1.8);
 	}
 
 	private double updateDrydenAxis(double currentValue, double sigmaMetersPerSecond, double timeConstantSeconds, double dtSeconds) {
