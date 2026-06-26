@@ -10252,6 +10252,47 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcPressureGradientAsymmetryMovesAirframePressureCenter() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0);
+		DronePhysics freshLocal = new DronePhysics(config);
+		DronePhysics staleLocal = new DronePhysics(config);
+		Vec3 straightVelocity = new Vec3(0.0, 0.0, 18.0);
+		Vec3[] rightSidePressureGradient = {
+				new Vec3(2.4, 0.0, 0.0),
+				Vec3.ZERO,
+				Vec3.ZERO,
+				new Vec3(2.4, 0.0, 0.0)
+		};
+		DroneEnvironment freshPressureGradient = a4mcPressureGradientPressureCenterWind(
+				rightSidePressureGradient,
+				true,
+				1.0,
+				0L
+		);
+		DroneEnvironment stalePressureGradient = a4mcPressureGradientPressureCenterWind(
+				rightSidePressureGradient,
+				true,
+				1.0,
+				160L
+		);
+
+		for (int i = 0; i < 120; i++) {
+			holdInCruise(freshLocal, straightVelocity);
+			holdInCruise(staleLocal, straightVelocity);
+			freshLocal.step(DroneInput.idle(), 0.005, freshPressureGradient);
+			staleLocal.step(DroneInput.idle(), 0.005, stalePressureGradient);
+		}
+
+		Vec3 freshTorque = freshLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 staleTorque = staleLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertTrue(Math.abs(freshTorque.y()) > 0.006, () -> "freshTorque=" + freshTorque);
+		assertTrue(Math.abs(staleTorque.y()) < 0.0015, () -> "staleTorque=" + staleTorque);
+	}
+
+	@Test
 	void rotorOutwardCantTiltsThrustAxesAndReducesVerticalLift() {
 		DroneConfig base = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -13712,6 +13753,62 @@ class DronePhysicsTest {
 				null,
 				rotorLocalVoxelObstacleResiduals,
 				null
+		);
+	}
+
+	private static DroneEnvironment a4mcPressureGradientPressureCenterWind(
+			Vec3[] rotorA4mcPressureGradientWinds,
+			boolean localVoxelFlow,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				new double[] {0.0, 0.0, 0.0, 0.0},
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				confidence,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				localVoxelFlow,
+				"l2",
+				"server_authoritative",
+				freshnessAgeTicks,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				null,
+				null,
+				null,
+				null,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				rotorA4mcPressureGradientWinds
 		);
 	}
 

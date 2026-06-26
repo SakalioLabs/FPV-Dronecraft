@@ -6011,7 +6011,12 @@ public final class DronePhysics {
 		for (int i = 0; i < count; i++) {
 			double localVoxelCoverage = MathUtil.clamp(1.0 - environment.rotorLocalVoxelObstacleResidual(i), 0.0, 1.0);
 			double shelterObstruction = MathUtil.clamp(environment.rotorA4mcShelterObstruction(i), 0.0, 1.0);
-			double signal = localVoxelCoverage + 0.65 * shelterObstruction;
+			double pressureGradientSignal = smoothStep(
+					0.15,
+					1.80,
+					environment.rotorA4mcPressureGradientWindBodyMetersPerSecond(i).length()
+			);
+			double signal = localVoxelCoverage + 0.65 * shelterObstruction + 0.85 * pressureGradientSignal;
 			signals[i] = signal;
 			signalSum += signal;
 		}
