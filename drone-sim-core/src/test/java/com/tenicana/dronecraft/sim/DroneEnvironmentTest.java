@@ -86,6 +86,9 @@ class DroneEnvironmentTest {
 				-1.0,
 				48.0,
 				true,
+				"L2!",
+				"SERVER Authoritative",
+				2_000_000L,
 				true,
 				120.0,
 				true,
@@ -102,6 +105,9 @@ class DroneEnvironmentTest {
 		assertEquals(0.0, environment.windShelterFactor(), 1.0e-9);
 		assertEquals(12.0, environment.windUpdraftMetersPerSecond(), 1.0e-9);
 		assertEquals(true, environment.windSourceLocalVoxelFlow());
+		assertEquals("l2_", environment.windSourceLevel());
+		assertEquals("server_authoritative", environment.windSourceAuthority());
+		assertEquals(1_000_000L, environment.windSourceFreshnessAgeTicks());
 		assertEquals(true, environment.windSourceHasTemperature());
 		assertEquals(65.0, environment.windSourceTemperatureCelsius(), 1.0e-9);
 		assertEquals(true, environment.windSourceHasHumidity());

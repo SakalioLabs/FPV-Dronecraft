@@ -26,6 +26,9 @@ public record DroneEnvironment(
 		double windShelterFactor,
 		double windUpdraftMetersPerSecond,
 		boolean windSourceLocalVoxelFlow,
+		String windSourceLevel,
+		String windSourceAuthority,
+		long windSourceFreshnessAgeTicks,
 		boolean windSourceHasTemperature,
 		double windSourceTemperatureCelsius,
 		boolean windSourceHasHumidity,
@@ -38,6 +41,8 @@ public record DroneEnvironment(
 	public static final String WIND_SOURCE_MINECRAFT_WEATHER = "minecraft_weather";
 	public static final String WIND_SOURCE_AERODYNAMICS4MC = "aerodynamics4mc";
 	public static final String WIND_SOURCE_ENVIRONMENT_OVERRIDE = "environment_override";
+	public static final String WIND_SOURCE_LEVEL_NONE = "none";
+	public static final String WIND_SOURCE_AUTHORITY_NONE = "none";
 
 	private static final double SEA_LEVEL_PRESSURE_HECTOPASCALS = 1013.25;
 	private static final double SEA_LEVEL_PRESSURE_PASCALS = SEA_LEVEL_PRESSURE_HECTOPASCALS * 100.0;
@@ -118,7 +123,7 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0, 0.0, 0.0);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public DroneEnvironment {
@@ -172,6 +177,11 @@ public record DroneEnvironment(
 			windUpdraftMetersPerSecond = 0.0;
 		}
 		windUpdraftMetersPerSecond = MathUtil.clamp(windUpdraftMetersPerSecond, -12.0, 12.0);
+		windSourceLevel = sanitizeWindSourceIdWithFallback(windSourceLevel, WIND_SOURCE_LEVEL_NONE);
+		windSourceAuthority = sanitizeWindSourceIdWithFallback(windSourceAuthority, WIND_SOURCE_AUTHORITY_NONE);
+		windSourceFreshnessAgeTicks = windSourceFreshnessAgeTicks < 0L
+				? -1L
+				: Math.min(windSourceFreshnessAgeTicks, 1_000_000L);
 		if (!windSourceHasTemperature || !Double.isFinite(windSourceTemperatureCelsius)) {
 			windSourceHasTemperature = false;
 			windSourceTemperatureCelsius = 0.0;
@@ -207,7 +217,7 @@ public record DroneEnvironment(
 	}
 
 	public static DroneEnvironment calm() {
-		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, 0.0, false, false, 0.0, false, 0.0, 0.0, 0.0);
+		return new DroneEnvironment(Vec3.ZERO, 1.0, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0, Double.POSITIVE_INFINITY, null, null, null, null, 0.0, null, 0.0, 25.0, null, null, WIND_SOURCE_CALM, true, 1.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, false, 0.0, false, 0.0, 0.0, 0.0);
 	}
 
 	public static double standardAtmospherePressureRatio(double altitudeMeters) {
@@ -766,8 +776,12 @@ public record DroneEnvironment(
 	}
 
 	private static String sanitizeWindSourceId(String value) {
+		return sanitizeWindSourceIdWithFallback(value, WIND_SOURCE_INTERNAL);
+	}
+
+	private static String sanitizeWindSourceIdWithFallback(String value, String fallback) {
 		if (value == null || value.isBlank()) {
-			return WIND_SOURCE_INTERNAL;
+			return fallback;
 		}
 		String trimmed = value.trim();
 		StringBuilder builder = new StringBuilder(trimmed.length());
@@ -781,6 +795,6 @@ public record DroneEnvironment(
 				builder.append('_');
 			}
 		}
-		return builder.length() == 0 ? WIND_SOURCE_INTERNAL : builder.toString();
+		return builder.length() == 0 ? fallback : builder.toString();
 	}
 }

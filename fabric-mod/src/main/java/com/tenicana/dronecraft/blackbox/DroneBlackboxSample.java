@@ -554,6 +554,9 @@ public final class DroneBlackboxSample {
 			"wind_source_shelter_factor",
 			"wind_source_updraft_mps",
 			"wind_source_local_voxel_flow",
+			"wind_source_level",
+			"wind_source_authority",
+			"wind_source_freshness_age_ticks",
 			"wind_source_has_temperature",
 			"wind_source_temperature_c",
 			"wind_source_has_humidity",
@@ -1950,6 +1953,9 @@ public final class DroneBlackboxSample {
 		row.add(environment.windShelterFactor(), "%.5f");
 		row.add(environment.windUpdraftMetersPerSecond(), "%.5f");
 		row.add(environment.windSourceLocalVoxelFlow());
+		row.add(environment.windSourceLevel());
+		row.add(environment.windSourceAuthority());
+		row.add(environment.windSourceFreshnessAgeTicks());
 		row.add(environment.windSourceHasTemperature());
 		row.add(environment.windSourceTemperatureCelsius(), "%.3f");
 		row.add(environment.windSourceHasHumidity());

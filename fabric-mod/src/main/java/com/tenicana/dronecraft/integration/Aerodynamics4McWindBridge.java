@@ -74,6 +74,11 @@ public final class Aerodynamics4McWindBridge {
 					sampleClass.getMethod("confidence"),
 					methodOrNull(sampleClass, "pressure"),
 					methodOrNull(sampleClass, "hasLocalL2Modifier"),
+					methodOrNull(sampleClass, "sourceLevel"),
+					methodOrNull(sampleClass, "authority"),
+					methodOrNull(sampleClass, "l1Epoch"),
+					methodOrNull(sampleClass, "worldDeltaEpoch"),
+					methodOrNull(sampleClass, "l2Epoch"),
 					methodOrNull(sampleClass, "ablStability"),
 					methodOrNull(sampleClass, "ablMixingStrength"),
 					vectorClass.getMethod("x"),
@@ -130,6 +135,11 @@ public final class Aerodynamics4McWindBridge {
 		private final Method confidence;
 		private final Method pressure;
 		private final Method hasLocalL2Modifier;
+		private final Method sourceLevel;
+		private final Method authority;
+		private final Method l1Epoch;
+		private final Method worldDeltaEpoch;
+		private final Method l2Epoch;
 		private final Method ablStability;
 		private final Method ablMixingStrength;
 		private final Method vecX;
@@ -154,6 +164,11 @@ public final class Aerodynamics4McWindBridge {
 				Method confidence,
 				Method pressure,
 				Method hasLocalL2Modifier,
+				Method sourceLevel,
+				Method authority,
+				Method l1Epoch,
+				Method worldDeltaEpoch,
+				Method l2Epoch,
 				Method ablStability,
 				Method ablMixingStrength,
 				Method vecX,
@@ -177,6 +192,11 @@ public final class Aerodynamics4McWindBridge {
 			this.confidence = confidence;
 			this.pressure = pressure;
 			this.hasLocalL2Modifier = hasLocalL2Modifier;
+			this.sourceLevel = sourceLevel;
+			this.authority = authority;
+			this.l1Epoch = l1Epoch;
+			this.worldDeltaEpoch = worldDeltaEpoch;
+			this.l2Epoch = l2Epoch;
 			this.ablStability = ablStability;
 			this.ablMixingStrength = ablMixingStrength;
 			this.vecX = vecX;
@@ -206,6 +226,12 @@ public final class Aerodynamics4McWindBridge {
 						? number(temperatureKelvin.invoke(sample)) - 273.15
 						: 0.0;
 				boolean hasSampleHumidity = bool(hasHumidity, sample);
+				long freshnessAgeTicks = freshnessAgeTicks(
+						level.getGameTime(),
+						optionalLong(l1Epoch, sample),
+						optionalLong(worldDeltaEpoch, sample),
+						optionalLong(l2Epoch, sample)
+				);
 				return new WindSample(
 						true,
 						vec(meanVelocityVector.invoke(sample)),
@@ -222,6 +248,9 @@ public final class Aerodynamics4McWindBridge {
 						optionalNumber(pressure, sample),
 						trusted,
 						hasLocalL2Modifier != null && bool(hasLocalL2Modifier, sample),
+						optionalName(sourceLevel, sample, "none"),
+						optionalName(authority, sample, "none"),
+						freshnessAgeTicks,
 						optionalNumber(ablStability, sample),
 						optionalNumber(ablMixingStrength, sample)
 				);
@@ -258,6 +287,24 @@ public final class Aerodynamics4McWindBridge {
 		return method == null ? 0.0 : number(method.invoke(target));
 	}
 
+	private static long optionalLong(Method method, Object target) throws ReflectiveOperationException {
+		Object value = method == null ? null : method.invoke(target);
+		return value instanceof Number number ? number.longValue() : -1L;
+	}
+
+	private static String optionalName(Method method, Object target, String fallback) throws ReflectiveOperationException {
+		Object value = method == null ? null : method.invoke(target);
+		return value == null ? fallback : value.toString();
+	}
+
+	private static long freshnessAgeTicks(long currentTick, long l1Epoch, long worldDeltaEpoch, long l2Epoch) {
+		long latest = Math.max(l1Epoch, Math.max(worldDeltaEpoch, l2Epoch));
+		if (latest < 0L) {
+			return -1L;
+		}
+		return Math.max(0L, currentTick - latest);
+	}
+
 	private static void disableAfterFailure(Throwable error) {
 		sampler = UnavailableSampler.INSTANCE;
 		FpvDronecraftMod.LOGGER.warn("Aerodynamics4MC wind bridge disabled after sampling failure", error);
@@ -279,6 +326,9 @@ public final class Aerodynamics4McWindBridge {
 			double pressureAnomalyPascals,
 			boolean trustedForGameplay,
 			boolean localVoxelFlow,
+			String sourceLevel,
+			String sourceAuthority,
+			long freshnessAgeTicks,
 			double ablStability,
 			double ablMixingStrength
 	) {
@@ -303,6 +353,9 @@ public final class Aerodynamics4McWindBridge {
 			}
 			confidence = finiteClamped(confidence, 0.0, 1.0, 0.0);
 			pressureAnomalyPascals = finiteClamped(pressureAnomalyPascals, -5000.0, 5000.0, 0.0);
+			sourceLevel = sanitizeToken(sourceLevel, "none");
+			sourceAuthority = sanitizeToken(sourceAuthority, "none");
+			freshnessAgeTicks = freshnessAgeTicks < 0L ? -1L : Math.min(freshnessAgeTicks, 1_000_000L);
 			ablStability = finiteClamped(ablStability, -1.0, 1.0, 0.0);
 			ablMixingStrength = finiteClamped(ablMixingStrength, 0.0, 1.0, 0.0);
 			hasFlow = hasFlow && trustedForGameplay;
@@ -325,6 +378,9 @@ public final class Aerodynamics4McWindBridge {
 					0.0,
 					false,
 					false,
+					"none",
+					"none",
+					-1L,
 					0.0,
 					0.0
 			);
@@ -336,6 +392,25 @@ public final class Aerodynamics4McWindBridge {
 
 		private static double finiteClamped(double value, double min, double max, double fallback) {
 			return Double.isFinite(value) ? MathUtil.clamp(value, min, max) : fallback;
+		}
+
+		private static String sanitizeToken(String value, String fallback) {
+			if (value == null || value.isBlank()) {
+				return fallback;
+			}
+			String trimmed = value.trim();
+			StringBuilder builder = new StringBuilder(trimmed.length());
+			for (int i = 0; i < trimmed.length(); i++) {
+				char c = trimmed.charAt(i);
+				if (c >= 'A' && c <= 'Z') {
+					builder.append((char) (c + 32));
+				} else if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_' || c == '-') {
+					builder.append(c);
+				} else {
+					builder.append('_');
+				}
+			}
+			return builder.length() == 0 ? fallback : builder.toString();
 		}
 	}
 }

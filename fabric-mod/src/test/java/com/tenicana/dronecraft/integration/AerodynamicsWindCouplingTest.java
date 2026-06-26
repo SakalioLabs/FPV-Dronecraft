@@ -69,6 +69,9 @@ class AerodynamicsWindCouplingTest {
 				-1250.0,
 				true,
 				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				3L,
 				0.0,
 				0.0
 		);
