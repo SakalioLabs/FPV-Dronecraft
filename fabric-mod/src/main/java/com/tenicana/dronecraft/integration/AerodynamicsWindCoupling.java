@@ -7,6 +7,8 @@ public final class AerodynamicsWindCoupling {
 	private static final double LOCAL_VOXEL_BASE_COVERAGE = 0.32;
 	private static final double LOCAL_VOXEL_SHELTER_COVERAGE = 0.48;
 	private static final double LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL = 0.28;
+	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN = 0.42;
+	private static final double LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION = 0.22;
 	private static final double SOURCE_GUST_TURBULENCE_GAIN_PER_MPS = 0.065;
 	private static final double MAX_SOURCE_GUST_TURBULENCE_BOOST = 0.26;
 	private static final long SOURCE_FULL_TRUST_AGE_TICKS = 40L;
@@ -40,6 +42,24 @@ public final class AerodynamicsWindCoupling {
 			return fallback;
 		}
 		return localVoxelObstacleResidualFactor(sample);
+	}
+
+	public static double localVoxelShelterFactorOrFallback(
+			Aerodynamics4McWindBridge.WindSample sample,
+			double fallbackShelterFactor
+	) {
+		double fallback = Double.isFinite(fallbackShelterFactor)
+				? MathUtil.clamp(fallbackShelterFactor, 0.0, 1.0)
+				: 0.0;
+		if (sample == null || !sample.hasFlow() || !sample.localVoxelFlow()) {
+			return fallback;
+		}
+		double sourceQuality = sourceQualityFactor(sample);
+		if (sourceQuality <= 1.0e-9) {
+			return fallback;
+		}
+		double shelter = Double.isFinite(sample.shelterFactor()) ? MathUtil.clamp(sample.shelterFactor(), 0.0, 1.0) : 0.0;
+		return fallback * (1.0 - sourceQuality) + shelter * sourceQuality;
 	}
 
 	static double localVoxelObstacleResidualFactor(
@@ -244,6 +264,59 @@ public final class AerodynamicsWindCoupling {
 		);
 	}
 
+	public static RotorDiskShelterBlend rotorDiskShelterBlend(
+			Aerodynamics4McWindBridge.WindSample centerSample,
+			Aerodynamics4McWindBridge.WindSample[] sampleWindSamples,
+			Vec3[] sampleDirectionsBody,
+			double[] sampleWeights,
+			double centerWeight
+	) {
+		double centerShelter = localVoxelShelterFactorOrFallback(centerSample, 0.0);
+		double safeCenterWeight = positiveWeight(centerWeight);
+		double weightedShelter = centerShelter * safeCenterWeight;
+		double totalWeight = safeCenterWeight;
+		Vec3 gradientBody = Vec3.ZERO;
+		double gradientWeight = 0.0;
+		int sampleCount = Math.min(
+				lengthOf(sampleWindSamples),
+				Math.min(lengthOf(sampleDirectionsBody), lengthOf(sampleWeights))
+		);
+		for (int i = 0; i < sampleCount; i++) {
+			double weight = positiveWeight(sampleWeights[i]);
+			if (weight <= 0.0) {
+				continue;
+			}
+			double sampleShelter = localVoxelShelterFactorOrFallback(sampleWindSamples[i], centerShelter);
+			weightedShelter += sampleShelter * weight;
+			totalWeight += weight;
+			Vec3 directionBody = finiteVec(sampleDirectionsBody[i]);
+			if (directionBody.lengthSquared() <= 1.0e-12) {
+				continue;
+			}
+			gradientBody = gradientBody.add(directionBody.multiply((sampleShelter - centerShelter) * weight));
+			gradientWeight += weight;
+		}
+		double meanShelter = totalWeight <= 1.0e-9 ? centerShelter : weightedShelter / totalWeight;
+		Vec3 gradient = gradientWeight <= 1.0e-9 ? Vec3.ZERO : gradientBody.multiply(1.0 / gradientWeight);
+		return new RotorDiskShelterBlend(meanShelter, gradient);
+	}
+
+	public static double localVoxelShelterGradientObstruction(RotorDiskShelterBlend blend) {
+		if (blend == null) {
+			return 0.0;
+		}
+		double gradient = blend.gradientBody().length();
+		if (gradient <= 1.0e-6) {
+			return 0.0;
+		}
+		double shelterGate = 0.35 + 0.65 * MathUtil.clamp(blend.meanShelterFactor(), 0.0, 1.0);
+		return MathUtil.clamp(
+				LOCAL_VOXEL_SHELTER_GRADIENT_OBSTRUCTION_GAIN * gradient * shelterGate,
+				0.0,
+				LOCAL_VOXEL_SHELTER_GRADIENT_MAX_OBSTRUCTION
+		);
+	}
+
 	public static double sourceQualityFactor(Aerodynamics4McWindBridge.WindSample sample) {
 		if (sample == null) {
 			return 0.0;
@@ -309,6 +382,13 @@ public final class AerodynamicsWindCoupling {
 		public RotorDiskWindBlend {
 			meanWindWorldMetersPerSecond = finiteVec(meanWindWorldMetersPerSecond);
 			gradientBodyMetersPerSecond = finiteVec(gradientBodyMetersPerSecond);
+		}
+	}
+
+	public record RotorDiskShelterBlend(double meanShelterFactor, Vec3 gradientBody) {
+		public RotorDiskShelterBlend {
+			meanShelterFactor = Double.isFinite(meanShelterFactor) ? MathUtil.clamp(meanShelterFactor, 0.0, 1.0) : 0.0;
+			gradientBody = finiteVec(gradientBody).clamp(-1.0, 1.0);
 		}
 	}
 }

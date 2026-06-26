@@ -137,6 +137,48 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void rotorDiskShelterBlendCapturesDirectionalA4mcShelterGradient() {
+		AerodynamicsWindCoupling.RotorDiskShelterBlend blend = AerodynamicsWindCoupling.rotorDiskShelterBlend(
+				windSampleWithLocalVoxelShelter(0.25, true, 20L),
+				new Aerodynamics4McWindBridge.WindSample[] {
+						windSampleWithLocalVoxelShelter(1.0, true, 20L),
+						windSampleWithLocalVoxelShelter(0.25, true, 20L)
+				},
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(-1.0, 0.0, 0.0)
+				},
+				new double[] { 1.0, 1.0 },
+				1.0
+		);
+
+		assertEquals(0.50, blend.meanShelterFactor(), 1.0e-9);
+		assertEquals(new Vec3(0.375, 0.0, 0.0), blend.gradientBody());
+		assertEquals(0.1063125, AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(blend), 1.0e-9);
+	}
+
+	@Test
+	void rotorDiskShelterBlendTreatsMissingEdgesAsCenterShelter() {
+		AerodynamicsWindCoupling.RotorDiskShelterBlend blend = AerodynamicsWindCoupling.rotorDiskShelterBlend(
+				windSampleWithLocalVoxelShelter(0.70, true, 20L),
+				new Aerodynamics4McWindBridge.WindSample[] {
+						null,
+						windSampleWithLocalVoxelShelter(0.10, true, 200L)
+				},
+				new Vec3[] {
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(-1.0, 0.0, 0.0)
+				},
+				new double[] { 1.0, 1.0 },
+				1.0
+		);
+
+		assertEquals(0.70, blend.meanShelterFactor(), 1.0e-9);
+		assertEquals(Vec3.ZERO, blend.gradientBody());
+		assertEquals(0.0, AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(blend), 1.0e-9);
+	}
+
+	@Test
 	void windSampleAdapterUsesSanitizedA4mcTelemetry() {
 		Aerodynamics4McWindBridge.WindSample sample = new Aerodynamics4McWindBridge.WindSample(
 				true,

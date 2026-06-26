@@ -347,8 +347,8 @@ public class DroneEntity extends Entity {
 		}
 	}
 
-	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] localVoxelObstacleResiduals) {
-		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null, null);
+	private record RotorWindFieldSamples(Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] localVoxelObstacleResiduals, double[] localVoxelShelterObstructions, Vec3[] localVoxelShelterDirectionsBody) {
+		private static final RotorWindFieldSamples NONE = new RotorWindFieldSamples(null, null, null, null, null);
 
 		private double localVoxelObstacleResidual(int rotorIndex, double fallbackResidual) {
 			if (localVoxelObstacleResiduals == null || rotorIndex < 0 || rotorIndex >= localVoxelObstacleResiduals.length) {
@@ -356,6 +356,22 @@ public class DroneEntity extends Entity {
 			}
 			double residual = localVoxelObstacleResiduals[rotorIndex];
 			return Double.isFinite(residual) ? MathUtil.clamp(residual, 0.0, 1.0) : fallbackResidual;
+		}
+
+		private RotorFlowObstruction localVoxelShelterObstruction(int rotorIndex) {
+			if (localVoxelShelterObstructions == null
+					|| localVoxelShelterDirectionsBody == null
+					|| rotorIndex < 0
+					|| rotorIndex >= localVoxelShelterObstructions.length
+					|| rotorIndex >= localVoxelShelterDirectionsBody.length) {
+				return RotorFlowObstruction.CLEAR;
+			}
+			double obstruction = localVoxelShelterObstructions[rotorIndex];
+			Vec3 direction = localVoxelShelterDirectionsBody[rotorIndex];
+			if (!Double.isFinite(obstruction) || obstruction <= 1.0e-6 || direction == null || direction.lengthSquared() <= 1.0e-9) {
+				return RotorFlowObstruction.CLEAR;
+			}
+			return new RotorFlowObstruction(MathUtil.clamp(obstruction, 0.0, 1.0), direction.normalized());
 		}
 	}
 
@@ -1687,11 +1703,11 @@ public class DroneEntity extends Entity {
 			RotorDiskSurfaceSample surfaceSample = rotorDiskSurfaceSample(rotorCenterWorld, rotor, rotorPlaneDirections);
 			RotorFlowObstruction flowObstruction = rotorSideFlowObstruction(rotorCenterWorld, rotor, rotorPlaneDirections);
 			double rotorLocalVoxelObstacleResidual = rotorWindField.localVoxelObstacleResidual(i, localVoxelObstacleResidual);
-			double flowObstructionIntensity = MathUtil.clamp(
-					flowObstruction.intensity() * rotorLocalVoxelObstacleResidual,
-					0.0,
-					1.0
+			flowObstruction = combineRotorFlowObstructions(
+					scaledRotorFlowObstruction(flowObstruction, rotorLocalVoxelObstacleResidual),
+					rotorWindField.localVoxelShelterObstruction(i)
 			);
+			double flowObstructionIntensity = flowObstruction.intensity();
 			flowObstructionDirectionsBody[i] = flowObstruction.directionBody();
 			flowObstructions[i] = flowObstructionIntensity;
 			maxFlowObstruction = Math.max(maxFlowObstruction, flowObstructionIntensity);
@@ -1737,6 +1753,8 @@ public class DroneEntity extends Entity {
 		Vec3[] rotorWindVelocities = new Vec3[rotorCount];
 		Vec3[] rotorDiskWindGradients = new Vec3[rotorCount];
 		double[] rotorLocalVoxelObstacleResiduals = new double[rotorCount];
+		double[] rotorLocalVoxelShelterObstructions = new double[rotorCount];
+		Vec3[] rotorLocalVoxelShelterDirectionsBody = new Vec3[rotorCount];
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
 		Vec3 safeBaselineWind = baselineWindVelocityWorldMetersPerSecond == null || !baselineWindVelocityWorldMetersPerSecond.isFinite()
 				? bodyWind.effectiveVelocityWorldMetersPerSecond()
@@ -1773,14 +1791,32 @@ public class DroneEntity extends Entity {
 					sampleWeights,
 					ROTOR_DISK_SURFACE_CENTER_WEIGHT
 			);
+			AerodynamicsWindCoupling.RotorDiskShelterBlend diskShelter = AerodynamicsWindCoupling.rotorDiskShelterBlend(
+					rotorWind,
+					sampleWinds,
+					sampleDirectionsBody,
+					sampleWeights,
+					ROTOR_DISK_SURFACE_CENTER_WEIGHT
+			);
 			Vec3 diskMeanWind = diskWind.meanWindWorldMetersPerSecond();
 			Vec3 localDelta = diskMeanWind.subtract(bodyAeroWind).multiply(bodySourceQuality);
 			rotorWindVelocities[i] = safeBaselineWind.add(localDelta);
 			rotorDiskWindGradients[i] = diskWind.gradientBodyMetersPerSecond()
 					.multiply(bodySourceQuality)
 					.clamp(-12.0, 12.0);
+			double shelterObstruction = AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(diskShelter) * bodySourceQuality;
+			rotorLocalVoxelShelterObstructions[i] = shelterObstruction;
+			rotorLocalVoxelShelterDirectionsBody[i] = shelterObstruction <= 1.0e-6
+					? Vec3.ZERO
+					: diskShelter.gradientBody().normalized();
 		}
-		return new RotorWindFieldSamples(rotorWindVelocities, rotorDiskWindGradients, rotorLocalVoxelObstacleResiduals);
+		return new RotorWindFieldSamples(
+				rotorWindVelocities,
+				rotorDiskWindGradients,
+				rotorLocalVoxelObstacleResiduals,
+				rotorLocalVoxelShelterObstructions,
+				rotorLocalVoxelShelterDirectionsBody
+		);
 	}
 
 	private RotorDiskSurfaceSample rotorDiskSurfaceSample(Vec3 rotorCenterWorld, RotorSpec rotor, RotorPlaneSampleDirection[] sampleDirections) {
@@ -1843,6 +1879,57 @@ public class DroneEntity extends Entity {
 		return obstruction.intensity() <= 1.0e-6
 				? RotorFlowObstruction.CLEAR
 				: new RotorFlowObstruction(obstruction.intensity(), obstruction.directionBody());
+	}
+
+	private static RotorFlowObstruction scaledRotorFlowObstruction(RotorFlowObstruction obstruction, double scale) {
+		if (obstruction == null || obstruction.intensity() <= 1.0e-6) {
+			return RotorFlowObstruction.CLEAR;
+		}
+		double intensity = MathUtil.clamp(
+				obstruction.intensity() * (Double.isFinite(scale) ? MathUtil.clamp(scale, 0.0, 1.0) : 1.0),
+				0.0,
+				1.0
+		);
+		if (intensity <= 1.0e-6) {
+			return RotorFlowObstruction.CLEAR;
+		}
+		Vec3 direction = obstruction.directionBody();
+		return direction == null || direction.lengthSquared() <= 1.0e-9
+				? new RotorFlowObstruction(intensity, Vec3.ZERO)
+				: new RotorFlowObstruction(intensity, direction.normalized());
+	}
+
+	private static RotorFlowObstruction combineRotorFlowObstructions(
+			RotorFlowObstruction first,
+			RotorFlowObstruction second
+	) {
+		if (first == null || first.intensity() <= 1.0e-6) {
+			return scaledRotorFlowObstruction(second, 1.0);
+		}
+		if (second == null || second.intensity() <= 1.0e-6) {
+			return scaledRotorFlowObstruction(first, 1.0);
+		}
+		double firstIntensity = MathUtil.clamp(first.intensity(), 0.0, 1.0);
+		double secondIntensity = MathUtil.clamp(second.intensity(), 0.0, 1.0);
+		double combinedIntensity = MathUtil.clamp(
+				1.0 - (1.0 - firstIntensity) * (1.0 - secondIntensity),
+				0.0,
+				1.0
+		);
+		Vec3 direction = weightedObstructionDirection(first, firstIntensity)
+				.add(weightedObstructionDirection(second, secondIntensity));
+		return new RotorFlowObstruction(
+				combinedIntensity,
+				direction.lengthSquared() <= 1.0e-9 ? Vec3.ZERO : direction.normalized()
+		);
+	}
+
+	private static Vec3 weightedObstructionDirection(RotorFlowObstruction obstruction, double intensity) {
+		Vec3 direction = obstruction == null ? Vec3.ZERO : obstruction.directionBody();
+		if (direction == null || direction.lengthSquared() <= 1.0e-9 || intensity <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		return direction.normalized().multiply(intensity);
 	}
 
 	private DroneWakeAirflow sampleDroneWakeAirflow() {
