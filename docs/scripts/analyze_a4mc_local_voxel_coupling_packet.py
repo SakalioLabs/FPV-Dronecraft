@@ -133,6 +133,18 @@ def disk_mean(center_value: float, edge_delta: float) -> float:
     return center_value + edge_delta * affected_weight / total_weight
 
 
+def disk_weighted_mean(center_value: float, affected_edge_value: float, unaffected_edge_value: float) -> float:
+    edge_weight = 4.0 * ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 4.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT
+    affected_weight = ROTOR_DISK_SURFACE_CARDINAL_WEIGHT + 2.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT
+    unaffected_weight = edge_weight - affected_weight
+    total_weight = ROTOR_DISK_SURFACE_CENTER_WEIGHT + edge_weight
+    return (
+        center_value * ROTOR_DISK_SURFACE_CENTER_WEIGHT
+        + affected_edge_value * affected_weight
+        + unaffected_edge_value * unaffected_weight
+    ) / total_weight
+
+
 def pressure_wind_equivalent(gradient_pa: float) -> float:
     magnitude = abs(gradient_pa)
     if magnitude <= 1.0e-6:
@@ -147,6 +159,13 @@ def pressure_wind_equivalent(gradient_pa: float) -> float:
 
 def adopted_pressure(pressure_pa: float, quality: float) -> float:
     return clamp(pressure_pa, -MAX_LOCAL_VOXEL_PRESSURE_PA, MAX_LOCAL_VOXEL_PRESSURE_PA) * quality
+
+
+def adopted_shelter(shelter: float, quality: float, fallback_shelter: float) -> float:
+    fallback = clamp(fallback_shelter, 0.0, 1.0)
+    if quality <= 1.0e-9:
+        return fallback
+    return fallback * (1.0 - quality) + clamp(shelter, 0.0, 1.0) * quality
 
 
 def shelter_obstruction(mean_shelter: float, gradient: float) -> float:
@@ -474,12 +493,13 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
         "input_center_shelter": "fraction",
         "input_edge_shelter_delta": "fraction",
         "sample_edge_shelter_factor": "fraction",
-        "adopted_edge_shelter_delta": "fraction",
         "core_source_quality": "fraction",
+        "runtime_center_shelter_factor": "fraction",
+        "runtime_edge_shelter_factor": "fraction",
+        "runtime_unaffected_edge_shelter_factor": "fraction",
         "disk_mean_shelter_factor": "fraction",
         "disk_shelter_gradient_body_x": "fraction",
-        "raw_shelter_gradient_obstruction": "fraction",
-        "quality_weighted_shelter_obstruction": "fraction",
+        "runtime_shelter_gradient_obstruction": "fraction",
     }
     center_shelter = 0.35
     for confidence in CONFIDENCE_LEVELS:
@@ -487,9 +507,27 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
             quality = source_quality(True, confidence, age)
             for edge_delta in SHELTER_GRADIENT_DELTAS:
                 edge_shelter = clamp(center_shelter + edge_delta, 0.0, 1.0)
-                adopted_edge_delta = edge_shelter - center_shelter
-                gradient = disk_sample_gradient(adopted_edge_delta)
-                mean_shelter = clamp(disk_mean(center_shelter, adopted_edge_delta), 0.0, 1.0)
+                runtime_center_shelter = adopted_shelter(center_shelter, quality, 0.0)
+                runtime_edge_shelter = adopted_shelter(
+                    edge_shelter,
+                    quality,
+                    runtime_center_shelter,
+                )
+                runtime_unaffected_shelter = adopted_shelter(
+                    center_shelter,
+                    quality,
+                    runtime_center_shelter,
+                )
+                gradient = disk_sample_gradient(runtime_edge_shelter - runtime_unaffected_shelter)
+                mean_shelter = clamp(
+                    disk_weighted_mean(
+                        runtime_center_shelter,
+                        runtime_edge_shelter,
+                        runtime_unaffected_shelter,
+                    ),
+                    0.0,
+                    1.0,
+                )
                 obstruction = shelter_obstruction(mean_shelter, gradient)
                 metrics = {
                     "input_confidence": confidence,
@@ -497,12 +535,13 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
                     "input_center_shelter": center_shelter,
                     "input_edge_shelter_delta": edge_delta,
                     "sample_edge_shelter_factor": edge_shelter,
-                    "adopted_edge_shelter_delta": adopted_edge_delta,
                     "core_source_quality": quality,
+                    "runtime_center_shelter_factor": runtime_center_shelter,
+                    "runtime_edge_shelter_factor": runtime_edge_shelter,
+                    "runtime_unaffected_edge_shelter_factor": runtime_unaffected_shelter,
                     "disk_mean_shelter_factor": mean_shelter,
                     "disk_shelter_gradient_body_x": gradient,
-                    "raw_shelter_gradient_obstruction": obstruction,
-                    "quality_weighted_shelter_obstruction": obstruction * quality,
+                    "runtime_shelter_gradient_obstruction": obstruction,
                 }
                 name = (
                     f"confidence_{scenario_token(confidence)}"
@@ -518,7 +557,7 @@ def add_shelter_gradient_matrix(rows: list[dict[str, str]]) -> None:
                         unit=metric_units[metric],
                         source_file=LOCAL_VOXEL_DISK_SAMPLING_SOURCES,
                         evidence_role="local_voxel_shelter_gradient_matrix",
-                        note="Single-sided rotor-disk shelter contrast converted into A4MC side-flow obstruction before combining with geometric obstruction.",
+                        note="Single-sided rotor-disk shelter contrast is source-quality blended per sample before side-flow obstruction.",
                     )
 
 
@@ -637,7 +676,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 rows,
                 "a4mc_local_voxel_packet_shelter_gradient_matrix",
                 shelter_name,
-                "quality_weighted_shelter_obstruction",
+                "runtime_shelter_gradient_obstruction",
             ),
             "fraction",
         ),
@@ -646,7 +685,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 rows,
                 "a4mc_local_voxel_packet_shelter_gradient_matrix",
                 stale_shelter_name,
-                "quality_weighted_shelter_obstruction",
+                "runtime_shelter_gradient_obstruction",
             ),
             "fraction",
         ),

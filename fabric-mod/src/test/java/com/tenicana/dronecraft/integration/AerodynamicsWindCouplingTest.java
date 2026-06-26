@@ -76,9 +76,10 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(1.2, summaryMetric(summary, "saturated_pressure_contrast_post_equivalent_scaled_mps"), 1.0e-12);
 		assertTrue(summaryMetric(summary, "saturated_pressure_contrast_quality_first_ratio") > 1.70);
 
-		AerodynamicsWindCoupling.RotorDiskShelterBlend wallSkimShelter = oneSidedShelterBlend(0.35, 0.74);
+		AerodynamicsWindCoupling.RotorDiskShelterBlend wallSkimShelter =
+				oneSidedShelterBlend(0.35, 0.74, 0.86, 0L);
 		assertEquals(
-				AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(wallSkimShelter) * wallSkimSourceQuality,
+				AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(wallSkimShelter),
 				summaryMetric(summary, "wall_skim_shelter_delta_0p74_obstruction"),
 				1.0e-12
 		);
@@ -299,6 +300,41 @@ class AerodynamicsWindCouplingTest {
 		assertEquals(0.50, blend.meanShelterFactor(), 1.0e-9);
 		assertEquals(new Vec3(0.375, 0.0, 0.0), blend.gradientBody());
 		assertEquals(0.1063125, AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(blend), 1.0e-9);
+	}
+
+	@Test
+	void rotorDiskShelterBlendAppliesSampleQualityBeforeObstructionGate() {
+		double sourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
+		AerodynamicsWindCoupling.RotorDiskShelterBlend rawBlend = oneSidedShelterBlend(0.35, 0.74);
+		AerodynamicsWindCoupling.RotorDiskShelterBlend qualityWeightedBlend =
+				oneSidedShelterBlend(0.35, 0.74, 0.86, 0L);
+		double runtimeObstruction =
+				AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(qualityWeightedBlend);
+		double postObstructionScaled =
+				AerodynamicsWindCoupling.localVoxelShelterGradientObstruction(rawBlend) * sourceQuality;
+		double affectedDiskWeight = ROTOR_DISK_SURFACE_CARDINAL_WEIGHT
+				+ 2.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT;
+		double edgeWeight = 4.0 * ROTOR_DISK_SURFACE_CARDINAL_WEIGHT
+				+ 4.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT;
+		double adoptedCenterShelter = 0.35 * sourceQuality;
+		double adoptedEdgeShelter = adoptedCenterShelter * (1.0 - sourceQuality) + sourceQuality;
+		double adoptedUnaffectedEdgeShelter = adoptedCenterShelter * (1.0 - sourceQuality)
+				+ 0.35 * sourceQuality;
+		double expectedGradient = (adoptedEdgeShelter - adoptedUnaffectedEdgeShelter)
+				* (ROTOR_DISK_SURFACE_CARDINAL_WEIGHT
+						+ 2.0 * ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT / Math.sqrt(2.0))
+				/ edgeWeight;
+		double expectedMean = (
+				adoptedCenterShelter * ROTOR_DISK_SURFACE_CENTER_WEIGHT
+						+ adoptedEdgeShelter * affectedDiskWeight
+						+ adoptedUnaffectedEdgeShelter * (edgeWeight - affectedDiskWeight)
+		) / (ROTOR_DISK_SURFACE_CENTER_WEIGHT + edgeWeight);
+
+		assertEquals(expectedMean, qualityWeightedBlend.meanShelterFactor(), 1.0e-12);
+		assertEquals(expectedGradient, qualityWeightedBlend.gradientBody().x(), 1.0e-12);
+		assertEquals(0.0, qualityWeightedBlend.gradientBody().y(), 1.0e-12);
+		assertEquals(0.0, qualityWeightedBlend.gradientBody().z(), 1.0e-12);
+		assertTrue(runtimeObstruction < postObstructionScaled);
 	}
 
 	@Test
@@ -1053,9 +1089,18 @@ class AerodynamicsWindCouplingTest {
 			double centerShelter,
 			double edgeShelterDelta
 	) {
+		return oneSidedShelterBlend(centerShelter, edgeShelterDelta, 1.0, 0L);
+	}
+
+	private static AerodynamicsWindCoupling.RotorDiskShelterBlend oneSidedShelterBlend(
+			double centerShelter,
+			double edgeShelterDelta,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		return AerodynamicsWindCoupling.rotorDiskShelterBlend(
-				windSampleWithLocalVoxelShelter(centerShelter, true, 0L),
-				oneSidedShelterSamples(centerShelter, edgeShelterDelta),
+				windSampleWithLocalVoxelShelter(centerShelter, true, freshnessAgeTicks, confidence),
+				oneSidedShelterSamples(centerShelter, edgeShelterDelta, confidence, freshnessAgeTicks),
 				rotorDiskSampleDirectionsBody(),
 				rotorDiskSampleWeights(),
 				ROTOR_DISK_SURFACE_CENTER_WEIGHT
@@ -1066,18 +1111,39 @@ class AerodynamicsWindCouplingTest {
 			double centerShelter,
 			double edgeShelterDelta
 	) {
-		Aerodynamics4McWindBridge.WindSample[] samples = centerShelterSamples(centerShelter);
+		return oneSidedShelterSamples(centerShelter, edgeShelterDelta, 1.0, 0L);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] oneSidedShelterSamples(
+			double centerShelter,
+			double edgeShelterDelta,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		Aerodynamics4McWindBridge.WindSample[] samples = centerShelterSamples(
+				centerShelter,
+				confidence,
+				freshnessAgeTicks
+		);
 		double edgeShelter = centerShelter + edgeShelterDelta;
-		samples[0] = windSampleWithLocalVoxelShelter(edgeShelter, true, 0L);
-		samples[4] = windSampleWithLocalVoxelShelter(edgeShelter, true, 0L);
-		samples[5] = windSampleWithLocalVoxelShelter(edgeShelter, true, 0L);
+		samples[0] = windSampleWithLocalVoxelShelter(edgeShelter, true, freshnessAgeTicks, confidence);
+		samples[4] = windSampleWithLocalVoxelShelter(edgeShelter, true, freshnessAgeTicks, confidence);
+		samples[5] = windSampleWithLocalVoxelShelter(edgeShelter, true, freshnessAgeTicks, confidence);
 		return samples;
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample[] centerShelterSamples(double centerShelter) {
+		return centerShelterSamples(centerShelter, 1.0, 0L);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample[] centerShelterSamples(
+			double centerShelter,
+			double confidence,
+			long freshnessAgeTicks
+	) {
 		Aerodynamics4McWindBridge.WindSample[] samples = new Aerodynamics4McWindBridge.WindSample[8];
 		for (int i = 0; i < samples.length; i++) {
-			samples[i] = windSampleWithLocalVoxelShelter(centerShelter, true, 0L);
+			samples[i] = windSampleWithLocalVoxelShelter(centerShelter, true, freshnessAgeTicks, confidence);
 		}
 		return samples;
 	}
@@ -1275,6 +1341,15 @@ class AerodynamicsWindCouplingTest {
 			boolean localVoxelFlow,
 			long freshnessAgeTicks
 	) {
+		return windSampleWithLocalVoxelShelter(shelterFactor, localVoxelFlow, freshnessAgeTicks, 1.0);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithLocalVoxelShelter(
+			double shelterFactor,
+			boolean localVoxelFlow,
+			long freshnessAgeTicks,
+			double confidence
+	) {
 		return new Aerodynamics4McWindBridge.WindSample(
 				true,
 				Vec3.ZERO,
@@ -1287,7 +1362,7 @@ class AerodynamicsWindCouplingTest {
 				0.0,
 				false,
 				0.0,
-				1.0,
+				confidence,
 				0.0,
 				true,
 				localVoxelFlow,
