@@ -3626,6 +3626,44 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblStabilityShapesUpdraftResponseAndAdoption() {
+		DroneEnvironment neutralUpdraft = a4mcUpdraftOnlyWind(5.0, true, 1.0, 0L, 0.0, 0.0);
+		DroneEnvironment mixedUnstableUpdraft = a4mcUpdraftOnlyWind(5.0, true, 1.0, 0L, 0.85, 1.0);
+		DroneEnvironment stableUpdraft = a4mcUpdraftOnlyWind(5.0, true, 1.0, 0L, -0.85, 0.10);
+		DronePhysics neutral = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics mixedUnstable = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics stable = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+
+		for (int i = 0; i < 35; i++) {
+			neutral.step(idle, 0.005, neutralUpdraft);
+			mixedUnstable.step(idle, 0.005, mixedUnstableUpdraft);
+			stable.step(idle, 0.005, stableUpdraft);
+		}
+		double neutralEarly = neutral.state().a4mcUpdraftSpeedMetersPerSecond();
+		double mixedEarly = mixedUnstable.state().a4mcUpdraftSpeedMetersPerSecond();
+		double stableEarly = stable.state().a4mcUpdraftSpeedMetersPerSecond();
+		assertTrue(mixedEarly > neutralEarly * 1.25,
+				() -> "mixedEarly=" + mixedEarly + " neutralEarly=" + neutralEarly);
+		assertTrue(stableEarly < neutralEarly * 0.75,
+				() -> "stableEarly=" + stableEarly + " neutralEarly=" + neutralEarly);
+
+		for (int i = 0; i < 485; i++) {
+			neutral.step(idle, 0.005, neutralUpdraft);
+			mixedUnstable.step(idle, 0.005, mixedUnstableUpdraft);
+			stable.step(idle, 0.005, stableUpdraft);
+		}
+		double neutralSettled = neutral.state().a4mcUpdraftSpeedMetersPerSecond();
+		double mixedSettled = mixedUnstable.state().a4mcUpdraftSpeedMetersPerSecond();
+		double stableSettled = stable.state().a4mcUpdraftSpeedMetersPerSecond();
+
+		assertTrue(mixedSettled > neutralSettled * 1.30,
+				() -> "mixedSettled=" + mixedSettled + " neutralSettled=" + neutralSettled);
+		assertTrue(stableSettled < neutralSettled * 0.80,
+				() -> "stableSettled=" + stableSettled + " neutralSettled=" + neutralSettled);
+	}
+
+	@Test
 	void a4mcSourceQualityGatesCoreGustAndTerrainShear() {
 		DroneEnvironment trustedGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 0L);
 		DroneEnvironment lowConfidenceGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 0.50, 0L);
@@ -12978,6 +13016,17 @@ class DronePhysicsTest {
 			double confidence,
 			long freshnessAgeTicks
 	) {
+		return a4mcUpdraftOnlyWind(updraftMetersPerSecond, trustedForGameplay, confidence, freshnessAgeTicks, 0.0, 0.0);
+	}
+
+	private static DroneEnvironment a4mcUpdraftOnlyWind(
+			double updraftMetersPerSecond,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks,
+			double ablStability,
+			double ablMixingStrength
+	) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				1.0,
@@ -13015,8 +13064,8 @@ class DronePhysicsTest {
 				0.0,
 				false,
 				0.0,
-				0.0,
-				0.0
+				ablStability,
+				ablMixingStrength
 		);
 	}
 

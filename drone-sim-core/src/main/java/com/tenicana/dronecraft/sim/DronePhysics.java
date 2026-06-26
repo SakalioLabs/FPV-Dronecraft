@@ -6337,9 +6337,10 @@ public final class DronePhysics {
 		double sourceQuality = a4mcWindSourceQualityFactor(environment);
 		double sourceResponse = smoothStep(0.10, 1.0, sourceQuality);
 		double tau = MathUtil.clamp(
-				0.22 - 0.065 * smoothStep(0.25, 4.0, updraftMagnitude) - 0.040 * sourceResponse,
-				0.070,
-				0.260
+				(0.22 - 0.065 * smoothStep(0.25, 4.0, updraftMagnitude) - 0.040 * sourceResponse)
+						* a4mcUpdraftAblTimeScaleMultiplier(environment),
+				0.055,
+				0.330
 		);
 		double alpha = MathUtil.expSmoothing(dtSeconds, tau);
 		a4mcUpdraftVelocityWorldMetersPerSecond = a4mcUpdraftVelocityWorldMetersPerSecond.add(
@@ -6362,15 +6363,52 @@ public final class DronePhysics {
 		}
 
 		double localVoxelGain = environment.windSourceLocalVoxelFlow() ? 1.0 : 0.72;
-		double ablMixingGain = MathUtil.clamp(0.84 + 0.18 * environment.windSourceAblMixingStrength(), 0.72, 1.08);
 		double responseGain = MathUtil.clamp(
 				localVoxelGain
-						* ablMixingGain
+						* a4mcUpdraftAblTargetMultiplier(environment)
 						* (0.50 + 0.22 * smoothStep(0.35, 4.0, Math.abs(sourceUpdraft))),
 				0.30,
 				0.90
 		);
 		return WORLD_UP.multiply(MathUtil.clamp(sourceUpdraft * responseGain, -4.5, 4.5));
+	}
+
+	private static double a4mcUpdraftAblTargetMultiplier(DroneEnvironment environment) {
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
+		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
+			return 0.84;
+		}
+
+		double unstable = Math.max(0.0, ablStability);
+		double stable = Math.max(0.0, -ablStability);
+		double mixedUnstable = unstable * ablMixing;
+		double stableSuppression = stable * (0.75 + 0.25 * (1.0 - ablMixing));
+		return MathUtil.clamp(
+				(0.84 + 0.18 * ablMixing) * (1.0 + 0.30 * mixedUnstable - 0.34 * stableSuppression),
+				0.55,
+				1.22
+		);
+	}
+
+	private static double a4mcUpdraftAblTimeScaleMultiplier(DroneEnvironment environment) {
+		double sourceQuality = a4mcWindSourceQualityFactor(environment);
+		double ablStability = MathUtil.clamp(environment.windSourceAblStability() * sourceQuality, -1.0, 1.0);
+		double ablMixing = MathUtil.clamp(environment.windSourceAblMixingStrength() * sourceQuality, 0.0, 1.0);
+		if (ablMixing <= 1.0e-6 && Math.abs(ablStability) <= 1.0e-6) {
+			return 1.0;
+		}
+
+		double unstable = Math.max(0.0, ablStability);
+		double stable = Math.max(0.0, -ablStability);
+		double mixedUnstable = unstable * ablMixing;
+		double stablePersistence = stable * (0.75 + 0.25 * (1.0 - ablMixing));
+		return MathUtil.clamp(
+				1.0 - 0.16 * ablMixing - 0.24 * mixedUnstable + 0.48 * stablePersistence,
+				0.60,
+				1.55
+		);
 	}
 
 	private static double localizedWindBurbleIntensity(DroneEnvironment environment, double dirtyAir) {
