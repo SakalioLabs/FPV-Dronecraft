@@ -569,6 +569,7 @@ public final class DroneBlackboxSample {
 			"wind_a4mc_source_gust_x_mps",
 			"wind_a4mc_source_gust_y_mps",
 			"wind_a4mc_source_gust_z_mps",
+			"wind_a4mc_updraft_mps",
 			"wind_a4mc_terrain_shear_speed_mps",
 			"wind_shear_accel_mps2",
 			"wind_source",
@@ -1457,6 +1458,7 @@ public final class DroneBlackboxSample {
 		Vec3 relativeAir = state.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 effectiveWind = state.effectiveWindVelocityWorldMetersPerSecond();
 		Vec3 a4mcSourceGust = state.a4mcSourceGustVelocityWorldMetersPerSecond();
+		Vec3 a4mcUpdraft = state.a4mcUpdraftVelocityWorldMetersPerSecond();
 		Vec3 windSourceGust = environment.windSourceGustVelocityWorldMetersPerSecond();
 		Vec3 contactAngularImpulse = state.contactAngularImpulseBodyRadiansPerSecond();
 		double[] motorPowers = state.motorPower(config);
@@ -2028,6 +2030,7 @@ public final class DroneBlackboxSample {
 		row.add(a4mcSourceGust.x(), "%.5f");
 		row.add(a4mcSourceGust.y(), "%.5f");
 		row.add(a4mcSourceGust.z(), "%.5f");
+		row.add(a4mcUpdraft.y(), "%.5f");
 		row.add(state.a4mcTerrainShearSpeedMetersPerSecond(), "%.5f");
 		row.add(state.windShearAccelerationMetersPerSecondSquared(), "%.5f");
 		row.add(environment.windSourceId());

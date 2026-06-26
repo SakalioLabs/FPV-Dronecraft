@@ -452,6 +452,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("wind_a4mc_source_gust_x_mps"));
 		assertTrue(csv.contains("wind_a4mc_source_gust_y_mps"));
 		assertTrue(csv.contains("wind_a4mc_source_gust_z_mps"));
+		assertTrue(csv.contains("wind_a4mc_updraft_mps"));
 		assertTrue(csv.contains("wind_a4mc_terrain_shear_speed_mps"));
 		assertTrue(csv.contains("wind_shear_accel_mps2"));
 		assertTrue(csv.contains("wind_source"));
@@ -703,6 +704,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_x_mps")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_y_mps")]) < 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "wind_a4mc_source_gust_z_mps")]) > 0.0);
+		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_a4mc_updraft_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_a4mc_terrain_shear_speed_mps")]));
 		assertDoesNotThrow(() -> Double.parseDouble(row[indexOf(header, "wind_shear_accel_mps2")]));
 		assertEquals("aerodynamics4mc", row[indexOf(header, "wind_source")]);
@@ -1072,6 +1074,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.maxWindDrydenSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindBurbleSpeedMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindA4mcSourceGustSpeedMetersPerSecond() >= 0.0);
+		assertTrue(summary.maxAbsWindA4mcUpdraftMetersPerSecond() >= 0.0);
 		assertTrue(summary.maxWindA4mcTerrainShearSpeedMetersPerSecond() >= 0.0);
 		assertEquals(
 				maxOfColumns(lines, header, "wind_dryden_speed_mps"),
@@ -1086,6 +1089,11 @@ class DroneBlackboxRecorderTest {
 		assertEquals(
 				maxOfColumns(lines, header, "wind_a4mc_source_gust_speed_mps"),
 				summary.maxWindA4mcSourceGustSpeedMetersPerSecond(),
+				1.0e-5
+		);
+		assertEquals(
+				maxAbsOfColumns(lines, header, "wind_a4mc_updraft_mps"),
+				summary.maxAbsWindA4mcUpdraftMetersPerSecond(),
 				1.0e-5
 		);
 		assertEquals(
@@ -1136,6 +1144,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("dryden"));
 		assertTrue(summary.formatForChat().contains("burble"));
 		assertTrue(summary.formatForChat().contains("a4mcsrc"));
+		assertTrue(summary.formatForChat().contains("a4mcup"));
 		assertTrue(summary.formatForChat().contains("a4mc 4/4"));
 		assertTrue(summary.formatForChat().contains("trusted 4"));
 		assertTrue(summary.formatForChat().contains("untrusted 0"));
@@ -2007,6 +2016,18 @@ class DroneBlackboxRecorderTest {
 			for (int i = 1; i < lines.length; i++) {
 				String[] row = lines[i].split(",", -1);
 				max = Math.max(max, Double.parseDouble(row[index]));
+			}
+		}
+		return max;
+	}
+
+	private static double maxAbsOfColumns(String[] lines, String[] header, String... columns) {
+		double max = 0.0;
+		for (String column : columns) {
+			int index = indexOf(header, column);
+			for (int i = 1; i < lines.length; i++) {
+				String[] row = lines[i].split(",", -1);
+				max = Math.max(max, Math.abs(Double.parseDouble(row[index])));
 			}
 		}
 		return max;

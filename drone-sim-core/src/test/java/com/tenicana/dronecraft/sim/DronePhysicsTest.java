@@ -3457,6 +3457,7 @@ class DronePhysicsTest {
 
 		double smoothMaxGust = 0.0;
 		double shearedMaxGust = 0.0;
+		double shearedMaxUpdraft = 0.0;
 		double shearedMaxTerrainShear = 0.0;
 		double shearedMaxAcceleration = 0.0;
 		for (int i = 0; i < 240; i++) {
@@ -3464,6 +3465,7 @@ class DronePhysicsTest {
 			sheared.step(idle, 0.005, shearedA4mcWind);
 			smoothMaxGust = Math.max(smoothMaxGust, smooth.state().windGustSpeedMetersPerSecond());
 			shearedMaxGust = Math.max(shearedMaxGust, sheared.state().windGustSpeedMetersPerSecond());
+			shearedMaxUpdraft = Math.max(shearedMaxUpdraft, sheared.state().a4mcUpdraftSpeedMetersPerSecond());
 			shearedMaxTerrainShear = Math.max(shearedMaxTerrainShear, sheared.state().a4mcTerrainShearSpeedMetersPerSecond());
 			shearedMaxAcceleration = Math.max(
 					shearedMaxAcceleration,
@@ -3473,7 +3475,13 @@ class DronePhysicsTest {
 
 		assertEquals(0.0, smoothMaxGust, 1.0e-9);
 		assertTrue(shearedMaxGust > 0.18, "shearedMaxGust=" + shearedMaxGust);
-		assertEquals(shearedMaxGust, shearedMaxTerrainShear, 1.0e-9);
+		assertTrue(shearedMaxUpdraft > 0.30, "shearedMaxUpdraft=" + shearedMaxUpdraft);
+		assertTrue(
+				shearedMaxGust >= Math.max(shearedMaxTerrainShear, shearedMaxUpdraft),
+				"shearedMaxGust=" + shearedMaxGust
+						+ " shearedMaxTerrainShear=" + shearedMaxTerrainShear
+						+ " shearedMaxUpdraft=" + shearedMaxUpdraft
+		);
 		assertTrue(shearedMaxAcceleration > 0.25, "shearedMaxAcceleration=" + shearedMaxAcceleration);
 	}
 
@@ -3537,12 +3545,14 @@ class DronePhysicsTest {
 		assertTrue(gustyMaxGust > 0.20, "gustyMaxGust=" + gustyMaxGust);
 		assertTrue(gustyMaxGust < 1.40, "gustyMaxGust=" + gustyMaxGust);
 		assertEquals(gustyMaxGust, gustyMaxSourceGust, 1.0e-9);
+		assertEquals(0.0, gusty.state().a4mcUpdraftSpeedMetersPerSecond(), 1.0e-9);
 		assertEquals(0.0, gustyMaxTerrainShear, 1.0e-9);
 		assertVecClose(
 				gusty.state().windGustVelocityWorldMetersPerSecond(),
 				gusty.state().drydenTurbulenceVelocityWorldMetersPerSecond()
 						.add(gusty.state().windBurbleVelocityWorldMetersPerSecond())
 						.add(gusty.state().a4mcSourceGustVelocityWorldMetersPerSecond())
+						.add(gusty.state().a4mcUpdraftVelocityWorldMetersPerSecond())
 						.add(gusty.state().a4mcTerrainShearVelocityWorldMetersPerSecond()),
 				1.0e-12
 		);
@@ -3566,10 +3576,64 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcUpdraftAddsSignedVerticalAirMassAndRotorAxialGust() {
+		DroneConfig config = directControl(DroneConfig.racingQuad());
+		DronePhysics smooth = new DronePhysics(config);
+		DronePhysics updraft = new DronePhysics(config);
+		DronePhysics downdraft = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		DroneEnvironment smoothA4mcWind = a4mcUpdraftOnlyWind(0.0);
+		DroneEnvironment updraftA4mcWind = a4mcUpdraftOnlyWind(12.0);
+		DroneEnvironment downdraftA4mcWind = a4mcUpdraftOnlyWind(-12.0);
+
+		for (int i = 0; i < 520; i++) {
+			holdInCruise(smooth, Vec3.ZERO);
+			holdInCruise(updraft, Vec3.ZERO);
+			holdInCruise(downdraft, Vec3.ZERO);
+			smooth.step(hover, 0.005, smoothA4mcWind);
+			updraft.step(hover, 0.005, updraftA4mcWind);
+			downdraft.step(hover, 0.005, downdraftA4mcWind);
+		}
+
+		double smoothAxialGustScale = smooth.state().averageRotorAxialGustThrustScale();
+		double updraftAxialGustScale = updraft.state().averageRotorAxialGustThrustScale();
+		double downdraftAxialGustScale = downdraft.state().averageRotorAxialGustThrustScale();
+		assertEquals(0.0, smooth.state().a4mcUpdraftSpeedMetersPerSecond(), 1.0e-9);
+		assertTrue(updraft.state().a4mcUpdraftVelocityWorldMetersPerSecond().y() > 2.0,
+				() -> "updraft=" + updraft.state().a4mcUpdraftVelocityWorldMetersPerSecond());
+		assertTrue(downdraft.state().a4mcUpdraftVelocityWorldMetersPerSecond().y() < -2.0,
+				() -> "downdraft=" + downdraft.state().a4mcUpdraftVelocityWorldMetersPerSecond());
+		assertTrue(
+				updraft.state().a4mcTerrainShearSpeedMetersPerSecond() < updraft.state().a4mcUpdraftSpeedMetersPerSecond() * 0.25,
+				"updraftTerrainShear=" + updraft.state().a4mcTerrainShearSpeedMetersPerSecond()
+						+ " updraft=" + updraft.state().a4mcUpdraftSpeedMetersPerSecond()
+		);
+		assertTrue(
+				downdraft.state().a4mcTerrainShearSpeedMetersPerSecond() < downdraft.state().a4mcUpdraftSpeedMetersPerSecond() * 0.25,
+				"downdraftTerrainShear=" + downdraft.state().a4mcTerrainShearSpeedMetersPerSecond()
+						+ " downdraft=" + downdraft.state().a4mcUpdraftSpeedMetersPerSecond()
+		);
+		assertTrue(updraft.state().windGustSpeedMetersPerSecond() > smooth.state().windGustSpeedMetersPerSecond() + 2.0);
+		assertTrue(downdraft.state().windGustSpeedMetersPerSecond() > smooth.state().windGustSpeedMetersPerSecond() + 2.0);
+		assertTrue(
+				updraftAxialGustScale > smoothAxialGustScale + 0.01,
+				"updraftAxialGustScale=" + updraftAxialGustScale + " smoothAxialGustScale=" + smoothAxialGustScale
+		);
+		assertTrue(
+				downdraftAxialGustScale < smoothAxialGustScale - 0.01,
+				"downdraftAxialGustScale=" + downdraftAxialGustScale + " smoothAxialGustScale=" + smoothAxialGustScale
+		);
+	}
+
+	@Test
 	void a4mcSourceQualityGatesCoreGustAndTerrainShear() {
 		DroneEnvironment trustedGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 0L);
 		DroneEnvironment lowConfidenceGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 0.50, 0L);
 		DroneEnvironment staleGust = a4mcSourceGustWind(4.0, new Vec3(0.0, 3.0, 0.0), true, 1.0, 160L);
+		DroneEnvironment trustedUpdraft = a4mcUpdraftOnlyWind(12.0, true, 1.0, 0L);
+		DroneEnvironment lowConfidenceUpdraft = a4mcUpdraftOnlyWind(12.0, true, 0.50, 0L);
+		DroneEnvironment staleUpdraft = a4mcUpdraftOnlyWind(12.0, true, 1.0, 160L);
+		DroneEnvironment untrustedUpdraft = a4mcUpdraftOnlyWind(12.0, false, 1.0, 0L);
 		DroneEnvironment trustedShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, true, 1.0, 0L);
 		DroneEnvironment lowConfidenceShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, true, 0.50, 0L);
 		DroneEnvironment untrustedShear = a4mcTerrainShearWind(1.35, 2.4, 0.80, false, 1.0, 0L);
@@ -3577,6 +3641,10 @@ class DronePhysicsTest {
 		double trustedSourceGust = maxA4mcSourceGustFor(trustedGust);
 		double lowConfidenceSourceGust = maxA4mcSourceGustFor(lowConfidenceGust);
 		double staleSourceGust = maxA4mcSourceGustFor(staleGust);
+		double trustedA4mcUpdraft = maxA4mcUpdraftFor(trustedUpdraft);
+		double lowConfidenceA4mcUpdraft = maxA4mcUpdraftFor(lowConfidenceUpdraft);
+		double staleA4mcUpdraft = maxA4mcUpdraftFor(staleUpdraft);
+		double untrustedA4mcUpdraft = maxA4mcUpdraftFor(untrustedUpdraft);
 		double trustedTerrainShear = maxA4mcTerrainShearFor(trustedShear);
 		double lowConfidenceTerrainShear = maxA4mcTerrainShearFor(lowConfidenceShear);
 		double untrustedTerrainShear = maxA4mcTerrainShearFor(untrustedShear);
@@ -3588,6 +3656,14 @@ class DronePhysicsTest {
 				"trustedSourceGust=" + trustedSourceGust + " lowConfidenceSourceGust=" + lowConfidenceSourceGust
 		);
 		assertEquals(0.0, staleSourceGust, 1.0e-12);
+		assertTrue(trustedA4mcUpdraft > 2.0, "trustedA4mcUpdraft=" + trustedA4mcUpdraft);
+		assertTrue(
+				lowConfidenceA4mcUpdraft > trustedA4mcUpdraft * 0.30
+						&& lowConfidenceA4mcUpdraft < trustedA4mcUpdraft * 0.90,
+				"trustedA4mcUpdraft=" + trustedA4mcUpdraft + " lowConfidenceA4mcUpdraft=" + lowConfidenceA4mcUpdraft
+		);
+		assertEquals(0.0, staleA4mcUpdraft, 1.0e-12);
+		assertEquals(0.0, untrustedA4mcUpdraft, 1.0e-12);
 		assertTrue(trustedTerrainShear > 0.18, "trustedTerrainShear=" + trustedTerrainShear);
 		assertTrue(
 				lowConfidenceTerrainShear > trustedTerrainShear * 0.20
@@ -3667,12 +3743,14 @@ class DronePhysicsTest {
 		assertTrue(physics.state().drydenTurbulenceSpeedMetersPerSecond() > 0.05);
 		assertTrue(physics.state().windBurbleSpeedMetersPerSecond() > 0.0);
 		assertEquals(0.0, physics.state().a4mcSourceGustSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(0.0, physics.state().a4mcUpdraftSpeedMetersPerSecond(), 1.0e-12);
 		assertEquals(0.0, physics.state().a4mcTerrainShearSpeedMetersPerSecond(), 1.0e-12);
 		assertVecClose(
 				physics.state().windGustVelocityWorldMetersPerSecond(),
 				physics.state().drydenTurbulenceVelocityWorldMetersPerSecond()
 						.add(physics.state().windBurbleVelocityWorldMetersPerSecond())
 						.add(physics.state().a4mcSourceGustVelocityWorldMetersPerSecond())
+						.add(physics.state().a4mcUpdraftVelocityWorldMetersPerSecond())
 						.add(physics.state().a4mcTerrainShearVelocityWorldMetersPerSecond()),
 				1.0e-12
 		);
@@ -3767,6 +3845,7 @@ class DronePhysicsTest {
 		assertVecClose(snapshot.drydenTurbulenceVelocityWorldMetersPerSecond(), restored.state().drydenTurbulenceVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.windBurbleVelocityWorldMetersPerSecond(), restored.state().windBurbleVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.a4mcSourceGustVelocityWorldMetersPerSecond(), restored.state().a4mcSourceGustVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(snapshot.a4mcUpdraftVelocityWorldMetersPerSecond(), restored.state().a4mcUpdraftVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.a4mcTerrainShearVelocityWorldMetersPerSecond(), restored.state().a4mcTerrainShearVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(snapshot.airframeDragForceBody(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
 		assertEquals(snapshot.airframeSeparatedFlowIntensity(), restored.state().airframeSeparatedFlowIntensity(), 1.0e-12);
@@ -3781,6 +3860,7 @@ class DronePhysicsTest {
 		assertVecClose(source.state().drydenTurbulenceVelocityWorldMetersPerSecond(), restored.state().drydenTurbulenceVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().windBurbleVelocityWorldMetersPerSecond(), restored.state().windBurbleVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().a4mcSourceGustVelocityWorldMetersPerSecond(), restored.state().a4mcSourceGustVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVecClose(source.state().a4mcUpdraftVelocityWorldMetersPerSecond(), restored.state().a4mcUpdraftVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().a4mcTerrainShearVelocityWorldMetersPerSecond(), restored.state().a4mcTerrainShearVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVecClose(source.state().airframeBodyDragForceBodyNewtons(), restored.state().airframeBodyDragForceBodyNewtons(), 1.0e-12);
 		assertVecClose(source.state().airframeLiftForceBodyNewtons(), restored.state().airframeLiftForceBodyNewtons(), 1.0e-12);
@@ -11114,6 +11194,7 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_x_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_y_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_source_gust_z_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_updraft_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_a4mc_terrain_shear_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_source_turbulence"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("wind_source_quality"));
@@ -11773,6 +11854,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxWindDrydenSpeedMetersPerSecond() >= 0.0);
 		assertTrue(report.maxWindBurbleSpeedMetersPerSecond() > 0.0);
 		assertTrue(report.maxWindA4mcSourceGustSpeedMetersPerSecond() >= 0.0);
+		assertTrue(report.maxAbsWindA4mcUpdraftMetersPerSecond() >= 0.0);
 		assertTrue(report.maxWindA4mcTerrainShearSpeedMetersPerSecond() >= 0.0);
 		assertEquals(0.86, report.maxWindSourceQualityFactor(), 1.0e-5);
 		assertTrue(report.maxWindSourceTurbulenceIntensity() > 0.0);
@@ -11789,6 +11871,11 @@ class DronePhysicsTest {
 		assertEquals(
 				maxColumn(lines, header, "wind_a4mc_source_gust_speed_mps"),
 				report.maxWindA4mcSourceGustSpeedMetersPerSecond(),
+				1.0e-5
+		);
+		assertEquals(
+				maxAbsColumn(lines, header, "wind_a4mc_updraft_mps"),
+				report.maxAbsWindA4mcUpdraftMetersPerSecond(),
 				1.0e-5
 		);
 		assertEquals(
@@ -12629,6 +12716,58 @@ class DronePhysicsTest {
 		return a4mcTerrainShearWind(shearMagnitudePerBlock, updraftMetersPerSecond, 0.0);
 	}
 
+	private static DroneEnvironment a4mcUpdraftOnlyWind(double updraftMetersPerSecond) {
+		return a4mcUpdraftOnlyWind(updraftMetersPerSecond, true, 1.0, -1L);
+	}
+
+	private static DroneEnvironment a4mcUpdraftOnlyWind(
+			double updraftMetersPerSecond,
+			boolean trustedForGameplay,
+			double confidence,
+			long freshnessAgeTicks
+	) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				trustedForGameplay,
+				confidence,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				updraftMetersPerSecond,
+				true,
+				"l2",
+				"server_authoritative",
+				freshnessAgeTicks,
+				0.0,
+				Math.abs(updraftMetersPerSecond),
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0
+		);
+	}
+
 	private static DroneEnvironment a4mcShelterCoolingWind(double shelterFactor, boolean localVoxelFlow) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
@@ -12797,6 +12936,17 @@ class DronePhysicsTest {
 			maxSourceGust = Math.max(maxSourceGust, physics.state().a4mcSourceGustSpeedMetersPerSecond());
 		}
 		return maxSourceGust;
+	}
+
+	private static double maxA4mcUpdraftFor(DroneEnvironment environment) {
+		DronePhysics physics = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+		double maxUpdraft = 0.0;
+		for (int i = 0; i < 520; i++) {
+			physics.step(idle, 0.005, environment);
+			maxUpdraft = Math.max(maxUpdraft, physics.state().a4mcUpdraftSpeedMetersPerSecond());
+		}
+		return maxUpdraft;
 	}
 
 	private static double maxA4mcTerrainShearFor(DroneEnvironment environment) {
