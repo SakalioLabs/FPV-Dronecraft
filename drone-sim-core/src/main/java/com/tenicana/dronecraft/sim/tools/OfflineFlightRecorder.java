@@ -669,6 +669,38 @@ public final class OfflineFlightRecorder {
 			"rotor_5_env_thrust_multiplier",
 			"rotor_6_env_thrust_multiplier",
 			"rotor_7_env_thrust_multiplier",
+			"rotor_0_ground_surface_coverage",
+			"rotor_1_ground_surface_coverage",
+			"rotor_2_ground_surface_coverage",
+			"rotor_3_ground_surface_coverage",
+			"rotor_4_ground_surface_coverage",
+			"rotor_5_ground_surface_coverage",
+			"rotor_6_ground_surface_coverage",
+			"rotor_7_ground_surface_coverage",
+			"rotor_0_ground_surface_gate",
+			"rotor_1_ground_surface_gate",
+			"rotor_2_ground_surface_gate",
+			"rotor_3_ground_surface_gate",
+			"rotor_4_ground_surface_gate",
+			"rotor_5_ground_surface_gate",
+			"rotor_6_ground_surface_gate",
+			"rotor_7_ground_surface_gate",
+			"rotor_0_ceiling_surface_coverage",
+			"rotor_1_ceiling_surface_coverage",
+			"rotor_2_ceiling_surface_coverage",
+			"rotor_3_ceiling_surface_coverage",
+			"rotor_4_ceiling_surface_coverage",
+			"rotor_5_ceiling_surface_coverage",
+			"rotor_6_ceiling_surface_coverage",
+			"rotor_7_ceiling_surface_coverage",
+			"rotor_0_ceiling_surface_gate",
+			"rotor_1_ceiling_surface_gate",
+			"rotor_2_ceiling_surface_gate",
+			"rotor_3_ceiling_surface_gate",
+			"rotor_4_ceiling_surface_gate",
+			"rotor_5_ceiling_surface_gate",
+			"rotor_6_ceiling_surface_gate",
+			"rotor_7_ceiling_surface_gate",
 			"rotor_0_flow_obstruction",
 			"rotor_1_flow_obstruction",
 			"rotor_2_flow_obstruction",
@@ -4194,6 +4226,18 @@ public final class OfflineFlightRecorder {
 			appendExtra(builder, i < config.rotors().size() ? environment.rotorThrustMultiplier(i, config) : 1.0, "%.5f");
 		}
 		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, rotorGroundSurfaceCoverage(environment, config, i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, rotorGroundSurfaceGate(environment, config, i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, rotorCeilingSurfaceCoverage(environment, config, i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, rotorCeilingSurfaceGate(environment, config, i), "%.5f");
+		}
+		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorFlowObstruction(i), "%.5f");
 		}
 		appendExtra(builder, environment.maxRotorA4mcShelterObstruction(), "%.5f");
@@ -4412,6 +4456,26 @@ public final class OfflineFlightRecorder {
 
 	private static double valueOrOne(double[] values, int index) {
 		return index >= 0 && index < values.length ? values[index] : 1.0;
+	}
+
+	private static boolean hasRotor(DroneConfig config, int index) {
+		return config != null && index >= 0 && index < config.rotors().size();
+	}
+
+	private static double rotorGroundSurfaceCoverage(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorGroundSurfaceCoverage(index) : 0.0;
+	}
+
+	private static double rotorGroundSurfaceGate(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorGroundSurfaceGate(index) : 0.0;
+	}
+
+	private static double rotorCeilingSurfaceCoverage(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorCeilingSurfaceCoverage(index) : 0.0;
+	}
+
+	private static double rotorCeilingSurfaceGate(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorCeilingSurfaceGate(index) : 0.0;
 	}
 
 	private static double motorTelemetryEIntervalMicros(

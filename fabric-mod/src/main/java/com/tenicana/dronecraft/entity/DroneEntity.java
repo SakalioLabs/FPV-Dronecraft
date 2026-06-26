@@ -337,13 +337,37 @@ public class DroneEntity extends Entity {
 		private static final DroneWakeAirflow CALM = new DroneWakeAirflow(Vec3.ZERO, 0.0, 0.0);
 	}
 
-	private record RotorEnvironmentEffects(double[] thrustMultipliers, double[] flowObstructions, Vec3[] flowObstructionDirectionsBody, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] rotorA4mcShelterObstructions, double maxFlowObstruction) {
+	private record RotorEnvironmentEffects(
+			double[] thrustMultipliers,
+			double[] groundSurfaceCoverages,
+			double[] ceilingSurfaceCoverages,
+			double[] groundSurfaceGates,
+			double[] ceilingSurfaceGates,
+			double[] flowObstructions,
+			Vec3[] flowObstructionDirectionsBody,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+			double[] rotorA4mcShelterObstructions,
+			double maxFlowObstruction
+	) {
 		private static RotorEnvironmentEffects calm(int rotorCount) {
 			double[] multipliers = new double[rotorCount];
 			for (int i = 0; i < multipliers.length; i++) {
 				multipliers[i] = 1.0;
 			}
-			return new RotorEnvironmentEffects(multipliers, new double[rotorCount], new Vec3[rotorCount], new Vec3[0], new Vec3[0], new double[0], 0.0);
+			return new RotorEnvironmentEffects(
+					multipliers,
+					new double[rotorCount],
+					new double[rotorCount],
+					new double[rotorCount],
+					new double[rotorCount],
+					new double[rotorCount],
+					new Vec3[rotorCount],
+					new Vec3[0],
+					new Vec3[0],
+					new double[0],
+					0.0
+			);
 		}
 	}
 
@@ -416,7 +440,15 @@ public class DroneEntity extends Entity {
 	private record RotorPlaneSampleDirection(Vec3 bodyDirection, Vec3 worldDirection) {
 	}
 
-	private record RotorDiskSurfaceSample(double[] groundClearancesMeters, double[] ceilingClearancesMeters, double[] weights) {
+	private record RotorDiskSurfaceSample(
+			double[] groundClearancesMeters,
+			double[] ceilingClearancesMeters,
+			double[] weights,
+			double groundSurfaceCoverage,
+			double ceilingSurfaceCoverage,
+			double groundSurfaceGate,
+			double ceilingSurfaceGate
+	) {
 	}
 
 	private record RotorFlowObstruction(double intensity, Vec3 directionBody) {
@@ -1350,7 +1382,11 @@ public class DroneEntity extends Entity {
 				windSource.humidity(),
 				windSource.ablStability(),
 				windSource.ablMixingStrength(),
-				windSource.gustVelocityWorldMetersPerSecond()
+				windSource.gustVelocityWorldMetersPerSecond(),
+				rotorEffects.groundSurfaceCoverages(),
+				rotorEffects.ceilingSurfaceCoverages(),
+				rotorEffects.groundSurfaceGates(),
+				rotorEffects.ceilingSurfaceGates()
 		);
 	}
 
@@ -1435,7 +1471,11 @@ public class DroneEntity extends Entity {
 				windSource.humidity(),
 				windSource.ablStability(),
 				windSource.ablMixingStrength(),
-				windSource.gustVelocityWorldMetersPerSecond()
+				windSource.gustVelocityWorldMetersPerSecond(),
+				null,
+				null,
+				null,
+				null
 		);
 	}
 
@@ -1695,6 +1735,10 @@ public class DroneEntity extends Entity {
 		}
 
 		double[] multipliers = new double[rotorCount];
+		double[] groundSurfaceCoverages = new double[rotorCount];
+		double[] ceilingSurfaceCoverages = new double[rotorCount];
+		double[] groundSurfaceGates = new double[rotorCount];
+		double[] ceilingSurfaceGates = new double[rotorCount];
 		double[] flowObstructions = new double[rotorCount];
 		Vec3[] flowObstructionDirectionsBody = new Vec3[rotorCount];
 		RotorWindFieldSamples rotorWindField = sampleAerodynamicsRotorWindField(
@@ -1709,6 +1753,10 @@ public class DroneEntity extends Entity {
 			RotorSpec rotor = rotorGeometry.rotor(i);
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
 			RotorDiskSurfaceSample surfaceSample = rotorDiskSurfaceSample(rotorCenterWorld, rotor, rotorPlaneDirections);
+			groundSurfaceCoverages[i] = surfaceSample.groundSurfaceCoverage();
+			ceilingSurfaceCoverages[i] = surfaceSample.ceilingSurfaceCoverage();
+			groundSurfaceGates[i] = surfaceSample.groundSurfaceGate();
+			ceilingSurfaceGates[i] = surfaceSample.ceilingSurfaceGate();
 			RotorFlowObstruction flowObstruction = rotorSideFlowObstruction(rotorCenterWorld, rotor, rotorPlaneDirections);
 			double rotorLocalVoxelObstacleResidual = rotorWindField.localVoxelObstacleResidual(i, localVoxelObstacleResidual);
 			flowObstruction = combineRotorFlowObstructions(
@@ -1732,6 +1780,10 @@ public class DroneEntity extends Entity {
 		}
 		return new RotorEnvironmentEffects(
 				multipliers,
+				groundSurfaceCoverages,
+				ceilingSurfaceCoverages,
+				groundSurfaceGates,
+				ceilingSurfaceGates,
 				flowObstructions,
 				flowObstructionDirectionsBody,
 				rotorWindField.rotorWindVelocityWorldMetersPerSecond(),
@@ -1854,7 +1906,17 @@ public class DroneEntity extends Entity {
 			ceilingClearances[sampleIndex] = ceilingClearanceMetersAt(samplePosition);
 			weights[sampleIndex] = i < 4 ? ROTOR_DISK_SURFACE_CARDINAL_WEIGHT : ROTOR_DISK_SURFACE_DIAGONAL_WEIGHT;
 		}
-		return new RotorDiskSurfaceSample(groundClearances, ceilingClearances, weights);
+		double groundCoverage = simulationRuntime.surfaceEffectSupportCoverage(groundClearances, weights);
+		double ceilingCoverage = simulationRuntime.surfaceEffectSupportCoverage(ceilingClearances, weights);
+		return new RotorDiskSurfaceSample(
+				groundClearances,
+				ceilingClearances,
+				weights,
+				groundCoverage,
+				ceilingCoverage,
+				simulationRuntime.partialSurfaceCoverageGate(groundCoverage),
+				simulationRuntime.partialSurfaceCoverageGate(ceilingCoverage)
+		);
 	}
 
 	private RotorPlaneSampleDirection[] rotorPlaneSampleDirections() {

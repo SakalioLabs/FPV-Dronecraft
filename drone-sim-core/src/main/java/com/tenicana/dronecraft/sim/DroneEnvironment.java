@@ -40,7 +40,11 @@ public record DroneEnvironment(
 		double windSourceHumidity,
 		double windSourceAblStability,
 		double windSourceAblMixingStrength,
-		Vec3 windSourceGustVelocityWorldMetersPerSecond
+		Vec3 windSourceGustVelocityWorldMetersPerSecond,
+		double[] rotorGroundSurfaceCoverages,
+		double[] rotorCeilingSurfaceCoverages,
+		double[] rotorGroundSurfaceGates,
+		double[] rotorCeilingSurfaceGates
 ) {
 	public static final String WIND_SOURCE_INTERNAL = "internal";
 	public static final String WIND_SOURCE_CALM = "calm";
@@ -218,7 +222,11 @@ public record DroneEnvironment(
 				windSourceHumidity,
 				windSourceAblStability,
 				windSourceAblMixingStrength,
-				Vec3.ZERO
+				Vec3.ZERO,
+				null,
+				null,
+				null,
+				null
 		);
 	}
 
@@ -303,7 +311,11 @@ public record DroneEnvironment(
 				windSourceHumidity,
 				windSourceAblStability,
 				windSourceAblMixingStrength,
-				windSourceGustVelocityWorldMetersPerSecond
+				windSourceGustVelocityWorldMetersPerSecond,
+				null,
+				null,
+				null,
+				null
 		);
 	}
 
@@ -388,7 +400,101 @@ public record DroneEnvironment(
 				windSourceHumidity,
 				windSourceAblStability,
 				windSourceAblMixingStrength,
-				Vec3.ZERO
+				Vec3.ZERO,
+				null,
+				null,
+				null,
+				null
+		);
+	}
+
+	public DroneEnvironment(
+			Vec3 windVelocityWorldMetersPerSecond,
+			double airDensityRatio,
+			double groundClearanceMeters,
+			double turbulenceIntensity,
+			double obstacleProximity,
+			double droneWakeIntensity,
+			double ceilingClearanceMeters,
+			double[] rotorThrustMultipliers,
+			double[] rotorFlowObstructions,
+			Vec3[] rotorFlowObstructionDirectionsBody,
+			double[] rotorWaterImmersions,
+			double waterImmersionIntensity,
+			double[] rotorPrecipitationWetnesses,
+			double precipitationWetnessIntensity,
+			double ambientTemperatureCelsius,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			Vec3[] rotorDiskWindGradientBodyMetersPerSecond,
+			double[] rotorA4mcShelterObstructions,
+			String windSourceId,
+			boolean windSourceTrustedForGameplay,
+			double windSourceConfidence,
+			double windSourceTurbulenceIntensity,
+			double windSourcePressureAnomalyPascals,
+			double windShearMagnitudePerBlock,
+			double windShelterFactor,
+			double windUpdraftMetersPerSecond,
+			boolean windSourceLocalVoxelFlow,
+			String windSourceLevel,
+			String windSourceAuthority,
+			long windSourceFreshnessAgeTicks,
+			double windSourceMeanSpeedMetersPerSecond,
+			double windSourceEffectiveSpeedMetersPerSecond,
+			double windSourceGustSpeedMetersPerSecond,
+			boolean windSourceHasTemperature,
+			double windSourceTemperatureCelsius,
+			boolean windSourceHasHumidity,
+			double windSourceHumidity,
+			double windSourceAblStability,
+			double windSourceAblMixingStrength,
+			Vec3 windSourceGustVelocityWorldMetersPerSecond
+	) {
+		this(
+				windVelocityWorldMetersPerSecond,
+				airDensityRatio,
+				groundClearanceMeters,
+				turbulenceIntensity,
+				obstacleProximity,
+				droneWakeIntensity,
+				ceilingClearanceMeters,
+				rotorThrustMultipliers,
+				rotorFlowObstructions,
+				rotorFlowObstructionDirectionsBody,
+				rotorWaterImmersions,
+				waterImmersionIntensity,
+				rotorPrecipitationWetnesses,
+				precipitationWetnessIntensity,
+				ambientTemperatureCelsius,
+				rotorWindVelocityWorldMetersPerSecond,
+				rotorDiskWindGradientBodyMetersPerSecond,
+				rotorA4mcShelterObstructions,
+				windSourceId,
+				windSourceTrustedForGameplay,
+				windSourceConfidence,
+				windSourceTurbulenceIntensity,
+				windSourcePressureAnomalyPascals,
+				windShearMagnitudePerBlock,
+				windShelterFactor,
+				windUpdraftMetersPerSecond,
+				windSourceLocalVoxelFlow,
+				windSourceLevel,
+				windSourceAuthority,
+				windSourceFreshnessAgeTicks,
+				windSourceMeanSpeedMetersPerSecond,
+				windSourceEffectiveSpeedMetersPerSecond,
+				windSourceGustSpeedMetersPerSecond,
+				windSourceHasTemperature,
+				windSourceTemperatureCelsius,
+				windSourceHasHumidity,
+				windSourceHumidity,
+				windSourceAblStability,
+				windSourceAblMixingStrength,
+				windSourceGustVelocityWorldMetersPerSecond,
+				null,
+				null,
+				null,
+				null
 		);
 	}
 
@@ -426,6 +532,10 @@ public record DroneEnvironment(
 		rotorWindVelocityWorldMetersPerSecond = sanitizeWindArray(rotorWindVelocityWorldMetersPerSecond);
 		rotorDiskWindGradientBodyMetersPerSecond = sanitizeDiskWindGradientArray(rotorDiskWindGradientBodyMetersPerSecond);
 		rotorA4mcShelterObstructions = sanitizeUnitArray(rotorA4mcShelterObstructions);
+		rotorGroundSurfaceCoverages = sanitizeUnitArray(rotorGroundSurfaceCoverages);
+		rotorCeilingSurfaceCoverages = sanitizeUnitArray(rotorCeilingSurfaceCoverages);
+		rotorGroundSurfaceGates = sanitizeUnitArray(rotorGroundSurfaceGates);
+		rotorCeilingSurfaceGates = sanitizeUnitArray(rotorCeilingSurfaceGates);
 		windSourceId = sanitizeWindSourceId(windSourceId);
 		if (!Double.isFinite(windSourceConfidence)) {
 			windSourceConfidence = 0.0;
@@ -863,14 +973,46 @@ public record DroneEnvironment(
 		if (totalWeight <= 1.0e-9 || supportedWeight <= 1.0e-9) {
 			return 1.0;
 		}
-		double supportedCoverage = MathUtil.clamp(supportedWeight / totalWeight, 0.0, 1.0);
-		double patchDiameterMeters = partialSurfaceCoveragePatchDiameterMeters(config, supportedCoverage);
-		double partialSurfaceGate = partialSurfaceEffectGate(config, patchDiameterMeters);
+		double partialSurfaceGate = partialSurfaceCoverageGate(config, supportedWeight / totalWeight);
 		double supportedAverageMultiplier = supportedWeightedMultiplier / supportedWeight;
 		return MathUtil.clamp(1.0 + (supportedAverageMultiplier - 1.0) * partialSurfaceGate, 0.35, 2.0);
 	}
 
-	private static double partialSurfaceCoveragePatchDiameterMeters(
+	public static double weightedSurfaceEffectSupportCoverage(
+			double[] clearancesMeters,
+			double[] weights
+	) {
+		if (clearancesMeters == null || clearancesMeters.length == 0) {
+			return 0.0;
+		}
+		double supportedWeight = 0.0;
+		double totalWeight = 0.0;
+		for (int i = 0; i < clearancesMeters.length; i++) {
+			double weight = weights != null && i < weights.length ? weights[i] : 1.0;
+			if (!Double.isFinite(weight) || weight <= 0.0) {
+				continue;
+			}
+			totalWeight += weight;
+			if (Double.isFinite(clearancesMeters[i])) {
+				supportedWeight += weight;
+			}
+		}
+		return totalWeight <= 1.0e-9
+				? 0.0
+				: MathUtil.clamp(supportedWeight / totalWeight, 0.0, 1.0);
+	}
+
+	public static double partialSurfaceCoverageGate(
+			DroneConfig config,
+			double supportedCoverageFraction
+	) {
+		return partialSurfaceEffectGate(
+				config,
+				partialSurfaceCoveragePatchDiameterMeters(config, supportedCoverageFraction)
+		);
+	}
+
+	public static double partialSurfaceCoveragePatchDiameterMeters(
 			DroneConfig config,
 			double supportedCoverageFraction
 	) {
@@ -938,6 +1080,50 @@ public record DroneEnvironment(
 
 	public double[] rotorThrustMultipliers() {
 		return rotorThrustMultipliers.clone();
+	}
+
+	public double rotorGroundSurfaceCoverage(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorGroundSurfaceCoverages.length) {
+			return rotorGroundSurfaceCoverages[rotorIndex];
+		}
+		return Double.isFinite(groundClearanceMeters) ? 1.0 : 0.0;
+	}
+
+	public double rotorCeilingSurfaceCoverage(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorCeilingSurfaceCoverages.length) {
+			return rotorCeilingSurfaceCoverages[rotorIndex];
+		}
+		return Double.isFinite(ceilingClearanceMeters) ? 1.0 : 0.0;
+	}
+
+	public double rotorGroundSurfaceGate(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorGroundSurfaceGates.length) {
+			return rotorGroundSurfaceGates[rotorIndex];
+		}
+		return rotorGroundSurfaceCoverage(rotorIndex) > 0.0 ? 1.0 : 0.0;
+	}
+
+	public double rotorCeilingSurfaceGate(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorCeilingSurfaceGates.length) {
+			return rotorCeilingSurfaceGates[rotorIndex];
+		}
+		return rotorCeilingSurfaceCoverage(rotorIndex) > 0.0 ? 1.0 : 0.0;
+	}
+
+	public double[] rotorGroundSurfaceCoverages() {
+		return rotorGroundSurfaceCoverages.clone();
+	}
+
+	public double[] rotorCeilingSurfaceCoverages() {
+		return rotorCeilingSurfaceCoverages.clone();
+	}
+
+	public double[] rotorGroundSurfaceGates() {
+		return rotorGroundSurfaceGates.clone();
+	}
+
+	public double[] rotorCeilingSurfaceGates() {
+		return rotorCeilingSurfaceGates.clone();
 	}
 
 	public double rotorFlowObstruction(int rotorIndex) {

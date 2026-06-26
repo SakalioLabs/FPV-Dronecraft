@@ -605,6 +605,26 @@ public final class DroneBlackboxSample {
 			"ceiling_clearance_m",
 			"ceiling_effect_multiplier",
 			"env_thrust_asymmetry",
+			"rotor_min_ground_surface_coverage",
+			"rotor_0_ground_surface_coverage",
+			"rotor_1_ground_surface_coverage",
+			"rotor_2_ground_surface_coverage",
+			"rotor_3_ground_surface_coverage",
+			"rotor_min_ground_surface_gate",
+			"rotor_0_ground_surface_gate",
+			"rotor_1_ground_surface_gate",
+			"rotor_2_ground_surface_gate",
+			"rotor_3_ground_surface_gate",
+			"rotor_min_ceiling_surface_coverage",
+			"rotor_0_ceiling_surface_coverage",
+			"rotor_1_ceiling_surface_coverage",
+			"rotor_2_ceiling_surface_coverage",
+			"rotor_3_ceiling_surface_coverage",
+			"rotor_min_ceiling_surface_gate",
+			"rotor_0_ceiling_surface_gate",
+			"rotor_1_ceiling_surface_gate",
+			"rotor_2_ceiling_surface_gate",
+			"rotor_3_ceiling_surface_gate",
 			"rotor_0_env_thrust_multiplier",
 			"rotor_1_env_thrust_multiplier",
 			"rotor_2_env_thrust_multiplier",
@@ -1145,6 +1165,22 @@ public final class DroneBlackboxSample {
 			"rotor_5_env_thrust_multiplier",
 			"rotor_6_env_thrust_multiplier",
 			"rotor_7_env_thrust_multiplier",
+			"rotor_4_ground_surface_coverage",
+			"rotor_5_ground_surface_coverage",
+			"rotor_6_ground_surface_coverage",
+			"rotor_7_ground_surface_coverage",
+			"rotor_4_ground_surface_gate",
+			"rotor_5_ground_surface_gate",
+			"rotor_6_ground_surface_gate",
+			"rotor_7_ground_surface_gate",
+			"rotor_4_ceiling_surface_coverage",
+			"rotor_5_ceiling_surface_coverage",
+			"rotor_6_ceiling_surface_coverage",
+			"rotor_7_ceiling_surface_coverage",
+			"rotor_4_ceiling_surface_gate",
+			"rotor_5_ceiling_surface_gate",
+			"rotor_6_ceiling_surface_gate",
+			"rotor_7_ceiling_surface_gate",
 			"rotor_4_flow_obstruction",
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
@@ -2066,6 +2102,26 @@ public final class DroneBlackboxSample {
 		row.add(ceilingClearance, "%.5f");
 		row.add(environment.ceilingEffectThrustMultiplier(config), "%.5f");
 		row.add(environment.rotorThrustAsymmetry(config), "%.5f");
+		row.add(minRotorGroundSurfaceCoverage(environment, config), "%.5f");
+		row.add(rotorGroundSurfaceCoverage(environment, config, 0), "%.5f");
+		row.add(rotorGroundSurfaceCoverage(environment, config, 1), "%.5f");
+		row.add(rotorGroundSurfaceCoverage(environment, config, 2), "%.5f");
+		row.add(rotorGroundSurfaceCoverage(environment, config, 3), "%.5f");
+		row.add(minRotorGroundSurfaceGate(environment, config), "%.5f");
+		row.add(rotorGroundSurfaceGate(environment, config, 0), "%.5f");
+		row.add(rotorGroundSurfaceGate(environment, config, 1), "%.5f");
+		row.add(rotorGroundSurfaceGate(environment, config, 2), "%.5f");
+		row.add(rotorGroundSurfaceGate(environment, config, 3), "%.5f");
+		row.add(minRotorCeilingSurfaceCoverage(environment, config), "%.5f");
+		row.add(rotorCeilingSurfaceCoverage(environment, config, 0), "%.5f");
+		row.add(rotorCeilingSurfaceCoverage(environment, config, 1), "%.5f");
+		row.add(rotorCeilingSurfaceCoverage(environment, config, 2), "%.5f");
+		row.add(rotorCeilingSurfaceCoverage(environment, config, 3), "%.5f");
+		row.add(minRotorCeilingSurfaceGate(environment, config), "%.5f");
+		row.add(rotorCeilingSurfaceGate(environment, config, 0), "%.5f");
+		row.add(rotorCeilingSurfaceGate(environment, config, 1), "%.5f");
+		row.add(rotorCeilingSurfaceGate(environment, config, 2), "%.5f");
+		row.add(rotorCeilingSurfaceGate(environment, config, 3), "%.5f");
 		row.add(environment.rotorThrustMultiplier(0, config), "%.5f");
 		row.add(environment.rotorThrustMultiplier(1, config), "%.5f");
 		row.add(environment.rotorThrustMultiplier(2, config), "%.5f");
@@ -2351,6 +2407,74 @@ public final class DroneBlackboxSample {
 
 	private static double valueOrOne(double[] values, int index) {
 		return index >= 0 && index < values.length ? values[index] : 1.0;
+	}
+
+	private static boolean hasRotor(DroneConfig config, int index) {
+		return config != null && index >= 0 && index < config.rotors().size();
+	}
+
+	private static double rotorGroundSurfaceCoverage(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorGroundSurfaceCoverage(index) : 0.0;
+	}
+
+	private static double rotorGroundSurfaceGate(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorGroundSurfaceGate(index) : 0.0;
+	}
+
+	private static double rotorCeilingSurfaceCoverage(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorCeilingSurfaceCoverage(index) : 0.0;
+	}
+
+	private static double rotorCeilingSurfaceGate(DroneEnvironment environment, DroneConfig config, int index) {
+		return hasRotor(config, index) ? environment.rotorCeilingSurfaceGate(index) : 0.0;
+	}
+
+	private static double minRotorGroundSurfaceCoverage(DroneEnvironment environment, DroneConfig config) {
+		int rotorCount = config == null ? 0 : config.rotors().size();
+		if (rotorCount <= 0) {
+			return 0.0;
+		}
+		double min = 1.0;
+		for (int i = 0; i < rotorCount; i++) {
+			min = Math.min(min, environment.rotorGroundSurfaceCoverage(i));
+		}
+		return min;
+	}
+
+	private static double minRotorGroundSurfaceGate(DroneEnvironment environment, DroneConfig config) {
+		int rotorCount = config == null ? 0 : config.rotors().size();
+		if (rotorCount <= 0) {
+			return 0.0;
+		}
+		double min = 1.0;
+		for (int i = 0; i < rotorCount; i++) {
+			min = Math.min(min, environment.rotorGroundSurfaceGate(i));
+		}
+		return min;
+	}
+
+	private static double minRotorCeilingSurfaceCoverage(DroneEnvironment environment, DroneConfig config) {
+		int rotorCount = config == null ? 0 : config.rotors().size();
+		if (rotorCount <= 0) {
+			return 0.0;
+		}
+		double min = 1.0;
+		for (int i = 0; i < rotorCount; i++) {
+			min = Math.min(min, environment.rotorCeilingSurfaceCoverage(i));
+		}
+		return min;
+	}
+
+	private static double minRotorCeilingSurfaceGate(DroneEnvironment environment, DroneConfig config) {
+		int rotorCount = config == null ? 0 : config.rotors().size();
+		if (rotorCount <= 0) {
+			return 0.0;
+		}
+		double min = 1.0;
+		for (int i = 0; i < rotorCount; i++) {
+			min = Math.min(min, environment.rotorCeilingSurfaceGate(i));
+		}
+		return min;
 	}
 
 	private static double unitOrOne(double value) {
@@ -2645,6 +2769,18 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(i < config.rotors().size() ? environment.rotorThrustMultiplier(i, config) : 1.0, "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(rotorGroundSurfaceCoverage(environment, config, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(rotorGroundSurfaceGate(environment, config, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(rotorCeilingSurfaceCoverage(environment, config, i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(rotorCeilingSurfaceGate(environment, config, i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorFlowObstruction(i), "%.5f");

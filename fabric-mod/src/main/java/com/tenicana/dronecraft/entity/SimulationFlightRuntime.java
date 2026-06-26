@@ -269,6 +269,14 @@ final class SimulationFlightRuntime {
 		return DroneEnvironment.weightedCeilingEffectThrustMultiplier(physics.config(), ceilingClearancesMeters, weights);
 	}
 
+	double surfaceEffectSupportCoverage(double[] clearancesMeters, double[] weights) {
+		return DroneEnvironment.weightedSurfaceEffectSupportCoverage(clearancesMeters, weights);
+	}
+
+	double partialSurfaceCoverageGate(double supportedCoverageFraction) {
+		return DroneEnvironment.partialSurfaceCoverageGate(physics.config(), supportedCoverageFraction);
+	}
+
 	FlightStateSnapshot flightStateSnapshot(Vec3 positionWorldMeters, Quaternion attitude, FlightMode flightMode, boolean armed) {
 		return flightStateSnapshot(
 				positionWorldMeters,

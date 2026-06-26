@@ -182,6 +182,15 @@ class DroneEnvironmentTest {
 				Double.POSITIVE_INFINITY,
 				Double.POSITIVE_INFINITY
 		};
+		assertEquals(0.25,
+				DroneEnvironment.weightedSurfaceEffectSupportCoverage(quarterSupported, evenWeights),
+				1.0e-12);
+		assertEquals(rotorRadius,
+				DroneEnvironment.partialSurfaceCoveragePatchDiameterMeters(config, 0.25),
+				1.0e-12);
+		assertEquals(0.0,
+				DroneEnvironment.partialSurfaceCoverageGate(config, 0.25),
+				1.0e-12);
 		assertEquals(1.0,
 				DroneEnvironment.weightedGroundEffectThrustMultiplier(config, quarterSupported, evenWeights),
 				1.0e-12);
@@ -191,6 +200,15 @@ class DroneEnvironmentTest {
 
 		double[] partialSupported = {rotorRadius, Double.POSITIVE_INFINITY};
 		double[] partialWeights = {0.5625, 0.4375};
+		assertEquals(0.5625,
+				DroneEnvironment.weightedSurfaceEffectSupportCoverage(partialSupported, partialWeights),
+				1.0e-12);
+		assertEquals(rotorRadius * 1.5,
+				DroneEnvironment.partialSurfaceCoveragePatchDiameterMeters(config, 0.5625),
+				1.0e-12);
+		assertEquals(0.5,
+				DroneEnvironment.partialSurfaceCoverageGate(config, 0.5625),
+				1.0e-12);
 		assertEquals(1.0 + (fullGround - 1.0) * 0.5,
 				DroneEnvironment.weightedGroundEffectThrustMultiplier(config, partialSupported, partialWeights),
 				1.0e-12);

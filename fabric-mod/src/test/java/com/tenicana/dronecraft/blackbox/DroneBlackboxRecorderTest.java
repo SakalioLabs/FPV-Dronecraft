@@ -341,6 +341,12 @@ class DroneBlackboxRecorderTest {
 		assertTrue(csv.contains("ceiling_clearance_m"));
 		assertTrue(csv.contains("ceiling_effect_multiplier"));
 		assertTrue(csv.contains("env_thrust_asymmetry"));
+		assertTrue(csv.contains("rotor_min_ground_surface_coverage"));
+		assertTrue(csv.contains("rotor_0_ground_surface_coverage"));
+		assertTrue(csv.contains("rotor_3_ground_surface_gate"));
+		assertTrue(csv.contains("rotor_min_ceiling_surface_coverage"));
+		assertTrue(csv.contains("rotor_0_ceiling_surface_coverage"));
+		assertTrue(csv.contains("rotor_3_ceiling_surface_gate"));
 		assertTrue(csv.contains("rotor_0_env_thrust_multiplier"));
 		assertTrue(csv.contains("rotor_3_env_thrust_multiplier"));
 		assertTrue(csv.contains("rotor_flow_obstruction"));
@@ -1988,6 +1994,10 @@ class DroneBlackboxRecorderTest {
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_precipitation_wetness")]), 0.0001);
 		assertEquals(0.23, Double.parseDouble(row[indexOf(header, "prop_strike_7_severity")]), 0.0001);
 		assertEquals(1.12, Double.parseDouble(row[indexOf(header, "rotor_7_env_thrust_multiplier")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_ground_surface_coverage")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_ground_surface_gate")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_ceiling_surface_coverage")]), 0.0001);
+		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_ceiling_surface_gate")]), 0.0001);
 		assertEquals(0.71, Double.parseDouble(row[indexOf(header, "rotor_7_flow_obstruction")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_disk_wind_gradient_mps")]), 0.0001);
 		assertEquals(0.0, Double.parseDouble(row[indexOf(header, "rotor_7_a4mc_shelter_obstruction")]), 0.0001);
