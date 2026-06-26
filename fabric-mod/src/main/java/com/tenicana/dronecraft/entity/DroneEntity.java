@@ -1612,17 +1612,17 @@ public class DroneEntity extends Entity {
 		double weightedWetness = bodyWetness * 1.10;
 		double totalWeight = 1.10;
 		double[] rotorWetnesses = new double[rotorCount];
-		Vec3 bodyXWorld = rotorGeometry.bodyXWorld();
-		Vec3 bodyZWorld = rotorGeometry.bodyZWorld();
 
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotorGeometry.rotor(i);
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
+			RotorPlaneSampleDirection[] rotorPlaneDirections = rotorPlaneSampleDirections(rotor);
+			Vec3 rotorAxisWorld = simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody());
 			double rotorPrecipitationExposureFactor = rotorEffects == null
 					? bodyPrecipitationExposureFactor
 					: rotorEffects.precipitationExposureFactor(i, bodyPrecipitationExposureFactor);
 			double rotorWetness = wetnessScale
-					* rotorPrecipitationExposureAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld)
+					* rotorPrecipitationExposureAt(rotorCenterWorld, rotor, rotorAxisWorld, rotorPlaneDirections)
 					* rotorPrecipitationExposureFactor;
 			rotorWetnesses[i] = MathUtil.clamp(rotorWetness, 0.0, 1.0);
 			weightedWetness += rotorWetnesses[i];
@@ -1640,29 +1640,32 @@ public class DroneEntity extends Entity {
 		return level().canSeeSky(position) ? 0.70 : 0.0;
 	}
 
-	private double rotorPrecipitationExposureAt(Vec3 rotorCenterWorld, RotorSpec rotor, Vec3 bodyXWorld, Vec3 bodyZWorld) {
+	private double rotorPrecipitationExposureAt(
+			Vec3 rotorCenterWorld,
+			RotorSpec rotor,
+			Vec3 rotorAxisWorld,
+			RotorPlaneSampleDirection[] rotorPlaneDirections
+	) {
 		double diskRadius = MathUtil.clamp(rotor.radiusMeters() * 2.4, 0.10, 0.26);
 		double upperDiskOffset = MathUtil.clamp(rotor.radiusMeters() * 0.35, 0.03, 0.10);
+		Vec3 upperOffset = safeRotorAxisWorld(rotorAxisWorld).multiply(upperDiskOffset);
 		double exposure = 0.0;
 		double weight = 0.0;
+		Vec3 centerSample = rotorCenterWorld.add(upperOffset);
 		exposure += precipitationExposureAt(BlockPos.containing(
-				rotorCenterWorld.x(),
-				rotorCenterWorld.y() + upperDiskOffset,
-				rotorCenterWorld.z()
+				centerSample.x(),
+				centerSample.y(),
+				centerSample.z()
 		)) * 0.40;
 		weight += 0.40;
 
-		Vec3[] diskOffsets = {
-				bodyXWorld.multiply(diskRadius),
-				bodyXWorld.multiply(-diskRadius),
-				bodyZWorld.multiply(diskRadius),
-				bodyZWorld.multiply(-diskRadius)
-		};
-		for (Vec3 offset : diskOffsets) {
-			Vec3 samplePosition = rotorCenterWorld.add(offset);
+		int sampleCount = Math.min(4, rotorPlaneDirections == null ? 0 : rotorPlaneDirections.length);
+		for (int i = 0; i < sampleCount; i++) {
+			Vec3 offset = rotorPlaneDirections[i].worldDirection().multiply(diskRadius);
+			Vec3 samplePosition = rotorCenterWorld.add(offset).add(upperOffset);
 			exposure += precipitationExposureAt(BlockPos.containing(
 					samplePosition.x(),
-					samplePosition.y() + upperDiskOffset,
+					samplePosition.y(),
 					samplePosition.z()
 			)) * 0.15;
 			weight += 0.15;
@@ -1694,8 +1697,6 @@ public class DroneEntity extends Entity {
 		double totalWeight = 0.0;
 		double[] rotorWater = new double[rotorCount];
 		Vec3 bodyCenterWorld = entityPhysicsPosition();
-		Vec3 bodyXWorld = rotorGeometry.bodyXWorld();
-		Vec3 bodyZWorld = rotorGeometry.bodyZWorld();
 
 		weightedWater += waterSampleAt(bodyCenterWorld) * 1.35;
 		totalWeight += 1.35;
@@ -1707,7 +1708,12 @@ public class DroneEntity extends Entity {
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotorGeometry.rotor(i);
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
-			double rotorImmersion = rotorWaterImmersionAt(rotorCenterWorld, rotor, bodyXWorld, bodyZWorld);
+			double rotorImmersion = rotorWaterImmersionAt(
+					rotorCenterWorld,
+					rotor,
+					simulationRuntime.rotorPlaneWorldDirection(rotor.thrustAxisBody()),
+					rotorPlaneSampleDirections(rotor)
+			);
 			rotorWater[i] = rotorImmersion;
 			weightedWater += rotorImmersion * 1.30;
 			totalWeight += 1.30;
@@ -1717,27 +1723,35 @@ public class DroneEntity extends Entity {
 		return new WaterImmersion(rotorWater, averageWater);
 	}
 
-	private double rotorWaterImmersionAt(Vec3 rotorCenterWorld, RotorSpec rotor, Vec3 bodyXWorld, Vec3 bodyZWorld) {
+	private double rotorWaterImmersionAt(
+			Vec3 rotorCenterWorld,
+			RotorSpec rotor,
+			Vec3 rotorAxisWorld,
+			RotorPlaneSampleDirection[] rotorPlaneDirections
+	) {
 		double diskRadius = MathUtil.clamp(rotor.radiusMeters() * 3.6, 0.14, 0.30);
 		double lowerDiskOffset = MathUtil.clamp(rotor.radiusMeters() * 0.45, 0.04, 0.13);
+		Vec3 lowerOffset = safeRotorAxisWorld(rotorAxisWorld).multiply(-lowerDiskOffset);
 		double water = 0.0;
 		double weight = 0.0;
 		water += waterSampleAt(rotorCenterWorld) * 0.34;
 		weight += 0.34;
-		water += waterSampleAt(rotorCenterWorld.add(new Vec3(0.0, -lowerDiskOffset, 0.0))) * 0.26;
+		water += waterSampleAt(rotorCenterWorld.add(lowerOffset)) * 0.26;
 		weight += 0.26;
 
-		Vec3[] diskOffsets = {
-				bodyXWorld.multiply(diskRadius),
-				bodyXWorld.multiply(-diskRadius),
-				bodyZWorld.multiply(diskRadius),
-				bodyZWorld.multiply(-diskRadius)
-		};
-		for (Vec3 offset : diskOffsets) {
+		int sampleCount = Math.min(4, rotorPlaneDirections == null ? 0 : rotorPlaneDirections.length);
+		for (int i = 0; i < sampleCount; i++) {
+			Vec3 offset = rotorPlaneDirections[i].worldDirection().multiply(diskRadius);
 			water += waterSampleAt(rotorCenterWorld.add(offset)) * 0.10;
 			weight += 0.10;
 		}
 		return weight <= 0.0 ? 0.0 : MathUtil.clamp(water / weight, 0.0, 1.0);
+	}
+
+	private static Vec3 safeRotorAxisWorld(Vec3 rotorAxisWorld) {
+		return rotorAxisWorld == null || !rotorAxisWorld.isFinite() || rotorAxisWorld.lengthSquared() <= 1.0e-12
+				? new Vec3(0.0, 1.0, 0.0)
+				: rotorAxisWorld.normalized();
 	}
 
 	private double waterSampleAt(Vec3 worldPosition) {
