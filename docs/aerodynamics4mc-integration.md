@@ -25,12 +25,11 @@ When trusted Aerodynamics4MC samples are available, `fabric-mod` samples each ro
 
 `DroneEnvironment` now carries wind-source telemetry through to the blackbox CSV. The log records whether the frame used calm, Minecraft weather, an explicit environment override, or Aerodynamics4MC, plus source confidence, trusted state, shear, shelter, updraft, local voxel-flow availability, source temperature, humidity, and per-rotor disk-gradient magnitudes. Those columns make later terrain-flow tuning auditable instead of relying on inferred wind state.
 
-In the advanced environment path, local obstacle scans, drone wake, water, precipitation, ground effect, ceiling effect, and rotor disk obstruction remain active on top of the sampled wind. In the stage-one playable path, the environment remains calm unless Aerodynamics4MC or an explicit `/fpvdrone environment` override provides wind or turbulence.
+In the advanced environment path, local obstacle scans, drone wake, water, precipitation, ground effect, ceiling effect, and rotor disk obstruction remain active on top of the sampled wind. If Aerodynamics4MC reports trusted local L2 voxel flow, FPV Dronecraft treats A4MC shelter as having already explained part of the wall/tunnel wind shadow and attenuates only the duplicated local obstacle airflow plus rotor side-flow obstruction. Rotor ground effect, ceiling effect, wet props, precipitation, and drone wake stay independent. In the stage-one playable path, the environment remains calm unless Aerodynamics4MC or an explicit `/fpvdrone environment` override provides wind or turbulence.
 
 ## Next Research Steps
 
 - Calibrate the disk-gradient thrust-loss, load, vibration, and flapping coefficients against blackbox traces near block edges and tunnel mouths.
-- De-duplicate local obstruction when Aerodynamics4MC provides trusted L2 voxel flow, so shelter is not applied twice.
 - Build blackbox regression traces that compare Aerodynamics4MC confidence, shelter, and shear against observed rotor axial gust response near block edges and tunnel mouths.
 - Validate A4MC-driven gust response against the existing `wind_gust_calibration_packet` and `rotor_forward_flow_reference` data.
 - Explore optional client-only visualization using A4MC local L2 while keeping server flight dynamics authoritative.

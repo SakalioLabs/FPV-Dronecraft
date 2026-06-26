@@ -48,6 +48,7 @@ import com.tenicana.dronecraft.blackbox.DroneBlackboxSample;
 import com.tenicana.dronecraft.debug.DroneDebugSettings;
 import com.tenicana.dronecraft.control.DroneControlManager;
 import com.tenicana.dronecraft.integration.Aerodynamics4McWindBridge;
+import com.tenicana.dronecraft.integration.AerodynamicsWindCoupling;
 import com.tenicana.dronecraft.sim.ContactDynamics;
 import com.tenicana.dronecraft.registry.DroneItems;
 import com.tenicana.dronecraft.sim.DroneConfig;
@@ -1246,12 +1247,17 @@ public class DroneEntity extends Entity {
 				: weatherWindMetersPerSecond();
 		Vec3 sourceWind = environmentOverride.windOr(naturalWind);
 		DroneWakeAirflow droneWake = sampleDroneWakeAirflow();
-		ObstacleAirflow obstacleAirflow = sampleObstacleAirflow(sourceWind.add(droneWake.windVelocityWorldMetersPerSecond()));
+		double localVoxelObstacleResidual = AerodynamicsWindCoupling.localVoxelObstacleResidualFactor(externalWind);
+		ObstacleAirflow obstacleAirflow = sampleObstacleAirflow(
+				sourceWind.add(droneWake.windVelocityWorldMetersPerSecond()),
+				localVoxelObstacleResidual
+		);
 		double groundClearance = groundClearanceMeters();
 		double ceilingClearance = ceilingClearanceMeters();
 		RotorEnvironmentEffects rotorEffects = sampleRotorEnvironmentEffects(
 				externalWind,
-				obstacleAirflow.windVelocityWorldMetersPerSecond()
+				obstacleAirflow.windVelocityWorldMetersPerSecond(),
+				localVoxelObstacleResidual
 		);
 		WaterImmersion waterImmersion = sampleWaterImmersion();
 		PrecipitationWetness precipitationWetness = samplePrecipitationWetness(sourceWind.length());
@@ -1579,7 +1585,8 @@ public class DroneEntity extends Entity {
 
 	private RotorEnvironmentEffects sampleRotorEnvironmentEffects(
 			Aerodynamics4McWindBridge.WindSample externalWind,
-			Vec3 baselineWindVelocityWorldMetersPerSecond
+			Vec3 baselineWindVelocityWorldMetersPerSecond,
+			double localVoxelObstacleResidual
 	) {
 		SimulationFlightRuntime.RotorGeometry rotorGeometry = simulationRuntime.rotorGeometry();
 		int rotorCount = rotorGeometry.rotorCount();
@@ -1599,7 +1606,11 @@ public class DroneEntity extends Entity {
 			Vec3 rotorCenterWorld = bodyCenterWorld.add(rotorGeometry.rotorPositionWorldOffset(i));
 			RotorDiskSurfaceSample surfaceSample = rotorDiskSurfaceSample(rotorCenterWorld, rotor, rotorPlaneDirections);
 			RotorFlowObstruction flowObstruction = rotorSideFlowObstruction(rotorCenterWorld, rotor, rotorPlaneDirections);
-			double flowObstructionIntensity = flowObstruction.intensity();
+			double flowObstructionIntensity = MathUtil.clamp(
+					flowObstruction.intensity() * localVoxelObstacleResidual,
+					0.0,
+					1.0
+			);
 			flowObstructionDirectionsBody[i] = flowObstruction.directionBody();
 			flowObstructions[i] = flowObstructionIntensity;
 			maxFlowObstruction = Math.max(maxFlowObstruction, flowObstructionIntensity);
@@ -1809,7 +1820,7 @@ public class DroneEntity extends Entity {
 		return new DroneWakeAirflow(wind, turbulence, intensity);
 	}
 
-	private ObstacleAirflow sampleObstacleAirflow(Vec3 weatherWindMetersPerSecond) {
+	private ObstacleAirflow sampleObstacleAirflow(Vec3 weatherWindMetersPerSecond, double localVoxelObstacleResidual) {
 		double scanDistanceMeters = 4.5;
 		double obstacleProximity = 0.0;
 		Vec3[] sampleDirections = {
@@ -1837,6 +1848,11 @@ public class DroneEntity extends Entity {
 			upstreamProximity = obstacleProximityFromDistance(obstacleDistanceMeters(upstreamDirection, scanDistanceMeters), scanDistanceMeters);
 		}
 
+		double obstacleResidual = Double.isFinite(localVoxelObstacleResidual)
+				? MathUtil.clamp(localVoxelObstacleResidual, 0.0, 1.0)
+				: 1.0;
+		obstacleProximity *= obstacleResidual;
+		upstreamProximity *= obstacleResidual;
 		double windShadow = 0.65 * upstreamProximity * upstreamProximity;
 		Vec3 shadedWind = weatherWindMetersPerSecond.multiply(1.0 - windShadow);
 		double windFactor = MathUtil.clamp(windSpeed / 9.0, 0.0, 1.0);
