@@ -327,6 +327,35 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void sourceWeightedWindSpeedsUseSourceQuality() {
+		Aerodynamics4McWindBridge.WindSample fresh = windSampleWithMeanAndEffectiveWind(
+				new Vec3(3.0, 0.0, 4.0),
+				new Vec3(6.0, 0.0, 8.0),
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample halfStale = windSampleWithMeanAndEffectiveWind(
+				new Vec3(3.0, 0.0, 4.0),
+				new Vec3(6.0, 0.0, 8.0),
+				100L
+		);
+		Aerodynamics4McWindBridge.WindSample stale = windSampleWithMeanAndEffectiveWind(
+				new Vec3(3.0, 0.0, 4.0),
+				new Vec3(6.0, 0.0, 8.0),
+				200L
+		);
+
+		assertEquals(5.0, AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(fresh), 1.0e-9);
+		assertEquals(10.0, AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(fresh), 1.0e-9);
+		assertEquals(5.0, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(fresh), 1.0e-9);
+		assertEquals(2.5, AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(halfStale), 1.0e-9);
+		assertEquals(5.0, AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(halfStale), 1.0e-9);
+		assertEquals(2.5, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(halfStale), 1.0e-9);
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(stale), 1.0e-9);
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(stale), 1.0e-9);
+		assertEquals(0.0, AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(stale), 1.0e-9);
+	}
+
+	@Test
 	void staleAtmosphereScalarsFallBack() {
 		Aerodynamics4McWindBridge.WindSample sample = windSampleWithAtmosphere(200L);
 
@@ -336,9 +365,17 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	private static Aerodynamics4McWindBridge.WindSample windSampleWithEffectiveWind(Vec3 effectiveWind, long freshnessAgeTicks) {
+		return windSampleWithMeanAndEffectiveWind(Vec3.ZERO, effectiveWind, freshnessAgeTicks);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithMeanAndEffectiveWind(
+			Vec3 meanWind,
+			Vec3 effectiveWind,
+			long freshnessAgeTicks
+	) {
 		return new Aerodynamics4McWindBridge.WindSample(
 				true,
-				Vec3.ZERO,
+				meanWind,
 				effectiveWind,
 				0.0,
 				0.0,

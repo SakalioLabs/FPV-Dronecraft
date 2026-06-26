@@ -134,6 +134,27 @@ public final class AerodynamicsWindCoupling {
 		return MathUtil.clamp(sample.humidity(), 0.0, 1.0) * sourceQualityFactor(sample);
 	}
 
+	public static double sourceWeightedMeanSpeedMetersPerSecond(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow()) {
+			return 0.0;
+		}
+		return sample.meanVelocityWorldMetersPerSecond().length() * sourceQualityFactor(sample);
+	}
+
+	public static double sourceWeightedEffectiveSpeedMetersPerSecond(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow()) {
+			return 0.0;
+		}
+		return sample.effectiveVelocityWorldMetersPerSecond().length() * sourceQualityFactor(sample);
+	}
+
+	public static double sourceWeightedGustSpeedMetersPerSecond(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow()) {
+			return 0.0;
+		}
+		return sample.gustSpeedMetersPerSecond() * sourceQualityFactor(sample);
+	}
+
 	public static RotorDiskWindBlend rotorDiskWindBlend(
 			Vec3 centerWindWorldMetersPerSecond,
 			Vec3 rotorAxisWorld,

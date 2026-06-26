@@ -1449,9 +1449,9 @@ public class DroneEntity extends Entity {
 					externalWind.sourceLevel(),
 					externalWind.sourceAuthority(),
 					externalWind.freshnessAgeTicks(),
-					externalWind.meanVelocityWorldMetersPerSecond().length(),
-					externalWind.effectiveVelocityWorldMetersPerSecond().length(),
-					externalWind.gustSpeedMetersPerSecond(),
+					AerodynamicsWindCoupling.sourceWeightedMeanSpeedMetersPerSecond(externalWind),
+					AerodynamicsWindCoupling.sourceWeightedEffectiveSpeedMetersPerSecond(externalWind),
+					AerodynamicsWindCoupling.sourceWeightedGustSpeedMetersPerSecond(externalWind),
 					hasSourceTemperature,
 					hasSourceTemperature
 							? AerodynamicsWindCoupling.sourceWeightedTemperatureCelsius(
