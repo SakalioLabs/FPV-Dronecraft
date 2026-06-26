@@ -7911,6 +7911,46 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcSaturatedFreezingHumidityAddsLightRotorIcingWithoutRain() {
+		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withPitchGains(zeroGains)
+				.withYawGains(zeroGains)
+				.withRollGains(zeroGains)
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics dryFreezing = new DronePhysics(config);
+		DronePhysics humidFreezing = new DronePhysics(config);
+		DronePhysics freezingWet = new DronePhysics(config);
+		DroneInput highLoad = new DroneInput(0.86, 0.0, 0.0, 0.0, true);
+		DroneEnvironment dryA4mc = a4mcThermalHumidityEnvironment(1.0, -8.0, 0.0);
+		DroneEnvironment humidA4mc = a4mcThermalHumidityEnvironment(1.0, -8.0, 1.0);
+		DroneEnvironment freezingRain = rainEnvironmentWithDensity(1.0, 1.0, -8.0);
+
+		for (int i = 0; i < 6000; i++) {
+			dryFreezing.step(highLoad, 0.010, dryA4mc);
+			humidFreezing.step(highLoad, 0.010, humidA4mc);
+			freezingWet.step(highLoad, 0.010, freezingRain);
+		}
+
+		double drySeverity = dryFreezing.state().maxRotorIcingSeverity();
+		double humidSeverity = humidFreezing.state().maxRotorIcingSeverity();
+		double wetSeverity = freezingWet.state().maxRotorIcingSeverity();
+		assertEquals(0.0, dryA4mc.precipitationWetnessIntensity(), 1.0e-12);
+		assertEquals(0.0, humidA4mc.precipitationWetnessIntensity(), 1.0e-12);
+		assertTrue(drySeverity < 1.0e-8, () -> "drySeverity=" + drySeverity);
+		assertTrue(humidSeverity > 0.035, () -> "humidSeverity=" + humidSeverity);
+		assertTrue(humidFreezing.state().minRotorIcingThrustScale() < 0.994,
+				() -> "humidIcingThrustScale=" + humidFreezing.state().minRotorIcingThrustScale());
+		assertTrue(humidSeverity < wetSeverity * 0.35,
+				() -> "humidSeverity=" + humidSeverity + " wetSeverity=" + wetSeverity);
+		assertTrue(humidFreezing.state().averageRotorWetThrustScale() > 0.999,
+				() -> "humidWetThrustScale=" + humidFreezing.state().averageRotorWetThrustScale());
+	}
+
+	@Test
 	void wetPropFilmDriesSlowerWhenRotorsStop() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())

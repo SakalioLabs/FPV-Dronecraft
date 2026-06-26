@@ -50,6 +50,9 @@ public final class IcingRotorCalibration {
 	public static final double CURRENT_FULL_WETNESS_RAIN_LOSS_PERCENT = 3.0;
 	public static final double CT_LOSS_MEDIAN_OVER_CURRENT_RAIN_LOSS = 6.46266666667;
 	public static final double CT_LOSS_MAX_OVER_CURRENT_RAIN_LOSS = 7.98533333333;
+	private static final double FREEZING_HUMIDITY_ONSET = 0.72;
+	private static final double FREEZING_HUMIDITY_FULL = 0.98;
+	private static final double MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS = 0.40;
 
 	private IcingRotorCalibration() {
 	}
@@ -195,6 +198,20 @@ public final class IcingRotorCalibration {
 		double dryShedding = (1.0 - wetness) * smoothStep(0.25, 0.85, spin) / 420.0;
 		double sublimation = (1.0 - wetness) * (1.0 - freezingTemperatureFactor(ambientTemperatureCelsius)) / 900.0;
 		return MathUtil.clamp(warmMelt + dryShedding + sublimation, 0.0, 0.05);
+	}
+
+	public static double freezingHumidityEquivalentWetness(double ambientTemperatureCelsius, double humidity) {
+		double freezingFactor = freezingTemperatureFactor(ambientTemperatureCelsius);
+		if (freezingFactor <= EPSILON) {
+			return 0.0;
+		}
+		double humidAir = MathUtil.clamp(humidity, 0.0, 1.0);
+		double saturationFactor = smoothStep(FREEZING_HUMIDITY_ONSET, FREEZING_HUMIDITY_FULL, humidAir);
+		return MathUtil.clamp(
+				MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS * freezingFactor * saturationFactor,
+				0.0,
+				MAX_FREEZING_HUMIDITY_EQUIVALENT_WETNESS
+		);
 	}
 
 	public static double freezingTemperatureFactor(double ambientTemperatureCelsius) {

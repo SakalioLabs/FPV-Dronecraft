@@ -71,6 +71,12 @@ class IcingRotorCalibrationTest {
 		assertTrue(IcingRotorCalibration.freezingTemperatureFactor(-25.0) < 0.90);
 		assertEquals(1.0 / 194.5, runtime.fullWetMinusEightCSpinOneAccretionRatePerSecond(), 1.0e-15);
 		assertEquals(0.0, IcingRotorCalibration.icingSeverityRatePerSecond(5.0, 1.0, 1.0), 1.0e-12);
+		assertEquals(0.0, IcingRotorCalibration.freezingHumidityEquivalentWetness(5.0, 1.0), 1.0e-12);
+		assertEquals(0.0, IcingRotorCalibration.freezingHumidityEquivalentWetness(-8.0, 0.65), 1.0e-12);
+		assertTrue(IcingRotorCalibration.freezingHumidityEquivalentWetness(-8.0, 1.0) > 0.35);
+		assertTrue(IcingRotorCalibration.freezingHumidityEquivalentWetness(-8.0, 1.0) < 0.45);
+		assertTrue(IcingRotorCalibration.freezingHumidityEquivalentWetness(-8.0, 0.85)
+				< IcingRotorCalibration.freezingHumidityEquivalentWetness(-8.0, 1.0));
 		assertTrue(runtime.halfWetMinusEightCSpinOneAccretionRatePerSecond()
 				< runtime.fullWetMinusEightCSpinOneAccretionRatePerSecond());
 		assertTrue(IcingRotorCalibration.icingSeverityRatePerSecond(-8.0, 1.0, 0.05) < 1.0e-6);

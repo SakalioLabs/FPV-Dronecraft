@@ -1347,7 +1347,10 @@ public final class DronePhysics {
 					i,
 					aerodynamicRotor,
 					aerodynamicOmega,
-					Math.max(rotorPrecipitationWetness, rotorFilmWetness),
+					Math.max(
+							Math.max(rotorPrecipitationWetness, rotorFilmWetness),
+							frozenHumidityIcingWetness(environment)
+					),
 					environment.ambientTemperatureCelsius(),
 					dtSeconds
 			);
@@ -4518,6 +4521,16 @@ public final class DronePhysics {
 		severity = MathUtil.clamp(severity, 0.0, 1.25);
 		state.setRotorIcingSeverity(index, severity);
 		return severity;
+	}
+
+	private static double frozenHumidityIcingWetness(DroneEnvironment environment) {
+		if (environment == null || !environment.windSourceHasHumidity()) {
+			return 0.0;
+		}
+		return IcingRotorCalibration.freezingHumidityEquivalentWetness(
+				environment.ambientTemperatureCelsius(),
+				environment.windSourceHumidity()
+		);
 	}
 
 	private double updateRotorSurfaceWetness(
