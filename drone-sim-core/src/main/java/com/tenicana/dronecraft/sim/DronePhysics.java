@@ -19,6 +19,8 @@ public final class DronePhysics {
 	private static final double ROTOR_ARM_FLEX_MAX_VELOCITY_PER_SECOND = 18.0;
 	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_TILT_RADIANS = Math.toRadians(4.5);
 	private static final double ROTOR_DISK_WIND_GRADIENT_MAX_THRUST_LOSS = 0.045;
+	private static final double A4MC_LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE = 0.42;
+	private static final double A4MC_LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN = 0.018;
 	private static final double ROTOR_WINDMILL_MAX_OMEGA_FRACTION = 0.32;
 	private static final double COAXIAL_LOAD_BIAS_MAX = CoaxialAllocationCalibration.LOAD_BIAS_MAX;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
@@ -5983,13 +5985,13 @@ public final class DronePhysics {
 		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
 				.add(dynamicPressureCenterOffsetBody)
 				.subtract(config.centerOfMassOffsetBodyMeters());
-		if (momentArmBody.lengthSquared() <= 1.0e-12 || relativeAirVelocityBody.lengthSquared() <= 1.0e-6 || airDensityRatio <= 0.0) {
-			return Vec3.ZERO;
-		}
-
 		Vec3 airframeForceBody = airframeDragForceBody
 				.add(airframeLiftForceBody)
-				.add(rotorWashDragForceBody);
+				.add(rotorWashDragForceBody)
+				.add(a4mcLocalVoxelRotorWashPressureCenterForceBody(dynamicPressureCenterOffsetBody, environment, airDensityRatio));
+		if (momentArmBody.lengthSquared() <= 1.0e-12 || airframeForceBody.lengthSquared() <= 1.0e-12 || airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
 		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
 	}
 
@@ -6022,11 +6024,10 @@ public final class DronePhysics {
 			DroneEnvironment environment
 	) {
 		double speed = relativeAirVelocityBody.length();
-		if (speed < 2.0) {
-			return Vec3.ZERO;
-		}
-
 		Vec3 a4mcLocalOffset = a4mcLocalVoxelPressureCenterOffsetBody(environment, speed);
+		if (speed < 2.0) {
+			return a4mcLocalOffset;
+		}
 		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
 		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
 		double sideslip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
@@ -6105,7 +6106,10 @@ public final class DronePhysics {
 			return Vec3.ZERO;
 		}
 
-		double speedGate = smoothStep(2.0, 12.0, airspeedMetersPerSecond);
+		double speedGate = Math.max(
+				smoothStep(2.0, 12.0, airspeedMetersPerSecond),
+				a4mcLocalVoxelRotorWashPressureCenterGate()
+		);
 		double strength = MathUtil.clamp(meanSignal * speedGate, 0.0, 1.0);
 		if (strength <= 1.0e-6) {
 			return Vec3.ZERO;
@@ -6115,6 +6119,55 @@ public final class DronePhysics {
 				0.0,
 				-weightedDeficitCentroid.z() * 0.44 * strength
 		).clamp(-0.024, 0.024);
+	}
+
+	private Vec3 a4mcLocalVoxelRotorWashPressureCenterForceBody(
+			Vec3 dynamicPressureCenterOffsetBody,
+			DroneEnvironment environment,
+			double airDensityRatio
+	) {
+		if (environment == null
+				|| !environment.windSourceLocalVoxelFlow()
+				|| a4mcWindSourceQualityFactor(environment) <= 1.0e-9
+				|| dynamicPressureCenterOffsetBody.lengthSquared() <= 1.0e-12
+				|| airDensityRatio <= 0.0) {
+			return Vec3.ZERO;
+		}
+		double washGate = a4mcLocalVoxelRotorWashPressureCenterGate();
+		if (washGate <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
+		Vec3 drag = config.bodyDragCoefficients();
+		double bodyAreaScale = Math.sqrt(Math.max(0.0, drag.x() * drag.z()));
+		if (bodyAreaScale <= 1.0e-9 || inducedVelocity <= 1.0e-6) {
+			return Vec3.ZERO;
+		}
+		double download = airDensityRatio
+				* inducedVelocity
+				* inducedVelocity
+				* bodyAreaScale
+				* A4MC_LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN
+				* washGate;
+		return new Vec3(0.0, -MathUtil.clamp(download, 0.0, 0.45), 0.0);
+	}
+
+	private double a4mcLocalVoxelRotorWashPressureCenterGate() {
+		double inducedVelocity = state.averageRotorInducedVelocityMetersPerSecond();
+		double thrustToWeight = totalRotorThrustNewtons()
+				/ Math.max(1.0e-6, config.massKg() * config.gravityMetersPerSecondSquared());
+		return A4MC_LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE
+				* smoothStep(0.08, 0.70, thrustToWeight)
+				* smoothStep(0.35, 5.5, inducedVelocity);
+	}
+
+	private double totalRotorThrustNewtons() {
+		double total = 0.0;
+		int count = state.motorCount();
+		for (int i = 0; i < count; i++) {
+			total += state.rotorThrustNewtons(i);
+		}
+		return total;
 	}
 
 	private Vec3 calculateAirframeAngularDragTorque(

@@ -10,9 +10,11 @@ This packet mirrors the fabric-side AerodynamicsWindCoupling formulas that turn
 trusted A4MC L2 local voxel samples into duplicate-obstacle attenuation,
 pressure-gradient disk-wind equivalents, and shelter-gradient side obstruction.
 It also mirrors the core pressure-center offset that consumes those adopted
-per-rotor local-voxel signals. It complements the core disk-gradient packet by
-making the Minecraft sampling preprocessor and its body-scale moment path
-auditable before live A4MC tunnel-mouth traces are available.
+per-rotor local-voxel signals, including the powered-hover rotor-wash gate and
+small downwash moment used when a craft hovers beside blocks. It complements
+the core disk-gradient packet by making the Minecraft sampling preprocessor and
+its body-scale moment path auditable before live A4MC tunnel-mouth traces are
+available.
 """
 
 from __future__ import annotations
@@ -54,6 +56,10 @@ LOCAL_VOXEL_PRESSURE_GRADIENT_MAX_WIND_EQUIV_MPS = 2.4
 MAX_LOCAL_VOXEL_PRESSURE_PA = 5000.0
 RACING_QUAD_ARM_M = 0.18 / math.sqrt(2.0)
 PRESSURE_CENTER_MAX_OFFSET_M = 0.024
+A4MC_LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE = 0.42
+A4MC_LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN = 0.018
+PRESSURE_CENTER_BODY_DRAG_X = 0.36
+PRESSURE_CENTER_BODY_DRAG_Z = 0.32
 SOURCE_FULL_TRUST_AGE_TICKS = 40
 SOURCE_ZERO_TRUST_AGE_TICKS = 160
 
@@ -67,8 +73,13 @@ SHELTER_LEVELS = [0.0, 0.35, 0.74, 1.0]
 PRESSURE_DELTAS_PA = [0.0, 220.0, 800.0, 1600.0, 3200.0]
 PRESSURE_CENTER_CONTRASTS_PA = [0.0, 3200.0, 10000.0]
 SHELTER_GRADIENT_DELTAS = [0.0, 0.15, 0.35, 0.74, 1.0]
-PRESSURE_CENTER_AIRSPEEDS_MPS = [0.0, 6.0, 18.0]
 PRESSURE_CENTER_SOURCE_QUALITY_LEVELS = [0.0, 0.5, 1.0]
+PRESSURE_CENTER_FLOW_CASES = [
+    ("static_unpowered", 0.0, 0.0, 0.0),
+    ("powered_hover", 0.0, 6.0, 1.05),
+    ("slow_cruise", 6.0, 0.0, 0.0),
+    ("fast_cruise", 18.0, 0.0, 0.0),
+]
 PRESSURE_CENTER_ROTOR_POSITIONS_XZ_M = [
     (RACING_QUAD_ARM_M, RACING_QUAD_ARM_M),
     (-RACING_QUAD_ARM_M, RACING_QUAD_ARM_M),
@@ -370,19 +381,46 @@ def pressure_center_signal(
     return local_voxel_coverage + 0.65 * shelter_obstruction + 0.85 * pressure_gradient_signal
 
 
+def pressure_center_hover_wash_gate(induced_velocity_mps: float, thrust_to_weight: float) -> float:
+    return (
+        A4MC_LOCAL_PRESSURE_CENTER_HOVER_WASH_GATE_SCALE
+        * smooth_step(0.08, 0.70, thrust_to_weight)
+        * smooth_step(0.35, 5.5, induced_velocity_mps)
+    )
+
+
+def pressure_center_hover_download_force_n(induced_velocity_mps: float, thrust_to_weight: float) -> float:
+    hover_gate = pressure_center_hover_wash_gate(induced_velocity_mps, thrust_to_weight)
+    if hover_gate <= 1.0e-6 or induced_velocity_mps <= 1.0e-6:
+        return 0.0
+    body_area_scale = math.sqrt(max(0.0, PRESSURE_CENTER_BODY_DRAG_X * PRESSURE_CENTER_BODY_DRAG_Z))
+    download = (
+        induced_velocity_mps
+        * induced_velocity_mps
+        * body_area_scale
+        * A4MC_LOCAL_PRESSURE_CENTER_HOVER_DOWNLOAD_GAIN
+        * hover_gate
+    )
+    return clamp(download, 0.0, 0.45)
+
+
 def pressure_center_response(
     residuals: list[float],
     shelter_obstructions: list[float],
     pressure_gradient_winds_mps: list[float],
     airspeed_mps: float,
     source_quality: float,
+    rotor_wash_induced_mps: float = 0.0,
+    rotor_wash_thrust_to_weight: float = 0.0,
 ) -> dict[str, float]:
     signals = [
         pressure_center_signal(residuals[i], shelter_obstructions[i], pressure_gradient_winds_mps[i])
         for i in range(4)
     ]
     mean_signal = sum(signals) / len(signals)
-    speed_gate = smooth_step(2.0, 12.0, airspeed_mps)
+    freestream_gate = smooth_step(2.0, 12.0, airspeed_mps)
+    hover_wash_gate = pressure_center_hover_wash_gate(rotor_wash_induced_mps, rotor_wash_thrust_to_weight)
+    speed_gate = max(freestream_gate, hover_wash_gate)
     source_available = source_quality > 1.0e-9
     if not source_available or mean_signal <= 1.0e-6:
         strength = 0.0
@@ -404,9 +442,19 @@ def pressure_center_response(
         offset_x = clamp(-centroid_x * 0.68 * strength, -PRESSURE_CENTER_MAX_OFFSET_M, PRESSURE_CENTER_MAX_OFFSET_M)
         offset_z = clamp(-centroid_z * 0.44 * strength, -PRESSURE_CENTER_MAX_OFFSET_M, PRESSURE_CENTER_MAX_OFFSET_M)
     offset_magnitude = math.hypot(offset_x, offset_z)
+    download_force = (
+        pressure_center_hover_download_force_n(rotor_wash_induced_mps, rotor_wash_thrust_to_weight)
+        if source_available and offset_magnitude > 1.0e-9
+        else 0.0
+    )
+    hover_torque_x = offset_z * download_force
+    hover_torque_z = -offset_x * download_force
+    hover_torque_magnitude = math.hypot(hover_torque_x, hover_torque_z)
     return {
         "input_source_quality_factor": source_quality,
         "input_airspeed_mps": airspeed_mps,
+        "input_rotor_wash_induced_mps": rotor_wash_induced_mps,
+        "input_rotor_wash_thrust_to_weight": rotor_wash_thrust_to_weight,
         "source_available": source_available,
         "rotor0_pressure_center_signal": signals[0],
         "rotor1_pressure_center_signal": signals[1],
@@ -415,12 +463,18 @@ def pressure_center_response(
         "mean_pressure_center_signal": mean_signal if source_available else 0.0,
         "pressure_center_weighted_centroid_x_m": centroid_x,
         "pressure_center_weighted_centroid_z_m": centroid_z,
+        "pressure_center_freestream_gate": freestream_gate if source_available else 0.0,
+        "pressure_center_hover_wash_gate": hover_wash_gate if source_available else 0.0,
         "pressure_center_speed_gate": speed_gate if source_available else 0.0,
         "pressure_center_strength": strength,
         "pressure_center_offset_x_m": offset_x,
         "pressure_center_offset_z_m": offset_z,
         "pressure_center_offset_magnitude_m": offset_magnitude,
         "pressure_center_offset_cap_fraction": offset_magnitude / PRESSURE_CENTER_MAX_OFFSET_M,
+        "pressure_center_hover_download_force_n": download_force,
+        "pressure_center_hover_torque_x_nm": hover_torque_x,
+        "pressure_center_hover_torque_z_nm": hover_torque_z,
+        "pressure_center_hover_torque_magnitude_nm": hover_torque_magnitude,
         "source_quality_is_availability_gate": 1.0 if source_available else 0.0,
     }
 
@@ -475,7 +529,7 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
         ),
         (
             "fpv_core_pressure_center_response",
-            "DronePhysics maps adopted asymmetric local-voxel residual, shelter, and pressure-gradient rotor signals into a bounded airframe pressure-center offset and local-voxel thermal ventilation loss.",
+            "DronePhysics maps adopted asymmetric local-voxel residual, shelter, and pressure-gradient rotor signals into a bounded airframe pressure-center offset, powered-hover rotor-wash moment, and local-voxel thermal ventilation loss.",
             DRONE_PHYSICS_SOURCE,
             "",
         ),
@@ -960,6 +1014,8 @@ def add_pressure_center_matrix(rows: list[dict[str, str]]) -> None:
     metric_units = {
         "input_source_quality_factor": "fraction",
         "input_airspeed_mps": "m/s",
+        "input_rotor_wash_induced_mps": "m/s",
+        "input_rotor_wash_thrust_to_weight": "ratio",
         "source_available": "bool",
         "rotor0_pressure_center_signal": "fraction",
         "rotor1_pressure_center_signal": "fraction",
@@ -968,28 +1024,36 @@ def add_pressure_center_matrix(rows: list[dict[str, str]]) -> None:
         "mean_pressure_center_signal": "fraction",
         "pressure_center_weighted_centroid_x_m": "m",
         "pressure_center_weighted_centroid_z_m": "m",
+        "pressure_center_freestream_gate": "fraction",
+        "pressure_center_hover_wash_gate": "fraction",
         "pressure_center_speed_gate": "fraction",
         "pressure_center_strength": "fraction",
         "pressure_center_offset_x_m": "m",
         "pressure_center_offset_z_m": "m",
         "pressure_center_offset_magnitude_m": "m",
         "pressure_center_offset_cap_fraction": "fraction",
+        "pressure_center_hover_download_force_n": "N",
+        "pressure_center_hover_torque_x_nm": "N-m",
+        "pressure_center_hover_torque_z_nm": "N-m",
+        "pressure_center_hover_torque_magnitude_nm": "N-m",
         "source_quality_is_availability_gate": "bool",
     }
     for scenario_name, residuals, shelter_obstructions, pressure_gradient_winds in PRESSURE_CENTER_ROTOR_SCENARIOS:
         for source_quality_value in PRESSURE_CENTER_SOURCE_QUALITY_LEVELS:
-            for airspeed in PRESSURE_CENTER_AIRSPEEDS_MPS:
+            for flow_name, airspeed, rotor_wash_induced, thrust_to_weight in PRESSURE_CENTER_FLOW_CASES:
                 response = pressure_center_response(
                     residuals,
                     shelter_obstructions,
                     pressure_gradient_winds,
                     airspeed,
                     source_quality_value,
+                    rotor_wash_induced,
+                    thrust_to_weight,
                 )
                 name = (
                     f"{scenario_name}"
                     f"_quality_{scenario_token(source_quality_value)}"
-                    f"_airspeed_{scenario_token(airspeed)}"
+                    f"_flow_{flow_name}"
                 )
                 for metric, value in response.items():
                     add_metric(
@@ -1025,11 +1089,12 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     pressure_saturated_name = "confidence_0p5_age_0_pressure_contrast_10000pa"
     shelter_name = "confidence_0p86_age_0_shelter_delta_0p74"
     stale_shelter_name = "confidence_0p86_age_160_shelter_delta_0p74"
-    pressure_center_wall_skim_name = "offline_wall_skim_proxy_quality_1_airspeed_18"
-    pressure_center_right_combined_name = "right_combined_wall_pressure_quality_1_airspeed_18"
-    pressure_center_right_combined_half_quality_name = "right_combined_wall_pressure_quality_0p5_airspeed_18"
-    pressure_center_front_combined_name = "front_combined_wall_pressure_quality_1_airspeed_18"
-    pressure_center_quality_zero_name = "right_combined_wall_pressure_quality_0_airspeed_18"
+    pressure_center_wall_skim_name = "offline_wall_skim_proxy_quality_1_flow_fast_cruise"
+    pressure_center_right_combined_name = "right_combined_wall_pressure_quality_1_flow_fast_cruise"
+    pressure_center_right_combined_hover_name = "right_combined_wall_pressure_quality_1_flow_powered_hover"
+    pressure_center_right_combined_half_quality_name = "right_combined_wall_pressure_quality_0p5_flow_fast_cruise"
+    pressure_center_front_combined_name = "front_combined_wall_pressure_quality_1_flow_fast_cruise"
+    pressure_center_quality_zero_name = "right_combined_wall_pressure_quality_0_flow_fast_cruise"
     ventilation_wall_skim_name = "wall_skim_full_quality"
     ventilation_half_quality_name = "wall_skim_half_quality"
     ventilation_coarse_name = "coarse_wall_skim"
@@ -1060,7 +1125,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "pressure_center_scenario_count": (
             len(PRESSURE_CENTER_ROTOR_SCENARIOS)
             * len(PRESSURE_CENTER_SOURCE_QUALITY_LEVELS)
-            * len(PRESSURE_CENTER_AIRSPEEDS_MPS),
+            * len(PRESSURE_CENTER_FLOW_CASES),
             "count",
         ),
         "ventilation_scenario_count": (len(VENTILATION_SCENARIOS), "count"),
@@ -1201,6 +1266,15 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 "pressure_center_offset_x_m",
             ),
             "m",
+        ),
+        "right_combined_powered_hover_pressure_center_torque_nm": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_pressure_center_matrix",
+                pressure_center_right_combined_hover_name,
+                "pressure_center_hover_torque_magnitude_nm",
+            ),
+            "N-m",
         ),
         "right_combined_half_quality_offset_x_m": (
             find_metric(

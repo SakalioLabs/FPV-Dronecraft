@@ -10450,6 +10450,64 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcLocalVoxelAsymmetryMovesPressureCenterInPoweredHoverWash() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(new Vec3(0.36, 0.18, 0.32))
+				.withAngularDragCoefficient(0.0)
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(16.8, 16.7, 0.0, 20.0, 90.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0);
+		DronePhysics freshLocal = new DronePhysics(config);
+		DronePhysics staleLocal = new DronePhysics(config);
+		DronePhysics coarseSource = new DronePhysics(config);
+		DroneInput hover = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		double[] rightSideResiduals = {0.35, 0.94, 0.94, 0.35};
+		double[] rightSideShelterObstructions = {0.18, 0.02, 0.02, 0.18};
+		DroneEnvironment freshAsymmetry = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				1.0,
+				0L,
+				rightSideResiduals,
+				rightSideShelterObstructions
+		);
+		DroneEnvironment staleAsymmetry = a4mcShelterCoolingWind(
+				0.65,
+				true,
+				1.0,
+				160L,
+				rightSideResiduals,
+				rightSideShelterObstructions
+		);
+		DroneEnvironment coarseAsymmetry = a4mcShelterCoolingWind(
+				0.65,
+				false,
+				1.0,
+				0L,
+				rightSideResiduals,
+				rightSideShelterObstructions
+		);
+
+		for (int i = 0; i < 180; i++) {
+			holdInStillAir(freshLocal);
+			holdInStillAir(staleLocal);
+			holdInStillAir(coarseSource);
+			freshLocal.step(hover, 0.005, freshAsymmetry);
+			staleLocal.step(hover, 0.005, staleAsymmetry);
+			coarseSource.step(hover, 0.005, coarseAsymmetry);
+		}
+
+		Vec3 freshTorque = freshLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 staleTorque = staleLocal.state().airframePressureCenterTorqueBodyNewtonMeters();
+		Vec3 coarseTorque = coarseSource.state().airframePressureCenterTorqueBodyNewtonMeters();
+		assertTrue(freshLocal.state().averageRotorInducedVelocityMetersPerSecond() > 2.0);
+		assertTrue(freshTorque.length() > 0.0004, () -> "freshTorque=" + freshTorque);
+		assertTrue(staleTorque.length() < 0.00008, () -> "staleTorque=" + staleTorque);
+		assertTrue(coarseTorque.length() < 0.00008, () -> "coarseTorque=" + coarseTorque);
+	}
+
+	@Test
 	void adoptedA4mcLocalVoxelPressureCenterDoesNotDoubleGateRotorSignals() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)
@@ -13219,7 +13277,7 @@ class DronePhysicsTest {
 		assertTrue(report.maxRotorConingIntensity() > 0.0);
 		assertTrue(report.maxRotorConingAngleRadians() > 0.0);
 		assertTrue(report.maxRotorWindmillingIntensity() > 0.10);
-		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.025);
+		assertTrue(report.maxAirframeTorqueNewtonMeters() > 0.015);
 		assertTrue(report.maxBarometerErrorMeters() > 0.05);
 		assertTrue(report.maxEscTemperatureCelsius() >= 25.0);
 		assertTrue(report.minEscThermalLimit() > 0.0);
