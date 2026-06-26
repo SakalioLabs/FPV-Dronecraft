@@ -203,8 +203,18 @@ def a4mc_updraft_response(
     local_voxel_flow: bool,
     abl_mixing_strength: float,
     quality: float,
+    represented_mean_vertical_mps: float = 0.0,
+    explicit_vertical_gust_mps: float = 0.0,
 ) -> dict[str, float]:
     source_updraft = clamp(raw_updraft_mps * quality, -12.0, 12.0)
+    source_updraft = remove_overlapping_vertical_flow(
+        source_updraft,
+        clamp(explicit_vertical_gust_mps * quality, -12.0, 12.0),
+    )
+    source_updraft = remove_overlapping_vertical_flow(
+        source_updraft,
+        clamp(represented_mean_vertical_mps, -12.0, 12.0),
+    )
     if abs(source_updraft) <= 1.0e-6 or quality <= 1.0e-9:
         source_updraft = 0.0
         target = 0.0
@@ -239,6 +249,16 @@ def a4mc_updraft_response(
         "core_updraft_settled_1p0s_mps": settled_1p0s,
         "core_hover_rotor_axial_gust_scale_after_1s": rotor_axial_gust_thrust_scale_proxy(settled_1p0s),
     }
+
+
+def remove_overlapping_vertical_flow(vertical_signal: float, represented_vertical_flow: float) -> float:
+    if abs(vertical_signal) <= 1.0e-6 or abs(represented_vertical_flow) <= 1.0e-6:
+        return vertical_signal
+    if math.copysign(1.0, vertical_signal) != math.copysign(1.0, represented_vertical_flow):
+        return vertical_signal
+    if abs(vertical_signal) <= abs(represented_vertical_flow):
+        return 0.0
+    return vertical_signal - represented_vertical_flow
 
 
 def rotor_axial_gust_thrust_scale_proxy(adopted_updraft_mps: float) -> float:
@@ -426,12 +446,12 @@ def add_source_inventory(rows: list[dict[str, str]]) -> None:
             "current_core_quality_gate",
             "Defines the trust/confidence/freshness source-quality factor used by core physics.",
         ),
-        (
-            "DronePhysics_a4mc_transients",
-            DRONE_PHYSICS_SOURCE,
-            "current_core_transient_response",
-            "Consumes quality-gated A4MC source gust, independent updraft, terrain shear, ABL, and local-voxel ventilation diagnostics.",
-        ),
+		(
+			"DronePhysics_a4mc_transients",
+			DRONE_PHYSICS_SOURCE,
+			"current_core_transient_response",
+			"Consumes quality-gated A4MC source gust, de-overlapped independent updraft, terrain shear, ABL, and local-voxel ventilation diagnostics.",
+		),
         (
             "DroneEntity_a4mc_boundary",
             DRONE_ENTITY_SOURCE,
@@ -630,6 +650,8 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     trusted_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 1.0)
     trusted_full_downdraft = a4mc_updraft_response(-12.0, True, 0.90, 1.0)
     wall_skim_updraft = a4mc_updraft_response(REFERENCE_UPDRAFT_MPS, True, 0.90, trusted_wall_skim_quality)
+    mean_overlap_updraft = a4mc_updraft_response(3.0, True, 0.90, 1.0, represented_mean_vertical_mps=3.0)
+    residual_mean_overlap_updraft = a4mc_updraft_response(5.0, True, 0.90, 1.0, represented_mean_vertical_mps=2.0)
     half_confidence_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.50)
     stale_full_updraft = a4mc_updraft_response(12.0, True, 0.90, 0.0)
     half_quality = source_quality(True, 0.5, 0)
@@ -653,6 +675,9 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         "trusted_full_downdraft_target_mps": trusted_full_downdraft["core_updraft_target_mps"],
         "trusted_full_downdraft_settled_1p0s_mps": trusted_full_downdraft["core_updraft_settled_1p0s_mps"],
         "trusted_full_downdraft_hover_axial_gust_scale": trusted_full_downdraft["core_hover_rotor_axial_gust_scale_after_1s"],
+        "mean_overlap_updraft_target_mps": mean_overlap_updraft["core_updraft_target_mps"],
+        "residual_mean_overlap_updraft_source_mps": residual_mean_overlap_updraft["core_updraft_source_mps"],
+        "residual_mean_overlap_updraft_target_mps": residual_mean_overlap_updraft["core_updraft_target_mps"],
         "half_confidence_full_updraft_target_mps": half_confidence_full_updraft["core_updraft_target_mps"],
         "stale_full_updraft_target_mps": stale_full_updraft["core_updraft_target_mps"],
         "unstable_mixed_abl_dryden_intensity_proxy": trusted_unstable_abl["core_dryden_intensity_proxy"],
@@ -689,7 +714,7 @@ def add_method(rows: list[dict[str, str]]) -> None:
             "This packet mirrors current source-quality formulas rather than field-test data. "
             "Use it to verify that confidence/freshness changes fade A4MC transient forcing before fitting "
             "source-turbulence floors, disk-gradient thrust loss, terrain-shear gust strength, "
-            "independent updraft adoption, ABL Dryden response, or local-voxel ventilation coefficients."
+            "de-overlapped independent updraft adoption, ABL Dryden response, or local-voxel ventilation coefficients."
         ),
         unit="text",
         source_file=DRONE_PHYSICS_SOURCE,

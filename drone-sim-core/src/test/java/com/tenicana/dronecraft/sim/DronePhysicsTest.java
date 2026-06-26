@@ -3698,6 +3698,29 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcUpdraftSplitDoesNotDoubleCountAdoptedMeanVerticalWind() {
+		DroneEnvironment meanVerticalUpdraft = a4mcMeanVerticalWind(3.0, 3.0);
+		DroneEnvironment residualUpdraft = a4mcMeanVerticalWind(2.0, 5.0);
+		DronePhysics meanOnly = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DronePhysics residual = new DronePhysics(directControl(DroneConfig.racingQuad()));
+		DroneInput idle = DroneInput.idle();
+
+		for (int i = 0; i < 520; i++) {
+			meanOnly.step(idle, 0.005, meanVerticalUpdraft);
+			residual.step(idle, 0.005, residualUpdraft);
+		}
+
+		assertEquals(0.0, meanOnly.state().a4mcUpdraftSpeedMetersPerSecond(), 1.0e-9);
+		assertTrue(meanOnly.state().effectiveWindVelocityWorldMetersPerSecond().y() > 2.0,
+				() -> "effectiveWind=" + meanOnly.state().effectiveWindVelocityWorldMetersPerSecond());
+		assertTrue(residual.state().a4mcUpdraftSpeedMetersPerSecond() > 1.0,
+				() -> "residualUpdraft=" + residual.state().a4mcUpdraftVelocityWorldMetersPerSecond());
+		assertTrue(residual.state().a4mcUpdraftSpeedMetersPerSecond()
+						< maxA4mcUpdraftFor(a4mcUpdraftOnlyWind(5.0)) * 0.75,
+				() -> "residualUpdraft=" + residual.state().a4mcUpdraftSpeedMetersPerSecond());
+	}
+
+	@Test
 	void a4mcUpdraftAddsSignedVerticalAirMassAndRotorAxialGust() {
 		DroneConfig config = directControl(DroneConfig.racingQuad());
 		DronePhysics smooth = new DronePhysics(config);
@@ -14084,6 +14107,51 @@ class DronePhysicsTest {
 				0.0,
 				ablStability,
 				ablMixingStrength
+		);
+	}
+
+	private static DroneEnvironment a4mcMeanVerticalWind(double meanVerticalMetersPerSecond, double updraftMetersPerSecond) {
+		Vec3 meanWind = new Vec3(7.0, meanVerticalMetersPerSecond, 0.0);
+		return new DroneEnvironment(
+				meanWind,
+				1.0,
+				6.0,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				0.0,
+				25.0,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_AERODYNAMICS4MC,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				updraftMetersPerSecond,
+				true,
+				"l2",
+				"server_authoritative",
+				0L,
+				meanWind.length(),
+				meanWind.length(),
+				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				0.0,
+				0.0,
+				Vec3.ZERO
 		);
 	}
 

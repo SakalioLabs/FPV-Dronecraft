@@ -6712,20 +6712,28 @@ public final class DronePhysics {
 			return 0.0;
 		}
 		Vec3 sourceGustVelocity = environment.windSourceGustVelocityWorldMetersPerSecond();
-		if (sourceGustVelocity == null || !sourceGustVelocity.isFinite()) {
-			return sourceUpdraft;
+		if (sourceGustVelocity != null && sourceGustVelocity.isFinite()) {
+			double explicitVerticalGust = MathUtil.clamp(sourceGustVelocity.y() * sourceQuality, -12.0, 12.0);
+			sourceUpdraft = removeOverlappingVerticalFlow(sourceUpdraft, explicitVerticalGust);
 		}
-		double explicitVerticalGust = MathUtil.clamp(sourceGustVelocity.y() * sourceQuality, -12.0, 12.0);
-		if (Math.abs(explicitVerticalGust) <= 1.0e-6) {
-			return sourceUpdraft;
+		sourceUpdraft = removeOverlappingVerticalFlow(
+				sourceUpdraft,
+				MathUtil.clamp(environment.windVelocityWorldMetersPerSecond().y(), -12.0, 12.0)
+		);
+		return MathUtil.clamp(sourceUpdraft, -12.0, 12.0);
+	}
+
+	private static double removeOverlappingVerticalFlow(double verticalSignal, double alreadyRepresentedVerticalFlow) {
+		if (Math.abs(verticalSignal) <= 1.0e-6 || Math.abs(alreadyRepresentedVerticalFlow) <= 1.0e-6) {
+			return verticalSignal;
 		}
-		if (Math.signum(sourceUpdraft) != Math.signum(explicitVerticalGust)) {
-			return sourceUpdraft;
+		if (Math.signum(verticalSignal) != Math.signum(alreadyRepresentedVerticalFlow)) {
+			return verticalSignal;
 		}
-		if (Math.abs(sourceUpdraft) <= Math.abs(explicitVerticalGust)) {
+		if (Math.abs(verticalSignal) <= Math.abs(alreadyRepresentedVerticalFlow)) {
 			return 0.0;
 		}
-		return MathUtil.clamp(sourceUpdraft - explicitVerticalGust, -12.0, 12.0);
+		return verticalSignal - alreadyRepresentedVerticalFlow;
 	}
 
 	private static double a4mcUpdraftAblTargetMultiplier(DroneEnvironment environment) {
