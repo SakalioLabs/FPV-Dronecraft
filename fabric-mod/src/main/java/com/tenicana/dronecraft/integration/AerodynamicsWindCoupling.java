@@ -115,7 +115,7 @@ public final class AerodynamicsWindCoupling {
 		turbulence = Math.max(turbulence, sample.turbulenceIntensity() * sourceQuality);
 		turbulence += sourceQuality * MathUtil.clamp(sample.windShearMagnitudePerBlock() * 0.45, 0.0, 0.35);
 		turbulence += sourceQuality * MathUtil.clamp(sample.shelterFactor() * 0.20, 0.0, 0.20);
-		turbulence += sourceQuality * MathUtil.clamp(Math.abs(sample.updraftMetersPerSecond()) * 0.025, 0.0, 0.18);
+		turbulence += sourceQuality * MathUtil.clamp(Math.abs(sourceSeparatedUpdraftMetersPerSecond(sample)) * 0.025, 0.0, 0.18);
 		if (sample.localVoxelFlow()) {
 			double localPressureSignal = Math.abs(sample.pressureAnomalyPascals())
 					/ LOCAL_VOXEL_PRESSURE_TURBULENCE_FULL_SCALE_PASCALS;
@@ -131,6 +131,28 @@ public final class AerodynamicsWindCoupling {
 				MAX_SOURCE_GUST_TURBULENCE_BOOST
 		);
 		return MathUtil.clamp(turbulence, 0.0, 1.5);
+	}
+
+	private static double sourceSeparatedUpdraftMetersPerSecond(Aerodynamics4McWindBridge.WindSample sample) {
+		if (sample == null || !sample.hasFlow()) {
+			return 0.0;
+		}
+		double sourceUpdraft = MathUtil.clamp(sample.updraftMetersPerSecond(), -12.0, 12.0);
+		if (Math.abs(sourceUpdraft) <= 1.0e-6) {
+			return 0.0;
+		}
+		Vec3 sourceGustVelocity = sample.gustVelocityWorldMetersPerSecond();
+		double explicitVerticalGust = sourceGustVelocity == null || !sourceGustVelocity.isFinite()
+				? 0.0
+				: sourceGustVelocity.y();
+		if (Math.abs(explicitVerticalGust) <= 1.0e-6
+				|| Math.signum(sourceUpdraft) != Math.signum(explicitVerticalGust)) {
+			return sourceUpdraft;
+		}
+		if (Math.abs(sourceUpdraft) <= Math.abs(explicitVerticalGust)) {
+			return 0.0;
+		}
+		return MathUtil.clamp(sourceUpdraft - explicitVerticalGust, -12.0, 12.0);
 	}
 
 	public static Vec3 sourceWeightedWind(Vec3 fallbackWindWorldMetersPerSecond, Aerodynamics4McWindBridge.WindSample sample) {

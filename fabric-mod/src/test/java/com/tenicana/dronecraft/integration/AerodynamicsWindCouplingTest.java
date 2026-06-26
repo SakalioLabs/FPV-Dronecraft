@@ -392,6 +392,35 @@ class AerodynamicsWindCouplingTest {
 	}
 
 	@Test
+	void updraftTurbulenceDoesNotDoubleCountExplicitVerticalSourceGust() {
+		Aerodynamics4McWindBridge.WindSample pureUpdraft = windSampleWithUpdraftAndSourceGust(
+				4.0,
+				Vec3.ZERO,
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample verticalGustOnly = windSampleWithUpdraftAndSourceGust(
+				4.0,
+				new Vec3(0.0, 4.0, 0.0),
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample meanUpdraftWithVerticalGust = windSampleWithUpdraftAndSourceGust(
+				6.0,
+				new Vec3(0.0, 4.0, 0.0),
+				20L
+		);
+		Aerodynamics4McWindBridge.WindSample staleMeanUpdraftWithVerticalGust = windSampleWithUpdraftAndSourceGust(
+				6.0,
+				new Vec3(0.0, 4.0, 0.0),
+				200L
+		);
+
+		assertEquals(0.20, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, pureUpdraft), 1.0e-9);
+		assertEquals(0.36, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, verticalGustOnly), 1.0e-9);
+		assertEquals(0.41, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, meanUpdraftWithVerticalGust), 1.0e-9);
+		assertEquals(0.10, AerodynamicsWindCoupling.naturalTurbulenceIntensity(0.10, staleMeanUpdraftWithVerticalGust), 1.0e-9);
+	}
+
+	@Test
 	void localA4mcPressureProxyAddsBoundedNaturalTurbulenceEnergy() {
 		Aerodynamics4McWindBridge.WindSample localPressure = windSampleWithPressureAnomaly(900.0, true, 20L);
 		Aerodynamics4McWindBridge.WindSample cappedLocalPressure = windSampleWithPressureAnomaly(-4000.0, true, 20L);
@@ -827,6 +856,37 @@ class AerodynamicsWindCouplingTest {
 				0.0,
 				0.0,
 				0.0,
+				false,
+				0.0,
+				false,
+				0.0,
+				1.0,
+				0.0,
+				true,
+				true,
+				"L2",
+				"SERVER_AUTHORITATIVE",
+				freshnessAgeTicks,
+				0.0,
+				0.0
+		);
+	}
+
+	private static Aerodynamics4McWindBridge.WindSample windSampleWithUpdraftAndSourceGust(
+			double updraftMetersPerSecond,
+			Vec3 sourceGustVelocity,
+			long freshnessAgeTicks
+	) {
+		Vec3 safeSourceGust = sourceGustVelocity == null ? Vec3.ZERO : sourceGustVelocity;
+		return new Aerodynamics4McWindBridge.WindSample(
+				true,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				safeSourceGust,
+				0.0,
+				0.0,
+				0.0,
+				updraftMetersPerSecond,
 				false,
 				0.0,
 				false,

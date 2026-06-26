@@ -6441,6 +6441,12 @@ public final class DronePhysics {
 		if (Math.abs(explicitVerticalGust) <= 1.0e-6) {
 			return sourceUpdraft;
 		}
+		if (Math.signum(sourceUpdraft) != Math.signum(explicitVerticalGust)) {
+			return sourceUpdraft;
+		}
+		if (Math.abs(sourceUpdraft) <= Math.abs(explicitVerticalGust)) {
+			return 0.0;
+		}
 		return MathUtil.clamp(sourceUpdraft - explicitVerticalGust, -12.0, 12.0);
 	}
 
