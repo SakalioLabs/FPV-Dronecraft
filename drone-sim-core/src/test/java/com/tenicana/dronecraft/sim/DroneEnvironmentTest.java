@@ -188,6 +188,20 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void adoptedWindSourceTemperatureUsesSourceQuality() {
+		DroneEnvironment fresh = environmentWithWindSourceTemperature(true, 1.0, 0L, 40.0);
+		DroneEnvironment halfStale = environmentWithWindSourceTemperature(true, 1.0, 100L, 40.0);
+		DroneEnvironment stale = environmentWithWindSourceTemperature(true, 1.0, 160L, 40.0);
+		DroneEnvironment untrusted = environmentWithWindSourceTemperature(false, 1.0, 0L, 40.0);
+
+		assertEquals(40.0, fresh.windSourceTemperatureCelsius(), 1.0e-9);
+		assertEquals(40.0, fresh.adoptedWindSourceTemperatureCelsius(20.0), 1.0e-9);
+		assertEquals(30.0, halfStale.adoptedWindSourceTemperatureCelsius(20.0), 1.0e-9);
+		assertEquals(20.0, stale.adoptedWindSourceTemperatureCelsius(20.0), 1.0e-9);
+		assertEquals(20.0, untrusted.adoptedWindSourceTemperatureCelsius(20.0), 1.0e-9);
+	}
+
+	@Test
 	void pressureAnomalyAdjustsDensityAndBarometerPressure() {
 		double neutral = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0);
 		double lowPressure = DroneEnvironment.standardAtmosphereAirDensityRatio(0.0, 15.0, -2200.0);
@@ -280,10 +294,50 @@ class DroneEnvironmentTest {
 		return environmentWithWindSourceHumidity(trusted, confidence, freshnessAgeTicks, humidity, 0.0);
 	}
 
+	private static DroneEnvironment environmentWithWindSourceTemperature(
+			boolean trusted,
+			double confidence,
+			long freshnessAgeTicks,
+			double temperatureCelsius
+	) {
+		return windSourceScalarEnvironment(
+				trusted,
+				confidence,
+				freshnessAgeTicks,
+				true,
+				temperatureCelsius,
+				false,
+				0.0,
+				0.0
+		);
+	}
+
 	private static DroneEnvironment environmentWithWindSourceHumidity(
 			boolean trusted,
 			double confidence,
 			long freshnessAgeTicks,
+			double humidity,
+			double precipitationWetness
+	) {
+		return windSourceScalarEnvironment(
+				trusted,
+				confidence,
+				freshnessAgeTicks,
+				true,
+				-8.0,
+				true,
+				humidity,
+				precipitationWetness
+		);
+	}
+
+	private static DroneEnvironment windSourceScalarEnvironment(
+			boolean trusted,
+			double confidence,
+			long freshnessAgeTicks,
+			boolean hasTemperature,
+			double temperatureCelsius,
+			boolean hasHumidity,
 			double humidity,
 			double precipitationWetness
 	) {
@@ -321,9 +375,9 @@ class DroneEnvironmentTest {
 				0.0,
 				0.0,
 				0.0,
-				true,
-				-8.0,
-				true,
+				hasTemperature,
+				temperatureCelsius,
+				hasHumidity,
 				humidity,
 				0.0,
 				0.0

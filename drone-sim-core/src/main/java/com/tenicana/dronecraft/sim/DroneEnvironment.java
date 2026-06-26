@@ -726,6 +726,25 @@ public record DroneEnvironment(
 		return MathUtil.clamp(windSourceHumidity * windSourceQualityFactor(), 0.0, 1.0);
 	}
 
+	public double adoptedWindSourceTemperatureCelsius(double fallbackAmbientTemperatureCelsius) {
+		double fallback = Double.isFinite(fallbackAmbientTemperatureCelsius)
+				? MathUtil.clamp(fallbackAmbientTemperatureCelsius, -40.0, 65.0)
+				: 25.0;
+		if (!windSourceHasTemperature) {
+			return fallback;
+		}
+		double quality = windSourceQualityFactor();
+		if (quality <= 1.0e-9) {
+			return fallback;
+		}
+		double sourceTemperature = MathUtil.clamp(windSourceTemperatureCelsius, -40.0, 65.0);
+		return MathUtil.clamp(
+				fallback * (1.0 - quality) + sourceTemperature * quality,
+				-40.0,
+				65.0
+		);
+	}
+
 	public static double moistAirDensityMultiplier(double ambientTemperatureCelsius, double precipitationWetnessIntensity) {
 		if (!Double.isFinite(ambientTemperatureCelsius)) {
 			ambientTemperatureCelsius = 25.0;
