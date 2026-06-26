@@ -1349,6 +1349,49 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void a4mcAblStabilityShapesRotorWakeCoherenceAndPersistence() {
+		DroneConfig config = directControl(DroneConfig.coaxialX8())
+				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
+				.withBattery(29.6, 29.5, 0.0, 20.0, 220.0)
+				.withMotorThermal(0.0, 0.0, 200.0, 240.0)
+				.withFlightControllerSensors(1000.0, 0.0, 1000.0, 0.0, 0.0);
+		DronePhysics stable = new DronePhysics(config);
+		DronePhysics mixed = new DronePhysics(config);
+		DroneInput powered = new DroneInput(config.hoverThrottle() + 0.08, 0.0, 0.0, 0.0, true);
+		DroneEnvironment stableLayer = a4mcUpdraftOnlyWind(0.0, true, 1.0, -1L, -1.0, 0.0);
+		DroneEnvironment mixedLayer = a4mcUpdraftOnlyWind(0.0, true, 1.0, -1L, 1.0, 1.0);
+
+		for (int i = 0; i < 360; i++) {
+			holdInStillAir(stable);
+			holdInStillAir(mixed);
+			stable.step(powered, 0.005, stableLayer);
+			mixed.step(powered, 0.005, mixedLayer);
+		}
+		double stableWake = stable.state().maxRotorWakeInterferenceIntensity();
+		double mixedWake = mixed.state().maxRotorWakeInterferenceIntensity();
+		double stableSwirl = stable.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+		double mixedSwirl = mixed.state().maxRotorWakeSwirlVelocityMetersPerSecond();
+
+		for (int i = 0; i < 48; i++) {
+			holdInStillAir(stable);
+			holdInStillAir(mixed);
+			stable.step(DroneInput.idle(), 0.005, stableLayer);
+			mixed.step(DroneInput.idle(), 0.005, mixedLayer);
+		}
+		double stableLingeringWake = stable.state().maxRotorWakeInterferenceIntensity();
+		double mixedLingeringWake = mixed.state().maxRotorWakeInterferenceIntensity();
+
+		assertTrue(stableWake > mixedWake + 0.055,
+				() -> "stableWake=" + stableWake + " mixedWake=" + mixedWake);
+		assertTrue(stableSwirl > mixedSwirl + 0.055,
+				() -> "stableSwirl=" + stableSwirl + " mixedSwirl=" + mixedSwirl);
+		assertTrue(stableLingeringWake > mixedLingeringWake + 0.040,
+				() -> "stableLingeringWake=" + stableLingeringWake
+						+ " mixedLingeringWake=" + mixedLingeringWake);
+		assertTrue(stableLingeringWake > 0.08, () -> "stableLingeringWake=" + stableLingeringWake);
+	}
+
+	@Test
 	void forwardFlightConvectsFrontRotorWakeOntoRearRotors() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withEscMotorResponse(1.0, 1000.0, 1000.0, 0.0, 1.0, 0.0)
@@ -11147,6 +11190,48 @@ class DronePhysicsTest {
 		assertTrue(retainedWake.state().propwashIntensity() > freshAir.state().propwashIntensity() + 0.04);
 		assertTrue(retainedWake.state().propwashTorqueBodyNewtonMeters().length()
 				> freshAir.state().propwashTorqueBodyNewtonMeters().length() + 0.001);
+	}
+
+	@Test
+	void a4mcAblStabilityShapesPropwashWakeRetention() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO);
+		DronePhysics stable = new DronePhysics(config);
+		DronePhysics mixed = new DronePhysics(config);
+		Vec3 descent = new Vec3(0.0, -8.0, 0.0);
+		DroneInput lowThrottleDescent = new DroneInput(0.0, 0.0, 0.0, 0.0, true);
+		DroneEnvironment stableLayer = a4mcUpdraftOnlyWind(0.0, true, 1.0, -1L, -1.0, 0.0);
+		DroneEnvironment mixedLayer = a4mcUpdraftOnlyWind(0.0, true, 1.0, -1L, 1.0, 1.0);
+
+		for (int i = 0; i < 220; i++) {
+			stable.state().setOrientation(Quaternion.IDENTITY);
+			mixed.state().setOrientation(Quaternion.IDENTITY);
+			stable.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			mixed.state().setAngularVelocityBodyRadiansPerSecond(Vec3.ZERO);
+			stable.state().setVelocityMetersPerSecond(descent);
+			mixed.state().setVelocityMetersPerSecond(descent);
+			stable.step(lowThrottleDescent, 0.005, stableLayer);
+			mixed.step(lowThrottleDescent, 0.005, mixedLayer);
+		}
+		double stableWake = stable.state().propwashWakeIntensity();
+		double mixedWake = mixed.state().propwashWakeIntensity();
+
+		for (int i = 0; i < 32; i++) {
+			holdInStillAir(stable);
+			holdInStillAir(mixed);
+			stable.step(DroneInput.idle(), 0.005, stableLayer);
+			mixed.step(DroneInput.idle(), 0.005, mixedLayer);
+		}
+		double stableLingeringWake = stable.state().propwashWakeIntensity();
+		double mixedLingeringWake = mixed.state().propwashWakeIntensity();
+
+		assertTrue(stableWake > mixedWake + 0.030,
+				() -> "stableWake=" + stableWake + " mixedWake=" + mixedWake);
+		assertTrue(stableLingeringWake > mixedLingeringWake + 0.025,
+				() -> "stableLingeringWake=" + stableLingeringWake
+						+ " mixedLingeringWake=" + mixedLingeringWake);
+		assertTrue(stableLingeringWake > 0.06, () -> "stableLingeringWake=" + stableLingeringWake);
 	}
 
 	@Test

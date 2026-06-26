@@ -1089,7 +1089,7 @@ public final class DronePhysics {
 		updateAirframeSeparatedFlowIntensity(relativeAirVelocityBody, dtSeconds);
 		Vec3 airframeDragBody = updateAirframeBodyDragForce(relativeAirVelocityBody, airDensity, dtSeconds);
 		Vec3 angularVelocityBody = state.angularVelocityBodyRadiansPerSecond();
-		RotorWakeInterference rotorWakeInterference = updateRotorWakeInterference(input.armed(), relativeAirVelocityBody, dtSeconds);
+		RotorWakeInterference rotorWakeInterference = updateRotorWakeInterference(input.armed(), relativeAirVelocityBody, environment, dtSeconds);
 		double vortexRingStateSum = 0.0;
 		double vortexRingThrustBuffetAmplitudeSum = 0.0;
 		double vortexRingMaxThrustBuffetAmplitude = 0.0;
@@ -1727,7 +1727,7 @@ public final class DronePhysics {
 		state.setGroundEffectLevelingTorqueBodyNewtonMeters(groundEffectLevelingTorqueBody);
 		totalTorqueBody = totalTorqueBody
 				.add(airframeTorqueBody)
-				.add(calculatePropwashTorque(input, relativeAirVelocityBody, angularVelocityBody, dtSeconds))
+				.add(calculatePropwashTorque(input, relativeAirVelocityBody, angularVelocityBody, environment, dtSeconds))
 				.add(turbulenceTorqueBody)
 				.add(groundEffectLevelingTorqueBody);
 		integrateLinear(totalForceBody, rotorWashDragBody, airframeLiftBody, airframeDragBody, environment, effectiveWindVelocityWorld, dtSeconds);
@@ -3059,6 +3059,7 @@ public final class DronePhysics {
 			DroneInput input,
 			Vec3 relativeAirVelocityBody,
 			Vec3 angularVelocityBody,
+			DroneEnvironment environment,
 			double dtSeconds
 	) {
 		if (config.propwashMaxTorqueNewtonMeters() <= 0.0) {
@@ -3079,10 +3080,11 @@ public final class DronePhysics {
 		double transverseSpeed = wakeFlow.transverseSpeedMetersPerSecond();
 		double wakeRetention = 1.0 - MathUtil.clamp(transverseSpeed / 7.0, 0.0, 1.0);
 		double motorPower = state.averageMotorPower(config);
+		double wakeCoherence = a4mcAblWakeCoherenceMultiplier(environment);
 		double targetWake = input.armed()
-				? MathUtil.clamp(descentFactor * wakeRetention * (0.25 + 0.75 * motorPower), 0.0, 1.0)
+				? MathUtil.clamp(descentFactor * wakeRetention * (0.25 + 0.75 * motorPower) * wakeCoherence, 0.0, 1.0)
 				: 0.0;
-		double wakeIntensity = updatePropwashWakeIntensity(targetWake, wakeRetention, dtSeconds);
+		double wakeIntensity = updatePropwashWakeIntensity(targetWake, wakeRetention, environment, dtSeconds);
 		double throttleFactor = input.armed() ? Math.pow(input.throttle(), 1.35) : 0.0;
 		double intensity = MathUtil.clamp(wakeIntensity * throttleFactor * (0.35 + 0.65 * motorPower), 0.0, 1.0);
 
@@ -3135,12 +3137,27 @@ public final class DronePhysics {
 		);
 	}
 
-	private double updatePropwashWakeIntensity(double targetWakeIntensity, double wakeRetention, double dtSeconds) {
+	private double updatePropwashWakeIntensity(
+			double targetWakeIntensity,
+			double wakeRetention,
+			DroneEnvironment environment,
+			double dtSeconds
+	) {
 		double previousWakeIntensity = state.propwashWakeIntensity();
 		double flushFactor = 1.0 - MathUtil.clamp(wakeRetention, 0.0, 1.0);
+		double buildTimeConstant = MathUtil.clamp(
+				0.055 * a4mcAblWakeBuildTimeScaleMultiplier(environment),
+				0.038,
+				0.075
+		);
+		double releaseTimeConstant = MathUtil.clamp(
+				(0.130 - 0.090 * flushFactor) * a4mcAblWakeReleaseTimeScaleMultiplier(environment),
+				0.028,
+				0.180
+		);
 		double timeConstant = targetWakeIntensity > previousWakeIntensity
-				? 0.055
-				: MathUtil.clamp(0.130 - 0.090 * flushFactor, 0.040, 0.130);
+				? buildTimeConstant
+				: releaseTimeConstant;
 		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
 		double wakeIntensity = previousWakeIntensity + (targetWakeIntensity - previousWakeIntensity) * alpha;
 		state.setPropwashWakeIntensity(wakeIntensity);
@@ -4686,7 +4703,12 @@ public final class DronePhysics {
 		return MathUtil.clamp(0.22 * Math.pow(severity, 0.82) * spinRatio, 0.0, 1.0);
 	}
 
-	private RotorWakeInterference updateRotorWakeInterference(boolean armed, Vec3 relativeAirVelocityBody, double dtSeconds) {
+	private RotorWakeInterference updateRotorWakeInterference(
+			boolean armed,
+			Vec3 relativeAirVelocityBody,
+			DroneEnvironment environment,
+			double dtSeconds
+	) {
 		RotorWakeInterference target = calculateSteadyRotorWakeInterference(armed, relativeAirVelocityBody);
 		int rotorCount = config.rotors().size();
 		if (dtSeconds <= 0.0) {
@@ -4703,11 +4725,14 @@ public final class DronePhysics {
 		Vec3[] swirl = new Vec3[rotorCount];
 		double crossflowSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
 		double crossflowFlush = smoothStep(2.5, 9.0, crossflowSpeed);
+		double wakeCoherence = a4mcAblWakeCoherenceMultiplier(environment);
+		double buildTimeScale = a4mcAblWakeBuildTimeScaleMultiplier(environment);
+		double releaseTimeScale = a4mcAblWakeReleaseTimeScaleMultiplier(environment);
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = config.rotors().get(i);
-			double targetIntensity = target.intensity(i);
-			Vec3 targetDownwash = target.downwashVelocityBodyMetersPerSecond(i);
-			Vec3 targetSwirl = target.swirlVelocityBodyMetersPerSecond(i);
+			double targetIntensity = MathUtil.clamp(target.intensity(i) * wakeCoherence, 0.0, 1.0);
+			Vec3 targetDownwash = target.downwashVelocityBodyMetersPerSecond(i).multiply(wakeCoherence);
+			Vec3 targetSwirl = target.swirlVelocityBodyMetersPerSecond(i).multiply(wakeCoherence);
 			Vec3 previousDownwash = rotorWakeInterferenceDownwashVelocityBodyMetersPerSecond[i];
 			Vec3 previousSwirl = rotorWakeInterferenceSwirlVelocityBodyMetersPerSecond[i];
 			double previousIntensity = rotorWakeInterferenceIntensity[i];
@@ -4716,14 +4741,14 @@ public final class DronePhysics {
 			boolean building = targetIntensity > previousIntensity || targetFlowSpeed > previousFlowSpeed + 1.0e-6;
 			double radiusScale = MathUtil.clamp(rotor.radiusMeters() / 0.0635, 0.50, 2.80);
 			double buildTimeConstant = MathUtil.clamp(
-					0.090 * Math.sqrt(radiusScale) / (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
-					0.030,
-					0.170
+					0.090 * Math.sqrt(radiusScale) * buildTimeScale / (0.72 + 0.62 * Math.max(targetIntensity, previousIntensity)),
+					0.024,
+					0.195
 			);
 			double releaseTimeConstant = MathUtil.clamp(
-					(0.260 - 0.120 * crossflowFlush) * Math.sqrt(radiusScale),
-					0.090,
-					0.420
+					(0.260 - 0.120 * crossflowFlush) * Math.sqrt(radiusScale) * releaseTimeScale,
+					0.070,
+					0.520
 			);
 			double timeConstant = building ? buildTimeConstant : releaseTimeConstant;
 			double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
@@ -6557,6 +6582,33 @@ public final class DronePhysics {
 				1.0 + 0.22 * shape.ablMixing() + 0.44 * shape.mixedUnstable() - 0.52 * shape.stableSuppression(),
 				0.45,
 				1.55
+		);
+	}
+
+	private static double a4mcAblWakeCoherenceMultiplier(DroneEnvironment environment) {
+		A4mcAblShape shape = a4mcAblShape(environment);
+		return MathUtil.clamp(
+				1.0 + 0.16 * shape.stableSuppression() - 0.14 * shape.mixedUnstable() - 0.04 * shape.ablMixing(),
+				0.78,
+				1.18
+		);
+	}
+
+	private static double a4mcAblWakeBuildTimeScaleMultiplier(DroneEnvironment environment) {
+		A4mcAblShape shape = a4mcAblShape(environment);
+		return MathUtil.clamp(
+				1.0 - 0.08 * shape.stableSuppression() + 0.12 * shape.mixedUnstable() + 0.04 * shape.ablMixing(),
+				0.86,
+				1.18
+		);
+	}
+
+	private static double a4mcAblWakeReleaseTimeScaleMultiplier(DroneEnvironment environment) {
+		A4mcAblShape shape = a4mcAblShape(environment);
+		return MathUtil.clamp(
+				1.0 + 0.34 * shape.stableSuppression() - 0.28 * shape.mixedUnstable() - 0.08 * shape.ablMixing(),
+				0.64,
+				1.36
 		);
 	}
 
