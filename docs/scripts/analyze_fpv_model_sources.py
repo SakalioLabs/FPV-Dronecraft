@@ -4378,21 +4378,37 @@ def preset_rotor_blade_count(body: str, locals_map: dict[str, float]) -> float:
         return 2.0
 
 
-def preset_rotor_blade_pitch_m(body: str, locals_map: dict[str, float]) -> float:
-    radius = locals_map.get("rotorRadius", float("nan"))
-    default_pitch = default_blade_pitch_m(radius)
-    match = re.search(r"\.withRotorBladePitchMeters\(([^)]+)\)", body)
-    if not match:
-        return default_pitch
-    try:
-        pitch = safe_eval_number_with_locals(match.group(1), locals_map)
-    except Exception:
-        return default_pitch
+def clamp_rotor_blade_pitch_m(radius: float, pitch: float, default_pitch: float) -> float:
     if not math.isfinite(radius) or radius <= 0.0:
         return pitch
     if not math.isfinite(pitch) or pitch <= 0.0:
         pitch = default_pitch
     return min(radius * 3.50, max(radius * 0.35, pitch))
+
+
+def preset_rotor_blade_pitch_geometry(body: str, locals_map: dict[str, float]) -> tuple[float, str]:
+    radius = locals_map.get("rotorRadius", float("nan"))
+    default_pitch = default_blade_pitch_m(radius)
+    pitch = default_pitch
+    source = "RotorSpec.defaultBladePitchMeters(radius)"
+    setter_re = re.compile(r"\.withRotorBladePitch(Meters|ToDiameterRatio)\(([^)]+)\)")
+    for match in setter_re.finditer(body):
+        method = match.group(1)
+        try:
+            value = safe_eval_number_with_locals(match.group(2), locals_map)
+        except Exception:
+            continue
+        if method == "ToDiameterRatio":
+            pitch = 2.0 * radius * value if math.isfinite(radius) else float("nan")
+            source = "withRotorBladePitchToDiameterRatio"
+        else:
+            pitch = value
+            source = "withRotorBladePitchMeters"
+    return clamp_rotor_blade_pitch_m(radius, pitch, default_pitch), source
+
+
+def preset_rotor_blade_pitch_m(body: str, locals_map: dict[str, float]) -> float:
+    return preset_rotor_blade_pitch_geometry(body, locals_map)[0]
 
 
 def parse_drone_presets() -> list[dict[str, float | str]]:
@@ -4419,7 +4435,7 @@ def parse_drone_presets() -> list[dict[str, float | str]]:
         body_drag = arg_vec3(args, 8)
         rotor_count = body.count("new RotorSpec(") + body.count("rotorAtDegrees(")
         blade_count = preset_rotor_blade_count(body, var)
-        blade_pitch_m = preset_rotor_blade_pitch_m(body, var)
+        blade_pitch_m, blade_pitch_source = preset_rotor_blade_pitch_geometry(body, var)
         arm_variable_m = var.get("arm", float("nan"))
         if "new Vec3(arm, 0.0, arm)" in body:
             arm_length_m = math.sqrt(2.0) * arm_variable_m
@@ -4442,7 +4458,7 @@ def parse_drone_presets() -> list[dict[str, float | str]]:
                 "arm_variable_m": arm_variable_m,
                 "arm_length_m": arm_length_m,
                 "blade_pitch_m": blade_pitch_m,
-                "blade_pitch_source": "withRotorBladePitchMeters" if ".withRotorBladePitchMeters(" in body else "RotorSpec.defaultBladePitchMeters(radius)",
+                "blade_pitch_source": blade_pitch_source,
                 "rotor_blade_count": blade_count,
                 "transverse_flow_lift_coefficient": var.get("transverseFlowLift", float("nan")),
                 "axial_flow_thrust_loss_coefficient": var.get("axialFlowLoss", float("nan")),
@@ -18338,7 +18354,7 @@ def write_markdown(
     lines.append("")
     lines.append("## Prop pitch geometry sanity")
     lines.append("")
-    lines.append(f"Sources: official HQProp/Gemfan product pages reused from the physical prop-mass packet. Generated prop-geometry CSV: `{prop_geometry_pitch_summary['summary_csv']}`. Current presets without an explicit `withRotorBladePitchMeters(...)` override use Java's `RotorSpec.defaultBladePitchMeters(radius) = max(0.01, 1.70R)`, which is equivalent to `P/D = 0.85` except for very small radii hitting the 10 mm floor.")
+    lines.append(f"Sources: official HQProp/Gemfan product pages reused from the physical prop-mass packet. Generated prop-geometry CSV: `{prop_geometry_pitch_summary['summary_csv']}`. Current presets without an explicit `withRotorBladePitchMeters(...)` or `withRotorBladePitchToDiameterRatio(...)` override use Java's `RotorSpec.defaultBladePitchMeters(radius) = max(0.01, 1.70R)`, which is equivalent to `P/D = 0.85` except for very small radii hitting the 10 mm floor.")
     lines.append("")
     lines.append("| Current preset | diameter | pitch | P/D | pitch speed hover/max | pitch angle @70%R | blades | pitch source |")
     lines.append("|---|---:|---:|---:|---:|---:|---:|---|")

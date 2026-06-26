@@ -120,7 +120,7 @@ def add_source_inventory(packet: list[dict[str, str]]) -> None:
             "Current_RotorSpec_default_pitch_geometry",
             f"{DRONE_CONFIG_SOURCE}; {ROTOR_SPEC_SOURCE}",
             "current_default_pitch_and_geometry_proxy",
-            "Current presets without overrides use RotorSpec.defaultBladePitchMeters(radius) = max(0.01, 1.70R), or P/D = 0.85 for current radii.",
+            "Current preset rows mirror RotorSpec.defaultBladePitchMeters(radius) for presets without overrides and explicit DroneConfig blade-pitch overrides such as withRotorBladePitchToDiameterRatio.",
         ),
         (
             "Official_HQProp_Gemfan_pitch_mass_pages",
