@@ -42,7 +42,10 @@ public final class AerodynamicsWindCoupling {
 		double fallback = Double.isFinite(fallbackResidual)
 				? MathUtil.clamp(fallbackResidual, LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL, 1.0)
 				: 1.0;
-		if (sample == null || !sample.hasFlow()) {
+		if (sample == null
+				|| !sample.hasFlow()
+				|| !sample.localVoxelFlow()
+				|| sourceQualityFactor(sample) <= 1.0e-9) {
 			return fallback;
 		}
 		return localVoxelObstacleResidualFactor(sample);

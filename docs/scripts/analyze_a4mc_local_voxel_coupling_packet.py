@@ -264,6 +264,87 @@ def add_quality_residual_matrix(rows: list[dict[str, str]]) -> None:
                     )
 
 
+def local_obstacle_residual_or_body_fallback(
+    *,
+    body_residual: float,
+    rotor_has_flow: bool,
+    rotor_trusted: bool,
+    rotor_local_voxel_flow: bool,
+    rotor_confidence: float,
+    rotor_shelter: float,
+    rotor_age_ticks: int,
+) -> float:
+    fallback = clamp(body_residual, LOCAL_VOXEL_MIN_OBSTRUCTION_RESIDUAL, 1.0)
+    rotor_quality = source_quality(rotor_trusted, rotor_confidence, rotor_age_ticks) if rotor_has_flow else 0.0
+    if not rotor_has_flow or not rotor_local_voxel_flow or rotor_quality <= 1.0e-9:
+        return fallback
+    return local_obstacle_residual(rotor_shelter, rotor_quality)
+
+
+def add_rotor_residual_fallback_matrix(rows: list[dict[str, str]]) -> None:
+    metric_units = {
+        "input_body_confidence": "fraction",
+        "input_body_shelter_factor": "fraction",
+        "body_local_obstacle_residual_factor": "multiplier",
+        "input_rotor_has_flow": "bool",
+        "input_rotor_trusted_for_gameplay": "bool",
+        "input_rotor_local_voxel_flow": "bool",
+        "input_rotor_confidence": "fraction",
+        "input_rotor_freshness_age_ticks": "ticks",
+        "input_rotor_shelter_factor": "fraction",
+        "rotor_source_quality": "fraction",
+        "adopted_rotor_local_obstacle_residual_factor": "multiplier",
+    }
+    body_confidence = 0.86
+    body_shelter = 0.74
+    body_quality = source_quality(True, body_confidence, 0)
+    body_residual = local_obstacle_residual(body_shelter, body_quality)
+    scenarios = [
+        ("missing_rotor_sample", False, False, False, 0.0, body_shelter, -1),
+        ("coarse_rotor_sample", True, True, False, 1.0, 1.0, 0),
+        ("stale_rotor_sample", True, True, True, 1.0, 1.0, 200),
+        ("untrusted_rotor_sample", True, False, True, 1.0, 1.0, 0),
+        ("trusted_exposed_rotor_sample", True, True, True, 1.0, 0.0, 0),
+        ("trusted_sheltered_rotor_sample", True, True, True, 1.0, 1.0, 0),
+    ]
+    for name, has_flow, trusted, local_voxel, confidence, shelter, age in scenarios:
+        rotor_quality = source_quality(trusted, confidence, age) if has_flow else 0.0
+        adopted_residual = local_obstacle_residual_or_body_fallback(
+            body_residual=body_residual,
+            rotor_has_flow=has_flow,
+            rotor_trusted=trusted,
+            rotor_local_voxel_flow=local_voxel,
+            rotor_confidence=confidence,
+            rotor_shelter=shelter,
+            rotor_age_ticks=age,
+        )
+        metrics = {
+            "input_body_confidence": body_confidence,
+            "input_body_shelter_factor": body_shelter,
+            "body_local_obstacle_residual_factor": body_residual,
+            "input_rotor_has_flow": has_flow,
+            "input_rotor_trusted_for_gameplay": trusted,
+            "input_rotor_local_voxel_flow": local_voxel,
+            "input_rotor_confidence": confidence,
+            "input_rotor_freshness_age_ticks": age,
+            "input_rotor_shelter_factor": shelter,
+            "rotor_source_quality": rotor_quality,
+            "adopted_rotor_local_obstacle_residual_factor": adopted_residual,
+        }
+        for metric, value in metrics.items():
+            add_metric(
+                rows,
+                row_type="a4mc_local_voxel_packet_rotor_residual_fallback_matrix",
+                name=name,
+                metric=metric,
+                value=value,
+                unit=metric_units[metric],
+                source_file=A4MC_COUPLING_SOURCE,
+                evidence_role="local_voxel_rotor_residual_fallback_matrix",
+                note="Rotor-center local-voxel residual fallback behavior when the rotor sample is missing, coarse, stale, untrusted, or usable.",
+            )
+
+
 def add_pressure_gradient_matrix(rows: list[dict[str, str]]) -> None:
     metric_units = {
         "input_confidence": "fraction",
@@ -388,6 +469,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(SHELTER_LEVELS),
             "count",
         ),
+        "rotor_residual_fallback_scenario_count": (6, "count"),
         "pressure_gradient_scenario_count": (
             len(CONFIDENCE_LEVELS) * len(FRESHNESS_AGES_TICKS) * len(PRESSURE_DELTAS_PA),
             "count",
@@ -405,6 +487,24 @@ def add_summary(rows: list[dict[str, str]]) -> None:
                 "a4mc_local_voxel_packet_quality_residual_matrix",
                 quality_name,
                 "core_local_obstacle_residual_factor",
+            ),
+            "multiplier",
+        ),
+        "coarse_rotor_sample_body_fallback_residual": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_rotor_residual_fallback_matrix",
+                "coarse_rotor_sample",
+                "adopted_rotor_local_obstacle_residual_factor",
+            ),
+            "multiplier",
+        ),
+        "trusted_exposed_rotor_sample_residual": (
+            find_metric(
+                rows,
+                "a4mc_local_voxel_packet_rotor_residual_fallback_matrix",
+                "trusted_exposed_rotor_sample",
+                "adopted_rotor_local_obstacle_residual_factor",
             ),
             "multiplier",
         ),
@@ -478,6 +578,7 @@ def build_rows() -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
     add_source_inventory(rows)
     add_quality_residual_matrix(rows)
+    add_rotor_residual_fallback_matrix(rows)
     add_pressure_gradient_matrix(rows)
     add_shelter_gradient_matrix(rows)
     add_summary(rows)

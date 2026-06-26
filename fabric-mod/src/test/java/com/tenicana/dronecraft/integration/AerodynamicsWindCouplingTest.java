@@ -26,8 +26,9 @@ class AerodynamicsWindCouplingTest {
 		Map<String, Double> summary = localVoxelPacketSummary();
 		double wallSkimSourceQuality = AerodynamicsWindCoupling.sourceQualityFactor(true, true, 0.86, 0L);
 
-		assertEquals(11, summary.size());
+		assertEquals(14, summary.size());
 		assertEquals(48.0, summaryMetric(summary, "quality_residual_scenario_count"), 1.0e-9);
+		assertEquals(6.0, summaryMetric(summary, "rotor_residual_fallback_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "pressure_gradient_scenario_count"), 1.0e-9);
 		assertEquals(60.0, summaryMetric(summary, "shelter_gradient_scenario_count"), 1.0e-9);
 		assertEquals(ROTOR_DISK_SURFACE_CENTER_WEIGHT, summaryMetric(summary, "disk_sample_center_weight"), 1.0e-12);
@@ -39,6 +40,12 @@ class AerodynamicsWindCouplingTest {
 				summaryMetric(summary, "wall_skim_quality_0p86_shelter_0p74_residual"),
 				1.0e-12
 		);
+		assertEquals(
+				summaryMetric(summary, "wall_skim_quality_0p86_shelter_0p74_residual"),
+				summaryMetric(summary, "coarse_rotor_sample_body_fallback_residual"),
+				1.0e-12
+		);
+		assertEquals(0.68, summaryMetric(summary, "trusted_exposed_rotor_sample_residual"), 1.0e-12);
 
 		AerodynamicsWindCoupling.RotorDiskPressureBlend wallSkimPressure = oneSidedPressureBlend(220.0);
 		Vec3 wallSkimPressureWind = AerodynamicsWindCoupling.localVoxelPressureGradientWindEquivalent(wallSkimPressure);
@@ -181,11 +188,11 @@ class AerodynamicsWindCouplingTest {
 				shelteredRotor,
 				1.0
 		), 1.0e-9);
-		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+		assertEquals(bodyShelteredResidual, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
 				coarseRotor,
 				bodyShelteredResidual
 		), 1.0e-9);
-		assertEquals(1.0, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
+		assertEquals(bodyShelteredResidual, AerodynamicsWindCoupling.localVoxelObstacleResidualFactorOrFallback(
 				staleRotor,
 				bodyShelteredResidual
 		), 1.0e-9);
