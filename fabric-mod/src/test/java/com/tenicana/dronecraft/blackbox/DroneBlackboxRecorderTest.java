@@ -72,7 +72,8 @@ class DroneBlackboxRecorderTest {
 				null,
 				null,
 				new double[] {0.61, 1.0, 0.74, 1.0},
-				new Vec3[] {new Vec3(0.11, 0.0, 0.0), Vec3.ZERO, new Vec3(0.06, 0.0, 0.0), Vec3.ZERO}
+				new Vec3[] {new Vec3(0.11, 0.0, 0.0), Vec3.ZERO, new Vec3(0.06, 0.0, 0.0), Vec3.ZERO},
+				null
 		);
 
 		for (int tick = 0; tick < 4; tick++) {
@@ -1282,6 +1283,7 @@ class DroneBlackboxRecorderTest {
 		assertTrue(summary.formatForChat().contains("ceil"));
 		assertTrue(summary.formatForChat().contains("asym"));
 		assertTrue(summary.formatForChat().contains("block"));
+		assertTrue(summary.formatForChat().contains("wallfac"));
 		assertTrue(summary.formatForChat().contains("desync"));
 		assertTrue(summary.formatForChat().contains("mech-loss"));
 		assertTrue(summary.formatForChat().contains("eff"));

@@ -1189,6 +1189,7 @@ class AerodynamicsWindCouplingTest {
 				null,
 				null,
 				rotorLocalVoxelObstacleResiduals,
+				null,
 				null
 		);
 	}

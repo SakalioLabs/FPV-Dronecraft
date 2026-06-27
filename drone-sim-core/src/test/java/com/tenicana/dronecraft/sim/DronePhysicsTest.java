@@ -13436,6 +13436,7 @@ class DronePhysicsTest {
 		assertTrue(text.contains("max_ground_level="));
 		assertTrue(text.contains("max_wind_quality="));
 		assertTrue(text.contains("min_a4mc_vent="));
+		assertTrue(text.contains("max_wallfac="));
 		assertTrue(text.contains("max_pc_torque="));
 		assertTrue(text.contains("Airframe IMAV body-drag fit"));
 		assertTrue(text.contains("Airframe base-drag level-flight envelope"));
