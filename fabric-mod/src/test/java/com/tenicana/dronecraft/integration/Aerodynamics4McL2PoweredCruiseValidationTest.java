@@ -19,10 +19,10 @@ class Aerodynamics4McL2PoweredCruiseValidationTest {
 
 		assertEquals("A4MC-L2-Powered-Cruise-Validation-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("forward-flight"));
-		assertEquals(121, audit.packetMetricRowCount());
+		assertEquals(125, audit.packetMetricRowCount());
 		assertEquals(5, audit.sourceReferenceCount());
 		assertEquals(4, audit.presetSampleCount());
-		assertEquals(26, audit.targetMetricCount());
+		assertEquals(27, audit.targetMetricCount());
 		assertEquals(11, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.targets().size());
@@ -41,6 +41,7 @@ class Aerodynamics4McL2PoweredCruiseValidationTest {
 			assertEquals(0.05, target.momentToleranceNewtonMeters(), 1.0e-12);
 			assertEquals(0.05, target.centerOfForceToleranceMeters(), 1.0e-12);
 			assertEquals(0.0, target.targetMomentMagnitudeNewtonMeters(), 1.0e-12);
+			assertEquals(0.0, target.targetCenterOfThrustOffsetMeters(), 1.0e-12);
 			assertTrue(target.targetMeanPressureJumpPascals() > 0.0);
 			assertTrue(target.targetEdgewiseAdvanceRatio() > 0.0);
 			assertEquals(2.0 * target.targetIdealInducedVelocityMetersPerSecond(),
@@ -94,6 +95,64 @@ class Aerodynamics4McL2PoweredCruiseValidationTest {
 		assertEquals(0.0, result.forceErrorNewtons(), 1.0e-12);
 		assertEquals(0.0, result.momentErrorNewtonMeters(), 1.0e-12);
 		assertEquals(0.0, result.centerOfForceErrorMeters(), 1.0e-12);
+	}
+
+	@Test
+	void centerOfForceErrorComparesAgainstTargetOffset() {
+		Aerodynamics4McL2PoweredCruiseValidation.PoweredCruiseValidationTarget target =
+				new Aerodynamics4McL2PoweredCruiseValidation.PoweredCruiseValidationTarget(
+						"offset",
+						true,
+						true,
+						true,
+						true,
+						true,
+						0.0,
+						10.0,
+						0.0,
+						10.0,
+						0.0,
+						0.0,
+						2.5,
+						2.5,
+						0.80,
+						0.08,
+						2.0,
+						0.05,
+						0.25,
+						100.0,
+						0.10,
+						2.0,
+						4.0,
+						50.0,
+						50_000.0,
+						12.0,
+						0.65,
+						"synthetic-offset"
+				);
+		Aerodynamics4McL2Bridge.L2ForceMomentSample baseline = sample(0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+		Aerodynamics4McL2PoweredCruiseValidation.PoweredCruiseValidationResult matched =
+				Aerodynamics4McL2PoweredCruiseValidation.evaluate(
+						target,
+						baseline,
+						sample(0.0, 10.0, 0.0, 0.0, 0.0, 2.5)
+				);
+		Aerodynamics4McL2PoweredCruiseValidation.PoweredCruiseValidationResult shifted =
+				Aerodynamics4McL2PoweredCruiseValidation.evaluate(
+						target,
+						baseline,
+						sample(0.0, 10.0, 0.0, 0.0, 0.0, 3.6)
+				);
+
+		assertTrue(matched.passed());
+		assertEquals(0.25, matched.observedCenterOfForceOffsetMeters(), 1.0e-12);
+		assertEquals(0.0, matched.centerOfForceErrorMeters(), 1.0e-12);
+		assertFalse(shifted.passed());
+		assertTrue(shifted.forceMatched());
+		assertTrue(shifted.momentMatched());
+		assertFalse(shifted.centerOfForceMatched());
+		assertTrue(shifted.centerOfForceErrorMeters() > target.centerOfForceToleranceMeters());
 	}
 
 	@Test
@@ -162,6 +221,8 @@ class Aerodynamics4McL2PoweredCruiseValidationTest {
 				line.startsWith("a4mc_l2_powered_cruise_validation_summary,all_presets,target_count,4,")));
 		assertTrue(Files.readAllLines(packet).stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_cruise_validation_target,racingQuad,target_edgewise_advance_ratio,")));
+		assertTrue(Files.readAllLines(packet).stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_cruise_validation_target,racingQuad,target_center_of_thrust_offset_m,")));
 	}
 
 	private static Aerodynamics4McL2Bridge.L2ForceMomentSample sample(

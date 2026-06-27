@@ -12,7 +12,7 @@ public final class Aerodynamics4McL2PoweredCruiseValidation {
 	public static final double CENTER_OF_FORCE_TOLERANCE_METERS = 0.05;
 	public static final int SOURCE_REFERENCE_COUNT = 5;
 	public static final int PRESET_SAMPLE_COUNT = 4;
-	public static final int TARGET_METRIC_COUNT = 26;
+	public static final int TARGET_METRIC_COUNT = 27;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -42,6 +42,7 @@ public final class Aerodynamics4McL2PoweredCruiseValidation {
 			double forceRelativeTolerance,
 			double momentToleranceNewtonMeters,
 			double centerOfForceToleranceMeters,
+			double targetCenterOfThrustOffsetMeters,
 			double targetMeanPressureJumpPascals,
 			double targetEdgewiseAdvanceRatio,
 			double targetIdealInducedVelocityMetersPerSecond,
@@ -157,6 +158,7 @@ public final class Aerodynamics4McL2PoweredCruiseValidation {
 				FORCE_MATCH_RELATIVE_TOLERANCE,
 				MOMENT_MATCH_TOLERANCE_NEWTON_METERS,
 				CENTER_OF_FORCE_TOLERANCE_METERS,
+				experiment.centerOfThrustOffsetMeters(),
 				experiment.meanPressureJumpPascals(),
 				experiment.edgewiseAdvanceRatio(),
 				experiment.idealInducedVelocityMetersPerSecond(),
@@ -202,7 +204,7 @@ public final class Aerodynamics4McL2PoweredCruiseValidation {
 				momentZ - target.targetMomentZNewtonMeters()
 		);
 		double centerOffset = centerOfForceOffset(forceX, forceY, forceZ, momentX, momentY, momentZ);
-		double centerError = Math.abs(centerOffset);
+		double centerError = Math.abs(centerOffset - target.targetCenterOfThrustOffsetMeters());
 		boolean forceMatched = forceError <= target.forceToleranceNewtons();
 		boolean momentMatched = momentError <= target.momentToleranceNewtonMeters();
 		boolean centerMatched = centerError <= target.centerOfForceToleranceMeters();

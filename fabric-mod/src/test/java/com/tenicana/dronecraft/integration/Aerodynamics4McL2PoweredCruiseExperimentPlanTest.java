@@ -21,10 +21,10 @@ class Aerodynamics4McL2PoweredCruiseExperimentPlanTest {
 
 		assertEquals("A4MC-L2-Powered-Cruise-Experiment-Plan", audit.sourceId());
 		assertTrue(audit.caveat().contains("forward-flight"));
-		assertEquals(173, audit.packetMetricRowCount());
+		assertEquals(177, audit.packetMetricRowCount());
 		assertEquals(5, audit.sourceReferenceCount());
 		assertEquals(4, audit.presetSampleCount());
-		assertEquals(39, audit.experimentMetricCount());
+		assertEquals(40, audit.experimentMetricCount());
 		assertEquals(11, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.experiments().size());
@@ -55,6 +55,7 @@ class Aerodynamics4McL2PoweredCruiseExperimentPlanTest {
 			assertEquals(0.0, experiment.targetForceZNewtons(), 1.0e-12);
 			assertEquals(experiment.targetForceYNewtons(), experiment.targetForceMagnitudeNewtons(), 1.0e-12);
 			assertEquals(0.0, experiment.targetMomentMagnitudeNewtonMeters(), 1.0e-12);
+			assertEquals(0.0, experiment.centerOfThrustOffsetMeters(), 1.0e-12);
 			assertTrue(experiment.totalMomentumPowerWatts() > 0.0);
 			assertTrue(experiment.idealInducedVelocityMetersPerSecond() > 0.0);
 			assertEquals(2.0 * experiment.idealInducedVelocityMetersPerSecond(),
@@ -121,6 +122,8 @@ class Aerodynamics4McL2PoweredCruiseExperimentPlanTest {
 				line.startsWith("a4mc_l2_powered_cruise_experiment_preset,racingQuad,spin_state,cruise,")));
 		assertTrue(Files.readAllLines(packet).stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_cruise_experiment_preset,racingQuad,edgewise_advance_ratio,")));
+		assertTrue(Files.readAllLines(packet).stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_cruise_experiment_preset,racingQuad,center_of_thrust_offset_m,")));
 	}
 
 	private static Path findRepoRoot() {

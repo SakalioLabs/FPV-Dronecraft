@@ -11,7 +11,7 @@ public final class Aerodynamics4McL2PoweredCruiseExperimentPlan {
 			"Experiment plan pairs forward-flight static-airframe L2 force/moment requests with cruise actuator-disk source targets; keep offline until A4MC exposes powered source-term injection for edgewise rotor validation.";
 	public static final int SOURCE_REFERENCE_COUNT = 5;
 	public static final int PRESET_SAMPLE_COUNT = 4;
-	public static final int EXPERIMENT_METRIC_COUNT = 39;
+	public static final int EXPERIMENT_METRIC_COUNT = 40;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -55,6 +55,7 @@ public final class Aerodynamics4McL2PoweredCruiseExperimentPlan {
 			double targetMomentZNewtonMeters,
 			double targetForceMagnitudeNewtons,
 			double targetMomentMagnitudeNewtonMeters,
+			double centerOfThrustOffsetMeters,
 			double totalMomentumPowerWatts,
 			double idealInducedVelocityMetersPerSecond,
 			double farWakeVelocityMetersPerSecond,
@@ -166,6 +167,7 @@ public final class Aerodynamics4McL2PoweredCruiseExperimentPlan {
 				sourceMap.netMomentBodyNewtonMeters().z(),
 				sourceMap.netForceMagnitudeNewtons(),
 				sourceMap.netMomentMagnitudeNewtonMeters(),
+				sourceMap.centerOfThrustBodyMeters().length(),
 				cruiseLoad.totalMomentumPowerWatts(),
 				cruiseLoad.idealInducedVelocityMetersPerSecond(),
 				cruiseLoad.farWakeVelocityMetersPerSecond(),
