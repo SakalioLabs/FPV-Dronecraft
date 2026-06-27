@@ -60,9 +60,12 @@ The offline recorder `Summary:` line now also prints `max_pc_torque`, `max_wallf
 
 `Aerodynamics4McL2DroneProbeAudit` packages that geometry path into a stable four-preset audit surface. The packet records racing-quad, APDrone, cinewhoop, and heavy-lift grid dimensions, mask size, solid-cell fraction, rotor span, rotor-disk resolution, force-reference center, inlet vector, force/moment request flags, body-center and rotor-hub mask coverage, and sample points on each rotor disk that must remain open. It gives future CFD coefficient work a small regression target for "did the wind tunnel geometry change?" before comparing live A4MC force and pressure-center outputs.
 
+`Aerodynamics4McL2RotorDiskAperture` adds the next geometry layer without changing the binary solid mask: each rotor gets a true thrust-axis disk plane, a stable radial/tangential basis, four equal-area radial rings, sixteen azimuth samples per ring, and an estimated open actuator-disk area after static airframe body/arm/hub blockage. The packet also separates rotor-axis inlet from in-plane crossflow, so forward-flight wind-tunnel cases can distinguish through-disk powered-rotor loading from edgewise rotor-disk exposure before A4MC offers or adopts a porous source-term representation.
+
 ## Next Research Steps
 
 - Use `Aerodynamics4McL2DroneProbeAudit.audit()` as the geometry guardrail, then run `Aerodynamics4McL2DroneProbe.forceMomentProbe(config, inlet, steps)` plus `Aerodynamics4McL2Bridge.run(...)` to generate the first offline APDrone/racing-quad static-airframe wind-tunnel summaries; persist only `L2RunResult` force/moment and pressure-center outputs rather than raw CFD state in the tick loop.
+- Use `docs/data/a4mc_l2_rotor_disk_aperture_packet.csv` to keep the actuator-disk sampling plane, open-area estimate, axial inlet split, and in-plane crossflow split stable while designing the powered-rotor or porous-disk approximation.
 - Add a later powered-rotor calibration pass only after deciding how A4MC binary solid masks should represent actuator disks or porous rotor regions without overestimating prop-disk blockage.
 - Use `docs/data/a4mc_disk_gradient_response_packet.csv` as the current-formula response surface before calibrating disk-gradient thrust-loss, load, vibration, stall, and flapping coefficients against blackbox traces near block edges and tunnel mouths.
 - `A4mcDiskGradientCalibrationTest` now locks the packet summary against Java-side formulas and reflectively checks the corresponding `DronePhysics` disk-gradient response helpers.
