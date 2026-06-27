@@ -60,6 +60,22 @@ public final class Aerodynamics4McL2Bridge {
 		return buildRequest(loader, spec);
 	}
 
+	public static L2RunResult run(L2RequestSpec spec) {
+		if (!FabricLoader.getInstance().isModLoaded(MOD_ID)) {
+			L2RequestBuildResult buildResult = L2RequestBuildResult.failure(
+					spec,
+					L2Capabilities.unavailable(false, "aerodynamics4mc mod is not loaded"),
+					"aerodynamics4mc mod is not loaded"
+			);
+			return L2RunResult.notInvoked(buildResult, "aerodynamics4mc mod is not loaded");
+		}
+		ClassLoader loader = Thread.currentThread().getContextClassLoader();
+		if (loader == null) {
+			loader = Aerodynamics4McL2Bridge.class.getClassLoader();
+		}
+		return run(loader, spec);
+	}
+
 	private static L2Capabilities initializeCapabilities() {
 		if (!FabricLoader.getInstance().isModLoaded(MOD_ID)) {
 			return L2Capabilities.unavailable(false, "aerodynamics4mc mod is not loaded");
@@ -130,6 +146,67 @@ public final class Aerodynamics4McL2Bridge {
 		} catch (ReflectiveOperationException | LinkageError error) {
 			return L2RequestBuildResult.failure(spec, currentCapabilities,
 					"could not build A4MC L2 request: " + error.getClass().getSimpleName());
+		}
+	}
+
+	static L2RunResult run(ClassLoader loader, L2RequestSpec spec) {
+		L2RequestBuildResult buildResult = buildRequest(loader, spec);
+		if (!buildResult.built()) {
+			return L2RunResult.notInvoked(buildResult, buildResult.message());
+		}
+		try {
+			Class<?> windApiClass = Class.forName(WIND_API_CLASS, false, loader);
+			Class<?> requestClass = Class.forName(L2_REQUEST_CLASS, false, loader);
+			Class<?> resultClass = Class.forName(L2_RESULT_CLASS, false, loader);
+			Class<?> forceMomentClass = Class.forName(L2_FORCE_MOMENT_CLASS, false, loader);
+			Object result = windApiClass.getMethod("runL2", requestClass).invoke(null, buildResult.request());
+			if (result == null) {
+				return L2RunResult.invoked(
+						buildResult,
+						false,
+						false,
+						false,
+						0,
+						null,
+						"null_result",
+						"A4MC L2 returned null",
+						""
+				);
+			}
+			boolean succeeded = optionalBoolean(methodOrNull(resultClass, "succeeded"), result, false);
+			boolean available = optionalBoolean(methodOrNull(resultClass, "available"), result, succeeded);
+			boolean hasFlowAtlas = optionalBoolean(methodOrNull(resultClass, "hasFlowAtlas"), result, false);
+			int atlasValueCount = optionalInt(methodOrNull(resultClass, "atlasValueCount"), result, 0);
+			String status = optionalText(methodOrNull(resultClass, "status"), result, succeeded ? "ok" : "unknown");
+			String message = optionalText(methodOrNull(resultClass, "message"), result, "");
+			String runtimeInfo = optionalText(methodOrNull(resultClass, "runtimeInfo"), result, "");
+			Object forceMoment = optionalObject(methodOrNull(resultClass, "forceMoment"), result);
+			L2ForceMomentSample forceMomentSample = forceMoment == null
+					? null
+					: L2ForceMomentSample.from(forceMomentClass, forceMoment);
+			return L2RunResult.invoked(
+					buildResult,
+					succeeded,
+					available,
+					hasFlowAtlas,
+					atlasValueCount,
+					forceMomentSample,
+					status,
+					message,
+					runtimeInfo
+			);
+		} catch (ReflectiveOperationException | LinkageError error) {
+			return L2RunResult.invoked(
+					buildResult,
+					false,
+					false,
+					false,
+					0,
+					null,
+					"exception",
+					"could not run A4MC L2 request: " + error.getClass().getSimpleName(),
+					""
+			);
 		}
 	}
 
@@ -211,6 +288,14 @@ public final class Aerodynamics4McL2Bridge {
 		}
 	}
 
+	private static Method methodOrNull(Class<?> owner, String name, Class<?>... parameterTypes) {
+		try {
+			return owner.getMethod(name, parameterTypes);
+		} catch (NoSuchMethodException ignored) {
+			return null;
+		}
+	}
+
 	private static void invokeBuilder(Class<?> owner, Object builder, String name, Class<?> parameterType, Object value)
 			throws ReflectiveOperationException {
 		invokeBuilder(owner, builder, name, new Class<?>[] {parameterType}, value);
@@ -236,6 +321,50 @@ public final class Aerodynamics4McL2Bridge {
 		} catch (NoSuchMethodException error) {
 			return false;
 		}
+	}
+
+	private static boolean optionalBoolean(Method method, Object target, boolean fallback) throws ReflectiveOperationException {
+		Object value = optionalObject(method, target);
+		return value instanceof Boolean bool ? bool : fallback;
+	}
+
+	private static int optionalInt(Method method, Object target, int fallback) throws ReflectiveOperationException {
+		Object value = optionalObject(method, target);
+		if (value instanceof Number number) {
+			return Math.max(0, number.intValue());
+		}
+		return fallback;
+	}
+
+	private static Object optionalObject(Method method, Object target) throws ReflectiveOperationException {
+		return method == null ? null : method.invoke(target);
+	}
+
+	private static double number(Method method, Object target) throws ReflectiveOperationException {
+		Object value = method.invoke(target);
+		return value instanceof Number number ? number.doubleValue() : 0.0;
+	}
+
+	private static String optionalText(Method method, Object target, String fallback) throws ReflectiveOperationException {
+		Object value = optionalObject(method, target);
+		return sanitizeText(value == null ? fallback : value.toString(), 240);
+	}
+
+	private static String sanitizeText(String value, int maxLength) {
+		if (value == null || value.isBlank()) {
+			return "";
+		}
+		String trimmed = value.trim();
+		StringBuilder builder = new StringBuilder(Math.min(trimmed.length(), maxLength));
+		for (int i = 0; i < trimmed.length() && builder.length() < maxLength; i++) {
+			char c = trimmed.charAt(i);
+			if (c >= 32 && c <= 126) {
+				builder.append(c);
+			} else {
+				builder.append('_');
+			}
+		}
+		return builder.toString();
 	}
 
 	private static String sanitizeClassName(String value) {
@@ -317,6 +446,121 @@ public final class Aerodynamics4McL2Bridge {
 
 	private static int defaultSampleStride(int nx, int ny, int nz) {
 		return Math.max(1, Math.min(Math.min(nx, ny), nz) / 16);
+	}
+
+	public record L2RunResult(
+			boolean invoked,
+			boolean succeeded,
+			boolean available,
+			L2RequestBuildResult buildResult,
+			boolean hasFlowAtlas,
+			int atlasValueCount,
+			L2ForceMomentSample forceMoment,
+			String status,
+			String message,
+			String runtimeInfo
+	) {
+		public L2RunResult {
+			atlasValueCount = Math.max(0, atlasValueCount);
+			status = sanitizeText(status, 80);
+			message = sanitizeText(message, 240);
+			runtimeInfo = sanitizeText(runtimeInfo, 240);
+		}
+
+		public boolean hasForceMoment() {
+			return forceMoment != null;
+		}
+
+		private static L2RunResult notInvoked(L2RequestBuildResult buildResult, String message) {
+			return new L2RunResult(false, false, false, buildResult, false, 0, null, "not_invoked", message, "");
+		}
+
+		private static L2RunResult invoked(
+				L2RequestBuildResult buildResult,
+				boolean succeeded,
+				boolean available,
+				boolean hasFlowAtlas,
+				int atlasValueCount,
+				L2ForceMomentSample forceMoment,
+				String status,
+				String message,
+				String runtimeInfo
+		) {
+			return new L2RunResult(true, succeeded, available, buildResult, hasFlowAtlas, atlasValueCount,
+					forceMoment, status, message, runtimeInfo);
+		}
+	}
+
+	public record L2ForceMomentSample(
+			double forceX,
+			double forceY,
+			double forceZ,
+			double momentX,
+			double momentY,
+			double momentZ,
+			double centerOfPressureX,
+			double centerOfPressureY,
+			double centerOfPressureZ,
+			double referenceX,
+			double referenceY,
+			double referenceZ
+	) {
+		public L2ForceMomentSample {
+			forceX = finiteOrZero(forceX);
+			forceY = finiteOrZero(forceY);
+			forceZ = finiteOrZero(forceZ);
+			momentX = finiteOrZero(momentX);
+			momentY = finiteOrZero(momentY);
+			momentZ = finiteOrZero(momentZ);
+			centerOfPressureX = finiteOrZero(centerOfPressureX);
+			centerOfPressureY = finiteOrZero(centerOfPressureY);
+			centerOfPressureZ = finiteOrZero(centerOfPressureZ);
+			referenceX = finiteOrZero(referenceX);
+			referenceY = finiteOrZero(referenceY);
+			referenceZ = finiteOrZero(referenceZ);
+		}
+
+		private static L2ForceMomentSample from(Class<?> forceMomentClass, Object forceMoment)
+				throws ReflectiveOperationException {
+			return new L2ForceMomentSample(
+					number(forceMomentClass.getMethod("forceX"), forceMoment),
+					number(forceMomentClass.getMethod("forceY"), forceMoment),
+					number(forceMomentClass.getMethod("forceZ"), forceMoment),
+					number(forceMomentClass.getMethod("momentX"), forceMoment),
+					number(forceMomentClass.getMethod("momentY"), forceMoment),
+					number(forceMomentClass.getMethod("momentZ"), forceMoment),
+					number(forceMomentClass.getMethod("centerOfPressureX"), forceMoment),
+					number(forceMomentClass.getMethod("centerOfPressureY"), forceMoment),
+					number(forceMomentClass.getMethod("centerOfPressureZ"), forceMoment),
+					number(forceMomentClass.getMethod("referenceX"), forceMoment),
+					number(forceMomentClass.getMethod("referenceY"), forceMoment),
+					number(forceMomentClass.getMethod("referenceZ"), forceMoment)
+			);
+		}
+
+		public double forceMagnitudeN() {
+			return magnitude(forceX, forceY, forceZ);
+		}
+
+		public double momentMagnitudeNm() {
+			return magnitude(momentX, momentY, momentZ);
+		}
+
+		public double centerOfPressureOffsetMeters() {
+			return magnitude(
+					centerOfPressureX - referenceX,
+					centerOfPressureY - referenceY,
+					centerOfPressureZ - referenceZ
+			);
+		}
+
+		private static double finiteOrZero(double value) {
+			return Double.isFinite(value) ? value : 0.0;
+		}
+
+		private static double magnitude(double x, double y, double z) {
+			return Math.sqrt(x * x + y * y + z * z);
+		}
 	}
 
 	public record L2RequestSpec(

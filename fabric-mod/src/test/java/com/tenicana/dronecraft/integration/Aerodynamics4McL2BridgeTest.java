@@ -94,6 +94,51 @@ class Aerodynamics4McL2BridgeTest {
 	}
 
 	@Test
+	void runRequestInvokesA4mcAndExtractsBoundedForceMomentSummary() {
+		Aerodynamics4McL2Bridge.L2RequestSpec spec =
+				Aerodynamics4McL2Bridge.L2RequestSpec.forceMomentProbe(16, 16, 16, 0.20, 24, 8.0, 0.0, 0.5, null);
+
+		Aerodynamics4McL2Bridge.L2RunResult result =
+				Aerodynamics4McL2Bridge.run(getClass().getClassLoader(), spec);
+
+		assertTrue(result.invoked(), result.message());
+		assertTrue(result.succeeded(), result.status());
+		assertTrue(result.available(), result.status());
+		assertTrue(result.buildResult().built(), result.buildResult().message());
+		assertEquals("OK", result.status());
+		assertEquals("", result.message());
+		assertEquals("test-runtime", result.runtimeInfo());
+		assertFalse(result.hasFlowAtlas(), "force/moment probes should avoid full flow atlas output by default");
+		assertEquals(0, result.atlasValueCount());
+		assertTrue(result.hasForceMoment());
+		Aerodynamics4McL2Bridge.L2ForceMomentSample forceMoment = result.forceMoment();
+		assertEquals(1.25, forceMoment.forceX(), 1.0e-6);
+		assertEquals(-0.50, forceMoment.forceY(), 1.0e-6);
+		assertEquals(3.00, forceMoment.forceZ(), 1.0e-6);
+		assertEquals(0.20, forceMoment.momentX(), 1.0e-6);
+		assertEquals(-0.10, forceMoment.momentY(), 1.0e-6);
+		assertEquals(0.40, forceMoment.momentZ(), 1.0e-6);
+		assertEquals(Math.sqrt(1.25 * 1.25 + 0.50 * 0.50 + 3.00 * 3.00), forceMoment.forceMagnitudeN(), 1.0e-9);
+		assertEquals(Math.sqrt(0.20 * 0.20 + 0.10 * 0.10 + 0.40 * 0.40), forceMoment.momentMagnitudeNm(), 1.0e-6);
+		assertEquals(Math.sqrt(0.10 * 0.10 + 0.20 * 0.20 + 0.30 * 0.30), forceMoment.centerOfPressureOffsetMeters(), 1.0e-6);
+	}
+
+	@Test
+	void runRequestDoesNotInvokeA4mcWhenSpecIsRejected() {
+		Aerodynamics4McL2Bridge.L2RequestSpec unsafe =
+				Aerodynamics4McL2Bridge.L2RequestSpec.forceMomentProbe(16, 16, 16, 0.20, 24, 120.0, 0.0, 0.0, null);
+
+		Aerodynamics4McL2Bridge.L2RunResult result =
+				Aerodynamics4McL2Bridge.run(getClass().getClassLoader(), unsafe);
+
+		assertFalse(result.invoked());
+		assertFalse(result.succeeded());
+		assertFalse(result.available());
+		assertFalse(result.hasForceMoment());
+		assertTrue(result.message().contains("inlet velocity"), result.message());
+	}
+
+	@Test
 	void capabilityProbeTracksA4mcL2WindTunnelContract() throws IOException {
 		String source = Files.readString(l2BridgeSource(), StandardCharsets.UTF_8);
 
