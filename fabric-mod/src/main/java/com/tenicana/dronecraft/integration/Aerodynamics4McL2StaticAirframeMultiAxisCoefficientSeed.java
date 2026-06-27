@@ -11,7 +11,7 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed {
 	public static final double AIR_DENSITY_KG_M3 = 1.225;
 	public static final int SOURCE_REFERENCE_COUNT = 5;
 	public static final int SWEEP_CASE_SAMPLE_COUNT = 24;
-	public static final int COEFFICIENT_METRIC_COUNT = 24;
+	public static final int COEFFICIENT_METRIC_COUNT = 27;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -47,6 +47,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed {
 			double momentCoefficientZ,
 			double momentCoefficientMagnitude,
 			double pressureCenterOffsetRatio,
+			double pressureCenterOffsetXRatio,
+			double pressureCenterOffsetYRatio,
+			double pressureCenterOffsetZRatio,
 			String sourceRunStatus,
 			String sourceRuntimeInfo
 	) {
@@ -173,6 +176,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed {
 				run.momentZNewtonMeters() / momentScale,
 				run.momentMagnitudeNewtonMeters() / momentScale,
 				run.pressureCenterOffsetMeters() / Math.max(1.0e-12, run.referenceLengthMeters()),
+				run.pressureCenterOffsetXBodyMeters() / Math.max(1.0e-12, run.referenceLengthMeters()),
+				run.pressureCenterOffsetYBodyMeters() / Math.max(1.0e-12, run.referenceLengthMeters()),
+				run.pressureCenterOffsetZBodyMeters() / Math.max(1.0e-12, run.referenceLengthMeters()),
 				run.status(),
 				run.runtimeInfo()
 		);

@@ -22,10 +22,10 @@ class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeedTest {
 
 		assertEquals("A4MC-L2-Static-Airframe-Multi-Axis-Coefficient-Seed-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Multi-axis coefficient seed"));
-		assertEquals(593, audit.packetMetricRowCount());
+		assertEquals(665, audit.packetMetricRowCount());
 		assertEquals(5, audit.sourceReferenceCount());
 		assertEquals(24, audit.sweepCaseSampleCount());
-		assertEquals(24, audit.coefficientMetricCount());
+		assertEquals(27, audit.coefficientMetricCount());
 		assertEquals(11, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(24, audit.seeds().size());
@@ -72,6 +72,12 @@ class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeedTest {
 				forwardSeed.momentCoefficientMagnitude(), 1.0e-12);
 		assertEquals(forward.pressureCenterOffsetMeters() / forward.referenceLengthMeters(),
 				forwardSeed.pressureCenterOffsetRatio(), 1.0e-12);
+		assertEquals(forward.pressureCenterOffsetXBodyMeters() / forward.referenceLengthMeters(),
+				forwardSeed.pressureCenterOffsetXRatio(), 1.0e-12);
+		assertEquals(forward.pressureCenterOffsetYBodyMeters() / forward.referenceLengthMeters(),
+				forwardSeed.pressureCenterOffsetYRatio(), 1.0e-12);
+		assertEquals(forward.pressureCenterOffsetZBodyMeters() / forward.referenceLengthMeters(),
+				forwardSeed.pressureCenterOffsetZRatio(), 1.0e-12);
 		assertEquals(forwardSeed.forceCoefficientZ(), forwardSeed.signedAxialForceCoefficient(), 1.0e-12);
 		assertEquals(-forwardSeed.signedAxialForceCoefficient(),
 				reverseSeed.signedAxialForceCoefficient(), 1.0e-12);

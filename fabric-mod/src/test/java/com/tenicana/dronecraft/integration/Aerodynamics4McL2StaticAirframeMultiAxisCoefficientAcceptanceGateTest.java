@@ -253,6 +253,9 @@ class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientAcceptanceGateTest {
 				seed.momentCoefficientZ(),
 				seed.momentCoefficientMagnitude(),
 				seed.pressureCenterOffsetRatio(),
+				seed.pressureCenterOffsetXRatio(),
+				seed.pressureCenterOffsetYRatio(),
+				seed.pressureCenterOffsetZRatio(),
 				seed.sourceRunStatus(),
 				runtimeInfo
 		);

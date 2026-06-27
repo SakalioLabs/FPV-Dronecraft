@@ -20,10 +20,10 @@ class Aerodynamics4McL2StaticAirframeMultiAxisRunMatrixTest {
 
 		assertEquals("A4MC-L2-Static-Airframe-Multi-Axis-Run-Matrix-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Multi-axis run matrix"));
-		assertEquals(833, audit.packetMetricRowCount());
+		assertEquals(905, audit.packetMetricRowCount());
 		assertEquals(5, audit.sourceReferenceCount());
 		assertEquals(24, audit.sweepCaseSampleCount());
-		assertEquals(34, audit.runMetricCount());
+		assertEquals(37, audit.runMetricCount());
 		assertEquals(11, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(24, audit.runs().size());
@@ -47,6 +47,9 @@ class Aerodynamics4McL2StaticAirframeMultiAxisRunMatrixTest {
 			assertEquals(0.20, run.momentXNewtonMeters(), 1.0e-6);
 			assertEquals(-0.10, run.momentYNewtonMeters(), 1.0e-6);
 			assertEquals(0.40, run.momentZNewtonMeters(), 1.0e-6);
+			assertEquals(0.10, run.pressureCenterOffsetXBodyMeters(), 1.0e-6);
+			assertEquals(-0.20, run.pressureCenterOffsetYBodyMeters(), 1.0e-6);
+			assertEquals(0.30, run.pressureCenterOffsetZBodyMeters(), 1.0e-6);
 		}
 		assertEquals(24, audit.extrema().runSummaryCount());
 		assertEquals(24, audit.extrema().invokedCount());

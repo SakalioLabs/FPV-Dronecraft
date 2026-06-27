@@ -392,6 +392,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisCoefficientAcceptance
 				seed.momentCoefficientZ(),
 				seed.momentCoefficientMagnitude(),
 				seed.pressureCenterOffsetRatio(),
+				seed.pressureCenterOffsetXRatio(),
+				seed.pressureCenterOffsetYRatio(),
+				seed.pressureCenterOffsetZRatio(),
 				seed.sourceRunStatus(),
 				runtimeInfo
 		);

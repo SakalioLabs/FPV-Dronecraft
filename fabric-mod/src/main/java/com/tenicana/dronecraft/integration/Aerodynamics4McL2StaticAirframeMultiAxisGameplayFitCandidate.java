@@ -17,7 +17,7 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 	public static final int SOURCE_REFERENCE_COUNT = 5;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
 	public static final int PRESET_SAMPLE_COUNT = 4;
-	public static final int CANDIDATE_METRIC_COUNT = 30;
+	public static final int CANDIDATE_METRIC_COUNT = 33;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -74,6 +74,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 			double targetToCurrentPitchLiftGainRatio,
 			double currentAngularDragCoefficient,
 			double targetMomentCoefficientMagnitude,
+			double targetPressureCenterOffsetXBodyMeters,
+			double targetPressureCenterOffsetYBodyMeters,
+			double targetPressureCenterOffsetZBodyMeters,
 			double maxPressureCenterOffsetMeters,
 			double currentPressureCenterOffsetMeters,
 			double maxPressureCenterOffsetRatio,
@@ -237,8 +240,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 				seeds,
 				Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed::pressureCenterOffsetRatio
 		);
-		double maxPressureCenterMeters = maxPressureCenterOffsetMeters(seeds);
-		boolean pressureCenterVectorResolved = false;
+		Vec3 targetPressureCenterOffset = targetPressureCenterOffsetBodyMeters(seeds);
+		double maxPressureCenterMeters = targetPressureCenterOffset.length();
+		boolean rawPressureCenterVectorResolved = readyPressureCenterVector(targetPressureCenterOffset, maxPressureCenterRatio);
 		boolean ready = gate.multiAxisGameplayFitAllowed()
 				&& observedSweeps.size() == EXPECTED_SWEEP_NAMES.size()
 				&& fitReady == EXPECTED_SWEEP_NAMES.size()
@@ -251,7 +255,8 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 				&& finiteNonNegative(targetPitchLiftGain)
 				&& finiteNonNegative(targetMoment)
 				&& finiteNonNegative(maxPressureCenterMeters);
-		boolean autoApply = ready && pressureCenterVectorResolved;
+		boolean pressureCenterVectorResolved = ready && rawPressureCenterVectorResolved;
+		boolean autoApply = false;
 		return new MultiAxisGameplayFitCandidate(
 				scenarioName,
 				presetName,
@@ -280,6 +285,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 				safeRatio(targetPitchLiftGain, currentPitchLiftGain),
 				config.angularDragCoefficient(),
 				targetMoment,
+				targetPressureCenterOffset.x(),
+				targetPressureCenterOffset.y(),
+				targetPressureCenterOffset.z(),
 				maxPressureCenterMeters,
 				config.centerOfPressureOffsetBodyMeters().length(),
 				maxPressureCenterRatio,
@@ -412,6 +420,41 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 		return max;
 	}
 
+	private static Vec3 targetPressureCenterOffsetBodyMeters(
+			List<Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed> seeds
+	) {
+		double x = signedMaxComponent(seeds,
+				Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed::pressureCenterOffsetXRatio);
+		double y = signedMaxComponent(seeds,
+				Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed::pressureCenterOffsetYRatio);
+		double z = signedMaxComponent(seeds,
+				Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed::pressureCenterOffsetZRatio);
+		double referenceLength = max(seeds,
+				Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed::referenceLengthMeters);
+		return new Vec3(x, y, z).multiply(referenceLength);
+	}
+
+	private static double signedMaxComponent(
+			List<Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed> seeds,
+			ToDoubleFunction<Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed> value
+	) {
+		double selected = 0.0;
+		for (Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed seed : seeds) {
+			double next = value.applyAsDouble(seed);
+			if (Double.isFinite(next) && Math.abs(next) > Math.abs(selected)) {
+				selected = next;
+			}
+		}
+		return selected;
+	}
+
+	private static boolean readyPressureCenterVector(Vec3 targetPressureCenterOffset, double maxPressureCenterRatio) {
+		return targetPressureCenterOffset != null
+				&& targetPressureCenterOffset.isFinite()
+				&& targetPressureCenterOffset.length() > 1.0e-12
+				&& finiteNonNegative(maxPressureCenterRatio);
+	}
+
 	private static Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed findSeed(
 			List<Aerodynamics4McL2StaticAirframeMultiAxisCoefficientSeed.StaticAirframeMultiAxisCoefficientSeed> seeds,
 			String sweepName
@@ -500,6 +543,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate 
 				seed.momentCoefficientZ(),
 				seed.momentCoefficientMagnitude(),
 				seed.pressureCenterOffsetRatio(),
+				seed.pressureCenterOffsetXRatio(),
+				seed.pressureCenterOffsetYRatio(),
+				seed.pressureCenterOffsetZRatio(),
 				seed.sourceRunStatus(),
 				runtimeInfo
 		);

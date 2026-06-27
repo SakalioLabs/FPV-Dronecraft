@@ -23,11 +23,11 @@ class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidateTest {
 
 		assertEquals("A4MC-L2-Static-Airframe-Multi-Axis-Gameplay-Fit-Candidate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("audit-only"));
-		assertEquals(501, audit.packetMetricRowCount());
+		assertEquals(549, audit.packetMetricRowCount());
 		assertEquals(5, audit.sourceReferenceCount());
 		assertEquals(4, audit.scenarioSampleCount());
 		assertEquals(4, audit.presetSampleCount());
-		assertEquals(30, audit.candidateMetricCount());
+		assertEquals(33, audit.candidateMetricCount());
 		assertEquals(15, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.scenarios().size());
@@ -56,7 +56,7 @@ class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidateTest {
 		assertTrue(live.candidates().stream()
 				.noneMatch(Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate.MultiAxisGameplayFitCandidate::runtimeConfigAutoApplyAllowed));
 		assertTrue(live.candidates().stream()
-				.noneMatch(Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate.MultiAxisGameplayFitCandidate::pressureCenterVectorResolved));
+				.allMatch(Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate.MultiAxisGameplayFitCandidate::pressureCenterVectorResolved));
 
 		Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate.MultiAxisGameplayFitScenario signBroken =
 				findScenario(audit.scenarios(), "live_runtime_forward_reverse_sign_broken");
@@ -69,7 +69,7 @@ class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidateTest {
 		assertEquals(16, audit.extrema().candidateCount());
 		assertEquals(4, audit.extrema().multiAxisCandidateReadyCount());
 		assertEquals(0, audit.extrema().runtimeConfigAutoApplyAllowedCount());
-		assertEquals(0, audit.extrema().pressureCenterVectorResolvedCount());
+		assertEquals(4, audit.extrema().pressureCenterVectorResolvedCount());
 	}
 
 	@Test
@@ -134,13 +134,16 @@ class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidateTest {
 		assertEquals(expectedDragZ, candidate.targetBodyDragZCoefficient(), 1.0e-15);
 		assertEquals(expectedSideforceGain, candidate.targetSideforceGain(), 1.0e-15);
 		assertEquals(expectedPitchLiftGain, candidate.targetPitchLiftGain(), 1.0e-15);
+		assertEquals(0.10, candidate.targetPressureCenterOffsetXBodyMeters(), 1.0e-6);
+		assertEquals(-0.20, candidate.targetPressureCenterOffsetYBodyMeters(), 1.0e-6);
+		assertEquals(0.30, candidate.targetPressureCenterOffsetZBodyMeters(), 1.0e-6);
 		assertEquals(0.065 * Math.sqrt(config.bodyDragCoefficients().x() * config.bodyDragCoefficients().z()),
 				candidate.currentSideforceGain(), 1.0e-15);
 		assertEquals(0.085 * Math.sqrt(config.bodyDragCoefficients().y() * config.bodyDragCoefficients().z()),
 				candidate.currentPitchLiftGain(), 1.0e-15);
 		assertTrue(candidate.multiAxisCandidateReady());
 		assertFalse(candidate.runtimeConfigAutoApplyAllowed());
-		assertFalse(candidate.pressureCenterVectorResolved());
+		assertTrue(candidate.pressureCenterVectorResolved());
 	}
 
 	@Test
@@ -193,6 +196,8 @@ class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidateTest {
 				line.startsWith("a4mc_l2_static_airframe_multi_axis_gameplay_fit_candidate_summary,all_scenarios,multi_axis_candidate_ready_count,4,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_static_airframe_multi_axis_gameplay_fit_candidate_summary,all_scenarios,runtime_config_auto_apply_allowed_count,0,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_static_airframe_multi_axis_gameplay_fit_candidate_summary,all_scenarios,pressure_center_vector_resolved_count,4,")));
 	}
 
 	private static Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidate.MultiAxisGameplayFitScenario findScenario(
@@ -274,6 +279,9 @@ class Aerodynamics4McL2StaticAirframeMultiAxisGameplayFitCandidateTest {
 				seed.momentCoefficientZ(),
 				seed.momentCoefficientMagnitude(),
 				seed.pressureCenterOffsetRatio(),
+				seed.pressureCenterOffsetXRatio(),
+				seed.pressureCenterOffsetYRatio(),
+				seed.pressureCenterOffsetZRatio(),
 				seed.sourceRunStatus(),
 				runtimeInfo
 		);

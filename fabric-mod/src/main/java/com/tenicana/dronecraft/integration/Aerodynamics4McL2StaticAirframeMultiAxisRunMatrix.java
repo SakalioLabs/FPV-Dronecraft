@@ -11,7 +11,7 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisRunMatrix {
 			"Multi-axis run matrix records compact force/moment summaries for each static-airframe sweep target; raw flow-atlas output remains disabled and live A4MC results are required before gameplay retuning.";
 	public static final int SOURCE_REFERENCE_COUNT = 5;
 	public static final int SWEEP_CASE_SAMPLE_COUNT = 24;
-	public static final int RUN_METRIC_COUNT = 34;
+	public static final int RUN_METRIC_COUNT = 37;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -54,6 +54,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisRunMatrix {
 			double momentZNewtonMeters,
 			double momentMagnitudeNewtonMeters,
 			double pressureCenterOffsetMeters,
+			double pressureCenterOffsetXBodyMeters,
+			double pressureCenterOffsetYBodyMeters,
+			double pressureCenterOffsetZBodyMeters,
 			boolean coefficientFitReady,
 			String status,
 			String message,
@@ -194,6 +197,9 @@ public final class Aerodynamics4McL2StaticAirframeMultiAxisRunMatrix {
 				forceMoment == null ? 0.0 : forceMoment.momentZ(),
 				forceMoment == null ? 0.0 : forceMoment.momentMagnitudeNm(),
 				forceMoment == null ? 0.0 : forceMoment.centerOfPressureOffsetMeters(),
+				forceMoment == null ? 0.0 : forceMoment.centerOfPressureX() - forceMoment.referenceX(),
+				forceMoment == null ? 0.0 : forceMoment.centerOfPressureY() - forceMoment.referenceY(),
+				forceMoment == null ? 0.0 : forceMoment.centerOfPressureZ() - forceMoment.referenceZ(),
 				ready,
 				result.status(),
 				result.message().isBlank() ? "none" : result.message(),
