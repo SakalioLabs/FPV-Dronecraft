@@ -1,5 +1,7 @@
 package com.tenicana.dronecraft.integration;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
@@ -10,6 +12,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.junit.jupiter.api.Test;
+
+import com.aerodynamics4mc.api.AeroL2Request;
 
 class Aerodynamics4McL2BridgeTest {
 	@Test
@@ -24,6 +28,69 @@ class Aerodynamics4McL2BridgeTest {
 		assertFalse(capabilities.forceMomentAvailable(), "force/moment should be unavailable without the L2 API classes");
 		assertTrue(capabilities.message().startsWith("missing class:"),
 				"missing API classes should be reported without throwing");
+	}
+
+	@Test
+	void capabilityProbeAcceptsA4mcL2ContractWhenClassesArePresent() {
+		Aerodynamics4McL2Bridge.L2Capabilities capabilities =
+				Aerodynamics4McL2Bridge.inspect(getClass().getClassLoader());
+
+		assertTrue(capabilities.available(), capabilities.message());
+		assertTrue(capabilities.runL2Available());
+		assertTrue(capabilities.requestBuilderAvailable());
+		assertTrue(capabilities.requestMaskAvailable());
+		assertTrue(capabilities.flowAtlasAvailable());
+		assertTrue(capabilities.forceMomentAvailable());
+	}
+
+	@Test
+	void buildRequestCreatesBoundedForceMomentProbeThroughReflectedA4mcApi() {
+		byte[] solidMask = new byte[16 * 12 * 8];
+		solidMask[17] = 1;
+		Aerodynamics4McL2Bridge.L2RequestSpec spec =
+				Aerodynamics4McL2Bridge.L2RequestSpec.forceMomentProbe(16, 12, 8, 0.25, 40, 12.0, 0.5, -1.0, solidMask);
+
+		Aerodynamics4McL2Bridge.L2RequestBuildResult result =
+				Aerodynamics4McL2Bridge.buildRequest(getClass().getClassLoader(), spec);
+
+		assertTrue(result.built(), result.message());
+		assertTrue(result.request() instanceof AeroL2Request);
+		AeroL2Request request = (AeroL2Request) result.request();
+		assertEquals(16, request.nx());
+		assertEquals(12, request.ny());
+		assertEquals(8, request.nz());
+		assertEquals(0.25f, request.dxMeters(), 1.0e-6f);
+		assertEquals(0.05f, request.dtSeconds(), 1.0e-6f);
+		assertEquals(40, request.steps());
+		assertEquals(1, request.sampleStride());
+		assertEquals(12.0f, request.inletVx(), 1.0e-6f);
+		assertEquals(0.5f, request.inletVy(), 1.0e-6f);
+		assertEquals(-1.0f, request.inletVz(), 1.0e-6f);
+		assertEquals(1.225f, request.densityKgM3(), 1.0e-6f);
+		assertEquals(1.5e-5f, request.kinematicViscosityM2S(), 1.0e-9f);
+		assertFalse(request.outputFlowAtlas(), "force/moment probe should not request a full atlas by default");
+		assertTrue(request.computeForceMoment());
+		assertEquals(2.0f, request.referenceX(), 1.0e-6f);
+		assertEquals(1.5f, request.referenceY(), 1.0e-6f);
+		assertEquals(1.0f, request.referenceZ(), 1.0e-6f);
+		assertArrayEquals(solidMask, request.solidMask());
+		assertTrue(request.hasInitialFlowState());
+		assertEquals(0.0f, request.initialFlowState()[17 * 4], 1.0e-6f,
+				"solid cells should be seeded with zero velocity");
+		assertEquals(12.0f, request.initialFlowState()[18 * 4], 1.0e-6f,
+				"open cells should be seeded with inlet velocity");
+	}
+
+	@Test
+	void buildRequestRejectsUnsafeSpecsBeforeReflection() {
+		Aerodynamics4McL2Bridge.L2RequestSpec oversized =
+				Aerodynamics4McL2Bridge.L2RequestSpec.forceMomentProbe(256, 16, 16, 0.25, 40, 12.0, 0.0, 0.0, null);
+
+		Aerodynamics4McL2Bridge.L2RequestBuildResult result =
+				Aerodynamics4McL2Bridge.buildRequest(getClass().getClassLoader(), oversized);
+
+		assertFalse(result.built());
+		assertTrue(result.message().contains("grid axes"), result.message());
 	}
 
 	@Test
@@ -46,10 +113,16 @@ class Aerodynamics4McL2BridgeTest {
 				"probe should verify inlet velocity binding");
 		assertTrue(source.contains("methodExists(builderClass, \"air\", float.class, float.class)"),
 				"probe should verify density/viscosity binding");
+		assertTrue(source.contains("methodExists(builderClass, \"outputFlowAtlas\", boolean.class)"),
+				"probe should verify flow-atlas request control");
 		assertTrue(source.contains("methodExists(requestClass, \"createSolidMask\", int.class, int.class, int.class)"),
 				"probe should verify solid-mask creation");
 		assertTrue(source.contains("methodExists(requestClass, \"createFlowState\", int.class, int.class, int.class)"),
 				"probe should verify flow-state creation");
+		assertTrue(source.contains("methodExists(builderClass, \"solidMask\", byte[].class)"),
+				"probe should verify solid-mask builder binding");
+		assertTrue(source.contains("methodExists(builderClass, \"initialFlowState\", float[].class)"),
+				"probe should verify initial-flow builder binding");
 		assertTrue(source.contains("methodExists(requestClass, \"fillUniformFlow\", float[].class, byte[].class"),
 				"probe should verify uniform initial flow population");
 		assertTrue(source.contains("\"com.aerodynamics4mc.api.AeroL2Result\""),
