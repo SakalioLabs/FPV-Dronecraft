@@ -721,6 +721,15 @@ public final class OfflineFlightRecorder {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_flow_obstruction_wall_force_factor",
+			"rotor_0_flow_obstruction_wall_force_factor",
+			"rotor_1_flow_obstruction_wall_force_factor",
+			"rotor_2_flow_obstruction_wall_force_factor",
+			"rotor_3_flow_obstruction_wall_force_factor",
+			"rotor_4_flow_obstruction_wall_force_factor",
+			"rotor_5_flow_obstruction_wall_force_factor",
+			"rotor_6_flow_obstruction_wall_force_factor",
+			"rotor_7_flow_obstruction_wall_force_factor",
 			"rotor_local_voxel_obstacle_residual",
 			"rotor_0_local_voxel_obstacle_residual",
 			"rotor_1_local_voxel_obstacle_residual",
@@ -4428,6 +4437,10 @@ public final class OfflineFlightRecorder {
 		}
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, environment.rotorFlowObstruction(i), "%.5f");
+		}
+		appendExtra(builder, environment.maxRotorFlowObstructionWallForceFactor(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, environment.rotorFlowObstructionWallForceFactor(i), "%.5f");
 		}
 		appendExtra(builder, environment.minRotorLocalVoxelObstacleResidual(), "%.5f");
 		for (int i = 0; i < 8; i++) {

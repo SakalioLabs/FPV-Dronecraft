@@ -635,6 +635,11 @@ public final class DroneBlackboxSample {
 			"rotor_1_flow_obstruction",
 			"rotor_2_flow_obstruction",
 			"rotor_3_flow_obstruction",
+			"rotor_flow_obstruction_wall_force_factor",
+			"rotor_0_flow_obstruction_wall_force_factor",
+			"rotor_1_flow_obstruction_wall_force_factor",
+			"rotor_2_flow_obstruction_wall_force_factor",
+			"rotor_3_flow_obstruction_wall_force_factor",
 			"rotor_local_voxel_obstacle_residual",
 			"rotor_0_local_voxel_obstacle_residual",
 			"rotor_1_local_voxel_obstacle_residual",
@@ -1201,6 +1206,10 @@ public final class DroneBlackboxSample {
 			"rotor_5_flow_obstruction",
 			"rotor_6_flow_obstruction",
 			"rotor_7_flow_obstruction",
+			"rotor_4_flow_obstruction_wall_force_factor",
+			"rotor_5_flow_obstruction_wall_force_factor",
+			"rotor_6_flow_obstruction_wall_force_factor",
+			"rotor_7_flow_obstruction_wall_force_factor",
 			"rotor_4_local_voxel_obstacle_residual",
 			"rotor_5_local_voxel_obstacle_residual",
 			"rotor_6_local_voxel_obstacle_residual",
@@ -2160,6 +2169,11 @@ public final class DroneBlackboxSample {
 		row.add(environment.rotorFlowObstruction(1), "%.5f");
 		row.add(environment.rotorFlowObstruction(2), "%.5f");
 		row.add(environment.rotorFlowObstruction(3), "%.5f");
+		row.add(environment.maxRotorFlowObstructionWallForceFactor(), "%.5f");
+		row.add(environment.rotorFlowObstructionWallForceFactor(0), "%.5f");
+		row.add(environment.rotorFlowObstructionWallForceFactor(1), "%.5f");
+		row.add(environment.rotorFlowObstructionWallForceFactor(2), "%.5f");
+		row.add(environment.rotorFlowObstructionWallForceFactor(3), "%.5f");
 		row.add(environment.minRotorLocalVoxelObstacleResidual(), "%.5f");
 		row.add(environment.rotorLocalVoxelObstacleResidual(0), "%.5f");
 		row.add(environment.rotorLocalVoxelObstacleResidual(1), "%.5f");
@@ -2828,6 +2842,9 @@ public final class DroneBlackboxSample {
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorFlowObstruction(i), "%.5f");
+		}
+		for (int i = 4; i < 8; i++) {
+			row.add(environment.rotorFlowObstructionWallForceFactor(i), "%.5f");
 		}
 		for (int i = 4; i < 8; i++) {
 			row.add(environment.rotorLocalVoxelObstacleResidual(i), "%.5f");

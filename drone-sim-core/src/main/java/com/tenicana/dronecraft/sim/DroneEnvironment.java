@@ -1292,6 +1292,15 @@ public record DroneEnvironment(
 		return rotorFlowObstruction(rotorIndex) > 1.0e-6 ? 1.0 : 0.0;
 	}
 
+	public double maxRotorFlowObstructionWallForceFactor() {
+		int count = Math.max(rotorFlowObstructions.length, rotorFlowObstructionWallForceFactors.length);
+		double max = 0.0;
+		for (int i = 0; i < count; i++) {
+			max = Math.max(max, rotorFlowObstructionWallForceFactor(i));
+		}
+		return max;
+	}
+
 	public double[] rotorFlowObstructionWallForceFactors() {
 		return rotorFlowObstructionWallForceFactors.clone();
 	}

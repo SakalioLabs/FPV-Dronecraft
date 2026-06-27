@@ -9143,6 +9143,8 @@ class DronePhysicsTest {
 		);
 		assertEquals(1.0, fullWall.rotorFlowObstructionWallForceFactor(0), 1.0e-12);
 		assertEquals(0.35, distantWall.rotorFlowObstructionWallForceFactor(0), 1.0e-12);
+		assertEquals(1.0, fullWall.maxRotorFlowObstructionWallForceFactor(), 1.0e-12);
+		assertEquals(0.35, distantWall.maxRotorFlowObstructionWallForceFactor(), 1.0e-12);
 
 		for (int i = 0; i < 150; i++) {
 			fullGeometry.step(hover, 0.005, fullWall);
@@ -12622,6 +12624,8 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_pressure_gradient_wind_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_a4mc_shelter_obstruction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_shelter_obstruction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_flow_obstruction_wall_force_factor"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_flow_obstruction_wall_force_factor"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_a4mc_ventilation_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_a4mc_ventilation_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_blade_aoa_deg"));
