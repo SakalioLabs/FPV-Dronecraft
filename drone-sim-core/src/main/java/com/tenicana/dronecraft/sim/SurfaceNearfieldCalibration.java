@@ -132,6 +132,7 @@ public final class SurfaceNearfieldCalibration {
 			double affectedRotorThrustMultiplier,
 			double twoAffectedVehicleThrustMultiplier,
 			double twoAffectedVehicleThrustLossFraction,
+			double wallForceGeometryFactor,
 			double twoAffectedWallForceOverWeight
 	) {
 	}
@@ -546,7 +547,12 @@ public final class SurfaceNearfieldCalibration {
 	}
 
 	private static JirsWallAnchor jirsWallAnchor(DroneConfig config) {
-		WallForceSample oneRadiusForce = wallForceSample(config, wallObstruction(config, 1.0), 0.0);
+		WallForceSample oneRadiusForce = wallForceSample(
+				config,
+				wallObstruction(config, 1.0),
+				wallForceGeometryFactor(1.0),
+				0.0
+		);
 		WallRuntimeMapping oneRadiusMapping = wallRuntimeMapping(config, 1.0);
 		WallForceSample fullObstructionHover = wallForceSample(config, 1.0, 0.0);
 		WallRuntimeMapping fullObstructionMapping = wallRuntimeMapping(config, 0.0, 1.0);
@@ -676,7 +682,8 @@ public final class SurfaceNearfieldCalibration {
 		double rotorMultiplier = RotorFlowObstructionModel.thrustMultiplier(obstruction);
 		double affectedRotorFraction = Math.min(2.0, config.rotors().size()) / Math.max(1.0, config.rotors().size());
 		double vehicleMultiplier = 1.0 - affectedRotorFraction * (1.0 - rotorMultiplier);
-		double wallForceOverWeight = wallForceOverWeight(config, obstruction, 0.0, 2);
+		double wallForceGeometryFactor = wallForceGeometryFactor(clearanceOverRadius);
+		double wallForceOverWeight = wallForceOverWeight(config, obstruction, wallForceGeometryFactor, 0.0, 2);
 		return new WallRuntimeMapping(
 				clearanceOverRadius,
 				RotorFlowObstructionModel.flatWallDiskBlockedFraction(clearanceOverRadius),
@@ -684,11 +691,21 @@ public final class SurfaceNearfieldCalibration {
 				rotorMultiplier,
 				vehicleMultiplier,
 				1.0 - vehicleMultiplier,
+				wallForceGeometryFactor,
 				wallForceOverWeight
 		);
 	}
 
 	private static WallForceSample wallForceSample(DroneConfig config, double obstruction, double speedMetersPerSecond) {
+		return wallForceSample(config, obstruction, 1.0, speedMetersPerSecond);
+	}
+
+	private static WallForceSample wallForceSample(
+			DroneConfig config,
+			double obstruction,
+			double wallForceGeometryFactor,
+			double speedMetersPerSecond
+	) {
 		RotorSpec rotor = representativeRotor(config);
 		double hoverThrust = hoverThrustPerRotor(config);
 		double hoverOmega = hoverOmegaRadiansPerSecond(rotor, hoverThrust);
@@ -698,7 +715,8 @@ public final class SurfaceNearfieldCalibration {
 				hoverOmega,
 				hoverThrust,
 				obstruction,
-				WALL_DIRECTION_BODY
+				WALL_DIRECTION_BODY,
+				wallForceGeometryFactor
 		);
 		double speedWashout = 1.0 - MathUtil.clamp(speedMetersPerSecond / 12.0, 0.0, 0.78);
 		double thrustFraction = MathUtil.clamp(hoverThrust / rotor.maxThrustNewtons(), 0.0, 1.15);
@@ -720,12 +738,20 @@ public final class SurfaceNearfieldCalibration {
 	private static double wallForceOverWeight(
 			DroneConfig config,
 			double obstruction,
+			double wallForceGeometryFactor,
 			double speedMetersPerSecond,
 			int affectedRotorCount
 	) {
-		return wallForceSample(config, obstruction, speedMetersPerSecond).forcePerRotorNewtons()
+		return wallForceSample(config, obstruction, wallForceGeometryFactor, speedMetersPerSecond).forcePerRotorNewtons()
 				* Math.min(affectedRotorCount, config.rotors().size())
 				/ (config.massKg() * config.gravityMetersPerSecondSquared());
+	}
+
+	private static double wallForceGeometryFactor(double clearanceOverRadius) {
+		return RotorFlowObstructionModel.wallForceGeometryFactor(
+				clearanceOverRadius,
+				2.0 * RotorFlowObstructionModel.flatWallDiskBlockedFraction(clearanceOverRadius)
+		);
 	}
 
 	private static double wallObstruction(DroneConfig config, double clearanceOverRadius) {

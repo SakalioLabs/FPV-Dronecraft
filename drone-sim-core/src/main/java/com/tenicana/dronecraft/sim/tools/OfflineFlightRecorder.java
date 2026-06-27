@@ -3480,7 +3480,8 @@ public final class OfflineFlightRecorder {
 				null,
 				null,
 				rotorFlow.localVoxelObstacleResiduals(),
-				a4mcPressureDiskGradient
+				a4mcPressureDiskGradient,
+				rotorFlow.wallForceFactors()
 		);
 	}
 
@@ -3535,6 +3536,7 @@ public final class OfflineFlightRecorder {
 		int rotorCount = config.rotors().size();
 		double[] obstructions = new double[rotorCount];
 		Vec3[] directions = new Vec3[rotorCount];
+		double[] wallForceFactors = new double[rotorCount];
 		double[] localVoxelObstacleResiduals = new double[rotorCount];
 		double[] a4mcShelterObstructions = a4mcShelterGradientObstructionsFor(config, phase);
 		double bodyCenterClearance = maxRotorProjection(config, WALL_SKIM_DIRECTION_BODY)
@@ -3555,6 +3557,12 @@ public final class OfflineFlightRecorder {
 			double shelterObstruction = i < a4mcShelterObstructions.length ? a4mcShelterObstructions[i] : 0.0;
 			double combinedIntensity = combineObstructionIntensity(localObstacle, shelterObstruction);
 			obstructions[i] = combinedIntensity;
+			wallForceFactors[i] = combineWallForceFactor(
+					RotorFlowObstructionModel.wallForceGeometryFactor(result),
+					localObstacle,
+					0.0,
+					shelterObstruction
+			);
 			directions[i] = combineObstructionDirection(
 					result.directionBody(),
 					localObstacle,
@@ -3564,7 +3572,7 @@ public final class OfflineFlightRecorder {
 			maxIntensity = Math.max(maxIntensity, combinedIntensity);
 		}
 
-		return new RotorFlowObstructionProfile(obstructions, directions, a4mcShelterObstructions, localVoxelObstacleResiduals, maxIntensity);
+		return new RotorFlowObstructionProfile(obstructions, directions, wallForceFactors, a4mcShelterObstructions, localVoxelObstacleResiduals, maxIntensity);
 	}
 
 	private static double[] a4mcShelterGradientObstructionsFor(DroneConfig config, String phase) {
@@ -3692,6 +3700,23 @@ public final class OfflineFlightRecorder {
 	) {
 		Vec3 combined = weightedDirection(firstDirection, firstIntensity).add(weightedDirection(secondDirection, secondIntensity));
 		return combined.lengthSquared() <= 1.0e-9 ? Vec3.ZERO : combined.normalized();
+	}
+
+	private static double combineWallForceFactor(
+			double firstFactor,
+			double firstIntensity,
+			double secondFactor,
+			double secondIntensity
+	) {
+		double first = MathUtil.clamp(Double.isFinite(firstIntensity) ? firstIntensity : 0.0, 0.0, 1.0);
+		double second = MathUtil.clamp(Double.isFinite(secondIntensity) ? secondIntensity : 0.0, 0.0, 1.0);
+		double total = first + second;
+		if (total <= 1.0e-9) {
+			return 0.0;
+		}
+		double weighted = MathUtil.clamp(firstFactor, 0.0, 1.0) * first
+				+ MathUtil.clamp(secondFactor, 0.0, 1.0) * second;
+		return MathUtil.clamp(weighted / total, 0.0, 1.0);
 	}
 
 	private static Vec3 weightedDirection(Vec3 direction, double intensity) {
@@ -4740,8 +4765,8 @@ public final class OfflineFlightRecorder {
 	) {
 	}
 
-	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double[] a4mcShelterObstructions, double[] localVoxelObstacleResiduals, double maxIntensity) {
-		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, null, null, 0.0);
+	private record RotorFlowObstructionProfile(double[] obstructions, Vec3[] directionsBody, double[] wallForceFactors, double[] a4mcShelterObstructions, double[] localVoxelObstacleResiduals, double maxIntensity) {
+		private static final RotorFlowObstructionProfile CLEAR = new RotorFlowObstructionProfile(null, null, null, null, null, 0.0);
 
 		private boolean hasA4mcShelterObstructions() {
 			if (a4mcShelterObstructions == null) {

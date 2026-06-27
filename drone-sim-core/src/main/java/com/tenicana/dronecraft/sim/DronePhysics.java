@@ -1600,6 +1600,7 @@ public final class DronePhysics {
 					thrust,
 					environment.rotorFlowObstruction(i),
 					environment.rotorFlowObstructionDirectionBody(i),
+					environment.rotorFlowObstructionWallForceFactor(i),
 					dtSeconds
 			);
 			rotorWallEffectForceSum = rotorWallEffectForceSum.add(wallEffectForceBody);
@@ -3006,6 +3007,7 @@ public final class DronePhysics {
 			double thrustNewtons,
 			double obstruction,
 			Vec3 obstructionDirectionBody,
+			double wallForceFactor,
 			double dtSeconds
 	) {
 		Vec3 target = calculateSteadyRotorWallEffectForce(
@@ -3014,7 +3016,8 @@ public final class DronePhysics {
 				omegaRadiansPerSecond,
 				thrustNewtons,
 				obstruction,
-				obstructionDirectionBody
+				obstructionDirectionBody,
+				wallForceFactor
 		);
 		if (dtSeconds <= 0.0) {
 			rotorWallEffectForceBodyFiltered[index] = target;
@@ -3045,8 +3048,29 @@ public final class DronePhysics {
 			double obstruction,
 			Vec3 obstructionDirectionBody
 	) {
+		return calculateSteadyRotorWallEffectForce(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				thrustNewtons,
+				obstruction,
+				obstructionDirectionBody,
+				1.0
+		);
+	}
+
+	static Vec3 calculateSteadyRotorWallEffectForce(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double thrustNewtons,
+			double obstruction,
+			Vec3 obstructionDirectionBody,
+			double wallForceFactor
+	) {
 		obstruction = MathUtil.clamp(obstruction, 0.0, 1.0);
-		if (obstruction <= 1.0e-6 || thrustNewtons <= 1.0e-6 || obstructionDirectionBody == null) {
+		wallForceFactor = MathUtil.clamp(wallForceFactor, 0.0, 1.0);
+		if (obstruction <= 1.0e-6 || wallForceFactor <= 1.0e-6 || thrustNewtons <= 1.0e-6 || obstructionDirectionBody == null) {
 			return Vec3.ZERO;
 		}
 
@@ -3065,7 +3089,8 @@ public final class DronePhysics {
 		double forceMagnitude = diskPressureForce
 				* MathUtil.clamp(0.110 + 0.450 * wallCushion, 0.0, 0.45)
 				* blockage
-				* speedWashout;
+				* speedWashout
+				* wallForceFactor;
 		return lateralDirection.multiply(-forceMagnitude).clamp(-4.0, 4.0);
 	}
 

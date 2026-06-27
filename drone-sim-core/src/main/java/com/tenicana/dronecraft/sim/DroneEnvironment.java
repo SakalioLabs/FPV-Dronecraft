@@ -46,7 +46,8 @@ public record DroneEnvironment(
 		double[] rotorGroundSurfaceGates,
 		double[] rotorCeilingSurfaceGates,
 		double[] rotorLocalVoxelObstacleResiduals,
-		Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond
+		Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond,
+		double[] rotorFlowObstructionWallForceFactors
 ) {
 	public static final String WIND_SOURCE_INTERNAL = "internal";
 	public static final String WIND_SOURCE_CALM = "calm";
@@ -109,6 +110,10 @@ public record DroneEnvironment(
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, null, 0.0);
 	}
 
+	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorFlowObstructionWallForceFactors) {
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, null, 0.0, null, 0.0, 25.0, null, null, null, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0, Vec3.ZERO, null, null, null, null, null, null, rotorFlowObstructionWallForceFactors);
+	}
+
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double waterImmersionIntensity) {
 		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, null, waterImmersionIntensity);
 	}
@@ -150,7 +155,7 @@ public record DroneEnvironment(
 	}
 
 	public DroneEnvironment(Vec3 windVelocityWorldMetersPerSecond, double airDensityRatio, double groundClearanceMeters, double turbulenceIntensity, double obstacleProximity, double droneWakeIntensity, double ceilingClearanceMeters, double[] rotorThrustMultipliers, double[] rotorFlowObstructions, Vec3[] rotorFlowObstructionDirectionsBody, double[] rotorWaterImmersions, double waterImmersionIntensity, double[] rotorPrecipitationWetnesses, double precipitationWetnessIntensity, double ambientTemperatureCelsius, Vec3[] rotorWindVelocityWorldMetersPerSecond, Vec3[] rotorDiskWindGradientBodyMetersPerSecond, double[] rotorA4mcShelterObstructions, double[] rotorLocalVoxelObstacleResiduals, Vec3[] rotorA4mcPressureGradientWindBodyMetersPerSecond) {
-		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, rotorA4mcShelterObstructions, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0, Vec3.ZERO, null, null, null, null, rotorLocalVoxelObstacleResiduals, rotorA4mcPressureGradientWindBodyMetersPerSecond);
+		this(windVelocityWorldMetersPerSecond, airDensityRatio, groundClearanceMeters, turbulenceIntensity, obstacleProximity, droneWakeIntensity, ceilingClearanceMeters, rotorThrustMultipliers, rotorFlowObstructions, rotorFlowObstructionDirectionsBody, rotorWaterImmersions, waterImmersionIntensity, rotorPrecipitationWetnesses, precipitationWetnessIntensity, ambientTemperatureCelsius, rotorWindVelocityWorldMetersPerSecond, rotorDiskWindGradientBodyMetersPerSecond, rotorA4mcShelterObstructions, WIND_SOURCE_INTERNAL, false, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, WIND_SOURCE_LEVEL_NONE, WIND_SOURCE_AUTHORITY_NONE, -1L, 0.0, 0.0, 0.0, false, 0.0, false, 0.0, 0.0, 0.0, Vec3.ZERO, null, null, null, null, rotorLocalVoxelObstacleResiduals, rotorA4mcPressureGradientWindBodyMetersPerSecond, null);
 	}
 
 	public DroneEnvironment(
@@ -234,6 +239,7 @@ public record DroneEnvironment(
 				windSourceAblStability,
 				windSourceAblMixingStrength,
 				Vec3.ZERO,
+				null,
 				null,
 				null,
 				null,
@@ -330,6 +336,7 @@ public record DroneEnvironment(
 				null,
 				null,
 				null,
+				null,
 				null
 		);
 	}
@@ -416,6 +423,7 @@ public record DroneEnvironment(
 				windSourceAblStability,
 				windSourceAblMixingStrength,
 				Vec3.ZERO,
+				null,
 				null,
 				null,
 				null,
@@ -508,6 +516,7 @@ public record DroneEnvironment(
 				windSourceAblStability,
 				windSourceAblMixingStrength,
 				windSourceGustVelocityWorldMetersPerSecond,
+				null,
 				null,
 				null,
 				null,
@@ -546,6 +555,7 @@ public record DroneEnvironment(
 		rotorThrustMultipliers = sanitizeRotorThrustMultipliers(rotorThrustMultipliers);
 		rotorFlowObstructions = sanitizeUnitArray(rotorFlowObstructions);
 		rotorFlowObstructionDirectionsBody = sanitizeDirectionArray(rotorFlowObstructionDirectionsBody);
+		rotorFlowObstructionWallForceFactors = sanitizeUnitArrayOrOne(rotorFlowObstructionWallForceFactors);
 		rotorWaterImmersions = sanitizeUnitArray(rotorWaterImmersions);
 		rotorPrecipitationWetnesses = sanitizeUnitArray(rotorPrecipitationWetnesses);
 		rotorWindVelocityWorldMetersPerSecond = sanitizeWindArray(rotorWindVelocityWorldMetersPerSecond);
@@ -1273,6 +1283,17 @@ public record DroneEnvironment(
 
 	public Vec3[] rotorFlowObstructionDirectionsBody() {
 		return rotorFlowObstructionDirectionsBody.clone();
+	}
+
+	public double rotorFlowObstructionWallForceFactor(int rotorIndex) {
+		if (rotorIndex >= 0 && rotorIndex < rotorFlowObstructionWallForceFactors.length) {
+			return rotorFlowObstructionWallForceFactors[rotorIndex];
+		}
+		return rotorFlowObstruction(rotorIndex) > 1.0e-6 ? 1.0 : 0.0;
+	}
+
+	public double[] rotorFlowObstructionWallForceFactors() {
+		return rotorFlowObstructionWallForceFactors.clone();
 	}
 
 	public double rotorWaterImmersion(int rotorIndex) {

@@ -1,7 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 public final class RotorFlowObstructionModel {
-	public static final Result CLEAR = new Result(0.0, Vec3.ZERO, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0);
+	public static final Result CLEAR = new Result(0.0, Vec3.ZERO, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0);
 
 	private RotorFlowObstructionModel() {
 	}
@@ -54,6 +54,7 @@ public final class RotorFlowObstructionModel {
 					0.0,
 					Vec3.ZERO,
 					closestDistanceMeters,
+					closestDistanceOverRadius(closestDistanceMeters, rotorRadiusMeters),
 					0.0,
 					0.0,
 					normalizedFlatWallDiskCoverage(closestDistanceMeters, rotorRadiusMeters)
@@ -62,6 +63,7 @@ public final class RotorFlowObstructionModel {
 
 		double diskCoverage = weightedProximity / totalWeight;
 		double segmentCoverage = normalizedFlatWallDiskCoverage(closestDistanceMeters, rotorRadiusMeters);
+		double closestDistanceOverRadius = closestDistanceOverRadius(closestDistanceMeters, rotorRadiusMeters);
 		double intensity = MathUtil.clamp(
 				0.50 * peakProximity + 0.27 * segmentCoverage + 0.23 * diskCoverage,
 				0.0,
@@ -70,7 +72,7 @@ public final class RotorFlowObstructionModel {
 		Vec3 direction = directionAuthority <= 1.0e-9 || directionSum.lengthSquared() <= 1.0e-9
 				? Vec3.ZERO
 				: directionSum.normalized();
-		return new Result(intensity, direction, closestDistanceMeters, peakProximity, diskCoverage, segmentCoverage);
+		return new Result(intensity, direction, closestDistanceMeters, closestDistanceOverRadius, peakProximity, diskCoverage, segmentCoverage);
 	}
 
 	public static double proximityFromDistance(double distanceMeters, double maxDistanceMeters) {
@@ -92,6 +94,30 @@ public final class RotorFlowObstructionModel {
 	public static double thrustMultiplier(double obstructionIntensity) {
 		double obstruction = MathUtil.clamp(obstructionIntensity, 0.0, 1.0);
 		return MathUtil.clamp(1.0 - 0.10 * obstruction * obstruction * obstruction, 0.90, 1.0);
+	}
+
+	public static double wallForceGeometryFactor(Result result) {
+		if (result == null || result.intensity() <= 1.0e-6) {
+			return 0.0;
+		}
+		return wallForceGeometryFactor(result.closestDistanceOverRadius(), result.flatWallDiskCoverage());
+	}
+
+	public static double wallForceGeometryFactor(double closestDistanceOverRadius, double flatWallDiskCoverage) {
+		if (!Double.isFinite(closestDistanceOverRadius)) {
+			return 0.0;
+		}
+		double clearanceOverRadius = Math.max(0.0, closestDistanceOverRadius);
+		double distanceLobe = Math.exp(-0.45 * clearanceOverRadius);
+		double diskOverlapLobe = Math.sqrt(MathUtil.clamp(flatWallDiskCoverage, 0.0, 1.0));
+		return MathUtil.clamp(Math.max(distanceLobe, diskOverlapLobe), 0.0, 1.0);
+	}
+
+	private static double closestDistanceOverRadius(double closestDistanceMeters, double rotorRadiusMeters) {
+		if (!Double.isFinite(closestDistanceMeters) || !Double.isFinite(rotorRadiusMeters) || rotorRadiusMeters <= 1.0e-6) {
+			return Double.POSITIVE_INFINITY;
+		}
+		return Math.max(0.0, closestDistanceMeters) / rotorRadiusMeters;
 	}
 
 	private static double normalizedFlatWallDiskCoverage(double clearanceMeters, double rotorRadiusMeters) {
@@ -117,6 +143,7 @@ public final class RotorFlowObstructionModel {
 			double intensity,
 			Vec3 directionBody,
 			double closestDistanceMeters,
+			double closestDistanceOverRadius,
 			double peakProximity,
 			double diskCoverage,
 			double flatWallDiskCoverage

@@ -53,23 +53,27 @@ class SurfaceNearfieldCalibrationTest {
 		assertEquals(RotorFlowObstructionModel.thrustMultiplier(tangent.runtimeObstruction()),
 				tangent.affectedRotorThrustMultiplier(), 1.0e-15);
 		assertEquals(0.030833926552004898, tangent.twoAffectedVehicleThrustLossFraction(), 1.0e-15);
+		assertEquals(1.0, tangent.wallForceGeometryFactor(), 1.0e-15);
 		assertEquals(0.07846708395155111, tangent.twoAffectedWallForceOverWeight(), 1.0e-15);
 
 		SurfaceNearfieldCalibration.WallRuntimeMapping quarter = audit.quarterRadiusWall();
 		assertEquals(0.34251882123714633, quarter.diskSegmentBlockedFraction(), 1.0e-15);
 		assertEquals(0.7425770812496462, quarter.runtimeObstruction(), 1.0e-15);
 		assertEquals(0.02047361949921278, quarter.twoAffectedVehicleThrustLossFraction(), 1.0e-15);
-		assertEquals(0.06261666298788188, quarter.twoAffectedWallForceOverWeight(), 1.0e-15);
+		assertEquals(0.8935973471085157, quarter.wallForceGeometryFactor(), 1.0e-15);
+		assertEquals(0.05595408393075923, quarter.twoAffectedWallForceOverWeight(), 1.0e-15);
 
 		SurfaceNearfieldCalibration.WallRuntimeMapping oneRadius = audit.oneRadiusWall();
 		assertEquals(0.0, oneRadius.diskSegmentBlockedFraction(), 1.0e-12);
 		assertEquals(0.4871041716485088, oneRadius.runtimeObstruction(), 1.0e-15);
 		assertEquals(0.005778771885631362, oneRadius.twoAffectedVehicleThrustLossFraction(), 1.0e-15);
-		assertEquals(0.03237486233426463, oneRadius.twoAffectedWallForceOverWeight(), 1.0e-15);
+		assertEquals(0.6376281516217733, oneRadius.wallForceGeometryFactor(), 1.0e-15);
+		assertEquals(0.020643123629206523, oneRadius.twoAffectedWallForceOverWeight(), 1.0e-15);
 
 		SurfaceNearfieldCalibration.WallRuntimeMapping full = audit.fullObstructionWall();
 		assertEquals(1.0, full.runtimeObstruction(), 1.0e-12);
 		assertEquals(0.050000000000000044, full.twoAffectedVehicleThrustLossFraction(), 1.0e-15);
+		assertEquals(1.0, full.wallForceGeometryFactor(), 1.0e-15);
 		assertEquals(0.1032553403672804, full.twoAffectedWallForceOverWeight(), 1.0e-15);
 	}
 

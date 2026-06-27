@@ -244,6 +244,14 @@ def thrust_multiplier(obstruction_intensity: float) -> float:
     return clamp(1.0 - 0.10 * obstruction * obstruction * obstruction, 0.90, 1.0)
 
 
+def wall_force_geometry_factor(clearance_over_radius: float, flat_wall_disk_coverage: float) -> float:
+    if not math.isfinite(clearance_over_radius):
+        return 0.0
+    distance_lobe = math.exp(-0.45 * max(0.0, clearance_over_radius))
+    disk_overlap_lobe = math.sqrt(clamp(flat_wall_disk_coverage, 0.0, 1.0))
+    return clamp(max(distance_lobe, disk_overlap_lobe), 0.0, 1.0)
+
+
 def spin_ratio_for_label(preset: Preset, spin_label: str) -> float:
     if spin_label == "hover":
         return preset.hover_spin_ratio
@@ -263,9 +271,11 @@ def steady_wall_force_n(
     spin_ratio: float,
     thrust_fraction: float,
     transverse_speed_mps: float,
+    wall_force_factor: float = 1.0,
 ) -> float:
     obstruction = clamp(obstruction, 0.0, 1.0)
-    if obstruction <= 1.0e-6:
+    wall_force_factor = clamp(wall_force_factor, 0.0, 1.0)
+    if obstruction <= 1.0e-6 or wall_force_factor <= 1.0e-6:
         return 0.0
     speed_washout = 1.0 - clamp(transverse_speed_mps / 12.0, 0.0, 0.78)
     blockage = obstruction**1.18
@@ -277,6 +287,7 @@ def steady_wall_force_n(
         * clamp(0.110 + 0.450 * wall_cushion, 0.0, 0.45)
         * blockage
         * speed_washout
+        * wall_force_factor
     )
     return min(force_n, 4.0)
 
@@ -339,6 +350,7 @@ def add_clearance_matrix(rows: list[dict[str, str]]) -> None:
         "runtime_side_flow_sample_max_distance_m": "m",
         "ideal_flat_wall_disk_blocked_fraction": "fraction",
         "runtime_obstruction_intensity": "fraction",
+        "wall_force_geometry_factor": "fraction",
         "dirty_air_thrust_multiplier_per_affected_rotor": "multiplier",
         "two_affected_rotors_vehicle_thrust_loss_fraction": "fraction",
         "two_affected_rotors_vehicle_thrust_loss_percent": "percent",
@@ -352,6 +364,8 @@ def add_clearance_matrix(rows: list[dict[str, str]]) -> None:
         for clearance_over_r in CLEARANCE_OVER_R:
             obstruction = obstruction_from_single_wall(preset, clearance_over_r)
             disk_overlap = flat_wall_disk_blocked_fraction(clearance_over_r)
+            flat_wall_disk_coverage = 2.0 * disk_overlap
+            wall_force_factor = wall_force_geometry_factor(clearance_over_r, flat_wall_disk_coverage)
             thrust_loss = two_affected_vehicle_thrust_loss_fraction(preset, obstruction)
             wall_force = steady_wall_force_n(
                 preset,
@@ -359,6 +373,7 @@ def add_clearance_matrix(rows: list[dict[str, str]]) -> None:
                 spin_ratio=spin_ratio,
                 thrust_fraction=thrust_fraction,
                 transverse_speed_mps=0.0,
+                wall_force_factor=wall_force_factor,
             )
             two_rotor_force_over_weight = 2.0 * wall_force / preset.weight_newtons
             response = {
@@ -367,6 +382,7 @@ def add_clearance_matrix(rows: list[dict[str, str]]) -> None:
                 "runtime_side_flow_sample_max_distance_m": side_flow_sample_max_distance_m(preset),
                 "ideal_flat_wall_disk_blocked_fraction": disk_overlap,
                 "runtime_obstruction_intensity": obstruction,
+                "wall_force_geometry_factor": wall_force_factor,
                 "dirty_air_thrust_multiplier_per_affected_rotor": thrust_multiplier(obstruction),
                 "two_affected_rotors_vehicle_thrust_loss_fraction": thrust_loss,
                 "two_affected_rotors_vehicle_thrust_loss_percent": thrust_loss * 100.0,
@@ -452,6 +468,8 @@ def add_summary(rows: list[dict[str, str]]) -> None:
     racing = next(preset for preset in PRESETS if preset.name == "racingQuad")
     obstruction_1r = obstruction_from_single_wall(racing, 1.0)
     obstruction_025r = obstruction_from_single_wall(racing, 0.25)
+    wall_factor_1r = wall_force_geometry_factor(1.0, 2.0 * flat_wall_disk_blocked_fraction(1.0))
+    wall_factor_025r = wall_force_geometry_factor(0.25, 2.0 * flat_wall_disk_blocked_fraction(0.25))
     full_loss = two_affected_vehicle_thrust_loss_fraction(racing, 1.0)
     force_1r = steady_wall_force_n(
         racing,
@@ -459,6 +477,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         spin_ratio=racing.hover_spin_ratio,
         thrust_fraction=racing.hover_thrust_fraction,
         transverse_speed_mps=0.0,
+        wall_force_factor=wall_factor_1r,
     )
     force_025r = steady_wall_force_n(
         racing,
@@ -466,6 +485,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         spin_ratio=racing.hover_spin_ratio,
         thrust_fraction=racing.hover_thrust_fraction,
         transverse_speed_mps=0.0,
+        wall_force_factor=wall_factor_025r,
     )
     force_full_hover = steady_wall_force_n(
         racing,
@@ -490,6 +510,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         ),
         "racingQuad_1R_ideal_disk_overlap": (flat_wall_disk_blocked_fraction(1.0), "fraction"),
         "racingQuad_1R_runtime_obstruction": (obstruction_1r, "fraction"),
+        "racingQuad_1R_wall_force_geometry_factor": (wall_factor_1r, "fraction"),
         "racingQuad_1R_two_rotor_vehicle_thrust_loss": (
             two_affected_vehicle_thrust_loss_fraction(racing, obstruction_1r),
             "fraction",
@@ -500,6 +521,7 @@ def add_summary(rows: list[dict[str, str]]) -> None:
         ),
         "racingQuad_0p25R_ideal_disk_overlap": (flat_wall_disk_blocked_fraction(0.25), "fraction"),
         "racingQuad_0p25R_runtime_obstruction": (obstruction_025r, "fraction"),
+        "racingQuad_0p25R_wall_force_geometry_factor": (wall_factor_025r, "fraction"),
         "racingQuad_0p25R_two_rotor_vehicle_thrust_loss": (
             two_affected_vehicle_thrust_loss_fraction(racing, obstruction_025r),
             "fraction",

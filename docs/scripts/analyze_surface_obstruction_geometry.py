@@ -68,11 +68,13 @@ class Preset:
 @dataclass(frozen=True)
 class OfflineWallSkimA4mcProfile:
     geometric_obstruction: float
+    geometry_wall_force_factor: float
     local_obstacle_residual: float
     residual_obstruction: float
     shelter_gradient_obstruction: float
     pressure_gradient_disk_wind_mps: float
     combined_obstruction: float
+    combined_wall_force_factor: float
 
     @property
     def thrust_multiplier(self) -> float:
@@ -163,13 +165,36 @@ def disk_segment_blocked_fraction(clearance_over_r: float) -> float:
     return area_over_r2 / math.pi
 
 
+def wall_force_geometry_factor(clearance_over_r: float, flat_wall_disk_coverage: float) -> float:
+    if not math.isfinite(clearance_over_r):
+        return 0.0
+    distance_lobe = math.exp(-0.45 * max(0.0, clearance_over_r))
+    disk_overlap_lobe = math.sqrt(clamp(flat_wall_disk_coverage, 0.0, 1.0))
+    return clamp(max(distance_lobe, disk_overlap_lobe), 0.0, 1.0)
+
+
+def combine_wall_force_factor(first_factor: float, first_intensity: float, second_factor: float, second_intensity: float) -> float:
+    first = clamp(first_intensity, 0.0, 1.0)
+    second = clamp(second_intensity, 0.0, 1.0)
+    total = first + second
+    if total <= 1.0e-9:
+        return 0.0
+    return clamp(
+        (clamp(first_factor, 0.0, 1.0) * first + clamp(second_factor, 0.0, 1.0) * second) / total,
+        0.0,
+        1.0,
+    )
+
+
 def wall_effect_force_n(
     preset: Preset,
     obstruction: float,
     transverse_speed_m_s: float = 0.0,
+    wall_force_factor: float = 1.0,
 ) -> float:
     obstruction = clamp(obstruction, 0.0, 1.0)
-    if obstruction <= 1.0e-6:
+    wall_force_factor = clamp(wall_force_factor, 0.0, 1.0)
+    if obstruction <= 1.0e-6 or wall_force_factor <= 1.0e-6:
         return 0.0
     thrust = preset.hover_thrust_per_rotor_n
     spin_ratio = preset.hover_spin_ratio
@@ -178,7 +203,7 @@ def wall_effect_force_n(
     blockage = obstruction**1.18
     wall_cushion = blockage * spin_ratio * (0.35 + 0.65 * thrust_fraction) * speed_washout
     disk_pressure_force = max(thrust, preset.max_rotor_thrust_n * spin_ratio * spin_ratio * 0.70)
-    force = disk_pressure_force * clamp(0.110 + 0.450 * wall_cushion, 0.0, 0.45) * blockage * speed_washout
+    force = disk_pressure_force * clamp(0.110 + 0.450 * wall_cushion, 0.0, 0.45) * blockage * speed_washout * wall_force_factor
     return clamp(force, 0.0, 4.0)
 
 
@@ -252,6 +277,7 @@ def offline_wall_skim_a4mc_pressure_disk_gradient_mps() -> float:
 
 def offline_wall_skim_a4mc_profile(
     geometric_obstruction: float,
+    geometry_wall_force_factor: float,
     shelter_gradient_obstruction: float = offline_wall_skim_a4mc_shelter_obstruction(),
 ) -> OfflineWallSkimA4mcProfile:
     residual = clamp(geometric_obstruction, 0.0, 1.0) * OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL
@@ -259,11 +285,13 @@ def offline_wall_skim_a4mc_profile(
     pressure_gradient_disk_wind_mps = offline_wall_skim_a4mc_pressure_disk_gradient_mps()
     return OfflineWallSkimA4mcProfile(
         geometric_obstruction=clamp(geometric_obstruction, 0.0, 1.0),
+        geometry_wall_force_factor=clamp(geometry_wall_force_factor, 0.0, 1.0),
         local_obstacle_residual=OFFLINE_A4MC_LOCAL_OBSTACLE_RESIDUAL,
         residual_obstruction=residual,
         shelter_gradient_obstruction=shelter,
         pressure_gradient_disk_wind_mps=pressure_gradient_disk_wind_mps,
         combined_obstruction=combine_obstruction_intensity(residual, shelter),
+        combined_wall_force_factor=combine_wall_force_factor(geometry_wall_force_factor, residual, 0.0, shelter),
     )
 
 
@@ -279,8 +307,10 @@ def row(row_type: str, **values: object) -> dict[str, object]:
         "scan_distance_over_r": "",
         "disk_segment_blocked_fraction": "",
         "current_runtime_obstruction": "",
+        "current_runtime_wall_force_geometry_factor": "",
         "current_offline_wall_skim_obstruction": "",
         "current_offline_wall_skim_geometric_obstruction": "",
+        "current_offline_wall_skim_wall_force_factor": "",
         "current_offline_wall_skim_local_obstacle_residual": "",
         "current_offline_wall_skim_residual_obstruction": "",
         "current_offline_wall_skim_a4mc_shelter_obstruction": "",
@@ -422,13 +452,14 @@ def main() -> None:
         for clearance_over_r in CLEARANCE_OVER_R:
             clearance_m = clearance_over_r * preset.rotor_radius_m
             blocked = disk_segment_blocked_fraction(clearance_over_r)
+            wall_force_factor = wall_force_geometry_factor(clearance_over_r, 2.0 * blocked)
             runtime_obstruction = obstruction_intensity_for_flat_wall(clearance_m, runtime_scan, preset.rotor_radius_m)
             offline_geometric = obstruction_intensity_for_flat_wall(clearance_m, offline_scan, preset.rotor_radius_m)
-            offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric)
+            offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric, wall_force_factor)
             thrust_multiplier = obstruction_thrust_multiplier(runtime_obstruction)
             two_rotor_vehicle_multiplier = 1.0 - 2.0 / preset.rotor_count * (1.0 - thrust_multiplier)
             four_rotor_vehicle_multiplier = thrust_multiplier
-            wall_force = wall_effect_force_n(preset, runtime_obstruction)
+            wall_force = wall_effect_force_n(preset, runtime_obstruction, wall_force_factor=wall_force_factor)
             rows.append(
                 row(
                     "current_flat_wall_runtime_mapping",
@@ -441,8 +472,10 @@ def main() -> None:
                     scan_distance_over_r=runtime_scan / preset.rotor_radius_m,
                     disk_segment_blocked_fraction=blocked,
                     current_runtime_obstruction=runtime_obstruction,
+                    current_runtime_wall_force_geometry_factor=wall_force_factor,
                     current_offline_wall_skim_obstruction=offline_a4mc.combined_obstruction,
                     current_offline_wall_skim_geometric_obstruction=offline_a4mc.geometric_obstruction,
+                    current_offline_wall_skim_wall_force_factor=offline_a4mc.combined_wall_force_factor,
                     current_offline_wall_skim_local_obstacle_residual=offline_a4mc.local_obstacle_residual,
                     current_offline_wall_skim_residual_obstruction=offline_a4mc.residual_obstruction,
                     current_offline_wall_skim_a4mc_shelter_obstruction=offline_a4mc.shelter_gradient_obstruction,
@@ -466,22 +499,27 @@ def main() -> None:
         offline_scan = offline_wall_skim_scan_distance_m(preset.rotor_radius_m)
         runtime_obstruction = obstruction_intensity_for_flat_wall(closest_clearance_m, runtime_scan, preset.rotor_radius_m)
         offline_geometric = obstruction_intensity_for_flat_wall(closest_clearance_m, offline_scan, preset.rotor_radius_m)
-        offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric)
-        wall_force = wall_effect_force_n(preset, runtime_obstruction)
+        clearance_over_r = closest_clearance_m / preset.rotor_radius_m
+        disk_segment = disk_segment_blocked_fraction(clearance_over_r)
+        wall_force_factor = wall_force_geometry_factor(clearance_over_r, 2.0 * disk_segment)
+        offline_a4mc = offline_wall_skim_a4mc_profile(offline_geometric, wall_force_factor)
+        wall_force = wall_effect_force_n(preset, runtime_obstruction, wall_force_factor=wall_force_factor)
         rows.append(
             row(
                 "current_offline_wall_skim_closest_rotor",
                 source="current Java formulas",
                 source_url=CURRENT_OFFLINE_RECORDER,
                 preset=preset.name,
-                clearance_over_r=closest_clearance_m / preset.rotor_radius_m,
+                clearance_over_r=clearance_over_r,
                 clearance_m=closest_clearance_m,
                 scan_distance_m=offline_scan,
                 scan_distance_over_r=offline_scan / preset.rotor_radius_m,
-                disk_segment_blocked_fraction=disk_segment_blocked_fraction(closest_clearance_m / preset.rotor_radius_m),
+                disk_segment_blocked_fraction=disk_segment,
                 current_runtime_obstruction=runtime_obstruction,
+                current_runtime_wall_force_geometry_factor=wall_force_factor,
                 current_offline_wall_skim_obstruction=offline_a4mc.combined_obstruction,
                 current_offline_wall_skim_geometric_obstruction=offline_a4mc.geometric_obstruction,
+                current_offline_wall_skim_wall_force_factor=offline_a4mc.combined_wall_force_factor,
                 current_offline_wall_skim_local_obstacle_residual=offline_a4mc.local_obstacle_residual,
                 current_offline_wall_skim_residual_obstruction=offline_a4mc.residual_obstruction,
                 current_offline_wall_skim_a4mc_shelter_obstruction=offline_a4mc.shelter_gradient_obstruction,

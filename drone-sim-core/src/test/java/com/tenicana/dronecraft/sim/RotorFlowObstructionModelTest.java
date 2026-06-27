@@ -106,9 +106,11 @@ class RotorFlowObstructionModelTest {
 		assertEquals(0.0, result.intensity(), 1.0e-9);
 		assertEquals(0.0, result.directionBody().length(), 1.0e-9);
 		assertTrue(Double.isInfinite(result.closestDistanceMeters()));
+		assertTrue(Double.isInfinite(result.closestDistanceOverRadius()));
 		assertEquals(0.0, result.peakProximity(), 1.0e-9);
 		assertEquals(0.0, result.diskCoverage(), 1.0e-9);
 		assertEquals(0.0, result.flatWallDiskCoverage(), 1.0e-9);
+		assertEquals(0.0, RotorFlowObstructionModel.wallForceGeometryFactor(result), 1.0e-9);
 	}
 
 	@Test
@@ -123,10 +125,14 @@ class RotorFlowObstructionModelTest {
 
 		double nearestRayOnly = RotorFlowObstructionModel.proximityFromDistance(clearance, MAX_DISTANCE);
 		assertEquals(clearance, result.closestDistanceMeters(), 1.0e-12);
+		assertEquals(clearance / ROTOR_RADIUS, result.closestDistanceOverRadius(), 1.0e-12);
 		assertEquals(nearestRayOnly, result.peakProximity(), 1.0e-12);
 		assertEquals(0.747060078104662, result.flatWallDiskCoverage(), 1.0e-12);
 		assertTrue(result.diskCoverage() > 0.30 && result.diskCoverage() < 0.31,
 				() -> "diskCoverage=" + result.diskCoverage());
+		assertTrue(RotorFlowObstructionModel.wallForceGeometryFactor(result) > 0.91
+						&& RotorFlowObstructionModel.wallForceGeometryFactor(result) < 0.92,
+				() -> "wallForceGeometryFactor=" + RotorFlowObstructionModel.wallForceGeometryFactor(result));
 		assertTrue(result.intensity() > 0.65, () -> "intensity=" + result.intensity());
 		assertTrue(result.intensity() < nearestRayOnly * 0.86,
 				() -> "intensity=" + result.intensity() + " nearestRayOnly=" + nearestRayOnly);
@@ -175,7 +181,10 @@ class RotorFlowObstructionModelTest {
 				() -> "close=" + close.intensity() + " far=" + far.intensity());
 		assertTrue(far.intensity() > 0.20, () -> "far=" + far.intensity());
 		assertEquals(0.24, far.closestDistanceMeters(), 1.0e-12);
+		assertEquals(1.20, far.closestDistanceOverRadius(), 1.0e-12);
 		assertEquals(0.0, far.flatWallDiskCoverage(), 1.0e-12);
+		assertTrue(RotorFlowObstructionModel.wallForceGeometryFactor(far) < 0.59,
+				() -> "wallForceGeometryFactor=" + RotorFlowObstructionModel.wallForceGeometryFactor(far));
 	}
 
 	@Test
@@ -191,9 +200,11 @@ class RotorFlowObstructionModelTest {
 		assertEquals(0.0, result.intensity(), 1.0e-9);
 		assertEquals(0.0, result.directionBody().length(), 1.0e-9);
 		assertEquals(clearance, result.closestDistanceMeters(), 1.0e-12);
+		assertEquals(clearance / ROTOR_RADIUS, result.closestDistanceOverRadius(), 1.0e-12);
 		assertEquals(0.0, result.peakProximity(), 1.0e-9);
 		assertEquals(0.0, result.diskCoverage(), 1.0e-9);
 		assertEquals(0.0, result.flatWallDiskCoverage(), 1.0e-9);
+		assertEquals(0.0, RotorFlowObstructionModel.wallForceGeometryFactor(result), 1.0e-9);
 	}
 
 	@Test

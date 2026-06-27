@@ -9095,6 +9095,68 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void rotorWallCushionUsesNearfieldGeometryFactorSeparatelyFromObstruction() {
+		DroneConfig config = directControl(DroneConfig.racingQuad())
+				.withLinearDragCoefficient(0.0)
+				.withBodyDragCoefficients(Vec3.ZERO);
+		DronePhysics fullGeometry = new DronePhysics(config);
+		DronePhysics distantGeometry = new DronePhysics(config);
+		DroneInput hover = new DroneInput(0.58, 0.0, 0.0, 0.0, true);
+		double[] obstructions = {0.70, 0.70, 0.70, 0.70};
+		Vec3[] directions = {
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(1.0, 0.0, 0.0),
+				new Vec3(1.0, 0.0, 0.0)
+		};
+		DroneEnvironment fullWall = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				obstructions,
+				directions
+		);
+		DroneEnvironment distantWall = new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				new double[] {1.0, 1.0, 1.0, 1.0},
+				obstructions,
+				directions,
+				new double[] {0.35, 0.35, 0.35, 0.35}
+		);
+
+		assertEquals(fullWall.rotorFlowObstruction(0), distantWall.rotorFlowObstruction(0), 1.0e-12);
+		assertEquals(
+				RotorFlowObstructionModel.thrustMultiplier(fullWall.rotorFlowObstruction(0)),
+				RotorFlowObstructionModel.thrustMultiplier(distantWall.rotorFlowObstruction(0)),
+				1.0e-12
+		);
+		assertEquals(1.0, fullWall.rotorFlowObstructionWallForceFactor(0), 1.0e-12);
+		assertEquals(0.35, distantWall.rotorFlowObstructionWallForceFactor(0), 1.0e-12);
+
+		for (int i = 0; i < 150; i++) {
+			fullGeometry.step(hover, 0.005, fullWall);
+			distantGeometry.step(hover, 0.005, distantWall);
+		}
+
+		double fullForce = fullGeometry.state().rotorWallEffectForceBodyNewtons().length();
+		double gatedForce = distantGeometry.state().rotorWallEffectForceBodyNewtons().length();
+		assertTrue(fullForce > 0.07, () -> "fullForce=" + fullForce);
+		assertTrue(gatedForce > fullForce * 0.30 && gatedForce < fullForce * 0.40,
+				() -> "fullForce=" + fullForce + " gatedForce=" + gatedForce);
+	}
+
+	@Test
 	void rotorWallCushionForceBuildsAndReleasesWithPressureLag() {
 		PidGains zeroGains = new PidGains(0.0, 0.0, 0.0, 1.0);
 		DroneConfig config = directControl(DroneConfig.racingQuad())
@@ -14469,6 +14531,7 @@ class DronePhysicsTest {
 				null,
 				null,
 				rotorLocalVoxelObstacleResiduals,
+				null,
 				null
 		);
 	}
@@ -14550,7 +14613,8 @@ class DronePhysicsTest {
 				null,
 				null,
 				new double[] {1.0, 1.0, 1.0, 1.0},
-				rotorA4mcPressureGradientWinds
+				rotorA4mcPressureGradientWinds,
+				null
 		);
 	}
 
@@ -14608,6 +14672,7 @@ class DronePhysicsTest {
 				null,
 				null,
 				new double[] {0.42, 0.46, 0.82, 0.86},
+				null,
 				null
 		);
 	}
