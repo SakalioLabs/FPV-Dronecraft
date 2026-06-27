@@ -1,7 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 public final class RotorFlowObstructionModel {
-	public static final Result CLEAR = new Result(0.0, Vec3.ZERO);
+	public static final Result CLEAR = new Result(0.0, Vec3.ZERO, Double.POSITIVE_INFINITY, 0.0, 0.0, 0.0);
 
 	private RotorFlowObstructionModel() {
 	}
@@ -50,7 +50,14 @@ public final class RotorFlowObstructionModel {
 		}
 
 		if (totalWeight <= 1.0e-9 || peakProximity <= 1.0e-6) {
-			return CLEAR;
+			return new Result(
+					0.0,
+					Vec3.ZERO,
+					closestDistanceMeters,
+					0.0,
+					0.0,
+					normalizedFlatWallDiskCoverage(closestDistanceMeters, rotorRadiusMeters)
+			);
 		}
 
 		double diskCoverage = weightedProximity / totalWeight;
@@ -63,7 +70,7 @@ public final class RotorFlowObstructionModel {
 		Vec3 direction = directionAuthority <= 1.0e-9 || directionSum.lengthSquared() <= 1.0e-9
 				? Vec3.ZERO
 				: directionSum.normalized();
-		return new Result(intensity, direction);
+		return new Result(intensity, direction, closestDistanceMeters, peakProximity, diskCoverage, segmentCoverage);
 	}
 
 	public static double proximityFromDistance(double distanceMeters, double maxDistanceMeters) {
@@ -106,6 +113,13 @@ public final class RotorFlowObstructionModel {
 		return 1.0 - 0.30 * MathUtil.clamp(diagonalMix, 0.0, 1.0);
 	}
 
-	public record Result(double intensity, Vec3 directionBody) {
+	public record Result(
+			double intensity,
+			Vec3 directionBody,
+			double closestDistanceMeters,
+			double peakProximity,
+			double diskCoverage,
+			double flatWallDiskCoverage
+	) {
 	}
 }

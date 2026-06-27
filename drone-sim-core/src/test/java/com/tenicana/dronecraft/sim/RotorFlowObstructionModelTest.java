@@ -105,6 +105,10 @@ class RotorFlowObstructionModelTest {
 
 		assertEquals(0.0, result.intensity(), 1.0e-9);
 		assertEquals(0.0, result.directionBody().length(), 1.0e-9);
+		assertTrue(Double.isInfinite(result.closestDistanceMeters()));
+		assertEquals(0.0, result.peakProximity(), 1.0e-9);
+		assertEquals(0.0, result.diskCoverage(), 1.0e-9);
+		assertEquals(0.0, result.flatWallDiskCoverage(), 1.0e-9);
 	}
 
 	@Test
@@ -118,6 +122,11 @@ class RotorFlowObstructionModelTest {
 		);
 
 		double nearestRayOnly = RotorFlowObstructionModel.proximityFromDistance(clearance, MAX_DISTANCE);
+		assertEquals(clearance, result.closestDistanceMeters(), 1.0e-12);
+		assertEquals(nearestRayOnly, result.peakProximity(), 1.0e-12);
+		assertEquals(0.747060078104662, result.flatWallDiskCoverage(), 1.0e-12);
+		assertTrue(result.diskCoverage() > 0.30 && result.diskCoverage() < 0.31,
+				() -> "diskCoverage=" + result.diskCoverage());
 		assertTrue(result.intensity() > 0.65, () -> "intensity=" + result.intensity());
 		assertTrue(result.intensity() < nearestRayOnly * 0.86,
 				() -> "intensity=" + result.intensity() + " nearestRayOnly=" + nearestRayOnly);
@@ -165,6 +174,26 @@ class RotorFlowObstructionModelTest {
 		assertTrue(far.intensity() < close.intensity() * 0.55,
 				() -> "close=" + close.intensity() + " far=" + far.intensity());
 		assertTrue(far.intensity() > 0.20, () -> "far=" + far.intensity());
+		assertEquals(0.24, far.closestDistanceMeters(), 1.0e-12);
+		assertEquals(0.0, far.flatWallDiskCoverage(), 1.0e-12);
+	}
+
+	@Test
+	void beyondModeledRangeStillReportsClosestGeometry() {
+		double clearance = MAX_DISTANCE * 1.5;
+		RotorFlowObstructionModel.Result result = RotorFlowObstructionModel.fromDirectionalDistances(
+				distancesToWalls(clearance, new Vec3(1.0, 0.0, 0.0)),
+				ROTOR_PLANE_DIRECTIONS,
+				MAX_DISTANCE,
+				ROTOR_RADIUS
+		);
+
+		assertEquals(0.0, result.intensity(), 1.0e-9);
+		assertEquals(0.0, result.directionBody().length(), 1.0e-9);
+		assertEquals(clearance, result.closestDistanceMeters(), 1.0e-12);
+		assertEquals(0.0, result.peakProximity(), 1.0e-9);
+		assertEquals(0.0, result.diskCoverage(), 1.0e-9);
+		assertEquals(0.0, result.flatWallDiskCoverage(), 1.0e-9);
 	}
 
 	@Test
