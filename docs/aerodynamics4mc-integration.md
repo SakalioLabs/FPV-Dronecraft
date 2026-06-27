@@ -12,6 +12,14 @@ The first integration keeps that boundary explicit:
 - `/fpvdrone environment wind ...` remains the highest-priority override.
 - The simulation core stays Minecraft-free and does not depend on Aerodynamics4MC classes.
 
+## Upstream API Audit
+
+The current Aerodynamics4MC Core API keeps the server gameplay entry point compatible with the bridge: `AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3, SamplePolicy)` returns `GameplayWindSample`, and the gameplay default is still `GAMEPLAY_SERVER_ONLY`. FPV Dronecraft deliberately passes that policy explicitly so authoritative physics continues to ignore client-local/debug flow.
+
+The bridge now tracks the full gameplay sample contract used by the simulator: mean, effective, and explicit gust vectors; pressure; turbulence; shear; shelter; updraft; source temperature and humidity; confidence; source level; authority; L1/world-delta/L2 freshness epochs; and ABL stability/mixing diagnostics. Optional reflection is kept for fields that are useful telemetry or local L2 modifiers, so an older A4MC build can degrade to unavailable values without disabling the whole wind bridge.
+
+Aerodynamics4MC also exposes lower-level L2 request/result types with grid dimensions, cell size, time step, inlet velocity, density, viscosity, solid masks, optional flow-atlas output, and optional force/moment output through `AeroL2ForceMoment`. Treat that as the next bounded CFD refinement path, not as part of the gameplay wind bridge. A future integration should run L2 force/moment requests behind availability and latency budgets, most likely for offline calibration packets or a separate server-authoritative local-flow solver, then feed only capped force, moment, pressure-center, or voxel-flow summaries into `drone-sim-core`.
+
 ## Implemented Path
 
 `Aerodynamics4McWindBridge` reflects against `AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3, SamplePolicy)`. It binds A4MC's explicit `gustVelocityVector()` when available and falls back to `effectiveVelocityVector() - meanVelocityVector()` for older bridge-compatible APIs. A sample with flow is preserved for telemetry, while trusted/confident/fresh samples feed `DroneEnvironment` as natural wind, including the current stage-one playable environment when Aerodynamics4MC is installed:
