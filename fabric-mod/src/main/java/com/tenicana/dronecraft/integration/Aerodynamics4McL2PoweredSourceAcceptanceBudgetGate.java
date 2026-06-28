@@ -279,6 +279,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 				4,
 				0,
 				0,
+				"none",
+				0,
 				0,
 				0,
 				0.0,

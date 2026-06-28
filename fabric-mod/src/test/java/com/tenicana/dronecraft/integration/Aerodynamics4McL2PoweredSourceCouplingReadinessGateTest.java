@@ -253,6 +253,8 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 				4,
 				0,
 				0,
+				"none",
+				0,
 				0,
 				0,
 				0.0,

@@ -21,11 +21,11 @@ class Aerodynamics4McL2PoweredSourceAcceptanceHandoffTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Acceptance-Handoff-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("current rows stay blocked"));
-		assertEquals(56, audit.packetMetricRowCount());
+		assertEquals(61, audit.packetMetricRowCount());
 		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(2, audit.handoffSampleCount());
-		assertEquals(20, audit.handoffMetricCount());
-		assertEquals(8, audit.summaryMetricRowCount());
+		assertEquals(22, audit.handoffMetricCount());
+		assertEquals(9, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(2, audit.handoffs().size());
 
@@ -42,6 +42,8 @@ class Aerodynamics4McL2PoweredSourceAcceptanceHandoffTest {
 			assertEquals(0, handoff.validationPassedCount());
 			assertEquals(0, handoff.acceptanceCandidateCount());
 			assertEquals(4, handoff.skippedValidationRunCount());
+			assertEquals(4, handoff.skippedValidationBlockerCount());
+			assertEquals("powered-source-api-surface-missing", handoff.dominantSkippedValidationMessage());
 			assertEquals(0, handoff.failedValidationRunCount());
 			assertEquals(0, handoff.missingPresetCount());
 			assertEquals(0, handoff.unexpectedPresetCount());
@@ -51,7 +53,7 @@ class Aerodynamics4McL2PoweredSourceAcceptanceHandoffTest {
 			assertFalse(handoff.allCandidatesPassed());
 			assertFalse(handoff.acceptanceHandoffReady());
 			assertEquals("BLOCKED", handoff.status());
-			assertEquals("acceptance-candidates-incomplete", handoff.message());
+			assertEquals("powered-source-api-surface-missing", handoff.message());
 		}
 		assertEquals(Aerodynamics4McL2PoweredHoverValidation.SOURCE_ID, hover.validationPacketId());
 		assertEquals(Aerodynamics4McL2PoweredHoverAcceptanceGate.SOURCE_ID, hover.acceptanceGatePacketId());
@@ -64,6 +66,7 @@ class Aerodynamics4McL2PoweredSourceAcceptanceHandoffTest {
 		assertEquals(4, audit.extrema().maxExpectedPresetCount());
 		assertEquals(0, audit.extrema().maxMissingPresetCount());
 		assertEquals(0, audit.extrema().maxAcceptanceCandidateCount());
+		assertEquals(4, audit.extrema().maxSkippedValidationBlockerCount());
 	}
 
 	@Test
@@ -87,6 +90,8 @@ class Aerodynamics4McL2PoweredSourceAcceptanceHandoffTest {
 		assertTrue(hover.acceptanceHandoffReady());
 		assertEquals("READY", hover.status());
 		assertEquals("acceptance-handoff-ready", hover.message());
+		assertEquals(0, hover.skippedValidationBlockerCount());
+		assertEquals("none", hover.dominantSkippedValidationMessage());
 
 		assertFalse(cruise.allExpectedRunsPresent());
 		assertEquals(3, cruise.missingPresetCount());
@@ -152,6 +157,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceHandoffTest {
 				line.startsWith("a4mc_l2_powered_source_acceptance_handoff,hover,status,BLOCKED,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_acceptance_handoff,cruise,skipped_validation_run_count,4,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_acceptance_handoff,cruise,dominant_skipped_validation_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_acceptance_handoff_summary,all_handoffs,max_skipped_validation_blocker_count,4,")));
 	}
 
 	private static Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary find(

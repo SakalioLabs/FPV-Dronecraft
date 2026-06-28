@@ -234,6 +234,8 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 				4,
 				0,
 				0,
+				"none",
+				0,
 				0,
 				0,
 				0.0,

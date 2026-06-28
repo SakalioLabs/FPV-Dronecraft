@@ -377,6 +377,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				4,
 				0,
 				0,
+				"none",
+				0,
 				0,
 				0,
 				0.0,

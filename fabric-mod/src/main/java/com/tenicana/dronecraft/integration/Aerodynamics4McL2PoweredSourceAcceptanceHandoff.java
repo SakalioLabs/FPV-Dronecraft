@@ -1,17 +1,19 @@
 package com.tenicana.dronecraft.integration;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Acceptance-Handoff-Packet";
 	public static final String CAVEAT =
-			"Acceptance handoff forwards only complete passing hover and cruise validation-run candidates; current rows stay blocked while powered-source validation runs are skipped.";
+			"Acceptance handoff forwards only complete passing hover and cruise validation-run candidates; current rows stay blocked while powered-source validation runs are skipped and keep their dominant blocker message.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int HANDOFF_SAMPLE_COUNT = 2;
-	public static final int HANDOFF_METRIC_COUNT = 20;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 8;
+	public static final int HANDOFF_METRIC_COUNT = 22;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 9;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ HANDOFF_SAMPLE_COUNT * HANDOFF_METRIC_COUNT
@@ -32,6 +34,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 			int validationPassedCount,
 			int acceptanceCandidateCount,
 			int skippedValidationRunCount,
+			int skippedValidationBlockerCount,
+			String dominantSkippedValidationMessage,
 			int failedValidationRunCount,
 			int missingPresetCount,
 			int unexpectedPresetCount,
@@ -52,6 +56,7 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 			int maxExpectedPresetCount,
 			int maxMissingPresetCount,
 			int maxAcceptanceCandidateCount,
+			int maxSkippedValidationBlockerCount,
 			double maxForceErrorRatio,
 			double maxCenterOfForceErrorMeters
 	) {
@@ -127,10 +132,12 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 		int passed = 0;
 		int candidates = 0;
 		int skipped = 0;
+		int skippedBlockers = 0;
 		int failed = 0;
 		int unexpected = 0;
 		double maxForceRatio = 0.0;
 		double maxCenterError = 0.0;
+		Map<String, Integer> skippedMessages = new HashMap<>();
 		String validationPacketId = "hover".equals(spinState)
 				? Aerodynamics4McL2PoweredHoverValidation.SOURCE_ID
 				: Aerodynamics4McL2PoweredCruiseValidation.SOURCE_ID;
@@ -169,6 +176,10 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 			}
 			if ("SKIPPED".equals(run.status())) {
 				skipped++;
+				if (run.message() != null && !run.message().isBlank() && !"none".equals(run.message())) {
+					skippedBlockers++;
+					skippedMessages.merge(run.message(), 1, Integer::sum);
+				}
 			}
 			if ("FAILED".equals(run.status())) {
 				failed++;
@@ -192,7 +203,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 				&& failed == 0
 				&& skipped == 0;
 		boolean ready = allPresent && allCandidatesPassed;
-		String message = ready ? "acceptance-handoff-ready" : "acceptance-candidates-incomplete";
+		String dominantSkippedMessage = dominantMessage(skippedMessages);
+		String message = messageFor(ready, allPresent, dominantSkippedMessage);
 		return new PoweredSourceAcceptanceHandoffSummary(
 				spinState,
 				validationPacketId,
@@ -204,6 +216,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 				passed,
 				candidates,
 				skipped,
+				skippedBlockers,
+				dominantSkippedMessage,
 				failed,
 				missing,
 				unexpected,
@@ -217,6 +231,33 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 		);
 	}
 
+	private static String dominantMessage(Map<String, Integer> messages) {
+		String dominant = "none";
+		int dominantCount = 0;
+		for (Map.Entry<String, Integer> entry : messages.entrySet()) {
+			String message = entry.getKey();
+			int count = entry.getValue();
+			if (count > dominantCount || (count == dominantCount && message.compareTo(dominant) < 0)) {
+				dominant = message;
+				dominantCount = count;
+			}
+		}
+		return dominant;
+	}
+
+	private static String messageFor(boolean ready, boolean allPresent, String dominantSkippedMessage) {
+		if (ready) {
+			return "acceptance-handoff-ready";
+		}
+		if (!"none".equals(dominantSkippedMessage)) {
+			return dominantSkippedMessage;
+		}
+		if (!allPresent) {
+			return "validation-runs-not-ready";
+		}
+		return "acceptance-candidates-incomplete";
+	}
+
 	private static Set<String> expectedPresetNames() {
 		return Set.of("racingQuad", "apDrone", "cinewhoop", "heavyLift");
 	}
@@ -228,6 +269,7 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 		int maxExpected = 0;
 		int maxMissing = 0;
 		int maxCandidates = 0;
+		int maxSkippedBlockers = 0;
 		double maxForceRatio = 0.0;
 		double maxCenterError = 0.0;
 		for (PoweredSourceAcceptanceHandoffSummary handoff : handoffs) {
@@ -237,6 +279,7 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 			maxExpected = Math.max(maxExpected, handoff.expectedPresetCount());
 			maxMissing = Math.max(maxMissing, handoff.missingPresetCount());
 			maxCandidates = Math.max(maxCandidates, handoff.acceptanceCandidateCount());
+			maxSkippedBlockers = Math.max(maxSkippedBlockers, handoff.skippedValidationBlockerCount());
 			maxForceRatio = Math.max(maxForceRatio, handoff.maxForceErrorRatio());
 			maxCenterError = Math.max(maxCenterError, handoff.maxCenterOfForceErrorMeters());
 		}
@@ -247,6 +290,7 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceHandoff {
 				maxExpected,
 				maxMissing,
 				maxCandidates,
+				maxSkippedBlockers,
 				maxForceRatio,
 				maxCenterError
 		);
