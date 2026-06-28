@@ -1,17 +1,19 @@
 package com.tenicana.dronecraft.integration;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Acceptance-Budget-Gate-Packet";
 	public static final String CAVEAT =
-			"Acceptance budget gate requires hover and cruise acceptance handoffs plus their validation error budgets to be ready before final powered-source coupling review; it never enables runtime coupling or gameplay auto-apply.";
+			"Acceptance budget gate requires hover and cruise acceptance handoffs plus their validation error budgets to be ready before final powered-source coupling review; it preserves upstream blocker provenance and never enables runtime coupling or gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_COUNT = 6;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
-	public static final int SCENARIO_METRIC_COUNT = 24;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 10;
+	public static final int SCENARIO_METRIC_COUNT = 28;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -28,10 +30,14 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 			int handoffCount,
 			int readyHandoffCount,
 			int blockedHandoffCount,
+			int acceptanceHandoffBlockerMessageCount,
+			String dominantAcceptanceHandoffMessage,
 			int expectedValidationBudgetGroupCount,
 			int validationBudgetGroupCount,
 			int validationBudgetCandidateCount,
 			int blockedValidationBudgetGroupCount,
+			int validationBudgetBlockerMessageCount,
+			String dominantValidationBudgetMessage,
 			boolean hoverValidationBudgetCandidate,
 			boolean cruiseValidationBudgetCandidate,
 			boolean allAcceptanceHandoffsReady,
@@ -62,6 +68,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 			int maxReadyHandoffCount,
 			int maxValidationBudgetCandidateCount,
 			int maxBlockedValidationBudgetGroupCount,
+			int maxAcceptanceHandoffBlockerMessageCount,
+			int maxValidationBudgetBlockerMessageCount,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
 			double maxForceErrorRatio,
@@ -160,9 +168,11 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 			throw new IllegalArgumentException("sourceRuntimeInfo must not be blank.");
 		}
 		Set<String> observedHandoffs = new HashSet<>();
+		Map<String, Integer> handoffMessages = new HashMap<>();
 		boolean hoverHandoff = false;
 		boolean cruiseHandoff = false;
 		int readyHandoffs = 0;
+		int handoffMessageCount = 0;
 		for (Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary handoff : handoffs) {
 			if (handoff == null || handoff.spinState() == null || handoff.spinState().isBlank()) {
 				throw new IllegalArgumentException("handoffs must include stable spin-state names.");
@@ -181,11 +191,18 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 					readyHandoffs++;
 				}
 			}
+			if (!handoff.acceptanceHandoffReady()) {
+				if (addBlockerMessage(handoffMessages, handoff.message())) {
+					handoffMessageCount++;
+				}
+			}
 		}
 		Set<String> observedBudgets = new HashSet<>();
+		Map<String, Integer> budgetMessages = new HashMap<>();
 		boolean hoverBudget = false;
 		boolean cruiseBudget = false;
 		int candidateBudgets = 0;
+		int budgetMessageCount = 0;
 		double maxForceRatio = 0.0;
 		double maxForceError = 0.0;
 		double maxMomentError = 0.0;
@@ -207,6 +224,11 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 				cruiseBudget = budget.validationBudgetCandidate();
 				if (cruiseBudget) {
 					candidateBudgets++;
+				}
+			}
+			if (!budget.validationBudgetCandidate()) {
+				if (addBlockerMessage(budgetMessages, budget.message())) {
+					budgetMessageCount++;
 				}
 			}
 			maxForceRatio = Math.max(maxForceRatio, budget.maxForceErrorRatio());
@@ -232,10 +254,14 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 				handoffs.size(),
 				readyHandoffs,
 				2 - readyHandoffs,
+				handoffMessageCount,
+				dominantMessage(handoffMessages),
 				2,
 				budgets.size(),
 				candidateBudgets,
 				2 - candidateBudgets,
+				budgetMessageCount,
+				dominantMessage(budgetMessages),
 				hoverBudget,
 				cruiseBudget,
 				allHandoffsReady,
@@ -251,6 +277,33 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 				messageFor(allHandoffsReady, allBudgetsReady),
 				sourceRuntimeInfo
 		);
+	}
+
+	private static boolean addBlockerMessage(Map<String, Integer> messages, String message) {
+		String normalized = normalizeMessage(message);
+		if ("none".equals(normalized)) {
+			return false;
+		}
+		messages.merge(normalized, 1, Integer::sum);
+		return true;
+	}
+
+	private static String dominantMessage(Map<String, Integer> messages) {
+		String dominant = "none";
+		int dominantCount = 0;
+		for (Map.Entry<String, Integer> entry : messages.entrySet()) {
+			String message = entry.getKey();
+			int count = entry.getValue();
+			if (count > dominantCount || (count == dominantCount && message.compareTo(dominant) < 0)) {
+				dominant = message;
+				dominantCount = count;
+			}
+		}
+		return dominant;
+	}
+
+	private static String normalizeMessage(String message) {
+		return message == null || message.isBlank() ? "none" : message;
 	}
 
 	private static String messageFor(boolean allHandoffsReady, boolean allBudgetsReady) {
@@ -337,6 +390,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 		int maxHandoffs = 0;
 		int maxBudgets = 0;
 		int maxBlockedBudgets = 0;
+		int maxHandoffMessages = 0;
+		int maxBudgetMessages = 0;
 		double maxForceRatio = 0.0;
 		double maxCenterError = 0.0;
 		for (PoweredSourceAcceptanceBudgetScenario scenario : scenarios) {
@@ -353,6 +408,10 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 			maxHandoffs = Math.max(maxHandoffs, summary.readyHandoffCount());
 			maxBudgets = Math.max(maxBudgets, summary.validationBudgetCandidateCount());
 			maxBlockedBudgets = Math.max(maxBlockedBudgets, summary.blockedValidationBudgetGroupCount());
+			maxHandoffMessages = Math.max(
+					maxHandoffMessages,
+					summary.acceptanceHandoffBlockerMessageCount());
+			maxBudgetMessages = Math.max(maxBudgetMessages, summary.validationBudgetBlockerMessageCount());
 			maxForceRatio = Math.max(maxForceRatio, summary.maxForceErrorRatio());
 			maxCenterError = Math.max(maxCenterError, summary.maxCenterOfForceErrorMeters());
 		}
@@ -363,6 +422,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate {
 				maxHandoffs,
 				maxBudgets,
 				maxBlockedBudgets,
+				maxHandoffMessages,
+				maxBudgetMessages,
 				runtime,
 				autoApply,
 				maxForceRatio,

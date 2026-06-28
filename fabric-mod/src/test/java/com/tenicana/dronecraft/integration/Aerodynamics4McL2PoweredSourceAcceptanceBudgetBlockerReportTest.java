@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Acceptance-Budget-Blocker-Report-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not enable runtime coupling"));
-		assertEquals(120, audit.packetMetricRowCount());
+		assertEquals(138, audit.packetMetricRowCount());
 		assertEquals(5, audit.sourceReferenceCount());
 		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(26, audit.scenarioMetricCount());
-		assertEquals(10, audit.summaryMetricRowCount());
+		assertEquals(30, audit.scenarioMetricCount());
+		assertEquals(12, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.scenarios().size());
 
@@ -38,6 +38,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 		assertTrue(current.cruiseAcceptanceHandoffBlocker());
 		assertTrue(current.hoverValidationBudgetBlocker());
 		assertTrue(current.cruiseValidationBudgetBlocker());
+		assertEquals(2, current.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantAcceptanceHandoffMessage());
+		assertEquals(2, current.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantValidationBudgetMessage());
 		assertTrue(current.runtimeCouplingStillClosed());
 		assertTrue(current.gameplayAutoApplyStillClosed());
 		assertFalse(current.hoverAcceptanceHandoffReady());
@@ -63,6 +67,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 		assertEquals(2, handoffOnly.blockerCount());
 		assertFalse(handoffOnly.acceptanceHandoffBlocker());
 		assertTrue(handoffOnly.validationBudgetBlocker());
+		assertEquals(0, handoffOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", handoffOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(2, handoffOnly.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", handoffOnly.dominantValidationBudgetMessage());
 		assertEquals("produce-hover-and-cruise-validation-error-budget-candidates",
 				handoffOnly.nextRequiredAction());
 
@@ -71,6 +79,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 		assertEquals(2, budgetOnly.blockerCount());
 		assertTrue(budgetOnly.acceptanceHandoffBlocker());
 		assertFalse(budgetOnly.validationBudgetBlocker());
+		assertEquals(2, budgetOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", budgetOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(0, budgetOnly.validationBudgetBlockerMessageCount());
+		assertEquals("none", budgetOnly.dominantValidationBudgetMessage());
 		assertEquals("complete-hover-and-cruise-powered-source-acceptance-handoffs",
 				budgetOnly.nextRequiredAction());
 
@@ -80,6 +92,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 		assertEquals(0, ready.blockerCount());
 		assertFalse(ready.acceptanceHandoffBlocker());
 		assertFalse(ready.validationBudgetBlocker());
+		assertEquals(0, ready.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", ready.dominantAcceptanceHandoffMessage());
+		assertEquals(0, ready.validationBudgetBlockerMessageCount());
+		assertEquals("none", ready.dominantValidationBudgetMessage());
 		assertTrue(ready.runtimeCouplingStillClosed());
 		assertTrue(ready.gameplayAutoApplyStillClosed());
 		assertEquals("READY", ready.status());
@@ -97,6 +113,8 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 		assertEquals(2, audit.extrema().cruiseAcceptanceHandoffBlockerScenarioCount());
 		assertEquals(2, audit.extrema().hoverValidationBudgetBlockerScenarioCount());
 		assertEquals(2, audit.extrema().cruiseValidationBudgetBlockerScenarioCount());
+		assertEquals(2, audit.extrema().maxAcceptanceHandoffBlockerMessageCount());
+		assertEquals(2, audit.extrema().maxValidationBudgetBlockerMessageCount());
 	}
 
 	@Test
@@ -149,6 +167,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReportTest {
 				line.startsWith("a4mc_l2_powered_source_acceptance_budget_blocker_report_summary,all_scenarios,max_blocker_count,4,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_acceptance_budget_blocker_report_scenario,current_handoff_and_budget_blocked,blocker_count,4,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_acceptance_budget_blocker_report_scenario,current_handoff_and_budget_blocked,dominant_acceptance_handoff_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_acceptance_budget_blocker_report_scenario,handoff_ready_budget_blocked,dominant_validation_budget_message,powered-source-api-surface-missing,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_acceptance_budget_blocker_report_scenario,handoff_ready_budget_ready,acceptance_budget_gate_ready,true,")));
 	}

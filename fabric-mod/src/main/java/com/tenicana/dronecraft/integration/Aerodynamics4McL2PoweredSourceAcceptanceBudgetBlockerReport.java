@@ -9,8 +9,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 	public static final int SOURCE_REFERENCE_COUNT = 5;
 	public static final int SCENARIO_SAMPLE_COUNT =
 			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.SCENARIO_SAMPLE_COUNT;
-	public static final int SCENARIO_METRIC_COUNT = 26;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 10;
+	public static final int SCENARIO_METRIC_COUNT = 30;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -29,6 +29,10 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 			boolean cruiseAcceptanceHandoffBlocker,
 			boolean hoverValidationBudgetBlocker,
 			boolean cruiseValidationBudgetBlocker,
+			int acceptanceHandoffBlockerMessageCount,
+			String dominantAcceptanceHandoffMessage,
+			int validationBudgetBlockerMessageCount,
+			String dominantValidationBudgetMessage,
 			boolean runtimeCouplingStillClosed,
 			boolean gameplayAutoApplyStillClosed,
 			boolean hoverAcceptanceHandoffReady,
@@ -66,7 +70,9 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 			int hoverAcceptanceHandoffBlockerScenarioCount,
 			int cruiseAcceptanceHandoffBlockerScenarioCount,
 			int hoverValidationBudgetBlockerScenarioCount,
-			int cruiseValidationBudgetBlockerScenarioCount
+			int cruiseValidationBudgetBlockerScenarioCount,
+			int maxAcceptanceHandoffBlockerMessageCount,
+			int maxValidationBudgetBlockerMessageCount
 	) {
 	}
 
@@ -150,6 +156,10 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 				cruiseHandoffBlocker,
 				hoverBudgetBlocker,
 				cruiseBudgetBlocker,
+				readiness.acceptanceHandoffBlockerMessageCount(),
+				readiness.dominantAcceptanceHandoffMessage(),
+				readiness.validationBudgetBlockerMessageCount(),
+				readiness.dominantValidationBudgetMessage(),
 				!readiness.runtimeCouplingAllowed(),
 				!readiness.gameplayAutoApplyAllowed(),
 				readiness.hoverAcceptanceHandoffReady(),
@@ -202,6 +212,8 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 		int cruiseHandoff = 0;
 		int hoverBudget = 0;
 		int cruiseBudget = 0;
+		int maxHandoffMessages = 0;
+		int maxBudgetMessages = 0;
 		for (PoweredSourceAcceptanceBudgetBlockerScenario scenario : scenarios) {
 			PoweredSourceAcceptanceBudgetBlockerSummary summary = scenario.summary();
 			if (summary.acceptanceBudgetGateReady()) {
@@ -226,6 +238,10 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 			if (summary.cruiseValidationBudgetBlocker()) {
 				cruiseBudget++;
 			}
+			maxHandoffMessages = Math.max(
+					maxHandoffMessages,
+					summary.acceptanceHandoffBlockerMessageCount());
+			maxBudgetMessages = Math.max(maxBudgetMessages, summary.validationBudgetBlockerMessageCount());
 		}
 		return new PoweredSourceAcceptanceBudgetBlockerExtrema(
 				scenarios.size(),
@@ -237,7 +253,9 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 				hoverHandoff,
 				cruiseHandoff,
 				hoverBudget,
-				cruiseBudget
+				cruiseBudget,
+				maxHandoffMessages,
+				maxBudgetMessages
 		);
 	}
 }

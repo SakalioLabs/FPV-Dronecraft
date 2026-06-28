@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Acceptance-Budget-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("never enables runtime coupling"));
-		assertEquals(113, audit.packetMetricRowCount());
+		assertEquals(131, audit.packetMetricRowCount());
 		assertEquals(6, audit.sourceReferenceCount());
 		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(24, audit.scenarioMetricCount());
-		assertEquals(10, audit.summaryMetricRowCount());
+		assertEquals(28, audit.scenarioMetricCount());
+		assertEquals(12, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.scenarios().size());
 
@@ -36,10 +36,14 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 		assertEquals(2, current.handoffCount());
 		assertEquals(0, current.readyHandoffCount());
 		assertEquals(2, current.blockedHandoffCount());
+		assertEquals(2, current.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantAcceptanceHandoffMessage());
 		assertEquals(2, current.expectedValidationBudgetGroupCount());
 		assertEquals(2, current.validationBudgetGroupCount());
 		assertEquals(0, current.validationBudgetCandidateCount());
 		assertEquals(2, current.blockedValidationBudgetGroupCount());
+		assertEquals(2, current.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantValidationBudgetMessage());
 		assertFalse(current.hoverValidationBudgetCandidate());
 		assertFalse(current.cruiseValidationBudgetCandidate());
 		assertFalse(current.allAcceptanceHandoffsReady());
@@ -60,8 +64,12 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 		assertTrue(ready.allValidationBudgetsReady());
 		assertEquals(2, ready.readyHandoffCount());
 		assertEquals(0, ready.blockedHandoffCount());
+		assertEquals(0, ready.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", ready.dominantAcceptanceHandoffMessage());
 		assertEquals(2, ready.validationBudgetCandidateCount());
 		assertEquals(0, ready.blockedValidationBudgetGroupCount());
+		assertEquals(0, ready.validationBudgetBlockerMessageCount());
+		assertEquals("none", ready.dominantValidationBudgetMessage());
 		assertTrue(ready.acceptanceBudgetGateReady());
 		assertFalse(ready.runtimeCouplingAllowed());
 		assertFalse(ready.gameplayAutoApplyAllowed());
@@ -73,6 +81,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 		assertTrue(handoffOnly.allAcceptanceHandoffsReady());
 		assertFalse(handoffOnly.allValidationBudgetsReady());
 		assertFalse(handoffOnly.acceptanceBudgetGateReady());
+		assertEquals(0, handoffOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", handoffOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(2, handoffOnly.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", handoffOnly.dominantValidationBudgetMessage());
 		assertEquals("validation-error-budgets-not-ready", handoffOnly.message());
 
 		Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary budgetOnly =
@@ -80,6 +92,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 		assertFalse(budgetOnly.allAcceptanceHandoffsReady());
 		assertTrue(budgetOnly.allValidationBudgetsReady());
 		assertFalse(budgetOnly.acceptanceBudgetGateReady());
+		assertEquals(2, budgetOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", budgetOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(0, budgetOnly.validationBudgetBlockerMessageCount());
+		assertEquals("none", budgetOnly.dominantValidationBudgetMessage());
 		assertEquals("acceptance-handoffs-not-ready", budgetOnly.message());
 
 		assertEquals(4, audit.extrema().scenarioCount());
@@ -88,6 +104,8 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 		assertEquals(2, audit.extrema().maxReadyHandoffCount());
 		assertEquals(2, audit.extrema().maxValidationBudgetCandidateCount());
 		assertEquals(2, audit.extrema().maxBlockedValidationBudgetGroupCount());
+		assertEquals(2, audit.extrema().maxAcceptanceHandoffBlockerMessageCount());
+		assertEquals(2, audit.extrema().maxValidationBudgetBlockerMessageCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
 	}
@@ -175,6 +193,10 @@ class Aerodynamics4McL2PoweredSourceAcceptanceBudgetGateTest {
 				line.startsWith("a4mc_l2_powered_source_acceptance_budget_gate_summary,all_scenarios,runtime_coupling_allowed_count,0,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_acceptance_budget_gate_scenario,current_handoff_and_budget_blocked,acceptance_budget_gate_ready,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_acceptance_budget_gate_scenario,current_handoff_and_budget_blocked,dominant_acceptance_handoff_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_acceptance_budget_gate_scenario,handoff_ready_budget_blocked,dominant_validation_budget_message,powered-source-api-surface-missing,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_acceptance_budget_gate_scenario,handoff_ready_budget_ready,acceptance_budget_gate_ready,true,")));
 	}
