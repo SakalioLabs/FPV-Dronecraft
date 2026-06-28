@@ -7,11 +7,11 @@ import java.util.Set;
 public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Request-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"Gate remains closed until A4MC exposes a powered source API, hover and cruise acceptance gates are open, and every powered-source request envelope is present, valid, API-backed, and buildable.";
-	public static final int SOURCE_REFERENCE_COUNT = 6;
+			"Gate remains closed until the A4MC powered-source API surface audit is ready, hover and cruise acceptance gates are open, and every powered-source request envelope is present, valid, API-backed, and buildable.";
+	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_COUNT = 18;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 8;
+	public static final int SCENARIO_METRIC_COUNT = 23;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 10;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -23,6 +23,11 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 
 	public record PoweredSourceRequestReadinessSummary(
 			boolean poweredSourceApiAvailable,
+			boolean poweredSourceApiSurfaceReady,
+			boolean poweredSourceExecutorWiringAllowed,
+			int poweredSourceApiSurfaceCount,
+			int requiredPoweredSourceApiSurfaceCount,
+			String missingPoweredSourceApiList,
 			boolean poweredHoverAcceptanceGateOpen,
 			boolean poweredCruiseAcceptanceGateOpen,
 			int expectedRequestCount,
@@ -53,7 +58,9 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 			int scenarioCount,
 			int allowedScenarioCount,
 			int blockedScenarioCount,
+			int poweredSourceApiSurfaceReadyScenarioCount,
 			int maxExpectedRequestCount,
+			int maxPoweredSourceApiSurfaceCount,
 			int maxMissingRequestCount,
 			int maxInvalidRequestCount,
 			int maxUnexpectedRequestCount,
@@ -85,26 +92,30 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 				current.stream()
 						.map(request -> copy(request, true, true))
 						.toList();
+		Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary currentApiSurface =
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.currentSummary();
+		Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary readyApiSurface =
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary();
 		List<PoweredSourceRequestReadinessScenario> scenarios = List.of(
 				new PoweredSourceRequestReadinessScenario(
 						"current_api_unavailable_requests_blocked",
-						gate(false, false, false, current)
+						gate(currentApiSurface, false, false, current)
 				),
 				new PoweredSourceRequestReadinessScenario(
 						"api_available_acceptance_open_requests_buildable",
-						gate(true, true, true, buildable)
+						gate(readyApiSurface, true, true, buildable)
 				),
 				new PoweredSourceRequestReadinessScenario(
 						"api_available_acceptance_open_one_request_missing",
-						gate(true, true, true, buildable.subList(0, buildable.size() - 1))
+						gate(readyApiSurface, true, true, buildable.subList(0, buildable.size() - 1))
 				),
 				new PoweredSourceRequestReadinessScenario(
 						"api_available_acceptance_open_build_blocked",
-						gate(true, true, true, current)
+						gate(readyApiSurface, true, true, current)
 				),
 				new PoweredSourceRequestReadinessScenario(
 						"api_available_requests_buildable_acceptance_closed",
-						gate(true, false, true, buildable)
+						gate(readyApiSurface, false, true, buildable)
 				)
 		);
 		return new PoweredSourceRequestReadinessAudit(
@@ -127,6 +138,34 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 			boolean poweredCruiseAcceptanceGateOpen,
 			List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> requests
 	) {
+		return gate(
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.currentSummary(),
+				poweredSourceApiAvailable,
+				poweredHoverAcceptanceGateOpen,
+				poweredCruiseAcceptanceGateOpen,
+				requests
+		);
+	}
+
+	public static PoweredSourceRequestReadinessSummary gate(
+			Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary apiSurface,
+			boolean poweredHoverAcceptanceGateOpen,
+			boolean poweredCruiseAcceptanceGateOpen,
+			List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> requests
+	) {
+		return gate(apiSurface, true, poweredHoverAcceptanceGateOpen, poweredCruiseAcceptanceGateOpen, requests);
+	}
+
+	private static PoweredSourceRequestReadinessSummary gate(
+			Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary apiSurface,
+			boolean poweredSourceApiProbeAllowed,
+			boolean poweredHoverAcceptanceGateOpen,
+			boolean poweredCruiseAcceptanceGateOpen,
+			List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> requests
+	) {
+		if (apiSurface == null) {
+			throw new IllegalArgumentException("apiSurface must not be null.");
+		}
 		if (requests == null) {
 			throw new IllegalArgumentException("requests must not be null.");
 		}
@@ -176,8 +215,12 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 		boolean allPresent = missing == 0 && unexpected == 0 && observed.size() == expected.size();
 		boolean allBuildAllowed = buildAllowed == expected.size();
 		boolean allApisAvailable = apiAvailable == expected.size();
+		boolean poweredSourceApiAvailable = poweredSourceApiProbeAllowed && apiSurface.poweredSourceApiReady();
+		boolean poweredSourceExecutorWiringAllowed =
+				poweredSourceApiProbeAllowed && apiSurface.poweredSourceExecutorWiringAllowed();
+		boolean poweredSourceApiSurfaceReady = poweredSourceApiAvailable && poweredSourceExecutorWiringAllowed;
 		boolean bothAcceptanceOpen = poweredHoverAcceptanceGateOpen && poweredCruiseAcceptanceGateOpen;
-		boolean allowed = poweredSourceApiAvailable
+		boolean allowed = poweredSourceApiSurfaceReady
 				&& bothAcceptanceOpen
 				&& allPresent
 				&& invalid == 0
@@ -185,6 +228,11 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 				&& allApisAvailable;
 		return new PoweredSourceRequestReadinessSummary(
 				poweredSourceApiAvailable,
+				poweredSourceApiSurfaceReady,
+				poweredSourceExecutorWiringAllowed,
+				apiSurface.poweredSourceApiSurfaceCount(),
+				apiSurface.requiredPoweredSourceApiSurfaceCount(),
+				apiSurface.missingPoweredSourceApiList(),
 				poweredHoverAcceptanceGateOpen,
 				poweredCruiseAcceptanceGateOpen,
 				expected.size(),
@@ -296,7 +344,9 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 
 	private static PoweredSourceRequestReadinessExtrema extrema(List<PoweredSourceRequestReadinessScenario> scenarios) {
 		int allowed = 0;
+		int apiSurfaceReady = 0;
 		int maxExpected = 0;
+		int maxPoweredSourceApiSurface = 0;
 		int maxMissing = 0;
 		int maxInvalid = 0;
 		int maxUnexpected = 0;
@@ -306,7 +356,13 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 			if (summary.requestExecutionAllowed()) {
 				allowed++;
 			}
+			if (summary.poweredSourceApiSurfaceReady()) {
+				apiSurfaceReady++;
+			}
 			maxExpected = Math.max(maxExpected, summary.expectedRequestCount());
+			maxPoweredSourceApiSurface = Math.max(
+					maxPoweredSourceApiSurface,
+					summary.poweredSourceApiSurfaceCount());
 			maxMissing = Math.max(maxMissing, summary.missingRequestCount());
 			maxInvalid = Math.max(maxInvalid, summary.invalidRequestCount());
 			maxUnexpected = Math.max(maxUnexpected, summary.unexpectedRequestCount());
@@ -316,7 +372,9 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 				scenarios.size(),
 				allowed,
 				scenarios.size() - allowed,
+				apiSurfaceReady,
 				maxExpected,
+				maxPoweredSourceApiSurface,
 				maxMissing,
 				maxInvalid,
 				maxUnexpected,

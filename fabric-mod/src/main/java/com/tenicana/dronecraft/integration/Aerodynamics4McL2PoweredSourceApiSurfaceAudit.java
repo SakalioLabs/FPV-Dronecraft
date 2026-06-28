@@ -113,11 +113,7 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		List<PoweredSourceApiSurfaceScenario> scenarios = List.of(
 				new PoweredSourceApiSurfaceScenario(
 						"current_a4mc_l2_surface",
-						summary(
-								Aerodynamics4McL2Bridge.inspect(loader),
-								requestExtensionMethods(loader),
-								resultExtensionMethods(loader),
-								"current-a4mc-l2-api-surface")),
+						currentSummary(loader)),
 				new PoweredSourceApiSurfaceScenario(
 						"missing_a4mc_l2_surface",
 						summary(
@@ -128,7 +124,7 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 								"missing-a4mc-l2-api-surface")),
 				new PoweredSourceApiSurfaceScenario(
 						"synthetic_powered_source_api_ready",
-						readySummary())
+						syntheticReadySummary())
 		);
 		return new PoweredSourceApiSurfaceAudit(
 				SOURCE_ID,
@@ -142,6 +138,25 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 				scenarios,
 				extrema(scenarios)
 		);
+	}
+
+	public static PoweredSourceApiSurfaceSummary currentSummary() {
+		ClassLoader loader = Thread.currentThread().getContextClassLoader();
+		if (loader == null) {
+			loader = Aerodynamics4McL2PoweredSourceApiSurfaceAudit.class.getClassLoader();
+		}
+		return currentSummary(loader);
+	}
+
+	public static PoweredSourceApiSurfaceSummary currentSummary(ClassLoader loader) {
+		if (loader == null) {
+			throw new IllegalArgumentException("loader must not be null.");
+		}
+		return summary(
+				Aerodynamics4McL2Bridge.inspect(loader),
+				requestExtensionMethods(loader),
+				resultExtensionMethods(loader),
+				"current-a4mc-l2-api-surface");
 	}
 
 	public static PoweredSourceApiSurfaceSummary summary(
@@ -209,7 +224,7 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		);
 	}
 
-	private static PoweredSourceApiSurfaceSummary readySummary() {
+	public static PoweredSourceApiSurfaceSummary syntheticReadySummary() {
 		return summary(
 				new Aerodynamics4McL2Bridge.L2Capabilities(
 						true,

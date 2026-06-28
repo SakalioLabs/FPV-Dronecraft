@@ -92,8 +92,17 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 						.map(request -> copy(request, true, true))
 						.toList();
 
-		Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunMatrixAudit audit =
+		Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunMatrixAudit legacyProbe =
 				Aerodynamics4McL2PoweredSourceRunMatrix.audit(true, true, true, buildable);
+		assertEquals(0, legacyProbe.extrema().requestExecutionAllowedCount());
+		assertEquals(8, legacyProbe.extrema().skippedForReadinessCount());
+
+		Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunMatrixAudit audit =
+				Aerodynamics4McL2PoweredSourceRunMatrix.audit(
+						Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary(),
+						true,
+						true,
+						buildable);
 
 		assertEquals(8, audit.runs().size());
 		for (Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunSummary run : audit.runs()) {
@@ -139,6 +148,8 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 				() -> Aerodynamics4McL2PoweredSourceRunMatrix.summary(requests.get(0), null));
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceRunMatrix.audit(false, false, false, null));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceRunMatrix.audit(null, false, false, requests));
 	}
 
 	@Test

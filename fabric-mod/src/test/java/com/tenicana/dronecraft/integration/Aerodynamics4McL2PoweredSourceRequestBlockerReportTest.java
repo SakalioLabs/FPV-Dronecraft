@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Request-Blocker-Report-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not build A4MC requests"));
-		assertEquals(128, audit.packetMetricRowCount());
-		assertEquals(5, audit.sourceReferenceCount());
+		assertEquals(151, audit.packetMetricRowCount());
+		assertEquals(6, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(22, audit.scenarioMetricCount());
-		assertEquals(12, audit.summaryMetricRowCount());
+		assertEquals(26, audit.scenarioMetricCount());
+		assertEquals(14, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
@@ -33,6 +33,7 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertFalse(current.requestExecutionAllowed());
 		assertEquals(5, current.blockerCount());
 		assertTrue(current.poweredSourceApiBlocker());
+		assertTrue(current.poweredSourceApiSurfaceBlocker());
 		assertTrue(current.hoverAcceptanceGateBlocker());
 		assertTrue(current.cruiseAcceptanceGateBlocker());
 		assertFalse(current.requestPresenceBlocker());
@@ -47,9 +48,12 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertEquals(0, current.invalidRequestCount());
 		assertEquals(0, current.buildAllowedRequestCount());
 		assertEquals(0, current.apiAvailableRequestCount());
+		assertEquals(0, current.poweredSourceApiSurfaceCount());
+		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
+		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
 		assertEquals(4, current.hoverRequestCount());
 		assertEquals(4, current.cruiseRequestCount());
-		assertEquals("wait-for-powered-source-api", current.nextRequiredAction());
+		assertEquals("wait-for-powered-source-api-surface", current.nextRequiredAction());
 		assertEquals("BLOCKED", current.status());
 		assertEquals("powered-source-requests-blocked", current.message());
 
@@ -57,6 +61,9 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 				find(audit.scenarios(), "api_available_acceptance_open_requests_buildable").summary();
 		assertTrue(ready.requestExecutionAllowed());
 		assertEquals(0, ready.blockerCount());
+		assertFalse(ready.poweredSourceApiSurfaceBlocker());
+		assertEquals(5, ready.poweredSourceApiSurfaceCount());
+		assertEquals("none", ready.missingPoweredSourceApiList());
 		assertEquals("powered-source-requests-ready-for-live-executor", ready.nextRequiredAction());
 		assertEquals("READY", ready.status());
 
@@ -86,6 +93,7 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertEquals(4, audit.extrema().blockedScenarioCount());
 		assertEquals(5, audit.extrema().maxBlockerCount());
 		assertEquals(1, audit.extrema().poweredSourceApiBlockerScenarioCount());
+		assertEquals(1, audit.extrema().poweredSourceApiSurfaceBlockerScenarioCount());
 		assertEquals(2, audit.extrema().hoverAcceptanceGateBlockerScenarioCount());
 		assertEquals(1, audit.extrema().cruiseAcceptanceGateBlockerScenarioCount());
 		assertEquals(1, audit.extrema().requestPresenceBlockerScenarioCount());
@@ -93,6 +101,7 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertEquals(2, audit.extrema().requestApiBlockerScenarioCount());
 		assertEquals(0, audit.extrema().invalidRequestBlockerScenarioCount());
 		assertEquals(0, audit.extrema().unexpectedRequestBlockerScenarioCount());
+		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
 	}
 
 	@Test
@@ -100,6 +109,11 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary invalid =
 				new Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary(
 						true,
+						true,
+						true,
+						5,
+						5,
+						"none",
 						true,
 						true,
 						8,
@@ -127,6 +141,7 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertTrue(report.invalidRequestBlocker());
 		assertTrue(report.unexpectedRequestBlocker());
 		assertFalse(report.poweredSourceApiBlocker());
+		assertFalse(report.poweredSourceApiSurfaceBlocker());
 		assertFalse(report.requestBuildBlocker());
 		assertEquals("repair-request-envelope-identity-and-physical-shape", report.nextRequiredAction());
 	}
@@ -151,6 +166,8 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 				line.startsWith("a4mc_l2_powered_source_request_blocker_report_summary,all_scenarios,max_blocker_count,5,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,current_api_unavailable_requests_blocked,blocker_count,5,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,current_api_unavailable_requests_blocked,powered_source_api_surface_blocker,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,api_available_acceptance_open_requests_buildable,request_execution_allowed,true,")));
 	}

@@ -5,12 +5,12 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Request-Blocker-Report-Packet";
 	public static final String CAVEAT =
-			"Request blocker report decomposes powered-source request readiness into audit reasons only; it does not build A4MC requests or enable runtime coupling.";
-	public static final int SOURCE_REFERENCE_COUNT = 5;
+			"Request blocker report decomposes powered-source request readiness and API-surface blockers into audit reasons only; it does not build A4MC requests or enable runtime coupling.";
+	public static final int SOURCE_REFERENCE_COUNT = 6;
 	public static final int SCENARIO_SAMPLE_COUNT =
 			Aerodynamics4McL2PoweredSourceRequestReadinessGate.SCENARIO_SAMPLE_COUNT;
-	public static final int SCENARIO_METRIC_COUNT = 22;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
+	public static final int SCENARIO_METRIC_COUNT = 26;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 14;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -24,6 +24,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			boolean requestExecutionAllowed,
 			int blockerCount,
 			boolean poweredSourceApiBlocker,
+			boolean poweredSourceApiSurfaceBlocker,
 			boolean hoverAcceptanceGateBlocker,
 			boolean cruiseAcceptanceGateBlocker,
 			boolean requestPresenceBlocker,
@@ -38,6 +39,9 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			int invalidRequestCount,
 			int buildAllowedRequestCount,
 			int apiAvailableRequestCount,
+			int poweredSourceApiSurfaceCount,
+			int requiredPoweredSourceApiSurfaceCount,
+			String missingPoweredSourceApiList,
 			int hoverRequestCount,
 			int cruiseRequestCount,
 			String nextRequiredAction,
@@ -58,13 +62,15 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			int blockedScenarioCount,
 			int maxBlockerCount,
 			int poweredSourceApiBlockerScenarioCount,
+			int poweredSourceApiSurfaceBlockerScenarioCount,
 			int hoverAcceptanceGateBlockerScenarioCount,
 			int cruiseAcceptanceGateBlockerScenarioCount,
 			int requestPresenceBlockerScenarioCount,
 			int requestBuildBlockerScenarioCount,
 			int requestApiBlockerScenarioCount,
 			int invalidRequestBlockerScenarioCount,
-			int unexpectedRequestBlockerScenarioCount
+			int unexpectedRequestBlockerScenarioCount,
+			int maxPoweredSourceApiSurfaceCount
 	) {
 	}
 
@@ -121,6 +127,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			throw new IllegalArgumentException("readiness summary must not be null.");
 		}
 		boolean sourceApiBlocker = !readiness.poweredSourceApiAvailable();
+		boolean sourceApiSurfaceBlocker = !readiness.poweredSourceApiSurfaceReady();
 		boolean hoverAcceptanceBlocker = !readiness.poweredHoverAcceptanceGateOpen();
 		boolean cruiseAcceptanceBlocker = !readiness.poweredCruiseAcceptanceGateOpen();
 		boolean presenceBlocker = !readiness.allExpectedRequestsPresent();
@@ -129,7 +136,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 		boolean invalidBlocker = readiness.invalidRequestCount() > 0;
 		boolean unexpectedBlocker = readiness.unexpectedRequestCount() > 0;
 		int blockerCount = countTrue(
-				sourceApiBlocker,
+				sourceApiSurfaceBlocker,
 				hoverAcceptanceBlocker,
 				cruiseAcceptanceBlocker,
 				presenceBlocker,
@@ -142,6 +149,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 				allowed,
 				blockerCount,
 				sourceApiBlocker,
+				sourceApiSurfaceBlocker,
 				hoverAcceptanceBlocker,
 				cruiseAcceptanceBlocker,
 				presenceBlocker,
@@ -156,10 +164,13 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 				readiness.invalidRequestCount(),
 				readiness.buildAllowedRequestCount(),
 				readiness.apiAvailableRequestCount(),
+				readiness.poweredSourceApiSurfaceCount(),
+				readiness.requiredPoweredSourceApiSurfaceCount(),
+				readiness.missingPoweredSourceApiList(),
 				readiness.hoverRequestCount(),
 				readiness.cruiseRequestCount(),
 				nextRequiredAction(
-						sourceApiBlocker,
+						sourceApiSurfaceBlocker,
 						hoverAcceptanceBlocker,
 						cruiseAcceptanceBlocker,
 						presenceBlocker,
@@ -173,7 +184,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 	}
 
 	private static String nextRequiredAction(
-			boolean sourceApiBlocker,
+			boolean sourceApiSurfaceBlocker,
 			boolean hoverAcceptanceBlocker,
 			boolean cruiseAcceptanceBlocker,
 			boolean presenceBlocker,
@@ -182,8 +193,8 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			boolean requestApiBlocker,
 			boolean buildBlocker
 	) {
-		if (sourceApiBlocker) {
-			return "wait-for-powered-source-api";
+		if (sourceApiSurfaceBlocker) {
+			return "wait-for-powered-source-api-surface";
 		}
 		if (hoverAcceptanceBlocker || cruiseAcceptanceBlocker) {
 			return "open-hover-and-cruise-powered-acceptance-gates";
@@ -219,6 +230,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 		int ready = 0;
 		int maxBlockers = 0;
 		int source = 0;
+		int sourceSurface = 0;
 		int hover = 0;
 		int cruise = 0;
 		int presence = 0;
@@ -226,6 +238,7 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 		int requestApi = 0;
 		int invalid = 0;
 		int unexpected = 0;
+		int maxPoweredSourceApiSurface = 0;
 		for (PoweredSourceRequestBlockerScenario scenario : scenarios) {
 			PoweredSourceRequestBlockerSummary summary = scenario.summary();
 			if (summary.requestExecutionAllowed()) {
@@ -234,6 +247,9 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			maxBlockers = Math.max(maxBlockers, summary.blockerCount());
 			if (summary.poweredSourceApiBlocker()) {
 				source++;
+			}
+			if (summary.poweredSourceApiSurfaceBlocker()) {
+				sourceSurface++;
 			}
 			if (summary.hoverAcceptanceGateBlocker()) {
 				hover++;
@@ -256,6 +272,9 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 			if (summary.unexpectedRequestBlocker()) {
 				unexpected++;
 			}
+			maxPoweredSourceApiSurface = Math.max(
+					maxPoweredSourceApiSurface,
+					summary.poweredSourceApiSurfaceCount());
 		}
 		return new PoweredSourceRequestBlockerExtrema(
 				scenarios.size(),
@@ -263,13 +282,15 @@ public final class Aerodynamics4McL2PoweredSourceRequestBlockerReport {
 				scenarios.size() - ready,
 				maxBlockers,
 				source,
+				sourceSurface,
 				hover,
 				cruise,
 				presence,
 				build,
 				requestApi,
 				invalid,
-				unexpected
+				unexpected,
+				maxPoweredSourceApiSurface
 		);
 	}
 }

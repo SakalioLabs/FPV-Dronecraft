@@ -119,6 +119,29 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 						poweredCruiseAcceptanceGateOpen,
 						requests
 				);
+		return audit(readiness, requests);
+	}
+
+	public static PoweredSourceRunMatrixAudit audit(
+			Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary apiSurface,
+			boolean poweredHoverAcceptanceGateOpen,
+			boolean poweredCruiseAcceptanceGateOpen,
+			List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> requests
+	) {
+		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary readiness =
+				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(
+						apiSurface,
+						poweredHoverAcceptanceGateOpen,
+						poweredCruiseAcceptanceGateOpen,
+						requests
+				);
+		return audit(readiness, requests);
+	}
+
+	private static PoweredSourceRunMatrixAudit audit(
+			Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary readiness,
+			List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> requests
+	) {
 		List<PoweredSourceRunSummary> runs = requests.stream()
 				.map(request -> summary(request, readiness))
 				.toList();

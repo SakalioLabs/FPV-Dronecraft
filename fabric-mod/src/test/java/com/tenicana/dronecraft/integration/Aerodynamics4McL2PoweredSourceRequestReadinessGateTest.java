@@ -21,17 +21,22 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Request-Readiness-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Gate remains closed"));
-		assertEquals(105, audit.packetMetricRowCount());
-		assertEquals(6, audit.sourceReferenceCount());
+		assertEquals(133, audit.packetMetricRowCount());
+		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(18, audit.scenarioMetricCount());
-		assertEquals(8, audit.summaryMetricRowCount());
+		assertEquals(23, audit.scenarioMetricCount());
+		assertEquals(10, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary current =
 				findScenario(audit.scenarios(), "current_api_unavailable_requests_blocked").summary();
 		assertFalse(current.poweredSourceApiAvailable());
+		assertFalse(current.poweredSourceApiSurfaceReady());
+		assertFalse(current.poweredSourceExecutorWiringAllowed());
+		assertEquals(0, current.poweredSourceApiSurfaceCount());
+		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
+		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
 		assertFalse(current.poweredHoverAcceptanceGateOpen());
 		assertFalse(current.poweredCruiseAcceptanceGateOpen());
 		assertEquals(8, current.expectedRequestCount());
@@ -53,6 +58,11 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary ready =
 				findScenario(audit.scenarios(), "api_available_acceptance_open_requests_buildable").summary();
 		assertTrue(ready.poweredSourceApiAvailable());
+		assertTrue(ready.poweredSourceApiSurfaceReady());
+		assertTrue(ready.poweredSourceExecutorWiringAllowed());
+		assertEquals(5, ready.poweredSourceApiSurfaceCount());
+		assertEquals(5, ready.requiredPoweredSourceApiSurfaceCount());
+		assertEquals("none", ready.missingPoweredSourceApiList());
 		assertTrue(ready.poweredHoverAcceptanceGateOpen());
 		assertTrue(ready.poweredCruiseAcceptanceGateOpen());
 		assertEquals(8, ready.expectedRequestCount());
@@ -93,7 +103,9 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().allowedScenarioCount());
 		assertEquals(4, audit.extrema().blockedScenarioCount());
+		assertEquals(4, audit.extrema().poweredSourceApiSurfaceReadyScenarioCount());
 		assertEquals(8, audit.extrema().maxExpectedRequestCount());
+		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
 		assertEquals(1, audit.extrema().maxMissingRequestCount());
 		assertEquals(0, audit.extrema().maxInvalidRequestCount());
 		assertEquals(0, audit.extrema().maxUnexpectedRequestCount());
@@ -109,17 +121,21 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 						.map(request -> copy(request, request.presetName(), request.spinState(), request.sourceMapId(),
 								request.sourceTermCount(), true, true))
 						.toList();
+		Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary readyApiSurface =
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary();
 
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary ready =
-				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(true, true, true, buildable);
+				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(readyApiSurface, true, true, buildable);
 		assertTrue(ready.requestExecutionAllowed());
 
 		assertFalse(Aerodynamics4McL2PoweredSourceRequestReadinessGate
+				.gate(true, true, true, buildable).requestExecutionAllowed());
+		assertFalse(Aerodynamics4McL2PoweredSourceRequestReadinessGate
 				.gate(false, true, true, buildable).requestExecutionAllowed());
 		assertFalse(Aerodynamics4McL2PoweredSourceRequestReadinessGate
-				.gate(true, false, true, buildable).requestExecutionAllowed());
+				.gate(readyApiSurface, false, true, buildable).requestExecutionAllowed());
 		assertFalse(Aerodynamics4McL2PoweredSourceRequestReadinessGate
-				.gate(true, true, true, current).requestExecutionAllowed());
+				.gate(readyApiSurface, true, true, current).requestExecutionAllowed());
 	}
 
 	@Test
@@ -129,10 +145,12 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 						.map(request -> copy(request, request.presetName(), request.spinState(), request.sourceMapId(),
 								request.sourceTermCount(), true, true))
 						.toList();
+		Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary readyApiSurface =
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary();
 
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary missing =
 				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(
-						true, true, true, buildable.subList(0, buildable.size() - 1));
+						readyApiSurface, true, true, buildable.subList(0, buildable.size() - 1));
 		assertEquals(1, missing.missingRequestCount());
 		assertFalse(missing.requestExecutionAllowed());
 
@@ -141,7 +159,7 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		unexpected.add(copy(buildable.get(0), "experimentalQuad", "hover", buildable.get(0).sourceMapId(),
 				buildable.get(0).sourceTermCount(), true, true));
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary unexpectedSummary =
-				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(true, true, true, unexpected);
+				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(readyApiSurface, true, true, unexpected);
 		assertEquals(1, unexpectedSummary.missingRequestCount());
 		assertEquals(1, unexpectedSummary.unexpectedRequestCount());
 		assertFalse(unexpectedSummary.requestExecutionAllowed());
@@ -150,14 +168,16 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		invalid.set(0, copy(buildable.get(0), buildable.get(0).presetName(), buildable.get(0).spinState(),
 				buildable.get(0).sourceMapId(), buildable.get(0).sourceTermCount() + 1, true, true));
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary invalidSummary =
-				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(true, true, true, invalid);
+				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(readyApiSurface, true, true, invalid);
 		assertEquals(1, invalidSummary.invalidRequestCount());
 		assertFalse(invalidSummary.requestExecutionAllowed());
 
 		List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> duplicate = new ArrayList<>(buildable);
 		duplicate.set(1, buildable.get(0));
 		assertThrows(IllegalArgumentException.class,
-				() -> Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(true, true, true, duplicate));
+				() -> Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(readyApiSurface, true, true, duplicate));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(null, true, true, buildable));
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(true, true, true, null));
 	}
@@ -175,6 +195,8 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 				line.startsWith("a4mc_l2_powered_source_request_readiness_summary,all_scenarios,allowed_scenario_count,1,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,current_api_unavailable_requests_blocked,request_execution_allowed,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,current_api_unavailable_requests_blocked,powered_source_api_surface_ready,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,api_available_acceptance_open_requests_buildable,request_execution_allowed,true,")));
 	}
