@@ -5,11 +5,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"Runtime powered-source coupling remains closed until the acceptance budget gate is ready and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
-	public static final int SOURCE_REFERENCE_COUNT = 7;
-	public static final int SCENARIO_SAMPLE_COUNT = 4;
-	public static final int SCENARIO_METRIC_COUNT = 31;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 9;
+			"Runtime powered-source coupling remains closed until the API surface audit is ready, the acceptance budget gate is ready, and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
+	public static final int SOURCE_REFERENCE_COUNT = 8;
+	public static final int SCENARIO_SAMPLE_COUNT = 5;
+	public static final int SCENARIO_METRIC_COUNT = 36;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -32,6 +32,11 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int validationBudgetGroupCount,
 			int validationBudgetCandidateCount,
 			int expectedValidationBudgetGroupCount,
+			boolean poweredSourceApiSurfaceReady,
+			boolean poweredSourceExecutorWiringAllowed,
+			int poweredSourceApiSurfaceCount,
+			int requiredPoweredSourceApiSurfaceCount,
+			String missingPoweredSourceApiList,
 			int policyCount,
 			int runtimeMutationAllowedPolicyCount,
 			int solidDiskMaskAllowedPolicyCount,
@@ -69,6 +74,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int maxRuntimeMutationAllowedPolicyCount,
 			int maxPolicyCount,
 			int maxSolidDiskMaskAllowedPolicyCount,
+			int poweredSourceApiSurfaceReadyScenarioCount,
+			int maxPoweredSourceApiSurfaceCount,
 			int maxPoweredSourceApiAvailablePolicyCount
 	) {
 	}
@@ -103,7 +110,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		}
 		return audit(
 				Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.audit(loader),
-				Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit()
+				Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit(),
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.currentSummary(loader),
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary()
 		);
 	}
 
@@ -125,8 +134,24 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetAudit budgetGateAudit,
 			Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicyAudit policyAudit
 	) {
+		return audit(
+				budgetGateAudit,
+				policyAudit,
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.currentSummary(),
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary());
+	}
+
+	private static PoweredSourceCouplingReadinessAudit audit(
+			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetAudit budgetGateAudit,
+			Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicyAudit policyAudit,
+			Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary currentApiSurface,
+			Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary readyApiSurface
+	) {
 		if (budgetGateAudit == null || policyAudit == null) {
 			throw new IllegalArgumentException("budget gate and representation policy audits are required.");
+		}
+		if (currentApiSurface == null || readyApiSurface == null) {
+			throw new IllegalArgumentException("API surface summaries are required.");
 		}
 		Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary currentBudget =
 				scenario(budgetGateAudit, "current_handoff_and_budget_blocked");
@@ -139,19 +164,23 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		List<PoweredSourceCouplingReadinessScenario> scenarios = List.of(
 				new PoweredSourceCouplingReadinessScenario(
 						"current_handoff_and_policy_blocked",
-						gate(currentBudget, currentPolicies)
+						gate(currentApiSurface, currentBudget, currentPolicies)
 				),
 				new PoweredSourceCouplingReadinessScenario(
 						"handoffs_ready_policy_blocked",
-						gate(readyBudget, currentPolicies)
+						gate(currentApiSurface, readyBudget, currentPolicies)
 				),
 				new PoweredSourceCouplingReadinessScenario(
 						"policy_ready_handoffs_blocked",
-						gate(currentBudget, readyPolicies)
+						gate(currentApiSurface, currentBudget, readyPolicies)
 				),
 				new PoweredSourceCouplingReadinessScenario(
 						"handoffs_and_policy_ready",
-						gate(readyBudget, readyPolicies)
+						gate(currentApiSurface, readyBudget, readyPolicies)
+				),
+				new PoweredSourceCouplingReadinessScenario(
+						"handoffs_policy_and_api_surface_ready",
+						gate(readyApiSurface, readyBudget, readyPolicies)
 				)
 		);
 		return new PoweredSourceCouplingReadinessAudit(
@@ -176,6 +205,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			throw new IllegalArgumentException("handoffs and policies must not be null.");
 		}
 		return gate(
+				Aerodynamics4McL2PoweredSourceApiSurfaceAudit.currentSummary(),
 				Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.gate(
 						handoffs,
 						Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit().groups(),
@@ -187,8 +217,19 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary acceptanceBudget,
 			List<Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy> policies
 	) {
+		return gate(Aerodynamics4McL2PoweredSourceApiSurfaceAudit.currentSummary(), acceptanceBudget, policies);
+	}
+
+	public static PoweredSourceCouplingReadinessSummary gate(
+			Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary apiSurface,
+			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary acceptanceBudget,
+			List<Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy> policies
+	) {
 		if (acceptanceBudget == null || policies == null) {
 			throw new IllegalArgumentException("acceptance budget and policies must not be null.");
+		}
+		if (apiSurface == null) {
+			throw new IllegalArgumentException("apiSurface must not be null.");
 		}
 		int runtimeAllowed = 0;
 		int solidAllowed = 0;
@@ -242,11 +283,14 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				&& actuatorRequired == policies.size()
 				&& sourceRequired == policies.size()
 				&& validationBeforeRuntime == policies.size();
+		boolean poweredSourceApiSurfaceReady =
+				apiSurface.poweredSourceApiReady() && apiSurface.poweredSourceExecutorWiringAllowed();
 		boolean hoverCruiseAllowed = !policies.isEmpty()
 				&& hoverAllowed == policies.size()
 				&& cruiseAllowed == policies.size()
 				&& sourceApiAvailable == policies.size();
-		boolean allowed = acceptanceBudget.acceptanceBudgetGateReady()
+		boolean allowed = poweredSourceApiSurfaceReady
+				&& acceptanceBudget.acceptanceBudgetGateReady()
 				&& allPoliciesRuntimeAllowed
 				&& allPoliciesKeepOpen
 				&& allPoliciesRequireSource
@@ -264,6 +308,11 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				acceptanceBudget.validationBudgetGroupCount(),
 				acceptanceBudget.validationBudgetCandidateCount(),
 				acceptanceBudget.expectedValidationBudgetGroupCount(),
+				poweredSourceApiSurfaceReady,
+				apiSurface.poweredSourceExecutorWiringAllowed(),
+				apiSurface.poweredSourceApiSurfaceCount(),
+				apiSurface.requiredPoweredSourceApiSurfaceCount(),
+				apiSurface.missingPoweredSourceApiList(),
 				policies.size(),
 				runtimeAllowed,
 				solidAllowed,
@@ -345,6 +394,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		int maxRuntimePolicies = 0;
 		int maxPolicies = 0;
 		int maxSolidAllowed = 0;
+		int surfaceReady = 0;
+		int maxApiSurface = 0;
 		int maxSourceApi = 0;
 		for (PoweredSourceCouplingReadinessScenario scenario : scenarios) {
 			PoweredSourceCouplingReadinessSummary summary = scenario.summary();
@@ -358,6 +409,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			maxRuntimePolicies = Math.max(maxRuntimePolicies, summary.runtimeMutationAllowedPolicyCount());
 			maxPolicies = Math.max(maxPolicies, summary.policyCount());
 			maxSolidAllowed = Math.max(maxSolidAllowed, summary.solidDiskMaskAllowedPolicyCount());
+			if (summary.poweredSourceApiSurfaceReady()) {
+				surfaceReady++;
+			}
+			maxApiSurface = Math.max(maxApiSurface, summary.poweredSourceApiSurfaceCount());
 			maxSourceApi = Math.max(maxSourceApi, summary.poweredSourceApiAvailablePolicyCount());
 		}
 		return new PoweredSourceCouplingReadinessExtrema(
@@ -369,6 +424,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				maxRuntimePolicies,
 				maxPolicies,
 				maxSolidAllowed,
+				surfaceReady,
+				maxApiSurface,
 				maxSourceApi
 		);
 	}

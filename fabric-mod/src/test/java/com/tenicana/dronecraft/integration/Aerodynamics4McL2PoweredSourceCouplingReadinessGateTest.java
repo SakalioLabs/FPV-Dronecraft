@@ -20,13 +20,13 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Runtime powered-source coupling remains closed"));
-		assertEquals(141, audit.packetMetricRowCount());
-		assertEquals(7, audit.sourceReferenceCount());
-		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(31, audit.scenarioMetricCount());
-		assertEquals(9, audit.summaryMetricRowCount());
+		assertEquals(200, audit.packetMetricRowCount());
+		assertEquals(8, audit.sourceReferenceCount());
+		assertEquals(5, audit.scenarioSampleCount());
+		assertEquals(36, audit.scenarioMetricCount());
+		assertEquals(11, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
-		assertEquals(4, audit.scenarios().size());
+		assertEquals(5, audit.scenarios().size());
 
 		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary current =
 				find(audit.scenarios(), "current_handoff_and_policy_blocked").summary();
@@ -42,6 +42,11 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(2, current.validationBudgetGroupCount());
 		assertEquals(0, current.validationBudgetCandidateCount());
 		assertEquals(2, current.expectedValidationBudgetGroupCount());
+		assertFalse(current.poweredSourceApiSurfaceReady());
+		assertFalse(current.poweredSourceExecutorWiringAllowed());
+		assertEquals(0, current.poweredSourceApiSurfaceCount());
+		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
+		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
 		assertEquals(4, current.policyCount());
 		assertEquals(0, current.runtimeMutationAllowedPolicyCount());
 		assertEquals(0, current.solidDiskMaskAllowedPolicyCount());
@@ -67,6 +72,7 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertTrue(handoffsOnly.acceptanceBudgetGateReady());
 		assertTrue(handoffsOnly.allValidationBudgetsReady());
 		assertEquals(2, handoffsOnly.validationBudgetCandidateCount());
+		assertFalse(handoffsOnly.poweredSourceApiSurfaceReady());
 		assertFalse(handoffsOnly.allPoliciesRuntimeAllowed());
 		assertFalse(handoffsOnly.runtimePoweredSourceCouplingAllowed());
 
@@ -75,15 +81,28 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertFalse(policyOnly.allHandoffsReady());
 		assertFalse(policyOnly.acceptanceBudgetGateReady());
 		assertFalse(policyOnly.allValidationBudgetsReady());
+		assertFalse(policyOnly.poweredSourceApiSurfaceReady());
 		assertTrue(policyOnly.allPoliciesRuntimeAllowed());
 		assertTrue(policyOnly.hoverAndCruiseCouplingAllowed());
 		assertFalse(policyOnly.runtimePoweredSourceCouplingAllowed());
 
-		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary ready =
+		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary surfaceBlocked =
 				find(audit.scenarios(), "handoffs_and_policy_ready").summary();
+		assertTrue(surfaceBlocked.allHandoffsReady());
+		assertTrue(surfaceBlocked.acceptanceBudgetGateReady());
+		assertTrue(surfaceBlocked.allPoliciesRuntimeAllowed());
+		assertFalse(surfaceBlocked.poweredSourceApiSurfaceReady());
+		assertFalse(surfaceBlocked.runtimePoweredSourceCouplingAllowed());
+
+		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary ready =
+				find(audit.scenarios(), "handoffs_policy_and_api_surface_ready").summary();
 		assertTrue(ready.allHandoffsReady());
 		assertTrue(ready.acceptanceBudgetGateReady());
 		assertTrue(ready.allValidationBudgetsReady());
+		assertTrue(ready.poweredSourceApiSurfaceReady());
+		assertTrue(ready.poweredSourceExecutorWiringAllowed());
+		assertEquals(5, ready.poweredSourceApiSurfaceCount());
+		assertEquals("none", ready.missingPoweredSourceApiList());
 		assertTrue(ready.allPoliciesRuntimeAllowed());
 		assertTrue(ready.allPoliciesKeepRotorDisksOpen());
 		assertTrue(ready.allPoliciesRequirePoweredSourceApi());
@@ -92,14 +111,16 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals("READY_FOR_POWERED_SOURCE_RUNTIME_COUPLING", ready.status());
 		assertEquals("runtime-coupling-ready", ready.message());
 
-		assertEquals(4, audit.extrema().scenarioCount());
+		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().allowedScenarioCount());
-		assertEquals(3, audit.extrema().blockedScenarioCount());
+		assertEquals(4, audit.extrema().blockedScenarioCount());
 		assertEquals(2, audit.extrema().maxReadyHandoffCount());
 		assertEquals(2, audit.extrema().maxValidationBudgetCandidateCount());
 		assertEquals(4, audit.extrema().maxRuntimeMutationAllowedPolicyCount());
 		assertEquals(4, audit.extrema().maxPolicyCount());
 		assertEquals(0, audit.extrema().maxSolidDiskMaskAllowedPolicyCount());
+		assertEquals(1, audit.extrema().poweredSourceApiSurfaceReadyScenarioCount());
+		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
 		assertEquals(4, audit.extrema().maxPoweredSourceApiAvailablePolicyCount());
 	}
 
@@ -115,8 +136,14 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
 				.gate(handoffs, readyPolicies)
 				.runtimePoweredSourceCouplingAllowed());
-		assertTrue(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
+		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
 				.gate(readyBudget, readyPolicies)
+				.runtimePoweredSourceCouplingAllowed());
+		assertTrue(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
+				.gate(
+						Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary(),
+						readyBudget,
+						readyPolicies)
 				.runtimePoweredSourceCouplingAllowed());
 		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
 				.gate(List.of(readyHandoff("hover")), readyPolicies)
@@ -157,6 +184,11 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 						(Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary) null,
 						readyPolicies()));
 		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(
+						null,
+						readyBudget(),
+						readyPolicies()));
+		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(duplicate, readyPolicies()));
 	}
 
@@ -173,7 +205,9 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,current_handoff_and_policy_blocked,runtime_powered_source_coupling_allowed,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_and_policy_ready,runtime_powered_source_coupling_allowed,true,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_and_policy_ready,powered_source_api_surface_ready,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_policy_and_api_surface_ready,runtime_powered_source_coupling_allowed,true,")));
 	}
 
 	private static Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessScenario find(

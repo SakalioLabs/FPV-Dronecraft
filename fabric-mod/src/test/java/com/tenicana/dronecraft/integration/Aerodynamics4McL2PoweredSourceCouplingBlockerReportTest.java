@@ -20,21 +20,22 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Blocker-Report-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not enable runtime coupling"));
-		assertEquals(134, audit.packetMetricRowCount());
-		assertEquals(6, audit.sourceReferenceCount());
-		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(29, audit.scenarioMetricCount());
-		assertEquals(11, audit.summaryMetricRowCount());
+		assertEquals(186, audit.packetMetricRowCount());
+		assertEquals(7, audit.sourceReferenceCount());
+		assertEquals(5, audit.scenarioSampleCount());
+		assertEquals(33, audit.scenarioMetricCount());
+		assertEquals(13, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
-		assertEquals(4, audit.scenarios().size());
+		assertEquals(5, audit.scenarios().size());
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary current =
 				find(audit.scenarios(), "current_handoff_and_policy_blocked").summary();
 		assertFalse(current.runtimePoweredSourceCouplingAllowed());
-		assertEquals(5, current.blockerCount());
+		assertEquals(6, current.blockerCount());
 		assertTrue(current.acceptanceHandoffBlocker());
 		assertTrue(current.validationBudgetBlocker());
 		assertTrue(current.policyRuntimeMutationBlocker());
+		assertTrue(current.poweredSourceApiSurfaceBlocker());
 		assertTrue(current.poweredSourceApiBlocker());
 		assertTrue(current.gameplayCouplingBlocker());
 		assertFalse(current.solidDiskMaskBlocker());
@@ -51,6 +52,9 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertEquals(2, current.expectedValidationBudgetGroupCount());
 		assertEquals(4, current.policyCount());
 		assertEquals(0, current.runtimeMutationAllowedPolicyCount());
+		assertEquals(0, current.poweredSourceApiSurfaceCount());
+		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
+		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
 		assertEquals(0, current.poweredSourceApiAvailablePolicyCount());
 		assertEquals(4, current.keepRotorDiskOpenPolicyCount());
 		assertEquals("complete-hover-and-cruise-powered-source-acceptance-handoffs",
@@ -60,47 +64,64 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary handoffsOnly =
 				find(audit.scenarios(), "handoffs_ready_policy_blocked").summary();
-		assertEquals(3, handoffsOnly.blockerCount());
+		assertEquals(4, handoffsOnly.blockerCount());
 		assertFalse(handoffsOnly.acceptanceHandoffBlocker());
 		assertFalse(handoffsOnly.validationBudgetBlocker());
 		assertTrue(handoffsOnly.acceptanceBudgetGateReady());
+		assertTrue(handoffsOnly.poweredSourceApiSurfaceBlocker());
 		assertTrue(handoffsOnly.poweredSourceApiBlocker());
-		assertEquals("wait-for-porous-or-body-force-powered-source-api",
+		assertEquals("wait-for-public-a4mc-powered-source-api-surface",
 				handoffsOnly.nextRequiredAction());
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary policyOnly =
 				find(audit.scenarios(), "policy_ready_handoffs_blocked").summary();
-		assertEquals(2, policyOnly.blockerCount());
+		assertEquals(3, policyOnly.blockerCount());
 		assertTrue(policyOnly.acceptanceHandoffBlocker());
 		assertTrue(policyOnly.validationBudgetBlocker());
+		assertTrue(policyOnly.poweredSourceApiSurfaceBlocker());
 		assertFalse(policyOnly.poweredSourceApiBlocker());
 
-		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary ready =
+		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary surfaceBlocked =
 				find(audit.scenarios(), "handoffs_and_policy_ready").summary();
+		assertFalse(surfaceBlocked.runtimePoweredSourceCouplingAllowed());
+		assertEquals(1, surfaceBlocked.blockerCount());
+		assertTrue(surfaceBlocked.poweredSourceApiSurfaceBlocker());
+		assertFalse(surfaceBlocked.poweredSourceApiBlocker());
+		assertEquals("wait-for-public-a4mc-powered-source-api-surface",
+				surfaceBlocked.nextRequiredAction());
+
+		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary ready =
+				find(audit.scenarios(), "handoffs_policy_and_api_surface_ready").summary();
 		assertTrue(ready.runtimePoweredSourceCouplingAllowed());
 		assertEquals(0, ready.blockerCount());
+		assertFalse(ready.poweredSourceApiSurfaceBlocker());
+		assertEquals(5, ready.poweredSourceApiSurfaceCount());
+		assertEquals("none", ready.missingPoweredSourceApiList());
 		assertEquals("READY", ready.status());
 		assertEquals("powered-source-coupling-clear", ready.message());
 		assertEquals("runtime-powered-source-coupling-ready-for-reviewed-activation",
 				ready.nextRequiredAction());
 
-		assertEquals(4, audit.extrema().scenarioCount());
+		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().readyScenarioCount());
-		assertEquals(3, audit.extrema().blockedScenarioCount());
-		assertEquals(5, audit.extrema().maxBlockerCount());
+		assertEquals(4, audit.extrema().blockedScenarioCount());
+		assertEquals(6, audit.extrema().maxBlockerCount());
 		assertEquals(2, audit.extrema().acceptanceHandoffBlockerScenarioCount());
 		assertEquals(2, audit.extrema().validationBudgetBlockerScenarioCount());
 		assertEquals(2, audit.extrema().policyRuntimeMutationBlockerScenarioCount());
+		assertEquals(4, audit.extrema().poweredSourceApiSurfaceBlockerScenarioCount());
 		assertEquals(2, audit.extrema().poweredSourceApiBlockerScenarioCount());
 		assertEquals(2, audit.extrema().gameplayCouplingBlockerScenarioCount());
 		assertEquals(0, audit.extrema().solidDiskMaskBlockerScenarioCount());
 		assertEquals(0, audit.extrema().rotorDiskMaskPolicyBlockerScenarioCount());
+		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
 	}
 
 	@Test
 	void reportSeparatesSolidDiskMaskFromAcceptanceAndSourceApiBlockers() {
 		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary solidDisk =
 				Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(
+						Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary(),
 						readyBudget(),
 						List.of(solidDiskPolicy(readyPolicies().get(0))));
 
@@ -109,6 +130,7 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		assertFalse(report.runtimePoweredSourceCouplingAllowed());
 		assertFalse(report.acceptanceHandoffBlocker());
+		assertFalse(report.poweredSourceApiSurfaceBlocker());
 		assertFalse(report.poweredSourceApiBlocker());
 		assertFalse(report.policyRuntimeMutationBlocker());
 		assertFalse(report.gameplayCouplingBlocker());
@@ -139,11 +161,13 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		assertEquals(audit.packetMetricRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_summary,all_scenarios,max_blocker_count,5,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_summary,all_scenarios,max_blocker_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,blocker_count,5,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,blocker_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,handoffs_and_policy_ready,runtime_powered_source_coupling_allowed,true,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,handoffs_and_policy_ready,powered_source_api_surface_blocker,true,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,handoffs_policy_and_api_surface_ready,runtime_powered_source_coupling_allowed,true,")));
 	}
 
 	private static Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerScenario find(
