@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Runtime powered-source coupling remains closed"));
-		assertEquals(200, audit.packetMetricRowCount());
+		assertEquals(222, audit.packetMetricRowCount());
 		assertEquals(8, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(36, audit.scenarioMetricCount());
-		assertEquals(11, audit.summaryMetricRowCount());
+		assertEquals(40, audit.scenarioMetricCount());
+		assertEquals(13, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
@@ -47,6 +47,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(0, current.poweredSourceApiSurfaceCount());
 		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
 		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
+		assertFalse(current.poweredSourcePhysicalContractReady());
+		assertEquals(0, current.poweredSourcePhysicalContractCount());
+		assertEquals(5, current.requiredPoweredSourcePhysicalContractCount());
+		assertTrue(current.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 		assertEquals(4, current.policyCount());
 		assertEquals(0, current.runtimeMutationAllowedPolicyCount());
 		assertEquals(0, current.solidDiskMaskAllowedPolicyCount());
@@ -103,6 +107,9 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertTrue(ready.poweredSourceExecutorWiringAllowed());
 		assertEquals(5, ready.poweredSourceApiSurfaceCount());
 		assertEquals("none", ready.missingPoweredSourceApiList());
+		assertTrue(ready.poweredSourcePhysicalContractReady());
+		assertEquals(5, ready.poweredSourcePhysicalContractCount());
+		assertEquals("none", ready.missingPoweredSourcePhysicalContractList());
 		assertTrue(ready.allPoliciesRuntimeAllowed());
 		assertTrue(ready.allPoliciesKeepRotorDisksOpen());
 		assertTrue(ready.allPoliciesRequirePoweredSourceApi());
@@ -121,6 +128,8 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(0, audit.extrema().maxSolidDiskMaskAllowedPolicyCount());
 		assertEquals(1, audit.extrema().poweredSourceApiSurfaceReadyScenarioCount());
 		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
+		assertEquals(1, audit.extrema().poweredSourcePhysicalContractReadyScenarioCount());
+		assertEquals(5, audit.extrema().maxPoweredSourcePhysicalContractCount());
 		assertEquals(4, audit.extrema().maxPoweredSourceApiAvailablePolicyCount());
 	}
 
@@ -145,6 +154,12 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 						readyBudget,
 						readyPolicies)
 				.runtimePoweredSourceCouplingAllowed());
+		assertTrue(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
+				.gate(
+						Aerodynamics4McL2PoweredSourceApiSurfaceAudit.syntheticReadySummary(),
+						readyBudget,
+						readyPolicies)
+				.poweredSourcePhysicalContractReady());
 		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
 				.gate(List.of(readyHandoff("hover")), readyPolicies)
 				.runtimePoweredSourceCouplingAllowed());
@@ -206,6 +221,8 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,current_handoff_and_policy_blocked,runtime_powered_source_coupling_allowed,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_and_policy_ready,powered_source_api_surface_ready,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_and_policy_ready,missing_powered_source_physical_contract_list,source_term_si_units;")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_policy_and_api_surface_ready,runtime_powered_source_coupling_allowed,true,")));
 	}

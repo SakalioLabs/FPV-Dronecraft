@@ -201,7 +201,7 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		boolean sourceEnvelope = containsAny(requestMethods, "source", "sourceterm", "source_term", "source-term");
 		boolean runtimeResult = containsAny(resultMethods, "source", "sourceterm", "source_term", "source-term", "delta");
 		boolean sourceUnits = containsAny(requestMethods, "newton", "newtons", "pascal", "pascals", "pressurejump",
-				"pressure_jump", "force");
+				"pressure_jump", "siunit", "si_unit", "si-unit");
 		boolean sourceBodyFrame = containsAny(requestMethods, "bodyframe", "body_frame", "body-frame",
 				"sourcecenter", "source_center", "offset");
 		boolean sourceTemporal = containsAny(requestMethods, "timestep", "time_step", "time-step", "substep", "dt");

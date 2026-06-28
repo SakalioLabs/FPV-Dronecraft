@@ -5,11 +5,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"Runtime powered-source coupling remains closed until the API surface audit is ready, the acceptance budget gate is ready, and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
+			"Runtime powered-source coupling remains closed until the API surface audit includes physical source-term contract readiness, the acceptance budget gate is ready, and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
 	public static final int SOURCE_REFERENCE_COUNT = 8;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_COUNT = 36;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
+	public static final int SCENARIO_METRIC_COUNT = 40;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 13;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -37,6 +37,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int poweredSourceApiSurfaceCount,
 			int requiredPoweredSourceApiSurfaceCount,
 			String missingPoweredSourceApiList,
+			boolean poweredSourcePhysicalContractReady,
+			int poweredSourcePhysicalContractCount,
+			int requiredPoweredSourcePhysicalContractCount,
+			String missingPoweredSourcePhysicalContractList,
 			int policyCount,
 			int runtimeMutationAllowedPolicyCount,
 			int solidDiskMaskAllowedPolicyCount,
@@ -76,6 +80,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int maxSolidDiskMaskAllowedPolicyCount,
 			int poweredSourceApiSurfaceReadyScenarioCount,
 			int maxPoweredSourceApiSurfaceCount,
+			int poweredSourcePhysicalContractReadyScenarioCount,
+			int maxPoweredSourcePhysicalContractCount,
 			int maxPoweredSourceApiAvailablePolicyCount
 	) {
 	}
@@ -313,6 +319,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				apiSurface.poweredSourceApiSurfaceCount(),
 				apiSurface.requiredPoweredSourceApiSurfaceCount(),
 				apiSurface.missingPoweredSourceApiList(),
+				apiSurface.poweredSourcePhysicalContractReady(),
+				apiSurface.poweredSourcePhysicalContractCount(),
+				apiSurface.requiredPoweredSourcePhysicalContractCount(),
+				apiSurface.missingPoweredSourcePhysicalContractList(),
 				policies.size(),
 				runtimeAllowed,
 				solidAllowed,
@@ -396,6 +406,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		int maxSolidAllowed = 0;
 		int surfaceReady = 0;
 		int maxApiSurface = 0;
+		int physicalReady = 0;
+		int maxPhysical = 0;
 		int maxSourceApi = 0;
 		for (PoweredSourceCouplingReadinessScenario scenario : scenarios) {
 			PoweredSourceCouplingReadinessSummary summary = scenario.summary();
@@ -413,6 +425,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				surfaceReady++;
 			}
 			maxApiSurface = Math.max(maxApiSurface, summary.poweredSourceApiSurfaceCount());
+			if (summary.poweredSourcePhysicalContractReady()) {
+				physicalReady++;
+			}
+			maxPhysical = Math.max(maxPhysical, summary.poweredSourcePhysicalContractCount());
 			maxSourceApi = Math.max(maxSourceApi, summary.poweredSourceApiAvailablePolicyCount());
 		}
 		return new PoweredSourceCouplingReadinessExtrema(
@@ -426,6 +442,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				maxSolidAllowed,
 				surfaceReady,
 				maxApiSurface,
+				physicalReady,
+				maxPhysical,
 				maxSourceApi
 		);
 	}

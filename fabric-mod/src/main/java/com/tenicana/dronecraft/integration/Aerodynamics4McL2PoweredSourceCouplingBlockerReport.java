@@ -5,12 +5,12 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Blocker-Report-Packet";
 	public static final String CAVEAT =
-			"Blocker report decomposes the final powered-source coupling gate, including API-surface readiness, into audit reasons only; it does not enable runtime coupling or mutate gameplay configuration.";
+			"Blocker report decomposes the final powered-source coupling gate, including API-surface and physical source-term contract readiness, into audit reasons only; it does not enable runtime coupling or mutate gameplay configuration.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT =
 			Aerodynamics4McL2PoweredSourceCouplingReadinessGate.SCENARIO_SAMPLE_COUNT;
-	public static final int SCENARIO_METRIC_COUNT = 33;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 13;
+	public static final int SCENARIO_METRIC_COUNT = 37;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -27,6 +27,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			boolean validationBudgetBlocker,
 			boolean policyRuntimeMutationBlocker,
 			boolean poweredSourceApiSurfaceBlocker,
+			boolean poweredSourcePhysicalContractBlocker,
 			boolean poweredSourceApiBlocker,
 			boolean gameplayCouplingBlocker,
 			boolean solidDiskMaskBlocker,
@@ -46,6 +47,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			int poweredSourceApiSurfaceCount,
 			int requiredPoweredSourceApiSurfaceCount,
 			String missingPoweredSourceApiList,
+			int poweredSourcePhysicalContractCount,
+			int requiredPoweredSourcePhysicalContractCount,
+			String missingPoweredSourcePhysicalContractList,
 			int poweredSourceApiAvailablePolicyCount,
 			int poweredHoverGameplayCouplingAllowedPolicyCount,
 			int poweredCruiseGameplayCouplingAllowedPolicyCount,
@@ -72,11 +76,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			int validationBudgetBlockerScenarioCount,
 			int policyRuntimeMutationBlockerScenarioCount,
 			int poweredSourceApiSurfaceBlockerScenarioCount,
+			int poweredSourcePhysicalContractBlockerScenarioCount,
 			int poweredSourceApiBlockerScenarioCount,
 			int gameplayCouplingBlockerScenarioCount,
 			int solidDiskMaskBlockerScenarioCount,
 			int rotorDiskMaskPolicyBlockerScenarioCount,
-			int maxPoweredSourceApiSurfaceCount
+			int maxPoweredSourceApiSurfaceCount,
+			int maxPoweredSourcePhysicalContractCount
 	) {
 	}
 
@@ -142,7 +148,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 		boolean handoffBlocker = !readiness.allHandoffsReady();
 		boolean validationBudgetBlocker = !readiness.allValidationBudgetsReady();
 		boolean runtimePolicyBlocker = !readiness.allPoliciesRuntimeAllowed();
-		boolean sourceApiSurfaceBlocker = !readiness.poweredSourceApiSurfaceReady();
+		boolean sourceApiSurfaceBlocker =
+				readiness.poweredSourceApiSurfaceCount() < readiness.requiredPoweredSourceApiSurfaceCount();
+		boolean physicalContractBlocker = !readiness.poweredSourcePhysicalContractReady();
 		boolean sourceApiBlocker = readiness.policyCount() == 0
 				|| readiness.poweredSourceApiAvailablePolicyCount() < readiness.policyCount();
 		boolean gameplayBlocker = !readiness.hoverAndCruiseCouplingAllowed();
@@ -153,6 +161,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				validationBudgetBlocker,
 				runtimePolicyBlocker,
 				sourceApiSurfaceBlocker,
+				physicalContractBlocker,
 				sourceApiBlocker,
 				gameplayBlocker,
 				solidDiskBlocker,
@@ -165,6 +174,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				validationBudgetBlocker,
 				runtimePolicyBlocker,
 				sourceApiSurfaceBlocker,
+				physicalContractBlocker,
 				sourceApiBlocker,
 				gameplayBlocker,
 				solidDiskBlocker,
@@ -184,6 +194,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				readiness.poweredSourceApiSurfaceCount(),
 				readiness.requiredPoweredSourceApiSurfaceCount(),
 				readiness.missingPoweredSourceApiList(),
+				readiness.poweredSourcePhysicalContractCount(),
+				readiness.requiredPoweredSourcePhysicalContractCount(),
+				readiness.missingPoweredSourcePhysicalContractList(),
 				readiness.poweredSourceApiAvailablePolicyCount(),
 				readiness.poweredHoverGameplayCouplingAllowedPolicyCount(),
 				readiness.poweredCruiseGameplayCouplingAllowedPolicyCount(),
@@ -193,6 +206,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 						handoffBlocker,
 						validationBudgetBlocker,
 						sourceApiSurfaceBlocker,
+						physicalContractBlocker,
 						sourceApiBlocker,
 						runtimePolicyBlocker,
 						gameplayBlocker,
@@ -207,6 +221,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			boolean handoffBlocker,
 			boolean validationBudgetBlocker,
 			boolean sourceApiSurfaceBlocker,
+			boolean physicalContractBlocker,
 			boolean sourceApiBlocker,
 			boolean runtimePolicyBlocker,
 			boolean gameplayBlocker,
@@ -221,6 +236,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 		}
 		if (sourceApiSurfaceBlocker) {
 			return "wait-for-public-a4mc-powered-source-api-surface";
+		}
+		if (physicalContractBlocker) {
+			return "wait-for-public-a4mc-powered-source-physical-contract";
 		}
 		if (sourceApiBlocker) {
 			return "wait-for-porous-or-body-force-powered-source-api";
@@ -256,11 +274,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 		int validationBudget = 0;
 		int runtime = 0;
 		int sourceSurface = 0;
+		int physicalContract = 0;
 		int source = 0;
 		int gameplay = 0;
 		int solid = 0;
 		int rotorMask = 0;
 		int maxApiSurface = 0;
+		int maxPhysical = 0;
 		for (PoweredSourceCouplingBlockerScenario scenario : scenarios) {
 			PoweredSourceCouplingBlockerSummary summary = scenario.summary();
 			if (summary.runtimePoweredSourceCouplingAllowed()) {
@@ -279,6 +299,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			if (summary.poweredSourceApiSurfaceBlocker()) {
 				sourceSurface++;
 			}
+			if (summary.poweredSourcePhysicalContractBlocker()) {
+				physicalContract++;
+			}
 			if (summary.poweredSourceApiBlocker()) {
 				source++;
 			}
@@ -292,6 +315,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				rotorMask++;
 			}
 			maxApiSurface = Math.max(maxApiSurface, summary.poweredSourceApiSurfaceCount());
+			maxPhysical = Math.max(maxPhysical, summary.poweredSourcePhysicalContractCount());
 		}
 		return new PoweredSourceCouplingBlockerExtrema(
 				scenarios.size(),
@@ -302,11 +326,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				validationBudget,
 				runtime,
 				sourceSurface,
+				physicalContract,
 				source,
 				gameplay,
 				solid,
 				rotorMask,
-				maxApiSurface
+				maxApiSurface,
+				maxPhysical
 		);
 	}
 }
