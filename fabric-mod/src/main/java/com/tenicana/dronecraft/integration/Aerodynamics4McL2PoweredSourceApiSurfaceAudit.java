@@ -9,15 +9,16 @@ import java.util.StringJoiner;
 public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-API-Surface-Audit-Packet";
 	public static final String CAVEAT =
-			"Powered-source API surface audit records whether A4MC exposes public source-term extension points; it never fabricates rotor source output, runtime coupling, or gameplay tuning data.";
+			"Powered-source API surface audit records whether A4MC exposes public source-term extension points and physical contract semantics; it never fabricates rotor source output, runtime coupling, or gameplay tuning data.";
 	public static final String UPSTREAM_REFERENCE_COMMIT = "62a52a584e9c65246e50226b29a1f0449e43995e";
-	public static final int SOURCE_REFERENCE_COUNT = 6;
+	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT = 3;
-	public static final int SCENARIO_METRIC_COUNT = 28;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 10;
+	public static final int SCENARIO_METRIC_COUNT = 37;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 13;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int REQUIRED_BASE_CAPABILITY_COUNT = 6;
 	public static final int REQUIRED_POWERED_SOURCE_API_SURFACE_COUNT = 5;
+	public static final int REQUIRED_POWERED_SOURCE_PHYSICAL_CONTRACT_COUNT = 5;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
 			+ SUMMARY_METRIC_ROW_COUNT
@@ -45,12 +46,21 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 			boolean sourceTermRuntimeResultAvailable,
 			int poweredSourceApiSurfaceCount,
 			int requiredPoweredSourceApiSurfaceCount,
+			boolean sourceTermUnitsApiAvailable,
+			boolean sourceTermBodyFrameApiAvailable,
+			boolean sourceTermTemporalApiAvailable,
+			boolean runtimeForceMomentDeltaApiAvailable,
+			boolean runtimeConservationResidualApiAvailable,
+			int poweredSourcePhysicalContractCount,
+			int requiredPoweredSourcePhysicalContractCount,
+			boolean poweredSourcePhysicalContractReady,
 			boolean poweredSourceApiReady,
 			boolean poweredSourceExecutorWiringAllowed,
 			boolean runtimeCouplingAllowed,
 			boolean gameplayAutoApplyAllowed,
 			String missingBaseCapabilityList,
 			String missingPoweredSourceApiList,
+			String missingPoweredSourcePhysicalContractList,
 			String discoveredRequestExtensionMethods,
 			String discoveredResultExtensionMethods,
 			String upstreamReferenceCommit,
@@ -73,8 +83,11 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 			int blockedScenarioCount,
 			int maxBaseCapabilityCount,
 			int maxPoweredSourceApiSurfaceCount,
+			int maxPoweredSourcePhysicalContractCount,
 			int maxMissingBaseCapabilityCount,
 			int maxMissingPoweredSourceApiCount,
+			int maxMissingPoweredSourcePhysicalContractCount,
+			int physicalContractReadyScenarioCount,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
 			int executorWiringAllowedCount
@@ -187,11 +200,20 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		boolean rotor = containsAny(requestMethods, "rotor", "actuator");
 		boolean sourceEnvelope = containsAny(requestMethods, "source", "sourceterm", "source_term", "source-term");
 		boolean runtimeResult = containsAny(resultMethods, "source", "sourceterm", "source_term", "source-term", "delta");
+		boolean sourceUnits = containsAny(requestMethods, "newton", "newtons", "pascal", "pascals", "pressurejump",
+				"pressure_jump", "force");
+		boolean sourceBodyFrame = containsAny(requestMethods, "bodyframe", "body_frame", "body-frame",
+				"sourcecenter", "source_center", "offset");
+		boolean sourceTemporal = containsAny(requestMethods, "timestep", "time_step", "time-step", "substep", "dt");
+		boolean forceMomentDelta = containsAllInOne(resultMethods, "force", "moment", "delta");
+		boolean conservationResidual = containsAny(resultMethods, "residual", "conservation", "momentum");
 		int baseCount = countTrue(baseWind, baseBuilder, baseMask, baseInitialFlow, baseAtlas, baseForceMoment);
 		int poweredCount = countTrue(bodyForce, porous, rotor, sourceEnvelope, runtimeResult);
+		int physicalCount = countTrue(sourceUnits, sourceBodyFrame, sourceTemporal, forceMomentDelta, conservationResidual);
 		boolean baseReady = baseCount == REQUIRED_BASE_CAPABILITY_COUNT;
 		boolean poweredReady = poweredCount == REQUIRED_POWERED_SOURCE_API_SURFACE_COUNT;
-		boolean ready = baseReady && poweredReady;
+		boolean physicalReady = physicalCount == REQUIRED_POWERED_SOURCE_PHYSICAL_CONTRACT_COUNT;
+		boolean ready = baseReady && poweredReady && physicalReady;
 		return new PoweredSourceApiSurfaceSummary(
 				baseWind,
 				baseBuilder,
@@ -208,17 +230,27 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 				runtimeResult,
 				poweredCount,
 				REQUIRED_POWERED_SOURCE_API_SURFACE_COUNT,
+				sourceUnits,
+				sourceBodyFrame,
+				sourceTemporal,
+				forceMomentDelta,
+				conservationResidual,
+				physicalCount,
+				REQUIRED_POWERED_SOURCE_PHYSICAL_CONTRACT_COUNT,
+				physicalReady,
 				ready,
 				ready,
 				false,
 				false,
 				missingBase(baseWind, baseBuilder, baseMask, baseInitialFlow, baseAtlas, baseForceMoment),
 				missingPowered(bodyForce, porous, rotor, sourceEnvelope, runtimeResult),
+				missingPhysicalContract(sourceUnits, sourceBodyFrame, sourceTemporal, forceMomentDelta,
+						conservationResidual),
 				joinOrNone(requestMethods),
 				joinOrNone(resultMethods),
 				UPSTREAM_REFERENCE_COMMIT,
 				ready ? "READY" : "BLOCKED",
-				messageFor(baseReady, poweredReady),
+				messageFor(baseReady, poweredReady, physicalReady),
 				sourceRuntimeInfo,
 				CAVEAT
 		);
@@ -241,8 +273,14 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 						true,
 						true,
 						"synthetic powered-source API surface ready"),
-				List.of("bodyForceSource", "porousSource", "rotorSourceTerms", "poweredSourceEnvelope"),
-				List.of("poweredSourceForceMomentDelta"),
+				List.of(
+						"bodyForceSourceNewtons",
+						"porousSourcePressureJumpPascals",
+						"rotorSourceTermsBodyFrame",
+						"poweredSourceEnvelopeTimeStepSeconds"),
+				List.of(
+						"poweredSourceForceMomentDeltaNewtons",
+						"poweredSourceMomentumConservationResidual"),
 				"synthetic-powered-source-api-ready");
 	}
 
@@ -296,6 +334,23 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 				if (normalized.contains(needle)) {
 					return true;
 				}
+			}
+		}
+		return false;
+	}
+
+	private static boolean containsAllInOne(List<String> methods, String... needles) {
+		for (String method : methods) {
+			String normalized = method.toLowerCase(Locale.ROOT);
+			boolean allPresent = true;
+			for (String needle : needles) {
+				if (!normalized.contains(needle)) {
+					allPresent = false;
+					break;
+				}
+			}
+			if (allPresent) {
+				return true;
 			}
 		}
 		return false;
@@ -357,6 +412,32 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		return joinOrNone(missing);
 	}
 
+	private static String missingPhysicalContract(
+			boolean sourceUnits,
+			boolean sourceBodyFrame,
+			boolean sourceTemporal,
+			boolean forceMomentDelta,
+			boolean conservationResidual
+	) {
+		List<String> missing = new ArrayList<>();
+		if (!sourceUnits) {
+			missing.add("source_term_si_units");
+		}
+		if (!sourceBodyFrame) {
+			missing.add("source_term_body_frame");
+		}
+		if (!sourceTemporal) {
+			missing.add("source_term_time_step_or_substep");
+		}
+		if (!forceMomentDelta) {
+			missing.add("runtime_force_moment_delta_result");
+		}
+		if (!conservationResidual) {
+			missing.add("runtime_momentum_conservation_residual");
+		}
+		return joinOrNone(missing);
+	}
+
 	private static String joinOrNone(List<String> values) {
 		if (values.isEmpty()) {
 			return "none";
@@ -368,12 +449,15 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		return joiner.toString();
 	}
 
-	private static String messageFor(boolean baseReady, boolean poweredReady) {
+	private static String messageFor(boolean baseReady, boolean poweredReady, boolean physicalReady) {
 		if (!baseReady) {
 			return "l2-base-api-surface-missing";
 		}
 		if (!poweredReady) {
 			return "powered-source-api-surface-missing";
+		}
+		if (!physicalReady) {
+			return "powered-source-physical-contract-missing";
 		}
 		return "powered-source-api-surface-ready";
 	}
@@ -395,12 +479,18 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 		int gameplay = 0;
 		int maxBase = 0;
 		int maxPowered = 0;
+		int maxPhysical = 0;
 		int maxMissingBase = 0;
 		int maxMissingPowered = 0;
+		int maxMissingPhysical = 0;
+		int physicalReady = 0;
 		for (PoweredSourceApiSurfaceScenario scenario : scenarios) {
 			PoweredSourceApiSurfaceSummary summary = scenario.summary();
 			if (summary.poweredSourceApiReady()) {
 				ready++;
+			}
+			if (summary.poweredSourcePhysicalContractReady()) {
+				physicalReady++;
 			}
 			if (summary.poweredSourceExecutorWiringAllowed()) {
 				executor++;
@@ -413,8 +503,11 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 			}
 			maxBase = Math.max(maxBase, summary.baseCapabilityCount());
 			maxPowered = Math.max(maxPowered, summary.poweredSourceApiSurfaceCount());
+			maxPhysical = Math.max(maxPhysical, summary.poweredSourcePhysicalContractCount());
 			maxMissingBase = Math.max(maxMissingBase, missingCount(summary.missingBaseCapabilityList()));
 			maxMissingPowered = Math.max(maxMissingPowered, missingCount(summary.missingPoweredSourceApiList()));
+			maxMissingPhysical = Math.max(maxMissingPhysical,
+					missingCount(summary.missingPoweredSourcePhysicalContractList()));
 		}
 		return new PoweredSourceApiSurfaceExtrema(
 				scenarios.size(),
@@ -422,8 +515,11 @@ public final class Aerodynamics4McL2PoweredSourceApiSurfaceAudit {
 				scenarios.size() - ready,
 				maxBase,
 				maxPowered,
+				maxPhysical,
 				maxMissingBase,
 				maxMissingPowered,
+				maxMissingPhysical,
+				physicalReady,
 				runtime,
 				gameplay,
 				executor

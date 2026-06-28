@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceApiSurfaceAuditTest {
 
 		assertEquals("A4MC-L2-Powered-Source-API-Surface-Audit-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("never fabricates rotor source output"));
-		assertEquals(101, audit.packetMetricRowCount());
-		assertEquals(6, audit.sourceReferenceCount());
+		assertEquals(132, audit.packetMetricRowCount());
+		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(3, audit.scenarioSampleCount());
-		assertEquals(28, audit.scenarioMetricCount());
-		assertEquals(10, audit.summaryMetricRowCount());
+		assertEquals(37, audit.scenarioMetricCount());
+		assertEquals(13, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(3, audit.scenarios().size());
 
@@ -45,12 +45,21 @@ class Aerodynamics4McL2PoweredSourceApiSurfaceAuditTest {
 		assertFalse(current.sourceTermRuntimeResultAvailable());
 		assertEquals(0, current.poweredSourceApiSurfaceCount());
 		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
+		assertFalse(current.sourceTermUnitsApiAvailable());
+		assertFalse(current.sourceTermBodyFrameApiAvailable());
+		assertFalse(current.sourceTermTemporalApiAvailable());
+		assertFalse(current.runtimeForceMomentDeltaApiAvailable());
+		assertFalse(current.runtimeConservationResidualApiAvailable());
+		assertEquals(0, current.poweredSourcePhysicalContractCount());
+		assertEquals(5, current.requiredPoweredSourcePhysicalContractCount());
+		assertFalse(current.poweredSourcePhysicalContractReady());
 		assertFalse(current.poweredSourceApiReady());
 		assertFalse(current.poweredSourceExecutorWiringAllowed());
 		assertFalse(current.runtimeCouplingAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
 		assertEquals("none", current.missingBaseCapabilityList());
 		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
+		assertTrue(current.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 		assertEquals("none", current.discoveredRequestExtensionMethods());
 		assertEquals("none", current.discoveredResultExtensionMethods());
 		assertEquals("62a52a584e9c65246e50226b29a1f0449e43995e", current.upstreamReferenceCommit());
@@ -69,14 +78,23 @@ class Aerodynamics4McL2PoweredSourceApiSurfaceAuditTest {
 				find(audit.scenarios(), "synthetic_powered_source_api_ready").summary();
 		assertEquals(6, ready.baseCapabilityCount());
 		assertEquals(5, ready.poweredSourceApiSurfaceCount());
+		assertTrue(ready.sourceTermUnitsApiAvailable());
+		assertTrue(ready.sourceTermBodyFrameApiAvailable());
+		assertTrue(ready.sourceTermTemporalApiAvailable());
+		assertTrue(ready.runtimeForceMomentDeltaApiAvailable());
+		assertTrue(ready.runtimeConservationResidualApiAvailable());
+		assertEquals(5, ready.poweredSourcePhysicalContractCount());
+		assertEquals(5, ready.requiredPoweredSourcePhysicalContractCount());
+		assertTrue(ready.poweredSourcePhysicalContractReady());
 		assertTrue(ready.poweredSourceApiReady());
 		assertTrue(ready.poweredSourceExecutorWiringAllowed());
 		assertFalse(ready.runtimeCouplingAllowed());
 		assertFalse(ready.gameplayAutoApplyAllowed());
 		assertEquals("none", ready.missingBaseCapabilityList());
 		assertEquals("none", ready.missingPoweredSourceApiList());
-		assertTrue(ready.discoveredRequestExtensionMethods().contains("bodyForceSource"));
-		assertTrue(ready.discoveredResultExtensionMethods().contains("poweredSourceForceMomentDelta"));
+		assertEquals("none", ready.missingPoweredSourcePhysicalContractList());
+		assertTrue(ready.discoveredRequestExtensionMethods().contains("bodyForceSourceNewtons"));
+		assertTrue(ready.discoveredResultExtensionMethods().contains("poweredSourceForceMomentDeltaNewtons"));
 		assertEquals("READY", ready.status());
 		assertEquals("powered-source-api-surface-ready", ready.message());
 
@@ -85,8 +103,11 @@ class Aerodynamics4McL2PoweredSourceApiSurfaceAuditTest {
 		assertEquals(2, audit.extrema().blockedScenarioCount());
 		assertEquals(6, audit.extrema().maxBaseCapabilityCount());
 		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
+		assertEquals(5, audit.extrema().maxPoweredSourcePhysicalContractCount());
 		assertEquals(6, audit.extrema().maxMissingBaseCapabilityCount());
 		assertEquals(5, audit.extrema().maxMissingPoweredSourceApiCount());
+		assertEquals(5, audit.extrema().maxMissingPoweredSourcePhysicalContractCount());
+		assertEquals(1, audit.extrema().physicalContractReadyScenarioCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
 		assertEquals(1, audit.extrema().executorWiringAllowedCount());
@@ -120,7 +141,11 @@ class Aerodynamics4McL2PoweredSourceApiSurfaceAuditTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_api_surface_audit_summary,all_scenarios,ready_scenario_count,1,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_api_surface_audit_summary,all_scenarios,physical_contract_ready_scenario_count,1,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_api_surface_audit_scenario,current_a4mc_l2_surface,powered_source_api_ready,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_api_surface_audit_scenario,current_a4mc_l2_surface,powered_source_physical_contract_ready,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_api_surface_audit_scenario,synthetic_powered_source_api_ready,powered_source_api_ready,true,")));
 	}
