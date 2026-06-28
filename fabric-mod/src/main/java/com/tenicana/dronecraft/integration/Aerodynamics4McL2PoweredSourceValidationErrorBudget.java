@@ -1,7 +1,9 @@
 package com.tenicana.dronecraft.integration;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
@@ -11,8 +13,8 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 	public static final int SOURCE_REFERENCE_COUNT = 6;
 	public static final int GROUP_SAMPLE_COUNT = 2;
 	public static final int EXPECTED_PRESET_COUNT = 4;
-	public static final int GROUP_METRIC_COUNT = 26;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
+	public static final int GROUP_METRIC_COUNT = 28;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 13;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ GROUP_SAMPLE_COUNT * GROUP_METRIC_COUNT
@@ -32,6 +34,8 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 			int validationInvokedCount,
 			int validationPassedCount,
 			int skippedValidationRunCount,
+			int skippedValidationBlockerCount,
+			String dominantSkippedValidationMessage,
 			int failedValidationRunCount,
 			int acceptanceCandidateCount,
 			int missingPresetCount,
@@ -59,6 +63,7 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 			int maxMissingPresetCount,
 			int maxUnexpectedPresetCount,
 			int maxSkippedValidationRunCount,
+			int maxSkippedValidationBlockerCount,
 			int maxFailedValidationRunCount,
 			double maxForceErrorRatio,
 			double maxForceErrorNewtons,
@@ -139,6 +144,7 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 		int invoked = 0;
 		int passed = 0;
 		int skipped = 0;
+		int skippedBlockers = 0;
 		int failed = 0;
 		int candidates = 0;
 		int unexpected = 0;
@@ -148,6 +154,9 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 		double centerError = 0.0;
 		double targetForceSum = 0.0;
 		double targetMomentSum = 0.0;
+		Map<String, Integer> skippedMessages = new HashMap<>();
+		String dominantSkippedMessage = "none";
+		int dominantSkippedMessageCount = 0;
 		String validationPacketId = "hover".equals(spinState)
 				? Aerodynamics4McL2PoweredHoverValidation.SOURCE_ID
 				: Aerodynamics4McL2PoweredCruiseValidation.SOURCE_ID;
@@ -187,6 +196,15 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 			}
 			if ("SKIPPED".equals(run.status())) {
 				skipped++;
+				String skippedMessage = normalizeMessage(run.message());
+				if (!"none".equals(skippedMessage)) {
+					skippedBlockers++;
+					int messageCount = skippedMessages.merge(skippedMessage, 1, Integer::sum);
+					if (messageCount > dominantSkippedMessageCount) {
+						dominantSkippedMessage = skippedMessage;
+						dominantSkippedMessageCount = messageCount;
+					}
+				}
 			}
 			if ("FAILED".equals(run.status())) {
 				failed++;
@@ -222,6 +240,8 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 				invoked,
 				passed,
 				skipped,
+				skippedBlockers,
+				dominantSkippedMessage,
 				failed,
 				candidates,
 				missing,
@@ -238,7 +258,7 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 				average(targetMomentSum, observedCount),
 				candidate,
 				candidate ? "READY" : "BLOCKED",
-				messageFor(allPresent, allReady, allPassed, allCandidates)
+				messageFor(allPresent, allReady, allPassed, allCandidates, dominantSkippedMessage)
 		);
 	}
 
@@ -246,12 +266,17 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 			boolean allPresent,
 			boolean allReady,
 			boolean allPassed,
-			boolean allCandidates
+			boolean allCandidates,
+			String dominantSkippedMessage
 	) {
 		if (!allPresent) {
 			return "validation-run-set-incomplete";
 		}
 		if (!allReady) {
+			if (dominantSkippedMessage != null && !dominantSkippedMessage.isBlank()
+					&& !"none".equals(dominantSkippedMessage)) {
+				return dominantSkippedMessage;
+			}
 			return "validation-seeds-not-ready";
 		}
 		if (!allPassed) {
@@ -270,6 +295,7 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 		int maxMissing = 0;
 		int maxUnexpected = 0;
 		int maxSkipped = 0;
+		int maxSkippedBlockers = 0;
 		int maxFailed = 0;
 		double maxForceRatio = 0.0;
 		double maxForceError = 0.0;
@@ -283,6 +309,7 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 			maxMissing = Math.max(maxMissing, group.missingPresetCount());
 			maxUnexpected = Math.max(maxUnexpected, group.unexpectedPresetCount());
 			maxSkipped = Math.max(maxSkipped, group.skippedValidationRunCount());
+			maxSkippedBlockers = Math.max(maxSkippedBlockers, group.skippedValidationBlockerCount());
 			maxFailed = Math.max(maxFailed, group.failedValidationRunCount());
 			maxForceRatio = Math.max(maxForceRatio, group.maxForceErrorRatio());
 			maxForceError = Math.max(maxForceError, group.maxForceErrorNewtons());
@@ -297,6 +324,7 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 				maxMissing,
 				maxUnexpected,
 				maxSkipped,
+				maxSkippedBlockers,
 				maxFailed,
 				maxForceRatio,
 				maxForceError,
@@ -308,6 +336,10 @@ public final class Aerodynamics4McL2PoweredSourceValidationErrorBudget {
 
 	private static Set<String> expectedPresetNames() {
 		return Set.of("racingQuad", "apDrone", "cinewhoop", "heavyLift");
+	}
+
+	private static String normalizeMessage(String message) {
+		return message == null || message.isBlank() ? "none" : message;
 	}
 
 	private static double average(double sum, int count) {

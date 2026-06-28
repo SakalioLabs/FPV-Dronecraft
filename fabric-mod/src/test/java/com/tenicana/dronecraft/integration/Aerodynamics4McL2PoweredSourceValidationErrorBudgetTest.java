@@ -17,16 +17,16 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 	@Test
 	void auditBuildsCurrentBlockedValidationErrorBudgets() {
 		Aerodynamics4McL2PoweredSourceValidationErrorBudget.PoweredSourceValidationErrorBudgetAudit audit =
-				Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit();
+				Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit(getClass().getClassLoader());
 
 		assertEquals("A4MC-L2-Powered-Source-Validation-Error-Budget-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not provide gameplay"));
-		assertEquals(71, audit.packetMetricRowCount());
+		assertEquals(76, audit.packetMetricRowCount());
 		assertEquals(6, audit.sourceReferenceCount());
 		assertEquals(2, audit.groupSampleCount());
 		assertEquals(4, audit.expectedPresetCount());
-		assertEquals(26, audit.groupMetricCount());
-		assertEquals(12, audit.summaryMetricRowCount());
+		assertEquals(28, audit.groupMetricCount());
+		assertEquals(13, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(2, audit.groups().size());
 
@@ -39,6 +39,8 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 			assertEquals(0, group.validationInvokedCount());
 			assertEquals(0, group.validationPassedCount());
 			assertEquals(4, group.skippedValidationRunCount());
+			assertEquals(4, group.skippedValidationBlockerCount());
+			assertEquals("powered-source-api-surface-missing", group.dominantSkippedValidationMessage());
 			assertEquals(0, group.failedValidationRunCount());
 			assertEquals(0, group.acceptanceCandidateCount());
 			assertEquals(0, group.missingPresetCount());
@@ -55,7 +57,7 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 			assertTrue(group.meanTargetMomentMagnitudeNewtonMeters() >= 0.0);
 			assertFalse(group.validationBudgetCandidate());
 			assertEquals("BLOCKED", group.status());
-			assertEquals("validation-seeds-not-ready", group.message());
+			assertEquals("powered-source-api-surface-missing", group.message());
 		}
 
 		assertEquals(2, audit.extrema().groupCount());
@@ -64,6 +66,7 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 		assertEquals(0, audit.extrema().maxMissingPresetCount());
 		assertEquals(0, audit.extrema().maxUnexpectedPresetCount());
 		assertEquals(4, audit.extrema().maxSkippedValidationRunCount());
+		assertEquals(4, audit.extrema().maxSkippedValidationBlockerCount());
 		assertEquals(0, audit.extrema().maxFailedValidationRunCount());
 		assertEquals(0.0, audit.extrema().maxForceErrorRatio(), 1.0e-12);
 		assertTrue(audit.extrema().maxMeanTargetForceMagnitudeNewtons() > 0.0);
@@ -86,6 +89,8 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 		assertEquals(4, ready.validationPassedCount());
 		assertEquals(4, ready.acceptanceCandidateCount());
 		assertEquals(0, ready.skippedValidationRunCount());
+		assertEquals(0, ready.skippedValidationBlockerCount());
+		assertEquals("none", ready.dominantSkippedValidationMessage());
 		assertTrue(ready.allValidationSeedsReady());
 		assertTrue(ready.allValidationPassed());
 		assertTrue(ready.allAcceptanceCandidates());
@@ -145,7 +150,7 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 	@Test
 	void csvPacketRowCountMatchesAuditSummary() throws IOException {
 		Aerodynamics4McL2PoweredSourceValidationErrorBudget.PoweredSourceValidationErrorBudgetAudit audit =
-				Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit();
+				Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit(getClass().getClassLoader());
 		Path packet = findRepoRoot().resolve(
 				"docs/data/a4mc_l2_powered_source_validation_error_budget_packet.csv");
 		List<String> lines = Files.readAllLines(packet);
@@ -156,7 +161,9 @@ class Aerodynamics4McL2PoweredSourceValidationErrorBudgetTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_validation_error_budget,hover,skipped_validation_run_count,4,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_validation_error_budget,cruise,message,validation-seeds-not-ready,")));
+				line.startsWith("a4mc_l2_powered_source_validation_error_budget,hover,dominant_skipped_validation_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_validation_error_budget,cruise,message,powered-source-api-surface-missing,")));
 	}
 
 	private static List<Aerodynamics4McL2PoweredSourceValidationRunMatrix.PoweredSourceValidationRunSummary> currentRuns(
