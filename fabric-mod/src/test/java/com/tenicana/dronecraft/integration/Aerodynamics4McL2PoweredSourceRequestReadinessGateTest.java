@@ -21,11 +21,11 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Request-Readiness-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Gate remains closed"));
-		assertEquals(133, audit.packetMetricRowCount());
+		assertEquals(155, audit.packetMetricRowCount());
 		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(23, audit.scenarioMetricCount());
-		assertEquals(10, audit.summaryMetricRowCount());
+		assertEquals(27, audit.scenarioMetricCount());
+		assertEquals(12, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
@@ -37,6 +37,10 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		assertEquals(0, current.poweredSourceApiSurfaceCount());
 		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
 		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
+		assertFalse(current.poweredSourcePhysicalContractReady());
+		assertEquals(0, current.poweredSourcePhysicalContractCount());
+		assertEquals(5, current.requiredPoweredSourcePhysicalContractCount());
+		assertTrue(current.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 		assertFalse(current.poweredHoverAcceptanceGateOpen());
 		assertFalse(current.poweredCruiseAcceptanceGateOpen());
 		assertEquals(8, current.expectedRequestCount());
@@ -63,6 +67,9 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		assertEquals(5, ready.poweredSourceApiSurfaceCount());
 		assertEquals(5, ready.requiredPoweredSourceApiSurfaceCount());
 		assertEquals("none", ready.missingPoweredSourceApiList());
+		assertTrue(ready.poweredSourcePhysicalContractReady());
+		assertEquals(5, ready.poweredSourcePhysicalContractCount());
+		assertEquals("none", ready.missingPoweredSourcePhysicalContractList());
 		assertTrue(ready.poweredHoverAcceptanceGateOpen());
 		assertTrue(ready.poweredCruiseAcceptanceGateOpen());
 		assertEquals(8, ready.expectedRequestCount());
@@ -106,6 +113,8 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		assertEquals(4, audit.extrema().poweredSourceApiSurfaceReadyScenarioCount());
 		assertEquals(8, audit.extrema().maxExpectedRequestCount());
 		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
+		assertEquals(4, audit.extrema().poweredSourcePhysicalContractReadyScenarioCount());
+		assertEquals(5, audit.extrema().maxPoweredSourcePhysicalContractCount());
 		assertEquals(1, audit.extrema().maxMissingRequestCount());
 		assertEquals(0, audit.extrema().maxInvalidRequestCount());
 		assertEquals(0, audit.extrema().maxUnexpectedRequestCount());
@@ -127,6 +136,7 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary ready =
 				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(readyApiSurface, true, true, buildable);
 		assertTrue(ready.requestExecutionAllowed());
+		assertTrue(ready.poweredSourcePhysicalContractReady());
 
 		assertFalse(Aerodynamics4McL2PoweredSourceRequestReadinessGate
 				.gate(true, true, true, buildable).requestExecutionAllowed());
@@ -197,6 +207,8 @@ class Aerodynamics4McL2PoweredSourceRequestReadinessGateTest {
 				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,current_api_unavailable_requests_blocked,request_execution_allowed,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,current_api_unavailable_requests_blocked,powered_source_api_surface_ready,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,current_api_unavailable_requests_blocked,missing_powered_source_physical_contract_list,source_term_si_units;")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_readiness_scenario,api_available_acceptance_open_requests_buildable,request_execution_allowed,true,")));
 	}

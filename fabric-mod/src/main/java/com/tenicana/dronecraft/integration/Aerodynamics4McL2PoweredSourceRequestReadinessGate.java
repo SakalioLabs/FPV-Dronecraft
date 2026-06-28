@@ -7,11 +7,11 @@ import java.util.Set;
 public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Request-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"Gate remains closed until the A4MC powered-source API surface audit is ready, hover and cruise acceptance gates are open, and every powered-source request envelope is present, valid, API-backed, and buildable.";
+			"Gate remains closed until the A4MC powered-source API surface audit includes physical source-term contract readiness, hover and cruise acceptance gates are open, and every powered-source request envelope is present, valid, API-backed, and buildable.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_COUNT = 23;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 10;
+	public static final int SCENARIO_METRIC_COUNT = 27;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -28,6 +28,10 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 			int poweredSourceApiSurfaceCount,
 			int requiredPoweredSourceApiSurfaceCount,
 			String missingPoweredSourceApiList,
+			boolean poweredSourcePhysicalContractReady,
+			int poweredSourcePhysicalContractCount,
+			int requiredPoweredSourcePhysicalContractCount,
+			String missingPoweredSourcePhysicalContractList,
 			boolean poweredHoverAcceptanceGateOpen,
 			boolean poweredCruiseAcceptanceGateOpen,
 			int expectedRequestCount,
@@ -61,6 +65,8 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 			int poweredSourceApiSurfaceReadyScenarioCount,
 			int maxExpectedRequestCount,
 			int maxPoweredSourceApiSurfaceCount,
+			int poweredSourcePhysicalContractReadyScenarioCount,
+			int maxPoweredSourcePhysicalContractCount,
 			int maxMissingRequestCount,
 			int maxInvalidRequestCount,
 			int maxUnexpectedRequestCount,
@@ -233,6 +239,10 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 				apiSurface.poweredSourceApiSurfaceCount(),
 				apiSurface.requiredPoweredSourceApiSurfaceCount(),
 				apiSurface.missingPoweredSourceApiList(),
+				apiSurface.poweredSourcePhysicalContractReady(),
+				apiSurface.poweredSourcePhysicalContractCount(),
+				apiSurface.requiredPoweredSourcePhysicalContractCount(),
+				apiSurface.missingPoweredSourcePhysicalContractList(),
 				poweredHoverAcceptanceGateOpen,
 				poweredCruiseAcceptanceGateOpen,
 				expected.size(),
@@ -347,6 +357,8 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 		int apiSurfaceReady = 0;
 		int maxExpected = 0;
 		int maxPoweredSourceApiSurface = 0;
+		int physicalContractReady = 0;
+		int maxPhysicalContract = 0;
 		int maxMissing = 0;
 		int maxInvalid = 0;
 		int maxUnexpected = 0;
@@ -363,6 +375,10 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 			maxPoweredSourceApiSurface = Math.max(
 					maxPoweredSourceApiSurface,
 					summary.poweredSourceApiSurfaceCount());
+			if (summary.poweredSourcePhysicalContractReady()) {
+				physicalContractReady++;
+			}
+			maxPhysicalContract = Math.max(maxPhysicalContract, summary.poweredSourcePhysicalContractCount());
 			maxMissing = Math.max(maxMissing, summary.missingRequestCount());
 			maxInvalid = Math.max(maxInvalid, summary.invalidRequestCount());
 			maxUnexpected = Math.max(maxUnexpected, summary.unexpectedRequestCount());
@@ -375,6 +391,8 @@ public final class Aerodynamics4McL2PoweredSourceRequestReadinessGate {
 				apiSurfaceReady,
 				maxExpected,
 				maxPoweredSourceApiSurface,
+				physicalContractReady,
+				maxPhysicalContract,
 				maxMissing,
 				maxInvalid,
 				maxUnexpected,

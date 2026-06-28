@@ -20,20 +20,21 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Request-Blocker-Report-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not build A4MC requests"));
-		assertEquals(151, audit.packetMetricRowCount());
+		assertEquals(173, audit.packetMetricRowCount());
 		assertEquals(6, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(26, audit.scenarioMetricCount());
-		assertEquals(14, audit.summaryMetricRowCount());
+		assertEquals(30, audit.scenarioMetricCount());
+		assertEquals(16, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
 		Aerodynamics4McL2PoweredSourceRequestBlockerReport.PoweredSourceRequestBlockerSummary current =
 				find(audit.scenarios(), "current_api_unavailable_requests_blocked").summary();
 		assertFalse(current.requestExecutionAllowed());
-		assertEquals(5, current.blockerCount());
+		assertEquals(6, current.blockerCount());
 		assertTrue(current.poweredSourceApiBlocker());
 		assertTrue(current.poweredSourceApiSurfaceBlocker());
+		assertTrue(current.poweredSourcePhysicalContractBlocker());
 		assertTrue(current.hoverAcceptanceGateBlocker());
 		assertTrue(current.cruiseAcceptanceGateBlocker());
 		assertFalse(current.requestPresenceBlocker());
@@ -51,6 +52,9 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertEquals(0, current.poweredSourceApiSurfaceCount());
 		assertEquals(5, current.requiredPoweredSourceApiSurfaceCount());
 		assertTrue(current.missingPoweredSourceApiList().contains("body_force_source_api"));
+		assertEquals(0, current.poweredSourcePhysicalContractCount());
+		assertEquals(5, current.requiredPoweredSourcePhysicalContractCount());
+		assertTrue(current.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 		assertEquals(4, current.hoverRequestCount());
 		assertEquals(4, current.cruiseRequestCount());
 		assertEquals("wait-for-powered-source-api-surface", current.nextRequiredAction());
@@ -62,8 +66,11 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertTrue(ready.requestExecutionAllowed());
 		assertEquals(0, ready.blockerCount());
 		assertFalse(ready.poweredSourceApiSurfaceBlocker());
+		assertFalse(ready.poweredSourcePhysicalContractBlocker());
 		assertEquals(5, ready.poweredSourceApiSurfaceCount());
 		assertEquals("none", ready.missingPoweredSourceApiList());
+		assertEquals(5, ready.poweredSourcePhysicalContractCount());
+		assertEquals("none", ready.missingPoweredSourcePhysicalContractList());
 		assertEquals("powered-source-requests-ready-for-live-executor", ready.nextRequiredAction());
 		assertEquals("READY", ready.status());
 
@@ -91,9 +98,10 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().readyScenarioCount());
 		assertEquals(4, audit.extrema().blockedScenarioCount());
-		assertEquals(5, audit.extrema().maxBlockerCount());
+		assertEquals(6, audit.extrema().maxBlockerCount());
 		assertEquals(1, audit.extrema().poweredSourceApiBlockerScenarioCount());
 		assertEquals(1, audit.extrema().poweredSourceApiSurfaceBlockerScenarioCount());
+		assertEquals(1, audit.extrema().poweredSourcePhysicalContractBlockerScenarioCount());
 		assertEquals(2, audit.extrema().hoverAcceptanceGateBlockerScenarioCount());
 		assertEquals(1, audit.extrema().cruiseAcceptanceGateBlockerScenarioCount());
 		assertEquals(1, audit.extrema().requestPresenceBlockerScenarioCount());
@@ -102,6 +110,36 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertEquals(0, audit.extrema().invalidRequestBlockerScenarioCount());
 		assertEquals(0, audit.extrema().unexpectedRequestBlockerScenarioCount());
 		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
+		assertEquals(5, audit.extrema().maxPoweredSourcePhysicalContractCount());
+	}
+
+	@Test
+	void reportSeparatesPhysicalContractFromNamedSourceExtensionPoints() {
+		List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> buildable =
+				Aerodynamics4McL2PoweredSourceRequestPlan.audit().requests().stream()
+						.map(request -> copy(request, true, true))
+						.toList();
+		Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary missingContract =
+				Aerodynamics4McL2PoweredSourceRequestReadinessGate.gate(
+						apiSurfaceWithoutPhysicalContract(),
+						true,
+						true,
+						buildable);
+
+		Aerodynamics4McL2PoweredSourceRequestBlockerReport.PoweredSourceRequestBlockerSummary report =
+				Aerodynamics4McL2PoweredSourceRequestBlockerReport.report(missingContract);
+
+		assertFalse(report.requestExecutionAllowed());
+		assertTrue(report.poweredSourceApiBlocker());
+		assertFalse(report.poweredSourceApiSurfaceBlocker());
+		assertTrue(report.poweredSourcePhysicalContractBlocker());
+		assertFalse(report.requestBuildBlocker());
+		assertFalse(report.requestApiBlocker());
+		assertEquals(1, report.blockerCount());
+		assertEquals("wait-for-powered-source-physical-contract", report.nextRequiredAction());
+		assertEquals("source_term_si_units;source_term_body_frame;source_term_time_step_or_substep;"
+						+ "runtime_force_moment_delta_result;runtime_momentum_conservation_residual",
+				report.missingPoweredSourcePhysicalContractList());
 	}
 
 	@Test
@@ -110,6 +148,10 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 				new Aerodynamics4McL2PoweredSourceRequestReadinessGate.PoweredSourceRequestReadinessSummary(
 						true,
 						true,
+						true,
+						5,
+						5,
+						"none",
 						true,
 						5,
 						5,
@@ -142,6 +184,7 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 		assertTrue(report.unexpectedRequestBlocker());
 		assertFalse(report.poweredSourceApiBlocker());
 		assertFalse(report.poweredSourceApiSurfaceBlocker());
+		assertFalse(report.poweredSourcePhysicalContractBlocker());
 		assertFalse(report.requestBuildBlocker());
 		assertEquals("repair-request-envelope-identity-and-physical-shape", report.nextRequiredAction());
 	}
@@ -163,11 +206,13 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 
 		assertEquals(audit.packetMetricRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_request_blocker_report_summary,all_scenarios,max_blocker_count,5,")));
+				line.startsWith("a4mc_l2_powered_source_request_blocker_report_summary,all_scenarios,max_blocker_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,current_api_unavailable_requests_blocked,blocker_count,5,")));
+				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,current_api_unavailable_requests_blocked,blocker_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,current_api_unavailable_requests_blocked,powered_source_api_surface_blocker,true,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,current_api_unavailable_requests_blocked,powered_source_physical_contract_blocker,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_request_blocker_report_scenario,api_available_acceptance_open_requests_buildable,request_execution_allowed,true,")));
 	}
@@ -180,6 +225,78 @@ class Aerodynamics4McL2PoweredSourceRequestBlockerReportTest {
 				.filter(scenario -> name.equals(scenario.scenarioName()))
 				.findFirst()
 				.orElseThrow();
+	}
+
+	private static Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest copy(
+			Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest request,
+			boolean poweredSourceApiAvailable,
+			boolean requestBuildAllowed
+	) {
+		return new Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest(
+				request.presetName(),
+				request.spinState(),
+				request.sourceMapId(),
+				request.validationPacketId(),
+				request.acceptanceGatePacketId(),
+				request.rotorCount(),
+				request.sourceTermCount(),
+				request.nx(),
+				request.ny(),
+				request.nz(),
+				request.gridCellCount(),
+				request.cellSizeMeters(),
+				request.steps(),
+				request.inletVxMetersPerSecond(),
+				request.inletVyMetersPerSecond(),
+				request.inletVzMetersPerSecond(),
+				request.inletSpeedMetersPerSecond(),
+				request.spinRatio(),
+				request.totalThrustNewtons(),
+				request.thrustToWeight(),
+				request.totalOpenAreaSquareMeters(),
+				request.meanPressureJumpPascals(),
+				request.maxPressureJumpPascals(),
+				request.netForceXNewtons(),
+				request.netForceYNewtons(),
+				request.netForceZNewtons(),
+				request.netForceMagnitudeNewtons(),
+				request.netMomentXNewtonMeters(),
+				request.netMomentYNewtonMeters(),
+				request.netMomentZNewtonMeters(),
+				request.netMomentMagnitudeNewtonMeters(),
+				request.centerOfThrustOffsetMeters(),
+				request.baselineForceMomentRequest(),
+				request.poweredSourceApiRequired(),
+				poweredSourceApiAvailable,
+				requestBuildAllowed,
+				requestBuildAllowed ? "test-buildable" : request.runtimeInfo()
+		);
+	}
+
+	private static Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary apiSurfaceWithoutPhysicalContract() {
+		return Aerodynamics4McL2PoweredSourceApiSurfaceAudit.summary(
+				new Aerodynamics4McL2Bridge.L2Capabilities(
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						"synthetic request source extension points without physical contract"),
+				List.of(
+						"bodyForceSource",
+						"porousSource",
+						"rotorSourceTerm",
+						"sourceEnvelope"),
+				List.of("sourceRuntimeDelta"),
+				"synthetic-request-source-extension-points-without-physical-contract");
 	}
 
 	private static Path findRepoRoot() {
