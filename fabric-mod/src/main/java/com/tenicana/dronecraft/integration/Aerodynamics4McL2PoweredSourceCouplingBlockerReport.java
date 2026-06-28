@@ -5,12 +5,12 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Blocker-Report-Packet";
 	public static final String CAVEAT =
-			"Blocker report decomposes the final powered-source coupling gate, including API-surface and physical source-term contract readiness, into audit reasons only; it does not enable runtime coupling or mutate gameplay configuration.";
+			"Blocker report decomposes the final powered-source coupling gate, including API-surface, physical source-term contract readiness, and upstream acceptance-budget blocker provenance, into audit reasons only; it does not enable runtime coupling or mutate gameplay configuration.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT =
 			Aerodynamics4McL2PoweredSourceCouplingReadinessGate.SCENARIO_SAMPLE_COUNT;
-	public static final int SCENARIO_METRIC_COUNT = 37;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
+	public static final int SCENARIO_METRIC_COUNT = 41;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 17;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -42,6 +42,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			boolean cruiseValidationBudgetCandidate,
 			int validationBudgetCandidateCount,
 			int expectedValidationBudgetGroupCount,
+			int acceptanceHandoffBlockerMessageCount,
+			String dominantAcceptanceHandoffMessage,
+			int validationBudgetBlockerMessageCount,
+			String dominantValidationBudgetMessage,
 			int policyCount,
 			int runtimeMutationAllowedPolicyCount,
 			int poweredSourceApiSurfaceCount,
@@ -81,6 +85,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			int gameplayCouplingBlockerScenarioCount,
 			int solidDiskMaskBlockerScenarioCount,
 			int rotorDiskMaskPolicyBlockerScenarioCount,
+			int maxAcceptanceHandoffBlockerMessageCount,
+			int maxValidationBudgetBlockerMessageCount,
 			int maxPoweredSourceApiSurfaceCount,
 			int maxPoweredSourcePhysicalContractCount
 	) {
@@ -189,6 +195,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				readiness.cruiseValidationBudgetCandidate(),
 				readiness.validationBudgetCandidateCount(),
 				readiness.expectedValidationBudgetGroupCount(),
+				readiness.acceptanceHandoffBlockerMessageCount(),
+				readiness.dominantAcceptanceHandoffMessage(),
+				readiness.validationBudgetBlockerMessageCount(),
+				readiness.dominantValidationBudgetMessage(),
 				readiness.policyCount(),
 				readiness.runtimeMutationAllowedPolicyCount(),
 				readiness.poweredSourceApiSurfaceCount(),
@@ -279,6 +289,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 		int gameplay = 0;
 		int solid = 0;
 		int rotorMask = 0;
+		int maxHandoffMessages = 0;
+		int maxBudgetMessages = 0;
 		int maxApiSurface = 0;
 		int maxPhysical = 0;
 		for (PoweredSourceCouplingBlockerScenario scenario : scenarios) {
@@ -314,6 +326,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			if (summary.rotorDiskMaskPolicyBlocker()) {
 				rotorMask++;
 			}
+			maxHandoffMessages = Math.max(
+					maxHandoffMessages,
+					summary.acceptanceHandoffBlockerMessageCount());
+			maxBudgetMessages = Math.max(maxBudgetMessages, summary.validationBudgetBlockerMessageCount());
 			maxApiSurface = Math.max(maxApiSurface, summary.poweredSourceApiSurfaceCount());
 			maxPhysical = Math.max(maxPhysical, summary.poweredSourcePhysicalContractCount());
 		}
@@ -331,6 +347,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				gameplay,
 				solid,
 				rotorMask,
+				maxHandoffMessages,
+				maxBudgetMessages,
 				maxApiSurface,
 				maxPhysical
 		);

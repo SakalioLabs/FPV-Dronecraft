@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Blocker-Report-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not enable runtime coupling"));
-		assertEquals(208, audit.packetMetricRowCount());
+		assertEquals(230, audit.packetMetricRowCount());
 		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(37, audit.scenarioMetricCount());
-		assertEquals(15, audit.summaryMetricRowCount());
+		assertEquals(41, audit.scenarioMetricCount());
+		assertEquals(17, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
@@ -51,6 +51,10 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertEquals(2, current.expectedHandoffCount());
 		assertEquals(0, current.validationBudgetCandidateCount());
 		assertEquals(2, current.expectedValidationBudgetGroupCount());
+		assertEquals(2, current.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantAcceptanceHandoffMessage());
+		assertEquals(2, current.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantValidationBudgetMessage());
 		assertEquals(4, current.policyCount());
 		assertEquals(0, current.runtimeMutationAllowedPolicyCount());
 		assertEquals(0, current.poweredSourceApiSurfaceCount());
@@ -72,6 +76,10 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertFalse(handoffsOnly.acceptanceHandoffBlocker());
 		assertFalse(handoffsOnly.validationBudgetBlocker());
 		assertTrue(handoffsOnly.acceptanceBudgetGateReady());
+		assertEquals(0, handoffsOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", handoffsOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(0, handoffsOnly.validationBudgetBlockerMessageCount());
+		assertEquals("none", handoffsOnly.dominantValidationBudgetMessage());
 		assertTrue(handoffsOnly.poweredSourceApiSurfaceBlocker());
 		assertTrue(handoffsOnly.poweredSourcePhysicalContractBlocker());
 		assertTrue(handoffsOnly.poweredSourceApiBlocker());
@@ -83,6 +91,10 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertEquals(4, policyOnly.blockerCount());
 		assertTrue(policyOnly.acceptanceHandoffBlocker());
 		assertTrue(policyOnly.validationBudgetBlocker());
+		assertEquals(2, policyOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", policyOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(2, policyOnly.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", policyOnly.dominantValidationBudgetMessage());
 		assertTrue(policyOnly.poweredSourceApiSurfaceBlocker());
 		assertTrue(policyOnly.poweredSourcePhysicalContractBlocker());
 		assertFalse(policyOnly.poweredSourceApiBlocker());
@@ -101,6 +113,10 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 				find(audit.scenarios(), "handoffs_policy_and_api_surface_ready").summary();
 		assertTrue(ready.runtimePoweredSourceCouplingAllowed());
 		assertEquals(0, ready.blockerCount());
+		assertEquals(0, ready.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", ready.dominantAcceptanceHandoffMessage());
+		assertEquals(0, ready.validationBudgetBlockerMessageCount());
+		assertEquals("none", ready.dominantValidationBudgetMessage());
 		assertFalse(ready.poweredSourceApiSurfaceBlocker());
 		assertFalse(ready.poweredSourcePhysicalContractBlocker());
 		assertEquals(5, ready.poweredSourceApiSurfaceCount());
@@ -125,6 +141,8 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertEquals(2, audit.extrema().gameplayCouplingBlockerScenarioCount());
 		assertEquals(0, audit.extrema().solidDiskMaskBlockerScenarioCount());
 		assertEquals(0, audit.extrema().rotorDiskMaskPolicyBlockerScenarioCount());
+		assertEquals(2, audit.extrema().maxAcceptanceHandoffBlockerMessageCount());
+		assertEquals(2, audit.extrema().maxValidationBudgetBlockerMessageCount());
 		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
 		assertEquals(5, audit.extrema().maxPoweredSourcePhysicalContractCount());
 	}
@@ -200,6 +218,10 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_summary,all_scenarios,max_blocker_count,7,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,blocker_count,7,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,dominant_acceptance_handoff_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,policy_ready_handoffs_blocked,dominant_validation_budget_message,powered-source-api-surface-missing,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,handoffs_and_policy_ready,powered_source_api_surface_blocker,true,")));
 		assertTrue(lines.stream().anyMatch(line ->

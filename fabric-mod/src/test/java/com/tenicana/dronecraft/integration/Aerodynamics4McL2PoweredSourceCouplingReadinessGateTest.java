@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Runtime powered-source coupling remains closed"));
-		assertEquals(222, audit.packetMetricRowCount());
+		assertEquals(244, audit.packetMetricRowCount());
 		assertEquals(8, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(40, audit.scenarioMetricCount());
-		assertEquals(13, audit.summaryMetricRowCount());
+		assertEquals(44, audit.scenarioMetricCount());
+		assertEquals(15, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
@@ -42,6 +42,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(2, current.validationBudgetGroupCount());
 		assertEquals(0, current.validationBudgetCandidateCount());
 		assertEquals(2, current.expectedValidationBudgetGroupCount());
+		assertEquals(2, current.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantAcceptanceHandoffMessage());
+		assertEquals(2, current.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", current.dominantValidationBudgetMessage());
 		assertFalse(current.poweredSourceApiSurfaceReady());
 		assertFalse(current.poweredSourceExecutorWiringAllowed());
 		assertEquals(0, current.poweredSourceApiSurfaceCount());
@@ -76,6 +80,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertTrue(handoffsOnly.acceptanceBudgetGateReady());
 		assertTrue(handoffsOnly.allValidationBudgetsReady());
 		assertEquals(2, handoffsOnly.validationBudgetCandidateCount());
+		assertEquals(0, handoffsOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", handoffsOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(0, handoffsOnly.validationBudgetBlockerMessageCount());
+		assertEquals("none", handoffsOnly.dominantValidationBudgetMessage());
 		assertFalse(handoffsOnly.poweredSourceApiSurfaceReady());
 		assertFalse(handoffsOnly.allPoliciesRuntimeAllowed());
 		assertFalse(handoffsOnly.runtimePoweredSourceCouplingAllowed());
@@ -85,6 +93,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertFalse(policyOnly.allHandoffsReady());
 		assertFalse(policyOnly.acceptanceBudgetGateReady());
 		assertFalse(policyOnly.allValidationBudgetsReady());
+		assertEquals(2, policyOnly.acceptanceHandoffBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", policyOnly.dominantAcceptanceHandoffMessage());
+		assertEquals(2, policyOnly.validationBudgetBlockerMessageCount());
+		assertEquals("powered-source-api-surface-missing", policyOnly.dominantValidationBudgetMessage());
 		assertFalse(policyOnly.poweredSourceApiSurfaceReady());
 		assertTrue(policyOnly.allPoliciesRuntimeAllowed());
 		assertTrue(policyOnly.hoverAndCruiseCouplingAllowed());
@@ -94,6 +106,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 				find(audit.scenarios(), "handoffs_and_policy_ready").summary();
 		assertTrue(surfaceBlocked.allHandoffsReady());
 		assertTrue(surfaceBlocked.acceptanceBudgetGateReady());
+		assertEquals(0, surfaceBlocked.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", surfaceBlocked.dominantAcceptanceHandoffMessage());
+		assertEquals(0, surfaceBlocked.validationBudgetBlockerMessageCount());
+		assertEquals("none", surfaceBlocked.dominantValidationBudgetMessage());
 		assertTrue(surfaceBlocked.allPoliciesRuntimeAllowed());
 		assertFalse(surfaceBlocked.poweredSourceApiSurfaceReady());
 		assertFalse(surfaceBlocked.runtimePoweredSourceCouplingAllowed());
@@ -103,6 +119,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertTrue(ready.allHandoffsReady());
 		assertTrue(ready.acceptanceBudgetGateReady());
 		assertTrue(ready.allValidationBudgetsReady());
+		assertEquals(0, ready.acceptanceHandoffBlockerMessageCount());
+		assertEquals("none", ready.dominantAcceptanceHandoffMessage());
+		assertEquals(0, ready.validationBudgetBlockerMessageCount());
+		assertEquals("none", ready.dominantValidationBudgetMessage());
 		assertTrue(ready.poweredSourceApiSurfaceReady());
 		assertTrue(ready.poweredSourceExecutorWiringAllowed());
 		assertEquals(5, ready.poweredSourceApiSurfaceCount());
@@ -123,6 +143,8 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(4, audit.extrema().blockedScenarioCount());
 		assertEquals(2, audit.extrema().maxReadyHandoffCount());
 		assertEquals(2, audit.extrema().maxValidationBudgetCandidateCount());
+		assertEquals(2, audit.extrema().maxAcceptanceHandoffBlockerMessageCount());
+		assertEquals(2, audit.extrema().maxValidationBudgetBlockerMessageCount());
 		assertEquals(4, audit.extrema().maxRuntimeMutationAllowedPolicyCount());
 		assertEquals(4, audit.extrema().maxPolicyCount());
 		assertEquals(0, audit.extrema().maxSolidDiskMaskAllowedPolicyCount());
@@ -219,6 +241,10 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_summary,all_scenarios,allowed_scenario_count,1,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,current_handoff_and_policy_blocked,runtime_powered_source_coupling_allowed,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,current_handoff_and_policy_blocked,dominant_acceptance_handoff_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,policy_ready_handoffs_blocked,dominant_validation_budget_message,powered-source-api-surface-missing,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_readiness_scenario,handoffs_and_policy_ready,powered_source_api_surface_ready,false,")));
 		assertTrue(lines.stream().anyMatch(line ->

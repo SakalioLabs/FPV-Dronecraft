@@ -5,11 +5,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"Runtime powered-source coupling remains closed until the API surface audit includes physical source-term contract readiness, the acceptance budget gate is ready, and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
+			"Runtime powered-source coupling remains closed until the API surface audit includes physical source-term contract readiness, the acceptance budget gate is ready, and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed; blocked rows preserve upstream acceptance-budget blocker provenance.";
 	public static final int SOURCE_REFERENCE_COUNT = 8;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_COUNT = 40;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 13;
+	public static final int SCENARIO_METRIC_COUNT = 44;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -32,6 +32,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int validationBudgetGroupCount,
 			int validationBudgetCandidateCount,
 			int expectedValidationBudgetGroupCount,
+			int acceptanceHandoffBlockerMessageCount,
+			String dominantAcceptanceHandoffMessage,
+			int validationBudgetBlockerMessageCount,
+			String dominantValidationBudgetMessage,
 			boolean poweredSourceApiSurfaceReady,
 			boolean poweredSourceExecutorWiringAllowed,
 			int poweredSourceApiSurfaceCount,
@@ -75,6 +79,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int blockedScenarioCount,
 			int maxReadyHandoffCount,
 			int maxValidationBudgetCandidateCount,
+			int maxAcceptanceHandoffBlockerMessageCount,
+			int maxValidationBudgetBlockerMessageCount,
 			int maxRuntimeMutationAllowedPolicyCount,
 			int maxPolicyCount,
 			int maxSolidDiskMaskAllowedPolicyCount,
@@ -314,6 +320,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				acceptanceBudget.validationBudgetGroupCount(),
 				acceptanceBudget.validationBudgetCandidateCount(),
 				acceptanceBudget.expectedValidationBudgetGroupCount(),
+				acceptanceBudget.acceptanceHandoffBlockerMessageCount(),
+				acceptanceBudget.dominantAcceptanceHandoffMessage(),
+				acceptanceBudget.validationBudgetBlockerMessageCount(),
+				acceptanceBudget.dominantValidationBudgetMessage(),
 				poweredSourceApiSurfaceReady,
 				apiSurface.poweredSourceExecutorWiringAllowed(),
 				apiSurface.poweredSourceApiSurfaceCount(),
@@ -403,6 +413,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		int allowed = 0;
 		int maxReadyHandoffs = 0;
 		int maxValidationBudgetCandidates = 0;
+		int maxHandoffMessages = 0;
+		int maxBudgetMessages = 0;
 		int maxRuntimePolicies = 0;
 		int maxPolicies = 0;
 		int maxSolidAllowed = 0;
@@ -420,6 +432,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			maxValidationBudgetCandidates = Math.max(
 					maxValidationBudgetCandidates,
 					summary.validationBudgetCandidateCount());
+			maxHandoffMessages = Math.max(
+					maxHandoffMessages,
+					summary.acceptanceHandoffBlockerMessageCount());
+			maxBudgetMessages = Math.max(maxBudgetMessages, summary.validationBudgetBlockerMessageCount());
 			maxRuntimePolicies = Math.max(maxRuntimePolicies, summary.runtimeMutationAllowedPolicyCount());
 			maxPolicies = Math.max(maxPolicies, summary.policyCount());
 			maxSolidAllowed = Math.max(maxSolidAllowed, summary.solidDiskMaskAllowedPolicyCount());
@@ -439,6 +455,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				scenarios.size() - allowed,
 				maxReadyHandoffs,
 				maxValidationBudgetCandidates,
+				maxHandoffMessages,
+				maxBudgetMessages,
 				maxRuntimePolicies,
 				maxPolicies,
 				maxSolidAllowed,
