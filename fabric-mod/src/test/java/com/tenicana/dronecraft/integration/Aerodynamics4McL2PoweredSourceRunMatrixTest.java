@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Run-Matrix-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("current rows stay skipped"));
-		assertEquals(351, audit.packetMetricRowCount());
+		assertEquals(419, audit.packetMetricRowCount());
 		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(8, audit.runSampleCount());
-		assertEquals(41, audit.runMetricCount());
-		assertEquals(15, audit.summaryMetricRowCount());
+		assertEquals(49, audit.runMetricCount());
+		assertEquals(19, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(8, audit.runs().size());
 
@@ -48,6 +48,14 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 			assertFalse(run.requestBuildAllowed());
 			assertFalse(run.readinessGateOpen());
 			assertFalse(run.requestExecutionAllowed());
+			assertFalse(run.poweredSourceApiSurfaceReady());
+			assertTrue(run.poweredSourceApiSurfaceCount() < run.requiredPoweredSourceApiSurfaceCount());
+			assertEquals(5, run.requiredPoweredSourceApiSurfaceCount());
+			assertTrue(run.missingPoweredSourceApiList().contains("body_force_source_api"));
+			assertFalse(run.poweredSourcePhysicalContractReady());
+			assertTrue(run.poweredSourcePhysicalContractCount() < run.requiredPoweredSourcePhysicalContractCount());
+			assertEquals(5, run.requiredPoweredSourcePhysicalContractCount());
+			assertTrue(run.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 			assertTrue(run.requestForceMoment());
 			assertFalse(run.requestFlowAtlas());
 			assertFalse(run.invoked());
@@ -64,7 +72,7 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 			assertEquals(0.0, run.momentDeltaMagnitudeNewtonMeters(), 1.0e-12);
 			assertEquals(0.0, run.centerOfForceOffsetMeters(), 1.0e-12);
 			assertEquals("SKIPPED", run.status());
-			assertEquals("powered-source-readiness-gate-blocked", run.message());
+			assertEquals("powered-source-api-surface-missing", run.message());
 			assertEquals("plan-only-powered-source-api-unavailable", run.runtimeInfo());
 		}
 
@@ -75,12 +83,16 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 		assertEquals(0, audit.extrema().requestExecutionAllowedCount());
 		assertEquals(0, audit.extrema().requestBuildAllowedCount());
 		assertEquals(0, audit.extrema().poweredSourceApiAvailableCount());
+		assertEquals(0, audit.extrema().poweredSourceApiSurfaceReadyCount());
+		assertEquals(0, audit.extrema().poweredSourcePhysicalContractReadyCount());
 		assertEquals(0, audit.extrema().invokedCount());
 		assertEquals(0, audit.extrema().availableCount());
 		assertEquals(0, audit.extrema().forceMomentCount());
 		assertEquals(8, audit.extrema().skippedForReadinessCount());
 		assertEquals(0, audit.extrema().pendingExecutorCount());
 		assertTrue(audit.extrema().maxGridCellCount() > 0);
+		assertTrue(audit.extrema().maxPoweredSourceApiSurfaceCount() < 5);
+		assertTrue(audit.extrema().maxPoweredSourcePhysicalContractCount() < 5);
 		assertTrue(audit.extrema().maxTargetForceMagnitudeNewtons() > 0.0);
 		assertTrue(audit.extrema().maxMeanPressureJumpPascals() > 0.0);
 	}
@@ -110,6 +122,14 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 			assertTrue(run.requestBuildAllowed());
 			assertTrue(run.readinessGateOpen());
 			assertTrue(run.requestExecutionAllowed());
+			assertTrue(run.poweredSourceApiSurfaceReady());
+			assertEquals(5, run.poweredSourceApiSurfaceCount());
+			assertEquals(5, run.requiredPoweredSourceApiSurfaceCount());
+			assertEquals("none", run.missingPoweredSourceApiList());
+			assertTrue(run.poweredSourcePhysicalContractReady());
+			assertEquals(5, run.poweredSourcePhysicalContractCount());
+			assertEquals(5, run.requiredPoweredSourcePhysicalContractCount());
+			assertEquals("none", run.missingPoweredSourcePhysicalContractList());
 			assertEquals("PENDING", run.status());
 			assertEquals("powered-source-executor-not-invoked", run.message());
 			assertFalse(run.invoked());
@@ -129,10 +149,52 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 		assertEquals(8, audit.extrema().requestExecutionAllowedCount());
 		assertEquals(8, audit.extrema().requestBuildAllowedCount());
 		assertEquals(8, audit.extrema().poweredSourceApiAvailableCount());
+		assertEquals(8, audit.extrema().poweredSourceApiSurfaceReadyCount());
+		assertEquals(8, audit.extrema().poweredSourcePhysicalContractReadyCount());
 		assertEquals(0, audit.extrema().invokedCount());
 		assertEquals(0, audit.extrema().forceMomentCount());
 		assertEquals(0, audit.extrema().skippedForReadinessCount());
 		assertEquals(8, audit.extrema().pendingExecutorCount());
+		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
+		assertEquals(5, audit.extrema().maxPoweredSourcePhysicalContractCount());
+	}
+
+	@Test
+	void sourceExtensionPointsWithoutPhysicalContractStaySkipped() {
+		List<Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest> buildable =
+				Aerodynamics4McL2PoweredSourceRequestPlan.audit().requests().stream()
+						.map(request -> copy(request, true, true))
+						.toList();
+
+		Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunMatrixAudit audit =
+				Aerodynamics4McL2PoweredSourceRunMatrix.audit(physicalContractMissingSurface(), true, true, buildable);
+
+		for (Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunSummary run : audit.runs()) {
+			assertTrue(run.poweredSourceApiAvailable());
+			assertTrue(run.requestBuildAllowed());
+			assertFalse(run.readinessGateOpen());
+			assertFalse(run.requestExecutionAllowed());
+			assertFalse(run.poweredSourceApiSurfaceReady());
+			assertEquals(5, run.poweredSourceApiSurfaceCount());
+			assertEquals(5, run.requiredPoweredSourceApiSurfaceCount());
+			assertEquals("none", run.missingPoweredSourceApiList());
+			assertFalse(run.poweredSourcePhysicalContractReady());
+			assertEquals(0, run.poweredSourcePhysicalContractCount());
+			assertEquals(5, run.requiredPoweredSourcePhysicalContractCount());
+			assertTrue(run.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
+			assertEquals("SKIPPED", run.status());
+			assertEquals("powered-source-physical-contract-missing", run.message());
+		}
+		assertEquals(0, audit.extrema().readinessGateOpenCount());
+		assertEquals(0, audit.extrema().requestExecutionAllowedCount());
+		assertEquals(8, audit.extrema().requestBuildAllowedCount());
+		assertEquals(8, audit.extrema().poweredSourceApiAvailableCount());
+		assertEquals(0, audit.extrema().poweredSourceApiSurfaceReadyCount());
+		assertEquals(0, audit.extrema().poweredSourcePhysicalContractReadyCount());
+		assertEquals(8, audit.extrema().skippedForReadinessCount());
+		assertEquals(0, audit.extrema().pendingExecutorCount());
+		assertEquals(5, audit.extrema().maxPoweredSourceApiSurfaceCount());
+		assertEquals(0, audit.extrema().maxPoweredSourcePhysicalContractCount());
 	}
 
 	@Test
@@ -167,7 +229,36 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_run,racingQuad:hover,status,SKIPPED,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_run,racingQuad:hover,message,powered-source-readiness-gate-blocked,")));
+				line.startsWith("a4mc_l2_powered_source_run,racingQuad:hover,message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_run,racingQuad:hover,powered_source_physical_contract_ready,false,")));
+	}
+
+	private static Aerodynamics4McL2PoweredSourceApiSurfaceAudit.PoweredSourceApiSurfaceSummary
+			physicalContractMissingSurface() {
+		return Aerodynamics4McL2PoweredSourceApiSurfaceAudit.summary(
+				new Aerodynamics4McL2Bridge.L2Capabilities(
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						true,
+						"synthetic source extension points without physical contract"),
+				List.of(
+						"bodyForceSource",
+						"porousSource",
+						"rotorSourceTerms",
+						"sourceTermEnvelope"),
+				List.of("sourceTermRuntimeResult"),
+				"synthetic-source-extension-points-without-physical-contract");
 	}
 
 	private static Aerodynamics4McL2PoweredSourceRequestPlan.PoweredSourceRequest copy(

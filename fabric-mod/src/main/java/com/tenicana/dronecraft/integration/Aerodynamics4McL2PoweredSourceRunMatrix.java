@@ -8,8 +8,8 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			"Powered-source run matrix records compact execution status only; current rows stay skipped until A4MC exposes powered source injection and the request readiness gate opens.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int RUN_SAMPLE_COUNT = 8;
-	public static final int RUN_METRIC_COUNT = 41;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
+	public static final int RUN_METRIC_COUNT = 49;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 19;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ RUN_SAMPLE_COUNT * RUN_METRIC_COUNT
@@ -43,6 +43,14 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			boolean requestBuildAllowed,
 			boolean readinessGateOpen,
 			boolean requestExecutionAllowed,
+			boolean poweredSourceApiSurfaceReady,
+			int poweredSourceApiSurfaceCount,
+			int requiredPoweredSourceApiSurfaceCount,
+			String missingPoweredSourceApiList,
+			boolean poweredSourcePhysicalContractReady,
+			int poweredSourcePhysicalContractCount,
+			int requiredPoweredSourcePhysicalContractCount,
+			String missingPoweredSourcePhysicalContractList,
 			boolean requestForceMoment,
 			boolean requestFlowAtlas,
 			boolean invoked,
@@ -72,12 +80,16 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			int requestExecutionAllowedCount,
 			int requestBuildAllowedCount,
 			int poweredSourceApiAvailableCount,
+			int poweredSourceApiSurfaceReadyCount,
+			int poweredSourcePhysicalContractReadyCount,
 			int invokedCount,
 			int availableCount,
 			int forceMomentCount,
 			int skippedForReadinessCount,
 			int pendingExecutorCount,
 			int maxGridCellCount,
+			int maxPoweredSourceApiSurfaceCount,
+			int maxPoweredSourcePhysicalContractCount,
 			double maxTargetForceMagnitudeNewtons,
 			double maxMeanPressureJumpPascals
 	) {
@@ -201,6 +213,14 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 				request.requestBuildAllowed(),
 				readinessOpen,
 				requestExecutionAllowed,
+				readiness.poweredSourceApiSurfaceReady(),
+				readiness.poweredSourceApiSurfaceCount(),
+				readiness.requiredPoweredSourceApiSurfaceCount(),
+				readiness.missingPoweredSourceApiList(),
+				readiness.poweredSourcePhysicalContractReady(),
+				readiness.poweredSourcePhysicalContractCount(),
+				readiness.requiredPoweredSourcePhysicalContractCount(),
+				readiness.missingPoweredSourcePhysicalContractList(),
 				request.baselineForceMomentRequest(),
 				false,
 				false,
@@ -231,6 +251,29 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			return "powered-source-executor-not-invoked";
 		}
 		if (!readiness.requestExecutionAllowed()) {
+			if (!readiness.poweredSourcePhysicalContractReady()
+					&& readiness.poweredSourceApiSurfaceCount()
+							>= readiness.requiredPoweredSourceApiSurfaceCount()) {
+				return "powered-source-physical-contract-missing";
+			}
+			if (!readiness.poweredSourceApiSurfaceReady()) {
+				return "powered-source-api-surface-missing";
+			}
+			if (!readiness.bothAcceptanceGatesOpen()) {
+				return "powered-source-acceptance-gate-closed";
+			}
+			if (!readiness.allExpectedRequestsPresent()) {
+				return "powered-source-request-envelope-missing";
+			}
+			if (readiness.invalidRequestCount() > 0) {
+				return "powered-source-request-envelope-invalid";
+			}
+			if (!readiness.allRequestApisAvailable()) {
+				return "powered-source-request-api-unavailable";
+			}
+			if (!readiness.allRequestsBuildAllowed()) {
+				return "powered-source-request-build-blocked";
+			}
 			return "powered-source-readiness-gate-blocked";
 		}
 		if (!request.poweredSourceApiAvailable()) {
@@ -255,12 +298,16 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 		int executionAllowed = 0;
 		int buildAllowed = 0;
 		int apiAvailable = 0;
+		int apiSurfaceReady = 0;
+		int physicalContractReady = 0;
 		int invoked = 0;
 		int available = 0;
 		int forceMoment = 0;
 		int skippedForReadiness = 0;
 		int pendingExecutor = 0;
 		int maxGridCells = 0;
+		int maxApiSurface = 0;
+		int maxPhysicalContract = 0;
 		double maxForce = 0.0;
 		double maxMeanPressureJump = 0.0;
 		for (PoweredSourceRunSummary run : runs) {
@@ -282,6 +329,12 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			if (run.poweredSourceApiAvailable()) {
 				apiAvailable++;
 			}
+			if (run.poweredSourceApiSurfaceReady()) {
+				apiSurfaceReady++;
+			}
+			if (run.poweredSourcePhysicalContractReady()) {
+				physicalContractReady++;
+			}
 			if (run.invoked()) {
 				invoked++;
 			}
@@ -291,13 +344,15 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			if (run.hasForceMoment()) {
 				forceMoment++;
 			}
-			if ("powered-source-readiness-gate-blocked".equals(run.message())) {
+			if (!run.readinessGateOpen()) {
 				skippedForReadiness++;
 			}
 			if ("powered-source-executor-not-invoked".equals(run.message())) {
 				pendingExecutor++;
 			}
 			maxGridCells = Math.max(maxGridCells, run.gridCellCount());
+			maxApiSurface = Math.max(maxApiSurface, run.poweredSourceApiSurfaceCount());
+			maxPhysicalContract = Math.max(maxPhysicalContract, run.poweredSourcePhysicalContractCount());
 			maxForce = Math.max(maxForce, run.targetForceMagnitudeNewtons());
 			maxMeanPressureJump = Math.max(maxMeanPressureJump, run.meanPressureJumpPascals());
 		}
@@ -309,12 +364,16 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 				executionAllowed,
 				buildAllowed,
 				apiAvailable,
+				apiSurfaceReady,
+				physicalContractReady,
 				invoked,
 				available,
 				forceMoment,
 				skippedForReadiness,
 				pendingExecutor,
 				maxGridCells,
+				maxApiSurface,
+				maxPhysicalContract,
 				maxForce,
 				maxMeanPressureJump
 		);
