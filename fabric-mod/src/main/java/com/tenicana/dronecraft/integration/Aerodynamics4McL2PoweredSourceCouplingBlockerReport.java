@@ -6,11 +6,11 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Blocker-Report-Packet";
 	public static final String CAVEAT =
 			"Blocker report decomposes the final powered-source coupling gate into audit reasons only; it does not enable runtime coupling or mutate gameplay configuration.";
-	public static final int SOURCE_REFERENCE_COUNT = 5;
+	public static final int SOURCE_REFERENCE_COUNT = 6;
 	public static final int SCENARIO_SAMPLE_COUNT =
 			Aerodynamics4McL2PoweredSourceCouplingReadinessGate.SCENARIO_SAMPLE_COUNT;
-	public static final int SCENARIO_METRIC_COUNT = 22;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 10;
+	public static final int SCENARIO_METRIC_COUNT = 29;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 11;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -24,15 +24,22 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			boolean runtimePoweredSourceCouplingAllowed,
 			int blockerCount,
 			boolean acceptanceHandoffBlocker,
+			boolean validationBudgetBlocker,
 			boolean policyRuntimeMutationBlocker,
 			boolean poweredSourceApiBlocker,
 			boolean gameplayCouplingBlocker,
 			boolean solidDiskMaskBlocker,
 			boolean rotorDiskMaskPolicyBlocker,
+			boolean acceptanceBudgetGateReady,
+			boolean allValidationBudgetsReady,
 			boolean hoverAcceptanceHandoffReady,
 			boolean cruiseAcceptanceHandoffReady,
 			int readyHandoffCount,
 			int expectedHandoffCount,
+			boolean hoverValidationBudgetCandidate,
+			boolean cruiseValidationBudgetCandidate,
+			int validationBudgetCandidateCount,
+			int expectedValidationBudgetGroupCount,
 			int policyCount,
 			int runtimeMutationAllowedPolicyCount,
 			int poweredSourceApiAvailablePolicyCount,
@@ -58,6 +65,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			int blockedScenarioCount,
 			int maxBlockerCount,
 			int acceptanceHandoffBlockerScenarioCount,
+			int validationBudgetBlockerScenarioCount,
 			int policyRuntimeMutationBlockerScenarioCount,
 			int poweredSourceApiBlockerScenarioCount,
 			int gameplayCouplingBlockerScenarioCount,
@@ -126,6 +134,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			throw new IllegalArgumentException("readiness summary must not be null.");
 		}
 		boolean handoffBlocker = !readiness.allHandoffsReady();
+		boolean validationBudgetBlocker = !readiness.allValidationBudgetsReady();
 		boolean runtimePolicyBlocker = !readiness.allPoliciesRuntimeAllowed();
 		boolean sourceApiBlocker = readiness.policyCount() == 0
 				|| readiness.poweredSourceApiAvailablePolicyCount() < readiness.policyCount();
@@ -134,6 +143,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 		boolean rotorMaskBlocker = !readiness.allPoliciesKeepRotorDisksOpen();
 		int blockerCount = countTrue(
 				handoffBlocker,
+				validationBudgetBlocker,
 				runtimePolicyBlocker,
 				sourceApiBlocker,
 				gameplayBlocker,
@@ -144,15 +154,22 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				allowed,
 				blockerCount,
 				handoffBlocker,
+				validationBudgetBlocker,
 				runtimePolicyBlocker,
 				sourceApiBlocker,
 				gameplayBlocker,
 				solidDiskBlocker,
 				rotorMaskBlocker,
+				readiness.acceptanceBudgetGateReady(),
+				readiness.allValidationBudgetsReady(),
 				readiness.hoverAcceptanceHandoffReady(),
 				readiness.cruiseAcceptanceHandoffReady(),
 				readiness.readyHandoffCount(),
 				readiness.expectedHandoffCount(),
+				readiness.hoverValidationBudgetCandidate(),
+				readiness.cruiseValidationBudgetCandidate(),
+				readiness.validationBudgetCandidateCount(),
+				readiness.expectedValidationBudgetGroupCount(),
 				readiness.policyCount(),
 				readiness.runtimeMutationAllowedPolicyCount(),
 				readiness.poweredSourceApiAvailablePolicyCount(),
@@ -162,6 +179,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				readiness.keepRotorDiskOpenPolicyCount(),
 				nextRequiredAction(
 						handoffBlocker,
+						validationBudgetBlocker,
 						sourceApiBlocker,
 						runtimePolicyBlocker,
 						gameplayBlocker,
@@ -174,6 +192,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 
 	private static String nextRequiredAction(
 			boolean handoffBlocker,
+			boolean validationBudgetBlocker,
 			boolean sourceApiBlocker,
 			boolean runtimePolicyBlocker,
 			boolean gameplayBlocker,
@@ -182,6 +201,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 	) {
 		if (handoffBlocker) {
 			return "complete-hover-and-cruise-powered-source-acceptance-handoffs";
+		}
+		if (validationBudgetBlocker) {
+			return "produce-hover-and-cruise-validation-error-budget-candidates";
 		}
 		if (sourceApiBlocker) {
 			return "wait-for-porous-or-body-force-powered-source-api";
@@ -214,6 +236,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 		int ready = 0;
 		int maxBlockers = 0;
 		int handoff = 0;
+		int validationBudget = 0;
 		int runtime = 0;
 		int source = 0;
 		int gameplay = 0;
@@ -227,6 +250,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			maxBlockers = Math.max(maxBlockers, summary.blockerCount());
 			if (summary.acceptanceHandoffBlocker()) {
 				handoff++;
+			}
+			if (summary.validationBudgetBlocker()) {
+				validationBudget++;
 			}
 			if (summary.policyRuntimeMutationBlocker()) {
 				runtime++;
@@ -250,6 +276,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				scenarios.size() - ready,
 				maxBlockers,
 				handoff,
+				validationBudget,
 				runtime,
 				source,
 				gameplay,

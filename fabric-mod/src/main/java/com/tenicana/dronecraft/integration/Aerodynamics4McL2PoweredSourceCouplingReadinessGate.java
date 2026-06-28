@@ -1,17 +1,15 @@
 package com.tenicana.dronecraft.integration;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"Runtime powered-source coupling remains closed until hover and cruise acceptance handoffs are ready and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
-	public static final int SOURCE_REFERENCE_COUNT = 6;
+			"Runtime powered-source coupling remains closed until the acceptance budget gate is ready and every actuator-disk representation policy row keeps rotor disks open with runtime coupling explicitly allowed.";
+	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
-	public static final int SCENARIO_METRIC_COUNT = 24;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 8;
+	public static final int SCENARIO_METRIC_COUNT = 31;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 9;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -27,6 +25,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int handoffCount,
 			int readyHandoffCount,
 			int expectedHandoffCount,
+			boolean acceptanceBudgetGateReady,
+			boolean allValidationBudgetsReady,
+			boolean hoverValidationBudgetCandidate,
+			boolean cruiseValidationBudgetCandidate,
+			int validationBudgetGroupCount,
+			int validationBudgetCandidateCount,
+			int expectedValidationBudgetGroupCount,
 			int policyCount,
 			int runtimeMutationAllowedPolicyCount,
 			int solidDiskMaskAllowedPolicyCount,
@@ -60,6 +65,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			int allowedScenarioCount,
 			int blockedScenarioCount,
 			int maxReadyHandoffCount,
+			int maxValidationBudgetCandidateCount,
 			int maxRuntimeMutationAllowedPolicyCount,
 			int maxPolicyCount,
 			int maxSolidDiskMaskAllowedPolicyCount,
@@ -86,7 +92,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 
 	public static PoweredSourceCouplingReadinessAudit audit() {
 		return audit(
-				Aerodynamics4McL2PoweredSourceAcceptanceHandoff.audit(),
+				Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.audit(),
 				Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit()
 		);
 	}
@@ -96,7 +102,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 			throw new IllegalArgumentException("loader must not be null.");
 		}
 		return audit(
-				Aerodynamics4McL2PoweredSourceAcceptanceHandoff.audit(loader),
+				Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.audit(loader),
 				Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit()
 		);
 	}
@@ -108,30 +114,44 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		if (handoffAudit == null || policyAudit == null) {
 			throw new IllegalArgumentException("handoff and representation policy audits are required.");
 		}
-		List<Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary> currentHandoffs =
-				handoffAudit.handoffs();
+		return audit(
+				Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.audit(
+						handoffAudit,
+						Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit()),
+				policyAudit);
+	}
+
+	public static PoweredSourceCouplingReadinessAudit audit(
+			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetAudit budgetGateAudit,
+			Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicyAudit policyAudit
+	) {
+		if (budgetGateAudit == null || policyAudit == null) {
+			throw new IllegalArgumentException("budget gate and representation policy audits are required.");
+		}
+		Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary currentBudget =
+				scenario(budgetGateAudit, "current_handoff_and_budget_blocked");
+		Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary readyBudget =
+				scenario(budgetGateAudit, "handoff_ready_budget_ready");
 		List<Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy> currentPolicies =
 				policyAudit.policies();
-		List<Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary> readyHandoffs =
-				List.of(readyHandoff("hover"), readyHandoff("cruise"));
 		List<Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy> readyPolicies =
 				readyPolicies();
 		List<PoweredSourceCouplingReadinessScenario> scenarios = List.of(
 				new PoweredSourceCouplingReadinessScenario(
 						"current_handoff_and_policy_blocked",
-						gate(currentHandoffs, currentPolicies)
+						gate(currentBudget, currentPolicies)
 				),
 				new PoweredSourceCouplingReadinessScenario(
 						"handoffs_ready_policy_blocked",
-						gate(readyHandoffs, currentPolicies)
+						gate(readyBudget, currentPolicies)
 				),
 				new PoweredSourceCouplingReadinessScenario(
 						"policy_ready_handoffs_blocked",
-						gate(currentHandoffs, readyPolicies)
+						gate(currentBudget, readyPolicies)
 				),
 				new PoweredSourceCouplingReadinessScenario(
 						"handoffs_and_policy_ready",
-						gate(readyHandoffs, readyPolicies)
+						gate(readyBudget, readyPolicies)
 				)
 		);
 		return new PoweredSourceCouplingReadinessAudit(
@@ -155,25 +175,20 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 		if (handoffs == null || policies == null) {
 			throw new IllegalArgumentException("handoffs and policies must not be null.");
 		}
-		Set<String> observedHandoffs = new HashSet<>();
-		boolean hoverReady = false;
-		boolean cruiseReady = false;
-		int readyHandoffs = 0;
-		for (Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary handoff : handoffs) {
-			if (handoff == null || handoff.spinState() == null || handoff.spinState().isBlank()) {
-				throw new IllegalArgumentException("handoffs must include stable spin-state names.");
-			}
-			if (!observedHandoffs.add(handoff.spinState())) {
-				throw new IllegalArgumentException("duplicate handoff spin state: " + handoff.spinState());
-			}
-			if (handoff.acceptanceHandoffReady()) {
-				readyHandoffs++;
-			}
-			if ("hover".equals(handoff.spinState())) {
-				hoverReady = handoff.acceptanceHandoffReady();
-			} else if ("cruise".equals(handoff.spinState())) {
-				cruiseReady = handoff.acceptanceHandoffReady();
-			}
+		return gate(
+				Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.gate(
+						handoffs,
+						Aerodynamics4McL2PoweredSourceValidationErrorBudget.audit().groups(),
+						"handoff-policy-coupling-readiness-current-validation-budget"),
+				policies);
+	}
+
+	public static PoweredSourceCouplingReadinessSummary gate(
+			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary acceptanceBudget,
+			List<Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy> policies
+	) {
+		if (acceptanceBudget == null || policies == null) {
+			throw new IllegalArgumentException("acceptance budget and policies must not be null.");
 		}
 		int runtimeAllowed = 0;
 		int solidAllowed = 0;
@@ -220,11 +235,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				overBlockageRisk++;
 			}
 		}
-		boolean allHandoffsReady = hoverReady
-				&& cruiseReady
-				&& observedHandoffs.contains("hover")
-				&& observedHandoffs.contains("cruise")
-				&& observedHandoffs.size() == 2;
+		boolean allHandoffsReady = acceptanceBudget.allAcceptanceHandoffsReady();
 		boolean allPoliciesRuntimeAllowed = !policies.isEmpty() && runtimeAllowed == policies.size();
 		boolean allPoliciesKeepOpen = !policies.isEmpty() && keepOpen == policies.size() && solidAllowed == 0;
 		boolean allPoliciesRequireSource = !policies.isEmpty()
@@ -235,17 +246,24 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				&& hoverAllowed == policies.size()
 				&& cruiseAllowed == policies.size()
 				&& sourceApiAvailable == policies.size();
-		boolean allowed = allHandoffsReady
+		boolean allowed = acceptanceBudget.acceptanceBudgetGateReady()
 				&& allPoliciesRuntimeAllowed
 				&& allPoliciesKeepOpen
 				&& allPoliciesRequireSource
 				&& hoverCruiseAllowed;
 		return new PoweredSourceCouplingReadinessSummary(
-				hoverReady,
-				cruiseReady,
-				handoffs.size(),
-				readyHandoffs,
-				2,
+				acceptanceBudget.hoverAcceptanceHandoffReady(),
+				acceptanceBudget.cruiseAcceptanceHandoffReady(),
+				acceptanceBudget.handoffCount(),
+				acceptanceBudget.readyHandoffCount(),
+				acceptanceBudget.expectedHandoffCount(),
+				acceptanceBudget.acceptanceBudgetGateReady(),
+				acceptanceBudget.allValidationBudgetsReady(),
+				acceptanceBudget.hoverValidationBudgetCandidate(),
+				acceptanceBudget.cruiseValidationBudgetCandidate(),
+				acceptanceBudget.validationBudgetGroupCount(),
+				acceptanceBudget.validationBudgetCandidateCount(),
+				acceptanceBudget.expectedValidationBudgetGroupCount(),
 				policies.size(),
 				runtimeAllowed,
 				solidAllowed,
@@ -266,6 +284,17 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				allowed ? "READY_FOR_POWERED_SOURCE_RUNTIME_COUPLING" : "BLOCKED",
 				allowed ? "runtime-coupling-ready" : "runtime-coupling-evidence-incomplete"
 		);
+	}
+
+	private static Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary scenario(
+			Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetAudit audit,
+			String name
+	) {
+		return audit.scenarios().stream()
+				.filter(scenario -> name.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
 	}
 
 	private static Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary readyHandoff(
@@ -312,6 +341,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 	) {
 		int allowed = 0;
 		int maxReadyHandoffs = 0;
+		int maxValidationBudgetCandidates = 0;
 		int maxRuntimePolicies = 0;
 		int maxPolicies = 0;
 		int maxSolidAllowed = 0;
@@ -322,6 +352,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				allowed++;
 			}
 			maxReadyHandoffs = Math.max(maxReadyHandoffs, summary.readyHandoffCount());
+			maxValidationBudgetCandidates = Math.max(
+					maxValidationBudgetCandidates,
+					summary.validationBudgetCandidateCount());
 			maxRuntimePolicies = Math.max(maxRuntimePolicies, summary.runtimeMutationAllowedPolicyCount());
 			maxPolicies = Math.max(maxPolicies, summary.policyCount());
 			maxSolidAllowed = Math.max(maxSolidAllowed, summary.solidDiskMaskAllowedPolicyCount());
@@ -332,6 +365,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReadinessGate {
 				allowed,
 				scenarios.size() - allowed,
 				maxReadyHandoffs,
+				maxValidationBudgetCandidates,
 				maxRuntimePolicies,
 				maxPolicies,
 				maxSolidAllowed,

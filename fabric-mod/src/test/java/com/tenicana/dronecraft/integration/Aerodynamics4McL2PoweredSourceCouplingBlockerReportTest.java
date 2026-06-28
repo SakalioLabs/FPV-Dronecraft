@@ -20,19 +20,20 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Blocker-Report-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("does not enable runtime coupling"));
-		assertEquals(104, audit.packetMetricRowCount());
-		assertEquals(5, audit.sourceReferenceCount());
+		assertEquals(134, audit.packetMetricRowCount());
+		assertEquals(6, audit.sourceReferenceCount());
 		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(22, audit.scenarioMetricCount());
-		assertEquals(10, audit.summaryMetricRowCount());
+		assertEquals(29, audit.scenarioMetricCount());
+		assertEquals(11, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.scenarios().size());
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary current =
 				find(audit.scenarios(), "current_handoff_and_policy_blocked").summary();
 		assertFalse(current.runtimePoweredSourceCouplingAllowed());
-		assertEquals(4, current.blockerCount());
+		assertEquals(5, current.blockerCount());
 		assertTrue(current.acceptanceHandoffBlocker());
+		assertTrue(current.validationBudgetBlocker());
 		assertTrue(current.policyRuntimeMutationBlocker());
 		assertTrue(current.poweredSourceApiBlocker());
 		assertTrue(current.gameplayCouplingBlocker());
@@ -40,8 +41,14 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertFalse(current.rotorDiskMaskPolicyBlocker());
 		assertFalse(current.hoverAcceptanceHandoffReady());
 		assertFalse(current.cruiseAcceptanceHandoffReady());
+		assertFalse(current.acceptanceBudgetGateReady());
+		assertFalse(current.allValidationBudgetsReady());
+		assertFalse(current.hoverValidationBudgetCandidate());
+		assertFalse(current.cruiseValidationBudgetCandidate());
 		assertEquals(0, current.readyHandoffCount());
 		assertEquals(2, current.expectedHandoffCount());
+		assertEquals(0, current.validationBudgetCandidateCount());
+		assertEquals(2, current.expectedValidationBudgetGroupCount());
 		assertEquals(4, current.policyCount());
 		assertEquals(0, current.runtimeMutationAllowedPolicyCount());
 		assertEquals(0, current.poweredSourceApiAvailablePolicyCount());
@@ -55,14 +62,17 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 				find(audit.scenarios(), "handoffs_ready_policy_blocked").summary();
 		assertEquals(3, handoffsOnly.blockerCount());
 		assertFalse(handoffsOnly.acceptanceHandoffBlocker());
+		assertFalse(handoffsOnly.validationBudgetBlocker());
+		assertTrue(handoffsOnly.acceptanceBudgetGateReady());
 		assertTrue(handoffsOnly.poweredSourceApiBlocker());
 		assertEquals("wait-for-porous-or-body-force-powered-source-api",
 				handoffsOnly.nextRequiredAction());
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary policyOnly =
 				find(audit.scenarios(), "policy_ready_handoffs_blocked").summary();
-		assertEquals(1, policyOnly.blockerCount());
+		assertEquals(2, policyOnly.blockerCount());
 		assertTrue(policyOnly.acceptanceHandoffBlocker());
+		assertTrue(policyOnly.validationBudgetBlocker());
 		assertFalse(policyOnly.poweredSourceApiBlocker());
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary ready =
@@ -77,8 +87,9 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertEquals(4, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().readyScenarioCount());
 		assertEquals(3, audit.extrema().blockedScenarioCount());
-		assertEquals(4, audit.extrema().maxBlockerCount());
+		assertEquals(5, audit.extrema().maxBlockerCount());
 		assertEquals(2, audit.extrema().acceptanceHandoffBlockerScenarioCount());
+		assertEquals(2, audit.extrema().validationBudgetBlockerScenarioCount());
 		assertEquals(2, audit.extrema().policyRuntimeMutationBlockerScenarioCount());
 		assertEquals(2, audit.extrema().poweredSourceApiBlockerScenarioCount());
 		assertEquals(2, audit.extrema().gameplayCouplingBlockerScenarioCount());
@@ -90,7 +101,7 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 	void reportSeparatesSolidDiskMaskFromAcceptanceAndSourceApiBlockers() {
 		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary solidDisk =
 				Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(
-						List.of(readyHandoff("hover"), readyHandoff("cruise")),
+						readyBudget(),
 						List.of(solidDiskPolicy(readyPolicies().get(0))));
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary report =
@@ -128,9 +139,9 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 
 		assertEquals(audit.packetMetricRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_summary,all_scenarios,max_blocker_count,4,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_summary,all_scenarios,max_blocker_count,5,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,blocker_count,4,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,blocker_count,5,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,handoffs_and_policy_ready,runtime_powered_source_coupling_allowed,true,")));
 	}
@@ -177,6 +188,14 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		return Aerodynamics4McL2RotorDiskAperture.audit().presets().stream()
 				.map(aperture -> Aerodynamics4McL2ActuatorDiskRepresentationPolicy.policy(aperture, true, true))
 				.toList();
+	}
+
+	private static Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary readyBudget() {
+		return Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.audit().scenarios().stream()
+				.filter(scenario -> "handoff_ready_budget_ready".equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
 	}
 
 	private static Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy solidDiskPolicy(

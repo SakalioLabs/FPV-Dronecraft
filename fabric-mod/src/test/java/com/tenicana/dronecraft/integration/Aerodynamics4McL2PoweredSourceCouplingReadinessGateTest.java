@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Readiness-Gate-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("Runtime powered-source coupling remains closed"));
-		assertEquals(111, audit.packetMetricRowCount());
-		assertEquals(6, audit.sourceReferenceCount());
+		assertEquals(141, audit.packetMetricRowCount());
+		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(24, audit.scenarioMetricCount());
-		assertEquals(8, audit.summaryMetricRowCount());
+		assertEquals(31, audit.scenarioMetricCount());
+		assertEquals(9, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(4, audit.scenarios().size());
 
@@ -35,6 +35,13 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(2, current.handoffCount());
 		assertEquals(0, current.readyHandoffCount());
 		assertEquals(2, current.expectedHandoffCount());
+		assertFalse(current.acceptanceBudgetGateReady());
+		assertFalse(current.allValidationBudgetsReady());
+		assertFalse(current.hoverValidationBudgetCandidate());
+		assertFalse(current.cruiseValidationBudgetCandidate());
+		assertEquals(2, current.validationBudgetGroupCount());
+		assertEquals(0, current.validationBudgetCandidateCount());
+		assertEquals(2, current.expectedValidationBudgetGroupCount());
 		assertEquals(4, current.policyCount());
 		assertEquals(0, current.runtimeMutationAllowedPolicyCount());
 		assertEquals(0, current.solidDiskMaskAllowedPolicyCount());
@@ -57,12 +64,17 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary handoffsOnly =
 				find(audit.scenarios(), "handoffs_ready_policy_blocked").summary();
 		assertTrue(handoffsOnly.allHandoffsReady());
+		assertTrue(handoffsOnly.acceptanceBudgetGateReady());
+		assertTrue(handoffsOnly.allValidationBudgetsReady());
+		assertEquals(2, handoffsOnly.validationBudgetCandidateCount());
 		assertFalse(handoffsOnly.allPoliciesRuntimeAllowed());
 		assertFalse(handoffsOnly.runtimePoweredSourceCouplingAllowed());
 
 		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary policyOnly =
 				find(audit.scenarios(), "policy_ready_handoffs_blocked").summary();
 		assertFalse(policyOnly.allHandoffsReady());
+		assertFalse(policyOnly.acceptanceBudgetGateReady());
+		assertFalse(policyOnly.allValidationBudgetsReady());
 		assertTrue(policyOnly.allPoliciesRuntimeAllowed());
 		assertTrue(policyOnly.hoverAndCruiseCouplingAllowed());
 		assertFalse(policyOnly.runtimePoweredSourceCouplingAllowed());
@@ -70,6 +82,8 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		Aerodynamics4McL2PoweredSourceCouplingReadinessGate.PoweredSourceCouplingReadinessSummary ready =
 				find(audit.scenarios(), "handoffs_and_policy_ready").summary();
 		assertTrue(ready.allHandoffsReady());
+		assertTrue(ready.acceptanceBudgetGateReady());
+		assertTrue(ready.allValidationBudgetsReady());
 		assertTrue(ready.allPoliciesRuntimeAllowed());
 		assertTrue(ready.allPoliciesKeepRotorDisksOpen());
 		assertTrue(ready.allPoliciesRequirePoweredSourceApi());
@@ -82,6 +96,7 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertEquals(1, audit.extrema().allowedScenarioCount());
 		assertEquals(3, audit.extrema().blockedScenarioCount());
 		assertEquals(2, audit.extrema().maxReadyHandoffCount());
+		assertEquals(2, audit.extrema().maxValidationBudgetCandidateCount());
 		assertEquals(4, audit.extrema().maxRuntimeMutationAllowedPolicyCount());
 		assertEquals(4, audit.extrema().maxPolicyCount());
 		assertEquals(0, audit.extrema().maxSolidDiskMaskAllowedPolicyCount());
@@ -92,20 +107,25 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 	void gateRequiresBothHandoffsAndRuntimeReadyPolicies() {
 		List<Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary> handoffs =
 				List.of(readyHandoff("hover"), readyHandoff("cruise"));
+		Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary readyBudget =
+				readyBudget();
 		List<Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy> readyPolicies =
 				readyPolicies();
 
-		assertTrue(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
+		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
 				.gate(handoffs, readyPolicies)
+				.runtimePoweredSourceCouplingAllowed());
+		assertTrue(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
+				.gate(readyBudget, readyPolicies)
 				.runtimePoweredSourceCouplingAllowed());
 		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
 				.gate(List.of(readyHandoff("hover")), readyPolicies)
 				.runtimePoweredSourceCouplingAllowed());
 		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
-				.gate(handoffs, Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit().policies())
+				.gate(readyBudget, Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit().policies())
 				.runtimePoweredSourceCouplingAllowed());
 		assertFalse(Aerodynamics4McL2PoweredSourceCouplingReadinessGate
-				.gate(handoffs, List.of(solidDiskPolicy(readyPolicies.get(0))))
+				.gate(readyBudget, List.of(solidDiskPolicy(readyPolicies.get(0))))
 				.allPoliciesKeepRotorDisksOpen());
 	}
 
@@ -117,14 +137,25 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit((ClassLoader) null));
 		assertThrows(IllegalArgumentException.class,
-				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit(null,
+				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit(
+						(Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffAudit) null,
 						Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit()));
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit(
 						Aerodynamics4McL2PoweredSourceAcceptanceHandoff.audit(getClass().getClassLoader()),
 						null));
 		assertThrows(IllegalArgumentException.class,
-				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(null, readyPolicies()));
+				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit(
+						(Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetAudit) null,
+						Aerodynamics4McL2ActuatorDiskRepresentationPolicy.audit()));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(
+						(List<Aerodynamics4McL2PoweredSourceAcceptanceHandoff.PoweredSourceAcceptanceHandoffSummary>) null,
+						readyPolicies()));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(
+						(Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary) null,
+						readyPolicies()));
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingReadinessGate.gate(duplicate, readyPolicies()));
 	}
@@ -187,6 +218,14 @@ class Aerodynamics4McL2PoweredSourceCouplingReadinessGateTest {
 		return Aerodynamics4McL2RotorDiskAperture.audit().presets().stream()
 				.map(aperture -> Aerodynamics4McL2ActuatorDiskRepresentationPolicy.policy(aperture, true, true))
 				.toList();
+	}
+
+	private static Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.PoweredSourceAcceptanceBudgetSummary readyBudget() {
+		return Aerodynamics4McL2PoweredSourceAcceptanceBudgetGate.audit().scenarios().stream()
+				.filter(scenario -> "handoff_ready_budget_ready".equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
 	}
 
 	private static Aerodynamics4McL2ActuatorDiskRepresentationPolicy.ActuatorDiskRepresentationPolicy solidDiskPolicy(
