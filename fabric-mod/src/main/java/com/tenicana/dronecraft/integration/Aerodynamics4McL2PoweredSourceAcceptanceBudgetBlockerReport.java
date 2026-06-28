@@ -175,13 +175,28 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 				readiness.maxMomentErrorNewtonMeters(),
 				readiness.maxCenterOfForceErrorMeters(),
 				readiness.sourceRuntimeInfo(),
-				nextRequiredAction(handoffBlocker, budgetBlocker),
+				nextRequiredAction(
+						handoffBlocker,
+						budgetBlocker,
+						readiness.dominantAcceptanceHandoffMessage(),
+						readiness.dominantValidationBudgetMessage()),
 				ready ? "READY" : "BLOCKED",
 				ready ? "powered-source-acceptance-budget-clear" : "powered-source-acceptance-budget-blocked"
 		);
 	}
 
-	private static String nextRequiredAction(boolean handoffBlocker, boolean budgetBlocker) {
+	private static String nextRequiredAction(
+			boolean handoffBlocker,
+			boolean budgetBlocker,
+			String dominantAcceptanceHandoffMessage,
+			String dominantValidationBudgetMessage
+	) {
+		String upstreamAction = upstreamBlockerAction(
+				dominantAcceptanceHandoffMessage,
+				dominantValidationBudgetMessage);
+		if ((handoffBlocker || budgetBlocker) && upstreamAction != null) {
+			return upstreamAction;
+		}
 		if (handoffBlocker) {
 			return "complete-hover-and-cruise-powered-source-acceptance-handoffs";
 		}
@@ -189,6 +204,29 @@ public final class Aerodynamics4McL2PoweredSourceAcceptanceBudgetBlockerReport {
 			return "produce-hover-and-cruise-validation-error-budget-candidates";
 		}
 		return "powered-source-acceptance-evidence-ready-for-final-coupling-review";
+	}
+
+	private static String upstreamBlockerAction(
+			String dominantAcceptanceHandoffMessage,
+			String dominantValidationBudgetMessage
+	) {
+		if (matchesAny(
+				"powered-source-api-surface-missing",
+				dominantAcceptanceHandoffMessage,
+				dominantValidationBudgetMessage)) {
+			return "wait-for-public-a4mc-powered-source-api-surface";
+		}
+		if (matchesAny(
+				"powered-source-physical-contract-missing",
+				dominantAcceptanceHandoffMessage,
+				dominantValidationBudgetMessage)) {
+			return "wait-for-public-a4mc-powered-source-physical-contract";
+		}
+		return null;
+	}
+
+	private static boolean matchesAny(String expected, String first, String second) {
+		return expected.equals(first) || expected.equals(second);
 	}
 
 	private static int countTrue(boolean... values) {

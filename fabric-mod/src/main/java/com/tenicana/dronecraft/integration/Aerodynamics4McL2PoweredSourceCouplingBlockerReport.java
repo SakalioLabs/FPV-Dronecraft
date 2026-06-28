@@ -215,6 +215,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 				nextRequiredAction(
 						handoffBlocker,
 						validationBudgetBlocker,
+						readiness.dominantAcceptanceHandoffMessage(),
+						readiness.dominantValidationBudgetMessage(),
 						sourceApiSurfaceBlocker,
 						physicalContractBlocker,
 						sourceApiBlocker,
@@ -230,6 +232,8 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 	private static String nextRequiredAction(
 			boolean handoffBlocker,
 			boolean validationBudgetBlocker,
+			String dominantAcceptanceHandoffMessage,
+			String dominantValidationBudgetMessage,
 			boolean sourceApiSurfaceBlocker,
 			boolean physicalContractBlocker,
 			boolean sourceApiBlocker,
@@ -238,6 +242,12 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			boolean solidDiskBlocker,
 			boolean rotorMaskBlocker
 	) {
+		String upstreamAction = upstreamBlockerAction(
+				dominantAcceptanceHandoffMessage,
+				dominantValidationBudgetMessage);
+		if ((handoffBlocker || validationBudgetBlocker) && upstreamAction != null) {
+			return upstreamAction;
+		}
 		if (handoffBlocker) {
 			return "complete-hover-and-cruise-powered-source-acceptance-handoffs";
 		}
@@ -263,6 +273,29 @@ public final class Aerodynamics4McL2PoweredSourceCouplingBlockerReport {
 			return "keep-rotor-disks-open-and-reject-solid-disk-masks";
 		}
 		return "runtime-powered-source-coupling-ready-for-reviewed-activation";
+	}
+
+	private static String upstreamBlockerAction(
+			String dominantAcceptanceHandoffMessage,
+			String dominantValidationBudgetMessage
+	) {
+		if (matchesAny(
+				"powered-source-api-surface-missing",
+				dominantAcceptanceHandoffMessage,
+				dominantValidationBudgetMessage)) {
+			return "wait-for-public-a4mc-powered-source-api-surface";
+		}
+		if (matchesAny(
+				"powered-source-physical-contract-missing",
+				dominantAcceptanceHandoffMessage,
+				dominantValidationBudgetMessage)) {
+			return "wait-for-public-a4mc-powered-source-physical-contract";
+		}
+		return null;
+	}
+
+	private static boolean matchesAny(String expected, String first, String second) {
+		return expected.equals(first) || expected.equals(second);
 	}
 
 	private static int countTrue(boolean... values) {

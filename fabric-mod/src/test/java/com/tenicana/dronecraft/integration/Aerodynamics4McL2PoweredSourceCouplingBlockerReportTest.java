@@ -65,7 +65,7 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertTrue(current.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 		assertEquals(0, current.poweredSourceApiAvailablePolicyCount());
 		assertEquals(4, current.keepRotorDiskOpenPolicyCount());
-		assertEquals("complete-hover-and-cruise-powered-source-acceptance-handoffs",
+		assertEquals("wait-for-public-a4mc-powered-source-api-surface",
 				current.nextRequiredAction());
 		assertEquals("BLOCKED", current.status());
 		assertEquals("powered-source-coupling-blocked", current.message());
@@ -98,6 +98,8 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertTrue(policyOnly.poweredSourceApiSurfaceBlocker());
 		assertTrue(policyOnly.poweredSourcePhysicalContractBlocker());
 		assertFalse(policyOnly.poweredSourceApiBlocker());
+		assertEquals("wait-for-public-a4mc-powered-source-api-surface",
+				policyOnly.nextRequiredAction());
 
 		Aerodynamics4McL2PoweredSourceCouplingBlockerReport.PoweredSourceCouplingBlockerSummary surfaceBlocked =
 				find(audit.scenarios(), "handoffs_and_policy_ready").summary();
@@ -221,7 +223,11 @@ class Aerodynamics4McL2PoweredSourceCouplingBlockerReportTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,dominant_acceptance_handoff_message,powered-source-api-surface-missing,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,current_handoff_and_policy_blocked,next_required_action,wait-for-public-a4mc-powered-source-api-surface,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,policy_ready_handoffs_blocked,dominant_validation_budget_message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,policy_ready_handoffs_blocked,next_required_action,wait-for-public-a4mc-powered-source-api-surface,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_blocker_report_scenario,handoffs_and_policy_ready,powered_source_api_surface_blocker,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
