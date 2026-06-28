@@ -5,11 +5,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceResultSeed {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Result-Seed-Packet";
 	public static final String CAVEAT =
-			"Result seed pairs static baseline force/moment summaries with powered-source run matrix rows; validation remains unavailable until both baseline and powered run force/moment evidence exist.";
+			"Result seed pairs static baseline force/moment summaries with powered-source run matrix rows and preserves powered-run blocker provenance; validation remains unavailable until both baseline and powered run force/moment evidence exist.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SEED_SAMPLE_COUNT = 8;
-	public static final int SEED_METRIC_COUNT = 39;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
+	public static final int SEED_METRIC_COUNT = 47;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 16;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SEED_SAMPLE_COUNT * SEED_METRIC_COUNT
@@ -28,6 +28,14 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 			boolean staticBaselineHasForceMoment,
 			boolean poweredRunAvailable,
 			boolean poweredRunHasForceMoment,
+			String poweredRunStatus,
+			String poweredRunMessage,
+			boolean poweredRunReadinessGateOpen,
+			boolean poweredRunRequestExecutionAllowed,
+			boolean poweredSourceApiSurfaceReady,
+			boolean poweredSourcePhysicalContractReady,
+			String missingPoweredSourceApiList,
+			String missingPoweredSourcePhysicalContractList,
 			boolean baselineSubtractedDeltaReady,
 			boolean validationSeedReady,
 			double staticForceXNewtons,
@@ -70,6 +78,10 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 			int staticBaselineForceMomentCount,
 			int poweredRunAvailableCount,
 			int poweredRunForceMomentCount,
+			int poweredRunReadinessGateOpenCount,
+			int poweredRunRequestExecutionAllowedCount,
+			int poweredSourceApiSurfaceReadyCount,
+			int poweredSourcePhysicalContractReadyCount,
 			int baselineSubtractedDeltaReadyCount,
 			int validationSeedReadyCount,
 			int validationPassedCount,
@@ -192,6 +204,14 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 				staticForceMoment,
 				poweredAvailable,
 				poweredForceMoment,
+				poweredRun.status(),
+				poweredRun.message(),
+				poweredRun.readinessGateOpen(),
+				poweredRun.requestExecutionAllowed(),
+				poweredRun.poweredSourceApiSurfaceReady(),
+				poweredRun.poweredSourcePhysicalContractReady(),
+				poweredRun.missingPoweredSourceApiList(),
+				poweredRun.missingPoweredSourcePhysicalContractList(),
 				deltaReady,
 				deltaReady,
 				staticBaseline.forceXNewtons(),
@@ -220,7 +240,8 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 				centerError,
 				passed,
 				deltaReady ? (passed ? "READY_PASS" : "READY_FAIL") : "UNAVAILABLE",
-				messageFor(staticAvailable, staticForceMoment, poweredAvailable, poweredForceMoment, passed),
+				messageFor(staticAvailable, staticForceMoment, poweredAvailable, poweredForceMoment,
+						poweredRun.message(), passed),
 				staticBaseline.runtimeInfo(),
 				poweredRun.runtimeInfo()
 		);
@@ -231,6 +252,7 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 			boolean staticForceMoment,
 			boolean poweredAvailable,
 			boolean poweredForceMoment,
+			String poweredRunMessage,
 			boolean passed
 	) {
 		if (!staticAvailable) {
@@ -240,7 +262,9 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 			return "static-baseline-force-moment-missing";
 		}
 		if (!poweredAvailable) {
-			return "powered-source-run-unavailable";
+			return poweredRunMessage == null || poweredRunMessage.isBlank()
+					? "powered-source-run-unavailable"
+					: poweredRunMessage;
 		}
 		if (!poweredForceMoment) {
 			return "powered-source-force-moment-missing";
@@ -320,6 +344,10 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 		int staticForceMoment = 0;
 		int poweredAvailable = 0;
 		int poweredForceMoment = 0;
+		int readinessOpen = 0;
+		int requestExecutionAllowed = 0;
+		int apiSurfaceReady = 0;
+		int physicalContractReady = 0;
 		int deltaReady = 0;
 		int validationReady = 0;
 		int validationPassed = 0;
@@ -344,6 +372,18 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 			if (seed.poweredRunHasForceMoment()) {
 				poweredForceMoment++;
 			}
+			if (seed.poweredRunReadinessGateOpen()) {
+				readinessOpen++;
+			}
+			if (seed.poweredRunRequestExecutionAllowed()) {
+				requestExecutionAllowed++;
+			}
+			if (seed.poweredSourceApiSurfaceReady()) {
+				apiSurfaceReady++;
+			}
+			if (seed.poweredSourcePhysicalContractReady()) {
+				physicalContractReady++;
+			}
 			if (seed.baselineSubtractedDeltaReady()) {
 				deltaReady++;
 			}
@@ -364,6 +404,10 @@ public final class Aerodynamics4McL2PoweredSourceResultSeed {
 				staticForceMoment,
 				poweredAvailable,
 				poweredForceMoment,
+				readinessOpen,
+				requestExecutionAllowed,
+				apiSurfaceReady,
+				physicalContractReady,
 				deltaReady,
 				validationReady,
 				validationPassed,

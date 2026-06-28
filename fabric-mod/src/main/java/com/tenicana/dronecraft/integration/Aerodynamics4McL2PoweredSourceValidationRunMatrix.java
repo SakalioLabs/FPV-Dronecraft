@@ -5,7 +5,7 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceValidationRunMatrix {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Validation-Run-Matrix-Packet";
 	public static final String CAVEAT =
-			"Validation run matrix consumes powered-source result seeds only when baseline-subtracted force/moment evidence is ready; unavailable seeds stay skipped and cannot feed acceptance gates.";
+			"Validation run matrix consumes powered-source result seeds only when baseline-subtracted force/moment evidence is ready; unavailable seeds keep their powered-run blocker message, stay skipped, and cannot feed acceptance gates.";
 	public static final int SOURCE_REFERENCE_COUNT = 8;
 	public static final int VALIDATION_SAMPLE_COUNT = 8;
 	public static final int VALIDATION_METRIC_COUNT = 25;

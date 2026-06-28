@@ -19,7 +19,7 @@ class Aerodynamics4McL2PoweredSourceValidationRunMatrixTest {
 				Aerodynamics4McL2PoweredSourceValidationRunMatrix.audit(getClass().getClassLoader());
 
 		assertEquals("A4MC-L2-Powered-Source-Validation-Run-Matrix-Packet", audit.sourceId());
-		assertTrue(audit.caveat().contains("unavailable seeds stay skipped"));
+		assertTrue(audit.caveat().contains("powered-run blocker message"));
 		assertEquals(220, audit.packetMetricRowCount());
 		assertEquals(8, audit.sourceReferenceCount());
 		assertEquals(8, audit.validationSampleCount());
@@ -50,7 +50,7 @@ class Aerodynamics4McL2PoweredSourceValidationRunMatrixTest {
 			assertEquals(0.0, run.centerOfForceErrorMeters(), 1.0e-12);
 			assertFalse(run.acceptanceResultCandidate());
 			assertEquals("SKIPPED", run.status());
-			assertEquals("powered-source-run-unavailable", run.message());
+			assertEquals("powered-source-api-surface-missing", run.message());
 			assertEquals("test-runtime", run.staticRuntimeInfo());
 			assertEquals("plan-only-powered-source-api-unavailable", run.poweredRuntimeInfo());
 		}
@@ -120,7 +120,7 @@ class Aerodynamics4McL2PoweredSourceValidationRunMatrixTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_validation_run,racingQuad:hover,status,SKIPPED,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_validation_run,racingQuad:hover,message,powered-source-run-unavailable,")));
+				line.startsWith("a4mc_l2_powered_source_validation_run,racingQuad:hover,message,powered-source-api-surface-missing,")));
 	}
 
 	private static Aerodynamics4McL2PoweredSourceResultSeed.PoweredSourceValidationSeed readySeed(
@@ -138,6 +138,14 @@ class Aerodynamics4McL2PoweredSourceValidationRunMatrixTest {
 				seed.staticBaselineHasForceMoment(),
 				true,
 				true,
+				"OK",
+				"none",
+				true,
+				true,
+				true,
+				true,
+				"none",
+				"none",
 				true,
 				true,
 				seed.staticForceXNewtons(),

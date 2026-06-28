@@ -20,11 +20,11 @@ class Aerodynamics4McL2PoweredSourceResultSeedTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Result-Seed-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("validation remains unavailable"));
-		assertEquals(332, audit.packetMetricRowCount());
+		assertEquals(400, audit.packetMetricRowCount());
 		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(8, audit.seedSampleCount());
-		assertEquals(39, audit.seedMetricCount());
-		assertEquals(12, audit.summaryMetricRowCount());
+		assertEquals(47, audit.seedMetricCount());
+		assertEquals(16, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(8, audit.seeds().size());
 
@@ -36,6 +36,14 @@ class Aerodynamics4McL2PoweredSourceResultSeedTest {
 			assertTrue(seed.staticBaselineHasForceMoment());
 			assertFalse(seed.poweredRunAvailable());
 			assertFalse(seed.poweredRunHasForceMoment());
+			assertEquals("SKIPPED", seed.poweredRunStatus());
+			assertEquals("powered-source-api-surface-missing", seed.poweredRunMessage());
+			assertFalse(seed.poweredRunReadinessGateOpen());
+			assertFalse(seed.poweredRunRequestExecutionAllowed());
+			assertFalse(seed.poweredSourceApiSurfaceReady());
+			assertFalse(seed.poweredSourcePhysicalContractReady());
+			assertTrue(seed.missingPoweredSourceApiList().contains("body_force_source_api"));
+			assertTrue(seed.missingPoweredSourcePhysicalContractList().contains("source_term_si_units"));
 			assertFalse(seed.baselineSubtractedDeltaReady());
 			assertFalse(seed.validationSeedReady());
 			assertEquals(1.25, seed.staticForceXNewtons(), 1.0e-6);
@@ -56,7 +64,7 @@ class Aerodynamics4McL2PoweredSourceResultSeedTest {
 			assertEquals(0.0, seed.centerOfForceErrorMeters(), 1.0e-12);
 			assertFalse(seed.validationPassed());
 			assertEquals("UNAVAILABLE", seed.status());
-			assertEquals("powered-source-run-unavailable", seed.message());
+			assertEquals("powered-source-api-surface-missing", seed.message());
 			assertEquals("test-runtime", seed.staticRuntimeInfo());
 			assertEquals("plan-only-powered-source-api-unavailable", seed.poweredRuntimeInfo());
 		}
@@ -68,6 +76,10 @@ class Aerodynamics4McL2PoweredSourceResultSeedTest {
 		assertEquals(8, audit.extrema().staticBaselineForceMomentCount());
 		assertEquals(0, audit.extrema().poweredRunAvailableCount());
 		assertEquals(0, audit.extrema().poweredRunForceMomentCount());
+		assertEquals(0, audit.extrema().poweredRunReadinessGateOpenCount());
+		assertEquals(0, audit.extrema().poweredRunRequestExecutionAllowedCount());
+		assertEquals(0, audit.extrema().poweredSourceApiSurfaceReadyCount());
+		assertEquals(0, audit.extrema().poweredSourcePhysicalContractReadyCount());
 		assertEquals(0, audit.extrema().baselineSubtractedDeltaReadyCount());
 		assertEquals(0, audit.extrema().validationSeedReadyCount());
 		assertEquals(0, audit.extrema().validationPassedCount());
@@ -175,7 +187,9 @@ class Aerodynamics4McL2PoweredSourceResultSeedTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_result_seed,racingQuad:hover,status,UNAVAILABLE,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_result_seed,racingQuad:hover,message,powered-source-run-unavailable,")));
+				line.startsWith("a4mc_l2_powered_source_result_seed,racingQuad:hover,message,powered-source-api-surface-missing,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_result_seed,racingQuad:hover,powered_run_message,powered-source-api-surface-missing,")));
 	}
 
 	private static Aerodynamics4McL2PoweredSourceRunMatrix.PoweredSourceRunSummary liveRun(
