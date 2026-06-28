@@ -20,10 +20,10 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 
 		assertEquals("A4MC-L2-Powered-Source-Run-Matrix-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("current rows stay skipped"));
-		assertEquals(303, audit.packetMetricRowCount());
+		assertEquals(351, audit.packetMetricRowCount());
 		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(8, audit.runSampleCount());
-		assertEquals(35, audit.runMetricCount());
+		assertEquals(41, audit.runMetricCount());
 		assertEquals(15, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(8, audit.runs().size());
@@ -54,7 +54,13 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 			assertFalse(run.succeeded());
 			assertFalse(run.available());
 			assertFalse(run.hasForceMoment());
+			assertEquals(0.0, run.forceDeltaXNewtons(), 1.0e-12);
+			assertEquals(0.0, run.forceDeltaYNewtons(), 1.0e-12);
+			assertEquals(0.0, run.forceDeltaZNewtons(), 1.0e-12);
 			assertEquals(0.0, run.forceDeltaMagnitudeNewtons(), 1.0e-12);
+			assertEquals(0.0, run.momentDeltaXNewtonMeters(), 1.0e-12);
+			assertEquals(0.0, run.momentDeltaYNewtonMeters(), 1.0e-12);
+			assertEquals(0.0, run.momentDeltaZNewtonMeters(), 1.0e-12);
 			assertEquals(0.0, run.momentDeltaMagnitudeNewtonMeters(), 1.0e-12);
 			assertEquals(0.0, run.centerOfForceOffsetMeters(), 1.0e-12);
 			assertEquals("SKIPPED", run.status());
@@ -101,7 +107,13 @@ class Aerodynamics4McL2PoweredSourceRunMatrixTest {
 			assertFalse(run.succeeded());
 			assertFalse(run.available());
 			assertFalse(run.hasForceMoment());
+			assertEquals(0.0, run.forceDeltaXNewtons(), 1.0e-12);
+			assertEquals(0.0, run.forceDeltaYNewtons(), 1.0e-12);
+			assertEquals(0.0, run.forceDeltaZNewtons(), 1.0e-12);
 			assertEquals(0.0, run.forceDeltaMagnitudeNewtons(), 1.0e-12);
+			assertEquals(0.0, run.momentDeltaXNewtonMeters(), 1.0e-12);
+			assertEquals(0.0, run.momentDeltaYNewtonMeters(), 1.0e-12);
+			assertEquals(0.0, run.momentDeltaZNewtonMeters(), 1.0e-12);
 			assertEquals(0.0, run.momentDeltaMagnitudeNewtonMeters(), 1.0e-12);
 		}
 		assertEquals(8, audit.extrema().readinessGateOpenCount());

@@ -8,7 +8,7 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			"Powered-source run matrix records compact execution status only; current rows stay skipped until A4MC exposes powered source injection and the request readiness gate opens.";
 	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int RUN_SAMPLE_COUNT = 8;
-	public static final int RUN_METRIC_COUNT = 35;
+	public static final int RUN_METRIC_COUNT = 41;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -49,7 +49,13 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 			boolean succeeded,
 			boolean available,
 			boolean hasForceMoment,
+			double forceDeltaXNewtons,
+			double forceDeltaYNewtons,
+			double forceDeltaZNewtons,
 			double forceDeltaMagnitudeNewtons,
+			double momentDeltaXNewtonMeters,
+			double momentDeltaYNewtonMeters,
+			double momentDeltaZNewtonMeters,
 			double momentDeltaMagnitudeNewtonMeters,
 			double centerOfForceOffsetMeters,
 			String status,
@@ -178,6 +184,12 @@ public final class Aerodynamics4McL2PoweredSourceRunMatrix {
 				false,
 				false,
 				false,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
 				0.0,
 				0.0,
 				0.0,
