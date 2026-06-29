@@ -109,7 +109,13 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				.DerateControlContractAudit contract =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.audit();
 		List<DerateControlHookReadinessRow> rows = new ArrayList<>();
-		HookImplementationEvidence currentEvidence = new HookImplementationEvidence(true, false, false, false);
+		boolean motorResponseCouplingReviewed =
+				PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookMotorResponseCouplingReview
+						.audit()
+						.summary()
+						.motorResponseCouplingReviewed();
+		HookImplementationEvidence currentEvidence =
+				new HookImplementationEvidence(true, motorResponseCouplingReviewed, false, false);
 		for (PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 				.DerateControlContractScenario scenario : contract.scenarios()) {
 			rows.add(row(scenario.scenarioName(), scenario.summary(), currentEvidence));
@@ -158,12 +164,13 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		boolean boundary = available && CONTROL_BOUNDARY.equals(summary.controlBoundary());
 		boolean clamp = available && summary.controlLayerClampRequiredCount() == summary.contractRowCount();
 		boolean hook = coverage && boundary && evidence.targetOmegaHookImplemented();
+		boolean motorResponseCouplingReviewed = hook && evidence.motorResponseCouplingReviewed();
 		boolean leakBlocked = !summary.postDeratePhysicalBudgetAccepted() || noMutationLeak(summary);
 		boolean implementationReady = coverage
 				&& boundary
 				&& clamp
 				&& hook
-				&& evidence.motorResponseCouplingReviewed()
+				&& motorResponseCouplingReviewed
 				&& evidence.failsafeClampReviewed()
 				&& evidence.blackboxRegressionAvailable()
 				&& leakBlocked;
@@ -175,7 +182,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				boundary,
 				clamp,
 				hook,
-				evidence.motorResponseCouplingReviewed(),
+				motorResponseCouplingReviewed,
 				evidence.failsafeClampReviewed(),
 				evidence.blackboxRegressionAvailable(),
 				implementationReady,

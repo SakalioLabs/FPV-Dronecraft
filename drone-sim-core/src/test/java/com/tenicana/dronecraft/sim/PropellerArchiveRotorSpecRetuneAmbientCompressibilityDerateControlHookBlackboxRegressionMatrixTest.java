@@ -65,8 +65,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
 		assertEquals("SKIPPED", current.status());
-		assertEquals("motor-response-coupling-review-missing", current.blocker());
-		assertEquals("review-motor-response-and-slew-effects-after-target-omega-derate",
+		assertEquals("failsafe-clamp-review-missing", current.blocker());
+		assertEquals("review-failsafe-clamp-and-no-load-overspeed-interaction",
 				current.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix

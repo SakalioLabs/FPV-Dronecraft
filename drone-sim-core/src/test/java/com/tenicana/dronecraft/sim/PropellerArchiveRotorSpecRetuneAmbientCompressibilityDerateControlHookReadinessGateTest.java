@@ -53,7 +53,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertTrue(allPass.targetOmegaBoundaryMatched());
 		assertTrue(allPass.controlLayerClampRequired());
 		assertTrue(allPass.runtimeHookImplemented());
-		assertFalse(allPass.motorResponseCouplingReviewed());
+		assertTrue(allPass.motorResponseCouplingReviewed());
 		assertFalse(allPass.failsafeClampReviewed());
 		assertFalse(allPass.blackboxRegressionAvailable());
 		assertFalse(allPass.implementationReady());
@@ -67,8 +67,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertFalse(allPass.runtimeCouplingAllowed());
 		assertFalse(allPass.playableReferenceAllowed());
 		assertFalse(allPass.gameplayAutoApplyAllowed());
-		assertEquals("motor-response-coupling-review-missing", allPass.dominantBlocker());
-		assertEquals("review-motor-response-and-slew-effects-after-target-omega-derate", allPass.nextRequiredAction());
+		assertEquals("failsafe-clamp-review-missing", allPass.dominantBlocker());
+		assertEquals("review-failsafe-clamp-and-no-load-overspeed-interaction", allPass.nextRequiredAction());
 		assertEquals("BLOCKED", allPass.status());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
@@ -91,7 +91,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertEquals(2, audit.extrema().targetOmegaBoundaryMatchedScenarioCount());
 		assertEquals(2, audit.extrema().controlLayerClampRequiredScenarioCount());
 		assertEquals(2, audit.extrema().runtimeHookImplementedScenarioCount());
-		assertEquals(1, audit.extrema().motorResponseCouplingReviewedScenarioCount());
+		assertEquals(2, audit.extrema().motorResponseCouplingReviewedScenarioCount());
 		assertEquals(1, audit.extrema().failsafeClampReviewedScenarioCount());
 		assertEquals(1, audit.extrema().blackboxRegressionAvailableScenarioCount());
 		assertEquals(2, audit.extrema().maxContractRowCount());
