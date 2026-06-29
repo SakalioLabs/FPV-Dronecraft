@@ -23,8 +23,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 				"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Readiness-Gate-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("target-omega hook"));
-		assertEquals(67, audit.packetRowCount());
-		assertEquals(6, audit.sourceReferenceRowCount());
+		assertEquals(68, audit.packetRowCount());
+		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(5, audit.scenarioSampleCount());
 		assertEquals(10, audit.scenarioMetricRowCount());
 		assertEquals(10, audit.summaryRowCount());
@@ -54,7 +54,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertTrue(allPass.controlLayerClampRequired());
 		assertTrue(allPass.runtimeHookImplemented());
 		assertTrue(allPass.motorResponseCouplingReviewed());
-		assertFalse(allPass.failsafeClampReviewed());
+		assertTrue(allPass.failsafeClampReviewed());
 		assertFalse(allPass.blackboxRegressionAvailable());
 		assertFalse(allPass.implementationReady());
 		assertEquals(2, allPass.contractRowCount());
@@ -67,8 +67,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertFalse(allPass.runtimeCouplingAllowed());
 		assertFalse(allPass.playableReferenceAllowed());
 		assertFalse(allPass.gameplayAutoApplyAllowed());
-		assertEquals("failsafe-clamp-review-missing", allPass.dominantBlocker());
-		assertEquals("review-failsafe-clamp-and-no-load-overspeed-interaction", allPass.nextRequiredAction());
+		assertEquals("derate-hook-blackbox-regression-missing", allPass.dominantBlocker());
+		assertEquals("add-blackbox-regression-for-cold-air-derate-hook", allPass.nextRequiredAction());
 		assertEquals("BLOCKED", allPass.status());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
@@ -92,7 +92,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertEquals(2, audit.extrema().controlLayerClampRequiredScenarioCount());
 		assertEquals(2, audit.extrema().runtimeHookImplementedScenarioCount());
 		assertEquals(2, audit.extrema().motorResponseCouplingReviewedScenarioCount());
-		assertEquals(1, audit.extrema().failsafeClampReviewedScenarioCount());
+		assertEquals(2, audit.extrema().failsafeClampReviewedScenarioCount());
 		assertEquals(1, audit.extrema().blackboxRegressionAvailableScenarioCount());
 		assertEquals(2, audit.extrema().maxContractRowCount());
 		assertEquals(0.9715982698017723, audit.extrema().minTargetMaxRpmScale(), 1.0e-12);

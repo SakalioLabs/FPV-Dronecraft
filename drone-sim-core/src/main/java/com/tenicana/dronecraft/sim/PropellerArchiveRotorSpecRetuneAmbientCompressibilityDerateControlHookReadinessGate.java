@@ -12,7 +12,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			"DronePhysics.targetOmega=maxOmega*targetMaxRpmScale-before-motor-response";
 	public static final int REQUIRED_CONTRACT_ROW_COUNT =
 			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.CONTRACT_ROW_COUNT;
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
 	public static final int SCENARIO_METRIC_ROW_COUNT = 10;
 	public static final int SUMMARY_ROW_COUNT = 10;
@@ -114,8 +114,13 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 						.audit()
 						.summary()
 						.motorResponseCouplingReviewed();
+		boolean failsafeClampReviewed =
+				PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookFailsafeClampReview
+						.audit()
+						.summary()
+						.failsafeClampReviewed();
 		HookImplementationEvidence currentEvidence =
-				new HookImplementationEvidence(true, motorResponseCouplingReviewed, false, false);
+				new HookImplementationEvidence(true, motorResponseCouplingReviewed, failsafeClampReviewed, false);
 		for (PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 				.DerateControlContractScenario scenario : contract.scenarios()) {
 			rows.add(row(scenario.scenarioName(), scenario.summary(), currentEvidence));
@@ -165,13 +170,14 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		boolean clamp = available && summary.controlLayerClampRequiredCount() == summary.contractRowCount();
 		boolean hook = coverage && boundary && evidence.targetOmegaHookImplemented();
 		boolean motorResponseCouplingReviewed = hook && evidence.motorResponseCouplingReviewed();
+		boolean failsafeClampReviewed = motorResponseCouplingReviewed && evidence.failsafeClampReviewed();
 		boolean leakBlocked = !summary.postDeratePhysicalBudgetAccepted() || noMutationLeak(summary);
 		boolean implementationReady = coverage
 				&& boundary
 				&& clamp
 				&& hook
 				&& motorResponseCouplingReviewed
-				&& evidence.failsafeClampReviewed()
+				&& failsafeClampReviewed
 				&& evidence.blackboxRegressionAvailable()
 				&& leakBlocked;
 		String blocker = dominantBlocker(summary, coverage, boundary, clamp, evidence, leakBlocked);
@@ -183,7 +189,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				clamp,
 				hook,
 				motorResponseCouplingReviewed,
-				evidence.failsafeClampReviewed(),
+				failsafeClampReviewed,
 				evidence.blackboxRegressionAvailable(),
 				implementationReady,
 				summary.contractRowCount(),

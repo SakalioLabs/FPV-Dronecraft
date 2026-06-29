@@ -24,8 +24,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 				"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Regression-Matrix-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("offline target-omega derate cases"));
-		assertEquals(36, audit.packetRowCount());
-		assertEquals(6, audit.sourceReferenceRowCount());
+		assertEquals(37, audit.packetRowCount());
+		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(2, audit.contractScenarioCount());
 		assertEquals(2, audit.presetSampleCount());
 		assertEquals(4, audit.regressionCaseCount());
@@ -65,8 +65,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
 		assertEquals("SKIPPED", current.status());
-		assertEquals("failsafe-clamp-review-missing", current.blocker());
-		assertEquals("review-failsafe-clamp-and-no-load-overspeed-interaction",
+		assertEquals("derate-hook-blackbox-regression-missing", current.blocker());
+		assertEquals("add-blackbox-regression-for-cold-air-derate-hook",
 				current.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix

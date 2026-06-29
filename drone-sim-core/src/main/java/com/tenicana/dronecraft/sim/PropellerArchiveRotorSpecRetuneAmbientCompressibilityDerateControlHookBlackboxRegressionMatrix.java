@@ -9,7 +9,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Regression-Matrix-Packet";
 	public static final String CAVEAT =
 			"RotorSpec retune ambient compressibility derate control-hook blackbox regression matrix defines offline target-omega derate cases after hook readiness and before any runtime coupling, playable export, or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int CONTRACT_SCENARIO_COUNT = 2;
 	public static final int PRESET_SAMPLE_COUNT =
 			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.CONTRACT_ROW_COUNT;
