@@ -7,7 +7,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Readiness-Gate-Packet";
 	public static final String CAVEAT =
-			"RotorSpec retune ambient compressibility derate control-hook readiness requires the accepted control contract plus a reviewed target-omega hook, motor-response coupling, failsafe clamp, and blackbox regression before any simulation implementation can be treated as validation-ready; runtime coupling, playable export, and gameplay auto-apply remain closed.";
+			"RotorSpec retune ambient compressibility derate control-hook readiness requires the accepted control contract plus a reviewed target-omega hook, motor-response coupling, failsafe clamp, and blackbox regression before any candidate derate can be treated as validation-ready; runtime coupling, playable export, and gameplay auto-apply remain closed.";
 	public static final String CONTROL_BOUNDARY =
 			"DronePhysics.targetOmega=maxOmega*targetMaxRpmScale-before-motor-response";
 	public static final int REQUIRED_CONTRACT_ROW_COUNT =
@@ -109,7 +109,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				.DerateControlContractAudit contract =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.audit();
 		List<DerateControlHookReadinessRow> rows = new ArrayList<>();
-		HookImplementationEvidence currentEvidence = new HookImplementationEvidence(false, false, false, false);
+		HookImplementationEvidence currentEvidence = new HookImplementationEvidence(true, false, false, false);
 		for (PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 				.DerateControlContractScenario scenario : contract.scenarios()) {
 			rows.add(row(scenario.scenarioName(), scenario.summary(), currentEvidence));

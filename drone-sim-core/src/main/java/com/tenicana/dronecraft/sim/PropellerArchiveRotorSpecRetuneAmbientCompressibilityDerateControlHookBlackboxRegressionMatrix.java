@@ -242,7 +242,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				planned ? "PENDING_REGRESSION" : "SKIPPED",
 				planned ? "blackbox-regression-not-run" : readiness.dominantBlocker(),
 				planned
-						? "execute-cold-air-target-omega-blackbox-regression-before-runtime-hook"
+						? "execute-cold-air-target-omega-blackbox-regression-before-runtime-candidate-derate"
 						: readiness.nextRequiredAction()
 		);
 	}

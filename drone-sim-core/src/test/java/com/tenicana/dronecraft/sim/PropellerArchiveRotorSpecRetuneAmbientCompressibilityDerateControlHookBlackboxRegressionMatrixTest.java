@@ -65,8 +65,9 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
 		assertEquals("SKIPPED", current.status());
-		assertEquals("target-omega-derate-hook-not-implemented", current.blocker());
-		assertEquals("implement-target-omega-scale-hook-before-motor-response", current.nextRequiredAction());
+		assertEquals("motor-response-coupling-review-missing", current.blocker());
+		assertEquals("review-motor-response-and-slew-effects-after-target-omega-derate",
+				current.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
 				.DerateControlHookBlackboxRegressionRunRow ready =
@@ -90,7 +91,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertFalse(ready.runtimeCouplingAllowed());
 		assertEquals("PENDING_REGRESSION", ready.status());
 		assertEquals("blackbox-regression-not-run", ready.blocker());
-		assertEquals("execute-cold-air-target-omega-blackbox-regression-before-runtime-hook",
+		assertEquals("execute-cold-air-target-omega-blackbox-regression-before-runtime-candidate-derate",
 				ready.nextRequiredAction());
 
 		assertEquals(16, audit.summary().rowCount());

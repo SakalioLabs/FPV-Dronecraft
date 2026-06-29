@@ -69,7 +69,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 		assertEquals(0, allPass.gameplayAutoApplyAllowedCount());
 		assertEquals(CONTROL_BOUNDARY, allPass.controlBoundary());
 		assertEquals("REVIEW_READY", allPass.status());
-		assertEquals("control-contract-ready-runtime-hook-not-enabled", allPass.message());
+		assertEquals("control-contract-ready-candidate-derate-not-enabled", allPass.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 				.DerateControlContractScenarioSummary failed =
@@ -124,7 +124,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 		assertFalse(racing.playableReferenceAllowed());
 		assertFalse(racing.gameplayAutoApplyAllowed());
 		assertEquals("REVIEW_READY", racing.status());
-		assertEquals("control-contract-ready-runtime-hook-not-enabled", racing.message());
+		assertEquals("control-contract-ready-candidate-derate-not-enabled", racing.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 				.DerateControlContractRow apDrone =

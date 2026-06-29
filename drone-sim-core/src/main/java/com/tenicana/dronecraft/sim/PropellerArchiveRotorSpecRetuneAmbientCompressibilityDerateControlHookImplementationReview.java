@@ -9,7 +9,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Implementation-Review-Packet";
 	public static final String CAVEAT =
-			"RotorSpec retune ambient compressibility derate control-hook implementation review material is generated only after blackbox acceptance; it records target-omega insertion and telemetry review items without enabling runtime implementation, runtime coupling, playable export, or gameplay auto-apply.";
+			"RotorSpec retune ambient compressibility derate control-hook implementation review material is generated only after blackbox acceptance; it records target-omega insertion and telemetry review items without enabling preset candidate derates, runtime coupling, playable export, or gameplay auto-apply.";
 	public static final String CONTROL_BOUNDARY =
 			"DronePhysics.targetOmega=maxOmega*targetMaxRpmScale-before-motor-response";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
@@ -400,7 +400,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			case "hook_insertion_boundary" ->
 					"apply-targetMaxRpmScale-between-maxOmega-and-state.setMotorTargetOmega-before-motorResponse";
 			case "runtime_leak_guard" ->
-					"runtime-implementation-runtime-coupling-playable-export-gameplay-auto-apply-remain-closed";
+					"candidate-derate-runtime-coupling-playable-export-gameplay-auto-apply-remain-closed";
 			default -> throw new IllegalArgumentException("unknown control-hook implementation review item: "
 					+ itemName);
 		};

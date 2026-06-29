@@ -9,7 +9,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Acceptance-Gate-Packet";
 	public static final String CAVEAT =
-			"RotorSpec retune ambient compressibility derate control-hook blackbox acceptance remains closed until every planned target-omega derate regression has explicit passing results; passing opens only manual control-hook review, while runtime implementation, runtime coupling, playable export, and gameplay auto-apply stay closed.";
+			"RotorSpec retune ambient compressibility derate control-hook blackbox acceptance remains closed until every planned target-omega derate regression has explicit passing results; passing opens only manual control-hook review, while preset candidate derates, runtime coupling, playable export, and gameplay auto-apply stay closed.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
 	public static final int SCENARIO_METRIC_ROW_COUNT = 8;
@@ -115,7 +115,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 						"synthetic_derate_validation_all_pass",
 						matrix,
 						List.of(),
-						"current-target-omega-hook-not-implemented"
+						"current-target-omega-hook-implemented-motor-response-review-missing"
 				),
 				scenario(
 						"synthetic_control_hook_blackbox_results_missing",

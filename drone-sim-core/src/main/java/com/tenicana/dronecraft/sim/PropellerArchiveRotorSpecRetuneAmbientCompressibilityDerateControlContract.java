@@ -247,7 +247,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				"DronePhysics.targetOmega=maxOmega*targetMaxRpmScale-before-motor-response",
 				available ? "REVIEW_READY" : "BLOCKED",
 				available
-						? "control-contract-ready-runtime-hook-not-enabled"
+						? "control-contract-ready-candidate-derate-not-enabled"
 						: budgetSummary.message()
 		);
 	}
@@ -301,7 +301,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				false,
 				false,
 				"REVIEW_READY",
-				"control-contract-ready-runtime-hook-not-enabled"
+				"control-contract-ready-candidate-derate-not-enabled"
 		);
 	}
 

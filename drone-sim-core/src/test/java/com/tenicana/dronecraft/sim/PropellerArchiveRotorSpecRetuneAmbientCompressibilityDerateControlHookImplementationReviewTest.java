@@ -181,7 +181,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_implementation_review,synthetic_control_hook_blackbox_all_pass,racingQuad,cold_sea_level_minus10c,target_max_rpm_scale,0.9715982698017722,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_implementation_review,synthetic_control_hook_blackbox_all_pass,apDrone,cold_sea_level_minus10c,runtime_leak_guard,runtime-implementation-runtime-coupling-playable-export-gameplay-auto-apply-remain-closed,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_implementation_review,synthetic_control_hook_blackbox_all_pass,apDrone,cold_sea_level_minus10c,runtime_leak_guard,candidate-derate-runtime-coupling-playable-export-gameplay-auto-apply-remain-closed,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_implementation_review_summary,all_scenarios,runtime_implementation_allowed_scenario_count,0,count,")));
 	}
