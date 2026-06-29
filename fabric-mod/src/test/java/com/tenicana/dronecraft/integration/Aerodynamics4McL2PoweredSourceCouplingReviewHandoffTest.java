@@ -19,12 +19,12 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 				Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.audit(getClass().getClassLoader());
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Review-Handoff-Packet", audit.sourceId());
-		assertTrue(audit.caveat().contains("final conservation guard"));
-		assertEquals(83, audit.packetMetricRowCount());
-		assertEquals(6, audit.sourceReferenceCount());
+		assertTrue(audit.caveat().contains("swirl angular-momentum conservation guard"));
+		assertEquals(116, audit.packetMetricRowCount());
+		assertEquals(7, audit.sourceReferenceCount());
 		assertEquals(2, audit.scenarioSampleCount());
-		assertEquals(32, audit.scenarioMetricCount());
-		assertEquals(12, audit.summaryMetricRowCount());
+		assertEquals(47, audit.scenarioMetricCount());
+		assertEquals(14, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(2, audit.scenarios().size());
 
@@ -32,7 +32,7 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 				find(audit.scenarios(), "current_powered_source_coupling_review_blocked").summary();
 		assertFalse(current.poweredSourceCouplingReviewAllowed());
 		assertFalse(current.simulationReferenceMaterialExportAllowed());
-		assertEquals(8, current.blockerCount());
+		assertEquals(11, current.blockerCount());
 		assertFalse(current.finalGuardRuntimePoweredSourceCouplingAllowed());
 		assertFalse(current.upstreamCouplingReadinessAllowed());
 		assertFalse(current.poweredSourceApiSurfaceReady());
@@ -40,23 +40,35 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertFalse(current.policyRuntimeAllowed());
 		assertFalse(current.hoverAndCruiseCouplingAllowed());
 		assertFalse(current.liveConservationEvidenceAccepted());
+		assertFalse(current.liveSwirlConservationEvidenceAccepted());
 		assertFalse(current.hoverLiveConservationAccepted());
 		assertFalse(current.cruiseLiveConservationAccepted());
+		assertFalse(current.hoverLiveSwirlConservationAccepted());
+		assertFalse(current.cruiseLiveSwirlConservationAccepted());
 		assertTrue(current.conservationTargetSelfConsistent());
+		assertTrue(current.swirlConservationTargetSelfConsistent());
 		assertEquals(2, current.conservationRowCount());
 		assertEquals(0, current.liveConservationAcceptedCount());
 		assertEquals(2, current.sourceForceDeltaRequiredCount());
 		assertEquals(2, current.sourceMomentDeltaRequiredCount());
 		assertEquals(2, current.wakeResidualRequiredCount());
+		assertEquals(2, current.swirlConservationRowCount());
+		assertEquals(0, current.liveSwirlConservationAcceptedCount());
+		assertEquals(2, current.wakeTangentialVelocityRequiredCount());
+		assertEquals(2, current.wakeAngularMomentumResidualRequiredCount());
 		assertTrue(current.couplingReadinessBlocker());
 		assertTrue(current.conservationEvidenceBlocker());
 		assertTrue(current.hoverConservationBlocker());
 		assertTrue(current.cruiseConservationBlocker());
+		assertTrue(current.swirlConservationEvidenceBlocker());
+		assertTrue(current.hoverSwirlConservationBlocker());
+		assertTrue(current.cruiseSwirlConservationBlocker());
 		assertFalse(current.targetModelSelfConsistencyBlocker());
+		assertFalse(current.swirlTargetSelfConsistencyBlocker());
 		assertFalse(current.gameplayAutoApplyLeakBlocker());
 		assertFalse(current.gameplayAutoApplyAllowed());
 		assertTrue(current.playableReviewRequiredBeforeUse());
-		assertEquals("powered-source-force-moment-wake-conservation-review-package",
+		assertEquals("powered-source-force-moment-wake-and-swirl-conservation-review-package",
 				current.reviewPayloadKind());
 		assertEquals("wait-for-public-a4mc-powered-source-api-surface", current.nextRequiredAction());
 		assertEquals("BLOCKED", current.status());
@@ -74,13 +86,20 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertTrue(ready.policyRuntimeAllowed());
 		assertTrue(ready.hoverAndCruiseCouplingAllowed());
 		assertTrue(ready.liveConservationEvidenceAccepted());
+		assertTrue(ready.liveSwirlConservationEvidenceAccepted());
 		assertTrue(ready.hoverLiveConservationAccepted());
 		assertTrue(ready.cruiseLiveConservationAccepted());
+		assertTrue(ready.hoverLiveSwirlConservationAccepted());
+		assertTrue(ready.cruiseLiveSwirlConservationAccepted());
 		assertTrue(ready.conservationTargetSelfConsistent());
+		assertTrue(ready.swirlConservationTargetSelfConsistent());
 		assertEquals(2, ready.conservationRowCount());
 		assertEquals(2, ready.liveConservationAcceptedCount());
+		assertEquals(2, ready.swirlConservationRowCount());
+		assertEquals(2, ready.liveSwirlConservationAcceptedCount());
 		assertFalse(ready.couplingReadinessBlocker());
 		assertFalse(ready.conservationEvidenceBlocker());
+		assertFalse(ready.swirlConservationEvidenceBlocker());
 		assertFalse(ready.gameplayAutoApplyLeakBlocker());
 		assertFalse(ready.gameplayAutoApplyAllowed());
 		assertTrue(ready.playableReviewRequiredBeforeUse());
@@ -94,10 +113,12 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertEquals(1, audit.extrema().blockedScenarioCount());
 		assertEquals(1, audit.extrema().reviewAllowedCount());
 		assertEquals(1, audit.extrema().referenceMaterialExportAllowedCount());
-		assertEquals(8, audit.extrema().maxBlockerCount());
+		assertEquals(11, audit.extrema().maxBlockerCount());
 		assertEquals(1, audit.extrema().couplingReadinessBlockerScenarioCount());
 		assertEquals(1, audit.extrema().conservationEvidenceBlockerScenarioCount());
+		assertEquals(1, audit.extrema().swirlConservationEvidenceBlockerScenarioCount());
 		assertEquals(0, audit.extrema().targetModelSelfConsistencyBlockerScenarioCount());
+		assertEquals(0, audit.extrema().swirlTargetSelfConsistencyBlockerScenarioCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyLeakBlockerScenarioCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
 		assertEquals(2, audit.extrema().playableReviewRequiredBeforeUseCount());
@@ -127,7 +148,9 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_summary,all_scenarios,review_allowed_count,1,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,current_powered_source_coupling_review_blocked,blocker_count,8,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,current_powered_source_coupling_review_blocked,blocker_count,11,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,current_powered_source_coupling_review_blocked,live_swirl_conservation_evidence_accepted,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,synthetic_powered_source_coupling_review_ready,simulation_reference_material_export_allowed,true,")));
 		assertTrue(lines.stream().anyMatch(line ->

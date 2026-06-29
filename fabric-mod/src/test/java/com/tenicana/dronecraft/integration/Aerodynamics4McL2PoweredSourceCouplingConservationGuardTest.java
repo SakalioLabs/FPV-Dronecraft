@@ -19,14 +19,14 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 				Aerodynamics4McL2PoweredSourceCouplingConservationGuard.audit(getClass().getClassLoader());
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Conservation-Guard-Packet", audit.sourceId());
-		assertTrue(audit.caveat().contains("live hover plus cruise conservation evidence"));
-		assertEquals(115, audit.packetMetricRowCount());
-		assertEquals(6, audit.sourceReferenceCount());
-		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(24, audit.scenarioMetricCount());
-		assertEquals(12, audit.summaryMetricRowCount());
+		assertTrue(audit.caveat().contains("swirl angular-momentum conservation evidence"));
+		assertEquals(201, audit.packetMetricRowCount());
+		assertEquals(7, audit.sourceReferenceCount());
+		assertEquals(5, audit.scenarioSampleCount());
+		assertEquals(35, audit.scenarioMetricCount());
+		assertEquals(18, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
-		assertEquals(4, audit.scenarios().size());
+		assertEquals(5, audit.scenarios().size());
 
 		Aerodynamics4McL2PoweredSourceCouplingConservationGuard.PoweredSourceCouplingConservationGuardSummary current =
 				find(audit.scenarios(), "current_coupling_and_conservation_blocked").summary();
@@ -42,22 +42,32 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 		assertEquals(2, current.sourceForceDeltaRequiredCount());
 		assertEquals(2, current.sourceMomentDeltaRequiredCount());
 		assertEquals(2, current.wakeResidualRequiredCount());
+		assertEquals(2, current.swirlConservationRowCount());
+		assertEquals(2, current.swirlTargetSelfConsistentCount());
+		assertEquals(0, current.liveSwirlConservationAcceptedCount());
+		assertEquals(2, current.wakeTangentialVelocityRequiredCount());
+		assertEquals(2, current.wakeAngularMomentumResidualRequiredCount());
 		assertFalse(current.hoverLiveConservationAccepted());
 		assertFalse(current.cruiseLiveConservationAccepted());
+		assertFalse(current.hoverLiveSwirlConservationAccepted());
+		assertFalse(current.cruiseLiveSwirlConservationAccepted());
 		assertFalse(current.liveConservationEvidenceAccepted());
+		assertFalse(current.liveSwirlConservationEvidenceAccepted());
 		assertFalse(current.runtimePoweredSourceCouplingAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
-		assertEquals("hover-and-cruise-powered-source-conservation-evidence",
+		assertEquals("hover-and-cruise-powered-source-force-moment-wake-and-swirl-conservation-evidence",
 				current.conservationPayloadKind());
 		assertEquals("audit-only-conservation-guard", current.runtimeInfo());
 		assertEquals("complete-powered-source-coupling-readiness-gate", current.nextRequiredAction());
 		assertEquals("BLOCKED", current.status());
 
 		Aerodynamics4McL2PoweredSourceCouplingConservationGuard.PoweredSourceCouplingConservationGuardSummary
-				conservationOnly = find(audit.scenarios(), "conservation_ready_coupling_blocked").summary();
+		conservationOnly = find(audit.scenarios(), "conservation_ready_coupling_blocked").summary();
 		assertFalse(conservationOnly.runtimeCouplingReadinessAllowed());
 		assertEquals(2, conservationOnly.liveConservationAcceptedCount());
+		assertEquals(2, conservationOnly.liveSwirlConservationAcceptedCount());
 		assertTrue(conservationOnly.liveConservationEvidenceAccepted());
+		assertTrue(conservationOnly.liveSwirlConservationEvidenceAccepted());
 		assertFalse(conservationOnly.runtimePoweredSourceCouplingAllowed());
 		assertEquals("complete-powered-source-coupling-readiness-gate",
 				conservationOnly.nextRequiredAction());
@@ -71,19 +81,41 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 		assertTrue(couplingOnly.allPoliciesRuntimeAllowed());
 		assertTrue(couplingOnly.hoverAndCruiseCouplingAllowed());
 		assertEquals(0, couplingOnly.liveConservationAcceptedCount());
+		assertEquals(0, couplingOnly.liveSwirlConservationAcceptedCount());
 		assertFalse(couplingOnly.liveConservationEvidenceAccepted());
+		assertFalse(couplingOnly.liveSwirlConservationEvidenceAccepted());
 		assertFalse(couplingOnly.runtimePoweredSourceCouplingAllowed());
-		assertEquals("capture-live-a4mc-powered-source-force-moment-and-wake-residuals",
+		assertEquals("capture-live-a4mc-powered-source-force-moment-wake-and-swirl-residuals",
 				couplingOnly.nextRequiredAction());
 		assertEquals("BLOCKED", couplingOnly.status());
+
+		Aerodynamics4McL2PoweredSourceCouplingConservationGuard.PoweredSourceCouplingConservationGuardSummary
+				swirlOnly = find(audit.scenarios(),
+						"coupling_ready_force_moment_wake_ready_swirl_blocked").summary();
+		assertTrue(swirlOnly.runtimeCouplingReadinessAllowed());
+		assertEquals(2, swirlOnly.liveConservationAcceptedCount());
+		assertEquals(0, swirlOnly.liveSwirlConservationAcceptedCount());
+		assertTrue(swirlOnly.hoverLiveConservationAccepted());
+		assertTrue(swirlOnly.cruiseLiveConservationAccepted());
+		assertFalse(swirlOnly.hoverLiveSwirlConservationAccepted());
+		assertFalse(swirlOnly.cruiseLiveSwirlConservationAccepted());
+		assertFalse(swirlOnly.liveConservationEvidenceAccepted());
+		assertFalse(swirlOnly.liveSwirlConservationEvidenceAccepted());
+		assertFalse(swirlOnly.runtimePoweredSourceCouplingAllowed());
+		assertEquals("capture-live-a4mc-powered-source-swirl-angular-momentum-residuals",
+				swirlOnly.nextRequiredAction());
 
 		Aerodynamics4McL2PoweredSourceCouplingConservationGuard.PoweredSourceCouplingConservationGuardSummary ready =
 				find(audit.scenarios(), "coupling_and_conservation_ready").summary();
 		assertTrue(ready.runtimeCouplingReadinessAllowed());
 		assertEquals(2, ready.liveConservationAcceptedCount());
+		assertEquals(2, ready.liveSwirlConservationAcceptedCount());
 		assertTrue(ready.hoverLiveConservationAccepted());
 		assertTrue(ready.cruiseLiveConservationAccepted());
+		assertTrue(ready.hoverLiveSwirlConservationAccepted());
+		assertTrue(ready.cruiseLiveSwirlConservationAccepted());
 		assertTrue(ready.liveConservationEvidenceAccepted());
+		assertTrue(ready.liveSwirlConservationEvidenceAccepted());
 		assertTrue(ready.runtimePoweredSourceCouplingAllowed());
 		assertFalse(ready.gameplayAutoApplyAllowed());
 		assertEquals("synthetic-reviewed-conservation-ready", ready.runtimeInfo());
@@ -92,18 +124,24 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 		assertEquals("READY", ready.status());
 		assertEquals("powered-source-coupling-conservation-clear", ready.message());
 
-		assertEquals(4, audit.extrema().scenarioCount());
+		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().readyScenarioCount());
-		assertEquals(3, audit.extrema().blockedScenarioCount());
-		assertEquals(2, audit.extrema().mechanicalCouplingReadyScenarioCount());
+		assertEquals(4, audit.extrema().blockedScenarioCount());
+		assertEquals(3, audit.extrema().mechanicalCouplingReadyScenarioCount());
 		assertEquals(2, audit.extrema().conservationEvidenceAcceptedScenarioCount());
 		assertEquals(1, audit.extrema().runtimePoweredSourceCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
 		assertEquals(2, audit.extrema().maxConservationRowCount());
 		assertEquals(2, audit.extrema().maxConservationTargetSelfConsistentCount());
 		assertEquals(2, audit.extrema().maxLiveConservationAcceptedCount());
+		assertEquals(2, audit.extrema().maxSwirlConservationRowCount());
+		assertEquals(2, audit.extrema().maxSwirlTargetSelfConsistentCount());
+		assertEquals(2, audit.extrema().maxLiveSwirlConservationAcceptedCount());
 		assertTrue(audit.extrema().maxMomentumClosureErrorRatio() < 1.0e-12);
 		assertTrue(audit.extrema().maxKineticPowerClosureErrorRatio() < 1.0e-12);
+		assertTrue(audit.extrema().maxTargetTangentialWakeVelocityMetersPerSecond() > 20.0);
+		assertTrue(audit.extrema().maxSwirlPowerFractionOfMomentumPower() > 0.5);
+		assertEquals(0.0, audit.extrema().maxNetTorqueCancellationErrorRatio(), 1.0e-12);
 	}
 
 	@Test
@@ -128,7 +166,7 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 		assertTrue(guarded.runtimeCouplingReadinessAllowed());
 		assertFalse(guarded.liveConservationEvidenceAccepted());
 		assertFalse(guarded.runtimePoweredSourceCouplingAllowed());
-		assertEquals("capture-live-a4mc-powered-source-force-moment-and-wake-residuals",
+		assertEquals("capture-live-a4mc-powered-source-force-moment-wake-and-swirl-residuals",
 				guarded.nextRequiredAction());
 	}
 
@@ -151,6 +189,10 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.audit(
 						Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit(), null));
 		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.audit(
+						Aerodynamics4McL2PoweredSourceCouplingReadinessGate.audit(),
+						Aerodynamics4McL2PoweredSourceConservationContract.audit(), null));
+		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.guard("", readiness, rows));
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.guard("scenario", null, rows));
@@ -158,7 +200,16 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.guard("scenario", readiness, null));
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.guard(
+						"scenario", readiness, rows, null));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.guard(
 						"scenario", readiness, java.util.Arrays.asList(rows.get(0), null)));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingConservationGuard.guard(
+						"scenario", readiness, rows,
+						java.util.Arrays.asList(
+								Aerodynamics4McL2PoweredSourceSwirlConservationContract.audit().rows().get(0),
+								null)));
 	}
 
 	@Test
@@ -175,7 +226,9 @@ class Aerodynamics4McL2PoweredSourceCouplingConservationGuardTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_conservation_guard_scenario,coupling_ready_conservation_blocked,runtime_coupling_readiness_allowed,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_source_coupling_conservation_guard_scenario,coupling_ready_conservation_blocked,live_conservation_evidence_accepted,false,")));
+				line.startsWith("a4mc_l2_powered_source_coupling_conservation_guard_scenario,coupling_ready_force_moment_wake_ready_swirl_blocked,live_swirl_conservation_evidence_accepted,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_conservation_guard_scenario,coupling_ready_force_moment_wake_ready_swirl_blocked,next_required_action,capture-live-a4mc-powered-source-swirl-angular-momentum-residuals,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_conservation_guard_scenario,coupling_and_conservation_ready,runtime_powered_source_coupling_allowed,true,")));
 		assertTrue(lines.stream().anyMatch(line ->

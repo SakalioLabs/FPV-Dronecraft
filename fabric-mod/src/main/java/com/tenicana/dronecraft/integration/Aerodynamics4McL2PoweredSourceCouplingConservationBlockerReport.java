@@ -5,12 +5,12 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Conservation-Blocker-Report-Packet";
 	public static final String CAVEAT =
-			"Blocker report decomposes the final powered-source conservation guard into upstream coupling-readiness, live hover/cruise conservation evidence, and runtime/gameplay leak reasons only.";
-	public static final int SOURCE_REFERENCE_COUNT = 6;
+			"Blocker report decomposes the final powered-source conservation guard into upstream coupling-readiness, live hover/cruise force/moment/wake evidence, live swirl angular-momentum evidence, and runtime/gameplay leak reasons only.";
+	public static final int SOURCE_REFERENCE_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT =
 			Aerodynamics4McL2PoweredSourceCouplingConservationGuard.SCENARIO_SAMPLE_COUNT;
-	public static final int SCENARIO_METRIC_COUNT = 34;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
+	public static final int SCENARIO_METRIC_COUNT = 49;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 24;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -30,9 +30,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 			boolean policyRuntimeBlocker,
 			boolean hoverAndCruiseCouplingReadinessBlocker,
 			boolean targetModelSelfConsistencyBlocker,
+			boolean swirlTargetSelfConsistencyBlocker,
 			boolean conservationEvidenceBlocker,
 			boolean hoverConservationBlocker,
 			boolean cruiseConservationBlocker,
+			boolean swirlConservationEvidenceBlocker,
+			boolean hoverSwirlConservationBlocker,
+			boolean cruiseSwirlConservationBlocker,
 			boolean gameplayAutoApplyLeakBlocker,
 			boolean runtimeCouplingReadinessAllowed,
 			boolean poweredSourceApiSurfaceReady,
@@ -40,16 +44,27 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 			boolean allPoliciesRuntimeAllowed,
 			boolean hoverAndCruiseCouplingAllowed,
 			boolean liveConservationEvidenceAccepted,
+			boolean liveSwirlConservationEvidenceAccepted,
 			boolean hoverLiveConservationAccepted,
 			boolean cruiseLiveConservationAccepted,
+			boolean hoverLiveSwirlConservationAccepted,
+			boolean cruiseLiveSwirlConservationAccepted,
 			int conservationRowCount,
 			int conservationTargetSelfConsistentCount,
 			int liveConservationAcceptedCount,
 			int sourceForceDeltaRequiredCount,
 			int sourceMomentDeltaRequiredCount,
 			int wakeResidualRequiredCount,
+			int swirlConservationRowCount,
+			int swirlTargetSelfConsistentCount,
+			int liveSwirlConservationAcceptedCount,
+			int wakeTangentialVelocityRequiredCount,
+			int wakeAngularMomentumResidualRequiredCount,
 			double maxMomentumClosureErrorRatio,
 			double maxKineticPowerClosureErrorRatio,
+			double maxTargetTangentialWakeVelocityMetersPerSecond,
+			double maxSwirlPowerFractionOfMomentumPower,
+			double maxNetTorqueCancellationErrorRatio,
 			String conservationPayloadKind,
 			String runtimeInfo,
 			String nextRequiredAction,
@@ -73,13 +88,22 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 			int conservationEvidenceBlockerScenarioCount,
 			int hoverConservationBlockerScenarioCount,
 			int cruiseConservationBlockerScenarioCount,
+			int swirlConservationEvidenceBlockerScenarioCount,
+			int hoverSwirlConservationBlockerScenarioCount,
+			int cruiseSwirlConservationBlockerScenarioCount,
 			int targetModelSelfConsistencyBlockerScenarioCount,
+			int swirlTargetSelfConsistencyBlockerScenarioCount,
 			int gameplayAutoApplyLeakBlockerScenarioCount,
 			int runtimePoweredSourceCouplingAllowedCount,
 			int maxLiveConservationAcceptedCount,
 			int maxConservationTargetSelfConsistentCount,
 			double maxMomentumClosureErrorRatio,
-			double maxKineticPowerClosureErrorRatio
+			double maxKineticPowerClosureErrorRatio,
+			int maxLiveSwirlConservationAcceptedCount,
+			int maxSwirlConservationTargetSelfConsistentCount,
+			double maxTargetTangentialWakeVelocityMetersPerSecond,
+			double maxSwirlPowerFractionOfMomentumPower,
+			double maxNetTorqueCancellationErrorRatio
 	) {
 	}
 
@@ -148,9 +172,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 		boolean policyRuntimeBlocker = !guard.allPoliciesRuntimeAllowed();
 		boolean hoverCruiseCouplingBlocker = !guard.hoverAndCruiseCouplingAllowed();
 		boolean targetModelBlocker = guard.conservationTargetSelfConsistentCount() < guard.conservationRowCount();
+		boolean swirlTargetModelBlocker = guard.swirlTargetSelfConsistentCount() < guard.swirlConservationRowCount();
 		boolean conservationEvidenceBlocker = !guard.liveConservationEvidenceAccepted();
 		boolean hoverConservationBlocker = !guard.hoverLiveConservationAccepted();
 		boolean cruiseConservationBlocker = !guard.cruiseLiveConservationAccepted();
+		boolean swirlConservationEvidenceBlocker = !guard.liveSwirlConservationEvidenceAccepted();
+		boolean hoverSwirlConservationBlocker = !guard.hoverLiveSwirlConservationAccepted();
+		boolean cruiseSwirlConservationBlocker = !guard.cruiseLiveSwirlConservationAccepted();
 		boolean gameplayLeakBlocker = guard.gameplayAutoApplyAllowed();
 		int blockerCount = countTrue(
 				couplingReadinessBlocker,
@@ -159,9 +187,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 				policyRuntimeBlocker,
 				hoverCruiseCouplingBlocker,
 				targetModelBlocker,
+				swirlTargetModelBlocker,
 				conservationEvidenceBlocker,
 				hoverConservationBlocker,
 				cruiseConservationBlocker,
+				swirlConservationEvidenceBlocker,
+				hoverSwirlConservationBlocker,
+				cruiseSwirlConservationBlocker,
 				gameplayLeakBlocker);
 		boolean allowed = guard.runtimePoweredSourceCouplingAllowed() && blockerCount == 0;
 		return new PoweredSourceCouplingConservationBlockerSummary(
@@ -174,9 +206,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 				policyRuntimeBlocker,
 				hoverCruiseCouplingBlocker,
 				targetModelBlocker,
+				swirlTargetModelBlocker,
 				conservationEvidenceBlocker,
 				hoverConservationBlocker,
 				cruiseConservationBlocker,
+				swirlConservationEvidenceBlocker,
+				hoverSwirlConservationBlocker,
+				cruiseSwirlConservationBlocker,
 				gameplayLeakBlocker,
 				guard.runtimeCouplingReadinessAllowed(),
 				guard.poweredSourceApiSurfaceReady(),
@@ -184,16 +220,27 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 				guard.allPoliciesRuntimeAllowed(),
 				guard.hoverAndCruiseCouplingAllowed(),
 				guard.liveConservationEvidenceAccepted(),
+				guard.liveSwirlConservationEvidenceAccepted(),
 				guard.hoverLiveConservationAccepted(),
 				guard.cruiseLiveConservationAccepted(),
+				guard.hoverLiveSwirlConservationAccepted(),
+				guard.cruiseLiveSwirlConservationAccepted(),
 				guard.conservationRowCount(),
 				guard.conservationTargetSelfConsistentCount(),
 				guard.liveConservationAcceptedCount(),
 				guard.sourceForceDeltaRequiredCount(),
 				guard.sourceMomentDeltaRequiredCount(),
 				guard.wakeResidualRequiredCount(),
+				guard.swirlConservationRowCount(),
+				guard.swirlTargetSelfConsistentCount(),
+				guard.liveSwirlConservationAcceptedCount(),
+				guard.wakeTangentialVelocityRequiredCount(),
+				guard.wakeAngularMomentumResidualRequiredCount(),
 				guard.maxMomentumClosureErrorRatio(),
 				guard.maxKineticPowerClosureErrorRatio(),
+				guard.maxTargetTangentialWakeVelocityMetersPerSecond(),
+				guard.maxSwirlPowerFractionOfMomentumPower(),
+				guard.maxNetTorqueCancellationErrorRatio(),
 				guard.conservationPayloadKind(),
 				guard.runtimeInfo(),
 				nextRequiredAction(
@@ -203,9 +250,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 						policyRuntimeBlocker,
 						hoverCruiseCouplingBlocker,
 						targetModelBlocker,
+						swirlTargetModelBlocker,
 						hoverConservationBlocker,
 						cruiseConservationBlocker,
+						hoverSwirlConservationBlocker,
+						cruiseSwirlConservationBlocker,
 						conservationEvidenceBlocker,
+						swirlConservationEvidenceBlocker,
 						gameplayLeakBlocker),
 				allowed ? "READY" : "BLOCKED",
 				allowed ? "powered-source-coupling-conservation-clear"
@@ -220,9 +271,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 			boolean policyRuntimeBlocker,
 			boolean hoverCruiseCouplingBlocker,
 			boolean targetModelBlocker,
+			boolean swirlTargetModelBlocker,
 			boolean hoverConservationBlocker,
 			boolean cruiseConservationBlocker,
+			boolean hoverSwirlConservationBlocker,
+			boolean cruiseSwirlConservationBlocker,
 			boolean conservationEvidenceBlocker,
+			boolean swirlConservationEvidenceBlocker,
 			boolean gameplayLeakBlocker
 	) {
 		if (apiSurfaceBlocker) {
@@ -237,6 +292,22 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 		if (targetModelBlocker) {
 			return "repair-powered-source-conservation-target-model";
 		}
+		if (swirlTargetModelBlocker) {
+			return "repair-powered-source-swirl-conservation-target-model";
+		}
+		if (hoverConservationBlocker && cruiseConservationBlocker
+				&& hoverSwirlConservationBlocker && cruiseSwirlConservationBlocker) {
+			return "capture-live-hover-and-cruise-powered-source-conservation-and-swirl-evidence";
+		}
+		if (hoverSwirlConservationBlocker && cruiseSwirlConservationBlocker) {
+			return "capture-live-hover-and-cruise-powered-source-swirl-angular-momentum-evidence";
+		}
+		if (hoverSwirlConservationBlocker) {
+			return "capture-live-hover-powered-source-swirl-angular-momentum-evidence";
+		}
+		if (cruiseSwirlConservationBlocker) {
+			return "capture-live-cruise-powered-source-swirl-angular-momentum-evidence";
+		}
 		if (hoverConservationBlocker && cruiseConservationBlocker) {
 			return "capture-live-hover-and-cruise-powered-source-conservation-evidence";
 		}
@@ -248,6 +319,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 		}
 		if (conservationEvidenceBlocker) {
 			return "capture-live-a4mc-powered-source-force-moment-and-wake-residuals";
+		}
+		if (swirlConservationEvidenceBlocker) {
+			return "capture-live-a4mc-powered-source-swirl-angular-momentum-residuals";
 		}
 		if (gameplayLeakBlocker) {
 			return "keep-gameplay-auto-apply-disabled-for-powered-source-coupling";
@@ -264,13 +338,22 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 		int conservation = 0;
 		int hover = 0;
 		int cruise = 0;
+		int swirl = 0;
+		int hoverSwirl = 0;
+		int cruiseSwirl = 0;
 		int target = 0;
+		int swirlTarget = 0;
 		int gameplay = 0;
 		int runtimeAllowed = 0;
 		int maxAccepted = 0;
 		int maxTarget = 0;
+		int maxSwirlAccepted = 0;
+		int maxSwirlTarget = 0;
 		double maxMomentum = 0.0;
 		double maxPower = 0.0;
+		double maxTangentialVelocity = 0.0;
+		double maxSwirlPowerFraction = 0.0;
+		double maxTorqueCancellation = 0.0;
 		for (PoweredSourceCouplingConservationBlockerScenario scenario : scenarios) {
 			PoweredSourceCouplingConservationBlockerSummary summary = scenario.summary();
 			if (summary.runtimePoweredSourceCouplingAllowed()) {
@@ -290,16 +373,36 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 			if (summary.cruiseConservationBlocker()) {
 				cruise++;
 			}
+			if (summary.swirlConservationEvidenceBlocker()) {
+				swirl++;
+			}
+			if (summary.hoverSwirlConservationBlocker()) {
+				hoverSwirl++;
+			}
+			if (summary.cruiseSwirlConservationBlocker()) {
+				cruiseSwirl++;
+			}
 			if (summary.targetModelSelfConsistencyBlocker()) {
 				target++;
+			}
+			if (summary.swirlTargetSelfConsistencyBlocker()) {
+				swirlTarget++;
 			}
 			if (summary.gameplayAutoApplyLeakBlocker()) {
 				gameplay++;
 			}
 			maxAccepted = Math.max(maxAccepted, summary.liveConservationAcceptedCount());
 			maxTarget = Math.max(maxTarget, summary.conservationTargetSelfConsistentCount());
+			maxSwirlAccepted = Math.max(maxSwirlAccepted, summary.liveSwirlConservationAcceptedCount());
+			maxSwirlTarget = Math.max(maxSwirlTarget, summary.swirlTargetSelfConsistentCount());
 			maxMomentum = Math.max(maxMomentum, summary.maxMomentumClosureErrorRatio());
 			maxPower = Math.max(maxPower, summary.maxKineticPowerClosureErrorRatio());
+			maxTangentialVelocity = Math.max(maxTangentialVelocity,
+					summary.maxTargetTangentialWakeVelocityMetersPerSecond());
+			maxSwirlPowerFraction = Math.max(maxSwirlPowerFraction,
+					summary.maxSwirlPowerFractionOfMomentumPower());
+			maxTorqueCancellation = Math.max(maxTorqueCancellation,
+					summary.maxNetTorqueCancellationErrorRatio());
 		}
 		return new PoweredSourceCouplingConservationBlockerExtrema(
 				scenarios.size(),
@@ -310,13 +413,22 @@ public final class Aerodynamics4McL2PoweredSourceCouplingConservationBlockerRepo
 				conservation,
 				hover,
 				cruise,
+				swirl,
+				hoverSwirl,
+				cruiseSwirl,
 				target,
+				swirlTarget,
 				gameplay,
 				runtimeAllowed,
 				maxAccepted,
 				maxTarget,
 				maxMomentum,
-				maxPower
+				maxPower,
+				maxSwirlAccepted,
+				maxSwirlTarget,
+				maxTangentialVelocity,
+				maxSwirlPowerFraction,
+				maxTorqueCancellation
 		);
 	}
 
