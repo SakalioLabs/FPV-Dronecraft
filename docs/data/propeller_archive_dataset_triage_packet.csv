@@ -1,0 +1,52 @@
+row_type,name,metric,value,unit,source_file,evidence_role,status,note
+propeller_archive_dataset_source,volume1_exp.csv,uncompressed_bytes,1335172,bytes,user_supplied_archive_zip,archive_entry,TRIAGED,PropName BladeName Family B D P J N CT CP eta
+propeller_archive_dataset_source,volume1_geom.csv,uncompressed_bytes,64513,bytes,user_supplied_archive_zip,archive_entry,TRIAGED,BladeName Family D P c/R r/R beta
+propeller_archive_dataset_source,volume2_exp.csv,uncompressed_bytes,483556,bytes,user_supplied_archive_zip,archive_entry,TRIAGED,PropName BladeName Family B D P J N CT CP eta
+propeller_archive_dataset_source,volume2_geom.csv,uncompressed_bytes,42103,bytes,user_supplied_archive_zip,archive_entry,TRIAGED,BladeName Family D P c/R r/R beta
+propeller_archive_dataset_source,volume3_exp.csv,uncompressed_bytes,550305,bytes,user_supplied_archive_zip,archive_entry,TRIAGED,PropName BladeName Family B D P J N CT CP eta
+propeller_archive_dataset_source,volume3_geom.csv,uncompressed_bytes,4572,bytes,user_supplied_archive_zip,archive_entry,TRIAGED,BladeName Family D P c/R r/R beta
+propeller_archive_dataset_aggregate,all,archive_entry_count,6,count,user_supplied_archive_zip,source_inventory,TRIAGED,three experimental CSV files plus three geometry CSV files
+propeller_archive_dataset_aggregate,all,experiment_volume_count,3,count,user_supplied_archive_zip,coverage,TRIAGED,volume1_exp volume2_exp volume3_exp
+propeller_archive_dataset_aggregate,all,geometry_volume_count,3,count,user_supplied_archive_zip,coverage,TRIAGED,volume1_geom volume2_geom volume3_geom
+propeller_archive_dataset_aggregate,all,experiment_row_count,27495,count,user_supplied_archive_zip,coverage,TRIAGED,measured propeller performance rows
+propeller_archive_dataset_aggregate,all,geometry_row_count,2316,count,user_supplied_archive_zip,coverage,TRIAGED,blade station geometry rows
+propeller_archive_dataset_aggregate,all,unique_propeller_count,240,count,user_supplied_archive_zip,coverage,TRIAGED,unique PropName values across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_blade_count,226,count,user_supplied_archive_zip,coverage,TRIAGED,unique BladeName values across experimental rows
+propeller_archive_dataset_aggregate,all,geometry_blade_count,120,count,user_supplied_archive_zip,coverage,TRIAGED,unique BladeName values across geometry rows
+propeller_archive_dataset_aggregate,all,experiment_family_count,32,count,user_supplied_archive_zip,coverage,TRIAGED,unique Family values across experimental rows
+propeller_archive_dataset_aggregate,all,geometry_family_count,26,count,user_supplied_archive_zip,coverage,TRIAGED,unique Family values across geometry rows
+propeller_archive_dataset_aggregate,all,experiment_diameter_min_in,1.2,in,user_supplied_archive_zip,range,TRIAGED,min D across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_diameter_max_in,19.0,in,user_supplied_archive_zip,range,TRIAGED,max D across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_pitch_min_in,0.6,in,user_supplied_archive_zip,range,TRIAGED,min P across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_pitch_max_in,13.0,in,user_supplied_archive_zip,range,TRIAGED,max P across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_advance_ratio_max,1.552,J,user_supplied_archive_zip,range,TRIAGED,max J across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_rpm_max,27050.0,rpm,user_supplied_archive_zip,range,TRIAGED,max N across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_ct_min,-0.12614,coefficient,user_supplied_archive_zip,range,TRIAGED,min CT across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_ct_max,0.253789,coefficient,user_supplied_archive_zip,range,TRIAGED,max CT across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_cp_min,0.0025,coefficient,user_supplied_archive_zip,range,TRIAGED,min CP across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_cp_max,0.192791,coefficient,user_supplied_archive_zip,range,TRIAGED,max CP across experimental rows
+propeller_archive_dataset_aggregate,all,experiment_eta_max,0.840262,ratio,user_supplied_archive_zip,range,TRIAGED,max eta across experimental rows
+propeller_archive_dataset_aggregate,all,geometry_beta_max_deg,55.845,deg,user_supplied_archive_zip,range,TRIAGED,max beta across geometry rows
+propeller_archive_dataset_volume_summary,volume1_exp.csv,experiment_summary,16455,rows,user_supplied_archive_zip,volume_coverage,TRIAGED,props=139 blades=139 families=19 D=7..19 P=3..13 J=0..1.552 CT=-0.0638..0.1797 CP=0.0025..0.1482 eta=-15.915..0.762
+propeller_archive_dataset_volume_summary,volume2_exp.csv,experiment_summary,5050,rows,user_supplied_archive_zip,volume_coverage,TRIAGED,props=63 blades=49 families=14 D=2.244..9 P=0.787..8.95 J=0..1.199 CT=-0.12614..0.25379 CP=0.00612..0.19279 eta=-22.69879..0.73772
+propeller_archive_dataset_volume_summary,volume3_exp.csv,experiment_summary,5990,rows,user_supplied_archive_zip,volume_coverage,TRIAGED,props=40 blades=40 families=1 D=1.2..16 P=0.6..13 J=0..1.468 CT=-0.02683..0.13021 CP=0.00479..0.13442 eta=-4.16602..0.84026
+propeller_archive_dataset_volume_summary,volume1_geom.csv,geometry_summary,1422,rows,user_supplied_archive_zip,volume_coverage,TRIAGED,blades=79 families=14 D=9..19 P=3.8..13 c/R=0.015..0.247 r/R=0.15..1 beta=3.93..55.01
+propeller_archive_dataset_volume_summary,volume2_geom.csv,geometry_summary,816,rows,user_supplied_archive_zip,volume_coverage,TRIAGED,blades=42 families=14 D=2.244..9 P=0.787..8.95 c/R=0.0021..0.3783 r/R=0.15..1 beta=0..55.845
+propeller_archive_dataset_volume_summary,volume3_geom.csv,geometry_summary,78,rows,user_supplied_archive_zip,volume_coverage,TRIAGED,blades=5 families=2 D=5..9 P=3.157..7.718 c/R=0.0605..0.2926 r/R=0.15..1 beta=2.932..40.279
+propeller_archive_dataset_blade_count_distribution,B2,experiment_rows,26615,count,user_supplied_archive_zip,blade_count_coverage,TRIAGED,two-blade rows dominate the archive
+propeller_archive_dataset_blade_count_distribution,B3,experiment_rows,501,count,user_supplied_archive_zip,blade_count_coverage,TRIAGED,three-blade rows are useful but sparse for FPV presets
+propeller_archive_dataset_blade_count_distribution,B4,experiment_rows,379,count,user_supplied_archive_zip,blade_count_coverage,TRIAGED,four-blade rows provide limited alternate coverage
+propeller_archive_dataset_preset_match,racingQuad,da4052 5.0x3.75 - 3,3,5.0,4.25,3,5.0,3.75,63,0.0,0.8128,1477.8,7946.7,14,0.148290142857143,0.103175285714286,0.576493,true,true,user_supplied_archive_zip,nearest_performance_match,TRIAGED,closest five-inch three-blade low-J CT/CP anchor
+propeller_archive_dataset_preset_match,apDrone,da4052 5.0x3.75 - 3,3,5.1,4.5,3,5.0,3.75,63,0.0,0.8128,1477.8,7946.7,14,0.148290142857143,0.103175285714286,0.576493,true,true,user_supplied_archive_zip,nearest_performance_match,TRIAGED,same five-inch three-blade anchor but under-pitched for current target
+propeller_archive_dataset_preset_match,cinewhoop,gwsdd 3.0x3.0 - 2,3,2.9921,2.5433,2,3.0,3.0,103,0.0,1.0674,2963.3,15063.0,13,0.192041923076923,0.143023846153846,0.680984,false,true,user_supplied_archive_zip,nearest_performance_match,TRIAGED,useful small-prop anchor but blade-count mismatch
+propeller_archive_dataset_preset_match,heavyLift,ancf 10.0x5.0 - 2,2,10.0,5.0,2,10.0,5.0,128,0.0,0.667,1060.0,7440.0,14,0.0900960714285714,0.0308062142857143,0.679833,true,false,user_supplied_archive_zip,nearest_performance_match,TRIAGED,direct ten-inch two-blade static performance anchor but no matching geometry row
+propeller_archive_dataset_geometry_match,racingQuad,da4052 5.0x3.75,5.0,3.75,18,0.7,0.2068,20.912,deg,user_supplied_archive_zip,nearest_geometry_match,TRIAGED,70-percent-radius station for current five-inch proxy
+propeller_archive_dataset_geometry_match,apDrone,da4052 5.0x3.75,5.0,3.75,18,0.7,0.2068,20.912,deg,user_supplied_archive_zip,nearest_geometry_match,TRIAGED,70-percent-radius station for current APDrone proxy
+propeller_archive_dataset_geometry_match,cinewhoop,gwsdd 3.0x3.0,3.0,3.0,18,0.7,0.2599,25.05,deg,user_supplied_archive_zip,nearest_geometry_match,TRIAGED,70-percent-radius station for small-prop proxy
+propeller_archive_dataset_boundary,all,raw_rows_vendored,false,boolean,user_supplied_archive_zip,repo_boundary,BLOCKED,keep raw archive outside repository until provenance review
+propeller_archive_dataset_boundary,all,source_license_review_required,true,boolean,user_supplied_archive_zip,repo_boundary,REQUIRED,review source and redistribution license before importing raw rows
+propeller_archive_dataset_boundary,all,direct_a4mc_l2_evidence,false,boolean,user_supplied_archive_zip,physics_boundary,BLOCKED,dataset is propeller bench data not voxel CFD or powered-source A4MC output
+propeller_archive_dataset_boundary,all,rotor_ct_cp_curve_fit_candidate,true,boolean,user_supplied_archive_zip,physics_boundary,USEFUL,fit CT CP eta versus J and RPM or Reynolds after review
+propeller_archive_dataset_boundary,all,prop_geometry_fit_candidate,true,boolean,user_supplied_archive_zip,physics_boundary,USEFUL,fit c/R and beta station curves for blade geometry proxies after review
+propeller_archive_dataset_boundary,all,gameplay_auto_apply_allowed,false,boolean,user_supplied_archive_zip,playable_boundary,BLOCKED,playable branch should consume only reviewed compact references
+propeller_archive_dataset_boundary,all,next_required_action,review-source-license-then-fit-ct-cp-j-re-and-geometry-curves,text,user_supplied_archive_zip,next_step,OPEN,convert reviewed rows into sim/lab fitting packet before any gameplay reference handoff
