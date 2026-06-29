@@ -12,7 +12,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			"DronePhysics.targetOmega=maxOmega*targetMaxRpmScale-before-motor-response";
 	public static final int REQUIRED_CONTRACT_ROW_COUNT =
 			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.CONTRACT_ROW_COUNT;
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
 	public static final int SCENARIO_METRIC_ROW_COUNT = 10;
 	public static final int SUMMARY_ROW_COUNT = 10;
@@ -29,6 +29,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			boolean targetOmegaHookImplemented,
 			boolean motorResponseCouplingReviewed,
 			boolean failsafeClampReviewed,
+			boolean blackboxRegressionReviewed,
 			boolean blackboxRegressionAvailable
 	) {
 	}
@@ -119,8 +120,18 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 						.audit()
 						.summary()
 						.failsafeClampReviewed();
+		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
+				.DerateControlHookBlackboxResultReviewSummary blackboxResult =
+						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
+								.audit()
+								.summary();
 		HookImplementationEvidence currentEvidence =
-				new HookImplementationEvidence(true, motorResponseCouplingReviewed, failsafeClampReviewed, false);
+				new HookImplementationEvidence(
+						true,
+						motorResponseCouplingReviewed,
+						failsafeClampReviewed,
+						blackboxResult.rowCount() > 0,
+						blackboxResult.blackboxRegressionPassed());
 		for (PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
 				.DerateControlContractScenario scenario : contract.scenarios()) {
 			rows.add(row(scenario.scenarioName(), scenario.summary(), currentEvidence));
@@ -132,7 +143,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		rows.add(row(
 				"synthetic_control_hook_ready_reviewed",
 				readySummary,
-				new HookImplementationEvidence(true, true, true, true)
+				new HookImplementationEvidence(true, true, true, true, true)
 		));
 		return new DerateControlHookReadinessAudit(
 				SOURCE_ID,
@@ -252,6 +263,9 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			return "failsafe-clamp-review-missing";
 		}
 		if (!evidence.blackboxRegressionAvailable()) {
+			if (evidence.blackboxRegressionReviewed()) {
+				return "derate-hook-blackbox-regression-failed";
+			}
 			return "derate-hook-blackbox-regression-missing";
 		}
 		if (!leakBlocked) {
@@ -282,6 +296,8 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 					"review-failsafe-clamp-and-no-load-overspeed-interaction";
 			case "derate-hook-blackbox-regression-missing" ->
 					"add-blackbox-regression-for-cold-air-derate-hook";
+			case "derate-hook-blackbox-regression-failed" ->
+					"investigate-apDrone-cold-forward-punchout-derate-margin";
 			case "control-hook-runtime-leak-guard-failed" ->
 					"close-runtime-playable-and-gameplay-leak-paths-before-validation";
 			default ->

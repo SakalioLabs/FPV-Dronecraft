@@ -41,7 +41,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertFalse(current.blackboxRegressionAcceptanceReady());
 		assertFalse(current.manualControlHookReviewAllowed());
 		assertEquals(0, current.reviewRowCount());
-		assertEquals("blackbox-regression-run-not-planned", current.message());
+		assertEquals("blackbox-regression-result-failed", current.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImplementationReview
 				.DerateControlHookImplementationReviewScenarioSummary missing =

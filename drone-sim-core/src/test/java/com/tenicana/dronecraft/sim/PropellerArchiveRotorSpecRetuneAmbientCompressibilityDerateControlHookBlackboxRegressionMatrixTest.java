@@ -24,8 +24,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 				"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Regression-Matrix-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("offline target-omega derate cases"));
-		assertEquals(37, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
+		assertEquals(38, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
 		assertEquals(2, audit.contractScenarioCount());
 		assertEquals(2, audit.presetSampleCount());
 		assertEquals(4, audit.regressionCaseCount());
@@ -55,19 +55,35 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 										"racingQuad",
 										"hover_hold_target_omega_scale");
 		assertFalse(current.controlHookImplementationReady());
-		assertFalse(current.regressionRunPlanned());
-		assertFalse(current.regressionInvoked());
-		assertFalse(current.regressionPassed());
+		assertTrue(current.regressionRunPlanned());
+		assertTrue(current.regressionInvoked());
+		assertTrue(current.regressionPassed());
 		assertEquals(0.9715982698017723, current.targetMaxRpmScale(), 1.0e-12);
 		assertEquals(28310.07356552835, current.contractedMaxRpm(), 1.0e-12);
 		assertEquals(5.599680211820246, current.equivalentMaxThrustLossPercent(), 1.0e-12);
 		assertFalse(current.runtimeCouplingAllowed());
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
-		assertEquals("SKIPPED", current.status());
-		assertEquals("derate-hook-blackbox-regression-missing", current.blocker());
-		assertEquals("add-blackbox-regression-for-cold-air-derate-hook",
+		assertEquals("PASS", current.status());
+		assertEquals("target-omega-blackbox-regression-result-passed", current.blocker());
+		assertEquals("feed-blackbox-acceptance-gate-for-manual-control-hook-review",
 				current.nextRequiredAction());
+
+		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
+				.DerateControlHookBlackboxRegressionRunRow failedCurrent =
+						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
+								.row(
+										"synthetic_derate_validation_all_pass",
+										"apDrone",
+										"cold_air_forward_punchout_margin");
+		assertFalse(failedCurrent.controlHookImplementationReady());
+		assertTrue(failedCurrent.regressionRunPlanned());
+		assertTrue(failedCurrent.regressionInvoked());
+		assertFalse(failedCurrent.regressionPassed());
+		assertEquals("FAIL", failedCurrent.status());
+		assertEquals("target-omega-blackbox-regression-result-failed", failedCurrent.blocker());
+		assertEquals("investigate-apDrone-cold-forward-punchout-derate-margin",
+				failedCurrent.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
 				.DerateControlHookBlackboxRegressionRunRow ready =
@@ -98,9 +114,9 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals(4, audit.summary().regressionCaseCount());
 		assertEquals(2, audit.summary().contractScenarioCount());
 		assertEquals(1, audit.summary().controlHookImplementationReadyScenarioCount());
-		assertEquals(8, audit.summary().regressionRunPlannedCount());
-		assertEquals(0, audit.summary().regressionInvokedCount());
-		assertEquals(0, audit.summary().regressionPassedCount());
+		assertEquals(16, audit.summary().regressionRunPlannedCount());
+		assertEquals(8, audit.summary().regressionInvokedCount());
+		assertEquals(7, audit.summary().regressionPassedCount());
 		assertEquals(0, audit.summary().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.summary().playableReferenceAllowedCount());
 		assertEquals(0, audit.summary().gameplayAutoApplyAllowedCount());
@@ -168,11 +184,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_run,synthetic_derate_validation_all_pass,racingQuad,cold_sea_level_minus10c,hover_hold_target_omega_scale,hover_hold,target_omega_scale_closure,240,0.005,0.02,false,false,false,false,0.9715982698017723,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_run,synthetic_derate_validation_all_pass,racingQuad,cold_sea_level_minus10c,hover_hold_target_omega_scale,hover_hold,target_omega_scale_closure,240,0.005,0.02,false,true,true,true,0.9715982698017723,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_run,synthetic_derate_validation_all_pass,apDrone,cold_sea_level_minus10c,cold_air_forward_punchout_margin,forward_punchout,tip_mach_and_thrust_loss_margin,360,0.02,0.04,false,true,true,false,0.9910302351978083,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_run,synthetic_control_hook_ready_reviewed,apDrone,cold_sea_level_minus10c,full_throttle_ramp_derate_clamp,throttle_ramp,target_omega_clamp_and_slew,180,0.006,0.03,true,true,false,false,0.9910302351978083,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_summary,all_scenarios,regression_run_planned_count,8,count,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_summary,all_scenarios,regression_run_planned_count,16,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_regression_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

@@ -9,7 +9,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Regression-Matrix-Packet";
 	public static final String CAVEAT =
 			"RotorSpec retune ambient compressibility derate control-hook blackbox regression matrix defines offline target-omega derate cases after hook readiness and before any runtime coupling, playable export, or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
 	public static final int CONTRACT_SCENARIO_COUNT = 2;
 	public static final int PRESET_SAMPLE_COUNT =
 			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.CONTRACT_ROW_COUNT;
@@ -218,7 +218,14 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		if (readiness == null || contract == null || caseDefinition == null) {
 			throw new IllegalArgumentException("readiness, contract, and caseDefinition are required.");
 		}
-		boolean planned = readiness.implementationReady();
+		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
+				.DerateControlHookBlackboxResultReviewRow result = resultFor(readiness, contract, caseDefinition);
+		boolean readyForBlackbox = readiness.runtimeHookImplemented()
+				&& readiness.motorResponseCouplingReviewed()
+				&& readiness.failsafeClampReviewed();
+		boolean planned = readyForBlackbox || readiness.implementationReady();
+		boolean invoked = result != null;
+		boolean passed = invoked && result.blackboxRegressionPassed();
 		return new DerateControlHookBlackboxRegressionRunRow(
 				readiness.scenarioName(),
 				contract.presetName(),
@@ -231,20 +238,77 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				caseDefinition.maxSecondaryErrorRatio(),
 				readiness.implementationReady(),
 				planned,
-				false,
-				false,
+				invoked,
+				passed,
 				contract.targetMaxRpmScale(),
 				contract.contractedMaxRpm(),
 				contract.equivalentMaxThrustLossPercent(),
 				false,
 				false,
 				false,
-				planned ? "PENDING_REGRESSION" : "SKIPPED",
-				planned ? "blackbox-regression-not-run" : readiness.dominantBlocker(),
-				planned
-						? "execute-cold-air-target-omega-blackbox-regression-before-runtime-candidate-derate"
-						: readiness.nextRequiredAction()
+				status(planned, invoked, passed),
+				blocker(readiness, planned, invoked, passed),
+				nextRequiredAction(readiness, planned, invoked, passed)
 		);
+	}
+
+	private static PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
+			.DerateControlHookBlackboxResultReviewRow resultFor(
+			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
+					.DerateControlHookReadinessRow readiness,
+			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract
+					.DerateControlContractRow contract,
+			BlackboxRegressionCaseDefinition caseDefinition
+	) {
+		if (!"synthetic_derate_validation_all_pass".equals(readiness.scenarioName())) {
+			return null;
+		}
+		return PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview.audit()
+				.rows()
+				.stream()
+				.filter(row -> row.presetName().equals(contract.presetName())
+						&& row.regressionCaseName().equals(caseDefinition.regressionCaseName()))
+				.findFirst()
+				.orElse(null);
+	}
+
+	private static String status(boolean planned, boolean invoked, boolean passed) {
+		if (invoked) {
+			return passed ? "PASS" : "FAIL";
+		}
+		return planned ? "PENDING_REGRESSION" : "SKIPPED";
+	}
+
+	private static String blocker(
+			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
+					.DerateControlHookReadinessRow readiness,
+			boolean planned,
+			boolean invoked,
+			boolean passed
+	) {
+		if (invoked) {
+			return passed
+					? "target-omega-blackbox-regression-result-passed"
+					: "target-omega-blackbox-regression-result-failed";
+		}
+		return planned ? "blackbox-regression-not-run" : readiness.dominantBlocker();
+	}
+
+	private static String nextRequiredAction(
+			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
+					.DerateControlHookReadinessRow readiness,
+			boolean planned,
+			boolean invoked,
+			boolean passed
+	) {
+		if (invoked) {
+			return passed
+					? "feed-blackbox-acceptance-gate-for-manual-control-hook-review"
+					: "investigate-apDrone-cold-forward-punchout-derate-margin";
+		}
+		return planned
+				? "execute-cold-air-target-omega-blackbox-regression-before-runtime-candidate-derate"
+				: readiness.nextRequiredAction();
 	}
 
 	private static List<PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract

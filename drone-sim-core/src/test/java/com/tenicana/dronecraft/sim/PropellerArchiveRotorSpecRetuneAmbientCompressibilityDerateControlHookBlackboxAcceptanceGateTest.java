@@ -24,8 +24,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 				"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Acceptance-Gate-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("manual control-hook review"));
-		assertEquals(47, audit.packetRowCount());
-		assertEquals(6, audit.sourceReferenceRowCount());
+		assertEquals(48, audit.packetRowCount());
+		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(4, audit.scenarioSampleCount());
 		assertEquals(8, audit.scenarioMetricRowCount());
 		assertEquals(8, audit.summaryRowCount());
@@ -35,9 +35,11 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
 				.DerateControlHookBlackboxAcceptanceSummary current =
 						find(audit.scenarios(), "current_control_hook_blackbox_blocked").summary();
-		assertEquals(0, current.plannedRegressionRunCount());
-		assertEquals(0, current.observedResultCount());
+		assertEquals(8, current.plannedRegressionRunCount());
+		assertEquals(8, current.observedResultCount());
 		assertEquals(0, current.missingResultCount());
+		assertEquals(1, current.failedResultCount());
+		assertEquals(7, current.passedResultCount());
 		assertFalse(current.blackboxRegressionAcceptanceReady());
 		assertFalse(current.manualControlHookReviewAllowed());
 		assertFalse(current.runtimeImplementationAllowed());
@@ -45,7 +47,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
 		assertEquals("BLOCKED", current.status());
-		assertEquals("blackbox-regression-run-not-planned", current.message());
+		assertEquals("blackbox-regression-result-failed", current.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
 				.DerateControlHookBlackboxAcceptanceSummary missing =
@@ -147,9 +149,30 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 						.result(target, 0.0, 0.0, -1, 0));
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
 				.DerateControlHookBlackboxRegressionRunRow skipped =
-						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
-								.row("synthetic_derate_validation_all_pass", "racingQuad",
-										"hover_hold_target_omega_scale");
+						new PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
+								.DerateControlHookBlackboxRegressionRunRow(
+										target.scenarioName(),
+										target.presetName(),
+										target.ambientCaseName(),
+										target.regressionCaseName(),
+										target.flightPhase(),
+										target.targetMetric(),
+										target.minSampleCount(),
+										target.maxPrimaryErrorRatio(),
+										target.maxSecondaryErrorRatio(),
+										false,
+										false,
+										false,
+										false,
+										target.targetMaxRpmScale(),
+										target.contractedMaxRpm(),
+										target.equivalentMaxThrustLossPercent(),
+										false,
+										false,
+										false,
+										"SKIPPED",
+										"derate-hook-blackbox-regression-missing",
+										"execute-cold-air-target-omega-blackbox-regression-before-runtime-candidate-derate");
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
 						.result(skipped, 0.0, 0.0, skipped.minSampleCount(), 0));
@@ -235,6 +258,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_acceptance_summary,all_scenarios,accepted_scenario_count,1,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_acceptance_scenario,current_control_hook_blackbox_blocked,failed_result_count,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_acceptance_scenario,synthetic_control_hook_blackbox_results_missing,planned_regression_run_count,8,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

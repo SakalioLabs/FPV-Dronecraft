@@ -10,7 +10,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-Blackbox-Acceptance-Gate-Packet";
 	public static final String CAVEAT =
 			"RotorSpec retune ambient compressibility derate control-hook blackbox acceptance remains closed until every planned target-omega derate regression has explicit passing results; passing opens only manual control-hook review, while preset candidate derates, runtime coupling, playable export, and gameplay auto-apply stay closed.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
 	public static final int SCENARIO_METRIC_ROW_COUNT = 8;
 	public static final int SUMMARY_ROW_COUNT = 8;
@@ -103,8 +103,12 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
 								.audit();
 		List<PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
+				.DerateControlHookBlackboxRegressionRunRow> currentRows =
+						plannedRows(matrix, "synthetic_derate_validation_all_pass");
+		List<PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
 				.DerateControlHookBlackboxRegressionRunRow> plannedReadyRows =
 						plannedRows(matrix, "synthetic_control_hook_ready_reviewed");
+		List<DerateControlHookBlackboxRegressionResult> currentResults = currentResults(currentRows);
 		List<DerateControlHookBlackboxRegressionResult> passingResults = passingResults(plannedReadyRows);
 		List<DerateControlHookBlackboxRegressionResult> failedResults = new ArrayList<>(passingResults);
 		failedResults.set(0, failingResult(plannedReadyRows.get(0)));
@@ -114,8 +118,8 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 						"current_control_hook_blackbox_blocked",
 						"synthetic_derate_validation_all_pass",
 						matrix,
-						List.of(),
-						"current-target-omega-hook-implemented-motor-response-review-missing"
+						currentResults,
+						"current-target-omega-hook-blackbox-apDrone-forward-punchout-failed"
 				),
 				scenario(
 						"synthetic_control_hook_blackbox_results_missing",
@@ -338,6 +342,33 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				.map(PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
 						::passingResult)
 				.toList();
+	}
+
+	private static List<DerateControlHookBlackboxRegressionResult> currentResults(
+			List<PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
+					.DerateControlHookBlackboxRegressionRunRow> rows
+	) {
+		return rows.stream()
+				.map(PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
+						::currentResult)
+				.toList();
+	}
+
+	private static DerateControlHookBlackboxRegressionResult currentResult(
+			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
+					.DerateControlHookBlackboxRegressionRunRow row
+	) {
+		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
+				.DerateControlHookBlackboxResultReviewRow result =
+						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
+								.row(row.presetName(), row.regressionCaseName());
+		return result(
+				row,
+				result.primaryErrorRatio(),
+				result.secondaryErrorRatio(),
+				result.sampleCount(),
+				result.physicalConstraintViolationCount()
+		);
 	}
 
 	private static DerateControlHookBlackboxRegressionResult passingResult(
