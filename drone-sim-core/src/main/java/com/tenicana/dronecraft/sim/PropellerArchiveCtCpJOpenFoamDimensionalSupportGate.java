@@ -6,11 +6,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Support-Gate-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM dimensional support opens only when handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support including solver-quality QA, and SI rotor-response residuals all pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
+			"OpenFOAM dimensional support opens only when handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support including solver-quality QA, and SI rotor-response residuals with inherited archive curve-shape diagnostics all pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 11;
 	public static final int SCENARIO_SAMPLE_COUNT = 6;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 28;
-	public static final int SUMMARY_ROW_COUNT = 16;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 32;
+	public static final int SUMMARY_ROW_COUNT = 20;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_ROW_COUNT
@@ -35,6 +35,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			int cfdGeometryUnsupportedLookupTargetCount,
 			int expectedDimensionalReferenceCount,
 			int readyDimensionalReferenceCount,
+			int archiveCurveShapeGuardInheritedReferenceCount,
+			int negativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int expectedOpenFoamDimensionalResultCaseCount,
 			int dimensionalObservedResultCount,
 			int dimensionalMissingResultCount,
@@ -66,6 +70,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			int maxSupportedDimensionalTargetCount,
 			int maxCfdSupportedLookupTargetCount,
 			int maxCfdGeometryUnsupportedLookupTargetCount,
+			int maxArchiveCurveShapeGuardInheritedReferenceCount,
+			int maxNegativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int maxDimensionalMissingResultCount,
 			int maxDimensionalFailedResultCount,
 			int maxOpenFoamSolverQualityBlockerCount,
@@ -191,6 +199,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				lookupSupport.cfdGeometryUnsupportedLookupTargetCount(),
 				dimensional.expectedDimensionalReferenceCount(),
 				dimensional.readyDimensionalReferenceCount(),
+				dimensional.archiveCurveShapeGuardInheritedReferenceCount(),
+				dimensional.negativeThrustTailReferenceCount(),
+				dimensional.maxArchiveCurveEtaFormulaResidual(),
+				dimensional.maxArchiveCurveCtIncrease(),
 				dimensional.expectedOpenFoamDimensionalResultCaseCount(),
 				dimensional.observedResultCount(),
 				dimensional.missingResultCount(),
@@ -240,10 +252,14 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 		int maxSupported = 0;
 		int maxLookupSupported = 0;
 		int maxGeometryUnsupported = 0;
+		int maxShapeInherited = 0;
+		int maxNegativeTail = 0;
 		int maxMissing = 0;
 		int maxFailed = 0;
 		int maxQualityBlockers = 0;
 		int qualityBlocked = 0;
+		double maxArchiveEta = 0.0;
+		double maxArchiveCt = 0.0;
 		double maxThrust = 0.0;
 		double maxInduced = 0.0;
 		int referenceAuthority = 0;
@@ -262,6 +278,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			maxLookupSupported = Math.max(maxLookupSupported, summary.cfdSupportedLookupTargetCount());
 			maxGeometryUnsupported = Math.max(maxGeometryUnsupported,
 					summary.cfdGeometryUnsupportedLookupTargetCount());
+			maxShapeInherited = Math.max(maxShapeInherited,
+					summary.archiveCurveShapeGuardInheritedReferenceCount());
+			maxNegativeTail = Math.max(maxNegativeTail, summary.negativeThrustTailReferenceCount());
+			maxArchiveEta = Math.max(maxArchiveEta, summary.maxArchiveCurveEtaFormulaResidual());
+			maxArchiveCt = Math.max(maxArchiveCt, summary.maxArchiveCurveCtIncrease());
 			maxMissing = Math.max(maxMissing, summary.dimensionalMissingResultCount());
 			maxFailed = Math.max(maxFailed, summary.dimensionalFailedResultCount());
 			maxQualityBlockers = Math.max(maxQualityBlockers,
@@ -289,6 +310,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				maxSupported,
 				maxLookupSupported,
 				maxGeometryUnsupported,
+				maxShapeInherited,
+				maxNegativeTail,
+				maxArchiveEta,
+				maxArchiveCt,
 				maxMissing,
 				maxFailed,
 				maxQualityBlockers,
@@ -322,6 +347,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 		}
 		if (!dimensional.openFoamDimensionalResidualReady()) {
 			if (!dimensional.dimensionalResponseReferenceReady()) {
+				if (dimensional.readyDimensionalReferenceCount()
+						>= dimensional.expectedDimensionalReferenceCount()) {
+					return "dimensional-reference-shape-guard-not-ready";
+				}
 				return "dimensional-response-reference-not-ready";
 			}
 			if (!dimensional.openFoamCoefficientResultReady()) {
