@@ -6,12 +6,12 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-Dimensional-Rotor-Response-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J dimensional rotor response converts accepted lookup execution rows into SI thrust, shaft power, torque, disk loading, and induced-velocity references; handoff-blocked or lookup-blocked rows emit diagnostics only and cannot mutate runtime physics or gameplay tuning.";
+			"CT/CP/J dimensional rotor response converts accepted lookup execution rows with inherited archive curve-shape guards into SI thrust, shaft power, torque, disk loading, and induced-velocity references; handoff-blocked or lookup-blocked rows emit diagnostics only and cannot mutate runtime physics or gameplay tuning.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
-	public static final int DIMENSIONAL_RULE_ROW_COUNT = 7;
+	public static final int DIMENSIONAL_RULE_ROW_COUNT = 8;
 	public static final int SCENARIO_ROW_COUNT =
 			PropellerArchiveCtCpJLookupExecutionContract.SCENARIO_ROW_COUNT;
-	public static final int SUMMARY_ROW_COUNT = 12;
+	public static final int SUMMARY_ROW_COUNT = 16;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ DIMENSIONAL_RULE_ROW_COUNT
@@ -28,6 +28,9 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			new DimensionalResponseRule("accepted_lookup_execution_required", true, false, true,
 					"SI response is emitted only for lookup rows accepted by the execution contract",
 					"feed-accepted-lookup-execution-results"),
+			new DimensionalResponseRule("archive_curve_shape_guard_inherited", true, false, true,
+					"accepted lookup rows must inherit archive curve-shape diagnostics from the execution handoff",
+					"carry-archive-curve-shape-guard-into-dimensional-response"),
 			new DimensionalResponseRule("standard_air_density_reference", true, true, true,
 					"reference rows use standard sea-level dry-air density unless a reviewed atmosphere row overrides it",
 					"keep-density-explicit-in-reference-packet"),
@@ -86,6 +89,10 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			double idealMomentumPowerWatts,
 			double idealMomentumPowerOverShaftPower,
 			double totalThrustToWeightRatio,
+			boolean archiveCurveShapeGuardInherited,
+			int negativeThrustTailExecutionInputRowCount,
+			double archiveCurveEtaFormulaResidual,
+			double archiveCurveCtIncrease,
 			boolean runtimeCouplingAllowed,
 			boolean gameplayAutoApplyAllowed,
 			String status,
@@ -110,6 +117,10 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			double maxIdealInducedVelocityMetersPerSecond,
 			double maxAxialAdvanceSpeedMetersPerSecond,
 			double maxTotalThrustToWeightRatio,
+			int archiveCurveShapeGuardInheritedReadyCount,
+			int maxNegativeThrustTailExecutionInputRowCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
 			String nextRequiredAction
@@ -199,6 +210,12 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			return blocked(lookup, config, rotor, airDensityKgPerCubicMeter, diameter, diskArea,
 					revolutionsPerSecond, angularVelocity);
 		}
+		if (!lookup.archiveCurveShapeGuardInherited()) {
+			return blocked(lookup, config, rotor, airDensityKgPerCubicMeter, diameter, diskArea,
+					revolutionsPerSecond, angularVelocity,
+					"LOOKUP_CURVE_SHAPE_GUARD_MISSING",
+					"archive-curve-shape-guard-not-inherited");
+		}
 		double advanceSpeed = lookup.queryAdvanceRatioJ() * revolutionsPerSecond * diameter;
 		double thrust = lookup.ctCoefficient()
 				* airDensityKgPerCubicMeter
@@ -243,6 +260,10 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 				idealMomentumPower,
 				momentumOverShaft,
 				thrustToWeight,
+				lookup.archiveCurveShapeGuardInherited(),
+				lookup.negativeThrustTailExecutionInputRowCount(),
+				lookup.archiveCurveEtaFormulaResidual(),
+				lookup.archiveCurveCtIncrease(),
 				false,
 				false,
 				"DIMENSIONAL_RESPONSE_READY",
@@ -259,6 +280,22 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			double diskArea,
 			double revolutionsPerSecond,
 			double angularVelocity
+	) {
+		return blocked(lookup, config, rotor, airDensityKgPerCubicMeter, diameter, diskArea,
+				revolutionsPerSecond, angularVelocity, "LOOKUP_EXECUTION_BLOCKED", lookup.message());
+	}
+
+	private static RotorDimensionalResponse blocked(
+			PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult lookup,
+			DroneConfig config,
+			RotorSpec rotor,
+			double airDensityKgPerCubicMeter,
+			double diameter,
+			double diskArea,
+			double revolutionsPerSecond,
+			double angularVelocity,
+			String status,
+			String message
 	) {
 		return new RotorDimensionalResponse(
 				lookup.presetName(),
@@ -285,10 +322,14 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 				0.0,
 				0.0,
 				ratio(0.0, config.massKg() * config.gravityMetersPerSecondSquared()),
+				lookup.archiveCurveShapeGuardInherited(),
+				lookup.negativeThrustTailExecutionInputRowCount(),
+				lookup.archiveCurveEtaFormulaResidual(),
+				lookup.archiveCurveCtIncrease(),
 				false,
 				false,
-				"LOOKUP_EXECUTION_BLOCKED",
-				lookup.message()
+				status,
+				message
 		);
 	}
 
@@ -303,10 +344,17 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 		double maxInduced = 0.0;
 		double maxAdvanceSpeed = 0.0;
 		double maxThrustToWeight = 0.0;
+		int inheritedReady = 0;
+		int maxNegativeThrustTail = 0;
+		double maxArchiveEtaResidual = 0.0;
+		double maxArchiveCtIncrease = 0.0;
 		for (DimensionalResponseScenario scenario : scenarios) {
 			RotorDimensionalResponse response = scenario.response();
 			if (response.dimensionalResponseReady()) {
 				ready++;
+				if (response.archiveCurveShapeGuardInherited()) {
+					inheritedReady++;
+				}
 			}
 			maxThrust = Math.max(maxThrust, response.thrustNewtons());
 			maxPower = Math.max(maxPower, response.shaftPowerWatts());
@@ -315,6 +363,12 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			maxInduced = Math.max(maxInduced, response.idealInducedVelocityMetersPerSecond());
 			maxAdvanceSpeed = Math.max(maxAdvanceSpeed, response.axialAdvanceSpeedMetersPerSecond());
 			maxThrustToWeight = Math.max(maxThrustToWeight, response.totalThrustToWeightRatio());
+			maxNegativeThrustTail = Math.max(maxNegativeThrustTail,
+					response.negativeThrustTailExecutionInputRowCount());
+			maxArchiveEtaResidual = Math.max(maxArchiveEtaResidual,
+					response.archiveCurveEtaFormulaResidual());
+			maxArchiveCtIncrease = Math.max(maxArchiveCtIncrease,
+					response.archiveCurveCtIncrease());
 			if (response.runtimeCouplingAllowed()) {
 				runtime++;
 			}
@@ -333,6 +387,10 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 				maxInduced,
 				maxAdvanceSpeed,
 				maxThrustToWeight,
+				inheritedReady,
+				maxNegativeThrustTail,
+				maxArchiveEtaResidual,
+				maxArchiveCtIncrease,
 				runtime,
 				gameplay,
 				NEXT_REQUIRED_ACTION
