@@ -6,10 +6,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Support-Gate-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM dimensional support opens only when handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, and SI rotor-response residuals all pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+			"OpenFOAM dimensional support opens only when handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support including solver-quality QA, and SI rotor-response residuals all pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int SCENARIO_SAMPLE_COUNT = 6;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 25;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 26;
 	public static final int SUMMARY_ROW_COUNT = 14;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
@@ -26,6 +26,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			boolean dimensionalResidualReady,
 			boolean dimensionalResponseReferenceReady,
 			boolean openFoamCoefficientResultReady,
+			boolean openFoamSolverQualityContractReady,
 			boolean externalDimensionalExtractionReady,
 			int expectedLookupTargetCount,
 			int cfdSupportedLookupTargetCount,
@@ -177,6 +178,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				dimensional.openFoamDimensionalResidualReady(),
 				dimensional.dimensionalResponseReferenceReady(),
 				dimensional.openFoamCoefficientResultReady(),
+				lookupSupport.openFoamSolverQualityContractReady(),
 				dimensional.externalDimensionalExtractionReady(),
 				lookupSupport.expectedLookupTargetCount(),
 				lookupSupport.cfdSupportedLookupTargetCount(),
@@ -297,6 +299,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			}
 			if (!lookupSupport.openFoamResultContractReady()) {
 				return "openfoam-coefficient-support-not-ready";
+			}
+			if (!lookupSupport.openFoamSolverQualityContractReady()) {
+				return "openfoam-solver-quality-not-ready";
 			}
 			return "openfoam-lookup-support-not-ready";
 		}

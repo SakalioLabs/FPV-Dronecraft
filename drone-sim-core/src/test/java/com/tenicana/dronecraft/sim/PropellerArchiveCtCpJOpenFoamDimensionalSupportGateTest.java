@@ -21,11 +21,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Support-Gate-Packet",
 				AUDIT.sourceId());
 		assertTrue(AUDIT.caveat().contains("coefficient-level CFD lookup support"));
+		assertTrue(AUDIT.caveat().contains("solver-quality QA"));
 		assertTrue(AUDIT.caveat().contains("handoff-aware CT/CP/J lookup execution"));
-		assertEquals(174, AUDIT.packetRowCount());
-		assertEquals(9, AUDIT.sourceReferenceRowCount());
+		assertEquals(181, AUDIT.packetRowCount());
+		assertEquals(10, AUDIT.sourceReferenceRowCount());
 		assertEquals(6, AUDIT.scenarioSampleCount());
-		assertEquals(25, AUDIT.scenarioMetricRowCount());
+		assertEquals(26, AUDIT.scenarioMetricRowCount());
 		assertEquals(14, AUDIT.summaryRowCount());
 		assertEquals(1, AUDIT.methodRowCount());
 		assertEquals(6, AUDIT.scenarios().size());
@@ -35,6 +36,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertFalse(current.lookupExecutionContractReady());
 		assertFalse(current.lookupSupportReady());
 		assertFalse(current.dimensionalResidualReady());
+		assertFalse(current.openFoamSolverQualityContractReady());
 		assertFalse(current.cfdDimensionalSupportReady());
 		assertEquals(9, current.expectedLookupTargetCount());
 		assertEquals(6, current.expectedOpenFoamDimensionalResultCaseCount());
@@ -84,6 +86,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(ready.lookupExecutionContractReady());
 		assertTrue(ready.lookupSupportReady());
 		assertTrue(ready.dimensionalResidualReady());
+		assertTrue(ready.openFoamSolverQualityContractReady());
 		assertTrue(ready.cfdDimensionalSupportReady());
 		assertEquals(6, ready.supportedDimensionalTargetCount());
 		assertEquals(6, ready.cfdSupportedLookupTargetCount());
@@ -135,7 +138,11 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,current_lookup_and_dimensional_blocked,dimensional_missing_result_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,current_lookup_and_dimensional_blocked,openfoam_solver_quality_contract_ready,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_execution_blocked_si_ready,lookup_execution_contract_ready,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_and_dimensional_openfoam_support_ready,openfoam_solver_quality_contract_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_and_dimensional_openfoam_support_ready,cfd_dimensional_support_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
