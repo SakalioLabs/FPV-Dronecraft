@@ -6,12 +6,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Handoff-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM dimensional reference handoff defines the reviewed payload shape after handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, solver-quality QA, and SI residual support; it exports no current references and never enables runtime coupling or gameplay auto-apply.";
+			"OpenFOAM dimensional reference handoff defines the reviewed payload shape after handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, solver-quality QA, SI residual support, and inherited archive curve-shape diagnostics; it exports no current references and never enables runtime coupling or gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 11;
 	public static final int REFERENCE_FIELD_ROW_COUNT = 17;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 23;
-	public static final int SUMMARY_ROW_COUNT = 13;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 27;
+	public static final int SUMMARY_ROW_COUNT = 17;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_FIELD_ROW_COUNT
@@ -86,6 +86,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			int observedReferenceFieldCount,
 			int supportedDimensionalTargetCount,
 			int blockedDimensionalTargetCount,
+			int archiveCurveShapeGuardInheritedReferenceCount,
+			int negativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			boolean allReferenceFieldsPresent,
 			boolean referenceMaterialExportAllowed,
 			int openFoamDimensionalReferenceRowAvailableCount,
@@ -115,6 +119,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			int maxBlockedDimensionalTargetCount,
 			int maxObservedReferenceFieldCount,
 			int maxReferenceRowAvailableCount,
+			int maxArchiveCurveShapeGuardInheritedReferenceCount,
+			int maxNegativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int maxOpenFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerScenarioCount,
 			int runtimeCouplingAllowedCount,
@@ -225,9 +233,17 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 		int expectedRows = support.expectedOpenFoamDimensionalResultCaseCount();
 		int supportedRows = support.supportedDimensionalTargetCount();
 		int blockedRows = expectedRows - supportedRows;
+		boolean archiveCurveShapeGuardComplete =
+				support.archiveCurveShapeGuardInheritedReferenceCount()
+						>= support.expectedDimensionalReferenceCount()
+				&& support.maxArchiveCurveEtaFormulaResidual()
+						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL
+				&& support.maxArchiveCurveCtIncrease()
+						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE;
 		boolean exportAllowed = support.cfdDimensionalSupportReady()
 				&& dimensionalReferenceReviewed
-				&& allFields;
+				&& allFields
+				&& archiveCurveShapeGuardComplete;
 		return new OpenFoamDimensionalReferenceHandoffSummary(
 				support.lookupExecutionContractReady(),
 				support.cfdDimensionalSupportReady(),
@@ -242,6 +258,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				observedFields,
 				supportedRows,
 				blockedRows,
+				support.archiveCurveShapeGuardInheritedReferenceCount(),
+				support.negativeThrustTailReferenceCount(),
+				support.maxArchiveCurveEtaFormulaResidual(),
+				support.maxArchiveCurveCtIncrease(),
 				allFields,
 				exportAllowed,
 				exportAllowed ? supportedRows : 0,
@@ -249,7 +269,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				false,
 				REFERENCE_PAYLOAD_KIND,
 				exportAllowed ? "READY" : "BLOCKED",
-				messageFor(support, dimensionalReferenceReviewed, allFields),
+				messageFor(support, dimensionalReferenceReviewed, allFields,
+						archiveCurveShapeGuardComplete),
 				support.status(),
 				sourceRuntimeInfo
 		);
@@ -277,6 +298,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 		int maxBlocked = 0;
 		int maxFields = 0;
 		int maxRowsAvailable = 0;
+		int maxShapeInherited = 0;
+		int maxNegativeTail = 0;
+		double maxArchiveEta = 0.0;
+		double maxArchiveCt = 0.0;
 		int maxQualityBlockers = 0;
 		int qualityBlocked = 0;
 		int runtime = 0;
@@ -296,6 +321,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			maxFields = Math.max(maxFields, summary.observedReferenceFieldCount());
 			maxRowsAvailable = Math.max(maxRowsAvailable,
 					summary.openFoamDimensionalReferenceRowAvailableCount());
+			maxShapeInherited = Math.max(maxShapeInherited,
+					summary.archiveCurveShapeGuardInheritedReferenceCount());
+			maxNegativeTail = Math.max(maxNegativeTail, summary.negativeThrustTailReferenceCount());
+			maxArchiveEta = Math.max(maxArchiveEta, summary.maxArchiveCurveEtaFormulaResidual());
+			maxArchiveCt = Math.max(maxArchiveCt, summary.maxArchiveCurveCtIncrease());
 			maxQualityBlockers = Math.max(maxQualityBlockers,
 					summary.openFoamSolverQualityBlockerCount());
 			if (summary.openFoamSolverQualityBlockerCount() > 0) {
@@ -318,6 +348,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				maxBlocked,
 				maxFields,
 				maxRowsAvailable,
+				maxShapeInherited,
+				maxNegativeTail,
+				maxArchiveEta,
+				maxArchiveCt,
 				maxQualityBlockers,
 				qualityBlocked,
 				runtime,
@@ -328,7 +362,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 	private static String messageFor(
 			PropellerArchiveCtCpJOpenFoamDimensionalSupportGate.OpenFoamDimensionalSupportSummary support,
 			boolean dimensionalReferenceReviewed,
-			boolean allFields
+			boolean allFields,
+			boolean archiveCurveShapeGuardComplete
 	) {
 		if ("lookup-execution-contract-not-ready".equals(support.message())) {
 			return "lookup-execution-contract-not-ready";
@@ -347,6 +382,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 		}
 		if (!dimensionalReferenceReviewed) {
 			return "openfoam-dimensional-reference-review-missing";
+		}
+		if (!archiveCurveShapeGuardComplete) {
+			return "archive-curve-shape-guard-not-inherited";
 		}
 		if (!allFields) {
 			return "openfoam-dimensional-reference-schema-incomplete";
