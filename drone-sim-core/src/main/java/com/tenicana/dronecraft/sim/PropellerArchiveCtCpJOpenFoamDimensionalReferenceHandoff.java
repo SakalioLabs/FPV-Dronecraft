@@ -6,11 +6,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Handoff-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM dimensional reference handoff defines the reviewed payload shape after handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, and SI residual support; it exports no current references and never enables runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+			"OpenFOAM dimensional reference handoff defines the reviewed payload shape after handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, solver-quality QA, and SI residual support; it exports no current references and never enables runtime coupling or gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int REFERENCE_FIELD_ROW_COUNT = 17;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 20;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 21;
 	public static final int SUMMARY_ROW_COUNT = 11;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
@@ -78,6 +78,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			boolean dimensionalReferenceReviewed,
 			boolean lookupSupportReady,
 			boolean dimensionalResidualReady,
+			boolean openFoamSolverQualityContractReady,
 			int expectedReferenceRowCount,
 			int expectedReferenceFieldCount,
 			int observedReferenceFieldCount,
@@ -229,6 +230,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				dimensionalReferenceReviewed,
 				support.lookupSupportReady(),
 				support.dimensionalResidualReady(),
+				support.openFoamSolverQualityContractReady(),
 				expectedRows,
 				REFERENCE_FIELD_ROW_COUNT,
 				observedFields,
@@ -317,6 +319,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			return "lookup-execution-contract-not-ready";
 		}
 		if (!support.cfdDimensionalSupportReady()) {
+			if ("openfoam-solver-quality-not-ready".equals(support.message())) {
+				return "openfoam-solver-quality-not-ready";
+			}
 			if (!support.lookupSupportReady()) {
 				return "openfoam-dimensional-lookup-support-not-ready";
 			}

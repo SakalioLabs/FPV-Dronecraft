@@ -25,11 +25,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Table-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("six geometry-backed SI CFD reference rows"));
+		assertTrue(audit.caveat().contains("solver-quality QA state"));
 		assertTrue(audit.caveat().contains("zero weights"));
-		assertEquals(30, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
+		assertEquals(32, audit.packetRowCount());
+		assertEquals(9, audit.sourceReferenceRowCount());
 		assertEquals(6, audit.referenceRowCount());
-		assertEquals(15, audit.summaryRowCount());
+		assertEquals(16, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(6, audit.rows().size());
 
@@ -37,6 +38,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				: audit.rows()) {
 			assertFalse(row.lookupExecutionContractReady());
 			assertFalse(row.dimensionalSupportReady());
+			assertFalse(row.openFoamSolverQualityContractReady());
 			assertFalse(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertFalse(row.openFoamDimensionalReferenceRowAvailable());
@@ -80,6 +82,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals(0.0, audit.extrema().maxResidualReferenceWeight(), 1.0e-12);
 		assertEquals(0, audit.extrema().lookupExecutionContractReadyCount());
 		assertEquals(0, audit.extrema().dimensionalSupportReadyCount());
+		assertEquals(0, audit.extrema().openFoamSolverQualityContractReadyCount());
 		assertEquals(0, audit.extrema().dimensionalReferenceReviewedCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
@@ -99,6 +102,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals(1.0, audit.extrema().maxResidualReferenceWeight(), 1.0e-12);
 		assertEquals(6, audit.extrema().lookupExecutionContractReadyCount());
 		assertEquals(6, audit.extrema().dimensionalSupportReadyCount());
+		assertEquals(6, audit.extrema().openFoamSolverQualityContractReadyCount());
 		assertEquals(6, audit.extrema().dimensionalReferenceReviewedCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
@@ -107,6 +111,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				: audit.rows()) {
 			assertTrue(row.lookupExecutionContractReady());
 			assertTrue(row.dimensionalSupportReady());
+			assertTrue(row.openFoamSolverQualityContractReady());
 			assertTrue(row.dimensionalReferenceReviewed());
 			assertTrue(row.referenceMaterialExportAllowed());
 			assertTrue(row.openFoamDimensionalReferenceRowAvailable());
@@ -136,6 +141,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				: audit.rows()) {
 			assertTrue(row.lookupExecutionContractReady());
 			assertTrue(row.dimensionalSupportReady());
+			assertTrue(row.openFoamSolverQualityContractReady());
 			assertFalse(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertEquals("openfoam-dimensional-reference-review-missing", row.message());
@@ -154,6 +160,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				: audit.rows()) {
 			assertFalse(row.lookupExecutionContractReady());
 			assertFalse(row.dimensionalSupportReady());
+			assertTrue(row.openFoamSolverQualityContractReady());
 			assertTrue(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertEquals("lookup-execution-contract-not-ready", row.message());
@@ -192,6 +199,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,reference_row_available_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,static_anchor_reference_row_count,2,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,openfoam_solver_quality_contract_ready_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,runtime_coupling_allowed_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
