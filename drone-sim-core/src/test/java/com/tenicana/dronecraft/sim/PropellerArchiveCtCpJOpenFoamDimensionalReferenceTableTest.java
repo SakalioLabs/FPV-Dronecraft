@@ -16,11 +16,20 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 	private static final PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff
 			.CtCpJOpenFoamDimensionalReferenceHandoffAudit HANDOFF_AUDIT =
 					PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.audit();
+	private static final List<PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase> TARGETS =
+			List.of(
+					target("racingQuad", "static_anchor_low_rpm", 0.0, 1_477.8, true),
+					target("racingQuad", "mid_domain_mid_rpm", 0.4064, 4_712.25, false),
+					target("racingQuad", "high_domain_max_rpm", 0.73152, 7_946.7, false),
+					target("apDrone", "static_anchor_low_rpm", 0.0, 1_477.8, true),
+					target("apDrone", "mid_domain_mid_rpm", 0.4064, 4_712.25, false),
+					target("apDrone", "high_domain_max_rpm", 0.73152, 7_946.7, false)
+			);
 
 	@Test
 	void auditBuildsBlockedCurrentDimensionalReferenceRows() {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
-				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit();
+				tableAudit("current_dimensional_support_blocked");
 
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Table-Packet",
 				audit.sourceId());
@@ -113,7 +122,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
 				handoff("dimensional_support_ready_reference_reviewed");
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
-				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff);
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff, TARGETS);
 
 		assertEquals(6, audit.extrema().referenceRowAvailableCount());
 		assertEquals(0, audit.extrema().blockedRowCount());
@@ -168,7 +177,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
 				handoff("dimensional_support_ready_reference_review_missing");
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
-				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff);
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff, TARGETS);
 
 		assertEquals(0, audit.extrema().referenceRowAvailableCount());
 		assertEquals(6, audit.extrema().blockedRowCount());
@@ -189,7 +198,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
 				handoff("lookup_execution_blocked_reference_reviewed");
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
-				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff);
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff, TARGETS);
 
 		assertEquals(6, audit.extrema().blockedRowCount());
 		for (PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.OpenFoamDimensionalReferenceRow row
@@ -209,10 +218,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
 				handoff("dimensional_support_ready_reference_reviewed");
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target =
-				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
+				target("apDrone", "mid_domain_mid_rpm", 0.4064, 4_712.25, false);
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(null));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(handoff, null));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.row(null, target));
 		assertThrows(IllegalArgumentException.class,
@@ -222,7 +233,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 	@Test
 	void csvPacketRowCountMatchesAuditSummary() throws IOException {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
-				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit();
+				tableAudit("current_dimensional_support_blocked");
 		Path packet = findRepoRoot().resolve(
 				"docs/data/propeller_archive_ct_cp_j_openfoam_dimensional_reference_table_packet.csv");
 		List<String> lines = Files.readAllLines(packet);
@@ -264,6 +275,49 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				.findFirst()
 				.orElseThrow()
 				.summary();
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit
+			tableAudit(String handoffScenarioName) {
+		return PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(
+				handoff(handoffScenarioName),
+				TARGETS);
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target(
+			String presetName,
+			String caseName,
+			double queryAdvanceRatioJ,
+			double queryRpm,
+			boolean staticAnchorCase
+	) {
+		return new PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase(
+				presetName,
+				caseName,
+				"da4052_5x3.75",
+				"da4052 5.0x3.75",
+				queryAdvanceRatioJ,
+				queryRpm,
+				queryAdvanceRatioJ / Math.PI,
+				2,
+				staticAnchorCase,
+				true,
+				true,
+				true,
+				false,
+				true,
+				false,
+				3,
+				PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CT_RESIDUAL,
+				PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CP_RESIDUAL,
+				PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_ETA_RESIDUAL,
+				false,
+				false,
+				PropellerArchiveCtCpJOpenFoamValidationPlan.SOLVER_FAMILY,
+				"BLOCKED",
+				"openfoam-case-template-not-run",
+				PropellerArchiveCtCpJOpenFoamValidationPlan.NEXT_REQUIRED_ACTION
+		);
 	}
 
 	private static Path findRepoRoot() {

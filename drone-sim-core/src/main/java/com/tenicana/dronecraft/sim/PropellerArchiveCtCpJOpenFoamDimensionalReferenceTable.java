@@ -109,10 +109,20 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 	public static CtCpJOpenFoamDimensionalReferenceTableAudit audit(
 			PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff
 	) {
+		return audit(handoff, targets());
+	}
+
+	public static CtCpJOpenFoamDimensionalReferenceTableAudit audit(
+			PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff,
+			List<PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase> targets
+	) {
 		if (handoff == null) {
 			throw new IllegalArgumentException("OpenFOAM dimensional reference handoff summary must not be null.");
 		}
-		List<OpenFoamDimensionalReferenceRow> rows = targets()
+		if (targets == null) {
+			throw new IllegalArgumentException("OpenFOAM dimensional reference targets must not be null.");
+		}
+		List<OpenFoamDimensionalReferenceRow> rows = targets
 				.stream()
 				.map(target -> row(handoff, target))
 				.toList();

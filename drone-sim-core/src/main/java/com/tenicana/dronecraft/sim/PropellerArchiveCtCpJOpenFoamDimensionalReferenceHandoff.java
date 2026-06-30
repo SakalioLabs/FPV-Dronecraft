@@ -10,8 +10,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 11;
 	public static final int REFERENCE_FIELD_ROW_COUNT = 17;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 27;
-	public static final int SUMMARY_ROW_COUNT = 17;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 33;
+	public static final int SUMMARY_ROW_COUNT = 23;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_FIELD_ROW_COUNT
@@ -86,6 +86,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			int observedReferenceFieldCount,
 			int supportedDimensionalTargetCount,
 			int blockedDimensionalTargetCount,
+			boolean openFoamCoefficientLookupShapeGuardReady,
+			int openFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int openFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double maxOpenFoamCoefficientArchiveCurveCtIncrease,
 			int archiveCurveShapeGuardInheritedReferenceCount,
 			int negativeThrustTailReferenceCount,
 			double maxArchiveCurveEtaFormulaResidual,
@@ -119,6 +125,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			int maxBlockedDimensionalTargetCount,
 			int maxObservedReferenceFieldCount,
 			int maxReferenceRowAvailableCount,
+			int openFoamCoefficientLookupShapeGuardReadyScenarioCount,
+			int maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double maxOpenFoamCoefficientArchiveCurveCtIncrease,
 			int maxArchiveCurveShapeGuardInheritedReferenceCount,
 			int maxNegativeThrustTailReferenceCount,
 			double maxArchiveCurveEtaFormulaResidual,
@@ -240,9 +252,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL
 				&& support.maxArchiveCurveCtIncrease()
 						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE;
+		boolean coefficientShapeGuardComplete = support.openFoamCoefficientLookupShapeGuardReady();
 		boolean exportAllowed = support.cfdDimensionalSupportReady()
 				&& dimensionalReferenceReviewed
 				&& allFields
+				&& coefficientShapeGuardComplete
 				&& archiveCurveShapeGuardComplete;
 		return new OpenFoamDimensionalReferenceHandoffSummary(
 				support.lookupExecutionContractReady(),
@@ -258,6 +272,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				observedFields,
 				supportedRows,
 				blockedRows,
+				support.openFoamCoefficientLookupShapeGuardReady(),
+				support.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
+				support.openFoamCoefficientLookupShapeGuardBlockedScenarioCount(),
+				support.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount(),
+				support.maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual(),
+				support.maxOpenFoamCoefficientArchiveCurveCtIncrease(),
 				support.archiveCurveShapeGuardInheritedReferenceCount(),
 				support.negativeThrustTailReferenceCount(),
 				support.maxArchiveCurveEtaFormulaResidual(),
@@ -270,7 +290,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				REFERENCE_PAYLOAD_KIND,
 				exportAllowed ? "READY" : "BLOCKED",
 				messageFor(support, dimensionalReferenceReviewed, allFields,
-						archiveCurveShapeGuardComplete),
+						coefficientShapeGuardComplete, archiveCurveShapeGuardComplete),
 				support.status(),
 				sourceRuntimeInfo
 		);
@@ -298,8 +318,14 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 		int maxBlocked = 0;
 		int maxFields = 0;
 		int maxRowsAvailable = 0;
+		int coefficientShapeReady = 0;
+		int maxCoefficientShapeInherited = 0;
+		int maxCoefficientShapeBlocked = 0;
+		int maxCoefficientNegativeTail = 0;
 		int maxShapeInherited = 0;
 		int maxNegativeTail = 0;
+		double maxCoefficientArchiveEta = 0.0;
+		double maxCoefficientArchiveCt = 0.0;
 		double maxArchiveEta = 0.0;
 		double maxArchiveCt = 0.0;
 		int maxQualityBlockers = 0;
@@ -321,6 +347,19 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			maxFields = Math.max(maxFields, summary.observedReferenceFieldCount());
 			maxRowsAvailable = Math.max(maxRowsAvailable,
 					summary.openFoamDimensionalReferenceRowAvailableCount());
+			if (summary.openFoamCoefficientLookupShapeGuardReady()) {
+				coefficientShapeReady++;
+			}
+			maxCoefficientShapeInherited = Math.max(maxCoefficientShapeInherited,
+					summary.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+			maxCoefficientShapeBlocked = Math.max(maxCoefficientShapeBlocked,
+					summary.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+			maxCoefficientNegativeTail = Math.max(maxCoefficientNegativeTail,
+					summary.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+			maxCoefficientArchiveEta = Math.max(maxCoefficientArchiveEta,
+					summary.maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual());
+			maxCoefficientArchiveCt = Math.max(maxCoefficientArchiveCt,
+					summary.maxOpenFoamCoefficientArchiveCurveCtIncrease());
 			maxShapeInherited = Math.max(maxShapeInherited,
 					summary.archiveCurveShapeGuardInheritedReferenceCount());
 			maxNegativeTail = Math.max(maxNegativeTail, summary.negativeThrustTailReferenceCount());
@@ -348,6 +387,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				maxBlocked,
 				maxFields,
 				maxRowsAvailable,
+				coefficientShapeReady,
+				maxCoefficientShapeInherited,
+				maxCoefficientShapeBlocked,
+				maxCoefficientNegativeTail,
+				maxCoefficientArchiveEta,
+				maxCoefficientArchiveCt,
 				maxShapeInherited,
 				maxNegativeTail,
 				maxArchiveEta,
@@ -363,6 +408,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			PropellerArchiveCtCpJOpenFoamDimensionalSupportGate.OpenFoamDimensionalSupportSummary support,
 			boolean dimensionalReferenceReviewed,
 			boolean allFields,
+			boolean coefficientShapeGuardComplete,
 			boolean archiveCurveShapeGuardComplete
 	) {
 		if ("lookup-execution-contract-not-ready".equals(support.message())) {
@@ -375,6 +421,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			if (!support.lookupSupportReady()) {
 				return "openfoam-dimensional-lookup-support-not-ready";
 			}
+			if (!support.openFoamCoefficientLookupShapeGuardReady()) {
+				return "openfoam-coefficient-lookup-shape-guard-not-ready";
+			}
 			if (!support.dimensionalResidualReady()) {
 				return "openfoam-dimensional-residual-not-ready";
 			}
@@ -382,6 +431,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 		}
 		if (!dimensionalReferenceReviewed) {
 			return "openfoam-dimensional-reference-review-missing";
+		}
+		if (!coefficientShapeGuardComplete) {
+			return "openfoam-coefficient-lookup-shape-guard-not-inherited";
 		}
 		if (!archiveCurveShapeGuardComplete) {
 			return "archive-curve-shape-guard-not-inherited";
