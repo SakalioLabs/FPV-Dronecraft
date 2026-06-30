@@ -20,6 +20,9 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 	private static final double REFERENCE_SHAFT_TORQUE_NEWTON_METERS = 1.0;
 	private static final double REFERENCE_INDUCED_VELOCITY_METERS_PER_SECOND = 5.0;
 	private static final double REFERENCE_MOMENTUM_POWER_WATTS = 30.0;
+	private static final double COEFFICIENT_REFERENCE_CT = 0.100;
+	private static final double COEFFICIENT_REFERENCE_CP = 0.050;
+	private static final double COEFFICIENT_REFERENCE_ETA = 0.400;
 
 	@Test
 	void auditBuildsDimensionalResidualContractScenarios() {
@@ -42,6 +45,10 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 				scenario(audit, "current_dimensional_and_openfoam_blocked").summary();
 		assertFalse(current.dimensionalResponseReferenceReady());
 		assertFalse(current.openFoamCoefficientResultReady());
+		assertFalse(current.openFoamCoefficientLookupShapeGuardReady());
+		assertEquals(5, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, current.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, current.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertFalse(current.externalDimensionalExtractionReady());
 		assertEquals(6, current.expectedDimensionalReferenceCount());
 		assertEquals(2, current.readyDimensionalReferenceCount());
@@ -60,6 +67,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		assertTrue(missing.dimensionalResponseReferenceReady());
 		assertEquals(6, missing.archiveCurveShapeGuardInheritedReferenceCount());
 		assertTrue(missing.openFoamCoefficientResultReady());
+		assertTrue(missing.openFoamCoefficientLookupShapeGuardReady());
 		assertTrue(missing.externalDimensionalExtractionReady());
 		assertEquals(6, missing.readyDimensionalReferenceCount());
 		assertEquals(6, missing.missingResultCount());
@@ -87,6 +95,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		assertEquals(6, ready.observedResultCount());
 		assertEquals(6, ready.passedResultCount());
 		assertEquals(0, ready.failedResultCount());
+		assertTrue(ready.openFoamCoefficientLookupShapeGuardReady());
+		assertEquals(5, ready.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertTrue(ready.maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(ready.maxOpenFoamCoefficientArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(5, ready.minObservedResultChannelCount());
 		assertEquals(0.04, ready.maxThrustResidualToReference(), 1.0e-12);
 		assertEquals(0.05, ready.maxShaftPowerResidualToReference(), 1.0e-12);
@@ -110,11 +124,34 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
 		assertTrue(audit.extrema().maxArchiveCurveCtIncrease()
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
+		assertEquals(4, audit.extrema().openFoamCoefficientLookupShapeGuardReadyScenarioCount());
+		assertEquals(5, audit.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, audit.extrema().maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, audit.extrema().maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+		assertTrue(audit.extrema().maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(audit.extrema().maxOpenFoamCoefficientArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(6, audit.extrema().maxMissingResultCount());
 		assertEquals(1, audit.extrema().maxFailedResultCount());
 		assertEquals(0.075, audit.extrema().maxInducedVelocityResidualToReference(), 1.0e-12);
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
+	}
+
+	@Test
+	void reviewRequiresShapeGuardedCoefficientResultBeforeSiResiduals() {
+		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalResidualSummary blocked =
+				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.review(
+						true, 6, blockedCoefficientResultSummary(), true,
+						passingDimensionalResults(), "synthetic-si-ready-coefficient-shape-blocked");
+
+		assertTrue(blocked.dimensionalResponseReferenceReady());
+		assertFalse(blocked.openFoamCoefficientLookupShapeGuardReady());
+		assertFalse(blocked.openFoamCoefficientResultReady());
+		assertEquals(0, blocked.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertFalse(blocked.openFoamDimensionalResidualReady());
+		assertEquals("openfoam-coefficient-lookup-shape-guard-not-ready", blocked.message());
 	}
 
 	@Test
@@ -255,6 +292,9 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_scenario,current_dimensional_and_openfoam_blocked,BLOCKED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_scenario,dimensional_and_openfoam_si_ready,READY,true,")));
+		assertTrue(lines.get(0).contains("openfoam_coefficient_lookup_shape_guard_ready"));
+		assertTrue(lines.stream().anyMatch(line -> line.contains(
+				"dimensional_and_openfoam_si_ready,READY,true,,boolean,6,6,true,5,1,9,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_summary,all_scenarios,ready_scenario_count,,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -310,6 +350,91 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 				inducedVelocityResidualToReference,
 				momentumPowerResidualToReference,
 				solverConvergenceResidual);
+	}
+
+	private static List<PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalCompactResult>
+			passingDimensionalResults() {
+		return PropellerArchiveCtCpJOpenFoamValidationPlan.audit()
+				.cases()
+				.stream()
+				.filter(PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase
+						::postReviewOpenFoamCaseRunnable)
+				.map(target -> reviewedResult(target, REVIEWED_CASE_SHA,
+						target.queryAdvanceRatioJ(), target.queryRpm(), 5,
+						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5))
+				.toList();
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultContractSummary
+			blockedCoefficientResultSummary() {
+		return PropellerArchiveCtCpJOpenFoamResultContract.review(
+				true, true, true, passingCoefficientResults(), blockedLookupExecutionSummary(),
+				"synthetic-coefficient-shape-guard-blocked");
+	}
+
+	private static List<PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult>
+			passingCoefficientResults() {
+		return PropellerArchiveCtCpJOpenFoamValidationPlan.audit()
+				.cases()
+				.stream()
+				.filter(PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase
+						::postReviewOpenFoamCaseRunnable)
+				.map(target -> reviewedCoefficientResult(target,
+						target.maxCtResidual() * 0.50,
+						target.maxCpResidual() * 0.50,
+						target.staticAnchorCase() ? 0.0 : target.maxEtaResidual() * 0.50))
+				.toList();
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult reviewedCoefficientResult(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double ctResidualToWindTunnel,
+			double cpResidualToWindTunnel,
+			double etaResidualToWindTunnel
+	) {
+		double etaReference = target.staticAnchorCase() ? 0.0 : COEFFICIENT_REFERENCE_ETA;
+		return PropellerArchiveCtCpJOpenFoamResultContract.result(
+				target,
+				REVIEWED_CASE_SHA,
+				target.queryAdvanceRatioJ(),
+				target.queryRpm(),
+				COEFFICIENT_REFERENCE_CT,
+				cfdValue(COEFFICIENT_REFERENCE_CT, ctResidualToWindTunnel),
+				COEFFICIENT_REFERENCE_CP,
+				cfdValue(COEFFICIENT_REFERENCE_CP, cpResidualToWindTunnel),
+				etaReference,
+				cfdValue(etaReference, etaResidualToWindTunnel),
+				3,
+				ctResidualToWindTunnel,
+				cpResidualToWindTunnel,
+				etaResidualToWindTunnel,
+				5.0e-5);
+	}
+
+	private static PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary
+			blockedLookupExecutionSummary() {
+		return new PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary(
+				1,
+				0,
+				1,
+				1,
+				0,
+				0,
+				0,
+				0,
+				0,
+				1,
+				0,
+				0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0,
+				0,
+				"carry-archive-curve-shape-guard-into-lookup-execution");
 	}
 
 	private static double cfdValue(double referenceValue, double residual) {
