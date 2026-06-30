@@ -5,11 +5,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Review-Handoff-Packet";
 	public static final String CAVEAT =
-			"Review handoff may export powered-source coupling simulation evidence only after the final force/moment/wake and swirl angular-momentum conservation guard is clear; it keeps playable use behind downstream review and never enables gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_COUNT = 7;
+			"Review handoff may export powered-source coupling simulation evidence only after the final force/moment/wake and swirl angular-momentum conservation guard is clear and the nearfield wake plus OpenFOAM rotor-reference package is ready; it keeps playable use behind downstream review and never enables gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 2;
-	public static final int SCENARIO_METRIC_COUNT = 47;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 14;
+	public static final int SCENARIO_METRIC_COUNT = 53;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -38,6 +38,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			boolean cruiseLiveConservationAccepted,
 			boolean hoverLiveSwirlConservationAccepted,
 			boolean cruiseLiveSwirlConservationAccepted,
+			boolean nearfieldReferencePackageExportAllowed,
+			boolean nearfieldReferencePackageBlocker,
+			int nearfieldExpectedReferenceRowCount,
+			int nearfieldOpenFoamAvailableReferenceRowCount,
 			boolean conservationTargetSelfConsistent,
 			boolean swirlConservationTargetSelfConsistent,
 			int conservationRowCount,
@@ -61,12 +65,14 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			boolean swirlConservationEvidenceBlocker,
 			boolean hoverSwirlConservationBlocker,
 			boolean cruiseSwirlConservationBlocker,
+			boolean nearfieldReferenceBlocker,
 			boolean targetModelSelfConsistencyBlocker,
 			boolean swirlTargetSelfConsistencyBlocker,
 			boolean gameplayAutoApplyLeakBlocker,
 			boolean gameplayAutoApplyAllowed,
 			boolean playableReviewRequiredBeforeUse,
 			String reviewPayloadKind,
+			String nearfieldReferencePayloadKind,
 			String nextRequiredAction,
 			String status,
 			String message
@@ -89,6 +95,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			int couplingReadinessBlockerScenarioCount,
 			int conservationEvidenceBlockerScenarioCount,
 			int swirlConservationEvidenceBlockerScenarioCount,
+			int nearfieldReferenceBlockerScenarioCount,
 			int targetModelSelfConsistencyBlockerScenarioCount,
 			int swirlTargetSelfConsistencyBlockerScenarioCount,
 			int gameplayAutoApplyLeakBlockerScenarioCount,
@@ -132,13 +139,19 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 		if (blockerAudit == null) {
 			throw new IllegalArgumentException("blockerAudit must not be null.");
 		}
+		Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceAudit nearfieldAudit =
+				Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.audit();
 		List<PoweredSourceCouplingReviewHandoffScenario> scenarios = List.of(
 				new PoweredSourceCouplingReviewHandoffScenario(
 						CURRENT_SCENARIO,
-						handoff(blocker(blockerAudit, "current_coupling_and_conservation_blocked"))),
+						handoff(
+								blocker(blockerAudit, "current_coupling_and_conservation_blocked"),
+								nearfield(nearfieldAudit, "current_hover_cruise_and_openfoam_reference_blocked"))),
 				new PoweredSourceCouplingReviewHandoffScenario(
 						READY_SCENARIO,
-						handoff(blocker(blockerAudit, "coupling_and_conservation_ready")))
+						handoff(
+								blocker(blockerAudit, "coupling_and_conservation_ready"),
+								nearfield(nearfieldAudit, "hover_cruise_and_openfoam_reference_ready")))
 		);
 		return new PoweredSourceCouplingReviewHandoffAudit(
 				SOURCE_ID,
@@ -158,20 +171,38 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
 					.PoweredSourceCouplingConservationBlockerSummary blocker
 	) {
-		if (blocker == null) {
+		return handoff(blocker, Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.audit()
+				.scenarios()
+				.stream()
+				.filter(scenario -> "current_hover_cruise_and_openfoam_reference_blocked"
+						.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary());
+	}
+
+	public static PoweredSourceCouplingReviewHandoffSummary handoff(
+			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
+					.PoweredSourceCouplingConservationBlockerSummary blocker,
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceSummary nearfield
+	) {
+		if (blocker == null || nearfield == null) {
 			throw new IllegalArgumentException("blocker summary must not be null.");
 		}
 		boolean targetSelfConsistent = blocker.conservationTargetSelfConsistentCount()
 				== blocker.conservationRowCount();
 		boolean swirlTargetSelfConsistent = blocker.swirlTargetSelfConsistentCount()
 				== blocker.swirlConservationRowCount();
+		boolean nearfieldReferenceBlocker = !nearfield.nearfieldReferencePackageExportAllowed();
+		int blockerCount = blocker.blockerCount() + (nearfieldReferenceBlocker ? 1 : 0);
 		boolean reviewAllowed = blocker.runtimePoweredSourceCouplingAllowed()
-				&& blocker.blockerCount() == 0
+				&& blockerCount == 0
+				&& nearfield.nearfieldReferencePackageExportAllowed()
 				&& !blocker.gameplayAutoApplyLeakBlocker();
 		return new PoweredSourceCouplingReviewHandoffSummary(
 				reviewAllowed,
 				reviewAllowed,
-				blocker.blockerCount(),
+				blockerCount,
 				blocker.runtimePoweredSourceCouplingAllowed(),
 				blocker.runtimeCouplingReadinessAllowed(),
 				blocker.poweredSourceApiSurfaceReady(),
@@ -184,6 +215,10 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 				blocker.cruiseLiveConservationAccepted(),
 				blocker.hoverLiveSwirlConservationAccepted(),
 				blocker.cruiseLiveSwirlConservationAccepted(),
+				nearfield.nearfieldReferencePackageExportAllowed(),
+				nearfieldReferenceBlocker,
+				nearfield.totalExpectedReferenceRowCount(),
+				nearfield.openFoamAvailableReferenceRowCount(),
 				targetSelfConsistent,
 				swirlTargetSelfConsistent,
 				blocker.conservationRowCount(),
@@ -207,20 +242,33 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 				blocker.swirlConservationEvidenceBlocker(),
 				blocker.hoverSwirlConservationBlocker(),
 				blocker.cruiseSwirlConservationBlocker(),
+				nearfieldReferenceBlocker,
 				blocker.targetModelSelfConsistencyBlocker(),
 				blocker.swirlTargetSelfConsistencyBlocker(),
 				blocker.gameplayAutoApplyLeakBlocker(),
 				false,
 				true,
 				"powered-source-force-moment-wake-and-swirl-conservation-review-package",
+				nearfield.referencePayloadKind(),
 				reviewAllowed
 						? "powered-source-coupling-evidence-ready-for-reviewed-reference-handoff"
-						: blocker.nextRequiredAction(),
+						: nextRequiredAction(blocker, nearfieldReferenceBlocker),
 				reviewAllowed ? "READY" : "BLOCKED",
 				reviewAllowed
 						? "powered-source-coupling-review-handoff-ready"
 						: "powered-source-coupling-review-handoff-blocked"
 		);
+	}
+
+	private static String nextRequiredAction(
+			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
+					.PoweredSourceCouplingConservationBlockerSummary blocker,
+			boolean nearfieldReferenceBlocker
+	) {
+		if (blocker.blockerCount() == 0 && nearfieldReferenceBlocker) {
+			return "complete-nearfield-wake-and-openfoam-reference-package";
+		}
+		return blocker.nextRequiredAction();
 	}
 
 	private static Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
@@ -229,6 +277,17 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 							.PoweredSourceCouplingConservationBlockerAudit audit,
 					String scenarioName
 			) {
+		return audit.scenarios().stream()
+				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
+	}
+
+	private static Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceSummary nearfield(
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceAudit audit,
+			String scenarioName
+	) {
 		return audit.scenarios().stream()
 				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
 				.findFirst()
@@ -246,6 +305,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 		int coupling = 0;
 		int conservation = 0;
 		int swirl = 0;
+		int nearfield = 0;
 		int target = 0;
 		int swirlTarget = 0;
 		int gameplayLeak = 0;
@@ -269,6 +329,9 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			}
 			if (summary.swirlConservationEvidenceBlocker()) {
 				swirl++;
+			}
+			if (summary.nearfieldReferenceBlocker()) {
+				nearfield++;
 			}
 			if (summary.targetModelSelfConsistencyBlocker()) {
 				target++;
@@ -296,6 +359,7 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 				coupling,
 				conservation,
 				swirl,
+				nearfield,
 				target,
 				swirlTarget,
 				gameplayLeak,
