@@ -14,7 +14,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	public static final String CAVEAT =
 			"OpenFOAM dimensional residual contract accepts only compact external SI thrust, shaft-power, torque, induced-velocity, and momentum-power residual summaries for geometry-backed CT/CP/J targets; it vendors no solver output and cannot mutate runtime physics or gameplay tuning.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
-	public static final int RESULT_FIELD_ROW_COUNT = 15;
+	public static final int RESULT_FIELD_ROW_COUNT = 23;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
 	public static final int SUMMARY_ROW_COUNT = 12;
 	public static final int METHOD_ROW_COUNT = 1;
@@ -35,6 +35,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	public static final double MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE = 0.12;
 	public static final double MAX_SOLVER_CONVERGENCE_RESIDUAL =
 			PropellerArchiveCtCpJOpenFoamResultContract.MAX_SOLVER_CONVERGENCE_RESIDUAL;
+	public static final double MAX_DIMENSIONAL_RESIDUAL_DECLARATION_DELTA = 1.0e-9;
+
+	private static final double EPSILON = 1.0e-12;
 
 	private static final List<OpenFoamDimensionalResultField> RESULT_FIELDS = List.of(
 			new OpenFoamDimensionalResultField("preset_name", "text", true,
@@ -57,12 +60,28 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 					"external OpenFOAM force extraction", "derive thrust residual", false, false),
 			new OpenFoamDimensionalResultField("thrust_residual_to_reference", "ratio", true,
 					"OpenFOAM versus dimensional CT/CP/J reference", "gate SI thrust agreement", false, false),
+			new OpenFoamDimensionalResultField("reference_shaft_power_watts", "W", true,
+					"dimensional rotor response", "derive shaft-power residual", false, false),
+			new OpenFoamDimensionalResultField("cfd_shaft_power_watts", "W", true,
+					"external OpenFOAM power extraction", "derive shaft-power residual", false, false),
 			new OpenFoamDimensionalResultField("shaft_power_residual_to_reference", "ratio", true,
 					"OpenFOAM versus dimensional CT/CP/J reference", "gate shaft-power agreement", false, false),
+			new OpenFoamDimensionalResultField("reference_shaft_torque_newton_meters", "N*m", true,
+					"dimensional rotor response", "derive reaction-torque residual", false, false),
+			new OpenFoamDimensionalResultField("cfd_shaft_torque_newton_meters", "N*m", true,
+					"external OpenFOAM torque extraction", "derive reaction-torque residual", false, false),
 			new OpenFoamDimensionalResultField("shaft_torque_residual_to_reference", "ratio", true,
 					"OpenFOAM versus dimensional CT/CP/J reference", "gate reaction-torque agreement", false, false),
+			new OpenFoamDimensionalResultField("reference_induced_velocity_meters_per_second", "m/s", true,
+					"dimensional rotor response", "derive induced-wake residual", false, false),
+			new OpenFoamDimensionalResultField("cfd_induced_velocity_meters_per_second", "m/s", true,
+					"external OpenFOAM wake extraction", "derive induced-wake residual", false, false),
 			new OpenFoamDimensionalResultField("induced_velocity_residual_to_reference", "ratio", true,
 					"OpenFOAM wake extraction versus dimensional reference", "gate induced wake agreement", false, false),
+			new OpenFoamDimensionalResultField("reference_momentum_power_watts", "W", true,
+					"dimensional rotor response", "derive momentum-power residual", false, false),
+			new OpenFoamDimensionalResultField("cfd_momentum_power_watts", "W", true,
+					"external OpenFOAM wake power extraction", "derive momentum-power residual", false, false),
 			new OpenFoamDimensionalResultField("momentum_power_residual_to_reference", "ratio", true,
 					"OpenFOAM wake power versus dimensional reference", "gate momentum-energy closure", false, false),
 			new OpenFoamDimensionalResultField("solver_convergence_residual", "ratio", true,
@@ -91,6 +110,16 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			String meshGeometryId,
 			double queryAdvanceRatioJ,
 			double queryRpm,
+			double referenceThrustNewtons,
+			double cfdThrustNewtons,
+			double referenceShaftPowerWatts,
+			double cfdShaftPowerWatts,
+			double referenceShaftTorqueNewtonMeters,
+			double cfdShaftTorqueNewtonMeters,
+			double referenceInducedVelocityMetersPerSecond,
+			double cfdInducedVelocityMetersPerSecond,
+			double referenceMomentumPowerWatts,
+			double cfdMomentumPowerWatts,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -235,6 +264,16 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			String sourceCaseSha256,
 			double queryAdvanceRatioJ,
 			double queryRpm,
+			double referenceThrustNewtons,
+			double cfdThrustNewtons,
+			double referenceShaftPowerWatts,
+			double cfdShaftPowerWatts,
+			double referenceShaftTorqueNewtonMeters,
+			double cfdShaftTorqueNewtonMeters,
+			double referenceInducedVelocityMetersPerSecond,
+			double cfdInducedVelocityMetersPerSecond,
+			double referenceMomentumPowerWatts,
+			double cfdMomentumPowerWatts,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -252,6 +291,16 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		validateSourceCaseSha256(sourceCaseSha256);
 		validateQueryCoordinate("queryAdvanceRatioJ", queryAdvanceRatioJ);
 		validateQueryCoordinate("queryRpm", queryRpm);
+		validatePhysicalChannel("referenceThrustNewtons", referenceThrustNewtons);
+		validatePhysicalChannel("cfdThrustNewtons", cfdThrustNewtons);
+		validatePhysicalChannel("referenceShaftPowerWatts", referenceShaftPowerWatts);
+		validatePhysicalChannel("cfdShaftPowerWatts", cfdShaftPowerWatts);
+		validatePhysicalChannel("referenceShaftTorqueNewtonMeters", referenceShaftTorqueNewtonMeters);
+		validatePhysicalChannel("cfdShaftTorqueNewtonMeters", cfdShaftTorqueNewtonMeters);
+		validatePhysicalChannel("referenceInducedVelocityMetersPerSecond", referenceInducedVelocityMetersPerSecond);
+		validatePhysicalChannel("cfdInducedVelocityMetersPerSecond", cfdInducedVelocityMetersPerSecond);
+		validatePhysicalChannel("referenceMomentumPowerWatts", referenceMomentumPowerWatts);
+		validatePhysicalChannel("cfdMomentumPowerWatts", cfdMomentumPowerWatts);
 		if (resultChannelCount < 0) {
 			throw new IllegalArgumentException("resultChannelCount must be nonnegative.");
 		}
@@ -261,10 +310,23 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		validateResidual("inducedVelocityResidualToReference", inducedVelocityResidualToReference);
 		validateResidual("momentumPowerResidualToReference", momentumPowerResidualToReference);
 		validateResidual("solverConvergenceResidual", solverConvergenceResidual);
-		boolean passed = passes(target, queryAdvanceRatioJ, queryRpm, resultChannelCount, thrustResidualToReference,
-				shaftPowerResidualToReference, shaftTorqueResidualToReference,
-				inducedVelocityResidualToReference, momentumPowerResidualToReference,
-				solverConvergenceResidual);
+		validateResidualConsistency("thrustResidualToReference", referenceThrustNewtons, cfdThrustNewtons,
+				thrustResidualToReference);
+		validateResidualConsistency("shaftPowerResidualToReference", referenceShaftPowerWatts, cfdShaftPowerWatts,
+				shaftPowerResidualToReference);
+		validateResidualConsistency("shaftTorqueResidualToReference", referenceShaftTorqueNewtonMeters,
+				cfdShaftTorqueNewtonMeters, shaftTorqueResidualToReference);
+		validateResidualConsistency("inducedVelocityResidualToReference", referenceInducedVelocityMetersPerSecond,
+				cfdInducedVelocityMetersPerSecond, inducedVelocityResidualToReference);
+		validateResidualConsistency("momentumPowerResidualToReference", referenceMomentumPowerWatts,
+				cfdMomentumPowerWatts, momentumPowerResidualToReference);
+		boolean passed = passes(target, queryAdvanceRatioJ, queryRpm, referenceThrustNewtons,
+				cfdThrustNewtons, referenceShaftPowerWatts, cfdShaftPowerWatts,
+				referenceShaftTorqueNewtonMeters, cfdShaftTorqueNewtonMeters,
+				referenceInducedVelocityMetersPerSecond, cfdInducedVelocityMetersPerSecond,
+				referenceMomentumPowerWatts, cfdMomentumPowerWatts, resultChannelCount,
+				thrustResidualToReference, shaftPowerResidualToReference, shaftTorqueResidualToReference,
+				inducedVelocityResidualToReference, momentumPowerResidualToReference, solverConvergenceResidual);
 		return new OpenFoamDimensionalCompactResult(
 				target.presetName(),
 				target.caseName(),
@@ -273,6 +335,16 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				target.geometryMatchId(),
 				queryAdvanceRatioJ,
 				queryRpm,
+				referenceThrustNewtons,
+				cfdThrustNewtons,
+				referenceShaftPowerWatts,
+				cfdShaftPowerWatts,
+				referenceShaftTorqueNewtonMeters,
+				cfdShaftTorqueNewtonMeters,
+				referenceInducedVelocityMetersPerSecond,
+				cfdInducedVelocityMetersPerSecond,
+				referenceMomentumPowerWatts,
+				cfdMomentumPowerWatts,
 				resultChannelCount,
 				thrustResidualToReference,
 				shaftPowerResidualToReference,
@@ -410,34 +482,67 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			List<PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase> targets
 	) {
 		return targets.stream()
-				.map(target -> result(target,
-						syntheticCaseSha256(target),
-						target.queryAdvanceRatioJ(),
-						target.queryRpm(),
-						REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
-						MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
-						MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
-						MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE * 0.50,
-						MAX_INDUCED_VELOCITY_RESIDUAL_TO_REFERENCE * 0.50,
-						MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE * 0.50,
-						MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50))
+				.map(PropellerArchiveCtCpJOpenFoamDimensionalResidualContract::passingResult)
 				.toList();
+	}
+
+	private static OpenFoamDimensionalCompactResult passingResult(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
+	) {
+		return resultWithSyntheticValues(
+				target,
+				MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
+				MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
+				MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE * 0.50,
+				MAX_INDUCED_VELOCITY_RESIDUAL_TO_REFERENCE * 0.50,
+				MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE * 0.50,
+				MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50);
 	}
 
 	private static OpenFoamDimensionalCompactResult failingResult(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
 	) {
-		return result(target,
-				syntheticCaseSha256(target),
-				target.queryAdvanceRatioJ(),
-				target.queryRpm(),
-				REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
+		return resultWithSyntheticValues(
+				target,
 				MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
 				MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
 				MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE * 0.50,
 				MAX_INDUCED_VELOCITY_RESIDUAL_TO_REFERENCE * 1.25,
 				MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE * 0.50,
 				MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50);
+	}
+
+	private static OpenFoamDimensionalCompactResult resultWithSyntheticValues(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double thrustResidualToReference,
+			double shaftPowerResidualToReference,
+			double shaftTorqueResidualToReference,
+			double inducedVelocityResidualToReference,
+			double momentumPowerResidualToReference,
+			double solverConvergenceResidual
+	) {
+		DimensionalReferenceValues reference = syntheticReferenceValues(target);
+		return result(target,
+				syntheticCaseSha256(target),
+				target.queryAdvanceRatioJ(),
+				target.queryRpm(),
+				reference.thrustNewtons(),
+				cfdValue(reference.thrustNewtons(), thrustResidualToReference),
+				reference.shaftPowerWatts(),
+				cfdValue(reference.shaftPowerWatts(), shaftPowerResidualToReference),
+				reference.shaftTorqueNewtonMeters(),
+				cfdValue(reference.shaftTorqueNewtonMeters(), shaftTorqueResidualToReference),
+				reference.inducedVelocityMetersPerSecond(),
+				cfdValue(reference.inducedVelocityMetersPerSecond(), inducedVelocityResidualToReference),
+				reference.momentumPowerWatts(),
+				cfdValue(reference.momentumPowerWatts(), momentumPowerResidualToReference),
+				REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
+				thrustResidualToReference,
+				shaftPowerResidualToReference,
+				shaftTorqueResidualToReference,
+				inducedVelocityResidualToReference,
+				momentumPowerResidualToReference,
+				solverConvergenceResidual);
 	}
 
 	private static boolean passes(
@@ -447,7 +552,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		return result.solverFamily().equals(target.solverFamily())
 				&& isSha256Hex(result.sourceCaseSha256())
 				&& result.meshGeometryId().equals(target.geometryMatchId())
-				&& passes(target, result.queryAdvanceRatioJ(), result.queryRpm(), result.resultChannelCount(),
+				&& passes(target, result.queryAdvanceRatioJ(), result.queryRpm(), result.referenceThrustNewtons(),
+						result.cfdThrustNewtons(), result.referenceShaftPowerWatts(), result.cfdShaftPowerWatts(),
+						result.referenceShaftTorqueNewtonMeters(), result.cfdShaftTorqueNewtonMeters(),
+						result.referenceInducedVelocityMetersPerSecond(),
+						result.cfdInducedVelocityMetersPerSecond(), result.referenceMomentumPowerWatts(),
+						result.cfdMomentumPowerWatts(), result.resultChannelCount(),
 						result.thrustResidualToReference(), result.shaftPowerResidualToReference(),
 						result.shaftTorqueResidualToReference(), result.inducedVelocityResidualToReference(),
 						result.momentumPowerResidualToReference(), result.solverConvergenceResidual());
@@ -457,6 +567,16 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
 			double queryAdvanceRatioJ,
 			double queryRpm,
+			double referenceThrustNewtons,
+			double cfdThrustNewtons,
+			double referenceShaftPowerWatts,
+			double cfdShaftPowerWatts,
+			double referenceShaftTorqueNewtonMeters,
+			double cfdShaftTorqueNewtonMeters,
+			double referenceInducedVelocityMetersPerSecond,
+			double cfdInducedVelocityMetersPerSecond,
+			double referenceMomentumPowerWatts,
+			double cfdMomentumPowerWatts,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -466,6 +586,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			double solverConvergenceResidual
 	) {
 		return matchesTargetQuery(target, queryAdvanceRatioJ, queryRpm)
+				&& residualsMatch(referenceThrustNewtons, cfdThrustNewtons, thrustResidualToReference,
+						referenceShaftPowerWatts, cfdShaftPowerWatts, shaftPowerResidualToReference,
+						referenceShaftTorqueNewtonMeters, cfdShaftTorqueNewtonMeters,
+						shaftTorqueResidualToReference, referenceInducedVelocityMetersPerSecond,
+						cfdInducedVelocityMetersPerSecond, inducedVelocityResidualToReference,
+						referenceMomentumPowerWatts, cfdMomentumPowerWatts, momentumPowerResidualToReference)
 				&& resultChannelCount >= REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT
 				&& thrustResidualToReference <= MAX_THRUST_RESIDUAL_TO_REFERENCE
 				&& shaftPowerResidualToReference <= MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE
@@ -484,6 +610,15 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				.filter(result -> result.presetName().equals(presetName) && result.caseName().equals(caseName))
 				.findFirst()
 				.orElse(null);
+	}
+
+	private record DimensionalReferenceValues(
+			double thrustNewtons,
+			double shaftPowerWatts,
+			double shaftTorqueNewtonMeters,
+			double inducedVelocityMetersPerSecond,
+			double momentumPowerWatts
+	) {
 	}
 
 	private static OpenFoamDimensionalResidualExtrema extrema(
@@ -577,6 +712,22 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		}
 	}
 
+	private static void validatePhysicalChannel(String fieldName, double value) {
+		if (!physicalChannel(value)) {
+			throw new IllegalArgumentException(fieldName + " must be finite and nonnegative.");
+		}
+	}
+
+	private static boolean physicalChannel(double value) {
+		return Double.isFinite(value) && value >= 0.0;
+	}
+
+	private static void validateResidualConsistency(String fieldName, double reference, double cfd, double residual) {
+		if (!residualMatches(reference, cfd, residual)) {
+			throw new IllegalArgumentException(fieldName + " must match the supplied reference and CFD SI values.");
+		}
+	}
+
 	private static boolean isSha256Hex(String value) {
 		if (value == null || value.length() != 64) {
 			return false;
@@ -597,6 +748,87 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	) {
 		return Math.abs(queryAdvanceRatioJ - target.queryAdvanceRatioJ()) <= MAX_QUERY_ADVANCE_RATIO_DELTA
 				&& Math.abs(queryRpm - target.queryRpm()) <= MAX_QUERY_RPM_DELTA;
+	}
+
+	private static DimensionalReferenceValues syntheticReferenceValues(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
+	) {
+		DroneConfig config = configFor(target.presetName());
+		RotorSpec rotor = config.rotors().get(0);
+		double density = PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER;
+		double diameter = rotor.radiusMeters() * 2.0;
+		double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
+		double revolutionsPerSecond = target.queryRpm() / 60.0;
+		double angularVelocity = revolutionsPerSecond * 2.0 * Math.PI;
+		double ct = target.staticAnchorCase()
+				? 0.120
+				: Math.max(0.050, 0.110 - target.queryAdvanceRatioJ() * 0.035);
+		double cp = target.staticAnchorCase()
+				? 0.040
+				: Math.max(0.035, 0.045 + target.queryAdvanceRatioJ() * 0.010);
+		double thrust = ct * density * revolutionsPerSecond * revolutionsPerSecond * Math.pow(diameter, 4.0);
+		double shaftPower = cp * density * Math.pow(revolutionsPerSecond, 3.0) * Math.pow(diameter, 5.0);
+		double shaftTorque = angularVelocity > EPSILON ? shaftPower / angularVelocity : 0.0;
+		double inducedVelocity = thrust > EPSILON && diskArea > EPSILON
+				? Math.sqrt(thrust / (2.0 * density * diskArea))
+				: 0.0;
+		double momentumPower = thrust * inducedVelocity;
+		return new DimensionalReferenceValues(thrust, shaftPower, shaftTorque, inducedVelocity, momentumPower);
+	}
+
+	private static double cfdValue(double reference, double residual) {
+		return reference * (1.0 + residual);
+	}
+
+	private static boolean residualsMatch(
+			double referenceThrustNewtons,
+			double cfdThrustNewtons,
+			double thrustResidualToReference,
+			double referenceShaftPowerWatts,
+			double cfdShaftPowerWatts,
+			double shaftPowerResidualToReference,
+			double referenceShaftTorqueNewtonMeters,
+			double cfdShaftTorqueNewtonMeters,
+			double shaftTorqueResidualToReference,
+			double referenceInducedVelocityMetersPerSecond,
+			double cfdInducedVelocityMetersPerSecond,
+			double inducedVelocityResidualToReference,
+			double referenceMomentumPowerWatts,
+			double cfdMomentumPowerWatts,
+			double momentumPowerResidualToReference
+	) {
+		return residualMatches(referenceThrustNewtons, cfdThrustNewtons, thrustResidualToReference)
+				&& residualMatches(referenceShaftPowerWatts, cfdShaftPowerWatts,
+						shaftPowerResidualToReference)
+				&& residualMatches(referenceShaftTorqueNewtonMeters, cfdShaftTorqueNewtonMeters,
+						shaftTorqueResidualToReference)
+				&& residualMatches(referenceInducedVelocityMetersPerSecond,
+						cfdInducedVelocityMetersPerSecond, inducedVelocityResidualToReference)
+				&& residualMatches(referenceMomentumPowerWatts, cfdMomentumPowerWatts,
+						momentumPowerResidualToReference);
+	}
+
+	private static boolean residualMatches(double reference, double cfd, double declaredResidual) {
+		return physicalChannel(reference)
+				&& physicalChannel(cfd)
+				&& Double.isFinite(declaredResidual)
+				&& declaredResidual >= 0.0
+				&& Math.abs(actualResidual(reference, cfd) - declaredResidual)
+						<= MAX_DIMENSIONAL_RESIDUAL_DECLARATION_DELTA;
+	}
+
+	private static double actualResidual(double reference, double cfd) {
+		return Math.abs(cfd - reference) / Math.max(Math.abs(reference), EPSILON);
+	}
+
+	private static DroneConfig configFor(String presetName) {
+		return switch (presetName) {
+			case "racingQuad" -> DroneConfig.racingQuad();
+			case "apDrone" -> DroneConfig.apDrone();
+			case "cinewhoop" -> DroneConfig.cinewhoop();
+			case "heavyLift" -> DroneConfig.heavyLift();
+			default -> throw new IllegalArgumentException("unknown DroneConfig preset: " + presetName);
+		};
 	}
 
 	private static String syntheticCaseSha256(
