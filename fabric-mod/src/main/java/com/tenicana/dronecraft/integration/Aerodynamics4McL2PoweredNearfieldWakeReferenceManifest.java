@@ -1,17 +1,18 @@
 package com.tenicana.dronecraft.integration;
 
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable;
 import java.util.List;
 
 public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Nearfield-Wake-Reference-Manifest-Packet";
 	public static final String CAVEAT =
-			"Nearfield wake reference manifest lists only audit-reviewed hover and cruise wake reference artifacts; it remains blocked until the combined lab gate opens and never enables runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_COUNT = 7;
+			"Nearfield wake reference manifest lists only audit-reviewed hover, cruise, and OpenFOAM rotor-response reference artifacts; it remains blocked until the combined lab gate opens and never enables runtime coupling or gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 2;
-	public static final int ARTIFACT_SAMPLE_COUNT = 3;
+	public static final int ARTIFACT_SAMPLE_COUNT = 4;
 	public static final int MANIFEST_ENTRY_COUNT = SCENARIO_SAMPLE_COUNT * ARTIFACT_SAMPLE_COUNT;
 	public static final int ENTRY_METRIC_COUNT = 20;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 12;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 14;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ MANIFEST_ENTRY_COUNT * ENTRY_METRIC_COUNT
@@ -58,6 +59,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 			int readyArtifactExportAllowedCount,
 			int currentTableAvailableReferenceRowCount,
 			int readyTableAvailableReferenceRowCount,
+			int currentOpenFoamAvailableReferenceRowCount,
+			int readyOpenFoamAvailableReferenceRowCount,
 			int currentCombinedPackageAvailableReferenceRowCount,
 			int readyCombinedPackageAvailableReferenceRowCount,
 			int runtimeCouplingAllowedCount,
@@ -90,9 +93,9 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 				Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.audit();
 		List<PoweredNearfieldWakeReferenceManifestEntry> entries = List.of(
 				manifestEntries(CURRENT_SCENARIO,
-						gate(gateAudit, "current_hover_and_cruise_reference_blocked")),
+						gate(gateAudit, "current_hover_cruise_and_openfoam_reference_blocked")),
 				manifestEntries(READY_SCENARIO,
-						gate(gateAudit, "hover_and_cruise_reference_ready"))
+						gate(gateAudit, "hover_cruise_and_openfoam_reference_ready"))
 		).stream()
 				.flatMap(List::stream)
 				.toList();
@@ -153,15 +156,37 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 				),
 				entry(
 						scenarioName,
+						"openfoam_dimensional_rotor_reference_table",
+						REFERENCE_TABLE_KIND,
+						PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.SOURCE_ID,
+						summary.openFoamReferencePayloadKind(),
+						"ct-cp-j-openfoam-dimensional-rotor-response",
+						summary.openFoamExpectedReferenceRowCount(),
+						summary.openFoamDimensionalSupportReady(),
+						summary.openFoamSolverQualityContractReady()
+								&& summary.openFoamDimensionalReferenceReviewed(),
+						summary.openFoamReferenceMaterialExportAllowed(),
+						summary.nearfieldReferencePackageExportAllowed(),
+						summary.nextRequiredAction()
+				),
+				entry(
+						scenarioName,
 						"combined_nearfield_wake_reference_package",
 						COMBINED_PACKAGE_KIND,
 						Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.SOURCE_ID,
 						summary.referencePayloadKind(),
-						"combined-hover-surface-and-cruise-nearfield-wake",
+						"combined-hover-surface-cruise-skew-and-openfoam-rotor-reference",
 						summary.totalExpectedReferenceRowCount(),
-						summary.hoverLabValidationAccepted() && summary.cruiseLabValidationAccepted(),
-						summary.hoverErrorBudgetReady() && summary.cruiseErrorBudgetReady(),
-						summary.hoverReferenceMaterialExportAllowed() && summary.cruiseReferenceMaterialExportAllowed(),
+						summary.hoverLabValidationAccepted()
+								&& summary.cruiseLabValidationAccepted()
+								&& summary.openFoamDimensionalSupportReady(),
+						summary.hoverErrorBudgetReady()
+								&& summary.cruiseErrorBudgetReady()
+								&& summary.openFoamSolverQualityContractReady()
+								&& summary.openFoamDimensionalReferenceReviewed(),
+						summary.hoverReferenceMaterialExportAllowed()
+								&& summary.cruiseReferenceMaterialExportAllowed()
+								&& summary.openFoamReferenceMaterialExportAllowed(),
 						summary.nearfieldReferencePackageExportAllowed(),
 						summary.nextRequiredAction()
 				)
@@ -231,6 +256,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 		int readyExports = 0;
 		int currentTableRows = 0;
 		int readyTableRows = 0;
+		int currentOpenFoamRows = 0;
+		int readyOpenFoamRows = 0;
 		int currentPackageRows = 0;
 		int readyPackageRows = 0;
 		int runtime = 0;
@@ -253,6 +280,14 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 				}
 				if (currentScenario) {
 					currentTableRows += entry.availableReferenceRowCount();
+				}
+			}
+			if ("openfoam_dimensional_rotor_reference_table".equals(entry.artifactId())) {
+				if (readyScenario) {
+					readyOpenFoamRows += entry.availableReferenceRowCount();
+				}
+				if (currentScenario) {
+					currentOpenFoamRows += entry.availableReferenceRowCount();
 				}
 			}
 			if (COMBINED_PACKAGE_KIND.equals(entry.artifactKind())) {
@@ -281,6 +316,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 				readyExports,
 				currentTableRows,
 				readyTableRows,
+				currentOpenFoamRows,
+				readyOpenFoamRows,
 				currentPackageRows,
 				readyPackageRows,
 				runtime,
