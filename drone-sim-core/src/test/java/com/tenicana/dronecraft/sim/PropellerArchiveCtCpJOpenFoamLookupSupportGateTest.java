@@ -30,11 +30,12 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertTrue(AUDIT.caveat().contains("cannot replace wind-tunnel acceptance"));
 		assertTrue(AUDIT.caveat().contains("handoff-aware CT/CP/J lookup execution"));
 		assertTrue(AUDIT.caveat().contains("compact solver-quality QA"));
-		assertEquals(163, AUDIT.packetRowCount());
+		assertTrue(AUDIT.caveat().contains("archive curve-shape diagnostics"));
+		assertEquals(205, AUDIT.packetRowCount());
 		assertEquals(10, AUDIT.sourceReferenceRowCount());
 		assertEquals(6, AUDIT.scenarioSampleCount());
-		assertEquals(23, AUDIT.scenarioMetricRowCount());
-		assertEquals(14, AUDIT.summaryRowCount());
+		assertEquals(29, AUDIT.scenarioMetricRowCount());
+		assertEquals(20, AUDIT.summaryRowCount());
 		assertEquals(1, AUDIT.methodRowCount());
 		assertEquals(6, AUDIT.scenarios().size());
 
@@ -47,6 +48,10 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals(4, current.openFoamSolverQualityBlockerCount());
 		assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
 				current.openFoamSolverQualityNextRequiredAction());
+		assertFalse(current.lookupExecutionArchiveCurveShapeGuardReady());
+		assertEquals(5, current.lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(1, current.lookupExecutionArchiveCurveShapeGuardBlockedScenarioCount());
+		assertEquals(9, current.maxNegativeThrustTailExecutionInputRowCount());
 		assertEquals(9, current.expectedLookupTargetCount());
 		assertEquals(6, current.expectedOpenFoamResultCaseCount());
 		assertEquals(0, current.acceptedLookupTargetCount());
@@ -62,6 +67,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertTrue(executionBlocked.openFoamResultContractReady());
 		assertTrue(executionBlocked.openFoamSolverQualityContractReady());
 		assertEquals(0, executionBlocked.openFoamSolverQualityBlockerCount());
+		assertFalse(executionBlocked.lookupExecutionArchiveCurveShapeGuardReady());
 		assertEquals(0, executionBlocked.cfdSupportedLookupTargetCount());
 		assertEquals("lookup-execution-contract-not-ready", executionBlocked.message());
 
@@ -104,6 +110,14 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals(0, ready.openFoamSolverQualityBlockerCount());
 		assertEquals("openfoam-solver-quality-blockers-clear",
 				ready.openFoamSolverQualityNextRequiredAction());
+		assertTrue(ready.lookupExecutionArchiveCurveShapeGuardReady());
+		assertEquals(5, ready.lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(1, ready.lookupExecutionArchiveCurveShapeGuardBlockedScenarioCount());
+		assertEquals(9, ready.maxNegativeThrustTailExecutionInputRowCount());
+		assertTrue(ready.maxArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(ready.maxArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertTrue(ready.cfdLookupSupportReady());
 		assertEquals(6, ready.cfdSupportedLookupTargetCount());
 		assertEquals(3, ready.cfdGeometryUnsupportedLookupTargetCount());
@@ -123,6 +137,14 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals(1, AUDIT.extrema().maxCfdFailedResultCount());
 		assertEquals(4, AUDIT.extrema().maxOpenFoamSolverQualityBlockerCount());
 		assertEquals(1, AUDIT.extrema().openFoamSolverQualityBlockerScenarioCount());
+		assertEquals(4, AUDIT.extrema().lookupExecutionArchiveCurveShapeGuardReadyScenarioCount());
+		assertEquals(5, AUDIT.extrema().maxLookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(1, AUDIT.extrema().maxLookupExecutionArchiveCurveShapeGuardBlockedScenarioCount());
+		assertEquals(9, AUDIT.extrema().maxNegativeThrustTailExecutionInputRowCount());
+		assertTrue(AUDIT.extrema().maxArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(AUDIT.extrema().maxArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(0, AUDIT.extrema().referenceExportAuthorityAllowedCount());
 		assertEquals(0, AUDIT.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, AUDIT.extrema().gameplayAutoApplyAllowedCount());
@@ -154,6 +176,11 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 						.findFirst()
 						.orElseThrow()
 						.summary();
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary missingShapeGuard =
+				new PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary(
+						8, 0, 8, 1, 1, 1, 1, 1, 0, 1, 4, 9,
+						0.0, 1.0e-4, 0.0, 0.0, 0.0, 0.0, 0, 0,
+						"carry-archive-curve-shape-guard-into-lookup-execution");
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamLookupSupportGate.support(null, cfd, quality, "source"));
@@ -161,6 +188,9 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 				() -> PropellerArchiveCtCpJOpenFoamLookupSupportGate.support(lookup, null, quality, "source"));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamLookupSupportGate.support(lookup, cfd, null, "source"));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamLookupSupportGate.support(
+						lookup, cfd, quality, null, "source"));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamLookupSupportGate.support(lookup, cfd, quality, ""));
 
@@ -173,6 +203,14 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 				qualityBlocked.openFoamSolverQualityNextRequiredAction());
 		assertFalse(qualityBlocked.cfdLookupSupportReady());
 		assertEquals("openfoam-solver-quality-not-ready", qualityBlocked.message());
+
+		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary shapeBlocked =
+				PropellerArchiveCtCpJOpenFoamLookupSupportGate.support(
+						lookup, cfd, quality, missingShapeGuard, "shape-guard-missing");
+		assertFalse(shapeBlocked.lookupExecutionArchiveCurveShapeGuardReady());
+		assertFalse(shapeBlocked.cfdLookupSupportReady());
+		assertEquals("lookup-execution-archive-curve-shape-guard-not-ready",
+				shapeBlocked.message());
 	}
 
 	@Test
@@ -189,9 +227,15 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,lookup_execution_archive_curve_shape_guard_ready,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,lookup_execution_archive_curve_shape_guard_inherited_scenario_count,5,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_execution_blocked_cfd_ready,lookup_execution_contract_ready,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_and_cfd_ready,openfoam_solver_quality_contract_ready,true,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_and_cfd_ready,lookup_execution_archive_curve_shape_guard_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_and_cfd_ready,cfd_lookup_support_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -202,6 +246,8 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_cfd_supported_lookup_target_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_openfoam_solver_quality_blocker_count,4,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_lookup_execution_archive_curve_shape_guard_inherited_scenario_count,5,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 	}
