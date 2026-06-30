@@ -8,11 +8,11 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
-	public static final int EXECUTION_RULE_ROW_COUNT = 8;
-	public static final int SCENARIO_ROW_COUNT = 6;
-	public static final int SUMMARY_ROW_COUNT = 12;
+			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the scattered-fit execution handoff is ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+	public static final int EXECUTION_RULE_ROW_COUNT = 9;
+	public static final int SCENARIO_ROW_COUNT = 7;
+	public static final int SUMMARY_ROW_COUNT = 13;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ EXECUTION_RULE_ROW_COUNT
@@ -20,7 +20,7 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			+ SUMMARY_ROW_COUNT
 			+ METHOD_ROW_COUNT;
 	public static final String NEXT_REQUIRED_ACTION =
-			"bind-reviewed-ct-cp-j-rows-to-lookup-execution-contract-then-feed-acceptance-gate";
+			"complete-scattered-surface-fit-execution-handoff-before-lookup-run";
 
 	private static final double EPSILON = 1.0e-9;
 
@@ -31,6 +31,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			new LookupExecutionRule("caller_supplied_reviewed_rows", true, false, true, true,
 					"lookup runner receives rows from the reviewed offline import path only",
 					"feed-reviewed-rows-from-offline-import"),
+			new LookupExecutionRule("scattered_fit_execution_handoff_ready", true, false, false, true,
+					"scattered surface fit handoff must be ready before execution consumes reviewed rows",
+					"complete-scattered-surface-fit-execution-handoff-before-lookup-run"),
 			new LookupExecutionRule("finite_sorted_grid", true, false, true, true,
 					"J/RPM grid rows must be finite, nonnegative in J, positive in RPM/CP, and duplicate-free",
 					"validate-reviewed-row-grid-before-execution"),
@@ -113,6 +116,7 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			int scenarioCount,
 			int acceptedScenarioCount,
 			int blockedScenarioCount,
+			int handoffBlockedScenarioCount,
 			int noReviewedRowsScenarioCount,
 			int outOfDomainScenarioCount,
 			int missingNeighborScenarioCount,
@@ -154,18 +158,26 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				PropellerArchiveCtCpJLookupInterpolationPolicy.contract("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract extrapolationContract =
 				PropellerArchiveCtCpJLookupInterpolationPolicy.contract("apDrone", "high_j_extrapolation_probe");
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.CtCpJScatteredSurfaceFitExecutionHandoffAudit
+				handoffAudit = PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.audit();
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary currentHandoff =
+				handoffScenario(handoffAudit, "current_source_review_blocked_no_execution_input");
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary readyHandoff =
+				handoffScenario(handoffAudit, "surface_fit_ready_execution_input_handoff");
 		List<LookupExecutionScenario> scenarios = List.of(
+				new LookupExecutionScenario("current_handoff_blocked_no_execution",
+						executeFromHandoff(currentHandoff, List.of(), midContract)),
 				new LookupExecutionScenario("current_no_reviewed_rows", execute(List.of(), midContract)),
 				new LookupExecutionScenario("synthetic_static_anchor_exact",
-						execute(staticAnchorRows(staticContract), staticContract)),
+						executeFromHandoff(readyHandoff, staticAnchorRows(staticContract), staticContract)),
 				new LookupExecutionScenario("synthetic_mid_bilinear_pass",
-						execute(midRows(midContract, 1.0), midContract)),
+						executeFromHandoff(readyHandoff, midRows(midContract, 1.0), midContract)),
 				new LookupExecutionScenario("synthetic_missing_neighbor_blocked",
-						execute(missingNeighborRows(midContract), midContract)),
+						executeFromHandoff(readyHandoff, missingNeighborRows(midContract), midContract)),
 				new LookupExecutionScenario("synthetic_high_j_extrapolation_rejected",
-						execute(midRows(midContract, 1.0), extrapolationContract)),
+						executeFromHandoff(readyHandoff, midRows(midContract, 1.0), extrapolationContract)),
 				new LookupExecutionScenario("synthetic_cp_guard_failed",
-						execute(midRows(midContract, 1.0e-6), midContract))
+						executeFromHandoff(readyHandoff, midRows(midContract, 1.0e-6), midContract))
 		);
 		return new CtCpJLookupExecutionContractAudit(
 				SOURCE_ID,
@@ -268,6 +280,49 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 						etaResidual, staticAnchorError, contract.staticAnchorPreserved()));
 	}
 
+	public static LookupExecutionResult executeFromHandoff(
+			PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary handoff,
+			List<LookupGridRow> rows,
+			String presetName,
+			String caseName
+	) {
+		return executeFromHandoff(handoff, rows,
+				PropellerArchiveCtCpJLookupInterpolationPolicy.contract(presetName, caseName));
+	}
+
+	public static LookupExecutionResult executeFromHandoff(
+			PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary handoff,
+			List<LookupGridRow> rows,
+			PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract
+	) {
+		if (contract == null) {
+			throw new IllegalArgumentException("query interpolation contract must not be null.");
+		}
+		validateRows(rows);
+		if (handoff == null) {
+			throw new IllegalArgumentException("execution handoff summary must not be null.");
+		}
+		if (handoff.sourceRuntimeInfo() == null || handoff.sourceRuntimeInfo().isBlank()) {
+			throw new IllegalArgumentException("handoff sourceRuntimeInfo must not be blank.");
+		}
+		if (handoff.runtimeCouplingAllowed() || handoff.gameplayAutoApplyAllowed()) {
+			return blocked(contract, 0, contract.minimumPerformanceNeighborRows(), 0.0, 0.0,
+					"HANDOFF_LEAK_GUARD_FAILED", "handoff-runtime-leak-guard-failed");
+		}
+		if (!handoff.executionInputHandoffReady()
+				|| !handoff.sourceRowsReviewed()
+				|| !handoff.scatteredSurfaceFitContractReady()) {
+			return blocked(contract, 0, contract.minimumPerformanceNeighborRows(), 0.0, 0.0,
+					"HANDOFF_BLOCKED", handoff.message());
+		}
+		if (handoff.exportedExecutionInputRowCount() < handoff.expectedExecutionInputRowCount()
+				|| handoff.candidateExecutionInputRowCount() < handoff.expectedExecutionInputRowCount()) {
+			return blocked(contract, 0, contract.minimumPerformanceNeighborRows(), 0.0, 0.0,
+					"HANDOFF_EXPORT_INCOMPLETE", "execution-input-handoff-export-incomplete");
+		}
+		return execute(rows, contract);
+	}
+
 	public static PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceResult acceptanceResult(
 			List<LookupGridRow> rows,
 			String presetName,
@@ -287,8 +342,29 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 		);
 	}
 
+	public static PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceResult acceptanceResultFromHandoff(
+			PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary handoff,
+			List<LookupGridRow> rows,
+			String presetName,
+			String caseName
+	) {
+		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceTarget target =
+				PropellerArchiveCtCpJLookupAcceptanceGate.target(presetName, caseName);
+		LookupExecutionResult result = executeFromHandoff(handoff, rows, presetName, caseName);
+		return PropellerArchiveCtCpJLookupAcceptanceGate.result(
+				target.presetName(),
+				target.caseName(),
+				result.observedNeighborRows(),
+				result.maxCtShapeOvershoot(),
+				result.minCpCoefficient(),
+				result.etaResidual(),
+				result.staticAnchorError()
+		);
+	}
+
 	private static LookupExecutionSummary summary(List<LookupExecutionScenario> scenarios) {
 		int accepted = 0;
+		int handoffBlocked = 0;
 		int noRows = 0;
 		int outOfDomain = 0;
 		int missing = 0;
@@ -305,6 +381,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			if (result.acceptedByLookupGate()) {
 				accepted++;
 				minAcceptedCp = Math.min(minAcceptedCp, result.minCpCoefficient());
+			}
+			if (result.status().startsWith("HANDOFF_")) {
+				handoffBlocked++;
 			}
 			if ("NO_REVIEWED_ROWS".equals(result.status())) {
 				noRows++;
@@ -333,6 +412,7 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				scenarios.size(),
 				accepted,
 				scenarios.size() - accepted,
+				handoffBlocked,
 				noRows,
 				outOfDomain,
 				missing,
@@ -346,6 +426,20 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				gameplay,
 				NEXT_REQUIRED_ACTION
 		);
+	}
+
+	private static PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary
+			handoffScenario(
+					PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff
+							.CtCpJScatteredSurfaceFitExecutionHandoffAudit audit,
+					String scenarioName
+			) {
+		return audit.scenarios()
+				.stream()
+				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
 	}
 
 	private static List<LookupGridRow> staticAnchorRows(

@@ -20,20 +20,21 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet",
 				audit.sourceId());
-		assertTrue(audit.caveat().contains("caller-supplied reviewed rows"));
-		assertEquals(34, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
-		assertEquals(8, audit.executionRuleRowCount());
-		assertEquals(6, audit.scenarioRowCount());
-		assertEquals(12, audit.summaryRowCount());
+		assertTrue(audit.caveat().contains("scattered-fit execution handoff"));
+		assertEquals(38, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
+		assertEquals(9, audit.executionRuleRowCount());
+		assertEquals(7, audit.scenarioRowCount());
+		assertEquals(13, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(8, audit.rules().size());
-		assertEquals(6, audit.scenarios().size());
+		assertEquals(9, audit.rules().size());
+		assertEquals(7, audit.scenarios().size());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary summary = audit.summary();
-		assertEquals(6, summary.scenarioCount());
+		assertEquals(7, summary.scenarioCount());
 		assertEquals(2, summary.acceptedScenarioCount());
-		assertEquals(4, summary.blockedScenarioCount());
+		assertEquals(5, summary.blockedScenarioCount());
+		assertEquals(1, summary.handoffBlockedScenarioCount());
 		assertEquals(1, summary.noReviewedRowsScenarioCount());
 		assertEquals(1, summary.outOfDomainScenarioCount());
 		assertEquals(1, summary.missingNeighborScenarioCount());
@@ -45,7 +46,7 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertEquals(0.0, summary.maxStaticAnchorError(), 1.0e-12);
 		assertEquals(0, summary.runtimeCouplingAllowedCount());
 		assertEquals(0, summary.gameplayAutoApplyAllowedCount());
-		assertEquals("bind-reviewed-ct-cp-j-rows-to-lookup-execution-contract-then-feed-acceptance-gate",
+		assertEquals("complete-scattered-surface-fit-execution-handoff-before-lookup-run",
 				summary.nextRequiredAction());
 	}
 
@@ -57,6 +58,15 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertFalse(source.currentSatisfied());
 		assertFalse(source.callerSuppliedReviewedRowsSatisfied());
 		assertTrue(source.syntheticTargetSatisfied());
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule handoff =
+				PropellerArchiveCtCpJLookupExecutionContract.rule("scattered_fit_execution_handoff_ready");
+		assertTrue(handoff.required());
+		assertFalse(handoff.currentSatisfied());
+		assertFalse(handoff.callerSuppliedReviewedRowsSatisfied());
+		assertTrue(handoff.syntheticTargetSatisfied());
+		assertEquals("complete-scattered-surface-fit-execution-handoff-before-lookup-run",
+				handoff.nextRequiredAction());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule extrapolation =
 				PropellerArchiveCtCpJLookupExecutionContract.rule("reject_extrapolation");
@@ -75,6 +85,14 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 	@Test
 	void reviewedRowsExecuteStaticAnchorAndMidDomainInterpolation() {
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult blockedHandoff =
+				scenario("current_handoff_blocked_no_execution");
+		assertFalse(blockedHandoff.acceptedByLookupGate());
+		assertEquals("HANDOFF_BLOCKED", blockedHandoff.status());
+		assertEquals("source-license-review-required", blockedHandoff.message());
+		assertEquals(0, blockedHandoff.observedNeighborRows());
+		assertEquals(4, blockedHandoff.minimumNeighborRowsRequired());
+
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult current =
 				scenario("current_no_reviewed_rows");
 		assertFalse(current.acceptedByLookupGate());
@@ -139,8 +157,11 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 	@Test
 	void executionResultFeedsLookupAcceptanceGateMetrics() {
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary readyHandoff =
+				readyHandoff();
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceResult accepted =
-				PropellerArchiveCtCpJLookupExecutionContract.acceptanceResult(
+				PropellerArchiveCtCpJLookupExecutionContract.acceptanceResultFromHandoff(
+						readyHandoff,
 						midRows(1.0), "apDrone", "mid_domain_mid_rpm");
 		assertTrue(accepted.passed());
 		assertEquals(4, accepted.observedNeighborRows());
@@ -151,6 +172,29 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 						midRows(1.0e-6), "apDrone", "mid_domain_mid_rpm");
 		assertFalse(failed.passed());
 		assertEquals("FAIL", failed.status());
+	}
+
+	@Test
+	void handoffAwareExecutionBlocksBeforeRowsReachLookupRunner() {
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.CtCpJScatteredSurfaceFitExecutionHandoffAudit audit =
+				PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.audit();
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary blocked =
+				handoffScenario(audit, "current_source_review_blocked_no_execution_input");
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult result =
+				PropellerArchiveCtCpJLookupExecutionContract.executeFromHandoff(
+						blocked, midRows(1.0), "apDrone", "mid_domain_mid_rpm");
+
+		assertFalse(result.acceptedByLookupGate());
+		assertEquals("HANDOFF_BLOCKED", result.status());
+		assertEquals("source-license-review-required", result.message());
+		assertEquals(0, result.observedNeighborRows());
+		assertFalse(result.runtimeCouplingAllowed());
+		assertFalse(result.gameplayAutoApplyAllowed());
+
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJLookupExecutionContract.executeFromHandoff(
+						null, List.of(), "apDrone", "mid_domain_mid_rpm"));
 	}
 
 	@Test
@@ -186,13 +230,15 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,current_handoff_blocked_no_execution,HANDOFF_BLOCKED,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,reject_extrapolation,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_mid_bilinear_pass,ACCEPTED,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_cp_guard_failed,ACCEPTANCE_GUARD_FAILED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,accepted_scenario_count,2,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,handoff_blocked_scenario_count,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 	}
@@ -226,6 +272,24 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 				new PropellerArchiveCtCpJLookupExecutionContract.LookupGridRow(
 						"j1-r1", j1, rpm1, 0.086, 0.057 * cpScale)
 		);
+	}
+
+	private static PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary readyHandoff() {
+		return handoffScenario(
+				PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.audit(),
+				"surface_fit_ready_execution_input_handoff");
+	}
+
+	private static PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary handoffScenario(
+			PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.CtCpJScatteredSurfaceFitExecutionHandoffAudit audit,
+			String name
+	) {
+		return audit.scenarios()
+				.stream()
+				.filter(scenario -> name.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
 	}
 
 	private static Path findRepoRoot() {

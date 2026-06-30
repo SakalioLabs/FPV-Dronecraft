@@ -6,8 +6,8 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-Dimensional-Rotor-Response-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J dimensional rotor response converts accepted lookup execution rows into SI thrust, shaft power, torque, disk loading, and induced-velocity references; blocked lookup rows emit diagnostics only and cannot mutate runtime physics or gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
+			"CT/CP/J dimensional rotor response converts accepted lookup execution rows into SI thrust, shaft power, torque, disk loading, and induced-velocity references; handoff-blocked or lookup-blocked rows emit diagnostics only and cannot mutate runtime physics or gameplay tuning.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
 	public static final int DIMENSIONAL_RULE_ROW_COUNT = 7;
 	public static final int SCENARIO_ROW_COUNT =
 			PropellerArchiveCtCpJLookupExecutionContract.SCENARIO_ROW_COUNT;

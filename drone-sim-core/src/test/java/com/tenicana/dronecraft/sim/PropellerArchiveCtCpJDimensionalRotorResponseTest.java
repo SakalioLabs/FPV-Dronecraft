@@ -21,20 +21,21 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Dimensional-Rotor-Response-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("SI thrust"));
-		assertEquals(33, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
+		assertTrue(audit.caveat().contains("handoff-blocked"));
+		assertEquals(35, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
 		assertEquals(7, audit.dimensionalRuleRowCount());
-		assertEquals(6, audit.scenarioRowCount());
+		assertEquals(7, audit.scenarioRowCount());
 		assertEquals(12, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(7, audit.rules().size());
-		assertEquals(6, audit.scenarios().size());
+		assertEquals(7, audit.scenarios().size());
 
 		PropellerArchiveCtCpJDimensionalRotorResponse.DimensionalResponseSummary summary =
 				audit.summary();
-		assertEquals(6, summary.scenarioCount());
+		assertEquals(7, summary.scenarioCount());
 		assertEquals(2, summary.readyScenarioCount());
-		assertEquals(4, summary.blockedScenarioCount());
+		assertEquals(5, summary.blockedScenarioCount());
 		assertEquals(0.19840592872073343, summary.maxThrustNewtons(), 1.0e-15);
 		assertEquals(1.0985575597709705, summary.maxShaftPowerWatts(), 1.0e-15);
 		assertEquals(0.0022262087016841664, summary.maxShaftTorqueNewtonMeters(), 1.0e-18);
@@ -114,6 +115,7 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 	@Test
 	void blockedLookupRowsRemainDimensionalDiagnosticsOnly() {
 		for (String name : List.of(
+				"current_handoff_blocked_no_execution",
 				"current_no_reviewed_rows",
 				"synthetic_missing_neighbor_blocked",
 				"synthetic_high_j_extrapolation_rejected",
@@ -128,6 +130,8 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 			assertFalse(response.runtimeCouplingAllowed());
 			assertFalse(response.gameplayAutoApplyAllowed());
 		}
+		assertEquals("source-license-review-required",
+				scenario("current_handoff_blocked_no_execution").message());
 		assertEquals("reviewed-ct-cp-j-rows-missing", scenario("current_no_reviewed_rows").message());
 		assertEquals("cp-positive-guard-failed", scenario("synthetic_cp_guard_failed").message());
 	}
@@ -183,6 +187,8 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 		List<String> lines = Files.readAllLines(packet);
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_dimensional_rotor_scenario,current_handoff_blocked_no_execution,LOOKUP_EXECUTION_BLOCKED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_dimensional_rotor_rule,propeller_coefficient_equations,")));
 		assertTrue(lines.stream().anyMatch(line ->
