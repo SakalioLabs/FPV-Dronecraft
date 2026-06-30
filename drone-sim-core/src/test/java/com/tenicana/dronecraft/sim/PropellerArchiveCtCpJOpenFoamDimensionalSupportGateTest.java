@@ -24,11 +24,11 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(AUDIT.caveat().contains("solver-quality QA"));
 		assertTrue(AUDIT.caveat().contains("handoff-aware CT/CP/J lookup execution"));
 		assertTrue(AUDIT.caveat().contains("archive curve-shape"));
-		assertEquals(224, AUDIT.packetRowCount());
+		assertEquals(266, AUDIT.packetRowCount());
 		assertEquals(11, AUDIT.sourceReferenceRowCount());
 		assertEquals(6, AUDIT.scenarioSampleCount());
-		assertEquals(32, AUDIT.scenarioMetricRowCount());
-		assertEquals(20, AUDIT.summaryRowCount());
+		assertEquals(38, AUDIT.scenarioMetricRowCount());
+		assertEquals(26, AUDIT.summaryRowCount());
 		assertEquals(1, AUDIT.methodRowCount());
 		assertEquals(6, AUDIT.scenarios().size());
 
@@ -37,6 +37,10 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertFalse(current.lookupExecutionContractReady());
 		assertFalse(current.lookupSupportReady());
 		assertFalse(current.dimensionalResidualReady());
+		assertFalse(current.openFoamCoefficientLookupShapeGuardReady());
+		assertEquals(5, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, current.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, current.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertFalse(current.openFoamSolverQualityContractReady());
 		assertEquals(4, current.openFoamSolverQualityBlockerCount());
 		assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
@@ -95,6 +99,14 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(ready.lookupSupportReady());
 		assertTrue(ready.dimensionalResidualReady());
 		assertTrue(ready.openFoamSolverQualityContractReady());
+		assertTrue(ready.openFoamCoefficientLookupShapeGuardReady());
+		assertEquals(5, ready.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, ready.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, ready.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+		assertTrue(ready.maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(ready.maxOpenFoamCoefficientArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(0, ready.openFoamSolverQualityBlockerCount());
 		assertEquals("openfoam-solver-quality-blockers-clear",
 				ready.openFoamSolverQualityNextRequiredAction());
@@ -123,6 +135,14 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
 		assertTrue(AUDIT.extrema().maxArchiveCurveCtIncrease()
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
+		assertEquals(5, AUDIT.extrema().openFoamCoefficientLookupShapeGuardReadyScenarioCount());
+		assertEquals(5, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, AUDIT.extrema().maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+		assertTrue(AUDIT.extrema().maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(AUDIT.extrema().maxOpenFoamCoefficientArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(6, AUDIT.extrema().maxDimensionalMissingResultCount());
 		assertEquals(1, AUDIT.extrema().maxDimensionalFailedResultCount());
 		assertEquals(4, AUDIT.extrema().maxOpenFoamSolverQualityBlockerCount());
@@ -131,6 +151,19 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertEquals(0, AUDIT.extrema().referenceExportAuthorityAllowedCount());
 		assertEquals(0, AUDIT.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, AUDIT.extrema().gameplayAutoApplyAllowedCount());
+	}
+
+	@Test
+	void supportReportsCoefficientLookupShapeGuardBlocker() {
+		PropellerArchiveCtCpJOpenFoamDimensionalSupportGate.OpenFoamDimensionalSupportSummary blocked =
+				PropellerArchiveCtCpJOpenFoamDimensionalSupportGate.support(
+						sampleLookupSupport(), sampleCoefficientShapeBlockedDimensionalResidual(),
+						"sample-coefficient-shape-blocked");
+
+		assertTrue(blocked.lookupSupportReady());
+		assertFalse(blocked.openFoamCoefficientLookupShapeGuardReady());
+		assertFalse(blocked.cfdDimensionalSupportReady());
+		assertEquals("openfoam-coefficient-lookup-shape-guard-not-ready", blocked.message());
 	}
 
 	@Test
@@ -162,6 +195,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,current_lookup_and_dimensional_blocked,openfoam_solver_quality_contract_ready,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,current_lookup_and_dimensional_blocked,openfoam_coefficient_lookup_shape_guard_ready,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,current_lookup_and_dimensional_blocked,openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_execution_blocked_si_ready,lookup_execution_contract_ready,false,boolean,")));
@@ -172,6 +207,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_and_dimensional_openfoam_support_ready,archive_curve_shape_guard_inherited_reference_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_and_dimensional_openfoam_support_ready,openfoam_coefficient_lookup_shape_guard_ready,true,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_scenario,lookup_and_dimensional_openfoam_support_ready,reference_export_authority_allowed,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,lookup_execution_blocked_scenario_count,1,count,")));
@@ -179,6 +216,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_supported_dimensional_target_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_archive_curve_shape_guard_inherited_reference_count,6,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,5,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -269,6 +308,48 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 				"READY",
 				"openfoam-dimensional-residual-contract-ready",
 				"sample-dimensional-residual"
+		);
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalResidualSummary
+			sampleCoefficientShapeBlockedDimensionalResidual() {
+		return new PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalResidualSummary(
+				true,
+				false,
+				false,
+				0,
+				1,
+				0,
+				0.0,
+				0.0,
+				true,
+				6,
+				6,
+				6,
+				0,
+				0.0,
+				0.0,
+				6,
+				6,
+				0,
+				0,
+				6,
+				0,
+				5,
+				0.04,
+				0.05,
+				0.05,
+				0.03,
+				0.06,
+				5.0e-5,
+				true,
+				true,
+				false,
+				false,
+				false,
+				"BLOCKED",
+				"openfoam-coefficient-lookup-shape-guard-not-ready",
+				"sample-coefficient-shape-blocked-dimensional-residual"
 		);
 	}
 
