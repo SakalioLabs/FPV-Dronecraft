@@ -10,7 +10,7 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 			"User-Propeller-Archive-CT-CP-J-Scattered-Surface-Fit-Contract-Packet";
 	public static final String CAVEAT =
 			"Scattered CT/CP/J surface fit contract converts archive sparse RPM-track topology into reviewed lookup-ready surface rows; it vendors no raw archive rows and cannot mutate runtime physics or gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
 	public static final int FIT_FIELD_ROW_COUNT = 15;
 	public static final int TARGET_ROW_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;

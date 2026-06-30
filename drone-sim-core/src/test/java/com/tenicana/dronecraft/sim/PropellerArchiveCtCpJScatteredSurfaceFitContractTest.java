@@ -21,8 +21,8 @@ class PropellerArchiveCtCpJScatteredSurfaceFitContractTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Scattered-Surface-Fit-Contract-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("sparse RPM-track topology"));
-		assertEquals(52, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
+		assertEquals(53, audit.packetRowCount());
+		assertEquals(9, audit.sourceReferenceRowCount());
 		assertEquals(15, audit.fitFieldRowCount());
 		assertEquals(9, audit.targetRowCount());
 		assertEquals(5, audit.scenarioSampleCount());
@@ -213,6 +213,8 @@ class PropellerArchiveCtCpJScatteredSurfaceFitContractTest {
 		List<String> lines = Files.readAllLines(packet);
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_scattered_surface_fit_source,archive_curve_shape_review,source,READY,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_scattered_surface_fit_target,racingQuad,mid_domain_mid_rpm,SCATTERED_FIT_REQUIRED,")));
 		assertTrue(lines.stream().anyMatch(line ->
