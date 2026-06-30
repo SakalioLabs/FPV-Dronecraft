@@ -76,8 +76,8 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 
 	@Test
 	void acceptedReviewedLookupEnablesPerformanceRowsAndFullSimulationSubset() {
-		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary accepted =
-				acceptance("synthetic_all_lookup_targets_pass");
+		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary accepted =
+				handoff("acceptance_ready_reference_reviewed");
 		PropellerArchiveCtCpJLookupReferenceTable.CtCpJLookupReferenceTableAudit audit =
 				PropellerArchiveCtCpJLookupReferenceTable.audit(accepted);
 
@@ -116,24 +116,8 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 
 	@Test
 	void acceptedButUnreviewedReferenceKeepsRowsBlocked() {
-		List<PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceTarget> targets =
-				PropellerArchiveCtCpJLookupAcceptanceGate.targets();
-		List<PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceResult> passing =
-				targets.stream()
-						.map(target -> PropellerArchiveCtCpJLookupAcceptanceGate.result(
-								target.presetName(),
-								target.caseName(),
-								target.minNeighborRows() + 1,
-								0.0,
-								0.010,
-								target.maxEtaResidual() * 0.5,
-								target.requiresStaticAnchorPreservation()
-										? target.maxStaticAnchorError() * 0.5
-										: 0.0))
-						.toList();
-		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptedUnreviewed =
-				PropellerArchiveCtCpJLookupAcceptanceGate.gate(
-						true, true, true, false, targets, passing, "accepted-reference-review-pending");
+		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary acceptedUnreviewed =
+				handoff("acceptance_ready_reference_review_missing");
 		PropellerArchiveCtCpJLookupReferenceTable.CtCpJLookupReferenceTableAudit audit =
 				PropellerArchiveCtCpJLookupReferenceTable.audit(acceptedUnreviewed);
 
@@ -149,8 +133,8 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 
 	@Test
 	void tableRejectsInvalidInputs() {
-		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary accepted =
-				acceptance("synthetic_all_lookup_targets_pass");
+		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary accepted =
+				handoff("acceptance_ready_reference_reviewed");
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceTarget target =
 				PropellerArchiveCtCpJLookupAcceptanceGate.target("apDrone", "mid_domain_mid_rpm");
 
@@ -183,8 +167,8 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_summary,all_rows,runtime_coupling_allowed_count,0,count,")));
 	}
 
-	private static PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptance(String name) {
-		return PropellerArchiveCtCpJLookupAcceptanceGate.audit().scenarios().stream()
+	private static PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary handoff(String name) {
+		return PropellerArchiveCtCpJLookupReferenceHandoff.audit().scenarios().stream()
 				.filter(scenario -> name.equals(scenario.scenarioName()))
 				.findFirst()
 				.orElseThrow()

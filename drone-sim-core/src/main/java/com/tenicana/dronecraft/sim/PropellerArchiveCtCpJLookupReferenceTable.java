@@ -83,20 +83,20 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 	}
 
 	public static CtCpJLookupReferenceTableAudit audit() {
-		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary current =
-				acceptance("current_no_reviewed_import_no_results");
+		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary current =
+				handoff("current_acceptance_blocked");
 		return audit(current);
 	}
 
 	public static CtCpJLookupReferenceTableAudit audit(
-			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptance
+			PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary handoff
 	) {
-		if (acceptance == null) {
-			throw new IllegalArgumentException("acceptance summary must not be null.");
+		if (handoff == null) {
+			throw new IllegalArgumentException("handoff summary must not be null.");
 		}
 		List<LookupReferenceRow> rows = PropellerArchiveCtCpJLookupAcceptanceGate.targets()
 				.stream()
-				.map(target -> row(acceptance, target))
+				.map(target -> row(handoff, target))
 				.toList();
 		return new CtCpJLookupReferenceTableAudit(
 				SOURCE_ID,
@@ -120,15 +120,15 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 	}
 
 	public static LookupReferenceRow row(
-			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptance,
+			PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary handoff,
 			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceTarget target
 	) {
-		if (acceptance == null || target == null) {
-			throw new IllegalArgumentException("acceptance and target are required.");
+		if (handoff == null || target == null) {
+			throw new IllegalArgumentException("handoff and target are required.");
 		}
 		PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract =
 				PropellerArchiveCtCpJLookupInterpolationPolicy.contract(target.presetName(), target.caseName());
-		boolean exportAllowed = acceptance.compactReferenceExportAllowed();
+		boolean exportAllowed = handoff.referenceMaterialExportAllowed();
 		boolean performanceAvailable = exportAllowed;
 		boolean fullSimulation = target.downstreamUse().startsWith("full-simulation");
 		boolean fullSimulationAvailable = exportAllowed && fullSimulation;
@@ -144,8 +144,8 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 				contract.queryRpm(),
 				contract.queryAdvanceRatioJ() / Math.PI,
 				target.minNeighborRows(),
-				acceptance.lookupAcceptanceReady(),
-				acceptance.compactReferenceReviewed(),
+				handoff.lookupAcceptanceReady(),
+				handoff.compactReferenceReviewed(),
 				exportAllowed,
 				performanceAvailable,
 				fullSimulationAvailable,
@@ -158,14 +158,16 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 				false,
 				false,
 				performanceAvailable ? "AVAILABLE" : "BLOCKED",
-				messageFor(acceptance, fullSimulationAvailable, fullSimulation),
+				messageFor(handoff, fullSimulationAvailable, fullSimulation),
 				REFERENCE_PAYLOAD_KIND,
-				acceptance.sourceRuntimeInfo()
+				handoff.sourceRuntimeInfo()
 		);
 	}
 
-	private static PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptance(String scenarioName) {
-		return PropellerArchiveCtCpJLookupAcceptanceGate.audit()
+	private static PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary handoff(
+			String scenarioName
+	) {
+		return PropellerArchiveCtCpJLookupReferenceHandoff.audit()
 				.scenarios()
 				.stream()
 				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
@@ -227,14 +229,14 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 	}
 
 	private static String messageFor(
-			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptance,
+			PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary handoff,
 			boolean fullSimulationAvailable,
 			boolean fullSimulationTarget
 	) {
-		if (!acceptance.lookupAcceptanceReady()) {
+		if (!handoff.lookupAcceptanceReady()) {
 			return "lookup-acceptance-not-ready";
 		}
-		if (!acceptance.compactReferenceReviewed()) {
+		if (!handoff.compactReferenceReviewed()) {
 			return "lookup-reference-review-missing";
 		}
 		if (!fullSimulationTarget) {
