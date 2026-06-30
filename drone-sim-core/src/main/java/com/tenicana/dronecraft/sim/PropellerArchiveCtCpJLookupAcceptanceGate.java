@@ -8,12 +8,12 @@ import java.util.Set;
 public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-Lookup-Acceptance-Gate-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J lookup acceptance remains closed until reviewed import, interpolation policy, lookup execution, and every required query result pass neighbor, shape, power, eta, and static-anchor guards; runtime/gameplay auto-apply stay closed.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
+			"CT/CP/J lookup acceptance remains closed until reviewed import, interpolation policy, handoff-aware lookup execution, and every required query result pass neighbor, shape, power, eta, and static-anchor guards; runtime/gameplay auto-apply stay closed.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int TARGET_ROW_COUNT = 9;
-	public static final int SCENARIO_SAMPLE_COUNT = 4;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 14;
-	public static final int SUMMARY_ROW_COUNT = 12;
+	public static final int SCENARIO_SAMPLE_COUNT = 5;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 15;
+	public static final int SUMMARY_ROW_COUNT = 13;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ TARGET_ROW_COUNT
@@ -57,6 +57,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 	public record LookupAcceptanceSummary(
 			boolean reviewedImportReady,
 			boolean interpolationPolicyReady,
+			boolean lookupExecutionContractReady,
 			boolean lookupInterpolationExecuted,
 			boolean compactReferenceReviewed,
 			int expectedTargetCount,
@@ -92,6 +93,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 			int scenarioCount,
 			int acceptedScenarioCount,
 			int blockedScenarioCount,
+			int lookupExecutionBlockedScenarioCount,
 			int maxExpectedTargetCount,
 			int maxObservedResultCount,
 			int maxMissingResultCount,
@@ -132,19 +134,23 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 		List<LookupAcceptanceScenario> scenarios = List.of(
 				new LookupAcceptanceScenario(
 						"current_no_reviewed_import_no_results",
-						gate(false, false, false, false, targets, List.of(),
+						gate(false, false, false, false, false, targets, List.of(),
 								"current-ct-cp-j-lookup-acceptance-audit")),
 				new LookupAcceptanceScenario(
-						"reviewed_import_policy_ready_no_results",
-						gate(true, true, false, false, targets, List.of(),
+						"reviewed_import_policy_ready_execution_blocked",
+						gate(true, true, false, false, false, targets, List.of(),
+								"reviewed-import-policy-ready-execution-blocked")),
+				new LookupAcceptanceScenario(
+						"lookup_execution_ready_no_results",
+						gate(true, true, true, false, false, targets, List.of(),
 								"reviewed-import-policy-ready-no-lookup-results")),
 				new LookupAcceptanceScenario(
 						"synthetic_all_lookup_targets_pass",
-						gate(true, true, true, true, targets, passingResults,
+						gate(true, true, true, true, true, targets, passingResults,
 								"synthetic-reviewed-lookup-quality-accepted")),
 				new LookupAcceptanceScenario(
 						"synthetic_one_lookup_result_failed",
-						gate(true, true, true, true, targets, failedResults,
+						gate(true, true, true, true, true, targets, failedResults,
 								"synthetic-reviewed-lookup-quality-failed"))
 		);
 		return new CtCpJLookupAcceptanceAudit(
@@ -235,6 +241,28 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 			List<LookupAcceptanceResult> results,
 			String sourceRuntimeInfo
 	) {
+		return gate(
+				reviewedImportReady,
+				interpolationPolicyReady,
+				lookupInterpolationExecuted,
+				lookupInterpolationExecuted,
+				compactReferenceReviewed,
+				targets,
+				results,
+				sourceRuntimeInfo
+		);
+	}
+
+	public static LookupAcceptanceSummary gate(
+			boolean reviewedImportReady,
+			boolean interpolationPolicyReady,
+			boolean lookupExecutionContractReady,
+			boolean lookupInterpolationExecuted,
+			boolean compactReferenceReviewed,
+			List<LookupAcceptanceTarget> targets,
+			List<LookupAcceptanceResult> results,
+			String sourceRuntimeInfo
+	) {
 		if (targets == null || targets.isEmpty()) {
 			throw new IllegalArgumentException("targets must not be empty.");
 		}
@@ -301,6 +329,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 		boolean allPassed = failed == 0 && passed == targets.size();
 		boolean acceptanceReady = reviewedImportReady
 				&& interpolationPolicyReady
+				&& lookupExecutionContractReady
 				&& lookupInterpolationExecuted
 				&& allPresent
 				&& allPassed;
@@ -308,6 +337,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 		return new LookupAcceptanceSummary(
 				reviewedImportReady,
 				interpolationPolicyReady,
+				lookupExecutionContractReady,
 				lookupInterpolationExecuted,
 				compactReferenceReviewed,
 				targets.size(),
@@ -328,7 +358,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 				false,
 				false,
 				acceptanceReady ? "READY" : "BLOCKED",
-				message(reviewedImportReady, interpolationPolicyReady, lookupInterpolationExecuted,
+				message(reviewedImportReady, interpolationPolicyReady, lookupExecutionContractReady, lookupInterpolationExecuted,
 						allPresent, allPassed, compactReferenceReviewed),
 				sourceRuntimeInfo
 		);
@@ -399,6 +429,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 
 	private static LookupAcceptanceExtrema extrema(List<LookupAcceptanceScenario> scenarios) {
 		int accepted = 0;
+		int executionBlocked = 0;
 		int exportAllowed = 0;
 		int runtime = 0;
 		int gameplay = 0;
@@ -411,6 +442,11 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 			LookupAcceptanceSummary summary = scenario.summary();
 			if (summary.lookupAcceptanceReady()) {
 				accepted++;
+			}
+			if (summary.reviewedImportReady()
+					&& summary.interpolationPolicyReady()
+					&& !summary.lookupExecutionContractReady()) {
+				executionBlocked++;
 			}
 			if (summary.compactReferenceExportAllowed()) {
 				exportAllowed++;
@@ -431,6 +467,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 				scenarios.size(),
 				accepted,
 				scenarios.size() - accepted,
+				executionBlocked,
 				maxExpected,
 				maxObserved,
 				maxMissing,
@@ -445,6 +482,7 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 	private static String message(
 			boolean reviewedImportReady,
 			boolean interpolationPolicyReady,
+			boolean lookupExecutionContractReady,
 			boolean lookupInterpolationExecuted,
 			boolean allPresent,
 			boolean allPassed,
@@ -455,6 +493,9 @@ public final class PropellerArchiveCtCpJLookupAcceptanceGate {
 		}
 		if (!interpolationPolicyReady) {
 			return "lookup-interpolation-policy-blocked";
+		}
+		if (!lookupExecutionContractReady) {
+			return "lookup-execution-contract-blocked";
 		}
 		if (!lookupInterpolationExecuted) {
 			return "lookup-interpolation-results-missing";

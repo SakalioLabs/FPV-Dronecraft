@@ -22,15 +22,16 @@ class PropellerArchiveCtCpJLookupAcceptanceGateTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Acceptance-Gate-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("lookup acceptance remains closed"));
-		assertEquals(84, audit.packetRowCount());
-		assertEquals(6, audit.sourceReferenceRowCount());
+		assertTrue(audit.caveat().contains("handoff-aware lookup execution"));
+		assertEquals(105, audit.packetRowCount());
+		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(9, audit.targetRowCount());
-		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(14, audit.scenarioMetricRowCount());
-		assertEquals(12, audit.summaryRowCount());
+		assertEquals(5, audit.scenarioSampleCount());
+		assertEquals(15, audit.scenarioMetricRowCount());
+		assertEquals(13, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(9, audit.targets().size());
-		assertEquals(4, audit.scenarios().size());
+		assertEquals(5, audit.scenarios().size());
 
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary current =
 				find(audit.scenarios(), "current_no_reviewed_import_no_results").summary();
@@ -38,13 +39,23 @@ class PropellerArchiveCtCpJLookupAcceptanceGateTest {
 		assertEquals(9, current.expectedTargetCount());
 		assertEquals(0, current.observedResultCount());
 		assertEquals(9, current.missingResultCount());
+		assertFalse(current.lookupExecutionContractReady());
 		assertFalse(current.lookupAcceptanceReady());
 		assertEquals("reviewed-import-missing", current.message());
 
+		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary executionBlocked =
+				find(audit.scenarios(), "reviewed_import_policy_ready_execution_blocked").summary();
+		assertTrue(executionBlocked.reviewedImportReady());
+		assertTrue(executionBlocked.interpolationPolicyReady());
+		assertFalse(executionBlocked.lookupExecutionContractReady());
+		assertFalse(executionBlocked.lookupInterpolationExecuted());
+		assertEquals("lookup-execution-contract-blocked", executionBlocked.message());
+
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary noResults =
-				find(audit.scenarios(), "reviewed_import_policy_ready_no_results").summary();
+				find(audit.scenarios(), "lookup_execution_ready_no_results").summary();
 		assertTrue(noResults.reviewedImportReady());
 		assertTrue(noResults.interpolationPolicyReady());
+		assertTrue(noResults.lookupExecutionContractReady());
 		assertFalse(noResults.lookupInterpolationExecuted());
 		assertEquals("lookup-interpolation-results-missing", noResults.message());
 
@@ -52,6 +63,7 @@ class PropellerArchiveCtCpJLookupAcceptanceGateTest {
 				find(audit.scenarios(), "synthetic_all_lookup_targets_pass").summary();
 		assertTrue(allPass.reviewedImportReady());
 		assertTrue(allPass.interpolationPolicyReady());
+		assertTrue(allPass.lookupExecutionContractReady());
 		assertTrue(allPass.lookupInterpolationExecuted());
 		assertEquals(9, allPass.observedResultCount());
 		assertEquals(9, allPass.passedResultCount());
@@ -76,9 +88,10 @@ class PropellerArchiveCtCpJLookupAcceptanceGateTest {
 		assertFalse(failed.compactReferenceExportAllowed());
 		assertEquals("lookup-result-failed", failed.message());
 
-		assertEquals(4, audit.extrema().scenarioCount());
+		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().acceptedScenarioCount());
-		assertEquals(3, audit.extrema().blockedScenarioCount());
+		assertEquals(4, audit.extrema().blockedScenarioCount());
+		assertEquals(1, audit.extrema().lookupExecutionBlockedScenarioCount());
 		assertEquals(9, audit.extrema().maxExpectedTargetCount());
 		assertEquals(9, audit.extrema().maxMissingResultCount());
 		assertEquals(1, audit.extrema().maxFailedResultCount());
@@ -172,6 +185,14 @@ class PropellerArchiveCtCpJLookupAcceptanceGateTest {
 		assertFalse(referenceBlocked.compactReferenceExportAllowed());
 		assertEquals("lookup-accepted-reference-review-blocked", referenceBlocked.message());
 
+		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary executionBlocked =
+				PropellerArchiveCtCpJLookupAcceptanceGate.gate(
+						true, true, false, true, true, targets, passing, "execution-blocked");
+		assertFalse(executionBlocked.lookupExecutionContractReady());
+		assertTrue(executionBlocked.lookupInterpolationExecuted());
+		assertFalse(executionBlocked.lookupAcceptanceReady());
+		assertEquals("lookup-execution-contract-blocked", executionBlocked.message());
+
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary missing =
 				PropellerArchiveCtCpJLookupAcceptanceGate.gate(
 						true, true, true, true, targets, passing.subList(0, 8), "missing-one-result");
@@ -235,6 +256,8 @@ class PropellerArchiveCtCpJLookupAcceptanceGateTest {
 				line.startsWith("propeller_archive_ct_cp_j_lookup_acceptance_target,apDrone,mid_domain_mid_rpm,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_acceptance_scenario,current_no_reviewed_import_no_results,missing_result_count,9,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_acceptance_scenario,reviewed_import_policy_ready_execution_blocked,lookup_execution_contract_ready,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_acceptance_scenario,synthetic_all_lookup_targets_pass,lookup_acceptance_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
