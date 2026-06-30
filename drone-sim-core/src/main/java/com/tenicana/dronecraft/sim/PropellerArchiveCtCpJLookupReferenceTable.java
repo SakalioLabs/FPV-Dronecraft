@@ -5,10 +5,10 @@ import java.util.List;
 public final class PropellerArchiveCtCpJLookupReferenceTable {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-Lookup-Reference-Table-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J lookup reference table exposes accepted query-reference rows only after lookup acceptance and compact-reference review; current rows keep zero weights and never enable runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
+			"CT/CP/J lookup reference table exposes accepted query-reference rows only after handoff-aware lookup execution, lookup acceptance, and compact-reference review; current rows keep zero weights and never enable runtime coupling or gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int REFERENCE_ROW_COUNT = PropellerArchiveCtCpJLookupAcceptanceGate.TARGET_ROW_COUNT;
-	public static final int SUMMARY_ROW_COUNT = 16;
+	public static final int SUMMARY_ROW_COUNT = 17;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_ROW_COUNT
@@ -30,6 +30,7 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 			double equivalentProjectMu,
 			int minimumNeighborRows,
 			boolean lookupAcceptanceReady,
+			boolean lookupExecutionContractReady,
 			boolean compactReferenceReviewed,
 			boolean referenceMaterialExportAllowed,
 			boolean performanceReferenceRowAvailable,
@@ -145,6 +146,7 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 				contract.queryAdvanceRatioJ() / Math.PI,
 				target.minNeighborRows(),
 				handoff.lookupAcceptanceReady(),
+				handoff.lookupExecutionContractReady(),
 				handoff.compactReferenceReviewed(),
 				exportAllowed,
 				performanceAvailable,
@@ -233,6 +235,9 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 			boolean fullSimulationAvailable,
 			boolean fullSimulationTarget
 	) {
+		if ("lookup-execution-contract-not-ready".equals(handoff.message())) {
+			return "lookup-execution-contract-not-ready";
+		}
 		if (!handoff.lookupAcceptanceReady()) {
 			return "lookup-acceptance-not-ready";
 		}

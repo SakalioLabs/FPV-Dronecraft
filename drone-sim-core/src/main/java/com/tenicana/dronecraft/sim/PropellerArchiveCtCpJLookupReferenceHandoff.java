@@ -5,12 +5,12 @@ import java.util.List;
 public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-Lookup-Reference-Handoff-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J lookup reference handoff defines the reviewed payload shape after lookup acceptance; it exports no coefficients in the current state and never enables runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 6;
+			"CT/CP/J lookup reference handoff defines the reviewed payload shape after handoff-aware lookup execution and lookup acceptance; it exports no coefficients in the current state and never enables runtime coupling or gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int REFERENCE_FIELD_ROW_COUNT = 12;
-	public static final int SCENARIO_SAMPLE_COUNT = 4;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 15;
-	public static final int SUMMARY_ROW_COUNT = 10;
+	public static final int SCENARIO_SAMPLE_COUNT = 5;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 16;
+	public static final int SUMMARY_ROW_COUNT = 11;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_FIELD_ROW_COUNT
@@ -63,6 +63,7 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 
 	public record LookupReferenceHandoffSummary(
 			boolean lookupAcceptanceReady,
+			boolean lookupExecutionContractReady,
 			boolean compactReferenceReviewed,
 			int expectedReferenceRowCount,
 			int expectedReferenceFieldCount,
@@ -94,6 +95,7 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 			int scenarioCount,
 			int readyScenarioCount,
 			int blockedScenarioCount,
+			int lookupExecutionBlockedScenarioCount,
 			int referenceMaterialExportAllowedCount,
 			int maxAcceptedLookupTargetCount,
 			int maxBlockedLookupTargetCount,
@@ -129,6 +131,8 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 				PropellerArchiveCtCpJLookupAcceptanceGate.audit();
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary current =
 				acceptance(acceptanceAudit, "current_no_reviewed_import_no_results");
+		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary executionBlocked =
+				acceptance(acceptanceAudit, "reviewed_import_policy_ready_execution_blocked");
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptedWithoutReview =
 				acceptedWithoutReferenceReview();
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptedAndReviewed =
@@ -139,6 +143,10 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 				new LookupReferenceHandoffScenario(
 						"current_acceptance_blocked",
 						handoff(current, REFERENCE_FIELDS, "audit-only-ct-cp-j-lookup-reference-handoff")),
+				new LookupReferenceHandoffScenario(
+						"acceptance_execution_blocked",
+						handoff(executionBlocked, REFERENCE_FIELDS,
+								"synthetic-lookup-reference-execution-contract-blocked")),
 				new LookupReferenceHandoffScenario(
 						"acceptance_ready_reference_review_missing",
 						handoff(acceptedWithoutReview, REFERENCE_FIELDS,
@@ -208,6 +216,7 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 				+ acceptance.unexpectedResultCount();
 		return new LookupReferenceHandoffSummary(
 				acceptance.lookupAcceptanceReady(),
+				acceptance.lookupExecutionContractReady(),
 				acceptance.compactReferenceReviewed(),
 				PropellerArchiveCtCpJLookupAcceptanceGate.TARGET_ROW_COUNT,
 				REFERENCE_FIELD_ROW_COUNT,
@@ -233,6 +242,7 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 		List<PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceTarget> targets =
 				PropellerArchiveCtCpJLookupAcceptanceGate.targets();
 		return PropellerArchiveCtCpJLookupAcceptanceGate.gate(
+				true,
 				true,
 				true,
 				true,
@@ -274,6 +284,7 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 
 	private static LookupReferenceHandoffExtrema extrema(List<LookupReferenceHandoffScenario> scenarios) {
 		int ready = 0;
+		int executionBlocked = 0;
 		int exportAllowed = 0;
 		int maxAccepted = 0;
 		int maxBlocked = 0;
@@ -286,6 +297,10 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 			if (summary.referenceMaterialExportAllowed()) {
 				ready++;
 				exportAllowed++;
+			}
+			if (!summary.lookupExecutionContractReady()
+					&& "lookup-execution-contract-not-ready".equals(summary.message())) {
+				executionBlocked++;
 			}
 			maxAccepted = Math.max(maxAccepted, summary.acceptedLookupTargetCount());
 			maxBlocked = Math.max(maxBlocked, summary.blockedLookupTargetCount());
@@ -302,6 +317,7 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 				scenarios.size(),
 				ready,
 				scenarios.size() - ready,
+				executionBlocked,
 				exportAllowed,
 				maxAccepted,
 				maxBlocked,
@@ -327,6 +343,9 @@ public final class PropellerArchiveCtCpJLookupReferenceHandoff {
 			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary acceptance,
 			boolean allFields
 	) {
+		if ("lookup-execution-contract-blocked".equals(acceptance.message())) {
+			return "lookup-execution-contract-not-ready";
+		}
 		if (!acceptance.lookupAcceptanceReady()) {
 			return "lookup-acceptance-not-ready";
 		}

@@ -21,15 +21,17 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Reference-Table-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("zero weights"));
-		assertEquals(32, audit.packetRowCount());
-		assertEquals(6, audit.sourceReferenceRowCount());
+		assertTrue(audit.caveat().contains("handoff-aware lookup execution"));
+		assertEquals(34, audit.packetRowCount());
+		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(9, audit.referenceRowCount());
-		assertEquals(16, audit.summaryRowCount());
+		assertEquals(17, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(9, audit.rows().size());
 
 		for (PropellerArchiveCtCpJLookupReferenceTable.LookupReferenceRow row : audit.rows()) {
 			assertFalse(row.lookupAcceptanceReady());
+			assertFalse(row.lookupExecutionContractReady());
 			assertFalse(row.compactReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertFalse(row.performanceReferenceRowAvailable());
@@ -93,6 +95,7 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 
 		for (PropellerArchiveCtCpJLookupReferenceTable.LookupReferenceRow row : audit.rows()) {
 			assertTrue(row.lookupAcceptanceReady());
+			assertTrue(row.lookupExecutionContractReady());
 			assertTrue(row.compactReferenceReviewed());
 			assertTrue(row.referenceMaterialExportAllowed());
 			assertTrue(row.performanceReferenceRowAvailable());
@@ -125,9 +128,26 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 		assertEquals(9, audit.extrema().blockedRowCount());
 		for (PropellerArchiveCtCpJLookupReferenceTable.LookupReferenceRow row : audit.rows()) {
 			assertTrue(row.lookupAcceptanceReady());
+			assertTrue(row.lookupExecutionContractReady());
 			assertFalse(row.compactReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertEquals("lookup-reference-review-missing", row.message());
+		}
+	}
+
+	@Test
+	void executionBlockedHandoffKeepsRowsBlockedWithSpecificReason() {
+		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary executionBlocked =
+				handoff("acceptance_execution_blocked");
+		PropellerArchiveCtCpJLookupReferenceTable.CtCpJLookupReferenceTableAudit audit =
+				PropellerArchiveCtCpJLookupReferenceTable.audit(executionBlocked);
+
+		assertEquals(9, audit.extrema().blockedRowCount());
+		for (PropellerArchiveCtCpJLookupReferenceTable.LookupReferenceRow row : audit.rows()) {
+			assertFalse(row.lookupAcceptanceReady());
+			assertFalse(row.lookupExecutionContractReady());
+			assertFalse(row.referenceMaterialExportAllowed());
+			assertEquals("lookup-execution-contract-not-ready", row.message());
 		}
 	}
 
@@ -165,6 +185,8 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_summary,all_rows,total_minimum_neighbor_rows,21,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_summary,all_rows,runtime_coupling_allowed_count,0,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_summary,all_rows,lookup_execution_contract_ready,false,boolean,")));
 	}
 
 	private static PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary handoff(String name) {

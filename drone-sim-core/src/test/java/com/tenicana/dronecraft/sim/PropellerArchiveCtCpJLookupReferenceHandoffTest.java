@@ -21,19 +21,21 @@ class PropellerArchiveCtCpJLookupReferenceHandoffTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Reference-Handoff-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("reviewed payload shape"));
-		assertEquals(89, audit.packetRowCount());
-		assertEquals(6, audit.sourceReferenceRowCount());
+		assertTrue(audit.caveat().contains("handoff-aware lookup execution"));
+		assertEquals(111, audit.packetRowCount());
+		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(12, audit.referenceFieldRowCount());
-		assertEquals(4, audit.scenarioSampleCount());
-		assertEquals(15, audit.scenarioMetricRowCount());
-		assertEquals(10, audit.summaryRowCount());
+		assertEquals(5, audit.scenarioSampleCount());
+		assertEquals(16, audit.scenarioMetricRowCount());
+		assertEquals(11, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(12, audit.fields().size());
-		assertEquals(4, audit.scenarios().size());
+		assertEquals(5, audit.scenarios().size());
 
 		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary current =
 				find(audit.scenarios(), "current_acceptance_blocked").summary();
 		assertFalse(current.lookupAcceptanceReady());
+		assertFalse(current.lookupExecutionContractReady());
 		assertFalse(current.referenceMaterialExportAllowed());
 		assertEquals(9, current.expectedReferenceRowCount());
 		assertEquals(12, current.observedReferenceFieldCount());
@@ -41,9 +43,17 @@ class PropellerArchiveCtCpJLookupReferenceHandoffTest {
 		assertEquals(9, current.blockedLookupTargetCount());
 		assertEquals("lookup-acceptance-not-ready", current.message());
 
+		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary executionBlocked =
+				find(audit.scenarios(), "acceptance_execution_blocked").summary();
+		assertFalse(executionBlocked.lookupAcceptanceReady());
+		assertFalse(executionBlocked.lookupExecutionContractReady());
+		assertEquals(9, executionBlocked.blockedLookupTargetCount());
+		assertEquals("lookup-execution-contract-not-ready", executionBlocked.message());
+
 		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary reviewMissing =
 				find(audit.scenarios(), "acceptance_ready_reference_review_missing").summary();
 		assertTrue(reviewMissing.lookupAcceptanceReady());
+		assertTrue(reviewMissing.lookupExecutionContractReady());
 		assertFalse(reviewMissing.compactReferenceReviewed());
 		assertFalse(reviewMissing.referenceMaterialExportAllowed());
 		assertEquals("lookup-reference-review-missing", reviewMissing.message());
@@ -51,6 +61,7 @@ class PropellerArchiveCtCpJLookupReferenceHandoffTest {
 		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary ready =
 				find(audit.scenarios(), "acceptance_ready_reference_reviewed").summary();
 		assertTrue(ready.lookupAcceptanceReady());
+		assertTrue(ready.lookupExecutionContractReady());
 		assertTrue(ready.compactReferenceReviewed());
 		assertTrue(ready.referenceMaterialExportAllowed());
 		assertEquals(9, ready.performanceReferenceRowAvailableCount());
@@ -64,12 +75,14 @@ class PropellerArchiveCtCpJLookupReferenceHandoffTest {
 		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary failed =
 				find(audit.scenarios(), "reference_reviewed_acceptance_failed").summary();
 		assertFalse(failed.lookupAcceptanceReady());
+		assertTrue(failed.lookupExecutionContractReady());
 		assertEquals(8, failed.acceptedLookupTargetCount());
 		assertEquals(1, failed.blockedLookupTargetCount());
 
-		assertEquals(4, audit.extrema().scenarioCount());
+		assertEquals(5, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().readyScenarioCount());
-		assertEquals(3, audit.extrema().blockedScenarioCount());
+		assertEquals(4, audit.extrema().blockedScenarioCount());
+		assertEquals(1, audit.extrema().lookupExecutionBlockedScenarioCount());
 		assertEquals(1, audit.extrema().referenceMaterialExportAllowedCount());
 		assertEquals(9, audit.extrema().maxAcceptedLookupTargetCount());
 		assertEquals(9, audit.extrema().maxBlockedLookupTargetCount());
@@ -128,7 +141,11 @@ class PropellerArchiveCtCpJLookupReferenceHandoffTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_handoff_scenario,current_acceptance_blocked,blocked_lookup_target_count,9,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_handoff_scenario,acceptance_execution_blocked,lookup_execution_contract_ready,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_handoff_scenario,acceptance_ready_reference_reviewed,reference_material_export_allowed,true,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_handoff_summary,all_scenarios,lookup_execution_blocked_scenario_count,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_reference_handoff_summary,all_scenarios,max_full_simulation_reference_row_available_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
