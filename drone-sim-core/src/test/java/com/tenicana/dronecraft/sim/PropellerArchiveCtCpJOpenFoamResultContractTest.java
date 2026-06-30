@@ -15,6 +15,9 @@ import org.junit.jupiter.api.Test;
 class PropellerArchiveCtCpJOpenFoamResultContractTest {
 	private static final String REVIEWED_CASE_SHA =
 			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+	private static final double REFERENCE_CT = 0.100;
+	private static final double REFERENCE_CP = 0.050;
+	private static final double REFERENCE_ETA = 0.400;
 
 	@Test
 	void auditBuildsOpenFoamResultContractScenarios() {
@@ -23,15 +26,15 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Result-Contract-Packet",
 				audit.sourceId());
-		assertTrue(audit.caveat().contains("compact external CT/CP/eta residual summaries"));
-		assertEquals(109, audit.packetRowCount());
+		assertTrue(audit.caveat().contains("compact external CT/CP/eta coefficient values"));
+		assertEquals(112, audit.packetRowCount());
 		assertEquals(7, audit.sourceReferenceRowCount());
-		assertEquals(14, audit.resultFieldRowCount());
+		assertEquals(17, audit.resultFieldRowCount());
 		assertEquals(4, audit.scenarioSampleCount());
 		assertEquals(19, audit.scenarioMetricRowCount());
 		assertEquals(11, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(14, audit.fields().size());
+		assertEquals(17, audit.fields().size());
 		assertEquals(4, audit.scenarios().size());
 
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultContractSummary current =
@@ -99,6 +102,11 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 				PropellerArchiveCtCpJOpenFoamResultContract.field("solver_convergence_residual");
 		assertEquals("external solver convergence summary", convergence.source());
 
+		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultField cfdEta =
+				PropellerArchiveCtCpJOpenFoamResultContract.field("cfd_efficiency_eta");
+		assertEquals("ratio", cfdEta.unit());
+		assertTrue(cfdEta.downstreamUse().contains("eta"));
+
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamResultContract.field("missing"));
 	}
@@ -108,8 +116,7 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult pass =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
+				reviewedResult(apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
 						0.04, 0.05, 0.04, 5.0e-5);
 		assertTrue(pass.passed());
 		assertEquals("PASS", pass.status());
@@ -118,17 +125,21 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		assertEquals("da4052 5.0x3.75", pass.meshGeometryId());
 		assertEquals(apMid.queryAdvanceRatioJ(), pass.queryAdvanceRatioJ(), 1.0e-12);
 		assertEquals(apMid.queryRpm(), pass.queryRpm(), 1.0e-9);
+		assertEquals(REFERENCE_CT, pass.referenceThrustCoefficientCt(), 1.0e-12);
+		assertEquals(0.104, pass.cfdThrustCoefficientCt(), 1.0e-12);
+		assertEquals(REFERENCE_CP, pass.referencePowerCoefficientCp(), 1.0e-12);
+		assertEquals(0.0525, pass.cfdPowerCoefficientCp(), 1.0e-12);
+		assertEquals(REFERENCE_ETA, pass.referenceEfficiencyEta(), 1.0e-12);
+		assertEquals(0.416, pass.cfdEfficiencyEta(), 1.0e-12);
 
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult fail =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
+				reviewedResult(apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
 						0.081, 0.05, 0.04, 5.0e-5);
 		assertFalse(fail.passed());
 		assertEquals("FAIL", fail.status());
 
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult queryMismatch =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						apMid.queryAdvanceRatioJ() + 0.01, apMid.queryRpm(), 3,
+				reviewedResult(apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ() + 0.01, apMid.queryRpm(), 3,
 						0.04, 0.05, 0.04, 5.0e-5);
 		assertFalse(queryMismatch.passed());
 		assertEquals("FAIL", queryMismatch.status());
@@ -136,25 +147,27 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase heavy =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("heavyLift", "mid_domain_mid_rpm");
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(heavy, REVIEWED_CASE_SHA,
-						heavy.queryAdvanceRatioJ(), heavy.queryRpm(), 3,
+				() -> reviewedResult(heavy, REVIEWED_CASE_SHA, heavy.queryAdvanceRatioJ(), heavy.queryRpm(), 3,
 						0.04, 0.05, 0.04, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, "not-a-sha",
-						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
+				() -> reviewedResult(apMid, "not-a-sha", apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
 						0.04, 0.05, 0.04, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						Double.NaN, apMid.queryRpm(), 3,
+				() -> reviewedResult(apMid, REVIEWED_CASE_SHA, Double.NaN, apMid.queryRpm(), 3,
 						0.04, 0.05, 0.04, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), -1,
+				() -> reviewedResult(apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), -1,
 						0.04, 0.05, 0.04, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
+				() -> reviewedResult(apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
 						Double.NaN, 0.05, 0.04, 5.0e-5));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
+						apMid.queryAdvanceRatioJ(), apMid.queryRpm(),
+						REFERENCE_CT, 0.104,
+						REFERENCE_CP, 0.0525,
+						REFERENCE_ETA, 0.416,
+						3, 0.02, 0.05, 0.04, 5.0e-5));
 	}
 
 	@Test
@@ -162,8 +175,7 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult result =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA,
-						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
+				reviewedResult(apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 3,
 						0.04, 0.05, 0.04, 5.0e-5);
 
 		assertThrows(IllegalArgumentException.class,
@@ -207,6 +219,39 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 				.filter(scenario -> name.equals(scenario.scenarioName()))
 				.findFirst()
 				.orElseThrow();
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult reviewedResult(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			String sourceCaseSha256,
+			double queryAdvanceRatioJ,
+			double queryRpm,
+			int resultChannelCount,
+			double ctResidualToWindTunnel,
+			double cpResidualToWindTunnel,
+			double etaResidualToWindTunnel,
+			double solverConvergenceResidual
+	) {
+		return PropellerArchiveCtCpJOpenFoamResultContract.result(
+				target,
+				sourceCaseSha256,
+				queryAdvanceRatioJ,
+				queryRpm,
+				REFERENCE_CT,
+				cfdValue(REFERENCE_CT, ctResidualToWindTunnel),
+				REFERENCE_CP,
+				cfdValue(REFERENCE_CP, cpResidualToWindTunnel),
+				REFERENCE_ETA,
+				cfdValue(REFERENCE_ETA, etaResidualToWindTunnel),
+				resultChannelCount,
+				ctResidualToWindTunnel,
+				cpResidualToWindTunnel,
+				etaResidualToWindTunnel,
+				solverConvergenceResidual);
+	}
+
+	private static double cfdValue(double referenceValue, double residual) {
+		return referenceValue * (1.0 + residual);
 	}
 
 	private static Path findRepoRoot() {

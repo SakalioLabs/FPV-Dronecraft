@@ -11,9 +11,9 @@ import java.util.Set;
 public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-OpenFOAM-Result-Contract-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM result contract accepts only compact external CT/CP/eta residual summaries for geometry-backed lookup targets; it vendors no solver output and never enables runtime coupling or gameplay auto-apply.";
+			"OpenFOAM result contract accepts only compact external CT/CP/eta coefficient values and residual summaries for geometry-backed lookup targets; it vendors no solver output and never enables runtime coupling or gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
-	public static final int RESULT_FIELD_ROW_COUNT = 14;
+	public static final int RESULT_FIELD_ROW_COUNT = 17;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
 	public static final int SCENARIO_METRIC_ROW_COUNT = 19;
 	public static final int SUMMARY_ROW_COUNT = 11;
@@ -27,6 +27,9 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	public static final double MAX_QUERY_ADVANCE_RATIO_DELTA = 1.0e-9;
 	public static final double MAX_QUERY_RPM_DELTA = 1.0e-6;
 	public static final double MAX_SOLVER_CONVERGENCE_RESIDUAL = 1.0e-4;
+	public static final double MAX_COEFFICIENT_RESIDUAL_DECLARATION_DELTA = 1.0e-9;
+
+	private static final double EPSILON = 1.0e-12;
 
 	private static final List<OpenFoamResultField> RESULT_FIELDS = List.of(
 			new OpenFoamResultField("preset_name", "text", true,
@@ -43,16 +46,22 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 					"lookup query coordinate", "verify CFD run point", false, false),
 			new OpenFoamResultField("query_rpm", "rpm", true,
 					"lookup query coordinate", "verify CFD RPM bin", false, false),
-			new OpenFoamResultField("thrust_coefficient_ct", "coefficient", true,
+			new OpenFoamResultField("reference_thrust_coefficient_ct", "coefficient", true,
+					"reviewed wind-tunnel lookup", "derive CT residual", false, false),
+			new OpenFoamResultField("cfd_thrust_coefficient_ct", "coefficient", true,
 					"external OpenFOAM force extraction", "derive CT residual", false, false),
-			new OpenFoamResultField("power_coefficient_cp", "coefficient", true,
-					"external OpenFOAM torque/power extraction", "derive CP residual", false, false),
-			new OpenFoamResultField("efficiency_eta", "ratio", true,
-					"external OpenFOAM CT/CP/J extraction", "derive eta residual", false, false),
 			new OpenFoamResultField("ct_residual_to_wind_tunnel", "ratio", true,
 					"OpenFOAM versus reviewed wind-tunnel lookup", "gate thrust coefficient agreement", false, false),
+			new OpenFoamResultField("reference_power_coefficient_cp", "coefficient", true,
+					"reviewed wind-tunnel lookup", "derive CP residual", false, false),
+			new OpenFoamResultField("cfd_power_coefficient_cp", "coefficient", true,
+					"external OpenFOAM torque/power extraction", "derive CP residual", false, false),
 			new OpenFoamResultField("cp_residual_to_wind_tunnel", "ratio", true,
 					"OpenFOAM versus reviewed wind-tunnel lookup", "gate power coefficient agreement", false, false),
+			new OpenFoamResultField("reference_efficiency_eta", "ratio", true,
+					"reviewed wind-tunnel lookup", "derive eta residual", false, false),
+			new OpenFoamResultField("cfd_efficiency_eta", "ratio", true,
+					"external OpenFOAM CT/CP/J extraction", "derive eta residual", false, false),
 			new OpenFoamResultField("eta_residual_to_wind_tunnel", "ratio", true,
 					"OpenFOAM versus reviewed wind-tunnel lookup", "gate efficiency agreement", false, false),
 			new OpenFoamResultField("solver_convergence_residual", "ratio", true,
@@ -81,6 +90,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			String meshGeometryId,
 			double queryAdvanceRatioJ,
 			double queryRpm,
+			double referenceThrustCoefficientCt,
+			double cfdThrustCoefficientCt,
+			double referencePowerCoefficientCp,
+			double cfdPowerCoefficientCp,
+			double referenceEfficiencyEta,
+			double cfdEfficiencyEta,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
@@ -208,6 +223,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			String sourceCaseSha256,
 			double queryAdvanceRatioJ,
 			double queryRpm,
+			double referenceThrustCoefficientCt,
+			double cfdThrustCoefficientCt,
+			double referencePowerCoefficientCp,
+			double cfdPowerCoefficientCp,
+			double referenceEfficiencyEta,
+			double cfdEfficiencyEta,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
@@ -223,6 +244,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		validateSourceCaseSha256(sourceCaseSha256);
 		validateQueryCoordinate("queryAdvanceRatioJ", queryAdvanceRatioJ);
 		validateQueryCoordinate("queryRpm", queryRpm);
+		validateCoefficientChannel("referenceThrustCoefficientCt", referenceThrustCoefficientCt);
+		validateCoefficientChannel("cfdThrustCoefficientCt", cfdThrustCoefficientCt);
+		validateCoefficientChannel("referencePowerCoefficientCp", referencePowerCoefficientCp);
+		validateCoefficientChannel("cfdPowerCoefficientCp", cfdPowerCoefficientCp);
+		validateCoefficientChannel("referenceEfficiencyEta", referenceEfficiencyEta);
+		validateCoefficientChannel("cfdEfficiencyEta", cfdEfficiencyEta);
 		if (resultChannelCount < 0) {
 			throw new IllegalArgumentException("resultChannelCount must be nonnegative.");
 		}
@@ -238,9 +265,16 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		if (!Double.isFinite(solverConvergenceResidual) || solverConvergenceResidual < 0.0) {
 			throw new IllegalArgumentException("solverConvergenceResidual must be finite and nonnegative.");
 		}
-		boolean passed = passes(target, queryAdvanceRatioJ, queryRpm, resultChannelCount,
-				ctResidualToWindTunnel, cpResidualToWindTunnel, etaResidualToWindTunnel,
-				solverConvergenceResidual);
+		validateResidualConsistency("ctResidualToWindTunnel", referenceThrustCoefficientCt,
+				cfdThrustCoefficientCt, ctResidualToWindTunnel);
+		validateResidualConsistency("cpResidualToWindTunnel", referencePowerCoefficientCp,
+				cfdPowerCoefficientCp, cpResidualToWindTunnel);
+		validateResidualConsistency("etaResidualToWindTunnel", referenceEfficiencyEta,
+				cfdEfficiencyEta, etaResidualToWindTunnel);
+		boolean passed = passes(target, queryAdvanceRatioJ, queryRpm, referenceThrustCoefficientCt,
+				cfdThrustCoefficientCt, referencePowerCoefficientCp, cfdPowerCoefficientCp,
+				referenceEfficiencyEta, cfdEfficiencyEta, resultChannelCount, ctResidualToWindTunnel,
+				cpResidualToWindTunnel, etaResidualToWindTunnel, solverConvergenceResidual);
 		return new OpenFoamCompactResult(
 				target.presetName(),
 				target.caseName(),
@@ -249,6 +283,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 				target.geometryMatchId(),
 				queryAdvanceRatioJ,
 				queryRpm,
+				referenceThrustCoefficientCt,
+				cfdThrustCoefficientCt,
+				referencePowerCoefficientCp,
+				cfdPowerCoefficientCp,
+				referenceEfficiencyEta,
+				cfdEfficiencyEta,
 				resultChannelCount,
 				ctResidualToWindTunnel,
 				cpResidualToWindTunnel,
@@ -370,30 +410,55 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			List<PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase> targets
 	) {
 		return targets.stream()
-				.map(target -> result(target,
-						syntheticCaseSha256(target),
-						target.queryAdvanceRatioJ(),
-						target.queryRpm(),
-						REQUIRED_RESULT_CHANNEL_COUNT,
-						target.maxCtResidual() * 0.50,
-						target.maxCpResidual() * 0.50,
-						target.maxEtaResidual() * 0.50,
-						MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50))
+				.map(PropellerArchiveCtCpJOpenFoamResultContract::passingResult)
 				.toList();
+	}
+
+	private static OpenFoamCompactResult passingResult(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
+	) {
+		return resultWithSyntheticValues(
+				target,
+				target.maxCtResidual() * 0.50,
+				target.maxCpResidual() * 0.50,
+				target.staticAnchorCase() ? 0.0 : target.maxEtaResidual() * 0.50,
+				MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50);
 	}
 
 	private static OpenFoamCompactResult failingResult(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
 	) {
+		return resultWithSyntheticValues(
+				target,
+				target.maxCtResidual() * 1.25,
+				target.maxCpResidual() * 0.50,
+				target.staticAnchorCase() ? 0.0 : target.maxEtaResidual() * 0.50,
+				MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50);
+	}
+
+	private static OpenFoamCompactResult resultWithSyntheticValues(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double ctResidualToWindTunnel,
+			double cpResidualToWindTunnel,
+			double etaResidualToWindTunnel,
+			double solverConvergenceResidual
+	) {
+		CoefficientReferenceValues reference = syntheticReferenceValues(target);
 		return result(target,
 				syntheticCaseSha256(target),
 				target.queryAdvanceRatioJ(),
 				target.queryRpm(),
+				reference.thrustCoefficientCt(),
+				cfdValue(reference.thrustCoefficientCt(), ctResidualToWindTunnel),
+				reference.powerCoefficientCp(),
+				cfdValue(reference.powerCoefficientCp(), cpResidualToWindTunnel),
+				reference.efficiencyEta(),
+				cfdValue(reference.efficiencyEta(), etaResidualToWindTunnel),
 				REQUIRED_RESULT_CHANNEL_COUNT,
-				target.maxCtResidual() * 1.25,
-				target.maxCpResidual() * 0.50,
-				target.maxEtaResidual() * 0.50,
-				MAX_SOLVER_CONVERGENCE_RESIDUAL * 0.50);
+				ctResidualToWindTunnel,
+				cpResidualToWindTunnel,
+				etaResidualToWindTunnel,
+				solverConvergenceResidual);
 	}
 
 	private static boolean passes(
@@ -403,7 +468,10 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		return result.solverFamily().equals(target.solverFamily())
 				&& isSha256Hex(result.sourceCaseSha256())
 				&& result.meshGeometryId().equals(target.geometryMatchId())
-				&& passes(target, result.queryAdvanceRatioJ(), result.queryRpm(), result.resultChannelCount(),
+				&& passes(target, result.queryAdvanceRatioJ(), result.queryRpm(),
+						result.referenceThrustCoefficientCt(), result.cfdThrustCoefficientCt(),
+						result.referencePowerCoefficientCp(), result.cfdPowerCoefficientCp(),
+						result.referenceEfficiencyEta(), result.cfdEfficiencyEta(), result.resultChannelCount(),
 						result.ctResidualToWindTunnel(), result.cpResidualToWindTunnel(),
 						result.etaResidualToWindTunnel(), result.solverConvergenceResidual());
 	}
@@ -412,6 +480,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
 			double queryAdvanceRatioJ,
 			double queryRpm,
+			double referenceThrustCoefficientCt,
+			double cfdThrustCoefficientCt,
+			double referencePowerCoefficientCp,
+			double cfdPowerCoefficientCp,
+			double referenceEfficiencyEta,
+			double cfdEfficiencyEta,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
@@ -419,6 +493,9 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			double solverConvergenceResidual
 	) {
 		return matchesTargetQuery(target, queryAdvanceRatioJ, queryRpm)
+				&& residualsMatch(referenceThrustCoefficientCt, cfdThrustCoefficientCt, ctResidualToWindTunnel,
+						referencePowerCoefficientCp, cfdPowerCoefficientCp, cpResidualToWindTunnel,
+						referenceEfficiencyEta, cfdEfficiencyEta, etaResidualToWindTunnel)
 				&& resultChannelCount >= REQUIRED_RESULT_CHANNEL_COUNT
 				&& ctResidualToWindTunnel <= target.maxCtResidual()
 				&& cpResidualToWindTunnel <= target.maxCpResidual()
@@ -435,6 +512,13 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 				.filter(result -> result.presetName().equals(presetName) && result.caseName().equals(caseName))
 				.findFirst()
 				.orElse(null);
+	}
+
+	private record CoefficientReferenceValues(
+			double thrustCoefficientCt,
+			double powerCoefficientCp,
+			double efficiencyEta
+	) {
 	}
 
 	private static OpenFoamResultContractExtrema extrema(List<OpenFoamResultContractScenario> scenarios) {
@@ -511,6 +595,22 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		}
 	}
 
+	private static void validateCoefficientChannel(String fieldName, double value) {
+		if (!coefficientChannel(value)) {
+			throw new IllegalArgumentException(fieldName + " must be finite and nonnegative.");
+		}
+	}
+
+	private static boolean coefficientChannel(double value) {
+		return Double.isFinite(value) && value >= 0.0;
+	}
+
+	private static void validateResidualConsistency(String fieldName, double reference, double cfd, double residual) {
+		if (!residualMatches(reference, cfd, residual)) {
+			throw new IllegalArgumentException(fieldName + " must match the supplied reference and CFD coefficient values.");
+		}
+	}
+
 	private static boolean isSha256Hex(String value) {
 		if (value == null || value.length() != 64) {
 			return false;
@@ -531,6 +631,54 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	) {
 		return Math.abs(queryAdvanceRatioJ - target.queryAdvanceRatioJ()) <= MAX_QUERY_ADVANCE_RATIO_DELTA
 				&& Math.abs(queryRpm - target.queryRpm()) <= MAX_QUERY_RPM_DELTA;
+	}
+
+	private static CoefficientReferenceValues syntheticReferenceValues(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
+	) {
+		double ct = target.staticAnchorCase()
+				? 0.120
+				: Math.max(0.050, 0.110 - target.queryAdvanceRatioJ() * 0.035);
+		double cp = target.staticAnchorCase()
+				? 0.040
+				: Math.max(0.035, 0.045 + target.queryAdvanceRatioJ() * 0.010);
+		double eta = target.queryAdvanceRatioJ() <= EPSILON || cp <= EPSILON
+				? 0.0
+				: target.queryAdvanceRatioJ() * ct / cp;
+		return new CoefficientReferenceValues(ct, cp, eta);
+	}
+
+	private static double cfdValue(double reference, double residual) {
+		return reference * (1.0 + residual);
+	}
+
+	private static boolean residualsMatch(
+			double referenceCt,
+			double cfdCt,
+			double ctResidualToWindTunnel,
+			double referenceCp,
+			double cfdCp,
+			double cpResidualToWindTunnel,
+			double referenceEta,
+			double cfdEta,
+			double etaResidualToWindTunnel
+	) {
+		return residualMatches(referenceCt, cfdCt, ctResidualToWindTunnel)
+				&& residualMatches(referenceCp, cfdCp, cpResidualToWindTunnel)
+				&& residualMatches(referenceEta, cfdEta, etaResidualToWindTunnel);
+	}
+
+	private static boolean residualMatches(double reference, double cfd, double declaredResidual) {
+		return coefficientChannel(reference)
+				&& coefficientChannel(cfd)
+				&& Double.isFinite(declaredResidual)
+				&& declaredResidual >= 0.0
+				&& Math.abs(actualResidual(reference, cfd) - declaredResidual)
+						<= MAX_COEFFICIENT_RESIDUAL_DECLARATION_DELTA;
+	}
+
+	private static double actualResidual(double reference, double cfd) {
+		return Math.abs(cfd - reference) / Math.max(Math.abs(reference), EPSILON);
 	}
 
 	private static String syntheticCaseSha256(
