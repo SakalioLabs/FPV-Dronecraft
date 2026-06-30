@@ -23,9 +23,9 @@ public final class PropellerArchiveSourceFingerprint {
 			"f234863d7a0c29f44733bc818790c75616a61a2980fc30577a43122cc2cd1b2b";
 	public static final int ARCHIVE_BYTES = 384_834;
 	public static final String PERFORMANCE_HEADER =
-			"PropName;BladeName;Family;B;D;P;J;N;CT;CP;eta";
+			"PropName,BladeName,Family,B,D,P,J,N,CT,CP,eta";
 	public static final String GEOMETRY_HEADER =
-			"BladeName;Family;D;P;c/R;r/R;beta";
+			"BladeName,Family,D,P,c/R,r/R,beta";
 	public static final boolean RAW_ROWS_VENDORED = false;
 	public static final boolean CURRENT_IMPORT_ALLOWED = false;
 	public static final boolean RUNTIME_COUPLING_ALLOWED = false;

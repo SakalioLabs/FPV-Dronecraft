@@ -52,7 +52,7 @@ class PropellerArchiveSourceFingerprintTest {
 		assertEquals(1_335_172, volume1.uncompressedBytes());
 		assertEquals(189_118, volume1.compressedBytes());
 		assertEquals(16_455, volume1.dataRowCount());
-		assertEquals("PropName;BladeName;Family;B;D;P;J;N;CT;CP;eta",
+		assertEquals("PropName,BladeName,Family,B,D,P,J,N,CT,CP,eta",
 				volume1.headerColumns());
 		assertTrue(volume1.matchesImportContractHeader());
 		assertFalse(volume1.rawRowsVendored());
@@ -63,7 +63,7 @@ class PropellerArchiveSourceFingerprintTest {
 		assertEquals("4c917b2673ec38df65b83926f8e35185a2cfe1598b86b3a4de2a069a121bfd09",
 				geometry.sha256());
 		assertEquals(78, geometry.dataRowCount());
-		assertEquals("BladeName;Family;D;P;c/R;r/R;beta", geometry.headerColumns());
+		assertEquals("BladeName,Family,D,P,c/R,r/R,beta", geometry.headerColumns());
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveSourceFingerprint.entry("missing.csv"));
@@ -143,9 +143,9 @@ class PropellerArchiveSourceFingerprintTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_source_fingerprint_archive,archive.zip,archive_sha256,f234863d7a0c29f44733bc818790c75616a61a2980fc30577a43122cc2cd1b2b,sha256,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_source_fingerprint_entry,volume1_exp.csv,entry_sha256,4af1490043202ebbebe446898eb5d75af0c8218cf2cc6ed928d628053f097cfb,sha256,user_supplied_archive_zip,PropName;BladeName;Family;B;D;P;J;N;CT;CP;eta,16455,")));
+				line.startsWith("propeller_archive_source_fingerprint_entry,volume1_exp.csv,entry_sha256,4af1490043202ebbebe446898eb5d75af0c8218cf2cc6ed928d628053f097cfb,sha256,user_supplied_archive_zip,\"PropName,BladeName,Family,B,D,P,J,N,CT,CP,eta\",16455,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_source_fingerprint_schema,performance,data_rows,27495,count,user_supplied_archive_zip,PropName;BladeName;Family;B;D;P;J;N;CT;CP;eta,27495,")));
+				line.startsWith("propeller_archive_source_fingerprint_schema,performance,data_rows,27495,count,user_supplied_archive_zip,\"PropName,BladeName,Family,B,D,P,J,N,CT,CP,eta\",27495,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_source_fingerprint_boundary,source_license_review,current_satisfied,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
