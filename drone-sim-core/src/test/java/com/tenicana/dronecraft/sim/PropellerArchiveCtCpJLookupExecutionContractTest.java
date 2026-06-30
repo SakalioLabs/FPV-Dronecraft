@@ -21,29 +21,36 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("scattered-fit execution handoff"));
-		assertEquals(38, audit.packetRowCount());
+		assertEquals(45, audit.packetRowCount());
 		assertEquals(8, audit.sourceReferenceRowCount());
-		assertEquals(9, audit.executionRuleRowCount());
-		assertEquals(7, audit.scenarioRowCount());
-		assertEquals(13, audit.summaryRowCount());
+		assertEquals(10, audit.executionRuleRowCount());
+		assertEquals(8, audit.scenarioRowCount());
+		assertEquals(18, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(9, audit.rules().size());
-		assertEquals(7, audit.scenarios().size());
+		assertEquals(10, audit.rules().size());
+		assertEquals(8, audit.scenarios().size());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary summary = audit.summary();
-		assertEquals(7, summary.scenarioCount());
+		assertEquals(8, summary.scenarioCount());
 		assertEquals(2, summary.acceptedScenarioCount());
-		assertEquals(5, summary.blockedScenarioCount());
-		assertEquals(1, summary.handoffBlockedScenarioCount());
+		assertEquals(6, summary.blockedScenarioCount());
+		assertEquals(2, summary.handoffBlockedScenarioCount());
 		assertEquals(1, summary.noReviewedRowsScenarioCount());
 		assertEquals(1, summary.outOfDomainScenarioCount());
 		assertEquals(1, summary.missingNeighborScenarioCount());
 		assertEquals(1, summary.acceptanceGuardFailedScenarioCount());
+		assertEquals(5, summary.archiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(1, summary.archiveCurveShapeGuardBlockedScenarioCount());
 		assertEquals(4, summary.maxObservedNeighborRows());
+		assertEquals(9, summary.maxNegativeThrustTailExecutionInputRowCount());
 		assertEquals(0.0, summary.maxCtShapeOvershoot(), 1.0e-12);
 		assertEquals(0.040, summary.minAcceptedCpCoefficient(), 1.0e-12);
 		assertEquals(0.0, summary.maxEtaResidual(), 1.0e-12);
 		assertEquals(0.0, summary.maxStaticAnchorError(), 1.0e-12);
+		assertTrue(summary.maxArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(summary.maxArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(0, summary.runtimeCouplingAllowedCount());
 		assertEquals(0, summary.gameplayAutoApplyAllowedCount());
 		assertEquals("complete-scattered-surface-fit-execution-handoff-before-lookup-run",
@@ -67,6 +74,15 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertTrue(handoff.syntheticTargetSatisfied());
 		assertEquals("complete-scattered-surface-fit-execution-handoff-before-lookup-run",
 				handoff.nextRequiredAction());
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule inheritedShape =
+				PropellerArchiveCtCpJLookupExecutionContract.rule("archive_curve_shape_guard_inherited");
+		assertTrue(inheritedShape.required());
+		assertFalse(inheritedShape.currentSatisfied());
+		assertFalse(inheritedShape.callerSuppliedReviewedRowsSatisfied());
+		assertTrue(inheritedShape.syntheticTargetSatisfied());
+		assertEquals("carry-archive-curve-shape-guard-into-lookup-execution",
+				inheritedShape.nextRequiredAction());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule extrapolation =
 				PropellerArchiveCtCpJLookupExecutionContract.rule("reject_extrapolation");
@@ -100,8 +116,17 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertEquals("reviewed-ct-cp-j-rows-missing", current.message());
 		assertEquals(0, current.observedNeighborRows());
 		assertEquals(4, current.minimumNeighborRowsRequired());
+		assertFalse(current.archiveCurveShapeGuardInherited());
 		assertFalse(current.runtimeCouplingAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult shapeBlocked =
+				scenario("synthetic_handoff_curve_shape_guard_blocked");
+		assertFalse(shapeBlocked.acceptedByLookupGate());
+		assertEquals("HANDOFF_CURVE_SHAPE_GUARD_FAILED", shapeBlocked.status());
+		assertEquals("archive-curve-shape-guard-not-ready", shapeBlocked.message());
+		assertFalse(shapeBlocked.archiveCurveShapeGuardInherited());
+		assertEquals(9, shapeBlocked.negativeThrustTailExecutionInputRowCount());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult staticAnchor =
 				scenario("synthetic_static_anchor_exact");
@@ -113,6 +138,7 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertEquals(0.040, staticAnchor.cpCoefficient(), 1.0e-12);
 		assertEquals(0.0, staticAnchor.eta(), 1.0e-12);
 		assertEquals(0.0, staticAnchor.staticAnchorError(), 1.0e-12);
+		assertTrue(staticAnchor.archiveCurveShapeGuardInherited());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult mid =
 				scenario("synthetic_mid_bilinear_pass");
@@ -128,6 +154,12 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 				mid.eta(), 1.0e-12);
 		assertEquals(0.0, mid.maxCtShapeOvershoot(), 1.0e-12);
 		assertEquals(0.046, mid.minCpCoefficient(), 1.0e-12);
+		assertTrue(mid.archiveCurveShapeGuardInherited());
+		assertEquals(9, mid.negativeThrustTailExecutionInputRowCount());
+		assertTrue(mid.archiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(mid.archiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 	}
 
 	@Test
@@ -145,6 +177,7 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertEquals("OUT_OF_DOMAIN", outOfDomain.status());
 		assertEquals("query-requires-extrapolation-and-is-rejected", outOfDomain.message());
 		assertFalse(outOfDomain.insideLookupDomain());
+		assertTrue(outOfDomain.archiveCurveShapeGuardInherited());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult cpFailed =
 				scenario("synthetic_cp_guard_failed");
@@ -232,13 +265,19 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,current_handoff_blocked_no_execution,HANDOFF_BLOCKED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,archive_curve_shape_guard_inherited,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_handoff_curve_shape_guard_blocked,HANDOFF_CURVE_SHAPE_GUARD_FAILED,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,reject_extrapolation,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_mid_bilinear_pass,ACCEPTED,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_cp_guard_failed,ACCEPTANCE_GUARD_FAILED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,handoff_blocked_scenario_count,1,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,handoff_blocked_scenario_count,2,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,archive_curve_shape_guard_inherited_scenario_count,5,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 	}

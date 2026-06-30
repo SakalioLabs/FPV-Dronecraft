@@ -10,9 +10,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 	public static final String CAVEAT =
 			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the scattered-fit execution handoff is ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
-	public static final int EXECUTION_RULE_ROW_COUNT = 9;
-	public static final int SCENARIO_ROW_COUNT = 7;
-	public static final int SUMMARY_ROW_COUNT = 13;
+	public static final int EXECUTION_RULE_ROW_COUNT = 10;
+	public static final int SCENARIO_ROW_COUNT = 8;
+	public static final int SUMMARY_ROW_COUNT = 18;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ EXECUTION_RULE_ROW_COUNT
@@ -34,6 +34,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			new LookupExecutionRule("scattered_fit_execution_handoff_ready", true, false, false, true,
 					"scattered surface fit handoff must be ready before execution consumes reviewed rows",
 					"complete-scattered-surface-fit-execution-handoff-before-lookup-run"),
+			new LookupExecutionRule("archive_curve_shape_guard_inherited", true, false, false, true,
+					"lookup execution must inherit the archive curve-shape guard from the fit handoff",
+					"carry-archive-curve-shape-guard-into-lookup-execution"),
 			new LookupExecutionRule("finite_sorted_grid", true, false, true, true,
 					"J/RPM grid rows must be finite, nonnegative in J, positive in RPM/CP, and duplicate-free",
 					"validate-reviewed-row-grid-before-execution"),
@@ -97,6 +100,10 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			double minCpCoefficient,
 			double etaResidual,
 			double staticAnchorError,
+			boolean archiveCurveShapeGuardInherited,
+			int negativeThrustTailExecutionInputRowCount,
+			double archiveCurveEtaFormulaResidual,
+			double archiveCurveCtIncrease,
 			boolean insideLookupDomain,
 			boolean acceptedByLookupGate,
 			boolean runtimeCouplingAllowed,
@@ -121,11 +128,16 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			int outOfDomainScenarioCount,
 			int missingNeighborScenarioCount,
 			int acceptanceGuardFailedScenarioCount,
+			int archiveCurveShapeGuardInheritedScenarioCount,
+			int archiveCurveShapeGuardBlockedScenarioCount,
 			int maxObservedNeighborRows,
+			int maxNegativeThrustTailExecutionInputRowCount,
 			double maxCtShapeOvershoot,
 			double minAcceptedCpCoefficient,
 			double maxEtaResidual,
 			double maxStaticAnchorError,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
 			String nextRequiredAction
@@ -168,6 +180,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				new LookupExecutionScenario("current_handoff_blocked_no_execution",
 						executeFromHandoff(currentHandoff, List.of(), midContract)),
 				new LookupExecutionScenario("current_no_reviewed_rows", execute(List.of(), midContract)),
+				new LookupExecutionScenario("synthetic_handoff_curve_shape_guard_blocked",
+						executeFromHandoff(shapeGuardBlockedHandoff(readyHandoff),
+								midRows(midContract, 1.0), midContract)),
 				new LookupExecutionScenario("synthetic_static_anchor_exact",
 						executeFromHandoff(readyHandoff, staticAnchorRows(staticContract), staticContract)),
 				new LookupExecutionScenario("synthetic_mid_bilinear_pass",
@@ -320,7 +335,21 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			return blocked(contract, 0, contract.minimumPerformanceNeighborRows(), 0.0, 0.0,
 					"HANDOFF_EXPORT_INCOMPLETE", "execution-input-handoff-export-incomplete");
 		}
-		return execute(rows, contract);
+		if (handoff.archiveCurveShapeGuardReadyTargetCount() < handoff.expectedExecutionInputRowCount()
+				|| !Double.isFinite(handoff.maxArchiveCurveEtaFormulaResidual())
+				|| handoff.maxArchiveCurveEtaFormulaResidual()
+						> PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL
+				|| !Double.isFinite(handoff.maxArchiveCurveCtIncrease())
+				|| handoff.maxArchiveCurveCtIncrease()
+						> PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE) {
+			return withArchiveCurveShapeDiagnostics(
+					blocked(contract, 0, contract.minimumPerformanceNeighborRows(), 0.0, 0.0,
+							"HANDOFF_CURVE_SHAPE_GUARD_FAILED",
+							"archive-curve-shape-guard-not-ready"),
+					handoff,
+					false);
+		}
+		return withArchiveCurveShapeDiagnostics(execute(rows, contract), handoff, true);
 	}
 
 	public static PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceResult acceptanceResult(
@@ -369,13 +398,18 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 		int outOfDomain = 0;
 		int missing = 0;
 		int guardFailed = 0;
+		int inheritedShape = 0;
+		int shapeBlocked = 0;
 		int maxNeighbors = 0;
+		int maxNegativeThrustTail = 0;
 		int runtime = 0;
 		int gameplay = 0;
 		double maxOvershoot = 0.0;
 		double minAcceptedCp = Double.POSITIVE_INFINITY;
 		double maxEtaResidual = 0.0;
 		double maxStaticAnchorError = 0.0;
+		double maxArchiveEtaResidual = 0.0;
+		double maxArchiveCtIncrease = 0.0;
 		for (LookupExecutionScenario scenario : scenarios) {
 			LookupExecutionResult result = scenario.result();
 			if (result.acceptedByLookupGate()) {
@@ -397,10 +431,21 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			if ("ACCEPTANCE_GUARD_FAILED".equals(result.status())) {
 				guardFailed++;
 			}
+			if (result.archiveCurveShapeGuardInherited()) {
+				inheritedShape++;
+			}
+			if ("HANDOFF_CURVE_SHAPE_GUARD_FAILED".equals(result.status())) {
+				shapeBlocked++;
+			}
 			maxNeighbors = Math.max(maxNeighbors, result.observedNeighborRows());
+			maxNegativeThrustTail = Math.max(maxNegativeThrustTail,
+					result.negativeThrustTailExecutionInputRowCount());
 			maxOvershoot = Math.max(maxOvershoot, result.maxCtShapeOvershoot());
 			maxEtaResidual = Math.max(maxEtaResidual, result.etaResidual());
 			maxStaticAnchorError = Math.max(maxStaticAnchorError, result.staticAnchorError());
+			maxArchiveEtaResidual = Math.max(maxArchiveEtaResidual,
+					result.archiveCurveEtaFormulaResidual());
+			maxArchiveCtIncrease = Math.max(maxArchiveCtIncrease, result.archiveCurveCtIncrease());
 			if (result.runtimeCouplingAllowed()) {
 				runtime++;
 			}
@@ -417,11 +462,16 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				outOfDomain,
 				missing,
 				guardFailed,
+				inheritedShape,
+				shapeBlocked,
 				maxNeighbors,
+				maxNegativeThrustTail,
 				maxOvershoot,
 				Double.isInfinite(minAcceptedCp) ? 0.0 : minAcceptedCp,
 				maxEtaResidual,
 				maxStaticAnchorError,
+				maxArchiveEtaResidual,
+				maxArchiveCtIncrease,
 				runtime,
 				gameplay,
 				NEXT_REQUIRED_ACTION
@@ -440,6 +490,33 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				.findFirst()
 				.orElseThrow()
 				.summary();
+	}
+
+	private static PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary
+			shapeGuardBlockedHandoff(
+					PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary handoff
+			) {
+		return new PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary(
+				handoff.sourceRowsReviewed(),
+				handoff.scatteredSurfaceFitContractReady(),
+				handoff.scatteredSurfaceFitRun(),
+				handoff.expectedExecutionInputRowCount(),
+				handoff.candidateExecutionInputRowCount(),
+				handoff.exportedExecutionInputRowCount(),
+				handoff.directNeighborCandidateRowCount(),
+				handoff.scatteredSurfaceCandidateRowCount(),
+				handoff.fullSimulationExecutionInputRowCount(),
+				handoff.performanceOnlyExecutionInputRowCount(),
+				Math.max(0, handoff.expectedExecutionInputRowCount() - 1),
+				handoff.negativeThrustTailExecutionInputRowCount(),
+				handoff.maxArchiveCurveEtaFormulaResidual(),
+				handoff.maxArchiveCurveCtIncrease(),
+				handoff.executionInputHandoffReady(),
+				handoff.runtimeCouplingAllowed(),
+				handoff.gameplayAutoApplyAllowed(),
+				"BLOCKED",
+				"archive-curve-shape-guard-not-ready",
+				handoff.sourceRuntimeInfo());
 	}
 
 	private static List<LookupGridRow> staticAnchorRows(
@@ -528,6 +605,10 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				minCpCoefficient,
 				etaResidual,
 				staticAnchorError,
+				false,
+				0,
+				0.0,
+				0.0,
 				insideLookupDomain,
 				accepted,
 				false,
@@ -535,6 +616,43 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 				status,
 				message
 		);
+	}
+
+	private static LookupExecutionResult withArchiveCurveShapeDiagnostics(
+			LookupExecutionResult result,
+			PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputHandoffSummary handoff,
+			boolean inherited
+	) {
+		return new LookupExecutionResult(
+				result.presetName(),
+				result.caseName(),
+				result.queryAdvanceRatioJ(),
+				result.queryRpm(),
+				result.lowerAdvanceRatioJ(),
+				result.upperAdvanceRatioJ(),
+				result.lowerRpm(),
+				result.upperRpm(),
+				result.advanceInterpolationFraction(),
+				result.rpmInterpolationFraction(),
+				result.observedNeighborRows(),
+				result.minimumNeighborRowsRequired(),
+				result.ctCoefficient(),
+				result.cpCoefficient(),
+				result.eta(),
+				result.maxCtShapeOvershoot(),
+				result.minCpCoefficient(),
+				result.etaResidual(),
+				result.staticAnchorError(),
+				inherited,
+				handoff.negativeThrustTailExecutionInputRowCount(),
+				handoff.maxArchiveCurveEtaFormulaResidual(),
+				handoff.maxArchiveCurveCtIncrease(),
+				result.insideLookupDomain(),
+				result.acceptedByLookupGate(),
+				result.runtimeCouplingAllowed(),
+				result.gameplayAutoApplyAllowed(),
+				result.status(),
+				result.message());
 	}
 
 	private static String guardFailureMessage(
