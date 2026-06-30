@@ -5,10 +5,10 @@ import java.util.List;
 public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-OpenFOAM-Lookup-Support-Gate-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM lookup support opens only when handoff-aware CT/CP/J lookup execution, reviewed lookup acceptance, and compact OpenFOAM residual results all pass; CFD evidence cannot replace wind-tunnel acceptance and cannot mutate runtime or gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+			"OpenFOAM lookup support opens only when handoff-aware CT/CP/J lookup execution, reviewed lookup acceptance, compact solver-quality QA, and compact OpenFOAM residual results all pass; CFD evidence cannot replace wind-tunnel acceptance and cannot mutate runtime or gameplay tuning.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 6;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 20;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 21;
 	public static final int SUMMARY_ROW_COUNT = 12;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
@@ -23,6 +23,7 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 			boolean lookupAcceptanceReady,
 			boolean lookupExecutionContractReady,
 			boolean openFoamResultContractReady,
+			boolean openFoamSolverQualityContractReady,
 			int expectedLookupTargetCount,
 			int expectedOpenFoamResultCaseCount,
 			int acceptedLookupTargetCount,
@@ -87,6 +88,8 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 				PropellerArchiveCtCpJLookupAcceptanceGate.audit();
 		PropellerArchiveCtCpJOpenFoamResultContract.CtCpJOpenFoamResultContractAudit cfdAudit =
 				PropellerArchiveCtCpJOpenFoamResultContract.audit();
+		PropellerArchiveCtCpJOpenFoamSolverQualityContract.CtCpJOpenFoamSolverQualityContractAudit qualityAudit =
+				PropellerArchiveCtCpJOpenFoamSolverQualityContract.audit();
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary currentLookup =
 				lookupAcceptance(lookupAudit, "current_no_reviewed_import_no_results");
 		PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary executionBlockedLookup =
@@ -103,26 +106,35 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 				cfdContract(cfdAudit, "synthetic_openfoam_results_all_pass");
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultContractSummary failedCfd =
 				cfdContract(cfdAudit, "synthetic_openfoam_result_failed");
+		PropellerArchiveCtCpJOpenFoamSolverQualityContract.OpenFoamSolverQualitySummary currentQuality =
+				solverQualityContract(qualityAudit, "current_no_case_hash_no_solver_quality");
+		PropellerArchiveCtCpJOpenFoamSolverQualityContract.OpenFoamSolverQualitySummary readyQuality =
+				solverQualityContract(qualityAudit, "synthetic_solver_quality_all_pass");
 		List<OpenFoamLookupSupportScenario> scenarios = List.of(
 				new OpenFoamLookupSupportScenario(
 						"current_lookup_and_cfd_blocked",
-						support(currentLookup, currentCfd, "current-ct-cp-j-openfoam-lookup-support-blocked")),
+						support(currentLookup, currentCfd, currentQuality,
+								"current-ct-cp-j-openfoam-lookup-support-blocked")),
 				new OpenFoamLookupSupportScenario(
 						"lookup_execution_blocked_cfd_ready",
-						support(executionBlockedLookup, readyCfd,
+						support(executionBlockedLookup, readyCfd, readyQuality,
 								"synthetic-lookup-execution-blocked-cfd-ready")),
 				new OpenFoamLookupSupportScenario(
 						"lookup_ready_cfd_results_missing",
-						support(acceptedLookup, missingCfd, "synthetic-lookup-ready-cfd-results-missing")),
+						support(acceptedLookup, missingCfd, readyQuality,
+								"synthetic-lookup-ready-cfd-results-missing")),
 				new OpenFoamLookupSupportScenario(
 						"cfd_ready_lookup_acceptance_failed",
-						support(failedLookup, readyCfd, "synthetic-cfd-ready-lookup-acceptance-failed")),
+						support(failedLookup, readyCfd, readyQuality,
+								"synthetic-cfd-ready-lookup-acceptance-failed")),
 				new OpenFoamLookupSupportScenario(
 						"lookup_ready_cfd_residual_failed",
-						support(acceptedLookup, failedCfd, "synthetic-lookup-ready-cfd-residual-failed")),
+						support(acceptedLookup, failedCfd, readyQuality,
+								"synthetic-lookup-ready-cfd-residual-failed")),
 				new OpenFoamLookupSupportScenario(
 						"lookup_and_cfd_ready",
-						support(acceptedLookup, readyCfd, "synthetic-lookup-and-cfd-support-ready"))
+						support(acceptedLookup, readyCfd, readyQuality,
+								"synthetic-lookup-and-cfd-support-ready"))
 		);
 		return new CtCpJOpenFoamLookupSupportGateAudit(
 				SOURCE_ID,
@@ -141,6 +153,7 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 	public static OpenFoamLookupSupportSummary support(
 			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary lookup,
 			PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultContractSummary cfd,
+			PropellerArchiveCtCpJOpenFoamSolverQualityContract.OpenFoamSolverQualitySummary solverQuality,
 			String sourceRuntimeInfo
 	) {
 		if (lookup == null) {
@@ -149,11 +162,15 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 		if (cfd == null) {
 			throw new IllegalArgumentException("OpenFOAM result contract summary must not be null.");
 		}
+		if (solverQuality == null) {
+			throw new IllegalArgumentException("OpenFOAM solver quality summary must not be null.");
+		}
 		if (sourceRuntimeInfo == null || sourceRuntimeInfo.isBlank()) {
 			throw new IllegalArgumentException("sourceRuntimeInfo must not be blank.");
 		}
 		boolean ready = lookup.lookupExecutionContractReady()
 				&& lookup.lookupAcceptanceReady()
+				&& solverQuality.openFoamSolverQualityContractReady()
 				&& cfd.openFoamResultContractReady();
 		int geometryUnsupported = lookup.expectedTargetCount() - cfd.expectedOpenFoamResultCaseCount();
 		int supportedTargets = ready ? cfd.expectedOpenFoamResultCaseCount() : 0;
@@ -161,6 +178,7 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 				lookup.lookupAcceptanceReady(),
 				lookup.lookupExecutionContractReady(),
 				cfd.openFoamResultContractReady(),
+				solverQuality.openFoamSolverQualityContractReady(),
 				lookup.expectedTargetCount(),
 				cfd.expectedOpenFoamResultCaseCount(),
 				lookup.passedResultCount(),
@@ -176,7 +194,7 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 				false,
 				false,
 				ready ? "READY" : "BLOCKED",
-				messageFor(lookup, cfd),
+				messageFor(lookup, cfd, solverQuality),
 				sourceRuntimeInfo
 		);
 	}
@@ -197,6 +215,19 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 			PropellerArchiveCtCpJOpenFoamResultContract.CtCpJOpenFoamResultContractAudit audit,
 			String scenarioName
 	) {
+		return audit.scenarios()
+				.stream()
+				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow()
+				.summary();
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamSolverQualityContract.OpenFoamSolverQualitySummary
+			solverQualityContract(
+					PropellerArchiveCtCpJOpenFoamSolverQualityContract.CtCpJOpenFoamSolverQualityContractAudit audit,
+					String scenarioName
+			) {
 		return audit.scenarios()
 				.stream()
 				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
@@ -258,13 +289,17 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 
 	private static String messageFor(
 			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceSummary lookup,
-			PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultContractSummary cfd
+			PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamResultContractSummary cfd,
+			PropellerArchiveCtCpJOpenFoamSolverQualityContract.OpenFoamSolverQualitySummary solverQuality
 	) {
 		if ("lookup-execution-contract-blocked".equals(lookup.message())) {
 			return "lookup-execution-contract-not-ready";
 		}
 		if (!lookup.lookupAcceptanceReady()) {
 			return "lookup-acceptance-not-ready";
+		}
+		if (!solverQuality.openFoamSolverQualityContractReady()) {
+			return "openfoam-solver-quality-not-ready";
 		}
 		if (!cfd.openFoamResultContractReady()) {
 			if (cfd.missingResultCount() > 0) {

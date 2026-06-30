@@ -164,6 +164,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 				true,
 				true,
 				true,
+				true,
 				9,
 				6,
 				9,
