@@ -24,8 +24,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 				"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-State-Normalized-Blackbox-Acceptance-Gate-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("free-flight blackbox acceptance"));
-		assertEquals(39, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
+		assertEquals(40, audit.packetRowCount());
+		assertEquals(9, audit.sourceReferenceRowCount());
 		assertEquals(8, audit.resultRowCount());
 		assertEquals(22, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
@@ -51,15 +51,16 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertFalse(blackboxSpeed.freeFlightRegressionPassed());
 		assertTrue(blackboxSpeed.stateNormalizedEvidenceApplied());
 		assertEquals(0.0, blackboxSpeed.stateNormalizedPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.0, blackboxSpeed.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.013686714746046484,
+				blackboxSpeed.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0, blackboxSpeed.stateNormalizedPhysicalConstraintViolationCount());
 		assertEquals(0.02, blackboxSpeed.maxAllowedPrimaryErrorRatio(), 1.0e-12);
 		assertEquals(0.04, blackboxSpeed.maxAllowedSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.9821409270762219, blackboxSpeed.contractThrustRatio(), 1.0e-12);
-		assertEquals(0.9852557943006115, blackboxSpeed.heldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.005472892263486129,
+		assertEquals(0.9684542123301755, blackboxSpeed.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.013359097728271263,
 				blackboxSpeed.heldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.8716430296864199, blackboxSpeed.heldResidualReductionRatio(), 1.0e-12);
+		assertEquals(0.8867411688313701, blackboxSpeed.heldResidualReductionRatio(), 1.0e-12);
 		assertEquals(0.0, blackboxSpeed.heldStateVelocityDeltaMetersPerSecond(), 1.0e-12);
 		assertTrue(blackboxSpeed.stateNormalizedRegressionPassed());
 		assertTrue(blackboxSpeed.freeFlightAcceptanceStillBlocked());
@@ -79,9 +80,12 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxAcceptanceGate
 								.row("racingQuad", "cold_air_forward_punchout_margin");
 		assertTrue(racingForward.freeFlightRegressionPassed());
-		assertFalse(racingForward.stateNormalizedEvidenceApplied());
-		assertEquals(0.020144608176940988,
+		assertTrue(racingForward.stateNormalizedEvidenceApplied());
+		assertEquals(0.021957819779317794,
 				racingForward.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.9220453781024795, racingForward.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.0038020388191628562,
+				racingForward.heldResidualThrustDeficitRatio(), 1.0e-12);
 		assertTrue(racingForward.stateNormalizedRegressionPassed());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxAcceptanceGate
@@ -89,20 +93,20 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(8, summary.rowCount());
 		assertEquals(7, summary.freeFlightPassedRowCount());
 		assertEquals(1, summary.freeFlightFailedRowCount());
-		assertEquals(1, summary.stateNormalizedEvidenceAppliedRowCount());
+		assertEquals(2, summary.stateNormalizedEvidenceAppliedRowCount());
 		assertEquals(8, summary.stateNormalizedPassedRowCount());
 		assertEquals(0, summary.stateNormalizedFailedRowCount());
 		assertEquals(0, summary.stateNormalizedPhysicalConstraintViolationCount());
 		assertEquals(0.1208445699538298, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.020144608176940988,
+		assertEquals(0.021957819779317794,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.005472892263486129,
+		assertEquals(0.013359097728271263,
 				summary.maxHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.9852557943006115,
+		assertEquals(0.9684542123301755,
 				summary.blackboxSpeedHeldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.005472892263486129,
+		assertEquals(0.013359097728271263,
 				summary.blackboxSpeedHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.8716430296864199,
+		assertEquals(0.8867411688313701,
 				summary.blackboxSpeedResidualReductionRatio(), 1.0e-12);
 		assertFalse(summary.currentFreeFlightBlackboxAcceptanceReady());
 		assertTrue(summary.stateNormalizedLabAcceptanceReady());
@@ -141,7 +145,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_blackbox_acceptance_summary,all,all,all,all,manual_control_hook_review_allowed,false,bool,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_blackbox_acceptance_method,all,all,all,all,method,state-normalized-forward-punchout-substitutes-only-failed-lab-case,text,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_blackbox_acceptance_method,all,all,all,all,method,state-normalized-forward-punchout-result-review-feeds-forward-rows,text,")));
 	}
 
 	private static Path findRepoRoot() {

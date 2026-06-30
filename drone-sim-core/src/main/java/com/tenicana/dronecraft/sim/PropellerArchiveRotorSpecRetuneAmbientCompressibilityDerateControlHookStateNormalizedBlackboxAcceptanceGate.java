@@ -6,8 +6,8 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-RotorSpec-Retune-Ambient-Compressibility-Derate-Control-Hook-State-Normalized-Blackbox-Acceptance-Gate-Packet";
 	public static final String CAVEAT =
-			"State-normalized blackbox acceptance gate applies the held-kinematics APDrone punchout evidence only to the failed cold-air forward-punchout lab result; free-flight blackbox acceptance, manual control-hook review, runtime coupling, playable export, and gameplay auto-apply remain closed.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+			"State-normalized blackbox acceptance gate applies direct held-kinematics forward-punchout regression results to the cold-air forward-punchout lab rows; free-flight blackbox acceptance, manual control-hook review, runtime coupling, playable export, and gameplay auto-apply remain closed.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
 	public static final int RESULT_ROW_COUNT =
 			PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlContract.CONTRACT_ROW_COUNT
 					* PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
@@ -163,10 +163,13 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		double contractThrustRatio = 1.0 - contract.equivalentMaxThrustLossPercent() / 100.0;
 		boolean evidenceApplied = "apDrone".equals(result.presetName())
 				&& "cold_air_forward_punchout_margin".equals(result.regressionCaseName());
-		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedPunchoutDiagnostic
-				.StateNormalizedPunchoutRow normalized = evidenceApplied
-						? PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedPunchoutDiagnostic
-								.row(22.0)
+		boolean forwardPunchout = PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxResultReview
+				.REGRESSION_CASE_NAME
+				.equals(result.regressionCaseName());
+		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxResultReview
+				.StateNormalizedBlackboxResultReviewRow normalized = forwardPunchout
+						? PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxResultReview
+								.row(result.presetName(), result.regressionCaseName())
 						: null;
 		double normalizedPrimary = result.primaryErrorRatio();
 		double normalizedSecondary = result.secondaryErrorRatio();
@@ -178,10 +181,14 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		if (normalized != null) {
 			heldObserved = normalized.heldObservedThrustRatio();
 			heldResidual = normalized.heldResidualThrustDeficitRatio();
-			heldReduction = normalized.heldResidualReductionRatio();
+			heldReduction = normalized.freeFlightSecondaryErrorRatio() > 0.0
+					? (normalized.freeFlightSecondaryErrorRatio() - normalized.stateNormalizedSecondaryErrorRatio())
+							/ normalized.freeFlightSecondaryErrorRatio()
+					: 0.0;
 			heldStateDelta = normalized.heldStateVelocityDeltaMetersPerSecond();
-			normalizedSecondary = Math.max(0.0, contractThrustRatio - heldObserved);
-			normalizedViolations = normalizedViolationCount(result, normalizedSecondary, normalized);
+			normalizedPrimary = normalized.stateNormalizedPrimaryErrorRatio();
+			normalizedSecondary = normalized.stateNormalizedSecondaryErrorRatio();
+			normalizedViolations = normalized.stateNormalizedPhysicalConstraintViolationCount();
 		}
 		boolean normalizedPassed = result.sampleCount() >= result.minSampleCount()
 				&& normalizedPrimary <= result.maxAllowedPrimaryErrorRatio()
@@ -201,7 +208,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 				result.secondaryErrorRatio(),
 				result.physicalConstraintViolationCount(),
 				result.blackboxRegressionPassed(),
-				evidenceApplied,
+				normalized != null,
 				normalizedPrimary,
 				normalizedSecondary,
 				normalizedViolations,
@@ -285,7 +292,8 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 		}
 		boolean labReady = !rows.isEmpty()
 				&& normalizedPassed == rows.size()
-				&& evidence == 1
+				&& evidence == PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxResultReview
+						.RESULT_ROW_COUNT
 				&& violations == 0
 				&& !currentFreeFlightReady;
 		return new StateNormalizedBlackboxAcceptanceSummary(
@@ -321,11 +329,11 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			boolean freeFlightPassed,
 			boolean normalizedPassed
 	) {
-		if (evidenceApplied && normalizedPassed) {
-			return "state-normalized-forward-punchout-clears-lab-margin-but-free-flight-acceptance-stays-blocked";
-		}
 		if (freeFlightPassed && normalizedPassed) {
 			return "free-flight-blackbox-result-already-passed";
+		}
+		if (evidenceApplied && normalizedPassed) {
+			return "state-normalized-forward-punchout-clears-lab-margin-but-free-flight-acceptance-stays-blocked";
 		}
 		return "state-normalized-blackbox-result-blocked";
 	}
