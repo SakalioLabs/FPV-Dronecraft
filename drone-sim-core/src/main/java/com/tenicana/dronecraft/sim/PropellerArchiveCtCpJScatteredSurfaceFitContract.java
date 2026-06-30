@@ -14,7 +14,7 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 	public static final int FIT_FIELD_ROW_COUNT = 15;
 	public static final int TARGET_ROW_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SUMMARY_ROW_COUNT = 14;
+	public static final int SUMMARY_ROW_COUNT = 18;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ FIT_FIELD_ROW_COUNT
@@ -87,6 +87,10 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 			int availableNonstaticNeighborRows,
 			boolean directNeighborBindingReady,
 			boolean scatteredFitRequired,
+			boolean archiveCurveShapeGuardPassed,
+			int negativeThrustTailRowCount,
+			double archiveMaxEtaFormulaResidual,
+			double archiveMaxCtIncrease,
 			boolean postReviewFullSimulationLookupAllowed,
 			String nextRequiredAction
 	) {
@@ -122,10 +126,14 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 			int failedResultCount,
 			int readyFullSimulationTargetCount,
 			int readyPerformanceOnlyTargetCount,
+			int archiveCurveShapeGuardReadyTargetCount,
+			int negativeThrustTailTargetCount,
 			double maxStaticAnchorResidual,
 			double maxCtHoldoutResidual,
 			double maxCpHoldoutResidual,
 			double maxEtaConsistencyResidual,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			boolean scatteredSurfaceFitContractReady,
 			boolean runtimeCouplingAllowed,
 			boolean gameplayAutoApplyAllowed,
@@ -347,11 +355,23 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 		int failed = 0;
 		int fullReady = 0;
 		int performanceOnlyReady = 0;
+		int shapeReady = 0;
+		int negativeTail = 0;
 		double maxStatic = 0.0;
 		double maxCt = 0.0;
 		double maxCp = 0.0;
 		double maxEta = 0.0;
+		double maxArchiveEta = 0.0;
+		double maxArchiveCtIncrease = 0.0;
 		for (ScatteredSurfaceFitTarget target : targets) {
+			if (target.archiveCurveShapeGuardPassed()) {
+				shapeReady++;
+			}
+			if (target.negativeThrustTailRowCount() > 0) {
+				negativeTail++;
+			}
+			maxArchiveEta = Math.max(maxArchiveEta, target.archiveMaxEtaFormulaResidual());
+			maxArchiveCtIncrease = Math.max(maxArchiveCtIncrease, target.archiveMaxCtIncrease());
 			ScatteredSurfaceFitResult result = findResult(results, target.presetName(), target.caseName());
 			if (result == null) {
 				missing++;
@@ -374,6 +394,7 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 		}
 		boolean ready = sourceRowsReviewed
 				&& archiveGridCoverageReady
+				&& shapeReady == targets.size()
 				&& scatteredSurfaceFitRun
 				&& missing == 0
 				&& failed == 0
@@ -391,15 +412,20 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 				failed,
 				fullReady,
 				performanceOnlyReady,
+				shapeReady,
+				negativeTail,
 				maxStatic,
 				maxCt,
 				maxCp,
 				maxEta,
+				maxArchiveEta,
+				maxArchiveCtIncrease,
 				ready,
 				false,
 				false,
 				ready ? "READY" : "BLOCKED",
-				messageFor(sourceRowsReviewed, archiveGridCoverageReady, scatteredSurfaceFitRun, missing, failed),
+				messageFor(sourceRowsReviewed, archiveGridCoverageReady, shapeReady, targets.size(),
+						scatteredSurfaceFitRun, missing, failed),
 				sourceRuntimeInfo
 		);
 	}
@@ -407,6 +433,8 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 	private static ScatteredSurfaceFitTarget target(
 			PropellerArchiveCtCpJArchiveLookupGridCoverage.ArchiveLookupGridCoverageRow row
 	) {
+		PropellerArchiveCtCpJArchiveCurveShapeReview.ArchiveCurveShapeRow shape =
+				PropellerArchiveCtCpJArchiveCurveShapeReview.row(row.presetName());
 		return new ScatteredSurfaceFitTarget(
 				row.presetName(),
 				row.caseName(),
@@ -418,11 +446,25 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 				row.availableNonstaticNeighborRows(),
 				row.reviewedNeighborBindingReady(),
 				row.scatteredFitRequired(),
+				shape.shapeGuardPassed(),
+				shape.negativeThrustTailRowCount(),
+				shape.maxEtaFormulaResidual(),
+				shape.maxCtIncrease(),
 				row.postReviewFullSimulationLookupAllowed(),
-				row.reviewedNeighborBindingReady()
-						? "ready-for-reviewed-neighbor-binding"
-						: NEXT_REQUIRED_ACTION
+				nextRequiredActionFor(row, shape)
 		);
+	}
+
+	private static String nextRequiredActionFor(
+			PropellerArchiveCtCpJArchiveLookupGridCoverage.ArchiveLookupGridCoverageRow row,
+			PropellerArchiveCtCpJArchiveCurveShapeReview.ArchiveCurveShapeRow shape
+	) {
+		if (!shape.shapeGuardPassed()) {
+			return shape.nextRequiredAction();
+		}
+		return row.reviewedNeighborBindingReady()
+				? "ready-for-reviewed-neighbor-binding"
+				: NEXT_REQUIRED_ACTION;
 	}
 
 	private static ScatteredSurfaceFitResult passingDirectResult(ScatteredSurfaceFitTarget target) {
@@ -509,6 +551,8 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 	private static String messageFor(
 			boolean sourceRowsReviewed,
 			boolean archiveGridCoverageReady,
+			int archiveCurveShapeGuardReadyTargetCount,
+			int expectedTargetCount,
 			boolean scatteredSurfaceFitRun,
 			int missing,
 			int failed
@@ -518,6 +562,9 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 		}
 		if (!archiveGridCoverageReady) {
 			return "archive-grid-coverage-not-ready";
+		}
+		if (archiveCurveShapeGuardReadyTargetCount < expectedTargetCount) {
+			return "archive-curve-shape-guard-not-ready";
 		}
 		if (!scatteredSurfaceFitRun) {
 			return "scattered-surface-fit-not-run";
