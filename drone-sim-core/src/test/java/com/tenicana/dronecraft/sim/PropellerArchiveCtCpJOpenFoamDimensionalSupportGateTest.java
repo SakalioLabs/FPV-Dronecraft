@@ -143,6 +143,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		return new PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary(
 				true,
 				true,
+				true,
 				9,
 				6,
 				9,

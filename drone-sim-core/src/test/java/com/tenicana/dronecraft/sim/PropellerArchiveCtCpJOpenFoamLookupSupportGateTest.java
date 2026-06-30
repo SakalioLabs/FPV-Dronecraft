@@ -21,17 +21,19 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Lookup-Support-Gate-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("cannot replace wind-tunnel acceptance"));
-		assertEquals(114, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
-		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(19, audit.scenarioMetricRowCount());
-		assertEquals(11, audit.summaryRowCount());
+		assertTrue(audit.caveat().contains("handoff-aware CT/CP/J lookup execution"));
+		assertEquals(141, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
+		assertEquals(6, audit.scenarioSampleCount());
+		assertEquals(20, audit.scenarioMetricRowCount());
+		assertEquals(12, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(5, audit.scenarios().size());
+		assertEquals(6, audit.scenarios().size());
 
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary current =
 				scenario(audit, "current_lookup_and_cfd_blocked").summary();
 		assertFalse(current.lookupAcceptanceReady());
+		assertFalse(current.lookupExecutionContractReady());
 		assertFalse(current.openFoamResultContractReady());
 		assertEquals(9, current.expectedLookupTargetCount());
 		assertEquals(6, current.expectedOpenFoamResultCaseCount());
@@ -41,9 +43,18 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals(3, current.cfdGeometryUnsupportedLookupTargetCount());
 		assertEquals("lookup-acceptance-not-ready", current.message());
 
+		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary executionBlocked =
+				scenario(audit, "lookup_execution_blocked_cfd_ready").summary();
+		assertFalse(executionBlocked.lookupAcceptanceReady());
+		assertFalse(executionBlocked.lookupExecutionContractReady());
+		assertTrue(executionBlocked.openFoamResultContractReady());
+		assertEquals(0, executionBlocked.cfdSupportedLookupTargetCount());
+		assertEquals("lookup-execution-contract-not-ready", executionBlocked.message());
+
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary missing =
 				scenario(audit, "lookup_ready_cfd_results_missing").summary();
 		assertTrue(missing.lookupAcceptanceReady());
+		assertTrue(missing.lookupExecutionContractReady());
 		assertFalse(missing.openFoamResultContractReady());
 		assertEquals(9, missing.acceptedLookupTargetCount());
 		assertEquals(6, missing.cfdMissingResultCount());
@@ -52,6 +63,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary lookupFailed =
 				scenario(audit, "cfd_ready_lookup_acceptance_failed").summary();
 		assertFalse(lookupFailed.lookupAcceptanceReady());
+		assertTrue(lookupFailed.lookupExecutionContractReady());
 		assertTrue(lookupFailed.openFoamResultContractReady());
 		assertEquals(8, lookupFailed.acceptedLookupTargetCount());
 		assertEquals(1, lookupFailed.failedLookupTargetCount());
@@ -60,6 +72,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary cfdFailed =
 				scenario(audit, "lookup_ready_cfd_residual_failed").summary();
 		assertTrue(cfdFailed.lookupAcceptanceReady());
+		assertTrue(cfdFailed.lookupExecutionContractReady());
 		assertFalse(cfdFailed.openFoamResultContractReady());
 		assertEquals(1, cfdFailed.cfdFailedResultCount());
 		assertEquals("openfoam-residual-gate-failed", cfdFailed.message());
@@ -67,6 +80,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary ready =
 				scenario(audit, "lookup_and_cfd_ready").summary();
 		assertTrue(ready.lookupAcceptanceReady());
+		assertTrue(ready.lookupExecutionContractReady());
 		assertTrue(ready.openFoamResultContractReady());
 		assertTrue(ready.cfdLookupSupportReady());
 		assertEquals(6, ready.cfdSupportedLookupTargetCount());
@@ -76,9 +90,10 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertFalse(ready.gameplayAutoApplyAllowed());
 		assertEquals("openfoam-lookup-support-ready", ready.message());
 
-		assertEquals(5, audit.extrema().scenarioCount());
+		assertEquals(6, audit.extrema().scenarioCount());
 		assertEquals(1, audit.extrema().readyScenarioCount());
-		assertEquals(4, audit.extrema().blockedScenarioCount());
+		assertEquals(5, audit.extrema().blockedScenarioCount());
+		assertEquals(1, audit.extrema().lookupExecutionBlockedScenarioCount());
 		assertEquals(9, audit.extrema().maxAcceptedLookupTargetCount());
 		assertEquals(6, audit.extrema().maxCfdSupportedLookupTargetCount());
 		assertEquals(3, audit.extrema().maxCfdGeometryUnsupportedLookupTargetCount());
@@ -124,9 +139,13 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,cfd_missing_result_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_execution_blocked_cfd_ready,lookup_execution_contract_ready,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_and_cfd_ready,cfd_lookup_support_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_and_cfd_ready,reference_export_authority_allowed,false,boolean,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,lookup_execution_blocked_scenario_count,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_cfd_supported_lookup_target_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
