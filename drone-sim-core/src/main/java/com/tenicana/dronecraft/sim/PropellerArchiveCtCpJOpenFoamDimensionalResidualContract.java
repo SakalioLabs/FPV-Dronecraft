@@ -16,7 +16,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
 	public static final int RESULT_FIELD_ROW_COUNT = 23;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SUMMARY_ROW_COUNT = 12;
+	public static final int SUMMARY_ROW_COUNT = 16;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ RESULT_FIELD_ROW_COUNT
@@ -138,6 +138,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			boolean externalDimensionalExtractionReady,
 			int expectedDimensionalReferenceCount,
 			int readyDimensionalReferenceCount,
+			int archiveCurveShapeGuardInheritedReferenceCount,
+			int negativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int expectedOpenFoamDimensionalResultCaseCount,
 			int observedResultCount,
 			int missingResultCount,
@@ -174,6 +178,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			int blockedScenarioCount,
 			int maxExpectedOpenFoamDimensionalResultCaseCount,
 			int maxReadyDimensionalReferenceCount,
+			int maxArchiveCurveShapeGuardInheritedReferenceCount,
+			int maxNegativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			int maxMissingResultCount,
 			int maxFailedResultCount,
 			double maxThrustResidualToReference,
@@ -211,13 +219,19 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		List<OpenFoamDimensionalCompactResult> passingResults = passingResults(targets);
 		List<OpenFoamDimensionalCompactResult> failedResults = new ArrayList<>(passingResults);
 		failedResults.set(1, failingResult(targets.get(1)));
-		int currentDimensionalReadyCount =
-				PropellerArchiveCtCpJDimensionalRotorResponse.audit().summary().readyScenarioCount();
+		PropellerArchiveCtCpJDimensionalRotorResponse.DimensionalResponseSummary dimensionalSummary =
+				PropellerArchiveCtCpJDimensionalRotorResponse.audit().summary();
+		int currentDimensionalReadyCount = dimensionalSummary.readyScenarioCount();
 		int expectedCount = targets.size();
 		List<OpenFoamDimensionalResidualScenario> scenarios = List.of(
 				new OpenFoamDimensionalResidualScenario(
 						"current_dimensional_and_openfoam_blocked",
-						review(false, currentDimensionalReadyCount, false, false, List.of(),
+						review(false, currentDimensionalReadyCount,
+								dimensionalSummary.archiveCurveShapeGuardInheritedReadyCount(),
+								dimensionalSummary.maxNegativeThrustTailExecutionInputRowCount(),
+								dimensionalSummary.maxArchiveCurveEtaFormulaResidual(),
+								dimensionalSummary.maxArchiveCurveCtIncrease(),
+								false, false, List.of(),
 								"current-openfoam-dimensional-residual-blocked")),
 				new OpenFoamDimensionalResidualScenario(
 						"dimensional_reference_ready_openfoam_si_missing",
@@ -225,7 +239,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 								"synthetic-dimensional-reference-ready-openfoam-si-missing")),
 				new OpenFoamDimensionalResidualScenario(
 						"openfoam_si_ready_dimensional_reference_missing",
-						review(false, currentDimensionalReadyCount, true, true, passingResults,
+						review(false, currentDimensionalReadyCount,
+								dimensionalSummary.archiveCurveShapeGuardInheritedReadyCount(),
+								dimensionalSummary.maxNegativeThrustTailExecutionInputRowCount(),
+								dimensionalSummary.maxArchiveCurveEtaFormulaResidual(),
+								dimensionalSummary.maxArchiveCurveCtIncrease(),
+								true, true, passingResults,
 								"synthetic-openfoam-si-ready-dimensional-reference-missing")),
 				new OpenFoamDimensionalResidualScenario(
 						"dimensional_and_openfoam_si_residual_failed",
@@ -365,8 +384,40 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			List<OpenFoamDimensionalCompactResult> results,
 			String sourceRuntimeInfo
 	) {
+		return review(dimensionalResponseReferenceReady, readyDimensionalReferenceCount,
+				readyDimensionalReferenceCount, 0, 0.0, 0.0,
+				openFoamCoefficientResultReady, externalDimensionalExtractionReady, results,
+				sourceRuntimeInfo);
+	}
+
+	public static OpenFoamDimensionalResidualSummary review(
+			boolean dimensionalResponseReferenceReady,
+			int readyDimensionalReferenceCount,
+			int archiveCurveShapeGuardInheritedReferenceCount,
+			int negativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
+			boolean openFoamCoefficientResultReady,
+			boolean externalDimensionalExtractionReady,
+			List<OpenFoamDimensionalCompactResult> results,
+			String sourceRuntimeInfo
+	) {
 		if (readyDimensionalReferenceCount < 0) {
 			throw new IllegalArgumentException("readyDimensionalReferenceCount must be nonnegative.");
+		}
+		if (archiveCurveShapeGuardInheritedReferenceCount < 0) {
+			throw new IllegalArgumentException(
+					"archiveCurveShapeGuardInheritedReferenceCount must be nonnegative.");
+		}
+		if (negativeThrustTailReferenceCount < 0) {
+			throw new IllegalArgumentException("negativeThrustTailReferenceCount must be nonnegative.");
+		}
+		if (!Double.isFinite(maxArchiveCurveEtaFormulaResidual) || maxArchiveCurveEtaFormulaResidual < 0.0) {
+			throw new IllegalArgumentException(
+					"maxArchiveCurveEtaFormulaResidual must be finite and nonnegative.");
+		}
+		if (!Double.isFinite(maxArchiveCurveCtIncrease) || maxArchiveCurveCtIncrease < 0.0) {
+			throw new IllegalArgumentException("maxArchiveCurveCtIncrease must be finite and nonnegative.");
 		}
 		if (results == null) {
 			throw new IllegalArgumentException("results must not be null.");
@@ -428,8 +479,14 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			maxConvergence = Math.max(maxConvergence, result.solverConvergenceResidual());
 		}
 		int expectedCount = targets.size();
-		boolean dimensionalReady = dimensionalResponseReferenceReady
+		boolean referenceCountReady = dimensionalResponseReferenceReady
 				&& readyDimensionalReferenceCount >= expectedCount;
+		boolean shapeGuardReady = archiveCurveShapeGuardInheritedReferenceCount >= expectedCount
+				&& maxArchiveCurveEtaFormulaResidual
+						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL
+				&& maxArchiveCurveCtIncrease
+						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE;
+		boolean dimensionalReady = referenceCountReady && shapeGuardReady;
 		boolean allPresent = missing == 0 && unexpected == 0 && results.size() == expectedCount;
 		boolean allPassed = failed == 0 && passed == expectedCount;
 		boolean ready = dimensionalReady
@@ -443,6 +500,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				externalDimensionalExtractionReady,
 				expectedCount,
 				readyDimensionalReferenceCount,
+				archiveCurveShapeGuardInheritedReferenceCount,
+				negativeThrustTailReferenceCount,
+				maxArchiveCurveEtaFormulaResidual,
+				maxArchiveCurveCtIncrease,
 				expectedCount,
 				results.size(),
 				missing,
@@ -462,7 +523,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				false,
 				false,
 				ready ? "READY" : "BLOCKED",
-				messageFor(dimensionalReady, openFoamCoefficientResultReady,
+				messageFor(referenceCountReady, shapeGuardReady, openFoamCoefficientResultReady,
 						externalDimensionalExtractionReady, allPresent, allPassed),
 				sourceRuntimeInfo
 		);
@@ -627,8 +688,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		int ready = 0;
 		int maxExpected = 0;
 		int maxReferences = 0;
+		int maxShapeInherited = 0;
+		int maxNegativeTail = 0;
 		int maxMissing = 0;
 		int maxFailed = 0;
+		double maxArchiveEta = 0.0;
+		double maxArchiveCt = 0.0;
 		double maxThrust = 0.0;
 		double maxPower = 0.0;
 		double maxTorque = 0.0;
@@ -643,6 +708,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			}
 			maxExpected = Math.max(maxExpected, summary.expectedOpenFoamDimensionalResultCaseCount());
 			maxReferences = Math.max(maxReferences, summary.readyDimensionalReferenceCount());
+			maxShapeInherited = Math.max(maxShapeInherited,
+					summary.archiveCurveShapeGuardInheritedReferenceCount());
+			maxNegativeTail = Math.max(maxNegativeTail, summary.negativeThrustTailReferenceCount());
+			maxArchiveEta = Math.max(maxArchiveEta, summary.maxArchiveCurveEtaFormulaResidual());
+			maxArchiveCt = Math.max(maxArchiveCt, summary.maxArchiveCurveCtIncrease());
 			maxMissing = Math.max(maxMissing, summary.missingResultCount());
 			maxFailed = Math.max(maxFailed, summary.failedResultCount());
 			maxThrust = Math.max(maxThrust, summary.maxThrustResidualToReference());
@@ -663,6 +733,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				scenarios.size() - ready,
 				maxExpected,
 				maxReferences,
+				maxShapeInherited,
+				maxNegativeTail,
+				maxArchiveEta,
+				maxArchiveCt,
 				maxMissing,
 				maxFailed,
 				maxThrust,
@@ -676,14 +750,18 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	}
 
 	private static String messageFor(
-			boolean dimensionalReady,
+			boolean referenceCountReady,
+			boolean shapeGuardReady,
 			boolean openFoamCoefficientResultReady,
 			boolean externalDimensionalExtractionReady,
 			boolean allPresent,
 			boolean allPassed
 	) {
-		if (!dimensionalReady) {
+		if (!referenceCountReady) {
 			return "dimensional-response-reference-not-ready";
+		}
+		if (!shapeGuardReady) {
+			return "dimensional-reference-shape-guard-not-ready";
 		}
 		if (!openFoamCoefficientResultReady) {
 			return "openfoam-coefficient-result-contract-not-ready";

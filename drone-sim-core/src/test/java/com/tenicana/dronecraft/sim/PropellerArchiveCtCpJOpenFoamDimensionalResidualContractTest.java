@@ -29,11 +29,11 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Residual-Contract-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("SI thrust"));
-		assertEquals(48, audit.packetRowCount());
+		assertEquals(52, audit.packetRowCount());
 		assertEquals(7, audit.sourceReferenceRowCount());
 		assertEquals(23, audit.resultFieldRowCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(12, audit.summaryRowCount());
+		assertEquals(16, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(23, audit.fields().size());
 		assertEquals(5, audit.scenarios().size());
@@ -45,6 +45,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		assertFalse(current.externalDimensionalExtractionReady());
 		assertEquals(6, current.expectedDimensionalReferenceCount());
 		assertEquals(2, current.readyDimensionalReferenceCount());
+		assertEquals(2, current.archiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(9, current.negativeThrustTailReferenceCount());
+		assertTrue(current.maxArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(current.maxArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(6, current.expectedOpenFoamDimensionalResultCaseCount());
 		assertEquals(6, current.missingResultCount());
 		assertEquals("dimensional-response-reference-not-ready", current.message());
@@ -52,6 +58,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalResidualSummary missing =
 				scenario(audit, "dimensional_reference_ready_openfoam_si_missing").summary();
 		assertTrue(missing.dimensionalResponseReferenceReady());
+		assertEquals(6, missing.archiveCurveShapeGuardInheritedReferenceCount());
 		assertTrue(missing.openFoamCoefficientResultReady());
 		assertTrue(missing.externalDimensionalExtractionReady());
 		assertEquals(6, missing.readyDimensionalReferenceCount());
@@ -61,6 +68,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalResidualSummary dimMissing =
 				scenario(audit, "openfoam_si_ready_dimensional_reference_missing").summary();
 		assertFalse(dimMissing.dimensionalResponseReferenceReady());
+		assertEquals(2, dimMissing.archiveCurveShapeGuardInheritedReferenceCount());
 		assertEquals(6, dimMissing.observedResultCount());
 		assertEquals(6, dimMissing.passedResultCount());
 		assertFalse(dimMissing.openFoamDimensionalResidualReady());
@@ -96,6 +104,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		assertEquals(4, audit.extrema().blockedScenarioCount());
 		assertEquals(6, audit.extrema().maxExpectedOpenFoamDimensionalResultCaseCount());
 		assertEquals(6, audit.extrema().maxReadyDimensionalReferenceCount());
+		assertEquals(6, audit.extrema().maxArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(9, audit.extrema().maxNegativeThrustTailReferenceCount());
+		assertTrue(audit.extrema().maxArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(audit.extrema().maxArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(6, audit.extrema().maxMissingResultCount());
 		assertEquals(1, audit.extrema().maxFailedResultCount());
 		assertEquals(0.075, audit.extrema().maxInducedVelocityResidualToReference(), 1.0e-12);
@@ -215,6 +229,15 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.review(
 						true, 6, true, true, List.of(result, result), "source"));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.review(
+						true, 6, -1, 0, 0.0, 0.0, true, true, List.of(result), "source"));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.review(
+						true, 6, 6, -1, 0.0, 0.0, true, true, List.of(result), "source"));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.review(
+						true, 6, 6, 0, Double.NaN, 0.0, true, true, List.of(result), "source"));
 	}
 
 	@Test
@@ -234,6 +257,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_scenario,dimensional_and_openfoam_si_ready,READY,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_summary,all_scenarios,ready_scenario_count,,1,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_summary,all_scenarios,max_archive_curve_shape_guard_inherited_reference_count,,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_residual_summary,all_scenarios,runtime_coupling_allowed_count,,0,count,")));
 	}
