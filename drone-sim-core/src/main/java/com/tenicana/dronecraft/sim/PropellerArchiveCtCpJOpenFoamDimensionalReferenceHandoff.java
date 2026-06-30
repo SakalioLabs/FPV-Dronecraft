@@ -7,11 +7,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Handoff-Packet";
 	public static final String CAVEAT =
 			"OpenFOAM dimensional reference handoff defines the reviewed payload shape after handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, solver-quality QA, and SI residual support; it exports no current references and never enables runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 11;
 	public static final int REFERENCE_FIELD_ROW_COUNT = 17;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 21;
-	public static final int SUMMARY_ROW_COUNT = 11;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 23;
+	public static final int SUMMARY_ROW_COUNT = 13;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_FIELD_ROW_COUNT
@@ -79,6 +79,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			boolean lookupSupportReady,
 			boolean dimensionalResidualReady,
 			boolean openFoamSolverQualityContractReady,
+			int openFoamSolverQualityBlockerCount,
+			String openFoamSolverQualityNextRequiredAction,
 			int expectedReferenceRowCount,
 			int expectedReferenceFieldCount,
 			int observedReferenceFieldCount,
@@ -113,6 +115,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			int maxBlockedDimensionalTargetCount,
 			int maxObservedReferenceFieldCount,
 			int maxReferenceRowAvailableCount,
+			int maxOpenFoamSolverQualityBlockerCount,
+			int openFoamSolverQualityBlockerScenarioCount,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount
 	) {
@@ -231,6 +235,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				support.lookupSupportReady(),
 				support.dimensionalResidualReady(),
 				support.openFoamSolverQualityContractReady(),
+				support.openFoamSolverQualityBlockerCount(),
+				support.openFoamSolverQualityNextRequiredAction(),
 				expectedRows,
 				REFERENCE_FIELD_ROW_COUNT,
 				observedFields,
@@ -271,6 +277,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 		int maxBlocked = 0;
 		int maxFields = 0;
 		int maxRowsAvailable = 0;
+		int maxQualityBlockers = 0;
+		int qualityBlocked = 0;
 		int runtime = 0;
 		int gameplay = 0;
 		for (OpenFoamDimensionalReferenceHandoffScenario scenario : scenarios) {
@@ -288,6 +296,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 			maxFields = Math.max(maxFields, summary.observedReferenceFieldCount());
 			maxRowsAvailable = Math.max(maxRowsAvailable,
 					summary.openFoamDimensionalReferenceRowAvailableCount());
+			maxQualityBlockers = Math.max(maxQualityBlockers,
+					summary.openFoamSolverQualityBlockerCount());
+			if (summary.openFoamSolverQualityBlockerCount() > 0) {
+				qualityBlocked++;
+			}
 			if (summary.runtimeCouplingAllowed()) {
 				runtime++;
 			}
@@ -305,6 +318,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff {
 				maxBlocked,
 				maxFields,
 				maxRowsAvailable,
+				maxQualityBlockers,
+				qualityBlocked,
 				runtime,
 				gameplay
 		);

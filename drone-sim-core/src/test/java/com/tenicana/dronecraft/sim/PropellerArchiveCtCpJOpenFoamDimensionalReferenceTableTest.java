@@ -27,10 +27,10 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertTrue(audit.caveat().contains("six geometry-backed SI CFD reference rows"));
 		assertTrue(audit.caveat().contains("solver-quality QA state"));
 		assertTrue(audit.caveat().contains("zero weights"));
-		assertEquals(32, audit.packetRowCount());
-		assertEquals(9, audit.sourceReferenceRowCount());
+		assertEquals(35, audit.packetRowCount());
+		assertEquals(10, audit.sourceReferenceRowCount());
 		assertEquals(6, audit.referenceRowCount());
-		assertEquals(16, audit.summaryRowCount());
+		assertEquals(18, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(6, audit.rows().size());
 
@@ -39,6 +39,9 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 			assertFalse(row.lookupExecutionContractReady());
 			assertFalse(row.dimensionalSupportReady());
 			assertFalse(row.openFoamSolverQualityContractReady());
+			assertEquals(4, row.openFoamSolverQualityBlockerCount());
+			assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
+					row.openFoamSolverQualityNextRequiredAction());
 			assertFalse(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertFalse(row.openFoamDimensionalReferenceRowAvailable());
@@ -83,6 +86,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals(0, audit.extrema().lookupExecutionContractReadyCount());
 		assertEquals(0, audit.extrema().dimensionalSupportReadyCount());
 		assertEquals(0, audit.extrema().openFoamSolverQualityContractReadyCount());
+		assertEquals(4, audit.extrema().maxOpenFoamSolverQualityBlockerCount());
+		assertEquals(6, audit.extrema().openFoamSolverQualityBlockerRowCount());
 		assertEquals(0, audit.extrema().dimensionalReferenceReviewedCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
@@ -103,6 +108,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals(6, audit.extrema().lookupExecutionContractReadyCount());
 		assertEquals(6, audit.extrema().dimensionalSupportReadyCount());
 		assertEquals(6, audit.extrema().openFoamSolverQualityContractReadyCount());
+		assertEquals(0, audit.extrema().maxOpenFoamSolverQualityBlockerCount());
+		assertEquals(0, audit.extrema().openFoamSolverQualityBlockerRowCount());
 		assertEquals(6, audit.extrema().dimensionalReferenceReviewedCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
@@ -112,6 +119,9 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 			assertTrue(row.lookupExecutionContractReady());
 			assertTrue(row.dimensionalSupportReady());
 			assertTrue(row.openFoamSolverQualityContractReady());
+			assertEquals(0, row.openFoamSolverQualityBlockerCount());
+			assertEquals("openfoam-solver-quality-blockers-clear",
+					row.openFoamSolverQualityNextRequiredAction());
 			assertTrue(row.dimensionalReferenceReviewed());
 			assertTrue(row.referenceMaterialExportAllowed());
 			assertTrue(row.openFoamDimensionalReferenceRowAvailable());
@@ -142,6 +152,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 			assertTrue(row.lookupExecutionContractReady());
 			assertTrue(row.dimensionalSupportReady());
 			assertTrue(row.openFoamSolverQualityContractReady());
+			assertEquals(0, row.openFoamSolverQualityBlockerCount());
 			assertFalse(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertEquals("openfoam-dimensional-reference-review-missing", row.message());
@@ -161,6 +172,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 			assertFalse(row.lookupExecutionContractReady());
 			assertFalse(row.dimensionalSupportReady());
 			assertTrue(row.openFoamSolverQualityContractReady());
+			assertEquals(0, row.openFoamSolverQualityBlockerCount());
 			assertTrue(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertEquals("lookup-execution-contract-not-ready", row.message());
@@ -196,11 +208,15 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference,apDrone,mid_domain_mid_rpm,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.contains("solver_quality_blockers=4;solver_quality_next_action=review-openfoam-mesh-yplus-and-time-step-against-run-setup")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,reference_row_available_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,static_anchor_reference_row_count,2,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,openfoam_solver_quality_contract_ready_count,0,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,max_openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,runtime_coupling_allowed_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

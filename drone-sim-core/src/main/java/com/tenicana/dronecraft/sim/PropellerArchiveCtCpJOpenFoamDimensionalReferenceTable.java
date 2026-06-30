@@ -7,9 +7,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Table-Packet";
 	public static final String CAVEAT =
 			"OpenFOAM dimensional reference table materializes the six geometry-backed SI CFD reference rows after the dimensional reference handoff, while preserving solver-quality QA state; current rows keep zero weights and never enable runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int REFERENCE_ROW_COUNT = 6;
-	public static final int SUMMARY_ROW_COUNT = 16;
+	public static final int SUMMARY_ROW_COUNT = 18;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_ROW_COUNT
@@ -34,6 +34,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			boolean lookupExecutionContractReady,
 			boolean dimensionalSupportReady,
 			boolean openFoamSolverQualityContractReady,
+			int openFoamSolverQualityBlockerCount,
+			String openFoamSolverQualityNextRequiredAction,
 			boolean dimensionalReferenceReviewed,
 			boolean referenceMaterialExportAllowed,
 			boolean openFoamDimensionalReferenceRowAvailable,
@@ -65,6 +67,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			int lookupExecutionContractReadyCount,
 			int dimensionalSupportReadyCount,
 			int openFoamSolverQualityContractReadyCount,
+			int maxOpenFoamSolverQualityBlockerCount,
+			int openFoamSolverQualityBlockerRowCount,
 			int dimensionalReferenceReviewedCount,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
@@ -147,6 +151,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 				handoff.lookupExecutionContractReady(),
 				handoff.dimensionalSupportReady(),
 				handoff.openFoamSolverQualityContractReady(),
+				handoff.openFoamSolverQualityBlockerCount(),
+				handoff.openFoamSolverQualityNextRequiredAction(),
 				handoff.dimensionalReferenceReviewed(),
 				exportAllowed,
 				available,
@@ -194,6 +200,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 		int executionReady = 0;
 		int supportReady = 0;
 		int solverQualityReady = 0;
+		int maxQualityBlockers = 0;
+		int qualityBlocked = 0;
 		int reviewed = 0;
 		int runtime = 0;
 		int gameplay = 0;
@@ -219,6 +227,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			}
 			if (row.openFoamSolverQualityContractReady()) {
 				solverQualityReady++;
+			}
+			maxQualityBlockers = Math.max(maxQualityBlockers, row.openFoamSolverQualityBlockerCount());
+			if (row.openFoamSolverQualityBlockerCount() > 0) {
+				qualityBlocked++;
 			}
 			if (row.dimensionalReferenceReviewed()) {
 				reviewed++;
@@ -247,6 +259,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 				executionReady,
 				supportReady,
 				solverQualityReady,
+				maxQualityBlockers,
+				qualityBlocked,
 				reviewed,
 				runtime,
 				gameplay,

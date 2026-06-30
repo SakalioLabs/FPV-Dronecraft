@@ -24,12 +24,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertTrue(AUDIT.caveat().contains("reviewed payload shape"));
 		assertTrue(AUDIT.caveat().contains("solver-quality QA"));
 		assertTrue(AUDIT.caveat().contains("handoff-aware CT/CP/J lookup execution"));
-		assertEquals(144, AUDIT.packetRowCount());
-		assertEquals(10, AUDIT.sourceReferenceRowCount());
+		assertEquals(157, AUDIT.packetRowCount());
+		assertEquals(11, AUDIT.sourceReferenceRowCount());
 		assertEquals(17, AUDIT.referenceFieldRowCount());
 		assertEquals(5, AUDIT.scenarioSampleCount());
-		assertEquals(21, AUDIT.scenarioMetricRowCount());
-		assertEquals(11, AUDIT.summaryRowCount());
+		assertEquals(23, AUDIT.scenarioMetricRowCount());
+		assertEquals(13, AUDIT.summaryRowCount());
 		assertEquals(1, AUDIT.methodRowCount());
 		assertEquals(17, AUDIT.fields().size());
 		assertEquals(5, AUDIT.scenarios().size());
@@ -41,6 +41,9 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertFalse(current.dimensionalSupportReady());
 		assertFalse(current.dimensionalReferenceReviewed());
 		assertFalse(current.openFoamSolverQualityContractReady());
+		assertEquals(4, current.openFoamSolverQualityBlockerCount());
+		assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
+				current.openFoamSolverQualityNextRequiredAction());
 		assertFalse(current.referenceMaterialExportAllowed());
 		assertEquals(6, current.expectedReferenceRowCount());
 		assertEquals(17, current.observedReferenceFieldCount());
@@ -54,6 +57,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertFalse(executionBlocked.lookupExecutionContractReady());
 		assertFalse(executionBlocked.dimensionalSupportReady());
 		assertTrue(executionBlocked.dimensionalReferenceReviewed());
+		assertEquals(0, executionBlocked.openFoamSolverQualityBlockerCount());
 		assertEquals("lookup-execution-contract-not-ready", executionBlocked.message());
 
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff
@@ -71,6 +75,9 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertTrue(ready.lookupExecutionContractReady());
 		assertTrue(ready.dimensionalSupportReady());
 		assertTrue(ready.openFoamSolverQualityContractReady());
+		assertEquals(0, ready.openFoamSolverQualityBlockerCount());
+		assertEquals("openfoam-solver-quality-blockers-clear",
+				ready.openFoamSolverQualityNextRequiredAction());
 		assertTrue(ready.dimensionalReferenceReviewed());
 		assertTrue(ready.referenceMaterialExportAllowed());
 		assertEquals(6, ready.supportedDimensionalTargetCount());
@@ -99,6 +106,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertEquals(6, AUDIT.extrema().maxBlockedDimensionalTargetCount());
 		assertEquals(17, AUDIT.extrema().maxObservedReferenceFieldCount());
 		assertEquals(6, AUDIT.extrema().maxReferenceRowAvailableCount());
+		assertEquals(4, AUDIT.extrema().maxOpenFoamSolverQualityBlockerCount());
+		assertEquals(1, AUDIT.extrema().openFoamSolverQualityBlockerScenarioCount());
 		assertEquals(0, AUDIT.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, AUDIT.extrema().gameplayAutoApplyAllowedCount());
 	}
@@ -155,6 +164,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_scenario,current_dimensional_support_blocked,openfoam_solver_quality_contract_ready,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_scenario,current_dimensional_support_blocked,openfoam_solver_quality_blocker_count,4,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_scenario,dimensional_support_ready_reference_reviewed,openfoam_solver_quality_contract_ready,true,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_scenario,dimensional_support_ready_reference_reviewed,reference_material_export_allowed,true,boolean,")));
@@ -162,6 +173,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,lookup_execution_blocked_scenario_count,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,max_reference_row_available_count,6,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,max_openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 	}
