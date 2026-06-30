@@ -172,6 +172,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 				true,
 				true,
 				true,
+				0,
+				"openfoam-solver-quality-blockers-clear",
 				9,
 				6,
 				9,

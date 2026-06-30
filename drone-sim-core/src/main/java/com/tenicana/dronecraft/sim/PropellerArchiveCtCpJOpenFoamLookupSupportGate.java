@@ -6,10 +6,10 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-OpenFOAM-Lookup-Support-Gate-Packet";
 	public static final String CAVEAT =
 			"OpenFOAM lookup support opens only when handoff-aware CT/CP/J lookup execution, reviewed lookup acceptance, compact solver-quality QA, and compact OpenFOAM residual results all pass; CFD evidence cannot replace wind-tunnel acceptance and cannot mutate runtime or gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int SCENARIO_SAMPLE_COUNT = 6;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 21;
-	public static final int SUMMARY_ROW_COUNT = 12;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 23;
+	public static final int SUMMARY_ROW_COUNT = 14;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_ROW_COUNT
@@ -24,6 +24,8 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 			boolean lookupExecutionContractReady,
 			boolean openFoamResultContractReady,
 			boolean openFoamSolverQualityContractReady,
+			int openFoamSolverQualityBlockerCount,
+			String openFoamSolverQualityNextRequiredAction,
 			int expectedLookupTargetCount,
 			int expectedOpenFoamResultCaseCount,
 			int acceptedLookupTargetCount,
@@ -60,6 +62,8 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 			int maxCfdGeometryUnsupportedLookupTargetCount,
 			int maxCfdMissingResultCount,
 			int maxCfdFailedResultCount,
+			int maxOpenFoamSolverQualityBlockerCount,
+			int openFoamSolverQualityBlockerScenarioCount,
 			int referenceExportAuthorityAllowedCount,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount
@@ -168,9 +172,14 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 		if (sourceRuntimeInfo == null || sourceRuntimeInfo.isBlank()) {
 			throw new IllegalArgumentException("sourceRuntimeInfo must not be blank.");
 		}
+		PropellerArchiveCtCpJOpenFoamSolverQualityBlockerReport.OpenFoamSolverQualityBlockerScenario
+				qualityBlocker =
+						PropellerArchiveCtCpJOpenFoamSolverQualityBlockerReport.scenario(
+								"lookup_support_solver_quality", solverQuality);
 		boolean ready = lookup.lookupExecutionContractReady()
 				&& lookup.lookupAcceptanceReady()
 				&& solverQuality.openFoamSolverQualityContractReady()
+				&& qualityBlocker.blockerCount() == 0
 				&& cfd.openFoamResultContractReady();
 		int geometryUnsupported = lookup.expectedTargetCount() - cfd.expectedOpenFoamResultCaseCount();
 		int supportedTargets = ready ? cfd.expectedOpenFoamResultCaseCount() : 0;
@@ -179,6 +188,8 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 				lookup.lookupExecutionContractReady(),
 				cfd.openFoamResultContractReady(),
 				solverQuality.openFoamSolverQualityContractReady(),
+				qualityBlocker.blockerCount(),
+				qualityBlocker.nextRequiredAction(),
 				lookup.expectedTargetCount(),
 				cfd.expectedOpenFoamResultCaseCount(),
 				lookup.passedResultCount(),
@@ -244,6 +255,8 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 		int maxUnsupported = 0;
 		int maxMissing = 0;
 		int maxFailed = 0;
+		int maxQualityBlockers = 0;
+		int qualityBlocked = 0;
 		int referenceAuthority = 0;
 		int runtime = 0;
 		int gameplay = 0;
@@ -261,6 +274,11 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 			maxUnsupported = Math.max(maxUnsupported, summary.cfdGeometryUnsupportedLookupTargetCount());
 			maxMissing = Math.max(maxMissing, summary.cfdMissingResultCount());
 			maxFailed = Math.max(maxFailed, summary.cfdFailedResultCount());
+			maxQualityBlockers = Math.max(maxQualityBlockers,
+					summary.openFoamSolverQualityBlockerCount());
+			if (summary.openFoamSolverQualityBlockerCount() > 0) {
+				qualityBlocked++;
+			}
 			if (summary.referenceExportAuthorityAllowed()) {
 				referenceAuthority++;
 			}
@@ -281,6 +299,8 @@ public final class PropellerArchiveCtCpJOpenFoamLookupSupportGate {
 				maxUnsupported,
 				maxMissing,
 				maxFailed,
+				maxQualityBlockers,
+				qualityBlocked,
 				referenceAuthority,
 				runtime,
 				gameplay
