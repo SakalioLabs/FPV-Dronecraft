@@ -1,5 +1,8 @@
 package com.tenicana.dronecraft.sim;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -72,6 +75,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			String presetName,
 			String caseName,
 			String solverFamily,
+			String sourceCaseSha256,
 			String meshGeometryId,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
@@ -197,6 +201,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 
 	public static OpenFoamCompactResult result(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			String sourceCaseSha256,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
@@ -209,6 +214,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		if (!target.postReviewOpenFoamCaseRunnable()) {
 			throw new IllegalArgumentException("OpenFOAM result target must be geometry-backed and runnable.");
 		}
+		validateSourceCaseSha256(sourceCaseSha256);
 		if (resultChannelCount < 0) {
 			throw new IllegalArgumentException("resultChannelCount must be nonnegative.");
 		}
@@ -230,6 +236,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 				target.presetName(),
 				target.caseName(),
 				target.solverFamily(),
+				sourceCaseSha256,
 				target.geometryMatchId(),
 				resultChannelCount,
 				ctResidualToWindTunnel,
@@ -353,6 +360,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	) {
 		return targets.stream()
 				.map(target -> result(target,
+						syntheticCaseSha256(target),
 						REQUIRED_RESULT_CHANNEL_COUNT,
 						target.maxCtResidual() * 0.50,
 						target.maxCpResidual() * 0.50,
@@ -365,6 +373,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
 	) {
 		return result(target,
+				syntheticCaseSha256(target),
 				REQUIRED_RESULT_CHANNEL_COUNT,
 				target.maxCtResidual() * 1.25,
 				target.maxCpResidual() * 0.50,
@@ -377,6 +386,7 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			OpenFoamCompactResult result
 	) {
 		return result.solverFamily().equals(target.solverFamily())
+				&& isSha256Hex(result.sourceCaseSha256())
 				&& result.meshGeometryId().equals(target.geometryMatchId())
 				&& passes(target, result.resultChannelCount(), result.ctResidualToWindTunnel(),
 						result.cpResidualToWindTunnel(), result.etaResidualToWindTunnel(),
@@ -469,6 +479,49 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			return "openfoam-residual-gate-failed";
 		}
 		return "openfoam-result-contract-ready";
+	}
+
+	private static void validateSourceCaseSha256(String sourceCaseSha256) {
+		if (!isSha256Hex(sourceCaseSha256)) {
+			throw new IllegalArgumentException("sourceCaseSha256 must be a 64-character lowercase SHA-256 hex string.");
+		}
+	}
+
+	private static boolean isSha256Hex(String value) {
+		if (value == null || value.length() != 64) {
+			return false;
+		}
+		for (int i = 0; i < value.length(); i++) {
+			char c = value.charAt(i);
+			if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static String syntheticCaseSha256(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
+	) {
+		return sha256("synthetic-openfoam-coefficient-case:" + key(target.presetName(), target.caseName()));
+	}
+
+	private static String sha256(String value) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] bytes = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+			StringBuilder builder = new StringBuilder(64);
+			for (byte b : bytes) {
+				String hex = Integer.toHexString(b & 0xff);
+				if (hex.length() == 1) {
+					builder.append('0');
+				}
+				builder.append(hex);
+			}
+			return builder.toString();
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("SHA-256 digest is not available.", e);
+		}
 	}
 
 	private static String key(String presetName, String caseName) {

@@ -13,6 +13,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PropellerArchiveCtCpJOpenFoamResultContractTest {
+	private static final String REVIEWED_CASE_SHA =
+			"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
 	@Test
 	void auditBuildsOpenFoamResultContractScenarios() {
 		PropellerArchiveCtCpJOpenFoamResultContract.CtCpJOpenFoamResultContractAudit audit =
@@ -105,15 +108,16 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult pass =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, 3,
+				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA, 3,
 						0.04, 0.05, 0.04, 5.0e-5);
 		assertTrue(pass.passed());
 		assertEquals("PASS", pass.status());
 		assertEquals("external-openfoam-steady-rotor-cfd", pass.solverFamily());
+		assertEquals(REVIEWED_CASE_SHA, pass.sourceCaseSha256());
 		assertEquals("da4052 5.0x3.75", pass.meshGeometryId());
 
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult fail =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, 3,
+				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA, 3,
 						0.081, 0.05, 0.04, 5.0e-5);
 		assertFalse(fail.passed());
 		assertEquals("FAIL", fail.status());
@@ -121,13 +125,16 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase heavy =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("heavyLift", "mid_domain_mid_rpm");
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(heavy, 3,
+				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(heavy, REVIEWED_CASE_SHA, 3,
 						0.04, 0.05, 0.04, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, -1,
+				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, "not-a-sha", 3,
 						0.04, 0.05, 0.04, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, 3,
+				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA, -1,
+						0.04, 0.05, 0.04, 5.0e-5));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA, 3,
 						Double.NaN, 0.05, 0.04, 5.0e-5));
 	}
 
@@ -136,7 +143,7 @@ class PropellerArchiveCtCpJOpenFoamResultContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJOpenFoamResultContract.OpenFoamCompactResult result =
-				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, 3,
+				PropellerArchiveCtCpJOpenFoamResultContract.result(apMid, REVIEWED_CASE_SHA, 3,
 						0.04, 0.05, 0.04, 5.0e-5);
 
 		assertThrows(IllegalArgumentException.class,

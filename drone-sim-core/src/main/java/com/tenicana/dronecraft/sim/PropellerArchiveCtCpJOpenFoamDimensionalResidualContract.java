@@ -1,5 +1,8 @@
 package com.tenicana.dronecraft.sim;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -80,6 +83,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			String presetName,
 			String caseName,
 			String solverFamily,
+			String sourceCaseSha256,
 			String meshGeometryId,
 			int resultChannelCount,
 			double thrustResidualToReference,
@@ -222,6 +226,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 
 	public static OpenFoamDimensionalCompactResult result(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			String sourceCaseSha256,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -236,6 +241,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		if (!target.postReviewOpenFoamCaseRunnable()) {
 			throw new IllegalArgumentException("OpenFOAM dimensional result target must be geometry-backed and runnable.");
 		}
+		validateSourceCaseSha256(sourceCaseSha256);
 		if (resultChannelCount < 0) {
 			throw new IllegalArgumentException("resultChannelCount must be nonnegative.");
 		}
@@ -253,6 +259,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				target.presetName(),
 				target.caseName(),
 				target.solverFamily(),
+				sourceCaseSha256,
 				target.geometryMatchId(),
 				resultChannelCount,
 				thrustResidualToReference,
@@ -392,6 +399,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	) {
 		return targets.stream()
 				.map(target -> result(target,
+						syntheticCaseSha256(target),
 						REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
 						MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
 						MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
@@ -406,6 +414,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
 	) {
 		return result(target,
+				syntheticCaseSha256(target),
 				REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
 				MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
 				MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
@@ -420,6 +429,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			OpenFoamDimensionalCompactResult result
 	) {
 		return result.solverFamily().equals(target.solverFamily())
+				&& isSha256Hex(result.sourceCaseSha256())
 				&& result.meshGeometryId().equals(target.geometryMatchId())
 				&& passes(result.resultChannelCount(), result.thrustResidualToReference(),
 						result.shaftPowerResidualToReference(), result.shaftTorqueResidualToReference(),
@@ -533,6 +543,49 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			return "openfoam-dimensional-residual-gate-failed";
 		}
 		return "openfoam-dimensional-residual-contract-ready";
+	}
+
+	private static void validateSourceCaseSha256(String sourceCaseSha256) {
+		if (!isSha256Hex(sourceCaseSha256)) {
+			throw new IllegalArgumentException("sourceCaseSha256 must be a 64-character lowercase SHA-256 hex string.");
+		}
+	}
+
+	private static boolean isSha256Hex(String value) {
+		if (value == null || value.length() != 64) {
+			return false;
+		}
+		for (int i = 0; i < value.length(); i++) {
+			char c = value.charAt(i);
+			if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private static String syntheticCaseSha256(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target
+	) {
+		return sha256("synthetic-openfoam-dimensional-case:" + key(target.presetName(), target.caseName()));
+	}
+
+	private static String sha256(String value) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] bytes = digest.digest(value.getBytes(StandardCharsets.UTF_8));
+			StringBuilder builder = new StringBuilder(64);
+			for (byte b : bytes) {
+				String hex = Integer.toHexString(b & 0xff);
+				if (hex.length() == 1) {
+					builder.append('0');
+				}
+				builder.append(hex);
+			}
+			return builder.toString();
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException("SHA-256 digest is not available.", e);
+		}
 	}
 
 	private static void validateResidual(String fieldName, double value) {

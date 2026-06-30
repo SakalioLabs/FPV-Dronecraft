@@ -9,7 +9,7 @@ propeller_archive_ct_cp_j_openfoam_dimensional_source,dimensional_residual_contr
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,preset_name,required,,true,boolean,,,,,,,,,,,,,,false,false,join-result-to-preset,join dimensional result to DroneConfig preset
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,case_name,required,,true,boolean,,,,,,,,,,,,,,false,false,join-result-to-query-case,join dimensional result to static mid or high-domain case
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,solver_family,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-openfoam-solver-family,external solver identity
-propeller_archive_ct_cp_j_openfoam_dimensional_result_field,source_case_sha256,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-external-case-provenance,external case archive hash
+propeller_archive_ct_cp_j_openfoam_dimensional_result_field,source_case_sha256,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-external-case-provenance,external case archive hash must be a reviewed 64-character lowercase SHA-256 value
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,mesh_geometry_id,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-reviewed-geometry-input,reviewed blade geometry id
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,query_advance_ratio_j,required,,true,boolean,,,,,,,,,,,,,,false,false,verify-cfd-run-point,lookup query advance ratio
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,query_rpm,required,,true,boolean,,,,,,,,,,,,,,false,false,verify-cfd-rpm-bin,lookup query RPM
