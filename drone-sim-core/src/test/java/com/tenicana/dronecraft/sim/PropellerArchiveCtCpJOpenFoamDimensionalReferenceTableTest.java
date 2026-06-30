@@ -26,11 +26,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("six geometry-backed SI CFD reference rows"));
 		assertTrue(audit.caveat().contains("solver-quality QA state"));
+		assertTrue(audit.caveat().contains("inherited archive curve-shape diagnostics"));
 		assertTrue(audit.caveat().contains("zero weights"));
-		assertEquals(35, audit.packetRowCount());
+		assertEquals(40, audit.packetRowCount());
 		assertEquals(10, audit.sourceReferenceRowCount());
 		assertEquals(6, audit.referenceRowCount());
-		assertEquals(18, audit.summaryRowCount());
+		assertEquals(23, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(6, audit.rows().size());
 
@@ -42,6 +43,13 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 			assertEquals(4, row.openFoamSolverQualityBlockerCount());
 			assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
 					row.openFoamSolverQualityNextRequiredAction());
+			assertEquals(2, row.archiveCurveShapeGuardInheritedReferenceCount());
+			assertEquals(9, row.negativeThrustTailReferenceCount());
+			assertTrue(row.maxArchiveCurveEtaFormulaResidual()
+					<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+			assertTrue(row.maxArchiveCurveCtIncrease()
+					<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
+			assertFalse(row.archiveCurveShapeGuardComplete());
 			assertFalse(row.dimensionalReferenceReviewed());
 			assertFalse(row.referenceMaterialExportAllowed());
 			assertFalse(row.openFoamDimensionalReferenceRowAvailable());
@@ -88,6 +96,13 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals(0, audit.extrema().openFoamSolverQualityContractReadyCount());
 		assertEquals(4, audit.extrema().maxOpenFoamSolverQualityBlockerCount());
 		assertEquals(6, audit.extrema().openFoamSolverQualityBlockerRowCount());
+		assertEquals(2, audit.extrema().maxArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(9, audit.extrema().maxNegativeThrustTailReferenceCount());
+		assertTrue(audit.extrema().maxArchiveCurveEtaFormulaResidual()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
+		assertTrue(audit.extrema().maxArchiveCurveCtIncrease()
+				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
+		assertEquals(0, audit.extrema().archiveCurveShapeGuardCompleteRowCount());
 		assertEquals(0, audit.extrema().dimensionalReferenceReviewedCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
@@ -110,6 +125,11 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals(6, audit.extrema().openFoamSolverQualityContractReadyCount());
 		assertEquals(0, audit.extrema().maxOpenFoamSolverQualityBlockerCount());
 		assertEquals(0, audit.extrema().openFoamSolverQualityBlockerRowCount());
+		assertEquals(6, audit.extrema().maxArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(0, audit.extrema().maxNegativeThrustTailReferenceCount());
+		assertEquals(0.0, audit.extrema().maxArchiveCurveEtaFormulaResidual());
+		assertEquals(0.0, audit.extrema().maxArchiveCurveCtIncrease());
+		assertEquals(6, audit.extrema().archiveCurveShapeGuardCompleteRowCount());
 		assertEquals(6, audit.extrema().dimensionalReferenceReviewedCount());
 		assertEquals(0, audit.extrema().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyAllowedCount());
@@ -122,6 +142,11 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 			assertEquals(0, row.openFoamSolverQualityBlockerCount());
 			assertEquals("openfoam-solver-quality-blockers-clear",
 					row.openFoamSolverQualityNextRequiredAction());
+			assertEquals(6, row.archiveCurveShapeGuardInheritedReferenceCount());
+			assertEquals(0, row.negativeThrustTailReferenceCount());
+			assertEquals(0.0, row.maxArchiveCurveEtaFormulaResidual());
+			assertEquals(0.0, row.maxArchiveCurveCtIncrease());
+			assertTrue(row.archiveCurveShapeGuardComplete());
 			assertTrue(row.dimensionalReferenceReviewed());
 			assertTrue(row.referenceMaterialExportAllowed());
 			assertTrue(row.openFoamDimensionalReferenceRowAvailable());
@@ -210,6 +235,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.contains("solver_quality_blockers=4;solver_quality_next_action=review-openfoam-mesh-yplus-and-time-step-against-run-setup")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.contains("shape_guard_refs=2;negative_tail_refs=9;eta_residual=0.00027500814692071884;ct_increase=0.000071")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,reference_row_available_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,static_anchor_reference_row_count,2,count,")));
@@ -217,6 +244,12 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,openfoam_solver_quality_contract_ready_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,max_openfoam_solver_quality_blocker_count,4,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,max_archive_curve_shape_guard_inherited_reference_count,2,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,max_negative_thrust_tail_reference_count,9,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,archive_curve_shape_guard_complete_row_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_summary,all_rows,runtime_coupling_allowed_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

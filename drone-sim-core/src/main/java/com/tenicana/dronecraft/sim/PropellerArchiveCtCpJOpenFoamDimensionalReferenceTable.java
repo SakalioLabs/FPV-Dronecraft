@@ -6,10 +6,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Table-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM dimensional reference table materializes the six geometry-backed SI CFD reference rows after the dimensional reference handoff, while preserving solver-quality QA state; current rows keep zero weights and never enable runtime coupling or gameplay auto-apply.";
+			"OpenFOAM dimensional reference table materializes the six geometry-backed SI CFD reference rows after the dimensional reference handoff, while preserving solver-quality QA state and inherited archive curve-shape diagnostics; current rows keep zero weights and never enable runtime coupling or gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int REFERENCE_ROW_COUNT = 6;
-	public static final int SUMMARY_ROW_COUNT = 18;
+	public static final int SUMMARY_ROW_COUNT = 23;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REFERENCE_ROW_COUNT
@@ -36,6 +36,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			boolean openFoamSolverQualityContractReady,
 			int openFoamSolverQualityBlockerCount,
 			String openFoamSolverQualityNextRequiredAction,
+			int archiveCurveShapeGuardInheritedReferenceCount,
+			int negativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
+			boolean archiveCurveShapeGuardComplete,
 			boolean dimensionalReferenceReviewed,
 			boolean referenceMaterialExportAllowed,
 			boolean openFoamDimensionalReferenceRowAvailable,
@@ -69,6 +74,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			int openFoamSolverQualityContractReadyCount,
 			int maxOpenFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerRowCount,
+			int maxArchiveCurveShapeGuardInheritedReferenceCount,
+			int maxNegativeThrustTailReferenceCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
+			int archiveCurveShapeGuardCompleteRowCount,
 			int dimensionalReferenceReviewedCount,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
@@ -136,7 +146,15 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			throw new IllegalArgumentException("handoff and target are required.");
 		}
 		boolean exportAllowed = handoff.referenceMaterialExportAllowed();
-		boolean available = exportAllowed && target.postReviewOpenFoamCaseRunnable();
+		boolean archiveCurveShapeGuardComplete = handoff.archiveCurveShapeGuardInheritedReferenceCount()
+				>= handoff.expectedReferenceRowCount()
+				&& handoff.maxArchiveCurveEtaFormulaResidual()
+						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL
+				&& handoff.maxArchiveCurveCtIncrease()
+						<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE;
+		boolean available = exportAllowed
+				&& archiveCurveShapeGuardComplete
+				&& target.postReviewOpenFoamCaseRunnable();
 		double weight = available ? 1.0 : 0.0;
 		return new OpenFoamDimensionalReferenceRow(
 				target.presetName(),
@@ -153,6 +171,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 				handoff.openFoamSolverQualityContractReady(),
 				handoff.openFoamSolverQualityBlockerCount(),
 				handoff.openFoamSolverQualityNextRequiredAction(),
+				handoff.archiveCurveShapeGuardInheritedReferenceCount(),
+				handoff.negativeThrustTailReferenceCount(),
+				handoff.maxArchiveCurveEtaFormulaResidual(),
+				handoff.maxArchiveCurveCtIncrease(),
+				archiveCurveShapeGuardComplete,
 				handoff.dimensionalReferenceReviewed(),
 				exportAllowed,
 				available,
@@ -202,6 +225,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 		int solverQualityReady = 0;
 		int maxQualityBlockers = 0;
 		int qualityBlocked = 0;
+		int maxShapeInherited = 0;
+		int maxNegativeTail = 0;
+		double maxArchiveEta = 0.0;
+		double maxArchiveCt = 0.0;
+		int shapeComplete = 0;
 		int reviewed = 0;
 		int runtime = 0;
 		int gameplay = 0;
@@ -232,6 +260,14 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 			if (row.openFoamSolverQualityBlockerCount() > 0) {
 				qualityBlocked++;
 			}
+			maxShapeInherited = Math.max(maxShapeInherited,
+					row.archiveCurveShapeGuardInheritedReferenceCount());
+			maxNegativeTail = Math.max(maxNegativeTail, row.negativeThrustTailReferenceCount());
+			maxArchiveEta = Math.max(maxArchiveEta, row.maxArchiveCurveEtaFormulaResidual());
+			maxArchiveCt = Math.max(maxArchiveCt, row.maxArchiveCurveCtIncrease());
+			if (row.archiveCurveShapeGuardComplete()) {
+				shapeComplete++;
+			}
 			if (row.dimensionalReferenceReviewed()) {
 				reviewed++;
 			}
@@ -261,6 +297,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 				solverQualityReady,
 				maxQualityBlockers,
 				qualityBlocked,
+				maxShapeInherited,
+				maxNegativeTail,
+				maxArchiveEta,
+				maxArchiveCt,
+				shapeComplete,
 				reviewed,
 				runtime,
 				gameplay,
@@ -289,6 +330,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable {
 		}
 		if (!handoff.dimensionalReferenceReviewed()) {
 			return "openfoam-dimensional-reference-review-missing";
+		}
+		if (!handoff.referenceMaterialExportAllowed()
+				&& "archive-curve-shape-guard-not-inherited".equals(handoff.message())) {
+			return "archive-curve-shape-guard-not-inherited";
 		}
 		if (!available) {
 			return "openfoam-dimensional-reference-export-blocked";
