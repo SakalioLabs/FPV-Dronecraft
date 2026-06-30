@@ -6,11 +6,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Support-Gate-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM dimensional support opens only when coefficient-level CFD lookup support and SI rotor-response residuals both pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
-	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 24;
-	public static final int SUMMARY_ROW_COUNT = 13;
+			"OpenFOAM dimensional support opens only when handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support, and SI rotor-response residuals all pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+	public static final int SCENARIO_SAMPLE_COUNT = 6;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 25;
+	public static final int SUMMARY_ROW_COUNT = 14;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_ROW_COUNT
@@ -21,6 +21,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 	}
 
 	public record OpenFoamDimensionalSupportSummary(
+			boolean lookupExecutionContractReady,
 			boolean lookupSupportReady,
 			boolean dimensionalResidualReady,
 			boolean dimensionalResponseReferenceReady,
@@ -58,6 +59,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			int scenarioCount,
 			int readyScenarioCount,
 			int blockedScenarioCount,
+			int lookupExecutionBlockedScenarioCount,
 			int maxSupportedDimensionalTargetCount,
 			int maxCfdSupportedLookupTargetCount,
 			int maxCfdGeometryUnsupportedLookupTargetCount,
@@ -95,6 +97,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				dimensionalAudit = PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.audit();
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary currentLookup =
 				lookupSupport(lookupAudit, "current_lookup_and_cfd_blocked");
+		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary executionBlockedLookup =
+				lookupSupport(lookupAudit, "lookup_execution_blocked_cfd_ready");
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary lookupFailed =
 				lookupSupport(lookupAudit, "cfd_ready_lookup_acceptance_failed");
 		PropellerArchiveCtCpJOpenFoamLookupSupportGate.OpenFoamLookupSupportSummary lookupReady =
@@ -112,6 +116,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 						"current_lookup_and_dimensional_blocked",
 						support(currentLookup, currentDimensional,
 								"current-openfoam-dimensional-support-blocked")),
+				new OpenFoamDimensionalSupportScenario(
+						"lookup_execution_blocked_si_ready",
+						support(executionBlockedLookup, readyDimensional,
+								"synthetic-lookup-execution-blocked-si-ready")),
 				new OpenFoamDimensionalSupportScenario(
 						"lookup_support_ready_si_results_missing",
 						support(lookupReady, missingDimensional,
@@ -164,6 +172,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 						dimensional.expectedOpenFoamDimensionalResultCaseCount())
 				: 0;
 		return new OpenFoamDimensionalSupportSummary(
+				lookupSupport.lookupExecutionContractReady(),
 				lookupSupport.cfdLookupSupportReady(),
 				dimensional.openFoamDimensionalResidualReady(),
 				dimensional.dimensionalResponseReferenceReady(),
@@ -219,6 +228,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 
 	private static OpenFoamDimensionalSupportExtrema extrema(List<OpenFoamDimensionalSupportScenario> scenarios) {
 		int ready = 0;
+		int executionBlocked = 0;
 		int maxSupported = 0;
 		int maxLookupSupported = 0;
 		int maxGeometryUnsupported = 0;
@@ -233,6 +243,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			OpenFoamDimensionalSupportSummary summary = scenario.summary();
 			if (summary.cfdDimensionalSupportReady()) {
 				ready++;
+			}
+			if (!summary.lookupExecutionContractReady()
+					&& "lookup-execution-contract-not-ready".equals(summary.message())) {
+				executionBlocked++;
 			}
 			maxSupported = Math.max(maxSupported, summary.supportedDimensionalTargetCount());
 			maxLookupSupported = Math.max(maxLookupSupported, summary.cfdSupportedLookupTargetCount());
@@ -256,6 +270,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				scenarios.size(),
 				ready,
 				scenarios.size() - ready,
+				executionBlocked,
 				maxSupported,
 				maxLookupSupported,
 				maxGeometryUnsupported,
@@ -274,6 +289,9 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalResidualSummary dimensional
 	) {
 		if (!lookupSupport.cfdLookupSupportReady()) {
+			if ("lookup-execution-contract-not-ready".equals(lookupSupport.message())) {
+				return "lookup-execution-contract-not-ready";
+			}
 			if (!lookupSupport.lookupAcceptanceReady()) {
 				return "lookup-support-not-ready";
 			}
