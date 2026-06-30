@@ -24,6 +24,8 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			+ SUMMARY_ROW_COUNT
 			+ METHOD_ROW_COUNT;
 	public static final int REQUIRED_RESULT_CHANNEL_COUNT = 3;
+	public static final double MAX_QUERY_ADVANCE_RATIO_DELTA = 1.0e-9;
+	public static final double MAX_QUERY_RPM_DELTA = 1.0e-6;
 	public static final double MAX_SOLVER_CONVERGENCE_RESIDUAL = 1.0e-4;
 
 	private static final List<OpenFoamResultField> RESULT_FIELDS = List.of(
@@ -77,6 +79,8 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			String solverFamily,
 			String sourceCaseSha256,
 			String meshGeometryId,
+			double queryAdvanceRatioJ,
+			double queryRpm,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
@@ -202,6 +206,8 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	public static OpenFoamCompactResult result(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
 			String sourceCaseSha256,
+			double queryAdvanceRatioJ,
+			double queryRpm,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
@@ -215,6 +221,8 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			throw new IllegalArgumentException("OpenFOAM result target must be geometry-backed and runnable.");
 		}
 		validateSourceCaseSha256(sourceCaseSha256);
+		validateQueryCoordinate("queryAdvanceRatioJ", queryAdvanceRatioJ);
+		validateQueryCoordinate("queryRpm", queryRpm);
 		if (resultChannelCount < 0) {
 			throw new IllegalArgumentException("resultChannelCount must be nonnegative.");
 		}
@@ -230,14 +238,17 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		if (!Double.isFinite(solverConvergenceResidual) || solverConvergenceResidual < 0.0) {
 			throw new IllegalArgumentException("solverConvergenceResidual must be finite and nonnegative.");
 		}
-		boolean passed = passes(target, resultChannelCount, ctResidualToWindTunnel, cpResidualToWindTunnel,
-				etaResidualToWindTunnel, solverConvergenceResidual);
+		boolean passed = passes(target, queryAdvanceRatioJ, queryRpm, resultChannelCount,
+				ctResidualToWindTunnel, cpResidualToWindTunnel, etaResidualToWindTunnel,
+				solverConvergenceResidual);
 		return new OpenFoamCompactResult(
 				target.presetName(),
 				target.caseName(),
 				target.solverFamily(),
 				sourceCaseSha256,
 				target.geometryMatchId(),
+				queryAdvanceRatioJ,
+				queryRpm,
 				resultChannelCount,
 				ctResidualToWindTunnel,
 				cpResidualToWindTunnel,
@@ -361,6 +372,8 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		return targets.stream()
 				.map(target -> result(target,
 						syntheticCaseSha256(target),
+						target.queryAdvanceRatioJ(),
+						target.queryRpm(),
 						REQUIRED_RESULT_CHANNEL_COUNT,
 						target.maxCtResidual() * 0.50,
 						target.maxCpResidual() * 0.50,
@@ -374,6 +387,8 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	) {
 		return result(target,
 				syntheticCaseSha256(target),
+				target.queryAdvanceRatioJ(),
+				target.queryRpm(),
 				REQUIRED_RESULT_CHANNEL_COUNT,
 				target.maxCtResidual() * 1.25,
 				target.maxCpResidual() * 0.50,
@@ -388,20 +403,23 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		return result.solverFamily().equals(target.solverFamily())
 				&& isSha256Hex(result.sourceCaseSha256())
 				&& result.meshGeometryId().equals(target.geometryMatchId())
-				&& passes(target, result.resultChannelCount(), result.ctResidualToWindTunnel(),
-						result.cpResidualToWindTunnel(), result.etaResidualToWindTunnel(),
-						result.solverConvergenceResidual());
+				&& passes(target, result.queryAdvanceRatioJ(), result.queryRpm(), result.resultChannelCount(),
+						result.ctResidualToWindTunnel(), result.cpResidualToWindTunnel(),
+						result.etaResidualToWindTunnel(), result.solverConvergenceResidual());
 	}
 
 	private static boolean passes(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double queryAdvanceRatioJ,
+			double queryRpm,
 			int resultChannelCount,
 			double ctResidualToWindTunnel,
 			double cpResidualToWindTunnel,
 			double etaResidualToWindTunnel,
 			double solverConvergenceResidual
 	) {
-		return resultChannelCount >= REQUIRED_RESULT_CHANNEL_COUNT
+		return matchesTargetQuery(target, queryAdvanceRatioJ, queryRpm)
+				&& resultChannelCount >= REQUIRED_RESULT_CHANNEL_COUNT
 				&& ctResidualToWindTunnel <= target.maxCtResidual()
 				&& cpResidualToWindTunnel <= target.maxCpResidual()
 				&& etaResidualToWindTunnel <= target.maxEtaResidual()
@@ -487,6 +505,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		}
 	}
 
+	private static void validateQueryCoordinate(String fieldName, double value) {
+		if (!Double.isFinite(value) || value < 0.0) {
+			throw new IllegalArgumentException(fieldName + " must be finite and nonnegative.");
+		}
+	}
+
 	private static boolean isSha256Hex(String value) {
 		if (value == null || value.length() != 64) {
 			return false;
@@ -498,6 +522,15 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			}
 		}
 		return true;
+	}
+
+	private static boolean matchesTargetQuery(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double queryAdvanceRatioJ,
+			double queryRpm
+	) {
+		return Math.abs(queryAdvanceRatioJ - target.queryAdvanceRatioJ()) <= MAX_QUERY_ADVANCE_RATIO_DELTA
+				&& Math.abs(queryRpm - target.queryRpm()) <= MAX_QUERY_RPM_DELTA;
 	}
 
 	private static String syntheticCaseSha256(

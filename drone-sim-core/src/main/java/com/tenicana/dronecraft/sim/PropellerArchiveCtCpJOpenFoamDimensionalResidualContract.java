@@ -24,6 +24,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			+ SUMMARY_ROW_COUNT
 			+ METHOD_ROW_COUNT;
 	public static final int REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT = 5;
+	public static final double MAX_QUERY_ADVANCE_RATIO_DELTA =
+			PropellerArchiveCtCpJOpenFoamResultContract.MAX_QUERY_ADVANCE_RATIO_DELTA;
+	public static final double MAX_QUERY_RPM_DELTA =
+			PropellerArchiveCtCpJOpenFoamResultContract.MAX_QUERY_RPM_DELTA;
 	public static final double MAX_THRUST_RESIDUAL_TO_REFERENCE = 0.08;
 	public static final double MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE = 0.10;
 	public static final double MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE = 0.10;
@@ -85,6 +89,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			String solverFamily,
 			String sourceCaseSha256,
 			String meshGeometryId,
+			double queryAdvanceRatioJ,
+			double queryRpm,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -227,6 +233,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	public static OpenFoamDimensionalCompactResult result(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
 			String sourceCaseSha256,
+			double queryAdvanceRatioJ,
+			double queryRpm,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -242,6 +250,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			throw new IllegalArgumentException("OpenFOAM dimensional result target must be geometry-backed and runnable.");
 		}
 		validateSourceCaseSha256(sourceCaseSha256);
+		validateQueryCoordinate("queryAdvanceRatioJ", queryAdvanceRatioJ);
+		validateQueryCoordinate("queryRpm", queryRpm);
 		if (resultChannelCount < 0) {
 			throw new IllegalArgumentException("resultChannelCount must be nonnegative.");
 		}
@@ -251,7 +261,7 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		validateResidual("inducedVelocityResidualToReference", inducedVelocityResidualToReference);
 		validateResidual("momentumPowerResidualToReference", momentumPowerResidualToReference);
 		validateResidual("solverConvergenceResidual", solverConvergenceResidual);
-		boolean passed = passes(resultChannelCount, thrustResidualToReference,
+		boolean passed = passes(target, queryAdvanceRatioJ, queryRpm, resultChannelCount, thrustResidualToReference,
 				shaftPowerResidualToReference, shaftTorqueResidualToReference,
 				inducedVelocityResidualToReference, momentumPowerResidualToReference,
 				solverConvergenceResidual);
@@ -261,6 +271,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 				target.solverFamily(),
 				sourceCaseSha256,
 				target.geometryMatchId(),
+				queryAdvanceRatioJ,
+				queryRpm,
 				resultChannelCount,
 				thrustResidualToReference,
 				shaftPowerResidualToReference,
@@ -400,6 +412,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		return targets.stream()
 				.map(target -> result(target,
 						syntheticCaseSha256(target),
+						target.queryAdvanceRatioJ(),
+						target.queryRpm(),
 						REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
 						MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
 						MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
@@ -415,6 +429,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 	) {
 		return result(target,
 				syntheticCaseSha256(target),
+				target.queryAdvanceRatioJ(),
+				target.queryRpm(),
 				REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
 				MAX_THRUST_RESIDUAL_TO_REFERENCE * 0.50,
 				MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE * 0.50,
@@ -431,13 +447,16 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		return result.solverFamily().equals(target.solverFamily())
 				&& isSha256Hex(result.sourceCaseSha256())
 				&& result.meshGeometryId().equals(target.geometryMatchId())
-				&& passes(result.resultChannelCount(), result.thrustResidualToReference(),
-						result.shaftPowerResidualToReference(), result.shaftTorqueResidualToReference(),
-						result.inducedVelocityResidualToReference(), result.momentumPowerResidualToReference(),
-						result.solverConvergenceResidual());
+				&& passes(target, result.queryAdvanceRatioJ(), result.queryRpm(), result.resultChannelCount(),
+						result.thrustResidualToReference(), result.shaftPowerResidualToReference(),
+						result.shaftTorqueResidualToReference(), result.inducedVelocityResidualToReference(),
+						result.momentumPowerResidualToReference(), result.solverConvergenceResidual());
 	}
 
 	private static boolean passes(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double queryAdvanceRatioJ,
+			double queryRpm,
 			int resultChannelCount,
 			double thrustResidualToReference,
 			double shaftPowerResidualToReference,
@@ -446,7 +465,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			double momentumPowerResidualToReference,
 			double solverConvergenceResidual
 	) {
-		return resultChannelCount >= REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT
+		return matchesTargetQuery(target, queryAdvanceRatioJ, queryRpm)
+				&& resultChannelCount >= REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT
 				&& thrustResidualToReference <= MAX_THRUST_RESIDUAL_TO_REFERENCE
 				&& shaftPowerResidualToReference <= MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE
 				&& shaftTorqueResidualToReference <= MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE
@@ -551,6 +571,12 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 		}
 	}
 
+	private static void validateQueryCoordinate(String fieldName, double value) {
+		if (!Double.isFinite(value) || value < 0.0) {
+			throw new IllegalArgumentException(fieldName + " must be finite and nonnegative.");
+		}
+	}
+
 	private static boolean isSha256Hex(String value) {
 		if (value == null || value.length() != 64) {
 			return false;
@@ -562,6 +588,15 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalResidualContract {
 			}
 		}
 		return true;
+	}
+
+	private static boolean matchesTargetQuery(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase target,
+			double queryAdvanceRatioJ,
+			double queryRpm
+	) {
+		return Math.abs(queryAdvanceRatioJ - target.queryAdvanceRatioJ()) <= MAX_QUERY_ADVANCE_RATIO_DELTA
+				&& Math.abs(queryRpm - target.queryRpm()) <= MAX_QUERY_RPM_DELTA;
 	}
 
 	private static String syntheticCaseSha256(

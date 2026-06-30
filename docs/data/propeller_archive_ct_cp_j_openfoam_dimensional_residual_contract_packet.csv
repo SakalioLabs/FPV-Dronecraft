@@ -11,8 +11,8 @@ propeller_archive_ct_cp_j_openfoam_dimensional_result_field,case_name,required,,
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,solver_family,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-openfoam-solver-family,external solver identity
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,source_case_sha256,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-external-case-provenance,external case archive hash must be a reviewed 64-character lowercase SHA-256 value
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,mesh_geometry_id,required,,true,boolean,,,,,,,,,,,,,,false,false,prove-reviewed-geometry-input,reviewed blade geometry id
-propeller_archive_ct_cp_j_openfoam_dimensional_result_field,query_advance_ratio_j,required,,true,boolean,,,,,,,,,,,,,,false,false,verify-cfd-run-point,lookup query advance ratio
-propeller_archive_ct_cp_j_openfoam_dimensional_result_field,query_rpm,required,,true,boolean,,,,,,,,,,,,,,false,false,verify-cfd-rpm-bin,lookup query RPM
+propeller_archive_ct_cp_j_openfoam_dimensional_result_field,query_advance_ratio_j,required,,true,boolean,,,,,,,,,,,,,,false,false,verify-cfd-run-point,lookup query advance ratio must match validation target J within 1e-9
+propeller_archive_ct_cp_j_openfoam_dimensional_result_field,query_rpm,required,,true,boolean,,,,,,,,,,,,,,false,false,verify-cfd-rpm-bin,lookup query RPM must match validation target RPM within 1e-6
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,reference_thrust_newtons,required,,true,boolean,,,,,,,,,,,,,,false,false,derive-thrust-residual,SI thrust reference from dimensional rotor response
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,cfd_thrust_newtons,required,,true,boolean,,,,,,,,,,,,,,false,false,extract-openfoam-thrust,external OpenFOAM force extraction
 propeller_archive_ct_cp_j_openfoam_dimensional_result_field,thrust_residual_to_reference,required,,true,boolean,,,,,,,,,,,,,,false,false,gate-si-thrust-agreement,max residual 0.08

@@ -122,37 +122,52 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalCompactResult pass =
-				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA, 5,
+				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA,
+						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 5,
 						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5);
 		assertTrue(pass.passed());
 		assertEquals("PASS", pass.status());
 		assertEquals("external-openfoam-steady-rotor-cfd", pass.solverFamily());
 		assertEquals(REVIEWED_CASE_SHA, pass.sourceCaseSha256());
 		assertEquals("da4052 5.0x3.75", pass.meshGeometryId());
+		assertEquals(apMid.queryAdvanceRatioJ(), pass.queryAdvanceRatioJ(), 1.0e-12);
+		assertEquals(apMid.queryRpm(), pass.queryRpm(), 1.0e-9);
 
 		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalCompactResult fail =
-				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA, 5,
+				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA,
+						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 5,
 						0.04, 0.05, 0.05, 0.061, 0.06, 5.0e-5);
 		assertFalse(fail.passed());
 		assertEquals("FAIL", fail.status());
+
+		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalCompactResult queryMismatch =
+				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA,
+						apMid.queryAdvanceRatioJ() + 0.01, apMid.queryRpm(), 5,
+						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5);
+		assertFalse(queryMismatch.passed());
+		assertEquals("FAIL", queryMismatch.status());
 
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase heavy =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("heavyLift", "mid_domain_mid_rpm");
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(
-						heavy, REVIEWED_CASE_SHA, 5,
+						heavy, REVIEWED_CASE_SHA, heavy.queryAdvanceRatioJ(), heavy.queryRpm(), 5,
 						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(
-						apMid, "not-a-sha", 5,
+						apMid, "not-a-sha", apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 5,
 						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(
-						apMid, REVIEWED_CASE_SHA, -1,
+						apMid, REVIEWED_CASE_SHA, Double.NaN, apMid.queryRpm(), 5,
 						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(
-						apMid, REVIEWED_CASE_SHA, 5,
+						apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), -1,
+						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(
+						apMid, REVIEWED_CASE_SHA, apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 5,
 						Double.NaN, 0.05, 0.05, 0.03, 0.06, 5.0e-5));
 	}
 
@@ -161,7 +176,8 @@ class PropellerArchiveCtCpJOpenFoamDimensionalResidualContractTest {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.OpenFoamDimensionalCompactResult result =
-				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA, 5,
+				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.result(apMid, REVIEWED_CASE_SHA,
+						apMid.queryAdvanceRatioJ(), apMid.queryRpm(), 5,
 						0.04, 0.05, 0.05, 0.03, 0.06, 5.0e-5);
 
 		assertThrows(IllegalArgumentException.class,
