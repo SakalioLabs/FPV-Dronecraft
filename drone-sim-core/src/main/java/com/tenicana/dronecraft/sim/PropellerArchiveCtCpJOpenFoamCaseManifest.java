@@ -6,9 +6,9 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Case-Manifest-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM case manifest binds geometry-backed CT/CP/J validation targets to external case keys and required output channels; no solver code, case directory, or raw OpenFOAM output is vendored, and runtime/gameplay auto-apply stay closed.";
+			"OpenFOAM case manifest binds geometry-backed CT/CP/J validation targets to external case keys and required result payload channels; no solver code, case directory, or raw OpenFOAM output is vendored, and runtime/gameplay auto-apply stay closed.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
-	public static final int REQUIRED_CHANNEL_ROW_COUNT = 10;
+	public static final int REQUIRED_CHANNEL_ROW_COUNT = 26;
 	public static final int MANIFEST_CASE_ROW_COUNT = 6;
 	public static final int SUMMARY_ROW_COUNT = 12;
 	public static final int METHOD_ROW_COUNT = 1;
@@ -23,40 +23,108 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 
 	private static final List<OpenFoamCaseManifestChannel> REQUIRED_CHANNELS = List.of(
 			new OpenFoamCaseManifestChannel("source_case_sha256", "sha256", "provenance",
-					true, false, false, 0.0, "prove exact external case archive identity"),
-			new OpenFoamCaseManifestChannel("thrust_coefficient_ct", "coefficient",
+					true, true, true, 0.0, "prove exact external case archive identity"),
+			new OpenFoamCaseManifestChannel("reference_thrust_coefficient_ct", "coefficient",
+					"coefficient_reference", true, true, false,
+					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CT_RESIDUAL,
+					"bind reviewed wind-tunnel CT reference for coefficient residual"),
+			new OpenFoamCaseManifestChannel("cfd_thrust_coefficient_ct", "coefficient",
+					"coefficient_result", true, true, false,
+					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CT_RESIDUAL,
+					"feed OpenFOAM force-derived CT residual comparison"),
+			new OpenFoamCaseManifestChannel("ct_residual_to_wind_tunnel", "ratio",
 					"coefficient_residual", true, true, false,
 					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CT_RESIDUAL,
-					"feed CT residual comparison against reviewed wind-tunnel lookup"),
-			new OpenFoamCaseManifestChannel("power_coefficient_cp", "coefficient",
+					"gate CT residual consistency against paired coefficient values"),
+			new OpenFoamCaseManifestChannel("reference_power_coefficient_cp", "coefficient",
+					"coefficient_reference", true, true, false,
+					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CP_RESIDUAL,
+					"bind reviewed wind-tunnel CP reference for coefficient residual"),
+			new OpenFoamCaseManifestChannel("cfd_power_coefficient_cp", "coefficient",
+					"coefficient_result", true, true, false,
+					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CP_RESIDUAL,
+					"feed OpenFOAM power-derived CP residual comparison"),
+			new OpenFoamCaseManifestChannel("cp_residual_to_wind_tunnel", "ratio",
 					"coefficient_residual", true, true, false,
 					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_CP_RESIDUAL,
-					"feed CP residual comparison against reviewed wind-tunnel lookup"),
-			new OpenFoamCaseManifestChannel("efficiency_eta", "ratio", "coefficient_residual",
+					"gate CP residual consistency against paired coefficient values"),
+			new OpenFoamCaseManifestChannel("reference_efficiency_eta", "ratio",
+					"coefficient_reference", true, true, false,
+					PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_ETA_RESIDUAL,
+					"bind reviewed wind-tunnel eta reference for coefficient residual"),
+			new OpenFoamCaseManifestChannel("cfd_efficiency_eta", "ratio", "coefficient_result",
 					true, true, false, PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_ETA_RESIDUAL,
-					"feed eta residual comparison against reviewed wind-tunnel lookup"),
+					"feed OpenFOAM CT CP J efficiency residual comparison"),
+			new OpenFoamCaseManifestChannel("eta_residual_to_wind_tunnel", "ratio",
+					"coefficient_residual",
+					true, true, false, PropellerArchiveCtCpJOpenFoamValidationPlan.MAX_ETA_RESIDUAL,
+					"gate eta residual consistency against paired coefficient values"),
+			new OpenFoamCaseManifestChannel("reference_thrust_newtons", "N", "dimensional_reference",
+					true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_THRUST_RESIDUAL_TO_REFERENCE,
+					"bind dimensional thrust reference for SI residual"),
 			new OpenFoamCaseManifestChannel("cfd_thrust_newtons", "N", "dimensional_residual",
 					true, false, true,
 					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_THRUST_RESIDUAL_TO_REFERENCE,
 					"feed SI thrust residual comparison against dimensional rotor response"),
+			new OpenFoamCaseManifestChannel("thrust_residual_to_reference", "ratio",
+					"dimensional_residual", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_THRUST_RESIDUAL_TO_REFERENCE,
+					"gate SI thrust residual consistency against paired values"),
+			new OpenFoamCaseManifestChannel("reference_shaft_power_watts", "W",
+					"dimensional_reference", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE,
+					"bind dimensional shaft-power reference for SI residual"),
 			new OpenFoamCaseManifestChannel("cfd_shaft_power_watts", "W", "dimensional_residual",
 					true, false, true,
 					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE,
 					"feed SI shaft-power residual comparison against dimensional rotor response"),
+			new OpenFoamCaseManifestChannel("shaft_power_residual_to_reference", "ratio",
+					"dimensional_residual", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_SHAFT_POWER_RESIDUAL_TO_REFERENCE,
+					"gate SI shaft-power residual consistency against paired values"),
+			new OpenFoamCaseManifestChannel("reference_shaft_torque_newton_meters", "N*m",
+					"dimensional_reference", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE,
+					"bind dimensional reaction-torque reference for SI residual"),
 			new OpenFoamCaseManifestChannel("cfd_shaft_torque_newton_meters", "N*m",
 					"dimensional_residual", true, false, true,
 					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE,
 					"feed SI reaction-torque residual comparison against dimensional rotor response"),
-			new OpenFoamCaseManifestChannel("cfd_induced_velocity_mps", "m_per_s",
+			new OpenFoamCaseManifestChannel("shaft_torque_residual_to_reference", "ratio",
+					"dimensional_residual", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract.MAX_SHAFT_TORQUE_RESIDUAL_TO_REFERENCE,
+					"gate SI reaction-torque residual consistency against paired values"),
+			new OpenFoamCaseManifestChannel("reference_induced_velocity_meters_per_second", "m/s",
+					"dimensional_reference", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
+							.MAX_INDUCED_VELOCITY_RESIDUAL_TO_REFERENCE,
+					"bind dimensional induced-velocity reference for SI residual"),
+			new OpenFoamCaseManifestChannel("cfd_induced_velocity_meters_per_second", "m/s",
 					"dimensional_residual", true, false, true,
 					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
 							.MAX_INDUCED_VELOCITY_RESIDUAL_TO_REFERENCE,
 					"feed wake induced-velocity residual comparison against dimensional rotor response"),
+			new OpenFoamCaseManifestChannel("induced_velocity_residual_to_reference", "ratio",
+					"dimensional_residual", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
+							.MAX_INDUCED_VELOCITY_RESIDUAL_TO_REFERENCE,
+					"gate wake induced-velocity residual consistency against paired values"),
+			new OpenFoamCaseManifestChannel("reference_momentum_power_watts", "W",
+					"dimensional_reference", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
+							.MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE,
+					"bind dimensional momentum-power reference for SI residual"),
 			new OpenFoamCaseManifestChannel("cfd_momentum_power_watts", "W",
 					"dimensional_residual", true, false, true,
 					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
 							.MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE,
 					"feed wake momentum-power residual comparison against dimensional rotor response"),
+			new OpenFoamCaseManifestChannel("momentum_power_residual_to_reference", "ratio",
+					"dimensional_residual", true, false, true,
+					PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
+							.MAX_MOMENTUM_POWER_RESIDUAL_TO_REFERENCE,
+					"gate wake momentum-power residual consistency against paired values"),
 			new OpenFoamCaseManifestChannel("solver_convergence_residual", "ratio",
 					"solver_convergence", true, true, true,
 					PropellerArchiveCtCpJOpenFoamResultContract.MAX_SOLVER_CONVERGENCE_RESIDUAL,
@@ -204,9 +272,8 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 				validationCase.equivalentProjectMu(),
 				validationCase.minimumNeighborRows(),
 				validationCase.staticAnchorCase(),
-				PropellerArchiveCtCpJOpenFoamResultContract.REQUIRED_RESULT_CHANNEL_COUNT,
-				PropellerArchiveCtCpJOpenFoamDimensionalResidualContract
-						.REQUIRED_DIMENSIONAL_RESULT_CHANNEL_COUNT,
+				coefficientContractChannelCount(),
+				dimensionalContractChannelCount(),
 				REQUIRED_CHANNEL_ROW_COUNT,
 				true,
 				false,
@@ -218,6 +285,18 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 				NEXT_REQUIRED_ACTION,
 				"external OpenFOAM case must be authored and hashed outside the repository before results can enter contracts"
 		);
+	}
+
+	private static int coefficientContractChannelCount() {
+		return (int) REQUIRED_CHANNELS.stream()
+				.filter(OpenFoamCaseManifestChannel::coefficientResultContractChannel)
+				.count();
+	}
+
+	private static int dimensionalContractChannelCount() {
+		return (int) REQUIRED_CHANNELS.stream()
+				.filter(OpenFoamCaseManifestChannel::dimensionalResidualContractChannel)
+				.count();
 	}
 
 	private static OpenFoamCaseManifestSummary summary(List<OpenFoamCaseManifestRow> rows) {

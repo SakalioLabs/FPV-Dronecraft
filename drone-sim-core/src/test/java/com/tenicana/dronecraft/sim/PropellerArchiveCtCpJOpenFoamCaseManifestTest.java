@@ -21,13 +21,13 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Case-Manifest-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("external case keys"));
-		assertEquals(36, audit.packetRowCount());
+		assertEquals(52, audit.packetRowCount());
 		assertEquals(7, audit.sourceReferenceRowCount());
-		assertEquals(10, audit.requiredChannelRowCount());
+		assertEquals(26, audit.requiredChannelRowCount());
 		assertEquals(6, audit.manifestCaseRowCount());
 		assertEquals(12, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(10, audit.channels().size());
+		assertEquals(26, audit.channels().size());
 		assertEquals(6, audit.rows().size());
 
 		assertEquals(6, audit.summary().manifestCaseCount());
@@ -37,9 +37,9 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 		assertEquals(0, audit.summary().currentCaseRunnableCount());
 		assertEquals(6, audit.summary().sourceCaseSha256RequiredCount());
 		assertEquals(0, audit.summary().currentSourceCaseSha256AvailableCount());
-		assertEquals(18, audit.summary().requiredCoefficientChannelTotal());
-		assertEquals(30, audit.summary().requiredDimensionalChannelTotal());
-		assertEquals(60, audit.summary().requiredManifestChannelTotal());
+		assertEquals(66, audit.summary().requiredCoefficientChannelTotal());
+		assertEquals(102, audit.summary().requiredDimensionalChannelTotal());
+		assertEquals(156, audit.summary().requiredManifestChannelTotal());
 		assertEquals(0, audit.summary().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.summary().gameplayAutoApplyAllowedCount());
 	}
@@ -47,17 +47,24 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 	@Test
 	void channelsJoinCoefficientAndDimensionalContractsWithoutRuntimeLeak() {
 		PropellerArchiveCtCpJOpenFoamCaseManifest.OpenFoamCaseManifestChannel ct =
-				PropellerArchiveCtCpJOpenFoamCaseManifest.channel("thrust_coefficient_ct");
+				PropellerArchiveCtCpJOpenFoamCaseManifest.channel("cfd_thrust_coefficient_ct");
 		assertEquals("coefficient", ct.unit());
-		assertEquals("coefficient_residual", ct.evidenceRole());
+		assertEquals("coefficient_result", ct.evidenceRole());
 		assertTrue(ct.required());
 		assertTrue(ct.coefficientResultContractChannel());
 		assertFalse(ct.dimensionalResidualContractChannel());
 		assertEquals(0.08, ct.maxResidualRatio(), 1.0e-12);
 
+		PropellerArchiveCtCpJOpenFoamCaseManifest.OpenFoamCaseManifestChannel ctResidual =
+				PropellerArchiveCtCpJOpenFoamCaseManifest.channel("ct_residual_to_wind_tunnel");
+		assertEquals("ratio", ctResidual.unit());
+		assertEquals("coefficient_residual", ctResidual.evidenceRole());
+		assertTrue(ctResidual.coefficientResultContractChannel());
+
 		PropellerArchiveCtCpJOpenFoamCaseManifest.OpenFoamCaseManifestChannel induced =
-				PropellerArchiveCtCpJOpenFoamCaseManifest.channel("cfd_induced_velocity_mps");
-		assertEquals("m_per_s", induced.unit());
+				PropellerArchiveCtCpJOpenFoamCaseManifest.channel(
+						"cfd_induced_velocity_meters_per_second");
+		assertEquals("m/s", induced.unit());
 		assertFalse(induced.coefficientResultContractChannel());
 		assertTrue(induced.dimensionalResidualContractChannel());
 		assertEquals(0.06, induced.maxResidualRatio(), 1.0e-12);
@@ -87,9 +94,9 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 		assertEquals(0.4064 / Math.PI, apMid.equivalentProjectMu(), 1.0e-12);
 		assertEquals(4, apMid.minimumNeighborRows());
 		assertFalse(apMid.staticAnchorCase());
-		assertEquals(3, apMid.requiredCoefficientChannelCount());
-		assertEquals(5, apMid.requiredDimensionalChannelCount());
-		assertEquals(10, apMid.requiredManifestChannelCount());
+		assertEquals(11, apMid.requiredCoefficientChannelCount());
+		assertEquals(17, apMid.requiredDimensionalChannelCount());
+		assertEquals(26, apMid.requiredManifestChannelCount());
 		assertTrue(apMid.sourceCaseSha256Required());
 		assertFalse(apMid.currentSourceCaseSha256Available());
 		assertFalse(apMid.currentCaseRunnable());
@@ -125,13 +132,13 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_channel,thrust_coefficient_ct,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_channel,cfd_thrust_coefficient_ct,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_case,apDrone,mid_domain_mid_rpm,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_case,racingQuad,static_anchor_low_rpm,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_summary,all_cases,required_dimensional_channel_total,30,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_summary,all_cases,required_dimensional_channel_total,102,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_method,external_case_manifest_rule,method,")));
 	}
