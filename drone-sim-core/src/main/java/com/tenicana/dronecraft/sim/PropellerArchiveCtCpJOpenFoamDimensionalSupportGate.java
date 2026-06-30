@@ -7,10 +7,10 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Support-Gate-Packet";
 	public static final String CAVEAT =
 			"OpenFOAM dimensional support opens only when handoff-aware CT/CP/J lookup execution, coefficient-level CFD lookup support including solver-quality QA, and SI rotor-response residuals all pass; it cannot export references, patch runtime physics, or tune gameplay automatically.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 11;
 	public static final int SCENARIO_SAMPLE_COUNT = 6;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 26;
-	public static final int SUMMARY_ROW_COUNT = 14;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 28;
+	public static final int SUMMARY_ROW_COUNT = 16;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_ROW_COUNT
@@ -27,6 +27,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			boolean dimensionalResponseReferenceReady,
 			boolean openFoamCoefficientResultReady,
 			boolean openFoamSolverQualityContractReady,
+			int openFoamSolverQualityBlockerCount,
+			String openFoamSolverQualityNextRequiredAction,
 			boolean externalDimensionalExtractionReady,
 			int expectedLookupTargetCount,
 			int cfdSupportedLookupTargetCount,
@@ -66,6 +68,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 			int maxCfdGeometryUnsupportedLookupTargetCount,
 			int maxDimensionalMissingResultCount,
 			int maxDimensionalFailedResultCount,
+			int maxOpenFoamSolverQualityBlockerCount,
+			int openFoamSolverQualityBlockerScenarioCount,
 			double maxThrustResidualToReference,
 			double maxInducedVelocityResidualToReference,
 			int referenceExportAuthorityAllowedCount,
@@ -179,6 +183,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				dimensional.dimensionalResponseReferenceReady(),
 				dimensional.openFoamCoefficientResultReady(),
 				lookupSupport.openFoamSolverQualityContractReady(),
+				lookupSupport.openFoamSolverQualityBlockerCount(),
+				lookupSupport.openFoamSolverQualityNextRequiredAction(),
 				dimensional.externalDimensionalExtractionReady(),
 				lookupSupport.expectedLookupTargetCount(),
 				lookupSupport.cfdSupportedLookupTargetCount(),
@@ -236,6 +242,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 		int maxGeometryUnsupported = 0;
 		int maxMissing = 0;
 		int maxFailed = 0;
+		int maxQualityBlockers = 0;
+		int qualityBlocked = 0;
 		double maxThrust = 0.0;
 		double maxInduced = 0.0;
 		int referenceAuthority = 0;
@@ -256,6 +264,11 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 					summary.cfdGeometryUnsupportedLookupTargetCount());
 			maxMissing = Math.max(maxMissing, summary.dimensionalMissingResultCount());
 			maxFailed = Math.max(maxFailed, summary.dimensionalFailedResultCount());
+			maxQualityBlockers = Math.max(maxQualityBlockers,
+					summary.openFoamSolverQualityBlockerCount());
+			if (summary.openFoamSolverQualityBlockerCount() > 0) {
+				qualityBlocked++;
+			}
 			maxThrust = Math.max(maxThrust, summary.maxThrustResidualToReference());
 			maxInduced = Math.max(maxInduced, summary.maxInducedVelocityResidualToReference());
 			if (summary.referenceExportAuthorityAllowed()) {
@@ -278,6 +291,8 @@ public final class PropellerArchiveCtCpJOpenFoamDimensionalSupportGate {
 				maxGeometryUnsupported,
 				maxMissing,
 				maxFailed,
+				maxQualityBlockers,
+				qualityBlocked,
 				maxThrust,
 				maxInduced,
 				referenceAuthority,
