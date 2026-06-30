@@ -21,14 +21,14 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Scattered-Surface-Fit-Execution-Handoff-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("lookup-execution input shape"));
-		assertEquals(48, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
-		assertEquals(14, audit.executionInputFieldRowCount());
+		assertEquals(57, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
+		assertEquals(18, audit.executionInputFieldRowCount());
 		assertEquals(9, audit.executionInputRowCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(12, audit.summaryRowCount());
+		assertEquals(16, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(14, audit.fields().size());
+		assertEquals(18, audit.fields().size());
 		assertEquals(9, audit.rows().size());
 		assertEquals(5, audit.scenarios().size());
 
@@ -73,6 +73,10 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 		assertEquals(9, ready.exportedExecutionInputRowCount());
 		assertEquals(6, ready.fullSimulationExecutionInputRowCount());
 		assertEquals(3, ready.performanceOnlyExecutionInputRowCount());
+		assertEquals(9, ready.archiveCurveShapeGuardReadyTargetCount());
+		assertEquals(9, ready.negativeThrustTailExecutionInputRowCount());
+		assertEquals(0.00027500814692071884, ready.maxArchiveCurveEtaFormulaResidual(), 1.0e-18);
+		assertEquals(0.000071, ready.maxArchiveCurveCtIncrease(), 1.0e-12);
 		assertFalse(ready.runtimeCouplingAllowed());
 		assertFalse(ready.gameplayAutoApplyAllowed());
 		assertEquals("scattered-surface-fit-execution-input-handoff-ready", ready.message());
@@ -98,6 +102,9 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 		assertEquals("DIRECT_STATIC_ANCHOR", staticRow.executionInputSourceKind());
 		assertTrue(staticRow.directNeighborBindingReady());
 		assertFalse(staticRow.scatteredFitRequired());
+		assertTrue(staticRow.archiveCurveShapeGuardPassed());
+		assertEquals(5, staticRow.negativeThrustTailRowCount());
+		assertEquals(0.00027500814692071884, staticRow.archiveCurveEtaFormulaResidual(), 1.0e-18);
 		assertEquals(1, staticRow.minimumPerformanceNeighborRows());
 		assertEquals(2, staticRow.availableRectangularNeighborRows());
 		assertFalse(staticRow.coefficientPayloadReviewed());
@@ -112,6 +119,9 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 		assertEquals("SCATTERED_SURFACE_FIT", midRow.executionInputSourceKind());
 		assertFalse(midRow.directNeighborBindingReady());
 		assertTrue(midRow.scatteredFitRequired());
+		assertTrue(midRow.archiveCurveShapeGuardPassed());
+		assertEquals(5, midRow.negativeThrustTailRowCount());
+		assertEquals(0.0, midRow.archiveCurveCtIncrease(), 1.0e-12);
 		assertEquals(4, midRow.minimumPerformanceNeighborRows());
 		assertEquals(2, midRow.availableRectangularNeighborRows());
 		assertTrue(midRow.postReviewFullSimulationLookupAllowed());
@@ -121,6 +131,8 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 				PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.row(
 						"heavyLift", "mid_domain_mid_rpm");
 		assertFalse(heavy.postReviewFullSimulationLookupAllowed());
+		assertEquals(44, heavy.negativeThrustTailRowCount());
+		assertEquals(0.000071, heavy.archiveCurveCtIncrease(), 1.0e-12);
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.row("cinewhoop", "mid_domain_mid_rpm"));
@@ -136,6 +148,11 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 		assertFalse(sourceKind.gameplayAutoApplyAllowed());
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.field("missing"));
+		PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.ExecutionInputField shapeGuard =
+				PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff.field("archive_curve_shape_guard_passed");
+		assertEquals("boolean", shapeGuard.unit());
+		assertTrue(shapeGuard.downstreamUse().contains("curve shape"));
+		assertFalse(shapeGuard.runtimeCouplingAllowed());
 
 		PropellerArchiveCtCpJScatteredSurfaceFitContract.ScatteredSurfaceFitSummary readySummary =
 				PropellerArchiveCtCpJScatteredSurfaceFitContract.audit().scenarios().stream()
@@ -163,13 +180,19 @@ class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoffTest {
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_handoff_source,archive_curve_shape_review,source,READY,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_input,racingQuad,static_anchor_low_rpm,DIRECT_BINDING_TARGET,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_input,heavyLift,mid_domain_mid_rpm,SURFACE_FIT_TARGET,minimum_performance_neighbor_rows,4,count,ancf 10.0x5.0 - 2,0.3335,4250.0,SCATTERED_SURFACE_FIT,4,2,false,true,true,44,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_input,apDrone,mid_domain_mid_rpm,SURFACE_FIT_TARGET,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_handoff_scenario,surface_fit_ready_execution_input_handoff,READY,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_handoff_summary,all,max_exported_execution_input_row_count,9,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_handoff_summary,all,max_archive_curve_eta_formula_residual,0.00027500814692071884,ratio,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_scattered_fit_execution_handoff_summary,all,runtime_coupling_allowed_count,0,count,")));
 	}

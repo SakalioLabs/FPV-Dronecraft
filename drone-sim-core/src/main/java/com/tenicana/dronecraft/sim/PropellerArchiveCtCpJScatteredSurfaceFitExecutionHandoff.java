@@ -7,11 +7,11 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff {
 			"User-Propeller-Archive-CT-CP-J-Scattered-Surface-Fit-Execution-Handoff-Packet";
 	public static final String CAVEAT =
 			"Scattered surface fit execution handoff exposes lookup-execution input shape only after the scattered CT/CP/J surface fit contract is complete; it exports no raw archive rows and cannot mutate runtime physics or gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
-	public static final int EXECUTION_INPUT_FIELD_ROW_COUNT = 14;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+	public static final int EXECUTION_INPUT_FIELD_ROW_COUNT = 18;
 	public static final int EXECUTION_INPUT_ROW_COUNT = PropellerArchiveCtCpJScatteredSurfaceFitContract.TARGET_ROW_COUNT;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SUMMARY_ROW_COUNT = 12;
+	public static final int SUMMARY_ROW_COUNT = 16;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ EXECUTION_INPUT_FIELD_ROW_COUNT
@@ -39,6 +39,14 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff {
 					"interpolation policy", "carry reviewed-neighbor requirement into execution", false, false),
 			new ExecutionInputField("available_rectangular_neighbor_rows", "count", true,
 					"archive grid coverage", "document why fitted rows were needed", false, false),
+			new ExecutionInputField("archive_curve_shape_guard_passed", "boolean", true,
+					"archive curve-shape review", "prove CT/CP/J curve shape before execution", false, false),
+			new ExecutionInputField("negative_thrust_tail_row_count", "count", true,
+					"archive curve-shape review", "keep high-J negative thrust tail visible", false, false),
+			new ExecutionInputField("archive_curve_eta_formula_residual", "ratio", true,
+					"archive curve-shape review", "preserve eta equals J CT over CP consistency", false, false),
+			new ExecutionInputField("archive_curve_ct_increase", "coefficient", true,
+					"archive curve-shape review", "preserve CT monotonic tolerance", false, false),
 			new ExecutionInputField("fit_static_anchor_residual", "ratio", true,
 					"surface fit validation", "preserve static anchor quality", false, false),
 			new ExecutionInputField("fit_ct_holdout_residual", "ratio", true,
@@ -76,6 +84,10 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff {
 			int availableRectangularNeighborRows,
 			boolean directNeighborBindingReady,
 			boolean scatteredFitRequired,
+			boolean archiveCurveShapeGuardPassed,
+			int negativeThrustTailRowCount,
+			double archiveCurveEtaFormulaResidual,
+			double archiveCurveCtIncrease,
 			boolean postReviewFullSimulationLookupAllowed,
 			boolean coefficientPayloadReviewed,
 			boolean executionInputReady,
@@ -97,6 +109,10 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff {
 			int scatteredSurfaceCandidateRowCount,
 			int fullSimulationExecutionInputRowCount,
 			int performanceOnlyExecutionInputRowCount,
+			int archiveCurveShapeGuardReadyTargetCount,
+			int negativeThrustTailExecutionInputRowCount,
+			double maxArchiveCurveEtaFormulaResidual,
+			double maxArchiveCurveCtIncrease,
 			boolean executionInputHandoffReady,
 			boolean runtimeCouplingAllowed,
 			boolean gameplayAutoApplyAllowed,
@@ -238,6 +254,10 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff {
 				scatteredCandidateRows,
 				ready ? fit.readyFullSimulationTargetCount() : 0,
 				ready ? fit.readyPerformanceOnlyTargetCount() : 0,
+				fit.archiveCurveShapeGuardReadyTargetCount(),
+				fit.negativeThrustTailTargetCount(),
+				fit.maxArchiveCurveEtaFormulaResidual(),
+				fit.maxArchiveCurveCtIncrease(),
 				ready,
 				false,
 				false,
@@ -263,6 +283,10 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitExecutionHandoff {
 				target.availableRectangularNeighborRows(),
 				direct,
 				target.scatteredFitRequired(),
+				target.archiveCurveShapeGuardPassed(),
+				target.negativeThrustTailRowCount(),
+				target.archiveMaxEtaFormulaResidual(),
+				target.archiveMaxCtIncrease(),
 				target.postReviewFullSimulationLookupAllowed(),
 				false,
 				false,
