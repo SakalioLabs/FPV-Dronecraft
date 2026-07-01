@@ -18,6 +18,12 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 
 	private static final String CURRENT_SCENARIO = "current_powered_source_coupling_review_blocked";
 	private static final String READY_SCENARIO = "synthetic_powered_source_coupling_review_ready";
+	private static final String CURRENT_MANIFEST_SCENARIO = "current_nearfield_reference_manifest_blocked";
+	private static final String READY_MANIFEST_SCENARIO = "synthetic_nearfield_reference_manifest_ready";
+	private static final String COMBINED_NEARFIELD_REFERENCE_ARTIFACT =
+			"combined_nearfield_wake_reference_package";
+	private static final String OPENFOAM_DIMENSIONAL_REFERENCE_ARTIFACT =
+			"openfoam_dimensional_rotor_reference_table";
 
 	private Aerodynamics4McL2PoweredSourceCouplingReviewHandoff() {
 	}
@@ -134,6 +140,21 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 		}
 	}
 
+	private record NearfieldReferenceReviewEvidence(
+			boolean nearfieldReferencePackageExportAllowed,
+			int totalExpectedReferenceRowCount,
+			int openFoamAvailableReferenceRowCount,
+			boolean openFoamCoefficientLookupShapeGuardReady,
+			int openFoamCoefficientLookupShapeGuardReadyRowCount,
+			int openFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int openFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int openFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double openFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double openFoamCoefficientArchiveCurveCtIncrease,
+			String referencePayloadKind
+	) {
+	}
+
 	public static PoweredSourceCouplingReviewHandoffAudit audit() {
 		return audit(Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport.audit());
 	}
@@ -152,19 +173,19 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 		if (blockerAudit == null) {
 			throw new IllegalArgumentException("blockerAudit must not be null.");
 		}
-		Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceAudit nearfieldAudit =
-				Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.audit();
+		Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestAudit
+				nearfieldManifest = Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.audit();
 		List<PoweredSourceCouplingReviewHandoffScenario> scenarios = List.of(
 				new PoweredSourceCouplingReviewHandoffScenario(
 						CURRENT_SCENARIO,
 						handoff(
 								blocker(blockerAudit, "current_coupling_and_conservation_blocked"),
-								nearfield(nearfieldAudit, "current_hover_cruise_and_openfoam_reference_blocked"))),
+								nearfield(nearfieldManifest, CURRENT_MANIFEST_SCENARIO))),
 				new PoweredSourceCouplingReviewHandoffScenario(
 						READY_SCENARIO,
 						handoff(
 								blocker(blockerAudit, "coupling_and_conservation_ready"),
-								nearfield(nearfieldAudit, "hover_cruise_and_openfoam_reference_ready")))
+								nearfield(nearfieldManifest, READY_MANIFEST_SCENARIO)))
 		);
 		return new PoweredSourceCouplingReviewHandoffAudit(
 				SOURCE_ID,
@@ -184,20 +205,34 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
 					.PoweredSourceCouplingConservationBlockerSummary blocker
 	) {
-		return handoff(blocker, Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.audit()
-				.scenarios()
-				.stream()
-				.filter(scenario -> "current_hover_cruise_and_openfoam_reference_blocked"
-						.equals(scenario.scenarioName()))
-				.findFirst()
-				.orElseThrow()
-				.summary());
+		return handoff(blocker, nearfield(
+				Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.audit(),
+				CURRENT_MANIFEST_SCENARIO));
 	}
 
 	public static PoweredSourceCouplingReviewHandoffSummary handoff(
 			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
 					.PoweredSourceCouplingConservationBlockerSummary blocker,
 			Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceSummary nearfield
+	) {
+		return handoff(blocker, evidence(nearfield));
+	}
+
+	public static PoweredSourceCouplingReviewHandoffSummary handoff(
+			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
+					.PoweredSourceCouplingConservationBlockerSummary blocker,
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+					combinedPackage,
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+					openFoamReference
+	) {
+		return handoff(blocker, evidence(combinedPackage, openFoamReference));
+	}
+
+	private static PoweredSourceCouplingReviewHandoffSummary handoff(
+			Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
+					.PoweredSourceCouplingConservationBlockerSummary blocker,
+			NearfieldReferenceReviewEvidence nearfield
 	) {
 		if (blocker == null || nearfield == null) {
 			throw new IllegalArgumentException("blocker summary must not be null.");
@@ -304,15 +339,90 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 				.summary();
 	}
 
-	private static Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceSummary nearfield(
-			Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceAudit audit,
+	private static NearfieldReferenceReviewEvidence nearfield(
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestAudit audit,
 			String scenarioName
 	) {
-		return audit.scenarios().stream()
-				.filter(scenario -> scenarioName.equals(scenario.scenarioName()))
+		if (audit == null) {
+			throw new IllegalArgumentException("nearfield manifest audit must not be null.");
+		}
+		return evidence(
+				manifestEntry(audit, scenarioName, COMBINED_NEARFIELD_REFERENCE_ARTIFACT),
+				manifestEntry(audit, scenarioName, OPENFOAM_DIMENSIONAL_REFERENCE_ARTIFACT));
+	}
+
+	private static Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+			manifestEntry(
+					Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest
+							.PoweredNearfieldWakeReferenceManifestAudit audit,
+					String scenarioName,
+					String artifactId
+			) {
+		if (scenarioName == null || scenarioName.isBlank()) {
+			throw new IllegalArgumentException("nearfield manifest scenarioName must not be blank.");
+		}
+		if (artifactId == null || artifactId.isBlank()) {
+			throw new IllegalArgumentException("nearfield manifest artifactId must not be blank.");
+		}
+		return audit.entries().stream()
+				.filter(entry -> scenarioName.equals(entry.scenarioName()))
+				.filter(entry -> artifactId.equals(entry.artifactId()))
 				.findFirst()
-				.orElseThrow()
-				.summary();
+				.orElseThrow();
+	}
+
+	private static NearfieldReferenceReviewEvidence evidence(
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceSummary nearfield
+	) {
+		if (nearfield == null) {
+			throw new IllegalArgumentException("nearfield summary must not be null.");
+		}
+		return new NearfieldReferenceReviewEvidence(
+				nearfield.nearfieldReferencePackageExportAllowed(),
+				nearfield.totalExpectedReferenceRowCount(),
+				nearfield.openFoamAvailableReferenceRowCount(),
+				nearfield.openFoamCoefficientLookupShapeGuardReady(),
+				nearfield.openFoamCoefficientLookupShapeGuardReadyRowCount(),
+				nearfield.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
+				nearfield.openFoamCoefficientLookupShapeGuardBlockedScenarioCount(),
+				nearfield.openFoamCoefficientNegativeThrustTailExecutionInputRowCount(),
+				nearfield.openFoamCoefficientArchiveCurveEtaFormulaResidual(),
+				nearfield.openFoamCoefficientArchiveCurveCtIncrease(),
+				nearfield.referencePayloadKind()
+		);
+	}
+
+	private static NearfieldReferenceReviewEvidence evidence(
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+					combinedPackage,
+			Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+					openFoamReference
+	) {
+		if (combinedPackage == null || openFoamReference == null) {
+			throw new IllegalArgumentException("nearfield manifest entries must not be null.");
+		}
+		if (!combinedPackage.scenarioName().equals(openFoamReference.scenarioName())) {
+			throw new IllegalArgumentException("nearfield manifest entries must share a scenario.");
+		}
+		if (!COMBINED_NEARFIELD_REFERENCE_ARTIFACT.equals(combinedPackage.artifactId())) {
+			throw new IllegalArgumentException("combined nearfield manifest entry is required.");
+		}
+		if (!OPENFOAM_DIMENSIONAL_REFERENCE_ARTIFACT.equals(openFoamReference.artifactId())) {
+			throw new IllegalArgumentException("OpenFOAM dimensional reference manifest entry is required.");
+		}
+		return new NearfieldReferenceReviewEvidence(
+				combinedPackage.artifactExportAllowed(),
+				combinedPackage.expectedReferenceRowCount(),
+				openFoamReference.availableReferenceRowCount(),
+				openFoamReference.openFoamCoefficientLookupShapeGuardReady(),
+				openFoamReference.openFoamCoefficientLookupShapeGuardReadyRowCount(),
+				openFoamReference.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
+				openFoamReference.openFoamCoefficientLookupShapeGuardBlockedScenarioCount(),
+				openFoamReference.openFoamCoefficientNegativeThrustTailExecutionInputRowCount(),
+				openFoamReference.openFoamCoefficientArchiveCurveEtaFormulaResidual(),
+				openFoamReference.openFoamCoefficientArchiveCurveCtIncrease(),
+				combinedPackage.payloadKind()
+		);
 	}
 
 	private static PoweredSourceCouplingReviewHandoffExtrema extrema(
