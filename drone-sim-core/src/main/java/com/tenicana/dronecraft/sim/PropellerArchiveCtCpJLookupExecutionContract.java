@@ -11,7 +11,7 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the reviewed grid input, reviewed coefficient payload, and scattered-fit execution handoff are ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int EXECUTION_RULE_ROW_COUNT = 11;
-	public static final int SCENARIO_ROW_COUNT = 8;
+	public static final int SCENARIO_ROW_COUNT = 9;
 	public static final int SUMMARY_ROW_COUNT = 18;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
@@ -190,6 +190,8 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 						executeFromHandoff(readyHandoff, staticAnchorRows(staticContract), staticContract)),
 				new LookupExecutionScenario("synthetic_mid_bilinear_pass",
 						executeFromHandoff(readyHandoff, midRows(midContract, 1.0), midContract)),
+				new LookupExecutionScenario("synthetic_reviewed_payload_bridge_mid_pass",
+						executeFromHandoff(readyHandoff, reviewedPayloadBridgeRows(midContract), midContract)),
 				new LookupExecutionScenario("synthetic_missing_neighbor_blocked",
 						executeFromHandoff(readyHandoff, missingNeighborRows(midContract), midContract)),
 				new LookupExecutionScenario("synthetic_high_j_extrapolation_rejected",
@@ -551,6 +553,41 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract
 	) {
 		return midRows(contract, 1.0).subList(0, 3);
+	}
+
+	private static List<LookupGridRow> reviewedPayloadBridgeRows(
+			PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract
+	) {
+		List<PropellerArchiveCtCpJLookupReviewedCoefficientPayload.ReviewedCoefficientPayloadRow> payloadRows =
+				PropellerArchiveCtCpJLookupReviewedGridInput.slots(contract.presetName(), contract.caseName())
+						.stream()
+						.map(PropellerArchiveCtCpJLookupExecutionContract::reviewedPayloadRow)
+						.toList();
+		return PropellerArchiveCtCpJLookupReviewedCoefficientPayload.lookupRows(
+				payloadRows, contract.presetName(), contract.caseName());
+	}
+
+	private static PropellerArchiveCtCpJLookupReviewedCoefficientPayload.ReviewedCoefficientPayloadRow reviewedPayloadRow(
+			PropellerArchiveCtCpJLookupReviewedGridInput.ReviewedGridInputSlot slot
+	) {
+		return switch (slot.slotId()) {
+			case "static-anchor" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.120, 0.040);
+			case "j0-r0" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.100, 0.046);
+			case "j1-r0" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.092, 0.051);
+			case "j0-r1" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.095, 0.049);
+			case "j1-r1" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.086, 0.057);
+			case "j0-rmax" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.088, 0.054);
+			case "j1-rmax" -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
+					slot, 0.080, 0.060);
+			default -> throw new IllegalArgumentException("unknown reviewed payload bridge slot: "
+					+ slot.presetName() + " / " + slot.caseName() + " / " + slot.slotId());
+		};
 	}
 
 	private static LookupExecutionResult blocked(
