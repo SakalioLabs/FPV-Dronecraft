@@ -20,9 +20,9 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet",
 				audit.sourceId());
-		assertTrue(audit.caveat().contains("scattered-fit execution handoff"));
-		assertEquals(45, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
+		assertTrue(audit.caveat().contains("reviewed grid input"));
+		assertEquals(46, audit.packetRowCount());
+		assertEquals(9, audit.sourceReferenceRowCount());
 		assertEquals(10, audit.executionRuleRowCount());
 		assertEquals(8, audit.scenarioRowCount());
 		assertEquals(18, audit.summaryRowCount());
@@ -266,6 +266,8 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,current_handoff_blocked_no_execution,HANDOFF_BLOCKED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,archive_curve_shape_guard_inherited,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_source,reviewed_grid_input,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_handoff_curve_shape_guard_blocked,HANDOFF_CURVE_SHAPE_GUARD_FAILED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
