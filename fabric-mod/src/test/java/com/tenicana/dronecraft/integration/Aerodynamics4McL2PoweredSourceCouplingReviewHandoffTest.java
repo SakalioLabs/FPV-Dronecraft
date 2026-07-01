@@ -163,6 +163,43 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 	}
 
 	@Test
+	void handoffConsumesNearfieldManifestEntriesAsReviewEvidence() {
+		Aerodynamics4McL2PoweredSourceCouplingConservationBlockerReport
+				.PoweredSourceCouplingConservationBlockerSummary blocker =
+						findBlocker("coupling_and_conservation_ready");
+		Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestAudit
+				manifest = Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.audit();
+		Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+				combinedPackage = manifestEntry(
+						manifest,
+						"synthetic_nearfield_reference_manifest_ready",
+						"combined_nearfield_wake_reference_package");
+		Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+				openFoamReference = manifestEntry(
+						manifest,
+						"synthetic_nearfield_reference_manifest_ready",
+						"openfoam_dimensional_rotor_reference_table");
+
+		Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.PoweredSourceCouplingReviewHandoffSummary
+				summary = Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.handoff(
+						blocker,
+						combinedPackage,
+						openFoamReference);
+
+		assertTrue(summary.poweredSourceCouplingReviewAllowed());
+		assertEquals(86, summary.nearfieldExpectedReferenceRowCount());
+		assertEquals(6, summary.nearfieldOpenFoamAvailableReferenceRowCount());
+		assertTrue(summary.nearfieldOpenFoamCoefficientLookupShapeGuardReady());
+		assertEquals("combined-hover-surface-cruise-skew-and-openfoam-rotor-reference-package",
+				summary.nearfieldReferencePayloadKind());
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.handoff(
+						blocker,
+						openFoamReference,
+						combinedPackage));
+	}
+
+	@Test
 	void rejectsInvalidInputs() {
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.audit((ClassLoader) null));
@@ -177,6 +214,13 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 						findBlocker("current_coupling_and_conservation_blocked");
 		assertThrows(IllegalArgumentException.class,
 				() -> Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.handoff(current, null));
+		assertThrows(IllegalArgumentException.class,
+				() -> Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.handoff(
+						current,
+						(Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest
+								.PoweredNearfieldWakeReferenceManifestEntry) null,
+						(Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest
+								.PoweredNearfieldWakeReferenceManifestEntry) null));
 	}
 
 	@Test
@@ -230,6 +274,20 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 				.findFirst()
 				.orElseThrow()
 				.summary();
+	}
+
+	private static Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest.PoweredNearfieldWakeReferenceManifestEntry
+			manifestEntry(
+					Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest
+							.PoweredNearfieldWakeReferenceManifestAudit audit,
+					String scenarioName,
+					String artifactId
+			) {
+		return audit.entries().stream()
+				.filter(entry -> scenarioName.equals(entry.scenarioName()))
+				.filter(entry -> artifactId.equals(entry.artifactId()))
+				.findFirst()
+				.orElseThrow();
 	}
 
 	private static Path findRepoRoot() {
