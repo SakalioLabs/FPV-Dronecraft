@@ -6,11 +6,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Nearfield-Wake-Reference-Gate-Packet";
 	public static final String CAVEAT =
-			"Nearfield wake reference gate combines hover surface-wake, cruise skew-wake, and OpenFOAM CT/CP/J dimensional rotor-reference handoffs with inherited archive curve-shape diagnostics into audit-only export readiness; it does not enable runtime coupling or gameplay auto-apply.";
+			"Nearfield wake reference gate combines hover surface-wake, cruise skew-wake, and OpenFOAM CT/CP/J dimensional rotor-reference handoffs with coefficient lookup shape-guard and inherited archive curve-shape diagnostics into audit-only export readiness; it does not enable runtime coupling or gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_COUNT = 48;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 23;
+	public static final int SCENARIO_METRIC_COUNT = 55;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 29;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -38,6 +38,13 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			int openFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerRowCount,
 			String openFoamSolverQualityNextRequiredAction,
+			boolean openFoamCoefficientLookupShapeGuardReady,
+			int openFoamCoefficientLookupShapeGuardReadyRowCount,
+			int openFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int openFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int openFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double openFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double openFoamCoefficientArchiveCurveCtIncrease,
 			int openFoamArchiveCurveShapeGuardInheritedReferenceCount,
 			int openFoamNegativeThrustTailReferenceCount,
 			double openFoamMaxArchiveCurveEtaFormulaResidual,
@@ -85,6 +92,13 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			int openFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerRowCount,
 			String openFoamSolverQualityNextRequiredAction,
+			boolean openFoamCoefficientLookupShapeGuardReady,
+			int openFoamCoefficientLookupShapeGuardReadyRowCount,
+			int openFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int openFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int openFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double openFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double openFoamCoefficientArchiveCurveCtIncrease,
 			int archiveCurveShapeGuardInheritedReferenceCount,
 			int negativeThrustTailReferenceCount,
 			double maxArchiveCurveEtaFormulaResidual,
@@ -101,6 +115,13 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			if (expectedReferenceRowCount < 0 || availableReferenceRowCount < 0 || blockedReferenceRowCount < 0) {
 				throw new IllegalArgumentException("OpenFOAM reference row counts must be non-negative.");
 			}
+			if (openFoamCoefficientLookupShapeGuardReadyRowCount < 0
+					|| openFoamCoefficientLookupShapeGuardInheritedScenarioCount < 0
+					|| openFoamCoefficientLookupShapeGuardBlockedScenarioCount < 0
+					|| openFoamCoefficientNegativeThrustTailExecutionInputRowCount < 0) {
+				throw new IllegalArgumentException(
+						"OpenFOAM coefficient lookup shape-guard counts must be non-negative.");
+			}
 			if (openFoamSolverQualityBlockerCount < 0 || openFoamSolverQualityBlockerRowCount < 0) {
 				throw new IllegalArgumentException("OpenFOAM solver-quality blocker counts must be non-negative.");
 			}
@@ -115,8 +136,19 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 					|| maxArchiveCurveCtIncrease < 0.0) {
 				throw new IllegalArgumentException("OpenFOAM archive curve-shape residuals must be finite.");
 			}
+			if (!Double.isFinite(openFoamCoefficientArchiveCurveEtaFormulaResidual)
+					|| openFoamCoefficientArchiveCurveEtaFormulaResidual < 0.0
+					|| !Double.isFinite(openFoamCoefficientArchiveCurveCtIncrease)
+					|| openFoamCoefficientArchiveCurveCtIncrease < 0.0) {
+				throw new IllegalArgumentException(
+						"OpenFOAM coefficient lookup shape-guard residuals must be finite.");
+			}
 			if (availableReferenceRowCount + blockedReferenceRowCount != expectedReferenceRowCount) {
 				throw new IllegalArgumentException("OpenFOAM available and blocked rows must sum to expected rows.");
+			}
+			if (openFoamCoefficientLookupShapeGuardReadyRowCount > expectedReferenceRowCount) {
+				throw new IllegalArgumentException(
+						"OpenFOAM coefficient lookup shape-guard ready rows must not exceed expected rows.");
 			}
 			if (openFoamSolverQualityBlockerRowCount > expectedReferenceRowCount) {
 				throw new IllegalArgumentException(
@@ -154,6 +186,12 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			int maxOpenFoamAvailableReferenceRowCount,
 			int maxOpenFoamSolverQualityBlockerCount,
 			int maxOpenFoamSolverQualityBlockerRowCount,
+			int maxOpenFoamCoefficientLookupShapeGuardReadyRowCount,
+			int maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double maxOpenFoamCoefficientArchiveCurveCtIncrease,
 			int maxOpenFoamArchiveCurveShapeGuardInheritedReferenceCount,
 			int maxOpenFoamNegativeThrustTailReferenceCount,
 			double maxOpenFoamArchiveCurveEtaFormulaResidual,
@@ -230,6 +268,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			Aerodynamics4McL2PoweredHoverSurfaceWakeReferenceHandoff.PoweredHoverSurfaceWakeReferenceHandoffSummary hover,
 			Aerodynamics4McL2PoweredCruiseSkewWakeReferenceHandoff.PoweredCruiseSkewWakeReferenceHandoffSummary cruise
 	) {
+		if (hover == null || cruise == null) {
+			throw new IllegalArgumentException(
+					"hover, cruise, and OpenFOAM reference handoff summaries are required.");
+		}
 		return gate(hover, cruise, currentOpenFoamReferenceReadiness());
 	}
 
@@ -246,6 +288,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 		boolean cruiseBlocker = !cruise.referenceMaterialExportAllowed();
 		boolean openFoamExportAllowed = openFoam.referenceMaterialExportAllowed()
 				&& openFoam.availableReferenceRowCount() == openFoam.expectedReferenceRowCount()
+				&& openFoam.openFoamCoefficientLookupShapeGuardReady()
+				&& openFoam.openFoamCoefficientLookupShapeGuardReadyRowCount() == openFoam.expectedReferenceRowCount()
 				&& openFoam.archiveCurveShapeGuardCompleteRowCount() == openFoam.expectedReferenceRowCount();
 		boolean openFoamBlocker = !openFoamExportAllowed;
 		int blockerCount = countTrue(hoverBlocker, cruiseBlocker, openFoamBlocker);
@@ -268,6 +312,13 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				openFoam.openFoamSolverQualityBlockerCount(),
 				openFoam.openFoamSolverQualityBlockerRowCount(),
 				openFoam.openFoamSolverQualityNextRequiredAction(),
+				openFoam.openFoamCoefficientLookupShapeGuardReady(),
+				openFoam.openFoamCoefficientLookupShapeGuardReadyRowCount(),
+				openFoam.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
+				openFoam.openFoamCoefficientLookupShapeGuardBlockedScenarioCount(),
+				openFoam.openFoamCoefficientNegativeThrustTailExecutionInputRowCount(),
+				openFoam.openFoamCoefficientArchiveCurveEtaFormulaResidual(),
+				openFoam.openFoamCoefficientArchiveCurveCtIncrease(),
 				openFoam.archiveCurveShapeGuardInheritedReferenceCount(),
 				openFoam.negativeThrustTailReferenceCount(),
 				openFoam.maxArchiveCurveEtaFormulaResidual(),
@@ -352,6 +403,13 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				audit.extrema().maxOpenFoamSolverQualityBlockerCount(),
 				audit.extrema().openFoamSolverQualityBlockerRowCount(),
 				openFoamSolverQualityNextRequiredAction(audit.rows()),
+				audit.extrema().openFoamCoefficientLookupShapeGuardReadyRowCount() == expectedRows,
+				audit.extrema().openFoamCoefficientLookupShapeGuardReadyRowCount(),
+				audit.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
+				audit.extrema().maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount(),
+				audit.extrema().maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount(),
+				audit.extrema().maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual(),
+				audit.extrema().maxOpenFoamCoefficientArchiveCurveCtIncrease(),
 				audit.extrema().maxArchiveCurveShapeGuardInheritedReferenceCount(),
 				audit.extrema().maxNegativeThrustTailReferenceCount(),
 				audit.extrema().maxArchiveCurveEtaFormulaResidual(),
@@ -374,6 +432,13 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				0,
 				0,
 				"openfoam-solver-quality-blockers-clear",
+				true,
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.REFERENCE_ROW_COUNT,
+				5,
+				1,
+				9,
+				0.00027500814692071884,
+				0.000071,
 				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.REFERENCE_ROW_COUNT,
 				0,
 				0.0,
@@ -449,6 +514,12 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 		int maxOpenFoamAvailable = 0;
 		int maxQualityBlockers = 0;
 		int maxQualityBlockedRows = 0;
+		int maxCoefficientShapeReadyRows = 0;
+		int maxCoefficientShapeInherited = 0;
+		int maxCoefficientShapeBlocked = 0;
+		int maxCoefficientNegativeTail = 0;
+		double maxCoefficientEta = 0.0;
+		double maxCoefficientCt = 0.0;
 		int maxShapeInherited = 0;
 		int maxNegativeTail = 0;
 		double maxShapeEta = 0.0;
@@ -485,6 +556,18 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			maxQualityBlockers = Math.max(maxQualityBlockers, summary.openFoamSolverQualityBlockerCount());
 			maxQualityBlockedRows = Math.max(maxQualityBlockedRows,
 					summary.openFoamSolverQualityBlockerRowCount());
+			maxCoefficientShapeReadyRows = Math.max(maxCoefficientShapeReadyRows,
+					summary.openFoamCoefficientLookupShapeGuardReadyRowCount());
+			maxCoefficientShapeInherited = Math.max(maxCoefficientShapeInherited,
+					summary.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+			maxCoefficientShapeBlocked = Math.max(maxCoefficientShapeBlocked,
+					summary.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+			maxCoefficientNegativeTail = Math.max(maxCoefficientNegativeTail,
+					summary.openFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+			maxCoefficientEta = Math.max(maxCoefficientEta,
+					summary.openFoamCoefficientArchiveCurveEtaFormulaResidual());
+			maxCoefficientCt = Math.max(maxCoefficientCt,
+					summary.openFoamCoefficientArchiveCurveCtIncrease());
 			maxShapeInherited = Math.max(maxShapeInherited,
 					summary.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
 			maxNegativeTail = Math.max(maxNegativeTail, summary.openFoamNegativeThrustTailReferenceCount());
@@ -512,6 +595,12 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				maxOpenFoamAvailable,
 				maxQualityBlockers,
 				maxQualityBlockedRows,
+				maxCoefficientShapeReadyRows,
+				maxCoefficientShapeInherited,
+				maxCoefficientShapeBlocked,
+				maxCoefficientNegativeTail,
+				maxCoefficientEta,
+				maxCoefficientCt,
 				maxShapeInherited,
 				maxNegativeTail,
 				maxShapeEta,
