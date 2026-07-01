@@ -20,14 +20,14 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet",
 				audit.sourceId());
-		assertTrue(audit.caveat().contains("reviewed grid input"));
-		assertEquals(46, audit.packetRowCount());
-		assertEquals(9, audit.sourceReferenceRowCount());
-		assertEquals(10, audit.executionRuleRowCount());
+		assertTrue(audit.caveat().contains("reviewed coefficient payload"));
+		assertEquals(48, audit.packetRowCount());
+		assertEquals(10, audit.sourceReferenceRowCount());
+		assertEquals(11, audit.executionRuleRowCount());
 		assertEquals(8, audit.scenarioRowCount());
 		assertEquals(18, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(10, audit.rules().size());
+		assertEquals(11, audit.rules().size());
 		assertEquals(8, audit.scenarios().size());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary summary = audit.summary();
@@ -83,6 +83,13 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertTrue(inheritedShape.syntheticTargetSatisfied());
 		assertEquals("carry-archive-curve-shape-guard-into-lookup-execution",
 				inheritedShape.nextRequiredAction());
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule payload =
+				PropellerArchiveCtCpJLookupExecutionContract.rule("reviewed_coefficient_payload_ready");
+		assertTrue(payload.required());
+		assertFalse(payload.currentSatisfied());
+		assertTrue(payload.callerSuppliedReviewedRowsSatisfied());
+		assertTrue(payload.requirement().contains("positive CP"));
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule extrapolation =
 				PropellerArchiveCtCpJLookupExecutionContract.rule("reject_extrapolation");
@@ -268,6 +275,10 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,archive_curve_shape_guard_inherited,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_source,reviewed_grid_input,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_source,reviewed_coefficient_payload,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,reviewed_coefficient_payload_ready,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_handoff_curve_shape_guard_blocked,HANDOFF_CURVE_SHAPE_GUARD_FAILED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->

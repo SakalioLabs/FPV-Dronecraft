@@ -8,9 +8,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the reviewed grid input and scattered-fit execution handoff are ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
-	public static final int EXECUTION_RULE_ROW_COUNT = 10;
+			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the reviewed grid input, reviewed coefficient payload, and scattered-fit execution handoff are ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
+	public static final int EXECUTION_RULE_ROW_COUNT = 11;
 	public static final int SCENARIO_ROW_COUNT = 8;
 	public static final int SUMMARY_ROW_COUNT = 18;
 	public static final int METHOD_ROW_COUNT = 1;
@@ -46,6 +46,9 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 			new LookupExecutionRule("minimum_neighbor_rows", true, false, true, true,
 					"observed neighbor rows must meet the interpolation policy contract",
 					"feed-all-required-bracketing-neighbors"),
+			new LookupExecutionRule("reviewed_coefficient_payload_ready", true, false, true, true,
+					"each reviewed grid input slot must carry reviewed finite CT and positive CP before execution",
+					"review-and-bind-ct-cp-coefficient-payloads-to-grid-slots-before-lookup-execution"),
 			new LookupExecutionRule("shape_preserving_ct", true, false, true, true,
 					"interpolated CT cannot exceed the neighbor CT extrema",
 					"verify-ct-shape-guard-before-acceptance"),
