@@ -16,16 +16,17 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 	@Test
 	void auditBuildsBlockedCurrentAndReadyReviewTarget() {
 		Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.PoweredSourceCouplingReviewHandoffAudit audit =
-				Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.audit(getClass().getClassLoader());
+				auditFixture();
 
 		assertEquals("A4MC-L2-Powered-Source-Coupling-Review-Handoff-Packet", audit.sourceId());
 		assertTrue(audit.caveat().contains("swirl angular-momentum conservation guard"));
 		assertTrue(audit.caveat().contains("OpenFOAM rotor-reference package"));
-		assertEquals(131, audit.packetMetricRowCount());
+		assertTrue(audit.caveat().contains("coefficient lookup shape-guard"));
+		assertEquals(151, audit.packetMetricRowCount());
 		assertEquals(9, audit.sourceReferenceCount());
 		assertEquals(2, audit.scenarioSampleCount());
-		assertEquals(53, audit.scenarioMetricCount());
-		assertEquals(15, audit.summaryMetricRowCount());
+		assertEquals(60, audit.scenarioMetricCount());
+		assertEquals(21, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(2, audit.scenarios().size());
 
@@ -50,6 +51,14 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertTrue(current.nearfieldReferencePackageBlocker());
 		assertEquals(86, current.nearfieldExpectedReferenceRowCount());
 		assertEquals(0, current.nearfieldOpenFoamAvailableReferenceRowCount());
+		assertFalse(current.nearfieldOpenFoamCoefficientLookupShapeGuardReady());
+		assertEquals(0, current.nearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount());
+		assertEquals(5, current.nearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, current.nearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, current.nearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+		assertEquals(0.00027500814692071884,
+				current.nearfieldOpenFoamCoefficientArchiveCurveEtaFormulaResidual());
+		assertEquals(0.000071, current.nearfieldOpenFoamCoefficientArchiveCurveCtIncrease());
 		assertTrue(current.conservationTargetSelfConsistent());
 		assertTrue(current.swirlConservationTargetSelfConsistent());
 		assertEquals(2, current.conservationRowCount());
@@ -103,6 +112,14 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertFalse(ready.nearfieldReferencePackageBlocker());
 		assertEquals(86, ready.nearfieldExpectedReferenceRowCount());
 		assertEquals(6, ready.nearfieldOpenFoamAvailableReferenceRowCount());
+		assertTrue(ready.nearfieldOpenFoamCoefficientLookupShapeGuardReady());
+		assertEquals(6, ready.nearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount());
+		assertEquals(5, ready.nearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, ready.nearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, ready.nearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+		assertEquals(0.00027500814692071884,
+				ready.nearfieldOpenFoamCoefficientArchiveCurveEtaFormulaResidual());
+		assertEquals(0.000071, ready.nearfieldOpenFoamCoefficientArchiveCurveCtIncrease());
 		assertTrue(ready.conservationTargetSelfConsistent());
 		assertTrue(ready.swirlConservationTargetSelfConsistent());
 		assertEquals(2, ready.conservationRowCount());
@@ -131,6 +148,13 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertEquals(1, audit.extrema().conservationEvidenceBlockerScenarioCount());
 		assertEquals(1, audit.extrema().swirlConservationEvidenceBlockerScenarioCount());
 		assertEquals(1, audit.extrema().nearfieldReferenceBlockerScenarioCount());
+		assertEquals(6, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount());
+		assertEquals(5, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(1, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+		assertEquals(9, audit.extrema().maxNearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+		assertEquals(0.00027500814692071884,
+				audit.extrema().maxNearfieldOpenFoamCoefficientArchiveCurveEtaFormulaResidual());
+		assertEquals(0.000071, audit.extrema().maxNearfieldOpenFoamCoefficientArchiveCurveCtIncrease());
 		assertEquals(0, audit.extrema().targetModelSelfConsistencyBlockerScenarioCount());
 		assertEquals(0, audit.extrema().swirlTargetSelfConsistencyBlockerScenarioCount());
 		assertEquals(0, audit.extrema().gameplayAutoApplyLeakBlockerScenarioCount());
@@ -158,7 +182,7 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 	@Test
 	void csvPacketRowCountMatchesAuditSummary() throws IOException {
 		Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.PoweredSourceCouplingReviewHandoffAudit audit =
-				Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.audit(getClass().getClassLoader());
+				auditFixture();
 		Path packet = findRepoRoot()
 				.resolve("docs/data/a4mc_l2_powered_source_coupling_review_handoff_packet.csv");
 		List<String> lines = Files.readAllLines(packet);
@@ -173,9 +197,15 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,current_powered_source_coupling_review_blocked,nearfield_reference_blocker,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,current_powered_source_coupling_review_blocked,nearfield_openfoam_coefficient_lookup_shape_guard_ready,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,synthetic_powered_source_coupling_review_ready,simulation_reference_material_export_allowed,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,synthetic_powered_source_coupling_review_ready,nearfield_openfoam_available_reference_row_count,6,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,synthetic_powered_source_coupling_review_ready,nearfield_openfoam_coefficient_lookup_shape_guard_ready,true,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_summary,all_scenarios,max_nearfield_openfoam_coefficient_lookup_shape_guard_ready_row_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_source_coupling_review_handoff_scenario,synthetic_powered_source_coupling_review_ready,gameplay_auto_apply_allowed,false,")));
 	}
@@ -212,5 +242,17 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 			}
 		}
 		throw new AssertionError("Could not locate repository root from " + current);
+	}
+
+	private static Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.PoweredSourceCouplingReviewHandoffAudit
+			auditFixture;
+
+	private static Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.PoweredSourceCouplingReviewHandoffAudit
+			auditFixture() {
+		if (auditFixture == null) {
+			auditFixture = Aerodynamics4McL2PoweredSourceCouplingReviewHandoff.audit(
+					Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest.class.getClassLoader());
+		}
+		return auditFixture;
 	}
 }

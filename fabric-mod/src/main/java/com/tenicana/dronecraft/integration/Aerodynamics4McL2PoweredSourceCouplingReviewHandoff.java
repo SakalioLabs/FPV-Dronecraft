@@ -5,11 +5,11 @@ import java.util.List;
 public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Source-Coupling-Review-Handoff-Packet";
 	public static final String CAVEAT =
-			"Review handoff may export powered-source coupling simulation evidence only after the final force/moment/wake and swirl angular-momentum conservation guard is clear and the nearfield wake plus OpenFOAM rotor-reference package is ready; it keeps playable use behind downstream review and never enables gameplay auto-apply.";
+			"Review handoff may export powered-source coupling simulation evidence only after the final force/moment/wake and swirl angular-momentum conservation guard is clear and the nearfield wake plus OpenFOAM rotor-reference package is ready with coefficient lookup shape-guard evidence; it keeps playable use behind downstream review and never enables gameplay auto-apply.";
 	public static final int SOURCE_REFERENCE_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 2;
-	public static final int SCENARIO_METRIC_COUNT = 53;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 15;
+	public static final int SCENARIO_METRIC_COUNT = 60;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 21;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -42,6 +42,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			boolean nearfieldReferencePackageBlocker,
 			int nearfieldExpectedReferenceRowCount,
 			int nearfieldOpenFoamAvailableReferenceRowCount,
+			boolean nearfieldOpenFoamCoefficientLookupShapeGuardReady,
+			int nearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount,
+			int nearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int nearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int nearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double nearfieldOpenFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double nearfieldOpenFoamCoefficientArchiveCurveCtIncrease,
 			boolean conservationTargetSelfConsistent,
 			boolean swirlConservationTargetSelfConsistent,
 			int conservationRowCount,
@@ -96,6 +103,12 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			int conservationEvidenceBlockerScenarioCount,
 			int swirlConservationEvidenceBlockerScenarioCount,
 			int nearfieldReferenceBlockerScenarioCount,
+			int maxNearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount,
+			int maxNearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount,
+			int maxNearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount,
+			int maxNearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount,
+			double maxNearfieldOpenFoamCoefficientArchiveCurveEtaFormulaResidual,
+			double maxNearfieldOpenFoamCoefficientArchiveCurveCtIncrease,
 			int targetModelSelfConsistencyBlockerScenarioCount,
 			int swirlTargetSelfConsistencyBlockerScenarioCount,
 			int gameplayAutoApplyLeakBlockerScenarioCount,
@@ -219,6 +232,13 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 				nearfieldReferenceBlocker,
 				nearfield.totalExpectedReferenceRowCount(),
 				nearfield.openFoamAvailableReferenceRowCount(),
+				nearfield.openFoamCoefficientLookupShapeGuardReady(),
+				nearfield.openFoamCoefficientLookupShapeGuardReadyRowCount(),
+				nearfield.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
+				nearfield.openFoamCoefficientLookupShapeGuardBlockedScenarioCount(),
+				nearfield.openFoamCoefficientNegativeThrustTailExecutionInputRowCount(),
+				nearfield.openFoamCoefficientArchiveCurveEtaFormulaResidual(),
+				nearfield.openFoamCoefficientArchiveCurveCtIncrease(),
 				targetSelfConsistent,
 				swirlTargetSelfConsistent,
 				blocker.conservationRowCount(),
@@ -306,6 +326,12 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 		int conservation = 0;
 		int swirl = 0;
 		int nearfield = 0;
+		int maxCoefficientReadyRows = 0;
+		int maxCoefficientInherited = 0;
+		int maxCoefficientBlocked = 0;
+		int maxCoefficientNegativeTail = 0;
+		double maxCoefficientEta = 0.0;
+		double maxCoefficientCt = 0.0;
 		int target = 0;
 		int swirlTarget = 0;
 		int gameplayLeak = 0;
@@ -333,6 +359,18 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 			if (summary.nearfieldReferenceBlocker()) {
 				nearfield++;
 			}
+			maxCoefficientReadyRows = Math.max(maxCoefficientReadyRows,
+					summary.nearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount());
+			maxCoefficientInherited = Math.max(maxCoefficientInherited,
+					summary.nearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+			maxCoefficientBlocked = Math.max(maxCoefficientBlocked,
+					summary.nearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
+			maxCoefficientNegativeTail = Math.max(maxCoefficientNegativeTail,
+					summary.nearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
+			maxCoefficientEta = Math.max(maxCoefficientEta,
+					summary.nearfieldOpenFoamCoefficientArchiveCurveEtaFormulaResidual());
+			maxCoefficientCt = Math.max(maxCoefficientCt,
+					summary.nearfieldOpenFoamCoefficientArchiveCurveCtIncrease());
 			if (summary.targetModelSelfConsistencyBlocker()) {
 				target++;
 			}
@@ -360,6 +398,12 @@ public final class Aerodynamics4McL2PoweredSourceCouplingReviewHandoff {
 				conservation,
 				swirl,
 				nearfield,
+				maxCoefficientReadyRows,
+				maxCoefficientInherited,
+				maxCoefficientBlocked,
+				maxCoefficientNegativeTail,
+				maxCoefficientEta,
+				maxCoefficientCt,
 				target,
 				swirlTarget,
 				gameplayLeak,
