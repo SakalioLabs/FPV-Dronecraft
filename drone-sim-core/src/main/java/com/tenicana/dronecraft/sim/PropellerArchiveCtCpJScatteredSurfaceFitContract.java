@@ -9,8 +9,8 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-Scattered-Surface-Fit-Contract-Packet";
 	public static final String CAVEAT =
-			"Scattered CT/CP/J surface fit contract converts archive sparse RPM-track topology into reviewed lookup-ready surface rows; it vendors no raw archive rows and cannot mutate runtime physics or gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+			"Scattered CT/CP/J surface fit contract consumes compact archive fit-input windows and converts sparse RPM-track topology into reviewed lookup-ready surface rows; it vendors no raw archive rows and cannot mutate runtime physics or gameplay tuning.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int FIT_FIELD_ROW_COUNT = 15;
 	public static final int TARGET_ROW_COUNT = 9;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
@@ -240,10 +240,9 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 	}
 
 	public static List<ScatteredSurfaceFitTarget> targets() {
-		return PropellerArchiveCtCpJArchiveLookupGridCoverage.audit()
+		return PropellerArchiveCtCpJScatteredSurfaceFitInputWindow.audit()
 				.rows()
 				.stream()
-				.filter(row -> row.insideLookupDomain() && row.postReviewCtCpJLookupAllowed())
 				.map(PropellerArchiveCtCpJScatteredSurfaceFitContract::target)
 				.toList();
 	}
@@ -431,10 +430,8 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 	}
 
 	private static ScatteredSurfaceFitTarget target(
-			PropellerArchiveCtCpJArchiveLookupGridCoverage.ArchiveLookupGridCoverageRow row
+			PropellerArchiveCtCpJScatteredSurfaceFitInputWindow.ScatteredSurfaceFitInputWindowRow row
 	) {
-		PropellerArchiveCtCpJArchiveCurveShapeReview.ArchiveCurveShapeRow shape =
-				PropellerArchiveCtCpJArchiveCurveShapeReview.row(row.presetName());
 		return new ScatteredSurfaceFitTarget(
 				row.presetName(),
 				row.caseName(),
@@ -444,25 +441,24 @@ public final class PropellerArchiveCtCpJScatteredSurfaceFitContract {
 				row.minimumPerformanceNeighborRows(),
 				row.availableRectangularNeighborRows(),
 				row.availableNonstaticNeighborRows(),
-				row.reviewedNeighborBindingReady(),
-				row.scatteredFitRequired(),
-				shape.shapeGuardPassed(),
-				shape.negativeThrustTailRowCount(),
-				shape.maxEtaFormulaResidual(),
-				shape.maxCtIncrease(),
+				row.directStaticAnchorBinding(),
+				row.scatteredSurfaceFitRequired(),
+				row.archiveCurveShapeGuardPassed(),
+				row.negativeThrustTailRowCount(),
+				row.archiveMaxEtaFormulaResidual(),
+				row.archiveMaxCtIncrease(),
 				row.postReviewFullSimulationLookupAllowed(),
-				nextRequiredActionFor(row, shape)
+				nextRequiredActionFor(row)
 		);
 	}
 
 	private static String nextRequiredActionFor(
-			PropellerArchiveCtCpJArchiveLookupGridCoverage.ArchiveLookupGridCoverageRow row,
-			PropellerArchiveCtCpJArchiveCurveShapeReview.ArchiveCurveShapeRow shape
+			PropellerArchiveCtCpJScatteredSurfaceFitInputWindow.ScatteredSurfaceFitInputWindowRow row
 	) {
-		if (!shape.shapeGuardPassed()) {
-			return shape.nextRequiredAction();
+		if (!row.archiveCurveShapeGuardPassed()) {
+			return row.nextRequiredAction();
 		}
-		return row.reviewedNeighborBindingReady()
+		return row.directStaticAnchorBinding()
 				? "ready-for-reviewed-neighbor-binding"
 				: NEXT_REQUIRED_ACTION;
 	}
