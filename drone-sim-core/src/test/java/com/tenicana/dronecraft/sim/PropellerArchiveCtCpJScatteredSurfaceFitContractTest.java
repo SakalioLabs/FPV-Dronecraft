@@ -21,8 +21,8 @@ class PropellerArchiveCtCpJScatteredSurfaceFitContractTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-Scattered-Surface-Fit-Contract-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("sparse RPM-track topology"));
-		assertEquals(57, audit.packetRowCount());
-		assertEquals(9, audit.sourceReferenceRowCount());
+		assertEquals(58, audit.packetRowCount());
+		assertEquals(10, audit.sourceReferenceRowCount());
 		assertEquals(15, audit.fitFieldRowCount());
 		assertEquals(9, audit.targetRowCount());
 		assertEquals(5, audit.scenarioSampleCount());
