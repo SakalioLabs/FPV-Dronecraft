@@ -8,8 +8,8 @@ public final class PropellerArchiveCtCpJLookupExecutionContract {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet";
 	public static final String CAVEAT =
-			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the scattered-fit execution handoff is ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+			"CT/CP/J lookup execution accepts only caller-supplied reviewed rows after the reviewed grid input and scattered-fit execution handoff are ready, rejects extrapolation, preserves J-zero anchors, and never imports raw archive rows or enables runtime coupling/gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
 	public static final int EXECUTION_RULE_ROW_COUNT = 10;
 	public static final int SCENARIO_ROW_COUNT = 8;
 	public static final int SUMMARY_ROW_COUNT = 18;
