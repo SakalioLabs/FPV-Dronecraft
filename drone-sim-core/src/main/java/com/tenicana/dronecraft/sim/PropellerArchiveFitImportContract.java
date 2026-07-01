@@ -311,24 +311,26 @@ public final class PropellerArchiveFitImportContract {
 			List<PresetFitInputContract> presets,
 			List<ImportStageContract> stages
 	) {
-		boolean currentRawImport = stages.stream()
+		List<PresetFitInputContract> presetRows = List.copyOf(presets);
+		List<ImportStageContract> stageRows = List.copyOf(stages);
+		boolean currentRawImport = stageRows.stream()
 				.filter(stage -> !"preset_coverage_resolution".equals(stage.stageName())
 						&& !"compact_reference_review".equals(stage.stageName()))
 				.allMatch(ImportStageContract::currentSatisfied);
-		boolean reviewedRawImport = stages.stream()
+		boolean reviewedRawImport = stageRows.stream()
 				.filter(stage -> !"preset_coverage_resolution".equals(stage.stageName())
 						&& !"compact_reference_review".equals(stage.stageName()))
 				.allMatch(ImportStageContract::reviewedImportSatisfied);
-		boolean syntheticStagesReady = stages.stream()
+		boolean syntheticStagesReady = stageRows.stream()
 				.allMatch(ImportStageContract::syntheticTargetSatisfied);
 		boolean reviewedFitReady = reviewedRawImport
-				&& presets.stream().allMatch(PresetFitInputContract::fitInputReadyAfterReview);
+				&& presetRows.stream().allMatch(PresetFitInputContract::fitInputReadyAfterReview);
 		boolean syntheticFitReady = syntheticStagesReady
-				&& presets.stream().allMatch(PresetFitInputContract::fitInputReadyInSyntheticTarget);
+				&& presetRows.stream().allMatch(PresetFitInputContract::fitInputReadyInSyntheticTarget);
 		int coverageBlockers = 0;
 		int runtime = 0;
 		int gameplay = 0;
-		for (PresetFitInputContract preset : presets) {
+		for (PresetFitInputContract preset : presetRows) {
 			if (!preset.fitInputReadyAfterReview()) {
 				coverageBlockers++;
 			}
@@ -349,8 +351,8 @@ public final class PropellerArchiveFitImportContract {
 		}
 		return new ImportContractSummary(
 				FIELD_CONTRACTS.size(),
-				presets.size(),
-				stages.size(),
+				presetRows.size(),
+				stageRows.size(),
 				currentRawImport,
 				reviewedRawImport,
 				reviewedFitReady,
