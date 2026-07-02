@@ -13,9 +13,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
-	private static final PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff
-			.CtCpJOpenFoamDimensionalReferenceHandoffAudit HANDOFF_AUDIT =
-					PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.audit();
 	private static final List<PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase> TARGETS =
 			List.of(
 					target("racingQuad", "static_anchor_low_rpm", 0.0, 1_477.8, true),
@@ -34,12 +31,13 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Dimensional-Reference-Table-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("six geometry-backed SI CFD reference rows"));
+		assertTrue(audit.caveat().contains("CT/CP/J lookup reference review readiness"));
 		assertTrue(audit.caveat().contains("solver-quality QA state"));
 		assertTrue(audit.caveat().contains("coefficient lookup shape-guard diagnostics"));
 		assertTrue(audit.caveat().contains("inherited archive curve-shape diagnostics"));
 		assertTrue(audit.caveat().contains("zero weights"));
-		assertEquals(46, audit.packetRowCount());
-		assertEquals(10, audit.sourceReferenceRowCount());
+		assertEquals(47, audit.packetRowCount());
+		assertEquals(11, audit.sourceReferenceRowCount());
 		assertEquals(6, audit.referenceRowCount());
 		assertEquals(29, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
@@ -206,6 +204,64 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 	}
 
 	@Test
+	void materializationGateBlocksReadyOpenFoamRowsUntilLookupReferenceReviewIsReady() {
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.OpenFoamDimensionalReferenceMaterializationScenario materialization =
+						materialization("openfoam_ready_lookup_reference_review_missing");
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
+				handoff("dimensional_support_ready_reference_reviewed");
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(materialization, handoff, TARGETS);
+
+		assertEquals(0, audit.extrema().referenceRowAvailableCount());
+		assertEquals(6, audit.extrema().blockedRowCount());
+		assertEquals(6, audit.extrema().dimensionalSupportReadyCount());
+		assertEquals(6, audit.extrema().openFoamSolverQualityContractReadyCount());
+		assertEquals(6, audit.extrema().openFoamCoefficientLookupShapeGuardReadyRowCount());
+		assertEquals(6, audit.extrema().archiveCurveShapeGuardCompleteRowCount());
+		assertEquals(6, audit.extrema().dimensionalReferenceReviewedCount());
+		assertEquals(0.0, audit.extrema().maxThrustReferenceWeight(), 1.0e-12);
+
+		for (PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.OpenFoamDimensionalReferenceRow row
+				: audit.rows()) {
+			assertTrue(row.dimensionalSupportReady());
+			assertTrue(row.openFoamSolverQualityContractReady());
+			assertTrue(row.openFoamCoefficientLookupShapeGuardReady());
+			assertTrue(row.archiveCurveShapeGuardComplete());
+			assertTrue(row.dimensionalReferenceReviewed());
+			assertFalse(row.referenceMaterialExportAllowed());
+			assertFalse(row.openFoamDimensionalReferenceRowAvailable());
+			assertEquals("ct-cp-j-lookup-reference-review-not-ready", row.message());
+			assertEquals("openfoam_ready_lookup_reference_review_missing", row.sourceRuntimeInfo());
+		}
+	}
+
+	@Test
+	void materializationGateOpensRowsOnlyWhenLookupAndOpenFoamAreReady() {
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.OpenFoamDimensionalReferenceMaterializationScenario materialization =
+						materialization("lookup_reference_and_openfoam_ready");
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
+				handoff("dimensional_support_ready_reference_reviewed");
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(materialization, handoff, TARGETS);
+
+		assertEquals(6, audit.extrema().referenceRowAvailableCount());
+		assertEquals(0, audit.extrema().blockedRowCount());
+		assertEquals(2, audit.extrema().staticAnchorReferenceAvailableCount());
+		assertEquals(1.0, audit.extrema().maxThrustReferenceWeight(), 1.0e-12);
+		assertEquals(1.0, audit.extrema().maxResidualReferenceWeight(), 1.0e-12);
+
+		for (PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.OpenFoamDimensionalReferenceRow row
+				: audit.rows()) {
+			assertTrue(row.referenceMaterialExportAllowed());
+			assertTrue(row.openFoamDimensionalReferenceRowAvailable());
+			assertEquals("openfoam-dimensional-reference-row-available", row.message());
+			assertEquals("lookup_reference_and_openfoam_ready", row.sourceRuntimeInfo());
+		}
+	}
+
+	@Test
 	void supportReadyButUnreviewedReferenceKeepsRowsBlocked() {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary handoff =
 				handoff("dimensional_support_ready_reference_review_missing");
@@ -261,6 +317,22 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.row(null, target));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.row(handoff, null));
+
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.OpenFoamDimensionalReferenceMaterializationScenario materialization =
+						materialization("lookup_reference_and_openfoam_ready");
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(null, handoff, TARGETS));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(materialization, null, TARGETS));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit(materialization, handoff, null));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.row(null, handoff, target));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.row(materialization, null, target));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.row(materialization, handoff, null));
 	}
 
 	@Test
@@ -308,12 +380,98 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceTableTest {
 
 	private static PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary
 			handoff(String name) {
-		return HANDOFF_AUDIT.scenarios()
+		return switch (name) {
+			case "current_dimensional_support_blocked" -> handoffSummary(
+					false, false, false, false, false, 4, 0, 6, false, 2, 9,
+					0.00027500814692071884, 0.000071, false,
+					"BLOCKED", "openfoam-dimensional-lookup-support-not-ready",
+					"audit-only-openfoam-dimensional-reference-handoff");
+			case "lookup_execution_blocked_reference_reviewed" -> handoffSummary(
+					false, false, true, true, true, 0, 0, 6, true, 6, 0,
+					0.0, 0.0, false,
+					"BLOCKED", "lookup-execution-contract-not-ready",
+					"synthetic-openfoam-dimensional-reference-execution-blocked");
+			case "dimensional_support_ready_reference_review_missing" -> handoffSummary(
+					true, true, false, true, true, 0, 6, 0, true, 6, 0,
+					0.0, 0.0, false,
+					"BLOCKED", "openfoam-dimensional-reference-review-missing",
+					"synthetic-openfoam-dimensional-support-ready-review-missing");
+			case "dimensional_support_ready_reference_reviewed" -> handoffSummary(
+					true, true, true, true, true, 0, 6, 0, true, 6, 0,
+					0.0, 0.0, true,
+					"READY", "openfoam-dimensional-reference-material-ready",
+					"synthetic-openfoam-dimensional-reference-handoff-ready");
+			default -> throw new IllegalArgumentException("unknown OpenFOAM dimensional handoff fixture: " + name);
+		};
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary
+			handoffSummary(
+					boolean lookupExecutionContractReady,
+					boolean dimensionalSupportReady,
+					boolean dimensionalReferenceReviewed,
+					boolean lookupSupportReady,
+					boolean dimensionalResidualReady,
+					int openFoamSolverQualityBlockerCount,
+					int supportedRows,
+					int blockedRows,
+					boolean coefficientShapeGuardReady,
+					int archiveCurveShapeGuardInheritedReferenceCount,
+					int negativeThrustTailReferenceCount,
+					double maxArchiveCurveEtaFormulaResidual,
+					double maxArchiveCurveCtIncrease,
+					boolean referenceMaterialExportAllowed,
+					String status,
+					String message,
+					String sourceRuntimeInfo
+			) {
+		return new PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.OpenFoamDimensionalReferenceHandoffSummary(
+				lookupExecutionContractReady,
+				dimensionalSupportReady,
+				dimensionalReferenceReviewed,
+				lookupSupportReady,
+				dimensionalResidualReady,
+				openFoamSolverQualityBlockerCount == 0,
+				openFoamSolverQualityBlockerCount,
+				openFoamSolverQualityBlockerCount == 0
+						? "openfoam-solver-quality-blockers-clear"
+						: "review-openfoam-mesh-yplus-and-time-step-against-run-setup",
+				6,
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.REFERENCE_FIELD_ROW_COUNT,
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.REFERENCE_FIELD_ROW_COUNT,
+				supportedRows,
+				blockedRows,
+				coefficientShapeGuardReady,
+				5,
+				1,
+				9,
+				0.00027500814692071884,
+				0.000071,
+				archiveCurveShapeGuardInheritedReferenceCount,
+				negativeThrustTailReferenceCount,
+				maxArchiveCurveEtaFormulaResidual,
+				maxArchiveCurveCtIncrease,
+				true,
+				referenceMaterialExportAllowed,
+				referenceMaterialExportAllowed ? 6 : 0,
+				false,
+				false,
+				PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoff.REFERENCE_PAYLOAD_KIND,
+				status,
+				message,
+				dimensionalSupportReady ? "READY" : "BLOCKED",
+				sourceRuntimeInfo
+		);
+	}
+
+	private static PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+			.OpenFoamDimensionalReferenceMaterializationScenario materialization(String name) {
+		return PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate.audit()
+				.scenarios()
 				.stream()
 				.filter(scenario -> name.equals(scenario.scenarioName()))
 				.findFirst()
-				.orElseThrow()
-				.summary();
+				.orElseThrow();
 	}
 
 	private static PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit
