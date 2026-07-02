@@ -1,16 +1,17 @@
 package com.tenicana.dronecraft.integration;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate;
 import java.util.List;
 
 public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Nearfield-Wake-Reference-Gate-Packet";
 	public static final String CAVEAT =
 			"Nearfield wake reference gate combines hover surface-wake, cruise skew-wake, and OpenFOAM CT/CP/J dimensional rotor-reference handoffs with coefficient lookup shape-guard and inherited archive curve-shape diagnostics into audit-only export readiness; it does not enable runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_COUNT = 9;
+	public static final int SOURCE_REFERENCE_COUNT = 10;
 	public static final int SCENARIO_SAMPLE_COUNT = 5;
-	public static final int SCENARIO_METRIC_COUNT = 55;
-	public static final int SUMMARY_METRIC_ROW_COUNT = 29;
+	public static final int SCENARIO_METRIC_COUNT = 59;
+	public static final int SUMMARY_METRIC_ROW_COUNT = 31;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
 			+ SCENARIO_SAMPLE_COUNT * SCENARIO_METRIC_COUNT
@@ -26,6 +27,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			boolean hoverSurfaceWakeReferenceBlocker,
 			boolean cruiseSkewWakeReferenceBlocker,
 			boolean openFoamDimensionalReferenceBlocker,
+			String openFoamReferenceMaterializationScenarioName,
+			boolean openFoamLookupReferenceMaterialExportAllowed,
+			boolean openFoamReferenceMaterializationReady,
+			String openFoamReferenceMaterializationNextRequiredAction,
 			boolean hoverLabValidationAccepted,
 			boolean cruiseLabValidationAccepted,
 			boolean hoverErrorBudgetReady,
@@ -88,6 +93,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 	public record OpenFoamDimensionalReferenceReadiness(
 			boolean lookupExecutionContractReady,
 			boolean dimensionalSupportReady,
+			String referenceMaterializationScenarioName,
+			boolean lookupReferenceMaterialExportAllowed,
+			boolean referenceMaterializationReady,
+			String referenceMaterializationNextRequiredAction,
 			boolean openFoamSolverQualityContractReady,
 			int openFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerRowCount,
@@ -162,6 +171,15 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				throw new IllegalArgumentException(
 						"OpenFOAM solver-quality next required action must not be blank.");
 			}
+			if (referenceMaterializationScenarioName == null || referenceMaterializationScenarioName.isBlank()) {
+				throw new IllegalArgumentException(
+						"OpenFOAM reference materialization scenario name must not be blank.");
+			}
+			if (referenceMaterializationNextRequiredAction == null
+					|| referenceMaterializationNextRequiredAction.isBlank()) {
+				throw new IllegalArgumentException(
+						"OpenFOAM reference materialization next required action must not be blank.");
+			}
 			if (referencePayloadKind == null || referencePayloadKind.isBlank()) {
 				throw new IllegalArgumentException("OpenFOAM reference payload kind must not be blank.");
 			}
@@ -184,6 +202,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			int maxCruiseBlockedErrorBudgetGroupCount,
 			int maxOpenFoamBlockedReferenceRowCount,
 			int maxOpenFoamAvailableReferenceRowCount,
+			int openFoamLookupReferenceMaterialExportAllowedScenarioCount,
+			int openFoamReferenceMaterializationReadyScenarioCount,
 			int maxOpenFoamSolverQualityBlockerCount,
 			int maxOpenFoamSolverQualityBlockerRowCount,
 			int maxOpenFoamCoefficientLookupShapeGuardReadyRowCount,
@@ -300,6 +320,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				hoverBlocker,
 				cruiseBlocker,
 				openFoamBlocker,
+				openFoam.referenceMaterializationScenarioName(),
+				openFoam.lookupReferenceMaterialExportAllowed(),
+				openFoam.referenceMaterializationReady(),
+				openFoam.referenceMaterializationNextRequiredAction(),
 				hover.labValidationAccepted(),
 				cruise.labValidationAccepted(),
 				hover.allErrorBudgetGroupsReady(),
@@ -350,7 +374,9 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				"combined-hover-surface-cruise-skew-and-openfoam-rotor-reference-package",
 				openFoam.referencePayloadKind(),
 				nextRequiredAction(hoverBlocker, cruiseBlocker, openFoamBlocker,
-						openFoam.openFoamSolverQualityNextRequiredAction()),
+						openFoam.openFoamSolverQualityNextRequiredAction(),
+						openFoam.referenceMaterializationReady(),
+						openFoam.referenceMaterializationNextRequiredAction()),
 				exportAllowed ? "READY" : "BLOCKED",
 				exportAllowed
 						? "nearfield-wake-and-openfoam-reference-package-ready"
@@ -362,7 +388,9 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			boolean hoverBlocker,
 			boolean cruiseBlocker,
 			boolean openFoamBlocker,
-			String openFoamNextRequiredAction
+			String openFoamNextRequiredAction,
+			boolean openFoamReferenceMaterializationReady,
+			String openFoamReferenceMaterializationNextRequiredAction
 	) {
 		if (hoverBlocker && cruiseBlocker && openFoamBlocker) {
 			return "complete-hover-surface-cruise-skew-and-openfoam-dimensional-reference-handoffs";
@@ -383,6 +411,9 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			return "complete-cruise-skew-wake-reference-handoff";
 		}
 		if (openFoamBlocker) {
+			if (!openFoamReferenceMaterializationReady) {
+				return openFoamReferenceMaterializationNextRequiredAction;
+			}
 			if (!"openfoam-solver-quality-blockers-clear".equals(openFoamNextRequiredAction)) {
 				return openFoamNextRequiredAction;
 			}
@@ -394,11 +425,19 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 	public static OpenFoamDimensionalReferenceReadiness currentOpenFoamReferenceReadiness() {
 		PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.CtCpJOpenFoamDimensionalReferenceTableAudit audit =
 				PropellerArchiveCtCpJOpenFoamDimensionalReferenceTable.audit();
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.OpenFoamDimensionalReferenceMaterializationScenario materialization =
+						PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+								.scenario("current_lookup_and_openfoam_blocked");
 		int expectedRows = audit.referenceRowCount();
 		int availableRows = audit.extrema().referenceRowAvailableCount();
 		return new OpenFoamDimensionalReferenceReadiness(
 				audit.extrema().lookupExecutionContractReadyCount() == expectedRows,
 				audit.extrema().dimensionalSupportReadyCount() == expectedRows,
+				materialization.scenarioName(),
+				materialization.lookupReferenceMaterialExportAllowed(),
+				materialization.referenceMaterializationReady(),
+				materialization.nextRequiredAction(),
 				audit.extrema().openFoamSolverQualityContractReadyCount() == expectedRows,
 				audit.extrema().maxOpenFoamSolverQualityBlockerCount(),
 				audit.extrema().openFoamSolverQualityBlockerRowCount(),
@@ -425,9 +464,17 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 	}
 
 	public static OpenFoamDimensionalReferenceReadiness reviewedOpenFoamReferenceReadiness() {
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.OpenFoamDimensionalReferenceMaterializationScenario materialization =
+						PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+								.scenario("lookup_reference_and_openfoam_ready");
 		return new OpenFoamDimensionalReferenceReadiness(
 				true,
 				true,
+				materialization.scenarioName(),
+				materialization.lookupReferenceMaterialExportAllowed(),
+				materialization.referenceMaterializationReady(),
+				materialization.nextRequiredAction(),
 				true,
 				0,
 				0,
@@ -512,6 +559,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 		int maxCruiseBlocked = 0;
 		int maxOpenFoamBlocked = 0;
 		int maxOpenFoamAvailable = 0;
+		int lookupReferenceExportAllowed = 0;
+		int materializationReady = 0;
 		int maxQualityBlockers = 0;
 		int maxQualityBlockedRows = 0;
 		int maxCoefficientShapeReadyRows = 0;
@@ -553,6 +602,12 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 			maxCruiseBlocked = Math.max(maxCruiseBlocked, summary.cruiseBlockedErrorBudgetGroupCount());
 			maxOpenFoamBlocked = Math.max(maxOpenFoamBlocked, summary.openFoamBlockedReferenceRowCount());
 			maxOpenFoamAvailable = Math.max(maxOpenFoamAvailable, summary.openFoamAvailableReferenceRowCount());
+			if (summary.openFoamLookupReferenceMaterialExportAllowed()) {
+				lookupReferenceExportAllowed++;
+			}
+			if (summary.openFoamReferenceMaterializationReady()) {
+				materializationReady++;
+			}
 			maxQualityBlockers = Math.max(maxQualityBlockers, summary.openFoamSolverQualityBlockerCount());
 			maxQualityBlockedRows = Math.max(maxQualityBlockedRows,
 					summary.openFoamSolverQualityBlockerRowCount());
@@ -593,6 +648,8 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceGate {
 				maxCruiseBlocked,
 				maxOpenFoamBlocked,
 				maxOpenFoamAvailable,
+				lookupReferenceExportAllowed,
+				materializationReady,
 				maxQualityBlockers,
 				maxQualityBlockedRows,
 				maxCoefficientShapeReadyRows,
