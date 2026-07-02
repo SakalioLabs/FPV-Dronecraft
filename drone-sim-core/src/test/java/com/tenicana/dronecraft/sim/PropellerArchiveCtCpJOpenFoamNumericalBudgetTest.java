@@ -22,13 +22,14 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("mesh"));
 		assertTrue(audit.caveat().contains("timestep"));
-		assertEquals(39, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
-		assertEquals(8, audit.numericalRuleRowCount());
+		assertTrue(audit.caveat().contains("upstream reference materialization readiness"));
+		assertEquals(46, audit.packetRowCount());
+		assertEquals(9, audit.sourceReferenceRowCount());
+		assertEquals(9, audit.numericalRuleRowCount());
 		assertEquals(6, audit.numericalBudgetRowCount());
-		assertEquals(16, audit.summaryRowCount());
+		assertEquals(21, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(8, audit.rules().size());
+		assertEquals(9, audit.rules().size());
 		assertEquals(6, audit.rows().size());
 
 		PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary summary =
@@ -36,7 +37,10 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 		assertEquals(6, summary.numericalBudgetRowCount());
 		assertEquals(6, summary.incompressibleAssumptionReadyCount());
 		assertEquals(6, summary.timeStepBudgetReadyCount());
-		assertEquals(6, summary.numericalBudgetReadyForExternalAuthoringCount());
+		assertEquals(0, summary.referenceMaterializationReadyBudgetCount());
+		assertEquals(0, summary.runSetupReadyForExternalAuthoringCount());
+		assertEquals(0, summary.numericalBudgetReadyForExternalAuthoringCount());
+		assertEquals(36, summary.blockedOpenFoamReferenceRowTotal());
 		assertEquals(2, summary.lowReynoldsTransitionReviewRequiredCount());
 		assertEquals(0, summary.currentCaseRunnableCount());
 		assertEquals(0.16263075459130397, summary.maxHelicalTipMach(), 1.0e-15);
@@ -49,7 +53,11 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 				summary.maxStepsPerRevolutionAtSuggestedTimeStep(), 1.0e-12);
 		assertEquals(0, summary.runtimeCouplingAllowedCount());
 		assertEquals(0, summary.gameplayAutoApplyAllowedCount());
-		assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
+		assertEquals("current_lookup_and_openfoam_blocked",
+				summary.currentReferenceMaterializationScenarioName());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				summary.currentReferenceMaterializationNextRequiredAction());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
 				summary.nextRequiredAction());
 	}
 
@@ -70,6 +78,14 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 				PropellerArchiveCtCpJOpenFoamNumericalBudget.rule("low_reynolds_model_review");
 		assertFalse(reynolds.currentSatisfied());
 		assertTrue(reynolds.postReviewSatisfied());
+
+		PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetRule materialization =
+				PropellerArchiveCtCpJOpenFoamNumericalBudget.rule("reference_materialization_required");
+		assertFalse(materialization.currentSatisfied());
+		assertTrue(materialization.postReviewSatisfied());
+		assertTrue(materialization.requirement().contains("reference materialization"));
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				materialization.nextRequiredAction());
 
 		PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetRule leak =
 				PropellerArchiveCtCpJOpenFoamNumericalBudget.rule(
@@ -112,11 +128,21 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 		assertEquals(825.7627488179437,
 				high.stepsPerRevolutionAtSuggestedTimeStep(), 1.0e-12);
 		assertTrue(high.timeStepBudgetReady());
-		assertTrue(high.numericalBudgetReadyForExternalAuthoring());
+		assertEquals("current_lookup_and_openfoam_blocked",
+				high.referenceMaterializationScenarioName());
+		assertFalse(high.referenceMaterializationReady());
+		assertEquals(6, high.blockedOpenFoamReferenceRowCount());
+		assertFalse(high.runSetupReadyForExternalAuthoring());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				high.referenceMaterializationNextRequiredAction());
+		assertFalse(high.numericalBudgetReadyForExternalAuthoring());
 		assertFalse(high.currentCaseRunnable());
 		assertFalse(high.runtimeCouplingAllowed());
 		assertFalse(high.gameplayAutoApplyAllowed());
 		assertEquals("BLOCKED", high.status());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				high.nextRequiredAction());
+		assertTrue(high.note().contains("reference materialization blocks external case authoring"));
 	}
 
 	@Test
@@ -135,8 +161,8 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 		assertEquals(804.247719318987,
 				staticAnchor.stepsPerRevolutionAtSuggestedTimeStep(), 1.0e-12);
 		assertTrue(staticAnchor.timeStepBudgetReady());
-		assertTrue(staticAnchor.numericalBudgetReadyForExternalAuthoring());
-		assertEquals("review-low-reynolds-static-anchor-openfoam-model",
+		assertFalse(staticAnchor.numericalBudgetReadyForExternalAuthoring());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
 				staticAnchor.nextRequiredAction());
 	}
 
@@ -162,7 +188,11 @@ class PropellerArchiveCtCpJOpenFoamNumericalBudgetTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_numerical_budget,racingQuad,static_anchor_low_rpm,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_numerical_budget,apDrone,high_domain_max_rpm,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_numerical_budget,apDrone,high_domain_max_rpm,")
+						&& line.contains("materialization=current_lookup_and_openfoam_blocked")
+						&& line.contains("blocked_reference_rows=6")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_numerical_budget_summary,all_rows,numerical_budget_ready_for_external_authoring_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_numerical_budget_summary,all_rows,low_reynolds_transition_review_required_count,2,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

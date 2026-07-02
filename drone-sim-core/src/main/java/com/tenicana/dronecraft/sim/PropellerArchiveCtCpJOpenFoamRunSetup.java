@@ -6,12 +6,12 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Run-Setup-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM run setup derives external CFD case inputs from the manifest, DroneConfig rotor geometry, and CT/CP/J run coordinates; it is audit-only and cannot vendor solver files, mutate runtime physics, or auto-apply gameplay tuning.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
-	public static final int RUN_SETUP_RULE_ROW_COUNT = 8;
+			"OpenFOAM run setup derives external CFD case inputs from the manifest, dimensional reference materialization gate, DroneConfig rotor geometry, and CT/CP/J run coordinates; it is audit-only and cannot vendor solver files, mutate runtime physics, or auto-apply gameplay tuning.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+	public static final int RUN_SETUP_RULE_ROW_COUNT = 9;
 	public static final int RUN_SETUP_ROW_COUNT =
 			PropellerArchiveCtCpJOpenFoamCaseManifest.MANIFEST_CASE_ROW_COUNT;
-	public static final int SUMMARY_ROW_COUNT = 15;
+	public static final int SUMMARY_ROW_COUNT = 20;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ RUN_SETUP_RULE_ROW_COUNT
@@ -32,6 +32,9 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 			new OpenFoamRunSetupRule("case_manifest_required", true, true, true,
 					"derive setup rows only from geometry-backed OpenFOAM manifest cases",
 					"keep-openfoam-case-manifest-current"),
+			new OpenFoamRunSetupRule("reference_materialization_required", true, false, true,
+					"allow external case setup authoring only after reviewed CT/CP/J lookup and OpenFOAM dimensional reference materialization",
+					"execute-clearance-evidence-ledger-before-reviewed-payload-output"),
 			new OpenFoamRunSetupRule("exact_j_rpm_run_point", true, true, true,
 					"preserve manifest J and RPM coordinates for external CFD case authoring",
 					"bind-openfoam-case-template-to-manifest-run-point"),
@@ -83,6 +86,10 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 			boolean currentSourceCaseSha256Available,
 			boolean currentCaseRunnable,
 			boolean postReviewCaseBuildable,
+			String referenceMaterializationScenarioName,
+			boolean referenceMaterializationReady,
+			int blockedOpenFoamReferenceRowCount,
+			String referenceMaterializationNextRequiredAction,
 			double airDensityKgPerCubicMeter,
 			double ambientTemperatureCelsius,
 			double speedOfSoundMetersPerSecond,
@@ -119,6 +126,9 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 			int postReviewCaseBuildableCount,
 			int sourceCaseSha256RequiredCount,
 			int currentSourceCaseSha256AvailableCount,
+			int referenceMaterializationReadySetupCount,
+			int runSetupReadyForExternalAuthoringCount,
+			int blockedOpenFoamReferenceRowTotal,
 			int staticAnchorCaseCount,
 			double maxQueryAdvanceRatioJ,
 			double maxQueryRpm,
@@ -128,6 +138,8 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 			double maxReynoldsStationChordNumber,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
+			String currentReferenceMaterializationScenarioName,
+			String currentReferenceMaterializationNextRequiredAction,
 			String nextRequiredAction
 	) {
 	}
@@ -229,6 +241,10 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 				manifestRow.currentSourceCaseSha256Available(),
 				manifestRow.currentCaseRunnable(),
 				manifestRow.postReviewCaseBuildable(),
+				manifestRow.referenceMaterializationScenarioName(),
+				manifestRow.referenceMaterializationReady(),
+				manifestRow.blockedOpenFoamReferenceRowCount(),
+				manifestRow.referenceMaterializationNextRequiredAction(),
 				STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER,
 				STANDARD_AMBIENT_TEMPERATURE_CELSIUS,
 				speedOfSound,
@@ -251,12 +267,12 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 				REYNOLDS_REFERENCE_STATION_FRACTION,
 				stationSpeed,
 				stationReynolds,
-				manifestRow.postReviewCaseBuildable(),
+				manifestRow.postReviewCaseBuildable() && manifestRow.referenceMaterializationReady(),
 				false,
 				false,
 				"BLOCKED",
-				NEXT_REQUIRED_ACTION,
-				"external OpenFOAM case setup is computable, but case archive hash and solver output remain absent"
+				nextRequiredAction(manifestRow),
+				note(manifestRow)
 		);
 	}
 
@@ -265,6 +281,9 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 		int buildable = 0;
 		int hashRequired = 0;
 		int hashAvailable = 0;
+		int materializationReady = 0;
+		int authoringReady = 0;
+		int blockedReferenceRows = 0;
 		int staticAnchors = 0;
 		int runtime = 0;
 		int gameplay = 0;
@@ -274,6 +293,9 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 		double maxMach = 0.0;
 		double minReynolds = Double.POSITIVE_INFINITY;
 		double maxReynolds = 0.0;
+		String currentScenario = "";
+		String currentMaterializationAction = "";
+		String nextAction = NEXT_REQUIRED_ACTION;
 		for (OpenFoamRunSetupRow row : rows) {
 			if (row.currentCaseRunnable()) {
 				currentRunnable++;
@@ -287,6 +309,13 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 			if (row.currentSourceCaseSha256Available()) {
 				hashAvailable++;
 			}
+			if (row.referenceMaterializationReady()) {
+				materializationReady++;
+			}
+			if (row.runSetupReadyForExternalAuthoring()) {
+				authoringReady++;
+			}
+			blockedReferenceRows += row.blockedOpenFoamReferenceRowCount();
 			if (row.staticAnchorCase()) {
 				staticAnchors++;
 			}
@@ -302,6 +331,11 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 			maxMach = Math.max(maxMach, row.helicalTipMach());
 			minReynolds = Math.min(minReynolds, row.reynoldsStationChordNumber());
 			maxReynolds = Math.max(maxReynolds, row.reynoldsStationChordNumber());
+			if (currentScenario.isBlank()) {
+				currentScenario = row.referenceMaterializationScenarioName();
+				currentMaterializationAction = row.referenceMaterializationNextRequiredAction();
+				nextAction = row.nextRequiredAction();
+			}
 		}
 		if (!Double.isFinite(minReynolds)) {
 			minReynolds = 0.0;
@@ -312,6 +346,9 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 				buildable,
 				hashRequired,
 				hashAvailable,
+				materializationReady,
+				authoringReady,
+				blockedReferenceRows,
 				staticAnchors,
 				maxJ,
 				maxRpm,
@@ -321,8 +358,28 @@ public final class PropellerArchiveCtCpJOpenFoamRunSetup {
 				maxReynolds,
 				runtime,
 				gameplay,
-				NEXT_REQUIRED_ACTION
+				currentScenario,
+				currentMaterializationAction,
+				nextAction
 		);
+	}
+
+	private static String nextRequiredAction(
+			PropellerArchiveCtCpJOpenFoamCaseManifest.OpenFoamCaseManifestRow manifestRow
+	) {
+		if (!manifestRow.referenceMaterializationReady()) {
+			return manifestRow.referenceMaterializationNextRequiredAction();
+		}
+		return NEXT_REQUIRED_ACTION;
+	}
+
+	private static String note(
+			PropellerArchiveCtCpJOpenFoamCaseManifest.OpenFoamCaseManifestRow manifestRow
+	) {
+		if (!manifestRow.referenceMaterializationReady()) {
+			return "external OpenFOAM case setup is computable, but reference materialization is still blocked";
+		}
+		return "external OpenFOAM case setup is computable, but case archive hash and solver output remain absent";
 	}
 
 	private static DroneConfig configFor(String presetName) {

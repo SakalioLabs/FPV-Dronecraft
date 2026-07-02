@@ -11,12 +11,12 @@ import java.util.Set;
 public final class PropellerArchiveCtCpJOpenFoamResultContract {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-OpenFOAM-Result-Contract-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM result contract accepts only compact external CT/CP/eta coefficient values and residual summaries for geometry-backed, shape-guarded lookup targets; it vendors no solver output and never enables runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
+			"OpenFOAM result contract accepts only compact external CT/CP/eta coefficient values and residual summaries for geometry-backed, materialization-ready, numerically budgeted, shape-guarded lookup targets; it vendors no solver output and never enables runtime coupling or gameplay auto-apply.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 10;
 	public static final int RESULT_FIELD_ROW_COUNT = 17;
 	public static final int SCENARIO_SAMPLE_COUNT = 4;
-	public static final int SCENARIO_METRIC_ROW_COUNT = 25;
-	public static final int SUMMARY_ROW_COUNT = 17;
+	public static final int SCENARIO_METRIC_ROW_COUNT = 31;
+	public static final int SUMMARY_ROW_COUNT = 20;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ RESULT_FIELD_ROW_COUNT
@@ -110,6 +110,12 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			boolean reviewedArchiveImportReady,
 			boolean externalCaseTemplateReady,
 			boolean resultExtractionReady,
+			String referenceMaterializationScenarioName,
+			boolean referenceMaterializationReady,
+			int numericalBudgetReadyForExternalAuthoringCount,
+			boolean numericalBudgetReadyForExternalAuthoring,
+			int blockedOpenFoamReferenceRowTotal,
+			String referenceMaterializationNextRequiredAction,
 			boolean lookupExecutionArchiveCurveShapeGuardReady,
 			int lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount,
 			int lookupExecutionArchiveCurveShapeGuardBlockedScenarioCount,
@@ -152,6 +158,9 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			int maxExpectedOpenFoamResultCaseCount,
 			int maxMissingResultCount,
 			int maxFailedResultCount,
+			int referenceMaterializationReadyScenarioCount,
+			int maxNumericalBudgetReadyForExternalAuthoringCount,
+			int maxBlockedOpenFoamReferenceRowTotal,
 			int lookupExecutionArchiveCurveShapeGuardReadyScenarioCount,
 			int maxLookupExecutionArchiveCurveShapeGuardInheritedScenarioCount,
 			int maxLookupExecutionArchiveCurveShapeGuardBlockedScenarioCount,
@@ -194,22 +203,26 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		failedResults.set(0, failingResult(targets.get(0)));
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary lookupExecution =
 				PropellerArchiveCtCpJLookupExecutionContract.audit().summary();
+		PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary currentBudget =
+				PropellerArchiveCtCpJOpenFoamNumericalBudget.audit().summary();
+		PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary reviewedBudget =
+				reviewedNumericalBudgetSummary(currentBudget);
 		List<OpenFoamResultContractScenario> scenarios = List.of(
 				new OpenFoamResultContractScenario(
 						"current_no_reviewed_import_no_openfoam_results",
-						review(false, false, false, List.of(), lookupExecution,
+						review(false, false, false, List.of(), lookupExecution, currentBudget,
 								"current-openfoam-result-contract-blocked")),
 				new OpenFoamResultContractScenario(
 						"reviewed_import_openfoam_ready_results_missing",
-						review(true, true, true, List.of(), lookupExecution,
+						review(true, true, true, List.of(), lookupExecution, reviewedBudget,
 								"synthetic-openfoam-results-missing")),
 				new OpenFoamResultContractScenario(
 						"synthetic_openfoam_results_all_pass",
-						review(true, true, true, passingResults, lookupExecution,
+						review(true, true, true, passingResults, lookupExecution, reviewedBudget,
 								"synthetic-openfoam-results-all-pass")),
 				new OpenFoamResultContractScenario(
 						"synthetic_openfoam_result_failed",
-						review(true, true, true, failedResults, lookupExecution,
+						review(true, true, true, failedResults, lookupExecution, reviewedBudget,
 								"synthetic-openfoam-result-failed"))
 		);
 		return new CtCpJOpenFoamResultContractAudit(
@@ -336,11 +349,38 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary lookupExecution,
 			String sourceRuntimeInfo
 	) {
+		return review(reviewedArchiveImportReady, externalCaseTemplateReady, resultExtractionReady,
+				results, lookupExecution, PropellerArchiveCtCpJOpenFoamNumericalBudget.audit().summary(),
+				sourceRuntimeInfo);
+	}
+
+	public static OpenFoamResultContractSummary review(
+			boolean reviewedArchiveImportReady,
+			boolean externalCaseTemplateReady,
+			boolean resultExtractionReady,
+			List<OpenFoamCompactResult> results,
+			PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary lookupExecution,
+			PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary numericalBudget,
+			String sourceRuntimeInfo
+	) {
 		if (results == null) {
 			throw new IllegalArgumentException("results must not be null.");
 		}
 		if (lookupExecution == null) {
 			throw new IllegalArgumentException("lookupExecution must not be null.");
+		}
+		if (numericalBudget == null) {
+			throw new IllegalArgumentException("numericalBudget must not be null.");
+		}
+		if (numericalBudget.currentReferenceMaterializationScenarioName() == null
+				|| numericalBudget.currentReferenceMaterializationScenarioName().isBlank()) {
+			throw new IllegalArgumentException(
+					"numericalBudget reference materialization scenario name must not be blank.");
+		}
+		if (numericalBudget.currentReferenceMaterializationNextRequiredAction() == null
+				|| numericalBudget.currentReferenceMaterializationNextRequiredAction().isBlank()) {
+			throw new IllegalArgumentException(
+					"numericalBudget reference materialization next action must not be blank.");
 		}
 		if (sourceRuntimeInfo == null || sourceRuntimeInfo.isBlank()) {
 			throw new IllegalArgumentException("sourceRuntimeInfo must not be blank.");
@@ -398,16 +438,29 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		boolean allPassed = failed == 0 && passed == targets.size();
 		boolean shapeGuardReady = reviewedArchiveImportReady
 				&& lookupExecutionArchiveCurveShapeGuardReady(lookupExecution);
+		boolean referenceMaterializationReady = numericalBudget.referenceMaterializationReadyBudgetCount()
+				>= targets.size() && numericalBudget.blockedOpenFoamReferenceRowTotal() == 0;
+		boolean numericalBudgetReady = numericalBudget.numericalBudgetReadyForExternalAuthoringCount()
+				>= targets.size();
+		boolean effectiveExternalCaseTemplateReady = externalCaseTemplateReady
+				&& referenceMaterializationReady
+				&& numericalBudgetReady;
 		boolean ready = reviewedArchiveImportReady
-				&& externalCaseTemplateReady
+				&& effectiveExternalCaseTemplateReady
 				&& resultExtractionReady
 				&& shapeGuardReady
 				&& allPresent
 				&& allPassed;
 		return new OpenFoamResultContractSummary(
 				reviewedArchiveImportReady,
-				externalCaseTemplateReady,
+				effectiveExternalCaseTemplateReady,
 				resultExtractionReady,
+				numericalBudget.currentReferenceMaterializationScenarioName(),
+				referenceMaterializationReady,
+				numericalBudget.numericalBudgetReadyForExternalAuthoringCount(),
+				numericalBudgetReady,
+				numericalBudget.blockedOpenFoamReferenceRowTotal(),
+				numericalBudget.currentReferenceMaterializationNextRequiredAction(),
 				shapeGuardReady,
 				lookupExecution.archiveCurveShapeGuardInheritedScenarioCount(),
 				lookupExecution.archiveCurveShapeGuardBlockedScenarioCount(),
@@ -432,8 +485,9 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 				false,
 				false,
 				ready ? "READY" : "BLOCKED",
-				messageFor(reviewedArchiveImportReady, externalCaseTemplateReady, resultExtractionReady,
-						shapeGuardReady, allPresent, allPassed),
+				messageFor(reviewedArchiveImportReady, referenceMaterializationReady,
+						effectiveExternalCaseTemplateReady, resultExtractionReady, shapeGuardReady,
+						allPresent, allPassed),
 				sourceRuntimeInfo
 		);
 	}
@@ -579,6 +633,9 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 		int maxExpected = 0;
 		int maxMissing = 0;
 		int maxFailed = 0;
+		int materializationReady = 0;
+		int maxNumericalBudgetReady = 0;
+		int maxBlockedReferenceRows = 0;
 		int shapeReady = 0;
 		int maxShapeInherited = 0;
 		int maxShapeBlocked = 0;
@@ -598,6 +655,13 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			maxExpected = Math.max(maxExpected, summary.expectedOpenFoamResultCaseCount());
 			maxMissing = Math.max(maxMissing, summary.missingResultCount());
 			maxFailed = Math.max(maxFailed, summary.failedResultCount());
+			if (summary.referenceMaterializationReady()) {
+				materializationReady++;
+			}
+			maxNumericalBudgetReady = Math.max(maxNumericalBudgetReady,
+					summary.numericalBudgetReadyForExternalAuthoringCount());
+			maxBlockedReferenceRows = Math.max(maxBlockedReferenceRows,
+					summary.blockedOpenFoamReferenceRowTotal());
 			if (summary.lookupExecutionArchiveCurveShapeGuardReady()) {
 				shapeReady++;
 			}
@@ -626,6 +690,9 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 				maxExpected,
 				maxMissing,
 				maxFailed,
+				materializationReady,
+				maxNumericalBudgetReady,
+				maxBlockedReferenceRows,
 				shapeReady,
 				maxShapeInherited,
 				maxShapeBlocked,
@@ -642,13 +709,20 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 
 	private static String messageFor(
 			boolean reviewedArchiveImportReady,
+			boolean referenceMaterializationReady,
 			boolean externalCaseTemplateReady,
 			boolean resultExtractionReady,
 			boolean lookupExecutionArchiveCurveShapeGuardReady,
 			boolean allPresent,
 			boolean allPassed
 	) {
-		if (!reviewedArchiveImportReady || !externalCaseTemplateReady || !resultExtractionReady) {
+		if (!reviewedArchiveImportReady) {
+			return "openfoam-prerequisites-not-ready";
+		}
+		if (!referenceMaterializationReady) {
+			return "openfoam-reference-materialization-not-ready";
+		}
+		if (!externalCaseTemplateReady || !resultExtractionReady) {
 			return "openfoam-prerequisites-not-ready";
 		}
 		if (!lookupExecutionArchiveCurveShapeGuardReady) {
@@ -661,6 +735,38 @@ public final class PropellerArchiveCtCpJOpenFoamResultContract {
 			return "openfoam-residual-gate-failed";
 		}
 		return "openfoam-result-contract-ready";
+	}
+
+	static PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary
+			reviewedNumericalBudgetSummary(
+					PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary current
+			) {
+		if (current == null) {
+			throw new IllegalArgumentException("current numerical budget summary must not be null.");
+		}
+		return new PropellerArchiveCtCpJOpenFoamNumericalBudget.OpenFoamNumericalBudgetSummary(
+				current.numericalBudgetRowCount(),
+				current.incompressibleAssumptionReadyCount(),
+				current.timeStepBudgetReadyCount(),
+				current.numericalBudgetRowCount(),
+				current.numericalBudgetRowCount(),
+				current.numericalBudgetRowCount(),
+				0,
+				current.lowReynoldsTransitionReviewRequiredCount(),
+				current.currentCaseRunnableCount(),
+				current.maxHelicalTipMach(),
+				current.minReynoldsStationChordNumber(),
+				current.maxReynoldsStationChordNumber(),
+				current.minNearBladeCellSizeMeters(),
+				current.minSuggestedTimeStepSeconds(),
+				current.maxSuggestedTimeStepSeconds(),
+				current.maxStepsPerRevolutionAtSuggestedTimeStep(),
+				current.runtimeCouplingAllowedCount(),
+				current.gameplayAutoApplyAllowedCount(),
+				"lookup_reference_and_openfoam_ready",
+				"author-external-openfoam-case-template-and-record-case-sha256",
+				"author-external-openfoam-case-template-and-record-case-sha256"
+		);
 	}
 
 	private static void validateSourceCaseSha256(String sourceCaseSha256) {

@@ -49,7 +49,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
 				current.openFoamSolverQualityNextRequiredAction());
 		assertFalse(current.lookupExecutionArchiveCurveShapeGuardReady());
-		assertEquals(5, current.lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(6, current.lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
 		assertEquals(1, current.lookupExecutionArchiveCurveShapeGuardBlockedScenarioCount());
 		assertEquals(9, current.maxNegativeThrustTailExecutionInputRowCount());
 		assertEquals(9, current.expectedLookupTargetCount());
@@ -111,7 +111,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals("openfoam-solver-quality-blockers-clear",
 				ready.openFoamSolverQualityNextRequiredAction());
 		assertTrue(ready.lookupExecutionArchiveCurveShapeGuardReady());
-		assertEquals(5, ready.lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(6, ready.lookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
 		assertEquals(1, ready.lookupExecutionArchiveCurveShapeGuardBlockedScenarioCount());
 		assertEquals(9, ready.maxNegativeThrustTailExecutionInputRowCount());
 		assertTrue(ready.maxArchiveCurveEtaFormulaResidual()
@@ -138,7 +138,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertEquals(4, AUDIT.extrema().maxOpenFoamSolverQualityBlockerCount());
 		assertEquals(1, AUDIT.extrema().openFoamSolverQualityBlockerScenarioCount());
 		assertEquals(4, AUDIT.extrema().lookupExecutionArchiveCurveShapeGuardReadyScenarioCount());
-		assertEquals(5, AUDIT.extrema().maxLookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(6, AUDIT.extrema().maxLookupExecutionArchiveCurveShapeGuardInheritedScenarioCount());
 		assertEquals(1, AUDIT.extrema().maxLookupExecutionArchiveCurveShapeGuardBlockedScenarioCount());
 		assertEquals(9, AUDIT.extrema().maxNegativeThrustTailExecutionInputRowCount());
 		assertTrue(AUDIT.extrema().maxArchiveCurveEtaFormulaResidual()
@@ -229,7 +229,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,lookup_execution_archive_curve_shape_guard_ready,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,lookup_execution_archive_curve_shape_guard_inherited_scenario_count,5,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,current_lookup_and_cfd_blocked,lookup_execution_archive_curve_shape_guard_inherited_scenario_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_scenario,lookup_execution_blocked_cfd_ready,lookup_execution_contract_ready,false,boolean,")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -247,7 +247,7 @@ class PropellerArchiveCtCpJOpenFoamLookupSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_lookup_execution_archive_curve_shape_guard_inherited_scenario_count,5,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,max_lookup_execution_archive_curve_shape_guard_inherited_scenario_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_lookup_support_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 	}

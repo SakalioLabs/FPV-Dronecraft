@@ -20,26 +20,26 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 
 		assertEquals("User-Propeller-Archive-CT-CP-J-Lookup-Execution-Contract-Packet",
 				audit.sourceId());
-		assertTrue(audit.caveat().contains("scattered-fit execution handoff"));
-		assertEquals(45, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
-		assertEquals(10, audit.executionRuleRowCount());
-		assertEquals(8, audit.scenarioRowCount());
+		assertTrue(audit.caveat().contains("reviewed coefficient payload"));
+		assertEquals(49, audit.packetRowCount());
+		assertEquals(10, audit.sourceReferenceRowCount());
+		assertEquals(11, audit.executionRuleRowCount());
+		assertEquals(9, audit.scenarioRowCount());
 		assertEquals(18, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(10, audit.rules().size());
-		assertEquals(8, audit.scenarios().size());
+		assertEquals(11, audit.rules().size());
+		assertEquals(9, audit.scenarios().size());
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionSummary summary = audit.summary();
-		assertEquals(8, summary.scenarioCount());
-		assertEquals(2, summary.acceptedScenarioCount());
+		assertEquals(9, summary.scenarioCount());
+		assertEquals(3, summary.acceptedScenarioCount());
 		assertEquals(6, summary.blockedScenarioCount());
 		assertEquals(2, summary.handoffBlockedScenarioCount());
 		assertEquals(1, summary.noReviewedRowsScenarioCount());
 		assertEquals(1, summary.outOfDomainScenarioCount());
 		assertEquals(1, summary.missingNeighborScenarioCount());
 		assertEquals(1, summary.acceptanceGuardFailedScenarioCount());
-		assertEquals(5, summary.archiveCurveShapeGuardInheritedScenarioCount());
+		assertEquals(6, summary.archiveCurveShapeGuardInheritedScenarioCount());
 		assertEquals(1, summary.archiveCurveShapeGuardBlockedScenarioCount());
 		assertEquals(4, summary.maxObservedNeighborRows());
 		assertEquals(9, summary.maxNegativeThrustTailExecutionInputRowCount());
@@ -83,6 +83,13 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertTrue(inheritedShape.syntheticTargetSatisfied());
 		assertEquals("carry-archive-curve-shape-guard-into-lookup-execution",
 				inheritedShape.nextRequiredAction());
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule payload =
+				PropellerArchiveCtCpJLookupExecutionContract.rule("reviewed_coefficient_payload_ready");
+		assertTrue(payload.required());
+		assertFalse(payload.currentSatisfied());
+		assertTrue(payload.callerSuppliedReviewedRowsSatisfied());
+		assertTrue(payload.requirement().contains("positive CP"));
 
 		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionRule extrapolation =
 				PropellerArchiveCtCpJLookupExecutionContract.rule("reject_extrapolation");
@@ -160,6 +167,16 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_ETA_FORMULA_RESIDUAL);
 		assertTrue(mid.archiveCurveCtIncrease()
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
+
+		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult payloadBridge =
+				scenario("synthetic_reviewed_payload_bridge_mid_pass");
+		assertTrue(payloadBridge.acceptedByLookupGate());
+		assertEquals("lookup-execution-accepted", payloadBridge.message());
+		assertEquals(4, payloadBridge.observedNeighborRows());
+		assertEquals(mid.ctCoefficient(), payloadBridge.ctCoefficient(), 1.0e-12);
+		assertEquals(mid.cpCoefficient(), payloadBridge.cpCoefficient(), 1.0e-12);
+		assertEquals(mid.eta(), payloadBridge.eta(), 1.0e-12);
+		assertTrue(payloadBridge.archiveCurveShapeGuardInherited());
 	}
 
 	@Test
@@ -267,17 +284,25 @@ class PropellerArchiveCtCpJLookupExecutionContractTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,archive_curve_shape_guard_inherited,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_source,reviewed_grid_input,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_source,reviewed_coefficient_payload,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,reviewed_coefficient_payload_ready,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_handoff_curve_shape_guard_blocked,HANDOFF_CURVE_SHAPE_GUARD_FAILED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_rule,reject_extrapolation,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_mid_bilinear_pass,ACCEPTED,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_reviewed_payload_bridge_mid_pass,ACCEPTED,true,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_scenario,synthetic_cp_guard_failed,ACCEPTANCE_GUARD_FAILED,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,handoff_blocked_scenario_count,2,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,archive_curve_shape_guard_inherited_scenario_count,5,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,archive_curve_shape_guard_inherited_scenario_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_lookup_execution_summary,all_scenarios,runtime_coupling_allowed_count,0,count,")));
 	}

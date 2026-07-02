@@ -22,8 +22,8 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("zero weights"));
 		assertTrue(audit.caveat().contains("handoff-aware lookup execution"));
-		assertEquals(34, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
+		assertEquals(35, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
 		assertEquals(9, audit.referenceRowCount());
 		assertEquals(17, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
@@ -136,6 +136,48 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 	}
 
 	@Test
+	void reviewReadinessGateMaterializesRowsOnlyAfterReferenceReview() {
+		PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario pending =
+				reviewReadiness("authorized_runs_pending_results_reference_blocked");
+		PropellerArchiveCtCpJLookupReferenceTable.CtCpJLookupReferenceTableAudit pendingAudit =
+				PropellerArchiveCtCpJLookupReferenceTable.audit(pending);
+		assertEquals(9, pendingAudit.extrema().blockedRowCount());
+		for (PropellerArchiveCtCpJLookupReferenceTable.LookupReferenceRow row : pendingAudit.rows()) {
+			assertFalse(row.lookupAcceptanceReady());
+			assertTrue(row.lookupExecutionContractReady());
+			assertFalse(row.referenceMaterialExportAllowed());
+			assertEquals("lookup-execution-results-pending", row.message());
+		}
+
+		PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario reviewed =
+				reviewReadiness("acceptance_handoff_ready_reference_reviewed");
+		PropellerArchiveCtCpJLookupReferenceTable.CtCpJLookupReferenceTableAudit reviewedAudit =
+				PropellerArchiveCtCpJLookupReferenceTable.audit(reviewed);
+		assertEquals(9, reviewedAudit.extrema().performanceReferenceRowAvailableCount());
+		assertEquals(6, reviewedAudit.extrema().fullSimulationReferenceRowAvailableCount());
+		assertEquals(3, reviewedAudit.extrema().performanceOnlyReferenceRowAvailableCount());
+		assertEquals(0, reviewedAudit.extrema().blockedRowCount());
+		assertEquals(3, reviewedAudit.extrema().staticAnchorReferenceAvailableCount());
+		for (PropellerArchiveCtCpJLookupReferenceTable.LookupReferenceRow row : reviewedAudit.rows()) {
+			assertTrue(row.lookupAcceptanceReady());
+			assertTrue(row.lookupExecutionContractReady());
+			assertTrue(row.compactReferenceReviewed());
+			assertTrue(row.referenceMaterialExportAllowed());
+			assertTrue(row.performanceReferenceRowAvailable());
+			assertEquals(1.0, row.ctReferenceWeight(), 1.0e-12);
+			assertEquals(1.0, row.cpReferenceWeight(), 1.0e-12);
+			assertEquals(1.0, row.etaReferenceWeight(), 1.0e-12);
+			if ("heavyLift".equals(row.presetName())) {
+				assertFalse(row.fullSimulationReferenceRowAvailable());
+				assertEquals("performance-reference-only-full-simulation-blocked", row.message());
+			} else {
+				assertTrue(row.fullSimulationReferenceRowAvailable());
+				assertEquals("ct-cp-j-lookup-reference-row-available", row.message());
+			}
+		}
+	}
+
+	@Test
 	void executionBlockedHandoffKeepsRowsBlockedWithSpecificReason() {
 		PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary executionBlocked =
 				handoff("acceptance_execution_blocked");
@@ -159,11 +201,22 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 				PropellerArchiveCtCpJLookupAcceptanceGate.target("apDrone", "mid_domain_mid_rpm");
 
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJLookupReferenceTable.audit(null));
+				() -> PropellerArchiveCtCpJLookupReferenceTable.audit(
+						(PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary) null));
 		assertThrows(IllegalArgumentException.class,
-				() -> PropellerArchiveCtCpJLookupReferenceTable.row(null, target));
+				() -> PropellerArchiveCtCpJLookupReferenceTable.audit(
+						(PropellerArchiveCtCpJLookupReferenceReviewReadinessGate
+								.LookupReferenceReviewReadinessScenario) null));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJLookupReferenceTable.row(
+						(PropellerArchiveCtCpJLookupReferenceHandoff.LookupReferenceHandoffSummary) null,
+						target));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJLookupReferenceTable.row(accepted, null));
+		PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario reviewed =
+				reviewReadiness("acceptance_handoff_ready_reference_reviewed");
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJLookupReferenceTable.row(reviewed, null));
 	}
 
 	@Test
@@ -195,6 +248,14 @@ class PropellerArchiveCtCpJLookupReferenceTableTest {
 				.findFirst()
 				.orElseThrow()
 				.summary();
+	}
+
+	private static PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario
+			reviewReadiness(String name) {
+		return PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.audit().scenarios().stream()
+				.filter(scenario -> name.equals(scenario.scenarioName()))
+				.findFirst()
+				.orElseThrow();
 	}
 
 	private static Path findRepoRoot() {

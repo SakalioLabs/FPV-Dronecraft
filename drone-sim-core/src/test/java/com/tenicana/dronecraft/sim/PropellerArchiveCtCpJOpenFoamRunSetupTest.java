@@ -21,14 +21,15 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Run-Setup-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("external CFD case inputs"));
+		assertTrue(audit.caveat().contains("dimensional reference materialization gate"));
 		assertTrue(audit.caveat().contains("audit-only"));
-		assertEquals(38, audit.packetRowCount());
-		assertEquals(8, audit.sourceReferenceRowCount());
-		assertEquals(8, audit.runSetupRuleRowCount());
+		assertEquals(45, audit.packetRowCount());
+		assertEquals(9, audit.sourceReferenceRowCount());
+		assertEquals(9, audit.runSetupRuleRowCount());
 		assertEquals(6, audit.runSetupRowCount());
-		assertEquals(15, audit.summaryRowCount());
+		assertEquals(20, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
-		assertEquals(8, audit.rules().size());
+		assertEquals(9, audit.rules().size());
 		assertEquals(6, audit.rows().size());
 
 		PropellerArchiveCtCpJOpenFoamRunSetup.OpenFoamRunSetupSummary summary = audit.summary();
@@ -37,6 +38,9 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertEquals(6, summary.postReviewCaseBuildableCount());
 		assertEquals(6, summary.sourceCaseSha256RequiredCount());
 		assertEquals(0, summary.currentSourceCaseSha256AvailableCount());
+		assertEquals(0, summary.referenceMaterializationReadySetupCount());
+		assertEquals(0, summary.runSetupReadyForExternalAuthoringCount());
+		assertEquals(36, summary.blockedOpenFoamReferenceRowTotal());
 		assertEquals(2, summary.staticAnchorCaseCount());
 		assertEquals(0.73152, summary.maxQueryAdvanceRatioJ(), 1.0e-12);
 		assertEquals(7_946.7, summary.maxQueryRpm(), 1.0e-9);
@@ -46,7 +50,11 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertTrue(summary.maxReynoldsStationChordNumber() > summary.minReynoldsStationChordNumber());
 		assertEquals(0, summary.runtimeCouplingAllowedCount());
 		assertEquals(0, summary.gameplayAutoApplyAllowedCount());
-		assertEquals("author-external-openfoam-case-template-and-record-case-sha256",
+		assertEquals("current_lookup_and_openfoam_blocked",
+				summary.currentReferenceMaterializationScenarioName());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				summary.currentReferenceMaterializationNextRequiredAction());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
 				summary.nextRequiredAction());
 	}
 
@@ -64,6 +72,14 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertTrue(hash.postReviewSatisfied());
 		assertEquals("author-external-openfoam-case-template-and-record-case-sha256",
 				hash.nextRequiredAction());
+
+		PropellerArchiveCtCpJOpenFoamRunSetup.OpenFoamRunSetupRule materialization =
+				PropellerArchiveCtCpJOpenFoamRunSetup.rule("reference_materialization_required");
+		assertFalse(materialization.currentSatisfied());
+		assertTrue(materialization.postReviewSatisfied());
+		assertTrue(materialization.requirement().contains("reference materialization"));
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				materialization.nextRequiredAction());
 
 		PropellerArchiveCtCpJOpenFoamRunSetup.OpenFoamRunSetupRule leak =
 				PropellerArchiveCtCpJOpenFoamRunSetup.rule("no_runtime_or_gameplay_auto_apply");
@@ -93,7 +109,13 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertFalse(apMid.currentSourceCaseSha256Available());
 		assertFalse(apMid.currentCaseRunnable());
 		assertTrue(apMid.postReviewCaseBuildable());
-		assertTrue(apMid.runSetupReadyForExternalAuthoring());
+		assertEquals("current_lookup_and_openfoam_blocked",
+				apMid.referenceMaterializationScenarioName());
+		assertFalse(apMid.referenceMaterializationReady());
+		assertEquals(6, apMid.blockedOpenFoamReferenceRowCount());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				apMid.referenceMaterializationNextRequiredAction());
+		assertFalse(apMid.runSetupReadyForExternalAuthoring());
 
 		assertEquals(1.225, apMid.airDensityKgPerCubicMeter(), 1.0e-12);
 		assertEquals(15.0, apMid.ambientTemperatureCelsius(), 1.0e-12);
@@ -126,6 +148,9 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertFalse(apMid.runtimeCouplingAllowed());
 		assertFalse(apMid.gameplayAutoApplyAllowed());
 		assertEquals("BLOCKED", apMid.status());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				apMid.nextRequiredAction());
+		assertTrue(apMid.note().contains("reference materialization is still blocked"));
 	}
 
 	@Test
@@ -164,7 +189,11 @@ class PropellerArchiveCtCpJOpenFoamRunSetupTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_run_setup,racingQuad,static_anchor_low_rpm,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_run_setup,apDrone,mid_domain_mid_rpm,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_run_setup,apDrone,mid_domain_mid_rpm,")
+						&& line.contains("materialization=current_lookup_and_openfoam_blocked")
+						&& line.contains("blocked_reference_rows=6")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_run_setup_summary,all_rows,run_setup_ready_for_external_authoring_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_run_setup_summary,all_rows,max_helical_tip_mach,")));
 		assertTrue(lines.stream().anyMatch(line ->

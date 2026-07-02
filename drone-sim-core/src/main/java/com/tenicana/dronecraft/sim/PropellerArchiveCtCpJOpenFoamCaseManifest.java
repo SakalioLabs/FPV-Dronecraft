@@ -6,11 +6,11 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Case-Manifest-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM case manifest binds geometry-backed CT/CP/J validation targets to external case keys and required result payload channels; no solver code, case directory, or raw OpenFOAM output is vendored, and runtime/gameplay auto-apply stay closed.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
+			"OpenFOAM case manifest binds geometry-backed CT/CP/J validation targets to external case keys, dimensional reference materialization readiness, and required result payload channels; no solver code, case directory, or raw OpenFOAM output is vendored, and runtime/gameplay auto-apply stay closed.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
 	public static final int REQUIRED_CHANNEL_ROW_COUNT = 26;
 	public static final int MANIFEST_CASE_ROW_COUNT = 6;
-	public static final int SUMMARY_ROW_COUNT = 12;
+	public static final int SUMMARY_ROW_COUNT = 16;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ REQUIRED_CHANNEL_ROW_COUNT
@@ -166,6 +166,10 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 			boolean currentSourceCaseSha256Available,
 			boolean currentCaseRunnable,
 			boolean postReviewCaseBuildable,
+			String referenceMaterializationScenarioName,
+			boolean referenceMaterializationReady,
+			int blockedOpenFoamReferenceRowCount,
+			String referenceMaterializationNextRequiredAction,
 			boolean runtimeCouplingAllowed,
 			boolean gameplayAutoApplyAllowed,
 			String status,
@@ -182,11 +186,15 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 			int currentCaseRunnableCount,
 			int sourceCaseSha256RequiredCount,
 			int currentSourceCaseSha256AvailableCount,
+			int referenceMaterializationReadyCaseCount,
+			int blockedOpenFoamReferenceRowTotal,
 			int requiredCoefficientChannelTotal,
 			int requiredDimensionalChannelTotal,
 			int requiredManifestChannelTotal,
 			int runtimeCouplingAllowedCount,
-			int gameplayAutoApplyAllowedCount
+			int gameplayAutoApplyAllowedCount,
+			String currentReferenceMaterializationScenarioName,
+			String currentReferenceMaterializationNextRequiredAction
 	) {
 	}
 
@@ -252,8 +260,26 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 	public static OpenFoamCaseManifestRow row(
 			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase validationCase
 	) {
+		return row(validationCase, PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.scenario("current_lookup_and_openfoam_blocked"));
+	}
+
+	public static OpenFoamCaseManifestRow row(
+			PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase validationCase,
+			PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+					.OpenFoamDimensionalReferenceMaterializationScenario materialization
+	) {
 		if (validationCase == null) {
 			throw new IllegalArgumentException("validationCase must not be null.");
+		}
+		if (materialization == null) {
+			throw new IllegalArgumentException("reference materialization scenario must not be null.");
+		}
+		if (materialization.scenarioName() == null || materialization.scenarioName().isBlank()) {
+			throw new IllegalArgumentException("reference materialization scenario name must not be blank.");
+		}
+		if (materialization.nextRequiredAction() == null || materialization.nextRequiredAction().isBlank()) {
+			throw new IllegalArgumentException("reference materialization next required action must not be blank.");
 		}
 		if (!validationCase.postReviewOpenFoamCaseRunnable()) {
 			throw new IllegalArgumentException(
@@ -279,11 +305,15 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 				false,
 				false,
 				validationCase.postReviewOpenFoamCaseRunnable(),
+				materialization.scenarioName(),
+				materialization.referenceMaterializationReady(),
+				materialization.blockedOpenFoamReferenceRowCount(),
+				materialization.nextRequiredAction(),
 				false,
 				false,
 				"BLOCKED",
-				NEXT_REQUIRED_ACTION,
-				"external OpenFOAM case must be authored and hashed outside the repository before results can enter contracts"
+				nextRequiredAction(materialization),
+				note(materialization)
 		);
 	}
 
@@ -305,11 +335,15 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 		int runnable = 0;
 		int hashRequired = 0;
 		int hashAvailable = 0;
+		int materializationReady = 0;
+		int blockedReferenceRows = 0;
 		int coefficientChannels = 0;
 		int dimensionalChannels = 0;
 		int manifestChannels = 0;
 		int runtime = 0;
 		int gameplay = 0;
+		String currentScenario = "";
+		String currentMaterializationAction = "";
 		for (OpenFoamCaseManifestRow row : rows) {
 			if (row.staticAnchorCase()) {
 				staticAnchors++;
@@ -326,6 +360,10 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 			if (row.currentSourceCaseSha256Available()) {
 				hashAvailable++;
 			}
+			if (row.referenceMaterializationReady()) {
+				materializationReady++;
+			}
+			blockedReferenceRows += row.blockedOpenFoamReferenceRowCount();
 			coefficientChannels += row.requiredCoefficientChannelCount();
 			dimensionalChannels += row.requiredDimensionalChannelCount();
 			manifestChannels += row.requiredManifestChannelCount();
@@ -334,6 +372,10 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 			}
 			if (row.gameplayAutoApplyAllowed()) {
 				gameplay++;
+			}
+			if (currentScenario.isBlank()) {
+				currentScenario = row.referenceMaterializationScenarioName();
+				currentMaterializationAction = row.referenceMaterializationNextRequiredAction();
 			}
 		}
 		return new OpenFoamCaseManifestSummary(
@@ -344,12 +386,36 @@ public final class PropellerArchiveCtCpJOpenFoamCaseManifest {
 				runnable,
 				hashRequired,
 				hashAvailable,
+				materializationReady,
+				blockedReferenceRows,
 				coefficientChannels,
 				dimensionalChannels,
 				manifestChannels,
 				runtime,
-				gameplay
+				gameplay,
+				currentScenario,
+				currentMaterializationAction
 		);
+	}
+
+	private static String nextRequiredAction(
+			PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+					.OpenFoamDimensionalReferenceMaterializationScenario materialization
+	) {
+		if (!materialization.referenceMaterializationReady()) {
+			return materialization.nextRequiredAction();
+		}
+		return NEXT_REQUIRED_ACTION;
+	}
+
+	private static String note(
+			PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+					.OpenFoamDimensionalReferenceMaterializationScenario materialization
+	) {
+		if (!materialization.referenceMaterializationReady()) {
+			return "external case authoring is blocked until dimensional reference materialization opens";
+		}
+		return "external case is buildable after review but current case hash is absent";
 	}
 
 	private static String caseKey(String presetName, String caseName) {
