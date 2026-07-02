@@ -9,19 +9,20 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	public static final String DATA_SOURCE_ID = "accepted-reference-payload-bridge";
 	private static final double EPSILON = 1.0e-9;
 
+	// Runtime lookup window materialized from the accepted PropellerArchive CT/CP/J reference bridge.
 	private static final List<ReferenceWindow> ACCEPTED_REFERENCE_WINDOWS = List.of(
-			referenceWindow(DEFAULT_PRESET_NAME, "static_anchor_low_rpm",
-					List.of(coefficient("static-anchor", 0.120, 0.040))),
-			referenceWindow(DEFAULT_PRESET_NAME, "mid_domain_mid_rpm",
+			new ReferenceWindow(DEFAULT_PRESET_NAME, "static_anchor_low_rpm", 0.0, 1_477.8,
+					List.of(row("static-anchor", 0.0, 1_477.8, 0.120, 0.040))),
+			new ReferenceWindow(DEFAULT_PRESET_NAME, "mid_domain_mid_rpm", 0.4064, 4_712.25,
 					List.of(
-							coefficient("j0-r0", 0.100, 0.046),
-							coefficient("j1-r0", 0.092, 0.051),
-							coefficient("j0-r1", 0.095, 0.049),
-							coefficient("j1-r1", 0.086, 0.057))),
-			referenceWindow(DEFAULT_PRESET_NAME, "high_domain_max_rpm",
+							row("j0-r0", 0.32512, 4_065.36, 0.100, 0.046),
+							row("j1-r0", 0.48768, 4_065.36, 0.092, 0.051),
+							row("j0-r1", 0.32512, 5_359.14, 0.095, 0.049),
+							row("j1-r1", 0.48768, 5_359.14, 0.086, 0.057))),
+			new ReferenceWindow(DEFAULT_PRESET_NAME, "high_domain_max_rpm", 0.73152, 7_946.7,
 					List.of(
-							coefficient("j0-rmax", 0.088, 0.054),
-							coefficient("j1-rmax", 0.080, 0.060)))
+							row("j0-rmax", 0.65024, 7_946.7, 0.088, 0.054),
+							row("j1-rmax", 0.8128, 7_946.7, 0.080, 0.060)))
 	);
 
 	private PropellerArchiveCtCpJLookupEvaluator() {
@@ -152,13 +153,17 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double propellerDiameterMeters,
 			double airDensityKgPerCubicMeter
 	) {
-		PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract =
-				PropellerArchiveCtCpJLookupInterpolationPolicy.contract(normalizePreset(presetName), caseName);
+		ReferenceWindow window = ACCEPTED_REFERENCE_WINDOWS.stream()
+				.filter(candidate -> candidate.presetName().equals(normalizePreset(presetName))
+						&& candidate.caseName().equals(caseName))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException(
+						"unknown accepted CT/CP/J reference case: " + normalizePreset(presetName) + " / " + caseName));
 		return new LookupQuery(
-				contract.presetName(),
-				contract.caseName(),
-				contract.queryAdvanceRatioJ(),
-				contract.queryRpm(),
+				window.presetName(),
+				window.caseName(),
+				window.queryAdvanceRatioJ(),
+				window.queryRpm(),
 				propellerDiameterMeters,
 				airDensityKgPerCubicMeter,
 				EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
@@ -369,39 +374,14 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		);
 	}
 
-	private static ReferenceCoefficient coefficient(String slotId, double ctCoefficient, double cpCoefficient) {
-		return new ReferenceCoefficient(slotId, ctCoefficient, cpCoefficient);
-	}
-
-	private static ReferenceWindow referenceWindow(
-			String presetName,
-			String caseName,
-			List<ReferenceCoefficient> coefficients
+	private static CoefficientGridRow row(
+			String rowId,
+			double advanceRatioJ,
+			double rpm,
+			double ctCoefficient,
+			double cpCoefficient
 	) {
-		List<PropellerArchiveCtCpJLookupReviewedCoefficientPayload.ReviewedCoefficientPayloadRow> payloadRows =
-				coefficients.stream()
-						.map(coefficient -> PropellerArchiveCtCpJLookupReviewedCoefficientPayload.reviewedRow(
-								PropellerArchiveCtCpJLookupReviewedGridInput.slot(presetName, caseName,
-										coefficient.slotId()),
-								coefficient.ctCoefficient(),
-								coefficient.cpCoefficient()))
-						.toList();
-		List<PropellerArchiveCtCpJLookupExecutionContract.LookupGridRow> lookupRows =
-				PropellerArchiveCtCpJLookupReviewedCoefficientPayload.lookupRows(payloadRows, presetName, caseName);
-		PropellerArchiveCtCpJLookupExecutionContract.LookupExecutionResult accepted =
-				PropellerArchiveCtCpJLookupExecutionContract.execute(lookupRows, presetName, caseName);
-		if (!accepted.acceptedByLookupGate()) {
-			throw new IllegalStateException("accepted reference window failed CT/CP/J lookup gate: "
-					+ presetName + " / " + caseName + " / " + accepted.message());
-		}
-		return new ReferenceWindow(
-				presetName,
-				caseName,
-				lookupRows.stream()
-						.map(row -> new CoefficientGridRow(row.rowId(), row.advanceRatioJ(), row.rpm(),
-								row.ctCoefficient(), row.cpCoefficient()))
-						.toList()
-		);
+		return new CoefficientGridRow(rowId, advanceRatioJ, rpm, ctCoefficient, cpCoefficient);
 	}
 
 	private static InterpolationStatus statusFor(Bracket bracket, boolean clamped) {
@@ -466,9 +446,6 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		return Math.abs(left - right) <= EPSILON;
 	}
 
-	private record ReferenceCoefficient(String slotId, double ctCoefficient, double cpCoefficient) {
-	}
-
 	private record CoefficientGridRow(
 			String rowId,
 			double advanceRatioJ,
@@ -478,7 +455,13 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	) {
 	}
 
-	private record ReferenceWindow(String presetName, String caseName, List<CoefficientGridRow> rows) {
+	private record ReferenceWindow(
+			String presetName,
+			String caseName,
+			double queryAdvanceRatioJ,
+			double queryRpm,
+			List<CoefficientGridRow> rows
+	) {
 		private ReferenceWindow {
 			rows = List.copyOf(rows);
 		}

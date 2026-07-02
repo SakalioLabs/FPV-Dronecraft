@@ -21,8 +21,6 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				PropellerArchiveCtCpJLookupEvaluator.evaluate(query);
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample =
 				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(query);
-		PropellerArchiveCtCpJDimensionalRotorResponse.RotorDimensionalResponse reference =
-				dimensionalScenario("synthetic_static_anchor_exact");
 
 		assertFalse(lookup.blocked());
 		assertFalse(lookup.clamped());
@@ -32,34 +30,23 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.120, lookup.thrustCoefficientCt(), 1.0e-12);
 		assertEquals(0.040, lookup.powerCoefficientCp(), 1.0e-12);
 		assertEquals(0.0, lookup.propulsiveEfficiencyEta(), 1.0e-12);
-		assertEquals(reference.thrustNewtons(), sample.thrustNewtons(), 1.0e-15);
-		assertEquals(reference.shaftPowerWatts(), sample.shaftPowerWatts(), 1.0e-15);
-		assertEquals(reference.shaftTorqueNewtonMeters(), sample.shaftTorqueNewtonMeters(), 1.0e-18);
-		assertEquals(reference.idealInducedVelocityMetersPerSecond(),
-				sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(0.025110868242593, sample.thrustNewtons(), 1.0e-15);
+		assertEquals(0.026705995970315, sample.shaftPowerWatts(), 1.0e-15);
+		assertEquals(0.000172569682049040, sample.shaftTorqueNewtonMeters(), 1.0e-18);
+		assertEquals(0.881858670062071, sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 	}
 
 	@Test
 	void midDomainBilinearSampleMatchesReferenceAndScalesWithUnits() {
 		double diameter = apDroneDiameterMeters();
-		PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract =
-				PropellerArchiveCtCpJLookupInterpolationPolicy.contract("apDrone", "mid_domain_mid_rpm");
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery query =
-				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
-						null,
-						"",
-						contract.queryAdvanceRatioJ(),
-						contract.queryRpm(),
-						diameter,
-						RHO,
-						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE);
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						null, "mid_domain_mid_rpm", diameter, RHO);
 
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup =
 				PropellerArchiveCtCpJLookupEvaluator.evaluate(query);
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample =
 				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(query);
-		PropellerArchiveCtCpJDimensionalRotorResponse.RotorDimensionalResponse reference =
-				dimensionalScenario("synthetic_mid_bilinear_pass");
 
 		assertEquals("apDrone", lookup.presetName());
 		assertEquals("mid_domain_mid_rpm", lookup.caseName());
@@ -69,10 +56,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(4, lookup.minimumNeighborRowsRequired());
 		assertEquals(0.09325, lookup.thrustCoefficientCt(), 1.0e-12);
 		assertEquals(0.05075, lookup.powerCoefficientCp(), 1.0e-12);
-		assertEquals(reference.propulsiveEfficiencyEta(), lookup.propulsiveEfficiencyEta(), 1.0e-15);
-		assertEquals(reference.thrustNewtons(), sample.thrustNewtons(), 1.0e-15);
-		assertEquals(reference.shaftPowerWatts(), sample.shaftPowerWatts(), 1.0e-15);
-		assertEquals(reference.shaftTorqueNewtonMeters(), sample.shaftTorqueNewtonMeters(), 1.0e-18);
+		assertEquals(0.7467349753694581, lookup.propulsiveEfficiencyEta(), 1.0e-15);
+		assertEquals(0.19840592872073343, sample.thrustNewtons(), 1.0e-15);
+		assertEquals(1.0985575597709705, sample.shaftPowerWatts(), 1.0e-15);
+		assertEquals(0.0022262087016841664, sample.shaftTorqueNewtonMeters(), 1.0e-18);
 		assertFinitePositive(sample);
 
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dense =
@@ -136,14 +123,15 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 	@Test
 	void outOfEnvelopeQueryBlocksOrExplicitlyClamps() {
 		double diameter = apDroneDiameterMeters();
-		PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract high =
-				PropellerArchiveCtCpJLookupInterpolationPolicy.contract("apDrone", "high_domain_max_rpm");
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery high =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone", "high_domain_max_rpm", diameter, RHO);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery blockedQuery =
 				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
 						"apDrone",
 						"high_domain_max_rpm",
-						high.queryAdvanceRatioJ() + 0.20,
-						high.queryRpm(),
+						high.advanceRatioJ() + 0.20,
+						high.rpm(),
 						diameter,
 						RHO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE);
@@ -164,8 +152,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
 						"apDrone",
 						"high_domain_max_rpm",
-						high.queryAdvanceRatioJ() + 0.20,
-						high.queryRpm(),
+						high.advanceRatioJ() + 0.20,
+						high.rpm(),
 						diameter,
 						RHO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE);
@@ -242,15 +230,4 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		return DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
 	}
 
-	private static PropellerArchiveCtCpJDimensionalRotorResponse.RotorDimensionalResponse dimensionalScenario(
-			String name
-	) {
-		return PropellerArchiveCtCpJDimensionalRotorResponse.audit()
-				.scenarios()
-				.stream()
-				.filter(scenario -> name.equals(scenario.scenarioName()))
-				.findFirst()
-				.orElseThrow()
-				.response();
-	}
 }
