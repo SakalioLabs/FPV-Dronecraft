@@ -6,7 +6,7 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 	public static final String SOURCE_ID = "User-Propeller-Archive-CT-CP-J-Lookup-Reference-Table-Packet";
 	public static final String CAVEAT =
 			"CT/CP/J lookup reference table exposes accepted query-reference rows only after handoff-aware lookup execution, lookup acceptance, and compact-reference review; current rows keep zero weights and never enable runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 7;
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
 	public static final int REFERENCE_ROW_COUNT = PropellerArchiveCtCpJLookupAcceptanceGate.TARGET_ROW_COUNT;
 	public static final int SUMMARY_ROW_COUNT = 17;
 	public static final int METHOD_ROW_COUNT = 1;
@@ -112,6 +112,29 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 		);
 	}
 
+	public static CtCpJLookupReferenceTableAudit audit(
+			PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario readiness
+	) {
+		if (readiness == null) {
+			throw new IllegalArgumentException("reference review readiness scenario must not be null.");
+		}
+		List<LookupReferenceRow> rows = PropellerArchiveCtCpJLookupAcceptanceGate.targets()
+				.stream()
+				.map(target -> row(readiness, target))
+				.toList();
+		return new CtCpJLookupReferenceTableAudit(
+				SOURCE_ID,
+				CAVEAT,
+				PACKET_ROW_COUNT,
+				SOURCE_REFERENCE_ROW_COUNT,
+				REFERENCE_ROW_COUNT,
+				SUMMARY_ROW_COUNT,
+				METHOD_ROW_COUNT,
+				rows,
+				extrema(rows)
+		);
+	}
+
 	public static LookupReferenceRow row(String presetName, String caseName) {
 		return audit().rows().stream()
 				.filter(row -> row.presetName().equals(presetName) && row.caseName().equals(caseName))
@@ -163,6 +186,52 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 				messageFor(handoff, fullSimulationAvailable, fullSimulation),
 				REFERENCE_PAYLOAD_KIND,
 				handoff.sourceRuntimeInfo()
+		);
+	}
+
+	public static LookupReferenceRow row(
+			PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario readiness,
+			PropellerArchiveCtCpJLookupAcceptanceGate.LookupAcceptanceTarget target
+	) {
+		if (readiness == null || target == null) {
+			throw new IllegalArgumentException("reference review readiness and target are required.");
+		}
+		PropellerArchiveCtCpJLookupInterpolationPolicy.QueryInterpolationContract contract =
+				PropellerArchiveCtCpJLookupInterpolationPolicy.contract(target.presetName(), target.caseName());
+		boolean exportAllowed = readiness.referenceMaterialExportAllowed();
+		boolean performanceAvailable = exportAllowed;
+		boolean fullSimulation = target.downstreamUse().startsWith("full-simulation");
+		boolean fullSimulationAvailable = exportAllowed && fullSimulation;
+		double performanceWeight = performanceAvailable ? 1.0 : 0.0;
+		double staticWeight = performanceAvailable && target.requiresStaticAnchorPreservation() ? 1.0 : 0.0;
+		double fullWeight = fullSimulationAvailable ? 1.0 : 0.0;
+		return new LookupReferenceRow(
+				target.presetName(),
+				target.caseName(),
+				contract.performanceMatchId(),
+				contract.geometryMatchId(),
+				contract.queryAdvanceRatioJ(),
+				contract.queryRpm(),
+				contract.queryAdvanceRatioJ() / Math.PI,
+				target.minNeighborRows(),
+				readiness.lookupAcceptanceReady(),
+				readiness.lookupExecutionContractReady(),
+				readiness.compactReferenceReviewed(),
+				exportAllowed,
+				performanceAvailable,
+				fullSimulationAvailable,
+				target.requiresStaticAnchorPreservation(),
+				performanceWeight,
+				performanceWeight,
+				performanceWeight,
+				staticWeight,
+				fullWeight,
+				false,
+				false,
+				performanceAvailable ? "AVAILABLE" : "BLOCKED",
+				messageFor(readiness, fullSimulationAvailable, fullSimulation),
+				REFERENCE_PAYLOAD_KIND,
+				readiness.scenarioName()
 		);
 	}
 
@@ -242,6 +311,32 @@ public final class PropellerArchiveCtCpJLookupReferenceTable {
 			return "lookup-acceptance-not-ready";
 		}
 		if (!handoff.compactReferenceReviewed()) {
+			return "lookup-reference-review-missing";
+		}
+		if (!fullSimulationTarget) {
+			return "performance-reference-only-full-simulation-blocked";
+		}
+		if (!fullSimulationAvailable) {
+			return "full-simulation-reference-export-blocked";
+		}
+		return "ct-cp-j-lookup-reference-row-available";
+	}
+
+	private static String messageFor(
+			PropellerArchiveCtCpJLookupReferenceReviewReadinessGate.LookupReferenceReviewReadinessScenario readiness,
+			boolean fullSimulationAvailable,
+			boolean fullSimulationTarget
+	) {
+		if (!readiness.acceptanceHandoffReady()) {
+			if (readiness.pendingSeedCount() > 0) {
+				return "lookup-execution-results-pending";
+			}
+			return "lookup-execution-acceptance-handoff-not-ready";
+		}
+		if (!readiness.lookupAcceptanceReady()) {
+			return "lookup-acceptance-not-ready";
+		}
+		if (!readiness.compactReferenceReviewed()) {
 			return "lookup-reference-review-missing";
 		}
 		if (!fullSimulationTarget) {
