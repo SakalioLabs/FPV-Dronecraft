@@ -6,12 +6,12 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 	public static final String SOURCE_ID =
 			"User-Propeller-Archive-CT-CP-J-OpenFOAM-Numerical-Budget-Packet";
 	public static final String CAVEAT =
-			"OpenFOAM numerical budget derives pre-run mesh, timestep, Mach, Reynolds, and domain constraints from run setup rows; it is external case-authoring evidence only and cannot run OpenFOAM, vendor solver output, or tune gameplay.";
-	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
-	public static final int NUMERICAL_RULE_ROW_COUNT = 8;
+			"OpenFOAM numerical budget derives pre-run mesh, timestep, Mach, Reynolds, domain constraints, and upstream reference materialization readiness from run setup rows; it is external case-authoring evidence only and cannot run OpenFOAM, vendor solver output, or tune gameplay.";
+	public static final int SOURCE_REFERENCE_ROW_COUNT = 9;
+	public static final int NUMERICAL_RULE_ROW_COUNT = 9;
 	public static final int NUMERICAL_BUDGET_ROW_COUNT =
 			PropellerArchiveCtCpJOpenFoamRunSetup.RUN_SETUP_ROW_COUNT;
-	public static final int SUMMARY_ROW_COUNT = 16;
+	public static final int SUMMARY_ROW_COUNT = 21;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
 			+ NUMERICAL_RULE_ROW_COUNT
@@ -37,6 +37,9 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 			new OpenFoamNumericalBudgetRule("run_setup_required", true, true, true,
 					"consume only manifest-backed OpenFOAM run setup rows",
 					"keep-openfoam-run-setup-current"),
+			new OpenFoamNumericalBudgetRule("reference_materialization_required", true, false, true,
+					"keep numerical budgets pre-authoring until reviewed CT/CP/J lookup and OpenFOAM dimensional reference materialization opens",
+					"execute-clearance-evidence-ledger-before-reviewed-payload-output"),
 			new OpenFoamNumericalBudgetRule("incompressible_tip_mach_budget", true, true, true,
 					"require helical tip Mach at or below 0.30 before using incompressible steady rotor cases",
 					"review-openfoam-compressibility-assumption"),
@@ -98,6 +101,11 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 			double freestreamCourantAtSuggestedTimeStep,
 			double stepsPerRevolutionAtSuggestedTimeStep,
 			boolean timeStepBudgetReady,
+			String referenceMaterializationScenarioName,
+			boolean referenceMaterializationReady,
+			int blockedOpenFoamReferenceRowCount,
+			boolean runSetupReadyForExternalAuthoring,
+			String referenceMaterializationNextRequiredAction,
 			boolean numericalBudgetReadyForExternalAuthoring,
 			boolean currentCaseRunnable,
 			boolean runtimeCouplingAllowed,
@@ -112,7 +120,10 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 			int numericalBudgetRowCount,
 			int incompressibleAssumptionReadyCount,
 			int timeStepBudgetReadyCount,
+			int referenceMaterializationReadyBudgetCount,
+			int runSetupReadyForExternalAuthoringCount,
 			int numericalBudgetReadyForExternalAuthoringCount,
+			int blockedOpenFoamReferenceRowTotal,
 			int lowReynoldsTransitionReviewRequiredCount,
 			int currentCaseRunnableCount,
 			double maxHelicalTipMach,
@@ -124,6 +135,8 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 			double maxStepsPerRevolutionAtSuggestedTimeStep,
 			int runtimeCouplingAllowedCount,
 			int gameplayAutoApplyAllowedCount,
+			String currentReferenceMaterializationScenarioName,
+			String currentReferenceMaterializationNextRequiredAction,
 			String nextRequiredAction
 	) {
 	}
@@ -227,6 +240,7 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 		boolean authoringReady = setup.runSetupReadyForExternalAuthoring()
 				&& incompressibleReady
 				&& timeStepReady;
+		String nextAction = nextRequiredAction(setup, lowReynoldsReview);
 		return new OpenFoamNumericalBudgetRow(
 				setup.presetName(),
 				setup.caseName(),
@@ -252,24 +266,28 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 				freestreamCourant,
 				stepsPerRevolution,
 				timeStepReady,
+				setup.referenceMaterializationScenarioName(),
+				setup.referenceMaterializationReady(),
+				setup.blockedOpenFoamReferenceRowCount(),
+				setup.runSetupReadyForExternalAuthoring(),
+				setup.referenceMaterializationNextRequiredAction(),
 				authoringReady,
 				setup.currentCaseRunnable(),
 				false,
 				false,
 				"BLOCKED",
-				lowReynoldsReview
-						? "review-low-reynolds-static-anchor-openfoam-model"
-						: NEXT_REQUIRED_ACTION,
-				lowReynoldsReview
-						? "numerical budget is computable but static-anchor Reynolds requires transition or laminar-model review"
-						: "numerical budget is computable but external case hash and solver output remain absent"
+				nextAction,
+				note(setup, lowReynoldsReview)
 		);
 	}
 
 	private static OpenFoamNumericalBudgetSummary summary(List<OpenFoamNumericalBudgetRow> rows) {
 		int machReady = 0;
 		int timeStepReady = 0;
+		int materializationReady = 0;
+		int setupAuthoringReady = 0;
 		int authoringReady = 0;
+		int blockedReferenceRows = 0;
 		int lowReynolds = 0;
 		int runnable = 0;
 		int runtime = 0;
@@ -281,6 +299,9 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 		double minDt = Double.POSITIVE_INFINITY;
 		double maxDt = 0.0;
 		double maxSteps = 0.0;
+		String currentScenario = "";
+		String currentMaterializationAction = "";
+		String nextAction = NEXT_REQUIRED_ACTION;
 		for (OpenFoamNumericalBudgetRow row : rows) {
 			if (row.incompressibleAssumptionReady()) {
 				machReady++;
@@ -288,9 +309,16 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 			if (row.timeStepBudgetReady()) {
 				timeStepReady++;
 			}
+			if (row.referenceMaterializationReady()) {
+				materializationReady++;
+			}
+			if (row.runSetupReadyForExternalAuthoring()) {
+				setupAuthoringReady++;
+			}
 			if (row.numericalBudgetReadyForExternalAuthoring()) {
 				authoringReady++;
 			}
+			blockedReferenceRows += row.blockedOpenFoamReferenceRowCount();
 			if (row.lowReynoldsTransitionReviewRequired()) {
 				lowReynolds++;
 			}
@@ -310,6 +338,11 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 			minDt = Math.min(minDt, row.suggestedTimeStepSeconds());
 			maxDt = Math.max(maxDt, row.suggestedTimeStepSeconds());
 			maxSteps = Math.max(maxSteps, row.stepsPerRevolutionAtSuggestedTimeStep());
+			if (currentScenario.isBlank()) {
+				currentScenario = row.referenceMaterializationScenarioName();
+				currentMaterializationAction = row.referenceMaterializationNextRequiredAction();
+				nextAction = row.nextRequiredAction();
+			}
 		}
 		if (!Double.isFinite(minReynolds)) {
 			minReynolds = 0.0;
@@ -324,7 +357,10 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 				rows.size(),
 				machReady,
 				timeStepReady,
+				materializationReady,
+				setupAuthoringReady,
 				authoringReady,
+				blockedReferenceRows,
 				lowReynolds,
 				runnable,
 				maxMach,
@@ -336,7 +372,33 @@ public final class PropellerArchiveCtCpJOpenFoamNumericalBudget {
 				maxSteps,
 				runtime,
 				gameplay,
-				NEXT_REQUIRED_ACTION
+				currentScenario,
+				currentMaterializationAction,
+				nextAction
 		);
+	}
+
+	private static String nextRequiredAction(
+			PropellerArchiveCtCpJOpenFoamRunSetup.OpenFoamRunSetupRow setup,
+			boolean lowReynoldsReview
+	) {
+		if (!setup.runSetupReadyForExternalAuthoring()) {
+			return setup.nextRequiredAction();
+		}
+		return lowReynoldsReview
+				? "review-low-reynolds-static-anchor-openfoam-model"
+				: NEXT_REQUIRED_ACTION;
+	}
+
+	private static String note(
+			PropellerArchiveCtCpJOpenFoamRunSetup.OpenFoamRunSetupRow setup,
+			boolean lowReynoldsReview
+	) {
+		if (!setup.runSetupReadyForExternalAuthoring()) {
+			return "numerical budget is computable, but reference materialization blocks external case authoring";
+		}
+		return lowReynoldsReview
+				? "numerical budget is computable but static-anchor Reynolds requires transition or laminar-model review"
+				: "numerical budget is computable but external case hash and solver output remain absent";
 	}
 }
