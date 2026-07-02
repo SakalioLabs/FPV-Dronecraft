@@ -7,11 +7,11 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 	public static final String SOURCE_ID = "A4MC-L2-Powered-Nearfield-Wake-Reference-Manifest-Packet";
 	public static final String CAVEAT =
 			"Nearfield wake reference manifest lists only audit-reviewed hover, cruise, OpenFOAM rotor-response, coefficient lookup shape-guard, and inherited curve-shape diagnostic reference artifacts; it remains blocked until the combined lab gate opens and never enables runtime coupling or gameplay auto-apply.";
-	public static final int SOURCE_REFERENCE_COUNT = 10;
+	public static final int SOURCE_REFERENCE_COUNT = 11;
 	public static final int SCENARIO_SAMPLE_COUNT = 2;
 	public static final int ARTIFACT_SAMPLE_COUNT = 4;
 	public static final int MANIFEST_ENTRY_COUNT = SCENARIO_SAMPLE_COUNT * ARTIFACT_SAMPLE_COUNT;
-	public static final int ENTRY_METRIC_COUNT = 35;
+	public static final int ENTRY_METRIC_COUNT = 39;
 	public static final int SUMMARY_METRIC_ROW_COUNT = 27;
 	public static final int METHOD_METRIC_ROW_COUNT = 1;
 	public static final int PACKET_METRIC_ROW_COUNT = SOURCE_REFERENCE_COUNT
@@ -45,6 +45,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 			boolean runtimeCouplingAllowed,
 			boolean gameplayAutoApplyAllowed,
 			boolean playableReviewRequiredBeforeUse,
+			String openFoamReferenceMaterializationScenarioName,
+			boolean openFoamLookupReferenceMaterialExportAllowed,
+			boolean openFoamReferenceMaterializationReady,
+			String openFoamReferenceMaterializationNextRequiredAction,
 			int openFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerRowCount,
 			String openFoamSolverQualityNextRequiredAction,
@@ -169,6 +173,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 						0,
 						0,
 						"openfoam-solver-quality-blockers-clear",
+						"not-applicable",
+						false,
+						false,
+						"openfoam-materialization-not-applicable",
 						false,
 						0,
 						0,
@@ -198,6 +206,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 						0,
 						0,
 						"openfoam-solver-quality-blockers-clear",
+						"not-applicable",
+						false,
+						false,
+						"openfoam-materialization-not-applicable",
 						false,
 						0,
 						0,
@@ -228,6 +240,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 						summary.openFoamSolverQualityBlockerCount(),
 						summary.openFoamSolverQualityBlockerRowCount(),
 						summary.openFoamSolverQualityNextRequiredAction(),
+						summary.openFoamReferenceMaterializationScenarioName(),
+						summary.openFoamLookupReferenceMaterialExportAllowed(),
+						summary.openFoamReferenceMaterializationReady(),
+						summary.openFoamReferenceMaterializationNextRequiredAction(),
 						summary.openFoamCoefficientLookupShapeGuardReady(),
 						summary.openFoamCoefficientLookupShapeGuardReadyRowCount(),
 						summary.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
@@ -264,6 +280,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 						summary.openFoamSolverQualityBlockerCount(),
 						summary.openFoamSolverQualityBlockerRowCount(),
 						summary.openFoamSolverQualityNextRequiredAction(),
+						summary.openFoamReferenceMaterializationScenarioName(),
+						summary.openFoamLookupReferenceMaterialExportAllowed(),
+						summary.openFoamReferenceMaterializationReady(),
+						summary.openFoamReferenceMaterializationNextRequiredAction(),
 						summary.openFoamCoefficientLookupShapeGuardReady(),
 						summary.openFoamCoefficientLookupShapeGuardReadyRowCount(),
 						summary.openFoamCoefficientLookupShapeGuardInheritedScenarioCount(),
@@ -296,6 +316,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 			int openFoamSolverQualityBlockerCount,
 			int openFoamSolverQualityBlockerRowCount,
 			String openFoamSolverQualityNextRequiredAction,
+			String openFoamReferenceMaterializationScenarioName,
+			boolean openFoamLookupReferenceMaterialExportAllowed,
+			boolean openFoamReferenceMaterializationReady,
+			String openFoamReferenceMaterializationNextRequiredAction,
 			boolean openFoamCoefficientLookupShapeGuardReady,
 			int openFoamCoefficientLookupShapeGuardReadyRowCount,
 			int openFoamCoefficientLookupShapeGuardInheritedScenarioCount,
@@ -349,6 +373,15 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 		if (openFoamSolverQualityNextRequiredAction == null || openFoamSolverQualityNextRequiredAction.isBlank()) {
 			throw new IllegalArgumentException("OpenFOAM solver-quality next required action must not be blank.");
 		}
+		if (openFoamReferenceMaterializationScenarioName == null
+				|| openFoamReferenceMaterializationScenarioName.isBlank()) {
+			throw new IllegalArgumentException("OpenFOAM materialization scenario name must not be blank.");
+		}
+		if (openFoamReferenceMaterializationNextRequiredAction == null
+				|| openFoamReferenceMaterializationNextRequiredAction.isBlank()) {
+			throw new IllegalArgumentException(
+					"OpenFOAM materialization next required action must not be blank.");
+		}
 		boolean exportAllowed = labValidationAccepted
 				&& errorBudgetReady
 				&& handoffExportAllowed
@@ -372,6 +405,10 @@ public final class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifest {
 				false,
 				false,
 				true,
+				openFoamReferenceMaterializationScenarioName,
+				openFoamLookupReferenceMaterialExportAllowed,
+				openFoamReferenceMaterializationReady,
+				openFoamReferenceMaterializationNextRequiredAction,
 				openFoamSolverQualityBlockerCount,
 				openFoamSolverQualityBlockerRowCount,
 				openFoamSolverQualityNextRequiredAction,

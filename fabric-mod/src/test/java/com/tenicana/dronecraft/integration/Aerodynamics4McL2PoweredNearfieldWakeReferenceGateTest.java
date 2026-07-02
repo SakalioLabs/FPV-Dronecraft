@@ -23,11 +23,11 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertTrue(audit.caveat().contains("OpenFOAM CT/CP/J dimensional rotor-reference"));
 		assertTrue(audit.caveat().contains("coefficient lookup shape-guard"));
 		assertTrue(audit.caveat().contains("inherited archive curve-shape diagnostics"));
-		assertEquals(314, audit.packetMetricRowCount());
-		assertEquals(9, audit.sourceReferenceCount());
+		assertEquals(337, audit.packetMetricRowCount());
+		assertEquals(10, audit.sourceReferenceCount());
 		assertEquals(5, audit.scenarioSampleCount());
-		assertEquals(55, audit.scenarioMetricCount());
-		assertEquals(29, audit.summaryMetricRowCount());
+		assertEquals(59, audit.scenarioMetricCount());
+		assertEquals(31, audit.summaryMetricRowCount());
 		assertEquals(1, audit.methodMetricRowCount());
 		assertEquals(5, audit.scenarios().size());
 
@@ -38,6 +38,12 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertTrue(current.hoverSurfaceWakeReferenceBlocker());
 		assertTrue(current.cruiseSkewWakeReferenceBlocker());
 		assertTrue(current.openFoamDimensionalReferenceBlocker());
+		assertEquals("current_lookup_and_openfoam_blocked",
+				current.openFoamReferenceMaterializationScenarioName());
+		assertFalse(current.openFoamLookupReferenceMaterialExportAllowed());
+		assertFalse(current.openFoamReferenceMaterializationReady());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				current.openFoamReferenceMaterializationNextRequiredAction());
 		assertFalse(current.hoverLabValidationAccepted());
 		assertFalse(current.cruiseLabValidationAccepted());
 		assertFalse(current.hoverErrorBudgetReady());
@@ -53,7 +59,7 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 				current.openFoamSolverQualityNextRequiredAction());
 		assertFalse(current.openFoamCoefficientLookupShapeGuardReady());
 		assertEquals(0, current.openFoamCoefficientLookupShapeGuardReadyRowCount());
-		assertEquals(5, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, current.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, current.openFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertTrue(current.openFoamCoefficientArchiveCurveEtaFormulaResidual()
@@ -62,7 +68,7 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertTrue(current.openFoamCoefficientArchiveCurveCtIncrease()
 				<= com.tenicana.dronecraft.sim.PropellerArchiveCtCpJArchiveCurveShapeReview
 						.MAX_CT_INCREASE_TOLERANCE);
-		assertEquals(2, current.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(3, current.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
 		assertEquals(9, current.openFoamNegativeThrustTailReferenceCount());
 		assertTrue(current.openFoamMaxArchiveCurveEtaFormulaResidual()
 				<= com.tenicana.dronecraft.sim.PropellerArchiveCtCpJArchiveCurveShapeReview
@@ -118,7 +124,7 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertFalse(wakeReady.cruiseSkewWakeReferenceBlocker());
 		assertTrue(wakeReady.openFoamDimensionalReferenceBlocker());
 		assertEquals(1, wakeReady.blockerCount());
-		assertEquals("review-openfoam-mesh-yplus-and-time-step-against-run-setup",
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
 				wakeReady.nextRequiredAction());
 
 		Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.PoweredNearfieldWakeReferenceSummary ready =
@@ -156,6 +162,12 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertEquals(6, ready.openFoamArchiveCurveShapeGuardCompleteRowCount());
 		assertTrue(ready.openFoamDimensionalReferenceReviewed());
 		assertTrue(ready.openFoamReferenceMaterialExportAllowed());
+		assertEquals("lookup_reference_and_openfoam_ready",
+				ready.openFoamReferenceMaterializationScenarioName());
+		assertTrue(ready.openFoamLookupReferenceMaterialExportAllowed());
+		assertTrue(ready.openFoamReferenceMaterializationReady());
+		assertEquals("materialize-openfoam-dimensional-reference-table-after-review",
+				ready.openFoamReferenceMaterializationNextRequiredAction());
 		assertEquals(6, ready.openFoamAvailableReferenceRowCount());
 		assertEquals(0, ready.openFoamBlockedReferenceRowCount());
 		assertEquals(86, ready.totalExpectedReferenceRowCount());
@@ -181,10 +193,12 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertEquals(48, audit.extrema().maxCruiseBlockedErrorBudgetGroupCount());
 		assertEquals(6, audit.extrema().maxOpenFoamBlockedReferenceRowCount());
 		assertEquals(6, audit.extrema().maxOpenFoamAvailableReferenceRowCount());
+		assertEquals(1, audit.extrema().openFoamLookupReferenceMaterialExportAllowedScenarioCount());
+		assertEquals(1, audit.extrema().openFoamReferenceMaterializationReadyScenarioCount());
 		assertEquals(4, audit.extrema().maxOpenFoamSolverQualityBlockerCount());
 		assertEquals(6, audit.extrema().maxOpenFoamSolverQualityBlockerRowCount());
 		assertEquals(6, audit.extrema().maxOpenFoamCoefficientLookupShapeGuardReadyRowCount());
-		assertEquals(5, audit.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, audit.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, audit.extrema().maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, audit.extrema().maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertTrue(audit.extrema().maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
@@ -253,19 +267,25 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 				() -> Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.gate(null, cruiseReady, openFoamReady));
 		assertThrows(IllegalArgumentException.class,
 				() -> new Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.OpenFoamDimensionalReferenceReadiness(
-						true, true, true, 0, 0, "openfoam-solver-quality-blockers-clear",
+						true, true, "lookup_reference_and_openfoam_ready", true, true,
+						"materialize-openfoam-dimensional-reference-table-after-review",
+						true, 0, 0, "openfoam-solver-quality-blockers-clear",
 						true, 6, 5, 1, 9, 0.0, 0.0,
 						6, 0, 0.0, 0.0, 6, true, true, 6, 3, 4,
 						"compact-openfoam-dimensional-rotor-response-reference"));
 		assertThrows(IllegalArgumentException.class,
 				() -> new Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.OpenFoamDimensionalReferenceReadiness(
-						true, true, true, 1, 7, "review-openfoam-mesh-yplus-and-time-step-against-run-setup",
+						true, true, "lookup_reference_and_openfoam_ready", true, true,
+						"materialize-openfoam-dimensional-reference-table-after-review",
+						true, 1, 7, "review-openfoam-mesh-yplus-and-time-step-against-run-setup",
 						true, 6, 5, 1, 9, 0.0, 0.0,
 						6, 0, 0.0, 0.0, 6, true, true, 6, 6, 0,
 						"compact-openfoam-dimensional-rotor-response-reference"));
 		assertThrows(IllegalArgumentException.class,
 				() -> new Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.OpenFoamDimensionalReferenceReadiness(
-						true, true, true, 0, 0, "openfoam-solver-quality-blockers-clear",
+						true, true, "lookup_reference_and_openfoam_ready", true, true,
+						"materialize-openfoam-dimensional-reference-table-after-review",
+						true, 0, 0, "openfoam-solver-quality-blockers-clear",
 						true, 7, 5, 1, 9, 0.0, 0.0,
 						6, 0, 0.0, 0.0, 6, true, true, 6, 6, 0,
 						"compact-openfoam-dimensional-rotor-response-reference"));
@@ -289,13 +309,19 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,hover_and_cruise_ready_openfoam_reference_blocked,openfoam_dimensional_reference_blocker,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_reference_materialization_scenario_name,current_lookup_and_openfoam_blocked,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_lookup_reference_material_export_allowed,false,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,hover_cruise_and_openfoam_reference_ready,openfoam_reference_materialization_ready,true,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_solver_quality_blocker_count,4,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_coefficient_lookup_shape_guard_ready,false,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,hover_cruise_and_openfoam_reference_ready,openfoam_coefficient_lookup_shape_guard_ready,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_archive_curve_shape_guard_inherited_reference_count,2,")));
+				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_archive_curve_shape_guard_inherited_reference_count,3,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,current_hover_cruise_and_openfoam_reference_blocked,openfoam_negative_thrust_tail_reference_count,9,")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -303,11 +329,13 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_ready_row_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,5,")));
+				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_summary,all_scenarios,max_openfoam_archive_curve_shape_guard_inherited_reference_count,6,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_summary,all_scenarios,max_openfoam_negative_thrust_tail_reference_count,9,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_summary,all_scenarios,openfoam_reference_materialization_ready_scenario_count,1,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("a4mc_l2_powered_nearfield_wake_reference_gate_scenario,hover_cruise_and_openfoam_reference_ready,total_expected_reference_row_count,86,")));
 	}
@@ -368,6 +396,10 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		return new Aerodynamics4McL2PoweredNearfieldWakeReferenceGate.OpenFoamDimensionalReferenceReadiness(
 				false,
 				false,
+				"current_lookup_and_openfoam_blocked",
+				false,
+				false,
+				"execute-clearance-evidence-ledger-before-reviewed-payload-output",
 				false,
 				4,
 				6,
