@@ -21,11 +21,12 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 		assertEquals("User-Propeller-Archive-CT-CP-J-OpenFOAM-Case-Manifest-Packet",
 				audit.sourceId());
 		assertTrue(audit.caveat().contains("external case keys"));
-		assertEquals(52, audit.packetRowCount());
-		assertEquals(7, audit.sourceReferenceRowCount());
+		assertTrue(audit.caveat().contains("dimensional reference materialization readiness"));
+		assertEquals(57, audit.packetRowCount());
+		assertEquals(8, audit.sourceReferenceRowCount());
 		assertEquals(26, audit.requiredChannelRowCount());
 		assertEquals(6, audit.manifestCaseRowCount());
-		assertEquals(12, audit.summaryRowCount());
+		assertEquals(16, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(26, audit.channels().size());
 		assertEquals(6, audit.rows().size());
@@ -37,11 +38,17 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 		assertEquals(0, audit.summary().currentCaseRunnableCount());
 		assertEquals(6, audit.summary().sourceCaseSha256RequiredCount());
 		assertEquals(0, audit.summary().currentSourceCaseSha256AvailableCount());
+		assertEquals(0, audit.summary().referenceMaterializationReadyCaseCount());
+		assertEquals(36, audit.summary().blockedOpenFoamReferenceRowTotal());
 		assertEquals(66, audit.summary().requiredCoefficientChannelTotal());
 		assertEquals(102, audit.summary().requiredDimensionalChannelTotal());
 		assertEquals(156, audit.summary().requiredManifestChannelTotal());
 		assertEquals(0, audit.summary().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.summary().gameplayAutoApplyAllowedCount());
+		assertEquals("current_lookup_and_openfoam_blocked",
+				audit.summary().currentReferenceMaterializationScenarioName());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				audit.summary().currentReferenceMaterializationNextRequiredAction());
 	}
 
 	@Test
@@ -101,10 +108,16 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 		assertFalse(apMid.currentSourceCaseSha256Available());
 		assertFalse(apMid.currentCaseRunnable());
 		assertTrue(apMid.postReviewCaseBuildable());
+		assertEquals("current_lookup_and_openfoam_blocked",
+				apMid.referenceMaterializationScenarioName());
+		assertFalse(apMid.referenceMaterializationReady());
+		assertEquals(6, apMid.blockedOpenFoamReferenceRowCount());
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
+				apMid.referenceMaterializationNextRequiredAction());
 		assertFalse(apMid.runtimeCouplingAllowed());
 		assertFalse(apMid.gameplayAutoApplyAllowed());
 		assertEquals("BLOCKED", apMid.status());
-		assertEquals("author-external-openfoam-case-template-and-record-case-sha256",
+		assertEquals("execute-clearance-evidence-ledger-before-reviewed-payload-output",
 				apMid.nextRequiredAction());
 
 		assertThrows(IllegalArgumentException.class,
@@ -112,12 +125,41 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 	}
 
 	@Test
-	void rowFactoryRejectsMissingOrUnsupportedValidationTargets() {
+	void readyReferenceMaterializationAdvancesRowsToExternalCaseHashAction() {
+		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
+				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
+		PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+				.OpenFoamDimensionalReferenceMaterializationScenario ready =
+						PropellerArchiveCtCpJOpenFoamDimensionalReferenceMaterializationGate
+								.scenario("lookup_reference_and_openfoam_ready");
+
+		PropellerArchiveCtCpJOpenFoamCaseManifest.OpenFoamCaseManifestRow row =
+				PropellerArchiveCtCpJOpenFoamCaseManifest.row(apMid, ready);
+
+		assertEquals("lookup_reference_and_openfoam_ready", row.referenceMaterializationScenarioName());
+		assertTrue(row.referenceMaterializationReady());
+		assertEquals(0, row.blockedOpenFoamReferenceRowCount());
+		assertEquals("materialize-openfoam-dimensional-reference-table-after-review",
+				row.referenceMaterializationNextRequiredAction());
+		assertEquals("author-external-openfoam-case-template-and-record-case-sha256",
+				row.nextRequiredAction());
+		assertTrue(row.note().contains("current case hash is absent"));
+		assertFalse(row.currentCaseRunnable());
+		assertFalse(row.runtimeCouplingAllowed());
+		assertFalse(row.gameplayAutoApplyAllowed());
+	}
+
+	@Test
+	void rowFactoryRejectsMissingUnsupportedOrMalformedInputs() {
 		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase heavy =
 				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("heavyLift", "mid_domain_mid_rpm");
+		PropellerArchiveCtCpJOpenFoamValidationPlan.OpenFoamValidationCase apMid =
+				PropellerArchiveCtCpJOpenFoamValidationPlan.caseRow("apDrone", "mid_domain_mid_rpm");
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamCaseManifest.row(null));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJOpenFoamCaseManifest.row(apMid, null));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJOpenFoamCaseManifest.row(heavy));
 	}
@@ -132,11 +174,19 @@ class PropellerArchiveCtCpJOpenFoamCaseManifestTest {
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_source,openfoam_reference_materialization_gate,")));
+		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_channel,cfd_thrust_coefficient_ct,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_case,apDrone,mid_domain_mid_rpm,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_case,apDrone,mid_domain_mid_rpm,")
+						&& line.contains("materialization=current_lookup_and_openfoam_blocked")
+						&& line.contains("blocked_reference_rows=6")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_case,racingQuad,static_anchor_low_rpm,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_summary,all_cases,reference_materialization_ready_case_count,0,count,")));
+		assertTrue(lines.stream().anyMatch(line ->
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_summary,all_cases,blocked_openfoam_reference_row_total,36,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_case_manifest_summary,all_cases,required_dimensional_channel_total,102,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
