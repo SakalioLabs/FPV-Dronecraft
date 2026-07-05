@@ -27,6 +27,7 @@ import com.tenicana.dronecraft.sim.RateEnvelopeCalibration;
 import com.tenicana.dronecraft.sim.RotorDynamicsCalibration;
 import com.tenicana.dronecraft.sim.RotorFlowObstructionModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
+import com.tenicana.dronecraft.sim.RotorStaticCtCpModel;
 import com.tenicana.dronecraft.sim.SensorNoiseCalibration;
 import com.tenicana.dronecraft.sim.SurfaceNearfieldCalibration;
 import com.tenicana.dronecraft.sim.Vec3;
@@ -39,6 +40,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
+import java.util.function.ToDoubleFunction;
 
 public final class OfflineFlightRecorder {
 	public static final double SIMULATION_DT_SECONDS = 0.005;
@@ -1178,6 +1180,17 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_residual_nm");
 		appendCtCpJReferenceColumnFamily(builder, "thrust_ratio");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_ratio");
+		appendCtCpJStaticReferenceColumnFamily(builder, "available");
+		appendCtCpJStaticReferenceColumnFamily(builder, "ct");
+		appendCtCpJStaticReferenceColumnFamily(builder, "cp");
+		appendCtCpJStaticReferenceColumnFamily(builder, "thrust_n");
+		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_power_w");
+		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_nm");
+		appendCtCpJStaticReferenceColumnFamily(builder, "thrust_residual_n");
+		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_power_residual_w");
+		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_residual_nm");
+		appendCtCpJStaticReferenceColumnFamily(builder, "thrust_ratio");
+		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_ratio");
 		return builder.toString();
 	}
 
@@ -1197,6 +1210,13 @@ public final class OfflineFlightRecorder {
 			builder.append(',');
 		}
 		builder.append(column);
+	}
+
+	private static void appendCtCpJStaticReferenceColumnFamily(StringBuilder builder, String suffix) {
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_static_ref_" + suffix);
+		for (int i = 0; i < 8; i++) {
+			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_static_ref_" + suffix);
+		}
 	}
 
 	private OfflineFlightRecorder() {
@@ -4342,6 +4362,39 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceTorqueResidual = state.rotorCtCpJReferenceShaftTorqueResidualNewtonMeters();
 		double[] rotorCtCpJReferenceThrustRatio = state.rotorCtCpJReferenceThrustRatio();
 		double[] rotorCtCpJReferenceTorqueRatio = state.rotorCtCpJReferenceShaftTorqueRatio();
+		RotorStaticCtCpModel.StaticRotorSample[] rotorCtCpJStaticReference =
+				rotorCtCpJStaticReferenceSamples(config, environment, motorRpm);
+		boolean[] rotorCtCpJStaticReferenceAvailable = rotorCtCpJStaticReferenceAvailable(rotorCtCpJStaticReference);
+		double[] rotorCtCpJStaticReferenceCt = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::thrustCoefficientCt
+		);
+		double[] rotorCtCpJStaticReferenceCp = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::powerCoefficientCp
+		);
+		double[] rotorCtCpJStaticReferenceThrust = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::thrustNewtons
+		);
+		double[] rotorCtCpJStaticReferencePower = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::shaftPowerWatts
+		);
+		double[] rotorCtCpJStaticReferenceTorque = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::shaftTorqueNewtonMeters
+		);
+		double[] rotorCtCpJStaticReferenceThrustResidual =
+				residuals(rotorThrust, rotorCtCpJStaticReferenceThrust);
+		double[] rotorCtCpJStaticReferencePowerResidual =
+				residuals(state.motorShaftPowerWatts(), rotorCtCpJStaticReferencePower);
+		double[] rotorCtCpJStaticReferenceTorqueResidual =
+				residuals(state.motorAerodynamicTorqueNewtonMeters(), rotorCtCpJStaticReferenceTorque);
+		double[] rotorCtCpJStaticReferenceThrustRatio =
+				ratios(rotorThrust, rotorCtCpJStaticReferenceThrust);
+		double[] rotorCtCpJStaticReferenceTorqueRatio =
+				ratios(state.motorAerodynamicTorqueNewtonMeters(), rotorCtCpJStaticReferenceTorque);
 		double[] rotorAxialGustThrustScale = state.rotorAxialGustThrustScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -4582,6 +4635,17 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorqueResidual, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrustRatio, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorqueRatio, rotorCtCpJReferenceAvailable, "%.5f");
+		appendBooleanFamily(builder, rotorCtCpJStaticReferenceAvailable);
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceCt, rotorCtCpJStaticReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceCp, rotorCtCpJStaticReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceThrust, rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferencePower, rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceTorque, rotorCtCpJStaticReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceThrustResidual, rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferencePowerResidual, rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceTorqueResidual, rotorCtCpJStaticReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceThrustRatio, rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceTorqueRatio, rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendExtra(builder, state.averageRotorAxialGustThrustScale(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorAxialGustThrustScale, i), "%.5f");
@@ -4783,6 +4847,81 @@ public final class OfflineFlightRecorder {
 		return present;
 	}
 
+	private static RotorStaticCtCpModel.StaticRotorSample[] rotorCtCpJStaticReferenceSamples(
+			DroneConfig config,
+			DroneEnvironment environment,
+			double[] motorRpm
+	) {
+		if (config == null || motorRpm == null) {
+			return new RotorStaticCtCpModel.StaticRotorSample[0];
+		}
+		double densityRatio = environment == null ? 1.0 : environment.effectiveAirDensityRatio();
+		double airDensity = RotorStaticCtCpModel.DEFAULT_REFERENCE_AIR_DENSITY_KG_PER_CUBIC_METER
+				* Math.max(0.20, Double.isFinite(densityRatio) ? densityRatio : 1.0);
+		int count = Math.min(config.rotors().size(), motorRpm.length);
+		RotorStaticCtCpModel.StaticRotorSample[] samples =
+				new RotorStaticCtCpModel.StaticRotorSample[count];
+		for (int i = 0; i < count; i++) {
+			double rpm = motorRpm[i];
+			if (!Double.isFinite(rpm) || rpm <= 0.0) {
+				continue;
+			}
+			samples[i] = RotorStaticCtCpModel.sample(
+					"runtime",
+					"static_rotor_spec_shadow",
+					config.rotors().get(i),
+					rpm,
+					airDensity
+			);
+		}
+		return samples;
+	}
+
+	private static boolean[] rotorCtCpJStaticReferenceAvailable(
+			RotorStaticCtCpModel.StaticRotorSample[] samples
+	) {
+		boolean[] available = new boolean[samples == null ? 0 : samples.length];
+		for (int i = 0; i < available.length; i++) {
+			available[i] = samples[i] != null;
+		}
+		return available;
+	}
+
+	private static double[] rotorCtCpJStaticReferenceValues(
+			RotorStaticCtCpModel.StaticRotorSample[] samples,
+			ToDoubleFunction<RotorStaticCtCpModel.StaticRotorSample> accessor
+	) {
+		double[] values = new double[samples == null ? 0 : samples.length];
+		if (accessor == null) {
+			return values;
+		}
+		for (int i = 0; i < values.length; i++) {
+			values[i] = samples[i] == null ? 0.0 : finiteOrZero(accessor.applyAsDouble(samples[i]));
+		}
+		return values;
+	}
+
+	private static double[] residuals(double[] actual, double[] reference) {
+		int count = Math.max(actual == null ? 0 : actual.length, reference == null ? 0 : reference.length);
+		double[] residuals = new double[count];
+		for (int i = 0; i < count; i++) {
+			residuals[i] = finiteOrZero(valueOrZero(actual, i) - valueOrZero(reference, i));
+		}
+		return residuals;
+	}
+
+	private static double[] ratios(double[] actual, double[] reference) {
+		int count = Math.max(actual == null ? 0 : actual.length, reference == null ? 0 : reference.length);
+		double[] ratios = new double[count];
+		for (int i = 0; i < count; i++) {
+			double referenceValue = valueOrZero(reference, i);
+			ratios[i] = referenceValue > 1.0e-9
+					? finiteOrZero(valueOrZero(actual, i) / referenceValue)
+					: 0.0;
+		}
+		return ratios;
+	}
+
 	private static void appendDoubleFamily(StringBuilder builder, double[] values, boolean[] available, String format) {
 		appendExtra(builder, averageAvailable(values, available), format);
 		for (int i = 0; i < 8; i++) {
@@ -4824,11 +4963,15 @@ public final class OfflineFlightRecorder {
 	}
 
 	private static double valueOrZero(double[] values, int index) {
-		return index >= 0 && index < values.length ? values[index] : 0.0;
+		return values != null && index >= 0 && index < values.length ? values[index] : 0.0;
 	}
 
 	private static double valueOrOne(double[] values, int index) {
-		return index >= 0 && index < values.length ? values[index] : 1.0;
+		return values != null && index >= 0 && index < values.length ? values[index] : 1.0;
+	}
+
+	private static double finiteOrZero(double value) {
+		return Double.isFinite(value) ? value : 0.0;
 	}
 
 	private static boolean hasRotor(DroneConfig config, int index) {

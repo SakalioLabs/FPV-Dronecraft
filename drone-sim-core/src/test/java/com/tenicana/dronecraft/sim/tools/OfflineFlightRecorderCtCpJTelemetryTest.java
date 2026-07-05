@@ -39,6 +39,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorTorqueResidualIndex = column(header, "rotor_0_ctcpj_ref_shaft_torque_residual_nm");
 		int rotorThrustRatioIndex = column(header, "rotor_0_ctcpj_ref_thrust_ratio");
 		int rotorTorqueRatioIndex = column(header, "rotor_0_ctcpj_ref_shaft_torque_ratio");
+		int staticAvailableIndex = column(header, "rotor_ctcpj_static_ref_available");
+		int rotorStaticCtIndex = column(header, "rotor_0_ctcpj_static_ref_ct");
+		int rotorStaticPowerIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_power_w");
+		int rotorStaticThrustResidualIndex = column(header, "rotor_0_ctcpj_static_ref_thrust_residual_n");
+		int rotorStaticPowerResidualIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_power_residual_w");
+		int rotorStaticTorqueResidualIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_torque_residual_nm");
+		int rotorStaticThrustRatioIndex = column(header, "rotor_0_ctcpj_static_ref_thrust_ratio");
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
@@ -48,14 +55,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_residual_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_thrust_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_shaft_torque_ratio"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_static_ref_ct"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_static_ref_shaft_torque_residual_nm"));
 
 		boolean sawReferenceState = false;
 		boolean sawPositiveReferenceRpm = false;
+		boolean sawStaticReferenceState = false;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			assertEquals(header.length, row.length, "CSV row " + i + " column count changed");
 			double available = Double.parseDouble(row[availableIndex]);
 			double blocked = Double.parseDouble(row[blockedIndex]);
+			double staticAvailable = Double.parseDouble(row[staticAvailableIndex]);
 			if (available > 0.0 || blocked > 0.0) {
 				sawReferenceState = true;
 				double referenceRpm = Double.parseDouble(row[referenceRpmIndex]);
@@ -81,9 +92,21 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorThrustRatioIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorTorqueRatioIndex])));
 			}
+			if (staticAvailable > 0.0) {
+				sawStaticReferenceState = true;
+				double staticCt = Double.parseDouble(row[rotorStaticCtIndex]);
+				double staticPower = Double.parseDouble(row[rotorStaticPowerIndex]);
+				assertTrue(staticCt > 0.15 && staticCt < 0.17);
+				assertTrue(staticPower > 0.0);
+				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticThrustResidualIndex])));
+				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticPowerResidualIndex])));
+				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticTorqueResidualIndex])));
+				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticThrustRatioIndex])));
+			}
 		}
 		assertTrue(sawReferenceState, "apDrone trace should expose available or blocked CT/CP/J reference telemetry");
 		assertTrue(sawPositiveReferenceRpm, "CT/CP/J reference telemetry should preserve lookup RPM for envelope diagnosis");
+		assertTrue(sawStaticReferenceState, "apDrone trace should expose static CT/CP shadow telemetry");
 		assertTrue(report.ctCpJReferenceRotorSampleCount() > 0);
 		assertEquals(
 				report.ctCpJReferenceRotorSampleCount(),
