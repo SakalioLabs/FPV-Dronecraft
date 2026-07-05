@@ -25,6 +25,9 @@ public final class DronePhysics {
 	private static final double COAXIAL_LOAD_BIAS_MAX = CoaxialAllocationCalibration.LOAD_BIAS_MAX;
 	private static final double MOTOR_STATIC_BREAKAWAY_TORQUE_NEWTON_METERS = 0.030;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
+	private static final double APDRONE_CTCPJ_REFERENCE_RADIUS_METERS = 5.1 * 0.0254 * 0.5;
+	private static final double APDRONE_CTCPJ_REFERENCE_PITCH_TO_DIAMETER_RATIO = 4.5 / 5.1;
+	private static final double APDRONE_CTCPJ_REFERENCE_GEOMETRY_TOLERANCE = 1.0e-6;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
 	private static final double REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS = 1.837e-5;
 	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
@@ -1296,6 +1299,12 @@ public final class DronePhysics {
 			state.setRotorPropellerThrustScale(i, propellerThrustScale);
 			double propellerPowerScale = rotorForwardAdvancePowerScale(aerodynamicRotor, aerodynamicAdvanceRatio);
 			state.setRotorPropellerPowerScale(i, propellerPowerScale);
+			state.setRotorCtCpJReferenceSample(i, sampleRotorCtCpJReference(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					aerodynamicOmega,
+					airDensity
+			));
 			state.setRotorAxialGustThrustScale(i, rotorAxialGustThrustScale(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
@@ -2800,6 +2809,42 @@ public final class DronePhysics {
 
 	private static double rotorAxialVelocity(RotorSpec rotor, Vec3 relativeAirVelocityBody) {
 		return relativeAirVelocityBody.dot(rotorAxisBody(rotor));
+	}
+
+	static PropellerArchiveCtCpJRotorForceModel.RotorForceSample sampleRotorCtCpJReference(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double airDensityRatio
+	) {
+		if (!isApDroneCtCpJReferenceRotor(rotor)
+				|| relativeAirVelocityBody == null
+				|| !relativeAirVelocityBody.isFinite()
+				|| !Double.isFinite(omegaRadiansPerSecond)
+				|| omegaRadiansPerSecond <= 0.0) {
+			return null;
+		}
+		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER
+				* Math.max(0.20, Double.isFinite(airDensityRatio) ? airDensityRatio : 1.0);
+		double axialAdvanceSpeed = Math.max(0.0, rotorAxialVelocity(rotor, relativeAirVelocityBody));
+		return PropellerArchiveCtCpJRotorForceModel.sampleFromAxialAdvanceSpeed(
+				PropellerArchiveCtCpJLookupEvaluator.DEFAULT_PRESET_NAME,
+				"",
+				rotor,
+				axialAdvanceSpeed,
+				omegaRadiansPerSecond,
+				density,
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+		);
+	}
+
+	private static boolean isApDroneCtCpJReferenceRotor(RotorSpec rotor) {
+		return rotor != null
+				&& Math.abs(rotor.radiusMeters() - APDRONE_CTCPJ_REFERENCE_RADIUS_METERS)
+						<= APDRONE_CTCPJ_REFERENCE_GEOMETRY_TOLERANCE
+				&& Math.abs(rotor.bladePitchToDiameterRatio() - APDRONE_CTCPJ_REFERENCE_PITCH_TO_DIAMETER_RATIO)
+						<= APDRONE_CTCPJ_REFERENCE_GEOMETRY_TOLERANCE
+				&& rotor.bladeCount() == 3;
 	}
 
 	private static Vec3 rotorTransverseVelocityBody(RotorSpec rotor, Vec3 relativeAirVelocityBody) {

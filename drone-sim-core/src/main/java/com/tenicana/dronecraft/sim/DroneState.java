@@ -95,6 +95,17 @@ public final class DroneState {
 	private double[] motorTemperatureCelsius;
 	private double[] motorCoolingFactor;
 	private double[] rotorA4mcVentilationEfficiency;
+	private boolean[] rotorCtCpJReferenceAvailable;
+	private boolean[] rotorCtCpJReferenceBlocked;
+	private boolean[] rotorCtCpJReferenceClamped;
+	private int[] rotorCtCpJReferenceInterpolationStatusOrdinal;
+	private double[] rotorCtCpJReferenceAdvanceRatioJ;
+	private double[] rotorCtCpJReferenceThrustCoefficientCt;
+	private double[] rotorCtCpJReferencePowerCoefficientCp;
+	private double[] rotorCtCpJReferenceEfficiencyEta;
+	private double[] rotorCtCpJReferenceThrustNewtons;
+	private double[] rotorCtCpJReferenceShaftPowerWatts;
+	private double[] rotorCtCpJReferenceShaftTorqueNewtonMeters;
 	private double[] rotorThrustNewtons;
 	private Vec3[] rotorForceBodyNewtons;
 	private Vec3[] rotorTorqueBodyNewtonMeters;
@@ -264,6 +275,17 @@ public final class DroneState {
 		motorTemperatureCelsius = new double[motorCount];
 		motorCoolingFactor = new double[motorCount];
 		rotorA4mcVentilationEfficiency = new double[motorCount];
+		rotorCtCpJReferenceAvailable = new boolean[motorCount];
+		rotorCtCpJReferenceBlocked = new boolean[motorCount];
+		rotorCtCpJReferenceClamped = new boolean[motorCount];
+		rotorCtCpJReferenceInterpolationStatusOrdinal = new int[motorCount];
+		rotorCtCpJReferenceAdvanceRatioJ = new double[motorCount];
+		rotorCtCpJReferenceThrustCoefficientCt = new double[motorCount];
+		rotorCtCpJReferencePowerCoefficientCp = new double[motorCount];
+		rotorCtCpJReferenceEfficiencyEta = new double[motorCount];
+		rotorCtCpJReferenceThrustNewtons = new double[motorCount];
+		rotorCtCpJReferenceShaftPowerWatts = new double[motorCount];
+		rotorCtCpJReferenceShaftTorqueNewtonMeters = new double[motorCount];
 		rotorThrustNewtons = new double[motorCount];
 		rotorForceBodyNewtons = new Vec3[motorCount];
 		rotorTorqueBodyNewtonMeters = new Vec3[motorCount];
@@ -330,6 +352,8 @@ public final class DroneState {
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		Arrays.fill(rotorA4mcVentilationEfficiency, 1.0);
+		Arrays.fill(rotorCtCpJReferenceInterpolationStatusOrdinal,
+				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED.ordinal());
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
 		Arrays.fill(rotorDynamicInflowTimeConstantSeconds, 0.0);
 		Arrays.fill(rotorPropellerThrustScale, 1.0);
@@ -446,6 +470,10 @@ public final class DroneState {
 
 	private static double positiveFinite(double value, double fallback) {
 		return Double.isFinite(value) && value > 0.0 ? value : fallback;
+	}
+
+	private static double finiteOrZero(double value) {
+		return Double.isFinite(value) ? value : 0.0;
 	}
 
 	private static Vec3 finiteVectorOrZero(Vec3 value) {
@@ -1529,6 +1557,135 @@ public final class DroneState {
 		return min;
 	}
 
+	public boolean rotorCtCpJReferenceAvailable(int index) {
+		return rotorCtCpJReferenceAvailable[index];
+	}
+
+	public boolean[] rotorCtCpJReferenceAvailable() {
+		return Arrays.copyOf(rotorCtCpJReferenceAvailable, rotorCtCpJReferenceAvailable.length);
+	}
+
+	public boolean rotorCtCpJReferenceBlocked(int index) {
+		return rotorCtCpJReferenceBlocked[index];
+	}
+
+	public boolean[] rotorCtCpJReferenceBlocked() {
+		return Arrays.copyOf(rotorCtCpJReferenceBlocked, rotorCtCpJReferenceBlocked.length);
+	}
+
+	public boolean rotorCtCpJReferenceClamped(int index) {
+		return rotorCtCpJReferenceClamped[index];
+	}
+
+	public boolean[] rotorCtCpJReferenceClamped() {
+		return Arrays.copyOf(rotorCtCpJReferenceClamped, rotorCtCpJReferenceClamped.length);
+	}
+
+	public PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus rotorCtCpJReferenceInterpolationStatus(int index) {
+		PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus[] values =
+				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.values();
+		int ordinal = rotorCtCpJReferenceInterpolationStatusOrdinal[index];
+		if (ordinal < 0 || ordinal >= values.length) {
+			return PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED;
+		}
+		return values[ordinal];
+	}
+
+	public double rotorCtCpJReferenceAdvanceRatioJ(int index) {
+		return rotorCtCpJReferenceAdvanceRatioJ[index];
+	}
+
+	public double[] rotorCtCpJReferenceAdvanceRatioJ() {
+		return Arrays.copyOf(rotorCtCpJReferenceAdvanceRatioJ, rotorCtCpJReferenceAdvanceRatioJ.length);
+	}
+
+	public double rotorCtCpJReferenceThrustCoefficientCt(int index) {
+		return rotorCtCpJReferenceThrustCoefficientCt[index];
+	}
+
+	public double[] rotorCtCpJReferenceThrustCoefficientCt() {
+		return Arrays.copyOf(rotorCtCpJReferenceThrustCoefficientCt, rotorCtCpJReferenceThrustCoefficientCt.length);
+	}
+
+	public double rotorCtCpJReferencePowerCoefficientCp(int index) {
+		return rotorCtCpJReferencePowerCoefficientCp[index];
+	}
+
+	public double[] rotorCtCpJReferencePowerCoefficientCp() {
+		return Arrays.copyOf(rotorCtCpJReferencePowerCoefficientCp, rotorCtCpJReferencePowerCoefficientCp.length);
+	}
+
+	public double rotorCtCpJReferenceEfficiencyEta(int index) {
+		return rotorCtCpJReferenceEfficiencyEta[index];
+	}
+
+	public double[] rotorCtCpJReferenceEfficiencyEta() {
+		return Arrays.copyOf(rotorCtCpJReferenceEfficiencyEta, rotorCtCpJReferenceEfficiencyEta.length);
+	}
+
+	public double rotorCtCpJReferenceThrustNewtons(int index) {
+		return rotorCtCpJReferenceThrustNewtons[index];
+	}
+
+	public double[] rotorCtCpJReferenceThrustNewtons() {
+		return Arrays.copyOf(rotorCtCpJReferenceThrustNewtons, rotorCtCpJReferenceThrustNewtons.length);
+	}
+
+	public double rotorCtCpJReferenceShaftPowerWatts(int index) {
+		return rotorCtCpJReferenceShaftPowerWatts[index];
+	}
+
+	public double[] rotorCtCpJReferenceShaftPowerWatts() {
+		return Arrays.copyOf(rotorCtCpJReferenceShaftPowerWatts, rotorCtCpJReferenceShaftPowerWatts.length);
+	}
+
+	public double rotorCtCpJReferenceShaftTorqueNewtonMeters(int index) {
+		return rotorCtCpJReferenceShaftTorqueNewtonMeters[index];
+	}
+
+	public double[] rotorCtCpJReferenceShaftTorqueNewtonMeters() {
+		return Arrays.copyOf(rotorCtCpJReferenceShaftTorqueNewtonMeters, rotorCtCpJReferenceShaftTorqueNewtonMeters.length);
+	}
+
+	void setRotorCtCpJReferenceSample(
+			int index,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample
+	) {
+		if (sample == null) {
+			clearRotorCtCpJReferenceSample(index);
+			return;
+		}
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
+		rotorCtCpJReferenceAvailable[index] = !sample.blocked();
+		rotorCtCpJReferenceBlocked[index] = sample.blocked();
+		rotorCtCpJReferenceClamped[index] = sample.clamped();
+		rotorCtCpJReferenceInterpolationStatusOrdinal[index] = lookup.interpolationStatus().ordinal();
+		rotorCtCpJReferenceAdvanceRatioJ[index] = finiteOrZero(lookup.effectiveAdvanceRatioJ());
+		rotorCtCpJReferenceThrustCoefficientCt[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.thrustCoefficientCt());
+		rotorCtCpJReferencePowerCoefficientCp[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.powerCoefficientCp());
+		rotorCtCpJReferenceEfficiencyEta[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.propulsiveEfficiencyEta());
+		rotorCtCpJReferenceThrustNewtons[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.thrustNewtons()));
+		rotorCtCpJReferenceShaftPowerWatts[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.shaftPowerWatts()));
+		rotorCtCpJReferenceShaftTorqueNewtonMeters[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.shaftTorqueNewtonMeters()));
+	}
+
+	void clearRotorCtCpJReferenceSample(int index) {
+		rotorCtCpJReferenceAvailable[index] = false;
+		rotorCtCpJReferenceBlocked[index] = false;
+		rotorCtCpJReferenceClamped[index] = false;
+		rotorCtCpJReferenceInterpolationStatusOrdinal[index] =
+				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED.ordinal();
+		rotorCtCpJReferenceAdvanceRatioJ[index] = 0.0;
+		rotorCtCpJReferenceThrustCoefficientCt[index] = 0.0;
+		rotorCtCpJReferencePowerCoefficientCp[index] = 0.0;
+		rotorCtCpJReferenceEfficiencyEta[index] = 0.0;
+		rotorCtCpJReferenceThrustNewtons[index] = 0.0;
+		rotorCtCpJReferenceShaftPowerWatts[index] = 0.0;
+		rotorCtCpJReferenceShaftTorqueNewtonMeters[index] = 0.0;
+	}
+
 	public double averageMotorCoolingFactor() {
 		double sum = 0.0;
 		for (double factor : motorCoolingFactor) {
@@ -1583,6 +1740,18 @@ public final class DroneState {
 		Arrays.fill(motorRegenerativeCurrentAmps, 0.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		Arrays.fill(rotorA4mcVentilationEfficiency, 1.0);
+		Arrays.fill(rotorCtCpJReferenceAvailable, false);
+		Arrays.fill(rotorCtCpJReferenceBlocked, false);
+		Arrays.fill(rotorCtCpJReferenceClamped, false);
+		Arrays.fill(rotorCtCpJReferenceInterpolationStatusOrdinal,
+				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED.ordinal());
+		Arrays.fill(rotorCtCpJReferenceAdvanceRatioJ, 0.0);
+		Arrays.fill(rotorCtCpJReferenceThrustCoefficientCt, 0.0);
+		Arrays.fill(rotorCtCpJReferencePowerCoefficientCp, 0.0);
+		Arrays.fill(rotorCtCpJReferenceEfficiencyEta, 0.0);
+		Arrays.fill(rotorCtCpJReferenceThrustNewtons, 0.0);
+		Arrays.fill(rotorCtCpJReferenceShaftPowerWatts, 0.0);
+		Arrays.fill(rotorCtCpJReferenceShaftTorqueNewtonMeters, 0.0);
 		a4mcPackVentilationEfficiency = 1.0;
 		Arrays.fill(rotorThrustNewtons, 0.0);
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
