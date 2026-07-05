@@ -1162,6 +1162,13 @@ public final class OfflineFlightRecorder {
 
 	private static String ctCpJReferenceColumns() {
 		StringBuilder builder = new StringBuilder();
+		appendCtCpJRuntimeColumnFamily(builder, "valid");
+		appendCtCpJRuntimeColumnFamily(builder, "ct");
+		appendCtCpJRuntimeColumnFamily(builder, "cp");
+		appendCtCpJRuntimeColumnFamily(builder, "eta");
+		appendCtCpJRuntimeColumnFamily(builder, "disk_loading_n_m2");
+		appendCtCpJRuntimeColumnFamily(builder, "ideal_induced_velocity_mps");
+		appendCtCpJRuntimeColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
 		appendCtCpJReferenceColumnFamily(builder, "available");
 		appendCtCpJReferenceColumnFamily(builder, "blocked");
 		appendCtCpJReferenceColumnFamily(builder, "clamped");
@@ -1198,6 +1205,13 @@ public final class OfflineFlightRecorder {
 		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_ratio");
 		appendCtCpJStaticReferenceColumnFamily(builder, "induced_velocity_ratio");
 		return builder.toString();
+	}
+
+	private static void appendCtCpJRuntimeColumnFamily(StringBuilder builder, String suffix) {
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_runtime_" + suffix);
+		for (int i = 0; i < 8; i++) {
+			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_runtime_" + suffix);
+		}
 	}
 
 	private static void appendCtCpJReferenceColumnFamily(StringBuilder builder, String suffix) {
@@ -4348,6 +4362,11 @@ public final class OfflineFlightRecorder {
 		double[] motorCurrentRipples = state.motorCurrentRippleAmps();
 		double[] motorCommutationRipples = state.motorCommutationRippleIntensity();
 		double[] motorTorqueRipples = state.motorTorqueRippleNewtonMeters();
+		double[] motorAerodynamicTorque = state.motorAerodynamicTorqueNewtonMeters();
+		double[] motorAerodynamicShaftPower = rotorAerodynamicShaftPowerWatts(
+				motorAerodynamicTorque,
+				motorRpm
+		);
 		double[] rotorThrust = state.rotorThrustNewtons();
 		double[] rotorHealth = state.rotorHealth();
 		double[] rotorDamageVibration = state.rotorDamageVibration();
@@ -4364,6 +4383,34 @@ public final class OfflineFlightRecorder {
 		double[] rotorPropellerAdvanceRatioJ = state.rotorPropellerAdvanceRatioJ();
 		double[] rotorPropellerThrustScale = state.rotorPropellerThrustScale();
 		double[] rotorPropellerPowerScale = state.rotorPropellerPowerScale();
+		boolean[] rotorCtCpJRuntimeCoefficientAvailable =
+				rotorCtCpJRuntimeCoefficientAvailable(config, motorRpm);
+		double[] rotorCtCpJRuntimeCt = rotorCtCpJRuntimeThrustCoefficientCt(
+				config,
+				environment,
+				rotorThrust,
+				motorRpm
+		);
+		double[] rotorCtCpJRuntimeCp = rotorCtCpJRuntimePowerCoefficientCp(
+				config,
+				environment,
+				motorAerodynamicShaftPower,
+				motorRpm
+		);
+		double[] rotorCtCpJRuntimeEta = rotorCtCpJRuntimeEta(
+				rotorPropellerAdvanceRatioJ,
+				rotorCtCpJRuntimeCt,
+				rotorCtCpJRuntimeCp
+		);
+		double[] rotorCtCpJRuntimeDiskLoading = rotorCtCpJRuntimeDiskLoading(config, rotorThrust);
+		double[] rotorCtCpJRuntimeIdealInducedVelocity =
+				rotorCtCpJRuntimeIdealInducedVelocity(config, environment, rotorThrust);
+		double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower =
+				rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
+						rotorThrust,
+						rotorCtCpJRuntimeIdealInducedVelocity,
+						motorAerodynamicShaftPower
+				);
 		boolean[] rotorCtCpJReferenceAvailable = state.rotorCtCpJReferenceAvailable();
 		boolean[] rotorCtCpJReferenceBlocked = state.rotorCtCpJReferenceBlocked();
 		boolean[] rotorCtCpJReferencePresent = ctCpJReferencePresent(
@@ -4657,6 +4704,15 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorPropellerPowerScale, i), "%.5f");
 		}
+		appendBooleanFamily(builder, rotorCtCpJRuntimeCoefficientAvailable);
+		appendDoubleFamily(builder, rotorCtCpJRuntimeCt, rotorCtCpJRuntimeCoefficientAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeCp, rotorCtCpJRuntimeCoefficientAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeEta, rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeDiskLoading, rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealInducedVelocity,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
 		appendBooleanFamily(builder, rotorCtCpJReferenceAvailable);
 		appendBooleanFamily(builder, rotorCtCpJReferenceBlocked);
 		appendBooleanFamily(builder, rotorCtCpJReferenceClamped);
@@ -4901,6 +4957,173 @@ public final class OfflineFlightRecorder {
 			present[i] = booleanValue(available, i) == 1 || booleanValue(blocked, i) == 1;
 		}
 		return present;
+	}
+
+	private static boolean[] rotorCtCpJRuntimeCoefficientAvailable(
+			DroneConfig config,
+			double[] motorRpm
+	) {
+		int count = Math.min(config == null ? 0 : config.rotors().size(), motorRpm == null ? 0 : motorRpm.length);
+		boolean[] available = new boolean[count];
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double rpm = motorRpm[i];
+			available[i] = rotor != null
+					&& Double.isFinite(rpm)
+					&& rpm > 0.0
+					&& Double.isFinite(rotor.radiusMeters())
+					&& rotor.radiusMeters() > 0.0;
+		}
+		return available;
+	}
+
+	private static double[] rotorCtCpJRuntimeThrustCoefficientCt(
+			DroneConfig config,
+			DroneEnvironment environment,
+			double[] rotorThrust,
+			double[] motorRpm
+	) {
+		int count = Math.min(config == null ? 0 : config.rotors().size(), motorRpm == null ? 0 : motorRpm.length);
+		double[] values = new double[count];
+		double density = runtimeAirDensityKgPerCubicMeter(environment);
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double rpm = motorRpm[i];
+			double diameter = rotor.radiusMeters() * 2.0;
+			double revolutionsPerSecond = rpm / 60.0;
+			double denominator = density
+					* revolutionsPerSecond
+					* revolutionsPerSecond
+					* Math.pow(diameter, 4.0);
+			values[i] = denominator > 1.0e-12 ? finiteOrZero(valueOrZero(rotorThrust, i) / denominator) : 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimePowerCoefficientCp(
+			DroneConfig config,
+			DroneEnvironment environment,
+			double[] aerodynamicShaftPowerWatts,
+			double[] motorRpm
+	) {
+		int count = Math.min(config == null ? 0 : config.rotors().size(), motorRpm == null ? 0 : motorRpm.length);
+		double[] values = new double[count];
+		double density = runtimeAirDensityKgPerCubicMeter(environment);
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double rpm = motorRpm[i];
+			double diameter = rotor.radiusMeters() * 2.0;
+			double revolutionsPerSecond = rpm / 60.0;
+			double denominator = density
+					* revolutionsPerSecond
+					* revolutionsPerSecond
+					* revolutionsPerSecond
+					* Math.pow(diameter, 5.0);
+			values[i] = Math.abs(denominator) > 1.0e-12
+					? finiteOrZero(valueOrZero(aerodynamicShaftPowerWatts, i) / denominator)
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeEta(
+			double[] propellerAdvanceRatioJ,
+			double[] thrustCoefficientCt,
+			double[] powerCoefficientCp
+	) {
+		int count = Math.max(
+				propellerAdvanceRatioJ == null ? 0 : propellerAdvanceRatioJ.length,
+				Math.max(
+						thrustCoefficientCt == null ? 0 : thrustCoefficientCt.length,
+						powerCoefficientCp == null ? 0 : powerCoefficientCp.length
+				)
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double cp = valueOrZero(powerCoefficientCp, i);
+			values[i] = cp > 1.0e-12
+					? finiteOrZero(valueOrZero(propellerAdvanceRatioJ, i)
+							* valueOrZero(thrustCoefficientCt, i)
+							/ cp)
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeDiskLoading(DroneConfig config, double[] rotorThrust) {
+		int count = Math.min(config == null ? 0 : config.rotors().size(), rotorThrust == null ? 0 : rotorThrust.length);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
+			values[i] = diskArea > 1.0e-12 ? finiteOrZero(valueOrZero(rotorThrust, i) / diskArea) : 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeIdealInducedVelocity(
+			DroneConfig config,
+			DroneEnvironment environment,
+			double[] rotorThrust
+	) {
+		int count = Math.min(config == null ? 0 : config.rotors().size(), rotorThrust == null ? 0 : rotorThrust.length);
+		double[] values = new double[count];
+		double density = runtimeAirDensityKgPerCubicMeter(environment);
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
+			double thrust = valueOrZero(rotorThrust, i);
+			values[i] = thrust > 1.0e-12 && diskArea > 1.0e-12
+					? finiteOrZero(Math.sqrt(thrust / (2.0 * density * diskArea)))
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
+			double[] rotorThrust,
+			double[] idealInducedVelocity,
+			double[] aerodynamicShaftPowerWatts
+	) {
+		int count = Math.max(
+				rotorThrust == null ? 0 : rotorThrust.length,
+				Math.max(
+						idealInducedVelocity == null ? 0 : idealInducedVelocity.length,
+						aerodynamicShaftPowerWatts == null ? 0 : aerodynamicShaftPowerWatts.length
+				)
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double shaftPower = valueOrZero(aerodynamicShaftPowerWatts, i);
+			values[i] = shaftPower > 1.0e-12
+					? finiteOrZero(valueOrZero(rotorThrust, i)
+							* valueOrZero(idealInducedVelocity, i)
+							/ shaftPower)
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double runtimeAirDensityKgPerCubicMeter(DroneEnvironment environment) {
+		double densityRatio = environment == null ? 1.0 : environment.effectiveAirDensityRatio();
+		return RotorStaticCtCpModel.DEFAULT_REFERENCE_AIR_DENSITY_KG_PER_CUBIC_METER
+				* Math.max(0.20, Double.isFinite(densityRatio) ? densityRatio : 1.0);
+	}
+
+	private static double[] rotorAerodynamicShaftPowerWatts(
+			double[] aerodynamicTorqueNewtonMeters,
+			double[] motorRpm
+	) {
+		int count = Math.max(
+				aerodynamicTorqueNewtonMeters == null ? 0 : aerodynamicTorqueNewtonMeters.length,
+				motorRpm == null ? 0 : motorRpm.length
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double omega = valueOrZero(motorRpm, i) * 2.0 * Math.PI / 60.0;
+			values[i] = finiteOrZero(valueOrZero(aerodynamicTorqueNewtonMeters, i) * Math.max(0.0, omega));
+		}
+		return values;
 	}
 
 	private static RotorStaticCtCpModel.StaticRotorSample[] rotorCtCpJStaticReferenceSamples(

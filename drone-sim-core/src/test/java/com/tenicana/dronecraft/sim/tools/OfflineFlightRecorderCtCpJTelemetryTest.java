@@ -11,6 +11,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
 
 class OfflineFlightRecorderCtCpJTelemetryTest {
@@ -25,6 +27,21 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		List<String> lines = Files.readAllLines(output);
 		assertTrue(lines.size() > 2);
 		String[] header = lines.get(0).split(",", -1);
+		int airDensityRatioIndex = column(header, "effective_air_density_ratio");
+		int motorRpmIndex = column(header, "motor_0_rpm");
+		int rotorThrustIndex = column(header, "rotor_0_thrust_n");
+		int motorAerodynamicTorqueIndex = column(header, "motor_0_aero_torque_nm");
+		int rotorPropellerJIndex = column(header, "rotor_0_prop_advance_ratio_j");
+		int runtimeValidIndex = column(header, "rotor_ctcpj_runtime_valid");
+		int rotorRuntimeValidIndex = column(header, "rotor_0_ctcpj_runtime_valid");
+		int rotorRuntimeCtIndex = column(header, "rotor_0_ctcpj_runtime_ct");
+		int rotorRuntimeCpIndex = column(header, "rotor_0_ctcpj_runtime_cp");
+		int rotorRuntimeEtaIndex = column(header, "rotor_0_ctcpj_runtime_eta");
+		int rotorRuntimeDiskLoadingIndex = column(header, "rotor_0_ctcpj_runtime_disk_loading_n_m2");
+		int rotorRuntimeInducedVelocityIndex = column(header,
+				"rotor_0_ctcpj_runtime_ideal_induced_velocity_mps");
+		int rotorRuntimeMomentumRatioIndex = column(header,
+				"rotor_0_ctcpj_runtime_ideal_momentum_power_over_shaft_power");
 		int availableIndex = column(header, "rotor_ctcpj_ref_available");
 		int blockedIndex = column(header, "rotor_ctcpj_ref_blocked");
 		int clampedIndex = column(header, "rotor_ctcpj_ref_clamped");
@@ -57,6 +74,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorStaticInducedVelocityRatioIndex = column(header,
 				"rotor_0_ctcpj_static_ref_induced_velocity_ratio");
 
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ct"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_cp"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_7_ctcpj_runtime_ideal_momentum_power_over_shaft_power"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_lookup_status"));
@@ -73,13 +94,56 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		boolean sawReferenceState = false;
 		boolean sawPositiveReferenceRpm = false;
 		boolean sawStaticReferenceState = false;
+		boolean sawRuntimeCoefficientState = false;
+		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			assertEquals(header.length, row.length, "CSV row " + i + " column count changed");
+			double runtimeValid = Double.parseDouble(row[runtimeValidIndex]);
+			double rotorRuntimeValid = Double.parseDouble(row[rotorRuntimeValidIndex]);
 			double available = Double.parseDouble(row[availableIndex]);
 			double blocked = Double.parseDouble(row[blockedIndex]);
 			double clamped = Double.parseDouble(row[clampedIndex]);
 			double staticAvailable = Double.parseDouble(row[staticAvailableIndex]);
+			if (runtimeValid > 0.0 || rotorRuntimeValid > 0.0) {
+				sawRuntimeCoefficientState = true;
+				double rpm = Double.parseDouble(row[motorRpmIndex]);
+				double thrust = Double.parseDouble(row[rotorThrustIndex]);
+				double omega = rpm * 2.0 * Math.PI / 60.0;
+				double aerodynamicPower = Double.parseDouble(row[motorAerodynamicTorqueIndex]) * omega;
+				double propellerJ = Double.parseDouble(row[rotorPropellerJIndex]);
+				double runtimeCt = Double.parseDouble(row[rotorRuntimeCtIndex]);
+				double runtimeCp = Double.parseDouble(row[rotorRuntimeCpIndex]);
+				double runtimeEta = Double.parseDouble(row[rotorRuntimeEtaIndex]);
+				double runtimeDiskLoading = Double.parseDouble(row[rotorRuntimeDiskLoadingIndex]);
+				double runtimeInducedVelocity = Double.parseDouble(row[rotorRuntimeInducedVelocityIndex]);
+				double runtimeMomentumRatio = Double.parseDouble(row[rotorRuntimeMomentumRatioIndex]);
+				assertTrue(Double.isFinite(runtimeCt));
+				assertTrue(Double.isFinite(runtimeCp));
+				assertTrue(Double.isFinite(runtimeEta));
+				assertTrue(Double.isFinite(runtimeDiskLoading));
+				assertTrue(Double.isFinite(runtimeInducedVelocity));
+				assertTrue(Double.isFinite(runtimeMomentumRatio));
+				if (rotorRuntimeValid > 0.0 && rpm > 0.0) {
+					double n = rpm / 60.0;
+					double airDensity = PropellerArchiveCtCpJDimensionalRotorResponse
+							.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER
+							* Math.max(0.20, Double.parseDouble(row[airDensityRatioIndex]));
+					assertEquals(
+							thrust / (airDensity * n * n * Math.pow(diameter, 4.0)),
+							runtimeCt,
+							5.0e-6
+					);
+					assertEquals(
+							aerodynamicPower / (airDensity * n * n * n * Math.pow(diameter, 5.0)),
+							runtimeCp,
+							1.0e-4
+					);
+					if (runtimeCp > 1.0e-9) {
+						assertEquals(propellerJ * runtimeCt / runtimeCp, runtimeEta, 5.0e-5);
+					}
+				}
+			}
 			if (available > 0.0 || blocked > 0.0 || clamped > 0.0) {
 				sawReferenceState = true;
 				double referenceRpm = Double.parseDouble(row[referenceRpmIndex]);
@@ -128,6 +192,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticInducedVelocityRatioIndex])));
 			}
 		}
+		assertTrue(sawRuntimeCoefficientState, "apDrone trace should expose runtime CT/CP/J coefficient telemetry");
 		assertTrue(sawReferenceState, "apDrone trace should expose available or blocked CT/CP/J reference telemetry");
 		assertTrue(sawPositiveReferenceRpm, "CT/CP/J reference telemetry should preserve lookup RPM for envelope diagnosis");
 		assertTrue(sawStaticReferenceState, "apDrone trace should expose static CT/CP shadow telemetry");
