@@ -4491,7 +4491,7 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJStaticReferenceThrustResidual =
 				residuals(rotorThrust, rotorCtCpJStaticReferenceThrust);
 		double[] rotorCtCpJStaticReferencePowerResidual =
-				residuals(state.motorShaftPowerWatts(), rotorCtCpJStaticReferencePower);
+				residuals(motorAerodynamicShaftPower, rotorCtCpJStaticReferencePower);
 		double[] rotorCtCpJStaticReferenceTorqueResidual =
 				residuals(state.motorAerodynamicTorqueNewtonMeters(), rotorCtCpJStaticReferenceTorque);
 		double[] rotorCtCpJStaticReferenceInducedVelocityResidual =
@@ -5812,8 +5812,8 @@ public final class OfflineFlightRecorder {
 			boolean[] blocked = state.rotorCtCpJReferenceBlocked();
 			boolean[] clamped = state.rotorCtCpJReferenceClamped();
 			double[] actualThrust = state.rotorThrustNewtons();
-			double[] actualPower = state.motorShaftPowerWatts();
 			double[] actualTorque = state.motorAerodynamicTorqueNewtonMeters();
+			double[] actualPower = rotorAerodynamicShaftPowerWatts(actualTorque, state.motorRpm());
 			double[] referenceThrust = state.rotorCtCpJReferenceThrustNewtons();
 			double[] referencePower = state.rotorCtCpJReferenceShaftPowerWatts();
 			double[] referenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
@@ -5865,8 +5865,8 @@ public final class OfflineFlightRecorder {
 					state.motorRpm()
 			);
 			double[] actualThrust = state.rotorThrustNewtons();
-			double[] actualPower = state.motorShaftPowerWatts();
 			double[] actualTorque = state.motorAerodynamicTorqueNewtonMeters();
+			double[] actualPower = rotorAerodynamicShaftPowerWatts(actualTorque, state.motorRpm());
 			double[] actualInducedVelocity = state.rotorInducedVelocityMetersPerSecond();
 			for (int i = 0; i < samples.length; i++) {
 				RotorStaticCtCpModel.StaticRotorSample sample = samples[i];

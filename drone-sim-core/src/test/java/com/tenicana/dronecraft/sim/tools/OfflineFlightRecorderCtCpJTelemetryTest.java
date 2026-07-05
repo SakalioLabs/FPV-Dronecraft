@@ -105,12 +105,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			double blocked = Double.parseDouble(row[blockedIndex]);
 			double clamped = Double.parseDouble(row[clampedIndex]);
 			double staticAvailable = Double.parseDouble(row[staticAvailableIndex]);
+			double rpm = Double.parseDouble(row[motorRpmIndex]);
+			double omega = rpm * 2.0 * Math.PI / 60.0;
+			double aerodynamicPower = Double.parseDouble(row[motorAerodynamicTorqueIndex]) * omega;
 			if (runtimeValid > 0.0 || rotorRuntimeValid > 0.0) {
 				sawRuntimeCoefficientState = true;
-				double rpm = Double.parseDouble(row[motorRpmIndex]);
 				double thrust = Double.parseDouble(row[rotorThrustIndex]);
-				double omega = rpm * 2.0 * Math.PI / 60.0;
-				double aerodynamicPower = Double.parseDouble(row[motorAerodynamicTorqueIndex]) * omega;
 				double propellerJ = Double.parseDouble(row[rotorPropellerJIndex]);
 				double runtimeCt = Double.parseDouble(row[rotorRuntimeCtIndex]);
 				double runtimeCp = Double.parseDouble(row[rotorRuntimeCpIndex]);
@@ -171,6 +171,11 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorPowerIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorThrustResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorPowerResidualIndex])));
+				assertEquals(
+						aerodynamicPower - Double.parseDouble(row[rotorPowerIndex]),
+						Double.parseDouble(row[rotorPowerResidualIndex]),
+						2.0e-3
+				);
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorTorqueResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorThrustRatioIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorTorqueRatioIndex])));
@@ -186,6 +191,11 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.parseDouble(row[rotorStaticMomentumRatioIndex]) > 0.0);
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticThrustResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticPowerResidualIndex])));
+				assertEquals(
+						aerodynamicPower - staticPower,
+						Double.parseDouble(row[rotorStaticPowerResidualIndex]),
+						2.0e-3
+				);
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticTorqueResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticInducedVelocityResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticThrustRatioIndex])));

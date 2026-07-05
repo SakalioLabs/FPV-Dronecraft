@@ -1784,8 +1784,8 @@ public final class DroneState {
 		double referencePower = rotorCtCpJReferenceShaftPowerWatts[index];
 		double referenceTorque = rotorCtCpJReferenceShaftTorqueNewtonMeters[index];
 		double actualThrust = rotorThrustNewtons[index];
-		double actualPower = motorShaftPowerWatts[index];
 		double actualTorque = Math.abs(motorAerodynamicTorqueNewtonMeters[index]);
+		double actualPower = actualTorque * Math.max(0.0, motorOmegaRadiansPerSecond[index]);
 		rotorCtCpJReferenceThrustResidualNewtons[index] = finiteOrZero(actualThrust - referenceThrust);
 		rotorCtCpJReferenceShaftPowerResidualWatts[index] = finiteOrZero(actualPower - referencePower);
 		rotorCtCpJReferenceShaftTorqueResidualNewtonMeters[index] = finiteOrZero(actualTorque - referenceTorque);
