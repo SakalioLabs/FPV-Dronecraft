@@ -34,6 +34,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.026705995970315, sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(0.000172569682049040, sample.shaftTorqueNewtonMeters(), 1.0e-18);
 		assertEquals(0.881858670062071, sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
 	}
 
 	@Test
@@ -61,6 +62,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(1.0985575597709705, sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(0.0022262087016841664, sample.shaftTorqueNewtonMeters(), 1.0e-18);
 		assertFinitePositive(sample);
+		assertEquals(expectedAxialMomentumInducedVelocity(sample),
+				sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.idealMomentumPowerWatts() / sample.shaftPowerWatts(),
+				sample.idealMomentumPowerOverShaftPower(), 1.0e-15);
+		assertTrue(sample.idealMomentumPowerOverShaftPower() > 0.90);
 
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dense =
 				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(
@@ -70,6 +77,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(sample.shaftTorqueNewtonMeters() * 2.0, dense.shaftTorqueNewtonMeters(), 1.0e-18);
 		assertEquals(sample.idealInducedVelocityMetersPerSecond(),
 				dense.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.idealMomentumPowerWatts() * 2.0,
+				dense.idealMomentumPowerWatts(), 1.0e-15);
 
 		double diameterScale = 1.10;
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample larger =
@@ -81,6 +90,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.shaftPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters() * Math.pow(diameterScale, 5.0),
 				larger.shaftTorqueNewtonMeters(), 1.0e-17);
+		assertEquals(sample.idealInducedVelocityMetersPerSecond() * diameterScale,
+				larger.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.idealMomentumPowerWatts() * Math.pow(diameterScale, 5.0),
+				larger.idealMomentumPowerWatts(), 1.0e-15);
 	}
 
 	@Test
@@ -118,6 +131,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(expectedShaftPower(high, diameter, RHO), sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts() / sample.angularVelocityRadiansPerSecond(),
 				sample.shaftTorqueNewtonMeters(), 1.0e-18);
+		assertEquals(expectedAxialMomentumInducedVelocity(sample),
+				sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
+		assertTrue(sample.idealMomentumPowerOverShaftPower() > 1.0);
 	}
 
 	@Test
@@ -199,6 +216,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertFinitePositive(sample);
 		assertEquals(expectedThrust(lookup, diameter, RHO), sample.thrustNewtons(), 1.0e-12);
 		assertEquals(expectedShaftPower(lookup, diameter, RHO), sample.shaftPowerWatts(), 1.0e-12);
+		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-12);
 	}
 
 	@Test
@@ -324,6 +342,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
 		assertEquals(expectedThrust(clamped, diameter, RHO), sample.thrustNewtons(), 1.0e-15);
 		assertEquals(expectedShaftPower(clamped, diameter, RHO), sample.shaftPowerWatts(), 1.0e-15);
+		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
 		assertTrue(sample.thrustNewtons()
 				< PropellerArchiveCtCpJLookupEvaluator.sampleRotor(high).thrustNewtons());
 	}
@@ -369,6 +388,23 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 	) {
 		double n = lookup.effectiveRpm() / 60.0;
 		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
+	}
+
+	private static double expectedAxialMomentumInducedVelocity(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		double axialAdvanceSpeed = Math.max(0.0, sample.axialAdvanceSpeedMetersPerSecond());
+		double diskTerm = 2.0 * sample.thrustNewtons()
+				/ (sample.airDensityKgPerCubicMeter() * sample.diskAreaSquareMeters());
+		return 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed + diskTerm) - axialAdvanceSpeed);
+	}
+
+	private static double expectedIdealMomentumPower(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return sample.thrustNewtons()
+				* (Math.max(0.0, sample.axialAdvanceSpeedMetersPerSecond())
+				+ expectedAxialMomentumInducedVelocity(sample));
 	}
 
 	private static void assertFinitePositive(

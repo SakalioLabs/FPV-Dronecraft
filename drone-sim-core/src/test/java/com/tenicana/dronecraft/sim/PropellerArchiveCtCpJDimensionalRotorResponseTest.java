@@ -41,7 +41,8 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 		assertEquals(1.0985575597709705, summary.maxShaftPowerWatts(), 1.0e-15);
 		assertEquals(0.0022262087016841664, summary.maxShaftTorqueNewtonMeters(), 1.0e-18);
 		assertEquals(15.05417563905381, summary.maxDiskLoadingNewtonsPerSquareMeter(), 1.0e-14);
-		assertEquals(2.478822600616689, summary.maxIdealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(scenario("synthetic_mid_bilinear_pass").idealInducedVelocityMetersPerSecond(),
+				summary.maxIdealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(4.1346110856, summary.maxAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
 		assertEquals(0.1287827767456875, summary.maxTotalThrustToWeightRatio(), 1.0e-15);
 		assertEquals(2, summary.archiveCurveShapeGuardInheritedReadyCount());
@@ -76,6 +77,11 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 				PropellerArchiveCtCpJDimensionalRotorResponse.rule("propeller_coefficient_equations");
 		assertTrue(formula.requirement().contains("T=CT"));
 		assertEquals("verify-dimensioned-propeller-coefficient-closure", formula.nextRequiredAction());
+
+		PropellerArchiveCtCpJDimensionalRotorResponse.DimensionalResponseRule momentum =
+				PropellerArchiveCtCpJDimensionalRotorResponse.rule("momentum_induced_velocity_reference");
+		assertTrue(momentum.requirement().contains("axial actuator-disk"));
+		assertTrue(momentum.requirement().contains("static hover"));
 
 		PropellerArchiveCtCpJDimensionalRotorResponse.DimensionalResponseRule runtime =
 				PropellerArchiveCtCpJDimensionalRotorResponse.rule("runtime_leak_guard");
@@ -124,9 +130,12 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 		assertEquals(0.0022262087016841664, mid.shaftTorqueNewtonMeters(), 1.0e-18);
 		assertEquals(0.013179461531325914, mid.diskAreaSquareMeters(), 1.0e-18);
 		assertEquals(15.05417563905381, mid.diskLoadingNewtonsPerSquareMeter(), 1.0e-14);
-		assertEquals(2.478822600616689, mid.idealInducedVelocityMetersPerSecond(), 1.0e-15);
-		assertEquals(0.49181310020929786, mid.idealMomentumPowerWatts(), 1.0e-15);
-		assertEquals(0.4476898782725887, mid.idealMomentumPowerOverShaftPower(), 1.0e-15);
+		assertEquals(expectedAxialMomentumInducedVelocity(mid),
+				mid.idealInducedVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(expectedIdealMomentumPower(mid), mid.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(mid.idealMomentumPowerWatts() / mid.shaftPowerWatts(),
+				mid.idealMomentumPowerOverShaftPower(), 1.0e-15);
+		assertTrue(mid.idealMomentumPowerOverShaftPower() > 0.90);
 		assertTrue(mid.archiveCurveShapeGuardInherited());
 		assertEquals(9, mid.negativeThrustTailExecutionInputRowCount());
 		assertTrue(mid.archiveCurveEtaFormulaResidual()
@@ -241,6 +250,23 @@ class PropellerArchiveCtCpJDimensionalRotorResponseTest {
 				.findFirst()
 				.orElseThrow()
 				.response();
+	}
+
+	private static double expectedAxialMomentumInducedVelocity(
+			PropellerArchiveCtCpJDimensionalRotorResponse.RotorDimensionalResponse response
+	) {
+		double axialAdvanceSpeed = Math.max(0.0, response.axialAdvanceSpeedMetersPerSecond());
+		double diskTerm = 2.0 * response.thrustNewtons()
+				/ (response.airDensityKgPerCubicMeter() * response.diskAreaSquareMeters());
+		return 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed + diskTerm) - axialAdvanceSpeed);
+	}
+
+	private static double expectedIdealMomentumPower(
+			PropellerArchiveCtCpJDimensionalRotorResponse.RotorDimensionalResponse response
+	) {
+		return response.thrustNewtons()
+				* (Math.max(0.0, response.axialAdvanceSpeedMetersPerSecond())
+				+ expectedAxialMomentumInducedVelocity(response));
 	}
 
 	private static Path findRepoRoot() {

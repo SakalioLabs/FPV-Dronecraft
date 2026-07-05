@@ -409,10 +409,11 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				* Math.pow(propellerDiameterMeters, 5.0);
 		double torque = omega > EPSILON ? shaftPower / omega : 0.0;
 		double diskLoading = diskArea > EPSILON ? thrust / diskArea : 0.0;
-		double inducedVelocity = thrust > EPSILON && diskArea > EPSILON
-				? Math.sqrt(thrust / (2.0 * airDensityKgPerCubicMeter * diskArea))
+		double inducedVelocity = axialMomentumInducedVelocity(
+				thrust, airDensityKgPerCubicMeter, diskArea, advanceSpeed);
+		double idealMomentumPower = thrust > EPSILON
+				? thrust * (Math.max(0.0, advanceSpeed) + inducedVelocity)
 				: 0.0;
-		double idealMomentumPower = thrust * inducedVelocity;
 		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
 		return new RotorDimensionalSample(
 				lookup,
@@ -688,6 +689,24 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			return 0.0;
 		}
 		return j * ct / cp;
+	}
+
+	private static double axialMomentumInducedVelocity(
+			double thrustNewtons,
+			double airDensityKgPerCubicMeter,
+			double diskAreaSquareMeters,
+			double axialAdvanceSpeedMetersPerSecond
+	) {
+		if (thrustNewtons <= EPSILON
+				|| airDensityKgPerCubicMeter <= EPSILON
+				|| diskAreaSquareMeters <= EPSILON) {
+			return 0.0;
+		}
+		double axialAdvanceSpeed = Double.isFinite(axialAdvanceSpeedMetersPerSecond)
+				? Math.max(0.0, axialAdvanceSpeedMetersPerSecond)
+				: 0.0;
+		double diskTerm = 2.0 * thrustNewtons / (airDensityKgPerCubicMeter * diskAreaSquareMeters);
+		return 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed + diskTerm) - axialAdvanceSpeed);
 	}
 
 	private static double ratio(double numerator, double denominator) {

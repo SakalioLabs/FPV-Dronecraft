@@ -40,7 +40,7 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 					"shaft torque is P divided by rotor angular speed",
 					"verify-power-torque-closure-before-motor-fit"),
 			new DimensionalResponseRule("momentum_induced_velocity_reference", true, false, true,
-					"ideal induced velocity is sqrt(T/(2*rho*A)) for positive accepted thrust",
+					"ideal induced velocity uses the positive-thrust axial actuator-disk solution and reduces to sqrt(T/(2*rho*A)) at static hover",
 					"compare-against-openfoam-induced-wake-evidence"),
 			new DimensionalResponseRule("runtime_leak_guard", true, true, true,
 					"dimensional responses cannot directly change DronePhysics or presets",
@@ -228,10 +228,11 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 				* Math.pow(diameter, 5.0);
 		double shaftTorque = angularVelocity > EPSILON ? shaftPower / angularVelocity : 0.0;
 		double diskLoading = diskArea > EPSILON ? thrust / diskArea : 0.0;
-		double inducedVelocity = thrust > EPSILON && diskArea > EPSILON
-				? Math.sqrt(thrust / (2.0 * airDensityKgPerCubicMeter * diskArea))
+		double inducedVelocity = axialMomentumInducedVelocity(
+				thrust, airDensityKgPerCubicMeter, diskArea, advanceSpeed);
+		double idealMomentumPower = thrust > EPSILON
+				? thrust * (Math.max(0.0, advanceSpeed) + inducedVelocity)
 				: 0.0;
-		double idealMomentumPower = thrust * inducedVelocity;
 		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
 		double thrustToWeight = ratio(thrust * config.rotors().size(),
 				config.massKg() * config.gravityMetersPerSecondSquared());
@@ -405,6 +406,24 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			case "heavyLift" -> DroneConfig.heavyLift();
 			default -> throw new IllegalArgumentException("unknown DroneConfig preset: " + presetName);
 		};
+	}
+
+	private static double axialMomentumInducedVelocity(
+			double thrustNewtons,
+			double airDensityKgPerCubicMeter,
+			double diskAreaSquareMeters,
+			double axialAdvanceSpeedMetersPerSecond
+	) {
+		if (thrustNewtons <= EPSILON
+				|| airDensityKgPerCubicMeter <= EPSILON
+				|| diskAreaSquareMeters <= EPSILON) {
+			return 0.0;
+		}
+		double axialAdvanceSpeed = Double.isFinite(axialAdvanceSpeedMetersPerSecond)
+				? Math.max(0.0, axialAdvanceSpeedMetersPerSecond)
+				: 0.0;
+		double diskTerm = 2.0 * thrustNewtons / (airDensityKgPerCubicMeter * diskAreaSquareMeters);
+		return 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed + diskTerm) - axialAdvanceSpeed);
 	}
 
 	private static double ratio(double numerator, double denominator) {
