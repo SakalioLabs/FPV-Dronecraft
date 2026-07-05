@@ -2899,7 +2899,7 @@ public final class DronePhysics {
 	private static boolean ctCpJRuntimeSampleAccepted(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample
 	) {
-		return sample != null && !sample.blocked() && !sample.clamped();
+		return sample != null && sample.runtimeForceReplacementAccepted();
 	}
 
 	private static double finiteOrDefault(double value, double defaultValue) {

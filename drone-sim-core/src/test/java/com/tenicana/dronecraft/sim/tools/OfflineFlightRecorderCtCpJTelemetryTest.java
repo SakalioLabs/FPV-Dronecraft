@@ -45,7 +45,11 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int availableIndex = column(header, "rotor_ctcpj_ref_available");
 		int blockedIndex = column(header, "rotor_ctcpj_ref_blocked");
 		int clampedIndex = column(header, "rotor_ctcpj_ref_clamped");
+		int appliedIndex = column(header, "rotor_ctcpj_ref_runtime_applied");
 		int referenceRpmIndex = column(header, "rotor_ctcpj_ref_rpm");
+		int rotorAvailableIndex = column(header, "rotor_0_ctcpj_ref_available");
+		int rotorClampedIndex = column(header, "rotor_0_ctcpj_ref_clamped");
+		int rotorAppliedIndex = column(header, "rotor_0_ctcpj_ref_runtime_applied");
 		int rotorStatusIndex = column(header, "rotor_0_ctcpj_ref_status");
 		int rotorLookupStatusIndex = column(header, "rotor_0_ctcpj_ref_lookup_status");
 		int rotorJIndex = column(header, "rotor_0_ctcpj_ref_j");
@@ -80,6 +84,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				"rotor_7_ctcpj_runtime_ideal_momentum_power_over_shaft_power"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_runtime_applied"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_lookup_status"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_thrust_residual_n"));
@@ -104,6 +109,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			double available = Double.parseDouble(row[availableIndex]);
 			double blocked = Double.parseDouble(row[blockedIndex]);
 			double clamped = Double.parseDouble(row[clampedIndex]);
+			double applied = Double.parseDouble(row[appliedIndex]);
+			double rotorAvailable = Double.parseDouble(row[rotorAvailableIndex]);
+			double rotorClamped = Double.parseDouble(row[rotorClampedIndex]);
+			double rotorApplied = Double.parseDouble(row[rotorAppliedIndex]);
 			double staticAvailable = Double.parseDouble(row[staticAvailableIndex]);
 			double rpm = Double.parseDouble(row[motorRpmIndex]);
 			double omega = rpm * 2.0 * Math.PI / 60.0;
@@ -146,6 +155,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			}
 			if (available > 0.0 || blocked > 0.0 || clamped > 0.0) {
 				sawReferenceState = true;
+				assertTrue(applied <= available);
+				assertTrue(rotorApplied <= rotorAvailable);
+				if (rotorClamped > 0.0) {
+					assertEquals(0.0, rotorApplied, 1.0e-12);
+				} else if (rotorAvailable > 0.0) {
+					assertEquals(1.0, rotorApplied, 1.0e-12);
+				}
 				double referenceRpm = Double.parseDouble(row[referenceRpmIndex]);
 				double rotorRpm = Double.parseDouble(row[rotorRpmIndex]);
 				double lookupStatus = Double.parseDouble(row[rotorLookupStatusIndex]);
@@ -247,6 +263,15 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(report.ctCpJReferenceCoverageFraction() <= 1.0);
 		assertTrue(report.ctCpJReferenceAvailableRotorSampleCount() > 0);
 		assertEquals(0, report.ctCpJReferenceBlockedRotorSampleCount());
+		assertEquals(
+				report.ctCpJReferenceAvailableRotorSampleCount(),
+				report.ctCpJReferenceRuntimeAppliedRotorSampleCount()
+						+ report.ctCpJReferenceClampedRotorSampleCount()
+		);
+		assertTrue(report.ctCpJReferenceRuntimeAppliedRotorSampleCount() > 0);
+		assertTrue(report.ctCpJReferenceRuntimeAppliedCoverageFraction() > 0.0);
+		assertTrue(report.ctCpJReferenceRuntimeAppliedCoverageFraction()
+				<= report.ctCpJReferenceCoverageFraction());
 		assertTrue(report.ctCpJReferenceClampedRotorSampleCount()
 				<= report.ctCpJReferenceAvailableRotorSampleCount());
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsThrustResidualNewtons()));

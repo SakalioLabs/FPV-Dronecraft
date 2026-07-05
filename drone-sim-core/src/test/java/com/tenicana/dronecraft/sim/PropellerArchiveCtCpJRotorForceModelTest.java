@@ -37,6 +37,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 
 		assertFalse(sample.blocked());
 		assertFalse(sample.clamped());
+		assertTrue(sample.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
 				sample.lookup().interpolationStatus());
 		assertEquals(dimensionalReference.thrustNewtons(), sample.thrustNewtons(), 1.0e-15);
@@ -76,6 +77,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				);
 
 		assertFalse(sample.blocked());
+		assertTrue(sample.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BILINEAR,
 				sample.lookup().interpolationStatus());
 		assertEquals(reference.advanceRatioJ(), sample.query().advanceRatioJ(), 1.0e-12);
@@ -93,6 +95,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample high = sampleReferenceCase(rotor, "high_domain_max_rpm");
 
 		assertFalse(high.blocked());
+		assertTrue(high.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.LINEAR_ADVANCE,
 				high.lookup().interpolationStatus());
 		assertTrue(high.lookup().thrustCoefficientCt() < mid.lookup().thrustCoefficientCt());
@@ -129,6 +132,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 
 		assertTrue(blocked.blocked());
 		assertFalse(blocked.clamped());
+		assertFalse(blocked.runtimeForceReplacementAccepted());
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.lookup().status());
 		assertEquals(0.0, blocked.thrustNewtons(), 1.0e-15);
 		assertEquals(0.0, blocked.shaftPowerWatts(), 1.0e-15);

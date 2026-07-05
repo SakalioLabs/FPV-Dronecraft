@@ -1172,6 +1172,7 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "available");
 		appendCtCpJReferenceColumnFamily(builder, "blocked");
 		appendCtCpJReferenceColumnFamily(builder, "clamped");
+		appendCtCpJReferenceColumnFamily(builder, "runtime_applied");
 		appendCtCpJReferencePerRotorColumns(builder, "status");
 		appendCtCpJReferencePerRotorColumns(builder, "lookup_status");
 		appendCtCpJReferenceColumnFamily(builder, "j");
@@ -1637,12 +1638,14 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"CTCPJ reference: samples=%d available=%d blocked=%d clamped=%d coverage=%.3f mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
+				"CTCPJ reference: samples=%d available=%d applied=%d blocked=%d clamped=%d coverage=%.3f applied_coverage=%.3f mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
 				report.ctCpJReferenceRotorSampleCount(),
 				report.ctCpJReferenceAvailableRotorSampleCount(),
+				report.ctCpJReferenceRuntimeAppliedRotorSampleCount(),
 				report.ctCpJReferenceBlockedRotorSampleCount(),
 				report.ctCpJReferenceClampedRotorSampleCount(),
 				report.ctCpJReferenceCoverageFraction(),
+				report.ctCpJReferenceRuntimeAppliedCoverageFraction(),
 				report.meanCtCpJReferenceAbsThrustResidualNewtons(),
 				report.meanCtCpJReferenceAbsPowerResidualWatts(),
 				report.meanCtCpJReferenceAbsTorqueResidualNewtonMeters(),
@@ -4436,6 +4439,7 @@ public final class OfflineFlightRecorder {
 				rotorCtCpJReferenceBlocked
 		);
 		boolean[] rotorCtCpJReferenceClamped = state.rotorCtCpJReferenceClamped();
+		boolean[] rotorCtCpJReferenceRuntimeApplied = state.rotorCtCpJReferenceRuntimeApplied();
 		double[] rotorCtCpJReferenceAdvanceRatioJ = state.rotorCtCpJReferenceAdvanceRatioJ();
 		double[] rotorCtCpJReferenceRpm = state.rotorCtCpJReferenceRpm();
 		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
@@ -4734,6 +4738,7 @@ public final class OfflineFlightRecorder {
 		appendBooleanFamily(builder, rotorCtCpJReferenceAvailable);
 		appendBooleanFamily(builder, rotorCtCpJReferenceBlocked);
 		appendBooleanFamily(builder, rotorCtCpJReferenceClamped);
+		appendBooleanFamily(builder, rotorCtCpJReferenceRuntimeApplied);
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, i < state.motorCount() ? state.rotorCtCpJReferenceInterpolationStatus(i).ordinal() : 0);
 		}
@@ -5519,6 +5524,7 @@ public final class OfflineFlightRecorder {
 		private double maxEscTemperatureCelsius;
 		private double minEscThermalLimit = 1.0;
 		private int ctCpJReferenceAvailableRotorSampleCount;
+		private int ctCpJReferenceRuntimeAppliedRotorSampleCount;
 		private int ctCpJReferenceBlockedRotorSampleCount;
 		private int ctCpJReferenceClampedRotorSampleCount;
 		private int ctCpJReferenceRotorSampleCount;
@@ -5811,6 +5817,7 @@ public final class OfflineFlightRecorder {
 			boolean[] available = state.rotorCtCpJReferenceAvailable();
 			boolean[] blocked = state.rotorCtCpJReferenceBlocked();
 			boolean[] clamped = state.rotorCtCpJReferenceClamped();
+			boolean[] runtimeApplied = state.rotorCtCpJReferenceRuntimeApplied();
 			double[] actualThrust = state.rotorThrustNewtons();
 			double[] actualTorque = state.motorAerodynamicTorqueNewtonMeters();
 			double[] actualPower = rotorAerodynamicShaftPowerWatts(actualTorque, state.motorRpm());
@@ -5833,6 +5840,9 @@ public final class OfflineFlightRecorder {
 					continue;
 				}
 				ctCpJReferenceAvailableRotorSampleCount++;
+				if (valueOrFalse(runtimeApplied, i)) {
+					ctCpJReferenceRuntimeAppliedRotorSampleCount++;
+				}
 				double thrustResidual = Math.abs(valueOrZero(actualThrust, i) - valueOrZero(referenceThrust, i));
 				double powerResidual = Math.abs(valueOrZero(actualPower, i) - valueOrZero(referencePower, i));
 				double torqueResidual = Math.abs(valueOrZero(actualTorque, i) - valueOrZero(referenceTorque, i));
@@ -5970,6 +5980,10 @@ public final class OfflineFlightRecorder {
 			return ctCpJReferenceAvailableRotorSampleCount;
 		}
 
+		public int ctCpJReferenceRuntimeAppliedRotorSampleCount() {
+			return ctCpJReferenceRuntimeAppliedRotorSampleCount;
+		}
+
 		public int ctCpJReferenceBlockedRotorSampleCount() {
 			return ctCpJReferenceBlockedRotorSampleCount;
 		}
@@ -5982,6 +5996,12 @@ public final class OfflineFlightRecorder {
 			return ctCpJReferenceRotorSampleCount == 0
 					? 0.0
 					: (double) ctCpJReferenceAvailableRotorSampleCount / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double ctCpJReferenceRuntimeAppliedCoverageFraction() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: (double) ctCpJReferenceRuntimeAppliedRotorSampleCount / ctCpJReferenceRotorSampleCount;
 		}
 
 		public double meanCtCpJReferenceAbsThrustResidualNewtons() {

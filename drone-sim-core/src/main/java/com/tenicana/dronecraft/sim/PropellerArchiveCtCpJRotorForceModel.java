@@ -75,6 +75,10 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return lookup.clamped();
 		}
 
+		public boolean runtimeForceReplacementAccepted() {
+			return !blocked() && !clamped();
+		}
+
 		public double thrustNewtons() {
 			return dimensionalSample.thrustNewtons();
 		}
