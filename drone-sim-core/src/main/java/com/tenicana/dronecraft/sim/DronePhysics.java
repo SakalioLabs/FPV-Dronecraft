@@ -1299,12 +1299,14 @@ public final class DronePhysics {
 			state.setRotorPropellerThrustScale(i, propellerThrustScale);
 			double propellerPowerScale = rotorForwardAdvancePowerScale(aerodynamicRotor, aerodynamicAdvanceRatio);
 			state.setRotorPropellerPowerScale(i, propellerPowerScale);
-			state.setRotorCtCpJReferenceSample(i, sampleRotorCtCpJReference(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample ctCpJReferenceSample =
+					sampleRotorCtCpJReference(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
 					airDensity
-			));
+			);
+			state.setRotorCtCpJReferenceSample(i, ctCpJReferenceSample);
 			state.setRotorAxialGustThrustScale(i, rotorAxialGustThrustScale(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
@@ -1385,7 +1387,13 @@ public final class DronePhysics {
 					* wetThrustScale
 					* icingThrustScale
 					* rotorHealthThrustScale(state.rotorHealth(i));
-			double baseThrust = rotor.thrustCoefficient() * aerodynamicOmega * aerodynamicOmega * thrustScale;
+			double fallbackBaseThrust = rotor.thrustCoefficient() * aerodynamicOmega * aerodynamicOmega * thrustScale;
+			double baseThrust = rotorCtCpJRuntimeBaseThrustNewtons(
+					ctCpJReferenceSample,
+					fallbackBaseThrust,
+					thrustScale,
+					airDensity
+			);
 			double inflowLagScale = updateRotorInducedInflow(i, rotor, rotorRelativeAirVelocityBody, aerodynamicOmega, baseThrust, airDensity, dtSeconds);
 			double rotorAirflowScale = rotorAirflowThrustMultiplier(
 					aerodynamicRotor,
@@ -1619,17 +1627,27 @@ public final class DronePhysics {
 			Vec3 torqueFromArm = rotorArmBody.cross(forceBody);
 			double reactionTorqueScale = rotorReactionTorqueScale(aerodynamicLoadFactor, rotorStall, vortexRingState);
 			double propellerTorquePerThrustScale = rotorForwardAdvanceTorquePerThrustScale(aerodynamicRotor, aerodynamicAdvanceRatio);
-			double rawMotorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
+			double inPlaneDragShaftTorque = rotorInPlaneDragShaftTorque(
+					aerodynamicRotor,
+					rotorRelativeAirVelocityBody,
+					inPlaneDragBody,
+					aerodynamicOmega
+			);
+			double fallbackRawMotorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
 					* thrust
 					* reactionTorqueScale
 					* compressibilityReactionTorqueScale
 					* propellerTorquePerThrustScale
-					+ rotorInPlaneDragShaftTorque(
-							aerodynamicRotor,
-							rotorRelativeAirVelocityBody,
-							inPlaneDragBody,
-							aerodynamicOmega
-					);
+					+ inPlaneDragShaftTorque;
+			double rawMotorAerodynamicTorque = rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+					ctCpJReferenceSample,
+					fallbackRawMotorAerodynamicTorque,
+					reactionTorqueScale,
+					compressibilityReactionTorqueScale,
+					inPlaneDragShaftTorque,
+					thrustScale,
+					airDensity
+			);
 			double motorAerodynamicTorque = rawMotorAerodynamicTorque * coaxialAllocationMechanicalPowerScale(i) * icingPowerScale;
 			state.setMotorAerodynamicTorqueNewtonMeters(i, motorAerodynamicTorque);
 			state.setMotorShaftPowerWatts(
@@ -2837,6 +2855,59 @@ public final class DronePhysics {
 				density,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 		);
+	}
+
+	static double rotorCtCpJRuntimeBaseThrustNewtons(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double fallbackBaseThrustNewtons,
+			double thrustScale,
+			double airDensityRatio
+	) {
+		if (!ctCpJRuntimeSampleAccepted(sample)) {
+			return finiteNonnegative(fallbackBaseThrustNewtons);
+		}
+		double densityScale = Math.max(0.20, Double.isFinite(airDensityRatio) ? airDensityRatio : 1.0);
+		double nonDensityScale = Double.isFinite(thrustScale) ? thrustScale / densityScale : 1.0;
+		return finiteNonnegative(sample.thrustNewtons() * MathUtil.clamp(nonDensityScale, 0.0, 4.0));
+	}
+
+	static double rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double fallbackRawTorqueNewtonMeters,
+			double reactionTorqueScale,
+			double compressibilityReactionTorqueScale,
+			double inPlaneDragShaftTorqueNewtonMeters,
+			double thrustScale,
+			double airDensityRatio
+	) {
+		if (!ctCpJRuntimeSampleAccepted(sample)) {
+			return finiteNonnegative(fallbackRawTorqueNewtonMeters);
+		}
+		double densityScale = Math.max(0.20, Double.isFinite(airDensityRatio) ? airDensityRatio : 1.0);
+		double nonDensityScale = Double.isFinite(thrustScale) ? thrustScale / densityScale : 1.0;
+		double loadScale = MathUtil.clamp(
+				finiteOrDefault(reactionTorqueScale, 1.0)
+						* finiteOrDefault(compressibilityReactionTorqueScale, 1.0)
+						* MathUtil.clamp(nonDensityScale, 0.0, 4.0),
+				0.0,
+				4.0
+		);
+		return finiteNonnegative(sample.shaftTorqueNewtonMeters() * loadScale)
+				+ finiteNonnegative(inPlaneDragShaftTorqueNewtonMeters);
+	}
+
+	private static boolean ctCpJRuntimeSampleAccepted(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample
+	) {
+		return sample != null && !sample.blocked();
+	}
+
+	private static double finiteOrDefault(double value, double defaultValue) {
+		return Double.isFinite(value) ? value : defaultValue;
+	}
+
+	private static double finiteNonnegative(double value) {
+		return Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
 	}
 
 	private static boolean isApDroneCtCpJReferenceRotor(RotorSpec rotor) {

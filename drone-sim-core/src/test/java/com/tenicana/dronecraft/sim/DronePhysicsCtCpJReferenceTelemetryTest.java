@@ -99,6 +99,58 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedReferenceSampleAnchorsRuntimeBaseThrustAndTorque() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+
+		assertNotNull(sample);
+		double fallbackThrust = rotor.thrustCoefficient() * omega * omega;
+		assertEquals(sample.thrustNewtons(), DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
+				sample, fallbackThrust, 1.0, 1.0), 1.0e-15);
+		assertEquals(sample.thrustNewtons() * 0.72, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
+				sample, fallbackThrust, 0.72, 1.0), 1.0e-15);
+
+		double fallbackTorque = rotor.yawTorquePerThrustMeter() * fallbackThrust;
+		assertEquals(sample.shaftTorqueNewtonMeters() * 0.99 + 0.0003,
+				DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+						sample,
+						fallbackTorque,
+						1.1,
+						0.9,
+						0.0003,
+						1.0,
+						1.0
+				),
+				1.0e-18);
+		assertEquals(sample.shaftTorqueNewtonMeters() * 0.99 * 0.72 + 0.0003,
+				DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+						sample,
+						fallbackTorque,
+						1.1,
+						0.9,
+						0.0003,
+						0.72,
+						1.0
+				),
+				1.0e-18);
+	}
+
+	@Test
 	void outOfEnvelopeRuntimeReferenceSampleIsExplicitlyBlocked() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
@@ -135,5 +187,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceClamped(0));
 		assertEquals(queryJ, state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
+
+		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
+				sample, 0.42, 1.0, 1.0), 1.0e-15);
+		assertEquals(0.031, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+				sample, 0.031, 1.0, 1.0, 0.0002, 1.0, 1.0), 1.0e-15);
 	}
 }
