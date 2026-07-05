@@ -42,10 +42,19 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int staticAvailableIndex = column(header, "rotor_ctcpj_static_ref_available");
 		int rotorStaticCtIndex = column(header, "rotor_0_ctcpj_static_ref_ct");
 		int rotorStaticPowerIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_power_w");
+		int rotorStaticDiskLoadingIndex = column(header, "rotor_0_ctcpj_static_ref_disk_loading_n_m2");
+		int rotorStaticInducedVelocityIndex = column(header,
+				"rotor_0_ctcpj_static_ref_ideal_induced_velocity_mps");
+		int rotorStaticMomentumRatioIndex = column(header,
+				"rotor_0_ctcpj_static_ref_ideal_momentum_power_over_shaft_power");
 		int rotorStaticThrustResidualIndex = column(header, "rotor_0_ctcpj_static_ref_thrust_residual_n");
 		int rotorStaticPowerResidualIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_power_residual_w");
 		int rotorStaticTorqueResidualIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_torque_residual_nm");
+		int rotorStaticInducedVelocityResidualIndex = column(header,
+				"rotor_0_ctcpj_static_ref_induced_velocity_residual_mps");
 		int rotorStaticThrustRatioIndex = column(header, "rotor_0_ctcpj_static_ref_thrust_ratio");
+		int rotorStaticInducedVelocityRatioIndex = column(header,
+				"rotor_0_ctcpj_static_ref_induced_velocity_ratio");
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
@@ -56,6 +65,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_thrust_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_shaft_torque_ratio"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_static_ref_ct"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_static_ref_ideal_induced_velocity_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_static_ref_shaft_torque_residual_nm"));
 
 		boolean sawReferenceState = false;
@@ -98,10 +109,15 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double staticPower = Double.parseDouble(row[rotorStaticPowerIndex]);
 				assertTrue(staticCt > 0.15 && staticCt < 0.17);
 				assertTrue(staticPower > 0.0);
+				assertTrue(Double.parseDouble(row[rotorStaticDiskLoadingIndex]) > 0.0);
+				assertTrue(Double.parseDouble(row[rotorStaticInducedVelocityIndex]) > 0.0);
+				assertTrue(Double.parseDouble(row[rotorStaticMomentumRatioIndex]) > 0.0);
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticThrustResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticPowerResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticTorqueResidualIndex])));
+				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticInducedVelocityResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticThrustRatioIndex])));
+				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStaticInducedVelocityRatioIndex])));
 			}
 		}
 		assertTrue(sawReferenceState, "apDrone trace should expose available or blocked CT/CP/J reference telemetry");
@@ -130,6 +146,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(report.maxCtCpJStaticReferenceAbsThrustResidualNewtons() > 0.0);
 		assertTrue(report.maxCtCpJStaticReferenceAbsPowerResidualWatts() > 0.0);
 		assertTrue(report.maxCtCpJStaticReferenceAbsTorqueResidualNewtonMeters() > 0.0);
+		assertTrue(Double.isFinite(report.meanCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond()));
+		assertTrue(Double.isFinite(report.maxCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond()));
+		assertTrue(Double.isFinite(report.meanCtCpJStaticReferenceIdealMomentumPowerOverShaftPower()));
+		assertTrue(Double.isFinite(report.maxCtCpJStaticReferenceIdealMomentumPowerOverShaftPower()));
+		assertTrue(report.maxCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond() > 0.0);
+		assertTrue(report.meanCtCpJStaticReferenceIdealMomentumPowerOverShaftPower() > 0.0);
 	}
 
 	private static int column(String[] header, String name) {

@@ -1186,11 +1186,17 @@ public final class OfflineFlightRecorder {
 		appendCtCpJStaticReferenceColumnFamily(builder, "thrust_n");
 		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_power_w");
 		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_nm");
+		appendCtCpJStaticReferenceColumnFamily(builder, "disk_loading_n_m2");
+		appendCtCpJStaticReferenceColumnFamily(builder, "ideal_induced_velocity_mps");
+		appendCtCpJStaticReferenceColumnFamily(builder, "ideal_momentum_power_w");
+		appendCtCpJStaticReferenceColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
 		appendCtCpJStaticReferenceColumnFamily(builder, "thrust_residual_n");
 		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_power_residual_w");
 		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_residual_nm");
+		appendCtCpJStaticReferenceColumnFamily(builder, "induced_velocity_residual_mps");
 		appendCtCpJStaticReferenceColumnFamily(builder, "thrust_ratio");
 		appendCtCpJStaticReferenceColumnFamily(builder, "shaft_torque_ratio");
+		appendCtCpJStaticReferenceColumnFamily(builder, "induced_velocity_ratio");
 		return builder.toString();
 	}
 
@@ -1631,14 +1637,18 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"Static CTCPJ shadow: samples=%d mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
+				"Static CTCPJ shadow: samples=%d mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm mean_vi_residual=%.4f m/s max_vi_residual=%.4f m/s momentum_ratio=%.4f/%.4f%n",
 				report.ctCpJStaticReferenceRotorSampleCount(),
 				report.meanCtCpJStaticReferenceAbsThrustResidualNewtons(),
 				report.meanCtCpJStaticReferenceAbsPowerResidualWatts(),
 				report.meanCtCpJStaticReferenceAbsTorqueResidualNewtonMeters(),
 				report.maxCtCpJStaticReferenceAbsThrustResidualNewtons(),
 				report.maxCtCpJStaticReferenceAbsPowerResidualWatts(),
-				report.maxCtCpJStaticReferenceAbsTorqueResidualNewtonMeters()
+				report.maxCtCpJStaticReferenceAbsTorqueResidualNewtonMeters(),
+				report.meanCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond(),
+				report.maxCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond(),
+				report.meanCtCpJStaticReferenceIdealMomentumPowerOverShaftPower(),
+				report.maxCtCpJStaticReferenceIdealMomentumPowerOverShaftPower()
 		);
 		System.out.printf(
 				Locale.ROOT,
@@ -4396,16 +4406,38 @@ public final class OfflineFlightRecorder {
 				rotorCtCpJStaticReference,
 				RotorStaticCtCpModel.StaticRotorSample::shaftTorqueNewtonMeters
 		);
+		double[] rotorCtCpJStaticReferenceDiskLoading = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::diskLoadingNewtonsPerSquareMeter
+		);
+		double[] rotorCtCpJStaticReferenceIdealInducedVelocity = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::idealInducedVelocityMetersPerSecond
+		);
+		double[] rotorCtCpJStaticReferenceIdealMomentumPower = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::idealMomentumPowerWatts
+		);
+		double[] rotorCtCpJStaticReferenceIdealMomentumOverShaftPower = rotorCtCpJStaticReferenceValues(
+				rotorCtCpJStaticReference,
+				RotorStaticCtCpModel.StaticRotorSample::idealMomentumPowerOverShaftPower
+		);
 		double[] rotorCtCpJStaticReferenceThrustResidual =
 				residuals(rotorThrust, rotorCtCpJStaticReferenceThrust);
 		double[] rotorCtCpJStaticReferencePowerResidual =
 				residuals(state.motorShaftPowerWatts(), rotorCtCpJStaticReferencePower);
 		double[] rotorCtCpJStaticReferenceTorqueResidual =
 				residuals(state.motorAerodynamicTorqueNewtonMeters(), rotorCtCpJStaticReferenceTorque);
+		double[] rotorCtCpJStaticReferenceInducedVelocityResidual =
+				residuals(state.rotorInducedVelocityMetersPerSecond(),
+						rotorCtCpJStaticReferenceIdealInducedVelocity);
 		double[] rotorCtCpJStaticReferenceThrustRatio =
 				ratios(rotorThrust, rotorCtCpJStaticReferenceThrust);
 		double[] rotorCtCpJStaticReferenceTorqueRatio =
 				ratios(state.motorAerodynamicTorqueNewtonMeters(), rotorCtCpJStaticReferenceTorque);
+		double[] rotorCtCpJStaticReferenceInducedVelocityRatio =
+				ratios(state.rotorInducedVelocityMetersPerSecond(),
+						rotorCtCpJStaticReferenceIdealInducedVelocity);
 		double[] rotorAxialGustThrustScale = state.rotorAxialGustThrustScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -4652,11 +4684,23 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceThrust, rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferencePower, rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceTorque, rotorCtCpJStaticReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceDiskLoading,
+				rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceIdealInducedVelocity,
+				rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceIdealMomentumPower,
+				rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceIdealMomentumOverShaftPower,
+				rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceThrustResidual, rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferencePowerResidual, rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceTorqueResidual, rotorCtCpJStaticReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceInducedVelocityResidual,
+				rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceThrustRatio, rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceTorqueRatio, rotorCtCpJStaticReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJStaticReferenceInducedVelocityRatio,
+				rotorCtCpJStaticReferenceAvailable, "%.5f");
 		appendExtra(builder, state.averageRotorAxialGustThrustScale(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorAxialGustThrustScale, i), "%.5f");
@@ -5244,6 +5288,10 @@ public final class OfflineFlightRecorder {
 		private double ctCpJStaticReferenceMaxAbsPowerResidualWatts;
 		private double ctCpJStaticReferenceAbsTorqueResidualSumNewtonMeters;
 		private double ctCpJStaticReferenceMaxAbsTorqueResidualNewtonMeters;
+		private double ctCpJStaticReferenceAbsInducedVelocityResidualSumMetersPerSecond;
+		private double ctCpJStaticReferenceMaxAbsInducedVelocityResidualMetersPerSecond;
+		private double ctCpJStaticReferenceIdealMomentumPowerOverShaftPowerSum;
+		private double ctCpJStaticReferenceMaxIdealMomentumPowerOverShaftPower;
 
 		private void record(DroneState state, DroneConfig config, DroneEnvironment environment) {
 			maxSpeedMetersPerSecond = Math.max(maxSpeedMetersPerSecond, state.speedMetersPerSecond());
@@ -5485,6 +5533,7 @@ public final class OfflineFlightRecorder {
 			double[] actualThrust = state.rotorThrustNewtons();
 			double[] actualPower = state.motorShaftPowerWatts();
 			double[] actualTorque = state.motorAerodynamicTorqueNewtonMeters();
+			double[] actualInducedVelocity = state.rotorInducedVelocityMetersPerSecond();
 			for (int i = 0; i < samples.length; i++) {
 				RotorStaticCtCpModel.StaticRotorSample sample = samples[i];
 				if (sample == null) {
@@ -5494,6 +5543,9 @@ public final class OfflineFlightRecorder {
 				double thrustResidual = Math.abs(valueOrZero(actualThrust, i) - sample.thrustNewtons());
 				double powerResidual = Math.abs(valueOrZero(actualPower, i) - sample.shaftPowerWatts());
 				double torqueResidual = Math.abs(valueOrZero(actualTorque, i) - sample.shaftTorqueNewtonMeters());
+				double inducedVelocityResidual = Math.abs(valueOrZero(actualInducedVelocity, i)
+						- sample.idealInducedVelocityMetersPerSecond());
+				double momentumRatio = sample.idealMomentumPowerOverShaftPower();
 				ctCpJStaticReferenceAbsThrustResidualSumNewtons += thrustResidual;
 				ctCpJStaticReferenceMaxAbsThrustResidualNewtons = Math.max(
 						ctCpJStaticReferenceMaxAbsThrustResidualNewtons,
@@ -5508,6 +5560,16 @@ public final class OfflineFlightRecorder {
 				ctCpJStaticReferenceMaxAbsTorqueResidualNewtonMeters = Math.max(
 						ctCpJStaticReferenceMaxAbsTorqueResidualNewtonMeters,
 						torqueResidual
+				);
+				ctCpJStaticReferenceAbsInducedVelocityResidualSumMetersPerSecond += inducedVelocityResidual;
+				ctCpJStaticReferenceMaxAbsInducedVelocityResidualMetersPerSecond = Math.max(
+						ctCpJStaticReferenceMaxAbsInducedVelocityResidualMetersPerSecond,
+						inducedVelocityResidual
+				);
+				ctCpJStaticReferenceIdealMomentumPowerOverShaftPowerSum += momentumRatio;
+				ctCpJStaticReferenceMaxIdealMomentumPowerOverShaftPower = Math.max(
+						ctCpJStaticReferenceMaxIdealMomentumPowerOverShaftPower,
+						momentumRatio
 				);
 			}
 		}
@@ -5646,6 +5708,28 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJStaticReferenceAbsTorqueResidualNewtonMeters() {
 			return ctCpJStaticReferenceMaxAbsTorqueResidualNewtonMeters;
+		}
+
+		public double meanCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond() {
+			return ctCpJStaticReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJStaticReferenceAbsInducedVelocityResidualSumMetersPerSecond
+							/ ctCpJStaticReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJStaticReferenceAbsInducedVelocityResidualMetersPerSecond() {
+			return ctCpJStaticReferenceMaxAbsInducedVelocityResidualMetersPerSecond;
+		}
+
+		public double meanCtCpJStaticReferenceIdealMomentumPowerOverShaftPower() {
+			return ctCpJStaticReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJStaticReferenceIdealMomentumPowerOverShaftPowerSum
+							/ ctCpJStaticReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJStaticReferenceIdealMomentumPowerOverShaftPower() {
+			return ctCpJStaticReferenceMaxIdealMomentumPowerOverShaftPower;
 		}
 
 		public double maxSpeedMetersPerSecond() {
