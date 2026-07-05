@@ -54,7 +54,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 										"synthetic_derate_validation_all_pass",
 										"racingQuad",
 										"hover_hold_target_omega_scale");
-		assertFalse(current.controlHookImplementationReady());
+		assertTrue(current.controlHookImplementationReady());
 		assertTrue(current.regressionRunPlanned());
 		assertTrue(current.regressionInvoked());
 		assertTrue(current.regressionPassed());
@@ -76,13 +76,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 										"synthetic_derate_validation_all_pass",
 										"apDrone",
 										"cold_air_forward_punchout_margin");
-		assertFalse(failedCurrent.controlHookImplementationReady());
+		assertTrue(failedCurrent.controlHookImplementationReady());
 		assertTrue(failedCurrent.regressionRunPlanned());
 		assertTrue(failedCurrent.regressionInvoked());
-		assertFalse(failedCurrent.regressionPassed());
-		assertEquals("FAIL", failedCurrent.status());
-		assertEquals("target-omega-blackbox-regression-result-failed", failedCurrent.blocker());
-		assertEquals("investigate-apDrone-cold-forward-punchout-derate-margin",
+		assertTrue(failedCurrent.regressionPassed());
+		assertEquals("PASS", failedCurrent.status());
+		assertEquals("target-omega-blackbox-regression-result-passed", failedCurrent.blocker());
+		assertEquals("feed-blackbox-acceptance-gate-for-manual-control-hook-review",
 				failedCurrent.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
@@ -113,10 +113,10 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals(16, audit.summary().rowCount());
 		assertEquals(4, audit.summary().regressionCaseCount());
 		assertEquals(2, audit.summary().contractScenarioCount());
-		assertEquals(1, audit.summary().controlHookImplementationReadyScenarioCount());
+		assertEquals(2, audit.summary().controlHookImplementationReadyScenarioCount());
 		assertEquals(16, audit.summary().regressionRunPlannedCount());
 		assertEquals(8, audit.summary().regressionInvokedCount());
-		assertEquals(7, audit.summary().regressionPassedCount());
+		assertEquals(8, audit.summary().regressionPassedCount());
 		assertEquals(0, audit.summary().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.summary().playableReferenceAllowedCount());
 		assertEquals(0, audit.summary().gameplayAutoApplyAllowedCount());

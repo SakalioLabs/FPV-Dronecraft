@@ -38,7 +38,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertFalse(current.lookupSupportReady());
 		assertFalse(current.dimensionalResidualReady());
 		assertFalse(current.openFoamCoefficientLookupShapeGuardReady());
-		assertEquals(5, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, current.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, current.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertFalse(current.openFoamSolverQualityContractReady());
@@ -100,7 +100,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(ready.dimensionalResidualReady());
 		assertTrue(ready.openFoamSolverQualityContractReady());
 		assertTrue(ready.openFoamCoefficientLookupShapeGuardReady());
-		assertEquals(5, ready.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, ready.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, ready.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, ready.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertTrue(ready.maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
@@ -136,7 +136,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(AUDIT.extrema().maxArchiveCurveCtIncrease()
 				<= PropellerArchiveCtCpJArchiveCurveShapeReview.MAX_CT_INCREASE_TOLERANCE);
 		assertEquals(5, AUDIT.extrema().openFoamCoefficientLookupShapeGuardReadyScenarioCount());
-		assertEquals(5, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, AUDIT.extrema().maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertTrue(AUDIT.extrema().maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
@@ -217,7 +217,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalSupportGateTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_archive_curve_shape_guard_inherited_reference_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,5,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_support_summary,all_scenarios,max_openfoam_solver_quality_blocker_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

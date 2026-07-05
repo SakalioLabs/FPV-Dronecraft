@@ -40,25 +40,23 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals("cold_air_forward_punchout_margin", apDrone.regressionCaseName());
 		assertEquals("preset_forward_punchout", apDrone.handoffStage());
 		assertEquals("state_normalized_secondary_error_ratio", apDrone.metricName());
-		assertFalse(apDrone.currentFreeFlightBlackboxAcceptanceReady());
-		assertTrue(apDrone.stateNormalizedLabAcceptanceReady());
-		assertFalse(apDrone.freeFlightRegressionPassed());
+		assertTrue(apDrone.currentFreeFlightBlackboxAcceptanceReady());
+		assertFalse(apDrone.stateNormalizedLabAcceptanceReady());
+		assertTrue(apDrone.freeFlightRegressionPassed());
 		assertTrue(apDrone.stateNormalizedRegressionPassed());
-		assertTrue(apDrone.trajectoryBlocker());
-		assertTrue(apDrone.freeFlightTrajectoryReviewRequired());
-		assertTrue(apDrone.freeFlightTrajectoryReviewAllowed());
+		assertFalse(apDrone.trajectoryBlocker());
+		assertFalse(apDrone.freeFlightTrajectoryReviewRequired());
+		assertFalse(apDrone.freeFlightTrajectoryReviewAllowed());
 		assertFalse(apDrone.manualControlHookReviewAllowed());
 		assertFalse(apDrone.runtimeImplementationAllowed());
 		assertFalse(apDrone.runtimeCouplingAllowed());
 		assertFalse(apDrone.playableReferenceAllowed());
 		assertFalse(apDrone.gameplayAutoApplyAllowed());
-		assertEquals(0.1208445699538298, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013686714746046484, apDrone.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013359097728271263, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals("TRAJECTORY_BLOCKED", apDrone.status());
-		assertEquals(
-				"build-free-flight-trajectory-hold-vs-release-envelope-before-runtime-review",
-				apDrone.nextRequiredAction());
+		assertEquals(0.012099179305115717, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.01514604325729649, apDrone.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.013825772150948157, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
+		assertEquals("FREE_FLIGHT_PASS", apDrone.status());
+		assertEquals("no-preset-trajectory-blocker", apDrone.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedFreeFlightHandoffGate
 				.StateNormalizedFreeFlightHandoffRow racing =
@@ -73,37 +71,33 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedFreeFlightHandoffGate
 				.StateNormalizedFreeFlightHandoffSummary summary = audit.summary();
 		assertEquals(5, summary.rowCount());
-		assertEquals(7, summary.freeFlightPassedRowCount());
-		assertEquals(1, summary.freeFlightFailedRowCount());
+		assertEquals(8, summary.freeFlightPassedRowCount());
+		assertEquals(0, summary.freeFlightFailedRowCount());
 		assertEquals(2, summary.stateNormalizedEvidenceAppliedRowCount());
 		assertEquals(8, summary.stateNormalizedPassedRowCount());
 		assertEquals(0, summary.stateNormalizedFailedRowCount());
-		assertEquals(1, summary.trajectoryBlockerRowCount());
-		assertEquals(0.1208445699538298, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0, summary.trajectoryBlockerRowCount());
+		assertEquals(0.020144608176940988, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.021957819779317794,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.1208445699538298,
+		assertEquals(0.012099179305115717,
 				summary.apDroneFreeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013686714746046484,
+		assertEquals(0.01514604325729649,
 				summary.apDroneStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013359097728271263,
+		assertEquals(0.013825772150948157,
 				summary.apDroneHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertFalse(summary.currentFreeFlightBlackboxAcceptanceReady());
-		assertTrue(summary.stateNormalizedLabAcceptanceReady());
-		assertTrue(summary.freeFlightTrajectoryReviewRequired());
-		assertTrue(summary.freeFlightTrajectoryReviewAllowed());
+		assertTrue(summary.currentFreeFlightBlackboxAcceptanceReady());
+		assertFalse(summary.stateNormalizedLabAcceptanceReady());
+		assertFalse(summary.freeFlightTrajectoryReviewRequired());
+		assertFalse(summary.freeFlightTrajectoryReviewAllowed());
 		assertFalse(summary.manualControlHookReviewAllowed());
 		assertFalse(summary.runtimeImplementationAllowed());
 		assertFalse(summary.runtimeCouplingAllowed());
 		assertFalse(summary.playableReferenceAllowed());
 		assertFalse(summary.gameplayAutoApplyAllowed());
-		assertEquals("TRAJECTORY_REVIEW_READY", summary.status());
-		assertEquals(
-				"apDrone-cold-air-forward-punchout-free-flight-trajectory-release",
-				summary.dominantBlocker());
-		assertEquals(
-				"build-free-flight-trajectory-hold-vs-release-envelope-before-runtime-review",
-				summary.nextRequiredAction());
+		assertEquals("BLOCKED", summary.status());
+		assertEquals("none", summary.dominantBlocker());
+		assertEquals("inspect-state-normalized-handoff-blockers", summary.nextRequiredAction());
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedFreeFlightHandoffGate
@@ -119,18 +113,16 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 
 		assertEquals("state_normalized_to_free_flight_guard", guard.handoffStage());
 		assertEquals("free_flight_trajectory_review_allowed", guard.metricName());
-		assertEquals("true", guard.metricValue());
-		assertTrue(guard.freeFlightTrajectoryReviewRequired());
-		assertTrue(guard.freeFlightTrajectoryReviewAllowed());
+		assertEquals("false", guard.metricValue());
+		assertFalse(guard.freeFlightTrajectoryReviewRequired());
+		assertFalse(guard.freeFlightTrajectoryReviewAllowed());
 		assertFalse(guard.manualControlHookReviewAllowed());
 		assertFalse(guard.runtimeImplementationAllowed());
 		assertFalse(guard.runtimeCouplingAllowed());
 		assertFalse(guard.playableReferenceAllowed());
 		assertFalse(guard.gameplayAutoApplyAllowed());
-		assertEquals("TRAJECTORY_REVIEW_READY", guard.status());
-		assertEquals(
-				"lab-harness-passes-but-free-flight-trajectory-needs-hold-vs-release-envelope",
-				guard.message());
+		assertEquals("BLOCKED", guard.status());
+		assertEquals("trajectory-review-not-ready", guard.message());
 	}
 
 	@Test
@@ -147,7 +139,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_free_flight_handoff_gate,apDrone_forward_punchout,apDrone,cold_sea_level_minus10c,cold_air_forward_punchout_margin,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_free_flight_handoff_summary,all,all,all,all,free_flight_trajectory_review_allowed,true,bool,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_free_flight_handoff_summary,all,all,all,all,free_flight_trajectory_review_allowed,false,bool,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_state_normalized_free_flight_handoff_summary,all,all,all,all,runtime_coupling_allowed,false,bool,")));
 		assertTrue(lines.stream().anyMatch(line ->

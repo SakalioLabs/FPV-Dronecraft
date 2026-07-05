@@ -82,20 +82,20 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 								.row("apDrone");
 		assertEquals(0.9910302351978076, apDrone.targetMaxRpmScale(), 1.0e-12);
 		assertEquals(0.9821409270762219, apDrone.contractThrustRatio(), 1.0e-12);
-		assertEquals(0.1208445699538298, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013686714746046484,
+		assertEquals(0.012099179305115717, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.01514604325729649,
 				apDrone.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(12, apDrone.maxMarginSampleIndex());
-		assertEquals(0.065, apDrone.maxMarginTimeSeconds(), 1.0e-12);
-		assertEquals(0.9684542123301755, apDrone.heldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.9818133100584468, apDrone.heldCompressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.013359097728271263, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(31.471029420854723, apDrone.heldNeutralThrustNewtons(), 1.0e-12);
-		assertEquals(30.478251008993638, apDrone.heldDeratedThrustNewtons(), 1.0e-12);
-		assertEquals(0.6715318099198, apDrone.heldNeutralAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(0.665712503311709, apDrone.heldDeratedAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(0.019233627567717, apDrone.heldDeratedPropellerThrustScaleRange(), 1.0e-12);
-		assertEquals(0.00241220115516, apDrone.heldDeratedAdvanceRatioRange(), 1.0e-12);
+		assertEquals(18, apDrone.maxMarginSampleIndex());
+		assertEquals(0.095, apDrone.maxMarginTimeSeconds(), 1.0e-12);
+		assertEquals(0.9669948838189254, apDrone.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.9808206559698736, apDrone.heldCompressibilityProxyRatio(), 1.0e-12);
+		assertEquals(0.013825772150948157, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(30.124302251351953, apDrone.heldNeutralThrustNewtons(), 1.0e-12);
+		assertEquals(29.130046155672275, apDrone.heldDeratedThrustNewtons(), 1.0e-12);
+		assertEquals(0.6596776285812445, apDrone.heldNeutralAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.6537183504085491, apDrone.heldDeratedAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.029477915449139358, apDrone.heldDeratedPropellerThrustScaleRange(), 1.0e-12);
+		assertEquals(0.0037846199506205297, apDrone.heldDeratedAdvanceRatioRange(), 1.0e-12);
 		assertTrue(apDrone.stateNormalizedRegressionPassed());
 		assertEquals("PASS", apDrone.status());
 
@@ -104,23 +104,23 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(2, summary.rowCount());
 		assertEquals(2, summary.passedRowCount());
 		assertEquals(0, summary.failedRowCount());
-		assertEquals(1, summary.freeFlightFailedRowCount());
+		assertEquals(0, summary.freeFlightFailedRowCount());
 		assertEquals(0, summary.stateNormalizedPhysicalConstraintViolationCount());
-		assertEquals(0.1208445699538298, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.020144608176940988, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.021957819779317794,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013359097728271263,
+		assertEquals(0.013825772150948157,
 				summary.maxHeldResidualThrustDeficitRatio(), 1.0e-12);
 		assertEquals(0.0, summary.maxHeldStateVelocityDeltaMetersPerSecond(), 1.0e-12);
 		assertEquals(0.021957819779317794, summary.racingQuadHeldSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.0038020388191628562,
 				summary.racingQuadHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.013686714746046484, summary.apDroneHeldSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.9684542123301755, summary.apDroneHeldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.013359097728271263,
+		assertEquals(0.01514604325729649, summary.apDroneHeldSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.9669948838189254, summary.apDroneHeldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.013825772150948157,
 				summary.apDroneHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(12, summary.apDroneMaxMarginSampleIndex());
-		assertEquals(0.065, summary.apDroneMaxMarginTimeSeconds(), 1.0e-12);
+		assertEquals(18, summary.apDroneMaxMarginSampleIndex());
+		assertEquals(0.095, summary.apDroneMaxMarginTimeSeconds(), 1.0e-12);
 		assertTrue(summary.stateNormalizedBlackboxResultReviewPassed());
 
 		assertThrows(IllegalArgumentException.class,

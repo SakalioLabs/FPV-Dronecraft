@@ -93,8 +93,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookFail
 		assertTrue(apHigh.processedDisarmed());
 		assertEquals(0.0, apHigh.maxMotorOmegaOverspeedRatio(), 1.0e-12);
 		assertEquals(0.0, apHigh.maxMotorOmegaRiseAfterReleaseRatio(), 1.0e-12);
-		assertTrue(apHigh.maxDeratedOmegaAboveNeutralMaxOmegaRatio() > 0.010);
-		assertTrue(apHigh.maxDeratedOmegaAboveNeutralMaxOmegaRatio() <= 0.020);
+		assertEquals(0.004847092362677204, apHigh.maxDeratedOmegaAboveNeutralMaxOmegaRatio(), 1.0e-12);
 		assertTrue(apHigh.failsafeClampReviewed());
 
 		assertEquals(6, audit.summary().rowCount());

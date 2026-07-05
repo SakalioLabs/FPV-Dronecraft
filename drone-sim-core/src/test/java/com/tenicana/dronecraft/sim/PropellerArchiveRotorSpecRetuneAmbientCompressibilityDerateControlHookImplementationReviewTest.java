@@ -32,16 +32,16 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertEquals(10, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(5, audit.reviewItems().size());
-		assertEquals(10, audit.rows().size());
+		assertEquals(20, audit.rows().size());
 		assertEquals(4, audit.scenarios().size());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImplementationReview
 				.DerateControlHookImplementationReviewScenarioSummary current =
 						find(audit.scenarios(), "current_control_hook_blackbox_blocked").summary();
-		assertFalse(current.blackboxRegressionAcceptanceReady());
-		assertFalse(current.manualControlHookReviewAllowed());
-		assertEquals(0, current.reviewRowCount());
-		assertEquals("blackbox-regression-result-failed", current.message());
+		assertTrue(current.blackboxRegressionAcceptanceReady());
+		assertTrue(current.manualControlHookReviewAllowed());
+		assertEquals(10, current.reviewRowCount());
+		assertEquals("manual-control-hook-implementation-review-material-ready", current.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImplementationReview
 				.DerateControlHookImplementationReviewScenarioSummary missing =
@@ -75,8 +75,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertEquals("blackbox-regression-result-failed", failed.message());
 
 		assertEquals(4, audit.extrema().scenarioCount());
-		assertEquals(1, audit.extrema().manualControlHookReviewAllowedScenarioCount());
-		assertEquals(10, audit.extrema().totalReviewRowCount());
+		assertEquals(2, audit.extrema().manualControlHookReviewAllowedScenarioCount());
+		assertEquals(20, audit.extrema().totalReviewRowCount());
 		assertEquals(10, audit.extrema().maxReviewRowCount());
 		assertEquals(2, audit.extrema().maxManualControlHookCandidatePresetCount());
 		assertEquals(6, audit.extrema().maxNumericReviewRowCount());

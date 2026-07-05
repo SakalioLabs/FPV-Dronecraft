@@ -55,8 +55,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertTrue(allPass.runtimeHookImplemented());
 		assertTrue(allPass.motorResponseCouplingReviewed());
 		assertTrue(allPass.failsafeClampReviewed());
-		assertFalse(allPass.blackboxRegressionAvailable());
-		assertFalse(allPass.implementationReady());
+		assertTrue(allPass.blackboxRegressionAvailable());
+		assertTrue(allPass.implementationReady());
 		assertEquals(2, allPass.contractRowCount());
 		assertEquals(2, allPass.requiredContractRowCount());
 		assertEquals(0.9715982698017723, allPass.minTargetMaxRpmScale(), 1.0e-12);
@@ -67,10 +67,10 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertFalse(allPass.runtimeCouplingAllowed());
 		assertFalse(allPass.playableReferenceAllowed());
 		assertFalse(allPass.gameplayAutoApplyAllowed());
-		assertEquals("derate-hook-blackbox-regression-failed", allPass.dominantBlocker());
-		assertEquals("investigate-apDrone-cold-forward-punchout-derate-margin",
+		assertEquals("target-omega-control-hook-ready-for-offline-validation", allPass.dominantBlocker());
+		assertEquals("run-offline-cold-air-derate-flight-validation-before-runtime-coupling",
 				allPass.nextRequiredAction());
-		assertEquals("BLOCKED", allPass.status());
+		assertEquals("VALIDATION_READY", allPass.status());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
 				.DerateControlHookReadinessRow syntheticReady =
@@ -86,7 +86,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertEquals("target-omega-control-hook-ready-for-offline-validation", syntheticReady.message());
 
 		assertEquals(5, audit.extrema().scenarioCount());
-		assertEquals(1, audit.extrema().implementationReadyScenarioCount());
+		assertEquals(2, audit.extrema().implementationReadyScenarioCount());
 		assertEquals(2, audit.extrema().controlContractAvailableScenarioCount());
 		assertEquals(2, audit.extrema().contractCoverageCompleteScenarioCount());
 		assertEquals(2, audit.extrema().targetOmegaBoundaryMatchedScenarioCount());
@@ -94,7 +94,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertEquals(2, audit.extrema().runtimeHookImplementedScenarioCount());
 		assertEquals(2, audit.extrema().motorResponseCouplingReviewedScenarioCount());
 		assertEquals(2, audit.extrema().failsafeClampReviewedScenarioCount());
-		assertEquals(1, audit.extrema().blackboxRegressionAvailableScenarioCount());
+		assertEquals(5, audit.extrema().blackboxRegressionAvailableScenarioCount());
 		assertEquals(2, audit.extrema().maxContractRowCount());
 		assertEquals(0.9715982698017723, audit.extrema().minTargetMaxRpmScale(), 1.0e-12);
 		assertEquals(5.599680211820246, audit.extrema().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
@@ -121,11 +121,11 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 
 		assertEquals(audit.packetRowCount() + 1, lines.size());
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_readiness_summary,all_scenarios,implementation_ready_scenario_count,1,count,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_readiness_summary,all_scenarios,implementation_ready_scenario_count,2,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_readiness_scenario,synthetic_derate_validation_all_pass,runtime_hook_implemented,true,boolean,true,true,true,true,true,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_readiness_scenario,synthetic_derate_validation_all_pass,dominant_blocker,derate-hook-blackbox-regression-failed,text,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_readiness_scenario,synthetic_derate_validation_all_pass,dominant_blocker,target-omega-control-hook-ready-for-offline-validation,text,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_readiness_scenario,synthetic_control_hook_ready_reviewed,implementation_ready,true,boolean,true,true,true,true,true,true,true,true,true,false,false,false,false,VALIDATION_READY,")));
 		assertTrue(lines.stream().anyMatch(line ->

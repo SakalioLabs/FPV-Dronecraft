@@ -51,7 +51,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertEquals(0, current.supportedDimensionalTargetCount());
 		assertEquals(6, current.blockedDimensionalTargetCount());
 		assertFalse(current.openFoamCoefficientLookupShapeGuardReady());
-		assertEquals(5, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, current.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, current.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, current.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertEquals(2, current.archiveCurveShapeGuardInheritedReferenceCount());
@@ -94,7 +94,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertEquals(6, ready.supportedDimensionalTargetCount());
 		assertEquals(0, ready.blockedDimensionalTargetCount());
 		assertTrue(ready.openFoamCoefficientLookupShapeGuardReady());
-		assertEquals(5, ready.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, ready.openFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, ready.openFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, ready.maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertTrue(ready.maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
@@ -130,7 +130,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertEquals(17, AUDIT.extrema().maxObservedReferenceFieldCount());
 		assertEquals(6, AUDIT.extrema().maxReferenceRowAvailableCount());
 		assertEquals(4, AUDIT.extrema().openFoamCoefficientLookupShapeGuardReadyScenarioCount());
-		assertEquals(5, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, AUDIT.extrema().maxOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, AUDIT.extrema().maxOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertTrue(AUDIT.extrema().maxOpenFoamCoefficientArchiveCurveEtaFormulaResidual()
@@ -223,7 +223,7 @@ class PropellerArchiveCtCpJOpenFoamDimensionalReferenceHandoffTest {
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,max_archive_curve_shape_guard_inherited_reference_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,5,count,")));
+				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,max_openfoam_coefficient_lookup_shape_guard_inherited_scenario_count,6,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_ct_cp_j_openfoam_dimensional_reference_handoff_summary,all_scenarios,max_negative_thrust_tail_reference_count,9,count,")));
 		assertTrue(lines.stream().anyMatch(line ->

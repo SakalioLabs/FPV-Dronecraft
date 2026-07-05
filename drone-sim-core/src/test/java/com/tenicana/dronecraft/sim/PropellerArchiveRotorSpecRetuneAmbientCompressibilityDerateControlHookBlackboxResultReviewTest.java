@@ -70,13 +70,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals("tip_mach_and_thrust_loss_margin", apForward.targetMetric());
 		assertEquals(360, apForward.sampleCount());
 		assertEquals(0.0, apForward.primaryErrorRatio(), 1.0e-12);
-		assertEquals(0.1208445699538298, apForward.secondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.1208445699538298, apForward.maxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.012099179305115717, apForward.secondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.012099179305115717, apForward.maxThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.009013488645329533, apForward.maxTargetOmegaOvershootRatio(), 1.0e-12);
-		assertEquals(1, apForward.physicalConstraintViolationCount());
-		assertFalse(apForward.blackboxRegressionPassed());
-		assertEquals("FAIL", apForward.status());
-		assertEquals("target-omega-blackbox-regression-result-failed", apForward.message());
+		assertEquals(0, apForward.physicalConstraintViolationCount());
+		assertTrue(apForward.blackboxRegressionPassed());
+		assertEquals("PASS", apForward.status());
+		assertEquals("target-omega-blackbox-regression-result-passed", apForward.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
 				.DerateControlHookBlackboxResultReviewRow apFailsafe =
@@ -90,23 +90,23 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertTrue(apFailsafe.blackboxRegressionPassed());
 
 		assertEquals(8, audit.summary().rowCount());
-		assertEquals(7, audit.summary().passedRowCount());
+		assertEquals(8, audit.summary().passedRowCount());
 		assertEquals(2, audit.summary().presetCount());
 		assertEquals(4, audit.summary().regressionCaseCount());
 		assertEquals(2, audit.summary().failsafeActivatedRowCount());
 		assertEquals(2, audit.summary().processedDisarmedRowCount());
 		assertEquals(0.004075367197358903, audit.summary().maxPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.1208445699538298, audit.summary().maxSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.040898197245874734, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
+		assertEquals(0.020144608176940988, audit.summary().maxSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.04133877494227589, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
 		assertEquals(0.009013488645329533, audit.summary().maxTargetOmegaOvershootRatio(), 1.0e-12);
 		assertEquals(1.1575880155545448e-6, audit.summary().maxEscElectricalOutputDelta(), 1.0e-18);
-		assertEquals(0.03449687718230223, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
+		assertEquals(0.023889271945361366, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxTipMachMarginViolationRatio(), 1.0e-12);
-		assertEquals(0.1208445699538298, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.020144608176940988, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxTargetOmegaAfterReleaseRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxMotorOmegaOverspeedRatio(), 1.0e-12);
-		assertEquals(1, audit.summary().physicalConstraintViolationCount());
-		assertFalse(audit.summary().blackboxRegressionPassed());
+		assertEquals(0, audit.summary().physicalConstraintViolationCount());
+		assertTrue(audit.summary().blackboxRegressionPassed());
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
@@ -129,9 +129,9 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_result,synthetic_derate_validation_all_pass,apDrone,cold_sea_level_minus10c,cold_air_forward_punchout_margin,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_result_summary,all,,,,,,passed_row_count,7,count,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_result_summary,all,,,,,,passed_row_count,8,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_result_summary,all,,,,,,physical_constraint_violation_count,1,count,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_result_summary,all,,,,,,physical_constraint_violation_count,0,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_blackbox_result_method,all,,,,,,method,target-omega-derate-blackbox-result-review,text,")));
 	}

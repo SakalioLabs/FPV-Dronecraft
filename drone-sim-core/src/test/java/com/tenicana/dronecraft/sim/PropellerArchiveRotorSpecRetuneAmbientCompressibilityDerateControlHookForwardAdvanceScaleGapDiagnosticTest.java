@@ -40,22 +40,22 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 		assertEquals("synthetic_derate_validation_all_pass", blackboxSpeed.scenarioName());
 		assertEquals("apDrone", blackboxSpeed.presetName());
 		assertEquals("cold_sea_level_minus10c", blackboxSpeed.ambientCaseName());
-		assertEquals(345, blackboxSpeed.peakSampleIndex());
-		assertEquals(1.73, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
-		assertEquals(0.1208445699538298, blackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.41060023103148124, blackboxSpeed.equivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(14, blackboxSpeed.peakSampleIndex());
+		assertEquals(0.075, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
+		assertEquals(0.012099179305115717, blackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.3790335741884251, blackboxSpeed.equivalentAdvanceRatioJ(), 1.0e-12);
 		assertEquals(0.8128, blackboxSpeed.archiveAdvanceRatioMax(), 1.0e-12);
-		assertEquals(0.505167607076133, blackboxSpeed.archiveCoverageRatio(), 1.0e-12);
-		assertEquals(0.576408656732182, blackboxSpeed.currentFormulaThrustScale(), 1.0e-12);
+		assertEquals(0.4663306769050506, blackboxSpeed.archiveCoverageRatio(), 1.0e-12);
+		assertEquals(0.6438119922118046, blackboxSpeed.currentFormulaThrustScale(), 1.0e-12);
 		assertEquals(0.612195779760975, blackboxSpeed.archiveInterpolatedCtRatio(), 1.0e-12);
-		assertEquals(-0.035787123028792944, blackboxSpeed.formulaMinusArchiveCtRatio(), 1.0e-12);
-		assertEquals(0.035787123028792944, blackboxSpeed.absoluteFormulaArchiveScaleGap(), 1.0e-12);
+		assertEquals(0.031616212450829684, blackboxSpeed.formulaMinusArchiveCtRatio(), 1.0e-12);
+		assertEquals(0.031616212450829684, blackboxSpeed.absoluteFormulaArchiveScaleGap(), 1.0e-12);
 		assertTrue(blackboxSpeed.formulaArchiveGapWithinTolerance());
-		assertEquals(0.715750023950538, blackboxSpeed.neutralAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(0.649160172139802, blackboxSpeed.deratedAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(0.06658985181073551,
+		assertEquals(0.7157532134737403, blackboxSpeed.neutralAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.7103332486403016, blackboxSpeed.deratedAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.005419964833438762,
 				blackboxSpeed.neutralToDeratedPropellerScaleDrop(), 1.0e-12);
-		assertEquals(1.860721012895054,
+		assertEquals(0.17142992197019252,
 				blackboxSpeed.propellerScaleDropOverFormulaArchiveGap(), 1.0e-12);
 		assertEquals(4.5, blackboxSpeed.targetPitchInches(), 1.0e-12);
 		assertEquals(3.75, blackboxSpeed.matchedPitchInches(), 1.0e-12);
@@ -67,54 +67,54 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 		assertFalse(blackboxSpeed.runtimeCouplingAllowed());
 		assertFalse(blackboxSpeed.playableReferenceAllowed());
 		assertFalse(blackboxSpeed.gameplayAutoApplyAllowed());
-		assertEquals("explicit-omega-advance-inflow-compressibility-proxy",
+		assertEquals("residual-unmodeled-thrust-scale",
 				blackboxSpeed.dominantDeficitBucket());
 		assertEquals("BLOCKED", blackboxSpeed.status());
-		assertEquals("propeller-scale-drop-exceeds-formula-archive-gap", blackboxSpeed.message());
+		assertEquals("advance-scale-formula-gap-is-not-dominant-blocker", blackboxSpeed.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardAdvanceScaleGapDiagnostic
 				.ForwardAdvanceScaleGapRow fastRow =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardAdvanceScaleGapDiagnostic
 								.row(28.0);
-		assertEquals(0.486318793795648, fastRow.equivalentAdvanceRatioJ(), 1.0e-12);
-		assertEquals(0.517269427846739, fastRow.currentFormulaThrustScale(), 1.0e-12);
+		assertEquals(0.39589918190203643, fastRow.equivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.604774975617014, fastRow.currentFormulaThrustScale(), 1.0e-12);
 		assertEquals(0.484872044400078, fastRow.archiveInterpolatedCtRatio(), 1.0e-12);
-		assertEquals(0.032397383446661, fastRow.absoluteFormulaArchiveScaleGap(), 1.0e-12);
-		assertEquals(0.19639631397321566,
+		assertEquals(0.11990293121693602, fastRow.absoluteFormulaArchiveScaleGap(), 1.0e-12);
+		assertEquals(0.2025117681330001,
 				fastRow.neutralToDeratedPropellerScaleDrop(), 1.0e-12);
-		assertEquals(6.062104191116544,
+		assertEquals(1.6889642820041064,
 				fastRow.propellerScaleDropOverFormulaArchiveGap(), 1.0e-12);
-		assertTrue(fastRow.formulaArchiveGapWithinTolerance());
+		assertFalse(fastRow.formulaArchiveGapWithinTolerance());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardAdvanceScaleGapDiagnostic
 				.ForwardAdvanceScaleGapSummary summary = audit.summary();
 		assertEquals(5, summary.rowCount());
 		assertEquals(5, summary.failedRowCount());
 		assertEquals(5, summary.archiveCoveredRowCount());
-		assertEquals(5, summary.formulaWithinArchiveToleranceRowCount());
+		assertEquals(1, summary.formulaWithinArchiveToleranceRowCount());
 		assertEquals(0.8333333333333334, summary.matchedOverTargetPitchRatio(), 1.0e-12);
-		assertEquals(0.6196449608574244, summary.maxEquivalentAdvanceRatioJ(), 1.0e-12);
-		assertEquals(0.7623584656218312, summary.maxArchiveCoverageRatio(), 1.0e-12);
+		assertEquals(0.5733534424091972, summary.maxEquivalentAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.7054053179247013, summary.maxArchiveCoverageRatio(), 1.0e-12);
 		assertEquals(0.244610545941252, summary.minArchiveInterpolatedCtRatio(), 1.0e-12);
-		assertEquals(0.22340652197815625, summary.minCurrentFormulaThrustScale(), 1.0e-12);
-		assertEquals(0.037703141945013896, summary.maxFormulaMinusArchiveCtRatio(), 1.0e-12);
-		assertEquals(0.037703141945013896,
+		assertEquals(0.3396895853652977, summary.minCurrentFormulaThrustScale(), 1.0e-12);
+		assertEquals(0.17416076186323715, summary.maxFormulaMinusArchiveCtRatio(), 1.0e-12);
+		assertEquals(0.17416076186323715,
 				summary.maxAbsoluteFormulaArchiveScaleGap(), 1.0e-12);
-		assertEquals(0.19639631397321566,
+		assertEquals(0.3481504747303752,
 				summary.maxNeutralToDeratedPropellerScaleDrop(), 1.0e-12);
-		assertEquals(6.062104191116544,
+		assertEquals(3.6616953309514315,
 				summary.maxPropellerScaleDropOverFormulaArchiveGap(), 1.0e-12);
-		assertEquals(0.41060023103148124,
+		assertEquals(0.3790335741884251,
 				summary.blackboxSpeedEquivalentAdvanceRatioJ(), 1.0e-12);
-		assertEquals(-0.035787123028792944,
+		assertEquals(0.031616212450829684,
 				summary.blackboxSpeedFormulaMinusArchiveCtRatio(), 1.0e-12);
-		assertEquals(0.035787123028792944,
+		assertEquals(0.031616212450829684,
 				summary.blackboxSpeedAbsoluteFormulaArchiveScaleGap(), 1.0e-12);
-		assertEquals(0.06658985181073551,
+		assertEquals(0.005419964833438762,
 				summary.blackboxSpeedNeutralToDeratedPropellerScaleDrop(), 1.0e-12);
-		assertEquals(0.19639631397321566,
+		assertEquals(0.2025117681330001,
 				summary.fastSpeedNeutralToDeratedPropellerScaleDrop(), 1.0e-12);
-		assertEquals("advance-scale-formula-is-inside-compact-archive-ct-ratio-tolerance",
+		assertEquals("advance-scale-formula-needs-archive-curve-refit",
 				summary.dominantInterpretation());
 		assertEquals("investigate-rotor-state-dispersion-and-residual-thrust-terms-before-changing-advance-scale",
 				summary.nextRequiredAction());
@@ -141,7 +141,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_forward_advance_scale_gap_diagnostic,synthetic_derate_validation_all_pass,apDrone,cold_sea_level_minus10c,28.0,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_forward_advance_scale_gap_diagnostic_summary,all,all,all,all,formula_within_archive_tolerance_row_count,5,count,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_forward_advance_scale_gap_diagnostic_summary,all,all,all,all,formula_within_archive_tolerance_row_count,1,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_forward_advance_scale_gap_diagnostic_summary,all,all,all,all,next_required_action,investigate-rotor-state-dispersion-and-residual-thrust-terms-before-changing-advance-scale,text,")));
 		assertTrue(lines.stream().anyMatch(line ->
