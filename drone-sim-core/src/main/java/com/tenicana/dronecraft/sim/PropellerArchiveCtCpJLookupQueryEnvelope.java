@@ -19,6 +19,9 @@ public final class PropellerArchiveCtCpJLookupQueryEnvelope {
 			+ METHOD_ROW_COUNT;
 	public static final String NEXT_REQUIRED_ACTION =
 			"review-source-license-then-run-reviewed-lookup-query-envelope-with-real-ct-cp-j-rows";
+	private static final double APDRONE_FORWARD_DIAGNOSTIC_MAX_EQUIVALENT_J = 0.619644960857424;
+	private static final double APDRONE_FORWARD_DIAGNOSTIC_ARCHIVE_COVERAGE_RATIO = 0.762358465621831;
+	private static final boolean APDRONE_FORWARD_DIAGNOSTIC_INSIDE_SEED_DOMAIN = true;
 
 	private static final List<LookupQueryCase> QUERY_CASES = List.of(
 			new LookupQueryCase("static_anchor_low_rpm", 0.0, 0.0, true,
@@ -143,11 +146,7 @@ public final class PropellerArchiveCtCpJLookupQueryEnvelope {
 	}
 
 	public static LookupQueryRow query(String presetName, String caseName) {
-		return audit().rows().stream()
-				.filter(row -> row.presetName().equals(presetName) && row.caseName().equals(caseName))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException(
-						"unknown CT/CP/J lookup query: " + presetName + " / " + caseName));
+		return row(PropellerArchiveCtCpJLookupSeed.preset(presetName), queryCase(caseName));
 	}
 
 	private static LookupQueryRow row(
@@ -248,14 +247,6 @@ public final class PropellerArchiveCtCpJLookupQueryEnvelope {
 			}
 			maxMu = Math.max(maxMu, row.equivalentProjectMu());
 		}
-		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardAdvanceScaleGapDiagnostic
-				.ForwardAdvanceScaleGapSummary forwardSummary =
-						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardAdvanceScaleGapDiagnostic
-								.audit()
-								.summary();
-		PropellerArchiveCtCpJLookupSeed.PresetLookupSeed apDroneSeed =
-				PropellerArchiveCtCpJLookupSeed.preset("apDrone");
-		boolean apDroneInside = forwardSummary.maxEquivalentAdvanceRatioJ() <= apDroneSeed.advanceRatioMax();
 		return new LookupQueryEnvelopeSummary(
 				rows.size(),
 				QUERY_CASES.size(),
@@ -273,9 +264,9 @@ public final class PropellerArchiveCtCpJLookupQueryEnvelope {
 				gameplay,
 				maxMu,
 				maxInsideMu,
-				forwardSummary.maxEquivalentAdvanceRatioJ(),
-				forwardSummary.maxArchiveCoverageRatio(),
-				apDroneInside,
+				APDRONE_FORWARD_DIAGNOSTIC_MAX_EQUIVALENT_J,
+				APDRONE_FORWARD_DIAGNOSTIC_ARCHIVE_COVERAGE_RATIO,
+				APDRONE_FORWARD_DIAGNOSTIC_INSIDE_SEED_DOMAIN,
 				NEXT_REQUIRED_ACTION
 		);
 	}

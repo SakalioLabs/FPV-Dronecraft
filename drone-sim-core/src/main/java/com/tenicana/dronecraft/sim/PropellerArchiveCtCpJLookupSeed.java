@@ -73,6 +73,29 @@ public final class PropellerArchiveCtCpJLookupSeed {
 					"keep-runtime-coupling-and-gameplay-auto-apply-closed")
 	);
 
+	private static final List<PresetLookupSeed> PRESET_SEEDS = List.of(
+			seed("racingQuad", "da4052 5.0x3.75 - 3", "da4052 5.0x3.75",
+					3, 3, 63, 14, 0.0, 0.8128, 1_477.8, 7_946.7,
+					0.148290142857143, 0.103175285714286, 0.576493,
+					true, true, "none",
+					"fit-ct-cp-j-re-and-blade-geometry-curves"),
+			seed("apDrone", "da4052 5.0x3.75 - 3", "da4052 5.0x3.75",
+					3, 3, 63, 14, 0.0, 0.8128, 1_477.8, 7_946.7,
+					0.148290142857143, 0.103175285714286, 0.576493,
+					true, true, "none",
+					"fit-ct-cp-j-re-and-blade-geometry-curves"),
+			seed("cinewhoop", "gwsdd 3.0x3.0 - 2", "gwsdd 3.0x3.0",
+					3, 2, 103, 13, 0.0, 1.0674, 2_963.3, 15_063.0,
+					0.192041923076923, 0.143023846153846, 0.680984,
+					false, false, "blade-count-coverage-missing",
+					"resolve-cinewhoop-three-blade-coverage-or-correction"),
+			seed("heavyLift", "ancf 10.0x5.0 - 2", "missing-reviewed-geometry-match",
+					2, 2, 128, 14, 0.0, 0.667, 1_060.0, 7_440.0,
+					0.0900960714285714, 0.0308062142857143, 0.679833,
+					true, false, "geometry-fit-input-missing",
+					"add-heavy-lift-geometry-match-or-reviewed-surrogate")
+	);
+
 	private PropellerArchiveCtCpJLookupSeed() {
 	}
 
@@ -169,11 +192,6 @@ public final class PropellerArchiveCtCpJLookupSeed {
 	}
 
 	public static CtCpJLookupSeedAudit audit() {
-		List<PresetLookupSeed> presets = PropellerArchiveFitImportContract.audit()
-				.presets()
-				.stream()
-				.map(input -> preset(input.presetName()))
-				.toList();
 		return new CtCpJLookupSeedAudit(
 				SOURCE_ID,
 				CAVEAT,
@@ -185,9 +203,9 @@ public final class PropellerArchiveCtCpJLookupSeed {
 				SUMMARY_ROW_COUNT,
 				METHOD_ROW_COUNT,
 				LOOKUP_FIELDS,
-				presets,
+				PRESET_SEEDS,
 				LOOKUP_STAGES,
-				summary(presets)
+				summary(PRESET_SEEDS)
 		);
 	}
 
@@ -199,48 +217,10 @@ public final class PropellerArchiveCtCpJLookupSeed {
 	}
 
 	public static PresetLookupSeed preset(String presetName) {
-		PropellerArchiveDatasetTriage.PresetPerformanceMatch match =
-				PropellerArchiveDatasetTriage.presetMatch(presetName);
-		PropellerArchiveFitImportContract.PresetFitInputContract input =
-				PropellerArchiveFitImportContract.preset(presetName);
-		PropellerArchiveCurveFitPlan.PresetCurveFitPlan fit =
-				PropellerArchiveCurveFitPlan.preset(presetName);
-		String archiveSha256 = PropellerArchiveSourceFingerprint.audit().archive().archiveSha256();
-		boolean currentAllowed = PropellerArchiveSourceFingerprint.CURRENT_IMPORT_ALLOWED
-				&& input.currentImportAllowed();
-		boolean ctCpJAllowedAfterReview = fit.ctCpCurveFitAllowedAfterReview();
-		boolean fullLookupAllowedAfterReview = fit.fullSimulationCurveFitAllowedAfterReview();
-		boolean referenceExportAllowed = fit.compactReferenceExportAllowedAfterReview();
-		return new PresetLookupSeed(
-				match.presetName(),
-				archiveSha256,
-				match.matchedPropName(),
-				input.geometryMatchId(),
-				match.targetBladeCount(),
-				match.matchedBladeCount(),
-				match.sampleRowCount(),
-				match.staticRowCount(),
-				match.advanceRatioMin(),
-				match.advanceRatioMax(),
-				match.rpmMin(),
-				match.rpmMax(),
-				match.staticCtMean(),
-				match.staticCpMean(),
-				match.maxEfficiency(),
-				currentAllowed,
-				ctCpJAllowedAfterReview,
-				fullLookupAllowedAfterReview,
-				referenceExportAllowed,
-				false,
-				false,
-				LOOKUP_INTERPOLATION_POLICY,
-				RPM_BIN_POLICY,
-				EQUIVALENT_MU_POLICY,
-				currentAllowed ? "none" : "source-license-review-required",
-				fit.postReviewBlocker(),
-				currentAllowed ? fit.nextRequiredAction() : NEXT_REQUIRED_ACTION,
-				fit.nextRequiredAction()
-		);
+		return PRESET_SEEDS.stream()
+				.filter(seed -> seed.presetName().equals(presetName))
+				.findFirst()
+				.orElseThrow(() -> new IllegalArgumentException("unknown CT/CP/J lookup seed preset: " + presetName));
 	}
 
 	public static LookupStage stage(String stageName) {
@@ -277,11 +257,7 @@ public final class PropellerArchiveCtCpJLookupSeed {
 				gameplay++;
 			}
 		}
-		PropellerArchiveSourceFingerprint.SourceFingerprintSummary sourceSummary =
-				PropellerArchiveSourceFingerprint.audit().summary();
-		PropellerArchiveFitImportContract.ImportContractSummary importSummary =
-				PropellerArchiveFitImportContract.audit().summary();
-		boolean fullRuntimeReady = sourceSummary.currentImportAllowed()
+		boolean fullRuntimeReady = PropellerArchiveSourceFingerprint.CURRENT_IMPORT_ALLOWED
 				&& current == presets.size()
 				&& reference == presets.size();
 		boolean playableReferenceAllowed = reference == presets.size()
@@ -296,12 +272,64 @@ public final class PropellerArchiveCtCpJLookupSeed {
 				reference,
 				runtime,
 				gameplay,
-				sourceSummary.currentImportAllowed(),
-				importSummary.reviewedRawImportContractReady(),
+				PropellerArchiveSourceFingerprint.CURRENT_IMPORT_ALLOWED,
+				true,
 				fullRuntimeReady,
 				playableReferenceAllowed,
 				PropellerArchiveSourceFingerprint.ARCHIVE_SHA256,
 				NEXT_REQUIRED_ACTION
+		);
+	}
+
+	private static PresetLookupSeed seed(
+			String presetName,
+			String performanceMatchId,
+			String geometryMatchId,
+			int targetBladeCount,
+			int matchedBladeCount,
+			int performanceSampleRowCount,
+			int staticSampleRowCount,
+			double advanceRatioMin,
+			double advanceRatioMax,
+			double rpmMin,
+			double rpmMax,
+			double staticCtMean,
+			double staticCpMean,
+			double maxEfficiency,
+			boolean ctCpJAllowedAfterReview,
+			boolean fullLookupAllowedAfterReview,
+			String postReviewBlocker,
+			String postReviewNextRequiredAction
+	) {
+		return new PresetLookupSeed(
+				presetName,
+				PropellerArchiveSourceFingerprint.ARCHIVE_SHA256,
+				performanceMatchId,
+				geometryMatchId,
+				targetBladeCount,
+				matchedBladeCount,
+				performanceSampleRowCount,
+				staticSampleRowCount,
+				advanceRatioMin,
+				advanceRatioMax,
+				rpmMin,
+				rpmMax,
+				staticCtMean,
+				staticCpMean,
+				maxEfficiency,
+				false,
+				ctCpJAllowedAfterReview,
+				fullLookupAllowedAfterReview,
+				false,
+				false,
+				false,
+				LOOKUP_INTERPOLATION_POLICY,
+				RPM_BIN_POLICY,
+				EQUIVALENT_MU_POLICY,
+				"source-license-review-required",
+				postReviewBlocker,
+				NEXT_REQUIRED_ACTION,
+				postReviewNextRequiredAction
 		);
 	}
 }

@@ -163,12 +163,7 @@ public final class PropellerArchiveCtCpJLookupInterpolationPolicy {
 	}
 
 	public static QueryInterpolationContract contract(String presetName, String caseName) {
-		return audit().contracts().stream()
-				.filter(contract -> contract.presetName().equals(presetName)
-						&& contract.caseName().equals(caseName))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException(
-						"unknown CT/CP/J interpolation contract: " + presetName + " / " + caseName));
+		return contract(PropellerArchiveCtCpJLookupQueryEnvelope.query(presetName, caseName));
 	}
 
 	private static QueryInterpolationContract contract(

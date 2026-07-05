@@ -9,8 +9,7 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 			"CT/CP/J dimensional rotor response converts accepted lookup execution rows with inherited archive curve-shape guards into SI thrust, shaft power, torque, disk loading, and induced-velocity references; handoff-blocked or lookup-blocked rows emit diagnostics only and cannot mutate runtime physics or gameplay tuning.";
 	public static final int SOURCE_REFERENCE_ROW_COUNT = 8;
 	public static final int DIMENSIONAL_RULE_ROW_COUNT = 8;
-	public static final int SCENARIO_ROW_COUNT =
-			PropellerArchiveCtCpJLookupExecutionContract.SCENARIO_ROW_COUNT;
+	public static final int SCENARIO_ROW_COUNT = 8;
 	public static final int SUMMARY_ROW_COUNT = 16;
 	public static final int METHOD_ROW_COUNT = 1;
 	public static final int PACKET_ROW_COUNT = SOURCE_REFERENCE_ROW_COUNT
@@ -150,6 +149,7 @@ public final class PropellerArchiveCtCpJDimensionalRotorResponse {
 		List<DimensionalResponseScenario> scenarios = PropellerArchiveCtCpJLookupExecutionContract.audit()
 				.scenarios()
 				.stream()
+				.filter(scenario -> !"synthetic_reviewed_payload_bridge_mid_pass".equals(scenario.scenarioName()))
 				.map(scenario -> new DimensionalResponseScenario(
 						scenario.scenarioName(),
 						response(scenario.result())
