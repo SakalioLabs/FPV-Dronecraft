@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
 import com.tenicana.dronecraft.sim.RotorStaticCtCpModel;
 
 import java.io.IOException;
@@ -27,7 +28,7 @@ class CtCpJCurveExporterTest {
 				diameter
 		);
 
-		assertEquals(21, lines.size());
+		assertEquals(42, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(",source_id"));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -51,6 +52,26 @@ class CtCpJCurveExporterTest {
 		assertEquals(0.159299848814191, Double.parseDouble(foxeerStatic.split(",", -1)[9]), 1.0e-15);
 		assertEquals(MotorBenchCurrentModel.FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_NEWTONS,
 				Double.parseDouble(foxeerStatic.split(",", -1)[13]), 1.0e-12);
+
+		String staticHover = lineForCase(lines, "static_rotor_spec_hover");
+		String runtimeHoverStatic = lineForCaseAndQueryJ(lines,
+				"static_anchored_runtime_hover",
+				"0.00000000000000");
+		String runtimeHoverMidJ = lineForCaseAndQueryJ(lines,
+				"static_anchored_runtime_hover",
+				"0.406400000000000");
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.STATIC_ANCHORED_DATA_SOURCE_ID,
+				runtimeHoverMidJ.split(",", -1)[20]);
+		assertEquals(Double.parseDouble(staticHover.split(",", -1)[9]),
+				Double.parseDouble(runtimeHoverStatic.split(",", -1)[9]), 1.0e-15);
+		assertEquals(Double.parseDouble(staticHover.split(",", -1)[10]),
+				Double.parseDouble(runtimeHoverStatic.split(",", -1)[10]), 1.0e-15);
+		assertEquals(Double.parseDouble(staticHover.split(",", -1)[13]),
+				Double.parseDouble(runtimeHoverStatic.split(",", -1)[13]), 1.0e-12);
+		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[13])
+				< Double.parseDouble(runtimeHoverStatic.split(",", -1)[13]));
+		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[14])
+				> Double.parseDouble(runtimeHoverStatic.split(",", -1)[14]));
 	}
 
 	@Test
@@ -65,7 +86,7 @@ class CtCpJCurveExporterTest {
 		);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(21, lines.size());
+		assertEquals(42, lines.size());
 		assertTrue(lines.get(0).contains("shaft_torque_nm"));
 		assertTrue(lines.get(0).contains("source_id"));
 	}

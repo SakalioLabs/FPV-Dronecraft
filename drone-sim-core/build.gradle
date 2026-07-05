@@ -16,7 +16,7 @@ tasks.register("offlineFlight", JavaExec) {
 
 tasks.register("ctCpJCurve", JavaExec) {
 	group = "simulation"
-	description = "Exports accepted CT/CP/J dimensional rotor response samples as CSV."
+	description = "Exports accepted and static-anchored runtime CT/CP/J rotor response samples as CSV."
 	classpath = sourceSets.main.runtimeClasspath
 	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJCurveExporter")
 	doFirst {

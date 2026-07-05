@@ -4,6 +4,7 @@ import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.RotorStaticCtCpModel;
 
@@ -106,6 +107,27 @@ public final class CtCpJCurveExporter {
 					airDensityKgPerCubicMeter
 			)));
 		}
+		List<Double> advanceRatios = acceptedAdvanceShapeSampleAdvanceRatios(
+				presetName,
+				propellerDiameterMeters,
+				airDensityKgPerCubicMeter
+		);
+		for (StaticCurvePoint point : staticAnchoredRuntimeCurvePoints(config, rotor)) {
+			for (double advanceRatioJ : advanceRatios) {
+				PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+						PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchored(
+								new PropellerArchiveCtCpJRotorForceModel.RotorForceQuery(
+										presetName,
+										point.caseName(),
+										rotor,
+										advanceRatioJ,
+										point.rpm(),
+										airDensityKgPerCubicMeter,
+										PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+								));
+				lines.add(csvLine(sample.dimensionalSample()));
+			}
+		}
 		return List.copyOf(lines);
 	}
 
@@ -202,6 +224,39 @@ public final class CtCpJCurveExporter {
 				.toList();
 	}
 
+	private static List<StaticCurvePoint> staticAnchoredRuntimeCurvePoints(
+			DroneConfig config,
+			RotorSpec rotor
+	) {
+		List<StaticCurvePoint> points = new ArrayList<>();
+		addStaticPoint(points, "static_anchored_runtime_hover", hoverRpm(config, rotor));
+		addStaticPoint(points, "static_anchored_runtime_half_max", rotor.maxOmegaRadiansPerSecond()
+				* RPM_PER_RADIAN_PER_SECOND * 0.5);
+		addStaticPoint(points, "static_anchored_runtime_max", rotor.maxOmegaRadiansPerSecond()
+				* RPM_PER_RADIAN_PER_SECOND);
+		return points.stream()
+				.sorted((first, second) -> Double.compare(first.rpm(), second.rpm()))
+				.toList();
+	}
+
+	private static List<Double> acceptedAdvanceShapeSampleAdvanceRatios(
+			String presetName,
+			double propellerDiameterMeters,
+			double airDensityKgPerCubicMeter
+	) {
+		List<Double> advanceRatios = new ArrayList<>();
+		for (PropellerArchiveCtCpJLookupEvaluator.LookupQuery query
+				: PropellerArchiveCtCpJLookupEvaluator.acceptedReferenceCurveQueries(
+						presetName,
+						propellerDiameterMeters,
+						airDensityKgPerCubicMeter
+				)) {
+			addDistinct(advanceRatios, query.advanceRatioJ());
+		}
+		advanceRatios.sort(Double::compare);
+		return List.copyOf(advanceRatios);
+	}
+
 	private static void addStaticPoint(List<StaticCurvePoint> points, String caseName, double rpm) {
 		if (!Double.isFinite(rpm) || rpm <= 0.0) {
 			return;
@@ -219,6 +274,15 @@ public final class CtCpJCurveExporter {
 				* config.gravityMetersPerSecondSquared()
 				/ config.rotors().size();
 		return Math.sqrt(perRotorHoverThrust / rotor.thrustCoefficient()) * RPM_PER_RADIAN_PER_SECOND;
+	}
+
+	private static void addDistinct(List<Double> values, double candidate) {
+		for (double value : values) {
+			if (Math.abs(value - candidate) <= 1.0e-9) {
+				return;
+			}
+		}
+		values.add(candidate);
 	}
 
 	private record StaticCurvePoint(String caseName, double rpm) {
