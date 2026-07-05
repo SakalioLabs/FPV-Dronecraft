@@ -18,7 +18,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 	@Test
 	void apDroneTraceExportsCtCpJReferenceTelemetryColumns() throws IOException {
 		Path output = tempDir.resolve("apdrone.csv");
-		OfflineFlightRecorder.record("apdrone", output, 1.0);
+		OfflineFlightRecorder.FlightReport report = OfflineFlightRecorder.record("apdrone", output, 1.0);
 
 		List<String> lines = Files.readAllLines(output);
 		assertTrue(lines.size() > 2);
@@ -48,6 +48,17 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			}
 		}
 		assertTrue(sawReferenceState, "apDrone trace should expose available or blocked CT/CP/J reference telemetry");
+		assertTrue(report.ctCpJReferenceRotorSampleCount() > 0);
+		assertEquals(
+				report.ctCpJReferenceRotorSampleCount(),
+				report.ctCpJReferenceAvailableRotorSampleCount() + report.ctCpJReferenceBlockedRotorSampleCount()
+		);
+		assertTrue(report.ctCpJReferenceCoverageFraction() >= 0.0);
+		assertTrue(report.ctCpJReferenceCoverageFraction() <= 1.0);
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsThrustResidualNewtons()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsThrustResidualNewtons()));
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsPowerResidualWatts()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsPowerResidualWatts()));
 	}
 
 	private static int column(String[] header, String name) {

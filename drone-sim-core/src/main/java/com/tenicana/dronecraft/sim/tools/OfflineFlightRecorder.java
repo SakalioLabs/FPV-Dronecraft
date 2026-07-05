@@ -1590,6 +1590,18 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
+				"CTCPJ reference: samples=%d available=%d blocked=%d coverage=%.3f mean_residual=%.4f N/%.4f W max_residual=%.4f N/%.4f W%n",
+				report.ctCpJReferenceRotorSampleCount(),
+				report.ctCpJReferenceAvailableRotorSampleCount(),
+				report.ctCpJReferenceBlockedRotorSampleCount(),
+				report.ctCpJReferenceCoverageFraction(),
+				report.meanCtCpJReferenceAbsThrustResidualNewtons(),
+				report.meanCtCpJReferenceAbsPowerResidualWatts(),
+				report.maxCtCpJReferenceAbsThrustResidualNewtons(),
+				report.maxCtCpJReferenceAbsPowerResidualWatts()
+		);
+		System.out.printf(
+				Locale.ROOT,
 				"Airframe coastdown 20->5 m/s: X %.2f s/%.1f m (%.0f%%/%.0f%% IMAV), Z %.2f s/%.1f m (%.0f%%/%.0f%% IMAV)%n",
 				lateralCoastdown.timeSeconds(),
 				lateralCoastdown.distanceMeters(),
@@ -5022,6 +5034,13 @@ public final class OfflineFlightRecorder {
 		private double maxBarometerPropwashErrorMeters;
 		private double maxEscTemperatureCelsius;
 		private double minEscThermalLimit = 1.0;
+		private int ctCpJReferenceAvailableRotorSampleCount;
+		private int ctCpJReferenceBlockedRotorSampleCount;
+		private int ctCpJReferenceRotorSampleCount;
+		private double ctCpJReferenceAbsThrustResidualSumNewtons;
+		private double ctCpJReferenceMaxAbsThrustResidualNewtons;
+		private double ctCpJReferenceAbsPowerResidualSumWatts;
+		private double ctCpJReferenceMaxAbsPowerResidualWatts;
 
 		private void record(DroneState state, DroneConfig config, DroneEnvironment environment) {
 			maxSpeedMetersPerSecond = Math.max(maxSpeedMetersPerSecond, state.speedMetersPerSecond());
@@ -5203,6 +5222,42 @@ public final class OfflineFlightRecorder {
 			maxBarometerPropwashErrorMeters = Math.max(maxBarometerPropwashErrorMeters, Math.abs(state.barometerPropwashErrorMeters()));
 			maxEscTemperatureCelsius = Math.max(maxEscTemperatureCelsius, state.maxEscTemperatureCelsius());
 			minEscThermalLimit = Math.min(minEscThermalLimit, state.escThermalLimit());
+			recordCtCpJReferenceTelemetry(state);
+		}
+
+		private void recordCtCpJReferenceTelemetry(DroneState state) {
+			boolean[] available = state.rotorCtCpJReferenceAvailable();
+			boolean[] blocked = state.rotorCtCpJReferenceBlocked();
+			double[] actualThrust = state.rotorThrustNewtons();
+			double[] actualPower = state.motorShaftPowerWatts();
+			double[] referenceThrust = state.rotorCtCpJReferenceThrustNewtons();
+			double[] referencePower = state.rotorCtCpJReferenceShaftPowerWatts();
+			int count = Math.min(available.length, blocked.length);
+			for (int i = 0; i < count; i++) {
+				if (!available[i] && !blocked[i]) {
+					continue;
+				}
+				ctCpJReferenceRotorSampleCount++;
+				if (blocked[i]) {
+					ctCpJReferenceBlockedRotorSampleCount++;
+				}
+				if (!available[i]) {
+					continue;
+				}
+				ctCpJReferenceAvailableRotorSampleCount++;
+				double thrustResidual = Math.abs(valueOrZero(actualThrust, i) - valueOrZero(referenceThrust, i));
+				double powerResidual = Math.abs(valueOrZero(actualPower, i) - valueOrZero(referencePower, i));
+				ctCpJReferenceAbsThrustResidualSumNewtons += thrustResidual;
+				ctCpJReferenceMaxAbsThrustResidualNewtons = Math.max(
+						ctCpJReferenceMaxAbsThrustResidualNewtons,
+						thrustResidual
+				);
+				ctCpJReferenceAbsPowerResidualSumWatts += powerResidual;
+				ctCpJReferenceMaxAbsPowerResidualWatts = Math.max(
+						ctCpJReferenceMaxAbsPowerResidualWatts,
+						powerResidual
+				);
+			}
 		}
 
 		private void recordRpmTelemetry(DroneState state, DroneConfig config) {
@@ -5257,6 +5312,44 @@ public final class OfflineFlightRecorder {
 
 		public int samples() {
 			return samples;
+		}
+
+		public int ctCpJReferenceRotorSampleCount() {
+			return ctCpJReferenceRotorSampleCount;
+		}
+
+		public int ctCpJReferenceAvailableRotorSampleCount() {
+			return ctCpJReferenceAvailableRotorSampleCount;
+		}
+
+		public int ctCpJReferenceBlockedRotorSampleCount() {
+			return ctCpJReferenceBlockedRotorSampleCount;
+		}
+
+		public double ctCpJReferenceCoverageFraction() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: (double) ctCpJReferenceAvailableRotorSampleCount / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double meanCtCpJReferenceAbsThrustResidualNewtons() {
+			return ctCpJReferenceAvailableRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceAbsThrustResidualSumNewtons / ctCpJReferenceAvailableRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceAbsThrustResidualNewtons() {
+			return ctCpJReferenceMaxAbsThrustResidualNewtons;
+		}
+
+		public double meanCtCpJReferenceAbsPowerResidualWatts() {
+			return ctCpJReferenceAvailableRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceAbsPowerResidualSumWatts / ctCpJReferenceAvailableRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceAbsPowerResidualWatts() {
+			return ctCpJReferenceMaxAbsPowerResidualWatts;
 		}
 
 		public double maxSpeedMetersPerSecond() {
