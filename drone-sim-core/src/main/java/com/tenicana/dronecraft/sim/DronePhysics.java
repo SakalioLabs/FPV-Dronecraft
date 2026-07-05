@@ -1638,6 +1638,7 @@ public final class DronePhysics {
 							+ mechanicalLossTorque * Math.max(0.0, omega)
 							+ motorPositiveInertiaPowerWatts(rotor, motorAngularAcceleration, omega)
 			);
+			state.updateRotorCtCpJReferenceResidual(i);
 			double reactionTorqueNewtonMeters = motorAerodynamicTorque + commutationRipple.torqueRippleNewtonMeters();
 			Vec3 reactionTorque = rotorDiskAxisBody.multiply(rotor.spinDirection() * reactionTorqueNewtonMeters);
 			RotorInertiaTorques inertiaTorques = rotorInertiaTorques(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);

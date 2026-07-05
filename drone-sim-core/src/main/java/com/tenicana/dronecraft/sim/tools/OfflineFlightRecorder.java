@@ -1171,6 +1171,9 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "thrust_n");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_power_w");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_nm");
+		appendCtCpJReferenceColumnFamily(builder, "thrust_residual_n");
+		appendCtCpJReferenceColumnFamily(builder, "shaft_power_residual_w");
+		appendCtCpJReferenceColumnFamily(builder, "thrust_ratio");
 		return builder.toString();
 	}
 
@@ -4323,6 +4326,9 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceThrust = state.rotorCtCpJReferenceThrustNewtons();
 		double[] rotorCtCpJReferencePower = state.rotorCtCpJReferenceShaftPowerWatts();
 		double[] rotorCtCpJReferenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
+		double[] rotorCtCpJReferenceThrustResidual = state.rotorCtCpJReferenceThrustResidualNewtons();
+		double[] rotorCtCpJReferencePowerResidual = state.rotorCtCpJReferenceShaftPowerResidualWatts();
+		double[] rotorCtCpJReferenceThrustRatio = state.rotorCtCpJReferenceThrustRatio();
 		double[] rotorAxialGustThrustScale = state.rotorAxialGustThrustScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -4554,6 +4560,9 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrust, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferencePower, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorque, rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceThrustResidual, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferencePowerResidual, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceThrustRatio, rotorCtCpJReferenceAvailable, "%.5f");
 		appendExtra(builder, state.averageRotorAxialGustThrustScale(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorAxialGustThrustScale, i), "%.5f");

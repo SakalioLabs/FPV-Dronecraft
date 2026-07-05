@@ -59,10 +59,21 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(sample.shaftPowerWatts(), state.rotorCtCpJReferenceShaftPowerWatts(0), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), state.rotorCtCpJReferenceShaftTorqueNewtonMeters(0), 1.0e-18);
 
+		state.setRotorThrustNewtons(0, sample.thrustNewtons() + 0.0125);
+		state.setMotorShaftPowerWatts(0, sample.shaftPowerWatts() + 0.25);
+		state.updateRotorCtCpJReferenceResidual(0);
+		assertEquals(0.0125, state.rotorCtCpJReferenceThrustResidualNewtons(0), 1.0e-15);
+		assertEquals(0.25, state.rotorCtCpJReferenceShaftPowerResidualWatts(0), 1.0e-15);
+		assertEquals((sample.thrustNewtons() + 0.0125) / sample.thrustNewtons(),
+				state.rotorCtCpJReferenceThrustRatio(0), 1.0e-15);
+
 		state.resetMotors();
 		assertFalse(state.rotorCtCpJReferenceAvailable(0));
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceThrustResidualNewtons(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceShaftPowerResidualWatts(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceThrustRatio(0), 1.0e-15);
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED,
 				state.rotorCtCpJReferenceInterpolationStatus(0));
 	}
