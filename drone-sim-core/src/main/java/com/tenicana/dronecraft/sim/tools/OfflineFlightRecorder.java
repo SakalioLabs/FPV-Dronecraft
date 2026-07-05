@@ -1165,6 +1165,7 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "clamped");
 		appendCtCpJReferencePerRotorColumns(builder, "status");
 		appendCtCpJReferenceColumnFamily(builder, "j");
+		appendCtCpJReferenceColumnFamily(builder, "rpm");
 		appendCtCpJReferenceColumnFamily(builder, "ct");
 		appendCtCpJReferenceColumnFamily(builder, "cp");
 		appendCtCpJReferenceColumnFamily(builder, "eta");
@@ -4322,8 +4323,13 @@ public final class OfflineFlightRecorder {
 		double[] rotorPropellerPowerScale = state.rotorPropellerPowerScale();
 		boolean[] rotorCtCpJReferenceAvailable = state.rotorCtCpJReferenceAvailable();
 		boolean[] rotorCtCpJReferenceBlocked = state.rotorCtCpJReferenceBlocked();
+		boolean[] rotorCtCpJReferencePresent = ctCpJReferencePresent(
+				rotorCtCpJReferenceAvailable,
+				rotorCtCpJReferenceBlocked
+		);
 		boolean[] rotorCtCpJReferenceClamped = state.rotorCtCpJReferenceClamped();
 		double[] rotorCtCpJReferenceAdvanceRatioJ = state.rotorCtCpJReferenceAdvanceRatioJ();
+		double[] rotorCtCpJReferenceRpm = state.rotorCtCpJReferenceRpm();
 		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
 		double[] rotorCtCpJReferenceCp = state.rotorCtCpJReferencePowerCoefficientCp();
 		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
@@ -4559,7 +4565,8 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, i < state.motorCount() ? state.rotorCtCpJReferenceInterpolationStatus(i).ordinal() : 0);
 		}
-		appendDoubleFamily(builder, rotorCtCpJReferenceAdvanceRatioJ, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceAdvanceRatioJ, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceRpm, rotorCtCpJReferencePresent, "%.2f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCt, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCp, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");
@@ -4758,6 +4765,18 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, booleanValue(values, i));
 		}
+	}
+
+	private static boolean[] ctCpJReferencePresent(boolean[] available, boolean[] blocked) {
+		int count = Math.max(
+				available == null ? 0 : available.length,
+				blocked == null ? 0 : blocked.length
+		);
+		boolean[] present = new boolean[count];
+		for (int i = 0; i < count; i++) {
+			present[i] = booleanValue(available, i) == 1 || booleanValue(blocked, i) == 1;
+		}
+		return present;
 	}
 
 	private static void appendDoubleFamily(StringBuilder builder, double[] values, boolean[] available, String format) {

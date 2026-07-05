@@ -52,6 +52,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BILINEAR,
 				state.rotorCtCpJReferenceInterpolationStatus(0));
 		assertEquals(sample.lookup().effectiveAdvanceRatioJ(), state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
+		assertEquals(sample.lookup().effectiveRpm(), state.rotorCtCpJReferenceRpm(0), 1.0e-9);
 		assertEquals(sample.lookup().thrustCoefficientCt(), state.rotorCtCpJReferenceThrustCoefficientCt(0), 1.0e-12);
 		assertEquals(sample.lookup().powerCoefficientCp(), state.rotorCtCpJReferencePowerCoefficientCp(0), 1.0e-12);
 		assertEquals(sample.lookup().propulsiveEfficiencyEta(), state.rotorCtCpJReferenceEfficiencyEta(0), 1.0e-12);
@@ -75,6 +76,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceAvailable(0));
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceRpm(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustResidualNewtons(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceShaftPowerResidualWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceShaftTorqueResidualNewtonMeters(0), 1.0e-15);
@@ -186,6 +188,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertTrue(state.rotorCtCpJReferenceBlocked(0));
 		assertFalse(state.rotorCtCpJReferenceClamped(0));
 		assertEquals(queryJ, state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
+		assertEquals(highReference.rpm(), state.rotorCtCpJReferenceRpm(0), 1.0e-9);
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 
 		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
