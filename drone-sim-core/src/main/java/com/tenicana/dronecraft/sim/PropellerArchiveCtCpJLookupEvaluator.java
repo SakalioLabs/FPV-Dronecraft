@@ -7,7 +7,10 @@ import java.util.List;
 public final class PropellerArchiveCtCpJLookupEvaluator {
 	public static final String DEFAULT_PRESET_NAME = "apDrone";
 	public static final String DATA_SOURCE_ID = "accepted-reference-payload-bridge";
+	public static final String STATIC_ANCHORED_DATA_SOURCE_ID =
+			"accepted-reference-advance-shape+rotor-spec-static-ct-cp";
 	private static final double EPSILON = 1.0e-9;
+	private static final double ADVANCE_SHAPE_RPM = 1.0;
 
 	// Runtime lookup window materialized from the accepted PropellerArchive CT/CP/J reference bridge.
 	private static final List<ReferenceWindow> ACCEPTED_REFERENCE_WINDOWS = List.of(
@@ -218,10 +221,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		CoefficientGridRow j1r0 = window.row(bracket.upperAdvanceRatioJ(), bracket.lowerRpm());
 		CoefficientGridRow j0r1 = window.row(bracket.lowerAdvanceRatioJ(), bracket.upperRpm());
 		CoefficientGridRow j1r1 = window.row(bracket.upperAdvanceRatioJ(), bracket.upperRpm());
-		double ct = interpolate(bracket, j0r0.ctCoefficient(), j1r0.ctCoefficient(),
-				j0r1.ctCoefficient(), j1r1.ctCoefficient());
-		double cp = interpolate(bracket, j0r0.cpCoefficient(), j1r0.cpCoefficient(),
-				j0r1.cpCoefficient(), j1r1.cpCoefficient());
+		Coefficients coefficients = interpolateCoefficients(j0r0, j1r0, j0r1, j1r1, bracket);
+		double ct = coefficients.ctCoefficient();
+		double cp = coefficients.cpCoefficient();
 		double eta = eta(effectiveJ, ct, cp);
 		return new LookupResult(
 				window.presetName(),
@@ -252,6 +254,103 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 
 	public static RotorDimensionalSample sampleRotor(LookupQuery query) {
 		LookupResult lookup = evaluate(query);
+		return sampleRotor(lookup, query.propellerDiameterMeters(), query.airDensityKgPerCubicMeter());
+	}
+
+	public static LookupResult evaluateStaticAnchored(
+			LookupQuery query,
+			double staticThrustCoefficientCt,
+			double staticPowerCoefficientCp
+	) {
+		if (query == null) {
+			throw new IllegalArgumentException("lookup query must not be null.");
+		}
+		if (!Double.isFinite(staticThrustCoefficientCt) || staticThrustCoefficientCt <= 0.0) {
+			throw new IllegalArgumentException("staticThrustCoefficientCt must be finite and positive.");
+		}
+		if (!Double.isFinite(staticPowerCoefficientCp) || staticPowerCoefficientCp <= 0.0) {
+			throw new IllegalArgumentException("staticPowerCoefficientCp must be finite and positive.");
+		}
+		ReferenceWindow shapeWindow = acceptedAdvanceShapeWindow(query.presetName());
+		if (shapeWindow == null) {
+			return blocked(query, "REFERENCE_WINDOW_UNAVAILABLE",
+					"no-accepted-reference-advance-shape-for-preset");
+		}
+		Coefficients staticAnchor = acceptedStaticAnchorCoefficients(query.presetName());
+		if (staticAnchor == null || staticAnchor.ctCoefficient() <= EPSILON
+				|| staticAnchor.cpCoefficient() <= EPSILON) {
+			return blocked(query, "REFERENCE_WINDOW_INCOMPLETE",
+					"accepted-static-anchor-coefficients-missing");
+		}
+		boolean clamp = query.envelopePolicy() == EnvelopePolicy.CLAMP_TO_ENVELOPE;
+		double effectiveJ = query.advanceRatioJ();
+		boolean clamped = false;
+		if (!shapeWindow.insideAdvanceRatio(query.advanceRatioJ())) {
+			if (!clamp) {
+				return blocked(query, "OUT_OF_ENVELOPE_BLOCKED",
+						"query-outside-accepted-advance-shape-window");
+			}
+			effectiveJ = MathUtil.clamp(
+					query.advanceRatioJ(),
+					shapeWindow.minAdvanceRatioJ(),
+					shapeWindow.maxAdvanceRatioJ()
+			);
+			clamped = Math.abs(effectiveJ - query.advanceRatioJ()) > EPSILON;
+		}
+		Bracket bracket = shapeWindow.bracket(effectiveJ, ADVANCE_SHAPE_RPM);
+		if (!bracket.inside()) {
+			return blocked(query, "REFERENCE_WINDOW_INCOMPLETE",
+					"accepted-advance-shape-does-not-bracket-query");
+		}
+		List<CoefficientGridRow> neighbors = shapeWindow.neighborRows(bracket);
+		int expectedNeighbors = expectedNeighborRows(bracket);
+		if (neighbors.size() < expectedNeighbors) {
+			return blocked(query, "REFERENCE_NEIGHBOR_ROWS_MISSING",
+					"accepted-advance-shape-neighbor-row-missing");
+		}
+		Coefficients shape = interpolateCoefficients(shapeWindow, bracket);
+		double ct = staticThrustCoefficientCt * shape.ctCoefficient() / staticAnchor.ctCoefficient();
+		double cp = staticPowerCoefficientCp * shape.cpCoefficient() / staticAnchor.cpCoefficient();
+		double eta = eta(effectiveJ, ct, cp);
+		return new LookupResult(
+				shapeWindow.presetName(),
+				query.caseName().isBlank() ? shapeWindow.caseName() : query.caseName(),
+				STATIC_ANCHORED_DATA_SOURCE_ID,
+				query.advanceRatioJ(),
+				query.rpm(),
+				effectiveJ,
+				query.rpm(),
+				bracket.lowerAdvanceRatioJ(),
+				bracket.upperAdvanceRatioJ(),
+				query.rpm(),
+				query.rpm(),
+				bracket.advanceFraction(),
+				0.0,
+				neighbors.size(),
+				expectedNeighbors,
+				ct,
+				cp,
+				eta,
+				statusFor(bracket, clamped),
+				clamped,
+				false,
+				clamped ? "CLAMPED" : "INTERPOLATED",
+				clamped
+						? "query-clamped-to-accepted-advance-shape-window"
+						: "static-anchored-ct-cp-j-lookup-interpolated"
+		);
+	}
+
+	public static RotorDimensionalSample sampleStaticAnchoredRotor(
+			LookupQuery query,
+			double staticThrustCoefficientCt,
+			double staticPowerCoefficientCp
+	) {
+		LookupResult lookup = evaluateStaticAnchored(
+				query,
+				staticThrustCoefficientCt,
+				staticPowerCoefficientCp
+		);
 		return sampleRotor(lookup, query.propellerDiameterMeters(), query.airDensityKgPerCubicMeter());
 	}
 
@@ -398,6 +497,61 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				.orElse(null);
 	}
 
+	private static ReferenceWindow acceptedAdvanceShapeWindow(String presetName) {
+		String normalizedPreset = normalizePreset(presetName);
+		List<CoefficientGridRow> shapeRows = new ArrayList<>();
+		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
+			if (!window.presetName().equals(normalizedPreset)) {
+				continue;
+			}
+			for (double advanceRatioJ : window.sampleAdvanceRatios()) {
+				Bracket bracket = window.bracket(advanceRatioJ, window.queryRpm());
+				if (!bracket.inside()) {
+					continue;
+				}
+				List<CoefficientGridRow> neighbors = window.neighborRows(bracket);
+				if (neighbors.size() < expectedNeighborRows(bracket)) {
+					continue;
+				}
+				Coefficients coefficients = interpolateCoefficients(window, bracket);
+				addShapeRow(shapeRows, row(
+						window.caseName() + "-j" + shapeRows.size(),
+						advanceRatioJ,
+						ADVANCE_SHAPE_RPM,
+						coefficients.ctCoefficient(),
+						coefficients.cpCoefficient()
+				));
+			}
+		}
+		if (shapeRows.isEmpty()) {
+			return null;
+		}
+		shapeRows.sort(Comparator.comparingDouble(CoefficientGridRow::advanceRatioJ));
+		return new ReferenceWindow(
+				normalizedPreset,
+				"static_anchored_forward_shape",
+				0.0,
+				ADVANCE_SHAPE_RPM,
+				shapeRows
+		);
+	}
+
+	private static Coefficients acceptedStaticAnchorCoefficients(String presetName) {
+		String normalizedPreset = normalizePreset(presetName);
+		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
+			if (!window.presetName().equals(normalizedPreset)
+					|| !"static_anchor_low_rpm".equals(window.caseName())) {
+				continue;
+			}
+			CoefficientGridRow row = window.row(0.0, window.queryRpm());
+			if (row == null) {
+				return null;
+			}
+			return new Coefficients(row.ctCoefficient(), row.cpCoefficient());
+		}
+		return null;
+	}
+
 	private static double globalAdvanceRatioScale(String presetName) {
 		double min = Double.POSITIVE_INFINITY;
 		double max = Double.NEGATIVE_INFINITY;
@@ -495,6 +649,28 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		return MathUtil.lerp(lowRpm, highRpm, bracket.rpmFraction());
 	}
 
+	private static Coefficients interpolateCoefficients(ReferenceWindow window, Bracket bracket) {
+		CoefficientGridRow j0r0 = window.row(bracket.lowerAdvanceRatioJ(), bracket.lowerRpm());
+		CoefficientGridRow j1r0 = window.row(bracket.upperAdvanceRatioJ(), bracket.lowerRpm());
+		CoefficientGridRow j0r1 = window.row(bracket.lowerAdvanceRatioJ(), bracket.upperRpm());
+		CoefficientGridRow j1r1 = window.row(bracket.upperAdvanceRatioJ(), bracket.upperRpm());
+		return interpolateCoefficients(j0r0, j1r0, j0r1, j1r1, bracket);
+	}
+
+	private static Coefficients interpolateCoefficients(
+			CoefficientGridRow j0r0,
+			CoefficientGridRow j1r0,
+			CoefficientGridRow j0r1,
+			CoefficientGridRow j1r1,
+			Bracket bracket
+	) {
+		double ct = interpolate(bracket, j0r0.ctCoefficient(), j1r0.ctCoefficient(),
+				j0r1.ctCoefficient(), j1r1.ctCoefficient());
+		double cp = interpolate(bracket, j0r0.cpCoefficient(), j1r0.cpCoefficient(),
+				j0r1.cpCoefficient(), j1r1.cpCoefficient());
+		return new Coefficients(ct, cp);
+	}
+
 	private static int expectedNeighborRows(Bracket bracket) {
 		int jCount = same(bracket.lowerAdvanceRatioJ(), bracket.upperAdvanceRatioJ()) ? 1 : 2;
 		int rpmCount = same(bracket.lowerRpm(), bracket.upperRpm()) ? 1 : 2;
@@ -550,6 +726,12 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	) {
 	}
 
+	private record Coefficients(
+			double ctCoefficient,
+			double cpCoefficient
+	) {
+	}
+
 	private record ReferenceWindow(
 			String presetName,
 			String caseName,
@@ -566,6 +748,11 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					&& advanceRatioJ <= maxAdvanceRatioJ() + EPSILON
 					&& rpm >= minRpm() - EPSILON
 					&& rpm <= maxRpm() + EPSILON;
+		}
+
+		private boolean insideAdvanceRatio(double advanceRatioJ) {
+			return advanceRatioJ >= minAdvanceRatioJ() - EPSILON
+					&& advanceRatioJ <= maxAdvanceRatioJ() + EPSILON;
 		}
 
 		private double outsideAdvanceDistanceSquared(double advanceRatioJ) {
@@ -686,6 +873,15 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		if (row != null && rows.stream().noneMatch(existing -> existing == row)) {
 			rows.add(row);
 		}
+	}
+
+	private static void addShapeRow(List<CoefficientGridRow> rows, CoefficientGridRow row) {
+		for (CoefficientGridRow existing : rows) {
+			if (same(existing.advanceRatioJ(), row.advanceRatioJ())) {
+				return;
+			}
+		}
+		rows.add(row);
 	}
 
 	private static Double lowerOrEqual(List<Double> values, double query) {

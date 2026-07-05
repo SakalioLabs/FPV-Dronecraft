@@ -121,6 +121,133 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 	}
 
 	@Test
+	void staticAnchoredSampleUsesRotorSpecStaticCoefficientsAtRuntimeRpm() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double diameter = rotor.radiusMeters() * 2.0;
+		double rpm = 10_000.0;
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				"apDrone", "static_anchored", rotor, rpm, RHO);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery query =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
+						"apDrone",
+						"static_anchored_hover",
+						0.0,
+						rpm,
+						diameter,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE);
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup =
+				PropellerArchiveCtCpJLookupEvaluator.evaluateStaticAnchored(
+						query,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp());
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample =
+				PropellerArchiveCtCpJLookupEvaluator.sampleStaticAnchoredRotor(
+						query,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp());
+
+		assertFalse(lookup.blocked());
+		assertFalse(lookup.clamped());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
+				lookup.interpolationStatus());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.STATIC_ANCHORED_DATA_SOURCE_ID,
+				lookup.dataSourceId());
+		assertEquals(staticSample.thrustCoefficientCt(), lookup.thrustCoefficientCt(), 1.0e-15);
+		assertEquals(staticSample.powerCoefficientCp(), lookup.powerCoefficientCp(), 1.0e-15);
+		assertEquals(staticSample.thrustNewtons(), sample.thrustNewtons(), 1.0e-12);
+		assertEquals(staticSample.shaftPowerWatts(), sample.shaftPowerWatts(), 1.0e-12);
+		assertEquals(staticSample.shaftTorqueNewtonMeters(), sample.shaftTorqueNewtonMeters(), 1.0e-15);
+	}
+
+	@Test
+	void staticAnchoredMidAdvanceUsesAcceptedShapeWithoutRpmClamp() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double diameter = rotor.radiusMeters() * 2.0;
+		double rpm = 12_000.0;
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				"apDrone", "static_anchored", rotor, rpm, RHO);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery query =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
+						"apDrone",
+						"static_anchored_mid_j",
+						0.40,
+						rpm,
+						diameter,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE);
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup =
+				PropellerArchiveCtCpJLookupEvaluator.evaluateStaticAnchored(
+						query,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp());
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample =
+				PropellerArchiveCtCpJLookupEvaluator.sampleStaticAnchoredRotor(
+						query,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp());
+
+		assertFalse(lookup.blocked());
+		assertFalse(lookup.clamped());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.LINEAR_ADVANCE,
+				lookup.interpolationStatus());
+		assertEquals(rpm, lookup.effectiveRpm(), 1.0e-9);
+		assertTrue(lookup.thrustCoefficientCt() < staticSample.thrustCoefficientCt());
+		assertTrue(lookup.powerCoefficientCp() > staticSample.powerCoefficientCp());
+		assertFinitePositive(sample);
+		assertEquals(expectedThrust(lookup, diameter, RHO), sample.thrustNewtons(), 1.0e-12);
+		assertEquals(expectedShaftPower(lookup, diameter, RHO), sample.shaftPowerWatts(), 1.0e-12);
+	}
+
+	@Test
+	void staticAnchoredOutOfEnvelopeBlocksOrExplicitlyClampsAdvanceShape() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double diameter = rotor.radiusMeters() * 2.0;
+		double rpm = 12_000.0;
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				"apDrone", "static_anchored", rotor, rpm, RHO);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery blockedQuery =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
+						"apDrone",
+						"static_anchored_high_j",
+						1.20,
+						rpm,
+						diameter,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult blocked =
+				PropellerArchiveCtCpJLookupEvaluator.evaluateStaticAnchored(
+						blockedQuery,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp());
+		assertTrue(blocked.blocked());
+		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.status());
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery clampQuery =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
+						"apDrone",
+						"static_anchored_high_j",
+						1.20,
+						rpm,
+						diameter,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult clamped =
+				PropellerArchiveCtCpJLookupEvaluator.evaluateStaticAnchored(
+						clampQuery,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp());
+		assertFalse(clamped.blocked());
+		assertTrue(clamped.clamped());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.CLAMPED_EXACT,
+				clamped.interpolationStatus());
+		assertEquals(0.8128, clamped.effectiveAdvanceRatioJ(), 1.0e-12);
+		assertEquals(rpm, clamped.effectiveRpm(), 1.0e-9);
+	}
+
+	@Test
 	void outOfEnvelopeQueryBlocksOrExplicitlyClamps() {
 		double diameter = apDroneDiameterMeters();
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery high =

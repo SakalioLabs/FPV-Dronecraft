@@ -31,17 +31,38 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
 				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				"apDrone", "static_anchored", rotor, reference.rpm(), RHO);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult archiveShape =
+				PropellerArchiveCtCpJLookupEvaluator.evaluate(reference);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult archiveStaticAnchor =
+				PropellerArchiveCtCpJLookupEvaluator.evaluate(
+						PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+								"apDrone",
+								"static_anchor_low_rpm",
+								rotor.radiusMeters() * 2.0,
+								RHO
+						));
+		double expectedCt = staticSample.thrustCoefficientCt()
+				* archiveShape.thrustCoefficientCt()
+				/ archiveStaticAnchor.thrustCoefficientCt();
+		double expectedCp = staticSample.powerCoefficientCp()
+				* archiveShape.powerCoefficientCp()
+				/ archiveStaticAnchor.powerCoefficientCp();
 
 		assertNotNull(sample);
 		assertFalse(sample.blocked());
-		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BILINEAR,
+		assertFalse(sample.clamped());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
 				sample.lookup().interpolationStatus());
 		assertEquals(reference.advanceRatioJ(), sample.lookup().effectiveAdvanceRatioJ(), 1.0e-12);
 		assertEquals(reference.rpm(), sample.lookup().effectiveRpm(), 1.0e-9);
-		assertEquals(0.09325, sample.lookup().thrustCoefficientCt(), 1.0e-12);
-		assertEquals(0.05075, sample.lookup().powerCoefficientCp(), 1.0e-12);
-		assertEquals(0.19840592872073343, sample.thrustNewtons(), 1.0e-15);
-		assertEquals(1.0985575597709705, sample.shaftPowerWatts(), 1.0e-15);
+		assertEquals(expectedCt, sample.lookup().thrustCoefficientCt(), 1.0e-15);
+		assertEquals(expectedCp, sample.lookup().powerCoefficientCp(), 1.0e-15);
+		assertEquals(expectedThrust(sample.lookup(), rotor.radiusMeters() * 2.0, RHO),
+				sample.thrustNewtons(), 1.0e-15);
+		assertEquals(expectedShaftPower(sample.lookup(), rotor.radiusMeters() * 2.0, RHO),
+				sample.shaftPowerWatts(), 1.0e-15);
 
 		DroneState state = new DroneState(1);
 		state.setRotorCtCpJReferenceSample(0, sample);
@@ -49,7 +70,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertTrue(state.rotorCtCpJReferenceAvailable(0));
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
 		assertFalse(state.rotorCtCpJReferenceClamped(0));
-		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BILINEAR,
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
 				state.rotorCtCpJReferenceInterpolationStatus(0));
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.INTERPOLATED,
 				state.rotorCtCpJReferenceLookupStatusCode(0));
@@ -157,37 +178,42 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
-	void hoverRuntimeReferenceClampsToStaticAnchorWithoutReplacingRuntimeForce() {
+	void hoverRuntimeReferenceUsesStaticAnchorAndCanReplaceRuntimeForce() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
 		double hoverOmega = Math.sqrt(
 				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
 						/ rotor.thrustCoefficient());
+		double hoverRpm = hoverOmega * 60.0 / (2.0 * Math.PI);
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				"apDrone", "static_anchored_hover", rotor, hoverRpm, RHO);
 
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
 				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0);
 
 		assertNotNull(sample);
 		assertFalse(sample.blocked());
-		assertTrue(sample.clamped());
-		assertEquals("static_anchor_low_rpm", sample.lookup().caseName());
-		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.CLAMPED_EXACT,
+		assertFalse(sample.clamped());
+		assertEquals("static_anchored_forward_shape", sample.lookup().caseName());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
 				sample.lookup().interpolationStatus());
-		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED,
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.INTERPOLATED,
 				sample.lookup().lookupStatusCode());
-		assertEquals(0.120, sample.lookup().thrustCoefficientCt(), 1.0e-12);
-		assertEquals(0.040, sample.lookup().powerCoefficientCp(), 1.0e-12);
-		assertTrue(sample.thrustNewtons() > 0.0);
-		assertTrue(sample.shaftPowerWatts() > 0.0);
+		assertEquals(staticSample.thrustCoefficientCt(), sample.lookup().thrustCoefficientCt(), 1.0e-15);
+		assertEquals(staticSample.powerCoefficientCp(), sample.lookup().powerCoefficientCp(), 1.0e-15);
+		assertEquals(staticSample.thrustNewtons(), sample.thrustNewtons(), 1.0e-12);
+		assertEquals(staticSample.shaftPowerWatts(), sample.shaftPowerWatts(), 1.0e-12);
 
 		DroneState state = new DroneState(1);
 		state.setRotorCtCpJReferenceSample(0, sample);
 		assertTrue(state.rotorCtCpJReferenceAvailable(0));
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
-		assertTrue(state.rotorCtCpJReferenceClamped(0));
+		assertFalse(state.rotorCtCpJReferenceClamped(0));
 
 		double fallbackThrust = rotor.thrustCoefficient() * hoverOmega * hoverOmega;
 		double fallbackTorque = rotor.yawTorquePerThrustMeter() * fallbackThrust;
+		assertEquals(fallbackThrust, sample.thrustNewtons(), 1.0e-12);
+		assertEquals(fallbackTorque, sample.shaftTorqueNewtonMeters(), 1.0e-15);
 		assertEquals(fallbackThrust, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
 				sample, fallbackThrust, 1.0, 1.0), 1.0e-15);
 		assertEquals(fallbackTorque, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
@@ -242,5 +268,23 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				sample, 0.42, 1.0, 1.0), 1.0e-15);
 		assertEquals(0.031, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
 				sample, 0.031, 1.0, 1.0, 0.0002, 1.0, 1.0), 1.0e-15);
+	}
+
+	private static double expectedThrust(
+			PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup,
+			double diameter,
+			double density
+	) {
+		double n = lookup.queryRpm() / 60.0;
+		return lookup.thrustCoefficientCt() * density * n * n * Math.pow(diameter, 4.0);
+	}
+
+	private static double expectedShaftPower(
+			PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup,
+			double diameter,
+			double density
+	) {
+		double n = lookup.queryRpm() / 60.0;
+		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
 	}
 }

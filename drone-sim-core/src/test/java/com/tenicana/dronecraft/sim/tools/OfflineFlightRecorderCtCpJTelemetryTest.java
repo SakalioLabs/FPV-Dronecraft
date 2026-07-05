@@ -138,7 +138,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		);
 		assertTrue(report.ctCpJReferenceCoverageFraction() >= 0.0);
 		assertTrue(report.ctCpJReferenceCoverageFraction() <= 1.0);
-		assertTrue(report.ctCpJReferenceClampedRotorSampleCount() > 0);
+		assertTrue(report.ctCpJReferenceAvailableRotorSampleCount() > 0);
+		assertEquals(0, report.ctCpJReferenceBlockedRotorSampleCount());
+		assertTrue(report.ctCpJReferenceClampedRotorSampleCount()
+				<= report.ctCpJReferenceAvailableRotorSampleCount());
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsThrustResidualNewtons()));
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsThrustResidualNewtons()));
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsPowerResidualWatts()));

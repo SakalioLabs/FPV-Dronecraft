@@ -143,6 +143,50 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						query.propellerDiameterMeters(),
 						query.airDensityKgPerCubicMeter()
 				);
+		return forceSample(query, lookup, dimensional);
+	}
+
+	public static RotorForceSample sampleStaticAnchored(RotorForceQuery query) {
+		if (query == null) {
+			throw new IllegalArgumentException("query must not be null.");
+		}
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery lookupQuery =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
+						query.presetName(),
+						query.caseName(),
+						query.advanceRatioJ(),
+						query.rpm(),
+						query.propellerDiameterMeters(),
+						query.airDensityKgPerCubicMeter(),
+						query.envelopePolicy()
+				);
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				query.presetName(),
+				query.caseName().isBlank() ? "static_anchored_forward_shape" : query.caseName(),
+				query.rotor(),
+				query.rpm(),
+				query.airDensityKgPerCubicMeter()
+		);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup =
+				PropellerArchiveCtCpJLookupEvaluator.evaluateStaticAnchored(
+						lookupQuery,
+						staticSample.thrustCoefficientCt(),
+						staticSample.powerCoefficientCp()
+				);
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(
+						lookup,
+						query.propellerDiameterMeters(),
+						query.airDensityKgPerCubicMeter()
+				);
+		return forceSample(query, lookup, dimensional);
+	}
+
+	private static RotorForceSample forceSample(
+			RotorForceQuery query,
+			PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup,
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional
+	) {
 		double axialAdvanceSpeed = query.advanceRatioJ()
 				* query.rpm()
 				/ 60.0
@@ -178,6 +222,26 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
 		return sample(queryFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy
+		));
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		return sampleStaticAnchored(queryFromAxialAdvanceSpeed(
 				presetName,
 				caseName,
 				rotor,
