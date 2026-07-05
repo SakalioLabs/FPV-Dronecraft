@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim;
 
 public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double EPSILON = 1.0e-9;
+	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 
 	private PropellerArchiveCtCpJRotorForceModel() {
 	}
@@ -76,7 +77,14 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public boolean runtimeForceReplacementAccepted() {
-			return !blocked() && !clamped();
+			return !blocked() && !clamped() && momentumPowerClosureSatisfied();
+		}
+
+		public boolean momentumPowerClosureSatisfied() {
+			double ratio = dimensionalSample.idealMomentumPowerOverShaftPower();
+			return Double.isFinite(ratio)
+					&& ratio > 0.0
+					&& ratio <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
 		}
 
 		public double thrustNewtons() {
