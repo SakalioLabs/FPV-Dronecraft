@@ -170,6 +170,38 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 	}
 
 	@Test
+	void clampedCoefficientSampleUsesQueryRpmForDimensionalScaling() {
+		double diameter = apDroneDiameterMeters();
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery high =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone", "high_domain_max_rpm", diameter, RHO);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery clampQuery =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
+						"apDrone",
+						"high_domain_max_rpm",
+						high.advanceRatioJ() + 0.20,
+						high.rpm() * 1.25,
+						diameter,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE);
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult clamped =
+				PropellerArchiveCtCpJLookupEvaluator.evaluate(clampQuery);
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample =
+				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(clampQuery);
+
+		assertTrue(clamped.clamped());
+		assertEquals(high.rpm(), clamped.effectiveRpm(), 1.0e-9);
+		assertEquals(clampQuery.rpm(), sample.revolutionsPerSecond() * 60.0, 1.0e-9);
+		assertEquals(clampQuery.advanceRatioJ() * clampQuery.rpm() / 60.0 * diameter,
+				sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(expectedThrust(clamped, diameter, RHO), sample.thrustNewtons(), 1.0e-15);
+		assertEquals(expectedShaftPower(clamped, diameter, RHO), sample.shaftPowerWatts(), 1.0e-15);
+		assertTrue(sample.thrustNewtons()
+				> PropellerArchiveCtCpJLookupEvaluator.sampleRotor(high).thrustNewtons());
+	}
+
+	@Test
 	void lookupRejectsInvalidDimensionalInputs() {
 		double diameter = apDroneDiameterMeters();
 		assertThrows(IllegalArgumentException.class,
@@ -199,7 +231,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 			double diameter,
 			double density
 	) {
-		double n = lookup.effectiveRpm() / 60.0;
+		double n = lookup.queryRpm() / 60.0;
 		return lookup.thrustCoefficientCt() * density * n * n * Math.pow(diameter, 4.0);
 	}
 
@@ -208,7 +240,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 			double diameter,
 			double density
 	) {
-		double n = lookup.effectiveRpm() / 60.0;
+		double n = lookup.queryRpm() / 60.0;
 		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
 	}
 

@@ -271,7 +271,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		}
 		double radius = propellerDiameterMeters * 0.5;
 		double diskArea = Math.PI * radius * radius;
-		double revolutionsPerSecond = Math.max(0.0, lookup.effectiveRpm()) / 60.0;
+		double revolutionsPerSecond = Math.max(0.0, lookup.queryRpm()) / 60.0;
 		double omega = revolutionsPerSecond * 2.0 * Math.PI;
 		if (lookup.blocked()) {
 			return new RotorDimensionalSample(
@@ -292,7 +292,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0
 			);
 		}
-		double advanceSpeed = lookup.effectiveAdvanceRatioJ() * revolutionsPerSecond * propellerDiameterMeters;
+		double advanceSpeed = lookup.queryAdvanceRatioJ() * revolutionsPerSecond * propellerDiameterMeters;
 		double thrust = lookup.thrustCoefficientCt()
 				* airDensityKgPerCubicMeter
 				* revolutionsPerSecond
