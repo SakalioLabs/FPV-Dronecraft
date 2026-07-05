@@ -322,6 +322,39 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				.toList();
 	}
 
+	public static List<LookupQuery> acceptedReferenceCurveQueries(
+			String presetName,
+			double propellerDiameterMeters,
+			double airDensityKgPerCubicMeter
+	) {
+		String normalizedPreset = normalizePreset(presetName);
+		List<LookupQuery> queries = new ArrayList<>();
+		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
+			if (!window.presetName().equals(normalizedPreset)) {
+				continue;
+			}
+			List<Double> advanceRatios = window.sampleAdvanceRatios();
+			List<Double> rpms = window.sampleRpms();
+			for (double rpm : rpms) {
+				for (double advanceRatioJ : advanceRatios) {
+					queries.add(new LookupQuery(
+							window.presetName(),
+							window.caseName(),
+							advanceRatioJ,
+							rpm,
+							propellerDiameterMeters,
+							airDensityKgPerCubicMeter,
+							EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+					));
+				}
+			}
+		}
+		if (queries.isEmpty()) {
+			throw new IllegalArgumentException("no accepted CT/CP/J reference windows for preset: " + normalizedPreset);
+		}
+		return List.copyOf(queries);
+	}
+
 	private static ReferenceWindow selectWindow(LookupQuery query) {
 		if (!query.caseName().isBlank()) {
 			return ACCEPTED_REFERENCE_WINDOWS.stream()
@@ -521,6 +554,20 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			return distinctSorted(rows.stream().map(CoefficientGridRow::rpm).toList());
 		}
 
+		private List<Double> sampleAdvanceRatios() {
+			List<Double> values = new ArrayList<>(advanceRatios());
+			addDistinct(values, queryAdvanceRatioJ);
+			values.sort(Comparator.naturalOrder());
+			return values;
+		}
+
+		private List<Double> sampleRpms() {
+			List<Double> values = new ArrayList<>(rpms());
+			addDistinct(values, queryRpm);
+			values.sort(Comparator.naturalOrder());
+			return values;
+		}
+
 		private double minAdvanceRatioJ() {
 			return advanceRatios().get(0);
 		}
@@ -554,19 +601,19 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	private static List<Double> distinctSorted(List<Double> rawValues) {
 		List<Double> values = new ArrayList<>();
 		for (double candidate : rawValues) {
-			boolean present = false;
-			for (double value : values) {
-				if (same(value, candidate)) {
-					present = true;
-					break;
-				}
-			}
-			if (!present) {
-				values.add(candidate);
-			}
+			addDistinct(values, candidate);
 		}
 		values.sort(Comparator.naturalOrder());
 		return values;
+	}
+
+	private static void addDistinct(List<Double> values, double candidate) {
+		for (double value : values) {
+			if (same(value, candidate)) {
+				return;
+			}
+		}
+		values.add(candidate);
 	}
 
 	private static void addIfPresent(List<CoefficientGridRow> rows, CoefficientGridRow row) {

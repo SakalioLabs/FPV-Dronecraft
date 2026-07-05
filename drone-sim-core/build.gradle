@@ -14,6 +14,20 @@ tasks.register("offlineFlight", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJCurve", JavaExec) {
+	group = "simulation"
+	description = "Exports accepted CT/CP/J dimensional rotor response samples as CSV."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJCurveExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-curves/${presetName}.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def diameter = project.findProperty("diameter") ?: ""
+		args(presetName, outputFile, airDensity, diameter)
+	}
+}
+
 dependencies {
 	testImplementation(platform("org.junit:junit-bom:5.10.3"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
