@@ -186,6 +186,94 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		return forceSample(query, lookup, dimensional);
 	}
 
+	public static RotorForceSample sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (!Double.isFinite(signedAxialAdvanceSpeedMetersPerSecond)) {
+			throw new IllegalArgumentException("signedAxialAdvanceSpeedMetersPerSecond must be finite.");
+		}
+		if (signedAxialAdvanceSpeedMetersPerSecond >= 0.0) {
+			return sampleStaticAnchoredFromAxialAdvanceSpeed(
+					presetName,
+					caseName,
+					rotor,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					omegaRadiansPerSecond,
+					airDensityKgPerCubicMeter,
+					envelopePolicy
+			);
+		}
+		return sampleStaticAnchoredReverseAxialClamped(
+				presetName,
+				caseName == null || caseName.isBlank() ? "reverse_axial_static_anchor" : caseName,
+				rotor,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter
+		);
+	}
+
+	private static RotorForceSample sampleStaticAnchoredReverseAxialClamped(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		RotorForceQuery query = queryFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				0.0,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+		);
+		RotorForceSample staticAnchor = sampleStaticAnchored(query);
+		if (staticAnchor.blocked()) {
+			return staticAnchor;
+		}
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = staticAnchor.lookup();
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult clampedLookup =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupResult(
+						lookup.presetName(),
+						lookup.caseName(),
+						lookup.dataSourceId(),
+						lookup.queryAdvanceRatioJ(),
+						lookup.queryRpm(),
+						lookup.effectiveAdvanceRatioJ(),
+						lookup.effectiveRpm(),
+						lookup.lowerAdvanceRatioJ(),
+						lookup.upperAdvanceRatioJ(),
+						lookup.lowerRpm(),
+						lookup.upperRpm(),
+						lookup.advanceInterpolationFraction(),
+						lookup.rpmInterpolationFraction(),
+						lookup.observedNeighborRows(),
+						lookup.minimumNeighborRowsRequired(),
+						lookup.thrustCoefficientCt(),
+						lookup.powerCoefficientCp(),
+						lookup.propulsiveEfficiencyEta(),
+						PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.CLAMPED_EXACT,
+						true,
+						false,
+						"CLAMPED",
+						"reverse-axial-flow-clamped-to-static-anchor"
+				);
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(
+						clampedLookup,
+						query.propellerDiameterMeters(),
+						query.airDensityKgPerCubicMeter()
+				);
+		return forceSample(query, clampedLookup, dimensional);
+	}
+
 	private static RotorForceSample forceSample(
 			RotorForceQuery query,
 			PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup,

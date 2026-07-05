@@ -177,6 +177,39 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void signedAxialStaticAnchoredQueryClampsReverseFlowWithoutRuntimeReplacement() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						"apDrone",
+						"",
+						rotor,
+						-4.5,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+				);
+
+		assertFalse(sample.blocked());
+		assertTrue(sample.clamped());
+		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals("reverse_axial_static_anchor", sample.lookup().caseName());
+		assertEquals("CLAMPED", sample.lookup().status());
+		assertEquals("reverse-axial-flow-clamped-to-static-anchor", sample.lookup().message());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.CLAMPED_EXACT,
+				sample.lookup().interpolationStatus());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED,
+				sample.lookup().lookupStatusCode());
+		assertEquals(0.0, sample.lookup().effectiveAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.0, sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertTrue(sample.thrustNewtons() > 0.0);
+		assertTrue(sample.shaftPowerWatts() > 0.0);
+		assertTrue(sample.shaftTorqueNewtonMeters() > 0.0);
+	}
+
+	@Test
 	void rejectsUnsupportedNegativeAxialAdvanceSpeed() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		assertThrows(IllegalArgumentException.class,
