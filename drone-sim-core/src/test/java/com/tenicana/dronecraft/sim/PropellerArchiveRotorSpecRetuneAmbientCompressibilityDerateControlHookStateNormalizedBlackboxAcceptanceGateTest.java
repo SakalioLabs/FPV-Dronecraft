@@ -46,21 +46,21 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(360, blackboxSpeed.sampleCount());
 		assertEquals(360, blackboxSpeed.minSampleCount());
 		assertEquals(0.0, blackboxSpeed.freeFlightPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.012099179305115717, blackboxSpeed.freeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.009642732412038528, blackboxSpeed.freeFlightSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0, blackboxSpeed.freeFlightPhysicalConstraintViolationCount());
 		assertTrue(blackboxSpeed.freeFlightRegressionPassed());
 		assertTrue(blackboxSpeed.stateNormalizedEvidenceApplied());
 		assertEquals(0.0, blackboxSpeed.stateNormalizedPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.01514604325729649,
+		assertEquals(0.013942762381785191,
 				blackboxSpeed.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0, blackboxSpeed.stateNormalizedPhysicalConstraintViolationCount());
 		assertEquals(0.02, blackboxSpeed.maxAllowedPrimaryErrorRatio(), 1.0e-12);
 		assertEquals(0.04, blackboxSpeed.maxAllowedSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.9821409270762219, blackboxSpeed.contractThrustRatio(), 1.0e-12);
-		assertEquals(0.9669948838189254, blackboxSpeed.heldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157,
+		assertEquals(0.9681981646944368, blackboxSpeed.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.014429734182337728,
 				blackboxSpeed.heldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(-0.25182401841854773, blackboxSpeed.heldResidualReductionRatio(), 1.0e-12);
+		assertEquals(-0.44593480208765984, blackboxSpeed.heldResidualReductionRatio(), 1.0e-12);
 		assertEquals(0.0, blackboxSpeed.heldStateVelocityDeltaMetersPerSecond(), 1.0e-12);
 		assertTrue(blackboxSpeed.stateNormalizedRegressionPassed());
 		assertFalse(blackboxSpeed.freeFlightAcceptanceStillBlocked());
@@ -98,13 +98,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(0.020144608176940988, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.021957819779317794,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157,
+		assertEquals(0.014429734182337728,
 				summary.maxHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.9669948838189254,
+		assertEquals(0.9681981646944368,
 				summary.blackboxSpeedHeldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157,
+		assertEquals(0.014429734182337728,
 				summary.blackboxSpeedHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(-0.25182401841854773,
+		assertEquals(-0.44593480208765984,
 				summary.blackboxSpeedResidualReductionRatio(), 1.0e-12);
 		assertTrue(summary.currentFreeFlightBlackboxAcceptanceReady());
 		assertFalse(summary.stateNormalizedLabAcceptanceReady());

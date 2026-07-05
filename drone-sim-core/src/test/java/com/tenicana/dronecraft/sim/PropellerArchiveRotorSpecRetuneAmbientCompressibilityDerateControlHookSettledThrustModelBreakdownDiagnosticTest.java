@@ -40,20 +40,20 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSett
 								.row(0.0);
 		assertEquals("apDrone", staticRow.presetName());
 		assertEquals("cold_sea_level_minus10c", staticRow.ambientCaseName());
-		assertEquals(266, staticRow.peakSampleIndex());
-		assertEquals(1.335, staticRow.peakTimeSeconds(), 1.0e-12);
+		assertEquals(339, staticRow.peakSampleIndex());
+		assertEquals(1.7, staticRow.peakTimeSeconds(), 1.0e-12);
 		assertEquals(0.982140927076222, staticRow.contractThrustRatio(), 1.0e-12);
-		assertEquals(0.6317537107590055, staticRow.observedThrustRatio(), 1.0e-12);
-		assertEquals(0.35038721631721637, staticRow.thrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(1.1542443118185286, staticRow.omegaSquaredProxyRatio(), 1.0e-12);
-		assertEquals(0.6925393735653913, staticRow.advanceProxyRatio(), 1.0e-12);
-		assertEquals(0.6834103164455918, staticRow.compressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.2987306106306301, staticRow.proxyDeficitVsContractRatio(), 1.0e-12);
-		assertEquals(0.051656605686586254, staticRow.residualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(0.8439484695949374, staticRow.observedThrustRatio(), 1.0e-12);
+		assertEquals(0.13819245748128453, staticRow.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(1.1783241553337716, staticRow.omegaSquaredProxyRatio(), 1.0e-12);
+		assertEquals(0.7937431867861795, staticRow.advanceProxyRatio(), 1.0e-12);
+		assertEquals(0.7764582265641451, staticRow.compressibilityProxyRatio(), 1.0e-12);
+		assertEquals(0.20568270051207682, staticRow.proxyDeficitVsContractRatio(), 1.0e-12);
+		assertEquals(0.0, staticRow.residualThrustDeficitRatio(), 1.0e-12);
 		assertEquals("explicit-omega-advance-inflow-compressibility-proxy",
 				staticRow.dominantDeficitBucket());
 		assertTrue(staticRow.omegaSquaredProxyAboveContract());
-		assertTrue(staticRow.compressibilityProxyAboveObserved());
+		assertFalse(staticRow.compressibilityProxyAboveObserved());
 		assertFalse(staticRow.runtimeCouplingAllowed());
 		assertFalse(staticRow.playableReferenceAllowed());
 		assertFalse(staticRow.gameplayAutoApplyAllowed());
@@ -63,17 +63,17 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSett
 				.SettledThrustModelBreakdownRow blackboxSpeed =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSettledThrustModelBreakdownDiagnostic
 								.row(22.0);
-		assertEquals(14, blackboxSpeed.peakSampleIndex());
-		assertEquals(0.075, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
-		assertEquals(0.9700417477711062, blackboxSpeed.observedThrustRatio(), 1.0e-12);
-		assertEquals(0.012099179305115717, blackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.988541844435582, blackboxSpeed.omegaSquaredProxyRatio(), 1.0e-12);
-		assertEquals(0.9809780970903091, blackboxSpeed.advanceProxyRatio(), 1.0e-12);
-		assertEquals(0.9809878207539645, blackboxSpeed.inflowProxyRatio(), 1.0e-12);
-		assertEquals(0.983280058565587, blackboxSpeed.compressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.9865365816390166, blackboxSpeed.residualAfterCompressibilityRatio(), 1.0e-12);
+		assertEquals(46, blackboxSpeed.peakSampleIndex());
+		assertEquals(0.23500000000000001, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
+		assertEquals(0.9724981946641834, blackboxSpeed.observedThrustRatio(), 1.0e-12);
+		assertEquals(0.009642732412038528, blackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.9929391538783235, blackboxSpeed.omegaSquaredProxyRatio(), 1.0e-12);
+		assertEquals(0.9929391538783235, blackboxSpeed.advanceProxyRatio(), 1.0e-12);
+		assertEquals(0.9928762561316229, blackboxSpeed.inflowProxyRatio(), 1.0e-12);
+		assertEquals(0.9933675867486617, blackboxSpeed.compressibilityProxyRatio(), 1.0e-12);
+		assertEquals(0.9789912693318444, blackboxSpeed.residualAfterCompressibilityRatio(), 1.0e-12);
 		assertEquals(0.0, blackboxSpeed.proxyDeficitVsContractRatio(), 1.0e-12);
-		assertEquals(0.01323831079448079, blackboxSpeed.residualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(0.020869392084478244, blackboxSpeed.residualThrustDeficitRatio(), 1.0e-12);
 		assertTrue(blackboxSpeed.omegaSquaredProxyAboveContract());
 		assertTrue(blackboxSpeed.compressibilityProxyAboveObserved());
 		assertEquals("residual-unmodeled-thrust-scale",
@@ -83,13 +83,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSett
 				.SettledThrustModelBreakdownRow fastRow =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSettledThrustModelBreakdownDiagnostic
 								.row(28.0);
-		assertEquals(301, fastRow.peakSampleIndex());
-		assertEquals(1.51, fastRow.peakTimeSeconds(), 1.0e-12);
-		assertEquals(1.069245520967631, fastRow.omegaSquaredProxyRatio(), 1.0e-12);
-		assertEquals(0.8091071143081303, fastRow.advanceProxyRatio(), 1.0e-12);
-		assertEquals(0.8032507968424158, fastRow.compressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.7403421511070829, fastRow.observedThrustRatio(), 1.0e-12);
-		assertEquals(0.2025117681330001,
+		assertEquals(216, fastRow.peakSampleIndex());
+		assertEquals(1.085, fastRow.peakTimeSeconds(), 1.0e-12);
+		assertEquals(1.0488073812489271, fastRow.omegaSquaredProxyRatio(), 1.0e-12);
+		assertEquals(0.8691842510359027, fastRow.advanceProxyRatio(), 1.0e-12);
+		assertEquals(0.8650819552732446, fastRow.compressibilityProxyRatio(), 1.0e-12);
+		assertEquals(0.8076501353119606, fastRow.observedThrustRatio(), 1.0e-12);
+		assertEquals(0.13606002608911938,
 				fastRow.neutralAveragePropellerThrustScale()
 						- fastRow.deratedAveragePropellerThrustScale(),
 				1.0e-12);
@@ -99,32 +99,32 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSett
 		assertEquals(5, audit.summary().rowCount());
 		assertEquals(5, audit.summary().failedRowCount());
 		assertEquals(4, audit.summary().omegaSquaredProxyAboveContractRowCount());
-		assertEquals(5, audit.summary().compressibilityProxyAboveObservedRowCount());
-		assertEquals(4, audit.summary().explicitProxyDominantRowCount());
-		assertEquals(1, audit.summary().residualDominantRowCount());
-		assertEquals(0.6317537107590055, audit.summary().minObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.9674805213308764, audit.summary().minOmegaSquaredProxyRatio(), 1.0e-12);
-		assertEquals(1.1542443118185286, audit.summary().maxOmegaSquaredProxyRatio(), 1.0e-12);
-		assertEquals(0.6925393735653913, audit.summary().minAdvanceProxyRatio(), 1.0e-12);
-		assertEquals(0.6932585774909216, audit.summary().minInflowProxyRatio(), 1.0e-12);
-		assertEquals(0.6834103164455918, audit.summary().minCompressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.9216824359432605,
+		assertEquals(4, audit.summary().compressibilityProxyAboveObservedRowCount());
+		assertEquals(2, audit.summary().explicitProxyDominantRowCount());
+		assertEquals(3, audit.summary().residualDominantRowCount());
+		assertEquals(0.8076501353119606, audit.summary().minObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.9622484232931819, audit.summary().minOmegaSquaredProxyRatio(), 1.0e-12);
+		assertEquals(1.1783241553337716, audit.summary().maxOmegaSquaredProxyRatio(), 1.0e-12);
+		assertEquals(0.7937431867861795, audit.summary().minAdvanceProxyRatio(), 1.0e-12);
+		assertEquals(0.7930324382564363, audit.summary().minInflowProxyRatio(), 1.0e-12);
+		assertEquals(0.7764582265641451, audit.summary().minCompressibilityProxyRatio(), 1.0e-12);
+		assertEquals(0.9332791910164063,
 				audit.summary().minResidualAfterCompressibilityRatio(), 1.0e-12);
-		assertEquals(0.2987306106306301,
+		assertEquals(0.20568270051207682,
 				audit.summary().maxProxyDeficitVsContractRatio(), 1.0e-12);
-		assertEquals(0.06290864573533295,
+		assertEquals(0.06285299649224374,
 				audit.summary().maxResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.9700417477711062,
+		assertEquals(0.9724981946641834,
 				audit.summary().blackboxSpeedObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.983280058565587,
+		assertEquals(0.9933675867486617,
 				audit.summary().blackboxSpeedCompressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.01323831079448079,
+		assertEquals(0.020869392084478244,
 				audit.summary().blackboxSpeedResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.3481504747303752,
+		assertEquals(0.3117772294073716,
 				audit.summary().maxNeutralToDeratedPropellerScaleDrop(), 1.0e-12);
-		assertEquals(0.1859448941704381, audit.summary().maxRotorAdvanceRatio(), 1.0e-12);
-		assertEquals(0.5635711275769744, audit.summary().maxRotorTipMach(), 1.0e-12);
-		assertEquals("explicit-omega-advance-inflow-compressibility-proxy",
+		assertEquals(0.15136485291074253, audit.summary().maxRotorAdvanceRatio(), 1.0e-12);
+		assertEquals(0.5552805345604392, audit.summary().maxRotorTipMach(), 1.0e-12);
+		assertEquals("residual-unmodeled-thrust-scale",
 				audit.summary().dominantDeficitBucket());
 		assertEquals("investigate-apDrone-forward-advance-propeller-scale-and-residual-thrust-terms",
 				audit.summary().nextRequiredAction());
@@ -153,7 +153,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookSett
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_settled_thrust_model_breakdown_diagnostic_summary,all,all,all,all,omega_squared_proxy_above_contract_row_count,4,count,")));
 		assertTrue(lines.stream().anyMatch(line ->
-				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_settled_thrust_model_breakdown_diagnostic_summary,all,all,all,all,dominant_deficit_bucket,explicit-omega-advance-inflow-compressibility-proxy,text,")));
+				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_settled_thrust_model_breakdown_diagnostic_summary,all,all,all,all,dominant_deficit_bucket,residual-unmodeled-thrust-scale,text,")));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("propeller_archive_rotor_spec_retune_ambient_compressibility_derate_control_hook_settled_thrust_model_breakdown_diagnostic_method,all,all,all,all,method,settled-apDrone-full-throttle-thrust-model-proxy-breakdown,text,")));
 	}

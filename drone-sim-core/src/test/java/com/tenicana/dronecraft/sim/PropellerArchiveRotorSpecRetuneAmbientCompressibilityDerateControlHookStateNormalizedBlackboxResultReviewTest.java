@@ -82,20 +82,20 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 								.row("apDrone");
 		assertEquals(0.9910302351978076, apDrone.targetMaxRpmScale(), 1.0e-12);
 		assertEquals(0.9821409270762219, apDrone.contractThrustRatio(), 1.0e-12);
-		assertEquals(0.012099179305115717, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.01514604325729649,
+		assertEquals(0.009642732412038528, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.013942762381785191,
 				apDrone.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(18, apDrone.maxMarginSampleIndex());
-		assertEquals(0.095, apDrone.maxMarginTimeSeconds(), 1.0e-12);
-		assertEquals(0.9669948838189254, apDrone.heldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.9808206559698736, apDrone.heldCompressibilityProxyRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(30.124302251351953, apDrone.heldNeutralThrustNewtons(), 1.0e-12);
-		assertEquals(29.130046155672275, apDrone.heldDeratedThrustNewtons(), 1.0e-12);
-		assertEquals(0.6596776285812445, apDrone.heldNeutralAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(0.6537183504085491, apDrone.heldDeratedAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(0.029477915449139358, apDrone.heldDeratedPropellerThrustScaleRange(), 1.0e-12);
-		assertEquals(0.0037846199506205297, apDrone.heldDeratedAdvanceRatioRange(), 1.0e-12);
+		assertEquals(17, apDrone.maxMarginSampleIndex());
+		assertEquals(0.09, apDrone.maxMarginTimeSeconds(), 1.0e-12);
+		assertEquals(0.9681981646944368, apDrone.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.9826278988767745, apDrone.heldCompressibilityProxyRatio(), 1.0e-12);
+		assertEquals(0.014429734182337728, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(31.096708067883416, apDrone.heldNeutralThrustNewtons(), 1.0e-12);
+		assertEquals(30.107775679363407, apDrone.heldDeratedThrustNewtons(), 1.0e-12);
+		assertEquals(0.6693415556089335, apDrone.heldNeutralAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.6638173912679597, apDrone.heldDeratedAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.027630574933349306, apDrone.heldDeratedPropellerThrustScaleRange(), 1.0e-12);
+		assertEquals(0.003477345759935385, apDrone.heldDeratedAdvanceRatioRange(), 1.0e-12);
 		assertTrue(apDrone.stateNormalizedRegressionPassed());
 		assertEquals("PASS", apDrone.status());
 
@@ -109,18 +109,18 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(0.020144608176940988, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.021957819779317794,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157,
+		assertEquals(0.014429734182337728,
 				summary.maxHeldResidualThrustDeficitRatio(), 1.0e-12);
 		assertEquals(0.0, summary.maxHeldStateVelocityDeltaMetersPerSecond(), 1.0e-12);
 		assertEquals(0.021957819779317794, summary.racingQuadHeldSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.0038020388191628562,
 				summary.racingQuadHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.01514604325729649, summary.apDroneHeldSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.9669948838189254, summary.apDroneHeldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157,
+		assertEquals(0.013942762381785191, summary.apDroneHeldSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.9681981646944368, summary.apDroneHeldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.014429734182337728,
 				summary.apDroneHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(18, summary.apDroneMaxMarginSampleIndex());
-		assertEquals(0.095, summary.apDroneMaxMarginTimeSeconds(), 1.0e-12);
+		assertEquals(17, summary.apDroneMaxMarginSampleIndex());
+		assertEquals(0.09, summary.apDroneMaxMarginTimeSeconds(), 1.0e-12);
 		assertTrue(summary.stateNormalizedBlackboxResultReviewPassed());
 
 		assertThrows(IllegalArgumentException.class,

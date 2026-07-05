@@ -2845,12 +2845,12 @@ public final class DronePhysics {
 		}
 		double density = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER
 				* Math.max(0.20, Double.isFinite(airDensityRatio) ? airDensityRatio : 1.0);
-		double axialAdvanceSpeed = Math.max(0.0, rotorAxialVelocity(rotor, relativeAirVelocityBody));
-		return PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromAxialAdvanceSpeed(
+		double signedAxialAdvanceSpeed = rotorAxialVelocity(rotor, relativeAirVelocityBody);
+		return PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
 				PropellerArchiveCtCpJLookupEvaluator.DEFAULT_PRESET_NAME,
 				"",
 				rotor,
-				axialAdvanceSpeed,
+				signedAxialAdvanceSpeed,
 				omegaRadiansPerSecond,
 				density,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE

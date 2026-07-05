@@ -52,9 +52,9 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertFalse(apDrone.runtimeCouplingAllowed());
 		assertFalse(apDrone.playableReferenceAllowed());
 		assertFalse(apDrone.gameplayAutoApplyAllowed());
-		assertEquals(0.012099179305115717, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.01514604325729649, apDrone.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(0.009642732412038528, apDrone.freeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.013942762381785191, apDrone.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.014429734182337728, apDrone.heldResidualThrustDeficitRatio(), 1.0e-12);
 		assertEquals("FREE_FLIGHT_PASS", apDrone.status());
 		assertEquals("no-preset-trajectory-blocker", apDrone.nextRequiredAction());
 
@@ -80,11 +80,11 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(0.020144608176940988, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.021957819779317794,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.012099179305115717,
+		assertEquals(0.009642732412038528,
 				summary.apDroneFreeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.01514604325729649,
+		assertEquals(0.013942762381785191,
 				summary.apDroneStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013825772150948157,
+		assertEquals(0.014429734182337728,
 				summary.apDroneHeldResidualThrustDeficitRatio(), 1.0e-12);
 		assertTrue(summary.currentFreeFlightBlackboxAcceptanceReady());
 		assertFalse(summary.stateNormalizedLabAcceptanceReady());

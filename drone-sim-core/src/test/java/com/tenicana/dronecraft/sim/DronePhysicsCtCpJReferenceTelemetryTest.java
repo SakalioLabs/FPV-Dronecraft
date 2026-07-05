@@ -232,6 +232,37 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void reverseAxialRuntimeReferenceClampsForTelemetryWithoutReplacingRuntimeForce() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		Vec3 reverseAxialFlow = rotor.thrustAxisBody().multiply(-4.5);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, reverseAxialFlow, hoverOmega, 1.0);
+
+		assertNotNull(sample);
+		assertFalse(sample.blocked());
+		assertTrue(sample.clamped());
+		assertTrue(sample.momentumPowerClosureSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals("reverse_axial_static_anchor", sample.lookup().caseName());
+		assertEquals("CLAMPED", sample.lookup().status());
+		assertEquals("reverse-axial-flow-clamped-to-static-anchor", sample.lookup().message());
+		assertEquals(0.0, sample.lookup().effectiveAdvanceRatioJ(), 1.0e-12);
+		assertEquals(0.0, sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+
+		double fallbackThrust = rotor.thrustCoefficient() * hoverOmega * hoverOmega;
+		double fallbackTorque = rotor.yawTorquePerThrustMeter() * fallbackThrust;
+		assertEquals(fallbackThrust, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
+				sample, fallbackThrust, 1.0, 1.0), 1.0e-15);
+		assertEquals(fallbackTorque, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+				sample, fallbackTorque, 1.0, 1.0, 0.0, 1.0, 1.0), 1.0e-15);
+	}
+
+	@Test
 	void outOfEnvelopeRuntimeReferenceSampleClampsForTelemetryWithoutReplacingRuntimeForce() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =

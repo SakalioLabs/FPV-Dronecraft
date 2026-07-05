@@ -70,8 +70,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals("tip_mach_and_thrust_loss_margin", apForward.targetMetric());
 		assertEquals(360, apForward.sampleCount());
 		assertEquals(0.0, apForward.primaryErrorRatio(), 1.0e-12);
-		assertEquals(0.012099179305115717, apForward.secondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.012099179305115717, apForward.maxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.009642732412038528, apForward.secondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.009642732412038528, apForward.maxThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.009013488645329533, apForward.maxTargetOmegaOvershootRatio(), 1.0e-12);
 		assertEquals(0, apForward.physicalConstraintViolationCount());
 		assertTrue(apForward.blackboxRegressionPassed());
@@ -97,10 +97,10 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals(2, audit.summary().processedDisarmedRowCount());
 		assertEquals(0.004075367197358903, audit.summary().maxPrimaryErrorRatio(), 1.0e-12);
 		assertEquals(0.020144608176940988, audit.summary().maxSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.04133877494227589, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
+		assertEquals(0.036880311699495016, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
 		assertEquals(0.009013488645329533, audit.summary().maxTargetOmegaOvershootRatio(), 1.0e-12);
 		assertEquals(1.1575880155545448e-6, audit.summary().maxEscElectricalOutputDelta(), 1.0e-18);
-		assertEquals(0.023889271945361366, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
+		assertEquals(0.025369671759410597, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxTipMachMarginViolationRatio(), 1.0e-12);
 		assertEquals(0.020144608176940988, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxTargetOmegaAfterReleaseRatio(), 1.0e-12);
