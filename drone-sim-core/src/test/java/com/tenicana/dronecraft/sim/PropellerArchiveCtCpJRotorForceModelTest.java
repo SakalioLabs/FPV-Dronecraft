@@ -210,6 +210,39 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void signedAxialStaticAnchoredQueryBlocksReverseFlowWhenClampIsNotRequested() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						"apDrone",
+						"",
+						rotor,
+						-4.5,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertTrue(sample.blocked());
+		assertFalse(sample.clamped());
+		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals("reverse_axial_static_anchor", sample.lookup().caseName());
+		assertEquals("OUT_OF_ENVELOPE_BLOCKED", sample.lookup().status());
+		assertEquals("reverse-axial-flow-outside-ct-cp-j-envelope", sample.lookup().message());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED,
+				sample.lookup().interpolationStatus());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.OUT_OF_ENVELOPE_BLOCKED,
+				sample.lookup().lookupStatusCode());
+		assertEquals(0.0, sample.thrustNewtons(), 1.0e-15);
+		assertEquals(0.0, sample.shaftPowerWatts(), 1.0e-15);
+		assertEquals(0.0, sample.shaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, sample.thrustForceBodyNewtons().length(), 1.0e-15);
+		assertEquals(0.0, sample.reactionTorqueBodyNewtonMeters().length(), 1.0e-15);
+	}
+
+	@Test
 	void rejectsUnsupportedNegativeAxialAdvanceSpeed() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		assertThrows(IllegalArgumentException.class,

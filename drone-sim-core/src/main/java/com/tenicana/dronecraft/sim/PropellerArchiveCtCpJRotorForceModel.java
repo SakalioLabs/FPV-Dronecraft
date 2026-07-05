@@ -209,6 +209,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					envelopePolicy
 			);
 		}
+		if (envelopePolicy != PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE) {
+			return sampleStaticAnchoredReverseAxialBlocked(
+					presetName,
+					caseName == null || caseName.isBlank() ? "reverse_axial_static_anchor" : caseName,
+					rotor,
+					omegaRadiansPerSecond,
+					airDensityKgPerCubicMeter
+			);
+		}
 		return sampleStaticAnchoredReverseAxialClamped(
 				presetName,
 				caseName == null || caseName.isBlank() ? "reverse_axial_static_anchor" : caseName,
@@ -272,6 +281,57 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						query.airDensityKgPerCubicMeter()
 				);
 		return forceSample(query, clampedLookup, dimensional);
+	}
+
+	private static RotorForceSample sampleStaticAnchoredReverseAxialBlocked(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		RotorForceQuery query = queryFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				0.0,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+		);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult blockedLookup =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupResult(
+						query.presetName(),
+						query.caseName(),
+						PropellerArchiveCtCpJLookupEvaluator.STATIC_ANCHORED_DATA_SOURCE_ID,
+						query.advanceRatioJ(),
+						query.rpm(),
+						query.advanceRatioJ(),
+						query.rpm(),
+						0.0,
+						0.0,
+						0.0,
+						0.0,
+						0.0,
+						0.0,
+						0,
+						0,
+						0.0,
+						0.0,
+						0.0,
+						PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED,
+						false,
+						true,
+						"OUT_OF_ENVELOPE_BLOCKED",
+						"reverse-axial-flow-outside-ct-cp-j-envelope"
+				);
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(
+						blockedLookup,
+						query.propellerDiameterMeters(),
+						query.airDensityKgPerCubicMeter()
+				);
+		return forceSample(query, blockedLookup, dimensional);
 	}
 
 	private static RotorForceSample forceSample(
