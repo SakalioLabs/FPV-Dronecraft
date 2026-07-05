@@ -3,6 +3,8 @@ package com.tenicana.dronecraft.sim;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PropellerArchiveCtCpJLookupEvaluator {
 	public static final String DEFAULT_PRESET_NAME = "apDrone";
@@ -11,6 +13,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			"accepted-reference-advance-shape+rotor-spec-static-ct-cp";
 	private static final double EPSILON = 1.0e-9;
 	private static final double ADVANCE_SHAPE_RPM = 1.0;
+	private static final Map<ReferenceWindow, ReferenceWindowGrid> REFERENCE_WINDOW_GRIDS =
+			new ConcurrentHashMap<>();
 
 	// Runtime lookup window materialized from the accepted PropellerArchive CT/CP/J reference bridge.
 	private static final List<ReferenceWindow> ACCEPTED_REFERENCE_WINDOWS = List.of(
@@ -391,7 +395,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0
 			);
 		}
-		double advanceSpeed = lookup.queryAdvanceRatioJ() * revolutionsPerSecond * propellerDiameterMeters;
+		revolutionsPerSecond = Math.max(0.0, lookup.effectiveRpm()) / 60.0;
+		omega = revolutionsPerSecond * 2.0 * Math.PI;
+		double advanceSpeed = lookup.effectiveAdvanceRatioJ() * revolutionsPerSecond * propellerDiameterMeters;
 		double thrust = lookup.thrustCoefficientCt()
 				* airDensityKgPerCubicMeter
 				* revolutionsPerSecond
@@ -800,11 +806,15 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		}
 
 		private List<Double> advanceRatios() {
-			return distinctSorted(rows.stream().map(CoefficientGridRow::advanceRatioJ).toList());
+			return grid().advanceRatios();
 		}
 
 		private List<Double> rpms() {
-			return distinctSorted(rows.stream().map(CoefficientGridRow::rpm).toList());
+			return grid().rpms();
+		}
+
+		private ReferenceWindowGrid grid() {
+			return REFERENCE_WINDOW_GRIDS.computeIfAbsent(this, ReferenceWindowGrid::from);
 		}
 
 		private List<Double> sampleAdvanceRatios() {
@@ -849,6 +859,18 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double advanceFraction,
 			double rpmFraction
 	) {
+	}
+
+	private record ReferenceWindowGrid(
+			List<Double> advanceRatios,
+			List<Double> rpms
+	) {
+		private static ReferenceWindowGrid from(ReferenceWindow window) {
+			return new ReferenceWindowGrid(
+					distinctSorted(window.rows().stream().map(CoefficientGridRow::advanceRatioJ).toList()),
+					distinctSorted(window.rows().stream().map(CoefficientGridRow::rpm).toList())
+			);
+		}
 	}
 
 	private static List<Double> distinctSorted(List<Double> rawValues) {

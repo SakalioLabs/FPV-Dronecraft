@@ -191,10 +191,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup,
 			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional
 	) {
-		double axialAdvanceSpeed = query.advanceRatioJ()
-				* query.rpm()
-				/ 60.0
-				* query.propellerDiameterMeters();
+		double axialAdvanceSpeed = lookup.blocked()
+				? query.advanceRatioJ() * query.rpm() / 60.0 * query.propellerDiameterMeters()
+				: dimensional.axialAdvanceSpeedMetersPerSecond();
 		Vec3 axis = rotorAxisBody(query.rotor());
 		Vec3 thrustForce = lookup.blocked()
 				? Vec3.ZERO

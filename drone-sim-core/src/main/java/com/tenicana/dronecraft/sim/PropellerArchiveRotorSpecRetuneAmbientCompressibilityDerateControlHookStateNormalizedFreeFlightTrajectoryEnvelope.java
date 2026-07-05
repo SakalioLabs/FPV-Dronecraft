@@ -28,6 +28,7 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 			+ METHOD_ROW_COUNT;
 
 	private static final double EPSILON = 1.0e-9;
+	private static volatile StateNormalizedFreeFlightTrajectoryEnvelopeAudit cachedAudit;
 
 	private PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedFreeFlightTrajectoryEnvelope() {
 	}
@@ -129,6 +130,16 @@ public final class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateCo
 	}
 
 	public static StateNormalizedFreeFlightTrajectoryEnvelopeAudit audit() {
+		StateNormalizedFreeFlightTrajectoryEnvelopeAudit cached = cachedAudit;
+		if (cached != null) {
+			return cached;
+		}
+		cached = buildAudit();
+		cachedAudit = cached;
+		return cached;
+	}
+
+	private static StateNormalizedFreeFlightTrajectoryEnvelopeAudit buildAudit() {
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedFreeFlightHandoffGate
 				.StateNormalizedFreeFlightHandoffSummary handoffSummary =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedFreeFlightHandoffGate

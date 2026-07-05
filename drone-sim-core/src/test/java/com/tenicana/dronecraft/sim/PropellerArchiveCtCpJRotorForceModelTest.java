@@ -142,6 +142,41 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void clampedRotorForceSampleUsesEffectiveEnvelopeForDimensionalForce() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"high_domain_max_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sample(new PropellerArchiveCtCpJRotorForceModel.RotorForceQuery(
+						"apDrone",
+						"high_domain_max_rpm",
+						rotor,
+						highReference.advanceRatioJ() + 0.20,
+						highReference.rpm() * 1.25,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+				));
+
+		assertFalse(sample.blocked());
+		assertTrue(sample.clamped());
+		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals(highReference.rpm(), sample.lookup().effectiveRpm(), 1.0e-9);
+		assertEquals(sample.lookup().effectiveRpm(), sample.dimensionalSample().revolutionsPerSecond() * 60.0, 1.0e-9);
+		assertEquals(sample.dimensionalSample().axialAdvanceSpeedMetersPerSecond(),
+				sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().length(), 1.0e-15);
+		assertTrue(sample.thrustNewtons() > 0.0);
+		assertTrue(sample.shaftPowerWatts() > 0.0);
+		assertTrue(sample.shaftTorqueNewtonMeters() > 0.0);
+	}
+
+	@Test
 	void rejectsUnsupportedNegativeAxialAdvanceSpeed() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		assertThrows(IllegalArgumentException.class,
