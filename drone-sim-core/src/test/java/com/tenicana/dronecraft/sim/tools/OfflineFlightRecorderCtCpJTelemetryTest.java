@@ -193,6 +193,38 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			}
 		}
 		assertTrue(sawRuntimeCoefficientState, "apDrone trace should expose runtime CT/CP/J coefficient telemetry");
+		assertTrue(report.ctCpJRuntimeCoefficientRotorSampleCount() > 0);
+		assertFiniteOrderedRange(
+				report.minCtCpJRuntimeThrustCoefficientCt(),
+				report.meanCtCpJRuntimeThrustCoefficientCt(),
+				report.maxCtCpJRuntimeThrustCoefficientCt(),
+				"runtime CT"
+		);
+		assertFiniteOrderedRange(
+				report.minCtCpJRuntimePowerCoefficientCp(),
+				report.meanCtCpJRuntimePowerCoefficientCp(),
+				report.maxCtCpJRuntimePowerCoefficientCp(),
+				"runtime CP"
+		);
+		assertFiniteOrderedRange(
+				report.minCtCpJRuntimePropulsiveEfficiencyEta(),
+				report.meanCtCpJRuntimePropulsiveEfficiencyEta(),
+				report.maxCtCpJRuntimePropulsiveEfficiencyEta(),
+				"runtime eta"
+		);
+		assertTrue(report.minCtCpJRuntimeThrustCoefficientCt() > 0.0);
+		assertTrue(report.minCtCpJRuntimePowerCoefficientCp() > 0.0);
+		assertTrue(report.minCtCpJRuntimePropulsiveEfficiencyEta() >= 0.0);
+		assertTrue(Double.isFinite(report.meanCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter()));
+		assertTrue(Double.isFinite(report.maxCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter()));
+		assertTrue(report.meanCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter() > 0.0);
+		assertTrue(report.maxCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter()
+				>= report.meanCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter());
+		assertTrue(Double.isFinite(report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower()));
+		assertTrue(Double.isFinite(report.maxCtCpJRuntimeIdealMomentumPowerOverShaftPower()));
+		assertTrue(report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower() > 0.0);
+		assertTrue(report.maxCtCpJRuntimeIdealMomentumPowerOverShaftPower()
+				>= report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower());
 		assertTrue(sawReferenceState, "apDrone trace should expose available or blocked CT/CP/J reference telemetry");
 		assertTrue(sawPositiveReferenceRpm, "CT/CP/J reference telemetry should preserve lookup RPM for envelope diagnosis");
 		assertTrue(sawStaticReferenceState, "apDrone trace should expose static CT/CP shadow telemetry");
@@ -238,5 +270,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			}
 		}
 		throw new AssertionError("missing CSV column: " + name);
+	}
+
+	private static void assertFiniteOrderedRange(double min, double mean, double max, String label) {
+		assertTrue(Double.isFinite(min), label + " min should be finite");
+		assertTrue(Double.isFinite(mean), label + " mean should be finite");
+		assertTrue(Double.isFinite(max), label + " max should be finite");
+		assertTrue(min <= mean, label + " min should not exceed mean");
+		assertTrue(mean <= max, label + " mean should not exceed max");
 	}
 }
