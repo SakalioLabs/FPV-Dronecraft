@@ -120,6 +120,16 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsPowerResidualWatts()));
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsTorqueResidualNewtonMeters()));
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsTorqueResidualNewtonMeters()));
+		assertTrue(report.ctCpJStaticReferenceRotorSampleCount() > 0);
+		assertTrue(Double.isFinite(report.meanCtCpJStaticReferenceAbsThrustResidualNewtons()));
+		assertTrue(Double.isFinite(report.maxCtCpJStaticReferenceAbsThrustResidualNewtons()));
+		assertTrue(Double.isFinite(report.meanCtCpJStaticReferenceAbsPowerResidualWatts()));
+		assertTrue(Double.isFinite(report.maxCtCpJStaticReferenceAbsPowerResidualWatts()));
+		assertTrue(Double.isFinite(report.meanCtCpJStaticReferenceAbsTorqueResidualNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxCtCpJStaticReferenceAbsTorqueResidualNewtonMeters()));
+		assertTrue(report.maxCtCpJStaticReferenceAbsThrustResidualNewtons() > 0.0);
+		assertTrue(report.maxCtCpJStaticReferenceAbsPowerResidualWatts() > 0.0);
+		assertTrue(report.maxCtCpJStaticReferenceAbsTorqueResidualNewtonMeters() > 0.0);
 	}
 
 	private static int column(String[] header, String name) {
