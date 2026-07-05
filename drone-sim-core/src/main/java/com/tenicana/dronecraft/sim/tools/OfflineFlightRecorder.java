@@ -1623,10 +1623,11 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"CTCPJ reference: samples=%d available=%d blocked=%d coverage=%.3f mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
+				"CTCPJ reference: samples=%d available=%d blocked=%d clamped=%d coverage=%.3f mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
 				report.ctCpJReferenceRotorSampleCount(),
 				report.ctCpJReferenceAvailableRotorSampleCount(),
 				report.ctCpJReferenceBlockedRotorSampleCount(),
+				report.ctCpJReferenceClampedRotorSampleCount(),
 				report.ctCpJReferenceCoverageFraction(),
 				report.meanCtCpJReferenceAbsThrustResidualNewtons(),
 				report.meanCtCpJReferenceAbsPowerResidualWatts(),
@@ -5025,6 +5026,10 @@ public final class OfflineFlightRecorder {
 		return values != null && index >= 0 && index < values.length ? values[index] : 1.0;
 	}
 
+	private static boolean valueOrFalse(boolean[] values, int index) {
+		return values != null && index >= 0 && index < values.length && values[index];
+	}
+
 	private static double finiteOrZero(double value) {
 		return Double.isFinite(value) ? value : 0.0;
 	}
@@ -5274,6 +5279,7 @@ public final class OfflineFlightRecorder {
 		private double minEscThermalLimit = 1.0;
 		private int ctCpJReferenceAvailableRotorSampleCount;
 		private int ctCpJReferenceBlockedRotorSampleCount;
+		private int ctCpJReferenceClampedRotorSampleCount;
 		private int ctCpJReferenceRotorSampleCount;
 		private double ctCpJReferenceAbsThrustResidualSumNewtons;
 		private double ctCpJReferenceMaxAbsThrustResidualNewtons;
@@ -5480,6 +5486,7 @@ public final class OfflineFlightRecorder {
 		private void recordCtCpJReferenceTelemetry(DroneState state) {
 			boolean[] available = state.rotorCtCpJReferenceAvailable();
 			boolean[] blocked = state.rotorCtCpJReferenceBlocked();
+			boolean[] clamped = state.rotorCtCpJReferenceClamped();
 			double[] actualThrust = state.rotorThrustNewtons();
 			double[] actualPower = state.motorShaftPowerWatts();
 			double[] actualTorque = state.motorAerodynamicTorqueNewtonMeters();
@@ -5494,6 +5501,9 @@ public final class OfflineFlightRecorder {
 				ctCpJReferenceRotorSampleCount++;
 				if (blocked[i]) {
 					ctCpJReferenceBlockedRotorSampleCount++;
+				}
+				if (valueOrFalse(clamped, i)) {
+					ctCpJReferenceClampedRotorSampleCount++;
 				}
 				if (!available[i]) {
 					continue;
@@ -5638,6 +5648,10 @@ public final class OfflineFlightRecorder {
 
 		public int ctCpJReferenceBlockedRotorSampleCount() {
 			return ctCpJReferenceBlockedRotorSampleCount;
+		}
+
+		public int ctCpJReferenceClampedRotorSampleCount() {
+			return ctCpJReferenceClampedRotorSampleCount;
 		}
 
 		public double ctCpJReferenceCoverageFraction() {

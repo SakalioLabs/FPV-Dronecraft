@@ -2853,7 +2853,7 @@ public final class DronePhysics {
 				axialAdvanceSpeed,
 				omegaRadiansPerSecond,
 				density,
-				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
 	}
 
@@ -2899,7 +2899,7 @@ public final class DronePhysics {
 	private static boolean ctCpJRuntimeSampleAccepted(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample
 	) {
-		return sample != null && !sample.blocked();
+		return sample != null && !sample.blocked() && !sample.clamped();
 	}
 
 	private static double finiteOrDefault(double value, double defaultValue) {

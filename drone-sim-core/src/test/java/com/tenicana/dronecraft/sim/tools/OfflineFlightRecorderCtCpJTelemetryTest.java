@@ -27,6 +27,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		String[] header = lines.get(0).split(",", -1);
 		int availableIndex = column(header, "rotor_ctcpj_ref_available");
 		int blockedIndex = column(header, "rotor_ctcpj_ref_blocked");
+		int clampedIndex = column(header, "rotor_ctcpj_ref_clamped");
 		int referenceRpmIndex = column(header, "rotor_ctcpj_ref_rpm");
 		int rotorStatusIndex = column(header, "rotor_0_ctcpj_ref_status");
 		int rotorLookupStatusIndex = column(header, "rotor_0_ctcpj_ref_lookup_status");
@@ -77,8 +78,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			assertEquals(header.length, row.length, "CSV row " + i + " column count changed");
 			double available = Double.parseDouble(row[availableIndex]);
 			double blocked = Double.parseDouble(row[blockedIndex]);
+			double clamped = Double.parseDouble(row[clampedIndex]);
 			double staticAvailable = Double.parseDouble(row[staticAvailableIndex]);
-			if (available > 0.0 || blocked > 0.0) {
+			if (available > 0.0 || blocked > 0.0 || clamped > 0.0) {
 				sawReferenceState = true;
 				double referenceRpm = Double.parseDouble(row[referenceRpmIndex]);
 				double rotorRpm = Double.parseDouble(row[rotorRpmIndex]);
@@ -92,6 +94,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				if (blocked > 0.0) {
 					assertEquals(
 							PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.REFERENCE_WINDOW_UNAVAILABLE.ordinal(),
+							(int) lookupStatus
+					);
+				}
+				if (clamped > 0.0) {
+					assertEquals(
+							PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED.ordinal(),
 							(int) lookupStatus
 					);
 				}
@@ -130,6 +138,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		);
 		assertTrue(report.ctCpJReferenceCoverageFraction() >= 0.0);
 		assertTrue(report.ctCpJReferenceCoverageFraction() <= 1.0);
+		assertTrue(report.ctCpJReferenceClampedRotorSampleCount() > 0);
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsThrustResidualNewtons()));
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsThrustResidualNewtons()));
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsPowerResidualWatts()));

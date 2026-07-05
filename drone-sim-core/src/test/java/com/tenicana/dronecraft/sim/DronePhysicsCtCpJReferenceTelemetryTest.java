@@ -157,7 +157,45 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
-	void outOfEnvelopeRuntimeReferenceSampleIsExplicitlyBlocked() {
+	void hoverRuntimeReferenceClampsToStaticAnchorWithoutReplacingRuntimeForce() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0);
+
+		assertNotNull(sample);
+		assertFalse(sample.blocked());
+		assertTrue(sample.clamped());
+		assertEquals("static_anchor_low_rpm", sample.lookup().caseName());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.CLAMPED_EXACT,
+				sample.lookup().interpolationStatus());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED,
+				sample.lookup().lookupStatusCode());
+		assertEquals(0.120, sample.lookup().thrustCoefficientCt(), 1.0e-12);
+		assertEquals(0.040, sample.lookup().powerCoefficientCp(), 1.0e-12);
+		assertTrue(sample.thrustNewtons() > 0.0);
+		assertTrue(sample.shaftPowerWatts() > 0.0);
+
+		DroneState state = new DroneState(1);
+		state.setRotorCtCpJReferenceSample(0, sample);
+		assertTrue(state.rotorCtCpJReferenceAvailable(0));
+		assertFalse(state.rotorCtCpJReferenceBlocked(0));
+		assertTrue(state.rotorCtCpJReferenceClamped(0));
+
+		double fallbackThrust = rotor.thrustCoefficient() * hoverOmega * hoverOmega;
+		double fallbackTorque = rotor.yawTorquePerThrustMeter() * fallbackThrust;
+		assertEquals(fallbackThrust, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
+				sample, fallbackThrust, 1.0, 1.0), 1.0e-15);
+		assertEquals(fallbackTorque, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+				sample, fallbackTorque, 1.0, 1.0, 0.0, 1.0, 1.0), 1.0e-15);
+	}
+
+	@Test
+	void outOfEnvelopeRuntimeReferenceSampleClampsForTelemetryWithoutReplacingRuntimeForce() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
 				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
@@ -178,24 +216,27 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
 
 		assertNotNull(sample);
-		assertTrue(sample.blocked());
-		assertFalse(sample.clamped());
-		assertEquals("REFERENCE_WINDOW_UNAVAILABLE", sample.lookup().status());
-		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED,
+		assertFalse(sample.blocked());
+		assertTrue(sample.clamped());
+		assertEquals("CLAMPED", sample.lookup().status());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.CLAMPED_EXACT,
 				sample.lookup().interpolationStatus());
-		assertEquals(0.0, sample.thrustNewtons(), 1.0e-15);
-		assertEquals(0.0, sample.shaftPowerWatts(), 1.0e-15);
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED,
+				sample.lookup().lookupStatusCode());
+		assertEquals(sample.lookup().upperAdvanceRatioJ(), sample.lookup().effectiveAdvanceRatioJ(), 1.0e-12);
+		assertTrue(sample.thrustNewtons() > 0.0);
+		assertTrue(sample.shaftPowerWatts() > 0.0);
 
 		DroneState state = new DroneState(1);
 		state.setRotorCtCpJReferenceSample(0, sample);
-		assertFalse(state.rotorCtCpJReferenceAvailable(0));
-		assertTrue(state.rotorCtCpJReferenceBlocked(0));
-		assertFalse(state.rotorCtCpJReferenceClamped(0));
-		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.REFERENCE_WINDOW_UNAVAILABLE,
+		assertTrue(state.rotorCtCpJReferenceAvailable(0));
+		assertFalse(state.rotorCtCpJReferenceBlocked(0));
+		assertTrue(state.rotorCtCpJReferenceClamped(0));
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED,
 				state.rotorCtCpJReferenceLookupStatusCode(0));
-		assertEquals(queryJ, state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
+		assertEquals(sample.lookup().effectiveAdvanceRatioJ(), state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
 		assertEquals(highReference.rpm(), state.rotorCtCpJReferenceRpm(0), 1.0e-9);
-		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
+		assertEquals(sample.thrustNewtons(), state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 
 		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
 				sample, 0.42, 1.0, 1.0), 1.0e-15);

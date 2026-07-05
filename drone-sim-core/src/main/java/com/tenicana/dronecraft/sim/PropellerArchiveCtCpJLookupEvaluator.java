@@ -389,8 +389,45 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	private static ReferenceWindow nearestWindow(LookupQuery query) {
 		return ACCEPTED_REFERENCE_WINDOWS.stream()
 				.filter(window -> window.presetName().equals(query.presetName()))
-				.min(Comparator.comparingDouble(window -> window.outsideDistance(query.advanceRatioJ(), query.rpm())))
+				.min(Comparator
+						.comparingDouble((ReferenceWindow window) ->
+								window.outsideAdvanceDistanceSquared(query.advanceRatioJ()))
+						.thenComparingDouble(window -> window.outsideRpmDistanceSquared(query.rpm()))
+						.thenComparingDouble(window -> Math.abs(
+								window.queryAdvanceRatioJ() - query.advanceRatioJ())))
 				.orElse(null);
+	}
+
+	private static double globalAdvanceRatioScale(String presetName) {
+		double min = Double.POSITIVE_INFINITY;
+		double max = Double.NEGATIVE_INFINITY;
+		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
+			if (!window.presetName().equals(presetName)) {
+				continue;
+			}
+			min = Math.min(min, window.minAdvanceRatioJ());
+			max = Math.max(max, window.maxAdvanceRatioJ());
+		}
+		if (!Double.isFinite(min) || !Double.isFinite(max)) {
+			return 1.0;
+		}
+		return Math.max(EPSILON, max - min);
+	}
+
+	private static double globalRpmScale(String presetName) {
+		double min = Double.POSITIVE_INFINITY;
+		double max = Double.NEGATIVE_INFINITY;
+		for (ReferenceWindow window : ACCEPTED_REFERENCE_WINDOWS) {
+			if (!window.presetName().equals(presetName)) {
+				continue;
+			}
+			min = Math.min(min, window.minRpm());
+			max = Math.max(max, window.maxRpm());
+		}
+		if (!Double.isFinite(min) || !Double.isFinite(max)) {
+			return 1.0;
+		}
+		return Math.max(1.0, max - min);
 	}
 
 	private static LookupResult blocked(LookupQuery query, String status, String message) {
@@ -531,14 +568,18 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					&& rpm <= maxRpm() + EPSILON;
 		}
 
-		private double outsideDistance(double advanceRatioJ, double rpm) {
+		private double outsideAdvanceDistanceSquared(double advanceRatioJ) {
 			double clampedJ = MathUtil.clamp(advanceRatioJ, minAdvanceRatioJ(), maxAdvanceRatioJ());
-			double clampedRpm = MathUtil.clamp(rpm, minRpm(), maxRpm());
-			double jScale = Math.max(EPSILON, maxAdvanceRatioJ() - minAdvanceRatioJ());
-			double rpmScale = Math.max(1.0, maxRpm() - minRpm());
+			double jScale = globalAdvanceRatioScale(presetName);
 			double jDistance = (advanceRatioJ - clampedJ) / jScale;
+			return jDistance * jDistance;
+		}
+
+		private double outsideRpmDistanceSquared(double rpm) {
+			double clampedRpm = MathUtil.clamp(rpm, minRpm(), maxRpm());
+			double rpmScale = globalRpmScale(presetName);
 			double rpmDistance = (rpm - clampedRpm) / rpmScale;
-			return jDistance * jDistance + rpmDistance * rpmDistance;
+			return rpmDistance * rpmDistance;
 		}
 
 		private Bracket bracket(double queryJ, double queryRpm) {
