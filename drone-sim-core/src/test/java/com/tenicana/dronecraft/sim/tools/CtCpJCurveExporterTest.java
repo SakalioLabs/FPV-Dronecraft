@@ -5,7 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.MotorBenchCurrentModel;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
+import com.tenicana.dronecraft.sim.RotorStaticCtCpModel;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,8 +27,9 @@ class CtCpJCurveExporterTest {
 				diameter
 		);
 
-		assertEquals(14, lines.size());
+		assertEquals(21, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
+		assertTrue(lines.get(0).endsWith(",source_id"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -42,6 +45,12 @@ class CtCpJCurveExporterTest {
 		assertTrue(midThrust > 0.0);
 		assertTrue(highThrust > midThrust);
 		assertTrue(highPower > midPower);
+
+		String foxeerStatic = lineForCase(lines, "static_rotor_spec_foxeer_public_test");
+		assertTrue(foxeerStatic.endsWith("," + RotorStaticCtCpModel.SOURCE_ID));
+		assertEquals(0.159299848814191, Double.parseDouble(foxeerStatic.split(",", -1)[9]), 1.0e-15);
+		assertEquals(MotorBenchCurrentModel.FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_NEWTONS,
+				Double.parseDouble(foxeerStatic.split(",", -1)[13]), 1.0e-12);
 	}
 
 	@Test
@@ -56,15 +65,27 @@ class CtCpJCurveExporterTest {
 		);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(14, lines.size());
+		assertEquals(21, lines.size());
 		assertTrue(lines.get(0).contains("shaft_torque_nm"));
+		assertTrue(lines.get(0).contains("source_id"));
 	}
 
 	private static double numericCell(List<String> lines, String caseName, String queryJ, int cellIndex) {
-		String line = lines.stream()
+		String line = lineForCaseAndQueryJ(lines, caseName, queryJ);
+		return Double.parseDouble(line.split(",", -1)[cellIndex]);
+	}
+
+	private static String lineForCaseAndQueryJ(List<String> lines, String caseName, String queryJ) {
+		return lines.stream()
 				.filter(candidate -> candidate.startsWith("apDrone," + caseName + "," + queryJ + ","))
 				.findFirst()
 				.orElseThrow();
-		return Double.parseDouble(line.split(",", -1)[cellIndex]);
+	}
+
+	private static String lineForCase(List<String> lines, String caseName) {
+		return lines.stream()
+				.filter(candidate -> candidate.startsWith("apDrone," + caseName + ","))
+				.findFirst()
+				.orElseThrow();
 	}
 }
