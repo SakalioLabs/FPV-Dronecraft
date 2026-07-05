@@ -820,6 +820,7 @@ public final class OfflineFlightRecorder {
 			"rotor_5_prop_power_scale",
 			"rotor_6_prop_power_scale",
 			"rotor_7_prop_power_scale",
+			ctCpJReferenceColumns(),
 			"rotor_axial_gust_thrust_scale",
 			"rotor_0_axial_gust_thrust_scale",
 			"rotor_1_axial_gust_thrust_scale",
@@ -1156,6 +1157,40 @@ public final class OfflineFlightRecorder {
 			"apdrone_pdf5045_current_ratio",
 			"apdrone_pdf5045_current_residual_a"
 	);
+
+	private static String ctCpJReferenceColumns() {
+		StringBuilder builder = new StringBuilder();
+		appendCtCpJReferenceColumnFamily(builder, "available");
+		appendCtCpJReferenceColumnFamily(builder, "blocked");
+		appendCtCpJReferenceColumnFamily(builder, "clamped");
+		appendCtCpJReferencePerRotorColumns(builder, "status");
+		appendCtCpJReferenceColumnFamily(builder, "j");
+		appendCtCpJReferenceColumnFamily(builder, "ct");
+		appendCtCpJReferenceColumnFamily(builder, "cp");
+		appendCtCpJReferenceColumnFamily(builder, "eta");
+		appendCtCpJReferenceColumnFamily(builder, "thrust_n");
+		appendCtCpJReferenceColumnFamily(builder, "shaft_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_nm");
+		return builder.toString();
+	}
+
+	private static void appendCtCpJReferenceColumnFamily(StringBuilder builder, String suffix) {
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_ref_" + suffix);
+		appendCtCpJReferencePerRotorColumns(builder, suffix);
+	}
+
+	private static void appendCtCpJReferencePerRotorColumns(StringBuilder builder, String suffix) {
+		for (int i = 0; i < 8; i++) {
+			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + suffix);
+		}
+	}
+
+	private static void appendCtCpJReferenceColumn(StringBuilder builder, String column) {
+		if (builder.length() > 0) {
+			builder.append(',');
+		}
+		builder.append(column);
+	}
 
 	private OfflineFlightRecorder() {
 	}
@@ -4266,6 +4301,16 @@ public final class OfflineFlightRecorder {
 		double[] rotorPropellerAdvanceRatioJ = state.rotorPropellerAdvanceRatioJ();
 		double[] rotorPropellerThrustScale = state.rotorPropellerThrustScale();
 		double[] rotorPropellerPowerScale = state.rotorPropellerPowerScale();
+		boolean[] rotorCtCpJReferenceAvailable = state.rotorCtCpJReferenceAvailable();
+		boolean[] rotorCtCpJReferenceBlocked = state.rotorCtCpJReferenceBlocked();
+		boolean[] rotorCtCpJReferenceClamped = state.rotorCtCpJReferenceClamped();
+		double[] rotorCtCpJReferenceAdvanceRatioJ = state.rotorCtCpJReferenceAdvanceRatioJ();
+		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
+		double[] rotorCtCpJReferenceCp = state.rotorCtCpJReferencePowerCoefficientCp();
+		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
+		double[] rotorCtCpJReferenceThrust = state.rotorCtCpJReferenceThrustNewtons();
+		double[] rotorCtCpJReferencePower = state.rotorCtCpJReferenceShaftPowerWatts();
+		double[] rotorCtCpJReferenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
 		double[] rotorAxialGustThrustScale = state.rotorAxialGustThrustScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -4484,6 +4529,19 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorPropellerPowerScale, i), "%.5f");
 		}
+		appendBooleanFamily(builder, rotorCtCpJReferenceAvailable);
+		appendBooleanFamily(builder, rotorCtCpJReferenceBlocked);
+		appendBooleanFamily(builder, rotorCtCpJReferenceClamped);
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, i < state.motorCount() ? state.rotorCtCpJReferenceInterpolationStatus(i).ordinal() : 0);
+		}
+		appendDoubleFamily(builder, rotorCtCpJReferenceAdvanceRatioJ, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceCt, rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceCp, rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceThrust, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferencePower, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTorque, rotorCtCpJReferenceAvailable, "%.6f");
 		appendExtra(builder, state.averageRotorAxialGustThrustScale(), "%.5f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrOne(rotorAxialGustThrustScale, i), "%.5f");
@@ -4664,6 +4722,53 @@ public final class OfflineFlightRecorder {
 
 	private static void appendExtra(StringBuilder builder, double value, String format) {
 		builder.append(',').append(String.format(Locale.ROOT, format, value));
+	}
+
+	private static void appendBooleanFamily(StringBuilder builder, boolean[] values) {
+		appendExtra(builder, booleanFraction(values), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, booleanValue(values, i));
+		}
+	}
+
+	private static void appendDoubleFamily(StringBuilder builder, double[] values, boolean[] available, String format) {
+		appendExtra(builder, averageAvailable(values, available), format);
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(values, i), format);
+		}
+	}
+
+	private static int booleanValue(boolean[] values, int index) {
+		return values != null && index >= 0 && index < values.length && values[index] ? 1 : 0;
+	}
+
+	private static double booleanFraction(boolean[] values) {
+		if (values == null || values.length == 0) {
+			return 0.0;
+		}
+		int count = 0;
+		for (boolean value : values) {
+			if (value) {
+				count++;
+			}
+		}
+		return (double) count / values.length;
+	}
+
+	private static double averageAvailable(double[] values, boolean[] available) {
+		if (values == null || available == null) {
+			return 0.0;
+		}
+		int count = Math.min(values.length, available.length);
+		double sum = 0.0;
+		int observed = 0;
+		for (int i = 0; i < count; i++) {
+			if (available[i] && Double.isFinite(values[i])) {
+				sum += values[i];
+				observed++;
+			}
+		}
+		return observed == 0 ? 0.0 : sum / observed;
 	}
 
 	private static double valueOrZero(double[] values, int index) {
