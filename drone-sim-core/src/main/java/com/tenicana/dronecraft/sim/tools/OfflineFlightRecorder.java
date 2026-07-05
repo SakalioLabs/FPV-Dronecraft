@@ -1164,6 +1164,7 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "blocked");
 		appendCtCpJReferenceColumnFamily(builder, "clamped");
 		appendCtCpJReferencePerRotorColumns(builder, "status");
+		appendCtCpJReferencePerRotorColumns(builder, "lookup_status");
 		appendCtCpJReferenceColumnFamily(builder, "j");
 		appendCtCpJReferenceColumnFamily(builder, "rpm");
 		appendCtCpJReferenceColumnFamily(builder, "ct");
@@ -4564,6 +4565,9 @@ public final class OfflineFlightRecorder {
 		appendBooleanFamily(builder, rotorCtCpJReferenceClamped);
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, i < state.motorCount() ? state.rotorCtCpJReferenceInterpolationStatus(i).ordinal() : 0);
+		}
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, i < state.motorCount() ? state.rotorCtCpJReferenceLookupStatusCode(i).ordinal() : 0);
 		}
 		appendDoubleFamily(builder, rotorCtCpJReferenceAdvanceRatioJ, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceRpm, rotorCtCpJReferencePresent, "%.2f");

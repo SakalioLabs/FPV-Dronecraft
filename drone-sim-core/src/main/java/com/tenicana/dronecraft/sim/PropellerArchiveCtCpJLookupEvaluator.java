@@ -45,6 +45,16 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		BLOCKED
 	}
 
+	public enum LookupStatusCode {
+		UNKNOWN,
+		INTERPOLATED,
+		CLAMPED,
+		REFERENCE_WINDOW_UNAVAILABLE,
+		OUT_OF_ENVELOPE_BLOCKED,
+		REFERENCE_WINDOW_INCOMPLETE,
+		REFERENCE_NEIGHBOR_ROWS_MISSING
+	}
+
 	public record LookupQuery(
 			String presetName,
 			String caseName,
@@ -118,6 +128,10 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	) {
 		public boolean accepted() {
 			return !blocked;
+		}
+
+		public LookupStatusCode lookupStatusCode() {
+			return PropellerArchiveCtCpJLookupEvaluator.lookupStatusCode(status);
 		}
 	}
 
@@ -462,6 +476,17 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			return 0.0;
 		}
 		return numerator / denominator;
+	}
+
+	private static LookupStatusCode lookupStatusCode(String status) {
+		if (status == null || status.isBlank()) {
+			return LookupStatusCode.UNKNOWN;
+		}
+		try {
+			return LookupStatusCode.valueOf(status);
+		} catch (IllegalArgumentException ignored) {
+			return LookupStatusCode.UNKNOWN;
+		}
 	}
 
 	private static String normalizePreset(String presetName) {

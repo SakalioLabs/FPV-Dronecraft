@@ -51,6 +51,8 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceClamped(0));
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BILINEAR,
 				state.rotorCtCpJReferenceInterpolationStatus(0));
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.INTERPOLATED,
+				state.rotorCtCpJReferenceLookupStatusCode(0));
 		assertEquals(sample.lookup().effectiveAdvanceRatioJ(), state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
 		assertEquals(sample.lookup().effectiveRpm(), state.rotorCtCpJReferenceRpm(0), 1.0e-9);
 		assertEquals(sample.lookup().thrustCoefficientCt(), state.rotorCtCpJReferenceThrustCoefficientCt(0), 1.0e-12);
@@ -84,6 +86,8 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(0.0, state.rotorCtCpJReferenceShaftTorqueRatio(0), 1.0e-15);
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED,
 				state.rotorCtCpJReferenceInterpolationStatus(0));
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.UNKNOWN,
+				state.rotorCtCpJReferenceLookupStatusCode(0));
 	}
 
 	@Test
@@ -187,6 +191,8 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceAvailable(0));
 		assertTrue(state.rotorCtCpJReferenceBlocked(0));
 		assertFalse(state.rotorCtCpJReferenceClamped(0));
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.REFERENCE_WINDOW_UNAVAILABLE,
+				state.rotorCtCpJReferenceLookupStatusCode(0));
 		assertEquals(queryJ, state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
 		assertEquals(highReference.rpm(), state.rotorCtCpJReferenceRpm(0), 1.0e-9);
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);

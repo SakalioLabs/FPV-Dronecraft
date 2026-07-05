@@ -11,6 +11,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
+
 class OfflineFlightRecorderCtCpJTelemetryTest {
 	@TempDir
 	Path tempDir;
@@ -27,6 +29,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int blockedIndex = column(header, "rotor_ctcpj_ref_blocked");
 		int referenceRpmIndex = column(header, "rotor_ctcpj_ref_rpm");
 		int rotorStatusIndex = column(header, "rotor_0_ctcpj_ref_status");
+		int rotorLookupStatusIndex = column(header, "rotor_0_ctcpj_ref_lookup_status");
 		int rotorJIndex = column(header, "rotor_0_ctcpj_ref_j");
 		int rotorRpmIndex = column(header, "rotor_0_ctcpj_ref_rpm");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
@@ -39,6 +42,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_lookup_status"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_thrust_residual_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_residual_nm"));
@@ -56,11 +60,19 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				sawReferenceState = true;
 				double referenceRpm = Double.parseDouble(row[referenceRpmIndex]);
 				double rotorRpm = Double.parseDouble(row[rotorRpmIndex]);
+				double lookupStatus = Double.parseDouble(row[rotorLookupStatusIndex]);
 				assertTrue(Double.isFinite(referenceRpm));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorStatusIndex])));
+				assertTrue(Double.isFinite(lookupStatus));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorJIndex])));
 				assertTrue(Double.isFinite(rotorRpm));
 				sawPositiveReferenceRpm |= referenceRpm > 0.0 || rotorRpm > 0.0;
+				if (blocked > 0.0) {
+					assertEquals(
+							PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.REFERENCE_WINDOW_UNAVAILABLE.ordinal(),
+							(int) lookupStatus
+					);
+				}
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorCtIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorPowerIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorThrustResidualIndex])));
