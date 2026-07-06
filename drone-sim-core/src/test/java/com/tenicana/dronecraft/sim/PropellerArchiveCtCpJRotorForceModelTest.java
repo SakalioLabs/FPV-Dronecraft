@@ -483,6 +483,15 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		double expectedThrust = aggregate.rotorSamples().stream()
 				.mapToDouble(PropellerArchiveCtCpJRotorForceModel.RotorForceSample::thrustNewtons)
 				.sum();
+		double expectedIdealMomentumPower = aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.dimensionalSample().idealMomentumPowerWatts())
+				.sum();
+		double expectedWakeSwirlPower = aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.dimensionalSample().wakeSwirlKineticPowerWatts())
+				.sum();
+		double expectedWakePower = aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.dimensionalSample().totalWakeKineticPowerWatts())
+				.sum();
 		assertEquals(config.rotors().size(), aggregate.rotorSamples().size());
 		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
 		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
@@ -507,6 +516,23 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(aggregate.totalShaftPowerWatts(), aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-12);
 		assertEquals(aggregate.totalShaftTorqueNewtonMeters(),
 				aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(expectedIdealMomentumPower, aggregate.totalIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(expectedWakeSwirlPower, aggregate.totalWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(expectedWakePower, aggregate.totalWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalShaftPowerWatts() - aggregate.totalWakeKineticPowerWatts(),
+				aggregate.totalWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(aggregate.totalWakeKineticPowerWatts() / aggregate.totalShaftPowerWatts(),
+				aggregate.totalWakeKineticPowerOverShaftPower(), 1.0e-12);
+		assertEquals(aggregate.totalIdealMomentumPowerWatts(),
+				aggregate.runtimeForceReplacementIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalWakeSwirlKineticPowerWatts(),
+				aggregate.runtimeForceReplacementWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalWakeKineticPowerWatts(),
+				aggregate.runtimeForceReplacementWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalWakeKineticPowerResidualWatts(),
+				aggregate.runtimeForceReplacementWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(aggregate.totalWakeKineticPowerOverShaftPower(),
+				aggregate.runtimeForceReplacementWakeKineticPowerOverShaftPower(), 1.0e-12);
 		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
 		assertTrue(aggregate.totalShaftTorqueNewtonMeters() > 0.0);
 	}
@@ -563,9 +589,15 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, hot.runtimeForceReplacementThrustNewtons(), 1.0e-15);
 		assertEquals(0.0, hot.runtimeForceReplacementShaftPowerWatts(), 1.0e-15);
 		assertEquals(0.0, hot.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, hot.runtimeForceReplacementWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, hot.runtimeForceReplacementWakeKineticPowerResidualWatts(), 1.0e-15);
+		assertEquals(0.0, hot.runtimeForceReplacementWakeKineticPowerOverShaftPower(), 1.0e-15);
+		assertEquals(standard.totalWakeKineticPowerWatts(),
+				standard.runtimeForceReplacementWakeKineticPowerWatts(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, hot.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, hot.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-15);
 		assertTrue(hot.totalShaftPowerWatts() > 0.0);
+		assertTrue(hot.totalWakeKineticPowerWatts() > 0.0);
 		assertTrue(hot.totalBodyTorqueNewtonMeters().isFinite());
 	}
 
@@ -656,6 +688,11 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-15);
 		assertEquals(0.0, aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-15);
 		assertEquals(0.0, aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, aggregate.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, aggregate.totalWakeKineticPowerResidualWatts(), 1.0e-15);
+		assertEquals(0.0, aggregate.totalWakeKineticPowerOverShaftPower(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementWakeKineticPowerResidualWatts(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-15);
 	}
 
@@ -682,10 +719,33 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				aggregate.totalShaftPowerWatts(), 1.0e-12);
 		assertEquals(accepted.shaftTorqueNewtonMeters() + referenceOnly.shaftTorqueNewtonMeters(),
 				aggregate.totalShaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(accepted.dimensionalSample().idealMomentumPowerWatts()
+						+ referenceOnly.dimensionalSample().idealMomentumPowerWatts(),
+				aggregate.totalIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(accepted.dimensionalSample().wakeSwirlKineticPowerWatts()
+						+ referenceOnly.dimensionalSample().wakeSwirlKineticPowerWatts(),
+				aggregate.totalWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(accepted.dimensionalSample().totalWakeKineticPowerWatts()
+						+ referenceOnly.dimensionalSample().totalWakeKineticPowerWatts(),
+				aggregate.totalWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalShaftPowerWatts() - aggregate.totalWakeKineticPowerWatts(),
+				aggregate.totalWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(aggregate.totalWakeKineticPowerWatts() / aggregate.totalShaftPowerWatts(),
+				aggregate.totalWakeKineticPowerOverShaftPower(), 1.0e-12);
 		assertEquals(accepted.thrustNewtons(), aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-12);
 		assertEquals(accepted.shaftPowerWatts(), aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-12);
 		assertEquals(accepted.shaftTorqueNewtonMeters(),
 				aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(accepted.dimensionalSample().idealMomentumPowerWatts(),
+				aggregate.runtimeForceReplacementIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(accepted.dimensionalSample().wakeSwirlKineticPowerWatts(),
+				aggregate.runtimeForceReplacementWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(accepted.dimensionalSample().totalWakeKineticPowerWatts(),
+				aggregate.runtimeForceReplacementWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(accepted.shaftPowerWatts() - accepted.dimensionalSample().totalWakeKineticPowerWatts(),
+				aggregate.runtimeForceReplacementWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(accepted.dimensionalSample().totalWakeKineticPowerOverShaftPower(),
+				aggregate.runtimeForceReplacementWakeKineticPowerOverShaftPower(), 1.0e-12);
 		assertVectorEquals(accepted.thrustForceBodyNewtons(),
 				aggregate.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-12);
 		assertVectorEquals(accepted.reactionTorqueBodyNewtonMeters(),

@@ -272,6 +272,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double totalThrustNewtons,
 			double totalShaftPowerWatts,
 			double totalShaftTorqueNewtonMeters,
+			double totalIdealMomentumPowerWatts,
+			double totalWakeSwirlKineticPowerWatts,
+			double totalWakeKineticPowerWatts,
+			double totalWakeKineticPowerResidualWatts,
+			double totalWakeKineticPowerOverShaftPower,
 			Vec3 runtimeForceReplacementThrustForceBodyNewtons,
 			Vec3 runtimeForceReplacementReactionTorqueBodyNewtonMeters,
 			Vec3 runtimeForceReplacementThrustMomentBodyNewtonMeters,
@@ -279,6 +284,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double runtimeForceReplacementThrustNewtons,
 			double runtimeForceReplacementShaftPowerWatts,
 			double runtimeForceReplacementShaftTorqueNewtonMeters,
+			double runtimeForceReplacementIdealMomentumPowerWatts,
+			double runtimeForceReplacementWakeSwirlKineticPowerWatts,
+			double runtimeForceReplacementWakeKineticPowerWatts,
+			double runtimeForceReplacementWakeKineticPowerResidualWatts,
+			double runtimeForceReplacementWakeKineticPowerOverShaftPower,
 			int acceptedRotorCount,
 			int runtimeForceReplacementAcceptedRotorCount,
 			int blockedRotorCount,
@@ -293,6 +303,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			totalThrustNewtons = finiteNonnegative(totalThrustNewtons);
 			totalShaftPowerWatts = finiteNonnegative(totalShaftPowerWatts);
 			totalShaftTorqueNewtonMeters = finiteNonnegative(totalShaftTorqueNewtonMeters);
+			totalIdealMomentumPowerWatts = finiteNonnegative(totalIdealMomentumPowerWatts);
+			totalWakeSwirlKineticPowerWatts = finiteNonnegative(totalWakeSwirlKineticPowerWatts);
+			totalWakeKineticPowerWatts = finiteNonnegative(totalWakeKineticPowerWatts);
+			totalWakeKineticPowerResidualWatts = finiteOrZero(totalWakeKineticPowerResidualWatts);
+			totalWakeKineticPowerOverShaftPower =
+					finiteNonnegative(totalWakeKineticPowerOverShaftPower);
 			runtimeForceReplacementThrustForceBodyNewtons =
 					finiteVecOrZero(runtimeForceReplacementThrustForceBodyNewtons);
 			runtimeForceReplacementReactionTorqueBodyNewtonMeters =
@@ -305,6 +321,16 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			runtimeForceReplacementShaftPowerWatts = finiteNonnegative(runtimeForceReplacementShaftPowerWatts);
 			runtimeForceReplacementShaftTorqueNewtonMeters =
 					finiteNonnegative(runtimeForceReplacementShaftTorqueNewtonMeters);
+			runtimeForceReplacementIdealMomentumPowerWatts =
+					finiteNonnegative(runtimeForceReplacementIdealMomentumPowerWatts);
+			runtimeForceReplacementWakeSwirlKineticPowerWatts =
+					finiteNonnegative(runtimeForceReplacementWakeSwirlKineticPowerWatts);
+			runtimeForceReplacementWakeKineticPowerWatts =
+					finiteNonnegative(runtimeForceReplacementWakeKineticPowerWatts);
+			runtimeForceReplacementWakeKineticPowerResidualWatts =
+					finiteOrZero(runtimeForceReplacementWakeKineticPowerResidualWatts);
+			runtimeForceReplacementWakeKineticPowerOverShaftPower =
+					finiteNonnegative(runtimeForceReplacementWakeKineticPowerOverShaftPower);
 			acceptedRotorCount = Math.max(0, acceptedRotorCount);
 			runtimeForceReplacementAcceptedRotorCount = Math.max(0, runtimeForceReplacementAcceptedRotorCount);
 			blockedRotorCount = Math.max(0, blockedRotorCount);
@@ -1026,8 +1052,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	public static RotorForceAggregateSample aggregate(List<RotorForceSample> samples) {
 		if (samples == null || samples.isEmpty()) {
 			return new RotorForceAggregateSample(List.of(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
-					0.0, 0.0, 0.0, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
-					0.0, 0.0, 0.0, 0, 0, 0, 0);
+					0.0, 0.0, 0.0,
+					0.0, 0.0, 0.0, 0.0, 0.0,
+					Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
+					0.0, 0.0, 0.0,
+					0.0, 0.0, 0.0, 0.0, 0.0,
+					0, 0, 0, 0);
 		}
 		List<RotorForceSample> acceptedSamples = new ArrayList<>();
 		Vec3 totalForce = Vec3.ZERO;
@@ -1041,9 +1071,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		double totalThrust = 0.0;
 		double totalPower = 0.0;
 		double totalShaftTorque = 0.0;
+		double totalIdealMomentumPower = 0.0;
+		double totalWakeSwirlPower = 0.0;
+		double totalWakePower = 0.0;
 		double runtimeForceReplacementThrust = 0.0;
 		double runtimeForceReplacementPower = 0.0;
 		double runtimeForceReplacementShaftTorque = 0.0;
+		double runtimeForceReplacementIdealMomentumPower = 0.0;
+		double runtimeForceReplacementWakeSwirlPower = 0.0;
+		double runtimeForceReplacementWakePower = 0.0;
 		int accepted = 0;
 		int runtimeForceReplacementAccepted = 0;
 		int blocked = 0;
@@ -1060,6 +1096,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			totalThrust += sample.thrustNewtons();
 			totalPower += sample.shaftPowerWatts();
 			totalShaftTorque += sample.shaftTorqueNewtonMeters();
+			totalIdealMomentumPower += sample.dimensionalSample().idealMomentumPowerWatts();
+			totalWakeSwirlPower += sample.dimensionalSample().wakeSwirlKineticPowerWatts();
+			totalWakePower += sample.dimensionalSample().totalWakeKineticPowerWatts();
 			if (sample.blocked()) {
 				blocked++;
 			} else {
@@ -1078,11 +1117,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				runtimeForceReplacementThrust += sample.thrustNewtons();
 				runtimeForceReplacementPower += sample.shaftPowerWatts();
 				runtimeForceReplacementShaftTorque += sample.shaftTorqueNewtonMeters();
+				runtimeForceReplacementIdealMomentumPower += sample.dimensionalSample().idealMomentumPowerWatts();
+				runtimeForceReplacementWakeSwirlPower += sample.dimensionalSample().wakeSwirlKineticPowerWatts();
+				runtimeForceReplacementWakePower += sample.dimensionalSample().totalWakeKineticPowerWatts();
 			}
 			if (sample.clamped()) {
 				clamped++;
 			}
 		}
+		double totalWakeResidual = totalPower - totalWakePower;
+		double runtimeForceReplacementWakeResidual =
+				runtimeForceReplacementPower - runtimeForceReplacementWakePower;
 		return new RotorForceAggregateSample(
 				acceptedSamples,
 				totalForce,
@@ -1092,6 +1137,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				totalThrust,
 				totalPower,
 				totalShaftTorque,
+				totalIdealMomentumPower,
+				totalWakeSwirlPower,
+				totalWakePower,
+				totalWakeResidual,
+				ratio(totalWakePower, totalPower),
 				runtimeForceReplacementForce,
 				runtimeForceReplacementReactionTorque,
 				runtimeForceReplacementThrustMoment,
@@ -1099,6 +1149,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				runtimeForceReplacementThrust,
 				runtimeForceReplacementPower,
 				runtimeForceReplacementShaftTorque,
+				runtimeForceReplacementIdealMomentumPower,
+				runtimeForceReplacementWakeSwirlPower,
+				runtimeForceReplacementWakePower,
+				runtimeForceReplacementWakeResidual,
+				ratio(runtimeForceReplacementWakePower, runtimeForceReplacementPower),
 				accepted,
 				runtimeForceReplacementAccepted,
 				blocked,
