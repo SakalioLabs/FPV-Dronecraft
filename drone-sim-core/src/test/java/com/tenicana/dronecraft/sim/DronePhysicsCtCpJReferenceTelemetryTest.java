@@ -305,6 +305,48 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void runtimeReferenceOperatingEnvelopeRejectsLowReynoldsReplacement() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(
+						rotor,
+						Vec3.ZERO,
+						hoverOmega,
+						0.20,
+						config.centerOfMassOffsetBodyMeters(),
+						65.0,
+						0.0
+				);
+
+		assertNotNull(sample);
+		assertFalse(sample.blocked());
+		assertFalse(sample.clamped());
+		assertTrue(sample.momentumPowerClosureSatisfied());
+		assertTrue(sample.runtimeInflowEnvelopeSatisfied());
+		assertFalse(sample.runtimeOperatingPointEnvelopeSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertTrue(sample.operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
+
+		DroneState state = new DroneState(1);
+		state.setRotorCtCpJReferenceSample(0, sample, 65.0, 0.0);
+		assertTrue(state.rotorCtCpJReferenceAvailable(0));
+		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
+		assertEquals(sample.operatingPoint(65.0, 0.0).reynoldsIndex(),
+				state.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+
+		double fallbackThrust = 0.42;
+		double fallbackTorque = 0.031;
+		assertEquals(fallbackThrust, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(
+				sample, fallbackThrust, 1.0, 0.20), 1.0e-15);
+		assertEquals(fallbackTorque, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
+				sample, fallbackTorque, 1.0, 1.0, 0.0002, 1.0, 0.20), 1.0e-15);
+	}
+
+	@Test
 	void unsupportedRotorGeometryDoesNotUseApDroneReferencePayload() {
 		RotorSpec racingRotor = DroneConfig.racingQuad().rotors().get(0);
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =

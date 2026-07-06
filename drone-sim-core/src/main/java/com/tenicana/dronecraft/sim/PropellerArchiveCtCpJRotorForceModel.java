@@ -8,6 +8,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS = Math.toRadians(15.0);
 	private static final double RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND = 0.35;
+	private static final double RUNTIME_REPLACEMENT_MAX_TIP_MACH = 0.46;
+	private static final double RUNTIME_REPLACEMENT_MIN_REYNOLDS_INDEX = 0.52;
 	private static final double STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS = 25.0;
 	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
 	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
@@ -24,8 +26,32 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double advanceRatioJ,
 			double rpm,
 			double airDensityKgPerCubicMeter,
-			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
+		public RotorForceQuery(
+				String presetName,
+				String caseName,
+				RotorSpec rotor,
+				double advanceRatioJ,
+				double rpm,
+				double airDensityKgPerCubicMeter,
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+		) {
+			this(
+					presetName,
+					caseName,
+					rotor,
+					advanceRatioJ,
+					rpm,
+					airDensityKgPerCubicMeter,
+					envelopePolicy,
+					STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+					0.0
+			);
+		}
+
 		public RotorForceQuery {
 			if (rotor == null) {
 				throw new IllegalArgumentException("rotor must not be null.");
@@ -42,6 +68,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			if (envelopePolicy == null) {
 				envelopePolicy = PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE;
 			}
+			ambientTemperatureCelsius = Double.isFinite(ambientTemperatureCelsius)
+					? MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0)
+					: STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS;
+			ambientHumidity = Double.isFinite(ambientHumidity)
+					? MathUtil.clamp(ambientHumidity, 0.0, 1.0)
+					: 0.0;
 		}
 
 		private double propellerDiameterMeters() {
@@ -105,10 +137,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public boolean runtimeForceReplacementAccepted() {
+			return runtimeForceReplacementAccepted(query.ambientTemperatureCelsius(), query.ambientHumidity());
+		}
+
+		public boolean runtimeForceReplacementAccepted(double ambientTemperatureCelsius, double ambientHumidity) {
 			return !blocked()
 					&& !clamped()
 					&& momentumPowerClosureSatisfied()
-					&& runtimeInflowEnvelopeSatisfied();
+					&& runtimeInflowEnvelopeSatisfied()
+					&& runtimeOperatingPointEnvelopeSatisfied(ambientTemperatureCelsius, ambientHumidity);
 		}
 
 		public boolean runtimeInflowEnvelopeSatisfied() {
@@ -122,6 +159,19 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return Double.isFinite(ratio)
 					&& ratio > 0.0
 					&& ratio <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
+		}
+
+		public boolean runtimeOperatingPointEnvelopeSatisfied() {
+			return runtimeOperatingPointEnvelopeSatisfied(
+					query.ambientTemperatureCelsius(),
+					query.ambientHumidity()
+			);
+		}
+
+		public boolean runtimeOperatingPointEnvelopeSatisfied(double ambientTemperatureCelsius, double ambientHumidity) {
+			RotorOperatingPoint operatingPoint = operatingPoint(ambientTemperatureCelsius, ambientHumidity);
+			return operatingPoint.tipMach() <= RUNTIME_REPLACEMENT_MAX_TIP_MACH + EPSILON
+					&& operatingPoint.reynoldsIndex() >= RUNTIME_REPLACEMENT_MIN_REYNOLDS_INDEX - EPSILON;
 		}
 
 		public double thrustNewtons() {
@@ -230,6 +280,30 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double airDensityKgPerCubicMeter,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return queryFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceQuery queryFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		if (rotor == null) {
 			throw new IllegalArgumentException("rotor must not be null.");
 		}
@@ -250,7 +324,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				advanceRatioJ,
 				rpm,
 				airDensityKgPerCubicMeter,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -369,6 +445,32 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 momentReferenceBodyMeters,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				momentReferenceBodyMeters,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		Vec3 relativeAirVelocityBodyMetersPerSecond =
 				rotorAxisBody(rotor).multiply(finiteOrZero(signedAxialAdvanceSpeedMetersPerSecond));
 		return sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
@@ -380,7 +482,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				airDensityKgPerCubicMeter,
 				relativeAirVelocityBodyMetersPerSecond,
 				momentReferenceBodyMeters,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -415,6 +519,32 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 momentReferenceBodyMeters,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleStaticAnchoredFromRelativeAirVelocity(
+				presetName,
+				caseName,
+				rotor,
+				relativeAirVelocityBodyMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				momentReferenceBodyMeters,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromRelativeAirVelocity(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		Vec3 relativeAirVelocity = finiteRelativeAirVelocity(relativeAirVelocityBodyMetersPerSecond);
 		double signedAxialAdvanceSpeedMetersPerSecond = relativeAirVelocity.dot(rotorAxisBody(rotor));
 		return sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
@@ -426,7 +556,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				airDensityKgPerCubicMeter,
 				relativeAirVelocity,
 				momentReferenceBodyMeters,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -439,7 +571,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double airDensityKgPerCubicMeter,
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
 			Vec3 momentReferenceBodyMeters,
-			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		if (!Double.isFinite(signedAxialAdvanceSpeedMetersPerSecond)) {
 			throw new IllegalArgumentException("signedAxialAdvanceSpeedMetersPerSecond must be finite.");
@@ -453,7 +587,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					signedAxialAdvanceSpeedMetersPerSecond,
 					omegaRadiansPerSecond,
 					airDensityKgPerCubicMeter,
-					envelopePolicy
+					envelopePolicy,
+					ambientTemperatureCelsius,
+					ambientHumidity
 			);
 			return sampleStaticAnchored(query, momentReferenceBodyMeters, relativeAirVelocity);
 		}
@@ -465,7 +601,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					omegaRadiansPerSecond,
 					airDensityKgPerCubicMeter,
 					relativeAirVelocity,
-					momentReferenceBodyMeters
+					momentReferenceBodyMeters,
+					ambientTemperatureCelsius,
+					ambientHumidity
 			);
 		}
 		return sampleStaticAnchoredReverseAxialClamped(
@@ -475,7 +613,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
 				relativeAirVelocity,
-				momentReferenceBodyMeters
+				momentReferenceBodyMeters,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -486,7 +626,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double omegaRadiansPerSecond,
 			double airDensityKgPerCubicMeter,
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
-			Vec3 momentReferenceBodyMeters
+			Vec3 momentReferenceBodyMeters,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		RotorForceQuery query = queryFromAxialAdvanceSpeed(
 				presetName,
@@ -495,7 +637,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				0.0,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
-				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 		RotorForceSample staticAnchor = sampleStaticAnchored(query, momentReferenceBodyMeters,
 				relativeAirVelocityBodyMetersPerSecond);
@@ -546,7 +690,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double omegaRadiansPerSecond,
 			double airDensityKgPerCubicMeter,
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
-			Vec3 momentReferenceBodyMeters
+			Vec3 momentReferenceBodyMeters,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		RotorForceQuery query = queryFromAxialAdvanceSpeed(
 				presetName,
@@ -555,7 +701,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				0.0,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
-				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult blockedLookup =
 				new PropellerArchiveCtCpJLookupEvaluator.LookupResult(

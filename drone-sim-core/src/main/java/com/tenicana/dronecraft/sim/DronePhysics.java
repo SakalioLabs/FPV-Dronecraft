@@ -1305,7 +1305,9 @@ public final class DronePhysics {
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
 					airDensity,
-					config.centerOfMassOffsetBodyMeters()
+					config.centerOfMassOffsetBodyMeters(),
+					environment.effectiveAmbientTemperatureCelsius(),
+					ambientHumidity
 			);
 			state.setRotorCtCpJReferenceSample(
 					i,
@@ -2894,6 +2896,26 @@ public final class DronePhysics {
 			double airDensityRatio,
 			Vec3 momentReferenceBodyMeters
 	) {
+		return sampleRotorCtCpJReference(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				airDensityRatio,
+				momentReferenceBodyMeters,
+				25.0,
+				0.0
+		);
+	}
+
+	static PropellerArchiveCtCpJRotorForceModel.RotorForceSample sampleRotorCtCpJReference(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			Vec3 momentReferenceBodyMeters,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		if (!isApDroneCtCpJReferenceRotor(rotor)
 				|| relativeAirVelocityBody == null
 				|| !relativeAirVelocityBody.isFinite()
@@ -2911,7 +2933,9 @@ public final class DronePhysics {
 				omegaRadiansPerSecond,
 				density,
 				momentReferenceBodyMeters,
-				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 

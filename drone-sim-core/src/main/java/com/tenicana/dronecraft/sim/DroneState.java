@@ -1967,7 +1967,8 @@ public final class DroneState {
 		rotorCtCpJReferenceAvailable[index] = !sample.blocked();
 		rotorCtCpJReferenceBlocked[index] = sample.blocked();
 		rotorCtCpJReferenceClamped[index] = sample.clamped();
-		rotorCtCpJReferenceRuntimeApplied[index] = sample.runtimeForceReplacementAccepted();
+		rotorCtCpJReferenceRuntimeApplied[index] =
+				sample.runtimeForceReplacementAccepted(ambientTemperatureCelsius, ambientHumidity);
 		rotorCtCpJReferenceInterpolationStatusOrdinal[index] = lookup.interpolationStatus().ordinal();
 		rotorCtCpJReferenceLookupStatusCodeOrdinal[index] = lookup.lookupStatusCode().ordinal();
 		rotorCtCpJReferenceAdvanceRatioJ[index] = finiteOrZero(lookup.effectiveAdvanceRatioJ());

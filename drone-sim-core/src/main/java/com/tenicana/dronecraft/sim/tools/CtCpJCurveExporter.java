@@ -201,7 +201,9 @@ public final class CtCpJCurveExporter {
 										advanceRatioJ,
 										point.rpm(),
 										airDensityKgPerCubicMeter,
-										PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+										PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+										ambientTemperatureCelsius,
+										ambientHumidity
 								),
 								config.centerOfMassOffsetBodyMeters());
 				lines.add(csvLine(
@@ -216,7 +218,9 @@ public final class CtCpJCurveExporter {
 				presetName,
 				config,
 				rotor,
-				airDensityKgPerCubicMeter
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		)) {
 			lines.add(csvLine(
 					point.sample(),
@@ -491,6 +495,9 @@ public final class CtCpJCurveExporter {
 		if (!sample.runtimeInflowEnvelopeSatisfied()) {
 			return "OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE";
 		}
+		if (!sample.runtimeOperatingPointEnvelopeSatisfied()) {
+			return "OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE";
+		}
 		return "NOT_RUNTIME_CANDIDATE";
 	}
 
@@ -564,7 +571,9 @@ public final class CtCpJCurveExporter {
 			String presetName,
 			DroneConfig config,
 			RotorSpec rotor,
-			double airDensityKgPerCubicMeter
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		double hoverRpm = hoverRpm(config, rotor);
 		double hoverOmega = hoverRpm / RPM_PER_RADIAN_PER_SECOND;
@@ -577,7 +586,9 @@ public final class CtCpJCurveExporter {
 						hoverOmega,
 						airDensityKgPerCubicMeter,
 						config.centerOfMassOffsetBodyMeters(),
-						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE,
+						ambientTemperatureCelsius,
+						ambientHumidity
 				);
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample highAdvanceBlocked =
 				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchored(
@@ -588,7 +599,9 @@ public final class CtCpJCurveExporter {
 								OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J,
 								hoverRpm,
 								airDensityKgPerCubicMeter,
-								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+								ambientTemperatureCelsius,
+								ambientHumidity
 						),
 						config.centerOfMassOffsetBodyMeters());
 		double blockedAxialSpeed = OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J
@@ -616,7 +629,9 @@ public final class CtCpJCurveExporter {
 						hoverOmega,
 						airDensityKgPerCubicMeter,
 						config.centerOfMassOffsetBodyMeters(),
-						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						ambientTemperatureCelsius,
+						ambientHumidity
 				);
 		return List.of(
 				new EnvelopeDiagnosticPoint(

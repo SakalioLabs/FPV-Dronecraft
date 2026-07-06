@@ -40,7 +40,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(sample.blocked());
 		assertFalse(sample.clamped());
 		assertTrue(sample.momentumPowerClosureSatisfied());
-		assertTrue(sample.runtimeForceReplacementAccepted());
+		assertTrue(sample.runtimeInflowEnvelopeSatisfied());
+		assertFalse(sample.runtimeOperatingPointEnvelopeSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
 				sample.lookup().interpolationStatus());
 		assertEquals(dimensionalReference.thrustNewtons(), sample.thrustNewtons(), 1.0e-15);
@@ -110,6 +112,59 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				operatingPoint.representativeBladeChordMeters(), 1.0e-15);
 		assertTrue(operatingPoint.reynoldsNumber() > 10_000.0);
 		assertTrue(operatingPoint.reynoldsIndex() > 0.0);
+	}
+
+	@Test
+	void runtimeReplacementRejectsOperatingPointsOutsideMachOrReynoldsEnvelope() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample lowReynolds =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						"apDrone",
+						"low_reynolds_static_anchor",
+						rotor,
+						0.0,
+						hoverOmega,
+						RHO * 0.20,
+						config.centerOfMassOffsetBodyMeters(),
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						65.0,
+						0.0
+				);
+		double highMachOmega = 0.50 * DroneEnvironment.speedOfSoundMetersPerSecond(25.0)
+				/ rotor.radiusMeters();
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample highMach =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						"apDrone",
+						"high_mach_static_anchor",
+						rotor,
+						0.0,
+						highMachOmega,
+						RHO,
+						config.centerOfMassOffsetBodyMeters(),
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						25.0,
+						0.0
+				);
+
+		assertFalse(lowReynolds.blocked());
+		assertFalse(lowReynolds.clamped());
+		assertTrue(lowReynolds.momentumPowerClosureSatisfied());
+		assertTrue(lowReynolds.runtimeInflowEnvelopeSatisfied());
+		assertTrue(lowReynolds.operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
+		assertFalse(lowReynolds.runtimeOperatingPointEnvelopeSatisfied());
+		assertFalse(lowReynolds.runtimeForceReplacementAccepted());
+
+		assertFalse(highMach.blocked());
+		assertFalse(highMach.clamped());
+		assertTrue(highMach.momentumPowerClosureSatisfied());
+		assertTrue(highMach.runtimeInflowEnvelopeSatisfied());
+		assertTrue(highMach.operatingPoint(25.0, 0.0).tipMach() > 0.46);
+		assertFalse(highMach.runtimeOperatingPointEnvelopeSatisfied());
+		assertFalse(highMach.runtimeForceReplacementAccepted());
 	}
 
 	@Test
