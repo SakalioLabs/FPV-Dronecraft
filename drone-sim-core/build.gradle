@@ -28,6 +28,22 @@ tasks.register("ctCpJCurve", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJOpenFoamCompare", JavaExec) {
+	group = "simulation"
+	description = "Imports compact OpenFOAM CT/CP/J dimensional result rows and exports SI residual comparisons."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJOpenFoamDimensionalComparisonImporter")
+	doFirst {
+		def inputFile = project.findProperty("input")
+		if (inputFile == null || inputFile.toString().isBlank()) {
+			throw new GradleException("ctCpJOpenFoamCompare requires -Pinput=<compact-openfoam-results.csv>")
+		}
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-openfoam/${project.name}-comparison.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		args(inputFile, outputFile, airDensity)
+	}
+}
+
 dependencies {
 	testImplementation(platform("org.junit:junit-bom:5.10.3"))
 	testImplementation("org.junit.jupiter:junit-jupiter")
