@@ -1187,6 +1187,8 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "reaction_torque", "nm");
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "thrust_moment", "nm");
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "total_torque", "nm");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "force_residual", "n");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "torque_residual", "nm");
 		appendCtCpJReferenceColumnFamily(builder, "thrust_residual_n");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_power_residual_w");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_residual_nm");
@@ -4785,6 +4787,24 @@ public final class OfflineFlightRecorder {
 		for (int i = 0; i < 8; i++) {
 			appendRotorTorqueColumns(builder, rotorCtCpJReferenceTotalTorqueBody, i);
 		}
+		for (int i = 0; i < 8; i++) {
+			appendRotorForceResidualColumns(
+					builder,
+					rotorForceBody,
+					rotorCtCpJReferenceThrustForceBody,
+					rotorCtCpJReferenceAvailable,
+					i
+			);
+		}
+		for (int i = 0; i < 8; i++) {
+			appendRotorTorqueResidualColumns(
+					builder,
+					rotorTorqueBody,
+					rotorCtCpJReferenceTotalTorqueBody,
+					rotorCtCpJReferenceAvailable,
+					i
+			);
+		}
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrustResidual, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferencePowerResidual, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorqueResidual, rotorCtCpJReferenceAvailable, "%.6f");
@@ -5387,6 +5407,36 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, torque.z(), "%.6f");
 	}
 
+	private static void appendRotorForceResidualColumns(
+			StringBuilder builder,
+			Vec3[] actualRotorForceBody,
+			Vec3[] referenceThrustForceBody,
+			boolean[] referenceAvailable,
+			int index
+	) {
+		Vec3 residual = valueOrFalse(referenceAvailable, index)
+				? vectorOrZero(actualRotorForceBody, index).subtract(vectorOrZero(referenceThrustForceBody, index))
+				: Vec3.ZERO;
+		appendExtra(builder, residual.x(), "%.5f");
+		appendExtra(builder, residual.y(), "%.5f");
+		appendExtra(builder, residual.z(), "%.5f");
+	}
+
+	private static void appendRotorTorqueResidualColumns(
+			StringBuilder builder,
+			Vec3[] actualRotorTorqueBody,
+			Vec3[] referenceTotalTorqueBody,
+			boolean[] referenceAvailable,
+			int index
+	) {
+		Vec3 residual = valueOrFalse(referenceAvailable, index)
+				? vectorOrZero(actualRotorTorqueBody, index).subtract(vectorOrZero(referenceTotalTorqueBody, index))
+				: Vec3.ZERO;
+		appendExtra(builder, residual.x(), "%.6f");
+		appendExtra(builder, residual.y(), "%.6f");
+		appendExtra(builder, residual.z(), "%.6f");
+	}
+
 	private static Vec3 normalizeEulerForLog(Quaternion orientation) {
 		Vec3 euler = orientation.toEulerXYZRadians();
 		return new Vec3(
@@ -5566,6 +5616,10 @@ public final class OfflineFlightRecorder {
 		private double ctCpJReferenceMaxAbsPowerResidualWatts;
 		private double ctCpJReferenceAbsTorqueResidualSumNewtonMeters;
 		private double ctCpJReferenceMaxAbsTorqueResidualNewtonMeters;
+		private double ctCpJReferenceForceVectorResidualSumNewtons;
+		private double ctCpJReferenceMaxForceVectorResidualNewtons;
+		private double ctCpJReferenceTorqueVectorResidualSumNewtonMeters;
+		private double ctCpJReferenceMaxTorqueVectorResidualNewtonMeters;
 		private int ctCpJRuntimeCoefficientRotorSampleCount;
 		private double ctCpJRuntimeThrustCoefficientCtSum;
 		private double ctCpJRuntimeMinThrustCoefficientCt = Double.POSITIVE_INFINITY;
@@ -5853,9 +5907,13 @@ public final class OfflineFlightRecorder {
 			double[] actualThrust = state.rotorThrustNewtons();
 			double[] actualTorque = state.motorAerodynamicTorqueNewtonMeters();
 			double[] actualPower = rotorAerodynamicShaftPowerWatts(actualTorque, state.motorRpm());
+			Vec3[] actualRotorForceBody = state.rotorForceBodyNewtons();
+			Vec3[] actualRotorTorqueBody = state.rotorTorqueBodyNewtonMeters();
 			double[] referenceThrust = state.rotorCtCpJReferenceThrustNewtons();
 			double[] referencePower = state.rotorCtCpJReferenceShaftPowerWatts();
 			double[] referenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
+			Vec3[] referenceThrustForceBody = state.rotorCtCpJReferenceThrustForceBodyNewtons();
+			Vec3[] referenceTotalTorqueBody = state.rotorCtCpJReferenceTotalTorqueBodyNewtonMeters();
 			int count = Math.min(available.length, blocked.length);
 			for (int i = 0; i < count; i++) {
 				if (!available[i] && !blocked[i]) {
@@ -5878,6 +5936,12 @@ public final class OfflineFlightRecorder {
 				double thrustResidual = Math.abs(valueOrZero(actualThrust, i) - valueOrZero(referenceThrust, i));
 				double powerResidual = Math.abs(valueOrZero(actualPower, i) - valueOrZero(referencePower, i));
 				double torqueResidual = Math.abs(valueOrZero(actualTorque, i) - valueOrZero(referenceTorque, i));
+				double forceVectorResidual = finiteOrZero(vectorOrZero(actualRotorForceBody, i)
+						.subtract(vectorOrZero(referenceThrustForceBody, i))
+						.length());
+				double torqueVectorResidual = finiteOrZero(vectorOrZero(actualRotorTorqueBody, i)
+						.subtract(vectorOrZero(referenceTotalTorqueBody, i))
+						.length());
 				ctCpJReferenceAbsThrustResidualSumNewtons += thrustResidual;
 				ctCpJReferenceMaxAbsThrustResidualNewtons = Math.max(
 						ctCpJReferenceMaxAbsThrustResidualNewtons,
@@ -5892,6 +5956,16 @@ public final class OfflineFlightRecorder {
 				ctCpJReferenceMaxAbsTorqueResidualNewtonMeters = Math.max(
 						ctCpJReferenceMaxAbsTorqueResidualNewtonMeters,
 						torqueResidual
+				);
+				ctCpJReferenceForceVectorResidualSumNewtons += forceVectorResidual;
+				ctCpJReferenceMaxForceVectorResidualNewtons = Math.max(
+						ctCpJReferenceMaxForceVectorResidualNewtons,
+						forceVectorResidual
+				);
+				ctCpJReferenceTorqueVectorResidualSumNewtonMeters += torqueVectorResidual;
+				ctCpJReferenceMaxTorqueVectorResidualNewtonMeters = Math.max(
+						ctCpJReferenceMaxTorqueVectorResidualNewtonMeters,
+						torqueVectorResidual
 				);
 			}
 		}
@@ -6064,6 +6138,26 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJReferenceAbsTorqueResidualNewtonMeters() {
 			return ctCpJReferenceMaxAbsTorqueResidualNewtonMeters;
+		}
+
+		public double meanCtCpJReferenceForceVectorResidualNewtons() {
+			return ctCpJReferenceAvailableRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceForceVectorResidualSumNewtons / ctCpJReferenceAvailableRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceForceVectorResidualNewtons() {
+			return ctCpJReferenceMaxForceVectorResidualNewtons;
+		}
+
+		public double meanCtCpJReferenceTorqueVectorResidualNewtonMeters() {
+			return ctCpJReferenceAvailableRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceTorqueVectorResidualSumNewtonMeters / ctCpJReferenceAvailableRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceTorqueVectorResidualNewtonMeters() {
+			return ctCpJReferenceMaxTorqueVectorResidualNewtonMeters;
 		}
 
 		public int ctCpJRuntimeCoefficientRotorSampleCount() {
