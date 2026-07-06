@@ -285,7 +285,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
-	void acceptedReferenceSampleAnchorsRuntimePropellerPowerScale() {
+	void acceptedReferenceSampleAnchorsRuntimePropellerScales() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
 				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
@@ -314,10 +314,16 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertNotNull(sample);
 		assertTrue(sample.runtimeForceReplacementAccepted());
 		assertEquals(
+				sample.lookup().thrustCoefficientCt() / staticSample.thrustCoefficientCt(),
+				DronePhysics.rotorCtCpJRuntimePropellerThrustScale(sample, 0.42),
+				1.0e-15
+		);
+		assertEquals(
 				sample.lookup().powerCoefficientCp() / staticSample.powerCoefficientCp(),
 				DronePhysics.rotorCtCpJRuntimePropellerPowerScale(sample, 0.42),
 				1.0e-15
 		);
+		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimePropellerThrustScale(null, 0.42), 1.0e-15);
 		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimePropellerPowerScale(null, 0.42), 1.0e-15);
 	}
 
@@ -651,6 +657,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				sample, 2.5, sample.thrustNewtons()), 1.0e-15);
 		assertEquals(2.5, DronePhysics.rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
 				null, 2.5, sample.thrustNewtons()), 1.0e-15);
+		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimePropellerThrustScale(sample, 0.42), 1.0e-15);
 		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimePropellerPowerScale(sample, 0.42), 1.0e-15);
 	}
 

@@ -1308,6 +1308,10 @@ public final class DronePhysics {
 					config.centerOfMassOffsetBodyMeters()
 			);
 			state.setRotorCtCpJReferenceSample(i, ctCpJReferenceSample);
+			state.setRotorPropellerThrustScale(i, rotorCtCpJRuntimePropellerThrustScale(
+					ctCpJReferenceSample,
+					propellerThrustScale
+			));
 			state.setRotorPropellerPowerScale(i, rotorCtCpJRuntimePropellerPowerScale(
 					ctCpJReferenceSample,
 					propellerPowerScale
@@ -2899,6 +2903,29 @@ public final class DronePhysics {
 				momentReferenceBodyMeters,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
+	}
+
+	static double rotorCtCpJRuntimePropellerThrustScale(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double fallbackPropellerThrustScale
+	) {
+		double fallback = MathUtil.clamp(finiteOrDefault(fallbackPropellerThrustScale, 1.0), 0.0, 2.0);
+		if (!ctCpJRuntimeSampleAccepted(sample)) {
+			return fallback;
+		}
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				sample.query().presetName(),
+				"static_anchored_runtime_thrust_scale",
+				sample.query().rotor(),
+				sample.query().rpm(),
+				sample.query().airDensityKgPerCubicMeter()
+		);
+		double staticCt = staticSample.thrustCoefficientCt();
+		if (!Double.isFinite(staticCt) || staticCt <= 1.0e-12) {
+			return fallback;
+		}
+		double thrustScale = sample.lookup().thrustCoefficientCt() / staticCt;
+		return Double.isFinite(thrustScale) ? MathUtil.clamp(thrustScale, 0.0, 2.0) : fallback;
 	}
 
 	static double rotorCtCpJRuntimePropellerPowerScale(
