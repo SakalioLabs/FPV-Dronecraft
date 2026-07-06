@@ -1308,6 +1308,10 @@ public final class DronePhysics {
 					config.centerOfMassOffsetBodyMeters()
 			);
 			state.setRotorCtCpJReferenceSample(i, ctCpJReferenceSample);
+			state.setRotorPropellerAdvanceRatioJ(i, rotorCtCpJRuntimePropellerAdvanceRatioJ(
+					ctCpJReferenceSample,
+					state.rotorPropellerAdvanceRatioJ(i)
+			));
 			state.setRotorPropellerThrustScale(i, rotorCtCpJRuntimePropellerThrustScale(
 					ctCpJReferenceSample,
 					propellerThrustScale
@@ -2903,6 +2907,18 @@ public final class DronePhysics {
 				momentReferenceBodyMeters,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
+	}
+
+	static double rotorCtCpJRuntimePropellerAdvanceRatioJ(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double fallbackPropellerAdvanceRatioJ
+	) {
+		double fallback = MathUtil.clamp(finiteOrDefault(fallbackPropellerAdvanceRatioJ, 0.0), 0.0, Math.PI * 2.0);
+		if (!ctCpJRuntimeSampleAccepted(sample)) {
+			return fallback;
+		}
+		double advanceRatioJ = sample.lookup().effectiveAdvanceRatioJ();
+		return Double.isFinite(advanceRatioJ) ? MathUtil.clamp(advanceRatioJ, 0.0, Math.PI * 2.0) : fallback;
 	}
 
 	static double rotorCtCpJRuntimePropellerThrustScale(
