@@ -1199,6 +1199,9 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "transverse_air", "mps");
 		appendCtCpJReferenceColumnFamily(builder, "transverse_air_speed_mps");
 		appendCtCpJReferenceColumnFamily(builder, "inflow_angle_deg");
+		appendCtCpJReferenceColumnFamily(builder, "tip_mach");
+		appendCtCpJReferenceColumnFamily(builder, "reynolds_number");
+		appendCtCpJReferenceColumnFamily(builder, "reynolds_index");
 		appendCtCpJReferenceColumnFamily(builder, "ct");
 		appendCtCpJReferenceColumnFamily(builder, "cp");
 		appendCtCpJReferenceColumnFamily(builder, "eta");
@@ -1686,7 +1689,7 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"CTCPJ reference: samples=%d available=%d applied=%d blocked=%d clamped=%d coverage=%.3f applied_coverage=%.3f flow_mean_max=%.3f/%.3f mps %.3f/%.3f transverse_mps %.2f/%.2f inflow_deg mean_residual=%.4f N/%.4f W/%.6f Nm applied_mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm applied_max_residual=%.4f N/%.4f W/%.6f Nm%n",
+				"CTCPJ reference: samples=%d available=%d applied=%d blocked=%d clamped=%d coverage=%.3f applied_coverage=%.3f flow_mean_max=%.3f/%.3f mps %.3f/%.3f transverse_mps %.2f/%.2f inflow_deg mach=%.4f/%.4f re=%.0f/%.0f re_index=%.4f/%.4f mean_residual=%.4f N/%.4f W/%.6f Nm applied_mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm applied_max_residual=%.4f N/%.4f W/%.6f Nm%n",
 				report.ctCpJReferenceRotorSampleCount(),
 				report.ctCpJReferenceAvailableRotorSampleCount(),
 				report.ctCpJReferenceRuntimeAppliedRotorSampleCount(),
@@ -1700,6 +1703,12 @@ public final class OfflineFlightRecorder {
 				report.maxCtCpJReferenceTransverseAirSpeedMetersPerSecond(),
 				report.meanCtCpJReferenceInflowAngleDegrees(),
 				report.maxCtCpJReferenceInflowAngleDegrees(),
+				report.meanCtCpJReferenceTipMach(),
+				report.maxCtCpJReferenceTipMach(),
+				report.meanCtCpJReferenceReynoldsNumber(),
+				report.maxCtCpJReferenceReynoldsNumber(),
+				report.meanCtCpJReferenceReynoldsIndex(),
+				report.maxCtCpJReferenceReynoldsIndex(),
 				report.meanCtCpJReferenceAbsThrustResidualNewtons(),
 				report.meanCtCpJReferenceAbsPowerResidualWatts(),
 				report.meanCtCpJReferenceAbsTorqueResidualNewtonMeters(),
@@ -4520,6 +4529,9 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceTransverseAirSpeed =
 				state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond();
 		double[] rotorCtCpJReferenceInflowAngleDeg = degrees(state.rotorCtCpJReferenceInflowAngleRadians());
+		double[] rotorCtCpJReferenceTipMach = state.rotorCtCpJReferenceTipMach();
+		double[] rotorCtCpJReferenceReynoldsNumber = state.rotorCtCpJReferenceReynoldsNumber();
+		double[] rotorCtCpJReferenceReynoldsIndex = state.rotorCtCpJReferenceReynoldsIndex();
 		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
 		double[] rotorCtCpJReferenceCp = state.rotorCtCpJReferencePowerCoefficientCp();
 		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
@@ -4849,6 +4861,9 @@ public final class OfflineFlightRecorder {
 		}
 		appendDoubleFamily(builder, rotorCtCpJReferenceTransverseAirSpeed, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceInflowAngleDeg, rotorCtCpJReferencePresent, "%.4f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTipMach, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsNumber, rotorCtCpJReferencePresent, "%.1f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsIndex, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCt, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCp, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");
@@ -5782,6 +5797,12 @@ public final class OfflineFlightRecorder {
 		private double ctCpJReferenceMaxTransverseAirSpeedMetersPerSecond;
 		private double ctCpJReferenceInflowAngleSumDegrees;
 		private double ctCpJReferenceMaxInflowAngleDegrees;
+		private double ctCpJReferenceTipMachSum;
+		private double ctCpJReferenceMaxTipMach;
+		private double ctCpJReferenceReynoldsNumberSum;
+		private double ctCpJReferenceMaxReynoldsNumber;
+		private double ctCpJReferenceReynoldsIndexSum;
+		private double ctCpJReferenceMaxReynoldsIndex;
 		private int ctCpJRuntimeCoefficientRotorSampleCount;
 		private double ctCpJRuntimeThrustCoefficientCtSum;
 		private double ctCpJRuntimeMinThrustCoefficientCt = Double.POSITIVE_INFINITY;
@@ -6099,6 +6120,9 @@ public final class OfflineFlightRecorder {
 			double[] referenceTransverseAirSpeed =
 					state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond();
 			double[] referenceInflowAngle = state.rotorCtCpJReferenceInflowAngleRadians();
+			double[] referenceTipMach = state.rotorCtCpJReferenceTipMach();
+			double[] referenceReynoldsNumber = state.rotorCtCpJReferenceReynoldsNumber();
+			double[] referenceReynoldsIndex = state.rotorCtCpJReferenceReynoldsIndex();
 			int count = Math.min(available.length, blocked.length);
 			for (int i = 0; i < count; i++) {
 				if (!available[i] && !blocked[i]) {
@@ -6108,6 +6132,9 @@ public final class OfflineFlightRecorder {
 				double relativeAirSpeed = finiteOrZero(vectorOrZero(referenceRelativeAirBody, i).length());
 				double transverseAirSpeed = Math.max(0.0, finiteOrZero(valueOrZero(referenceTransverseAirSpeed, i)));
 				double inflowAngleDegrees = Math.max(0.0, finiteOrZero(Math.toDegrees(valueOrZero(referenceInflowAngle, i))));
+				double tipMach = Math.max(0.0, finiteOrZero(valueOrZero(referenceTipMach, i)));
+				double reynoldsNumber = Math.max(0.0, finiteOrZero(valueOrZero(referenceReynoldsNumber, i)));
+				double reynoldsIndex = Math.max(0.0, finiteOrZero(valueOrZero(referenceReynoldsIndex, i)));
 				ctCpJReferenceRelativeAirSpeedSumMetersPerSecond += relativeAirSpeed;
 				ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond = Math.max(
 						ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond,
@@ -6123,6 +6150,12 @@ public final class OfflineFlightRecorder {
 						ctCpJReferenceMaxInflowAngleDegrees,
 						inflowAngleDegrees
 				);
+				ctCpJReferenceTipMachSum += tipMach;
+				ctCpJReferenceMaxTipMach = Math.max(ctCpJReferenceMaxTipMach, tipMach);
+				ctCpJReferenceReynoldsNumberSum += reynoldsNumber;
+				ctCpJReferenceMaxReynoldsNumber = Math.max(ctCpJReferenceMaxReynoldsNumber, reynoldsNumber);
+				ctCpJReferenceReynoldsIndexSum += reynoldsIndex;
+				ctCpJReferenceMaxReynoldsIndex = Math.max(ctCpJReferenceMaxReynoldsIndex, reynoldsIndex);
 				if (blocked[i]) {
 					ctCpJReferenceBlockedRotorSampleCount++;
 				}
@@ -6474,6 +6507,36 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJReferenceInflowAngleDegrees() {
 			return ctCpJReferenceMaxInflowAngleDegrees;
+		}
+
+		public double meanCtCpJReferenceTipMach() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceTipMachSum / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceTipMach() {
+			return ctCpJReferenceMaxTipMach;
+		}
+
+		public double meanCtCpJReferenceReynoldsNumber() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceReynoldsNumberSum / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceReynoldsNumber() {
+			return ctCpJReferenceMaxReynoldsNumber;
+		}
+
+		public double meanCtCpJReferenceReynoldsIndex() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceReynoldsIndexSum / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceReynoldsIndex() {
+			return ctCpJReferenceMaxReynoldsIndex;
 		}
 
 		public int ctCpJRuntimeCoefficientRotorSampleCount() {

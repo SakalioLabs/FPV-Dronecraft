@@ -88,6 +88,11 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(sample.transverseAirSpeedMetersPerSecond(),
 				state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
 		assertEquals(sample.inflowAngleRadians(), state.rotorCtCpJReferenceInflowAngleRadians(0), 1.0e-15);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
+				sample.standardOperatingPoint();
+		assertEquals(operatingPoint.tipMach(), state.rotorCtCpJReferenceTipMach(0), 1.0e-15);
+		assertEquals(operatingPoint.reynoldsNumber(), state.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
+		assertEquals(operatingPoint.reynoldsIndex(), state.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts(), state.rotorCtCpJReferenceShaftPowerWatts(0), 1.0e-15);
 		assertEquals(sample.dimensionalSample().diskLoadingNewtonsPerSquareMeter(),
@@ -148,6 +153,9 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertEquals(0.0, state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceInflowAngleRadians(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceTipMach(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceThrustMomentBodyNewtonMeters(0), 1.0e-18);
@@ -777,6 +785,9 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				state.rotorCtCpJReferenceLookupStatusCode(0));
 		assertEquals(sample.lookup().effectiveAdvanceRatioJ(), state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
 		assertEquals(highReference.rpm(), state.rotorCtCpJReferenceRpm(0), 1.0e-9);
+		assertTrue(state.rotorCtCpJReferenceTipMach(0) > 0.0);
+		assertTrue(state.rotorCtCpJReferenceReynoldsNumber(0) > 0.0);
+		assertTrue(state.rotorCtCpJReferenceReynoldsIndex(0) > 0.0);
 		assertEquals(sample.thrustNewtons(), state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 
 		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimeBaseThrustNewtons(

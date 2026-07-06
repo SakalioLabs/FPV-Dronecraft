@@ -68,6 +68,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorReferenceTransverseAirZIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_z_mps");
 		int rotorReferenceTransverseAirSpeedIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_speed_mps");
 		int rotorReferenceInflowAngleIndex = column(header, "rotor_0_ctcpj_ref_inflow_angle_deg");
+		int rotorReferenceTipMachIndex = column(header, "rotor_0_ctcpj_ref_tip_mach");
+		int rotorReferenceReynoldsNumberIndex = column(header, "rotor_0_ctcpj_ref_reynolds_number");
+		int rotorReferenceReynoldsIndexIndex = column(header, "rotor_0_ctcpj_ref_reynolds_index");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
 		int rotorReferenceThrustIndex = column(header, "rotor_0_ctcpj_ref_thrust_n");
 		int rotorPowerIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_w");
@@ -129,6 +132,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int[] rotorReferenceRelativeAirZIndices = new int[8];
 		int[] rotorReferenceTransverseAirSpeedIndices = new int[8];
 		int[] rotorReferenceInflowAngleIndices = new int[8];
+		int[] rotorReferenceTipMachIndices = new int[8];
+		int[] rotorReferenceReynoldsNumberIndices = new int[8];
+		int[] rotorReferenceReynoldsIndexIndices = new int[8];
 		for (int rotor = 0; rotor < 8; rotor++) {
 			rotorReferenceAvailableIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_available");
 			rotorReferenceBlockedIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_blocked");
@@ -138,6 +144,11 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			rotorReferenceTransverseAirSpeedIndices[rotor] =
 					column(header, "rotor_" + rotor + "_ctcpj_ref_transverse_air_speed_mps");
 			rotorReferenceInflowAngleIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_inflow_angle_deg");
+			rotorReferenceTipMachIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_tip_mach");
+			rotorReferenceReynoldsNumberIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_reynolds_number");
+			rotorReferenceReynoldsIndexIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_reynolds_index");
 		}
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ct"));
@@ -151,6 +162,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_relative_air_x_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_transverse_air_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_inflow_angle_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_tip_mach"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_reynolds_number"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_reynolds_index"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_thrust_force_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_disk_loading_n_m2"));
@@ -183,6 +197,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		double referenceTransverseAirSpeedMax = 0.0;
 		double referenceInflowAngleSum = 0.0;
 		double referenceInflowAngleMax = 0.0;
+		double referenceTipMachSum = 0.0;
+		double referenceTipMachMax = 0.0;
+		double referenceReynoldsNumberSum = 0.0;
+		double referenceReynoldsNumberMax = 0.0;
+		double referenceReynoldsIndexSum = 0.0;
+		double referenceReynoldsIndexMax = 0.0;
 		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
@@ -202,12 +222,27 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				);
 				double transverseAirSpeed = Double.parseDouble(row[rotorReferenceTransverseAirSpeedIndices[rotor]]);
 				double inflowAngle = Double.parseDouble(row[rotorReferenceInflowAngleIndices[rotor]]);
+				double tipMach = Double.parseDouble(row[rotorReferenceTipMachIndices[rotor]]);
+				double reynoldsNumber = Double.parseDouble(row[rotorReferenceReynoldsNumberIndices[rotor]]);
+				double reynoldsIndex = Double.parseDouble(row[rotorReferenceReynoldsIndexIndices[rotor]]);
+				assertTrue(Double.isFinite(tipMach));
+				assertTrue(Double.isFinite(reynoldsNumber));
+				assertTrue(Double.isFinite(reynoldsIndex));
+				assertTrue(tipMach >= 0.0);
+				assertTrue(reynoldsNumber >= 0.0);
+				assertTrue(reynoldsIndex >= 0.0);
 				referenceRelativeAirSpeedSum += relativeAirSpeed;
 				referenceRelativeAirSpeedMax = Math.max(referenceRelativeAirSpeedMax, relativeAirSpeed);
 				referenceTransverseAirSpeedSum += transverseAirSpeed;
 				referenceTransverseAirSpeedMax = Math.max(referenceTransverseAirSpeedMax, transverseAirSpeed);
 				referenceInflowAngleSum += inflowAngle;
 				referenceInflowAngleMax = Math.max(referenceInflowAngleMax, inflowAngle);
+				referenceTipMachSum += tipMach;
+				referenceTipMachMax = Math.max(referenceTipMachMax, tipMach);
+				referenceReynoldsNumberSum += reynoldsNumber;
+				referenceReynoldsNumberMax = Math.max(referenceReynoldsNumberMax, reynoldsNumber);
+				referenceReynoldsIndexSum += reynoldsIndex;
+				referenceReynoldsIndexMax = Math.max(referenceReynoldsIndexMax, reynoldsIndex);
 			}
 			double runtimeValid = Double.parseDouble(row[runtimeValidIndex]);
 			double rotorRuntimeValid = Double.parseDouble(row[rotorRuntimeValidIndex]);
@@ -297,6 +332,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double transverseAirZ = Double.parseDouble(row[rotorReferenceTransverseAirZIndex]);
 				double transverseAirSpeed = Double.parseDouble(row[rotorReferenceTransverseAirSpeedIndex]);
 				double inflowAngleDegrees = Double.parseDouble(row[rotorReferenceInflowAngleIndex]);
+				double tipMach = Double.parseDouble(row[rotorReferenceTipMachIndex]);
+				double reynoldsNumber = Double.parseDouble(row[rotorReferenceReynoldsNumberIndex]);
+				double reynoldsIndex = Double.parseDouble(row[rotorReferenceReynoldsIndexIndex]);
 				assertTrue(Double.isFinite(relativeAirX));
 				assertTrue(Double.isFinite(relativeAirY));
 				assertTrue(Double.isFinite(relativeAirZ));
@@ -305,6 +343,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(transverseAirZ));
 				assertTrue(Double.isFinite(transverseAirSpeed));
 				assertTrue(Double.isFinite(inflowAngleDegrees));
+				assertTrue(Double.isFinite(tipMach));
+				assertTrue(Double.isFinite(reynoldsNumber));
+				assertTrue(Double.isFinite(reynoldsIndex));
+				assertTrue(tipMach >= 0.0);
+				assertTrue(reynoldsNumber >= 0.0);
+				assertTrue(reynoldsIndex >= 0.0);
 				sawPositiveReferenceRpm |= referenceRpm > 0.0 || rotorRpm > 0.0;
 				if (blocked > 0.0) {
 					assertEquals(
@@ -385,6 +429,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					);
 					assertTrue(inflowAngleDegrees >= 0.0);
 					assertTrue(inflowAngleDegrees <= 180.0 + 1.0e-9);
+					assertTrue(tipMach > 0.0);
+					assertTrue(reynoldsNumber > 0.0);
+					assertTrue(reynoldsIndex > 0.0);
 					double thrustForceMagnitude = magnitude(thrustForceX, thrustForceY, thrustForceZ);
 					double reactionTorqueMagnitude = magnitude(reactionTorqueX, reactionTorqueY, reactionTorqueZ);
 					assertEquals(referenceThrust, thrustForceMagnitude, 3.0e-5);
@@ -537,6 +584,36 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				referenceInflowAngleMax,
 				report.maxCtCpJReferenceInflowAngleDegrees(),
 				5.0e-4
+		);
+		assertEquals(
+				referenceTipMachSum / referenceFlowSampleCount,
+				report.meanCtCpJReferenceTipMach(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceTipMachMax,
+				report.maxCtCpJReferenceTipMach(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceReynoldsNumberSum / referenceFlowSampleCount,
+				report.meanCtCpJReferenceReynoldsNumber(),
+				0.2
+		);
+		assertEquals(
+				referenceReynoldsNumberMax,
+				report.maxCtCpJReferenceReynoldsNumber(),
+				0.2
+		);
+		assertEquals(
+				referenceReynoldsIndexSum / referenceFlowSampleCount,
+				report.meanCtCpJReferenceReynoldsIndex(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceReynoldsIndexMax,
+				report.maxCtCpJReferenceReynoldsIndex(),
+				5.0e-5
 		);
 		assertEquals(
 				report.ctCpJReferenceRotorSampleCount(),
