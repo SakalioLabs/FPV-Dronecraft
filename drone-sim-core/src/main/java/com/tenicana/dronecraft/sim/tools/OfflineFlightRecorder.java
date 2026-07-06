@@ -1660,7 +1660,7 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"CTCPJ reference: samples=%d available=%d applied=%d blocked=%d clamped=%d coverage=%.3f applied_coverage=%.3f mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
+				"CTCPJ reference: samples=%d available=%d applied=%d blocked=%d clamped=%d coverage=%.3f applied_coverage=%.3f flow_mean_max=%.3f/%.3f mps %.3f/%.3f transverse_mps %.2f/%.2f inflow_deg mean_residual=%.4f N/%.4f W/%.6f Nm max_residual=%.4f N/%.4f W/%.6f Nm%n",
 				report.ctCpJReferenceRotorSampleCount(),
 				report.ctCpJReferenceAvailableRotorSampleCount(),
 				report.ctCpJReferenceRuntimeAppliedRotorSampleCount(),
@@ -1668,6 +1668,12 @@ public final class OfflineFlightRecorder {
 				report.ctCpJReferenceClampedRotorSampleCount(),
 				report.ctCpJReferenceCoverageFraction(),
 				report.ctCpJReferenceRuntimeAppliedCoverageFraction(),
+				report.meanCtCpJReferenceRelativeAirSpeedMetersPerSecond(),
+				report.maxCtCpJReferenceRelativeAirSpeedMetersPerSecond(),
+				report.meanCtCpJReferenceTransverseAirSpeedMetersPerSecond(),
+				report.maxCtCpJReferenceTransverseAirSpeedMetersPerSecond(),
+				report.meanCtCpJReferenceInflowAngleDegrees(),
+				report.maxCtCpJReferenceInflowAngleDegrees(),
 				report.meanCtCpJReferenceAbsThrustResidualNewtons(),
 				report.meanCtCpJReferenceAbsPowerResidualWatts(),
 				report.meanCtCpJReferenceAbsTorqueResidualNewtonMeters(),
@@ -5653,6 +5659,12 @@ public final class OfflineFlightRecorder {
 		private double ctCpJReferenceMaxForceVectorResidualNewtons;
 		private double ctCpJReferenceTorqueVectorResidualSumNewtonMeters;
 		private double ctCpJReferenceMaxTorqueVectorResidualNewtonMeters;
+		private double ctCpJReferenceRelativeAirSpeedSumMetersPerSecond;
+		private double ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond;
+		private double ctCpJReferenceTransverseAirSpeedSumMetersPerSecond;
+		private double ctCpJReferenceMaxTransverseAirSpeedMetersPerSecond;
+		private double ctCpJReferenceInflowAngleSumDegrees;
+		private double ctCpJReferenceMaxInflowAngleDegrees;
 		private int ctCpJRuntimeCoefficientRotorSampleCount;
 		private double ctCpJRuntimeThrustCoefficientCtSum;
 		private double ctCpJRuntimeMinThrustCoefficientCt = Double.POSITIVE_INFINITY;
@@ -5947,12 +5959,34 @@ public final class OfflineFlightRecorder {
 			double[] referenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
 			Vec3[] referenceThrustForceBody = state.rotorCtCpJReferenceThrustForceBodyNewtons();
 			Vec3[] referenceTotalTorqueBody = state.rotorCtCpJReferenceTotalTorqueBodyNewtonMeters();
+			Vec3[] referenceRelativeAirBody = state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond();
+			double[] referenceTransverseAirSpeed =
+					state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond();
+			double[] referenceInflowAngle = state.rotorCtCpJReferenceInflowAngleRadians();
 			int count = Math.min(available.length, blocked.length);
 			for (int i = 0; i < count; i++) {
 				if (!available[i] && !blocked[i]) {
 					continue;
 				}
 				ctCpJReferenceRotorSampleCount++;
+				double relativeAirSpeed = finiteOrZero(vectorOrZero(referenceRelativeAirBody, i).length());
+				double transverseAirSpeed = Math.max(0.0, finiteOrZero(valueOrZero(referenceTransverseAirSpeed, i)));
+				double inflowAngleDegrees = Math.max(0.0, finiteOrZero(Math.toDegrees(valueOrZero(referenceInflowAngle, i))));
+				ctCpJReferenceRelativeAirSpeedSumMetersPerSecond += relativeAirSpeed;
+				ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond = Math.max(
+						ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond,
+						relativeAirSpeed
+				);
+				ctCpJReferenceTransverseAirSpeedSumMetersPerSecond += transverseAirSpeed;
+				ctCpJReferenceMaxTransverseAirSpeedMetersPerSecond = Math.max(
+						ctCpJReferenceMaxTransverseAirSpeedMetersPerSecond,
+						transverseAirSpeed
+				);
+				ctCpJReferenceInflowAngleSumDegrees += inflowAngleDegrees;
+				ctCpJReferenceMaxInflowAngleDegrees = Math.max(
+						ctCpJReferenceMaxInflowAngleDegrees,
+						inflowAngleDegrees
+				);
 				if (blocked[i]) {
 					ctCpJReferenceBlockedRotorSampleCount++;
 				}
@@ -6191,6 +6225,36 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJReferenceTorqueVectorResidualNewtonMeters() {
 			return ctCpJReferenceMaxTorqueVectorResidualNewtonMeters;
+		}
+
+		public double meanCtCpJReferenceRelativeAirSpeedMetersPerSecond() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceRelativeAirSpeedSumMetersPerSecond / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceRelativeAirSpeedMetersPerSecond() {
+			return ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond;
+		}
+
+		public double meanCtCpJReferenceTransverseAirSpeedMetersPerSecond() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceTransverseAirSpeedSumMetersPerSecond / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceTransverseAirSpeedMetersPerSecond() {
+			return ctCpJReferenceMaxTransverseAirSpeedMetersPerSecond;
+		}
+
+		public double meanCtCpJReferenceInflowAngleDegrees() {
+			return ctCpJReferenceRotorSampleCount == 0
+					? 0.0
+					: ctCpJReferenceInflowAngleSumDegrees / ctCpJReferenceRotorSampleCount;
+		}
+
+		public double maxCtCpJReferenceInflowAngleDegrees() {
+			return ctCpJReferenceMaxInflowAngleDegrees;
 		}
 
 		public int ctCpJRuntimeCoefficientRotorSampleCount() {

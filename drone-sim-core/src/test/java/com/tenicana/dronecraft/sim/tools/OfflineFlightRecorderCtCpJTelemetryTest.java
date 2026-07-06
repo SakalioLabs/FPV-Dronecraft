@@ -111,6 +111,23 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorStaticThrustRatioIndex = column(header, "rotor_0_ctcpj_static_ref_thrust_ratio");
 		int rotorStaticInducedVelocityRatioIndex = column(header,
 				"rotor_0_ctcpj_static_ref_induced_velocity_ratio");
+		int[] rotorReferenceAvailableIndices = new int[8];
+		int[] rotorReferenceBlockedIndices = new int[8];
+		int[] rotorReferenceRelativeAirXIndices = new int[8];
+		int[] rotorReferenceRelativeAirYIndices = new int[8];
+		int[] rotorReferenceRelativeAirZIndices = new int[8];
+		int[] rotorReferenceTransverseAirSpeedIndices = new int[8];
+		int[] rotorReferenceInflowAngleIndices = new int[8];
+		for (int rotor = 0; rotor < 8; rotor++) {
+			rotorReferenceAvailableIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_available");
+			rotorReferenceBlockedIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_blocked");
+			rotorReferenceRelativeAirXIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_relative_air_x_mps");
+			rotorReferenceRelativeAirYIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_relative_air_y_mps");
+			rotorReferenceRelativeAirZIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_relative_air_z_mps");
+			rotorReferenceTransverseAirSpeedIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_transverse_air_speed_mps");
+			rotorReferenceInflowAngleIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_inflow_angle_deg");
+		}
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_cp"));
@@ -141,10 +158,39 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		boolean sawPositiveReferenceRpm = false;
 		boolean sawStaticReferenceState = false;
 		boolean sawRuntimeCoefficientState = false;
+		int referenceFlowSampleCount = 0;
+		double referenceRelativeAirSpeedSum = 0.0;
+		double referenceRelativeAirSpeedMax = 0.0;
+		double referenceTransverseAirSpeedSum = 0.0;
+		double referenceTransverseAirSpeedMax = 0.0;
+		double referenceInflowAngleSum = 0.0;
+		double referenceInflowAngleMax = 0.0;
 		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			assertEquals(header.length, row.length, "CSV row " + i + " column count changed");
+			for (int rotor = 0; rotor < 8; rotor++) {
+				boolean referencePresent =
+						Double.parseDouble(row[rotorReferenceAvailableIndices[rotor]]) > 0.0
+								|| Double.parseDouble(row[rotorReferenceBlockedIndices[rotor]]) > 0.0;
+				if (!referencePresent) {
+					continue;
+				}
+				referenceFlowSampleCount++;
+				double relativeAirSpeed = magnitude(
+						Double.parseDouble(row[rotorReferenceRelativeAirXIndices[rotor]]),
+						Double.parseDouble(row[rotorReferenceRelativeAirYIndices[rotor]]),
+						Double.parseDouble(row[rotorReferenceRelativeAirZIndices[rotor]])
+				);
+				double transverseAirSpeed = Double.parseDouble(row[rotorReferenceTransverseAirSpeedIndices[rotor]]);
+				double inflowAngle = Double.parseDouble(row[rotorReferenceInflowAngleIndices[rotor]]);
+				referenceRelativeAirSpeedSum += relativeAirSpeed;
+				referenceRelativeAirSpeedMax = Math.max(referenceRelativeAirSpeedMax, relativeAirSpeed);
+				referenceTransverseAirSpeedSum += transverseAirSpeed;
+				referenceTransverseAirSpeedMax = Math.max(referenceTransverseAirSpeedMax, transverseAirSpeed);
+				referenceInflowAngleSum += inflowAngle;
+				referenceInflowAngleMax = Math.max(referenceInflowAngleMax, inflowAngle);
+			}
 			double runtimeValid = Double.parseDouble(row[runtimeValidIndex]);
 			double rotorRuntimeValid = Double.parseDouble(row[rotorRuntimeValidIndex]);
 			double available = Double.parseDouble(row[availableIndex]);
@@ -398,6 +444,37 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(sawPositiveReferenceRpm, "CT/CP/J reference telemetry should preserve lookup RPM for envelope diagnosis");
 		assertTrue(sawStaticReferenceState, "apDrone trace should expose static CT/CP shadow telemetry");
 		assertTrue(report.ctCpJReferenceRotorSampleCount() > 0);
+		assertEquals(referenceFlowSampleCount, report.ctCpJReferenceRotorSampleCount());
+		assertEquals(
+				referenceRelativeAirSpeedSum / referenceFlowSampleCount,
+				report.meanCtCpJReferenceRelativeAirSpeedMetersPerSecond(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceRelativeAirSpeedMax,
+				report.maxCtCpJReferenceRelativeAirSpeedMetersPerSecond(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceTransverseAirSpeedSum / referenceFlowSampleCount,
+				report.meanCtCpJReferenceTransverseAirSpeedMetersPerSecond(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceTransverseAirSpeedMax,
+				report.maxCtCpJReferenceTransverseAirSpeedMetersPerSecond(),
+				5.0e-5
+		);
+		assertEquals(
+				referenceInflowAngleSum / referenceFlowSampleCount,
+				report.meanCtCpJReferenceInflowAngleDegrees(),
+				5.0e-4
+		);
+		assertEquals(
+				referenceInflowAngleMax,
+				report.maxCtCpJReferenceInflowAngleDegrees(),
+				5.0e-4
+		);
 		assertEquals(
 				report.ctCpJReferenceRotorSampleCount(),
 				report.ctCpJReferenceAvailableRotorSampleCount() + report.ctCpJReferenceBlockedRotorSampleCount()
