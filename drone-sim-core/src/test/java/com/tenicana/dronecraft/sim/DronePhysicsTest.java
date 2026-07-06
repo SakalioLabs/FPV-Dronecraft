@@ -13408,6 +13408,28 @@ class DronePhysicsTest {
 		assertTrue(report.maxPropwashIntensity() > 0.02);
 		assertTrue(report.maxRotorAdvanceRatio() > 0.05);
 		assertEquals(Math.PI * report.maxRotorAdvanceRatio(), report.maxRotorPropellerAdvanceRatioJ(), 0.0001);
+		double maxLoggedRotorInPlaneDragShaftTorque = 0.0;
+		double maxLoggedRotorInPlaneDragShaftPower = 0.0;
+		for (int i = 0; i < 8; i++) {
+			maxLoggedRotorInPlaneDragShaftTorque = Math.max(
+					maxLoggedRotorInPlaneDragShaftTorque,
+					maxColumn(lines, header, "rotor_" + i + "_in_plane_drag_shaft_torque_nm")
+			);
+			maxLoggedRotorInPlaneDragShaftPower = Math.max(
+					maxLoggedRotorInPlaneDragShaftPower,
+					maxColumn(lines, header, "rotor_" + i + "_in_plane_drag_shaft_power_w")
+			);
+		}
+		assertEquals(
+				maxLoggedRotorInPlaneDragShaftTorque,
+				report.maxRotorInPlaneDragShaftTorqueNewtonMeters(),
+				5.0e-7
+		);
+		assertEquals(
+				maxLoggedRotorInPlaneDragShaftPower,
+				report.maxRotorInPlaneDragShaftPowerWatts(),
+				5.0e-5
+		);
 		double minLoggedRotorAxialGustThrustScale = minColumn(lines, header, "rotor_axial_gust_thrust_scale");
 		double maxLoggedRotorAxialGustThrustScale = maxColumn(lines, header, "rotor_axial_gust_thrust_scale");
 		for (int i = 0; i < 8; i++) {
