@@ -285,6 +285,43 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedReferenceSampleAnchorsRuntimePropellerPowerScale() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+		RotorStaticCtCpModel.StaticRotorSample staticSample = RotorStaticCtCpModel.sample(
+				"apDrone",
+				"static_anchored_runtime_power_scale",
+				rotor,
+				reference.rpm(),
+				RHO
+		);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		assertEquals(
+				sample.lookup().powerCoefficientCp() / staticSample.powerCoefficientCp(),
+				DronePhysics.rotorCtCpJRuntimePropellerPowerScale(sample, 0.42),
+				1.0e-15
+		);
+		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimePropellerPowerScale(null, 0.42), 1.0e-15);
+	}
+
+	@Test
 	void acceptedReferenceSampleAnchorsRuntimeInducedInflowTarget() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
@@ -614,6 +651,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				sample, 2.5, sample.thrustNewtons()), 1.0e-15);
 		assertEquals(2.5, DronePhysics.rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
 				null, 2.5, sample.thrustNewtons()), 1.0e-15);
+		assertEquals(0.42, DronePhysics.rotorCtCpJRuntimePropellerPowerScale(sample, 0.42), 1.0e-15);
 	}
 
 	private static double expectedThrust(
