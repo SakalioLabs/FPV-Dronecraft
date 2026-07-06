@@ -4486,11 +4486,22 @@ public final class OfflineFlightRecorder {
 				rotorCtCpJRuntimeCp
 		);
 		double[] rotorCtCpJRuntimeDiskLoading = rotorCtCpJRuntimeDiskLoading(config, rotorThrust);
+		double[] rotorCtCpJRuntimeAxialAdvanceSpeed = rotorCtCpJRuntimeAxialAdvanceSpeed(
+				config,
+				rotorPropellerAdvanceRatioJ,
+				motorRpm
+		);
 		double[] rotorCtCpJRuntimeIdealInducedVelocity =
-				rotorCtCpJRuntimeIdealInducedVelocity(config, environment, rotorThrust);
+				rotorCtCpJRuntimeIdealInducedVelocity(
+						config,
+						environment,
+						rotorThrust,
+						rotorCtCpJRuntimeAxialAdvanceSpeed
+				);
 		double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower =
 				rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
 						rotorThrust,
+						rotorCtCpJRuntimeAxialAdvanceSpeed,
 						rotorCtCpJRuntimeIdealInducedVelocity,
 						motorAerodynamicShaftPower
 				);
@@ -5224,10 +5235,30 @@ public final class OfflineFlightRecorder {
 		return values;
 	}
 
+	private static double[] rotorCtCpJRuntimeAxialAdvanceSpeed(
+			DroneConfig config,
+			double[] propellerAdvanceRatioJ,
+			double[] motorRpm
+	) {
+		int count = Math.min(config == null ? 0 : config.rotors().size(),
+				Math.max(propellerAdvanceRatioJ == null ? 0 : propellerAdvanceRatioJ.length,
+						motorRpm == null ? 0 : motorRpm.length));
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double diameter = rotor.radiusMeters() * 2.0;
+			double revolutionsPerSecond = Math.max(0.0, valueOrZero(motorRpm, i) / 60.0);
+			double advanceRatio = Math.max(0.0, valueOrZero(propellerAdvanceRatioJ, i));
+			values[i] = finiteOrZero(advanceRatio * revolutionsPerSecond * diameter);
+		}
+		return values;
+	}
+
 	private static double[] rotorCtCpJRuntimeIdealInducedVelocity(
 			DroneConfig config,
 			DroneEnvironment environment,
-			double[] rotorThrust
+			double[] rotorThrust,
+			double[] axialAdvanceSpeedMetersPerSecond
 	) {
 		int count = Math.min(config == null ? 0 : config.rotors().size(), rotorThrust == null ? 0 : rotorThrust.length);
 		double[] values = new double[count];
@@ -5236,8 +5267,12 @@ public final class OfflineFlightRecorder {
 			RotorSpec rotor = config.rotors().get(i);
 			double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
 			double thrust = valueOrZero(rotorThrust, i);
-			values[i] = thrust > 1.0e-12 && diskArea > 1.0e-12
-					? finiteOrZero(Math.sqrt(thrust / (2.0 * density * diskArea)))
+			double advanceSpeed = Math.max(0.0, valueOrZero(axialAdvanceSpeedMetersPerSecond, i));
+			double diskTerm = density > 1.0e-12 && diskArea > 1.0e-12
+					? 2.0 * thrust / (density * diskArea)
+					: 0.0;
+			values[i] = thrust > 1.0e-12 && diskTerm > 0.0
+					? finiteOrZero(0.5 * (Math.sqrt(advanceSpeed * advanceSpeed + diskTerm) - advanceSpeed))
 					: 0.0;
 		}
 		return values;
@@ -5245,14 +5280,18 @@ public final class OfflineFlightRecorder {
 
 	private static double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
 			double[] rotorThrust,
+			double[] axialAdvanceSpeedMetersPerSecond,
 			double[] idealInducedVelocity,
 			double[] aerodynamicShaftPowerWatts
 	) {
 		int count = Math.max(
 				rotorThrust == null ? 0 : rotorThrust.length,
 				Math.max(
-						idealInducedVelocity == null ? 0 : idealInducedVelocity.length,
-						aerodynamicShaftPowerWatts == null ? 0 : aerodynamicShaftPowerWatts.length
+						axialAdvanceSpeedMetersPerSecond == null ? 0 : axialAdvanceSpeedMetersPerSecond.length,
+						Math.max(
+								idealInducedVelocity == null ? 0 : idealInducedVelocity.length,
+								aerodynamicShaftPowerWatts == null ? 0 : aerodynamicShaftPowerWatts.length
+						)
 				)
 		);
 		double[] values = new double[count];
@@ -5260,7 +5299,8 @@ public final class OfflineFlightRecorder {
 			double shaftPower = valueOrZero(aerodynamicShaftPowerWatts, i);
 			values[i] = shaftPower > 1.0e-12
 					? finiteOrZero(valueOrZero(rotorThrust, i)
-							* valueOrZero(idealInducedVelocity, i)
+							* (Math.max(0.0, valueOrZero(axialAdvanceSpeedMetersPerSecond, i))
+									+ valueOrZero(idealInducedVelocity, i))
 							/ shaftPower)
 					: 0.0;
 		}
@@ -5991,9 +6031,20 @@ public final class OfflineFlightRecorder {
 					powerCoefficientCp
 			);
 			double[] diskLoading = rotorCtCpJRuntimeDiskLoading(config, rotorThrust);
-			double[] idealInducedVelocity = rotorCtCpJRuntimeIdealInducedVelocity(config, environment, rotorThrust);
+			double[] axialAdvanceSpeed = rotorCtCpJRuntimeAxialAdvanceSpeed(
+					config,
+					state.rotorPropellerAdvanceRatioJ(),
+					motorRpm
+			);
+			double[] idealInducedVelocity = rotorCtCpJRuntimeIdealInducedVelocity(
+					config,
+					environment,
+					rotorThrust,
+					axialAdvanceSpeed
+			);
 			double[] idealMomentumPowerOverShaftPower = rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
 					rotorThrust,
+					axialAdvanceSpeed,
 					idealInducedVelocity,
 					aerodynamicShaftPower
 			);

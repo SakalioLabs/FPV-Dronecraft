@@ -256,6 +256,20 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					if (runtimeCp > 1.0e-9) {
 						assertEquals(propellerJ * runtimeCt / runtimeCp, runtimeEta, 5.0e-5);
 					}
+					double axialAdvanceSpeed = Math.max(0.0, propellerJ * n * diameter);
+					double diskArea = Math.PI * diameter * diameter * 0.25;
+					double expectedInducedVelocity = thrust > 1.0e-9
+							? 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed
+									+ 2.0 * thrust / (airDensity * diskArea)) - axialAdvanceSpeed)
+							: 0.0;
+					assertEquals(expectedInducedVelocity, runtimeInducedVelocity, 1.0e-4);
+					if (aerodynamicPower > 1.0e-9) {
+						assertEquals(
+								thrust * (axialAdvanceSpeed + expectedInducedVelocity) / aerodynamicPower,
+								runtimeMomentumRatio,
+								1.0e-4
+						);
+					}
 				}
 			}
 			if (available > 0.0 || blocked > 0.0 || clamped > 0.0) {
