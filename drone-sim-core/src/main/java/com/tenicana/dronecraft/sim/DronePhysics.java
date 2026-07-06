@@ -1417,7 +1417,8 @@ public final class DronePhysics {
 					airDensity,
 					dtSeconds
 			);
-			double rotorAirflowScale = rotorAirflowThrustMultiplier(
+			double rotorAirflowScale = rotorCtCpJRuntimeAirflowThrustMultiplier(
+					ctCpJReferenceSample,
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
@@ -3055,6 +3056,29 @@ public final class DronePhysics {
 		return sample.thrustForceBodyNewtons().multiply(thrust / sample.thrustNewtons());
 	}
 
+	static double rotorCtCpJRuntimeAirflowThrustMultiplier(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double translationalLiftIntensity
+	) {
+		if (!ctCpJRuntimeSampleAccepted(sample)) {
+			return rotorAirflowThrustMultiplier(
+					rotor,
+					relativeAirVelocityBody,
+					omegaRadiansPerSecond,
+					translationalLiftIntensity
+			);
+		}
+		return rotorTransverseAirflowThrustMultiplier(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				translationalLiftIntensity
+		);
+	}
+
 	private static Vec3 runtimeRotorThrustAxisBody(RotorSpec rotor) {
 		if (rotor == null || rotor.thrustAxisBody() == null || !rotor.thrustAxisBody().isFinite()
 				|| rotor.thrustAxisBody().lengthSquared() <= 1.0e-9) {
@@ -3573,15 +3597,12 @@ public final class DronePhysics {
 	) {
 		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
-		double advanceRatio = transverseSpeed / tipSpeed;
-		double transverseLift = 1.0 + rotor.transverseFlowLiftCoefficient() * MathUtil.clamp(
-				0.35 * MathUtil.clamp(advanceRatio / 0.18, 0.0, 1.0)
-						+ 0.65 * translationalLiftIntensity,
-				0.0,
-				1.0
+		double transverseScale = rotorTransverseAirflowThrustScaleUnclamped(
+				rotor,
+				tipSpeed,
+				transverseSpeed,
+				translationalLiftIntensity
 		);
-		double forwardAdvanceThrustScale = rotorForwardAdvanceThrustScale(rotor, advanceRatio);
-		double postPeakAdvanceLoss = rotorForwardAdvancePostPeakThrustLoss(rotor, advanceRatio);
 
 		double descentSpeed = Math.max(0.0, -rotorAxialVelocity(rotor, relativeAirVelocityBody) - 1.2);
 		double descentRatio = descentSpeed / Math.max(1.5, tipSpeed * 0.08);
@@ -3592,15 +3613,53 @@ public final class DronePhysics {
 		double bladePitchUnload = pitchUnloadAuthority * smoothStep(0.42, 1.05, pitchAdvance);
 		double axialGustThrustScale = rotorAxialGustThrustScale(rotor, relativeAirVelocityBody, omegaRadiansPerSecond);
 		return MathUtil.clamp(
-				transverseLift
-						* forwardAdvanceThrustScale
+				transverseScale
 						* (1.0 - axialLoss)
-						* (1.0 - postPeakAdvanceLoss)
 						* (1.0 - bladePitchUnload)
 						* axialGustThrustScale,
 				0.12,
 				1.75
 		);
+	}
+
+	private static double rotorTransverseAirflowThrustMultiplier(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double translationalLiftIntensity
+	) {
+		double tipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
+		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
+		return MathUtil.clamp(
+				rotorTransverseAirflowThrustScaleUnclamped(
+						rotor,
+						tipSpeed,
+						transverseSpeed,
+						translationalLiftIntensity
+				),
+				0.12,
+				1.75
+		);
+	}
+
+	private static double rotorTransverseAirflowThrustScaleUnclamped(
+			RotorSpec rotor,
+			double tipSpeedMetersPerSecond,
+			double transverseSpeedMetersPerSecond,
+			double translationalLiftIntensity
+	) {
+		double advanceRatio = transverseSpeedMetersPerSecond / tipSpeedMetersPerSecond;
+		double transverseLift = 1.0 + rotor.transverseFlowLiftCoefficient() * MathUtil.clamp(
+				0.35 * MathUtil.clamp(advanceRatio / 0.18, 0.0, 1.0)
+						+ 0.65 * translationalLiftIntensity,
+				0.0,
+				1.0
+		);
+		double forwardAdvanceThrustScale = rotorForwardAdvanceThrustScale(rotor, advanceRatio);
+		double postPeakAdvanceLoss = rotorForwardAdvancePostPeakThrustLoss(rotor, advanceRatio);
+		return transverseLift
+				* forwardAdvanceThrustScale
+				* (1.0 - postPeakAdvanceLoss);
 	}
 
 	private static double rotorAxialGustThrustScale(

@@ -334,6 +334,118 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedRuntimeReferenceAirflowScaleDoesNotDuplicateAxialAdvanceLoss() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+		double fallbackScale = DronePhysics.rotorCtCpJRuntimeAirflowThrustMultiplier(
+				null,
+				rotor,
+				axialFlow,
+				omega,
+				0.0
+		);
+		double referenceScale = DronePhysics.rotorCtCpJRuntimeAirflowThrustMultiplier(
+				sample,
+				rotor,
+				axialFlow,
+				omega,
+				0.0
+		);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		assertTrue(fallbackScale < 1.0);
+		assertEquals(1.0, referenceScale, 1.0e-15);
+	}
+
+	@Test
+	void acceptedRuntimeReferenceAirflowScaleKeepsTransverseDiskFlowLift() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double rpm = 6_000.0;
+		double omega = rpm * 2.0 * Math.PI / 60.0;
+		double advanceRatio = 0.018;
+		double transverseSpeed = rotor.radiusMeters() * omega * advanceRatio;
+		Vec3 transverseFlow = new Vec3(transverseSpeed, 0.0, 0.0);
+		double translationalLiftIntensity = 0.4;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, transverseFlow, omega, 1.0);
+		double scale = DronePhysics.rotorCtCpJRuntimeAirflowThrustMultiplier(
+				sample,
+				rotor,
+				transverseFlow,
+				omega,
+				translationalLiftIntensity
+		);
+		double expectedTransverseLift = 1.0 + rotor.transverseFlowLiftCoefficient() * MathUtil.clamp(
+				0.35 * (advanceRatio / 0.18) + 0.65 * translationalLiftIntensity,
+				0.0,
+				1.0
+		);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		assertEquals(expectedTransverseLift, scale, 1.0e-15);
+		assertTrue(scale > 1.0);
+	}
+
+	@Test
+	void clampedRuntimeReferenceAirflowScaleKeepsLegacyFallback() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"high_domain_max_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double queryJ = highReference.advanceRatioJ() + 0.20;
+		double omega = highReference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(queryJ
+				* highReference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+		double fallbackScale = DronePhysics.rotorCtCpJRuntimeAirflowThrustMultiplier(
+				null,
+				rotor,
+				axialFlow,
+				omega,
+				0.0
+		);
+		double clampedScale = DronePhysics.rotorCtCpJRuntimeAirflowThrustMultiplier(
+				sample,
+				rotor,
+				axialFlow,
+				omega,
+				0.0
+		);
+
+		assertNotNull(sample);
+		assertTrue(sample.clamped());
+		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals(fallbackScale, clampedScale, 1.0e-15);
+	}
+
+	@Test
 	void acceptedReferenceSampleAnchorsRuntimeInducedInflowTarget() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
