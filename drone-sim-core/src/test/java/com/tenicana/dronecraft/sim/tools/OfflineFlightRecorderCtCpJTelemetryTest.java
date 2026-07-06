@@ -80,6 +80,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorReferenceEnvelopeMarginIndex =
 				column(header, "rotor_0_ctcpj_ref_operating_envelope_margin_fraction");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
+		int rotorCpIndex = column(header, "rotor_0_ctcpj_ref_cp");
+		int rotorCqIndex = column(header, "rotor_0_ctcpj_ref_torque_coefficient_cq");
 		int rotorEtaIndex = column(header, "rotor_0_ctcpj_ref_eta");
 		int rotorReferenceThrustIndex = column(header, "rotor_0_ctcpj_ref_thrust_n");
 		int rotorPowerIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_w");
@@ -220,6 +222,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_ctcpj_ref_operating_envelope_margin_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_ref_torque_coefficient_cq"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_thrust_force_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_disk_loading_n_m2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
@@ -455,7 +459,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 							(int) lookupStatus
 					);
 				}
-				assertTrue(Double.isFinite(Double.parseDouble(row[rotorCtIndex])));
+				double referenceCt = Double.parseDouble(row[rotorCtIndex]);
+				double referenceCp = Double.parseDouble(row[rotorCpIndex]);
+				double referenceCq = Double.parseDouble(row[rotorCqIndex]);
+				assertTrue(Double.isFinite(referenceCt));
+				assertTrue(Double.isFinite(referenceCp));
+				assertTrue(Double.isFinite(referenceCq));
 				double referenceThrust = Double.parseDouble(row[rotorReferenceThrustIndex]);
 				double referencePower = Double.parseDouble(row[rotorPowerIndex]);
 				double referenceDiskLoading = Double.parseDouble(row[rotorReferenceDiskLoadingIndex]);
@@ -572,6 +581,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					assertEquals(referenceTorque, reactionTorqueMagnitude, 2.0e-6);
 					assertTrue(referenceDiskLoading > 0.0);
 					assertTrue(referenceIdealInducedVelocity > 0.0);
+					assertTrue(referenceCq > 0.0);
+					assertEquals(referenceCp / (2.0 * Math.PI), referenceCq, 1.0e-7);
+					double referenceN = Double.parseDouble(row[rotorRpmIndex]) / 60.0;
+					double referenceAirDensity = PropellerArchiveCtCpJDimensionalRotorResponse
+							.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER
+							* Math.max(0.20, Double.parseDouble(row[airDensityRatioIndex]));
+					assertEquals(referenceCq
+									* referenceAirDensity
+									* referenceN
+									* referenceN
+									* Math.pow(diameter, 5.0),
+							referenceTorque, 3.0e-6);
 					assertTrue(diskMassFlow > 0.0);
 					assertTrue(farWakeAxialVelocity > 0.0);
 					assertTrue(farWakeContractedArea > 0.0);

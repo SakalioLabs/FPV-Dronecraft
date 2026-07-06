@@ -1210,6 +1210,7 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "operating_envelope_margin_fraction");
 		appendCtCpJReferenceColumnFamily(builder, "ct");
 		appendCtCpJReferenceColumnFamily(builder, "cp");
+		appendCtCpJReferenceColumnFamily(builder, "torque_coefficient_cq");
 		appendCtCpJReferenceColumnFamily(builder, "eta");
 		appendCtCpJReferenceColumnFamily(builder, "thrust_n");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_power_w");
@@ -4566,6 +4567,7 @@ public final class OfflineFlightRecorder {
 				state.rotorCtCpJReferenceOperatingEnvelopeMarginFraction();
 		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
 		double[] rotorCtCpJReferenceCp = state.rotorCtCpJReferencePowerCoefficientCp();
+		double[] rotorCtCpJReferenceCq = state.rotorCtCpJReferenceTorqueCoefficientCq();
 		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
 		double[] rotorCtCpJReferenceThrust = state.rotorCtCpJReferenceThrustNewtons();
 		double[] rotorCtCpJReferencePower = state.rotorCtCpJReferenceShaftPowerWatts();
@@ -4933,6 +4935,7 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceOperatingEnvelopeMargin, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCt, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCp, rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceCq, rotorCtCpJReferenceAvailable, "%.8f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrust, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferencePower, rotorCtCpJReferenceAvailable, "%.5f");

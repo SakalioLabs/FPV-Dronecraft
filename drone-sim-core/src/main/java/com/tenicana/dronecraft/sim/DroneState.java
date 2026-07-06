@@ -117,6 +117,7 @@ public final class DroneState {
 	private double[] rotorCtCpJReferenceOperatingEnvelopeMarginFraction;
 	private double[] rotorCtCpJReferenceThrustCoefficientCt;
 	private double[] rotorCtCpJReferencePowerCoefficientCp;
+	private double[] rotorCtCpJReferenceTorqueCoefficientCq;
 	private double[] rotorCtCpJReferenceEfficiencyEta;
 	private double[] rotorCtCpJReferenceThrustNewtons;
 	private double[] rotorCtCpJReferenceShaftPowerWatts;
@@ -344,6 +345,7 @@ public final class DroneState {
 		rotorCtCpJReferenceOperatingEnvelopeMarginFraction = new double[motorCount];
 		rotorCtCpJReferenceThrustCoefficientCt = new double[motorCount];
 		rotorCtCpJReferencePowerCoefficientCp = new double[motorCount];
+		rotorCtCpJReferenceTorqueCoefficientCq = new double[motorCount];
 		rotorCtCpJReferenceEfficiencyEta = new double[motorCount];
 		rotorCtCpJReferenceThrustNewtons = new double[motorCount];
 		rotorCtCpJReferenceShaftPowerWatts = new double[motorCount];
@@ -1861,6 +1863,14 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferencePowerCoefficientCp, rotorCtCpJReferencePowerCoefficientCp.length);
 	}
 
+	public double rotorCtCpJReferenceTorqueCoefficientCq(int index) {
+		return rotorCtCpJReferenceTorqueCoefficientCq[index];
+	}
+
+	public double[] rotorCtCpJReferenceTorqueCoefficientCq() {
+		return Arrays.copyOf(rotorCtCpJReferenceTorqueCoefficientCq, rotorCtCpJReferenceTorqueCoefficientCq.length);
+	}
+
 	public double rotorCtCpJReferenceEfficiencyEta(int index) {
 		return rotorCtCpJReferenceEfficiencyEta[index];
 	}
@@ -2246,6 +2256,9 @@ public final class DroneState {
 				finiteOrZero(operatingPoint.runtimeOperatingEnvelopeMarginFraction());
 		rotorCtCpJReferenceThrustCoefficientCt[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.thrustCoefficientCt());
 		rotorCtCpJReferencePowerCoefficientCp[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.powerCoefficientCp());
+		rotorCtCpJReferenceTorqueCoefficientCq[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().torqueCoefficientCq()));
 		rotorCtCpJReferenceEfficiencyEta[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.propulsiveEfficiencyEta());
 		rotorCtCpJReferenceThrustNewtons[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.thrustNewtons()));
 		rotorCtCpJReferenceShaftPowerWatts[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.shaftPowerWatts()));
@@ -2347,6 +2360,7 @@ public final class DroneState {
 		rotorCtCpJReferenceOperatingEnvelopeMarginFraction[index] = 0.0;
 		rotorCtCpJReferenceThrustCoefficientCt[index] = 0.0;
 		rotorCtCpJReferencePowerCoefficientCp[index] = 0.0;
+		rotorCtCpJReferenceTorqueCoefficientCq[index] = 0.0;
 		rotorCtCpJReferenceEfficiencyEta[index] = 0.0;
 		rotorCtCpJReferenceThrustNewtons[index] = 0.0;
 		rotorCtCpJReferenceShaftPowerWatts[index] = 0.0;
@@ -2487,6 +2501,7 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceOperatingEnvelopeMarginFraction, 0.0);
 		Arrays.fill(rotorCtCpJReferenceThrustCoefficientCt, 0.0);
 		Arrays.fill(rotorCtCpJReferencePowerCoefficientCp, 0.0);
+		Arrays.fill(rotorCtCpJReferenceTorqueCoefficientCq, 0.0);
 		Arrays.fill(rotorCtCpJReferenceEfficiencyEta, 0.0);
 		Arrays.fill(rotorCtCpJReferenceThrustNewtons, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftPowerWatts, 0.0);
