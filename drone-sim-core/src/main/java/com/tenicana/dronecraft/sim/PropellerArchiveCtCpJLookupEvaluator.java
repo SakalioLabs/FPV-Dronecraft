@@ -158,6 +158,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double diskLoadingNewtonsPerSquareMeter,
 			double idealInducedVelocityMetersPerSecond,
 			double idealMomentumPowerWatts,
+			double usefulAxialThrustPowerWatts,
+			double idealInducedPowerWatts,
+			double axialPropulsiveEfficiency,
 			double idealMomentumPowerOverShaftPower,
 			double diskMassFlowKilogramsPerSecond,
 			double farWakeAxialVelocityMetersPerSecond,
@@ -422,6 +425,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
+					0.0,
+					0.0,
 					0.0
 			);
 		}
@@ -446,11 +452,18 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		double diskLoading = diskArea > EPSILON ? thrust / diskArea : 0.0;
 		double inducedVelocity = axialMomentumInducedVelocity(
 				thrust, airDensityKgPerCubicMeter, diskArea, advanceSpeed);
-		double idealMomentumPower = thrust > EPSILON
-				? thrust * (Math.max(0.0, advanceSpeed) + inducedVelocity)
-				: 0.0;
-		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
 		double nonnegativeAxialSpeed = Math.max(0.0, advanceSpeed);
+		double usefulAxialThrustPower = thrust > EPSILON
+				? thrust * nonnegativeAxialSpeed
+				: 0.0;
+		double idealInducedPower = thrust > EPSILON
+				? thrust * inducedVelocity
+				: 0.0;
+		double idealMomentumPower = thrust > EPSILON
+				? usefulAxialThrustPower + idealInducedPower
+				: 0.0;
+		double axialPropulsiveEfficiency = ratio(usefulAxialThrustPower, shaftPower);
+		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
 		double diskMassFlow = airDensityKgPerCubicMeter
 				* diskArea
 				* (nonnegativeAxialSpeed + inducedVelocity);
@@ -492,6 +505,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				diskLoading,
 				inducedVelocity,
 				idealMomentumPower,
+				usefulAxialThrustPower,
+				idealInducedPower,
+				axialPropulsiveEfficiency,
 				momentumOverShaft,
 				diskMassFlow,
 				farWakeAxialVelocity,

@@ -98,6 +98,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				dense.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * 2.0,
 				dense.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.usefulAxialThrustPowerWatts() * 2.0,
+				dense.usefulAxialThrustPowerWatts(), 1.0e-15);
+		assertEquals(sample.idealInducedPowerWatts() * 2.0,
+				dense.idealInducedPowerWatts(), 1.0e-15);
+		assertEquals(sample.axialPropulsiveEfficiency(),
+				dense.axialPropulsiveEfficiency(), 1.0e-15);
 		assertEquals(sample.diskMassFlowKilogramsPerSecond() * 2.0,
 				dense.diskMassFlowKilogramsPerSecond(), 1.0e-15);
 		assertEquals(sample.farWakeAxialVelocityMetersPerSecond(),
@@ -132,6 +138,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * Math.pow(diameterScale, 5.0),
 				larger.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.usefulAxialThrustPowerWatts() * Math.pow(diameterScale, 5.0),
+				larger.usefulAxialThrustPowerWatts(), 1.0e-15);
+		assertEquals(sample.idealInducedPowerWatts() * Math.pow(diameterScale, 5.0),
+				larger.idealInducedPowerWatts(), 1.0e-15);
+		assertEquals(sample.axialPropulsiveEfficiency(),
+				larger.axialPropulsiveEfficiency(), 1.0e-15);
 		assertEquals(sample.diskMassFlowKilogramsPerSecond() * Math.pow(diameterScale, 3.0),
 				larger.diskMassFlowKilogramsPerSecond(), 1.0e-15);
 		assertEquals(sample.farWakeAxialVelocityMetersPerSecond() * diameterScale,
@@ -363,6 +375,9 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.0, blockedSample.thrustNewtons(), 1.0e-12);
 		assertEquals(0.0, blockedSample.shaftPowerWatts(), 1.0e-12);
 		assertEquals(0.0, blockedSample.torqueCoefficientCq(), 1.0e-12);
+		assertEquals(0.0, blockedSample.usefulAxialThrustPowerWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.idealInducedPowerWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialPropulsiveEfficiency(), 1.0e-12);
 		assertEquals(0.0, blockedSample.wakeSwirlKineticPowerOverShaftPower(), 1.0e-12);
 		assertEquals(0.0, blockedSample.totalWakeKineticPowerResidualWatts(), 1.0e-12);
 		assertEquals(0.0, blockedSample.totalWakeKineticPowerResidualFraction(), 1.0e-12);
@@ -519,6 +534,16 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.idealMomentumPowerWatts(),
 				1.0e-12
 		);
+		assertEquals(sample.thrustNewtons() * axialSpeed,
+				sample.usefulAxialThrustPowerWatts(), 1.0e-12);
+		assertEquals(sample.thrustNewtons() * sample.idealInducedVelocityMetersPerSecond(),
+				sample.idealInducedPowerWatts(), 1.0e-12);
+		assertEquals(sample.usefulAxialThrustPowerWatts() + sample.idealInducedPowerWatts(),
+				sample.idealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sample.usefulAxialThrustPowerWatts() / sample.shaftPowerWatts(),
+				sample.axialPropulsiveEfficiency(), 1.0e-15);
+		assertEquals(sample.lookup().propulsiveEfficiencyEta(),
+				sample.axialPropulsiveEfficiency(), 1.0e-15);
 		assertEquals(
 				sample.farWakeEquivalentRadiusMeters()
 						* RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION,
@@ -564,6 +589,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertTrue(Double.isFinite(sample.shaftPowerWatts()) && sample.shaftPowerWatts() > 0.0);
 		assertTrue(Double.isFinite(sample.shaftTorqueNewtonMeters()) && sample.shaftTorqueNewtonMeters() > 0.0);
 		assertTrue(Double.isFinite(sample.torqueCoefficientCq()) && sample.torqueCoefficientCq() > 0.0);
+		assertTrue(Double.isFinite(sample.usefulAxialThrustPowerWatts())
+				&& sample.usefulAxialThrustPowerWatts() > 0.0);
+		assertTrue(Double.isFinite(sample.idealInducedPowerWatts())
+				&& sample.idealInducedPowerWatts() > 0.0);
+		assertTrue(Double.isFinite(sample.axialPropulsiveEfficiency())
+				&& sample.axialPropulsiveEfficiency() > 0.0);
 		assertTrue(Double.isFinite(sample.diskLoadingNewtonsPerSquareMeter())
 				&& sample.diskLoadingNewtonsPerSquareMeter() > 0.0);
 		assertTrue(Double.isFinite(sample.idealInducedVelocityMetersPerSecond())
