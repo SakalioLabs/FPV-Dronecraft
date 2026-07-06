@@ -11696,6 +11696,38 @@ class DronePhysicsTest {
 	}
 
 	@Test
+	void dynamicInducedInflowUsesArmFlexedRotorAxis() throws ReflectiveOperationException {
+		DroneConfig config = DroneConfig.racingQuad().withRotorInducedInflow(0.035, 0.16);
+		RotorSpec rotor = config.rotors().get(0);
+		Vec3 nominalRotorArmBody = rotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
+		Method flexedRotorMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorWithArmFlexedThrustAxis",
+				RotorSpec.class,
+				Vec3.class,
+				double.class
+		);
+		Method transverseSpeedMethod = DronePhysics.class.getDeclaredMethod(
+				"rotorTransverseSpeed",
+				RotorSpec.class,
+				Vec3.class
+		);
+		flexedRotorMethod.setAccessible(true);
+		transverseSpeedMethod.setAccessible(true);
+
+		RotorSpec flexedRotor = (RotorSpec) flexedRotorMethod.invoke(null, rotor, nominalRotorArmBody, 1.0);
+		Vec3 nominalAxialFlow = rotor.thrustAxisBody().multiply(36.0);
+
+		double nominalTransverseSpeed = (double) transverseSpeedMethod.invoke(null, rotor, nominalAxialFlow);
+		double flexedTransverseSpeed = (double) transverseSpeedMethod.invoke(null, flexedRotor, nominalAxialFlow);
+
+		assertEquals(0.0, nominalTransverseSpeed, 1.0e-12);
+		assertTrue(flexedRotor.thrustAxisBody().subtract(rotor.thrustAxisBody()).length() > 0.04);
+		assertTrue(flexedTransverseSpeed > 1.0,
+				() -> "flexedTransverseSpeed=" + flexedTransverseSpeed
+						+ " axis=" + flexedRotor.thrustAxisBody());
+	}
+
+	@Test
 	void retainedInducedWakeLoadsRepunchAfterThrottleChop() {
 		DroneConfig config = directControl(DroneConfig.racingQuad())
 				.withLinearDragCoefficient(0.0)

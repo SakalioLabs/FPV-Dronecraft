@@ -1397,7 +1397,7 @@ public final class DronePhysics {
 			);
 			double inflowLagScale = updateRotorInducedInflow(
 					i,
-					rotor,
+					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
 					baseThrust,
