@@ -1662,8 +1662,13 @@ public final class DronePhysics {
 							+ motorPositiveInertiaPowerWatts(rotor, motorAngularAcceleration, omega)
 			);
 			state.updateRotorCtCpJReferenceResidual(i);
-			double reactionTorqueNewtonMeters = motorAerodynamicTorque + commutationRipple.torqueRippleNewtonMeters();
-			Vec3 reactionTorque = rotorDiskAxisBody.multiply(rotor.spinDirection() * reactionTorqueNewtonMeters);
+			Vec3 reactionTorque = rotorCtCpJRuntimeReactionTorqueBody(
+					ctCpJReferenceSample,
+					aerodynamicRotor,
+					rotorDiskAxisBody,
+					motorAerodynamicTorque,
+					commutationRipple.torqueRippleNewtonMeters()
+			);
 			RotorInertiaTorques inertiaTorques = rotorInertiaTorques(rotor, previousOmega, omega, angularVelocityBody, rotorDiskAxisBody, dtSeconds);
 			Vec3 inertiaTorque = inertiaTorques.totalTorque();
 			Vec3 activeBrakingTorque = rotorActiveBrakingTorque(rotor, previousOmega, omega, escElectricalOutput, rotorDiskAxisBody, dtSeconds);
@@ -2918,6 +2923,35 @@ public final class DronePhysics {
 				+ finiteNonnegative(inPlaneDragShaftTorqueNewtonMeters);
 	}
 
+	static Vec3 rotorCtCpJRuntimeReactionTorqueBody(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			RotorSpec rotor,
+			Vec3 rotorDiskAxisBody,
+			double motorAerodynamicTorqueNewtonMeters,
+			double commutationRippleTorqueNewtonMeters
+	) {
+		Vec3 axis = runtimeRotorDiskAxisBody(rotorDiskAxisBody);
+		double aerodynamicTorque = finiteNonnegative(motorAerodynamicTorqueNewtonMeters);
+		double commutationTorque = finiteOrDefault(commutationRippleTorqueNewtonMeters, 0.0);
+		Vec3 fallbackTorque = axis.multiply(rotorSpinDirection(rotor) * (aerodynamicTorque + commutationTorque));
+		Vec3 commutation = axis.multiply(rotorSpinDirection(rotor) * commutationTorque);
+		if (!ctCpJRuntimeSampleAccepted(sample)
+				|| sample.shaftTorqueNewtonMeters() <= 1.0e-12
+				|| sample.reactionTorqueBodyNewtonMeters().lengthSquared() <= 1.0e-24) {
+			return fallbackTorque;
+		}
+		Vec3 modelAxis = runtimeRotorThrustAxisBody(rotor);
+		Vec3 collinearTorque = modelAxis.multiply(rotorSpinDirection(rotor) * sample.shaftTorqueNewtonMeters());
+		double tolerance = 1.0e-18 * Math.max(1.0,
+				sample.shaftTorqueNewtonMeters() * sample.shaftTorqueNewtonMeters());
+		if (sample.reactionTorqueBodyNewtonMeters().subtract(collinearTorque).lengthSquared() <= tolerance) {
+			return fallbackTorque;
+		}
+		return sample.reactionTorqueBodyNewtonMeters()
+				.multiply(aerodynamicTorque / sample.shaftTorqueNewtonMeters())
+				.add(commutation);
+	}
+
 	static Vec3 rotorCtCpJRuntimeThrustAxisForceBody(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
 			RotorSpec rotor,
@@ -2944,6 +2978,18 @@ public final class DronePhysics {
 			return BODY_ROTOR_AXIS;
 		}
 		return rotor.thrustAxisBody();
+	}
+
+	private static Vec3 runtimeRotorDiskAxisBody(Vec3 rotorDiskAxisBody) {
+		if (rotorDiskAxisBody == null || !rotorDiskAxisBody.isFinite()
+				|| rotorDiskAxisBody.lengthSquared() <= 1.0e-9) {
+			return BODY_ROTOR_AXIS;
+		}
+		return rotorDiskAxisBody;
+	}
+
+	private static int rotorSpinDirection(RotorSpec rotor) {
+		return rotor == null ? 1 : rotor.spinDirection();
 	}
 
 	private static boolean ctCpJRuntimeSampleAccepted(

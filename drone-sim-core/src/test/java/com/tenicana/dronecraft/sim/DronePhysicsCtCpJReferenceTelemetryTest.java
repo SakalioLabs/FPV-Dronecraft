@@ -267,6 +267,94 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedRuntimeReferenceReactionTorqueKeepsCurrentRuntimeDiskAxisPathForCollinearModel() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(0.11, 0.97, -0.06));
+		double hoverOmega = Math.sqrt(1.15 / rotor.thrustCoefficient());
+		Vec3 runtimeDiskAxis = new Vec3(0.0, 1.0, 0.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		double aerodynamicTorque = sample.shaftTorqueNewtonMeters() * 1.17;
+		double rippleTorque = -0.00004;
+		Vec3 reactionTorque = DronePhysics.rotorCtCpJRuntimeReactionTorqueBody(
+				sample,
+				rotor,
+				runtimeDiskAxis,
+				aerodynamicTorque,
+				rippleTorque
+		);
+
+		assertVectorEquals(
+				runtimeDiskAxis.multiply(rotor.spinDirection() * (aerodynamicTorque + rippleTorque)),
+				reactionTorque,
+				1.0e-18
+		);
+	}
+
+	@Test
+	void acceptedRuntimeReferenceReactionTorqueCanPreserveNonCollinearCtCpJVector() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double hoverOmega = Math.sqrt(1.15 / rotor.thrustCoefficient());
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		Vec3 nonCollinearTorque = sample.reactionTorqueBodyNewtonMeters().add(new Vec3(0.000012, 0.0, -0.000007));
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample nonCollinearSample =
+				new PropellerArchiveCtCpJRotorForceModel.RotorForceSample(
+						sample.query(),
+						sample.lookup(),
+						sample.dimensionalSample(),
+						sample.axialAdvanceSpeedMetersPerSecond(),
+						sample.thrustForceBodyNewtons(),
+						nonCollinearTorque,
+						sample.momentArmBodyMeters(),
+						sample.thrustMomentBodyNewtonMeters(),
+						sample.totalTorqueBodyNewtonMeters(),
+						sample.yawTorquePerThrustMeterEquivalent()
+				);
+
+		double aerodynamicTorque = sample.shaftTorqueNewtonMeters() * 0.52;
+		double rippleTorque = 0.00003;
+		Vec3 reactionTorque = DronePhysics.rotorCtCpJRuntimeReactionTorqueBody(
+				nonCollinearSample,
+				rotor,
+				rotor.thrustAxisBody(),
+				aerodynamicTorque,
+				rippleTorque
+		);
+
+		Vec3 expectedAerodynamic = nonCollinearTorque.multiply(aerodynamicTorque / sample.shaftTorqueNewtonMeters());
+		Vec3 expectedRipple = rotor.thrustAxisBody().multiply(rotor.spinDirection() * rippleTorque);
+		assertVectorEquals(expectedAerodynamic.add(expectedRipple), reactionTorque, 1.0e-18);
+	}
+
+	@Test
+	void runtimeReferenceReactionTorqueFallsBackWithoutAcceptedCtCpJVector() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(-0.06, 0.98, 0.12));
+
+		Vec3 reactionTorque = DronePhysics.rotorCtCpJRuntimeReactionTorqueBody(
+				null,
+				rotor,
+				rotor.thrustAxisBody(),
+				0.0031,
+				-0.0002
+		);
+
+		assertVectorEquals(
+				rotor.thrustAxisBody().multiply(rotor.spinDirection() * (0.0031 - 0.0002)),
+				reactionTorque,
+				1.0e-18
+		);
+	}
+
+	@Test
 	void hoverRuntimeReferenceUsesStaticAnchorAndCanReplaceRuntimeForce() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
