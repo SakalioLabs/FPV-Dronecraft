@@ -1941,6 +1941,14 @@ public final class DroneState {
 			int index,
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample
 	) {
+		setRotorCtCpJReferenceSample(index, sample, Double.NaN);
+	}
+
+	void setRotorCtCpJReferenceSample(
+			int index,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double ambientTemperatureCelsius
+	) {
 		if (sample == null) {
 			clearRotorCtCpJReferenceSample(index);
 			return;
@@ -1964,7 +1972,7 @@ public final class DroneState {
 		rotorCtCpJReferenceInflowAngleRadians[index] =
 				Math.max(0.0, finiteOrZero(sample.inflowAngleRadians()));
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
-				sample.standardOperatingPoint();
+				sample.operatingPoint(ambientTemperatureCelsius);
 		rotorCtCpJReferenceTipMach[index] =
 				Math.max(0.0, finiteOrZero(operatingPoint.tipMach()));
 		rotorCtCpJReferenceReynoldsNumber[index] =

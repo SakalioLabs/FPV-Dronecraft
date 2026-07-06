@@ -1307,7 +1307,11 @@ public final class DronePhysics {
 					airDensity,
 					config.centerOfMassOffsetBodyMeters()
 			);
-			state.setRotorCtCpJReferenceSample(i, ctCpJReferenceSample);
+			state.setRotorCtCpJReferenceSample(
+					i,
+					ctCpJReferenceSample,
+					environment.effectiveAmbientTemperatureCelsius()
+			);
 			state.setRotorPropellerAdvanceRatioJ(i, rotorCtCpJRuntimePropellerAdvanceRatioJ(
 					ctCpJReferenceSample,
 					state.rotorPropellerAdvanceRatioJ(i)

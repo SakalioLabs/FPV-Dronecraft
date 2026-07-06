@@ -172,6 +172,73 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void referenceOperatingPointTelemetryUsesAmbientTemperature() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+
+		assertNotNull(sample);
+		DroneState standardState = new DroneState(1);
+		DroneState hotState = new DroneState(1);
+		standardState.setRotorCtCpJReferenceSample(0, sample);
+		hotState.setRotorCtCpJReferenceSample(0, sample, 55.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint standard =
+				sample.standardOperatingPoint();
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint hot =
+				sample.operatingPoint(55.0);
+
+		assertEquals(standard.tipMach(), standardState.rotorCtCpJReferenceTipMach(0), 1.0e-15);
+		assertEquals(standard.reynoldsNumber(), standardState.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
+		assertEquals(standard.reynoldsIndex(), standardState.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+		assertEquals(hot.tipMach(), hotState.rotorCtCpJReferenceTipMach(0), 1.0e-15);
+		assertEquals(hot.reynoldsNumber(), hotState.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
+		assertEquals(hot.reynoldsIndex(), hotState.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+		assertTrue(hotState.rotorCtCpJReferenceTipMach(0) < standardState.rotorCtCpJReferenceTipMach(0));
+		assertTrue(hotState.rotorCtCpJReferenceReynoldsNumber(0)
+				< standardState.rotorCtCpJReferenceReynoldsNumber(0));
+		assertTrue(hotState.rotorCtCpJReferenceReynoldsIndex(0)
+				< standardState.rotorCtCpJReferenceReynoldsIndex(0));
+	}
+
+	@Test
+	void runtimeReferenceOperatingPointTelemetryFollowsEnvironmentTemperature() {
+		DronePhysics cold = new DronePhysics(DroneConfig.apDrone());
+		DronePhysics hot = new DronePhysics(DroneConfig.apDrone());
+		DroneInput input = new DroneInput(0.62, 0.0, 0.0, 0.0, true, FlightMode.ACRO);
+
+		for (int i = 0; i < 16; i++) {
+			cold.step(input, 0.010, stillAirAtTemperature(-20.0));
+			hot.step(input, 0.010, stillAirAtTemperature(55.0));
+		}
+
+		assertTrue(cold.state().rotorCtCpJReferenceAvailable(0)
+				|| cold.state().rotorCtCpJReferenceBlocked(0));
+		assertTrue(hot.state().rotorCtCpJReferenceAvailable(0)
+				|| hot.state().rotorCtCpJReferenceBlocked(0));
+		assertTrue(cold.state().rotorCtCpJReferenceTipMach(0) > 0.0);
+		assertTrue(hot.state().rotorCtCpJReferenceTipMach(0) > 0.0);
+		assertTrue(hot.state().rotorCtCpJReferenceTipMach(0)
+				< cold.state().rotorCtCpJReferenceTipMach(0));
+		assertTrue(hot.state().rotorCtCpJReferenceReynoldsNumber(0)
+				< cold.state().rotorCtCpJReferenceReynoldsNumber(0));
+		assertTrue(hot.state().rotorCtCpJReferenceReynoldsIndex(0)
+				< cold.state().rotorCtCpJReferenceReynoldsIndex(0));
+	}
+
+	@Test
 	void unsupportedRotorGeometryDoesNotUseApDroneReferencePayload() {
 		RotorSpec racingRotor = DroneConfig.racingQuad().rotors().get(0);
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
@@ -819,6 +886,25 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	) {
 		double n = lookup.queryRpm() / 60.0;
 		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
+	}
+
+	private static DroneEnvironment stillAirAtTemperature(double ambientTemperatureCelsius) {
+		return new DroneEnvironment(
+				Vec3.ZERO,
+				1.0,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				0.0,
+				ambientTemperatureCelsius
+		);
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
