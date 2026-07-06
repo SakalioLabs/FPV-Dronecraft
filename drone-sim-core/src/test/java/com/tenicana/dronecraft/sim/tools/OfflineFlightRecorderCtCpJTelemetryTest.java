@@ -60,6 +60,14 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorLookupStatusIndex = column(header, "rotor_0_ctcpj_ref_lookup_status");
 		int rotorJIndex = column(header, "rotor_0_ctcpj_ref_j");
 		int rotorRpmIndex = column(header, "rotor_0_ctcpj_ref_rpm");
+		int rotorReferenceRelativeAirXIndex = column(header, "rotor_0_ctcpj_ref_relative_air_x_mps");
+		int rotorReferenceRelativeAirYIndex = column(header, "rotor_0_ctcpj_ref_relative_air_y_mps");
+		int rotorReferenceRelativeAirZIndex = column(header, "rotor_0_ctcpj_ref_relative_air_z_mps");
+		int rotorReferenceTransverseAirXIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_x_mps");
+		int rotorReferenceTransverseAirYIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_y_mps");
+		int rotorReferenceTransverseAirZIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_z_mps");
+		int rotorReferenceTransverseAirSpeedIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_speed_mps");
+		int rotorReferenceInflowAngleIndex = column(header, "rotor_0_ctcpj_ref_inflow_angle_deg");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
 		int rotorReferenceThrustIndex = column(header, "rotor_0_ctcpj_ref_thrust_n");
 		int rotorPowerIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_w");
@@ -112,6 +120,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_runtime_applied"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_lookup_status"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_relative_air_x_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_transverse_air_speed_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_inflow_angle_deg"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_thrust_force_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_total_torque_z_nm"));
@@ -200,6 +211,22 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(lookupStatus));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorJIndex])));
 				assertTrue(Double.isFinite(rotorRpm));
+				double relativeAirX = Double.parseDouble(row[rotorReferenceRelativeAirXIndex]);
+				double relativeAirY = Double.parseDouble(row[rotorReferenceRelativeAirYIndex]);
+				double relativeAirZ = Double.parseDouble(row[rotorReferenceRelativeAirZIndex]);
+				double transverseAirX = Double.parseDouble(row[rotorReferenceTransverseAirXIndex]);
+				double transverseAirY = Double.parseDouble(row[rotorReferenceTransverseAirYIndex]);
+				double transverseAirZ = Double.parseDouble(row[rotorReferenceTransverseAirZIndex]);
+				double transverseAirSpeed = Double.parseDouble(row[rotorReferenceTransverseAirSpeedIndex]);
+				double inflowAngleDegrees = Double.parseDouble(row[rotorReferenceInflowAngleIndex]);
+				assertTrue(Double.isFinite(relativeAirX));
+				assertTrue(Double.isFinite(relativeAirY));
+				assertTrue(Double.isFinite(relativeAirZ));
+				assertTrue(Double.isFinite(transverseAirX));
+				assertTrue(Double.isFinite(transverseAirY));
+				assertTrue(Double.isFinite(transverseAirZ));
+				assertTrue(Double.isFinite(transverseAirSpeed));
+				assertTrue(Double.isFinite(inflowAngleDegrees));
 				sawPositiveReferenceRpm |= referenceRpm > 0.0 || rotorRpm > 0.0;
 				if (blocked > 0.0) {
 					assertEquals(
@@ -256,6 +283,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(torqueResidualY));
 				assertTrue(Double.isFinite(torqueResidualZ));
 				if (rotorAvailable > 0.0) {
+					assertEquals(
+							magnitude(transverseAirX, transverseAirY, transverseAirZ),
+							transverseAirSpeed,
+							5.0e-5
+					);
+					assertTrue(inflowAngleDegrees >= 0.0);
+					assertTrue(inflowAngleDegrees <= 90.0 + 1.0e-9);
 					double thrustForceMagnitude = magnitude(thrustForceX, thrustForceY, thrustForceZ);
 					double reactionTorqueMagnitude = magnitude(reactionTorqueX, reactionTorqueY, reactionTorqueZ);
 					assertEquals(referenceThrust, thrustForceMagnitude, 3.0e-5);

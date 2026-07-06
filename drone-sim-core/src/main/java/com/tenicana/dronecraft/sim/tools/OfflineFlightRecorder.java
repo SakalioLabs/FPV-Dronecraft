@@ -1177,6 +1177,10 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferencePerRotorColumns(builder, "lookup_status");
 		appendCtCpJReferenceColumnFamily(builder, "j");
 		appendCtCpJReferenceColumnFamily(builder, "rpm");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "relative_air", "mps");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "transverse_air", "mps");
+		appendCtCpJReferenceColumnFamily(builder, "transverse_air_speed_mps");
+		appendCtCpJReferenceColumnFamily(builder, "inflow_angle_deg");
 		appendCtCpJReferenceColumnFamily(builder, "ct");
 		appendCtCpJReferenceColumnFamily(builder, "cp");
 		appendCtCpJReferenceColumnFamily(builder, "eta");
@@ -4460,6 +4464,11 @@ public final class OfflineFlightRecorder {
 		boolean[] rotorCtCpJReferenceRuntimeApplied = state.rotorCtCpJReferenceRuntimeApplied();
 		double[] rotorCtCpJReferenceAdvanceRatioJ = state.rotorCtCpJReferenceAdvanceRatioJ();
 		double[] rotorCtCpJReferenceRpm = state.rotorCtCpJReferenceRpm();
+		Vec3[] rotorCtCpJReferenceRelativeAir = state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond();
+		Vec3[] rotorCtCpJReferenceTransverseAir = state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond();
+		double[] rotorCtCpJReferenceTransverseAirSpeed =
+				state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond();
+		double[] rotorCtCpJReferenceInflowAngleDeg = degrees(state.rotorCtCpJReferenceInflowAngleRadians());
 		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
 		double[] rotorCtCpJReferenceCp = state.rotorCtCpJReferencePowerCoefficientCp();
 		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
@@ -4769,6 +4778,14 @@ public final class OfflineFlightRecorder {
 		}
 		appendDoubleFamily(builder, rotorCtCpJReferenceAdvanceRatioJ, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceRpm, rotorCtCpJReferencePresent, "%.2f");
+		for (int i = 0; i < 8; i++) {
+			appendRotorVelocityColumns(builder, rotorCtCpJReferenceRelativeAir, i);
+		}
+		for (int i = 0; i < 8; i++) {
+			appendRotorVelocityColumns(builder, rotorCtCpJReferenceTransverseAir, i);
+		}
+		appendDoubleFamily(builder, rotorCtCpJReferenceTransverseAirSpeed, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceInflowAngleDeg, rotorCtCpJReferencePresent, "%.4f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCt, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCp, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");
@@ -5276,6 +5293,15 @@ public final class OfflineFlightRecorder {
 		return ratios;
 	}
 
+	private static double[] degrees(double[] radians) {
+		int count = radians == null ? 0 : radians.length;
+		double[] degrees = new double[count];
+		for (int i = 0; i < count; i++) {
+			degrees[i] = finiteOrZero(Math.toDegrees(valueOrZero(radians, i)));
+		}
+		return degrees;
+	}
+
 	private static void appendDoubleFamily(StringBuilder builder, double[] values, boolean[] available, String format) {
 		appendExtra(builder, averageAvailable(values, available), format);
 		for (int i = 0; i < 8; i++) {
@@ -5398,6 +5424,13 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, force.x(), "%.5f");
 		appendExtra(builder, force.y(), "%.5f");
 		appendExtra(builder, force.z(), "%.5f");
+	}
+
+	private static void appendRotorVelocityColumns(StringBuilder builder, Vec3[] rotorVelocityBody, int index) {
+		Vec3 velocity = vectorOrZero(rotorVelocityBody, index);
+		appendExtra(builder, velocity.x(), "%.5f");
+		appendExtra(builder, velocity.y(), "%.5f");
+		appendExtra(builder, velocity.z(), "%.5f");
 	}
 
 	private static void appendRotorTorqueColumns(StringBuilder builder, Vec3[] rotorTorqueBody, int index) {

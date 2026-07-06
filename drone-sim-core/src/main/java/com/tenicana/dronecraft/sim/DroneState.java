@@ -103,6 +103,10 @@ public final class DroneState {
 	private int[] rotorCtCpJReferenceLookupStatusCodeOrdinal;
 	private double[] rotorCtCpJReferenceAdvanceRatioJ;
 	private double[] rotorCtCpJReferenceRpm;
+	private Vec3[] rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond;
+	private Vec3[] rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond;
+	private double[] rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond;
+	private double[] rotorCtCpJReferenceInflowAngleRadians;
 	private double[] rotorCtCpJReferenceThrustCoefficientCt;
 	private double[] rotorCtCpJReferencePowerCoefficientCp;
 	private double[] rotorCtCpJReferenceEfficiencyEta;
@@ -295,6 +299,10 @@ public final class DroneState {
 		rotorCtCpJReferenceLookupStatusCodeOrdinal = new int[motorCount];
 		rotorCtCpJReferenceAdvanceRatioJ = new double[motorCount];
 		rotorCtCpJReferenceRpm = new double[motorCount];
+		rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond = new Vec3[motorCount];
+		rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond = new Vec3[motorCount];
+		rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond = new double[motorCount];
+		rotorCtCpJReferenceInflowAngleRadians = new double[motorCount];
 		rotorCtCpJReferenceThrustCoefficientCt = new double[motorCount];
 		rotorCtCpJReferencePowerCoefficientCp = new double[motorCount];
 		rotorCtCpJReferenceEfficiencyEta = new double[motorCount];
@@ -367,6 +375,8 @@ public final class DroneState {
 		rotorHealth = new double[motorCount];
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(rotorCtCpJReferenceThrustForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorCtCpJReferenceReactionTorqueBodyNewtonMeters, Vec3.ZERO);
 		Arrays.fill(rotorCtCpJReferenceThrustMomentBodyNewtonMeters, Vec3.ZERO);
@@ -1653,6 +1663,47 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferenceRpm, rotorCtCpJReferenceRpm.length);
 	}
 
+	public Vec3 rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(int index) {
+		return rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond[index];
+	}
+
+	public Vec3[] rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond,
+				rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond.length
+		);
+	}
+
+	public Vec3 rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(int index) {
+		return rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond[index];
+	}
+
+	public Vec3[] rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond,
+				rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond.length
+		);
+	}
+
+	public double rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(int index) {
+		return rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond[index];
+	}
+
+	public double[] rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond,
+				rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond.length
+		);
+	}
+
+	public double rotorCtCpJReferenceInflowAngleRadians(int index) {
+		return rotorCtCpJReferenceInflowAngleRadians[index];
+	}
+
+	public double[] rotorCtCpJReferenceInflowAngleRadians() {
+		return Arrays.copyOf(rotorCtCpJReferenceInflowAngleRadians, rotorCtCpJReferenceInflowAngleRadians.length);
+	}
+
 	public double rotorCtCpJReferenceThrustCoefficientCt(int index) {
 		return rotorCtCpJReferenceThrustCoefficientCt[index];
 	}
@@ -1798,6 +1849,14 @@ public final class DroneState {
 		rotorCtCpJReferenceLookupStatusCodeOrdinal[index] = lookup.lookupStatusCode().ordinal();
 		rotorCtCpJReferenceAdvanceRatioJ[index] = finiteOrZero(lookup.effectiveAdvanceRatioJ());
 		rotorCtCpJReferenceRpm[index] = finiteOrZero(lookup.effectiveRpm());
+		rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond[index] =
+				finiteVectorOrZero(sample.relativeAirVelocityBodyMetersPerSecond());
+		rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond[index] =
+				finiteVectorOrZero(sample.transverseAirVelocityBodyMetersPerSecond());
+		rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond[index] =
+				Math.max(0.0, finiteOrZero(sample.transverseAirSpeedMetersPerSecond()));
+		rotorCtCpJReferenceInflowAngleRadians[index] =
+				Math.max(0.0, finiteOrZero(sample.inflowAngleRadians()));
 		rotorCtCpJReferenceThrustCoefficientCt[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.thrustCoefficientCt());
 		rotorCtCpJReferencePowerCoefficientCp[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.powerCoefficientCp());
 		rotorCtCpJReferenceEfficiencyEta[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.propulsiveEfficiencyEta());
@@ -1826,6 +1885,10 @@ public final class DroneState {
 				PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.UNKNOWN.ordinal();
 		rotorCtCpJReferenceAdvanceRatioJ[index] = 0.0;
 		rotorCtCpJReferenceRpm[index] = 0.0;
+		rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond[index] = Vec3.ZERO;
+		rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond[index] = Vec3.ZERO;
+		rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond[index] = 0.0;
+		rotorCtCpJReferenceInflowAngleRadians[index] = 0.0;
 		rotorCtCpJReferenceThrustCoefficientCt[index] = 0.0;
 		rotorCtCpJReferencePowerCoefficientCp[index] = 0.0;
 		rotorCtCpJReferenceEfficiencyEta[index] = 0.0;
@@ -1933,6 +1996,10 @@ public final class DroneState {
 				PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.UNKNOWN.ordinal());
 		Arrays.fill(rotorCtCpJReferenceAdvanceRatioJ, 0.0);
 		Arrays.fill(rotorCtCpJReferenceRpm, 0.0);
+		Arrays.fill(rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJReferenceInflowAngleRadians, 0.0);
 		Arrays.fill(rotorCtCpJReferenceThrustCoefficientCt, 0.0);
 		Arrays.fill(rotorCtCpJReferencePowerCoefficientCp, 0.0);
 		Arrays.fill(rotorCtCpJReferenceEfficiencyEta, 0.0);

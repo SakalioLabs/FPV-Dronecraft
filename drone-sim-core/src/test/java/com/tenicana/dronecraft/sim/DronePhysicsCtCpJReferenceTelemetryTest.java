@@ -81,6 +81,13 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(sample.lookup().thrustCoefficientCt(), state.rotorCtCpJReferenceThrustCoefficientCt(0), 1.0e-12);
 		assertEquals(sample.lookup().powerCoefficientCp(), state.rotorCtCpJReferencePowerCoefficientCp(0), 1.0e-12);
 		assertEquals(sample.lookup().propulsiveEfficiencyEta(), state.rotorCtCpJReferenceEfficiencyEta(0), 1.0e-12);
+		assertVectorEquals(sample.relativeAirVelocityBodyMetersPerSecond(),
+				state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-15);
+		assertVectorEquals(sample.transverseAirVelocityBodyMetersPerSecond(),
+				state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-15);
+		assertEquals(sample.transverseAirSpeedMetersPerSecond(),
+				state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
+		assertEquals(sample.inflowAngleRadians(), state.rotorCtCpJReferenceInflowAngleRadians(0), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts(), state.rotorCtCpJReferenceShaftPowerWatts(0), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), state.rotorCtCpJReferenceShaftTorqueNewtonMeters(0), 1.0e-18);
@@ -119,6 +126,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceRpm(0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-18);
+		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-18);
+		assertEquals(0.0, state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceInflowAngleRadians(0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceThrustMomentBodyNewtonMeters(0), 1.0e-18);
@@ -170,6 +181,15 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(Math.atan2(2.5, axialSpeed), sample.inflowAngleRadians(), 1.0e-15);
 		assertVectorEquals(rotor.thrustAxisBody().multiply(sample.thrustNewtons()),
 				sample.thrustForceBodyNewtons(), 1.0e-15);
+
+		DroneState state = new DroneState(1);
+		state.setRotorCtCpJReferenceSample(0, sample);
+		assertVectorEquals(relativeAirVelocity,
+				state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-15);
+		assertVectorEquals(transverseVelocity,
+				state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-15);
+		assertEquals(2.5, state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
+		assertEquals(Math.atan2(2.5, axialSpeed), state.rotorCtCpJReferenceInflowAngleRadians(0), 1.0e-15);
 	}
 
 	@Test
