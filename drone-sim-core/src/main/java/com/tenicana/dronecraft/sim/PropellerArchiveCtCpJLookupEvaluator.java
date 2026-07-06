@@ -157,7 +157,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double diskLoadingNewtonsPerSquareMeter,
 			double idealInducedVelocityMetersPerSecond,
 			double idealMomentumPowerWatts,
-			double idealMomentumPowerOverShaftPower
+			double idealMomentumPowerOverShaftPower,
+			double shaftPowerResidualWatts,
+			double shaftPowerResidualFraction
 	) {
 		public boolean blocked() {
 			return lookup.blocked();
@@ -392,6 +394,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
+					0.0,
 					0.0
 			);
 		}
@@ -415,6 +419,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				? thrust * (Math.max(0.0, advanceSpeed) + inducedVelocity)
 				: 0.0;
 		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
+		double shaftPowerResidual = shaftPower - idealMomentumPower;
+		double shaftPowerResidualFraction = ratio(shaftPowerResidual, shaftPower);
 		return new RotorDimensionalSample(
 				lookup,
 				airDensityKgPerCubicMeter,
@@ -430,7 +436,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				diskLoading,
 				inducedVelocity,
 				idealMomentumPower,
-				momentumOverShaft
+				momentumOverShaft,
+				shaftPowerResidual,
+				shaftPowerResidualFraction
 		);
 	}
 

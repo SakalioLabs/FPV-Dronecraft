@@ -65,7 +65,9 @@ public final class CtCpJCurveExporter {
 			"total_torque_body_y_nm",
 			"total_torque_body_z_nm",
 			"momentum_power_closure_satisfied",
-			"runtime_eligibility_status"
+			"runtime_eligibility_status",
+			"shaft_power_residual_w",
+			"shaft_power_residual_fraction"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -283,7 +285,9 @@ public final class CtCpJCurveExporter {
 				number(totalTorqueBodyNewtonMeters.y()),
 				number(totalTorqueBodyNewtonMeters.z()),
 				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
-				escape(runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted))
+				escape(runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted)),
+				number(sample.shaftPowerResidualWatts()),
+				number(sample.shaftPowerResidualFraction())
 		);
 	}
 
@@ -340,7 +344,9 @@ public final class CtCpJCurveExporter {
 				number(totalTorque.y()),
 				number(totalTorque.z()),
 				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
-				escape(staticReferenceEligibilityStatus(sample))
+				escape(staticReferenceEligibilityStatus(sample)),
+				number(sample.shaftPowerResidualWatts()),
+				number(sample.shaftPowerResidualFraction())
 		);
 	}
 

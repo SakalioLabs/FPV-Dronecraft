@@ -30,7 +30,9 @@ public final class RotorStaticCtCpModel {
 			double diskLoadingNewtonsPerSquareMeter,
 			double idealInducedVelocityMetersPerSecond,
 			double idealMomentumPowerWatts,
-			double idealMomentumPowerOverShaftPower
+			double idealMomentumPowerOverShaftPower,
+			double shaftPowerResidualWatts,
+			double shaftPowerResidualFraction
 	) {
 	}
 
@@ -95,6 +97,8 @@ public final class RotorStaticCtCpModel {
 				: 0.0;
 		double idealMomentumPower = thrust * inducedVelocity;
 		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
+		double shaftPowerResidual = shaftPower - idealMomentumPower;
+		double shaftPowerResidualFraction = ratio(shaftPowerResidual, shaftPower);
 		return new StaticRotorSample(
 				normalizedPreset,
 				normalizedCase,
@@ -116,7 +120,9 @@ public final class RotorStaticCtCpModel {
 				diskLoading,
 				inducedVelocity,
 				idealMomentumPower,
-				momentumOverShaft
+				momentumOverShaft,
+				shaftPowerResidual,
+				shaftPowerResidualFraction
 		);
 	}
 

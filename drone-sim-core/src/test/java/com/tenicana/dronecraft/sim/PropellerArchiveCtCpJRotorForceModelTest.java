@@ -326,6 +326,8 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(high.shaftPowerWatts() > mid.shaftPowerWatts());
 		assertTrue(high.shaftTorqueNewtonMeters() > mid.shaftTorqueNewtonMeters());
 		assertTrue(high.dimensionalSample().idealMomentumPowerOverShaftPower() > 1.0);
+		assertTrue(high.dimensionalSample().shaftPowerResidualWatts() < 0.0);
+		assertTrue(mid.dimensionalSample().shaftPowerResidualWatts() > 0.0);
 		assertEquals(high.shaftPowerWatts() / high.dimensionalSample().angularVelocityRadiansPerSecond(),
 				high.shaftTorqueNewtonMeters(), 1.0e-18);
 	}

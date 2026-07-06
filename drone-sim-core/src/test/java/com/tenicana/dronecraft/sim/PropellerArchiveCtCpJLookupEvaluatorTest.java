@@ -67,6 +67,11 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() / sample.shaftPowerWatts(),
 				sample.idealMomentumPowerOverShaftPower(), 1.0e-15);
+		assertEquals(sample.shaftPowerWatts() - sample.idealMomentumPowerWatts(),
+				sample.shaftPowerResidualWatts(), 1.0e-15);
+		assertEquals(sample.shaftPowerResidualWatts() / sample.shaftPowerWatts(),
+				sample.shaftPowerResidualFraction(), 1.0e-15);
+		assertTrue(sample.shaftPowerResidualWatts() > 0.0);
 		assertTrue(sample.idealMomentumPowerOverShaftPower() > 0.90);
 
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dense =
@@ -79,6 +84,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				dense.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * 2.0,
 				dense.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.shaftPowerResidualWatts() * 2.0,
+				dense.shaftPowerResidualWatts(), 1.0e-15);
+		assertEquals(sample.shaftPowerResidualFraction(),
+				dense.shaftPowerResidualFraction(), 1.0e-15);
 
 		double diameterScale = 1.10;
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample larger =
@@ -94,6 +103,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * Math.pow(diameterScale, 5.0),
 				larger.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.shaftPowerResidualWatts() * Math.pow(diameterScale, 5.0),
+				larger.shaftPowerResidualWatts(), 1.0e-15);
+		assertEquals(sample.shaftPowerResidualFraction(),
+				larger.shaftPowerResidualFraction(), 1.0e-15);
 	}
 
 	@Test
@@ -135,6 +148,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
 		assertTrue(sample.idealMomentumPowerOverShaftPower() > 1.0);
+		assertEquals(sample.shaftPowerWatts() - sample.idealMomentumPowerWatts(),
+				sample.shaftPowerResidualWatts(), 1.0e-15);
+		assertTrue(sample.shaftPowerResidualWatts() < 0.0);
+		assertTrue(sample.shaftPowerResidualFraction() < 0.0);
 	}
 
 	@Test
@@ -294,6 +311,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.status());
 		assertEquals(0.0, blockedSample.thrustNewtons(), 1.0e-12);
 		assertEquals(0.0, blockedSample.shaftPowerWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.shaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.shaftPowerResidualFraction(), 1.0e-12);
 
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery clampQuery =
 				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(
@@ -345,6 +364,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(expectedThrust(clamped, diameter, RHO), sample.thrustNewtons(), 1.0e-15);
 		assertEquals(expectedShaftPower(clamped, diameter, RHO), sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.shaftPowerWatts() - sample.idealMomentumPowerWatts(),
+				sample.shaftPowerResidualWatts(), 1.0e-15);
 		assertTrue(sample.thrustNewtons()
 				< PropellerArchiveCtCpJLookupEvaluator.sampleRotor(high).thrustNewtons());
 	}
@@ -421,6 +442,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				&& sample.idealInducedVelocityMetersPerSecond() > 0.0);
 		assertTrue(Double.isFinite(sample.idealMomentumPowerOverShaftPower())
 				&& sample.idealMomentumPowerOverShaftPower() > 0.0);
+		assertTrue(Double.isFinite(sample.shaftPowerResidualWatts()));
+		assertTrue(Double.isFinite(sample.shaftPowerResidualFraction()));
 	}
 
 	private static double apDroneDiameterMeters() {

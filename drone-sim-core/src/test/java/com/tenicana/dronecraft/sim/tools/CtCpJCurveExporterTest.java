@@ -32,7 +32,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -96,8 +96,13 @@ class CtCpJCurveExporterTest {
 		assertEquals(totalTorque.z(), Double.parseDouble(midCells[44]), 1.0e-15);
 		assertEquals("true", midCells[45]);
 		assertEquals("NOT_RUNTIME_CANDIDATE", midCells[46]);
+		assertEquals(midPower - Double.parseDouble(midCells[18]), Double.parseDouble(midCells[47]), 1.0e-13);
+		assertEquals(Double.parseDouble(midCells[47]) / midPower, Double.parseDouble(midCells[48]), 1.0e-13);
+		assertTrue(Double.parseDouble(midCells[47]) > 0.0);
 		assertEquals("false", highCells[45]);
 		assertEquals("MOMENTUM_POWER_CLOSURE_FAILED", highCells[46]);
+		assertTrue(Double.parseDouble(highCells[47]) < 0.0);
+		assertTrue(Double.parseDouble(highCells[48]) < 0.0);
 
 		String foxeerStatic = lineForCase(lines, "static_rotor_spec_foxeer_public_test");
 		assertEquals(RotorStaticCtCpModel.SOURCE_ID, foxeerStatic.split(",", -1)[20]);
@@ -106,6 +111,7 @@ class CtCpJCurveExporterTest {
 				Double.parseDouble(foxeerStatic.split(",", -1)[13]), 1.0e-12);
 		assertEquals("true", foxeerStatic.split(",", -1)[45]);
 		assertEquals("NOT_RUNTIME_CANDIDATE", foxeerStatic.split(",", -1)[46]);
+		assertTrue(Double.parseDouble(foxeerStatic.split(",", -1)[47]) > 0.0);
 
 		String staticHover = lineForCase(lines, "static_rotor_spec_hover");
 		String runtimeHoverStatic = lineForCaseAndQueryJ(lines,
@@ -236,6 +242,8 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("total_torque_body_z_nm"));
 		assertTrue(lines.get(0).contains("momentum_power_closure_satisfied"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
+		assertTrue(lines.get(0).contains("shaft_power_residual_w"));
+		assertTrue(lines.get(0).contains("shaft_power_residual_fraction"));
 	}
 
 	@Test

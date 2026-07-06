@@ -31,6 +31,11 @@ class RotorStaticCtCpModelTest {
 				sample.shaftTorqueNewtonMeters(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters() * sample.angularVelocityRadiansPerSecond(),
 				sample.shaftPowerWatts(), 1.0e-12);
+		assertEquals(sample.shaftPowerWatts() - sample.idealMomentumPowerWatts(),
+				sample.shaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(sample.shaftPowerResidualWatts() / sample.shaftPowerWatts(),
+				sample.shaftPowerResidualFraction(), 1.0e-15);
+		assertTrue(sample.shaftPowerResidualWatts() > 0.0);
 		assertTrue(sample.shaftPowerWatts()
 				< MotorBenchCurrentModel.FOXEER_DONUT_5145_PUBLIC_TEST_POWER_WATTS);
 		assertEquals(0.0, sample.propulsiveEfficiencyEta(), 1.0e-12);
@@ -52,6 +57,10 @@ class RotorStaticCtCpModelTest {
 		assertEquals(low.thrustNewtons() * 2.0, dense.thrustNewtons(), 1.0e-12);
 		assertEquals(low.shaftPowerWatts() * 2.0, dense.shaftPowerWatts(), 1.0e-12);
 		assertEquals(low.shaftTorqueNewtonMeters() * 2.0, dense.shaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(low.shaftPowerResidualWatts() * 8.0, high.shaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(low.shaftPowerResidualWatts() * 2.0, dense.shaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(low.shaftPowerResidualFraction(), high.shaftPowerResidualFraction(), 1.0e-15);
+		assertEquals(low.shaftPowerResidualFraction(), dense.shaftPowerResidualFraction(), 1.0e-15);
 		assertEquals(low.idealInducedVelocityMetersPerSecond(),
 				dense.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 	}
