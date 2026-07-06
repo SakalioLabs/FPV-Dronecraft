@@ -196,6 +196,51 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void relativeAirVelocityConfigurationProjectsEachRotorAxisBeforeLookup() {
+		DroneConfig config = DroneConfig.apDrone().withRotorOutwardCantDegrees(8.0);
+		double rpm = 6_000.0;
+		double omega = rpm * 2.0 * Math.PI / 60.0;
+		double axialSpeed = 2.75;
+		Vec3[] relativeAirVelocities = new Vec3[config.rotors().size()];
+		double[] omegas = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			Vec3 axis = rotor.thrustAxisBody();
+			Vec3 transverseVelocity = perpendicularUnit(axis).multiply(5.0);
+			relativeAirVelocities[i] = axis.multiply(axialSpeed).add(transverseVelocity);
+			omegas[i] = omega;
+			assertEquals(axialSpeed, relativeAirVelocities[i].dot(axis), 1.0e-12);
+		}
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromRelativeAirVelocities(
+						"apDrone",
+						"relative_velocity_aggregate",
+						config,
+						relativeAirVelocities,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		double expectedJ = axialSpeed / (rpm / 60.0 * config.rotors().get(0).radiusMeters() * 2.0);
+		double expectedForceY = aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.thrustForceBodyNewtons().y())
+				.sum();
+		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertEquals(0, aggregate.blockedRotorCount());
+		assertEquals(expectedJ, aggregate.rotorSamples().get(0).query().advanceRatioJ(), 1.0e-12);
+		assertEquals(expectedJ, aggregate.rotorSamples().get(2).query().advanceRatioJ(), 1.0e-12);
+		assertEquals(expectedForceY, aggregate.totalThrustForceBodyNewtons().y(), 1.0e-12);
+		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().x(), 1.0e-12);
+		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().z(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalReactionTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-12);
+		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
+	}
+
+	@Test
 	void aggregatePreservesBlockedCounts() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
@@ -420,5 +465,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(expected.x(), actual.x(), tolerance);
 		assertEquals(expected.y(), actual.y(), tolerance);
 		assertEquals(expected.z(), actual.z(), tolerance);
+	}
+
+	private static Vec3 perpendicularUnit(Vec3 axis) {
+		Vec3 candidate = new Vec3(axis.y(), -axis.x(), 0.0);
+		if (candidate.lengthSquared() <= 1.0e-12) {
+			candidate = new Vec3(0.0, axis.z(), -axis.y());
+		}
+		return candidate.normalized();
 	}
 }

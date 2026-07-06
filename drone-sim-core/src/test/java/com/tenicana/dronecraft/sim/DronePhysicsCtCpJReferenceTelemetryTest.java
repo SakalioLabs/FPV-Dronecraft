@@ -135,6 +135,28 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void referenceSamplerReportsBodyTorqueAboutRequestedMomentReference() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		Vec3 momentReference = new Vec3(0.015, -0.003, -0.020);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0, momentReference);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		Vec3 expectedArm = rotor.positionBodyMeters().subtract(momentReference);
+		Vec3 expectedThrustMoment = expectedArm.cross(sample.thrustForceBodyNewtons());
+		Vec3 expectedTotalTorque = expectedThrustMoment.add(sample.reactionTorqueBodyNewtonMeters());
+		assertVectorEquals(expectedArm, sample.momentArmBodyMeters(), 1.0e-15);
+		assertVectorEquals(expectedThrustMoment, sample.thrustMomentBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(expectedTotalTorque, sample.totalTorqueBodyNewtonMeters(), 1.0e-15);
+	}
+
+	@Test
 	void acceptedReferenceSampleAnchorsRuntimeBaseThrustAndTorque() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
@@ -330,5 +352,11 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	) {
 		double n = lookup.queryRpm() / 60.0;
 		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
+	}
+
+	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
+		assertEquals(expected.x(), actual.x(), tolerance);
+		assertEquals(expected.y(), actual.y(), tolerance);
+		assertEquals(expected.z(), actual.z(), tolerance);
 	}
 }

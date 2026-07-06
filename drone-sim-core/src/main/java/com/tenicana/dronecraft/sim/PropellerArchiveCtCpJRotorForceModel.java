@@ -593,6 +593,43 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		);
 	}
 
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromRelativeAirVelocities(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3[] relativeAirVelocitiesBody,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		if (relativeAirVelocitiesBody == null
+				|| omegaRadiansPerSecond == null
+				|| relativeAirVelocitiesBody.length < config.rotors().size()
+				|| omegaRadiansPerSecond.length < config.rotors().size()) {
+			throw new IllegalArgumentException("relative air velocity and rotor speed arrays must cover every rotor.");
+		}
+		double[] signedAxialSpeeds = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			Vec3 relativeAirVelocityBody = relativeAirVelocitiesBody[i];
+			if (relativeAirVelocityBody == null || !relativeAirVelocityBody.isFinite()) {
+				throw new IllegalArgumentException("relative air velocity must be finite for every rotor.");
+			}
+			signedAxialSpeeds[i] = relativeAirVelocityBody.dot(rotorAxisBody(config.rotors().get(i)));
+		}
+		return sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+				presetName,
+				caseName,
+				config,
+				signedAxialSpeeds,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy
+		);
+	}
+
 	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
 			String presetName,
 			String caseName,

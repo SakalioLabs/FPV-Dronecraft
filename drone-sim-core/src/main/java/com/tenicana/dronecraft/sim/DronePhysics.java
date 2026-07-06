@@ -1304,7 +1304,8 @@ public final class DronePhysics {
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
-					airDensity
+					airDensity,
+					config.centerOfMassOffsetBodyMeters()
 			);
 			state.setRotorCtCpJReferenceSample(i, ctCpJReferenceSample);
 			state.setRotorAxialGustThrustScale(i, rotorAxialGustThrustScale(
@@ -2836,6 +2837,22 @@ public final class DronePhysics {
 			double omegaRadiansPerSecond,
 			double airDensityRatio
 	) {
+		return sampleRotorCtCpJReference(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				airDensityRatio,
+				Vec3.ZERO
+		);
+	}
+
+	static PropellerArchiveCtCpJRotorForceModel.RotorForceSample sampleRotorCtCpJReference(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			Vec3 momentReferenceBodyMeters
+	) {
 		if (!isApDroneCtCpJReferenceRotor(rotor)
 				|| relativeAirVelocityBody == null
 				|| !relativeAirVelocityBody.isFinite()
@@ -2853,6 +2870,7 @@ public final class DronePhysics {
 				signedAxialAdvanceSpeed,
 				omegaRadiansPerSecond,
 				density,
+				momentReferenceBodyMeters,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
 	}
