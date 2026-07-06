@@ -32,7 +32,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(44, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -57,30 +57,38 @@ class CtCpJCurveExporterTest {
 		assertTrue(highThrust > midThrust);
 		assertTrue(highPower > midPower);
 		assertEquals(0.0, Double.parseDouble(midCells[25]), 1.0e-15);
-		assertEquals(midThrust, Double.parseDouble(midCells[26]), 1.0e-15);
+		assertEquals(Double.parseDouble(midCells[12]), Double.parseDouble(midCells[26]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(midCells[27]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(midCells[28]), 1.0e-18);
-		assertEquals(Double.parseDouble(midCells[15]) * DroneConfig.apDrone().rotors().get(0).spinDirection(),
-				Double.parseDouble(midCells[29]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[29]), 1.0e-18);
 		assertEquals(0.0, Double.parseDouble(midCells[30]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[31]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(midCells[32]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(midCells[33]), 1.0e-15);
+		assertEquals(midThrust, Double.parseDouble(midCells[34]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(midCells[35]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(midCells[36]), 1.0e-18);
+		assertEquals(Double.parseDouble(midCells[15]) * DroneConfig.apDrone().rotors().get(0).spinDirection(),
+				Double.parseDouble(midCells[37]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[38]), 1.0e-18);
 		Vec3 rotorArm = DroneConfig.apDrone().rotors().get(0).positionBodyMeters()
 				.subtract(DroneConfig.apDrone().centerOfMassOffsetBodyMeters());
 		Vec3 thrustForce = new Vec3(
-				Double.parseDouble(midCells[25]),
-				Double.parseDouble(midCells[26]),
-				Double.parseDouble(midCells[27]));
+				Double.parseDouble(midCells[33]),
+				Double.parseDouble(midCells[34]),
+				Double.parseDouble(midCells[35]));
 		Vec3 reactionTorque = new Vec3(
-				Double.parseDouble(midCells[28]),
-				Double.parseDouble(midCells[29]),
-				Double.parseDouble(midCells[30]));
+				Double.parseDouble(midCells[36]),
+				Double.parseDouble(midCells[37]),
+				Double.parseDouble(midCells[38]));
 		Vec3 thrustMoment = rotorArm.cross(thrustForce);
 		Vec3 totalTorque = thrustMoment.add(reactionTorque);
-		assertEquals(thrustMoment.x(), Double.parseDouble(midCells[31]), 1.0e-15);
-		assertEquals(thrustMoment.y(), Double.parseDouble(midCells[32]), 1.0e-15);
-		assertEquals(thrustMoment.z(), Double.parseDouble(midCells[33]), 1.0e-15);
-		assertEquals(totalTorque.x(), Double.parseDouble(midCells[34]), 1.0e-15);
-		assertEquals(totalTorque.y(), Double.parseDouble(midCells[35]), 1.0e-15);
-		assertEquals(totalTorque.z(), Double.parseDouble(midCells[36]), 1.0e-15);
+		assertEquals(thrustMoment.x(), Double.parseDouble(midCells[39]), 1.0e-15);
+		assertEquals(thrustMoment.y(), Double.parseDouble(midCells[40]), 1.0e-15);
+		assertEquals(thrustMoment.z(), Double.parseDouble(midCells[41]), 1.0e-15);
+		assertEquals(totalTorque.x(), Double.parseDouble(midCells[42]), 1.0e-15);
+		assertEquals(totalTorque.y(), Double.parseDouble(midCells[43]), 1.0e-15);
+		assertEquals(totalTorque.z(), Double.parseDouble(midCells[44]), 1.0e-15);
 
 		String foxeerStatic = lineForCase(lines, "static_rotor_spec_foxeer_public_test");
 		assertEquals(RotorStaticCtCpModel.SOURCE_ID, foxeerStatic.split(",", -1)[20]);
@@ -117,11 +125,14 @@ class CtCpJCurveExporterTest {
 		assertEquals("reverse-axial-flow-clamped-to-static-anchor", reverseCells[22]);
 		assertEquals("false", reverseCells[23]);
 		assertTrue(Double.parseDouble(reverseCells[24]) < 0.0);
+		assertEquals(Double.parseDouble(reverseCells[24]), Double.parseDouble(reverseCells[26]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(reverseCells[31]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(reverseCells[32]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(reverseCells[12]), 1.0e-15);
 		assertTrue(Double.parseDouble(reverseCells[13]) > 0.0);
-		assertEquals(Double.parseDouble(reverseCells[13]), Double.parseDouble(reverseCells[26]), 1.0e-15);
+		assertEquals(Double.parseDouble(reverseCells[13]), Double.parseDouble(reverseCells[34]), 1.0e-15);
 		assertEquals(Double.parseDouble(reverseCells[15]) * DroneConfig.apDrone().rotors().get(0).spinDirection(),
-				Double.parseDouble(reverseCells[29]), 1.0e-18);
+				Double.parseDouble(reverseCells[37]), 1.0e-18);
 
 		String blockedHighJ = lineForCase(lines, "static_anchored_runtime_high_j_block");
 		String[] blockedCells = blockedHighJ.split(",", -1);
@@ -132,20 +143,23 @@ class CtCpJCurveExporterTest {
 		assertEquals("query-outside-accepted-advance-shape-window", blockedCells[22]);
 		assertEquals("false", blockedCells[23]);
 		assertTrue(Double.parseDouble(blockedCells[24]) > 0.0);
+		assertEquals(Double.parseDouble(blockedCells[24]), Double.parseDouble(blockedCells[26]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[31]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[32]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[13]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[14]), 1.0e-15);
-		assertEquals(0.0, Double.parseDouble(blockedCells[25]), 1.0e-15);
-		assertEquals(0.0, Double.parseDouble(blockedCells[26]), 1.0e-15);
-		assertEquals(0.0, Double.parseDouble(blockedCells[27]), 1.0e-15);
-		assertEquals(0.0, Double.parseDouble(blockedCells[28]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[29]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[30]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[31]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[32]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[33]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[34]), 1.0e-18);
-		assertEquals(0.0, Double.parseDouble(blockedCells[35]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[33]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[34]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[35]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[36]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[37]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[38]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[39]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[40]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[41]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[42]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[43]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(blockedCells[44]), 1.0e-18);
 	}
 
 	@Test
@@ -164,6 +178,9 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("shaft_torque_nm"));
 		assertTrue(lines.get(0).contains("source_id"));
 		assertTrue(lines.get(0).contains("query_signed_axial_speed_mps"));
+		assertTrue(lines.get(0).contains("relative_air_body_y_mps"));
+		assertTrue(lines.get(0).contains("transverse_air_speed_mps"));
+		assertTrue(lines.get(0).contains("inflow_angle_deg"));
 		assertTrue(lines.get(0).contains("thrust_force_body_y_n"));
 		assertTrue(lines.get(0).contains("reaction_torque_body_y_nm"));
 		assertTrue(lines.get(0).contains("thrust_moment_body_x_nm"));
