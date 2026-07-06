@@ -332,6 +332,57 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void staticAnchoredConfigurationAggregateUsesAmbientOperatingEnvelope() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		double[] axialSpeeds = new double[config.rotors().size()];
+		double[] omegas = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			omegas[i] = hoverOmega;
+		}
+		double thinAirDensity = RHO * 0.28;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample standard =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+						"apDrone",
+						"aggregate_standard_low_density",
+						config,
+						axialSpeeds,
+						omegas,
+						thinAirDensity,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample hot =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+						"apDrone",
+						"aggregate_hot_low_density",
+						config,
+						axialSpeeds,
+						omegas,
+						thinAirDensity,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						65.0,
+						0.0
+				);
+
+		assertEquals(config.rotors().size(), standard.acceptedRotorCount());
+		assertEquals(config.rotors().size(), hot.acceptedRotorCount());
+		assertEquals(config.rotors().size(), standard.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(0, hot.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(0, hot.blockedRotorCount());
+		assertEquals(0, hot.clampedRotorCount());
+		assertTrue(standard.rotorSamples().get(0).runtimeOperatingPointEnvelopeSatisfied());
+		assertFalse(hot.rotorSamples().get(0).runtimeOperatingPointEnvelopeSatisfied());
+		assertTrue(hot.rotorSamples().get(0).operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
+		assertEquals(standard.totalThrustNewtons(), hot.totalThrustNewtons(), 1.0e-12);
+		assertTrue(hot.totalShaftPowerWatts() > 0.0);
+		assertTrue(hot.totalBodyTorqueNewtonMeters().isFinite());
+	}
+
+	@Test
 	void relativeAirVelocityConfigurationProjectsEachRotorAxisBeforeLookup() {
 		DroneConfig config = DroneConfig.apDrone().withRotorOutwardCantDegrees(8.0);
 		double rpm = 6_000.0;

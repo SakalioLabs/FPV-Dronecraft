@@ -940,6 +940,30 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double airDensityKgPerCubicMeter,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleStaticAnchoredConfigurationFromRelativeAirVelocities(
+				presetName,
+				caseName,
+				config,
+				relativeAirVelocitiesBody,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromRelativeAirVelocities(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3[] relativeAirVelocitiesBody,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		if (config == null) {
 			throw new IllegalArgumentException("config must not be null.");
 		}
@@ -964,7 +988,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					omegaRadiansPerSecond[i],
 					airDensityKgPerCubicMeter,
 					momentReference,
-					envelopePolicy
+					envelopePolicy,
+					ambientTemperatureCelsius,
+					ambientHumidity
 			));
 		}
 		return aggregate(samples);
@@ -978,6 +1004,30 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double[] omegaRadiansPerSecond,
 			double airDensityKgPerCubicMeter,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		return sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+				presetName,
+				caseName,
+				config,
+				signedAxialAdvanceSpeedsMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			double[] signedAxialAdvanceSpeedsMetersPerSecond,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		if (config == null) {
 			throw new IllegalArgumentException("config must not be null.");
@@ -999,7 +1049,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					omegaRadiansPerSecond[i],
 					airDensityKgPerCubicMeter,
 					momentReference,
-					envelopePolicy
+					envelopePolicy,
+					ambientTemperatureCelsius,
+					ambientHumidity
 			));
 		}
 		return aggregate(samples);
