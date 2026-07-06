@@ -1200,6 +1200,8 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "transverse_air", "mps");
 		appendCtCpJReferenceColumnFamily(builder, "transverse_air_speed_mps");
 		appendCtCpJReferenceColumnFamily(builder, "inflow_angle_deg");
+		appendCtCpJReferenceColumnFamily(builder, "speed_of_sound_mps");
+		appendCtCpJReferenceColumnFamily(builder, "dynamic_viscosity_pa_s");
 		appendCtCpJReferenceColumnFamily(builder, "tip_mach");
 		appendCtCpJReferenceColumnFamily(builder, "reynolds_number");
 		appendCtCpJReferenceColumnFamily(builder, "reynolds_index");
@@ -4531,6 +4533,10 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceTransverseAirSpeed =
 				state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond();
 		double[] rotorCtCpJReferenceInflowAngleDeg = degrees(state.rotorCtCpJReferenceInflowAngleRadians());
+		double[] rotorCtCpJReferenceSpeedOfSound =
+				state.rotorCtCpJReferenceSpeedOfSoundMetersPerSecond();
+		double[] rotorCtCpJReferenceDynamicViscosity =
+				state.rotorCtCpJReferenceDynamicViscosityPascalSeconds();
 		double[] rotorCtCpJReferenceTipMach = state.rotorCtCpJReferenceTipMach();
 		double[] rotorCtCpJReferenceReynoldsNumber = state.rotorCtCpJReferenceReynoldsNumber();
 		double[] rotorCtCpJReferenceReynoldsIndex = state.rotorCtCpJReferenceReynoldsIndex();
@@ -4863,6 +4869,8 @@ public final class OfflineFlightRecorder {
 		}
 		appendDoubleFamily(builder, rotorCtCpJReferenceTransverseAirSpeed, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceInflowAngleDeg, rotorCtCpJReferencePresent, "%.4f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceSpeedOfSound, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceDynamicViscosity, rotorCtCpJReferencePresent, "%.9f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTipMach, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsNumber, rotorCtCpJReferencePresent, "%.1f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsIndex, rotorCtCpJReferencePresent, "%.5f");

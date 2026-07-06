@@ -107,6 +107,8 @@ public final class DroneState {
 	private Vec3[] rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond;
 	private double[] rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond;
 	private double[] rotorCtCpJReferenceInflowAngleRadians;
+	private double[] rotorCtCpJReferenceSpeedOfSoundMetersPerSecond;
+	private double[] rotorCtCpJReferenceDynamicViscosityPascalSeconds;
 	private double[] rotorCtCpJReferenceTipMach;
 	private double[] rotorCtCpJReferenceReynoldsNumber;
 	private double[] rotorCtCpJReferenceReynoldsIndex;
@@ -314,6 +316,8 @@ public final class DroneState {
 		rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond = new Vec3[motorCount];
 		rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond = new double[motorCount];
 		rotorCtCpJReferenceInflowAngleRadians = new double[motorCount];
+		rotorCtCpJReferenceSpeedOfSoundMetersPerSecond = new double[motorCount];
+		rotorCtCpJReferenceDynamicViscosityPascalSeconds = new double[motorCount];
 		rotorCtCpJReferenceTipMach = new double[motorCount];
 		rotorCtCpJReferenceReynoldsNumber = new double[motorCount];
 		rotorCtCpJReferenceReynoldsIndex = new double[motorCount];
@@ -1726,6 +1730,28 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferenceInflowAngleRadians, rotorCtCpJReferenceInflowAngleRadians.length);
 	}
 
+	public double rotorCtCpJReferenceSpeedOfSoundMetersPerSecond(int index) {
+		return rotorCtCpJReferenceSpeedOfSoundMetersPerSecond[index];
+	}
+
+	public double[] rotorCtCpJReferenceSpeedOfSoundMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceSpeedOfSoundMetersPerSecond,
+				rotorCtCpJReferenceSpeedOfSoundMetersPerSecond.length
+		);
+	}
+
+	public double rotorCtCpJReferenceDynamicViscosityPascalSeconds(int index) {
+		return rotorCtCpJReferenceDynamicViscosityPascalSeconds[index];
+	}
+
+	public double[] rotorCtCpJReferenceDynamicViscosityPascalSeconds() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceDynamicViscosityPascalSeconds,
+				rotorCtCpJReferenceDynamicViscosityPascalSeconds.length
+		);
+	}
+
 	public double rotorCtCpJReferenceTipMach(int index) {
 		return rotorCtCpJReferenceTipMach[index];
 	}
@@ -1983,6 +2009,10 @@ public final class DroneState {
 				Math.max(0.0, finiteOrZero(sample.inflowAngleRadians()));
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
 				sample.operatingPoint(ambientTemperatureCelsius, ambientHumidity);
+		rotorCtCpJReferenceSpeedOfSoundMetersPerSecond[index] =
+				Math.max(0.0, finiteOrZero(operatingPoint.speedOfSoundMetersPerSecond()));
+		rotorCtCpJReferenceDynamicViscosityPascalSeconds[index] =
+				Math.max(0.0, finiteOrZero(operatingPoint.dynamicViscosityPascalSeconds()));
 		rotorCtCpJReferenceTipMach[index] =
 				Math.max(0.0, finiteOrZero(operatingPoint.tipMach()));
 		rotorCtCpJReferenceReynoldsNumber[index] =
@@ -2037,6 +2067,8 @@ public final class DroneState {
 		rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond[index] = Vec3.ZERO;
 		rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond[index] = 0.0;
 		rotorCtCpJReferenceInflowAngleRadians[index] = 0.0;
+		rotorCtCpJReferenceSpeedOfSoundMetersPerSecond[index] = 0.0;
+		rotorCtCpJReferenceDynamicViscosityPascalSeconds[index] = 0.0;
 		rotorCtCpJReferenceTipMach[index] = 0.0;
 		rotorCtCpJReferenceReynoldsNumber[index] = 0.0;
 		rotorCtCpJReferenceReynoldsIndex[index] = 0.0;
@@ -2157,6 +2189,8 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond, Vec3.ZERO);
 		Arrays.fill(rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond, 0.0);
 		Arrays.fill(rotorCtCpJReferenceInflowAngleRadians, 0.0);
+		Arrays.fill(rotorCtCpJReferenceSpeedOfSoundMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJReferenceDynamicViscosityPascalSeconds, 0.0);
 		Arrays.fill(rotorCtCpJReferenceTipMach, 0.0);
 		Arrays.fill(rotorCtCpJReferenceReynoldsNumber, 0.0);
 		Arrays.fill(rotorCtCpJReferenceReynoldsIndex, 0.0);

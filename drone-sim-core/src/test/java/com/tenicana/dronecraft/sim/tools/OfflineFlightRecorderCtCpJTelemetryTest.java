@@ -69,6 +69,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorReferenceTransverseAirZIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_z_mps");
 		int rotorReferenceTransverseAirSpeedIndex = column(header, "rotor_0_ctcpj_ref_transverse_air_speed_mps");
 		int rotorReferenceInflowAngleIndex = column(header, "rotor_0_ctcpj_ref_inflow_angle_deg");
+		int rotorReferenceSpeedOfSoundIndex = column(header, "rotor_0_ctcpj_ref_speed_of_sound_mps");
+		int rotorReferenceDynamicViscosityIndex = column(header, "rotor_0_ctcpj_ref_dynamic_viscosity_pa_s");
 		int rotorReferenceTipMachIndex = column(header, "rotor_0_ctcpj_ref_tip_mach");
 		int rotorReferenceReynoldsNumberIndex = column(header, "rotor_0_ctcpj_ref_reynolds_number");
 		int rotorReferenceReynoldsIndexIndex = column(header, "rotor_0_ctcpj_ref_reynolds_index");
@@ -133,6 +135,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int[] rotorReferenceRelativeAirZIndices = new int[8];
 		int[] rotorReferenceTransverseAirSpeedIndices = new int[8];
 		int[] rotorReferenceInflowAngleIndices = new int[8];
+		int[] rotorReferenceSpeedOfSoundIndices = new int[8];
+		int[] rotorReferenceDynamicViscosityIndices = new int[8];
 		int[] rotorReferenceTipMachIndices = new int[8];
 		int[] rotorReferenceReynoldsNumberIndices = new int[8];
 		int[] rotorReferenceReynoldsIndexIndices = new int[8];
@@ -145,6 +149,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			rotorReferenceTransverseAirSpeedIndices[rotor] =
 					column(header, "rotor_" + rotor + "_ctcpj_ref_transverse_air_speed_mps");
 			rotorReferenceInflowAngleIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_inflow_angle_deg");
+			rotorReferenceSpeedOfSoundIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_speed_of_sound_mps");
+			rotorReferenceDynamicViscosityIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_dynamic_viscosity_pa_s");
 			rotorReferenceTipMachIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_tip_mach");
 			rotorReferenceReynoldsNumberIndices[rotor] =
 					column(header, "rotor_" + rotor + "_ctcpj_ref_reynolds_number");
@@ -163,6 +171,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_relative_air_x_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_transverse_air_speed_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_inflow_angle_deg"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_speed_of_sound_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_dynamic_viscosity_pa_s"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_tip_mach"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_reynolds_number"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_reynolds_index"));
@@ -223,12 +233,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				);
 				double transverseAirSpeed = Double.parseDouble(row[rotorReferenceTransverseAirSpeedIndices[rotor]]);
 				double inflowAngle = Double.parseDouble(row[rotorReferenceInflowAngleIndices[rotor]]);
+				double speedOfSound = Double.parseDouble(row[rotorReferenceSpeedOfSoundIndices[rotor]]);
+				double dynamicViscosity = Double.parseDouble(row[rotorReferenceDynamicViscosityIndices[rotor]]);
 				double tipMach = Double.parseDouble(row[rotorReferenceTipMachIndices[rotor]]);
 				double reynoldsNumber = Double.parseDouble(row[rotorReferenceReynoldsNumberIndices[rotor]]);
 				double reynoldsIndex = Double.parseDouble(row[rotorReferenceReynoldsIndexIndices[rotor]]);
+				assertTrue(Double.isFinite(speedOfSound));
+				assertTrue(Double.isFinite(dynamicViscosity));
 				assertTrue(Double.isFinite(tipMach));
 				assertTrue(Double.isFinite(reynoldsNumber));
 				assertTrue(Double.isFinite(reynoldsIndex));
+				assertTrue(speedOfSound > 0.0);
+				assertTrue(dynamicViscosity > 0.0);
 				assertTrue(tipMach >= 0.0);
 				assertTrue(reynoldsNumber >= 0.0);
 				assertTrue(reynoldsIndex >= 0.0);
@@ -337,6 +353,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double transverseAirZ = Double.parseDouble(row[rotorReferenceTransverseAirZIndex]);
 				double transverseAirSpeed = Double.parseDouble(row[rotorReferenceTransverseAirSpeedIndex]);
 				double inflowAngleDegrees = Double.parseDouble(row[rotorReferenceInflowAngleIndex]);
+				double speedOfSound = Double.parseDouble(row[rotorReferenceSpeedOfSoundIndex]);
+				double dynamicViscosity = Double.parseDouble(row[rotorReferenceDynamicViscosityIndex]);
 				double tipMach = Double.parseDouble(row[rotorReferenceTipMachIndex]);
 				double reynoldsNumber = Double.parseDouble(row[rotorReferenceReynoldsNumberIndex]);
 				double reynoldsIndex = Double.parseDouble(row[rotorReferenceReynoldsIndexIndex]);
@@ -348,9 +366,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(transverseAirZ));
 				assertTrue(Double.isFinite(transverseAirSpeed));
 				assertTrue(Double.isFinite(inflowAngleDegrees));
+				assertTrue(Double.isFinite(speedOfSound));
+				assertTrue(Double.isFinite(dynamicViscosity));
 				assertTrue(Double.isFinite(tipMach));
 				assertTrue(Double.isFinite(reynoldsNumber));
 				assertTrue(Double.isFinite(reynoldsIndex));
+				assertTrue(speedOfSound >= 0.0);
+				assertTrue(dynamicViscosity >= 0.0);
 				assertTrue(tipMach >= 0.0);
 				assertTrue(reynoldsNumber >= 0.0);
 				assertTrue(reynoldsIndex >= 0.0);
@@ -434,6 +456,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					);
 					assertTrue(inflowAngleDegrees >= 0.0);
 					assertTrue(inflowAngleDegrees <= 180.0 + 1.0e-9);
+					assertTrue(speedOfSound > 250.0);
+					assertTrue(dynamicViscosity > 1.0e-6);
 					assertTrue(tipMach > 0.0);
 					assertTrue(reynoldsNumber > 0.0);
 					assertTrue(reynoldsIndex > 0.0);

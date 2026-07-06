@@ -249,9 +249,17 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertTrue(humid.dynamicViscosityPascalSeconds() < dry.dynamicViscosityPascalSeconds());
 		assertTrue(humid.reynoldsNumber() > dry.reynoldsNumber());
 		assertTrue(humid.reynoldsIndex() > dry.reynoldsIndex());
+		assertEquals(humid.speedOfSoundMetersPerSecond(),
+				humidState.rotorCtCpJReferenceSpeedOfSoundMetersPerSecond(0), 1.0e-12);
+		assertEquals(humid.dynamicViscosityPascalSeconds(),
+				humidState.rotorCtCpJReferenceDynamicViscosityPascalSeconds(0), 1.0e-15);
 		assertEquals(humid.tipMach(), humidState.rotorCtCpJReferenceTipMach(0), 1.0e-15);
 		assertEquals(humid.reynoldsNumber(), humidState.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
 		assertEquals(humid.reynoldsIndex(), humidState.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+		assertTrue(humidState.rotorCtCpJReferenceSpeedOfSoundMetersPerSecond(0)
+				> dryState.rotorCtCpJReferenceSpeedOfSoundMetersPerSecond(0));
+		assertTrue(humidState.rotorCtCpJReferenceDynamicViscosityPascalSeconds(0)
+				< dryState.rotorCtCpJReferenceDynamicViscosityPascalSeconds(0));
 		assertTrue(humidState.rotorCtCpJReferenceReynoldsNumber(0)
 				> dryState.rotorCtCpJReferenceReynoldsNumber(0));
 		assertTrue(humidState.rotorCtCpJReferenceReynoldsIndex(0)
