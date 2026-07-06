@@ -1183,6 +1183,10 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "thrust_n");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_power_w");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_nm");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "thrust_force", "n");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "reaction_torque", "nm");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "thrust_moment", "nm");
+		appendCtCpJReferenceVectorPerRotorColumns(builder, "total_torque", "nm");
 		appendCtCpJReferenceColumnFamily(builder, "thrust_residual_n");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_power_residual_w");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_residual_nm");
@@ -1223,6 +1227,18 @@ public final class OfflineFlightRecorder {
 	private static void appendCtCpJReferencePerRotorColumns(StringBuilder builder, String suffix) {
 		for (int i = 0; i < 8; i++) {
 			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + suffix);
+		}
+	}
+
+	private static void appendCtCpJReferenceVectorPerRotorColumns(
+			StringBuilder builder,
+			String vectorName,
+			String unitSuffix
+	) {
+		for (int i = 0; i < 8; i++) {
+			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + vectorName + "_x_" + unitSuffix);
+			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + vectorName + "_y_" + unitSuffix);
+			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + vectorName + "_z_" + unitSuffix);
 		}
 	}
 
@@ -4448,6 +4464,10 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceThrust = state.rotorCtCpJReferenceThrustNewtons();
 		double[] rotorCtCpJReferencePower = state.rotorCtCpJReferenceShaftPowerWatts();
 		double[] rotorCtCpJReferenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
+		Vec3[] rotorCtCpJReferenceThrustForceBody = state.rotorCtCpJReferenceThrustForceBodyNewtons();
+		Vec3[] rotorCtCpJReferenceReactionTorqueBody = state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters();
+		Vec3[] rotorCtCpJReferenceThrustMomentBody = state.rotorCtCpJReferenceThrustMomentBodyNewtonMeters();
+		Vec3[] rotorCtCpJReferenceTotalTorqueBody = state.rotorCtCpJReferenceTotalTorqueBodyNewtonMeters();
 		double[] rotorCtCpJReferenceThrustResidual = state.rotorCtCpJReferenceThrustResidualNewtons();
 		double[] rotorCtCpJReferencePowerResidual = state.rotorCtCpJReferenceShaftPowerResidualWatts();
 		double[] rotorCtCpJReferenceTorqueResidual = state.rotorCtCpJReferenceShaftTorqueResidualNewtonMeters();
@@ -4753,6 +4773,18 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrust, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferencePower, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorque, rotorCtCpJReferenceAvailable, "%.6f");
+		for (int i = 0; i < 8; i++) {
+			appendRotorForceColumns(builder, rotorCtCpJReferenceThrustForceBody, i);
+		}
+		for (int i = 0; i < 8; i++) {
+			appendRotorTorqueColumns(builder, rotorCtCpJReferenceReactionTorqueBody, i);
+		}
+		for (int i = 0; i < 8; i++) {
+			appendRotorTorqueColumns(builder, rotorCtCpJReferenceThrustMomentBody, i);
+		}
+		for (int i = 0; i < 8; i++) {
+			appendRotorTorqueColumns(builder, rotorCtCpJReferenceTotalTorqueBody, i);
+		}
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrustResidual, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferencePowerResidual, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorqueResidual, rotorCtCpJReferenceAvailable, "%.6f");

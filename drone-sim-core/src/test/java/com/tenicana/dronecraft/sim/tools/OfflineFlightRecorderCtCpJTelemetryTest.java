@@ -55,7 +55,21 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorJIndex = column(header, "rotor_0_ctcpj_ref_j");
 		int rotorRpmIndex = column(header, "rotor_0_ctcpj_ref_rpm");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
+		int rotorReferenceThrustIndex = column(header, "rotor_0_ctcpj_ref_thrust_n");
 		int rotorPowerIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_w");
+		int rotorReferenceTorqueIndex = column(header, "rotor_0_ctcpj_ref_shaft_torque_nm");
+		int rotorReferenceThrustForceXIndex = column(header, "rotor_0_ctcpj_ref_thrust_force_x_n");
+		int rotorReferenceThrustForceYIndex = column(header, "rotor_0_ctcpj_ref_thrust_force_y_n");
+		int rotorReferenceThrustForceZIndex = column(header, "rotor_0_ctcpj_ref_thrust_force_z_n");
+		int rotorReferenceReactionTorqueXIndex = column(header, "rotor_0_ctcpj_ref_reaction_torque_x_nm");
+		int rotorReferenceReactionTorqueYIndex = column(header, "rotor_0_ctcpj_ref_reaction_torque_y_nm");
+		int rotorReferenceReactionTorqueZIndex = column(header, "rotor_0_ctcpj_ref_reaction_torque_z_nm");
+		int rotorReferenceThrustMomentXIndex = column(header, "rotor_0_ctcpj_ref_thrust_moment_x_nm");
+		int rotorReferenceThrustMomentYIndex = column(header, "rotor_0_ctcpj_ref_thrust_moment_y_nm");
+		int rotorReferenceThrustMomentZIndex = column(header, "rotor_0_ctcpj_ref_thrust_moment_z_nm");
+		int rotorReferenceTotalTorqueXIndex = column(header, "rotor_0_ctcpj_ref_total_torque_x_nm");
+		int rotorReferenceTotalTorqueYIndex = column(header, "rotor_0_ctcpj_ref_total_torque_y_nm");
+		int rotorReferenceTotalTorqueZIndex = column(header, "rotor_0_ctcpj_ref_total_torque_z_nm");
 		int rotorThrustResidualIndex = column(header, "rotor_0_ctcpj_ref_thrust_residual_n");
 		int rotorPowerResidualIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_residual_w");
 		int rotorTorqueResidualIndex = column(header, "rotor_0_ctcpj_ref_shaft_torque_residual_nm");
@@ -87,6 +101,8 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_runtime_applied"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_lookup_status"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_thrust_force_x_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_total_torque_z_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_thrust_residual_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_residual_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_thrust_ratio"));
@@ -184,7 +200,44 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					);
 				}
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorCtIndex])));
+				double referenceThrust = Double.parseDouble(row[rotorReferenceThrustIndex]);
+				double referenceTorque = Double.parseDouble(row[rotorReferenceTorqueIndex]);
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorPowerIndex])));
+				double thrustForceX = Double.parseDouble(row[rotorReferenceThrustForceXIndex]);
+				double thrustForceY = Double.parseDouble(row[rotorReferenceThrustForceYIndex]);
+				double thrustForceZ = Double.parseDouble(row[rotorReferenceThrustForceZIndex]);
+				double reactionTorqueX = Double.parseDouble(row[rotorReferenceReactionTorqueXIndex]);
+				double reactionTorqueY = Double.parseDouble(row[rotorReferenceReactionTorqueYIndex]);
+				double reactionTorqueZ = Double.parseDouble(row[rotorReferenceReactionTorqueZIndex]);
+				double thrustMomentX = Double.parseDouble(row[rotorReferenceThrustMomentXIndex]);
+				double thrustMomentY = Double.parseDouble(row[rotorReferenceThrustMomentYIndex]);
+				double thrustMomentZ = Double.parseDouble(row[rotorReferenceThrustMomentZIndex]);
+				double totalTorqueX = Double.parseDouble(row[rotorReferenceTotalTorqueXIndex]);
+				double totalTorqueY = Double.parseDouble(row[rotorReferenceTotalTorqueYIndex]);
+				double totalTorqueZ = Double.parseDouble(row[rotorReferenceTotalTorqueZIndex]);
+				assertTrue(Double.isFinite(referenceThrust));
+				assertTrue(Double.isFinite(referenceTorque));
+				assertTrue(Double.isFinite(thrustForceX));
+				assertTrue(Double.isFinite(thrustForceY));
+				assertTrue(Double.isFinite(thrustForceZ));
+				assertTrue(Double.isFinite(reactionTorqueX));
+				assertTrue(Double.isFinite(reactionTorqueY));
+				assertTrue(Double.isFinite(reactionTorqueZ));
+				assertTrue(Double.isFinite(thrustMomentX));
+				assertTrue(Double.isFinite(thrustMomentY));
+				assertTrue(Double.isFinite(thrustMomentZ));
+				assertTrue(Double.isFinite(totalTorqueX));
+				assertTrue(Double.isFinite(totalTorqueY));
+				assertTrue(Double.isFinite(totalTorqueZ));
+				if (rotorAvailable > 0.0) {
+					double thrustForceMagnitude = magnitude(thrustForceX, thrustForceY, thrustForceZ);
+					double reactionTorqueMagnitude = magnitude(reactionTorqueX, reactionTorqueY, reactionTorqueZ);
+					assertEquals(referenceThrust, thrustForceMagnitude, 3.0e-5);
+					assertEquals(referenceTorque, reactionTorqueMagnitude, 2.0e-6);
+					assertEquals(reactionTorqueX + thrustMomentX, totalTorqueX, 2.0e-6);
+					assertEquals(reactionTorqueY + thrustMomentY, totalTorqueY, 2.0e-6);
+					assertEquals(reactionTorqueZ + thrustMomentZ, totalTorqueZ, 2.0e-6);
+				}
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorThrustResidualIndex])));
 				assertTrue(Double.isFinite(Double.parseDouble(row[rotorPowerResidualIndex])));
 				assertEquals(
@@ -305,6 +358,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			}
 		}
 		throw new AssertionError("missing CSV column: " + name);
+	}
+
+	private static double magnitude(double x, double y, double z) {
+		return Math.sqrt(x * x + y * y + z * z);
 	}
 
 	private static void assertFiniteOrderedRange(double min, double mean, double max, String label) {
