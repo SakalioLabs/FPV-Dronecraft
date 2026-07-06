@@ -464,6 +464,10 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sample.lookup().lookupStatusCode());
 		assertEquals(0.0, sample.lookup().effectiveAdvanceRatioJ(), 1.0e-12);
 		assertEquals(0.0, sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(rotor.thrustAxisBody().multiply(-4.5),
+				sample.relativeAirVelocityBodyMetersPerSecond(), 1.0e-12);
+		assertEquals(Math.PI, sample.inflowAngleRadians(), 1.0e-12);
+		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
 		assertTrue(sample.thrustNewtons() > 0.0);
 		assertTrue(sample.shaftPowerWatts() > 0.0);
 		assertTrue(sample.shaftTorqueNewtonMeters() > 0.0);
@@ -500,6 +504,10 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, sample.shaftTorqueNewtonMeters(), 1.0e-15);
 		assertEquals(0.0, sample.thrustForceBodyNewtons().length(), 1.0e-15);
 		assertEquals(0.0, sample.reactionTorqueBodyNewtonMeters().length(), 1.0e-15);
+		assertVectorEquals(rotor.thrustAxisBody().multiply(-4.5),
+				sample.relativeAirVelocityBodyMetersPerSecond(), 1.0e-12);
+		assertEquals(Math.PI, sample.inflowAngleRadians(), 1.0e-12);
+		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
 	}
 
 	@Test

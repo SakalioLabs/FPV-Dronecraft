@@ -107,7 +107,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public boolean runtimeInflowEnvelopeSatisfied() {
-			return transverseAirSpeedMetersPerSecond <= RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND
+			return (transverseAirSpeedMetersPerSecond <= RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND
+					&& inflowAngleRadians <= Math.PI * 0.5)
 					|| inflowAngleRadians <= RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS;
 		}
 
@@ -550,7 +551,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		double axialVelocity = relativeAirVelocity.dot(axis);
 		Vec3 transverseAirVelocity = relativeAirVelocity.subtract(axis.multiply(axialVelocity));
 		double transverseAirSpeed = finiteNonnegative(transverseAirVelocity.length());
-		double inflowAngle = Math.atan2(transverseAirSpeed, Math.max(EPSILON, Math.abs(axialVelocity)));
+		double inflowAngle = inflowAngleRadians(axialVelocity, transverseAirSpeed);
 		Vec3 thrustForce = lookup.blocked()
 				? Vec3.ZERO
 				: axis.multiply(dimensional.thrustNewtons());
@@ -813,6 +814,18 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			throw new IllegalArgumentException("relativeAirVelocityBodyMetersPerSecond must be finite.");
 		}
 		return value;
+	}
+
+	private static double inflowAngleRadians(double axialVelocity, double transverseAirSpeed) {
+		double axial = finiteOrZero(axialVelocity);
+		double transverse = finiteNonnegative(transverseAirSpeed);
+		if (transverse <= EPSILON && axial >= 0.0) {
+			return 0.0;
+		}
+		if (transverse <= EPSILON) {
+			return Math.PI;
+		}
+		return Math.atan2(transverse, axial);
 	}
 
 	private static double finiteNonnegative(double value) {

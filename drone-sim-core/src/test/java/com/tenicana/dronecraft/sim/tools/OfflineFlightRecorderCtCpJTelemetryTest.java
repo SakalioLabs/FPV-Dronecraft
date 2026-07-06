@@ -384,7 +384,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 							5.0e-5
 					);
 					assertTrue(inflowAngleDegrees >= 0.0);
-					assertTrue(inflowAngleDegrees <= 90.0 + 1.0e-9);
+					assertTrue(inflowAngleDegrees <= 180.0 + 1.0e-9);
 					double thrustForceMagnitude = magnitude(thrustForceX, thrustForceY, thrustForceZ);
 					double reactionTorqueMagnitude = magnitude(reactionTorqueX, reactionTorqueY, reactionTorqueZ);
 					assertEquals(referenceThrust, thrustForceMagnitude, 3.0e-5);
