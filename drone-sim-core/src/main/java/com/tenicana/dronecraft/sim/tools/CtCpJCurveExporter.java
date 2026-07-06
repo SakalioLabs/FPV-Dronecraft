@@ -69,6 +69,7 @@ public final class CtCpJCurveExporter {
 			"shaft_power_residual_w",
 			"shaft_power_residual_fraction",
 			"operating_point_temperature_c",
+			"operating_point_humidity",
 			"operating_point_dynamic_viscosity_pa_s",
 			"rotational_tip_speed_mps",
 			"helical_tip_speed_mps",
@@ -101,7 +102,13 @@ public final class CtCpJCurveExporter {
 		double diameter = args.length >= 4 && !args[3].isBlank()
 				? Double.parseDouble(args[3])
 				: defaultPropellerDiameterMeters(presetName);
-		write(presetName, output, airDensity, diameter);
+		double ambientTemperatureCelsius = args.length >= 5 && !args[4].isBlank()
+				? Double.parseDouble(args[4])
+				: 25.0;
+		double ambientHumidity = args.length >= 6 && !args[5].isBlank()
+				? Double.parseDouble(args[5])
+				: 0.0;
+		write(presetName, output, airDensity, diameter, ambientTemperatureCelsius, ambientHumidity);
 	}
 
 	public static void write(
@@ -110,21 +117,48 @@ public final class CtCpJCurveExporter {
 			double airDensityKgPerCubicMeter,
 			double propellerDiameterMeters
 	) throws IOException {
+		write(presetName, output, airDensityKgPerCubicMeter, propellerDiameterMeters, 25.0, 0.0);
+	}
+
+	public static void write(
+			String presetName,
+			Path output,
+			double airDensityKgPerCubicMeter,
+			double propellerDiameterMeters,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) throws IOException {
 		if (output == null) {
 			throw new IllegalArgumentException("output path must not be null.");
 		}
-		List<String> lines = csvLines(presetName, airDensityKgPerCubicMeter, propellerDiameterMeters);
+		List<String> lines = csvLines(
+				presetName,
+				airDensityKgPerCubicMeter,
+				propellerDiameterMeters,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
 		Path parent = output.toAbsolutePath().getParent();
 		if (parent != null) {
 			Files.createDirectories(parent);
 		}
-		Files.write(output, lines, StandardCharsets.UTF_8);
+		Files.writeString(output, String.join("\n", lines) + "\n", StandardCharsets.UTF_8);
 	}
 
 	public static List<String> csvLines(
 			String presetName,
 			double airDensityKgPerCubicMeter,
 			double propellerDiameterMeters
+	) {
+		return csvLines(presetName, airDensityKgPerCubicMeter, propellerDiameterMeters, 25.0, 0.0);
+	}
+
+	public static List<String> csvLines(
+			String presetName,
+			double airDensityKgPerCubicMeter,
+			double propellerDiameterMeters,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		List<PropellerArchiveCtCpJLookupEvaluator.LookupQuery> queries =
 				PropellerArchiveCtCpJLookupEvaluator.acceptedReferenceCurveQueries(
@@ -140,7 +174,7 @@ public final class CtCpJCurveExporter {
 		for (PropellerArchiveCtCpJLookupEvaluator.LookupQuery query : queries) {
 			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample =
 					PropellerArchiveCtCpJLookupEvaluator.sampleRotor(query);
-			lines.add(csvLine(sample, rotor, rotorArmBody));
+			lines.add(csvLine(sample, rotor, rotorArmBody, ambientTemperatureCelsius, ambientHumidity));
 		}
 		for (StaticCurvePoint point : staticCurvePoints(presetName, config, rotor)) {
 			lines.add(csvLine(RotorStaticCtCpModel.sample(
@@ -149,7 +183,7 @@ public final class CtCpJCurveExporter {
 					rotor,
 					point.rpm(),
 					airDensityKgPerCubicMeter
-			), rotor, rotorArmBody));
+			), rotor, rotorArmBody, ambientTemperatureCelsius, ambientHumidity));
 		}
 		List<Double> advanceRatios = acceptedAdvanceShapeSampleAdvanceRatios(
 				presetName,
@@ -170,7 +204,12 @@ public final class CtCpJCurveExporter {
 										PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 								),
 								config.centerOfMassOffsetBodyMeters());
-				lines.add(csvLine(sample, sample.axialAdvanceSpeedMetersPerSecond()));
+				lines.add(csvLine(
+						sample,
+						sample.axialAdvanceSpeedMetersPerSecond(),
+						ambientTemperatureCelsius,
+						ambientHumidity
+				));
 			}
 		}
 		for (EnvelopeDiagnosticPoint point : envelopeDiagnosticCurvePoints(
@@ -179,7 +218,12 @@ public final class CtCpJCurveExporter {
 				rotor,
 				airDensityKgPerCubicMeter
 		)) {
-			lines.add(csvLine(point.sample(), point.querySignedAxialSpeedMetersPerSecond()));
+			lines.add(csvLine(
+					point.sample(),
+					point.querySignedAxialSpeedMetersPerSecond(),
+					ambientTemperatureCelsius,
+					ambientHumidity
+			));
 		}
 		return List.copyOf(lines);
 	}
@@ -187,7 +231,9 @@ public final class CtCpJCurveExporter {
 	private static String csvLine(
 			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample,
 			RotorSpec rotor,
-			Vec3 rotorArmBody
+			Vec3 rotorArmBody,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
 		double queryAxialSpeed = lookup.queryAdvanceRatioJ()
@@ -200,11 +246,13 @@ public final class CtCpJCurveExporter {
 		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		Vec3 relativeAirVelocity = axis.multiply(queryAxialSpeed);
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
-				PropellerArchiveCtCpJRotorForceModel.standardOperatingPoint(
+				PropellerArchiveCtCpJRotorForceModel.operatingPoint(
 						rotor,
 						relativeAirVelocity,
 						sample.angularVelocityRadiansPerSecond(),
-						sample.airDensityKgPerCubicMeter()
+						sample.airDensityKgPerCubicMeter(),
+						ambientTemperatureCelsius,
+						ambientHumidity
 				);
 		return csvLine(
 				sample,
@@ -227,6 +275,15 @@ public final class CtCpJCurveExporter {
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
 			double querySignedAxialSpeedMetersPerSecond
 	) {
+		return csvLine(sample, querySignedAxialSpeedMetersPerSecond, 25.0, 0.0);
+	}
+
+	private static String csvLine(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double querySignedAxialSpeedMetersPerSecond,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		boolean runtimeForceReplacementAccepted = sample.runtimeForceReplacementAccepted();
 		return csvLine(
 				sample.dimensionalSample(),
@@ -241,7 +298,7 @@ public final class CtCpJCurveExporter {
 				sample.thrustMomentBodyNewtonMeters(),
 				sample.totalTorqueBodyNewtonMeters(),
 				runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted),
-				sample.standardOperatingPoint()
+				sample.operatingPoint(ambientTemperatureCelsius, ambientHumidity)
 		);
 	}
 
@@ -312,6 +369,7 @@ public final class CtCpJCurveExporter {
 				number(sample.shaftPowerResidualWatts()),
 				number(sample.shaftPowerResidualFraction()),
 				number(operatingPoint.ambientTemperatureCelsius()),
+				number(operatingPoint.ambientHumidity()),
 				number(operatingPoint.dynamicViscosityPascalSeconds()),
 				number(operatingPoint.rotationalTipSpeedMetersPerSecond()),
 				number(operatingPoint.helicalTipSpeedMetersPerSecond()),
@@ -323,18 +381,26 @@ public final class CtCpJCurveExporter {
 		);
 	}
 
-	private static String csvLine(RotorStaticCtCpModel.StaticRotorSample sample, RotorSpec rotor, Vec3 rotorArmBody) {
+	private static String csvLine(
+			RotorStaticCtCpModel.StaticRotorSample sample,
+			RotorSpec rotor,
+			Vec3 rotorArmBody,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		Vec3 axis = rotorAxisBody(rotor);
 		Vec3 thrustForce = axis.multiply(sample.thrustNewtons());
 		Vec3 reactionTorque = axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters());
 		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		Vec3 totalTorque = thrustMoment.add(reactionTorque);
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
-				PropellerArchiveCtCpJRotorForceModel.standardOperatingPoint(
+				PropellerArchiveCtCpJRotorForceModel.operatingPoint(
 						rotor,
 						Vec3.ZERO,
 						sample.angularVelocityRadiansPerSecond(),
-						sample.airDensityKgPerCubicMeter()
+						sample.airDensityKgPerCubicMeter(),
+						ambientTemperatureCelsius,
+						ambientHumidity
 				);
 		return String.join(",",
 				escape(sample.presetName()),
@@ -387,6 +453,7 @@ public final class CtCpJCurveExporter {
 				number(sample.shaftPowerResidualWatts()),
 				number(sample.shaftPowerResidualFraction()),
 				number(operatingPoint.ambientTemperatureCelsius()),
+				number(operatingPoint.ambientHumidity()),
 				number(operatingPoint.dynamicViscosityPascalSeconds()),
 				number(operatingPoint.rotationalTipSpeedMetersPerSecond()),
 				number(operatingPoint.helicalTipSpeedMetersPerSecond()),

@@ -33,7 +33,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_dynamic_viscosity_pa_s,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -108,17 +108,18 @@ class CtCpJCurveExporterTest {
 						Double.parseDouble(midCells[5]) * 2.0 * Math.PI / 60.0,
 						PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER);
 		assertEquals(midOperatingPoint.ambientTemperatureCelsius(), Double.parseDouble(midCells[49]), 1.0e-12);
-		assertEquals(midOperatingPoint.dynamicViscosityPascalSeconds(), Double.parseDouble(midCells[50]), 1.0e-18);
+		assertEquals(midOperatingPoint.ambientHumidity(), Double.parseDouble(midCells[50]), 1.0e-15);
+		assertEquals(midOperatingPoint.dynamicViscosityPascalSeconds(), Double.parseDouble(midCells[51]), 1.0e-18);
 		assertEquals(midOperatingPoint.rotationalTipSpeedMetersPerSecond(),
-				Double.parseDouble(midCells[51]), 1.0e-13);
-		assertEquals(midOperatingPoint.helicalTipSpeedMetersPerSecond(),
 				Double.parseDouble(midCells[52]), 1.0e-13);
-		assertEquals(midOperatingPoint.tipMach(), Double.parseDouble(midCells[53]), 1.0e-15);
+		assertEquals(midOperatingPoint.helicalTipSpeedMetersPerSecond(),
+				Double.parseDouble(midCells[53]), 1.0e-13);
+		assertEquals(midOperatingPoint.tipMach(), Double.parseDouble(midCells[54]), 1.0e-15);
 		assertEquals(midOperatingPoint.representativeBladeStationSpeedMetersPerSecond(),
-				Double.parseDouble(midCells[54]), 1.0e-13);
-		assertEquals(midOperatingPoint.representativeBladeChordMeters(), Double.parseDouble(midCells[55]), 1.0e-15);
-		assertEquals(midOperatingPoint.reynoldsNumber(), Double.parseDouble(midCells[56]), 1.0e-8);
-		assertEquals(midOperatingPoint.reynoldsIndex(), Double.parseDouble(midCells[57]), 1.0e-13);
+				Double.parseDouble(midCells[55]), 1.0e-13);
+		assertEquals(midOperatingPoint.representativeBladeChordMeters(), Double.parseDouble(midCells[56]), 1.0e-15);
+		assertEquals(midOperatingPoint.reynoldsNumber(), Double.parseDouble(midCells[57]), 1.0e-8);
+		assertEquals(midOperatingPoint.reynoldsIndex(), Double.parseDouble(midCells[58]), 1.0e-13);
 		assertEquals("false", highCells[45]);
 		assertEquals("MOMENTUM_POWER_CLOSURE_FAILED", highCells[46]);
 		assertTrue(Double.parseDouble(highCells[47]) < 0.0);
@@ -235,10 +236,50 @@ class CtCpJCurveExporterTest {
 		assertEquals(0.0, Double.parseDouble(blockedCells[42]), 1.0e-18);
 		assertEquals(0.0, Double.parseDouble(blockedCells[43]), 1.0e-18);
 		assertEquals(0.0, Double.parseDouble(blockedCells[44]), 1.0e-18);
-		assertTrue(Double.parseDouble(blockedCells[51]) > 0.0);
-		assertTrue(Double.parseDouble(blockedCells[52]) > Double.parseDouble(blockedCells[51]));
-		assertTrue(Double.parseDouble(blockedCells[53]) > 0.0);
-		assertTrue(Double.parseDouble(blockedCells[56]) > 0.0);
+		assertTrue(Double.parseDouble(blockedCells[52]) > 0.0);
+		assertTrue(Double.parseDouble(blockedCells[53]) > Double.parseDouble(blockedCells[52]));
+		assertTrue(Double.parseDouble(blockedCells[54]) > 0.0);
+		assertTrue(Double.parseDouble(blockedCells[57]) > 0.0);
+	}
+
+	@Test
+	void csvLinesCanExportHotHumidOperatingPointEnvelope() {
+		double airDensity =
+				PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER;
+		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
+		List<String> standard = CtCpJCurveExporter.csvLines("apDrone", airDensity, diameter);
+		List<String> hotHumid = CtCpJCurveExporter.csvLines("apDrone", airDensity, diameter, 55.0, 1.0);
+
+		assertEquals(standard.size(), hotHumid.size());
+		String[] standardMidCells = lineForCaseAndQuery(standard, "mid_domain_mid_rpm",
+				"0.406400000000000", "4712.25000000000").split(",", -1);
+		String[] hotHumidMidCells = lineForCaseAndQuery(hotHumid, "mid_domain_mid_rpm",
+				"0.406400000000000", "4712.25000000000").split(",", -1);
+		assertEquals(standardMidCells[9], hotHumidMidCells[9]);
+		assertEquals(standardMidCells[10], hotHumidMidCells[10]);
+		assertEquals(standardMidCells[13], hotHumidMidCells[13]);
+		assertEquals(standardMidCells[14], hotHumidMidCells[14]);
+		assertEquals(55.0, Double.parseDouble(hotHumidMidCells[49]), 1.0e-12);
+		assertEquals(1.0, Double.parseDouble(hotHumidMidCells[50]), 1.0e-15);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint hotHumidOperatingPoint =
+				PropellerArchiveCtCpJRotorForceModel.operatingPoint(
+						DroneConfig.apDrone().rotors().get(0),
+						DroneConfig.apDrone().rotors().get(0).thrustAxisBody()
+								.multiply(Double.parseDouble(hotHumidMidCells[12])),
+						Double.parseDouble(hotHumidMidCells[5]) * 2.0 * Math.PI / 60.0,
+						airDensity,
+						55.0,
+						1.0);
+		assertEquals(hotHumidOperatingPoint.dynamicViscosityPascalSeconds(),
+				Double.parseDouble(hotHumidMidCells[51]), 1.0e-18);
+		assertEquals(hotHumidOperatingPoint.tipMach(), Double.parseDouble(hotHumidMidCells[54]), 1.0e-15);
+		assertEquals(hotHumidOperatingPoint.reynoldsNumber(),
+				Double.parseDouble(hotHumidMidCells[57]), 1.0e-8);
+		assertEquals(hotHumidOperatingPoint.reynoldsIndex(),
+				Double.parseDouble(hotHumidMidCells[58]), 1.0e-13);
+		assertTrue(Double.parseDouble(hotHumidMidCells[51]) != Double.parseDouble(standardMidCells[51]));
+		assertTrue(Double.parseDouble(hotHumidMidCells[57]) != Double.parseDouble(standardMidCells[57]));
 	}
 
 	@Test
@@ -268,6 +309,7 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 		assertTrue(lines.get(0).contains("shaft_power_residual_w"));
 		assertTrue(lines.get(0).contains("shaft_power_residual_fraction"));
+		assertTrue(lines.get(0).contains("operating_point_humidity"));
 		assertTrue(lines.get(0).contains("tip_mach"));
 		assertTrue(lines.get(0).contains("representative_blade_chord_m"));
 		assertTrue(lines.get(0).contains("reynolds_number"));
