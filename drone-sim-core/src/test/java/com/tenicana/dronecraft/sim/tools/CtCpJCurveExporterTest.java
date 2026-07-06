@@ -32,7 +32,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -47,12 +47,17 @@ class CtCpJCurveExporterTest {
 				.anyMatch(cells -> "true".equals(cells[7]) || "true".equals(cells[8])
 						|| "BLOCKED".equals(cells[6])));
 
-		double midThrust = numericCell(lines, "mid_domain_mid_rpm", "0.406400000000000", 13);
+		double midThrust = numericCell(lines, "mid_domain_mid_rpm",
+				"0.406400000000000", "4712.25000000000", 13);
 		double highThrust = numericCell(lines, "high_domain_max_rpm", "0.731520000000000", 13);
-		double midPower = numericCell(lines, "mid_domain_mid_rpm", "0.406400000000000", 14);
+		double midPower = numericCell(lines, "mid_domain_mid_rpm",
+				"0.406400000000000", "4712.25000000000", 14);
 		double highPower = numericCell(lines, "high_domain_max_rpm", "0.731520000000000", 14);
-		String midLine = lineForCaseAndQueryJ(lines, "mid_domain_mid_rpm", "0.406400000000000");
+		String midLine = lineForCaseAndQuery(lines, "mid_domain_mid_rpm",
+				"0.406400000000000", "4712.25000000000");
 		String[] midCells = midLine.split(",", -1);
+		String highLine = lineForCaseAndQueryJ(lines, "high_domain_max_rpm", "0.731520000000000");
+		String[] highCells = highLine.split(",", -1);
 		assertTrue(midThrust > 0.0);
 		assertTrue(highThrust > midThrust);
 		assertTrue(highPower > midPower);
@@ -89,12 +94,18 @@ class CtCpJCurveExporterTest {
 		assertEquals(totalTorque.x(), Double.parseDouble(midCells[42]), 1.0e-15);
 		assertEquals(totalTorque.y(), Double.parseDouble(midCells[43]), 1.0e-15);
 		assertEquals(totalTorque.z(), Double.parseDouble(midCells[44]), 1.0e-15);
+		assertEquals("true", midCells[45]);
+		assertEquals("NOT_RUNTIME_CANDIDATE", midCells[46]);
+		assertEquals("false", highCells[45]);
+		assertEquals("MOMENTUM_POWER_CLOSURE_FAILED", highCells[46]);
 
 		String foxeerStatic = lineForCase(lines, "static_rotor_spec_foxeer_public_test");
 		assertEquals(RotorStaticCtCpModel.SOURCE_ID, foxeerStatic.split(",", -1)[20]);
 		assertEquals(0.159299848814191, Double.parseDouble(foxeerStatic.split(",", -1)[9]), 1.0e-15);
 		assertEquals(MotorBenchCurrentModel.FOXEER_DONUT_5145_PUBLIC_TEST_THRUST_NEWTONS,
 				Double.parseDouble(foxeerStatic.split(",", -1)[13]), 1.0e-12);
+		assertEquals("true", foxeerStatic.split(",", -1)[45]);
+		assertEquals("NOT_RUNTIME_CANDIDATE", foxeerStatic.split(",", -1)[46]);
 
 		String staticHover = lineForCase(lines, "static_rotor_spec_hover");
 		String runtimeHoverStatic = lineForCaseAndQueryJ(lines,
@@ -111,10 +122,12 @@ class CtCpJCurveExporterTest {
 				Double.parseDouble(runtimeHoverStatic.split(",", -1)[10]), 1.0e-15);
 		assertEquals(Double.parseDouble(staticHover.split(",", -1)[13]),
 				Double.parseDouble(runtimeHoverStatic.split(",", -1)[13]), 1.0e-12);
+		assertEquals("ACCEPTED", runtimeHoverStatic.split(",", -1)[46]);
 		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[13])
 				< Double.parseDouble(runtimeHoverStatic.split(",", -1)[13]));
 		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[14])
 				> Double.parseDouble(runtimeHoverStatic.split(",", -1)[14]));
+		assertEquals("ACCEPTED", runtimeHoverMidJ.split(",", -1)[46]);
 
 		String transverseDiagnostic = lineForCase(lines,
 				"static_anchored_runtime_transverse_inflow_diagnostic");
@@ -123,6 +136,8 @@ class CtCpJCurveExporterTest {
 		assertEquals("false", transverseCells[7]);
 		assertEquals("false", transverseCells[8]);
 		assertEquals("true", transverseCells[23]);
+		assertEquals("true", transverseCells[45]);
+		assertEquals("ACCEPTED", transverseCells[46]);
 		assertEquals("0.406400000000000", transverseCells[2]);
 		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[9]),
 				Double.parseDouble(transverseCells[9]), 1.0e-15);
@@ -154,6 +169,8 @@ class CtCpJCurveExporterTest {
 		assertEquals("CLAMPED", reverseCells[21]);
 		assertEquals("reverse-axial-flow-clamped-to-static-anchor", reverseCells[22]);
 		assertEquals("false", reverseCells[23]);
+		assertEquals("true", reverseCells[45]);
+		assertEquals("CLAMPED", reverseCells[46]);
 		assertTrue(Double.parseDouble(reverseCells[24]) < 0.0);
 		assertEquals(Double.parseDouble(reverseCells[24]), Double.parseDouble(reverseCells[26]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(reverseCells[31]), 1.0e-15);
@@ -172,6 +189,8 @@ class CtCpJCurveExporterTest {
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blockedCells[21]);
 		assertEquals("query-outside-accepted-advance-shape-window", blockedCells[22]);
 		assertEquals("false", blockedCells[23]);
+		assertEquals("false", blockedCells[45]);
+		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blockedCells[46]);
 		assertTrue(Double.parseDouble(blockedCells[24]) > 0.0);
 		assertEquals(Double.parseDouble(blockedCells[24]), Double.parseDouble(blockedCells[26]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[31]), 1.0e-15);
@@ -215,6 +234,8 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("reaction_torque_body_y_nm"));
 		assertTrue(lines.get(0).contains("thrust_moment_body_x_nm"));
 		assertTrue(lines.get(0).contains("total_torque_body_z_nm"));
+		assertTrue(lines.get(0).contains("momentum_power_closure_satisfied"));
+		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 	}
 
 	@Test
@@ -244,9 +265,33 @@ class CtCpJCurveExporterTest {
 		return Double.parseDouble(line.split(",", -1)[cellIndex]);
 	}
 
+	private static double numericCell(
+			List<String> lines,
+			String caseName,
+			String queryJ,
+			String queryRpm,
+			int cellIndex
+	) {
+		String line = lineForCaseAndQuery(lines, caseName, queryJ, queryRpm);
+		return Double.parseDouble(line.split(",", -1)[cellIndex]);
+	}
+
 	private static String lineForCaseAndQueryJ(List<String> lines, String caseName, String queryJ) {
 		return lines.stream()
 				.filter(candidate -> candidate.startsWith("apDrone," + caseName + "," + queryJ + ","))
+				.findFirst()
+				.orElseThrow();
+	}
+
+	private static String lineForCaseAndQuery(
+			List<String> lines,
+			String caseName,
+			String queryJ,
+			String queryRpm
+	) {
+		return lines.stream()
+				.filter(candidate -> candidate.startsWith(
+						"apDrone," + caseName + "," + queryJ + "," + queryRpm + ","))
 				.findFirst()
 				.orElseThrow();
 	}

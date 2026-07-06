@@ -63,8 +63,11 @@ public final class CtCpJCurveExporter {
 			"thrust_moment_body_z_nm",
 			"total_torque_body_x_nm",
 			"total_torque_body_y_nm",
-			"total_torque_body_z_nm"
+			"total_torque_body_z_nm",
+			"momentum_power_closure_satisfied",
+			"runtime_eligibility_status"
 	);
+	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
 	private static final double REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND = -4.5;
 	private static final double OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J = 1.20;
@@ -278,7 +281,9 @@ public final class CtCpJCurveExporter {
 				number(thrustMomentBodyNewtonMeters.z()),
 				number(totalTorqueBodyNewtonMeters.x()),
 				number(totalTorqueBodyNewtonMeters.y()),
-				number(totalTorqueBodyNewtonMeters.z())
+				number(totalTorqueBodyNewtonMeters.z()),
+				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
+				escape(runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted))
 		);
 	}
 
@@ -333,8 +338,42 @@ public final class CtCpJCurveExporter {
 				number(thrustMoment.z()),
 				number(totalTorque.x()),
 				number(totalTorque.y()),
-				number(totalTorque.z())
+				number(totalTorque.z()),
+				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
+				escape(staticReferenceEligibilityStatus(sample))
 		);
+	}
+
+	private static boolean momentumPowerClosureSatisfied(double idealMomentumPowerOverShaftPower) {
+		return Double.isFinite(idealMomentumPowerOverShaftPower)
+				&& idealMomentumPowerOverShaftPower > 0.0
+				&& idealMomentumPowerOverShaftPower <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
+	}
+
+	private static String runtimeEligibilityStatus(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample,
+			boolean runtimeForceReplacementAccepted
+	) {
+		if (runtimeForceReplacementAccepted) {
+			return "ACCEPTED";
+		}
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
+		if (lookup.blocked()) {
+			return lookup.status();
+		}
+		if (lookup.clamped()) {
+			return "CLAMPED";
+		}
+		if (!momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())) {
+			return "MOMENTUM_POWER_CLOSURE_FAILED";
+		}
+		return "NOT_RUNTIME_CANDIDATE";
+	}
+
+	private static String staticReferenceEligibilityStatus(RotorStaticCtCpModel.StaticRotorSample sample) {
+		return momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())
+				? "NOT_RUNTIME_CANDIDATE"
+				: "MOMENTUM_POWER_CLOSURE_FAILED";
 	}
 
 	private static double defaultPropellerDiameterMeters(String presetName) {
