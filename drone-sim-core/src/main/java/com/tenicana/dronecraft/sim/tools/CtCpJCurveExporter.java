@@ -201,7 +201,8 @@ public final class CtCpJCurveExporter {
 				thrustForce,
 				reactionTorque,
 				thrustMoment,
-				thrustMoment.add(reactionTorque)
+				thrustMoment.add(reactionTorque),
+				runtimeEligibilityStatus(sample, false)
 		);
 	}
 
@@ -209,9 +210,10 @@ public final class CtCpJCurveExporter {
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
 			double querySignedAxialSpeedMetersPerSecond
 	) {
+		boolean runtimeForceReplacementAccepted = sample.runtimeForceReplacementAccepted();
 		return csvLine(
 				sample.dimensionalSample(),
-				sample.runtimeForceReplacementAccepted(),
+				runtimeForceReplacementAccepted,
 				querySignedAxialSpeedMetersPerSecond,
 				sample.relativeAirVelocityBodyMetersPerSecond(),
 				sample.transverseAirVelocityBodyMetersPerSecond(),
@@ -220,7 +222,8 @@ public final class CtCpJCurveExporter {
 				sample.thrustForceBodyNewtons(),
 				sample.reactionTorqueBodyNewtonMeters(),
 				sample.thrustMomentBodyNewtonMeters(),
-				sample.totalTorqueBodyNewtonMeters()
+				sample.totalTorqueBodyNewtonMeters(),
+				runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted)
 		);
 	}
 
@@ -235,7 +238,8 @@ public final class CtCpJCurveExporter {
 			Vec3 thrustForceBodyNewtons,
 			Vec3 reactionTorqueBodyNewtonMeters,
 			Vec3 thrustMomentBodyNewtonMeters,
-			Vec3 totalTorqueBodyNewtonMeters
+			Vec3 totalTorqueBodyNewtonMeters,
+			String runtimeEligibilityStatus
 	) {
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
 		return String.join(",",
@@ -285,7 +289,7 @@ public final class CtCpJCurveExporter {
 				number(totalTorqueBodyNewtonMeters.y()),
 				number(totalTorqueBodyNewtonMeters.z()),
 				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
-				escape(runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted)),
+				escape(runtimeEligibilityStatus),
 				number(sample.shaftPowerResidualWatts()),
 				number(sample.shaftPowerResidualFraction())
 		);
@@ -354,6 +358,29 @@ public final class CtCpJCurveExporter {
 		return Double.isFinite(idealMomentumPowerOverShaftPower)
 				&& idealMomentumPowerOverShaftPower > 0.0
 				&& idealMomentumPowerOverShaftPower <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
+	}
+
+	private static String runtimeEligibilityStatus(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			boolean runtimeForceReplacementAccepted
+	) {
+		if (runtimeForceReplacementAccepted) {
+			return "ACCEPTED";
+		}
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
+		if (lookup.blocked()) {
+			return lookup.status();
+		}
+		if (lookup.clamped()) {
+			return "CLAMPED";
+		}
+		if (!sample.momentumPowerClosureSatisfied()) {
+			return "MOMENTUM_POWER_CLOSURE_FAILED";
+		}
+		if (!sample.runtimeInflowEnvelopeSatisfied()) {
+			return "OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE";
+		}
+		return "NOT_RUNTIME_CANDIDATE";
 	}
 
 	private static String runtimeEligibilityStatus(

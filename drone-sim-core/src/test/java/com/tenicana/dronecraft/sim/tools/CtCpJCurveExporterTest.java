@@ -141,9 +141,9 @@ class CtCpJCurveExporterTest {
 		assertEquals("EXACT", transverseCells[6]);
 		assertEquals("false", transverseCells[7]);
 		assertEquals("false", transverseCells[8]);
-		assertEquals("true", transverseCells[23]);
+		assertEquals("false", transverseCells[23]);
 		assertEquals("true", transverseCells[45]);
-		assertEquals("ACCEPTED", transverseCells[46]);
+		assertEquals("OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE", transverseCells[46]);
 		assertEquals("0.406400000000000", transverseCells[2]);
 		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[9]),
 				Double.parseDouble(transverseCells[9]), 1.0e-15);
