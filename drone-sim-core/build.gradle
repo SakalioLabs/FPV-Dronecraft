@@ -28,6 +28,21 @@ tasks.register("ctCpJCurve", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJConfigurationCurve", JavaExec) {
+	group = "simulation"
+	description = "Exports static-anchored CT/CP/J whole-configuration force, torque, and power samples as CSV."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJConfigurationCurveExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-configuration-curves/${presetName}.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJOpenFoamCompare", JavaExec) {
 	group = "simulation"
 	description = "Imports compact OpenFOAM CT/CP/J dimensional result rows and exports SI residual comparisons."
