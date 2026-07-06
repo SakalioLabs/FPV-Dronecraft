@@ -8,6 +8,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS = Math.toRadians(15.0);
 	private static final double RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND = 0.35;
+	private static final double STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS = 25.0;
+	private static final double SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER = 1.225;
+	private static final double REFERENCE_AIR_TEMPERATURE_KELVIN = 298.15;
+	private static final double REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS = 1.837e-5;
+	private static final double AIR_SUTHERLAND_CONSTANT_KELVIN = 110.4;
 
 	private PropellerArchiveCtCpJRotorForceModel() {
 	}
@@ -129,6 +134,51 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 		public double shaftTorqueNewtonMeters() {
 			return dimensionalSample.shaftTorqueNewtonMeters();
+		}
+
+		public RotorOperatingPoint standardOperatingPoint() {
+			return operatingPoint(STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS);
+		}
+
+		public RotorOperatingPoint operatingPoint(double ambientTemperatureCelsius) {
+			return PropellerArchiveCtCpJRotorForceModel.operatingPoint(
+					query.rotor(),
+					relativeAirVelocityBodyMetersPerSecond,
+					dimensionalSample.angularVelocityRadiansPerSecond(),
+					query.airDensityKgPerCubicMeter(),
+					ambientTemperatureCelsius
+			);
+		}
+	}
+
+	public record RotorOperatingPoint(
+			double ambientTemperatureCelsius,
+			double airDensityKgPerCubicMeter,
+			double dynamicViscosityPascalSeconds,
+			double speedOfSoundMetersPerSecond,
+			double rotationalTipSpeedMetersPerSecond,
+			double helicalTipSpeedMetersPerSecond,
+			double tipMach,
+			double representativeBladeStationSpeedMetersPerSecond,
+			double representativeBladeChordMeters,
+			double reynoldsNumber,
+			double reynoldsIndex
+	) {
+		public RotorOperatingPoint {
+			ambientTemperatureCelsius = Double.isFinite(ambientTemperatureCelsius)
+					? MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0)
+					: STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS;
+			airDensityKgPerCubicMeter = finiteNonnegative(airDensityKgPerCubicMeter);
+			dynamicViscosityPascalSeconds = finiteNonnegative(dynamicViscosityPascalSeconds);
+			speedOfSoundMetersPerSecond = finiteNonnegative(speedOfSoundMetersPerSecond);
+			rotationalTipSpeedMetersPerSecond = finiteNonnegative(rotationalTipSpeedMetersPerSecond);
+			helicalTipSpeedMetersPerSecond = finiteNonnegative(helicalTipSpeedMetersPerSecond);
+			tipMach = finiteNonnegative(tipMach);
+			representativeBladeStationSpeedMetersPerSecond =
+					finiteNonnegative(representativeBladeStationSpeedMetersPerSecond);
+			representativeBladeChordMeters = finiteNonnegative(representativeBladeChordMeters);
+			reynoldsNumber = finiteNonnegative(reynoldsNumber);
+			reynoldsIndex = finiteNonnegative(reynoldsIndex);
 		}
 	}
 
@@ -826,6 +876,103 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return Math.PI;
 		}
 		return Math.atan2(transverse, axial);
+	}
+
+	public static RotorOperatingPoint standardOperatingPoint(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		return operatingPoint(
+				rotor,
+				relativeAirVelocityBodyMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS
+		);
+	}
+
+	public static RotorOperatingPoint operatingPoint(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius
+	) {
+		if (rotor == null) {
+			throw new IllegalArgumentException("rotor must not be null.");
+		}
+		Vec3 relativeAirVelocity = relativeAirVelocityBodyMetersPerSecond == null
+				? Vec3.ZERO
+				: finiteVecOrZero(relativeAirVelocityBodyMetersPerSecond);
+		Vec3 axis = rotorAxisBody(rotor);
+		double axialSpeed = Math.abs(relativeAirVelocity.dot(axis));
+		double transverseSpeed = relativeAirVelocity.subtract(axis.multiply(relativeAirVelocity.dot(axis))).length();
+		double rotationalTipSpeed = Math.abs(omegaRadiansPerSecond) * rotor.radiusMeters();
+		double helicalTipSpeed = Math.sqrt(
+				rotationalTipSpeed * rotationalTipSpeed
+						+ 0.25 * transverseSpeed * transverseSpeed
+						+ 0.16 * axialSpeed * axialSpeed
+		);
+		double temperature = Double.isFinite(ambientTemperatureCelsius)
+				? MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0)
+				: STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS;
+		double speedOfSound = DroneEnvironment.speedOfSoundMetersPerSecond(temperature);
+		double tipMach = ratio(helicalTipSpeed, speedOfSound);
+		double stationSpeed = Math.sqrt(
+				0.75 * rotationalTipSpeed * 0.75 * rotationalTipSpeed
+						+ 0.25 * transverseSpeed * transverseSpeed
+						+ 0.16 * axialSpeed * axialSpeed
+		);
+		double chord = rotor.representativeBladeChordMeters();
+		double dynamicViscosity = airDynamicViscosityPascalSeconds(temperature);
+		double reynolds = dynamicViscosity > EPSILON
+				? finiteNonnegative(airDensityKgPerCubicMeter) * stationSpeed * chord / dynamicViscosity
+				: 0.0;
+		double densityViscosityRatio = MathUtil.clamp(
+				ratio(finiteNonnegative(airDensityKgPerCubicMeter), SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER)
+						/ Math.max(EPSILON, ratio(dynamicViscosity, REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS)),
+				0.20,
+				1.90
+		);
+		double chordScale = MathUtil.clamp(
+				chord / (0.0635 * RotorSpec.DEFAULT_REPRESENTATIVE_CHORD_TO_RADIUS_RATIO),
+				0.24,
+				3.60
+		);
+		double reynoldsIndex = densityViscosityRatio
+				* chordScale
+				* MathUtil.clamp(stationSpeed / 34.0, 0.0, 2.8);
+		return new RotorOperatingPoint(
+				temperature,
+				airDensityKgPerCubicMeter,
+				dynamicViscosity,
+				speedOfSound,
+				rotationalTipSpeed,
+				helicalTipSpeed,
+				tipMach,
+				stationSpeed,
+				chord,
+				reynolds,
+				reynoldsIndex
+		);
+	}
+
+	private static double airDynamicViscosityPascalSeconds(double ambientTemperatureCelsius) {
+		double temperatureKelvin = MathUtil.clamp(ambientTemperatureCelsius + 273.15, 233.15, 338.15);
+		double ratio = Math.pow(temperatureKelvin / REFERENCE_AIR_TEMPERATURE_KELVIN, 1.5)
+				* (REFERENCE_AIR_TEMPERATURE_KELVIN + AIR_SUTHERLAND_CONSTANT_KELVIN)
+				/ (temperatureKelvin + AIR_SUTHERLAND_CONSTANT_KELVIN);
+		return REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS
+				* MathUtil.clamp(ratio, 0.64, 1.20);
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= EPSILON) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 
 	private static double finiteNonnegative(double value) {

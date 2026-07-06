@@ -67,7 +67,16 @@ public final class CtCpJCurveExporter {
 			"momentum_power_closure_satisfied",
 			"runtime_eligibility_status",
 			"shaft_power_residual_w",
-			"shaft_power_residual_fraction"
+			"shaft_power_residual_fraction",
+			"operating_point_temperature_c",
+			"operating_point_dynamic_viscosity_pa_s",
+			"rotational_tip_speed_mps",
+			"helical_tip_speed_mps",
+			"tip_mach",
+			"representative_blade_station_speed_mps",
+			"representative_blade_chord_m",
+			"reynolds_number",
+			"reynolds_index"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -190,6 +199,13 @@ public final class CtCpJCurveExporter {
 		Vec3 reactionTorque = axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters());
 		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		Vec3 relativeAirVelocity = axis.multiply(queryAxialSpeed);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
+				PropellerArchiveCtCpJRotorForceModel.standardOperatingPoint(
+						rotor,
+						relativeAirVelocity,
+						sample.angularVelocityRadiansPerSecond(),
+						sample.airDensityKgPerCubicMeter()
+				);
 		return csvLine(
 				sample,
 				false,
@@ -202,7 +218,8 @@ public final class CtCpJCurveExporter {
 				reactionTorque,
 				thrustMoment,
 				thrustMoment.add(reactionTorque),
-				runtimeEligibilityStatus(sample, false)
+				runtimeEligibilityStatus(sample, false),
+				operatingPoint
 		);
 	}
 
@@ -223,7 +240,8 @@ public final class CtCpJCurveExporter {
 				sample.reactionTorqueBodyNewtonMeters(),
 				sample.thrustMomentBodyNewtonMeters(),
 				sample.totalTorqueBodyNewtonMeters(),
-				runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted)
+				runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted),
+				sample.standardOperatingPoint()
 		);
 	}
 
@@ -239,7 +257,8 @@ public final class CtCpJCurveExporter {
 			Vec3 reactionTorqueBodyNewtonMeters,
 			Vec3 thrustMomentBodyNewtonMeters,
 			Vec3 totalTorqueBodyNewtonMeters,
-			String runtimeEligibilityStatus
+			String runtimeEligibilityStatus,
+			PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint
 	) {
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
 		return String.join(",",
@@ -291,7 +310,16 @@ public final class CtCpJCurveExporter {
 				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
 				escape(runtimeEligibilityStatus),
 				number(sample.shaftPowerResidualWatts()),
-				number(sample.shaftPowerResidualFraction())
+				number(sample.shaftPowerResidualFraction()),
+				number(operatingPoint.ambientTemperatureCelsius()),
+				number(operatingPoint.dynamicViscosityPascalSeconds()),
+				number(operatingPoint.rotationalTipSpeedMetersPerSecond()),
+				number(operatingPoint.helicalTipSpeedMetersPerSecond()),
+				number(operatingPoint.tipMach()),
+				number(operatingPoint.representativeBladeStationSpeedMetersPerSecond()),
+				number(operatingPoint.representativeBladeChordMeters()),
+				number(operatingPoint.reynoldsNumber()),
+				number(operatingPoint.reynoldsIndex())
 		);
 	}
 
@@ -301,6 +329,13 @@ public final class CtCpJCurveExporter {
 		Vec3 reactionTorque = axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters());
 		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		Vec3 totalTorque = thrustMoment.add(reactionTorque);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
+				PropellerArchiveCtCpJRotorForceModel.standardOperatingPoint(
+						rotor,
+						Vec3.ZERO,
+						sample.angularVelocityRadiansPerSecond(),
+						sample.airDensityKgPerCubicMeter()
+				);
 		return String.join(",",
 				escape(sample.presetName()),
 				escape(sample.caseName()),
@@ -350,7 +385,16 @@ public final class CtCpJCurveExporter {
 				Boolean.toString(momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())),
 				escape(staticReferenceEligibilityStatus(sample)),
 				number(sample.shaftPowerResidualWatts()),
-				number(sample.shaftPowerResidualFraction())
+				number(sample.shaftPowerResidualFraction()),
+				number(operatingPoint.ambientTemperatureCelsius()),
+				number(operatingPoint.dynamicViscosityPascalSeconds()),
+				number(operatingPoint.rotationalTipSpeedMetersPerSecond()),
+				number(operatingPoint.helicalTipSpeedMetersPerSecond()),
+				number(operatingPoint.tipMach()),
+				number(operatingPoint.representativeBladeStationSpeedMetersPerSecond()),
+				number(operatingPoint.representativeBladeChordMeters()),
+				number(operatingPoint.reynoldsNumber()),
+				number(operatingPoint.reynoldsIndex())
 		);
 	}
 

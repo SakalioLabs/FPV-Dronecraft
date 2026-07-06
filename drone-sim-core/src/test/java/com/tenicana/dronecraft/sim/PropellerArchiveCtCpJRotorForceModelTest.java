@@ -96,6 +96,19 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().length(), 1.0e-15);
 		assertTrue(sample.shaftPowerWatts() > 0.0);
 		assertTrue(sample.shaftTorqueNewtonMeters() > 0.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
+				sample.standardOperatingPoint();
+		assertEquals(omega * rotor.radiusMeters(),
+				operatingPoint.rotationalTipSpeedMetersPerSecond(), 1.0e-12);
+		assertTrue(operatingPoint.helicalTipSpeedMetersPerSecond()
+				> operatingPoint.rotationalTipSpeedMetersPerSecond());
+		assertEquals(operatingPoint.helicalTipSpeedMetersPerSecond()
+						/ operatingPoint.speedOfSoundMetersPerSecond(),
+				operatingPoint.tipMach(), 1.0e-15);
+		assertEquals(rotor.representativeBladeChordMeters(),
+				operatingPoint.representativeBladeChordMeters(), 1.0e-15);
+		assertTrue(operatingPoint.reynoldsNumber() > 10_000.0);
+		assertTrue(operatingPoint.reynoldsIndex() > 0.0);
 	}
 
 	@Test
@@ -397,6 +410,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, blocked.shaftTorqueNewtonMeters(), 1.0e-15);
 		assertEquals(0.0, blocked.thrustForceBodyNewtons().length(), 1.0e-15);
 		assertEquals(0.0, blocked.reactionTorqueBodyNewtonMeters().length(), 1.0e-15);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
+				blocked.standardOperatingPoint();
+		assertTrue(operatingPoint.rotationalTipSpeedMetersPerSecond() > 0.0);
+		assertTrue(operatingPoint.helicalTipSpeedMetersPerSecond()
+				> operatingPoint.rotationalTipSpeedMetersPerSecond());
+		assertTrue(operatingPoint.tipMach() > 0.0);
+		assertTrue(operatingPoint.reynoldsNumber() > 0.0);
 	}
 
 	@Test
