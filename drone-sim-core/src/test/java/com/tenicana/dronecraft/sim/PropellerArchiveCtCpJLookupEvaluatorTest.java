@@ -242,6 +242,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 						staticSample.powerCoefficientCp());
 		assertTrue(blocked.blocked());
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.status());
+		assertEquals(PropellerArchiveCtCpJLookupEvaluator.STATIC_ANCHORED_DATA_SOURCE_ID,
+				blocked.dataSourceId());
 
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery clampQuery =
 				new PropellerArchiveCtCpJLookupEvaluator.LookupQuery(

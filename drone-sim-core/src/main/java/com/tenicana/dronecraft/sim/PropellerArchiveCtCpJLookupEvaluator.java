@@ -277,13 +277,13 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		}
 		ReferenceWindow shapeWindow = acceptedAdvanceShapeWindow(query.presetName());
 		if (shapeWindow == null) {
-			return blocked(query, "REFERENCE_WINDOW_UNAVAILABLE",
+			return staticAnchoredBlocked(query, "REFERENCE_WINDOW_UNAVAILABLE",
 					"no-accepted-reference-advance-shape-for-preset");
 		}
 		Coefficients staticAnchor = acceptedStaticAnchorCoefficients(query.presetName());
 		if (staticAnchor == null || staticAnchor.ctCoefficient() <= EPSILON
 				|| staticAnchor.cpCoefficient() <= EPSILON) {
-			return blocked(query, "REFERENCE_WINDOW_INCOMPLETE",
+			return staticAnchoredBlocked(query, "REFERENCE_WINDOW_INCOMPLETE",
 					"accepted-static-anchor-coefficients-missing");
 		}
 		boolean clamp = query.envelopePolicy() == EnvelopePolicy.CLAMP_TO_ENVELOPE;
@@ -291,7 +291,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		boolean clamped = false;
 		if (!shapeWindow.insideAdvanceRatio(query.advanceRatioJ())) {
 			if (!clamp) {
-				return blocked(query, "OUT_OF_ENVELOPE_BLOCKED",
+				return staticAnchoredBlocked(query, "OUT_OF_ENVELOPE_BLOCKED",
 						"query-outside-accepted-advance-shape-window");
 			}
 			effectiveJ = MathUtil.clamp(
@@ -303,13 +303,13 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		}
 		Bracket bracket = shapeWindow.bracket(effectiveJ, ADVANCE_SHAPE_RPM);
 		if (!bracket.inside()) {
-			return blocked(query, "REFERENCE_WINDOW_INCOMPLETE",
+			return staticAnchoredBlocked(query, "REFERENCE_WINDOW_INCOMPLETE",
 					"accepted-advance-shape-does-not-bracket-query");
 		}
 		List<CoefficientGridRow> neighbors = shapeWindow.neighborRows(bracket);
 		int expectedNeighbors = expectedNeighborRows(bracket);
 		if (neighbors.size() < expectedNeighbors) {
-			return blocked(query, "REFERENCE_NEIGHBOR_ROWS_MISSING",
+			return staticAnchoredBlocked(query, "REFERENCE_NEIGHBOR_ROWS_MISSING",
 					"accepted-advance-shape-neighbor-row-missing");
 		}
 		Coefficients shape = interpolateCoefficients(shapeWindow, bracket);
@@ -592,10 +592,23 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 	}
 
 	private static LookupResult blocked(LookupQuery query, String status, String message) {
+		return blocked(query, DATA_SOURCE_ID, status, message);
+	}
+
+	private static LookupResult staticAnchoredBlocked(LookupQuery query, String status, String message) {
+		return blocked(query, STATIC_ANCHORED_DATA_SOURCE_ID, status, message);
+	}
+
+	private static LookupResult blocked(
+			LookupQuery query,
+			String dataSourceId,
+			String status,
+			String message
+	) {
 		return new LookupResult(
 				query.presetName(),
 				query.caseName(),
-				DATA_SOURCE_ID,
+				dataSourceId,
 				query.advanceRatioJ(),
 				query.rpm(),
 				query.advanceRatioJ(),

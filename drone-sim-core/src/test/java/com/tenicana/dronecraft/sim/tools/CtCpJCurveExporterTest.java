@@ -121,6 +121,26 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("query_signed_axial_speed_mps"));
 	}
 
+	@Test
+	void versionedApDroneRuntimeCurvePacketMatchesExporter() throws IOException {
+		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
+		List<String> expected = CtCpJCurveExporter.csvLines(
+				"apDrone",
+				PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER,
+				diameter
+		);
+		Path packet = findRepoRoot().resolve(
+				"docs/data/propeller_archive_ct_cp_j_runtime_curve_packet.csv");
+		List<String> actual = Files.readAllLines(packet);
+
+		assertEquals(expected, actual);
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_runtime_reverse_axial_clamp,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.contains(",static_anchored_runtime_high_j_block,")
+						&& line.contains(",OUT_OF_ENVELOPE_BLOCKED,")));
+	}
+
 	private static double numericCell(List<String> lines, String caseName, String queryJ, int cellIndex) {
 		String line = lineForCaseAndQueryJ(lines, caseName, queryJ);
 		return Double.parseDouble(line.split(",", -1)[cellIndex]);
@@ -138,5 +158,17 @@ class CtCpJCurveExporterTest {
 				.filter(candidate -> candidate.startsWith("apDrone," + caseName + ","))
 				.findFirst()
 				.orElseThrow();
+	}
+
+	private static Path findRepoRoot() {
+		Path current = Path.of("").toAbsolutePath();
+		for (Path path = current; path != null; path = path.getParent()) {
+			if (Files.isRegularFile(path.resolve("settings.gradle"))
+					&& Files.isRegularFile(path.resolve(
+							"docs/data/propeller_archive_ct_cp_j_runtime_curve_packet.csv"))) {
+				return path;
+			}
+		}
+		throw new IllegalStateException("Cannot locate repository root");
 	}
 }
