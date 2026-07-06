@@ -107,6 +107,18 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(0), 1.0e-15);
 		assertEquals(sample.dimensionalSample().shaftPowerResidualFraction(),
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().diskMassFlowKilogramsPerSecond(),
+				state.rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().farWakeAxialVelocityMetersPerSecond(),
+				state.rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().farWakeContractedAreaSquareMeters(),
+				state.rotorCtCpJReferenceFarWakeContractedAreaSquareMeters(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().farWakeEquivalentRadiusMeters(),
+				state.rotorCtCpJReferenceFarWakeEquivalentRadiusMeters(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().angularMomentumSwirlRadiusMeters(),
+				state.rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().wakeTangentialVelocityMetersPerSecond(),
+				state.rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond(0), 1.0e-15);
 		assertEquals(sample.dimensionalSample().wakeSwirlKineticPowerWatts(),
 				state.rotorCtCpJReferenceWakeSwirlKineticPowerWatts(0), 1.0e-15);
 		assertEquals(sample.dimensionalSample().totalWakeKineticPowerWatts(),
@@ -161,6 +173,12 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(0.0, state.rotorCtCpJReferenceIdealMomentumPowerOverShaftPower(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceFarWakeContractedAreaSquareMeters(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceFarWakeEquivalentRadiusMeters(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceWakeSwirlKineticPowerWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower(0), 1.0e-15);

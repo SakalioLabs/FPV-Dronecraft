@@ -1219,6 +1219,12 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
 		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_w");
 		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_fraction");
+		appendCtCpJReferenceColumnFamily(builder, "disk_mass_flow_kg_s");
+		appendCtCpJReferenceColumnFamily(builder, "far_wake_axial_velocity_mps");
+		appendCtCpJReferenceColumnFamily(builder, "far_wake_contracted_area_m2");
+		appendCtCpJReferenceColumnFamily(builder, "far_wake_equivalent_radius_m");
+		appendCtCpJReferenceColumnFamily(builder, "angular_momentum_swirl_radius_m");
+		appendCtCpJReferenceColumnFamily(builder, "wake_tangential_velocity_mps");
 		appendCtCpJReferenceColumnFamily(builder, "wake_swirl_kinetic_power_w");
 		appendCtCpJReferenceColumnFamily(builder, "total_wake_kinetic_power_w");
 		appendCtCpJReferenceColumnFamily(builder, "total_wake_kinetic_power_over_shaft_power");
@@ -4572,6 +4578,18 @@ public final class OfflineFlightRecorder {
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts();
 		double[] rotorCtCpJReferenceIntrinsicPowerResidualFraction =
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction();
+		double[] rotorCtCpJReferenceDiskMassFlow =
+				state.rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond();
+		double[] rotorCtCpJReferenceFarWakeAxialVelocity =
+				state.rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond();
+		double[] rotorCtCpJReferenceFarWakeContractedArea =
+				state.rotorCtCpJReferenceFarWakeContractedAreaSquareMeters();
+		double[] rotorCtCpJReferenceFarWakeEquivalentRadius =
+				state.rotorCtCpJReferenceFarWakeEquivalentRadiusMeters();
+		double[] rotorCtCpJReferenceAngularMomentumSwirlRadius =
+				state.rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters();
+		double[] rotorCtCpJReferenceWakeTangentialVelocity =
+				state.rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond();
 		double[] rotorCtCpJReferenceWakeSwirlKineticPower =
 				state.rotorCtCpJReferenceWakeSwirlKineticPowerWatts();
 		double[] rotorCtCpJReferenceTotalWakeKineticPower =
@@ -4919,6 +4937,18 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceIntrinsicPowerResidual,
 				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceIntrinsicPowerResidualFraction,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceDiskMassFlow,
+				rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceFarWakeAxialVelocity,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceFarWakeContractedArea,
+				rotorCtCpJReferenceAvailable, "%.8f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceFarWakeEquivalentRadius,
+				rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceAngularMomentumSwirlRadius,
+				rotorCtCpJReferenceAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceWakeTangentialVelocity,
 				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceWakeSwirlKineticPower,
 				rotorCtCpJReferenceAvailable, "%.5f");

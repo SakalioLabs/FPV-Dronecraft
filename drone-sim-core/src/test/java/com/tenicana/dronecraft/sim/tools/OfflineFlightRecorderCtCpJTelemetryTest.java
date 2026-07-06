@@ -14,6 +14,7 @@ import org.junit.jupiter.api.io.TempDir;
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
+import com.tenicana.dronecraft.sim.RotorSpec;
 
 class OfflineFlightRecorderCtCpJTelemetryTest {
 	@TempDir
@@ -92,6 +93,14 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				column(header, "rotor_0_ctcpj_ref_intrinsic_shaft_power_residual_w");
 		int rotorIntrinsicPowerResidualFractionIndex =
 				column(header, "rotor_0_ctcpj_ref_intrinsic_shaft_power_residual_fraction");
+		int rotorDiskMassFlowIndex = column(header, "rotor_0_ctcpj_ref_disk_mass_flow_kg_s");
+		int rotorFarWakeAxialVelocityIndex = column(header, "rotor_0_ctcpj_ref_far_wake_axial_velocity_mps");
+		int rotorFarWakeContractedAreaIndex = column(header, "rotor_0_ctcpj_ref_far_wake_contracted_area_m2");
+		int rotorFarWakeEquivalentRadiusIndex = column(header, "rotor_0_ctcpj_ref_far_wake_equivalent_radius_m");
+		int rotorAngularMomentumSwirlRadiusIndex =
+				column(header, "rotor_0_ctcpj_ref_angular_momentum_swirl_radius_m");
+		int rotorWakeTangentialVelocityIndex =
+				column(header, "rotor_0_ctcpj_ref_wake_tangential_velocity_mps");
 		int rotorWakeSwirlPowerIndex = column(header, "rotor_0_ctcpj_ref_wake_swirl_kinetic_power_w");
 		int rotorTotalWakePowerIndex = column(header, "rotor_0_ctcpj_ref_total_wake_kinetic_power_w");
 		int rotorTotalWakePowerRatioIndex =
@@ -212,6 +221,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				"rotor_0_ctcpj_ref_intrinsic_shaft_power_residual_w"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_7_ctcpj_ref_intrinsic_shaft_power_residual_fraction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_disk_mass_flow_kg_s"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_7_ctcpj_ref_wake_tangential_velocity_mps"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_0_ctcpj_ref_total_wake_kinetic_power_w"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
@@ -445,6 +457,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double intrinsicPowerResidual = Double.parseDouble(row[rotorIntrinsicPowerResidualIndex]);
 				double intrinsicPowerResidualFraction =
 						Double.parseDouble(row[rotorIntrinsicPowerResidualFractionIndex]);
+				double diskMassFlow = Double.parseDouble(row[rotorDiskMassFlowIndex]);
+				double farWakeAxialVelocity = Double.parseDouble(row[rotorFarWakeAxialVelocityIndex]);
+				double farWakeContractedArea = Double.parseDouble(row[rotorFarWakeContractedAreaIndex]);
+				double farWakeEquivalentRadius = Double.parseDouble(row[rotorFarWakeEquivalentRadiusIndex]);
+				double angularMomentumSwirlRadius = Double.parseDouble(row[rotorAngularMomentumSwirlRadiusIndex]);
+				double wakeTangentialVelocity = Double.parseDouble(row[rotorWakeTangentialVelocityIndex]);
 				double wakeSwirlPower = Double.parseDouble(row[rotorWakeSwirlPowerIndex]);
 				double totalWakePower = Double.parseDouble(row[rotorTotalWakePowerIndex]);
 				double totalWakePowerRatio = Double.parseDouble(row[rotorTotalWakePowerRatioIndex]);
@@ -460,6 +478,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(referenceIdealMomentumRatio));
 				assertTrue(Double.isFinite(intrinsicPowerResidual));
 				assertTrue(Double.isFinite(intrinsicPowerResidualFraction));
+				assertTrue(Double.isFinite(diskMassFlow));
+				assertTrue(Double.isFinite(farWakeAxialVelocity));
+				assertTrue(Double.isFinite(farWakeContractedArea));
+				assertTrue(Double.isFinite(farWakeEquivalentRadius));
+				assertTrue(Double.isFinite(angularMomentumSwirlRadius));
+				assertTrue(Double.isFinite(wakeTangentialVelocity));
 				assertTrue(Double.isFinite(wakeSwirlPower));
 				assertTrue(Double.isFinite(totalWakePower));
 				assertTrue(Double.isFinite(totalWakePowerRatio));
@@ -528,6 +552,25 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					assertEquals(referenceTorque, reactionTorqueMagnitude, 2.0e-6);
 					assertTrue(referenceDiskLoading > 0.0);
 					assertTrue(referenceIdealInducedVelocity > 0.0);
+					assertTrue(diskMassFlow > 0.0);
+					assertTrue(farWakeAxialVelocity > 0.0);
+					assertTrue(farWakeContractedArea > 0.0);
+					assertTrue(farWakeEquivalentRadius > 0.0);
+					assertTrue(angularMomentumSwirlRadius > 0.0);
+					assertTrue(wakeTangentialVelocity > 0.0);
+					double referenceAxialSpeed = Math.max(0.0, Double.parseDouble(row[rotorJIndex])
+							* Double.parseDouble(row[rotorRpmIndex])
+							/ 60.0
+							* diameter);
+					assertEquals(referenceThrust,
+							diskMassFlow * (farWakeAxialVelocity - referenceAxialSpeed), 1.0e-4);
+					assertEquals(Math.sqrt(farWakeContractedArea / Math.PI),
+							farWakeEquivalentRadius, 5.0e-5);
+					assertEquals(farWakeEquivalentRadius
+									* RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION,
+							angularMomentumSwirlRadius, 5.0e-5);
+					assertEquals(0.5 * diskMassFlow * wakeTangentialVelocity * wakeTangentialVelocity,
+							wakeSwirlPower, 1.0e-4);
 					assertTrue(wakeSwirlPower > 0.0);
 					assertTrue(totalWakePower >= referenceIdealMomentumPower);
 					assertEquals(referenceIdealMomentumPower + wakeSwirlPower, totalWakePower, 5.0e-5);

@@ -126,6 +126,12 @@ public final class DroneState {
 	private double[] rotorCtCpJReferenceIdealMomentumPowerOverShaftPower;
 	private double[] rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts;
 	private double[] rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction;
+	private double[] rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond;
+	private double[] rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond;
+	private double[] rotorCtCpJReferenceFarWakeContractedAreaSquareMeters;
+	private double[] rotorCtCpJReferenceFarWakeEquivalentRadiusMeters;
+	private double[] rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters;
+	private double[] rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond;
 	private double[] rotorCtCpJReferenceWakeSwirlKineticPowerWatts;
 	private double[] rotorCtCpJReferenceTotalWakeKineticPowerWatts;
 	private double[] rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower;
@@ -344,6 +350,12 @@ public final class DroneState {
 		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower = new double[motorCount];
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts = new double[motorCount];
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction = new double[motorCount];
+		rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond = new double[motorCount];
+		rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond = new double[motorCount];
+		rotorCtCpJReferenceFarWakeContractedAreaSquareMeters = new double[motorCount];
+		rotorCtCpJReferenceFarWakeEquivalentRadiusMeters = new double[motorCount];
+		rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters = new double[motorCount];
+		rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond = new double[motorCount];
 		rotorCtCpJReferenceWakeSwirlKineticPowerWatts = new double[motorCount];
 		rotorCtCpJReferenceTotalWakeKineticPowerWatts = new double[motorCount];
 		rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower = new double[motorCount];
@@ -1927,6 +1939,66 @@ public final class DroneState {
 				rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction.length);
 	}
 
+	public double rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond(int index) {
+		return rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond[index];
+	}
+
+	public double[] rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond,
+				rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond.length);
+	}
+
+	public double rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond(int index) {
+		return rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond[index];
+	}
+
+	public double[] rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond,
+				rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond.length);
+	}
+
+	public double rotorCtCpJReferenceFarWakeContractedAreaSquareMeters(int index) {
+		return rotorCtCpJReferenceFarWakeContractedAreaSquareMeters[index];
+	}
+
+	public double[] rotorCtCpJReferenceFarWakeContractedAreaSquareMeters() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceFarWakeContractedAreaSquareMeters,
+				rotorCtCpJReferenceFarWakeContractedAreaSquareMeters.length);
+	}
+
+	public double rotorCtCpJReferenceFarWakeEquivalentRadiusMeters(int index) {
+		return rotorCtCpJReferenceFarWakeEquivalentRadiusMeters[index];
+	}
+
+	public double[] rotorCtCpJReferenceFarWakeEquivalentRadiusMeters() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceFarWakeEquivalentRadiusMeters,
+				rotorCtCpJReferenceFarWakeEquivalentRadiusMeters.length);
+	}
+
+	public double rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters(int index) {
+		return rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters[index];
+	}
+
+	public double[] rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters,
+				rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters.length);
+	}
+
+	public double rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond(int index) {
+		return rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond[index];
+	}
+
+	public double[] rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond,
+				rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond.length);
+	}
+
 	public double rotorCtCpJReferenceWakeSwirlKineticPowerWatts(int index) {
 		return rotorCtCpJReferenceWakeSwirlKineticPowerWatts[index];
 	}
@@ -2157,6 +2229,24 @@ public final class DroneState {
 				sample.blocked() ? 0.0 : finiteOrZero(sample.dimensionalSample().shaftPowerResidualWatts());
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction[index] =
 				sample.blocked() ? 0.0 : finiteOrZero(sample.dimensionalSample().shaftPowerResidualFraction());
+		rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().diskMassFlowKilogramsPerSecond()));
+		rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().farWakeAxialVelocityMetersPerSecond()));
+		rotorCtCpJReferenceFarWakeContractedAreaSquareMeters[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().farWakeContractedAreaSquareMeters()));
+		rotorCtCpJReferenceFarWakeEquivalentRadiusMeters[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().farWakeEquivalentRadiusMeters()));
+		rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().angularMomentumSwirlRadiusMeters()));
+		rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().wakeTangentialVelocityMetersPerSecond()));
 		rotorCtCpJReferenceWakeSwirlKineticPowerWatts[index] =
 				sample.blocked() ? 0.0 : Math.max(0.0,
 						finiteOrZero(sample.dimensionalSample().wakeSwirlKineticPowerWatts()));
@@ -2221,6 +2311,12 @@ public final class DroneState {
 		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index] = 0.0;
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts[index] = 0.0;
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction[index] = 0.0;
+		rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond[index] = 0.0;
+		rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond[index] = 0.0;
+		rotorCtCpJReferenceFarWakeContractedAreaSquareMeters[index] = 0.0;
+		rotorCtCpJReferenceFarWakeEquivalentRadiusMeters[index] = 0.0;
+		rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters[index] = 0.0;
+		rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond[index] = 0.0;
 		rotorCtCpJReferenceWakeSwirlKineticPowerWatts[index] = 0.0;
 		rotorCtCpJReferenceTotalWakeKineticPowerWatts[index] = 0.0;
 		rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower[index] = 0.0;
@@ -2352,6 +2448,12 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceIdealMomentumPowerOverShaftPower, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction, 0.0);
+		Arrays.fill(rotorCtCpJReferenceDiskMassFlowKilogramsPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJReferenceFarWakeAxialVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJReferenceFarWakeContractedAreaSquareMeters, 0.0);
+		Arrays.fill(rotorCtCpJReferenceFarWakeEquivalentRadiusMeters, 0.0);
+		Arrays.fill(rotorCtCpJReferenceAngularMomentumSwirlRadiusMeters, 0.0);
+		Arrays.fill(rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorCtCpJReferenceWakeSwirlKineticPowerWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceTotalWakeKineticPowerWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower, 0.0);
