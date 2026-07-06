@@ -38,9 +38,15 @@ public final class CtCpJCurveExporter {
 			"ideal_induced_velocity_mps",
 			"ideal_momentum_power_w",
 			"ideal_momentum_power_over_shaft_power",
-			"source_id"
+			"source_id",
+			"lookup_status",
+			"lookup_message",
+			"runtime_force_replacement_accepted",
+			"query_signed_axial_speed_mps"
 	);
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
+	private static final double REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND = -4.5;
+	private static final double OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J = 1.20;
 
 	private CtCpJCurveExporter() {
 	}
@@ -128,10 +134,42 @@ public final class CtCpJCurveExporter {
 				lines.add(csvLine(sample.dimensionalSample()));
 			}
 		}
+		for (EnvelopeDiagnosticPoint point : envelopeDiagnosticCurvePoints(
+				presetName,
+				config,
+				rotor,
+				airDensityKgPerCubicMeter
+		)) {
+			lines.add(csvLine(point.sample(), point.querySignedAxialSpeedMetersPerSecond()));
+		}
 		return List.copyOf(lines);
 	}
 
 	private static String csvLine(PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample) {
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
+		double queryAxialSpeed = lookup.queryAdvanceRatioJ()
+				* Math.max(0.0, lookup.queryRpm())
+				/ 60.0
+				* sample.propellerDiameterMeters();
+		return csvLine(sample, false, queryAxialSpeed);
+	}
+
+	private static String csvLine(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double querySignedAxialSpeedMetersPerSecond
+	) {
+		return csvLine(
+				sample.dimensionalSample(),
+				sample.runtimeForceReplacementAccepted(),
+				querySignedAxialSpeedMetersPerSecond
+		);
+	}
+
+	private static String csvLine(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample,
+			boolean runtimeForceReplacementAccepted,
+			double querySignedAxialSpeedMetersPerSecond
+	) {
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
 		return String.join(",",
 				escape(lookup.presetName()),
@@ -154,7 +192,11 @@ public final class CtCpJCurveExporter {
 				number(sample.idealInducedVelocityMetersPerSecond()),
 				number(sample.idealMomentumPowerWatts()),
 				number(sample.idealMomentumPowerOverShaftPower()),
-				escape(lookup.dataSourceId())
+				escape(lookup.dataSourceId()),
+				escape(lookup.status()),
+				escape(lookup.message()),
+				Boolean.toString(runtimeForceReplacementAccepted),
+				number(querySignedAxialSpeedMetersPerSecond)
 		);
 	}
 
@@ -180,7 +222,11 @@ public final class CtCpJCurveExporter {
 				number(sample.idealInducedVelocityMetersPerSecond()),
 				number(sample.idealMomentumPowerWatts()),
 				number(sample.idealMomentumPowerOverShaftPower()),
-				escape(sample.sourceId())
+				escape(sample.sourceId()),
+				escape("STATIC_ROTOR_SPEC"),
+				escape("rotor-spec-static-reference-sample"),
+				Boolean.toString(false),
+				number(0.0)
 		);
 	}
 
@@ -222,6 +268,52 @@ public final class CtCpJCurveExporter {
 		return points.stream()
 				.sorted((first, second) -> Double.compare(first.rpm(), second.rpm()))
 				.toList();
+	}
+
+	private static List<EnvelopeDiagnosticPoint> envelopeDiagnosticCurvePoints(
+			String presetName,
+			DroneConfig config,
+			RotorSpec rotor,
+			double airDensityKgPerCubicMeter
+	) {
+		double hoverRpm = hoverRpm(config, rotor);
+		double hoverOmega = hoverRpm / RPM_PER_RADIAN_PER_SECOND;
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample reverseAxialClamp =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						presetName,
+						"static_anchored_runtime_reverse_axial_clamp",
+						rotor,
+						REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND,
+						hoverOmega,
+						airDensityKgPerCubicMeter,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample highAdvanceBlocked =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchored(
+						new PropellerArchiveCtCpJRotorForceModel.RotorForceQuery(
+								presetName,
+								"static_anchored_runtime_high_j_block",
+								rotor,
+								OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J,
+								hoverRpm,
+								airDensityKgPerCubicMeter,
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+						));
+		double blockedAxialSpeed = OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J
+				* hoverRpm
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0;
+		return List.of(
+				new EnvelopeDiagnosticPoint(
+						REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND,
+						reverseAxialClamp
+				),
+				new EnvelopeDiagnosticPoint(
+						blockedAxialSpeed,
+						highAdvanceBlocked
+				)
+		);
 	}
 
 	private static List<StaticCurvePoint> staticAnchoredRuntimeCurvePoints(
@@ -286,6 +378,12 @@ public final class CtCpJCurveExporter {
 	}
 
 	private record StaticCurvePoint(String caseName, double rpm) {
+	}
+
+	private record EnvelopeDiagnosticPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample
+	) {
 	}
 
 	private static String escape(String value) {
