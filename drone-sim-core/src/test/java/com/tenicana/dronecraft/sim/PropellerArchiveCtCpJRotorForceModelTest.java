@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 
 class PropellerArchiveCtCpJRotorForceModelTest {
@@ -122,6 +124,100 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sample.reactionTorqueBodyNewtonMeters().z(), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().length(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), sample.reactionTorqueBodyNewtonMeters().length(), 1.0e-15);
+	}
+
+	@Test
+	void rotorForceSampleReportsBodyMomentAndTotalTorqueAboutReferencePoint() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(0.12, 0.98, -0.15));
+		Vec3 momentReference = new Vec3(0.010, -0.002, -0.018);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromAxialAdvanceSpeed(
+						"apDrone",
+						"body_torque_static_anchor",
+						rotor,
+						0.0,
+						omega,
+						RHO,
+						momentReference,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		Vec3 expectedArm = rotor.positionBodyMeters().subtract(momentReference);
+		Vec3 expectedThrustMoment = expectedArm.cross(sample.thrustForceBodyNewtons());
+		Vec3 expectedTotalTorque = expectedThrustMoment.add(sample.reactionTorqueBodyNewtonMeters());
+		assertFalse(sample.blocked());
+		assertVectorEquals(expectedArm, sample.momentArmBodyMeters(), 1.0e-15);
+		assertVectorEquals(expectedThrustMoment, sample.thrustMomentBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(expectedTotalTorque, sample.totalTorqueBodyNewtonMeters(), 1.0e-15);
+		assertTrue(sample.totalTorqueBodyNewtonMeters().length() > sample.reactionTorqueBodyNewtonMeters().length());
+	}
+
+	@Test
+	void staticAnchoredConfigurationHoverAggregatesSymmetricBodyForceAndTorque() {
+		DroneConfig config = DroneConfig.apDrone();
+		double hoverRpm = 6_000.0;
+		double hoverOmega = hoverRpm * 2.0 * Math.PI / 60.0;
+		double[] axialSpeeds = new double[config.rotors().size()];
+		double[] omegas = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			omegas[i] = hoverOmega;
+		}
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+						"apDrone",
+						"aggregate_hover_static_anchor",
+						config,
+						axialSpeeds,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		double expectedThrust = aggregate.rotorSamples().stream()
+				.mapToDouble(PropellerArchiveCtCpJRotorForceModel.RotorForceSample::thrustNewtons)
+				.sum();
+		assertEquals(config.rotors().size(), aggregate.rotorSamples().size());
+		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertEquals(0, aggregate.blockedRotorCount());
+		assertEquals(0, aggregate.clampedRotorCount());
+		assertEquals(expectedThrust, aggregate.totalThrustNewtons(), 1.0e-12);
+		assertEquals(expectedThrust, aggregate.totalThrustForceBodyNewtons().y(), 1.0e-12);
+		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().x(), 1.0e-15);
+		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().z(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalReactionTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
+		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
+		assertTrue(aggregate.totalShaftTorqueNewtonMeters() > 0.0);
+	}
+
+	@Test
+	void aggregatePreservesBlockedCounts() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample blocked =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromAxialAdvanceSpeed(
+						"apDrone",
+						"aggregate_high_j_block",
+						rotor,
+						1.20 * omega / (2.0 * Math.PI) * rotor.radiusMeters() * 2.0,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				PropellerArchiveCtCpJRotorForceModel.aggregate(List.of(blocked));
+
+		assertTrue(blocked.blocked());
+		assertEquals(0, aggregate.acceptedRotorCount());
+		assertEquals(1, aggregate.blockedRotorCount());
+		assertEquals(0.0, aggregate.totalThrustNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
 	}
 
 	@Test
@@ -318,5 +414,11 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				RHO,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 		));
+	}
+
+	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
+		assertEquals(expected.x(), actual.x(), tolerance);
+		assertEquals(expected.y(), actual.y(), tolerance);
+		assertEquals(expected.z(), actual.z(), tolerance);
 	}
 }

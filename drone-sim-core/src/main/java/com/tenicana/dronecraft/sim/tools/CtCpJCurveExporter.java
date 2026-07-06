@@ -144,8 +144,9 @@ public final class CtCpJCurveExporter {
 										point.rpm(),
 										airDensityKgPerCubicMeter,
 										PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
-								));
-				lines.add(csvLine(sample, sample.axialAdvanceSpeedMetersPerSecond(), rotorArmBody));
+								),
+								config.centerOfMassOffsetBodyMeters());
+				lines.add(csvLine(sample, sample.axialAdvanceSpeedMetersPerSecond()));
 			}
 		}
 		for (EnvelopeDiagnosticPoint point : envelopeDiagnosticCurvePoints(
@@ -154,7 +155,7 @@ public final class CtCpJCurveExporter {
 				rotor,
 				airDensityKgPerCubicMeter
 		)) {
-			lines.add(csvLine(point.sample(), point.querySignedAxialSpeedMetersPerSecond(), rotorArmBody));
+			lines.add(csvLine(point.sample(), point.querySignedAxialSpeedMetersPerSecond()));
 		}
 		return List.copyOf(lines);
 	}
@@ -170,20 +171,23 @@ public final class CtCpJCurveExporter {
 				/ 60.0
 				* sample.propellerDiameterMeters();
 		Vec3 axis = rotorAxisBody(rotor);
+		Vec3 thrustForce = axis.multiply(sample.thrustNewtons());
+		Vec3 reactionTorque = axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters());
+		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		return csvLine(
 				sample,
 				false,
 				queryAxialSpeed,
-				axis.multiply(sample.thrustNewtons()),
-				axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters()),
-				rotorArmBody
+				thrustForce,
+				reactionTorque,
+				thrustMoment,
+				thrustMoment.add(reactionTorque)
 		);
 	}
 
 	private static String csvLine(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
-			double querySignedAxialSpeedMetersPerSecond,
-			Vec3 rotorArmBody
+			double querySignedAxialSpeedMetersPerSecond
 	) {
 		return csvLine(
 				sample.dimensionalSample(),
@@ -191,7 +195,8 @@ public final class CtCpJCurveExporter {
 				querySignedAxialSpeedMetersPerSecond,
 				sample.thrustForceBodyNewtons(),
 				sample.reactionTorqueBodyNewtonMeters(),
-				rotorArmBody
+				sample.thrustMomentBodyNewtonMeters(),
+				sample.totalTorqueBodyNewtonMeters()
 		);
 	}
 
@@ -201,11 +206,10 @@ public final class CtCpJCurveExporter {
 			double querySignedAxialSpeedMetersPerSecond,
 			Vec3 thrustForceBodyNewtons,
 			Vec3 reactionTorqueBodyNewtonMeters,
-			Vec3 rotorArmBody
+			Vec3 thrustMomentBodyNewtonMeters,
+			Vec3 totalTorqueBodyNewtonMeters
 	) {
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
-		Vec3 thrustMomentBodyNewtonMeters = rotorArmBody.cross(thrustForceBodyNewtons);
-		Vec3 totalTorqueBodyNewtonMeters = thrustMomentBodyNewtonMeters.add(reactionTorqueBodyNewtonMeters);
 		return String.join(",",
 				escape(lookup.presetName()),
 				escape(lookup.caseName()),
@@ -350,6 +354,7 @@ public final class CtCpJCurveExporter {
 						REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND,
 						hoverOmega,
 						airDensityKgPerCubicMeter,
+						config.centerOfMassOffsetBodyMeters(),
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 				);
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample highAdvanceBlocked =
@@ -362,7 +367,8 @@ public final class CtCpJCurveExporter {
 								hoverRpm,
 								airDensityKgPerCubicMeter,
 								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
-						));
+						),
+						config.centerOfMassOffsetBodyMeters());
 		double blockedAxialSpeed = OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J
 				* hoverRpm
 				/ 60.0

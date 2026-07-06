@@ -1,5 +1,8 @@
 package com.tenicana.dronecraft.sim;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double EPSILON = 1.0e-9;
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
@@ -46,6 +49,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double axialAdvanceSpeedMetersPerSecond,
 			Vec3 thrustForceBodyNewtons,
 			Vec3 reactionTorqueBodyNewtonMeters,
+			Vec3 momentArmBodyMeters,
+			Vec3 thrustMomentBodyNewtonMeters,
+			Vec3 totalTorqueBodyNewtonMeters,
 			double yawTorquePerThrustMeterEquivalent
 	) {
 		public RotorForceSample {
@@ -63,6 +69,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			}
 			thrustForceBodyNewtons = finiteVecOrZero(thrustForceBodyNewtons);
 			reactionTorqueBodyNewtonMeters = finiteVecOrZero(reactionTorqueBodyNewtonMeters);
+			momentArmBodyMeters = finiteVecOrZero(momentArmBodyMeters);
+			thrustMomentBodyNewtonMeters = finiteVecOrZero(thrustMomentBodyNewtonMeters);
+			totalTorqueBodyNewtonMeters = finiteVecOrZero(totalTorqueBodyNewtonMeters);
 			if (!Double.isFinite(yawTorquePerThrustMeterEquivalent)) {
 				yawTorquePerThrustMeterEquivalent = 0.0;
 			}
@@ -100,6 +109,34 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 	}
 
+	public record RotorForceAggregateSample(
+			List<RotorForceSample> rotorSamples,
+			Vec3 totalThrustForceBodyNewtons,
+			Vec3 totalReactionTorqueBodyNewtonMeters,
+			Vec3 totalThrustMomentBodyNewtonMeters,
+			Vec3 totalBodyTorqueNewtonMeters,
+			double totalThrustNewtons,
+			double totalShaftPowerWatts,
+			double totalShaftTorqueNewtonMeters,
+			int acceptedRotorCount,
+			int blockedRotorCount,
+			int clampedRotorCount
+	) {
+		public RotorForceAggregateSample {
+			rotorSamples = rotorSamples == null ? List.of() : List.copyOf(rotorSamples);
+			totalThrustForceBodyNewtons = finiteVecOrZero(totalThrustForceBodyNewtons);
+			totalReactionTorqueBodyNewtonMeters = finiteVecOrZero(totalReactionTorqueBodyNewtonMeters);
+			totalThrustMomentBodyNewtonMeters = finiteVecOrZero(totalThrustMomentBodyNewtonMeters);
+			totalBodyTorqueNewtonMeters = finiteVecOrZero(totalBodyTorqueNewtonMeters);
+			totalThrustNewtons = finiteNonnegative(totalThrustNewtons);
+			totalShaftPowerWatts = finiteNonnegative(totalShaftPowerWatts);
+			totalShaftTorqueNewtonMeters = finiteNonnegative(totalShaftTorqueNewtonMeters);
+			acceptedRotorCount = Math.max(0, acceptedRotorCount);
+			blockedRotorCount = Math.max(0, blockedRotorCount);
+			clampedRotorCount = Math.max(0, clampedRotorCount);
+		}
+	}
+
 	public static RotorForceQuery queryFromAxialAdvanceSpeed(
 			String presetName,
 			String caseName,
@@ -134,6 +171,13 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	}
 
 	public static RotorForceSample sample(RotorForceQuery query) {
+		return sample(query, Vec3.ZERO);
+	}
+
+	public static RotorForceSample sample(
+			RotorForceQuery query,
+			Vec3 momentReferenceBodyMeters
+	) {
 		if (query == null) {
 			throw new IllegalArgumentException("query must not be null.");
 		}
@@ -155,10 +199,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						query.propellerDiameterMeters(),
 						query.airDensityKgPerCubicMeter()
 				);
-		return forceSample(query, lookup, dimensional);
+		return forceSample(query, lookup, dimensional, momentReferenceBodyMeters);
 	}
 
 	public static RotorForceSample sampleStaticAnchored(RotorForceQuery query) {
+		return sampleStaticAnchored(query, Vec3.ZERO);
+	}
+
+	public static RotorForceSample sampleStaticAnchored(
+			RotorForceQuery query,
+			Vec3 momentReferenceBodyMeters
+	) {
 		if (query == null) {
 			throw new IllegalArgumentException("query must not be null.");
 		}
@@ -191,7 +242,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						query.propellerDiameterMeters(),
 						query.airDensityKgPerCubicMeter()
 				);
-		return forceSample(query, lookup, dimensional);
+		return forceSample(query, lookup, dimensional, momentReferenceBodyMeters);
 	}
 
 	public static RotorForceSample sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
@@ -201,6 +252,28 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double signedAxialAdvanceSpeedMetersPerSecond,
 			double omegaRadiansPerSecond,
 			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		return sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				Vec3.ZERO,
+				envelopePolicy
+		);
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
 		if (!Double.isFinite(signedAxialAdvanceSpeedMetersPerSecond)) {
@@ -214,6 +287,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					signedAxialAdvanceSpeedMetersPerSecond,
 					omegaRadiansPerSecond,
 					airDensityKgPerCubicMeter,
+					momentReferenceBodyMeters,
 					envelopePolicy
 			);
 		}
@@ -223,7 +297,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					caseName == null || caseName.isBlank() ? "reverse_axial_static_anchor" : caseName,
 					rotor,
 					omegaRadiansPerSecond,
-					airDensityKgPerCubicMeter
+					airDensityKgPerCubicMeter,
+					momentReferenceBodyMeters
 			);
 		}
 		return sampleStaticAnchoredReverseAxialClamped(
@@ -231,7 +306,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				caseName == null || caseName.isBlank() ? "reverse_axial_static_anchor" : caseName,
 				rotor,
 				omegaRadiansPerSecond,
-				airDensityKgPerCubicMeter
+				airDensityKgPerCubicMeter,
+				momentReferenceBodyMeters
 		);
 	}
 
@@ -240,7 +316,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			String caseName,
 			RotorSpec rotor,
 			double omegaRadiansPerSecond,
-			double airDensityKgPerCubicMeter
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters
 	) {
 		RotorForceQuery query = queryFromAxialAdvanceSpeed(
 				presetName,
@@ -251,7 +328,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				airDensityKgPerCubicMeter,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 		);
-		RotorForceSample staticAnchor = sampleStaticAnchored(query);
+		RotorForceSample staticAnchor = sampleStaticAnchored(query, momentReferenceBodyMeters);
 		if (staticAnchor.blocked()) {
 			return staticAnchor;
 		}
@@ -288,7 +365,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						query.propellerDiameterMeters(),
 						query.airDensityKgPerCubicMeter()
 				);
-		return forceSample(query, clampedLookup, dimensional);
+		return forceSample(query, clampedLookup, dimensional, momentReferenceBodyMeters);
 	}
 
 	private static RotorForceSample sampleStaticAnchoredReverseAxialBlocked(
@@ -296,7 +373,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			String caseName,
 			RotorSpec rotor,
 			double omegaRadiansPerSecond,
-			double airDensityKgPerCubicMeter
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters
 	) {
 		RotorForceQuery query = queryFromAxialAdvanceSpeed(
 				presetName,
@@ -339,13 +417,14 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						query.propellerDiameterMeters(),
 						query.airDensityKgPerCubicMeter()
 				);
-		return forceSample(query, blockedLookup, dimensional);
+		return forceSample(query, blockedLookup, dimensional, momentReferenceBodyMeters);
 	}
 
 	private static RotorForceSample forceSample(
 			RotorForceQuery query,
 			PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup,
-			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional,
+			Vec3 momentReferenceBodyMeters
 	) {
 		double axialAdvanceSpeed = lookup.blocked()
 				? query.advanceRatioJ() * query.rpm() / 60.0 * query.propellerDiameterMeters()
@@ -357,6 +436,10 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		Vec3 reactionTorque = lookup.blocked()
 				? Vec3.ZERO
 				: axis.multiply(query.rotor().spinDirection() * dimensional.shaftTorqueNewtonMeters());
+		Vec3 momentReference = finiteVecOrZero(momentReferenceBodyMeters);
+		Vec3 momentArm = query.rotor().positionBodyMeters().subtract(momentReference);
+		Vec3 thrustMoment = momentArm.cross(thrustForce);
+		Vec3 totalTorque = thrustMoment.add(reactionTorque);
 		double yawTorquePerThrust = dimensional.thrustNewtons() > EPSILON
 				? dimensional.shaftTorqueNewtonMeters() / dimensional.thrustNewtons()
 				: 0.0;
@@ -367,6 +450,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				axialAdvanceSpeed,
 				thrustForce,
 				reactionTorque,
+				momentArm,
+				thrustMoment,
+				totalTorque,
 				yawTorquePerThrust
 		);
 	}
@@ -380,6 +466,28 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double airDensityKgPerCubicMeter,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				Vec3.ZERO,
+				envelopePolicy
+		);
+	}
+
+	public static RotorForceSample sampleFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
 		return sample(queryFromAxialAdvanceSpeed(
 				presetName,
 				caseName,
@@ -388,7 +496,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
 				envelopePolicy
-		));
+		), momentReferenceBodyMeters);
 	}
 
 	public static RotorForceSample sampleStaticAnchoredFromAxialAdvanceSpeed(
@@ -400,6 +508,28 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double airDensityKgPerCubicMeter,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleStaticAnchoredFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				Vec3.ZERO,
+				envelopePolicy
+		);
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
 		return sampleStaticAnchored(queryFromAxialAdvanceSpeed(
 				presetName,
 				caseName,
@@ -408,7 +538,94 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
 				envelopePolicy
-		));
+		), momentReferenceBodyMeters);
+	}
+
+	public static RotorForceAggregateSample aggregate(List<RotorForceSample> samples) {
+		if (samples == null || samples.isEmpty()) {
+			return new RotorForceAggregateSample(List.of(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
+					0.0, 0.0, 0.0, 0, 0, 0);
+		}
+		List<RotorForceSample> acceptedSamples = new ArrayList<>();
+		Vec3 totalForce = Vec3.ZERO;
+		Vec3 totalReactionTorque = Vec3.ZERO;
+		Vec3 totalThrustMoment = Vec3.ZERO;
+		Vec3 totalBodyTorque = Vec3.ZERO;
+		double totalThrust = 0.0;
+		double totalPower = 0.0;
+		double totalShaftTorque = 0.0;
+		int accepted = 0;
+		int blocked = 0;
+		int clamped = 0;
+		for (RotorForceSample sample : samples) {
+			if (sample == null) {
+				continue;
+			}
+			acceptedSamples.add(sample);
+			totalForce = totalForce.add(sample.thrustForceBodyNewtons());
+			totalReactionTorque = totalReactionTorque.add(sample.reactionTorqueBodyNewtonMeters());
+			totalThrustMoment = totalThrustMoment.add(sample.thrustMomentBodyNewtonMeters());
+			totalBodyTorque = totalBodyTorque.add(sample.totalTorqueBodyNewtonMeters());
+			totalThrust += sample.thrustNewtons();
+			totalPower += sample.shaftPowerWatts();
+			totalShaftTorque += sample.shaftTorqueNewtonMeters();
+			if (sample.blocked()) {
+				blocked++;
+			} else {
+				accepted++;
+			}
+			if (sample.clamped()) {
+				clamped++;
+			}
+		}
+		return new RotorForceAggregateSample(
+				acceptedSamples,
+				totalForce,
+				totalReactionTorque,
+				totalThrustMoment,
+				totalBodyTorque,
+				totalThrust,
+				totalPower,
+				totalShaftTorque,
+				accepted,
+				blocked,
+				clamped
+		);
+	}
+
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			double[] signedAxialAdvanceSpeedsMetersPerSecond,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		if (signedAxialAdvanceSpeedsMetersPerSecond == null
+				|| omegaRadiansPerSecond == null
+				|| signedAxialAdvanceSpeedsMetersPerSecond.length < config.rotors().size()
+				|| omegaRadiansPerSecond.length < config.rotors().size()) {
+			throw new IllegalArgumentException("rotor speed arrays must cover every configured rotor.");
+		}
+		List<RotorForceSample> samples = new ArrayList<>();
+		Vec3 momentReference = config.centerOfMassOffsetBodyMeters();
+		for (int i = 0; i < config.rotors().size(); i++) {
+			samples.add(sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+					presetName,
+					caseName,
+					config.rotors().get(i),
+					signedAxialAdvanceSpeedsMetersPerSecond[i],
+					omegaRadiansPerSecond[i],
+					airDensityKgPerCubicMeter,
+					momentReference,
+					envelopePolicy
+			));
+		}
+		return aggregate(samples);
 	}
 
 	private static Vec3 rotorAxisBody(RotorSpec rotor) {
@@ -417,6 +634,10 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return new Vec3(0.0, 1.0, 0.0);
 		}
 		return axis.normalized();
+	}
+
+	private static double finiteNonnegative(double value) {
+		return Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
