@@ -197,11 +197,14 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertVectorEquals(transverseVelocity, sample.transverseAirVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertEquals(2.5, sample.transverseAirSpeedMetersPerSecond(), 1.0e-15);
 		assertEquals(Math.atan2(2.5, axialSpeed), sample.inflowAngleRadians(), 1.0e-15);
+		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
 		assertVectorEquals(rotor.thrustAxisBody().multiply(sample.thrustNewtons()),
 				sample.thrustForceBodyNewtons(), 1.0e-15);
 
 		DroneState state = new DroneState(1);
 		state.setRotorCtCpJReferenceSample(0, sample);
+		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
 		assertVectorEquals(relativeAirVelocity,
 				state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-15);
 		assertVectorEquals(transverseVelocity,
@@ -374,7 +377,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
-	void acceptedRuntimeReferenceAirflowScaleKeepsTransverseDiskFlowLift() {
+	void obliqueRuntimeReferenceAirflowScaleKeepsLegacyTransverseDiskFlowFallback() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double rpm = 6_000.0;
 		double omega = rpm * 2.0 * Math.PI / 60.0;
@@ -392,6 +395,13 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				omega,
 				translationalLiftIntensity
 		);
+		double fallbackScale = DronePhysics.rotorCtCpJRuntimeAirflowThrustMultiplier(
+				null,
+				rotor,
+				transverseFlow,
+				omega,
+				translationalLiftIntensity
+		);
 		double expectedTransverseLift = 1.0 + rotor.transverseFlowLiftCoefficient() * MathUtil.clamp(
 				0.35 * (advanceRatio / 0.18) + 0.65 * translationalLiftIntensity,
 				0.0,
@@ -399,8 +409,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		);
 
 		assertNotNull(sample);
-		assertTrue(sample.runtimeForceReplacementAccepted());
+		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
 		assertEquals(expectedTransverseLift, scale, 1.0e-15);
+		assertEquals(fallbackScale, scale, 1.0e-15);
 		assertTrue(scale > 1.0);
 	}
 

@@ -125,9 +125,37 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(transverseVelocity, sample.transverseAirVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertEquals(5.0, sample.transverseAirSpeedMetersPerSecond(), 1.0e-15);
 		assertEquals(Math.atan2(5.0, axialSpeed), sample.inflowAngleRadians(), 1.0e-15);
+		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
 		assertEquals(0.0, sample.thrustForceBodyNewtons().x(), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().y(), 1.0e-15);
 		assertEquals(0.0, sample.thrustForceBodyNewtons().z(), 1.0e-15);
+	}
+
+	@Test
+	void nearStaticTransverseFlowRemainsInsideRuntimeReplacementEnvelope() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double rpm = 6_000.0;
+		double omega = rpm * 2.0 * Math.PI / 60.0;
+		Vec3 relativeAirVelocity = new Vec3(0.20, 0.0, 0.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromRelativeAirVelocity(
+						"apDrone",
+						"near_static_oblique_single_rotor",
+						rotor,
+						relativeAirVelocity,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertFalse(sample.blocked());
+		assertFalse(sample.clamped());
+		assertTrue(sample.momentumPowerClosureSatisfied());
+		assertEquals(Math.PI * 0.5, sample.inflowAngleRadians(), 1.0e-8);
+		assertTrue(sample.runtimeInflowEnvelopeSatisfied());
+		assertTrue(sample.runtimeForceReplacementAccepted());
 	}
 
 	@Test

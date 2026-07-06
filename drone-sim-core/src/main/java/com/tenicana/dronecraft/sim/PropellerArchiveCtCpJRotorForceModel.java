@@ -6,6 +6,8 @@ import java.util.List;
 public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double EPSILON = 1.0e-9;
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
+	private static final double RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS = Math.toRadians(15.0);
+	private static final double RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND = 0.35;
 
 	private PropellerArchiveCtCpJRotorForceModel() {
 	}
@@ -98,7 +100,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public boolean runtimeForceReplacementAccepted() {
-			return !blocked() && !clamped() && momentumPowerClosureSatisfied();
+			return !blocked()
+					&& !clamped()
+					&& momentumPowerClosureSatisfied()
+					&& runtimeInflowEnvelopeSatisfied();
+		}
+
+		public boolean runtimeInflowEnvelopeSatisfied() {
+			return transverseAirSpeedMetersPerSecond <= RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND
+					|| inflowAngleRadians <= RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS;
 		}
 
 		public boolean momentumPowerClosureSatisfied() {
