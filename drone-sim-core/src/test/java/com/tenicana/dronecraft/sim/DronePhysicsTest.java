@@ -13918,8 +13918,10 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_prop_power_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_axial_gust_thrust_scale"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("ambient_temperature_c"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("ambient_humidity"));
 		assertEquals("8", row[indexOf(header, "airframe_rotor_count")]);
 		assertTrue(Double.parseDouble(row[indexOf(header, "ambient_temperature_c")]) >= -40.0);
+		assertTrue(Double.parseDouble(row[indexOf(header, "ambient_humidity")]) >= 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_rpm")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_erpm100")]) > 0.0);
 		assertTrue(Double.parseDouble(row[indexOf(header, "motor_7_einterval_us")]) > 0.0);

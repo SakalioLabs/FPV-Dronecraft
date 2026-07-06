@@ -28,6 +28,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(lines.size() > 2);
 		String[] header = lines.get(0).split(",", -1);
 		int airDensityRatioIndex = column(header, "effective_air_density_ratio");
+		int ambientHumidityIndex = column(header, "ambient_humidity");
 		int motorRpmIndex = column(header, "motor_0_rpm");
 		int rotorThrustIndex = column(header, "rotor_0_thrust_n");
 		int rotorForceXIndex = column(header, "rotor_0_force_x_n");
@@ -255,6 +256,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 			double rotorApplied = Double.parseDouble(row[rotorAppliedIndex]);
 			double staticAvailable = Double.parseDouble(row[staticAvailableIndex]);
 			double rpm = Double.parseDouble(row[motorRpmIndex]);
+			double ambientHumidity = Double.parseDouble(row[ambientHumidityIndex]);
+			assertTrue(Double.isFinite(ambientHumidity));
+			assertTrue(ambientHumidity >= 0.0);
+			assertTrue(ambientHumidity <= 1.0);
 			double omega = rpm * 2.0 * Math.PI / 60.0;
 			double aerodynamicPower = Double.parseDouble(row[motorAerodynamicTorqueIndex]) * omega;
 			if (runtimeValid > 0.0 || rotorRuntimeValid > 0.0) {

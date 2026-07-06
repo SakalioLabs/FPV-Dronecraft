@@ -366,6 +366,7 @@ public final class OfflineFlightRecorder {
 			"air_density_ratio",
 			"effective_air_density_ratio",
 			"ambient_temperature_c",
+			"ambient_humidity",
 			"ground_clearance_m",
 			"ground_effect_multiplier",
 			"tune_pitch_super_rate",
@@ -4056,7 +4057,7 @@ public final class OfflineFlightRecorder {
 						+ "%.4f,%.4f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
-						+ "%.5f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
+						+ "%.5f,%.5f,%.3f,%.5f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.2f,%.3f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.0f,%.1f,%.3f,%.5f,%.2f,%.5f,%.5f,%.3f,%.5f,%.5f,%.0f,%.5f,"
 						+ "%.5f,%.5f,%.5f,%.5f,"
@@ -4071,7 +4072,7 @@ public final class OfflineFlightRecorder {
 						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.3f,%.3f,%.3f,%.3f,%.3f,%.5f,%.3f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,"
 						+ "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
-						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f%s%n",
+						+ "%.5f,%.5f,%.5f,%.5f,%.5f,%.5f,%.5f%s%n",
 				sample,
 				step,
 				timeSeconds,
@@ -4325,6 +4326,7 @@ public final class OfflineFlightRecorder {
 				environment.airDensityRatio(),
 				environment.effectiveAirDensityRatio(),
 				environment.effectiveAmbientTemperatureCelsius(),
+				environment.ambientHumidity(),
 				environment.groundClearanceMeters(),
 				environment.groundEffectThrustMultiplier(physics.config()),
 				physics.config().rateSuper().x(),
