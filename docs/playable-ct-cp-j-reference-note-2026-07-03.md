@@ -14,3 +14,12 @@ terrain/voxel airflow tuning until more reviewed CT/CP/J rows and offline CFD co
 and apply only the accepted PropellerArchive advance-ratio shape. `playable/dev` may use the normalized CT rolloff,
 CP rise, and torque/power ratios as low-cost feel references inside the accepted J envelope. It should not treat the
 absolute N/W/Nm values as gameplay tuning targets, and it should not extrapolate beyond the exported envelope.
+
+2026-07-07 update: `docs/data/propeller_archive_ct_cp_j_runtime_curve_packet.csv` is now the playable-facing
+selection surface. `playable/dev` may only consult rows where `runtime_eligibility_status=ACCEPTED` and
+`runtime_force_replacement_accepted=true`; these are static-anchored APDrone runtime rows with finite thrust,
+shaft power, shaft torque, body thrust force, reaction torque, thrust moment, tip Mach, and Reynolds telemetry.
+Rows marked `MOMENTUM_POWER_CLOSURE_FAILED`, `OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE`,
+`OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE`, `CLAMPED`, `OUT_OF_ENVELOPE_BLOCKED`, or `NOT_RUNTIME_CANDIDATE`
+remain sim/lab diagnostics only. The current packet has 14 accepted runtime-reference rows; all other rows are
+for plotting, validation, and envelope explanation rather than gameplay auto-apply.
