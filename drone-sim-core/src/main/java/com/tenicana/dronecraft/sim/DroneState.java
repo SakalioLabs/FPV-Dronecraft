@@ -109,6 +109,10 @@ public final class DroneState {
 	private double[] rotorCtCpJReferenceThrustNewtons;
 	private double[] rotorCtCpJReferenceShaftPowerWatts;
 	private double[] rotorCtCpJReferenceShaftTorqueNewtonMeters;
+	private Vec3[] rotorCtCpJReferenceThrustForceBodyNewtons;
+	private Vec3[] rotorCtCpJReferenceReactionTorqueBodyNewtonMeters;
+	private Vec3[] rotorCtCpJReferenceThrustMomentBodyNewtonMeters;
+	private Vec3[] rotorCtCpJReferenceTotalTorqueBodyNewtonMeters;
 	private double[] rotorCtCpJReferenceThrustResidualNewtons;
 	private double[] rotorCtCpJReferenceShaftPowerResidualWatts;
 	private double[] rotorCtCpJReferenceShaftTorqueResidualNewtonMeters;
@@ -297,6 +301,10 @@ public final class DroneState {
 		rotorCtCpJReferenceThrustNewtons = new double[motorCount];
 		rotorCtCpJReferenceShaftPowerWatts = new double[motorCount];
 		rotorCtCpJReferenceShaftTorqueNewtonMeters = new double[motorCount];
+		rotorCtCpJReferenceThrustForceBodyNewtons = new Vec3[motorCount];
+		rotorCtCpJReferenceReactionTorqueBodyNewtonMeters = new Vec3[motorCount];
+		rotorCtCpJReferenceThrustMomentBodyNewtonMeters = new Vec3[motorCount];
+		rotorCtCpJReferenceTotalTorqueBodyNewtonMeters = new Vec3[motorCount];
 		rotorCtCpJReferenceThrustResidualNewtons = new double[motorCount];
 		rotorCtCpJReferenceShaftPowerResidualWatts = new double[motorCount];
 		rotorCtCpJReferenceShaftTorqueResidualNewtonMeters = new double[motorCount];
@@ -359,6 +367,10 @@ public final class DroneState {
 		rotorHealth = new double[motorCount];
 		Arrays.fill(rotorForceBodyNewtons, Vec3.ZERO);
 		Arrays.fill(rotorTorqueBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceThrustForceBodyNewtons, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceReactionTorqueBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceThrustMomentBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceTotalTorqueBodyNewtonMeters, Vec3.ZERO);
 		Arrays.fill(escTemperatureCelsius, 25.0);
 		Arrays.fill(escCoolingFactor, 1.0);
 		Arrays.fill(escThermalLimitByEsc, 1.0);
@@ -1689,6 +1701,42 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferenceShaftTorqueNewtonMeters, rotorCtCpJReferenceShaftTorqueNewtonMeters.length);
 	}
 
+	public Vec3 rotorCtCpJReferenceThrustForceBodyNewtons(int index) {
+		return rotorCtCpJReferenceThrustForceBodyNewtons[index];
+	}
+
+	public Vec3[] rotorCtCpJReferenceThrustForceBodyNewtons() {
+		return Arrays.copyOf(rotorCtCpJReferenceThrustForceBodyNewtons,
+				rotorCtCpJReferenceThrustForceBodyNewtons.length);
+	}
+
+	public Vec3 rotorCtCpJReferenceReactionTorqueBodyNewtonMeters(int index) {
+		return rotorCtCpJReferenceReactionTorqueBodyNewtonMeters[index];
+	}
+
+	public Vec3[] rotorCtCpJReferenceReactionTorqueBodyNewtonMeters() {
+		return Arrays.copyOf(rotorCtCpJReferenceReactionTorqueBodyNewtonMeters,
+				rotorCtCpJReferenceReactionTorqueBodyNewtonMeters.length);
+	}
+
+	public Vec3 rotorCtCpJReferenceThrustMomentBodyNewtonMeters(int index) {
+		return rotorCtCpJReferenceThrustMomentBodyNewtonMeters[index];
+	}
+
+	public Vec3[] rotorCtCpJReferenceThrustMomentBodyNewtonMeters() {
+		return Arrays.copyOf(rotorCtCpJReferenceThrustMomentBodyNewtonMeters,
+				rotorCtCpJReferenceThrustMomentBodyNewtonMeters.length);
+	}
+
+	public Vec3 rotorCtCpJReferenceTotalTorqueBodyNewtonMeters(int index) {
+		return rotorCtCpJReferenceTotalTorqueBodyNewtonMeters[index];
+	}
+
+	public Vec3[] rotorCtCpJReferenceTotalTorqueBodyNewtonMeters() {
+		return Arrays.copyOf(rotorCtCpJReferenceTotalTorqueBodyNewtonMeters,
+				rotorCtCpJReferenceTotalTorqueBodyNewtonMeters.length);
+	}
+
 	public double rotorCtCpJReferenceThrustResidualNewtons(int index) {
 		return rotorCtCpJReferenceThrustResidualNewtons[index];
 	}
@@ -1757,6 +1805,14 @@ public final class DroneState {
 		rotorCtCpJReferenceShaftPowerWatts[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.shaftPowerWatts()));
 		rotorCtCpJReferenceShaftTorqueNewtonMeters[index] =
 				sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.shaftTorqueNewtonMeters()));
+		rotorCtCpJReferenceThrustForceBodyNewtons[index] =
+				sample.blocked() ? Vec3.ZERO : finiteVectorOrZero(sample.thrustForceBodyNewtons());
+		rotorCtCpJReferenceReactionTorqueBodyNewtonMeters[index] =
+				sample.blocked() ? Vec3.ZERO : finiteVectorOrZero(sample.reactionTorqueBodyNewtonMeters());
+		rotorCtCpJReferenceThrustMomentBodyNewtonMeters[index] =
+				sample.blocked() ? Vec3.ZERO : finiteVectorOrZero(sample.thrustMomentBodyNewtonMeters());
+		rotorCtCpJReferenceTotalTorqueBodyNewtonMeters[index] =
+				sample.blocked() ? Vec3.ZERO : finiteVectorOrZero(sample.totalTorqueBodyNewtonMeters());
 	}
 
 	void clearRotorCtCpJReferenceSample(int index) {
@@ -1776,6 +1832,10 @@ public final class DroneState {
 		rotorCtCpJReferenceThrustNewtons[index] = 0.0;
 		rotorCtCpJReferenceShaftPowerWatts[index] = 0.0;
 		rotorCtCpJReferenceShaftTorqueNewtonMeters[index] = 0.0;
+		rotorCtCpJReferenceThrustForceBodyNewtons[index] = Vec3.ZERO;
+		rotorCtCpJReferenceReactionTorqueBodyNewtonMeters[index] = Vec3.ZERO;
+		rotorCtCpJReferenceThrustMomentBodyNewtonMeters[index] = Vec3.ZERO;
+		rotorCtCpJReferenceTotalTorqueBodyNewtonMeters[index] = Vec3.ZERO;
 		rotorCtCpJReferenceThrustResidualNewtons[index] = 0.0;
 		rotorCtCpJReferenceShaftPowerResidualWatts[index] = 0.0;
 		rotorCtCpJReferenceShaftTorqueResidualNewtonMeters[index] = 0.0;
@@ -1879,6 +1939,10 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceThrustNewtons, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftPowerWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftTorqueNewtonMeters, 0.0);
+		Arrays.fill(rotorCtCpJReferenceThrustForceBodyNewtons, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceReactionTorqueBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceThrustMomentBodyNewtonMeters, Vec3.ZERO);
+		Arrays.fill(rotorCtCpJReferenceTotalTorqueBodyNewtonMeters, Vec3.ZERO);
 		Arrays.fill(rotorCtCpJReferenceThrustResidualNewtons, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftPowerResidualWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftTorqueResidualNewtonMeters, 0.0);

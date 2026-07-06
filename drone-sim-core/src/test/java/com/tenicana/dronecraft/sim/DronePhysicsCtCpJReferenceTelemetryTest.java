@@ -84,6 +84,16 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(sample.thrustNewtons(), state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts(), state.rotorCtCpJReferenceShaftPowerWatts(0), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), state.rotorCtCpJReferenceShaftTorqueNewtonMeters(0), 1.0e-18);
+		assertVectorEquals(sample.thrustForceBodyNewtons(),
+				state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-15);
+		assertVectorEquals(sample.reactionTorqueBodyNewtonMeters(),
+				state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters(0), 1.0e-18);
+		assertVectorEquals(sample.thrustMomentBodyNewtonMeters(),
+				state.rotorCtCpJReferenceThrustMomentBodyNewtonMeters(0), 1.0e-18);
+		assertVectorEquals(sample.totalTorqueBodyNewtonMeters(),
+				state.rotorCtCpJReferenceTotalTorqueBodyNewtonMeters(0), 1.0e-18);
+		assertVectorEquals(sample.totalTorqueBodyNewtonMeters(),
+				state.rotorCtCpJReferenceTotalTorqueBodyNewtonMeters()[0], 1.0e-18);
 
 		double torqueDelta = 0.0002;
 		state.setRotorThrustNewtons(0, sample.thrustNewtons() + 0.0125);
@@ -109,6 +119,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceRpm(0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-18);
+		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters(0), 1.0e-18);
+		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceThrustMomentBodyNewtonMeters(0), 1.0e-18);
+		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceTotalTorqueBodyNewtonMeters(0), 1.0e-18);
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustResidualNewtons(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceShaftPowerResidualWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceShaftTorqueResidualNewtonMeters(0), 1.0e-15);
