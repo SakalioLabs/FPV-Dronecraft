@@ -107,6 +107,18 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(0), 1.0e-15);
 		assertEquals(sample.dimensionalSample().shaftPowerResidualFraction(),
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().wakeSwirlKineticPowerWatts(),
+				state.rotorCtCpJReferenceWakeSwirlKineticPowerWatts(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().totalWakeKineticPowerWatts(),
+				state.rotorCtCpJReferenceTotalWakeKineticPowerWatts(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().totalWakeKineticPowerOverShaftPower(),
+				state.rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().wakeSwirlKineticPowerOverShaftPower(),
+				state.rotorCtCpJReferenceWakeSwirlKineticPowerOverShaftPower(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().totalWakeKineticPowerResidualWatts(),
+				state.rotorCtCpJReferenceTotalWakeKineticPowerResidualWatts(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().totalWakeKineticPowerResidualFraction(),
+				state.rotorCtCpJReferenceTotalWakeKineticPowerResidualFraction(0), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), state.rotorCtCpJReferenceShaftTorqueNewtonMeters(0), 1.0e-18);
 		assertVectorEquals(sample.thrustForceBodyNewtons(),
 				state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-15);
@@ -149,6 +161,12 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(0.0, state.rotorCtCpJReferenceIdealMomentumPowerOverShaftPower(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceWakeSwirlKineticPowerWatts(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerWatts(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceWakeSwirlKineticPowerOverShaftPower(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerResidualWatts(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerResidualFraction(0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertEquals(0.0, state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);

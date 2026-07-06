@@ -1219,6 +1219,12 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
 		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_w");
 		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_fraction");
+		appendCtCpJReferenceColumnFamily(builder, "wake_swirl_kinetic_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "total_wake_kinetic_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "total_wake_kinetic_power_over_shaft_power");
+		appendCtCpJReferenceColumnFamily(builder, "wake_swirl_kinetic_power_over_shaft_power");
+		appendCtCpJReferenceColumnFamily(builder, "total_wake_kinetic_power_residual_w");
+		appendCtCpJReferenceColumnFamily(builder, "total_wake_kinetic_power_residual_fraction");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_nm");
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "thrust_force", "n");
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "reaction_torque", "nm");
@@ -4566,6 +4572,18 @@ public final class OfflineFlightRecorder {
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts();
 		double[] rotorCtCpJReferenceIntrinsicPowerResidualFraction =
 				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction();
+		double[] rotorCtCpJReferenceWakeSwirlKineticPower =
+				state.rotorCtCpJReferenceWakeSwirlKineticPowerWatts();
+		double[] rotorCtCpJReferenceTotalWakeKineticPower =
+				state.rotorCtCpJReferenceTotalWakeKineticPowerWatts();
+		double[] rotorCtCpJReferenceTotalWakeOverShaftPower =
+				state.rotorCtCpJReferenceTotalWakeKineticPowerOverShaftPower();
+		double[] rotorCtCpJReferenceWakeSwirlOverShaftPower =
+				state.rotorCtCpJReferenceWakeSwirlKineticPowerOverShaftPower();
+		double[] rotorCtCpJReferenceTotalWakeResidual =
+				state.rotorCtCpJReferenceTotalWakeKineticPowerResidualWatts();
+		double[] rotorCtCpJReferenceTotalWakeResidualFraction =
+				state.rotorCtCpJReferenceTotalWakeKineticPowerResidualFraction();
 		double[] rotorCtCpJReferenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
 		Vec3[] rotorCtCpJReferenceThrustForceBody = state.rotorCtCpJReferenceThrustForceBodyNewtons();
 		Vec3[] rotorCtCpJReferenceReactionTorqueBody = state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters();
@@ -4901,6 +4919,18 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceIntrinsicPowerResidual,
 				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceIntrinsicPowerResidualFraction,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceWakeSwirlKineticPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTotalWakeKineticPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTotalWakeOverShaftPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceWakeSwirlOverShaftPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTotalWakeResidual,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTotalWakeResidualFraction,
 				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorque, rotorCtCpJReferenceAvailable, "%.6f");
 		for (int i = 0; i < 8; i++) {
