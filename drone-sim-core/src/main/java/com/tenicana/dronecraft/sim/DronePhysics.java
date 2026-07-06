@@ -1336,7 +1336,8 @@ public final class DronePhysics {
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
 					aerodynamicOmega,
-					environment.effectiveAmbientTemperatureCelsius()
+					environment.effectiveAmbientTemperatureCelsius(),
+					ambientHumidity
 			);
 			state.setRotorTipMach(i, rotorTipMach);
 			double compressibilityThrustScale = rotorCompressibilityThrustScale(rotorTipMach);
@@ -4348,7 +4349,8 @@ public final class DronePhysics {
 			RotorSpec rotor,
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
-			double ambientTemperatureCelsius
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		double rotationalTipSpeed = rotorTipSpeedMetersPerSecond(rotor, omegaRadiansPerSecond);
 		double transverseSpeed = rotorTransverseSpeed(rotor, relativeAirVelocityBody);
@@ -4359,7 +4361,8 @@ public final class DronePhysics {
 						+ 0.16 * axialSpeed * axialSpeed
 		);
 		return MathUtil.clamp(
-				helicalTipSpeed / Math.max(1.0, DroneEnvironment.speedOfSoundMetersPerSecond(ambientTemperatureCelsius)),
+				helicalTipSpeed / Math.max(1.0,
+						DroneEnvironment.speedOfSoundMetersPerSecond(ambientTemperatureCelsius, ambientHumidity)),
 				0.0,
 				2.0
 		);

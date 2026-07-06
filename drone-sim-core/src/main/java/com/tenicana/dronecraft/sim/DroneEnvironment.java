@@ -67,6 +67,12 @@ public record DroneEnvironment(
 	private static final double STANDARD_PRESSURE_EXPONENT = 5.255;
 	private static final double WATER_VAPOR_DRY_AIR_DENSITY_RELIEF = 0.378;
 	private static final double WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF = 0.26;
+	private static final double DRY_AIR_SPECIFIC_GAS_CONSTANT = 287.05;
+	private static final double WATER_VAPOR_SPECIFIC_GAS_CONSTANT = 461.5;
+	private static final double DRY_AIR_SPECIFIC_HEAT_CP = 1004.675;
+	private static final double WATER_VAPOR_SPECIFIC_HEAT_CP = 1859.0;
+	private static final double DRY_AIR_MOLAR_MASS_KG_PER_MOL = 0.0289652;
+	private static final double WATER_VAPOR_MOLAR_MASS_KG_PER_MOL = 0.01801528;
 	private static final double ZJU_GROUND_EFFECT_G1_METERS_SQUARED = 0.01804;
 	private static final double ZJU_GROUND_EFFECT_G3_METERS = -0.3365;
 	private static final double ZJU_GROUND_EFFECT_G4_METERS_SQUARED = 0.04126;
@@ -707,11 +713,22 @@ public record DroneEnvironment(
 	}
 
 	public static double speedOfSoundMetersPerSecond(double ambientTemperatureCelsius) {
+		return speedOfSoundMetersPerSecond(ambientTemperatureCelsius, 0.0);
+	}
+
+	public static double speedOfSoundMetersPerSecond(double ambientTemperatureCelsius, double humidity) {
 		if (!Double.isFinite(ambientTemperatureCelsius)) {
 			ambientTemperatureCelsius = 25.0;
 		}
 		double temperatureKelvin = MathUtil.clamp(ambientTemperatureCelsius + 273.15, 233.15, 338.15);
-		return Math.sqrt(1.4 * 287.05 * temperatureKelvin);
+		double vaporMoleFraction = moistAirVaporMoleFraction(ambientTemperatureCelsius, humidity);
+		double vaporMassFraction = vaporMassFraction(vaporMoleFraction);
+		double gasConstant = (1.0 - vaporMassFraction) * DRY_AIR_SPECIFIC_GAS_CONSTANT
+				+ vaporMassFraction * WATER_VAPOR_SPECIFIC_GAS_CONSTANT;
+		double specificHeatCp = (1.0 - vaporMassFraction) * DRY_AIR_SPECIFIC_HEAT_CP
+				+ vaporMassFraction * WATER_VAPOR_SPECIFIC_HEAT_CP;
+		double gamma = specificHeatCp / Math.max(1.0e-9, specificHeatCp - gasConstant);
+		return Math.sqrt(gamma * gasConstant * temperatureKelvin);
 	}
 
 	public double effectiveAirDensityRatio() {
@@ -793,10 +810,8 @@ public record DroneEnvironment(
 			return 1.0;
 		}
 
-		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
-		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
-		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
-		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF * vaporPressureFraction * wetness;
+		double densityRelief = WATER_VAPOR_DRY_AIR_DENSITY_RELIEF
+				* moistAirVaporMoleFraction(ambientTemperatureCelsius, wetness);
 		return MathUtil.clamp(1.0 - densityRelief, 0.94, 1.0);
 	}
 
@@ -813,11 +828,34 @@ public record DroneEnvironment(
 			return 1.0;
 		}
 
+		double viscosityRelief = WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF
+				* moistAirVaporMoleFraction(ambientTemperatureCelsius, wetness);
+		return MathUtil.clamp(1.0 - viscosityRelief, 0.92, 1.0);
+	}
+
+	private static double moistAirVaporMoleFraction(double ambientTemperatureCelsius, double humidity) {
+		if (!Double.isFinite(ambientTemperatureCelsius)) {
+			ambientTemperatureCelsius = 25.0;
+		}
+		double wetness = MathUtil.clamp(humidity, 0.0, 1.0);
+		if (wetness <= 1.0e-9) {
+			return 0.0;
+		}
 		double temperatureCelsius = MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0);
 		double saturationVaporPressureHectopascals = saturationVaporPressureHectopascals(temperatureCelsius);
-		double vaporPressureFraction = saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS;
-		double viscosityRelief = WATER_VAPOR_DRY_AIR_VISCOSITY_RELIEF * vaporPressureFraction * wetness;
-		return MathUtil.clamp(1.0 - viscosityRelief, 0.92, 1.0);
+		return MathUtil.clamp(
+				wetness * saturationVaporPressureHectopascals / SEA_LEVEL_PRESSURE_HECTOPASCALS,
+				0.0,
+				0.35
+		);
+	}
+
+	private static double vaporMassFraction(double vaporMoleFraction) {
+		double vapor = MathUtil.clamp(vaporMoleFraction, 0.0, 0.35);
+		double dry = 1.0 - vapor;
+		double vaporMass = vapor * WATER_VAPOR_MOLAR_MASS_KG_PER_MOL;
+		double dryMass = dry * DRY_AIR_MOLAR_MASS_KG_PER_MOL;
+		return vaporMass / Math.max(1.0e-12, vaporMass + dryMass);
 	}
 
 	public double moistAirCoolingMultiplier() {

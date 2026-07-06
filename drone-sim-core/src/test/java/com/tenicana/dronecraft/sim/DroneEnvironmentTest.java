@@ -298,6 +298,19 @@ class DroneEnvironmentTest {
 	}
 
 	@Test
+	void moistAirSpeedOfSoundTracksHumidityAndTemperature() {
+		double dryWarm = DroneEnvironment.speedOfSoundMetersPerSecond(35.0);
+		double dryWarmExplicit = DroneEnvironment.speedOfSoundMetersPerSecond(35.0, 0.0);
+		double humidWarm = DroneEnvironment.speedOfSoundMetersPerSecond(35.0, 1.0);
+		double humidCold = DroneEnvironment.speedOfSoundMetersPerSecond(5.0, 1.0);
+
+		assertEquals(dryWarm, dryWarmExplicit, 1.0e-12);
+		assertTrue(humidWarm > dryWarm);
+		assertTrue(humidWarm < dryWarm * 1.02);
+		assertTrue(humidCold < dryWarm);
+	}
+
+	@Test
 	void weightedSurfaceEffectsUsePartialPatchCoverageGate() {
 		DroneConfig config = DroneConfig.racingQuad();
 		double rotorRadius = config.rotors().get(0).radiusMeters();

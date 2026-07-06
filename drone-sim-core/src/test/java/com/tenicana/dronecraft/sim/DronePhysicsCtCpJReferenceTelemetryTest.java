@@ -244,10 +244,12 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 
 		assertEquals(0.0, dry.ambientHumidity(), 1.0e-15);
 		assertEquals(1.0, humid.ambientHumidity(), 1.0e-15);
-		assertEquals(dry.tipMach(), humid.tipMach(), 1.0e-15);
+		assertTrue(humid.speedOfSoundMetersPerSecond() > dry.speedOfSoundMetersPerSecond());
+		assertTrue(humid.tipMach() < dry.tipMach());
 		assertTrue(humid.dynamicViscosityPascalSeconds() < dry.dynamicViscosityPascalSeconds());
 		assertTrue(humid.reynoldsNumber() > dry.reynoldsNumber());
 		assertTrue(humid.reynoldsIndex() > dry.reynoldsIndex());
+		assertEquals(humid.tipMach(), humidState.rotorCtCpJReferenceTipMach(0), 1.0e-15);
 		assertEquals(humid.reynoldsNumber(), humidState.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
 		assertEquals(humid.reynoldsIndex(), humidState.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
 		assertTrue(humidState.rotorCtCpJReferenceReynoldsNumber(0)

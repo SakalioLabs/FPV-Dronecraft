@@ -1301,7 +1301,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		double humidity = Double.isFinite(ambientHumidity)
 				? MathUtil.clamp(ambientHumidity, 0.0, 1.0)
 				: 0.0;
-		double speedOfSound = DroneEnvironment.speedOfSoundMetersPerSecond(temperature);
+		double speedOfSound = DroneEnvironment.speedOfSoundMetersPerSecond(temperature, humidity);
 		double tipMach = ratio(helicalTipSpeed, speedOfSound);
 		double stationSpeed = Math.sqrt(
 				0.75 * rotationalTipSpeed * 0.75 * rotationalTipSpeed
