@@ -158,6 +158,15 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double idealInducedVelocityMetersPerSecond,
 			double idealMomentumPowerWatts,
 			double idealMomentumPowerOverShaftPower,
+			double diskMassFlowKilogramsPerSecond,
+			double farWakeAxialVelocityMetersPerSecond,
+			double farWakeContractedAreaSquareMeters,
+			double farWakeEquivalentRadiusMeters,
+			double angularMomentumSwirlRadiusMeters,
+			double wakeTangentialVelocityMetersPerSecond,
+			double wakeSwirlKineticPowerWatts,
+			double totalWakeKineticPowerWatts,
+			double totalWakeKineticPowerOverShaftPower,
 			double shaftPowerResidualWatts,
 			double shaftPowerResidualFraction
 	) {
@@ -396,6 +405,15 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
 					0.0
 			);
 		}
@@ -419,6 +437,27 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				? thrust * (Math.max(0.0, advanceSpeed) + inducedVelocity)
 				: 0.0;
 		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
+		double nonnegativeAxialSpeed = Math.max(0.0, advanceSpeed);
+		double diskMassFlow = airDensityKgPerCubicMeter
+				* diskArea
+				* (nonnegativeAxialSpeed + inducedVelocity);
+		double farWakeAxialVelocity = nonnegativeAxialSpeed + 2.0 * inducedVelocity;
+		double farWakeArea = farWakeAxialVelocity > EPSILON
+				? diskMassFlow / (airDensityKgPerCubicMeter * farWakeAxialVelocity)
+				: 0.0;
+		double farWakeRadius = farWakeArea > EPSILON
+				? Math.sqrt(farWakeArea / Math.PI)
+				: 0.0;
+		double swirlRadius = farWakeRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
+		double tangentialWakeVelocity = diskMassFlow > EPSILON && swirlRadius > EPSILON
+				? Math.abs(torque) / (diskMassFlow * swirlRadius)
+				: 0.0;
+		double swirlKineticPower = 0.5
+				* diskMassFlow
+				* tangentialWakeVelocity
+				* tangentialWakeVelocity;
+		double totalWakePower = idealMomentumPower + swirlKineticPower;
+		double totalWakeOverShaft = ratio(totalWakePower, shaftPower);
 		double shaftPowerResidual = shaftPower - idealMomentumPower;
 		double shaftPowerResidualFraction = ratio(shaftPowerResidual, shaftPower);
 		return new RotorDimensionalSample(
@@ -437,6 +476,15 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				inducedVelocity,
 				idealMomentumPower,
 				momentumOverShaft,
+				diskMassFlow,
+				farWakeAxialVelocity,
+				farWakeArea,
+				farWakeRadius,
+				swirlRadius,
+				tangentialWakeVelocity,
+				swirlKineticPower,
+				totalWakePower,
+				totalWakeOverShaft,
 				shaftPowerResidual,
 				shaftPowerResidualFraction
 		);

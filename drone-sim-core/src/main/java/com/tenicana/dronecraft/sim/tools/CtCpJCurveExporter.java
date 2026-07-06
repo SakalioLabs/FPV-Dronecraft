@@ -81,7 +81,16 @@ public final class CtCpJCurveExporter {
 			"reynolds_index",
 			"tip_mach_runtime_margin",
 			"reynolds_index_runtime_margin",
-			"operating_envelope_margin_fraction"
+			"operating_envelope_margin_fraction",
+			"disk_mass_flow_kg_s",
+			"far_wake_axial_velocity_mps",
+			"far_wake_contracted_area_m2",
+			"far_wake_equivalent_radius_m",
+			"angular_momentum_swirl_radius_m",
+			"wake_tangential_velocity_mps",
+			"wake_swirl_kinetic_power_w",
+			"total_wake_kinetic_power_w",
+			"total_wake_kinetic_power_over_shaft_power"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -395,7 +404,16 @@ public final class CtCpJCurveExporter {
 				number(operatingPoint.reynoldsIndex()),
 				number(operatingPoint.runtimeTipMachMargin()),
 				number(operatingPoint.runtimeReynoldsIndexMargin()),
-				number(operatingPoint.runtimeOperatingEnvelopeMarginFraction())
+				number(operatingPoint.runtimeOperatingEnvelopeMarginFraction()),
+				number(sample.diskMassFlowKilogramsPerSecond()),
+				number(sample.farWakeAxialVelocityMetersPerSecond()),
+				number(sample.farWakeContractedAreaSquareMeters()),
+				number(sample.farWakeEquivalentRadiusMeters()),
+				number(sample.angularMomentumSwirlRadiusMeters()),
+				number(sample.wakeTangentialVelocityMetersPerSecond()),
+				number(sample.wakeSwirlKineticPowerWatts()),
+				number(sample.totalWakeKineticPowerWatts()),
+				number(sample.totalWakeKineticPowerOverShaftPower())
 		);
 	}
 
@@ -420,6 +438,15 @@ public final class CtCpJCurveExporter {
 						ambientTemperatureCelsius,
 						ambientHumidity
 				);
+		WakeKineticColumns wake = wakeKineticColumns(
+				sample.airDensityKgPerCubicMeter(),
+				sample.diskAreaSquareMeters(),
+				0.0,
+				sample.idealInducedVelocityMetersPerSecond(),
+				sample.shaftTorqueNewtonMeters(),
+				sample.idealMomentumPowerWatts(),
+				sample.shaftPowerWatts()
+		);
 		return String.join(",",
 				escape(sample.presetName()),
 				escape(sample.caseName()),
@@ -483,7 +510,68 @@ public final class CtCpJCurveExporter {
 				number(operatingPoint.reynoldsIndex()),
 				number(operatingPoint.runtimeTipMachMargin()),
 				number(operatingPoint.runtimeReynoldsIndexMargin()),
-				number(operatingPoint.runtimeOperatingEnvelopeMarginFraction())
+				number(operatingPoint.runtimeOperatingEnvelopeMarginFraction()),
+				number(wake.diskMassFlowKilogramsPerSecond()),
+				number(wake.farWakeAxialVelocityMetersPerSecond()),
+				number(wake.farWakeContractedAreaSquareMeters()),
+				number(wake.farWakeEquivalentRadiusMeters()),
+				number(wake.angularMomentumSwirlRadiusMeters()),
+				number(wake.wakeTangentialVelocityMetersPerSecond()),
+				number(wake.wakeSwirlKineticPowerWatts()),
+				number(wake.totalWakeKineticPowerWatts()),
+				number(wake.totalWakeKineticPowerOverShaftPower())
+		);
+	}
+
+	private record WakeKineticColumns(
+			double diskMassFlowKilogramsPerSecond,
+			double farWakeAxialVelocityMetersPerSecond,
+			double farWakeContractedAreaSquareMeters,
+			double farWakeEquivalentRadiusMeters,
+			double angularMomentumSwirlRadiusMeters,
+			double wakeTangentialVelocityMetersPerSecond,
+			double wakeSwirlKineticPowerWatts,
+			double totalWakeKineticPowerWatts,
+			double totalWakeKineticPowerOverShaftPower
+	) {
+	}
+
+	private static WakeKineticColumns wakeKineticColumns(
+			double airDensityKgPerCubicMeter,
+			double diskAreaSquareMeters,
+			double axialAdvanceSpeedMetersPerSecond,
+			double idealInducedVelocityMetersPerSecond,
+			double shaftTorqueNewtonMeters,
+			double idealMomentumPowerWatts,
+			double shaftPowerWatts
+	) {
+		double nonnegativeAxialSpeed = Math.max(0.0, axialAdvanceSpeedMetersPerSecond);
+		double massFlow = airDensityKgPerCubicMeter
+				* diskAreaSquareMeters
+				* (nonnegativeAxialSpeed + idealInducedVelocityMetersPerSecond);
+		double farWakeVelocity = nonnegativeAxialSpeed + 2.0 * idealInducedVelocityMetersPerSecond;
+		double farWakeArea = farWakeVelocity > 1.0e-12
+				? massFlow / (airDensityKgPerCubicMeter * farWakeVelocity)
+				: 0.0;
+		double farWakeRadius = farWakeArea > 1.0e-12
+				? Math.sqrt(farWakeArea / Math.PI)
+				: 0.0;
+		double swirlRadius = farWakeRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
+		double tangentialWakeVelocity = massFlow > 1.0e-12 && swirlRadius > 1.0e-12
+				? Math.abs(shaftTorqueNewtonMeters) / (massFlow * swirlRadius)
+				: 0.0;
+		double swirlKineticPower = 0.5 * massFlow * tangentialWakeVelocity * tangentialWakeVelocity;
+		double totalWakePower = idealMomentumPowerWatts + swirlKineticPower;
+		return new WakeKineticColumns(
+				massFlow,
+				farWakeVelocity,
+				farWakeArea,
+				farWakeRadius,
+				swirlRadius,
+				tangentialWakeVelocity,
+				swirlKineticPower,
+				totalWakePower,
+				ratio(totalWakePower, shaftPowerWatts)
 		);
 	}
 
@@ -769,5 +857,12 @@ public final class CtCpJCurveExporter {
 
 	private static String number(double value) {
 		return String.format(Locale.ROOT, "%.15g", value);
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= 1.0e-12) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 }

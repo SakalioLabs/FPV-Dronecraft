@@ -35,6 +35,9 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.000172569682049040, sample.shaftTorqueNewtonMeters(), 1.0e-18);
 		assertEquals(0.881858670062071, sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
+		assertWakeMomentumAndSwirlClosure(sample);
+		assertEquals(sample.diskAreaSquareMeters() * 0.5,
+				sample.farWakeContractedAreaSquareMeters(), 1.0e-18);
 	}
 
 	@Test
@@ -73,6 +76,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.shaftPowerResidualFraction(), 1.0e-15);
 		assertTrue(sample.shaftPowerResidualWatts() > 0.0);
 		assertTrue(sample.idealMomentumPowerOverShaftPower() > 0.90);
+		assertWakeMomentumAndSwirlClosure(sample);
+		assertTrue(sample.farWakeContractedAreaSquareMeters() > sample.diskAreaSquareMeters() * 0.5);
+		assertTrue(sample.farWakeContractedAreaSquareMeters() < sample.diskAreaSquareMeters());
+		assertTrue(sample.totalWakeKineticPowerWatts() > sample.idealMomentumPowerWatts());
 
 		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dense =
 				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(
@@ -84,6 +91,14 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				dense.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * 2.0,
 				dense.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.diskMassFlowKilogramsPerSecond() * 2.0,
+				dense.diskMassFlowKilogramsPerSecond(), 1.0e-15);
+		assertEquals(sample.farWakeAxialVelocityMetersPerSecond(),
+				dense.farWakeAxialVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.wakeTangentialVelocityMetersPerSecond(),
+				dense.wakeTangentialVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.wakeSwirlKineticPowerWatts() * 2.0,
+				dense.wakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftPowerResidualWatts() * 2.0,
 				dense.shaftPowerResidualWatts(), 1.0e-15);
 		assertEquals(sample.shaftPowerResidualFraction(),
@@ -103,6 +118,14 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * Math.pow(diameterScale, 5.0),
 				larger.idealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(sample.diskMassFlowKilogramsPerSecond() * Math.pow(diameterScale, 3.0),
+				larger.diskMassFlowKilogramsPerSecond(), 1.0e-15);
+		assertEquals(sample.farWakeAxialVelocityMetersPerSecond() * diameterScale,
+				larger.farWakeAxialVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.farWakeContractedAreaSquareMeters() * diameterScale * diameterScale,
+				larger.farWakeContractedAreaSquareMeters(), 1.0e-17);
+		assertEquals(sample.wakeSwirlKineticPowerWatts() * Math.pow(diameterScale, 5.0),
+				larger.wakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftPowerResidualWatts() * Math.pow(diameterScale, 5.0),
 				larger.shaftPowerResidualWatts(), 1.0e-15);
 		assertEquals(sample.shaftPowerResidualFraction(),
@@ -152,6 +175,9 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.shaftPowerResidualWatts(), 1.0e-15);
 		assertTrue(sample.shaftPowerResidualWatts() < 0.0);
 		assertTrue(sample.shaftPowerResidualFraction() < 0.0);
+		assertWakeMomentumAndSwirlClosure(sample);
+		assertTrue(sample.totalWakeKineticPowerOverShaftPower()
+				> sample.idealMomentumPowerOverShaftPower());
 	}
 
 	@Test
@@ -430,6 +456,55 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				+ expectedAxialMomentumInducedVelocity(sample));
 	}
 
+	private static void assertWakeMomentumAndSwirlClosure(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		double axialSpeed = Math.max(0.0, sample.axialAdvanceSpeedMetersPerSecond());
+		double wakeDelta = sample.farWakeAxialVelocityMetersPerSecond() - axialSpeed;
+		assertEquals(2.0 * sample.idealInducedVelocityMetersPerSecond(), wakeDelta, 1.0e-15);
+		assertEquals(
+				sample.airDensityKgPerCubicMeter()
+						* sample.diskAreaSquareMeters()
+						* (axialSpeed + sample.idealInducedVelocityMetersPerSecond()),
+				sample.diskMassFlowKilogramsPerSecond(),
+				1.0e-15
+		);
+		assertEquals(sample.thrustNewtons(),
+				sample.diskMassFlowKilogramsPerSecond() * wakeDelta, 1.0e-12);
+		assertEquals(
+				0.5 * sample.diskMassFlowKilogramsPerSecond()
+						* (sample.farWakeAxialVelocityMetersPerSecond()
+						* sample.farWakeAxialVelocityMetersPerSecond()
+						- axialSpeed * axialSpeed),
+				sample.idealMomentumPowerWatts(),
+				1.0e-12
+		);
+		assertEquals(
+				sample.farWakeEquivalentRadiusMeters()
+						* RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION,
+				sample.angularMomentumSwirlRadiusMeters(),
+				1.0e-15
+		);
+		assertEquals(
+				Math.abs(sample.shaftTorqueNewtonMeters()),
+				sample.diskMassFlowKilogramsPerSecond()
+						* sample.angularMomentumSwirlRadiusMeters()
+						* sample.wakeTangentialVelocityMetersPerSecond(),
+				1.0e-15
+		);
+		assertEquals(
+				0.5 * sample.diskMassFlowKilogramsPerSecond()
+						* sample.wakeTangentialVelocityMetersPerSecond()
+						* sample.wakeTangentialVelocityMetersPerSecond(),
+				sample.wakeSwirlKineticPowerWatts(),
+				1.0e-15
+		);
+		assertEquals(sample.idealMomentumPowerWatts() + sample.wakeSwirlKineticPowerWatts(),
+				sample.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(sample.totalWakeKineticPowerWatts() / sample.shaftPowerWatts(),
+				sample.totalWakeKineticPowerOverShaftPower(), 1.0e-15);
+	}
+
 	private static void assertFinitePositive(
 			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
 	) {
@@ -442,6 +517,24 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				&& sample.idealInducedVelocityMetersPerSecond() > 0.0);
 		assertTrue(Double.isFinite(sample.idealMomentumPowerOverShaftPower())
 				&& sample.idealMomentumPowerOverShaftPower() > 0.0);
+		assertTrue(Double.isFinite(sample.diskMassFlowKilogramsPerSecond())
+				&& sample.diskMassFlowKilogramsPerSecond() > 0.0);
+		assertTrue(Double.isFinite(sample.farWakeAxialVelocityMetersPerSecond())
+				&& sample.farWakeAxialVelocityMetersPerSecond() > 0.0);
+		assertTrue(Double.isFinite(sample.farWakeContractedAreaSquareMeters())
+				&& sample.farWakeContractedAreaSquareMeters() > 0.0);
+		assertTrue(Double.isFinite(sample.farWakeEquivalentRadiusMeters())
+				&& sample.farWakeEquivalentRadiusMeters() > 0.0);
+		assertTrue(Double.isFinite(sample.angularMomentumSwirlRadiusMeters())
+				&& sample.angularMomentumSwirlRadiusMeters() > 0.0);
+		assertTrue(Double.isFinite(sample.wakeTangentialVelocityMetersPerSecond())
+				&& sample.wakeTangentialVelocityMetersPerSecond() > 0.0);
+		assertTrue(Double.isFinite(sample.wakeSwirlKineticPowerWatts())
+				&& sample.wakeSwirlKineticPowerWatts() > 0.0);
+		assertTrue(Double.isFinite(sample.totalWakeKineticPowerWatts())
+				&& sample.totalWakeKineticPowerWatts() > 0.0);
+		assertTrue(Double.isFinite(sample.totalWakeKineticPowerOverShaftPower())
+				&& sample.totalWakeKineticPowerOverShaftPower() > 0.0);
 		assertTrue(Double.isFinite(sample.shaftPowerResidualWatts()));
 		assertTrue(Double.isFinite(sample.shaftPowerResidualFraction()));
 	}
