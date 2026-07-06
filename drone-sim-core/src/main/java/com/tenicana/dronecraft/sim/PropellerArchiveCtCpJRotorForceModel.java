@@ -250,6 +250,13 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double totalThrustNewtons,
 			double totalShaftPowerWatts,
 			double totalShaftTorqueNewtonMeters,
+			Vec3 runtimeForceReplacementThrustForceBodyNewtons,
+			Vec3 runtimeForceReplacementReactionTorqueBodyNewtonMeters,
+			Vec3 runtimeForceReplacementThrustMomentBodyNewtonMeters,
+			Vec3 runtimeForceReplacementTotalBodyTorqueNewtonMeters,
+			double runtimeForceReplacementThrustNewtons,
+			double runtimeForceReplacementShaftPowerWatts,
+			double runtimeForceReplacementShaftTorqueNewtonMeters,
 			int acceptedRotorCount,
 			int runtimeForceReplacementAcceptedRotorCount,
 			int blockedRotorCount,
@@ -264,6 +271,18 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			totalThrustNewtons = finiteNonnegative(totalThrustNewtons);
 			totalShaftPowerWatts = finiteNonnegative(totalShaftPowerWatts);
 			totalShaftTorqueNewtonMeters = finiteNonnegative(totalShaftTorqueNewtonMeters);
+			runtimeForceReplacementThrustForceBodyNewtons =
+					finiteVecOrZero(runtimeForceReplacementThrustForceBodyNewtons);
+			runtimeForceReplacementReactionTorqueBodyNewtonMeters =
+					finiteVecOrZero(runtimeForceReplacementReactionTorqueBodyNewtonMeters);
+			runtimeForceReplacementThrustMomentBodyNewtonMeters =
+					finiteVecOrZero(runtimeForceReplacementThrustMomentBodyNewtonMeters);
+			runtimeForceReplacementTotalBodyTorqueNewtonMeters =
+					finiteVecOrZero(runtimeForceReplacementTotalBodyTorqueNewtonMeters);
+			runtimeForceReplacementThrustNewtons = finiteNonnegative(runtimeForceReplacementThrustNewtons);
+			runtimeForceReplacementShaftPowerWatts = finiteNonnegative(runtimeForceReplacementShaftPowerWatts);
+			runtimeForceReplacementShaftTorqueNewtonMeters =
+					finiteNonnegative(runtimeForceReplacementShaftTorqueNewtonMeters);
 			acceptedRotorCount = Math.max(0, acceptedRotorCount);
 			runtimeForceReplacementAcceptedRotorCount = Math.max(0, runtimeForceReplacementAcceptedRotorCount);
 			blockedRotorCount = Math.max(0, blockedRotorCount);
@@ -985,6 +1004,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	public static RotorForceAggregateSample aggregate(List<RotorForceSample> samples) {
 		if (samples == null || samples.isEmpty()) {
 			return new RotorForceAggregateSample(List.of(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
+					0.0, 0.0, 0.0, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
 					0.0, 0.0, 0.0, 0, 0, 0, 0);
 		}
 		List<RotorForceSample> acceptedSamples = new ArrayList<>();
@@ -992,9 +1012,16 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		Vec3 totalReactionTorque = Vec3.ZERO;
 		Vec3 totalThrustMoment = Vec3.ZERO;
 		Vec3 totalBodyTorque = Vec3.ZERO;
+		Vec3 runtimeForceReplacementForce = Vec3.ZERO;
+		Vec3 runtimeForceReplacementReactionTorque = Vec3.ZERO;
+		Vec3 runtimeForceReplacementThrustMoment = Vec3.ZERO;
+		Vec3 runtimeForceReplacementBodyTorque = Vec3.ZERO;
 		double totalThrust = 0.0;
 		double totalPower = 0.0;
 		double totalShaftTorque = 0.0;
+		double runtimeForceReplacementThrust = 0.0;
+		double runtimeForceReplacementPower = 0.0;
+		double runtimeForceReplacementShaftTorque = 0.0;
 		int accepted = 0;
 		int runtimeForceReplacementAccepted = 0;
 		int blocked = 0;
@@ -1018,6 +1045,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			}
 			if (sample.runtimeForceReplacementAccepted()) {
 				runtimeForceReplacementAccepted++;
+				runtimeForceReplacementForce =
+						runtimeForceReplacementForce.add(sample.thrustForceBodyNewtons());
+				runtimeForceReplacementReactionTorque =
+						runtimeForceReplacementReactionTorque.add(sample.reactionTorqueBodyNewtonMeters());
+				runtimeForceReplacementThrustMoment =
+						runtimeForceReplacementThrustMoment.add(sample.thrustMomentBodyNewtonMeters());
+				runtimeForceReplacementBodyTorque =
+						runtimeForceReplacementBodyTorque.add(sample.totalTorqueBodyNewtonMeters());
+				runtimeForceReplacementThrust += sample.thrustNewtons();
+				runtimeForceReplacementPower += sample.shaftPowerWatts();
+				runtimeForceReplacementShaftTorque += sample.shaftTorqueNewtonMeters();
 			}
 			if (sample.clamped()) {
 				clamped++;
@@ -1032,6 +1070,13 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				totalThrust,
 				totalPower,
 				totalShaftTorque,
+				runtimeForceReplacementForce,
+				runtimeForceReplacementReactionTorque,
+				runtimeForceReplacementThrustMoment,
+				runtimeForceReplacementBodyTorque,
+				runtimeForceReplacementThrust,
+				runtimeForceReplacementPower,
+				runtimeForceReplacementShaftTorque,
 				accepted,
 				runtimeForceReplacementAccepted,
 				blocked,

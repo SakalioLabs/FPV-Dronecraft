@@ -401,6 +401,18 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(Vec3.ZERO, aggregate.totalReactionTorqueBodyNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
+		assertVectorEquals(aggregate.totalThrustForceBodyNewtons(),
+				aggregate.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(aggregate.totalReactionTorqueBodyNewtonMeters(),
+				aggregate.runtimeForceReplacementReactionTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(aggregate.totalThrustMomentBodyNewtonMeters(),
+				aggregate.runtimeForceReplacementThrustMomentBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(aggregate.totalBodyTorqueNewtonMeters(),
+				aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(aggregate.totalThrustNewtons(), aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-12);
+		assertEquals(aggregate.totalShaftPowerWatts(), aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalShaftTorqueNewtonMeters(),
+				aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
 		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
 		assertTrue(aggregate.totalShaftTorqueNewtonMeters() > 0.0);
 	}
@@ -452,6 +464,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(hot.rotorSamples().get(0).runtimeOperatingPointEnvelopeSatisfied());
 		assertTrue(hot.rotorSamples().get(0).operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
 		assertEquals(standard.totalThrustNewtons(), hot.totalThrustNewtons(), 1.0e-12);
+		assertEquals(standard.totalThrustNewtons(), standard.runtimeForceReplacementThrustNewtons(), 1.0e-12);
+		assertEquals(standard.totalShaftPowerWatts(), standard.runtimeForceReplacementShaftPowerWatts(), 1.0e-12);
+		assertEquals(0.0, hot.runtimeForceReplacementThrustNewtons(), 1.0e-15);
+		assertEquals(0.0, hot.runtimeForceReplacementShaftPowerWatts(), 1.0e-15);
+		assertEquals(0.0, hot.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, hot.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, hot.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-15);
 		assertTrue(hot.totalShaftPowerWatts() > 0.0);
 		assertTrue(hot.totalBodyTorqueNewtonMeters().isFinite());
 	}
@@ -506,6 +525,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(Vec3.ZERO, aggregate.totalReactionTorqueBodyNewtonMeters(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.runtimeForceReplacementReactionTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.runtimeForceReplacementThrustMomentBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
 		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
 	}
 
@@ -533,6 +559,49 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(1, aggregate.blockedRotorCount());
 		assertEquals(0.0, aggregate.totalThrustNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-15);
+		assertEquals(0.0, aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-15);
+	}
+
+	@Test
+	void aggregateSeparatesRuntimeAcceptedSubsetTotals() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample accepted =
+				sampleReferenceCase(rotor, "mid_domain_mid_rpm");
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample referenceOnly =
+				sampleReferenceCase(rotor, "high_domain_max_rpm");
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				PropellerArchiveCtCpJRotorForceModel.aggregate(List.of(accepted, referenceOnly));
+
+		assertTrue(accepted.runtimeForceReplacementAccepted());
+		assertFalse(referenceOnly.blocked());
+		assertFalse(referenceOnly.runtimeForceReplacementAccepted());
+		assertEquals(2, aggregate.acceptedRotorCount());
+		assertEquals(1, aggregate.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(0, aggregate.blockedRotorCount());
+		assertEquals(accepted.thrustNewtons() + referenceOnly.thrustNewtons(),
+				aggregate.totalThrustNewtons(), 1.0e-12);
+		assertEquals(accepted.shaftPowerWatts() + referenceOnly.shaftPowerWatts(),
+				aggregate.totalShaftPowerWatts(), 1.0e-12);
+		assertEquals(accepted.shaftTorqueNewtonMeters() + referenceOnly.shaftTorqueNewtonMeters(),
+				aggregate.totalShaftTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(accepted.thrustNewtons(), aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-12);
+		assertEquals(accepted.shaftPowerWatts(), aggregate.runtimeForceReplacementShaftPowerWatts(), 1.0e-12);
+		assertEquals(accepted.shaftTorqueNewtonMeters(),
+				aggregate.runtimeForceReplacementShaftTorqueNewtonMeters(), 1.0e-15);
+		assertVectorEquals(accepted.thrustForceBodyNewtons(),
+				aggregate.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(accepted.reactionTorqueBodyNewtonMeters(),
+				aggregate.runtimeForceReplacementReactionTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(accepted.thrustMomentBodyNewtonMeters(),
+				aggregate.runtimeForceReplacementThrustMomentBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(accepted.totalTorqueBodyNewtonMeters(),
+				aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters(), 1.0e-15);
+		assertTrue(aggregate.totalThrustNewtons() > aggregate.runtimeForceReplacementThrustNewtons());
+		assertTrue(aggregate.totalShaftPowerWatts() > aggregate.runtimeForceReplacementShaftPowerWatts());
 	}
 
 	@Test
