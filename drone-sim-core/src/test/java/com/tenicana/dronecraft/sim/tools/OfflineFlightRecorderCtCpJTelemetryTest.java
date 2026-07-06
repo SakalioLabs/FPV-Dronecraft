@@ -557,6 +557,26 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceTorqueVectorResidualNewtonMeters()));
 		assertTrue(report.maxCtCpJReferenceTorqueVectorResidualNewtonMeters()
 				>= report.meanCtCpJReferenceTorqueVectorResidualNewtonMeters());
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons()));
+		assertTrue(report.maxCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons()
+				>= report.meanCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons());
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceRuntimeAppliedAbsPowerResidualWatts()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedAbsPowerResidualWatts()));
+		assertTrue(report.maxCtCpJReferenceRuntimeAppliedAbsPowerResidualWatts()
+				>= report.meanCtCpJReferenceRuntimeAppliedAbsPowerResidualWatts());
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceRuntimeAppliedAbsTorqueResidualNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedAbsTorqueResidualNewtonMeters()));
+		assertTrue(report.maxCtCpJReferenceRuntimeAppliedAbsTorqueResidualNewtonMeters()
+				>= report.meanCtCpJReferenceRuntimeAppliedAbsTorqueResidualNewtonMeters());
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceRuntimeAppliedForceVectorResidualNewtons()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedForceVectorResidualNewtons()));
+		assertTrue(report.maxCtCpJReferenceRuntimeAppliedForceVectorResidualNewtons()
+				>= report.meanCtCpJReferenceRuntimeAppliedForceVectorResidualNewtons());
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters()));
+		assertTrue(report.maxCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters()
+				>= report.meanCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters());
 		assertTrue(report.ctCpJStaticReferenceRotorSampleCount() > 0);
 		assertTrue(Double.isFinite(report.meanCtCpJStaticReferenceAbsThrustResidualNewtons()));
 		assertTrue(Double.isFinite(report.maxCtCpJStaticReferenceAbsThrustResidualNewtons()));
