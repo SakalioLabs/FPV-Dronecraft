@@ -141,18 +141,24 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public RotorOperatingPoint operatingPoint(double ambientTemperatureCelsius) {
+			return operatingPoint(ambientTemperatureCelsius, 0.0);
+		}
+
+		public RotorOperatingPoint operatingPoint(double ambientTemperatureCelsius, double ambientHumidity) {
 			return PropellerArchiveCtCpJRotorForceModel.operatingPoint(
 					query.rotor(),
 					relativeAirVelocityBodyMetersPerSecond,
 					dimensionalSample.angularVelocityRadiansPerSecond(),
 					query.airDensityKgPerCubicMeter(),
-					ambientTemperatureCelsius
+					ambientTemperatureCelsius,
+					ambientHumidity
 			);
 		}
 	}
 
 	public record RotorOperatingPoint(
 			double ambientTemperatureCelsius,
+			double ambientHumidity,
 			double airDensityKgPerCubicMeter,
 			double dynamicViscosityPascalSeconds,
 			double speedOfSoundMetersPerSecond,
@@ -168,6 +174,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			ambientTemperatureCelsius = Double.isFinite(ambientTemperatureCelsius)
 					? MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0)
 					: STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS;
+			ambientHumidity = Double.isFinite(ambientHumidity)
+					? MathUtil.clamp(ambientHumidity, 0.0, 1.0)
+					: 0.0;
 			airDensityKgPerCubicMeter = finiteNonnegative(airDensityKgPerCubicMeter);
 			dynamicViscosityPascalSeconds = finiteNonnegative(dynamicViscosityPascalSeconds);
 			speedOfSoundMetersPerSecond = finiteNonnegative(speedOfSoundMetersPerSecond);
@@ -900,6 +909,24 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double airDensityKgPerCubicMeter,
 			double ambientTemperatureCelsius
 	) {
+		return operatingPoint(
+				rotor,
+				relativeAirVelocityBodyMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				0.0
+		);
+	}
+
+	public static RotorOperatingPoint operatingPoint(
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		if (rotor == null) {
 			throw new IllegalArgumentException("rotor must not be null.");
 		}
@@ -918,6 +945,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		double temperature = Double.isFinite(ambientTemperatureCelsius)
 				? MathUtil.clamp(ambientTemperatureCelsius, -40.0, 65.0)
 				: STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS;
+		double humidity = Double.isFinite(ambientHumidity)
+				? MathUtil.clamp(ambientHumidity, 0.0, 1.0)
+				: 0.0;
 		double speedOfSound = DroneEnvironment.speedOfSoundMetersPerSecond(temperature);
 		double tipMach = ratio(helicalTipSpeed, speedOfSound);
 		double stationSpeed = Math.sqrt(
@@ -926,7 +956,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 						+ 0.16 * axialSpeed * axialSpeed
 		);
 		double chord = rotor.representativeBladeChordMeters();
-		double dynamicViscosity = airDynamicViscosityPascalSeconds(temperature);
+		double dynamicViscosity = airDynamicViscosityPascalSeconds(temperature, humidity);
 		double reynolds = dynamicViscosity > EPSILON
 				? finiteNonnegative(airDensityKgPerCubicMeter) * stationSpeed * chord / dynamicViscosity
 				: 0.0;
@@ -946,6 +976,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				* MathUtil.clamp(stationSpeed / 34.0, 0.0, 2.8);
 		return new RotorOperatingPoint(
 				temperature,
+				humidity,
 				airDensityKgPerCubicMeter,
 				dynamicViscosity,
 				speedOfSound,
@@ -960,12 +991,26 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	}
 
 	private static double airDynamicViscosityPascalSeconds(double ambientTemperatureCelsius) {
+		return airDynamicViscosityPascalSeconds(ambientTemperatureCelsius, 0.0);
+	}
+
+	private static double airDynamicViscosityPascalSeconds(
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		double temperatureKelvin = MathUtil.clamp(ambientTemperatureCelsius + 273.15, 233.15, 338.15);
 		double ratio = Math.pow(temperatureKelvin / REFERENCE_AIR_TEMPERATURE_KELVIN, 1.5)
 				* (REFERENCE_AIR_TEMPERATURE_KELVIN + AIR_SUTHERLAND_CONSTANT_KELVIN)
 				/ (temperatureKelvin + AIR_SUTHERLAND_CONSTANT_KELVIN);
 		return REFERENCE_AIR_DYNAMIC_VISCOSITY_PASCAL_SECONDS
-				* MathUtil.clamp(ratio, 0.64, 1.20);
+				* MathUtil.clamp(
+						ratio * DroneEnvironment.moistAirDynamicViscosityMultiplier(
+								ambientTemperatureCelsius,
+								ambientHumidity
+						),
+						0.64,
+						1.20
+				);
 	}
 
 	private static double ratio(double numerator, double denominator) {

@@ -98,6 +98,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(sample.shaftTorqueNewtonMeters() > 0.0);
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
 				sample.standardOperatingPoint();
+		assertEquals(0.0, operatingPoint.ambientHumidity(), 1.0e-15);
 		assertEquals(omega * rotor.radiusMeters(),
 				operatingPoint.rotationalTipSpeedMetersPerSecond(), 1.0e-12);
 		assertTrue(operatingPoint.helicalTipSpeedMetersPerSecond()

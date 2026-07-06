@@ -214,6 +214,49 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void referenceOperatingPointTelemetryUsesAmbientHumidity() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+
+		assertNotNull(sample);
+		DroneState dryState = new DroneState(1);
+		DroneState humidState = new DroneState(1);
+		dryState.setRotorCtCpJReferenceSample(0, sample, 55.0, 0.0);
+		humidState.setRotorCtCpJReferenceSample(0, sample, 55.0, 1.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint dry =
+				sample.operatingPoint(55.0, 0.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint humid =
+				sample.operatingPoint(55.0, 1.0);
+
+		assertEquals(0.0, dry.ambientHumidity(), 1.0e-15);
+		assertEquals(1.0, humid.ambientHumidity(), 1.0e-15);
+		assertEquals(dry.tipMach(), humid.tipMach(), 1.0e-15);
+		assertTrue(humid.dynamicViscosityPascalSeconds() < dry.dynamicViscosityPascalSeconds());
+		assertTrue(humid.reynoldsNumber() > dry.reynoldsNumber());
+		assertTrue(humid.reynoldsIndex() > dry.reynoldsIndex());
+		assertEquals(humid.reynoldsNumber(), humidState.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
+		assertEquals(humid.reynoldsIndex(), humidState.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+		assertTrue(humidState.rotorCtCpJReferenceReynoldsNumber(0)
+				> dryState.rotorCtCpJReferenceReynoldsNumber(0));
+		assertTrue(humidState.rotorCtCpJReferenceReynoldsIndex(0)
+				> dryState.rotorCtCpJReferenceReynoldsIndex(0));
+	}
+
+	@Test
 	void runtimeReferenceOperatingPointTelemetryFollowsEnvironmentTemperature() {
 		DronePhysics cold = new DronePhysics(DroneConfig.apDrone());
 		DronePhysics hot = new DronePhysics(DroneConfig.apDrone());
@@ -236,6 +279,29 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				< cold.state().rotorCtCpJReferenceReynoldsNumber(0));
 		assertTrue(hot.state().rotorCtCpJReferenceReynoldsIndex(0)
 				< cold.state().rotorCtCpJReferenceReynoldsIndex(0));
+	}
+
+	@Test
+	void runtimeReferenceOperatingPointTelemetryFollowsEnvironmentHumidity() {
+		DronePhysics dry = new DronePhysics(DroneConfig.apDrone());
+		DronePhysics humid = new DronePhysics(DroneConfig.apDrone());
+		DroneInput input = new DroneInput(0.62, 0.0, 0.0, 0.0, true, FlightMode.ACRO);
+
+		for (int i = 0; i < 16; i++) {
+			dry.step(input, 0.010, stillAirAtTemperatureAndHumidity(55.0, 0.0));
+			humid.step(input, 0.010, stillAirAtTemperatureAndHumidity(55.0, 1.0));
+		}
+
+		assertTrue(dry.state().rotorCtCpJReferenceAvailable(0)
+				|| dry.state().rotorCtCpJReferenceBlocked(0));
+		assertTrue(humid.state().rotorCtCpJReferenceAvailable(0)
+				|| humid.state().rotorCtCpJReferenceBlocked(0));
+		assertTrue(dry.state().rotorCtCpJReferenceReynoldsNumber(0) > 0.0);
+		assertTrue(humid.state().rotorCtCpJReferenceReynoldsNumber(0) > 0.0);
+		assertTrue(Math.abs(humid.state().rotorCtCpJReferenceReynoldsNumber(0)
+				- dry.state().rotorCtCpJReferenceReynoldsNumber(0)) > 1.0);
+		assertTrue(Math.abs(humid.state().rotorCtCpJReferenceReynoldsIndex(0)
+				- dry.state().rotorCtCpJReferenceReynoldsIndex(0)) > 1.0e-4);
 	}
 
 	@Test
@@ -889,6 +955,13 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	private static DroneEnvironment stillAirAtTemperature(double ambientTemperatureCelsius) {
+		return stillAirAtTemperatureAndHumidity(ambientTemperatureCelsius, 0.0);
+	}
+
+	private static DroneEnvironment stillAirAtTemperatureAndHumidity(
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		return new DroneEnvironment(
 				Vec3.ZERO,
 				1.0,
@@ -902,8 +975,32 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				null,
 				null,
 				0.0,
+				null,
 				0.0,
-				ambientTemperatureCelsius
+				ambientTemperatureCelsius,
+				null,
+				null,
+				DroneEnvironment.WIND_SOURCE_ENVIRONMENT_OVERRIDE,
+				true,
+				1.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				DroneEnvironment.WIND_SOURCE_LEVEL_NONE,
+				DroneEnvironment.WIND_SOURCE_AUTHORITY_NONE,
+				-1L,
+				0.0,
+				0.0,
+				0.0,
+				false,
+				0.0,
+				true,
+				ambientHumidity,
+				0.0,
+				0.0
 		);
 	}
 

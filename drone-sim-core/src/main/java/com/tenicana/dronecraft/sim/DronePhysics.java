@@ -1310,7 +1310,8 @@ public final class DronePhysics {
 			state.setRotorCtCpJReferenceSample(
 					i,
 					ctCpJReferenceSample,
-					environment.effectiveAmbientTemperatureCelsius()
+					environment.effectiveAmbientTemperatureCelsius(),
+					ambientHumidity
 			);
 			state.setRotorPropellerAdvanceRatioJ(i, rotorCtCpJRuntimePropellerAdvanceRatioJ(
 					ctCpJReferenceSample,
