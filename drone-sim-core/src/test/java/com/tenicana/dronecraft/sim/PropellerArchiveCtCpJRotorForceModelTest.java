@@ -115,6 +115,80 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void positiveAxialAdvanceSamplerUsesAmbientOperatingEnvelope() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		double axialAdvanceSpeed = reference.advanceRatioJ() * reference.rpm() / 60.0
+				* rotor.radiusMeters() * 2.0;
+		double thinAirDensity = RHO * 0.60;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample standard =
+				PropellerArchiveCtCpJRotorForceModel.sampleFromAxialAdvanceSpeed(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor,
+						axialAdvanceSpeed,
+						omega,
+						thinAirDensity,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						25.0,
+						0.0
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample hot =
+				PropellerArchiveCtCpJRotorForceModel.sampleFromAxialAdvanceSpeed(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor,
+						axialAdvanceSpeed,
+						omega,
+						thinAirDensity,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						65.0,
+						0.0
+				);
+
+		assertFalse(standard.blocked());
+		assertFalse(hot.blocked());
+		assertTrue(standard.momentumPowerClosureSatisfied());
+		assertTrue(hot.momentumPowerClosureSatisfied());
+		assertTrue(standard.runtimeInflowEnvelopeSatisfied());
+		assertTrue(hot.runtimeInflowEnvelopeSatisfied());
+		assertEquals(25.0, standard.query().ambientTemperatureCelsius(), 1.0e-12);
+		assertEquals(65.0, hot.query().ambientTemperatureCelsius(), 1.0e-12);
+		assertTrue(standard.operatingPoint(25.0, 0.0).reynoldsIndex() > 0.52);
+		assertTrue(hot.operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
+		assertTrue(standard.runtimeForceReplacementAccepted());
+		assertFalse(hot.runtimeForceReplacementAccepted());
+		assertEquals(standard.thrustNewtons(), hot.thrustNewtons(), 1.0e-12);
+		assertEquals(standard.shaftPowerWatts(), hot.shaftPowerWatts(), 1.0e-12);
+		assertEquals(standard.shaftTorqueNewtonMeters(), hot.shaftTorqueNewtonMeters(), 1.0e-15);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample staticAnchoredHot =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromAxialAdvanceSpeed(
+						"apDrone",
+						"positive_axial_static_ambient",
+						rotor,
+						axialAdvanceSpeed,
+						omega,
+						thinAirDensity,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						65.0,
+						0.0
+				);
+		assertFalse(staticAnchoredHot.blocked());
+		assertEquals(65.0, staticAnchoredHot.query().ambientTemperatureCelsius(), 1.0e-12);
+		assertEquals(reference.advanceRatioJ(), staticAnchoredHot.query().advanceRatioJ(), 1.0e-12);
+		assertFalse(staticAnchoredHot.runtimeOperatingPointEnvelopeSatisfied());
+	}
+
+	@Test
 	void runtimeReplacementRejectsOperatingPointsOutsideMachOrReynoldsEnvelope() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);

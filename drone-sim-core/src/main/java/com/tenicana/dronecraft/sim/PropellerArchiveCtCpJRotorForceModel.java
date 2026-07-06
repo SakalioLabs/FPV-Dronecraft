@@ -806,8 +806,34 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				axialAdvanceSpeedMetersPerSecond,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceSample sampleFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		return sampleFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
 				Vec3.ZERO,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -821,6 +847,32 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 momentReferenceBodyMeters,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				momentReferenceBodyMeters,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceSample sampleFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		return sample(queryFromAxialAdvanceSpeed(
 				presetName,
 				caseName,
@@ -828,7 +880,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				axialAdvanceSpeedMetersPerSecond,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		), momentReferenceBodyMeters);
 	}
 
@@ -848,8 +902,34 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				axialAdvanceSpeedMetersPerSecond,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		return sampleStaticAnchoredFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
 				Vec3.ZERO,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -863,6 +943,32 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 momentReferenceBodyMeters,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
+		return sampleStaticAnchoredFromAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				axialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				momentReferenceBodyMeters,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceSample sampleStaticAnchoredFromAxialAdvanceSpeed(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double axialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceBodyMeters,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
 		return sampleStaticAnchored(queryFromAxialAdvanceSpeed(
 				presetName,
 				caseName,
@@ -870,7 +976,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				axialAdvanceSpeedMetersPerSecond,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
-				envelopePolicy
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		), momentReferenceBodyMeters);
 	}
 
