@@ -123,6 +123,9 @@ public final class DroneState {
 	private double[] rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter;
 	private double[] rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond;
 	private double[] rotorCtCpJReferenceIdealMomentumPowerWatts;
+	private double[] rotorCtCpJReferenceUsefulAxialThrustPowerWatts;
+	private double[] rotorCtCpJReferenceIdealInducedPowerWatts;
+	private double[] rotorCtCpJReferenceAxialPropulsiveEfficiency;
 	private double[] rotorCtCpJReferenceIdealMomentumPowerOverShaftPower;
 	private double[] rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts;
 	private double[] rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction;
@@ -347,6 +350,9 @@ public final class DroneState {
 		rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter = new double[motorCount];
 		rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond = new double[motorCount];
 		rotorCtCpJReferenceIdealMomentumPowerWatts = new double[motorCount];
+		rotorCtCpJReferenceUsefulAxialThrustPowerWatts = new double[motorCount];
+		rotorCtCpJReferenceIdealInducedPowerWatts = new double[motorCount];
+		rotorCtCpJReferenceAxialPropulsiveEfficiency = new double[motorCount];
 		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower = new double[motorCount];
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts = new double[motorCount];
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction = new double[motorCount];
@@ -1909,6 +1915,36 @@ public final class DroneState {
 				rotorCtCpJReferenceIdealMomentumPowerWatts.length);
 	}
 
+	public double rotorCtCpJReferenceUsefulAxialThrustPowerWatts(int index) {
+		return rotorCtCpJReferenceUsefulAxialThrustPowerWatts[index];
+	}
+
+	public double[] rotorCtCpJReferenceUsefulAxialThrustPowerWatts() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceUsefulAxialThrustPowerWatts,
+				rotorCtCpJReferenceUsefulAxialThrustPowerWatts.length);
+	}
+
+	public double rotorCtCpJReferenceIdealInducedPowerWatts(int index) {
+		return rotorCtCpJReferenceIdealInducedPowerWatts[index];
+	}
+
+	public double[] rotorCtCpJReferenceIdealInducedPowerWatts() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceIdealInducedPowerWatts,
+				rotorCtCpJReferenceIdealInducedPowerWatts.length);
+	}
+
+	public double rotorCtCpJReferenceAxialPropulsiveEfficiency(int index) {
+		return rotorCtCpJReferenceAxialPropulsiveEfficiency[index];
+	}
+
+	public double[] rotorCtCpJReferenceAxialPropulsiveEfficiency() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceAxialPropulsiveEfficiency,
+				rotorCtCpJReferenceAxialPropulsiveEfficiency.length);
+	}
+
 	public double rotorCtCpJReferenceIdealMomentumPowerOverShaftPower(int index) {
 		return rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index];
 	}
@@ -2222,6 +2258,15 @@ public final class DroneState {
 		rotorCtCpJReferenceIdealMomentumPowerWatts[index] =
 				sample.blocked() ? 0.0 : Math.max(0.0,
 						finiteOrZero(sample.dimensionalSample().idealMomentumPowerWatts()));
+		rotorCtCpJReferenceUsefulAxialThrustPowerWatts[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().usefulAxialThrustPowerWatts()));
+		rotorCtCpJReferenceIdealInducedPowerWatts[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().idealInducedPowerWatts()));
+		rotorCtCpJReferenceAxialPropulsiveEfficiency[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().axialPropulsiveEfficiency()));
 		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index] =
 				sample.blocked() ? 0.0 : Math.max(0.0,
 						finiteOrZero(sample.dimensionalSample().idealMomentumPowerOverShaftPower()));
@@ -2308,6 +2353,9 @@ public final class DroneState {
 		rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter[index] = 0.0;
 		rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond[index] = 0.0;
 		rotorCtCpJReferenceIdealMomentumPowerWatts[index] = 0.0;
+		rotorCtCpJReferenceUsefulAxialThrustPowerWatts[index] = 0.0;
+		rotorCtCpJReferenceIdealInducedPowerWatts[index] = 0.0;
+		rotorCtCpJReferenceAxialPropulsiveEfficiency[index] = 0.0;
 		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index] = 0.0;
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts[index] = 0.0;
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction[index] = 0.0;
@@ -2445,6 +2493,9 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIdealMomentumPowerWatts, 0.0);
+		Arrays.fill(rotorCtCpJReferenceUsefulAxialThrustPowerWatts, 0.0);
+		Arrays.fill(rotorCtCpJReferenceIdealInducedPowerWatts, 0.0);
+		Arrays.fill(rotorCtCpJReferenceAxialPropulsiveEfficiency, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIdealMomentumPowerOverShaftPower, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction, 0.0);

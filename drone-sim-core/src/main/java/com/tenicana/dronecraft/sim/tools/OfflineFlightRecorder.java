@@ -1216,6 +1216,9 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "disk_loading_n_m2");
 		appendCtCpJReferenceColumnFamily(builder, "ideal_induced_velocity_mps");
 		appendCtCpJReferenceColumnFamily(builder, "ideal_momentum_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "useful_axial_thrust_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "ideal_induced_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "axial_propulsive_efficiency");
 		appendCtCpJReferenceColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
 		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_w");
 		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_fraction");
@@ -4572,6 +4575,12 @@ public final class OfflineFlightRecorder {
 				state.rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond();
 		double[] rotorCtCpJReferenceIdealMomentumPower =
 				state.rotorCtCpJReferenceIdealMomentumPowerWatts();
+		double[] rotorCtCpJReferenceUsefulAxialThrustPower =
+				state.rotorCtCpJReferenceUsefulAxialThrustPowerWatts();
+		double[] rotorCtCpJReferenceIdealInducedPower =
+				state.rotorCtCpJReferenceIdealInducedPowerWatts();
+		double[] rotorCtCpJReferenceAxialPropulsiveEfficiency =
+				state.rotorCtCpJReferenceAxialPropulsiveEfficiency();
 		double[] rotorCtCpJReferenceIdealMomentumOverShaftPower =
 				state.rotorCtCpJReferenceIdealMomentumPowerOverShaftPower();
 		double[] rotorCtCpJReferenceIntrinsicPowerResidual =
@@ -4931,6 +4940,12 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceIdealInducedVelocity,
 				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceIdealMomentumPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceUsefulAxialThrustPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceIdealInducedPower,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceAxialPropulsiveEfficiency,
 				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceIdealMomentumOverShaftPower,
 				rotorCtCpJReferenceAvailable, "%.5f");

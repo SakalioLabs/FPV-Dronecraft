@@ -80,6 +80,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorReferenceEnvelopeMarginIndex =
 				column(header, "rotor_0_ctcpj_ref_operating_envelope_margin_fraction");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
+		int rotorEtaIndex = column(header, "rotor_0_ctcpj_ref_eta");
 		int rotorReferenceThrustIndex = column(header, "rotor_0_ctcpj_ref_thrust_n");
 		int rotorPowerIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_w");
 		int rotorReferenceDiskLoadingIndex = column(header, "rotor_0_ctcpj_ref_disk_loading_n_m2");
@@ -87,6 +88,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				column(header, "rotor_0_ctcpj_ref_ideal_induced_velocity_mps");
 		int rotorReferenceIdealMomentumPowerIndex =
 				column(header, "rotor_0_ctcpj_ref_ideal_momentum_power_w");
+		int rotorReferenceUsefulAxialThrustPowerIndex =
+				column(header, "rotor_0_ctcpj_ref_useful_axial_thrust_power_w");
+		int rotorReferenceIdealInducedPowerIndex =
+				column(header, "rotor_0_ctcpj_ref_ideal_induced_power_w");
+		int rotorReferenceAxialPropulsiveEfficiencyIndex =
+				column(header, "rotor_0_ctcpj_ref_axial_propulsive_efficiency");
 		int rotorReferenceIdealMomentumRatioIndex =
 				column(header, "rotor_0_ctcpj_ref_ideal_momentum_power_over_shaft_power");
 		int rotorIntrinsicPowerResidualIndex =
@@ -217,6 +224,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_disk_loading_n_m2"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_7_ctcpj_ref_ideal_momentum_power_over_shaft_power"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_ref_useful_axial_thrust_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_7_ctcpj_ref_axial_propulsive_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_0_ctcpj_ref_intrinsic_shaft_power_residual_w"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
@@ -452,6 +463,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 						Double.parseDouble(row[rotorReferenceIdealInducedVelocityIndex]);
 				double referenceIdealMomentumPower =
 						Double.parseDouble(row[rotorReferenceIdealMomentumPowerIndex]);
+				double referenceUsefulAxialPower =
+						Double.parseDouble(row[rotorReferenceUsefulAxialThrustPowerIndex]);
+				double referenceIdealInducedPower =
+						Double.parseDouble(row[rotorReferenceIdealInducedPowerIndex]);
+				double referenceAxialPropulsiveEfficiency =
+						Double.parseDouble(row[rotorReferenceAxialPropulsiveEfficiencyIndex]);
 				double referenceIdealMomentumRatio =
 						Double.parseDouble(row[rotorReferenceIdealMomentumRatioIndex]);
 				double intrinsicPowerResidual = Double.parseDouble(row[rotorIntrinsicPowerResidualIndex]);
@@ -475,6 +492,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(referenceDiskLoading));
 				assertTrue(Double.isFinite(referenceIdealInducedVelocity));
 				assertTrue(Double.isFinite(referenceIdealMomentumPower));
+				assertTrue(Double.isFinite(referenceUsefulAxialPower));
+				assertTrue(Double.isFinite(referenceIdealInducedPower));
+				assertTrue(Double.isFinite(referenceAxialPropulsiveEfficiency));
 				assertTrue(Double.isFinite(referenceIdealMomentumRatio));
 				assertTrue(Double.isFinite(intrinsicPowerResidual));
 				assertTrue(Double.isFinite(intrinsicPowerResidualFraction));
@@ -564,6 +584,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 							* diameter);
 					assertEquals(referenceThrust,
 							diskMassFlow * (farWakeAxialVelocity - referenceAxialSpeed), 1.0e-4);
+					assertEquals(referenceThrust * referenceAxialSpeed,
+							referenceUsefulAxialPower, 2.0e-3);
+					assertEquals(referenceThrust * referenceIdealInducedVelocity,
+							referenceIdealInducedPower, 2.0e-3);
+					assertEquals(referenceUsefulAxialPower + referenceIdealInducedPower,
+							referenceIdealMomentumPower, 2.0e-3);
 					assertEquals(Math.sqrt(farWakeContractedArea / Math.PI),
 							farWakeEquivalentRadius, 5.0e-5);
 					assertEquals(farWakeEquivalentRadius
@@ -580,6 +606,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 								referenceIdealMomentumRatio,
 								5.0e-5
 						);
+						assertEquals(referenceUsefulAxialPower / referencePower,
+								referenceAxialPropulsiveEfficiency, 5.0e-5);
+						assertEquals(Double.parseDouble(row[rotorEtaIndex]),
+								referenceAxialPropulsiveEfficiency, 5.0e-5);
 						assertEquals(
 								intrinsicPowerResidual / referencePower,
 								intrinsicPowerResidualFraction,
