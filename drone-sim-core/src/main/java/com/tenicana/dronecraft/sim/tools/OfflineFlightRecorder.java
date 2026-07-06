@@ -1204,6 +1204,8 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "eta");
 		appendCtCpJReferenceColumnFamily(builder, "thrust_n");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_power_w");
+		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_w");
+		appendCtCpJReferenceColumnFamily(builder, "intrinsic_shaft_power_residual_fraction");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_nm");
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "thrust_force", "n");
 		appendCtCpJReferenceVectorPerRotorColumns(builder, "reaction_torque", "nm");
@@ -4502,6 +4504,10 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
 		double[] rotorCtCpJReferenceThrust = state.rotorCtCpJReferenceThrustNewtons();
 		double[] rotorCtCpJReferencePower = state.rotorCtCpJReferenceShaftPowerWatts();
+		double[] rotorCtCpJReferenceIntrinsicPowerResidual =
+				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts();
+		double[] rotorCtCpJReferenceIntrinsicPowerResidualFraction =
+				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction();
 		double[] rotorCtCpJReferenceTorque = state.rotorCtCpJReferenceShaftTorqueNewtonMeters();
 		Vec3[] rotorCtCpJReferenceThrustForceBody = state.rotorCtCpJReferenceThrustForceBodyNewtons();
 		Vec3[] rotorCtCpJReferenceReactionTorqueBody = state.rotorCtCpJReferenceReactionTorqueBodyNewtonMeters();
@@ -4819,6 +4825,10 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrust, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferencePower, rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceIntrinsicPowerResidual,
+				rotorCtCpJReferenceAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceIntrinsicPowerResidualFraction,
+				rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorque, rotorCtCpJReferenceAvailable, "%.6f");
 		for (int i = 0; i < 8; i++) {
 			appendRotorForceColumns(builder, rotorCtCpJReferenceThrustForceBody, i);

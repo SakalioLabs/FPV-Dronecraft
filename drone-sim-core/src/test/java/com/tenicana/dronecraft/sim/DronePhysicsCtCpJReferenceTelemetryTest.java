@@ -90,6 +90,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(sample.inflowAngleRadians(), state.rotorCtCpJReferenceInflowAngleRadians(0), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts(), state.rotorCtCpJReferenceShaftPowerWatts(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().shaftPowerResidualWatts(),
+				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().shaftPowerResidualFraction(),
+				state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction(0), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), state.rotorCtCpJReferenceShaftTorqueNewtonMeters(0), 1.0e-18);
 		assertVectorEquals(sample.thrustForceBodyNewtons(),
 				state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-15);
@@ -126,6 +130,8 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceRpm(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction(0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertEquals(0.0, state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
