@@ -112,6 +112,10 @@ public final class DroneState {
 	private double[] rotorCtCpJReferenceEfficiencyEta;
 	private double[] rotorCtCpJReferenceThrustNewtons;
 	private double[] rotorCtCpJReferenceShaftPowerWatts;
+	private double[] rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter;
+	private double[] rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond;
+	private double[] rotorCtCpJReferenceIdealMomentumPowerWatts;
+	private double[] rotorCtCpJReferenceIdealMomentumPowerOverShaftPower;
 	private double[] rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts;
 	private double[] rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction;
 	private double[] rotorCtCpJReferenceShaftTorqueNewtonMeters;
@@ -312,6 +316,10 @@ public final class DroneState {
 		rotorCtCpJReferenceEfficiencyEta = new double[motorCount];
 		rotorCtCpJReferenceThrustNewtons = new double[motorCount];
 		rotorCtCpJReferenceShaftPowerWatts = new double[motorCount];
+		rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter = new double[motorCount];
+		rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond = new double[motorCount];
+		rotorCtCpJReferenceIdealMomentumPowerWatts = new double[motorCount];
+		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower = new double[motorCount];
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts = new double[motorCount];
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction = new double[motorCount];
 		rotorCtCpJReferenceShaftTorqueNewtonMeters = new double[motorCount];
@@ -1752,6 +1760,46 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferenceShaftPowerWatts, rotorCtCpJReferenceShaftPowerWatts.length);
 	}
 
+	public double rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter(int index) {
+		return rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter[index];
+	}
+
+	public double[] rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter,
+				rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter.length);
+	}
+
+	public double rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond(int index) {
+		return rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond[index];
+	}
+
+	public double[] rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond,
+				rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond.length);
+	}
+
+	public double rotorCtCpJReferenceIdealMomentumPowerWatts(int index) {
+		return rotorCtCpJReferenceIdealMomentumPowerWatts[index];
+	}
+
+	public double[] rotorCtCpJReferenceIdealMomentumPowerWatts() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceIdealMomentumPowerWatts,
+				rotorCtCpJReferenceIdealMomentumPowerWatts.length);
+	}
+
+	public double rotorCtCpJReferenceIdealMomentumPowerOverShaftPower(int index) {
+		return rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index];
+	}
+
+	public double[] rotorCtCpJReferenceIdealMomentumPowerOverShaftPower() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceIdealMomentumPowerOverShaftPower,
+				rotorCtCpJReferenceIdealMomentumPowerOverShaftPower.length);
+	}
+
 	public double rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts(int index) {
 		return rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts[index];
 	}
@@ -1890,6 +1938,18 @@ public final class DroneState {
 		rotorCtCpJReferenceEfficiencyEta[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.propulsiveEfficiencyEta());
 		rotorCtCpJReferenceThrustNewtons[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.thrustNewtons()));
 		rotorCtCpJReferenceShaftPowerWatts[index] = sample.blocked() ? 0.0 : Math.max(0.0, finiteOrZero(sample.shaftPowerWatts()));
+		rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().diskLoadingNewtonsPerSquareMeter()));
+		rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().idealInducedVelocityMetersPerSecond()));
+		rotorCtCpJReferenceIdealMomentumPowerWatts[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().idealMomentumPowerWatts()));
+		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index] =
+				sample.blocked() ? 0.0 : Math.max(0.0,
+						finiteOrZero(sample.dimensionalSample().idealMomentumPowerOverShaftPower()));
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts[index] =
 				sample.blocked() ? 0.0 : finiteOrZero(sample.dimensionalSample().shaftPowerResidualWatts());
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction[index] =
@@ -1926,6 +1986,10 @@ public final class DroneState {
 		rotorCtCpJReferenceEfficiencyEta[index] = 0.0;
 		rotorCtCpJReferenceThrustNewtons[index] = 0.0;
 		rotorCtCpJReferenceShaftPowerWatts[index] = 0.0;
+		rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter[index] = 0.0;
+		rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond[index] = 0.0;
+		rotorCtCpJReferenceIdealMomentumPowerWatts[index] = 0.0;
+		rotorCtCpJReferenceIdealMomentumPowerOverShaftPower[index] = 0.0;
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts[index] = 0.0;
 		rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction[index] = 0.0;
 		rotorCtCpJReferenceShaftTorqueNewtonMeters[index] = 0.0;
@@ -2039,6 +2103,10 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceEfficiencyEta, 0.0);
 		Arrays.fill(rotorCtCpJReferenceThrustNewtons, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftPowerWatts, 0.0);
+		Arrays.fill(rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter, 0.0);
+		Arrays.fill(rotorCtCpJReferenceIdealInducedVelocityMetersPerSecond, 0.0);
+		Arrays.fill(rotorCtCpJReferenceIdealMomentumPowerWatts, 0.0);
+		Arrays.fill(rotorCtCpJReferenceIdealMomentumPowerOverShaftPower, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIntrinsicShaftPowerResidualWatts, 0.0);
 		Arrays.fill(rotorCtCpJReferenceIntrinsicShaftPowerResidualFraction, 0.0);
 		Arrays.fill(rotorCtCpJReferenceShaftTorqueNewtonMeters, 0.0);
