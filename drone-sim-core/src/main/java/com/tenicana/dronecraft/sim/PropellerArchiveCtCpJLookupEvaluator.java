@@ -167,6 +167,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double wakeSwirlKineticPowerWatts,
 			double totalWakeKineticPowerWatts,
 			double totalWakeKineticPowerOverShaftPower,
+			double wakeSwirlKineticPowerOverShaftPower,
+			double totalWakeKineticPowerResidualWatts,
+			double totalWakeKineticPowerResidualFraction,
 			double shaftPowerResidualWatts,
 			double shaftPowerResidualFraction
 	) {
@@ -414,6 +417,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
+					0.0,
+					0.0,
 					0.0
 			);
 		}
@@ -458,6 +464,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				* tangentialWakeVelocity;
 		double totalWakePower = idealMomentumPower + swirlKineticPower;
 		double totalWakeOverShaft = ratio(totalWakePower, shaftPower);
+		double swirlOverShaft = ratio(swirlKineticPower, shaftPower);
+		double totalWakeResidual = shaftPower - totalWakePower;
+		double totalWakeResidualFraction = ratio(totalWakeResidual, shaftPower);
 		double shaftPowerResidual = shaftPower - idealMomentumPower;
 		double shaftPowerResidualFraction = ratio(shaftPowerResidual, shaftPower);
 		return new RotorDimensionalSample(
@@ -485,6 +494,9 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				swirlKineticPower,
 				totalWakePower,
 				totalWakeOverShaft,
+				swirlOverShaft,
+				totalWakeResidual,
+				totalWakeResidualFraction,
 				shaftPowerResidual,
 				shaftPowerResidualFraction
 		);

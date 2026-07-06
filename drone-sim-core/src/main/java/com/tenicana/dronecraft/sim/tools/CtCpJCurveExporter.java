@@ -90,7 +90,10 @@ public final class CtCpJCurveExporter {
 			"wake_tangential_velocity_mps",
 			"wake_swirl_kinetic_power_w",
 			"total_wake_kinetic_power_w",
-			"total_wake_kinetic_power_over_shaft_power"
+			"total_wake_kinetic_power_over_shaft_power",
+			"wake_swirl_kinetic_power_over_shaft_power",
+			"total_wake_kinetic_power_residual_w",
+			"total_wake_kinetic_power_residual_fraction"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -413,7 +416,10 @@ public final class CtCpJCurveExporter {
 				number(sample.wakeTangentialVelocityMetersPerSecond()),
 				number(sample.wakeSwirlKineticPowerWatts()),
 				number(sample.totalWakeKineticPowerWatts()),
-				number(sample.totalWakeKineticPowerOverShaftPower())
+				number(sample.totalWakeKineticPowerOverShaftPower()),
+				number(sample.wakeSwirlKineticPowerOverShaftPower()),
+				number(sample.totalWakeKineticPowerResidualWatts()),
+				number(sample.totalWakeKineticPowerResidualFraction())
 		);
 	}
 
@@ -519,7 +525,10 @@ public final class CtCpJCurveExporter {
 				number(wake.wakeTangentialVelocityMetersPerSecond()),
 				number(wake.wakeSwirlKineticPowerWatts()),
 				number(wake.totalWakeKineticPowerWatts()),
-				number(wake.totalWakeKineticPowerOverShaftPower())
+				number(wake.totalWakeKineticPowerOverShaftPower()),
+				number(wake.wakeSwirlKineticPowerOverShaftPower()),
+				number(wake.totalWakeKineticPowerResidualWatts()),
+				number(wake.totalWakeKineticPowerResidualFraction())
 		);
 	}
 
@@ -532,7 +541,10 @@ public final class CtCpJCurveExporter {
 			double wakeTangentialVelocityMetersPerSecond,
 			double wakeSwirlKineticPowerWatts,
 			double totalWakeKineticPowerWatts,
-			double totalWakeKineticPowerOverShaftPower
+			double totalWakeKineticPowerOverShaftPower,
+			double wakeSwirlKineticPowerOverShaftPower,
+			double totalWakeKineticPowerResidualWatts,
+			double totalWakeKineticPowerResidualFraction
 	) {
 	}
 
@@ -562,6 +574,7 @@ public final class CtCpJCurveExporter {
 				: 0.0;
 		double swirlKineticPower = 0.5 * massFlow * tangentialWakeVelocity * tangentialWakeVelocity;
 		double totalWakePower = idealMomentumPowerWatts + swirlKineticPower;
+		double totalWakeResidual = shaftPowerWatts - totalWakePower;
 		return new WakeKineticColumns(
 				massFlow,
 				farWakeVelocity,
@@ -571,7 +584,10 @@ public final class CtCpJCurveExporter {
 				tangentialWakeVelocity,
 				swirlKineticPower,
 				totalWakePower,
-				ratio(totalWakePower, shaftPowerWatts)
+				ratio(totalWakePower, shaftPowerWatts),
+				ratio(swirlKineticPower, shaftPowerWatts),
+				totalWakeResidual,
+				ratio(totalWakeResidual, shaftPowerWatts)
 		);
 	}
 
