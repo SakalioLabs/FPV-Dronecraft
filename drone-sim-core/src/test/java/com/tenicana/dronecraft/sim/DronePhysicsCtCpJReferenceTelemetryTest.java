@@ -256,6 +256,12 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(humid.tipMach(), humidState.rotorCtCpJReferenceTipMach(0), 1.0e-15);
 		assertEquals(humid.reynoldsNumber(), humidState.rotorCtCpJReferenceReynoldsNumber(0), 1.0e-9);
 		assertEquals(humid.reynoldsIndex(), humidState.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+		assertEquals(humid.runtimeTipMachMargin(),
+				humidState.rotorCtCpJReferenceTipMachRuntimeMargin(0), 1.0e-15);
+		assertEquals(humid.runtimeReynoldsIndexMargin(),
+				humidState.rotorCtCpJReferenceReynoldsIndexRuntimeMargin(0), 1.0e-15);
+		assertEquals(humid.runtimeOperatingEnvelopeMarginFraction(),
+				humidState.rotorCtCpJReferenceOperatingEnvelopeMarginFraction(0), 1.0e-15);
 		assertTrue(humidState.rotorCtCpJReferenceSpeedOfSoundMetersPerSecond(0)
 				> dryState.rotorCtCpJReferenceSpeedOfSoundMetersPerSecond(0));
 		assertTrue(humidState.rotorCtCpJReferenceDynamicViscosityPascalSeconds(0)
@@ -347,6 +353,9 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
 		assertEquals(sample.operatingPoint(65.0, 0.0).reynoldsIndex(),
 				state.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
+		assertTrue(state.rotorCtCpJReferenceTipMachRuntimeMargin(0) > 0.0);
+		assertTrue(state.rotorCtCpJReferenceReynoldsIndexRuntimeMargin(0) < 0.0);
+		assertTrue(state.rotorCtCpJReferenceOperatingEnvelopeMarginFraction(0) < 0.0);
 
 		double fallbackThrust = 0.42;
 		double fallbackTorque = 0.031;

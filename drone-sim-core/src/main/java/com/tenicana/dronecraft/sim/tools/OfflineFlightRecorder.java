@@ -1205,6 +1205,9 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "tip_mach");
 		appendCtCpJReferenceColumnFamily(builder, "reynolds_number");
 		appendCtCpJReferenceColumnFamily(builder, "reynolds_index");
+		appendCtCpJReferenceColumnFamily(builder, "tip_mach_runtime_margin");
+		appendCtCpJReferenceColumnFamily(builder, "reynolds_index_runtime_margin");
+		appendCtCpJReferenceColumnFamily(builder, "operating_envelope_margin_fraction");
 		appendCtCpJReferenceColumnFamily(builder, "ct");
 		appendCtCpJReferenceColumnFamily(builder, "cp");
 		appendCtCpJReferenceColumnFamily(builder, "eta");
@@ -4540,6 +4543,12 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJReferenceTipMach = state.rotorCtCpJReferenceTipMach();
 		double[] rotorCtCpJReferenceReynoldsNumber = state.rotorCtCpJReferenceReynoldsNumber();
 		double[] rotorCtCpJReferenceReynoldsIndex = state.rotorCtCpJReferenceReynoldsIndex();
+		double[] rotorCtCpJReferenceTipMachRuntimeMargin =
+				state.rotorCtCpJReferenceTipMachRuntimeMargin();
+		double[] rotorCtCpJReferenceReynoldsIndexRuntimeMargin =
+				state.rotorCtCpJReferenceReynoldsIndexRuntimeMargin();
+		double[] rotorCtCpJReferenceOperatingEnvelopeMargin =
+				state.rotorCtCpJReferenceOperatingEnvelopeMarginFraction();
 		double[] rotorCtCpJReferenceCt = state.rotorCtCpJReferenceThrustCoefficientCt();
 		double[] rotorCtCpJReferenceCp = state.rotorCtCpJReferencePowerCoefficientCp();
 		double[] rotorCtCpJReferenceEta = state.rotorCtCpJReferenceEfficiencyEta();
@@ -4874,6 +4883,9 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceTipMach, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsNumber, rotorCtCpJReferencePresent, "%.1f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsIndex, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceTipMachRuntimeMargin, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceReynoldsIndexRuntimeMargin, rotorCtCpJReferencePresent, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJReferenceOperatingEnvelopeMargin, rotorCtCpJReferencePresent, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCt, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceCp, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceEta, rotorCtCpJReferenceAvailable, "%.5f");

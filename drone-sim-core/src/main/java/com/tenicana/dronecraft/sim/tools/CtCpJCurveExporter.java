@@ -78,7 +78,10 @@ public final class CtCpJCurveExporter {
 			"representative_blade_station_speed_mps",
 			"representative_blade_chord_m",
 			"reynolds_number",
-			"reynolds_index"
+			"reynolds_index",
+			"tip_mach_runtime_margin",
+			"reynolds_index_runtime_margin",
+			"operating_envelope_margin_fraction"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -389,7 +392,10 @@ public final class CtCpJCurveExporter {
 				number(operatingPoint.representativeBladeStationSpeedMetersPerSecond()),
 				number(operatingPoint.representativeBladeChordMeters()),
 				number(operatingPoint.reynoldsNumber()),
-				number(operatingPoint.reynoldsIndex())
+				number(operatingPoint.reynoldsIndex()),
+				number(operatingPoint.runtimeTipMachMargin()),
+				number(operatingPoint.runtimeReynoldsIndexMargin()),
+				number(operatingPoint.runtimeOperatingEnvelopeMarginFraction())
 		);
 	}
 
@@ -474,7 +480,10 @@ public final class CtCpJCurveExporter {
 				number(operatingPoint.representativeBladeStationSpeedMetersPerSecond()),
 				number(operatingPoint.representativeBladeChordMeters()),
 				number(operatingPoint.reynoldsNumber()),
-				number(operatingPoint.reynoldsIndex())
+				number(operatingPoint.reynoldsIndex()),
+				number(operatingPoint.runtimeTipMachMargin()),
+				number(operatingPoint.runtimeReynoldsIndexMargin()),
+				number(operatingPoint.runtimeOperatingEnvelopeMarginFraction())
 		);
 	}
 

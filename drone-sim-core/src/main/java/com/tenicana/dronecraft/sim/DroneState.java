@@ -112,6 +112,9 @@ public final class DroneState {
 	private double[] rotorCtCpJReferenceTipMach;
 	private double[] rotorCtCpJReferenceReynoldsNumber;
 	private double[] rotorCtCpJReferenceReynoldsIndex;
+	private double[] rotorCtCpJReferenceTipMachRuntimeMargin;
+	private double[] rotorCtCpJReferenceReynoldsIndexRuntimeMargin;
+	private double[] rotorCtCpJReferenceOperatingEnvelopeMarginFraction;
 	private double[] rotorCtCpJReferenceThrustCoefficientCt;
 	private double[] rotorCtCpJReferencePowerCoefficientCp;
 	private double[] rotorCtCpJReferenceEfficiencyEta;
@@ -321,6 +324,9 @@ public final class DroneState {
 		rotorCtCpJReferenceTipMach = new double[motorCount];
 		rotorCtCpJReferenceReynoldsNumber = new double[motorCount];
 		rotorCtCpJReferenceReynoldsIndex = new double[motorCount];
+		rotorCtCpJReferenceTipMachRuntimeMargin = new double[motorCount];
+		rotorCtCpJReferenceReynoldsIndexRuntimeMargin = new double[motorCount];
+		rotorCtCpJReferenceOperatingEnvelopeMarginFraction = new double[motorCount];
 		rotorCtCpJReferenceThrustCoefficientCt = new double[motorCount];
 		rotorCtCpJReferencePowerCoefficientCp = new double[motorCount];
 		rotorCtCpJReferenceEfficiencyEta = new double[motorCount];
@@ -1776,6 +1782,39 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferenceReynoldsIndex, rotorCtCpJReferenceReynoldsIndex.length);
 	}
 
+	public double rotorCtCpJReferenceTipMachRuntimeMargin(int index) {
+		return rotorCtCpJReferenceTipMachRuntimeMargin[index];
+	}
+
+	public double[] rotorCtCpJReferenceTipMachRuntimeMargin() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceTipMachRuntimeMargin,
+				rotorCtCpJReferenceTipMachRuntimeMargin.length
+		);
+	}
+
+	public double rotorCtCpJReferenceReynoldsIndexRuntimeMargin(int index) {
+		return rotorCtCpJReferenceReynoldsIndexRuntimeMargin[index];
+	}
+
+	public double[] rotorCtCpJReferenceReynoldsIndexRuntimeMargin() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceReynoldsIndexRuntimeMargin,
+				rotorCtCpJReferenceReynoldsIndexRuntimeMargin.length
+		);
+	}
+
+	public double rotorCtCpJReferenceOperatingEnvelopeMarginFraction(int index) {
+		return rotorCtCpJReferenceOperatingEnvelopeMarginFraction[index];
+	}
+
+	public double[] rotorCtCpJReferenceOperatingEnvelopeMarginFraction() {
+		return Arrays.copyOf(
+				rotorCtCpJReferenceOperatingEnvelopeMarginFraction,
+				rotorCtCpJReferenceOperatingEnvelopeMarginFraction.length
+		);
+	}
+
 	public double rotorCtCpJReferenceThrustCoefficientCt(int index) {
 		return rotorCtCpJReferenceThrustCoefficientCt[index];
 	}
@@ -2019,6 +2058,12 @@ public final class DroneState {
 				Math.max(0.0, finiteOrZero(operatingPoint.reynoldsNumber()));
 		rotorCtCpJReferenceReynoldsIndex[index] =
 				Math.max(0.0, finiteOrZero(operatingPoint.reynoldsIndex()));
+		rotorCtCpJReferenceTipMachRuntimeMargin[index] =
+				finiteOrZero(operatingPoint.runtimeTipMachMargin());
+		rotorCtCpJReferenceReynoldsIndexRuntimeMargin[index] =
+				finiteOrZero(operatingPoint.runtimeReynoldsIndexMargin());
+		rotorCtCpJReferenceOperatingEnvelopeMarginFraction[index] =
+				finiteOrZero(operatingPoint.runtimeOperatingEnvelopeMarginFraction());
 		rotorCtCpJReferenceThrustCoefficientCt[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.thrustCoefficientCt());
 		rotorCtCpJReferencePowerCoefficientCp[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.powerCoefficientCp());
 		rotorCtCpJReferenceEfficiencyEta[index] = sample.blocked() ? 0.0 : finiteOrZero(lookup.propulsiveEfficiencyEta());
@@ -2072,6 +2117,9 @@ public final class DroneState {
 		rotorCtCpJReferenceTipMach[index] = 0.0;
 		rotorCtCpJReferenceReynoldsNumber[index] = 0.0;
 		rotorCtCpJReferenceReynoldsIndex[index] = 0.0;
+		rotorCtCpJReferenceTipMachRuntimeMargin[index] = 0.0;
+		rotorCtCpJReferenceReynoldsIndexRuntimeMargin[index] = 0.0;
+		rotorCtCpJReferenceOperatingEnvelopeMarginFraction[index] = 0.0;
 		rotorCtCpJReferenceThrustCoefficientCt[index] = 0.0;
 		rotorCtCpJReferencePowerCoefficientCp[index] = 0.0;
 		rotorCtCpJReferenceEfficiencyEta[index] = 0.0;
@@ -2194,6 +2242,9 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceTipMach, 0.0);
 		Arrays.fill(rotorCtCpJReferenceReynoldsNumber, 0.0);
 		Arrays.fill(rotorCtCpJReferenceReynoldsIndex, 0.0);
+		Arrays.fill(rotorCtCpJReferenceTipMachRuntimeMargin, 0.0);
+		Arrays.fill(rotorCtCpJReferenceReynoldsIndexRuntimeMargin, 0.0);
+		Arrays.fill(rotorCtCpJReferenceOperatingEnvelopeMarginFraction, 0.0);
 		Arrays.fill(rotorCtCpJReferenceThrustCoefficientCt, 0.0);
 		Arrays.fill(rotorCtCpJReferencePowerCoefficientCp, 0.0);
 		Arrays.fill(rotorCtCpJReferenceEfficiencyEta, 0.0);

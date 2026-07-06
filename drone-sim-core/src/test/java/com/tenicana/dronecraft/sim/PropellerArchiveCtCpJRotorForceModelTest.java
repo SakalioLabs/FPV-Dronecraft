@@ -112,6 +112,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				operatingPoint.representativeBladeChordMeters(), 1.0e-15);
 		assertTrue(operatingPoint.reynoldsNumber() > 10_000.0);
 		assertTrue(operatingPoint.reynoldsIndex() > 0.0);
+		assertTrue(operatingPoint.runtimeTipMachMargin() > 0.0);
+		assertTrue(operatingPoint.runtimeReynoldsIndexMargin() > 0.0);
+		assertTrue(operatingPoint.runtimeOperatingEnvelopeMarginFraction() > 0.0);
 	}
 
 	@Test
@@ -229,6 +232,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(lowReynolds.momentumPowerClosureSatisfied());
 		assertTrue(lowReynolds.runtimeInflowEnvelopeSatisfied());
 		assertTrue(lowReynolds.operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
+		assertTrue(lowReynolds.operatingPoint(65.0, 0.0).runtimeTipMachMargin() > 0.0);
+		assertTrue(lowReynolds.operatingPoint(65.0, 0.0).runtimeReynoldsIndexMargin() < 0.0);
+		assertTrue(lowReynolds.operatingPoint(65.0, 0.0).runtimeOperatingEnvelopeMarginFraction() < 0.0);
 		assertFalse(lowReynolds.runtimeOperatingPointEnvelopeSatisfied());
 		assertFalse(lowReynolds.runtimeForceReplacementAccepted());
 
@@ -237,6 +243,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(highMach.momentumPowerClosureSatisfied());
 		assertTrue(highMach.runtimeInflowEnvelopeSatisfied());
 		assertTrue(highMach.operatingPoint(25.0, 0.0).tipMach() > 0.46);
+		assertTrue(highMach.operatingPoint(25.0, 0.0).runtimeTipMachMargin() < 0.0);
+		assertTrue(highMach.operatingPoint(25.0, 0.0).runtimeReynoldsIndexMargin() > 0.0);
+		assertTrue(highMach.operatingPoint(25.0, 0.0).runtimeOperatingEnvelopeMarginFraction() < 0.0);
 		assertFalse(highMach.runtimeOperatingPointEnvelopeSatisfied());
 		assertFalse(highMach.runtimeForceReplacementAccepted());
 	}

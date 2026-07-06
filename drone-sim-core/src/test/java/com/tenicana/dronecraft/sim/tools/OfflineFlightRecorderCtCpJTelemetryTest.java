@@ -74,6 +74,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorReferenceTipMachIndex = column(header, "rotor_0_ctcpj_ref_tip_mach");
 		int rotorReferenceReynoldsNumberIndex = column(header, "rotor_0_ctcpj_ref_reynolds_number");
 		int rotorReferenceReynoldsIndexIndex = column(header, "rotor_0_ctcpj_ref_reynolds_index");
+		int rotorReferenceTipMachMarginIndex = column(header, "rotor_0_ctcpj_ref_tip_mach_runtime_margin");
+		int rotorReferenceReynoldsMarginIndex = column(header, "rotor_0_ctcpj_ref_reynolds_index_runtime_margin");
+		int rotorReferenceEnvelopeMarginIndex =
+				column(header, "rotor_0_ctcpj_ref_operating_envelope_margin_fraction");
 		int rotorCtIndex = column(header, "rotor_0_ctcpj_ref_ct");
 		int rotorReferenceThrustIndex = column(header, "rotor_0_ctcpj_ref_thrust_n");
 		int rotorPowerIndex = column(header, "rotor_0_ctcpj_ref_shaft_power_w");
@@ -140,6 +144,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int[] rotorReferenceTipMachIndices = new int[8];
 		int[] rotorReferenceReynoldsNumberIndices = new int[8];
 		int[] rotorReferenceReynoldsIndexIndices = new int[8];
+		int[] rotorReferenceTipMachMarginIndices = new int[8];
+		int[] rotorReferenceReynoldsMarginIndices = new int[8];
+		int[] rotorReferenceEnvelopeMarginIndices = new int[8];
 		for (int rotor = 0; rotor < 8; rotor++) {
 			rotorReferenceAvailableIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_available");
 			rotorReferenceBlockedIndices[rotor] = column(header, "rotor_" + rotor + "_ctcpj_ref_blocked");
@@ -158,6 +165,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					column(header, "rotor_" + rotor + "_ctcpj_ref_reynolds_number");
 			rotorReferenceReynoldsIndexIndices[rotor] =
 					column(header, "rotor_" + rotor + "_ctcpj_ref_reynolds_index");
+			rotorReferenceTipMachMarginIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_tip_mach_runtime_margin");
+			rotorReferenceReynoldsMarginIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_reynolds_index_runtime_margin");
+			rotorReferenceEnvelopeMarginIndices[rotor] =
+					column(header, "rotor_" + rotor + "_ctcpj_ref_operating_envelope_margin_fraction");
 		}
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ct"));
@@ -176,6 +189,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_tip_mach"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_reynolds_number"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_ref_reynolds_index"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_tip_mach_runtime_margin"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_reynolds_index_runtime_margin"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_ctcpj_ref_operating_envelope_margin_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_shaft_torque_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_thrust_force_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_disk_loading_n_m2"));
@@ -238,11 +255,17 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double tipMach = Double.parseDouble(row[rotorReferenceTipMachIndices[rotor]]);
 				double reynoldsNumber = Double.parseDouble(row[rotorReferenceReynoldsNumberIndices[rotor]]);
 				double reynoldsIndex = Double.parseDouble(row[rotorReferenceReynoldsIndexIndices[rotor]]);
+				double tipMachMargin = Double.parseDouble(row[rotorReferenceTipMachMarginIndices[rotor]]);
+				double reynoldsMargin = Double.parseDouble(row[rotorReferenceReynoldsMarginIndices[rotor]]);
+				double envelopeMargin = Double.parseDouble(row[rotorReferenceEnvelopeMarginIndices[rotor]]);
 				assertTrue(Double.isFinite(speedOfSound));
 				assertTrue(Double.isFinite(dynamicViscosity));
 				assertTrue(Double.isFinite(tipMach));
 				assertTrue(Double.isFinite(reynoldsNumber));
 				assertTrue(Double.isFinite(reynoldsIndex));
+				assertTrue(Double.isFinite(tipMachMargin));
+				assertTrue(Double.isFinite(reynoldsMargin));
+				assertTrue(Double.isFinite(envelopeMargin));
 				assertTrue(speedOfSound > 0.0);
 				assertTrue(dynamicViscosity > 0.0);
 				assertTrue(tipMach >= 0.0);
@@ -358,6 +381,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double tipMach = Double.parseDouble(row[rotorReferenceTipMachIndex]);
 				double reynoldsNumber = Double.parseDouble(row[rotorReferenceReynoldsNumberIndex]);
 				double reynoldsIndex = Double.parseDouble(row[rotorReferenceReynoldsIndexIndex]);
+				double tipMachMargin = Double.parseDouble(row[rotorReferenceTipMachMarginIndex]);
+				double reynoldsMargin = Double.parseDouble(row[rotorReferenceReynoldsMarginIndex]);
+				double envelopeMargin = Double.parseDouble(row[rotorReferenceEnvelopeMarginIndex]);
 				assertTrue(Double.isFinite(relativeAirX));
 				assertTrue(Double.isFinite(relativeAirY));
 				assertTrue(Double.isFinite(relativeAirZ));
@@ -371,6 +397,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(tipMach));
 				assertTrue(Double.isFinite(reynoldsNumber));
 				assertTrue(Double.isFinite(reynoldsIndex));
+				assertTrue(Double.isFinite(tipMachMargin));
+				assertTrue(Double.isFinite(reynoldsMargin));
+				assertTrue(Double.isFinite(envelopeMargin));
 				assertTrue(speedOfSound >= 0.0);
 				assertTrue(dynamicViscosity >= 0.0);
 				assertTrue(tipMach >= 0.0);
@@ -461,6 +490,11 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					assertTrue(tipMach > 0.0);
 					assertTrue(reynoldsNumber > 0.0);
 					assertTrue(reynoldsIndex > 0.0);
+					if (rotorApplied > 0.0) {
+						assertTrue(tipMachMargin >= -1.0e-9);
+						assertTrue(reynoldsMargin >= -1.0e-9);
+						assertTrue(envelopeMargin >= -1.0e-9);
+					}
 					double thrustForceMagnitude = magnitude(thrustForceX, thrustForceY, thrustForceZ);
 					double reactionTorqueMagnitude = magnitude(reactionTorqueX, reactionTorqueY, reactionTorqueZ);
 					assertEquals(referenceThrust, thrustForceMagnitude, 3.0e-5);

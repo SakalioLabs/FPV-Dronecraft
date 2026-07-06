@@ -170,8 +170,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 		public boolean runtimeOperatingPointEnvelopeSatisfied(double ambientTemperatureCelsius, double ambientHumidity) {
 			RotorOperatingPoint operatingPoint = operatingPoint(ambientTemperatureCelsius, ambientHumidity);
-			return operatingPoint.tipMach() <= RUNTIME_REPLACEMENT_MAX_TIP_MACH + EPSILON
-					&& operatingPoint.reynoldsIndex() >= RUNTIME_REPLACEMENT_MIN_REYNOLDS_INDEX - EPSILON;
+			return operatingPoint.runtimeTipMachMargin() >= -EPSILON
+					&& operatingPoint.runtimeReynoldsIndexMargin() >= -EPSILON;
 		}
 
 		public double thrustNewtons() {
@@ -238,6 +238,20 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			representativeBladeChordMeters = finiteNonnegative(representativeBladeChordMeters);
 			reynoldsNumber = finiteNonnegative(reynoldsNumber);
 			reynoldsIndex = finiteNonnegative(reynoldsIndex);
+		}
+
+		public double runtimeTipMachMargin() {
+			return RUNTIME_REPLACEMENT_MAX_TIP_MACH - tipMach;
+		}
+
+		public double runtimeReynoldsIndexMargin() {
+			return reynoldsIndex - RUNTIME_REPLACEMENT_MIN_REYNOLDS_INDEX;
+		}
+
+		public double runtimeOperatingEnvelopeMarginFraction() {
+			double machMargin = runtimeTipMachMargin() / RUNTIME_REPLACEMENT_MAX_TIP_MACH;
+			double reynoldsMargin = runtimeReynoldsIndexMargin() / RUNTIME_REPLACEMENT_MIN_REYNOLDS_INDEX;
+			return Math.min(machMargin, reynoldsMargin);
 		}
 	}
 
