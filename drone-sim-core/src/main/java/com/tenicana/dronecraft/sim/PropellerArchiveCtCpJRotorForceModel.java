@@ -141,6 +141,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double totalShaftPowerWatts,
 			double totalShaftTorqueNewtonMeters,
 			int acceptedRotorCount,
+			int runtimeForceReplacementAcceptedRotorCount,
 			int blockedRotorCount,
 			int clampedRotorCount
 	) {
@@ -154,6 +155,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			totalShaftPowerWatts = finiteNonnegative(totalShaftPowerWatts);
 			totalShaftTorqueNewtonMeters = finiteNonnegative(totalShaftTorqueNewtonMeters);
 			acceptedRotorCount = Math.max(0, acceptedRotorCount);
+			runtimeForceReplacementAcceptedRotorCount = Math.max(0, runtimeForceReplacementAcceptedRotorCount);
 			blockedRotorCount = Math.max(0, blockedRotorCount);
 			clampedRotorCount = Math.max(0, clampedRotorCount);
 		}
@@ -667,7 +669,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	public static RotorForceAggregateSample aggregate(List<RotorForceSample> samples) {
 		if (samples == null || samples.isEmpty()) {
 			return new RotorForceAggregateSample(List.of(), Vec3.ZERO, Vec3.ZERO, Vec3.ZERO, Vec3.ZERO,
-					0.0, 0.0, 0.0, 0, 0, 0);
+					0.0, 0.0, 0.0, 0, 0, 0, 0);
 		}
 		List<RotorForceSample> acceptedSamples = new ArrayList<>();
 		Vec3 totalForce = Vec3.ZERO;
@@ -678,6 +680,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		double totalPower = 0.0;
 		double totalShaftTorque = 0.0;
 		int accepted = 0;
+		int runtimeForceReplacementAccepted = 0;
 		int blocked = 0;
 		int clamped = 0;
 		for (RotorForceSample sample : samples) {
@@ -697,6 +700,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			} else {
 				accepted++;
 			}
+			if (sample.runtimeForceReplacementAccepted()) {
+				runtimeForceReplacementAccepted++;
+			}
 			if (sample.clamped()) {
 				clamped++;
 			}
@@ -711,6 +717,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				totalPower,
 				totalShaftTorque,
 				accepted,
+				runtimeForceReplacementAccepted,
 				blocked,
 				clamped
 		);

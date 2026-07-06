@@ -248,6 +248,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				.sum();
 		assertEquals(config.rotors().size(), aggregate.rotorSamples().size());
 		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
 		assertEquals(0, aggregate.blockedRotorCount());
 		assertEquals(0, aggregate.clampedRotorCount());
 		assertEquals(expectedThrust, aggregate.totalThrustNewtons(), 1.0e-12);
@@ -294,6 +295,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				.mapToDouble(sample -> sample.thrustForceBodyNewtons().y())
 				.sum();
 		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertEquals(0, aggregate.runtimeForceReplacementAcceptedRotorCount());
 		assertEquals(0, aggregate.blockedRotorCount());
 		assertEquals(expectedJ, aggregate.rotorSamples().get(0).query().advanceRatioJ(), 1.0e-12);
 		assertEquals(expectedJ, aggregate.rotorSamples().get(2).query().advanceRatioJ(), 1.0e-12);
@@ -302,6 +304,8 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(5.0, aggregate.rotorSamples().get(0).transverseAirSpeedMetersPerSecond(), 1.0e-12);
 		assertEquals(Math.atan2(5.0, axialSpeed),
 				aggregate.rotorSamples().get(0).inflowAngleRadians(), 1.0e-12);
+		assertFalse(aggregate.rotorSamples().get(0).runtimeInflowEnvelopeSatisfied());
+		assertFalse(aggregate.rotorSamples().get(0).runtimeForceReplacementAccepted());
 		assertEquals(expectedForceY, aggregate.totalThrustForceBodyNewtons().y(), 1.0e-12);
 		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().x(), 1.0e-12);
 		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().z(), 1.0e-12);
@@ -331,6 +335,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 
 		assertTrue(blocked.blocked());
 		assertEquals(0, aggregate.acceptedRotorCount());
+		assertEquals(0, aggregate.runtimeForceReplacementAcceptedRotorCount());
 		assertEquals(1, aggregate.blockedRotorCount());
 		assertEquals(0.0, aggregate.totalThrustNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
