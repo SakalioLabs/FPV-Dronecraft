@@ -285,6 +285,52 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedReferenceSampleAnchorsRuntimeInducedInflowTarget() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		double fallbackTarget = DronePhysics.targetRotorInducedVelocityMetersPerSecond(
+				rotor, sample.thrustNewtons(), 1.0);
+		assertEquals(
+				sample.dimensionalSample().idealInducedVelocityMetersPerSecond(),
+				DronePhysics.rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
+						sample, fallbackTarget, sample.thrustNewtons()),
+				1.0e-15
+		);
+		assertTrue(sample.dimensionalSample().idealInducedVelocityMetersPerSecond() < fallbackTarget);
+
+		double scaledThrust = sample.thrustNewtons() * 0.72;
+		assertEquals(
+				DronePhysics.axialMomentumInducedVelocityMetersPerSecond(
+						scaledThrust,
+						sample.dimensionalSample().airDensityKgPerCubicMeter(),
+						sample.dimensionalSample().diskAreaSquareMeters(),
+						sample.dimensionalSample().axialAdvanceSpeedMetersPerSecond()
+				),
+				DronePhysics.rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
+						sample, fallbackTarget, scaledThrust),
+				1.0e-15
+		);
+	}
+
+	@Test
 	void acceptedRuntimeReferenceThrustForceUsesCtCpJBodyVector() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
 				.withThrustAxisBody(new Vec3(0.18, 0.96, -0.08));
@@ -564,6 +610,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				sample, 0.42, 1.0, 1.0), 1.0e-15);
 		assertEquals(0.031, DronePhysics.rotorCtCpJRuntimeRawAerodynamicTorqueNewtonMeters(
 				sample, 0.031, 1.0, 1.0, 0.0002, 1.0, 1.0), 1.0e-15);
+		assertEquals(2.5, DronePhysics.rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
+				sample, 2.5, sample.thrustNewtons()), 1.0e-15);
+		assertEquals(2.5, DronePhysics.rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
+				null, 2.5, sample.thrustNewtons()), 1.0e-15);
 	}
 
 	private static double expectedThrust(

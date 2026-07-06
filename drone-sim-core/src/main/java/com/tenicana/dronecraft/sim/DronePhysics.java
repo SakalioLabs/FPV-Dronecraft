@@ -1395,7 +1395,16 @@ public final class DronePhysics {
 					thrustScale,
 					airDensity
 			);
-			double inflowLagScale = updateRotorInducedInflow(i, rotor, rotorRelativeAirVelocityBody, aerodynamicOmega, baseThrust, airDensity, dtSeconds);
+			double inflowLagScale = updateRotorInducedInflow(
+					i,
+					rotor,
+					rotorRelativeAirVelocityBody,
+					aerodynamicOmega,
+					baseThrust,
+					ctCpJReferenceSample,
+					airDensity,
+					dtSeconds
+			);
 			double rotorAirflowScale = rotorAirflowThrustMultiplier(
 					aerodynamicRotor,
 					rotorRelativeAirVelocityBody,
@@ -5870,10 +5879,16 @@ public final class DronePhysics {
 			Vec3 relativeAirVelocityBody,
 			double omegaRadiansPerSecond,
 			double baseThrustNewtons,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample ctCpJReferenceSample,
 			double airDensityRatio,
 			double dtSeconds
 	) {
 		double hoverTargetInducedVelocity = targetRotorInducedVelocityMetersPerSecond(rotor, baseThrustNewtons, airDensityRatio);
+		double momentumTargetInducedVelocity = rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
+				ctCpJReferenceSample,
+				hoverTargetInducedVelocity,
+				baseThrustNewtons
+		);
 		double translationalLift = updateRotorTranslationalLiftIntensity(
 				index,
 				rotor,
@@ -5885,7 +5900,7 @@ public final class DronePhysics {
 
 		double liftCoefficientScale = MathUtil.clamp(rotor.transverseFlowLiftCoefficient() / 0.08, 0.0, 1.35);
 		double cleanInflowReduction = 0.28 * translationalLift * liftCoefficientScale;
-		double targetInducedVelocity = hoverTargetInducedVelocity * MathUtil.clamp(1.0 - cleanInflowReduction, 0.58, 1.0);
+		double targetInducedVelocity = momentumTargetInducedVelocity * MathUtil.clamp(1.0 - cleanInflowReduction, 0.58, 1.0);
 		double previousInducedVelocity = state.rotorInducedVelocityMetersPerSecond(index);
 		double nominalHoverInducedVelocity = nominalHoverRotorInducedVelocityMetersPerSecond(rotor);
 		double dynamicInflowTimeConstant = rotorDynamicInflowTimeConstantSeconds(
@@ -5987,6 +6002,26 @@ public final class DronePhysics {
 				minimumTimeConstant,
 				maximumTimeConstant
 		);
+	}
+
+	static double rotorCtCpJRuntimeTargetInducedVelocityMetersPerSecond(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			double fallbackTargetInducedVelocityMetersPerSecond,
+			double baseThrustNewtons
+	) {
+		double fallback = Math.max(0.0, finiteOrDefault(fallbackTargetInducedVelocityMetersPerSecond, 0.0));
+		if (!ctCpJRuntimeSampleAccepted(sample) || baseThrustNewtons <= 0.0) {
+			return fallback;
+		}
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+				sample.dimensionalSample();
+		double inducedVelocity = axialMomentumInducedVelocityMetersPerSecond(
+				baseThrustNewtons,
+				dimensional.airDensityKgPerCubicMeter(),
+				dimensional.diskAreaSquareMeters(),
+				dimensional.axialAdvanceSpeedMetersPerSecond()
+		);
+		return inducedVelocity > 0.0 ? inducedVelocity : fallback;
 	}
 
 	private double updateRotorInducedWakeVelocity(
@@ -6115,6 +6150,24 @@ public final class DronePhysics {
 		double diskAreaMetersSquared = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
 		double airDensity = SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * Math.max(0.2, airDensityRatio);
 		return Math.sqrt(baseThrustNewtons / Math.max(1.0e-6, 2.0 * airDensity * diskAreaMetersSquared));
+	}
+
+	static double axialMomentumInducedVelocityMetersPerSecond(
+			double thrustNewtons,
+			double airDensityKgPerCubicMeter,
+			double diskAreaMetersSquared,
+			double axialAdvanceSpeedMetersPerSecond
+	) {
+		if (thrustNewtons <= 0.0
+				|| airDensityKgPerCubicMeter <= 0.0
+				|| diskAreaMetersSquared <= 0.0) {
+			return 0.0;
+		}
+		double axialAdvanceSpeed = Double.isFinite(axialAdvanceSpeedMetersPerSecond)
+				? Math.max(0.0, axialAdvanceSpeedMetersPerSecond)
+				: 0.0;
+		double diskTerm = 2.0 * thrustNewtons / (airDensityKgPerCubicMeter * diskAreaMetersSquared);
+		return 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed + diskTerm) - axialAdvanceSpeed);
 	}
 
 	private Vec3 calculateAirframeAerodynamicTorque(
