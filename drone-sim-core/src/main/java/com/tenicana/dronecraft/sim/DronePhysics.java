@@ -1638,6 +1638,11 @@ public final class DronePhysics {
 					inPlaneDragBody,
 					aerodynamicOmega
 			);
+			double mechanicalPowerScale = coaxialAllocationMechanicalPowerScale(i);
+			double inPlaneDragMotorShaftTorque = inPlaneDragShaftTorque * mechanicalPowerScale * icingPowerScale;
+			state.setRotorInPlaneDragShaftTorqueNewtonMeters(i, inPlaneDragMotorShaftTorque);
+			state.setRotorInPlaneDragShaftPowerWatts(i,
+					inPlaneDragMotorShaftTorque * Math.max(0.0, omega));
 			double fallbackRawMotorAerodynamicTorque = rotor.yawTorquePerThrustMeter()
 					* thrust
 					* reactionTorqueScale
@@ -1653,7 +1658,7 @@ public final class DronePhysics {
 					thrustScale,
 					airDensity
 			);
-			double motorAerodynamicTorque = rawMotorAerodynamicTorque * coaxialAllocationMechanicalPowerScale(i) * icingPowerScale;
+			double motorAerodynamicTorque = rawMotorAerodynamicTorque * mechanicalPowerScale * icingPowerScale;
 			state.setMotorAerodynamicTorqueNewtonMeters(i, motorAerodynamicTorque);
 			state.setMotorShaftPowerWatts(
 					i,

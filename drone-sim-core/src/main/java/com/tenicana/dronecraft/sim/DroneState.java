@@ -150,6 +150,8 @@ public final class DroneState {
 	private double[] rotorDiskWindGradientVibration;
 	private double[] rotorDiskWindGradientStallIntensity;
 	private double[] rotorInPlaneDragForceNewtons;
+	private double[] rotorInPlaneDragShaftTorqueNewtonMeters;
+	private double[] rotorInPlaneDragShaftPowerWatts;
 	private double[] rotorFlappingForceNewtons;
 	private double[] rotorFlappingTiltRadians;
 	private double[] rotorConingIntensity;
@@ -346,6 +348,8 @@ public final class DroneState {
 		rotorDiskWindGradientVibration = new double[motorCount];
 		rotorDiskWindGradientStallIntensity = new double[motorCount];
 		rotorInPlaneDragForceNewtons = new double[motorCount];
+		rotorInPlaneDragShaftTorqueNewtonMeters = new double[motorCount];
+		rotorInPlaneDragShaftPowerWatts = new double[motorCount];
 		rotorFlappingForceNewtons = new double[motorCount];
 		rotorFlappingTiltRadians = new double[motorCount];
 		rotorConingIntensity = new double[motorCount];
@@ -2040,6 +2044,8 @@ public final class DroneState {
 		Arrays.fill(rotorBladePassRippleIntensity, 0.0);
 		Arrays.fill(rotorAerodynamicLoadFactor, 0.0);
 		Arrays.fill(rotorInPlaneDragForceNewtons, 0.0);
+		Arrays.fill(rotorInPlaneDragShaftTorqueNewtonMeters, 0.0);
+		Arrays.fill(rotorInPlaneDragShaftPowerWatts, 0.0);
 		Arrays.fill(rotorFlappingForceNewtons, 0.0);
 		Arrays.fill(rotorFlappingTiltRadians, 0.0);
 		Arrays.fill(rotorConingIntensity, 0.0);
@@ -2841,6 +2847,32 @@ public final class DroneState {
 		rotorInPlaneDragForceNewtons[index] = Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
 	}
 
+	public double rotorInPlaneDragShaftTorqueNewtonMeters(int index) {
+		return rotorInPlaneDragShaftTorqueNewtonMeters[index];
+	}
+
+	public double[] rotorInPlaneDragShaftTorqueNewtonMeters() {
+		return Arrays.copyOf(rotorInPlaneDragShaftTorqueNewtonMeters,
+				rotorInPlaneDragShaftTorqueNewtonMeters.length);
+	}
+
+	void setRotorInPlaneDragShaftTorqueNewtonMeters(int index, double value) {
+		rotorInPlaneDragShaftTorqueNewtonMeters[index] =
+				Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
+	public double rotorInPlaneDragShaftPowerWatts(int index) {
+		return rotorInPlaneDragShaftPowerWatts[index];
+	}
+
+	public double[] rotorInPlaneDragShaftPowerWatts() {
+		return Arrays.copyOf(rotorInPlaneDragShaftPowerWatts, rotorInPlaneDragShaftPowerWatts.length);
+	}
+
+	void setRotorInPlaneDragShaftPowerWatts(int index, double value) {
+		rotorInPlaneDragShaftPowerWatts[index] = Double.isFinite(value) ? Math.max(0.0, value) : 0.0;
+	}
+
 	public double averageRotorInPlaneDragForceNewtons() {
 		double sum = 0.0;
 		for (double force : rotorInPlaneDragForceNewtons) {
@@ -2853,6 +2885,38 @@ public final class DroneState {
 		double max = 0.0;
 		for (double force : rotorInPlaneDragForceNewtons) {
 			max = Math.max(max, force);
+		}
+		return max;
+	}
+
+	public double averageRotorInPlaneDragShaftTorqueNewtonMeters() {
+		double sum = 0.0;
+		for (double torque : rotorInPlaneDragShaftTorqueNewtonMeters) {
+			sum += torque;
+		}
+		return sum / rotorInPlaneDragShaftTorqueNewtonMeters.length;
+	}
+
+	public double maxRotorInPlaneDragShaftTorqueNewtonMeters() {
+		double max = 0.0;
+		for (double torque : rotorInPlaneDragShaftTorqueNewtonMeters) {
+			max = Math.max(max, torque);
+		}
+		return max;
+	}
+
+	public double averageRotorInPlaneDragShaftPowerWatts() {
+		double sum = 0.0;
+		for (double power : rotorInPlaneDragShaftPowerWatts) {
+			sum += power;
+		}
+		return sum / rotorInPlaneDragShaftPowerWatts.length;
+	}
+
+	public double maxRotorInPlaneDragShaftPowerWatts() {
+		double max = 0.0;
+		for (double power : rotorInPlaneDragShaftPowerWatts) {
+			max = Math.max(max, power);
 		}
 		return max;
 	}

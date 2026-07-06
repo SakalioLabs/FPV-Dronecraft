@@ -11328,8 +11328,22 @@ class DronePhysicsTest {
 		}
 
 		assertEquals(0.0, noDiskDrag.state().maxRotorInPlaneDragForceNewtons(), 1.0e-9);
+		assertEquals(0.0, noDiskDrag.state().maxRotorInPlaneDragShaftTorqueNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, noDiskDrag.state().maxRotorInPlaneDragShaftPowerWatts(), 1.0e-9);
 		assertTrue(hForce.state().averageRotorInPlaneDragForceNewtons() > 0.10,
 				() -> "hforce=" + hForce.state().averageRotorInPlaneDragForceNewtons());
+		assertTrue(hForce.state().averageRotorInPlaneDragShaftTorqueNewtonMeters() > 0.0003,
+				() -> "hforceTorque=" + hForce.state().averageRotorInPlaneDragShaftTorqueNewtonMeters());
+		assertTrue(hForce.state().averageRotorInPlaneDragShaftPowerWatts() > 0.50,
+				() -> "hforcePower=" + hForce.state().averageRotorInPlaneDragShaftPowerWatts());
+		for (int rotorIndex = 0; rotorIndex < base.rotors().size(); rotorIndex++) {
+			assertEquals(
+					hForce.state().rotorInPlaneDragShaftTorqueNewtonMeters(rotorIndex)
+							* Math.max(0.0, hForce.state().motorOmegaRadiansPerSecond(rotorIndex)),
+					hForce.state().rotorInPlaneDragShaftPowerWatts(rotorIndex),
+					1.0e-9
+			);
+		}
 		assertTrue(hForce.state().rotorForceBodyNewtons(0).x()
 				< noDiskDrag.state().rotorForceBodyNewtons(0).x() - 0.12);
 		assertTrue(maxLoadDelta > 0.04, "maxLoadDelta=" + maxLoadDelta);
@@ -12524,6 +12538,12 @@ class DronePhysicsTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_in_plane_drag_force_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_in_plane_drag_force_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_in_plane_drag_force_n"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_in_plane_drag_shaft_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_in_plane_drag_shaft_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_in_plane_drag_shaft_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_in_plane_drag_shaft_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_in_plane_drag_shaft_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_in_plane_drag_shaft_power_w"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_inflow_skew"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_interference"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_wake_thrust_scale"));

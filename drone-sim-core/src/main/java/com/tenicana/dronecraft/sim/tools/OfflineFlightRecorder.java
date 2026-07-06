@@ -1111,6 +1111,24 @@ public final class OfflineFlightRecorder {
 			"rotor_5_in_plane_drag_force_n",
 			"rotor_6_in_plane_drag_force_n",
 			"rotor_7_in_plane_drag_force_n",
+			"rotor_in_plane_drag_shaft_torque_nm",
+			"rotor_0_in_plane_drag_shaft_torque_nm",
+			"rotor_1_in_plane_drag_shaft_torque_nm",
+			"rotor_2_in_plane_drag_shaft_torque_nm",
+			"rotor_3_in_plane_drag_shaft_torque_nm",
+			"rotor_4_in_plane_drag_shaft_torque_nm",
+			"rotor_5_in_plane_drag_shaft_torque_nm",
+			"rotor_6_in_plane_drag_shaft_torque_nm",
+			"rotor_7_in_plane_drag_shaft_torque_nm",
+			"rotor_in_plane_drag_shaft_power_w",
+			"rotor_0_in_plane_drag_shaft_power_w",
+			"rotor_1_in_plane_drag_shaft_power_w",
+			"rotor_2_in_plane_drag_shaft_power_w",
+			"rotor_3_in_plane_drag_shaft_power_w",
+			"rotor_4_in_plane_drag_shaft_power_w",
+			"rotor_5_in_plane_drag_shaft_power_w",
+			"rotor_6_in_plane_drag_shaft_power_w",
+			"rotor_7_in_plane_drag_shaft_power_w",
 			"rotor_coaxial_load_bias",
 			"rotor_0_coaxial_load_bias",
 			"rotor_1_coaxial_load_bias",
@@ -4425,6 +4443,8 @@ public final class OfflineFlightRecorder {
 		double[] rotorWetThrustScale = state.rotorWetThrustScale();
 		double[] rotorCoaxialLoadBias = state.rotorCoaxialLoadBias();
 		double[] rotorInPlaneDrag = state.rotorInPlaneDragForceNewtons();
+		double[] rotorInPlaneDragShaftTorque = state.rotorInPlaneDragShaftTorqueNewtonMeters();
+		double[] rotorInPlaneDragShaftPower = state.rotorInPlaneDragShaftPowerWatts();
 		double[] rotorWakeSwirl = state.rotorWakeSwirlVelocityMetersPerSecond();
 		double[] rotorWindmilling = state.rotorWindmillingIntensity();
 		double[] rotorDynamicInflowTimeConstant = state.rotorDynamicInflowTimeConstantSeconds();
@@ -4981,6 +5001,14 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, state.averageRotorInPlaneDragForceNewtons(), "%.4f");
 		for (int i = 0; i < 8; i++) {
 			appendExtra(builder, valueOrZero(rotorInPlaneDrag, i), "%.4f");
+		}
+		appendExtra(builder, state.averageRotorInPlaneDragShaftTorqueNewtonMeters(), "%.6f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorInPlaneDragShaftTorque, i), "%.6f");
+		}
+		appendExtra(builder, state.averageRotorInPlaneDragShaftPowerWatts(), "%.5f");
+		for (int i = 0; i < 8; i++) {
+			appendExtra(builder, valueOrZero(rotorInPlaneDragShaftPower, i), "%.5f");
 		}
 		appendExtra(builder, state.averageAbsRotorCoaxialLoadBias(), "%.5f");
 		for (int i = 0; i < 8; i++) {
