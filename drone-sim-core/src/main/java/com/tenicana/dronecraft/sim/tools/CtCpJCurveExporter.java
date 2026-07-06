@@ -68,6 +68,8 @@ public final class CtCpJCurveExporter {
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
 	private static final double REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND = -4.5;
 	private static final double OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J = 1.20;
+	private static final double TRANSVERSE_INFLOW_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
+	private static final double TRANSVERSE_INFLOW_DIAGNOSTIC_SPEED_METERS_PER_SECOND = 2.5;
 
 	private CtCpJCurveExporter() {
 	}
@@ -411,6 +413,28 @@ public final class CtCpJCurveExporter {
 				/ 60.0
 				* rotor.radiusMeters()
 				* 2.0;
+		double transverseDiagnosticAxialSpeed = TRANSVERSE_INFLOW_DIAGNOSTIC_ADVANCE_RATIO_J
+				* hoverRpm
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0;
+		Vec3 transverseDiagnosticAirVelocity = rotorAxisBody(rotor)
+				.multiply(transverseDiagnosticAxialSpeed)
+				.add(diagnosticTransverseAirVelocity(
+						rotor,
+						TRANSVERSE_INFLOW_DIAGNOSTIC_SPEED_METERS_PER_SECOND
+				));
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample transverseInflowDiagnostic =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromRelativeAirVelocity(
+						presetName,
+						"static_anchored_runtime_transverse_inflow_diagnostic",
+						rotor,
+						transverseDiagnosticAirVelocity,
+						hoverOmega,
+						airDensityKgPerCubicMeter,
+						config.centerOfMassOffsetBodyMeters(),
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
 		return List.of(
 				new EnvelopeDiagnosticPoint(
 						REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND,
@@ -419,6 +443,10 @@ public final class CtCpJCurveExporter {
 				new EnvelopeDiagnosticPoint(
 						blockedAxialSpeed,
 						highAdvanceBlocked
+				),
+				new EnvelopeDiagnosticPoint(
+						transverseDiagnosticAxialSpeed,
+						transverseInflowDiagnostic
 				)
 		);
 	}
@@ -490,6 +518,16 @@ public final class CtCpJCurveExporter {
 			return new Vec3(0.0, 1.0, 0.0);
 		}
 		return axis.normalized();
+	}
+
+	private static Vec3 diagnosticTransverseAirVelocity(RotorSpec rotor, double speedMetersPerSecond) {
+		Vec3 axis = rotorAxisBody(rotor);
+		Vec3 basis = Math.abs(axis.x()) < 0.9 ? new Vec3(1.0, 0.0, 0.0) : new Vec3(0.0, 0.0, 1.0);
+		Vec3 transverse = basis.subtract(axis.multiply(basis.dot(axis)));
+		if (!transverse.isFinite() || transverse.lengthSquared() <= 1.0e-9) {
+			transverse = new Vec3(0.0, 0.0, 1.0).subtract(axis.multiply(axis.z()));
+		}
+		return transverse.normalized().multiply(speedMetersPerSecond);
 	}
 
 	private record StaticCurvePoint(String caseName, double rpm) {

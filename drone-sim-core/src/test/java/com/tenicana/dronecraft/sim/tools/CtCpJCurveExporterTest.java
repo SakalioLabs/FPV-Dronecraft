@@ -29,7 +29,7 @@ class CtCpJCurveExporterTest {
 				diameter
 		);
 
-		assertEquals(44, lines.size());
+		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
 				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm"));
@@ -116,6 +116,36 @@ class CtCpJCurveExporterTest {
 		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[14])
 				> Double.parseDouble(runtimeHoverStatic.split(",", -1)[14]));
 
+		String transverseDiagnostic = lineForCase(lines,
+				"static_anchored_runtime_transverse_inflow_diagnostic");
+		String[] transverseCells = transverseDiagnostic.split(",", -1);
+		assertEquals("EXACT", transverseCells[6]);
+		assertEquals("false", transverseCells[7]);
+		assertEquals("false", transverseCells[8]);
+		assertEquals("true", transverseCells[23]);
+		assertEquals("0.406400000000000", transverseCells[2]);
+		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[9]),
+				Double.parseDouble(transverseCells[9]), 1.0e-15);
+		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[10]),
+				Double.parseDouble(transverseCells[10]), 1.0e-15);
+		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[13]),
+				Double.parseDouble(transverseCells[13]), 1.0e-12);
+		assertEquals(Double.parseDouble(transverseCells[24]), Double.parseDouble(transverseCells[12]), 1.0e-12);
+		assertEquals(2.5, Double.parseDouble(transverseCells[25]), 1.0e-15);
+		assertEquals(Double.parseDouble(transverseCells[12]), Double.parseDouble(transverseCells[26]), 1.0e-12);
+		assertEquals(0.0, Double.parseDouble(transverseCells[27]), 1.0e-15);
+		assertEquals(2.5, Double.parseDouble(transverseCells[28]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(transverseCells[29]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(transverseCells[30]), 1.0e-15);
+		assertEquals(2.5, Double.parseDouble(transverseCells[31]), 1.0e-15);
+		assertEquals(
+				Math.toDegrees(Math.atan2(2.5, Double.parseDouble(transverseCells[12]))),
+				Double.parseDouble(transverseCells[32]),
+				1.0e-12
+		);
+		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[34]),
+				Double.parseDouble(transverseCells[34]), 1.0e-12);
+
 		String reverseClamp = lineForCase(lines, "static_anchored_runtime_reverse_axial_clamp");
 		String[] reverseCells = reverseClamp.split(",", -1);
 		assertEquals("CLAMPED_EXACT", reverseCells[6]);
@@ -174,7 +204,7 @@ class CtCpJCurveExporterTest {
 		);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(44, lines.size());
+		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).contains("shaft_torque_nm"));
 		assertTrue(lines.get(0).contains("source_id"));
 		assertTrue(lines.get(0).contains("query_signed_axial_speed_mps"));
@@ -205,6 +235,8 @@ class CtCpJCurveExporterTest {
 		assertTrue(actual.stream().anyMatch(line ->
 				line.contains(",static_anchored_runtime_high_j_block,")
 						&& line.contains(",OUT_OF_ENVELOPE_BLOCKED,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_runtime_transverse_inflow_diagnostic,")));
 	}
 
 	private static double numericCell(List<String> lines, String caseName, String queryJ, int cellIndex) {
