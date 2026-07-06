@@ -149,6 +149,30 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void referenceSamplerPreservesTransverseRelativeAirVelocityDiagnostics() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double rpm = 6_000.0;
+		double omega = rpm * 2.0 * Math.PI / 60.0;
+		double axialSpeed = 2.0;
+		Vec3 transverseVelocity = new Vec3(1.5, 0.0, -2.0);
+		Vec3 relativeAirVelocity = rotor.thrustAxisBody().multiply(axialSpeed).add(transverseVelocity);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, relativeAirVelocity, omega, 1.0);
+
+		assertNotNull(sample);
+		assertFalse(sample.blocked());
+		assertEquals(axialSpeed / (rpm / 60.0 * rotor.radiusMeters() * 2.0),
+				sample.query().advanceRatioJ(), 1.0e-12);
+		assertVectorEquals(relativeAirVelocity, sample.relativeAirVelocityBodyMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(transverseVelocity, sample.transverseAirVelocityBodyMetersPerSecond(), 1.0e-15);
+		assertEquals(2.5, sample.transverseAirSpeedMetersPerSecond(), 1.0e-15);
+		assertEquals(Math.atan2(2.5, axialSpeed), sample.inflowAngleRadians(), 1.0e-15);
+		assertVectorEquals(rotor.thrustAxisBody().multiply(sample.thrustNewtons()),
+				sample.thrustForceBodyNewtons(), 1.0e-15);
+	}
+
+	@Test
 	void referenceSamplerReportsBodyTorqueAboutRequestedMomentReference() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
@@ -255,6 +279,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 						sample.lookup(),
 						sample.dimensionalSample(),
 						sample.axialAdvanceSpeedMetersPerSecond(),
+						sample.relativeAirVelocityBodyMetersPerSecond(),
+						sample.transverseAirVelocityBodyMetersPerSecond(),
+						sample.transverseAirSpeedMetersPerSecond(),
+						sample.inflowAngleRadians(),
 						nonCollinearForce,
 						sample.reactionTorqueBodyNewtonMeters(),
 						sample.momentArmBodyMeters(),
@@ -325,6 +353,10 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 						sample.lookup(),
 						sample.dimensionalSample(),
 						sample.axialAdvanceSpeedMetersPerSecond(),
+						sample.relativeAirVelocityBodyMetersPerSecond(),
+						sample.transverseAirVelocityBodyMetersPerSecond(),
+						sample.transverseAirSpeedMetersPerSecond(),
+						sample.inflowAngleRadians(),
 						sample.thrustForceBodyNewtons(),
 						nonCollinearTorque,
 						sample.momentArmBodyMeters(),
