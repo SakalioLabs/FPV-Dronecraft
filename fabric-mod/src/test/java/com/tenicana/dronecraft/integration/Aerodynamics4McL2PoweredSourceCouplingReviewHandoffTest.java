@@ -53,7 +53,7 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertEquals(0, current.nearfieldOpenFoamAvailableReferenceRowCount());
 		assertFalse(current.nearfieldOpenFoamCoefficientLookupShapeGuardReady());
 		assertEquals(0, current.nearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount());
-		assertEquals(5, current.nearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, current.nearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, current.nearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, current.nearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertEquals(0.00027500814692071884,
@@ -149,7 +149,7 @@ class Aerodynamics4McL2PoweredSourceCouplingReviewHandoffTest {
 		assertEquals(1, audit.extrema().swirlConservationEvidenceBlockerScenarioCount());
 		assertEquals(1, audit.extrema().nearfieldReferenceBlockerScenarioCount());
 		assertEquals(6, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardReadyRowCount());
-		assertEquals(5, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
+		assertEquals(6, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardInheritedScenarioCount());
 		assertEquals(1, audit.extrema().maxNearfieldOpenFoamCoefficientLookupShapeGuardBlockedScenarioCount());
 		assertEquals(9, audit.extrema().maxNearfieldOpenFoamCoefficientNegativeThrustTailExecutionInputRowCount());
 		assertEquals(0.00027500814692071884,
