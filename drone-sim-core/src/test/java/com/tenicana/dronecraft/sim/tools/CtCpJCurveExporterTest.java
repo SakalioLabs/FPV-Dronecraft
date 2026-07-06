@@ -180,7 +180,7 @@ class CtCpJCurveExporterTest {
 		assertTrue(Double.parseDouble(reverseCells[24]) < 0.0);
 		assertEquals(Double.parseDouble(reverseCells[24]), Double.parseDouble(reverseCells[26]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(reverseCells[31]), 1.0e-15);
-		assertEquals(0.0, Double.parseDouble(reverseCells[32]), 1.0e-15);
+		assertEquals(180.0, Double.parseDouble(reverseCells[32]), 1.0e-12);
 		assertEquals(0.0, Double.parseDouble(reverseCells[12]), 1.0e-15);
 		assertTrue(Double.parseDouble(reverseCells[13]) > 0.0);
 		assertEquals(Double.parseDouble(reverseCells[13]), Double.parseDouble(reverseCells[34]), 1.0e-15);
