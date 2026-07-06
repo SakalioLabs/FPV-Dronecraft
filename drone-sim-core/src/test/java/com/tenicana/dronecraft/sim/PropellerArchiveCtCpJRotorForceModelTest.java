@@ -40,6 +40,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(sample.blocked());
 		assertFalse(sample.clamped());
 		assertTrue(sample.momentumPowerClosureSatisfied());
+		assertTrue(sample.wakePowerClosureSatisfied());
 		assertTrue(sample.runtimeInflowEnvelopeSatisfied());
 		assertFalse(sample.runtimeOperatingPointEnvelopeSatisfied());
 		assertFalse(sample.runtimeForceReplacementAccepted());
@@ -86,6 +87,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 
 		assertFalse(sample.blocked());
 		assertTrue(sample.momentumPowerClosureSatisfied());
+		assertTrue(sample.wakePowerClosureSatisfied());
 		assertTrue(sample.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BILINEAR,
 				sample.lookup().interpolationStatus());
@@ -115,6 +117,89 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(operatingPoint.runtimeTipMachMargin() > 0.0);
 		assertTrue(operatingPoint.runtimeReynoldsIndexMargin() > 0.0);
 		assertTrue(operatingPoint.runtimeOperatingEnvelopeMarginFraction() > 0.0);
+	}
+
+	@Test
+	void runtimeReplacementRejectsSyntheticWakePowerClosureFailure() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup =
+				new PropellerArchiveCtCpJLookupEvaluator.LookupResult(
+						"apDrone",
+						"synthetic_wake_power_reject",
+						"synthetic-test",
+						reference.advanceRatioJ(),
+						reference.rpm(),
+						reference.advanceRatioJ(),
+						reference.rpm(),
+						reference.advanceRatioJ(),
+						reference.advanceRatioJ(),
+						reference.rpm(),
+						reference.rpm(),
+						0.0,
+						0.0,
+						1,
+						1,
+						0.09325,
+						4.0,
+						reference.advanceRatioJ() * 0.09325 / 4.0,
+						PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
+						false,
+						false,
+						"INTERPOLATED",
+						"synthetic-swirl-power-heavy-point"
+				);
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional =
+				PropellerArchiveCtCpJLookupEvaluator.sampleRotor(
+						lookup,
+						reference.propellerDiameterMeters(),
+						reference.airDensityKgPerCubicMeter()
+				);
+		Vec3 relativeAir = rotor.thrustAxisBody().multiply(dimensional.axialAdvanceSpeedMetersPerSecond());
+		Vec3 thrustForce = rotor.thrustAxisBody().multiply(dimensional.thrustNewtons());
+		Vec3 reactionTorque = rotor.thrustAxisBody()
+				.multiply(rotor.spinDirection() * dimensional.shaftTorqueNewtonMeters());
+		Vec3 momentArm = rotor.positionBodyMeters();
+		Vec3 thrustMoment = momentArm.cross(thrustForce);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				new PropellerArchiveCtCpJRotorForceModel.RotorForceSample(
+						new PropellerArchiveCtCpJRotorForceModel.RotorForceQuery(
+								"apDrone",
+								"synthetic_wake_power_reject",
+								rotor,
+								reference.advanceRatioJ(),
+								reference.rpm(),
+								RHO,
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+						),
+						lookup,
+						dimensional,
+						dimensional.axialAdvanceSpeedMetersPerSecond(),
+						relativeAir,
+						Vec3.ZERO,
+						0.0,
+						0.0,
+						thrustForce,
+						reactionTorque,
+						momentArm,
+						thrustMoment,
+						thrustMoment.add(reactionTorque),
+						dimensional.shaftTorqueNewtonMeters() / dimensional.thrustNewtons()
+				);
+
+		assertTrue(sample.momentumPowerClosureSatisfied());
+		assertFalse(sample.wakePowerClosureSatisfied());
+		assertTrue(sample.dimensionalSample().idealMomentumPowerOverShaftPower() < 1.0);
+		assertTrue(sample.dimensionalSample().totalWakeKineticPowerOverShaftPower() > 1.0);
+		assertTrue(sample.runtimeInflowEnvelopeSatisfied());
+		assertTrue(sample.runtimeOperatingPointEnvelopeSatisfied());
+		assertFalse(sample.runtimeForceReplacementAccepted());
 	}
 
 	@Test
@@ -621,6 +706,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 
 		assertFalse(high.blocked());
 		assertFalse(high.momentumPowerClosureSatisfied());
+		assertFalse(high.wakePowerClosureSatisfied());
 		assertFalse(high.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.LINEAR_ADVANCE,
 				high.lookup().interpolationStatus());
@@ -662,6 +748,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(blocked.blocked());
 		assertFalse(blocked.clamped());
 		assertFalse(blocked.momentumPowerClosureSatisfied());
+		assertFalse(blocked.wakePowerClosureSatisfied());
 		assertFalse(blocked.runtimeForceReplacementAccepted());
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.lookup().status());
 		assertEquals(0.0, blocked.thrustNewtons(), 1.0e-15);
@@ -703,6 +790,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(sample.blocked());
 		assertTrue(sample.clamped());
 		assertFalse(sample.momentumPowerClosureSatisfied());
+		assertFalse(sample.wakePowerClosureSatisfied());
 		assertFalse(sample.runtimeForceReplacementAccepted());
 		assertEquals(highReference.rpm(), sample.lookup().effectiveRpm(), 1.0e-9);
 		assertEquals(sample.lookup().effectiveRpm(), sample.dimensionalSample().revolutionsPerSecond() * 60.0, 1.0e-9);

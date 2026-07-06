@@ -144,6 +144,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return !blocked()
 					&& !clamped()
 					&& momentumPowerClosureSatisfied()
+					&& wakePowerClosureSatisfied()
 					&& runtimeInflowEnvelopeSatisfied()
 					&& runtimeOperatingPointEnvelopeSatisfied(ambientTemperatureCelsius, ambientHumidity);
 		}
@@ -156,6 +157,13 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 		public boolean momentumPowerClosureSatisfied() {
 			double ratio = dimensionalSample.idealMomentumPowerOverShaftPower();
+			return Double.isFinite(ratio)
+					&& ratio > 0.0
+					&& ratio <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
+		}
+
+		public boolean wakePowerClosureSatisfied() {
+			double ratio = dimensionalSample.totalWakeKineticPowerOverShaftPower();
 			return Double.isFinite(ratio)
 					&& ratio > 0.0
 					&& ratio <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;

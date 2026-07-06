@@ -597,6 +597,12 @@ public final class CtCpJCurveExporter {
 				&& idealMomentumPowerOverShaftPower <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
 	}
 
+	private static boolean wakePowerClosureSatisfied(double totalWakeKineticPowerOverShaftPower) {
+		return Double.isFinite(totalWakeKineticPowerOverShaftPower)
+				&& totalWakeKineticPowerOverShaftPower > 0.0
+				&& totalWakeKineticPowerOverShaftPower <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
+	}
+
 	private static String runtimeEligibilityStatus(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
 			boolean runtimeForceReplacementAccepted,
@@ -615,6 +621,9 @@ public final class CtCpJCurveExporter {
 		}
 		if (!sample.momentumPowerClosureSatisfied()) {
 			return "MOMENTUM_POWER_CLOSURE_FAILED";
+		}
+		if (!sample.wakePowerClosureSatisfied()) {
+			return "WAKE_POWER_CLOSURE_FAILED";
 		}
 		if (!sample.runtimeInflowEnvelopeSatisfied()) {
 			return "OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE";
@@ -641,6 +650,9 @@ public final class CtCpJCurveExporter {
 		}
 		if (!momentumPowerClosureSatisfied(sample.idealMomentumPowerOverShaftPower())) {
 			return "MOMENTUM_POWER_CLOSURE_FAILED";
+		}
+		if (!wakePowerClosureSatisfied(sample.totalWakeKineticPowerOverShaftPower())) {
+			return "WAKE_POWER_CLOSURE_FAILED";
 		}
 		return "NOT_RUNTIME_CANDIDATE";
 	}
