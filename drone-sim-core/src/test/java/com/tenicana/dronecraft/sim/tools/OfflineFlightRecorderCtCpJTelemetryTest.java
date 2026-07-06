@@ -44,10 +44,19 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int rotorRuntimeValidIndex = column(header, "rotor_0_ctcpj_runtime_valid");
 		int rotorRuntimeCtIndex = column(header, "rotor_0_ctcpj_runtime_ct");
 		int rotorRuntimeCpIndex = column(header, "rotor_0_ctcpj_runtime_cp");
+		int rotorRuntimeCqIndex = column(header, "rotor_0_ctcpj_runtime_torque_coefficient_cq");
 		int rotorRuntimeEtaIndex = column(header, "rotor_0_ctcpj_runtime_eta");
 		int rotorRuntimeDiskLoadingIndex = column(header, "rotor_0_ctcpj_runtime_disk_loading_n_m2");
 		int rotorRuntimeInducedVelocityIndex = column(header,
 				"rotor_0_ctcpj_runtime_ideal_induced_velocity_mps");
+		int rotorRuntimeIdealMomentumPowerIndex = column(header,
+				"rotor_0_ctcpj_runtime_ideal_momentum_power_w");
+		int rotorRuntimeUsefulAxialPowerIndex = column(header,
+				"rotor_0_ctcpj_runtime_useful_axial_thrust_power_w");
+		int rotorRuntimeIdealInducedPowerIndex = column(header,
+				"rotor_0_ctcpj_runtime_ideal_induced_power_w");
+		int rotorRuntimeAxialEtaIndex = column(header,
+				"rotor_0_ctcpj_runtime_axial_propulsive_efficiency");
 		int rotorRuntimeMomentumRatioIndex = column(header,
 				"rotor_0_ctcpj_runtime_ideal_momentum_power_over_shaft_power");
 		int availableIndex = column(header, "rotor_ctcpj_ref_available");
@@ -203,6 +212,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_cp"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_torque_coefficient_cq"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ideal_momentum_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_useful_axial_thrust_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_runtime_ideal_induced_power_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_runtime_axial_propulsive_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_7_ctcpj_runtime_ideal_momentum_power_over_shaft_power"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
@@ -348,15 +363,25 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double propellerJ = Double.parseDouble(row[rotorPropellerJIndex]);
 				double runtimeCt = Double.parseDouble(row[rotorRuntimeCtIndex]);
 				double runtimeCp = Double.parseDouble(row[rotorRuntimeCpIndex]);
+				double runtimeCq = Double.parseDouble(row[rotorRuntimeCqIndex]);
 				double runtimeEta = Double.parseDouble(row[rotorRuntimeEtaIndex]);
 				double runtimeDiskLoading = Double.parseDouble(row[rotorRuntimeDiskLoadingIndex]);
 				double runtimeInducedVelocity = Double.parseDouble(row[rotorRuntimeInducedVelocityIndex]);
+				double runtimeIdealMomentumPower = Double.parseDouble(row[rotorRuntimeIdealMomentumPowerIndex]);
+				double runtimeUsefulAxialPower = Double.parseDouble(row[rotorRuntimeUsefulAxialPowerIndex]);
+				double runtimeIdealInducedPower = Double.parseDouble(row[rotorRuntimeIdealInducedPowerIndex]);
+				double runtimeAxialEta = Double.parseDouble(row[rotorRuntimeAxialEtaIndex]);
 				double runtimeMomentumRatio = Double.parseDouble(row[rotorRuntimeMomentumRatioIndex]);
 				assertTrue(Double.isFinite(runtimeCt));
 				assertTrue(Double.isFinite(runtimeCp));
+				assertTrue(Double.isFinite(runtimeCq));
 				assertTrue(Double.isFinite(runtimeEta));
 				assertTrue(Double.isFinite(runtimeDiskLoading));
 				assertTrue(Double.isFinite(runtimeInducedVelocity));
+				assertTrue(Double.isFinite(runtimeIdealMomentumPower));
+				assertTrue(Double.isFinite(runtimeUsefulAxialPower));
+				assertTrue(Double.isFinite(runtimeIdealInducedPower));
+				assertTrue(Double.isFinite(runtimeAxialEta));
 				assertTrue(Double.isFinite(runtimeMomentumRatio));
 				if (rotorRuntimeValid > 0.0 && rpm > 0.0) {
 					double n = rpm / 60.0;
@@ -373,6 +398,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 							runtimeCp,
 							1.0e-4
 					);
+					assertEquals(runtimeCp / (2.0 * Math.PI), runtimeCq, 1.0e-7);
+					assertEquals(
+							Double.parseDouble(row[motorAerodynamicTorqueIndex]),
+							runtimeCq * airDensity * n * n * Math.pow(diameter, 5.0),
+							5.0e-6
+					);
 					if (runtimeCp > 1.0e-9) {
 						assertEquals(propellerJ * runtimeCt / runtimeCp, runtimeEta, 5.0e-5);
 					}
@@ -383,9 +414,15 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 									+ 2.0 * thrust / (airDensity * diskArea)) - axialAdvanceSpeed)
 							: 0.0;
 					assertEquals(expectedInducedVelocity, runtimeInducedVelocity, 1.0e-4);
+					assertEquals(thrust * axialAdvanceSpeed, runtimeUsefulAxialPower, 2.0e-3);
+					assertEquals(thrust * expectedInducedVelocity, runtimeIdealInducedPower, 2.0e-3);
+					assertEquals(runtimeUsefulAxialPower + runtimeIdealInducedPower,
+							runtimeIdealMomentumPower, 2.0e-3);
 					if (aerodynamicPower > 1.0e-9) {
+						assertEquals(runtimeUsefulAxialPower / aerodynamicPower, runtimeAxialEta, 1.0e-4);
+						assertEquals(runtimeEta, runtimeAxialEta, 1.0e-4);
 						assertEquals(
-								thrust * (axialAdvanceSpeed + expectedInducedVelocity) / aerodynamicPower,
+								runtimeIdealMomentumPower / aerodynamicPower,
 								runtimeMomentumRatio,
 								1.0e-4
 						);

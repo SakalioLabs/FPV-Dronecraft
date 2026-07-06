@@ -20,6 +20,7 @@ import com.tenicana.dronecraft.sim.NanodroneSysIdCalibration;
 import com.tenicana.dronecraft.sim.NeuroBemAirframeResidualCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
 import com.tenicana.dronecraft.sim.PropellerDamageCalibration;
 import com.tenicana.dronecraft.sim.PropGeometryCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
@@ -1184,9 +1185,14 @@ public final class OfflineFlightRecorder {
 		appendCtCpJRuntimeColumnFamily(builder, "valid");
 		appendCtCpJRuntimeColumnFamily(builder, "ct");
 		appendCtCpJRuntimeColumnFamily(builder, "cp");
+		appendCtCpJRuntimeColumnFamily(builder, "torque_coefficient_cq");
 		appendCtCpJRuntimeColumnFamily(builder, "eta");
 		appendCtCpJRuntimeColumnFamily(builder, "disk_loading_n_m2");
 		appendCtCpJRuntimeColumnFamily(builder, "ideal_induced_velocity_mps");
+		appendCtCpJRuntimeColumnFamily(builder, "ideal_momentum_power_w");
+		appendCtCpJRuntimeColumnFamily(builder, "useful_axial_thrust_power_w");
+		appendCtCpJRuntimeColumnFamily(builder, "ideal_induced_power_w");
+		appendCtCpJRuntimeColumnFamily(builder, "axial_propulsive_efficiency");
 		appendCtCpJRuntimeColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
 		appendCtCpJReferenceColumnFamily(builder, "available");
 		appendCtCpJReferenceColumnFamily(builder, "blocked");
@@ -1746,7 +1752,7 @@ public final class OfflineFlightRecorder {
 		);
 		System.out.printf(
 				Locale.ROOT,
-				"Runtime CTCPJ coefficients: samples=%d ct_min_mean_max=%.6f/%.6f/%.6f cp_min_mean_max=%.6f/%.6f/%.6f eta_min_mean_max=%.5f/%.5f/%.5f disk_mean_max=%.2f/%.2f N/m2 momentum_ratio_mean_max=%.4f/%.4f%n",
+				"Runtime CTCPJ coefficients: samples=%d ct_min_mean_max=%.6f/%.6f/%.6f cp_min_mean_max=%.6f/%.6f/%.6f cq_min_mean_max=%.8f/%.8f/%.8f eta_min_mean_max=%.5f/%.5f/%.5f axial_eta_min_mean_max=%.5f/%.5f/%.5f disk_mean_max=%.2f/%.2f N/m2 momentum_ratio_mean_max=%.4f/%.4f%n",
 				report.ctCpJRuntimeCoefficientRotorSampleCount(),
 				report.minCtCpJRuntimeThrustCoefficientCt(),
 				report.meanCtCpJRuntimeThrustCoefficientCt(),
@@ -1754,9 +1760,15 @@ public final class OfflineFlightRecorder {
 				report.minCtCpJRuntimePowerCoefficientCp(),
 				report.meanCtCpJRuntimePowerCoefficientCp(),
 				report.maxCtCpJRuntimePowerCoefficientCp(),
+				report.minCtCpJRuntimeTorqueCoefficientCq(),
+				report.meanCtCpJRuntimeTorqueCoefficientCq(),
+				report.maxCtCpJRuntimeTorqueCoefficientCq(),
 				report.minCtCpJRuntimePropulsiveEfficiencyEta(),
 				report.meanCtCpJRuntimePropulsiveEfficiencyEta(),
 				report.maxCtCpJRuntimePropulsiveEfficiencyEta(),
+				report.minCtCpJRuntimeAxialPropulsiveEfficiency(),
+				report.meanCtCpJRuntimeAxialPropulsiveEfficiency(),
+				report.maxCtCpJRuntimeAxialPropulsiveEfficiency(),
 				report.meanCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter(),
 				report.maxCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter(),
 				report.meanCtCpJRuntimeIdealMomentumPowerOverShaftPower(),
@@ -4512,6 +4524,9 @@ public final class OfflineFlightRecorder {
 				motorAerodynamicShaftPower,
 				motorRpm
 		);
+		double[] rotorCtCpJRuntimeCq = rotorCtCpJRuntimeTorqueCoefficientCq(
+				rotorCtCpJRuntimeCp
+		);
 		double[] rotorCtCpJRuntimeEta = rotorCtCpJRuntimeEta(
 				rotorPropellerAdvanceRatioJ,
 				rotorCtCpJRuntimeCt,
@@ -4530,11 +4545,29 @@ public final class OfflineFlightRecorder {
 						rotorThrust,
 						rotorCtCpJRuntimeAxialAdvanceSpeed
 				);
+		double[] rotorCtCpJRuntimeUsefulAxialThrustPower =
+				rotorCtCpJRuntimeUsefulAxialThrustPowerWatts(
+						rotorThrust,
+						rotorCtCpJRuntimeAxialAdvanceSpeed
+				);
+		double[] rotorCtCpJRuntimeIdealInducedPower =
+				rotorCtCpJRuntimeIdealInducedPowerWatts(
+						rotorThrust,
+						rotorCtCpJRuntimeIdealInducedVelocity
+				);
+		double[] rotorCtCpJRuntimeIdealMomentumPower =
+				rotorCtCpJRuntimeIdealMomentumPowerWatts(
+						rotorCtCpJRuntimeUsefulAxialThrustPower,
+						rotorCtCpJRuntimeIdealInducedPower
+				);
+		double[] rotorCtCpJRuntimeAxialPropulsiveEfficiency =
+				rotorCtCpJRuntimeAxialPropulsiveEfficiency(
+						rotorCtCpJRuntimeUsefulAxialThrustPower,
+						motorAerodynamicShaftPower
+				);
 		double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower =
 				rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
-						rotorThrust,
-						rotorCtCpJRuntimeAxialAdvanceSpeed,
-						rotorCtCpJRuntimeIdealInducedVelocity,
+						rotorCtCpJRuntimeIdealMomentumPower,
 						motorAerodynamicShaftPower
 				);
 		boolean[] rotorCtCpJReferenceAvailable = state.rotorCtCpJReferenceAvailable();
@@ -4899,9 +4932,18 @@ public final class OfflineFlightRecorder {
 		appendBooleanFamily(builder, rotorCtCpJRuntimeCoefficientAvailable);
 		appendDoubleFamily(builder, rotorCtCpJRuntimeCt, rotorCtCpJRuntimeCoefficientAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJRuntimeCp, rotorCtCpJRuntimeCoefficientAvailable, "%.6f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeCq, rotorCtCpJRuntimeCoefficientAvailable, "%.8f");
 		appendDoubleFamily(builder, rotorCtCpJRuntimeEta, rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJRuntimeDiskLoading, rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealInducedVelocity,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealMomentumPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeUsefulAxialThrustPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealInducedPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeAxialPropulsiveEfficiency,
 				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower,
 				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
@@ -5315,6 +5357,15 @@ public final class OfflineFlightRecorder {
 		return values;
 	}
 
+	private static double[] rotorCtCpJRuntimeTorqueCoefficientCq(double[] powerCoefficientCp) {
+		int count = powerCoefficientCp == null ? 0 : powerCoefficientCp.length;
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = PropellerArchiveCtCpJLookupEvaluator.torqueCoefficientCq(valueOrZero(powerCoefficientCp, i));
+		}
+		return values;
+	}
+
 	private static double[] rotorCtCpJRuntimeEta(
 			double[] propellerAdvanceRatioJ,
 			double[] thrustCoefficientCt,
@@ -5393,30 +5444,79 @@ public final class OfflineFlightRecorder {
 		return values;
 	}
 
-	private static double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
+	private static double[] rotorCtCpJRuntimeUsefulAxialThrustPowerWatts(
 			double[] rotorThrust,
-			double[] axialAdvanceSpeedMetersPerSecond,
-			double[] idealInducedVelocity,
+			double[] axialAdvanceSpeedMetersPerSecond
+	) {
+		int count = Math.max(rotorThrust == null ? 0 : rotorThrust.length,
+				axialAdvanceSpeedMetersPerSecond == null ? 0 : axialAdvanceSpeedMetersPerSecond.length);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double thrust = Math.max(0.0, valueOrZero(rotorThrust, i));
+			values[i] = finiteOrZero(thrust * Math.max(0.0, valueOrZero(axialAdvanceSpeedMetersPerSecond, i)));
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeIdealInducedPowerWatts(
+			double[] rotorThrust,
+			double[] idealInducedVelocityMetersPerSecond
+	) {
+		int count = Math.max(rotorThrust == null ? 0 : rotorThrust.length,
+				idealInducedVelocityMetersPerSecond == null ? 0 : idealInducedVelocityMetersPerSecond.length);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double thrust = Math.max(0.0, valueOrZero(rotorThrust, i));
+			values[i] = finiteOrZero(thrust * Math.max(0.0, valueOrZero(idealInducedVelocityMetersPerSecond, i)));
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeIdealMomentumPowerWatts(
+			double[] usefulAxialThrustPowerWatts,
+			double[] idealInducedPowerWatts
+	) {
+		int count = Math.max(usefulAxialThrustPowerWatts == null ? 0 : usefulAxialThrustPowerWatts.length,
+				idealInducedPowerWatts == null ? 0 : idealInducedPowerWatts.length);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = finiteOrZero(
+					Math.max(0.0, valueOrZero(usefulAxialThrustPowerWatts, i))
+							+ Math.max(0.0, valueOrZero(idealInducedPowerWatts, i))
+			);
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeAxialPropulsiveEfficiency(
+			double[] usefulAxialThrustPowerWatts,
+			double[] aerodynamicShaftPowerWatts
+	) {
+		int count = Math.max(usefulAxialThrustPowerWatts == null ? 0 : usefulAxialThrustPowerWatts.length,
+				aerodynamicShaftPowerWatts == null ? 0 : aerodynamicShaftPowerWatts.length);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double shaftPower = valueOrZero(aerodynamicShaftPowerWatts, i);
+			values[i] = shaftPower > 1.0e-12
+					? finiteOrZero(valueOrZero(usefulAxialThrustPowerWatts, i) / shaftPower)
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
+			double[] idealMomentumPowerWatts,
 			double[] aerodynamicShaftPowerWatts
 	) {
 		int count = Math.max(
-				rotorThrust == null ? 0 : rotorThrust.length,
-				Math.max(
-						axialAdvanceSpeedMetersPerSecond == null ? 0 : axialAdvanceSpeedMetersPerSecond.length,
-						Math.max(
-								idealInducedVelocity == null ? 0 : idealInducedVelocity.length,
-								aerodynamicShaftPowerWatts == null ? 0 : aerodynamicShaftPowerWatts.length
-						)
-				)
+				idealMomentumPowerWatts == null ? 0 : idealMomentumPowerWatts.length,
+				aerodynamicShaftPowerWatts == null ? 0 : aerodynamicShaftPowerWatts.length
 		);
 		double[] values = new double[count];
 		for (int i = 0; i < count; i++) {
 			double shaftPower = valueOrZero(aerodynamicShaftPowerWatts, i);
 			values[i] = shaftPower > 1.0e-12
-					? finiteOrZero(valueOrZero(rotorThrust, i)
-							* (Math.max(0.0, valueOrZero(axialAdvanceSpeedMetersPerSecond, i))
-									+ valueOrZero(idealInducedVelocity, i))
-							/ shaftPower)
+					? finiteOrZero(valueOrZero(idealMomentumPowerWatts, i) / shaftPower)
 					: 0.0;
 		}
 		return values;
@@ -5910,9 +6010,15 @@ public final class OfflineFlightRecorder {
 		private double ctCpJRuntimePowerCoefficientCpSum;
 		private double ctCpJRuntimeMinPowerCoefficientCp = Double.POSITIVE_INFINITY;
 		private double ctCpJRuntimeMaxPowerCoefficientCp;
+		private double ctCpJRuntimeTorqueCoefficientCqSum;
+		private double ctCpJRuntimeMinTorqueCoefficientCq = Double.POSITIVE_INFINITY;
+		private double ctCpJRuntimeMaxTorqueCoefficientCq;
 		private double ctCpJRuntimePropulsiveEfficiencyEtaSum;
 		private double ctCpJRuntimeMinPropulsiveEfficiencyEta = Double.POSITIVE_INFINITY;
 		private double ctCpJRuntimeMaxPropulsiveEfficiencyEta;
+		private double ctCpJRuntimeAxialPropulsiveEfficiencySum;
+		private double ctCpJRuntimeMinAxialPropulsiveEfficiency = Double.POSITIVE_INFINITY;
+		private double ctCpJRuntimeMaxAxialPropulsiveEfficiency;
 		private double ctCpJRuntimeDiskLoadingSumNewtonsPerSquareMeter;
 		private double ctCpJRuntimeMaxDiskLoadingNewtonsPerSquareMeter;
 		private double ctCpJRuntimeIdealMomentumPowerOverShaftPowerSum;
@@ -6146,6 +6252,7 @@ public final class OfflineFlightRecorder {
 					aerodynamicShaftPower,
 					motorRpm
 			);
+			double[] torqueCoefficientCq = rotorCtCpJRuntimeTorqueCoefficientCq(powerCoefficientCp);
 			double[] propulsiveEfficiencyEta = rotorCtCpJRuntimeEta(
 					state.rotorPropellerAdvanceRatioJ(),
 					thrustCoefficientCt,
@@ -6163,10 +6270,24 @@ public final class OfflineFlightRecorder {
 					rotorThrust,
 					axialAdvanceSpeed
 			);
-			double[] idealMomentumPowerOverShaftPower = rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
+			double[] usefulAxialThrustPower = rotorCtCpJRuntimeUsefulAxialThrustPowerWatts(
 					rotorThrust,
-					axialAdvanceSpeed,
-					idealInducedVelocity,
+					axialAdvanceSpeed
+			);
+			double[] idealInducedPower = rotorCtCpJRuntimeIdealInducedPowerWatts(
+					rotorThrust,
+					idealInducedVelocity
+			);
+			double[] idealMomentumPower = rotorCtCpJRuntimeIdealMomentumPowerWatts(
+					usefulAxialThrustPower,
+					idealInducedPower
+			);
+			double[] axialPropulsiveEfficiency = rotorCtCpJRuntimeAxialPropulsiveEfficiency(
+					usefulAxialThrustPower,
+					aerodynamicShaftPower
+			);
+			double[] idealMomentumPowerOverShaftPower = rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower(
+					idealMomentumPower,
 					aerodynamicShaftPower
 			);
 			for (int i = 0; i < available.length; i++) {
@@ -6176,7 +6297,9 @@ public final class OfflineFlightRecorder {
 				ctCpJRuntimeCoefficientRotorSampleCount++;
 				double ct = valueOrZero(thrustCoefficientCt, i);
 				double cp = valueOrZero(powerCoefficientCp, i);
+				double cq = valueOrZero(torqueCoefficientCq, i);
 				double eta = valueOrZero(propulsiveEfficiencyEta, i);
+				double axialEta = valueOrZero(axialPropulsiveEfficiency, i);
 				double loading = valueOrZero(diskLoading, i);
 				double momentumRatio = valueOrZero(idealMomentumPowerOverShaftPower, i);
 				ctCpJRuntimeThrustCoefficientCtSum += ct;
@@ -6185,9 +6308,21 @@ public final class OfflineFlightRecorder {
 				ctCpJRuntimePowerCoefficientCpSum += cp;
 				ctCpJRuntimeMinPowerCoefficientCp = Math.min(ctCpJRuntimeMinPowerCoefficientCp, cp);
 				ctCpJRuntimeMaxPowerCoefficientCp = Math.max(ctCpJRuntimeMaxPowerCoefficientCp, cp);
+				ctCpJRuntimeTorqueCoefficientCqSum += cq;
+				ctCpJRuntimeMinTorqueCoefficientCq = Math.min(ctCpJRuntimeMinTorqueCoefficientCq, cq);
+				ctCpJRuntimeMaxTorqueCoefficientCq = Math.max(ctCpJRuntimeMaxTorqueCoefficientCq, cq);
 				ctCpJRuntimePropulsiveEfficiencyEtaSum += eta;
 				ctCpJRuntimeMinPropulsiveEfficiencyEta = Math.min(ctCpJRuntimeMinPropulsiveEfficiencyEta, eta);
 				ctCpJRuntimeMaxPropulsiveEfficiencyEta = Math.max(ctCpJRuntimeMaxPropulsiveEfficiencyEta, eta);
+				ctCpJRuntimeAxialPropulsiveEfficiencySum += axialEta;
+				ctCpJRuntimeMinAxialPropulsiveEfficiency = Math.min(
+						ctCpJRuntimeMinAxialPropulsiveEfficiency,
+						axialEta
+				);
+				ctCpJRuntimeMaxAxialPropulsiveEfficiency = Math.max(
+						ctCpJRuntimeMaxAxialPropulsiveEfficiency,
+						axialEta
+				);
 				ctCpJRuntimeDiskLoadingSumNewtonsPerSquareMeter += loading;
 				ctCpJRuntimeMaxDiskLoadingNewtonsPerSquareMeter = Math.max(
 						ctCpJRuntimeMaxDiskLoadingNewtonsPerSquareMeter,
@@ -6667,6 +6802,18 @@ public final class OfflineFlightRecorder {
 			return ctCpJRuntimeMaxPowerCoefficientCp;
 		}
 
+		public double meanCtCpJRuntimeTorqueCoefficientCq() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeTorqueCoefficientCqSum);
+		}
+
+		public double minCtCpJRuntimeTorqueCoefficientCq() {
+			return minCtCpJRuntimeValue(ctCpJRuntimeMinTorqueCoefficientCq);
+		}
+
+		public double maxCtCpJRuntimeTorqueCoefficientCq() {
+			return ctCpJRuntimeMaxTorqueCoefficientCq;
+		}
+
 		public double meanCtCpJRuntimePropulsiveEfficiencyEta() {
 			return meanCtCpJRuntimeValue(ctCpJRuntimePropulsiveEfficiencyEtaSum);
 		}
@@ -6677,6 +6824,18 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJRuntimePropulsiveEfficiencyEta() {
 			return ctCpJRuntimeMaxPropulsiveEfficiencyEta;
+		}
+
+		public double meanCtCpJRuntimeAxialPropulsiveEfficiency() {
+			return meanCtCpJRuntimeValue(ctCpJRuntimeAxialPropulsiveEfficiencySum);
+		}
+
+		public double minCtCpJRuntimeAxialPropulsiveEfficiency() {
+			return minCtCpJRuntimeValue(ctCpJRuntimeMinAxialPropulsiveEfficiency);
+		}
+
+		public double maxCtCpJRuntimeAxialPropulsiveEfficiency() {
+			return ctCpJRuntimeMaxAxialPropulsiveEfficiency;
 		}
 
 		public double meanCtCpJRuntimeDiskLoadingNewtonsPerSquareMeter() {
