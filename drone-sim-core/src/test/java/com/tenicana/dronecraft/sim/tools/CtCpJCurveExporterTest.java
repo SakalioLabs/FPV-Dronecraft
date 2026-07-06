@@ -33,7 +33,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,operating_point_speed_of_sound_mps,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -110,16 +110,17 @@ class CtCpJCurveExporterTest {
 		assertEquals(midOperatingPoint.ambientTemperatureCelsius(), Double.parseDouble(midCells[49]), 1.0e-12);
 		assertEquals(midOperatingPoint.ambientHumidity(), Double.parseDouble(midCells[50]), 1.0e-15);
 		assertEquals(midOperatingPoint.dynamicViscosityPascalSeconds(), Double.parseDouble(midCells[51]), 1.0e-18);
+		assertEquals(midOperatingPoint.speedOfSoundMetersPerSecond(), Double.parseDouble(midCells[52]), 1.0e-12);
 		assertEquals(midOperatingPoint.rotationalTipSpeedMetersPerSecond(),
-				Double.parseDouble(midCells[52]), 1.0e-13);
-		assertEquals(midOperatingPoint.helicalTipSpeedMetersPerSecond(),
 				Double.parseDouble(midCells[53]), 1.0e-13);
-		assertEquals(midOperatingPoint.tipMach(), Double.parseDouble(midCells[54]), 1.0e-15);
+		assertEquals(midOperatingPoint.helicalTipSpeedMetersPerSecond(),
+				Double.parseDouble(midCells[54]), 1.0e-13);
+		assertEquals(midOperatingPoint.tipMach(), Double.parseDouble(midCells[55]), 1.0e-15);
 		assertEquals(midOperatingPoint.representativeBladeStationSpeedMetersPerSecond(),
-				Double.parseDouble(midCells[55]), 1.0e-13);
-		assertEquals(midOperatingPoint.representativeBladeChordMeters(), Double.parseDouble(midCells[56]), 1.0e-15);
-		assertEquals(midOperatingPoint.reynoldsNumber(), Double.parseDouble(midCells[57]), 1.0e-8);
-		assertEquals(midOperatingPoint.reynoldsIndex(), Double.parseDouble(midCells[58]), 1.0e-13);
+				Double.parseDouble(midCells[56]), 1.0e-13);
+		assertEquals(midOperatingPoint.representativeBladeChordMeters(), Double.parseDouble(midCells[57]), 1.0e-15);
+		assertEquals(midOperatingPoint.reynoldsNumber(), Double.parseDouble(midCells[58]), 1.0e-8);
+		assertEquals(midOperatingPoint.reynoldsIndex(), Double.parseDouble(midCells[59]), 1.0e-13);
 		assertEquals("false", highCells[45]);
 		assertEquals("MOMENTUM_POWER_CLOSURE_FAILED", highCells[46]);
 		assertTrue(Double.parseDouble(highCells[47]) < 0.0);
@@ -236,10 +237,10 @@ class CtCpJCurveExporterTest {
 		assertEquals(0.0, Double.parseDouble(blockedCells[42]), 1.0e-18);
 		assertEquals(0.0, Double.parseDouble(blockedCells[43]), 1.0e-18);
 		assertEquals(0.0, Double.parseDouble(blockedCells[44]), 1.0e-18);
-		assertTrue(Double.parseDouble(blockedCells[52]) > 0.0);
-		assertTrue(Double.parseDouble(blockedCells[53]) > Double.parseDouble(blockedCells[52]));
-		assertTrue(Double.parseDouble(blockedCells[54]) > 0.0);
-		assertTrue(Double.parseDouble(blockedCells[57]) > 0.0);
+		assertTrue(Double.parseDouble(blockedCells[53]) > 0.0);
+		assertTrue(Double.parseDouble(blockedCells[54]) > Double.parseDouble(blockedCells[53]));
+		assertTrue(Double.parseDouble(blockedCells[55]) > 0.0);
+		assertTrue(Double.parseDouble(blockedCells[58]) > 0.0);
 	}
 
 	@Test
@@ -273,13 +274,16 @@ class CtCpJCurveExporterTest {
 						1.0);
 		assertEquals(hotHumidOperatingPoint.dynamicViscosityPascalSeconds(),
 				Double.parseDouble(hotHumidMidCells[51]), 1.0e-18);
-		assertEquals(hotHumidOperatingPoint.tipMach(), Double.parseDouble(hotHumidMidCells[54]), 1.0e-15);
+		assertEquals(hotHumidOperatingPoint.speedOfSoundMetersPerSecond(),
+				Double.parseDouble(hotHumidMidCells[52]), 1.0e-12);
+		assertEquals(hotHumidOperatingPoint.tipMach(), Double.parseDouble(hotHumidMidCells[55]), 1.0e-15);
 		assertEquals(hotHumidOperatingPoint.reynoldsNumber(),
-				Double.parseDouble(hotHumidMidCells[57]), 1.0e-8);
+				Double.parseDouble(hotHumidMidCells[58]), 1.0e-8);
 		assertEquals(hotHumidOperatingPoint.reynoldsIndex(),
-				Double.parseDouble(hotHumidMidCells[58]), 1.0e-13);
+				Double.parseDouble(hotHumidMidCells[59]), 1.0e-13);
 		assertTrue(Double.parseDouble(hotHumidMidCells[51]) != Double.parseDouble(standardMidCells[51]));
-		assertTrue(Double.parseDouble(hotHumidMidCells[57]) != Double.parseDouble(standardMidCells[57]));
+		assertTrue(Double.parseDouble(hotHumidMidCells[52]) != Double.parseDouble(standardMidCells[52]));
+		assertTrue(Double.parseDouble(hotHumidMidCells[58]) != Double.parseDouble(standardMidCells[58]));
 	}
 
 	@Test
@@ -299,12 +303,12 @@ class CtCpJCurveExporterTest {
 
 		assertEquals("true", standardHoverCells[23]);
 		assertEquals("ACCEPTED", standardHoverCells[46]);
-		assertTrue(Double.parseDouble(standardHoverCells[58]) >= 0.52);
+		assertTrue(Double.parseDouble(standardHoverCells[59]) >= 0.52);
 		assertEquals("false", hotDryHoverCells[23]);
 		assertEquals("OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE", hotDryHoverCells[46]);
 		assertEquals(65.0, Double.parseDouble(hotDryHoverCells[49]), 1.0e-12);
 		assertEquals(0.0, Double.parseDouble(hotDryHoverCells[50]), 1.0e-15);
-		assertTrue(Double.parseDouble(hotDryHoverCells[58]) < 0.52);
+		assertTrue(Double.parseDouble(hotDryHoverCells[59]) < 0.52);
 		assertEquals(standardHoverCells[13], hotDryHoverCells[13]);
 		assertEquals(standardHoverCells[14], hotDryHoverCells[14]);
 	}
@@ -337,6 +341,7 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("shaft_power_residual_w"));
 		assertTrue(lines.get(0).contains("shaft_power_residual_fraction"));
 		assertTrue(lines.get(0).contains("operating_point_humidity"));
+		assertTrue(lines.get(0).contains("operating_point_speed_of_sound_mps"));
 		assertTrue(lines.get(0).contains("tip_mach"));
 		assertTrue(lines.get(0).contains("representative_blade_chord_m"));
 		assertTrue(lines.get(0).contains("reynolds_number"));
