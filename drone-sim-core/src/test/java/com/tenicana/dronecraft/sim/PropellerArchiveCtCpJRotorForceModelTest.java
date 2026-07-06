@@ -91,6 +91,40 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void cantedRotorForceAndReactionTorqueFollowThrustAxis() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(0.0, Math.sqrt(3.0) * 0.5, 0.5));
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromAxialAdvanceSpeed(
+						"apDrone",
+						"canted_static_anchor",
+						rotor,
+						0.0,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertFalse(sample.blocked());
+		assertFalse(sample.clamped());
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		Vec3 axis = rotor.thrustAxisBody();
+		assertEquals(axis.x() * sample.thrustNewtons(), sample.thrustForceBodyNewtons().x(), 1.0e-15);
+		assertEquals(axis.y() * sample.thrustNewtons(), sample.thrustForceBodyNewtons().y(), 1.0e-15);
+		assertEquals(axis.z() * sample.thrustNewtons(), sample.thrustForceBodyNewtons().z(), 1.0e-15);
+		assertEquals(axis.x() * rotor.spinDirection() * sample.shaftTorqueNewtonMeters(),
+				sample.reactionTorqueBodyNewtonMeters().x(), 1.0e-15);
+		assertEquals(axis.y() * rotor.spinDirection() * sample.shaftTorqueNewtonMeters(),
+				sample.reactionTorqueBodyNewtonMeters().y(), 1.0e-15);
+		assertEquals(axis.z() * rotor.spinDirection() * sample.shaftTorqueNewtonMeters(),
+				sample.reactionTorqueBodyNewtonMeters().z(), 1.0e-15);
+		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().length(), 1.0e-15);
+		assertEquals(sample.shaftTorqueNewtonMeters(), sample.reactionTorqueBodyNewtonMeters().length(), 1.0e-15);
+	}
+
+	@Test
 	void highAdvanceSampleKeepsCtCpTrendAndFiniteTorque() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample mid = sampleReferenceCase(rotor, "mid_domain_mid_rpm");
