@@ -288,7 +288,8 @@ public final class CtCpJCurveExporter {
 			double ambientTemperatureCelsius,
 			double ambientHumidity
 	) {
-		boolean runtimeForceReplacementAccepted = sample.runtimeForceReplacementAccepted();
+		boolean runtimeForceReplacementAccepted =
+				sample.runtimeForceReplacementAccepted(ambientTemperatureCelsius, ambientHumidity);
 		return csvLine(
 				sample.dimensionalSample(),
 				runtimeForceReplacementAccepted,
@@ -301,7 +302,12 @@ public final class CtCpJCurveExporter {
 				sample.reactionTorqueBodyNewtonMeters(),
 				sample.thrustMomentBodyNewtonMeters(),
 				sample.totalTorqueBodyNewtonMeters(),
-				runtimeEligibilityStatus(sample, runtimeForceReplacementAccepted),
+				runtimeEligibilityStatus(
+						sample,
+						runtimeForceReplacementAccepted,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				),
 				sample.operatingPoint(ambientTemperatureCelsius, ambientHumidity)
 		);
 	}
@@ -477,7 +483,9 @@ public final class CtCpJCurveExporter {
 
 	private static String runtimeEligibilityStatus(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
-			boolean runtimeForceReplacementAccepted
+			boolean runtimeForceReplacementAccepted,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
 	) {
 		if (runtimeForceReplacementAccepted) {
 			return "ACCEPTED";
@@ -495,7 +503,7 @@ public final class CtCpJCurveExporter {
 		if (!sample.runtimeInflowEnvelopeSatisfied()) {
 			return "OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE";
 		}
-		if (!sample.runtimeOperatingPointEnvelopeSatisfied()) {
+		if (!sample.runtimeOperatingPointEnvelopeSatisfied(ambientTemperatureCelsius, ambientHumidity)) {
 			return "OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE";
 		}
 		return "NOT_RUNTIME_CANDIDATE";

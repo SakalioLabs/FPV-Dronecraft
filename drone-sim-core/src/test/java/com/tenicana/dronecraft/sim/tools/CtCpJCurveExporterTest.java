@@ -283,6 +283,33 @@ class CtCpJCurveExporterTest {
 	}
 
 	@Test
+	void csvLinesRuntimeEligibilityUsesExportAmbientEnvelope() {
+		double airDensity =
+				PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER * 0.28;
+		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
+		List<String> standard = CtCpJCurveExporter.csvLines("apDrone", airDensity, diameter);
+		List<String> hotDry = CtCpJCurveExporter.csvLines("apDrone", airDensity, diameter, 65.0, 0.0);
+
+		String[] standardHoverCells = lineForCaseAndQueryJ(standard,
+				"static_anchored_runtime_hover",
+				"0.00000000000000").split(",", -1);
+		String[] hotDryHoverCells = lineForCaseAndQueryJ(hotDry,
+				"static_anchored_runtime_hover",
+				"0.00000000000000").split(",", -1);
+
+		assertEquals("true", standardHoverCells[23]);
+		assertEquals("ACCEPTED", standardHoverCells[46]);
+		assertTrue(Double.parseDouble(standardHoverCells[58]) >= 0.52);
+		assertEquals("false", hotDryHoverCells[23]);
+		assertEquals("OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE", hotDryHoverCells[46]);
+		assertEquals(65.0, Double.parseDouble(hotDryHoverCells[49]), 1.0e-12);
+		assertEquals(0.0, Double.parseDouble(hotDryHoverCells[50]), 1.0e-15);
+		assertTrue(Double.parseDouble(hotDryHoverCells[58]) < 0.52);
+		assertEquals(standardHoverCells[13], hotDryHoverCells[13]);
+		assertEquals(standardHoverCells[14], hotDryHoverCells[14]);
+	}
+
+	@Test
 	void writeCreatesParentDirectoriesAndCsvFile(@TempDir Path tempDir) throws IOException {
 		Path output = tempDir.resolve("nested").resolve("curve.csv");
 		double diameter = DroneConfig.apDrone().rotors().get(0).radiusMeters() * 2.0;
