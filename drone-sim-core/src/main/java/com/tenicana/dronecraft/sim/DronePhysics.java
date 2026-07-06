@@ -1590,7 +1590,11 @@ public final class DronePhysics {
 					+ stallBuffet.vibration()
 					+ vortexBuffet.vibration()
 					+ diskWindGradientVibration;
-			Vec3 forceBody = aerodynamicRotor.thrustAxisBody().multiply(thrust);
+			Vec3 forceBody = rotorCtCpJRuntimeThrustAxisForceBody(
+					ctCpJReferenceSample,
+					aerodynamicRotor,
+					thrust
+			);
 			Vec3 flappingForceBody = updateRotorFlappingForce(i, aerodynamicRotor, rotorRelativeAirVelocityBody, rotorDiskWindGradientBody, aerodynamicOmega, thrust, dtSeconds);
 			Vec3 flappingTorque = rotorArmBody.cross(flappingForceBody);
 			rotorFlappingTorqueSum = rotorFlappingTorqueSum.add(flappingTorque);
@@ -2912,6 +2916,34 @@ public final class DronePhysics {
 		);
 		return finiteNonnegative(sample.shaftTorqueNewtonMeters() * loadScale)
 				+ finiteNonnegative(inPlaneDragShaftTorqueNewtonMeters);
+	}
+
+	static Vec3 rotorCtCpJRuntimeThrustAxisForceBody(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			RotorSpec rotor,
+			double thrustNewtons
+	) {
+		double thrust = finiteNonnegative(thrustNewtons);
+		Vec3 rotorAxis = runtimeRotorThrustAxisBody(rotor);
+		if (!ctCpJRuntimeSampleAccepted(sample)
+				|| sample.thrustNewtons() <= 1.0e-9
+				|| sample.thrustForceBodyNewtons().lengthSquared() <= 1.0e-18) {
+			return rotorAxis.multiply(thrust);
+		}
+		Vec3 collinearForce = rotorAxis.multiply(sample.thrustNewtons());
+		double tolerance = 1.0e-18 * Math.max(1.0, sample.thrustNewtons() * sample.thrustNewtons());
+		if (sample.thrustForceBodyNewtons().subtract(collinearForce).lengthSquared() <= tolerance) {
+			return rotorAxis.multiply(thrust);
+		}
+		return sample.thrustForceBodyNewtons().multiply(thrust / sample.thrustNewtons());
+	}
+
+	private static Vec3 runtimeRotorThrustAxisBody(RotorSpec rotor) {
+		if (rotor == null || rotor.thrustAxisBody() == null || !rotor.thrustAxisBody().isFinite()
+				|| rotor.thrustAxisBody().lengthSquared() <= 1.0e-9) {
+			return BODY_ROTOR_AXIS;
+		}
+		return rotor.thrustAxisBody();
 	}
 
 	private static boolean ctCpJRuntimeSampleAccepted(

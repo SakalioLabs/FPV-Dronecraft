@@ -209,6 +209,64 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedRuntimeReferenceThrustForceUsesCtCpJBodyVector() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(0.18, 0.96, -0.08));
+		double hoverOmega = Math.sqrt(1.15 / rotor.thrustCoefficient());
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		double finalThrust = sample.thrustNewtons() * 0.63;
+		Vec3 force = DronePhysics.rotorCtCpJRuntimeThrustAxisForceBody(sample, rotor, finalThrust);
+		assertVectorEquals(sample.thrustForceBodyNewtons().multiply(0.63), force, 1.0e-15);
+		assertEquals(finalThrust, force.length(), 1.0e-15);
+	}
+
+	@Test
+	void acceptedRuntimeReferenceThrustForceCanPreserveNonCollinearCtCpJBodyVector() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double hoverOmega = Math.sqrt(1.15 / rotor.thrustCoefficient());
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, Vec3.ZERO, hoverOmega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		Vec3 nonCollinearForce = sample.thrustForceBodyNewtons().add(new Vec3(0.018, 0.0, -0.011));
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample nonCollinearSample =
+				new PropellerArchiveCtCpJRotorForceModel.RotorForceSample(
+						sample.query(),
+						sample.lookup(),
+						sample.dimensionalSample(),
+						sample.axialAdvanceSpeedMetersPerSecond(),
+						nonCollinearForce,
+						sample.reactionTorqueBodyNewtonMeters(),
+						sample.momentArmBodyMeters(),
+						sample.thrustMomentBodyNewtonMeters(),
+						sample.totalTorqueBodyNewtonMeters(),
+						sample.yawTorquePerThrustMeterEquivalent()
+				);
+
+		double finalThrust = sample.thrustNewtons() * 0.41;
+		Vec3 force = DronePhysics.rotorCtCpJRuntimeThrustAxisForceBody(nonCollinearSample, rotor, finalThrust);
+
+		assertVectorEquals(nonCollinearForce.multiply(finalThrust / sample.thrustNewtons()), force, 1.0e-15);
+	}
+
+	@Test
+	void runtimeReferenceThrustForceFallsBackWithoutAcceptedCtCpJVector() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(-0.14, 0.97, 0.10));
+
+		Vec3 force = DronePhysics.rotorCtCpJRuntimeThrustAxisForceBody(null, rotor, 1.75);
+
+		assertVectorEquals(rotor.thrustAxisBody().multiply(1.75), force, 1.0e-15);
+		assertEquals(1.75, force.length(), 1.0e-15);
+	}
+
+	@Test
 	void hoverRuntimeReferenceUsesStaticAnchorAndCanReplaceRuntimeForce() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
