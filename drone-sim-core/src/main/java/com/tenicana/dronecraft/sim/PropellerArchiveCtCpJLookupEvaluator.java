@@ -153,6 +153,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double thrustNewtons,
 			double shaftPowerWatts,
 			double shaftTorqueNewtonMeters,
+			double torqueCoefficientCq,
 			double diskAreaSquareMeters,
 			double diskLoadingNewtonsPerSquareMeter,
 			double idealInducedVelocityMetersPerSecond,
@@ -402,6 +403,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
 					diskArea,
 					0.0,
 					0.0,
@@ -435,7 +437,12 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				* airDensityKgPerCubicMeter
 				* Math.pow(revolutionsPerSecond, 3.0)
 				* Math.pow(propellerDiameterMeters, 5.0);
-		double torque = omega > EPSILON ? shaftPower / omega : 0.0;
+		double torqueCoefficientCq = torqueCoefficientCq(lookup.powerCoefficientCp());
+		double torque = torqueCoefficientCq
+				* airDensityKgPerCubicMeter
+				* revolutionsPerSecond
+				* revolutionsPerSecond
+				* Math.pow(propellerDiameterMeters, 5.0);
 		double diskLoading = diskArea > EPSILON ? thrust / diskArea : 0.0;
 		double inducedVelocity = axialMomentumInducedVelocity(
 				thrust, airDensityKgPerCubicMeter, diskArea, advanceSpeed);
@@ -480,6 +487,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				thrust,
 				shaftPower,
 				torque,
+				torqueCoefficientCq,
 				diskArea,
 				diskLoading,
 				inducedVelocity,
@@ -770,6 +778,13 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			return 0.0;
 		}
 		return j * ct / cp;
+	}
+
+	public static double torqueCoefficientCq(double powerCoefficientCp) {
+		if (!Double.isFinite(powerCoefficientCp) || powerCoefficientCp <= 0.0) {
+			return 0.0;
+		}
+		return powerCoefficientCp / (2.0 * Math.PI);
 	}
 
 	private static double axialMomentumInducedVelocity(

@@ -93,7 +93,8 @@ public final class CtCpJCurveExporter {
 			"total_wake_kinetic_power_over_shaft_power",
 			"wake_swirl_kinetic_power_over_shaft_power",
 			"total_wake_kinetic_power_residual_w",
-			"total_wake_kinetic_power_residual_fraction"
+			"total_wake_kinetic_power_residual_fraction",
+			"torque_coefficient_cq"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -419,7 +420,8 @@ public final class CtCpJCurveExporter {
 				number(sample.totalWakeKineticPowerOverShaftPower()),
 				number(sample.wakeSwirlKineticPowerOverShaftPower()),
 				number(sample.totalWakeKineticPowerResidualWatts()),
-				number(sample.totalWakeKineticPowerResidualFraction())
+				number(sample.totalWakeKineticPowerResidualFraction()),
+				number(sample.torqueCoefficientCq())
 		);
 	}
 
@@ -528,7 +530,8 @@ public final class CtCpJCurveExporter {
 				number(wake.totalWakeKineticPowerOverShaftPower()),
 				number(wake.wakeSwirlKineticPowerOverShaftPower()),
 				number(wake.totalWakeKineticPowerResidualWatts()),
-				number(wake.totalWakeKineticPowerResidualFraction())
+				number(wake.totalWakeKineticPowerResidualFraction()),
+				number(PropellerArchiveCtCpJLookupEvaluator.torqueCoefficientCq(sample.powerCoefficientCp()))
 		);
 	}
 

@@ -33,6 +33,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.025110868242593, sample.thrustNewtons(), 1.0e-15);
 		assertEquals(0.026705995970315, sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(0.000172569682049040, sample.shaftTorqueNewtonMeters(), 1.0e-18);
+		assertEquals(lookup.powerCoefficientCp() / (2.0 * Math.PI),
+				sample.torqueCoefficientCq(), 1.0e-18);
+		assertEquals(expectedShaftTorqueFromCq(sample),
+				sample.shaftTorqueNewtonMeters(), 1.0e-17);
 		assertEquals(0.881858670062071, sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
 		assertWakeMomentumAndSwirlClosure(sample);
@@ -89,6 +93,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(sample.thrustNewtons() * 2.0, dense.thrustNewtons(), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts() * 2.0, dense.shaftPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters() * 2.0, dense.shaftTorqueNewtonMeters(), 1.0e-18);
+		assertEquals(sample.torqueCoefficientCq(), dense.torqueCoefficientCq(), 1.0e-18);
 		assertEquals(sample.idealInducedVelocityMetersPerSecond(),
 				dense.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * 2.0,
@@ -122,6 +127,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.shaftPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters() * Math.pow(diameterScale, 5.0),
 				larger.shaftTorqueNewtonMeters(), 1.0e-17);
+		assertEquals(sample.torqueCoefficientCq(), larger.torqueCoefficientCq(), 1.0e-18);
 		assertEquals(sample.idealInducedVelocityMetersPerSecond() * diameterScale,
 				larger.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.idealMomentumPowerWatts() * Math.pow(diameterScale, 5.0),
@@ -180,7 +186,11 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(expectedThrust(high, diameter, RHO), sample.thrustNewtons(), 1.0e-15);
 		assertEquals(expectedShaftPower(high, diameter, RHO), sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(sample.shaftPowerWatts() / sample.angularVelocityRadiansPerSecond(),
-				sample.shaftTorqueNewtonMeters(), 1.0e-18);
+				sample.shaftTorqueNewtonMeters(), 1.0e-17);
+		assertEquals(high.powerCoefficientCp() / (2.0 * Math.PI),
+				sample.torqueCoefficientCq(), 1.0e-18);
+		assertEquals(expectedShaftTorqueFromCq(sample),
+				sample.shaftTorqueNewtonMeters(), 1.0e-17);
 		assertEquals(expectedAxialMomentumInducedVelocity(sample),
 				sample.idealInducedVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(expectedIdealMomentumPower(sample), sample.idealMomentumPowerWatts(), 1.0e-15);
@@ -352,6 +362,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.status());
 		assertEquals(0.0, blockedSample.thrustNewtons(), 1.0e-12);
 		assertEquals(0.0, blockedSample.shaftPowerWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.torqueCoefficientCq(), 1.0e-12);
 		assertEquals(0.0, blockedSample.wakeSwirlKineticPowerOverShaftPower(), 1.0e-12);
 		assertEquals(0.0, blockedSample.totalWakeKineticPowerResidualWatts(), 1.0e-12);
 		assertEquals(0.0, blockedSample.totalWakeKineticPowerResidualFraction(), 1.0e-12);
@@ -457,6 +468,17 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
 	}
 
+	private static double expectedShaftTorqueFromCq(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		double n = sample.revolutionsPerSecond();
+		return sample.torqueCoefficientCq()
+				* sample.airDensityKgPerCubicMeter()
+				* n
+				* n
+				* Math.pow(sample.propellerDiameterMeters(), 5.0);
+	}
+
 	private static double expectedAxialMomentumInducedVelocity(
 			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
 	) {
@@ -527,6 +549,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.totalWakeKineticPowerResidualWatts(), 1.0e-15);
 		assertEquals(sample.totalWakeKineticPowerResidualWatts() / sample.shaftPowerWatts(),
 				sample.totalWakeKineticPowerResidualFraction(), 1.0e-15);
+		assertEquals(sample.lookup().powerCoefficientCp() / (2.0 * Math.PI),
+				sample.torqueCoefficientCq(), 1.0e-18);
+		assertEquals(expectedShaftTorqueFromCq(sample),
+				sample.shaftTorqueNewtonMeters(), 1.0e-17);
+		assertEquals(sample.shaftPowerWatts() / sample.angularVelocityRadiansPerSecond(),
+				sample.shaftTorqueNewtonMeters(), 1.0e-17);
 	}
 
 	private static void assertFinitePositive(
@@ -535,6 +563,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertTrue(Double.isFinite(sample.thrustNewtons()) && sample.thrustNewtons() > 0.0);
 		assertTrue(Double.isFinite(sample.shaftPowerWatts()) && sample.shaftPowerWatts() > 0.0);
 		assertTrue(Double.isFinite(sample.shaftTorqueNewtonMeters()) && sample.shaftTorqueNewtonMeters() > 0.0);
+		assertTrue(Double.isFinite(sample.torqueCoefficientCq()) && sample.torqueCoefficientCq() > 0.0);
 		assertTrue(Double.isFinite(sample.diskLoadingNewtonsPerSquareMeter())
 				&& sample.diskLoadingNewtonsPerSquareMeter() > 0.0);
 		assertTrue(Double.isFinite(sample.idealInducedVelocityMetersPerSecond())
