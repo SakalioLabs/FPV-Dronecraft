@@ -157,6 +157,96 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 	}
 
 	@Test
+	void providerSamplesStateAndEnvironmentWithoutMutatingRuntimeState() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		double[] omegas = fill(config.rotors().size(), hoverOmega);
+		DroneState state = new DroneState(config.rotors().size());
+		Vec3 positionWorld = new Vec3(-3.5, 71.25, 8.0);
+		Vec3 angularVelocityBody = new Vec3(0.4, -0.2, 0.15);
+		Quaternion bodyToWorld = new Quaternion(
+				Math.cos(Math.PI * 0.125),
+				0.0,
+				0.0,
+				Math.sin(Math.PI * 0.125)
+		);
+		Vec3 baselineWindWorld = new Vec3(0.3, -0.1, 0.2);
+		Vec3 targetRelativeAirBody = new Vec3(0.0, 2.0, 0.5);
+		Vec3 velocityWorld = baselineWindWorld.add(bodyToWorld.rotate(targetRelativeAirBody));
+		DroneEnvironment environment =
+				new DroneEnvironment(baselineWindWorld, 0.92, Double.POSITIVE_INFINITY);
+		for (int i = 0; i < config.rotors().size(); i++) {
+			state.setMotorOmegaRadiansPerSecond(i, omegas[i]);
+		}
+		state.setPositionMeters(positionWorld);
+		state.setVelocityMetersPerSecond(velocityWorld);
+		state.setOrientation(bodyToWorld);
+		state.setAngularVelocityBodyRadiansPerSecond(angularVelocityBody);
+
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample fromState =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.sampleStaticAnchoredConfigurationFromState(
+						"apDrone",
+						"provider_state_environment",
+						config,
+						state,
+						environment,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample direct =
+				PropellerArchiveCtCpJWorldForceApplicationProvider
+						.sampleStaticAnchoredConfigurationFromWorldKinematics(
+								"apDrone",
+								"provider_state_environment",
+								config,
+								positionWorld,
+								bodyToWorld,
+								velocityWorld,
+								angularVelocityBody,
+								environment.windVelocityWorldMetersPerSecond(),
+								environment.rotorWindVelocityWorldMetersPerSecond(),
+								omegas,
+								RHO * environment.effectiveAirDensityRatio(),
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+								environment.effectiveAmbientTemperatureCelsius(),
+								environment.ambientHumidity()
+						);
+
+		assertEquals(direct.rotorCount(), fromState.rotorCount());
+		assertEquals(direct.appliedRotorCount(), fromState.appliedRotorCount());
+		assertEquals(direct.runtimeReplacementAppliedRotorCount(),
+				fromState.runtimeReplacementAppliedRotorCount());
+		assertEquals(direct.runtimeReplacementAccepted(), fromState.runtimeReplacementAccepted());
+		assertVectorEquals(direct.momentReferenceWorldMeters(), fromState.momentReferenceWorldMeters(), 1.0e-15);
+		assertQuaternionEquals(direct.bodyToWorldOrientation(), fromState.bodyToWorldOrientation(), 1.0e-15);
+		assertVectorEquals(direct.totalThrustForceWorldNewtons(),
+				fromState.totalThrustForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(direct.totalReactionTorqueWorldNewtonMeters(),
+				fromState.totalReactionTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(direct.totalThrustMomentWorldNewtonMeters(),
+				fromState.totalThrustMomentWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(direct.totalTorqueWorldNewtonMeters(),
+				fromState.totalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertTrue(fromState.totalThrustForceWorldNewtons().length() > 0.0);
+		assertVectorEquals(
+				direct.rotorRigidBodyWrench(config, angularVelocityBody)
+						.angularAccelerationBodyRadiansPerSecondSquared(),
+				fromState.rotorRigidBodyWrench(config, angularVelocityBody)
+						.angularAccelerationBodyRadiansPerSecondSquared(),
+				1.0e-12
+		);
+		assertVectorEquals(positionWorld, state.positionMeters(), 1.0e-15);
+		assertVectorEquals(velocityWorld, state.velocityMetersPerSecond(), 1.0e-15);
+		assertQuaternionEquals(bodyToWorld, state.orientation(), 1.0e-15);
+		assertVectorEquals(angularVelocityBody, state.angularVelocityBodyRadiansPerSecond(), 1.0e-15);
+		for (int i = 0; i < omegas.length; i++) {
+			assertEquals(omegas[i], state.motorOmegaRadiansPerSecond(i), 1.0e-15);
+		}
+	}
+
+	@Test
 	void runtimeReplacementApplicationsZeroClampRejectedRotorForces() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);

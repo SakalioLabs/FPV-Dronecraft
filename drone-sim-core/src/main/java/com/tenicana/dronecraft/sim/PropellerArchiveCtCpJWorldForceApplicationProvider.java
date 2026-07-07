@@ -8,6 +8,60 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 	private PropellerArchiveCtCpJWorldForceApplicationProvider() {
 	}
 
+	public static WorldForceApplicationSample sampleStaticAnchoredConfigurationFromState(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState state,
+			DroneEnvironment environment,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (state == null) {
+			throw new IllegalArgumentException("state must not be null.");
+		}
+		return sampleStaticAnchoredConfigurationFromState(
+				presetName,
+				caseName,
+				config,
+				state,
+				environment,
+				state.motorOmegaRadiansPerSecond(),
+				envelopePolicy
+		);
+	}
+
+	public static WorldForceApplicationSample sampleStaticAnchoredConfigurationFromState(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState state,
+			DroneEnvironment environment,
+			double[] omegaRadiansPerSecond,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (state == null) {
+			throw new IllegalArgumentException("state must not be null.");
+		}
+		DroneEnvironment resolvedEnvironment = environment == null ? DroneEnvironment.calm() : environment;
+		return sampleStaticAnchoredConfigurationFromWorldKinematics(
+				presetName,
+				caseName,
+				config,
+				state.positionMeters(),
+				state.orientation(),
+				state.velocityMetersPerSecond(),
+				state.angularVelocityBodyRadiansPerSecond(),
+				resolvedEnvironment.windVelocityWorldMetersPerSecond(),
+				resolvedEnvironment.rotorWindVelocityWorldMetersPerSecond(),
+				omegaRadiansPerSecond,
+				PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER
+						* resolvedEnvironment.effectiveAirDensityRatio(),
+				envelopePolicy,
+				resolvedEnvironment.effectiveAmbientTemperatureCelsius(),
+				resolvedEnvironment.ambientHumidity()
+		);
+	}
+
 	public static WorldForceApplicationSample sampleStaticAnchoredConfigurationFromWorldKinematics(
 			String presetName,
 			String caseName,
