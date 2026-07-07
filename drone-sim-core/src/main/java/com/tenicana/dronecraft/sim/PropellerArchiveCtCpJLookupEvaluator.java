@@ -186,6 +186,24 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		public boolean clamped() {
 			return lookup.clamped();
 		}
+
+		public double wakeAngularMomentumTorqueNewtonMeters() {
+			return diskMassFlowKilogramsPerSecond
+					* angularMomentumSwirlRadiusMeters
+					* wakeTangentialVelocityMetersPerSecond;
+		}
+
+		public double wakeAngularMomentumTorqueResidualNewtonMeters() {
+			return wakeAngularMomentumTorqueNewtonMeters() - Math.abs(shaftTorqueNewtonMeters);
+		}
+
+		public double wakeAngularMomentumTorqueResidualFraction() {
+			double denominator = Math.abs(shaftTorqueNewtonMeters);
+			if (!Double.isFinite(denominator) || denominator <= EPSILON) {
+				return 0.0;
+			}
+			return wakeAngularMomentumTorqueResidualNewtonMeters() / denominator;
+		}
 	}
 
 	public static LookupQuery queryForReferenceCase(

@@ -99,7 +99,10 @@ public final class CtCpJCurveExporter {
 			"ideal_induced_power_w",
 			"axial_propulsive_efficiency",
 			"far_wake_contracted_area_over_disk_area",
-			"far_wake_equivalent_radius_over_rotor_radius"
+			"far_wake_equivalent_radius_over_rotor_radius",
+			"wake_angular_momentum_torque_nm",
+			"wake_angular_momentum_torque_residual_nm",
+			"wake_angular_momentum_torque_residual_fraction"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -431,7 +434,10 @@ public final class CtCpJCurveExporter {
 				number(sample.idealInducedPowerWatts()),
 				number(sample.axialPropulsiveEfficiency()),
 				number(sample.farWakeContractedAreaOverDiskArea()),
-				number(sample.farWakeEquivalentRadiusOverRotorRadius())
+				number(sample.farWakeEquivalentRadiusOverRotorRadius()),
+				number(sample.wakeAngularMomentumTorqueNewtonMeters()),
+				number(sample.wakeAngularMomentumTorqueResidualNewtonMeters()),
+				number(sample.wakeAngularMomentumTorqueResidualFraction())
 		);
 	}
 
@@ -546,7 +552,10 @@ public final class CtCpJCurveExporter {
 				number(sample.idealMomentumPowerWatts()),
 				number(sample.propulsiveEfficiencyEta()),
 				number(wake.farWakeContractedAreaOverDiskArea()),
-				number(wake.farWakeEquivalentRadiusOverRotorRadius())
+				number(wake.farWakeEquivalentRadiusOverRotorRadius()),
+				number(wake.wakeAngularMomentumTorqueNewtonMeters()),
+				number(wake.wakeAngularMomentumTorqueResidualNewtonMeters()),
+				number(wake.wakeAngularMomentumTorqueResidualFraction())
 		);
 	}
 
@@ -559,6 +568,9 @@ public final class CtCpJCurveExporter {
 			double farWakeEquivalentRadiusOverRotorRadius,
 			double angularMomentumSwirlRadiusMeters,
 			double wakeTangentialVelocityMetersPerSecond,
+			double wakeAngularMomentumTorqueNewtonMeters,
+			double wakeAngularMomentumTorqueResidualNewtonMeters,
+			double wakeAngularMomentumTorqueResidualFraction,
 			double wakeSwirlKineticPowerWatts,
 			double totalWakeKineticPowerWatts,
 			double totalWakeKineticPowerOverShaftPower,
@@ -597,6 +609,8 @@ public final class CtCpJCurveExporter {
 		double tangentialWakeVelocity = massFlow > 1.0e-12 && swirlRadius > 1.0e-12
 				? Math.abs(shaftTorqueNewtonMeters) / (massFlow * swirlRadius)
 				: 0.0;
+		double wakeAngularMomentumTorque = massFlow * swirlRadius * tangentialWakeVelocity;
+		double wakeAngularMomentumTorqueResidual = wakeAngularMomentumTorque - Math.abs(shaftTorqueNewtonMeters);
 		double swirlKineticPower = 0.5 * massFlow * tangentialWakeVelocity * tangentialWakeVelocity;
 		double totalWakePower = idealMomentumPowerWatts + swirlKineticPower;
 		double totalWakeResidual = shaftPowerWatts - totalWakePower;
@@ -609,6 +623,9 @@ public final class CtCpJCurveExporter {
 				farWakeRadiusRatio,
 				swirlRadius,
 				tangentialWakeVelocity,
+				wakeAngularMomentumTorque,
+				wakeAngularMomentumTorqueResidual,
+				ratio(wakeAngularMomentumTorqueResidual, Math.abs(shaftTorqueNewtonMeters)),
 				swirlKineticPower,
 				totalWakePower,
 				ratio(totalWakePower, shaftPowerWatts),

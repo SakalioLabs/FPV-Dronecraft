@@ -24,6 +24,11 @@ Rows marked `MOMENTUM_POWER_CLOSURE_FAILED`, `OPERATING_POINT_OUTSIDE_RUNTIME_EN
 remain sim/lab diagnostics only. The current packet has 14 accepted runtime-reference rows; all other rows are
 for plotting, validation, and envelope explanation rather than gameplay auto-apply.
 
+2026-07-08 wake-torque update: the same packet now includes wake angular-momentum torque closure columns. These
+columns are useful for checking that simplified torque curves preserve the reviewed CT/CP/J shaft-torque scale,
+but they are not a standalone yaw-feel tuning target and should stay inside the accepted runtime-reference row
+filter above.
+
 2026-07-07 world-kinematics update: `docs/data/propeller_archive_ct_cp_j_configuration_curve_packet.csv`
 now includes target-thrust and trim rows for body/world/environment kinematics. `playable/dev` may use accepted
 world/environment rows only as normalized curve-shape references for advance-ratio thrust rolloff, power rise,

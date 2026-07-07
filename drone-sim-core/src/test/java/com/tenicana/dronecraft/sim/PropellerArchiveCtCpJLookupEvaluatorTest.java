@@ -575,6 +575,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 						* sample.wakeTangentialVelocityMetersPerSecond(),
 				1.0e-15
 		);
+		assertEquals(Math.abs(sample.shaftTorqueNewtonMeters()),
+				sample.wakeAngularMomentumTorqueNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, sample.wakeAngularMomentumTorqueResidualNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, sample.wakeAngularMomentumTorqueResidualFraction(), 1.0e-15);
 		assertEquals(
 				0.5 * sample.diskMassFlowKilogramsPerSecond()
 						* sample.wakeTangentialVelocityMetersPerSecond()
@@ -631,6 +635,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				&& sample.angularMomentumSwirlRadiusMeters() > 0.0);
 		assertTrue(Double.isFinite(sample.wakeTangentialVelocityMetersPerSecond())
 				&& sample.wakeTangentialVelocityMetersPerSecond() > 0.0);
+		assertTrue(Double.isFinite(sample.wakeAngularMomentumTorqueNewtonMeters())
+				&& sample.wakeAngularMomentumTorqueNewtonMeters() > 0.0);
+		assertTrue(Double.isFinite(sample.wakeAngularMomentumTorqueResidualNewtonMeters()));
+		assertTrue(Double.isFinite(sample.wakeAngularMomentumTorqueResidualFraction()));
 		assertTrue(Double.isFinite(sample.wakeSwirlKineticPowerWatts())
 				&& sample.wakeSwirlKineticPowerWatts() > 0.0);
 		assertTrue(Double.isFinite(sample.totalWakeKineticPowerWatts())
