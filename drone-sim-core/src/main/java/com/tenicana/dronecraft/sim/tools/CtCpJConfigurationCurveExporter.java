@@ -5,6 +5,7 @@ import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJWorldForceApplicationProvider;
 import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
@@ -83,6 +84,19 @@ public final class CtCpJConfigurationCurveExporter {
 			"total_body_torque_world_x_nm",
 			"total_body_torque_world_y_nm",
 			"total_body_torque_world_z_nm",
+			"rotor_only_linear_accel_world_x_mps2",
+			"rotor_only_linear_accel_world_y_mps2",
+			"rotor_only_linear_accel_world_z_mps2",
+			"rotor_only_angular_accel_body_x_rad_s2",
+			"rotor_only_angular_accel_body_y_rad_s2",
+			"rotor_only_angular_accel_body_z_rad_s2",
+			"rotor_only_preview_dt_s",
+			"rotor_only_preview_delta_velocity_world_x_mps",
+			"rotor_only_preview_delta_velocity_world_y_mps",
+			"rotor_only_preview_delta_velocity_world_z_mps",
+			"rotor_only_preview_delta_angular_velocity_body_x_rad_s",
+			"rotor_only_preview_delta_angular_velocity_body_y_rad_s",
+			"rotor_only_preview_delta_angular_velocity_body_z_rad_s",
 			"total_thrust_n",
 			"total_shaft_power_w",
 			"total_shaft_torque_nm",
@@ -113,6 +127,18 @@ public final class CtCpJConfigurationCurveExporter {
 			"runtime_replacement_total_body_torque_world_x_nm",
 			"runtime_replacement_total_body_torque_world_y_nm",
 			"runtime_replacement_total_body_torque_world_z_nm",
+			"runtime_replacement_rotor_only_linear_accel_world_x_mps2",
+			"runtime_replacement_rotor_only_linear_accel_world_y_mps2",
+			"runtime_replacement_rotor_only_linear_accel_world_z_mps2",
+			"runtime_replacement_rotor_only_angular_accel_body_x_rad_s2",
+			"runtime_replacement_rotor_only_angular_accel_body_y_rad_s2",
+			"runtime_replacement_rotor_only_angular_accel_body_z_rad_s2",
+			"runtime_replacement_preview_delta_velocity_world_x_mps",
+			"runtime_replacement_preview_delta_velocity_world_y_mps",
+			"runtime_replacement_preview_delta_velocity_world_z_mps",
+			"runtime_replacement_preview_delta_angular_velocity_body_x_rad_s",
+			"runtime_replacement_preview_delta_angular_velocity_body_y_rad_s",
+			"runtime_replacement_preview_delta_angular_velocity_body_z_rad_s",
 			"runtime_replacement_total_thrust_n",
 			"runtime_replacement_total_shaft_power_w",
 			"runtime_replacement_total_shaft_torque_nm",
@@ -144,6 +170,7 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND = 3.0;
 	private static final double TRIM_BODY_KINEMATICS_ROLL_RATE_RADIANS_PER_SECOND = 4.0;
 	private static final double WORLD_KINEMATICS_FIRST_ROTOR_WIND_METERS_PER_SECOND = 1.0;
+	private static final double ROTOR_ONLY_PREVIEW_DT_SECONDS = 0.01;
 
 	private CtCpJConfigurationCurveExporter() {
 	}
@@ -226,7 +253,7 @@ public final class CtCpJConfigurationCurveExporter {
 		lines.add(HEADER);
 		for (StaticCurvePoint point : staticAnchoredConfigurationCurvePoints(config, rotor)) {
 			for (double advanceRatioJ : advanceRatios) {
-				lines.add(csvLine(sampleUniformSignedAxial(
+				lines.add(csvLine(config, sampleUniformSignedAxial(
 						presetName,
 						point.caseName(),
 						config,
@@ -247,7 +274,7 @@ public final class CtCpJConfigurationCurveExporter {
 				ambientTemperatureCelsius,
 				ambientHumidity
 		)) {
-			lines.add(csvLine(point));
+			lines.add(csvLine(config, point));
 		}
 		for (ConfigurationDiagnosticPoint point : targetThrustCurvePoints(
 				presetName,
@@ -257,7 +284,7 @@ public final class CtCpJConfigurationCurveExporter {
 				ambientTemperatureCelsius,
 				ambientHumidity
 		)) {
-			lines.add(csvLine(point));
+			lines.add(csvLine(config, point));
 		}
 		for (ConfigurationDiagnosticPoint point : trimCurvePoints(
 				presetName,
@@ -267,7 +294,7 @@ public final class CtCpJConfigurationCurveExporter {
 				ambientTemperatureCelsius,
 				ambientHumidity
 		)) {
-			lines.add(csvLine(point));
+			lines.add(csvLine(config, point));
 		}
 		return List.copyOf(lines);
 	}
@@ -764,7 +791,7 @@ public final class CtCpJConfigurationCurveExporter {
 		return directPoint(signedAxialSpeedMetersPerSecond, relativeAirVelocity, Vec3.ZERO, aggregate);
 	}
 
-	private static String csvLine(ConfigurationDiagnosticPoint point) {
+	private static String csvLine(DroneConfig config, ConfigurationDiagnosticPoint point) {
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate = point.aggregate();
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample first = firstSample(aggregate);
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = first.lookup();
@@ -777,6 +804,49 @@ public final class CtCpJConfigurationCurveExporter {
 				aggregate.runtimeForceReplacementThrustForceWorldNewtons(bodyToWorld);
 		Vec3 runtimeReplacementTotalBodyTorqueWorld =
 				aggregate.runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(bodyToWorld);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample forceApplication =
+				new PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample(
+						aggregate,
+						Vec3.ZERO,
+						bodyToWorld,
+						aggregate.rotorWorldForceApplications(Vec3.ZERO, bodyToWorld),
+						aggregate.runtimeForceReplacementRotorWorldForceApplications(Vec3.ZERO, bodyToWorld)
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample rotorOnlyWrench =
+				forceApplication.rotorRigidBodyWrench(config, point.angularVelocityBodyRadiansPerSecond());
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeReplacementWrench =
+				forceApplication.runtimeReplacementRigidBodyWrench(
+						config,
+						point.angularVelocityBodyRadiansPerSecond()
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview rotorOnlyPreview =
+				forceApplication.rotorOnlyStepPreview(
+						config,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						point.angularVelocityBodyRadiansPerSecond(),
+						ROTOR_ONLY_PREVIEW_DT_SECONDS
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview runtimeReplacementPreview =
+				forceApplication.runtimeReplacementRotorOnlyStepPreview(
+						config,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						point.angularVelocityBodyRadiansPerSecond(),
+						ROTOR_ONLY_PREVIEW_DT_SECONDS
+				);
+		Vec3 rotorOnlyPreviewDeltaVelocity =
+				rotorOnlyPreview.nextVelocityWorldMetersPerSecond()
+						.subtract(rotorOnlyPreview.initialVelocityWorldMetersPerSecond());
+		Vec3 rotorOnlyPreviewDeltaAngularVelocity =
+				rotorOnlyPreview.nextAngularVelocityBodyRadiansPerSecond()
+						.subtract(rotorOnlyPreview.initialAngularVelocityBodyRadiansPerSecond());
+		Vec3 runtimeReplacementPreviewDeltaVelocity =
+				runtimeReplacementPreview.nextVelocityWorldMetersPerSecond()
+						.subtract(runtimeReplacementPreview.initialVelocityWorldMetersPerSecond());
+		Vec3 runtimeReplacementPreviewDeltaAngularVelocity =
+				runtimeReplacementPreview.nextAngularVelocityBodyRadiansPerSecond()
+						.subtract(runtimeReplacementPreview.initialAngularVelocityBodyRadiansPerSecond());
 		return String.join(",",
 				escape(lookup.presetName()),
 				escape(lookup.caseName()),
@@ -841,6 +911,19 @@ public final class CtCpJConfigurationCurveExporter {
 				number(totalBodyTorqueWorld.x()),
 				number(totalBodyTorqueWorld.y()),
 				number(totalBodyTorqueWorld.z()),
+				number(rotorOnlyWrench.linearAccelerationWorldMetersPerSecondSquared().x()),
+				number(rotorOnlyWrench.linearAccelerationWorldMetersPerSecondSquared().y()),
+				number(rotorOnlyWrench.linearAccelerationWorldMetersPerSecondSquared().z()),
+				number(rotorOnlyWrench.angularAccelerationBodyRadiansPerSecondSquared().x()),
+				number(rotorOnlyWrench.angularAccelerationBodyRadiansPerSecondSquared().y()),
+				number(rotorOnlyWrench.angularAccelerationBodyRadiansPerSecondSquared().z()),
+				number(ROTOR_ONLY_PREVIEW_DT_SECONDS),
+				number(rotorOnlyPreviewDeltaVelocity.x()),
+				number(rotorOnlyPreviewDeltaVelocity.y()),
+				number(rotorOnlyPreviewDeltaVelocity.z()),
+				number(rotorOnlyPreviewDeltaAngularVelocity.x()),
+				number(rotorOnlyPreviewDeltaAngularVelocity.y()),
+				number(rotorOnlyPreviewDeltaAngularVelocity.z()),
 				number(aggregate.totalThrustNewtons()),
 				number(aggregate.totalShaftPowerWatts()),
 				number(aggregate.totalShaftTorqueNewtonMeters()),
@@ -871,6 +954,18 @@ public final class CtCpJConfigurationCurveExporter {
 				number(runtimeReplacementTotalBodyTorqueWorld.x()),
 				number(runtimeReplacementTotalBodyTorqueWorld.y()),
 				number(runtimeReplacementTotalBodyTorqueWorld.z()),
+				number(runtimeReplacementWrench.linearAccelerationWorldMetersPerSecondSquared().x()),
+				number(runtimeReplacementWrench.linearAccelerationWorldMetersPerSecondSquared().y()),
+				number(runtimeReplacementWrench.linearAccelerationWorldMetersPerSecondSquared().z()),
+				number(runtimeReplacementWrench.angularAccelerationBodyRadiansPerSecondSquared().x()),
+				number(runtimeReplacementWrench.angularAccelerationBodyRadiansPerSecondSquared().y()),
+				number(runtimeReplacementWrench.angularAccelerationBodyRadiansPerSecondSquared().z()),
+				number(runtimeReplacementPreviewDeltaVelocity.x()),
+				number(runtimeReplacementPreviewDeltaVelocity.y()),
+				number(runtimeReplacementPreviewDeltaVelocity.z()),
+				number(runtimeReplacementPreviewDeltaAngularVelocity.x()),
+				number(runtimeReplacementPreviewDeltaAngularVelocity.y()),
+				number(runtimeReplacementPreviewDeltaAngularVelocity.z()),
 				number(aggregate.runtimeForceReplacementThrustNewtons()),
 				number(aggregate.runtimeForceReplacementShaftPowerWatts()),
 				number(aggregate.runtimeForceReplacementShaftTorqueNewtonMeters()),

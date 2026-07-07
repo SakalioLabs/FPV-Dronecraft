@@ -99,6 +99,19 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(hover, columns, "total_thrust_force_world_y_n"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_body_torque_y_nm"),
 				numberCell(hover, columns, "total_body_torque_world_y_nm"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "rotor_only_linear_accel_world_x_mps2"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_thrust_force_world_y_n") / config.massKg(),
+				numberCell(hover, columns, "rotor_only_linear_accel_world_y_mps2"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "rotor_only_linear_accel_world_z_mps2"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "rotor_only_angular_accel_body_x_rad_s2"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "rotor_only_angular_accel_body_y_rad_s2"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "rotor_only_angular_accel_body_z_rad_s2"), 1.0e-15);
+		assertEquals(0.01, numberCell(hover, columns, "rotor_only_preview_dt_s"), 1.0e-15);
+		assertEquals(
+				numberCell(hover, columns, "rotor_only_linear_accel_world_y_mps2")
+						* numberCell(hover, columns, "rotor_only_preview_dt_s"),
+				numberCell(hover, columns, "rotor_only_preview_delta_velocity_world_y_mps"),
+				1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_thrust_n"),
 				numberCell(hover, columns, "runtime_replacement_total_thrust_n"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_shaft_power_w"),
@@ -107,6 +120,12 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(hover, columns, "runtime_replacement_disk_mass_flow_kg_s"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_ideal_induced_power_w"),
 				numberCell(hover, columns, "runtime_replacement_ideal_induced_power_w"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "rotor_only_linear_accel_world_y_mps2"),
+				numberCell(hover, columns,
+						"runtime_replacement_rotor_only_linear_accel_world_y_mps2"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "rotor_only_preview_delta_velocity_world_y_mps"),
+				numberCell(hover, columns,
+						"runtime_replacement_preview_delta_velocity_world_y_mps"), 1.0e-12);
 	}
 
 	@Test
@@ -330,6 +349,7 @@ class CtCpJConfigurationCurveExporterTest {
 	void diagnosticsExposeClampBlockAndObliqueInflowWithoutRuntimeReplacement() {
 		List<String> lines = CtCpJConfigurationCurveExporter.csvLines("apDrone", RHO);
 		Map<String, Integer> columns = columns(lines);
+		DroneConfig config = DroneConfig.apDrone();
 		String reverseClamp = lineForCase(lines, columns, "static_anchored_configuration_reverse_axial_clamp");
 		String highBlock = lineForCase(lines, columns, "static_anchored_configuration_high_j_block");
 		String transverse = lineForCase(lines, columns, "static_anchored_configuration_transverse_inflow_diagnostic");
@@ -400,6 +420,15 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(worldProjection, columns, "total_thrust_force_world_y_n"), 1.0e-12);
 		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_body_z_n"),
 				numberCell(worldProjection, columns, "total_thrust_force_world_z_n"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_world_x_n") / config.massKg(),
+				numberCell(worldProjection, columns, "rotor_only_linear_accel_world_x_mps2"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_world_y_n") / config.massKg(),
+				numberCell(worldProjection, columns, "rotor_only_linear_accel_world_y_mps2"), 1.0e-12);
+		assertEquals(
+				numberCell(worldProjection, columns, "rotor_only_linear_accel_world_x_mps2")
+						* numberCell(worldProjection, columns, "rotor_only_preview_dt_s"),
+				numberCell(worldProjection, columns, "rotor_only_preview_delta_velocity_world_x_mps"),
+				1.0e-12);
 		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_world_x_n"),
 				numberCell(worldProjection, columns, "runtime_replacement_total_thrust_force_world_x_n"),
 				1.0e-12);
@@ -408,6 +437,12 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(numberCell(worldProjection, columns, "total_body_torque_world_y_nm"),
 				numberCell(worldProjection, columns, "runtime_replacement_total_body_torque_world_y_nm"),
 				1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "rotor_only_linear_accel_world_x_mps2"),
+				numberCell(worldProjection, columns,
+						"runtime_replacement_rotor_only_linear_accel_world_x_mps2"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "rotor_only_preview_delta_velocity_world_x_mps"),
+				numberCell(worldProjection, columns,
+						"runtime_replacement_preview_delta_velocity_world_x_mps"), 1.0e-12);
 	}
 
 	@Test
@@ -430,10 +465,15 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("body_to_world_qw"));
 		assertTrue(lines.get(0).contains("total_thrust_force_world_x_n"));
 		assertTrue(lines.get(0).contains("total_body_torque_world_y_nm"));
+		assertTrue(lines.get(0).contains("rotor_only_linear_accel_world_y_mps2"));
+		assertTrue(lines.get(0).contains("rotor_only_angular_accel_body_x_rad_s2"));
+		assertTrue(lines.get(0).contains("rotor_only_preview_delta_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("body_angular_rate_x_rad_s"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_n"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_force_world_x_n"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_body_torque_world_y_nm"));
+		assertTrue(lines.get(0).contains("runtime_replacement_rotor_only_linear_accel_world_y_mps2"));
+		assertTrue(lines.get(0).contains("runtime_replacement_preview_delta_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("runtime_replacement_disk_mass_flow_kg_s"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
