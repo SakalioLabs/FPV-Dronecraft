@@ -1312,6 +1312,148 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void staticAnchoredConfigurationTrimSolvesHoverAndZeroBodyTorque() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double expectedOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution trim =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrim(
+						"apDrone",
+						"configuration_trim_hover",
+						config,
+						0.0,
+						targetThrust,
+						Vec3.ZERO,
+						expectedOmega * 0.55,
+						expectedOmega * 1.45,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate = trim.solutionSample();
+		double[] allocated = trim.allocatedRotorThrustsNewtons();
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolveStatus.SOLVED,
+				trim.status());
+		assertTrue(trim.solved());
+		assertFalse(trim.blocked());
+		assertEquals(config.rotors().size(), trim.rotorSolutions().size());
+		assertEquals(config.rotors().size(), allocated.length);
+		for (double thrust : allocated) {
+			assertEquals(targetThrust / config.rotors().size(), thrust, 1.0e-8);
+		}
+		assertEquals(targetThrust, aggregate.totalThrustNewtons(), targetThrust * 1.0e-6);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-8);
+		assertEquals(0.0, trim.thrustResidualNewtons(), targetThrust * 1.0e-6);
+		assertVectorEquals(Vec3.ZERO, trim.bodyTorqueResidualNewtonMeters(), 1.0e-8);
+		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
+		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
+		assertTrue(aggregate.totalIdealMomentumPowerWatts() > 0.0);
+	}
+
+	@Test
+	void staticAnchoredConfigurationTrimSolvesBodyTorqueTargetsWithPerRotorRpmSpread() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double hoverOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+		Vec3 targetTorque = new Vec3(0.045, 0.012, -0.035);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution trim =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrim(
+						"apDrone",
+						"configuration_trim_body_torque",
+						config,
+						0.0,
+						targetThrust,
+						targetTorque,
+						hoverOmega * 0.50,
+						hoverOmega * 1.60,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate = trim.solutionSample();
+		double[] allocated = trim.allocatedRotorThrustsNewtons();
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolveStatus.SOLVED,
+				trim.status());
+		assertTrue(trim.solved());
+		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertTrue(trim.maxAllocatedRotorThrustNewtons() > trim.minAllocatedRotorThrustNewtons());
+		assertTrue(allocated[0] != allocated[1] || allocated[1] != allocated[2]);
+		assertEquals(targetThrust, aggregate.totalThrustNewtons(), targetThrust * 1.0e-6);
+		assertEquals(targetTorque.x(), aggregate.totalBodyTorqueNewtonMeters().x(), 3.0e-5);
+		assertEquals(targetTorque.y(), aggregate.totalBodyTorqueNewtonMeters().y(), 3.0e-5);
+		assertEquals(targetTorque.z(), aggregate.totalBodyTorqueNewtonMeters().z(), 3.0e-5);
+		assertEquals(0.0, trim.thrustResidualNewtons(), targetThrust * 1.0e-6);
+		assertVectorEquals(Vec3.ZERO, trim.bodyTorqueResidualNewtonMeters(), 3.0e-5);
+		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
+		assertTrue(aggregate.totalShaftTorqueNewtonMeters() > 0.0);
+	}
+
+	@Test
+	void staticAnchoredConfigurationTrimBlocksWhenTorqueAllocationRequiresNegativeThrust() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double hoverOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution trim =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrim(
+						"apDrone",
+						"configuration_trim_negative_allocation",
+						config,
+						0.0,
+						targetThrust,
+						new Vec3(3.0, 0.0, 0.0),
+						hoverOmega * 0.50,
+						hoverOmega * 1.60,
+						RHO
+				);
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolveStatus.NEGATIVE_ALLOCATED_THRUST,
+				trim.status());
+		assertFalse(trim.solved());
+		assertTrue(trim.blocked());
+		assertTrue(trim.minAllocatedRotorThrustNewtons() < 0.0);
+		assertTrue(trim.solutionSample() == null);
+		assertTrue(trim.rotorSolutions().isEmpty());
+	}
+
+	@Test
+	void staticAnchoredConfigurationTrimBlocksWhenAllocatedRotorThrustExceedsRpmBracket() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.totalMaxThrustNewtons() * 1.20;
+		double lowOmega = 2_500.0 * 2.0 * Math.PI / 60.0;
+		double highOmega = rotor.maxOmegaRadiansPerSecond() * 0.55;
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution trim =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrim(
+						"apDrone",
+						"configuration_trim_rotor_solve_blocked",
+						config,
+						0.0,
+						targetThrust,
+						Vec3.ZERO,
+						lowOmega,
+						highOmega,
+						RHO
+				);
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolveStatus.ROTOR_SOLVE_BLOCKED,
+				trim.status());
+		assertFalse(trim.solved());
+		assertTrue(trim.blocked());
+		assertEquals(config.rotors().size(), trim.rotorSolutions().size());
+		assertTrue(trim.rotorSolutions().stream()
+				.allMatch(solution -> solution.status()
+						== PropellerArchiveCtCpJRotorForceModel.RotorTargetThrustSolveStatus.UPPER_BOUND_BELOW_TARGET));
+		assertTrue(trim.solutionSample() != null);
+		assertTrue(trim.solutionSample().totalThrustNewtons() < targetThrust);
+		assertTrue(trim.thrustResidualNewtons() < 0.0);
+	}
+
+	@Test
 	void signedAxialStaticAnchoredQueryClampsReverseFlowWithoutRuntimeReplacement() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
