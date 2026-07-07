@@ -60,6 +60,20 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			"reference_momentum_power_w",
 			"cfd_momentum_power_w",
 			"momentum_power_residual_w",
+			"reference_far_wake_contracted_area_m2",
+			"cfd_far_wake_contracted_area_m2",
+			"far_wake_contracted_area_residual_m2",
+			"far_wake_contracted_area_residual_fraction",
+			"reference_far_wake_equivalent_radius_m",
+			"cfd_far_wake_equivalent_radius_m",
+			"far_wake_equivalent_radius_residual_m",
+			"far_wake_equivalent_radius_residual_fraction",
+			"reference_far_wake_contracted_area_over_disk_area",
+			"cfd_far_wake_contracted_area_over_disk_area",
+			"far_wake_contracted_area_ratio_residual",
+			"reference_far_wake_equivalent_radius_over_rotor_radius",
+			"cfd_far_wake_equivalent_radius_over_rotor_radius",
+			"far_wake_equivalent_radius_ratio_residual",
 			"comparable",
 			"message"
 	);
@@ -83,6 +97,10 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double cfdThrustCoefficientCt,
 			double cfdPowerCoefficientCp,
 			double cfdPropulsiveEfficiencyEta,
+			double cfdFarWakeContractedAreaSquareMeters,
+			double cfdFarWakeEquivalentRadiusMeters,
+			double cfdFarWakeContractedAreaOverDiskArea,
+			double cfdFarWakeEquivalentRadiusOverRotorRadius,
 			String sourceCaseSha256,
 			String solverStatus
 	) {
@@ -112,6 +130,24 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			if (!Double.isFinite(cfdShaftPowerWatts)) {
 				throw new IllegalArgumentException("cfdShaftPowerWatts must be finite.");
 			}
+			double diskArea = Math.PI * propellerDiameterMeters * propellerDiameterMeters * 0.25;
+			double rotorRadius = propellerDiameterMeters * 0.5;
+			if (!Double.isFinite(cfdFarWakeContractedAreaOverDiskArea)
+					&& Double.isFinite(cfdFarWakeContractedAreaSquareMeters)) {
+				cfdFarWakeContractedAreaOverDiskArea = ratio(cfdFarWakeContractedAreaSquareMeters, diskArea);
+			}
+			if (!Double.isFinite(cfdFarWakeContractedAreaSquareMeters)
+					&& Double.isFinite(cfdFarWakeContractedAreaOverDiskArea)) {
+				cfdFarWakeContractedAreaSquareMeters = cfdFarWakeContractedAreaOverDiskArea * diskArea;
+			}
+			if (!Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)
+					&& Double.isFinite(cfdFarWakeEquivalentRadiusMeters)) {
+				cfdFarWakeEquivalentRadiusOverRotorRadius = ratio(cfdFarWakeEquivalentRadiusMeters, rotorRadius);
+			}
+			if (!Double.isFinite(cfdFarWakeEquivalentRadiusMeters)
+					&& Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)) {
+				cfdFarWakeEquivalentRadiusMeters = cfdFarWakeEquivalentRadiusOverRotorRadius * rotorRadius;
+			}
 			sourceCaseSha256 = sourceCaseSha256 == null ? "" : sourceCaseSha256.trim();
 			solverStatus = solverStatus == null || solverStatus.isBlank() ? "UNSPECIFIED" : solverStatus.trim();
 		}
@@ -138,6 +174,12 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double torqueResidualFraction,
 			double inducedVelocityResidualMetersPerSecond,
 			double momentumPowerResidualWatts,
+			double farWakeContractedAreaResidualSquareMeters,
+			double farWakeContractedAreaResidualFraction,
+			double farWakeEquivalentRadiusResidualMeters,
+			double farWakeEquivalentRadiusResidualFraction,
+			double farWakeContractedAreaRatioResidual,
+			double farWakeEquivalentRadiusRatioResidual,
 			boolean comparable,
 			String message
 	) {
@@ -250,6 +292,10 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 						cfdCt,
 						cfdCp,
 						cfdEta,
+						cfd.cfdFarWakeContractedAreaSquareMeters(),
+						cfd.cfdFarWakeEquivalentRadiusMeters(),
+						cfd.cfdFarWakeContractedAreaOverDiskArea(),
+						cfd.cfdFarWakeEquivalentRadiusOverRotorRadius(),
 						cfd.sourceCaseSha256(),
 						cfd.solverStatus()
 				),
@@ -272,6 +318,18 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				ratio(cfdTorque - reference.shaftTorqueNewtonMeters(), reference.shaftTorqueNewtonMeters()),
 				cfd.cfdInducedVelocityMetersPerSecond() - reference.idealInducedVelocityMetersPerSecond(),
 				cfdMomentumPower - reference.idealMomentumPowerWatts(),
+				cfd.cfdFarWakeContractedAreaSquareMeters() - reference.farWakeContractedAreaSquareMeters(),
+				ratio(cfd.cfdFarWakeContractedAreaSquareMeters()
+								- reference.farWakeContractedAreaSquareMeters(),
+						reference.farWakeContractedAreaSquareMeters()),
+				cfd.cfdFarWakeEquivalentRadiusMeters() - reference.farWakeEquivalentRadiusMeters(),
+				ratio(cfd.cfdFarWakeEquivalentRadiusMeters()
+								- reference.farWakeEquivalentRadiusMeters(),
+						reference.farWakeEquivalentRadiusMeters()),
+				cfd.cfdFarWakeContractedAreaOverDiskArea()
+						- reference.farWakeContractedAreaOverDiskArea(),
+				cfd.cfdFarWakeEquivalentRadiusOverRotorRadius()
+						- reference.farWakeEquivalentRadiusOverRotorRadius(),
 				comparable,
 				message
 		);
@@ -309,6 +367,10 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				optionalDouble(record, "cfd_ct", Double.NaN),
 				optionalDouble(record, "cfd_cp", Double.NaN),
 				optionalDouble(record, "cfd_eta", Double.NaN),
+				optionalDouble(record, "cfd_far_wake_contracted_area_m2", Double.NaN),
+				optionalDouble(record, "cfd_far_wake_equivalent_radius_m", Double.NaN),
+				optionalDouble(record, "cfd_far_wake_contracted_area_over_disk_area", Double.NaN),
+				optionalDouble(record, "cfd_far_wake_equivalent_radius_over_rotor_radius", Double.NaN),
 				text(record, "source_case_sha256", ""),
 				text(record, "solver_status", "UNSPECIFIED")
 		);
@@ -445,6 +507,20 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				number(reference.idealMomentumPowerWatts()),
 				number(cfd.cfdMomentumPowerWatts()),
 				number(row.momentumPowerResidualWatts()),
+				number(reference.farWakeContractedAreaSquareMeters()),
+				number(cfd.cfdFarWakeContractedAreaSquareMeters()),
+				number(row.farWakeContractedAreaResidualSquareMeters()),
+				number(row.farWakeContractedAreaResidualFraction()),
+				number(reference.farWakeEquivalentRadiusMeters()),
+				number(cfd.cfdFarWakeEquivalentRadiusMeters()),
+				number(row.farWakeEquivalentRadiusResidualMeters()),
+				number(row.farWakeEquivalentRadiusResidualFraction()),
+				number(reference.farWakeContractedAreaOverDiskArea()),
+				number(cfd.cfdFarWakeContractedAreaOverDiskArea()),
+				number(row.farWakeContractedAreaRatioResidual()),
+				number(reference.farWakeEquivalentRadiusOverRotorRadius()),
+				number(cfd.cfdFarWakeEquivalentRadiusOverRotorRadius()),
+				number(row.farWakeEquivalentRadiusRatioResidual()),
 				Boolean.toString(row.comparable()),
 				escape(row.message())
 		);
