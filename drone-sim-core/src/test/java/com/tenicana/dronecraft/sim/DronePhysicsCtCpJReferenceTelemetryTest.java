@@ -428,6 +428,33 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void runtimeReferenceTelemetryRequiresAcceptedCtCpJReferenceRotorSet() {
+		DroneConfig apConfig = DroneConfig.apDrone();
+		DronePhysics apDrone = new DronePhysics(apConfig);
+		DroneInput apHover = new DroneInput(apConfig.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 20; i++) {
+			apDrone.step(apHover, 0.005, DroneEnvironment.calm());
+		}
+
+		assertTrue(apDrone.state().rotorCtCpJReferenceAvailable(0));
+		assertTrue(apDrone.state().rotorCtCpJReferenceAvailable(1));
+
+		DroneConfig racingConfig = DroneConfig.racingQuad();
+		DronePhysics racing = new DronePhysics(racingConfig);
+		DroneInput racingHover = new DroneInput(racingConfig.hoverThrottle(), 0.0, 0.0, 0.0, true);
+		for (int i = 0; i < 20; i++) {
+			racing.step(racingHover, 0.005, DroneEnvironment.calm());
+		}
+
+		for (int rotor = 0; rotor < racingConfig.rotors().size(); rotor++) {
+			assertFalse(racing.state().rotorCtCpJReferenceAvailable(rotor));
+			assertFalse(racing.state().rotorCtCpJReferenceBlocked(rotor));
+			assertFalse(racing.state().rotorCtCpJReferenceRuntimeApplied(rotor));
+			assertEquals(0.0, racing.state().rotorCtCpJReferenceThrustNewtons(rotor), 1.0e-15);
+		}
+	}
+
+	@Test
 	void referenceSamplerPreservesTransverseRelativeAirVelocityDiagnostics() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double rpm = 6_000.0;

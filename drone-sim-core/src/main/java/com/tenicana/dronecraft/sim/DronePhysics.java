@@ -1301,14 +1301,15 @@ public final class DronePhysics {
 			state.setRotorPropellerPowerScale(i, propellerPowerScale);
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample ctCpJReferenceSample =
 					sampleRotorCtCpJReference(
-					aerodynamicRotor,
-					rotorRelativeAirVelocityBody,
-					aerodynamicOmega,
-					airDensity,
-					config.centerOfMassOffsetBodyMeters(),
-					environment.effectiveAmbientTemperatureCelsius(),
-					ambientHumidity
-			);
+							config,
+							aerodynamicRotor,
+							rotorRelativeAirVelocityBody,
+							aerodynamicOmega,
+							airDensity,
+							config.centerOfMassOffsetBodyMeters(),
+							environment.effectiveAmbientTemperatureCelsius(),
+							ambientHumidity
+					);
 			state.setRotorCtCpJReferenceSample(
 					i,
 					ctCpJReferenceSample,
@@ -2905,6 +2906,30 @@ public final class DronePhysics {
 				momentReferenceBodyMeters,
 				25.0,
 				0.0
+			);
+	}
+
+	static PropellerArchiveCtCpJRotorForceModel.RotorForceSample sampleRotorCtCpJReference(
+			DroneConfig config,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBody,
+			double omegaRadiansPerSecond,
+			double airDensityRatio,
+			Vec3 momentReferenceBodyMeters,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (!hasApDroneCtCpJReferenceRotorSet(config)) {
+			return null;
+		}
+		return sampleRotorCtCpJReference(
+				rotor,
+				relativeAirVelocityBody,
+				omegaRadiansPerSecond,
+				airDensityRatio,
+				momentReferenceBodyMeters,
+				ambientTemperatureCelsius,
+				ambientHumidity
 		);
 	}
 
@@ -3150,6 +3175,18 @@ public final class DronePhysics {
 				&& Math.abs(rotor.bladePitchToDiameterRatio() - APDRONE_CTCPJ_REFERENCE_PITCH_TO_DIAMETER_RATIO)
 						<= APDRONE_CTCPJ_REFERENCE_GEOMETRY_TOLERANCE
 				&& rotor.bladeCount() == 3;
+	}
+
+	private static boolean hasApDroneCtCpJReferenceRotorSet(DroneConfig config) {
+		if (config == null || config.rotors().size() != 4) {
+			return false;
+		}
+		for (RotorSpec rotor : config.rotors()) {
+			if (!isApDroneCtCpJReferenceRotor(rotor)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static Vec3 rotorTransverseVelocityBody(RotorSpec rotor, Vec3 relativeAirVelocityBody) {
