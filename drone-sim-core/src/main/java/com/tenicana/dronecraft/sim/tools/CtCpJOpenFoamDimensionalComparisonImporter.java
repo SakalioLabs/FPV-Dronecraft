@@ -72,6 +72,14 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			"cfd_wake_tangential_velocity_mps",
 			"wake_tangential_velocity_residual_mps",
 			"wake_tangential_velocity_residual_fraction",
+			"reference_angular_momentum_swirl_radius_m",
+			"cfd_angular_momentum_swirl_radius_m",
+			"angular_momentum_swirl_radius_residual_m",
+			"angular_momentum_swirl_radius_residual_fraction",
+			"reference_wake_angular_momentum_torque_nm",
+			"cfd_wake_angular_momentum_torque_nm",
+			"wake_angular_momentum_torque_residual_nm",
+			"wake_angular_momentum_torque_residual_fraction",
 			"reference_wake_swirl_kinetic_power_w",
 			"cfd_wake_swirl_kinetic_power_w",
 			"wake_swirl_kinetic_power_residual_w",
@@ -123,6 +131,8 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double cfdDiskMassFlowKilogramsPerSecond,
 			double cfdFarWakeAxialVelocityMetersPerSecond,
 			double cfdWakeTangentialVelocityMetersPerSecond,
+			double cfdAngularMomentumSwirlRadiusMeters,
+			double cfdWakeAngularMomentumTorqueNewtonMeters,
 			double cfdWakeSwirlKineticPowerWatts,
 			double cfdTotalWakeKineticPowerWatts,
 			double cfdFarWakeContractedAreaSquareMeters,
@@ -183,6 +193,19 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 						airDensityKgPerCubicMeter * cfdFarWakeContractedAreaSquareMeters
 				);
 			}
+			if (!Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)
+					&& Double.isFinite(cfdFarWakeEquivalentRadiusMeters)) {
+				cfdFarWakeEquivalentRadiusOverRotorRadius = ratio(cfdFarWakeEquivalentRadiusMeters, rotorRadius);
+			}
+			if (!Double.isFinite(cfdFarWakeEquivalentRadiusMeters)
+					&& Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)) {
+				cfdFarWakeEquivalentRadiusMeters = cfdFarWakeEquivalentRadiusOverRotorRadius * rotorRadius;
+			}
+			if (!Double.isFinite(cfdAngularMomentumSwirlRadiusMeters)
+					&& Double.isFinite(cfdFarWakeEquivalentRadiusMeters)) {
+				cfdAngularMomentumSwirlRadiusMeters = cfdFarWakeEquivalentRadiusMeters
+						* RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
+			}
 			if (!Double.isFinite(cfdTotalWakeKineticPowerWatts)
 					&& Double.isFinite(cfdMomentumPowerWatts)
 					&& Double.isFinite(cfdWakeSwirlKineticPowerWatts)) {
@@ -194,6 +217,15 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				cfdWakeSwirlKineticPowerWatts = cfdTotalWakeKineticPowerWatts - cfdMomentumPowerWatts;
 			}
 			if (!Double.isFinite(cfdWakeTangentialVelocityMetersPerSecond)
+					&& Double.isFinite(cfdWakeAngularMomentumTorqueNewtonMeters)
+					&& Double.isFinite(cfdDiskMassFlowKilogramsPerSecond)
+					&& cfdDiskMassFlowKilogramsPerSecond > EPSILON
+					&& Double.isFinite(cfdAngularMomentumSwirlRadiusMeters)
+					&& cfdAngularMomentumSwirlRadiusMeters > EPSILON) {
+				cfdWakeTangentialVelocityMetersPerSecond = Math.abs(cfdWakeAngularMomentumTorqueNewtonMeters)
+						/ (cfdDiskMassFlowKilogramsPerSecond * cfdAngularMomentumSwirlRadiusMeters);
+			}
+			if (!Double.isFinite(cfdWakeTangentialVelocityMetersPerSecond)
 					&& Double.isFinite(cfdWakeSwirlKineticPowerWatts)
 					&& cfdWakeSwirlKineticPowerWatts >= 0.0
 					&& Double.isFinite(cfdDiskMassFlowKilogramsPerSecond)
@@ -202,13 +234,26 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 						2.0 * cfdWakeSwirlKineticPowerWatts / cfdDiskMassFlowKilogramsPerSecond
 				);
 			}
-			if (!Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)
-					&& Double.isFinite(cfdFarWakeEquivalentRadiusMeters)) {
-				cfdFarWakeEquivalentRadiusOverRotorRadius = ratio(cfdFarWakeEquivalentRadiusMeters, rotorRadius);
+			if (!Double.isFinite(cfdWakeAngularMomentumTorqueNewtonMeters)
+					&& Double.isFinite(cfdDiskMassFlowKilogramsPerSecond)
+					&& Double.isFinite(cfdAngularMomentumSwirlRadiusMeters)
+					&& Double.isFinite(cfdWakeTangentialVelocityMetersPerSecond)) {
+				cfdWakeAngularMomentumTorqueNewtonMeters = cfdDiskMassFlowKilogramsPerSecond
+						* cfdAngularMomentumSwirlRadiusMeters
+						* cfdWakeTangentialVelocityMetersPerSecond;
 			}
-			if (!Double.isFinite(cfdFarWakeEquivalentRadiusMeters)
-					&& Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)) {
-				cfdFarWakeEquivalentRadiusMeters = cfdFarWakeEquivalentRadiusOverRotorRadius * rotorRadius;
+			if (!Double.isFinite(cfdWakeSwirlKineticPowerWatts)
+					&& Double.isFinite(cfdDiskMassFlowKilogramsPerSecond)
+					&& Double.isFinite(cfdWakeTangentialVelocityMetersPerSecond)) {
+				cfdWakeSwirlKineticPowerWatts = 0.5
+						* cfdDiskMassFlowKilogramsPerSecond
+						* cfdWakeTangentialVelocityMetersPerSecond
+						* cfdWakeTangentialVelocityMetersPerSecond;
+			}
+			if (!Double.isFinite(cfdTotalWakeKineticPowerWatts)
+					&& Double.isFinite(cfdMomentumPowerWatts)
+					&& Double.isFinite(cfdWakeSwirlKineticPowerWatts)) {
+				cfdTotalWakeKineticPowerWatts = cfdMomentumPowerWatts + cfdWakeSwirlKineticPowerWatts;
 			}
 			sourceCaseSha256 = sourceCaseSha256 == null ? "" : sourceCaseSha256.trim();
 			solverStatus = solverStatus == null || solverStatus.isBlank() ? "UNSPECIFIED" : solverStatus.trim();
@@ -242,6 +287,10 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double farWakeAxialVelocityResidualFraction,
 			double wakeTangentialVelocityResidualMetersPerSecond,
 			double wakeTangentialVelocityResidualFraction,
+			double angularMomentumSwirlRadiusResidualMeters,
+			double angularMomentumSwirlRadiusResidualFraction,
+			double wakeAngularMomentumTorqueResidualNewtonMeters,
+			double wakeAngularMomentumTorqueResidualFraction,
 			double wakeSwirlKineticPowerResidualWatts,
 			double wakeSwirlKineticPowerResidualFraction,
 			double totalWakeKineticPowerResidualWatts,
@@ -339,6 +388,7 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				? cfd.cfdMomentumPowerWatts()
 				: momentumPower(cfd.cfdThrustNewtons(), cfd.queryAdvanceRatioJ(), revolutionsPerSecond,
 						cfd.propellerDiameterMeters(), cfd.cfdInducedVelocityMetersPerSecond());
+		double referenceWakeAngularMomentumTorque = wakeAngularMomentumTorque(reference);
 		CfdDimensionalRow normalizedCfd = new CfdDimensionalRow(
 				cfd.presetName(),
 				cfd.caseName(),
@@ -357,6 +407,8 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				cfd.cfdDiskMassFlowKilogramsPerSecond(),
 				cfd.cfdFarWakeAxialVelocityMetersPerSecond(),
 				cfd.cfdWakeTangentialVelocityMetersPerSecond(),
+				cfd.cfdAngularMomentumSwirlRadiusMeters(),
+				cfd.cfdWakeAngularMomentumTorqueNewtonMeters(),
 				cfd.cfdWakeSwirlKineticPowerWatts(),
 				cfd.cfdTotalWakeKineticPowerWatts(),
 				cfd.cfdFarWakeContractedAreaSquareMeters(),
@@ -412,6 +464,16 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				ratio(normalizedCfd.cfdWakeTangentialVelocityMetersPerSecond()
 								- reference.wakeTangentialVelocityMetersPerSecond(),
 						reference.wakeTangentialVelocityMetersPerSecond()),
+				normalizedCfd.cfdAngularMomentumSwirlRadiusMeters()
+						- reference.angularMomentumSwirlRadiusMeters(),
+				ratio(normalizedCfd.cfdAngularMomentumSwirlRadiusMeters()
+								- reference.angularMomentumSwirlRadiusMeters(),
+						reference.angularMomentumSwirlRadiusMeters()),
+				normalizedCfd.cfdWakeAngularMomentumTorqueNewtonMeters()
+						- referenceWakeAngularMomentumTorque,
+				ratio(normalizedCfd.cfdWakeAngularMomentumTorqueNewtonMeters()
+								- referenceWakeAngularMomentumTorque,
+						referenceWakeAngularMomentumTorque),
 				normalizedCfd.cfdWakeSwirlKineticPowerWatts() - reference.wakeSwirlKineticPowerWatts(),
 				ratio(normalizedCfd.cfdWakeSwirlKineticPowerWatts()
 								- reference.wakeSwirlKineticPowerWatts(),
@@ -475,6 +537,8 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				optionalDouble(record, "cfd_disk_mass_flow_kg_s", Double.NaN),
 				optionalDouble(record, "cfd_far_wake_axial_velocity_mps", Double.NaN),
 				optionalDouble(record, "cfd_wake_tangential_velocity_mps", Double.NaN),
+				optionalDouble(record, "cfd_angular_momentum_swirl_radius_m", Double.NaN),
+				optionalDouble(record, "cfd_wake_angular_momentum_torque_nm", Double.NaN),
 				optionalDouble(record, "cfd_wake_swirl_kinetic_power_w", Double.NaN),
 				optionalDouble(record, "cfd_total_wake_kinetic_power_w", Double.NaN),
 				optionalDouble(record, "cfd_far_wake_contracted_area_m2", Double.NaN),
@@ -629,6 +693,14 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				number(cfd.cfdWakeTangentialVelocityMetersPerSecond()),
 				number(row.wakeTangentialVelocityResidualMetersPerSecond()),
 				number(row.wakeTangentialVelocityResidualFraction()),
+				number(reference.angularMomentumSwirlRadiusMeters()),
+				number(cfd.cfdAngularMomentumSwirlRadiusMeters()),
+				number(row.angularMomentumSwirlRadiusResidualMeters()),
+				number(row.angularMomentumSwirlRadiusResidualFraction()),
+				number(wakeAngularMomentumTorque(reference)),
+				number(cfd.cfdWakeAngularMomentumTorqueNewtonMeters()),
+				number(row.wakeAngularMomentumTorqueResidualNewtonMeters()),
+				number(row.wakeAngularMomentumTorqueResidualFraction()),
 				number(reference.wakeSwirlKineticPowerWatts()),
 				number(cfd.cfdWakeSwirlKineticPowerWatts()),
 				number(row.wakeSwirlKineticPowerResidualWatts()),
@@ -728,6 +800,14 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 		}
 		double axialSpeed = advanceRatioJ * revolutionsPerSecond * propellerDiameterMeters;
 		return thrustNewtons * (Math.max(0.0, axialSpeed) + inducedVelocityMetersPerSecond);
+	}
+
+	private static double wakeAngularMomentumTorque(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return sample.diskMassFlowKilogramsPerSecond()
+				* sample.angularMomentumSwirlRadiusMeters()
+				* sample.wakeTangentialVelocityMetersPerSecond();
 	}
 
 	private static double ratio(double numerator, double denominator) {
