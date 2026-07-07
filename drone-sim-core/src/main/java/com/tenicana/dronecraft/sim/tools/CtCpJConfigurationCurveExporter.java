@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim.tools;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
 import com.tenicana.dronecraft.sim.DroneEnvironment;
+import com.tenicana.dronecraft.sim.DroneState;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel;
@@ -163,6 +164,8 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double BODY_RATE_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
 	private static final double BODY_RATE_DIAGNOSTIC_ROLL_RATE_RADIANS_PER_SECOND = 5.0;
 	private static final double WORLD_PROJECTION_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
+	private static final double STATE_ENVIRONMENT_SHADOW_ADVANCE_RATIO_J = 0.4064;
+	private static final double STATE_ENVIRONMENT_SHADOW_ROLL_RATE_RADIANS_PER_SECOND = 1.2;
 	private static final double TARGET_THRUST_FORWARD_ADVANCE_RATIO_J = 0.4064;
 	private static final double TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND = 22.0;
 	private static final Vec3 TRIM_DIAGNOSTIC_BODY_TORQUE_NEWTON_METERS =
@@ -453,12 +456,89 @@ public final class CtCpJConfigurationCurveExporter {
 				worldProjectionOrientation,
 				worldProjectionAggregate
 		);
+		ConfigurationDiagnosticPoint stateEnvironmentShadow =
+				sampleStateEnvironmentShadowPoint(
+						presetName,
+						config,
+						rotor,
+						hoverRpm,
+						hoverOmega,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				);
 		return List.of(
 				reverseClamp,
 				highAdvanceBlocked,
 				transverseDiagnostic,
 				bodyRateDiagnostic,
-				worldProjectionDiagnostic
+				worldProjectionDiagnostic,
+				stateEnvironmentShadow
+		);
+	}
+
+	private static ConfigurationDiagnosticPoint sampleStateEnvironmentShadowPoint(
+			String presetName,
+			DroneConfig config,
+			RotorSpec rotor,
+			double hoverRpm,
+			double hoverOmega,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		double axialSpeed = STATE_ENVIRONMENT_SHADOW_ADVANCE_RATIO_J
+				* hoverRpm
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0;
+		Vec3 relativeAirVelocity = rotorAxisBody(rotor).multiply(axialSpeed);
+		Vec3 angularVelocityBody =
+				new Vec3(STATE_ENVIRONMENT_SHADOW_ROLL_RATE_RADIANS_PER_SECOND, 0.0, 0.0);
+		Quaternion bodyToWorld =
+				new Quaternion(Math.cos(Math.PI / 6.0), 0.0, 0.0, Math.sin(Math.PI / 6.0));
+		Vec3 baselineWindWorldMetersPerSecond = new Vec3(0.35, -0.10, 0.25);
+		Vec3 vehicleVelocityWorldMetersPerSecond =
+				baselineWindWorldMetersPerSecond.add(bodyToWorld.rotate(relativeAirVelocity));
+		DroneState state = new DroneState(config.rotors().size());
+		state.setPositionMeters(new Vec3(2.0, 68.0, -3.0));
+		state.setVelocityMetersPerSecond(vehicleVelocityWorldMetersPerSecond);
+		state.setOrientation(bodyToWorld);
+		state.setAngularVelocityBodyRadiansPerSecond(angularVelocityBody);
+		DroneEnvironment environment = new DroneEnvironment(
+				baselineWindWorldMetersPerSecond,
+				airDensityKgPerCubicMeter
+						/ PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER,
+				Double.POSITIVE_INFINITY,
+				0.0,
+				0.0,
+				0.0,
+				Double.POSITIVE_INFINITY,
+				null,
+				null,
+				null,
+				null,
+				0.0,
+				null,
+				ambientHumidity,
+				ambientTemperatureCelsius
+		);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample sample =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.sampleStaticAnchoredConfigurationFromState(
+						presetName,
+						"static_anchored_configuration_state_environment_shadow",
+						config,
+						state,
+						environment,
+						fill(config.rotors().size(), hoverOmega),
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		return directPoint(
+				axialSpeed,
+				relativeAirVelocity,
+				angularVelocityBody,
+				bodyToWorld,
+				sample.aggregate()
 		);
 	}
 

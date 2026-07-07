@@ -45,7 +45,7 @@ class CtCpJConfigurationCurveExporterTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 
-		assertEquals(39, lines.size());
+		assertEquals(40, lines.size());
 		assertTrue(lines.get(0).startsWith(
 				"preset,case,query_j,query_rpm,target_thrust_n,target_thrust_residual_n"));
 		assertEquals(4, integerCell(hover, columns, "rotor_count"));
@@ -356,6 +356,8 @@ class CtCpJConfigurationCurveExporterTest {
 		String bodyRate = lineForCase(lines, columns, "static_anchored_configuration_body_rate_roll_diagnostic");
 		String worldProjection =
 				lineForCase(lines, columns, "static_anchored_configuration_world_projection_diagnostic");
+		String stateEnvironmentShadow =
+				lineForCase(lines, columns, "static_anchored_configuration_state_environment_shadow");
 
 		assertEquals(4, integerCell(reverseClamp, columns, "accepted_rotor_count"));
 		assertEquals(4, integerCell(reverseClamp, columns, "clamped_rotor_count"));
@@ -443,6 +445,28 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(numberCell(worldProjection, columns, "rotor_only_preview_delta_velocity_world_x_mps"),
 				numberCell(worldProjection, columns,
 						"runtime_replacement_preview_delta_velocity_world_x_mps"), 1.0e-12);
+
+		assertEquals(4, integerCell(stateEnvironmentShadow, columns, "accepted_rotor_count"));
+		assertEquals(4, integerCell(stateEnvironmentShadow, columns,
+				"runtime_force_replacement_accepted_rotor_count"));
+		assertEquals("ACCEPTED", textCell(stateEnvironmentShadow, columns, "runtime_eligibility_status"));
+		assertEquals(Math.cos(Math.PI / 6.0),
+				numberCell(stateEnvironmentShadow, columns, "body_to_world_qw"), 1.0e-15);
+		assertEquals(Math.sin(Math.PI / 6.0),
+				numberCell(stateEnvironmentShadow, columns, "body_to_world_qz"), 1.0e-15);
+		assertEquals(1.2, numberCell(stateEnvironmentShadow, columns, "body_angular_rate_x_rad_s"), 1.0e-15);
+		assertTrue(numberCell(stateEnvironmentShadow, columns, "total_thrust_n") > 0.0);
+		assertTrue(numberCell(stateEnvironmentShadow, columns, "total_shaft_power_w") > 0.0);
+		assertTrue(Math.abs(numberCell(stateEnvironmentShadow, columns, "total_body_torque_x_nm")) > 1.0e-4);
+		assertEquals(numberCell(stateEnvironmentShadow, columns, "total_thrust_n"),
+				numberCell(stateEnvironmentShadow, columns, "runtime_replacement_total_thrust_n"), 1.0e-12);
+		assertEquals(numberCell(stateEnvironmentShadow, columns, "total_shaft_power_w"),
+				numberCell(stateEnvironmentShadow, columns, "runtime_replacement_total_shaft_power_w"), 1.0e-12);
+		assertEquals(numberCell(stateEnvironmentShadow, columns, "total_thrust_force_world_x_n") / config.massKg(),
+				numberCell(stateEnvironmentShadow, columns, "rotor_only_linear_accel_world_x_mps2"), 1.0e-12);
+		assertEquals(numberCell(stateEnvironmentShadow, columns, "rotor_only_linear_accel_world_x_mps2"),
+				numberCell(stateEnvironmentShadow, columns,
+						"runtime_replacement_rotor_only_linear_accel_world_x_mps2"), 1.0e-12);
 	}
 
 	@Test
@@ -451,7 +475,7 @@ class CtCpJConfigurationCurveExporterTest {
 		CtCpJConfigurationCurveExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(39, lines.size());
+		assertEquals(40, lines.size());
 		assertTrue(lines.get(0).contains("total_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_solve_status"));
@@ -498,6 +522,8 @@ class CtCpJConfigurationCurveExporterTest {
 				line.startsWith("apDrone,static_anchored_configuration_body_rate_roll_diagnostic,")));
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_world_projection_diagnostic,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_configuration_state_environment_shadow,")));
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_target_hover_solve,")
 						&& line.contains(",SOLVED,")));
