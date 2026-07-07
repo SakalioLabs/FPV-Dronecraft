@@ -187,7 +187,9 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				momentReference,
 				orientation,
 				aggregate.rotorWorldForceApplications(momentReference, orientation),
-				aggregate.runtimeForceReplacementRotorWorldForceApplications(momentReference, orientation)
+				aggregate.runtimeForceReplacementRotorWorldForceApplications(momentReference, orientation),
+				aggregate.rotorActuatorDiskSourceTerms(momentReference, orientation),
+				aggregate.runtimeForceReplacementRotorActuatorDiskSourceTerms(momentReference, orientation)
 		);
 	}
 
@@ -196,7 +198,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			Vec3 momentReferenceWorldMeters,
 			Quaternion bodyToWorldOrientation,
 			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> rotorApplications,
-			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> runtimeReplacementRotorApplications
+			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> runtimeReplacementRotorApplications,
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> rotorActuatorDiskSourceTerms,
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample>
+					runtimeReplacementRotorActuatorDiskSourceTerms
 	) {
 		public WorldForceApplicationSample {
 			if (aggregate == null) {
@@ -208,10 +213,21 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			runtimeReplacementRotorApplications = List.copyOf(runtimeReplacementRotorApplications == null
 					? List.of()
 					: runtimeReplacementRotorApplications);
+			rotorActuatorDiskSourceTerms = List.copyOf(rotorActuatorDiskSourceTerms == null
+					? List.of()
+					: rotorActuatorDiskSourceTerms);
+			runtimeReplacementRotorActuatorDiskSourceTerms =
+					List.copyOf(runtimeReplacementRotorActuatorDiskSourceTerms == null
+							? List.of()
+							: runtimeReplacementRotorActuatorDiskSourceTerms);
 		}
 
 		public int rotorCount() {
 			return rotorApplications.size();
+		}
+
+		public int sourceTermCount() {
+			return rotorActuatorDiskSourceTerms.size();
 		}
 
 		public int appliedRotorCount() {
@@ -230,6 +246,28 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application
 					: runtimeReplacementRotorApplications) {
 				if (application.applied()) {
+					count++;
+				}
+			}
+			return count;
+		}
+
+		public int appliedSourceTermCount() {
+			int count = 0;
+			for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm
+					: rotorActuatorDiskSourceTerms) {
+				if (sourceTerm.applied()) {
+					count++;
+				}
+			}
+			return count;
+		}
+
+		public int runtimeReplacementAppliedSourceTermCount() {
+			int count = 0;
+			for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm
+					: runtimeReplacementRotorActuatorDiskSourceTerms) {
+				if (sourceTerm.applied()) {
 					count++;
 				}
 			}
@@ -270,6 +308,14 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 
 		public Vec3 runtimeReplacementTotalTorqueWorldNewtonMeters() {
 			return sumTotalTorque(runtimeReplacementRotorApplications);
+		}
+
+		public Vec3 totalActuatorDiskSurfaceForceWorldNewtons() {
+			return sumActuatorDiskSurfaceForce(rotorActuatorDiskSourceTerms);
+		}
+
+		public Vec3 runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons() {
+			return sumActuatorDiskSurfaceForce(runtimeReplacementRotorActuatorDiskSourceTerms);
 		}
 
 		public RigidBodyWrenchSample rotorRigidBodyWrench(
@@ -596,6 +642,17 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		Vec3 sum = Vec3.ZERO;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
 			sum = sum.add(application.totalTorqueWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static Vec3 sumActuatorDiskSurfaceForce(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			sum = sum.add(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+					.multiply(sourceTerm.diskAreaSquareMeters()));
 		}
 		return sum;
 	}

@@ -50,8 +50,11 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 						);
 
 		assertEquals(config.rotors().size(), sample.rotorCount());
+		assertEquals(config.rotors().size(), sample.sourceTermCount());
 		assertEquals(config.rotors().size(), sample.appliedRotorCount());
+		assertEquals(config.rotors().size(), sample.appliedSourceTermCount());
 		assertEquals(config.rotors().size(), sample.runtimeReplacementAppliedRotorCount());
+		assertEquals(config.rotors().size(), sample.runtimeReplacementAppliedSourceTermCount());
 		assertTrue(sample.runtimeReplacementAccepted());
 		assertEquals(config.rotors().size(), sample.aggregate().acceptedRotorCount());
 		assertEquals(config.rotors().size(), sample.aggregate().runtimeForceReplacementAcceptedRotorCount());
@@ -71,6 +74,10 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				sample.runtimeReplacementTotalThrustMomentWorldNewtonMeters(), 1.0e-12);
 		assertVectorEquals(sample.aggregate().runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(bodyToWorld),
 				sample.runtimeReplacementTotalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(sample.totalThrustForceWorldNewtons(),
+				sample.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(sample.runtimeReplacementTotalThrustForceWorldNewtons(),
+				sample.runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample wrench =
 				sample.rotorRigidBodyWrench(config, angularVelocityBody);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeWrench =
@@ -137,15 +144,32 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		for (int i = 0; i < sample.rotorApplications().size(); i++) {
 			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 					sample.rotorApplications().get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+					sample.rotorActuatorDiskSourceTerms().get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample runtimeSourceTerm =
+					sample.runtimeReplacementRotorActuatorDiskSourceTerms().get(i);
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample rotorSample =
 					sample.aggregate().rotorSamples().get(i);
 			assertEquals(i, application.rotorIndex());
+			assertEquals(i, sourceTerm.rotorIndex());
 			assertTrue(application.applied());
+			assertTrue(sourceTerm.applied());
 			assertVectorEquals(
 					momentReferenceWorld.add(rotorSample.momentArmWorldMeters(bodyToWorld)),
 					application.forceApplicationPointWorldMeters(),
 					1.0e-15
 			);
+			assertVectorEquals(application.forceApplicationPointWorldMeters(),
+					sourceTerm.diskCenterWorldMeters(), 1.0e-15);
+			assertVectorEquals(application.thrustForceWorldNewtons(),
+					sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+							.multiply(sourceTerm.diskAreaSquareMeters()),
+					1.0e-12);
+			assertVectorEquals(rotorSample.farWakeAxialVelocityWorldMetersPerSecond(bodyToWorld),
+					sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+			assertTrue(runtimeSourceTerm.applied());
+			assertVectorEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(),
+					runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-12);
 			assertVectorEquals(
 					application.forceApplicationPointWorldMeters()
 							.subtract(momentReferenceWorld)
@@ -215,9 +239,13 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 						);
 
 		assertEquals(direct.rotorCount(), fromState.rotorCount());
+		assertEquals(direct.sourceTermCount(), fromState.sourceTermCount());
 		assertEquals(direct.appliedRotorCount(), fromState.appliedRotorCount());
+		assertEquals(direct.appliedSourceTermCount(), fromState.appliedSourceTermCount());
 		assertEquals(direct.runtimeReplacementAppliedRotorCount(),
 				fromState.runtimeReplacementAppliedRotorCount());
+		assertEquals(direct.runtimeReplacementAppliedSourceTermCount(),
+				fromState.runtimeReplacementAppliedSourceTermCount());
 		assertEquals(direct.runtimeReplacementAccepted(), fromState.runtimeReplacementAccepted());
 		assertVectorEquals(direct.momentReferenceWorldMeters(), fromState.momentReferenceWorldMeters(), 1.0e-15);
 		assertQuaternionEquals(direct.bodyToWorldOrientation(), fromState.bodyToWorldOrientation(), 1.0e-15);
@@ -229,6 +257,10 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				fromState.totalThrustMomentWorldNewtonMeters(), 1.0e-12);
 		assertVectorEquals(direct.totalTorqueWorldNewtonMeters(),
 				fromState.totalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(direct.totalActuatorDiskSurfaceForceWorldNewtons(),
+				fromState.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(fromState.totalThrustForceWorldNewtons(),
+				fromState.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
 		assertTrue(fromState.totalThrustForceWorldNewtons().length() > 0.0);
 		assertVectorEquals(
 				direct.rotorRigidBodyWrench(config, angularVelocityBody)
@@ -374,8 +406,11 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 						);
 
 		assertEquals(config.rotors().size(), sample.rotorCount());
+		assertEquals(config.rotors().size(), sample.sourceTermCount());
 		assertEquals(config.rotors().size(), sample.appliedRotorCount());
+		assertEquals(config.rotors().size(), sample.appliedSourceTermCount());
 		assertEquals(0, sample.runtimeReplacementAppliedRotorCount());
+		assertEquals(0, sample.runtimeReplacementAppliedSourceTermCount());
 		assertFalse(sample.runtimeReplacementAccepted());
 		assertEquals(config.rotors().size(), sample.aggregate().clampedRotorCount());
 		assertTrue(sample.aggregate().totalThrustForceBodyNewtons().length() > 0.0);
@@ -383,6 +418,9 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertVectorEquals(Vec3.ZERO, sample.runtimeReplacementTotalReactionTorqueWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, sample.runtimeReplacementTotalThrustMomentWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, sample.runtimeReplacementTotalTorqueWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(sample.totalThrustForceWorldNewtons(),
+				sample.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, sample.runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-15);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample rawWrench =
 				sample.rotorRigidBodyWrench(config, Vec3.ZERO);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeWrench =
@@ -409,17 +447,29 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		for (int i = 0; i < sample.runtimeReplacementRotorApplications().size(); i++) {
 			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 					sample.runtimeReplacementRotorApplications().get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+					sample.rotorActuatorDiskSourceTerms().get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample runtimeSourceTerm =
+					sample.runtimeReplacementRotorActuatorDiskSourceTerms().get(i);
 			assertEquals(i, application.rotorIndex());
 			assertFalse(application.applied());
 			assertFalse(application.runtimeForceReplacementAccepted());
 			assertEquals("CLAMPED", application.lookupStatus());
+			assertTrue(sourceTerm.applied());
+			assertFalse(runtimeSourceTerm.applied());
+			assertEquals("CLAMPED", runtimeSourceTerm.lookupStatus());
 			assertVectorEquals(
 					sample.rotorApplications().get(i).forceApplicationPointWorldMeters(),
 					application.forceApplicationPointWorldMeters(),
 					1.0e-15
 			);
+			assertVectorEquals(sourceTerm.diskCenterWorldMeters(), runtimeSourceTerm.diskCenterWorldMeters(), 1.0e-15);
+			assertTrue(sourceTerm.pressureJumpPascals() > 0.0);
+			assertEquals(0.0, runtimeSourceTerm.pressureJumpPascals(), 1.0e-15);
 			assertVectorEquals(Vec3.ZERO, application.thrustForceWorldNewtons(), 1.0e-15);
 			assertVectorEquals(Vec3.ZERO, application.totalTorqueWorldNewtonMeters(), 1.0e-15);
+			assertVectorEquals(Vec3.ZERO,
+					runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);
 		}
 	}
 

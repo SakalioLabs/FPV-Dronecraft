@@ -916,7 +916,9 @@ public final class CtCpJConfigurationCurveExporter {
 						Vec3.ZERO,
 						bodyToWorld,
 						aggregate.rotorWorldForceApplications(Vec3.ZERO, bodyToWorld),
-						aggregate.runtimeForceReplacementRotorWorldForceApplications(Vec3.ZERO, bodyToWorld)
+						aggregate.runtimeForceReplacementRotorWorldForceApplications(Vec3.ZERO, bodyToWorld),
+						aggregate.rotorActuatorDiskSourceTerms(Vec3.ZERO, bodyToWorld),
+						aggregate.runtimeForceReplacementRotorActuatorDiskSourceTerms(Vec3.ZERO, bodyToWorld)
 				);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample rotorOnlyWrench =
 				forceApplication.rotorRigidBodyWrench(config, point.angularVelocityBodyRadiansPerSecond());
