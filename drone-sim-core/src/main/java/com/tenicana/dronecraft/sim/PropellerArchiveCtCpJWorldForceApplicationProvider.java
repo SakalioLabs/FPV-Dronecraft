@@ -62,6 +62,60 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		);
 	}
 
+	public static StateRotorTelemetryComparisonSample compareStateRotorTelemetryToReference(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState state,
+			DroneEnvironment environment,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (state == null) {
+			throw new IllegalArgumentException("state must not be null.");
+		}
+		return compareStateRotorTelemetryToReference(
+				presetName,
+				caseName,
+				config,
+				state,
+				environment,
+				state.motorOmegaRadiansPerSecond(),
+				envelopePolicy
+		);
+	}
+
+	public static StateRotorTelemetryComparisonSample compareStateRotorTelemetryToReference(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState state,
+			DroneEnvironment environment,
+			double[] omegaRadiansPerSecond,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (state == null) {
+			throw new IllegalArgumentException("state must not be null.");
+		}
+		WorldForceApplicationSample reference = sampleStaticAnchoredConfigurationFromState(
+				presetName,
+				caseName,
+				config,
+				state,
+				environment,
+				omegaRadiansPerSecond,
+				envelopePolicy
+		);
+		return new StateRotorTelemetryComparisonSample(
+				reference,
+				state.motorCount(),
+				sum(state.rotorForceBodyNewtons()),
+				sum(state.rotorTorqueBodyNewtonMeters()),
+				sum(state.rotorThrustNewtons()),
+				sum(state.motorShaftPowerWatts()),
+				sum(state.motorAerodynamicTorqueNewtonMeters())
+		);
+	}
+
 	public static WorldForceApplicationSample sampleStaticAnchoredConfigurationFromWorldKinematics(
 			String presetName,
 			String caseName,
@@ -342,6 +396,115 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		}
 	}
 
+	public record StateRotorTelemetryComparisonSample(
+			WorldForceApplicationSample referenceSample,
+			int actualRotorCount,
+			Vec3 actualTotalForceBodyNewtons,
+			Vec3 actualTotalTorqueBodyNewtonMeters,
+			double actualTotalThrustNewtons,
+			double actualTotalShaftPowerWatts,
+			double actualTotalShaftTorqueNewtonMeters
+	) {
+		public StateRotorTelemetryComparisonSample {
+			if (referenceSample == null) {
+				throw new IllegalArgumentException("referenceSample must not be null.");
+			}
+			actualRotorCount = Math.max(0, actualRotorCount);
+			actualTotalForceBodyNewtons = finiteVecOrZero(actualTotalForceBodyNewtons);
+			actualTotalTorqueBodyNewtonMeters = finiteVecOrZero(actualTotalTorqueBodyNewtonMeters);
+			actualTotalThrustNewtons = finiteNonnegative(actualTotalThrustNewtons);
+			actualTotalShaftPowerWatts = finiteNonnegative(actualTotalShaftPowerWatts);
+			actualTotalShaftTorqueNewtonMeters = finiteNonnegative(actualTotalShaftTorqueNewtonMeters);
+		}
+
+		public PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample referenceAggregate() {
+			return referenceSample.aggregate();
+		}
+
+		public Vec3 referenceTotalForceBodyNewtons() {
+			return referenceAggregate().totalThrustForceBodyNewtons();
+		}
+
+		public Vec3 referenceTotalTorqueBodyNewtonMeters() {
+			return referenceAggregate().totalBodyTorqueNewtonMeters();
+		}
+
+		public double referenceTotalThrustNewtons() {
+			return referenceAggregate().totalThrustNewtons();
+		}
+
+		public double referenceTotalShaftPowerWatts() {
+			return referenceAggregate().totalShaftPowerWatts();
+		}
+
+		public double referenceTotalShaftTorqueNewtonMeters() {
+			return referenceAggregate().totalShaftTorqueNewtonMeters();
+		}
+
+		public Vec3 runtimeReplacementReferenceTotalForceBodyNewtons() {
+			return referenceAggregate().runtimeForceReplacementThrustForceBodyNewtons();
+		}
+
+		public Vec3 runtimeReplacementReferenceTotalTorqueBodyNewtonMeters() {
+			return referenceAggregate().runtimeForceReplacementTotalBodyTorqueNewtonMeters();
+		}
+
+		public double runtimeReplacementReferenceTotalThrustNewtons() {
+			return referenceAggregate().runtimeForceReplacementThrustNewtons();
+		}
+
+		public double runtimeReplacementReferenceTotalShaftPowerWatts() {
+			return referenceAggregate().runtimeForceReplacementShaftPowerWatts();
+		}
+
+		public double runtimeReplacementReferenceTotalShaftTorqueNewtonMeters() {
+			return referenceAggregate().runtimeForceReplacementShaftTorqueNewtonMeters();
+		}
+
+		public Vec3 forceBodyResidualNewtons() {
+			return actualTotalForceBodyNewtons.subtract(referenceTotalForceBodyNewtons());
+		}
+
+		public Vec3 torqueBodyResidualNewtonMeters() {
+			return actualTotalTorqueBodyNewtonMeters.subtract(referenceTotalTorqueBodyNewtonMeters());
+		}
+
+		public double thrustResidualNewtons() {
+			return actualTotalThrustNewtons - referenceTotalThrustNewtons();
+		}
+
+		public double shaftPowerResidualWatts() {
+			return actualTotalShaftPowerWatts - referenceTotalShaftPowerWatts();
+		}
+
+		public double shaftTorqueResidualNewtonMeters() {
+			return actualTotalShaftTorqueNewtonMeters - referenceTotalShaftTorqueNewtonMeters();
+		}
+
+		public Vec3 runtimeReplacementForceBodyResidualNewtons() {
+			return actualTotalForceBodyNewtons.subtract(runtimeReplacementReferenceTotalForceBodyNewtons());
+		}
+
+		public Vec3 runtimeReplacementTorqueBodyResidualNewtonMeters() {
+			return actualTotalTorqueBodyNewtonMeters.subtract(
+					runtimeReplacementReferenceTotalTorqueBodyNewtonMeters()
+			);
+		}
+
+		public double runtimeReplacementThrustResidualNewtons() {
+			return actualTotalThrustNewtons - runtimeReplacementReferenceTotalThrustNewtons();
+		}
+
+		public double runtimeReplacementShaftPowerResidualWatts() {
+			return actualTotalShaftPowerWatts - runtimeReplacementReferenceTotalShaftPowerWatts();
+		}
+
+		public double runtimeReplacementShaftTorqueResidualNewtonMeters() {
+			return actualTotalShaftTorqueNewtonMeters
+					- runtimeReplacementReferenceTotalShaftTorqueNewtonMeters();
+		}
+	}
+
 	public record RigidBodyWrenchSample(
 			Vec3 totalForceWorldNewtons,
 			Vec3 totalTorqueWorldNewtonMeters,
@@ -433,6 +596,30 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		Vec3 sum = Vec3.ZERO;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
 			sum = sum.add(application.totalTorqueWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static Vec3 sum(Vec3[] values) {
+		Vec3 sum = Vec3.ZERO;
+		if (values == null) {
+			return sum;
+		}
+		for (Vec3 value : values) {
+			sum = sum.add(finiteVecOrZero(value));
+		}
+		return sum;
+	}
+
+	private static double sum(double[] values) {
+		double sum = 0.0;
+		if (values == null) {
+			return sum;
+		}
+		for (double value : values) {
+			if (Double.isFinite(value)) {
+				sum += Math.max(0.0, value);
+			}
 		}
 		return sum;
 	}

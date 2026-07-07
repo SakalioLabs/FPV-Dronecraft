@@ -247,6 +247,104 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 	}
 
 	@Test
+	void providerComparesStateRotorTelemetryToCtCpJReferenceWithoutMutatingRuntimeState() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		double[] omegas = fill(config.rotors().size(), hoverOmega);
+		DroneState state = new DroneState(config.rotors().size());
+		Vec3 positionWorld = new Vec3(1.0, 70.0, -2.0);
+		Vec3 angularVelocityBody = new Vec3(1.2, 0.0, 0.0);
+		Quaternion bodyToWorld = new Quaternion(
+				Math.cos(Math.PI / 6.0),
+				0.0,
+				0.0,
+				Math.sin(Math.PI / 6.0)
+		);
+		Vec3 baselineWindWorld = new Vec3(0.35, -0.10, 0.25);
+		Vec3 targetRelativeAirBody = rotor.thrustAxisBody().multiply(3.0);
+		Vec3 velocityWorld = baselineWindWorld.add(bodyToWorld.rotate(targetRelativeAirBody));
+		DroneEnvironment environment =
+				new DroneEnvironment(baselineWindWorld, 1.0, Double.POSITIVE_INFINITY);
+		for (int i = 0; i < config.rotors().size(); i++) {
+			state.setMotorOmegaRadiansPerSecond(i, omegas[i]);
+		}
+		state.setPositionMeters(positionWorld);
+		state.setVelocityMetersPerSecond(velocityWorld);
+		state.setOrientation(bodyToWorld);
+		state.setAngularVelocityBodyRadiansPerSecond(angularVelocityBody);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample reference =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.sampleStaticAnchoredConfigurationFromState(
+						"apDrone",
+						"provider_state_residual_reference",
+						config,
+						state,
+						environment,
+						omegas,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		copyReferenceRotorTelemetryIntoState(state, reference.aggregate());
+
+		PropellerArchiveCtCpJWorldForceApplicationProvider.StateRotorTelemetryComparisonSample aligned =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.compareStateRotorTelemetryToReference(
+						"apDrone",
+						"provider_state_residual_reference",
+						config,
+						state,
+						environment,
+						omegas,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertEquals(config.rotors().size(), aligned.actualRotorCount());
+		assertEquals(config.rotors().size(), aligned.referenceAggregate().acceptedRotorCount());
+		assertEquals(config.rotors().size(),
+				aligned.referenceAggregate().runtimeForceReplacementAcceptedRotorCount());
+		assertVectorEquals(Vec3.ZERO, aligned.forceBodyResidualNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aligned.torqueBodyResidualNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, aligned.thrustResidualNewtons(), 1.0e-12);
+		assertEquals(0.0, aligned.shaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.0, aligned.shaftTorqueResidualNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aligned.runtimeReplacementForceBodyResidualNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aligned.runtimeReplacementTorqueBodyResidualNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementThrustResidualNewtons(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementShaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementShaftTorqueResidualNewtonMeters(), 1.0e-12);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample first =
+				reference.aggregate().rotorSamples().get(0);
+		state.setRotorThrustNewtons(0, first.thrustNewtons() + 0.25);
+		state.setRotorForceBodyNewtons(0, first.thrustForceBodyNewtons().add(new Vec3(0.0, 0.25, 0.0)));
+		state.setRotorTorqueBodyNewtonMeters(0,
+				first.totalTorqueBodyNewtonMeters().add(new Vec3(0.010, 0.0, 0.0)));
+		state.setMotorShaftPowerWatts(0, first.shaftPowerWatts() + 2.0);
+		state.setMotorAerodynamicTorqueNewtonMeters(0, first.shaftTorqueNewtonMeters() + 0.003);
+
+		PropellerArchiveCtCpJWorldForceApplicationProvider.StateRotorTelemetryComparisonSample offset =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.compareStateRotorTelemetryToReference(
+						"apDrone",
+						"provider_state_residual_reference",
+						config,
+						state,
+						environment,
+						omegas,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertVectorEquals(new Vec3(0.0, 0.25, 0.0), offset.forceBodyResidualNewtons(), 1.0e-12);
+		assertVectorEquals(new Vec3(0.010, 0.0, 0.0), offset.torqueBodyResidualNewtonMeters(), 1.0e-12);
+		assertEquals(0.25, offset.thrustResidualNewtons(), 1.0e-12);
+		assertEquals(2.0, offset.shaftPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.003, offset.shaftTorqueResidualNewtonMeters(), 1.0e-12);
+		assertVectorEquals(positionWorld, state.positionMeters(), 1.0e-15);
+		assertVectorEquals(velocityWorld, state.velocityMetersPerSecond(), 1.0e-15);
+		assertQuaternionEquals(bodyToWorld, state.orientation(), 1.0e-15);
+		assertVectorEquals(angularVelocityBody, state.angularVelocityBodyRadiansPerSecond(), 1.0e-15);
+	}
+
+	@Test
 	void runtimeReplacementApplicationsZeroClampRejectedRotorForces() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
@@ -331,6 +429,21 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static void copyReferenceRotorTelemetryIntoState(
+			DroneState state,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
+	) {
+		for (int i = 0; i < aggregate.rotorSamples().size(); i++) {
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+					aggregate.rotorSamples().get(i);
+			state.setRotorThrustNewtons(i, sample.thrustNewtons());
+			state.setRotorForceBodyNewtons(i, sample.thrustForceBodyNewtons());
+			state.setRotorTorqueBodyNewtonMeters(i, sample.totalTorqueBodyNewtonMeters());
+			state.setMotorShaftPowerWatts(i, sample.shaftPowerWatts());
+			state.setMotorAerodynamicTorqueNewtonMeters(i, sample.shaftTorqueNewtonMeters());
+		}
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
