@@ -60,8 +60,19 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(hover, columns, "total_shaft_power_w"), 1.0e-12);
 		assertEquals(rotorSample.shaftTorqueNewtonMeters() * 4.0,
 				numberCell(hover, columns, "total_shaft_torque_nm"), 1.0e-15);
+		assertEquals(rotorSample.dimensionalSample().diskMassFlowKilogramsPerSecond() * 4.0,
+				numberCell(hover, columns, "total_disk_mass_flow_kg_s"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "total_useful_axial_thrust_power_w"), 1.0e-15);
+		assertEquals(rotorSample.dimensionalSample().idealInducedPowerWatts() * 4.0,
+				numberCell(hover, columns, "total_ideal_induced_power_w"), 1.0e-12);
 		assertEquals(rotorSample.dimensionalSample().idealMomentumPowerWatts() * 4.0,
 				numberCell(hover, columns, "total_ideal_momentum_power_w"), 1.0e-12);
+		assertEquals(
+				numberCell(hover, columns, "total_useful_axial_thrust_power_w")
+						+ numberCell(hover, columns, "total_ideal_induced_power_w"),
+				numberCell(hover, columns, "total_ideal_momentum_power_w"),
+				1.0e-12
+		);
 		assertEquals(
 				numberCell(hover, columns, "total_ideal_momentum_power_w")
 						/ numberCell(hover, columns, "total_shaft_power_w"),
@@ -76,6 +87,10 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(hover, columns, "runtime_replacement_total_thrust_n"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_shaft_power_w"),
 				numberCell(hover, columns, "runtime_replacement_total_shaft_power_w"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "total_disk_mass_flow_kg_s"),
+				numberCell(hover, columns, "runtime_replacement_disk_mass_flow_kg_s"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "total_ideal_induced_power_w"),
+				numberCell(hover, columns, "runtime_replacement_ideal_induced_power_w"), 1.0e-12);
 	}
 
 	@Test
@@ -103,6 +118,18 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(numberCell(forward, columns, "total_wake_kinetic_power_w")
 						/ numberCell(forward, columns, "total_shaft_power_w"),
 				numberCell(forward, columns, "total_wake_kinetic_power_over_shaft_power"), 1.0e-14);
+		assertTrue(numberCell(forward, columns, "total_disk_mass_flow_kg_s")
+				> numberCell(hover, columns, "total_disk_mass_flow_kg_s"));
+		assertTrue(numberCell(forward, columns, "total_useful_axial_thrust_power_w") > 0.0);
+		assertTrue(numberCell(forward, columns, "total_ideal_induced_power_w") > 0.0);
+		assertEquals(
+				numberCell(forward, columns, "total_useful_axial_thrust_power_w")
+						+ numberCell(forward, columns, "total_ideal_induced_power_w"),
+				numberCell(forward, columns, "total_ideal_momentum_power_w"),
+				1.0e-12
+		);
+		assertEquals(numberCell(forward, columns, "total_useful_axial_thrust_power_w"),
+				numberCell(forward, columns, "runtime_replacement_useful_axial_thrust_power_w"), 1.0e-12);
 	}
 
 	@Test
@@ -128,6 +155,9 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlock, columns, "lookup_status_summary"));
 		assertEquals(0.0, numberCell(highBlock, columns, "total_thrust_n"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_shaft_power_w"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "total_disk_mass_flow_kg_s"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "total_useful_axial_thrust_power_w"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "total_ideal_induced_power_w"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "runtime_replacement_total_shaft_power_w"), 1.0e-15);
 
 		assertEquals(4, integerCell(transverse, columns, "accepted_rotor_count"));
@@ -153,6 +183,12 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(bodyRate, columns, "runtime_replacement_total_thrust_n"), 1.0e-12);
 		assertEquals(numberCell(bodyRate, columns, "total_body_torque_x_nm"),
 				numberCell(bodyRate, columns, "runtime_replacement_total_body_torque_x_nm"), 1.0e-12);
+		assertEquals(
+				numberCell(bodyRate, columns, "total_useful_axial_thrust_power_w")
+						+ numberCell(bodyRate, columns, "total_ideal_induced_power_w"),
+				numberCell(bodyRate, columns, "total_ideal_momentum_power_w"),
+				1.0e-12
+		);
 	}
 
 	@Test
@@ -164,9 +200,13 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(26, lines.size());
 		assertTrue(lines.get(0).contains("total_thrust_n"));
 		assertTrue(lines.get(0).contains("total_shaft_power_w"));
+		assertTrue(lines.get(0).contains("total_disk_mass_flow_kg_s"));
+		assertTrue(lines.get(0).contains("total_useful_axial_thrust_power_w"));
+		assertTrue(lines.get(0).contains("total_ideal_induced_power_w"));
 		assertTrue(lines.get(0).contains("total_body_torque_y_nm"));
 		assertTrue(lines.get(0).contains("body_angular_rate_x_rad_s"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_n"));
+		assertTrue(lines.get(0).contains("runtime_replacement_disk_mass_flow_kg_s"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
 	}
