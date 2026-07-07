@@ -92,6 +92,22 @@ tasks.register("ctCpJActuatorDiskOpenFoamSourceTable", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskWakeProbes", JavaExec) {
+	group = "simulation"
+	description = "Exports CT/CP/J actuator-disk centerline wake probe points for offline OpenFOAM/A4MC sampling."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskWakeProbeExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-wake-probes/${presetName}-wake-probes.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, sourceThickness, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJOpenFoamCompare", JavaExec) {
 	group = "simulation"
 	description = "Imports compact OpenFOAM CT/CP/J dimensional result rows and exports SI residual comparisons."
