@@ -1,9 +1,11 @@
 package com.tenicana.dronecraft.sim.tools;
 
 import com.tenicana.dronecraft.sim.DroneConfig;
+import com.tenicana.dronecraft.sim.DroneEnvironment;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel;
+import com.tenicana.dronecraft.sim.Quaternion;
 import com.tenicana.dronecraft.sim.RotorSpec;
 import com.tenicana.dronecraft.sim.Vec3;
 
@@ -118,6 +120,7 @@ public final class CtCpJConfigurationCurveExporter {
 			new Vec3(0.045, 0.012, -0.035);
 	private static final double TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND = 3.0;
 	private static final double TRIM_BODY_KINEMATICS_ROLL_RATE_RADIANS_PER_SECOND = 4.0;
+	private static final double WORLD_KINEMATICS_FIRST_ROTOR_WIND_METERS_PER_SECOND = 1.0;
 
 	private CtCpJConfigurationCurveExporter() {
 	}
@@ -441,6 +444,54 @@ public final class CtCpJConfigurationCurveExporter {
 								ambientHumidity
 						)
 		));
+		double worldWindMeanAxialSpeed = firstRotorWindMeanAxialSpeed(
+				config,
+				TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND
+		);
+		Vec3 worldWindNominalRelativeAirVelocity = rotorAxisBody(rotor).multiply(worldWindMeanAxialSpeed);
+		Vec3[] worldRotorWinds = firstRotorWindWorld(
+				config,
+				rotorAxisBody(rotor).multiply(WORLD_KINEMATICS_FIRST_ROTOR_WIND_METERS_PER_SECOND)
+		);
+		points.add(targetSolutionPoint(
+				worldWindMeanAxialSpeed,
+				worldWindNominalRelativeAirVelocity,
+				PropellerArchiveCtCpJRotorForceModel
+						.solveStaticAnchoredConfigurationRpmForTargetThrustFromWorldKinematics(
+								presetName,
+								"static_anchored_configuration_target_world_per_rotor_wind",
+								config,
+								Quaternion.IDENTITY,
+								bodyKinematicsRelativeAirVelocity,
+								Vec3.ZERO,
+								Vec3.ZERO,
+								worldRotorWinds,
+								weightThrust,
+								hoverOmega * 0.55,
+								hoverOmega * 1.80,
+								airDensityKgPerCubicMeter,
+								ambientTemperatureCelsius,
+								ambientHumidity
+						)
+		));
+		points.add(targetSolutionPoint(
+				TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND,
+				bodyKinematicsRelativeAirVelocity,
+				bodyKinematicsAngularVelocity,
+				PropellerArchiveCtCpJRotorForceModel
+						.solveStaticAnchoredConfigurationRpmForTargetThrustFromEnvironmentKinematics(
+								presetName,
+								"static_anchored_configuration_target_environment_calm",
+								config,
+								Quaternion.IDENTITY,
+								bodyKinematicsRelativeAirVelocity,
+								bodyKinematicsAngularVelocity,
+								weightThrust,
+								hoverOmega * 0.55,
+								hoverOmega * 1.80,
+								DroneEnvironment.calm()
+						)
+		));
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample maxStatic =
 				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
 						presetName,
@@ -540,6 +591,54 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				)
 		));
+		double worldWindMeanAxialSpeed = firstRotorWindMeanAxialSpeed(
+				config,
+				TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND
+		);
+		Vec3 worldWindNominalRelativeAirVelocity = rotorAxisBody(rotor).multiply(worldWindMeanAxialSpeed);
+		Vec3[] worldRotorWinds = firstRotorWindWorld(
+				config,
+				rotorAxisBody(rotor).multiply(WORLD_KINEMATICS_FIRST_ROTOR_WIND_METERS_PER_SECOND)
+		);
+		points.add(trimSolutionPoint(
+				worldWindMeanAxialSpeed,
+				worldWindNominalRelativeAirVelocity,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromWorldKinematics(
+						presetName,
+						"static_anchored_configuration_trim_world_per_rotor_wind",
+						config,
+						Quaternion.IDENTITY,
+						bodyKinematicsRelativeAirVelocity,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						worldRotorWinds,
+						weightThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		points.add(trimSolutionPoint(
+				TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND,
+				bodyKinematicsRelativeAirVelocity,
+				bodyKinematicsAngularVelocity,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromEnvironmentKinematics(
+						presetName,
+						"static_anchored_configuration_trim_environment_calm",
+						config,
+						Quaternion.IDENTITY,
+						bodyKinematicsRelativeAirVelocity,
+						bodyKinematicsAngularVelocity,
+						weightThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						DroneEnvironment.calm()
+				)
+		));
 		points.add(trimSolutionPoint(
 				0.0,
 				Vec3.ZERO,
@@ -558,6 +657,19 @@ public final class CtCpJConfigurationCurveExporter {
 				)
 		));
 		return List.copyOf(points);
+	}
+
+	private static double firstRotorWindMeanAxialSpeed(DroneConfig config, double vehicleAxialSpeedMetersPerSecond) {
+		return vehicleAxialSpeedMetersPerSecond
+				- WORLD_KINEMATICS_FIRST_ROTOR_WIND_METERS_PER_SECOND / config.rotors().size();
+	}
+
+	private static Vec3[] firstRotorWindWorld(DroneConfig config, Vec3 windVelocityWorldMetersPerSecond) {
+		Vec3[] rotorWinds = new Vec3[config.rotors().size()];
+		if (rotorWinds.length > 0) {
+			rotorWinds[0] = windVelocityWorldMetersPerSecond;
+		}
+		return rotorWinds;
 	}
 
 	private static ConfigurationDiagnosticPoint sampleUniformSignedAxialSpeed(
