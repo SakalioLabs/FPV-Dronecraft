@@ -106,6 +106,12 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"shaft_torque_nm",
 			"angular_momentum_swirl_radius_m",
 			"wake_tangential_velocity_mps",
+			"wake_swirl_reference_point_world_x_m",
+			"wake_swirl_reference_point_world_y_m",
+			"wake_swirl_reference_point_world_z_m",
+			"wake_swirl_velocity_world_x_mps",
+			"wake_swirl_velocity_world_y_mps",
+			"wake_swirl_velocity_world_z_mps",
 			"wake_swirl_kinetic_power_w",
 			"total_wake_kinetic_power_w",
 			"wake_swirl_kinetic_power_over_shaft_power",
@@ -295,6 +301,9 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				);
 		Vec3 diskTangentU = diskTangentU(sourceTerm.diskNormalWorld());
 		Vec3 diskTangentV = sourceTerm.diskNormalWorld().cross(diskTangentU).normalized();
+		Vec3 wakeSwirlReferencePoint = sourceTerm.diskCenterWorldMeters()
+				.add(diskTangentU.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()));
+		Vec3 wakeSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(wakeSwirlReferencePoint);
 		Vec3 halfThicknessOffset = sourceTerm.diskNormalWorld().multiply(sourceHalfThickness);
 		Vec3 sourceAxisMin = sourceTerm.diskCenterWorldMeters().subtract(halfThicknessOffset);
 		Vec3 sourceAxisMax = sourceTerm.diskCenterWorldMeters().add(halfThicknessOffset);
@@ -390,6 +399,12 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(dimensional.shaftTorqueNewtonMeters()),
 				number(sourceTerm.angularMomentumSwirlRadiusMeters()),
 				number(sourceTerm.wakeTangentialVelocityMetersPerSecond()),
+				number(wakeSwirlReferencePoint.x()),
+				number(wakeSwirlReferencePoint.y()),
+				number(wakeSwirlReferencePoint.z()),
+				number(wakeSwirlVelocity.x()),
+				number(wakeSwirlVelocity.y()),
+				number(wakeSwirlVelocity.z()),
 				number(sourceTerm.wakeSwirlKineticPowerWatts()),
 				number(sourceTerm.totalWakeKineticPowerWatts()),
 				number(sourceTerm.wakeSwirlKineticPowerOverShaftPower()),

@@ -504,6 +504,23 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			}
 			return wakeAngularMomentumTorqueWorldNewtonMeters.multiply(1.0 / sourceVolume);
 		}
+
+		public Vec3 wakeSwirlVelocityWorldMetersPerSecond(Vec3 samplePointWorldMeters) {
+			if (!applied || wakeTangentialVelocityMetersPerSecond <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 angularMomentumAxis = wakeAngularMomentumTorqueWorldNewtonMeters.normalized();
+			if (angularMomentumAxis.lengthSquared() <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
+			Vec3 radial = offset.subtract(angularMomentumAxis.multiply(offset.dot(angularMomentumAxis)));
+			if (radial.lengthSquared() <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 tangent = angularMomentumAxis.cross(radial.normalized()).normalized();
+			return tangent.multiply(wakeTangentialVelocityMetersPerSecond);
+		}
 	}
 
 	public record RotorWorldForceApplicationSample(

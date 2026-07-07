@@ -104,6 +104,35 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				1.0e-12);
 		assertTrue(numberCell(hover, columns, "angular_momentum_swirl_radius_m") > 0.0);
 		assertTrue(numberCell(hover, columns, "wake_tangential_velocity_mps") > 0.0);
+		double hoverSwirlRadialX = numberCell(hover, columns, "wake_swirl_reference_point_world_x_m")
+				- numberCell(hover, columns, "disk_center_world_x_m");
+		double hoverSwirlRadialY = numberCell(hover, columns, "wake_swirl_reference_point_world_y_m")
+				- numberCell(hover, columns, "disk_center_world_y_m");
+		double hoverSwirlRadialZ = numberCell(hover, columns, "wake_swirl_reference_point_world_z_m")
+				- numberCell(hover, columns, "disk_center_world_z_m");
+		double hoverSwirlVelocityX = numberCell(hover, columns, "wake_swirl_velocity_world_x_mps");
+		double hoverSwirlVelocityY = numberCell(hover, columns, "wake_swirl_velocity_world_y_mps");
+		double hoverSwirlVelocityZ = numberCell(hover, columns, "wake_swirl_velocity_world_z_mps");
+		assertEquals(numberCell(hover, columns, "angular_momentum_swirl_radius_m"),
+				Math.sqrt(hoverSwirlRadialX * hoverSwirlRadialX
+						+ hoverSwirlRadialY * hoverSwirlRadialY
+						+ hoverSwirlRadialZ * hoverSwirlRadialZ),
+				1.0e-15);
+		assertEquals(numberCell(hover, columns, "wake_tangential_velocity_mps"),
+				Math.sqrt(hoverSwirlVelocityX * hoverSwirlVelocityX
+						+ hoverSwirlVelocityY * hoverSwirlVelocityY
+						+ hoverSwirlVelocityZ * hoverSwirlVelocityZ),
+				1.0e-15);
+		assertEquals(0.0,
+				hoverSwirlRadialX * hoverSwirlVelocityX
+						+ hoverSwirlRadialY * hoverSwirlVelocityY
+						+ hoverSwirlRadialZ * hoverSwirlVelocityZ,
+				1.0e-15);
+		assertEquals(0.0,
+				hoverSwirlVelocityX * numberCell(hover, columns, "wake_angular_momentum_torque_world_x_nm")
+						+ hoverSwirlVelocityY * numberCell(hover, columns, "wake_angular_momentum_torque_world_y_nm")
+						+ hoverSwirlVelocityZ * numberCell(hover, columns, "wake_angular_momentum_torque_world_z_nm"),
+				1.0e-15);
 		assertTrue(numberCell(hover, columns, "wake_swirl_kinetic_power_w") > 0.0);
 		assertTrue(numberCell(hover, columns, "total_wake_kinetic_power_w")
 				> numberCell(hover, columns, "ideal_momentum_power_w"));
@@ -146,6 +175,9 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals(0.0,
 				numberCell(reverseRuntime, columns, "wake_angular_momentum_torque_world_y_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(reverseRuntime, columns, "wake_tangential_velocity_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(reverseRuntime, columns, "wake_swirl_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(reverseRuntime, columns, "wake_swirl_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(reverseRuntime, columns, "wake_swirl_velocity_world_z_mps"), 1.0e-15);
 
 		assertEquals("true", textCell(blockedRaw, columns, "blocked"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(blockedRaw, columns, "lookup_status"));
@@ -156,6 +188,11 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				"equivalent_body_force_integral_world_y_n"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(blockedRaw, columns, "wake_angular_momentum_torque_density_world_y_nm_m3"), 1.0e-15);
+		assertEquals(numberCell(blockedRaw, columns, "disk_center_world_x_m"),
+				numberCell(blockedRaw, columns, "wake_swirl_reference_point_world_x_m"), 1.0e-15);
+		assertEquals(0.0, numberCell(blockedRaw, columns, "wake_swirl_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(blockedRaw, columns, "wake_swirl_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(blockedRaw, columns, "wake_swirl_velocity_world_z_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals("false", textCell(blockedRuntime, columns, "runtime_force_replacement_accepted"));
 		assertEquals(0.0, numberCell(blockedRuntime, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
@@ -176,6 +213,7 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(lines.get(0).contains("equivalent_body_force_integral_world_y_n"));
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("wake_tangential_velocity_mps"));
+		assertTrue(lines.get(0).contains("wake_swirl_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("total_wake_kinetic_power_w"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")));

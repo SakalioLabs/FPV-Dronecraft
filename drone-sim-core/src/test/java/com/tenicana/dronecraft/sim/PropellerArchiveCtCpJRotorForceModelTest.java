@@ -595,6 +595,26 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.totalWakeKineticPowerResidualWatts(), 1.0e-15);
 		assertEquals(sample.dimensionalSample().totalWakeKineticPowerResidualFraction(),
 				sourceTerm.totalWakeKineticPowerResidualFraction(), 1.0e-15);
+		Vec3 swirlRadialDirection = perpendicularUnit(sourceTerm.diskNormalWorld());
+		Vec3 swirlReferencePoint = sourceTerm.diskCenterWorldMeters()
+				.add(swirlRadialDirection.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()));
+		Vec3 swirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(swirlReferencePoint);
+		assertEquals(sourceTerm.wakeTangentialVelocityMetersPerSecond(), swirlVelocity.length(), 1.0e-15);
+		assertEquals(0.0, swirlVelocity.dot(swirlRadialDirection), 1.0e-12);
+		assertEquals(0.0, swirlVelocity.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
+		assertTrue(swirlRadialDirection.cross(swirlVelocity.normalized())
+				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()) > 0.0);
+		assertVectorEquals(swirlVelocity.multiply(-1.0),
+				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(sourceTerm.diskCenterWorldMeters()
+						.subtract(swirlRadialDirection.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()))),
+				1.0e-12);
+		assertVectorEquals(swirlVelocity,
+				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(
+						swirlReferencePoint.add(sourceTerm.diskNormalWorld().multiply(2.0))),
+				1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(sourceTerm.diskCenterWorldMeters()),
+				1.0e-15);
 		assertVectorEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter().multiply(10.0),
 				sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.1), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.0), 1.0e-15);
@@ -2521,6 +2541,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, sourceTerm.wakeTangentialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.wakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
+				1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.05), 1.0e-15);
 	}
