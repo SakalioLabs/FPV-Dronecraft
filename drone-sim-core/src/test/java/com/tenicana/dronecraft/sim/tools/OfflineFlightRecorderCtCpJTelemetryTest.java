@@ -1061,6 +1061,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceTorqueVectorResidualNewtonMeters()));
 		assertTrue(report.maxCtCpJReferenceTorqueVectorResidualNewtonMeters()
 				>= report.meanCtCpJReferenceTorqueVectorResidualNewtonMeters());
+		assertTrue(Double.isFinite(report.meanCtCpJReferenceAbsWakeAngularMomentumTorqueResidualNewtonMeters()));
+		assertTrue(Double.isFinite(report.maxCtCpJReferenceAbsWakeAngularMomentumTorqueResidualNewtonMeters()));
+		assertTrue(report.maxCtCpJReferenceAbsWakeAngularMomentumTorqueResidualNewtonMeters()
+				>= report.meanCtCpJReferenceAbsWakeAngularMomentumTorqueResidualNewtonMeters());
+		assertEquals(0.0,
+				report.maxCtCpJReferenceAbsWakeAngularMomentumTorqueResidualNewtonMeters(), 1.0e-12);
 		assertTrue(Double.isFinite(report.meanCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons()));
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons()));
 		assertTrue(report.maxCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons()
@@ -1081,6 +1087,14 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(Double.isFinite(report.maxCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters()));
 		assertTrue(report.maxCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters()
 				>= report.meanCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters());
+		assertTrue(Double.isFinite(
+				report.meanCtCpJReferenceRuntimeAppliedAbsWakeAngularMomentumTorqueResidualNewtonMeters()));
+		assertTrue(Double.isFinite(
+				report.maxCtCpJReferenceRuntimeAppliedAbsWakeAngularMomentumTorqueResidualNewtonMeters()));
+		assertTrue(report.maxCtCpJReferenceRuntimeAppliedAbsWakeAngularMomentumTorqueResidualNewtonMeters()
+				>= report.meanCtCpJReferenceRuntimeAppliedAbsWakeAngularMomentumTorqueResidualNewtonMeters());
+		assertEquals(0.0,
+				report.maxCtCpJReferenceRuntimeAppliedAbsWakeAngularMomentumTorqueResidualNewtonMeters(), 1.0e-12);
 		assertTrue(stateShadowSampleCount > 0, "apDrone trace should expose CT/CP/J state-shadow telemetry");
 		assertEquals(stateShadowSampleCount, report.ctCpJStateShadowFrameSampleCount());
 		assertEquals(stateShadowAcceptedRotorCount, report.ctCpJStateShadowAcceptedRotorSampleCount());
