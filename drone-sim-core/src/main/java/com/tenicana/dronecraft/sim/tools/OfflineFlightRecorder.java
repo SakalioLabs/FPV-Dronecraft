@@ -21,6 +21,7 @@ import com.tenicana.dronecraft.sim.NeuroBemAirframeResidualCalibration;
 import com.tenicana.dronecraft.sim.PidTuningCalibration;
 import com.tenicana.dronecraft.sim.PrecipitationWaterCalibration;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLookupEvaluator;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJWorldForceApplicationProvider;
 import com.tenicana.dronecraft.sim.PropellerDamageCalibration;
 import com.tenicana.dronecraft.sim.PropGeometryCalibration;
 import com.tenicana.dronecraft.sim.Quaternion;
@@ -1253,6 +1254,7 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_residual_nm");
 		appendCtCpJReferenceColumnFamily(builder, "thrust_ratio");
 		appendCtCpJReferenceColumnFamily(builder, "shaft_torque_ratio");
+		appendCtCpJStateShadowColumns(builder);
 		appendCtCpJStaticReferenceColumnFamily(builder, "available");
 		appendCtCpJStaticReferenceColumnFamily(builder, "ct");
 		appendCtCpJStaticReferenceColumnFamily(builder, "cp");
@@ -1301,6 +1303,31 @@ public final class OfflineFlightRecorder {
 			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + vectorName + "_y_" + unitSuffix);
 			appendCtCpJReferenceColumn(builder, "rotor_" + i + "_ctcpj_ref_" + vectorName + "_z_" + unitSuffix);
 		}
+	}
+
+	private static void appendCtCpJStateShadowColumns(StringBuilder builder) {
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_available");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_actual_rotors");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_accepted_rotors");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_accepted_rotors");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_blocked_rotors");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_clamped_rotors");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_force_residual_x_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_force_residual_y_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_force_residual_z_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_force_residual_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_torque_residual_x_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_torque_residual_y_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_torque_residual_z_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_torque_residual_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_thrust_residual_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_shaft_power_residual_w");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_shaft_torque_residual_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_force_residual_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_torque_residual_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_thrust_residual_n");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_shaft_power_residual_w");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_shaft_torque_residual_nm");
 	}
 
 	private static void appendCtCpJReferenceColumn(StringBuilder builder, String column) {
@@ -1749,6 +1776,30 @@ public final class OfflineFlightRecorder {
 				report.maxCtCpJReferenceRuntimeAppliedAbsThrustResidualNewtons(),
 				report.maxCtCpJReferenceRuntimeAppliedAbsPowerResidualWatts(),
 				report.maxCtCpJReferenceRuntimeAppliedAbsTorqueResidualNewtonMeters()
+		);
+		System.out.printf(
+				Locale.ROOT,
+				"CTCPJ state shadow: frames=%d accepted=%d runtime_accepted=%d blocked=%d clamped=%d mean_force_torque=%.4fN/%.6fNm mean_thrust_power_torque=%.4fN/%.4fW/%.6fNm runtime_mean=%.4fN/%.6fNm %.4fN/%.4fW/%.6fNm max_force_torque=%.4fN/%.6fNm max_thrust_power_torque=%.4fN/%.4fW/%.6fNm%n",
+				report.ctCpJStateShadowFrameSampleCount(),
+				report.ctCpJStateShadowAcceptedRotorSampleCount(),
+				report.ctCpJStateShadowRuntimeReplacementAcceptedRotorSampleCount(),
+				report.ctCpJStateShadowBlockedRotorSampleCount(),
+				report.ctCpJStateShadowClampedRotorSampleCount(),
+				report.meanCtCpJStateShadowAbsForceResidualNewtons(),
+				report.meanCtCpJStateShadowAbsTorqueResidualNewtonMeters(),
+				report.meanCtCpJStateShadowAbsThrustResidualNewtons(),
+				report.meanCtCpJStateShadowAbsPowerResidualWatts(),
+				report.meanCtCpJStateShadowAbsShaftTorqueResidualNewtonMeters(),
+				report.meanCtCpJStateShadowRuntimeReplacementAbsForceResidualNewtons(),
+				report.meanCtCpJStateShadowRuntimeReplacementAbsTorqueResidualNewtonMeters(),
+				report.meanCtCpJStateShadowRuntimeReplacementAbsThrustResidualNewtons(),
+				report.meanCtCpJStateShadowRuntimeReplacementAbsPowerResidualWatts(),
+				report.meanCtCpJStateShadowRuntimeReplacementAbsShaftTorqueResidualNewtonMeters(),
+				report.maxCtCpJStateShadowAbsForceResidualNewtons(),
+				report.maxCtCpJStateShadowAbsTorqueResidualNewtonMeters(),
+				report.maxCtCpJStateShadowAbsThrustResidualNewtons(),
+				report.maxCtCpJStateShadowAbsPowerResidualWatts(),
+				report.maxCtCpJStateShadowAbsShaftTorqueResidualNewtonMeters()
 		);
 		System.out.printf(
 				Locale.ROOT,
@@ -4711,6 +4762,8 @@ public final class OfflineFlightRecorder {
 		double[] rotorCtCpJStaticReferenceInducedVelocityRatio =
 				ratios(state.rotorInducedVelocityMetersPerSecond(),
 						rotorCtCpJStaticReferenceIdealInducedVelocity);
+		CtCpJStateShadowTelemetry ctCpJStateShadow =
+				ctCpJStateShadowTelemetry(config, state, environment);
 		double[] rotorAxialGustThrustScale = state.rotorAxialGustThrustScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -5058,6 +5111,7 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorqueResidual, rotorCtCpJReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceThrustRatio, rotorCtCpJReferenceAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJReferenceTorqueRatio, rotorCtCpJReferenceAvailable, "%.5f");
+		appendCtCpJStateShadowColumns(builder, ctCpJStateShadow);
 		appendBooleanFamily(builder, rotorCtCpJStaticReferenceAvailable);
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceCt, rotorCtCpJStaticReferenceAvailable, "%.6f");
 		appendDoubleFamily(builder, rotorCtCpJStaticReferenceCp, rotorCtCpJStaticReferenceAvailable, "%.6f");
@@ -5261,6 +5315,160 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, MotorBenchCurrentModel.apDronePdf5045CurrentRatio(config, state), "%.5f");
 		appendExtra(builder, MotorBenchCurrentModel.apDronePdf5045CurrentResidualAmps(config, state), "%.3f");
 		return builder.toString();
+	}
+
+	private static CtCpJStateShadowTelemetry ctCpJStateShadowTelemetry(
+			DroneConfig config,
+			DroneState state,
+			DroneEnvironment environment
+	) {
+		if (config == null || state == null) {
+			return CtCpJStateShadowTelemetry.unavailable();
+		}
+		try {
+			PropellerArchiveCtCpJWorldForceApplicationProvider.StateRotorTelemetryComparisonSample comparison =
+					PropellerArchiveCtCpJWorldForceApplicationProvider.compareStateRotorTelemetryToReference(
+							PropellerArchiveCtCpJLookupEvaluator.DEFAULT_PRESET_NAME,
+							"offline_flight_state_shadow",
+							config,
+							state,
+							environment,
+							PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+					);
+			PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample reference =
+					comparison.referenceSample();
+			boolean available = reference != null && !reference.aggregate().rotorSamples().isEmpty();
+			return new CtCpJStateShadowTelemetry(
+					available,
+					comparison.actualRotorCount(),
+					comparison.referenceAggregate().acceptedRotorCount(),
+					comparison.referenceAggregate().runtimeForceReplacementAcceptedRotorCount(),
+					comparison.referenceAggregate().blockedRotorCount(),
+					comparison.referenceAggregate().clampedRotorCount(),
+					comparison.forceBodyResidualNewtons(),
+					comparison.torqueBodyResidualNewtonMeters(),
+					comparison.thrustResidualNewtons(),
+					comparison.shaftPowerResidualWatts(),
+					comparison.shaftTorqueResidualNewtonMeters(),
+					comparison.runtimeReplacementForceBodyResidualNewtons(),
+					comparison.runtimeReplacementTorqueBodyResidualNewtonMeters(),
+					comparison.runtimeReplacementThrustResidualNewtons(),
+					comparison.runtimeReplacementShaftPowerResidualWatts(),
+					comparison.runtimeReplacementShaftTorqueResidualNewtonMeters()
+			);
+		} catch (IllegalArgumentException exception) {
+			return CtCpJStateShadowTelemetry.unavailable();
+		}
+	}
+
+	private static void appendCtCpJStateShadowColumns(
+			StringBuilder builder,
+			CtCpJStateShadowTelemetry telemetry
+	) {
+		CtCpJStateShadowTelemetry sample = telemetry == null
+				? CtCpJStateShadowTelemetry.unavailable()
+				: telemetry;
+		appendExtra(builder, sample.available() ? 1 : 0);
+		appendExtra(builder, sample.actualRotorCount());
+		appendExtra(builder, sample.acceptedRotorCount());
+		appendExtra(builder, sample.runtimeReplacementAcceptedRotorCount());
+		appendExtra(builder, sample.blockedRotorCount());
+		appendExtra(builder, sample.clampedRotorCount());
+		appendExtra(builder, sample.forceResidualNewtons().x(), "%.5f");
+		appendExtra(builder, sample.forceResidualNewtons().y(), "%.5f");
+		appendExtra(builder, sample.forceResidualNewtons().z(), "%.5f");
+		appendExtra(builder, sample.forceResidualMagnitudeNewtons(), "%.5f");
+		appendExtra(builder, sample.torqueResidualNewtonMeters().x(), "%.6f");
+		appendExtra(builder, sample.torqueResidualNewtonMeters().y(), "%.6f");
+		appendExtra(builder, sample.torqueResidualNewtonMeters().z(), "%.6f");
+		appendExtra(builder, sample.torqueResidualMagnitudeNewtonMeters(), "%.6f");
+		appendExtra(builder, sample.thrustResidualNewtons(), "%.5f");
+		appendExtra(builder, sample.shaftPowerResidualWatts(), "%.5f");
+		appendExtra(builder, sample.shaftTorqueResidualNewtonMeters(), "%.6f");
+		appendExtra(builder, sample.runtimeReplacementForceResidualMagnitudeNewtons(), "%.5f");
+		appendExtra(builder, sample.runtimeReplacementTorqueResidualMagnitudeNewtonMeters(), "%.6f");
+		appendExtra(builder, sample.runtimeReplacementThrustResidualNewtons(), "%.5f");
+		appendExtra(builder, sample.runtimeReplacementShaftPowerResidualWatts(), "%.5f");
+		appendExtra(builder, sample.runtimeReplacementShaftTorqueResidualNewtonMeters(), "%.6f");
+	}
+
+	private record CtCpJStateShadowTelemetry(
+			boolean available,
+			int actualRotorCount,
+			int acceptedRotorCount,
+			int runtimeReplacementAcceptedRotorCount,
+			int blockedRotorCount,
+			int clampedRotorCount,
+			Vec3 forceResidualNewtons,
+			Vec3 torqueResidualNewtonMeters,
+			double thrustResidualNewtons,
+			double shaftPowerResidualWatts,
+			double shaftTorqueResidualNewtonMeters,
+			Vec3 runtimeReplacementForceResidualNewtons,
+			Vec3 runtimeReplacementTorqueResidualNewtonMeters,
+			double runtimeReplacementThrustResidualNewtons,
+			double runtimeReplacementShaftPowerResidualWatts,
+			double runtimeReplacementShaftTorqueResidualNewtonMeters
+	) {
+		private static CtCpJStateShadowTelemetry unavailable() {
+			return new CtCpJStateShadowTelemetry(
+					false,
+					0,
+					0,
+					0,
+					0,
+					0,
+					Vec3.ZERO,
+					Vec3.ZERO,
+					0.0,
+					0.0,
+					0.0,
+					Vec3.ZERO,
+					Vec3.ZERO,
+					0.0,
+					0.0,
+					0.0
+			);
+		}
+
+		private CtCpJStateShadowTelemetry {
+			actualRotorCount = Math.max(0, actualRotorCount);
+			acceptedRotorCount = Math.max(0, acceptedRotorCount);
+			runtimeReplacementAcceptedRotorCount = Math.max(0, runtimeReplacementAcceptedRotorCount);
+			blockedRotorCount = Math.max(0, blockedRotorCount);
+			clampedRotorCount = Math.max(0, clampedRotorCount);
+			forceResidualNewtons = finiteVectorOrZero(forceResidualNewtons);
+			torqueResidualNewtonMeters = finiteVectorOrZero(torqueResidualNewtonMeters);
+			thrustResidualNewtons = finiteOrZero(thrustResidualNewtons);
+			shaftPowerResidualWatts = finiteOrZero(shaftPowerResidualWatts);
+			shaftTorqueResidualNewtonMeters = finiteOrZero(shaftTorqueResidualNewtonMeters);
+			runtimeReplacementForceResidualNewtons =
+					finiteVectorOrZero(runtimeReplacementForceResidualNewtons);
+			runtimeReplacementTorqueResidualNewtonMeters =
+					finiteVectorOrZero(runtimeReplacementTorqueResidualNewtonMeters);
+			runtimeReplacementThrustResidualNewtons =
+					finiteOrZero(runtimeReplacementThrustResidualNewtons);
+			runtimeReplacementShaftPowerResidualWatts =
+					finiteOrZero(runtimeReplacementShaftPowerResidualWatts);
+			runtimeReplacementShaftTorqueResidualNewtonMeters =
+					finiteOrZero(runtimeReplacementShaftTorqueResidualNewtonMeters);
+		}
+
+		private double forceResidualMagnitudeNewtons() {
+			return finiteOrZero(forceResidualNewtons.length());
+		}
+
+		private double torqueResidualMagnitudeNewtonMeters() {
+			return finiteOrZero(torqueResidualNewtonMeters.length());
+		}
+
+		private double runtimeReplacementForceResidualMagnitudeNewtons() {
+			return finiteOrZero(runtimeReplacementForceResidualNewtons.length());
+		}
+
+		private double runtimeReplacementTorqueResidualMagnitudeNewtonMeters() {
+			return finiteOrZero(runtimeReplacementTorqueResidualNewtonMeters.length());
+		}
 	}
 
 	private static void appendExtra(StringBuilder builder, int value) {
@@ -5684,6 +5892,10 @@ public final class OfflineFlightRecorder {
 		return Double.isFinite(value) ? value : 0.0;
 	}
 
+	private static Vec3 finiteVectorOrZero(Vec3 value) {
+		return value != null && value.isFinite() ? value : Vec3.ZERO;
+	}
+
 	private static boolean hasRotor(DroneConfig config, int index) {
 		return config != null && index >= 0 && index < config.rotors().size();
 	}
@@ -5991,6 +6203,31 @@ public final class OfflineFlightRecorder {
 		private double ctCpJReferenceRuntimeAppliedMaxForceVectorResidualNewtons;
 		private double ctCpJReferenceRuntimeAppliedTorqueVectorResidualSumNewtonMeters;
 		private double ctCpJReferenceRuntimeAppliedMaxTorqueVectorResidualNewtonMeters;
+		private int ctCpJStateShadowFrameSampleCount;
+		private int ctCpJStateShadowAcceptedRotorSampleCount;
+		private int ctCpJStateShadowRuntimeReplacementAcceptedRotorSampleCount;
+		private int ctCpJStateShadowBlockedRotorSampleCount;
+		private int ctCpJStateShadowClampedRotorSampleCount;
+		private double ctCpJStateShadowAbsForceResidualSumNewtons;
+		private double ctCpJStateShadowMaxAbsForceResidualNewtons;
+		private double ctCpJStateShadowAbsTorqueResidualSumNewtonMeters;
+		private double ctCpJStateShadowMaxAbsTorqueResidualNewtonMeters;
+		private double ctCpJStateShadowAbsThrustResidualSumNewtons;
+		private double ctCpJStateShadowMaxAbsThrustResidualNewtons;
+		private double ctCpJStateShadowAbsPowerResidualSumWatts;
+		private double ctCpJStateShadowMaxAbsPowerResidualWatts;
+		private double ctCpJStateShadowAbsShaftTorqueResidualSumNewtonMeters;
+		private double ctCpJStateShadowMaxAbsShaftTorqueResidualNewtonMeters;
+		private double ctCpJStateShadowRuntimeReplacementAbsForceResidualSumNewtons;
+		private double ctCpJStateShadowRuntimeReplacementMaxAbsForceResidualNewtons;
+		private double ctCpJStateShadowRuntimeReplacementAbsTorqueResidualSumNewtonMeters;
+		private double ctCpJStateShadowRuntimeReplacementMaxAbsTorqueResidualNewtonMeters;
+		private double ctCpJStateShadowRuntimeReplacementAbsThrustResidualSumNewtons;
+		private double ctCpJStateShadowRuntimeReplacementMaxAbsThrustResidualNewtons;
+		private double ctCpJStateShadowRuntimeReplacementAbsPowerResidualSumWatts;
+		private double ctCpJStateShadowRuntimeReplacementMaxAbsPowerResidualWatts;
+		private double ctCpJStateShadowRuntimeReplacementAbsShaftTorqueResidualSumNewtonMeters;
+		private double ctCpJStateShadowRuntimeReplacementMaxAbsShaftTorqueResidualNewtonMeters;
 		private double ctCpJReferenceRelativeAirSpeedSumMetersPerSecond;
 		private double ctCpJReferenceMaxRelativeAirSpeedMetersPerSecond;
 		private double ctCpJReferenceTransverseAirSpeedSumMetersPerSecond;
@@ -6225,6 +6462,7 @@ public final class OfflineFlightRecorder {
 			minEscThermalLimit = Math.min(minEscThermalLimit, state.escThermalLimit());
 			recordCtCpJRuntimeCoefficientTelemetry(state, config, environment);
 			recordCtCpJReferenceTelemetry(state);
+			recordCtCpJStateShadowTelemetry(state, config, environment);
 			recordCtCpJStaticReferenceTelemetry(state, config, environment);
 		}
 
@@ -6467,6 +6705,85 @@ public final class OfflineFlightRecorder {
 					);
 				}
 			}
+		}
+
+		private void recordCtCpJStateShadowTelemetry(
+				DroneState state,
+				DroneConfig config,
+				DroneEnvironment environment
+		) {
+			CtCpJStateShadowTelemetry sample = ctCpJStateShadowTelemetry(config, state, environment);
+			if (!sample.available()) {
+				return;
+			}
+			ctCpJStateShadowFrameSampleCount++;
+			ctCpJStateShadowAcceptedRotorSampleCount += sample.acceptedRotorCount();
+			ctCpJStateShadowRuntimeReplacementAcceptedRotorSampleCount +=
+					sample.runtimeReplacementAcceptedRotorCount();
+			ctCpJStateShadowBlockedRotorSampleCount += sample.blockedRotorCount();
+			ctCpJStateShadowClampedRotorSampleCount += sample.clampedRotorCount();
+			double forceResidual = Math.abs(sample.forceResidualMagnitudeNewtons());
+			double torqueResidual = Math.abs(sample.torqueResidualMagnitudeNewtonMeters());
+			double thrustResidual = Math.abs(sample.thrustResidualNewtons());
+			double powerResidual = Math.abs(sample.shaftPowerResidualWatts());
+			double shaftTorqueResidual = Math.abs(sample.shaftTorqueResidualNewtonMeters());
+			double runtimeForceResidual = Math.abs(sample.runtimeReplacementForceResidualMagnitudeNewtons());
+			double runtimeTorqueResidual = Math.abs(sample.runtimeReplacementTorqueResidualMagnitudeNewtonMeters());
+			double runtimeThrustResidual = Math.abs(sample.runtimeReplacementThrustResidualNewtons());
+			double runtimePowerResidual = Math.abs(sample.runtimeReplacementShaftPowerResidualWatts());
+			double runtimeShaftTorqueResidual =
+					Math.abs(sample.runtimeReplacementShaftTorqueResidualNewtonMeters());
+			ctCpJStateShadowAbsForceResidualSumNewtons += forceResidual;
+			ctCpJStateShadowMaxAbsForceResidualNewtons = Math.max(
+					ctCpJStateShadowMaxAbsForceResidualNewtons,
+					forceResidual
+			);
+			ctCpJStateShadowAbsTorqueResidualSumNewtonMeters += torqueResidual;
+			ctCpJStateShadowMaxAbsTorqueResidualNewtonMeters = Math.max(
+					ctCpJStateShadowMaxAbsTorqueResidualNewtonMeters,
+					torqueResidual
+			);
+			ctCpJStateShadowAbsThrustResidualSumNewtons += thrustResidual;
+			ctCpJStateShadowMaxAbsThrustResidualNewtons = Math.max(
+					ctCpJStateShadowMaxAbsThrustResidualNewtons,
+					thrustResidual
+			);
+			ctCpJStateShadowAbsPowerResidualSumWatts += powerResidual;
+			ctCpJStateShadowMaxAbsPowerResidualWatts = Math.max(
+					ctCpJStateShadowMaxAbsPowerResidualWatts,
+					powerResidual
+			);
+			ctCpJStateShadowAbsShaftTorqueResidualSumNewtonMeters += shaftTorqueResidual;
+			ctCpJStateShadowMaxAbsShaftTorqueResidualNewtonMeters = Math.max(
+					ctCpJStateShadowMaxAbsShaftTorqueResidualNewtonMeters,
+					shaftTorqueResidual
+			);
+			ctCpJStateShadowRuntimeReplacementAbsForceResidualSumNewtons += runtimeForceResidual;
+			ctCpJStateShadowRuntimeReplacementMaxAbsForceResidualNewtons = Math.max(
+					ctCpJStateShadowRuntimeReplacementMaxAbsForceResidualNewtons,
+					runtimeForceResidual
+			);
+			ctCpJStateShadowRuntimeReplacementAbsTorqueResidualSumNewtonMeters += runtimeTorqueResidual;
+			ctCpJStateShadowRuntimeReplacementMaxAbsTorqueResidualNewtonMeters = Math.max(
+					ctCpJStateShadowRuntimeReplacementMaxAbsTorqueResidualNewtonMeters,
+					runtimeTorqueResidual
+			);
+			ctCpJStateShadowRuntimeReplacementAbsThrustResidualSumNewtons += runtimeThrustResidual;
+			ctCpJStateShadowRuntimeReplacementMaxAbsThrustResidualNewtons = Math.max(
+					ctCpJStateShadowRuntimeReplacementMaxAbsThrustResidualNewtons,
+					runtimeThrustResidual
+			);
+			ctCpJStateShadowRuntimeReplacementAbsPowerResidualSumWatts += runtimePowerResidual;
+			ctCpJStateShadowRuntimeReplacementMaxAbsPowerResidualWatts = Math.max(
+					ctCpJStateShadowRuntimeReplacementMaxAbsPowerResidualWatts,
+					runtimePowerResidual
+			);
+			ctCpJStateShadowRuntimeReplacementAbsShaftTorqueResidualSumNewtonMeters +=
+					runtimeShaftTorqueResidual;
+			ctCpJStateShadowRuntimeReplacementMaxAbsShaftTorqueResidualNewtonMeters = Math.max(
+					ctCpJStateShadowRuntimeReplacementMaxAbsShaftTorqueResidualNewtonMeters,
+					runtimeShaftTorqueResidual
+			);
 		}
 
 		private void recordCtCpJStaticReferenceTelemetry(
@@ -6712,6 +7029,116 @@ public final class OfflineFlightRecorder {
 
 		public double maxCtCpJReferenceRuntimeAppliedTorqueVectorResidualNewtonMeters() {
 			return ctCpJReferenceRuntimeAppliedMaxTorqueVectorResidualNewtonMeters;
+		}
+
+		public int ctCpJStateShadowFrameSampleCount() {
+			return ctCpJStateShadowFrameSampleCount;
+		}
+
+		public int ctCpJStateShadowAcceptedRotorSampleCount() {
+			return ctCpJStateShadowAcceptedRotorSampleCount;
+		}
+
+		public int ctCpJStateShadowRuntimeReplacementAcceptedRotorSampleCount() {
+			return ctCpJStateShadowRuntimeReplacementAcceptedRotorSampleCount;
+		}
+
+		public int ctCpJStateShadowBlockedRotorSampleCount() {
+			return ctCpJStateShadowBlockedRotorSampleCount;
+		}
+
+		public int ctCpJStateShadowClampedRotorSampleCount() {
+			return ctCpJStateShadowClampedRotorSampleCount;
+		}
+
+		public double meanCtCpJStateShadowAbsForceResidualNewtons() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowAbsForceResidualSumNewtons);
+		}
+
+		public double maxCtCpJStateShadowAbsForceResidualNewtons() {
+			return ctCpJStateShadowMaxAbsForceResidualNewtons;
+		}
+
+		public double meanCtCpJStateShadowAbsTorqueResidualNewtonMeters() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowAbsTorqueResidualSumNewtonMeters);
+		}
+
+		public double maxCtCpJStateShadowAbsTorqueResidualNewtonMeters() {
+			return ctCpJStateShadowMaxAbsTorqueResidualNewtonMeters;
+		}
+
+		public double meanCtCpJStateShadowAbsThrustResidualNewtons() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowAbsThrustResidualSumNewtons);
+		}
+
+		public double maxCtCpJStateShadowAbsThrustResidualNewtons() {
+			return ctCpJStateShadowMaxAbsThrustResidualNewtons;
+		}
+
+		public double meanCtCpJStateShadowAbsPowerResidualWatts() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowAbsPowerResidualSumWatts);
+		}
+
+		public double maxCtCpJStateShadowAbsPowerResidualWatts() {
+			return ctCpJStateShadowMaxAbsPowerResidualWatts;
+		}
+
+		public double meanCtCpJStateShadowAbsShaftTorqueResidualNewtonMeters() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowAbsShaftTorqueResidualSumNewtonMeters);
+		}
+
+		public double maxCtCpJStateShadowAbsShaftTorqueResidualNewtonMeters() {
+			return ctCpJStateShadowMaxAbsShaftTorqueResidualNewtonMeters;
+		}
+
+		public double meanCtCpJStateShadowRuntimeReplacementAbsForceResidualNewtons() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowRuntimeReplacementAbsForceResidualSumNewtons);
+		}
+
+		public double maxCtCpJStateShadowRuntimeReplacementAbsForceResidualNewtons() {
+			return ctCpJStateShadowRuntimeReplacementMaxAbsForceResidualNewtons;
+		}
+
+		public double meanCtCpJStateShadowRuntimeReplacementAbsTorqueResidualNewtonMeters() {
+			return meanCtCpJStateShadowValue(
+					ctCpJStateShadowRuntimeReplacementAbsTorqueResidualSumNewtonMeters
+			);
+		}
+
+		public double maxCtCpJStateShadowRuntimeReplacementAbsTorqueResidualNewtonMeters() {
+			return ctCpJStateShadowRuntimeReplacementMaxAbsTorqueResidualNewtonMeters;
+		}
+
+		public double meanCtCpJStateShadowRuntimeReplacementAbsThrustResidualNewtons() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowRuntimeReplacementAbsThrustResidualSumNewtons);
+		}
+
+		public double maxCtCpJStateShadowRuntimeReplacementAbsThrustResidualNewtons() {
+			return ctCpJStateShadowRuntimeReplacementMaxAbsThrustResidualNewtons;
+		}
+
+		public double meanCtCpJStateShadowRuntimeReplacementAbsPowerResidualWatts() {
+			return meanCtCpJStateShadowValue(ctCpJStateShadowRuntimeReplacementAbsPowerResidualSumWatts);
+		}
+
+		public double maxCtCpJStateShadowRuntimeReplacementAbsPowerResidualWatts() {
+			return ctCpJStateShadowRuntimeReplacementMaxAbsPowerResidualWatts;
+		}
+
+		public double meanCtCpJStateShadowRuntimeReplacementAbsShaftTorqueResidualNewtonMeters() {
+			return meanCtCpJStateShadowValue(
+					ctCpJStateShadowRuntimeReplacementAbsShaftTorqueResidualSumNewtonMeters
+			);
+		}
+
+		public double maxCtCpJStateShadowRuntimeReplacementAbsShaftTorqueResidualNewtonMeters() {
+			return ctCpJStateShadowRuntimeReplacementMaxAbsShaftTorqueResidualNewtonMeters;
+		}
+
+		private double meanCtCpJStateShadowValue(double sum) {
+			return ctCpJStateShadowFrameSampleCount == 0
+					? 0.0
+					: sum / ctCpJStateShadowFrameSampleCount;
 		}
 
 		public double meanCtCpJReferenceRelativeAirSpeedMetersPerSecond() {
