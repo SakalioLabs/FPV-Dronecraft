@@ -418,6 +418,29 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				)
 		));
+		Vec3 bodyKinematicsRelativeAirVelocity = rotorAxisBody(rotor)
+				.multiply(TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND);
+		Vec3 bodyKinematicsAngularVelocity =
+				new Vec3(TRIM_BODY_KINEMATICS_ROLL_RATE_RADIANS_PER_SECOND, 0.0, 0.0);
+		points.add(targetSolutionPoint(
+				TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND,
+				bodyKinematicsRelativeAirVelocity,
+				bodyKinematicsAngularVelocity,
+				PropellerArchiveCtCpJRotorForceModel
+						.solveStaticAnchoredConfigurationRpmForTargetThrustFromBodyKinematics(
+								presetName,
+								"static_anchored_configuration_target_body_kinematics",
+								config,
+								bodyKinematicsRelativeAirVelocity,
+								bodyKinematicsAngularVelocity,
+								weightThrust,
+								hoverOmega * 0.55,
+								hoverOmega * 1.80,
+								airDensityKgPerCubicMeter,
+								ambientTemperatureCelsius,
+								ambientHumidity
+						)
+		));
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample maxStatic =
 				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
 						presetName,
@@ -900,10 +923,24 @@ public final class CtCpJConfigurationCurveExporter {
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
 			PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution
 	) {
-		return new ConfigurationDiagnosticPoint(
+		return targetSolutionPoint(
 				querySignedAxialSpeedMetersPerSecond,
 				relativeAirVelocityBodyMetersPerSecond,
 				Vec3.ZERO,
+				solution
+		);
+	}
+
+	private static ConfigurationDiagnosticPoint targetSolutionPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution
+	) {
+		return new ConfigurationDiagnosticPoint(
+				querySignedAxialSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
 				solution.solutionSample(),
 				solution.targetThrustNewtons(),
 				solution.thrustResidualNewtons(),

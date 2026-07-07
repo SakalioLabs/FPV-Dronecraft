@@ -45,7 +45,7 @@ class CtCpJConfigurationCurveExporterTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 
-		assertEquals(33, lines.size());
+		assertEquals(34, lines.size());
 		assertTrue(lines.get(0).startsWith(
 				"preset,case,query_j,query_rpm,target_thrust_n,target_thrust_residual_n"));
 		assertEquals(4, integerCell(hover, columns, "rotor_count"));
@@ -167,6 +167,8 @@ class CtCpJConfigurationCurveExporterTest {
 		String directHover = lineForCaseAndJ(lines, columns, "static_anchored_configuration_hover", 0.0);
 		String hoverSolve = lineForCase(lines, columns, "static_anchored_configuration_target_hover_solve");
 		String forwardSolve = lineForCase(lines, columns, "static_anchored_configuration_target_forward_solve");
+		String bodyKinematicsSolve = lineForCase(lines, columns,
+				"static_anchored_configuration_target_body_kinematics");
 		String upperBelow =
 				lineForCase(lines, columns, "static_anchored_configuration_target_upper_below_target");
 		String highBlock = lineForCase(lines, columns, "static_anchored_configuration_target_high_j_block");
@@ -193,6 +195,21 @@ class CtCpJConfigurationCurveExporterTest {
 				> numberCell(hoverSolve, columns, "query_rpm"));
 		assertTrue(numberCell(forwardSolve, columns, "total_useful_axial_thrust_power_w") > 0.0);
 		assertEquals("ACCEPTED", textCell(forwardSolve, columns, "runtime_eligibility_status"));
+
+		assertEquals("SOLVED", textCell(bodyKinematicsSolve, columns, "target_thrust_solve_status"));
+		assertTrue(integerCell(bodyKinematicsSolve, columns, "target_thrust_solve_iterations") > 0);
+		assertEquals(3.0, numberCell(bodyKinematicsSolve, columns, "query_signed_axial_speed_mps"), 1.0e-12);
+		assertEquals(4.0, numberCell(bodyKinematicsSolve, columns, "body_angular_rate_x_rad_s"), 1.0e-12);
+		assertEquals(numberCell(directHover, columns, "total_thrust_n"),
+				numberCell(bodyKinematicsSolve, columns, "target_thrust_n"), 1.0e-12);
+		assertEquals(numberCell(bodyKinematicsSolve, columns, "target_thrust_n"),
+				numberCell(bodyKinematicsSolve, columns, "total_thrust_n"), 1.0e-5);
+		assertTrue(numberCell(bodyKinematicsSolve, columns, "effective_j_max")
+				> numberCell(bodyKinematicsSolve, columns, "effective_j_min"));
+		assertEquals(numberCell(bodyKinematicsSolve, columns, "effective_rpm_min"),
+				numberCell(bodyKinematicsSolve, columns, "effective_rpm_max"), 1.0e-8);
+		assertTrue(Math.abs(numberCell(bodyKinematicsSolve, columns, "total_body_torque_x_nm")) > 1.0e-4);
+		assertEquals("ACCEPTED", textCell(bodyKinematicsSolve, columns, "runtime_eligibility_status"));
 
 		assertEquals("UPPER_BOUND_BELOW_TARGET",
 				textCell(upperBelow, columns, "target_thrust_solve_status"));
@@ -314,7 +331,7 @@ class CtCpJConfigurationCurveExporterTest {
 		CtCpJConfigurationCurveExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(33, lines.size());
+		assertEquals(34, lines.size());
 		assertTrue(lines.get(0).contains("total_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_solve_status"));
@@ -355,6 +372,9 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_target_high_j_block,")
 						&& line.contains(",UPPER_BOUND_BLOCKED,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_configuration_target_body_kinematics,")
+						&& line.contains(",SOLVED,")));
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_trim_body_torque,")
 						&& line.contains(",TRIM_SOLVE,0,SOLVED,")));
