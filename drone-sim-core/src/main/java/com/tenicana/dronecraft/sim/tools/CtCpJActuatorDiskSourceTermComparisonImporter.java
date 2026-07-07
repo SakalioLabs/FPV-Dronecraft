@@ -379,7 +379,10 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 						"cfd_integrated_thrust_force_world_z_n",
 						"integrated_thrust_force_world_x_n",
 						"integrated_thrust_force_world_y_n",
-						"integrated_thrust_force_world_z_n"),
+						"integrated_thrust_force_world_z_n",
+						"equivalent_body_force_integral_world_x_n",
+						"equivalent_body_force_integral_world_y_n",
+						"equivalent_body_force_integral_world_z_n"),
 				vector(record,
 						"cfd_body_force_density_world_x_n_m3",
 						"cfd_body_force_density_world_y_n_m3",
@@ -586,6 +589,25 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 		);
 	}
 
+	private static Vec3 vector(
+			Map<String, String> record,
+			String x,
+			String y,
+			String z,
+			String fallbackX,
+			String fallbackY,
+			String fallbackZ,
+			String secondFallbackX,
+			String secondFallbackY,
+			String secondFallbackZ
+	) {
+		return new Vec3(
+				optionalDouble(record, x, fallbackX, secondFallbackX, Double.NaN),
+				optionalDouble(record, y, fallbackY, secondFallbackY, Double.NaN),
+				optionalDouble(record, z, fallbackZ, secondFallbackZ, Double.NaN)
+		);
+	}
+
 	private static String normalizeHeader(String value) {
 		String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
 		if (!normalized.isEmpty() && normalized.charAt(0) == '\uFEFF') {
@@ -623,6 +645,24 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			return Double.parseDouble(value);
 		}
 		return optionalDouble(record, fallbackName, fallback);
+	}
+
+	private static double optionalDouble(
+			Map<String, String> record,
+			String name,
+			String fallbackName,
+			String secondFallbackName,
+			double fallback
+	) {
+		String value = record.get(name);
+		if (value != null && !value.isBlank()) {
+			return Double.parseDouble(value);
+		}
+		value = record.get(fallbackName);
+		if (value != null && !value.isBlank()) {
+			return Double.parseDouble(value);
+		}
+		return optionalDouble(record, secondFallbackName, fallback);
 	}
 
 	private static boolean finiteVector(Vec3 value) {

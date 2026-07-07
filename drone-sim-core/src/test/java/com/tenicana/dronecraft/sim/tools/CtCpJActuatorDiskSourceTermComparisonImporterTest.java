@@ -164,6 +164,50 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 	}
 
 	@Test
+	void equivalentBodyForceIntegralColumnsFeedIntegratedForceComparison() {
+		Map<String, String> reference = referenceRecord("static_anchored_source_hover", "raw_source", 0);
+		String input = String.join("\n",
+				String.join(",",
+						"preset",
+						"case",
+						"row_kind",
+						"rotor_index",
+						"source_thickness_m",
+						"cfd_pressure_jump_pa",
+						"cfd_mass_flux_kg_s_m2",
+						"cfd_ideal_momentum_power_loading_w_m2",
+						"equivalent_body_force_integral_world_x_n",
+						"equivalent_body_force_integral_world_y_n",
+						"equivalent_body_force_integral_world_z_n",
+						"cfd_body_force_density_world_x_n_m3",
+						"cfd_body_force_density_world_y_n_m3",
+						"cfd_body_force_density_world_z_n_m3"),
+				row(
+						reference.get("preset"),
+						reference.get("case"),
+						reference.get("row_kind"),
+						reference.get("rotor_index"),
+						reference.get("source_thickness_m"),
+						reference.get("pressure_jump_pa"),
+						reference.get("mass_flux_kg_s_m2"),
+						reference.get("ideal_momentum_power_loading_w_m2"),
+						reference.get("equivalent_body_force_integral_world_x_n"),
+						reference.get("equivalent_body_force_integral_world_y_n"),
+						reference.get("equivalent_body_force_integral_world_z_n"),
+						reference.get("body_force_density_world_x_n_m3"),
+						reference.get("body_force_density_world_y_n_m3"),
+						reference.get("body_force_density_world_z_n_m3")
+				));
+
+		CtCpJActuatorDiskSourceTermComparisonImporter.ComparisonRow comparison =
+				CtCpJActuatorDiskSourceTermComparisonImporter.compare(input, RHO, SOURCE_THICKNESS).get(0);
+
+		assertTrue(comparison.comparable());
+		assertEquals(0.0, comparison.integratedThrustForceResidualWorldNewtons().length(), 1.0e-12);
+		assertEquals(0.0, comparison.cfdIntegratedForceClosureResidualWorldNewtons().length(), 1.0e-12);
+	}
+
+	@Test
 	void writeCreatesParentDirectoriesAndComparisonCsv(@TempDir Path tempDir) throws IOException {
 		Path input = tempDir.resolve("source-results.csv");
 		Path output = tempDir.resolve("nested").resolve("source-comparison.csv");

@@ -58,6 +58,10 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(numberCell(hover, columns, "ideal_momentum_power_loading_w_m2") > 0.0);
 		assertEquals(0.0, numberCell(hover, columns, "eta"), 1.0e-15);
 		assertEquals(1.0, numberCell(hover, columns, "disk_normal_world_y"), 1.0e-15);
+		assertEquals(Math.sqrt(numberCell(hover, columns, "disk_area_m2") / Math.PI),
+				numberCell(hover, columns, "disk_radius_m"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "disk_area_m2") * SOURCE_THICKNESS,
+				numberCell(hover, columns, "source_volume_m3"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "thrust_surface_force_world_x_n_m2"), 1.0e-15);
 		assertEquals(numberCell(hover, columns, "pressure_jump_pa"),
 				numberCell(hover, columns, "thrust_surface_force_world_y_n_m2"), 1.0e-12);
@@ -66,6 +70,11 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				numberCell(hover, columns, "integrated_thrust_force_world_y_n"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "thrust_surface_force_world_y_n_m2") / SOURCE_THICKNESS,
 				numberCell(hover, columns, "body_force_density_world_y_n_m3"), 1.0e-9);
+		assertEquals(numberCell(hover, columns, "body_force_density_world_y_n_m3")
+						* numberCell(hover, columns, "source_volume_m3"),
+				numberCell(hover, columns, "equivalent_body_force_integral_world_y_n"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "integrated_thrust_force_world_y_n"),
+				numberCell(hover, columns, "equivalent_body_force_integral_world_y_n"), 1.0e-12);
 		assertTrue(numberCell(hover, columns, "shaft_power_w") > 0.0);
 		assertTrue(numberCell(hover, columns, "shaft_torque_nm") > 0.0);
 		assertTrue(numberCell(hover, columns, "ideal_induced_velocity_mps") > 0.0);
@@ -100,6 +109,8 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals("false", textCell(blockedRaw, columns, "applied"));
 		assertEquals(0.0, numberCell(blockedRaw, columns, "pressure_jump_pa"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "integrated_thrust_force_world_y_n"), 1.0e-15);
+		assertEquals(0.0, numberCell(blockedRaw, columns,
+				"equivalent_body_force_integral_world_y_n"), 1.0e-15);
 		assertEquals("false", textCell(blockedRuntime, columns, "runtime_force_replacement_accepted"));
 		assertEquals(0.0, numberCell(blockedRuntime, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
 	}
@@ -112,7 +123,9 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		List<String> lines = Files.readAllLines(output);
 		assertEquals(41, lines.size());
 		assertTrue(lines.get(0).contains("pressure_jump_pa"));
+		assertTrue(lines.get(0).contains("source_volume_m3"));
 		assertTrue(lines.get(0).contains("body_force_density_world_y_n_m3"));
+		assertTrue(lines.get(0).contains("equivalent_body_force_integral_world_y_n"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")));
 	}

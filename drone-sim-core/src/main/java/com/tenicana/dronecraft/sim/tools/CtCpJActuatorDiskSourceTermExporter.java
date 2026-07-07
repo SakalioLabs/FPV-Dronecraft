@@ -56,6 +56,8 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"disk_normal_world_y",
 			"disk_normal_world_z",
 			"disk_area_m2",
+			"disk_radius_m",
+			"source_volume_m3",
 			"pressure_jump_pa",
 			"mass_flux_kg_s_m2",
 			"ideal_momentum_power_loading_w_m2",
@@ -71,6 +73,9 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"body_force_density_world_x_n_m3",
 			"body_force_density_world_y_n_m3",
 			"body_force_density_world_z_n_m3",
+			"equivalent_body_force_integral_world_x_n",
+			"equivalent_body_force_integral_world_y_n",
+			"equivalent_body_force_integral_world_z_n",
 			"shaft_power_w",
 			"shaft_torque_nm",
 			"disk_loading_n_m2",
@@ -246,6 +251,9 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 						.multiply(sourceTerm.diskAreaSquareMeters());
 		Vec3 bodyForceDensity =
 				sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters);
+		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		double sourceVolume = sourceTerm.diskAreaSquareMeters() * sourceThicknessMeters;
+		Vec3 equivalentBodyForceIntegral = bodyForceDensity.multiply(sourceVolume);
 		Vec3 relativeAir = rotorSample.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 angularRate = sourceCase.angularVelocityBodyRadiansPerSecond();
 		Quaternion orientation = sourceCase.bodyToWorldOrientation();
@@ -286,6 +294,8 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(sourceTerm.diskNormalWorld().y()),
 				number(sourceTerm.diskNormalWorld().z()),
 				number(sourceTerm.diskAreaSquareMeters()),
+				number(diskRadius),
+				number(sourceVolume),
 				number(sourceTerm.pressureJumpPascals()),
 				number(sourceTerm.massFluxKilogramsPerSecondSquareMeter()),
 				number(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()),
@@ -301,6 +311,9 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(bodyForceDensity.x()),
 				number(bodyForceDensity.y()),
 				number(bodyForceDensity.z()),
+				number(equivalentBodyForceIntegral.x()),
+				number(equivalentBodyForceIntegral.y()),
+				number(equivalentBodyForceIntegral.z()),
 				number(dimensional.shaftPowerWatts()),
 				number(dimensional.shaftTorqueNewtonMeters()),
 				number(dimensional.diskLoadingNewtonsPerSquareMeter()),
