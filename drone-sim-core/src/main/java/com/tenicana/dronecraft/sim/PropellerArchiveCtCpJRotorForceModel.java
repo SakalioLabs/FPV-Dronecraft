@@ -196,6 +196,32 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return dimensionalSample.shaftTorqueNewtonMeters();
 		}
 
+		public double actuatorDiskPressureJumpPascals() {
+			return ratio(thrustNewtons(), dimensionalSample.diskAreaSquareMeters());
+		}
+
+		public double actuatorDiskMassFluxKilogramsPerSecondSquareMeter() {
+			return ratio(
+					dimensionalSample.diskMassFlowKilogramsPerSecond(),
+					dimensionalSample.diskAreaSquareMeters()
+			);
+		}
+
+		public double actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter() {
+			return ratio(
+					dimensionalSample.idealMomentumPowerWatts(),
+					dimensionalSample.diskAreaSquareMeters()
+			);
+		}
+
+		public Vec3 farWakeAxialVelocityBodyMetersPerSecond() {
+			return rotorAxisBody(query.rotor()).multiply(dimensionalSample.farWakeAxialVelocityMetersPerSecond());
+		}
+
+		public Vec3 farWakeAxialVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(farWakeAxialVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
+		}
+
 		public Vec3 wakeAngularMomentumTorqueBodyNewtonMeters() {
 			if (blocked()) {
 				return Vec3.ZERO;
@@ -505,6 +531,22 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return sumWakeAngularMomentumTorqueBody(rotorSamples, false);
 		}
 
+		public double totalActuatorDiskAreaSquareMeters() {
+			return sumActuatorDiskArea(rotorSamples, false);
+		}
+
+		public double meanActuatorDiskPressureJumpPascals() {
+			return ratio(totalThrustNewtons, totalActuatorDiskAreaSquareMeters());
+		}
+
+		public double meanActuatorDiskMassFluxKilogramsPerSecondSquareMeter() {
+			return ratio(totalDiskMassFlowKilogramsPerSecond, totalActuatorDiskAreaSquareMeters());
+		}
+
+		public double meanActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter() {
+			return ratio(totalIdealMomentumPowerWatts, totalActuatorDiskAreaSquareMeters());
+		}
+
 		public Vec3 totalWakeAngularMomentumTorqueResidualBodyNewtonMeters() {
 			return totalWakeAngularMomentumTorqueBodyNewtonMeters().subtract(totalReactionTorqueBodyNewtonMeters);
 		}
@@ -544,6 +586,31 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueBodyNewtonMeters() {
 			return sumWakeAngularMomentumTorqueBody(rotorSamples, true);
+		}
+
+		public double runtimeForceReplacementActuatorDiskAreaSquareMeters() {
+			return sumActuatorDiskArea(rotorSamples, true);
+		}
+
+		public double runtimeForceReplacementMeanActuatorDiskPressureJumpPascals() {
+			return ratio(
+					runtimeForceReplacementThrustNewtons,
+					runtimeForceReplacementActuatorDiskAreaSquareMeters()
+			);
+		}
+
+		public double runtimeForceReplacementMeanActuatorDiskMassFluxKilogramsPerSecondSquareMeter() {
+			return ratio(
+					runtimeForceReplacementDiskMassFlowKilogramsPerSecond,
+					runtimeForceReplacementActuatorDiskAreaSquareMeters()
+			);
+		}
+
+		public double runtimeForceReplacementMeanActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter() {
+			return ratio(
+					runtimeForceReplacementIdealMomentumPowerWatts,
+					runtimeForceReplacementActuatorDiskAreaSquareMeters()
+			);
 		}
 
 		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueResidualBodyNewtonMeters() {
@@ -3547,6 +3614,26 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			sum = sum.add(sample.wakeAngularMomentumTorqueBodyNewtonMeters());
 		}
 		return sum;
+	}
+
+	private static double sumActuatorDiskArea(
+			List<RotorForceSample> samples,
+			boolean runtimeForceReplacementOnly
+	) {
+		if (samples == null || samples.isEmpty()) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		for (RotorForceSample sample : samples) {
+			if (sample == null) {
+				continue;
+			}
+			if (runtimeForceReplacementOnly && !sample.runtimeForceReplacementAccepted()) {
+				continue;
+			}
+			sum += sample.dimensionalSample().diskAreaSquareMeters();
+		}
+		return finiteNonnegative(sum);
 	}
 
 	private static Quaternion finiteQuaternionOrIdentity(Quaternion value) {

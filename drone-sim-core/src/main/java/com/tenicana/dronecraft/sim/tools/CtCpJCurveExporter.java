@@ -108,7 +108,13 @@ public final class CtCpJCurveExporter {
 			"wake_angular_momentum_torque_body_z_nm",
 			"wake_angular_momentum_torque_residual_body_x_nm",
 			"wake_angular_momentum_torque_residual_body_y_nm",
-			"wake_angular_momentum_torque_residual_body_z_nm"
+			"wake_angular_momentum_torque_residual_body_z_nm",
+			"actuator_disk_pressure_jump_pa",
+			"actuator_disk_mass_flux_kg_s_m2",
+			"actuator_disk_ideal_momentum_power_loading_w_m2",
+			"far_wake_axial_velocity_body_x_mps",
+			"far_wake_axial_velocity_body_y_mps",
+			"far_wake_axial_velocity_body_z_mps"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -280,6 +286,7 @@ public final class CtCpJCurveExporter {
 		Vec3 reactionTorque = axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters());
 		Vec3 wakeAngularMomentumTorque =
 				axis.multiply(rotor.spinDirection() * sample.wakeAngularMomentumTorqueNewtonMeters());
+		Vec3 farWakeAxialVelocity = axis.multiply(sample.farWakeAxialVelocityMetersPerSecond());
 		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		Vec3 relativeAirVelocity = axis.multiply(queryAxialSpeed);
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
@@ -305,6 +312,10 @@ public final class CtCpJCurveExporter {
 				thrustMoment.add(reactionTorque),
 				wakeAngularMomentumTorque,
 				wakeAngularMomentumTorque.subtract(reactionTorque),
+				actuatorDiskPressureJumpPascals(sample),
+				actuatorDiskMassFluxKilogramsPerSecondSquareMeter(sample),
+				actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(sample),
+				farWakeAxialVelocity,
 				runtimeEligibilityStatus(sample, false),
 				operatingPoint
 		);
@@ -339,6 +350,10 @@ public final class CtCpJCurveExporter {
 				sample.totalTorqueBodyNewtonMeters(),
 				sample.wakeAngularMomentumTorqueBodyNewtonMeters(),
 				sample.wakeAngularMomentumTorqueResidualBodyNewtonMeters(),
+				sample.actuatorDiskPressureJumpPascals(),
+				sample.actuatorDiskMassFluxKilogramsPerSecondSquareMeter(),
+				sample.actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(),
+				sample.farWakeAxialVelocityBodyMetersPerSecond(),
 				runtimeEligibilityStatus(
 						sample,
 						runtimeForceReplacementAccepted,
@@ -363,6 +378,10 @@ public final class CtCpJCurveExporter {
 			Vec3 totalTorqueBodyNewtonMeters,
 			Vec3 wakeAngularMomentumTorqueBodyNewtonMeters,
 			Vec3 wakeAngularMomentumTorqueResidualBodyNewtonMeters,
+			double actuatorDiskPressureJumpPascals,
+			double actuatorDiskMassFluxKilogramsPerSecondSquareMeter,
+			double actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter,
+			Vec3 farWakeAxialVelocityBodyMetersPerSecond,
 			String runtimeEligibilityStatus,
 			PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint
 	) {
@@ -457,7 +476,13 @@ public final class CtCpJCurveExporter {
 				number(wakeAngularMomentumTorqueBodyNewtonMeters.z()),
 				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.x()),
 				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.y()),
-				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.z())
+				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.z()),
+				number(actuatorDiskPressureJumpPascals),
+				number(actuatorDiskMassFluxKilogramsPerSecondSquareMeter),
+				number(actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter),
+				number(farWakeAxialVelocityBodyMetersPerSecond.x()),
+				number(farWakeAxialVelocityBodyMetersPerSecond.y()),
+				number(farWakeAxialVelocityBodyMetersPerSecond.z())
 		);
 	}
 
@@ -493,6 +518,7 @@ public final class CtCpJCurveExporter {
 		);
 		Vec3 wakeAngularMomentumTorque =
 				axis.multiply(rotor.spinDirection() * wake.wakeAngularMomentumTorqueNewtonMeters());
+		Vec3 farWakeAxialVelocity = axis.multiply(wake.farWakeAxialVelocityMetersPerSecond());
 		return String.join(",",
 				escape(sample.presetName()),
 				escape(sample.caseName()),
@@ -583,7 +609,13 @@ public final class CtCpJCurveExporter {
 				number(wakeAngularMomentumTorque.z()),
 				number(wakeAngularMomentumTorque.subtract(reactionTorque).x()),
 				number(wakeAngularMomentumTorque.subtract(reactionTorque).y()),
-				number(wakeAngularMomentumTorque.subtract(reactionTorque).z())
+				number(wakeAngularMomentumTorque.subtract(reactionTorque).z()),
+				number(ratio(sample.thrustNewtons(), sample.diskAreaSquareMeters())),
+				number(ratio(wake.diskMassFlowKilogramsPerSecond(), sample.diskAreaSquareMeters())),
+				number(ratio(sample.idealMomentumPowerWatts(), sample.diskAreaSquareMeters())),
+				number(farWakeAxialVelocity.x()),
+				number(farWakeAxialVelocity.y()),
+				number(farWakeAxialVelocity.z())
 		);
 	}
 
@@ -957,6 +989,24 @@ public final class CtCpJCurveExporter {
 
 	private static String number(double value) {
 		return String.format(Locale.ROOT, "%.15g", value);
+	}
+
+	private static double actuatorDiskPressureJumpPascals(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return ratio(sample.thrustNewtons(), sample.diskAreaSquareMeters());
+	}
+
+	private static double actuatorDiskMassFluxKilogramsPerSecondSquareMeter(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return ratio(sample.diskMassFlowKilogramsPerSecond(), sample.diskAreaSquareMeters());
+	}
+
+	private static double actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return ratio(sample.idealMomentumPowerWatts(), sample.diskAreaSquareMeters());
 	}
 
 	private static double ratio(double numerator, double denominator) {

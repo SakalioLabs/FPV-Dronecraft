@@ -49,6 +49,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(dimensionalReference.thrustNewtons(), sample.thrustNewtons(), 1.0e-15);
 		assertEquals(dimensionalReference.shaftPowerWatts(), sample.shaftPowerWatts(), 1.0e-15);
 		assertEquals(dimensionalReference.shaftTorqueNewtonMeters(), sample.shaftTorqueNewtonMeters(), 1.0e-18);
+		assertEquals(dimensionalReference.thrustNewtons() / dimensionalReference.diskAreaSquareMeters(),
+				sample.actuatorDiskPressureJumpPascals(), 1.0e-12);
+		assertEquals(dimensionalReference.diskMassFlowKilogramsPerSecond()
+						/ dimensionalReference.diskAreaSquareMeters(),
+				sample.actuatorDiskMassFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(dimensionalReference.idealMomentumPowerWatts() / dimensionalReference.diskAreaSquareMeters(),
+				sample.actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, sample.transverseAirVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, sample.transverseAirSpeedMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, sample.inflowAngleRadians(), 1.0e-15);
@@ -60,6 +67,8 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(sample.reactionTorqueBodyNewtonMeters(),
 				sample.wakeAngularMomentumTorqueBodyNewtonMeters(), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, sample.wakeAngularMomentumTorqueResidualBodyNewtonMeters(), 1.0e-18);
+		assertVectorEquals(rotor.thrustAxisBody().multiply(dimensionalReference.farWakeAxialVelocityMetersPerSecond()),
+				sample.farWakeAxialVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters() / sample.thrustNewtons(),
 				sample.yawTorquePerThrustMeterEquivalent(), 1.0e-18);
 	}
@@ -578,6 +587,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		double expectedWakePower = aggregate.rotorSamples().stream()
 				.mapToDouble(sample -> sample.dimensionalSample().totalWakeKineticPowerWatts())
 				.sum();
+		double expectedDiskArea = aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.dimensionalSample().diskAreaSquareMeters())
+				.sum();
 		assertEquals(config.rotors().size(), aggregate.rotorSamples().size());
 		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
 		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
@@ -623,6 +635,14 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				aggregate.totalWakeKineticPowerResidualWatts(), 1.0e-12);
 		assertEquals(aggregate.totalWakeKineticPowerWatts() / aggregate.totalShaftPowerWatts(),
 				aggregate.totalWakeKineticPowerOverShaftPower(), 1.0e-12);
+		assertEquals(expectedDiskArea, aggregate.totalActuatorDiskAreaSquareMeters(), 1.0e-15);
+		assertEquals(aggregate.totalThrustNewtons() / aggregate.totalActuatorDiskAreaSquareMeters(),
+				aggregate.meanActuatorDiskPressureJumpPascals(), 1.0e-12);
+		assertEquals(aggregate.totalDiskMassFlowKilogramsPerSecond()
+						/ aggregate.totalActuatorDiskAreaSquareMeters(),
+				aggregate.meanActuatorDiskMassFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(aggregate.totalIdealMomentumPowerWatts() / aggregate.totalActuatorDiskAreaSquareMeters(),
+				aggregate.meanActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertEquals(aggregate.totalDiskMassFlowKilogramsPerSecond(),
 				aggregate.runtimeForceReplacementDiskMassFlowKilogramsPerSecond(), 1.0e-12);
 		assertEquals(aggregate.totalUsefulAxialThrustPowerWatts(),
@@ -639,6 +659,15 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				aggregate.runtimeForceReplacementWakeKineticPowerResidualWatts(), 1.0e-12);
 		assertEquals(aggregate.totalWakeKineticPowerOverShaftPower(),
 				aggregate.runtimeForceReplacementWakeKineticPowerOverShaftPower(), 1.0e-12);
+		assertEquals(aggregate.totalActuatorDiskAreaSquareMeters(),
+				aggregate.runtimeForceReplacementActuatorDiskAreaSquareMeters(), 1.0e-15);
+		assertEquals(aggregate.meanActuatorDiskPressureJumpPascals(),
+				aggregate.runtimeForceReplacementMeanActuatorDiskPressureJumpPascals(), 1.0e-12);
+		assertEquals(aggregate.meanActuatorDiskMassFluxKilogramsPerSecondSquareMeter(),
+				aggregate.runtimeForceReplacementMeanActuatorDiskMassFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(aggregate.meanActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(),
+				aggregate.runtimeForceReplacementMeanActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(),
+				1.0e-12);
 		assertTrue(aggregate.totalShaftPowerWatts() > 0.0);
 		assertTrue(aggregate.totalShaftTorqueNewtonMeters() > 0.0);
 	}

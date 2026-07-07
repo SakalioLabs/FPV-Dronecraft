@@ -34,6 +34,11 @@ angular-momentum torque vector columns. These are conservation diagnostics for m
 reaction torque cancellation across symmetric rotor sets; `playable/dev` should not use the signed residuals as
 control or yaw-feel constants without a separate simplification review.
 
+2026-07-08 source-term update: the CT/CP/J packets now include actuator-disk pressure jump, mass flux, ideal
+momentum-power loading, and far-wake axial velocity vector references for offline CFD source-term comparison.
+These are lab reference columns for A4MC/OpenFOAM-style validation, not direct thrust, propwash, or controller
+feel tuning knobs.
+
 2026-07-07 world-kinematics update: `docs/data/propeller_archive_ct_cp_j_configuration_curve_packet.csv`
 now includes target-thrust and trim rows for body/world/environment kinematics. `playable/dev` may use accepted
 world/environment rows only as normalized curve-shape references for advance-ratio thrust rolloff, power rise,

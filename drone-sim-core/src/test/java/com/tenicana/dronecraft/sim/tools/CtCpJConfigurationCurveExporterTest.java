@@ -95,6 +95,18 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(hover, columns, "total_ideal_momentum_power_over_shaft_power"),
 				1.0e-14
 		);
+		assertEquals(rotorSample.dimensionalSample().diskAreaSquareMeters() * 4.0,
+				numberCell(hover, columns, "total_actuator_disk_area_m2"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_thrust_n")
+						/ numberCell(hover, columns, "total_actuator_disk_area_m2"),
+				numberCell(hover, columns, "mean_actuator_disk_pressure_jump_pa"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "total_disk_mass_flow_kg_s")
+						/ numberCell(hover, columns, "total_actuator_disk_area_m2"),
+				numberCell(hover, columns, "mean_actuator_disk_mass_flux_kg_s_m2"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "total_ideal_momentum_power_w")
+						/ numberCell(hover, columns, "total_actuator_disk_area_m2"),
+				numberCell(hover, columns,
+						"mean_actuator_disk_ideal_momentum_power_loading_w_m2"), 1.0e-12);
 		assertEquals(0.0, numberCell(hover, columns, "total_reaction_torque_body_y_nm"), 1.0e-15);
 		assertEquals(numberCell(hover, columns, "total_reaction_torque_body_x_nm"),
 				numberCell(hover, columns, "total_wake_angular_momentum_torque_body_x_nm"), 1.0e-15);
@@ -151,6 +163,18 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0.0,
 				numberCell(hover, columns,
 						"runtime_replacement_wake_angular_momentum_torque_residual_body_y_nm"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_actuator_disk_area_m2"),
+				numberCell(hover, columns, "runtime_replacement_actuator_disk_area_m2"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "mean_actuator_disk_pressure_jump_pa"),
+				numberCell(hover, columns,
+						"runtime_replacement_mean_actuator_disk_pressure_jump_pa"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "mean_actuator_disk_mass_flux_kg_s_m2"),
+				numberCell(hover, columns,
+						"runtime_replacement_mean_actuator_disk_mass_flux_kg_s_m2"), 1.0e-12);
+		assertEquals(numberCell(hover, columns,
+						"mean_actuator_disk_ideal_momentum_power_loading_w_m2"),
+				numberCell(hover, columns,
+						"runtime_replacement_mean_actuator_disk_ideal_momentum_power_loading_w_m2"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_disk_mass_flow_kg_s"),
 				numberCell(hover, columns, "runtime_replacement_disk_mass_flow_kg_s"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_ideal_induced_power_w"),
@@ -355,6 +379,10 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0.0, numberCell(forward, columns, "inflow_angle_deg"), 1.0e-15);
 		assertTrue(numberCell(forward, columns, "total_thrust_n")
 				< numberCell(hover, columns, "total_thrust_n"));
+		assertEquals(numberCell(hover, columns, "total_actuator_disk_area_m2"),
+				numberCell(forward, columns, "total_actuator_disk_area_m2"), 1.0e-15);
+		assertTrue(numberCell(forward, columns, "mean_actuator_disk_pressure_jump_pa")
+				< numberCell(hover, columns, "mean_actuator_disk_pressure_jump_pa"));
 		assertTrue(numberCell(forward, columns, "total_shaft_power_w")
 				> numberCell(hover, columns, "total_shaft_power_w"));
 		assertTrue(numberCell(forward, columns, "total_ideal_momentum_power_over_shaft_power") > 0.0);
@@ -543,6 +571,8 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("total_shaft_power_w"));
 		assertTrue(lines.get(0).contains("total_wake_angular_momentum_torque_nm"));
 		assertTrue(lines.get(0).contains("total_wake_angular_momentum_torque_body_y_nm"));
+		assertTrue(lines.get(0).contains("mean_actuator_disk_pressure_jump_pa"));
+		assertTrue(lines.get(0).contains("mean_actuator_disk_mass_flux_kg_s_m2"));
 		assertTrue(lines.get(0).contains("total_disk_mass_flow_kg_s"));
 		assertTrue(lines.get(0).contains("total_useful_axial_thrust_power_w"));
 		assertTrue(lines.get(0).contains("total_ideal_induced_power_w"));
@@ -557,6 +587,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_n"));
 		assertTrue(lines.get(0).contains("runtime_replacement_wake_angular_momentum_torque_nm"));
 		assertTrue(lines.get(0).contains("runtime_replacement_wake_angular_momentum_torque_body_y_nm"));
+		assertTrue(lines.get(0).contains("runtime_replacement_mean_actuator_disk_pressure_jump_pa"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_force_world_x_n"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_body_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("runtime_replacement_rotor_only_linear_accel_world_y_mps2"));
