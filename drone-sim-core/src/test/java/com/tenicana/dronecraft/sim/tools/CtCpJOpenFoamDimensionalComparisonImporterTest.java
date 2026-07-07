@@ -26,6 +26,7 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 				referenceSample("mid_domain_mid_rpm");
 		String csv = String.join("\n",
 				"preset,case,cfd_thrust_n,cfd_shaft_power_w,cfd_induced_velocity_mps,cfd_momentum_power_w"
+						+ ",cfd_far_wake_axial_velocity_mps"
 						+ ",cfd_wake_swirl_kinetic_power_w,cfd_total_wake_kinetic_power_w"
 						+ ",cfd_far_wake_contracted_area_m2,cfd_far_wake_equivalent_radius_m"
 						+ ",cfd_far_wake_contracted_area_over_disk_area"
@@ -37,6 +38,7 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 						reference.shaftPowerWatts(),
 						reference.idealInducedVelocityMetersPerSecond(),
 						reference.idealMomentumPowerWatts(),
+						reference.farWakeAxialVelocityMetersPerSecond(),
 						reference.wakeSwirlKineticPowerWatts(),
 						reference.totalWakeKineticPowerWatts(),
 						reference.farWakeContractedAreaSquareMeters(),
@@ -69,6 +71,12 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 		assertEquals(0.0, comparison.torqueResidualNewtonMeters(), 1.0e-17);
 		assertEquals(0.0, comparison.inducedVelocityResidualMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, comparison.momentumPowerResidualWatts(), 1.0e-15);
+		assertEquals(0.0, comparison.diskMassFlowResidualKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, comparison.diskMassFlowResidualFraction(), 1.0e-15);
+		assertEquals(0.0, comparison.farWakeAxialVelocityResidualMetersPerSecond(), 1.0e-15);
+		assertEquals(0.0, comparison.farWakeAxialVelocityResidualFraction(), 1.0e-15);
+		assertEquals(0.0, comparison.wakeTangentialVelocityResidualMetersPerSecond(), 1.0e-15);
+		assertEquals(0.0, comparison.wakeTangentialVelocityResidualFraction(), 1.0e-15);
 		assertEquals(0.0, comparison.wakeSwirlKineticPowerResidualWatts(), 1.0e-15);
 		assertEquals(0.0, comparison.wakeSwirlKineticPowerResidualFraction(), 1.0e-15);
 		assertEquals(0.0, comparison.totalWakeKineticPowerResidualWatts(), 1.0e-15);
@@ -94,6 +102,10 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 				Double.parseDouble(output.get("reference_far_wake_contracted_area_m2")), 1.0e-15);
 		assertEquals(reference.farWakeContractedAreaOverDiskArea(),
 				Double.parseDouble(output.get("cfd_far_wake_contracted_area_over_disk_area")), 1.0e-15);
+		assertEquals(reference.diskMassFlowKilogramsPerSecond(),
+				Double.parseDouble(output.get("cfd_disk_mass_flow_kg_s")), 1.0e-13);
+		assertEquals(reference.wakeTangentialVelocityMetersPerSecond(),
+				Double.parseDouble(output.get("cfd_wake_tangential_velocity_mps")), 1.0e-13);
 		assertEquals(reference.totalWakeKineticPowerWatts(),
 				Double.parseDouble(output.get("cfd_total_wake_kinetic_power_w")), 1.0e-13);
 		assertEquals(0.0, Double.parseDouble(output.get("total_wake_kinetic_power_over_shaft_power_residual")),
@@ -110,11 +122,14 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 		double powerScale = 0.98;
 		double torqueScale = 1.01;
 		double wakeSwirlScale = 1.03;
+		double farWakeAxialScale = 0.97;
+		double wakeTangentialScale = 1.06;
 		double farWakeAreaScale = 1.04;
 		double farWakeRadiusScale = 1.02;
 		String csv = String.join("\n",
 				"preset,case,cfd_thrust_n,cfd_shaft_power_w,cfd_shaft_torque_nm,cfd_induced_velocity_mps"
 						+ ",cfd_momentum_power_w,cfd_wake_swirl_kinetic_power_w"
+						+ ",cfd_far_wake_axial_velocity_mps,cfd_wake_tangential_velocity_mps"
 						+ ",cfd_far_wake_contracted_area_m2,cfd_far_wake_equivalent_radius_m",
 				row(
 						"apDrone",
@@ -125,6 +140,8 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 						reference.idealInducedVelocityMetersPerSecond(),
 						reference.idealMomentumPowerWatts(),
 						reference.wakeSwirlKineticPowerWatts() * wakeSwirlScale,
+						reference.farWakeAxialVelocityMetersPerSecond() * farWakeAxialScale,
+						reference.wakeTangentialVelocityMetersPerSecond() * wakeTangentialScale,
 						reference.farWakeContractedAreaSquareMeters() * farWakeAreaScale,
 						reference.farWakeEquivalentRadiusMeters() * farWakeRadiusScale
 				));
@@ -150,6 +167,19 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 		assertEquals(torqueScale - 1.0, comparison.torqueResidualFraction(), 1.0e-15);
 		assertTrue(comparison.cfdPowerTorqueResidualNewtonMeters() > 0.0);
 		assertEquals(0.0, comparison.inducedVelocityResidualMetersPerSecond(), 1.0e-15);
+		assertEquals(reference.diskMassFlowKilogramsPerSecond()
+						* (farWakeAreaScale * farWakeAxialScale - 1.0),
+				comparison.diskMassFlowResidualKilogramsPerSecond(), 1.0e-15);
+		assertEquals(farWakeAreaScale * farWakeAxialScale - 1.0,
+				comparison.diskMassFlowResidualFraction(), 1.0e-15);
+		assertEquals(reference.farWakeAxialVelocityMetersPerSecond() * (farWakeAxialScale - 1.0),
+				comparison.farWakeAxialVelocityResidualMetersPerSecond(), 1.0e-15);
+		assertEquals(farWakeAxialScale - 1.0,
+				comparison.farWakeAxialVelocityResidualFraction(), 1.0e-15);
+		assertEquals(reference.wakeTangentialVelocityMetersPerSecond() * (wakeTangentialScale - 1.0),
+				comparison.wakeTangentialVelocityResidualMetersPerSecond(), 1.0e-15);
+		assertEquals(wakeTangentialScale - 1.0,
+				comparison.wakeTangentialVelocityResidualFraction(), 1.0e-15);
 		assertEquals(reference.wakeSwirlKineticPowerWatts() * (wakeSwirlScale - 1.0),
 				comparison.wakeSwirlKineticPowerResidualWatts(), 1.0e-15);
 		assertEquals(wakeSwirlScale - 1.0, comparison.wakeSwirlKineticPowerResidualFraction(),
