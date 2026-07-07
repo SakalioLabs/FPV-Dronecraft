@@ -43,6 +43,22 @@ tasks.register("ctCpJConfigurationCurve", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskSourceTerms", JavaExec) {
+	group = "simulation"
+	description = "Exports per-rotor CT/CP/J actuator-disk source-term samples as CSV."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskSourceTermExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-source-terms/${presetName}.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, sourceThickness, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJOpenFoamCompare", JavaExec) {
 	group = "simulation"
 	description = "Imports compact OpenFOAM CT/CP/J dimensional result rows and exports SI residual comparisons."
