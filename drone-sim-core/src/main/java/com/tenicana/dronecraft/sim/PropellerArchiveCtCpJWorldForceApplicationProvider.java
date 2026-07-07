@@ -73,9 +73,11 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 						envelopePolicy,
 						ambientTemperatureCelsius,
 						ambientHumidity
-				);
+		);
 		return new WorldForceApplicationSample(
 				aggregate,
+				momentReference,
+				orientation,
 				aggregate.rotorWorldForceApplications(momentReference, orientation),
 				aggregate.runtimeForceReplacementRotorWorldForceApplications(momentReference, orientation)
 		);
@@ -83,6 +85,8 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 
 	public record WorldForceApplicationSample(
 			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate,
+			Vec3 momentReferenceWorldMeters,
+			Quaternion bodyToWorldOrientation,
 			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> rotorApplications,
 			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> runtimeReplacementRotorApplications
 	) {
@@ -90,6 +94,8 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			if (aggregate == null) {
 				throw new IllegalArgumentException("aggregate must not be null.");
 			}
+			momentReferenceWorldMeters = finiteVecOrZero(momentReferenceWorldMeters);
+			bodyToWorldOrientation = finiteQuaternionOrIdentity(bodyToWorldOrientation).normalized();
 			rotorApplications = List.copyOf(rotorApplications == null ? List.of() : rotorApplications);
 			runtimeReplacementRotorApplications = List.copyOf(runtimeReplacementRotorApplications == null
 					? List.of()
@@ -157,6 +163,82 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		public Vec3 runtimeReplacementTotalTorqueWorldNewtonMeters() {
 			return sumTotalTorque(runtimeReplacementRotorApplications);
 		}
+
+		public RigidBodyWrenchSample rotorRigidBodyWrench(
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond
+		) {
+			return rigidBodyWrench(
+					config,
+					totalThrustForceWorldNewtons(),
+					totalTorqueWorldNewtonMeters(),
+					angularVelocityBodyRadiansPerSecond,
+					false
+			);
+		}
+
+		public RigidBodyWrenchSample runtimeReplacementRigidBodyWrench(
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond
+		) {
+			return rigidBodyWrench(
+					config,
+					runtimeReplacementTotalThrustForceWorldNewtons(),
+					runtimeReplacementTotalTorqueWorldNewtonMeters(),
+					angularVelocityBodyRadiansPerSecond,
+					true
+			);
+		}
+
+		private RigidBodyWrenchSample rigidBodyWrench(
+				DroneConfig config,
+				Vec3 totalForceWorldNewtons,
+				Vec3 totalTorqueWorldNewtonMeters,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				boolean runtimeReplacement
+		) {
+			if (config == null) {
+				throw new IllegalArgumentException("config must not be null.");
+			}
+			Vec3 forceWorld = finiteVecOrZero(totalForceWorldNewtons);
+			Vec3 torqueWorld = finiteVecOrZero(totalTorqueWorldNewtonMeters);
+			Vec3 torqueBody = rotateWorldVectorToBody(torqueWorld, bodyToWorldOrientation);
+			Vec3 angularVelocityBody = finiteVecOrZero(angularVelocityBodyRadiansPerSecond);
+			Vec3 inertia = config.inertiaKgMetersSquared();
+			Vec3 gyroscopicTorqueBody = angularVelocityBody.cross(inertia.multiply(angularVelocityBody));
+			Vec3 angularAccelerationBody = torqueBody.subtract(gyroscopicTorqueBody).divide(inertia);
+			Vec3 linearAccelerationWorld = forceWorld.multiply(1.0 / config.massKg());
+			return new RigidBodyWrenchSample(
+					forceWorld,
+					torqueWorld,
+					torqueBody,
+					linearAccelerationWorld,
+					angularAccelerationBody,
+					gyroscopicTorqueBody,
+					runtimeReplacement
+			);
+		}
+	}
+
+	public record RigidBodyWrenchSample(
+			Vec3 totalForceWorldNewtons,
+			Vec3 totalTorqueWorldNewtonMeters,
+			Vec3 totalTorqueBodyNewtonMeters,
+			Vec3 linearAccelerationWorldMetersPerSecondSquared,
+			Vec3 angularAccelerationBodyRadiansPerSecondSquared,
+			Vec3 gyroscopicTorqueBodyNewtonMeters,
+			boolean runtimeReplacement
+	) {
+		public RigidBodyWrenchSample {
+			totalForceWorldNewtons = finiteVecOrZero(totalForceWorldNewtons);
+			totalTorqueWorldNewtonMeters = finiteVecOrZero(totalTorqueWorldNewtonMeters);
+			totalTorqueBodyNewtonMeters = finiteVecOrZero(totalTorqueBodyNewtonMeters);
+			linearAccelerationWorldMetersPerSecondSquared =
+					finiteVecOrZero(linearAccelerationWorldMetersPerSecondSquared);
+			angularAccelerationBodyRadiansPerSecondSquared =
+					finiteVecOrZero(angularAccelerationBodyRadiansPerSecondSquared);
+			gyroscopicTorqueBodyNewtonMeters = finiteVecOrZero(gyroscopicTorqueBodyNewtonMeters);
+		}
 	}
 
 	private static Vec3 sumThrustForce(
@@ -215,5 +297,12 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return Quaternion.IDENTITY;
 		}
 		return value;
+	}
+
+	private static Vec3 rotateWorldVectorToBody(Vec3 worldVector, Quaternion bodyToWorldOrientation) {
+		return finiteQuaternionOrIdentity(bodyToWorldOrientation)
+				.normalized()
+				.conjugate()
+				.rotate(finiteVecOrZero(worldVector));
 	}
 }
