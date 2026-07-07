@@ -124,6 +124,22 @@ tasks.register("ctCpJActuatorDiskWakePlaneProbes", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskOpenFoamSampleDict", JavaExec) {
+	group = "simulation"
+	description = "Exports OpenFOAM sampleDict cloud probe points for CT/CP/J actuator-disk wake sampling."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskOpenFoamSampleDictExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-wake-probes/${presetName}-openfoam-sampleDict").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, sourceThickness, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJActuatorDiskWakeProbeCompare", JavaExec) {
 	group = "simulation"
 	description = "Imports actuator-disk wake probe rows and exports CT/CP/J probe velocity residual comparisons."
