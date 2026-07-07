@@ -26,6 +26,15 @@ public final class CtCpJConfigurationCurveExporter {
 			"target_thrust_residual_n",
 			"target_thrust_solve_status",
 			"target_thrust_solve_iterations",
+			"trim_solve_status",
+			"trim_target_body_torque_x_nm",
+			"trim_target_body_torque_y_nm",
+			"trim_target_body_torque_z_nm",
+			"trim_body_torque_residual_x_nm",
+			"trim_body_torque_residual_y_nm",
+			"trim_body_torque_residual_z_nm",
+			"trim_min_allocated_rotor_thrust_n",
+			"trim_max_allocated_rotor_thrust_n",
 			"effective_j_min",
 			"effective_j_max",
 			"effective_rpm_min",
@@ -105,6 +114,8 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double BODY_RATE_DIAGNOSTIC_ROLL_RATE_RADIANS_PER_SECOND = 5.0;
 	private static final double TARGET_THRUST_FORWARD_ADVANCE_RATIO_J = 0.4064;
 	private static final double TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND = 22.0;
+	private static final Vec3 TRIM_DIAGNOSTIC_BODY_TORQUE_NEWTON_METERS =
+			new Vec3(0.045, 0.012, -0.035);
 
 	private CtCpJConfigurationCurveExporter() {
 	}
@@ -211,6 +222,16 @@ public final class CtCpJConfigurationCurveExporter {
 			lines.add(csvLine(point));
 		}
 		for (ConfigurationDiagnosticPoint point : targetThrustCurvePoints(
+				presetName,
+				config,
+				rotor,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		)) {
+			lines.add(csvLine(point));
+		}
+		for (ConfigurationDiagnosticPoint point : trimCurvePoints(
 				presetName,
 				config,
 				rotor,
@@ -442,6 +463,55 @@ public final class CtCpJConfigurationCurveExporter {
 		return List.copyOf(points);
 	}
 
+	private static List<ConfigurationDiagnosticPoint> trimCurvePoints(
+			String presetName,
+			DroneConfig config,
+			RotorSpec rotor,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		double hoverOmega = hoverRpm(config, rotor) / RPM_PER_RADIAN_PER_SECOND;
+		double weightThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double maxOmega = rotor.maxOmegaRadiansPerSecond();
+		List<ConfigurationDiagnosticPoint> points = new ArrayList<>();
+		points.add(trimSolutionPoint(
+				0.0,
+				Vec3.ZERO,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrim(
+						presetName,
+						"static_anchored_configuration_trim_body_torque",
+						config,
+						0.0,
+						weightThrust,
+						TRIM_DIAGNOSTIC_BODY_TORQUE_NEWTON_METERS,
+						hoverOmega * 0.50,
+						hoverOmega * 1.60,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		points.add(trimSolutionPoint(
+				0.0,
+				Vec3.ZERO,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrim(
+						presetName,
+						"static_anchored_configuration_trim_upper_below_target",
+						config,
+						0.0,
+						config.totalMaxThrustNewtons() * 1.20,
+						Vec3.ZERO,
+						2_500.0 / RPM_PER_RADIAN_PER_SECOND,
+						maxOmega * 0.55,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		return List.copyOf(points);
+	}
+
 	private static ConfigurationDiagnosticPoint sampleUniformSignedAxialSpeed(
 			String presetName,
 			String caseName,
@@ -484,6 +554,15 @@ public final class CtCpJConfigurationCurveExporter {
 				number(point.targetThrustResidualNewtons()),
 				escape(point.targetThrustSolveStatus()),
 				Integer.toString(point.targetThrustSolveIterations()),
+				escape(point.trimSolveStatus()),
+				number(point.trimTargetBodyTorqueNewtonMeters().x()),
+				number(point.trimTargetBodyTorqueNewtonMeters().y()),
+				number(point.trimTargetBodyTorqueNewtonMeters().z()),
+				number(point.trimBodyTorqueResidualNewtonMeters().x()),
+				number(point.trimBodyTorqueResidualNewtonMeters().y()),
+				number(point.trimBodyTorqueResidualNewtonMeters().z()),
+				number(point.trimMinAllocatedRotorThrustNewtons()),
+				number(point.trimMaxAllocatedRotorThrustNewtons()),
 				number(minEffectiveAdvanceRatioJ(aggregate)),
 				number(maxEffectiveAdvanceRatioJ(aggregate)),
 				number(minEffectiveRpm(aggregate)),
@@ -782,7 +861,12 @@ public final class CtCpJConfigurationCurveExporter {
 				aggregate.totalThrustNewtons(),
 				0.0,
 				"DIRECT_SAMPLE",
-				0
+				0,
+				"DIRECT_SAMPLE",
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.0,
+				0.0
 		);
 	}
 
@@ -799,7 +883,34 @@ public final class CtCpJConfigurationCurveExporter {
 				solution.targetThrustNewtons(),
 				solution.thrustResidualNewtons(),
 				solution.status().name(),
-				solution.iterations()
+				solution.iterations(),
+				"TARGET_THRUST_ONLY",
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.0,
+				0.0
+		);
+	}
+
+	private static ConfigurationDiagnosticPoint trimSolutionPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution solution
+	) {
+		return new ConfigurationDiagnosticPoint(
+				querySignedAxialSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
+				Vec3.ZERO,
+				solution.solutionSample(),
+				solution.targetThrustNewtons(),
+				solution.thrustResidualNewtons(),
+				"TRIM_SOLVE",
+				0,
+				solution.status().name(),
+				solution.targetBodyTorqueNewtonMeters(),
+				solution.bodyTorqueResidualNewtonMeters(),
+				solution.minAllocatedRotorThrustNewtons(),
+				solution.maxAllocatedRotorThrustNewtons()
 		);
 	}
 
@@ -835,7 +946,26 @@ public final class CtCpJConfigurationCurveExporter {
 			double targetThrustNewtons,
 			double targetThrustResidualNewtons,
 			String targetThrustSolveStatus,
-			int targetThrustSolveIterations
+			int targetThrustSolveIterations,
+			String trimSolveStatus,
+			Vec3 trimTargetBodyTorqueNewtonMeters,
+			Vec3 trimBodyTorqueResidualNewtonMeters,
+			double trimMinAllocatedRotorThrustNewtons,
+			double trimMaxAllocatedRotorThrustNewtons
 	) {
+		private ConfigurationDiagnosticPoint {
+			relativeAirVelocityBodyMetersPerSecond = relativeAirVelocityBodyMetersPerSecond == null
+					? Vec3.ZERO
+					: relativeAirVelocityBodyMetersPerSecond;
+			angularVelocityBodyRadiansPerSecond = angularVelocityBodyRadiansPerSecond == null
+					? Vec3.ZERO
+					: angularVelocityBodyRadiansPerSecond;
+			trimTargetBodyTorqueNewtonMeters = trimTargetBodyTorqueNewtonMeters == null
+					? Vec3.ZERO
+					: trimTargetBodyTorqueNewtonMeters;
+			trimBodyTorqueResidualNewtonMeters = trimBodyTorqueResidualNewtonMeters == null
+					? Vec3.ZERO
+					: trimBodyTorqueResidualNewtonMeters;
+		}
 	}
 }

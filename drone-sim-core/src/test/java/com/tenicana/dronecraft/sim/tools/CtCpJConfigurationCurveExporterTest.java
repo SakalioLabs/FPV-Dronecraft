@@ -45,7 +45,7 @@ class CtCpJConfigurationCurveExporterTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 
-		assertEquals(30, lines.size());
+		assertEquals(32, lines.size());
 		assertTrue(lines.get(0).startsWith(
 				"preset,case,query_j,query_rpm,target_thrust_n,target_thrust_residual_n"));
 		assertEquals(4, integerCell(hover, columns, "rotor_count"));
@@ -56,6 +56,8 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals("ACCEPTED", textCell(hover, columns, "runtime_eligibility_status"));
 		assertEquals("DIRECT_SAMPLE", textCell(hover, columns, "target_thrust_solve_status"));
 		assertEquals(0, integerCell(hover, columns, "target_thrust_solve_iterations"));
+		assertEquals("DIRECT_SAMPLE", textCell(hover, columns, "trim_solve_status"));
+		assertEquals(0.0, numberCell(hover, columns, "trim_target_body_torque_x_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "query_signed_axial_speed_mps"), 1.0e-15);
 		assertEquals(rotorSample.thrustNewtons() * 4.0,
 				numberCell(hover, columns, "total_thrust_n"), 1.0e-12);
@@ -97,6 +99,45 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(hover, columns, "runtime_replacement_disk_mass_flow_kg_s"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_ideal_induced_power_w"),
 				numberCell(hover, columns, "runtime_replacement_ideal_induced_power_w"), 1.0e-12);
+	}
+
+	@Test
+	void trimRowsExposeBodyTorqueSolutionAndBlockedRotorSolve() {
+		List<String> lines = CtCpJConfigurationCurveExporter.csvLines("apDrone", RHO);
+		Map<String, Integer> columns = columns(lines);
+		String trim = lineForCase(lines, columns, "static_anchored_configuration_trim_body_torque");
+		String blocked = lineForCase(lines, columns, "static_anchored_configuration_trim_upper_below_target");
+
+		assertEquals("TRIM_SOLVE", textCell(trim, columns, "target_thrust_solve_status"));
+		assertEquals("SOLVED", textCell(trim, columns, "trim_solve_status"));
+		assertEquals("ACCEPTED", textCell(trim, columns, "runtime_eligibility_status"));
+		assertEquals(4, integerCell(trim, columns, "accepted_rotor_count"));
+		assertEquals(4, integerCell(trim, columns, "runtime_force_replacement_accepted_rotor_count"));
+		assertEquals(numberCell(trim, columns, "target_thrust_n"),
+				numberCell(trim, columns, "total_thrust_n"), 1.0e-5);
+		assertEquals(numberCell(trim, columns, "trim_target_body_torque_x_nm"),
+				numberCell(trim, columns, "total_body_torque_x_nm"), 3.0e-5);
+		assertEquals(numberCell(trim, columns, "trim_target_body_torque_y_nm"),
+				numberCell(trim, columns, "total_body_torque_y_nm"), 3.0e-5);
+		assertEquals(numberCell(trim, columns, "trim_target_body_torque_z_nm"),
+				numberCell(trim, columns, "total_body_torque_z_nm"), 3.0e-5);
+		assertEquals(0.0, numberCell(trim, columns, "trim_body_torque_residual_x_nm"), 3.0e-5);
+		assertEquals(0.0, numberCell(trim, columns, "trim_body_torque_residual_y_nm"), 3.0e-5);
+		assertEquals(0.0, numberCell(trim, columns, "trim_body_torque_residual_z_nm"), 3.0e-5);
+		assertTrue(numberCell(trim, columns, "trim_max_allocated_rotor_thrust_n")
+				> numberCell(trim, columns, "trim_min_allocated_rotor_thrust_n"));
+		assertTrue(numberCell(trim, columns, "effective_rpm_max")
+				> numberCell(trim, columns, "effective_rpm_min"));
+
+		assertEquals("TRIM_SOLVE", textCell(blocked, columns, "target_thrust_solve_status"));
+		assertEquals("ROTOR_SOLVE_BLOCKED", textCell(blocked, columns, "trim_solve_status"));
+		assertEquals(4, integerCell(blocked, columns, "accepted_rotor_count"));
+		assertEquals(4, integerCell(blocked, columns, "runtime_force_replacement_accepted_rotor_count"));
+		assertEquals(0, integerCell(blocked, columns, "blocked_rotor_count"));
+		assertTrue(numberCell(blocked, columns, "target_thrust_n")
+				> numberCell(blocked, columns, "total_thrust_n"));
+		assertTrue(numberCell(blocked, columns, "target_thrust_residual_n") < 0.0);
+		assertEquals(0.0, numberCell(blocked, columns, "trim_target_body_torque_x_nm"), 1.0e-15);
 	}
 
 	@Test
@@ -253,10 +294,12 @@ class CtCpJConfigurationCurveExporterTest {
 		CtCpJConfigurationCurveExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(30, lines.size());
+		assertEquals(32, lines.size());
 		assertTrue(lines.get(0).contains("total_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_solve_status"));
+		assertTrue(lines.get(0).contains("trim_solve_status"));
+		assertTrue(lines.get(0).contains("trim_target_body_torque_x_nm"));
 		assertTrue(lines.get(0).contains("total_shaft_power_w"));
 		assertTrue(lines.get(0).contains("total_disk_mass_flow_kg_s"));
 		assertTrue(lines.get(0).contains("total_useful_axial_thrust_power_w"));
@@ -292,6 +335,12 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_target_high_j_block,")
 						&& line.contains(",UPPER_BOUND_BLOCKED,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_configuration_trim_body_torque,")
+						&& line.contains(",TRIM_SOLVE,0,SOLVED,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_configuration_trim_upper_below_target,")
+						&& line.contains(",TRIM_SOLVE,0,ROTOR_SOLVE_BLOCKED,")));
 	}
 
 	private static Map<String, Integer> columns(List<String> lines) {

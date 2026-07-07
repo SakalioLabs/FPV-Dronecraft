@@ -1083,7 +1083,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		for (int i = 0; i < config.rotors().size(); i++) {
 			RotorTargetThrustSolution rotorSolution = solveStaticAnchoredRpmForTargetThrust(
 					presetName,
-					normalizedCase + "_rotor_" + i,
+					normalizedCase,
 					config.rotors().get(i),
 					signedAxialAdvanceSpeedMetersPerSecond,
 					Math.max(0.0, allocatedThrusts[i]),
