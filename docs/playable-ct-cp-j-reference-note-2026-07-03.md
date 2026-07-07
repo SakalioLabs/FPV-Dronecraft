@@ -30,3 +30,8 @@ world/environment rows only as normalized curve-shape references for advance-rat
 and local J/RPM spread. It must not consume the world per-rotor-wind trim yaw residual as a hand-feel tuning
 constant; that residual is sim/lab evidence that thrust-moment allocation and reaction-torque balance are distinct
 effects and need separate runtime validation before simplification.
+
+2026-07-07 world-frame projection update: the same configuration packet now carries body-to-world quaternions and
+world-frame aggregate force/torque columns, including a non-identity yaw diagnostic row. These columns are coordinate
+verification material for sim/lab force integration; `playable/dev` should not use them as camera, control, or feel
+tuning constants without a separate reviewed runtime simplification.

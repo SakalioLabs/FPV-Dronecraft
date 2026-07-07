@@ -67,6 +67,22 @@ public final class CtCpJConfigurationCurveExporter {
 			"total_body_torque_x_nm",
 			"total_body_torque_y_nm",
 			"total_body_torque_z_nm",
+			"body_to_world_qw",
+			"body_to_world_qx",
+			"body_to_world_qy",
+			"body_to_world_qz",
+			"total_thrust_force_world_x_n",
+			"total_thrust_force_world_y_n",
+			"total_thrust_force_world_z_n",
+			"total_reaction_torque_world_x_nm",
+			"total_reaction_torque_world_y_nm",
+			"total_reaction_torque_world_z_nm",
+			"total_thrust_moment_world_x_nm",
+			"total_thrust_moment_world_y_nm",
+			"total_thrust_moment_world_z_nm",
+			"total_body_torque_world_x_nm",
+			"total_body_torque_world_y_nm",
+			"total_body_torque_world_z_nm",
 			"total_thrust_n",
 			"total_shaft_power_w",
 			"total_shaft_torque_nm",
@@ -91,6 +107,12 @@ public final class CtCpJConfigurationCurveExporter {
 			"runtime_replacement_total_body_torque_x_nm",
 			"runtime_replacement_total_body_torque_y_nm",
 			"runtime_replacement_total_body_torque_z_nm",
+			"runtime_replacement_total_thrust_force_world_x_n",
+			"runtime_replacement_total_thrust_force_world_y_n",
+			"runtime_replacement_total_thrust_force_world_z_n",
+			"runtime_replacement_total_body_torque_world_x_nm",
+			"runtime_replacement_total_body_torque_world_y_nm",
+			"runtime_replacement_total_body_torque_world_z_nm",
 			"runtime_replacement_total_thrust_n",
 			"runtime_replacement_total_shaft_power_w",
 			"runtime_replacement_total_shaft_torque_nm",
@@ -114,6 +136,7 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double TRANSVERSE_INFLOW_DIAGNOSTIC_SPEED_METERS_PER_SECOND = 2.5;
 	private static final double BODY_RATE_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
 	private static final double BODY_RATE_DIAGNOSTIC_ROLL_RATE_RADIANS_PER_SECOND = 5.0;
+	private static final double WORLD_PROJECTION_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
 	private static final double TARGET_THRUST_FORWARD_ADVANCE_RATIO_J = 0.4064;
 	private static final double TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND = 22.0;
 	private static final Vec3 TRIM_DIAGNOSTIC_BODY_TORQUE_NEWTON_METERS =
@@ -369,7 +392,47 @@ public final class CtCpJConfigurationCurveExporter {
 				);
 		ConfigurationDiagnosticPoint bodyRateDiagnostic =
 				directPoint(bodyRateAxialSpeed, bodyRateRelativeAirVelocity, bodyRate, bodyRateAggregate);
-		return List.of(reverseClamp, highAdvanceBlocked, transverseDiagnostic, bodyRateDiagnostic);
+		double worldProjectionAxialSpeed = WORLD_PROJECTION_DIAGNOSTIC_ADVANCE_RATIO_J
+				* hoverRpm
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0;
+		Vec3 worldProjectionRelativeAirVelocity =
+				rotorAxisBody(rotor).multiply(worldProjectionAxialSpeed);
+		Quaternion worldProjectionOrientation =
+				new Quaternion(Math.cos(Math.PI / 4.0), 0.0, 0.0, Math.sin(Math.PI / 4.0));
+		Vec3 worldProjectionVehicleVelocity =
+				worldProjectionOrientation.rotate(worldProjectionRelativeAirVelocity);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample worldProjectionAggregate =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromWorldKinematics(
+						presetName,
+						"static_anchored_configuration_world_projection_diagnostic",
+						config,
+						worldProjectionOrientation,
+						worldProjectionVehicleVelocity,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						null,
+						omegas,
+						airDensityKgPerCubicMeter,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				);
+		ConfigurationDiagnosticPoint worldProjectionDiagnostic = directPoint(
+				worldProjectionAxialSpeed,
+				worldProjectionRelativeAirVelocity,
+				Vec3.ZERO,
+				worldProjectionOrientation,
+				worldProjectionAggregate
+		);
+		return List.of(
+				reverseClamp,
+				highAdvanceBlocked,
+				transverseDiagnostic,
+				bodyRateDiagnostic,
+				worldProjectionDiagnostic
+		);
 	}
 
 	private static List<ConfigurationDiagnosticPoint> targetThrustCurvePoints(
@@ -705,6 +768,15 @@ public final class CtCpJConfigurationCurveExporter {
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate = point.aggregate();
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample first = firstSample(aggregate);
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = first.lookup();
+		Quaternion bodyToWorld = point.bodyToWorldOrientation();
+		Vec3 totalThrustForceWorld = aggregate.totalThrustForceWorldNewtons(bodyToWorld);
+		Vec3 totalReactionTorqueWorld = aggregate.totalReactionTorqueWorldNewtonMeters(bodyToWorld);
+		Vec3 totalThrustMomentWorld = aggregate.totalThrustMomentWorldNewtonMeters(bodyToWorld);
+		Vec3 totalBodyTorqueWorld = aggregate.totalBodyTorqueWorldNewtonMeters(bodyToWorld);
+		Vec3 runtimeReplacementTotalThrustForceWorld =
+				aggregate.runtimeForceReplacementThrustForceWorldNewtons(bodyToWorld);
+		Vec3 runtimeReplacementTotalBodyTorqueWorld =
+				aggregate.runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(bodyToWorld);
 		return String.join(",",
 				escape(lookup.presetName()),
 				escape(lookup.caseName()),
@@ -753,6 +825,22 @@ public final class CtCpJConfigurationCurveExporter {
 				number(aggregate.totalBodyTorqueNewtonMeters().x()),
 				number(aggregate.totalBodyTorqueNewtonMeters().y()),
 				number(aggregate.totalBodyTorqueNewtonMeters().z()),
+				number(bodyToWorld.w()),
+				number(bodyToWorld.x()),
+				number(bodyToWorld.y()),
+				number(bodyToWorld.z()),
+				number(totalThrustForceWorld.x()),
+				number(totalThrustForceWorld.y()),
+				number(totalThrustForceWorld.z()),
+				number(totalReactionTorqueWorld.x()),
+				number(totalReactionTorqueWorld.y()),
+				number(totalReactionTorqueWorld.z()),
+				number(totalThrustMomentWorld.x()),
+				number(totalThrustMomentWorld.y()),
+				number(totalThrustMomentWorld.z()),
+				number(totalBodyTorqueWorld.x()),
+				number(totalBodyTorqueWorld.y()),
+				number(totalBodyTorqueWorld.z()),
 				number(aggregate.totalThrustNewtons()),
 				number(aggregate.totalShaftPowerWatts()),
 				number(aggregate.totalShaftTorqueNewtonMeters()),
@@ -777,6 +865,12 @@ public final class CtCpJConfigurationCurveExporter {
 				number(aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters().x()),
 				number(aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters().y()),
 				number(aggregate.runtimeForceReplacementTotalBodyTorqueNewtonMeters().z()),
+				number(runtimeReplacementTotalThrustForceWorld.x()),
+				number(runtimeReplacementTotalThrustForceWorld.y()),
+				number(runtimeReplacementTotalThrustForceWorld.z()),
+				number(runtimeReplacementTotalBodyTorqueWorld.x()),
+				number(runtimeReplacementTotalBodyTorqueWorld.y()),
+				number(runtimeReplacementTotalBodyTorqueWorld.z()),
 				number(aggregate.runtimeForceReplacementThrustNewtons()),
 				number(aggregate.runtimeForceReplacementShaftPowerWatts()),
 				number(aggregate.runtimeForceReplacementShaftTorqueNewtonMeters()),
@@ -1013,10 +1107,27 @@ public final class CtCpJConfigurationCurveExporter {
 			Vec3 angularVelocityBodyRadiansPerSecond,
 			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
 	) {
+		return directPoint(
+				querySignedAxialSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				Quaternion.IDENTITY,
+				aggregate
+		);
+	}
+
+	private static ConfigurationDiagnosticPoint directPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			Quaternion bodyToWorldOrientation,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
+	) {
 		return new ConfigurationDiagnosticPoint(
 				querySignedAxialSpeedMetersPerSecond,
 				relativeAirVelocityBodyMetersPerSecond,
 				angularVelocityBodyRadiansPerSecond,
+				bodyToWorldOrientation,
 				aggregate,
 				aggregate.totalThrustNewtons(),
 				0.0,
@@ -1053,6 +1164,7 @@ public final class CtCpJConfigurationCurveExporter {
 				querySignedAxialSpeedMetersPerSecond,
 				relativeAirVelocityBodyMetersPerSecond,
 				angularVelocityBodyRadiansPerSecond,
+				Quaternion.IDENTITY,
 				solution.solutionSample(),
 				solution.targetThrustNewtons(),
 				solution.thrustResidualNewtons(),
@@ -1089,6 +1201,7 @@ public final class CtCpJConfigurationCurveExporter {
 				querySignedAxialSpeedMetersPerSecond,
 				relativeAirVelocityBodyMetersPerSecond,
 				angularVelocityBodyRadiansPerSecond,
+				Quaternion.IDENTITY,
 				solution.solutionSample(),
 				solution.targetThrustNewtons(),
 				solution.thrustResidualNewtons(),
@@ -1130,6 +1243,7 @@ public final class CtCpJConfigurationCurveExporter {
 			double querySignedAxialSpeedMetersPerSecond,
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
 			Vec3 angularVelocityBodyRadiansPerSecond,
+			Quaternion bodyToWorldOrientation,
 			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate,
 			double targetThrustNewtons,
 			double targetThrustResidualNewtons,
@@ -1148,6 +1262,9 @@ public final class CtCpJConfigurationCurveExporter {
 			angularVelocityBodyRadiansPerSecond = angularVelocityBodyRadiansPerSecond == null
 					? Vec3.ZERO
 					: angularVelocityBodyRadiansPerSecond;
+			bodyToWorldOrientation = bodyToWorldOrientation == null
+					? Quaternion.IDENTITY
+					: bodyToWorldOrientation.normalized();
 			trimTargetBodyTorqueNewtonMeters = trimTargetBodyTorqueNewtonMeters == null
 					? Vec3.ZERO
 					: trimTargetBodyTorqueNewtonMeters;

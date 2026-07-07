@@ -45,7 +45,7 @@ class CtCpJConfigurationCurveExporterTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 
-		assertEquals(38, lines.size());
+		assertEquals(39, lines.size());
 		assertTrue(lines.get(0).startsWith(
 				"preset,case,query_j,query_rpm,target_thrust_n,target_thrust_residual_n"));
 		assertEquals(4, integerCell(hover, columns, "rotor_count"));
@@ -91,6 +91,14 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0.0, numberCell(hover, columns, "total_body_torque_x_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "total_body_torque_y_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "total_body_torque_z_nm"), 1.0e-15);
+		assertEquals(1.0, numberCell(hover, columns, "body_to_world_qw"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "body_to_world_qx"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "body_to_world_qy"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "body_to_world_qz"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_thrust_force_body_y_n"),
+				numberCell(hover, columns, "total_thrust_force_world_y_n"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "total_body_torque_y_nm"),
+				numberCell(hover, columns, "total_body_torque_world_y_nm"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_thrust_n"),
 				numberCell(hover, columns, "runtime_replacement_total_thrust_n"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_shaft_power_w"),
@@ -326,6 +334,8 @@ class CtCpJConfigurationCurveExporterTest {
 		String highBlock = lineForCase(lines, columns, "static_anchored_configuration_high_j_block");
 		String transverse = lineForCase(lines, columns, "static_anchored_configuration_transverse_inflow_diagnostic");
 		String bodyRate = lineForCase(lines, columns, "static_anchored_configuration_body_rate_roll_diagnostic");
+		String worldProjection =
+				lineForCase(lines, columns, "static_anchored_configuration_world_projection_diagnostic");
 
 		assertEquals(4, integerCell(reverseClamp, columns, "accepted_rotor_count"));
 		assertEquals(4, integerCell(reverseClamp, columns, "clamped_rotor_count"));
@@ -375,6 +385,29 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(bodyRate, columns, "total_ideal_momentum_power_w"),
 				1.0e-12
 		);
+
+		assertEquals(4, integerCell(worldProjection, columns, "accepted_rotor_count"));
+		assertEquals(4, integerCell(worldProjection, columns, "runtime_force_replacement_accepted_rotor_count"));
+		assertEquals("ACCEPTED", textCell(worldProjection, columns, "runtime_eligibility_status"));
+		assertEquals(Math.sqrt(0.5), numberCell(worldProjection, columns, "body_to_world_qw"), 1.0e-15);
+		assertEquals(0.0, numberCell(worldProjection, columns, "body_to_world_qx"), 1.0e-15);
+		assertEquals(0.0, numberCell(worldProjection, columns, "body_to_world_qy"), 1.0e-15);
+		assertEquals(Math.sqrt(0.5), numberCell(worldProjection, columns, "body_to_world_qz"), 1.0e-15);
+		assertTrue(numberCell(worldProjection, columns, "total_thrust_force_body_y_n") > 0.0);
+		assertEquals(-numberCell(worldProjection, columns, "total_thrust_force_body_y_n"),
+				numberCell(worldProjection, columns, "total_thrust_force_world_x_n"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_body_x_n"),
+				numberCell(worldProjection, columns, "total_thrust_force_world_y_n"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_body_z_n"),
+				numberCell(worldProjection, columns, "total_thrust_force_world_z_n"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "total_thrust_force_world_x_n"),
+				numberCell(worldProjection, columns, "runtime_replacement_total_thrust_force_world_x_n"),
+				1.0e-12);
+		assertEquals(-numberCell(worldProjection, columns, "total_body_torque_y_nm"),
+				numberCell(worldProjection, columns, "total_body_torque_world_x_nm"), 1.0e-12);
+		assertEquals(numberCell(worldProjection, columns, "total_body_torque_world_y_nm"),
+				numberCell(worldProjection, columns, "runtime_replacement_total_body_torque_world_y_nm"),
+				1.0e-12);
 	}
 
 	@Test
@@ -383,7 +416,7 @@ class CtCpJConfigurationCurveExporterTest {
 		CtCpJConfigurationCurveExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(38, lines.size());
+		assertEquals(39, lines.size());
 		assertTrue(lines.get(0).contains("total_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_n"));
 		assertTrue(lines.get(0).contains("target_thrust_solve_status"));
@@ -394,8 +427,13 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("total_useful_axial_thrust_power_w"));
 		assertTrue(lines.get(0).contains("total_ideal_induced_power_w"));
 		assertTrue(lines.get(0).contains("total_body_torque_y_nm"));
+		assertTrue(lines.get(0).contains("body_to_world_qw"));
+		assertTrue(lines.get(0).contains("total_thrust_force_world_x_n"));
+		assertTrue(lines.get(0).contains("total_body_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("body_angular_rate_x_rad_s"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_n"));
+		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_force_world_x_n"));
+		assertTrue(lines.get(0).contains("runtime_replacement_total_body_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("runtime_replacement_disk_mass_flow_kg_s"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
@@ -418,6 +456,8 @@ class CtCpJConfigurationCurveExporterTest {
 				line.startsWith("apDrone,static_anchored_configuration_transverse_inflow_diagnostic,")));
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_body_rate_roll_diagnostic,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_configuration_world_projection_diagnostic,")));
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_target_hover_solve,")
 						&& line.contains(",SOLVED,")));
