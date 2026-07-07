@@ -251,9 +251,25 @@ public final class CtCpJActuatorDiskWakePlaneProbeComparisonImporter {
 		if (!Double.isFinite(defaultSourceThicknessMeters) || defaultSourceThicknessMeters <= 0.0) {
 			throw new IllegalArgumentException("defaultSourceThicknessMeters must be finite and positive.");
 		}
+		List<CfdWakePlaneProbeRow> cfdRows = parseCsv(inputCsv).stream()
+				.map(record -> cfdRow(record, defaultAirDensityKgPerCubicMeter, defaultSourceThicknessMeters))
+				.toList();
+		Map<ReferenceContextKey, Map<ReferenceKey, ReferenceWakePlaneProbeRow>> referenceCache =
+				new LinkedHashMap<>();
 		List<ComparisonRow> rows = new ArrayList<>();
-		for (Map<String, String> record : parseCsv(inputCsv)) {
-			rows.add(compare(cfdRow(record, defaultAirDensityKgPerCubicMeter, defaultSourceThicknessMeters)));
+		for (CfdWakePlaneProbeRow cfdRow : cfdRows) {
+			Map<ReferenceKey, ReferenceWakePlaneProbeRow> references = referenceCache.computeIfAbsent(
+					ReferenceContextKey.from(cfdRow),
+					ignored -> referenceRows(cfdRow)
+			);
+			ReferenceWakePlaneProbeRow reference = references.get(ReferenceKey.from(cfdRow));
+			if (reference == null) {
+				throw new IllegalArgumentException("no wake-plane probe reference row for "
+						+ cfdRow.presetName() + "/" + cfdRow.caseName() + "/" + cfdRow.rowKind()
+						+ "/" + cfdRow.rotorIndex() + "/" + cfdRow.probeKind() + "/" + cfdRow.planeSample()
+						+ "/" + cfdRow.probeDistanceRadius());
+			}
+			rows.add(compare(cfdRow, reference));
 		}
 		return List.copyOf(rows);
 	}
@@ -262,7 +278,10 @@ public final class CtCpJActuatorDiskWakePlaneProbeComparisonImporter {
 		if (cfd == null) {
 			throw new IllegalArgumentException("cfd row must not be null.");
 		}
-		ReferenceWakePlaneProbeRow reference = referenceRow(cfd);
+		return compare(cfd, referenceRow(cfd));
+	}
+
+	private static ComparisonRow compare(CfdWakePlaneProbeRow cfd, ReferenceWakePlaneProbeRow reference) {
 		Vec3 pointResidual = finiteVector(cfd.cfdProbePointWorldMeters())
 				? cfd.cfdProbePointWorldMeters().subtract(reference.probePointWorldMeters())
 				: nanVector();
@@ -302,6 +321,47 @@ public final class CtCpJActuatorDiskWakePlaneProbeComparisonImporter {
 				comparable,
 				message
 		);
+	}
+
+	private record ReferenceContextKey(String presetName, double airDensityKgPerCubicMeter, double sourceThicknessMeters) {
+		static ReferenceContextKey from(CfdWakePlaneProbeRow row) {
+			return new ReferenceContextKey(
+					row.presetName(),
+					row.airDensityKgPerCubicMeter(),
+					row.sourceThicknessMeters()
+			);
+		}
+	}
+
+	private record ReferenceKey(
+			String caseName,
+			String rowKind,
+			int rotorIndex,
+			String probeKind,
+			String planeSample,
+			String probeDistanceRadius
+	) {
+		static ReferenceKey from(CfdWakePlaneProbeRow row) {
+			return new ReferenceKey(
+					row.caseName(),
+					row.rowKind(),
+					row.rotorIndex(),
+					row.probeKind(),
+					row.planeSample(),
+					number(row.probeDistanceRadius())
+			);
+		}
+
+		static ReferenceKey from(Map<String, String> record) {
+			return new ReferenceKey(
+					text(record, "case", ""),
+					text(record, "row_kind", "raw_source"),
+					(int) requiredDouble(record, "rotor_index"),
+					text(record, "probe_kind", "wake_plane_top_hat"),
+					text(record, "plane_sample", "center"),
+					number(requiredDouble(record, "probe_distance_radius"))
+			);
+		}
 	}
 
 	private static double transverseMagnitude(Vec3 velocity, Vec3 normal) {
@@ -350,13 +410,15 @@ public final class CtCpJActuatorDiskWakePlaneProbeComparisonImporter {
 	}
 
 	private static ReferenceWakePlaneProbeRow referenceRow(CfdWakePlaneProbeRow cfd) {
-		for (Map<String, String> record : parseCsv(String.join("\n",
-				CtCpJActuatorDiskWakePlaneProbeExporter.csvLines(
-						cfd.presetName(),
-						cfd.airDensityKgPerCubicMeter(),
-						cfd.sourceThicknessMeters(),
-						25.0,
-						0.0)))) {
+		for (Map.Entry<ReferenceKey, ReferenceWakePlaneProbeRow> entry : referenceRows(cfd).entrySet()) {
+			Map<String, String> record = Map.of(
+					"case", entry.getKey().caseName(),
+					"row_kind", entry.getKey().rowKind(),
+					"rotor_index", Integer.toString(entry.getKey().rotorIndex()),
+					"probe_kind", entry.getKey().probeKind(),
+					"plane_sample", entry.getKey().planeSample(),
+					"probe_distance_radius", entry.getKey().probeDistanceRadius()
+			);
 			if (text(record, "case", "").equals(cfd.caseName())
 					&& text(record, "row_kind", "").equals(cfd.rowKind())
 					&& (int) requiredDouble(record, "rotor_index") == cfd.rotorIndex()
@@ -364,13 +426,27 @@ public final class CtCpJActuatorDiskWakePlaneProbeComparisonImporter {
 					&& text(record, "plane_sample", "").equals(cfd.planeSample())
 					&& Math.abs(requiredDouble(record, "probe_distance_radius")
 							- cfd.probeDistanceRadius()) <= EPSILON) {
-				return referenceRow(record);
+				return entry.getValue();
 			}
 		}
 		throw new IllegalArgumentException("no wake-plane probe reference row for "
 				+ cfd.presetName() + "/" + cfd.caseName() + "/" + cfd.rowKind()
 				+ "/" + cfd.rotorIndex() + "/" + cfd.probeKind() + "/" + cfd.planeSample()
 				+ "/" + cfd.probeDistanceRadius());
+	}
+
+	private static Map<ReferenceKey, ReferenceWakePlaneProbeRow> referenceRows(CfdWakePlaneProbeRow cfd) {
+		Map<ReferenceKey, ReferenceWakePlaneProbeRow> rows = new LinkedHashMap<>();
+		for (Map<String, String> record : parseCsv(String.join("\n",
+				CtCpJActuatorDiskWakePlaneProbeExporter.csvLines(
+						cfd.presetName(),
+						cfd.airDensityKgPerCubicMeter(),
+						cfd.sourceThicknessMeters(),
+						25.0,
+						0.0)))) {
+			rows.put(ReferenceKey.from(record), referenceRow(record));
+		}
+		return rows;
 	}
 
 	private static ReferenceWakePlaneProbeRow referenceRow(Map<String, String> record) {
