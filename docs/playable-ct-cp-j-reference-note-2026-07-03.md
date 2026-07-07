@@ -23,3 +23,10 @@ Rows marked `MOMENTUM_POWER_CLOSURE_FAILED`, `OPERATING_POINT_OUTSIDE_RUNTIME_EN
 `OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE`, `CLAMPED`, `OUT_OF_ENVELOPE_BLOCKED`, or `NOT_RUNTIME_CANDIDATE`
 remain sim/lab diagnostics only. The current packet has 14 accepted runtime-reference rows; all other rows are
 for plotting, validation, and envelope explanation rather than gameplay auto-apply.
+
+2026-07-07 world-kinematics update: `docs/data/propeller_archive_ct_cp_j_configuration_curve_packet.csv`
+now includes target-thrust and trim rows for body/world/environment kinematics. `playable/dev` may use accepted
+world/environment rows only as normalized curve-shape references for advance-ratio thrust rolloff, power rise,
+and local J/RPM spread. It must not consume the world per-rotor-wind trim yaw residual as a hand-feel tuning
+constant; that residual is sim/lab evidence that thrust-moment allocation and reaction-torque balance are distinct
+effects and need separate runtime validation before simplification.

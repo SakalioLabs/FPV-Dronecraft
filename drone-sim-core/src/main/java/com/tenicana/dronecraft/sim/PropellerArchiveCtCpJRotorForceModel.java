@@ -353,6 +353,47 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			blockedRotorCount = Math.max(0, blockedRotorCount);
 			clampedRotorCount = Math.max(0, clampedRotorCount);
 		}
+
+		public Vec3 totalThrustForceWorldNewtons(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(totalThrustForceBodyNewtons, bodyToWorldOrientation);
+		}
+
+		public Vec3 totalReactionTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(totalReactionTorqueBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 totalThrustMomentWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(totalThrustMomentBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 totalBodyTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(totalBodyTorqueNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 runtimeForceReplacementThrustForceWorldNewtons(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(runtimeForceReplacementThrustForceBodyNewtons, bodyToWorldOrientation);
+		}
+
+		public Vec3 runtimeForceReplacementReactionTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(
+					runtimeForceReplacementReactionTorqueBodyNewtonMeters,
+					bodyToWorldOrientation
+			);
+		}
+
+		public Vec3 runtimeForceReplacementThrustMomentWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(
+					runtimeForceReplacementThrustMomentBodyNewtonMeters,
+					bodyToWorldOrientation
+			);
+		}
+
+		public Vec3 runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(
+					runtimeForceReplacementTotalBodyTorqueNewtonMeters,
+					bodyToWorldOrientation
+			);
+		}
 	}
 
 	public enum RotorTargetThrustSolveStatus {
@@ -3261,5 +3302,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return Quaternion.IDENTITY;
 		}
 		return value;
+	}
+
+	private static Vec3 rotateBodyVectorToWorld(Vec3 bodyVector, Quaternion bodyToWorldOrientation) {
+		return finiteQuaternionOrIdentity(bodyToWorldOrientation).normalized().rotate(finiteVecOrZero(bodyVector));
 	}
 }

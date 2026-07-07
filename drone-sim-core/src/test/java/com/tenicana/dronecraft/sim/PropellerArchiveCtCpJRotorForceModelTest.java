@@ -561,6 +561,62 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void aggregateProjectsBodyForcesAndTorquesIntoWorldFrame() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double rpm = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient()) * 60.0 / (2.0 * Math.PI);
+		double omega = rpm * 2.0 * Math.PI / 60.0;
+		double[] omegas = new double[config.rotors().size()];
+		for (int i = 0; i < omegas.length; i++) {
+			omegas[i] = omega;
+		}
+		Vec3 bodyRelativeAirVelocity = new Vec3(0.0, 3.0, 0.0);
+		Vec3 angularVelocityBody = new Vec3(4.0, 0.0, 0.0);
+		Quaternion quarterTurnAroundZ = new Quaternion(
+				Math.cos(Math.PI * 0.25),
+				0.0,
+				0.0,
+				Math.sin(Math.PI * 0.25)
+		);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromBodyKinematics(
+						"apDrone",
+						"aggregate_world_projection",
+						config,
+						bodyRelativeAirVelocity,
+						angularVelocityBody,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
+		assertTrue(aggregate.totalThrustForceBodyNewtons().length() > 0.0);
+		assertTrue(aggregate.totalBodyTorqueNewtonMeters().length() > 0.0);
+		assertVectorEquals(quarterTurnAroundZ.rotate(aggregate.totalThrustForceBodyNewtons()),
+				aggregate.totalThrustForceWorldNewtons(quarterTurnAroundZ), 1.0e-12);
+		assertVectorEquals(quarterTurnAroundZ.rotate(aggregate.totalReactionTorqueBodyNewtonMeters()),
+				aggregate.totalReactionTorqueWorldNewtonMeters(quarterTurnAroundZ), 1.0e-15);
+		assertVectorEquals(quarterTurnAroundZ.rotate(aggregate.totalThrustMomentBodyNewtonMeters()),
+				aggregate.totalThrustMomentWorldNewtonMeters(quarterTurnAroundZ), 1.0e-12);
+		assertVectorEquals(quarterTurnAroundZ.rotate(aggregate.totalBodyTorqueNewtonMeters()),
+				aggregate.totalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ), 1.0e-12);
+		assertVectorEquals(aggregate.totalThrustForceBodyNewtons(),
+				aggregate.totalThrustForceWorldNewtons(Quaternion.IDENTITY), 1.0e-15);
+		assertVectorEquals(aggregate.runtimeForceReplacementThrustForceWorldNewtons(quarterTurnAroundZ),
+				aggregate.totalThrustForceWorldNewtons(quarterTurnAroundZ), 1.0e-12);
+		assertVectorEquals(aggregate.runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ),
+				aggregate.totalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ), 1.0e-12);
+		assertEquals(aggregate.totalThrustForceBodyNewtons().length(),
+				aggregate.totalThrustForceWorldNewtons(quarterTurnAroundZ).length(), 1.0e-12);
+		assertEquals(aggregate.totalBodyTorqueNewtonMeters().length(),
+				aggregate.totalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ).length(), 1.0e-12);
+	}
+
+	@Test
 	void staticAnchoredConfigurationAggregateUsesAmbientOperatingEnvelope() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
