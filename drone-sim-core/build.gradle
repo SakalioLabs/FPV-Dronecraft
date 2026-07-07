@@ -108,6 +108,23 @@ tasks.register("ctCpJActuatorDiskWakeProbes", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskWakeProbeCompare", JavaExec) {
+	group = "simulation"
+	description = "Imports actuator-disk wake probe rows and exports CT/CP/J probe velocity residual comparisons."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskWakeProbeComparisonImporter")
+	doFirst {
+		def inputFile = project.findProperty("input")
+		if (inputFile == null || inputFile.toString().isBlank()) {
+			throw new GradleException("ctCpJActuatorDiskWakeProbeCompare requires -Pinput=<wake-probe-results.csv>")
+		}
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-wake-probes/${project.name}-wake-probe-comparison.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		args(inputFile, outputFile, airDensity, sourceThickness)
+	}
+}
+
 tasks.register("ctCpJOpenFoamCompare", JavaExec) {
 	group = "simulation"
 	description = "Imports compact OpenFOAM CT/CP/J dimensional result rows and exports SI residual comparisons."
