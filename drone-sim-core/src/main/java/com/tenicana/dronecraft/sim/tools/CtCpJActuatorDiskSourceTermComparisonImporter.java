@@ -362,25 +362,38 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 				(int) requiredDouble(record, "rotor_index"),
 				optionalDouble(record, "source_thickness_m", defaultSourceThicknessMeters),
 				optionalDouble(record, "air_density_kg_m3", defaultAirDensityKgPerCubicMeter),
-				optionalDouble(record, "cfd_pressure_jump_pa", Double.NaN),
-				optionalDouble(record, "cfd_mass_flux_kg_s_m2", Double.NaN),
-				optionalDouble(record, "cfd_ideal_momentum_power_loading_w_m2", Double.NaN),
+				optionalDouble(record, "cfd_pressure_jump_pa", "pressure_jump_pa", Double.NaN),
+				optionalDouble(record, "cfd_mass_flux_kg_s_m2", "mass_flux_kg_s_m2", Double.NaN),
+				optionalDouble(record, "cfd_ideal_momentum_power_loading_w_m2",
+						"ideal_momentum_power_loading_w_m2", Double.NaN),
 				vector(record,
 						"cfd_thrust_surface_force_world_x_n_m2",
 						"cfd_thrust_surface_force_world_y_n_m2",
-						"cfd_thrust_surface_force_world_z_n_m2"),
+						"cfd_thrust_surface_force_world_z_n_m2",
+						"thrust_surface_force_world_x_n_m2",
+						"thrust_surface_force_world_y_n_m2",
+						"thrust_surface_force_world_z_n_m2"),
 				vector(record,
 						"cfd_integrated_thrust_force_world_x_n",
 						"cfd_integrated_thrust_force_world_y_n",
-						"cfd_integrated_thrust_force_world_z_n"),
+						"cfd_integrated_thrust_force_world_z_n",
+						"integrated_thrust_force_world_x_n",
+						"integrated_thrust_force_world_y_n",
+						"integrated_thrust_force_world_z_n"),
 				vector(record,
 						"cfd_body_force_density_world_x_n_m3",
 						"cfd_body_force_density_world_y_n_m3",
-						"cfd_body_force_density_world_z_n_m3"),
+						"cfd_body_force_density_world_z_n_m3",
+						"body_force_density_world_x_n_m3",
+						"body_force_density_world_y_n_m3",
+						"body_force_density_world_z_n_m3"),
 				vector(record,
 						"cfd_far_wake_axial_velocity_world_x_mps",
 						"cfd_far_wake_axial_velocity_world_y_mps",
-						"cfd_far_wake_axial_velocity_world_z_mps"),
+						"cfd_far_wake_axial_velocity_world_z_mps",
+						"far_wake_axial_velocity_world_x_mps",
+						"far_wake_axial_velocity_world_y_mps",
+						"far_wake_axial_velocity_world_z_mps"),
 				text(record, "source_case_sha256", ""),
 				text(record, "solver_status", "UNSPECIFIED")
 		);
@@ -557,6 +570,22 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 		);
 	}
 
+	private static Vec3 vector(
+			Map<String, String> record,
+			String x,
+			String y,
+			String z,
+			String fallbackX,
+			String fallbackY,
+			String fallbackZ
+	) {
+		return new Vec3(
+				optionalDouble(record, x, fallbackX, Double.NaN),
+				optionalDouble(record, y, fallbackY, Double.NaN),
+				optionalDouble(record, z, fallbackZ, Double.NaN)
+		);
+	}
+
 	private static String normalizeHeader(String value) {
 		String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
 		if (!normalized.isEmpty() && normalized.charAt(0) == '\uFEFF') {
@@ -581,6 +610,19 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 	private static double optionalDouble(Map<String, String> record, String name, double fallback) {
 		String value = record.get(name);
 		return value == null || value.isBlank() ? fallback : Double.parseDouble(value);
+	}
+
+	private static double optionalDouble(
+			Map<String, String> record,
+			String name,
+			String fallbackName,
+			double fallback
+	) {
+		String value = record.get(name);
+		if (value != null && !value.isBlank()) {
+			return Double.parseDouble(value);
+		}
+		return optionalDouble(record, fallbackName, fallback);
 	}
 
 	private static boolean finiteVector(Vec3 value) {

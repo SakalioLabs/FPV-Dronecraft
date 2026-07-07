@@ -139,6 +139,31 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 	}
 
 	@Test
+	void exportedSourceTermPacketRoundTripsAsComparisonInput() {
+		String packetCsv = String.join("\n", CtCpJActuatorDiskSourceTermExporter.csvLines("apDrone", RHO));
+
+		List<CtCpJActuatorDiskSourceTermComparisonImporter.ComparisonRow> comparisons =
+				CtCpJActuatorDiskSourceTermComparisonImporter.compare(packetCsv, RHO, SOURCE_THICKNESS);
+
+		assertEquals(40, comparisons.size());
+		assertTrue(comparisons.stream().allMatch(CtCpJActuatorDiskSourceTermComparisonImporter
+				.ComparisonRow::comparable));
+		assertTrue(comparisons.stream()
+				.anyMatch(row -> row.reference().blocked()
+						&& "static_anchored_source_high_j_block".equals(row.reference().caseName())));
+		assertTrue(comparisons.stream()
+				.filter(row -> row.reference().applied())
+				.allMatch(row -> row.thrustSurfaceForceResidualWorldNewtonsPerSquareMeter().length() < 1.0e-9
+						&& row.integratedThrustForceResidualWorldNewtons().length() < 1.0e-9
+						&& row.bodyForceDensityResidualWorldNewtonsPerCubicMeter().length() < 1.0e-6));
+		assertTrue(comparisons.stream()
+				.filter(row -> !row.reference().applied())
+				.allMatch(row -> row.thrustSurfaceForceResidualWorldNewtonsPerSquareMeter().length() <= 1.0e-15
+						&& row.integratedThrustForceResidualWorldNewtons().length() <= 1.0e-15
+						&& row.bodyForceDensityResidualWorldNewtonsPerCubicMeter().length() <= 1.0e-15));
+	}
+
+	@Test
 	void writeCreatesParentDirectoriesAndComparisonCsv(@TempDir Path tempDir) throws IOException {
 		Path input = tempDir.resolve("source-results.csv");
 		Path output = tempDir.resolve("nested").resolve("source-comparison.csv");
