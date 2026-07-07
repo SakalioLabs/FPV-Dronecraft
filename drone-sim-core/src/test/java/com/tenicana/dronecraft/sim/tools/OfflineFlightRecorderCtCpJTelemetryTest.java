@@ -129,6 +129,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				column(header, "rotor_0_ctcpj_ref_total_wake_kinetic_power_residual_w");
 		int rotorTotalWakePowerResidualFractionIndex =
 				column(header, "rotor_0_ctcpj_ref_total_wake_kinetic_power_residual_fraction");
+		int rotorWakeAngularMomentumTorqueIndex =
+				column(header, "rotor_0_ctcpj_ref_wake_angular_momentum_torque_nm");
+		int rotorWakeAngularMomentumTorqueResidualIndex =
+				column(header, "rotor_0_ctcpj_ref_wake_angular_momentum_torque_residual_nm");
+		int rotorWakeAngularMomentumTorqueResidualFractionIndex =
+				column(header, "rotor_0_ctcpj_ref_wake_angular_momentum_torque_residual_fraction");
 		int rotorReferenceTorqueIndex = column(header, "rotor_0_ctcpj_ref_shaft_torque_nm");
 		int rotorReferenceThrustForceXIndex = column(header, "rotor_0_ctcpj_ref_thrust_force_x_n");
 		int rotorReferenceThrustForceYIndex = column(header, "rotor_0_ctcpj_ref_thrust_force_y_n");
@@ -287,6 +293,10 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				"rotor_0_ctcpj_ref_total_wake_kinetic_power_w"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_7_ctcpj_ref_total_wake_kinetic_power_residual_fraction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_ref_wake_angular_momentum_torque_nm"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_7_ctcpj_ref_wake_angular_momentum_torque_residual_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_total_torque_z_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_force_residual_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_7_ctcpj_ref_torque_residual_z_nm"));
@@ -592,6 +602,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double totalWakePowerResidual = Double.parseDouble(row[rotorTotalWakePowerResidualIndex]);
 				double totalWakePowerResidualFraction =
 						Double.parseDouble(row[rotorTotalWakePowerResidualFractionIndex]);
+				double wakeAngularMomentumTorque =
+						Double.parseDouble(row[rotorWakeAngularMomentumTorqueIndex]);
+				double wakeAngularMomentumTorqueResidual =
+						Double.parseDouble(row[rotorWakeAngularMomentumTorqueResidualIndex]);
+				double wakeAngularMomentumTorqueResidualFraction =
+						Double.parseDouble(row[rotorWakeAngularMomentumTorqueResidualFractionIndex]);
 				double referenceTorque = Double.parseDouble(row[rotorReferenceTorqueIndex]);
 				assertTrue(Double.isFinite(referencePower));
 				assertTrue(Double.isFinite(referenceDiskLoading));
@@ -615,6 +631,9 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(wakeSwirlPowerRatio));
 				assertTrue(Double.isFinite(totalWakePowerResidual));
 				assertTrue(Double.isFinite(totalWakePowerResidualFraction));
+				assertTrue(Double.isFinite(wakeAngularMomentumTorque));
+				assertTrue(Double.isFinite(wakeAngularMomentumTorqueResidual));
+				assertTrue(Double.isFinite(wakeAngularMomentumTorqueResidualFraction));
 				double thrustForceX = Double.parseDouble(row[rotorReferenceThrustForceXIndex]);
 				double thrustForceY = Double.parseDouble(row[rotorReferenceThrustForceYIndex]);
 				double thrustForceZ = Double.parseDouble(row[rotorReferenceThrustForceZIndex]);
@@ -714,6 +733,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 							angularMomentumSwirlRadius, 5.0e-5);
 					assertEquals(0.5 * diskMassFlow * wakeTangentialVelocity * wakeTangentialVelocity,
 							wakeSwirlPower, 1.0e-4);
+					assertEquals(diskMassFlow * angularMomentumSwirlRadius * wakeTangentialVelocity,
+							wakeAngularMomentumTorque, 3.0e-6);
+					assertEquals(referenceTorque, wakeAngularMomentumTorque, 3.0e-6);
+					assertEquals(wakeAngularMomentumTorque - referenceTorque,
+							wakeAngularMomentumTorqueResidual, 3.0e-6);
+					assertEquals(0.0, wakeAngularMomentumTorqueResidual, 3.0e-6);
+					assertEquals(0.0, wakeAngularMomentumTorqueResidualFraction, 5.0e-5);
 					assertTrue(wakeSwirlPower > 0.0);
 					assertTrue(totalWakePower >= referenceIdealMomentumPower);
 					assertEquals(referenceIdealMomentumPower + wakeSwirlPower, totalWakePower, 5.0e-5);

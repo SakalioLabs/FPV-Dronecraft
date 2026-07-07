@@ -139,6 +139,12 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 				state.rotorCtCpJReferenceTotalWakeKineticPowerResidualWatts(0), 1.0e-15);
 		assertEquals(sample.dimensionalSample().totalWakeKineticPowerResidualFraction(),
 				state.rotorCtCpJReferenceTotalWakeKineticPowerResidualFraction(0), 1.0e-15);
+		assertEquals(sample.dimensionalSample().wakeAngularMomentumTorqueNewtonMeters(),
+				state.rotorCtCpJReferenceWakeAngularMomentumTorqueNewtonMeters(0), 1.0e-18);
+		assertEquals(sample.dimensionalSample().wakeAngularMomentumTorqueResidualNewtonMeters(),
+				state.rotorCtCpJReferenceWakeAngularMomentumTorqueResidualNewtonMeters(0), 1.0e-18);
+		assertEquals(sample.dimensionalSample().wakeAngularMomentumTorqueResidualFraction(),
+				state.rotorCtCpJReferenceWakeAngularMomentumTorqueResidualFraction(0), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters(), state.rotorCtCpJReferenceShaftTorqueNewtonMeters(0), 1.0e-18);
 		assertVectorEquals(sample.thrustForceBodyNewtons(),
 				state.rotorCtCpJReferenceThrustForceBodyNewtons(0), 1.0e-15);
@@ -197,6 +203,9 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertEquals(0.0, state.rotorCtCpJReferenceWakeSwirlKineticPowerOverShaftPower(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerResidualWatts(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceTotalWakeKineticPowerResidualFraction(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceWakeAngularMomentumTorqueNewtonMeters(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceWakeAngularMomentumTorqueResidualNewtonMeters(0), 1.0e-15);
+		assertEquals(0.0, state.rotorCtCpJReferenceWakeAngularMomentumTorqueResidualFraction(0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, state.rotorCtCpJReferenceTransverseAirVelocityBodyMetersPerSecond(0), 1.0e-18);
 		assertEquals(0.0, state.rotorCtCpJReferenceTransverseAirSpeedMetersPerSecond(0), 1.0e-15);
