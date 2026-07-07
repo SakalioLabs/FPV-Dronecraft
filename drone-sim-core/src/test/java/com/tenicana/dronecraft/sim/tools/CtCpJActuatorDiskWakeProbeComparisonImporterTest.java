@@ -48,6 +48,8 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 		assertEquals("true", output.get("reference_source_enabled"));
 		assertEquals("true", output.get("comparable"));
 		assertEquals("synthetic-wake-probe", output.get("source_case_sha256"));
+		assertEquals(number(reference, "pressure_jump_pa"),
+				Double.parseDouble(output.get("cfd_probe_p_field")), 1.0e-12);
 		assertEquals(0.0, Double.parseDouble(output.get("probe_velocity_residual_magnitude_mps")), 1.0e-12);
 		assertEquals(0.0, Double.parseDouble(output.get("probe_point_residual_magnitude_m")), 1.0e-15);
 	}
@@ -162,11 +164,21 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 				new Vec3(
 						number(reference, "probe_point_world_x_m"),
 						number(reference, "probe_point_world_y_m"),
-						number(reference, "probe_point_world_z_m"))
+						number(reference, "probe_point_world_z_m")),
+				number(reference, "pressure_jump_pa")
 		);
 	}
 
 	private static String cfdCsv(Map<String, String> reference, Vec3 cfdVelocity, Vec3 cfdPoint) {
+		return cfdCsv(reference, cfdVelocity, cfdPoint, number(reference, "pressure_jump_pa"));
+	}
+
+	private static String cfdCsv(
+			Map<String, String> reference,
+			Vec3 cfdVelocity,
+			Vec3 cfdPoint,
+			double cfdPField
+	) {
 		return String.join("\n",
 				String.join(",",
 						"preset",
@@ -181,6 +193,7 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 						"cfd_probe_velocity_world_x_mps",
 						"cfd_probe_velocity_world_y_mps",
 						"cfd_probe_velocity_world_z_mps",
+						"cfd_probe_p_field",
 						"source_case_sha256",
 						"solver_status"),
 				row(
@@ -196,6 +209,7 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 						Double.toString(cfdVelocity.x()),
 						Double.toString(cfdVelocity.y()),
 						Double.toString(cfdVelocity.z()),
+						Double.toString(cfdPField),
 						"synthetic-wake-probe",
 						"CONVERGED"
 				));

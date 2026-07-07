@@ -45,6 +45,7 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 			"cfd_probe_velocity_world_x_mps",
 			"cfd_probe_velocity_world_y_mps",
 			"cfd_probe_velocity_world_z_mps",
+			"cfd_probe_p_field",
 			"probe_velocity_residual_world_x_mps",
 			"probe_velocity_residual_world_y_mps",
 			"probe_velocity_residual_world_z_mps",
@@ -90,6 +91,7 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 			double sourceThicknessMeters,
 			Vec3 cfdProbePointWorldMeters,
 			Vec3 cfdProbeVelocityWorldMetersPerSecond,
+			double cfdProbePField,
 			String sourceCaseSha256,
 			String solverStatus
 	) {
@@ -119,6 +121,9 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 			cfdProbeVelocityWorldMetersPerSecond = cfdProbeVelocityWorldMetersPerSecond == null
 					? nanVector()
 					: cfdProbeVelocityWorldMetersPerSecond;
+			if (!Double.isFinite(cfdProbePField)) {
+				cfdProbePField = Double.NaN;
+			}
 			sourceCaseSha256 = sourceCaseSha256 == null ? "" : sourceCaseSha256.trim();
 			solverStatus = solverStatus == null || solverStatus.isBlank() ? "UNSPECIFIED" : solverStatus.trim();
 		}
@@ -339,6 +344,11 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 						"expected_far_wake_velocity_world_x_mps",
 						"expected_far_wake_velocity_world_y_mps",
 						"expected_far_wake_velocity_world_z_mps"),
+				optionalAnyDouble(record, Double.NaN,
+						"cfd_probe_p_field",
+						"cfd_probe_pressure_field",
+						"probe_p_field",
+						"sampled_p_field"),
 				text(record, "source_case_sha256", text(record, "case_sha256", "")),
 				text(record, "solver_status", "UNSPECIFIED")
 		);
@@ -424,6 +434,7 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 				number(row.probePointResidualWorldMeters().length()),
 				vec(reference.expectedFarWakeVelocityWorldMetersPerSecond()),
 				vec(cfd.cfdProbeVelocityWorldMetersPerSecond()),
+				number(cfd.cfdProbePField()),
 				vec(row.probeVelocityResidualWorldMetersPerSecond()),
 				number(row.probeVelocityResidualWorldMetersPerSecond().length()),
 				number(row.probeVelocityResidualFraction()),
@@ -615,6 +626,16 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 			return Double.parseDouble(value);
 		}
 		return optionalDouble(record, thirdFallbackName, fallback);
+	}
+
+	private static double optionalAnyDouble(Map<String, String> record, double fallback, String... names) {
+		for (String name : names) {
+			String value = record.get(name);
+			if (value != null && !value.isBlank()) {
+				return Double.parseDouble(value);
+			}
+		}
+		return fallback;
 	}
 
 	private static boolean finiteVector(Vec3 value) {

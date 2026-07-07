@@ -32,6 +32,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 			"cfd_probe_velocity_world_x_mps",
 			"cfd_probe_velocity_world_y_mps",
 			"cfd_probe_velocity_world_z_mps",
+			"cfd_probe_p_field",
 			"source_case_sha256",
 			"solver_status"
 	);
@@ -51,6 +52,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 			"cfd_probe_velocity_world_x_mps",
 			"cfd_probe_velocity_world_y_mps",
 			"cfd_probe_velocity_world_z_mps",
+			"cfd_probe_p_field",
 			"source_case_sha256",
 			"solver_status"
 	);
@@ -68,7 +70,11 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 		}
 	}
 
-	private record RawVectorSample(Vec3 pointWorldMeters, Vec3 velocityWorldMetersPerSecond) {
+	private record RawProbeSample(
+			Vec3 pointWorldMeters,
+			Vec3 velocityWorldMetersPerSecond,
+			double pField
+	) {
 	}
 
 	public static void main(String[] args) throws IOException {
@@ -207,7 +213,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 	) throws IOException {
 		for (Map.Entry<String, List<Map<String, String>>> entry : rowsBySource.entrySet()) {
 			List<Map<String, String>> rows = entry.getValue();
-			List<RawVectorSample> samples = readRawVectorSamples(rawSetDirectory, sanitize(entry.getKey() + "_centerline"));
+			List<RawProbeSample> samples = readRawProbeSamples(rawSetDirectory, sanitize(entry.getKey() + "_centerline"));
 			if (samples.size() != rows.size()) {
 				throw new IllegalArgumentException("raw centerline set " + entry.getKey()
 						+ " contains " + samples.size() + " samples, expected " + rows.size());
@@ -236,7 +242,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 	) throws IOException {
 		for (Map.Entry<String, List<Map<String, String>>> entry : rowsBySource.entrySet()) {
 			List<Map<String, String>> rows = entry.getValue();
-			List<RawVectorSample> samples = readRawVectorSamples(rawSetDirectory, sanitize(entry.getKey() + "_wake_plane"));
+			List<RawProbeSample> samples = readRawProbeSamples(rawSetDirectory, sanitize(entry.getKey() + "_wake_plane"));
 			if (samples.size() != rows.size()) {
 				throw new IllegalArgumentException("raw wake-plane set " + entry.getKey()
 						+ " contains " + samples.size() + " samples, expected " + rows.size());
@@ -254,9 +260,9 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 		}
 	}
 
-	private static List<RawVectorSample> readRawVectorSamples(Path rawSetDirectory, String setName) throws IOException {
+	private static List<RawProbeSample> readRawProbeSamples(Path rawSetDirectory, String setName) throws IOException {
 		Path rawFile = findRawVectorFile(rawSetDirectory, setName);
-		List<RawVectorSample> samples = new ArrayList<>();
+		List<RawProbeSample> samples = new ArrayList<>();
 		for (String line : Files.readAllLines(rawFile, StandardCharsets.UTF_8)) {
 			if (line == null) {
 				continue;
@@ -269,12 +275,30 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 			if (numbers.size() < 6) {
 				throw new IllegalArgumentException("raw vector set line must contain at least six numbers: " + line);
 			}
-			samples.add(new RawVectorSample(
+			samples.add(new RawProbeSample(
 					new Vec3(numbers.get(0), numbers.get(1), numbers.get(2)),
-					new Vec3(numbers.get(3), numbers.get(4), numbers.get(5))
+					new Vec3(numbers.get(3), numbers.get(4), numbers.get(5)),
+					Double.NaN
 			));
 		}
-		return List.copyOf(samples);
+		List<Double> pFields = readOptionalRawScalarSamples(rawSetDirectory, setName);
+		if (!pFields.isEmpty() && pFields.size() != samples.size()) {
+			throw new IllegalArgumentException("raw scalar p set " + setName
+					+ " contains " + pFields.size() + " samples, expected " + samples.size());
+		}
+		if (pFields.isEmpty()) {
+			return List.copyOf(samples);
+		}
+		List<RawProbeSample> withPressure = new ArrayList<>();
+		for (int index = 0; index < samples.size(); index++) {
+			RawProbeSample sample = samples.get(index);
+			withPressure.add(new RawProbeSample(
+					sample.pointWorldMeters(),
+					sample.velocityWorldMetersPerSecond(),
+					pFields.get(index)
+			));
+		}
+		return List.copyOf(withPressure);
 	}
 
 	private static String stripBom(String value) {
@@ -307,6 +331,53 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 		}
 	}
 
+	private static List<Double> readOptionalRawScalarSamples(Path rawSetDirectory, String setName) throws IOException {
+		Path rawFile = findOptionalRawScalarFile(rawSetDirectory, setName);
+		if (rawFile == null) {
+			return List.of();
+		}
+		List<Double> samples = new ArrayList<>();
+		for (String line : Files.readAllLines(rawFile, StandardCharsets.UTF_8)) {
+			if (line == null) {
+				continue;
+			}
+			String trimmed = stripBom(line.trim());
+			if (trimmed.isEmpty() || trimmed.startsWith("#") || trimmed.startsWith("//")) {
+				continue;
+			}
+			List<Double> numbers = numbers(trimmed);
+			if (numbers.size() < 4) {
+				throw new IllegalArgumentException("raw scalar p set line must contain at least four numbers: " + line);
+			}
+			samples.add(numbers.get(3));
+		}
+		return List.copyOf(samples);
+	}
+
+	private static Path findOptionalRawScalarFile(Path rawSetDirectory, String setName) throws IOException {
+		for (String suffix : List.of("_p.xy", "_p.raw", "_p.dat", "_p.csv", "_p")) {
+			Path direct = rawSetDirectory.resolve(setName + suffix);
+			if (Files.isRegularFile(direct)) {
+				return direct;
+			}
+		}
+		try (Stream<Path> paths = Files.walk(rawSetDirectory)) {
+			List<Path> matches = paths
+					.filter(Files::isRegularFile)
+					.filter(path -> path.getFileName().toString().startsWith(setName + "_p"))
+					.sorted(Comparator.comparing(Path::toString))
+					.toList();
+			if (matches.isEmpty()) {
+				return null;
+			}
+			if (matches.size() > 1) {
+				throw new IllegalArgumentException("multiple OpenFOAM raw p set files for " + setName
+						+ "; pass a single postProcessing/sets time directory.");
+			}
+			return matches.get(0);
+		}
+	}
+
 	private static List<Double> numbers(String line) {
 		String[] tokens = line
 				.replace('(', ' ')
@@ -325,7 +396,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 
 	private static String centerlineCsvLine(
 			Map<String, String> row,
-			RawVectorSample sample,
+			RawProbeSample sample,
 			double airDensityKgPerCubicMeter,
 			double sourceThicknessMeters,
 			String solverStatus,
@@ -342,6 +413,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 				number(sourceThicknessMeters),
 				vec(sample.pointWorldMeters()),
 				vec(sample.velocityWorldMetersPerSecond()),
+				number(sample.pField()),
 				escape(sourceCaseSha256),
 				escape(solverStatus)
 		);
@@ -349,7 +421,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 
 	private static String wakePlaneCsvLine(
 			Map<String, String> row,
-			RawVectorSample sample,
+			RawProbeSample sample,
 			double airDensityKgPerCubicMeter,
 			double sourceThicknessMeters,
 			String solverStatus,
@@ -367,6 +439,7 @@ public final class CtCpJActuatorDiskOpenFoamRawSetImporter {
 				number(sourceThicknessMeters),
 				vec(sample.pointWorldMeters()),
 				vec(sample.velocityWorldMetersPerSecond()),
+				number(sample.pField()),
 				escape(sourceCaseSha256),
 				escape(solverStatus)
 		);

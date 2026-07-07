@@ -41,13 +41,21 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 		assertEquals(161, imported.centerlineCsvLines().size());
 		assertEquals(2081, imported.wakePlaneCsvLines().size());
 		assertTrue(imported.centerlineCsvLines().get(0).contains("cfd_probe_velocity_world_y_mps"));
+		assertTrue(imported.centerlineCsvLines().get(0).contains("cfd_probe_p_field"));
 		assertTrue(imported.wakePlaneCsvLines().get(0).contains("plane_sample"));
+		assertTrue(imported.wakePlaneCsvLines().get(0).contains("cfd_probe_p_field"));
 		assertTrue(imported.centerlineCsvLines().stream()
 				.anyMatch(line -> line.contains("static_anchored_source_hover")
 						&& line.contains("raw-set-smoke,CONVERGED")));
 		assertTrue(imported.wakePlaneCsvLines().stream()
 				.anyMatch(line -> line.contains("wake_plane_top_hat,center")
 						&& line.contains("raw-set-smoke,CONVERGED")));
+		Map<String, String> firstCenterlineRow = record(
+				imported.centerlineCsvLines().get(1),
+				columns(imported.centerlineCsvLines())
+		);
+		assertEquals(116.895877068887,
+				Double.parseDouble(firstCenterlineRow.get("cfd_probe_p_field")), 1.0e-12);
 
 		List<CtCpJActuatorDiskWakeProbeComparisonImporter.ComparisonRow> centerlineComparisons =
 				CtCpJActuatorDiskWakeProbeComparisonImporter.compare(
@@ -98,6 +106,7 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 		assertEquals(161, Files.readAllLines(centerlineOutput).size());
 		assertEquals(2081, Files.readAllLines(wakePlaneOutput).size());
 		assertTrue(Files.readString(wakePlaneOutput).contains("write-smoke,CONVERGED"));
+		assertTrue(Files.readString(centerlineOutput).contains("cfd_probe_p_field"));
 	}
 
 	@Test
@@ -188,6 +197,21 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 			Files.writeString(
 					directory.resolve(entry.getKey() + "_" + suffix + "_U.xy"),
 					String.join("\n", rawLines) + "\n",
+					StandardCharsets.UTF_8
+			);
+			List<String> pLines = new ArrayList<>();
+			pLines.add("# x y z p");
+			for (Map<String, String> row : entry.getValue()) {
+				pLines.add(String.join(" ",
+						row.get("probe_point_world_x_m"),
+						row.get("probe_point_world_y_m"),
+						row.get("probe_point_world_z_m"),
+						row.get("pressure_jump_pa")
+				));
+			}
+			Files.writeString(
+					directory.resolve(entry.getKey() + "_" + suffix + "_p.xy"),
+					String.join("\n", pLines) + "\n",
 					StandardCharsets.UTF_8
 			);
 		}
