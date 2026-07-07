@@ -22,6 +22,10 @@ public final class CtCpJConfigurationCurveExporter {
 			"case",
 			"query_j",
 			"query_rpm",
+			"target_thrust_n",
+			"target_thrust_residual_n",
+			"target_thrust_solve_status",
+			"target_thrust_solve_iterations",
 			"effective_j_min",
 			"effective_j_max",
 			"effective_rpm_min",
@@ -99,6 +103,8 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double TRANSVERSE_INFLOW_DIAGNOSTIC_SPEED_METERS_PER_SECOND = 2.5;
 	private static final double BODY_RATE_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
 	private static final double BODY_RATE_DIAGNOSTIC_ROLL_RATE_RADIANS_PER_SECOND = 5.0;
+	private static final double TARGET_THRUST_FORWARD_ADVANCE_RATIO_J = 0.4064;
+	private static final double TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND = 22.0;
 
 	private CtCpJConfigurationCurveExporter() {
 	}
@@ -204,6 +210,16 @@ public final class CtCpJConfigurationCurveExporter {
 		)) {
 			lines.add(csvLine(point));
 		}
+		for (ConfigurationDiagnosticPoint point : targetThrustCurvePoints(
+				presetName,
+				config,
+				rotor,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		)) {
+			lines.add(csvLine(point));
+		}
 		return List.copyOf(lines);
 	}
 
@@ -238,7 +254,7 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		Vec3 relativeAirVelocity = rotorAxisBody(config.rotors().get(0)).multiply(axialSpeed);
-		return new ConfigurationDiagnosticPoint(axialSpeed, relativeAirVelocity, Vec3.ZERO, aggregate);
+		return directPoint(axialSpeed, relativeAirVelocity, Vec3.ZERO, aggregate);
 	}
 
 	private static List<ConfigurationDiagnosticPoint> diagnosticCurvePoints(
@@ -304,8 +320,7 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		ConfigurationDiagnosticPoint transverseDiagnostic =
-				new ConfigurationDiagnosticPoint(transverseAxialSpeed, relativeAirVelocity, Vec3.ZERO,
-						transverseAggregate);
+				directPoint(transverseAxialSpeed, relativeAirVelocity, Vec3.ZERO, transverseAggregate);
 		double bodyRateAxialSpeed = BODY_RATE_DIAGNOSTIC_ADVANCE_RATIO_J
 				* hoverRpm
 				/ 60.0
@@ -327,9 +342,104 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		ConfigurationDiagnosticPoint bodyRateDiagnostic =
-				new ConfigurationDiagnosticPoint(bodyRateAxialSpeed, bodyRateRelativeAirVelocity, bodyRate,
-						bodyRateAggregate);
+				directPoint(bodyRateAxialSpeed, bodyRateRelativeAirVelocity, bodyRate, bodyRateAggregate);
 		return List.of(reverseClamp, highAdvanceBlocked, transverseDiagnostic, bodyRateDiagnostic);
+	}
+
+	private static List<ConfigurationDiagnosticPoint> targetThrustCurvePoints(
+			String presetName,
+			DroneConfig config,
+			RotorSpec rotor,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		double hoverOmega = hoverRpm(config, rotor) / RPM_PER_RADIAN_PER_SECOND;
+		double weightThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double forwardAxialSpeed = TARGET_THRUST_FORWARD_ADVANCE_RATIO_J
+				* hoverRpm(config, rotor)
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0;
+		double maxOmega = rotor.maxOmegaRadiansPerSecond();
+		List<ConfigurationDiagnosticPoint> points = new ArrayList<>();
+		points.add(targetSolutionPoint(
+				0.0,
+				Vec3.ZERO,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						presetName,
+						"static_anchored_configuration_target_hover_solve",
+						config,
+						0.0,
+						weightThrust,
+						hoverOmega * 0.55,
+						hoverOmega * 1.45,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		points.add(targetSolutionPoint(
+				forwardAxialSpeed,
+				rotorAxisBody(rotor).multiply(forwardAxialSpeed),
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						presetName,
+						"static_anchored_configuration_target_forward_solve",
+						config,
+						forwardAxialSpeed,
+						weightThrust,
+						hoverOmega * 0.60,
+						hoverOmega * 1.80,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample maxStatic =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+						presetName,
+						"static_anchored_configuration_target_upper_reference",
+						config,
+						fill(config.rotors().size(), 0.0),
+						fill(config.rotors().size(), maxOmega),
+						airDensityKgPerCubicMeter,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				);
+		points.add(targetSolutionPoint(
+				0.0,
+				Vec3.ZERO,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						presetName,
+						"static_anchored_configuration_target_upper_below_target",
+						config,
+						0.0,
+						maxStatic.totalThrustNewtons() * 1.20,
+						hoverOmega * 0.60,
+						maxOmega,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		points.add(targetSolutionPoint(
+				TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND,
+				rotorAxisBody(rotor).multiply(TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND),
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						presetName,
+						"static_anchored_configuration_target_high_j_block",
+						config,
+						TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND,
+						weightThrust,
+						3_000.0 / RPM_PER_RADIAN_PER_SECOND,
+						6_000.0 / RPM_PER_RADIAN_PER_SECOND,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		return List.copyOf(points);
 	}
 
 	private static ConfigurationDiagnosticPoint sampleUniformSignedAxialSpeed(
@@ -358,8 +468,7 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		Vec3 relativeAirVelocity = rotorAxisBody(config.rotors().get(0)).multiply(signedAxialSpeedMetersPerSecond);
-		return new ConfigurationDiagnosticPoint(signedAxialSpeedMetersPerSecond, relativeAirVelocity, Vec3.ZERO,
-				aggregate);
+		return directPoint(signedAxialSpeedMetersPerSecond, relativeAirVelocity, Vec3.ZERO, aggregate);
 	}
 
 	private static String csvLine(ConfigurationDiagnosticPoint point) {
@@ -371,6 +480,10 @@ public final class CtCpJConfigurationCurveExporter {
 				escape(lookup.caseName()),
 				number(lookup.queryAdvanceRatioJ()),
 				number(lookup.queryRpm()),
+				number(point.targetThrustNewtons()),
+				number(point.targetThrustResidualNewtons()),
+				escape(point.targetThrustSolveStatus()),
+				Integer.toString(point.targetThrustSolveIterations()),
 				number(minEffectiveAdvanceRatioJ(aggregate)),
 				number(maxEffectiveAdvanceRatioJ(aggregate)),
 				number(minEffectiveRpm(aggregate)),
@@ -655,6 +768,41 @@ public final class CtCpJConfigurationCurveExporter {
 		values.add(candidate);
 	}
 
+	private static ConfigurationDiagnosticPoint directPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
+	) {
+		return new ConfigurationDiagnosticPoint(
+				querySignedAxialSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				aggregate,
+				aggregate.totalThrustNewtons(),
+				0.0,
+				"DIRECT_SAMPLE",
+				0
+		);
+	}
+
+	private static ConfigurationDiagnosticPoint targetSolutionPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution
+	) {
+		return new ConfigurationDiagnosticPoint(
+				querySignedAxialSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
+				Vec3.ZERO,
+				solution.solutionSample(),
+				solution.targetThrustNewtons(),
+				solution.thrustResidualNewtons(),
+				solution.status().name(),
+				solution.iterations()
+		);
+	}
+
 	private static String escape(String value) {
 		if (value == null) {
 			return "";
@@ -683,7 +831,11 @@ public final class CtCpJConfigurationCurveExporter {
 			double querySignedAxialSpeedMetersPerSecond,
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
 			Vec3 angularVelocityBodyRadiansPerSecond,
-			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
+			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate,
+			double targetThrustNewtons,
+			double targetThrustResidualNewtons,
+			String targetThrustSolveStatus,
+			int targetThrustSolveIterations
 	) {
 	}
 }
