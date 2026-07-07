@@ -1391,6 +1391,71 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void staticAnchoredConfigurationTrimFromBodyKinematicsUsesRotorLocalInflow() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double hoverOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+		Vec3 bodyRelativeAirVelocity = new Vec3(0.0, 3.0, 0.0);
+		Vec3 angularVelocityBody = new Vec3(4.0, 0.0, 0.0);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution trim =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromBodyKinematics(
+						"apDrone",
+						"configuration_trim_body_kinematics",
+						config,
+						bodyRelativeAirVelocity,
+						angularVelocityBody,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate = trim.solutionSample();
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolveStatus.SOLVED,
+				trim.status());
+		assertTrue(trim.solved());
+		assertEquals(config.rotors().size(), trim.rotorSolutions().size());
+		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertEquals(targetThrust, aggregate.totalThrustNewtons(), targetThrust * 1.0e-6);
+		assertEquals(0.0, trim.thrustResidualNewtons(), targetThrust * 1.0e-6);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-6);
+		assertVectorEquals(Vec3.ZERO, trim.bodyTorqueResidualNewtonMeters(), 2.0e-5);
+		assertEquals(bodyRelativeAirVelocity.y(), trim.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec localRotor = config.rotors().get(i);
+			Vec3 arm = localRotor.positionBodyMeters().subtract(config.centerOfMassOffsetBodyMeters());
+			Vec3 expectedRelativeAirVelocity = bodyRelativeAirVelocity.add(angularVelocityBody.cross(arm));
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample = aggregate.rotorSamples().get(i);
+			assertVectorEquals(expectedRelativeAirVelocity,
+					sample.relativeAirVelocityBodyMetersPerSecond(), 1.0e-12);
+			assertEquals(expectedRelativeAirVelocity.dot(localRotor.thrustAxisBody()),
+					sample.axialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+			assertEquals(targetThrust / config.rotors().size(), sample.thrustNewtons(),
+					targetThrust * 1.0e-6);
+		}
+		assertTrue(aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.query().rpm())
+				.max()
+				.orElse(0.0)
+				> aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.query().rpm())
+				.min()
+				.orElse(0.0));
+		assertTrue(aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.lookup().effectiveAdvanceRatioJ())
+				.max()
+				.orElse(0.0)
+				> aggregate.rotorSamples().stream()
+				.mapToDouble(sample -> sample.lookup().effectiveAdvanceRatioJ())
+				.min()
+				.orElse(0.0));
+		assertTrue(aggregate.totalShaftPowerWatts() > aggregate.totalIdealMomentumPowerWatts());
+	}
+
+	@Test
 	void staticAnchoredConfigurationTrimBlocksWhenTorqueAllocationRequiresNegativeThrust() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);

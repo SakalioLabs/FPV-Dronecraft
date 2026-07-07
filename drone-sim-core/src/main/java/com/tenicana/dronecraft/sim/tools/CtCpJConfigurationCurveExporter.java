@@ -116,6 +116,8 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double TARGET_THRUST_HIGH_J_BLOCK_SPEED_METERS_PER_SECOND = 22.0;
 	private static final Vec3 TRIM_DIAGNOSTIC_BODY_TORQUE_NEWTON_METERS =
 			new Vec3(0.045, 0.012, -0.035);
+	private static final double TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND = 3.0;
+	private static final double TRIM_BODY_KINEMATICS_ROLL_RATE_RADIANS_PER_SECOND = 4.0;
 
 	private CtCpJConfigurationCurveExporter() {
 	}
@@ -487,6 +489,29 @@ public final class CtCpJConfigurationCurveExporter {
 						TRIM_DIAGNOSTIC_BODY_TORQUE_NEWTON_METERS,
 						hoverOmega * 0.50,
 						hoverOmega * 1.60,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				)
+		));
+		Vec3 bodyKinematicsRelativeAirVelocity = rotorAxisBody(rotor)
+				.multiply(TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND);
+		Vec3 bodyKinematicsAngularVelocity =
+				new Vec3(TRIM_BODY_KINEMATICS_ROLL_RATE_RADIANS_PER_SECOND, 0.0, 0.0);
+		points.add(trimSolutionPoint(
+				TRIM_BODY_KINEMATICS_AXIAL_SPEED_METERS_PER_SECOND,
+				bodyKinematicsRelativeAirVelocity,
+				bodyKinematicsAngularVelocity,
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromBodyKinematics(
+						presetName,
+						"static_anchored_configuration_trim_body_kinematics",
+						config,
+						bodyKinematicsRelativeAirVelocity,
+						bodyKinematicsAngularVelocity,
+						weightThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
 						airDensityKgPerCubicMeter,
 						ambientTemperatureCelsius,
 						ambientHumidity
@@ -897,10 +922,24 @@ public final class CtCpJConfigurationCurveExporter {
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
 			PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution solution
 	) {
-		return new ConfigurationDiagnosticPoint(
+		return trimSolutionPoint(
 				querySignedAxialSpeedMetersPerSecond,
 				relativeAirVelocityBodyMetersPerSecond,
 				Vec3.ZERO,
+				solution
+		);
+	}
+
+	private static ConfigurationDiagnosticPoint trimSolutionPoint(
+			double querySignedAxialSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution solution
+	) {
+		return new ConfigurationDiagnosticPoint(
+				querySignedAxialSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
 				solution.solutionSample(),
 				solution.targetThrustNewtons(),
 				solution.thrustResidualNewtons(),

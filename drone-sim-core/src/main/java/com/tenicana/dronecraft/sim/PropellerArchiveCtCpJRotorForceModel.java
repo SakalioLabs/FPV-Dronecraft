@@ -613,6 +613,63 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		if (!Double.isFinite(signedAxialAdvanceSpeedMetersPerSecond)) {
 			throw new IllegalArgumentException("signedAxialAdvanceSpeedMetersPerSecond must be finite.");
 		}
+		return solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
+				presetName,
+				caseName,
+				rotor,
+				rotorAxisBody(rotor).multiply(signedAxialAdvanceSpeedMetersPerSecond),
+				Vec3.ZERO,
+				targetThrustNewtons,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+	}
+
+	public static RotorTargetThrustSolution solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		return solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
+				presetName,
+				caseName,
+				rotor,
+				relativeAirVelocityBodyMetersPerSecond,
+				Vec3.ZERO,
+				targetThrustNewtons,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorTargetThrustSolution solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 momentReferenceBodyMeters,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (rotor == null) {
+			throw new IllegalArgumentException("rotor must not be null.");
+		}
+		Vec3 relativeAirVelocity = finiteRelativeAirVelocity(relativeAirVelocityBodyMetersPerSecond);
 		if (!Double.isFinite(targetThrustNewtons) || targetThrustNewtons < 0.0) {
 			throw new IllegalArgumentException("targetThrustNewtons must be finite and nonnegative.");
 		}
@@ -627,22 +684,26 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= 0.0) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
+		double signedAxialAdvanceSpeedMetersPerSecond = relativeAirVelocity.dot(rotorAxisBody(rotor));
+		Vec3 momentReference = finiteVecOrZero(momentReferenceBodyMeters);
 
-		RotorForceSample lower = solveTargetSample(
+		RotorForceSample lower = solveTargetSampleFromRelativeAirVelocity(
 				presetName,
 				caseName,
 				rotor,
-				signedAxialAdvanceSpeedMetersPerSecond,
+				relativeAirVelocity,
+				momentReference,
 				lowerOmegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
 				ambientTemperatureCelsius,
 				ambientHumidity
 		);
-		RotorForceSample upper = solveTargetSample(
+		RotorForceSample upper = solveTargetSampleFromRelativeAirVelocity(
 				presetName,
 				caseName,
 				rotor,
-				signedAxialAdvanceSpeedMetersPerSecond,
+				relativeAirVelocity,
+				momentReference,
 				upperOmegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
 				ambientTemperatureCelsius,
@@ -722,11 +783,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		for (int i = 1; i <= TARGET_THRUST_SOLVE_MAX_ITERATIONS; i++) {
 			iterations = i;
 			double midOmega = 0.5 * (lowOmega + highOmega);
-			RotorForceSample mid = solveTargetSample(
+			RotorForceSample mid = solveTargetSampleFromRelativeAirVelocity(
 					presetName,
 					caseName,
 					rotor,
-					signedAxialAdvanceSpeedMetersPerSecond,
+					relativeAirVelocity,
+					momentReference,
 					midOmega,
 					airDensityKgPerCubicMeter,
 					ambientTemperatureCelsius,
@@ -1027,6 +1089,136 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		if (!Double.isFinite(signedAxialAdvanceSpeedMetersPerSecond)) {
 			throw new IllegalArgumentException("signedAxialAdvanceSpeedMetersPerSecond must be finite.");
 		}
+		return solveStaticAnchoredConfigurationTrimFromRelativeAirVelocities(
+				presetName,
+				caseName,
+				config,
+				uniformRotorRelativeAirVelocities(config.rotors(), signedAxialAdvanceSpeedMetersPerSecond),
+				targetThrustNewtons,
+				targetBodyTorqueNewtonMeters,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+	}
+
+	public static ConfigurationTrimSolution solveStaticAnchoredConfigurationTrimFromBodyKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3 bodyRelativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			double targetThrustNewtons,
+			Vec3 targetBodyTorqueNewtonMeters,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		return solveStaticAnchoredConfigurationTrimFromBodyKinematics(
+				presetName,
+				caseName,
+				config,
+				bodyRelativeAirVelocityBodyMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				targetThrustNewtons,
+				targetBodyTorqueNewtonMeters,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static ConfigurationTrimSolution solveStaticAnchoredConfigurationTrimFromBodyKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3 bodyRelativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			double targetThrustNewtons,
+			Vec3 targetBodyTorqueNewtonMeters,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		return solveStaticAnchoredConfigurationTrimFromRelativeAirVelocities(
+				presetName,
+				caseName,
+				config,
+				rotorRelativeAirVelocitiesFromBodyKinematics(
+						config,
+						bodyRelativeAirVelocityBodyMetersPerSecond,
+						angularVelocityBodyRadiansPerSecond
+				),
+				targetThrustNewtons,
+				targetBodyTorqueNewtonMeters,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+	}
+
+	public static ConfigurationTrimSolution solveStaticAnchoredConfigurationTrimFromRelativeAirVelocities(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3[] relativeAirVelocitiesBodyMetersPerSecond,
+			double targetThrustNewtons,
+			Vec3 targetBodyTorqueNewtonMeters,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		return solveStaticAnchoredConfigurationTrimFromRelativeAirVelocities(
+				presetName,
+				caseName,
+				config,
+				relativeAirVelocitiesBodyMetersPerSecond,
+				targetThrustNewtons,
+				targetBodyTorqueNewtonMeters,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static ConfigurationTrimSolution solveStaticAnchoredConfigurationTrimFromRelativeAirVelocities(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3[] relativeAirVelocitiesBodyMetersPerSecond,
+			double targetThrustNewtons,
+			Vec3 targetBodyTorqueNewtonMeters,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		if (config.rotors().isEmpty()) {
+			throw new IllegalArgumentException("config must include at least one rotor.");
+		}
+		Vec3[] relativeAirVelocities = validateRotorRelativeAirVelocities(
+				config,
+				relativeAirVelocitiesBodyMetersPerSecond
+		);
+		double signedAxialAdvanceSpeedMetersPerSecond =
+				meanSignedAxialAdvanceSpeed(config.rotors(), relativeAirVelocities);
 		if (!Double.isFinite(targetThrustNewtons) || targetThrustNewtons < 0.0) {
 			throw new IllegalArgumentException("targetThrustNewtons must be finite and nonnegative.");
 		}
@@ -1081,11 +1273,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		boolean solved = true;
 		String normalizedCase = caseName == null || caseName.isBlank() ? "configuration_trim" : caseName;
 		for (int i = 0; i < config.rotors().size(); i++) {
-			RotorTargetThrustSolution rotorSolution = solveStaticAnchoredRpmForTargetThrust(
+			RotorTargetThrustSolution rotorSolution = solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
 					presetName,
 					normalizedCase,
 					config.rotors().get(i),
-					signedAxialAdvanceSpeedMetersPerSecond,
+					relativeAirVelocities[i],
+					config.centerOfMassOffsetBodyMeters(),
 					Math.max(0.0, allocatedThrusts[i]),
 					lowerOmegaRadiansPerSecond,
 					upperOmegaRadiansPerSecond,
@@ -2154,24 +2347,25 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		return aggregate(samples);
 	}
 
-	private static RotorForceSample solveTargetSample(
+	private static RotorForceSample solveTargetSampleFromRelativeAirVelocity(
 			String presetName,
 			String caseName,
 			RotorSpec rotor,
-			double signedAxialAdvanceSpeedMetersPerSecond,
+			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 momentReferenceBodyMeters,
 			double omegaRadiansPerSecond,
 			double airDensityKgPerCubicMeter,
 			double ambientTemperatureCelsius,
 			double ambientHumidity
 	) {
-		return sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+		return sampleStaticAnchoredFromRelativeAirVelocity(
 				presetName,
 				caseName,
 				rotor,
-				signedAxialAdvanceSpeedMetersPerSecond,
+				relativeAirVelocityBodyMetersPerSecond,
 				omegaRadiansPerSecond,
 				airDensityKgPerCubicMeter,
-				Vec3.ZERO,
+				momentReferenceBodyMeters,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
 				ambientTemperatureCelsius,
 				ambientHumidity
@@ -2208,6 +2402,67 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static Vec3[] uniformRotorRelativeAirVelocities(
+			List<RotorSpec> rotors,
+			double signedAxialAdvanceSpeedMetersPerSecond
+	) {
+		if (rotors == null) {
+			return new Vec3[0];
+		}
+		Vec3[] velocities = new Vec3[rotors.size()];
+		for (int i = 0; i < rotors.size(); i++) {
+			velocities[i] = rotorAxisBody(rotors.get(i)).multiply(signedAxialAdvanceSpeedMetersPerSecond);
+		}
+		return velocities;
+	}
+
+	private static Vec3[] rotorRelativeAirVelocitiesFromBodyKinematics(
+			DroneConfig config,
+			Vec3 bodyRelativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond
+	) {
+		Vec3 bodyRelativeAirVelocity = finiteRelativeAirVelocity(bodyRelativeAirVelocityBodyMetersPerSecond);
+		Vec3 angularVelocityBody = finiteVecOrZero(angularVelocityBodyRadiansPerSecond);
+		Vec3 momentReference = config.centerOfMassOffsetBodyMeters();
+		Vec3[] velocities = new Vec3[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			Vec3 rotorArmBody = rotor.positionBodyMeters().subtract(momentReference);
+			velocities[i] = bodyRelativeAirVelocity.add(angularVelocityBody.cross(rotorArmBody));
+		}
+		return velocities;
+	}
+
+	private static Vec3[] validateRotorRelativeAirVelocities(
+			DroneConfig config,
+			Vec3[] relativeAirVelocitiesBodyMetersPerSecond
+	) {
+		if (relativeAirVelocitiesBodyMetersPerSecond == null
+				|| relativeAirVelocitiesBodyMetersPerSecond.length < config.rotors().size()) {
+			throw new IllegalArgumentException("relative air velocity array must cover every configured rotor.");
+		}
+		Vec3[] velocities = new Vec3[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			velocities[i] = finiteRelativeAirVelocity(relativeAirVelocitiesBodyMetersPerSecond[i]);
+		}
+		return velocities;
+	}
+
+	private static double meanSignedAxialAdvanceSpeed(
+			List<RotorSpec> rotors,
+			Vec3[] relativeAirVelocitiesBodyMetersPerSecond
+	) {
+		if (rotors == null || rotors.isEmpty() || relativeAirVelocitiesBodyMetersPerSecond == null) {
+			return 0.0;
+		}
+		int count = Math.min(rotors.size(), relativeAirVelocitiesBodyMetersPerSecond.length);
+		double sum = 0.0;
+		for (int i = 0; i < count; i++) {
+			sum += relativeAirVelocitiesBodyMetersPerSecond[i].dot(rotorAxisBody(rotors.get(i)));
+		}
+		return count == 0 ? 0.0 : sum / count;
 	}
 
 	private static double targetThrustTolerance(double targetThrustNewtons) {
