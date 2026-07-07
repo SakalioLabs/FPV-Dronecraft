@@ -1860,6 +1860,179 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void staticAnchoredConfigurationTrimFromWorldKinematicsMatchesBodyKinematics() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double hoverOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+		Vec3 bodyRelativeAirVelocity = new Vec3(0.0, 3.0, 0.0);
+		Vec3 angularVelocityBody = new Vec3(4.0, 0.0, 0.0);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution body =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromBodyKinematics(
+						"apDrone",
+						"configuration_trim_world_body_reference",
+						config,
+						bodyRelativeAirVelocity,
+						angularVelocityBody,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution world =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromWorldKinematics(
+						"apDrone",
+						"configuration_trim_world_identity",
+						config,
+						Quaternion.IDENTITY,
+						bodyRelativeAirVelocity,
+						angularVelocityBody,
+						Vec3.ZERO,
+						null,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						RHO
+				);
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolveStatus.SOLVED,
+				world.status());
+		assertTrue(world.solved());
+		assertEquals(body.signedAxialAdvanceSpeedMetersPerSecond(),
+				world.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(body.solutionSample().totalThrustNewtons(),
+				world.solutionSample().totalThrustNewtons(), 1.0e-12);
+		assertVectorEquals(body.solutionSample().totalBodyTorqueNewtonMeters(),
+				world.solutionSample().totalBodyTorqueNewtonMeters(), 1.0e-12);
+		for (int i = 0; i < config.rotors().size(); i++) {
+			assertEquals(body.rotorSolutions().get(i).solutionOmegaRadiansPerSecond(),
+					world.rotorSolutions().get(i).solutionOmegaRadiansPerSecond(), 1.0e-12);
+			assertVectorEquals(body.solutionSample().rotorSamples().get(i).relativeAirVelocityBodyMetersPerSecond(),
+					world.solutionSample().rotorSamples().get(i).relativeAirVelocityBodyMetersPerSecond(), 1.0e-15);
+		}
+	}
+
+	@Test
+	void staticAnchoredConfigurationTrimFromWorldKinematicsUsesPerRotorWind() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double hoverOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+		Vec3 vehicleVelocityWorld = new Vec3(0.0, 3.0, 0.0);
+		Vec3[] rotorWinds = new Vec3[config.rotors().size()];
+		rotorWinds[0] = new Vec3(0.0, 1.0, 0.0);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution baseline =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromWorldKinematics(
+						"apDrone",
+						"configuration_trim_world_wind_baseline",
+						config,
+						Quaternion.IDENTITY,
+						vehicleVelocityWorld,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						null,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution localWind =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromWorldKinematics(
+						"apDrone",
+						"configuration_trim_world_per_rotor_wind",
+						config,
+						Quaternion.IDENTITY,
+						vehicleVelocityWorld,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						rotorWinds,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						RHO
+				);
+
+		assertTrue(baseline.solved());
+		assertTrue(localWind.solved());
+		assertEquals(targetThrust, localWind.solutionSample().totalThrustNewtons(), targetThrust * 1.0e-6);
+		assertVectorEquals(Vec3.ZERO,
+				localWind.solutionSample().totalThrustMomentBodyNewtonMeters(), 2.0e-5);
+		assertEquals(localWind.solutionSample().totalReactionTorqueBodyNewtonMeters().y(),
+				localWind.bodyTorqueResidualNewtonMeters().y(), 1.0e-12);
+		assertTrue(Math.abs(localWind.bodyTorqueResidualNewtonMeters().y()) > 1.0e-4);
+		assertEquals(vehicleVelocityWorld.y(), baseline.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(vehicleVelocityWorld.y() - 0.25,
+				localWind.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(new Vec3(0.0, 2.0, 0.0),
+				localWind.solutionSample().rotorSamples().get(0).relativeAirVelocityBodyMetersPerSecond(), 1.0e-15);
+		assertTrue(localWind.rotorSolutions().get(0).solutionOmegaRadiansPerSecond()
+				< baseline.rotorSolutions().get(0).solutionOmegaRadiansPerSecond());
+		for (int i = 1; i < config.rotors().size(); i++) {
+			assertVectorEquals(vehicleVelocityWorld,
+					localWind.solutionSample().rotorSamples().get(i).relativeAirVelocityBodyMetersPerSecond(),
+					1.0e-15);
+		}
+	}
+
+	@Test
+	void staticAnchoredConfigurationTrimFromEnvironmentKinematicsMatchesCalmWorldKinematics() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double hoverOmega = Math.sqrt(targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+		Vec3 vehicleVelocityWorld = new Vec3(0.0, 3.0, 0.0);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution world =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromWorldKinematics(
+						"apDrone",
+						"configuration_trim_environment_world_reference",
+						config,
+						Quaternion.IDENTITY,
+						vehicleVelocityWorld,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						null,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						RHO,
+						25.0,
+						0.0
+				);
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTrimSolution environment =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationTrimFromEnvironmentKinematics(
+						"apDrone",
+						"configuration_trim_environment_calm",
+						config,
+						Quaternion.IDENTITY,
+						vehicleVelocityWorld,
+						Vec3.ZERO,
+						targetThrust,
+						Vec3.ZERO,
+						hoverOmega * 0.55,
+						hoverOmega * 1.80,
+						DroneEnvironment.calm()
+				);
+
+		assertTrue(environment.solved());
+		assertEquals(world.solutionSample().totalThrustNewtons(),
+				environment.solutionSample().totalThrustNewtons(), 1.0e-12);
+		assertVectorEquals(world.solutionSample().totalBodyTorqueNewtonMeters(),
+				environment.solutionSample().totalBodyTorqueNewtonMeters(), 1.0e-12);
+		assertEquals(RHO,
+				environment.solutionSample().rotorSamples().get(0).query().airDensityKgPerCubicMeter(), 1.0e-15);
+		assertEquals(25.0,
+				environment.solutionSample().rotorSamples().get(0).query().ambientTemperatureCelsius(), 1.0e-15);
+	}
+
+	@Test
 	void staticAnchoredConfigurationTrimBlocksWhenTorqueAllocationRequiresNegativeThrust() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);
