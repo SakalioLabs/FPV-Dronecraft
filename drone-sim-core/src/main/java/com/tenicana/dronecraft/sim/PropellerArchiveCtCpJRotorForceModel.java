@@ -2408,6 +2408,105 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		return aggregate(samples);
 	}
 
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromEnvironmentKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			double[] omegaRadiansPerSecond,
+			DroneEnvironment environment,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (environment == null) {
+			environment = DroneEnvironment.calm();
+		}
+		return sampleStaticAnchoredConfigurationFromWorldKinematics(
+				presetName,
+				caseName,
+				config,
+				bodyToWorldOrientation,
+				vehicleVelocityWorldMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				environment.windVelocityWorldMetersPerSecond(),
+				environment.rotorWindVelocityWorldMetersPerSecond(),
+				omegaRadiansPerSecond,
+				SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * environment.effectiveAirDensityRatio(),
+				envelopePolicy,
+				environment.effectiveAmbientTemperatureCelsius(),
+				environment.ambientHumidity()
+		);
+	}
+
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromWorldKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			Vec3 windVelocityWorldMetersPerSecond,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		return sampleStaticAnchoredConfigurationFromWorldKinematics(
+				presetName,
+				caseName,
+				config,
+				bodyToWorldOrientation,
+				vehicleVelocityWorldMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				windVelocityWorldMetersPerSecond,
+				rotorWindVelocityWorldMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromWorldKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			Vec3 windVelocityWorldMetersPerSecond,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		return sampleStaticAnchoredConfigurationFromRelativeAirVelocities(
+				presetName,
+				caseName,
+				config,
+				rotorRelativeAirVelocitiesFromWorldKinematics(
+						config,
+						bodyToWorldOrientation,
+						vehicleVelocityWorldMetersPerSecond,
+						angularVelocityBodyRadiansPerSecond,
+						windVelocityWorldMetersPerSecond,
+						rotorWindVelocityWorldMetersPerSecond
+				),
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+	}
+
 	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
 			String presetName,
 			String caseName,
@@ -2555,6 +2654,45 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			velocities[i] = bodyRelativeAirVelocity.add(angularVelocityBody.cross(rotorArmBody));
 		}
 		return velocities;
+	}
+
+	private static Vec3[] rotorRelativeAirVelocitiesFromWorldKinematics(
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			Vec3 windVelocityWorldMetersPerSecond,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond
+	) {
+		Quaternion worldToBody = finiteQuaternionOrIdentity(bodyToWorldOrientation).normalized().conjugate();
+		Vec3 vehicleVelocityWorld = finiteVecOrZero(vehicleVelocityWorldMetersPerSecond);
+		Vec3 baselineWindWorld = finiteVecOrZero(windVelocityWorldMetersPerSecond);
+		Vec3 angularVelocityBody = finiteVecOrZero(angularVelocityBodyRadiansPerSecond);
+		Vec3 momentReference = config.centerOfMassOffsetBodyMeters();
+		Vec3[] velocities = new Vec3[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			Vec3 localWindWorld = rotorWindWorldOrBaseline(
+					rotorWindVelocityWorldMetersPerSecond,
+					i,
+					baselineWindWorld
+			);
+			Vec3 bodyRelativeAirVelocity = worldToBody.rotate(vehicleVelocityWorld.subtract(localWindWorld));
+			Vec3 rotorArmBody = rotor.positionBodyMeters().subtract(momentReference);
+			velocities[i] = bodyRelativeAirVelocity.add(angularVelocityBody.cross(rotorArmBody));
+		}
+		return velocities;
+	}
+
+	private static Vec3 rotorWindWorldOrBaseline(Vec3[] rotorWindVelocityWorldMetersPerSecond, int index, Vec3 baseline) {
+		if (rotorWindVelocityWorldMetersPerSecond == null
+				|| index < 0
+				|| index >= rotorWindVelocityWorldMetersPerSecond.length
+				|| rotorWindVelocityWorldMetersPerSecond[index] == null
+				|| !rotorWindVelocityWorldMetersPerSecond[index].isFinite()) {
+			return baseline;
+		}
+		return rotorWindVelocityWorldMetersPerSecond[index];
 	}
 
 	private static Vec3[] validateRotorRelativeAirVelocities(
@@ -2896,5 +3034,16 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
 		return value == null || !value.isFinite() ? Vec3.ZERO : value;
+	}
+
+	private static Quaternion finiteQuaternionOrIdentity(Quaternion value) {
+		if (value == null
+				|| !Double.isFinite(value.w())
+				|| !Double.isFinite(value.x())
+				|| !Double.isFinite(value.y())
+				|| !Double.isFinite(value.z())) {
+			return Quaternion.IDENTITY;
+		}
+		return value;
 	}
 }
