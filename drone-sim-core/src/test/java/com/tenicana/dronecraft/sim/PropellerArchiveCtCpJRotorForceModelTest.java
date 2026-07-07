@@ -504,7 +504,10 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				expectedWorldThrustMoment.add(sample.reactionTorqueWorldNewtonMeters(bodyToWorld));
 		PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 				sample.worldForceApplication(7, momentReferenceWorld, bodyToWorld);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				sample.actuatorDiskSourceTerm(7, momentReferenceWorld, bodyToWorld);
 		Vec3 expectedApplicationPoint = momentReferenceWorld.add(sample.momentArmWorldMeters(bodyToWorld));
+		Vec3 expectedDiskNormalWorld = bodyToWorld.rotate(rotor.thrustAxisBody()).normalized();
 		assertFalse(sample.blocked());
 		assertVectorEquals(bodyToWorld.rotate(sample.relativeAirVelocityBodyMetersPerSecond()),
 				sample.relativeAirVelocityWorldMetersPerSecond(bodyToWorld), 1.0e-15);
@@ -542,6 +545,31 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				application.thrustMomentWorldNewtonMeters(),
 				1.0e-15
 		);
+		assertEquals(7, sourceTerm.rotorIndex());
+		assertTrue(sourceTerm.applied());
+		assertEquals(sample.runtimeForceReplacementAccepted(), sourceTerm.runtimeForceReplacementAccepted());
+		assertEquals(sample.lookup().status(), sourceTerm.lookupStatus());
+		assertVectorEquals(expectedApplicationPoint, sourceTerm.diskCenterWorldMeters(), 1.0e-15);
+		assertVectorEquals(expectedDiskNormalWorld, sourceTerm.diskNormalWorld(), 1.0e-15);
+		assertEquals(sample.dimensionalSample().diskAreaSquareMeters(),
+				sourceTerm.diskAreaSquareMeters(), 1.0e-15);
+		assertEquals(sample.actuatorDiskPressureJumpPascals(),
+				sourceTerm.pressureJumpPascals(), 1.0e-12);
+		assertEquals(sample.actuatorDiskMassFluxKilogramsPerSecondSquareMeter(),
+				sourceTerm.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(sample.actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(),
+				sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
+		assertVectorEquals(expectedDiskNormalWorld.multiply(sourceTerm.pressureJumpPascals()),
+				sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-12);
+		assertVectorEquals(sample.thrustForceWorldNewtons(bodyToWorld),
+				sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+						.multiply(sourceTerm.diskAreaSquareMeters()),
+				1.0e-12);
+		assertVectorEquals(sample.farWakeAxialVelocityWorldMetersPerSecond(bodyToWorld),
+				sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter().multiply(10.0),
+				sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.1), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.0), 1.0e-15);
 	}
 
 	@Test
@@ -709,10 +737,16 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				aggregate.rotorWorldForceApplications(momentReferenceWorld, quarterTurnAroundZ);
 		List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> runtimeApplications =
 				aggregate.runtimeForceReplacementRotorWorldForceApplications(momentReferenceWorld, quarterTurnAroundZ);
+		List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms =
+				aggregate.rotorActuatorDiskSourceTerms(momentReferenceWorld, quarterTurnAroundZ);
+		List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> runtimeSourceTerms =
+				aggregate.runtimeForceReplacementRotorActuatorDiskSourceTerms(momentReferenceWorld, quarterTurnAroundZ);
 
 		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
 		assertEquals(config.rotors().size(), applications.size());
 		assertEquals(config.rotors().size(), runtimeApplications.size());
+		assertEquals(config.rotors().size(), sourceTerms.size());
+		assertEquals(config.rotors().size(), runtimeSourceTerms.size());
 		assertTrue(aggregate.totalThrustForceBodyNewtons().length() > 0.0);
 		assertTrue(aggregate.totalBodyTorqueNewtonMeters().length() > 0.0);
 		assertVectorEquals(quarterTurnAroundZ.rotate(aggregate.totalThrustForceBodyNewtons()),
@@ -745,14 +779,34 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sumWorldThrustForce(runtimeApplications), 1.0e-12);
 		assertVectorEquals(aggregate.runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ),
 				sumWorldTotalTorque(runtimeApplications), 1.0e-12);
+		assertVectorEquals(aggregate.totalThrustForceWorldNewtons(quarterTurnAroundZ),
+				sumWorldActuatorDiskSurfaceForce(sourceTerms), 1.0e-12);
+		assertVectorEquals(aggregate.runtimeForceReplacementThrustForceWorldNewtons(quarterTurnAroundZ),
+				sumWorldActuatorDiskSurfaceForce(runtimeSourceTerms), 1.0e-12);
 		for (int i = 0; i < applications.size(); i++) {
 			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 					applications.get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+					sourceTerms.get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample runtimeSourceTerm =
+					runtimeSourceTerms.get(i);
 			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample = aggregate.rotorSamples().get(i);
 			assertEquals(i, application.rotorIndex());
+			assertEquals(i, sourceTerm.rotorIndex());
 			assertTrue(application.applied());
+			assertTrue(sourceTerm.applied());
 			assertVectorEquals(sample.forceApplicationPointWorldMeters(momentReferenceWorld, quarterTurnAroundZ),
 					application.forceApplicationPointWorldMeters(), 1.0e-15);
+			assertVectorEquals(application.forceApplicationPointWorldMeters(),
+					sourceTerm.diskCenterWorldMeters(), 1.0e-15);
+			assertVectorEquals(quarterTurnAroundZ.rotate(sample.query().rotor().thrustAxisBody()).normalized(),
+					sourceTerm.diskNormalWorld(), 1.0e-15);
+			assertVectorEquals(application.thrustForceWorldNewtons(),
+					sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+							.multiply(sourceTerm.diskAreaSquareMeters()),
+					1.0e-12);
+			assertVectorEquals(sample.farWakeAxialVelocityWorldMetersPerSecond(quarterTurnAroundZ),
+					sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
 			assertVectorEquals(
 					application.forceApplicationPointWorldMeters()
 							.subtract(momentReferenceWorld)
@@ -761,8 +815,12 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 					1.0e-12
 			);
 			assertTrue(runtimeApplications.get(i).applied());
+			assertTrue(runtimeSourceTerm.applied());
 			assertVectorEquals(application.forceApplicationPointWorldMeters(),
 					runtimeApplications.get(i).forceApplicationPointWorldMeters(), 1.0e-15);
+			assertVectorEquals(sourceTerm.diskCenterWorldMeters(), runtimeSourceTerm.diskCenterWorldMeters(), 1.0e-15);
+			assertVectorEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(),
+					runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-12);
 		}
 	}
 
@@ -2361,6 +2419,10 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 						momentReferenceWorld,
 						Quaternion.IDENTITY
 				);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				sample.actuatorDiskSourceTerm(0, momentReferenceWorld, Quaternion.IDENTITY);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample runtimeSourceTerm =
+				sample.runtimeForceReplacementActuatorDiskSourceTerm(0, momentReferenceWorld, Quaternion.IDENTITY);
 
 		assertTrue(sample.blocked());
 		assertFalse(sample.clamped());
@@ -2390,6 +2452,25 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(Vec3.ZERO, runtimeApplication.reactionTorqueWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeApplication.thrustMomentWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeApplication.totalTorqueWorldNewtonMeters(), 1.0e-15);
+		assertFalse(sourceTerm.applied());
+		assertFalse(runtimeSourceTerm.applied());
+		assertFalse(sourceTerm.runtimeForceReplacementAccepted());
+		assertFalse(runtimeSourceTerm.runtimeForceReplacementAccepted());
+		assertEquals("OUT_OF_ENVELOPE_BLOCKED", sourceTerm.lookupStatus());
+		assertEquals("OUT_OF_ENVELOPE_BLOCKED", runtimeSourceTerm.lookupStatus());
+		assertVectorEquals(runtimeApplication.forceApplicationPointWorldMeters(),
+				sourceTerm.diskCenterWorldMeters(), 1.0e-15);
+		assertVectorEquals(runtimeApplication.forceApplicationPointWorldMeters(),
+				runtimeSourceTerm.diskCenterWorldMeters(), 1.0e-15);
+		assertVectorEquals(rotor.thrustAxisBody().normalized(), sourceTerm.diskNormalWorld(), 1.0e-15);
+		assertEquals(sample.dimensionalSample().diskAreaSquareMeters(), sourceTerm.diskAreaSquareMeters(), 1.0e-15);
+		assertEquals(0.0, sourceTerm.pressureJumpPascals(), 1.0e-15);
+		assertEquals(0.0, sourceTerm.massFluxKilogramsPerSecondSquareMeter(), 1.0e-15);
+		assertEquals(0.0, sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.05), 1.0e-15);
 	}
 
 	@Test
@@ -2465,6 +2546,17 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		Vec3 sum = Vec3.ZERO;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
 			sum = sum.add(application.totalTorqueWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static Vec3 sumWorldActuatorDiskSurfaceForce(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			sum = sum.add(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+					.multiply(sourceTerm.diskAreaSquareMeters()));
 		}
 		return sum;
 	}

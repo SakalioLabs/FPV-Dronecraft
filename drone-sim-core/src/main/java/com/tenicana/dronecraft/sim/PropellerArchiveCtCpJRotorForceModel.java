@@ -298,6 +298,20 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			);
 		}
 
+		public RotorActuatorDiskSourceTermSample actuatorDiskSourceTerm(
+				int rotorIndex,
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			return actuatorDiskSourceTerm(
+					rotorIndex,
+					momentReferenceWorldMeters,
+					bodyToWorldOrientation,
+					!blocked(),
+					runtimeForceReplacementAccepted()
+			);
+		}
+
 		public RotorWorldForceApplicationSample runtimeForceReplacementWorldForceApplication(
 				int rotorIndex,
 				Vec3 momentReferenceWorldMeters,
@@ -321,6 +335,55 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			);
 		}
 
+		public RotorActuatorDiskSourceTermSample runtimeForceReplacementActuatorDiskSourceTerm(
+				int rotorIndex,
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			boolean accepted = runtimeForceReplacementAccepted();
+			return actuatorDiskSourceTerm(
+					rotorIndex,
+					momentReferenceWorldMeters,
+					bodyToWorldOrientation,
+					accepted,
+					accepted
+			);
+		}
+
+		private RotorActuatorDiskSourceTermSample actuatorDiskSourceTerm(
+				int rotorIndex,
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation,
+				boolean applied,
+				boolean runtimeForceReplacementAccepted
+		) {
+			Vec3 diskNormalWorld = rotateBodyVectorToWorld(rotorAxisBody(query.rotor()), bodyToWorldOrientation)
+					.normalized();
+			double pressureJump = applied ? actuatorDiskPressureJumpPascals() : 0.0;
+			double massFlux = applied ? actuatorDiskMassFluxKilogramsPerSecondSquareMeter() : 0.0;
+			double powerLoading = applied ? actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter() : 0.0;
+			Vec3 thrustSurfaceForce = applied
+					? diskNormalWorld.multiply(pressureJump)
+					: Vec3.ZERO;
+			Vec3 farWakeAxialVelocity = applied
+					? farWakeAxialVelocityWorldMetersPerSecond(bodyToWorldOrientation)
+					: Vec3.ZERO;
+			return new RotorActuatorDiskSourceTermSample(
+					rotorIndex,
+					forceApplicationPointWorldMeters(momentReferenceWorldMeters, bodyToWorldOrientation),
+					diskNormalWorld,
+					dimensionalSample.diskAreaSquareMeters(),
+					pressureJump,
+					massFlux,
+					powerLoading,
+					thrustSurfaceForce,
+					farWakeAxialVelocity,
+					runtimeForceReplacementAccepted,
+					applied,
+					lookup.status()
+			);
+		}
+
 		public RotorOperatingPoint standardOperatingPoint() {
 			return operatingPoint(STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS);
 		}
@@ -338,6 +401,45 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					ambientTemperatureCelsius,
 					ambientHumidity
 			);
+		}
+	}
+
+	public record RotorActuatorDiskSourceTermSample(
+			int rotorIndex,
+			Vec3 diskCenterWorldMeters,
+			Vec3 diskNormalWorld,
+			double diskAreaSquareMeters,
+			double pressureJumpPascals,
+			double massFluxKilogramsPerSecondSquareMeter,
+			double idealMomentumPowerLoadingWattsPerSquareMeter,
+			Vec3 thrustSurfaceForceWorldNewtonsPerSquareMeter,
+			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
+			boolean runtimeForceReplacementAccepted,
+			boolean applied,
+			String lookupStatus
+	) {
+		public RotorActuatorDiskSourceTermSample {
+			rotorIndex = Math.max(0, rotorIndex);
+			diskCenterWorldMeters = finiteVecOrZero(diskCenterWorldMeters);
+			diskNormalWorld = finiteVecOrZero(diskNormalWorld).normalized();
+			diskAreaSquareMeters = finiteNonnegative(diskAreaSquareMeters);
+			pressureJumpPascals = finiteNonnegative(pressureJumpPascals);
+			massFluxKilogramsPerSecondSquareMeter =
+					finiteNonnegative(massFluxKilogramsPerSecondSquareMeter);
+			idealMomentumPowerLoadingWattsPerSquareMeter =
+					finiteNonnegative(idealMomentumPowerLoadingWattsPerSquareMeter);
+			thrustSurfaceForceWorldNewtonsPerSquareMeter =
+					finiteVecOrZero(thrustSurfaceForceWorldNewtonsPerSquareMeter);
+			farWakeAxialVelocityWorldMetersPerSecond =
+					finiteVecOrZero(farWakeAxialVelocityWorldMetersPerSecond);
+			lookupStatus = lookupStatus == null ? "" : lookupStatus;
+		}
+
+		public Vec3 equivalentBodyForceWorldNewtonsPerCubicMeter(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			return thrustSurfaceForceWorldNewtonsPerSquareMeter.multiply(1.0 / sourceThicknessMeters);
 		}
 	}
 
@@ -665,6 +767,21 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return List.copyOf(applications);
 		}
 
+		public List<RotorActuatorDiskSourceTermSample> rotorActuatorDiskSourceTerms(
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			List<RotorActuatorDiskSourceTermSample> sourceTerms = new ArrayList<>();
+			for (int i = 0; i < rotorSamples.size(); i++) {
+				sourceTerms.add(rotorSamples.get(i).actuatorDiskSourceTerm(
+						i,
+						momentReferenceWorldMeters,
+						bodyToWorldOrientation
+				));
+			}
+			return List.copyOf(sourceTerms);
+		}
+
 		public List<RotorWorldForceApplicationSample> runtimeForceReplacementRotorWorldForceApplications(
 				Vec3 momentReferenceWorldMeters,
 				Quaternion bodyToWorldOrientation
@@ -678,6 +795,21 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				));
 			}
 			return List.copyOf(applications);
+		}
+
+		public List<RotorActuatorDiskSourceTermSample> runtimeForceReplacementRotorActuatorDiskSourceTerms(
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			List<RotorActuatorDiskSourceTermSample> sourceTerms = new ArrayList<>();
+			for (int i = 0; i < rotorSamples.size(); i++) {
+				sourceTerms.add(rotorSamples.get(i).runtimeForceReplacementActuatorDiskSourceTerm(
+						i,
+						momentReferenceWorldMeters,
+						bodyToWorldOrientation
+				));
+			}
+			return List.copyOf(sourceTerms);
 		}
 	}
 
