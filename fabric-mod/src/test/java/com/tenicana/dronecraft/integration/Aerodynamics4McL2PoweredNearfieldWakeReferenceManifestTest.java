@@ -80,7 +80,7 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifestTest {
 		assertEquals(0.00027500814692071884,
 				currentOpenFoam.openFoamCoefficientArchiveCurveEtaFormulaResidual());
 		assertEquals(0.000071, currentOpenFoam.openFoamCoefficientArchiveCurveCtIncrease());
-		assertEquals(2, currentOpenFoam.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(3, currentOpenFoam.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
 		assertEquals(9, currentOpenFoam.openFoamNegativeThrustTailReferenceCount());
 		assertEquals(0.00027500814692071884,
 				currentOpenFoam.openFoamArchiveCurveEtaFormulaResidual());
@@ -102,7 +102,7 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceManifestTest {
 		assertEquals(0.00027500814692071884,
 				currentCombined.openFoamCoefficientArchiveCurveEtaFormulaResidual());
 		assertEquals(0.000071, currentCombined.openFoamCoefficientArchiveCurveCtIncrease());
-		assertEquals(2, currentCombined.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(3, currentCombined.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
 		assertEquals(9, currentCombined.openFoamNegativeThrustTailReferenceCount());
 		assertEquals(0.00027500814692071884,
 				currentCombined.openFoamArchiveCurveEtaFormulaResidual());

@@ -68,7 +68,7 @@ class Aerodynamics4McL2PoweredNearfieldWakeReferenceGateTest {
 		assertTrue(current.openFoamCoefficientArchiveCurveCtIncrease()
 				<= com.tenicana.dronecraft.sim.PropellerArchiveCtCpJArchiveCurveShapeReview
 						.MAX_CT_INCREASE_TOLERANCE);
-		assertEquals(2, current.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
+		assertEquals(3, current.openFoamArchiveCurveShapeGuardInheritedReferenceCount());
 		assertEquals(9, current.openFoamNegativeThrustTailReferenceCount());
 		assertTrue(current.openFoamMaxArchiveCurveEtaFormulaResidual()
 				<= com.tenicana.dronecraft.sim.PropellerArchiveCtCpJArchiveCurveShapeReview
