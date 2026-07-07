@@ -190,6 +190,74 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RotorOnlyStepPreview rotorOnlyStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return stepPreview(
+					rotorRigidBodyWrench(config, angularVelocityBodyRadiansPerSecond),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RotorOnlyStepPreview runtimeReplacementRotorOnlyStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return stepPreview(
+					runtimeReplacementRigidBodyWrench(config, angularVelocityBodyRadiansPerSecond),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		private RotorOnlyStepPreview stepPreview(
+				RigidBodyWrenchSample wrench,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			double dt = finiteNonnegative(dtSeconds);
+			Vec3 initialPosition = finiteVecOrZero(positionWorldMeters);
+			Vec3 initialVelocity = finiteVecOrZero(velocityWorldMetersPerSecond);
+			Vec3 initialAngularVelocity = finiteVecOrZero(angularVelocityBodyRadiansPerSecond);
+			Vec3 nextVelocity = initialVelocity.add(
+					wrench.linearAccelerationWorldMetersPerSecondSquared().multiply(dt)
+			);
+			Vec3 nextPosition = initialPosition.add(nextVelocity.multiply(dt));
+			Vec3 nextAngularVelocity = initialAngularVelocity.add(
+					wrench.angularAccelerationBodyRadiansPerSecondSquared().multiply(dt)
+			);
+			Quaternion nextOrientation = bodyToWorldOrientation.integrateBodyAngularVelocity(
+					nextAngularVelocity,
+					dt
+			);
+			return new RotorOnlyStepPreview(
+					wrench,
+					dt,
+					initialPosition,
+					initialVelocity,
+					bodyToWorldOrientation,
+					initialAngularVelocity,
+					nextPosition,
+					nextVelocity,
+					nextOrientation,
+					nextAngularVelocity
+			);
+		}
+
 		private RigidBodyWrenchSample rigidBodyWrench(
 				DroneConfig config,
 				Vec3 totalForceWorldNewtons,
@@ -238,6 +306,40 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			angularAccelerationBodyRadiansPerSecondSquared =
 					finiteVecOrZero(angularAccelerationBodyRadiansPerSecondSquared);
 			gyroscopicTorqueBodyNewtonMeters = finiteVecOrZero(gyroscopicTorqueBodyNewtonMeters);
+		}
+	}
+
+	public record RotorOnlyStepPreview(
+			RigidBodyWrenchSample wrench,
+			double dtSeconds,
+			Vec3 initialPositionWorldMeters,
+			Vec3 initialVelocityWorldMetersPerSecond,
+			Quaternion initialBodyToWorldOrientation,
+			Vec3 initialAngularVelocityBodyRadiansPerSecond,
+			Vec3 nextPositionWorldMeters,
+			Vec3 nextVelocityWorldMetersPerSecond,
+			Quaternion nextBodyToWorldOrientation,
+			Vec3 nextAngularVelocityBodyRadiansPerSecond
+	) {
+		public RotorOnlyStepPreview {
+			if (wrench == null) {
+				throw new IllegalArgumentException("wrench must not be null.");
+			}
+			dtSeconds = finiteNonnegative(dtSeconds);
+			initialPositionWorldMeters = finiteVecOrZero(initialPositionWorldMeters);
+			initialVelocityWorldMetersPerSecond = finiteVecOrZero(initialVelocityWorldMetersPerSecond);
+			initialBodyToWorldOrientation = finiteQuaternionOrIdentity(initialBodyToWorldOrientation).normalized();
+			initialAngularVelocityBodyRadiansPerSecond =
+					finiteVecOrZero(initialAngularVelocityBodyRadiansPerSecond);
+			nextPositionWorldMeters = finiteVecOrZero(nextPositionWorldMeters);
+			nextVelocityWorldMetersPerSecond = finiteVecOrZero(nextVelocityWorldMetersPerSecond);
+			nextBodyToWorldOrientation = finiteQuaternionOrIdentity(nextBodyToWorldOrientation).normalized();
+			nextAngularVelocityBodyRadiansPerSecond =
+					finiteVecOrZero(nextAngularVelocityBodyRadiansPerSecond);
+		}
+
+		public boolean runtimeReplacement() {
+			return wrench.runtimeReplacement();
 		}
 	}
 
@@ -295,6 +397,13 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				|| !Double.isFinite(value.y())
 				|| !Double.isFinite(value.z())) {
 			return Quaternion.IDENTITY;
+		}
+		return value;
+	}
+
+	private static double finiteNonnegative(double value) {
+		if (!Double.isFinite(value) || value < 0.0) {
+			return 0.0;
 		}
 		return value;
 	}
