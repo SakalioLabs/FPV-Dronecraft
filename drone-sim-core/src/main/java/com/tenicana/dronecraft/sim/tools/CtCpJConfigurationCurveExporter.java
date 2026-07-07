@@ -35,6 +35,9 @@ public final class CtCpJConfigurationCurveExporter {
 			"relative_air_body_x_mps",
 			"relative_air_body_y_mps",
 			"relative_air_body_z_mps",
+			"body_angular_rate_x_rad_s",
+			"body_angular_rate_y_rad_s",
+			"body_angular_rate_z_rad_s",
 			"transverse_air_speed_mps",
 			"inflow_angle_deg",
 			"total_thrust_force_body_x_n",
@@ -88,6 +91,8 @@ public final class CtCpJConfigurationCurveExporter {
 	private static final double OUT_OF_ENVELOPE_DIAGNOSTIC_ADVANCE_RATIO_J = 1.20;
 	private static final double TRANSVERSE_INFLOW_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
 	private static final double TRANSVERSE_INFLOW_DIAGNOSTIC_SPEED_METERS_PER_SECOND = 2.5;
+	private static final double BODY_RATE_DIAGNOSTIC_ADVANCE_RATIO_J = 0.4064;
+	private static final double BODY_RATE_DIAGNOSTIC_ROLL_RATE_RADIANS_PER_SECOND = 5.0;
 
 	private CtCpJConfigurationCurveExporter() {
 	}
@@ -227,7 +232,7 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		Vec3 relativeAirVelocity = rotorAxisBody(config.rotors().get(0)).multiply(axialSpeed);
-		return new ConfigurationDiagnosticPoint(axialSpeed, relativeAirVelocity, aggregate);
+		return new ConfigurationDiagnosticPoint(axialSpeed, relativeAirVelocity, Vec3.ZERO, aggregate);
 	}
 
 	private static List<ConfigurationDiagnosticPoint> diagnosticCurvePoints(
@@ -293,8 +298,32 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		ConfigurationDiagnosticPoint transverseDiagnostic =
-				new ConfigurationDiagnosticPoint(transverseAxialSpeed, relativeAirVelocity, transverseAggregate);
-		return List.of(reverseClamp, highAdvanceBlocked, transverseDiagnostic);
+				new ConfigurationDiagnosticPoint(transverseAxialSpeed, relativeAirVelocity, Vec3.ZERO,
+						transverseAggregate);
+		double bodyRateAxialSpeed = BODY_RATE_DIAGNOSTIC_ADVANCE_RATIO_J
+				* hoverRpm
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0;
+		Vec3 bodyRateRelativeAirVelocity = rotorAxisBody(rotor).multiply(bodyRateAxialSpeed);
+		Vec3 bodyRate = new Vec3(BODY_RATE_DIAGNOSTIC_ROLL_RATE_RADIANS_PER_SECOND, 0.0, 0.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample bodyRateAggregate =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromBodyKinematics(
+						presetName,
+						"static_anchored_configuration_body_rate_roll_diagnostic",
+						config,
+						bodyRateRelativeAirVelocity,
+						bodyRate,
+						omegas,
+						airDensityKgPerCubicMeter,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				);
+		ConfigurationDiagnosticPoint bodyRateDiagnostic =
+				new ConfigurationDiagnosticPoint(bodyRateAxialSpeed, bodyRateRelativeAirVelocity, bodyRate,
+						bodyRateAggregate);
+		return List.of(reverseClamp, highAdvanceBlocked, transverseDiagnostic, bodyRateDiagnostic);
 	}
 
 	private static ConfigurationDiagnosticPoint sampleUniformSignedAxialSpeed(
@@ -323,7 +352,8 @@ public final class CtCpJConfigurationCurveExporter {
 						ambientHumidity
 				);
 		Vec3 relativeAirVelocity = rotorAxisBody(config.rotors().get(0)).multiply(signedAxialSpeedMetersPerSecond);
-		return new ConfigurationDiagnosticPoint(signedAxialSpeedMetersPerSecond, relativeAirVelocity, aggregate);
+		return new ConfigurationDiagnosticPoint(signedAxialSpeedMetersPerSecond, relativeAirVelocity, Vec3.ZERO,
+				aggregate);
 	}
 
 	private static String csvLine(ConfigurationDiagnosticPoint point) {
@@ -348,6 +378,9 @@ public final class CtCpJConfigurationCurveExporter {
 				number(point.relativeAirVelocityBodyMetersPerSecond().x()),
 				number(point.relativeAirVelocityBodyMetersPerSecond().y()),
 				number(point.relativeAirVelocityBodyMetersPerSecond().z()),
+				number(point.angularVelocityBodyRadiansPerSecond().x()),
+				number(point.angularVelocityBodyRadiansPerSecond().y()),
+				number(point.angularVelocityBodyRadiansPerSecond().z()),
 				number(first.transverseAirSpeedMetersPerSecond()),
 				number(Math.toDegrees(first.inflowAngleRadians())),
 				number(aggregate.totalThrustForceBodyNewtons().x()),
@@ -637,6 +670,7 @@ public final class CtCpJConfigurationCurveExporter {
 	private record ConfigurationDiagnosticPoint(
 			double querySignedAxialSpeedMetersPerSecond,
 			Vec3 relativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
 			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
 	) {
 	}

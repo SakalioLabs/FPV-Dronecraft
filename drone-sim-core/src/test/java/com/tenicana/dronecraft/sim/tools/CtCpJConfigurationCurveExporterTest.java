@@ -45,7 +45,7 @@ class CtCpJConfigurationCurveExporterTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 
-		assertEquals(25, lines.size());
+		assertEquals(26, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j_min"));
 		assertEquals(4, integerCell(hover, columns, "rotor_count"));
 		assertEquals(4, integerCell(hover, columns, "accepted_rotor_count"));
@@ -112,6 +112,7 @@ class CtCpJConfigurationCurveExporterTest {
 		String reverseClamp = lineForCase(lines, columns, "static_anchored_configuration_reverse_axial_clamp");
 		String highBlock = lineForCase(lines, columns, "static_anchored_configuration_high_j_block");
 		String transverse = lineForCase(lines, columns, "static_anchored_configuration_transverse_inflow_diagnostic");
+		String bodyRate = lineForCase(lines, columns, "static_anchored_configuration_body_rate_roll_diagnostic");
 
 		assertEquals(4, integerCell(reverseClamp, columns, "accepted_rotor_count"));
 		assertEquals(4, integerCell(reverseClamp, columns, "clamped_rotor_count"));
@@ -137,6 +138,21 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(numberCell(transverse, columns, "inflow_angle_deg") > 15.0);
 		assertTrue(numberCell(transverse, columns, "total_thrust_n") > 0.0);
 		assertEquals(0.0, numberCell(transverse, columns, "runtime_replacement_total_thrust_n"), 1.0e-15);
+
+		assertEquals(4, integerCell(bodyRate, columns, "accepted_rotor_count"));
+		assertEquals(4, integerCell(bodyRate, columns, "runtime_force_replacement_accepted_rotor_count"));
+		assertEquals("ACCEPTED", textCell(bodyRate, columns, "runtime_eligibility_status"));
+		assertEquals(5.0, numberCell(bodyRate, columns, "body_angular_rate_x_rad_s"), 1.0e-15);
+		assertEquals(0.0, numberCell(bodyRate, columns, "body_angular_rate_y_rad_s"), 1.0e-15);
+		assertEquals(0.0, numberCell(bodyRate, columns, "body_angular_rate_z_rad_s"), 1.0e-15);
+		assertTrue(numberCell(bodyRate, columns, "effective_j_min")
+				< numberCell(bodyRate, columns, "effective_j_max"));
+		assertTrue(Math.abs(numberCell(bodyRate, columns, "total_body_torque_x_nm")) > 1.0e-3);
+		assertEquals(0.0, numberCell(bodyRate, columns, "total_reaction_torque_body_y_nm"), 1.0e-12);
+		assertEquals(numberCell(bodyRate, columns, "total_thrust_n"),
+				numberCell(bodyRate, columns, "runtime_replacement_total_thrust_n"), 1.0e-12);
+		assertEquals(numberCell(bodyRate, columns, "total_body_torque_x_nm"),
+				numberCell(bodyRate, columns, "runtime_replacement_total_body_torque_x_nm"), 1.0e-12);
 	}
 
 	@Test
@@ -145,10 +161,11 @@ class CtCpJConfigurationCurveExporterTest {
 		CtCpJConfigurationCurveExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(25, lines.size());
+		assertEquals(26, lines.size());
 		assertTrue(lines.get(0).contains("total_thrust_n"));
 		assertTrue(lines.get(0).contains("total_shaft_power_w"));
 		assertTrue(lines.get(0).contains("total_body_torque_y_nm"));
+		assertTrue(lines.get(0).contains("body_angular_rate_x_rad_s"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_n"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
@@ -169,6 +186,8 @@ class CtCpJConfigurationCurveExporterTest {
 						&& line.contains(",OUT_OF_ENVELOPE_BLOCKED,")));
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_configuration_transverse_inflow_diagnostic,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_configuration_body_rate_roll_diagnostic,")));
 	}
 
 	private static Map<String, Integer> columns(List<String> lines) {

@@ -1226,6 +1226,72 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		return aggregate(samples);
 	}
 
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromBodyKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3 bodyRelativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		return sampleStaticAnchoredConfigurationFromBodyKinematics(
+				presetName,
+				caseName,
+				config,
+				bodyRelativeAirVelocityBodyMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				envelopePolicy,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromBodyKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Vec3 bodyRelativeAirVelocityBodyMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			double[] omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		if (omegaRadiansPerSecond == null || omegaRadiansPerSecond.length < config.rotors().size()) {
+			throw new IllegalArgumentException("rotor speed array must cover every configured rotor.");
+		}
+		Vec3 bodyRelativeAirVelocity = finiteRelativeAirVelocity(bodyRelativeAirVelocityBodyMetersPerSecond);
+		Vec3 angularVelocityBody = finiteVecOrZero(angularVelocityBodyRadiansPerSecond);
+		Vec3 momentReference = config.centerOfMassOffsetBodyMeters();
+		List<RotorForceSample> samples = new ArrayList<>();
+		for (int i = 0; i < config.rotors().size(); i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			Vec3 rotorArmBody = rotor.positionBodyMeters().subtract(momentReference);
+			Vec3 rotorRelativeAirVelocity = bodyRelativeAirVelocity.add(angularVelocityBody.cross(rotorArmBody));
+			samples.add(sampleStaticAnchoredFromRelativeAirVelocity(
+					presetName,
+					caseName,
+					rotor,
+					rotorRelativeAirVelocity,
+					omegaRadiansPerSecond[i],
+					airDensityKgPerCubicMeter,
+					momentReference,
+					envelopePolicy,
+					ambientTemperatureCelsius,
+					ambientHumidity
+			));
+		}
+		return aggregate(samples);
+	}
+
 	public static RotorForceAggregateSample sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
 			String presetName,
 			String caseName,

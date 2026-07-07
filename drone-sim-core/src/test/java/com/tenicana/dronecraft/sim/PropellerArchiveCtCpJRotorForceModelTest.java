@@ -662,6 +662,73 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void bodyKinematicsConfigurationAddsLocalRotorAirVelocityFromBodyRate() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double rpm = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient()) * 60.0 / (2.0 * Math.PI);
+		double omega = rpm * 2.0 * Math.PI / 60.0;
+		double axialSpeed = 0.4064 * rpm / 60.0 * rotor.radiusMeters() * 2.0;
+		Vec3 bodyRelativeAirVelocity = new Vec3(0.0, axialSpeed, 0.0);
+		Vec3 angularVelocityBody = new Vec3(5.0, 0.0, 0.0);
+		Vec3[] expectedRelativeAirVelocities = new Vec3[config.rotors().size()];
+		double[] omegas = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			Vec3 rotorArm = config.rotors().get(i).positionBodyMeters()
+					.subtract(config.centerOfMassOffsetBodyMeters());
+			expectedRelativeAirVelocities[i] = bodyRelativeAirVelocity.add(angularVelocityBody.cross(rotorArm));
+			omegas[i] = omega;
+		}
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample kinematic =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromBodyKinematics(
+						"apDrone",
+						"body_rate_roll_kinematics",
+						config,
+						bodyRelativeAirVelocity,
+						angularVelocityBody,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample direct =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromRelativeAirVelocities(
+						"apDrone",
+						"body_rate_roll_kinematics",
+						config,
+						expectedRelativeAirVelocities,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		assertEquals(config.rotors().size(), kinematic.acceptedRotorCount());
+		assertEquals(config.rotors().size(), kinematic.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(0, kinematic.blockedRotorCount());
+		assertEquals(0, kinematic.clampedRotorCount());
+		assertTrue(kinematic.rotorSamples().get(0).query().advanceRatioJ()
+				< kinematic.rotorSamples().get(2).query().advanceRatioJ());
+		assertTrue(kinematic.rotorSamples().get(0).thrustNewtons()
+				> kinematic.rotorSamples().get(2).thrustNewtons());
+		for (int i = 0; i < config.rotors().size(); i++) {
+			assertVectorEquals(expectedRelativeAirVelocities[i],
+					kinematic.rotorSamples().get(i).relativeAirVelocityBodyMetersPerSecond(), 1.0e-15);
+			assertEquals(direct.rotorSamples().get(i).query().advanceRatioJ(),
+					kinematic.rotorSamples().get(i).query().advanceRatioJ(), 1.0e-15);
+			assertEquals(direct.rotorSamples().get(i).thrustNewtons(),
+					kinematic.rotorSamples().get(i).thrustNewtons(), 1.0e-12);
+		}
+		assertVectorEquals(direct.totalThrustForceBodyNewtons(),
+				kinematic.totalThrustForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(direct.totalBodyTorqueNewtonMeters(),
+				kinematic.totalBodyTorqueNewtonMeters(), 1.0e-12);
+		assertEquals(direct.totalShaftPowerWatts(), kinematic.totalShaftPowerWatts(), 1.0e-12);
+		assertTrue(Math.abs(kinematic.totalBodyTorqueNewtonMeters().x()) > 1.0e-3);
+		assertEquals(0.0, kinematic.totalReactionTorqueBodyNewtonMeters().y(), 1.0e-12);
+	}
+
+	@Test
 	void aggregatePreservesBlockedCounts() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
