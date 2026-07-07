@@ -60,6 +60,17 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			"reference_momentum_power_w",
 			"cfd_momentum_power_w",
 			"momentum_power_residual_w",
+			"reference_wake_swirl_kinetic_power_w",
+			"cfd_wake_swirl_kinetic_power_w",
+			"wake_swirl_kinetic_power_residual_w",
+			"wake_swirl_kinetic_power_residual_fraction",
+			"reference_total_wake_kinetic_power_w",
+			"cfd_total_wake_kinetic_power_w",
+			"total_wake_kinetic_power_residual_w",
+			"total_wake_kinetic_power_residual_fraction",
+			"reference_total_wake_kinetic_power_over_shaft_power",
+			"cfd_total_wake_kinetic_power_over_shaft_power",
+			"total_wake_kinetic_power_over_shaft_power_residual",
 			"reference_far_wake_contracted_area_m2",
 			"cfd_far_wake_contracted_area_m2",
 			"far_wake_contracted_area_residual_m2",
@@ -97,6 +108,8 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double cfdThrustCoefficientCt,
 			double cfdPowerCoefficientCp,
 			double cfdPropulsiveEfficiencyEta,
+			double cfdWakeSwirlKineticPowerWatts,
+			double cfdTotalWakeKineticPowerWatts,
 			double cfdFarWakeContractedAreaSquareMeters,
 			double cfdFarWakeEquivalentRadiusMeters,
 			double cfdFarWakeContractedAreaOverDiskArea,
@@ -129,6 +142,16 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			}
 			if (!Double.isFinite(cfdShaftPowerWatts)) {
 				throw new IllegalArgumentException("cfdShaftPowerWatts must be finite.");
+			}
+			if (!Double.isFinite(cfdTotalWakeKineticPowerWatts)
+					&& Double.isFinite(cfdMomentumPowerWatts)
+					&& Double.isFinite(cfdWakeSwirlKineticPowerWatts)) {
+				cfdTotalWakeKineticPowerWatts = cfdMomentumPowerWatts + cfdWakeSwirlKineticPowerWatts;
+			}
+			if (!Double.isFinite(cfdWakeSwirlKineticPowerWatts)
+					&& Double.isFinite(cfdTotalWakeKineticPowerWatts)
+					&& Double.isFinite(cfdMomentumPowerWatts)) {
+				cfdWakeSwirlKineticPowerWatts = cfdTotalWakeKineticPowerWatts - cfdMomentumPowerWatts;
 			}
 			double diskArea = Math.PI * propellerDiameterMeters * propellerDiameterMeters * 0.25;
 			double rotorRadius = propellerDiameterMeters * 0.5;
@@ -174,6 +197,11 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double torqueResidualFraction,
 			double inducedVelocityResidualMetersPerSecond,
 			double momentumPowerResidualWatts,
+			double wakeSwirlKineticPowerResidualWatts,
+			double wakeSwirlKineticPowerResidualFraction,
+			double totalWakeKineticPowerResidualWatts,
+			double totalWakeKineticPowerResidualFraction,
+			double totalWakeKineticPowerOverShaftPowerResidual,
 			double farWakeContractedAreaResidualSquareMeters,
 			double farWakeContractedAreaResidualFraction,
 			double farWakeEquivalentRadiusResidualMeters,
@@ -266,6 +294,30 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				? cfd.cfdMomentumPowerWatts()
 				: momentumPower(cfd.cfdThrustNewtons(), cfd.queryAdvanceRatioJ(), revolutionsPerSecond,
 						cfd.propellerDiameterMeters(), cfd.cfdInducedVelocityMetersPerSecond());
+		CfdDimensionalRow normalizedCfd = new CfdDimensionalRow(
+				cfd.presetName(),
+				cfd.caseName(),
+				cfd.queryAdvanceRatioJ(),
+				cfd.queryRpm(),
+				cfd.airDensityKgPerCubicMeter(),
+				cfd.propellerDiameterMeters(),
+				cfd.cfdThrustNewtons(),
+				cfd.cfdShaftPowerWatts(),
+				cfdTorque,
+				cfd.cfdInducedVelocityMetersPerSecond(),
+				cfdMomentumPower,
+				cfdCt,
+				cfdCp,
+				cfdEta,
+				cfd.cfdWakeSwirlKineticPowerWatts(),
+				cfd.cfdTotalWakeKineticPowerWatts(),
+				cfd.cfdFarWakeContractedAreaSquareMeters(),
+				cfd.cfdFarWakeEquivalentRadiusMeters(),
+				cfd.cfdFarWakeContractedAreaOverDiskArea(),
+				cfd.cfdFarWakeEquivalentRadiusOverRotorRadius(),
+				cfd.sourceCaseSha256(),
+				cfd.solverStatus()
+		);
 		boolean comparable = !reference.blocked()
 				&& Double.isFinite(cfdCt)
 				&& Double.isFinite(cfdCp)
@@ -277,28 +329,7 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 						? reference.lookup().message()
 						: "cfd-row-missing-finite-dimensional-channel";
 		return new ComparisonRow(
-				new CfdDimensionalRow(
-						cfd.presetName(),
-						cfd.caseName(),
-						cfd.queryAdvanceRatioJ(),
-						cfd.queryRpm(),
-						cfd.airDensityKgPerCubicMeter(),
-						cfd.propellerDiameterMeters(),
-						cfd.cfdThrustNewtons(),
-						cfd.cfdShaftPowerWatts(),
-						cfdTorque,
-						cfd.cfdInducedVelocityMetersPerSecond(),
-						cfdMomentumPower,
-						cfdCt,
-						cfdCp,
-						cfdEta,
-						cfd.cfdFarWakeContractedAreaSquareMeters(),
-						cfd.cfdFarWakeEquivalentRadiusMeters(),
-						cfd.cfdFarWakeContractedAreaOverDiskArea(),
-						cfd.cfdFarWakeEquivalentRadiusOverRotorRadius(),
-						cfd.sourceCaseSha256(),
-						cfd.solverStatus()
-				),
+				normalizedCfd,
 				reference,
 				cfdCt,
 				cfdCp,
@@ -318,17 +349,28 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				ratio(cfdTorque - reference.shaftTorqueNewtonMeters(), reference.shaftTorqueNewtonMeters()),
 				cfd.cfdInducedVelocityMetersPerSecond() - reference.idealInducedVelocityMetersPerSecond(),
 				cfdMomentumPower - reference.idealMomentumPowerWatts(),
-				cfd.cfdFarWakeContractedAreaSquareMeters() - reference.farWakeContractedAreaSquareMeters(),
-				ratio(cfd.cfdFarWakeContractedAreaSquareMeters()
+				normalizedCfd.cfdWakeSwirlKineticPowerWatts() - reference.wakeSwirlKineticPowerWatts(),
+				ratio(normalizedCfd.cfdWakeSwirlKineticPowerWatts()
+								- reference.wakeSwirlKineticPowerWatts(),
+						reference.wakeSwirlKineticPowerWatts()),
+				normalizedCfd.cfdTotalWakeKineticPowerWatts() - reference.totalWakeKineticPowerWatts(),
+				ratio(normalizedCfd.cfdTotalWakeKineticPowerWatts()
+								- reference.totalWakeKineticPowerWatts(),
+						reference.totalWakeKineticPowerWatts()),
+				ratio(normalizedCfd.cfdTotalWakeKineticPowerWatts(),
+						normalizedCfd.cfdShaftPowerWatts())
+						- reference.totalWakeKineticPowerOverShaftPower(),
+				normalizedCfd.cfdFarWakeContractedAreaSquareMeters() - reference.farWakeContractedAreaSquareMeters(),
+				ratio(normalizedCfd.cfdFarWakeContractedAreaSquareMeters()
 								- reference.farWakeContractedAreaSquareMeters(),
 						reference.farWakeContractedAreaSquareMeters()),
-				cfd.cfdFarWakeEquivalentRadiusMeters() - reference.farWakeEquivalentRadiusMeters(),
-				ratio(cfd.cfdFarWakeEquivalentRadiusMeters()
+				normalizedCfd.cfdFarWakeEquivalentRadiusMeters() - reference.farWakeEquivalentRadiusMeters(),
+				ratio(normalizedCfd.cfdFarWakeEquivalentRadiusMeters()
 								- reference.farWakeEquivalentRadiusMeters(),
 						reference.farWakeEquivalentRadiusMeters()),
-				cfd.cfdFarWakeContractedAreaOverDiskArea()
+				normalizedCfd.cfdFarWakeContractedAreaOverDiskArea()
 						- reference.farWakeContractedAreaOverDiskArea(),
-				cfd.cfdFarWakeEquivalentRadiusOverRotorRadius()
+				normalizedCfd.cfdFarWakeEquivalentRadiusOverRotorRadius()
 						- reference.farWakeEquivalentRadiusOverRotorRadius(),
 				comparable,
 				message
@@ -367,6 +409,8 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				optionalDouble(record, "cfd_ct", Double.NaN),
 				optionalDouble(record, "cfd_cp", Double.NaN),
 				optionalDouble(record, "cfd_eta", Double.NaN),
+				optionalDouble(record, "cfd_wake_swirl_kinetic_power_w", Double.NaN),
+				optionalDouble(record, "cfd_total_wake_kinetic_power_w", Double.NaN),
 				optionalDouble(record, "cfd_far_wake_contracted_area_m2", Double.NaN),
 				optionalDouble(record, "cfd_far_wake_equivalent_radius_m", Double.NaN),
 				optionalDouble(record, "cfd_far_wake_contracted_area_over_disk_area", Double.NaN),
@@ -507,6 +551,17 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				number(reference.idealMomentumPowerWatts()),
 				number(cfd.cfdMomentumPowerWatts()),
 				number(row.momentumPowerResidualWatts()),
+				number(reference.wakeSwirlKineticPowerWatts()),
+				number(cfd.cfdWakeSwirlKineticPowerWatts()),
+				number(row.wakeSwirlKineticPowerResidualWatts()),
+				number(row.wakeSwirlKineticPowerResidualFraction()),
+				number(reference.totalWakeKineticPowerWatts()),
+				number(cfd.cfdTotalWakeKineticPowerWatts()),
+				number(row.totalWakeKineticPowerResidualWatts()),
+				number(row.totalWakeKineticPowerResidualFraction()),
+				number(reference.totalWakeKineticPowerOverShaftPower()),
+				number(ratio(cfd.cfdTotalWakeKineticPowerWatts(), cfd.cfdShaftPowerWatts())),
+				number(row.totalWakeKineticPowerOverShaftPowerResidual()),
 				number(reference.farWakeContractedAreaSquareMeters()),
 				number(cfd.cfdFarWakeContractedAreaSquareMeters()),
 				number(row.farWakeContractedAreaResidualSquareMeters()),
