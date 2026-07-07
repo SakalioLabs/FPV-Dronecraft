@@ -6,6 +6,8 @@ import java.util.List;
 public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double EPSILON = 1.0e-9;
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
+	private static final double TARGET_THRUST_SOLVE_RELATIVE_TOLERANCE = 1.0e-6;
+	private static final int TARGET_THRUST_SOLVE_MAX_ITERATIONS = 56;
 	private static final double RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS = Math.toRadians(15.0);
 	private static final double RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND = 0.35;
 	private static final double RUNTIME_REPLACEMENT_MAX_TIP_MACH = 0.46;
@@ -351,6 +353,277 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			blockedRotorCount = Math.max(0, blockedRotorCount);
 			clampedRotorCount = Math.max(0, clampedRotorCount);
 		}
+	}
+
+	public enum RotorTargetThrustSolveStatus {
+		SOLVED,
+		LOWER_BOUND_EXCEEDS_TARGET,
+		UPPER_BOUND_BLOCKED,
+		UPPER_BOUND_BELOW_TARGET,
+		NO_CONVERGENCE
+	}
+
+	public record RotorTargetThrustSolution(
+			RotorTargetThrustSolveStatus status,
+			double targetThrustNewtons,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			int iterations,
+			RotorForceSample lowerBoundSample,
+			RotorForceSample upperBoundSample,
+			RotorForceSample solutionSample
+	) {
+		public RotorTargetThrustSolution {
+			if (status == null) {
+				status = RotorTargetThrustSolveStatus.NO_CONVERGENCE;
+			}
+			targetThrustNewtons = finiteNonnegative(targetThrustNewtons);
+			signedAxialAdvanceSpeedMetersPerSecond = finiteOrZero(signedAxialAdvanceSpeedMetersPerSecond);
+			lowerOmegaRadiansPerSecond = finiteNonnegative(lowerOmegaRadiansPerSecond);
+			upperOmegaRadiansPerSecond = finiteNonnegative(upperOmegaRadiansPerSecond);
+			iterations = Math.max(0, iterations);
+		}
+
+		public boolean solved() {
+			return status == RotorTargetThrustSolveStatus.SOLVED
+					&& solutionSample != null
+					&& !solutionSample.blocked();
+		}
+
+		public boolean blocked() {
+			return !solved();
+		}
+
+		public boolean clamped() {
+			return (solutionSample != null && solutionSample.clamped())
+					|| (lowerBoundSample != null && lowerBoundSample.clamped())
+					|| (upperBoundSample != null && upperBoundSample.clamped());
+		}
+
+		public double solutionOmegaRadiansPerSecond() {
+			return solutionSample == null
+					? 0.0
+					: solutionSample.dimensionalSample().angularVelocityRadiansPerSecond();
+		}
+
+		public double solutionRpm() {
+			return solutionSample == null ? 0.0 : solutionSample.query().rpm();
+		}
+
+		public double thrustResidualNewtons() {
+			return solutionSample == null ? 0.0 : solutionSample.thrustNewtons() - targetThrustNewtons;
+		}
+
+		public double absoluteThrustResidualNewtons() {
+			return Math.abs(thrustResidualNewtons());
+		}
+
+		public double thrustResidualFraction() {
+			return ratio(thrustResidualNewtons(), targetThrustNewtons);
+		}
+	}
+
+	public static RotorTargetThrustSolution solveStaticAnchoredRpmForTargetThrust(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		return solveStaticAnchoredRpmForTargetThrust(
+				presetName,
+				caseName,
+				rotor,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				targetThrustNewtons,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static RotorTargetThrustSolution solveStaticAnchoredRpmForTargetThrust(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (rotor == null) {
+			throw new IllegalArgumentException("rotor must not be null.");
+		}
+		if (!Double.isFinite(signedAxialAdvanceSpeedMetersPerSecond)) {
+			throw new IllegalArgumentException("signedAxialAdvanceSpeedMetersPerSecond must be finite.");
+		}
+		if (!Double.isFinite(targetThrustNewtons) || targetThrustNewtons < 0.0) {
+			throw new IllegalArgumentException("targetThrustNewtons must be finite and nonnegative.");
+		}
+		if (!Double.isFinite(lowerOmegaRadiansPerSecond) || lowerOmegaRadiansPerSecond <= 0.0) {
+			throw new IllegalArgumentException("lowerOmegaRadiansPerSecond must be finite and positive.");
+		}
+		if (!Double.isFinite(upperOmegaRadiansPerSecond)
+				|| upperOmegaRadiansPerSecond <= lowerOmegaRadiansPerSecond) {
+			throw new IllegalArgumentException(
+					"upperOmegaRadiansPerSecond must be finite and greater than lowerOmegaRadiansPerSecond.");
+		}
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= 0.0) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+
+		RotorForceSample lower = solveTargetSample(
+				presetName,
+				caseName,
+				rotor,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				lowerOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+		RotorForceSample upper = solveTargetSample(
+				presetName,
+				caseName,
+				rotor,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+		double tolerance = targetThrustTolerance(targetThrustNewtons);
+		if (!lower.blocked() && Math.abs(lower.thrustNewtons() - targetThrustNewtons) <= tolerance) {
+			return new RotorTargetThrustSolution(
+					RotorTargetThrustSolveStatus.SOLVED,
+					targetThrustNewtons,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					lowerOmegaRadiansPerSecond,
+					upperOmegaRadiansPerSecond,
+					0,
+					lower,
+					upper,
+					lower
+			);
+		}
+		if (!lower.blocked() && lower.thrustNewtons() > targetThrustNewtons) {
+			return new RotorTargetThrustSolution(
+					RotorTargetThrustSolveStatus.LOWER_BOUND_EXCEEDS_TARGET,
+					targetThrustNewtons,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					lowerOmegaRadiansPerSecond,
+					upperOmegaRadiansPerSecond,
+					0,
+					lower,
+					upper,
+					lower
+			);
+		}
+		if (upper.blocked()) {
+			return new RotorTargetThrustSolution(
+					RotorTargetThrustSolveStatus.UPPER_BOUND_BLOCKED,
+					targetThrustNewtons,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					lowerOmegaRadiansPerSecond,
+					upperOmegaRadiansPerSecond,
+					0,
+					lower,
+					upper,
+					upper
+			);
+		}
+		if (Math.abs(upper.thrustNewtons() - targetThrustNewtons) <= tolerance) {
+			return new RotorTargetThrustSolution(
+					RotorTargetThrustSolveStatus.SOLVED,
+					targetThrustNewtons,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					lowerOmegaRadiansPerSecond,
+					upperOmegaRadiansPerSecond,
+					0,
+					lower,
+					upper,
+					upper
+			);
+		}
+		if (upper.thrustNewtons() < targetThrustNewtons) {
+			return new RotorTargetThrustSolution(
+					RotorTargetThrustSolveStatus.UPPER_BOUND_BELOW_TARGET,
+					targetThrustNewtons,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					lowerOmegaRadiansPerSecond,
+					upperOmegaRadiansPerSecond,
+					0,
+					lower,
+					upper,
+					upper
+			);
+		}
+
+		double lowOmega = lowerOmegaRadiansPerSecond;
+		double highOmega = upperOmegaRadiansPerSecond;
+		RotorForceSample best = upper;
+		int iterations = 0;
+		for (int i = 1; i <= TARGET_THRUST_SOLVE_MAX_ITERATIONS; i++) {
+			iterations = i;
+			double midOmega = 0.5 * (lowOmega + highOmega);
+			RotorForceSample mid = solveTargetSample(
+					presetName,
+					caseName,
+					rotor,
+					signedAxialAdvanceSpeedMetersPerSecond,
+					midOmega,
+					airDensityKgPerCubicMeter,
+					ambientTemperatureCelsius,
+					ambientHumidity
+			);
+			if (mid.blocked()) {
+				lowOmega = midOmega;
+				lower = mid;
+				continue;
+			}
+			best = mid;
+			double residual = mid.thrustNewtons() - targetThrustNewtons;
+			if (Math.abs(residual) <= tolerance) {
+				return new RotorTargetThrustSolution(
+						RotorTargetThrustSolveStatus.SOLVED,
+						targetThrustNewtons,
+						signedAxialAdvanceSpeedMetersPerSecond,
+						lowOmega,
+						highOmega,
+						iterations,
+						lower,
+						upper,
+						mid
+				);
+			}
+			if (residual > 0.0) {
+				highOmega = midOmega;
+				upper = mid;
+			} else {
+				lowOmega = midOmega;
+				lower = mid;
+			}
+		}
+		return new RotorTargetThrustSolution(
+				RotorTargetThrustSolveStatus.NO_CONVERGENCE,
+				targetThrustNewtons,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				lowOmega,
+				highOmega,
+				iterations,
+				lower,
+				upper,
+				best
+		);
 	}
 
 	public static RotorForceQuery queryFromAxialAdvanceSpeed(
@@ -1388,6 +1661,34 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			));
 		}
 		return aggregate(samples);
+	}
+
+	private static RotorForceSample solveTargetSample(
+			String presetName,
+			String caseName,
+			RotorSpec rotor,
+			double signedAxialAdvanceSpeedMetersPerSecond,
+			double omegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		return sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+				presetName,
+				caseName,
+				rotor,
+				signedAxialAdvanceSpeedMetersPerSecond,
+				omegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				Vec3.ZERO,
+				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+	}
+
+	private static double targetThrustTolerance(double targetThrustNewtons) {
+		return Math.max(1.0e-8, Math.abs(targetThrustNewtons) * TARGET_THRUST_SOLVE_RELATIVE_TOLERANCE);
 	}
 
 	private static Vec3 rotorAxisBody(RotorSpec rotor) {
