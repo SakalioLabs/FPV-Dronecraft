@@ -92,6 +92,22 @@ tasks.register("ctCpJActuatorDiskOpenFoamSourceTable", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskOpenFoamCaseDicts", JavaExec) {
+	group = "simulation"
+	description = "Exports OpenFOAM topoSetDict and fvOptions templates for CT/CP/J actuator-disk sources."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskOpenFoamCaseDictExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputDir = project.findProperty("outputDir") ?: layout.buildDirectory.dir("ct-cp-j-actuator-disk-openfoam-case/${presetName}").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputDir, airDensity, sourceThickness, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJActuatorDiskWakeProbes", JavaExec) {
 	group = "simulation"
 	description = "Exports CT/CP/J actuator-disk centerline wake probe points for offline OpenFOAM/A4MC sampling."
