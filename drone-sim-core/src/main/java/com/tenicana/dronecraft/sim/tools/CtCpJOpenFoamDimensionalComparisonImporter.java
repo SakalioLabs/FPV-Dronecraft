@@ -64,6 +64,18 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			"cfd_disk_mass_flow_kg_s",
 			"disk_mass_flow_residual_kg_s",
 			"disk_mass_flow_residual_fraction",
+			"reference_actuator_disk_pressure_jump_pa",
+			"cfd_actuator_disk_pressure_jump_pa",
+			"actuator_disk_pressure_jump_residual_pa",
+			"actuator_disk_pressure_jump_residual_fraction",
+			"reference_actuator_disk_mass_flux_kg_s_m2",
+			"cfd_actuator_disk_mass_flux_kg_s_m2",
+			"actuator_disk_mass_flux_residual_kg_s_m2",
+			"actuator_disk_mass_flux_residual_fraction",
+			"reference_actuator_disk_ideal_momentum_power_loading_w_m2",
+			"cfd_actuator_disk_ideal_momentum_power_loading_w_m2",
+			"actuator_disk_ideal_momentum_power_loading_residual_w_m2",
+			"actuator_disk_ideal_momentum_power_loading_residual_fraction",
 			"reference_far_wake_axial_velocity_mps",
 			"cfd_far_wake_axial_velocity_mps",
 			"far_wake_axial_velocity_residual_mps",
@@ -129,6 +141,9 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double cfdPowerCoefficientCp,
 			double cfdPropulsiveEfficiencyEta,
 			double cfdDiskMassFlowKilogramsPerSecond,
+			double cfdActuatorDiskPressureJumpPascals,
+			double cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter,
+			double cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter,
 			double cfdFarWakeAxialVelocityMetersPerSecond,
 			double cfdWakeTangentialVelocityMetersPerSecond,
 			double cfdAngularMomentumSwirlRadiusMeters,
@@ -170,6 +185,19 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			}
 			double diskArea = Math.PI * propellerDiameterMeters * propellerDiameterMeters * 0.25;
 			double rotorRadius = propellerDiameterMeters * 0.5;
+			if (!Double.isFinite(cfdActuatorDiskPressureJumpPascals)) {
+				cfdActuatorDiskPressureJumpPascals = ratio(cfdThrustNewtons, diskArea);
+			}
+			if (!Double.isFinite(cfdDiskMassFlowKilogramsPerSecond)
+					&& Double.isFinite(cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter)) {
+				cfdDiskMassFlowKilogramsPerSecond =
+						cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter * diskArea;
+			}
+			if (!Double.isFinite(cfdMomentumPowerWatts)
+					&& Double.isFinite(cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter)) {
+				cfdMomentumPowerWatts =
+						cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter * diskArea;
+			}
 			if (!Double.isFinite(cfdFarWakeContractedAreaOverDiskArea)
 					&& Double.isFinite(cfdFarWakeContractedAreaSquareMeters)) {
 				cfdFarWakeContractedAreaOverDiskArea = ratio(cfdFarWakeContractedAreaSquareMeters, diskArea);
@@ -192,6 +220,16 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 						cfdDiskMassFlowKilogramsPerSecond,
 						airDensityKgPerCubicMeter * cfdFarWakeContractedAreaSquareMeters
 				);
+			}
+			if (!Double.isFinite(cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter)
+					&& Double.isFinite(cfdDiskMassFlowKilogramsPerSecond)) {
+				cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter =
+						ratio(cfdDiskMassFlowKilogramsPerSecond, diskArea);
+			}
+			if (!Double.isFinite(cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter)
+					&& Double.isFinite(cfdMomentumPowerWatts)) {
+				cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter =
+						ratio(cfdMomentumPowerWatts, diskArea);
 			}
 			if (!Double.isFinite(cfdFarWakeEquivalentRadiusOverRotorRadius)
 					&& Double.isFinite(cfdFarWakeEquivalentRadiusMeters)) {
@@ -283,6 +321,12 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 			double momentumPowerResidualWatts,
 			double diskMassFlowResidualKilogramsPerSecond,
 			double diskMassFlowResidualFraction,
+			double actuatorDiskPressureJumpResidualPascals,
+			double actuatorDiskPressureJumpResidualFraction,
+			double actuatorDiskMassFluxResidualKilogramsPerSecondSquareMeter,
+			double actuatorDiskMassFluxResidualFraction,
+			double actuatorDiskIdealMomentumPowerLoadingResidualWattsPerSquareMeter,
+			double actuatorDiskIdealMomentumPowerLoadingResidualFraction,
 			double farWakeAxialVelocityResidualMetersPerSecond,
 			double farWakeAxialVelocityResidualFraction,
 			double wakeTangentialVelocityResidualMetersPerSecond,
@@ -405,6 +449,9 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				cfdCp,
 				cfdEta,
 				cfd.cfdDiskMassFlowKilogramsPerSecond(),
+				cfd.cfdActuatorDiskPressureJumpPascals(),
+				cfd.cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter(),
+				cfd.cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(),
 				cfd.cfdFarWakeAxialVelocityMetersPerSecond(),
 				cfd.cfdWakeTangentialVelocityMetersPerSecond(),
 				cfd.cfdAngularMomentumSwirlRadiusMeters(),
@@ -454,6 +501,21 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				ratio(normalizedCfd.cfdDiskMassFlowKilogramsPerSecond()
 								- reference.diskMassFlowKilogramsPerSecond(),
 						reference.diskMassFlowKilogramsPerSecond()),
+				normalizedCfd.cfdActuatorDiskPressureJumpPascals()
+						- referenceActuatorDiskPressureJumpPascals(reference),
+				ratio(normalizedCfd.cfdActuatorDiskPressureJumpPascals()
+								- referenceActuatorDiskPressureJumpPascals(reference),
+						referenceActuatorDiskPressureJumpPascals(reference)),
+				normalizedCfd.cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter()
+						- referenceActuatorDiskMassFluxKilogramsPerSecondSquareMeter(reference),
+				ratio(normalizedCfd.cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter()
+								- referenceActuatorDiskMassFluxKilogramsPerSecondSquareMeter(reference),
+						referenceActuatorDiskMassFluxKilogramsPerSecondSquareMeter(reference)),
+				normalizedCfd.cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter()
+						- referenceActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(reference),
+				ratio(normalizedCfd.cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter()
+								- referenceActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(reference),
+						referenceActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(reference)),
 				normalizedCfd.cfdFarWakeAxialVelocityMetersPerSecond()
 						- reference.farWakeAxialVelocityMetersPerSecond(),
 				ratio(normalizedCfd.cfdFarWakeAxialVelocityMetersPerSecond()
@@ -535,6 +597,9 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				optionalDouble(record, "cfd_cp", Double.NaN),
 				optionalDouble(record, "cfd_eta", Double.NaN),
 				optionalDouble(record, "cfd_disk_mass_flow_kg_s", Double.NaN),
+				optionalDouble(record, "cfd_actuator_disk_pressure_jump_pa", Double.NaN),
+				optionalDouble(record, "cfd_actuator_disk_mass_flux_kg_s_m2", Double.NaN),
+				optionalDouble(record, "cfd_actuator_disk_ideal_momentum_power_loading_w_m2", Double.NaN),
 				optionalDouble(record, "cfd_far_wake_axial_velocity_mps", Double.NaN),
 				optionalDouble(record, "cfd_wake_tangential_velocity_mps", Double.NaN),
 				optionalDouble(record, "cfd_angular_momentum_swirl_radius_m", Double.NaN),
@@ -685,6 +750,18 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 				number(cfd.cfdDiskMassFlowKilogramsPerSecond()),
 				number(row.diskMassFlowResidualKilogramsPerSecond()),
 				number(row.diskMassFlowResidualFraction()),
+				number(referenceActuatorDiskPressureJumpPascals(reference)),
+				number(cfd.cfdActuatorDiskPressureJumpPascals()),
+				number(row.actuatorDiskPressureJumpResidualPascals()),
+				number(row.actuatorDiskPressureJumpResidualFraction()),
+				number(referenceActuatorDiskMassFluxKilogramsPerSecondSquareMeter(reference)),
+				number(cfd.cfdActuatorDiskMassFluxKilogramsPerSecondSquareMeter()),
+				number(row.actuatorDiskMassFluxResidualKilogramsPerSecondSquareMeter()),
+				number(row.actuatorDiskMassFluxResidualFraction()),
+				number(referenceActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(reference)),
+				number(cfd.cfdActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter()),
+				number(row.actuatorDiskIdealMomentumPowerLoadingResidualWattsPerSquareMeter()),
+				number(row.actuatorDiskIdealMomentumPowerLoadingResidualFraction()),
 				number(reference.farWakeAxialVelocityMetersPerSecond()),
 				number(cfd.cfdFarWakeAxialVelocityMetersPerSecond()),
 				number(row.farWakeAxialVelocityResidualMetersPerSecond()),
@@ -800,6 +877,24 @@ public final class CtCpJOpenFoamDimensionalComparisonImporter {
 		}
 		double axialSpeed = advanceRatioJ * revolutionsPerSecond * propellerDiameterMeters;
 		return thrustNewtons * (Math.max(0.0, axialSpeed) + inducedVelocityMetersPerSecond);
+	}
+
+	private static double referenceActuatorDiskPressureJumpPascals(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return sample.diskLoadingNewtonsPerSquareMeter();
+	}
+
+	private static double referenceActuatorDiskMassFluxKilogramsPerSecondSquareMeter(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return ratio(sample.diskMassFlowKilogramsPerSecond(), sample.diskAreaSquareMeters());
+	}
+
+	private static double referenceActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
+	) {
+		return ratio(sample.idealMomentumPowerWatts(), sample.diskAreaSquareMeters());
 	}
 
 	private static double wakeAngularMomentumTorque(

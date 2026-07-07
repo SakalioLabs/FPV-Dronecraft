@@ -26,6 +26,9 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 				referenceSample("mid_domain_mid_rpm");
 		String csv = String.join("\n",
 				"preset,case,cfd_thrust_n,cfd_shaft_power_w,cfd_induced_velocity_mps,cfd_momentum_power_w"
+						+ ",cfd_actuator_disk_pressure_jump_pa"
+						+ ",cfd_actuator_disk_mass_flux_kg_s_m2"
+						+ ",cfd_actuator_disk_ideal_momentum_power_loading_w_m2"
 						+ ",cfd_far_wake_axial_velocity_mps"
 						+ ",cfd_wake_swirl_kinetic_power_w,cfd_total_wake_kinetic_power_w"
 						+ ",cfd_far_wake_contracted_area_m2,cfd_far_wake_equivalent_radius_m"
@@ -38,6 +41,9 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 						reference.shaftPowerWatts(),
 						reference.idealInducedVelocityMetersPerSecond(),
 						reference.idealMomentumPowerWatts(),
+						reference.diskLoadingNewtonsPerSquareMeter(),
+						actuatorDiskMassFlux(reference),
+						actuatorDiskIdealMomentumPowerLoading(reference),
 						reference.farWakeAxialVelocityMetersPerSecond(),
 						reference.wakeSwirlKineticPowerWatts(),
 						reference.totalWakeKineticPowerWatts(),
@@ -73,6 +79,12 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 		assertEquals(0.0, comparison.momentumPowerResidualWatts(), 1.0e-15);
 		assertEquals(0.0, comparison.diskMassFlowResidualKilogramsPerSecond(), 1.0e-15);
 		assertEquals(0.0, comparison.diskMassFlowResidualFraction(), 1.0e-15);
+		assertEquals(0.0, comparison.actuatorDiskPressureJumpResidualPascals(), 1.0e-12);
+		assertEquals(0.0, comparison.actuatorDiskPressureJumpResidualFraction(), 1.0e-15);
+		assertEquals(0.0, comparison.actuatorDiskMassFluxResidualKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(0.0, comparison.actuatorDiskMassFluxResidualFraction(), 1.0e-15);
+		assertEquals(0.0, comparison.actuatorDiskIdealMomentumPowerLoadingResidualWattsPerSquareMeter(), 1.0e-10);
+		assertEquals(0.0, comparison.actuatorDiskIdealMomentumPowerLoadingResidualFraction(), 1.0e-15);
 		assertEquals(0.0, comparison.farWakeAxialVelocityResidualMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, comparison.farWakeAxialVelocityResidualFraction(), 1.0e-15);
 		assertEquals(0.0, comparison.wakeTangentialVelocityResidualMetersPerSecond(), 1.0e-15);
@@ -108,6 +120,14 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 				Double.parseDouble(output.get("cfd_far_wake_contracted_area_over_disk_area")), 1.0e-15);
 		assertEquals(reference.diskMassFlowKilogramsPerSecond(),
 				Double.parseDouble(output.get("cfd_disk_mass_flow_kg_s")), 1.0e-13);
+		assertEquals(reference.diskLoadingNewtonsPerSquareMeter(),
+				Double.parseDouble(output.get("reference_actuator_disk_pressure_jump_pa")), 1.0e-12);
+		assertEquals(reference.diskLoadingNewtonsPerSquareMeter(),
+				Double.parseDouble(output.get("cfd_actuator_disk_pressure_jump_pa")), 1.0e-12);
+		assertEquals(actuatorDiskMassFlux(reference),
+				Double.parseDouble(output.get("cfd_actuator_disk_mass_flux_kg_s_m2")), 1.0e-12);
+		assertEquals(actuatorDiskIdealMomentumPowerLoading(reference),
+				Double.parseDouble(output.get("cfd_actuator_disk_ideal_momentum_power_loading_w_m2")), 1.0e-10);
 		assertEquals(reference.wakeTangentialVelocityMetersPerSecond(),
 				Double.parseDouble(output.get("cfd_wake_tangential_velocity_mps")), 1.0e-13);
 		assertEquals(reference.angularMomentumSwirlRadiusMeters(),
@@ -185,6 +205,17 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 				comparison.diskMassFlowResidualKilogramsPerSecond(), 1.0e-15);
 		assertEquals(farWakeAreaScale * farWakeAxialScale - 1.0,
 				comparison.diskMassFlowResidualFraction(), 1.0e-15);
+		assertEquals(reference.diskLoadingNewtonsPerSquareMeter() * (thrustScale - 1.0),
+				comparison.actuatorDiskPressureJumpResidualPascals(), 1.0e-12);
+		assertEquals(thrustScale - 1.0,
+				comparison.actuatorDiskPressureJumpResidualFraction(), 1.0e-15);
+		assertEquals(actuatorDiskMassFlux(reference) * (farWakeAreaScale * farWakeAxialScale - 1.0),
+				comparison.actuatorDiskMassFluxResidualKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(farWakeAreaScale * farWakeAxialScale - 1.0,
+				comparison.actuatorDiskMassFluxResidualFraction(), 1.0e-15);
+		assertEquals(0.0, comparison.actuatorDiskIdealMomentumPowerLoadingResidualWattsPerSquareMeter(),
+				1.0e-10);
+		assertEquals(0.0, comparison.actuatorDiskIdealMomentumPowerLoadingResidualFraction(), 1.0e-15);
 		assertEquals(reference.farWakeAxialVelocityMetersPerSecond() * (farWakeAxialScale - 1.0),
 				comparison.farWakeAxialVelocityResidualMetersPerSecond(), 1.0e-15);
 		assertEquals(farWakeAxialScale - 1.0,
@@ -228,6 +259,54 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 				comparison.farWakeContractedAreaRatioResidual(), 1.0e-15);
 		assertEquals(reference.farWakeEquivalentRadiusOverRotorRadius() * (farWakeRadiusScale - 1.0),
 				comparison.farWakeEquivalentRadiusRatioResidual(), 1.0e-15);
+	}
+
+	@Test
+	void actuatorDiskSourceTermColumnsDeriveMassFluxAndMomentumPower() {
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample reference =
+				referenceSample("mid_domain_mid_rpm");
+		double massFluxScale = 1.07;
+		double powerLoadingScale = 0.94;
+		String csv = String.join("\n",
+				"preset,case,cfd_thrust_n,cfd_shaft_power_w"
+						+ ",cfd_actuator_disk_mass_flux_kg_s_m2"
+						+ ",cfd_actuator_disk_ideal_momentum_power_loading_w_m2",
+				row(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						reference.thrustNewtons(),
+						reference.shaftPowerWatts(),
+						actuatorDiskMassFlux(reference) * massFluxScale,
+						actuatorDiskIdealMomentumPowerLoading(reference) * powerLoadingScale
+				));
+
+		CtCpJOpenFoamDimensionalComparisonImporter.ComparisonRow comparison =
+				CtCpJOpenFoamDimensionalComparisonImporter.compare(csv, RHO).get(0);
+
+		assertTrue(comparison.comparable());
+		assertEquals(reference.diskMassFlowKilogramsPerSecond() * massFluxScale,
+				comparison.cfd().cfdDiskMassFlowKilogramsPerSecond(), 1.0e-15);
+		assertEquals(reference.idealMomentumPowerWatts() * powerLoadingScale,
+				comparison.cfd().cfdMomentumPowerWatts(), 1.0e-13);
+		assertEquals(actuatorDiskMassFlux(reference) * (massFluxScale - 1.0),
+				comparison.actuatorDiskMassFluxResidualKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(massFluxScale - 1.0,
+				comparison.actuatorDiskMassFluxResidualFraction(), 1.0e-15);
+		assertEquals(actuatorDiskIdealMomentumPowerLoading(reference) * (powerLoadingScale - 1.0),
+				comparison.actuatorDiskIdealMomentumPowerLoadingResidualWattsPerSquareMeter(), 1.0e-10);
+		assertEquals(powerLoadingScale - 1.0,
+				comparison.actuatorDiskIdealMomentumPowerLoadingResidualFraction(), 1.0e-15);
+
+		Map<String, String> output = outputRecord(
+				CtCpJOpenFoamDimensionalComparisonImporter.csvLines(csv, RHO));
+		assertEquals(comparison.cfd().cfdDiskMassFlowKilogramsPerSecond(),
+				Double.parseDouble(output.get("cfd_disk_mass_flow_kg_s")), 1.0e-13);
+		assertEquals(comparison.cfd().cfdMomentumPowerWatts(),
+				Double.parseDouble(output.get("cfd_momentum_power_w")), 1.0e-13);
+		assertEquals(actuatorDiskMassFlux(reference) * massFluxScale,
+				Double.parseDouble(output.get("cfd_actuator_disk_mass_flux_kg_s_m2")), 1.0e-12);
+		assertEquals(actuatorDiskIdealMomentumPowerLoading(reference) * powerLoadingScale,
+				Double.parseDouble(output.get("cfd_actuator_disk_ideal_momentum_power_loading_w_m2")), 1.0e-10);
 	}
 
 	@Test
@@ -289,6 +368,18 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 		return reference.diskMassFlowKilogramsPerSecond()
 				* reference.angularMomentumSwirlRadiusMeters()
 				* reference.wakeTangentialVelocityMetersPerSecond();
+	}
+
+	private static double actuatorDiskMassFlux(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample reference
+	) {
+		return reference.diskMassFlowKilogramsPerSecond() / reference.diskAreaSquareMeters();
+	}
+
+	private static double actuatorDiskIdealMomentumPowerLoading(
+			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample reference
+	) {
+		return reference.idealMomentumPowerWatts() / reference.diskAreaSquareMeters();
 	}
 
 	private static Map<String, String> outputRecord(List<String> lines) {
