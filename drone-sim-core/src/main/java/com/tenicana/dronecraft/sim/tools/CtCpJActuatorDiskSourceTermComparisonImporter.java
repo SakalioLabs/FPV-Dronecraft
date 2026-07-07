@@ -79,12 +79,47 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			"far_wake_axial_velocity_residual_world_y_mps",
 			"far_wake_axial_velocity_residual_world_z_mps",
 			"far_wake_axial_velocity_residual_magnitude_mps",
+			"reference_wake_angular_momentum_torque_world_x_nm",
+			"reference_wake_angular_momentum_torque_world_y_nm",
+			"reference_wake_angular_momentum_torque_world_z_nm",
+			"cfd_wake_angular_momentum_torque_world_x_nm",
+			"cfd_wake_angular_momentum_torque_world_y_nm",
+			"cfd_wake_angular_momentum_torque_world_z_nm",
+			"wake_angular_momentum_torque_residual_world_x_nm",
+			"wake_angular_momentum_torque_residual_world_y_nm",
+			"wake_angular_momentum_torque_residual_world_z_nm",
+			"wake_angular_momentum_torque_residual_magnitude_nm",
+			"reference_wake_angular_momentum_torque_density_world_x_nm_m3",
+			"reference_wake_angular_momentum_torque_density_world_y_nm_m3",
+			"reference_wake_angular_momentum_torque_density_world_z_nm_m3",
+			"cfd_wake_angular_momentum_torque_density_world_x_nm_m3",
+			"cfd_wake_angular_momentum_torque_density_world_y_nm_m3",
+			"cfd_wake_angular_momentum_torque_density_world_z_nm_m3",
+			"wake_angular_momentum_torque_density_residual_world_x_nm_m3",
+			"wake_angular_momentum_torque_density_residual_world_y_nm_m3",
+			"wake_angular_momentum_torque_density_residual_world_z_nm_m3",
+			"wake_angular_momentum_torque_density_residual_magnitude_nm_m3",
+			"reference_wake_tangential_velocity_mps",
+			"cfd_wake_tangential_velocity_mps",
+			"wake_tangential_velocity_residual_mps",
+			"wake_tangential_velocity_residual_fraction",
+			"reference_wake_swirl_kinetic_power_w",
+			"cfd_wake_swirl_kinetic_power_w",
+			"wake_swirl_kinetic_power_residual_w",
+			"wake_swirl_kinetic_power_residual_fraction",
+			"reference_total_wake_kinetic_power_w",
+			"cfd_total_wake_kinetic_power_w",
+			"total_wake_kinetic_power_residual_w",
+			"total_wake_kinetic_power_residual_fraction",
 			"cfd_integrated_force_closure_residual_world_x_n",
 			"cfd_integrated_force_closure_residual_world_y_n",
 			"cfd_integrated_force_closure_residual_world_z_n",
 			"cfd_body_force_density_closure_residual_world_x_n_m3",
 			"cfd_body_force_density_closure_residual_world_y_n_m3",
 			"cfd_body_force_density_closure_residual_world_z_n_m3",
+			"cfd_wake_angular_momentum_torque_density_closure_residual_world_x_nm_m3",
+			"cfd_wake_angular_momentum_torque_density_closure_residual_world_y_nm_m3",
+			"cfd_wake_angular_momentum_torque_density_closure_residual_world_z_nm_m3",
 			"comparable",
 			"message"
 	);
@@ -107,6 +142,11 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			Vec3 cfdIntegratedThrustForceWorldNewtons,
 			Vec3 cfdBodyForceDensityWorldNewtonsPerCubicMeter,
 			Vec3 cfdFarWakeAxialVelocityWorldMetersPerSecond,
+			Vec3 cfdWakeAngularMomentumTorqueWorldNewtonMeters,
+			Vec3 cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter,
+			double cfdWakeTangentialVelocityMetersPerSecond,
+			double cfdWakeSwirlKineticPowerWatts,
+			double cfdTotalWakeKineticPowerWatts,
 			String sourceCaseSha256,
 			String solverStatus
 	) {
@@ -141,6 +181,14 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 					cfdFarWakeAxialVelocityWorldMetersPerSecond == null
 							? nanVector()
 							: cfdFarWakeAxialVelocityWorldMetersPerSecond;
+			cfdWakeAngularMomentumTorqueWorldNewtonMeters =
+					cfdWakeAngularMomentumTorqueWorldNewtonMeters == null
+							? nanVector()
+							: cfdWakeAngularMomentumTorqueWorldNewtonMeters;
+			cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter =
+					cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter == null
+							? nanVector()
+							: cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter;
 			sourceCaseSha256 = sourceCaseSha256 == null ? "" : sourceCaseSha256.trim();
 			solverStatus = solverStatus == null || solverStatus.isBlank() ? "UNSPECIFIED" : solverStatus.trim();
 		}
@@ -164,7 +212,12 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			Vec3 thrustSurfaceForceWorldNewtonsPerSquareMeter,
 			Vec3 integratedThrustForceWorldNewtons,
 			Vec3 bodyForceDensityWorldNewtonsPerCubicMeter,
-			Vec3 farWakeAxialVelocityWorldMetersPerSecond
+			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
+			Vec3 wakeAngularMomentumTorqueWorldNewtonMeters,
+			Vec3 wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter,
+			double wakeTangentialVelocityMetersPerSecond,
+			double wakeSwirlKineticPowerWatts,
+			double totalWakeKineticPowerWatts
 	) {
 	}
 
@@ -185,8 +238,19 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			Vec3 integratedThrustForceResidualWorldNewtons,
 			Vec3 bodyForceDensityResidualWorldNewtonsPerCubicMeter,
 			Vec3 farWakeAxialVelocityResidualWorldMetersPerSecond,
+			Vec3 cfdWakeAngularMomentumTorqueWorldNewtonMeters,
+			Vec3 cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter,
+			Vec3 wakeAngularMomentumTorqueResidualWorldNewtonMeters,
+			Vec3 wakeAngularMomentumTorqueDensityResidualWorldNewtonMetersPerCubicMeter,
+			double wakeTangentialVelocityResidualMetersPerSecond,
+			double wakeTangentialVelocityResidualFraction,
+			double wakeSwirlKineticPowerResidualWatts,
+			double wakeSwirlKineticPowerResidualFraction,
+			double totalWakeKineticPowerResidualWatts,
+			double totalWakeKineticPowerResidualFraction,
 			Vec3 cfdIntegratedForceClosureResidualWorldNewtons,
 			Vec3 cfdBodyForceDensityClosureResidualWorldNewtonsPerCubicMeter,
+			Vec3 cfdWakeAngularMomentumTorqueDensityClosureResidualWorldNewtonMetersPerCubicMeter,
 			boolean comparable,
 			String message
 	) {
@@ -289,10 +353,22 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 				? cfd.cfdFarWakeAxialVelocityWorldMetersPerSecond()
 						.subtract(reference.farWakeAxialVelocityWorldMetersPerSecond())
 				: nanVector();
+		Vec3 cfdWakeTorque = resolvedWakeAngularMomentumTorque(cfd, reference);
+		Vec3 cfdWakeTorqueDensity = resolvedWakeAngularMomentumTorqueDensity(cfd, reference, cfdWakeTorque);
+		Vec3 wakeTorqueResidual = finiteVector(cfdWakeTorque)
+				? cfdWakeTorque.subtract(reference.wakeAngularMomentumTorqueWorldNewtonMeters())
+				: nanVector();
+		Vec3 wakeTorqueDensityResidual = finiteVector(cfdWakeTorqueDensity)
+				? cfdWakeTorqueDensity.subtract(
+						reference.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter())
+				: nanVector();
 		Vec3 integratedClosureResidual = cfdIntegratedForce
 				.subtract(cfdSurfaceForce.multiply(reference.diskAreaSquareMeters()));
 		Vec3 bodyForceClosureResidual = cfdBodyForceDensity
 				.subtract(cfdSurfaceForce.multiply(1.0 / cfd.sourceThicknessMeters()));
+		Vec3 wakeTorqueDensityClosureResidual = finiteVector(cfdWakeTorqueDensity) && finiteVector(cfdWakeTorque)
+				? cfdWakeTorqueDensity.subtract(cfdWakeTorque.multiply(1.0 / sourceVolume(reference, cfd)))
+				: nanVector();
 		boolean comparable = hasSourceLoad
 				&& Double.isFinite(cfdPressureJump)
 				&& finiteVector(cfdSurfaceForce)
@@ -324,11 +400,57 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 				integratedResidual,
 				bodyForceResidual,
 				farWakeResidual,
+				cfdWakeTorque,
+				cfdWakeTorqueDensity,
+				wakeTorqueResidual,
+				wakeTorqueDensityResidual,
+				cfd.cfdWakeTangentialVelocityMetersPerSecond()
+						- reference.wakeTangentialVelocityMetersPerSecond(),
+				ratio(cfd.cfdWakeTangentialVelocityMetersPerSecond()
+								- reference.wakeTangentialVelocityMetersPerSecond(),
+						reference.wakeTangentialVelocityMetersPerSecond()),
+				cfd.cfdWakeSwirlKineticPowerWatts() - reference.wakeSwirlKineticPowerWatts(),
+				ratio(cfd.cfdWakeSwirlKineticPowerWatts() - reference.wakeSwirlKineticPowerWatts(),
+						reference.wakeSwirlKineticPowerWatts()),
+				cfd.cfdTotalWakeKineticPowerWatts() - reference.totalWakeKineticPowerWatts(),
+				ratio(cfd.cfdTotalWakeKineticPowerWatts() - reference.totalWakeKineticPowerWatts(),
+						reference.totalWakeKineticPowerWatts()),
 				integratedClosureResidual,
 				bodyForceClosureResidual,
+				wakeTorqueDensityClosureResidual,
 				comparable,
 				message
 		);
+	}
+
+	private static Vec3 resolvedWakeAngularMomentumTorque(CfdSourceTermRow cfd, ReferenceSourceTermRow reference) {
+		if (finiteVector(cfd.cfdWakeAngularMomentumTorqueWorldNewtonMeters())) {
+			return cfd.cfdWakeAngularMomentumTorqueWorldNewtonMeters();
+		}
+		if (finiteVector(cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter())) {
+			return cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter()
+					.multiply(sourceVolume(reference, cfd));
+		}
+		return nanVector();
+	}
+
+	private static Vec3 resolvedWakeAngularMomentumTorqueDensity(
+			CfdSourceTermRow cfd,
+			ReferenceSourceTermRow reference,
+			Vec3 cfdWakeAngularMomentumTorque
+	) {
+		if (finiteVector(cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter())) {
+			return cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter();
+		}
+		if (finiteVector(cfdWakeAngularMomentumTorque)) {
+			return cfdWakeAngularMomentumTorque.multiply(1.0 / sourceVolume(reference, cfd));
+		}
+		return nanVector();
+	}
+
+	private static double sourceVolume(ReferenceSourceTermRow reference, CfdSourceTermRow cfd) {
+		double volume = reference.diskAreaSquareMeters() * cfd.sourceThicknessMeters();
+		return volume > EPSILON ? volume : Double.NaN;
 	}
 
 	private static Vec3 resolvedSurfaceForce(CfdSourceTermRow cfd, ReferenceSourceTermRow reference) {
@@ -397,6 +519,26 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 						"far_wake_axial_velocity_world_x_mps",
 						"far_wake_axial_velocity_world_y_mps",
 						"far_wake_axial_velocity_world_z_mps"),
+				vector(record,
+						"cfd_wake_angular_momentum_torque_world_x_nm",
+						"cfd_wake_angular_momentum_torque_world_y_nm",
+						"cfd_wake_angular_momentum_torque_world_z_nm",
+						"wake_angular_momentum_torque_world_x_nm",
+						"wake_angular_momentum_torque_world_y_nm",
+						"wake_angular_momentum_torque_world_z_nm"),
+				vector(record,
+						"cfd_wake_angular_momentum_torque_density_world_x_nm_m3",
+						"cfd_wake_angular_momentum_torque_density_world_y_nm_m3",
+						"cfd_wake_angular_momentum_torque_density_world_z_nm_m3",
+						"wake_angular_momentum_torque_density_world_x_nm_m3",
+						"wake_angular_momentum_torque_density_world_y_nm_m3",
+						"wake_angular_momentum_torque_density_world_z_nm_m3"),
+				optionalDouble(record, "cfd_wake_tangential_velocity_mps",
+						"wake_tangential_velocity_mps", Double.NaN),
+				optionalDouble(record, "cfd_wake_swirl_kinetic_power_w",
+						"wake_swirl_kinetic_power_w", Double.NaN),
+				optionalDouble(record, "cfd_total_wake_kinetic_power_w",
+						"total_wake_kinetic_power_w", Double.NaN),
 				text(record, "source_case_sha256", ""),
 				text(record, "solver_status", "UNSPECIFIED")
 		);
@@ -451,7 +593,18 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 				vector(record,
 						"far_wake_axial_velocity_world_x_mps",
 						"far_wake_axial_velocity_world_y_mps",
-						"far_wake_axial_velocity_world_z_mps")
+						"far_wake_axial_velocity_world_z_mps"),
+				vector(record,
+						"wake_angular_momentum_torque_world_x_nm",
+						"wake_angular_momentum_torque_world_y_nm",
+						"wake_angular_momentum_torque_world_z_nm"),
+				vector(record,
+						"wake_angular_momentum_torque_density_world_x_nm_m3",
+						"wake_angular_momentum_torque_density_world_y_nm_m3",
+						"wake_angular_momentum_torque_density_world_z_nm_m3"),
+				requiredDouble(record, "wake_tangential_velocity_mps"),
+				requiredDouble(record, "wake_swirl_kinetic_power_w"),
+				requiredDouble(record, "total_wake_kinetic_power_w")
 		);
 	}
 
@@ -554,8 +707,29 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 				vec(cfd.cfdFarWakeAxialVelocityWorldMetersPerSecond()),
 				vec(row.farWakeAxialVelocityResidualWorldMetersPerSecond()),
 				number(row.farWakeAxialVelocityResidualWorldMetersPerSecond().length()),
+				vec(reference.wakeAngularMomentumTorqueWorldNewtonMeters()),
+				vec(row.cfdWakeAngularMomentumTorqueWorldNewtonMeters()),
+				vec(row.wakeAngularMomentumTorqueResidualWorldNewtonMeters()),
+				number(row.wakeAngularMomentumTorqueResidualWorldNewtonMeters().length()),
+				vec(reference.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter()),
+				vec(row.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter()),
+				vec(row.wakeAngularMomentumTorqueDensityResidualWorldNewtonMetersPerCubicMeter()),
+				number(row.wakeAngularMomentumTorqueDensityResidualWorldNewtonMetersPerCubicMeter().length()),
+				number(reference.wakeTangentialVelocityMetersPerSecond()),
+				number(cfd.cfdWakeTangentialVelocityMetersPerSecond()),
+				number(row.wakeTangentialVelocityResidualMetersPerSecond()),
+				number(row.wakeTangentialVelocityResidualFraction()),
+				number(reference.wakeSwirlKineticPowerWatts()),
+				number(cfd.cfdWakeSwirlKineticPowerWatts()),
+				number(row.wakeSwirlKineticPowerResidualWatts()),
+				number(row.wakeSwirlKineticPowerResidualFraction()),
+				number(reference.totalWakeKineticPowerWatts()),
+				number(cfd.cfdTotalWakeKineticPowerWatts()),
+				number(row.totalWakeKineticPowerResidualWatts()),
+				number(row.totalWakeKineticPowerResidualFraction()),
 				vec(row.cfdIntegratedForceClosureResidualWorldNewtons()),
 				vec(row.cfdBodyForceDensityClosureResidualWorldNewtonsPerCubicMeter()),
+				vec(row.cfdWakeAngularMomentumTorqueDensityClosureResidualWorldNewtonMetersPerCubicMeter()),
 				Boolean.toString(row.comparable()),
 				escape(row.message())
 		);

@@ -40,8 +40,16 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 		assertEquals(0.0, comparison.integratedThrustForceResidualWorldNewtons().length(), 1.0e-12);
 		assertEquals(0.0, comparison.bodyForceDensityResidualWorldNewtonsPerCubicMeter().length(), 1.0e-9);
 		assertEquals(0.0, comparison.farWakeAxialVelocityResidualWorldMetersPerSecond().length(), 1.0e-12);
+		assertEquals(0.0, comparison.wakeAngularMomentumTorqueResidualWorldNewtonMeters().length(), 1.0e-18);
+		assertEquals(0.0,
+				comparison.wakeAngularMomentumTorqueDensityResidualWorldNewtonMetersPerCubicMeter().length(),
+				1.0e-15);
 		assertEquals(0.0, comparison.cfdIntegratedForceClosureResidualWorldNewtons().length(), 1.0e-12);
 		assertEquals(0.0, comparison.cfdBodyForceDensityClosureResidualWorldNewtonsPerCubicMeter().length(), 1.0e-9);
+		assertEquals(0.0,
+				comparison.cfdWakeAngularMomentumTorqueDensityClosureResidualWorldNewtonMetersPerCubicMeter()
+						.length(),
+				1.0e-12);
 
 		Map<String, String> output = outputRecord(
 				CtCpJActuatorDiskSourceTermComparisonImporter.csvLines(input, RHO, SOURCE_THICKNESS));
@@ -56,6 +64,12 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 				1.0e-12);
 		assertEquals(0.0, Double.parseDouble(output.get("body_force_density_residual_magnitude_n_m3")),
 				1.0e-9);
+		assertEquals(0.0, Double.parseDouble(output.get("wake_angular_momentum_torque_residual_magnitude_nm")),
+				1.0e-18);
+		assertEquals(0.0,
+				Double.parseDouble(output.get(
+						"wake_angular_momentum_torque_density_residual_magnitude_nm_m3")),
+				1.0e-15);
 	}
 
 	@Test
@@ -208,6 +222,71 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 	}
 
 	@Test
+	void wakeTorqueDensityColumnsFeedAngularMomentumTorqueComparison() {
+		Map<String, String> reference = referenceRecord("static_anchored_source_mid_j", "raw_source", 0);
+		String input = String.join("\n",
+				String.join(",",
+						"preset",
+						"case",
+						"row_kind",
+						"rotor_index",
+						"source_thickness_m",
+						"cfd_pressure_jump_pa",
+						"cfd_mass_flux_kg_s_m2",
+						"cfd_ideal_momentum_power_loading_w_m2",
+						"cfd_integrated_thrust_force_world_x_n",
+						"cfd_integrated_thrust_force_world_y_n",
+						"cfd_integrated_thrust_force_world_z_n",
+						"cfd_body_force_density_world_x_n_m3",
+						"cfd_body_force_density_world_y_n_m3",
+						"cfd_body_force_density_world_z_n_m3",
+						"cfd_wake_angular_momentum_torque_density_world_x_nm_m3",
+						"cfd_wake_angular_momentum_torque_density_world_y_nm_m3",
+						"cfd_wake_angular_momentum_torque_density_world_z_nm_m3",
+						"cfd_wake_tangential_velocity_mps",
+						"cfd_wake_swirl_kinetic_power_w",
+						"cfd_total_wake_kinetic_power_w"),
+				row(
+						reference.get("preset"),
+						reference.get("case"),
+						reference.get("row_kind"),
+						reference.get("rotor_index"),
+						reference.get("source_thickness_m"),
+						reference.get("pressure_jump_pa"),
+						reference.get("mass_flux_kg_s_m2"),
+						reference.get("ideal_momentum_power_loading_w_m2"),
+						reference.get("integrated_thrust_force_world_x_n"),
+						reference.get("integrated_thrust_force_world_y_n"),
+						reference.get("integrated_thrust_force_world_z_n"),
+						reference.get("body_force_density_world_x_n_m3"),
+						reference.get("body_force_density_world_y_n_m3"),
+						reference.get("body_force_density_world_z_n_m3"),
+						reference.get("wake_angular_momentum_torque_density_world_x_nm_m3"),
+						reference.get("wake_angular_momentum_torque_density_world_y_nm_m3"),
+						reference.get("wake_angular_momentum_torque_density_world_z_nm_m3"),
+						reference.get("wake_tangential_velocity_mps"),
+						reference.get("wake_swirl_kinetic_power_w"),
+						reference.get("total_wake_kinetic_power_w")
+				));
+
+		CtCpJActuatorDiskSourceTermComparisonImporter.ComparisonRow comparison =
+				CtCpJActuatorDiskSourceTermComparisonImporter.compare(input, RHO, SOURCE_THICKNESS).get(0);
+
+		assertTrue(comparison.comparable());
+		assertEquals(0.0, comparison.wakeAngularMomentumTorqueResidualWorldNewtonMeters().length(), 1.0e-14);
+		assertEquals(0.0,
+				comparison.wakeAngularMomentumTorqueDensityResidualWorldNewtonMetersPerCubicMeter().length(),
+				1.0e-12);
+		assertEquals(0.0,
+				comparison.cfdWakeAngularMomentumTorqueDensityClosureResidualWorldNewtonMetersPerCubicMeter()
+						.length(),
+				1.0e-12);
+		assertEquals(0.0, comparison.wakeTangentialVelocityResidualMetersPerSecond(), 1.0e-12);
+		assertEquals(0.0, comparison.wakeSwirlKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.0, comparison.totalWakeKineticPowerResidualWatts(), 1.0e-12);
+	}
+
+	@Test
 	void writeCreatesParentDirectoriesAndComparisonCsv(@TempDir Path tempDir) throws IOException {
 		Path input = tempDir.resolve("source-results.csv");
 		Path output = tempDir.resolve("nested").resolve("source-comparison.csv");
@@ -253,6 +332,15 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 						"cfd_far_wake_axial_velocity_world_x_mps",
 						"cfd_far_wake_axial_velocity_world_y_mps",
 						"cfd_far_wake_axial_velocity_world_z_mps",
+						"cfd_wake_angular_momentum_torque_world_x_nm",
+						"cfd_wake_angular_momentum_torque_world_y_nm",
+						"cfd_wake_angular_momentum_torque_world_z_nm",
+						"cfd_wake_angular_momentum_torque_density_world_x_nm_m3",
+						"cfd_wake_angular_momentum_torque_density_world_y_nm_m3",
+						"cfd_wake_angular_momentum_torque_density_world_z_nm_m3",
+						"cfd_wake_tangential_velocity_mps",
+						"cfd_wake_swirl_kinetic_power_w",
+						"cfd_total_wake_kinetic_power_w",
 						"source_case_sha256",
 						"solver_status"),
 				row(
@@ -273,6 +361,15 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 						number(reference, "far_wake_axial_velocity_world_x_mps") * farWakeScale,
 						number(reference, "far_wake_axial_velocity_world_y_mps") * farWakeScale,
 						number(reference, "far_wake_axial_velocity_world_z_mps") * farWakeScale,
+						reference.get("wake_angular_momentum_torque_world_x_nm"),
+						reference.get("wake_angular_momentum_torque_world_y_nm"),
+						reference.get("wake_angular_momentum_torque_world_z_nm"),
+						reference.get("wake_angular_momentum_torque_density_world_x_nm_m3"),
+						reference.get("wake_angular_momentum_torque_density_world_y_nm_m3"),
+						reference.get("wake_angular_momentum_torque_density_world_z_nm_m3"),
+						reference.get("wake_tangential_velocity_mps"),
+						reference.get("wake_swirl_kinetic_power_w"),
+						reference.get("total_wake_kinetic_power_w"),
 						"synthetic-source-term",
 						"CONVERGED"
 				));

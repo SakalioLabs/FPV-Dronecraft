@@ -92,6 +92,21 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				numberCell(hover, columns, "equivalent_body_force_integral_world_y_n"), 1.0e-12);
 		assertTrue(numberCell(hover, columns, "shaft_power_w") > 0.0);
 		assertTrue(numberCell(hover, columns, "shaft_torque_nm") > 0.0);
+		assertEquals(numberCell(hover, columns, "shaft_torque_nm"),
+				Math.abs(numberCell(hover, columns, "reaction_torque_world_y_nm")), 1.0e-18);
+		assertEquals(numberCell(hover, columns, "reaction_torque_world_y_nm"),
+				numberCell(hover, columns, "wake_angular_momentum_torque_world_y_nm"), 1.0e-18);
+		assertEquals(0.0,
+				numberCell(hover, columns, "wake_angular_momentum_torque_residual_world_y_nm"), 1.0e-18);
+		assertEquals(numberCell(hover, columns, "wake_angular_momentum_torque_world_y_nm")
+						/ numberCell(hover, columns, "source_volume_m3"),
+				numberCell(hover, columns, "wake_angular_momentum_torque_density_world_y_nm_m3"),
+				1.0e-12);
+		assertTrue(numberCell(hover, columns, "angular_momentum_swirl_radius_m") > 0.0);
+		assertTrue(numberCell(hover, columns, "wake_tangential_velocity_mps") > 0.0);
+		assertTrue(numberCell(hover, columns, "wake_swirl_kinetic_power_w") > 0.0);
+		assertTrue(numberCell(hover, columns, "total_wake_kinetic_power_w")
+				> numberCell(hover, columns, "ideal_momentum_power_w"));
 		assertTrue(numberCell(hover, columns, "ideal_induced_velocity_mps") > 0.0);
 		assertTrue(numberCell(hover, columns, "ideal_momentum_power_over_shaft_power") > 0.0);
 
@@ -102,6 +117,10 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(numberCell(mid, columns, "pressure_jump_pa") > 0.0);
 		assertTrue(numberCell(mid, columns, "far_wake_axial_velocity_world_y_mps")
 				> numberCell(mid, columns, "query_signed_axial_speed_mps"));
+		assertTrue(numberCell(mid, columns, "wake_tangential_velocity_mps") > 0.0);
+		assertEquals(numberCell(mid, columns, "wake_swirl_kinetic_power_w")
+						/ numberCell(mid, columns, "shaft_power_w"),
+				numberCell(mid, columns, "wake_swirl_kinetic_power_over_shaft_power"), 1.0e-14);
 
 		assertEquals(0.73152, numberCell(high, columns, "query_j"), 1.0e-12);
 		assertEquals("false", textCell(high, columns, "blocked"));
@@ -124,6 +143,9 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals("false", textCell(reverseRuntime, columns, "applied"));
 		assertEquals(0.0, numberCell(reverseRuntime, columns, "pressure_jump_pa"), 1.0e-15);
 		assertEquals(0.0, numberCell(reverseRuntime, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(reverseRuntime, columns, "wake_angular_momentum_torque_world_y_nm"), 1.0e-15);
+		assertEquals(0.0, numberCell(reverseRuntime, columns, "wake_tangential_velocity_mps"), 1.0e-15);
 
 		assertEquals("true", textCell(blockedRaw, columns, "blocked"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(blockedRaw, columns, "lookup_status"));
@@ -132,6 +154,9 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals(0.0, numberCell(blockedRaw, columns, "integrated_thrust_force_world_y_n"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns,
 				"equivalent_body_force_integral_world_y_n"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(blockedRaw, columns, "wake_angular_momentum_torque_density_world_y_nm_m3"), 1.0e-15);
+		assertEquals(0.0, numberCell(blockedRaw, columns, "total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals("false", textCell(blockedRuntime, columns, "runtime_force_replacement_accepted"));
 		assertEquals(0.0, numberCell(blockedRuntime, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
 	}
@@ -149,6 +174,9 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(lines.get(0).contains("source_volume_m3"));
 		assertTrue(lines.get(0).contains("body_force_density_world_y_n_m3"));
 		assertTrue(lines.get(0).contains("equivalent_body_force_integral_world_y_n"));
+		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_world_y_nm"));
+		assertTrue(lines.get(0).contains("wake_tangential_velocity_mps"));
+		assertTrue(lines.get(0).contains("total_wake_kinetic_power_w"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")));
 	}
