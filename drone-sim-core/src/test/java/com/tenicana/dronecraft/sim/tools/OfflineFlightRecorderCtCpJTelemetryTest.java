@@ -1182,6 +1182,31 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(report.meanCtCpJStaticReferenceIdealMomentumPowerOverShaftPower() > 0.0);
 	}
 
+	@Test
+	void nonAcceptedPresetDoesNotBorrowApDroneStateShadowReference() throws IOException {
+		Path output = tempDir.resolve("racing_quad.csv");
+		OfflineFlightRecorder.FlightReport report =
+				OfflineFlightRecorder.record("racing_quad", output, 0.05);
+
+		List<String> lines = Files.readAllLines(output);
+		assertTrue(lines.size() > 1);
+		String[] header = lines.get(0).split(",", -1);
+		int stateShadowAvailableIndex = column(header, "rotor_ctcpj_state_ref_available");
+		int stateShadowAcceptedRotorsIndex = column(header, "rotor_ctcpj_state_ref_accepted_rotors");
+		int stateShadowForceResidualIndex = column(header, "rotor_ctcpj_state_ref_force_residual_n");
+		for (int i = 1; i < lines.size(); i++) {
+			String[] row = lines.get(i).split(",", -1);
+			assertEquals(header.length, row.length, "CSV row " + i + " column count changed");
+			assertEquals(0.0, Double.parseDouble(row[stateShadowAvailableIndex]), 1.0e-12);
+			assertEquals(0.0, Double.parseDouble(row[stateShadowAcceptedRotorsIndex]), 1.0e-12);
+			assertEquals(0.0, Double.parseDouble(row[stateShadowForceResidualIndex]), 1.0e-12);
+		}
+		assertEquals(0, report.ctCpJStateShadowFrameSampleCount());
+		assertEquals(0, report.ctCpJStateShadowAcceptedRotorSampleCount());
+		assertEquals(0.0, report.meanCtCpJStateShadowAbsForceResidualNewtons(), 1.0e-12);
+		assertEquals(0.0, report.maxCtCpJStateShadowAbsForceResidualNewtons(), 1.0e-12);
+	}
+
 	private static int column(String[] header, String name) {
 		for (int i = 0; i < header.length; i++) {
 			if (name.equals(header[i])) {

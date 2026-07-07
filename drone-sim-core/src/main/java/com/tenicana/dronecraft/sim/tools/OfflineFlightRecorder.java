@@ -3540,8 +3540,8 @@ public final class OfflineFlightRecorder {
 				physics.step(frame.input(), SIMULATION_DT_SECONDS, environment);
 
 				if (step % SAMPLE_EVERY_STEPS == 0) {
-					writeSample(writer, sample, step, timeSeconds, frame, physics, environment);
-					report.record(physics.state(), config, environment);
+					writeSample(writer, sample, step, timeSeconds, frame, physics, environment, presetName);
+					report.record(physics.state(), config, environment, presetName);
 					sample++;
 				}
 			}
@@ -4068,7 +4068,8 @@ public final class OfflineFlightRecorder {
 			double timeSeconds,
 			ScriptFrame frame,
 			DronePhysics physics,
-			DroneEnvironment environment
+			DroneEnvironment environment,
+			String presetName
 	) {
 		DroneState state = physics.state();
 		Vec3 position = state.positionMeters();
@@ -4517,11 +4518,16 @@ public final class OfflineFlightRecorder {
 				state.rotorSurfaceScrapeIntensity(1),
 				state.rotorSurfaceScrapeIntensity(2),
 				state.rotorSurfaceScrapeIntensity(3),
-				extraRotorColumns(state, physics.config(), environment)
+				extraRotorColumns(state, physics.config(), environment, presetName)
 		);
 	}
 
-	private static String extraRotorColumns(DroneState state, DroneConfig config, DroneEnvironment environment) {
+	private static String extraRotorColumns(
+			DroneState state,
+			DroneConfig config,
+			DroneEnvironment environment,
+			String presetName
+	) {
 		StringBuilder builder = new StringBuilder();
 		double[] escElectricalOutput = state.escElectricalOutputCommand();
 		double[] escElectricalError = state.escElectricalOutputError();
@@ -4763,7 +4769,7 @@ public final class OfflineFlightRecorder {
 				ratios(state.rotorInducedVelocityMetersPerSecond(),
 						rotorCtCpJStaticReferenceIdealInducedVelocity);
 		CtCpJStateShadowTelemetry ctCpJStateShadow =
-				ctCpJStateShadowTelemetry(config, state, environment);
+				ctCpJStateShadowTelemetry(presetName, config, state, environment);
 		double[] rotorAxialGustThrustScale = state.rotorAxialGustThrustScale();
 		double[] rotorReverseFlowInboardFraction = state.rotorReverseFlowInboardFraction();
 		double[] rotorTipMach = state.rotorTipMach();
@@ -5318,6 +5324,7 @@ public final class OfflineFlightRecorder {
 	}
 
 	private static CtCpJStateShadowTelemetry ctCpJStateShadowTelemetry(
+			String presetName,
 			DroneConfig config,
 			DroneState state,
 			DroneEnvironment environment
@@ -5325,10 +5332,14 @@ public final class OfflineFlightRecorder {
 		if (config == null || state == null) {
 			return CtCpJStateShadowTelemetry.unavailable();
 		}
+		String lookupPreset = ctCpJAcceptedLookupPresetName(presetName);
+		if (lookupPreset.isBlank()) {
+			return CtCpJStateShadowTelemetry.unavailable();
+		}
 		try {
 			PropellerArchiveCtCpJWorldForceApplicationProvider.StateRotorTelemetryComparisonSample comparison =
 					PropellerArchiveCtCpJWorldForceApplicationProvider.compareStateRotorTelemetryToReference(
-							PropellerArchiveCtCpJLookupEvaluator.DEFAULT_PRESET_NAME,
+							lookupPreset,
 							"offline_flight_state_shadow",
 							config,
 							state,
@@ -5359,6 +5370,16 @@ public final class OfflineFlightRecorder {
 		} catch (IllegalArgumentException exception) {
 			return CtCpJStateShadowTelemetry.unavailable();
 		}
+	}
+
+	private static String ctCpJAcceptedLookupPresetName(String recorderPresetName) {
+		if (recorderPresetName == null) {
+			return "";
+		}
+		return switch (recorderPresetName) {
+			case "apdrone" -> PropellerArchiveCtCpJLookupEvaluator.DEFAULT_PRESET_NAME;
+			default -> "";
+		};
 	}
 
 	private static void appendCtCpJStateShadowColumns(
@@ -6272,7 +6293,12 @@ public final class OfflineFlightRecorder {
 		private double ctCpJStaticReferenceIdealMomentumPowerOverShaftPowerSum;
 		private double ctCpJStaticReferenceMaxIdealMomentumPowerOverShaftPower;
 
-		private void record(DroneState state, DroneConfig config, DroneEnvironment environment) {
+		private void record(
+				DroneState state,
+				DroneConfig config,
+				DroneEnvironment environment,
+				String presetName
+		) {
 			maxSpeedMetersPerSecond = Math.max(maxSpeedMetersPerSecond, state.speedMetersPerSecond());
 			maxBatteryCurrentAmps = Math.max(maxBatteryCurrentAmps, state.batteryCurrentAmps());
 			maxBatteryRegenerativeCurrentAmps = Math.max(maxBatteryRegenerativeCurrentAmps, state.batteryRegenerativeCurrentAmps());
@@ -6462,7 +6488,7 @@ public final class OfflineFlightRecorder {
 			minEscThermalLimit = Math.min(minEscThermalLimit, state.escThermalLimit());
 			recordCtCpJRuntimeCoefficientTelemetry(state, config, environment);
 			recordCtCpJReferenceTelemetry(state);
-			recordCtCpJStateShadowTelemetry(state, config, environment);
+			recordCtCpJStateShadowTelemetry(state, config, environment, presetName);
 			recordCtCpJStaticReferenceTelemetry(state, config, environment);
 		}
 
@@ -6710,9 +6736,15 @@ public final class OfflineFlightRecorder {
 		private void recordCtCpJStateShadowTelemetry(
 				DroneState state,
 				DroneConfig config,
-				DroneEnvironment environment
+				DroneEnvironment environment,
+				String presetName
 		) {
-			CtCpJStateShadowTelemetry sample = ctCpJStateShadowTelemetry(config, state, environment);
+			CtCpJStateShadowTelemetry sample = ctCpJStateShadowTelemetry(
+					presetName,
+					config,
+					state,
+					environment
+			);
 			if (!sample.available()) {
 				return;
 			}
