@@ -55,9 +55,23 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"disk_normal_world_x",
 			"disk_normal_world_y",
 			"disk_normal_world_z",
+			"disk_tangent_u_world_x",
+			"disk_tangent_u_world_y",
+			"disk_tangent_u_world_z",
+			"disk_tangent_v_world_x",
+			"disk_tangent_v_world_y",
+			"disk_tangent_v_world_z",
 			"disk_area_m2",
 			"disk_radius_m",
+			"source_half_thickness_m",
 			"source_volume_m3",
+			"source_axis_min_world_x_m",
+			"source_axis_min_world_y_m",
+			"source_axis_min_world_z_m",
+			"source_axis_max_world_x_m",
+			"source_axis_max_world_y_m",
+			"source_axis_max_world_z_m",
+			"source_bounding_sphere_radius_m",
 			"pressure_jump_pa",
 			"mass_flux_kg_s_m2",
 			"ideal_momentum_power_loading_w_m2",
@@ -252,8 +266,16 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 		Vec3 bodyForceDensity =
 				sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters);
 		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		double sourceHalfThickness = sourceThicknessMeters * 0.5;
 		double sourceVolume = sourceTerm.diskAreaSquareMeters() * sourceThicknessMeters;
 		Vec3 equivalentBodyForceIntegral = bodyForceDensity.multiply(sourceVolume);
+		Vec3 diskTangentU = diskTangentU(sourceTerm.diskNormalWorld());
+		Vec3 diskTangentV = sourceTerm.diskNormalWorld().cross(diskTangentU).normalized();
+		Vec3 halfThicknessOffset = sourceTerm.diskNormalWorld().multiply(sourceHalfThickness);
+		Vec3 sourceAxisMin = sourceTerm.diskCenterWorldMeters().subtract(halfThicknessOffset);
+		Vec3 sourceAxisMax = sourceTerm.diskCenterWorldMeters().add(halfThicknessOffset);
+		double sourceBoundingSphereRadius = Math.sqrt(diskRadius * diskRadius
+				+ sourceHalfThickness * sourceHalfThickness);
 		Vec3 relativeAir = rotorSample.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 angularRate = sourceCase.angularVelocityBodyRadiansPerSecond();
 		Quaternion orientation = sourceCase.bodyToWorldOrientation();
@@ -293,9 +315,23 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(sourceTerm.diskNormalWorld().x()),
 				number(sourceTerm.diskNormalWorld().y()),
 				number(sourceTerm.diskNormalWorld().z()),
+				number(diskTangentU.x()),
+				number(diskTangentU.y()),
+				number(diskTangentU.z()),
+				number(diskTangentV.x()),
+				number(diskTangentV.y()),
+				number(diskTangentV.z()),
 				number(sourceTerm.diskAreaSquareMeters()),
 				number(diskRadius),
+				number(sourceHalfThickness),
 				number(sourceVolume),
+				number(sourceAxisMin.x()),
+				number(sourceAxisMin.y()),
+				number(sourceAxisMin.z()),
+				number(sourceAxisMax.x()),
+				number(sourceAxisMax.y()),
+				number(sourceAxisMax.z()),
+				number(sourceBoundingSphereRadius),
 				number(sourceTerm.pressureJumpPascals()),
 				number(sourceTerm.massFluxKilogramsPerSecondSquareMeter()),
 				number(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()),
@@ -408,6 +444,19 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			return new Vec3(0.0, 1.0, 0.0);
 		}
 		return axis.normalized();
+	}
+
+	private static Vec3 diskTangentU(Vec3 normalWorld) {
+		Vec3 normal = normalWorld == null || !normalWorld.isFinite() || normalWorld.lengthSquared() <= 1.0e-9
+				? new Vec3(0.0, 1.0, 0.0)
+				: normalWorld.normalized();
+		Vec3 basis = Math.abs(normal.x()) < 0.9 ? new Vec3(1.0, 0.0, 0.0) : new Vec3(0.0, 0.0, 1.0);
+		Vec3 tangent = basis.subtract(normal.multiply(basis.dot(normal)));
+		if (!tangent.isFinite() || tangent.lengthSquared() <= 1.0e-9) {
+			basis = new Vec3(0.0, 0.0, 1.0);
+			tangent = basis.subtract(normal.multiply(basis.dot(normal)));
+		}
+		return tangent.normalized();
 	}
 
 	private static double[] fill(int count, double value) {
