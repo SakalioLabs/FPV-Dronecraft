@@ -42,6 +42,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertWakeMomentumAndSwirlClosure(sample);
 		assertEquals(sample.diskAreaSquareMeters() * 0.5,
 				sample.farWakeContractedAreaSquareMeters(), 1.0e-18);
+		assertEquals(0.5, sample.farWakeContractedAreaOverDiskArea(), 1.0e-15);
+		assertEquals(Math.sqrt(0.5), sample.farWakeEquivalentRadiusOverRotorRadius(), 1.0e-15);
 	}
 
 	@Test
@@ -83,6 +85,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertWakeMomentumAndSwirlClosure(sample);
 		assertTrue(sample.farWakeContractedAreaSquareMeters() > sample.diskAreaSquareMeters() * 0.5);
 		assertTrue(sample.farWakeContractedAreaSquareMeters() < sample.diskAreaSquareMeters());
+		assertTrue(sample.farWakeContractedAreaOverDiskArea() > 0.5);
+		assertTrue(sample.farWakeContractedAreaOverDiskArea() < 1.0);
+		assertEquals(Math.sqrt(sample.farWakeContractedAreaOverDiskArea()),
+				sample.farWakeEquivalentRadiusOverRotorRadius(), 1.0e-15);
 		assertTrue(sample.totalWakeKineticPowerWatts() > sample.idealMomentumPowerWatts());
 		assertEquals(sample.shaftPowerWatts() - sample.totalWakeKineticPowerWatts(),
 				sample.totalWakeKineticPowerResidualWatts(), 1.0e-15);
@@ -108,6 +114,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				dense.diskMassFlowKilogramsPerSecond(), 1.0e-15);
 		assertEquals(sample.farWakeAxialVelocityMetersPerSecond(),
 				dense.farWakeAxialVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.farWakeContractedAreaOverDiskArea(),
+				dense.farWakeContractedAreaOverDiskArea(), 1.0e-15);
+		assertEquals(sample.farWakeEquivalentRadiusOverRotorRadius(),
+				dense.farWakeEquivalentRadiusOverRotorRadius(), 1.0e-15);
 		assertEquals(sample.wakeTangentialVelocityMetersPerSecond(),
 				dense.wakeTangentialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.wakeSwirlKineticPowerWatts() * 2.0,
@@ -150,6 +160,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.farWakeAxialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.farWakeContractedAreaSquareMeters() * diameterScale * diameterScale,
 				larger.farWakeContractedAreaSquareMeters(), 1.0e-17);
+		assertEquals(sample.farWakeContractedAreaOverDiskArea(),
+				larger.farWakeContractedAreaOverDiskArea(), 1.0e-15);
+		assertEquals(sample.farWakeEquivalentRadiusOverRotorRadius(),
+				larger.farWakeEquivalentRadiusOverRotorRadius(), 1.0e-15);
 		assertEquals(sample.wakeSwirlKineticPowerWatts() * Math.pow(diameterScale, 5.0),
 				larger.wakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(sample.wakeSwirlKineticPowerOverShaftPower(),
@@ -550,6 +564,10 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.angularMomentumSwirlRadiusMeters(),
 				1.0e-15
 		);
+		assertEquals(sample.farWakeContractedAreaSquareMeters() / sample.diskAreaSquareMeters(),
+				sample.farWakeContractedAreaOverDiskArea(), 1.0e-15);
+		assertEquals(sample.farWakeEquivalentRadiusMeters() / sample.rotorRadiusMeters(),
+				sample.farWakeEquivalentRadiusOverRotorRadius(), 1.0e-15);
 		assertEquals(
 				Math.abs(sample.shaftTorqueNewtonMeters()),
 				sample.diskMassFlowKilogramsPerSecond()

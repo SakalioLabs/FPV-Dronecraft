@@ -166,6 +166,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double farWakeAxialVelocityMetersPerSecond,
 			double farWakeContractedAreaSquareMeters,
 			double farWakeEquivalentRadiusMeters,
+			double farWakeContractedAreaOverDiskArea,
+			double farWakeEquivalentRadiusOverRotorRadius,
 			double angularMomentumSwirlRadiusMeters,
 			double wakeTangentialVelocityMetersPerSecond,
 			double wakeSwirlKineticPowerWatts,
@@ -428,6 +430,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
+					0.0,
 					0.0
 			);
 		}
@@ -474,6 +478,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		double farWakeRadius = farWakeArea > EPSILON
 				? Math.sqrt(farWakeArea / Math.PI)
 				: 0.0;
+		double farWakeAreaRatio = ratio(farWakeArea, diskArea);
+		double farWakeRadiusRatio = ratio(farWakeRadius, radius);
 		double swirlRadius = farWakeRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
 		double tangentialWakeVelocity = diskMassFlow > EPSILON && swirlRadius > EPSILON
 				? Math.abs(torque) / (diskMassFlow * swirlRadius)
@@ -513,6 +519,8 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				farWakeAxialVelocity,
 				farWakeArea,
 				farWakeRadius,
+				farWakeAreaRatio,
+				farWakeRadiusRatio,
 				swirlRadius,
 				tangentialWakeVelocity,
 				swirlKineticPower,

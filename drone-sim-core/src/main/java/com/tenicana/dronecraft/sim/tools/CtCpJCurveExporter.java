@@ -97,7 +97,9 @@ public final class CtCpJCurveExporter {
 			"torque_coefficient_cq",
 			"useful_axial_thrust_power_w",
 			"ideal_induced_power_w",
-			"axial_propulsive_efficiency"
+			"axial_propulsive_efficiency",
+			"far_wake_contracted_area_over_disk_area",
+			"far_wake_equivalent_radius_over_rotor_radius"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -427,7 +429,9 @@ public final class CtCpJCurveExporter {
 				number(sample.torqueCoefficientCq()),
 				number(sample.usefulAxialThrustPowerWatts()),
 				number(sample.idealInducedPowerWatts()),
-				number(sample.axialPropulsiveEfficiency())
+				number(sample.axialPropulsiveEfficiency()),
+				number(sample.farWakeContractedAreaOverDiskArea()),
+				number(sample.farWakeEquivalentRadiusOverRotorRadius())
 		);
 	}
 
@@ -540,7 +544,9 @@ public final class CtCpJCurveExporter {
 				number(PropellerArchiveCtCpJLookupEvaluator.torqueCoefficientCq(sample.powerCoefficientCp())),
 				number(0.0),
 				number(sample.idealMomentumPowerWatts()),
-				number(sample.propulsiveEfficiencyEta())
+				number(sample.propulsiveEfficiencyEta()),
+				number(wake.farWakeContractedAreaOverDiskArea()),
+				number(wake.farWakeEquivalentRadiusOverRotorRadius())
 		);
 	}
 
@@ -549,6 +555,8 @@ public final class CtCpJCurveExporter {
 			double farWakeAxialVelocityMetersPerSecond,
 			double farWakeContractedAreaSquareMeters,
 			double farWakeEquivalentRadiusMeters,
+			double farWakeContractedAreaOverDiskArea,
+			double farWakeEquivalentRadiusOverRotorRadius,
 			double angularMomentumSwirlRadiusMeters,
 			double wakeTangentialVelocityMetersPerSecond,
 			double wakeSwirlKineticPowerWatts,
@@ -580,6 +588,11 @@ public final class CtCpJCurveExporter {
 		double farWakeRadius = farWakeArea > 1.0e-12
 				? Math.sqrt(farWakeArea / Math.PI)
 				: 0.0;
+		double farWakeAreaRatio = ratio(farWakeArea, diskAreaSquareMeters);
+		double rotorRadius = diskAreaSquareMeters > 1.0e-12
+				? Math.sqrt(diskAreaSquareMeters / Math.PI)
+				: 0.0;
+		double farWakeRadiusRatio = ratio(farWakeRadius, rotorRadius);
 		double swirlRadius = farWakeRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
 		double tangentialWakeVelocity = massFlow > 1.0e-12 && swirlRadius > 1.0e-12
 				? Math.abs(shaftTorqueNewtonMeters) / (massFlow * swirlRadius)
@@ -592,6 +605,8 @@ public final class CtCpJCurveExporter {
 				farWakeVelocity,
 				farWakeArea,
 				farWakeRadius,
+				farWakeAreaRatio,
+				farWakeRadiusRatio,
 				swirlRadius,
 				tangentialWakeVelocity,
 				swirlKineticPower,
