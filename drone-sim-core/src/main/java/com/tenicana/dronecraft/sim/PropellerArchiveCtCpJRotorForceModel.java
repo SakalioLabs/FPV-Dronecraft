@@ -954,6 +954,111 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		);
 	}
 
+	public static ConfigurationTargetThrustSolution solveStaticAnchoredConfigurationRpmForTargetThrustFromEnvironmentKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			DroneEnvironment environment
+	) {
+		if (environment == null) {
+			environment = DroneEnvironment.calm();
+		}
+		return solveStaticAnchoredConfigurationRpmForTargetThrustFromWorldKinematics(
+				presetName,
+				caseName,
+				config,
+				bodyToWorldOrientation,
+				vehicleVelocityWorldMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				environment.windVelocityWorldMetersPerSecond(),
+				environment.rotorWindVelocityWorldMetersPerSecond(),
+				targetThrustNewtons,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				SEA_LEVEL_AIR_DENSITY_KG_PER_CUBIC_METER * environment.effectiveAirDensityRatio(),
+				environment.effectiveAmbientTemperatureCelsius(),
+				environment.ambientHumidity()
+		);
+	}
+
+	public static ConfigurationTargetThrustSolution solveStaticAnchoredConfigurationRpmForTargetThrustFromWorldKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			Vec3 windVelocityWorldMetersPerSecond,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter
+	) {
+		return solveStaticAnchoredConfigurationRpmForTargetThrustFromWorldKinematics(
+				presetName,
+				caseName,
+				config,
+				bodyToWorldOrientation,
+				vehicleVelocityWorldMetersPerSecond,
+				angularVelocityBodyRadiansPerSecond,
+				windVelocityWorldMetersPerSecond,
+				rotorWindVelocityWorldMetersPerSecond,
+				targetThrustNewtons,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS,
+				0.0
+		);
+	}
+
+	public static ConfigurationTargetThrustSolution solveStaticAnchoredConfigurationRpmForTargetThrustFromWorldKinematics(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			Quaternion bodyToWorldOrientation,
+			Vec3 vehicleVelocityWorldMetersPerSecond,
+			Vec3 angularVelocityBodyRadiansPerSecond,
+			Vec3 windVelocityWorldMetersPerSecond,
+			Vec3[] rotorWindVelocityWorldMetersPerSecond,
+			double targetThrustNewtons,
+			double lowerOmegaRadiansPerSecond,
+			double upperOmegaRadiansPerSecond,
+			double airDensityKgPerCubicMeter,
+			double ambientTemperatureCelsius,
+			double ambientHumidity
+	) {
+		if (config == null) {
+			throw new IllegalArgumentException("config must not be null.");
+		}
+		return solveStaticAnchoredConfigurationRpmForTargetThrustFromRelativeAirVelocities(
+				presetName,
+				caseName,
+				config,
+				rotorRelativeAirVelocitiesFromWorldKinematics(
+						config,
+						bodyToWorldOrientation,
+						vehicleVelocityWorldMetersPerSecond,
+						angularVelocityBodyRadiansPerSecond,
+						windVelocityWorldMetersPerSecond,
+						rotorWindVelocityWorldMetersPerSecond
+				),
+				targetThrustNewtons,
+				lowerOmegaRadiansPerSecond,
+				upperOmegaRadiansPerSecond,
+				airDensityKgPerCubicMeter,
+				ambientTemperatureCelsius,
+				ambientHumidity
+		);
+	}
+
 	public static ConfigurationTargetThrustSolution solveStaticAnchoredConfigurationRpmForTargetThrustFromRelativeAirVelocities(
 			String presetName,
 			String caseName,
