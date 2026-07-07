@@ -368,6 +368,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 farWakeAxialVelocity = applied
 					? farWakeAxialVelocityWorldMetersPerSecond(bodyToWorldOrientation)
 					: Vec3.ZERO;
+			Vec3 reactionTorque = applied
+					? reactionTorqueWorldNewtonMeters(bodyToWorldOrientation)
+					: Vec3.ZERO;
+			Vec3 wakeAngularMomentumTorque = applied
+					? wakeAngularMomentumTorqueWorldNewtonMeters(bodyToWorldOrientation)
+					: Vec3.ZERO;
+			Vec3 wakeAngularMomentumTorqueResidual = applied
+					? wakeAngularMomentumTorqueResidualWorldNewtonMeters(bodyToWorldOrientation)
+					: Vec3.ZERO;
 			return new RotorActuatorDiskSourceTermSample(
 					rotorIndex,
 					forceApplicationPointWorldMeters(momentReferenceWorldMeters, bodyToWorldOrientation),
@@ -378,6 +387,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					powerLoading,
 					thrustSurfaceForce,
 					farWakeAxialVelocity,
+					reactionTorque,
+					wakeAngularMomentumTorque,
+					wakeAngularMomentumTorqueResidual,
+					applied ? dimensionalSample.angularMomentumSwirlRadiusMeters() : 0.0,
+					applied ? dimensionalSample.wakeTangentialVelocityMetersPerSecond() : 0.0,
+					applied ? dimensionalSample.wakeSwirlKineticPowerWatts() : 0.0,
+					applied ? dimensionalSample.totalWakeKineticPowerWatts() : 0.0,
+					applied ? dimensionalSample.wakeSwirlKineticPowerOverShaftPower() : 0.0,
+					applied ? dimensionalSample.totalWakeKineticPowerOverShaftPower() : 0.0,
+					applied ? dimensionalSample.totalWakeKineticPowerResidualWatts() : 0.0,
+					applied ? dimensionalSample.totalWakeKineticPowerResidualFraction() : 0.0,
 					runtimeForceReplacementAccepted,
 					applied,
 					lookup.status()
@@ -414,6 +434,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double idealMomentumPowerLoadingWattsPerSquareMeter,
 			Vec3 thrustSurfaceForceWorldNewtonsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
+			Vec3 reactionTorqueWorldNewtonMeters,
+			Vec3 wakeAngularMomentumTorqueWorldNewtonMeters,
+			Vec3 wakeAngularMomentumTorqueResidualWorldNewtonMeters,
+			double angularMomentumSwirlRadiusMeters,
+			double wakeTangentialVelocityMetersPerSecond,
+			double wakeSwirlKineticPowerWatts,
+			double totalWakeKineticPowerWatts,
+			double wakeSwirlKineticPowerOverShaftPower,
+			double totalWakeKineticPowerOverShaftPower,
+			double totalWakeKineticPowerResidualWatts,
+			double totalWakeKineticPowerResidualFraction,
 			boolean runtimeForceReplacementAccepted,
 			boolean applied,
 			String lookupStatus
@@ -432,6 +463,21 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					finiteVecOrZero(thrustSurfaceForceWorldNewtonsPerSquareMeter);
 			farWakeAxialVelocityWorldMetersPerSecond =
 					finiteVecOrZero(farWakeAxialVelocityWorldMetersPerSecond);
+			reactionTorqueWorldNewtonMeters = finiteVecOrZero(reactionTorqueWorldNewtonMeters);
+			wakeAngularMomentumTorqueWorldNewtonMeters =
+					finiteVecOrZero(wakeAngularMomentumTorqueWorldNewtonMeters);
+			wakeAngularMomentumTorqueResidualWorldNewtonMeters =
+					finiteVecOrZero(wakeAngularMomentumTorqueResidualWorldNewtonMeters);
+			angularMomentumSwirlRadiusMeters = finiteNonnegative(angularMomentumSwirlRadiusMeters);
+			wakeTangentialVelocityMetersPerSecond = finiteNonnegative(wakeTangentialVelocityMetersPerSecond);
+			wakeSwirlKineticPowerWatts = finiteNonnegative(wakeSwirlKineticPowerWatts);
+			totalWakeKineticPowerWatts = finiteNonnegative(totalWakeKineticPowerWatts);
+			wakeSwirlKineticPowerOverShaftPower =
+					finiteNonnegative(wakeSwirlKineticPowerOverShaftPower);
+			totalWakeKineticPowerOverShaftPower =
+					finiteNonnegative(totalWakeKineticPowerOverShaftPower);
+			totalWakeKineticPowerResidualWatts = finiteOrZero(totalWakeKineticPowerResidualWatts);
+			totalWakeKineticPowerResidualFraction = finiteOrZero(totalWakeKineticPowerResidualFraction);
 			lookupStatus = lookupStatus == null ? "" : lookupStatus;
 		}
 
@@ -440,6 +486,23 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				return Vec3.ZERO;
 			}
 			return thrustSurfaceForceWorldNewtonsPerSquareMeter.multiply(1.0 / sourceThicknessMeters);
+		}
+
+		public double sourceVolumeCubicMeters(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			return diskAreaSquareMeters * sourceThicknessMeters;
+		}
+
+		public Vec3 equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
+				double sourceThicknessMeters
+		) {
+			double sourceVolume = sourceVolumeCubicMeters(sourceThicknessMeters);
+			if (sourceVolume <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			return wakeAngularMomentumTorqueWorldNewtonMeters.multiply(1.0 / sourceVolume);
 		}
 	}
 

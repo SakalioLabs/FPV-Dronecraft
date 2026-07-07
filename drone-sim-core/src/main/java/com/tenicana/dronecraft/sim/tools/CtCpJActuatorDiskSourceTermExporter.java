@@ -289,19 +289,10 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 		double sourceHalfThickness = sourceThicknessMeters * 0.5;
 		double sourceVolume = sourceTerm.diskAreaSquareMeters() * sourceThicknessMeters;
 		Vec3 equivalentBodyForceIntegral = bodyForceDensity.multiply(sourceVolume);
-		boolean sourceApplied = sourceTerm.applied();
-		Vec3 reactionTorqueWorld = sourceApplied
-				? rotorSample.reactionTorqueWorldNewtonMeters(sourceCase.bodyToWorldOrientation())
-				: Vec3.ZERO;
-		Vec3 wakeAngularMomentumTorqueWorld = sourceApplied
-				? rotorSample.wakeAngularMomentumTorqueWorldNewtonMeters(sourceCase.bodyToWorldOrientation())
-				: Vec3.ZERO;
-		Vec3 wakeAngularMomentumTorqueResidualWorld = sourceApplied
-				? rotorSample.wakeAngularMomentumTorqueResidualWorldNewtonMeters(sourceCase.bodyToWorldOrientation())
-				: Vec3.ZERO;
-		Vec3 wakeAngularMomentumTorqueDensity = sourceVolume > 1.0e-12
-				? wakeAngularMomentumTorqueWorld.multiply(1.0 / sourceVolume)
-				: Vec3.ZERO;
+		Vec3 wakeAngularMomentumTorqueDensity =
+				sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
+						sourceThicknessMeters
+				);
 		Vec3 diskTangentU = diskTangentU(sourceTerm.diskNormalWorld());
 		Vec3 diskTangentV = sourceTerm.diskNormalWorld().cross(diskTangentU).normalized();
 		Vec3 halfThicknessOffset = sourceTerm.diskNormalWorld().multiply(sourceHalfThickness);
@@ -377,15 +368,15 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().x()),
 				number(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().y()),
 				number(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().z()),
-				number(reactionTorqueWorld.x()),
-				number(reactionTorqueWorld.y()),
-				number(reactionTorqueWorld.z()),
-				number(wakeAngularMomentumTorqueWorld.x()),
-				number(wakeAngularMomentumTorqueWorld.y()),
-				number(wakeAngularMomentumTorqueWorld.z()),
-				number(wakeAngularMomentumTorqueResidualWorld.x()),
-				number(wakeAngularMomentumTorqueResidualWorld.y()),
-				number(wakeAngularMomentumTorqueResidualWorld.z()),
+				number(sourceTerm.reactionTorqueWorldNewtonMeters().x()),
+				number(sourceTerm.reactionTorqueWorldNewtonMeters().y()),
+				number(sourceTerm.reactionTorqueWorldNewtonMeters().z()),
+				number(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters().x()),
+				number(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters().y()),
+				number(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters().z()),
+				number(sourceTerm.wakeAngularMomentumTorqueResidualWorldNewtonMeters().x()),
+				number(sourceTerm.wakeAngularMomentumTorqueResidualWorldNewtonMeters().y()),
+				number(sourceTerm.wakeAngularMomentumTorqueResidualWorldNewtonMeters().z()),
 				number(wakeAngularMomentumTorqueDensity.x()),
 				number(wakeAngularMomentumTorqueDensity.y()),
 				number(wakeAngularMomentumTorqueDensity.z()),
@@ -397,14 +388,14 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(equivalentBodyForceIntegral.z()),
 				number(dimensional.shaftPowerWatts()),
 				number(dimensional.shaftTorqueNewtonMeters()),
-				number(sourceApplied ? dimensional.angularMomentumSwirlRadiusMeters() : 0.0),
-				number(sourceApplied ? dimensional.wakeTangentialVelocityMetersPerSecond() : 0.0),
-				number(sourceApplied ? dimensional.wakeSwirlKineticPowerWatts() : 0.0),
-				number(sourceApplied ? dimensional.totalWakeKineticPowerWatts() : 0.0),
-				number(sourceApplied ? dimensional.wakeSwirlKineticPowerOverShaftPower() : 0.0),
-				number(sourceApplied ? dimensional.totalWakeKineticPowerOverShaftPower() : 0.0),
-				number(sourceApplied ? dimensional.totalWakeKineticPowerResidualWatts() : 0.0),
-				number(sourceApplied ? dimensional.totalWakeKineticPowerResidualFraction() : 0.0),
+				number(sourceTerm.angularMomentumSwirlRadiusMeters()),
+				number(sourceTerm.wakeTangentialVelocityMetersPerSecond()),
+				number(sourceTerm.wakeSwirlKineticPowerWatts()),
+				number(sourceTerm.totalWakeKineticPowerWatts()),
+				number(sourceTerm.wakeSwirlKineticPowerOverShaftPower()),
+				number(sourceTerm.totalWakeKineticPowerOverShaftPower()),
+				number(sourceTerm.totalWakeKineticPowerResidualWatts()),
+				number(sourceTerm.totalWakeKineticPowerResidualFraction()),
 				number(dimensional.diskLoadingNewtonsPerSquareMeter()),
 				number(dimensional.idealInducedVelocityMetersPerSecond()),
 				number(dimensional.idealMomentumPowerWatts()),
