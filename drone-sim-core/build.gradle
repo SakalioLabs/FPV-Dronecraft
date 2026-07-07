@@ -140,6 +140,27 @@ tasks.register("ctCpJActuatorDiskOpenFoamSampleDict", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskOpenFoamRawSetImport", JavaExec) {
+	group = "simulation"
+	description = "Imports OpenFOAM raw U set files from CT/CP/J wake sampling into comparison-ready CSVs."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskOpenFoamRawSetImporter")
+	doFirst {
+		def inputDir = project.findProperty("input")
+		if (inputDir == null || inputDir.toString().isBlank()) {
+			throw new GradleException("ctCpJActuatorDiskOpenFoamRawSetImport requires -Pinput=<postProcessing/sets/time-dir>")
+		}
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def centerlineOutput = project.findProperty("centerlineOutput") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-wake-probes/${presetName}-openfoam-wake-probe-results.csv").get().asFile.absolutePath
+		def wakePlaneOutput = project.findProperty("wakePlaneOutput") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-wake-probes/${presetName}-openfoam-wake-plane-probe-results.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def solverStatus = project.findProperty("solverStatus") ?: ""
+		def sourceCaseSha256 = project.findProperty("sourceCaseSha256") ?: ""
+		args(presetName, inputDir, centerlineOutput, wakePlaneOutput, airDensity, sourceThickness, solverStatus, sourceCaseSha256)
+	}
+}
+
 tasks.register("ctCpJActuatorDiskWakeProbeCompare", JavaExec) {
 	group = "simulation"
 	description = "Imports actuator-disk wake probe rows and exports CT/CP/J probe velocity residual comparisons."
