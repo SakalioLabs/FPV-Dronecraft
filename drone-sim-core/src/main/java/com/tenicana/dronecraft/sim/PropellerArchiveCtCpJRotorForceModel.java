@@ -196,6 +196,34 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return dimensionalSample.shaftTorqueNewtonMeters();
 		}
 
+		public Vec3 relativeAirVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(relativeAirVelocityBodyMetersPerSecond, bodyToWorldOrientation);
+		}
+
+		public Vec3 transverseAirVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(transverseAirVelocityBodyMetersPerSecond, bodyToWorldOrientation);
+		}
+
+		public Vec3 thrustForceWorldNewtons(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(thrustForceBodyNewtons, bodyToWorldOrientation);
+		}
+
+		public Vec3 reactionTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(reactionTorqueBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 momentArmWorldMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(momentArmBodyMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 thrustMomentWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(thrustMomentBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 totalTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(totalTorqueBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
 		public RotorOperatingPoint standardOperatingPoint() {
 			return operatingPoint(STANDARD_OPERATING_POINT_TEMPERATURE_CELSIUS);
 		}

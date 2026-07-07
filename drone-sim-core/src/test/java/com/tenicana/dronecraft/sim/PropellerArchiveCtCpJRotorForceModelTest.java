@@ -459,6 +459,58 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void rotorForceSampleProjectsLocalForceAndMomentIntoWorldFrame() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0)
+				.withThrustAxisBody(new Vec3(0.12, 0.98, -0.15));
+		Vec3 momentReference = new Vec3(0.010, -0.002, -0.018);
+		Vec3 relativeAirVelocity = rotor.thrustAxisBody().multiply(1.8)
+				.add(perpendicularUnit(rotor.thrustAxisBody()).multiply(0.5));
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+		Quaternion bodyToWorld = new Quaternion(
+				Math.cos(Math.PI * 0.25),
+				0.0,
+				0.0,
+				Math.sin(Math.PI * 0.25)
+		);
+
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromRelativeAirVelocity(
+						"apDrone",
+						"single_rotor_world_projection",
+						rotor,
+						relativeAirVelocity,
+						omega,
+						RHO,
+						momentReference,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		Vec3 expectedWorldThrustMoment =
+				sample.momentArmWorldMeters(bodyToWorld).cross(sample.thrustForceWorldNewtons(bodyToWorld));
+		Vec3 expectedWorldTotalTorque =
+				expectedWorldThrustMoment.add(sample.reactionTorqueWorldNewtonMeters(bodyToWorld));
+		assertFalse(sample.blocked());
+		assertVectorEquals(bodyToWorld.rotate(sample.relativeAirVelocityBodyMetersPerSecond()),
+				sample.relativeAirVelocityWorldMetersPerSecond(bodyToWorld), 1.0e-15);
+		assertVectorEquals(bodyToWorld.rotate(sample.transverseAirVelocityBodyMetersPerSecond()),
+				sample.transverseAirVelocityWorldMetersPerSecond(bodyToWorld), 1.0e-15);
+		assertVectorEquals(bodyToWorld.rotate(sample.thrustForceBodyNewtons()),
+				sample.thrustForceWorldNewtons(bodyToWorld), 1.0e-15);
+		assertVectorEquals(bodyToWorld.rotate(sample.reactionTorqueBodyNewtonMeters()),
+				sample.reactionTorqueWorldNewtonMeters(bodyToWorld), 1.0e-15);
+		assertVectorEquals(bodyToWorld.rotate(sample.momentArmBodyMeters()),
+				sample.momentArmWorldMeters(bodyToWorld), 1.0e-15);
+		assertVectorEquals(expectedWorldThrustMoment,
+				sample.thrustMomentWorldNewtonMeters(bodyToWorld), 1.0e-15);
+		assertVectorEquals(expectedWorldTotalTorque,
+				sample.totalTorqueWorldNewtonMeters(bodyToWorld), 1.0e-15);
+		assertEquals(sample.thrustForceBodyNewtons().length(),
+				sample.thrustForceWorldNewtons(bodyToWorld).length(), 1.0e-15);
+		assertVectorEquals(sample.totalTorqueBodyNewtonMeters(),
+				sample.totalTorqueWorldNewtonMeters(Quaternion.IDENTITY), 1.0e-15);
+	}
+
+	@Test
 	void staticAnchoredConfigurationHoverAggregatesSymmetricBodyForceAndTorque() {
 		DroneConfig config = DroneConfig.apDrone();
 		double hoverRpm = 6_000.0;
