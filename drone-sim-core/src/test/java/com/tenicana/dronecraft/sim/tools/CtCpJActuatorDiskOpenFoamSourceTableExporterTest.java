@@ -63,11 +63,28 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 				numberCell(hover, columns, "body_force_density_y_n_m3"), 1.0e-9);
 		assertEquals(0.0, numberCell(hover, columns, "total_force_x_n"), 1.0e-15);
 		assertTrue(numberCell(hover, columns, "far_wake_axial_velocity_y_mps") > 0.0);
+		assertTrue(Math.abs(numberCell(hover, columns, "reaction_torque_y_nm")) > 0.0);
+		assertEquals(numberCell(hover, columns, "reaction_torque_y_nm"),
+				numberCell(hover, columns, "wake_angular_momentum_torque_y_nm"), 1.0e-18);
+		assertEquals(numberCell(hover, columns, "wake_angular_momentum_torque_y_nm")
+						/ numberCell(hover, columns, "source_volume_m3"),
+				numberCell(hover, columns, "wake_angular_momentum_torque_density_y_nm_m3"),
+				1.0e-12);
+		assertTrue(numberCell(hover, columns, "wake_tangential_velocity_mps") > 0.0);
+		assertTrue(numberCell(hover, columns, "wake_swirl_kinetic_power_w") > 0.0);
+		assertTrue(numberCell(hover, columns, "total_wake_kinetic_power_w")
+				> numberCell(hover, columns, "wake_swirl_kinetic_power_w"));
 
 		assertEquals("false", textCell(highBlock, columns, "source_enabled"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlock, columns, "lookup_status"));
 		assertEquals(0.0, numberCell(highBlock, columns, "body_force_density_y_n_m3"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_force_y_n"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "reaction_torque_y_nm"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "wake_angular_momentum_torque_y_nm"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(highBlock, columns, "wake_angular_momentum_torque_density_y_nm_m3"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "wake_tangential_velocity_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "total_wake_kinetic_power_w"), 1.0e-15);
 		assertTrue(numberCell(highBlock, columns, "source_volume_m3") > 0.0);
 	}
 
@@ -81,6 +98,8 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(lines.get(0).contains("selection_shape"));
 		assertTrue(lines.get(0).contains("body_force_density_y_n_m3"));
 		assertTrue(lines.get(0).contains("total_force_y_n"));
+		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_density_y_nm_m3"));
+		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_w"));
 	}
 
 	@Test

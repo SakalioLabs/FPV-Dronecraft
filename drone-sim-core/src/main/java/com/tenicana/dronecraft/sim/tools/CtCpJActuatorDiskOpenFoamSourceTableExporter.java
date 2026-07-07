@@ -61,6 +61,20 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 			"far_wake_axial_velocity_x_mps",
 			"far_wake_axial_velocity_y_mps",
 			"far_wake_axial_velocity_z_mps",
+			"reaction_torque_x_nm",
+			"reaction_torque_y_nm",
+			"reaction_torque_z_nm",
+			"wake_angular_momentum_torque_x_nm",
+			"wake_angular_momentum_torque_y_nm",
+			"wake_angular_momentum_torque_z_nm",
+			"wake_angular_momentum_torque_density_x_nm_m3",
+			"wake_angular_momentum_torque_density_y_nm_m3",
+			"wake_angular_momentum_torque_density_z_nm_m3",
+			"wake_tangential_velocity_mps",
+			"wake_swirl_kinetic_power_w",
+			"total_wake_kinetic_power_w",
+			"wake_swirl_kinetic_power_over_shaft_power",
+			"total_wake_kinetic_power_over_shaft_power",
 			"query_j",
 			"query_rpm",
 			"effective_j",
@@ -195,6 +209,24 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 				"equivalent_body_force_integral_world_y_n",
 				"equivalent_body_force_integral_world_z_n"
 		);
+		Vec3 reactionTorque = vector(
+				row,
+				"reaction_torque_world_x_nm",
+				"reaction_torque_world_y_nm",
+				"reaction_torque_world_z_nm"
+		);
+		Vec3 wakeAngularMomentumTorque = vector(
+				row,
+				"wake_angular_momentum_torque_world_x_nm",
+				"wake_angular_momentum_torque_world_y_nm",
+				"wake_angular_momentum_torque_world_z_nm"
+		);
+		Vec3 wakeAngularMomentumTorqueDensity = vector(
+				row,
+				"wake_angular_momentum_torque_density_world_x_nm_m3",
+				"wake_angular_momentum_torque_density_world_y_nm_m3",
+				"wake_angular_momentum_torque_density_world_z_nm_m3"
+		);
 		return String.join(",",
 				escape(preset),
 				escape(caseName),
@@ -241,6 +273,20 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 				value(row, "far_wake_axial_velocity_world_x_mps"),
 				value(row, "far_wake_axial_velocity_world_y_mps"),
 				value(row, "far_wake_axial_velocity_world_z_mps"),
+				number(reactionTorque.x()),
+				number(reactionTorque.y()),
+				number(reactionTorque.z()),
+				number(wakeAngularMomentumTorque.x()),
+				number(wakeAngularMomentumTorque.y()),
+				number(wakeAngularMomentumTorque.z()),
+				number(wakeAngularMomentumTorqueDensity.x()),
+				number(wakeAngularMomentumTorqueDensity.y()),
+				number(wakeAngularMomentumTorqueDensity.z()),
+				value(row, "wake_tangential_velocity_mps"),
+				value(row, "wake_swirl_kinetic_power_w"),
+				value(row, "total_wake_kinetic_power_w"),
+				value(row, "wake_swirl_kinetic_power_over_shaft_power"),
+				value(row, "total_wake_kinetic_power_over_shaft_power"),
 				value(row, "query_j"),
 				value(row, "query_rpm"),
 				value(row, "effective_j"),
