@@ -216,12 +216,60 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return rotateBodyVectorToWorld(momentArmBodyMeters, bodyToWorldOrientation);
 		}
 
+		public Vec3 forceApplicationPointWorldMeters(
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			return finiteVecOrZero(momentReferenceWorldMeters).add(momentArmWorldMeters(bodyToWorldOrientation));
+		}
+
 		public Vec3 thrustMomentWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
 			return rotateBodyVectorToWorld(thrustMomentBodyNewtonMeters, bodyToWorldOrientation);
 		}
 
 		public Vec3 totalTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
 			return rotateBodyVectorToWorld(totalTorqueBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public RotorWorldForceApplicationSample worldForceApplication(
+				int rotorIndex,
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			return new RotorWorldForceApplicationSample(
+					rotorIndex,
+					forceApplicationPointWorldMeters(momentReferenceWorldMeters, bodyToWorldOrientation),
+					thrustForceWorldNewtons(bodyToWorldOrientation),
+					reactionTorqueWorldNewtonMeters(bodyToWorldOrientation),
+					thrustMomentWorldNewtonMeters(bodyToWorldOrientation),
+					totalTorqueWorldNewtonMeters(bodyToWorldOrientation),
+					runtimeForceReplacementAccepted(),
+					!blocked(),
+					lookup.status()
+			);
+		}
+
+		public RotorWorldForceApplicationSample runtimeForceReplacementWorldForceApplication(
+				int rotorIndex,
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			boolean accepted = runtimeForceReplacementAccepted();
+			Vec3 thrustForceWorld = accepted ? thrustForceWorldNewtons(bodyToWorldOrientation) : Vec3.ZERO;
+			Vec3 reactionTorqueWorld = accepted ? reactionTorqueWorldNewtonMeters(bodyToWorldOrientation) : Vec3.ZERO;
+			Vec3 thrustMomentWorld = accepted ? thrustMomentWorldNewtonMeters(bodyToWorldOrientation) : Vec3.ZERO;
+			Vec3 totalTorqueWorld = accepted ? totalTorqueWorldNewtonMeters(bodyToWorldOrientation) : Vec3.ZERO;
+			return new RotorWorldForceApplicationSample(
+					rotorIndex,
+					forceApplicationPointWorldMeters(momentReferenceWorldMeters, bodyToWorldOrientation),
+					thrustForceWorld,
+					reactionTorqueWorld,
+					thrustMomentWorld,
+					totalTorqueWorld,
+					accepted,
+					accepted,
+					lookup.status()
+			);
 		}
 
 		public RotorOperatingPoint standardOperatingPoint() {
@@ -241,6 +289,28 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					ambientTemperatureCelsius,
 					ambientHumidity
 			);
+		}
+	}
+
+	public record RotorWorldForceApplicationSample(
+			int rotorIndex,
+			Vec3 forceApplicationPointWorldMeters,
+			Vec3 thrustForceWorldNewtons,
+			Vec3 reactionTorqueWorldNewtonMeters,
+			Vec3 thrustMomentWorldNewtonMeters,
+			Vec3 totalTorqueWorldNewtonMeters,
+			boolean runtimeForceReplacementAccepted,
+			boolean applied,
+			String lookupStatus
+	) {
+		public RotorWorldForceApplicationSample {
+			rotorIndex = Math.max(0, rotorIndex);
+			forceApplicationPointWorldMeters = finiteVecOrZero(forceApplicationPointWorldMeters);
+			thrustForceWorldNewtons = finiteVecOrZero(thrustForceWorldNewtons);
+			reactionTorqueWorldNewtonMeters = finiteVecOrZero(reactionTorqueWorldNewtonMeters);
+			thrustMomentWorldNewtonMeters = finiteVecOrZero(thrustMomentWorldNewtonMeters);
+			totalTorqueWorldNewtonMeters = finiteVecOrZero(totalTorqueWorldNewtonMeters);
+			lookupStatus = lookupStatus == null ? "" : lookupStatus;
 		}
 	}
 
@@ -421,6 +491,36 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					runtimeForceReplacementTotalBodyTorqueNewtonMeters,
 					bodyToWorldOrientation
 			);
+		}
+
+		public List<RotorWorldForceApplicationSample> rotorWorldForceApplications(
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			List<RotorWorldForceApplicationSample> applications = new ArrayList<>();
+			for (int i = 0; i < rotorSamples.size(); i++) {
+				applications.add(rotorSamples.get(i).worldForceApplication(
+						i,
+						momentReferenceWorldMeters,
+						bodyToWorldOrientation
+				));
+			}
+			return List.copyOf(applications);
+		}
+
+		public List<RotorWorldForceApplicationSample> runtimeForceReplacementRotorWorldForceApplications(
+				Vec3 momentReferenceWorldMeters,
+				Quaternion bodyToWorldOrientation
+		) {
+			List<RotorWorldForceApplicationSample> applications = new ArrayList<>();
+			for (int i = 0; i < rotorSamples.size(); i++) {
+				applications.add(rotorSamples.get(i).runtimeForceReplacementWorldForceApplication(
+						i,
+						momentReferenceWorldMeters,
+						bodyToWorldOrientation
+				));
+			}
+			return List.copyOf(applications);
 		}
 	}
 

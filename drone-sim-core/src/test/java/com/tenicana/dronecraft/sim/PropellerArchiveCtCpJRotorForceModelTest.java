@@ -472,6 +472,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				0.0,
 				Math.sin(Math.PI * 0.25)
 		);
+		Vec3 momentReferenceWorld = new Vec3(12.0, 64.0, -3.0);
 
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
 				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromRelativeAirVelocity(
@@ -489,6 +490,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sample.momentArmWorldMeters(bodyToWorld).cross(sample.thrustForceWorldNewtons(bodyToWorld));
 		Vec3 expectedWorldTotalTorque =
 				expectedWorldThrustMoment.add(sample.reactionTorqueWorldNewtonMeters(bodyToWorld));
+		PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
+				sample.worldForceApplication(7, momentReferenceWorld, bodyToWorld);
+		Vec3 expectedApplicationPoint = momentReferenceWorld.add(sample.momentArmWorldMeters(bodyToWorld));
 		assertFalse(sample.blocked());
 		assertVectorEquals(bodyToWorld.rotate(sample.relativeAirVelocityBodyMetersPerSecond()),
 				sample.relativeAirVelocityWorldMetersPerSecond(bodyToWorld), 1.0e-15);
@@ -508,6 +512,24 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sample.thrustForceWorldNewtons(bodyToWorld).length(), 1.0e-15);
 		assertVectorEquals(sample.totalTorqueBodyNewtonMeters(),
 				sample.totalTorqueWorldNewtonMeters(Quaternion.IDENTITY), 1.0e-15);
+		assertEquals(7, application.rotorIndex());
+		assertTrue(application.applied());
+		assertEquals(sample.runtimeForceReplacementAccepted(), application.runtimeForceReplacementAccepted());
+		assertEquals(sample.lookup().status(), application.lookupStatus());
+		assertVectorEquals(expectedApplicationPoint, application.forceApplicationPointWorldMeters(), 1.0e-15);
+		assertVectorEquals(sample.thrustForceWorldNewtons(bodyToWorld),
+				application.thrustForceWorldNewtons(), 1.0e-15);
+		assertVectorEquals(sample.reactionTorqueWorldNewtonMeters(bodyToWorld),
+				application.reactionTorqueWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(expectedWorldThrustMoment, application.thrustMomentWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(expectedWorldTotalTorque, application.totalTorqueWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(
+				application.forceApplicationPointWorldMeters()
+						.subtract(momentReferenceWorld)
+						.cross(application.thrustForceWorldNewtons()),
+				application.thrustMomentWorldNewtonMeters(),
+				1.0e-15
+		);
 	}
 
 	@Test
@@ -632,6 +654,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				0.0,
 				Math.sin(Math.PI * 0.25)
 		);
+		Vec3 momentReferenceWorld = new Vec3(-8.0, 70.0, 4.0);
 
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
 				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromBodyKinematics(
@@ -644,8 +667,14 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 						RHO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
+		List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> applications =
+				aggregate.rotorWorldForceApplications(momentReferenceWorld, quarterTurnAroundZ);
+		List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> runtimeApplications =
+				aggregate.runtimeForceReplacementRotorWorldForceApplications(momentReferenceWorld, quarterTurnAroundZ);
 
 		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(config.rotors().size(), applications.size());
+		assertEquals(config.rotors().size(), runtimeApplications.size());
 		assertTrue(aggregate.totalThrustForceBodyNewtons().length() > 0.0);
 		assertTrue(aggregate.totalBodyTorqueNewtonMeters().length() > 0.0);
 		assertVectorEquals(quarterTurnAroundZ.rotate(aggregate.totalThrustForceBodyNewtons()),
@@ -666,6 +695,37 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				aggregate.totalThrustForceWorldNewtons(quarterTurnAroundZ).length(), 1.0e-12);
 		assertEquals(aggregate.totalBodyTorqueNewtonMeters().length(),
 				aggregate.totalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ).length(), 1.0e-12);
+		assertVectorEquals(aggregate.totalThrustForceWorldNewtons(quarterTurnAroundZ),
+				sumWorldThrustForce(applications), 1.0e-12);
+		assertVectorEquals(aggregate.totalReactionTorqueWorldNewtonMeters(quarterTurnAroundZ),
+				sumWorldReactionTorque(applications), 1.0e-12);
+		assertVectorEquals(aggregate.totalThrustMomentWorldNewtonMeters(quarterTurnAroundZ),
+				sumWorldThrustMoment(applications), 1.0e-12);
+		assertVectorEquals(aggregate.totalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ),
+				sumWorldTotalTorque(applications), 1.0e-12);
+		assertVectorEquals(aggregate.runtimeForceReplacementThrustForceWorldNewtons(quarterTurnAroundZ),
+				sumWorldThrustForce(runtimeApplications), 1.0e-12);
+		assertVectorEquals(aggregate.runtimeForceReplacementTotalBodyTorqueWorldNewtonMeters(quarterTurnAroundZ),
+				sumWorldTotalTorque(runtimeApplications), 1.0e-12);
+		for (int i = 0; i < applications.size(); i++) {
+			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
+					applications.get(i);
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample = aggregate.rotorSamples().get(i);
+			assertEquals(i, application.rotorIndex());
+			assertTrue(application.applied());
+			assertVectorEquals(sample.forceApplicationPointWorldMeters(momentReferenceWorld, quarterTurnAroundZ),
+					application.forceApplicationPointWorldMeters(), 1.0e-15);
+			assertVectorEquals(
+					application.forceApplicationPointWorldMeters()
+							.subtract(momentReferenceWorld)
+							.cross(application.thrustForceWorldNewtons()),
+					application.thrustMomentWorldNewtonMeters(),
+					1.0e-12
+			);
+			assertTrue(runtimeApplications.get(i).applied());
+			assertVectorEquals(application.forceApplicationPointWorldMeters(),
+					runtimeApplications.get(i).forceApplicationPointWorldMeters(), 1.0e-15);
+		}
 	}
 
 	@Test
@@ -2256,6 +2316,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 						RHO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
+		Vec3 momentReferenceWorld = new Vec3(1.0, 2.0, 3.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample runtimeApplication =
+				sample.runtimeForceReplacementWorldForceApplication(
+						0,
+						momentReferenceWorld,
+						Quaternion.IDENTITY
+				);
 
 		assertTrue(sample.blocked());
 		assertFalse(sample.clamped());
@@ -2276,6 +2343,15 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sample.relativeAirVelocityBodyMetersPerSecond(), 1.0e-12);
 		assertEquals(Math.PI, sample.inflowAngleRadians(), 1.0e-12);
 		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
+		assertFalse(runtimeApplication.applied());
+		assertFalse(runtimeApplication.runtimeForceReplacementAccepted());
+		assertEquals("OUT_OF_ENVELOPE_BLOCKED", runtimeApplication.lookupStatus());
+		assertVectorEquals(momentReferenceWorld.add(sample.momentArmWorldMeters(Quaternion.IDENTITY)),
+				runtimeApplication.forceApplicationPointWorldMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, runtimeApplication.thrustForceWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, runtimeApplication.reactionTorqueWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, runtimeApplication.thrustMomentWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, runtimeApplication.totalTorqueWorldNewtonMeters(), 1.0e-15);
 	}
 
 	@Test
@@ -2313,6 +2389,46 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				RHO,
 				PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 		));
+	}
+
+	private static Vec3 sumWorldThrustForce(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> applications
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
+			sum = sum.add(application.thrustForceWorldNewtons());
+		}
+		return sum;
+	}
+
+	private static Vec3 sumWorldReactionTorque(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> applications
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
+			sum = sum.add(application.reactionTorqueWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static Vec3 sumWorldThrustMoment(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> applications
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
+			sum = sum.add(application.thrustMomentWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static Vec3 sumWorldTotalTorque(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample> applications
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application : applications) {
+			sum = sum.add(application.totalTorqueWorldNewtonMeters());
+		}
+		return sum;
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
