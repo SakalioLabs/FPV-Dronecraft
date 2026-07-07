@@ -57,6 +57,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, sample.thrustForceBodyNewtons().z(), 1.0e-15);
 		assertEquals(rotor.spinDirection() * sample.shaftTorqueNewtonMeters(),
 				sample.reactionTorqueBodyNewtonMeters().y(), 1.0e-18);
+		assertVectorEquals(sample.reactionTorqueBodyNewtonMeters(),
+				sample.wakeAngularMomentumTorqueBodyNewtonMeters(), 1.0e-18);
+		assertVectorEquals(Vec3.ZERO, sample.wakeAngularMomentumTorqueResidualBodyNewtonMeters(), 1.0e-18);
 		assertEquals(sample.shaftTorqueNewtonMeters() / sample.thrustNewtons(),
 				sample.yawTorquePerThrustMeterEquivalent(), 1.0e-18);
 	}
@@ -585,12 +588,18 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().x(), 1.0e-15);
 		assertEquals(0.0, aggregate.totalThrustForceBodyNewtons().z(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalReactionTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalWakeAngularMomentumTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalWakeAngularMomentumTorqueResidualBodyNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
 		assertVectorEquals(aggregate.totalThrustForceBodyNewtons(),
 				aggregate.runtimeForceReplacementThrustForceBodyNewtons(), 1.0e-12);
 		assertVectorEquals(aggregate.totalReactionTorqueBodyNewtonMeters(),
 				aggregate.runtimeForceReplacementReactionTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(aggregate.totalWakeAngularMomentumTorqueBodyNewtonMeters(),
+				aggregate.runtimeForceReplacementWakeAngularMomentumTorqueBodyNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				aggregate.runtimeForceReplacementWakeAngularMomentumTorqueResidualBodyNewtonMeters(), 1.0e-15);
 		assertVectorEquals(aggregate.totalThrustMomentBodyNewtonMeters(),
 				aggregate.runtimeForceReplacementThrustMomentBodyNewtonMeters(), 1.0e-15);
 		assertVectorEquals(aggregate.totalBodyTorqueNewtonMeters(),

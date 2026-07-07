@@ -33,7 +33,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,operating_point_speed_of_sound_mps,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index,tip_mach_runtime_margin,reynolds_index_runtime_margin,operating_envelope_margin_fraction,disk_mass_flow_kg_s,far_wake_axial_velocity_mps,far_wake_contracted_area_m2,far_wake_equivalent_radius_m,angular_momentum_swirl_radius_m,wake_tangential_velocity_mps,wake_swirl_kinetic_power_w,total_wake_kinetic_power_w,total_wake_kinetic_power_over_shaft_power,wake_swirl_kinetic_power_over_shaft_power,total_wake_kinetic_power_residual_w,total_wake_kinetic_power_residual_fraction,torque_coefficient_cq,useful_axial_thrust_power_w,ideal_induced_power_w,axial_propulsive_efficiency,far_wake_contracted_area_over_disk_area,far_wake_equivalent_radius_over_rotor_radius,wake_angular_momentum_torque_nm,wake_angular_momentum_torque_residual_nm,wake_angular_momentum_torque_residual_fraction"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,operating_point_speed_of_sound_mps,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index,tip_mach_runtime_margin,reynolds_index_runtime_margin,operating_envelope_margin_fraction,disk_mass_flow_kg_s,far_wake_axial_velocity_mps,far_wake_contracted_area_m2,far_wake_equivalent_radius_m,angular_momentum_swirl_radius_m,wake_tangential_velocity_mps,wake_swirl_kinetic_power_w,total_wake_kinetic_power_w,total_wake_kinetic_power_over_shaft_power,wake_swirl_kinetic_power_over_shaft_power,total_wake_kinetic_power_residual_w,total_wake_kinetic_power_residual_fraction,torque_coefficient_cq,useful_axial_thrust_power_w,ideal_induced_power_w,axial_propulsive_efficiency,far_wake_contracted_area_over_disk_area,far_wake_equivalent_radius_over_rotor_radius,wake_angular_momentum_torque_nm,wake_angular_momentum_torque_residual_nm,wake_angular_momentum_torque_residual_fraction,wake_angular_momentum_torque_body_x_nm,wake_angular_momentum_torque_body_y_nm,wake_angular_momentum_torque_body_z_nm,wake_angular_momentum_torque_residual_body_x_nm,wake_angular_momentum_torque_residual_body_y_nm,wake_angular_momentum_torque_residual_body_z_nm"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -167,6 +167,12 @@ class CtCpJCurveExporterTest {
 		assertEquals(midDimensional.shaftTorqueNewtonMeters(), Double.parseDouble(midCells[81]), 1.0e-17);
 		assertEquals(0.0, Double.parseDouble(midCells[82]), 1.0e-17);
 		assertEquals(0.0, Double.parseDouble(midCells[83]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(midCells[84]), 1.0e-18);
+		assertEquals(Double.parseDouble(midCells[37]), Double.parseDouble(midCells[85]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[86]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[87]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[88]), 1.0e-18);
+		assertEquals(0.0, Double.parseDouble(midCells[89]), 1.0e-18);
 		assertEquals(Double.parseDouble(midCells[76]) + Double.parseDouble(midCells[77]),
 				Double.parseDouble(midCells[18]), 1.0e-14);
 		assertEquals("false", highCells[45]);
@@ -310,6 +316,12 @@ class CtCpJCurveExporterTest {
 		assertEquals(0.0, Double.parseDouble(blockedCells[81]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[82]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[83]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[84]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[85]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[86]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[87]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[88]), 1.0e-15);
+		assertEquals(0.0, Double.parseDouble(blockedCells[89]), 1.0e-15);
 	}
 
 	@Test
@@ -433,6 +445,8 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_nm"));
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_residual_nm"));
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_residual_fraction"));
+		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_body_y_nm"));
+		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_residual_body_y_nm"));
 		assertTrue(lines.get(0).contains("representative_blade_chord_m"));
 		assertTrue(lines.get(0).contains("reynolds_number"));
 	}

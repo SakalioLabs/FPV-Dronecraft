@@ -196,6 +196,18 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return dimensionalSample.shaftTorqueNewtonMeters();
 		}
 
+		public Vec3 wakeAngularMomentumTorqueBodyNewtonMeters() {
+			if (blocked()) {
+				return Vec3.ZERO;
+			}
+			return rotorAxisBody(query.rotor()).multiply(
+					query.rotor().spinDirection() * dimensionalSample.wakeAngularMomentumTorqueNewtonMeters());
+		}
+
+		public Vec3 wakeAngularMomentumTorqueResidualBodyNewtonMeters() {
+			return wakeAngularMomentumTorqueBodyNewtonMeters().subtract(reactionTorqueBodyNewtonMeters);
+		}
+
 		public Vec3 relativeAirVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
 			return rotateBodyVectorToWorld(relativeAirVelocityBodyMetersPerSecond, bodyToWorldOrientation);
 		}
@@ -210,6 +222,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 		public Vec3 reactionTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
 			return rotateBodyVectorToWorld(reactionTorqueBodyNewtonMeters, bodyToWorldOrientation);
+		}
+
+		public Vec3 wakeAngularMomentumTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(wakeAngularMomentumTorqueBodyNewtonMeters(), bodyToWorldOrientation);
+		}
+
+		public Vec3 wakeAngularMomentumTorqueResidualWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(
+					wakeAngularMomentumTorqueResidualBodyNewtonMeters(),
+					bodyToWorldOrientation
+			);
 		}
 
 		public Vec3 momentArmWorldMeters(Quaternion bodyToWorldOrientation) {
@@ -478,6 +501,28 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return rotateBodyVectorToWorld(totalReactionTorqueBodyNewtonMeters, bodyToWorldOrientation);
 		}
 
+		public Vec3 totalWakeAngularMomentumTorqueBodyNewtonMeters() {
+			return sumWakeAngularMomentumTorqueBody(rotorSamples, false);
+		}
+
+		public Vec3 totalWakeAngularMomentumTorqueResidualBodyNewtonMeters() {
+			return totalWakeAngularMomentumTorqueBodyNewtonMeters().subtract(totalReactionTorqueBodyNewtonMeters);
+		}
+
+		public Vec3 totalWakeAngularMomentumTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(
+					totalWakeAngularMomentumTorqueBodyNewtonMeters(),
+					bodyToWorldOrientation
+			);
+		}
+
+		public Vec3 totalWakeAngularMomentumTorqueResidualWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(
+					totalWakeAngularMomentumTorqueResidualBodyNewtonMeters(),
+					bodyToWorldOrientation
+			);
+		}
+
 		public Vec3 totalThrustMomentWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
 			return rotateBodyVectorToWorld(totalThrustMomentBodyNewtonMeters, bodyToWorldOrientation);
 		}
@@ -493,6 +538,33 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		public Vec3 runtimeForceReplacementReactionTorqueWorldNewtonMeters(Quaternion bodyToWorldOrientation) {
 			return rotateBodyVectorToWorld(
 					runtimeForceReplacementReactionTorqueBodyNewtonMeters,
+					bodyToWorldOrientation
+			);
+		}
+
+		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueBodyNewtonMeters() {
+			return sumWakeAngularMomentumTorqueBody(rotorSamples, true);
+		}
+
+		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueResidualBodyNewtonMeters() {
+			return runtimeForceReplacementWakeAngularMomentumTorqueBodyNewtonMeters()
+					.subtract(runtimeForceReplacementReactionTorqueBodyNewtonMeters);
+		}
+
+		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueWorldNewtonMeters(
+				Quaternion bodyToWorldOrientation
+		) {
+			return rotateBodyVectorToWorld(
+					runtimeForceReplacementWakeAngularMomentumTorqueBodyNewtonMeters(),
+					bodyToWorldOrientation
+			);
+		}
+
+		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueResidualWorldNewtonMeters(
+				Quaternion bodyToWorldOrientation
+		) {
+			return rotateBodyVectorToWorld(
+					runtimeForceReplacementWakeAngularMomentumTorqueResidualBodyNewtonMeters(),
 					bodyToWorldOrientation
 			);
 		}
@@ -3455,6 +3527,26 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
 		return value == null || !value.isFinite() ? Vec3.ZERO : value;
+	}
+
+	private static Vec3 sumWakeAngularMomentumTorqueBody(
+			List<RotorForceSample> samples,
+			boolean runtimeForceReplacementOnly
+	) {
+		if (samples == null || samples.isEmpty()) {
+			return Vec3.ZERO;
+		}
+		Vec3 sum = Vec3.ZERO;
+		for (RotorForceSample sample : samples) {
+			if (sample == null) {
+				continue;
+			}
+			if (runtimeForceReplacementOnly && !sample.runtimeForceReplacementAccepted()) {
+				continue;
+			}
+			sum = sum.add(sample.wakeAngularMomentumTorqueBodyNewtonMeters());
+		}
+		return sum;
 	}
 
 	private static Quaternion finiteQuaternionOrIdentity(Quaternion value) {

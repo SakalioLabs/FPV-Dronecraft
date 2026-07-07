@@ -96,6 +96,18 @@ class CtCpJConfigurationCurveExporterTest {
 				1.0e-14
 		);
 		assertEquals(0.0, numberCell(hover, columns, "total_reaction_torque_body_y_nm"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_reaction_torque_body_x_nm"),
+				numberCell(hover, columns, "total_wake_angular_momentum_torque_body_x_nm"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_reaction_torque_body_y_nm"),
+				numberCell(hover, columns, "total_wake_angular_momentum_torque_body_y_nm"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_reaction_torque_body_z_nm"),
+				numberCell(hover, columns, "total_wake_angular_momentum_torque_body_z_nm"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(hover, columns, "total_wake_angular_momentum_torque_residual_body_x_nm"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(hover, columns, "total_wake_angular_momentum_torque_residual_body_y_nm"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(hover, columns, "total_wake_angular_momentum_torque_residual_body_z_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "total_body_torque_x_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "total_body_torque_y_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(hover, columns, "total_body_torque_z_nm"), 1.0e-15);
@@ -133,6 +145,12 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0.0,
 				numberCell(hover, columns,
 						"runtime_replacement_wake_angular_momentum_torque_residual_fraction"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "total_wake_angular_momentum_torque_body_y_nm"),
+				numberCell(hover, columns,
+						"runtime_replacement_wake_angular_momentum_torque_body_y_nm"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(hover, columns,
+						"runtime_replacement_wake_angular_momentum_torque_residual_body_y_nm"), 1.0e-15);
 		assertEquals(numberCell(hover, columns, "total_disk_mass_flow_kg_s"),
 				numberCell(hover, columns, "runtime_replacement_disk_mass_flow_kg_s"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "total_ideal_induced_power_w"),
@@ -347,6 +365,15 @@ class CtCpJConfigurationCurveExporterTest {
 				numberCell(forward, columns, "total_wake_angular_momentum_torque_residual_nm"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(forward, columns, "total_wake_angular_momentum_torque_residual_fraction"), 1.0e-15);
+		assertEquals(numberCell(forward, columns, "total_reaction_torque_body_x_nm"),
+				numberCell(forward, columns, "total_wake_angular_momentum_torque_body_x_nm"), 1.0e-15);
+		assertEquals(numberCell(forward, columns, "total_reaction_torque_body_y_nm"),
+				numberCell(forward, columns, "total_wake_angular_momentum_torque_body_y_nm"), 1.0e-15);
+		assertEquals(numberCell(forward, columns, "total_reaction_torque_body_z_nm"),
+				numberCell(forward, columns, "total_wake_angular_momentum_torque_body_z_nm"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(forward, columns,
+						"total_wake_angular_momentum_torque_residual_body_y_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(forward, columns, "total_reaction_torque_body_y_nm"), 1.0e-15);
 		assertEquals(0.0, numberCell(forward, columns, "total_body_torque_y_nm"), 1.0e-15);
 		assertEquals(numberCell(forward, columns, "total_thrust_n"),
@@ -515,6 +542,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("trim_target_body_torque_x_nm"));
 		assertTrue(lines.get(0).contains("total_shaft_power_w"));
 		assertTrue(lines.get(0).contains("total_wake_angular_momentum_torque_nm"));
+		assertTrue(lines.get(0).contains("total_wake_angular_momentum_torque_body_y_nm"));
 		assertTrue(lines.get(0).contains("total_disk_mass_flow_kg_s"));
 		assertTrue(lines.get(0).contains("total_useful_axial_thrust_power_w"));
 		assertTrue(lines.get(0).contains("total_ideal_induced_power_w"));
@@ -528,6 +556,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("body_angular_rate_x_rad_s"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_n"));
 		assertTrue(lines.get(0).contains("runtime_replacement_wake_angular_momentum_torque_nm"));
+		assertTrue(lines.get(0).contains("runtime_replacement_wake_angular_momentum_torque_body_y_nm"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_thrust_force_world_x_n"));
 		assertTrue(lines.get(0).contains("runtime_replacement_total_body_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("runtime_replacement_rotor_only_linear_accel_world_y_mps2"));

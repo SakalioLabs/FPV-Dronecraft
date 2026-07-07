@@ -29,6 +29,11 @@ columns are useful for checking that simplified torque curves preserve the revie
 but they are not a standalone yaw-feel tuning target and should stay inside the accepted runtime-reference row
 filter above.
 
+2026-07-08 signed-wake update: the runtime and configuration packets now also include signed body-frame wake
+angular-momentum torque vector columns. These are conservation diagnostics for matching rotor spin direction and
+reaction torque cancellation across symmetric rotor sets; `playable/dev` should not use the signed residuals as
+control or yaw-feel constants without a separate simplification review.
+
 2026-07-07 world-kinematics update: `docs/data/propeller_archive_ct_cp_j_configuration_curve_packet.csv`
 now includes target-thrust and trim rows for body/world/environment kinematics. `playable/dev` may use accepted
 world/environment rows only as normalized curve-shape references for advance-ratio thrust rolloff, power rise,

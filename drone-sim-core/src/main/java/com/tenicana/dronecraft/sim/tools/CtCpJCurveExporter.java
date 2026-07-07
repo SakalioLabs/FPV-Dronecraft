@@ -102,7 +102,13 @@ public final class CtCpJCurveExporter {
 			"far_wake_equivalent_radius_over_rotor_radius",
 			"wake_angular_momentum_torque_nm",
 			"wake_angular_momentum_torque_residual_nm",
-			"wake_angular_momentum_torque_residual_fraction"
+			"wake_angular_momentum_torque_residual_fraction",
+			"wake_angular_momentum_torque_body_x_nm",
+			"wake_angular_momentum_torque_body_y_nm",
+			"wake_angular_momentum_torque_body_z_nm",
+			"wake_angular_momentum_torque_residual_body_x_nm",
+			"wake_angular_momentum_torque_residual_body_y_nm",
+			"wake_angular_momentum_torque_residual_body_z_nm"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -272,6 +278,8 @@ public final class CtCpJCurveExporter {
 		Vec3 axis = rotorAxisBody(rotor);
 		Vec3 thrustForce = axis.multiply(sample.thrustNewtons());
 		Vec3 reactionTorque = axis.multiply(rotor.spinDirection() * sample.shaftTorqueNewtonMeters());
+		Vec3 wakeAngularMomentumTorque =
+				axis.multiply(rotor.spinDirection() * sample.wakeAngularMomentumTorqueNewtonMeters());
 		Vec3 thrustMoment = rotorArmBody.cross(thrustForce);
 		Vec3 relativeAirVelocity = axis.multiply(queryAxialSpeed);
 		PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint =
@@ -295,6 +303,8 @@ public final class CtCpJCurveExporter {
 				reactionTorque,
 				thrustMoment,
 				thrustMoment.add(reactionTorque),
+				wakeAngularMomentumTorque,
+				wakeAngularMomentumTorque.subtract(reactionTorque),
 				runtimeEligibilityStatus(sample, false),
 				operatingPoint
 		);
@@ -327,6 +337,8 @@ public final class CtCpJCurveExporter {
 				sample.reactionTorqueBodyNewtonMeters(),
 				sample.thrustMomentBodyNewtonMeters(),
 				sample.totalTorqueBodyNewtonMeters(),
+				sample.wakeAngularMomentumTorqueBodyNewtonMeters(),
+				sample.wakeAngularMomentumTorqueResidualBodyNewtonMeters(),
 				runtimeEligibilityStatus(
 						sample,
 						runtimeForceReplacementAccepted,
@@ -349,6 +361,8 @@ public final class CtCpJCurveExporter {
 			Vec3 reactionTorqueBodyNewtonMeters,
 			Vec3 thrustMomentBodyNewtonMeters,
 			Vec3 totalTorqueBodyNewtonMeters,
+			Vec3 wakeAngularMomentumTorqueBodyNewtonMeters,
+			Vec3 wakeAngularMomentumTorqueResidualBodyNewtonMeters,
 			String runtimeEligibilityStatus,
 			PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint
 	) {
@@ -437,7 +451,13 @@ public final class CtCpJCurveExporter {
 				number(sample.farWakeEquivalentRadiusOverRotorRadius()),
 				number(sample.wakeAngularMomentumTorqueNewtonMeters()),
 				number(sample.wakeAngularMomentumTorqueResidualNewtonMeters()),
-				number(sample.wakeAngularMomentumTorqueResidualFraction())
+				number(sample.wakeAngularMomentumTorqueResidualFraction()),
+				number(wakeAngularMomentumTorqueBodyNewtonMeters.x()),
+				number(wakeAngularMomentumTorqueBodyNewtonMeters.y()),
+				number(wakeAngularMomentumTorqueBodyNewtonMeters.z()),
+				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.x()),
+				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.y()),
+				number(wakeAngularMomentumTorqueResidualBodyNewtonMeters.z())
 		);
 	}
 
@@ -471,6 +491,8 @@ public final class CtCpJCurveExporter {
 				sample.idealMomentumPowerWatts(),
 				sample.shaftPowerWatts()
 		);
+		Vec3 wakeAngularMomentumTorque =
+				axis.multiply(rotor.spinDirection() * wake.wakeAngularMomentumTorqueNewtonMeters());
 		return String.join(",",
 				escape(sample.presetName()),
 				escape(sample.caseName()),
@@ -555,7 +577,13 @@ public final class CtCpJCurveExporter {
 				number(wake.farWakeEquivalentRadiusOverRotorRadius()),
 				number(wake.wakeAngularMomentumTorqueNewtonMeters()),
 				number(wake.wakeAngularMomentumTorqueResidualNewtonMeters()),
-				number(wake.wakeAngularMomentumTorqueResidualFraction())
+				number(wake.wakeAngularMomentumTorqueResidualFraction()),
+				number(wakeAngularMomentumTorque.x()),
+				number(wakeAngularMomentumTorque.y()),
+				number(wakeAngularMomentumTorque.z()),
+				number(wakeAngularMomentumTorque.subtract(reactionTorque).x()),
+				number(wakeAngularMomentumTorque.subtract(reactionTorque).y()),
+				number(wakeAngularMomentumTorque.subtract(reactionTorque).z())
 		);
 	}
 
