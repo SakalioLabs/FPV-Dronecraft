@@ -39,6 +39,7 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 		assertEquals(13, hover.comparableSamples());
 		assertEquals(9, hover.coreSamples());
 		assertEquals(4, hover.outerSamples());
+		assertTrue(Double.isNaN(hover.coreCfdPFieldMean()));
 		assertTrue(hover.comparable());
 		assertTrue(hover.coreReferenceAxialMeanMetersPerSecond() > 0.0);
 		assertEquals(0.0, hover.coreAxialResidualRootMeanSquareMetersPerSecond(), 1.0e-12);
@@ -103,6 +104,52 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 	}
 
 	@Test
+	void wakePlaneStationSummarizesSolverNativePFieldShape() {
+		List<Map<String, String>> records = stationRecords(
+				"static_anchored_source_hover",
+				"raw_source",
+				0,
+				1.0
+		);
+		String inputCsv = cfdCsv(
+				records,
+				record -> new Vec3(
+						number(record, "expected_top_hat_velocity_world_x_mps"),
+						number(record, "expected_top_hat_velocity_world_y_mps"),
+						number(record, "expected_top_hat_velocity_world_z_mps")),
+				record -> new Vec3(
+						number(record, "probe_point_world_x_m"),
+						number(record, "probe_point_world_y_m"),
+						number(record, "probe_point_world_z_m")),
+				record -> {
+					String region = record.get("probe_region");
+					if ("centerline".equals(region)) {
+						return 120.0;
+					}
+					if ("wake_core_top_hat".equals(region)) {
+						return 100.0;
+					}
+					return 12.0;
+				}
+		);
+
+		CtCpJActuatorDiskWakePlaneProbeSummaryExporter.SummaryRow summary =
+				CtCpJActuatorDiskWakePlaneProbeSummaryExporter
+						.summarize(inputCsv, RHO, SOURCE_THICKNESS)
+						.get(0);
+
+		assertEquals((120.0 + 8.0 * 100.0) / 9.0, summary.coreCfdPFieldMean(), 1.0e-12);
+		assertEquals(120.0, summary.centerCfdPField(), 1.0e-12);
+		assertEquals(100.0, summary.edgeCoreCfdPFieldMean(), 1.0e-12);
+		assertEquals(20.0, summary.centerEdgeCfdPFieldDelta(), 1.0e-12);
+		assertEquals(12.0, summary.outerCfdPFieldMean(), 1.0e-12);
+		assertEquals(12.0, summary.outerCfdPFieldMaxAbs(), 1.0e-12);
+		assertEquals(((120.0 + 8.0 * 100.0) / 9.0) - 12.0,
+				summary.coreOuterCfdPFieldDelta(), 1.0e-12);
+		assertTrue(summary.comparable());
+	}
+
+	@Test
 	void csvLinesExposeStationSummaryColumns() {
 		String inputCsv = String.join("\n",
 				csvHeader(),
@@ -118,6 +165,7 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 
 		assertEquals(2, lines.size());
 		assertTrue(lines.get(0).contains("outer_leak_fraction_of_core_ref"));
+		assertTrue(lines.get(0).contains("core_cfd_p_field_mean"));
 		assertEquals("static_anchored_source_hover", output.get("case"));
 		assertEquals("1", output.get("total_samples"));
 		assertEquals("1", output.get("core_samples"));
@@ -194,10 +242,19 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 			Function<Map<String, String>, Vec3> velocity,
 			Function<Map<String, String>, Vec3> point
 	) {
+		return cfdCsv(records, velocity, point, ignored -> Double.NaN);
+	}
+
+	private static String cfdCsv(
+			List<Map<String, String>> records,
+			Function<Map<String, String>, Vec3> velocity,
+			Function<Map<String, String>, Vec3> point,
+			Function<Map<String, String>, Double> pField
+	) {
 		List<String> lines = new java.util.ArrayList<>();
 		lines.add(csvHeader());
 		for (Map<String, String> record : records) {
-			lines.add(cfdRow(record, velocity.apply(record), point.apply(record)));
+			lines.add(cfdRow(record, velocity.apply(record), point.apply(record), pField.apply(record)));
 		}
 		return String.join("\n", lines);
 	}
@@ -217,6 +274,10 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 	}
 
 	private static String cfdRow(Map<String, String> reference, Vec3 cfdVelocity, Vec3 cfdPoint) {
+		return cfdRow(reference, cfdVelocity, cfdPoint, Double.NaN);
+	}
+
+	private static String cfdRow(Map<String, String> reference, Vec3 cfdVelocity, Vec3 cfdPoint, double pField) {
 		return row(
 				reference.get("preset"),
 				reference.get("case"),
@@ -231,6 +292,7 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 				Double.toString(cfdVelocity.x()),
 				Double.toString(cfdVelocity.y()),
 				Double.toString(cfdVelocity.z()),
+				Double.isFinite(pField) ? Double.toString(pField) : "",
 				"synthetic-wake-plane-summary",
 				"CONVERGED"
 		);
@@ -251,6 +313,7 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 				"cfd_probe_velocity_world_x_mps",
 				"cfd_probe_velocity_world_y_mps",
 				"cfd_probe_velocity_world_z_mps",
+				"cfd_probe_p_field",
 				"source_case_sha256",
 				"solver_status");
 	}

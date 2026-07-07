@@ -49,6 +49,13 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 			"outer_cfd_speed_max_mps",
 			"outer_cfd_speed_mean_mps",
 			"outer_leak_fraction_of_core_ref",
+			"core_cfd_p_field_mean",
+			"center_cfd_p_field",
+			"edge_core_cfd_p_field_mean",
+			"center_edge_cfd_p_field_delta",
+			"outer_cfd_p_field_mean",
+			"outer_cfd_p_field_max_abs",
+			"core_outer_cfd_p_field_delta",
 			"probe_point_residual_max_m",
 			"comparable",
 			"message"
@@ -93,6 +100,13 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 			double outerCfdSpeedMaxMetersPerSecond,
 			double outerCfdSpeedMeanMetersPerSecond,
 			double outerLeakFractionOfCoreReference,
+			double coreCfdPFieldMean,
+			double centerCfdPField,
+			double edgeCoreCfdPFieldMean,
+			double centerEdgeCfdPFieldDelta,
+			double outerCfdPFieldMean,
+			double outerCfdPFieldMaxAbs,
+			double coreOuterCfdPFieldDelta,
 			double probePointResidualMaxMeters,
 			boolean comparable,
 			String message
@@ -208,8 +222,13 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 		private final RunningStat coreTransverseCfd = new RunningStat();
 		private final RunningStat edgeCoreCfdAxial = new RunningStat();
 		private final RunningStat outerCfdSpeed = new RunningStat();
+		private final RunningStat coreCfdPField = new RunningStat();
+		private final RunningStat edgeCoreCfdPField = new RunningStat();
+		private final RunningStat outerCfdPField = new RunningStat();
 		private double centerCfdAxial = Double.NaN;
+		private double centerCfdPField = Double.NaN;
 		private double outerCfdSpeedMax = Double.NaN;
+		private double outerCfdPFieldMaxAbs = Double.NaN;
 		private double probePointResidualMax = Double.NaN;
 
 		Accumulator(
@@ -237,21 +256,29 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 				coreVelocityResidualSquares.add(row.probeVelocityResidualWorldMetersPerSecond().length());
 				coreSpeedResidualSquares.add(row.speedResidualMetersPerSecond());
 				coreTransverseCfd.add(row.cfdProbeTransverseVelocityMetersPerSecond());
+				coreCfdPField.add(row.cfd().cfdProbePField());
 				if ("centerline".equals(region)) {
 					centerCfdAxial = row.cfdProbeAxialVelocityMetersPerSecond();
+					centerCfdPField = row.cfd().cfdProbePField();
 				} else {
 					edgeCoreCfdAxial.add(row.cfdProbeAxialVelocityMetersPerSecond());
+					edgeCoreCfdPField.add(row.cfd().cfdProbePField());
 				}
 			} else if ("outer_reference".equals(region)) {
 				outerSamples++;
 				outerCfdSpeed.add(row.cfdProbeSpeedMetersPerSecond());
 				outerCfdSpeedMax = maxFinite(outerCfdSpeedMax, row.cfdProbeSpeedMetersPerSecond());
+				outerCfdPField.add(row.cfd().cfdProbePField());
+				outerCfdPFieldMaxAbs = maxFinite(outerCfdPFieldMaxAbs, Math.abs(row.cfd().cfdProbePField()));
 			}
 		}
 
 		SummaryRow summary() {
 			double coreReference = coreReferenceAxial.mean();
 			double edgeMean = edgeCoreCfdAxial.mean();
+			double coreP = coreCfdPField.mean();
+			double edgeP = edgeCoreCfdPField.mean();
+			double outerP = outerCfdPField.mean();
 			double outerMax = outerCfdSpeedMax;
 			boolean comparable = totalSamples > 0 && comparableSamples == totalSamples;
 			return new SummaryRow(
@@ -289,6 +316,13 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 					outerMax,
 					outerCfdSpeed.mean(),
 					ratio(outerMax, Math.abs(coreReference)),
+					coreP,
+					centerCfdPField,
+					edgeP,
+					finiteDifference(centerCfdPField, edgeP),
+					outerP,
+					outerCfdPFieldMaxAbs,
+					finiteDifference(coreP, outerP),
 					probePointResidualMax,
 					comparable,
 					comparable
@@ -373,6 +407,13 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 				number(row.outerCfdSpeedMaxMetersPerSecond()),
 				number(row.outerCfdSpeedMeanMetersPerSecond()),
 				number(row.outerLeakFractionOfCoreReference()),
+				number(row.coreCfdPFieldMean()),
+				number(row.centerCfdPField()),
+				number(row.edgeCoreCfdPFieldMean()),
+				number(row.centerEdgeCfdPFieldDelta()),
+				number(row.outerCfdPFieldMean()),
+				number(row.outerCfdPFieldMaxAbs()),
+				number(row.coreOuterCfdPFieldDelta()),
 				number(row.probePointResidualMaxMeters()),
 				Boolean.toString(row.comparable()),
 				escape(row.message())
@@ -387,6 +428,10 @@ public final class CtCpJActuatorDiskWakePlaneProbeSummaryExporter {
 			return candidate;
 		}
 		return Math.max(current, candidate);
+	}
+
+	private static double finiteDifference(double first, double second) {
+		return Double.isFinite(first) && Double.isFinite(second) ? first - second : Double.NaN;
 	}
 
 	private static double ratio(double numerator, double denominator) {
