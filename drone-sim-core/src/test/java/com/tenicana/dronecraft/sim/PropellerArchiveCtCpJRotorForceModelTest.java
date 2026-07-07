@@ -1138,6 +1138,180 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 	}
 
 	@Test
+	void staticAnchoredConfigurationTargetThrustSolverRecoversHoverAggregateRpm() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double targetThrust = config.massKg() * config.gravityMetersPerSecondSquared();
+		double expectedOmega = Math.sqrt(
+				targetThrust / config.rotors().size() / rotor.thrustCoefficient());
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						"apDrone",
+						"configuration_target_hover",
+						config,
+						0.0,
+						targetThrust,
+						expectedOmega * 0.55,
+						expectedOmega * 1.45,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				solution.solutionSample();
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RotorTargetThrustSolveStatus.SOLVED,
+				solution.status());
+		assertTrue(solution.solved());
+		assertFalse(solution.blocked());
+		assertFalse(solution.clamped());
+		assertEquals(config.rotors().size(), aggregate.rotorSamples().size());
+		assertEquals(config.rotors().size(), aggregate.acceptedRotorCount());
+		assertEquals(config.rotors().size(), aggregate.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(0, aggregate.blockedRotorCount());
+		assertEquals(0, aggregate.clampedRotorCount());
+		assertEquals(targetThrust, aggregate.totalThrustNewtons(), targetThrust * 1.0e-6);
+		assertEquals(targetThrust, aggregate.totalThrustForceBodyNewtons().y(), targetThrust * 1.0e-6);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalReactionTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalThrustMomentBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-12);
+		assertEquals(expectedOmega, solution.solutionOmegaRadiansPerSecond(), expectedOmega * 1.0e-5);
+		assertEquals(aggregate.rotorSamples().get(0).query().rpm(), solution.solutionRpm(), 1.0e-9);
+		assertEquals(0.0, aggregate.rotorSamples().get(0).query().advanceRatioJ(), 1.0e-12);
+		assertEquals(aggregate.totalUsefulAxialThrustPowerWatts() + aggregate.totalIdealInducedPowerWatts(),
+				aggregate.totalIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(aggregate.totalThrustNewtons() - targetThrust, solution.thrustResidualNewtons(), 1.0e-12);
+		assertTrue(solution.absoluteThrustResidualNewtons() <= targetThrust * 1.0e-6);
+	}
+
+	@Test
+	void staticAnchoredConfigurationTargetThrustSolverRecoversForwardFlowAggregateRpm() {
+		DroneConfig config = DroneConfig.apDrone();
+		double referenceRpm = 6_000.0;
+		double referenceOmega = referenceRpm * 2.0 * Math.PI / 60.0;
+		double axialSpeed = 2.25;
+		double[] axialSpeeds = new double[config.rotors().size()];
+		double[] omegas = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			axialSpeeds[i] = axialSpeed;
+			omegas[i] = referenceOmega;
+		}
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample reference =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+						"apDrone",
+						"configuration_target_forward_reference",
+						config,
+						axialSpeeds,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						"apDrone",
+						"configuration_target_forward",
+						config,
+						axialSpeed,
+						reference.totalThrustNewtons(),
+						4_000.0 * 2.0 * Math.PI / 60.0,
+						9_000.0 * 2.0 * Math.PI / 60.0,
+						RHO
+				);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
+				solution.solutionSample();
+
+		assertEquals(config.rotors().size(), reference.acceptedRotorCount());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RotorTargetThrustSolveStatus.SOLVED,
+				solution.status());
+		assertTrue(solution.solved());
+		assertFalse(solution.clamped());
+		assertEquals(0, solution.lowerBoundSample().blockedRotorCount());
+		assertEquals(0, solution.upperBoundSample().blockedRotorCount());
+		assertEquals(reference.totalThrustNewtons(), aggregate.totalThrustNewtons(),
+				reference.totalThrustNewtons() * 1.0e-6);
+		assertEquals(referenceOmega, solution.solutionOmegaRadiansPerSecond(), referenceOmega * 1.0e-5);
+		assertEquals(reference.rotorSamples().get(0).query().advanceRatioJ(),
+				aggregate.rotorSamples().get(0).query().advanceRatioJ(), 1.0e-5);
+		assertEquals(axialSpeed, aggregate.rotorSamples().get(0).axialAdvanceSpeedMetersPerSecond(), 1.0e-9);
+		assertTrue(aggregate.totalUsefulAxialThrustPowerWatts() > 0.0);
+		assertTrue(aggregate.totalIdealInducedPowerWatts() > 0.0);
+		assertTrue(aggregate.totalShaftPowerWatts() > aggregate.totalIdealMomentumPowerWatts());
+		assertVectorEquals(reference.totalThrustForceBodyNewtons(),
+				aggregate.totalThrustForceBodyNewtons(), reference.totalThrustNewtons() * 1.0e-6);
+	}
+
+	@Test
+	void staticAnchoredConfigurationTargetThrustSolverBlocksWhenUpperRpmCannotReachTarget() {
+		DroneConfig config = DroneConfig.apDrone();
+		double upperOmega = 5_000.0 * 2.0 * Math.PI / 60.0;
+		double[] axialSpeeds = new double[config.rotors().size()];
+		double[] upperOmegas = new double[config.rotors().size()];
+		for (int i = 0; i < config.rotors().size(); i++) {
+			upperOmegas[i] = upperOmega;
+		}
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample upper =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredConfigurationFromSignedAxialAdvanceSpeeds(
+						"apDrone",
+						"configuration_target_upper_reference",
+						config,
+						axialSpeeds,
+						upperOmegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						"apDrone",
+						"configuration_target_above_upper",
+						config,
+						0.0,
+						upper.totalThrustNewtons() * 1.20,
+						2_500.0 * 2.0 * Math.PI / 60.0,
+						upperOmega,
+						RHO
+				);
+
+		assertEquals(config.rotors().size(), upper.acceptedRotorCount());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RotorTargetThrustSolveStatus.UPPER_BOUND_BELOW_TARGET,
+				solution.status());
+		assertFalse(solution.solved());
+		assertTrue(solution.blocked());
+		assertFalse(solution.clamped());
+		assertEquals(upper.totalThrustNewtons(), solution.upperBoundSample().totalThrustNewtons(), 1.0e-12);
+		assertTrue(solution.thrustResidualNewtons() < 0.0);
+		assertEquals(solution.upperBoundSample(), solution.solutionSample());
+	}
+
+	@Test
+	void staticAnchoredConfigurationTargetThrustSolverBlocksWhenUpperRpmIsOutsideAdvanceEnvelope() {
+		DroneConfig config = DroneConfig.apDrone();
+		double axialSpeed = 22.0;
+
+		PropellerArchiveCtCpJRotorForceModel.ConfigurationTargetThrustSolution solution =
+				PropellerArchiveCtCpJRotorForceModel.solveStaticAnchoredConfigurationRpmForTargetThrust(
+						"apDrone",
+						"configuration_target_upper_high_j_block",
+						config,
+						axialSpeed,
+						config.massKg() * config.gravityMetersPerSecondSquared(),
+						3_000.0 * 2.0 * Math.PI / 60.0,
+						6_000.0 * 2.0 * Math.PI / 60.0,
+						RHO
+				);
+
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RotorTargetThrustSolveStatus.UPPER_BOUND_BLOCKED,
+				solution.status());
+		assertFalse(solution.solved());
+		assertTrue(solution.blocked());
+		assertFalse(solution.clamped());
+		assertEquals(config.rotors().size(), solution.upperBoundSample().blockedRotorCount());
+		assertEquals(0, solution.upperBoundSample().acceptedRotorCount());
+		assertEquals(0.0, solution.solutionSample().totalThrustNewtons(), 1.0e-15);
+		assertEquals(axialSpeed, solution.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
+	}
+
+	@Test
 	void signedAxialStaticAnchoredQueryClampsReverseFlowWithoutRuntimeReplacement() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
