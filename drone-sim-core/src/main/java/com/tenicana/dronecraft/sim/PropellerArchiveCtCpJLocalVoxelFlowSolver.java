@@ -5,6 +5,7 @@ import java.util.List;
 
 public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 	private static final double EPSILON = 1.0e-12;
+	public static final double DEFAULT_MAX_ADVECTION_COURANT_NUMBER = 1.0;
 
 	private PropellerArchiveCtCpJLocalVoxelFlowSolver() {
 	}
@@ -14,8 +15,26 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			double timeStepSeconds,
 			double sourceThicknessMeters,
 			double kinematicViscositySquareMetersPerSecond,
-			int stepCount
+			int stepCount,
+			double maxAdvectionCourantNumber
 	) {
+		public SolverConfig(
+				double airDensityKgPerCubicMeter,
+				double timeStepSeconds,
+				double sourceThicknessMeters,
+				double kinematicViscositySquareMetersPerSecond,
+				int stepCount
+		) {
+			this(
+					airDensityKgPerCubicMeter,
+					timeStepSeconds,
+					sourceThicknessMeters,
+					kinematicViscositySquareMetersPerSecond,
+					stepCount,
+					DEFAULT_MAX_ADVECTION_COURANT_NUMBER
+			);
+		}
+
 		public SolverConfig {
 			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
@@ -34,6 +53,9 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			if (stepCount < 0) {
 				throw new IllegalArgumentException("stepCount must be nonnegative.");
 			}
+			if (!Double.isFinite(maxAdvectionCourantNumber) || maxAdvectionCourantNumber <= EPSILON) {
+				throw new IllegalArgumentException("maxAdvectionCourantNumber must be finite and positive.");
+			}
 		}
 
 		public double diffusionNumber(
@@ -51,7 +73,7 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 	public record SolverIteration(
 			int stepIndex,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance sourceAdvance,
-			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advectionStep,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionRun advectionRun,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusionStep
 	) {
 		public SolverIteration {
@@ -61,16 +83,16 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			if (sourceAdvance == null) {
 				throw new IllegalArgumentException("sourceAdvance must not be null.");
 			}
-			if (advectionStep == null) {
-				throw new IllegalArgumentException("advectionStep must not be null.");
+			if (advectionRun == null) {
+				throw new IllegalArgumentException("advectionRun must not be null.");
 			}
 			if (diffusionStep == null) {
 				throw new IllegalArgumentException("diffusionStep must not be null.");
 			}
-			if (!sourceAdvance.nextState().equals(advectionStep.previousState())) {
+			if (!sourceAdvance.nextState().equals(advectionRun.previousState())) {
 				throw new IllegalArgumentException("advection must start from the source-advanced state.");
 			}
-			if (!advectionStep.nextState().equals(diffusionStep.previousState())) {
+			if (!advectionRun.nextState().equals(diffusionStep.previousState())) {
 				throw new IllegalArgumentException("diffusion must start from the advected state.");
 			}
 		}
@@ -84,7 +106,7 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		}
 
 		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterAdvection() {
-			return advectionStep.nextState();
+			return advectionRun.nextState();
 		}
 
 		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterDiffusion() {
@@ -162,7 +184,15 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		public double maxAdvectionCourantNumber() {
 			double max = 0.0;
 			for (SolverIteration iteration : iterations) {
-				max = Math.max(max, iteration.advectionStep().maxCourantNumber());
+				max = Math.max(max, iteration.advectionRun().maxCourantNumber());
+			}
+			return max;
+		}
+
+		public int maxAdvectionSubstepCount() {
+			int max = 0;
+			for (SolverIteration iteration : iterations) {
+				max = Math.max(max, iteration.advectionRun().completedSubstepCount());
 			}
 			return max;
 		}
@@ -170,7 +200,7 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		public Vec3 totalAdvectionMomentumResidualWorldNewtonSeconds() {
 			Vec3 sum = Vec3.ZERO;
 			for (SolverIteration iteration : iterations) {
-				sum = sum.add(iteration.advectionStep().momentumResidualWorldNewtonSeconds());
+				sum = sum.add(iteration.advectionRun().momentumResidualWorldNewtonSeconds());
 			}
 			return sum;
 		}
@@ -233,10 +263,11 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 							config.timeStepSeconds(),
 							config.sourceThicknessMeters()
 					);
-			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advection =
-					sourceAdvance.nextState().advectVelocity(
+			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionRun advection =
+					sourceAdvance.nextState().advectVelocityWithCourantLimit(
 							config.airDensityKgPerCubicMeter(),
-							config.timeStepSeconds()
+							config.timeStepSeconds(),
+							config.maxAdvectionCourantNumber()
 					);
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
 					advection.nextState().diffuseVelocity(

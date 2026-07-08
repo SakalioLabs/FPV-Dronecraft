@@ -129,7 +129,8 @@ tasks.register("ctCpJLocalVoxelFlowSolver", JavaExec) {
 		def steps = project.findProperty("steps") ?: ""
 		def ambientTemperature = project.findProperty("temperature") ?: ""
 		def ambientHumidity = project.findProperty("humidity") ?: ""
-		args(presetName, outputFile, airDensity, sourceThickness, cellSize, paddingCells, subcellSamples, timeStep, kinematicViscosity, steps, ambientTemperature, ambientHumidity)
+		def maxAdvectionCourant = project.findProperty("maxAdvectionCourant") ?: ""
+		args(presetName, outputFile, airDensity, sourceThickness, cellSize, paddingCells, subcellSamples, timeStep, kinematicViscosity, steps, ambientTemperature, ambientHumidity, maxAdvectionCourant)
 	}
 }
 

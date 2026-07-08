@@ -8,6 +8,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		List<Vec3> velocitiesWorldMetersPerSecond
 ) {
 	private static final double EPSILON = 1.0e-12;
+	private static final int MAX_ADVECTION_SUBSTEPS = 4096;
 
 	public PropellerArchiveCtCpJLocalVoxelFlowState {
 		if (gridSpec == null) {
@@ -182,6 +183,87 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record VelocityAdvectionRun(
+			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
+			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double maxAllowedCourantNumber,
+			List<VelocityAdvectionStep> substeps
+	) {
+		public VelocityAdvectionRun {
+			if (previousState == null) {
+				throw new IllegalArgumentException("previousState must not be null.");
+			}
+			if (nextState == null) {
+				throw new IllegalArgumentException("nextState must not be null.");
+			}
+			if (!previousState.gridSpec().equals(nextState.gridSpec())) {
+				throw new IllegalArgumentException("advection run states must share a voxel grid.");
+			}
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
+				throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
+			}
+			if (!Double.isFinite(maxAllowedCourantNumber) || maxAllowedCourantNumber <= EPSILON) {
+				throw new IllegalArgumentException("maxAllowedCourantNumber must be finite and positive.");
+			}
+			substeps = List.copyOf(substeps == null ? List.of() : substeps);
+			if (substeps.isEmpty()) {
+				throw new IllegalArgumentException("advection run must contain at least one substep.");
+			}
+			if (!substeps.get(0).previousState().equals(previousState)) {
+				throw new IllegalArgumentException("first advection substep must start from previousState.");
+			}
+			if (!substeps.get(substeps.size() - 1).nextState().equals(nextState)) {
+				throw new IllegalArgumentException("last advection substep must end at nextState.");
+			}
+			for (int i = 1; i < substeps.size(); i++) {
+				if (!substeps.get(i - 1).nextState().equals(substeps.get(i).previousState())) {
+					throw new IllegalArgumentException("advection substeps must be contiguous.");
+				}
+			}
+		}
+
+		public int completedSubstepCount() {
+			return substeps.size();
+		}
+
+		public double maxCourantNumber() {
+			double max = 0.0;
+			for (VelocityAdvectionStep substep : substeps) {
+				max = Math.max(max, substep.maxCourantNumber());
+			}
+			return max;
+		}
+
+		public Vec3 totalMomentumBeforeWorldNewtonSeconds() {
+			return substeps.get(0).totalMomentumBeforeWorldNewtonSeconds();
+		}
+
+		public Vec3 totalMomentumAfterWorldNewtonSeconds() {
+			return substeps.get(substeps.size() - 1).totalMomentumAfterWorldNewtonSeconds();
+		}
+
+		public Vec3 momentumResidualWorldNewtonSeconds() {
+			return totalMomentumAfterWorldNewtonSeconds().subtract(totalMomentumBeforeWorldNewtonSeconds());
+		}
+
+		public double kineticEnergyBeforeJoules() {
+			return substeps.get(0).kineticEnergyBeforeJoules();
+		}
+
+		public double kineticEnergyAfterJoules() {
+			return substeps.get(substeps.size() - 1).kineticEnergyAfterJoules();
+		}
+
+		public double kineticEnergyDeltaJoules() {
+			return kineticEnergyAfterJoules() - kineticEnergyBeforeJoules();
+		}
+	}
+
 	public static PropellerArchiveCtCpJLocalVoxelFlowState calm(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec
 	) {
@@ -280,6 +362,39 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		);
 	}
 
+	public VelocityAdvectionRun advectVelocityWithCourantLimit(
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double maxAllowedCourantNumber
+	) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
+			throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
+		}
+		if (!Double.isFinite(maxAllowedCourantNumber) || maxAllowedCourantNumber <= EPSILON) {
+			throw new IllegalArgumentException("maxAllowedCourantNumber must be finite and positive.");
+		}
+		int substepCount = advectionSubstepCount(timeStepSeconds, maxAllowedCourantNumber);
+		double substepSeconds = timeStepSeconds / substepCount;
+		ArrayList<VelocityAdvectionStep> substeps = new ArrayList<>(substepCount);
+		PropellerArchiveCtCpJLocalVoxelFlowState state = this;
+		for (int i = 0; i < substepCount; i++) {
+			VelocityAdvectionStep substep = state.advectVelocity(airDensityKgPerCubicMeter, substepSeconds);
+			substeps.add(substep);
+			state = substep.nextState();
+		}
+		return new VelocityAdvectionRun(
+				this,
+				state,
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				maxAllowedCourantNumber,
+				substeps
+		);
+	}
+
 	public VelocityDiffusionStep diffuseVelocity(
 			double airDensityKgPerCubicMeter,
 			double kinematicViscositySquareMetersPerSecond,
@@ -372,6 +487,15 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			max = Math.max(max, velocity.length());
 		}
 		return max;
+	}
+
+	private int advectionSubstepCount(double timeStepSeconds, double maxAllowedCourantNumber) {
+		double maxCourantNumber = maxSpeedMetersPerSecond() * timeStepSeconds / gridSpec.cellSizeMeters();
+		int substepCount = Math.max(1, (int) Math.ceil(maxCourantNumber / maxAllowedCourantNumber));
+		if (substepCount > MAX_ADVECTION_SUBSTEPS) {
+			throw new IllegalArgumentException("advection substep count exceeds maximum supported bound.");
+		}
+		return substepCount;
 	}
 
 	private int linearIndex(int xIndex, int yIndex, int zIndex) {

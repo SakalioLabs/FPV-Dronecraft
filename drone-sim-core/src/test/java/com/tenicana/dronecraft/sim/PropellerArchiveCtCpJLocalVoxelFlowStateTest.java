@@ -150,6 +150,44 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void velocityAdvectionRunSplitsLargeCourantStep() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								new Vec3(10.0, 0.0, 0.0),
+								new Vec3(20.0, 0.0, 0.0)
+						)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionRun advection =
+				state.advectVelocityWithCourantLimit(RHO, 0.10, 0.75);
+
+		assertEquals(3, advection.completedSubstepCount());
+		assertTrue(advection.maxCourantNumber() <= 0.75 + 1.0e-12);
+		assertEquals(0.10, advection.timeStepSeconds(), 1.0e-15);
+		assertEquals(0.75, advection.maxAllowedCourantNumber(), 1.0e-15);
+		assertEquals(state, advection.previousState());
+		assertEquals(advection.substeps().get(advection.substeps().size() - 1).nextState(),
+				advection.nextState());
+		assertVectorEquals(advection.totalMomentumAfterWorldNewtonSeconds()
+						.subtract(advection.totalMomentumBeforeWorldNewtonSeconds()),
+				advection.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertTrue(advection.kineticEnergyAfterJoules() < advection.kineticEnergyBeforeJoules());
+		assertThrows(IllegalArgumentException.class,
+				() -> state.advectVelocityWithCourantLimit(RHO, DT, 0.0));
+	}
+
+	@Test
 	void uniformAdvectionIsNoOpAndRejectsInvalidInputs() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

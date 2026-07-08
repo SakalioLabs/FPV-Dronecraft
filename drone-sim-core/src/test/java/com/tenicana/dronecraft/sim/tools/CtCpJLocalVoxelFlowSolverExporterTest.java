@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLocalVoxelFlowSolver;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -25,6 +26,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 	private static final double TIME_STEP = 0.005;
 	private static final double KINEMATIC_VISCOSITY = 1.0e-4;
 	private static final int STEPS = 3;
+	private static final double MAX_ADVECTION_COURANT = 0.75;
 
 	@Test
 	void csvLinesExportMultiStepLocalVoxelFlowSummaries() {
@@ -39,7 +41,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				KINEMATIC_VISCOSITY,
 				STEPS,
 				25.0,
-				0.0
+				0.0,
+				MAX_ADVECTION_COURANT
 		);
 		Map<String, Integer> columns = columns(lines);
 
@@ -63,7 +66,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(STEPS, integer(hoverStep2, "completed_steps"));
 		assertEquals(KINEMATIC_VISCOSITY * TIME_STEP / (CELL_SIZE * CELL_SIZE),
 				number(hoverStep2, "diffusion_number"), 1.0e-15);
+		assertEquals(MAX_ADVECTION_COURANT,
+				number(hoverStep2, "max_advection_courant_number"), 1.0e-15);
 		assertTrue(number(hoverStep2, "advection_courant_number") > 0.0);
+		assertTrue(number(hoverStep2, "advection_courant_number") <= MAX_ADVECTION_COURANT + 1.0e-12);
+		assertTrue(integer(hoverStep2, "advection_substep_count") > 1);
 		assertTrue(integer(hoverStep2, "active_cell_count") > 0);
 		assertTrue(number(hoverStep2, "source_mass_flow_kg_s") > 0.0);
 		assertTrue(number(hoverStep2, "cumulative_source_mass_kg") > 0.0);
@@ -92,7 +99,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals("EMPTY_SOURCE_FIELD", blockedStep2.get("grid_status"));
 		assertEquals(0, integer(blockedStep2, "active_cell_count"));
 		assertEquals(0, integer(blockedStep2, "applied_source_count"));
+		assertEquals(MAX_ADVECTION_COURANT,
+				number(blockedStep2, "max_advection_courant_number"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "advection_courant_number"), 1.0e-15);
+		assertEquals(1, integer(blockedStep2, "advection_substep_count"));
 		assertEquals(0.0, number(blockedStep2, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "through_flow_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_advection_j"), 1.0e-15);
@@ -109,8 +119,15 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		List<String> lines = Files.readAllLines(output);
 		assertTrue(lines.size() > 10);
 		assertTrue(lines.get(0).contains("cumulative_source_impulse_world_y_ns"));
+		assertTrue(lines.get(0).contains("max_advection_courant_number"));
 		assertTrue(lines.get(0).contains("advection_courant_number"));
+		assertTrue(lines.get(0).contains("advection_substep_count"));
 		assertTrue(lines.get(0).contains("cumulative_advection_momentum_residual_world_y_ns"));
+		Map<String, Integer> columns = columns(lines);
+		Map<String, String> hoverStep =
+				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "step", 0);
+		assertTrue(number(hoverStep, "advection_courant_number")
+				<= PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER + 1.0e-12);
 		assertTrue(lines.get(0).contains("kinetic_energy_after_diffusion_j"));
 		assertTrue(lines.get(0).contains("diffusion_momentum_residual_world_y_ns"));
 		assertTrue(lines.stream().anyMatch(line ->
