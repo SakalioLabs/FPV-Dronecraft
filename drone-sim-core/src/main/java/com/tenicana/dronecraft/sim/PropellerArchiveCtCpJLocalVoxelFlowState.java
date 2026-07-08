@@ -551,25 +551,43 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double airDensityKgPerCubicMeter,
 			double timeStepSeconds
 	) {
+		return advectVelocity(
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public VelocityAdvectionStep advectVelocity(
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			VoxelSolidMask solidMask
+	) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
 		if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
 			throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
 		}
+		validateSolidMask(solidMask);
 		double maxCourantNumber = 0.0;
 		ArrayList<Vec3> nextVelocities = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
 		for (int y = 0; y < gridSpec.cellCountY(); y++) {
 			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
 				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int index = linearIndex(x, y, z);
 					Vec3 currentVelocity = velocityAt(x, y, z);
+					if (solidMask.isSolidCellIndex(index)) {
+						nextVelocities.add(currentVelocity);
+						continue;
+					}
 					maxCourantNumber = Math.max(
 							maxCourantNumber,
 							currentVelocity.length() * timeStepSeconds / gridSpec.cellSizeMeters()
 					);
 					Vec3 backtracedPoint = gridSpec.cellCenterWorldMeters(x, y, z)
 							.subtract(currentVelocity.multiply(timeStepSeconds));
-					nextVelocities.add(sampleVelocityClamped(backtracedPoint));
+					nextVelocities.add(sampleVelocityClamped(backtracedPoint, solidMask));
 				}
 			}
 		}
@@ -593,6 +611,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double timeStepSeconds,
 			double maxAllowedCourantNumber
 	) {
+		return advectVelocityWithCourantLimit(
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				maxAllowedCourantNumber,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public VelocityAdvectionRun advectVelocityWithCourantLimit(
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double maxAllowedCourantNumber,
+			VoxelSolidMask solidMask
+	) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
@@ -602,12 +634,17 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (!Double.isFinite(maxAllowedCourantNumber) || maxAllowedCourantNumber <= EPSILON) {
 			throw new IllegalArgumentException("maxAllowedCourantNumber must be finite and positive.");
 		}
-		int substepCount = advectionSubstepCount(timeStepSeconds, maxAllowedCourantNumber);
+		validateSolidMask(solidMask);
+		int substepCount = advectionSubstepCount(timeStepSeconds, maxAllowedCourantNumber, solidMask);
 		double substepSeconds = timeStepSeconds / substepCount;
 		ArrayList<VelocityAdvectionStep> substeps = new ArrayList<>(substepCount);
 		PropellerArchiveCtCpJLocalVoxelFlowState state = this;
 		for (int i = 0; i < substepCount; i++) {
-			VelocityAdvectionStep substep = state.advectVelocity(airDensityKgPerCubicMeter, substepSeconds);
+			VelocityAdvectionStep substep = state.advectVelocity(
+					airDensityKgPerCubicMeter,
+					substepSeconds,
+					solidMask
+			);
 			substeps.add(substep);
 			state = substep.nextState();
 		}
@@ -832,12 +869,35 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	private int advectionSubstepCount(double timeStepSeconds, double maxAllowedCourantNumber) {
-		double maxCourantNumber = maxSpeedMetersPerSecond() * timeStepSeconds / gridSpec.cellSizeMeters();
+		return advectionSubstepCount(
+				timeStepSeconds,
+				maxAllowedCourantNumber,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	private int advectionSubstepCount(
+			double timeStepSeconds,
+			double maxAllowedCourantNumber,
+			VoxelSolidMask solidMask
+	) {
+		double maxCourantNumber = maxSpeedMetersPerSecond(solidMask) * timeStepSeconds / gridSpec.cellSizeMeters();
 		int substepCount = Math.max(1, (int) Math.ceil(maxCourantNumber / maxAllowedCourantNumber));
 		if (substepCount > MAX_ADVECTION_SUBSTEPS) {
 			throw new IllegalArgumentException("advection substep count exceeds maximum supported bound.");
 		}
 		return substepCount;
+	}
+
+	private double maxSpeedMetersPerSecond(VoxelSolidMask solidMask) {
+		double max = 0.0;
+		for (int i = 0; i < velocitiesWorldMetersPerSecond.size(); i++) {
+			if (solidMask.isSolidCellIndex(i)) {
+				continue;
+			}
+			max = Math.max(max, velocitiesWorldMetersPerSecond.get(i).length());
+		}
+		return max;
 	}
 
 	private int linearIndex(int xIndex, int yIndex, int zIndex) {
@@ -1018,6 +1078,10 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	private Vec3 sampleVelocityClamped(Vec3 pointWorldMeters) {
+		return sampleVelocityClamped(pointWorldMeters, VoxelSolidMask.open(gridSpec));
+	}
+
+	private Vec3 sampleVelocityClamped(Vec3 pointWorldMeters, VoxelSolidMask solidMask) {
 		double fx = fractionalCellIndex(pointWorldMeters.x(), gridSpec.originWorldMeters().x(), gridSpec.cellCountX());
 		double fy = fractionalCellIndex(pointWorldMeters.y(), gridSpec.originWorldMeters().y(), gridSpec.cellCountY());
 		double fz = fractionalCellIndex(pointWorldMeters.z(), gridSpec.originWorldMeters().z(), gridSpec.cellCountZ());
@@ -1030,6 +1094,9 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		double tx = fx - x0;
 		double ty = fy - y0;
 		double tz = fz - z0;
+		if (solidMask.solidCellCount() > 0) {
+			return sampleOpenVelocityWeighted(solidMask, x0, y0, z0, x1, y1, z1, tx, ty, tz);
+		}
 		Vec3 x00 = lerp(velocityAt(x0, y0, z0), velocityAt(x1, y0, z0), tx);
 		Vec3 x10 = lerp(velocityAt(x0, y1, z0), velocityAt(x1, y1, z0), tx);
 		Vec3 x01 = lerp(velocityAt(x0, y0, z1), velocityAt(x1, y0, z1), tx);
@@ -1037,6 +1104,70 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		Vec3 y0Blend = lerp(x00, x10, ty);
 		Vec3 y1Blend = lerp(x01, x11, ty);
 		return lerp(y0Blend, y1Blend, tz);
+	}
+
+	private Vec3 sampleOpenVelocityWeighted(
+			VoxelSolidMask solidMask,
+			int x0,
+			int y0,
+			int z0,
+			int x1,
+			int y1,
+			int z1,
+			double tx,
+			double ty,
+			double tz
+	) {
+		Vec3 weighted = Vec3.ZERO;
+		double totalWeight = 0.0;
+		double wx0 = 1.0 - tx;
+		double wx1 = tx;
+		double wy0 = 1.0 - ty;
+		double wy1 = ty;
+		double wz0 = 1.0 - tz;
+		double wz1 = tz;
+		WeightedVelocitySample sample = weightedOpenSample(solidMask, x0, y0, z0, wx0 * wy0 * wz0);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x1, y0, z0, wx1 * wy0 * wz0);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x0, y1, z0, wx0 * wy1 * wz0);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x1, y1, z0, wx1 * wy1 * wz0);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x0, y0, z1, wx0 * wy0 * wz1);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x1, y0, z1, wx1 * wy0 * wz1);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x0, y1, z1, wx0 * wy1 * wz1);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		sample = weightedOpenSample(solidMask, x1, y1, z1, wx1 * wy1 * wz1);
+		weighted = weighted.add(sample.weightedVelocity());
+		totalWeight += sample.weight();
+		return totalWeight <= EPSILON ? Vec3.ZERO : weighted.multiply(1.0 / totalWeight);
+	}
+
+	private WeightedVelocitySample weightedOpenSample(
+			VoxelSolidMask solidMask,
+			int x,
+			int y,
+			int z,
+			double weight
+	) {
+		int index = linearIndex(x, y, z);
+		if (weight <= EPSILON || solidMask.isSolidCellIndex(index)) {
+			return new WeightedVelocitySample(Vec3.ZERO, 0.0);
+		}
+		return new WeightedVelocitySample(velocityAt(x, y, z).multiply(weight), weight);
+	}
+
+	private record WeightedVelocitySample(Vec3 weightedVelocity, double weight) {
 	}
 
 	private double fractionalCellIndex(double worldCoordinate, double originCoordinate, int cellCount) {

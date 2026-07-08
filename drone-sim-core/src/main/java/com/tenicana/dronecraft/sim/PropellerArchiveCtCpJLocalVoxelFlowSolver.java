@@ -394,7 +394,8 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 					sourceAdvance.nextState().advectVelocityWithCourantLimit(
 							config.airDensityKgPerCubicMeter(),
 							config.timeStepSeconds(),
-							config.maxAdvectionCourantNumber()
+							config.maxAdvectionCourantNumber(),
+							solidMask
 					);
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
 					advection.nextState().diffuseVelocity(

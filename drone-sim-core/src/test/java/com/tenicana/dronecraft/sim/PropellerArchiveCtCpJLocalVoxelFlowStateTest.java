@@ -237,6 +237,54 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void velocityAdvectionIgnoresSolidCellsDuringBacktraceSampling() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(-0.5, 0.0, 0.0),
+								new Vec3(10.0, 0.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advection =
+				state.advectVelocity(RHO, 1.0, mask);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionRun run =
+				state.advectVelocityWithCourantLimit(RHO, 1.0, 1.0, mask);
+
+		assertEquals(0.5, advection.maxCourantNumber(), 1.0e-15);
+		assertVectorEquals(new Vec3(-0.5, 0.0, 0.0),
+				advection.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(10.0, 0.0, 0.0),
+				advection.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertEquals(1, run.completedSubstepCount());
+		assertEquals(0.5, run.maxCourantNumber(), 1.0e-15);
+		assertThrows(IllegalArgumentException.class,
+				() -> state.advectVelocity(RHO, 1.0,
+						PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.open(
+								new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+										Vec3.ZERO,
+										1.0,
+										1,
+										1,
+										1
+								))));
+	}
+
+	@Test
 	void velocityAdvectionRunSplitsLargeCourantStep() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
