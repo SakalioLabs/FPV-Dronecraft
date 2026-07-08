@@ -187,6 +187,17 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				activeCell.throughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(activeCell.throughFlowImpulseWorldNewtonSeconds().multiply(1.0 / DT),
 				activeCell.throughFlowMomentumRateWorldNewtons(), 1.0e-12);
+		assertEquals(0.5 * activeCell.cellAirMassKilograms()
+						* (activeCell.velocityAfterResidenceWorldMetersPerSecond().lengthSquared()
+						- sourceStep.velocityAfterStepWorldMetersPerSecond().lengthSquared()),
+				activeCell.throughFlowMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(residence.sourceMomentumSample().totalSourceMechanicalWorkEnergyJoules()
+						+ residence.totalThroughFlowMechanicalWorkEnergyJoules(),
+				residence.totalCombinedMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(residence.totalThroughFlowMechanicalWorkEnergyJoules() / DT,
+				residence.meanThroughFlowMechanicalPowerWatts(), 1.0e-12);
+		assertEquals(residence.totalCombinedMechanicalWorkEnergyJoules() / DT,
+				residence.meanCombinedMechanicalPowerWatts(), 1.0e-12);
 		assertVectorEquals(residence.totalSourceMomentumRateWorldNewtons()
 						.add(residence.totalThroughFlowMomentumRateWorldNewtons()),
 				residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
@@ -213,6 +224,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertEquals(0, residence.activeCellCount());
 		assertEquals(0.0, residence.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
 		assertEquals(0.0, residence.maxResidenceAlpha(), 1.0e-15);
+		assertEquals(0.0, residence.totalThroughFlowMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, residence.totalCombinedMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, residence.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, residence.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-15);

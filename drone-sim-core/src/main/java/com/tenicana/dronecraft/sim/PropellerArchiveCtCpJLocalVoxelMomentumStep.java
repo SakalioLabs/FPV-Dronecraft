@@ -184,6 +184,13 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		public boolean active() {
 			return sourceMomentumStep.active();
 		}
+
+		public double throughFlowMechanicalWorkEnergyJoules() {
+			Vec3 midpointVelocity = sourceMomentumStep.velocityAfterStepWorldMetersPerSecond()
+					.add(throughFlowVelocityDeltaWorldMetersPerSecond.multiply(0.5));
+			double work = throughFlowImpulseWorldNewtonSeconds.dot(midpointVelocity);
+			return Double.isFinite(work) ? work : 0.0;
+		}
 	}
 
 	public record MassFluxResidenceStepSample(
@@ -261,8 +268,31 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			return sum;
 		}
 
+		public double totalThroughFlowMechanicalWorkEnergyJoules() {
+			double sum = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum += cell.throughFlowMechanicalWorkEnergyJoules();
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
+		}
+
+		public double meanThroughFlowMechanicalPowerWatts() {
+			return totalThroughFlowMechanicalWorkEnergyJoules()
+					/ sourceMomentumSample.timeStepSeconds();
+		}
+
 		public Vec3 totalCombinedMomentumRateWorldNewtons() {
 			return totalSourceMomentumRateWorldNewtons().add(totalThroughFlowMomentumRateWorldNewtons());
+		}
+
+		public double totalCombinedMechanicalWorkEnergyJoules() {
+			return sourceMomentumSample.totalSourceMechanicalWorkEnergyJoules()
+					+ totalThroughFlowMechanicalWorkEnergyJoules();
+		}
+
+		public double meanCombinedMechanicalPowerWatts() {
+			return totalCombinedMechanicalWorkEnergyJoules()
+					/ sourceMomentumSample.timeStepSeconds();
 		}
 
 		public double maxResidenceAlpha() {
