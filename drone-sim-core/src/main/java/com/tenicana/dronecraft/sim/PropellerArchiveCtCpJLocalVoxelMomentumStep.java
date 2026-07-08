@@ -507,7 +507,8 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 	) {
 		double cellAirMass = airDensityKgPerCubicMeter * sourceCell.cellVolumeCubicMeters();
 		double sampledSourceArea = sourceCell.sampledSourceVolumeCubicMeters() / sourceThicknessMeters;
-		double sourceMassFlowRate = sourceCell.massFluxKilogramsPerSecondSquareMeter() * sampledSourceArea;
+		double cellProjectedArea = sourceCell.cellVolumeCubicMeters() / sourceThicknessMeters;
+		double sourceMassFlowRate = sourceCell.massFluxKilogramsPerSecondSquareMeter() * cellProjectedArea;
 		double residenceAlpha = residenceAlpha(sourceMassFlowRate, timeStepSeconds, cellAirMass);
 		Vec3 throughFlowVelocityDelta = sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond()
 				.subtract(sourceMomentumStep.velocityAfterStepWorldMetersPerSecond())

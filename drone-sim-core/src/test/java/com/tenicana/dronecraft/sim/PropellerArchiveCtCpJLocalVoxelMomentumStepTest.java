@@ -225,6 +225,74 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 	}
 
 	@Test
+	void residenceMassFlowIntegratesCellAveragedFluxWithoutDoubleCoverageScaling() {
+		double sourceThickness = 0.5;
+		double cellVolume = 1.0;
+		double sourceVolumeFraction = 0.25;
+		double cellAveragedMassFlux = 2.0;
+		Vec3 targetWakeVelocity = new Vec3(0.0, 8.0, 0.0);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						1,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+						0,
+						0,
+						0,
+						grid.cellCenterWorldMeters(0, 0, 0),
+						cellVolume,
+						4,
+						1,
+						sourceVolumeFraction,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						0.0,
+						cellAveragedMassFlux,
+						0.0,
+						0.0,
+						0.0,
+						targetWakeVelocity,
+						Vec3.ZERO,
+						targetWakeVelocity
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						2,
+						List.of(sourceCell)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residence =
+				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						sourceGrid,
+						RHO,
+						DT,
+						sourceThickness,
+						Vec3.ZERO
+				);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell =
+				residence.activeCells().get(0);
+		double expectedProjectedArea = cellVolume / sourceThickness;
+		double expectedSourceMassFlow = cellAveragedMassFlux * expectedProjectedArea;
+		double expectedResidenceAlpha = 1.0 - Math.exp(-expectedSourceMassFlow * DT / (RHO * cellVolume));
+
+		assertEquals(sourceVolumeFraction * expectedProjectedArea,
+				cell.sampledSourceAreaSquareMeters(), 1.0e-15);
+		assertEquals(expectedSourceMassFlow, cell.sourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(expectedSourceMassFlow, residence.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(expectedResidenceAlpha, cell.residenceAlpha(), 1.0e-15);
+		assertVectorEquals(targetWakeVelocity.multiply(expectedResidenceAlpha),
+				cell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
+		assertTrue(cell.sourceMassFlowRateKilogramsPerSecond()
+				> cellAveragedMassFlux * cell.sampledSourceAreaSquareMeters());
+	}
+
+	@Test
 	void blockedMassFluxResidenceStepHasNoExchangeAndRejectsInvalidThickness() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample blockedGrid =
 				conservativeGridForAdvanceRatio(
