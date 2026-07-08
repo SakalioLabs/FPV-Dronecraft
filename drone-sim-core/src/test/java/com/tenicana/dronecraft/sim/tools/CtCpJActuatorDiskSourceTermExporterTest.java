@@ -118,11 +118,20 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 						+ hoverSwirlRadialY * hoverSwirlRadialY
 						+ hoverSwirlRadialZ * hoverSwirlRadialZ),
 				1.0e-15);
-		assertEquals(numberCell(hover, columns, "wake_tangential_velocity_mps"),
+		double hoverExpectedSourcePlaneSwirl =
+				2.0
+						* numberCell(hover, columns, "angular_momentum_swirl_radius_m")
+						* numberCell(hover, columns, "wake_tangential_velocity_mps")
+						/ (numberCell(hover, columns, "disk_radius_m")
+						* numberCell(hover, columns, "disk_radius_m"))
+						* Math.min(
+								numberCell(hover, columns, "angular_momentum_swirl_radius_m"),
+								numberCell(hover, columns, "disk_radius_m"));
+		assertEquals(hoverExpectedSourcePlaneSwirl,
 				Math.sqrt(hoverSwirlVelocityX * hoverSwirlVelocityX
 						+ hoverSwirlVelocityY * hoverSwirlVelocityY
 						+ hoverSwirlVelocityZ * hoverSwirlVelocityZ),
-				1.0e-15);
+				1.0e-12);
 		assertEquals(0.0,
 				hoverSwirlRadialX * hoverSwirlVelocityX
 						+ hoverSwirlRadialY * hoverSwirlVelocityY

@@ -599,11 +599,18 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		Vec3 swirlReferencePoint = sourceTerm.diskCenterWorldMeters()
 				.add(swirlRadialDirection.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()));
 		Vec3 swirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(swirlReferencePoint);
-		assertEquals(sourceTerm.wakeTangentialVelocityMetersPerSecond(), swirlVelocity.length(), 1.0e-15);
+		assertEquals(sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
+						* Math.min(sourceTerm.angularMomentumSwirlRadiusMeters(), sourceTerm.diskRadiusMeters()),
+				swirlVelocity.length(), 1.0e-12);
 		assertEquals(0.0, swirlVelocity.dot(swirlRadialDirection), 1.0e-12);
 		assertEquals(0.0, swirlVelocity.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
 		assertTrue(swirlRadialDirection.cross(swirlVelocity.normalized())
 				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()) > 0.0);
+		Vec3 rimSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(
+				sourceTerm.diskCenterWorldMeters().add(swirlRadialDirection.multiply(sourceTerm.diskRadiusMeters())));
+		assertEquals(sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond() * sourceTerm.diskRadiusMeters(),
+				rimSwirlVelocity.length(), 1.0e-12);
+		assertTrue(rimSwirlVelocity.length() > swirlVelocity.length());
 		assertVectorEquals(swirlVelocity.multiply(-1.0),
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(sourceTerm.diskCenterWorldMeters()
 						.subtract(swirlRadialDirection.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()))),

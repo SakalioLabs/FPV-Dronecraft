@@ -505,6 +505,22 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return wakeAngularMomentumTorqueWorldNewtonMeters.multiply(1.0 / sourceVolume);
 		}
 
+		public double diskRadiusMeters() {
+			return diskAreaSquareMeters > EPSILON
+					? Math.sqrt(diskAreaSquareMeters / Math.PI)
+					: 0.0;
+		}
+
+		public double wakeSwirlAngularVelocityRadiansPerSecond() {
+			double diskRadius = diskRadiusMeters();
+			double specificAngularMomentum =
+					angularMomentumSwirlRadiusMeters * wakeTangentialVelocityMetersPerSecond;
+			if (!applied || diskRadius <= EPSILON || specificAngularMomentum <= EPSILON) {
+				return 0.0;
+			}
+			return 2.0 * specificAngularMomentum / (diskRadius * diskRadius);
+		}
+
 		public Vec3 wakeSwirlVelocityWorldMetersPerSecond(Vec3 samplePointWorldMeters) {
 			if (!applied || wakeTangentialVelocityMetersPerSecond <= EPSILON) {
 				return Vec3.ZERO;
@@ -515,11 +531,16 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			}
 			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
 			Vec3 radial = offset.subtract(angularMomentumAxis.multiply(offset.dot(angularMomentumAxis)));
-			if (radial.lengthSquared() <= EPSILON) {
+			double radialDistance = radial.length();
+			if (radialDistance <= EPSILON) {
 				return Vec3.ZERO;
 			}
 			Vec3 tangent = angularMomentumAxis.cross(radial.normalized()).normalized();
-			return tangent.multiply(wakeTangentialVelocityMetersPerSecond);
+			double diskRadius = diskRadiusMeters();
+			double clampedRadialDistance = diskRadius > EPSILON
+					? Math.min(radialDistance, diskRadius)
+					: radialDistance;
+			return tangent.multiply(wakeSwirlAngularVelocityRadiansPerSecond() * clampedRadialDistance);
 		}
 	}
 

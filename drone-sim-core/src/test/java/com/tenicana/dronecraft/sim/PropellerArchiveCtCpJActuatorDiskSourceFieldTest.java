@@ -43,7 +43,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				sample.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
 				sample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
-		assertEquals(sourceTerm.wakeTangentialVelocityMetersPerSecond(),
+		assertEquals(expectedWakeSwirlSpeed(sourceTerm, sampleRadius),
 				sample.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
 		assertVectorEquals(
 				sample.farWakeAxialVelocityWorldMetersPerSecond()
@@ -82,6 +82,36 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				field.sampleAt(outsideRadial).bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				field.sampleAt(outsideAxial).targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
+	void wakeSwirlTargetUsesRadialAngularMomentumProfile() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				hoverSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		Vec3 radial = perpendicularUnit(sourceTerm.diskNormalWorld());
+		double diskRadius = sourceTerm.diskRadiusMeters();
+		double innerRadius = diskRadius * 0.25;
+		double outerRadius = diskRadius * 0.75;
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample center =
+				field.sampleAt(sourceTerm.diskCenterWorldMeters());
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample inner =
+				field.sampleAt(sourceTerm.diskCenterWorldMeters().add(radial.multiply(innerRadius)));
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample outer =
+				field.sampleAt(sourceTerm.diskCenterWorldMeters().add(radial.multiply(outerRadius)));
+
+		assertVectorEquals(Vec3.ZERO, center.wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertEquals(expectedWakeSwirlSpeed(sourceTerm, innerRadius),
+				inner.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
+		assertEquals(expectedWakeSwirlSpeed(sourceTerm, outerRadius),
+				outer.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
+		assertTrue(outer.wakeSwirlVelocityWorldMetersPerSecond().length()
+				> inner.wakeSwirlVelocityWorldMetersPerSecond().length());
+		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond().dot(radial), 1.0e-12);
+		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond()
+				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
 	}
 
 	@Test
@@ -416,6 +446,14 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static double expectedWakeSwirlSpeed(
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			double radialDistanceMeters
+	) {
+		return sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
+				* Math.min(radialDistanceMeters, sourceTerm.diskRadiusMeters());
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
