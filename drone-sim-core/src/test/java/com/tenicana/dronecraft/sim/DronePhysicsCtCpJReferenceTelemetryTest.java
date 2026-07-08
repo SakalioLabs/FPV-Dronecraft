@@ -1,5 +1,10 @@
 package com.tenicana.dronecraft.sim;
 
+import static com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.ACCEPTED;
+import static com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.BLOCKED;
+import static com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.CLAMPED;
+import static com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE;
+import static com.tenicana.dronecraft.sim.PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.REYNOLDS_OUTSIDE_RUNTIME_ENVELOPE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -72,6 +77,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
 		assertFalse(state.rotorCtCpJReferenceClamped(0));
 		assertTrue(state.rotorCtCpJReferenceRuntimeApplied(0));
+		assertRotorRuntimeStatus(ACCEPTED, state, 0);
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.EXACT,
 				state.rotorCtCpJReferenceInterpolationStatus(0));
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.INTERPOLATED,
@@ -179,6 +185,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceAvailable(0));
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
+		assertRotorRuntimeStatus(BLOCKED, state, 0);
 		assertEquals(0.0, state.rotorCtCpJReferenceThrustNewtons(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceRpm(0), 1.0e-15);
 		assertEquals(0.0, state.rotorCtCpJReferenceTorqueCoefficientCq(0), 1.0e-15);
@@ -408,6 +415,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		state.setRotorCtCpJReferenceSample(0, sample, 65.0, 0.0);
 		assertTrue(state.rotorCtCpJReferenceAvailable(0));
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
+		assertRotorRuntimeStatus(REYNOLDS_OUTSIDE_RUNTIME_ENVELOPE, state, 0);
 		assertEquals(sample.operatingPoint(65.0, 0.0).reynoldsIndex(),
 				state.rotorCtCpJReferenceReynoldsIndex(0), 1.0e-15);
 		assertTrue(state.rotorCtCpJReferenceTipMachRuntimeMargin(0) > 0.0);
@@ -459,6 +467,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 			assertFalse(racing.state().rotorCtCpJReferenceAvailable(rotor));
 			assertFalse(racing.state().rotorCtCpJReferenceBlocked(rotor));
 			assertFalse(racing.state().rotorCtCpJReferenceRuntimeApplied(rotor));
+			assertRotorRuntimeStatus(BLOCKED, racing.state(), rotor);
 			assertEquals(0.0, racing.state().rotorCtCpJReferenceThrustNewtons(rotor), 1.0e-15);
 		}
 	}
@@ -491,6 +500,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		DroneState state = new DroneState(1);
 		state.setRotorCtCpJReferenceSample(0, sample);
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
+		assertRotorRuntimeStatus(OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE, state, 0);
 		assertVectorEquals(relativeAirVelocity,
 				state.rotorCtCpJReferenceRelativeAirVelocityBodyMetersPerSecond(0), 1.0e-15);
 		assertVectorEquals(transverseVelocity,
@@ -1059,6 +1069,7 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 		assertFalse(state.rotorCtCpJReferenceBlocked(0));
 		assertTrue(state.rotorCtCpJReferenceClamped(0));
 		assertFalse(state.rotorCtCpJReferenceRuntimeApplied(0));
+		assertRotorRuntimeStatus(CLAMPED, state, 0);
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.LookupStatusCode.CLAMPED,
 				state.rotorCtCpJReferenceLookupStatusCode(0));
 		assertEquals(sample.lookup().effectiveAdvanceRatioJ(), state.rotorCtCpJReferenceAdvanceRatioJ(0), 1.0e-12);
@@ -1097,6 +1108,15 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	) {
 		double n = lookup.queryRpm() / 60.0;
 		return lookup.powerCoefficientCp() * density * n * n * n * Math.pow(diameter, 5.0);
+	}
+
+	private static void assertRotorRuntimeStatus(
+			PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus expected,
+			DroneState state,
+			int rotor
+	) {
+		assertEquals(expected, state.rotorCtCpJReferenceRuntimeStatus(rotor));
+		assertEquals(expected, state.rotorCtCpJReferenceRuntimeStatus()[rotor]);
 	}
 
 	private static DroneEnvironment stillAirAtTemperature(double ambientTemperatureCelsius) {

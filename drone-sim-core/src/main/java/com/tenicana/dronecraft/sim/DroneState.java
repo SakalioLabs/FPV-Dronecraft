@@ -99,6 +99,7 @@ public final class DroneState {
 	private boolean[] rotorCtCpJReferenceBlocked;
 	private boolean[] rotorCtCpJReferenceClamped;
 	private boolean[] rotorCtCpJReferenceRuntimeApplied;
+	private int[] rotorCtCpJReferenceRuntimeStatusOrdinal;
 	private int[] rotorCtCpJReferenceInterpolationStatusOrdinal;
 	private int[] rotorCtCpJReferenceLookupStatusCodeOrdinal;
 	private double[] rotorCtCpJReferenceAdvanceRatioJ;
@@ -330,6 +331,7 @@ public final class DroneState {
 		rotorCtCpJReferenceBlocked = new boolean[motorCount];
 		rotorCtCpJReferenceClamped = new boolean[motorCount];
 		rotorCtCpJReferenceRuntimeApplied = new boolean[motorCount];
+		rotorCtCpJReferenceRuntimeStatusOrdinal = new int[motorCount];
 		rotorCtCpJReferenceInterpolationStatusOrdinal = new int[motorCount];
 		rotorCtCpJReferenceLookupStatusCodeOrdinal = new int[motorCount];
 		rotorCtCpJReferenceAdvanceRatioJ = new double[motorCount];
@@ -460,6 +462,8 @@ public final class DroneState {
 		Arrays.fill(motorTemperatureCelsius, 25.0);
 		Arrays.fill(motorCoolingFactor, 1.0);
 		Arrays.fill(rotorA4mcVentilationEfficiency, 1.0);
+		Arrays.fill(rotorCtCpJReferenceRuntimeStatusOrdinal,
+				PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.BLOCKED.ordinal());
 		Arrays.fill(rotorCtCpJReferenceInterpolationStatusOrdinal,
 				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED.ordinal());
 		Arrays.fill(rotorInducedLagThrustScale, 1.0);
@@ -1697,6 +1701,28 @@ public final class DroneState {
 		return Arrays.copyOf(rotorCtCpJReferenceRuntimeApplied, rotorCtCpJReferenceRuntimeApplied.length);
 	}
 
+	public PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus rotorCtCpJReferenceRuntimeStatus(
+			int index
+	) {
+		PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus[] values =
+				PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.values();
+		int ordinal = rotorCtCpJReferenceRuntimeStatusOrdinal[index];
+		if (ordinal < 0 || ordinal >= values.length) {
+			return PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.BLOCKED;
+		}
+		return values[ordinal];
+	}
+
+	public PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus[] rotorCtCpJReferenceRuntimeStatus() {
+		PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus[] statuses =
+				new PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus[
+						rotorCtCpJReferenceRuntimeStatusOrdinal.length];
+		for (int i = 0; i < statuses.length; i++) {
+			statuses[i] = rotorCtCpJReferenceRuntimeStatus(i);
+		}
+		return statuses;
+	}
+
 	public PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus rotorCtCpJReferenceInterpolationStatus(int index) {
 		PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus[] values =
 				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.values();
@@ -2255,11 +2281,14 @@ public final class DroneState {
 		}
 
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
+		PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus runtimeStatus =
+				sample.runtimeForceReplacementStatus(ambientTemperatureCelsius, ambientHumidity);
 		rotorCtCpJReferenceAvailable[index] = !sample.blocked();
 		rotorCtCpJReferenceBlocked[index] = sample.blocked();
 		rotorCtCpJReferenceClamped[index] = sample.clamped();
 		rotorCtCpJReferenceRuntimeApplied[index] =
-				sample.runtimeForceReplacementAccepted(ambientTemperatureCelsius, ambientHumidity);
+				runtimeStatus == PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.ACCEPTED;
+		rotorCtCpJReferenceRuntimeStatusOrdinal[index] = runtimeStatus.ordinal();
 		rotorCtCpJReferenceInterpolationStatusOrdinal[index] = lookup.interpolationStatus().ordinal();
 		rotorCtCpJReferenceLookupStatusCodeOrdinal[index] = lookup.lookupStatusCode().ordinal();
 		rotorCtCpJReferenceAdvanceRatioJ[index] = finiteOrZero(lookup.effectiveAdvanceRatioJ());
@@ -2385,6 +2414,8 @@ public final class DroneState {
 		rotorCtCpJReferenceBlocked[index] = false;
 		rotorCtCpJReferenceClamped[index] = false;
 		rotorCtCpJReferenceRuntimeApplied[index] = false;
+		rotorCtCpJReferenceRuntimeStatusOrdinal[index] =
+				PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.BLOCKED.ordinal();
 		rotorCtCpJReferenceInterpolationStatusOrdinal[index] =
 				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED.ordinal();
 		rotorCtCpJReferenceLookupStatusCodeOrdinal[index] =
@@ -2529,6 +2560,8 @@ public final class DroneState {
 		Arrays.fill(rotorCtCpJReferenceBlocked, false);
 		Arrays.fill(rotorCtCpJReferenceClamped, false);
 		Arrays.fill(rotorCtCpJReferenceRuntimeApplied, false);
+		Arrays.fill(rotorCtCpJReferenceRuntimeStatusOrdinal,
+				PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.BLOCKED.ordinal());
 		Arrays.fill(rotorCtCpJReferenceInterpolationStatusOrdinal,
 				PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.BLOCKED.ordinal());
 		Arrays.fill(rotorCtCpJReferenceLookupStatusCodeOrdinal,
