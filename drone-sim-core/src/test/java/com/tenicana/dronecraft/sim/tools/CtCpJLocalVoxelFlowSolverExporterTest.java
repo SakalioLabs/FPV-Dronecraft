@@ -68,6 +68,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverInitial, "completed_steps"));
 		assertEquals(0.0, number(hoverInitial, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "kinetic_energy_after_diffusion_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "viscous_dissipated_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "cumulative_viscous_dissipated_energy_j"), 1.0e-15);
 		assertEquals(0, integer(hoverInitial, "solid_cell_count"));
 		assertEquals(0, integer(hoverInitial, "solid_clamped_cell_count"));
 		assertEquals(STEPS, integer(hoverStep2, "configured_step_count"));
@@ -112,6 +114,12 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(Math.abs(number(hoverStep2, "through_flow_impulse_world_y_ns")) > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_advection_j") > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_diffusion_j") > 0.0);
+		assertEquals(-number(hoverStep2, "kinetic_energy_diffusion_delta_j"),
+				number(hoverStep2, "viscous_dissipated_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "viscous_dissipated_energy_j") / TIME_STEP,
+				number(hoverStep2, "mean_viscous_dissipation_power_w"), 1.0e-12);
+		assertTrue(number(hoverStep2, "cumulative_viscous_dissipated_energy_j")
+				>= number(hoverStep2, "viscous_dissipated_energy_j"));
 		assertTrue(number(hoverStep2, "kinetic_energy_after_projection_j") > 0.0);
 		assertEquals(number(hoverStep2, "kinetic_energy_after_projection_j"),
 				number(hoverStep2, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
@@ -209,6 +217,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_advection_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_diffusion_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "viscous_dissipated_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "mean_viscous_dissipation_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "cumulative_viscous_dissipated_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_projection_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "max_vorticity_after_source_s"), 1.0e-15);
@@ -393,6 +404,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));
 		assertTrue(lines.get(0).contains("kinetic_energy_after_solid_boundary_j"));
+		assertTrue(lines.get(0).contains("viscous_dissipated_energy_j"));
+		assertTrue(lines.get(0).contains("mean_viscous_dissipation_power_w"));
+		assertTrue(lines.get(0).contains("cumulative_viscous_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("solid_boundary_momentum_residual_world_y_ns"));
 		Map<String, Integer> columns = columns(lines);
 		Map<String, String> hoverStep =

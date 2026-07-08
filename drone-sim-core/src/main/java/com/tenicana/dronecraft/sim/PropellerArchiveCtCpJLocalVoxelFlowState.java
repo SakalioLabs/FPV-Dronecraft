@@ -527,6 +527,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		public double kineticEnergyDeltaJoules() {
 			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
 		}
+
+		public double viscousDissipatedEnergyJoules() {
+			return Math.max(0.0, kineticEnergyBeforeJoules - kineticEnergyAfterJoules);
+		}
+
+		public double meanViscousDissipationPowerWatts() {
+			return viscousDissipatedEnergyJoules() / timeStepSeconds;
+		}
 	}
 
 	public record VelocityAdvectionStep(

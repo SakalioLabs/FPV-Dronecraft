@@ -151,6 +151,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"kinetic_energy_advection_delta_j",
 			"kinetic_energy_after_diffusion_j",
 			"kinetic_energy_diffusion_delta_j",
+			"viscous_dissipated_energy_j",
+			"mean_viscous_dissipation_power_w",
+			"cumulative_viscous_dissipated_energy_j",
 			"kinetic_energy_after_projection_j",
 			"kinetic_energy_projection_delta_j",
 			"kinetic_energy_after_solid_boundary_j",
@@ -618,6 +621,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeFlowKineticEnergySourceDelta(run, completedSteps);
 		double cumulativeFlowKineticEnergySourceDeltaMinusIdeal =
 				cumulativeFlowKineticEnergySourceDeltaMinusIdeal(run, completedSteps);
+		double cumulativeViscousDissipatedEnergy =
+				cumulativeViscousDissipatedEnergy(run, completedSteps);
 		double maxResidenceAlpha = initial ? 0.0 : iteration.sourceAdvance().maxResidenceAlpha();
 		double meanWakeResidual = initial ? 0.0
 				: iteration.sourceAdvance().meanActiveWakeResidualAfterResidenceMetersPerSecond();
@@ -659,6 +664,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double energyAfterDiffusion = initial ? energyAfterAdvection
 				: iteration.diffusionStep().kineticEnergyAfterJoules();
 		double energyDiffusionDelta = initial ? 0.0 : iteration.diffusionStep().kineticEnergyDeltaJoules();
+		double viscousDissipatedEnergy = initial ? 0.0
+				: iteration.diffusionStep().viscousDissipatedEnergyJoules();
+		double meanViscousDissipationPower = initial ? 0.0
+				: iteration.diffusionStep().meanViscousDissipationPowerWatts();
 		double energyAfterProjection = initial ? energyAfterDiffusion
 				: iteration.projectionStep().kineticEnergyAfterJoules();
 		double energyProjectionDelta = initial ? 0.0 : iteration.projectionStep().kineticEnergyDeltaJoules();
@@ -852,6 +861,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(energyAdvectionDelta),
 				number(energyAfterDiffusion),
 				number(energyDiffusionDelta),
+				number(viscousDissipatedEnergy),
+				number(meanViscousDissipationPower),
+				number(cumulativeViscousDissipatedEnergy),
 				number(energyAfterProjection),
 				number(energyProjectionDelta),
 				number(energyAfterSolidBoundary),
@@ -1028,6 +1040,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	) {
 		return cumulativeFlowKineticEnergySourceDelta(run, completedSteps)
 				- cumulativeSourceIdealMomentumEnergy(run, completedSteps);
+	}
+
+	private static double cumulativeViscousDissipatedEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).diffusionStep().viscousDissipatedEnergyJoules();
+		}
+		return energy;
 	}
 
 	private static int solidOccludedSourceCellCount(

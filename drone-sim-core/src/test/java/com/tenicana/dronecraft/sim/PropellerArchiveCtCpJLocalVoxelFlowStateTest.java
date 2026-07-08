@@ -770,6 +770,10 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertTrue(diffusion.kineticEnergyAfterJoules() < diffusion.kineticEnergyBeforeJoules());
 		assertTrue(diffusion.kineticEnergyDeltaJoules() < 0.0);
+		assertEquals(-diffusion.kineticEnergyDeltaJoules(),
+				diffusion.viscousDissipatedEnergyJoules(), 1.0e-15);
+		assertEquals(diffusion.viscousDissipatedEnergyJoules() / diffusion.timeStepSeconds(),
+				diffusion.meanViscousDissipationPowerWatts(), 1.0e-15);
 		assertTrue(diffusion.nextState().maxSpeedMetersPerSecond() < state.maxSpeedMetersPerSecond());
 	}
 
@@ -810,6 +814,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(state.totalKineticEnergyJoules(RHO, mask), diffusion.kineticEnergyAfterJoules(), 1.0e-15);
 		assertEquals(0.0, diffusion.kineticEnergyAfterJoules(), 1.0e-15);
+		assertEquals(0.0, diffusion.viscousDissipatedEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, diffusion.meanViscousDissipationPowerWatts(), 1.0e-15);
 	}
 
 	@Test
@@ -839,6 +845,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				diffusion.nextState().totalMomentumWorldNewtonSeconds(RHO), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-12);
 		assertTrue(diffusion.kineticEnergyAfterJoules() <= diffusion.kineticEnergyBeforeJoules() + 1.0e-15);
+		assertEquals(Math.max(0.0, -diffusion.kineticEnergyDeltaJoules()),
+				diffusion.viscousDissipatedEnergyJoules(), 1.0e-15);
 		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons(),
 				advance.totalSourceMomentumRateWorldNewtons(), 1.0e-10);
 		assertTrue(diffusion.nextState().maxSpeedMetersPerSecond() <= advance.nextState().maxSpeedMetersPerSecond());
