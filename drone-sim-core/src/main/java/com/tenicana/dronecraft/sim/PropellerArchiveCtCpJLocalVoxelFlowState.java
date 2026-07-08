@@ -211,6 +211,10 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			}
 			return count == 0 ? 0.0 : sum / count;
 		}
+
+		public double massFlowWeightedWakeResidualAfterResidenceMetersPerSecond() {
+			return residenceStep.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond();
+		}
 	}
 
 	public record VoxelSolidMask(

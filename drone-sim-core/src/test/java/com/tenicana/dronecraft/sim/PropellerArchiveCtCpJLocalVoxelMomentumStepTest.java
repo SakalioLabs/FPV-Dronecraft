@@ -295,6 +295,72 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				cell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
 		assertTrue(cell.sourceMassFlowRateKilogramsPerSecond()
 				> cellAveragedMassFlux * cell.sampledSourceAreaSquareMeters());
+		assertEquals(cell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length(),
+				residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
+	void massFlowWeightedWakeResidualFollowsSourceMassFlow() {
+		double sourceThickness = 0.5;
+		double cellVolume = 1.0;
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						1,
+						List.of(
+								residenceSourceCell(
+										grid,
+										0,
+										cellVolume,
+										1.0,
+										new Vec3(0.0, 2.0, 0.0)),
+								residenceSourceCell(
+										grid,
+										1,
+										cellVolume,
+										4.0,
+										new Vec3(0.0, 10.0, 0.0))
+						)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residence =
+				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						sourceGrid,
+						RHO,
+						DT,
+						sourceThickness,
+						Vec3.ZERO
+				);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep lowMassFlowCell =
+				residence.activeCells().get(0);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep highMassFlowCell =
+				residence.activeCells().get(1);
+		double lowWeight = lowMassFlowCell.sourceMassFlowRateKilogramsPerSecond();
+		double highWeight = highMassFlowCell.sourceMassFlowRateKilogramsPerSecond();
+		double expectedWeightedResidual =
+				(lowMassFlowCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
+						* lowWeight
+				+ highMassFlowCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
+						* highWeight)
+				/ (lowWeight + highWeight);
+		double arithmeticResidual =
+				(lowMassFlowCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
+				+ highMassFlowCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length())
+				* 0.5;
+
+		assertEquals(4.0 * lowWeight, highWeight, 1.0e-15);
+		assertEquals(expectedWeightedResidual,
+				residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(), 1.0e-15);
+		assertTrue(residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond()
+				> arithmeticResidual);
 	}
 
 	@Test
@@ -534,6 +600,35 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample residenceSourceCell(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid,
+			int xIndex,
+			double cellVolumeCubicMeters,
+			double massFluxKilogramsPerSecondSquareMeter,
+			Vec3 targetWakeVelocityWorldMetersPerSecond
+	) {
+		return new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+				xIndex,
+				0,
+				0,
+				grid.cellCenterWorldMeters(xIndex, 0, 0),
+				cellVolumeCubicMeters,
+				1,
+				1,
+				1.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.0,
+				massFluxKilogramsPerSecondSquareMeter,
+				0.0,
+				0.0,
+				0.0,
+				targetWakeVelocityWorldMetersPerSecond,
+				Vec3.ZERO,
+				targetWakeVelocityWorldMetersPerSecond
+		);
 	}
 
 	private static Vec3 exactCoupledResidenceVelocity(

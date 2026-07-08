@@ -54,6 +54,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertTrue(advance.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
 		assertTrue(advance.maxResidenceAlpha() > 0.0);
 		assertTrue(advance.meanActiveWakeResidualAfterResidenceMetersPerSecond() > 0.0);
+		assertEquals(advance.residenceStep().massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(),
+				advance.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(), 1.0e-15);
+		assertTrue(advance.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond() > 0.0);
 		assertEquals(gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS),
 				advance.totalIdealMomentumPowerWatts(), 1.0e-12);
 		assertEquals(gridSample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS),
@@ -798,6 +801,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(0.0, advance.sourceMechanicalWorkPowerWatts(), 1.0e-15);
 		assertEquals(0.0, advance.throughFlowMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, advance.combinedMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, advance.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, advance.nextState().totalKineticEnergyJoules(RHO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.nextState().velocityAt(0, 0, 0), 1.0e-15);
 	}

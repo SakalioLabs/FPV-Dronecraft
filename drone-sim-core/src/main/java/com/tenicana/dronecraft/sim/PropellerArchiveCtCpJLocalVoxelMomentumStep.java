@@ -360,6 +360,20 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			}
 			return max;
 		}
+
+		public double massFlowWeightedWakeResidualAfterResidenceMetersPerSecond() {
+			double weightedResidual = 0.0;
+			double totalMassFlow = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				double massFlow = cell.sourceMassFlowRateKilogramsPerSecond();
+				if (cell.active() && massFlow > EPSILON) {
+					weightedResidual += cell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond()
+							.length() * massFlow;
+					totalMassFlow += massFlow;
+				}
+			}
+			return totalMassFlow > EPSILON ? weightedResidual / totalMassFlow : 0.0;
+		}
 	}
 
 	public static MomentumStepSample step(
