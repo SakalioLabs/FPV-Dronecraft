@@ -218,6 +218,49 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void kineticEnergyDistributionReportsEnergyWeightedCentroidAndRmsRadius() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(2.0, 0.0, 0.0),
+								new Vec3(0.0, 1.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask firstCellOnly =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(false, true)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.KineticEnergyDistributionMetrics distribution =
+				state.kineticEnergyDistributionMetrics(1.0);
+		PropellerArchiveCtCpJLocalVoxelFlowState.KineticEnergyDistributionMetrics maskedDistribution =
+				state.kineticEnergyDistributionMetrics(1.0, firstCellOnly);
+		PropellerArchiveCtCpJLocalVoxelFlowState.KineticEnergyDistributionMetrics calmDistribution =
+				PropellerArchiveCtCpJLocalVoxelFlowState.calm(grid).kineticEnergyDistributionMetrics(1.0);
+
+		assertEquals(2.5, distribution.totalKineticEnergyJoules(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.7, 0.5, 0.5),
+				distribution.centroidWorldMeters(), 1.0e-15);
+		assertEquals(0.4, distribution.rmsRadiusMeters(), 1.0e-15);
+		assertEquals(2.0, maskedDistribution.totalKineticEnergyJoules(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.5, 0.5, 0.5),
+				maskedDistribution.centroidWorldMeters(), 1.0e-15);
+		assertEquals(0.0, maskedDistribution.rmsRadiusMeters(), 1.0e-15);
+		assertVectorEquals(grid.gridCenterWorldMeters(), calmDistribution.centroidWorldMeters(), 1.0e-15);
+		assertEquals(0.0, calmDistribution.rmsRadiusMeters(), 1.0e-15);
+	}
+
+	@Test
 	void openBoundaryFluxReportsOutwardAndInwardVolumeAndMassFlow() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
@@ -1108,6 +1151,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertThrows(IllegalArgumentException.class,
 				() -> new PropellerArchiveCtCpJLocalVoxelFlowState(hoverGrid.gridSpec(), List.of()));
 		assertThrows(IllegalArgumentException.class, () -> state.totalKineticEnergyJoules(0.0));
+		assertThrows(IllegalArgumentException.class, () -> state.kineticEnergyDistributionMetrics(0.0));
 		assertThrows(IllegalArgumentException.class,
 				() -> state.advanceWithSource(blockedGrid, RHO, DT, SOURCE_THICKNESS));
 	}

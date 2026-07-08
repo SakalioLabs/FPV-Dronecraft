@@ -242,6 +242,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"enstrophy_after_solid_boundary_m3_per_s2",
 			"helicity_after_solid_boundary_m4_per_s2",
 			"mean_helicity_density_after_solid_boundary_m_per_s2",
+			"kinetic_energy_centroid_after_source_world_x_m",
+			"kinetic_energy_centroid_after_source_world_y_m",
+			"kinetic_energy_centroid_after_source_world_z_m",
+			"kinetic_energy_rms_radius_after_source_m",
+			"kinetic_energy_centroid_after_projection_world_x_m",
+			"kinetic_energy_centroid_after_projection_world_y_m",
+			"kinetic_energy_centroid_after_projection_world_z_m",
+			"kinetic_energy_rms_radius_after_projection_m",
+			"kinetic_energy_centroid_after_solid_boundary_world_x_m",
+			"kinetic_energy_centroid_after_solid_boundary_world_y_m",
+			"kinetic_energy_centroid_after_solid_boundary_world_z_m",
+			"kinetic_energy_rms_radius_after_solid_boundary_m",
 			"kinetic_energy_before_source_j",
 			"kinetic_energy_after_source_j",
 			"kinetic_energy_after_advection_j",
@@ -860,6 +872,20 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityIntegralMetrics vorticityIntegralsAfterSolidBoundary =
 				initial ? vorticityIntegralsAfterProjection
 						: iteration.stateAfterSolidBoundary().vorticityIntegralMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.KineticEnergyDistributionMetrics energyDistributionAfterSource =
+				initial ? run.initialState().kineticEnergyDistributionMetrics(
+						run.config().airDensityKgPerCubicMeter(), run.solidMask())
+						: iteration.stateAfterSource().kineticEnergyDistributionMetrics(
+								run.config().airDensityKgPerCubicMeter(), run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.KineticEnergyDistributionMetrics energyDistributionAfterProjection =
+				initial ? energyDistributionAfterSource
+						: iteration.stateAfterProjection().kineticEnergyDistributionMetrics(
+								run.config().airDensityKgPerCubicMeter(), run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.KineticEnergyDistributionMetrics
+				energyDistributionAfterSolidBoundary =
+						initial ? energyDistributionAfterProjection
+								: iteration.stateAfterSolidBoundary().kineticEnergyDistributionMetrics(
+										run.config().airDensityKgPerCubicMeter(), run.solidMask());
 		int solidCellCount = initial ? run.solidMask().solidCellCount()
 				: iteration.solidBoundaryStep().solidCellCount();
 		int solidClampedCellCount = initial ? 0 : iteration.solidBoundaryStep().clampedCellCount();
@@ -1200,6 +1226,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(vorticityIntegralsAfterSolidBoundary.enstrophyCubicMetersPerSecondSquared()),
 				number(vorticityIntegralsAfterSolidBoundary.helicityFourthMetersPerSecondSquared()),
 				number(vorticityIntegralsAfterSolidBoundary.meanHelicityDensityMetersPerSecondSquared()),
+				number(energyDistributionAfterSource.centroidWorldMeters().x()),
+				number(energyDistributionAfterSource.centroidWorldMeters().y()),
+				number(energyDistributionAfterSource.centroidWorldMeters().z()),
+				number(energyDistributionAfterSource.rmsRadiusMeters()),
+				number(energyDistributionAfterProjection.centroidWorldMeters().x()),
+				number(energyDistributionAfterProjection.centroidWorldMeters().y()),
+				number(energyDistributionAfterProjection.centroidWorldMeters().z()),
+				number(energyDistributionAfterProjection.rmsRadiusMeters()),
+				number(energyDistributionAfterSolidBoundary.centroidWorldMeters().x()),
+				number(energyDistributionAfterSolidBoundary.centroidWorldMeters().y()),
+				number(energyDistributionAfterSolidBoundary.centroidWorldMeters().z()),
+				number(energyDistributionAfterSolidBoundary.rmsRadiusMeters()),
 				number(energyBeforeSource),
 				number(energyAfterSource),
 				number(energyAfterAdvection),

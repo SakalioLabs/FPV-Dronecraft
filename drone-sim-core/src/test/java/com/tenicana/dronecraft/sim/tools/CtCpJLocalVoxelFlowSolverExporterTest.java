@@ -105,6 +105,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverInitial,
 						"retained_plus_boundary_net_outward_kinetic_energy_over_source_wake_energy"),
 				1.0e-15);
+		assertTrue(Double.isFinite(number(hoverInitial,
+				"kinetic_energy_centroid_after_source_world_y_m")));
+		assertEquals(0.0, number(hoverInitial, "kinetic_energy_rms_radius_after_source_m"), 1.0e-15);
 		assertEquals(0, integer(hoverInitial, "solid_cell_count"));
 		assertEquals(0, integer(hoverInitial, "solid_clamped_cell_count"));
 		assertEquals(STEPS, integer(hoverStep2, "configured_step_count"));
@@ -197,6 +200,15 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "cumulative_source_mechanical_work_energy_j")
 						+ number(hoverStep2, "cumulative_through_flow_mechanical_work_energy_j"),
 				number(hoverStep2, "cumulative_combined_mechanical_work_energy_j"), 1.0e-12);
+		assertTrue(Double.isFinite(number(hoverStep2,
+				"kinetic_energy_centroid_after_source_world_y_m")));
+		assertTrue(Double.isFinite(number(hoverStep2,
+				"kinetic_energy_centroid_after_projection_world_y_m")));
+		assertTrue(Double.isFinite(number(hoverStep2,
+				"kinetic_energy_centroid_after_solid_boundary_world_y_m")));
+		assertTrue(number(hoverStep2, "kinetic_energy_rms_radius_after_source_m") > 0.0);
+		assertTrue(number(hoverStep2, "kinetic_energy_rms_radius_after_projection_m") >= 0.0);
+		assertTrue(number(hoverStep2, "kinetic_energy_rms_radius_after_solid_boundary_m") >= 0.0);
 		assertEquals(number(hoverStep2, "cumulative_flow_kinetic_energy_source_delta_j")
 						- number(hoverStep2, "cumulative_source_ideal_momentum_energy_j"),
 				number(hoverStep2,
@@ -464,6 +476,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "helicity_after_projection_m4_per_s2"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "mean_helicity_density_after_solid_boundary_m_per_s2"), 1.0e-15);
+		assertTrue(Double.isFinite(number(blockedStep2,
+				"kinetic_energy_centroid_after_solid_boundary_world_y_m")));
+		assertEquals(0.0, number(blockedStep2, "kinetic_energy_rms_radius_after_source_m"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "kinetic_energy_rms_radius_after_solid_boundary_m"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "max_divergence_after_projection_s"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "gross_abs_divergence_volume_flow_before_projection_m3_s"), 1.0e-15);
@@ -750,6 +766,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("kinetic_energy_after_solid_boundary_j"));
 		assertTrue(lines.get(0).contains("solid_boundary_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_dissipated_energy_j"));
+		assertTrue(lines.get(0).contains("kinetic_energy_centroid_after_source_world_y_m"));
+		assertTrue(lines.get(0).contains("kinetic_energy_centroid_after_projection_world_y_m"));
+		assertTrue(lines.get(0).contains("kinetic_energy_centroid_after_solid_boundary_world_y_m"));
+		assertTrue(lines.get(0).contains("kinetic_energy_rms_radius_after_solid_boundary_m"));
 		assertTrue(lines.get(0).contains("viscous_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("mean_viscous_dissipation_power_w"));
 		assertTrue(lines.get(0).contains("cumulative_viscous_dissipated_energy_j"));
