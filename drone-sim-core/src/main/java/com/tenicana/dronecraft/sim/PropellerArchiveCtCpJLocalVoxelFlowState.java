@@ -804,6 +804,50 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record OpenBoundaryFluxMetrics(
+			double netOutwardVolumeFlowRateCubicMetersPerSecond,
+			double outwardVolumeFlowRateCubicMetersPerSecond,
+			double inwardVolumeFlowRateCubicMetersPerSecond,
+			Vec3 outwardAxisVolumeFlowRateCubicMetersPerSecond,
+			Vec3 inwardAxisVolumeFlowRateCubicMetersPerSecond
+	) {
+		public OpenBoundaryFluxMetrics {
+			netOutwardVolumeFlowRateCubicMetersPerSecond =
+					Double.isFinite(netOutwardVolumeFlowRateCubicMetersPerSecond)
+							? netOutwardVolumeFlowRateCubicMetersPerSecond
+							: 0.0;
+			outwardVolumeFlowRateCubicMetersPerSecond =
+					finiteNonnegative(outwardVolumeFlowRateCubicMetersPerSecond);
+			inwardVolumeFlowRateCubicMetersPerSecond =
+					finiteNonnegative(inwardVolumeFlowRateCubicMetersPerSecond);
+			outwardAxisVolumeFlowRateCubicMetersPerSecond =
+					finiteVecOrZero(outwardAxisVolumeFlowRateCubicMetersPerSecond);
+			inwardAxisVolumeFlowRateCubicMetersPerSecond =
+					finiteVecOrZero(inwardAxisVolumeFlowRateCubicMetersPerSecond);
+		}
+
+		public double netOutwardMassFlowRateKilogramsPerSecond(double airDensityKgPerCubicMeter) {
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			return netOutwardVolumeFlowRateCubicMetersPerSecond * airDensityKgPerCubicMeter;
+		}
+
+		public double outwardMassFlowRateKilogramsPerSecond(double airDensityKgPerCubicMeter) {
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			return outwardVolumeFlowRateCubicMetersPerSecond * airDensityKgPerCubicMeter;
+		}
+
+		public double inwardMassFlowRateKilogramsPerSecond(double airDensityKgPerCubicMeter) {
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			return inwardVolumeFlowRateCubicMetersPerSecond * airDensityKgPerCubicMeter;
+		}
+	}
+
 	public record VorticityMetrics(
 			double maxMagnitudePerSecond,
 			double rmsMagnitudePerSecond,
@@ -1467,6 +1511,71 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		);
 	}
 
+	public OpenBoundaryFluxMetrics openBoundaryFluxMetrics() {
+		return openBoundaryFluxMetrics(VoxelSolidMask.open(gridSpec));
+	}
+
+	public OpenBoundaryFluxMetrics openBoundaryFluxMetrics(VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
+		double[] outwardByAxis = new double[3];
+		double[] inwardByAxis = new double[3];
+		double netOutward = 0.0;
+		double outward = 0.0;
+		double inward = 0.0;
+		double faceArea = gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters();
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int cellIndex = linearIndex(x, y, z);
+					if (solidMask.isSolidCellIndex(cellIndex)) {
+						continue;
+					}
+					double openFaceArea = faceArea * solidMask.openVolumeFractionCellIndex(cellIndex);
+					if (openFaceArea <= EPSILON) {
+						continue;
+					}
+					Vec3 velocity = velocitiesWorldMetersPerSecond.get(cellIndex);
+					if (x == 0) {
+						double flux = -velocity.x() * openFaceArea;
+						accumulateBoundaryFlux(flux, 0, outwardByAxis, inwardByAxis);
+					}
+					if (x == gridSpec.cellCountX() - 1) {
+						double flux = velocity.x() * openFaceArea;
+						accumulateBoundaryFlux(flux, 0, outwardByAxis, inwardByAxis);
+					}
+					if (y == 0) {
+						double flux = -velocity.y() * openFaceArea;
+						accumulateBoundaryFlux(flux, 1, outwardByAxis, inwardByAxis);
+					}
+					if (y == gridSpec.cellCountY() - 1) {
+						double flux = velocity.y() * openFaceArea;
+						accumulateBoundaryFlux(flux, 1, outwardByAxis, inwardByAxis);
+					}
+					if (z == 0) {
+						double flux = -velocity.z() * openFaceArea;
+						accumulateBoundaryFlux(flux, 2, outwardByAxis, inwardByAxis);
+					}
+					if (z == gridSpec.cellCountZ() - 1) {
+						double flux = velocity.z() * openFaceArea;
+						accumulateBoundaryFlux(flux, 2, outwardByAxis, inwardByAxis);
+					}
+				}
+			}
+		}
+		for (int axis = 0; axis < 3; axis++) {
+			outward += outwardByAxis[axis];
+			inward += inwardByAxis[axis];
+		}
+		netOutward = outward - inward;
+		return new OpenBoundaryFluxMetrics(
+				netOutward,
+				outward,
+				inward,
+				new Vec3(outwardByAxis[0], outwardByAxis[1], outwardByAxis[2]),
+				new Vec3(inwardByAxis[0], inwardByAxis[1], inwardByAxis[2])
+		);
+	}
+
 	public VorticityIntegralMetrics vorticityIntegralMetrics() {
 		return vorticityIntegralMetrics(VoxelSolidMask.open(gridSpec));
 	}
@@ -1997,6 +2106,22 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			case 2 -> vector.z();
 			default -> throw new IllegalArgumentException("component must be x, y, or z.");
 		};
+	}
+
+	private static void accumulateBoundaryFlux(
+			double signedOutwardVolumeFlowRate,
+			int axis,
+			double[] outwardByAxis,
+			double[] inwardByAxis
+	) {
+		if (!Double.isFinite(signedOutwardVolumeFlowRate)) {
+			return;
+		}
+		if (signedOutwardVolumeFlowRate >= 0.0) {
+			outwardByAxis[axis] += signedOutwardVolumeFlowRate;
+		} else {
+			inwardByAxis[axis] += -signedOutwardVolumeFlowRate;
+		}
 	}
 
 	private void accumulateDiffusiveExchange(

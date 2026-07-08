@@ -218,6 +218,75 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void openBoundaryFluxReportsOutwardAndInwardVolumeAndMassFlow() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.uniform(
+						grid,
+						new Vec3(2.0, -3.0, 4.0)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
+				state.openBoundaryFluxMetrics();
+
+		assertEquals(0.0, flux.netOutwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(16.0, flux.outwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(16.0, flux.inwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(2.0, 6.0, 8.0),
+				flux.outwardAxisVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(2.0, 6.0, 8.0),
+				flux.inwardAxisVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(16.0 * RHO, flux.outwardMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
+		assertEquals(16.0 * RHO, flux.inwardMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
+		assertEquals(0.0, flux.netOutwardMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
+		assertThrows(IllegalArgumentException.class,
+				() -> flux.outwardMassFlowRateKilogramsPerSecond(0.0));
+	}
+
+	@Test
+	void openBoundaryFluxIgnoresSolidCellsAndScalesPartialOpenCells() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(2.0, 0.0, 0.0),
+								new Vec3(100.0, 0.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE),
+						List.of(0.5, 1.0)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
+				state.openBoundaryFluxMetrics(mask);
+
+		assertEquals(-1.0, flux.netOutwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(0.0, flux.outwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(1.0, flux.inwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, flux.outwardAxisVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(1.0, 0.0, 0.0),
+				flux.inwardAxisVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
 	void solidMaskZerosSolidCellVelocityAndReportsMomentumLoss() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

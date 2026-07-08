@@ -156,6 +156,24 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"gross_abs_divergence_volume_flow_after_projection_m3_s",
 			"net_divergence_mass_flow_after_projection_kg_s",
 			"gross_abs_divergence_mass_flow_after_projection_kg_s",
+			"open_boundary_net_outward_volume_flow_after_source_m3_s",
+			"open_boundary_outward_volume_flow_after_source_m3_s",
+			"open_boundary_inward_volume_flow_after_source_m3_s",
+			"open_boundary_net_outward_mass_flow_after_source_kg_s",
+			"open_boundary_outward_mass_flow_after_source_kg_s",
+			"open_boundary_inward_mass_flow_after_source_kg_s",
+			"open_boundary_net_outward_volume_flow_after_projection_m3_s",
+			"open_boundary_outward_volume_flow_after_projection_m3_s",
+			"open_boundary_inward_volume_flow_after_projection_m3_s",
+			"open_boundary_net_outward_mass_flow_after_projection_kg_s",
+			"open_boundary_outward_mass_flow_after_projection_kg_s",
+			"open_boundary_inward_mass_flow_after_projection_kg_s",
+			"open_boundary_net_outward_volume_flow_after_solid_boundary_m3_s",
+			"open_boundary_outward_volume_flow_after_solid_boundary_m3_s",
+			"open_boundary_inward_volume_flow_after_solid_boundary_m3_s",
+			"open_boundary_net_outward_mass_flow_after_solid_boundary_kg_s",
+			"open_boundary_outward_mass_flow_after_solid_boundary_kg_s",
+			"open_boundary_inward_mass_flow_after_solid_boundary_kg_s",
 			"max_vorticity_after_source_s",
 			"rms_vorticity_after_source_s",
 			"mean_vorticity_after_source_world_x_s",
@@ -741,6 +759,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics divergenceIntegralsAfterProjection =
 				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics(0.0, 0.0, 0.0)
 						: iteration.projectionStep().nextState().divergenceIntegralMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFluxAfterSource =
+				initial ? run.initialState().openBoundaryFluxMetrics(run.solidMask())
+						: iteration.stateAfterSource().openBoundaryFluxMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFluxAfterProjection =
+				initial ? boundaryFluxAfterSource
+						: iteration.stateAfterProjection().openBoundaryFluxMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFluxAfterSolidBoundary =
+				initial ? boundaryFluxAfterProjection
+						: iteration.stateAfterSolidBoundary().openBoundaryFluxMetrics(run.solidMask());
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSource =
 				initial ? run.initialState().vorticityMetrics(run.solidMask())
 						: iteration.stateAfterSource().vorticityMetrics(run.solidMask());
@@ -989,6 +1016,33 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(divergenceIntegralsAfterProjection.netMassFlowRateKilogramsPerSecond(
 						run.config().airDensityKgPerCubicMeter())),
 				number(divergenceIntegralsAfterProjection.grossAbsMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterSource.netOutwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterSource.outwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterSource.inwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterSource.netOutwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterSource.outwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterSource.inwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterProjection.netOutwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterProjection.outwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterProjection.inwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterProjection.netOutwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterProjection.outwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterProjection.inwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterSolidBoundary.netOutwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterSolidBoundary.outwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterSolidBoundary.inwardVolumeFlowRateCubicMetersPerSecond()),
+				number(boundaryFluxAfterSolidBoundary.netOutwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterSolidBoundary.outwardMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryFluxAfterSolidBoundary.inwardMassFlowRateKilogramsPerSecond(
 						run.config().airDensityKgPerCubicMeter())),
 				number(vorticityAfterSource.maxMagnitudePerSecond()),
 				number(vorticityAfterSource.rmsMagnitudePerSecond()),
