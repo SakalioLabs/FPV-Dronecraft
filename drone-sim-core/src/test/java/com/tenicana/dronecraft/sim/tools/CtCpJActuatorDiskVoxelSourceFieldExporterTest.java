@@ -77,6 +77,15 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(number(hover.get(0), "wake_swirl_kinetic_power_loading_w_m2") >= 0.0);
 		assertTrue(number(hover.get(0), "total_wake_kinetic_power_loading_w_m2")
 				>= number(hover.get(0), "ideal_momentum_power_loading_w_m2"));
+		assertEquals(number(hover.get(0), "ideal_momentum_power_loading_w_m2")
+						* number(hover.get(0), "cell_volume_m3") / SOURCE_THICKNESS,
+				number(hover.get(0), "integrated_ideal_momentum_power_w"), 1.0e-12);
+		assertEquals(number(hover.get(0), "wake_swirl_kinetic_power_loading_w_m2")
+						* number(hover.get(0), "cell_volume_m3") / SOURCE_THICKNESS,
+				number(hover.get(0), "integrated_wake_swirl_kinetic_power_w"), 1.0e-12);
+		assertEquals(number(hover.get(0), "total_wake_kinetic_power_loading_w_m2")
+						* number(hover.get(0), "cell_volume_m3") / SOURCE_THICKNESS,
+				number(hover.get(0), "integrated_total_wake_kinetic_power_w"), 1.0e-12);
 
 		assertEquals(0.4064, number(mid.get(0), "query_j"), 1.0e-12);
 		assertTrue(number(mid.get(0), "eta") > 0.0);
@@ -99,6 +108,9 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.0, number(blocked.get(0), "target_body_force_world_y_n"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "voxel_body_force_world_y_n"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "sampled_source_volume_m3"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "target_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "voxel_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "integrated_total_wake_kinetic_power_w"), 1.0e-15);
 	}
 
 	@Test
@@ -115,6 +127,9 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_density_world_y_nm_m3"));
 		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_loading_w_m2"));
 		assertTrue(lines.get(0).contains("total_wake_kinetic_power_loading_w_m2"));
+		assertTrue(lines.get(0).contains("target_total_wake_kinetic_power_w"));
+		assertTrue(lines.get(0).contains("voxel_total_wake_kinetic_power_w"));
+		assertTrue(lines.get(0).contains("integrated_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("target_wake_velocity_world_y_mps"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")
@@ -161,6 +176,21 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 				sum(rows, "integrated_wake_angular_momentum_torque_world", "_nm"),
 				1.0e-12
 		);
+		assertEquals(number(first, "target_ideal_momentum_power_w"),
+				number(first, "voxel_ideal_momentum_power_w"), 1.0e-12);
+		assertEquals(number(first, "target_wake_swirl_kinetic_power_w"),
+				number(first, "voxel_wake_swirl_kinetic_power_w"), 1.0e-12);
+		assertEquals(number(first, "target_total_wake_kinetic_power_w"),
+				number(first, "voxel_total_wake_kinetic_power_w"), 1.0e-12);
+		assertEquals(0.0, number(first, "ideal_momentum_power_residual_w"), 1.0e-12);
+		assertEquals(0.0, number(first, "wake_swirl_kinetic_power_residual_w"), 1.0e-12);
+		assertEquals(0.0, number(first, "total_wake_kinetic_power_residual_w"), 1.0e-12);
+		assertEquals(number(first, "voxel_ideal_momentum_power_w"),
+				sumScalar(rows, "integrated_ideal_momentum_power_w"), 1.0e-10);
+		assertEquals(number(first, "voxel_wake_swirl_kinetic_power_w"),
+				sumScalar(rows, "integrated_wake_swirl_kinetic_power_w"), 1.0e-10);
+		assertEquals(number(first, "voxel_total_wake_kinetic_power_w"),
+				sumScalar(rows, "integrated_total_wake_kinetic_power_w"), 1.0e-10);
 		assertEquals(sourceTermGroupSum(first.get("case"), first.get("row_kind"),
 						"wake_swirl_kinetic_power_w"),
 				sumCellPower(rows, "wake_swirl_kinetic_power_loading_w_m2"), 1.0e-10);
@@ -242,6 +272,14 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		double sum = 0.0;
 		for (Map<String, String> row : rows) {
 			sum += number(row, loadingColumn) * number(row, "cell_volume_m3") / SOURCE_THICKNESS;
+		}
+		return sum;
+	}
+
+	private static double sumScalar(List<Map<String, String>> rows, String columnName) {
+		double sum = 0.0;
+		for (Map<String, String> row : rows) {
+			sum += number(row, columnName);
 		}
 		return sum;
 	}
