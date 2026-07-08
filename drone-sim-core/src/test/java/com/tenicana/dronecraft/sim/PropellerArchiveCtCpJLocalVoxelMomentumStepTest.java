@@ -60,6 +60,14 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				RHO * activeCell.cellVolumeCubicMeters()
 						* activeCell.velocityDeltaWorldMetersPerSecond().y() / DT,
 				1.0e-12);
+		double activeCellMass = RHO * activeCell.cellVolumeCubicMeters();
+		assertEquals(0.5 * activeCellMass
+						* (activeCell.velocityAfterStepWorldMetersPerSecond().lengthSquared()
+						- activeCell.initialVelocityWorldMetersPerSecond().lengthSquared()),
+				activeCell.sourceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertTrue(Double.isFinite(step.totalSourceMechanicalWorkEnergyJoules()));
+		assertEquals(step.totalSourceMechanicalWorkEnergyJoules() / DT,
+				step.meanSourceMechanicalPowerWatts(), 1.0e-12);
 		assertTrue(step.totalMomentumRateWorldNewtons().y() > 0.0);
 	}
 
@@ -119,6 +127,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertEquals(0.0, step.maxVelocityDeltaMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, step.totalMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, step.totalImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(0.0, step.totalSourceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, step.meanSourceMechanicalPowerWatts(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, step.totalWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				step.cells().get(0).velocityAfterStepWorldMetersPerSecond(), 1.0e-15);

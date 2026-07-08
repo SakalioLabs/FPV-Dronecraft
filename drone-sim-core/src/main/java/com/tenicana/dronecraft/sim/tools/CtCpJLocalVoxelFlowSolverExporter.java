@@ -108,11 +108,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_source_mass_kg",
 			"source_ideal_momentum_power_w",
 			"source_ideal_momentum_energy_j",
+			"source_mechanical_work_power_w",
+			"source_mechanical_work_energy_j",
 			"flow_kinetic_energy_source_delta_j",
 			"flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j",
+			"flow_kinetic_energy_source_delta_minus_source_mechanical_work_j",
 			"cumulative_source_ideal_momentum_energy_j",
+			"cumulative_source_mechanical_work_energy_j",
 			"cumulative_flow_kinetic_energy_source_delta_j",
 			"cumulative_flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j",
+			"cumulative_flow_kinetic_energy_source_delta_minus_source_mechanical_work_j",
 			"max_residence_alpha",
 			"mean_active_wake_residual_after_residence_mps",
 			"max_divergence_before_projection_s",
@@ -611,16 +616,24 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double cumulativeSourceMass = cumulativeSourceMass(run, completedSteps);
 		double sourceIdealMomentumPower = initial ? 0.0 : iteration.sourceAdvance().totalIdealMomentumPowerWatts();
 		double sourceIdealMomentumEnergy = initial ? 0.0 : iteration.sourceAdvance().idealMomentumEnergyJoules();
+		double sourceMechanicalWorkPower = initial ? 0.0 : iteration.sourceAdvance().sourceMechanicalWorkPowerWatts();
+		double sourceMechanicalWorkEnergy = initial ? 0.0 : iteration.sourceAdvance().sourceMechanicalWorkEnergyJoules();
 		double flowKineticEnergySourceDelta = initial ? 0.0
 				: iteration.sourceAdvance().flowKineticEnergyDeltaJoules(run.solidMask());
 		double flowKineticEnergySourceDeltaMinusIdeal = initial ? 0.0
 				: iteration.sourceAdvance().flowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(run.solidMask());
+		double flowKineticEnergySourceDeltaMinusMechanicalWork = initial ? 0.0
+				: iteration.sourceAdvance().flowKineticEnergyDeltaMinusSourceMechanicalWorkJoules(run.solidMask());
 		double cumulativeSourceIdealMomentumEnergy =
 				cumulativeSourceIdealMomentumEnergy(run, completedSteps);
+		double cumulativeSourceMechanicalWorkEnergy =
+				cumulativeSourceMechanicalWorkEnergy(run, completedSteps);
 		double cumulativeFlowKineticEnergySourceDelta =
 				cumulativeFlowKineticEnergySourceDelta(run, completedSteps);
 		double cumulativeFlowKineticEnergySourceDeltaMinusIdeal =
 				cumulativeFlowKineticEnergySourceDeltaMinusIdeal(run, completedSteps);
+		double cumulativeFlowKineticEnergySourceDeltaMinusMechanicalWork =
+				cumulativeFlowKineticEnergySourceDeltaMinusMechanicalWork(run, completedSteps);
 		double cumulativeViscousDissipatedEnergy =
 				cumulativeViscousDissipatedEnergy(run, completedSteps);
 		double maxResidenceAlpha = initial ? 0.0 : iteration.sourceAdvance().maxResidenceAlpha();
@@ -818,11 +831,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSourceMass),
 				number(sourceIdealMomentumPower),
 				number(sourceIdealMomentumEnergy),
+				number(sourceMechanicalWorkPower),
+				number(sourceMechanicalWorkEnergy),
 				number(flowKineticEnergySourceDelta),
 				number(flowKineticEnergySourceDeltaMinusIdeal),
+				number(flowKineticEnergySourceDeltaMinusMechanicalWork),
 				number(cumulativeSourceIdealMomentumEnergy),
+				number(cumulativeSourceMechanicalWorkEnergy),
 				number(cumulativeFlowKineticEnergySourceDelta),
 				number(cumulativeFlowKineticEnergySourceDeltaMinusIdeal),
+				number(cumulativeFlowKineticEnergySourceDeltaMinusMechanicalWork),
 				number(maxResidenceAlpha),
 				number(meanWakeResidual),
 				number(divergenceBeforeProjection.maxAbsDivergencePerSecond()),
@@ -1023,6 +1041,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		return energy;
 	}
 
+	private static double cumulativeSourceMechanicalWorkEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).sourceAdvance().sourceMechanicalWorkEnergyJoules();
+		}
+		return energy;
+	}
+
 	private static double cumulativeFlowKineticEnergySourceDelta(
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
 			int completedSteps
@@ -1040,6 +1069,14 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	) {
 		return cumulativeFlowKineticEnergySourceDelta(run, completedSteps)
 				- cumulativeSourceIdealMomentumEnergy(run, completedSteps);
+	}
+
+	private static double cumulativeFlowKineticEnergySourceDeltaMinusMechanicalWork(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		return cumulativeFlowKineticEnergySourceDelta(run, completedSteps)
+				- cumulativeSourceMechanicalWorkEnergy(run, completedSteps);
 	}
 
 	private static double cumulativeViscousDissipatedEnergy(

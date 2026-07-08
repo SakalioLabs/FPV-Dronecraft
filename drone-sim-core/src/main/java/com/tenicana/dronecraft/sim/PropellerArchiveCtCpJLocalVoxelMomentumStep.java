@@ -50,6 +50,13 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			wakeAngularMomentumImpulseWorldNewtonMeterSeconds =
 					finiteVecOrZero(wakeAngularMomentumImpulseWorldNewtonMeterSeconds);
 		}
+
+		public double sourceMechanicalWorkEnergyJoules() {
+			Vec3 midpointVelocity = initialVelocityWorldMetersPerSecond
+					.add(velocityDeltaWorldMetersPerSecond.multiply(0.5));
+			double work = impulseWorldNewtonSeconds.dot(midpointVelocity);
+			return Double.isFinite(work) ? work : 0.0;
+		}
 	}
 
 	public record MomentumStepSample(
@@ -101,6 +108,18 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 				sum = sum.add(cell.impulseWorldNewtonSeconds());
 			}
 			return sum;
+		}
+
+		public double totalSourceMechanicalWorkEnergyJoules() {
+			double sum = 0.0;
+			for (CellMomentumStep cell : cells) {
+				sum += cell.sourceMechanicalWorkEnergyJoules();
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
+		}
+
+		public double meanSourceMechanicalPowerWatts() {
+			return totalSourceMechanicalWorkEnergyJoules() / timeStepSeconds;
 		}
 
 		public Vec3 totalWakeAngularMomentumTorqueWorldNewtonMeters() {

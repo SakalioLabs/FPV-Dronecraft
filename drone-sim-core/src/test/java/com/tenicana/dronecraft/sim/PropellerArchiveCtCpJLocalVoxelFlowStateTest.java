@@ -54,6 +54,11 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertTrue(advance.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
 		assertTrue(advance.maxResidenceAlpha() > 0.0);
 		assertTrue(advance.meanActiveWakeResidualAfterResidenceMetersPerSecond() > 0.0);
+		assertTrue(advance.sourceMechanicalWorkEnergyJoules() > 0.0);
+		assertEquals(advance.sourceMechanicalWorkEnergyJoules() / DT,
+				advance.sourceMechanicalWorkPowerWatts(), 1.0e-12);
+		assertEquals(advance.flowKineticEnergyDeltaJoules() - advance.sourceMechanicalWorkEnergyJoules(),
+				advance.flowKineticEnergyDeltaMinusSourceMechanicalWorkJoules(), 1.0e-12);
 		assertEquals(0.0, state.totalKineticEnergyJoules(RHO), 1.0e-15);
 		assertTrue(advance.nextState().totalKineticEnergyJoules(RHO) > 0.0);
 		assertTrue(advance.nextState().maxSpeedMetersPerSecond() > 0.0);
@@ -88,6 +93,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.sourceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, advance.sourceMechanicalWorkPowerWatts(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
 		assertEquals(0.0, advance.nextState().totalKineticEnergyJoules(RHO), 1.0e-15);
 		assertEquals(0.0, advance.nextState().maxSpeedMetersPerSecond(), 1.0e-15);
@@ -477,6 +484,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, advance.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalCombinedMomentumRateWorldNewtons(), 1.0e-15);
 		assertEquals(0.0, advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.sourceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, advance.sourceMechanicalWorkPowerWatts(), 1.0e-15);
 		assertEquals(0.0, advance.nextState().totalKineticEnergyJoules(RHO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.nextState().velocityAt(0, 0, 0), 1.0e-15);
 	}

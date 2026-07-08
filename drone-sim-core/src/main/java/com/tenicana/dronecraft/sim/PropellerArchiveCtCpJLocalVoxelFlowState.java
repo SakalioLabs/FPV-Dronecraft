@@ -88,6 +88,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return totalIdealMomentumPowerWatts() * residenceStep.sourceMomentumSample().timeStepSeconds();
 		}
 
+		public double sourceMechanicalWorkEnergyJoules() {
+			return residenceStep.sourceMomentumSample().totalSourceMechanicalWorkEnergyJoules();
+		}
+
+		public double sourceMechanicalWorkPowerWatts() {
+			return residenceStep.sourceMomentumSample().meanSourceMechanicalPowerWatts();
+		}
+
 		public double flowKineticEnergyDeltaJoules() {
 			return flowKineticEnergyDeltaJoules(VoxelSolidMask.open(previousState.gridSpec()));
 		}
@@ -107,6 +115,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 		public double flowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(VoxelSolidMask solidMask) {
 			return flowKineticEnergyDeltaJoules(solidMask) - idealMomentumEnergyJoules();
+		}
+
+		public double flowKineticEnergyDeltaMinusSourceMechanicalWorkJoules() {
+			return flowKineticEnergyDeltaJoules() - sourceMechanicalWorkEnergyJoules();
+		}
+
+		public double flowKineticEnergyDeltaMinusSourceMechanicalWorkJoules(VoxelSolidMask solidMask) {
+			return flowKineticEnergyDeltaJoules(solidMask) - sourceMechanicalWorkEnergyJoules();
 		}
 
 		public double maxResidenceAlpha() {
