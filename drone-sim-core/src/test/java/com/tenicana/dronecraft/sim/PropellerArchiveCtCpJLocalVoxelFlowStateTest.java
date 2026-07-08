@@ -235,6 +235,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 
 		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
 				state.openBoundaryFluxMetrics();
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics physicalFlux =
+				state.openBoundaryFluxMetrics(RHO);
 
 		assertEquals(0.0, flux.netOutwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
 		assertEquals(16.0, flux.outwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
@@ -246,8 +248,18 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(16.0 * RHO, flux.outwardMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
 		assertEquals(16.0 * RHO, flux.inwardMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
 		assertEquals(0.0, flux.netOutwardMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, physicalFlux.netOutwardMomentumFluxWorldNewtons(), 1.0e-12);
+		assertVectorEquals(new Vec3(32.0 * RHO, -48.0 * RHO, 64.0 * RHO),
+				physicalFlux.outwardMomentumFluxWorldNewtons(), 1.0e-12);
+		assertVectorEquals(physicalFlux.outwardMomentumFluxWorldNewtons(),
+				physicalFlux.inwardMomentumFluxWorldNewtons(), 1.0e-12);
+		assertEquals(232.0 * RHO, physicalFlux.outwardKineticEnergyPowerWatts(), 1.0e-12);
+		assertEquals(232.0 * RHO, physicalFlux.inwardKineticEnergyPowerWatts(), 1.0e-12);
+		assertEquals(0.0, physicalFlux.netOutwardKineticEnergyPowerWatts(), 1.0e-12);
 		assertThrows(IllegalArgumentException.class,
 				() -> flux.outwardMassFlowRateKilogramsPerSecond(0.0));
+		assertThrows(IllegalArgumentException.class,
+				() -> state.openBoundaryFluxMetrics(0.0));
 	}
 
 	@Test
@@ -276,7 +288,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				);
 
 		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
-				state.openBoundaryFluxMetrics(mask);
+				state.openBoundaryFluxMetrics(RHO, mask);
 
 		assertEquals(-1.0, flux.netOutwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, flux.outwardVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
@@ -284,6 +296,11 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, flux.outwardAxisVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(new Vec3(1.0, 0.0, 0.0),
 				flux.inwardAxisVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(-2.0 * RHO, 0.0, 0.0),
+				flux.netOutwardMomentumFluxWorldNewtons(), 1.0e-15);
+		assertEquals(-2.0 * RHO, flux.netOutwardKineticEnergyPowerWatts(), 1.0e-15);
+		assertEquals(0.0, flux.outwardKineticEnergyPowerWatts(), 1.0e-15);
+		assertEquals(2.0 * RHO, flux.inwardKineticEnergyPowerWatts(), 1.0e-15);
 	}
 
 	@Test

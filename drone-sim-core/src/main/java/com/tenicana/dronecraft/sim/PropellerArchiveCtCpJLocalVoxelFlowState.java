@@ -809,7 +809,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double outwardVolumeFlowRateCubicMetersPerSecond,
 			double inwardVolumeFlowRateCubicMetersPerSecond,
 			Vec3 outwardAxisVolumeFlowRateCubicMetersPerSecond,
-			Vec3 inwardAxisVolumeFlowRateCubicMetersPerSecond
+			Vec3 inwardAxisVolumeFlowRateCubicMetersPerSecond,
+			Vec3 outwardMomentumFluxWorldNewtons,
+			Vec3 inwardMomentumFluxWorldNewtons,
+			double outwardKineticEnergyPowerWatts,
+			double inwardKineticEnergyPowerWatts
 	) {
 		public OpenBoundaryFluxMetrics {
 			netOutwardVolumeFlowRateCubicMetersPerSecond =
@@ -824,6 +828,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 					finiteVecOrZero(outwardAxisVolumeFlowRateCubicMetersPerSecond);
 			inwardAxisVolumeFlowRateCubicMetersPerSecond =
 					finiteVecOrZero(inwardAxisVolumeFlowRateCubicMetersPerSecond);
+			outwardMomentumFluxWorldNewtons =
+					finiteVecOrZero(outwardMomentumFluxWorldNewtons);
+			inwardMomentumFluxWorldNewtons =
+					finiteVecOrZero(inwardMomentumFluxWorldNewtons);
+			outwardKineticEnergyPowerWatts =
+					finiteNonnegative(outwardKineticEnergyPowerWatts);
+			inwardKineticEnergyPowerWatts =
+					finiteNonnegative(inwardKineticEnergyPowerWatts);
 		}
 
 		public double netOutwardMassFlowRateKilogramsPerSecond(double airDensityKgPerCubicMeter) {
@@ -845,6 +857,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 			}
 			return inwardVolumeFlowRateCubicMetersPerSecond * airDensityKgPerCubicMeter;
+		}
+
+		public Vec3 netOutwardMomentumFluxWorldNewtons() {
+			return outwardMomentumFluxWorldNewtons.subtract(inwardMomentumFluxWorldNewtons);
+		}
+
+		public double netOutwardKineticEnergyPowerWatts() {
+			return outwardKineticEnergyPowerWatts - inwardKineticEnergyPowerWatts;
 		}
 	}
 
@@ -1512,13 +1532,29 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	public OpenBoundaryFluxMetrics openBoundaryFluxMetrics() {
-		return openBoundaryFluxMetrics(VoxelSolidMask.open(gridSpec));
+		return openBoundaryFluxMetrics(1.0, VoxelSolidMask.open(gridSpec));
 	}
 
 	public OpenBoundaryFluxMetrics openBoundaryFluxMetrics(VoxelSolidMask solidMask) {
+		return openBoundaryFluxMetrics(1.0, solidMask);
+	}
+
+	public OpenBoundaryFluxMetrics openBoundaryFluxMetrics(double airDensityKgPerCubicMeter) {
+		return openBoundaryFluxMetrics(airDensityKgPerCubicMeter, VoxelSolidMask.open(gridSpec));
+	}
+
+	public OpenBoundaryFluxMetrics openBoundaryFluxMetrics(
+			double airDensityKgPerCubicMeter,
+			VoxelSolidMask solidMask
+	) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
 		validateSolidMask(solidMask);
 		double[] outwardByAxis = new double[3];
 		double[] inwardByAxis = new double[3];
+		Vec3[] momentumFlux = new Vec3[] { Vec3.ZERO, Vec3.ZERO };
+		double[] kineticPower = new double[2];
 		double netOutward = 0.0;
 		double outward = 0.0;
 		double inward = 0.0;
@@ -1537,27 +1573,39 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 					Vec3 velocity = velocitiesWorldMetersPerSecond.get(cellIndex);
 					if (x == 0) {
 						double flux = -velocity.x() * openFaceArea;
-						accumulateBoundaryFlux(flux, 0, outwardByAxis, inwardByAxis);
+						accumulateBoundaryFlux(
+								flux, velocity, airDensityKgPerCubicMeter, 0,
+								outwardByAxis, inwardByAxis, momentumFlux, kineticPower);
 					}
 					if (x == gridSpec.cellCountX() - 1) {
 						double flux = velocity.x() * openFaceArea;
-						accumulateBoundaryFlux(flux, 0, outwardByAxis, inwardByAxis);
+						accumulateBoundaryFlux(
+								flux, velocity, airDensityKgPerCubicMeter, 0,
+								outwardByAxis, inwardByAxis, momentumFlux, kineticPower);
 					}
 					if (y == 0) {
 						double flux = -velocity.y() * openFaceArea;
-						accumulateBoundaryFlux(flux, 1, outwardByAxis, inwardByAxis);
+						accumulateBoundaryFlux(
+								flux, velocity, airDensityKgPerCubicMeter, 1,
+								outwardByAxis, inwardByAxis, momentumFlux, kineticPower);
 					}
 					if (y == gridSpec.cellCountY() - 1) {
 						double flux = velocity.y() * openFaceArea;
-						accumulateBoundaryFlux(flux, 1, outwardByAxis, inwardByAxis);
+						accumulateBoundaryFlux(
+								flux, velocity, airDensityKgPerCubicMeter, 1,
+								outwardByAxis, inwardByAxis, momentumFlux, kineticPower);
 					}
 					if (z == 0) {
 						double flux = -velocity.z() * openFaceArea;
-						accumulateBoundaryFlux(flux, 2, outwardByAxis, inwardByAxis);
+						accumulateBoundaryFlux(
+								flux, velocity, airDensityKgPerCubicMeter, 2,
+								outwardByAxis, inwardByAxis, momentumFlux, kineticPower);
 					}
 					if (z == gridSpec.cellCountZ() - 1) {
 						double flux = velocity.z() * openFaceArea;
-						accumulateBoundaryFlux(flux, 2, outwardByAxis, inwardByAxis);
+						accumulateBoundaryFlux(
+								flux, velocity, airDensityKgPerCubicMeter, 2,
+								outwardByAxis, inwardByAxis, momentumFlux, kineticPower);
 					}
 				}
 			}
@@ -1572,7 +1620,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				outward,
 				inward,
 				new Vec3(outwardByAxis[0], outwardByAxis[1], outwardByAxis[2]),
-				new Vec3(inwardByAxis[0], inwardByAxis[1], inwardByAxis[2])
+				new Vec3(inwardByAxis[0], inwardByAxis[1], inwardByAxis[2]),
+				momentumFlux[0],
+				momentumFlux[1],
+				kineticPower[0],
+				kineticPower[1]
 		);
 	}
 
@@ -2110,17 +2162,33 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	private static void accumulateBoundaryFlux(
 			double signedOutwardVolumeFlowRate,
+			Vec3 velocityWorldMetersPerSecond,
+			double airDensityKgPerCubicMeter,
 			int axis,
 			double[] outwardByAxis,
-			double[] inwardByAxis
+			double[] inwardByAxis,
+			Vec3[] momentumFlux,
+			double[] kineticPower
 	) {
-		if (!Double.isFinite(signedOutwardVolumeFlowRate)) {
+		if (!Double.isFinite(signedOutwardVolumeFlowRate)
+				|| velocityWorldMetersPerSecond == null
+				|| !velocityWorldMetersPerSecond.isFinite()) {
 			return;
 		}
+		double magnitude = Math.abs(signedOutwardVolumeFlowRate);
+		double massFlowRate = airDensityKgPerCubicMeter * magnitude;
+		Vec3 faceMomentumFlux = velocityWorldMetersPerSecond.multiply(massFlowRate);
+		double faceKineticPower = 0.5
+				* massFlowRate
+				* velocityWorldMetersPerSecond.lengthSquared();
 		if (signedOutwardVolumeFlowRate >= 0.0) {
 			outwardByAxis[axis] += signedOutwardVolumeFlowRate;
+			momentumFlux[0] = momentumFlux[0].add(faceMomentumFlux);
+			kineticPower[0] += faceKineticPower;
 		} else {
 			inwardByAxis[axis] += -signedOutwardVolumeFlowRate;
+			momentumFlux[1] = momentumFlux[1].add(faceMomentumFlux);
+			kineticPower[1] += faceKineticPower;
 		}
 	}
 

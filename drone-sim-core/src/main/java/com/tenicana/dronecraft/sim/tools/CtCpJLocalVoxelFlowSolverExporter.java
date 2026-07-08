@@ -162,18 +162,36 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_mass_flow_after_source_kg_s",
 			"open_boundary_outward_mass_flow_after_source_kg_s",
 			"open_boundary_inward_mass_flow_after_source_kg_s",
+			"open_boundary_net_outward_momentum_flux_after_source_world_x_n",
+			"open_boundary_net_outward_momentum_flux_after_source_world_y_n",
+			"open_boundary_net_outward_momentum_flux_after_source_world_z_n",
+			"open_boundary_net_outward_kinetic_power_after_source_w",
+			"open_boundary_outward_kinetic_power_after_source_w",
+			"open_boundary_inward_kinetic_power_after_source_w",
 			"open_boundary_net_outward_volume_flow_after_projection_m3_s",
 			"open_boundary_outward_volume_flow_after_projection_m3_s",
 			"open_boundary_inward_volume_flow_after_projection_m3_s",
 			"open_boundary_net_outward_mass_flow_after_projection_kg_s",
 			"open_boundary_outward_mass_flow_after_projection_kg_s",
 			"open_boundary_inward_mass_flow_after_projection_kg_s",
+			"open_boundary_net_outward_momentum_flux_after_projection_world_x_n",
+			"open_boundary_net_outward_momentum_flux_after_projection_world_y_n",
+			"open_boundary_net_outward_momentum_flux_after_projection_world_z_n",
+			"open_boundary_net_outward_kinetic_power_after_projection_w",
+			"open_boundary_outward_kinetic_power_after_projection_w",
+			"open_boundary_inward_kinetic_power_after_projection_w",
 			"open_boundary_net_outward_volume_flow_after_solid_boundary_m3_s",
 			"open_boundary_outward_volume_flow_after_solid_boundary_m3_s",
 			"open_boundary_inward_volume_flow_after_solid_boundary_m3_s",
 			"open_boundary_net_outward_mass_flow_after_solid_boundary_kg_s",
 			"open_boundary_outward_mass_flow_after_solid_boundary_kg_s",
 			"open_boundary_inward_mass_flow_after_solid_boundary_kg_s",
+			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_x_n",
+			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_y_n",
+			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_z_n",
+			"open_boundary_net_outward_kinetic_power_after_solid_boundary_w",
+			"open_boundary_outward_kinetic_power_after_solid_boundary_w",
+			"open_boundary_inward_kinetic_power_after_solid_boundary_w",
 			"max_vorticity_after_source_s",
 			"rms_vorticity_after_source_s",
 			"mean_vorticity_after_source_world_x_s",
@@ -760,14 +778,22 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics(0.0, 0.0, 0.0)
 						: iteration.projectionStep().nextState().divergenceIntegralMetrics(run.solidMask());
 		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFluxAfterSource =
-				initial ? run.initialState().openBoundaryFluxMetrics(run.solidMask())
-						: iteration.stateAfterSource().openBoundaryFluxMetrics(run.solidMask());
+				initial ? run.initialState().openBoundaryFluxMetrics(
+						run.config().airDensityKgPerCubicMeter(), run.solidMask())
+						: iteration.stateAfterSource().openBoundaryFluxMetrics(
+								run.config().airDensityKgPerCubicMeter(), run.solidMask());
 		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFluxAfterProjection =
 				initial ? boundaryFluxAfterSource
-						: iteration.stateAfterProjection().openBoundaryFluxMetrics(run.solidMask());
+						: iteration.stateAfterProjection().openBoundaryFluxMetrics(
+								run.config().airDensityKgPerCubicMeter(), run.solidMask());
 		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFluxAfterSolidBoundary =
 				initial ? boundaryFluxAfterProjection
-						: iteration.stateAfterSolidBoundary().openBoundaryFluxMetrics(run.solidMask());
+						: iteration.stateAfterSolidBoundary().openBoundaryFluxMetrics(
+								run.config().airDensityKgPerCubicMeter(), run.solidMask());
+		Vec3 boundaryMomentumAfterSource = boundaryFluxAfterSource.netOutwardMomentumFluxWorldNewtons();
+		Vec3 boundaryMomentumAfterProjection = boundaryFluxAfterProjection.netOutwardMomentumFluxWorldNewtons();
+		Vec3 boundaryMomentumAfterSolidBoundary =
+				boundaryFluxAfterSolidBoundary.netOutwardMomentumFluxWorldNewtons();
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSource =
 				initial ? run.initialState().vorticityMetrics(run.solidMask())
 						: iteration.stateAfterSource().vorticityMetrics(run.solidMask());
@@ -1026,6 +1052,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 						run.config().airDensityKgPerCubicMeter())),
 				number(boundaryFluxAfterSource.inwardMassFlowRateKilogramsPerSecond(
 						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryMomentumAfterSource.x()),
+				number(boundaryMomentumAfterSource.y()),
+				number(boundaryMomentumAfterSource.z()),
+				number(boundaryFluxAfterSource.netOutwardKineticEnergyPowerWatts()),
+				number(boundaryFluxAfterSource.outwardKineticEnergyPowerWatts()),
+				number(boundaryFluxAfterSource.inwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterProjection.netOutwardVolumeFlowRateCubicMetersPerSecond()),
 				number(boundaryFluxAfterProjection.outwardVolumeFlowRateCubicMetersPerSecond()),
 				number(boundaryFluxAfterProjection.inwardVolumeFlowRateCubicMetersPerSecond()),
@@ -1035,6 +1067,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 						run.config().airDensityKgPerCubicMeter())),
 				number(boundaryFluxAfterProjection.inwardMassFlowRateKilogramsPerSecond(
 						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryMomentumAfterProjection.x()),
+				number(boundaryMomentumAfterProjection.y()),
+				number(boundaryMomentumAfterProjection.z()),
+				number(boundaryFluxAfterProjection.netOutwardKineticEnergyPowerWatts()),
+				number(boundaryFluxAfterProjection.outwardKineticEnergyPowerWatts()),
+				number(boundaryFluxAfterProjection.inwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterSolidBoundary.netOutwardVolumeFlowRateCubicMetersPerSecond()),
 				number(boundaryFluxAfterSolidBoundary.outwardVolumeFlowRateCubicMetersPerSecond()),
 				number(boundaryFluxAfterSolidBoundary.inwardVolumeFlowRateCubicMetersPerSecond()),
@@ -1044,6 +1082,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 						run.config().airDensityKgPerCubicMeter())),
 				number(boundaryFluxAfterSolidBoundary.inwardMassFlowRateKilogramsPerSecond(
 						run.config().airDensityKgPerCubicMeter())),
+				number(boundaryMomentumAfterSolidBoundary.x()),
+				number(boundaryMomentumAfterSolidBoundary.y()),
+				number(boundaryMomentumAfterSolidBoundary.z()),
+				number(boundaryFluxAfterSolidBoundary.netOutwardKineticEnergyPowerWatts()),
+				number(boundaryFluxAfterSolidBoundary.outwardKineticEnergyPowerWatts()),
+				number(boundaryFluxAfterSolidBoundary.inwardKineticEnergyPowerWatts()),
 				number(vorticityAfterSource.maxMagnitudePerSecond()),
 				number(vorticityAfterSource.rmsMagnitudePerSecond()),
 				number(vorticityAfterSource.meanVorticityWorldPerSecond().x()),
