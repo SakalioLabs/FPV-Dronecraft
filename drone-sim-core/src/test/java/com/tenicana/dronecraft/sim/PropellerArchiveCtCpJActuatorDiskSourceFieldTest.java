@@ -256,6 +256,63 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
+	void enclosingVoxelGridBoundsTiltedActuatorDiskAndConservesLoads() {
+		Quaternion bodyToWorld = new Quaternion(
+				Math.cos(Math.PI * 0.25),
+				0.0,
+				0.0,
+				Math.sin(Math.PI * 0.25)
+		);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				hoverSourceTerm(bodyToWorld);
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		double cellSize = 0.02;
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				field.enclosingVoxelGrid(cellSize, 1);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sample =
+				field.sampleConservativeVoxelGrid(grid, 3);
+		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		Vec3 tangentU = perpendicularUnit(sourceTerm.diskNormalWorld());
+		Vec3 tangentV = sourceTerm.diskNormalWorld().cross(tangentU).normalized();
+
+		assertTrue(grid.cellCountX() > 1);
+		assertTrue(grid.cellCountY() > 1);
+		assertTrue(grid.cellCountZ() > 1);
+		assertTrue(pointInsideGrid(grid, sourceTerm.diskCenterWorldMeters().add(tangentU.multiply(diskRadius))));
+		assertTrue(pointInsideGrid(grid, sourceTerm.diskCenterWorldMeters().subtract(tangentU.multiply(diskRadius))));
+		assertTrue(pointInsideGrid(grid, sourceTerm.diskCenterWorldMeters().add(tangentV.multiply(diskRadius))));
+		assertTrue(pointInsideGrid(grid, sourceTerm.diskCenterWorldMeters().subtract(tangentV.multiply(diskRadius))));
+		assertTrue(pointInsideGrid(grid, sourceTerm.diskCenterWorldMeters()
+				.add(sourceTerm.diskNormalWorld().multiply(SOURCE_THICKNESS * 0.5))));
+		assertTrue(pointInsideGrid(grid, sourceTerm.diskCenterWorldMeters()
+				.subtract(sourceTerm.diskNormalWorld().multiply(SOURCE_THICKNESS * 0.5))));
+		assertVectorEquals(field.integratedBodyForceWorldNewtons(),
+				sample.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
+				sample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+	}
+
+	@Test
+	void enclosingVoxelGridForEmptyFieldProducesSingleZeroCell() {
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(blockedSourceTerm()), SOURCE_THICKNESS);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid = field.enclosingVoxelGrid(0.05, 2);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sample =
+				field.sampleConservativeVoxelGrid(grid, 2);
+
+		assertEquals(Vec3.ZERO, grid.originWorldMeters());
+		assertEquals(1, grid.cellCountX());
+		assertEquals(1, grid.cellCountY());
+		assertEquals(1, grid.cellCountZ());
+		assertEquals(1, sample.cells().size());
+		assertFalse(sample.cells().get(0).active());
+		assertVectorEquals(Vec3.ZERO, sample.integratedBodyForceWorldNewtons(), 1.0e-15);
+	}
+
+	@Test
 	void rejectsInvalidThicknessAndAllowsEmptyField() {
 		assertThrows(IllegalArgumentException.class,
 				() -> new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(), 0.0));
@@ -269,6 +326,12 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample hoverSourceTerm() {
+		return hoverSourceTerm(Quaternion.IDENTITY);
+	}
+
+	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample hoverSourceTerm(
+			Quaternion bodyToWorld
+	) {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
@@ -281,7 +344,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 						RHO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
-		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, Quaternion.IDENTITY);
+		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, bodyToWorld);
 	}
 
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample blockedSourceTerm() {
@@ -320,6 +383,22 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(expected.x(), actual.x(), tolerance);
 		assertEquals(expected.y(), actual.y(), tolerance);
 		assertEquals(expected.z(), actual.z(), tolerance);
+	}
+
+	private static boolean pointInsideGrid(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid,
+			Vec3 point
+	) {
+		Vec3 origin = grid.originWorldMeters();
+		double maxX = origin.x() + grid.cellCountX() * grid.cellSizeMeters();
+		double maxY = origin.y() + grid.cellCountY() * grid.cellSizeMeters();
+		double maxZ = origin.z() + grid.cellCountZ() * grid.cellSizeMeters();
+		return point.x() >= origin.x() - 1.0e-12
+				&& point.y() >= origin.y() - 1.0e-12
+				&& point.z() >= origin.z() - 1.0e-12
+				&& point.x() <= maxX + 1.0e-12
+				&& point.y() <= maxY + 1.0e-12
+				&& point.z() <= maxZ + 1.0e-12;
 	}
 
 	private static void assertVectorRelativeClose(Vec3 expected, Vec3 actual, double relativeTolerance) {

@@ -256,6 +256,66 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		);
 	}
 
+	public VoxelGridSpec enclosingVoxelGrid(double cellSizeMeters) {
+		return enclosingVoxelGrid(cellSizeMeters, 0);
+	}
+
+	public VoxelGridSpec enclosingVoxelGrid(double cellSizeMeters, int paddingCells) {
+		if (!Double.isFinite(cellSizeMeters) || cellSizeMeters <= EPSILON) {
+			throw new IllegalArgumentException("cellSizeMeters must be finite and positive.");
+		}
+		int padding = Math.max(0, paddingCells);
+		boolean found = false;
+		double minX = Double.POSITIVE_INFINITY;
+		double minY = Double.POSITIVE_INFINITY;
+		double minZ = Double.POSITIVE_INFINITY;
+		double maxX = Double.NEGATIVE_INFINITY;
+		double maxY = Double.NEGATIVE_INFINITY;
+		double maxZ = Double.NEGATIVE_INFINITY;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm == null || !sourceTerm.applied() || sourceTerm.diskAreaSquareMeters() <= EPSILON) {
+				continue;
+			}
+			Vec3 normal = finiteVecOrZero(sourceTerm.diskNormalWorld()).normalized();
+			if (normal.lengthSquared() <= EPSILON) {
+				continue;
+			}
+			Vec3 center = sourceTerm.diskCenterWorldMeters();
+			double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+			double halfThickness = sourceThicknessMeters * 0.5;
+			double extentX = diskAxisAlignedExtent(diskRadius, halfThickness, normal.x());
+			double extentY = diskAxisAlignedExtent(diskRadius, halfThickness, normal.y());
+			double extentZ = diskAxisAlignedExtent(diskRadius, halfThickness, normal.z());
+			minX = Math.min(minX, center.x() - extentX);
+			minY = Math.min(minY, center.y() - extentY);
+			minZ = Math.min(minZ, center.z() - extentZ);
+			maxX = Math.max(maxX, center.x() + extentX);
+			maxY = Math.max(maxY, center.y() + extentY);
+			maxZ = Math.max(maxZ, center.z() + extentZ);
+			found = true;
+		}
+		if (!found) {
+			return new VoxelGridSpec(Vec3.ZERO, cellSizeMeters, 1, 1, 1);
+		}
+		int minCellX = (int) Math.floor(minX / cellSizeMeters) - padding;
+		int minCellY = (int) Math.floor(minY / cellSizeMeters) - padding;
+		int minCellZ = (int) Math.floor(minZ / cellSizeMeters) - padding;
+		int maxCellX = (int) Math.ceil(maxX / cellSizeMeters) + padding;
+		int maxCellY = (int) Math.ceil(maxY / cellSizeMeters) + padding;
+		int maxCellZ = (int) Math.ceil(maxZ / cellSizeMeters) + padding;
+		return new VoxelGridSpec(
+				new Vec3(
+						minCellX * cellSizeMeters,
+						minCellY * cellSizeMeters,
+						minCellZ * cellSizeMeters
+				),
+				cellSizeMeters,
+				Math.max(1, maxCellX - minCellX),
+				Math.max(1, maxCellY - minCellY),
+				Math.max(1, maxCellZ - minCellZ)
+		);
+	}
+
 	public VoxelGridSample sampleVoxelGrid(VoxelGridSpec gridSpec) {
 		return sampleVoxelGrid(gridSpec, 1);
 	}
@@ -488,6 +548,12 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 
 	private static int normalizeSubcellSamplesPerAxis(int subcellSamplesPerAxis) {
 		return Math.max(1, Math.min(16, subcellSamplesPerAxis));
+	}
+
+	private static double diskAxisAlignedExtent(double diskRadius, double halfThickness, double normalComponent) {
+		double clampedNormalComponent = MathUtil.clamp(normalComponent, -1.0, 1.0);
+		double radialProjection = Math.sqrt(Math.max(0.0, 1.0 - clampedNormalComponent * clampedNormalComponent));
+		return diskRadius * radialProjection + halfThickness * Math.abs(clampedNormalComponent);
 	}
 
 	private List<SourceCoverage> sourceCoverages(VoxelGridSpec gridSpec, int subcellSamplesPerAxis) {
