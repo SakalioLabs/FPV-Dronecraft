@@ -42,6 +42,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"configured_step_count",
 			"kinematic_viscosity_m2_s",
 			"diffusion_number",
+			"advection_courant_number",
 			"grid_cell_count",
 			"active_cell_count",
 			"target_body_force_world_x_n",
@@ -65,16 +66,31 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_through_flow_impulse_world_x_ns",
 			"cumulative_through_flow_impulse_world_y_ns",
 			"cumulative_through_flow_impulse_world_z_ns",
+			"cumulative_advection_momentum_residual_world_x_ns",
+			"cumulative_advection_momentum_residual_world_y_ns",
+			"cumulative_advection_momentum_residual_world_z_ns",
 			"source_mass_flow_kg_s",
 			"cumulative_source_mass_kg",
 			"max_residence_alpha",
 			"mean_active_wake_residual_after_residence_mps",
 			"kinetic_energy_before_source_j",
 			"kinetic_energy_after_source_j",
+			"kinetic_energy_after_advection_j",
+			"kinetic_energy_advection_delta_j",
 			"kinetic_energy_after_diffusion_j",
 			"kinetic_energy_diffusion_delta_j",
 			"max_speed_after_source_mps",
+			"max_speed_after_advection_mps",
 			"max_speed_after_diffusion_mps",
+			"advection_momentum_before_world_x_ns",
+			"advection_momentum_before_world_y_ns",
+			"advection_momentum_before_world_z_ns",
+			"advection_momentum_after_world_x_ns",
+			"advection_momentum_after_world_y_ns",
+			"advection_momentum_after_world_z_ns",
+			"advection_momentum_residual_world_x_ns",
+			"advection_momentum_residual_world_y_ns",
+			"advection_momentum_residual_world_z_ns",
 			"momentum_before_diffusion_world_x_ns",
 			"momentum_before_diffusion_world_y_ns",
 			"momentum_before_diffusion_world_z_ns",
@@ -289,22 +305,34 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 throughFlowMomentumRate = initial ? zero : iteration.sourceAdvance().totalThroughFlowMomentumRateWorldNewtons();
 		Vec3 throughFlowImpulse = initial ? zero : iteration.sourceAdvance().totalThroughFlowImpulseWorldNewtonSeconds();
 		Vec3 cumulativeThroughFlowImpulse = cumulativeThroughFlowImpulse(run, completedSteps);
+		Vec3 cumulativeAdvectionMomentumResidual = cumulativeAdvectionMomentumResidual(run, completedSteps);
 		double sourceMassFlow = initial ? 0.0 : iteration.sourceAdvance().totalSourceMassFlowRateKilogramsPerSecond();
 		double cumulativeSourceMass = cumulativeSourceMass(run, completedSteps);
 		double maxResidenceAlpha = initial ? 0.0 : iteration.sourceAdvance().maxResidenceAlpha();
 		double meanWakeResidual = initial ? 0.0
 				: iteration.sourceAdvance().meanActiveWakeResidualAfterResidenceMetersPerSecond();
+		double advectionCourantNumber = initial ? 0.0 : iteration.advectionStep().maxCourantNumber();
 		double energyBeforeSource = initial ? run.initialKineticEnergyJoules()
 				: iteration.stateBeforeStep().totalKineticEnergyJoules(run.config().airDensityKgPerCubicMeter());
 		double energyAfterSource = initial ? energyBeforeSource
 				: iteration.stateAfterSource().totalKineticEnergyJoules(run.config().airDensityKgPerCubicMeter());
-		double energyAfterDiffusion = initial ? energyBeforeSource
+		double energyAfterAdvection = initial ? energyAfterSource : iteration.advectionStep().kineticEnergyAfterJoules();
+		double energyAdvectionDelta = initial ? 0.0 : iteration.advectionStep().kineticEnergyDeltaJoules();
+		double energyAfterDiffusion = initial ? energyAfterAdvection
 				: iteration.diffusionStep().kineticEnergyAfterJoules();
 		double energyDiffusionDelta = initial ? 0.0 : iteration.diffusionStep().kineticEnergyDeltaJoules();
 		double maxSpeedAfterSource = initial ? run.initialState().maxSpeedMetersPerSecond()
 				: iteration.stateAfterSource().maxSpeedMetersPerSecond();
+		double maxSpeedAfterAdvection = initial ? maxSpeedAfterSource
+				: iteration.stateAfterAdvection().maxSpeedMetersPerSecond();
 		double maxSpeedAfterDiffusion = initial ? run.initialState().maxSpeedMetersPerSecond()
 				: iteration.stateAfterDiffusion().maxSpeedMetersPerSecond();
+		Vec3 advectionMomentumBefore = initial ? run.initialState()
+				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
+				: iteration.advectionStep().totalMomentumBeforeWorldNewtonSeconds();
+		Vec3 advectionMomentumAfter = initial ? advectionMomentumBefore
+				: iteration.advectionStep().totalMomentumAfterWorldNewtonSeconds();
+		Vec3 advectionMomentumResidual = initial ? zero : iteration.advectionStep().momentumResidualWorldNewtonSeconds();
 		Vec3 momentumBeforeDiffusion = initial ? run.initialState()
 				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
 				: iteration.diffusionStep().totalMomentumBeforeWorldNewtonSeconds();
@@ -334,6 +362,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				Integer.toString(run.config().stepCount()),
 				number(run.config().kinematicViscositySquareMetersPerSecond()),
 				number(run.config().diffusionNumber(metadata.sourceGridSample().gridSpec())),
+				number(advectionCourantNumber),
 				Integer.toString(metadata.sourceGridSample().gridSpec().totalCellCount()),
 				Integer.toString(metadata.sourceGridSample().activeCellCount()),
 				number(metadata.targetBodyForceWorldNewtons().x()),
@@ -357,16 +386,31 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeThroughFlowImpulse.x()),
 				number(cumulativeThroughFlowImpulse.y()),
 				number(cumulativeThroughFlowImpulse.z()),
+				number(cumulativeAdvectionMomentumResidual.x()),
+				number(cumulativeAdvectionMomentumResidual.y()),
+				number(cumulativeAdvectionMomentumResidual.z()),
 				number(sourceMassFlow),
 				number(cumulativeSourceMass),
 				number(maxResidenceAlpha),
 				number(meanWakeResidual),
 				number(energyBeforeSource),
 				number(energyAfterSource),
+				number(energyAfterAdvection),
+				number(energyAdvectionDelta),
 				number(energyAfterDiffusion),
 				number(energyDiffusionDelta),
 				number(maxSpeedAfterSource),
+				number(maxSpeedAfterAdvection),
 				number(maxSpeedAfterDiffusion),
+				number(advectionMomentumBefore.x()),
+				number(advectionMomentumBefore.y()),
+				number(advectionMomentumBefore.z()),
+				number(advectionMomentumAfter.x()),
+				number(advectionMomentumAfter.y()),
+				number(advectionMomentumAfter.z()),
+				number(advectionMomentumResidual.x()),
+				number(advectionMomentumResidual.y()),
+				number(advectionMomentumResidual.z()),
 				number(momentumBeforeDiffusion.x()),
 				number(momentumBeforeDiffusion.y()),
 				number(momentumBeforeDiffusion.z()),
@@ -400,6 +444,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 sum = Vec3.ZERO;
 		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
 			sum = sum.add(run.iterations().get(i).sourceAdvance().totalThroughFlowImpulseWorldNewtonSeconds());
+		}
+		return sum;
+	}
+
+	private static Vec3 cumulativeAdvectionMomentumResidual(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			sum = sum.add(run.iterations().get(i).advectionStep().momentumResidualWorldNewtonSeconds());
 		}
 		return sum;
 	}

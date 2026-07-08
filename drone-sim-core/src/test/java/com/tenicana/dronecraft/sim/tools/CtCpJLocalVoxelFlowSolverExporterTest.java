@@ -63,11 +63,14 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(STEPS, integer(hoverStep2, "completed_steps"));
 		assertEquals(KINEMATIC_VISCOSITY * TIME_STEP / (CELL_SIZE * CELL_SIZE),
 				number(hoverStep2, "diffusion_number"), 1.0e-15);
+		assertTrue(number(hoverStep2, "advection_courant_number") > 0.0);
 		assertTrue(integer(hoverStep2, "active_cell_count") > 0);
 		assertTrue(number(hoverStep2, "source_mass_flow_kg_s") > 0.0);
 		assertTrue(number(hoverStep2, "cumulative_source_mass_kg") > 0.0);
 		assertTrue(Math.abs(number(hoverStep2, "through_flow_impulse_world_y_ns")) > 0.0);
+		assertTrue(number(hoverStep2, "kinetic_energy_after_advection_j") > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_diffusion_j") > 0.0);
+		assertTrue(number(hoverStep2, "max_speed_after_advection_mps") > 0.0);
 		assertTrue(number(hoverStep2, "max_speed_after_diffusion_mps") > 0.0);
 		assertEquals(number(hoverStep2, "target_body_force_world_y_n"),
 				number(hoverStep2, "source_momentum_rate_world_y_n"), 1.0e-9);
@@ -76,8 +79,12 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "target_body_force_world_y_n") * TIME_STEP * STEPS,
 				number(hoverStep2, "cumulative_source_impulse_world_y_ns"), 1.0e-12);
 		assertEquals(number(hoverStep2, "cumulative_source_impulse_world_y_ns")
-						+ number(hoverStep2, "cumulative_through_flow_impulse_world_y_ns"),
+						+ number(hoverStep2, "cumulative_through_flow_impulse_world_y_ns")
+						+ number(hoverStep2, "cumulative_advection_momentum_residual_world_y_ns"),
 				number(hoverStep2, "final_momentum_world_y_ns"), 1.0e-9);
+		assertEquals(number(hoverStep2, "advection_momentum_after_world_y_ns")
+						- number(hoverStep2, "advection_momentum_before_world_y_ns"),
+				number(hoverStep2, "advection_momentum_residual_world_y_ns"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep2, "diffusion_momentum_residual_world_x_ns"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep2, "diffusion_momentum_residual_world_y_ns"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep2, "diffusion_momentum_residual_world_z_ns"), 1.0e-12);
@@ -85,8 +92,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals("EMPTY_SOURCE_FIELD", blockedStep2.get("grid_status"));
 		assertEquals(0, integer(blockedStep2, "active_cell_count"));
 		assertEquals(0, integer(blockedStep2, "applied_source_count"));
+		assertEquals(0.0, number(blockedStep2, "advection_courant_number"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "through_flow_impulse_world_y_ns"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_advection_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_diffusion_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "final_momentum_world_y_ns"), 1.0e-15);
 	}
@@ -100,6 +109,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		List<String> lines = Files.readAllLines(output);
 		assertTrue(lines.size() > 10);
 		assertTrue(lines.get(0).contains("cumulative_source_impulse_world_y_ns"));
+		assertTrue(lines.get(0).contains("advection_courant_number"));
+		assertTrue(lines.get(0).contains("cumulative_advection_momentum_residual_world_y_ns"));
 		assertTrue(lines.get(0).contains("kinetic_energy_after_diffusion_j"));
 		assertTrue(lines.get(0).contains("diffusion_momentum_residual_world_y_ns"));
 		assertTrue(lines.stream().anyMatch(line ->

@@ -137,6 +137,51 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record VelocityAdvectionStep(
+			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
+			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double maxCourantNumber,
+			Vec3 totalMomentumBeforeWorldNewtonSeconds,
+			Vec3 totalMomentumAfterWorldNewtonSeconds,
+			double kineticEnergyBeforeJoules,
+			double kineticEnergyAfterJoules
+	) {
+		public VelocityAdvectionStep {
+			if (previousState == null) {
+				throw new IllegalArgumentException("previousState must not be null.");
+			}
+			if (nextState == null) {
+				throw new IllegalArgumentException("nextState must not be null.");
+			}
+			if (!previousState.gridSpec().equals(nextState.gridSpec())) {
+				throw new IllegalArgumentException("advection states must share a voxel grid.");
+			}
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
+				throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
+			}
+			maxCourantNumber = finiteNonnegative(maxCourantNumber);
+			totalMomentumBeforeWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumBeforeWorldNewtonSeconds);
+			totalMomentumAfterWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumAfterWorldNewtonSeconds);
+			kineticEnergyBeforeJoules = finiteNonnegative(kineticEnergyBeforeJoules);
+			kineticEnergyAfterJoules = finiteNonnegative(kineticEnergyAfterJoules);
+		}
+
+		public Vec3 momentumResidualWorldNewtonSeconds() {
+			return totalMomentumAfterWorldNewtonSeconds.subtract(totalMomentumBeforeWorldNewtonSeconds);
+		}
+
+		public double kineticEnergyDeltaJoules() {
+			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
+		}
+	}
+
 	public static PropellerArchiveCtCpJLocalVoxelFlowState calm(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec
 	) {
@@ -191,6 +236,47 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				this,
 				new PropellerArchiveCtCpJLocalVoxelFlowState(gridSpec, nextVelocities),
 				residenceStep
+		);
+	}
+
+	public VelocityAdvectionStep advectVelocity(
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds
+	) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
+			throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
+		}
+		double maxCourantNumber = 0.0;
+		ArrayList<Vec3> nextVelocities = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					Vec3 currentVelocity = velocityAt(x, y, z);
+					maxCourantNumber = Math.max(
+							maxCourantNumber,
+							currentVelocity.length() * timeStepSeconds / gridSpec.cellSizeMeters()
+					);
+					Vec3 backtracedPoint = gridSpec.cellCenterWorldMeters(x, y, z)
+							.subtract(currentVelocity.multiply(timeStepSeconds));
+					nextVelocities.add(sampleVelocityClamped(backtracedPoint));
+				}
+			}
+		}
+		PropellerArchiveCtCpJLocalVoxelFlowState nextState =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(gridSpec, nextVelocities);
+		return new VelocityAdvectionStep(
+				this,
+				nextState,
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				maxCourantNumber,
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
 		);
 	}
 
@@ -295,6 +381,37 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			throw new IndexOutOfBoundsException("cell index outside voxel grid.");
 		}
 		return (yIndex * gridSpec.cellCountZ() + zIndex) * gridSpec.cellCountX() + xIndex;
+	}
+
+	private Vec3 sampleVelocityClamped(Vec3 pointWorldMeters) {
+		double fx = fractionalCellIndex(pointWorldMeters.x(), gridSpec.originWorldMeters().x(), gridSpec.cellCountX());
+		double fy = fractionalCellIndex(pointWorldMeters.y(), gridSpec.originWorldMeters().y(), gridSpec.cellCountY());
+		double fz = fractionalCellIndex(pointWorldMeters.z(), gridSpec.originWorldMeters().z(), gridSpec.cellCountZ());
+		int x0 = (int) Math.floor(fx);
+		int y0 = (int) Math.floor(fy);
+		int z0 = (int) Math.floor(fz);
+		int x1 = Math.min(x0 + 1, gridSpec.cellCountX() - 1);
+		int y1 = Math.min(y0 + 1, gridSpec.cellCountY() - 1);
+		int z1 = Math.min(z0 + 1, gridSpec.cellCountZ() - 1);
+		double tx = fx - x0;
+		double ty = fy - y0;
+		double tz = fz - z0;
+		Vec3 x00 = lerp(velocityAt(x0, y0, z0), velocityAt(x1, y0, z0), tx);
+		Vec3 x10 = lerp(velocityAt(x0, y1, z0), velocityAt(x1, y1, z0), tx);
+		Vec3 x01 = lerp(velocityAt(x0, y0, z1), velocityAt(x1, y0, z1), tx);
+		Vec3 x11 = lerp(velocityAt(x0, y1, z1), velocityAt(x1, y1, z1), tx);
+		Vec3 y0Blend = lerp(x00, x10, ty);
+		Vec3 y1Blend = lerp(x01, x11, ty);
+		return lerp(y0Blend, y1Blend, tz);
+	}
+
+	private double fractionalCellIndex(double worldCoordinate, double originCoordinate, int cellCount) {
+		double raw = (worldCoordinate - originCoordinate) / gridSpec.cellSizeMeters() - 0.5;
+		return MathUtil.clamp(raw, 0.0, Math.max(0, cellCount - 1));
+	}
+
+	private static Vec3 lerp(Vec3 first, Vec3 second, double t) {
+		return first.multiply(1.0 - t).add(second.multiply(t));
 	}
 
 	private void accumulateDiffusiveExchange(

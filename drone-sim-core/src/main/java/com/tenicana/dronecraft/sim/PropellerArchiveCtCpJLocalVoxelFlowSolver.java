@@ -51,6 +51,7 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 	public record SolverIteration(
 			int stepIndex,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance sourceAdvance,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advectionStep,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusionStep
 	) {
 		public SolverIteration {
@@ -60,11 +61,17 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			if (sourceAdvance == null) {
 				throw new IllegalArgumentException("sourceAdvance must not be null.");
 			}
+			if (advectionStep == null) {
+				throw new IllegalArgumentException("advectionStep must not be null.");
+			}
 			if (diffusionStep == null) {
 				throw new IllegalArgumentException("diffusionStep must not be null.");
 			}
-			if (!sourceAdvance.nextState().equals(diffusionStep.previousState())) {
-				throw new IllegalArgumentException("diffusion must start from the source-advanced state.");
+			if (!sourceAdvance.nextState().equals(advectionStep.previousState())) {
+				throw new IllegalArgumentException("advection must start from the source-advanced state.");
+			}
+			if (!advectionStep.nextState().equals(diffusionStep.previousState())) {
+				throw new IllegalArgumentException("diffusion must start from the advected state.");
 			}
 		}
 
@@ -74,6 +81,10 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 
 		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterSource() {
 			return sourceAdvance.nextState();
+		}
+
+		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterAdvection() {
+			return advectionStep.nextState();
 		}
 
 		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterDiffusion() {
@@ -148,6 +159,22 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return max;
 		}
 
+		public double maxAdvectionCourantNumber() {
+			double max = 0.0;
+			for (SolverIteration iteration : iterations) {
+				max = Math.max(max, iteration.advectionStep().maxCourantNumber());
+			}
+			return max;
+		}
+
+		public Vec3 totalAdvectionMomentumResidualWorldNewtonSeconds() {
+			Vec3 sum = Vec3.ZERO;
+			for (SolverIteration iteration : iterations) {
+				sum = sum.add(iteration.advectionStep().momentumResidualWorldNewtonSeconds());
+			}
+			return sum;
+		}
+
 		public double initialKineticEnergyJoules() {
 			return initialState.totalKineticEnergyJoules(config.airDensityKgPerCubicMeter());
 		}
@@ -206,13 +233,18 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 							config.timeStepSeconds(),
 							config.sourceThicknessMeters()
 					);
+			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advection =
+					sourceAdvance.nextState().advectVelocity(
+							config.airDensityKgPerCubicMeter(),
+							config.timeStepSeconds()
+					);
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
-					sourceAdvance.nextState().diffuseVelocity(
+					advection.nextState().diffuseVelocity(
 							config.airDensityKgPerCubicMeter(),
 							config.kinematicViscositySquareMetersPerSecond(),
 							config.timeStepSeconds()
 					);
-			iterations.add(new SolverIteration(step, sourceAdvance, diffusion));
+			iterations.add(new SolverIteration(step, sourceAdvance, advection, diffusion));
 			state = diffusion.nextState();
 		}
 		return new SolverRun(initialState, state, config, iterations);

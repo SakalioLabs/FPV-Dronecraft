@@ -113,6 +113,77 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void velocityAdvectionBacktracesAndInterpolatesFlowField() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								new Vec3(10.0, 0.0, 0.0),
+								new Vec3(20.0, 0.0, 0.0)
+						)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advection =
+				state.advectVelocity(RHO, 0.05);
+
+		assertEquals(1.0, advection.maxCourantNumber(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				advection.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(5.0, 0.0, 0.0),
+				advection.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(10.0, 0.0, 0.0),
+				advection.nextState().velocityAt(2, 0, 0), 1.0e-15);
+		assertTrue(advection.momentumResidualWorldNewtonSeconds().x() < 0.0);
+		assertEquals(0.0, advection.momentumResidualWorldNewtonSeconds().y(), 1.0e-15);
+		assertEquals(0.0, advection.momentumResidualWorldNewtonSeconds().z(), 1.0e-15);
+		assertTrue(advection.kineticEnergyAfterJoules() < advection.kineticEnergyBeforeJoules());
+		assertTrue(advection.kineticEnergyDeltaJoules() < 0.0);
+	}
+
+	@Test
+	void uniformAdvectionIsNoOpAndRejectsInvalidInputs() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						new Vec3(-1.0, -1.0, -1.0),
+						0.5,
+						2,
+						2,
+						2
+				);
+		Vec3 velocity = new Vec3(1.0, -2.0, 0.5);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.uniform(grid, velocity);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advection =
+				state.advectVelocity(RHO, 0.125);
+
+		assertEquals(velocity.length() * 0.125 / grid.cellSizeMeters(),
+				advection.maxCourantNumber(), 1.0e-15);
+		for (int y = 0; y < grid.cellCountY(); y++) {
+			for (int z = 0; z < grid.cellCountZ(); z++) {
+				for (int x = 0; x < grid.cellCountX(); x++) {
+					assertVectorEquals(velocity,
+							advection.nextState().velocityAt(x, y, z), 1.0e-15);
+				}
+			}
+		}
+		assertVectorEquals(Vec3.ZERO, advection.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(state.totalKineticEnergyJoules(RHO),
+				advection.kineticEnergyAfterJoules(), 1.0e-15);
+		assertThrows(IllegalArgumentException.class, () -> state.advectVelocity(0.0, DT));
+		assertThrows(IllegalArgumentException.class, () -> state.advectVelocity(RHO, 0.0));
+	}
+
+	@Test
 	void diffusionSpreadsVelocityToNeighborsWhileConservingMomentum() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

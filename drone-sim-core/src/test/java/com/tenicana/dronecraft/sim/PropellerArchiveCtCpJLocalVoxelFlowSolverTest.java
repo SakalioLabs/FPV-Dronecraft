@@ -40,6 +40,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(4, run.iterations().size());
 		assertEquals(diffusionNumber, config.diffusionNumber(gridSample.gridSpec()), 1.0e-15);
 		assertEquals(diffusionNumber, run.maxDiffusionNumber(), 1.0e-15);
+		assertTrue(run.maxAdvectionCourantNumber() > 0.0);
 		assertEquals(0.0, run.initialKineticEnergyJoules(), 1.0e-15);
 		assertTrue(run.finalKineticEnergyJoules() > 0.0);
 		assertTrue(run.finalMaxSpeedMetersPerSecond() > 0.0);
@@ -51,6 +52,11 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertTrue(run.totalThroughFlowImpulseWorldNewtonSeconds().length() > 0.0);
 		for (int i = 0; i < run.iterations().size(); i++) {
 			assertEquals(i, run.iterations().get(i).stepIndex());
+			assertEquals(run.iterations().get(i).stateAfterSource(),
+					run.iterations().get(i).advectionStep().previousState());
+			assertEquals(run.iterations().get(i).stateAfterAdvection(),
+					run.iterations().get(i).diffusionStep().previousState());
+			assertTrue(run.iterations().get(i).advectionStep().maxCourantNumber() > 0.0);
 			assertVectorEquals(Vec3.ZERO,
 					run.iterations().get(i).diffusionStep().momentumResidualWorldNewtonSeconds(), 1.0e-12);
 			if (i > 0) {
@@ -92,7 +98,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(initialState, run.finalState());
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
+		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
 		assertEquals(initialState.totalKineticEnergyJoules(RHO), run.finalKineticEnergyJoules(), 1.0e-15);
 	}
 
@@ -123,7 +131,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(diffusionNumber, run.maxDiffusionNumber(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
+		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
 		assertEquals(0.0, run.finalKineticEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalMomentumWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalState().velocityAt(0, 0, 0), 1.0e-15);
