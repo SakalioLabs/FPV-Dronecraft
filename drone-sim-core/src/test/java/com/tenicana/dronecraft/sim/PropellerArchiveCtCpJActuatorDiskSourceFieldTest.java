@@ -104,8 +104,12 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
 		Vec3 radial = perpendicularUnit(sourceTerm.diskNormalWorld());
 		double diskRadius = sourceTerm.diskRadiusMeters();
-		double innerRadius = diskRadius * 0.25;
-		double outerRadius = diskRadius * 0.75;
+		double wakeSupportRadius = sourceTerm.wakeSwirlSupportRadiusMeters();
+		double innerRadius = wakeSupportRadius * 0.25;
+		double outerRadius = wakeSupportRadius * 0.75;
+		double outsideWakeRadius = Math.min(
+				diskRadius,
+				wakeSupportRadius + (diskRadius - wakeSupportRadius) * 0.5);
 
 		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample center =
 				field.sampleAt(sourceTerm.diskCenterWorldMeters());
@@ -113,6 +117,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				field.sampleAt(sourceTerm.diskCenterWorldMeters().add(radial.multiply(innerRadius)));
 		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample outer =
 				field.sampleAt(sourceTerm.diskCenterWorldMeters().add(radial.multiply(outerRadius)));
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample outsideWake =
+				field.sampleAt(sourceTerm.diskCenterWorldMeters().add(radial.multiply(outsideWakeRadius)));
 
 		assertVectorEquals(Vec3.ZERO, center.wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
@@ -145,6 +151,10 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond().dot(radial), 1.0e-12);
 		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond()
 				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
+		assertTrue(outsideWake.insideAnySource());
+		assertVectorEquals(Vec3.ZERO, outsideWake.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, outsideWake.wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, outsideWake.targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
 	}
 
 	@Test
@@ -335,6 +345,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample cell =
 				field.sampleVoxelGrid(grid, 5).cells().get(0);
+		Vec3 expectedFarWakeVelocity = averageFiniteFarWakeVelocityOverSingleCell(sourceTerm, grid, 5);
 
 		assertTrue(cell.active());
 		assertTrue(cell.sourceVolumeFraction() > 0.0);
@@ -344,10 +355,12 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				cell.bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-12);
 		assertEquals(sourceTerm.pressureJumpPascals() * cell.sourceVolumeFraction(),
 				cell.pressureJumpPascals(), 1.0e-12);
-		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
+		assertVectorEquals(expectedFarWakeVelocity,
 				cell.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(),
 				cell.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertTrue(cell.farWakeAxialVelocityWorldMetersPerSecond().length()
+				< sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().length());
 		assertTrue(cell.farWakeAxialVelocityWorldMetersPerSecond().length()
 				> sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().length()
 				* cell.sourceVolumeFraction());
@@ -608,8 +621,11 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
 			double radialDistanceMeters
 	) {
+		if (radialDistanceMeters > sourceTerm.wakeSwirlSupportRadiusMeters() + 1.0e-12) {
+			return 0.0;
+		}
 		return sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
-				* Math.min(radialDistanceMeters, sourceTerm.wakeSwirlSupportRadiusMeters());
+				* radialDistanceMeters;
 	}
 
 	private static Vec3 expectedWakeTorqueDensity(
@@ -618,6 +634,56 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	) {
 		return sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(SOURCE_THICKNESS)
 				.multiply(sourceTerm.wakeAngularMomentumTorqueDensityRadialWeight(samplePointWorldMeters));
+	}
+
+	private static Vec3 averageFiniteFarWakeVelocityOverSingleCell(
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid,
+			int subcellSamplesPerAxis
+	) {
+		Vec3 cellCenter = grid.cellCenterWorldMeters(0, 0, 0);
+		Vec3 sum = Vec3.ZERO;
+		int activeSubsamples = 0;
+		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
+			for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
+				for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
+					Vec3 point = testSubcellPoint(cellCenter, grid.cellSizeMeters(), subcellSamplesPerAxis, sx, sy, sz);
+					if (insideSourceVolume(sourceTerm, point)) {
+						activeSubsamples++;
+						sum = sum.add(sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(point));
+					}
+				}
+			}
+		}
+		return activeSubsamples == 0 ? Vec3.ZERO : sum.multiply(1.0 / activeSubsamples);
+	}
+
+	private static boolean insideSourceVolume(
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			Vec3 samplePointWorldMeters
+	) {
+		Vec3 normal = sourceTerm.diskNormalWorld().normalized();
+		Vec3 offset = samplePointWorldMeters.subtract(sourceTerm.diskCenterWorldMeters());
+		double axialDistance = offset.dot(normal);
+		Vec3 radial = offset.subtract(normal.multiply(axialDistance));
+		return Math.abs(axialDistance) <= SOURCE_THICKNESS * 0.5 + 1.0e-12
+				&& radial.lengthSquared() <= sourceTerm.diskRadiusMeters() * sourceTerm.diskRadiusMeters() + 1.0e-12;
+	}
+
+	private static Vec3 testSubcellPoint(
+			Vec3 cellCenterWorldMeters,
+			double cellSizeMeters,
+			int subcellSamplesPerAxis,
+			int sx,
+			int sy,
+			int sz
+	) {
+		double scale = cellSizeMeters / subcellSamplesPerAxis;
+		return cellCenterWorldMeters.add(new Vec3(
+				(sx + 0.5) * scale - cellSizeMeters * 0.5,
+				(sy + 0.5) * scale - cellSizeMeters * 0.5,
+				(sz + 0.5) * scale - cellSizeMeters * 0.5
+		));
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {

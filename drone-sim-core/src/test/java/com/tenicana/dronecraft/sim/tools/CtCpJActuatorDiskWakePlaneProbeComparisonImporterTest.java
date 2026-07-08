@@ -132,7 +132,7 @@ class CtCpJActuatorDiskWakePlaneProbeComparisonImporterTest {
 				"raw_source",
 				0,
 				0.5,
-				"v_pos_1p0"
+				"v_pos_0p5"
 		);
 		String input = cfdCsv(reference);
 

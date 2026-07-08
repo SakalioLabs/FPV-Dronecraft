@@ -644,6 +644,23 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return 2.0 * specificAngularMomentum / (wakeRadius * wakeRadius);
 		}
 
+		public Vec3 farWakeAxialVelocityWorldMetersPerSecondAt(Vec3 samplePointWorldMeters) {
+			if (!applied || farWakeAxialVelocityWorldMetersPerSecond.lengthSquared() <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
+			if (normal.lengthSquared() <= EPSILON || wakeRadius <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
+			Vec3 radial = offset.subtract(normal.multiply(offset.dot(normal)));
+			if (radial.lengthSquared() > wakeRadius * wakeRadius + EPSILON) {
+				return Vec3.ZERO;
+			}
+			return farWakeAxialVelocityWorldMetersPerSecond;
+		}
+
 		public Vec3 wakeSwirlVelocityWorldMetersPerSecond(Vec3 samplePointWorldMeters) {
 			if (!applied || wakeTangentialVelocityMetersPerSecond <= EPSILON) {
 				return Vec3.ZERO;
@@ -658,12 +675,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			if (radialDistance <= EPSILON) {
 				return Vec3.ZERO;
 			}
-			Vec3 tangent = angularMomentumAxis.cross(radial.normalized()).normalized();
 			double wakeRadius = wakeSwirlSupportRadiusMeters();
-			double clampedRadialDistance = wakeRadius > EPSILON
-					? Math.min(radialDistance, wakeRadius)
-					: radialDistance;
-			return tangent.multiply(wakeSwirlAngularVelocityRadiansPerSecond() * clampedRadialDistance);
+			if (wakeRadius <= EPSILON || radialDistance > wakeRadius + EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 tangent = angularMomentumAxis.cross(radial.normalized()).normalized();
+			return tangent.multiply(wakeSwirlAngularVelocityRadiansPerSecond() * radialDistance);
+		}
+
+		public Vec3 totalWakeVelocityWorldMetersPerSecondAt(Vec3 samplePointWorldMeters) {
+			return farWakeAxialVelocityWorldMetersPerSecondAt(samplePointWorldMeters)
+					.add(wakeSwirlVelocityWorldMetersPerSecond(samplePointWorldMeters));
 		}
 	}
 

@@ -326,7 +326,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			double sourceMassFlux = sourceTerm.massFluxKilogramsPerSecondSquareMeter();
 			Vec3 sourceActuatorDiskAxialVelocity =
 					sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond();
-			Vec3 sourceFarWakeAxialVelocity = sourceTerm.farWakeAxialVelocityWorldMetersPerSecond();
+			Vec3 sourceFarWakeAxialVelocity = sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(point);
 			Vec3 sourceWakeSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point);
 			bodyForceDensity = bodyForceDensity.add(
 					sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters));
@@ -681,7 +681,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					* wakeTorqueWeight;
 			Vec3 sourceActuatorDiskAxialVelocity =
 					coverage.sourceTerm().actuatorDiskAxialVelocityWorldMetersPerSecond();
-			Vec3 sourceFarWakeAxialVelocity = coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond();
+			Vec3 sourceFarWakeAxialVelocity = cellCoverage.averageFarWakeAxialVelocityWorldMetersPerSecond();
 			Vec3 sourceWakeSwirlVelocity = cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond();
 			Vec3 sourceTargetWakeVelocity = sourceFarWakeAxialVelocity.add(sourceWakeSwirlVelocity);
 			double sourceMassFluxWeight =
@@ -985,6 +985,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 	) {
 		int totalSubsamples = subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis;
 		int activeSubsamples = 0;
+		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		double wakeAngularMomentumTorqueWeight = 0.0;
 		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
@@ -1000,6 +1001,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					);
 					if (containsActuatorDiskVolume(sourceTerm, subcellPoint)) {
 						activeSubsamples++;
+						farWakeAxialVelocity = farWakeAxialVelocity.add(
+								sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(subcellPoint));
 						wakeSwirlVelocity =
 								wakeSwirlVelocity.add(sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(subcellPoint));
 						wakeAngularMomentumTorqueWeight +=
@@ -1014,6 +1017,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		return new SourceCellCoverage(
 				activeSubsamples,
 				activeSubsamples / (double) totalSubsamples,
+				activeSubsamples == 0
+						? Vec3.ZERO
+						: farWakeAxialVelocity.multiply(1.0 / activeSubsamples),
 				activeSubsamples == 0
 						? Vec3.ZERO
 						: wakeSwirlVelocity.multiply(1.0 / activeSubsamples),
@@ -1035,6 +1041,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 	private record SourceCellCoverage(
 			int activeSubsamples,
 			double sourceVolumeFraction,
+			Vec3 averageFarWakeAxialVelocityWorldMetersPerSecond,
 			Vec3 averageWakeSwirlVelocityWorldMetersPerSecond,
 			double averageWakeAngularMomentumTorqueDensityRadialWeight
 	) {

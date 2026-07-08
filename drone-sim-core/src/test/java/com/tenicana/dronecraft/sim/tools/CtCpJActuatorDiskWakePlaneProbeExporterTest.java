@@ -32,6 +32,7 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		Map<String, Integer> columns = columns(lines);
 		String hoverCenter = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0, 1.0, "center");
 		String hoverOuter = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0, 1.0, "u_pos_1p25");
+		String highJInner = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0, 0.5, "v_pos_0p5");
 		String highJEdge = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0, 0.5, "v_pos_1p0");
 		String highBlockCenter = lineFor(
 				lines,
@@ -46,6 +47,7 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		assertEquals(2081, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,source_name"));
 		assertTrue(lines.get(0).contains("plane_sample"));
+		assertTrue(lines.get(0).contains("wake_support_radius_m"));
 		assertTrue(lines.get(0).contains("expected_top_hat_velocity_world_y_mps"));
 
 		assertEquals("wake_plane_top_hat", textCell(hoverCenter, columns, "probe_kind"));
@@ -70,14 +72,18 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		assertEquals(0.0, numberCell(hoverOuter, columns, "expected_top_hat_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(hoverOuter, columns, "pressure_jump_pa"), 1.0e-15);
 
-		assertEquals("wake_core_top_hat", textCell(highJEdge, columns, "probe_region"));
+		assertEquals("wake_core_top_hat", textCell(highJInner, columns, "probe_region"));
+		assertTrue(numberCell(highJInner, columns, "expected_axial_velocity_mps") > 0.0);
+		assertEquals("outer_reference", textCell(highJEdge, columns, "probe_region"));
 		assertEquals(-1.0, numberCell(highJEdge, columns, "disk_normal_world_x"), 1.0e-12);
 		assertEquals(1.0, numberCell(highJEdge, columns, "plane_radial_fraction"), 1.0e-15);
+		assertTrue(numberCell(highJEdge, columns, "wake_support_radius_m")
+				< numberCell(highJEdge, columns, "disk_radius_m"));
 		assertEquals(numberCell(highJEdge, columns, "disk_center_world_z_m")
 						+ numberCell(highJEdge, columns, "disk_tangent_v_world_z")
 						* numberCell(highJEdge, columns, "disk_radius_m"),
 				numberCell(highJEdge, columns, "probe_point_world_z_m"), 1.0e-15);
-		assertTrue(numberCell(highJEdge, columns, "expected_axial_velocity_mps") > 0.0);
+		assertEquals(0.0, numberCell(highJEdge, columns, "expected_axial_velocity_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highJEdge, columns, "expected_transverse_velocity_mps"), 1.0e-9);
 
 		assertEquals("false", textCell(highBlockCenter, columns, "source_enabled"));

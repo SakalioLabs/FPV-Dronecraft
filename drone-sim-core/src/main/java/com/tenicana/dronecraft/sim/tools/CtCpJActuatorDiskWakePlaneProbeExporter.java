@@ -66,6 +66,7 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 			"disk_tangent_v_world_y",
 			"disk_tangent_v_world_z",
 			"disk_radius_m",
+			"wake_support_radius_m",
 			"source_half_thickness_m",
 			"source_bounding_sphere_radius_m",
 			"expected_top_hat_velocity_world_x_mps",
@@ -222,8 +223,12 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 				.add(tangentV.multiply(sample.vRadius() * diskRadius));
 		Vec3 probePoint = planeOrigin.add(planeOffset);
 		double radialFraction = sample.radialFraction();
-		boolean wakeCore = radialFraction <= 1.0 + 1.0e-12;
-		Vec3 expectedVelocity = sourceEnabled(row) && wakeCore
+		double wakeSupportRadius = number(row, "wake_swirl_support_radius_m");
+		double radialDistanceMeters = radialFraction * diskRadius;
+		boolean wakeCore = sourceEnabled(row)
+				&& wakeSupportRadius > 0.0
+				&& radialDistanceMeters <= wakeSupportRadius + 1.0e-12;
+		Vec3 expectedVelocity = wakeCore
 				? vector(
 						row,
 						"far_wake_axial_velocity_x_mps",
@@ -259,7 +264,7 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 				number(sample.uRadius()),
 				number(sample.vRadius()),
 				number(radialFraction),
-				probeRegion(radialFraction),
+				probeRegion(radialFraction, wakeCore),
 				number(probePoint.x()),
 				number(probePoint.y()),
 				number(probePoint.z()),
@@ -276,6 +281,7 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 				number(tangentV.y()),
 				number(tangentV.z()),
 				number(diskRadius),
+				number(wakeSupportRadius),
 				value(row, "half_thickness_m"),
 				value(row, "bounding_sphere_radius_m"),
 				number(expectedVelocity.x()),
@@ -290,9 +296,9 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 				number(totalForce.x()),
 				number(totalForce.y()),
 				number(totalForce.z()),
-				sourceEnabled(row) && wakeCore ? value(row, "pressure_jump_pa") : "0",
-				sourceEnabled(row) && wakeCore ? value(row, "mass_flux_kg_s_m2") : "0",
-				sourceEnabled(row) && wakeCore ? value(row, "ideal_momentum_power_loading_w_m2") : "0",
+				wakeCore ? value(row, "pressure_jump_pa") : "0",
+				wakeCore ? value(row, "mass_flux_kg_s_m2") : "0",
+				wakeCore ? value(row, "ideal_momentum_power_loading_w_m2") : "0",
 				value(row, "query_j"),
 				value(row, "query_rpm"),
 				value(row, "effective_j"),
@@ -303,11 +309,11 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 		);
 	}
 
-	private static String probeRegion(double radialFraction) {
+	private static String probeRegion(double radialFraction, boolean wakeCore) {
 		if (radialFraction <= 1.0e-12) {
 			return "centerline";
 		}
-		if (radialFraction <= 1.0 + 1.0e-12) {
+		if (wakeCore) {
 			return "wake_core_top_hat";
 		}
 		return "outer_reference";

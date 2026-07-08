@@ -625,27 +625,40 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(sample.dimensionalSample().totalWakeKineticPowerResidualFraction(),
 				sourceTerm.totalWakeKineticPowerResidualFraction(), 1.0e-15);
 		Vec3 swirlRadialDirection = perpendicularUnit(sourceTerm.diskNormalWorld());
+		double supportedSwirlRadius = Math.min(
+				sourceTerm.angularMomentumSwirlRadiusMeters(),
+				sourceTerm.wakeSwirlSupportRadiusMeters() * 0.5);
 		Vec3 swirlReferencePoint = sourceTerm.diskCenterWorldMeters()
-				.add(swirlRadialDirection.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()));
+				.add(swirlRadialDirection.multiply(supportedSwirlRadius));
 		Vec3 swirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(swirlReferencePoint);
-		assertEquals(sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
-						* Math.min(
-								sourceTerm.angularMomentumSwirlRadiusMeters(),
-								sourceTerm.wakeSwirlSupportRadiusMeters()),
+		assertEquals(sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond() * supportedSwirlRadius,
 				swirlVelocity.length(), 1.0e-12);
+		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
+				sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(swirlReferencePoint), 1.0e-15);
+		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().add(swirlVelocity),
+				sourceTerm.totalWakeVelocityWorldMetersPerSecondAt(swirlReferencePoint), 1.0e-12);
 		assertEquals(0.0, swirlVelocity.dot(swirlRadialDirection), 1.0e-12);
 		assertEquals(0.0, swirlVelocity.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
 		assertTrue(swirlRadialDirection.cross(swirlVelocity.normalized())
 				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()) > 0.0);
-		Vec3 rimSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(
-				sourceTerm.diskCenterWorldMeters().add(swirlRadialDirection.multiply(sourceTerm.diskRadiusMeters())));
+		Vec3 supportPoint = sourceTerm.diskCenterWorldMeters()
+				.add(swirlRadialDirection.multiply(sourceTerm.wakeSwirlSupportRadiusMeters()));
+		Vec3 supportSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(supportPoint);
 		assertEquals(sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
 						* sourceTerm.wakeSwirlSupportRadiusMeters(),
-				rimSwirlVelocity.length(), 1.0e-12);
-		assertTrue(rimSwirlVelocity.length() > swirlVelocity.length());
+				supportSwirlVelocity.length(), 1.0e-12);
+		assertTrue(supportSwirlVelocity.length() > swirlVelocity.length());
+		Vec3 outsideSupportPoint = sourceTerm.diskCenterWorldMeters().add(swirlRadialDirection.multiply(
+				sourceTerm.wakeSwirlSupportRadiusMeters() + sourceTerm.diskRadiusMeters() * 0.25));
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(outsideSupportPoint), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(outsideSupportPoint), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.totalWakeVelocityWorldMetersPerSecondAt(outsideSupportPoint), 1.0e-15);
 		assertVectorEquals(swirlVelocity.multiply(-1.0),
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(sourceTerm.diskCenterWorldMeters()
-						.subtract(swirlRadialDirection.multiply(sourceTerm.angularMomentumSwirlRadiusMeters()))),
+						.subtract(swirlRadialDirection.multiply(supportedSwirlRadius))),
 				1.0e-12);
 		assertVectorEquals(swirlVelocity,
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(
@@ -2655,7 +2668,23 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
 				1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(
+						momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
+				1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.totalWakeVelocityWorldMetersPerSecondAt(
+						momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
+				1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
 				runtimeSourceTerm.wakeSwirlVelocityWorldMetersPerSecond(
+						momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
+				1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				runtimeSourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(
+						momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
+				1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				runtimeSourceTerm.totalWakeVelocityWorldMetersPerSecondAt(
 						momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
 				1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);

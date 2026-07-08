@@ -37,8 +37,8 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 		assertEquals(160, summaries.size());
 		assertEquals(13, hover.totalSamples());
 		assertEquals(13, hover.comparableSamples());
-		assertEquals(9, hover.coreSamples());
-		assertEquals(4, hover.outerSamples());
+		assertEquals(5, hover.coreSamples());
+		assertEquals(8, hover.outerSamples());
 		assertTrue(Double.isNaN(hover.coreCfdPFieldMean()));
 		assertTrue(hover.comparable());
 		assertTrue(hover.coreReferenceAxialMeanMetersPerSecond() > 0.0);
@@ -88,8 +88,8 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 
 		double referenceAxial = number(records.get(0), "expected_axial_velocity_mps");
 		assertEquals(13, summary.totalSamples());
-		assertEquals(9, summary.coreSamples());
-		assertEquals(4, summary.outerSamples());
+		assertEquals(5, summary.coreSamples());
+		assertEquals(8, summary.outerSamples());
 		assertEquals(referenceAxial, summary.coreReferenceAxialMeanMetersPerSecond(), 1.0e-12);
 		assertEquals(referenceAxial * axialScale, summary.coreCfdAxialMeanMetersPerSecond(), 1.0e-12);
 		assertEquals(referenceAxial * (axialScale - 1.0),
@@ -138,13 +138,13 @@ class CtCpJActuatorDiskWakePlaneProbeSummaryExporterTest {
 						.summarize(inputCsv, RHO, SOURCE_THICKNESS)
 						.get(0);
 
-		assertEquals((120.0 + 8.0 * 100.0) / 9.0, summary.coreCfdPFieldMean(), 1.0e-12);
+		assertEquals((120.0 + 4.0 * 100.0) / 5.0, summary.coreCfdPFieldMean(), 1.0e-12);
 		assertEquals(120.0, summary.centerCfdPField(), 1.0e-12);
 		assertEquals(100.0, summary.edgeCoreCfdPFieldMean(), 1.0e-12);
 		assertEquals(20.0, summary.centerEdgeCfdPFieldDelta(), 1.0e-12);
 		assertEquals(12.0, summary.outerCfdPFieldMean(), 1.0e-12);
 		assertEquals(12.0, summary.outerCfdPFieldMaxAbs(), 1.0e-12);
-		assertEquals(((120.0 + 8.0 * 100.0) / 9.0) - 12.0,
+		assertEquals(((120.0 + 4.0 * 100.0) / 5.0) - 12.0,
 				summary.coreOuterCfdPFieldDelta(), 1.0e-12);
 		assertTrue(summary.comparable());
 	}
