@@ -24,7 +24,9 @@ tasks.register("ctCpJCurve", JavaExec) {
 		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-curves/${presetName}.csv").get().asFile.absolutePath
 		def airDensity = project.findProperty("density") ?: ""
 		def diameter = project.findProperty("diameter") ?: ""
-		args(presetName, outputFile, airDensity, diameter)
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, diameter, ambientTemperature, ambientHumidity)
 	}
 }
 
