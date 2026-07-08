@@ -271,6 +271,37 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void vorticityMetricsRecoverSolidBodyRotationCurl() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						3,
+						1
+				);
+		double omega = 4.0;
+		ArrayList<Vec3> velocities = new ArrayList<>(grid.totalCellCount());
+		for (int y = 0; y < grid.cellCountY(); y++) {
+			for (int z = 0; z < grid.cellCountZ(); z++) {
+				for (int x = 0; x < grid.cellCountX(); x++) {
+					Vec3 center = grid.cellCenterWorldMeters(x, y, z);
+					velocities.add(new Vec3(-omega * center.y(), omega * center.x(), 0.0));
+				}
+			}
+		}
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(grid, velocities);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics metrics = state.vorticityMetrics();
+
+		assertVectorEquals(new Vec3(0.0, 0.0, 2.0 * omega), state.vorticityAt(1, 1, 0), 1.0e-15);
+		assertEquals(2.0 * omega, metrics.maxMagnitudePerSecond(), 1.0e-15);
+		assertEquals(2.0 * omega, metrics.rmsMagnitudePerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 0.0, 2.0 * omega),
+				metrics.meanVorticityWorldPerSecond(), 1.0e-15);
+	}
+
+	@Test
 	void solidMaskRasterizesWorldSolidBoxesIntoVoxelCells() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

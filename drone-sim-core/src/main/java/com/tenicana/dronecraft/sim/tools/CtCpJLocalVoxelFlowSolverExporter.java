@@ -121,6 +121,21 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"max_divergence_after_projection_s",
 			"rms_divergence_after_projection_s",
 			"mean_divergence_after_projection_s",
+			"max_vorticity_after_source_s",
+			"rms_vorticity_after_source_s",
+			"mean_vorticity_after_source_world_x_s",
+			"mean_vorticity_after_source_world_y_s",
+			"mean_vorticity_after_source_world_z_s",
+			"max_vorticity_after_projection_s",
+			"rms_vorticity_after_projection_s",
+			"mean_vorticity_after_projection_world_x_s",
+			"mean_vorticity_after_projection_world_y_s",
+			"mean_vorticity_after_projection_world_z_s",
+			"max_vorticity_after_solid_boundary_s",
+			"rms_vorticity_after_solid_boundary_s",
+			"mean_vorticity_after_solid_boundary_world_x_s",
+			"mean_vorticity_after_solid_boundary_world_y_s",
+			"mean_vorticity_after_solid_boundary_world_z_s",
 			"kinetic_energy_before_source_j",
 			"kinetic_energy_after_source_j",
 			"kinetic_energy_after_advection_j",
@@ -605,6 +620,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics divergenceAfterProjection =
 				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics(0.0, 0.0, 0.0)
 						: iteration.projectionStep().divergenceAfter();
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSource =
+				initial ? run.initialState().vorticityMetrics(run.solidMask())
+						: iteration.stateAfterSource().vorticityMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterProjection =
+				initial ? vorticityAfterSource
+						: iteration.stateAfterProjection().vorticityMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSolidBoundary =
+				initial ? vorticityAfterProjection
+						: iteration.stateAfterSolidBoundary().vorticityMetrics(run.solidMask());
 		int solidCellCount = initial ? run.solidMask().solidCellCount()
 				: iteration.solidBoundaryStep().solidCellCount();
 		int solidClampedCellCount = initial ? 0 : iteration.solidBoundaryStep().clampedCellCount();
@@ -780,6 +804,21 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(divergenceAfterProjection.maxAbsDivergencePerSecond()),
 				number(divergenceAfterProjection.rmsDivergencePerSecond()),
 				number(divergenceAfterProjection.meanDivergencePerSecond()),
+				number(vorticityAfterSource.maxMagnitudePerSecond()),
+				number(vorticityAfterSource.rmsMagnitudePerSecond()),
+				number(vorticityAfterSource.meanVorticityWorldPerSecond().x()),
+				number(vorticityAfterSource.meanVorticityWorldPerSecond().y()),
+				number(vorticityAfterSource.meanVorticityWorldPerSecond().z()),
+				number(vorticityAfterProjection.maxMagnitudePerSecond()),
+				number(vorticityAfterProjection.rmsMagnitudePerSecond()),
+				number(vorticityAfterProjection.meanVorticityWorldPerSecond().x()),
+				number(vorticityAfterProjection.meanVorticityWorldPerSecond().y()),
+				number(vorticityAfterProjection.meanVorticityWorldPerSecond().z()),
+				number(vorticityAfterSolidBoundary.maxMagnitudePerSecond()),
+				number(vorticityAfterSolidBoundary.rmsMagnitudePerSecond()),
+				number(vorticityAfterSolidBoundary.meanVorticityWorldPerSecond().x()),
+				number(vorticityAfterSolidBoundary.meanVorticityWorldPerSecond().y()),
+				number(vorticityAfterSolidBoundary.meanVorticityWorldPerSecond().z()),
 				number(energyBeforeSource),
 				number(energyAfterSource),
 				number(energyAfterAdvection),

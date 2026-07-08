@@ -669,6 +669,18 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record VorticityMetrics(
+			double maxMagnitudePerSecond,
+			double rmsMagnitudePerSecond,
+			Vec3 meanVorticityWorldPerSecond
+	) {
+		public VorticityMetrics {
+			maxMagnitudePerSecond = finiteNonnegative(maxMagnitudePerSecond);
+			rmsMagnitudePerSecond = finiteNonnegative(rmsMagnitudePerSecond);
+			meanVorticityWorldPerSecond = finiteVecOrZero(meanVorticityWorldPerSecond);
+		}
+	}
+
 	public record VelocityProjectionStep(
 			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
 			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
@@ -746,6 +758,15 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	public Vec3 velocityAt(int xIndex, int yIndex, int zIndex) {
 		return velocitiesWorldMetersPerSecond.get(linearIndex(xIndex, yIndex, zIndex));
+	}
+
+	public Vec3 vorticityAt(int xIndex, int yIndex, int zIndex) {
+		return vorticityAt(xIndex, yIndex, zIndex, VoxelSolidMask.open(gridSpec));
+	}
+
+	public Vec3 vorticityAt(int xIndex, int yIndex, int zIndex, VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
+		return vorticityAtCell(xIndex, yIndex, zIndex, solidMask);
 	}
 
 	public SolidBoundaryStep applySolidMask(
@@ -1221,6 +1242,43 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		);
 	}
 
+	public VorticityMetrics vorticityMetrics() {
+		return vorticityMetrics(VoxelSolidMask.open(gridSpec));
+	}
+
+	public VorticityMetrics vorticityMetrics(VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
+		double maxMagnitude = 0.0;
+		double sumWeightedMagnitudeSquares = 0.0;
+		double totalWeight = 0.0;
+		Vec3 weightedVorticity = Vec3.ZERO;
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int cellIndex = linearIndex(x, y, z);
+					if (solidMask.isSolidCellIndex(cellIndex)) {
+						continue;
+					}
+					double weight = solidMask.openVolumeFractionCellIndex(cellIndex);
+					if (weight <= EPSILON) {
+						continue;
+					}
+					Vec3 vorticity = vorticityAtCell(x, y, z, solidMask);
+					double magnitude = vorticity.length();
+					maxMagnitude = Math.max(maxMagnitude, magnitude);
+					sumWeightedMagnitudeSquares += magnitude * magnitude * weight;
+					weightedVorticity = weightedVorticity.add(vorticity.multiply(weight));
+					totalWeight += weight;
+				}
+			}
+		}
+		return new VorticityMetrics(
+				maxMagnitude,
+				totalWeight <= EPSILON ? 0.0 : Math.sqrt(sumWeightedMagnitudeSquares / totalWeight),
+				totalWeight <= EPSILON ? Vec3.ZERO : weightedVorticity.multiply(1.0 / totalWeight)
+		);
+	}
+
 	public double totalKineticEnergyJoules(double airDensityKgPerCubicMeter) {
 		return totalKineticEnergyJoules(
 				airDensityKgPerCubicMeter,
@@ -1404,6 +1462,56 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				? openFaceVelocity(solidMask, x, y, z - 1, 0.5 * (velocityAt(x, y, z - 1).z() + center.z()))
 				: center.z();
 		return (east - west + up - down + south - north) / dx;
+	}
+
+	private Vec3 vorticityAtCell(int x, int y, int z, VoxelSolidMask solidMask) {
+		int centerIndex = linearIndex(x, y, z);
+		if (solidMask.isSolidCellIndex(centerIndex)
+				|| solidMask.openVolumeFractionCellIndex(centerIndex) <= EPSILON) {
+			return Vec3.ZERO;
+		}
+		double dVzDy = velocityDerivative(x, y, z, solidMask, 1, 2);
+		double dVyDz = velocityDerivative(x, y, z, solidMask, 2, 1);
+		double dVxDz = velocityDerivative(x, y, z, solidMask, 2, 0);
+		double dVzDx = velocityDerivative(x, y, z, solidMask, 0, 2);
+		double dVyDx = velocityDerivative(x, y, z, solidMask, 0, 1);
+		double dVxDy = velocityDerivative(x, y, z, solidMask, 1, 0);
+		return new Vec3(
+				dVzDy - dVyDz,
+				dVxDz - dVzDx,
+				dVyDx - dVxDy
+		);
+	}
+
+	private double velocityDerivative(
+			int x,
+			int y,
+			int z,
+			VoxelSolidMask solidMask,
+			int axis,
+			int component
+	) {
+		double dx = gridSpec.cellSizeMeters();
+		double center = vectorComponent(velocityAt(x, y, z), component);
+		int lowX = axis == 0 ? x - 1 : x;
+		int lowY = axis == 1 ? y - 1 : y;
+		int lowZ = axis == 2 ? z - 1 : z;
+		int highX = axis == 0 ? x + 1 : x;
+		int highY = axis == 1 ? y + 1 : y;
+		int highZ = axis == 2 ? z + 1 : z;
+		boolean hasLow = openNeighbor(solidMask, lowX, lowY, lowZ);
+		boolean hasHigh = openNeighbor(solidMask, highX, highY, highZ);
+		if (hasLow && hasHigh) {
+			return (vectorComponent(velocityAt(highX, highY, highZ), component)
+					- vectorComponent(velocityAt(lowX, lowY, lowZ), component)) / (2.0 * dx);
+		}
+		if (hasHigh) {
+			return (vectorComponent(velocityAt(highX, highY, highZ), component) - center) / dx;
+		}
+		if (hasLow) {
+			return (center - vectorComponent(velocityAt(lowX, lowY, lowZ), component)) / dx;
+		}
+		return 0.0;
 	}
 
 	private double[] pressurePotential(double[] divergence, int iterationCount) {
@@ -1653,6 +1761,15 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	private static Vec3 lerp(Vec3 first, Vec3 second, double t) {
 		return first.multiply(1.0 - t).add(second.multiply(t));
+	}
+
+	private static double vectorComponent(Vec3 vector, int component) {
+		return switch (component) {
+			case 0 -> vector.x();
+			case 1 -> vector.y();
+			case 2 -> vector.z();
+			default -> throw new IllegalArgumentException("component must be x, y, or z.");
+		};
 	}
 
 	private void accumulateDiffusiveExchange(
