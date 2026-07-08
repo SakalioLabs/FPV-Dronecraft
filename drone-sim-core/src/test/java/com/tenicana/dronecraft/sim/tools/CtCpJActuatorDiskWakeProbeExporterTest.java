@@ -34,12 +34,14 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		String hoverSwirl = lineFor(lines, columns,
 				"static_anchored_source_hover", "raw_source", 0, 1.0, "swirl_radius");
 		String midJ = lineFor(lines, columns, "static_anchored_source_mid_j", "raw_source", 0, 2.0);
+		String skew = lineFor(lines, columns, "static_anchored_source_mid_j_skew", "raw_source", 0, 2.0);
 		String highJ = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0, 0.5);
 		String highBlock = lineFor(lines, columns, "static_anchored_source_high_j_block", "raw_source", 0, 4.0);
 
-		assertEquals(321, lines.size());
+		assertEquals(385, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,source_name"));
 		assertTrue(lines.get(0).contains("probe_point_world_y_m"));
+		assertTrue(lines.get(0).contains("wake_centerline_direction_world_y"));
 		assertTrue(lines.get(0).contains("expected_far_wake_speed_mps"));
 		assertTrue(lines.get(0).contains("expected_swirl_speed_mps"));
 		assertTrue(lines.get(0).contains("expected_wake_speed_mps"));
@@ -96,6 +98,20 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertTrue(numberCell(midJ, columns, "expected_far_wake_speed_mps") > 0.0);
 		assertTrue(numberCell(midJ, columns, "eta") > 0.0);
 
+		assertEquals("true", textCell(skew, columns, "source_enabled"));
+		assertEquals(0.4064, numberCell(skew, columns, "query_j"), 1.0e-12);
+		assertTrue(numberCell(skew, columns, "wake_centerline_direction_world_x") < 0.0);
+		assertTrue(numberCell(skew, columns, "wake_centerline_direction_world_y") > 0.0);
+		assertEquals(numberCell(skew, columns, "disk_center_world_x_m")
+						+ numberCell(skew, columns, "wake_centerline_direction_world_x")
+						* numberCell(skew, columns, "probe_distance_m"),
+				numberCell(skew, columns, "probe_point_world_x_m"), 1.0e-15);
+		assertEquals(numberCell(skew, columns, "disk_center_world_y_m")
+						+ numberCell(skew, columns, "wake_centerline_direction_world_y")
+						* numberCell(skew, columns, "probe_distance_m"),
+				numberCell(skew, columns, "probe_point_world_y_m"), 1.0e-15);
+		assertEquals(0.0, numberCell(skew, columns, "expected_far_wake_velocity_world_x_mps"), 1.0e-15);
+
 		assertEquals("true", textCell(highJ, columns, "source_enabled"));
 		assertEquals(0.73152, numberCell(highJ, columns, "query_j"), 1.0e-12);
 		assertEquals(numberCell(highJ, columns, "disk_center_world_x_m")
@@ -126,8 +142,9 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		CtCpJActuatorDiskWakeProbeExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(321, lines.size());
+		assertEquals(385, lines.size());
 		assertTrue(lines.get(0).contains("probe_distance_radius"));
+		assertTrue(lines.get(0).contains("wake_centerline_direction_world_y"));
 		assertTrue(lines.get(0).contains("source_bounding_sphere_radius_m"));
 		assertTrue(lines.get(0).contains("total_force_world_y_n"));
 		assertTrue(lines.get(0).contains("expected_swirl_velocity_world_y_mps"));

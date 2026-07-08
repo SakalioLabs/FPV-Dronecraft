@@ -33,12 +33,15 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		);
 		Map<String, Integer> columns = columns(lines);
 
-		assertEquals(41, lines.size());
+		assertEquals(49, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,query_j,query_rpm"));
+		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("wake_skew_angle_rad"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
 
 		String hover = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0);
 		String mid = lineFor(lines, columns, "static_anchored_source_mid_j", "raw_source", 0);
+		String skew = lineFor(lines, columns, "static_anchored_source_mid_j_skew", "raw_source", 0);
 		String high = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0);
 		String reverseRaw = lineFor(lines, columns,
 				"static_anchored_source_reverse_axial_clamp", "raw_source", 0);
@@ -180,6 +183,19 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 						/ numberCell(mid, columns, "shaft_power_w"),
 				numberCell(mid, columns, "wake_swirl_kinetic_power_over_shaft_power"), 1.0e-14);
 
+		assertEquals(0.4064, numberCell(skew, columns, "query_j"), 1.0e-12);
+		assertEquals(2.4, numberCell(skew, columns, "relative_air_body_x_mps"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skew, columns,
+				"far_wake_centerline_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(numberCell(skew, columns, "far_wake_axial_velocity_world_y_mps"),
+				numberCell(skew, columns, "far_wake_centerline_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skew, columns,
+				"wake_skew_lateral_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(2.4, numberCell(skew, columns, "wake_skew_lateral_speed_mps"), 1.0e-15);
+		assertEquals(Math.atan2(2.4, numberCell(skew, columns, "far_wake_axial_velocity_world_y_mps")),
+				numberCell(skew, columns, "wake_skew_angle_rad"), 1.0e-15);
+		assertTrue(numberCell(skew, columns, "wake_skew_angle_deg") > 0.0);
+
 		assertEquals(0.73152, numberCell(high, columns, "query_j"), 1.0e-12);
 		assertEquals("false", textCell(high, columns, "blocked"));
 		assertEquals("true", textCell(high, columns, "applied"));
@@ -252,12 +268,14 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		CtCpJActuatorDiskSourceTermExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(41, lines.size());
+		assertEquals(49, lines.size());
 		assertTrue(lines.get(0).contains("pressure_jump_pa"));
 		assertTrue(lines.get(0).contains("actuator_disk_axial_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("disk_tangent_u_world_x"));
 		assertTrue(lines.get(0).contains("source_axis_min_world_y_m"));
 		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_m"));
+		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("wake_skew_lateral_speed_mps"));
 		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_over_disk_radius"));
 		assertTrue(lines.get(0).contains("source_volume_m3"));
 		assertTrue(lines.get(0).contains("body_force_density_world_y_n_m3"));

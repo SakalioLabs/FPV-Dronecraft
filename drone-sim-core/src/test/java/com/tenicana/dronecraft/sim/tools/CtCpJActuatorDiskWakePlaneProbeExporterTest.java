@@ -34,6 +34,8 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		String hoverOuter = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0, 1.0, "u_pos_1p25");
 		String highJInner = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0, 0.5, "v_pos_0p5");
 		String highJEdge = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0, 0.5, "v_pos_1p0");
+		String skewCenter = lineFor(lines, columns,
+				"static_anchored_source_mid_j_skew", "raw_source", 0, 2.0, "center");
 		String highBlockCenter = lineFor(
 				lines,
 				columns,
@@ -44,9 +46,11 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 				"center"
 		);
 
-		assertEquals(2081, lines.size());
+		assertEquals(2497, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,source_name"));
 		assertTrue(lines.get(0).contains("plane_sample"));
+		assertTrue(lines.get(0).contains("wake_centerline_direction_world_y"));
+		assertTrue(lines.get(0).contains("wake_plane_tangent_u_world_x"));
 		assertTrue(lines.get(0).contains("wake_support_radius_m"));
 		assertTrue(lines.get(0).contains("expected_top_hat_velocity_world_y_mps"));
 
@@ -86,6 +90,22 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		assertEquals(0.0, numberCell(highJEdge, columns, "expected_axial_velocity_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highJEdge, columns, "expected_transverse_velocity_mps"), 1.0e-9);
 
+		assertEquals("centerline", textCell(skewCenter, columns, "probe_region"));
+		assertTrue(numberCell(skewCenter, columns, "wake_centerline_direction_world_x") < 0.0);
+		assertTrue(numberCell(skewCenter, columns, "wake_centerline_direction_world_y") > 0.0);
+		assertEquals(numberCell(skewCenter, columns, "disk_center_world_x_m")
+						+ numberCell(skewCenter, columns, "wake_centerline_direction_world_x")
+						* numberCell(skewCenter, columns, "probe_distance_m"),
+				numberCell(skewCenter, columns, "probe_point_world_x_m"), 1.0e-15);
+		assertEquals(numberCell(skewCenter, columns, "disk_center_world_y_m")
+						+ numberCell(skewCenter, columns, "wake_centerline_direction_world_y")
+						* numberCell(skewCenter, columns, "probe_distance_m"),
+				numberCell(skewCenter, columns, "probe_point_world_y_m"), 1.0e-15);
+		assertEquals(0.0, vectorDot(skewCenter, columns,
+				"wake_centerline_direction_world", "wake_plane_tangent_u_world"), 1.0e-15);
+		assertEquals(0.0, vectorDot(skewCenter, columns,
+				"wake_centerline_direction_world", "wake_plane_tangent_v_world"), 1.0e-15);
+
 		assertEquals("false", textCell(highBlockCenter, columns, "source_enabled"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlockCenter, columns, "lookup_status"));
 		assertEquals(0.0, numberCell(highBlockCenter, columns, "expected_top_hat_speed_mps"), 1.0e-15);
@@ -98,8 +118,9 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		CtCpJActuatorDiskWakePlaneProbeExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(2081, lines.size());
+		assertEquals(2497, lines.size());
 		assertTrue(lines.get(0).contains("plane_offset_u_radius"));
+		assertTrue(lines.get(0).contains("wake_centerline_direction_world_y"));
 		assertTrue(lines.get(0).contains("probe_region"));
 		assertTrue(lines.get(0).contains("expected_axial_velocity_mps"));
 	}
@@ -166,6 +187,20 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 
 	private static double numberCell(String line, Map<String, Integer> columns, String columnName) {
 		return Double.parseDouble(textCell(line, columns, columnName));
+	}
+
+	private static double vectorDot(
+			String line,
+			Map<String, Integer> columns,
+			String firstPrefix,
+			String secondPrefix
+	) {
+		return numberCell(line, columns, firstPrefix + "_x")
+				* numberCell(line, columns, secondPrefix + "_x")
+				+ numberCell(line, columns, firstPrefix + "_y")
+				* numberCell(line, columns, secondPrefix + "_y")
+				+ numberCell(line, columns, firstPrefix + "_z")
+				* numberCell(line, columns, secondPrefix + "_z");
 	}
 
 	private static Path findRepoRoot() {

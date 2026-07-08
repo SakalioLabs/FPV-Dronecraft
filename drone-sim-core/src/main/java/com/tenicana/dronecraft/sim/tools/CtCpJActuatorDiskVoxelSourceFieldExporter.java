@@ -553,6 +553,17 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm(
 			Map<String, String> row
 	) {
+		Vec3 farWakeAxialVelocity = vector(row,
+				"far_wake_axial_velocity_world_x_mps",
+				"far_wake_axial_velocity_world_y_mps",
+				"far_wake_axial_velocity_world_z_mps");
+		Vec3 farWakeCenterlineVelocity = vector(row,
+				"far_wake_centerline_velocity_world_x_mps",
+				"far_wake_centerline_velocity_world_y_mps",
+				"far_wake_centerline_velocity_world_z_mps");
+		if (!farWakeCenterlineVelocity.isFinite()) {
+			farWakeCenterlineVelocity = farWakeAxialVelocity;
+		}
 		return new PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample(
 				(int) number(row, "rotor_index"),
 				vector(row, "disk_center_world_x_m", "disk_center_world_y_m", "disk_center_world_z_m"),
@@ -569,10 +580,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 						"thrust_surface_force_world_x_n_m2",
 						"thrust_surface_force_world_y_n_m2",
 						"thrust_surface_force_world_z_n_m2"),
-				vector(row,
-						"far_wake_axial_velocity_world_x_mps",
-						"far_wake_axial_velocity_world_y_mps",
-						"far_wake_axial_velocity_world_z_mps"),
+				farWakeAxialVelocity,
+				farWakeCenterlineVelocity,
 				vector(row,
 						"reaction_torque_world_x_nm",
 						"reaction_torque_world_y_nm",

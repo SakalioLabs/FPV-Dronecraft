@@ -89,6 +89,15 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"far_wake_axial_velocity_world_x_mps",
 			"far_wake_axial_velocity_world_y_mps",
 			"far_wake_axial_velocity_world_z_mps",
+			"far_wake_centerline_velocity_world_x_mps",
+			"far_wake_centerline_velocity_world_y_mps",
+			"far_wake_centerline_velocity_world_z_mps",
+			"wake_skew_lateral_velocity_world_x_mps",
+			"wake_skew_lateral_velocity_world_y_mps",
+			"wake_skew_lateral_velocity_world_z_mps",
+			"wake_skew_lateral_speed_mps",
+			"wake_skew_angle_rad",
+			"wake_skew_angle_deg",
 			"reaction_torque_world_x_nm",
 			"reaction_torque_world_y_nm",
 			"reaction_torque_world_z_nm",
@@ -257,7 +266,9 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			double ambientHumidity
 	) {
 		RotorSpec rotor = config.rotors().get(0);
-		Vec3 relativeAirBody = rotorAxisBody(rotor).multiply(sourceCase.signedAxialSpeedMetersPerSecond());
+		Vec3 relativeAirBody = rotorAxisBody(rotor)
+				.multiply(sourceCase.signedAxialSpeedMetersPerSecond())
+				.add(sourceCase.transverseAirVelocityBodyMetersPerSecond());
 		Vec3 vehicleVelocityWorld = sourceCase.bodyToWorldOrientation().rotate(relativeAirBody);
 		return PropellerArchiveCtCpJWorldForceApplicationProvider
 				.sampleStaticAnchoredConfigurationFromWorldKinematics(
@@ -320,6 +331,8 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 		Vec3 relativeAir = rotorSample.relativeAirVelocityBodyMetersPerSecond();
 		Vec3 angularRate = sourceCase.angularVelocityBodyRadiansPerSecond();
 		Quaternion orientation = sourceCase.bodyToWorldOrientation();
+		Vec3 farWakeCenterlineVelocity = sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond();
+		Vec3 wakeSkewLateralVelocity = sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond();
 		return String.join(",",
 				escape(lookup.presetName()),
 				escape(lookup.caseName()),
@@ -390,6 +403,15 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().x()),
 				number(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().y()),
 				number(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().z()),
+				number(farWakeCenterlineVelocity.x()),
+				number(farWakeCenterlineVelocity.y()),
+				number(farWakeCenterlineVelocity.z()),
+				number(wakeSkewLateralVelocity.x()),
+				number(wakeSkewLateralVelocity.y()),
+				number(wakeSkewLateralVelocity.z()),
+				number(sourceTerm.wakeSkewLateralSpeedMetersPerSecond()),
+				number(sourceTerm.wakeSkewAngleRadians()),
+				number(Math.toDegrees(sourceTerm.wakeSkewAngleRadians())),
 				number(sourceTerm.reactionTorqueWorldNewtonMeters().x()),
 				number(sourceTerm.reactionTorqueWorldNewtonMeters().y()),
 				number(sourceTerm.reactionTorqueWorldNewtonMeters().z()),
@@ -452,6 +474,7 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 						hoverOmega,
 						Quaternion.IDENTITY,
 						Vec3.ZERO,
+						Vec3.ZERO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				),
 				new SourceTermCase(
@@ -459,6 +482,16 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 						midAxialSpeed,
 						hoverOmega,
 						Quaternion.IDENTITY,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				),
+				new SourceTermCase(
+						"static_anchored_source_mid_j_skew",
+						midAxialSpeed,
+						hoverOmega,
+						Quaternion.IDENTITY,
+						new Vec3(2.4, 0.0, 0.0),
 						Vec3.ZERO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				),
@@ -468,6 +501,7 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 						hoverOmega,
 						yawedWorldProjection,
 						Vec3.ZERO,
+						Vec3.ZERO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				),
 				new SourceTermCase(
@@ -476,6 +510,7 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 						hoverOmega,
 						Quaternion.IDENTITY,
 						Vec3.ZERO,
+						Vec3.ZERO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
 				),
 				new SourceTermCase(
@@ -483,6 +518,7 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 						blockedAxialSpeed,
 						hoverOmega,
 						Quaternion.IDENTITY,
+						Vec3.ZERO,
 						Vec3.ZERO,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				)
@@ -558,6 +594,7 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			double signedAxialSpeedMetersPerSecond,
 			double omegaRadiansPerSecond,
 			Quaternion bodyToWorldOrientation,
+			Vec3 transverseAirVelocityBodyMetersPerSecond,
 			Vec3 angularVelocityBodyRadiansPerSecond,
 			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
 	) {
@@ -565,6 +602,10 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			bodyToWorldOrientation = bodyToWorldOrientation == null
 					? Quaternion.IDENTITY
 					: bodyToWorldOrientation.normalized();
+			transverseAirVelocityBodyMetersPerSecond = transverseAirVelocityBodyMetersPerSecond == null
+					|| !transverseAirVelocityBodyMetersPerSecond.isFinite()
+					? Vec3.ZERO
+					: transverseAirVelocityBodyMetersPerSecond;
 			angularVelocityBodyRadiansPerSecond = angularVelocityBodyRadiansPerSecond == null
 					? Vec3.ZERO
 					: angularVelocityBodyRadiansPerSecond;

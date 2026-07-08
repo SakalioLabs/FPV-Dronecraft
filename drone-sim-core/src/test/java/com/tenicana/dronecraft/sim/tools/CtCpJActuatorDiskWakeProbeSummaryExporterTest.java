@@ -36,7 +36,7 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 		CtCpJActuatorDiskWakeProbeSummaryExporter.SummaryRow highBlock =
 				summaryFor(summaries, "static_anchored_source_high_j_block", "raw_source", 0, "centerline_axial");
 
-		assertEquals(80, summaries.size());
+		assertEquals(96, summaries.size());
 		assertEquals(4, hover.totalSamples());
 		assertEquals(4, hover.comparableSamples());
 		assertTrue(hover.comparable());

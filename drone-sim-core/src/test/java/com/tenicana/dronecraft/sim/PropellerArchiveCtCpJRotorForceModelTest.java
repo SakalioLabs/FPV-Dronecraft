@@ -383,6 +383,14 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(transverseVelocity, sample.transverseAirVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertEquals(5.0, sample.transverseAirSpeedMetersPerSecond(), 1.0e-15);
 		assertEquals(Math.atan2(5.0, axialSpeed), sample.inflowAngleRadians(), 1.0e-15);
+		Vec3 expectedFarWakeCenterline = sample.farWakeAxialVelocityBodyMetersPerSecond()
+				.subtract(transverseVelocity);
+		assertVectorEquals(expectedFarWakeCenterline,
+				sample.farWakeCenterlineVelocityBodyMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(transverseVelocity.multiply(-1.0),
+				sample.wakeSkewLateralVelocityBodyMetersPerSecond(), 1.0e-15);
+		assertEquals(Math.atan2(5.0, sample.farWakeAxialVelocityBodyMetersPerSecond().length()),
+				sample.wakeSkewAngleRadians(), 1.0e-15);
 		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
 		assertFalse(sample.runtimeForceReplacementAccepted());
 		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus
@@ -391,6 +399,16 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, sample.thrustForceBodyNewtons().x(), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().y(), 1.0e-15);
 		assertEquals(0.0, sample.thrustForceBodyNewtons().z(), 1.0e-15);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				sample.actuatorDiskSourceTerm(0, Vec3.ZERO, Quaternion.IDENTITY);
+		assertVectorEquals(expectedFarWakeCenterline,
+				sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(transverseVelocity.multiply(-1.0),
+				sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertEquals(5.0, sourceTerm.wakeSkewLateralSpeedMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.wakeSkewAngleRadians(), sourceTerm.wakeSkewAngleRadians(), 1.0e-15);
+		assertVectorEquals(expectedFarWakeCenterline.normalized(),
+				sourceTerm.wakeCenterlineDirectionWorld(), 1.0e-15);
 	}
 
 	@Test
@@ -584,6 +602,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				1.0e-12);
 		assertVectorEquals(sample.farWakeAxialVelocityWorldMetersPerSecond(bodyToWorld),
 				sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(sample.farWakeCenterlineVelocityWorldMetersPerSecond(bodyToWorld),
+				sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond(), 1.0e-14);
+		assertVectorEquals(sample.wakeSkewLateralVelocityWorldMetersPerSecond(bodyToWorld),
+				sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond(), 1.0e-14);
+		assertEquals(sample.wakeSkewAngleRadians(), sourceTerm.wakeSkewAngleRadians(), 1.0e-15);
+		assertVectorEquals(sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond().normalized(),
+				sourceTerm.wakeCenterlineDirectionWorld(), 1.0e-14);
 		assertVectorEquals(sample.reactionTorqueWorldNewtonMeters(bodyToWorld),
 				sourceTerm.reactionTorqueWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(sample.wakeAngularMomentumTorqueWorldNewtonMeters(bodyToWorld),

@@ -43,7 +43,7 @@ class CtCpJActuatorDiskOpenFoamCaseDictExporterTest {
 		assertTrue(dicts.topoSetDict().contains("p1      (0.0671751442127220 -0.0250000000000000 0.0671751442127220);"));
 		assertTrue(dicts.topoSetDict().contains("p2      (0.0671751442127220 0.0250000000000000 0.0671751442127220);"));
 		assertTrue(dicts.topoSetDict().contains("radius  0.0647700000000000;"));
-		assertEquals(40, count(dicts.topoSetDict(), "source  cylinderToCell;"));
+		assertEquals(48, count(dicts.topoSetDict(), "source  cylinderToCell;"));
 
 		assertTrue(dicts.fvOptions().contains("object      fvOptions;"));
 		assertTrue(dicts.fvOptions().contains(sourceOptionName));
@@ -77,7 +77,7 @@ class CtCpJActuatorDiskOpenFoamCaseDictExporterTest {
 		String fvOptions = Files.readString(output.resolve("fvOptions"));
 		assertTrue(topoSet.contains("actions"));
 		assertTrue(fvOptions.contains("injectionRateSuSp"));
-		assertEquals(40, count(topoSet, "source  cylinderToCell;"));
+		assertEquals(48, count(topoSet, "source  cylinderToCell;"));
 		assertEquals(enabledSourceCount(), count(fvOptions, "active          yes;"));
 	}
 

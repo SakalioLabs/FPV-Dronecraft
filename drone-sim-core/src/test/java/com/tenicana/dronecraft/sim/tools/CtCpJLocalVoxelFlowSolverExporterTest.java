@@ -52,7 +52,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		);
 		Map<String, Integer> columns = columns(lines);
 
-		assertEquals(41, lines.size());
+		assertEquals(49, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,solver_row_kind,step_index"));
 		assertTrue(lines.stream().noneMatch(line -> line.contains("NaN")));
 
@@ -642,7 +642,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		);
 		Map<String, Integer> columns = columns(lines);
 
-		assertEquals(21, lines.size());
+		assertEquals(25, lines.size());
 		assertTrue(lines.stream().noneMatch(line -> line.contains("NaN")));
 
 		Map<String, String> hoverInitial =
@@ -728,7 +728,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		Map<String, String> hoverStep =
 				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "step", 0);
 
-		assertEquals(21, lines.size());
+		assertEquals(25, lines.size());
 		assertTrue(lines.stream().noneMatch(line -> line.contains("NaN")));
 		assertEquals(2, integer(hoverStep, "solid_box_count"));
 		assertEquals(0.999, number(hoverStep, "solid_box_minimum_volume_fraction"), 1.0e-15);

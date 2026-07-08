@@ -65,6 +65,15 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 			"disk_tangent_v_world_x",
 			"disk_tangent_v_world_y",
 			"disk_tangent_v_world_z",
+			"wake_centerline_direction_world_x",
+			"wake_centerline_direction_world_y",
+			"wake_centerline_direction_world_z",
+			"wake_plane_tangent_u_world_x",
+			"wake_plane_tangent_u_world_y",
+			"wake_plane_tangent_u_world_z",
+			"wake_plane_tangent_v_world_x",
+			"wake_plane_tangent_v_world_y",
+			"wake_plane_tangent_v_world_z",
 			"disk_radius_m",
 			"wake_support_radius_m",
 			"source_half_thickness_m",
@@ -213,14 +222,17 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 
 	private static String csvLine(Map<String, String> row, double probeDistanceRadius, PlaneSample sample) {
 		Vec3 center = vector(row, "center_x_m", "center_y_m", "center_z_m");
-		Vec3 normal = vector(row, "normal_x", "normal_y", "normal_z");
-		Vec3 tangentU = vector(row, "tangent_u_x", "tangent_u_y", "tangent_u_z");
-		Vec3 tangentV = vector(row, "tangent_v_x", "tangent_v_y", "tangent_v_z");
+		Vec3 normal = normalizedOrFallback(vector(row, "normal_x", "normal_y", "normal_z"), new Vec3(0.0, 1.0, 0.0));
+		Vec3 tangentU = normalizedOrFallback(vector(row, "tangent_u_x", "tangent_u_y", "tangent_u_z"), new Vec3(1.0, 0.0, 0.0));
+		Vec3 tangentV = normalizedOrFallback(vector(row, "tangent_v_x", "tangent_v_y", "tangent_v_z"), normal.cross(tangentU));
+		Vec3 wakeDirection = wakeCenterlineDirection(row, normal);
+		Vec3 wakePlaneTangentU = wakePlaneTangent(tangentU, wakeDirection, normal);
+		Vec3 wakePlaneTangentV = wakeDirection.cross(wakePlaneTangentU).normalized();
 		double diskRadius = number(row, "radius_m");
 		double probeDistanceMeters = diskRadius * probeDistanceRadius;
-		Vec3 planeOrigin = center.add(normal.multiply(probeDistanceMeters));
-		Vec3 planeOffset = tangentU.multiply(sample.uRadius() * diskRadius)
-				.add(tangentV.multiply(sample.vRadius() * diskRadius));
+		Vec3 planeOrigin = center.add(wakeDirection.multiply(probeDistanceMeters));
+		Vec3 planeOffset = wakePlaneTangentU.multiply(sample.uRadius() * diskRadius)
+				.add(wakePlaneTangentV.multiply(sample.vRadius() * diskRadius));
 		Vec3 probePoint = planeOrigin.add(planeOffset);
 		double radialFraction = sample.radialFraction();
 		double wakeSupportRadius = number(row, "wake_swirl_support_radius_m");
@@ -280,6 +292,15 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 				number(tangentV.x()),
 				number(tangentV.y()),
 				number(tangentV.z()),
+				number(wakeDirection.x()),
+				number(wakeDirection.y()),
+				number(wakeDirection.z()),
+				number(wakePlaneTangentU.x()),
+				number(wakePlaneTangentU.y()),
+				number(wakePlaneTangentU.z()),
+				number(wakePlaneTangentV.x()),
+				number(wakePlaneTangentV.y()),
+				number(wakePlaneTangentV.z()),
 				number(diskRadius),
 				number(wakeSupportRadius),
 				value(row, "half_thickness_m"),
@@ -321,6 +342,42 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 
 	private static boolean sourceEnabled(Map<String, String> row) {
 		return Boolean.parseBoolean(text(row, "source_enabled"));
+	}
+
+	private static Vec3 wakeCenterlineDirection(Map<String, String> row, Vec3 fallbackNormal) {
+		Vec3 centerlineVelocity = vector(
+				row,
+				"far_wake_centerline_velocity_x_mps",
+				"far_wake_centerline_velocity_y_mps",
+				"far_wake_centerline_velocity_z_mps"
+		);
+		if (centerlineVelocity.lengthSquared() > 1.0e-12) {
+			return centerlineVelocity.normalized();
+		}
+		return normalizedOrFallback(fallbackNormal, new Vec3(0.0, 1.0, 0.0));
+	}
+
+	private static Vec3 wakePlaneTangent(Vec3 candidate, Vec3 wakeDirection, Vec3 fallbackNormal) {
+		Vec3 tangent = candidate.subtract(wakeDirection.multiply(candidate.dot(wakeDirection)));
+		if (tangent.lengthSquared() > 1.0e-12) {
+			return tangent.normalized();
+		}
+		Vec3 fallback = fallbackNormal.cross(wakeDirection);
+		if (fallback.lengthSquared() > 1.0e-12) {
+			return fallback.normalized();
+		}
+		Vec3 basis = Math.abs(wakeDirection.x()) < 0.9 ? new Vec3(1.0, 0.0, 0.0) : new Vec3(0.0, 0.0, 1.0);
+		return basis.subtract(wakeDirection.multiply(basis.dot(wakeDirection))).normalized();
+	}
+
+	private static Vec3 normalizedOrFallback(Vec3 value, Vec3 fallback) {
+		if (value != null && value.isFinite() && value.lengthSquared() > 1.0e-12) {
+			return value.normalized();
+		}
+		if (fallback != null && fallback.isFinite() && fallback.lengthSquared() > 1.0e-12) {
+			return fallback.normalized();
+		}
+		return new Vec3(0.0, 1.0, 0.0);
 	}
 
 	private static List<Map<String, String>> parseCsv(String inputCsv) {

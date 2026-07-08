@@ -32,10 +32,13 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		);
 		Map<String, Integer> columns = columns(lines);
 		String hover = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0);
+		String skew = lineFor(lines, columns, "static_anchored_source_mid_j_skew", "raw_source", 0);
 		String highBlock = lineFor(lines, columns, "static_anchored_source_high_j_block", "raw_source", 0);
 
-		assertEquals(41, lines.size());
+		assertEquals(49, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,source_name"));
+		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_y_mps"));
+		assertTrue(lines.get(0).contains("wake_skew_angle_rad"));
 		assertEquals("ctcpj_apdrone_static_anchored_source_hover_raw_source_rotor_0",
 				textCell(hover, columns, "source_name"));
 		assertEquals("true", textCell(hover, columns, "source_enabled"));
@@ -113,6 +116,15 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(numberCell(hover, columns, "total_wake_kinetic_power_w")
 				> numberCell(hover, columns, "wake_swirl_kinetic_power_w"));
 
+		assertEquals(-2.4, numberCell(skew, columns,
+				"far_wake_centerline_velocity_x_mps"), 1.0e-15);
+		assertEquals(numberCell(skew, columns, "far_wake_axial_velocity_y_mps"),
+				numberCell(skew, columns, "far_wake_centerline_velocity_y_mps"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skew, columns,
+				"wake_skew_lateral_velocity_x_mps"), 1.0e-15);
+		assertEquals(2.4, numberCell(skew, columns, "wake_skew_lateral_speed_mps"), 1.0e-15);
+		assertTrue(numberCell(skew, columns, "wake_skew_angle_rad") > 0.0);
+
 		assertEquals("false", textCell(highBlock, columns, "source_enabled"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlock, columns, "lookup_status"));
 		assertEquals(0.0, numberCell(highBlock, columns, "body_force_density_y_n_m3"), 1.0e-15);
@@ -154,7 +166,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		CtCpJActuatorDiskOpenFoamSourceTableExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(41, lines.size());
+		assertEquals(49, lines.size());
 		assertTrue(lines.get(0).contains("selection_shape"));
 		assertTrue(lines.get(0).contains("body_force_density_y_n_m3"));
 		assertTrue(lines.get(0).contains("total_force_y_n"));
@@ -163,6 +175,8 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(lines.get(0).contains("wake_swirl_support_radius_m"));
 		assertTrue(lines.get(0).contains("wake_swirl_angular_velocity_rad_s"));
 		assertTrue(lines.get(0).contains("wake_swirl_velocity_y_mps"));
+		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_y_mps"));
+		assertTrue(lines.get(0).contains("wake_skew_lateral_speed_mps"));
 		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_w"));
 	}
 

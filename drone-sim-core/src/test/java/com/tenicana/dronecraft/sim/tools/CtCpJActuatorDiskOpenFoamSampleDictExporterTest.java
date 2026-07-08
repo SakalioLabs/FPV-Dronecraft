@@ -42,10 +42,11 @@ class CtCpJActuatorDiskOpenFoamSampleDictExporterTest {
 		assertTrue(text.contains(
 				"case=static_anchored_source_high_j_block row_kind=raw_source rotor_index=0 "
 						+ "source_enabled=false lookup_status=OUT_OF_ENVELOPE_BLOCKED"));
+		assertTrue(text.contains("static_anchored_source_mid_j_skew"));
 
-		assertEquals(40, countSetDeclarations(text, "_centerline"));
-		assertEquals(40, countSetDeclarations(text, "_wake_plane"));
-		assertEquals(2400, countPointLines(text));
+		assertEquals(48, countSetDeclarations(text, "_centerline"));
+		assertEquals(48, countSetDeclarations(text, "_wake_plane"));
+		assertEquals(2880, countPointLines(text));
 	}
 
 	@Test
@@ -67,7 +68,7 @@ class CtCpJActuatorDiskOpenFoamSampleDictExporterTest {
 		assertTrue(text.contains("type    cloud;"));
 		assertTrue(text.contains("probe_packet=wake_plane_top_hat points=52"));
 		assertTrue(text.contains("probe_packet=centerline_axial_and_swirl_radius points=8"));
-		assertEquals(2400, countPointLines(text));
+		assertEquals(2880, countPointLines(text));
 	}
 
 	private static long countSetDeclarations(String text, String suffix) {

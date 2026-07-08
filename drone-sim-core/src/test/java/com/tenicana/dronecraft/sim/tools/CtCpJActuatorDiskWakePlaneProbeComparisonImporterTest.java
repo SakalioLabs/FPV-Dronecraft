@@ -178,7 +178,7 @@ class CtCpJActuatorDiskWakePlaneProbeComparisonImporterTest {
 		List<CtCpJActuatorDiskWakePlaneProbeComparisonImporter.ComparisonRow> comparisons =
 				CtCpJActuatorDiskWakePlaneProbeComparisonImporter.compare(packetCsv, RHO, SOURCE_THICKNESS);
 
-		assertEquals(2080, comparisons.size());
+		assertEquals(2496, comparisons.size());
 		assertTrue(comparisons.stream().allMatch(CtCpJActuatorDiskWakePlaneProbeComparisonImporter
 				.ComparisonRow::comparable));
 		assertTrue(comparisons.stream()

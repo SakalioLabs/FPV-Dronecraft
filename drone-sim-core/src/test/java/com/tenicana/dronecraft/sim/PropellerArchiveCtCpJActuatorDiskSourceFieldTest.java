@@ -586,6 +586,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				diskNormal.multiply(massFluxKilogramsPerSecondSquareMeter / RHO),
 				diskNormal.multiply(pressureJumpPascals),
 				farWakeAxialVelocityWorldMetersPerSecond,
+				farWakeAxialVelocityWorldMetersPerSecond,
 				Vec3.ZERO,
 				Vec3.ZERO,
 				Vec3.ZERO,

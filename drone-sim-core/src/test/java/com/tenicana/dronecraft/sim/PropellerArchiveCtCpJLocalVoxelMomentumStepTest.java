@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Comparator;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -159,7 +160,9 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep activeCell =
 				residence.activeCells().stream()
 						.filter(cell -> cell.sourceMassFlowRateKilogramsPerSecond() > 0.0)
-						.findFirst()
+						.max(Comparator.comparingDouble(cell -> cell.sourceMomentumStep()
+								.targetWakeVelocityWorldMetersPerSecond()
+								.lengthSquared()))
 						.orElseThrow();
 		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMomentumStep sourceStep =
 				activeCell.sourceMomentumStep();

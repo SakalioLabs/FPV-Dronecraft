@@ -159,7 +159,7 @@ class CtCpJActuatorDiskSourceTermComparisonImporterTest {
 		List<CtCpJActuatorDiskSourceTermComparisonImporter.ComparisonRow> comparisons =
 				CtCpJActuatorDiskSourceTermComparisonImporter.compare(packetCsv, RHO, SOURCE_THICKNESS);
 
-		assertEquals(40, comparisons.size());
+		assertEquals(48, comparisons.size());
 		assertTrue(comparisons.stream().allMatch(CtCpJActuatorDiskSourceTermComparisonImporter
 				.ComparisonRow::comparable));
 		assertTrue(comparisons.stream()

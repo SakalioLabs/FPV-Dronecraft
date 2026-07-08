@@ -40,6 +40,9 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 			"disk_normal_world_x",
 			"disk_normal_world_y",
 			"disk_normal_world_z",
+			"wake_centerline_direction_world_x",
+			"wake_centerline_direction_world_y",
+			"wake_centerline_direction_world_z",
 			"disk_radius_m",
 			"source_half_thickness_m",
 			"source_bounding_sphere_radius_m",
@@ -186,7 +189,8 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 
 	private static String csvLine(Map<String, String> row, double probeDistanceRadius, String probeKind) {
 		Vec3 center = vector(row, "center_x_m", "center_y_m", "center_z_m");
-		Vec3 normal = vector(row, "normal_x", "normal_y", "normal_z");
+		Vec3 normal = normalizedOrFallback(vector(row, "normal_x", "normal_y", "normal_z"), new Vec3(0.0, 1.0, 0.0));
+		Vec3 wakeDirection = wakeCenterlineDirection(row, normal);
 		double diskRadius = number(row, "radius_m");
 		double probeDistanceMeters = diskRadius * probeDistanceRadius;
 		Vec3 swirlReferencePoint = vector(
@@ -196,7 +200,8 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 				"wake_swirl_reference_point_z_m"
 		);
 		boolean swirlProbe = SWIRL_RADIUS_PROBE_KIND.equals(probeKind);
-		Vec3 probePoint = (swirlProbe ? swirlReferencePoint : center).add(normal.multiply(probeDistanceMeters));
+		Vec3 probePoint = (swirlProbe ? swirlReferencePoint : center)
+				.add(wakeDirection.multiply(probeDistanceMeters));
 		Vec3 expectedAxialWakeVelocity = sourceEnabled(row)
 				? vector(
 						row,
@@ -244,6 +249,9 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 				number(normal.x()),
 				number(normal.y()),
 				number(normal.z()),
+				number(wakeDirection.x()),
+				number(wakeDirection.y()),
+				number(wakeDirection.z()),
 				number(diskRadius),
 				value(row, "half_thickness_m"),
 				value(row, "bounding_sphere_radius_m"),
@@ -280,6 +288,29 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 
 	private static boolean sourceEnabled(Map<String, String> row) {
 		return Boolean.parseBoolean(text(row, "source_enabled"));
+	}
+
+	private static Vec3 wakeCenterlineDirection(Map<String, String> row, Vec3 fallbackNormal) {
+		Vec3 centerlineVelocity = vector(
+				row,
+				"far_wake_centerline_velocity_x_mps",
+				"far_wake_centerline_velocity_y_mps",
+				"far_wake_centerline_velocity_z_mps"
+		);
+		if (centerlineVelocity.lengthSquared() > 1.0e-12) {
+			return centerlineVelocity.normalized();
+		}
+		return normalizedOrFallback(fallbackNormal, new Vec3(0.0, 1.0, 0.0));
+	}
+
+	private static Vec3 normalizedOrFallback(Vec3 value, Vec3 fallback) {
+		if (value != null && value.isFinite() && value.lengthSquared() > 1.0e-12) {
+			return value.normalized();
+		}
+		if (fallback != null && fallback.isFinite() && fallback.lengthSquared() > 1.0e-12) {
+			return fallback.normalized();
+		}
+		return new Vec3(0.0, 1.0, 0.0);
 	}
 
 	private static List<Map<String, String>> parseCsv(String inputCsv) {

@@ -277,6 +277,33 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return rotateBodyVectorToWorld(farWakeAxialVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
 		}
 
+		public Vec3 farWakeCenterlineVelocityBodyMetersPerSecond() {
+			if (blocked()) {
+				return Vec3.ZERO;
+			}
+			return farWakeAxialVelocityBodyMetersPerSecond().subtract(transverseAirVelocityBodyMetersPerSecond);
+		}
+
+		public Vec3 farWakeCenterlineVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(farWakeCenterlineVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
+		}
+
+		public Vec3 wakeSkewLateralVelocityBodyMetersPerSecond() {
+			return farWakeCenterlineVelocityBodyMetersPerSecond().subtract(farWakeAxialVelocityBodyMetersPerSecond());
+		}
+
+		public Vec3 wakeSkewLateralVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(wakeSkewLateralVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
+		}
+
+		public double wakeSkewAngleRadians() {
+			double axialSpeed = farWakeAxialVelocityBodyMetersPerSecond().length();
+			double lateralSpeed = wakeSkewLateralVelocityBodyMetersPerSecond().length();
+			return axialSpeed <= EPSILON && lateralSpeed <= EPSILON
+					? 0.0
+					: Math.atan2(lateralSpeed, axialSpeed);
+		}
+
 		public Vec3 wakeAngularMomentumTorqueBodyNewtonMeters() {
 			if (blocked()) {
 				return Vec3.ZERO;
@@ -426,6 +453,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 farWakeAxialVelocity = applied
 					? farWakeAxialVelocityWorldMetersPerSecond(bodyToWorldOrientation)
 					: Vec3.ZERO;
+			Vec3 farWakeCenterlineVelocity = applied
+					? farWakeCenterlineVelocityWorldMetersPerSecond(bodyToWorldOrientation)
+					: Vec3.ZERO;
 			Vec3 reactionTorque = applied
 					? reactionTorqueWorldNewtonMeters(bodyToWorldOrientation)
 					: Vec3.ZERO;
@@ -452,6 +482,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					actuatorDiskAxialVelocity,
 					thrustSurfaceForce,
 					farWakeAxialVelocity,
+					farWakeCenterlineVelocity,
 					reactionTorque,
 					wakeAngularMomentumTorque,
 					wakeAngularMomentumTorqueResidual,
@@ -501,6 +532,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 actuatorDiskAxialVelocityWorldMetersPerSecond,
 			Vec3 thrustSurfaceForceWorldNewtonsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
+			Vec3 farWakeCenterlineVelocityWorldMetersPerSecond,
 			Vec3 reactionTorqueWorldNewtonMeters,
 			Vec3 wakeAngularMomentumTorqueWorldNewtonMeters,
 			Vec3 wakeAngularMomentumTorqueResidualWorldNewtonMeters,
@@ -533,6 +565,13 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					finiteVecOrZero(thrustSurfaceForceWorldNewtonsPerSquareMeter);
 			farWakeAxialVelocityWorldMetersPerSecond =
 					finiteVecOrZero(farWakeAxialVelocityWorldMetersPerSecond);
+			farWakeCenterlineVelocityWorldMetersPerSecond =
+					finiteVecOrZero(farWakeCenterlineVelocityWorldMetersPerSecond);
+			if (applied
+					&& farWakeCenterlineVelocityWorldMetersPerSecond.lengthSquared() <= EPSILON
+					&& farWakeAxialVelocityWorldMetersPerSecond.lengthSquared() > EPSILON) {
+				farWakeCenterlineVelocityWorldMetersPerSecond = farWakeAxialVelocityWorldMetersPerSecond;
+			}
 			reactionTorqueWorldNewtonMeters = finiteVecOrZero(reactionTorqueWorldNewtonMeters);
 			wakeAngularMomentumTorqueWorldNewtonMeters =
 					finiteVecOrZero(wakeAngularMomentumTorqueWorldNewtonMeters);
@@ -596,6 +635,43 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return farWakeEquivalentRadiusMeters > EPSILON
 					? farWakeEquivalentRadiusMeters
 					: diskRadiusMeters();
+		}
+
+		public Vec3 wakeCenterlineDirectionWorld() {
+			Vec3 centerlineVelocity = finiteVecOrZero(farWakeCenterlineVelocityWorldMetersPerSecond);
+			if (centerlineVelocity.lengthSquared() > EPSILON) {
+				return centerlineVelocity.normalized();
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			return normal.lengthSquared() > EPSILON ? normal : new Vec3(0.0, 1.0, 0.0);
+		}
+
+		public double farWakeCenterlineAxialSpeedMetersPerSecond() {
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			return normal.lengthSquared() <= EPSILON
+					? 0.0
+					: farWakeCenterlineVelocityWorldMetersPerSecond.dot(normal);
+		}
+
+		public Vec3 wakeSkewLateralVelocityWorldMetersPerSecond() {
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			if (normal.lengthSquared() <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			return farWakeCenterlineVelocityWorldMetersPerSecond
+					.subtract(normal.multiply(farWakeCenterlineAxialSpeedMetersPerSecond()));
+		}
+
+		public double wakeSkewLateralSpeedMetersPerSecond() {
+			return wakeSkewLateralVelocityWorldMetersPerSecond().length();
+		}
+
+		public double wakeSkewAngleRadians() {
+			double axialSpeed = Math.abs(farWakeCenterlineAxialSpeedMetersPerSecond());
+			double lateralSpeed = wakeSkewLateralSpeedMetersPerSecond();
+			return axialSpeed <= EPSILON && lateralSpeed <= EPSILON
+					? 0.0
+					: Math.atan2(lateralSpeed, axialSpeed);
 		}
 
 		public double wakeSupportAreaSquareMeters() {

@@ -465,9 +465,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
 			Vec3 fallbackNormal
 	) {
-		Vec3 farWake = finiteVecOrZero(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond());
-		if (farWake.lengthSquared() > EPSILON) {
-			return farWake.normalized();
+		Vec3 centerline = finiteVecOrZero(sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond());
+		if (centerline.lengthSquared() > EPSILON) {
+			return centerline.normalized();
 		}
 		return finiteVecOrZero(fallbackNormal).normalized();
 	}
