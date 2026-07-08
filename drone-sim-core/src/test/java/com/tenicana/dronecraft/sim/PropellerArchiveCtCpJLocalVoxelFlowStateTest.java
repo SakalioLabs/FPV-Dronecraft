@@ -1100,6 +1100,47 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void diffusionAcrossPartialOpenCellsConservesOpenVolumeMomentum() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								new Vec3(10.0, 0.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.FALSE),
+						List.of(0.0, 0.5)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
+				state.diffuseVelocity(RHO, 0.10, 1.0, mask);
+
+		assertEquals(0.10, diffusion.diffusionNumber(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.5, 0.0, 0.0),
+				diffusion.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(9.0, 0.0, 0.0),
+				diffusion.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(state.totalMomentumWorldNewtonSeconds(RHO, mask),
+				diffusion.nextState().totalMomentumWorldNewtonSeconds(RHO, mask), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertTrue(diffusion.kineticEnergyAfterJoules() < diffusion.kineticEnergyBeforeJoules());
+		assertEquals(-diffusion.kineticEnergyDeltaJoules(),
+				diffusion.viscousDissipatedEnergyJoules(), 1.0e-15);
+	}
+
+	@Test
 	void sourceAdvanceCanDiffuseVelocityWithoutChangingSourceBookkeeping() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(

@@ -2391,11 +2391,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			deltas.set(firstIndex, deltas.get(firstIndex).add(wallExchange));
 			return;
 		}
-		Vec3 exchange = velocitiesWorldMetersPerSecond.get(secondIndex)
-				.subtract(velocitiesWorldMetersPerSecond.get(firstIndex))
-				.multiply(diffusionNumber);
-		deltas.set(firstIndex, deltas.get(firstIndex).add(exchange));
-		deltas.set(secondIndex, deltas.get(secondIndex).subtract(exchange));
+		double firstOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(firstIndex);
+		double secondOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(secondIndex);
+		if (firstOpenVolumeFraction <= EPSILON || secondOpenVolumeFraction <= EPSILON) {
+			return;
+		}
+		double openFaceFraction = Math.min(firstOpenVolumeFraction, secondOpenVolumeFraction);
+		Vec3 velocityDifference = velocitiesWorldMetersPerSecond.get(secondIndex)
+				.subtract(velocitiesWorldMetersPerSecond.get(firstIndex));
+		Vec3 firstExchange = velocityDifference
+				.multiply(diffusionNumber * openFaceFraction / firstOpenVolumeFraction);
+		Vec3 secondExchange = velocityDifference
+				.multiply(diffusionNumber * openFaceFraction / secondOpenVolumeFraction);
+		deltas.set(firstIndex, deltas.get(firstIndex).add(firstExchange));
+		deltas.set(secondIndex, deltas.get(secondIndex).subtract(secondExchange));
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
