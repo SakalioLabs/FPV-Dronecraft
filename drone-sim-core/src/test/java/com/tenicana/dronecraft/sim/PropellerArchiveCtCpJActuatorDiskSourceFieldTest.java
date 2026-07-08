@@ -1,0 +1,224 @@
+package com.tenicana.dronecraft.sim;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
+
+import org.junit.jupiter.api.Test;
+
+class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
+	private static final double RHO =
+			PropellerArchiveCtCpJDimensionalRotorResponse.STANDARD_AIR_DENSITY_KG_PER_CUBIC_METER;
+	private static final double SOURCE_THICKNESS = 0.05;
+	private static final Vec3 MOMENT_REFERENCE_WORLD = new Vec3(12.0, 64.0, -3.0);
+
+	@Test
+	void samplesAppliedSourceInsideCylindricalDiskVolume() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				hoverSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		Vec3 radial = perpendicularUnit(sourceTerm.diskNormalWorld());
+		double sampleRadius = Math.min(sourceTerm.angularMomentumSwirlRadiusMeters(), diskRadius * 0.5);
+		Vec3 samplePoint = sourceTerm.diskCenterWorldMeters().add(radial.multiply(sampleRadius));
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample sample = field.sampleAt(samplePoint);
+
+		assertTrue(field.containsActuatorDiskVolume(sourceTerm, samplePoint));
+		assertTrue(sample.insideAnySource());
+		assertEquals(1, sample.contributingSourceCount());
+		assertVectorEquals(sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(SOURCE_THICKNESS),
+				sample.bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-12);
+		assertVectorEquals(
+				sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(SOURCE_THICKNESS),
+				sample.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
+		assertEquals(sourceTerm.pressureJumpPascals(), sample.pressureJumpPascals(), 1.0e-12);
+		assertEquals(sourceTerm.massFluxKilogramsPerSecondSquareMeter(),
+				sample.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(),
+				sample.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
+		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
+				sample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertEquals(sourceTerm.wakeTangentialVelocityMetersPerSecond(),
+				sample.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
+		assertVectorEquals(
+				sample.farWakeAxialVelocityWorldMetersPerSecond()
+						.add(sample.wakeSwirlVelocityWorldMetersPerSecond()),
+				sample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+						.multiply(sourceTerm.diskAreaSquareMeters()),
+				field.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters(),
+				field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+	}
+
+	@Test
+	void keepsCylindricalDiskBoundaryInclusiveAndRejectsOutsidePoints() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				hoverSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		Vec3 radial = perpendicularUnit(sourceTerm.diskNormalWorld());
+		Vec3 radialBoundary = sourceTerm.diskCenterWorldMeters().add(radial.multiply(diskRadius));
+		Vec3 axialBoundary = sourceTerm.diskCenterWorldMeters()
+				.add(sourceTerm.diskNormalWorld().multiply(SOURCE_THICKNESS * 0.5));
+		Vec3 outsideRadial = sourceTerm.diskCenterWorldMeters().add(radial.multiply(diskRadius + 0.002));
+		Vec3 outsideAxial = sourceTerm.diskCenterWorldMeters()
+				.add(sourceTerm.diskNormalWorld().multiply(SOURCE_THICKNESS * 0.5 + 0.002));
+
+		assertTrue(field.containsActuatorDiskVolume(sourceTerm, radialBoundary));
+		assertTrue(field.containsActuatorDiskVolume(sourceTerm, axialBoundary));
+		assertFalse(field.sampleAt(outsideRadial).insideAnySource());
+		assertFalse(field.sampleAt(outsideAxial).insideAnySource());
+		assertVectorEquals(Vec3.ZERO,
+				field.sampleAt(outsideRadial).bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				field.sampleAt(outsideAxial).targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
+	void superposesOverlappingAppliedSourcesAndSkipsBlockedSources() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample appliedSource =
+				hoverSourceTerm();
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample blockedSource =
+				blockedSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(
+						List.of(appliedSource, appliedSource, blockedSource),
+						SOURCE_THICKNESS
+				);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample sample =
+				field.sampleAt(appliedSource.diskCenterWorldMeters());
+
+		assertEquals(2, sample.contributingSourceCount());
+		assertFalse(blockedSource.applied());
+		assertVectorEquals(appliedSource.equivalentBodyForceWorldNewtonsPerCubicMeter(SOURCE_THICKNESS)
+						.multiply(2.0),
+				sample.bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-12);
+		assertVectorEquals(appliedSource
+						.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(SOURCE_THICKNESS)
+						.multiply(2.0),
+				sample.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
+		assertEquals(appliedSource.pressureJumpPascals() * 2.0, sample.pressureJumpPascals(), 1.0e-12);
+		assertVectorEquals(appliedSource.farWakeAxialVelocityWorldMetersPerSecond().multiply(2.0),
+				sample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(appliedSource.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+						.multiply(appliedSource.diskAreaSquareMeters() * 2.0),
+				field.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(appliedSource.wakeAngularMomentumTorqueWorldNewtonMeters().multiply(2.0),
+				field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+	}
+
+	@Test
+	void worldForceProviderExposesRawAndRuntimeReplacementSourceFields() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		double[] omegas = fill(config.rotors().size(), hoverOmega);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample worldSample =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.sampleStaticAnchoredConfigurationFromWorldKinematics(
+						"apDrone",
+						"source_field_provider_hover",
+						config,
+						MOMENT_REFERENCE_WORLD,
+						Quaternion.IDENTITY,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						null,
+						omegas,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField rawField =
+				worldSample.actuatorDiskSourceField(SOURCE_THICKNESS);
+		PropellerArchiveCtCpJActuatorDiskSourceField runtimeField =
+				worldSample.runtimeReplacementActuatorDiskSourceField(SOURCE_THICKNESS);
+		Vec3 firstRotorCenter = worldSample.rotorActuatorDiskSourceTerms().get(0).diskCenterWorldMeters();
+
+		assertTrue(rawField.sampleAt(firstRotorCenter).insideAnySource());
+		assertTrue(runtimeField.sampleAt(firstRotorCenter).insideAnySource());
+		assertVectorEquals(worldSample.totalActuatorDiskSurfaceForceWorldNewtons(),
+				rawField.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(worldSample.runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons(),
+				runtimeField.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(rawField.integratedBodyForceWorldNewtons(),
+				runtimeField.integratedBodyForceWorldNewtons(), 1.0e-12);
+	}
+
+	@Test
+	void rejectsInvalidThicknessAndAllowsEmptyField() {
+		assertThrows(IllegalArgumentException.class,
+				() -> new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(), 0.0));
+
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(), SOURCE_THICKNESS);
+
+		assertFalse(field.sampleAt(Vec3.ZERO).insideAnySource());
+		assertVectorEquals(Vec3.ZERO, field.integratedBodyForceWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
+	}
+
+	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample hoverSourceTerm() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromRelativeAirVelocity(
+						"apDrone",
+						"source_field_hover",
+						rotor,
+						Vec3.ZERO,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, Quaternion.IDENTITY);
+	}
+
+	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample blockedSourceTerm() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromSignedAxialAdvanceSpeed(
+						"apDrone",
+						"source_field_reverse_block",
+						rotor,
+						-4.5,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, Quaternion.IDENTITY);
+	}
+
+	private static Vec3 perpendicularUnit(Vec3 axis) {
+		Vec3 candidate = new Vec3(axis.y(), -axis.x(), 0.0);
+		if (candidate.lengthSquared() <= 1.0e-12) {
+			candidate = new Vec3(0.0, axis.z(), -axis.y());
+		}
+		return candidate.normalized();
+	}
+
+	private static double[] fill(int count, double value) {
+		double[] values = new double[count];
+		for (int i = 0; i < values.length; i++) {
+			values[i] = value;
+		}
+		return values;
+	}
+
+	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
+		assertEquals(expected.x(), actual.x(), tolerance);
+		assertEquals(expected.y(), actual.y(), tolerance);
+		assertEquals(expected.z(), actual.z(), tolerance);
+	}
+}

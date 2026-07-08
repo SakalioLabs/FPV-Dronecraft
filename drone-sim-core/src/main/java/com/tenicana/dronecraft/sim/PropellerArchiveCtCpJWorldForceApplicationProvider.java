@@ -278,6 +278,22 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return rotorCount() > 0 && runtimeReplacementAppliedRotorCount() == rotorCount();
 		}
 
+		public PropellerArchiveCtCpJActuatorDiskSourceField actuatorDiskSourceField(double sourceThicknessMeters) {
+			return new PropellerArchiveCtCpJActuatorDiskSourceField(
+					rotorActuatorDiskSourceTerms,
+					sourceThicknessMeters
+			);
+		}
+
+		public PropellerArchiveCtCpJActuatorDiskSourceField runtimeReplacementActuatorDiskSourceField(
+				double sourceThicknessMeters
+		) {
+			return new PropellerArchiveCtCpJActuatorDiskSourceField(
+					runtimeReplacementRotorActuatorDiskSourceTerms,
+					sourceThicknessMeters
+			);
+		}
+
 		public Vec3 totalThrustForceWorldNewtons() {
 			return sumThrustForce(rotorApplications);
 		}
