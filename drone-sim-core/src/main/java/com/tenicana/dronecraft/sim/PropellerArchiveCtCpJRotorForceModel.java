@@ -21,6 +21,18 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	private PropellerArchiveCtCpJRotorForceModel() {
 	}
 
+	public enum RuntimeForceReplacementStatus {
+		ACCEPTED,
+		BLOCKED,
+		CLAMPED,
+		MOMENTUM_POWER_CLOSURE_FAILED,
+		WAKE_POWER_CLOSURE_FAILED,
+		OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE,
+		TIP_MACH_OUTSIDE_RUNTIME_ENVELOPE,
+		REYNOLDS_OUTSIDE_RUNTIME_ENVELOPE,
+		OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE
+	}
+
 	public record RotorForceQuery(
 			String presetName,
 			String caseName,
@@ -139,16 +151,50 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public boolean runtimeForceReplacementAccepted() {
-			return runtimeForceReplacementAccepted(query.ambientTemperatureCelsius(), query.ambientHumidity());
+			return runtimeForceReplacementStatus().equals(RuntimeForceReplacementStatus.ACCEPTED);
 		}
 
 		public boolean runtimeForceReplacementAccepted(double ambientTemperatureCelsius, double ambientHumidity) {
-			return !blocked()
-					&& !clamped()
-					&& momentumPowerClosureSatisfied()
-					&& wakePowerClosureSatisfied()
-					&& runtimeInflowEnvelopeSatisfied()
-					&& runtimeOperatingPointEnvelopeSatisfied(ambientTemperatureCelsius, ambientHumidity);
+			return runtimeForceReplacementStatus(ambientTemperatureCelsius, ambientHumidity)
+					.equals(RuntimeForceReplacementStatus.ACCEPTED);
+		}
+
+		public RuntimeForceReplacementStatus runtimeForceReplacementStatus() {
+			return runtimeForceReplacementStatus(query.ambientTemperatureCelsius(), query.ambientHumidity());
+		}
+
+		public RuntimeForceReplacementStatus runtimeForceReplacementStatus(
+				double ambientTemperatureCelsius,
+				double ambientHumidity
+		) {
+			if (blocked()) {
+				return RuntimeForceReplacementStatus.BLOCKED;
+			}
+			if (clamped()) {
+				return RuntimeForceReplacementStatus.CLAMPED;
+			}
+			if (!momentumPowerClosureSatisfied()) {
+				return RuntimeForceReplacementStatus.MOMENTUM_POWER_CLOSURE_FAILED;
+			}
+			if (!wakePowerClosureSatisfied()) {
+				return RuntimeForceReplacementStatus.WAKE_POWER_CLOSURE_FAILED;
+			}
+			if (!runtimeInflowEnvelopeSatisfied()) {
+				return RuntimeForceReplacementStatus.OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE;
+			}
+			RotorOperatingPoint operatingPoint = operatingPoint(ambientTemperatureCelsius, ambientHumidity);
+			boolean tipMachOutside = operatingPoint.runtimeTipMachMargin() < -EPSILON;
+			boolean reynoldsOutside = operatingPoint.runtimeReynoldsIndexMargin() < -EPSILON;
+			if (tipMachOutside && reynoldsOutside) {
+				return RuntimeForceReplacementStatus.OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE;
+			}
+			if (tipMachOutside) {
+				return RuntimeForceReplacementStatus.TIP_MACH_OUTSIDE_RUNTIME_ENVELOPE;
+			}
+			if (reynoldsOutside) {
+				return RuntimeForceReplacementStatus.REYNOLDS_OUTSIDE_RUNTIME_ENVELOPE;
+			}
+			return RuntimeForceReplacementStatus.ACCEPTED;
 		}
 
 		public boolean runtimeInflowEnvelopeSatisfied() {
@@ -838,6 +884,17 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				).runtimeOperatingEnvelopeMarginFraction());
 			}
 			return Double.isFinite(margin) ? margin : 0.0;
+		}
+
+		public List<RuntimeForceReplacementStatus> runtimeForceReplacementStatusSummary() {
+			List<RuntimeForceReplacementStatus> statuses = new ArrayList<>();
+			for (RotorForceSample sample : rotorSamples) {
+				RuntimeForceReplacementStatus status = sample.runtimeForceReplacementStatus();
+				if (!statuses.contains(status)) {
+					statuses.add(status);
+				}
+			}
+			return List.copyOf(statuses);
 		}
 
 		public Vec3 totalWakeAngularMomentumTorqueResidualBodyNewtonMeters() {

@@ -334,6 +334,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(lowReynolds.operatingPoint(65.0, 0.0).runtimeOperatingEnvelopeMarginFraction() < 0.0);
 		assertFalse(lowReynolds.runtimeOperatingPointEnvelopeSatisfied());
 		assertFalse(lowReynolds.runtimeForceReplacementAccepted());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus
+						.REYNOLDS_OUTSIDE_RUNTIME_ENVELOPE,
+				lowReynolds.runtimeForceReplacementStatus());
 
 		assertFalse(highMach.blocked());
 		assertFalse(highMach.clamped());
@@ -345,6 +348,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(highMach.operatingPoint(25.0, 0.0).runtimeOperatingEnvelopeMarginFraction() < 0.0);
 		assertFalse(highMach.runtimeOperatingPointEnvelopeSatisfied());
 		assertFalse(highMach.runtimeForceReplacementAccepted());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus
+						.TIP_MACH_OUTSIDE_RUNTIME_ENVELOPE,
+				highMach.runtimeForceReplacementStatus());
 	}
 
 	@Test
@@ -376,6 +382,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(Math.atan2(5.0, axialSpeed), sample.inflowAngleRadians(), 1.0e-15);
 		assertFalse(sample.runtimeInflowEnvelopeSatisfied());
 		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus
+						.OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE,
+				sample.runtimeForceReplacementStatus());
 		assertEquals(0.0, sample.thrustForceBodyNewtons().x(), 1.0e-15);
 		assertEquals(sample.thrustNewtons(), sample.thrustForceBodyNewtons().y(), 1.0e-15);
 		assertEquals(0.0, sample.thrustForceBodyNewtons().z(), 1.0e-15);
@@ -1380,6 +1389,11 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(referenceOnly.runtimeForceReplacementAccepted());
 		assertEquals(2, aggregate.acceptedRotorCount());
 		assertEquals(1, aggregate.runtimeForceReplacementAcceptedRotorCount());
+		assertEquals(List.of(
+						PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.ACCEPTED,
+						PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus
+								.MOMENTUM_POWER_CLOSURE_FAILED),
+				aggregate.runtimeForceReplacementStatusSummary());
 		assertEquals(0, aggregate.blockedRotorCount());
 		assertEquals(accepted.thrustNewtons() + referenceOnly.thrustNewtons(),
 				aggregate.totalThrustNewtons(), 1.0e-12);
@@ -1456,6 +1470,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(high.momentumPowerClosureSatisfied());
 		assertFalse(high.wakePowerClosureSatisfied());
 		assertFalse(high.runtimeForceReplacementAccepted());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus
+						.MOMENTUM_POWER_CLOSURE_FAILED,
+				high.runtimeForceReplacementStatus());
 		assertEquals(PropellerArchiveCtCpJLookupEvaluator.InterpolationStatus.LINEAR_ADVANCE,
 				high.lookup().interpolationStatus());
 		assertTrue(high.lookup().thrustCoefficientCt() < mid.lookup().thrustCoefficientCt());
@@ -1500,6 +1517,8 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertFalse(blocked.momentumPowerClosureSatisfied());
 		assertFalse(blocked.wakePowerClosureSatisfied());
 		assertFalse(blocked.runtimeForceReplacementAccepted());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.BLOCKED,
+				blocked.runtimeForceReplacementStatus());
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blocked.lookup().status());
 		assertEquals(0.0, blocked.thrustNewtons(), 1.0e-15);
 		assertEquals(0.0, blocked.shaftPowerWatts(), 1.0e-15);
@@ -2504,6 +2523,8 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(sample.clamped());
 		assertTrue(sample.momentumPowerClosureSatisfied());
 		assertFalse(sample.runtimeForceReplacementAccepted());
+		assertEquals(PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus.CLAMPED,
+				sample.runtimeForceReplacementStatus());
 		assertEquals("reverse_axial_static_anchor", sample.lookup().caseName());
 		assertEquals("CLAMPED", sample.lookup().status());
 		assertEquals("reverse-axial-flow-clamped-to-static-anchor", sample.lookup().message());

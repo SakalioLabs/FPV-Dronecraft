@@ -362,6 +362,8 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0, integerCell(upperBelow, columns, "target_thrust_solve_iterations"));
 		assertEquals(4, integerCell(upperBelow, columns, "accepted_rotor_count"));
 		assertEquals(0, integerCell(upperBelow, columns, "blocked_rotor_count"));
+		assertEquals("TIP_MACH_OUTSIDE_RUNTIME_ENVELOPE",
+				textCell(upperBelow, columns, "runtime_eligibility_status"));
 		assertTrue(numberCell(upperBelow, columns, "target_thrust_n")
 				> numberCell(upperBelow, columns, "total_thrust_n"));
 		assertTrue(numberCell(upperBelow, columns, "target_thrust_residual_n") < 0.0);

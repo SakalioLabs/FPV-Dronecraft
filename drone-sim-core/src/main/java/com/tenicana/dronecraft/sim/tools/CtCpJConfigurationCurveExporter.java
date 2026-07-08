@@ -1186,20 +1186,19 @@ public final class CtCpJConfigurationCurveExporter {
 		if (aggregate.runtimeForceReplacementAcceptedRotorCount() > 0) {
 			return "PARTIAL_ACCEPTED";
 		}
-		PropellerArchiveCtCpJRotorForceModel.RotorForceSample first = firstSample(aggregate);
-		if (!first.momentumPowerClosureSatisfied()) {
-			return "MOMENTUM_POWER_CLOSURE_FAILED";
+		String statusSummary = runtimeForceReplacementStatusSummary(aggregate);
+		return statusSummary.isBlank() ? "NOT_RUNTIME_CANDIDATE" : statusSummary;
+	}
+
+	private static String runtimeForceReplacementStatusSummary(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate
+	) {
+		List<String> statuses = new ArrayList<>();
+		for (PropellerArchiveCtCpJRotorForceModel.RuntimeForceReplacementStatus status
+				: aggregate.runtimeForceReplacementStatusSummary()) {
+			addDistinct(statuses, status.name());
 		}
-		if (!first.wakePowerClosureSatisfied()) {
-			return "WAKE_POWER_CLOSURE_FAILED";
-		}
-		if (!first.runtimeInflowEnvelopeSatisfied()) {
-			return "OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE";
-		}
-		if (!first.runtimeOperatingPointEnvelopeSatisfied()) {
-			return "OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE";
-		}
-		return "NOT_RUNTIME_CANDIDATE";
+		return String.join("|", statuses);
 	}
 
 	private static String lookupStatusSummary(
