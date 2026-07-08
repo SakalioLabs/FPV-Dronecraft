@@ -1468,21 +1468,25 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		double maxAbs = 0.0;
 		double sumSquares = 0.0;
 		double sum = 0.0;
-		int openCount = 0;
+		double totalWeight = 0.0;
 		for (int i = 0; i < divergence.length; i++) {
 			if (solidMask.isSolidCellIndex(i)) {
 				continue;
 			}
+			double weight = solidMask.openVolumeFractionCellIndex(i);
+			if (weight <= EPSILON) {
+				continue;
+			}
 			double value = divergence[i];
 			maxAbs = Math.max(maxAbs, Math.abs(value));
-			sumSquares += value * value;
-			sum += value;
-			openCount++;
+			sumSquares += value * value * weight;
+			sum += value * weight;
+			totalWeight += weight;
 		}
 		return new DivergenceMetrics(
 				maxAbs,
-				openCount == 0 ? 0.0 : Math.sqrt(sumSquares / openCount),
-				openCount == 0 ? 0.0 : sum / openCount
+				totalWeight <= EPSILON ? 0.0 : Math.sqrt(sumSquares / totalWeight),
+				totalWeight <= EPSILON ? 0.0 : sum / totalWeight
 		);
 	}
 
@@ -1968,27 +1972,37 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (solidMask.isSolidCellIndex(centerIndex)) {
 			return 0.0;
 		}
+		double centerOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(centerIndex);
+		if (centerOpenVolumeFraction <= EPSILON) {
+			return 0.0;
+		}
 		double dx = gridSpec.cellSizeMeters();
 		Vec3 center = velocityAt(x, y, z);
 		double east = x + 1 < gridSpec.cellCountX()
-				? openFaceVelocity(solidMask, x + 1, y, z, 0.5 * (center.x() + velocityAt(x + 1, y, z).x()))
-				: center.x();
+				? openInternalFaceFluxComponent(solidMask, centerIndex, linearIndex(x + 1, y, z),
+						0.5 * (center.x() + velocityAt(x + 1, y, z).x()))
+				: openBoundaryFaceFluxComponent(solidMask, centerIndex, center.x());
 		double west = x > 0
-				? openFaceVelocity(solidMask, x - 1, y, z, 0.5 * (velocityAt(x - 1, y, z).x() + center.x()))
-				: center.x();
+				? openInternalFaceFluxComponent(solidMask, centerIndex, linearIndex(x - 1, y, z),
+						0.5 * (velocityAt(x - 1, y, z).x() + center.x()))
+				: openBoundaryFaceFluxComponent(solidMask, centerIndex, center.x());
 		double up = y + 1 < gridSpec.cellCountY()
-				? openFaceVelocity(solidMask, x, y + 1, z, 0.5 * (center.y() + velocityAt(x, y + 1, z).y()))
-				: center.y();
+				? openInternalFaceFluxComponent(solidMask, centerIndex, linearIndex(x, y + 1, z),
+						0.5 * (center.y() + velocityAt(x, y + 1, z).y()))
+				: openBoundaryFaceFluxComponent(solidMask, centerIndex, center.y());
 		double down = y > 0
-				? openFaceVelocity(solidMask, x, y - 1, z, 0.5 * (velocityAt(x, y - 1, z).y() + center.y()))
-				: center.y();
+				? openInternalFaceFluxComponent(solidMask, centerIndex, linearIndex(x, y - 1, z),
+						0.5 * (velocityAt(x, y - 1, z).y() + center.y()))
+				: openBoundaryFaceFluxComponent(solidMask, centerIndex, center.y());
 		double south = z + 1 < gridSpec.cellCountZ()
-				? openFaceVelocity(solidMask, x, y, z + 1, 0.5 * (center.z() + velocityAt(x, y, z + 1).z()))
-				: center.z();
+				? openInternalFaceFluxComponent(solidMask, centerIndex, linearIndex(x, y, z + 1),
+						0.5 * (center.z() + velocityAt(x, y, z + 1).z()))
+				: openBoundaryFaceFluxComponent(solidMask, centerIndex, center.z());
 		double north = z > 0
-				? openFaceVelocity(solidMask, x, y, z - 1, 0.5 * (velocityAt(x, y, z - 1).z() + center.z()))
-				: center.z();
-		return (east - west + up - down + south - north) / dx;
+				? openInternalFaceFluxComponent(solidMask, centerIndex, linearIndex(x, y, z - 1),
+						0.5 * (velocityAt(x, y, z - 1).z() + center.z()))
+				: openBoundaryFaceFluxComponent(solidMask, centerIndex, center.z());
+		return (east - west + up - down + south - north) / (centerOpenVolumeFraction * dx);
 	}
 
 	private Vec3 vorticityAtCell(int x, int y, int z, VoxelSolidMask solidMask) {
@@ -2263,8 +2277,28 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return MathUtil.clamp(raw, 0.0, Math.max(0, cellCount - 1));
 	}
 
-	private double openFaceVelocity(VoxelSolidMask solidMask, int x, int y, int z, double openFaceVelocity) {
-		return solidMask.isSolidCellIndex(linearIndex(x, y, z)) ? 0.0 : openFaceVelocity;
+	private double openInternalFaceFluxComponent(
+			VoxelSolidMask solidMask,
+			int centerIndex,
+			int neighborIndex,
+			double faceVelocityComponent
+	) {
+		if (solidMask.isSolidCellIndex(neighborIndex)) {
+			return 0.0;
+		}
+		double centerOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(centerIndex);
+		double neighborOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(neighborIndex);
+		double openFaceFraction = Math.min(centerOpenVolumeFraction, neighborOpenVolumeFraction);
+		return openFaceFraction <= EPSILON ? 0.0 : faceVelocityComponent * openFaceFraction;
+	}
+
+	private double openBoundaryFaceFluxComponent(
+			VoxelSolidMask solidMask,
+			int cellIndex,
+			double faceVelocityComponent
+	) {
+		double openFaceFraction = solidMask.openVolumeFractionCellIndex(cellIndex);
+		return openFaceFraction <= EPSILON ? 0.0 : faceVelocityComponent * openFaceFraction;
 	}
 
 	private boolean openNeighbor(VoxelSolidMask solidMask, int x, int y, int z) {
@@ -2431,15 +2465,19 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return 0.0;
 		}
 		double sum = 0.0;
-		int count = 0;
+		double totalWeight = 0.0;
 		for (int i = 0; i < values.length; i++) {
 			if (solidMask.isSolidCellIndex(i)) {
 				continue;
 			}
-			sum += values[i];
-			count++;
+			double weight = solidMask.openVolumeFractionCellIndex(i);
+			if (weight <= EPSILON) {
+				continue;
+			}
+			sum += values[i] * weight;
+			totalWeight += weight;
 		}
-		return count == 0 ? 0.0 : sum / count;
+		return totalWeight <= EPSILON ? 0.0 : sum / totalWeight;
 	}
 
 	private static void subtractMean(double[] values) {

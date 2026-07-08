@@ -350,6 +350,49 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void divergenceIntegralScalesPartialOpenInternalFacesLikeBoundaryFlux() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								new Vec3(10.0, 0.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.FALSE),
+						List.of(0.0, 0.5)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics divergence =
+				state.divergenceMetrics(mask);
+		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics integrals =
+				state.divergenceIntegralMetrics(mask);
+		PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics boundaryFlux =
+				state.openBoundaryFluxMetrics(mask);
+
+		assertEquals(5.0, divergence.maxAbsDivergencePerSecond(), 1.0e-15);
+		assertEquals(Math.sqrt(12.5), divergence.rmsDivergencePerSecond(), 1.0e-15);
+		assertEquals(10.0 / 3.0, divergence.meanDivergencePerSecond(), 1.0e-15);
+		assertEquals(5.0, integrals.netVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(5.0, integrals.grossAbsVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(1.5, integrals.openVolumeCubicMeters(), 1.0e-15);
+		assertEquals(5.0 * RHO, integrals.netMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
+		assertEquals(boundaryFlux.netOutwardVolumeFlowRateCubicMetersPerSecond(),
+				integrals.netVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
 	void solidMaskZerosSolidCellVelocityAndReportsMomentumLoss() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
