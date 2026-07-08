@@ -140,6 +140,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j",
 			"cumulative_flow_kinetic_energy_source_delta_minus_source_mechanical_work_j",
 			"cumulative_flow_kinetic_energy_source_delta_minus_combined_mechanical_work_j",
+			"cumulative_open_boundary_net_outward_mass_kg",
+			"cumulative_open_boundary_outward_mass_kg",
+			"cumulative_open_boundary_inward_mass_kg",
+			"cumulative_open_boundary_net_outward_impulse_world_x_ns",
+			"cumulative_open_boundary_net_outward_impulse_world_y_ns",
+			"cumulative_open_boundary_net_outward_impulse_world_z_ns",
+			"cumulative_open_boundary_net_outward_angular_impulse_world_x_nm_s",
+			"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s",
+			"cumulative_open_boundary_net_outward_angular_impulse_world_z_nm_s",
+			"cumulative_open_boundary_net_outward_kinetic_energy_j",
+			"cumulative_open_boundary_outward_kinetic_energy_j",
+			"cumulative_open_boundary_inward_kinetic_energy_j",
 			"max_residence_alpha",
 			"mean_active_wake_residual_after_residence_mps",
 			"max_divergence_before_projection_s",
@@ -767,6 +779,22 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeFlowKineticEnergySourceDeltaMinusMechanicalWork(run, completedSteps);
 		double cumulativeFlowKineticEnergySourceDeltaMinusCombinedMechanicalWork =
 				cumulativeFlowKineticEnergySourceDeltaMinusCombinedMechanicalWork(run, completedSteps);
+		double cumulativeOpenBoundaryNetOutwardMass =
+				cumulativeOpenBoundaryNetOutwardMass(run, completedSteps);
+		double cumulativeOpenBoundaryOutwardMass =
+				cumulativeOpenBoundaryOutwardMass(run, completedSteps);
+		double cumulativeOpenBoundaryInwardMass =
+				cumulativeOpenBoundaryInwardMass(run, completedSteps);
+		Vec3 cumulativeOpenBoundaryNetOutwardImpulse =
+				cumulativeOpenBoundaryNetOutwardImpulse(run, completedSteps);
+		Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulse =
+				cumulativeOpenBoundaryNetOutwardAngularImpulse(run, completedSteps);
+		double cumulativeOpenBoundaryNetOutwardKineticEnergy =
+				cumulativeOpenBoundaryNetOutwardKineticEnergy(run, completedSteps);
+		double cumulativeOpenBoundaryOutwardKineticEnergy =
+				cumulativeOpenBoundaryOutwardKineticEnergy(run, completedSteps);
+		double cumulativeOpenBoundaryInwardKineticEnergy =
+				cumulativeOpenBoundaryInwardKineticEnergy(run, completedSteps);
 		double cumulativeViscousDissipatedEnergy =
 				cumulativeViscousDissipatedEnergy(run, completedSteps);
 		double maxResidenceAlpha = initial ? 0.0 : iteration.sourceAdvance().maxResidenceAlpha();
@@ -1038,6 +1066,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeFlowKineticEnergySourceDeltaMinusTotalWake),
 				number(cumulativeFlowKineticEnergySourceDeltaMinusMechanicalWork),
 				number(cumulativeFlowKineticEnergySourceDeltaMinusCombinedMechanicalWork),
+				number(cumulativeOpenBoundaryNetOutwardMass),
+				number(cumulativeOpenBoundaryOutwardMass),
+				number(cumulativeOpenBoundaryInwardMass),
+				number(cumulativeOpenBoundaryNetOutwardImpulse.x()),
+				number(cumulativeOpenBoundaryNetOutwardImpulse.y()),
+				number(cumulativeOpenBoundaryNetOutwardImpulse.z()),
+				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.x()),
+				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.y()),
+				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.z()),
+				number(cumulativeOpenBoundaryNetOutwardKineticEnergy),
+				number(cumulativeOpenBoundaryOutwardKineticEnergy),
+				number(cumulativeOpenBoundaryInwardKineticEnergy),
 				number(maxResidenceAlpha),
 				number(meanWakeResidual),
 				number(divergenceBeforeProjection.maxAbsDivergencePerSecond()),
@@ -1430,6 +1470,122 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	) {
 		return cumulativeFlowKineticEnergySourceDelta(run, completedSteps)
 				- cumulativeCombinedMechanicalWorkEnergy(run, completedSteps);
+	}
+
+	private static double cumulativeOpenBoundaryNetOutwardMass(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double mass = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			mass += openBoundaryFluxAfterSolidBoundary(run, i)
+					.netOutwardMassFlowRateKilogramsPerSecond(run.config().airDensityKgPerCubicMeter())
+					* run.config().timeStepSeconds();
+		}
+		return mass;
+	}
+
+	private static double cumulativeOpenBoundaryOutwardMass(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double mass = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			mass += openBoundaryFluxAfterSolidBoundary(run, i)
+					.outwardMassFlowRateKilogramsPerSecond(run.config().airDensityKgPerCubicMeter())
+					* run.config().timeStepSeconds();
+		}
+		return mass;
+	}
+
+	private static double cumulativeOpenBoundaryInwardMass(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double mass = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			mass += openBoundaryFluxAfterSolidBoundary(run, i)
+					.inwardMassFlowRateKilogramsPerSecond(run.config().airDensityKgPerCubicMeter())
+					* run.config().timeStepSeconds();
+		}
+		return mass;
+	}
+
+	private static Vec3 cumulativeOpenBoundaryNetOutwardImpulse(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			sum = sum.add(openBoundaryFluxAfterSolidBoundary(run, i)
+					.netOutwardMomentumFluxWorldNewtons()
+					.multiply(run.config().timeStepSeconds()));
+		}
+		return sum;
+	}
+
+	private static Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulse(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			sum = sum.add(openBoundaryFluxAfterSolidBoundary(run, i)
+					.netOutwardAngularMomentumFluxWorldNewtonMeters()
+					.multiply(run.config().timeStepSeconds()));
+		}
+		return sum;
+	}
+
+	private static double cumulativeOpenBoundaryNetOutwardKineticEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += openBoundaryFluxAfterSolidBoundary(run, i)
+					.netOutwardKineticEnergyPowerWatts()
+					* run.config().timeStepSeconds();
+		}
+		return energy;
+	}
+
+	private static double cumulativeOpenBoundaryOutwardKineticEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += openBoundaryFluxAfterSolidBoundary(run, i)
+					.outwardKineticEnergyPowerWatts()
+					* run.config().timeStepSeconds();
+		}
+		return energy;
+	}
+
+	private static double cumulativeOpenBoundaryInwardKineticEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += openBoundaryFluxAfterSolidBoundary(run, i)
+					.inwardKineticEnergyPowerWatts()
+					* run.config().timeStepSeconds();
+		}
+		return energy;
+	}
+
+	private static PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics openBoundaryFluxAfterSolidBoundary(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int iterationIndex
+	) {
+		return run.iterations().get(iterationIndex)
+				.stateAfterSolidBoundary()
+				.openBoundaryFluxMetrics(
+						run.config().airDensityKgPerCubicMeter(),
+						run.solidMask()
+				);
 	}
 
 	private static double cumulativeViscousDissipatedEnergy(

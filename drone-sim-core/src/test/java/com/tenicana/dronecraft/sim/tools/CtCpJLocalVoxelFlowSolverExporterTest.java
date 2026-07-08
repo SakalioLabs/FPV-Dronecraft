@@ -95,6 +95,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverInitial,
 						"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_y_nm"),
 				1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "cumulative_open_boundary_net_outward_mass_kg"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0, integer(hoverInitial, "solid_cell_count"));
 		assertEquals(0, integer(hoverInitial, "solid_clamped_cell_count"));
 		assertEquals(STEPS, integer(hoverStep2, "configured_step_count"));
@@ -273,6 +277,25 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverStep2,
 						"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_y_nm"),
 				1.0e-15);
+		assertEquals(number(hoverStep0,
+						"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_y_n") * TIME_STEP,
+				number(hoverStep0, "cumulative_open_boundary_net_outward_impulse_world_y_ns"),
+				1.0e-12);
+		assertEquals(number(hoverStep0,
+						"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_y_nm")
+						* TIME_STEP,
+				number(hoverStep0, "cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s"),
+				1.0e-12);
+		assertEquals(number(hoverStep0, "open_boundary_net_outward_kinetic_power_after_solid_boundary_w")
+						* TIME_STEP,
+				number(hoverStep0, "cumulative_open_boundary_net_outward_kinetic_energy_j"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_open_boundary_outward_mass_kg")
+						- number(hoverStep2, "cumulative_open_boundary_inward_mass_kg"),
+				number(hoverStep2, "cumulative_open_boundary_net_outward_mass_kg"), 1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_open_boundary_outward_kinetic_energy_j")
+						- number(hoverStep2, "cumulative_open_boundary_inward_kinetic_energy_j"),
+				number(hoverStep2, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-12);
 		assertTrue(Double.isFinite(number(hoverStep2, "max_vorticity_after_source_s")));
 		assertTrue(number(hoverStep2, "max_vorticity_after_source_s") >= 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2, "rms_vorticity_after_projection_s")));
@@ -435,6 +458,13 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0,
 				number(blockedStep2, "open_boundary_net_outward_kinetic_power_after_solid_boundary_w"),
 				1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_open_boundary_net_outward_impulse_world_y_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s"),
+				1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "final_momentum_world_y_ns"), 1.0e-15);
@@ -610,6 +640,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				"open_boundary_net_outward_angular_momentum_flux_after_source_world_y_nm"));
 		assertTrue(lines.get(0).contains("open_boundary_outward_kinetic_power_after_projection_w"));
 		assertTrue(lines.get(0).contains("open_boundary_net_outward_kinetic_power_after_solid_boundary_w"));
+		assertTrue(lines.get(0).contains("cumulative_open_boundary_net_outward_mass_kg"));
+		assertTrue(lines.get(0).contains("cumulative_open_boundary_net_outward_impulse_world_y_ns"));
+		assertTrue(lines.get(0).contains(
+				"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s"));
+		assertTrue(lines.get(0).contains("cumulative_open_boundary_net_outward_kinetic_energy_j"));
 		assertTrue(lines.get(0).contains("max_vorticity_after_source_s"));
 		assertTrue(lines.get(0).contains("rms_vorticity_after_projection_s"));
 		assertTrue(lines.get(0).contains("mean_vorticity_after_solid_boundary_world_y_s"));

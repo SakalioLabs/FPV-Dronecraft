@@ -72,6 +72,34 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(run.totalSourceFlowKineticEnergyDeltaJoules() - run.totalWakeKineticEnergyJoules(),
 				run.sourceFlowKineticEnergyDeltaMinusTotalWakeKineticEnergyJoules(), 1.0e-12);
 		assertTrue(run.totalThroughFlowImpulseWorldNewtonSeconds().length() > 0.0);
+		double expectedBoundaryNetMass = 0.0;
+		Vec3 expectedBoundaryImpulse = Vec3.ZERO;
+		Vec3 expectedBoundaryAngularImpulse = Vec3.ZERO;
+		double expectedBoundaryNetEnergy = 0.0;
+		for (PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration : run.iterations()) {
+			PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
+					iteration.stateAfterSolidBoundary().openBoundaryFluxMetrics(RHO, run.solidMask());
+			expectedBoundaryNetMass += flux.netOutwardMassFlowRateKilogramsPerSecond(RHO) * DT;
+			expectedBoundaryImpulse = expectedBoundaryImpulse.add(
+					flux.netOutwardMomentumFluxWorldNewtons().multiply(DT));
+			expectedBoundaryAngularImpulse = expectedBoundaryAngularImpulse.add(
+					flux.netOutwardAngularMomentumFluxWorldNewtonMeters().multiply(DT));
+			expectedBoundaryNetEnergy += flux.netOutwardKineticEnergyPowerWatts() * DT;
+		}
+		assertEquals(run.cumulativeOpenBoundaryOutwardMassKilograms()
+						- run.cumulativeOpenBoundaryInwardMassKilograms(),
+				run.cumulativeOpenBoundaryNetOutwardMassKilograms(), 1.0e-15);
+		assertEquals(expectedBoundaryNetMass,
+				run.cumulativeOpenBoundaryNetOutwardMassKilograms(), 1.0e-15);
+		assertVectorEquals(expectedBoundaryImpulse,
+				run.cumulativeOpenBoundaryNetOutwardImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(expectedBoundaryAngularImpulse,
+				run.cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertEquals(run.cumulativeOpenBoundaryOutwardKineticEnergyJoules()
+						- run.cumulativeOpenBoundaryInwardKineticEnergyJoules(),
+				run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules(), 1.0e-15);
+		assertEquals(expectedBoundaryNetEnergy,
+				run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0, run.maxSolidCellCount());
 		assertEquals(0, run.maxSolidClampedCellCount());
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);

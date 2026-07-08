@@ -251,6 +251,97 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return mass;
 		}
 
+		public double cumulativeOpenBoundaryNetOutwardMassKilograms() {
+			double mass = 0.0;
+			for (SolverIteration iteration : iterations) {
+				mass += openBoundaryFluxAfterSolidBoundary(iteration)
+						.netOutwardMassFlowRateKilogramsPerSecond(config.airDensityKgPerCubicMeter())
+						* config.timeStepSeconds();
+			}
+			return mass;
+		}
+
+		public double cumulativeOpenBoundaryOutwardMassKilograms() {
+			double mass = 0.0;
+			for (SolverIteration iteration : iterations) {
+				mass += openBoundaryFluxAfterSolidBoundary(iteration)
+						.outwardMassFlowRateKilogramsPerSecond(config.airDensityKgPerCubicMeter())
+						* config.timeStepSeconds();
+			}
+			return mass;
+		}
+
+		public double cumulativeOpenBoundaryInwardMassKilograms() {
+			double mass = 0.0;
+			for (SolverIteration iteration : iterations) {
+				mass += openBoundaryFluxAfterSolidBoundary(iteration)
+						.inwardMassFlowRateKilogramsPerSecond(config.airDensityKgPerCubicMeter())
+						* config.timeStepSeconds();
+			}
+			return mass;
+		}
+
+		public Vec3 cumulativeOpenBoundaryNetOutwardImpulseWorldNewtonSeconds() {
+			Vec3 impulse = Vec3.ZERO;
+			for (SolverIteration iteration : iterations) {
+				impulse = impulse.add(openBoundaryFluxAfterSolidBoundary(iteration)
+						.netOutwardMomentumFluxWorldNewtons()
+						.multiply(config.timeStepSeconds()));
+			}
+			return impulse;
+		}
+
+		public Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds() {
+			return cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+					initialState.gridSpec().gridCenterWorldMeters()
+			);
+		}
+
+		public Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+				Vec3 momentReferenceWorldMeters
+		) {
+			Vec3 angularImpulse = Vec3.ZERO;
+			Vec3 reference = momentReferenceWorldMeters == null || !momentReferenceWorldMeters.isFinite()
+					? initialState.gridSpec().gridCenterWorldMeters()
+					: momentReferenceWorldMeters;
+			for (SolverIteration iteration : iterations) {
+				angularImpulse = angularImpulse.add(openBoundaryFluxAfterSolidBoundary(iteration, reference)
+						.netOutwardAngularMomentumFluxWorldNewtonMeters()
+						.multiply(config.timeStepSeconds()));
+			}
+			return angularImpulse;
+		}
+
+		public double cumulativeOpenBoundaryNetOutwardKineticEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += openBoundaryFluxAfterSolidBoundary(iteration)
+						.netOutwardKineticEnergyPowerWatts()
+						* config.timeStepSeconds();
+			}
+			return energy;
+		}
+
+		public double cumulativeOpenBoundaryOutwardKineticEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += openBoundaryFluxAfterSolidBoundary(iteration)
+						.outwardKineticEnergyPowerWatts()
+						* config.timeStepSeconds();
+			}
+			return energy;
+		}
+
+		public double cumulativeOpenBoundaryInwardKineticEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += openBoundaryFluxAfterSolidBoundary(iteration)
+						.inwardKineticEnergyPowerWatts()
+						* config.timeStepSeconds();
+			}
+			return energy;
+		}
+
 		public double totalIdealMomentumEnergyJoules() {
 			double energy = 0.0;
 			for (SolverIteration iteration : iterations) {
@@ -409,6 +500,26 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 
 		public double finalMaxSpeedMetersPerSecond() {
 			return finalState.maxSpeedMetersPerSecond();
+		}
+
+		private PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics openBoundaryFluxAfterSolidBoundary(
+				SolverIteration iteration
+		) {
+			return openBoundaryFluxAfterSolidBoundary(
+					iteration,
+					initialState.gridSpec().gridCenterWorldMeters()
+			);
+		}
+
+		private PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics openBoundaryFluxAfterSolidBoundary(
+				SolverIteration iteration,
+				Vec3 momentReferenceWorldMeters
+		) {
+			return iteration.stateAfterSolidBoundary().openBoundaryFluxMetrics(
+					config.airDensityKgPerCubicMeter(),
+					solidMask,
+					momentReferenceWorldMeters
+			);
 		}
 	}
 
