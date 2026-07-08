@@ -399,6 +399,30 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return energy;
 		}
 
+		public double totalDiffusionKineticEnergyDeltaJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.diffusionStep().kineticEnergyDeltaJoules();
+			}
+			return energy;
+		}
+
+		public double totalViscousDissipatedEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.diffusionStep().viscousDissipatedEnergyJoules();
+			}
+			return energy;
+		}
+
+		public double meanViscousDissipationPowerWatts() {
+			if (iterations.isEmpty()) {
+				return 0.0;
+			}
+			return totalViscousDissipatedEnergyJoules()
+					/ (config.timeStepSeconds() * completedStepCount());
+		}
+
 		public double sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules() {
 			return totalSourceFlowKineticEnergyDeltaJoules() - totalIdealMomentumEnergyJoules();
 		}

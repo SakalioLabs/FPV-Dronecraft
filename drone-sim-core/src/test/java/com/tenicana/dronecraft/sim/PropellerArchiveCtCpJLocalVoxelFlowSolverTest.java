@@ -72,11 +72,15 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(run.totalSourceFlowKineticEnergyDeltaJoules() - run.totalWakeKineticEnergyJoules(),
 				run.sourceFlowKineticEnergyDeltaMinusTotalWakeKineticEnergyJoules(), 1.0e-12);
 		assertTrue(run.totalThroughFlowImpulseWorldNewtonSeconds().length() > 0.0);
+		double expectedDiffusionEnergyDelta = 0.0;
+		double expectedViscousDissipatedEnergy = 0.0;
 		double expectedBoundaryNetMass = 0.0;
 		Vec3 expectedBoundaryImpulse = Vec3.ZERO;
 		Vec3 expectedBoundaryAngularImpulse = Vec3.ZERO;
 		double expectedBoundaryNetEnergy = 0.0;
 		for (PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration : run.iterations()) {
+			expectedDiffusionEnergyDelta += iteration.diffusionStep().kineticEnergyDeltaJoules();
+			expectedViscousDissipatedEnergy += iteration.diffusionStep().viscousDissipatedEnergyJoules();
 			PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
 					iteration.stateAfterSolidBoundary().openBoundaryFluxMetrics(RHO, run.solidMask());
 			expectedBoundaryNetMass += flux.netOutwardMassFlowRateKilogramsPerSecond(RHO) * DT;
@@ -86,6 +90,14 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 					flux.netOutwardAngularMomentumFluxWorldNewtonMeters().multiply(DT));
 			expectedBoundaryNetEnergy += flux.netOutwardKineticEnergyPowerWatts() * DT;
 		}
+		assertEquals(expectedDiffusionEnergyDelta,
+				run.totalDiffusionKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(expectedViscousDissipatedEnergy,
+				run.totalViscousDissipatedEnergyJoules(), 1.0e-15);
+		assertTrue(run.totalViscousDissipatedEnergyJoules() > 0.0);
+		assertEquals(run.totalViscousDissipatedEnergyJoules()
+						/ (DT * run.completedStepCount()),
+				run.meanViscousDissipationPowerWatts(), 1.0e-12);
 		assertEquals(run.cumulativeOpenBoundaryOutwardMassKilograms()
 						- run.cumulativeOpenBoundaryInwardMassKilograms(),
 				run.cumulativeOpenBoundaryNetOutwardMassKilograms(), 1.0e-15);
@@ -239,6 +251,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(0.0, run.totalWakeSwirlKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalWakeKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalDiffusionKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalViscousDissipatedEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.meanViscousDissipationPowerWatts(), 1.0e-15);
 		assertEquals(0.0, run.sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.sourceFlowKineticEnergyDeltaMinusTotalWakeKineticEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
@@ -297,6 +312,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(0.0, run.totalWakeSwirlKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalWakeKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalDiffusionKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalViscousDissipatedEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.meanViscousDissipationPowerWatts(), 1.0e-15);
 		assertEquals(0.0, run.sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.sourceFlowKineticEnergyDeltaMinusTotalWakeKineticEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
