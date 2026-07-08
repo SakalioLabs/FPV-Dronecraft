@@ -128,6 +128,121 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		}
 	}
 
+	public record CellMassFluxResidenceStep(
+			CellMomentumStep sourceMomentumStep,
+			double sourceThicknessMeters,
+			double cellAirMassKilograms,
+			double sampledSourceAreaSquareMeters,
+			double sourceMassFlowRateKilogramsPerSecond,
+			double residenceAlpha,
+			Vec3 throughFlowVelocityDeltaWorldMetersPerSecond,
+			Vec3 velocityAfterResidenceWorldMetersPerSecond,
+			Vec3 targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond,
+			Vec3 throughFlowMomentumRateWorldNewtons,
+			Vec3 throughFlowImpulseWorldNewtonSeconds
+	) {
+		public CellMassFluxResidenceStep {
+			if (sourceMomentumStep == null) {
+				throw new IllegalArgumentException("sourceMomentumStep must not be null.");
+			}
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				throw new IllegalArgumentException("sourceThicknessMeters must be finite and positive.");
+			}
+			cellAirMassKilograms = finiteNonnegative(cellAirMassKilograms);
+			sampledSourceAreaSquareMeters = finiteNonnegative(sampledSourceAreaSquareMeters);
+			sourceMassFlowRateKilogramsPerSecond = finiteNonnegative(sourceMassFlowRateKilogramsPerSecond);
+			residenceAlpha = MathUtil.clamp(residenceAlpha, 0.0, 1.0);
+			throughFlowVelocityDeltaWorldMetersPerSecond =
+					finiteVecOrZero(throughFlowVelocityDeltaWorldMetersPerSecond);
+			velocityAfterResidenceWorldMetersPerSecond =
+					finiteVecOrZero(velocityAfterResidenceWorldMetersPerSecond);
+			targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond =
+					finiteVecOrZero(targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond);
+			throughFlowMomentumRateWorldNewtons = finiteVecOrZero(throughFlowMomentumRateWorldNewtons);
+			throughFlowImpulseWorldNewtonSeconds = finiteVecOrZero(throughFlowImpulseWorldNewtonSeconds);
+		}
+
+		public boolean active() {
+			return sourceMomentumStep.active();
+		}
+	}
+
+	public record MassFluxResidenceStepSample(
+			MomentumStepSample sourceMomentumSample,
+			double sourceThicknessMeters,
+			List<CellMassFluxResidenceStep> cells
+	) {
+		public MassFluxResidenceStepSample {
+			if (sourceMomentumSample == null) {
+				throw new IllegalArgumentException("sourceMomentumSample must not be null.");
+			}
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				throw new IllegalArgumentException("sourceThicknessMeters must be finite and positive.");
+			}
+			cells = List.copyOf(cells == null ? List.of() : cells);
+		}
+
+		public List<CellMassFluxResidenceStep> activeCells() {
+			return cells.stream()
+					.filter(CellMassFluxResidenceStep::active)
+					.toList();
+		}
+
+		public int activeCellCount() {
+			int count = 0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				if (cell.active()) {
+					count++;
+				}
+			}
+			return count;
+		}
+
+		public Vec3 totalSourceMomentumRateWorldNewtons() {
+			return sourceMomentumSample.totalMomentumRateWorldNewtons();
+		}
+
+		public Vec3 totalSourceImpulseWorldNewtonSeconds() {
+			return sourceMomentumSample.totalImpulseWorldNewtonSeconds();
+		}
+
+		public double totalSourceMassFlowRateKilogramsPerSecond() {
+			double sum = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum += cell.sourceMassFlowRateKilogramsPerSecond();
+			}
+			return sum;
+		}
+
+		public Vec3 totalThroughFlowMomentumRateWorldNewtons() {
+			Vec3 sum = Vec3.ZERO;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum = sum.add(cell.throughFlowMomentumRateWorldNewtons());
+			}
+			return sum;
+		}
+
+		public Vec3 totalThroughFlowImpulseWorldNewtonSeconds() {
+			Vec3 sum = Vec3.ZERO;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum = sum.add(cell.throughFlowImpulseWorldNewtonSeconds());
+			}
+			return sum;
+		}
+
+		public Vec3 totalCombinedMomentumRateWorldNewtons() {
+			return totalSourceMomentumRateWorldNewtons().add(totalThroughFlowMomentumRateWorldNewtons());
+		}
+
+		public double maxResidenceAlpha() {
+			double max = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				max = Math.max(max, cell.residenceAlpha());
+			}
+			return max;
+		}
+	}
+
 	public static MomentumStepSample step(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			double airDensityKgPerCubicMeter,
@@ -191,6 +306,75 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		);
 	}
 
+	public static MassFluxResidenceStepSample stepWithMassFluxResidence(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double sourceThicknessMeters
+	) {
+		return stepWithMassFluxResidence(
+				sourceGridSample,
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				sourceThicknessMeters,
+				Vec3.ZERO
+		);
+	}
+
+	public static MassFluxResidenceStepSample stepWithMassFluxResidence(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double sourceThicknessMeters,
+			Vec3 uniformInitialVelocityWorldMetersPerSecond
+	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		Vec3 initialVelocity = finiteVecOrZero(uniformInitialVelocityWorldMetersPerSecond);
+		ArrayList<Vec3> initialVelocities = new ArrayList<>(sourceGridSample.cells().size());
+		for (int i = 0; i < sourceGridSample.cells().size(); i++) {
+			initialVelocities.add(initialVelocity);
+		}
+		return stepWithMassFluxResidence(
+				sourceGridSample,
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				sourceThicknessMeters,
+				initialVelocities
+		);
+	}
+
+	public static MassFluxResidenceStepSample stepWithMassFluxResidence(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double sourceThicknessMeters,
+			List<Vec3> initialCellVelocitiesWorldMetersPerSecond
+	) {
+		if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+			throw new IllegalArgumentException("sourceThicknessMeters must be finite and positive.");
+		}
+		MomentumStepSample sourceMomentumSample = step(
+				sourceGridSample,
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				initialCellVelocitiesWorldMetersPerSecond
+		);
+		ArrayList<CellMassFluxResidenceStep> cells =
+				new ArrayList<>(sourceMomentumSample.cells().size());
+		for (int i = 0; i < sourceMomentumSample.cells().size(); i++) {
+			cells.add(residenceStepCell(
+					sourceMomentumSample.cells().get(i),
+					sourceGridSample.cells().get(i),
+					airDensityKgPerCubicMeter,
+					timeStepSeconds,
+					sourceThicknessMeters
+			));
+		}
+		return new MassFluxResidenceStepSample(sourceMomentumSample, sourceThicknessMeters, cells);
+	}
+
 	private static CellMomentumStep stepCell(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell,
 			double airDensityKgPerCubicMeter,
@@ -225,6 +409,53 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 				wakeTorque,
 				wakeTorqueImpulse
 		);
+	}
+
+	private static CellMassFluxResidenceStep residenceStepCell(
+			CellMomentumStep sourceMomentumStep,
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double sourceThicknessMeters
+	) {
+		double cellAirMass = airDensityKgPerCubicMeter * sourceCell.cellVolumeCubicMeters();
+		double sampledSourceArea = sourceCell.sampledSourceVolumeCubicMeters() / sourceThicknessMeters;
+		double sourceMassFlowRate = sourceCell.massFluxKilogramsPerSecondSquareMeter() * sampledSourceArea;
+		double residenceAlpha = residenceAlpha(sourceMassFlowRate, timeStepSeconds, cellAirMass);
+		Vec3 throughFlowVelocityDelta = sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond()
+				.subtract(sourceMomentumStep.velocityAfterStepWorldMetersPerSecond())
+				.multiply(residenceAlpha);
+		Vec3 velocityAfterResidence = sourceMomentumStep.velocityAfterStepWorldMetersPerSecond()
+				.add(throughFlowVelocityDelta);
+		Vec3 throughFlowImpulse = throughFlowVelocityDelta.multiply(cellAirMass);
+		Vec3 throughFlowMomentumRate = throughFlowImpulse.multiply(1.0 / timeStepSeconds);
+		return new CellMassFluxResidenceStep(
+				sourceMomentumStep,
+				sourceThicknessMeters,
+				cellAirMass,
+				sampledSourceArea,
+				sourceMassFlowRate,
+				residenceAlpha,
+				throughFlowVelocityDelta,
+				velocityAfterResidence,
+				sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond().subtract(velocityAfterResidence),
+				throughFlowMomentumRate,
+				throughFlowImpulse
+		);
+	}
+
+	private static double residenceAlpha(
+			double sourceMassFlowRateKilogramsPerSecond,
+			double timeStepSeconds,
+			double cellAirMassKilograms
+	) {
+		if (sourceMassFlowRateKilogramsPerSecond <= EPSILON || cellAirMassKilograms <= EPSILON) {
+			return 0.0;
+		}
+		double turnover = sourceMassFlowRateKilogramsPerSecond * timeStepSeconds / cellAirMassKilograms;
+		return Double.isFinite(turnover) && turnover > 0.0
+				? MathUtil.clamp(1.0 - Math.exp(-turnover), 0.0, 1.0)
+				: 0.0;
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {

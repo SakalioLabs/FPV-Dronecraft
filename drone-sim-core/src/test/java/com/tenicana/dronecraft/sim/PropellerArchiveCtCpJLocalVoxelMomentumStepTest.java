@@ -125,6 +125,99 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 	}
 
 	@Test
+	void massFluxResidenceStepReducesWakeResidualWithoutChangingSourceClosure() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				conservativeGridForSignedAxialSpeed(
+						"local_voxel_residence_hover",
+						0.0,
+						Quaternion.IDENTITY,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		Vec3 initialVelocity = new Vec3(0.0, 0.15, -0.05);
+
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residence =
+				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						gridSample,
+						RHO,
+						DT,
+						SOURCE_THICKNESS,
+						initialVelocity
+				);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep activeCell =
+				residence.activeCells().stream()
+						.filter(cell -> cell.sourceMassFlowRateKilogramsPerSecond() > 0.0)
+						.findFirst()
+						.orElseThrow();
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMomentumStep sourceStep =
+				activeCell.sourceMomentumStep();
+
+		assertEquals(gridSample.activeCellCount(), residence.activeCellCount());
+		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons(),
+				residence.totalSourceMomentumRateWorldNewtons(), 1.0e-10);
+		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons().multiply(DT),
+				residence.totalSourceImpulseWorldNewtonSeconds(), 1.0e-12);
+		assertTrue(residence.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
+		assertTrue(residence.maxResidenceAlpha() > 0.0);
+		assertTrue(residence.maxResidenceAlpha() < 1.0);
+		assertEquals(RHO * sourceStep.cellVolumeCubicMeters(),
+				activeCell.cellAirMassKilograms(), 1.0e-15);
+		assertEquals(sourceStep.cellVolumeCubicMeters() * sourceStep.sourceVolumeFraction() / SOURCE_THICKNESS,
+				activeCell.sampledSourceAreaSquareMeters(), 1.0e-15);
+		assertVectorEquals(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+						.subtract(sourceStep.velocityAfterStepWorldMetersPerSecond())
+						.multiply(activeCell.residenceAlpha()),
+				activeCell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(sourceStep.velocityAfterStepWorldMetersPerSecond()
+						.add(activeCell.throughFlowVelocityDeltaWorldMetersPerSecond()),
+				activeCell.velocityAfterResidenceWorldMetersPerSecond(), 1.0e-15);
+		assertTrue(activeCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
+				< sourceStep.targetWakeVelocityResidualWorldMetersPerSecond().length());
+		assertVectorEquals(activeCell.throughFlowVelocityDeltaWorldMetersPerSecond()
+						.multiply(activeCell.cellAirMassKilograms()),
+				activeCell.throughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(activeCell.throughFlowImpulseWorldNewtonSeconds().multiply(1.0 / DT),
+				activeCell.throughFlowMomentumRateWorldNewtons(), 1.0e-12);
+		assertVectorEquals(residence.totalSourceMomentumRateWorldNewtons()
+						.add(residence.totalThroughFlowMomentumRateWorldNewtons()),
+				residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
+	}
+
+	@Test
+	void blockedMassFluxResidenceStepHasNoExchangeAndRejectsInvalidThickness() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample blockedGrid =
+				conservativeGridForAdvanceRatio(
+						"local_voxel_blocked_residence",
+						1.20,
+						Quaternion.IDENTITY,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residence =
+				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						blockedGrid,
+						RHO,
+						DT,
+						SOURCE_THICKNESS
+				);
+
+		assertEquals(0, residence.activeCellCount());
+		assertEquals(0.0, residence.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, residence.maxResidenceAlpha(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, residence.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, residence.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				residence.cells().get(0).velocityAfterResidenceWorldMetersPerSecond(), 1.0e-15);
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						blockedGrid,
+						RHO,
+						DT,
+						0.0
+				));
+	}
+
+	@Test
 	void rejectsInvalidDensityTimeStepAndInitialVelocityCounts() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(
