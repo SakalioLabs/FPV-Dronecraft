@@ -502,10 +502,11 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 		double tangentialWakeVelocity = diskMassFlow > EPSILON && swirlRadius > EPSILON
 				? Math.abs(torque) / (diskMassFlow * swirlRadius)
 				: 0.0;
-		double swirlKineticPower = 0.5
-				* diskMassFlow
-				* tangentialWakeVelocity
-				* tangentialWakeVelocity;
+		double swirlKineticPower = wakeSwirlKineticPower(
+				diskMassFlow,
+				swirlRadius,
+				tangentialWakeVelocity,
+				farWakeRadius);
 		double totalWakePower = idealMomentumPower + swirlKineticPower;
 		double totalWakeOverShaft = ratio(totalWakePower, shaftPower);
 		double swirlOverShaft = ratio(swirlKineticPower, shaftPower);
@@ -550,6 +551,26 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				shaftPowerResidual,
 				shaftPowerResidualFraction
 		);
+	}
+
+	private static double wakeSwirlKineticPower(
+			double diskMassFlowKilogramsPerSecond,
+			double angularMomentumSwirlRadiusMeters,
+			double wakeTangentialVelocityMetersPerSecond,
+			double wakeRadiusMeters
+	) {
+		if (diskMassFlowKilogramsPerSecond <= EPSILON
+				|| angularMomentumSwirlRadiusMeters <= EPSILON
+				|| wakeTangentialVelocityMetersPerSecond <= EPSILON
+				|| wakeRadiusMeters <= EPSILON) {
+			return 0.0;
+		}
+		double specificAngularMomentum =
+				angularMomentumSwirlRadiusMeters * wakeTangentialVelocityMetersPerSecond;
+		return diskMassFlowKilogramsPerSecond
+				* specificAngularMomentum
+				* specificAngularMomentum
+				/ (wakeRadiusMeters * wakeRadiusMeters);
 	}
 
 	public static List<String> acceptedReferenceCaseNames(String presetName) {

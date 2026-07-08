@@ -580,9 +580,13 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.0, sample.wakeAngularMomentumTorqueResidualNewtonMeters(), 1.0e-15);
 		assertEquals(0.0, sample.wakeAngularMomentumTorqueResidualFraction(), 1.0e-15);
 		assertEquals(
-				0.5 * sample.diskMassFlowKilogramsPerSecond()
+				sample.diskMassFlowKilogramsPerSecond()
+						* sample.angularMomentumSwirlRadiusMeters()
+						* sample.angularMomentumSwirlRadiusMeters()
 						* sample.wakeTangentialVelocityMetersPerSecond()
-						* sample.wakeTangentialVelocityMetersPerSecond(),
+						* sample.wakeTangentialVelocityMetersPerSecond()
+						/ (sample.farWakeEquivalentRadiusMeters()
+						* sample.farWakeEquivalentRadiusMeters()),
 				sample.wakeSwirlKineticPowerWatts(),
 				1.0e-15
 		);
