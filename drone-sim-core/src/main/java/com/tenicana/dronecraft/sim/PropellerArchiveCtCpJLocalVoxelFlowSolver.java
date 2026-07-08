@@ -211,6 +211,29 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return sum;
 		}
 
+		public Vec3 totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			Vec3 sum = Vec3.ZERO;
+			for (SolverIteration iteration : iterations) {
+				Vec3 before = iteration.stateBeforeStep().totalAngularMomentumWorldNewtonMeterSeconds(
+						config.airDensityKgPerCubicMeter(),
+						momentReferenceWorldMeters,
+						solidMask);
+				Vec3 afterSource = iteration.stateAfterSource().totalAngularMomentumWorldNewtonMeterSeconds(
+						config.airDensityKgPerCubicMeter(),
+						momentReferenceWorldMeters,
+						solidMask);
+				sum = sum.add(afterSource.subtract(before));
+			}
+			return sum;
+		}
+
+		public Vec3 sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(
+				Vec3 momentReferenceWorldMeters
+		) {
+			return totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(momentReferenceWorldMeters)
+					.subtract(totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds());
+		}
+
 		public Vec3 totalThroughFlowImpulseWorldNewtonSeconds() {
 			Vec3 sum = Vec3.ZERO;
 			for (SolverIteration iteration : iterations) {

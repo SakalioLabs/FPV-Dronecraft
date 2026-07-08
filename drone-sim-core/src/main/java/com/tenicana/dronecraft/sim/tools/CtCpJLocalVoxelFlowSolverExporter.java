@@ -171,9 +171,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"flow_angular_momentum_reference_world_x_m",
 			"flow_angular_momentum_reference_world_y_m",
 			"flow_angular_momentum_reference_world_z_m",
+			"flow_angular_momentum_before_source_world_x_nm_s",
+			"flow_angular_momentum_before_source_world_y_nm_s",
+			"flow_angular_momentum_before_source_world_z_nm_s",
 			"flow_angular_momentum_after_source_world_x_nm_s",
 			"flow_angular_momentum_after_source_world_y_nm_s",
 			"flow_angular_momentum_after_source_world_z_nm_s",
+			"flow_angular_momentum_source_delta_world_x_nm_s",
+			"flow_angular_momentum_source_delta_world_y_nm_s",
+			"flow_angular_momentum_source_delta_world_z_nm_s",
+			"flow_angular_momentum_source_delta_minus_wake_impulse_world_x_nm_s",
+			"flow_angular_momentum_source_delta_minus_wake_impulse_world_y_nm_s",
+			"flow_angular_momentum_source_delta_minus_wake_impulse_world_z_nm_s",
 			"flow_angular_momentum_after_solid_boundary_world_x_nm_s",
 			"flow_angular_momentum_after_solid_boundary_world_y_nm_s",
 			"flow_angular_momentum_after_solid_boundary_world_z_nm_s"
@@ -634,12 +643,22 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.stateAfterSolidBoundary()
 						.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask());
 		Vec3 angularMomentumReference = metadata.sourceGridSample().gridSpec().gridCenterWorldMeters();
+		Vec3 angularMomentumBeforeSource = initial ? run.initialAngularMomentumWorldNewtonMeterSeconds(
+				angularMomentumReference)
+				: iteration.stateBeforeStep().totalAngularMomentumWorldNewtonMeterSeconds(
+						run.config().airDensityKgPerCubicMeter(),
+						angularMomentumReference,
+						run.solidMask());
 		Vec3 angularMomentumAfterSource = initial ? run.initialAngularMomentumWorldNewtonMeterSeconds(
 				angularMomentumReference)
 				: iteration.stateAfterSource().totalAngularMomentumWorldNewtonMeterSeconds(
 						run.config().airDensityKgPerCubicMeter(),
 						angularMomentumReference,
 						run.solidMask());
+		Vec3 angularMomentumSourceDelta =
+				initial ? zero : angularMomentumAfterSource.subtract(angularMomentumBeforeSource);
+		Vec3 angularMomentumSourceDeltaMinusWakeImpulse =
+				initial ? zero : angularMomentumSourceDelta.subtract(sourceWakeAngularMomentumImpulse);
 		Vec3 angularMomentumAfterSolidBoundary = initial ? angularMomentumAfterSource
 				: iteration.stateAfterSolidBoundary().totalAngularMomentumWorldNewtonMeterSeconds(
 						run.config().airDensityKgPerCubicMeter(),
@@ -792,9 +811,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(angularMomentumReference.x()),
 				number(angularMomentumReference.y()),
 				number(angularMomentumReference.z()),
+				number(angularMomentumBeforeSource.x()),
+				number(angularMomentumBeforeSource.y()),
+				number(angularMomentumBeforeSource.z()),
 				number(angularMomentumAfterSource.x()),
 				number(angularMomentumAfterSource.y()),
 				number(angularMomentumAfterSource.z()),
+				number(angularMomentumSourceDelta.x()),
+				number(angularMomentumSourceDelta.y()),
+				number(angularMomentumSourceDelta.z()),
+				number(angularMomentumSourceDeltaMinusWakeImpulse.x()),
+				number(angularMomentumSourceDeltaMinusWakeImpulse.y()),
+				number(angularMomentumSourceDeltaMinusWakeImpulse.z()),
 				number(angularMomentumAfterSolidBoundary.x()),
 				number(angularMomentumAfterSolidBoundary.y()),
 				number(angularMomentumAfterSolidBoundary.z())
