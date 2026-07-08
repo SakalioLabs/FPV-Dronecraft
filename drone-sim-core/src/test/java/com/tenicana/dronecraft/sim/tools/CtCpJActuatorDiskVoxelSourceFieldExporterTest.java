@@ -74,6 +74,11 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(number(hover.get(0), "wake_angular_momentum_torque_density_world_y_nm_m3")
 						* number(hover.get(0), "cell_volume_m3"),
 				number(hover.get(0), "integrated_wake_angular_momentum_torque_world_y_nm"), 1.0e-12);
+		assertEquals(0.0, number(hover.get(0), "actuator_disk_axial_velocity_world_x_mps"), 1.0e-15);
+		assertTrue(number(hover.get(0), "actuator_disk_axial_velocity_world_y_mps") > 0.0);
+		assertEquals(0.0, number(hover.get(0), "actuator_disk_axial_velocity_world_z_mps"), 1.0e-15);
+		assertTrue(number(hover.get(0), "far_wake_axial_velocity_world_y_mps")
+				> number(hover.get(0), "actuator_disk_axial_velocity_world_y_mps"));
 		assertTrue(number(hover.get(0), "wake_swirl_kinetic_power_loading_w_m2") >= 0.0);
 		assertTrue(number(hover.get(0), "total_wake_kinetic_power_loading_w_m2")
 				>= number(hover.get(0), "ideal_momentum_power_loading_w_m2"));
@@ -90,6 +95,8 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.4064, number(mid.get(0), "query_j"), 1.0e-12);
 		assertTrue(number(mid.get(0), "eta") > 0.0);
 		assertTrue(number(mid.get(0), "target_body_force_world_y_n") > 0.0);
+		assertTrue(mid.stream().anyMatch(row ->
+				number(row, "actuator_disk_axial_velocity_world_y_mps") > 0.0));
 		assertTrue(mid.stream().anyMatch(row -> number(row, "far_wake_axial_velocity_world_y_mps") > 0.0));
 
 		assertEquals(0.73152, number(high.get(0), "query_j"), 1.0e-12);
@@ -111,6 +118,7 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(0.0, number(blocked.get(0), "target_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "voxel_total_wake_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blocked.get(0), "integrated_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blocked.get(0), "actuator_disk_axial_velocity_world_y_mps"), 1.0e-15);
 	}
 
 	@Test
@@ -130,6 +138,7 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(lines.get(0).contains("target_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("voxel_total_wake_kinetic_power_w"));
 		assertTrue(lines.get(0).contains("integrated_total_wake_kinetic_power_w"));
+		assertTrue(lines.get(0).contains("actuator_disk_axial_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("target_wake_velocity_world_y_mps"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")

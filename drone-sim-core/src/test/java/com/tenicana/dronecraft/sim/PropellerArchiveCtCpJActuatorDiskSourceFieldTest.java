@@ -41,6 +41,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertVectorEquals(sourceTerm.diskNormalWorld()
 						.multiply(sourceTerm.massFluxKilogramsPerSecondSquareMeter() / RHO),
 				sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(),
+				sample.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(),
 				sample.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertEquals(sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(samplePoint),
@@ -171,6 +173,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(appliedSource.pressureJumpPascals() * 2.0, sample.pressureJumpPascals(), 1.0e-12);
 		assertEquals(appliedSource.massFluxKilogramsPerSecondSquareMeter() * 2.0,
 				sample.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertVectorEquals(appliedSource.actuatorDiskAxialVelocityWorldMetersPerSecond(),
+				sample.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(appliedSource.farWakeAxialVelocityWorldMetersPerSecond(),
 				sample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(appliedSource.farWakeAxialVelocityWorldMetersPerSecond(),
@@ -195,6 +199,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 						SOURCE_THICKNESS
 				);
 		Vec3 expectedWakeVelocity = new Vec3(0.0, 10.0, 0.0);
+		Vec3 expectedActuatorDiskVelocity = new Vec3(0.0, 5.0 / RHO, 0.0);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
 						center.subtract(new Vec3(0.5, 0.5, 0.5)),
@@ -216,15 +221,21 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(8.0, pointSample.pressureJumpPascals(), 1.0e-15);
 		assertVectorEquals(expectedWakeVelocity,
 				pointSample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedActuatorDiskVelocity,
+				pointSample.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(expectedWakeVelocity,
 				pointSample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertEquals(8.0, geometricCell.massFluxKilogramsPerSecondSquareMeter(), 1.0e-15);
+		assertVectorEquals(expectedActuatorDiskVelocity,
+				geometricCell.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(expectedWakeVelocity,
 				geometricCell.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertTrue(conservativeCell.massFluxKilogramsPerSecondSquareMeter()
 				< geometricCell.massFluxKilogramsPerSecondSquareMeter());
 		assertVectorEquals(expectedWakeVelocity,
 				conservativeCell.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedActuatorDiskVelocity,
+				conservativeCell.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 	}
 
 	@Test
@@ -335,6 +346,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				cell.pressureJumpPascals(), 1.0e-12);
 		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
 				cell.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(),
+				cell.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertTrue(cell.farWakeAxialVelocityWorldMetersPerSecond().length()
 				> sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().length()
 				* cell.sourceVolumeFraction());
@@ -384,6 +397,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				> geometric.cells().get(0).pressureJumpPascals());
 		assertVectorEquals(geometric.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond(),
 				conservative.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(geometric.cells().get(0).actuatorDiskAxialVelocityWorldMetersPerSecond(),
+				conservative.cells().get(0).actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(geometric.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond(),
 				conservative.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(geometric.cells().get(0).targetWakeVelocityWorldMetersPerSecond(),
