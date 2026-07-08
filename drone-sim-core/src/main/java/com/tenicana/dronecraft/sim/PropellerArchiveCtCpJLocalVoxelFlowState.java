@@ -2138,61 +2138,65 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	private Vec3 projectedVelocityAt(double[] pressurePotential, VoxelSolidMask solidMask, int x, int y, int z) {
-		Vec3 center = velocityAt(x, y, z);
-		double dx = gridSpec.cellSizeMeters();
-		double lowX = center.x();
-		double highX = center.x();
-		if (solidNeighbor(solidMask, x - 1, y, z)) {
-			lowX = 0.0;
-		} else if (openNeighbor(solidMask, x - 1, y, z)) {
-			lowX = 0.5 * (velocityAt(x - 1, y, z).x() + center.x())
-					- (pressurePotential[linearIndex(x, y, z)]
-					- pressurePotential[linearIndex(x - 1, y, z)]) / dx;
-		}
-		if (solidNeighbor(solidMask, x + 1, y, z)) {
-			highX = 0.0;
-		} else if (openNeighbor(solidMask, x + 1, y, z)) {
-			highX = 0.5 * (center.x() + velocityAt(x + 1, y, z).x())
-					- (pressurePotential[linearIndex(x + 1, y, z)]
-					- pressurePotential[linearIndex(x, y, z)]) / dx;
-		}
-		double lowY = center.y();
-		double highY = center.y();
-		if (solidNeighbor(solidMask, x, y - 1, z)) {
-			lowY = 0.0;
-		} else if (openNeighbor(solidMask, x, y - 1, z)) {
-			lowY = 0.5 * (velocityAt(x, y - 1, z).y() + center.y())
-					- (pressurePotential[linearIndex(x, y, z)]
-					- pressurePotential[linearIndex(x, y - 1, z)]) / dx;
-		}
-		if (solidNeighbor(solidMask, x, y + 1, z)) {
-			highY = 0.0;
-		} else if (openNeighbor(solidMask, x, y + 1, z)) {
-			highY = 0.5 * (center.y() + velocityAt(x, y + 1, z).y())
-					- (pressurePotential[linearIndex(x, y + 1, z)]
-					- pressurePotential[linearIndex(x, y, z)]) / dx;
-		}
-		double lowZ = center.z();
-		double highZ = center.z();
-		if (solidNeighbor(solidMask, x, y, z - 1)) {
-			lowZ = 0.0;
-		} else if (openNeighbor(solidMask, x, y, z - 1)) {
-			lowZ = 0.5 * (velocityAt(x, y, z - 1).z() + center.z())
-					- (pressurePotential[linearIndex(x, y, z)]
-					- pressurePotential[linearIndex(x, y, z - 1)]) / dx;
-		}
-		if (solidNeighbor(solidMask, x, y, z + 1)) {
-			highZ = 0.0;
-		} else if (openNeighbor(solidMask, x, y, z + 1)) {
-			highZ = 0.5 * (center.z() + velocityAt(x, y, z + 1).z())
-					- (pressurePotential[linearIndex(x, y, z + 1)]
-					- pressurePotential[linearIndex(x, y, z)]) / dx;
-		}
 		return new Vec3(
-				0.5 * (lowX + highX),
-				0.5 * (lowY + highY),
-				0.5 * (lowZ + highZ)
+				projectedVelocityComponentAt(pressurePotential, solidMask, x, y, z, 0),
+				projectedVelocityComponentAt(pressurePotential, solidMask, x, y, z, 1),
+				projectedVelocityComponentAt(pressurePotential, solidMask, x, y, z, 2)
 		);
+	}
+
+	private double projectedVelocityComponentAt(
+			double[] pressurePotential,
+			VoxelSolidMask solidMask,
+			int x,
+			int y,
+			int z,
+			int axis
+	) {
+		Vec3 center = velocityAt(x, y, z);
+		double centerComponent = vectorComponent(center, axis);
+		ProjectedFaceVelocity lowFace =
+				projectedFaceVelocityComponent(pressurePotential, solidMask, x, y, z, axis, -1);
+		ProjectedFaceVelocity highFace =
+				projectedFaceVelocityComponent(pressurePotential, solidMask, x, y, z, axis, 1);
+		double openFaceWeight = lowFace.openFaceFraction() + highFace.openFaceFraction();
+		if (openFaceWeight <= EPSILON) {
+			return centerComponent;
+		}
+		return (lowFace.velocityComponent() * lowFace.openFaceFraction()
+				+ highFace.velocityComponent() * highFace.openFaceFraction()) / openFaceWeight;
+	}
+
+	private ProjectedFaceVelocity projectedFaceVelocityComponent(
+			double[] pressurePotential,
+			VoxelSolidMask solidMask,
+			int x,
+			int y,
+			int z,
+			int axis,
+			int direction
+	) {
+		int centerIndex = linearIndex(x, y, z);
+		double centerComponent = vectorComponent(velocityAt(x, y, z), axis);
+		double centerOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(centerIndex);
+		int neighborX = axis == 0 ? x + direction : x;
+		int neighborY = axis == 1 ? y + direction : y;
+		int neighborZ = axis == 2 ? z + direction : z;
+		if (!insideGrid(neighborX, neighborY, neighborZ)) {
+			return new ProjectedFaceVelocity(centerComponent, centerOpenVolumeFraction);
+		}
+		if (solidNeighbor(solidMask, neighborX, neighborY, neighborZ)) {
+			return new ProjectedFaceVelocity(0.0, centerOpenVolumeFraction);
+		}
+		int neighborIndex = linearIndex(neighborX, neighborY, neighborZ);
+		double openFaceFraction = openInternalFaceFraction(solidMask, centerIndex, neighborIndex);
+		double neighborComponent = vectorComponent(velocityAt(neighborX, neighborY, neighborZ), axis);
+		double pressureDifference = direction > 0
+				? pressurePotential[neighborIndex] - pressurePotential[centerIndex]
+				: pressurePotential[centerIndex] - pressurePotential[neighborIndex];
+		double faceVelocityComponent = 0.5 * (centerComponent + neighborComponent)
+				- pressureDifference / gridSpec.cellSizeMeters();
+		return new ProjectedFaceVelocity(faceVelocityComponent, openFaceFraction);
 	}
 
 	private Vec3 sampleVelocityClamped(Vec3 pointWorldMeters) {
@@ -2292,6 +2296,13 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	private record WeightedVelocitySample(Vec3 weightedVelocity, double weight) {
 	}
 
+	private record ProjectedFaceVelocity(double velocityComponent, double openFaceFraction) {
+		ProjectedFaceVelocity {
+			velocityComponent = Double.isFinite(velocityComponent) ? velocityComponent : 0.0;
+			openFaceFraction = finiteNonnegative(openFaceFraction);
+		}
+	}
+
 	private double fractionalCellIndex(double worldCoordinate, double originCoordinate, int cellCount) {
 		double raw = (worldCoordinate - originCoordinate) / gridSpec.cellSizeMeters() - 0.5;
 		return MathUtil.clamp(raw, 0.0, Math.max(0, cellCount - 1));
@@ -2344,6 +2355,12 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				&& y >= 0 && y < gridSpec.cellCountY()
 				&& z >= 0 && z < gridSpec.cellCountZ()
 				&& solidMask.isSolidCellIndex(linearIndex(x, y, z));
+	}
+
+	private boolean insideGrid(int x, int y, int z) {
+		return x >= 0 && x < gridSpec.cellCountX()
+				&& y >= 0 && y < gridSpec.cellCountY()
+				&& z >= 0 && z < gridSpec.cellCountZ();
 	}
 
 	private void validateSolidMask(VoxelSolidMask solidMask) {
