@@ -1887,34 +1887,34 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		double wy1 = ty;
 		double wz0 = 1.0 - tz;
 		double wz1 = tz;
-		WeightedVelocitySample sample = weightedOpenSample(solidMask, x0, y0, z0, wx0 * wy0 * wz0);
+		WeightedVelocitySample sample = weightedWallAwareSample(solidMask, x0, y0, z0, wx0 * wy0 * wz0);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x1, y0, z0, wx1 * wy0 * wz0);
+		sample = weightedWallAwareSample(solidMask, x1, y0, z0, wx1 * wy0 * wz0);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x0, y1, z0, wx0 * wy1 * wz0);
+		sample = weightedWallAwareSample(solidMask, x0, y1, z0, wx0 * wy1 * wz0);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x1, y1, z0, wx1 * wy1 * wz0);
+		sample = weightedWallAwareSample(solidMask, x1, y1, z0, wx1 * wy1 * wz0);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x0, y0, z1, wx0 * wy0 * wz1);
+		sample = weightedWallAwareSample(solidMask, x0, y0, z1, wx0 * wy0 * wz1);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x1, y0, z1, wx1 * wy0 * wz1);
+		sample = weightedWallAwareSample(solidMask, x1, y0, z1, wx1 * wy0 * wz1);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x0, y1, z1, wx0 * wy1 * wz1);
+		sample = weightedWallAwareSample(solidMask, x0, y1, z1, wx0 * wy1 * wz1);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
-		sample = weightedOpenSample(solidMask, x1, y1, z1, wx1 * wy1 * wz1);
+		sample = weightedWallAwareSample(solidMask, x1, y1, z1, wx1 * wy1 * wz1);
 		weighted = weighted.add(sample.weightedVelocity());
 		totalWeight += sample.weight();
 		return totalWeight <= EPSILON ? Vec3.ZERO : weighted.multiply(1.0 / totalWeight);
 	}
 
-	private WeightedVelocitySample weightedOpenSample(
+	private WeightedVelocitySample weightedWallAwareSample(
 			VoxelSolidMask solidMask,
 			int x,
 			int y,
@@ -1922,8 +1922,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double weight
 	) {
 		int index = linearIndex(x, y, z);
-		if (weight <= EPSILON || solidMask.isSolidCellIndex(index)) {
+		if (weight <= EPSILON) {
 			return new WeightedVelocitySample(Vec3.ZERO, 0.0);
+		}
+		if (solidMask.isSolidCellIndex(index)) {
+			return new WeightedVelocitySample(Vec3.ZERO, weight);
 		}
 		return new WeightedVelocitySample(velocityAt(x, y, z).multiply(weight), weight);
 	}
