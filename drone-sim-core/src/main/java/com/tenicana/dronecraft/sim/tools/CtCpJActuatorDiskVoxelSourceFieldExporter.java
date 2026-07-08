@@ -575,6 +575,7 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 						"wake_angular_momentum_torque_residual_world_x_nm",
 						"wake_angular_momentum_torque_residual_world_y_nm",
 						"wake_angular_momentum_torque_residual_world_z_nm"),
+				number(row, "far_wake_equivalent_radius_m"),
 				number(row, "angular_momentum_swirl_radius_m"),
 				number(row, "wake_tangential_velocity_mps"),
 				number(row, "wake_swirl_kinetic_power_w"),

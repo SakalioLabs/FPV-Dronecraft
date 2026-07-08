@@ -65,6 +65,11 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals(0.0, vectorDot(hover, columns, "disk_tangent_u_world", "disk_tangent_v_world"), 1.0e-15);
 		assertEquals(Math.sqrt(numberCell(hover, columns, "disk_area_m2") / Math.PI),
 				numberCell(hover, columns, "disk_radius_m"), 1.0e-15);
+		assertTrue(numberCell(hover, columns, "far_wake_equivalent_radius_m") > 0.0);
+		assertEquals(numberCell(hover, columns, "far_wake_equivalent_radius_m")
+						/ numberCell(hover, columns, "disk_radius_m"),
+				numberCell(hover, columns, "far_wake_equivalent_radius_over_disk_radius"), 1.0e-15);
+		assertTrue(numberCell(hover, columns, "far_wake_equivalent_radius_over_disk_radius") < 1.0);
 		assertEquals(SOURCE_THICKNESS * 0.5, numberCell(hover, columns, "source_half_thickness_m"), 1.0e-15);
 		assertEquals(numberCell(hover, columns, "disk_area_m2") * SOURCE_THICKNESS,
 				numberCell(hover, columns, "source_volume_m3"), 1.0e-15);
@@ -122,11 +127,11 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				2.0
 						* numberCell(hover, columns, "angular_momentum_swirl_radius_m")
 						* numberCell(hover, columns, "wake_tangential_velocity_mps")
-						/ (numberCell(hover, columns, "disk_radius_m")
-						* numberCell(hover, columns, "disk_radius_m"))
+						/ (numberCell(hover, columns, "far_wake_equivalent_radius_m")
+						* numberCell(hover, columns, "far_wake_equivalent_radius_m"))
 						* Math.min(
 								numberCell(hover, columns, "angular_momentum_swirl_radius_m"),
-								numberCell(hover, columns, "disk_radius_m"));
+								numberCell(hover, columns, "far_wake_equivalent_radius_m"));
 		assertEquals(hoverExpectedSourcePlaneSwirl,
 				Math.sqrt(hoverSwirlVelocityX * hoverSwirlVelocityX
 						+ hoverSwirlVelocityY * hoverSwirlVelocityY
@@ -217,6 +222,8 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(lines.get(0).contains("pressure_jump_pa"));
 		assertTrue(lines.get(0).contains("disk_tangent_u_world_x"));
 		assertTrue(lines.get(0).contains("source_axis_min_world_y_m"));
+		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_m"));
+		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_over_disk_radius"));
 		assertTrue(lines.get(0).contains("source_volume_m3"));
 		assertTrue(lines.get(0).contains("body_force_density_world_y_n_m3"));
 		assertTrue(lines.get(0).contains("equivalent_body_force_integral_world_y_n"));

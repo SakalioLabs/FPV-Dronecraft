@@ -390,6 +390,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					reactionTorque,
 					wakeAngularMomentumTorque,
 					wakeAngularMomentumTorqueResidual,
+					applied ? dimensionalSample.farWakeEquivalentRadiusMeters() : 0.0,
 					applied ? dimensionalSample.angularMomentumSwirlRadiusMeters() : 0.0,
 					applied ? dimensionalSample.wakeTangentialVelocityMetersPerSecond() : 0.0,
 					applied ? dimensionalSample.wakeSwirlKineticPowerWatts() : 0.0,
@@ -437,6 +438,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 reactionTorqueWorldNewtonMeters,
 			Vec3 wakeAngularMomentumTorqueWorldNewtonMeters,
 			Vec3 wakeAngularMomentumTorqueResidualWorldNewtonMeters,
+			double farWakeEquivalentRadiusMeters,
 			double angularMomentumSwirlRadiusMeters,
 			double wakeTangentialVelocityMetersPerSecond,
 			double wakeSwirlKineticPowerWatts,
@@ -468,6 +470,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					finiteVecOrZero(wakeAngularMomentumTorqueWorldNewtonMeters);
 			wakeAngularMomentumTorqueResidualWorldNewtonMeters =
 					finiteVecOrZero(wakeAngularMomentumTorqueResidualWorldNewtonMeters);
+			farWakeEquivalentRadiusMeters = finiteNonnegative(farWakeEquivalentRadiusMeters);
 			angularMomentumSwirlRadiusMeters = finiteNonnegative(angularMomentumSwirlRadiusMeters);
 			wakeTangentialVelocityMetersPerSecond = finiteNonnegative(wakeTangentialVelocityMetersPerSecond);
 			wakeSwirlKineticPowerWatts = finiteNonnegative(wakeSwirlKineticPowerWatts);
@@ -519,6 +522,16 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					: 0.0;
 		}
 
+		public double farWakeEquivalentRadiusOverDiskRadius() {
+			return ratio(farWakeEquivalentRadiusMeters, diskRadiusMeters());
+		}
+
+		public double wakeSwirlSupportRadiusMeters() {
+			return farWakeEquivalentRadiusMeters > EPSILON
+					? farWakeEquivalentRadiusMeters
+					: diskRadiusMeters();
+		}
+
 		public double wakeAngularMomentumTorqueDensityRadialWeight(Vec3 samplePointWorldMeters) {
 			double diskRadius = diskRadiusMeters();
 			if (!applied || diskRadius <= EPSILON) {
@@ -556,13 +569,13 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public double wakeSwirlAngularVelocityRadiansPerSecond() {
-			double diskRadius = diskRadiusMeters();
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
 			double specificAngularMomentum =
 					angularMomentumSwirlRadiusMeters * wakeTangentialVelocityMetersPerSecond;
-			if (!applied || diskRadius <= EPSILON || specificAngularMomentum <= EPSILON) {
+			if (!applied || wakeRadius <= EPSILON || specificAngularMomentum <= EPSILON) {
 				return 0.0;
 			}
-			return 2.0 * specificAngularMomentum / (diskRadius * diskRadius);
+			return 2.0 * specificAngularMomentum / (wakeRadius * wakeRadius);
 		}
 
 		public Vec3 wakeSwirlVelocityWorldMetersPerSecond(Vec3 samplePointWorldMeters) {
@@ -580,9 +593,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				return Vec3.ZERO;
 			}
 			Vec3 tangent = angularMomentumAxis.cross(radial.normalized()).normalized();
-			double diskRadius = diskRadiusMeters();
-			double clampedRadialDistance = diskRadius > EPSILON
-					? Math.min(radialDistance, diskRadius)
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
+			double clampedRadialDistance = wakeRadius > EPSILON
+					? Math.min(radialDistance, wakeRadius)
 					: radialDistance;
 			return tangent.multiply(wakeSwirlAngularVelocityRadiansPerSecond() * clampedRadialDistance);
 		}

@@ -494,7 +494,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 			double radialDistanceMeters
 	) {
 		return sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
-				* Math.min(radialDistanceMeters, sourceTerm.diskRadiusMeters());
+				* Math.min(radialDistanceMeters, sourceTerm.wakeSwirlSupportRadiusMeters());
 	}
 
 	private static Vec3 expectedWakeTorqueDensity(

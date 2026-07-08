@@ -63,6 +63,8 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"disk_tangent_v_world_z",
 			"disk_area_m2",
 			"disk_radius_m",
+			"far_wake_equivalent_radius_m",
+			"far_wake_equivalent_radius_over_disk_radius",
 			"source_half_thickness_m",
 			"source_volume_m3",
 			"source_axis_min_world_x_m",
@@ -292,6 +294,9 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 		Vec3 bodyForceDensity =
 				sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters);
 		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		double farWakeEquivalentRadiusOverDiskRadius = diskRadius > 0.0
+				? sourceTerm.farWakeEquivalentRadiusMeters() / diskRadius
+				: 0.0;
 		double sourceHalfThickness = sourceThicknessMeters * 0.5;
 		double sourceVolume = sourceTerm.diskAreaSquareMeters() * sourceThicknessMeters;
 		Vec3 equivalentBodyForceIntegral = bodyForceDensity.multiply(sourceVolume);
@@ -356,6 +361,8 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(diskTangentV.z()),
 				number(sourceTerm.diskAreaSquareMeters()),
 				number(diskRadius),
+				number(sourceTerm.farWakeEquivalentRadiusMeters()),
+				number(farWakeEquivalentRadiusOverDiskRadius),
 				number(sourceHalfThickness),
 				number(sourceVolume),
 				number(sourceAxisMin.x()),
