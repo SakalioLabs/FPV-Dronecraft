@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
+import com.tenicana.dronecraft.sim.RotorSpec;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -213,8 +214,23 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				"equivalent_body_force_integral_world_y_n"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(blockedRaw, columns, "wake_angular_momentum_torque_density_world_y_nm_m3"), 1.0e-15);
-		assertEquals(numberCell(blockedRaw, columns, "disk_center_world_x_m"),
+		double blockedDiskRadius = numberCell(blockedRaw, columns, "disk_radius_m");
+		double blockedSwirlRadius =
+				blockedDiskRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
+		assertEquals(blockedDiskRadius, numberCell(blockedRaw, columns, "far_wake_equivalent_radius_m"), 1.0e-15);
+		assertEquals(1.0, numberCell(blockedRaw, columns,
+				"far_wake_equivalent_radius_over_disk_radius"), 1.0e-15);
+		assertEquals(blockedSwirlRadius,
+				numberCell(blockedRaw, columns, "angular_momentum_swirl_radius_m"), 1.0e-15);
+		assertEquals(numberCell(blockedRaw, columns, "disk_center_world_x_m")
+						+ numberCell(blockedRaw, columns, "disk_tangent_u_world_x") * blockedSwirlRadius,
 				numberCell(blockedRaw, columns, "wake_swirl_reference_point_world_x_m"), 1.0e-15);
+		assertEquals(numberCell(blockedRaw, columns, "disk_center_world_y_m")
+						+ numberCell(blockedRaw, columns, "disk_tangent_u_world_y") * blockedSwirlRadius,
+				numberCell(blockedRaw, columns, "wake_swirl_reference_point_world_y_m"), 1.0e-15);
+		assertEquals(numberCell(blockedRaw, columns, "disk_center_world_z_m")
+						+ numberCell(blockedRaw, columns, "disk_tangent_u_world_z") * blockedSwirlRadius,
+				numberCell(blockedRaw, columns, "wake_swirl_reference_point_world_z_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "wake_swirl_velocity_world_x_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "wake_swirl_velocity_world_y_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "wake_swirl_velocity_world_z_mps"), 1.0e-15);

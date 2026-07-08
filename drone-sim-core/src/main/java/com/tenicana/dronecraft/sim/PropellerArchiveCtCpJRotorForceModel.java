@@ -435,6 +435,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 wakeAngularMomentumTorqueResidual = applied
 					? wakeAngularMomentumTorqueResidualWorldNewtonMeters(bodyToWorldOrientation)
 					: Vec3.ZERO;
+			double sourceTermFarWakeEquivalentRadius = applied
+					? dimensionalSample.farWakeEquivalentRadiusMeters()
+					: diskRadiusFromArea(dimensionalSample.diskAreaSquareMeters());
+			double sourceTermAngularMomentumSwirlRadius = applied
+					? dimensionalSample.angularMomentumSwirlRadiusMeters()
+					: sourceTermFarWakeEquivalentRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
 			return new RotorActuatorDiskSourceTermSample(
 					rotorIndex,
 					forceApplicationPointWorldMeters(momentReferenceWorldMeters, bodyToWorldOrientation),
@@ -449,8 +455,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					reactionTorque,
 					wakeAngularMomentumTorque,
 					wakeAngularMomentumTorqueResidual,
-					applied ? dimensionalSample.farWakeEquivalentRadiusMeters() : 0.0,
-					applied ? dimensionalSample.angularMomentumSwirlRadiusMeters() : 0.0,
+					sourceTermFarWakeEquivalentRadius,
+					sourceTermAngularMomentumSwirlRadius,
 					applied ? dimensionalSample.wakeTangentialVelocityMetersPerSecond() : 0.0,
 					applied ? dimensionalSample.wakeSwirlKineticPowerWatts() : 0.0,
 					applied ? dimensionalSample.totalWakeKineticPowerWatts() : 0.0,
@@ -579,9 +585,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public double diskRadiusMeters() {
-			return diskAreaSquareMeters > EPSILON
-					? Math.sqrt(diskAreaSquareMeters / Math.PI)
-					: 0.0;
+			return diskRadiusFromArea(diskAreaSquareMeters);
 		}
 
 		public double farWakeEquivalentRadiusOverDiskRadius() {
@@ -3978,6 +3982,12 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return 0.0;
 		}
 		return numerator / denominator;
+	}
+
+	private static double diskRadiusFromArea(double diskAreaSquareMeters) {
+		return diskAreaSquareMeters > EPSILON
+				? Math.sqrt(diskAreaSquareMeters / Math.PI)
+				: 0.0;
 	}
 
 	private static double finiteNonnegative(double value) {

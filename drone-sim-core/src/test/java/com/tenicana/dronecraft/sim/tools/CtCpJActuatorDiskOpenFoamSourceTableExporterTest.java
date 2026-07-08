@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
+import com.tenicana.dronecraft.sim.RotorSpec;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -116,17 +117,29 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_angular_momentum_torque_y_nm"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(highBlock, columns, "wake_angular_momentum_torque_density_y_nm_m3"), 1.0e-15);
-		assertEquals(0.0, numberCell(highBlock, columns, "angular_momentum_swirl_radius_m"), 1.0e-15);
+		double highBlockRadius = numberCell(highBlock, columns, "radius_m");
+		double highBlockSwirlRadius =
+				highBlockRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
+		assertEquals(highBlockSwirlRadius,
+				numberCell(highBlock, columns, "angular_momentum_swirl_radius_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_tangential_velocity_mps"), 1.0e-15);
-		assertEquals(numberCell(highBlock, columns, "radius_m"),
-				numberCell(highBlock, columns, "wake_swirl_support_radius_m"), 1.0e-15);
+		assertEquals(highBlockRadius, numberCell(highBlock, columns, "wake_swirl_support_radius_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_angular_velocity_rad_s"), 1.0e-15);
+		assertEquals(numberCell(highBlock, columns, "center_x_m")
+						+ numberCell(highBlock, columns, "tangent_u_x") * highBlockSwirlRadius,
+				numberCell(highBlock, columns, "wake_swirl_reference_point_x_m"), 1.0e-15);
+		assertEquals(numberCell(highBlock, columns, "center_y_m")
+						+ numberCell(highBlock, columns, "tangent_u_y") * highBlockSwirlRadius,
+				numberCell(highBlock, columns, "wake_swirl_reference_point_y_m"), 1.0e-15);
+		assertEquals(numberCell(highBlock, columns, "center_z_m")
+						+ numberCell(highBlock, columns, "tangent_u_z") * highBlockSwirlRadius,
+				numberCell(highBlock, columns, "wake_swirl_reference_point_z_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_x_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_y_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_z_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_wake_kinetic_power_w"), 1.0e-15);
-		assertEquals(Math.PI * numberCell(highBlock, columns, "radius_m")
-						* numberCell(highBlock, columns, "radius_m")
+		assertEquals(Math.PI * highBlockRadius
+						* highBlockRadius
 						* SOURCE_THICKNESS,
 				numberCell(highBlock, columns, "source_volume_m3"), 1.0e-15);
 	}

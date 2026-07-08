@@ -2577,6 +2577,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sample.actuatorDiskSourceTerm(0, momentReferenceWorld, Quaternion.IDENTITY);
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample runtimeSourceTerm =
 				sample.runtimeForceReplacementActuatorDiskSourceTerm(0, momentReferenceWorld, Quaternion.IDENTITY);
+		double blockedDiskRadius = Math.sqrt(sample.dimensionalSample().diskAreaSquareMeters() / Math.PI);
+		double blockedSwirlRadius =
+				blockedDiskRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
 
 		assertTrue(sample.blocked());
 		assertFalse(sample.clamped());
@@ -2618,6 +2621,12 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				runtimeSourceTerm.diskCenterWorldMeters(), 1.0e-15);
 		assertVectorEquals(rotor.thrustAxisBody().normalized(), sourceTerm.diskNormalWorld(), 1.0e-15);
 		assertEquals(sample.dimensionalSample().diskAreaSquareMeters(), sourceTerm.diskAreaSquareMeters(), 1.0e-15);
+		assertEquals(sample.dimensionalSample().diskAreaSquareMeters(), runtimeSourceTerm.diskAreaSquareMeters(), 1.0e-15);
+		assertEquals(blockedDiskRadius, sourceTerm.diskRadiusMeters(), 1.0e-15);
+		assertEquals(blockedDiskRadius, runtimeSourceTerm.diskRadiusMeters(), 1.0e-15);
+		assertEquals(sourceTerm.diskAreaSquareMeters() * 0.05, sourceTerm.sourceVolumeCubicMeters(0.05), 1.0e-15);
+		assertEquals(runtimeSourceTerm.diskAreaSquareMeters() * 0.05,
+				runtimeSourceTerm.sourceVolumeCubicMeters(0.05), 1.0e-15);
 		assertEquals(0.0, sourceTerm.pressureJumpPascals(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.massFluxKilogramsPerSecondSquareMeter(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-15);
@@ -2630,12 +2639,24 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(Vec3.ZERO,
 				sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(0.05),
 				1.0e-15);
-		assertEquals(0.0, sourceTerm.angularMomentumSwirlRadiusMeters(), 1.0e-15);
+		assertEquals(blockedDiskRadius, sourceTerm.farWakeEquivalentRadiusMeters(), 1.0e-15);
+		assertEquals(blockedDiskRadius, runtimeSourceTerm.farWakeEquivalentRadiusMeters(), 1.0e-15);
+		assertEquals(1.0, sourceTerm.farWakeEquivalentRadiusOverDiskRadius(), 1.0e-15);
+		assertEquals(1.0, runtimeSourceTerm.farWakeEquivalentRadiusOverDiskRadius(), 1.0e-15);
+		assertEquals(blockedDiskRadius, sourceTerm.wakeSwirlSupportRadiusMeters(), 1.0e-15);
+		assertEquals(blockedDiskRadius, runtimeSourceTerm.wakeSwirlSupportRadiusMeters(), 1.0e-15);
+		assertEquals(blockedSwirlRadius, sourceTerm.angularMomentumSwirlRadiusMeters(), 1.0e-15);
+		assertEquals(blockedSwirlRadius, runtimeSourceTerm.angularMomentumSwirlRadiusMeters(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.wakeTangentialVelocityMetersPerSecond(), 1.0e-15);
+		assertEquals(0.0, runtimeSourceTerm.wakeTangentialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.wakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.totalWakeKineticPowerWatts(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
+				1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				runtimeSourceTerm.wakeSwirlVelocityWorldMetersPerSecond(
+						momentReferenceWorld.add(new Vec3(1.0, 0.0, 0.0))),
 				1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimeSourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.05), 1.0e-15);
