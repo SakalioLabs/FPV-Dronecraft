@@ -71,6 +71,17 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 				numberCell(hover, columns, "wake_angular_momentum_torque_density_y_nm_m3"),
 				1.0e-12);
 		assertTrue(numberCell(hover, columns, "wake_tangential_velocity_mps") > 0.0);
+		double swirlVelocityLength = Math.sqrt(
+				numberCell(hover, columns, "wake_swirl_velocity_x_mps")
+						* numberCell(hover, columns, "wake_swirl_velocity_x_mps")
+						+ numberCell(hover, columns, "wake_swirl_velocity_y_mps")
+						* numberCell(hover, columns, "wake_swirl_velocity_y_mps")
+						+ numberCell(hover, columns, "wake_swirl_velocity_z_mps")
+						* numberCell(hover, columns, "wake_swirl_velocity_z_mps"));
+		assertEquals(numberCell(hover, columns, "wake_tangential_velocity_mps"),
+				swirlVelocityLength, 1.0e-15);
+		assertTrue(numberCell(hover, columns, "wake_swirl_reference_point_x_m")
+				> numberCell(hover, columns, "center_x_m"));
 		assertTrue(numberCell(hover, columns, "wake_swirl_kinetic_power_w") > 0.0);
 		assertTrue(numberCell(hover, columns, "total_wake_kinetic_power_w")
 				> numberCell(hover, columns, "wake_swirl_kinetic_power_w"));
@@ -84,6 +95,9 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertEquals(0.0,
 				numberCell(highBlock, columns, "wake_angular_momentum_torque_density_y_nm_m3"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_tangential_velocity_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_x_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_y_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_z_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_wake_kinetic_power_w"), 1.0e-15);
 		assertTrue(numberCell(highBlock, columns, "source_volume_m3") > 0.0);
 	}
@@ -99,6 +113,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(lines.get(0).contains("body_force_density_y_n_m3"));
 		assertTrue(lines.get(0).contains("total_force_y_n"));
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_density_y_nm_m3"));
+		assertTrue(lines.get(0).contains("wake_swirl_velocity_y_mps"));
 		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_w"));
 	}
 

@@ -153,7 +153,7 @@ public final class CtCpJActuatorDiskOpenFoamSampleDictExporter {
 					builder,
 					first,
 					sanitize(sourceName + "_centerline"),
-					"centerline_axial",
+					"centerline_axial_and_swirl_radius",
 					centerlineBySource.get(sourceName)
 			);
 			first = appendSet(

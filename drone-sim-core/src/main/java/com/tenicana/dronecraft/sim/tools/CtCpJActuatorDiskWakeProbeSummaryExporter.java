@@ -19,6 +19,7 @@ public final class CtCpJActuatorDiskWakeProbeSummaryExporter {
 			"row_kind",
 			"rotor_index",
 			"source_name",
+			"probe_kind",
 			"reference_lookup_status",
 			"reference_clamped",
 			"reference_blocked",
@@ -65,6 +66,7 @@ public final class CtCpJActuatorDiskWakeProbeSummaryExporter {
 			String rowKind,
 			int rotorIndex,
 			String sourceName,
+			String probeKind,
 			String lookupStatus,
 			boolean clamped,
 			boolean blocked,
@@ -178,7 +180,8 @@ public final class CtCpJActuatorDiskWakeProbeSummaryExporter {
 			String caseName,
 			String rowKind,
 			int rotorIndex,
-			String sourceName
+			String sourceName,
+			String probeKind
 	) {
 		static GroupKey from(CtCpJActuatorDiskWakeProbeComparisonImporter.ComparisonRow row) {
 			CtCpJActuatorDiskWakeProbeComparisonImporter.ReferenceWakeProbeRow reference = row.reference();
@@ -187,7 +190,8 @@ public final class CtCpJActuatorDiskWakeProbeSummaryExporter {
 					reference.caseName(),
 					reference.rowKind(),
 					reference.rotorIndex(),
-					reference.sourceName()
+					reference.sourceName(),
+					reference.probeKind()
 			);
 		}
 	}
@@ -261,6 +265,7 @@ public final class CtCpJActuatorDiskWakeProbeSummaryExporter {
 					key.rowKind(),
 					key.rotorIndex(),
 					key.sourceName(),
+					key.probeKind(),
 					first.lookupStatus(),
 					first.clamped(),
 					first.blocked(),
@@ -340,6 +345,7 @@ public final class CtCpJActuatorDiskWakeProbeSummaryExporter {
 				escape(row.rowKind()),
 				Integer.toString(row.rotorIndex()),
 				escape(row.sourceName()),
+				escape(row.probeKind()),
 				escape(row.lookupStatus()),
 				Boolean.toString(row.clamped()),
 				Boolean.toString(row.blocked()),

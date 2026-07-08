@@ -38,7 +38,7 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 						"raw-set-smoke"
 				);
 
-		assertEquals(161, imported.centerlineCsvLines().size());
+		assertEquals(321, imported.centerlineCsvLines().size());
 		assertEquals(2081, imported.wakePlaneCsvLines().size());
 		assertTrue(imported.centerlineCsvLines().get(0).contains("cfd_probe_velocity_world_y_mps"));
 		assertTrue(imported.centerlineCsvLines().get(0).contains("cfd_probe_p_field"));
@@ -70,7 +70,7 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 						SOURCE_THICKNESS
 				);
 
-		assertEquals(160, centerlineComparisons.size());
+		assertEquals(320, centerlineComparisons.size());
 		assertEquals(2080, wakePlaneComparisons.size());
 		assertTrue(centerlineComparisons.stream().allMatch(CtCpJActuatorDiskWakeProbeComparisonImporter
 				.ComparisonRow::comparable));
@@ -103,7 +103,7 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 				"write-smoke"
 		);
 
-		assertEquals(161, Files.readAllLines(centerlineOutput).size());
+		assertEquals(321, Files.readAllLines(centerlineOutput).size());
 		assertEquals(2081, Files.readAllLines(wakePlaneOutput).size());
 		assertTrue(Files.readString(wakePlaneOutput).contains("write-smoke,CONVERGED"));
 		assertTrue(Files.readString(centerlineOutput).contains("cfd_probe_p_field"));
@@ -133,7 +133,7 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 						"bom-smoke"
 				);
 
-		assertEquals(161, imported.centerlineCsvLines().size());
+		assertEquals(321, imported.centerlineCsvLines().size());
 	}
 
 	@Test
@@ -158,7 +158,7 @@ class CtCpJActuatorDiskOpenFoamRawSetImporterTest {
 				directory,
 				CtCpJActuatorDiskWakeProbeExporter.csvLines("apDrone", RHO),
 				"centerline",
-				"expected_far_wake_velocity_world"
+				"expected_wake_velocity_world"
 		);
 		writeGroupedRawSets(
 				directory,

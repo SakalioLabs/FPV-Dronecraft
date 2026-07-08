@@ -45,7 +45,7 @@ class CtCpJActuatorDiskOpenFoamSampleDictExporterTest {
 
 		assertEquals(40, countSetDeclarations(text, "_centerline"));
 		assertEquals(40, countSetDeclarations(text, "_wake_plane"));
-		assertEquals(2240, countPointLines(text));
+		assertEquals(2400, countPointLines(text));
 	}
 
 	@Test
@@ -66,7 +66,8 @@ class CtCpJActuatorDiskOpenFoamSampleDictExporterTest {
 		assertTrue(text.contains("type sets;"));
 		assertTrue(text.contains("type    cloud;"));
 		assertTrue(text.contains("probe_packet=wake_plane_top_hat points=52"));
-		assertEquals(2240, countPointLines(text));
+		assertTrue(text.contains("probe_packet=centerline_axial_and_swirl_radius points=8"));
+		assertEquals(2400, countPointLines(text));
 	}
 
 	private static long countSetDeclarations(String text, String suffix) {

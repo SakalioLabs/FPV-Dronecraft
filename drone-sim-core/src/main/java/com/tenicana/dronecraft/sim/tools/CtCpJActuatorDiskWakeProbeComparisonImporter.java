@@ -331,19 +331,7 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 						"probe_point_world_x_m",
 						"probe_point_world_y_m",
 						"probe_point_world_z_m"),
-				vector(record,
-						"cfd_probe_velocity_world_x_mps",
-						"cfd_probe_velocity_world_y_mps",
-						"cfd_probe_velocity_world_z_mps",
-						"probe_velocity_world_x_mps",
-						"probe_velocity_world_y_mps",
-						"probe_velocity_world_z_mps",
-						"sampled_velocity_world_x_mps",
-						"sampled_velocity_world_y_mps",
-						"sampled_velocity_world_z_mps",
-						"expected_far_wake_velocity_world_x_mps",
-						"expected_far_wake_velocity_world_y_mps",
-						"expected_far_wake_velocity_world_z_mps"),
+				cfdVelocityVector(record),
 				optionalAnyDouble(record, Double.NaN,
 						"cfd_probe_p_field",
 						"cfd_probe_pressure_field",
@@ -394,10 +382,13 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 				vector(record, "disk_normal_world_x", "disk_normal_world_y", "disk_normal_world_z"),
 				vector(
 						record,
+						"expected_wake_velocity_world_x_mps",
+						"expected_wake_velocity_world_y_mps",
+						"expected_wake_velocity_world_z_mps",
 						"expected_far_wake_velocity_world_x_mps",
 						"expected_far_wake_velocity_world_y_mps",
 						"expected_far_wake_velocity_world_z_mps"),
-				requiredDouble(record, "expected_far_wake_speed_mps"),
+				optionalDouble(record, "expected_wake_speed_mps", "expected_far_wake_speed_mps", Double.NaN),
 				requiredDouble(record, "pressure_jump_pa"),
 				requiredDouble(record, "mass_flux_kg_s_m2"),
 				requiredDouble(record, "ideal_momentum_power_loading_w_m2"),
@@ -551,6 +542,29 @@ public final class CtCpJActuatorDiskWakeProbeComparisonImporter {
 				optionalDouble(record, x, Double.NaN),
 				optionalDouble(record, y, Double.NaN),
 				optionalDouble(record, z, Double.NaN)
+		);
+	}
+
+	private static Vec3 cfdVelocityVector(Map<String, String> record) {
+		return new Vec3(
+				optionalAnyDouble(record, Double.NaN,
+						"cfd_probe_velocity_world_x_mps",
+						"probe_velocity_world_x_mps",
+						"sampled_velocity_world_x_mps",
+						"expected_wake_velocity_world_x_mps",
+						"expected_far_wake_velocity_world_x_mps"),
+				optionalAnyDouble(record, Double.NaN,
+						"cfd_probe_velocity_world_y_mps",
+						"probe_velocity_world_y_mps",
+						"sampled_velocity_world_y_mps",
+						"expected_wake_velocity_world_y_mps",
+						"expected_far_wake_velocity_world_y_mps"),
+				optionalAnyDouble(record, Double.NaN,
+						"cfd_probe_velocity_world_z_mps",
+						"probe_velocity_world_z_mps",
+						"sampled_velocity_world_z_mps",
+						"expected_wake_velocity_world_z_mps",
+						"expected_far_wake_velocity_world_z_mps")
 		);
 	}
 

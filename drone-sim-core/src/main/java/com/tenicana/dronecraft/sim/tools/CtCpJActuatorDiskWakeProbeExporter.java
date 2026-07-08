@@ -16,7 +16,8 @@ import java.util.Map;
 
 public final class CtCpJActuatorDiskWakeProbeExporter {
 	private static final List<Double> PROBE_DISTANCE_RADII = List.of(0.5, 1.0, 2.0, 4.0);
-	private static final String PROBE_KIND = "centerline_axial";
+	private static final String CENTERLINE_PROBE_KIND = "centerline_axial";
+	private static final String SWIRL_RADIUS_PROBE_KIND = "swirl_radius";
 	private static final String HEADER = String.join(",",
 			"preset",
 			"case",
@@ -46,6 +47,14 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 			"expected_far_wake_velocity_world_y_mps",
 			"expected_far_wake_velocity_world_z_mps",
 			"expected_far_wake_speed_mps",
+			"expected_swirl_velocity_world_x_mps",
+			"expected_swirl_velocity_world_y_mps",
+			"expected_swirl_velocity_world_z_mps",
+			"expected_swirl_speed_mps",
+			"expected_wake_velocity_world_x_mps",
+			"expected_wake_velocity_world_y_mps",
+			"expected_wake_velocity_world_z_mps",
+			"expected_wake_speed_mps",
 			"body_force_density_world_x_n_m3",
 			"body_force_density_world_y_n_m3",
 			"body_force_density_world_z_n_m3",
@@ -168,25 +177,41 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 		lines.add(HEADER);
 		for (Map<String, String> sourceRow : sourceRows) {
 			for (double probeDistanceRadius : PROBE_DISTANCE_RADII) {
-				lines.add(csvLine(sourceRow, probeDistanceRadius));
+				lines.add(csvLine(sourceRow, probeDistanceRadius, CENTERLINE_PROBE_KIND));
+				lines.add(csvLine(sourceRow, probeDistanceRadius, SWIRL_RADIUS_PROBE_KIND));
 			}
 		}
 		return List.copyOf(lines);
 	}
 
-	private static String csvLine(Map<String, String> row, double probeDistanceRadius) {
+	private static String csvLine(Map<String, String> row, double probeDistanceRadius, String probeKind) {
 		Vec3 center = vector(row, "center_x_m", "center_y_m", "center_z_m");
 		Vec3 normal = vector(row, "normal_x", "normal_y", "normal_z");
 		double diskRadius = number(row, "radius_m");
 		double probeDistanceMeters = diskRadius * probeDistanceRadius;
-		Vec3 probePoint = center.add(normal.multiply(probeDistanceMeters));
-		Vec3 expectedWakeVelocity = sourceEnabled(row)
+		Vec3 swirlReferencePoint = vector(
+				row,
+				"wake_swirl_reference_point_x_m",
+				"wake_swirl_reference_point_y_m",
+				"wake_swirl_reference_point_z_m"
+		);
+		boolean swirlProbe = SWIRL_RADIUS_PROBE_KIND.equals(probeKind);
+		Vec3 probePoint = (swirlProbe ? swirlReferencePoint : center).add(normal.multiply(probeDistanceMeters));
+		Vec3 expectedAxialWakeVelocity = sourceEnabled(row)
 				? vector(
 						row,
 						"far_wake_axial_velocity_x_mps",
 						"far_wake_axial_velocity_y_mps",
 						"far_wake_axial_velocity_z_mps")
 				: Vec3.ZERO;
+		Vec3 expectedSwirlVelocity = sourceEnabled(row) && swirlProbe
+				? vector(
+						row,
+						"wake_swirl_velocity_x_mps",
+						"wake_swirl_velocity_y_mps",
+						"wake_swirl_velocity_z_mps")
+				: Vec3.ZERO;
+		Vec3 expectedWakeVelocity = expectedAxialWakeVelocity.add(expectedSwirlVelocity);
 		Vec3 bodyForceDensity = sourceEnabled(row)
 				? vector(
 						row,
@@ -207,7 +232,7 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 				escape(text(row, "lookup_status")),
 				text(row, "clamped"),
 				text(row, "blocked"),
-				PROBE_KIND,
+				probeKind,
 				number(probeDistanceRadius),
 				number(probeDistanceMeters),
 				number(probePoint.x()),
@@ -222,6 +247,14 @@ public final class CtCpJActuatorDiskWakeProbeExporter {
 				number(diskRadius),
 				value(row, "half_thickness_m"),
 				value(row, "bounding_sphere_radius_m"),
+				number(expectedAxialWakeVelocity.x()),
+				number(expectedAxialWakeVelocity.y()),
+				number(expectedAxialWakeVelocity.z()),
+				number(expectedAxialWakeVelocity.length()),
+				number(expectedSwirlVelocity.x()),
+				number(expectedSwirlVelocity.y()),
+				number(expectedSwirlVelocity.z()),
+				number(expectedSwirlVelocity.length()),
 				number(expectedWakeVelocity.x()),
 				number(expectedWakeVelocity.y()),
 				number(expectedWakeVelocity.z()),

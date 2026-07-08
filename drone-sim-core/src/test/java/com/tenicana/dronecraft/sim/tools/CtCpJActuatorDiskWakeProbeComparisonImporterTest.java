@@ -55,6 +55,32 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 	}
 
 	@Test
+	void exactHoverSwirlRadiusProbeClosesAgainstCombinedWakeVelocity() {
+		Map<String, String> reference = referenceRecord(
+				"static_anchored_source_hover",
+				"raw_source",
+				0,
+				1.0,
+				"swirl_radius"
+		);
+		String input = cfdCsv(reference);
+
+		CtCpJActuatorDiskWakeProbeComparisonImporter.ComparisonRow comparison =
+				CtCpJActuatorDiskWakeProbeComparisonImporter.compare(input, RHO, SOURCE_THICKNESS).get(0);
+
+		assertTrue(comparison.comparable());
+		assertEquals("swirl_radius", comparison.reference().probeKind());
+		assertEquals(0.0, comparison.probePointResidualWorldMeters().length(), 1.0e-15);
+		assertEquals(0.0, comparison.probeVelocityResidualWorldMetersPerSecond().length(), 1.0e-12);
+		assertTrue(comparison.referenceExpectedAxialVelocityMetersPerSecond() > 0.0);
+		assertTrue(comparison.referenceExpectedTransverseVelocityMetersPerSecond() > 0.0);
+		assertEquals(comparison.referenceExpectedTransverseVelocityMetersPerSecond(),
+				comparison.cfdProbeTransverseVelocityMetersPerSecond(), 1.0e-12);
+		assertTrue(comparison.cfdProbeSpeedMetersPerSecond()
+				> comparison.referenceExpectedAxialVelocityMetersPerSecond());
+	}
+
+	@Test
 	void perturbedMidJWakeProbeReportsAxialAndTransverseResiduals() {
 		Map<String, String> reference = referenceRecord("static_anchored_source_mid_j", "raw_source", 0, 2.0);
 		double axialScale = 0.92;
@@ -126,7 +152,7 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 		List<CtCpJActuatorDiskWakeProbeComparisonImporter.ComparisonRow> comparisons =
 				CtCpJActuatorDiskWakeProbeComparisonImporter.compare(packetCsv, RHO, SOURCE_THICKNESS);
 
-		assertEquals(160, comparisons.size());
+		assertEquals(320, comparisons.size());
 		assertTrue(comparisons.stream().allMatch(CtCpJActuatorDiskWakeProbeComparisonImporter
 				.ComparisonRow::comparable));
 		assertTrue(comparisons.stream()
@@ -158,9 +184,9 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 		return cfdCsv(
 				reference,
 				new Vec3(
-						number(reference, "expected_far_wake_velocity_world_x_mps"),
-						number(reference, "expected_far_wake_velocity_world_y_mps"),
-						number(reference, "expected_far_wake_velocity_world_z_mps")),
+						number(reference, "expected_wake_velocity_world_x_mps"),
+						number(reference, "expected_wake_velocity_world_y_mps"),
+						number(reference, "expected_wake_velocity_world_z_mps")),
 				new Vec3(
 						number(reference, "probe_point_world_x_m"),
 						number(reference, "probe_point_world_y_m"),
@@ -221,6 +247,16 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 			int rotorIndex,
 			double probeDistanceRadius
 	) {
+		return referenceRecord(caseName, rowKind, rotorIndex, probeDistanceRadius, "centerline_axial");
+	}
+
+	private static Map<String, String> referenceRecord(
+			String caseName,
+			String rowKind,
+			int rotorIndex,
+			double probeDistanceRadius,
+			String probeKind
+	) {
 		List<String> lines = CtCpJActuatorDiskWakeProbeExporter.csvLines("apDrone", RHO);
 		Map<String, Integer> columns = columns(lines);
 		int caseColumn = columns.get("case");
@@ -233,6 +269,7 @@ class CtCpJActuatorDiskWakeProbeComparisonImporterTest {
 				.filter(record -> record.get("case").equals(caseName)
 						&& record.get("row_kind").equals(rowKind)
 						&& Integer.parseInt(record.get("rotor_index")) == rotorIndex
+						&& record.get("probe_kind").equals(probeKind)
 						&& Math.abs(Double.parseDouble(record.get("probe_distance_radius"))
 								- probeDistanceRadius) < 1.0e-15)
 				.findFirst()

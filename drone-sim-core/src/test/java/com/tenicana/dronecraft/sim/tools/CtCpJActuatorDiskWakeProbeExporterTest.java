@@ -31,14 +31,18 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		);
 		Map<String, Integer> columns = columns(lines);
 		String hover = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0, 1.0);
+		String hoverSwirl = lineFor(lines, columns,
+				"static_anchored_source_hover", "raw_source", 0, 1.0, "swirl_radius");
 		String midJ = lineFor(lines, columns, "static_anchored_source_mid_j", "raw_source", 0, 2.0);
 		String highJ = lineFor(lines, columns, "static_anchored_source_high_j", "raw_source", 0, 0.5);
 		String highBlock = lineFor(lines, columns, "static_anchored_source_high_j_block", "raw_source", 0, 4.0);
 
-		assertEquals(161, lines.size());
+		assertEquals(321, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,source_name"));
 		assertTrue(lines.get(0).contains("probe_point_world_y_m"));
 		assertTrue(lines.get(0).contains("expected_far_wake_speed_mps"));
+		assertTrue(lines.get(0).contains("expected_swirl_speed_mps"));
+		assertTrue(lines.get(0).contains("expected_wake_speed_mps"));
 
 		assertEquals("true", textCell(hover, columns, "source_enabled"));
 		assertEquals("centerline_axial", textCell(hover, columns, "probe_kind"));
@@ -57,6 +61,9 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 						"expected_far_wake_velocity_world",
 						"_mps"),
 				numberCell(hover, columns, "expected_far_wake_speed_mps"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "expected_swirl_speed_mps"), 1.0e-15);
+		assertEquals(numberCell(hover, columns, "expected_far_wake_speed_mps"),
+				numberCell(hover, columns, "expected_wake_speed_mps"), 1.0e-15);
 		assertEquals(numberCell(hover, columns, "pressure_jump_pa") / SOURCE_THICKNESS,
 				numberCell(hover, columns, "body_force_density_world_y_n_m3"), 1.0e-9);
 		assertEquals(numberCell(hover, columns, "body_force_density_world_y_n_m3")
@@ -65,6 +72,24 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 						* numberCell(hover, columns, "disk_radius_m")
 						* SOURCE_THICKNESS,
 				numberCell(hover, columns, "total_force_world_y_n"), 1.0e-12);
+
+		assertEquals("true", textCell(hoverSwirl, columns, "source_enabled"));
+		assertEquals("swirl_radius", textCell(hoverSwirl, columns, "probe_kind"));
+		assertTrue(numberCell(hoverSwirl, columns, "probe_point_world_x_m")
+				> numberCell(hoverSwirl, columns, "disk_center_world_x_m"));
+		assertEquals(numberCell(hoverSwirl, columns, "disk_center_world_y_m")
+						+ numberCell(hoverSwirl, columns, "disk_normal_world_y")
+						* numberCell(hoverSwirl, columns, "probe_distance_m"),
+				numberCell(hoverSwirl, columns, "probe_point_world_y_m"), 1.0e-15);
+		assertEquals(numberCell(hoverSwirl, columns, "expected_far_wake_speed_mps"),
+				numberCell(hover, columns, "expected_far_wake_speed_mps"), 1.0e-15);
+		assertTrue(numberCell(hoverSwirl, columns, "expected_swirl_speed_mps") > 0.0);
+		assertEquals(numberCell(hoverSwirl, columns, "expected_swirl_speed_mps"),
+				vectorLength(hoverSwirl, columns, "expected_swirl_velocity_world", "_mps"), 1.0e-15);
+		assertEquals(numberCell(hoverSwirl, columns, "expected_wake_speed_mps"),
+				vectorLength(hoverSwirl, columns, "expected_wake_velocity_world", "_mps"), 1.0e-12);
+		assertTrue(numberCell(hoverSwirl, columns, "expected_wake_speed_mps")
+				> numberCell(hoverSwirl, columns, "expected_far_wake_speed_mps"));
 
 		assertEquals("true", textCell(midJ, columns, "source_enabled"));
 		assertEquals(0.4064, numberCell(midJ, columns, "query_j"), 1.0e-12);
@@ -89,6 +114,8 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 						* numberCell(highBlock, columns, "probe_distance_m"),
 				numberCell(highBlock, columns, "probe_point_world_y_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "expected_far_wake_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "expected_swirl_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "expected_wake_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_force_world_y_n"), 1.0e-15);
 	}
@@ -99,10 +126,11 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		CtCpJActuatorDiskWakeProbeExporter.write("apDrone", output, RHO);
 
 		List<String> lines = Files.readAllLines(output);
-		assertEquals(161, lines.size());
+		assertEquals(321, lines.size());
 		assertTrue(lines.get(0).contains("probe_distance_radius"));
 		assertTrue(lines.get(0).contains("source_bounding_sphere_radius_m"));
 		assertTrue(lines.get(0).contains("total_force_world_y_n"));
+		assertTrue(lines.get(0).contains("expected_swirl_velocity_world_y_mps"));
 	}
 
 	@Test
@@ -120,6 +148,9 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertTrue(actual.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,0,")
 						&& line.contains(",false,OUT_OF_ENVELOPE_BLOCKED,false,true,centerline_axial,4.00000000000000,")));
+		assertTrue(actual.stream().anyMatch(line ->
+				line.startsWith("apDrone,static_anchored_source_hover,raw_source,0,")
+						&& line.contains(",true,INTERPOLATED,false,false,swirl_radius,1.00000000000000,")));
 	}
 
 	private static Map<String, Integer> columns(List<String> lines) {
@@ -139,10 +170,23 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 			int rotorIndex,
 			double probeDistanceRadius
 	) {
+		return lineFor(lines, columns, caseName, rowKind, rotorIndex, probeDistanceRadius, "centerline_axial");
+	}
+
+	private static String lineFor(
+			List<String> lines,
+			Map<String, Integer> columns,
+			String caseName,
+			String rowKind,
+			int rotorIndex,
+			double probeDistanceRadius,
+			String probeKind
+	) {
 		int caseColumn = columns.get("case");
 		int rowKindColumn = columns.get("row_kind");
 		int rotorIndexColumn = columns.get("rotor_index");
 		int probeDistanceRadiusColumn = columns.get("probe_distance_radius");
+		int probeKindColumn = columns.get("probe_kind");
 		return lines.stream()
 				.skip(1)
 				.filter(line -> {
@@ -150,6 +194,7 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 					return cells[caseColumn].equals(caseName)
 							&& cells[rowKindColumn].equals(rowKind)
 							&& Integer.parseInt(cells[rotorIndexColumn]) == rotorIndex
+							&& cells[probeKindColumn].equals(probeKind)
 							&& Math.abs(Double.parseDouble(cells[probeDistanceRadiusColumn])
 									- probeDistanceRadius) < 1.0e-15;
 				})

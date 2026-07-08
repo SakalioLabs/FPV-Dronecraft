@@ -30,11 +30,13 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 				CtCpJActuatorDiskWakeProbeSummaryExporter.summarize(packetCsv, RHO, SOURCE_THICKNESS);
 
 		CtCpJActuatorDiskWakeProbeSummaryExporter.SummaryRow hover =
-				summaryFor(summaries, "static_anchored_source_hover", "raw_source", 0);
+				summaryFor(summaries, "static_anchored_source_hover", "raw_source", 0, "centerline_axial");
+		CtCpJActuatorDiskWakeProbeSummaryExporter.SummaryRow hoverSwirl =
+				summaryFor(summaries, "static_anchored_source_hover", "raw_source", 0, "swirl_radius");
 		CtCpJActuatorDiskWakeProbeSummaryExporter.SummaryRow highBlock =
-				summaryFor(summaries, "static_anchored_source_high_j_block", "raw_source", 0);
+				summaryFor(summaries, "static_anchored_source_high_j_block", "raw_source", 0, "centerline_axial");
 
-		assertEquals(40, summaries.size());
+		assertEquals(80, summaries.size());
 		assertEquals(4, hover.totalSamples());
 		assertEquals(4, hover.comparableSamples());
 		assertTrue(hover.comparable());
@@ -43,6 +45,11 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 		assertEquals(0.0, hover.velocityResidualRootMeanSquareMetersPerSecond(), 1.0e-12);
 		assertEquals(0.0, hover.cfdTransverseMaxMetersPerSecond(), 1.0e-12);
 		assertEquals(1.0, hover.cfdAxial4rOver0p5r(), 1.0e-12);
+
+		assertEquals(4, hoverSwirl.totalSamples());
+		assertTrue(hoverSwirl.comparable());
+		assertEquals(0.0, hoverSwirl.velocityResidualRootMeanSquareMetersPerSecond(), 1.0e-12);
+		assertTrue(hoverSwirl.cfdTransverseMaxMetersPerSecond() > 0.0);
 
 		assertTrue(highBlock.blocked());
 		assertEquals(false, highBlock.sourceEnabled());
@@ -112,7 +119,9 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 		assertEquals(2, lines.size());
 		assertTrue(lines.get(0).contains("cfd_axial_4r_over_0p5r"));
 		assertTrue(lines.get(0).contains("cfd_p_field_delta_4r_minus_0p5r"));
+		assertTrue(lines.get(0).contains("probe_kind"));
 		assertEquals("static_anchored_source_hover", output.get("case"));
+		assertEquals("centerline_axial", output.get("probe_kind"));
 		assertEquals("1", output.get("total_samples"));
 		assertEquals("ct-cp-j-actuator-disk-wake-probe-summary-ready", output.get("message"));
 	}
@@ -137,17 +146,28 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 			List<CtCpJActuatorDiskWakeProbeSummaryExporter.SummaryRow> summaries,
 			String caseName,
 			String rowKind,
-			int rotorIndex
+			int rotorIndex,
+			String probeKind
 	) {
 		return summaries.stream()
 				.filter(row -> row.caseName().equals(caseName)
 						&& row.rowKind().equals(rowKind)
-						&& row.rotorIndex() == rotorIndex)
+						&& row.rotorIndex() == rotorIndex
+						&& row.probeKind().equals(probeKind))
 				.findFirst()
 				.orElseThrow();
 	}
 
 	private static List<Map<String, String>> sourceRecords(String caseName, String rowKind, int rotorIndex) {
+		return sourceRecords(caseName, rowKind, rotorIndex, "centerline_axial");
+	}
+
+	private static List<Map<String, String>> sourceRecords(
+			String caseName,
+			String rowKind,
+			int rotorIndex,
+			String probeKind
+	) {
 		List<String> lines = CtCpJActuatorDiskWakeProbeExporter.csvLines("apDrone", RHO);
 		Map<String, Integer> columns = columns(lines);
 		return lines.stream()
@@ -155,7 +175,8 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 				.map(line -> record(line, columns))
 				.filter(record -> record.get("case").equals(caseName)
 						&& record.get("row_kind").equals(rowKind)
-						&& Integer.parseInt(record.get("rotor_index")) == rotorIndex)
+						&& Integer.parseInt(record.get("rotor_index")) == rotorIndex
+						&& record.get("probe_kind").equals(probeKind))
 				.toList();
 	}
 
@@ -190,9 +211,9 @@ class CtCpJActuatorDiskWakeProbeSummaryExporterTest {
 		return cfdRow(
 				reference,
 				new Vec3(
-						number(reference, "expected_far_wake_velocity_world_x_mps"),
-						number(reference, "expected_far_wake_velocity_world_y_mps"),
-						number(reference, "expected_far_wake_velocity_world_z_mps")),
+						number(reference, "expected_wake_velocity_world_x_mps"),
+						number(reference, "expected_wake_velocity_world_y_mps"),
+						number(reference, "expected_wake_velocity_world_z_mps")),
 				new Vec3(
 						number(reference, "probe_point_world_x_m"),
 						number(reference, "probe_point_world_y_m"),
