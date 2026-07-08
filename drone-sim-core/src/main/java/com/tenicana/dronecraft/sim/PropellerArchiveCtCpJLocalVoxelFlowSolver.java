@@ -310,15 +310,15 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		}
 
 		public double initialKineticEnergyJoules() {
-			return initialState.totalKineticEnergyJoules(config.airDensityKgPerCubicMeter());
+			return initialState.totalKineticEnergyJoules(config.airDensityKgPerCubicMeter(), solidMask);
 		}
 
 		public double finalKineticEnergyJoules() {
-			return finalState.totalKineticEnergyJoules(config.airDensityKgPerCubicMeter());
+			return finalState.totalKineticEnergyJoules(config.airDensityKgPerCubicMeter(), solidMask);
 		}
 
 		public Vec3 finalMomentumWorldNewtonSeconds() {
-			return finalState.totalMomentumWorldNewtonSeconds(config.airDensityKgPerCubicMeter());
+			return finalState.totalMomentumWorldNewtonSeconds(config.airDensityKgPerCubicMeter(), solidMask);
 		}
 
 		public double finalMaxSpeedMetersPerSecond() {

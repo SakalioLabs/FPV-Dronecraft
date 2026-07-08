@@ -572,13 +572,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double maxSpeedAfterSolidBoundary = initial ? maxSpeedAfterProjection
 				: iteration.stateAfterSolidBoundary().maxSpeedMetersPerSecond();
 		Vec3 advectionMomentumBefore = initial ? run.initialState()
-				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
+				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask())
 				: iteration.advectionRun().totalMomentumBeforeWorldNewtonSeconds();
 		Vec3 advectionMomentumAfter = initial ? advectionMomentumBefore
 				: iteration.advectionRun().totalMomentumAfterWorldNewtonSeconds();
 		Vec3 advectionMomentumResidual = initial ? zero : iteration.advectionRun().momentumResidualWorldNewtonSeconds();
 		Vec3 momentumBeforeDiffusion = initial ? run.initialState()
-				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
+				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask())
 				: iteration.diffusionStep().totalMomentumBeforeWorldNewtonSeconds();
 		Vec3 momentumAfterDiffusion = initial ? momentumBeforeDiffusion
 				: iteration.diffusionStep().totalMomentumAfterWorldNewtonSeconds();
@@ -595,8 +595,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 solidBoundaryMomentumResidual = initial ? zero
 				: iteration.solidBoundaryStep().momentumResidualWorldNewtonSeconds();
 		Vec3 finalMomentum = initial ? run.initialState()
-				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
-				: iteration.stateAfterSolidBoundary().totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter());
+				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask())
+				: iteration.stateAfterSolidBoundary()
+						.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask());
 		return String.join(",",
 				escape(metadata.key().preset()),
 				escape(metadata.key().caseName()),

@@ -738,10 +738,10 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				airDensityKgPerCubicMeter,
 				solidMask.solidCellCount(),
 				clampedCellCount,
-				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
-				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask)
 		);
 	}
 
@@ -861,15 +861,15 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				sourceCell.yIndex(),
 				sourceCell.zIndex(),
 				sourceCell.cellCenterWorldMeters(),
-				sourceCell.cellVolumeCubicMeters(),
+				sourceCell.cellVolumeCubicMeters() * sourceScale,
 				sourceCell.totalSubsampleCount(),
 				activeSubsamples,
-				sourceCell.sourceVolumeFraction() * sourceScale,
-				sourceCell.bodyForceDensityWorldNewtonsPerCubicMeter().multiply(sourceScale),
-				sourceCell.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter().multiply(sourceScale),
-				sourceCell.pressureJumpPascals() * sourceScale,
+				sourceCell.sourceVolumeFraction(),
+				sourceCell.bodyForceDensityWorldNewtonsPerCubicMeter(),
+				sourceCell.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(),
+				sourceCell.pressureJumpPascals(),
 				sourceCell.massFluxKilogramsPerSecondSquareMeter(),
-				sourceCell.idealMomentumPowerLoadingWattsPerSquareMeter() * sourceScale,
+				sourceCell.idealMomentumPowerLoadingWattsPerSquareMeter(),
 				sourceCell.farWakeAxialVelocityWorldMetersPerSecond(),
 				sourceCell.wakeSwirlVelocityWorldMetersPerSecond(),
 				sourceCell.targetWakeVelocityWorldMetersPerSecond()
@@ -939,10 +939,10 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				airDensityKgPerCubicMeter,
 				timeStepSeconds,
 				maxCourantNumber,
-				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
-				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask)
 		);
 	}
 
@@ -1083,10 +1083,10 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				kinematicViscositySquareMetersPerSecond,
 				timeStepSeconds,
 				diffusionNumber,
-				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
-				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask)
 		);
 	}
 
@@ -1141,10 +1141,10 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				pressureProjectionIterations,
 				divergenceBefore,
 				nextState.divergenceMetrics(solidMask),
-				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
-				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
-				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter, solidMask),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter, solidMask)
 		);
 	}
 
@@ -1177,27 +1177,55 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	public double totalKineticEnergyJoules(double airDensityKgPerCubicMeter) {
+		return totalKineticEnergyJoules(
+				airDensityKgPerCubicMeter,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public double totalKineticEnergyJoules(double airDensityKgPerCubicMeter, VoxelSolidMask solidMask) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
-		double cellMass = airDensityKgPerCubicMeter * gridSpec.cellVolumeCubicMeters();
+		validateSolidMask(solidMask);
 		double energy = 0.0;
-		for (Vec3 velocity : velocitiesWorldMetersPerSecond) {
+		for (int cellIndex = 0; cellIndex < velocitiesWorldMetersPerSecond.size(); cellIndex++) {
+			double cellMass = openCellAirMassKilograms(airDensityKgPerCubicMeter, solidMask, cellIndex);
+			Vec3 velocity = velocitiesWorldMetersPerSecond.get(cellIndex);
 			energy += 0.5 * cellMass * velocity.lengthSquared();
 		}
 		return energy;
 	}
 
 	public Vec3 totalMomentumWorldNewtonSeconds(double airDensityKgPerCubicMeter) {
+		return totalMomentumWorldNewtonSeconds(
+				airDensityKgPerCubicMeter,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public Vec3 totalMomentumWorldNewtonSeconds(double airDensityKgPerCubicMeter, VoxelSolidMask solidMask) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
-		double cellMass = airDensityKgPerCubicMeter * gridSpec.cellVolumeCubicMeters();
+		validateSolidMask(solidMask);
 		Vec3 momentum = Vec3.ZERO;
-		for (Vec3 velocity : velocitiesWorldMetersPerSecond) {
+		for (int cellIndex = 0; cellIndex < velocitiesWorldMetersPerSecond.size(); cellIndex++) {
+			double cellMass = openCellAirMassKilograms(airDensityKgPerCubicMeter, solidMask, cellIndex);
+			Vec3 velocity = velocitiesWorldMetersPerSecond.get(cellIndex);
 			momentum = momentum.add(velocity.multiply(cellMass));
 		}
 		return momentum;
+	}
+
+	private double openCellAirMassKilograms(
+			double airDensityKgPerCubicMeter,
+			VoxelSolidMask solidMask,
+			int cellIndex
+	) {
+		return airDensityKgPerCubicMeter
+				* gridSpec.cellVolumeCubicMeters()
+				* solidMask.openVolumeFractionCellIndex(cellIndex);
 	}
 
 	public double maxSpeedMetersPerSecond() {

@@ -144,13 +144,15 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(0.5, halfSolidButOpenWall.solidVolumeFraction(0, 0, 0), 1.0e-15);
 		assertEquals(0.5, halfSolidButOpenWall.openVolumeFractionCellIndex(0), 1.0e-15);
 		assertEquals(1, advance.residenceStep().activeCellCount());
-		assertEquals(0.5, advance.residenceStep().activeCells().get(0)
+		assertEquals(1.0, advance.residenceStep().activeCells().get(0)
 				.sourceMomentumStep().sourceVolumeFraction(), 1.0e-15);
+		assertEquals(0.5, advance.residenceStep().activeCells().get(0)
+				.sourceMomentumStep().cellVolumeCubicMeters(), 1.0e-15);
 		assertVectorEquals(new Vec3(0.0, 5.0, 0.0),
 				advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(new Vec3(0.0, 5.0 * DT, 0.0),
 				advance.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
-		assertEquals(5.0 * DT / RHO,
+		assertEquals(10.0 * DT / RHO,
 				advance.nextState().velocityAt(0, 0, 0).y(), 1.0e-15);
 	}
 
@@ -203,7 +205,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
 				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
 						grid,
-						List.of(Boolean.FALSE, Boolean.TRUE)
+						List.of(Boolean.FALSE, Boolean.TRUE),
+						List.of(0.0, 0.5)
 				);
 
 		PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep step =
@@ -212,17 +215,19 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(1, mask.solidCellCount());
 		assertTrue(!mask.isSolid(0, 0, 0));
 		assertTrue(mask.isSolid(1, 0, 0));
+		assertEquals(0.5, mask.openVolumeFractionCellIndex(1), 1.0e-15);
 		assertEquals(1, step.solidCellCount());
 		assertEquals(1, step.clampedCellCount());
 		assertVectorEquals(new Vec3(2.0, 0.0, 0.0), step.nextState().velocityAt(0, 0, 0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, step.nextState().velocityAt(1, 0, 0), 1.0e-15);
-		assertVectorEquals(new Vec3(2.0 * RHO, 3.0 * RHO, 0.0),
+		assertVectorEquals(new Vec3(2.0 * RHO, 1.5 * RHO, 0.0),
 				step.totalMomentumBeforeWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(new Vec3(2.0 * RHO, 0.0, 0.0),
 				step.totalMomentumAfterWorldNewtonSeconds(), 1.0e-15);
-		assertVectorEquals(new Vec3(0.0, -3.0 * RHO, 0.0),
+		assertVectorEquals(new Vec3(0.0, -1.5 * RHO, 0.0),
 				step.momentumResidualWorldNewtonSeconds(), 1.0e-15);
-		assertEquals(0.5 * RHO * (4.0 + 9.0), step.kineticEnergyBeforeJoules(), 1.0e-15);
+		assertEquals(0.5 * RHO * 4.0 + 0.5 * RHO * 0.5 * 9.0,
+				step.kineticEnergyBeforeJoules(), 1.0e-15);
 		assertEquals(0.5 * RHO * 4.0, step.kineticEnergyAfterJoules(), 1.0e-15);
 		assertTrue(step.kineticEnergyDeltaJoules() < 0.0);
 	}
@@ -723,7 +728,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO,
 				diffusion.nextState().velocityAt(2, 0, 0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
-		assertEquals(state.totalKineticEnergyJoules(RHO), diffusion.kineticEnergyAfterJoules(), 1.0e-15);
+		assertEquals(state.totalKineticEnergyJoules(RHO, mask), diffusion.kineticEnergyAfterJoules(), 1.0e-15);
+		assertEquals(0.0, diffusion.kineticEnergyAfterJoules(), 1.0e-15);
 	}
 
 	@Test

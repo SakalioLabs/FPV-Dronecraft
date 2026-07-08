@@ -211,7 +211,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask =
 				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
 						grid,
-						List.of(Boolean.FALSE, Boolean.TRUE)
+						List.of(Boolean.FALSE, Boolean.TRUE),
+						List.of(0.0, 0.5)
 				);
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config =
 				new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig(
@@ -237,7 +238,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(1, run.maxSolidClampedCellCount());
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
-		assertVectorEquals(new Vec3(0.0, -2.0 * RHO, 0.0),
+		assertVectorEquals(new Vec3(0.0, -1.0 * RHO, 0.0),
 				run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalMomentumWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalState().velocityAt(0, 0, 0), 1.0e-15);
