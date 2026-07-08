@@ -518,11 +518,15 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		double cellProjectedArea = sourceCell.cellVolumeCubicMeters() / sourceThicknessMeters;
 		double sourceMassFlowRate = sourceCell.massFluxKilogramsPerSecondSquareMeter() * cellProjectedArea;
 		double residenceAlpha = residenceAlpha(sourceMassFlowRate, timeStepSeconds, cellAirMass);
-		Vec3 throughFlowVelocityDelta = sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond()
-				.subtract(sourceMomentumStep.velocityAfterStepWorldMetersPerSecond())
-				.multiply(residenceAlpha);
-		Vec3 velocityAfterResidence = sourceMomentumStep.velocityAfterStepWorldMetersPerSecond()
-				.add(throughFlowVelocityDelta);
+		Vec3 velocityAfterResidence = velocityAfterCoupledSourceResidence(
+				sourceMomentumStep,
+				sourceMassFlowRate,
+				timeStepSeconds,
+				cellAirMass,
+				residenceAlpha
+		);
+		Vec3 throughFlowVelocityDelta = velocityAfterResidence.subtract(
+				sourceMomentumStep.velocityAfterStepWorldMetersPerSecond());
 		Vec3 throughFlowImpulse = throughFlowVelocityDelta.multiply(cellAirMass);
 		Vec3 throughFlowMomentumRate = throughFlowImpulse.multiply(1.0 / timeStepSeconds);
 		return new CellMassFluxResidenceStep(
@@ -553,8 +557,33 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		}
 		double turnover = sourceMassFlowRateKilogramsPerSecond * timeStepSeconds / cellAirMassKilograms;
 		return Double.isFinite(turnover) && turnover > 0.0
-				? MathUtil.clamp(1.0 - Math.exp(-turnover), 0.0, 1.0)
+				? MathUtil.clamp(-Math.expm1(-turnover), 0.0, 1.0)
 				: 0.0;
+	}
+
+	private static Vec3 velocityAfterCoupledSourceResidence(
+			CellMomentumStep sourceMomentumStep,
+			double sourceMassFlowRateKilogramsPerSecond,
+			double timeStepSeconds,
+			double cellAirMassKilograms,
+			double residenceAlpha
+	) {
+		if (sourceMassFlowRateKilogramsPerSecond <= EPSILON
+				|| cellAirMassKilograms <= EPSILON
+				|| residenceAlpha <= EPSILON) {
+			return sourceMomentumStep.velocityAfterStepWorldMetersPerSecond();
+		}
+		double turnover = sourceMassFlowRateKilogramsPerSecond * timeStepSeconds / cellAirMassKilograms;
+		if (!Double.isFinite(turnover) || turnover <= EPSILON) {
+			return sourceMomentumStep.velocityAfterStepWorldMetersPerSecond();
+		}
+		Vec3 initialVelocity = sourceMomentumStep.initialVelocityWorldMetersPerSecond();
+		Vec3 wakeVelocityContribution = sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond()
+				.subtract(initialVelocity)
+				.multiply(residenceAlpha);
+		Vec3 sourceForceContribution = sourceMomentumStep.velocityDeltaWorldMetersPerSecond()
+				.multiply(residenceAlpha / turnover);
+		return initialVelocity.add(wakeVelocityContribution).add(sourceForceContribution);
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {

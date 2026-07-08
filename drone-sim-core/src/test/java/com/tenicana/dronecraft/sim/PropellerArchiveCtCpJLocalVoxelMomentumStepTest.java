@@ -194,12 +194,11 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				activeCell.cellAirMassKilograms(), 1.0e-15);
 		assertEquals(sourceStep.cellVolumeCubicMeters() * sourceStep.sourceVolumeFraction() / SOURCE_THICKNESS,
 				activeCell.sampledSourceAreaSquareMeters(), 1.0e-15);
-		assertVectorEquals(sourceStep.targetWakeVelocityWorldMetersPerSecond()
-						.subtract(sourceStep.velocityAfterStepWorldMetersPerSecond())
-						.multiply(activeCell.residenceAlpha()),
+		Vec3 exactCoupledResidenceVelocity = exactCoupledResidenceVelocity(activeCell, DT);
+		assertVectorEquals(exactCoupledResidenceVelocity
+						.subtract(sourceStep.velocityAfterStepWorldMetersPerSecond()),
 				activeCell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
-		assertVectorEquals(sourceStep.velocityAfterStepWorldMetersPerSecond()
-						.add(activeCell.throughFlowVelocityDeltaWorldMetersPerSecond()),
+		assertVectorEquals(exactCoupledResidenceVelocity,
 				activeCell.velocityAfterResidenceWorldMetersPerSecond(), 1.0e-15);
 		assertTrue(activeCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
 				< sourceStep.targetWakeVelocityResidualWorldMetersPerSecond().length());
@@ -285,7 +284,7 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				residence.activeCells().get(0);
 		double expectedProjectedArea = cellVolume / sourceThickness;
 		double expectedSourceMassFlow = cellAveragedMassFlux * expectedProjectedArea;
-		double expectedResidenceAlpha = 1.0 - Math.exp(-expectedSourceMassFlow * DT / (RHO * cellVolume));
+		double expectedResidenceAlpha = -Math.expm1(-expectedSourceMassFlow * DT / (RHO * cellVolume));
 
 		assertEquals(sourceVolumeFraction * expectedProjectedArea,
 				cell.sampledSourceAreaSquareMeters(), 1.0e-15);
@@ -296,6 +295,84 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				cell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
 		assertTrue(cell.sourceMassFlowRateKilogramsPerSecond()
 				> cellAveragedMassFlux * cell.sampledSourceAreaSquareMeters());
+	}
+
+	@Test
+	void residenceCouplesSourceForceAndWakeExchangeOverSameStep() {
+		double sourceThickness = 0.5;
+		double cellVolume = 1.0;
+		double cellAveragedMassFlux = 2.0;
+		Vec3 bodyForceDensity = new Vec3(0.0, 10.0, 0.0);
+		Vec3 initialVelocity = new Vec3(0.0, 1.25, 0.0);
+		Vec3 targetWakeVelocity = new Vec3(0.0, 8.0, 0.0);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						1,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+						0,
+						0,
+						0,
+						grid.cellCenterWorldMeters(0, 0, 0),
+						cellVolume,
+						1,
+						1,
+						1.0,
+						bodyForceDensity,
+						Vec3.ZERO,
+						0.0,
+						cellAveragedMassFlux,
+						0.0,
+						0.0,
+						0.0,
+						targetWakeVelocity,
+						Vec3.ZERO,
+						targetWakeVelocity
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						1,
+						List.of(sourceCell)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residence =
+				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						sourceGrid,
+						RHO,
+						DT,
+						sourceThickness,
+						initialVelocity
+				);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell =
+				residence.activeCells().get(0);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMomentumStep sourceStep =
+				cell.sourceMomentumStep();
+		double expectedSourceMassFlow = cellAveragedMassFlux * cellVolume / sourceThickness;
+		double turnover = expectedSourceMassFlow * DT / cell.cellAirMassKilograms();
+		double expectedResidenceAlpha = -Math.expm1(-turnover);
+		Vec3 expectedVelocityAfterResidence = initialVelocity
+				.add(targetWakeVelocity.subtract(initialVelocity).multiply(expectedResidenceAlpha))
+				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
+						.multiply(expectedResidenceAlpha / turnover));
+
+		assertEquals(expectedSourceMassFlow, cell.sourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(expectedResidenceAlpha, cell.residenceAlpha(), 1.0e-15);
+		assertVectorEquals(bodyForceDensity.multiply(DT / RHO),
+				sourceStep.velocityDeltaWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedVelocityAfterResidence,
+				cell.velocityAfterResidenceWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedVelocityAfterResidence
+						.subtract(sourceStep.velocityAfterStepWorldMetersPerSecond()),
+				cell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedVelocityAfterResidence.subtract(initialVelocity)
+						.multiply(cell.cellAirMassKilograms() / DT),
+				residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
 	}
 
 	@Test
@@ -438,6 +515,30 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static Vec3 exactCoupledResidenceVelocity(
+			PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell,
+			double timeStepSeconds
+	) {
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMomentumStep sourceStep =
+				cell.sourceMomentumStep();
+		if (cell.sourceMassFlowRateKilogramsPerSecond() <= 0.0) {
+			return sourceStep.velocityAfterStepWorldMetersPerSecond();
+		}
+		double turnover = cell.sourceMassFlowRateKilogramsPerSecond()
+				* timeStepSeconds
+				/ cell.cellAirMassKilograms();
+		if (!Double.isFinite(turnover) || turnover <= 0.0) {
+			return sourceStep.velocityAfterStepWorldMetersPerSecond();
+		}
+		Vec3 initialVelocity = sourceStep.initialVelocityWorldMetersPerSecond();
+		return initialVelocity
+				.add(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+						.subtract(initialVelocity)
+						.multiply(cell.residenceAlpha()))
+				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
+						.multiply(cell.residenceAlpha() / turnover));
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
