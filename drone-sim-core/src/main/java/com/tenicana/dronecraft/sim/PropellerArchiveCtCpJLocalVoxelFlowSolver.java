@@ -341,6 +341,22 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 	}
 
 	public static SolverRun run(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			SolverConfig config,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask
+	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		return run(
+				PropellerArchiveCtCpJLocalVoxelFlowState.calm(sourceGridSample.gridSpec()),
+				sourceGridSample,
+				config,
+				solidMask
+		);
+	}
+
+	public static SolverRun run(
 			PropellerArchiveCtCpJLocalVoxelFlowState initialState,
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			SolverConfig config

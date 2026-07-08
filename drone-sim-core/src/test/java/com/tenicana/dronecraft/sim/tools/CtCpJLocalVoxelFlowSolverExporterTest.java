@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJDimensionalRotorResponse;
 import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLocalVoxelFlowSolver;
+import com.tenicana.dronecraft.sim.PropellerArchiveCtCpJLocalVoxelFlowState;
+import com.tenicana.dronecraft.sim.Vec3;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -76,6 +78,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverStep2, "max_advection_courant_number"), 1.0e-15);
 		assertEquals(DOWNSTREAM_WAKE_LENGTH,
 				number(hoverStep2, "downstream_wake_length_m"), 1.0e-15);
+		assertEquals(0, integer(hoverStep2, "solid_box_count"));
+		assertEquals(0.0, number(hoverStep2, "solid_box_minimum_volume_fraction"), 1.0e-15);
 		assertTrue(number(hoverStep2, "advection_courant_number") > 0.0);
 		assertTrue(number(hoverStep2, "advection_courant_number") <= MAX_ADVECTION_COURANT + 1.0e-12);
 		assertTrue(integer(hoverStep2, "advection_substep_count") > 1);
@@ -139,6 +143,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(blockedStep2, "max_advection_courant_number"), 1.0e-15);
 		assertEquals(DOWNSTREAM_WAKE_LENGTH,
 				number(blockedStep2, "downstream_wake_length_m"), 1.0e-15);
+		assertEquals(0, integer(blockedStep2, "solid_box_count"));
+		assertEquals(0.0, number(blockedStep2, "solid_box_minimum_volume_fraction"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "advection_courant_number"), 1.0e-15);
 		assertEquals(1, integer(blockedStep2, "advection_substep_count"));
 		assertEquals(PRESSURE_PROJECTION_ITERATIONS,
@@ -153,6 +159,58 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "final_momentum_world_y_ns"), 1.0e-15);
+	}
+
+	@Test
+	void csvLinesCanApplyWorldSolidBoxMask() {
+		CtCpJLocalVoxelFlowSolverExporter.SolidBoxExportConfig solidBoxConfig =
+				new CtCpJLocalVoxelFlowSolverExporter.SolidBoxExportConfig(
+						List.of(new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+								new Vec3(-10.0, -10.0, -10.0),
+								new Vec3(10.0, 10.0, 10.0))),
+						0.0);
+
+		List<String> lines = CtCpJLocalVoxelFlowSolverExporter.csvLines(
+				"apDrone",
+				RHO,
+				SOURCE_THICKNESS,
+				CELL_SIZE,
+				PADDING_CELLS,
+				SUBCELL_SAMPLES,
+				TIME_STEP,
+				KINEMATIC_VISCOSITY,
+				1,
+				25.0,
+				0.0,
+				MAX_ADVECTION_COURANT,
+				PRESSURE_PROJECTION_ITERATIONS,
+				DOWNSTREAM_WAKE_LENGTH,
+				solidBoxConfig
+		);
+		Map<String, Integer> columns = columns(lines);
+
+		assertEquals(21, lines.size());
+		assertTrue(lines.stream().noneMatch(line -> line.contains("NaN")));
+
+		Map<String, String> hoverInitial =
+				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "initial", 0);
+		Map<String, String> hoverStep =
+				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "step", 0);
+
+		assertEquals(1, integer(hoverStep, "solid_box_count"));
+		assertEquals(0.0, number(hoverStep, "solid_box_minimum_volume_fraction"), 1.0e-15);
+		assertTrue(integer(hoverStep, "grid_cell_count") > 0);
+		assertEquals(integer(hoverStep, "grid_cell_count"), integer(hoverInitial, "solid_cell_count"));
+		assertEquals(integer(hoverStep, "grid_cell_count"), integer(hoverStep, "solid_cell_count"));
+		assertEquals(0, integer(hoverInitial, "solid_clamped_cell_count"));
+		assertTrue(integer(hoverStep, "solid_clamped_cell_count") > 0);
+		assertEquals(0.0, number(hoverStep, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
+		assertTrue(number(hoverStep, "kinetic_energy_solid_boundary_delta_j") < 0.0);
+		assertEquals(0.0, number(hoverStep, "max_speed_after_solid_boundary_mps"), 1.0e-15);
+		assertTrue(Math.abs(number(hoverStep, "solid_boundary_momentum_residual_world_y_ns")) > 0.0);
+		assertEquals(number(hoverStep, "solid_boundary_momentum_residual_world_y_ns"),
+				number(hoverStep, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "final_momentum_world_y_ns"), 1.0e-12);
 	}
 
 	@Test
@@ -172,6 +230,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("pressure_projection_iterations"));
 		assertTrue(lines.get(0).contains("max_divergence_after_projection_s"));
 		assertTrue(lines.get(0).contains("cumulative_projection_momentum_residual_world_y_ns"));
+		assertTrue(lines.get(0).contains("solid_box_count"));
+		assertTrue(lines.get(0).contains("solid_box_minimum_volume_fraction"));
 		assertTrue(lines.get(0).contains("solid_cell_count"));
 		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));

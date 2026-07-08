@@ -132,7 +132,23 @@ tasks.register("ctCpJLocalVoxelFlowSolver", JavaExec) {
 		def maxAdvectionCourant = project.findProperty("maxAdvectionCourant") ?: ""
 		def pressureProjectionIterations = project.findProperty("pressureProjectionIterations") ?: ""
 		def downstreamWakeLength = project.findProperty("downstreamWakeLength") ?: ""
+		def solidBoxBounds = [
+			project.findProperty("solidBoxMinX"),
+			project.findProperty("solidBoxMinY"),
+			project.findProperty("solidBoxMinZ"),
+			project.findProperty("solidBoxMaxX"),
+			project.findProperty("solidBoxMaxY"),
+			project.findProperty("solidBoxMaxZ")
+		]
+		def solidBoxBoundCount = solidBoxBounds.count { it != null && !it.toString().isBlank() }
 		args(presetName, outputFile, airDensity, sourceThickness, cellSize, paddingCells, subcellSamples, timeStep, kinematicViscosity, steps, ambientTemperature, ambientHumidity, maxAdvectionCourant, pressureProjectionIterations, downstreamWakeLength)
+		if (solidBoxBoundCount > 0) {
+			if (solidBoxBoundCount != solidBoxBounds.size()) {
+				throw new GradleException("ctCpJLocalVoxelFlowSolver solid box export requires all six -PsolidBoxMinX/Y/Z and -PsolidBoxMaxX/Y/Z properties")
+			}
+			def solidBoxMinimumVolumeFraction = project.findProperty("solidBoxMinimumVolumeFraction") ?: ""
+			args(*(solidBoxBounds.collect { it.toString() } + [solidBoxMinimumVolumeFraction.toString()]))
+		}
 	}
 }
 
