@@ -66,6 +66,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverInitial, "completed_steps"));
 		assertEquals(0.0, number(hoverInitial, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "kinetic_energy_after_diffusion_j"), 1.0e-15);
+		assertEquals(0, integer(hoverInitial, "solid_cell_count"));
+		assertEquals(0, integer(hoverInitial, "solid_clamped_cell_count"));
 		assertEquals(STEPS, integer(hoverStep2, "configured_step_count"));
 		assertEquals(STEPS, integer(hoverStep2, "completed_steps"));
 		assertEquals(KINEMATIC_VISCOSITY * TIME_STEP / (CELL_SIZE * CELL_SIZE),
@@ -79,15 +81,22 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(integer(hoverStep2, "advection_substep_count") > 1);
 		assertEquals(PRESSURE_PROJECTION_ITERATIONS, integer(hoverStep2, "pressure_projection_iterations"));
 		assertTrue(integer(hoverStep2, "active_cell_count") > 0);
+		assertEquals(0, integer(hoverStep2, "solid_cell_count"));
+		assertEquals(0, integer(hoverStep2, "solid_clamped_cell_count"));
 		assertTrue(number(hoverStep2, "source_mass_flow_kg_s") > 0.0);
 		assertTrue(number(hoverStep2, "cumulative_source_mass_kg") > 0.0);
 		assertTrue(Math.abs(number(hoverStep2, "through_flow_impulse_world_y_ns")) > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_advection_j") > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_diffusion_j") > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_projection_j") > 0.0);
+		assertEquals(number(hoverStep2, "kinetic_energy_after_projection_j"),
+				number(hoverStep2, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep2, "kinetic_energy_solid_boundary_delta_j"), 1.0e-15);
 		assertTrue(number(hoverStep2, "max_speed_after_advection_mps") > 0.0);
 		assertTrue(number(hoverStep2, "max_speed_after_diffusion_mps") > 0.0);
 		assertTrue(number(hoverStep2, "max_speed_after_projection_mps") > 0.0);
+		assertEquals(number(hoverStep2, "max_speed_after_projection_mps"),
+				number(hoverStep2, "max_speed_after_solid_boundary_mps"), 1.0e-15);
 		assertTrue(number(hoverStep2, "max_divergence_before_projection_s") > 0.0);
 		assertTrue(number(hoverStep2, "max_divergence_after_projection_s")
 				< number(hoverStep2, "max_divergence_before_projection_s"));
@@ -102,7 +111,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "cumulative_source_impulse_world_y_ns")
 						+ number(hoverStep2, "cumulative_through_flow_impulse_world_y_ns")
 						+ number(hoverStep2, "cumulative_advection_momentum_residual_world_y_ns")
-						+ number(hoverStep2, "cumulative_projection_momentum_residual_world_y_ns"),
+						+ number(hoverStep2, "cumulative_projection_momentum_residual_world_y_ns")
+						+ number(hoverStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"),
 				number(hoverStep2, "final_momentum_world_y_ns"), 1.0e-9);
 		assertEquals(number(hoverStep2, "advection_momentum_after_world_y_ns")
 						- number(hoverStep2, "advection_momentum_before_world_y_ns"),
@@ -113,9 +123,17 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "projection_momentum_after_world_y_ns")
 						- number(hoverStep2, "projection_momentum_before_world_y_ns"),
 				number(hoverStep2, "projection_momentum_residual_world_y_ns"), 1.0e-12);
+		assertEquals(number(hoverStep2, "solid_boundary_momentum_after_world_y_ns")
+						- number(hoverStep2, "solid_boundary_momentum_before_world_y_ns"),
+				number(hoverStep2, "solid_boundary_momentum_residual_world_y_ns"), 1.0e-12);
+		assertEquals(0.0, number(hoverStep2, "solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 
 		assertEquals("EMPTY_SOURCE_FIELD", blockedStep2.get("grid_status"));
 		assertEquals(0, integer(blockedStep2, "active_cell_count"));
+		assertEquals(0, integer(blockedStep2, "solid_cell_count"));
+		assertEquals(0, integer(blockedStep2, "solid_clamped_cell_count"));
 		assertEquals(0, integer(blockedStep2, "applied_source_count"));
 		assertEquals(MAX_ADVECTION_COURANT,
 				number(blockedStep2, "max_advection_courant_number"), 1.0e-15);
@@ -130,7 +148,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_advection_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_diffusion_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_projection_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "max_divergence_after_projection_s"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "final_momentum_world_y_ns"), 1.0e-15);
 	}
 
@@ -151,6 +172,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("pressure_projection_iterations"));
 		assertTrue(lines.get(0).contains("max_divergence_after_projection_s"));
 		assertTrue(lines.get(0).contains("cumulative_projection_momentum_residual_world_y_ns"));
+		assertTrue(lines.get(0).contains("solid_cell_count"));
+		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
+		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));
+		assertTrue(lines.get(0).contains("kinetic_energy_after_solid_boundary_j"));
+		assertTrue(lines.get(0).contains("solid_boundary_momentum_residual_world_y_ns"));
 		Map<String, Integer> columns = columns(lines);
 		Map<String, String> hoverStep =
 				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "step", 0);

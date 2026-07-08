@@ -88,6 +88,93 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void solidMaskZerosSolidCellVelocityAndReportsMomentumLoss() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(2.0, 0.0, 0.0),
+								new Vec3(0.0, 3.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep step =
+				state.applySolidMask(mask, RHO);
+
+		assertEquals(1, mask.solidCellCount());
+		assertTrue(!mask.isSolid(0, 0, 0));
+		assertTrue(mask.isSolid(1, 0, 0));
+		assertEquals(1, step.solidCellCount());
+		assertEquals(1, step.clampedCellCount());
+		assertVectorEquals(new Vec3(2.0, 0.0, 0.0), step.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, step.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(2.0 * RHO, 3.0 * RHO, 0.0),
+				step.totalMomentumBeforeWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(new Vec3(2.0 * RHO, 0.0, 0.0),
+				step.totalMomentumAfterWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, -3.0 * RHO, 0.0),
+				step.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(0.5 * RHO * (4.0 + 9.0), step.kineticEnergyBeforeJoules(), 1.0e-15);
+		assertEquals(0.5 * RHO * 4.0, step.kineticEnergyAfterJoules(), 1.0e-15);
+		assertTrue(step.kineticEnergyDeltaJoules() < 0.0);
+	}
+
+	@Test
+	void openSolidMaskIsNoOpAndRejectsInvalidInputs() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						0.5,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.uniform(grid, new Vec3(0.25, -0.5, 0.75));
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask openMask =
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.open(grid);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep step =
+				state.applySolidMask(openMask, RHO);
+
+		assertEquals(0, step.solidCellCount());
+		assertEquals(0, step.clampedCellCount());
+		assertEquals(state, step.nextState());
+		assertVectorEquals(Vec3.ZERO, step.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(state.totalKineticEnergyJoules(RHO), step.kineticEnergyAfterJoules(), 1.0e-15);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec otherGrid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						0.5,
+						1,
+						1,
+						1
+				);
+		assertThrows(IllegalArgumentException.class,
+				() -> new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(grid, List.of(Boolean.TRUE)));
+		assertThrows(IllegalArgumentException.class,
+				() -> state.applySolidMask(
+						PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.open(otherGrid),
+						RHO));
+		assertThrows(IllegalArgumentException.class, () -> state.applySolidMask(openMask, 0.0));
+		assertThrows(IndexOutOfBoundsException.class, () -> openMask.isSolid(2, 0, 0));
+	}
+
+	@Test
 	void blockedAdvanceKeepsCalmStateAndZeroMetrics() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample blockedGrid =
 				conservativeGridForAdvanceRatio(

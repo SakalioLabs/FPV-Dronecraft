@@ -50,6 +50,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"pressure_projection_iterations",
 			"grid_cell_count",
 			"active_cell_count",
+			"solid_cell_count",
+			"solid_clamped_cell_count",
 			"target_body_force_world_x_n",
 			"target_body_force_world_y_n",
 			"target_body_force_world_z_n",
@@ -77,6 +79,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_projection_momentum_residual_world_x_ns",
 			"cumulative_projection_momentum_residual_world_y_ns",
 			"cumulative_projection_momentum_residual_world_z_ns",
+			"cumulative_solid_boundary_momentum_residual_world_x_ns",
+			"cumulative_solid_boundary_momentum_residual_world_y_ns",
+			"cumulative_solid_boundary_momentum_residual_world_z_ns",
 			"source_mass_flow_kg_s",
 			"cumulative_source_mass_kg",
 			"max_residence_alpha",
@@ -95,10 +100,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"kinetic_energy_diffusion_delta_j",
 			"kinetic_energy_after_projection_j",
 			"kinetic_energy_projection_delta_j",
+			"kinetic_energy_after_solid_boundary_j",
+			"kinetic_energy_solid_boundary_delta_j",
 			"max_speed_after_source_mps",
 			"max_speed_after_advection_mps",
 			"max_speed_after_diffusion_mps",
 			"max_speed_after_projection_mps",
+			"max_speed_after_solid_boundary_mps",
 			"advection_momentum_before_world_x_ns",
 			"advection_momentum_before_world_y_ns",
 			"advection_momentum_before_world_z_ns",
@@ -126,6 +134,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"projection_momentum_residual_world_x_ns",
 			"projection_momentum_residual_world_y_ns",
 			"projection_momentum_residual_world_z_ns",
+			"solid_boundary_momentum_before_world_x_ns",
+			"solid_boundary_momentum_before_world_y_ns",
+			"solid_boundary_momentum_before_world_z_ns",
+			"solid_boundary_momentum_after_world_x_ns",
+			"solid_boundary_momentum_after_world_y_ns",
+			"solid_boundary_momentum_after_world_z_ns",
+			"solid_boundary_momentum_residual_world_x_ns",
+			"solid_boundary_momentum_residual_world_y_ns",
+			"solid_boundary_momentum_residual_world_z_ns",
 			"final_momentum_world_x_ns",
 			"final_momentum_world_y_ns",
 			"final_momentum_world_z_ns"
@@ -365,6 +382,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 cumulativeThroughFlowImpulse = cumulativeThroughFlowImpulse(run, completedSteps);
 		Vec3 cumulativeAdvectionMomentumResidual = cumulativeAdvectionMomentumResidual(run, completedSteps);
 		Vec3 cumulativeProjectionMomentumResidual = cumulativeProjectionMomentumResidual(run, completedSteps);
+		Vec3 cumulativeSolidBoundaryMomentumResidual =
+				cumulativeSolidBoundaryMomentumResidual(run, completedSteps);
 		double sourceMassFlow = initial ? 0.0 : iteration.sourceAdvance().totalSourceMassFlowRateKilogramsPerSecond();
 		double cumulativeSourceMass = cumulativeSourceMass(run, completedSteps);
 		double maxResidenceAlpha = initial ? 0.0 : iteration.sourceAdvance().maxResidenceAlpha();
@@ -378,6 +397,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics divergenceAfterProjection =
 				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics(0.0, 0.0, 0.0)
 						: iteration.projectionStep().divergenceAfter();
+		int solidCellCount = initial ? run.solidMask().solidCellCount()
+				: iteration.solidBoundaryStep().solidCellCount();
+		int solidClampedCellCount = initial ? 0 : iteration.solidBoundaryStep().clampedCellCount();
 		double energyBeforeSource = initial ? run.initialKineticEnergyJoules()
 				: iteration.stateBeforeStep().totalKineticEnergyJoules(run.config().airDensityKgPerCubicMeter());
 		double energyAfterSource = initial ? energyBeforeSource
@@ -390,6 +412,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double energyAfterProjection = initial ? energyAfterDiffusion
 				: iteration.projectionStep().kineticEnergyAfterJoules();
 		double energyProjectionDelta = initial ? 0.0 : iteration.projectionStep().kineticEnergyDeltaJoules();
+		double energyAfterSolidBoundary = initial ? energyAfterProjection
+				: iteration.solidBoundaryStep().kineticEnergyAfterJoules();
+		double energySolidBoundaryDelta = initial ? 0.0
+				: iteration.solidBoundaryStep().kineticEnergyDeltaJoules();
 		double maxSpeedAfterSource = initial ? run.initialState().maxSpeedMetersPerSecond()
 				: iteration.stateAfterSource().maxSpeedMetersPerSecond();
 		double maxSpeedAfterAdvection = initial ? maxSpeedAfterSource
@@ -398,6 +424,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.stateAfterDiffusion().maxSpeedMetersPerSecond();
 		double maxSpeedAfterProjection = initial ? maxSpeedAfterDiffusion
 				: iteration.stateAfterProjection().maxSpeedMetersPerSecond();
+		double maxSpeedAfterSolidBoundary = initial ? maxSpeedAfterProjection
+				: iteration.stateAfterSolidBoundary().maxSpeedMetersPerSecond();
 		Vec3 advectionMomentumBefore = initial ? run.initialState()
 				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
 				: iteration.advectionRun().totalMomentumBeforeWorldNewtonSeconds();
@@ -415,9 +443,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 projectionMomentumAfter = initial ? projectionMomentumBefore
 				: iteration.projectionStep().totalMomentumAfterWorldNewtonSeconds();
 		Vec3 projectionMomentumResidual = initial ? zero : iteration.projectionStep().momentumResidualWorldNewtonSeconds();
+		Vec3 solidBoundaryMomentumBefore = initial ? projectionMomentumAfter
+				: iteration.solidBoundaryStep().totalMomentumBeforeWorldNewtonSeconds();
+		Vec3 solidBoundaryMomentumAfter = initial ? solidBoundaryMomentumBefore
+				: iteration.solidBoundaryStep().totalMomentumAfterWorldNewtonSeconds();
+		Vec3 solidBoundaryMomentumResidual = initial ? zero
+				: iteration.solidBoundaryStep().momentumResidualWorldNewtonSeconds();
 		Vec3 finalMomentum = initial ? run.initialState()
 				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter())
-				: iteration.stateAfterProjection().totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter());
+				: iteration.stateAfterSolidBoundary().totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter());
 		return String.join(",",
 				escape(metadata.key().preset()),
 				escape(metadata.key().caseName()),
@@ -445,6 +479,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				Integer.toString(run.config().pressureProjectionIterations()),
 				Integer.toString(metadata.sourceGridSample().gridSpec().totalCellCount()),
 				Integer.toString(metadata.sourceGridSample().activeCellCount()),
+				Integer.toString(solidCellCount),
+				Integer.toString(solidClampedCellCount),
 				number(metadata.targetBodyForceWorldNewtons().x()),
 				number(metadata.targetBodyForceWorldNewtons().y()),
 				number(metadata.targetBodyForceWorldNewtons().z()),
@@ -472,6 +508,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeProjectionMomentumResidual.x()),
 				number(cumulativeProjectionMomentumResidual.y()),
 				number(cumulativeProjectionMomentumResidual.z()),
+				number(cumulativeSolidBoundaryMomentumResidual.x()),
+				number(cumulativeSolidBoundaryMomentumResidual.y()),
+				number(cumulativeSolidBoundaryMomentumResidual.z()),
 				number(sourceMassFlow),
 				number(cumulativeSourceMass),
 				number(maxResidenceAlpha),
@@ -490,10 +529,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(energyDiffusionDelta),
 				number(energyAfterProjection),
 				number(energyProjectionDelta),
+				number(energyAfterSolidBoundary),
+				number(energySolidBoundaryDelta),
 				number(maxSpeedAfterSource),
 				number(maxSpeedAfterAdvection),
 				number(maxSpeedAfterDiffusion),
 				number(maxSpeedAfterProjection),
+				number(maxSpeedAfterSolidBoundary),
 				number(advectionMomentumBefore.x()),
 				number(advectionMomentumBefore.y()),
 				number(advectionMomentumBefore.z()),
@@ -521,6 +563,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(projectionMomentumResidual.x()),
 				number(projectionMomentumResidual.y()),
 				number(projectionMomentumResidual.z()),
+				number(solidBoundaryMomentumBefore.x()),
+				number(solidBoundaryMomentumBefore.y()),
+				number(solidBoundaryMomentumBefore.z()),
+				number(solidBoundaryMomentumAfter.x()),
+				number(solidBoundaryMomentumAfter.y()),
+				number(solidBoundaryMomentumAfter.z()),
+				number(solidBoundaryMomentumResidual.x()),
+				number(solidBoundaryMomentumResidual.y()),
+				number(solidBoundaryMomentumResidual.z()),
 				number(finalMomentum.x()),
 				number(finalMomentum.y()),
 				number(finalMomentum.z())
@@ -567,6 +618,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 sum = Vec3.ZERO;
 		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
 			sum = sum.add(run.iterations().get(i).projectionStep().momentumResidualWorldNewtonSeconds());
+		}
+		return sum;
+	}
+
+	private static Vec3 cumulativeSolidBoundaryMomentumResidual(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			sum = sum.add(run.iterations().get(i).solidBoundaryStep().momentumResidualWorldNewtonSeconds());
 		}
 		return sum;
 	}

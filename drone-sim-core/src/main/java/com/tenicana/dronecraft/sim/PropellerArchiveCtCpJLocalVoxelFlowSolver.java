@@ -100,7 +100,8 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance sourceAdvance,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionRun advectionRun,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusionStep,
-			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projectionStep
+			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projectionStep,
+			PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep solidBoundaryStep
 	) {
 		public SolverIteration {
 			if (stepIndex < 0) {
@@ -118,6 +119,9 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			if (projectionStep == null) {
 				throw new IllegalArgumentException("projectionStep must not be null.");
 			}
+			if (solidBoundaryStep == null) {
+				throw new IllegalArgumentException("solidBoundaryStep must not be null.");
+			}
 			if (!sourceAdvance.nextState().equals(advectionRun.previousState())) {
 				throw new IllegalArgumentException("advection must start from the source-advanced state.");
 			}
@@ -126,6 +130,9 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			}
 			if (!diffusionStep.nextState().equals(projectionStep.previousState())) {
 				throw new IllegalArgumentException("projection must start from the diffused state.");
+			}
+			if (!projectionStep.nextState().equals(solidBoundaryStep.previousState())) {
+				throw new IllegalArgumentException("solid boundary must start from the projected state.");
 			}
 		}
 
@@ -148,12 +155,17 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterProjection() {
 			return projectionStep.nextState();
 		}
+
+		public PropellerArchiveCtCpJLocalVoxelFlowState stateAfterSolidBoundary() {
+			return solidBoundaryStep.nextState();
+		}
 	}
 
 	public record SolverRun(
 			PropellerArchiveCtCpJLocalVoxelFlowState initialState,
 			PropellerArchiveCtCpJLocalVoxelFlowState finalState,
 			SolverConfig config,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask,
 			List<SolverIteration> iterations
 	) {
 		public SolverRun {
@@ -166,8 +178,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			if (config == null) {
 				throw new IllegalArgumentException("config must not be null.");
 			}
+			if (solidMask == null) {
+				throw new IllegalArgumentException("solidMask must not be null.");
+			}
 			if (!initialState.gridSpec().equals(finalState.gridSpec())) {
 				throw new IllegalArgumentException("initial and final states must share a voxel grid.");
+			}
+			if (!initialState.gridSpec().equals(solidMask.gridSpec())) {
+				throw new IllegalArgumentException("solidMask grid must match solver states.");
 			}
 			iterations = List.copyOf(iterations == null ? List.of() : iterations);
 		}
@@ -249,6 +267,30 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return sum;
 		}
 
+		public Vec3 totalSolidBoundaryMomentumResidualWorldNewtonSeconds() {
+			Vec3 sum = Vec3.ZERO;
+			for (SolverIteration iteration : iterations) {
+				sum = sum.add(iteration.solidBoundaryStep().momentumResidualWorldNewtonSeconds());
+			}
+			return sum;
+		}
+
+		public int maxSolidCellCount() {
+			int max = 0;
+			for (SolverIteration iteration : iterations) {
+				max = Math.max(max, iteration.solidBoundaryStep().solidCellCount());
+			}
+			return max;
+		}
+
+		public int maxSolidClampedCellCount() {
+			int max = 0;
+			for (SolverIteration iteration : iterations) {
+				max = Math.max(max, iteration.solidBoundaryStep().clampedCellCount());
+			}
+			return max;
+		}
+
 		public double maxDivergenceBeforeProjectionPerSecond() {
 			double max = 0.0;
 			for (SolverIteration iteration : iterations) {
@@ -303,6 +345,23 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			SolverConfig config
 	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		return run(
+				initialState,
+				sourceGridSample,
+				config,
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.open(sourceGridSample.gridSpec())
+		);
+	}
+
+	public static SolverRun run(
+			PropellerArchiveCtCpJLocalVoxelFlowState initialState,
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			SolverConfig config,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask
+	) {
 		if (initialState == null) {
 			throw new IllegalArgumentException("initialState must not be null.");
 		}
@@ -312,8 +371,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		if (config == null) {
 			throw new IllegalArgumentException("config must not be null.");
 		}
+		if (solidMask == null) {
+			throw new IllegalArgumentException("solidMask must not be null.");
+		}
 		if (!initialState.gridSpec().equals(sourceGridSample.gridSpec())) {
 			throw new IllegalArgumentException("sourceGridSample grid must match initialState grid.");
+		}
+		if (!initialState.gridSpec().equals(solidMask.gridSpec())) {
+			throw new IllegalArgumentException("solidMask grid must match initialState grid.");
 		}
 		ArrayList<SolverIteration> iterations = new ArrayList<>(config.stepCount());
 		PropellerArchiveCtCpJLocalVoxelFlowState state = initialState;
@@ -342,9 +407,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 							config.airDensityKgPerCubicMeter(),
 							config.pressureProjectionIterations()
 					);
-			iterations.add(new SolverIteration(step, sourceAdvance, advection, diffusion, projection));
-			state = projection.nextState();
+			PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep solidBoundary =
+					projection.nextState().applySolidMask(
+							solidMask,
+							config.airDensityKgPerCubicMeter()
+					);
+			iterations.add(new SolverIteration(step, sourceAdvance, advection, diffusion, projection, solidBoundary));
+			state = solidBoundary.nextState();
 		}
-		return new SolverRun(initialState, state, config, iterations);
+		return new SolverRun(initialState, state, config, solidMask, iterations);
 	}
 }

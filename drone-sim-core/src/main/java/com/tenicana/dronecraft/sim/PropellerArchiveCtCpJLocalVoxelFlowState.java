@@ -88,6 +88,121 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record VoxelSolidMask(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
+			List<Boolean> solidCells
+	) {
+		public VoxelSolidMask {
+			if (gridSpec == null) {
+				throw new IllegalArgumentException("gridSpec must not be null.");
+			}
+			List<Boolean> cells = solidCells == null ? List.of() : solidCells;
+			if (cells.size() != gridSpec.totalCellCount()) {
+				throw new IllegalArgumentException("solid cell count must match voxel grid cell count.");
+			}
+			ArrayList<Boolean> sanitized = new ArrayList<>(cells.size());
+			for (Boolean solid : cells) {
+				sanitized.add(Boolean.TRUE.equals(solid));
+			}
+			solidCells = List.copyOf(sanitized);
+		}
+
+		public static VoxelSolidMask open(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec
+		) {
+			if (gridSpec == null) {
+				throw new IllegalArgumentException("gridSpec must not be null.");
+			}
+			ArrayList<Boolean> cells = new ArrayList<>(gridSpec.totalCellCount());
+			for (int i = 0; i < gridSpec.totalCellCount(); i++) {
+				cells.add(Boolean.FALSE);
+			}
+			return new VoxelSolidMask(gridSpec, cells);
+		}
+
+		public int solidCellCount() {
+			int count = 0;
+			for (Boolean solid : solidCells) {
+				if (solid.booleanValue()) {
+					count++;
+				}
+			}
+			return count;
+		}
+
+		public boolean isSolid(int xIndex, int yIndex, int zIndex) {
+			return isSolidCellIndex(linearIndex(xIndex, yIndex, zIndex));
+		}
+
+		public boolean isSolidCellIndex(int cellIndex) {
+			if (cellIndex < 0 || cellIndex >= solidCells.size()) {
+				throw new IndexOutOfBoundsException("cell index outside voxel grid.");
+			}
+			return solidCells.get(cellIndex).booleanValue();
+		}
+
+		private int linearIndex(int xIndex, int yIndex, int zIndex) {
+			if (xIndex < 0 || xIndex >= gridSpec.cellCountX()
+					|| yIndex < 0 || yIndex >= gridSpec.cellCountY()
+					|| zIndex < 0 || zIndex >= gridSpec.cellCountZ()) {
+				throw new IndexOutOfBoundsException("cell index outside voxel grid.");
+			}
+			return (yIndex * gridSpec.cellCountZ() + zIndex) * gridSpec.cellCountX() + xIndex;
+		}
+	}
+
+	public record SolidBoundaryStep(
+			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
+			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
+			VoxelSolidMask solidMask,
+			double airDensityKgPerCubicMeter,
+			int solidCellCount,
+			int clampedCellCount,
+			Vec3 totalMomentumBeforeWorldNewtonSeconds,
+			Vec3 totalMomentumAfterWorldNewtonSeconds,
+			double kineticEnergyBeforeJoules,
+			double kineticEnergyAfterJoules
+	) {
+		public SolidBoundaryStep {
+			if (previousState == null) {
+				throw new IllegalArgumentException("previousState must not be null.");
+			}
+			if (nextState == null) {
+				throw new IllegalArgumentException("nextState must not be null.");
+			}
+			if (solidMask == null) {
+				throw new IllegalArgumentException("solidMask must not be null.");
+			}
+			if (!previousState.gridSpec().equals(nextState.gridSpec())
+					|| !previousState.gridSpec().equals(solidMask.gridSpec())) {
+				throw new IllegalArgumentException("solid boundary states and mask must share a voxel grid.");
+			}
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			if (solidCellCount < 0) {
+				throw new IllegalArgumentException("solidCellCount must be nonnegative.");
+			}
+			if (clampedCellCount < 0 || clampedCellCount > solidCellCount) {
+				throw new IllegalArgumentException("clampedCellCount must be within solid cell count.");
+			}
+			totalMomentumBeforeWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumBeforeWorldNewtonSeconds);
+			totalMomentumAfterWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumAfterWorldNewtonSeconds);
+			kineticEnergyBeforeJoules = finiteNonnegative(kineticEnergyBeforeJoules);
+			kineticEnergyAfterJoules = finiteNonnegative(kineticEnergyAfterJoules);
+		}
+
+		public Vec3 momentumResidualWorldNewtonSeconds() {
+			return totalMomentumAfterWorldNewtonSeconds.subtract(totalMomentumBeforeWorldNewtonSeconds);
+		}
+
+		public double kineticEnergyDeltaJoules() {
+			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
+		}
+	}
+
 	public record VelocityDiffusionStep(
 			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
 			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
@@ -356,6 +471,48 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	public Vec3 velocityAt(int xIndex, int yIndex, int zIndex) {
 		return velocitiesWorldMetersPerSecond.get(linearIndex(xIndex, yIndex, zIndex));
+	}
+
+	public SolidBoundaryStep applySolidMask(
+			VoxelSolidMask solidMask,
+			double airDensityKgPerCubicMeter
+	) {
+		if (solidMask == null) {
+			throw new IllegalArgumentException("solidMask must not be null.");
+		}
+		if (!gridSpec.equals(solidMask.gridSpec())) {
+			throw new IllegalArgumentException("solidMask grid must match this flow state.");
+		}
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		ArrayList<Vec3> nextVelocities = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
+		int clampedCellCount = 0;
+		for (int i = 0; i < velocitiesWorldMetersPerSecond.size(); i++) {
+			Vec3 velocity = velocitiesWorldMetersPerSecond.get(i);
+			if (solidMask.isSolidCellIndex(i)) {
+				if (velocity.lengthSquared() > EPSILON * EPSILON) {
+					clampedCellCount++;
+				}
+				nextVelocities.add(Vec3.ZERO);
+			} else {
+				nextVelocities.add(velocity);
+			}
+		}
+		PropellerArchiveCtCpJLocalVoxelFlowState nextState =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(gridSpec, nextVelocities);
+		return new SolidBoundaryStep(
+				this,
+				nextState,
+				solidMask,
+				airDensityKgPerCubicMeter,
+				solidMask.solidCellCount(),
+				clampedCellCount,
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+		);
 	}
 
 	public VoxelFlowAdvance advanceWithSource(
