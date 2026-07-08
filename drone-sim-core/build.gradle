@@ -111,6 +111,28 @@ tasks.register("ctCpJActuatorDiskVoxelSourceField", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJLocalVoxelFlowSolver", JavaExec) {
+	group = "simulation"
+	description = "Exports CT/CP/J local voxel flow solver time-step summaries as CSV."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJLocalVoxelFlowSolverExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-local-voxel-flow/${presetName}-solver-summary.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def cellSize = project.findProperty("cellSize") ?: ""
+		def paddingCells = project.findProperty("paddingCells") ?: ""
+		def subcellSamples = project.findProperty("subcellSamples") ?: ""
+		def timeStep = project.findProperty("timeStep") ?: ""
+		def kinematicViscosity = project.findProperty("kinematicViscosity") ?: ""
+		def steps = project.findProperty("steps") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, sourceThickness, cellSize, paddingCells, subcellSamples, timeStep, kinematicViscosity, steps, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJActuatorDiskOpenFoamCaseDicts", JavaExec) {
 	group = "simulation"
 	description = "Exports OpenFOAM topoSetDict and fvOptions templates for CT/CP/J actuator-disk sources."
