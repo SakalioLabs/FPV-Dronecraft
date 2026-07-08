@@ -221,6 +221,41 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
+	void conservativeVoxelGridRescalesCoarseCellsToContinuousLoads() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				hoverSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		double diskRadius = Math.sqrt(sourceTerm.diskAreaSquareMeters() / Math.PI);
+		double cellSize = diskRadius * 2.4;
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						sourceTerm.diskCenterWorldMeters().add(new Vec3(-0.5 * cellSize, -0.5 * cellSize,
+								-0.5 * cellSize)),
+						cellSize,
+						1,
+						1,
+						1
+				);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample geometric =
+				field.sampleVoxelGrid(grid, 5);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample conservative =
+				field.sampleConservativeVoxelGrid(grid, 5);
+
+		assertTrue(geometric.integratedBodyForceWorldNewtons()
+				.subtract(field.integratedBodyForceWorldNewtons()).length() > 1.0e-6);
+		assertVectorEquals(field.integratedBodyForceWorldNewtons(),
+				conservative.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
+				conservative.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(geometric.activeSubsampleCount(), conservative.activeSubsampleCount());
+		assertEquals(geometric.activeCellCount(), conservative.activeCellCount());
+		assertTrue(conservative.cells().get(0).pressureJumpPascals()
+				> geometric.cells().get(0).pressureJumpPascals());
+	}
+
+	@Test
 	void rejectsInvalidThicknessAndAllowsEmptyField() {
 		assertThrows(IllegalArgumentException.class,
 				() -> new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(), 0.0));

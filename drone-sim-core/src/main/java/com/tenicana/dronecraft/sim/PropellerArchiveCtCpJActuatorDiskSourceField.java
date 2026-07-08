@@ -277,6 +277,28 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		return new VoxelGridSample(gridSpec, normalizedSubcells, cells);
 	}
 
+	public VoxelGridSample sampleConservativeVoxelGrid(VoxelGridSpec gridSpec) {
+		return sampleConservativeVoxelGrid(gridSpec, 1);
+	}
+
+	public VoxelGridSample sampleConservativeVoxelGrid(VoxelGridSpec gridSpec, int subcellSamplesPerAxis) {
+		if (gridSpec == null) {
+			throw new IllegalArgumentException("gridSpec must not be null.");
+		}
+		int normalizedSubcells = normalizeSubcellSamplesPerAxis(subcellSamplesPerAxis);
+		List<SourceCoverage> coverages = sourceCoverages(gridSpec, normalizedSubcells);
+		java.util.ArrayList<VoxelCellSample> cells =
+				new java.util.ArrayList<>(gridSpec.totalCellCount());
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					cells.add(sampleConservativeVoxelCell(gridSpec, x, y, z, normalizedSubcells, coverages));
+				}
+			}
+		}
+		return new VoxelGridSample(gridSpec, normalizedSubcells, cells);
+	}
+
 	private VoxelCellSample sampleVoxelCell(
 			VoxelGridSpec gridSpec,
 			int xIndex,
@@ -344,6 +366,73 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		);
 	}
 
+	private VoxelCellSample sampleConservativeVoxelCell(
+			VoxelGridSpec gridSpec,
+			int xIndex,
+			int yIndex,
+			int zIndex,
+			int subcellSamplesPerAxis,
+			List<SourceCoverage> coverages
+	) {
+		Vec3 cellCenter = gridSpec.cellCenterWorldMeters(xIndex, yIndex, zIndex);
+		int totalSubsamples = subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis;
+		int activeSubsamples = countActiveSubsamples(gridSpec, cellCenter, subcellSamplesPerAxis, coverages);
+		Vec3 bodyForceDensity = Vec3.ZERO;
+		Vec3 wakeTorqueDensity = Vec3.ZERO;
+		double pressureJump = 0.0;
+		double massFlux = 0.0;
+		double powerLoading = 0.0;
+		Vec3 farWakeAxialVelocity = Vec3.ZERO;
+		Vec3 wakeSwirlVelocity = Vec3.ZERO;
+		Vec3 targetWakeVelocity = Vec3.ZERO;
+		for (SourceCoverage coverage : coverages) {
+			if (coverage.densityScale() <= EPSILON) {
+				continue;
+			}
+			SourceCellCoverage cellCoverage =
+					sourceCellCoverage(gridSpec, cellCenter, subcellSamplesPerAxis, coverage.sourceTerm());
+			if (cellCoverage.activeSubsamples() == 0) {
+				continue;
+			}
+			double sourceWeight = cellCoverage.sourceVolumeFraction() * coverage.densityScale();
+			bodyForceDensity = bodyForceDensity.add(coverage.sourceTerm()
+					.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters)
+					.multiply(sourceWeight));
+			wakeTorqueDensity = wakeTorqueDensity.add(coverage.sourceTerm()
+					.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(sourceThicknessMeters)
+					.multiply(sourceWeight));
+			pressureJump += coverage.sourceTerm().pressureJumpPascals() * sourceWeight;
+			massFlux += coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
+			powerLoading += coverage.sourceTerm().idealMomentumPowerLoadingWattsPerSquareMeter() * sourceWeight;
+			farWakeAxialVelocity = farWakeAxialVelocity.add(
+					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond().multiply(sourceWeight));
+			wakeSwirlVelocity = wakeSwirlVelocity.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond()
+					.multiply(sourceWeight));
+			targetWakeVelocity = targetWakeVelocity.add(
+					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond()
+							.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond())
+							.multiply(sourceWeight));
+		}
+		return new VoxelCellSample(
+				xIndex,
+				yIndex,
+				zIndex,
+				cellCenter,
+				gridSpec.cellVolumeCubicMeters(),
+				totalSubsamples,
+				activeSubsamples,
+				activeSubsamples / (double) totalSubsamples,
+				bodyForceDensity,
+				wakeTorqueDensity,
+				pressureJump,
+				massFlux,
+				powerLoading,
+				farWakeAxialVelocity,
+				wakeSwirlVelocity,
+				targetWakeVelocity
+		);
+	}
+
 	public boolean containsActuatorDiskVolume(
 			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
 			Vec3 samplePointWorldMeters
@@ -399,6 +488,145 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 
 	private static int normalizeSubcellSamplesPerAxis(int subcellSamplesPerAxis) {
 		return Math.max(1, Math.min(16, subcellSamplesPerAxis));
+	}
+
+	private List<SourceCoverage> sourceCoverages(VoxelGridSpec gridSpec, int subcellSamplesPerAxis) {
+		java.util.ArrayList<SourceCoverage> coverages = new java.util.ArrayList<>();
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm == null || !sourceTerm.applied()) {
+				continue;
+			}
+			double sampledVolume = sampledVolumeCubicMeters(gridSpec, subcellSamplesPerAxis, sourceTerm);
+			double targetVolume = sourceTerm.sourceVolumeCubicMeters(sourceThicknessMeters);
+			double densityScale = sampledVolume > EPSILON && targetVolume > EPSILON
+					? targetVolume / sampledVolume
+					: 0.0;
+			coverages.add(new SourceCoverage(sourceTerm, sampledVolume, targetVolume, densityScale));
+		}
+		return List.copyOf(coverages);
+	}
+
+	private double sampledVolumeCubicMeters(
+			VoxelGridSpec gridSpec,
+			int subcellSamplesPerAxis,
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm
+	) {
+		double sampledSubcellVolume = gridSpec.cellVolumeCubicMeters()
+				/ (subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis);
+		double volume = 0.0;
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					Vec3 cellCenter = gridSpec.cellCenterWorldMeters(x, y, z);
+					for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
+						for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
+							for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
+								Vec3 subcellPoint = subcellPointWorldMeters(
+										cellCenter,
+										gridSpec.cellSizeMeters(),
+										subcellSamplesPerAxis,
+										sx,
+										sy,
+										sz
+								);
+								if (containsActuatorDiskVolume(sourceTerm, subcellPoint)) {
+									volume += sampledSubcellVolume;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return volume;
+	}
+
+	private int countActiveSubsamples(
+			VoxelGridSpec gridSpec,
+			Vec3 cellCenterWorldMeters,
+			int subcellSamplesPerAxis,
+			List<SourceCoverage> coverages
+	) {
+		int activeSubsamples = 0;
+		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
+			for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
+				for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
+					Vec3 subcellPoint = subcellPointWorldMeters(
+							cellCenterWorldMeters,
+							gridSpec.cellSizeMeters(),
+							subcellSamplesPerAxis,
+							sx,
+							sy,
+							sz
+					);
+					if (anyCoverageContains(coverages, subcellPoint)) {
+						activeSubsamples++;
+					}
+				}
+			}
+		}
+		return activeSubsamples;
+	}
+
+	private boolean anyCoverageContains(List<SourceCoverage> coverages, Vec3 samplePointWorldMeters) {
+		for (SourceCoverage coverage : coverages) {
+			if (containsActuatorDiskVolume(coverage.sourceTerm(), samplePointWorldMeters)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private SourceCellCoverage sourceCellCoverage(
+			VoxelGridSpec gridSpec,
+			Vec3 cellCenterWorldMeters,
+			int subcellSamplesPerAxis,
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm
+	) {
+		int totalSubsamples = subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis;
+		int activeSubsamples = 0;
+		Vec3 wakeSwirlVelocity = Vec3.ZERO;
+		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
+			for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
+				for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
+					Vec3 subcellPoint = subcellPointWorldMeters(
+							cellCenterWorldMeters,
+							gridSpec.cellSizeMeters(),
+							subcellSamplesPerAxis,
+							sx,
+							sy,
+							sz
+					);
+					if (containsActuatorDiskVolume(sourceTerm, subcellPoint)) {
+						activeSubsamples++;
+						wakeSwirlVelocity =
+								wakeSwirlVelocity.add(sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(subcellPoint));
+					}
+				}
+			}
+		}
+		return new SourceCellCoverage(
+				activeSubsamples,
+				activeSubsamples / (double) totalSubsamples,
+				activeSubsamples == 0
+						? Vec3.ZERO
+						: wakeSwirlVelocity.multiply(1.0 / activeSubsamples)
+		);
+	}
+
+	private record SourceCoverage(
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			double sampledVolumeCubicMeters,
+			double targetVolumeCubicMeters,
+			double densityScale
+	) {
+	}
+
+	private record SourceCellCoverage(
+			int activeSubsamples,
+			double sourceVolumeFraction,
+			Vec3 averageWakeSwirlVelocityWorldMetersPerSecond
+	) {
 	}
 
 	private static Vec3 subcellPointWorldMeters(
