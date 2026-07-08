@@ -50,3 +50,12 @@ effects and need separate runtime validation before simplification.
 world-frame aggregate force/torque columns, including a non-identity yaw diagnostic row. These columns are coordinate
 verification material for sim/lab force integration; `playable/dev` should not use them as camera, control, or feel
 tuning constants without a separate reviewed runtime simplification.
+
+2026-07-09 source/wake probe update: `docs/data/propeller_archive_ct_cp_j_runtime_curve_packet.csv` still exposes
+14 `ACCEPTED` runtime-reference rows, while the actuator-disk source, wake-probe, and wake-plane packets now cover
+six source cases: hover, mid-J, high-J, reverse-axial clamp, blocked high-J, and mid-J skew. `playable/dev` may use
+only the accepted runtime rows as offline normalized references for axial CT rolloff, shaft-power/torque scale, and
+coarse wake-energy magnitude. The source and wake packets are CFD comparison material for A4MC/OpenFOAM-style
+validation; their centerline, swirl-radius, plane, and skew-wake vectors are not terrain propwash, side-force,
+yaw-feel, or controller constants. Rows with clamp, block, oblique-inflow, operating-envelope, or momentum-closure
+statuses remain sim/lab diagnostics and must not be extrapolated into runtime gameplay behavior.
