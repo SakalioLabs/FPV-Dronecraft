@@ -681,6 +681,24 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record VorticityIntegralMetrics(
+			double enstrophyCubicMetersPerSecondSquared,
+			double helicityFourthMetersPerSecondSquared,
+			double meanHelicityDensityMetersPerSecondSquared
+	) {
+		public VorticityIntegralMetrics {
+			enstrophyCubicMetersPerSecondSquared =
+					finiteNonnegative(enstrophyCubicMetersPerSecondSquared);
+			helicityFourthMetersPerSecondSquared = Double.isFinite(helicityFourthMetersPerSecondSquared)
+					? helicityFourthMetersPerSecondSquared
+					: 0.0;
+			meanHelicityDensityMetersPerSecondSquared =
+					Double.isFinite(meanHelicityDensityMetersPerSecondSquared)
+							? meanHelicityDensityMetersPerSecondSquared
+							: 0.0;
+		}
+	}
+
 	public record VelocityProjectionStep(
 			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
 			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
@@ -1276,6 +1294,42 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				maxMagnitude,
 				totalWeight <= EPSILON ? 0.0 : Math.sqrt(sumWeightedMagnitudeSquares / totalWeight),
 				totalWeight <= EPSILON ? Vec3.ZERO : weightedVorticity.multiply(1.0 / totalWeight)
+		);
+	}
+
+	public VorticityIntegralMetrics vorticityIntegralMetrics() {
+		return vorticityIntegralMetrics(VoxelSolidMask.open(gridSpec));
+	}
+
+	public VorticityIntegralMetrics vorticityIntegralMetrics(VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
+		double enstrophy = 0.0;
+		double helicity = 0.0;
+		double openVolume = 0.0;
+		double cellVolume = gridSpec.cellVolumeCubicMeters();
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int cellIndex = linearIndex(x, y, z);
+					if (solidMask.isSolidCellIndex(cellIndex)) {
+						continue;
+					}
+					double volume = cellVolume * solidMask.openVolumeFractionCellIndex(cellIndex);
+					if (volume <= EPSILON) {
+						continue;
+					}
+					Vec3 vorticity = vorticityAtCell(x, y, z, solidMask);
+					Vec3 velocity = velocitiesWorldMetersPerSecond.get(cellIndex);
+					enstrophy += 0.5 * vorticity.lengthSquared() * volume;
+					helicity += velocity.dot(vorticity) * volume;
+					openVolume += volume;
+				}
+			}
+		}
+		return new VorticityIntegralMetrics(
+				enstrophy,
+				helicity,
+				openVolume <= EPSILON ? 0.0 : helicity / openVolume
 		);
 	}
 

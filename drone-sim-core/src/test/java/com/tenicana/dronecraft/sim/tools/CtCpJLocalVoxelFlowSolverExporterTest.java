@@ -130,6 +130,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(number(hoverStep2, "max_vorticity_after_source_s") >= 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2, "rms_vorticity_after_projection_s")));
 		assertTrue(Double.isFinite(number(hoverStep2, "mean_vorticity_after_solid_boundary_world_y_s")));
+		assertTrue(Double.isFinite(number(hoverStep2, "enstrophy_after_source_m3_per_s2")));
+		assertTrue(number(hoverStep2, "enstrophy_after_source_m3_per_s2") >= 0.0);
+		assertTrue(Double.isFinite(number(hoverStep2, "helicity_after_projection_m4_per_s2")));
+		assertTrue(Double.isFinite(number(hoverStep2, "mean_helicity_density_after_solid_boundary_m_per_s2")));
 		assertEquals(number(hoverStep2, "target_body_force_world_y_n"),
 				number(hoverStep2, "source_momentum_rate_world_y_n"), 1.0e-9);
 		assertEquals(number(hoverStep2, "target_wake_angular_momentum_torque_world_y_nm"),
@@ -210,6 +214,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "max_vorticity_after_source_s"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "rms_vorticity_after_projection_s"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "mean_vorticity_after_solid_boundary_world_y_s"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "enstrophy_after_source_m3_per_s2"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "helicity_after_projection_m4_per_s2"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "mean_helicity_density_after_solid_boundary_m_per_s2"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "max_divergence_after_projection_s"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
@@ -358,6 +366,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("max_vorticity_after_source_s"));
 		assertTrue(lines.get(0).contains("rms_vorticity_after_projection_s"));
 		assertTrue(lines.get(0).contains("mean_vorticity_after_solid_boundary_world_y_s"));
+		assertTrue(lines.get(0).contains("enstrophy_after_source_m3_per_s2"));
+		assertTrue(lines.get(0).contains("helicity_after_projection_m4_per_s2"));
+		assertTrue(lines.get(0).contains("mean_helicity_density_after_solid_boundary_m_per_s2"));
 		assertTrue(lines.get(0).contains("cumulative_projection_momentum_residual_world_y_ns"));
 		assertTrue(lines.get(0).contains("solid_box_count"));
 		assertTrue(lines.get(0).contains("solid_box_minimum_volume_fraction"));

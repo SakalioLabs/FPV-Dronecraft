@@ -281,24 +281,35 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 						1
 				);
 		double omega = 4.0;
+		double axialVelocity = 3.0;
 		ArrayList<Vec3> velocities = new ArrayList<>(grid.totalCellCount());
 		for (int y = 0; y < grid.cellCountY(); y++) {
 			for (int z = 0; z < grid.cellCountZ(); z++) {
 				for (int x = 0; x < grid.cellCountX(); x++) {
 					Vec3 center = grid.cellCenterWorldMeters(x, y, z);
-					velocities.add(new Vec3(-omega * center.y(), omega * center.x(), 0.0));
+					velocities.add(new Vec3(-omega * center.y(), omega * center.x(), axialVelocity));
 				}
 			}
 		}
 		PropellerArchiveCtCpJLocalVoxelFlowState state =
 				new PropellerArchiveCtCpJLocalVoxelFlowState(grid, velocities);
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics metrics = state.vorticityMetrics();
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityIntegralMetrics integrals =
+				state.vorticityIntegralMetrics();
+		double openVolume = grid.totalCellCount() * grid.cellVolumeCubicMeters();
+		double expectedVorticity = 2.0 * omega;
 
-		assertVectorEquals(new Vec3(0.0, 0.0, 2.0 * omega), state.vorticityAt(1, 1, 0), 1.0e-15);
-		assertEquals(2.0 * omega, metrics.maxMagnitudePerSecond(), 1.0e-15);
-		assertEquals(2.0 * omega, metrics.rmsMagnitudePerSecond(), 1.0e-15);
-		assertVectorEquals(new Vec3(0.0, 0.0, 2.0 * omega),
+		assertVectorEquals(new Vec3(0.0, 0.0, expectedVorticity), state.vorticityAt(1, 1, 0), 1.0e-15);
+		assertEquals(expectedVorticity, metrics.maxMagnitudePerSecond(), 1.0e-15);
+		assertEquals(expectedVorticity, metrics.rmsMagnitudePerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 0.0, expectedVorticity),
 				metrics.meanVorticityWorldPerSecond(), 1.0e-15);
+		assertEquals(0.5 * expectedVorticity * expectedVorticity * openVolume,
+				integrals.enstrophyCubicMetersPerSecondSquared(), 1.0e-15);
+		assertEquals(axialVelocity * expectedVorticity * openVolume,
+				integrals.helicityFourthMetersPerSecondSquared(), 1.0e-15);
+		assertEquals(axialVelocity * expectedVorticity,
+				integrals.meanHelicityDensityMetersPerSecondSquared(), 1.0e-15);
 	}
 
 	@Test

@@ -126,16 +126,25 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"mean_vorticity_after_source_world_x_s",
 			"mean_vorticity_after_source_world_y_s",
 			"mean_vorticity_after_source_world_z_s",
+			"enstrophy_after_source_m3_per_s2",
+			"helicity_after_source_m4_per_s2",
+			"mean_helicity_density_after_source_m_per_s2",
 			"max_vorticity_after_projection_s",
 			"rms_vorticity_after_projection_s",
 			"mean_vorticity_after_projection_world_x_s",
 			"mean_vorticity_after_projection_world_y_s",
 			"mean_vorticity_after_projection_world_z_s",
+			"enstrophy_after_projection_m3_per_s2",
+			"helicity_after_projection_m4_per_s2",
+			"mean_helicity_density_after_projection_m_per_s2",
 			"max_vorticity_after_solid_boundary_s",
 			"rms_vorticity_after_solid_boundary_s",
 			"mean_vorticity_after_solid_boundary_world_x_s",
 			"mean_vorticity_after_solid_boundary_world_y_s",
 			"mean_vorticity_after_solid_boundary_world_z_s",
+			"enstrophy_after_solid_boundary_m3_per_s2",
+			"helicity_after_solid_boundary_m4_per_s2",
+			"mean_helicity_density_after_solid_boundary_m_per_s2",
 			"kinetic_energy_before_source_j",
 			"kinetic_energy_after_source_j",
 			"kinetic_energy_after_advection_j",
@@ -629,6 +638,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSolidBoundary =
 				initial ? vorticityAfterProjection
 						: iteration.stateAfterSolidBoundary().vorticityMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityIntegralMetrics vorticityIntegralsAfterSource =
+				initial ? run.initialState().vorticityIntegralMetrics(run.solidMask())
+						: iteration.stateAfterSource().vorticityIntegralMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityIntegralMetrics vorticityIntegralsAfterProjection =
+				initial ? vorticityIntegralsAfterSource
+						: iteration.stateAfterProjection().vorticityIntegralMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityIntegralMetrics vorticityIntegralsAfterSolidBoundary =
+				initial ? vorticityIntegralsAfterProjection
+						: iteration.stateAfterSolidBoundary().vorticityIntegralMetrics(run.solidMask());
 		int solidCellCount = initial ? run.solidMask().solidCellCount()
 				: iteration.solidBoundaryStep().solidCellCount();
 		int solidClampedCellCount = initial ? 0 : iteration.solidBoundaryStep().clampedCellCount();
@@ -809,16 +827,25 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(vorticityAfterSource.meanVorticityWorldPerSecond().x()),
 				number(vorticityAfterSource.meanVorticityWorldPerSecond().y()),
 				number(vorticityAfterSource.meanVorticityWorldPerSecond().z()),
+				number(vorticityIntegralsAfterSource.enstrophyCubicMetersPerSecondSquared()),
+				number(vorticityIntegralsAfterSource.helicityFourthMetersPerSecondSquared()),
+				number(vorticityIntegralsAfterSource.meanHelicityDensityMetersPerSecondSquared()),
 				number(vorticityAfterProjection.maxMagnitudePerSecond()),
 				number(vorticityAfterProjection.rmsMagnitudePerSecond()),
 				number(vorticityAfterProjection.meanVorticityWorldPerSecond().x()),
 				number(vorticityAfterProjection.meanVorticityWorldPerSecond().y()),
 				number(vorticityAfterProjection.meanVorticityWorldPerSecond().z()),
+				number(vorticityIntegralsAfterProjection.enstrophyCubicMetersPerSecondSquared()),
+				number(vorticityIntegralsAfterProjection.helicityFourthMetersPerSecondSquared()),
+				number(vorticityIntegralsAfterProjection.meanHelicityDensityMetersPerSecondSquared()),
 				number(vorticityAfterSolidBoundary.maxMagnitudePerSecond()),
 				number(vorticityAfterSolidBoundary.rmsMagnitudePerSecond()),
 				number(vorticityAfterSolidBoundary.meanVorticityWorldPerSecond().x()),
 				number(vorticityAfterSolidBoundary.meanVorticityWorldPerSecond().y()),
 				number(vorticityAfterSolidBoundary.meanVorticityWorldPerSecond().z()),
+				number(vorticityIntegralsAfterSolidBoundary.enstrophyCubicMetersPerSecondSquared()),
+				number(vorticityIntegralsAfterSolidBoundary.helicityFourthMetersPerSecondSquared()),
+				number(vorticityIntegralsAfterSolidBoundary.meanHelicityDensityMetersPerSecondSquared()),
 				number(energyBeforeSource),
 				number(energyAfterSource),
 				number(energyAfterAdvection),
