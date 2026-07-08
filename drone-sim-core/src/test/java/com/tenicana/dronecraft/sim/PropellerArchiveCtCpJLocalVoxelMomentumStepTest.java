@@ -219,6 +219,12 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				residence.meanThroughFlowMechanicalPowerWatts(), 1.0e-12);
 		assertEquals(residence.totalCombinedMechanicalWorkEnergyJoules() / DT,
 				residence.meanCombinedMechanicalPowerWatts(), 1.0e-12);
+		assertEquals(residence.meanCombinedMechanicalPowerWatts()
+						- residence.totalWakeKineticPowerWatts(),
+				residence.combinedMechanicalWorkPowerMinusWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(residence.meanCombinedMechanicalPowerWatts()
+						/ residence.totalWakeKineticPowerWatts(),
+				residence.combinedMechanicalWorkPowerOverWakeKineticPower(), 1.0e-12);
 		assertVectorEquals(residence.totalSourceMomentumRateWorldNewtons()
 						.add(residence.totalThroughFlowMomentumRateWorldNewtons()),
 				residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
@@ -315,6 +321,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertEquals(0.0, residence.totalIdealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.totalWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, residence.combinedMechanicalWorkPowerMinusWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, residence.combinedMechanicalWorkPowerOverWakeKineticPower(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceIdealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceTotalWakeKineticPowerWatts(), 1.0e-15);

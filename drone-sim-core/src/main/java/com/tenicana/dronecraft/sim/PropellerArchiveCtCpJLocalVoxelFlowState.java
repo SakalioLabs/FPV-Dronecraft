@@ -128,6 +128,22 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return residenceStep.meanCombinedMechanicalPowerWatts();
 		}
 
+		public double combinedMechanicalWorkPowerMinusWakeKineticPowerWatts() {
+			return residenceStep.combinedMechanicalWorkPowerMinusWakeKineticPowerWatts();
+		}
+
+		public double combinedMechanicalWorkPowerOverWakeKineticPower() {
+			return residenceStep.combinedMechanicalWorkPowerOverWakeKineticPower();
+		}
+
+		public double combinedMechanicalWorkEnergyMinusWakeKineticEnergyJoules() {
+			return combinedMechanicalWorkEnergyJoules() - totalWakeKineticEnergyJoules();
+		}
+
+		public double combinedMechanicalWorkEnergyOverWakeKineticEnergy() {
+			return ratio(combinedMechanicalWorkEnergyJoules(), totalWakeKineticEnergyJoules());
+		}
+
 		public double flowKineticEnergyDeltaJoules() {
 			return flowKineticEnergyDeltaJoules(VoxelSolidMask.open(previousState.gridSpec()));
 		}
@@ -2507,6 +2523,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	private static double finiteNonnegative(double value) {
 		return Double.isFinite(value) && value > 0.0 ? value : 0.0;
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		return Double.isFinite(numerator)
+				&& Double.isFinite(denominator)
+				&& Math.abs(denominator) > EPSILON
+				? numerator / denominator
+				: 0.0;
 	}
 
 	private static double mean(double[] values) {

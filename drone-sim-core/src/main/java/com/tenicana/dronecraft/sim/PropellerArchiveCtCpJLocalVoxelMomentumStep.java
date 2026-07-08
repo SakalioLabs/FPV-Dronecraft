@@ -321,6 +321,14 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 					/ sourceMomentumSample.timeStepSeconds();
 		}
 
+		public double combinedMechanicalWorkPowerMinusWakeKineticPowerWatts() {
+			return meanCombinedMechanicalPowerWatts() - totalWakeKineticPowerWatts();
+		}
+
+		public double combinedMechanicalWorkPowerOverWakeKineticPower() {
+			return ratio(meanCombinedMechanicalPowerWatts(), totalWakeKineticPowerWatts());
+		}
+
 		public double maxResidenceAlpha() {
 			double max = 0.0;
 			for (CellMassFluxResidenceStep cell : cells) {
@@ -555,5 +563,13 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 
 	private static double finiteNonnegative(double value) {
 		return Double.isFinite(value) && value > 0.0 ? value : 0.0;
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		return Double.isFinite(numerator)
+				&& Double.isFinite(denominator)
+				&& Math.abs(denominator) > EPSILON
+				? numerator / denominator
+				: 0.0;
 	}
 }
