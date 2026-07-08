@@ -22,6 +22,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	public static final double DEFAULT_KINEMATIC_VISCOSITY_SQUARE_METERS_PER_SECOND = 1.5e-5;
 	public static final double DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS = 0.60;
 	public static final int DEFAULT_STEP_COUNT = 8;
+	private static final double EPSILON = 1.0e-12;
 
 	private static final String HEADER = String.join(",",
 			"preset",
@@ -801,7 +802,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	) {
 		int count = 0;
 		for (int cellIndex = 0; cellIndex < sourceGridSample.cells().size(); cellIndex++) {
-			if (sourceGridSample.cells().get(cellIndex).active() && solidMask.isSolidCellIndex(cellIndex)) {
+			if (sourceGridSample.cells().get(cellIndex).active()
+					&& solidMask.solidVolumeFractionCellIndex(cellIndex) > EPSILON) {
 				count++;
 			}
 		}

@@ -94,6 +94,67 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void advanceWithSourceScalesSourceTermsBySolidVolumeFraction() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						1,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						1,
+						List.of(new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+								0,
+								0,
+								0,
+								grid.cellCenterWorldMeters(0, 0, 0),
+								grid.cellVolumeCubicMeters(),
+								1,
+								1,
+								1.0,
+								new Vec3(0.0, 10.0, 0.0),
+								Vec3.ZERO,
+								0.0,
+								0.0,
+								0.0,
+								Vec3.ZERO,
+								Vec3.ZERO,
+								Vec3.ZERO
+						))
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.calm(grid);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask halfSolidButOpenWall =
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						List.of(new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+								new Vec3(0.0, 0.0, 0.0),
+								new Vec3(0.5, 1.0, 1.0))),
+						1.0
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance advance =
+				state.advanceWithSource(sourceGridSample, RHO, DT, SOURCE_THICKNESS, halfSolidButOpenWall);
+
+		assertEquals(0, halfSolidButOpenWall.solidCellCount());
+		assertEquals(0.5, halfSolidButOpenWall.solidVolumeFraction(0, 0, 0), 1.0e-15);
+		assertEquals(0.5, halfSolidButOpenWall.openVolumeFractionCellIndex(0), 1.0e-15);
+		assertEquals(1, advance.residenceStep().activeCellCount());
+		assertEquals(0.5, advance.residenceStep().activeCells().get(0)
+				.sourceMomentumStep().sourceVolumeFraction(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 5.0, 0.0),
+				advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 5.0 * DT, 0.0),
+				advance.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(5.0 * DT / RHO,
+				advance.nextState().velocityAt(0, 0, 0).y(), 1.0e-15);
+	}
+
+	@Test
 	void uniformStatePreservesVoxelOrderingForCellIndexLookups() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(
@@ -203,9 +264,14 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertTrue(anyOverlap.isSolid(0, 0, 0));
 		assertTrue(anyOverlap.isSolid(1, 0, 0));
 		assertTrue(!anyOverlap.isSolid(2, 0, 0));
+		assertEquals(0.8, anyOverlap.solidVolumeFraction(0, 0, 0), 1.0e-15);
+		assertEquals(0.2, anyOverlap.solidVolumeFraction(1, 0, 0), 1.0e-15);
+		assertEquals(0.0, anyOverlap.solidVolumeFraction(2, 0, 0), 1.0e-15);
 		assertEquals(1, halfCellThreshold.solidCellCount());
 		assertTrue(halfCellThreshold.isSolid(0, 0, 0));
 		assertTrue(!halfCellThreshold.isSolid(1, 0, 0));
+		assertEquals(0.2, halfCellThreshold.solidVolumeFraction(1, 0, 0), 1.0e-15);
+		assertEquals(0.8, halfCellThreshold.openVolumeFractionCellIndex(1), 1.0e-15);
 		assertEquals(0,
 				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
 						grid,

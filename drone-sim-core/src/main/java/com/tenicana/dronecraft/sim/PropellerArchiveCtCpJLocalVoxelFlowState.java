@@ -90,7 +90,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	public record VoxelSolidMask(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
-			List<Boolean> solidCells
+			List<Boolean> solidCells,
+			List<Double> solidVolumeFractions
 	) {
 		public record WorldSolidBox(
 				Vec3 minWorldMeters,
@@ -123,6 +124,13 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			}
 		}
 
+		public VoxelSolidMask(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
+				List<Boolean> solidCells
+		) {
+			this(gridSpec, solidCells, List.of());
+		}
+
 		public VoxelSolidMask {
 			if (gridSpec == null) {
 				throw new IllegalArgumentException("gridSpec must not be null.");
@@ -131,11 +139,22 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			if (cells.size() != gridSpec.totalCellCount()) {
 				throw new IllegalArgumentException("solid cell count must match voxel grid cell count.");
 			}
+			List<Double> fractions = solidVolumeFractions == null ? List.of() : solidVolumeFractions;
+			if (!fractions.isEmpty() && fractions.size() != gridSpec.totalCellCount()) {
+				throw new IllegalArgumentException("solid volume fraction count must match voxel grid cell count.");
+			}
 			ArrayList<Boolean> sanitized = new ArrayList<>(cells.size());
-			for (Boolean solid : cells) {
-				sanitized.add(Boolean.TRUE.equals(solid));
+			ArrayList<Double> sanitizedFractions = new ArrayList<>(cells.size());
+			for (int cellIndex = 0; cellIndex < cells.size(); cellIndex++) {
+				boolean solid = Boolean.TRUE.equals(cells.get(cellIndex));
+				double fraction = fractions.isEmpty()
+						? (solid ? 1.0 : 0.0)
+						: finiteFraction(fractions.get(cellIndex));
+				sanitized.add(solid);
+				sanitizedFractions.add(fraction);
 			}
 			solidCells = List.copyOf(sanitized);
+			solidVolumeFractions = List.copyOf(sanitizedFractions);
 		}
 
 		public static VoxelSolidMask open(
@@ -145,10 +164,12 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				throw new IllegalArgumentException("gridSpec must not be null.");
 			}
 			ArrayList<Boolean> cells = new ArrayList<>(gridSpec.totalCellCount());
+			ArrayList<Double> fractions = new ArrayList<>(gridSpec.totalCellCount());
 			for (int i = 0; i < gridSpec.totalCellCount(); i++) {
 				cells.add(Boolean.FALSE);
+				fractions.add(0.0);
 			}
-			return new VoxelSolidMask(gridSpec, cells);
+			return new VoxelSolidMask(gridSpec, cells, fractions);
 		}
 
 		public static VoxelSolidMask fromWorldSolidBoxes(
@@ -181,6 +202,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			}
 			List<WorldSolidBox> boxes = List.copyOf(sanitizedBoxes);
 			ArrayList<Boolean> cells = new ArrayList<>(gridSpec.totalCellCount());
+			ArrayList<Double> fractions = new ArrayList<>(gridSpec.totalCellCount());
 			double cellSize = gridSpec.cellSizeMeters();
 			double cellVolume = gridSpec.cellVolumeCubicMeters();
 			for (int y = 0; y < gridSpec.cellCountY(); y++) {
@@ -189,7 +211,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 						double cellMinX = gridSpec.originWorldMeters().x() + x * cellSize;
 						double cellMinY = gridSpec.originWorldMeters().y() + y * cellSize;
 						double cellMinZ = gridSpec.originWorldMeters().z() + z * cellSize;
-						cells.add(boxesOverlapCell(
+						double solidVolumeFraction = solidVolumeFraction(
 								boxes,
 								cellMinX,
 								cellMinY,
@@ -197,12 +219,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 								cellMinX + cellSize,
 								cellMinY + cellSize,
 								cellMinZ + cellSize,
-								cellVolume,
-								minimumSolidVolumeFraction));
+								cellVolume);
+						fractions.add(solidVolumeFraction);
+						cells.add(solidVolumeFraction > EPSILON
+								&& solidVolumeFraction + EPSILON >= minimumSolidVolumeFraction);
 					}
 				}
 			}
-			return new VoxelSolidMask(gridSpec, cells);
+			return new VoxelSolidMask(gridSpec, cells, fractions);
 		}
 
 		public int solidCellCount() {
@@ -226,6 +250,30 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return solidCells.get(cellIndex).booleanValue();
 		}
 
+		public double solidVolumeFraction(int xIndex, int yIndex, int zIndex) {
+			return solidVolumeFractionCellIndex(linearIndex(xIndex, yIndex, zIndex));
+		}
+
+		public double solidVolumeFractionCellIndex(int cellIndex) {
+			if (cellIndex < 0 || cellIndex >= solidVolumeFractions.size()) {
+				throw new IndexOutOfBoundsException("cell index outside voxel grid.");
+			}
+			return solidVolumeFractions.get(cellIndex);
+		}
+
+		public double openVolumeFractionCellIndex(int cellIndex) {
+			return 1.0 - solidVolumeFractionCellIndex(cellIndex);
+		}
+
+		public boolean hasSolidVolume() {
+			for (double fraction : solidVolumeFractions) {
+				if (fraction > EPSILON) {
+					return true;
+				}
+			}
+			return false;
+		}
+
 		private int linearIndex(int xIndex, int yIndex, int zIndex) {
 			if (xIndex < 0 || xIndex >= gridSpec.cellCountX()
 					|| yIndex < 0 || yIndex >= gridSpec.cellCountY()
@@ -235,7 +283,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return (yIndex * gridSpec.cellCountZ() + zIndex) * gridSpec.cellCountX() + xIndex;
 		}
 
-		private static boolean boxesOverlapCell(
+		private static double solidVolumeFraction(
 				List<WorldSolidBox> boxes,
 				double cellMinX,
 				double cellMinY,
@@ -243,23 +291,25 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				double cellMaxX,
 				double cellMaxY,
 				double cellMaxZ,
-				double cellVolume,
-				double minimumSolidVolumeFraction
+				double cellVolume
 		) {
+			double overlapVolume = 0.0;
 			for (WorldSolidBox box : boxes) {
-				double overlap = box.overlapVolumeCubicMeters(
+				overlapVolume += box.overlapVolumeCubicMeters(
 						cellMinX,
 						cellMinY,
 						cellMinZ,
 						cellMaxX,
 						cellMaxY,
 						cellMaxZ);
-				double fraction = overlap / cellVolume;
-				if (overlap > EPSILON && fraction + EPSILON >= minimumSolidVolumeFraction) {
-					return true;
-				}
 			}
-			return false;
+			return cellVolume > EPSILON ? MathUtil.clamp(overlapVolume / cellVolume, 0.0, 1.0) : 0.0;
+		}
+
+		private static double finiteFraction(Double value) {
+			return value != null && Double.isFinite(value)
+					? MathUtil.clamp(value, 0.0, 1.0)
+					: 0.0;
 		}
 
 		private static double overlapLength(
@@ -666,7 +716,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 		validateSolidMask(solidMask);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample openSourceGridSample =
-				sourceGridSampleWithOpenCellsOnly(sourceGridSample, solidMask);
+				sourceGridSampleWithSolidVolumeOcclusion(sourceGridSample, solidMask);
 		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residenceStep =
 				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
 						openSourceGridSample,
@@ -687,11 +737,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		);
 	}
 
-	private PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSampleWithOpenCellsOnly(
+	private PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSampleWithSolidVolumeOcclusion(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			VoxelSolidMask solidMask
 	) {
-		if (solidMask.solidCellCount() == 0) {
+		if (!solidMask.hasSolidVolume()) {
 			return sourceGridSample;
 		}
 		ArrayList<PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample> cells =
@@ -699,9 +749,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		for (int cellIndex = 0; cellIndex < sourceGridSample.cells().size(); cellIndex++) {
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell =
 					sourceGridSample.cells().get(cellIndex);
-			cells.add(solidMask.isSolidCellIndex(cellIndex)
-					? zeroSourceCell(sourceCell)
-					: sourceCell);
+			double openVolumeFraction = solidMask.openVolumeFractionCellIndex(cellIndex);
+			if (openVolumeFraction >= 1.0 - EPSILON) {
+				cells.add(sourceCell);
+			} else if (openVolumeFraction <= EPSILON) {
+				cells.add(zeroSourceCell(sourceCell));
+			} else {
+				cells.add(scaleSourceCell(sourceCell, openVolumeFraction));
+			}
 		}
 		return new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
 				sourceGridSample.gridSpec(),
@@ -731,6 +786,46 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				Vec3.ZERO,
 				Vec3.ZERO
 		);
+	}
+
+	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample scaleSourceCell(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell,
+			double scale
+	) {
+		double sourceScale = MathUtil.clamp(scale, 0.0, 1.0);
+		if (sourceScale <= EPSILON) {
+			return zeroSourceCell(sourceCell);
+		}
+		int activeSubsamples = scaledActiveSubsampleCount(sourceCell, sourceScale);
+		return new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+				sourceCell.xIndex(),
+				sourceCell.yIndex(),
+				sourceCell.zIndex(),
+				sourceCell.cellCenterWorldMeters(),
+				sourceCell.cellVolumeCubicMeters(),
+				sourceCell.totalSubsampleCount(),
+				activeSubsamples,
+				sourceCell.sourceVolumeFraction() * sourceScale,
+				sourceCell.bodyForceDensityWorldNewtonsPerCubicMeter().multiply(sourceScale),
+				sourceCell.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter().multiply(sourceScale),
+				sourceCell.pressureJumpPascals() * sourceScale,
+				sourceCell.massFluxKilogramsPerSecondSquareMeter(),
+				sourceCell.idealMomentumPowerLoadingWattsPerSquareMeter() * sourceScale,
+				sourceCell.farWakeAxialVelocityWorldMetersPerSecond(),
+				sourceCell.wakeSwirlVelocityWorldMetersPerSecond(),
+				sourceCell.targetWakeVelocityWorldMetersPerSecond()
+		);
+	}
+
+	private static int scaledActiveSubsampleCount(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell,
+			double scale
+	) {
+		if (!sourceCell.active()) {
+			return 0;
+		}
+		int scaled = (int) Math.round(sourceCell.activeSubsampleCount() * scale);
+		return Math.max(1, Math.min(sourceCell.totalSubsampleCount(), scaled));
 	}
 
 	public VelocityAdvectionStep advectVelocity(
