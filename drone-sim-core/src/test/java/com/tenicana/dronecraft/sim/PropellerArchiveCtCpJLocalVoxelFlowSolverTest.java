@@ -15,7 +15,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
 
 	@Test
-	void multiStepRunAccumulatesSourceImpulseAndDiffusesEachStep() {
+	void multiStepRunAccumulatesSourceImpulseAndProjectsEachStep() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(
 						"local_voxel_solver_hover",
@@ -44,6 +44,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertTrue(run.maxAdvectionCourantNumber()
 				<= config.maxAdvectionCourantNumber() + 1.0e-12);
 		assertTrue(run.maxAdvectionSubstepCount() > 1);
+		assertTrue(run.maxDivergenceBeforeProjectionPerSecond() > 0.0);
+		assertTrue(run.maxDivergenceAfterProjectionPerSecond()
+				< run.maxDivergenceBeforeProjectionPerSecond());
 		assertEquals(0.0, run.initialKineticEnergyJoules(), 1.0e-15);
 		assertTrue(run.finalKineticEnergyJoules() > 0.0);
 		assertTrue(run.finalMaxSpeedMetersPerSecond() > 0.0);
@@ -59,17 +62,24 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 					run.iterations().get(i).advectionRun().previousState());
 			assertEquals(run.iterations().get(i).stateAfterAdvection(),
 					run.iterations().get(i).diffusionStep().previousState());
+			assertEquals(run.iterations().get(i).stateAfterDiffusion(),
+					run.iterations().get(i).projectionStep().previousState());
+			assertEquals(config.pressureProjectionIterations(),
+					run.iterations().get(i).projectionStep().pressureProjectionIterations());
+			assertTrue(run.iterations().get(i).projectionStep().divergenceAfter().maxAbsDivergencePerSecond()
+					<= run.iterations().get(i).projectionStep().divergenceBefore().maxAbsDivergencePerSecond()
+					+ 1.0e-12);
 			assertTrue(run.iterations().get(i).advectionRun().maxCourantNumber() > 0.0);
 			assertTrue(run.iterations().get(i).advectionRun().maxCourantNumber()
 					<= config.maxAdvectionCourantNumber() + 1.0e-12);
 			assertVectorEquals(Vec3.ZERO,
 					run.iterations().get(i).diffusionStep().momentumResidualWorldNewtonSeconds(), 1.0e-12);
 			if (i > 0) {
-				assertEquals(run.iterations().get(i - 1).stateAfterDiffusion(),
+				assertEquals(run.iterations().get(i - 1).stateAfterProjection(),
 						run.iterations().get(i).stateBeforeStep());
 			}
 		}
-		assertEquals(run.finalState(), run.iterations().get(run.iterations().size() - 1).stateAfterDiffusion());
+		assertEquals(run.finalState(), run.iterations().get(run.iterations().size() - 1).stateAfterProjection());
 	}
 
 	@Test
@@ -104,9 +114,12 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
 		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
 		assertEquals(0, run.maxAdvectionSubstepCount());
+		assertEquals(0.0, run.maxDivergenceBeforeProjectionPerSecond(), 1.0e-15);
+		assertEquals(0.0, run.maxDivergenceAfterProjectionPerSecond(), 1.0e-15);
 		assertEquals(initialState.totalKineticEnergyJoules(RHO), run.finalKineticEnergyJoules(), 1.0e-15);
 	}
 
@@ -138,9 +151,12 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
 		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
 		assertEquals(1, run.maxAdvectionSubstepCount());
+		assertEquals(0.0, run.maxDivergenceBeforeProjectionPerSecond(), 1.0e-15);
+		assertEquals(0.0, run.maxDivergenceAfterProjectionPerSecond(), 1.0e-15);
 		assertEquals(0.0, run.finalKineticEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalMomentumWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalState().velocityAt(0, 0, 0), 1.0e-15);
@@ -205,6 +221,16 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 						0.0,
 						1,
 						0.0
+				));
+		assertThrows(IllegalArgumentException.class,
+				() -> new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig(
+						RHO,
+						DT,
+						SOURCE_THICKNESS,
+						0.0,
+						1,
+						1.0,
+						-1
 				));
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveCtCpJLocalVoxelFlowSolver.run(state, blockedGrid, validConfig));

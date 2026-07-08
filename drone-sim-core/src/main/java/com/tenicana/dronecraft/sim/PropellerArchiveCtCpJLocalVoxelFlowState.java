@@ -9,6 +9,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 ) {
 	private static final double EPSILON = 1.0e-12;
 	private static final int MAX_ADVECTION_SUBSTEPS = 4096;
+	private static final int MAX_PRESSURE_PROJECTION_ITERATIONS = 4096;
 
 	public PropellerArchiveCtCpJLocalVoxelFlowState {
 		if (gridSpec == null) {
@@ -264,6 +265,74 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record DivergenceMetrics(
+			double maxAbsDivergencePerSecond,
+			double rmsDivergencePerSecond,
+			double meanDivergencePerSecond
+	) {
+		public DivergenceMetrics {
+			maxAbsDivergencePerSecond = finiteNonnegative(maxAbsDivergencePerSecond);
+			rmsDivergencePerSecond = finiteNonnegative(rmsDivergencePerSecond);
+			meanDivergencePerSecond = Double.isFinite(meanDivergencePerSecond)
+					? meanDivergencePerSecond
+					: 0.0;
+		}
+	}
+
+	public record VelocityProjectionStep(
+			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
+			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
+			double airDensityKgPerCubicMeter,
+			int pressureProjectionIterations,
+			DivergenceMetrics divergenceBefore,
+			DivergenceMetrics divergenceAfter,
+			Vec3 totalMomentumBeforeWorldNewtonSeconds,
+			Vec3 totalMomentumAfterWorldNewtonSeconds,
+			double kineticEnergyBeforeJoules,
+			double kineticEnergyAfterJoules
+	) {
+		public VelocityProjectionStep {
+			if (previousState == null) {
+				throw new IllegalArgumentException("previousState must not be null.");
+			}
+			if (nextState == null) {
+				throw new IllegalArgumentException("nextState must not be null.");
+			}
+			if (!previousState.gridSpec().equals(nextState.gridSpec())) {
+				throw new IllegalArgumentException("projection states must share a voxel grid.");
+			}
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			if (pressureProjectionIterations < 0) {
+				throw new IllegalArgumentException("pressureProjectionIterations must be nonnegative.");
+			}
+			if (pressureProjectionIterations > MAX_PRESSURE_PROJECTION_ITERATIONS) {
+				throw new IllegalArgumentException("pressureProjectionIterations exceeds maximum supported bound.");
+			}
+			divergenceBefore = divergenceBefore == null
+					? new DivergenceMetrics(0.0, 0.0, 0.0)
+					: divergenceBefore;
+			divergenceAfter = divergenceAfter == null
+					? new DivergenceMetrics(0.0, 0.0, 0.0)
+					: divergenceAfter;
+			totalMomentumBeforeWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumBeforeWorldNewtonSeconds);
+			totalMomentumAfterWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumAfterWorldNewtonSeconds);
+			kineticEnergyBeforeJoules = finiteNonnegative(kineticEnergyBeforeJoules);
+			kineticEnergyAfterJoules = finiteNonnegative(kineticEnergyAfterJoules);
+		}
+
+		public Vec3 momentumResidualWorldNewtonSeconds() {
+			return totalMomentumAfterWorldNewtonSeconds.subtract(totalMomentumBeforeWorldNewtonSeconds);
+		}
+
+		public double kineticEnergyDeltaJoules() {
+			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
+		}
+	}
+
 	public static PropellerArchiveCtCpJLocalVoxelFlowState calm(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec
 	) {
@@ -457,6 +526,65 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		);
 	}
 
+	public VelocityProjectionStep projectVelocityDivergence(
+			double airDensityKgPerCubicMeter,
+			int pressureProjectionIterations
+	) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		if (pressureProjectionIterations < 0) {
+			throw new IllegalArgumentException("pressureProjectionIterations must be nonnegative.");
+		}
+		if (pressureProjectionIterations > MAX_PRESSURE_PROJECTION_ITERATIONS) {
+			throw new IllegalArgumentException("pressureProjectionIterations exceeds maximum supported bound.");
+		}
+		DivergenceMetrics divergenceBefore = divergenceMetrics();
+		PropellerArchiveCtCpJLocalVoxelFlowState nextState = this;
+		if (pressureProjectionIterations > 0 && divergenceBefore.maxAbsDivergencePerSecond() > EPSILON) {
+			double[] divergence = divergenceValues();
+			double[] pressurePotential = pressurePotential(divergence, pressureProjectionIterations);
+			ArrayList<Vec3> nextVelocities = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
+			for (int y = 0; y < gridSpec.cellCountY(); y++) {
+				for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+					for (int x = 0; x < gridSpec.cellCountX(); x++) {
+						nextVelocities.add(projectedVelocityAt(pressurePotential, x, y, z));
+					}
+				}
+			}
+			nextState = new PropellerArchiveCtCpJLocalVoxelFlowState(gridSpec, nextVelocities);
+		}
+		return new VelocityProjectionStep(
+				this,
+				nextState,
+				airDensityKgPerCubicMeter,
+				pressureProjectionIterations,
+				divergenceBefore,
+				nextState.divergenceMetrics(),
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+		);
+	}
+
+	public DivergenceMetrics divergenceMetrics() {
+		double[] divergence = divergenceValues();
+		double maxAbs = 0.0;
+		double sumSquares = 0.0;
+		double sum = 0.0;
+		for (double value : divergence) {
+			maxAbs = Math.max(maxAbs, Math.abs(value));
+			sumSquares += value * value;
+			sum += value;
+		}
+		return new DivergenceMetrics(
+				maxAbs,
+				divergence.length == 0 ? 0.0 : Math.sqrt(sumSquares / divergence.length),
+				divergence.length == 0 ? 0.0 : sum / divergence.length
+		);
+	}
+
 	public double totalKineticEnergyJoules(double airDensityKgPerCubicMeter) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
@@ -505,6 +633,138 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			throw new IndexOutOfBoundsException("cell index outside voxel grid.");
 		}
 		return (yIndex * gridSpec.cellCountZ() + zIndex) * gridSpec.cellCountX() + xIndex;
+	}
+
+	private double[] divergenceValues() {
+		double[] divergence = new double[velocitiesWorldMetersPerSecond.size()];
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					divergence[linearIndex(x, y, z)] = divergenceAt(x, y, z);
+				}
+			}
+		}
+		return divergence;
+	}
+
+	private double divergenceAt(int x, int y, int z) {
+		double dx = gridSpec.cellSizeMeters();
+		Vec3 center = velocityAt(x, y, z);
+		double east = x + 1 < gridSpec.cellCountX()
+				? 0.5 * (center.x() + velocityAt(x + 1, y, z).x())
+				: center.x();
+		double west = x > 0
+				? 0.5 * (velocityAt(x - 1, y, z).x() + center.x())
+				: center.x();
+		double up = y + 1 < gridSpec.cellCountY()
+				? 0.5 * (center.y() + velocityAt(x, y + 1, z).y())
+				: center.y();
+		double down = y > 0
+				? 0.5 * (velocityAt(x, y - 1, z).y() + center.y())
+				: center.y();
+		double south = z + 1 < gridSpec.cellCountZ()
+				? 0.5 * (center.z() + velocityAt(x, y, z + 1).z())
+				: center.z();
+		double north = z > 0
+				? 0.5 * (velocityAt(x, y, z - 1).z() + center.z())
+				: center.z();
+		return (east - west + up - down + south - north) / dx;
+	}
+
+	private double[] pressurePotential(double[] divergence, int iterationCount) {
+		double meanDivergence = mean(divergence);
+		double dxSquared = gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters();
+		double[] previous = new double[divergence.length];
+		double[] next = new double[divergence.length];
+		for (int iteration = 0; iteration < iterationCount; iteration++) {
+			for (int y = 0; y < gridSpec.cellCountY(); y++) {
+				for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+					for (int x = 0; x < gridSpec.cellCountX(); x++) {
+						int index = linearIndex(x, y, z);
+						int neighborCount = 0;
+						double neighborSum = 0.0;
+						if (x > 0) {
+							neighborSum += previous[linearIndex(x - 1, y, z)];
+							neighborCount++;
+						}
+						if (x + 1 < gridSpec.cellCountX()) {
+							neighborSum += previous[linearIndex(x + 1, y, z)];
+							neighborCount++;
+						}
+						if (y > 0) {
+							neighborSum += previous[linearIndex(x, y - 1, z)];
+							neighborCount++;
+						}
+						if (y + 1 < gridSpec.cellCountY()) {
+							neighborSum += previous[linearIndex(x, y + 1, z)];
+							neighborCount++;
+						}
+						if (z > 0) {
+							neighborSum += previous[linearIndex(x, y, z - 1)];
+							neighborCount++;
+						}
+						if (z + 1 < gridSpec.cellCountZ()) {
+							neighborSum += previous[linearIndex(x, y, z + 1)];
+							neighborCount++;
+						}
+						next[index] = neighborCount == 0
+								? 0.0
+								: (neighborSum - (divergence[index] - meanDivergence) * dxSquared) / neighborCount;
+					}
+				}
+			}
+			subtractMean(next);
+			double[] swap = previous;
+			previous = next;
+			next = swap;
+		}
+		return previous;
+	}
+
+	private Vec3 projectedVelocityAt(double[] pressurePotential, int x, int y, int z) {
+		Vec3 center = velocityAt(x, y, z);
+		double dx = gridSpec.cellSizeMeters();
+		double lowX = center.x();
+		double highX = center.x();
+		if (x > 0) {
+			lowX = 0.5 * (velocityAt(x - 1, y, z).x() + center.x())
+					- (pressurePotential[linearIndex(x, y, z)]
+					- pressurePotential[linearIndex(x - 1, y, z)]) / dx;
+		}
+		if (x + 1 < gridSpec.cellCountX()) {
+			highX = 0.5 * (center.x() + velocityAt(x + 1, y, z).x())
+					- (pressurePotential[linearIndex(x + 1, y, z)]
+					- pressurePotential[linearIndex(x, y, z)]) / dx;
+		}
+		double lowY = center.y();
+		double highY = center.y();
+		if (y > 0) {
+			lowY = 0.5 * (velocityAt(x, y - 1, z).y() + center.y())
+					- (pressurePotential[linearIndex(x, y, z)]
+					- pressurePotential[linearIndex(x, y - 1, z)]) / dx;
+		}
+		if (y + 1 < gridSpec.cellCountY()) {
+			highY = 0.5 * (center.y() + velocityAt(x, y + 1, z).y())
+					- (pressurePotential[linearIndex(x, y + 1, z)]
+					- pressurePotential[linearIndex(x, y, z)]) / dx;
+		}
+		double lowZ = center.z();
+		double highZ = center.z();
+		if (z > 0) {
+			lowZ = 0.5 * (velocityAt(x, y, z - 1).z() + center.z())
+					- (pressurePotential[linearIndex(x, y, z)]
+					- pressurePotential[linearIndex(x, y, z - 1)]) / dx;
+		}
+		if (z + 1 < gridSpec.cellCountZ()) {
+			highZ = 0.5 * (center.z() + velocityAt(x, y, z + 1).z())
+					- (pressurePotential[linearIndex(x, y, z + 1)]
+					- pressurePotential[linearIndex(x, y, z)]) / dx;
+		}
+		return new Vec3(
+				0.5 * (lowX + highX),
+				0.5 * (lowY + highY),
+				0.5 * (lowZ + highZ)
+		);
 	}
 
 	private Vec3 sampleVelocityClamped(Vec3 pointWorldMeters) {
@@ -560,5 +820,23 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	private static double finiteNonnegative(double value) {
 		return Double.isFinite(value) && value > 0.0 ? value : 0.0;
+	}
+
+	private static double mean(double[] values) {
+		if (values.length == 0) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		for (double value : values) {
+			sum += value;
+		}
+		return sum / values.length;
+	}
+
+	private static void subtractMean(double[] values) {
+		double mean = mean(values);
+		for (int i = 0; i < values.length; i++) {
+			values[i] -= mean;
+		}
 	}
 }

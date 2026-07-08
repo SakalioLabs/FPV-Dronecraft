@@ -222,6 +222,70 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void pressureProjectionReducesLocalDivergence() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(Vec3.ZERO, new Vec3(1.0, 0.0, 0.0), Vec3.ZERO)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projection =
+				state.projectVelocityDivergence(RHO, 8);
+
+		assertEquals(0.5, projection.divergenceBefore().maxAbsDivergencePerSecond(), 1.0e-15);
+		assertTrue(projection.divergenceAfter().maxAbsDivergencePerSecond()
+				< projection.divergenceBefore().maxAbsDivergencePerSecond());
+		assertTrue(projection.divergenceAfter().rmsDivergencePerSecond()
+				< projection.divergenceBefore().rmsDivergencePerSecond());
+		assertEquals(8, projection.pressureProjectionIterations());
+		assertVectorEquals(projection.totalMomentumAfterWorldNewtonSeconds()
+						.subtract(projection.totalMomentumBeforeWorldNewtonSeconds()),
+				projection.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(projection.nextState().divergenceMetrics().maxAbsDivergencePerSecond(),
+				projection.divergenceAfter().maxAbsDivergencePerSecond(), 1.0e-15);
+	}
+
+	@Test
+	void pressureProjectionLeavesUniformOpenBoundaryFlowUnchanged() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						2,
+						1
+				);
+		Vec3 velocity = new Vec3(1.0, -0.25, 0.0);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.uniform(grid, velocity);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projection =
+				state.projectVelocityDivergence(RHO, 8);
+
+		assertEquals(0.0, projection.divergenceBefore().maxAbsDivergencePerSecond(), 1.0e-15);
+		assertEquals(0.0, projection.divergenceAfter().maxAbsDivergencePerSecond(), 1.0e-15);
+		for (int y = 0; y < grid.cellCountY(); y++) {
+			for (int z = 0; z < grid.cellCountZ(); z++) {
+				for (int x = 0; x < grid.cellCountX(); x++) {
+					assertVectorEquals(velocity,
+							projection.nextState().velocityAt(x, y, z), 1.0e-15);
+				}
+			}
+		}
+		assertVectorEquals(Vec3.ZERO, projection.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertThrows(IllegalArgumentException.class, () -> state.projectVelocityDivergence(RHO, -1));
+		assertThrows(IllegalArgumentException.class, () -> state.projectVelocityDivergence(0.0, 1));
+	}
+
+	@Test
 	void diffusionSpreadsVelocityToNeighborsWhileConservingMomentum() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
