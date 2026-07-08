@@ -62,6 +62,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(numberCell(hover, columns, "min_runtime_tip_mach_margin") > 0.0);
 		assertTrue(numberCell(hover, columns, "min_runtime_reynolds_index_margin") > 0.0);
 		assertEquals("ACCEPTED", textCell(hover, columns, "runtime_eligibility_status"));
+		assertEquals("ACCEPTED", textCell(hover, columns, "runtime_force_replacement_status_summary"));
 		assertEquals("DIRECT_SAMPLE", textCell(hover, columns, "target_thrust_solve_status"));
 		assertEquals(0, integerCell(hover, columns, "target_thrust_solve_iterations"));
 		assertEquals("DIRECT_SAMPLE", textCell(hover, columns, "trim_solve_status"));
@@ -384,6 +385,7 @@ class CtCpJConfigurationCurveExporterTest {
 
 		assertEquals("ACCEPTED", textCell(forward, columns, "runtime_eligibility_status"));
 		assertEquals(4, integerCell(forward, columns, "runtime_force_replacement_accepted_rotor_count"));
+		assertEquals("ACCEPTED", textCell(forward, columns, "runtime_force_replacement_status_summary"));
 		assertTrue(numberCell(forward, columns, "query_signed_axial_speed_mps") > 0.0);
 		assertEquals(0.0, numberCell(forward, columns, "transverse_air_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(forward, columns, "inflow_angle_deg"), 1.0e-15);
@@ -460,6 +462,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(4, integerCell(reverseClamp, columns, "clamped_rotor_count"));
 		assertEquals(0, integerCell(reverseClamp, columns, "runtime_force_replacement_accepted_rotor_count"));
 		assertEquals("CLAMPED", textCell(reverseClamp, columns, "runtime_eligibility_status"));
+		assertEquals("CLAMPED", textCell(reverseClamp, columns, "runtime_force_replacement_status_summary"));
 		assertTrue(numberCell(reverseClamp, columns, "query_signed_axial_speed_mps") < 0.0);
 		assertTrue(numberCell(reverseClamp, columns, "total_thrust_n") > 0.0);
 		assertEquals(0.0, numberCell(reverseClamp, columns, "runtime_replacement_total_thrust_n"), 1.0e-15);
@@ -468,6 +471,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(4, integerCell(highBlock, columns, "blocked_rotor_count"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlock, columns, "runtime_eligibility_status"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlock, columns, "lookup_status_summary"));
+		assertEquals("BLOCKED", textCell(highBlock, columns, "runtime_force_replacement_status_summary"));
 		assertEquals(0.0, numberCell(highBlock, columns, "total_thrust_n"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_shaft_power_w"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_disk_mass_flow_kg_s"), 1.0e-15);
@@ -479,6 +483,8 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0, integerCell(transverse, columns, "runtime_force_replacement_accepted_rotor_count"));
 		assertEquals("OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE",
 				textCell(transverse, columns, "runtime_eligibility_status"));
+		assertEquals("OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE",
+				textCell(transverse, columns, "runtime_force_replacement_status_summary"));
 		assertEquals(2.5, numberCell(transverse, columns, "transverse_air_speed_mps"), 1.0e-15);
 		assertTrue(numberCell(transverse, columns, "inflow_angle_deg") > 15.0);
 		assertTrue(numberCell(transverse, columns, "total_thrust_n") > 0.0);
@@ -487,6 +493,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(4, integerCell(bodyRate, columns, "accepted_rotor_count"));
 		assertEquals(4, integerCell(bodyRate, columns, "runtime_force_replacement_accepted_rotor_count"));
 		assertEquals("ACCEPTED", textCell(bodyRate, columns, "runtime_eligibility_status"));
+		assertEquals("ACCEPTED", textCell(bodyRate, columns, "runtime_force_replacement_status_summary"));
 		assertEquals(5.0, numberCell(bodyRate, columns, "body_angular_rate_x_rad_s"), 1.0e-15);
 		assertEquals(0.0, numberCell(bodyRate, columns, "body_angular_rate_y_rad_s"), 1.0e-15);
 		assertEquals(0.0, numberCell(bodyRate, columns, "body_angular_rate_z_rad_s"), 1.0e-15);
@@ -607,6 +614,7 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("min_runtime_reynolds_index_margin"));
 		assertTrue(lines.get(0).contains("min_runtime_operating_envelope_margin_fraction"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
+		assertTrue(lines.get(0).contains("runtime_force_replacement_status_summary"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
 	}
 

@@ -183,7 +183,8 @@ public final class CtCpJConfigurationCurveExporter {
 			"runtime_replacement_mean_actuator_disk_ideal_momentum_power_loading_w_m2",
 			"runtime_eligibility_status",
 			"lookup_status_summary",
-			"source_id_summary"
+			"source_id_summary",
+			"runtime_force_replacement_status_summary"
 	);
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
 	private static final double REVERSE_AXIAL_DIAGNOSTIC_SPEED_METERS_PER_SECOND = -4.5;
@@ -1122,7 +1123,8 @@ public final class CtCpJConfigurationCurveExporter {
 				number(aggregate.runtimeForceReplacementMeanActuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter()),
 				escape(runtimeEligibilityStatus(aggregate)),
 				escape(lookupStatusSummary(aggregate)),
-				escape(sourceIdSummary(aggregate))
+				escape(sourceIdSummary(aggregate)),
+				escape(runtimeForceReplacementStatusSummary(aggregate))
 		);
 	}
 
