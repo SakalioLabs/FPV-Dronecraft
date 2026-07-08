@@ -165,6 +165,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_momentum_flux_after_source_world_x_n",
 			"open_boundary_net_outward_momentum_flux_after_source_world_y_n",
 			"open_boundary_net_outward_momentum_flux_after_source_world_z_n",
+			"open_boundary_net_outward_angular_momentum_flux_after_source_world_x_nm",
+			"open_boundary_net_outward_angular_momentum_flux_after_source_world_y_nm",
+			"open_boundary_net_outward_angular_momentum_flux_after_source_world_z_nm",
 			"open_boundary_net_outward_kinetic_power_after_source_w",
 			"open_boundary_outward_kinetic_power_after_source_w",
 			"open_boundary_inward_kinetic_power_after_source_w",
@@ -177,6 +180,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_momentum_flux_after_projection_world_x_n",
 			"open_boundary_net_outward_momentum_flux_after_projection_world_y_n",
 			"open_boundary_net_outward_momentum_flux_after_projection_world_z_n",
+			"open_boundary_net_outward_angular_momentum_flux_after_projection_world_x_nm",
+			"open_boundary_net_outward_angular_momentum_flux_after_projection_world_y_nm",
+			"open_boundary_net_outward_angular_momentum_flux_after_projection_world_z_nm",
 			"open_boundary_net_outward_kinetic_power_after_projection_w",
 			"open_boundary_outward_kinetic_power_after_projection_w",
 			"open_boundary_inward_kinetic_power_after_projection_w",
@@ -189,6 +195,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_x_n",
 			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_y_n",
 			"open_boundary_net_outward_momentum_flux_after_solid_boundary_world_z_n",
+			"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_x_nm",
+			"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_y_nm",
+			"open_boundary_net_outward_angular_momentum_flux_after_solid_boundary_world_z_nm",
 			"open_boundary_net_outward_kinetic_power_after_solid_boundary_w",
 			"open_boundary_outward_kinetic_power_after_solid_boundary_w",
 			"open_boundary_inward_kinetic_power_after_solid_boundary_w",
@@ -794,6 +803,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 boundaryMomentumAfterProjection = boundaryFluxAfterProjection.netOutwardMomentumFluxWorldNewtons();
 		Vec3 boundaryMomentumAfterSolidBoundary =
 				boundaryFluxAfterSolidBoundary.netOutwardMomentumFluxWorldNewtons();
+		Vec3 boundaryAngularMomentumAfterSource =
+				boundaryFluxAfterSource.netOutwardAngularMomentumFluxWorldNewtonMeters();
+		Vec3 boundaryAngularMomentumAfterProjection =
+				boundaryFluxAfterProjection.netOutwardAngularMomentumFluxWorldNewtonMeters();
+		Vec3 boundaryAngularMomentumAfterSolidBoundary =
+				boundaryFluxAfterSolidBoundary.netOutwardAngularMomentumFluxWorldNewtonMeters();
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSource =
 				initial ? run.initialState().vorticityMetrics(run.solidMask())
 						: iteration.stateAfterSource().vorticityMetrics(run.solidMask());
@@ -1055,6 +1070,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(boundaryMomentumAfterSource.x()),
 				number(boundaryMomentumAfterSource.y()),
 				number(boundaryMomentumAfterSource.z()),
+				number(boundaryAngularMomentumAfterSource.x()),
+				number(boundaryAngularMomentumAfterSource.y()),
+				number(boundaryAngularMomentumAfterSource.z()),
 				number(boundaryFluxAfterSource.netOutwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterSource.outwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterSource.inwardKineticEnergyPowerWatts()),
@@ -1070,6 +1088,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(boundaryMomentumAfterProjection.x()),
 				number(boundaryMomentumAfterProjection.y()),
 				number(boundaryMomentumAfterProjection.z()),
+				number(boundaryAngularMomentumAfterProjection.x()),
+				number(boundaryAngularMomentumAfterProjection.y()),
+				number(boundaryAngularMomentumAfterProjection.z()),
 				number(boundaryFluxAfterProjection.netOutwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterProjection.outwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterProjection.inwardKineticEnergyPowerWatts()),
@@ -1085,6 +1106,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(boundaryMomentumAfterSolidBoundary.x()),
 				number(boundaryMomentumAfterSolidBoundary.y()),
 				number(boundaryMomentumAfterSolidBoundary.z()),
+				number(boundaryAngularMomentumAfterSolidBoundary.x()),
+				number(boundaryAngularMomentumAfterSolidBoundary.y()),
+				number(boundaryAngularMomentumAfterSolidBoundary.z()),
 				number(boundaryFluxAfterSolidBoundary.netOutwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterSolidBoundary.outwardKineticEnergyPowerWatts()),
 				number(boundaryFluxAfterSolidBoundary.inwardKineticEnergyPowerWatts()),
