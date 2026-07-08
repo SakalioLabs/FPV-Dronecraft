@@ -954,6 +954,52 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void pressureProjectionUsesPartialOpenFaceWeightsForPoissonSolve() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								new Vec3(10.0, 0.0, 0.0),
+								Vec3.ZERO
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE),
+						List.of(0.0, 0.5, 0.0)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projection =
+				state.projectVelocityDivergence(RHO, 1, mask);
+
+		assertEquals(2.5, projection.divergenceBefore().maxAbsDivergencePerSecond(), 1.0e-15);
+		assertEquals(0.0, projection.divergenceBefore().meanDivergencePerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				projection.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				projection.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				projection.nextState().velocityAt(2, 0, 0), 1.0e-15);
+		assertEquals(0.0, projection.divergenceAfter().maxAbsDivergencePerSecond(), 1.0e-15);
+		assertEquals(0.0,
+				projection.nextState()
+						.divergenceIntegralMetrics(mask)
+						.grossAbsVolumeFlowRateCubicMetersPerSecond(),
+				1.0e-15);
+		assertTrue(projection.kineticEnergyAfterJoules() < projection.kineticEnergyBeforeJoules());
+	}
+
+	@Test
 	void pressureProjectionLeavesUniformOpenBoundaryFlowUnchanged() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

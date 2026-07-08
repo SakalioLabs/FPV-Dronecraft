@@ -2073,35 +2073,55 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 							next[index] = 0.0;
 							continue;
 						}
-						int neighborCount = 0;
+						double openVolumeFraction = solidMask.openVolumeFractionCellIndex(index);
+						if (openVolumeFraction <= EPSILON) {
+							next[index] = 0.0;
+							continue;
+						}
+						double faceWeightSum = 0.0;
 						double neighborSum = 0.0;
 						if (openNeighbor(solidMask, x - 1, y, z)) {
-							neighborSum += previous[linearIndex(x - 1, y, z)];
-							neighborCount++;
+							int neighborIndex = linearIndex(x - 1, y, z);
+							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+							neighborSum += faceWeight * previous[neighborIndex];
+							faceWeightSum += faceWeight;
 						}
 						if (openNeighbor(solidMask, x + 1, y, z)) {
-							neighborSum += previous[linearIndex(x + 1, y, z)];
-							neighborCount++;
+							int neighborIndex = linearIndex(x + 1, y, z);
+							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+							neighborSum += faceWeight * previous[neighborIndex];
+							faceWeightSum += faceWeight;
 						}
 						if (openNeighbor(solidMask, x, y - 1, z)) {
-							neighborSum += previous[linearIndex(x, y - 1, z)];
-							neighborCount++;
+							int neighborIndex = linearIndex(x, y - 1, z);
+							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+							neighborSum += faceWeight * previous[neighborIndex];
+							faceWeightSum += faceWeight;
 						}
 						if (openNeighbor(solidMask, x, y + 1, z)) {
-							neighborSum += previous[linearIndex(x, y + 1, z)];
-							neighborCount++;
+							int neighborIndex = linearIndex(x, y + 1, z);
+							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+							neighborSum += faceWeight * previous[neighborIndex];
+							faceWeightSum += faceWeight;
 						}
 						if (openNeighbor(solidMask, x, y, z - 1)) {
-							neighborSum += previous[linearIndex(x, y, z - 1)];
-							neighborCount++;
+							int neighborIndex = linearIndex(x, y, z - 1);
+							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+							neighborSum += faceWeight * previous[neighborIndex];
+							faceWeightSum += faceWeight;
 						}
 						if (openNeighbor(solidMask, x, y, z + 1)) {
-							neighborSum += previous[linearIndex(x, y, z + 1)];
-							neighborCount++;
+							int neighborIndex = linearIndex(x, y, z + 1);
+							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+							neighborSum += faceWeight * previous[neighborIndex];
+							faceWeightSum += faceWeight;
 						}
-						next[index] = neighborCount == 0
+						next[index] = faceWeightSum <= EPSILON
 								? 0.0
-								: (neighborSum - (divergence[index] - meanDivergence) * dxSquared) / neighborCount;
+								: (neighborSum
+										- (divergence[index] - meanDivergence)
+										* openVolumeFraction
+										* dxSquared) / faceWeightSum;
 					}
 				}
 			}
@@ -2286,10 +2306,21 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (solidMask.isSolidCellIndex(neighborIndex)) {
 			return 0.0;
 		}
-		double centerOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(centerIndex);
-		double neighborOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(neighborIndex);
-		double openFaceFraction = Math.min(centerOpenVolumeFraction, neighborOpenVolumeFraction);
+		double openFaceFraction = openInternalFaceFraction(solidMask, centerIndex, neighborIndex);
 		return openFaceFraction <= EPSILON ? 0.0 : faceVelocityComponent * openFaceFraction;
+	}
+
+	private double openInternalFaceFraction(
+			VoxelSolidMask solidMask,
+			int centerIndex,
+			int neighborIndex
+	) {
+		if (solidMask.isSolidCellIndex(neighborIndex)) {
+			return 0.0;
+		}
+		return Math.min(
+				solidMask.openVolumeFractionCellIndex(centerIndex),
+				solidMask.openVolumeFractionCellIndex(neighborIndex));
 	}
 
 	private double openBoundaryFaceFluxComponent(
