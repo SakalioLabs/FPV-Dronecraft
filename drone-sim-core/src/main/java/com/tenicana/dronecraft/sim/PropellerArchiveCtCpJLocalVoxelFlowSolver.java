@@ -202,6 +202,15 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return sum;
 		}
 
+		public Vec3 totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds() {
+			Vec3 sum = Vec3.ZERO;
+			for (SolverIteration iteration : iterations) {
+				sum = sum.add(iteration.sourceAdvance()
+						.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds());
+			}
+			return sum;
+		}
+
 		public Vec3 totalThroughFlowImpulseWorldNewtonSeconds() {
 			Vec3 sum = Vec3.ZERO;
 			for (SolverIteration iteration : iterations) {

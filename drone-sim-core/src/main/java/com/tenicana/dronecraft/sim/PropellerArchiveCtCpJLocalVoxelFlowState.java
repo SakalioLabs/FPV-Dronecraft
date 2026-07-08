@@ -64,6 +64,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return residenceStep.totalSourceImpulseWorldNewtonSeconds();
 		}
 
+		public Vec3 totalWakeAngularMomentumTorqueWorldNewtonMeters() {
+			return residenceStep.totalWakeAngularMomentumTorqueWorldNewtonMeters();
+		}
+
+		public Vec3 totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds() {
+			return residenceStep.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds();
+		}
+
 		public Vec3 totalThroughFlowImpulseWorldNewtonSeconds() {
 			return residenceStep.totalThroughFlowImpulseWorldNewtonSeconds();
 		}

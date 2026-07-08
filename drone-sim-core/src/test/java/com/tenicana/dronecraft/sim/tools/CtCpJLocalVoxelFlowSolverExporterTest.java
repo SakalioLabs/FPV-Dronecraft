@@ -110,10 +110,18 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				< number(hoverStep2, "rms_divergence_before_projection_s"));
 		assertEquals(number(hoverStep2, "target_body_force_world_y_n"),
 				number(hoverStep2, "source_momentum_rate_world_y_n"), 1.0e-9);
+		assertEquals(number(hoverStep2, "target_wake_angular_momentum_torque_world_y_nm"),
+				number(hoverStep2, "source_wake_angular_momentum_torque_world_y_nm"), 1.0e-12);
+		assertEquals(0.0,
+				number(hoverStep2, "solid_occluded_source_wake_angular_momentum_torque_world_y_nm"), 1.0e-15);
 		assertEquals(number(hoverStep2, "target_body_force_world_y_n") * TIME_STEP,
 				number(hoverStep0, "source_impulse_world_y_ns"), 1.0e-12);
 		assertEquals(number(hoverStep2, "target_body_force_world_y_n") * TIME_STEP * STEPS,
 				number(hoverStep2, "cumulative_source_impulse_world_y_ns"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_wake_angular_momentum_torque_world_y_nm") * TIME_STEP,
+				number(hoverStep0, "source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-14);
+		assertEquals(number(hoverStep2, "source_wake_angular_momentum_torque_world_y_nm") * TIME_STEP * STEPS,
+				number(hoverStep2, "cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-14);
 		assertEquals(number(hoverStep2, "cumulative_source_impulse_world_y_ns")
 						+ number(hoverStep2, "cumulative_through_flow_impulse_world_y_ns")
 						+ number(hoverStep2, "cumulative_advection_momentum_residual_world_y_ns")
@@ -211,7 +219,13 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "source_momentum_rate_world_y_n"), 1.0e-15);
 		assertEquals(number(hoverStep, "target_body_force_world_y_n"),
 				number(hoverStep, "solid_occluded_source_momentum_rate_world_y_n"), 1.0e-9);
+		assertEquals(0.0,
+				number(hoverStep, "source_wake_angular_momentum_torque_world_y_nm"), 1.0e-15);
+		assertEquals(number(hoverStep, "target_wake_angular_momentum_torque_world_y_nm"),
+				number(hoverStep, "solid_occluded_source_wake_angular_momentum_torque_world_y_nm"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep, "source_impulse_world_y_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverStep, "source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_mass_flow_kg_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_solid_boundary_delta_j"), 1.0e-15);
@@ -289,6 +303,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("solid_box_minimum_volume_fraction"));
 		assertTrue(lines.get(0).contains("solid_occluded_source_cell_count"));
 		assertTrue(lines.get(0).contains("solid_occluded_source_momentum_rate_world_y_n"));
+		assertTrue(lines.get(0).contains("target_wake_angular_momentum_torque_world_y_nm"));
+		assertTrue(lines.get(0).contains("source_wake_angular_momentum_torque_world_y_nm"));
+		assertTrue(lines.get(0).contains("solid_occluded_source_wake_angular_momentum_torque_world_y_nm"));
+		assertTrue(lines.get(0).contains("cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("solid_cell_count"));
 		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));

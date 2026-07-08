@@ -206,6 +206,14 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			return sourceMomentumSample.totalImpulseWorldNewtonSeconds();
 		}
 
+		public Vec3 totalWakeAngularMomentumTorqueWorldNewtonMeters() {
+			return sourceMomentumSample.totalWakeAngularMomentumTorqueWorldNewtonMeters();
+		}
+
+		public Vec3 totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds() {
+			return sourceMomentumSample.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds();
+		}
+
 		public double totalSourceMassFlowRateKilogramsPerSecond() {
 			double sum = 0.0;
 			for (CellMassFluxResidenceStep cell : cells) {

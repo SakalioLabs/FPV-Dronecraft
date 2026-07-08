@@ -65,6 +65,21 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"solid_occluded_source_momentum_rate_world_x_n",
 			"solid_occluded_source_momentum_rate_world_y_n",
 			"solid_occluded_source_momentum_rate_world_z_n",
+			"target_wake_angular_momentum_torque_world_x_nm",
+			"target_wake_angular_momentum_torque_world_y_nm",
+			"target_wake_angular_momentum_torque_world_z_nm",
+			"source_wake_angular_momentum_torque_world_x_nm",
+			"source_wake_angular_momentum_torque_world_y_nm",
+			"source_wake_angular_momentum_torque_world_z_nm",
+			"solid_occluded_source_wake_angular_momentum_torque_world_x_nm",
+			"solid_occluded_source_wake_angular_momentum_torque_world_y_nm",
+			"solid_occluded_source_wake_angular_momentum_torque_world_z_nm",
+			"source_wake_angular_momentum_impulse_world_x_nm_s",
+			"source_wake_angular_momentum_impulse_world_y_nm_s",
+			"source_wake_angular_momentum_impulse_world_z_nm_s",
+			"cumulative_source_wake_angular_momentum_impulse_world_x_nm_s",
+			"cumulative_source_wake_angular_momentum_impulse_world_y_nm_s",
+			"cumulative_source_wake_angular_momentum_impulse_world_z_nm_s",
 			"source_impulse_world_x_ns",
 			"source_impulse_world_y_ns",
 			"source_impulse_world_z_ns",
@@ -520,6 +535,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 solidOccludedSourceMomentumRate = initial
 				? zero
 				: metadata.sourceGridSample().integratedBodyForceWorldNewtons().subtract(sourceMomentumRate);
+		Vec3 targetWakeAngularMomentumTorque =
+				metadata.sourceGridSample().integratedWakeAngularMomentumTorqueWorldNewtonMeters();
+		Vec3 sourceWakeAngularMomentumTorque =
+				initial ? zero : iteration.sourceAdvance().totalWakeAngularMomentumTorqueWorldNewtonMeters();
+		Vec3 solidOccludedSourceWakeAngularMomentumTorque =
+				initial ? zero : targetWakeAngularMomentumTorque.subtract(sourceWakeAngularMomentumTorque);
+		Vec3 sourceWakeAngularMomentumImpulse = initial
+				? zero
+				: iteration.sourceAdvance().totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds();
+		Vec3 cumulativeSourceWakeAngularMomentumImpulse =
+				cumulativeSourceWakeAngularMomentumImpulse(run, completedSteps);
 		Vec3 sourceImpulse = initial ? zero : iteration.sourceAdvance().totalSourceImpulseWorldNewtonSeconds();
 		Vec3 cumulativeSourceImpulse = cumulativeSourceImpulse(run, completedSteps);
 		Vec3 throughFlowMomentumRate = initial ? zero : iteration.sourceAdvance().totalThroughFlowMomentumRateWorldNewtons();
@@ -639,6 +665,21 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(solidOccludedSourceMomentumRate.x()),
 				number(solidOccludedSourceMomentumRate.y()),
 				number(solidOccludedSourceMomentumRate.z()),
+				number(targetWakeAngularMomentumTorque.x()),
+				number(targetWakeAngularMomentumTorque.y()),
+				number(targetWakeAngularMomentumTorque.z()),
+				number(sourceWakeAngularMomentumTorque.x()),
+				number(sourceWakeAngularMomentumTorque.y()),
+				number(sourceWakeAngularMomentumTorque.z()),
+				number(solidOccludedSourceWakeAngularMomentumTorque.x()),
+				number(solidOccludedSourceWakeAngularMomentumTorque.y()),
+				number(solidOccludedSourceWakeAngularMomentumTorque.z()),
+				number(sourceWakeAngularMomentumImpulse.x()),
+				number(sourceWakeAngularMomentumImpulse.y()),
+				number(sourceWakeAngularMomentumImpulse.z()),
+				number(cumulativeSourceWakeAngularMomentumImpulse.x()),
+				number(cumulativeSourceWakeAngularMomentumImpulse.y()),
+				number(cumulativeSourceWakeAngularMomentumImpulse.z()),
 				number(sourceImpulse.x()),
 				number(sourceImpulse.y()),
 				number(sourceImpulse.z()),
@@ -737,6 +778,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 sum = Vec3.ZERO;
 		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
 			sum = sum.add(run.iterations().get(i).sourceAdvance().totalSourceImpulseWorldNewtonSeconds());
+		}
+		return sum;
+	}
+
+	private static Vec3 cumulativeSourceWakeAngularMomentumImpulse(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			sum = sum.add(run.iterations().get(i).sourceAdvance()
+					.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds());
 		}
 		return sum;
 	}

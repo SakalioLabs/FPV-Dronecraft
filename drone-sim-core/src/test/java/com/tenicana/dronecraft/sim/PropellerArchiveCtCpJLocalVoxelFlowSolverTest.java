@@ -96,6 +96,41 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 	}
 
 	@Test
+	void singleRotorRunAccumulatesWakeAngularMomentumImpulseFromSourceTorque() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				singleRotorConservativeGridForSignedAxialSpeed(
+						"local_voxel_solver_single_rotor_wake_torque",
+						0.0,
+						Quaternion.IDENTITY,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config =
+				new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig(
+						RHO,
+						DT,
+						SOURCE_THICKNESS,
+						0.0,
+						2,
+						PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER,
+						0
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run =
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(gridSample, config);
+		Vec3 sourceWakeTorque = gridSample.integratedWakeAngularMomentumTorqueWorldNewtonMeters();
+
+		assertTrue(sourceWakeTorque.length() > 0.0);
+		assertVectorEquals(sourceWakeTorque.multiply(DT * run.completedStepCount()),
+				run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-14);
+		for (PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration : run.iterations()) {
+			assertVectorEquals(sourceWakeTorque,
+					iteration.sourceAdvance().totalWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+			assertVectorEquals(sourceWakeTorque.multiply(DT),
+					iteration.sourceAdvance().totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-14);
+		}
+	}
+
+	@Test
 	void zeroStepRunKeepsInitialStateAndZeroAccumulators() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(
@@ -125,6 +160,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertTrue(run.iterations().isEmpty());
 		assertEquals(initialState, run.finalState());
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
@@ -165,6 +202,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(3, run.completedStepCount());
 		assertEquals(diffusionNumber, run.maxDiffusionNumber(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
@@ -403,6 +442,43 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				);
 		PropellerArchiveCtCpJActuatorDiskSourceField field =
 				sample.actuatorDiskSourceField(SOURCE_THICKNESS);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				field.enclosingVoxelGrid(CELL_SIZE, 1);
+		return field.sampleConservativeVoxelGrid(grid, 3);
+	}
+
+	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample
+			singleRotorConservativeGridForSignedAxialSpeed(
+					String caseName,
+					double signedAxialSpeedMetersPerSecond,
+					Quaternion bodyToWorldOrientation,
+					PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+			) {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = hoverRpm(config, rotor) / RPM_PER_RADIAN_PER_SECOND;
+		Vec3 relativeAirBody = rotorAxisBody(rotor).multiply(signedAxialSpeedMetersPerSecond);
+		Vec3 vehicleVelocityWorld = bodyToWorldOrientation.rotate(relativeAirBody);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample sample =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.sampleStaticAnchoredConfigurationFromWorldKinematics(
+						"apDrone",
+						caseName,
+						config,
+						Vec3.ZERO,
+						bodyToWorldOrientation,
+						vehicleVelocityWorld,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						null,
+						fill(config.rotors().size(), hoverOmega),
+						RHO,
+						envelopePolicy
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(
+						List.of(sample.rotorActuatorDiskSourceTerms().get(0)),
+						SOURCE_THICKNESS
+				);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				field.enclosingVoxelGrid(CELL_SIZE, 1);
 		return field.sampleConservativeVoxelGrid(grid, 3);
