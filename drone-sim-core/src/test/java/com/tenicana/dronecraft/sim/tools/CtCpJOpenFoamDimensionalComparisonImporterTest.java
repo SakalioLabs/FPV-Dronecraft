@@ -30,6 +30,9 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 						+ ",cfd_actuator_disk_mass_flux_kg_s_m2"
 						+ ",cfd_actuator_disk_ideal_momentum_power_loading_w_m2"
 						+ ",cfd_far_wake_axial_velocity_mps"
+						+ ",cfd_wake_tangential_velocity_mps"
+						+ ",cfd_angular_momentum_swirl_radius_m"
+						+ ",cfd_wake_angular_momentum_torque_nm"
 						+ ",cfd_wake_swirl_kinetic_power_w,cfd_total_wake_kinetic_power_w"
 						+ ",cfd_far_wake_contracted_area_m2,cfd_far_wake_equivalent_radius_m"
 						+ ",cfd_far_wake_contracted_area_over_disk_area"
@@ -45,6 +48,9 @@ class CtCpJOpenFoamDimensionalComparisonImporterTest {
 						actuatorDiskMassFlux(reference),
 						actuatorDiskIdealMomentumPowerLoading(reference),
 						reference.farWakeAxialVelocityMetersPerSecond(),
+						reference.wakeTangentialVelocityMetersPerSecond(),
+						reference.angularMomentumSwirlRadiusMeters(),
+						referenceWakeAngularMomentumTorque(reference),
 						reference.wakeSwirlKineticPowerWatts(),
 						reference.totalWakeKineticPowerWatts(),
 						reference.farWakeContractedAreaSquareMeters(),

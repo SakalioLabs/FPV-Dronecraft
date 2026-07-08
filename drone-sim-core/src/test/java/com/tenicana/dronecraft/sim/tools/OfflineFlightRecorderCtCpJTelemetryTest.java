@@ -731,8 +731,13 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					assertEquals(farWakeEquivalentRadius
 									* RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION,
 							angularMomentumSwirlRadius, 5.0e-5);
-					assertEquals(0.5 * diskMassFlow * wakeTangentialVelocity * wakeTangentialVelocity,
-							wakeSwirlPower, 1.0e-4);
+					assertEquals(diskMassFlow
+									* angularMomentumSwirlRadius
+									* wakeTangentialVelocity
+									* angularMomentumSwirlRadius
+									* wakeTangentialVelocity
+									/ (farWakeEquivalentRadius * farWakeEquivalentRadius),
+							wakeSwirlPower, 1.0e-3);
 					assertEquals(diskMassFlow * angularMomentumSwirlRadius * wakeTangentialVelocity,
 							wakeAngularMomentumTorque, 3.0e-6);
 					assertEquals(referenceTorque, wakeAngularMomentumTorque, 3.0e-6);

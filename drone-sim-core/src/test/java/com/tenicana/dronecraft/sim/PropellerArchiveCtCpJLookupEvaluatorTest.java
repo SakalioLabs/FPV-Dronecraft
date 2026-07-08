@@ -393,6 +393,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		assertEquals(0.0, blockedSample.thrustNewtons(), 1.0e-12);
 		assertEquals(0.0, blockedSample.shaftPowerWatts(), 1.0e-12);
 		assertEquals(0.0, blockedSample.torqueCoefficientCq(), 1.0e-12);
+		assertEquals(Math.PI * Math.pow(diameter * 0.5, 2.0),
+				blockedSample.diskAreaSquareMeters(), 1.0e-15);
+		assertEquals(0.0, blockedSample.diskLoadingNewtonsPerSquareMeter(), 1.0e-12);
+		assertEquals(0.0, blockedSample.diskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(0.0, blockedSample.farWakeContractedAreaSquareMeters(), 1.0e-12);
+		assertEquals(0.0, blockedSample.farWakeEquivalentRadiusMeters(), 1.0e-12);
 		assertEquals(0.0, blockedSample.usefulAxialThrustPowerWatts(), 1.0e-12);
 		assertEquals(0.0, blockedSample.idealInducedPowerWatts(), 1.0e-12);
 		assertEquals(0.0, blockedSample.axialPropulsiveEfficiency(), 1.0e-12);

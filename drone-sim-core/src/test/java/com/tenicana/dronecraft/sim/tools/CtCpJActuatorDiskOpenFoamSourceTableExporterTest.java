@@ -125,7 +125,10 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_y_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_z_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_wake_kinetic_power_w"), 1.0e-15);
-		assertEquals(0.0, numberCell(highBlock, columns, "source_volume_m3"), 1.0e-15);
+		assertEquals(Math.PI * numberCell(highBlock, columns, "radius_m")
+						* numberCell(highBlock, columns, "radius_m")
+						* SOURCE_THICKNESS,
+				numberCell(highBlock, columns, "source_volume_m3"), 1.0e-15);
 	}
 
 	@Test
