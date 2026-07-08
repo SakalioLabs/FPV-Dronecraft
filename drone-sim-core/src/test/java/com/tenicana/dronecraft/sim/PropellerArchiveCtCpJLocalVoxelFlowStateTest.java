@@ -536,6 +536,48 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void vorticityDerivativeScalesCenteredPartialOpenFacesByOpenArea() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						1,
+						3,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								Vec3.ZERO,
+								new Vec3(2.0, 0.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.FALSE, Boolean.FALSE),
+						List.of(0.0, 0.5, 0.75)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics metrics =
+				state.vorticityMetrics(mask);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityIntegralMetrics integrals =
+				state.vorticityIntegralMetrics(mask);
+
+		assertVectorEquals(new Vec3(0.0, 0.0, -0.5),
+				state.vorticityAt(0, 1, 0, mask), 1.0e-15);
+		assertEquals(2.0, metrics.maxMagnitudePerSecond(), 1.0e-15);
+		assertEquals(Math.sqrt(9.0 / 14.0), metrics.rmsMagnitudePerSecond(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 0.0, -3.0 / 7.0),
+				metrics.meanVorticityWorldPerSecond(), 1.0e-15);
+		assertEquals(9.0 / 16.0, integrals.enstrophyCubicMetersPerSecondSquared(), 1.0e-15);
+		assertEquals(0.0, integrals.helicityFourthMetersPerSecondSquared(), 1.0e-15);
+		assertEquals(0.0, integrals.meanHelicityDensityMetersPerSecondSquared(), 1.0e-15);
+	}
+
+	@Test
 	void solidMaskRasterizesWorldSolidBoxesIntoVoxelCells() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

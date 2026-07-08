@@ -2043,8 +2043,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		boolean hasLow = openNeighbor(solidMask, lowX, lowY, lowZ);
 		boolean hasHigh = openNeighbor(solidMask, highX, highY, highZ);
 		if (hasLow && hasHigh) {
-			return (vectorComponent(velocityAt(highX, highY, highZ), component)
-					- vectorComponent(velocityAt(lowX, lowY, lowZ), component)) / (2.0 * dx);
+			int centerIndex = linearIndex(x, y, z);
+			int lowIndex = linearIndex(lowX, lowY, lowZ);
+			int highIndex = linearIndex(highX, highY, highZ);
+			double centerOpenVolumeFraction = solidMask.openVolumeFractionCellIndex(centerIndex);
+			if (centerOpenVolumeFraction <= EPSILON) {
+				return 0.0;
+			}
+			double lowFaceComponent = 0.5 * (vectorComponent(velocityAt(lowX, lowY, lowZ), component)
+					+ center)
+					* openInternalFaceFraction(solidMask, centerIndex, lowIndex);
+			double highFaceComponent = 0.5 * (center
+					+ vectorComponent(velocityAt(highX, highY, highZ), component))
+					* openInternalFaceFraction(solidMask, centerIndex, highIndex);
+			return (highFaceComponent - lowFaceComponent) / (centerOpenVolumeFraction * dx);
 		}
 		if (hasHigh) {
 			return (vectorComponent(velocityAt(highX, highY, highZ), component) - center) / dx;
