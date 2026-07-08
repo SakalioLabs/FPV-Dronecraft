@@ -86,6 +86,57 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record VelocityDiffusionStep(
+			PropellerArchiveCtCpJLocalVoxelFlowState previousState,
+			PropellerArchiveCtCpJLocalVoxelFlowState nextState,
+			double airDensityKgPerCubicMeter,
+			double kinematicViscositySquareMetersPerSecond,
+			double timeStepSeconds,
+			double diffusionNumber,
+			Vec3 totalMomentumBeforeWorldNewtonSeconds,
+			Vec3 totalMomentumAfterWorldNewtonSeconds,
+			double kineticEnergyBeforeJoules,
+			double kineticEnergyAfterJoules
+	) {
+		public VelocityDiffusionStep {
+			if (previousState == null) {
+				throw new IllegalArgumentException("previousState must not be null.");
+			}
+			if (nextState == null) {
+				throw new IllegalArgumentException("nextState must not be null.");
+			}
+			if (!previousState.gridSpec().equals(nextState.gridSpec())) {
+				throw new IllegalArgumentException("diffusion states must share a voxel grid.");
+			}
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			if (!Double.isFinite(kinematicViscositySquareMetersPerSecond)
+					|| kinematicViscositySquareMetersPerSecond < 0.0) {
+				throw new IllegalArgumentException(
+						"kinematicViscositySquareMetersPerSecond must be finite and nonnegative.");
+			}
+			if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
+				throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
+			}
+			diffusionNumber = finiteNonnegative(diffusionNumber);
+			totalMomentumBeforeWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumBeforeWorldNewtonSeconds);
+			totalMomentumAfterWorldNewtonSeconds =
+					finiteVecOrZero(totalMomentumAfterWorldNewtonSeconds);
+			kineticEnergyBeforeJoules = finiteNonnegative(kineticEnergyBeforeJoules);
+			kineticEnergyAfterJoules = finiteNonnegative(kineticEnergyAfterJoules);
+		}
+
+		public Vec3 momentumResidualWorldNewtonSeconds() {
+			return totalMomentumAfterWorldNewtonSeconds.subtract(totalMomentumBeforeWorldNewtonSeconds);
+		}
+
+		public double kineticEnergyDeltaJoules() {
+			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
+		}
+	}
+
 	public static PropellerArchiveCtCpJLocalVoxelFlowState calm(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec
 	) {
@@ -143,6 +194,68 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		);
 	}
 
+	public VelocityDiffusionStep diffuseVelocity(
+			double airDensityKgPerCubicMeter,
+			double kinematicViscositySquareMetersPerSecond,
+			double timeStepSeconds
+	) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		if (!Double.isFinite(kinematicViscositySquareMetersPerSecond)
+				|| kinematicViscositySquareMetersPerSecond < 0.0) {
+			throw new IllegalArgumentException(
+					"kinematicViscositySquareMetersPerSecond must be finite and nonnegative.");
+		}
+		if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
+			throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
+		}
+		double diffusionNumber = kinematicViscositySquareMetersPerSecond
+				* timeStepSeconds
+				/ (gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters());
+		if (diffusionNumber > 1.0 / 6.0 + 1.0e-15) {
+			throw new IllegalArgumentException("diffusionNumber must be <= 1/6 for explicit 3D stability.");
+		}
+		ArrayList<Vec3> deltas = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
+		for (int i = 0; i < velocitiesWorldMetersPerSecond.size(); i++) {
+			deltas.add(Vec3.ZERO);
+		}
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int index = linearIndex(x, y, z);
+					if (x + 1 < gridSpec.cellCountX()) {
+						accumulateDiffusiveExchange(deltas, index, linearIndex(x + 1, y, z), diffusionNumber);
+					}
+					if (y + 1 < gridSpec.cellCountY()) {
+						accumulateDiffusiveExchange(deltas, index, linearIndex(x, y + 1, z), diffusionNumber);
+					}
+					if (z + 1 < gridSpec.cellCountZ()) {
+						accumulateDiffusiveExchange(deltas, index, linearIndex(x, y, z + 1), diffusionNumber);
+					}
+				}
+			}
+		}
+		ArrayList<Vec3> nextVelocities = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
+		for (int i = 0; i < velocitiesWorldMetersPerSecond.size(); i++) {
+			nextVelocities.add(velocitiesWorldMetersPerSecond.get(i).add(deltas.get(i)));
+		}
+		PropellerArchiveCtCpJLocalVoxelFlowState nextState =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(gridSpec, nextVelocities);
+		return new VelocityDiffusionStep(
+				this,
+				nextState,
+				airDensityKgPerCubicMeter,
+				kinematicViscositySquareMetersPerSecond,
+				timeStepSeconds,
+				diffusionNumber,
+				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
+				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
+				nextState.totalKineticEnergyJoules(airDensityKgPerCubicMeter)
+		);
+	}
+
 	public double totalKineticEnergyJoules(double airDensityKgPerCubicMeter) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
@@ -153,6 +266,18 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			energy += 0.5 * cellMass * velocity.lengthSquared();
 		}
 		return energy;
+	}
+
+	public Vec3 totalMomentumWorldNewtonSeconds(double airDensityKgPerCubicMeter) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		double cellMass = airDensityKgPerCubicMeter * gridSpec.cellVolumeCubicMeters();
+		Vec3 momentum = Vec3.ZERO;
+		for (Vec3 velocity : velocitiesWorldMetersPerSecond) {
+			momentum = momentum.add(velocity.multiply(cellMass));
+		}
+		return momentum;
 	}
 
 	public double maxSpeedMetersPerSecond() {
@@ -172,7 +297,27 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return (yIndex * gridSpec.cellCountZ() + zIndex) * gridSpec.cellCountX() + xIndex;
 	}
 
+	private void accumulateDiffusiveExchange(
+			ArrayList<Vec3> deltas,
+			int firstIndex,
+			int secondIndex,
+			double diffusionNumber
+	) {
+		if (diffusionNumber <= EPSILON) {
+			return;
+		}
+		Vec3 exchange = velocitiesWorldMetersPerSecond.get(secondIndex)
+				.subtract(velocitiesWorldMetersPerSecond.get(firstIndex))
+				.multiply(diffusionNumber);
+		deltas.set(firstIndex, deltas.get(firstIndex).add(exchange));
+		deltas.set(secondIndex, deltas.get(secondIndex).subtract(exchange));
+	}
+
 	private static Vec3 finiteVecOrZero(Vec3 value) {
 		return value == null || !value.isFinite() ? Vec3.ZERO : value;
+	}
+
+	private static double finiteNonnegative(double value) {
+		return Double.isFinite(value) && value > 0.0 ? value : 0.0;
 	}
 }

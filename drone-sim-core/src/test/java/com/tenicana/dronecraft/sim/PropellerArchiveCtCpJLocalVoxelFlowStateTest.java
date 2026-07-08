@@ -113,6 +113,106 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void diffusionSpreadsVelocityToNeighborsWhileConservingMomentum() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(Vec3.ZERO, new Vec3(0.0, 3.0, 0.0), Vec3.ZERO)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
+				state.diffuseVelocity(RHO, 0.10, 1.0);
+
+		assertEquals(0.10, diffusion.diffusionNumber(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 0.3, 0.0),
+				diffusion.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 2.4, 0.0),
+				diffusion.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 0.3, 0.0),
+				diffusion.nextState().velocityAt(2, 0, 0), 1.0e-15);
+		assertVectorEquals(state.totalMomentumWorldNewtonSeconds(RHO),
+				diffusion.nextState().totalMomentumWorldNewtonSeconds(RHO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertTrue(diffusion.kineticEnergyAfterJoules() < diffusion.kineticEnergyBeforeJoules());
+		assertTrue(diffusion.kineticEnergyDeltaJoules() < 0.0);
+		assertTrue(diffusion.nextState().maxSpeedMetersPerSecond() < state.maxSpeedMetersPerSecond());
+	}
+
+	@Test
+	void sourceAdvanceCanDiffuseVelocityWithoutChangingSourceBookkeeping() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				conservativeGridForSignedAxialSpeed(
+						"local_voxel_flow_state_diffused_hover",
+						0.0,
+						Quaternion.IDENTITY,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.calm(gridSample.gridSpec());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance advance =
+				state.advanceWithSource(gridSample, RHO, DT, SOURCE_THICKNESS);
+		double diffusionNumber = 0.05;
+		double kinematicViscosity = diffusionNumber
+				* gridSample.gridSpec().cellSizeMeters()
+				* gridSample.gridSpec().cellSizeMeters()
+				/ DT;
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
+				advance.nextState().diffuseVelocity(RHO, kinematicViscosity, DT);
+
+		assertEquals(diffusionNumber, diffusion.diffusionNumber(), 1.0e-15);
+		assertVectorEquals(advance.nextState().totalMomentumWorldNewtonSeconds(RHO),
+				diffusion.nextState().totalMomentumWorldNewtonSeconds(RHO), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-12);
+		assertTrue(diffusion.kineticEnergyAfterJoules() <= diffusion.kineticEnergyBeforeJoules() + 1.0e-15);
+		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons(),
+				advance.totalSourceMomentumRateWorldNewtons(), 1.0e-10);
+		assertTrue(diffusion.nextState().maxSpeedMetersPerSecond() <= advance.nextState().maxSpeedMetersPerSecond());
+	}
+
+	@Test
+	void uniformDiffusionIsNoOpAndRejectsUnstableDiffusionNumber() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						0.5,
+						2,
+						2,
+						2
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.uniform(grid, new Vec3(1.0, -2.0, 0.5));
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
+				state.diffuseVelocity(RHO, 0.01, 1.0);
+
+		for (int y = 0; y < grid.cellCountY(); y++) {
+			for (int z = 0; z < grid.cellCountZ(); z++) {
+				for (int x = 0; x < grid.cellCountX(); x++) {
+					assertVectorEquals(state.velocityAt(x, y, z),
+							diffusion.nextState().velocityAt(x, y, z), 1.0e-15);
+				}
+			}
+		}
+		assertEquals(state.totalKineticEnergyJoules(RHO),
+				diffusion.kineticEnergyAfterJoules(), 1.0e-15);
+		assertThrows(IllegalArgumentException.class,
+				() -> state.diffuseVelocity(RHO, 0.20, 1.0));
+		assertThrows(IllegalArgumentException.class,
+				() -> state.diffuseVelocity(RHO, -0.01, 1.0));
+		assertThrows(IllegalArgumentException.class,
+				() -> state.diffuseVelocity(0.0, 0.01, 1.0));
+	}
+
+	@Test
 	void rejectsMismatchedGridAndInvalidStateInputs() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample hoverGrid =
 				conservativeGridForSignedAxialSpeed(
