@@ -2126,89 +2126,91 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		boolean hasOpenPressureBoundary = hasOpenPressureBoundary(solidMask);
 		double divergenceOffset = hasOpenPressureBoundary ? 0.0 : meanDivergence;
 		double dxSquared = gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters();
-		double[] previous = new double[divergence.length];
-		double[] next = new double[divergence.length];
+		double[] potential = new double[divergence.length];
 		for (int iteration = 0; iteration < iterationCount; iteration++) {
-			for (int y = 0; y < gridSpec.cellCountY(); y++) {
-				for (int z = 0; z < gridSpec.cellCountZ(); z++) {
-					for (int x = 0; x < gridSpec.cellCountX(); x++) {
-						int index = linearIndex(x, y, z);
-						if (solidMask.isSolidCellIndex(index)) {
-							next[index] = 0.0;
-							continue;
+			// Red-black Gauss-Seidel uses fresh neighbor values without adding scan-direction bias.
+			for (int color = 0; color < 2; color++) {
+				for (int y = 0; y < gridSpec.cellCountY(); y++) {
+					for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+						for (int x = 0; x < gridSpec.cellCountX(); x++) {
+							if (((x + y + z) & 1) != color) {
+								continue;
+							}
+							int index = linearIndex(x, y, z);
+							if (solidMask.isSolidCellIndex(index)) {
+								potential[index] = 0.0;
+								continue;
+							}
+							double openVolumeFraction = solidMask.openVolumeFractionCellIndex(index);
+							if (openVolumeFraction <= EPSILON) {
+								potential[index] = 0.0;
+								continue;
+							}
+							double faceWeightSum = 0.0;
+							double neighborSum = 0.0;
+							if (openNeighbor(solidMask, x - 1, y, z)) {
+								int neighborIndex = linearIndex(x - 1, y, z);
+								double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+								neighborSum += faceWeight * potential[neighborIndex];
+								faceWeightSum += faceWeight;
+							} else if (!insideGrid(x - 1, y, z)) {
+								faceWeightSum += openVolumeFraction;
+							}
+							if (openNeighbor(solidMask, x + 1, y, z)) {
+								int neighborIndex = linearIndex(x + 1, y, z);
+								double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+								neighborSum += faceWeight * potential[neighborIndex];
+								faceWeightSum += faceWeight;
+							} else if (!insideGrid(x + 1, y, z)) {
+								faceWeightSum += openVolumeFraction;
+							}
+							if (openNeighbor(solidMask, x, y - 1, z)) {
+								int neighborIndex = linearIndex(x, y - 1, z);
+								double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+								neighborSum += faceWeight * potential[neighborIndex];
+								faceWeightSum += faceWeight;
+							} else if (!insideGrid(x, y - 1, z)) {
+								faceWeightSum += openVolumeFraction;
+							}
+							if (openNeighbor(solidMask, x, y + 1, z)) {
+								int neighborIndex = linearIndex(x, y + 1, z);
+								double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+								neighborSum += faceWeight * potential[neighborIndex];
+								faceWeightSum += faceWeight;
+							} else if (!insideGrid(x, y + 1, z)) {
+								faceWeightSum += openVolumeFraction;
+							}
+							if (openNeighbor(solidMask, x, y, z - 1)) {
+								int neighborIndex = linearIndex(x, y, z - 1);
+								double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+								neighborSum += faceWeight * potential[neighborIndex];
+								faceWeightSum += faceWeight;
+							} else if (!insideGrid(x, y, z - 1)) {
+								faceWeightSum += openVolumeFraction;
+							}
+							if (openNeighbor(solidMask, x, y, z + 1)) {
+								int neighborIndex = linearIndex(x, y, z + 1);
+								double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
+								neighborSum += faceWeight * potential[neighborIndex];
+								faceWeightSum += faceWeight;
+							} else if (!insideGrid(x, y, z + 1)) {
+								faceWeightSum += openVolumeFraction;
+							}
+							potential[index] = faceWeightSum <= EPSILON
+									? 0.0
+									: (neighborSum
+											- (divergence[index] - divergenceOffset)
+											* openVolumeFraction
+											* dxSquared) / faceWeightSum;
 						}
-						double openVolumeFraction = solidMask.openVolumeFractionCellIndex(index);
-						if (openVolumeFraction <= EPSILON) {
-							next[index] = 0.0;
-							continue;
-						}
-						double faceWeightSum = 0.0;
-						double neighborSum = 0.0;
-						if (openNeighbor(solidMask, x - 1, y, z)) {
-							int neighborIndex = linearIndex(x - 1, y, z);
-							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
-							neighborSum += faceWeight * previous[neighborIndex];
-							faceWeightSum += faceWeight;
-						} else if (!insideGrid(x - 1, y, z)) {
-							faceWeightSum += openVolumeFraction;
-						}
-						if (openNeighbor(solidMask, x + 1, y, z)) {
-							int neighborIndex = linearIndex(x + 1, y, z);
-							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
-							neighborSum += faceWeight * previous[neighborIndex];
-							faceWeightSum += faceWeight;
-						} else if (!insideGrid(x + 1, y, z)) {
-							faceWeightSum += openVolumeFraction;
-						}
-						if (openNeighbor(solidMask, x, y - 1, z)) {
-							int neighborIndex = linearIndex(x, y - 1, z);
-							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
-							neighborSum += faceWeight * previous[neighborIndex];
-							faceWeightSum += faceWeight;
-						} else if (!insideGrid(x, y - 1, z)) {
-							faceWeightSum += openVolumeFraction;
-						}
-						if (openNeighbor(solidMask, x, y + 1, z)) {
-							int neighborIndex = linearIndex(x, y + 1, z);
-							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
-							neighborSum += faceWeight * previous[neighborIndex];
-							faceWeightSum += faceWeight;
-						} else if (!insideGrid(x, y + 1, z)) {
-							faceWeightSum += openVolumeFraction;
-						}
-						if (openNeighbor(solidMask, x, y, z - 1)) {
-							int neighborIndex = linearIndex(x, y, z - 1);
-							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
-							neighborSum += faceWeight * previous[neighborIndex];
-							faceWeightSum += faceWeight;
-						} else if (!insideGrid(x, y, z - 1)) {
-							faceWeightSum += openVolumeFraction;
-						}
-						if (openNeighbor(solidMask, x, y, z + 1)) {
-							int neighborIndex = linearIndex(x, y, z + 1);
-							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
-							neighborSum += faceWeight * previous[neighborIndex];
-							faceWeightSum += faceWeight;
-						} else if (!insideGrid(x, y, z + 1)) {
-							faceWeightSum += openVolumeFraction;
-						}
-						next[index] = faceWeightSum <= EPSILON
-								? 0.0
-								: (neighborSum
-										- (divergence[index] - divergenceOffset)
-										* openVolumeFraction
-										* dxSquared) / faceWeightSum;
 					}
 				}
 			}
 			if (!hasOpenPressureBoundary) {
-				subtractMean(next, solidMask);
+				subtractMean(potential, solidMask);
 			}
-			double[] swap = previous;
-			previous = next;
-			next = swap;
 		}
-		return previous;
+		return potential;
 	}
 
 	private Vec3 projectedVelocityAt(double[] pressurePotential, int x, int y, int z) {

@@ -1127,15 +1127,15 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 
 		assertEquals(1.0, projection.divergenceBefore().maxAbsDivergencePerSecond(), 1.0e-15);
 		assertEquals(2.0 / 7.0, projection.divergenceBefore().meanDivergencePerSecond(), 1.0e-15);
-		assertVectorEquals(new Vec3(1.0 / 33.0, 0.0, 0.0),
+		assertVectorEquals(new Vec3(7.0 / 198.0, 0.0, 0.0),
 				projection.nextState().velocityAt(0, 0, 0), 1.0e-15);
-		assertVectorEquals(new Vec3(83.0 / 198.0, 0.0, 0.0),
+		assertVectorEquals(new Vec3(14.0 / 33.0, 0.0, 0.0),
 				projection.nextState().velocityAt(1, 0, 0), 1.0e-15);
-		assertVectorEquals(new Vec3(16.0 / 11.0, 0.0, 0.0),
+		assertVectorEquals(new Vec3(191.0 / 132.0, 0.0, 0.0),
 				projection.nextState().velocityAt(2, 0, 0), 1.0e-15);
 		assertTrue(projection.divergenceAfter().maxAbsDivergencePerSecond()
 				< projection.divergenceBefore().maxAbsDivergencePerSecond());
-		assertEquals(1.0 / 3.0,
+		assertEquals(47.0 / 144.0,
 				projection.nextState()
 						.divergenceIntegralMetrics(mask)
 						.grossAbsVolumeFlowRateCubicMetersPerSecond(),
