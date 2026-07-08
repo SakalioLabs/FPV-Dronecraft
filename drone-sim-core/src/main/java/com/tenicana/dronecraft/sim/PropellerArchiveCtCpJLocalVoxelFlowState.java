@@ -2178,7 +2178,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		double tx = fx - x0;
 		double ty = fy - y0;
 		double tz = fz - z0;
-		if (solidMask.solidCellCount() > 0) {
+		if (solidMask.hasSolidVolume()) {
 			return sampleOpenVelocityWeighted(solidMask, x0, y0, z0, x1, y1, z1, tx, ty, tz);
 		}
 		Vec3 x00 = lerp(velocityAt(x0, y0, z0), velocityAt(x1, y0, z0), tx);
@@ -2248,10 +2248,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (weight <= EPSILON) {
 			return new WeightedVelocitySample(Vec3.ZERO, 0.0);
 		}
-		if (solidMask.isSolidCellIndex(index)) {
+		double openVolumeFraction = solidMask.openVolumeFractionCellIndex(index);
+		if (openVolumeFraction <= EPSILON) {
 			return new WeightedVelocitySample(Vec3.ZERO, weight);
 		}
-		return new WeightedVelocitySample(velocityAt(x, y, z).multiply(weight), weight);
+		return new WeightedVelocitySample(velocityAt(x, y, z).multiply(weight * openVolumeFraction), weight);
 	}
 
 	private record WeightedVelocitySample(Vec3 weightedVelocity, double weight) {

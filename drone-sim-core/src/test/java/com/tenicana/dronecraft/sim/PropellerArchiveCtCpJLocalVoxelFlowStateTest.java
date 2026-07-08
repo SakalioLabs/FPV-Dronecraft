@@ -758,6 +758,44 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void velocityAdvectionDampsPartialSolidCellsAsNoSlipVolumeFraction() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(-0.5, 0.0, 0.0),
+								new Vec3(10.0, 0.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask halfSolidNeighbor =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.FALSE),
+						List.of(0.0, 0.5)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionStep advection =
+				state.advectVelocity(RHO, 1.0, halfSolidNeighbor);
+
+		assertEquals(0, halfSolidNeighbor.solidCellCount());
+		assertTrue(halfSolidNeighbor.hasSolidVolume());
+		assertEquals(0.5, halfSolidNeighbor.openVolumeFractionCellIndex(1), 1.0e-15);
+		assertVectorEquals(new Vec3(2.25, 0.0, 0.0),
+				advection.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(-0.5, 0.0, 0.0),
+				advection.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertTrue(advection.kineticEnergyAfterJoules() < advection.kineticEnergyBeforeJoules());
+	}
+
+	@Test
 	void velocityAdvectionRunSplitsLargeCourantStep() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
