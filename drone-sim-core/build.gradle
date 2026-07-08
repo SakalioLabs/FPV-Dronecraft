@@ -92,6 +92,25 @@ tasks.register("ctCpJActuatorDiskOpenFoamSourceTable", JavaExec) {
 	}
 }
 
+tasks.register("ctCpJActuatorDiskVoxelSourceField", JavaExec) {
+	group = "simulation"
+	description = "Exports conservative CT/CP/J actuator-disk voxel source fields as CSV."
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass.set("com.tenicana.dronecraft.sim.tools.CtCpJActuatorDiskVoxelSourceFieldExporter")
+	doFirst {
+		def presetName = project.findProperty("preset") ?: "apDrone"
+		def outputFile = project.findProperty("output") ?: layout.buildDirectory.file("ct-cp-j-actuator-disk-voxel-source-fields/${presetName}-voxel-source-field.csv").get().asFile.absolutePath
+		def airDensity = project.findProperty("density") ?: ""
+		def sourceThickness = project.findProperty("sourceThickness") ?: ""
+		def cellSize = project.findProperty("cellSize") ?: ""
+		def paddingCells = project.findProperty("paddingCells") ?: ""
+		def subcellSamples = project.findProperty("subcellSamples") ?: ""
+		def ambientTemperature = project.findProperty("temperature") ?: ""
+		def ambientHumidity = project.findProperty("humidity") ?: ""
+		args(presetName, outputFile, airDensity, sourceThickness, cellSize, paddingCells, subcellSamples, ambientTemperature, ambientHumidity)
+	}
+}
+
 tasks.register("ctCpJActuatorDiskOpenFoamCaseDicts", JavaExec) {
 	group = "simulation"
 	description = "Exports OpenFOAM topoSetDict and fvOptions templates for CT/CP/J actuator-disk sources."
