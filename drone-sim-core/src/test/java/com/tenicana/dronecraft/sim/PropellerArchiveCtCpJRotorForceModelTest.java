@@ -954,6 +954,36 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertTrue(standard.rotorSamples().get(0).runtimeOperatingPointEnvelopeSatisfied());
 		assertFalse(hot.rotorSamples().get(0).runtimeOperatingPointEnvelopeSatisfied());
 		assertTrue(hot.rotorSamples().get(0).operatingPoint(65.0, 0.0).reynoldsIndex() < 0.52);
+		assertEquals(standard.rotorSamples().get(0)
+						.operatingPoint(25.0, 0.0)
+						.runtimeTipMachMargin(),
+				standard.minRuntimeTipMachMargin(), 1.0e-15);
+		assertEquals(standard.rotorSamples().get(0)
+						.operatingPoint(25.0, 0.0)
+						.runtimeReynoldsIndexMargin(),
+				standard.minRuntimeReynoldsIndexMargin(), 1.0e-15);
+		assertEquals(standard.rotorSamples().get(0)
+						.operatingPoint(25.0, 0.0)
+						.runtimeOperatingEnvelopeMarginFraction(),
+				standard.minRuntimeOperatingEnvelopeMarginFraction(), 1.0e-15);
+		assertTrue(standard.minRuntimeTipMachMargin() > 0.0);
+		assertTrue(standard.minRuntimeReynoldsIndexMargin() > 0.0);
+		assertTrue(standard.minRuntimeOperatingEnvelopeMarginFraction() > 0.0);
+		assertEquals(hot.rotorSamples().get(0)
+						.operatingPoint(65.0, 0.0)
+						.runtimeTipMachMargin(),
+				hot.minRuntimeTipMachMargin(), 1.0e-15);
+		assertEquals(hot.rotorSamples().get(0)
+						.operatingPoint(65.0, 0.0)
+						.runtimeReynoldsIndexMargin(),
+				hot.minRuntimeReynoldsIndexMargin(), 1.0e-15);
+		assertEquals(hot.rotorSamples().get(0)
+						.operatingPoint(65.0, 0.0)
+						.runtimeOperatingEnvelopeMarginFraction(),
+				hot.minRuntimeOperatingEnvelopeMarginFraction(), 1.0e-15);
+		assertTrue(hot.minRuntimeTipMachMargin() > 0.0);
+		assertTrue(hot.minRuntimeReynoldsIndexMargin() < 0.0);
+		assertTrue(hot.minRuntimeOperatingEnvelopeMarginFraction() < 0.0);
 		assertEquals(standard.totalThrustNewtons(), hot.totalThrustNewtons(), 1.0e-12);
 		assertEquals(standard.totalThrustNewtons(), standard.runtimeForceReplacementThrustNewtons(), 1.0e-12);
 		assertEquals(standard.totalShaftPowerWatts(), standard.runtimeForceReplacementShaftPowerWatts(), 1.0e-12);
@@ -1299,11 +1329,22 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 
 		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample aggregate =
 				PropellerArchiveCtCpJRotorForceModel.aggregate(List.of(blocked));
+		PropellerArchiveCtCpJRotorForceModel.RotorForceAggregateSample empty =
+				PropellerArchiveCtCpJRotorForceModel.aggregate(List.of());
 
 		assertTrue(blocked.blocked());
+		assertEquals(0.0, empty.minRuntimeTipMachMargin(), 1.0e-15);
+		assertEquals(0.0, empty.minRuntimeReynoldsIndexMargin(), 1.0e-15);
+		assertEquals(0.0, empty.minRuntimeOperatingEnvelopeMarginFraction(), 1.0e-15);
 		assertEquals(0, aggregate.acceptedRotorCount());
 		assertEquals(0, aggregate.runtimeForceReplacementAcceptedRotorCount());
 		assertEquals(1, aggregate.blockedRotorCount());
+		assertEquals(blocked.operatingPoint(25.0, 0.0).runtimeTipMachMargin(),
+				aggregate.minRuntimeTipMachMargin(), 1.0e-15);
+		assertEquals(blocked.operatingPoint(25.0, 0.0).runtimeReynoldsIndexMargin(),
+				aggregate.minRuntimeReynoldsIndexMargin(), 1.0e-15);
+		assertEquals(blocked.operatingPoint(25.0, 0.0).runtimeOperatingEnvelopeMarginFraction(),
+				aggregate.minRuntimeOperatingEnvelopeMarginFraction(), 1.0e-15);
 		assertEquals(0.0, aggregate.totalThrustNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, aggregate.totalBodyTorqueNewtonMeters(), 1.0e-15);
 		assertEquals(0.0, aggregate.runtimeForceReplacementThrustNewtons(), 1.0e-15);

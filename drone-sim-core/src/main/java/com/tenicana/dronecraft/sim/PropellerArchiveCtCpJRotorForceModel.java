@@ -807,6 +807,39 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return ratio(totalIdealMomentumPowerWatts, totalActuatorDiskAreaSquareMeters());
 		}
 
+		public double minRuntimeTipMachMargin() {
+			double margin = Double.POSITIVE_INFINITY;
+			for (RotorForceSample sample : rotorSamples) {
+				margin = Math.min(margin, sample.operatingPoint(
+						sample.query().ambientTemperatureCelsius(),
+						sample.query().ambientHumidity()
+				).runtimeTipMachMargin());
+			}
+			return Double.isFinite(margin) ? margin : 0.0;
+		}
+
+		public double minRuntimeReynoldsIndexMargin() {
+			double margin = Double.POSITIVE_INFINITY;
+			for (RotorForceSample sample : rotorSamples) {
+				margin = Math.min(margin, sample.operatingPoint(
+						sample.query().ambientTemperatureCelsius(),
+						sample.query().ambientHumidity()
+				).runtimeReynoldsIndexMargin());
+			}
+			return Double.isFinite(margin) ? margin : 0.0;
+		}
+
+		public double minRuntimeOperatingEnvelopeMarginFraction() {
+			double margin = Double.POSITIVE_INFINITY;
+			for (RotorForceSample sample : rotorSamples) {
+				margin = Math.min(margin, sample.operatingPoint(
+						sample.query().ambientTemperatureCelsius(),
+						sample.query().ambientHumidity()
+				).runtimeOperatingEnvelopeMarginFraction());
+			}
+			return Double.isFinite(margin) ? margin : 0.0;
+		}
+
 		public Vec3 totalWakeAngularMomentumTorqueResidualBodyNewtonMeters() {
 			return totalWakeAngularMomentumTorqueBodyNewtonMeters().subtract(totalReactionTorqueBodyNewtonMeters);
 		}

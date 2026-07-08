@@ -53,6 +53,14 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(4, integerCell(hover, columns, "runtime_force_replacement_accepted_rotor_count"));
 		assertEquals(0, integerCell(hover, columns, "blocked_rotor_count"));
 		assertEquals(0, integerCell(hover, columns, "clamped_rotor_count"));
+		assertEquals(rotorSample.standardOperatingPoint().runtimeTipMachMargin(),
+				numberCell(hover, columns, "min_runtime_tip_mach_margin"), 1.0e-14);
+		assertEquals(rotorSample.standardOperatingPoint().runtimeReynoldsIndexMargin(),
+				numberCell(hover, columns, "min_runtime_reynolds_index_margin"), 1.0e-14);
+		assertEquals(rotorSample.standardOperatingPoint().runtimeOperatingEnvelopeMarginFraction(),
+				numberCell(hover, columns, "min_runtime_operating_envelope_margin_fraction"), 1.0e-14);
+		assertTrue(numberCell(hover, columns, "min_runtime_tip_mach_margin") > 0.0);
+		assertTrue(numberCell(hover, columns, "min_runtime_reynolds_index_margin") > 0.0);
 		assertEquals("ACCEPTED", textCell(hover, columns, "runtime_eligibility_status"));
 		assertEquals("DIRECT_SAMPLE", textCell(hover, columns, "target_thrust_solve_status"));
 		assertEquals(0, integerCell(hover, columns, "target_thrust_solve_iterations"));
@@ -593,6 +601,9 @@ class CtCpJConfigurationCurveExporterTest {
 		assertTrue(lines.get(0).contains("runtime_replacement_rotor_only_linear_accel_world_y_mps2"));
 		assertTrue(lines.get(0).contains("runtime_replacement_preview_delta_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("runtime_replacement_disk_mass_flow_kg_s"));
+		assertTrue(lines.get(0).contains("min_runtime_tip_mach_margin"));
+		assertTrue(lines.get(0).contains("min_runtime_reynolds_index_margin"));
+		assertTrue(lines.get(0).contains("min_runtime_operating_envelope_margin_fraction"));
 		assertTrue(lines.get(0).contains("runtime_eligibility_status"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
 	}
