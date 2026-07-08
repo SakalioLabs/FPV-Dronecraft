@@ -246,6 +246,16 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				step.boundaryImpulseOnFlowWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(new Vec3(0.0, 1.5 * RHO, 0.0),
 				step.flowImpulseOnSolidBoundaryWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(new Vec3(-0.75 * RHO, RHO, 1.25 * RHO),
+				step.angularMomentumBeforeWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, RHO, -RHO),
+				step.angularMomentumAfterWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(new Vec3(0.75 * RHO, 0.0, -2.25 * RHO),
+				step.angularMomentumResidualWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(step.angularMomentumResidualWorldNewtonMeterSeconds(Vec3.ZERO),
+				step.boundaryAngularImpulseOnFlowWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(new Vec3(-0.75 * RHO, 0.0, 2.25 * RHO),
+				step.flowAngularImpulseOnSolidBoundaryWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertEquals(0.5 * RHO * 4.0 + 0.5 * RHO * 0.5 * 9.0,
 				step.kineticEnergyBeforeJoules(), 1.0e-15);
 		assertEquals(0.5 * RHO * 4.0, step.kineticEnergyAfterJoules(), 1.0e-15);

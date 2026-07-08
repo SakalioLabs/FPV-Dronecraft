@@ -233,6 +233,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(Double.isFinite(number(hoverStep2, "flow_angular_momentum_after_source_world_y_nm_s")));
 		assertTrue(Double.isFinite(
 				number(hoverStep2, "flow_angular_momentum_after_solid_boundary_world_y_nm_s")));
+		assertTrue(Double.isFinite(
+				number(hoverStep2, "flow_angular_impulse_on_solid_boundary_world_y_nm_s")));
 		assertEquals(number(hoverStep2, "flow_angular_momentum_after_source_world_y_nm_s")
 						- number(hoverStep2, "flow_angular_momentum_before_source_world_y_nm_s"),
 				number(hoverStep2, "flow_angular_momentum_source_delta_world_y_nm_s"), 1.0e-12);
@@ -241,6 +243,16 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverStep2,
 						"flow_angular_momentum_source_delta_minus_wake_impulse_world_y_nm_s"),
 				1.0e-12);
+		assertEquals(number(hoverStep2, "flow_angular_momentum_after_solid_boundary_world_y_nm_s")
+						- number(hoverStep2,
+								"flow_angular_momentum_before_solid_boundary_world_y_nm_s"),
+				number(hoverStep2, "flow_angular_momentum_solid_boundary_delta_world_y_nm_s"),
+				1.0e-12);
+		assertEquals(-number(hoverStep2, "flow_angular_momentum_solid_boundary_delta_world_y_nm_s"),
+				number(hoverStep2, "flow_angular_impulse_on_solid_boundary_world_y_nm_s"),
+				1.0e-12);
+		assertEquals(0.0,
+				number(hoverStep2, "flow_angular_impulse_on_solid_boundary_world_y_nm_s"), 1.0e-15);
 
 		assertEquals("EMPTY_SOURCE_FIELD", blockedStep2.get("grid_status"));
 		assertEquals(0, integer(blockedStep2, "active_cell_count"));
@@ -315,6 +327,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "flow_angular_momentum_after_solid_boundary_world_y_nm_s"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "flow_angular_momentum_solid_boundary_delta_world_y_nm_s"),
+				1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "flow_angular_impulse_on_solid_boundary_world_y_nm_s"), 1.0e-15);
 	}
 
 	@Test
@@ -381,6 +398,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "max_speed_after_solid_boundary_mps"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "flow_impulse_on_solid_boundary_world_y_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverStep, "flow_angular_impulse_on_solid_boundary_world_y_nm_s"), 1.0e-15);
 		assertEquals(number(hoverStep, "solid_boundary_momentum_residual_world_y_ns"),
 				number(hoverStep, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "final_momentum_world_y_ns"), 1.0e-12);
@@ -492,7 +511,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("flow_angular_momentum_source_delta_world_y_nm_s"));
 		assertTrue(lines.get(0).contains(
 				"flow_angular_momentum_source_delta_minus_wake_impulse_world_y_nm_s"));
+		assertTrue(lines.get(0).contains("flow_angular_momentum_before_solid_boundary_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("flow_angular_momentum_after_solid_boundary_world_y_nm_s"));
+		assertTrue(lines.get(0).contains("flow_angular_momentum_solid_boundary_delta_world_y_nm_s"));
+		assertTrue(lines.get(0).contains("flow_angular_impulse_on_solid_boundary_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("solid_cell_count"));
 		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));

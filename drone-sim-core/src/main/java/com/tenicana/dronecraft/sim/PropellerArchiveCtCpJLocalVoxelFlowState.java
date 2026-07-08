@@ -521,6 +521,35 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return momentumResidualWorldNewtonSeconds().multiply(-1.0);
 		}
 
+		public Vec3 angularMomentumBeforeWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return previousState.totalAngularMomentumWorldNewtonMeterSeconds(
+					airDensityKgPerCubicMeter,
+					momentReferenceWorldMeters,
+					solidMask
+			);
+		}
+
+		public Vec3 angularMomentumAfterWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return nextState.totalAngularMomentumWorldNewtonMeterSeconds(
+					airDensityKgPerCubicMeter,
+					momentReferenceWorldMeters,
+					solidMask
+			);
+		}
+
+		public Vec3 angularMomentumResidualWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return angularMomentumAfterWorldNewtonMeterSeconds(momentReferenceWorldMeters)
+					.subtract(angularMomentumBeforeWorldNewtonMeterSeconds(momentReferenceWorldMeters));
+		}
+
+		public Vec3 boundaryAngularImpulseOnFlowWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return angularMomentumResidualWorldNewtonMeterSeconds(momentReferenceWorldMeters);
+		}
+
+		public Vec3 flowAngularImpulseOnSolidBoundaryWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return angularMomentumResidualWorldNewtonMeterSeconds(momentReferenceWorldMeters).multiply(-1.0);
+		}
+
 		public double kineticEnergyDeltaJoules() {
 			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
 		}
