@@ -2,6 +2,7 @@ package com.tenicana.dronecraft.sim;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -120,6 +121,9 @@ class PropellerArchiveDatasetTriageTest {
 		assertEquals("gwsdd 3.0x3.0", cine.matchedBladeName());
 		assertEquals(0.2599, cine.chordToRadius(), 1.0e-12);
 		assertEquals(25.05, cine.betaDegrees(), 1.0e-12);
+		assertEquals("gwsdd 3.0x3.0",
+				PropellerArchiveDatasetTriage.geometryMatchOrNull("cinewhoop").matchedBladeName());
+		assertNull(PropellerArchiveDatasetTriage.geometryMatchOrNull("heavyLift"));
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveDatasetTriage.geometryMatch("heavyLift"));

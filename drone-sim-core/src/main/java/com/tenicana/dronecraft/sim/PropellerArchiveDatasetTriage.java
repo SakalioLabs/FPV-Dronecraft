@@ -481,9 +481,19 @@ public final class PropellerArchiveDatasetTriage {
 	}
 
 	public static GeometryStationMatch geometryMatch(String presetName) {
-		return GEOMETRY_MATCHES.stream()
-				.filter(match -> match.presetName().equals(presetName))
-				.findFirst()
-				.orElseThrow(() -> new IllegalArgumentException("no geometry match for preset: " + presetName));
+		GeometryStationMatch match = geometryMatchOrNull(presetName);
+		if (match == null) {
+			throw new IllegalArgumentException("no geometry match for preset: " + presetName);
+		}
+		return match;
+	}
+
+	public static GeometryStationMatch geometryMatchOrNull(String presetName) {
+		for (GeometryStationMatch match : GEOMETRY_MATCHES) {
+			if (match.presetName().equals(presetName)) {
+				return match;
+			}
+		}
+		return null;
 	}
 }

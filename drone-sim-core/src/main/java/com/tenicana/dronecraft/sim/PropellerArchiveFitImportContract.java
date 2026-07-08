@@ -365,11 +365,7 @@ public final class PropellerArchiveFitImportContract {
 	}
 
 	private static PropellerArchiveDatasetTriage.GeometryStationMatch geometryOrNull(String presetName) {
-		try {
-			return PropellerArchiveDatasetTriage.geometryMatch(presetName);
-		} catch (IllegalArgumentException ignored) {
-			return null;
-		}
+		return PropellerArchiveDatasetTriage.geometryMatchOrNull(presetName);
 	}
 
 	private static String postReviewNextRequiredAction(
