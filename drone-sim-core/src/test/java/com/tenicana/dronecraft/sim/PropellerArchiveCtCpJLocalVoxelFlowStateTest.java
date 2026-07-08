@@ -276,6 +276,41 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void maskedMaxSpeedIgnoresSolidCellsForRuntimeCourantMetrics() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(3.0, 4.0, 0.0),
+								new Vec3(0.0, 20.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask secondCellSolid =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask secondCellMostlyOpen =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.FALSE),
+						List.of(0.0, 0.75)
+				);
+
+		assertEquals(20.0, state.maxSpeedMetersPerSecond(), 1.0e-15);
+		assertEquals(5.0, state.maxSpeedMetersPerSecond(secondCellSolid), 1.0e-15);
+		assertEquals(20.0, state.maxSpeedMetersPerSecond(secondCellMostlyOpen), 1.0e-15);
+	}
+
+	@Test
 	void openBoundaryFluxReportsOutwardAndInwardVolumeAndMassFlow() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

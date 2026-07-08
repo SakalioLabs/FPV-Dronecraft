@@ -1931,9 +1931,17 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	public double maxSpeedMetersPerSecond() {
+		return maxSpeedMetersPerSecond(VoxelSolidMask.open(gridSpec));
+	}
+
+	public double maxSpeedMetersPerSecond(VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
 		double max = 0.0;
-		for (Vec3 velocity : velocitiesWorldMetersPerSecond) {
-			max = Math.max(max, velocity.length());
+		for (int i = 0; i < velocitiesWorldMetersPerSecond.size(); i++) {
+			if (solidMask.isSolidCellIndex(i) || solidMask.openVolumeFractionCellIndex(i) <= EPSILON) {
+				continue;
+			}
+			max = Math.max(max, velocitiesWorldMetersPerSecond.get(i).length());
 		}
 		return max;
 	}
@@ -1957,17 +1965,6 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			throw new IllegalArgumentException("advection substep count exceeds maximum supported bound.");
 		}
 		return substepCount;
-	}
-
-	private double maxSpeedMetersPerSecond(VoxelSolidMask solidMask) {
-		double max = 0.0;
-		for (int i = 0; i < velocitiesWorldMetersPerSecond.size(); i++) {
-			if (solidMask.isSolidCellIndex(i)) {
-				continue;
-			}
-			max = Math.max(max, velocitiesWorldMetersPerSecond.get(i).length());
-		}
-		return max;
 	}
 
 	private int linearIndex(int xIndex, int yIndex, int zIndex) {

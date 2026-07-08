@@ -957,16 +957,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 								- run.initialKineticEnergyJoules()
 								+ cumulativeOpenBoundaryNetOutwardKineticEnergy,
 						cumulativeSourceTotalWakeKineticEnergy);
-		double maxSpeedAfterSource = initial ? run.initialState().maxSpeedMetersPerSecond()
-				: iteration.stateAfterSource().maxSpeedMetersPerSecond();
+		double maxSpeedAfterSource = initial ? run.initialState().maxSpeedMetersPerSecond(run.solidMask())
+				: iteration.stateAfterSource().maxSpeedMetersPerSecond(run.solidMask());
 		double maxSpeedAfterAdvection = initial ? maxSpeedAfterSource
-				: iteration.stateAfterAdvection().maxSpeedMetersPerSecond();
-		double maxSpeedAfterDiffusion = initial ? run.initialState().maxSpeedMetersPerSecond()
-				: iteration.stateAfterDiffusion().maxSpeedMetersPerSecond();
+				: iteration.stateAfterAdvection().maxSpeedMetersPerSecond(run.solidMask());
+		double maxSpeedAfterDiffusion = initial ? run.initialState().maxSpeedMetersPerSecond(run.solidMask())
+				: iteration.stateAfterDiffusion().maxSpeedMetersPerSecond(run.solidMask());
 		double maxSpeedAfterProjection = initial ? maxSpeedAfterDiffusion
-				: iteration.stateAfterProjection().maxSpeedMetersPerSecond();
+				: iteration.stateAfterProjection().maxSpeedMetersPerSecond(run.solidMask());
 		double maxSpeedAfterSolidBoundary = initial ? maxSpeedAfterProjection
-				: iteration.stateAfterSolidBoundary().maxSpeedMetersPerSecond();
+				: iteration.stateAfterSolidBoundary().maxSpeedMetersPerSecond(run.solidMask());
 		Vec3 advectionMomentumBefore = initial ? run.initialState()
 				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask())
 				: iteration.advectionRun().totalMomentumBeforeWorldNewtonSeconds();
