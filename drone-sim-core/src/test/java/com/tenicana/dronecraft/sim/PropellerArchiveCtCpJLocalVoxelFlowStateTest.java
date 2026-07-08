@@ -867,6 +867,47 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void diffusionAppliesNoSlipWallDragAtSolidMaskFaces() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(10.0, 2.0, 0.0),
+								new Vec3(0.0, 99.0, 0.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
+				state.diffuseVelocity(RHO, 0.10, 1.0, mask);
+
+		assertEquals(0.10, diffusion.diffusionNumber(), 1.0e-15);
+		assertVectorEquals(new Vec3(9.0, 1.8, 0.0),
+				diffusion.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 99.0, 0.0),
+				diffusion.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(-RHO, -0.2 * RHO, 0.0),
+				diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertTrue(diffusion.kineticEnergyDeltaJoules() < 0.0);
+		assertEquals(-diffusion.kineticEnergyDeltaJoules(),
+				diffusion.viscousDissipatedEnergyJoules(), 1.0e-15);
+		assertEquals(diffusion.viscousDissipatedEnergyJoules(),
+				diffusion.meanViscousDissipationPowerWatts(), 1.0e-15);
+	}
+
+	@Test
 	void sourceAdvanceCanDiffuseVelocityWithoutChangingSourceBookkeeping() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(

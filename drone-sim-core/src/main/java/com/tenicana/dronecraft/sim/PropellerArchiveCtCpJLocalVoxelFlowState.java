@@ -2000,7 +2000,19 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (diffusionNumber <= EPSILON) {
 			return;
 		}
-		if (solidMask.isSolidCellIndex(firstIndex) || solidMask.isSolidCellIndex(secondIndex)) {
+		boolean firstSolid = solidMask.isSolidCellIndex(firstIndex);
+		boolean secondSolid = solidMask.isSolidCellIndex(secondIndex);
+		if (firstSolid && secondSolid) {
+			return;
+		}
+		if (firstSolid) {
+			Vec3 wallExchange = velocitiesWorldMetersPerSecond.get(secondIndex).multiply(-diffusionNumber);
+			deltas.set(secondIndex, deltas.get(secondIndex).add(wallExchange));
+			return;
+		}
+		if (secondSolid) {
+			Vec3 wallExchange = velocitiesWorldMetersPerSecond.get(firstIndex).multiply(-diffusionNumber);
+			deltas.set(firstIndex, deltas.get(firstIndex).add(wallExchange));
 			return;
 		}
 		Vec3 exchange = velocitiesWorldMetersPerSecond.get(secondIndex)
