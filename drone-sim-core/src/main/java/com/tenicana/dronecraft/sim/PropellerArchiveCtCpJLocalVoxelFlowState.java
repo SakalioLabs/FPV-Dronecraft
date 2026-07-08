@@ -128,6 +128,22 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return residenceStep.meanCombinedMechanicalPowerWatts();
 		}
 
+		public double coupledSourceForceMechanicalWorkEnergyJoules() {
+			return residenceStep.totalCoupledSourceForceMechanicalWorkEnergyJoules();
+		}
+
+		public double coupledSourceForceMechanicalWorkPowerWatts() {
+			return residenceStep.meanCoupledSourceForceMechanicalPowerWatts();
+		}
+
+		public double coupledWakeResidenceMechanicalWorkEnergyJoules() {
+			return residenceStep.totalCoupledWakeResidenceMechanicalWorkEnergyJoules();
+		}
+
+		public double coupledWakeResidenceMechanicalWorkPowerWatts() {
+			return residenceStep.meanCoupledWakeResidenceMechanicalPowerWatts();
+		}
+
 		public double combinedMechanicalWorkPowerMinusWakeKineticPowerWatts() {
 			return residenceStep.combinedMechanicalWorkPowerMinusWakeKineticPowerWatts();
 		}

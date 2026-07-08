@@ -360,6 +360,9 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				.add(targetWakeVelocity.subtract(initialVelocity).multiply(expectedResidenceAlpha))
 				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
 						.multiply(expectedResidenceAlpha / turnover));
+		Vec3 expectedMeanVelocity = exactCoupledMeanVelocity(cell, DT);
+		double expectedCoupledSourceForceWork =
+				sourceStep.impulseWorldNewtonSeconds().dot(expectedMeanVelocity);
 
 		assertEquals(expectedSourceMassFlow, cell.sourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
 		assertEquals(expectedResidenceAlpha, cell.residenceAlpha(), 1.0e-15);
@@ -373,6 +376,18 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertVectorEquals(expectedVelocityAfterResidence.subtract(initialVelocity)
 						.multiply(cell.cellAirMassKilograms() / DT),
 				residence.totalCombinedMomentumRateWorldNewtons(), 1.0e-12);
+		assertEquals(expectedCoupledSourceForceWork,
+				residence.totalCoupledSourceForceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(expectedCoupledSourceForceWork / DT,
+				residence.meanCoupledSourceForceMechanicalPowerWatts(), 1.0e-12);
+		assertEquals(residence.totalCombinedMechanicalWorkEnergyJoules()
+						- expectedCoupledSourceForceWork,
+				residence.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(residence.totalCoupledWakeResidenceMechanicalWorkEnergyJoules() / DT,
+				residence.meanCoupledWakeResidenceMechanicalPowerWatts(), 1.0e-12);
+		assertEquals(residence.totalCoupledSourceForceMechanicalWorkEnergyJoules()
+						+ residence.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(),
+				residence.totalCombinedMechanicalWorkEnergyJoules(), 1.0e-15);
 	}
 
 	@Test
@@ -400,6 +415,10 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertEquals(0.0, residence.totalWakeKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.combinedMechanicalWorkPowerMinusWakeKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.combinedMechanicalWorkPowerOverWakeKineticPower(), 1.0e-15);
+		assertEquals(0.0, residence.totalCoupledSourceForceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, residence.meanCoupledSourceForceMechanicalPowerWatts(), 1.0e-15);
+		assertEquals(0.0, residence.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, residence.meanCoupledWakeResidenceMechanicalPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceIdealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceTotalWakeKineticPowerWatts(), 1.0e-15);
@@ -539,6 +558,36 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 						.multiply(cell.residenceAlpha()))
 				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
 						.multiply(cell.residenceAlpha() / turnover));
+	}
+
+	private static Vec3 exactCoupledMeanVelocity(
+			PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell,
+			double timeStepSeconds
+	) {
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMomentumStep sourceStep =
+				cell.sourceMomentumStep();
+		double turnover = cell.sourceMassFlowRateKilogramsPerSecond()
+				* timeStepSeconds
+				/ cell.cellAirMassKilograms();
+		Vec3 initialVelocity = sourceStep.initialVelocityWorldMetersPerSecond();
+		if (!Double.isFinite(turnover) || turnover <= 0.0) {
+			return initialVelocity.add(sourceStep.velocityDeltaWorldMetersPerSecond().multiply(0.5));
+		}
+		double freeDecayMeanWeight = turnover < 1.0e-5
+				? 1.0 - turnover * 0.5
+						+ turnover * turnover / 6.0
+						- turnover * turnover * turnover / 24.0
+				: -Math.expm1(-turnover) / turnover;
+		double sourceForceMeanWeight = turnover < 1.0e-5
+				? 0.5 - turnover / 6.0
+						+ turnover * turnover / 24.0
+						- turnover * turnover * turnover / 120.0
+				: (1.0 - freeDecayMeanWeight) / turnover;
+		return initialVelocity.multiply(freeDecayMeanWeight)
+				.add(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+						.multiply(1.0 - freeDecayMeanWeight))
+				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
+						.multiply(sourceForceMeanWeight));
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {

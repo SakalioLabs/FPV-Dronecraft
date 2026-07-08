@@ -321,6 +321,30 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 					/ sourceMomentumSample.timeStepSeconds();
 		}
 
+		public double totalCoupledSourceForceMechanicalWorkEnergyJoules() {
+			double sum = 0.0;
+			double timeStepSeconds = sourceMomentumSample.timeStepSeconds();
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum += coupledSourceForceMechanicalWorkEnergyJoules(cell, timeStepSeconds);
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
+		}
+
+		public double meanCoupledSourceForceMechanicalPowerWatts() {
+			return totalCoupledSourceForceMechanicalWorkEnergyJoules()
+					/ sourceMomentumSample.timeStepSeconds();
+		}
+
+		public double totalCoupledWakeResidenceMechanicalWorkEnergyJoules() {
+			return totalCombinedMechanicalWorkEnergyJoules()
+					- totalCoupledSourceForceMechanicalWorkEnergyJoules();
+		}
+
+		public double meanCoupledWakeResidenceMechanicalPowerWatts() {
+			return totalCoupledWakeResidenceMechanicalWorkEnergyJoules()
+					/ sourceMomentumSample.timeStepSeconds();
+		}
+
 		public double combinedMechanicalWorkPowerMinusWakeKineticPowerWatts() {
 			return meanCombinedMechanicalPowerWatts() - totalWakeKineticPowerWatts();
 		}
@@ -584,6 +608,74 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		Vec3 sourceForceContribution = sourceMomentumStep.velocityDeltaWorldMetersPerSecond()
 				.multiply(residenceAlpha / turnover);
 		return initialVelocity.add(wakeVelocityContribution).add(sourceForceContribution);
+	}
+
+	private static double coupledSourceForceMechanicalWorkEnergyJoules(
+			CellMassFluxResidenceStep cell,
+			double timeStepSeconds
+	) {
+		Vec3 meanVelocity = coupledMeanVelocityWorldMetersPerSecond(cell, timeStepSeconds);
+		double work = cell.sourceMomentumStep().impulseWorldNewtonSeconds().dot(meanVelocity);
+		return Double.isFinite(work) ? work : 0.0;
+	}
+
+	private static Vec3 coupledMeanVelocityWorldMetersPerSecond(
+			CellMassFluxResidenceStep cell,
+			double timeStepSeconds
+	) {
+		CellMomentumStep sourceStep = cell.sourceMomentumStep();
+		double turnover = residenceTurnover(
+				cell.sourceMassFlowRateKilogramsPerSecond(),
+				timeStepSeconds,
+				cell.cellAirMassKilograms()
+		);
+		Vec3 initialVelocity = sourceStep.initialVelocityWorldMetersPerSecond();
+		if (turnover <= EPSILON) {
+			return initialVelocity.add(sourceStep.velocityDeltaWorldMetersPerSecond().multiply(0.5));
+		}
+		double freeDecayMeanWeight = exponentialMeanWeight(turnover);
+		double sourceForceMeanWeight = sourceForceMeanWeight(turnover, freeDecayMeanWeight);
+		return initialVelocity.multiply(freeDecayMeanWeight)
+				.add(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+						.multiply(1.0 - freeDecayMeanWeight))
+				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
+						.multiply(sourceForceMeanWeight));
+	}
+
+	private static double residenceTurnover(
+			double sourceMassFlowRateKilogramsPerSecond,
+			double timeStepSeconds,
+			double cellAirMassKilograms
+	) {
+		if (sourceMassFlowRateKilogramsPerSecond <= EPSILON || cellAirMassKilograms <= EPSILON) {
+			return 0.0;
+		}
+		double turnover = sourceMassFlowRateKilogramsPerSecond * timeStepSeconds / cellAirMassKilograms;
+		return Double.isFinite(turnover) && turnover > 0.0 ? turnover : 0.0;
+	}
+
+	private static double exponentialMeanWeight(double turnover) {
+		if (turnover <= EPSILON) {
+			return 1.0;
+		}
+		if (turnover < 1.0e-5) {
+			return 1.0 - turnover * 0.5
+					+ turnover * turnover / 6.0
+					- turnover * turnover * turnover / 24.0;
+		}
+		return -Math.expm1(-turnover) / turnover;
+	}
+
+	private static double sourceForceMeanWeight(double turnover, double freeDecayMeanWeight) {
+		if (turnover <= EPSILON) {
+			return 0.5;
+		}
+		if (turnover < 1.0e-5) {
+			return 0.5 - turnover / 6.0
+					+ turnover * turnover / 24.0
+					- turnover * turnover * turnover / 120.0;
+		}
+		return (1.0 - freeDecayMeanWeight) / turnover;
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
