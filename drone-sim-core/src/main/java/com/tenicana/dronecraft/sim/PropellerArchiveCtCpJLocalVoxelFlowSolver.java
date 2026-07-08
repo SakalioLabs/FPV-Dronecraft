@@ -342,6 +342,31 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return energy;
 		}
 
+		public double openBoundaryOutwardMassOverSourceMass() {
+			return ratio(cumulativeOpenBoundaryOutwardMassKilograms(), totalSourceMassKilograms());
+		}
+
+		public double openBoundaryNetOutwardMassOverSourceMass() {
+			return ratio(cumulativeOpenBoundaryNetOutwardMassKilograms(), totalSourceMassKilograms());
+		}
+
+		public double finalKineticEnergyOverSourceWakeKineticEnergy() {
+			return ratio(finalKineticEnergyJoules() - initialKineticEnergyJoules(), totalWakeKineticEnergyJoules());
+		}
+
+		public double openBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy() {
+			return ratio(cumulativeOpenBoundaryNetOutwardKineticEnergyJoules(), totalWakeKineticEnergyJoules());
+		}
+
+		public double retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy() {
+			return ratio(
+					finalKineticEnergyJoules()
+							- initialKineticEnergyJoules()
+							+ cumulativeOpenBoundaryNetOutwardKineticEnergyJoules(),
+					totalWakeKineticEnergyJoules()
+			);
+		}
+
 		public double totalIdealMomentumEnergyJoules() {
 			double energy = 0.0;
 			for (SolverIteration iteration : iterations) {
@@ -520,6 +545,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 					solidMask,
 					momentReferenceWorldMeters
 			);
+		}
+
+		private static double ratio(double numerator, double denominator) {
+			return Double.isFinite(numerator)
+					&& Double.isFinite(denominator)
+					&& Math.abs(denominator) > EPSILON
+					? numerator / denominator
+					: 0.0;
 		}
 	}
 

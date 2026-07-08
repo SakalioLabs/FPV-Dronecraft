@@ -99,6 +99,12 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverInitial, "cumulative_open_boundary_net_outward_mass_kg"), 1.0e-15);
 		assertEquals(0.0,
 				number(hoverInitial, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "cumulative_open_boundary_outward_mass_over_source_mass"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial,
+						"retained_plus_boundary_net_outward_kinetic_energy_over_source_wake_energy"),
+				1.0e-15);
 		assertEquals(0, integer(hoverInitial, "solid_cell_count"));
 		assertEquals(0, integer(hoverInitial, "solid_clamped_cell_count"));
 		assertEquals(STEPS, integer(hoverStep2, "configured_step_count"));
@@ -296,6 +302,27 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "cumulative_open_boundary_outward_kinetic_energy_j")
 						- number(hoverStep2, "cumulative_open_boundary_inward_kinetic_energy_j"),
 				number(hoverStep2, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_open_boundary_outward_mass_kg")
+						/ number(hoverStep2, "cumulative_source_mass_kg"),
+				number(hoverStep2, "cumulative_open_boundary_outward_mass_over_source_mass"), 1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_open_boundary_net_outward_mass_kg")
+						/ number(hoverStep2, "cumulative_source_mass_kg"),
+				number(hoverStep2, "cumulative_open_boundary_net_outward_mass_over_source_mass"), 1.0e-12);
+		assertEquals(number(hoverStep2, "kinetic_energy_after_solid_boundary_j")
+						/ number(hoverStep2, "cumulative_source_total_wake_kinetic_energy_j"),
+				number(hoverStep2, "kinetic_energy_after_solid_boundary_over_cumulative_source_wake_energy"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_open_boundary_net_outward_kinetic_energy_j")
+						/ number(hoverStep2, "cumulative_source_total_wake_kinetic_energy_j"),
+				number(hoverStep2,
+						"cumulative_open_boundary_net_outward_kinetic_energy_over_source_wake_energy"),
+				1.0e-12);
+		assertEquals((number(hoverStep2, "kinetic_energy_after_solid_boundary_j")
+						+ number(hoverStep2, "cumulative_open_boundary_net_outward_kinetic_energy_j"))
+						/ number(hoverStep2, "cumulative_source_total_wake_kinetic_energy_j"),
+				number(hoverStep2,
+						"retained_plus_boundary_net_outward_kinetic_energy_over_source_wake_energy"),
+				1.0e-12);
 		assertTrue(Double.isFinite(number(hoverStep2, "max_vorticity_after_source_s")));
 		assertTrue(number(hoverStep2, "max_vorticity_after_source_s") >= 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2, "rms_vorticity_after_projection_s")));
@@ -465,6 +492,16 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_open_boundary_outward_mass_over_source_mass"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2,
+						"cumulative_open_boundary_net_outward_kinetic_energy_over_source_wake_energy"),
+				1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2,
+						"retained_plus_boundary_net_outward_kinetic_energy_over_source_wake_energy"),
+				1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "final_momentum_world_y_ns"), 1.0e-15);
@@ -645,6 +682,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains(
 				"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("cumulative_open_boundary_net_outward_kinetic_energy_j"));
+		assertTrue(lines.get(0).contains("cumulative_open_boundary_outward_mass_over_source_mass"));
+		assertTrue(lines.get(0).contains(
+				"retained_plus_boundary_net_outward_kinetic_energy_over_source_wake_energy"));
 		assertTrue(lines.get(0).contains("max_vorticity_after_source_s"));
 		assertTrue(lines.get(0).contains("rms_vorticity_after_projection_s"));
 		assertTrue(lines.get(0).contains("mean_vorticity_after_solid_boundary_world_y_s"));

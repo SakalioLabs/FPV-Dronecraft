@@ -100,6 +100,21 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules(), 1.0e-15);
 		assertEquals(expectedBoundaryNetEnergy,
 				run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules(), 1.0e-15);
+		assertEquals(run.cumulativeOpenBoundaryOutwardMassKilograms() / run.totalSourceMassKilograms(),
+				run.openBoundaryOutwardMassOverSourceMass(), 1.0e-15);
+		assertEquals(run.cumulativeOpenBoundaryNetOutwardMassKilograms() / run.totalSourceMassKilograms(),
+				run.openBoundaryNetOutwardMassOverSourceMass(), 1.0e-15);
+		assertEquals((run.finalKineticEnergyJoules() - run.initialKineticEnergyJoules())
+						/ run.totalWakeKineticEnergyJoules(),
+				run.finalKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		assertEquals(run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules()
+						/ run.totalWakeKineticEnergyJoules(),
+				run.openBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		assertEquals((run.finalKineticEnergyJoules()
+						- run.initialKineticEnergyJoules()
+						+ run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules())
+						/ run.totalWakeKineticEnergyJoules(),
+				run.retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
 		assertEquals(0, run.maxSolidCellCount());
 		assertEquals(0, run.maxSolidClampedCellCount());
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
@@ -235,6 +250,12 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
+		assertEquals(0.0, run.openBoundaryOutwardMassOverSourceMass(), 1.0e-15);
+		assertEquals(0.0, run.openBoundaryNetOutwardMassOverSourceMass(), 1.0e-15);
+		assertEquals(0.0, run.finalKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		assertEquals(0.0, run.openBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
 		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
 		assertEquals(0, run.maxAdvectionSubstepCount());
 		assertEquals(0, run.maxSolidCellCount());
@@ -287,6 +308,12 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
+		assertEquals(0.0, run.openBoundaryOutwardMassOverSourceMass(), 1.0e-15);
+		assertEquals(0.0, run.openBoundaryNetOutwardMassOverSourceMass(), 1.0e-15);
+		assertEquals(0.0, run.finalKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		assertEquals(0.0, run.openBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
 		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
 		assertEquals(1, run.maxAdvectionSubstepCount());
 		assertEquals(0, run.maxSolidCellCount());

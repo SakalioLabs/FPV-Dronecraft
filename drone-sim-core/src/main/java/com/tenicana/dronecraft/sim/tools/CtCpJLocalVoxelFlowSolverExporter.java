@@ -152,6 +152,11 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_open_boundary_net_outward_kinetic_energy_j",
 			"cumulative_open_boundary_outward_kinetic_energy_j",
 			"cumulative_open_boundary_inward_kinetic_energy_j",
+			"cumulative_open_boundary_outward_mass_over_source_mass",
+			"cumulative_open_boundary_net_outward_mass_over_source_mass",
+			"kinetic_energy_after_solid_boundary_over_cumulative_source_wake_energy",
+			"cumulative_open_boundary_net_outward_kinetic_energy_over_source_wake_energy",
+			"retained_plus_boundary_net_outward_kinetic_energy_over_source_wake_energy",
 			"max_residence_alpha",
 			"mean_active_wake_residual_after_residence_mps",
 			"max_divergence_before_projection_s",
@@ -882,6 +887,20 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.solidBoundaryStep().dissipatedKineticEnergyJoules();
 		double cumulativeSolidBoundaryDissipatedEnergy =
 				cumulativeSolidBoundaryDissipatedEnergy(run, completedSteps);
+		double cumulativeOpenBoundaryOutwardMassOverSourceMass =
+				ratio(cumulativeOpenBoundaryOutwardMass, cumulativeSourceMass);
+		double cumulativeOpenBoundaryNetOutwardMassOverSourceMass =
+				ratio(cumulativeOpenBoundaryNetOutwardMass, cumulativeSourceMass);
+		double kineticEnergyAfterSolidBoundaryOverSourceWakeEnergy =
+				ratio(energyAfterSolidBoundary - run.initialKineticEnergyJoules(),
+						cumulativeSourceTotalWakeKineticEnergy);
+		double cumulativeOpenBoundaryNetOutwardKineticEnergyOverSourceWakeEnergy =
+				ratio(cumulativeOpenBoundaryNetOutwardKineticEnergy, cumulativeSourceTotalWakeKineticEnergy);
+		double retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeEnergy =
+				ratio(energyAfterSolidBoundary
+								- run.initialKineticEnergyJoules()
+								+ cumulativeOpenBoundaryNetOutwardKineticEnergy,
+						cumulativeSourceTotalWakeKineticEnergy);
 		double maxSpeedAfterSource = initial ? run.initialState().maxSpeedMetersPerSecond()
 				: iteration.stateAfterSource().maxSpeedMetersPerSecond();
 		double maxSpeedAfterAdvection = initial ? maxSpeedAfterSource
@@ -1078,6 +1097,11 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeOpenBoundaryNetOutwardKineticEnergy),
 				number(cumulativeOpenBoundaryOutwardKineticEnergy),
 				number(cumulativeOpenBoundaryInwardKineticEnergy),
+				number(cumulativeOpenBoundaryOutwardMassOverSourceMass),
+				number(cumulativeOpenBoundaryNetOutwardMassOverSourceMass),
+				number(kineticEnergyAfterSolidBoundaryOverSourceWakeEnergy),
+				number(cumulativeOpenBoundaryNetOutwardKineticEnergyOverSourceWakeEnergy),
+				number(retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeEnergy),
 				number(maxResidenceAlpha),
 				number(meanWakeResidual),
 				number(divergenceBeforeProjection.maxAbsDivergencePerSecond()),
@@ -1944,6 +1968,14 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	private static double number(Map<String, String> row, String columnName) {
 		String value = row.get(columnName);
 		return value == null || value.isBlank() ? Double.NaN : Double.parseDouble(value);
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		return Double.isFinite(numerator)
+				&& Double.isFinite(denominator)
+				&& Math.abs(denominator) > EPSILON
+				? numerator / denominator
+				: 0.0;
 	}
 
 	private static Vec3 vector(Map<String, String> row, String x, String y, String z) {
