@@ -97,13 +97,14 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 
 	@Test
 	void singleRotorRunAccumulatesWakeAngularMomentumImpulseFromSourceTorque() {
-		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
-				singleRotorConservativeGridForSignedAxialSpeed(
+		SingleRotorGridSource singleRotor =
+				singleRotorGridSourceForSignedAxialSpeed(
 						"local_voxel_solver_single_rotor_wake_torque",
 						0.0,
 						Quaternion.IDENTITY,
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample = singleRotor.gridSample();
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config =
 				new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig(
 						RHO,
@@ -128,6 +129,12 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 			assertVectorEquals(sourceWakeTorque.multiply(DT),
 					iteration.sourceAdvance().totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-14);
 		}
+		Vec3 afterSourceAngularMomentum = run.iterations().get(0)
+				.stateAfterSource()
+				.totalAngularMomentumWorldNewtonMeterSeconds(RHO, singleRotor.diskCenterWorldMeters());
+		assertTrue(afterSourceAngularMomentum.dot(singleRotor.wakeAngularMomentumTorqueWorldNewtonMeters()) > 0.0);
+		assertTrue(run.finalAngularMomentumWorldNewtonMeterSeconds(singleRotor.diskCenterWorldMeters())
+				.dot(singleRotor.wakeAngularMomentumTorqueWorldNewtonMeters()) > 0.0);
 	}
 
 	@Test
@@ -447,8 +454,14 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		return field.sampleConservativeVoxelGrid(grid, 3);
 	}
 
-	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample
-			singleRotorConservativeGridForSignedAxialSpeed(
+	private record SingleRotorGridSource(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample,
+			Vec3 diskCenterWorldMeters,
+			Vec3 wakeAngularMomentumTorqueWorldNewtonMeters
+	) {
+	}
+
+	private static SingleRotorGridSource singleRotorGridSourceForSignedAxialSpeed(
 					String caseName,
 					double signedAxialSpeedMetersPerSecond,
 					Quaternion bodyToWorldOrientation,
@@ -474,14 +487,20 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 						RHO,
 						envelopePolicy
 				);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				sample.rotorActuatorDiskSourceTerms().get(0);
 		PropellerArchiveCtCpJActuatorDiskSourceField field =
 				new PropellerArchiveCtCpJActuatorDiskSourceField(
-						List.of(sample.rotorActuatorDiskSourceTerms().get(0)),
+						List.of(sourceTerm),
 						SOURCE_THICKNESS
 				);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				field.enclosingVoxelGrid(CELL_SIZE, 1);
-		return field.sampleConservativeVoxelGrid(grid, 3);
+		return new SingleRotorGridSource(
+				field.sampleConservativeVoxelGrid(grid, 3),
+				sourceTerm.diskCenterWorldMeters(),
+				sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()
+		);
 	}
 
 	private static double hoverRpm(DroneConfig config, RotorSpec rotor) {

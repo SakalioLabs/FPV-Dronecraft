@@ -1234,6 +1234,42 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return momentum;
 	}
 
+	public Vec3 totalAngularMomentumWorldNewtonMeterSeconds(
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceWorldMeters
+	) {
+		return totalAngularMomentumWorldNewtonMeterSeconds(
+				airDensityKgPerCubicMeter,
+				momentReferenceWorldMeters,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public Vec3 totalAngularMomentumWorldNewtonMeterSeconds(
+			double airDensityKgPerCubicMeter,
+			Vec3 momentReferenceWorldMeters,
+			VoxelSolidMask solidMask
+	) {
+		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+		}
+		validateSolidMask(solidMask);
+		Vec3 reference = finiteVecOrZero(momentReferenceWorldMeters);
+		Vec3 angularMomentum = Vec3.ZERO;
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int cellIndex = linearIndex(x, y, z);
+					double cellMass = openCellAirMassKilograms(airDensityKgPerCubicMeter, solidMask, cellIndex);
+					Vec3 momentum = velocitiesWorldMetersPerSecond.get(cellIndex).multiply(cellMass);
+					Vec3 leverArm = gridSpec.cellCenterWorldMeters(x, y, z).subtract(reference);
+					angularMomentum = angularMomentum.add(leverArm.cross(momentum));
+				}
+			}
+		}
+		return angularMomentum;
+	}
+
 	private double openCellAirMassKilograms(
 			double airDensityKgPerCubicMeter,
 			VoxelSolidMask solidMask,

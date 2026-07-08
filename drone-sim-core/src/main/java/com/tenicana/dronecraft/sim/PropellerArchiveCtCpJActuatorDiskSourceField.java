@@ -76,6 +76,14 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			return cellSizeMeters * cellSizeMeters * cellSizeMeters;
 		}
 
+		public Vec3 gridCenterWorldMeters() {
+			return originWorldMeters.add(new Vec3(
+					cellCountX * cellSizeMeters * 0.5,
+					cellCountY * cellSizeMeters * 0.5,
+					cellCountZ * cellSizeMeters * 0.5
+			));
+		}
+
 		public Vec3 cellCenterWorldMeters(int xIndex, int yIndex, int zIndex) {
 			checkIndex(xIndex, cellCountX, "xIndex");
 			checkIndex(yIndex, cellCountY, "yIndex");

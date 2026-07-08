@@ -233,6 +233,44 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void totalAngularMomentumUsesCellCentersAndOpenVolumeMass() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(0.0, 2.0, 0.0),
+								new Vec3(0.0, 0.0, 3.0)
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask halfOpenSecondCell =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE),
+						List.of(0.0, 0.5)
+				);
+
+		assertEquals(new Vec3(1.0, 0.5, 0.5), grid.gridCenterWorldMeters());
+		assertVectorEquals(
+				new Vec3(0.5 * RHO, -4.5 * RHO, RHO),
+				state.totalAngularMomentumWorldNewtonMeterSeconds(RHO, Vec3.ZERO),
+				1.0e-15);
+		assertVectorEquals(
+				new Vec3(-0.25 * RHO, -2.25 * RHO, RHO),
+				state.totalAngularMomentumWorldNewtonMeterSeconds(RHO, Vec3.ZERO, halfOpenSecondCell),
+				1.0e-15);
+		assertThrows(IllegalArgumentException.class,
+				() -> state.totalAngularMomentumWorldNewtonMeterSeconds(0.0, Vec3.ZERO));
+	}
+
+	@Test
 	void solidMaskRasterizesWorldSolidBoxesIntoVoxelCells() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

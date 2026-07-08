@@ -167,7 +167,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"solid_boundary_momentum_residual_world_z_ns",
 			"final_momentum_world_x_ns",
 			"final_momentum_world_y_ns",
-			"final_momentum_world_z_ns"
+			"final_momentum_world_z_ns",
+			"flow_angular_momentum_reference_world_x_m",
+			"flow_angular_momentum_reference_world_y_m",
+			"flow_angular_momentum_reference_world_z_m",
+			"flow_angular_momentum_after_source_world_x_nm_s",
+			"flow_angular_momentum_after_source_world_y_nm_s",
+			"flow_angular_momentum_after_source_world_z_nm_s",
+			"flow_angular_momentum_after_solid_boundary_world_x_nm_s",
+			"flow_angular_momentum_after_solid_boundary_world_y_nm_s",
+			"flow_angular_momentum_after_solid_boundary_world_z_nm_s"
 	);
 
 	private CtCpJLocalVoxelFlowSolverExporter() {
@@ -624,6 +633,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask())
 				: iteration.stateAfterSolidBoundary()
 						.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask());
+		Vec3 angularMomentumReference = metadata.sourceGridSample().gridSpec().gridCenterWorldMeters();
+		Vec3 angularMomentumAfterSource = initial ? run.initialAngularMomentumWorldNewtonMeterSeconds(
+				angularMomentumReference)
+				: iteration.stateAfterSource().totalAngularMomentumWorldNewtonMeterSeconds(
+						run.config().airDensityKgPerCubicMeter(),
+						angularMomentumReference,
+						run.solidMask());
+		Vec3 angularMomentumAfterSolidBoundary = initial ? angularMomentumAfterSource
+				: iteration.stateAfterSolidBoundary().totalAngularMomentumWorldNewtonMeterSeconds(
+						run.config().airDensityKgPerCubicMeter(),
+						angularMomentumReference,
+						run.solidMask());
 		return String.join(",",
 				escape(metadata.key().preset()),
 				escape(metadata.key().caseName()),
@@ -767,7 +788,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(solidBoundaryMomentumResidual.z()),
 				number(finalMomentum.x()),
 				number(finalMomentum.y()),
-				number(finalMomentum.z())
+				number(finalMomentum.z()),
+				number(angularMomentumReference.x()),
+				number(angularMomentumReference.y()),
+				number(angularMomentumReference.z()),
+				number(angularMomentumAfterSource.x()),
+				number(angularMomentumAfterSource.y()),
+				number(angularMomentumAfterSource.z()),
+				number(angularMomentumAfterSolidBoundary.x()),
+				number(angularMomentumAfterSolidBoundary.y()),
+				number(angularMomentumAfterSolidBoundary.z())
 		);
 	}
 

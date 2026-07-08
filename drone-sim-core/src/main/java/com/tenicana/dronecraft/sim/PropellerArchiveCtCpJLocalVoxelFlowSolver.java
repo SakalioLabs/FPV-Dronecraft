@@ -330,6 +330,20 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return finalState.totalMomentumWorldNewtonSeconds(config.airDensityKgPerCubicMeter(), solidMask);
 		}
 
+		public Vec3 initialAngularMomentumWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return initialState.totalAngularMomentumWorldNewtonMeterSeconds(
+					config.airDensityKgPerCubicMeter(),
+					momentReferenceWorldMeters,
+					solidMask);
+		}
+
+		public Vec3 finalAngularMomentumWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return finalState.totalAngularMomentumWorldNewtonMeterSeconds(
+					config.airDensityKgPerCubicMeter(),
+					momentReferenceWorldMeters,
+					solidMask);
+		}
+
 		public double finalMaxSpeedMetersPerSecond() {
 			return finalState.maxSpeedMetersPerSecond();
 		}
