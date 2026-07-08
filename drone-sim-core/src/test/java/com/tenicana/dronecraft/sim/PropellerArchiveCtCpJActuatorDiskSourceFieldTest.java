@@ -40,6 +40,10 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				sample.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
 		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(),
 				sample.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
+		assertEquals(sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(samplePoint),
+				sample.wakeSwirlKineticPowerLoadingWattsPerSquareMeter(), 1.0e-12);
+		assertEquals(sourceTerm.totalWakeKineticPowerLoadingWattsPerSquareMeterAt(samplePoint),
+				sample.totalWakeKineticPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
 				sample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertEquals(expectedWakeSwirlSpeed(sourceTerm, sampleRadius),
@@ -56,6 +60,10 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()
 						* sourceTerm.diskAreaSquareMeters(),
 				field.integratedIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sourceTerm.wakeSwirlKineticPowerWatts(),
+				field.integratedWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(sourceTerm.totalWakeKineticPowerWatts(),
+				field.integratedTotalWakeKineticPowerWatts(), 1.0e-12);
 	}
 
 	@Test
@@ -104,6 +112,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertVectorEquals(Vec3.ZERO, center.wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				center.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-15);
+		assertEquals(0.0, center.wakeSwirlKineticPowerLoadingWattsPerSquareMeter(), 1.0e-15);
 		assertEquals(expectedWakeSwirlSpeed(sourceTerm, innerRadius),
 				inner.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
 		assertEquals(expectedWakeSwirlSpeed(sourceTerm, outerRadius),
@@ -116,10 +125,18 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 						sourceTerm,
 						sourceTerm.diskCenterWorldMeters().add(radial.multiply(outerRadius))),
 				outer.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
+		assertEquals(sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(
+						sourceTerm.diskCenterWorldMeters().add(radial.multiply(innerRadius))),
+				inner.wakeSwirlKineticPowerLoadingWattsPerSquareMeter(), 1.0e-12);
+		assertEquals(sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(
+						sourceTerm.diskCenterWorldMeters().add(radial.multiply(outerRadius))),
+				outer.wakeSwirlKineticPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertTrue(outer.wakeSwirlVelocityWorldMetersPerSecond().length()
 				> inner.wakeSwirlVelocityWorldMetersPerSecond().length());
 		assertTrue(outer.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter().length()
 				> inner.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter().length());
+		assertTrue(outer.wakeSwirlKineticPowerLoadingWattsPerSquareMeter()
+				> inner.wakeSwirlKineticPowerLoadingWattsPerSquareMeter());
 		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond().dot(radial), 1.0e-12);
 		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond()
 				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
@@ -229,6 +246,10 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				gridSample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 0.04);
 		assertRelativeClose(field.integratedIdealMomentumPowerWatts(),
 				gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 0.04);
+		assertRelativeClose(field.integratedWakeSwirlKineticPowerWatts(),
+				gridSample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS), 0.04);
+		assertRelativeClose(field.integratedTotalWakeKineticPowerWatts(),
+				gridSample.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS), 0.04);
 	}
 
 	@Test
@@ -296,6 +317,10 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				conservative.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
 		assertEquals(field.integratedIdealMomentumPowerWatts(),
 				conservative.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedWakeSwirlKineticPowerWatts(),
+				conservative.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedTotalWakeKineticPowerWatts(),
+				conservative.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(geometric.activeSubsampleCount(), conservative.activeSubsampleCount());
 		assertEquals(geometric.activeCellCount(), conservative.activeCellCount());
 		assertTrue(conservative.cells().get(0).pressureJumpPascals()
@@ -341,6 +366,10 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				sample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
 		assertEquals(field.integratedIdealMomentumPowerWatts(),
 				sample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedWakeSwirlKineticPowerWatts(),
+				sample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedTotalWakeKineticPowerWatts(),
+				sample.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 	}
 
 	@Test
@@ -402,6 +431,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertVectorEquals(Vec3.ZERO, field.integratedBodyForceWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
 		assertEquals(0.0, field.integratedIdealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(0.0, field.integratedWakeSwirlKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, field.integratedTotalWakeKineticPowerWatts(), 1.0e-15);
 	}
 
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample hoverSourceTerm() {

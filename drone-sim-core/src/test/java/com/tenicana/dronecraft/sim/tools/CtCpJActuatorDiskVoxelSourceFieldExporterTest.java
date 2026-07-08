@@ -74,6 +74,9 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertEquals(number(hover.get(0), "wake_angular_momentum_torque_density_world_y_nm_m3")
 						* number(hover.get(0), "cell_volume_m3"),
 				number(hover.get(0), "integrated_wake_angular_momentum_torque_world_y_nm"), 1.0e-12);
+		assertTrue(number(hover.get(0), "wake_swirl_kinetic_power_loading_w_m2") >= 0.0);
+		assertTrue(number(hover.get(0), "total_wake_kinetic_power_loading_w_m2")
+				>= number(hover.get(0), "ideal_momentum_power_loading_w_m2"));
 
 		assertEquals(0.4064, number(mid.get(0), "query_j"), 1.0e-12);
 		assertTrue(number(mid.get(0), "eta") > 0.0);
@@ -110,6 +113,8 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 		assertTrue(lines.get(0).contains("acceleration_source_world_y_m_s2"));
 		assertTrue(lines.get(0).contains("integrated_body_force_world_y_n"));
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_density_world_y_nm_m3"));
+		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_loading_w_m2"));
+		assertTrue(lines.get(0).contains("total_wake_kinetic_power_loading_w_m2"));
 		assertTrue(lines.get(0).contains("target_wake_velocity_world_y_mps"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchored_source_high_j_block,raw_source,")
@@ -156,6 +161,12 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 				sum(rows, "integrated_wake_angular_momentum_torque_world", "_nm"),
 				1.0e-12
 		);
+		assertEquals(sourceTermGroupSum(first.get("case"), first.get("row_kind"),
+						"wake_swirl_kinetic_power_w"),
+				sumCellPower(rows, "wake_swirl_kinetic_power_loading_w_m2"), 1.0e-10);
+		assertEquals(sourceTermGroupSum(first.get("case"), first.get("row_kind"),
+						"total_wake_kinetic_power_w"),
+				sumCellPower(rows, "total_wake_kinetic_power_loading_w_m2"), 1.0e-10);
 	}
 
 	private static List<Map<String, String>> recordsFor(
@@ -223,6 +234,14 @@ class CtCpJActuatorDiskVoxelSourceFieldExporterTest {
 			sum[0] += vector[0];
 			sum[1] += vector[1];
 			sum[2] += vector[2];
+		}
+		return sum;
+	}
+
+	private static double sumCellPower(List<Map<String, String>> rows, String loadingColumn) {
+		double sum = 0.0;
+		for (Map<String, String> row : rows) {
+			sum += number(row, loadingColumn) * number(row, "cell_volume_m3") / SOURCE_THICKNESS;
 		}
 		return sum;
 	}

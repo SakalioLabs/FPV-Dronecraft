@@ -54,6 +54,16 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertTrue(advance.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
 		assertTrue(advance.maxResidenceAlpha() > 0.0);
 		assertTrue(advance.meanActiveWakeResidualAfterResidenceMetersPerSecond() > 0.0);
+		assertEquals(gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS),
+				advance.totalIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(gridSample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS),
+				advance.totalWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(gridSample.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS),
+				advance.totalWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(advance.totalWakeSwirlKineticPowerWatts() * DT,
+				advance.wakeSwirlKineticEnergyJoules(), 1.0e-12);
+		assertEquals(advance.totalWakeKineticPowerWatts() * DT,
+				advance.totalWakeKineticEnergyJoules(), 1.0e-12);
 		assertTrue(advance.sourceMechanicalWorkEnergyJoules() > 0.0);
 		assertEquals(advance.sourceMechanicalWorkEnergyJoules() / DT,
 				advance.sourceMechanicalWorkPowerWatts(), 1.0e-12);
@@ -100,6 +110,11 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, advance.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.0, advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, advance.totalIdealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(0.0, advance.totalWakeSwirlKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, advance.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, advance.wakeSwirlKineticEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, advance.totalWakeKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, advance.sourceMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, advance.sourceMechanicalWorkPowerWatts(), 1.0e-15);
 		assertEquals(0.0, advance.throughFlowMechanicalWorkEnergyJoules(), 1.0e-15);
@@ -134,6 +149,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 								1.0,
 								new Vec3(0.0, 10.0, 0.0),
 								Vec3.ZERO,
+								0.0,
+								0.0,
 								0.0,
 								0.0,
 								0.0,

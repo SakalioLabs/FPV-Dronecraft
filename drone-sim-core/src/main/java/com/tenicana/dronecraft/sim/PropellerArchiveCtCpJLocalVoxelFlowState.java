@@ -84,8 +84,24 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return residenceStep.totalIdealMomentumPowerWatts();
 		}
 
+		public double totalWakeSwirlKineticPowerWatts() {
+			return residenceStep.totalWakeSwirlKineticPowerWatts();
+		}
+
+		public double totalWakeKineticPowerWatts() {
+			return residenceStep.totalWakeKineticPowerWatts();
+		}
+
 		public double idealMomentumEnergyJoules() {
 			return totalIdealMomentumPowerWatts() * residenceStep.sourceMomentumSample().timeStepSeconds();
+		}
+
+		public double wakeSwirlKineticEnergyJoules() {
+			return totalWakeSwirlKineticPowerWatts() * residenceStep.sourceMomentumSample().timeStepSeconds();
+		}
+
+		public double totalWakeKineticEnergyJoules() {
+			return totalWakeKineticPowerWatts() * residenceStep.sourceMomentumSample().timeStepSeconds();
 		}
 
 		public double sourceMechanicalWorkEnergyJoules() {
@@ -1044,6 +1060,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				0.0,
 				0.0,
 				0.0,
+				0.0,
+				0.0,
 				Vec3.ZERO,
 				Vec3.ZERO,
 				Vec3.ZERO
@@ -1073,6 +1091,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				sourceCell.pressureJumpPascals(),
 				sourceCell.massFluxKilogramsPerSecondSquareMeter(),
 				sourceCell.idealMomentumPowerLoadingWattsPerSquareMeter(),
+				sourceCell.wakeSwirlKineticPowerLoadingWattsPerSquareMeter(),
+				sourceCell.totalWakeKineticPowerLoadingWattsPerSquareMeter(),
 				sourceCell.farWakeAxialVelocityWorldMetersPerSecond(),
 				sourceCell.wakeSwirlVelocityWorldMetersPerSecond(),
 				sourceCell.targetWakeVelocityWorldMetersPerSecond()

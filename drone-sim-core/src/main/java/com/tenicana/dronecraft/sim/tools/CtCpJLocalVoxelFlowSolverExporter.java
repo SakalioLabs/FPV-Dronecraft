@@ -1422,6 +1422,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 							0.0,
 							0.0,
 							0.0,
+							0.0,
+							0.0,
 							Vec3.ZERO,
 							Vec3.ZERO,
 							Vec3.ZERO
@@ -1458,6 +1460,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(row, "pressure_jump_pa"),
 				number(row, "mass_flux_kg_s_m2"),
 				number(row, "ideal_momentum_power_loading_w_m2"),
+				number(row, "wake_swirl_kinetic_power_loading_w_m2"),
+				number(row, "total_wake_kinetic_power_loading_w_m2"),
 				vector(row,
 						"far_wake_axial_velocity_world_x_mps",
 						"far_wake_axial_velocity_world_y_mps",

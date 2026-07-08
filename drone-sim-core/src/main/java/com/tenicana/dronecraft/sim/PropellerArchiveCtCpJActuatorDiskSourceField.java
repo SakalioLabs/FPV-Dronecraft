@@ -23,6 +23,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			double pressureJumpPascals,
 			double massFluxKilogramsPerSecondSquareMeter,
 			double idealMomentumPowerLoadingWattsPerSquareMeter,
+			double wakeSwirlKineticPowerLoadingWattsPerSquareMeter,
+			double totalWakeKineticPowerLoadingWattsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
 			Vec3 wakeSwirlVelocityWorldMetersPerSecond,
 			Vec3 targetWakeVelocityWorldMetersPerSecond
@@ -38,6 +40,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			massFluxKilogramsPerSecondSquareMeter = finiteNonnegative(massFluxKilogramsPerSecondSquareMeter);
 			idealMomentumPowerLoadingWattsPerSquareMeter =
 					finiteNonnegative(idealMomentumPowerLoadingWattsPerSquareMeter);
+			wakeSwirlKineticPowerLoadingWattsPerSquareMeter =
+					finiteNonnegative(wakeSwirlKineticPowerLoadingWattsPerSquareMeter);
+			totalWakeKineticPowerLoadingWattsPerSquareMeter =
+					finiteNonnegative(totalWakeKineticPowerLoadingWattsPerSquareMeter);
 			farWakeAxialVelocityWorldMetersPerSecond =
 					finiteVecOrZero(farWakeAxialVelocityWorldMetersPerSecond);
 			wakeSwirlVelocityWorldMetersPerSecond =
@@ -116,6 +122,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			double pressureJumpPascals,
 			double massFluxKilogramsPerSecondSquareMeter,
 			double idealMomentumPowerLoadingWattsPerSquareMeter,
+			double wakeSwirlKineticPowerLoadingWattsPerSquareMeter,
+			double totalWakeKineticPowerLoadingWattsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
 			Vec3 wakeSwirlVelocityWorldMetersPerSecond,
 			Vec3 targetWakeVelocityWorldMetersPerSecond
@@ -137,6 +145,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			massFluxKilogramsPerSecondSquareMeter = finiteNonnegative(massFluxKilogramsPerSecondSquareMeter);
 			idealMomentumPowerLoadingWattsPerSquareMeter =
 					finiteNonnegative(idealMomentumPowerLoadingWattsPerSquareMeter);
+			wakeSwirlKineticPowerLoadingWattsPerSquareMeter =
+					finiteNonnegative(wakeSwirlKineticPowerLoadingWattsPerSquareMeter);
+			totalWakeKineticPowerLoadingWattsPerSquareMeter =
+					finiteNonnegative(totalWakeKineticPowerLoadingWattsPerSquareMeter);
 			farWakeAxialVelocityWorldMetersPerSecond =
 					finiteVecOrZero(farWakeAxialVelocityWorldMetersPerSecond);
 			wakeSwirlVelocityWorldMetersPerSecond =
@@ -162,6 +174,24 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				return 0.0;
 			}
 			return idealMomentumPowerLoadingWattsPerSquareMeter
+					* cellVolumeCubicMeters
+					/ sourceThicknessMeters;
+		}
+
+		public double integratedWakeSwirlKineticPowerWatts(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			return wakeSwirlKineticPowerLoadingWattsPerSquareMeter
+					* cellVolumeCubicMeters
+					/ sourceThicknessMeters;
+		}
+
+		public double integratedTotalWakeKineticPowerWatts(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			return totalWakeKineticPowerLoadingWattsPerSquareMeter
 					* cellVolumeCubicMeters
 					/ sourceThicknessMeters;
 		}
@@ -242,6 +272,28 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			}
 			return sum;
 		}
+
+		public double integratedWakeSwirlKineticPowerWatts(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			double sum = 0.0;
+			for (VoxelCellSample cell : cells) {
+				sum += cell.integratedWakeSwirlKineticPowerWatts(sourceThicknessMeters);
+			}
+			return sum;
+		}
+
+		public double integratedTotalWakeKineticPowerWatts(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			double sum = 0.0;
+			for (VoxelCellSample cell : cells) {
+				sum += cell.integratedTotalWakeKineticPowerWatts(sourceThicknessMeters);
+			}
+			return sum;
+		}
 	}
 
 	public SourceFieldSample sampleAt(Vec3 samplePointWorldMeters) {
@@ -252,6 +304,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		double pressureJump = 0.0;
 		double massFlux = 0.0;
 		double powerLoading = 0.0;
+		double wakeSwirlPowerLoading = 0.0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
@@ -268,6 +321,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			pressureJump += sourceTerm.pressureJumpPascals();
 			massFlux += sourceTerm.massFluxKilogramsPerSecondSquareMeter();
 			powerLoading += sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter();
+			wakeSwirlPowerLoading += sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(point);
 			farWakeAxialVelocity = farWakeAxialVelocity.add(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond());
 			wakeSwirlVelocity = wakeSwirlVelocity.add(sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point));
 		}
@@ -279,6 +333,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				pressureJump,
 				massFlux,
 				powerLoading,
+				wakeSwirlPowerLoading,
+				powerLoading + wakeSwirlPowerLoading,
 				farWakeAxialVelocity,
 				wakeSwirlVelocity,
 				farWakeAxialVelocity.add(wakeSwirlVelocity)
@@ -435,6 +491,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		double pressureJump = 0.0;
 		double massFlux = 0.0;
 		double powerLoading = 0.0;
+		double wakeSwirlPowerLoading = 0.0;
+		double totalWakePowerLoading = 0.0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
@@ -459,6 +517,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					pressureJump += sample.pressureJumpPascals();
 					massFlux += sample.massFluxKilogramsPerSecondSquareMeter();
 					powerLoading += sample.idealMomentumPowerLoadingWattsPerSquareMeter();
+					wakeSwirlPowerLoading += sample.wakeSwirlKineticPowerLoadingWattsPerSquareMeter();
+					totalWakePowerLoading += sample.totalWakeKineticPowerLoadingWattsPerSquareMeter();
 					farWakeAxialVelocity =
 							farWakeAxialVelocity.add(sample.farWakeAxialVelocityWorldMetersPerSecond());
 					wakeSwirlVelocity = wakeSwirlVelocity.add(sample.wakeSwirlVelocityWorldMetersPerSecond());
@@ -481,6 +541,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				pressureJump * inverseSamples,
 				massFlux * inverseSamples,
 				powerLoading * inverseSamples,
+				wakeSwirlPowerLoading * inverseSamples,
+				totalWakePowerLoading * inverseSamples,
 				farWakeAxialVelocity.multiply(inverseSamples),
 				wakeSwirlVelocity.multiply(inverseSamples),
 				targetWakeVelocity.multiply(inverseSamples)
@@ -503,6 +565,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		double pressureJump = 0.0;
 		double massFlux = 0.0;
 		double powerLoading = 0.0;
+		double wakeSwirlPowerLoading = 0.0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
@@ -528,6 +591,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			pressureJump += coverage.sourceTerm().pressureJumpPascals() * sourceWeight;
 			massFlux += coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
 			powerLoading += coverage.sourceTerm().idealMomentumPowerLoadingWattsPerSquareMeter() * sourceWeight;
+			wakeSwirlPowerLoading += coverage.sourceTerm().wakeSwirlKineticPowerLoadingWattsPerSquareMeter()
+					* wakeTorqueWeight;
 			farWakeAxialVelocity = farWakeAxialVelocity.add(
 					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond().multiply(sourceWeight));
 			wakeSwirlVelocity = wakeSwirlVelocity.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond()
@@ -551,6 +616,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				pressureJump,
 				massFlux,
 				powerLoading,
+				wakeSwirlPowerLoading,
+				powerLoading + wakeSwirlPowerLoading,
 				farWakeAxialVelocity,
 				wakeSwirlVelocity,
 				targetWakeVelocity
@@ -608,6 +675,26 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			if (sourceTerm != null && sourceTerm.applied()) {
 				sum += sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()
 						* sourceTerm.diskAreaSquareMeters();
+			}
+		}
+		return sum;
+	}
+
+	public double integratedWakeSwirlKineticPowerWatts() {
+		double sum = 0.0;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm != null && sourceTerm.applied()) {
+				sum += sourceTerm.wakeSwirlKineticPowerWatts();
+			}
+		}
+		return sum;
+	}
+
+	public double integratedTotalWakeKineticPowerWatts() {
+		double sum = 0.0;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm != null && sourceTerm.applied()) {
+				sum += sourceTerm.totalWakeKineticPowerWatts();
 			}
 		}
 		return sum;

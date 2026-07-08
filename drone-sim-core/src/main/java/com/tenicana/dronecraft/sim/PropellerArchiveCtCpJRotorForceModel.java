@@ -535,6 +535,26 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return 2.0 * radialDistanceSquared / (diskRadius * diskRadius);
 		}
 
+		public double wakeSwirlKineticPowerLoadingWattsPerSquareMeter() {
+			if (!applied || diskAreaSquareMeters <= EPSILON) {
+				return 0.0;
+			}
+			return wakeSwirlKineticPowerWatts / diskAreaSquareMeters;
+		}
+
+		public double wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(Vec3 samplePointWorldMeters) {
+			return wakeSwirlKineticPowerLoadingWattsPerSquareMeter()
+					* wakeAngularMomentumTorqueDensityRadialWeight(samplePointWorldMeters);
+		}
+
+		public double totalWakeKineticPowerLoadingWattsPerSquareMeterAt(Vec3 samplePointWorldMeters) {
+			if (!applied) {
+				return 0.0;
+			}
+			return idealMomentumPowerLoadingWattsPerSquareMeter
+					+ wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(samplePointWorldMeters);
+		}
+
 		public double wakeSwirlAngularVelocityRadiansPerSecond() {
 			double diskRadius = diskRadiusMeters();
 			double specificAngularMomentum =
