@@ -68,8 +68,14 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverInitial, "completed_steps"));
 		assertEquals(0.0, number(hoverInitial, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_mechanical_work_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "through_flow_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "combined_mechanical_work_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "cumulative_source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "cumulative_source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_source_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_through_flow_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "cumulative_combined_mechanical_work_energy_j"), 1.0e-15);
@@ -102,6 +108,14 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(number(hoverStep2, "source_ideal_momentum_power_w") > 0.0);
 		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w") * TIME_STEP,
 				number(hoverStep2, "source_ideal_momentum_energy_j"), 1.0e-12);
+		assertTrue(number(hoverStep2, "source_wake_swirl_kinetic_power_w") > 0.0);
+		assertEquals(number(hoverStep2, "source_wake_swirl_kinetic_power_w") * TIME_STEP,
+				number(hoverStep2, "source_wake_swirl_kinetic_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w")
+						+ number(hoverStep2, "source_wake_swirl_kinetic_power_w"),
+				number(hoverStep2, "source_total_wake_kinetic_power_w"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_total_wake_kinetic_power_w") * TIME_STEP,
+				number(hoverStep2, "source_total_wake_kinetic_energy_j"), 1.0e-12);
 		assertTrue(Double.isFinite(number(hoverStep2, "source_mechanical_work_energy_j")));
 		assertEquals(number(hoverStep2, "source_mechanical_work_power_w") * TIME_STEP,
 				number(hoverStep2, "source_mechanical_work_energy_j"), 1.0e-12);
@@ -122,6 +136,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 						"flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"),
 				1.0e-12);
 		assertEquals(number(hoverStep2, "flow_kinetic_energy_source_delta_j")
+						- number(hoverStep2, "source_total_wake_kinetic_energy_j"),
+				number(hoverStep2,
+						"flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "flow_kinetic_energy_source_delta_j")
 						- number(hoverStep2, "source_mechanical_work_energy_j"),
 				number(hoverStep2,
 						"flow_kinetic_energy_source_delta_minus_source_mechanical_work_j"),
@@ -133,6 +152,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-12);
 		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w") * TIME_STEP * STEPS,
 				number(hoverStep2, "cumulative_source_ideal_momentum_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_wake_swirl_kinetic_power_w") * TIME_STEP * STEPS,
+				number(hoverStep2, "cumulative_source_wake_swirl_kinetic_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_total_wake_kinetic_power_w") * TIME_STEP * STEPS,
+				number(hoverStep2, "cumulative_source_total_wake_kinetic_energy_j"), 1.0e-12);
 		assertTrue(Double.isFinite(number(hoverStep2, "cumulative_source_mechanical_work_energy_j")));
 		assertEquals(number(hoverStep2, "cumulative_source_mechanical_work_energy_j")
 						+ number(hoverStep2, "cumulative_through_flow_mechanical_work_energy_j"),
@@ -141,6 +164,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 						- number(hoverStep2, "cumulative_source_ideal_momentum_energy_j"),
 				number(hoverStep2,
 						"cumulative_flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_flow_kinetic_energy_source_delta_j")
+						- number(hoverStep2, "cumulative_source_total_wake_kinetic_energy_j"),
+				number(hoverStep2,
+						"cumulative_flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j"),
 				1.0e-12);
 		assertEquals(number(hoverStep2, "cumulative_flow_kinetic_energy_source_delta_j")
 						- number(hoverStep2, "cumulative_source_mechanical_work_energy_j"),
@@ -274,6 +302,12 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "through_flow_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_total_wake_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "cumulative_source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "cumulative_source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_mechanical_work_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "through_flow_mechanical_work_power_w"), 1.0e-15);
@@ -284,6 +318,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0,
 				number(blockedStep2,
 						"flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"),
+				1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2,
+						"flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j"),
 				1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2,
@@ -390,6 +428,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverStep, "source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_ideal_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_ideal_momentum_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_wake_swirl_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_wake_swirl_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_total_wake_kinetic_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "flow_kinetic_energy_source_delta_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_mass_flow_kg_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
@@ -485,6 +527,11 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("solid_occluded_source_wake_angular_momentum_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("source_ideal_momentum_power_w"));
+		assertTrue(lines.get(0).contains("source_wake_swirl_kinetic_power_w"));
+		assertTrue(lines.get(0).contains("source_total_wake_kinetic_power_w"));
+		assertTrue(lines.get(0).contains("flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j"));
+		assertTrue(lines.get(0).contains("cumulative_source_wake_swirl_kinetic_energy_j"));
+		assertTrue(lines.get(0).contains("cumulative_source_total_wake_kinetic_energy_j"));
 		assertTrue(lines.get(0).contains("source_mechanical_work_power_w"));
 		assertTrue(lines.get(0).contains("source_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("through_flow_mechanical_work_power_w"));
@@ -498,6 +545,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				"flow_kinetic_energy_source_delta_minus_combined_mechanical_work_j"));
 		assertTrue(lines.get(0).contains(
 				"cumulative_flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"));
+		assertTrue(lines.get(0).contains(
+				"cumulative_flow_kinetic_energy_source_delta_minus_total_wake_kinetic_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_source_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_through_flow_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_combined_mechanical_work_energy_j"));

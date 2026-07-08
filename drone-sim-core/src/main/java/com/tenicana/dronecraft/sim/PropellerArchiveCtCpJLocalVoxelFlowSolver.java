@@ -259,6 +259,22 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return energy;
 		}
 
+		public double totalWakeSwirlKineticEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().wakeSwirlKineticEnergyJoules();
+			}
+			return energy;
+		}
+
+		public double totalWakeKineticEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().totalWakeKineticEnergyJoules();
+			}
+			return energy;
+		}
+
 		public double totalSourceFlowKineticEnergyDeltaJoules() {
 			double energy = 0.0;
 			for (SolverIteration iteration : iterations) {
@@ -269,6 +285,10 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 
 		public double sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules() {
 			return totalSourceFlowKineticEnergyDeltaJoules() - totalIdealMomentumEnergyJoules();
+		}
+
+		public double sourceFlowKineticEnergyDeltaMinusTotalWakeKineticEnergyJoules() {
+			return totalSourceFlowKineticEnergyDeltaJoules() - totalWakeKineticEnergyJoules();
 		}
 
 		public double maxResidenceAlpha() {
