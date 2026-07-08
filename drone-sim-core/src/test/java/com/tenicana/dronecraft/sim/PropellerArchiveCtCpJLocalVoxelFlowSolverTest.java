@@ -371,7 +371,7 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 	}
 
 	@Test
-	void customSolidMaskClampsSolidCellMomentumInsideSolverStep() {
+	void customSolidMaskPreclampsInitialSolidVelocityBeforeSolverStep() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
 						Vec3.ZERO,
@@ -424,18 +424,22 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 
 		assertEquals(1, run.completedStepCount());
 		assertEquals(1, run.maxSolidCellCount());
-		assertEquals(1, run.maxSolidClampedCellCount());
+		assertEquals(0, run.maxSolidClampedCellCount());
+		assertVectorEquals(Vec3.ZERO, run.initialState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.iterations().get(0).stateBeforeStep().velocityAt(1, 0, 0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
-		assertVectorEquals(new Vec3(0.0, -1.0 * RHO, 0.0),
+		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(0.0, run.maxAdvectionCourantNumber(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
 				run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalMomentumWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalState().velocityAt(0, 0, 0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.finalState().velocityAt(1, 0, 0), 1.0e-15);
 		assertEquals(run.finalState(), run.iterations().get(0).stateAfterSolidBoundary());
 		assertEquals(1, run.iterations().get(0).solidBoundaryStep().solidCellCount());
-		assertEquals(1, run.iterations().get(0).solidBoundaryStep().clampedCellCount());
-		assertTrue(run.iterations().get(0).solidBoundaryStep().kineticEnergyDeltaJoules() < 0.0);
+		assertEquals(0, run.iterations().get(0).solidBoundaryStep().clampedCellCount());
+		assertEquals(0.0, run.iterations().get(0).solidBoundaryStep().kineticEnergyDeltaJoules(), 1.0e-15);
 	}
 
 	@Test

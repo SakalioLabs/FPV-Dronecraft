@@ -682,8 +682,11 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		if (!initialState.gridSpec().equals(solidMask.gridSpec())) {
 			throw new IllegalArgumentException("solidMask grid must match initialState grid.");
 		}
+		PropellerArchiveCtCpJLocalVoxelFlowState solverInitialState = initialState
+				.applySolidMask(solidMask, config.airDensityKgPerCubicMeter())
+				.nextState();
+		PropellerArchiveCtCpJLocalVoxelFlowState state = solverInitialState;
 		ArrayList<SolverIteration> iterations = new ArrayList<>(config.stepCount());
-		PropellerArchiveCtCpJLocalVoxelFlowState state = initialState;
 		for (int step = 0; step < config.stepCount(); step++) {
 			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance sourceAdvance =
 					state.advanceWithSource(
@@ -721,6 +724,6 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			iterations.add(new SolverIteration(step, sourceAdvance, advection, diffusion, projection, solidBoundary));
 			state = solidBoundary.nextState();
 		}
-		return new SolverRun(initialState, state, config, solidMask, iterations);
+		return new SolverRun(solverInitialState, state, config, solidMask, iterations);
 	}
 }
