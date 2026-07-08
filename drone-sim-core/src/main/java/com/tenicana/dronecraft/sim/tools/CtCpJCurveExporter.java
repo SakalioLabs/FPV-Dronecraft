@@ -114,7 +114,8 @@ public final class CtCpJCurveExporter {
 			"actuator_disk_ideal_momentum_power_loading_w_m2",
 			"far_wake_axial_velocity_body_x_mps",
 			"far_wake_axial_velocity_body_y_mps",
-			"far_wake_axial_velocity_body_z_mps"
+			"far_wake_axial_velocity_body_z_mps",
+			"runtime_force_replacement_status"
 	);
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
@@ -317,7 +318,8 @@ public final class CtCpJCurveExporter {
 				actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(sample),
 				farWakeAxialVelocity,
 				runtimeEligibilityStatus(sample, false),
-				operatingPoint
+				operatingPoint,
+				"NOT_RUNTIME_CANDIDATE"
 		);
 	}
 
@@ -336,6 +338,8 @@ public final class CtCpJCurveExporter {
 	) {
 		boolean runtimeForceReplacementAccepted =
 				sample.runtimeForceReplacementAccepted(ambientTemperatureCelsius, ambientHumidity);
+		String runtimeForceReplacementStatus =
+				sample.runtimeForceReplacementStatus(ambientTemperatureCelsius, ambientHumidity).name();
 		return csvLine(
 				sample.dimensionalSample(),
 				runtimeForceReplacementAccepted,
@@ -360,7 +364,8 @@ public final class CtCpJCurveExporter {
 						ambientTemperatureCelsius,
 						ambientHumidity
 				),
-				sample.operatingPoint(ambientTemperatureCelsius, ambientHumidity)
+				sample.operatingPoint(ambientTemperatureCelsius, ambientHumidity),
+				runtimeForceReplacementStatus
 		);
 	}
 
@@ -383,7 +388,8 @@ public final class CtCpJCurveExporter {
 			double actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter,
 			Vec3 farWakeAxialVelocityBodyMetersPerSecond,
 			String runtimeEligibilityStatus,
-			PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint
+			PropellerArchiveCtCpJRotorForceModel.RotorOperatingPoint operatingPoint,
+			String runtimeForceReplacementStatus
 	) {
 		PropellerArchiveCtCpJLookupEvaluator.LookupResult lookup = sample.lookup();
 		return String.join(",",
@@ -482,7 +488,8 @@ public final class CtCpJCurveExporter {
 				number(actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter),
 				number(farWakeAxialVelocityBodyMetersPerSecond.x()),
 				number(farWakeAxialVelocityBodyMetersPerSecond.y()),
-				number(farWakeAxialVelocityBodyMetersPerSecond.z())
+				number(farWakeAxialVelocityBodyMetersPerSecond.z()),
+				escape(runtimeForceReplacementStatus)
 		);
 	}
 
@@ -615,7 +622,8 @@ public final class CtCpJCurveExporter {
 				number(ratio(sample.idealMomentumPowerWatts(), sample.diskAreaSquareMeters())),
 				number(farWakeAxialVelocity.x()),
 				number(farWakeAxialVelocity.y()),
-				number(farWakeAxialVelocity.z())
+				number(farWakeAxialVelocity.z()),
+				escape(staticReferenceEligibilityStatus(sample))
 		);
 	}
 

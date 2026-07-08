@@ -33,7 +33,7 @@ class CtCpJCurveExporterTest {
 		assertEquals(45, lines.size());
 		assertTrue(lines.get(0).startsWith("preset,case,query_j,query_rpm,effective_j,effective_rpm"));
 		assertTrue(lines.get(0).endsWith(
-				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,operating_point_speed_of_sound_mps,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index,tip_mach_runtime_margin,reynolds_index_runtime_margin,operating_envelope_margin_fraction,disk_mass_flow_kg_s,far_wake_axial_velocity_mps,far_wake_contracted_area_m2,far_wake_equivalent_radius_m,angular_momentum_swirl_radius_m,wake_tangential_velocity_mps,wake_swirl_kinetic_power_w,total_wake_kinetic_power_w,total_wake_kinetic_power_over_shaft_power,wake_swirl_kinetic_power_over_shaft_power,total_wake_kinetic_power_residual_w,total_wake_kinetic_power_residual_fraction,torque_coefficient_cq,useful_axial_thrust_power_w,ideal_induced_power_w,axial_propulsive_efficiency,far_wake_contracted_area_over_disk_area,far_wake_equivalent_radius_over_rotor_radius,wake_angular_momentum_torque_nm,wake_angular_momentum_torque_residual_nm,wake_angular_momentum_torque_residual_fraction,wake_angular_momentum_torque_body_x_nm,wake_angular_momentum_torque_body_y_nm,wake_angular_momentum_torque_body_z_nm,wake_angular_momentum_torque_residual_body_x_nm,wake_angular_momentum_torque_residual_body_y_nm,wake_angular_momentum_torque_residual_body_z_nm,actuator_disk_pressure_jump_pa,actuator_disk_mass_flux_kg_s_m2,actuator_disk_ideal_momentum_power_loading_w_m2,far_wake_axial_velocity_body_x_mps,far_wake_axial_velocity_body_y_mps,far_wake_axial_velocity_body_z_mps"));
+				",source_id,lookup_status,lookup_message,runtime_force_replacement_accepted,query_signed_axial_speed_mps,relative_air_body_x_mps,relative_air_body_y_mps,relative_air_body_z_mps,transverse_air_body_x_mps,transverse_air_body_y_mps,transverse_air_body_z_mps,transverse_air_speed_mps,inflow_angle_deg,thrust_force_body_x_n,thrust_force_body_y_n,thrust_force_body_z_n,reaction_torque_body_x_nm,reaction_torque_body_y_nm,reaction_torque_body_z_nm,thrust_moment_body_x_nm,thrust_moment_body_y_nm,thrust_moment_body_z_nm,total_torque_body_x_nm,total_torque_body_y_nm,total_torque_body_z_nm,momentum_power_closure_satisfied,runtime_eligibility_status,shaft_power_residual_w,shaft_power_residual_fraction,operating_point_temperature_c,operating_point_humidity,operating_point_dynamic_viscosity_pa_s,operating_point_speed_of_sound_mps,rotational_tip_speed_mps,helical_tip_speed_mps,tip_mach,representative_blade_station_speed_mps,representative_blade_chord_m,reynolds_number,reynolds_index,tip_mach_runtime_margin,reynolds_index_runtime_margin,operating_envelope_margin_fraction,disk_mass_flow_kg_s,far_wake_axial_velocity_mps,far_wake_contracted_area_m2,far_wake_equivalent_radius_m,angular_momentum_swirl_radius_m,wake_tangential_velocity_mps,wake_swirl_kinetic_power_w,total_wake_kinetic_power_w,total_wake_kinetic_power_over_shaft_power,wake_swirl_kinetic_power_over_shaft_power,total_wake_kinetic_power_residual_w,total_wake_kinetic_power_residual_fraction,torque_coefficient_cq,useful_axial_thrust_power_w,ideal_induced_power_w,axial_propulsive_efficiency,far_wake_contracted_area_over_disk_area,far_wake_equivalent_radius_over_rotor_radius,wake_angular_momentum_torque_nm,wake_angular_momentum_torque_residual_nm,wake_angular_momentum_torque_residual_fraction,wake_angular_momentum_torque_body_x_nm,wake_angular_momentum_torque_body_y_nm,wake_angular_momentum_torque_body_z_nm,wake_angular_momentum_torque_residual_body_x_nm,wake_angular_momentum_torque_residual_body_y_nm,wake_angular_momentum_torque_residual_body_z_nm,actuator_disk_pressure_jump_pa,actuator_disk_mass_flux_kg_s_m2,actuator_disk_ideal_momentum_power_loading_w_m2,far_wake_axial_velocity_body_x_mps,far_wake_axial_velocity_body_y_mps,far_wake_axial_velocity_body_z_mps,runtime_force_replacement_status"));
 		assertTrue(lines.stream().anyMatch(line ->
 				line.startsWith("apDrone,static_anchor_low_rpm,0.00000000000000,1477.80000000000")));
 		assertTrue(lines.stream().anyMatch(line ->
@@ -59,6 +59,8 @@ class CtCpJCurveExporterTest {
 		String[] midCells = midLine.split(",", -1);
 		String highLine = lineForCaseAndQueryJ(lines, "high_domain_max_rpm", "0.731520000000000");
 		String[] highCells = highLine.split(",", -1);
+		assertEquals("NOT_RUNTIME_CANDIDATE", lastCell(midCells));
+		assertEquals("NOT_RUNTIME_CANDIDATE", lastCell(highCells));
 		assertTrue(midThrust > 0.0);
 		assertTrue(highThrust > midThrust);
 		assertTrue(highPower > midPower);
@@ -223,11 +225,13 @@ class CtCpJCurveExporterTest {
 		assertEquals(Double.parseDouble(staticHover.split(",", -1)[13]),
 				Double.parseDouble(runtimeHoverStatic.split(",", -1)[13]), 1.0e-12);
 		assertEquals("ACCEPTED", runtimeHoverStatic.split(",", -1)[46]);
+		assertEquals("ACCEPTED", lastCell(runtimeHoverStatic.split(",", -1)));
 		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[13])
 				< Double.parseDouble(runtimeHoverStatic.split(",", -1)[13]));
 		assertTrue(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[14])
 				> Double.parseDouble(runtimeHoverStatic.split(",", -1)[14]));
 		assertEquals("ACCEPTED", runtimeHoverMidJ.split(",", -1)[46]);
+		assertEquals("ACCEPTED", lastCell(runtimeHoverMidJ.split(",", -1)));
 
 		String transverseDiagnostic = lineForCase(lines,
 				"static_anchored_runtime_transverse_inflow_diagnostic");
@@ -238,6 +242,7 @@ class CtCpJCurveExporterTest {
 		assertEquals("false", transverseCells[23]);
 		assertEquals("true", transverseCells[45]);
 		assertEquals("OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE", transverseCells[46]);
+		assertEquals("OBLIQUE_INFLOW_OUTSIDE_RUNTIME_ENVELOPE", lastCell(transverseCells));
 		assertEquals("0.406400000000000", transverseCells[2]);
 		assertEquals(Double.parseDouble(runtimeHoverMidJ.split(",", -1)[9]),
 				Double.parseDouble(transverseCells[9]), 1.0e-15);
@@ -271,6 +276,7 @@ class CtCpJCurveExporterTest {
 		assertEquals("false", reverseCells[23]);
 		assertEquals("true", reverseCells[45]);
 		assertEquals("CLAMPED", reverseCells[46]);
+		assertEquals("CLAMPED", lastCell(reverseCells));
 		assertTrue(Double.parseDouble(reverseCells[24]) < 0.0);
 		assertEquals(Double.parseDouble(reverseCells[24]), Double.parseDouble(reverseCells[26]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(reverseCells[31]), 1.0e-15);
@@ -291,6 +297,7 @@ class CtCpJCurveExporterTest {
 		assertEquals("false", blockedCells[23]);
 		assertEquals("false", blockedCells[45]);
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", blockedCells[46]);
+		assertEquals("BLOCKED", lastCell(blockedCells));
 		assertTrue(Double.parseDouble(blockedCells[24]) > 0.0);
 		assertEquals(Double.parseDouble(blockedCells[24]), Double.parseDouble(blockedCells[26]), 1.0e-15);
 		assertEquals(0.0, Double.parseDouble(blockedCells[31]), 1.0e-15);
@@ -409,6 +416,7 @@ class CtCpJCurveExporterTest {
 		assertTrue(Double.parseDouble(standardHoverCells[62]) >= 0.0);
 		assertEquals("false", hotDryHoverCells[23]);
 		assertEquals("OPERATING_POINT_OUTSIDE_RUNTIME_ENVELOPE", hotDryHoverCells[46]);
+		assertEquals("REYNOLDS_OUTSIDE_RUNTIME_ENVELOPE", lastCell(hotDryHoverCells));
 		assertEquals(65.0, Double.parseDouble(hotDryHoverCells[49]), 1.0e-12);
 		assertEquals(0.0, Double.parseDouble(hotDryHoverCells[50]), 1.0e-15);
 		assertTrue(Double.parseDouble(hotDryHoverCells[59]) < 0.52);
@@ -467,6 +475,7 @@ class CtCpJCurveExporterTest {
 		assertTrue(lines.get(0).contains("far_wake_axial_velocity_body_y_mps"));
 		assertTrue(lines.get(0).contains("representative_blade_chord_m"));
 		assertTrue(lines.get(0).contains("reynolds_number"));
+		assertTrue(lines.get(0).contains("runtime_force_replacement_status"));
 	}
 
 	@Test
@@ -544,6 +553,10 @@ class CtCpJCurveExporterTest {
 				.filter(candidate -> candidate.startsWith("apDrone," + caseName + ","))
 				.findFirst()
 				.orElseThrow();
+	}
+
+	private static String lastCell(String[] cells) {
+		return cells[cells.length - 1];
 	}
 
 	private static Path findRepoRoot() {
