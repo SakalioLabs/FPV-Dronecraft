@@ -2123,6 +2123,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 
 	private double[] pressurePotential(double[] divergence, int iterationCount, VoxelSolidMask solidMask) {
 		double meanDivergence = mean(divergence, solidMask);
+		boolean hasOpenPressureBoundary = hasOpenPressureBoundary(solidMask);
+		double divergenceOffset = hasOpenPressureBoundary ? 0.0 : meanDivergence;
 		double dxSquared = gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters();
 		double[] previous = new double[divergence.length];
 		double[] next = new double[divergence.length];
@@ -2147,47 +2149,61 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
 							neighborSum += faceWeight * previous[neighborIndex];
 							faceWeightSum += faceWeight;
+						} else if (!insideGrid(x - 1, y, z)) {
+							faceWeightSum += openVolumeFraction;
 						}
 						if (openNeighbor(solidMask, x + 1, y, z)) {
 							int neighborIndex = linearIndex(x + 1, y, z);
 							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
 							neighborSum += faceWeight * previous[neighborIndex];
 							faceWeightSum += faceWeight;
+						} else if (!insideGrid(x + 1, y, z)) {
+							faceWeightSum += openVolumeFraction;
 						}
 						if (openNeighbor(solidMask, x, y - 1, z)) {
 							int neighborIndex = linearIndex(x, y - 1, z);
 							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
 							neighborSum += faceWeight * previous[neighborIndex];
 							faceWeightSum += faceWeight;
+						} else if (!insideGrid(x, y - 1, z)) {
+							faceWeightSum += openVolumeFraction;
 						}
 						if (openNeighbor(solidMask, x, y + 1, z)) {
 							int neighborIndex = linearIndex(x, y + 1, z);
 							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
 							neighborSum += faceWeight * previous[neighborIndex];
 							faceWeightSum += faceWeight;
+						} else if (!insideGrid(x, y + 1, z)) {
+							faceWeightSum += openVolumeFraction;
 						}
 						if (openNeighbor(solidMask, x, y, z - 1)) {
 							int neighborIndex = linearIndex(x, y, z - 1);
 							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
 							neighborSum += faceWeight * previous[neighborIndex];
 							faceWeightSum += faceWeight;
+						} else if (!insideGrid(x, y, z - 1)) {
+							faceWeightSum += openVolumeFraction;
 						}
 						if (openNeighbor(solidMask, x, y, z + 1)) {
 							int neighborIndex = linearIndex(x, y, z + 1);
 							double faceWeight = openInternalFaceFraction(solidMask, index, neighborIndex);
 							neighborSum += faceWeight * previous[neighborIndex];
 							faceWeightSum += faceWeight;
+						} else if (!insideGrid(x, y, z + 1)) {
+							faceWeightSum += openVolumeFraction;
 						}
 						next[index] = faceWeightSum <= EPSILON
 								? 0.0
 								: (neighborSum
-										- (divergence[index] - meanDivergence)
+										- (divergence[index] - divergenceOffset)
 										* openVolumeFraction
 										* dxSquared) / faceWeightSum;
 					}
 				}
 			}
-			subtractMean(next, solidMask);
+			if (!hasOpenPressureBoundary) {
+				subtractMean(next, solidMask);
+			}
 			double[] swap = previous;
 			previous = next;
 			next = swap;
@@ -2245,7 +2261,11 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		int neighborY = axis == 1 ? y + direction : y;
 		int neighborZ = axis == 2 ? z + direction : z;
 		if (!insideGrid(neighborX, neighborY, neighborZ)) {
-			return new ProjectedFaceVelocity(centerComponent, centerOpenVolumeFraction);
+			double pressureDifference = direction > 0
+					? -pressurePotential[centerIndex]
+					: pressurePotential[centerIndex];
+			double faceVelocityComponent = centerComponent - pressureDifference / gridSpec.cellSizeMeters();
+			return new ProjectedFaceVelocity(faceVelocityComponent, centerOpenVolumeFraction);
 		}
 		if (solidNeighbor(solidMask, neighborX, neighborY, neighborZ)) {
 			return new ProjectedFaceVelocity(0.0, centerOpenVolumeFraction);
@@ -2417,6 +2437,27 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				&& y >= 0 && y < gridSpec.cellCountY()
 				&& z >= 0 && z < gridSpec.cellCountZ()
 				&& solidMask.isSolidCellIndex(linearIndex(x, y, z));
+	}
+
+	private boolean hasOpenPressureBoundary(VoxelSolidMask solidMask) {
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					int index = linearIndex(x, y, z);
+					if (!solidMask.isSolidCellIndex(index)
+							&& solidMask.openVolumeFractionCellIndex(index) > EPSILON
+							&& (x == 0
+									|| x + 1 == gridSpec.cellCountX()
+									|| y == 0
+									|| y + 1 == gridSpec.cellCountY()
+									|| z == 0
+									|| z + 1 == gridSpec.cellCountZ())) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
 	}
 
 	private boolean insideGrid(int x, int y, int z) {
