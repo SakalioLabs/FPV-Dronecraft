@@ -404,7 +404,8 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 							sourceGridSample,
 							config.airDensityKgPerCubicMeter(),
 							config.timeStepSeconds(),
-							config.sourceThicknessMeters()
+							config.sourceThicknessMeters(),
+							solidMask
 					);
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityAdvectionRun advection =
 					sourceAdvance.nextState().advectVelocityWithCourantLimit(

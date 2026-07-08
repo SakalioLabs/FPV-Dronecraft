@@ -60,6 +60,40 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void advanceWithSourceSkipsSourceTermsInsideSolidCells() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				conservativeGridForSignedAxialSpeed(
+						"local_voxel_flow_state_solid_source_mask",
+						0.0,
+						Quaternion.IDENTITY,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				PropellerArchiveCtCpJLocalVoxelFlowState.calm(gridSample.gridSpec());
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask =
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						gridSample.gridSpec(),
+						List.of(new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+								new Vec3(-10.0, -10.0, -10.0),
+								new Vec3(10.0, 10.0, 10.0)))
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelFlowAdvance advance =
+				state.advanceWithSource(gridSample, RHO, DT, SOURCE_THICKNESS, solidMask);
+
+		assertTrue(gridSample.activeCellCount() > 0);
+		assertEquals(gridSample.gridSpec().totalCellCount(), solidMask.solidCellCount());
+		assertEquals(0, advance.residenceStep().activeCellCount());
+		assertEquals(0, advance.residenceStep().sourceMomentumSample().activeCellCount());
+		assertVectorEquals(Vec3.ZERO, advance.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, advance.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(0.0, advance.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, advance.totalThroughFlowMomentumRateWorldNewtons(), 1.0e-15);
+		assertEquals(0.0, advance.nextState().totalKineticEnergyJoules(RHO), 1.0e-15);
+		assertEquals(0.0, advance.nextState().maxSpeedMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
 	void uniformStatePreservesVoxelOrderingForCellIndexLookups() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(

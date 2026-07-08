@@ -41,6 +41,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"downstream_wake_length_m",
 			"solid_box_count",
 			"solid_box_minimum_volume_fraction",
+			"solid_occluded_source_cell_count",
 			"subcell_samples_per_axis",
 			"time_step_s",
 			"configured_step_count",
@@ -60,6 +61,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"source_momentum_rate_world_x_n",
 			"source_momentum_rate_world_y_n",
 			"source_momentum_rate_world_z_n",
+			"solid_occluded_source_momentum_rate_world_x_n",
+			"solid_occluded_source_momentum_rate_world_y_n",
+			"solid_occluded_source_momentum_rate_world_z_n",
 			"source_impulse_world_x_ns",
 			"source_impulse_world_y_ns",
 			"source_impulse_world_z_ns",
@@ -512,6 +516,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		int completedSteps = initial ? 0 : iteration.stepIndex() + 1;
 		Vec3 zero = Vec3.ZERO;
 		Vec3 sourceMomentumRate = initial ? zero : iteration.sourceAdvance().totalSourceMomentumRateWorldNewtons();
+		Vec3 solidOccludedSourceMomentumRate = initial
+				? zero
+				: metadata.sourceGridSample().integratedBodyForceWorldNewtons().subtract(sourceMomentumRate);
 		Vec3 sourceImpulse = initial ? zero : iteration.sourceAdvance().totalSourceImpulseWorldNewtonSeconds();
 		Vec3 cumulativeSourceImpulse = cumulativeSourceImpulse(run, completedSteps);
 		Vec3 throughFlowMomentumRate = initial ? zero : iteration.sourceAdvance().totalThroughFlowMomentumRateWorldNewtons();
@@ -607,6 +614,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(metadata.downstreamWakeLengthMeters()),
 				Integer.toString(metadata.solidBoxConfig().solidBoxCount()),
 				number(metadata.solidBoxConfig().minimumSolidVolumeFraction()),
+				Integer.toString(solidOccludedSourceCellCount(metadata.sourceGridSample(), run.solidMask())),
 				Integer.toString(metadata.subcellSamplesPerAxis()),
 				number(run.config().timeStepSeconds()),
 				Integer.toString(run.config().stepCount()),
@@ -626,6 +634,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(sourceMomentumRate.x()),
 				number(sourceMomentumRate.y()),
 				number(sourceMomentumRate.z()),
+				number(solidOccludedSourceMomentumRate.x()),
+				number(solidOccludedSourceMomentumRate.y()),
+				number(solidOccludedSourceMomentumRate.z()),
 				number(sourceImpulse.x()),
 				number(sourceImpulse.y()),
 				number(sourceImpulse.z()),
@@ -782,6 +793,19 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 					* run.config().timeStepSeconds();
 		}
 		return mass;
+	}
+
+	private static int solidOccludedSourceCellCount(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask
+	) {
+		int count = 0;
+		for (int cellIndex = 0; cellIndex < sourceGridSample.cells().size(); cellIndex++) {
+			if (sourceGridSample.cells().get(cellIndex).active() && solidMask.isSolidCellIndex(cellIndex)) {
+				count++;
+			}
+		}
+		return count;
 	}
 
 	private static GroupMetadata metadata(

@@ -642,15 +642,34 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double timeStepSeconds,
 			double sourceThicknessMeters
 	) {
+		return advanceWithSource(
+				sourceGridSample,
+				airDensityKgPerCubicMeter,
+				timeStepSeconds,
+				sourceThicknessMeters,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public VoxelFlowAdvance advanceWithSource(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			double airDensityKgPerCubicMeter,
+			double timeStepSeconds,
+			double sourceThicknessMeters,
+			VoxelSolidMask solidMask
+	) {
 		if (sourceGridSample == null) {
 			throw new IllegalArgumentException("sourceGridSample must not be null.");
 		}
 		if (!gridSpec.equals(sourceGridSample.gridSpec())) {
 			throw new IllegalArgumentException("sourceGridSample grid must match this flow state.");
 		}
+		validateSolidMask(solidMask);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample openSourceGridSample =
+				sourceGridSampleWithOpenCellsOnly(sourceGridSample, solidMask);
 		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residenceStep =
 				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
-						sourceGridSample,
+						openSourceGridSample,
 						airDensityKgPerCubicMeter,
 						timeStepSeconds,
 						sourceThicknessMeters,
@@ -665,6 +684,52 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				this,
 				new PropellerArchiveCtCpJLocalVoxelFlowState(gridSpec, nextVelocities),
 				residenceStep
+		);
+	}
+
+	private PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSampleWithOpenCellsOnly(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+			VoxelSolidMask solidMask
+	) {
+		if (solidMask.solidCellCount() == 0) {
+			return sourceGridSample;
+		}
+		ArrayList<PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample> cells =
+				new ArrayList<>(sourceGridSample.cells().size());
+		for (int cellIndex = 0; cellIndex < sourceGridSample.cells().size(); cellIndex++) {
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell =
+					sourceGridSample.cells().get(cellIndex);
+			cells.add(solidMask.isSolidCellIndex(cellIndex)
+					? zeroSourceCell(sourceCell)
+					: sourceCell);
+		}
+		return new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+				sourceGridSample.gridSpec(),
+				sourceGridSample.subcellSamplesPerAxis(),
+				cells
+		);
+	}
+
+	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample zeroSourceCell(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell
+	) {
+		return new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+				sourceCell.xIndex(),
+				sourceCell.yIndex(),
+				sourceCell.zIndex(),
+				sourceCell.cellCenterWorldMeters(),
+				sourceCell.cellVolumeCubicMeters(),
+				sourceCell.totalSubsampleCount(),
+				0,
+				0.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO
 		);
 	}
 
