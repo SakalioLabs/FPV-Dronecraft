@@ -70,7 +70,10 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 			"wake_angular_momentum_torque_density_x_nm_m3",
 			"wake_angular_momentum_torque_density_y_nm_m3",
 			"wake_angular_momentum_torque_density_z_nm_m3",
+			"angular_momentum_swirl_radius_m",
 			"wake_tangential_velocity_mps",
+			"wake_swirl_support_radius_m",
+			"wake_swirl_angular_velocity_rad_s",
 			"wake_swirl_reference_point_x_m",
 			"wake_swirl_reference_point_y_m",
 			"wake_swirl_reference_point_z_m",
@@ -233,6 +236,15 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 				"wake_angular_momentum_torque_density_world_y_nm_m3",
 				"wake_angular_momentum_torque_density_world_z_nm_m3"
 		);
+		double angularMomentumSwirlRadiusMeters = number(row, "angular_momentum_swirl_radius_m");
+		double wakeTangentialVelocityMetersPerSecond = number(row, "wake_tangential_velocity_mps");
+		double wakeSwirlSupportRadiusMeters = wakeSwirlSupportRadiusMeters(row);
+		double wakeSwirlAngularVelocityRadiansPerSecond = wakeSwirlAngularVelocityRadiansPerSecond(
+				Boolean.parseBoolean(text(row, "applied")),
+				angularMomentumSwirlRadiusMeters,
+				wakeTangentialVelocityMetersPerSecond,
+				wakeSwirlSupportRadiusMeters
+		);
 		return String.join(",",
 				escape(preset),
 				escape(caseName),
@@ -288,7 +300,10 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 				number(wakeAngularMomentumTorqueDensity.x()),
 				number(wakeAngularMomentumTorqueDensity.y()),
 				number(wakeAngularMomentumTorqueDensity.z()),
-				value(row, "wake_tangential_velocity_mps"),
+				number(angularMomentumSwirlRadiusMeters),
+				number(wakeTangentialVelocityMetersPerSecond),
+				number(wakeSwirlSupportRadiusMeters),
+				number(wakeSwirlAngularVelocityRadiansPerSecond),
 				value(row, "wake_swirl_reference_point_world_x_m"),
 				value(row, "wake_swirl_reference_point_world_y_m"),
 				value(row, "wake_swirl_reference_point_world_z_m"),
@@ -307,6 +322,35 @@ public final class CtCpJActuatorDiskOpenFoamSourceTableExporter {
 				value(row, "cp"),
 				value(row, "eta")
 		);
+	}
+
+	private static double wakeSwirlSupportRadiusMeters(Map<String, String> row) {
+		double farWakeEquivalentRadiusMeters = number(row, "far_wake_equivalent_radius_m");
+		if (Double.isFinite(farWakeEquivalentRadiusMeters) && farWakeEquivalentRadiusMeters > 0.0) {
+			return farWakeEquivalentRadiusMeters;
+		}
+		double diskRadiusMeters = number(row, "disk_radius_m");
+		return Double.isFinite(diskRadiusMeters) && diskRadiusMeters > 0.0
+				? diskRadiusMeters
+				: 0.0;
+	}
+
+	private static double wakeSwirlAngularVelocityRadiansPerSecond(
+			boolean applied,
+			double angularMomentumSwirlRadiusMeters,
+			double wakeTangentialVelocityMetersPerSecond,
+			double wakeSwirlSupportRadiusMeters
+	) {
+		double specificAngularMomentumMetersSquaredPerSecond =
+				angularMomentumSwirlRadiusMeters * wakeTangentialVelocityMetersPerSecond;
+		if (!applied
+				|| wakeSwirlSupportRadiusMeters <= 0.0
+				|| specificAngularMomentumMetersSquaredPerSecond <= 0.0) {
+			return 0.0;
+		}
+		return 2.0
+				* specificAngularMomentumMetersSquaredPerSecond
+				/ (wakeSwirlSupportRadiusMeters * wakeSwirlSupportRadiusMeters);
 	}
 
 	private static String sourceName(String preset, String caseName, String rowKind, int rotorIndex) {

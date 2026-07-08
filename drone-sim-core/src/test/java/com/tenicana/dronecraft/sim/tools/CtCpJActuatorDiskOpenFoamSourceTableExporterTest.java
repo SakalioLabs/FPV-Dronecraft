@@ -70,7 +70,9 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 						/ numberCell(hover, columns, "source_volume_m3"),
 				numberCell(hover, columns, "wake_angular_momentum_torque_density_y_nm_m3"),
 				1.0e-12);
+		assertTrue(numberCell(hover, columns, "angular_momentum_swirl_radius_m") > 0.0);
 		assertTrue(numberCell(hover, columns, "wake_tangential_velocity_mps") > 0.0);
+		assertTrue(numberCell(hover, columns, "wake_swirl_support_radius_m") > 0.0);
 		double swirlReferenceRadius = Math.sqrt(
 				squared(numberCell(hover, columns, "wake_swirl_reference_point_x_m")
 						- numberCell(hover, columns, "center_x_m"))
@@ -78,13 +80,20 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 						- numberCell(hover, columns, "center_y_m"))
 						+ squared(numberCell(hover, columns, "wake_swirl_reference_point_z_m")
 						- numberCell(hover, columns, "center_z_m")));
-		double expectedSourcePlaneSwirlSpeed =
+		assertEquals(numberCell(hover, columns, "angular_momentum_swirl_radius_m"),
+				swirlReferenceRadius, 1.0e-15);
+		double expectedSwirlAngularVelocity =
 				2.0
-						* swirlReferenceRadius
-						* swirlReferenceRadius
-						/ (numberCell(hover, columns, "radius_m")
-						* numberCell(hover, columns, "radius_m"))
-						* numberCell(hover, columns, "wake_tangential_velocity_mps");
+						* numberCell(hover, columns, "angular_momentum_swirl_radius_m")
+						* numberCell(hover, columns, "wake_tangential_velocity_mps")
+						/ (numberCell(hover, columns, "wake_swirl_support_radius_m")
+						* numberCell(hover, columns, "wake_swirl_support_radius_m"));
+		assertEquals(expectedSwirlAngularVelocity,
+				numberCell(hover, columns, "wake_swirl_angular_velocity_rad_s"), 1.0e-12);
+		double expectedSourcePlaneSwirlSpeed =
+				expectedSwirlAngularVelocity
+						* Math.min(swirlReferenceRadius,
+						numberCell(hover, columns, "wake_swirl_support_radius_m"));
 		double swirlVelocityLength = Math.sqrt(
 				numberCell(hover, columns, "wake_swirl_velocity_x_mps")
 						* numberCell(hover, columns, "wake_swirl_velocity_x_mps")
@@ -107,12 +116,16 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_angular_momentum_torque_y_nm"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(highBlock, columns, "wake_angular_momentum_torque_density_y_nm_m3"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "angular_momentum_swirl_radius_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_tangential_velocity_mps"), 1.0e-15);
+		assertEquals(numberCell(highBlock, columns, "radius_m"),
+				numberCell(highBlock, columns, "wake_swirl_support_radius_m"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_angular_velocity_rad_s"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_x_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_y_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_velocity_z_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_wake_kinetic_power_w"), 1.0e-15);
-		assertTrue(numberCell(highBlock, columns, "source_volume_m3") > 0.0);
+		assertEquals(0.0, numberCell(highBlock, columns, "source_volume_m3"), 1.0e-15);
 	}
 
 	@Test
@@ -126,6 +139,9 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(lines.get(0).contains("body_force_density_y_n_m3"));
 		assertTrue(lines.get(0).contains("total_force_y_n"));
 		assertTrue(lines.get(0).contains("wake_angular_momentum_torque_density_y_nm_m3"));
+		assertTrue(lines.get(0).contains("angular_momentum_swirl_radius_m"));
+		assertTrue(lines.get(0).contains("wake_swirl_support_radius_m"));
+		assertTrue(lines.get(0).contains("wake_swirl_angular_velocity_rad_s"));
 		assertTrue(lines.get(0).contains("wake_swirl_velocity_y_mps"));
 		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_w"));
 	}
