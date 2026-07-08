@@ -109,18 +109,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				}
 			}
 
-			private double overlapVolumeCubicMeters(
-					double cellMinX,
-					double cellMinY,
-					double cellMinZ,
-					double cellMaxX,
-					double cellMaxY,
-					double cellMaxZ
-			) {
-				double overlapX = overlapLength(minWorldMeters.x(), maxWorldMeters.x(), cellMinX, cellMaxX);
-				double overlapY = overlapLength(minWorldMeters.y(), maxWorldMeters.y(), cellMinY, cellMaxY);
-				double overlapZ = overlapLength(minWorldMeters.z(), maxWorldMeters.z(), cellMinZ, cellMaxZ);
-				return overlapX * overlapY * overlapZ;
+		}
+
+		private record ClippedSolidBox(
+				double minX,
+				double minY,
+				double minZ,
+				double maxX,
+				double maxY,
+				double maxZ
+		) {
+			boolean contains(double x, double y, double z) {
+				return x >= minX && x <= maxX
+						&& y >= minY && y <= maxY
+						&& z >= minZ && z <= maxZ;
 			}
 		}
 
@@ -293,17 +295,82 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				double cellMaxZ,
 				double cellVolume
 		) {
-			double overlapVolume = 0.0;
+			ArrayList<ClippedSolidBox> clippedBoxes = new ArrayList<>(boxes.size());
+			ArrayList<Double> xCuts = new ArrayList<>();
+			ArrayList<Double> yCuts = new ArrayList<>();
+			ArrayList<Double> zCuts = new ArrayList<>();
+			xCuts.add(cellMinX);
+			xCuts.add(cellMaxX);
+			yCuts.add(cellMinY);
+			yCuts.add(cellMaxY);
+			zCuts.add(cellMinZ);
+			zCuts.add(cellMaxZ);
 			for (WorldSolidBox box : boxes) {
-				overlapVolume += box.overlapVolumeCubicMeters(
-						cellMinX,
-						cellMinY,
-						cellMinZ,
-						cellMaxX,
-						cellMaxY,
-						cellMaxZ);
+				double minX = Math.max(box.minWorldMeters().x(), cellMinX);
+				double minY = Math.max(box.minWorldMeters().y(), cellMinY);
+				double minZ = Math.max(box.minWorldMeters().z(), cellMinZ);
+				double maxX = Math.min(box.maxWorldMeters().x(), cellMaxX);
+				double maxY = Math.min(box.maxWorldMeters().y(), cellMaxY);
+				double maxZ = Math.min(box.maxWorldMeters().z(), cellMaxZ);
+				if (maxX <= minX || maxY <= minY || maxZ <= minZ) {
+					continue;
+				}
+				clippedBoxes.add(new ClippedSolidBox(minX, minY, minZ, maxX, maxY, maxZ));
+				addCut(xCuts, minX);
+				addCut(xCuts, maxX);
+				addCut(yCuts, minY);
+				addCut(yCuts, maxY);
+				addCut(zCuts, minZ);
+				addCut(zCuts, maxZ);
 			}
-			return cellVolume > EPSILON ? MathUtil.clamp(overlapVolume / cellVolume, 0.0, 1.0) : 0.0;
+			if (clippedBoxes.isEmpty() || cellVolume <= EPSILON) {
+				return 0.0;
+			}
+			sortCuts(xCuts);
+			sortCuts(yCuts);
+			sortCuts(zCuts);
+			double coveredVolume = 0.0;
+			for (int xi = 0; xi < xCuts.size() - 1; xi++) {
+				double minX = xCuts.get(xi);
+				double maxX = xCuts.get(xi + 1);
+				double midX = 0.5 * (minX + maxX);
+				for (int yi = 0; yi < yCuts.size() - 1; yi++) {
+					double minY = yCuts.get(yi);
+					double maxY = yCuts.get(yi + 1);
+					double midY = 0.5 * (minY + maxY);
+					for (int zi = 0; zi < zCuts.size() - 1; zi++) {
+						double minZ = zCuts.get(zi);
+						double maxZ = zCuts.get(zi + 1);
+						double midZ = 0.5 * (minZ + maxZ);
+						if (coveredByAnyBox(clippedBoxes, midX, midY, midZ)) {
+							coveredVolume += (maxX - minX) * (maxY - minY) * (maxZ - minZ);
+						}
+					}
+				}
+			}
+			return MathUtil.clamp(coveredVolume / cellVolume, 0.0, 1.0);
+		}
+
+		private static boolean coveredByAnyBox(List<ClippedSolidBox> boxes, double x, double y, double z) {
+			for (ClippedSolidBox box : boxes) {
+				if (box.contains(x, y, z)) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private static void addCut(ArrayList<Double> cuts, double value) {
+			for (double cut : cuts) {
+				if (Math.abs(cut - value) <= EPSILON) {
+					return;
+				}
+			}
+			cuts.add(value);
+		}
+
+		private static void sortCuts(ArrayList<Double> cuts) {
+			cuts.sort(Double::compare);
 		}
 
 		private static double finiteFraction(Double value) {
@@ -312,14 +379,6 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 					: 0.0;
 		}
 
-		private static double overlapLength(
-				double firstMin,
-				double firstMax,
-				double secondMin,
-				double secondMax
-		) {
-			return Math.max(0.0, Math.min(firstMax, secondMax) - Math.max(firstMin, secondMin));
-		}
 	}
 
 	public record SolidBoundaryStep(

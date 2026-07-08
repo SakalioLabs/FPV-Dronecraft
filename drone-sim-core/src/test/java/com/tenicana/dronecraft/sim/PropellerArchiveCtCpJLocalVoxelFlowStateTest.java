@@ -280,6 +280,40 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void solidMaskUsesUnionVolumeForOverlappingWorldSolidBoxes() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						1,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox first =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+						new Vec3(0.0, 0.0, 0.0),
+						new Vec3(0.4, 1.0, 1.0)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox second =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+						new Vec3(0.2, 0.0, 0.0),
+						new Vec3(0.6, 1.0, 1.0)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask unionMask =
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						List.of(first, second),
+						0.75
+				);
+
+		assertEquals(0.6, unionMask.solidVolumeFraction(0, 0, 0), 1.0e-15);
+		assertEquals(0.4, unionMask.openVolumeFractionCellIndex(0), 1.0e-15);
+		assertTrue(!unionMask.isSolid(0, 0, 0));
+		assertEquals(0, unionMask.solidCellCount());
+	}
+
+	@Test
 	void openSolidMaskIsNoOpAndRejectsInvalidInputs() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
