@@ -841,39 +841,106 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	}
 
 	private static SolidBoxExportConfig solidBoxExportConfig(String[] args, int firstIndex) {
-		boolean anyBoxBound = false;
-		boolean allBoxBounds = true;
-		for (int i = 0; i < 6; i++) {
-			boolean present = args.length > firstIndex + i && !args[firstIndex + i].isBlank();
-			anyBoxBound = anyBoxBound || present;
-			allBoxBounds = allBoxBounds && present;
-		}
-		boolean thresholdPresent = args.length > firstIndex + 6 && !args[firstIndex + 6].isBlank();
-		if (!anyBoxBound) {
-			if (thresholdPresent) {
-				throw new IllegalArgumentException(
-						"solidBoxMinimumVolumeFraction requires all six solid box bounds.");
+		if (args.length > firstIndex && solidBoxListArgument(args[firstIndex])) {
+			for (int i = firstIndex + 2; i < args.length; i++) {
+				if (!args[i].isBlank()) {
+					throw new IllegalArgumentException(
+							"solidBoxes list argument accepts only an optional minimum solid volume threshold.");
+				}
 			}
+			double minimumSolidVolumeFraction =
+					args.length > firstIndex + 1 && !args[firstIndex + 1].isBlank()
+							? Double.parseDouble(args[firstIndex + 1])
+							: 0.0;
+			return new SolidBoxExportConfig(
+					parseSolidBoxList(args[firstIndex]),
+					minimumSolidVolumeFraction);
+		}
+		int lastValueIndexExclusive = args.length;
+		while (lastValueIndexExclusive > firstIndex && args[lastValueIndexExclusive - 1].isBlank()) {
+			lastValueIndexExclusive--;
+		}
+		if (lastValueIndexExclusive <= firstIndex) {
 			return SolidBoxExportConfig.open();
 		}
-		if (!allBoxBounds) {
-			throw new IllegalArgumentException(
-					"solid box export requires minX,minY,minZ,maxX,maxY,maxZ when any bound is provided.");
+		ArrayList<String> providedValues = new ArrayList<>(lastValueIndexExclusive - firstIndex);
+		for (int i = firstIndex; i < lastValueIndexExclusive; i++) {
+			if (args[i].isBlank()) {
+				throw new IllegalArgumentException(
+						"solid box export requires contiguous bounds; blank values are allowed only after all boxes.");
+			}
+			providedValues.add(args[i].trim());
 		}
-		double minX = Double.parseDouble(args[firstIndex]);
-		double minY = Double.parseDouble(args[firstIndex + 1]);
-		double minZ = Double.parseDouble(args[firstIndex + 2]);
-		double maxX = Double.parseDouble(args[firstIndex + 3]);
-		double maxY = Double.parseDouble(args[firstIndex + 4]);
-		double maxZ = Double.parseDouble(args[firstIndex + 5]);
-		double minimumSolidVolumeFraction = thresholdPresent
-				? Double.parseDouble(args[firstIndex + 6])
+		if (providedValues.size() < 6) {
+			throw new IllegalArgumentException(
+					"solid box export requires six bounds per box.");
+		}
+		boolean hasTrailingThreshold = providedValues.size() % 6 == 1;
+		int valueCount = hasTrailingThreshold ? providedValues.size() - 1 : providedValues.size();
+		if (valueCount == 0 || valueCount % 6 != 0) {
+			throw new IllegalArgumentException(
+					"solid box export requires repeated minX,minY,minZ,maxX,maxY,maxZ bounds, plus optional threshold.");
+		}
+		ArrayList<PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox> boxes =
+				new ArrayList<>(valueCount / 6);
+		for (int i = 0; i < valueCount; i += 6) {
+			boxes.add(worldSolidBox(
+					Double.parseDouble(providedValues.get(i)),
+					Double.parseDouble(providedValues.get(i + 1)),
+					Double.parseDouble(providedValues.get(i + 2)),
+					Double.parseDouble(providedValues.get(i + 3)),
+					Double.parseDouble(providedValues.get(i + 4)),
+					Double.parseDouble(providedValues.get(i + 5))));
+		}
+		double minimumSolidVolumeFraction = hasTrailingThreshold
+				? Double.parseDouble(providedValues.get(providedValues.size() - 1))
 				: 0.0;
-		return new SolidBoxExportConfig(
-				List.of(new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
-						new Vec3(minX, minY, minZ),
-						new Vec3(maxX, maxY, maxZ))),
-				minimumSolidVolumeFraction);
+		return new SolidBoxExportConfig(boxes, minimumSolidVolumeFraction);
+	}
+
+	private static boolean solidBoxListArgument(String value) {
+		return value != null && (value.contains(",") || value.contains(";"));
+	}
+
+	private static List<PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox> parseSolidBoxList(
+			String solidBoxes
+	) {
+		if (solidBoxes == null || solidBoxes.isBlank()) {
+			return List.of();
+		}
+		ArrayList<PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox> boxes =
+				new ArrayList<>();
+		for (String boxText : solidBoxes.split(";")) {
+			if (boxText.isBlank()) {
+				continue;
+			}
+			String[] values = boxText.trim().split(",");
+			if (values.length != 6) {
+				throw new IllegalArgumentException(
+						"solidBoxes entries must be minX,minY,minZ,maxX,maxY,maxZ.");
+			}
+			boxes.add(worldSolidBox(
+					Double.parseDouble(values[0].trim()),
+					Double.parseDouble(values[1].trim()),
+					Double.parseDouble(values[2].trim()),
+					Double.parseDouble(values[3].trim()),
+					Double.parseDouble(values[4].trim()),
+					Double.parseDouble(values[5].trim())));
+		}
+		return List.copyOf(boxes);
+	}
+
+	private static PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox worldSolidBox(
+			double minX,
+			double minY,
+			double minZ,
+			double maxX,
+			double maxY,
+			double maxZ
+	) {
+		return new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+				new Vec3(minX, minY, minZ),
+				new Vec3(maxX, maxY, maxZ));
 	}
 
 	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample(

@@ -140,9 +140,16 @@ tasks.register("ctCpJLocalVoxelFlowSolver", JavaExec) {
 			project.findProperty("solidBoxMaxY"),
 			project.findProperty("solidBoxMaxZ")
 		]
+		def solidBoxes = project.findProperty("solidBoxes") ?: ""
 		def solidBoxBoundCount = solidBoxBounds.count { it != null && !it.toString().isBlank() }
 		args(presetName, outputFile, airDensity, sourceThickness, cellSize, paddingCells, subcellSamples, timeStep, kinematicViscosity, steps, ambientTemperature, ambientHumidity, maxAdvectionCourant, pressureProjectionIterations, downstreamWakeLength)
-		if (solidBoxBoundCount > 0) {
+		if (!solidBoxes.toString().isBlank()) {
+			if (solidBoxBoundCount > 0) {
+				throw new GradleException("ctCpJLocalVoxelFlowSolver accepts either -PsolidBoxes or the legacy six solidBoxMin/Max properties, not both")
+			}
+			def solidBoxMinimumVolumeFraction = project.findProperty("solidBoxMinimumVolumeFraction") ?: ""
+			args(solidBoxes.toString(), solidBoxMinimumVolumeFraction.toString())
+		} else if (solidBoxBoundCount > 0) {
 			if (solidBoxBoundCount != solidBoxBounds.size()) {
 				throw new GradleException("ctCpJLocalVoxelFlowSolver solid box export requires all six -PsolidBoxMinX/Y/Z and -PsolidBoxMaxX/Y/Z properties")
 			}

@@ -223,6 +223,52 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 	}
 
 	@Test
+	void mainAcceptsDelimitedSolidBoxList(@TempDir Path tempDir) throws IOException {
+		Path output = tempDir.resolve("two-box-local-voxel-solver.csv");
+
+		CtCpJLocalVoxelFlowSolverExporter.main(new String[] {
+				"apDrone",
+				output.toString(),
+				Double.toString(RHO),
+				Double.toString(SOURCE_THICKNESS),
+				Double.toString(CELL_SIZE),
+				Integer.toString(PADDING_CELLS),
+				Integer.toString(SUBCELL_SAMPLES),
+				Double.toString(TIME_STEP),
+				Double.toString(KINEMATIC_VISCOSITY),
+				"1",
+				"25.0",
+				"0.0",
+				Double.toString(MAX_ADVECTION_COURANT),
+				Integer.toString(PRESSURE_PROJECTION_ITERATIONS),
+				Double.toString(DOWNSTREAM_WAKE_LENGTH),
+				"-10,-10,-10,0,10,10;0,-10,-10,10,10,10",
+				"0.999"
+		});
+
+		List<String> lines = Files.readAllLines(output);
+		Map<String, Integer> columns = columns(lines);
+		Map<String, String> hoverInitial =
+				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "initial", 0);
+		Map<String, String> hoverStep =
+				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "step", 0);
+
+		assertEquals(21, lines.size());
+		assertTrue(lines.stream().noneMatch(line -> line.contains("NaN")));
+		assertEquals(2, integer(hoverStep, "solid_box_count"));
+		assertEquals(0.999, number(hoverStep, "solid_box_minimum_volume_fraction"), 1.0e-15);
+		assertTrue(integer(hoverStep, "grid_cell_count") > 0);
+		assertEquals(integer(hoverStep, "grid_cell_count"), integer(hoverInitial, "solid_cell_count"));
+		assertEquals(integer(hoverStep, "grid_cell_count"), integer(hoverStep, "solid_cell_count"));
+		assertEquals(0, integer(hoverStep, "solid_clamped_cell_count"));
+		assertTrue(integer(hoverStep, "solid_occluded_source_cell_count") > 0);
+		assertEquals(0.0, number(hoverStep, "source_momentum_rate_world_y_n"), 1.0e-15);
+		assertEquals(number(hoverStep, "target_body_force_world_y_n"),
+				number(hoverStep, "solid_occluded_source_momentum_rate_world_y_n"), 1.0e-9);
+		assertEquals(0.0, number(hoverStep, "final_momentum_world_y_ns"), 1.0e-12);
+	}
+
+	@Test
 	void writeCreatesParentDirectoriesAndCsvFile(@TempDir Path tempDir) throws IOException {
 		Path output = tempDir.resolve("nested").resolve("local-voxel-solver.csv");
 

@@ -91,7 +91,8 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	public record VoxelSolidMask(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
 			List<Boolean> solidCells,
-			List<Double> solidVolumeFractions
+			List<Double> solidVolumeFractions,
+			int solidCellCount
 	) {
 		public record WorldSolidBox(
 				Vec3 minWorldMeters,
@@ -133,6 +134,14 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			this(gridSpec, solidCells, List.of());
 		}
 
+		public VoxelSolidMask(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
+				List<Boolean> solidCells,
+				List<Double> solidVolumeFractions
+		) {
+			this(gridSpec, solidCells, solidVolumeFractions, 0);
+		}
+
 		public VoxelSolidMask {
 			if (gridSpec == null) {
 				throw new IllegalArgumentException("gridSpec must not be null.");
@@ -147,6 +156,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			}
 			ArrayList<Boolean> sanitized = new ArrayList<>(cells.size());
 			ArrayList<Double> sanitizedFractions = new ArrayList<>(cells.size());
+			int sanitizedSolidCellCount = 0;
 			for (int cellIndex = 0; cellIndex < cells.size(); cellIndex++) {
 				boolean solid = Boolean.TRUE.equals(cells.get(cellIndex));
 				double fraction = fractions.isEmpty()
@@ -154,9 +164,13 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 						: finiteFraction(fractions.get(cellIndex));
 				sanitized.add(solid);
 				sanitizedFractions.add(fraction);
+				if (solid) {
+					sanitizedSolidCellCount++;
+				}
 			}
 			solidCells = List.copyOf(sanitized);
 			solidVolumeFractions = List.copyOf(sanitizedFractions);
+			solidCellCount = sanitizedSolidCellCount;
 		}
 
 		public static VoxelSolidMask open(
@@ -232,13 +246,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 
 		public int solidCellCount() {
-			int count = 0;
-			for (Boolean solid : solidCells) {
-				if (solid.booleanValue()) {
-					count++;
-				}
-			}
-			return count;
+			return solidCellCount;
 		}
 
 		public boolean isSolid(int xIndex, int yIndex, int zIndex) {
