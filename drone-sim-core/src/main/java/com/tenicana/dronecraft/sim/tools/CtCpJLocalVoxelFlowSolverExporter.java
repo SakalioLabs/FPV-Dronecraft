@@ -106,12 +106,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_solid_boundary_momentum_residual_world_z_ns",
 			"source_mass_flow_kg_s",
 			"cumulative_source_mass_kg",
+			"target_ideal_momentum_power_w",
+			"target_wake_swirl_kinetic_power_w",
+			"target_total_wake_kinetic_power_w",
 			"source_ideal_momentum_power_w",
 			"source_ideal_momentum_energy_j",
 			"source_wake_swirl_kinetic_power_w",
 			"source_wake_swirl_kinetic_energy_j",
 			"source_total_wake_kinetic_power_w",
 			"source_total_wake_kinetic_energy_j",
+			"solid_occluded_source_ideal_momentum_power_w",
+			"solid_occluded_source_wake_swirl_kinetic_power_w",
+			"solid_occluded_source_total_wake_kinetic_power_w",
 			"source_mechanical_work_power_w",
 			"source_mechanical_work_energy_j",
 			"through_flow_mechanical_work_power_w",
@@ -652,6 +658,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeSolidBoundaryMomentumResidual(run, completedSteps);
 		double sourceMassFlow = initial ? 0.0 : iteration.sourceAdvance().totalSourceMassFlowRateKilogramsPerSecond();
 		double cumulativeSourceMass = cumulativeSourceMass(run, completedSteps);
+		double targetIdealMomentumPower =
+				metadata.sourceGridSample().integratedIdealMomentumPowerWatts(run.config().sourceThicknessMeters());
+		double targetWakeSwirlKineticPower = metadata.sourceGridSample()
+				.integratedWakeSwirlKineticPowerWatts(run.config().sourceThicknessMeters());
+		double targetTotalWakeKineticPower = metadata.sourceGridSample()
+				.integratedTotalWakeKineticPowerWatts(run.config().sourceThicknessMeters());
 		double sourceIdealMomentumPower = initial ? 0.0 : iteration.sourceAdvance().totalIdealMomentumPowerWatts();
 		double sourceIdealMomentumEnergy = initial ? 0.0 : iteration.sourceAdvance().idealMomentumEnergyJoules();
 		double sourceWakeSwirlKineticPower = initial ? 0.0
@@ -662,6 +674,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.sourceAdvance().totalWakeKineticPowerWatts();
 		double sourceTotalWakeKineticEnergy = initial ? 0.0
 				: iteration.sourceAdvance().totalWakeKineticEnergyJoules();
+		double solidOccludedIdealMomentumPower =
+				occludedPower(initial, targetIdealMomentumPower, sourceIdealMomentumPower);
+		double solidOccludedWakeSwirlKineticPower =
+				occludedPower(initial, targetWakeSwirlKineticPower, sourceWakeSwirlKineticPower);
+		double solidOccludedTotalWakeKineticPower =
+				occludedPower(initial, targetTotalWakeKineticPower, sourceTotalWakeKineticPower);
 		double sourceMechanicalWorkPower = initial ? 0.0 : iteration.sourceAdvance().sourceMechanicalWorkPowerWatts();
 		double sourceMechanicalWorkEnergy = initial ? 0.0 : iteration.sourceAdvance().sourceMechanicalWorkEnergyJoules();
 		double throughFlowMechanicalWorkPower = initial ? 0.0
@@ -918,12 +936,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSolidBoundaryMomentumResidual.z()),
 				number(sourceMassFlow),
 				number(cumulativeSourceMass),
+				number(targetIdealMomentumPower),
+				number(targetWakeSwirlKineticPower),
+				number(targetTotalWakeKineticPower),
 				number(sourceIdealMomentumPower),
 				number(sourceIdealMomentumEnergy),
 				number(sourceWakeSwirlKineticPower),
 				number(sourceWakeSwirlKineticEnergy),
 				number(sourceTotalWakeKineticPower),
 				number(sourceTotalWakeKineticEnergy),
+				number(solidOccludedIdealMomentumPower),
+				number(solidOccludedWakeSwirlKineticPower),
+				number(solidOccludedTotalWakeKineticPower),
 				number(sourceMechanicalWorkPower),
 				number(sourceMechanicalWorkEnergy),
 				number(throughFlowMechanicalWorkPower),
@@ -1091,6 +1115,14 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			sum = sum.add(run.iterations().get(i).sourceAdvance().totalSourceImpulseWorldNewtonSeconds());
 		}
 		return sum;
+	}
+
+	private static double occludedPower(boolean initial, double targetPowerWatts, double appliedPowerWatts) {
+		if (initial) {
+			return 0.0;
+		}
+		double residual = targetPowerWatts - appliedPowerWatts;
+		return Double.isFinite(residual) && residual > 0.0 ? residual : 0.0;
 	}
 
 	private static Vec3 cumulativeSourceWakeAngularMomentumImpulse(
