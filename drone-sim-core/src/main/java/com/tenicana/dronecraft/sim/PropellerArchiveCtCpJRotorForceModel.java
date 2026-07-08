@@ -569,11 +569,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		public Vec3 equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
 				double sourceThicknessMeters
 		) {
-			double sourceVolume = sourceVolumeCubicMeters(sourceThicknessMeters);
-			if (sourceVolume <= EPSILON) {
+			double wakeSupportVolume = wakeSupportVolumeCubicMeters(sourceThicknessMeters);
+			if (!applied || wakeSupportVolume <= EPSILON) {
 				return Vec3.ZERO;
 			}
-			return wakeAngularMomentumTorqueWorldNewtonMeters.multiply(1.0 / sourceVolume);
+			return wakeAngularMomentumTorqueWorldNewtonMeters.multiply(1.0 / wakeSupportVolume);
 		}
 
 		public Vec3 wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeterAt(
@@ -598,9 +598,36 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					: diskRadiusMeters();
 		}
 
+		public double wakeSupportAreaSquareMeters() {
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
+			return wakeRadius > EPSILON ? Math.PI * wakeRadius * wakeRadius : 0.0;
+		}
+
+		public double wakeSupportVolumeCubicMeters(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			return wakeSupportAreaSquareMeters() * sourceThicknessMeters;
+		}
+
+		public boolean containsWakeSwirlSupport(Vec3 samplePointWorldMeters) {
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
+			if (!applied || wakeRadius <= EPSILON) {
+				return false;
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			if (normal.lengthSquared() <= EPSILON) {
+				return false;
+			}
+			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
+			double axialDistance = offset.dot(normal);
+			Vec3 radial = offset.subtract(normal.multiply(axialDistance));
+			return radial.lengthSquared() <= wakeRadius * wakeRadius + EPSILON;
+		}
+
 		public double wakeAngularMomentumTorqueDensityRadialWeight(Vec3 samplePointWorldMeters) {
-			double diskRadius = diskRadiusMeters();
-			if (!applied || diskRadius <= EPSILON) {
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
+			if (!applied || wakeRadius <= EPSILON) {
 				return 0.0;
 			}
 			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
@@ -610,15 +637,19 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
 			double axialDistance = offset.dot(normal);
 			Vec3 radial = offset.subtract(normal.multiply(axialDistance));
-			double radialDistanceSquared = Math.min(radial.lengthSquared(), diskRadius * diskRadius);
-			return 2.0 * radialDistanceSquared / (diskRadius * diskRadius);
+			double radialDistanceSquared = radial.lengthSquared();
+			if (radialDistanceSquared > wakeRadius * wakeRadius + EPSILON) {
+				return 0.0;
+			}
+			return 2.0 * radialDistanceSquared / (wakeRadius * wakeRadius);
 		}
 
 		public double wakeSwirlKineticPowerLoadingWattsPerSquareMeter() {
-			if (!applied || diskAreaSquareMeters <= EPSILON) {
+			double wakeSupportArea = wakeSupportAreaSquareMeters();
+			if (!applied || wakeSupportArea <= EPSILON) {
 				return 0.0;
 			}
-			return wakeSwirlKineticPowerWatts / diskAreaSquareMeters;
+			return wakeSwirlKineticPowerWatts / wakeSupportArea;
 		}
 
 		public double wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(Vec3 samplePointWorldMeters) {

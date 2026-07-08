@@ -592,8 +592,14 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.wakeAngularMomentumTorqueResidualWorldNewtonMeters(), 1.0e-15);
 		assertEquals(sourceTerm.diskAreaSquareMeters() * 0.1,
 				sourceTerm.sourceVolumeCubicMeters(0.1), 1.0e-15);
+		assertEquals(Math.PI
+						* sourceTerm.wakeSwirlSupportRadiusMeters()
+						* sourceTerm.wakeSwirlSupportRadiusMeters(),
+				sourceTerm.wakeSupportAreaSquareMeters(), 1.0e-15);
+		assertEquals(sourceTerm.wakeSupportAreaSquareMeters() * 0.1,
+				sourceTerm.wakeSupportVolumeCubicMeters(0.1), 1.0e-15);
 		assertVectorEquals(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()
-						.multiply(1.0 / sourceTerm.sourceVolumeCubicMeters(0.1)),
+						.multiply(1.0 / sourceTerm.wakeSupportVolumeCubicMeters(0.1)),
 				sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(0.1),
 				1.0e-15);
 		assertEquals(sample.dimensionalSample().angularMomentumSwirlRadiusMeters(),
@@ -656,6 +662,10 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(outsideSupportPoint), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				sourceTerm.totalWakeVelocityWorldMetersPerSecondAt(outsideSupportPoint), 1.0e-15);
+		assertEquals(0.0,
+				sourceTerm.wakeAngularMomentumTorqueDensityRadialWeight(outsideSupportPoint), 1.0e-15);
+		assertEquals(0.0,
+				sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(outsideSupportPoint), 1.0e-15);
 		assertVectorEquals(swirlVelocity.multiply(-1.0),
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(sourceTerm.diskCenterWorldMeters()
 						.subtract(swirlRadialDirection.multiply(supportedSwirlRadius))),
@@ -671,6 +681,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.1), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(0.0), 1.0e-15);
 		assertEquals(0.0, sourceTerm.sourceVolumeCubicMeters(0.0), 1.0e-15);
+		assertEquals(0.0, sourceTerm.wakeSupportVolumeCubicMeters(0.0), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(0.0),
 				1.0e-15);

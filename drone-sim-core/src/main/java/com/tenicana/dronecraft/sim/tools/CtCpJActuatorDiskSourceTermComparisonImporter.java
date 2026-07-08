@@ -209,6 +209,8 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			double idealMomentumPowerLoadingWattsPerSquareMeter,
 			Vec3 diskNormalWorld,
 			double diskAreaSquareMeters,
+			double diskRadiusMeters,
+			double wakeSwirlSupportRadiusMeters,
 			Vec3 thrustSurfaceForceWorldNewtonsPerSquareMeter,
 			Vec3 integratedThrustForceWorldNewtons,
 			Vec3 bodyForceDensityWorldNewtonsPerCubicMeter,
@@ -367,7 +369,7 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 		Vec3 bodyForceClosureResidual = cfdBodyForceDensity
 				.subtract(cfdSurfaceForce.multiply(1.0 / cfd.sourceThicknessMeters()));
 		Vec3 wakeTorqueDensityClosureResidual = finiteVector(cfdWakeTorqueDensity) && finiteVector(cfdWakeTorque)
-				? cfdWakeTorqueDensity.subtract(cfdWakeTorque.multiply(1.0 / sourceVolume(reference, cfd)))
+				? cfdWakeTorqueDensity.subtract(cfdWakeTorque.multiply(1.0 / wakeTorqueSupportVolume(reference, cfd)))
 				: nanVector();
 		boolean comparable = hasSourceLoad
 				&& Double.isFinite(cfdPressureJump)
@@ -429,7 +431,7 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 		}
 		if (finiteVector(cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter())) {
 			return cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter()
-					.multiply(sourceVolume(reference, cfd));
+					.multiply(wakeTorqueSupportVolume(reference, cfd));
 		}
 		return nanVector();
 	}
@@ -443,7 +445,7 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 			return cfd.cfdWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter();
 		}
 		if (finiteVector(cfdWakeAngularMomentumTorque)) {
-			return cfdWakeAngularMomentumTorque.multiply(1.0 / sourceVolume(reference, cfd));
+			return cfdWakeAngularMomentumTorque.multiply(1.0 / wakeTorqueSupportVolume(reference, cfd));
 		}
 		return nanVector();
 	}
@@ -451,6 +453,28 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 	private static double sourceVolume(ReferenceSourceTermRow reference, CfdSourceTermRow cfd) {
 		double volume = reference.diskAreaSquareMeters() * cfd.sourceThicknessMeters();
 		return volume > EPSILON ? volume : Double.NaN;
+	}
+
+	private static double wakeTorqueSupportVolume(ReferenceSourceTermRow reference, CfdSourceTermRow cfd) {
+		double wakeRadius = reference.wakeSwirlSupportRadiusMeters() > EPSILON
+				? reference.wakeSwirlSupportRadiusMeters()
+				: Math.sqrt(reference.diskAreaSquareMeters() / Math.PI);
+		double volume = Math.PI * wakeRadius * wakeRadius * cfd.sourceThicknessMeters();
+		return volume > EPSILON ? volume : Double.NaN;
+	}
+
+	private static double wakeSwirlSupportRadius(Map<String, String> record) {
+		double diskRadius = optionalDouble(
+				record,
+				"disk_radius_m",
+				"radius_m",
+				Math.sqrt(requiredDouble(record, "disk_area_m2") / Math.PI));
+		double wakeSupportRadius = optionalDouble(
+				record,
+				"wake_swirl_support_radius_m",
+				"far_wake_equivalent_radius_m",
+				diskRadius);
+		return wakeSupportRadius > EPSILON ? wakeSupportRadius : diskRadius;
 	}
 
 	private static Vec3 resolvedSurfaceForce(CfdSourceTermRow cfd, ReferenceSourceTermRow reference) {
@@ -578,6 +602,12 @@ public final class CtCpJActuatorDiskSourceTermComparisonImporter {
 				requiredDouble(record, "ideal_momentum_power_loading_w_m2"),
 				vector(record, "disk_normal_world_x", "disk_normal_world_y", "disk_normal_world_z"),
 				requiredDouble(record, "disk_area_m2"),
+				optionalDouble(
+						record,
+						"disk_radius_m",
+						"radius_m",
+						Math.sqrt(requiredDouble(record, "disk_area_m2") / Math.PI)),
+				wakeSwirlSupportRadius(record),
 				vector(record,
 						"thrust_surface_force_world_x_n_m2",
 						"thrust_surface_force_world_y_n_m2",

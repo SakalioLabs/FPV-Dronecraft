@@ -67,8 +67,12 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(Math.abs(numberCell(hover, columns, "reaction_torque_y_nm")) > 0.0);
 		assertEquals(numberCell(hover, columns, "reaction_torque_y_nm"),
 				numberCell(hover, columns, "wake_angular_momentum_torque_y_nm"), 1.0e-18);
+		double hoverWakeSupportVolume = Math.PI
+				* numberCell(hover, columns, "wake_swirl_support_radius_m")
+				* numberCell(hover, columns, "wake_swirl_support_radius_m")
+				* SOURCE_THICKNESS;
 		assertEquals(numberCell(hover, columns, "wake_angular_momentum_torque_y_nm")
-						/ numberCell(hover, columns, "source_volume_m3"),
+						/ hoverWakeSupportVolume,
 				numberCell(hover, columns, "wake_angular_momentum_torque_density_y_nm_m3"),
 				1.0e-12);
 		assertTrue(numberCell(hover, columns, "angular_momentum_swirl_radius_m") > 0.0);

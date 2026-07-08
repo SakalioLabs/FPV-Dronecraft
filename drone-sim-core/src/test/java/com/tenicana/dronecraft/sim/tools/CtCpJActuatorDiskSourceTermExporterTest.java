@@ -109,8 +109,15 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				numberCell(hover, columns, "wake_angular_momentum_torque_world_y_nm"), 1.0e-18);
 		assertEquals(0.0,
 				numberCell(hover, columns, "wake_angular_momentum_torque_residual_world_y_nm"), 1.0e-18);
+		double hoverWakeSupportRadius = numberCell(hover, columns, "far_wake_equivalent_radius_m") > 0.0
+				? numberCell(hover, columns, "far_wake_equivalent_radius_m")
+				: numberCell(hover, columns, "disk_radius_m");
+		double hoverWakeSupportVolume = Math.PI
+				* hoverWakeSupportRadius
+				* hoverWakeSupportRadius
+				* SOURCE_THICKNESS;
 		assertEquals(numberCell(hover, columns, "wake_angular_momentum_torque_world_y_nm")
-						/ numberCell(hover, columns, "source_volume_m3"),
+						/ hoverWakeSupportVolume,
 				numberCell(hover, columns, "wake_angular_momentum_torque_density_world_y_nm_m3"),
 				1.0e-12);
 		assertTrue(numberCell(hover, columns, "angular_momentum_swirl_radius_m") > 0.0);

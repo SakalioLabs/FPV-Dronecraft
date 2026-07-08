@@ -783,7 +783,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				sum = sum.add(sourceTerm
 						.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
 								sourceThicknessMeters)
-						.multiply(sourceTerm.sourceVolumeCubicMeters(sourceThicknessMeters)));
+						.multiply(sourceTerm.wakeSupportVolumeCubicMeters(sourceThicknessMeters)));
 			}
 		}
 		return sum;
@@ -852,11 +852,12 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 							sourceTerm,
 							sampledVolume);
 			double targetVolume = sourceTerm.sourceVolumeCubicMeters(sourceThicknessMeters);
+			double targetWakeTorqueVolume = sourceTerm.wakeSupportVolumeCubicMeters(sourceThicknessMeters);
 			double densityScale = sampledVolume > EPSILON && targetVolume > EPSILON
 					? targetVolume / sampledVolume
 					: 0.0;
-			double wakeTorqueDensityScale = sampledWakeTorqueVolume > EPSILON && targetVolume > EPSILON
-					? targetVolume / sampledWakeTorqueVolume
+			double wakeTorqueDensityScale = sampledWakeTorqueVolume > EPSILON && targetWakeTorqueVolume > EPSILON
+					? targetWakeTorqueVolume / sampledWakeTorqueVolume
 					: 0.0;
 			coverages.add(new SourceCoverage(
 					sourceTerm,
@@ -912,6 +913,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		double sampledSubcellVolume = gridSpec.cellVolumeCubicMeters()
 				/ (subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis);
 		double weightedVolume = 0.0;
+		double sampledWakeSupportVolume = 0.0;
 		for (int y = 0; y < gridSpec.cellCountY(); y++) {
 			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
 				for (int x = 0; x < gridSpec.cellCountX(); x++) {
@@ -928,6 +930,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 										sz
 								);
 								if (containsActuatorDiskVolume(sourceTerm, subcellPoint)) {
+									if (sourceTerm.containsWakeSwirlSupport(subcellPoint)) {
+										sampledWakeSupportVolume += sampledSubcellVolume;
+									}
 									weightedVolume += sourceTerm
 											.wakeAngularMomentumTorqueDensityRadialWeight(subcellPoint)
 											* sampledSubcellVolume;
@@ -938,7 +943,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				}
 			}
 		}
-		return weightedVolume > EPSILON ? weightedVolume : sampledVolumeCubicMeters;
+		if (weightedVolume > EPSILON) {
+			return weightedVolume;
+		}
+		return sampledWakeSupportVolume > EPSILON ? sampledWakeSupportVolume : 0.0;
 	}
 
 	private int countActiveSubsamples(
@@ -985,6 +993,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 	) {
 		int totalSubsamples = subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis;
 		int activeSubsamples = 0;
+		int wakeSupportSubsamples = 0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		double wakeAngularMomentumTorqueWeight = 0.0;
@@ -1001,6 +1010,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					);
 					if (containsActuatorDiskVolume(sourceTerm, subcellPoint)) {
 						activeSubsamples++;
+						if (sourceTerm.containsWakeSwirlSupport(subcellPoint)) {
+							wakeSupportSubsamples++;
+						}
 						farWakeAxialVelocity = farWakeAxialVelocity.add(
 								sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(subcellPoint));
 						wakeSwirlVelocity =
@@ -1023,7 +1035,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				activeSubsamples == 0
 						? Vec3.ZERO
 						: wakeSwirlVelocity.multiply(1.0 / activeSubsamples),
-				activeSubsamples > 0 && averageWakeTorqueWeight <= EPSILON
+				wakeSupportSubsamples > 0 && averageWakeTorqueWeight <= EPSILON
 						? 1.0
 						: averageWakeTorqueWeight
 		);

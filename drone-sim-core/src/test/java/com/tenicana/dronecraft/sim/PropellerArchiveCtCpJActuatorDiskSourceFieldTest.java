@@ -155,6 +155,9 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertVectorEquals(Vec3.ZERO, outsideWake.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, outsideWake.wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, outsideWake.targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				outsideWake.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-15);
+		assertEquals(0.0, outsideWake.wakeSwirlKineticPowerLoadingWattsPerSquareMeter(), 1.0e-15);
 	}
 
 	@Test
