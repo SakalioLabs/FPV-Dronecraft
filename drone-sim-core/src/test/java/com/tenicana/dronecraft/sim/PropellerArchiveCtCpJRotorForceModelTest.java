@@ -67,6 +67,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertVectorEquals(sample.reactionTorqueBodyNewtonMeters(),
 				sample.wakeAngularMomentumTorqueBodyNewtonMeters(), 1.0e-18);
 		assertVectorEquals(Vec3.ZERO, sample.wakeAngularMomentumTorqueResidualBodyNewtonMeters(), 1.0e-18);
+		assertVectorEquals(rotor.thrustAxisBody()
+						.multiply(dimensionalReference.actuatorDiskAxialVelocityMetersPerSecond()),
+				sample.actuatorDiskAxialVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(rotor.thrustAxisBody().multiply(dimensionalReference.farWakeAxialVelocityMetersPerSecond()),
 				sample.farWakeAxialVelocityBodyMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.shaftTorqueNewtonMeters() / sample.thrustNewtons(),
@@ -568,6 +571,11 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
 		assertEquals(sample.actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter(),
 				sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
+		assertVectorEquals(sample.actuatorDiskAxialVelocityWorldMetersPerSecond(bodyToWorld),
+				sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertEquals(sample.query().airDensityKgPerCubicMeter()
+						* sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond().length(),
+				sourceTerm.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
 		assertVectorEquals(expectedDiskNormalWorld.multiply(sourceTerm.pressureJumpPascals()),
 				sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-12);
 		assertVectorEquals(sample.thrustForceWorldNewtons(bodyToWorld),
@@ -2613,6 +2621,7 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 		assertEquals(0.0, sourceTerm.pressureJumpPascals(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.massFluxKilogramsPerSecondSquareMeter(), 1.0e-15);
 		assertEquals(0.0, sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, sourceTerm.reactionTorqueWorldNewtonMeters(), 1.0e-15);

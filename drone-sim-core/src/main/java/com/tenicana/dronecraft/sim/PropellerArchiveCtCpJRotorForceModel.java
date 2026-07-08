@@ -260,6 +260,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			);
 		}
 
+		public Vec3 actuatorDiskAxialVelocityBodyMetersPerSecond() {
+			return rotorAxisBody(query.rotor())
+					.multiply(dimensionalSample.actuatorDiskAxialVelocityMetersPerSecond());
+		}
+
+		public Vec3 actuatorDiskAxialVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(actuatorDiskAxialVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
+		}
+
 		public Vec3 farWakeAxialVelocityBodyMetersPerSecond() {
 			return rotorAxisBody(query.rotor()).multiply(dimensionalSample.farWakeAxialVelocityMetersPerSecond());
 		}
@@ -408,6 +417,9 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double pressureJump = applied ? actuatorDiskPressureJumpPascals() : 0.0;
 			double massFlux = applied ? actuatorDiskMassFluxKilogramsPerSecondSquareMeter() : 0.0;
 			double powerLoading = applied ? actuatorDiskIdealMomentumPowerLoadingWattsPerSquareMeter() : 0.0;
+			Vec3 actuatorDiskAxialVelocity = applied
+					? actuatorDiskAxialVelocityWorldMetersPerSecond(bodyToWorldOrientation)
+					: Vec3.ZERO;
 			Vec3 thrustSurfaceForce = applied
 					? diskNormalWorld.multiply(pressureJump)
 					: Vec3.ZERO;
@@ -431,6 +443,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					pressureJump,
 					massFlux,
 					powerLoading,
+					actuatorDiskAxialVelocity,
 					thrustSurfaceForce,
 					farWakeAxialVelocity,
 					reactionTorque,
@@ -479,6 +492,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double pressureJumpPascals,
 			double massFluxKilogramsPerSecondSquareMeter,
 			double idealMomentumPowerLoadingWattsPerSquareMeter,
+			Vec3 actuatorDiskAxialVelocityWorldMetersPerSecond,
 			Vec3 thrustSurfaceForceWorldNewtonsPerSquareMeter,
 			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
 			Vec3 reactionTorqueWorldNewtonMeters,
@@ -507,6 +521,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					finiteNonnegative(massFluxKilogramsPerSecondSquareMeter);
 			idealMomentumPowerLoadingWattsPerSquareMeter =
 					finiteNonnegative(idealMomentumPowerLoadingWattsPerSquareMeter);
+			actuatorDiskAxialVelocityWorldMetersPerSecond =
+					finiteVecOrZero(actuatorDiskAxialVelocityWorldMetersPerSecond);
 			thrustSurfaceForceWorldNewtonsPerSquareMeter =
 					finiteVecOrZero(thrustSurfaceForceWorldNewtonsPerSquareMeter);
 			farWakeAxialVelocityWorldMetersPerSecond =

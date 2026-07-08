@@ -162,6 +162,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			double idealInducedPowerWatts,
 			double axialPropulsiveEfficiency,
 			double idealMomentumPowerOverShaftPower,
+			double actuatorDiskAxialVelocityMetersPerSecond,
 			double diskMassFlowKilogramsPerSecond,
 			double farWakeAxialVelocityMetersPerSecond,
 			double farWakeContractedAreaSquareMeters,
@@ -427,6 +428,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
 					diskArea,
 					0.0,
 					0.0,
@@ -486,9 +488,10 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				: 0.0;
 		double axialPropulsiveEfficiency = ratio(usefulAxialThrustPower, shaftPower);
 		double momentumOverShaft = ratio(idealMomentumPower, shaftPower);
+		double actuatorDiskAxialVelocity = nonnegativeAxialSpeed + inducedVelocity;
 		double diskMassFlow = airDensityKgPerCubicMeter
 				* diskArea
-				* (nonnegativeAxialSpeed + inducedVelocity);
+				* actuatorDiskAxialVelocity;
 		double farWakeAxialVelocity = nonnegativeAxialSpeed + 2.0 * inducedVelocity;
 		double farWakeArea = farWakeAxialVelocity > EPSILON
 				? diskMassFlow / (airDensityKgPerCubicMeter * farWakeAxialVelocity)
@@ -534,6 +537,7 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 				idealInducedPower,
 				axialPropulsiveEfficiency,
 				momentumOverShaft,
+				actuatorDiskAxialVelocity,
 				diskMassFlow,
 				farWakeAxialVelocity,
 				farWakeArea,

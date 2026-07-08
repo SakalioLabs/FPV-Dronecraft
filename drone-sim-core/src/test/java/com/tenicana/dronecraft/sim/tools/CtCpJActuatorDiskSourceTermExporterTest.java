@@ -56,6 +56,11 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(numberCell(hover, columns, "pressure_jump_pa") > 0.0);
 		assertTrue(numberCell(hover, columns, "mass_flux_kg_s_m2") > 0.0);
 		assertTrue(numberCell(hover, columns, "ideal_momentum_power_loading_w_m2") > 0.0);
+		assertEquals(0.0, numberCell(hover, columns, "actuator_disk_axial_velocity_world_x_mps"), 1.0e-15);
+		assertTrue(numberCell(hover, columns, "actuator_disk_axial_velocity_world_y_mps") > 0.0);
+		assertEquals(0.0, numberCell(hover, columns, "actuator_disk_axial_velocity_world_z_mps"), 1.0e-15);
+		assertEquals(RHO * numberCell(hover, columns, "actuator_disk_axial_velocity_world_y_mps"),
+				numberCell(hover, columns, "mass_flux_kg_s_m2"), 1.0e-12);
 		assertEquals(0.0, numberCell(hover, columns, "eta"), 1.0e-15);
 		assertEquals(1.0, numberCell(hover, columns, "disk_normal_world_y"), 1.0e-15);
 		assertEquals(1.0, vectorLength(hover, columns, "disk_tangent_u_world"), 1.0e-15);
@@ -158,6 +163,8 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals("true", textCell(mid, columns, "applied"));
 		assertTrue(numberCell(mid, columns, "eta") > 0.0);
 		assertTrue(numberCell(mid, columns, "pressure_jump_pa") > 0.0);
+		assertTrue(numberCell(mid, columns, "actuator_disk_axial_velocity_world_y_mps")
+				> numberCell(mid, columns, "query_signed_axial_speed_mps"));
 		assertTrue(numberCell(mid, columns, "far_wake_axial_velocity_world_y_mps")
 				> numberCell(mid, columns, "query_signed_axial_speed_mps"));
 		assertTrue(numberCell(mid, columns, "wake_tangential_velocity_mps") > 0.0);
@@ -185,6 +192,8 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals("true", textCell(reverseRaw, columns, "applied"));
 		assertEquals("false", textCell(reverseRuntime, columns, "applied"));
 		assertEquals(0.0, numberCell(reverseRuntime, columns, "pressure_jump_pa"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(reverseRuntime, columns, "actuator_disk_axial_velocity_world_y_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(reverseRuntime, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(reverseRuntime, columns, "wake_angular_momentum_torque_world_y_nm"), 1.0e-15);
@@ -197,6 +206,8 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(blockedRaw, columns, "lookup_status"));
 		assertEquals("false", textCell(blockedRaw, columns, "applied"));
 		assertEquals(0.0, numberCell(blockedRaw, columns, "pressure_jump_pa"), 1.0e-15);
+		assertEquals(0.0,
+				numberCell(blockedRaw, columns, "actuator_disk_axial_velocity_world_y_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "integrated_thrust_force_world_y_n"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns,
 				"equivalent_body_force_integral_world_y_n"), 1.0e-15);
@@ -220,6 +231,7 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		List<String> lines = Files.readAllLines(output);
 		assertEquals(41, lines.size());
 		assertTrue(lines.get(0).contains("pressure_jump_pa"));
+		assertTrue(lines.get(0).contains("actuator_disk_axial_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("disk_tangent_u_world_x"));
 		assertTrue(lines.get(0).contains("source_axis_min_world_y_m"));
 		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_m"));

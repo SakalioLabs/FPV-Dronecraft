@@ -38,6 +38,9 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(sourceTerm.pressureJumpPascals(), sample.pressureJumpPascals(), 1.0e-12);
 		assertEquals(sourceTerm.massFluxKilogramsPerSecondSquareMeter(),
 				sample.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertVectorEquals(sourceTerm.diskNormalWorld()
+						.multiply(sourceTerm.massFluxKilogramsPerSecondSquareMeter() / RHO),
+				sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter(),
 				sample.idealMomentumPowerLoadingWattsPerSquareMeter(), 1.0e-12);
 		assertEquals(sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(samplePoint),
@@ -549,6 +552,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				pressureJumpPascals,
 				massFluxKilogramsPerSecondSquareMeter,
 				0.0,
+				diskNormal.multiply(massFluxKilogramsPerSecondSquareMeter / RHO),
 				diskNormal.multiply(pressureJumpPascals),
 				farWakeAxialVelocityWorldMetersPerSecond,
 				Vec3.ZERO,

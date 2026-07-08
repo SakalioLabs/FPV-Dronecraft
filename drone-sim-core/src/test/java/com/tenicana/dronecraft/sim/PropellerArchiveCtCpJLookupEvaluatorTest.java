@@ -110,6 +110,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				dense.idealInducedPowerWatts(), 1.0e-15);
 		assertEquals(sample.axialPropulsiveEfficiency(),
 				dense.axialPropulsiveEfficiency(), 1.0e-15);
+		assertEquals(sample.actuatorDiskAxialVelocityMetersPerSecond(),
+				dense.actuatorDiskAxialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.diskMassFlowKilogramsPerSecond() * 2.0,
 				dense.diskMassFlowKilogramsPerSecond(), 1.0e-15);
 		assertEquals(sample.farWakeAxialVelocityMetersPerSecond(),
@@ -154,6 +156,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				larger.idealInducedPowerWatts(), 1.0e-15);
 		assertEquals(sample.axialPropulsiveEfficiency(),
 				larger.axialPropulsiveEfficiency(), 1.0e-15);
+		assertEquals(sample.actuatorDiskAxialVelocityMetersPerSecond() * diameterScale,
+				larger.actuatorDiskAxialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(sample.diskMassFlowKilogramsPerSecond() * Math.pow(diameterScale, 3.0),
 				larger.diskMassFlowKilogramsPerSecond(), 1.0e-15);
 		assertEquals(sample.farWakeAxialVelocityMetersPerSecond() * diameterScale,
@@ -531,10 +535,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 		double axialSpeed = Math.max(0.0, sample.axialAdvanceSpeedMetersPerSecond());
 		double wakeDelta = sample.farWakeAxialVelocityMetersPerSecond() - axialSpeed;
 		assertEquals(2.0 * sample.idealInducedVelocityMetersPerSecond(), wakeDelta, 1.0e-15);
+		assertEquals(axialSpeed + sample.idealInducedVelocityMetersPerSecond(),
+				sample.actuatorDiskAxialVelocityMetersPerSecond(), 1.0e-15);
 		assertEquals(
 				sample.airDensityKgPerCubicMeter()
 						* sample.diskAreaSquareMeters()
-						* (axialSpeed + sample.idealInducedVelocityMetersPerSecond()),
+						* sample.actuatorDiskAxialVelocityMetersPerSecond(),
 				sample.diskMassFlowKilogramsPerSecond(),
 				1.0e-15
 		);
@@ -627,6 +633,8 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				&& sample.idealInducedVelocityMetersPerSecond() > 0.0);
 		assertTrue(Double.isFinite(sample.idealMomentumPowerOverShaftPower())
 				&& sample.idealMomentumPowerOverShaftPower() > 0.0);
+		assertTrue(Double.isFinite(sample.actuatorDiskAxialVelocityMetersPerSecond())
+				&& sample.actuatorDiskAxialVelocityMetersPerSecond() > 0.0);
 		assertTrue(Double.isFinite(sample.diskMassFlowKilogramsPerSecond())
 				&& sample.diskMassFlowKilogramsPerSecond() > 0.0);
 		assertTrue(Double.isFinite(sample.farWakeAxialVelocityMetersPerSecond())
