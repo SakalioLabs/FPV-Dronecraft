@@ -295,6 +295,35 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
+	void enclosingWakeVoxelGridExtendsDownstreamWithoutChangingConservativeLoads() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				hoverSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		double cellSize = 0.02;
+		double wakeLength = 0.40;
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec sourceGrid =
+				field.enclosingVoxelGrid(cellSize, 1);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec wakeGrid =
+				field.enclosingWakeVoxelGrid(cellSize, 1, wakeLength);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sample =
+				field.sampleConservativeVoxelGrid(wakeGrid, 3);
+		Vec3 wakeDirection = sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().normalized();
+
+		assertTrue(wakeGrid.totalCellCount() > sourceGrid.totalCellCount());
+		assertTrue(pointInsideGrid(wakeGrid, sourceTerm.diskCenterWorldMeters()));
+		assertTrue(pointInsideGrid(wakeGrid,
+				sourceTerm.diskCenterWorldMeters().add(wakeDirection.multiply(wakeLength))));
+		assertVectorEquals(field.integratedBodyForceWorldNewtons(),
+				sample.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
+				sample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(field.enclosingVoxelGrid(cellSize, 1),
+				field.enclosingWakeVoxelGrid(cellSize, 1, 0.0));
+	}
+
+	@Test
 	void enclosingVoxelGridForEmptyFieldProducesSingleZeroCell() {
 		PropellerArchiveCtCpJActuatorDiskSourceField field =
 				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(blockedSourceTerm()), SOURCE_THICKNESS);

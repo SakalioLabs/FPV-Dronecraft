@@ -20,6 +20,7 @@ import java.util.Map;
 public final class CtCpJLocalVoxelFlowSolverExporter {
 	public static final double DEFAULT_TIME_STEP_SECONDS = 0.005;
 	public static final double DEFAULT_KINEMATIC_VISCOSITY_SQUARE_METERS_PER_SECOND = 1.5e-5;
+	public static final double DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS = 0.60;
 	public static final int DEFAULT_STEP_COUNT = 8;
 
 	private static final String HEADER = String.join(",",
@@ -37,6 +38,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"source_thickness_m",
 			"cell_size_m",
 			"padding_cells",
+			"downstream_wake_length_m",
 			"subcell_samples_per_axis",
 			"time_step_s",
 			"configured_step_count",
@@ -175,6 +177,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		int pressureProjectionIterations = args.length >= 14 && !args[13].isBlank()
 				? Integer.parseInt(args[13])
 				: PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS;
+		double downstreamWakeLength = args.length >= 15 && !args[14].isBlank()
+				? Double.parseDouble(args[14])
+				: DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS;
 		write(
 				presetName,
 				output,
@@ -189,7 +194,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				ambientTemperatureCelsius,
 				ambientHumidity,
 				maxAdvectionCourantNumber,
-				pressureProjectionIterations
+				pressureProjectionIterations,
+				downstreamWakeLength
 		);
 	}
 
@@ -208,7 +214,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				25.0,
 				0.0,
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER,
-				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS,
+				DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS
 		);
 	}
 
@@ -226,7 +233,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			double ambientTemperatureCelsius,
 			double ambientHumidity,
 			double maxAdvectionCourantNumber,
-			int pressureProjectionIterations
+			int pressureProjectionIterations,
+			double downstreamWakeLengthMeters
 	) throws IOException {
 		if (output == null) {
 			throw new IllegalArgumentException("output path must not be null.");
@@ -244,7 +252,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				ambientTemperatureCelsius,
 				ambientHumidity,
 				maxAdvectionCourantNumber,
-				pressureProjectionIterations
+				pressureProjectionIterations,
+				downstreamWakeLengthMeters
 		);
 		Path parent = output.toAbsolutePath().getParent();
 		if (parent != null) {
@@ -267,7 +276,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				25.0,
 				0.0,
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER,
-				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS,
+				DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS
 		);
 	}
 
@@ -284,7 +294,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			double ambientTemperatureCelsius,
 			double ambientHumidity,
 			double maxAdvectionCourantNumber,
-			int pressureProjectionIterations
+			int pressureProjectionIterations,
+			double downstreamWakeLengthMeters
 	) {
 		List<Map<String, String>> voxelRows = parseCsv(String.join("\n",
 				CtCpJActuatorDiskVoxelSourceFieldExporter.csvLines(
@@ -295,7 +306,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 						paddingCells,
 						subcellSamplesPerAxis,
 						ambientTemperatureCelsius,
-						ambientHumidity
+						ambientHumidity,
+						downstreamWakeLengthMeters
 				)));
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config =
 				new PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig(
@@ -310,7 +322,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		List<String> lines = new ArrayList<>();
 		lines.add(HEADER);
 		for (Map.Entry<SourceGroupKey, List<Map<String, String>>> entry : sourceGroups(voxelRows).entrySet()) {
-			lines.addAll(csvLinesForGroup(entry.getKey(), entry.getValue(), config, paddingCells));
+			lines.addAll(csvLinesForGroup(entry.getKey(), entry.getValue(),
+					config, paddingCells, downstreamWakeLengthMeters));
 		}
 		return List.copyOf(lines);
 	}
@@ -319,14 +332,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			SourceGroupKey key,
 			List<Map<String, String>> rows,
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
-			int paddingCells
+			int paddingCells,
+			double downstreamWakeLengthMeters
 	) {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample =
 				sourceGridSample(rows);
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run =
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(sourceGridSample, config);
 		Map<String, String> first = rows.get(0);
-		GroupMetadata metadata = metadata(key, first, sourceGridSample, config, paddingCells);
+		GroupMetadata metadata = metadata(key, first, sourceGridSample, config, paddingCells, downstreamWakeLengthMeters);
 		List<String> lines = new ArrayList<>(run.completedStepCount() + 1);
 		lines.add(csvLine(metadata, run, null));
 		for (PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration : run.iterations()) {
@@ -419,6 +433,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(run.config().sourceThicknessMeters()),
 				number(metadata.cellSizeMeters()),
 				Integer.toString(metadata.paddingCells()),
+				number(metadata.downstreamWakeLengthMeters()),
 				Integer.toString(metadata.subcellSamplesPerAxis()),
 				number(run.config().timeStepSeconds()),
 				Integer.toString(run.config().stepCount()),
@@ -573,7 +588,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			Map<String, String> first,
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
-			int paddingCells
+			int paddingCells,
+			double downstreamWakeLengthMeters
 	) {
 		return new GroupMetadata(
 				key,
@@ -583,6 +599,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				(int) number(first, "applied_source_count"),
 				number(first, "cell_size_m"),
 				paddingCells,
+				downstreamWakeLengthMeters,
 				(int) number(first, "subcell_samples_per_axis"),
 				vector(first,
 						"target_body_force_world_x_n",
@@ -823,6 +840,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			int appliedSourceCount,
 			double cellSizeMeters,
 			int paddingCells,
+			double downstreamWakeLengthMeters,
 			int subcellSamplesPerAxis,
 			Vec3 targetBodyForceWorldNewtons,
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,

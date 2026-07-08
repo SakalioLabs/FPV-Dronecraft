@@ -236,12 +236,37 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			double ambientTemperatureCelsius,
 			double ambientHumidity
 	) {
+		return csvLines(
+				presetName,
+				airDensityKgPerCubicMeter,
+				sourceThicknessMeters,
+				cellSizeMeters,
+				paddingCells,
+				subcellSamplesPerAxis,
+				ambientTemperatureCelsius,
+				ambientHumidity,
+				0.0
+		);
+	}
+
+	public static List<String> csvLines(
+			String presetName,
+			double airDensityKgPerCubicMeter,
+			double sourceThicknessMeters,
+			double cellSizeMeters,
+			int paddingCells,
+			int subcellSamplesPerAxis,
+			double ambientTemperatureCelsius,
+			double ambientHumidity,
+			double downstreamWakeLengthMeters
+	) {
 		validate(
 				airDensityKgPerCubicMeter,
 				sourceThicknessMeters,
 				cellSizeMeters,
 				paddingCells,
-				subcellSamplesPerAxis
+				subcellSamplesPerAxis,
+				downstreamWakeLengthMeters
 		);
 		List<Map<String, String>> rawRows = parseCsv(String.join("\n",
 				CtCpJActuatorDiskSourceTermExporter.csvLines(
@@ -262,7 +287,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 					sourceThicknessMeters,
 					cellSizeMeters,
 					paddingCells,
-					subcellSamplesPerAxis
+					subcellSamplesPerAxis,
+					downstreamWakeLengthMeters
 			));
 		}
 		return List.copyOf(lines);
@@ -273,7 +299,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			double sourceThicknessMeters,
 			double cellSizeMeters,
 			int paddingCells,
-			int subcellSamplesPerAxis
+			int subcellSamplesPerAxis,
+			double downstreamWakeLengthMeters
 	) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= 0.0) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
@@ -289,6 +316,9 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 		}
 		if (subcellSamplesPerAxis <= 0) {
 			throw new IllegalArgumentException("subcellSamplesPerAxis must be positive.");
+		}
+		if (!Double.isFinite(downstreamWakeLengthMeters) || downstreamWakeLengthMeters < 0.0) {
+			throw new IllegalArgumentException("downstreamWakeLengthMeters must be finite and nonnegative.");
 		}
 	}
 
@@ -313,7 +343,8 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 			double sourceThicknessMeters,
 			double cellSizeMeters,
 			int paddingCells,
-			int subcellSamplesPerAxis
+			int subcellSamplesPerAxis,
+			double downstreamWakeLengthMeters
 	) {
 		List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms =
 				sourceRows.stream()
@@ -322,7 +353,7 @@ public final class CtCpJActuatorDiskVoxelSourceFieldExporter {
 		PropellerArchiveCtCpJActuatorDiskSourceField field =
 				new PropellerArchiveCtCpJActuatorDiskSourceField(sourceTerms, sourceThicknessMeters);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
-				field.enclosingVoxelGrid(cellSizeMeters, paddingCells);
+				field.enclosingWakeVoxelGrid(cellSizeMeters, paddingCells, downstreamWakeLengthMeters);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sample =
 				field.sampleConservativeVoxelGrid(grid, subcellSamplesPerAxis);
 		Vec3 targetForce = field.integratedBodyForceWorldNewtons();

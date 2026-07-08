@@ -261,10 +261,29 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 	}
 
 	public VoxelGridSpec enclosingVoxelGrid(double cellSizeMeters, int paddingCells) {
+		return enclosingVoxelGrid(cellSizeMeters, paddingCells, 0.0);
+	}
+
+	public VoxelGridSpec enclosingWakeVoxelGrid(
+			double cellSizeMeters,
+			int paddingCells,
+			double downstreamWakeLengthMeters
+	) {
+		return enclosingVoxelGrid(cellSizeMeters, paddingCells, downstreamWakeLengthMeters);
+	}
+
+	private VoxelGridSpec enclosingVoxelGrid(
+			double cellSizeMeters,
+			int paddingCells,
+			double downstreamWakeLengthMeters
+	) {
 		if (!Double.isFinite(cellSizeMeters) || cellSizeMeters <= EPSILON) {
 			throw new IllegalArgumentException("cellSizeMeters must be finite and positive.");
 		}
 		int padding = Math.max(0, paddingCells);
+		double wakeLength = Double.isFinite(downstreamWakeLengthMeters)
+				? Math.max(0.0, downstreamWakeLengthMeters)
+				: 0.0;
 		boolean found = false;
 		double minX = Double.POSITIVE_INFINITY;
 		double minY = Double.POSITIVE_INFINITY;
@@ -286,12 +305,14 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			double extentX = diskAxisAlignedExtent(diskRadius, halfThickness, normal.x());
 			double extentY = diskAxisAlignedExtent(diskRadius, halfThickness, normal.y());
 			double extentZ = diskAxisAlignedExtent(diskRadius, halfThickness, normal.z());
-			minX = Math.min(minX, center.x() - extentX);
-			minY = Math.min(minY, center.y() - extentY);
-			minZ = Math.min(minZ, center.z() - extentZ);
-			maxX = Math.max(maxX, center.x() + extentX);
-			maxY = Math.max(maxY, center.y() + extentY);
-			maxZ = Math.max(maxZ, center.z() + extentZ);
+			Vec3 wakeDirection = downstreamWakeDirection(sourceTerm, normal);
+			Vec3 downstreamCenter = center.add(wakeDirection.multiply(wakeLength));
+			minX = Math.min(minX, Math.min(center.x(), downstreamCenter.x()) - extentX);
+			minY = Math.min(minY, Math.min(center.y(), downstreamCenter.y()) - extentY);
+			minZ = Math.min(minZ, Math.min(center.z(), downstreamCenter.z()) - extentZ);
+			maxX = Math.max(maxX, Math.max(center.x(), downstreamCenter.x()) + extentX);
+			maxY = Math.max(maxY, Math.max(center.y(), downstreamCenter.y()) + extentY);
+			maxZ = Math.max(maxZ, Math.max(center.z(), downstreamCenter.z()) + extentZ);
 			found = true;
 		}
 		if (!found) {
@@ -314,6 +335,17 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				Math.max(1, maxCellY - minCellY),
 				Math.max(1, maxCellZ - minCellZ)
 		);
+	}
+
+	private static Vec3 downstreamWakeDirection(
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			Vec3 fallbackNormal
+	) {
+		Vec3 farWake = finiteVecOrZero(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond());
+		if (farWake.lengthSquared() > EPSILON) {
+			return farWake.normalized();
+		}
+		return finiteVecOrZero(fallbackNormal).normalized();
 	}
 
 	public VoxelGridSample sampleVoxelGrid(VoxelGridSpec gridSpec) {
