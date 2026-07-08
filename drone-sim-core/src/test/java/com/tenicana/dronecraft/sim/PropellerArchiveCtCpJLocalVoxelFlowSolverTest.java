@@ -78,7 +78,13 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		Vec3 expectedBoundaryImpulse = Vec3.ZERO;
 		Vec3 expectedBoundaryAngularImpulse = Vec3.ZERO;
 		double expectedBoundaryNetEnergy = 0.0;
+		double expectedCoupledSourceForceWork = 0.0;
+		double expectedCoupledWakeResidenceWork = 0.0;
 		for (PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration : run.iterations()) {
+			expectedCoupledSourceForceWork += iteration.sourceAdvance()
+					.coupledSourceForceMechanicalWorkEnergyJoules();
+			expectedCoupledWakeResidenceWork += iteration.sourceAdvance()
+					.coupledWakeResidenceMechanicalWorkEnergyJoules();
 			expectedDiffusionEnergyDelta += iteration.diffusionStep().kineticEnergyDeltaJoules();
 			expectedViscousDissipatedEnergy += iteration.diffusionStep().viscousDissipatedEnergyJoules();
 			PropellerArchiveCtCpJLocalVoxelFlowState.OpenBoundaryFluxMetrics flux =
@@ -98,6 +104,19 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(run.totalViscousDissipatedEnergyJoules()
 						/ (DT * run.completedStepCount()),
 				run.meanViscousDissipationPowerWatts(), 1.0e-12);
+		assertEquals(expectedCoupledSourceForceWork,
+				run.totalCoupledSourceForceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(run.totalCoupledSourceForceMechanicalWorkEnergyJoules()
+						/ (DT * run.completedStepCount()),
+				run.meanCoupledSourceForceMechanicalPowerWatts(), 1.0e-12);
+		assertEquals(expectedCoupledWakeResidenceWork,
+				run.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(run.totalCoupledWakeResidenceMechanicalWorkEnergyJoules()
+						/ (DT * run.completedStepCount()),
+				run.meanCoupledWakeResidenceMechanicalPowerWatts(), 1.0e-12);
+		assertEquals(run.totalCoupledSourceForceMechanicalWorkEnergyJoules()
+						+ run.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(),
+				run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-12);
 		assertEquals(run.cumulativeOpenBoundaryOutwardMassKilograms()
 						- run.cumulativeOpenBoundaryInwardMassKilograms(),
 				run.cumulativeOpenBoundaryNetOutwardMassKilograms(), 1.0e-15);
@@ -250,6 +269,10 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(0.0, run.totalIdealMomentumEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalWakeSwirlKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalWakeKineticEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalCoupledSourceForceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.meanCoupledSourceForceMechanicalPowerWatts(), 1.0e-15);
+		assertEquals(0.0, run.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.meanCoupledWakeResidenceMechanicalPowerWatts(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalDiffusionKineticEnergyDeltaJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalViscousDissipatedEnergyJoules(), 1.0e-15);
@@ -311,6 +334,10 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(0.0, run.totalIdealMomentumEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalWakeSwirlKineticEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalWakeKineticEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalCoupledSourceForceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.meanCoupledSourceForceMechanicalPowerWatts(), 1.0e-15);
+		assertEquals(0.0, run.totalCoupledWakeResidenceMechanicalWorkEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.meanCoupledWakeResidenceMechanicalPowerWatts(), 1.0e-15);
 		assertEquals(0.0, run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalDiffusionKineticEnergyDeltaJoules(), 1.0e-15);
 		assertEquals(0.0, run.totalViscousDissipatedEnergyJoules(), 1.0e-15);

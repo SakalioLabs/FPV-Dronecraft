@@ -124,6 +124,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"through_flow_mechanical_work_energy_j",
 			"combined_mechanical_work_power_w",
 			"combined_mechanical_work_energy_j",
+			"coupled_source_force_mechanical_work_power_w",
+			"coupled_source_force_mechanical_work_energy_j",
+			"coupled_wake_residence_mechanical_work_power_w",
+			"coupled_wake_residence_mechanical_work_energy_j",
 			"combined_mechanical_work_power_minus_source_total_wake_kinetic_power_w",
 			"combined_mechanical_work_power_over_source_total_wake_kinetic_power",
 			"flow_kinetic_energy_source_delta_j",
@@ -137,6 +141,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_source_mechanical_work_energy_j",
 			"cumulative_through_flow_mechanical_work_energy_j",
 			"cumulative_combined_mechanical_work_energy_j",
+			"cumulative_coupled_source_force_mechanical_work_energy_j",
+			"cumulative_coupled_wake_residence_mechanical_work_energy_j",
 			"cumulative_combined_mechanical_work_energy_minus_source_total_wake_kinetic_energy_j",
 			"cumulative_combined_mechanical_work_energy_over_source_total_wake_kinetic_energy",
 			"cumulative_flow_kinetic_energy_source_delta_j",
@@ -768,6 +774,14 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.sourceAdvance().combinedMechanicalWorkPowerWatts();
 		double combinedMechanicalWorkEnergy = initial ? 0.0
 				: iteration.sourceAdvance().combinedMechanicalWorkEnergyJoules();
+		double coupledSourceForceMechanicalWorkPower = initial ? 0.0
+				: iteration.sourceAdvance().coupledSourceForceMechanicalWorkPowerWatts();
+		double coupledSourceForceMechanicalWorkEnergy = initial ? 0.0
+				: iteration.sourceAdvance().coupledSourceForceMechanicalWorkEnergyJoules();
+		double coupledWakeResidenceMechanicalWorkPower = initial ? 0.0
+				: iteration.sourceAdvance().coupledWakeResidenceMechanicalWorkPowerWatts();
+		double coupledWakeResidenceMechanicalWorkEnergy = initial ? 0.0
+				: iteration.sourceAdvance().coupledWakeResidenceMechanicalWorkEnergyJoules();
 		double combinedMechanicalWorkPowerMinusWakeKineticPower = initial ? 0.0
 				: iteration.sourceAdvance().combinedMechanicalWorkPowerMinusWakeKineticPowerWatts();
 		double combinedMechanicalWorkPowerOverWakeKineticPower = initial ? 0.0
@@ -794,6 +808,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeThroughFlowMechanicalWorkEnergy(run, completedSteps);
 		double cumulativeCombinedMechanicalWorkEnergy =
 				cumulativeCombinedMechanicalWorkEnergy(run, completedSteps);
+		double cumulativeCoupledSourceForceMechanicalWorkEnergy =
+				cumulativeCoupledSourceForceMechanicalWorkEnergy(run, completedSteps);
+		double cumulativeCoupledWakeResidenceMechanicalWorkEnergy =
+				cumulativeCoupledWakeResidenceMechanicalWorkEnergy(run, completedSteps);
 		double cumulativeCombinedMechanicalWorkEnergyMinusWakeKineticEnergy =
 				cumulativeCombinedMechanicalWorkEnergy - cumulativeSourceTotalWakeKineticEnergy;
 		double cumulativeCombinedMechanicalWorkEnergyOverWakeKineticEnergy =
@@ -1107,6 +1125,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(throughFlowMechanicalWorkEnergy),
 				number(combinedMechanicalWorkPower),
 				number(combinedMechanicalWorkEnergy),
+				number(coupledSourceForceMechanicalWorkPower),
+				number(coupledSourceForceMechanicalWorkEnergy),
+				number(coupledWakeResidenceMechanicalWorkPower),
+				number(coupledWakeResidenceMechanicalWorkEnergy),
 				number(combinedMechanicalWorkPowerMinusWakeKineticPower),
 				number(combinedMechanicalWorkPowerOverWakeKineticPower),
 				number(flowKineticEnergySourceDelta),
@@ -1120,6 +1142,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSourceMechanicalWorkEnergy),
 				number(cumulativeThroughFlowMechanicalWorkEnergy),
 				number(cumulativeCombinedMechanicalWorkEnergy),
+				number(cumulativeCoupledSourceForceMechanicalWorkEnergy),
+				number(cumulativeCoupledWakeResidenceMechanicalWorkEnergy),
 				number(cumulativeCombinedMechanicalWorkEnergyMinusWakeKineticEnergy),
 				number(cumulativeCombinedMechanicalWorkEnergyOverWakeKineticEnergy),
 				number(cumulativeFlowKineticEnergySourceDelta),
@@ -1505,6 +1529,30 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 	) {
 		return cumulativeSourceMechanicalWorkEnergy(run, completedSteps)
 				+ cumulativeThroughFlowMechanicalWorkEnergy(run, completedSteps);
+	}
+
+	private static double cumulativeCoupledSourceForceMechanicalWorkEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).sourceAdvance()
+					.coupledSourceForceMechanicalWorkEnergyJoules();
+		}
+		return energy;
+	}
+
+	private static double cumulativeCoupledWakeResidenceMechanicalWorkEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).sourceAdvance()
+					.coupledWakeResidenceMechanicalWorkEnergyJoules();
+		}
+		return energy;
 	}
 
 	private static double cumulativeFlowKineticEnergySourceDelta(

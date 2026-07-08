@@ -391,6 +391,38 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return energy;
 		}
 
+		public double totalCoupledSourceForceMechanicalWorkEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().coupledSourceForceMechanicalWorkEnergyJoules();
+			}
+			return energy;
+		}
+
+		public double meanCoupledSourceForceMechanicalPowerWatts() {
+			if (iterations.isEmpty()) {
+				return 0.0;
+			}
+			return totalCoupledSourceForceMechanicalWorkEnergyJoules()
+					/ (config.timeStepSeconds() * completedStepCount());
+		}
+
+		public double totalCoupledWakeResidenceMechanicalWorkEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().coupledWakeResidenceMechanicalWorkEnergyJoules();
+			}
+			return energy;
+		}
+
+		public double meanCoupledWakeResidenceMechanicalPowerWatts() {
+			if (iterations.isEmpty()) {
+				return 0.0;
+			}
+			return totalCoupledWakeResidenceMechanicalWorkEnergyJoules()
+					/ (config.timeStepSeconds() * completedStepCount());
+		}
+
 		public double totalSourceFlowKineticEnergyDeltaJoules() {
 			double energy = 0.0;
 			for (SolverIteration iteration : iterations) {
