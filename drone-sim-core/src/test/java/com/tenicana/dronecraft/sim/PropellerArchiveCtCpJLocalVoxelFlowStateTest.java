@@ -133,6 +133,53 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void solidMaskRasterizesWorldSolidBoxesIntoVoxelCells() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox block =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+						new Vec3(0.2, 0.0, 0.0),
+						new Vec3(1.2, 1.0, 1.0)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox faceTouching =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+						new Vec3(3.0, 0.0, 0.0),
+						new Vec3(4.0, 1.0, 1.0)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask anyOverlap =
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						List.of(block, faceTouching)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask halfCellThreshold =
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						List.of(block),
+						0.5
+				);
+
+		assertEquals(2, anyOverlap.solidCellCount());
+		assertTrue(anyOverlap.isSolid(0, 0, 0));
+		assertTrue(anyOverlap.isSolid(1, 0, 0));
+		assertTrue(!anyOverlap.isSolid(2, 0, 0));
+		assertEquals(1, halfCellThreshold.solidCellCount());
+		assertTrue(halfCellThreshold.isSolid(0, 0, 0));
+		assertTrue(!halfCellThreshold.isSolid(1, 0, 0));
+		assertEquals(0,
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						List.of()
+				).solidCellCount());
+	}
+
+	@Test
 	void openSolidMaskIsNoOpAndRejectsInvalidInputs() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
@@ -166,6 +213,22 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				);
 		assertThrows(IllegalArgumentException.class,
 				() -> new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(grid, List.of(Boolean.TRUE)));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						List.of(new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+								new Vec3(0.0, 0.0, 0.0),
+								new Vec3(1.0, 1.0, 1.0))),
+						-0.1));
+		assertThrows(IllegalArgumentException.class,
+				() -> PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.fromWorldSolidBoxes(
+						grid,
+						java.util.Collections.singletonList(
+								(PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox) null)));
+		assertThrows(IllegalArgumentException.class,
+				() -> new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.WorldSolidBox(
+						new Vec3(1.0, 0.0, 0.0),
+						new Vec3(1.0, 1.0, 1.0)));
 		assertThrows(IllegalArgumentException.class,
 				() -> state.applySolidMask(
 						PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask.open(otherGrid),

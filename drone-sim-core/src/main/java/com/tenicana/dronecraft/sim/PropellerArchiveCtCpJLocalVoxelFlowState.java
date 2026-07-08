@@ -92,6 +92,37 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
 			List<Boolean> solidCells
 	) {
+		public record WorldSolidBox(
+				Vec3 minWorldMeters,
+				Vec3 maxWorldMeters
+		) {
+			public WorldSolidBox {
+				if (minWorldMeters == null || maxWorldMeters == null
+						|| !minWorldMeters.isFinite() || !maxWorldMeters.isFinite()) {
+					throw new IllegalArgumentException("solid box bounds must be finite.");
+				}
+				if (maxWorldMeters.x() <= minWorldMeters.x()
+						|| maxWorldMeters.y() <= minWorldMeters.y()
+						|| maxWorldMeters.z() <= minWorldMeters.z()) {
+					throw new IllegalArgumentException("solid box max bounds must be greater than min bounds.");
+				}
+			}
+
+			private double overlapVolumeCubicMeters(
+					double cellMinX,
+					double cellMinY,
+					double cellMinZ,
+					double cellMaxX,
+					double cellMaxY,
+					double cellMaxZ
+			) {
+				double overlapX = overlapLength(minWorldMeters.x(), maxWorldMeters.x(), cellMinX, cellMaxX);
+				double overlapY = overlapLength(minWorldMeters.y(), maxWorldMeters.y(), cellMinY, cellMaxY);
+				double overlapZ = overlapLength(minWorldMeters.z(), maxWorldMeters.z(), cellMinZ, cellMaxZ);
+				return overlapX * overlapY * overlapZ;
+			}
+		}
+
 		public VoxelSolidMask {
 			if (gridSpec == null) {
 				throw new IllegalArgumentException("gridSpec must not be null.");
@@ -116,6 +147,60 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			ArrayList<Boolean> cells = new ArrayList<>(gridSpec.totalCellCount());
 			for (int i = 0; i < gridSpec.totalCellCount(); i++) {
 				cells.add(Boolean.FALSE);
+			}
+			return new VoxelSolidMask(gridSpec, cells);
+		}
+
+		public static VoxelSolidMask fromWorldSolidBoxes(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
+				List<WorldSolidBox> solidBoxes
+		) {
+			return fromWorldSolidBoxes(gridSpec, solidBoxes, 0.0);
+		}
+
+		public static VoxelSolidMask fromWorldSolidBoxes(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec gridSpec,
+				List<WorldSolidBox> solidBoxes,
+				double minimumSolidVolumeFraction
+		) {
+			if (gridSpec == null) {
+				throw new IllegalArgumentException("gridSpec must not be null.");
+			}
+			if (!Double.isFinite(minimumSolidVolumeFraction)
+					|| minimumSolidVolumeFraction < 0.0
+					|| minimumSolidVolumeFraction > 1.0) {
+				throw new IllegalArgumentException("minimumSolidVolumeFraction must be within [0, 1].");
+			}
+			List<WorldSolidBox> inputBoxes = solidBoxes == null ? List.of() : solidBoxes;
+			ArrayList<WorldSolidBox> sanitizedBoxes = new ArrayList<>(inputBoxes.size());
+			for (WorldSolidBox box : inputBoxes) {
+				if (box == null) {
+					throw new IllegalArgumentException("solidBoxes must not contain null boxes.");
+				}
+				sanitizedBoxes.add(box);
+			}
+			List<WorldSolidBox> boxes = List.copyOf(sanitizedBoxes);
+			ArrayList<Boolean> cells = new ArrayList<>(gridSpec.totalCellCount());
+			double cellSize = gridSpec.cellSizeMeters();
+			double cellVolume = gridSpec.cellVolumeCubicMeters();
+			for (int y = 0; y < gridSpec.cellCountY(); y++) {
+				for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+					for (int x = 0; x < gridSpec.cellCountX(); x++) {
+						double cellMinX = gridSpec.originWorldMeters().x() + x * cellSize;
+						double cellMinY = gridSpec.originWorldMeters().y() + y * cellSize;
+						double cellMinZ = gridSpec.originWorldMeters().z() + z * cellSize;
+						cells.add(boxesOverlapCell(
+								boxes,
+								cellMinX,
+								cellMinY,
+								cellMinZ,
+								cellMinX + cellSize,
+								cellMinY + cellSize,
+								cellMinZ + cellSize,
+								cellVolume,
+								minimumSolidVolumeFraction));
+					}
+				}
 			}
 			return new VoxelSolidMask(gridSpec, cells);
 		}
@@ -148,6 +233,42 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				throw new IndexOutOfBoundsException("cell index outside voxel grid.");
 			}
 			return (yIndex * gridSpec.cellCountZ() + zIndex) * gridSpec.cellCountX() + xIndex;
+		}
+
+		private static boolean boxesOverlapCell(
+				List<WorldSolidBox> boxes,
+				double cellMinX,
+				double cellMinY,
+				double cellMinZ,
+				double cellMaxX,
+				double cellMaxY,
+				double cellMaxZ,
+				double cellVolume,
+				double minimumSolidVolumeFraction
+		) {
+			for (WorldSolidBox box : boxes) {
+				double overlap = box.overlapVolumeCubicMeters(
+						cellMinX,
+						cellMinY,
+						cellMinZ,
+						cellMaxX,
+						cellMaxY,
+						cellMaxZ);
+				double fraction = overlap / cellVolume;
+				if (overlap > EPSILON && fraction + EPSILON >= minimumSolidVolumeFraction) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private static double overlapLength(
+				double firstMin,
+				double firstMax,
+				double secondMin,
+				double secondMax
+		) {
+			return Math.max(0.0, Math.min(firstMax, secondMax) - Math.max(firstMin, secondMin));
 		}
 	}
 
