@@ -143,7 +143,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
-	void superposesOverlappingAppliedSourcesAndSkipsBlockedSources() {
+	void superposesOverlappingAppliedLoadsAndMassWeightsWakeTargets() {
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample appliedSource =
 				hoverSourceTerm();
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample blockedSource =
@@ -166,13 +166,62 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 						.multiply(2.0),
 				sample.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
 		assertEquals(appliedSource.pressureJumpPascals() * 2.0, sample.pressureJumpPascals(), 1.0e-12);
-		assertVectorEquals(appliedSource.farWakeAxialVelocityWorldMetersPerSecond().multiply(2.0),
+		assertEquals(appliedSource.massFluxKilogramsPerSecondSquareMeter() * 2.0,
+				sample.massFluxKilogramsPerSecondSquareMeter(), 1.0e-12);
+		assertVectorEquals(appliedSource.farWakeAxialVelocityWorldMetersPerSecond(),
+				sample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(appliedSource.farWakeAxialVelocityWorldMetersPerSecond(),
 				sample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
 		assertVectorEquals(appliedSource.thrustSurfaceForceWorldNewtonsPerSquareMeter()
 						.multiply(appliedSource.diskAreaSquareMeters() * 2.0),
 				field.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(appliedSource.wakeAngularMomentumTorqueWorldNewtonMeters().multiply(2.0),
 				field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+	}
+
+	@Test
+	void overlappingWakeTargetsUseMassFluxWeightedVelocity() {
+		Vec3 center = MOMENT_REFERENCE_WORLD;
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample slowSource =
+				syntheticSourceTerm(0, center, new Vec3(0.0, 4.0, 0.0), 2.0, 3.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample fastSource =
+				syntheticSourceTerm(1, center, new Vec3(0.0, 12.0, 0.0), 6.0, 5.0);
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(
+						List.of(slowSource, fastSource),
+						SOURCE_THICKNESS
+				);
+		Vec3 expectedWakeVelocity = new Vec3(0.0, 10.0, 0.0);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						center.subtract(new Vec3(0.5, 0.5, 0.5)),
+						1.0,
+						1,
+						1,
+						1
+				);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample pointSample =
+				field.sampleAt(center);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample geometricCell =
+				field.sampleVoxelGrid(grid, 1).cells().get(0);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample conservativeCell =
+				field.sampleConservativeVoxelGrid(grid, 1).cells().get(0);
+
+		assertEquals(2, pointSample.contributingSourceCount());
+		assertEquals(8.0, pointSample.massFluxKilogramsPerSecondSquareMeter(), 1.0e-15);
+		assertEquals(8.0, pointSample.pressureJumpPascals(), 1.0e-15);
+		assertVectorEquals(expectedWakeVelocity,
+				pointSample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedWakeVelocity,
+				pointSample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertEquals(8.0, geometricCell.massFluxKilogramsPerSecondSquareMeter(), 1.0e-15);
+		assertVectorEquals(expectedWakeVelocity,
+				geometricCell.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertTrue(conservativeCell.massFluxKilogramsPerSecondSquareMeter()
+				< geometricCell.massFluxKilogramsPerSecondSquareMeter());
+		assertVectorEquals(expectedWakeVelocity,
+				conservativeCell.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
 	}
 
 	@Test
@@ -482,6 +531,42 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, Quaternion.IDENTITY);
+	}
+
+	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample syntheticSourceTerm(
+			int rotorIndex,
+			Vec3 diskCenterWorldMeters,
+			Vec3 farWakeAxialVelocityWorldMetersPerSecond,
+			double massFluxKilogramsPerSecondSquareMeter,
+			double pressureJumpPascals
+	) {
+		Vec3 diskNormal = new Vec3(0.0, 1.0, 0.0);
+		return new PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample(
+				rotorIndex,
+				diskCenterWorldMeters,
+				diskNormal,
+				1.0,
+				pressureJumpPascals,
+				massFluxKilogramsPerSecondSquareMeter,
+				0.0,
+				diskNormal.multiply(pressureJumpPascals),
+				farWakeAxialVelocityWorldMetersPerSecond,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.5,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				0.0,
+				true,
+				true,
+				"synthetic-overlap"
+		);
 	}
 
 	private static Vec3 perpendicularUnit(Vec3 axis) {

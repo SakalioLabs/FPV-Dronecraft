@@ -307,11 +307,17 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		double wakeSwirlPowerLoading = 0.0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
+		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
+		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
+		double wakeVelocityMassFluxWeight = 0.0;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
 			if (!containsActuatorDiskVolume(sourceTerm, point)) {
 				continue;
 			}
 			contributingSources++;
+			double sourceMassFlux = sourceTerm.massFluxKilogramsPerSecondSquareMeter();
+			Vec3 sourceFarWakeAxialVelocity = sourceTerm.farWakeAxialVelocityWorldMetersPerSecond();
+			Vec3 sourceWakeSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point);
 			bodyForceDensity = bodyForceDensity.add(
 					sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters));
 			wakeTorqueDensity = wakeTorqueDensity.add(sourceTerm
@@ -319,11 +325,26 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 							sourceThicknessMeters,
 							point));
 			pressureJump += sourceTerm.pressureJumpPascals();
-			massFlux += sourceTerm.massFluxKilogramsPerSecondSquareMeter();
+			massFlux += sourceMassFlux;
 			powerLoading += sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter();
 			wakeSwirlPowerLoading += sourceTerm.wakeSwirlKineticPowerLoadingWattsPerSquareMeterAt(point);
-			farWakeAxialVelocity = farWakeAxialVelocity.add(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond());
-			wakeSwirlVelocity = wakeSwirlVelocity.add(sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point));
+			fallbackFarWakeAxialVelocity = fallbackFarWakeAxialVelocity.add(sourceFarWakeAxialVelocity);
+			fallbackWakeSwirlVelocity = fallbackWakeSwirlVelocity.add(sourceWakeSwirlVelocity);
+			if (sourceMassFlux > EPSILON) {
+				farWakeAxialVelocity = farWakeAxialVelocity.add(
+						sourceFarWakeAxialVelocity.multiply(sourceMassFlux));
+				wakeSwirlVelocity = wakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(sourceMassFlux));
+				wakeVelocityMassFluxWeight += sourceMassFlux;
+			}
+		}
+		if (wakeVelocityMassFluxWeight > EPSILON) {
+			double inverseWakeVelocityWeight = 1.0 / wakeVelocityMassFluxWeight;
+			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
+			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
+		} else if (contributingSources > 0) {
+			double inverseContributingSources = 1.0 / contributingSources;
+			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseContributingSources);
+			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseContributingSources);
 		}
 		return new SourceFieldSample(
 				point,
@@ -496,6 +517,11 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
+		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
+		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
+		Vec3 fallbackTargetWakeVelocity = Vec3.ZERO;
+		double wakeVelocityMassFluxWeight = 0.0;
+		int fallbackActiveSubsamples = 0;
 		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
 			for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
 				for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
@@ -511,25 +537,47 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					if (sample.insideAnySource()) {
 						activeSubsamples++;
 					}
+					double sampleMassFlux = sample.massFluxKilogramsPerSecondSquareMeter();
 					bodyForceDensity = bodyForceDensity.add(sample.bodyForceDensityWorldNewtonsPerCubicMeter());
 					wakeTorqueDensity =
 							wakeTorqueDensity.add(sample.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter());
 					pressureJump += sample.pressureJumpPascals();
-					massFlux += sample.massFluxKilogramsPerSecondSquareMeter();
+					massFlux += sampleMassFlux;
 					powerLoading += sample.idealMomentumPowerLoadingWattsPerSquareMeter();
 					wakeSwirlPowerLoading += sample.wakeSwirlKineticPowerLoadingWattsPerSquareMeter();
 					totalWakePowerLoading += sample.totalWakeKineticPowerLoadingWattsPerSquareMeter();
-					farWakeAxialVelocity =
-							farWakeAxialVelocity.add(sample.farWakeAxialVelocityWorldMetersPerSecond());
-					wakeSwirlVelocity = wakeSwirlVelocity.add(sample.wakeSwirlVelocityWorldMetersPerSecond());
-					targetWakeVelocity = targetWakeVelocity.add(sample.targetWakeVelocityWorldMetersPerSecond());
+					if (sampleMassFlux > EPSILON) {
+						farWakeAxialVelocity = farWakeAxialVelocity.add(
+								sample.farWakeAxialVelocityWorldMetersPerSecond().multiply(sampleMassFlux));
+						wakeSwirlVelocity = wakeSwirlVelocity.add(
+								sample.wakeSwirlVelocityWorldMetersPerSecond().multiply(sampleMassFlux));
+						targetWakeVelocity = targetWakeVelocity.add(
+								sample.targetWakeVelocityWorldMetersPerSecond().multiply(sampleMassFlux));
+						wakeVelocityMassFluxWeight += sampleMassFlux;
+					} else if (sample.insideAnySource()) {
+						fallbackActiveSubsamples++;
+						fallbackFarWakeAxialVelocity = fallbackFarWakeAxialVelocity.add(
+								sample.farWakeAxialVelocityWorldMetersPerSecond());
+						fallbackWakeSwirlVelocity =
+								fallbackWakeSwirlVelocity.add(sample.wakeSwirlVelocityWorldMetersPerSecond());
+						fallbackTargetWakeVelocity =
+								fallbackTargetWakeVelocity.add(sample.targetWakeVelocityWorldMetersPerSecond());
+					}
 				}
 			}
 		}
 		double inverseSamples = 1.0 / totalSubsamples;
-		double inverseActiveSamples = activeSubsamples == 0
-				? 0.0
-				: 1.0 / activeSubsamples;
+		if (wakeVelocityMassFluxWeight > EPSILON) {
+			double inverseWakeVelocityWeight = 1.0 / wakeVelocityMassFluxWeight;
+			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
+			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
+			targetWakeVelocity = targetWakeVelocity.multiply(inverseWakeVelocityWeight);
+		} else if (fallbackActiveSubsamples > 0) {
+			double inverseFallbackActiveSamples = 1.0 / fallbackActiveSubsamples;
+			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseFallbackActiveSamples);
+			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseFallbackActiveSamples);
+			targetWakeVelocity = fallbackTargetWakeVelocity.multiply(inverseFallbackActiveSamples);
+		}
 		return new VoxelCellSample(
 				xIndex,
 				yIndex,
@@ -546,9 +594,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading * inverseSamples,
 				wakeSwirlPowerLoading * inverseSamples,
 				totalWakePowerLoading * inverseSamples,
-				farWakeAxialVelocity.multiply(inverseActiveSamples),
-				wakeSwirlVelocity.multiply(inverseActiveSamples),
-				targetWakeVelocity.multiply(inverseActiveSamples)
+				farWakeAxialVelocity,
+				wakeSwirlVelocity,
+				targetWakeVelocity
 		);
 	}
 
@@ -572,6 +620,11 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		Vec3 targetWakeVelocity = Vec3.ZERO;
+		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
+		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
+		Vec3 fallbackTargetWakeVelocity = Vec3.ZERO;
+		double wakeVelocityMassFluxWeight = 0.0;
+		double fallbackVelocitySampleWeight = 0.0;
 		for (SourceCoverage coverage : coverages) {
 			if (coverage.densityScale() <= EPSILON) {
 				continue;
@@ -596,20 +649,39 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			powerLoading += coverage.sourceTerm().idealMomentumPowerLoadingWattsPerSquareMeter() * sourceWeight;
 			wakeSwirlPowerLoading += coverage.sourceTerm().wakeSwirlKineticPowerLoadingWattsPerSquareMeter()
 					* wakeTorqueWeight;
-			double velocitySampleWeight = cellCoverage.activeSubsamples();
-			farWakeAxialVelocity = farWakeAxialVelocity.add(
-					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond()
-							.multiply(velocitySampleWeight));
-			wakeSwirlVelocity = wakeSwirlVelocity.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond()
-					.multiply(velocitySampleWeight));
-			targetWakeVelocity = targetWakeVelocity.add(
-					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond()
-							.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond())
-							.multiply(velocitySampleWeight));
+			Vec3 sourceFarWakeAxialVelocity = coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond();
+			Vec3 sourceWakeSwirlVelocity = cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond();
+			Vec3 sourceTargetWakeVelocity = sourceFarWakeAxialVelocity.add(sourceWakeSwirlVelocity);
+			double sourceMassFluxWeight =
+					coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
+			if (sourceMassFluxWeight > EPSILON) {
+				farWakeAxialVelocity =
+						farWakeAxialVelocity.add(sourceFarWakeAxialVelocity.multiply(sourceMassFluxWeight));
+				wakeSwirlVelocity = wakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(sourceMassFluxWeight));
+				targetWakeVelocity = targetWakeVelocity.add(sourceTargetWakeVelocity.multiply(sourceMassFluxWeight));
+				wakeVelocityMassFluxWeight += sourceMassFluxWeight;
+			} else {
+				double velocitySampleWeight = cellCoverage.activeSubsamples();
+				fallbackFarWakeAxialVelocity =
+						fallbackFarWakeAxialVelocity.add(sourceFarWakeAxialVelocity.multiply(velocitySampleWeight));
+				fallbackWakeSwirlVelocity =
+						fallbackWakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(velocitySampleWeight));
+				fallbackTargetWakeVelocity =
+						fallbackTargetWakeVelocity.add(sourceTargetWakeVelocity.multiply(velocitySampleWeight));
+				fallbackVelocitySampleWeight += velocitySampleWeight;
+			}
 		}
-		double inverseActiveSamples = activeSubsamples == 0
-				? 0.0
-				: 1.0 / activeSubsamples;
+		if (wakeVelocityMassFluxWeight > EPSILON) {
+			double inverseWakeVelocityWeight = 1.0 / wakeVelocityMassFluxWeight;
+			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
+			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
+			targetWakeVelocity = targetWakeVelocity.multiply(inverseWakeVelocityWeight);
+		} else if (fallbackVelocitySampleWeight > EPSILON) {
+			double inverseFallbackVelocityWeight = 1.0 / fallbackVelocitySampleWeight;
+			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseFallbackVelocityWeight);
+			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseFallbackVelocityWeight);
+			targetWakeVelocity = fallbackTargetWakeVelocity.multiply(inverseFallbackVelocityWeight);
+		}
 		return new VoxelCellSample(
 				xIndex,
 				yIndex,
@@ -626,9 +698,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading,
 				wakeSwirlPowerLoading,
 				powerLoading + wakeSwirlPowerLoading,
-				farWakeAxialVelocity.multiply(inverseActiveSamples),
-				wakeSwirlVelocity.multiply(inverseActiveSamples),
-				targetWakeVelocity.multiply(inverseActiveSamples)
+				farWakeAxialVelocity,
+				wakeSwirlVelocity,
+				targetWakeVelocity
 		);
 	}
 
