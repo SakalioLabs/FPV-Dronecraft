@@ -717,6 +717,36 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 	}
 
+	public record DivergenceIntegralMetrics(
+			double netVolumeFlowRateCubicMetersPerSecond,
+			double grossAbsVolumeFlowRateCubicMetersPerSecond,
+			double openVolumeCubicMeters
+	) {
+		public DivergenceIntegralMetrics {
+			netVolumeFlowRateCubicMetersPerSecond =
+					Double.isFinite(netVolumeFlowRateCubicMetersPerSecond)
+							? netVolumeFlowRateCubicMetersPerSecond
+							: 0.0;
+			grossAbsVolumeFlowRateCubicMetersPerSecond =
+					finiteNonnegative(grossAbsVolumeFlowRateCubicMetersPerSecond);
+			openVolumeCubicMeters = finiteNonnegative(openVolumeCubicMeters);
+		}
+
+		public double netMassFlowRateKilogramsPerSecond(double airDensityKgPerCubicMeter) {
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			return netVolumeFlowRateCubicMetersPerSecond * airDensityKgPerCubicMeter;
+		}
+
+		public double grossAbsMassFlowRateKilogramsPerSecond(double airDensityKgPerCubicMeter) {
+			if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
+				throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
+			}
+			return grossAbsVolumeFlowRateCubicMetersPerSecond * airDensityKgPerCubicMeter;
+		}
+	}
+
 	public record VorticityMetrics(
 			double maxMagnitudePerSecond,
 			double rmsMagnitudePerSecond,
@@ -1342,6 +1372,37 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				maxMagnitude,
 				totalWeight <= EPSILON ? 0.0 : Math.sqrt(sumWeightedMagnitudeSquares / totalWeight),
 				totalWeight <= EPSILON ? Vec3.ZERO : weightedVorticity.multiply(1.0 / totalWeight)
+		);
+	}
+
+	public DivergenceIntegralMetrics divergenceIntegralMetrics() {
+		return divergenceIntegralMetrics(VoxelSolidMask.open(gridSpec));
+	}
+
+	public DivergenceIntegralMetrics divergenceIntegralMetrics(VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
+		double[] divergence = divergenceValues(solidMask);
+		double netVolumeFlowRate = 0.0;
+		double grossAbsVolumeFlowRate = 0.0;
+		double openVolume = 0.0;
+		double cellVolume = gridSpec.cellVolumeCubicMeters();
+		for (int cellIndex = 0; cellIndex < divergence.length; cellIndex++) {
+			if (solidMask.isSolidCellIndex(cellIndex)) {
+				continue;
+			}
+			double volume = cellVolume * solidMask.openVolumeFractionCellIndex(cellIndex);
+			if (volume <= EPSILON) {
+				continue;
+			}
+			double volumeFlowRate = divergence[cellIndex] * volume;
+			netVolumeFlowRate += volumeFlowRate;
+			grossAbsVolumeFlowRate += Math.abs(volumeFlowRate);
+			openVolume += volume;
+		}
+		return new DivergenceIntegralMetrics(
+				netVolumeFlowRate,
+				grossAbsVolumeFlowRate,
+				openVolume
 		);
 	}
 

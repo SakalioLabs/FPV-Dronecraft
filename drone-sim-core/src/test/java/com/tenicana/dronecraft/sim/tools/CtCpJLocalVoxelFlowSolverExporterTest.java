@@ -175,6 +175,13 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				< number(hoverStep2, "max_divergence_before_projection_s"));
 		assertTrue(number(hoverStep2, "rms_divergence_after_projection_s")
 				< number(hoverStep2, "rms_divergence_before_projection_s"));
+		assertTrue(number(hoverStep2, "gross_abs_divergence_volume_flow_before_projection_m3_s") > 0.0);
+		assertTrue(number(hoverStep2, "gross_abs_divergence_volume_flow_after_projection_m3_s")
+				< number(hoverStep2, "gross_abs_divergence_volume_flow_before_projection_m3_s"));
+		assertEquals(number(hoverStep2, "net_divergence_volume_flow_before_projection_m3_s") * RHO,
+				number(hoverStep2, "net_divergence_mass_flow_before_projection_kg_s"), 1.0e-12);
+		assertEquals(number(hoverStep2, "gross_abs_divergence_volume_flow_after_projection_m3_s") * RHO,
+				number(hoverStep2, "gross_abs_divergence_mass_flow_after_projection_kg_s"), 1.0e-12);
 		assertTrue(Double.isFinite(number(hoverStep2, "max_vorticity_after_source_s")));
 		assertTrue(number(hoverStep2, "max_vorticity_after_source_s") >= 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2, "rms_vorticity_after_projection_s")));
@@ -285,6 +292,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0,
 				number(blockedStep2, "mean_helicity_density_after_solid_boundary_m_per_s2"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "max_divergence_after_projection_s"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "gross_abs_divergence_volume_flow_before_projection_m3_s"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "gross_abs_divergence_mass_flow_after_projection_kg_s"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "final_momentum_world_y_ns"), 1.0e-15);
@@ -429,6 +440,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("cumulative_advection_momentum_residual_world_y_ns"));
 		assertTrue(lines.get(0).contains("pressure_projection_iterations"));
 		assertTrue(lines.get(0).contains("max_divergence_after_projection_s"));
+		assertTrue(lines.get(0).contains("net_divergence_volume_flow_before_projection_m3_s"));
+		assertTrue(lines.get(0).contains("gross_abs_divergence_mass_flow_after_projection_kg_s"));
 		assertTrue(lines.get(0).contains("max_vorticity_after_source_s"));
 		assertTrue(lines.get(0).contains("rms_vorticity_after_projection_s"));
 		assertTrue(lines.get(0).contains("mean_vorticity_after_solid_boundary_world_y_s"));

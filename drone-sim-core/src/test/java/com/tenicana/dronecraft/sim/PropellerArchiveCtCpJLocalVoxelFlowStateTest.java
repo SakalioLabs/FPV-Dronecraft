@@ -673,15 +673,26 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 						grid,
 						List.of(Vec3.ZERO, new Vec3(1.0, 0.0, 0.0), Vec3.ZERO)
 				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics integralsBefore =
+				state.divergenceIntegralMetrics();
 
 		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projection =
 				state.projectVelocityDivergence(RHO, 8);
+		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics integralsAfter =
+				projection.nextState().divergenceIntegralMetrics();
 
 		assertEquals(0.5, projection.divergenceBefore().maxAbsDivergencePerSecond(), 1.0e-15);
+		assertEquals(0.0, integralsBefore.netVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(1.0, integralsBefore.grossAbsVolumeFlowRateCubicMetersPerSecond(), 1.0e-15);
+		assertEquals(RHO, integralsBefore.grossAbsMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
 		assertTrue(projection.divergenceAfter().maxAbsDivergencePerSecond()
 				< projection.divergenceBefore().maxAbsDivergencePerSecond());
 		assertTrue(projection.divergenceAfter().rmsDivergencePerSecond()
 				< projection.divergenceBefore().rmsDivergencePerSecond());
+		assertTrue(integralsAfter.grossAbsVolumeFlowRateCubicMetersPerSecond()
+				< integralsBefore.grossAbsVolumeFlowRateCubicMetersPerSecond());
+		assertEquals(integralsAfter.grossAbsVolumeFlowRateCubicMetersPerSecond() * RHO,
+				integralsAfter.grossAbsMassFlowRateKilogramsPerSecond(RHO), 1.0e-15);
 		assertEquals(8, projection.pressureProjectionIterations());
 		assertVectorEquals(projection.totalMomentumAfterWorldNewtonSeconds()
 						.subtract(projection.totalMomentumBeforeWorldNewtonSeconds()),

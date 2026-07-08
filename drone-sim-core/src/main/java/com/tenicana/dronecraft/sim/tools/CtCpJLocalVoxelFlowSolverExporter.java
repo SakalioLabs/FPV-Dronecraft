@@ -131,9 +131,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"max_divergence_before_projection_s",
 			"rms_divergence_before_projection_s",
 			"mean_divergence_before_projection_s",
+			"net_divergence_volume_flow_before_projection_m3_s",
+			"gross_abs_divergence_volume_flow_before_projection_m3_s",
+			"net_divergence_mass_flow_before_projection_kg_s",
+			"gross_abs_divergence_mass_flow_before_projection_kg_s",
 			"max_divergence_after_projection_s",
 			"rms_divergence_after_projection_s",
 			"mean_divergence_after_projection_s",
+			"net_divergence_volume_flow_after_projection_m3_s",
+			"gross_abs_divergence_volume_flow_after_projection_m3_s",
+			"net_divergence_mass_flow_after_projection_kg_s",
+			"gross_abs_divergence_mass_flow_after_projection_kg_s",
 			"max_vorticity_after_source_s",
 			"rms_vorticity_after_source_s",
 			"mean_vorticity_after_source_world_x_s",
@@ -671,6 +679,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics divergenceAfterProjection =
 				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics(0.0, 0.0, 0.0)
 						: iteration.projectionStep().divergenceAfter();
+		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics divergenceIntegralsBeforeProjection =
+				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics(0.0, 0.0, 0.0)
+						: iteration.projectionStep().previousState().divergenceIntegralMetrics(run.solidMask());
+		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics divergenceIntegralsAfterProjection =
+				initial ? new PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceIntegralMetrics(0.0, 0.0, 0.0)
+						: iteration.projectionStep().nextState().divergenceIntegralMetrics(run.solidMask());
 		PropellerArchiveCtCpJLocalVoxelFlowState.VorticityMetrics vorticityAfterSource =
 				initial ? run.initialState().vorticityMetrics(run.solidMask())
 						: iteration.stateAfterSource().vorticityMetrics(run.solidMask());
@@ -878,9 +892,21 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(divergenceBeforeProjection.maxAbsDivergencePerSecond()),
 				number(divergenceBeforeProjection.rmsDivergencePerSecond()),
 				number(divergenceBeforeProjection.meanDivergencePerSecond()),
+				number(divergenceIntegralsBeforeProjection.netVolumeFlowRateCubicMetersPerSecond()),
+				number(divergenceIntegralsBeforeProjection.grossAbsVolumeFlowRateCubicMetersPerSecond()),
+				number(divergenceIntegralsBeforeProjection.netMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(divergenceIntegralsBeforeProjection.grossAbsMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
 				number(divergenceAfterProjection.maxAbsDivergencePerSecond()),
 				number(divergenceAfterProjection.rmsDivergencePerSecond()),
 				number(divergenceAfterProjection.meanDivergencePerSecond()),
+				number(divergenceIntegralsAfterProjection.netVolumeFlowRateCubicMetersPerSecond()),
+				number(divergenceIntegralsAfterProjection.grossAbsVolumeFlowRateCubicMetersPerSecond()),
+				number(divergenceIntegralsAfterProjection.netMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
+				number(divergenceIntegralsAfterProjection.grossAbsMassFlowRateKilogramsPerSecond(
+						run.config().airDensityKgPerCubicMeter())),
 				number(vorticityAfterSource.maxMagnitudePerSecond()),
 				number(vorticityAfterSource.rmsMagnitudePerSecond()),
 				number(vorticityAfterSource.meanVorticityWorldPerSecond().x()),
