@@ -80,6 +80,35 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return residenceStep.totalSourceMassFlowRateKilogramsPerSecond();
 		}
 
+		public double totalIdealMomentumPowerWatts() {
+			return residenceStep.totalIdealMomentumPowerWatts();
+		}
+
+		public double idealMomentumEnergyJoules() {
+			return totalIdealMomentumPowerWatts() * residenceStep.sourceMomentumSample().timeStepSeconds();
+		}
+
+		public double flowKineticEnergyDeltaJoules() {
+			return flowKineticEnergyDeltaJoules(VoxelSolidMask.open(previousState.gridSpec()));
+		}
+
+		public double flowKineticEnergyDeltaJoules(VoxelSolidMask solidMask) {
+			if (solidMask == null || !previousState.gridSpec().equals(solidMask.gridSpec())) {
+				throw new IllegalArgumentException("solidMask grid must match flow advance states.");
+			}
+			double airDensity = residenceStep.sourceMomentumSample().airDensityKgPerCubicMeter();
+			return nextState.totalKineticEnergyJoules(airDensity, solidMask)
+					- previousState.totalKineticEnergyJoules(airDensity, solidMask);
+		}
+
+		public double flowKineticEnergyDeltaMinusIdealMomentumEnergyJoules() {
+			return flowKineticEnergyDeltaJoules() - idealMomentumEnergyJoules();
+		}
+
+		public double flowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(VoxelSolidMask solidMask) {
+			return flowKineticEnergyDeltaJoules(solidMask) - idealMomentumEnergyJoules();
+		}
+
 		public double maxResidenceAlpha() {
 			return residenceStep.maxResidenceAlpha();
 		}

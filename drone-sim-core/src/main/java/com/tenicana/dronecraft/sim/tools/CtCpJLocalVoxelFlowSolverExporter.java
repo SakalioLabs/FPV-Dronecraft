@@ -106,6 +106,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_solid_boundary_momentum_residual_world_z_ns",
 			"source_mass_flow_kg_s",
 			"cumulative_source_mass_kg",
+			"source_ideal_momentum_power_w",
+			"source_ideal_momentum_energy_j",
+			"flow_kinetic_energy_source_delta_j",
+			"flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j",
+			"cumulative_source_ideal_momentum_energy_j",
+			"cumulative_flow_kinetic_energy_source_delta_j",
+			"cumulative_flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j",
 			"max_residence_alpha",
 			"mean_active_wake_residual_after_residence_mps",
 			"max_divergence_before_projection_s",
@@ -575,6 +582,18 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				cumulativeSolidBoundaryMomentumResidual(run, completedSteps);
 		double sourceMassFlow = initial ? 0.0 : iteration.sourceAdvance().totalSourceMassFlowRateKilogramsPerSecond();
 		double cumulativeSourceMass = cumulativeSourceMass(run, completedSteps);
+		double sourceIdealMomentumPower = initial ? 0.0 : iteration.sourceAdvance().totalIdealMomentumPowerWatts();
+		double sourceIdealMomentumEnergy = initial ? 0.0 : iteration.sourceAdvance().idealMomentumEnergyJoules();
+		double flowKineticEnergySourceDelta = initial ? 0.0
+				: iteration.sourceAdvance().flowKineticEnergyDeltaJoules(run.solidMask());
+		double flowKineticEnergySourceDeltaMinusIdeal = initial ? 0.0
+				: iteration.sourceAdvance().flowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(run.solidMask());
+		double cumulativeSourceIdealMomentumEnergy =
+				cumulativeSourceIdealMomentumEnergy(run, completedSteps);
+		double cumulativeFlowKineticEnergySourceDelta =
+				cumulativeFlowKineticEnergySourceDelta(run, completedSteps);
+		double cumulativeFlowKineticEnergySourceDeltaMinusIdeal =
+				cumulativeFlowKineticEnergySourceDeltaMinusIdeal(run, completedSteps);
 		double maxResidenceAlpha = initial ? 0.0 : iteration.sourceAdvance().maxResidenceAlpha();
 		double meanWakeResidual = initial ? 0.0
 				: iteration.sourceAdvance().meanActiveWakeResidualAfterResidenceMetersPerSecond();
@@ -746,6 +765,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSolidBoundaryMomentumResidual.z()),
 				number(sourceMassFlow),
 				number(cumulativeSourceMass),
+				number(sourceIdealMomentumPower),
+				number(sourceIdealMomentumEnergy),
+				number(flowKineticEnergySourceDelta),
+				number(flowKineticEnergySourceDeltaMinusIdeal),
+				number(cumulativeSourceIdealMomentumEnergy),
+				number(cumulativeFlowKineticEnergySourceDelta),
+				number(cumulativeFlowKineticEnergySourceDeltaMinusIdeal),
 				number(maxResidenceAlpha),
 				number(meanWakeResidual),
 				number(divergenceBeforeProjection.maxAbsDivergencePerSecond()),
@@ -906,6 +932,36 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 					* run.config().timeStepSeconds();
 		}
 		return mass;
+	}
+
+	private static double cumulativeSourceIdealMomentumEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).sourceAdvance().idealMomentumEnergyJoules();
+		}
+		return energy;
+	}
+
+	private static double cumulativeFlowKineticEnergySourceDelta(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).sourceAdvance().flowKineticEnergyDeltaJoules(run.solidMask());
+		}
+		return energy;
+	}
+
+	private static double cumulativeFlowKineticEnergySourceDeltaMinusIdeal(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		return cumulativeFlowKineticEnergySourceDelta(run, completedSteps)
+				- cumulativeSourceIdealMomentumEnergy(run, completedSteps);
 	}
 
 	private static int solidOccludedSourceCellCount(

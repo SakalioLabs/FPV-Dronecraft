@@ -157,6 +157,15 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			return wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter.multiply(cellVolumeCubicMeters);
 		}
 
+		public double integratedIdealMomentumPowerWatts(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			return idealMomentumPowerLoadingWattsPerSquareMeter
+					* cellVolumeCubicMeters
+					/ sourceThicknessMeters;
+		}
+
 		public double sampledSourceVolumeCubicMeters() {
 			return sourceVolumeFraction * cellVolumeCubicMeters;
 		}
@@ -219,6 +228,17 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			Vec3 sum = Vec3.ZERO;
 			for (VoxelCellSample cell : cells) {
 				sum = sum.add(cell.integratedWakeAngularMomentumTorqueWorldNewtonMeters());
+			}
+			return sum;
+		}
+
+		public double integratedIdealMomentumPowerWatts(double sourceThicknessMeters) {
+			if (!Double.isFinite(sourceThicknessMeters) || sourceThicknessMeters <= EPSILON) {
+				return 0.0;
+			}
+			double sum = 0.0;
+			for (VoxelCellSample cell : cells) {
+				sum += cell.integratedIdealMomentumPowerWatts(sourceThicknessMeters);
 			}
 			return sum;
 		}
@@ -573,6 +593,17 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 						.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
 								sourceThicknessMeters)
 						.multiply(sourceTerm.sourceVolumeCubicMeters(sourceThicknessMeters)));
+			}
+		}
+		return sum;
+	}
+
+	public double integratedIdealMomentumPowerWatts() {
+		double sum = 0.0;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm != null && sourceTerm.applied()) {
+				sum += sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()
+						* sourceTerm.diskAreaSquareMeters();
 			}
 		}
 		return sum;

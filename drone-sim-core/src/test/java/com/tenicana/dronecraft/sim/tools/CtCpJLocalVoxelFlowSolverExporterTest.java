@@ -91,6 +91,24 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverStep2, "solid_clamped_cell_count"));
 		assertTrue(number(hoverStep2, "source_mass_flow_kg_s") > 0.0);
 		assertTrue(number(hoverStep2, "cumulative_source_mass_kg") > 0.0);
+		assertTrue(number(hoverStep2, "source_ideal_momentum_power_w") > 0.0);
+		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w") * TIME_STEP,
+				number(hoverStep2, "source_ideal_momentum_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "kinetic_energy_after_source_j")
+						- number(hoverStep2, "kinetic_energy_before_source_j"),
+				number(hoverStep2, "flow_kinetic_energy_source_delta_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "flow_kinetic_energy_source_delta_j")
+						- number(hoverStep2, "source_ideal_momentum_energy_j"),
+				number(hoverStep2,
+						"flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "source_ideal_momentum_power_w") * TIME_STEP * STEPS,
+				number(hoverStep2, "cumulative_source_ideal_momentum_energy_j"), 1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_flow_kinetic_energy_source_delta_j")
+						- number(hoverStep2, "cumulative_source_ideal_momentum_energy_j"),
+				number(hoverStep2,
+						"cumulative_flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"),
+				1.0e-12);
 		assertTrue(Math.abs(number(hoverStep2, "through_flow_impulse_world_y_ns")) > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_advection_j") > 0.0);
 		assertTrue(number(hoverStep2, "kinetic_energy_after_diffusion_j") > 0.0);
@@ -174,6 +192,13 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				integer(blockedStep2, "pressure_projection_iterations"));
 		assertEquals(0.0, number(blockedStep2, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "through_flow_impulse_world_y_ns"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "source_ideal_momentum_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "flow_kinetic_energy_source_delta_j"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2,
+						"flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"),
+				1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_advection_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_diffusion_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_projection_j"), 1.0e-15);
@@ -248,6 +273,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "source_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0,
 				number(hoverStep, "source_wake_angular_momentum_impulse_world_y_nm_s"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_ideal_momentum_power_w"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_ideal_momentum_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "flow_kinetic_energy_source_delta_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_mass_flow_kg_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_solid_boundary_delta_j"), 1.0e-15);
@@ -329,6 +357,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("source_wake_angular_momentum_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("solid_occluded_source_wake_angular_momentum_torque_world_y_nm"));
 		assertTrue(lines.get(0).contains("cumulative_source_wake_angular_momentum_impulse_world_y_nm_s"));
+		assertTrue(lines.get(0).contains("source_ideal_momentum_power_w"));
+		assertTrue(lines.get(0).contains("flow_kinetic_energy_source_delta_j"));
+		assertTrue(lines.get(0).contains(
+				"cumulative_flow_kinetic_energy_source_delta_minus_ideal_momentum_energy_j"));
 		assertTrue(lines.get(0).contains("flow_angular_momentum_reference_world_y_m"));
 		assertTrue(lines.get(0).contains("flow_angular_momentum_before_source_world_y_nm_s"));
 		assertTrue(lines.get(0).contains("flow_angular_momentum_after_source_world_y_nm_s"));

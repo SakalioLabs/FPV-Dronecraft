@@ -251,6 +251,26 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return mass;
 		}
 
+		public double totalIdealMomentumEnergyJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().idealMomentumEnergyJoules();
+			}
+			return energy;
+		}
+
+		public double totalSourceFlowKineticEnergyDeltaJoules() {
+			double energy = 0.0;
+			for (SolverIteration iteration : iterations) {
+				energy += iteration.sourceAdvance().flowKineticEnergyDeltaJoules(solidMask);
+			}
+			return energy;
+		}
+
+		public double sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules() {
+			return totalSourceFlowKineticEnergyDeltaJoules() - totalIdealMomentumEnergyJoules();
+		}
+
 		public double maxResidenceAlpha() {
 			double max = 0.0;
 			for (SolverIteration iteration : iterations) {

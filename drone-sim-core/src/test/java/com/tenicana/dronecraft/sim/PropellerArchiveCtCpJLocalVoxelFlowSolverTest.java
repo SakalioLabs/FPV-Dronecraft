@@ -57,6 +57,12 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons()
 						.multiply(DT * run.completedStepCount()),
 				run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-12);
+		assertEquals(gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS)
+						* DT * run.completedStepCount(),
+				run.totalIdealMomentumEnergyJoules(), 1.0e-12);
+		assertTrue(run.totalSourceFlowKineticEnergyDeltaJoules() > 0.0);
+		assertEquals(run.totalSourceFlowKineticEnergyDeltaJoules() - run.totalIdealMomentumEnergyJoules(),
+				run.sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(), 1.0e-12);
 		assertTrue(run.totalThroughFlowImpulseWorldNewtonSeconds().length() > 0.0);
 		assertEquals(0, run.maxSolidCellCount());
 		assertEquals(0, run.maxSolidClampedCellCount());
@@ -178,6 +184,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertEquals(0.0, run.totalIdealMomentumEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, run.sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				run.totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
@@ -224,6 +233,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO, run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertEquals(0.0, run.totalIdealMomentumEnergyJoules(), 1.0e-15);
+		assertEquals(0.0, run.totalSourceFlowKineticEnergyDeltaJoules(), 1.0e-15);
+		assertEquals(0.0, run.sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				run.totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,

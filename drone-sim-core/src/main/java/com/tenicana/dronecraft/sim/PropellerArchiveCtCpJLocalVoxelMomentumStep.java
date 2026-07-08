@@ -222,6 +222,10 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			return sum;
 		}
 
+		public double totalIdealMomentumPowerWatts() {
+			return sourceMomentumSample.sourceGridSample().integratedIdealMomentumPowerWatts(sourceThicknessMeters);
+		}
+
 		public Vec3 totalThroughFlowMomentumRateWorldNewtons() {
 			Vec3 sum = Vec3.ZERO;
 			for (CellMassFluxResidenceStep cell : cells) {

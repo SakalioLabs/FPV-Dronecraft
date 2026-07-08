@@ -54,6 +54,9 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				field.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters(),
 				field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()
+						* sourceTerm.diskAreaSquareMeters(),
+				field.integratedIdealMomentumPowerWatts(), 1.0e-12);
 	}
 
 	@Test
@@ -184,6 +187,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				gridSample.integratedBodyForceWorldNewtons(), 0.04);
 		assertVectorRelativeClose(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
 				gridSample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 0.04);
+		assertRelativeClose(field.integratedIdealMomentumPowerWatts(),
+				gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 0.04);
 	}
 
 	@Test
@@ -249,6 +254,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				conservative.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
 				conservative.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(field.integratedIdealMomentumPowerWatts(),
+				conservative.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(geometric.activeSubsampleCount(), conservative.activeSubsampleCount());
 		assertEquals(geometric.activeCellCount(), conservative.activeCellCount());
 		assertTrue(conservative.cells().get(0).pressureJumpPascals()
@@ -292,6 +299,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				sample.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
 				sample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(field.integratedIdealMomentumPowerWatts(),
+				sample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 	}
 
 	@Test
@@ -352,6 +361,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertFalse(field.sampleAt(Vec3.ZERO).insideAnySource());
 		assertVectorEquals(Vec3.ZERO, field.integratedBodyForceWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, field.integratedIdealMomentumPowerWatts(), 1.0e-15);
 	}
 
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample hoverSourceTerm() {
