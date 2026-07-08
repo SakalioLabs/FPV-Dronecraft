@@ -505,10 +505,34 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return wakeAngularMomentumTorqueWorldNewtonMeters.multiply(1.0 / sourceVolume);
 		}
 
+		public Vec3 wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeterAt(
+				double sourceThicknessMeters,
+				Vec3 samplePointWorldMeters
+		) {
+			return equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(sourceThicknessMeters)
+					.multiply(wakeAngularMomentumTorqueDensityRadialWeight(samplePointWorldMeters));
+		}
+
 		public double diskRadiusMeters() {
 			return diskAreaSquareMeters > EPSILON
 					? Math.sqrt(diskAreaSquareMeters / Math.PI)
 					: 0.0;
+		}
+
+		public double wakeAngularMomentumTorqueDensityRadialWeight(Vec3 samplePointWorldMeters) {
+			double diskRadius = diskRadiusMeters();
+			if (!applied || diskRadius <= EPSILON) {
+				return 0.0;
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			if (normal.lengthSquared() <= EPSILON) {
+				return 0.0;
+			}
+			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
+			double axialDistance = offset.dot(normal);
+			Vec3 radial = offset.subtract(normal.multiply(axialDistance));
+			double radialDistanceSquared = Math.min(radial.lengthSquared(), diskRadius * diskRadius);
+			return 2.0 * radialDistanceSquared / (diskRadius * diskRadius);
 		}
 
 		public double wakeSwirlAngularVelocityRadiansPerSecond() {

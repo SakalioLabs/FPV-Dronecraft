@@ -261,9 +261,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			contributingSources++;
 			bodyForceDensity = bodyForceDensity.add(
 					sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters));
-			wakeTorqueDensity = wakeTorqueDensity.add(
-					sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(
-							sourceThicknessMeters));
+			wakeTorqueDensity = wakeTorqueDensity.add(sourceTerm
+					.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeterAt(
+							sourceThicknessMeters,
+							point));
 			pressureJump += sourceTerm.pressureJumpPascals();
 			massFlux += sourceTerm.massFluxKilogramsPerSecondSquareMeter();
 			powerLoading += sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter();
@@ -515,12 +516,15 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				continue;
 			}
 			double sourceWeight = cellCoverage.sourceVolumeFraction() * coverage.densityScale();
+			double wakeTorqueWeight = cellCoverage.sourceVolumeFraction()
+					* cellCoverage.averageWakeAngularMomentumTorqueDensityRadialWeight()
+					* coverage.wakeTorqueDensityScale();
 			bodyForceDensity = bodyForceDensity.add(coverage.sourceTerm()
 					.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters)
 					.multiply(sourceWeight));
 			wakeTorqueDensity = wakeTorqueDensity.add(coverage.sourceTerm()
 					.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(sourceThicknessMeters)
-					.multiply(sourceWeight));
+					.multiply(wakeTorqueWeight));
 			pressureJump += coverage.sourceTerm().pressureJumpPascals() * sourceWeight;
 			massFlux += coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
 			powerLoading += coverage.sourceTerm().idealMomentumPowerLoadingWattsPerSquareMeter() * sourceWeight;
@@ -634,11 +638,25 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				continue;
 			}
 			double sampledVolume = sampledVolumeCubicMeters(gridSpec, subcellSamplesPerAxis, sourceTerm);
+			double sampledWakeTorqueVolume =
+					wakeAngularMomentumWeightedSampledVolumeCubicMeters(
+							gridSpec,
+							subcellSamplesPerAxis,
+							sourceTerm,
+							sampledVolume);
 			double targetVolume = sourceTerm.sourceVolumeCubicMeters(sourceThicknessMeters);
 			double densityScale = sampledVolume > EPSILON && targetVolume > EPSILON
 					? targetVolume / sampledVolume
 					: 0.0;
-			coverages.add(new SourceCoverage(sourceTerm, sampledVolume, targetVolume, densityScale));
+			double wakeTorqueDensityScale = sampledWakeTorqueVolume > EPSILON && targetVolume > EPSILON
+					? targetVolume / sampledWakeTorqueVolume
+					: 0.0;
+			coverages.add(new SourceCoverage(
+					sourceTerm,
+					sampledVolume,
+					targetVolume,
+					densityScale,
+					wakeTorqueDensityScale));
 		}
 		return List.copyOf(coverages);
 	}
@@ -676,6 +694,44 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			}
 		}
 		return volume;
+	}
+
+	private double wakeAngularMomentumWeightedSampledVolumeCubicMeters(
+			VoxelGridSpec gridSpec,
+			int subcellSamplesPerAxis,
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			double sampledVolumeCubicMeters
+	) {
+		double sampledSubcellVolume = gridSpec.cellVolumeCubicMeters()
+				/ (subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis);
+		double weightedVolume = 0.0;
+		for (int y = 0; y < gridSpec.cellCountY(); y++) {
+			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
+				for (int x = 0; x < gridSpec.cellCountX(); x++) {
+					Vec3 cellCenter = gridSpec.cellCenterWorldMeters(x, y, z);
+					for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
+						for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
+							for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
+								Vec3 subcellPoint = subcellPointWorldMeters(
+										cellCenter,
+										gridSpec.cellSizeMeters(),
+										subcellSamplesPerAxis,
+										sx,
+										sy,
+										sz
+								);
+								if (containsActuatorDiskVolume(sourceTerm, subcellPoint)) {
+									weightedVolume += sourceTerm
+											.wakeAngularMomentumTorqueDensityRadialWeight(subcellPoint)
+											* sampledSubcellVolume;
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		return weightedVolume > EPSILON ? weightedVolume : sampledVolumeCubicMeters;
 	}
 
 	private int countActiveSubsamples(
@@ -723,6 +779,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		int totalSubsamples = subcellSamplesPerAxis * subcellSamplesPerAxis * subcellSamplesPerAxis;
 		int activeSubsamples = 0;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
+		double wakeAngularMomentumTorqueWeight = 0.0;
 		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
 			for (int sz = 0; sz < subcellSamplesPerAxis; sz++) {
 				for (int sx = 0; sx < subcellSamplesPerAxis; sx++) {
@@ -738,16 +795,24 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 						activeSubsamples++;
 						wakeSwirlVelocity =
 								wakeSwirlVelocity.add(sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(subcellPoint));
+						wakeAngularMomentumTorqueWeight +=
+								sourceTerm.wakeAngularMomentumTorqueDensityRadialWeight(subcellPoint);
 					}
 				}
 			}
 		}
+		double averageWakeTorqueWeight = activeSubsamples == 0
+				? 0.0
+				: wakeAngularMomentumTorqueWeight / activeSubsamples;
 		return new SourceCellCoverage(
 				activeSubsamples,
 				activeSubsamples / (double) totalSubsamples,
 				activeSubsamples == 0
 						? Vec3.ZERO
-						: wakeSwirlVelocity.multiply(1.0 / activeSubsamples)
+						: wakeSwirlVelocity.multiply(1.0 / activeSubsamples),
+				activeSubsamples > 0 && averageWakeTorqueWeight <= EPSILON
+						? 1.0
+						: averageWakeTorqueWeight
 		);
 	}
 
@@ -755,14 +820,16 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
 			double sampledVolumeCubicMeters,
 			double targetVolumeCubicMeters,
-			double densityScale
+			double densityScale,
+			double wakeTorqueDensityScale
 	) {
 	}
 
 	private record SourceCellCoverage(
 			int activeSubsamples,
 			double sourceVolumeFraction,
-			Vec3 averageWakeSwirlVelocityWorldMetersPerSecond
+			Vec3 averageWakeSwirlVelocityWorldMetersPerSecond,
+			double averageWakeAngularMomentumTorqueDensityRadialWeight
 	) {
 	}
 

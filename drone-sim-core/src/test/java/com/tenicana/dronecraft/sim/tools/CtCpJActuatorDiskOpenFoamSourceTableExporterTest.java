@@ -71,6 +71,20 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 				numberCell(hover, columns, "wake_angular_momentum_torque_density_y_nm_m3"),
 				1.0e-12);
 		assertTrue(numberCell(hover, columns, "wake_tangential_velocity_mps") > 0.0);
+		double swirlReferenceRadius = Math.sqrt(
+				squared(numberCell(hover, columns, "wake_swirl_reference_point_x_m")
+						- numberCell(hover, columns, "center_x_m"))
+						+ squared(numberCell(hover, columns, "wake_swirl_reference_point_y_m")
+						- numberCell(hover, columns, "center_y_m"))
+						+ squared(numberCell(hover, columns, "wake_swirl_reference_point_z_m")
+						- numberCell(hover, columns, "center_z_m")));
+		double expectedSourcePlaneSwirlSpeed =
+				2.0
+						* swirlReferenceRadius
+						* swirlReferenceRadius
+						/ (numberCell(hover, columns, "radius_m")
+						* numberCell(hover, columns, "radius_m"))
+						* numberCell(hover, columns, "wake_tangential_velocity_mps");
 		double swirlVelocityLength = Math.sqrt(
 				numberCell(hover, columns, "wake_swirl_velocity_x_mps")
 						* numberCell(hover, columns, "wake_swirl_velocity_x_mps")
@@ -78,8 +92,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 						* numberCell(hover, columns, "wake_swirl_velocity_y_mps")
 						+ numberCell(hover, columns, "wake_swirl_velocity_z_mps")
 						* numberCell(hover, columns, "wake_swirl_velocity_z_mps"));
-		assertEquals(numberCell(hover, columns, "wake_tangential_velocity_mps"),
-				swirlVelocityLength, 1.0e-15);
+		assertEquals(expectedSourcePlaneSwirlSpeed, swirlVelocityLength, 1.0e-12);
 		assertTrue(numberCell(hover, columns, "wake_swirl_reference_point_x_m")
 				> numberCell(hover, columns, "center_x_m"));
 		assertTrue(numberCell(hover, columns, "wake_swirl_kinetic_power_w") > 0.0);
@@ -185,6 +198,10 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		return numberCell(line, columns, firstPrefix + "_x") * numberCell(line, columns, secondPrefix + "_x")
 				+ numberCell(line, columns, firstPrefix + "_y") * numberCell(line, columns, secondPrefix + "_y")
 				+ numberCell(line, columns, firstPrefix + "_z") * numberCell(line, columns, secondPrefix + "_z");
+	}
+
+	private static double squared(double value) {
+		return value * value;
 	}
 
 	private static Path findRepoRoot() {

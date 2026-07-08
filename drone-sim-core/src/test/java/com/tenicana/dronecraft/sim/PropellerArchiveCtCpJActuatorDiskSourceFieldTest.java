@@ -33,8 +33,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(1, sample.contributingSourceCount());
 		assertVectorEquals(sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(SOURCE_THICKNESS),
 				sample.bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-12);
-		assertVectorEquals(
-				sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(SOURCE_THICKNESS),
+		assertVectorEquals(expectedWakeTorqueDensity(sourceTerm, samplePoint),
 				sample.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
 		assertEquals(sourceTerm.pressureJumpPascals(), sample.pressureJumpPascals(), 1.0e-12);
 		assertEquals(sourceTerm.massFluxKilogramsPerSecondSquareMeter(),
@@ -85,7 +84,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
-	void wakeSwirlTargetUsesRadialAngularMomentumProfile() {
+	void wakeSwirlAndAngularMomentumDensityUseRadialProfile() {
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
 				hoverSourceTerm();
 		PropellerArchiveCtCpJActuatorDiskSourceField field =
@@ -103,12 +102,24 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				field.sampleAt(sourceTerm.diskCenterWorldMeters().add(radial.multiply(outerRadius)));
 
 		assertVectorEquals(Vec3.ZERO, center.wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				center.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-15);
 		assertEquals(expectedWakeSwirlSpeed(sourceTerm, innerRadius),
 				inner.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
 		assertEquals(expectedWakeSwirlSpeed(sourceTerm, outerRadius),
 				outer.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-12);
+		assertVectorEquals(expectedWakeTorqueDensity(
+						sourceTerm,
+						sourceTerm.diskCenterWorldMeters().add(radial.multiply(innerRadius))),
+				inner.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
+		assertVectorEquals(expectedWakeTorqueDensity(
+						sourceTerm,
+						sourceTerm.diskCenterWorldMeters().add(radial.multiply(outerRadius))),
+				outer.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
 		assertTrue(outer.wakeSwirlVelocityWorldMetersPerSecond().length()
 				> inner.wakeSwirlVelocityWorldMetersPerSecond().length());
+		assertTrue(outer.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter().length()
+				> inner.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter().length());
 		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond().dot(radial), 1.0e-12);
 		assertEquals(0.0, outer.wakeSwirlVelocityWorldMetersPerSecond()
 				.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
@@ -134,8 +145,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertVectorEquals(appliedSource.equivalentBodyForceWorldNewtonsPerCubicMeter(SOURCE_THICKNESS)
 						.multiply(2.0),
 				sample.bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-12);
-		assertVectorEquals(appliedSource
-						.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(SOURCE_THICKNESS)
+		assertVectorEquals(expectedWakeTorqueDensity(appliedSource, appliedSource.diskCenterWorldMeters())
 						.multiply(2.0),
 				sample.wakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(), 1.0e-12);
 		assertEquals(appliedSource.pressureJumpPascals() * 2.0, sample.pressureJumpPascals(), 1.0e-12);
@@ -454,6 +464,14 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	) {
 		return sourceTerm.wakeSwirlAngularVelocityRadiansPerSecond()
 				* Math.min(radialDistanceMeters, sourceTerm.diskRadiusMeters());
+	}
+
+	private static Vec3 expectedWakeTorqueDensity(
+			PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm,
+			Vec3 samplePointWorldMeters
+	) {
+		return sourceTerm.equivalentWakeAngularMomentumTorqueDensityWorldNewtonMetersPerCubicMeter(SOURCE_THICKNESS)
+				.multiply(sourceTerm.wakeAngularMomentumTorqueDensityRadialWeight(samplePointWorldMeters));
 	}
 
 	private static void assertVectorEquals(Vec3 expected, Vec3 actual, double tolerance) {
