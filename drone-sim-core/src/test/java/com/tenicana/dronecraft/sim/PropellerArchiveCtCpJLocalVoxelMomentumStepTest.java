@@ -172,6 +172,21 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				residence.totalWakeSwirlKineticPowerWatts(), 1.0e-12);
 		assertEquals(gridSample.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS),
 				residence.totalWakeKineticPowerWatts(), 1.0e-12);
+		double cellIdealMomentumPower = 0.0;
+		double cellWakeSwirlKineticPower = 0.0;
+		double cellTotalWakeKineticPower = 0.0;
+		for (PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell : residence.cells()) {
+			cellIdealMomentumPower += cell.sourceIdealMomentumPowerWatts();
+			cellWakeSwirlKineticPower += cell.sourceWakeSwirlKineticPowerWatts();
+			cellTotalWakeKineticPower += cell.sourceTotalWakeKineticPowerWatts();
+		}
+		assertEquals(cellIdealMomentumPower, residence.totalIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(cellWakeSwirlKineticPower, residence.totalWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(cellTotalWakeKineticPower, residence.totalWakeKineticPowerWatts(), 1.0e-12);
+		assertTrue(activeCell.sourceIdealMomentumPowerWatts() > 0.0);
+		assertTrue(activeCell.sourceWakeSwirlKineticPowerWatts() >= 0.0);
+		assertTrue(activeCell.sourceTotalWakeKineticPowerWatts()
+				>= activeCell.sourceIdealMomentumPowerWatts());
 		assertTrue(residence.totalSourceMassFlowRateKilogramsPerSecond() > 0.0);
 		assertTrue(residence.maxResidenceAlpha() > 0.0);
 		assertTrue(residence.maxResidenceAlpha() < 1.0);
@@ -232,6 +247,9 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertEquals(0.0, residence.totalIdealMomentumPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.totalWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.totalWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, residence.cells().get(0).sourceIdealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(0.0, residence.cells().get(0).sourceWakeSwirlKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, residence.cells().get(0).sourceTotalWakeKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.maxResidenceAlpha(), 1.0e-15);
 		assertEquals(0.0, residence.totalThroughFlowMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, residence.totalCombinedMechanicalWorkEnergyJoules(), 1.0e-15);

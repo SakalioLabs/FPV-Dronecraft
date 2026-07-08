@@ -153,6 +153,9 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			double cellAirMassKilograms,
 			double sampledSourceAreaSquareMeters,
 			double sourceMassFlowRateKilogramsPerSecond,
+			double sourceIdealMomentumPowerWatts,
+			double sourceWakeSwirlKineticPowerWatts,
+			double sourceTotalWakeKineticPowerWatts,
 			double residenceAlpha,
 			Vec3 throughFlowVelocityDeltaWorldMetersPerSecond,
 			Vec3 velocityAfterResidenceWorldMetersPerSecond,
@@ -170,6 +173,9 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			cellAirMassKilograms = finiteNonnegative(cellAirMassKilograms);
 			sampledSourceAreaSquareMeters = finiteNonnegative(sampledSourceAreaSquareMeters);
 			sourceMassFlowRateKilogramsPerSecond = finiteNonnegative(sourceMassFlowRateKilogramsPerSecond);
+			sourceIdealMomentumPowerWatts = finiteNonnegative(sourceIdealMomentumPowerWatts);
+			sourceWakeSwirlKineticPowerWatts = finiteNonnegative(sourceWakeSwirlKineticPowerWatts);
+			sourceTotalWakeKineticPowerWatts = finiteNonnegative(sourceTotalWakeKineticPowerWatts);
 			residenceAlpha = MathUtil.clamp(residenceAlpha, 0.0, 1.0);
 			throughFlowVelocityDeltaWorldMetersPerSecond =
 					finiteVecOrZero(throughFlowVelocityDeltaWorldMetersPerSecond);
@@ -249,17 +255,27 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		}
 
 		public double totalIdealMomentumPowerWatts() {
-			return sourceMomentumSample.sourceGridSample().integratedIdealMomentumPowerWatts(sourceThicknessMeters);
+			double sum = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum += cell.sourceIdealMomentumPowerWatts();
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
 		}
 
 		public double totalWakeSwirlKineticPowerWatts() {
-			return sourceMomentumSample.sourceGridSample()
-					.integratedWakeSwirlKineticPowerWatts(sourceThicknessMeters);
+			double sum = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum += cell.sourceWakeSwirlKineticPowerWatts();
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
 		}
 
 		public double totalWakeKineticPowerWatts() {
-			return sourceMomentumSample.sourceGridSample()
-					.integratedTotalWakeKineticPowerWatts(sourceThicknessMeters);
+			double sum = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				sum += cell.sourceTotalWakeKineticPowerWatts();
+			}
+			return Double.isFinite(sum) ? sum : 0.0;
 		}
 
 		public Vec3 totalThroughFlowMomentumRateWorldNewtons() {
@@ -506,6 +522,9 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 				cellAirMass,
 				sampledSourceArea,
 				sourceMassFlowRate,
+				sourceCell.integratedIdealMomentumPowerWatts(sourceThicknessMeters),
+				sourceCell.integratedWakeSwirlKineticPowerWatts(sourceThicknessMeters),
+				sourceCell.integratedTotalWakeKineticPowerWatts(sourceThicknessMeters),
 				residenceAlpha,
 				throughFlowVelocityDelta,
 				velocityAfterResidence,
