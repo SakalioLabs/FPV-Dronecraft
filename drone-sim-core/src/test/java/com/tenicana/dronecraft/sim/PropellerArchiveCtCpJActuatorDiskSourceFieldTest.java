@@ -281,6 +281,11 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				cell.bodyForceDensityWorldNewtonsPerCubicMeter(), 1.0e-12);
 		assertEquals(sourceTerm.pressureJumpPascals() * cell.sourceVolumeFraction(),
 				cell.pressureJumpPascals(), 1.0e-12);
+		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
+				cell.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertTrue(cell.farWakeAxialVelocityWorldMetersPerSecond().length()
+				> sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().length()
+				* cell.sourceVolumeFraction());
 		assertVectorEquals(cell.farWakeAxialVelocityWorldMetersPerSecond()
 						.add(cell.wakeSwirlVelocityWorldMetersPerSecond()),
 				cell.targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
@@ -325,6 +330,12 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertEquals(geometric.activeCellCount(), conservative.activeCellCount());
 		assertTrue(conservative.cells().get(0).pressureJumpPascals()
 				> geometric.cells().get(0).pressureJumpPascals());
+		assertVectorEquals(geometric.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond(),
+				conservative.cells().get(0).farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(geometric.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond(),
+				conservative.cells().get(0).wakeSwirlVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(geometric.cells().get(0).targetWakeVelocityWorldMetersPerSecond(),
+				conservative.cells().get(0).targetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
 	}
 
 	@Test

@@ -527,6 +527,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			}
 		}
 		double inverseSamples = 1.0 / totalSubsamples;
+		double inverseActiveSamples = activeSubsamples == 0
+				? 0.0
+				: 1.0 / activeSubsamples;
 		return new VoxelCellSample(
 				xIndex,
 				yIndex,
@@ -543,9 +546,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading * inverseSamples,
 				wakeSwirlPowerLoading * inverseSamples,
 				totalWakePowerLoading * inverseSamples,
-				farWakeAxialVelocity.multiply(inverseSamples),
-				wakeSwirlVelocity.multiply(inverseSamples),
-				targetWakeVelocity.multiply(inverseSamples)
+				farWakeAxialVelocity.multiply(inverseActiveSamples),
+				wakeSwirlVelocity.multiply(inverseActiveSamples),
+				targetWakeVelocity.multiply(inverseActiveSamples)
 		);
 	}
 
@@ -593,15 +596,20 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			powerLoading += coverage.sourceTerm().idealMomentumPowerLoadingWattsPerSquareMeter() * sourceWeight;
 			wakeSwirlPowerLoading += coverage.sourceTerm().wakeSwirlKineticPowerLoadingWattsPerSquareMeter()
 					* wakeTorqueWeight;
+			double velocitySampleWeight = cellCoverage.activeSubsamples();
 			farWakeAxialVelocity = farWakeAxialVelocity.add(
-					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond().multiply(sourceWeight));
+					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond()
+							.multiply(velocitySampleWeight));
 			wakeSwirlVelocity = wakeSwirlVelocity.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond()
-					.multiply(sourceWeight));
+					.multiply(velocitySampleWeight));
 			targetWakeVelocity = targetWakeVelocity.add(
 					coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond()
 							.add(cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond())
-							.multiply(sourceWeight));
+							.multiply(velocitySampleWeight));
 		}
+		double inverseActiveSamples = activeSubsamples == 0
+				? 0.0
+				: 1.0 / activeSubsamples;
 		return new VoxelCellSample(
 				xIndex,
 				yIndex,
@@ -618,9 +626,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading,
 				wakeSwirlPowerLoading,
 				powerLoading + wakeSwirlPowerLoading,
-				farWakeAxialVelocity,
-				wakeSwirlVelocity,
-				targetWakeVelocity
+				farWakeAxialVelocity.multiply(inverseActiveSamples),
+				wakeSwirlVelocity.multiply(inverseActiveSamples),
+				targetWakeVelocity.multiply(inverseActiveSamples)
 		);
 	}
 
