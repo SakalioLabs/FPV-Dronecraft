@@ -170,6 +170,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"max_residence_alpha",
 			"mean_active_wake_residual_after_residence_mps",
 			"mass_flow_weighted_wake_residual_after_residence_mps",
+			"mean_active_through_flow_residual_after_residence_mps",
+			"mass_flow_weighted_through_flow_residual_after_residence_mps",
 			"max_divergence_before_projection_s",
 			"rms_divergence_before_projection_s",
 			"mean_divergence_before_projection_s",
@@ -850,6 +852,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.sourceAdvance().meanActiveWakeResidualAfterResidenceMetersPerSecond();
 		double massFlowWeightedWakeResidual = initial ? 0.0
 				: iteration.sourceAdvance().massFlowWeightedWakeResidualAfterResidenceMetersPerSecond();
+		double meanThroughFlowResidual = initial ? 0.0
+				: iteration.sourceAdvance().meanActiveThroughFlowResidualAfterResidenceMetersPerSecond();
+		double massFlowWeightedThroughFlowResidual = initial ? 0.0
+				: iteration.sourceAdvance().massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond();
 		double advectionCourantNumber = initial ? 0.0 : iteration.advectionRun().maxCourantNumber();
 		int advectionSubstepCount = initial ? 0 : iteration.advectionRun().completedSubstepCount();
 		PropellerArchiveCtCpJLocalVoxelFlowState.DivergenceMetrics divergenceBeforeProjection =
@@ -1174,6 +1180,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(maxResidenceAlpha),
 				number(meanWakeResidual),
 				number(massFlowWeightedWakeResidual),
+				number(meanThroughFlowResidual),
+				number(massFlowWeightedThroughFlowResidual),
 				number(divergenceBeforeProjection.maxAbsDivergencePerSecond()),
 				number(divergenceBeforeProjection.rmsDivergencePerSecond()),
 				number(divergenceBeforeProjection.meanDivergencePerSecond()),

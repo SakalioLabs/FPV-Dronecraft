@@ -56,6 +56,9 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertVectorEquals(activeCell.targetWakeVelocityWorldMetersPerSecond()
 						.subtract(activeCell.velocityAfterStepWorldMetersPerSecond()),
 				activeCell.targetWakeVelocityResidualWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(activeCell.targetThroughFlowVelocityWorldMetersPerSecond()
+						.subtract(activeCell.velocityAfterStepWorldMetersPerSecond()),
+				activeCell.targetThroughFlowVelocityResidualWorldMetersPerSecond(), 1.0e-15);
 		assertEquals(activeCell.momentumRateWorldNewtons().y(),
 				RHO * activeCell.cellVolumeCubicMeters()
 						* activeCell.velocityDeltaWorldMetersPerSecond().y() / DT,
@@ -202,6 +205,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				activeCell.velocityAfterResidenceWorldMetersPerSecond(), 1.0e-15);
 		assertTrue(activeCell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
 				< sourceStep.targetWakeVelocityResidualWorldMetersPerSecond().length());
+		assertTrue(activeCell.targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond().length()
+				< sourceStep.targetThroughFlowVelocityResidualWorldMetersPerSecond().length());
 		assertVectorEquals(activeCell.throughFlowVelocityDeltaWorldMetersPerSecond()
 						.multiply(activeCell.cellAirMassKilograms()),
 				activeCell.throughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
@@ -286,18 +291,22 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		double expectedProjectedArea = cellVolume / sourceThickness;
 		double expectedSourceMassFlow = cellAveragedMassFlux * expectedProjectedArea;
 		double expectedResidenceAlpha = -Math.expm1(-expectedSourceMassFlow * DT / (RHO * cellVolume));
+		Vec3 expectedThroughFlowTarget = sourceCell.actuatorDiskAxialVelocityWorldMetersPerSecond()
+				.add(sourceCell.wakeSwirlVelocityWorldMetersPerSecond());
 
 		assertEquals(sourceVolumeFraction * expectedProjectedArea,
 				cell.sampledSourceAreaSquareMeters(), 1.0e-15);
 		assertEquals(expectedSourceMassFlow, cell.sourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
 		assertEquals(expectedSourceMassFlow, residence.totalSourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
 		assertEquals(expectedResidenceAlpha, cell.residenceAlpha(), 1.0e-15);
-		assertVectorEquals(targetWakeVelocity.multiply(expectedResidenceAlpha),
+		assertVectorEquals(expectedThroughFlowTarget.multiply(expectedResidenceAlpha),
 				cell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
 		assertTrue(cell.sourceMassFlowRateKilogramsPerSecond()
 				> cellAveragedMassFlux * cell.sampledSourceAreaSquareMeters());
 		assertEquals(cell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length(),
 				residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(), 1.0e-15);
+		assertEquals(cell.targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond().length(),
+				residence.massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond(), 1.0e-15);
 	}
 
 	@Test
@@ -362,6 +371,8 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 				residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond(), 1.0e-15);
 		assertTrue(residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond()
 				> arithmeticResidual);
+		assertTrue(residence.massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond()
+				< residence.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond());
 	}
 
 	@Test
@@ -425,7 +436,9 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		double turnover = expectedSourceMassFlow * DT / cell.cellAirMassKilograms();
 		double expectedResidenceAlpha = -Math.expm1(-turnover);
 		Vec3 expectedVelocityAfterResidence = initialVelocity
-				.add(targetWakeVelocity.subtract(initialVelocity).multiply(expectedResidenceAlpha))
+				.add(sourceCell.actuatorDiskAxialVelocityWorldMetersPerSecond()
+						.subtract(initialVelocity)
+						.multiply(expectedResidenceAlpha))
 				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
 						.multiply(expectedResidenceAlpha / turnover));
 		Vec3 expectedMeanVelocity = exactCoupledMeanVelocity(cell, DT);
@@ -491,6 +504,7 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		assertEquals(0.0, residence.cells().get(0).sourceWakeSwirlKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.cells().get(0).sourceTotalWakeKineticPowerWatts(), 1.0e-15);
 		assertEquals(0.0, residence.maxResidenceAlpha(), 1.0e-15);
+		assertEquals(0.0, residence.massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond(), 1.0e-15);
 		assertEquals(0.0, residence.totalThroughFlowMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertEquals(0.0, residence.totalCombinedMechanicalWorkEnergyJoules(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, residence.totalSourceMomentumRateWorldNewtons(), 1.0e-15);
@@ -651,7 +665,7 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 		}
 		Vec3 initialVelocity = sourceStep.initialVelocityWorldMetersPerSecond();
 		return initialVelocity
-				.add(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+				.add(sourceStep.targetThroughFlowVelocityWorldMetersPerSecond()
 						.subtract(initialVelocity)
 						.multiply(cell.residenceAlpha()))
 				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
@@ -682,7 +696,7 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 						- turnover * turnover * turnover / 120.0
 				: (1.0 - freeDecayMeanWeight) / turnover;
 		return initialVelocity.multiply(freeDecayMeanWeight)
-				.add(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+				.add(sourceStep.targetThroughFlowVelocityWorldMetersPerSecond()
 						.multiply(1.0 - freeDecayMeanWeight))
 				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
 						.multiply(sourceForceMeanWeight));

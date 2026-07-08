@@ -23,6 +23,8 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			Vec3 velocityAfterStepWorldMetersPerSecond,
 			Vec3 targetWakeVelocityWorldMetersPerSecond,
 			Vec3 targetWakeVelocityResidualWorldMetersPerSecond,
+			Vec3 targetThroughFlowVelocityWorldMetersPerSecond,
+			Vec3 targetThroughFlowVelocityResidualWorldMetersPerSecond,
 			Vec3 momentumRateWorldNewtons,
 			Vec3 impulseWorldNewtonSeconds,
 			Vec3 wakeAngularMomentumTorqueWorldNewtonMeters,
@@ -43,6 +45,10 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			targetWakeVelocityWorldMetersPerSecond = finiteVecOrZero(targetWakeVelocityWorldMetersPerSecond);
 			targetWakeVelocityResidualWorldMetersPerSecond =
 					finiteVecOrZero(targetWakeVelocityResidualWorldMetersPerSecond);
+			targetThroughFlowVelocityWorldMetersPerSecond =
+					finiteVecOrZero(targetThroughFlowVelocityWorldMetersPerSecond);
+			targetThroughFlowVelocityResidualWorldMetersPerSecond =
+					finiteVecOrZero(targetThroughFlowVelocityResidualWorldMetersPerSecond);
 			momentumRateWorldNewtons = finiteVecOrZero(momentumRateWorldNewtons);
 			impulseWorldNewtonSeconds = finiteVecOrZero(impulseWorldNewtonSeconds);
 			wakeAngularMomentumTorqueWorldNewtonMeters =
@@ -160,6 +166,7 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			Vec3 throughFlowVelocityDeltaWorldMetersPerSecond,
 			Vec3 velocityAfterResidenceWorldMetersPerSecond,
 			Vec3 targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond,
+			Vec3 targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond,
 			Vec3 throughFlowMomentumRateWorldNewtons,
 			Vec3 throughFlowImpulseWorldNewtonSeconds
 	) {
@@ -183,6 +190,8 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 					finiteVecOrZero(velocityAfterResidenceWorldMetersPerSecond);
 			targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond =
 					finiteVecOrZero(targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond);
+			targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond =
+					finiteVecOrZero(targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond);
 			throughFlowMomentumRateWorldNewtons = finiteVecOrZero(throughFlowMomentumRateWorldNewtons);
 			throughFlowImpulseWorldNewtonSeconds = finiteVecOrZero(throughFlowImpulseWorldNewtonSeconds);
 		}
@@ -374,6 +383,20 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			}
 			return totalMassFlow > EPSILON ? weightedResidual / totalMassFlow : 0.0;
 		}
+
+		public double massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond() {
+			double weightedResidual = 0.0;
+			double totalMassFlow = 0.0;
+			for (CellMassFluxResidenceStep cell : cells) {
+				double massFlow = cell.sourceMassFlowRateKilogramsPerSecond();
+				if (cell.active() && massFlow > EPSILON) {
+					weightedResidual += cell.targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond()
+							.length() * massFlow;
+					totalMassFlow += massFlow;
+				}
+			}
+			return totalMassFlow > EPSILON ? weightedResidual / totalMassFlow : 0.0;
+		}
 	}
 
 	public static MomentumStepSample step(
@@ -519,6 +542,8 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		Vec3 velocityDelta = acceleration.multiply(timeStepSeconds);
 		Vec3 velocityAfterStep = initialVelocityWorldMetersPerSecond.add(velocityDelta);
 		Vec3 targetWakeVelocity = sourceCell.targetWakeVelocityWorldMetersPerSecond();
+		Vec3 targetThroughFlowVelocity = sourceCell.actuatorDiskAxialVelocityWorldMetersPerSecond()
+				.add(sourceCell.wakeSwirlVelocityWorldMetersPerSecond());
 		Vec3 momentumRate = sourceCell.integratedBodyForceWorldNewtons();
 		Vec3 impulse = momentumRate.multiply(timeStepSeconds);
 		Vec3 wakeTorque = sourceCell.integratedWakeAngularMomentumTorqueWorldNewtonMeters();
@@ -537,6 +562,8 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 				velocityAfterStep,
 				targetWakeVelocity,
 				targetWakeVelocity.subtract(velocityAfterStep),
+				targetThroughFlowVelocity,
+				targetThroughFlowVelocity.subtract(velocityAfterStep),
 				momentumRate,
 				impulse,
 				wakeTorque,
@@ -580,6 +607,7 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 				throughFlowVelocityDelta,
 				velocityAfterResidence,
 				sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond().subtract(velocityAfterResidence),
+				sourceMomentumStep.targetThroughFlowVelocityWorldMetersPerSecond().subtract(velocityAfterResidence),
 				throughFlowMomentumRate,
 				throughFlowImpulse
 		);
@@ -616,12 +644,12 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 			return sourceMomentumStep.velocityAfterStepWorldMetersPerSecond();
 		}
 		Vec3 initialVelocity = sourceMomentumStep.initialVelocityWorldMetersPerSecond();
-		Vec3 wakeVelocityContribution = sourceMomentumStep.targetWakeVelocityWorldMetersPerSecond()
+		Vec3 throughFlowVelocityContribution = sourceMomentumStep.targetThroughFlowVelocityWorldMetersPerSecond()
 				.subtract(initialVelocity)
 				.multiply(residenceAlpha);
 		Vec3 sourceForceContribution = sourceMomentumStep.velocityDeltaWorldMetersPerSecond()
 				.multiply(residenceAlpha / turnover);
-		return initialVelocity.add(wakeVelocityContribution).add(sourceForceContribution);
+		return initialVelocity.add(throughFlowVelocityContribution).add(sourceForceContribution);
 	}
 
 	private static double coupledSourceForceMechanicalWorkEnergyJoules(
@@ -650,7 +678,7 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		double freeDecayMeanWeight = exponentialMeanWeight(turnover);
 		double sourceForceMeanWeight = sourceForceMeanWeight(turnover, freeDecayMeanWeight);
 		return initialVelocity.multiply(freeDecayMeanWeight)
-				.add(sourceStep.targetWakeVelocityWorldMetersPerSecond()
+				.add(sourceStep.targetThroughFlowVelocityWorldMetersPerSecond()
 						.multiply(1.0 - freeDecayMeanWeight))
 				.add(sourceStep.velocityDeltaWorldMetersPerSecond()
 						.multiply(sourceForceMeanWeight));

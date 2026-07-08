@@ -107,6 +107,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-15);
 		assertEquals(0.0,
 				number(hoverInitial, "mass_flow_weighted_wake_residual_after_residence_mps"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "mass_flow_weighted_through_flow_residual_after_residence_mps"),
+				1.0e-15);
 		assertTrue(Double.isFinite(number(hoverInitial,
 				"kinetic_energy_centroid_after_source_world_y_m")));
 		assertEquals(0.0, number(hoverInitial, "kinetic_energy_rms_radius_after_source_m"), 1.0e-15);
@@ -137,6 +140,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(number(hoverStep2, "mass_flow_weighted_wake_residual_after_residence_mps") > 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2,
 				"mass_flow_weighted_wake_residual_after_residence_mps")));
+		assertTrue(number(hoverStep2, "mean_active_through_flow_residual_after_residence_mps") > 0.0);
+		assertTrue(number(hoverStep2, "mass_flow_weighted_through_flow_residual_after_residence_mps") > 0.0);
+		assertTrue(number(hoverStep2, "mass_flow_weighted_through_flow_residual_after_residence_mps")
+				< number(hoverStep2, "mass_flow_weighted_wake_residual_after_residence_mps"));
 		assertTrue(number(hoverStep2, "target_ideal_momentum_power_w") > 0.0);
 		assertTrue(number(hoverStep2, "target_wake_swirl_kinetic_power_w") > 0.0);
 		assertEquals(number(hoverStep2, "target_ideal_momentum_power_w")
@@ -461,6 +468,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "through_flow_impulse_world_y_ns"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "mass_flow_weighted_wake_residual_after_residence_mps"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "mass_flow_weighted_through_flow_residual_after_residence_mps"),
+				1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "target_ideal_momentum_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "target_wake_swirl_kinetic_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "target_total_wake_kinetic_power_w"), 1.0e-15);
@@ -847,6 +857,7 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("solid_boundary_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("mass_flow_weighted_wake_residual_after_residence_mps"));
+		assertTrue(lines.get(0).contains("mass_flow_weighted_through_flow_residual_after_residence_mps"));
 		assertTrue(lines.get(0).contains("kinetic_energy_centroid_after_source_world_y_m"));
 		assertTrue(lines.get(0).contains("kinetic_energy_centroid_after_projection_world_y_m"));
 		assertTrue(lines.get(0).contains("kinetic_energy_centroid_after_solid_boundary_world_y_m"));

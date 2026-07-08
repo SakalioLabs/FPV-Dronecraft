@@ -215,6 +215,21 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		public double massFlowWeightedWakeResidualAfterResidenceMetersPerSecond() {
 			return residenceStep.massFlowWeightedWakeResidualAfterResidenceMetersPerSecond();
 		}
+
+		public double meanActiveThroughFlowResidualAfterResidenceMetersPerSecond() {
+			double sum = 0.0;
+			int count = 0;
+			for (PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell
+					: residenceStep.activeCells()) {
+				sum += cell.targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond().length();
+				count++;
+			}
+			return count == 0 ? 0.0 : sum / count;
+		}
+
+		public double massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond() {
+			return residenceStep.massFlowWeightedThroughFlowResidualAfterResidenceMetersPerSecond();
+		}
 	}
 
 	public record VoxelSolidMask(
