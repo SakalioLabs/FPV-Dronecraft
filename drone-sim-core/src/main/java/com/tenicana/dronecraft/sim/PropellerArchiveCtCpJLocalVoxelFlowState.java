@@ -626,6 +626,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double kinematicViscositySquareMetersPerSecond,
 			double timeStepSeconds
 	) {
+		return diffuseVelocity(
+				airDensityKgPerCubicMeter,
+				kinematicViscositySquareMetersPerSecond,
+				timeStepSeconds,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public VelocityDiffusionStep diffuseVelocity(
+			double airDensityKgPerCubicMeter,
+			double kinematicViscositySquareMetersPerSecond,
+			double timeStepSeconds,
+			VoxelSolidMask solidMask
+	) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
@@ -637,6 +651,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (!Double.isFinite(timeStepSeconds) || timeStepSeconds <= EPSILON) {
 			throw new IllegalArgumentException("timeStepSeconds must be finite and positive.");
 		}
+		validateSolidMask(solidMask);
 		double diffusionNumber = kinematicViscositySquareMetersPerSecond
 				* timeStepSeconds
 				/ (gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters());
@@ -652,13 +667,28 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				for (int x = 0; x < gridSpec.cellCountX(); x++) {
 					int index = linearIndex(x, y, z);
 					if (x + 1 < gridSpec.cellCountX()) {
-						accumulateDiffusiveExchange(deltas, index, linearIndex(x + 1, y, z), diffusionNumber);
+						accumulateDiffusiveExchange(
+								deltas,
+								index,
+								linearIndex(x + 1, y, z),
+								diffusionNumber,
+								solidMask);
 					}
 					if (y + 1 < gridSpec.cellCountY()) {
-						accumulateDiffusiveExchange(deltas, index, linearIndex(x, y + 1, z), diffusionNumber);
+						accumulateDiffusiveExchange(
+								deltas,
+								index,
+								linearIndex(x, y + 1, z),
+								diffusionNumber,
+								solidMask);
 					}
 					if (z + 1 < gridSpec.cellCountZ()) {
-						accumulateDiffusiveExchange(deltas, index, linearIndex(x, y, z + 1), diffusionNumber);
+						accumulateDiffusiveExchange(
+								deltas,
+								index,
+								linearIndex(x, y, z + 1),
+								diffusionNumber,
+								solidMask);
 					}
 				}
 			}
@@ -687,6 +717,18 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			double airDensityKgPerCubicMeter,
 			int pressureProjectionIterations
 	) {
+		return projectVelocityDivergence(
+				airDensityKgPerCubicMeter,
+				pressureProjectionIterations,
+				VoxelSolidMask.open(gridSpec)
+		);
+	}
+
+	public VelocityProjectionStep projectVelocityDivergence(
+			double airDensityKgPerCubicMeter,
+			int pressureProjectionIterations,
+			VoxelSolidMask solidMask
+	) {
 		if (!Double.isFinite(airDensityKgPerCubicMeter) || airDensityKgPerCubicMeter <= EPSILON) {
 			throw new IllegalArgumentException("airDensityKgPerCubicMeter must be finite and positive.");
 		}
@@ -696,16 +738,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		if (pressureProjectionIterations > MAX_PRESSURE_PROJECTION_ITERATIONS) {
 			throw new IllegalArgumentException("pressureProjectionIterations exceeds maximum supported bound.");
 		}
-		DivergenceMetrics divergenceBefore = divergenceMetrics();
+		validateSolidMask(solidMask);
+		DivergenceMetrics divergenceBefore = divergenceMetrics(solidMask);
 		PropellerArchiveCtCpJLocalVoxelFlowState nextState = this;
 		if (pressureProjectionIterations > 0 && divergenceBefore.maxAbsDivergencePerSecond() > EPSILON) {
-			double[] divergence = divergenceValues();
-			double[] pressurePotential = pressurePotential(divergence, pressureProjectionIterations);
+			double[] divergence = divergenceValues(solidMask);
+			double[] pressurePotential = pressurePotential(divergence, pressureProjectionIterations, solidMask);
 			ArrayList<Vec3> nextVelocities = new ArrayList<>(velocitiesWorldMetersPerSecond.size());
 			for (int y = 0; y < gridSpec.cellCountY(); y++) {
 				for (int z = 0; z < gridSpec.cellCountZ(); z++) {
 					for (int x = 0; x < gridSpec.cellCountX(); x++) {
-						nextVelocities.add(projectedVelocityAt(pressurePotential, x, y, z));
+						int index = linearIndex(x, y, z);
+						nextVelocities.add(solidMask.isSolidCellIndex(index)
+								? velocityAt(x, y, z)
+								: projectedVelocityAt(pressurePotential, solidMask, x, y, z));
 					}
 				}
 			}
@@ -717,7 +763,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				airDensityKgPerCubicMeter,
 				pressureProjectionIterations,
 				divergenceBefore,
-				nextState.divergenceMetrics(),
+				nextState.divergenceMetrics(solidMask),
 				totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
 				nextState.totalMomentumWorldNewtonSeconds(airDensityKgPerCubicMeter),
 				totalKineticEnergyJoules(airDensityKgPerCubicMeter),
@@ -726,19 +772,30 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	public DivergenceMetrics divergenceMetrics() {
-		double[] divergence = divergenceValues();
+		return divergenceMetrics(VoxelSolidMask.open(gridSpec));
+	}
+
+	public DivergenceMetrics divergenceMetrics(VoxelSolidMask solidMask) {
+		validateSolidMask(solidMask);
+		double[] divergence = divergenceValues(solidMask);
 		double maxAbs = 0.0;
 		double sumSquares = 0.0;
 		double sum = 0.0;
-		for (double value : divergence) {
+		int openCount = 0;
+		for (int i = 0; i < divergence.length; i++) {
+			if (solidMask.isSolidCellIndex(i)) {
+				continue;
+			}
+			double value = divergence[i];
 			maxAbs = Math.max(maxAbs, Math.abs(value));
 			sumSquares += value * value;
 			sum += value;
+			openCount++;
 		}
 		return new DivergenceMetrics(
 				maxAbs,
-				divergence.length == 0 ? 0.0 : Math.sqrt(sumSquares / divergence.length),
-				divergence.length == 0 ? 0.0 : sum / divergence.length
+				openCount == 0 ? 0.0 : Math.sqrt(sumSquares / openCount),
+				openCount == 0 ? 0.0 : sum / openCount
 		);
 	}
 
@@ -793,11 +850,15 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	private double[] divergenceValues() {
+		return divergenceValues(VoxelSolidMask.open(gridSpec));
+	}
+
+	private double[] divergenceValues(VoxelSolidMask solidMask) {
 		double[] divergence = new double[velocitiesWorldMetersPerSecond.size()];
 		for (int y = 0; y < gridSpec.cellCountY(); y++) {
 			for (int z = 0; z < gridSpec.cellCountZ(); z++) {
 				for (int x = 0; x < gridSpec.cellCountX(); x++) {
-					divergence[linearIndex(x, y, z)] = divergenceAt(x, y, z);
+					divergence[linearIndex(x, y, z)] = divergenceAt(x, y, z, solidMask);
 				}
 			}
 		}
@@ -805,31 +866,43 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	private double divergenceAt(int x, int y, int z) {
+		return divergenceAt(x, y, z, VoxelSolidMask.open(gridSpec));
+	}
+
+	private double divergenceAt(int x, int y, int z, VoxelSolidMask solidMask) {
+		int centerIndex = linearIndex(x, y, z);
+		if (solidMask.isSolidCellIndex(centerIndex)) {
+			return 0.0;
+		}
 		double dx = gridSpec.cellSizeMeters();
 		Vec3 center = velocityAt(x, y, z);
 		double east = x + 1 < gridSpec.cellCountX()
-				? 0.5 * (center.x() + velocityAt(x + 1, y, z).x())
+				? openFaceVelocity(solidMask, x + 1, y, z, 0.5 * (center.x() + velocityAt(x + 1, y, z).x()))
 				: center.x();
 		double west = x > 0
-				? 0.5 * (velocityAt(x - 1, y, z).x() + center.x())
+				? openFaceVelocity(solidMask, x - 1, y, z, 0.5 * (velocityAt(x - 1, y, z).x() + center.x()))
 				: center.x();
 		double up = y + 1 < gridSpec.cellCountY()
-				? 0.5 * (center.y() + velocityAt(x, y + 1, z).y())
+				? openFaceVelocity(solidMask, x, y + 1, z, 0.5 * (center.y() + velocityAt(x, y + 1, z).y()))
 				: center.y();
 		double down = y > 0
-				? 0.5 * (velocityAt(x, y - 1, z).y() + center.y())
+				? openFaceVelocity(solidMask, x, y - 1, z, 0.5 * (velocityAt(x, y - 1, z).y() + center.y()))
 				: center.y();
 		double south = z + 1 < gridSpec.cellCountZ()
-				? 0.5 * (center.z() + velocityAt(x, y, z + 1).z())
+				? openFaceVelocity(solidMask, x, y, z + 1, 0.5 * (center.z() + velocityAt(x, y, z + 1).z()))
 				: center.z();
 		double north = z > 0
-				? 0.5 * (velocityAt(x, y, z - 1).z() + center.z())
+				? openFaceVelocity(solidMask, x, y, z - 1, 0.5 * (velocityAt(x, y, z - 1).z() + center.z()))
 				: center.z();
 		return (east - west + up - down + south - north) / dx;
 	}
 
 	private double[] pressurePotential(double[] divergence, int iterationCount) {
-		double meanDivergence = mean(divergence);
+		return pressurePotential(divergence, iterationCount, VoxelSolidMask.open(gridSpec));
+	}
+
+	private double[] pressurePotential(double[] divergence, int iterationCount, VoxelSolidMask solidMask) {
+		double meanDivergence = mean(divergence, solidMask);
 		double dxSquared = gridSpec.cellSizeMeters() * gridSpec.cellSizeMeters();
 		double[] previous = new double[divergence.length];
 		double[] next = new double[divergence.length];
@@ -838,29 +911,33 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 				for (int z = 0; z < gridSpec.cellCountZ(); z++) {
 					for (int x = 0; x < gridSpec.cellCountX(); x++) {
 						int index = linearIndex(x, y, z);
+						if (solidMask.isSolidCellIndex(index)) {
+							next[index] = 0.0;
+							continue;
+						}
 						int neighborCount = 0;
 						double neighborSum = 0.0;
-						if (x > 0) {
+						if (openNeighbor(solidMask, x - 1, y, z)) {
 							neighborSum += previous[linearIndex(x - 1, y, z)];
 							neighborCount++;
 						}
-						if (x + 1 < gridSpec.cellCountX()) {
+						if (openNeighbor(solidMask, x + 1, y, z)) {
 							neighborSum += previous[linearIndex(x + 1, y, z)];
 							neighborCount++;
 						}
-						if (y > 0) {
+						if (openNeighbor(solidMask, x, y - 1, z)) {
 							neighborSum += previous[linearIndex(x, y - 1, z)];
 							neighborCount++;
 						}
-						if (y + 1 < gridSpec.cellCountY()) {
+						if (openNeighbor(solidMask, x, y + 1, z)) {
 							neighborSum += previous[linearIndex(x, y + 1, z)];
 							neighborCount++;
 						}
-						if (z > 0) {
+						if (openNeighbor(solidMask, x, y, z - 1)) {
 							neighborSum += previous[linearIndex(x, y, z - 1)];
 							neighborCount++;
 						}
-						if (z + 1 < gridSpec.cellCountZ()) {
+						if (openNeighbor(solidMask, x, y, z + 1)) {
 							neighborSum += previous[linearIndex(x, y, z + 1)];
 							neighborCount++;
 						}
@@ -870,7 +947,7 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 					}
 				}
 			}
-			subtractMean(next);
+			subtractMean(next, solidMask);
 			double[] swap = previous;
 			previous = next;
 			next = swap;
@@ -879,40 +956,56 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 	}
 
 	private Vec3 projectedVelocityAt(double[] pressurePotential, int x, int y, int z) {
+		return projectedVelocityAt(pressurePotential, VoxelSolidMask.open(gridSpec), x, y, z);
+	}
+
+	private Vec3 projectedVelocityAt(double[] pressurePotential, VoxelSolidMask solidMask, int x, int y, int z) {
 		Vec3 center = velocityAt(x, y, z);
 		double dx = gridSpec.cellSizeMeters();
 		double lowX = center.x();
 		double highX = center.x();
-		if (x > 0) {
+		if (solidNeighbor(solidMask, x - 1, y, z)) {
+			lowX = 0.0;
+		} else if (openNeighbor(solidMask, x - 1, y, z)) {
 			lowX = 0.5 * (velocityAt(x - 1, y, z).x() + center.x())
 					- (pressurePotential[linearIndex(x, y, z)]
 					- pressurePotential[linearIndex(x - 1, y, z)]) / dx;
 		}
-		if (x + 1 < gridSpec.cellCountX()) {
+		if (solidNeighbor(solidMask, x + 1, y, z)) {
+			highX = 0.0;
+		} else if (openNeighbor(solidMask, x + 1, y, z)) {
 			highX = 0.5 * (center.x() + velocityAt(x + 1, y, z).x())
 					- (pressurePotential[linearIndex(x + 1, y, z)]
 					- pressurePotential[linearIndex(x, y, z)]) / dx;
 		}
 		double lowY = center.y();
 		double highY = center.y();
-		if (y > 0) {
+		if (solidNeighbor(solidMask, x, y - 1, z)) {
+			lowY = 0.0;
+		} else if (openNeighbor(solidMask, x, y - 1, z)) {
 			lowY = 0.5 * (velocityAt(x, y - 1, z).y() + center.y())
 					- (pressurePotential[linearIndex(x, y, z)]
 					- pressurePotential[linearIndex(x, y - 1, z)]) / dx;
 		}
-		if (y + 1 < gridSpec.cellCountY()) {
+		if (solidNeighbor(solidMask, x, y + 1, z)) {
+			highY = 0.0;
+		} else if (openNeighbor(solidMask, x, y + 1, z)) {
 			highY = 0.5 * (center.y() + velocityAt(x, y + 1, z).y())
 					- (pressurePotential[linearIndex(x, y + 1, z)]
 					- pressurePotential[linearIndex(x, y, z)]) / dx;
 		}
 		double lowZ = center.z();
 		double highZ = center.z();
-		if (z > 0) {
+		if (solidNeighbor(solidMask, x, y, z - 1)) {
+			lowZ = 0.0;
+		} else if (openNeighbor(solidMask, x, y, z - 1)) {
 			lowZ = 0.5 * (velocityAt(x, y, z - 1).z() + center.z())
 					- (pressurePotential[linearIndex(x, y, z)]
 					- pressurePotential[linearIndex(x, y, z - 1)]) / dx;
 		}
-		if (z + 1 < gridSpec.cellCountZ()) {
+		if (solidNeighbor(solidMask, x, y, z + 1)) {
+			highZ = 0.0;
+		} else if (openNeighbor(solidMask, x, y, z + 1)) {
 			highZ = 0.5 * (center.z() + velocityAt(x, y, z + 1).z())
 					- (pressurePotential[linearIndex(x, y, z + 1)]
 					- pressurePotential[linearIndex(x, y, z)]) / dx;
@@ -951,6 +1044,33 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return MathUtil.clamp(raw, 0.0, Math.max(0, cellCount - 1));
 	}
 
+	private double openFaceVelocity(VoxelSolidMask solidMask, int x, int y, int z, double openFaceVelocity) {
+		return solidMask.isSolidCellIndex(linearIndex(x, y, z)) ? 0.0 : openFaceVelocity;
+	}
+
+	private boolean openNeighbor(VoxelSolidMask solidMask, int x, int y, int z) {
+		return x >= 0 && x < gridSpec.cellCountX()
+				&& y >= 0 && y < gridSpec.cellCountY()
+				&& z >= 0 && z < gridSpec.cellCountZ()
+				&& !solidMask.isSolidCellIndex(linearIndex(x, y, z));
+	}
+
+	private boolean solidNeighbor(VoxelSolidMask solidMask, int x, int y, int z) {
+		return x >= 0 && x < gridSpec.cellCountX()
+				&& y >= 0 && y < gridSpec.cellCountY()
+				&& z >= 0 && z < gridSpec.cellCountZ()
+				&& solidMask.isSolidCellIndex(linearIndex(x, y, z));
+	}
+
+	private void validateSolidMask(VoxelSolidMask solidMask) {
+		if (solidMask == null) {
+			throw new IllegalArgumentException("solidMask must not be null.");
+		}
+		if (!gridSpec.equals(solidMask.gridSpec())) {
+			throw new IllegalArgumentException("solidMask grid must match this flow state.");
+		}
+	}
+
 	private static Vec3 lerp(Vec3 first, Vec3 second, double t) {
 		return first.multiply(1.0 - t).add(second.multiply(t));
 	}
@@ -961,7 +1081,25 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			int secondIndex,
 			double diffusionNumber
 	) {
+		accumulateDiffusiveExchange(
+				deltas,
+				firstIndex,
+				secondIndex,
+				diffusionNumber,
+				VoxelSolidMask.open(gridSpec));
+	}
+
+	private void accumulateDiffusiveExchange(
+			ArrayList<Vec3> deltas,
+			int firstIndex,
+			int secondIndex,
+			double diffusionNumber,
+			VoxelSolidMask solidMask
+	) {
 		if (diffusionNumber <= EPSILON) {
+			return;
+		}
+		if (solidMask.isSolidCellIndex(firstIndex) || solidMask.isSolidCellIndex(secondIndex)) {
 			return;
 		}
 		Vec3 exchange = velocitiesWorldMetersPerSecond.get(secondIndex)
@@ -990,10 +1128,37 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return sum / values.length;
 	}
 
+	private static double mean(double[] values, VoxelSolidMask solidMask) {
+		if (values.length == 0) {
+			return 0.0;
+		}
+		double sum = 0.0;
+		int count = 0;
+		for (int i = 0; i < values.length; i++) {
+			if (solidMask.isSolidCellIndex(i)) {
+				continue;
+			}
+			sum += values[i];
+			count++;
+		}
+		return count == 0 ? 0.0 : sum / count;
+	}
+
 	private static void subtractMean(double[] values) {
 		double mean = mean(values);
 		for (int i = 0; i < values.length; i++) {
 			values[i] -= mean;
+		}
+	}
+
+	private static void subtractMean(double[] values, VoxelSolidMask solidMask) {
+		double mean = mean(values, solidMask);
+		for (int i = 0; i < values.length; i++) {
+			if (solidMask.isSolidCellIndex(i)) {
+				values[i] = 0.0;
+			} else {
+				values[i] -= mean;
+			}
 		}
 	}
 }

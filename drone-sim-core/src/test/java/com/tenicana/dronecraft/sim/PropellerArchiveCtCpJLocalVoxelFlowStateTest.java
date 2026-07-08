@@ -373,6 +373,43 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void pressureProjectionUsesSolidFacesAsNoFluxBoundaries() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(2.0, 0.0, 0.0),
+								Vec3.ZERO
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projection =
+				state.projectVelocityDivergence(RHO, 8, mask);
+
+		assertEquals(2.0, projection.divergenceBefore().maxAbsDivergencePerSecond(), 1.0e-15);
+		assertTrue(projection.divergenceAfter().maxAbsDivergencePerSecond()
+				< projection.divergenceBefore().maxAbsDivergencePerSecond());
+		assertVectorEquals(new Vec3(1.0, 0.0, 0.0),
+				projection.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				projection.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertTrue(projection.momentumResidualWorldNewtonSeconds().x() < 0.0);
+	}
+
+	@Test
 	void diffusionSpreadsVelocityToNeighborsWhileConservingMomentum() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
@@ -404,6 +441,44 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertTrue(diffusion.kineticEnergyAfterJoules() < diffusion.kineticEnergyBeforeJoules());
 		assertTrue(diffusion.kineticEnergyDeltaJoules() < 0.0);
 		assertTrue(diffusion.nextState().maxSpeedMetersPerSecond() < state.maxSpeedMetersPerSecond());
+	}
+
+	@Test
+	void diffusionDoesNotExchangeVelocityAcrossSolidMaskFaces() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						3,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								Vec3.ZERO,
+								new Vec3(0.0, 3.0, 0.0),
+								Vec3.ZERO
+						)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask mask =
+				new PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask(
+						grid,
+						List.of(Boolean.FALSE, Boolean.TRUE, Boolean.FALSE)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelFlowState.VelocityDiffusionStep diffusion =
+				state.diffuseVelocity(RHO, 0.10, 1.0, mask);
+
+		assertVectorEquals(Vec3.ZERO,
+				diffusion.nextState().velocityAt(0, 0, 0), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 3.0, 0.0),
+				diffusion.nextState().velocityAt(1, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				diffusion.nextState().velocityAt(2, 0, 0), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, diffusion.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(state.totalKineticEnergyJoules(RHO), diffusion.kineticEnergyAfterJoules(), 1.0e-15);
 	}
 
 	@Test

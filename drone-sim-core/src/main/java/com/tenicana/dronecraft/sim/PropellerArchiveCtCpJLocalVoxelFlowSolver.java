@@ -400,12 +400,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 					advection.nextState().diffuseVelocity(
 							config.airDensityKgPerCubicMeter(),
 							config.kinematicViscositySquareMetersPerSecond(),
-							config.timeStepSeconds()
+							config.timeStepSeconds(),
+							solidMask
 					);
 			PropellerArchiveCtCpJLocalVoxelFlowState.VelocityProjectionStep projection =
 					diffusion.nextState().projectVelocityDivergence(
 							config.airDensityKgPerCubicMeter(),
-							config.pressureProjectionIterations()
+							config.pressureProjectionIterations(),
+							solidMask
 					);
 			PropellerArchiveCtCpJLocalVoxelFlowState.SolidBoundaryStep solidBoundary =
 					projection.nextState().applySolidMask(
