@@ -242,10 +242,15 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				step.totalMomentumAfterWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(new Vec3(0.0, -1.5 * RHO, 0.0),
 				step.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(step.momentumResidualWorldNewtonSeconds(),
+				step.boundaryImpulseOnFlowWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(new Vec3(0.0, 1.5 * RHO, 0.0),
+				step.flowImpulseOnSolidBoundaryWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(0.5 * RHO * 4.0 + 0.5 * RHO * 0.5 * 9.0,
 				step.kineticEnergyBeforeJoules(), 1.0e-15);
 		assertEquals(0.5 * RHO * 4.0, step.kineticEnergyAfterJoules(), 1.0e-15);
 		assertTrue(step.kineticEnergyDeltaJoules() < 0.0);
+		assertEquals(-step.kineticEnergyDeltaJoules(), step.dissipatedKineticEnergyJoules(), 1.0e-15);
 	}
 
 	@Test
@@ -436,7 +441,9 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 		assertEquals(0, step.clampedCellCount());
 		assertEquals(state, step.nextState());
 		assertVectorEquals(Vec3.ZERO, step.momentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, step.flowImpulseOnSolidBoundaryWorldNewtonSeconds(), 1.0e-15);
 		assertEquals(state.totalKineticEnergyJoules(RHO), step.kineticEnergyAfterJoules(), 1.0e-15);
+		assertEquals(0.0, step.dissipatedKineticEnergyJoules(), 1.0e-15);
 
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec otherGrid =
 				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(

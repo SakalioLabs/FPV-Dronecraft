@@ -179,6 +179,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"kinetic_energy_projection_delta_j",
 			"kinetic_energy_after_solid_boundary_j",
 			"kinetic_energy_solid_boundary_delta_j",
+			"solid_boundary_dissipated_energy_j",
+			"cumulative_solid_boundary_dissipated_energy_j",
 			"max_speed_after_source_mps",
 			"max_speed_after_advection_mps",
 			"max_speed_after_diffusion_mps",
@@ -220,6 +222,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"solid_boundary_momentum_residual_world_x_ns",
 			"solid_boundary_momentum_residual_world_y_ns",
 			"solid_boundary_momentum_residual_world_z_ns",
+			"flow_impulse_on_solid_boundary_world_x_ns",
+			"flow_impulse_on_solid_boundary_world_y_ns",
+			"flow_impulse_on_solid_boundary_world_z_ns",
 			"final_momentum_world_x_ns",
 			"final_momentum_world_y_ns",
 			"final_momentum_world_z_ns",
@@ -726,6 +731,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.solidBoundaryStep().kineticEnergyAfterJoules();
 		double energySolidBoundaryDelta = initial ? 0.0
 				: iteration.solidBoundaryStep().kineticEnergyDeltaJoules();
+		double solidBoundaryDissipatedEnergy = initial ? 0.0
+				: iteration.solidBoundaryStep().dissipatedKineticEnergyJoules();
+		double cumulativeSolidBoundaryDissipatedEnergy =
+				cumulativeSolidBoundaryDissipatedEnergy(run, completedSteps);
 		double maxSpeedAfterSource = initial ? run.initialState().maxSpeedMetersPerSecond()
 				: iteration.stateAfterSource().maxSpeedMetersPerSecond();
 		double maxSpeedAfterAdvection = initial ? maxSpeedAfterSource
@@ -759,6 +768,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.solidBoundaryStep().totalMomentumAfterWorldNewtonSeconds();
 		Vec3 solidBoundaryMomentumResidual = initial ? zero
 				: iteration.solidBoundaryStep().momentumResidualWorldNewtonSeconds();
+		Vec3 flowImpulseOnSolidBoundary = initial ? zero
+				: iteration.solidBoundaryStep().flowImpulseOnSolidBoundaryWorldNewtonSeconds();
 		Vec3 finalMomentum = initial ? run.initialState()
 				.totalMomentumWorldNewtonSeconds(run.config().airDensityKgPerCubicMeter(), run.solidMask())
 				: iteration.stateAfterSolidBoundary()
@@ -944,6 +955,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(energyProjectionDelta),
 				number(energyAfterSolidBoundary),
 				number(energySolidBoundaryDelta),
+				number(solidBoundaryDissipatedEnergy),
+				number(cumulativeSolidBoundaryDissipatedEnergy),
 				number(maxSpeedAfterSource),
 				number(maxSpeedAfterAdvection),
 				number(maxSpeedAfterDiffusion),
@@ -985,6 +998,9 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(solidBoundaryMomentumResidual.x()),
 				number(solidBoundaryMomentumResidual.y()),
 				number(solidBoundaryMomentumResidual.z()),
+				number(flowImpulseOnSolidBoundary.x()),
+				number(flowImpulseOnSolidBoundary.y()),
+				number(flowImpulseOnSolidBoundary.z()),
 				number(finalMomentum.x()),
 				number(finalMomentum.y()),
 				number(finalMomentum.z()),
@@ -1074,6 +1090,17 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			sum = sum.add(run.iterations().get(i).solidBoundaryStep().momentumResidualWorldNewtonSeconds());
 		}
 		return sum;
+	}
+
+	private static double cumulativeSolidBoundaryDissipatedEnergy(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double energy = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			energy += run.iterations().get(i).solidBoundaryStep().dissipatedKineticEnergyJoules();
+		}
+		return energy;
 	}
 
 	private static double cumulativeSourceMass(

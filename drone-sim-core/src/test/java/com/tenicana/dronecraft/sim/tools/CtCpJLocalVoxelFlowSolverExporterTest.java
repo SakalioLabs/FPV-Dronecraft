@@ -165,6 +165,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "kinetic_energy_after_projection_j"),
 				number(hoverStep2, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep2, "kinetic_energy_solid_boundary_delta_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep2, "solid_boundary_dissipated_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep2, "cumulative_solid_boundary_dissipated_energy_j"), 1.0e-15);
 		assertTrue(number(hoverStep2, "max_speed_after_advection_mps") > 0.0);
 		assertTrue(number(hoverStep2, "max_speed_after_diffusion_mps") > 0.0);
 		assertTrue(number(hoverStep2, "max_speed_after_projection_mps") > 0.0);
@@ -222,6 +224,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(number(hoverStep2, "solid_boundary_momentum_after_world_y_ns")
 						- number(hoverStep2, "solid_boundary_momentum_before_world_y_ns"),
 				number(hoverStep2, "solid_boundary_momentum_residual_world_y_ns"), 1.0e-12);
+		assertEquals(-number(hoverStep2, "solid_boundary_momentum_residual_world_y_ns"),
+				number(hoverStep2, "flow_impulse_on_solid_boundary_world_y_ns"), 1.0e-12);
 		assertEquals(0.0, number(hoverStep2, "solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0,
 				number(hoverStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
@@ -284,6 +288,8 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "cumulative_viscous_dissipated_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_projection_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "solid_boundary_dissipated_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(blockedStep2, "flow_impulse_on_solid_boundary_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "max_vorticity_after_source_s"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "rms_vorticity_after_projection_s"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "mean_vorticity_after_solid_boundary_world_y_s"), 1.0e-15);
@@ -371,8 +377,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "source_mass_flow_kg_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_solid_boundary_delta_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "solid_boundary_dissipated_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "max_speed_after_solid_boundary_mps"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "flow_impulse_on_solid_boundary_world_y_ns"), 1.0e-15);
 		assertEquals(number(hoverStep, "solid_boundary_momentum_residual_world_y_ns"),
 				number(hoverStep, "cumulative_solid_boundary_momentum_residual_world_y_ns"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "final_momentum_world_y_ns"), 1.0e-12);
@@ -489,10 +497,13 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("solid_clamped_cell_count"));
 		assertTrue(lines.get(0).contains("cumulative_solid_boundary_momentum_residual_world_y_ns"));
 		assertTrue(lines.get(0).contains("kinetic_energy_after_solid_boundary_j"));
+		assertTrue(lines.get(0).contains("solid_boundary_dissipated_energy_j"));
+		assertTrue(lines.get(0).contains("cumulative_solid_boundary_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("viscous_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("mean_viscous_dissipation_power_w"));
 		assertTrue(lines.get(0).contains("cumulative_viscous_dissipated_energy_j"));
 		assertTrue(lines.get(0).contains("solid_boundary_momentum_residual_world_y_ns"));
+		assertTrue(lines.get(0).contains("flow_impulse_on_solid_boundary_world_y_ns"));
 		Map<String, Integer> columns = columns(lines);
 		Map<String, String> hoverStep =
 				recordFor(lines, columns, "static_anchored_source_hover", "raw_source", "step", 0);

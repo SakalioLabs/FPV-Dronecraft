@@ -513,8 +513,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 			return totalMomentumAfterWorldNewtonSeconds.subtract(totalMomentumBeforeWorldNewtonSeconds);
 		}
 
+		public Vec3 boundaryImpulseOnFlowWorldNewtonSeconds() {
+			return momentumResidualWorldNewtonSeconds();
+		}
+
+		public Vec3 flowImpulseOnSolidBoundaryWorldNewtonSeconds() {
+			return momentumResidualWorldNewtonSeconds().multiply(-1.0);
+		}
+
 		public double kineticEnergyDeltaJoules() {
 			return kineticEnergyAfterJoules - kineticEnergyBeforeJoules;
+		}
+
+		public double dissipatedKineticEnergyJoules() {
+			return Math.max(0.0, kineticEnergyBeforeJoules - kineticEnergyAfterJoules);
 		}
 	}
 
