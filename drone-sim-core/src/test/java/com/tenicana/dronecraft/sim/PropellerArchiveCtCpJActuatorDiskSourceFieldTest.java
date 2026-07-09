@@ -72,6 +72,48 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
+	void skewWakeTargetUsesCenterlineVelocityWithoutAddingLateralBodyForce() {
+		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
+				skewSourceTerm();
+		PropellerArchiveCtCpJActuatorDiskSourceField field =
+				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(sourceTerm), SOURCE_THICKNESS);
+		Vec3 samplePoint = sourceTerm.diskCenterWorldMeters();
+		double cellSize = Math.min(SOURCE_THICKNESS, sourceTerm.diskRadiusMeters()) * 0.5;
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						samplePoint.subtract(new Vec3(cellSize * 0.5, cellSize * 0.5, cellSize * 0.5)),
+						cellSize,
+						1,
+						1,
+						1
+				);
+
+		PropellerArchiveCtCpJActuatorDiskSourceField.SourceFieldSample pointSample =
+				field.sampleAt(samplePoint);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample voxelSample =
+				field.sampleVoxelGrid(grid, 1).cells().get(0);
+		Vec3 expectedCenterlineWake = sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(samplePoint);
+		Vec3 expectedAxialWake = sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(samplePoint);
+
+		assertTrue(sourceTerm.wakeSkewLateralSpeedMetersPerSecond() > 0.0);
+		assertTrue(pointSample.insideAnySource());
+		assertTrue(voxelSample.active());
+		assertVectorEquals(expectedAxialWake,
+				pointSample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedCenterlineWake,
+				pointSample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedAxialWake,
+				voxelSample.farWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedCenterlineWake,
+				voxelSample.targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertEquals(0.0, pointSample.wakeSwirlVelocityWorldMetersPerSecond().length(), 1.0e-15);
+		assertEquals(0.0, pointSample.bodyForceDensityWorldNewtonsPerCubicMeter().x(), 1.0e-12);
+		assertEquals(0.0, pointSample.bodyForceDensityWorldNewtonsPerCubicMeter().z(), 1.0e-12);
+		assertTrue(Math.abs(pointSample.targetWakeVelocityWorldMetersPerSecond().x()) > 0.0);
+		assertTrue(Math.abs(pointSample.targetWakeVelocityWorldMetersPerSecond().z()) > 0.0);
+	}
+
+	@Test
 	void keepsCylindricalDiskBoundaryInclusiveAndRejectsOutsidePoints() {
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
 				hoverSourceTerm();
@@ -549,6 +591,25 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
 				);
 		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, bodyToWorld);
+	}
+
+	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample skewSourceTerm() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		double omega = 6_000.0 * 2.0 * Math.PI / 60.0;
+		Vec3 relativeAirVelocity = rotor.thrustAxisBody()
+				.multiply(2.25)
+				.add(new Vec3(0.60, 0.0, -0.35));
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				PropellerArchiveCtCpJRotorForceModel.sampleStaticAnchoredFromRelativeAirVelocity(
+						"apDrone",
+						"source_field_mid_j_skew",
+						rotor,
+						relativeAirVelocity,
+						omega,
+						RHO,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		return sample.actuatorDiskSourceTerm(0, MOMENT_REFERENCE_WORLD, Quaternion.IDENTITY);
 	}
 
 	private static PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample blockedSourceTerm() {

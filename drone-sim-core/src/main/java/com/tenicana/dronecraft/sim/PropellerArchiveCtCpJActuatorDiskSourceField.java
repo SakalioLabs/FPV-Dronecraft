@@ -314,9 +314,11 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		double wakeSwirlPowerLoading = 0.0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
+		Vec3 targetWakeVelocity = Vec3.ZERO;
 		Vec3 fallbackActuatorDiskAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackFarWakeAxialVelocity = Vec3.ZERO;
 		Vec3 fallbackWakeSwirlVelocity = Vec3.ZERO;
+		Vec3 fallbackTargetWakeVelocity = Vec3.ZERO;
 		double wakeVelocityMassFluxWeight = 0.0;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
 			if (!containsActuatorDiskVolume(sourceTerm, point)) {
@@ -327,7 +329,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			Vec3 sourceActuatorDiskAxialVelocity =
 					sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond();
 			Vec3 sourceFarWakeAxialVelocity = sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(point);
+			Vec3 sourceFarWakeCenterlineVelocity =
+					sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(point);
 			Vec3 sourceWakeSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point);
+			Vec3 sourceTargetWakeVelocity = sourceFarWakeCenterlineVelocity.add(sourceWakeSwirlVelocity);
 			bodyForceDensity = bodyForceDensity.add(
 					sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters));
 			wakeTorqueDensity = wakeTorqueDensity.add(sourceTerm
@@ -342,12 +347,14 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					fallbackActuatorDiskAxialVelocity.add(sourceActuatorDiskAxialVelocity);
 			fallbackFarWakeAxialVelocity = fallbackFarWakeAxialVelocity.add(sourceFarWakeAxialVelocity);
 			fallbackWakeSwirlVelocity = fallbackWakeSwirlVelocity.add(sourceWakeSwirlVelocity);
+			fallbackTargetWakeVelocity = fallbackTargetWakeVelocity.add(sourceTargetWakeVelocity);
 			if (sourceMassFlux > EPSILON) {
 				actuatorDiskAxialVelocity = actuatorDiskAxialVelocity.add(
 						sourceActuatorDiskAxialVelocity.multiply(sourceMassFlux));
 				farWakeAxialVelocity = farWakeAxialVelocity.add(
 						sourceFarWakeAxialVelocity.multiply(sourceMassFlux));
 				wakeSwirlVelocity = wakeSwirlVelocity.add(sourceWakeSwirlVelocity.multiply(sourceMassFlux));
+				targetWakeVelocity = targetWakeVelocity.add(sourceTargetWakeVelocity.multiply(sourceMassFlux));
 				wakeVelocityMassFluxWeight += sourceMassFlux;
 			}
 		}
@@ -356,12 +363,14 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			actuatorDiskAxialVelocity = actuatorDiskAxialVelocity.multiply(inverseWakeVelocityWeight);
 			farWakeAxialVelocity = farWakeAxialVelocity.multiply(inverseWakeVelocityWeight);
 			wakeSwirlVelocity = wakeSwirlVelocity.multiply(inverseWakeVelocityWeight);
+			targetWakeVelocity = targetWakeVelocity.multiply(inverseWakeVelocityWeight);
 		} else if (contributingSources > 0) {
 			double inverseContributingSources = 1.0 / contributingSources;
 			actuatorDiskAxialVelocity =
 					fallbackActuatorDiskAxialVelocity.multiply(inverseContributingSources);
 			farWakeAxialVelocity = fallbackFarWakeAxialVelocity.multiply(inverseContributingSources);
 			wakeSwirlVelocity = fallbackWakeSwirlVelocity.multiply(inverseContributingSources);
+			targetWakeVelocity = fallbackTargetWakeVelocity.multiply(inverseContributingSources);
 		}
 		return new SourceFieldSample(
 				point,
@@ -376,7 +385,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				powerLoading + wakeSwirlPowerLoading,
 				farWakeAxialVelocity,
 				wakeSwirlVelocity,
-				farWakeAxialVelocity.add(wakeSwirlVelocity)
+				targetWakeVelocity
 		);
 	}
 
@@ -682,8 +691,10 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			Vec3 sourceActuatorDiskAxialVelocity =
 					coverage.sourceTerm().actuatorDiskAxialVelocityWorldMetersPerSecond();
 			Vec3 sourceFarWakeAxialVelocity = cellCoverage.averageFarWakeAxialVelocityWorldMetersPerSecond();
+			Vec3 sourceFarWakeCenterlineVelocity =
+					cellCoverage.averageFarWakeCenterlineVelocityWorldMetersPerSecond();
 			Vec3 sourceWakeSwirlVelocity = cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond();
-			Vec3 sourceTargetWakeVelocity = sourceFarWakeAxialVelocity.add(sourceWakeSwirlVelocity);
+			Vec3 sourceTargetWakeVelocity = sourceFarWakeCenterlineVelocity.add(sourceWakeSwirlVelocity);
 			double sourceMassFluxWeight =
 					coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
 			if (sourceMassFluxWeight > EPSILON) {
@@ -995,6 +1006,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		int activeSubsamples = 0;
 		int wakeSupportSubsamples = 0;
 		Vec3 farWakeAxialVelocity = Vec3.ZERO;
+		Vec3 farWakeCenterlineVelocity = Vec3.ZERO;
 		Vec3 wakeSwirlVelocity = Vec3.ZERO;
 		double wakeAngularMomentumTorqueWeight = 0.0;
 		for (int sy = 0; sy < subcellSamplesPerAxis; sy++) {
@@ -1015,6 +1027,8 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 						}
 						farWakeAxialVelocity = farWakeAxialVelocity.add(
 								sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(subcellPoint));
+						farWakeCenterlineVelocity = farWakeCenterlineVelocity.add(
+								sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(subcellPoint));
 						wakeSwirlVelocity =
 								wakeSwirlVelocity.add(sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(subcellPoint));
 						wakeAngularMomentumTorqueWeight +=
@@ -1032,6 +1046,9 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 				activeSubsamples == 0
 						? Vec3.ZERO
 						: farWakeAxialVelocity.multiply(1.0 / activeSubsamples),
+				activeSubsamples == 0
+						? Vec3.ZERO
+						: farWakeCenterlineVelocity.multiply(1.0 / activeSubsamples),
 				activeSubsamples == 0
 						? Vec3.ZERO
 						: wakeSwirlVelocity.multiply(1.0 / activeSubsamples),
@@ -1054,6 +1071,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			int activeSubsamples,
 			double sourceVolumeFraction,
 			Vec3 averageFarWakeAxialVelocityWorldMetersPerSecond,
+			Vec3 averageFarWakeCenterlineVelocityWorldMetersPerSecond,
 			Vec3 averageWakeSwirlVelocityWorldMetersPerSecond,
 			double averageWakeAngularMomentumTorqueDensityRadialWeight
 	) {

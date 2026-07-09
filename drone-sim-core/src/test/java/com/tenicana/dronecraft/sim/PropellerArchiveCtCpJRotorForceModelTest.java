@@ -666,7 +666,9 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				swirlVelocity.length(), 1.0e-12);
 		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond(),
 				sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(swirlReferencePoint), 1.0e-15);
-		assertVectorEquals(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond().add(swirlVelocity),
+		assertVectorEquals(sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond(),
+				sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(swirlReferencePoint), 1.0e-15);
+		assertVectorEquals(sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond().add(swirlVelocity),
 				sourceTerm.totalWakeVelocityWorldMetersPerSecondAt(swirlReferencePoint), 1.0e-12);
 		assertEquals(0.0, swirlVelocity.dot(swirlRadialDirection), 1.0e-12);
 		assertEquals(0.0, swirlVelocity.dot(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters()), 1.0e-12);
@@ -683,6 +685,8 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.wakeSwirlSupportRadiusMeters() + sourceTerm.diskRadiusMeters() * 0.25));
 		assertVectorEquals(Vec3.ZERO,
 				sourceTerm.farWakeAxialVelocityWorldMetersPerSecondAt(outsideSupportPoint), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(outsideSupportPoint), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(outsideSupportPoint), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,

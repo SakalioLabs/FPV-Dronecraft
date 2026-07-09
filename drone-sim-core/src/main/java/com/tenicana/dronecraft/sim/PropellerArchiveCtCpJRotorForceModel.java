@@ -768,6 +768,23 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return farWakeAxialVelocityWorldMetersPerSecond;
 		}
 
+		public Vec3 farWakeCenterlineVelocityWorldMetersPerSecondAt(Vec3 samplePointWorldMeters) {
+			if (!applied || farWakeCenterlineVelocityWorldMetersPerSecond.lengthSquared() <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			double wakeRadius = wakeSwirlSupportRadiusMeters();
+			if (normal.lengthSquared() <= EPSILON || wakeRadius <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			Vec3 offset = finiteVecOrZero(samplePointWorldMeters).subtract(diskCenterWorldMeters);
+			Vec3 radial = offset.subtract(normal.multiply(offset.dot(normal)));
+			if (radial.lengthSquared() > wakeRadius * wakeRadius + EPSILON) {
+				return Vec3.ZERO;
+			}
+			return farWakeCenterlineVelocityWorldMetersPerSecond;
+		}
+
 		public Vec3 wakeSwirlVelocityWorldMetersPerSecond(Vec3 samplePointWorldMeters) {
 			if (!applied || wakeTangentialVelocityMetersPerSecond <= EPSILON) {
 				return Vec3.ZERO;
@@ -791,7 +808,7 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		}
 
 		public Vec3 totalWakeVelocityWorldMetersPerSecondAt(Vec3 samplePointWorldMeters) {
-			return farWakeAxialVelocityWorldMetersPerSecondAt(samplePointWorldMeters)
+			return farWakeCenterlineVelocityWorldMetersPerSecondAt(samplePointWorldMeters)
 					.add(wakeSwirlVelocityWorldMetersPerSecond(samplePointWorldMeters));
 		}
 	}
