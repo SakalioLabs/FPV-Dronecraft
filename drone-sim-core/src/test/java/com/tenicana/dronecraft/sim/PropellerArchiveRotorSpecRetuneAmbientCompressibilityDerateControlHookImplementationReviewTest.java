@@ -32,16 +32,16 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertEquals(10, audit.summaryRowCount());
 		assertEquals(1, audit.methodRowCount());
 		assertEquals(5, audit.reviewItems().size());
-		assertEquals(20, audit.rows().size());
+		assertEquals(10, audit.rows().size());
 		assertEquals(4, audit.scenarios().size());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImplementationReview
 				.DerateControlHookImplementationReviewScenarioSummary current =
 						find(audit.scenarios(), "current_control_hook_blackbox_blocked").summary();
-		assertTrue(current.blackboxRegressionAcceptanceReady());
-		assertTrue(current.manualControlHookReviewAllowed());
-		assertEquals(10, current.reviewRowCount());
-		assertEquals("manual-control-hook-implementation-review-material-ready", current.message());
+		assertFalse(current.blackboxRegressionAcceptanceReady());
+		assertFalse(current.manualControlHookReviewAllowed());
+		assertEquals(0, current.reviewRowCount());
+		assertEquals("blackbox-regression-run-not-planned", current.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImplementationReview
 				.DerateControlHookImplementationReviewScenarioSummary missing =
@@ -75,8 +75,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertEquals("blackbox-regression-result-failed", failed.message());
 
 		assertEquals(4, audit.extrema().scenarioCount());
-		assertEquals(2, audit.extrema().manualControlHookReviewAllowedScenarioCount());
-		assertEquals(20, audit.extrema().totalReviewRowCount());
+		assertEquals(1, audit.extrema().manualControlHookReviewAllowedScenarioCount());
+		assertEquals(10, audit.extrema().totalReviewRowCount());
 		assertEquals(10, audit.extrema().maxReviewRowCount());
 		assertEquals(2, audit.extrema().maxManualControlHookCandidatePresetCount());
 		assertEquals(6, audit.extrema().maxNumericReviewRowCount());
@@ -100,7 +100,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookImpl
 		assertEquals("racingQuad", scale.presetName());
 		assertEquals("cold_sea_level_minus10c", scale.ambientCaseName());
 		assertEquals("0.9715982698017722", scale.reviewValue());
-		assertEquals(0.9715982698017723, scale.numericValue(), 1.0e-12);
+		assertEquals(0.9715982698017722, scale.numericValue(), 1.0e-12);
 		assertTrue(scale.numericItem());
 		assertEquals("ratio", scale.unit());
 		assertEquals("DronePhysics.targetOmega=maxOmega*targetMaxRpmScale-before-motor-response",

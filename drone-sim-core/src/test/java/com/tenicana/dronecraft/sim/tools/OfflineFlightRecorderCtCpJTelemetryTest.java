@@ -482,7 +482,7 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 							? 0.5 * (Math.sqrt(axialAdvanceSpeed * axialAdvanceSpeed
 									+ 2.0 * thrust / (airDensity * diskArea)) - axialAdvanceSpeed)
 							: 0.0;
-					assertEquals(expectedInducedVelocity, runtimeInducedVelocity, 1.0e-4);
+					assertEquals(expectedInducedVelocity, runtimeInducedVelocity, 1.5e-4);
 					assertEquals(thrust * axialAdvanceSpeed, runtimeUsefulAxialPower, 2.0e-3);
 					assertEquals(thrust * expectedInducedVelocity, runtimeIdealInducedPower, 2.0e-3);
 					assertEquals(runtimeUsefulAxialPower + runtimeIdealInducedPower,

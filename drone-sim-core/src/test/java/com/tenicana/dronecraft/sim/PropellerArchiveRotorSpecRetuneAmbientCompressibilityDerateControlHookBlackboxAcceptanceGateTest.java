@@ -35,19 +35,19 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
 				.DerateControlHookBlackboxAcceptanceSummary current =
 						find(audit.scenarios(), "current_control_hook_blackbox_blocked").summary();
-		assertEquals(8, current.plannedRegressionRunCount());
-		assertEquals(8, current.observedResultCount());
+		assertEquals(0, current.plannedRegressionRunCount());
+		assertEquals(0, current.observedResultCount());
 		assertEquals(0, current.missingResultCount());
 		assertEquals(0, current.failedResultCount());
-		assertEquals(8, current.passedResultCount());
-		assertTrue(current.blackboxRegressionAcceptanceReady());
-		assertTrue(current.manualControlHookReviewAllowed());
+		assertEquals(0, current.passedResultCount());
+		assertFalse(current.blackboxRegressionAcceptanceReady());
+		assertFalse(current.manualControlHookReviewAllowed());
 		assertFalse(current.runtimeImplementationAllowed());
 		assertFalse(current.runtimeCouplingAllowed());
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
-		assertEquals("READY", current.status());
-		assertEquals("target-omega-blackbox-regression-accepted-for-manual-control-hook-review",
+		assertEquals("BLOCKED", current.status());
+		assertEquals("blackbox-regression-run-not-planned",
 				current.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxAcceptanceGate
@@ -91,8 +91,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals("blackbox-regression-result-failed", failed.message());
 
 		assertEquals(4, audit.extrema().scenarioCount());
-		assertEquals(2, audit.extrema().acceptedScenarioCount());
-		assertEquals(2, audit.extrema().manualControlHookReviewAllowedScenarioCount());
+		assertEquals(1, audit.extrema().acceptedScenarioCount());
+		assertEquals(1, audit.extrema().manualControlHookReviewAllowedScenarioCount());
 		assertEquals(8, audit.extrema().maxPlannedRegressionRunCount());
 		assertEquals(8, audit.extrema().maxObservedResultCount());
 		assertEquals(8, audit.extrema().maxMissingResultCount());

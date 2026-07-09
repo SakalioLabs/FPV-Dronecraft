@@ -54,23 +54,23 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertTrue(allPass.controlLayerClampRequired());
 		assertTrue(allPass.runtimeHookImplemented());
 		assertTrue(allPass.motorResponseCouplingReviewed());
-		assertTrue(allPass.failsafeClampReviewed());
-		assertTrue(allPass.blackboxRegressionAvailable());
-		assertTrue(allPass.implementationReady());
+		assertFalse(allPass.failsafeClampReviewed());
+		assertFalse(allPass.blackboxRegressionAvailable());
+		assertFalse(allPass.implementationReady());
 		assertEquals(2, allPass.contractRowCount());
 		assertEquals(2, allPass.requiredContractRowCount());
-		assertEquals(0.9715982698017723, allPass.minTargetMaxRpmScale(), 1.0e-12);
-		assertEquals(5.599680211820246, allPass.maxEquivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(0.9715982698017722, allPass.minTargetMaxRpmScale(), 1.0e-12);
+		assertEquals(5.599680211820268, allPass.maxEquivalentMaxThrustLossPercent(), 1.0e-12);
 		assertEquals(28310.07356552835, allPass.minContractedMaxRpm(), 1.0e-12);
 		assertEquals(29472.808857731186, allPass.maxContractedMaxRpm(), 1.0e-12);
 		assertFalse(allPass.configMutationAllowed());
 		assertFalse(allPass.runtimeCouplingAllowed());
 		assertFalse(allPass.playableReferenceAllowed());
 		assertFalse(allPass.gameplayAutoApplyAllowed());
-		assertEquals("target-omega-control-hook-ready-for-offline-validation", allPass.dominantBlocker());
-		assertEquals("run-offline-cold-air-derate-flight-validation-before-runtime-coupling",
+		assertEquals("failsafe-clamp-review-missing", allPass.dominantBlocker());
+		assertEquals("review-failsafe-clamp-and-no-load-overspeed-interaction",
 				allPass.nextRequiredAction());
-		assertEquals("VALIDATION_READY", allPass.status());
+		assertEquals("BLOCKED", allPass.status());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookReadinessGate
 				.DerateControlHookReadinessRow syntheticReady =
@@ -86,18 +86,18 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRead
 		assertEquals("target-omega-control-hook-ready-for-offline-validation", syntheticReady.message());
 
 		assertEquals(5, audit.extrema().scenarioCount());
-		assertEquals(2, audit.extrema().implementationReadyScenarioCount());
+		assertEquals(1, audit.extrema().implementationReadyScenarioCount());
 		assertEquals(2, audit.extrema().controlContractAvailableScenarioCount());
 		assertEquals(2, audit.extrema().contractCoverageCompleteScenarioCount());
 		assertEquals(2, audit.extrema().targetOmegaBoundaryMatchedScenarioCount());
 		assertEquals(2, audit.extrema().controlLayerClampRequiredScenarioCount());
 		assertEquals(2, audit.extrema().runtimeHookImplementedScenarioCount());
 		assertEquals(2, audit.extrema().motorResponseCouplingReviewedScenarioCount());
-		assertEquals(2, audit.extrema().failsafeClampReviewedScenarioCount());
-		assertEquals(5, audit.extrema().blackboxRegressionAvailableScenarioCount());
+		assertEquals(1, audit.extrema().failsafeClampReviewedScenarioCount());
+		assertEquals(1, audit.extrema().blackboxRegressionAvailableScenarioCount());
 		assertEquals(2, audit.extrema().maxContractRowCount());
-		assertEquals(0.9715982698017723, audit.extrema().minTargetMaxRpmScale(), 1.0e-12);
-		assertEquals(5.599680211820246, audit.extrema().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(0.9715982698017722, audit.extrema().minTargetMaxRpmScale(), 1.0e-12);
+		assertEquals(5.599680211820268, audit.extrema().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
 		assertEquals(28310.07356552835, audit.extrema().minContractedMaxRpm(), 1.0e-12);
 		assertEquals(29472.808857731186, audit.extrema().maxContractedMaxRpm(), 1.0e-12);
 		assertEquals(0, audit.extrema().configMutationAllowedScenarioCount());

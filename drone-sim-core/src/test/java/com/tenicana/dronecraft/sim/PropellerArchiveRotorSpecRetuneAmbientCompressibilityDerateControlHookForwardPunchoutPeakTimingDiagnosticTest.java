@@ -40,15 +40,15 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 								.row(0.0);
 		assertEquals("apDrone", staticRow.presetName());
 		assertEquals("cold_sea_level_minus10c", staticRow.ambientCaseName());
-		assertEquals(339, staticRow.peakSampleIndex());
-		assertEquals(1.7, staticRow.peakTimeSeconds(), 1.0e-12);
+		assertEquals(234, staticRow.peakSampleIndex());
+		assertEquals(1.175, staticRow.peakTimeSeconds(), 1.0e-12);
 		assertEquals("settled_after_900ms", staticRow.peakWindow());
-		assertEquals(15.605153040506261, staticRow.peakObservedThrustLossPercent(), 1.0e-12);
-		assertEquals(0.13819245748128453, staticRow.peakThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(1.0867963648170558, staticRow.peakAverageTargetOmegaRatio(), 1.0e-12);
-		assertEquals(1.0855623841194468, staticRow.peakAverageMotorOmegaRatio(), 1.0e-12);
+		assertEquals(49.25013391822248, staticRow.peakObservedThrustLossPercent(), 1.0e-12);
+		assertEquals(0.47464226625844674, staticRow.peakThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(1.0520384567061167, staticRow.peakAverageTargetOmegaRatio(), 1.0e-12);
+		assertEquals(1.0925970720246028, staticRow.peakAverageMotorOmegaRatio(), 1.0e-12);
 		assertEquals(0.0, staticRow.earlyWindowMaxThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.13819245748128453, staticRow.settledWindowMaxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.47464226625844674, staticRow.settledWindowMaxThrustLossOverContractRatio(), 1.0e-12);
 		assertTrue(staticRow.peakInSettledWindow());
 		assertFalse(staticRow.thrustMarginPassed());
 		assertFalse(staticRow.runtimeCouplingAllowed());
@@ -60,62 +60,62 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 				.ForwardPunchoutPeakTimingDiagnosticRow blackboxSpeed =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutPeakTimingDiagnostic
 								.row(22.0);
-		assertEquals(46, blackboxSpeed.peakSampleIndex());
-		assertEquals(0.23500000000000001, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
-		assertEquals(2.7501805335816614, blackboxSpeed.peakObservedThrustLossPercent(), 1.0e-12);
-		assertEquals(0.009642732412038528,
+		assertEquals(353, blackboxSpeed.peakSampleIndex());
+		assertEquals(1.77, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
+		assertEquals(21.397476807663228, blackboxSpeed.peakObservedThrustLossPercent(), 1.0e-12);
+		assertEquals(0.1961156951528542,
 				blackboxSpeed.peakThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.997219568427271, blackboxSpeed.peakAverageTargetOmegaRatio(), 1.0e-12);
-		assertEquals(0.9964728025896921, blackboxSpeed.peakAverageMotorOmegaRatio(), 1.0e-12);
-		assertEquals(0.006505237256832719, blackboxSpeed.peakTargetScaleErrorRatio(), 1.0e-12);
+		assertEquals(0.9752093559974072, blackboxSpeed.peakAverageTargetOmegaRatio(), 1.0e-12);
+		assertEquals(0.9639301361410095, blackboxSpeed.peakAverageMotorOmegaRatio(), 1.0e-12);
+		assertEquals(0.028979069814177638, blackboxSpeed.peakTargetScaleErrorRatio(), 1.0e-12);
 		assertEquals(0.0, blackboxSpeed.peakMotorOmegaAboveNeutralRatio(), 1.0e-12);
-		assertEquals(0.00440574602999515,
+		assertEquals(0.007474447303139012,
 				blackboxSpeed.earlyWindowMaxThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.009642732412038528,
+		assertEquals(0.007184564915970953,
 				blackboxSpeed.midWindowMaxThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.004492407951353421,
+		assertEquals(0.004534821076632709,
 				blackboxSpeed.lateWindowMaxThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.0024456843996961772,
+		assertEquals(0.1961156951528542,
 				blackboxSpeed.settledWindowMaxThrustLossOverContractRatio(), 1.0e-12);
-		assertFalse(blackboxSpeed.peakInSettledWindow());
-		assertTrue(blackboxSpeed.thrustMarginPassed());
+		assertTrue(blackboxSpeed.peakInSettledWindow());
+		assertFalse(blackboxSpeed.thrustMarginPassed());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutPeakTimingDiagnostic
 				.ForwardPunchoutPeakTimingDiagnosticRow fastRow =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutPeakTimingDiagnostic
 								.row(28.0);
-		assertEquals(216, fastRow.peakSampleIndex());
-		assertEquals(1.085, fastRow.peakTimeSeconds(), 1.0e-12);
-		assertEquals(0.17449079176426135, fastRow.peakThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(1.0124293273049338, fastRow.peakAverageTargetOmegaRatio(), 1.0e-12);
-		assertEquals(1.024460585109435, fastRow.peakAverageMotorOmegaRatio(), 1.0e-12);
-		assertEquals(0.034526183652087504,
+		assertEquals(359, fastRow.peakSampleIndex());
+		assertEquals(1.8, fastRow.peakTimeSeconds(), 1.0e-12);
+		assertEquals(0.12037830926456211, fastRow.peakThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(1.0219729159929059, fastRow.peakAverageTargetOmegaRatio(), 1.0e-12);
+		assertEquals(1.0254969204873257, fastRow.peakAverageMotorOmegaRatio(), 1.0e-12);
+		assertEquals(0.027941815269727565,
 				fastRow.midWindowMaxThrustLossOverContractRatio(), 1.0e-12);
 		assertTrue(fastRow.peakAverageTargetOmegaRatio() > 1.0);
 		assertTrue(fastRow.peakAverageMotorOmegaRatio() > 1.0);
 
 		assertEquals(5, audit.summary().rowCount());
-		assertEquals(4, audit.summary().failedRowCount());
-		assertEquals(4, audit.summary().settledPeakRowCount());
+		assertEquals(5, audit.summary().failedRowCount());
+		assertEquals(5, audit.summary().settledPeakRowCount());
 		assertEquals(0, audit.summary().earlyWindowFailureRowCount());
-		assertEquals(4, audit.summary().settledWindowFailureRowCount());
+		assertEquals(5, audit.summary().settledWindowFailureRowCount());
 		assertEquals(2, audit.summary().deratedTargetAboveNeutralPeakRowCount());
 		assertEquals(2, audit.summary().deratedMotorAboveNeutralPeakRowCount());
-		assertEquals(0.23500000000000001, audit.summary().minPeakTimeSeconds(), 1.0e-12);
-		assertEquals(1.7, audit.summary().maxPeakTimeSeconds(), 1.0e-12);
-		assertEquals(0.17449079176426135, audit.summary().maxPeakThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.009642732412038528,
+		assertEquals(1.07, audit.summary().minPeakTimeSeconds(), 1.0e-12);
+		assertEquals(1.8, audit.summary().maxPeakTimeSeconds(), 1.0e-12);
+		assertEquals(0.47464226625844674, audit.summary().maxPeakThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.04818344060840724,
 				audit.summary().minPeakThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.016949418780811173,
+		assertEquals(0.015476235886279666,
 				audit.summary().maxEarlyWindowThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.034526183652087504,
+		assertEquals(0.027941815269727565,
 				audit.summary().maxMidWindowThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.004492407951353421,
+		assertEquals(0.004534821076632709,
 				audit.summary().maxLateWindowThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.17449079176426135,
+		assertEquals(0.47464226625844674,
 				audit.summary().maxSettledWindowThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(1.0867963648170558, audit.summary().maxPeakAverageTargetOmegaRatio(), 1.0e-12);
-		assertEquals(1.0855623841194468, audit.summary().maxPeakAverageMotorOmegaRatio(), 1.0e-12);
+		assertEquals(1.0520384567061167, audit.summary().maxPeakAverageTargetOmegaRatio(), 1.0e-12);
+		assertEquals(1.0925970720246028, audit.summary().maxPeakAverageMotorOmegaRatio(), 1.0e-12);
 		assertEquals("settled_after_900ms", audit.summary().dominantPeakWindow());
 		assertEquals("investigate-apDrone-settled-full-throttle-thrust-model-before-runtime-coupling",
 				audit.summary().nextRequiredAction());

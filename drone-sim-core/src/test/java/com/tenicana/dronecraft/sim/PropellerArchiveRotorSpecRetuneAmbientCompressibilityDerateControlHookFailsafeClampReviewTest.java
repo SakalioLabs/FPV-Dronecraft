@@ -55,7 +55,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookFail
 								.row("racingQuad", "direct_disarm_target_zero");
 		assertEquals("synthetic_derate_validation_all_pass", racingDirect.scenarioName());
 		assertEquals("cold_sea_level_minus10c", racingDirect.ambientCaseName());
-		assertEquals(0.9715982698017723, racingDirect.targetMaxRpmScale(), 1.0e-12);
+		assertEquals(0.9715982698017722, racingDirect.targetMaxRpmScale(), 1.0e-12);
 		assertEquals(28310.07356552835, racingDirect.contractedMaxRpm(), 1.0e-12);
 		assertFalse(racingDirect.failsafeActivated());
 		assertTrue(racingDirect.processedDisarmed());
@@ -93,11 +93,12 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookFail
 		assertTrue(apHigh.processedDisarmed());
 		assertEquals(0.0, apHigh.maxMotorOmegaOverspeedRatio(), 1.0e-12);
 		assertEquals(0.0, apHigh.maxMotorOmegaRiseAfterReleaseRatio(), 1.0e-12);
-		assertEquals(0.0, apHigh.maxDeratedOmegaAboveNeutralMaxOmegaRatio(), 1.0e-12);
-		assertTrue(apHigh.failsafeClampReviewed());
+		assertEquals(0.025776651750636183, apHigh.maxDeratedOmegaAboveNeutralMaxOmegaRatio(), 1.0e-12);
+		assertFalse(apHigh.failsafeClampReviewed());
+		assertEquals("BLOCKED", apHigh.status());
 
 		assertEquals(6, audit.summary().rowCount());
-		assertEquals(6, audit.summary().reviewedRowCount());
+		assertEquals(5, audit.summary().reviewedRowCount());
 		assertEquals(2, audit.summary().presetCount());
 		assertEquals(3, audit.summary().reviewCaseCount());
 		assertEquals(2, audit.summary().failsafeActivationRowCount());
@@ -106,15 +107,15 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookFail
 		assertEquals(0.0, audit.summary().maxEscElectricalOutputAfterRelease(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxMotorOmegaOverspeedRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxMotorOmegaRiseAfterReleaseRatio(), 1.0e-12);
-		assertTrue(audit.summary().maxDeratedOmegaAboveNeutralMaxOmegaRatio() <= 0.020,
-				() -> "max above neutral=" + audit.summary().maxDeratedOmegaAboveNeutralMaxOmegaRatio());
-		assertEquals(0.9715982698017723, audit.summary().minTargetMaxRpmScale(), 1.0e-12);
-		assertEquals(5.599680211820246, audit.summary().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(0.025776651750636183,
+				audit.summary().maxDeratedOmegaAboveNeutralMaxOmegaRatio(), 1.0e-12);
+		assertEquals(0.9715982698017722, audit.summary().minTargetMaxRpmScale(), 1.0e-12);
+		assertEquals(5.599680211820268, audit.summary().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
 		assertEquals(0, audit.summary().configMutationAllowedCount());
 		assertEquals(0, audit.summary().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.summary().playableReferenceAllowedCount());
 		assertEquals(0, audit.summary().gameplayAutoApplyAllowedCount());
-		assertTrue(audit.summary().failsafeClampReviewed());
+		assertFalse(audit.summary().failsafeClampReviewed());
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookFailsafeClampReview

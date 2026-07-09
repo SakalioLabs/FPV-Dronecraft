@@ -43,8 +43,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 		assertEquals(1.0, racingBlackboxSpeed.throttleCommand(), 1.0e-12);
 		assertEquals(360, racingBlackboxSpeed.sampleCount());
 		assertEquals(0.005, racingBlackboxSpeed.dtSeconds(), 1.0e-12);
-		assertEquals(7.614141029514367, racingBlackboxSpeed.observedThrustLossPercent(), 1.0e-12);
-		assertEquals(0.020144608176940988,
+		assertEquals(7.614315453781521, racingBlackboxSpeed.observedThrustLossPercent(), 1.0e-12);
+		assertEquals(0.02014635241961253,
 				racingBlackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
 		assertTrue(racingBlackboxSpeed.thrustMarginPassed());
 		assertEquals("PASS", racingBlackboxSpeed.status());
@@ -53,55 +53,55 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForw
 				.ForwardPunchoutMarginDiagnosticRow apStatic =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutMarginDiagnostic
 								.row("apDrone", 0.0);
-		assertEquals(15.605153040506261, apStatic.observedThrustLossPercent(), 1.0e-12);
-		assertEquals(0.13819245748128453, apStatic.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(49.25013391822248, apStatic.observedThrustLossPercent(), 1.0e-12);
+		assertEquals(0.47464226625844674, apStatic.thrustLossOverContractRatio(), 1.0e-12);
 		assertFalse(apStatic.thrustMarginPassed());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutMarginDiagnostic
 				.ForwardPunchoutMarginDiagnosticRow apEight =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutMarginDiagnostic
 								.row("apDrone", 8.0);
-		assertEquals(0.10296403139945731, apEight.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.04818344060840724, apEight.thrustLossOverContractRatio(), 1.0e-12);
 		assertFalse(apEight.thrustMarginPassed());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutMarginDiagnostic
 				.ForwardPunchoutMarginDiagnosticRow apBlackboxSpeed =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookForwardPunchoutMarginDiagnostic
 								.row("apDrone", 22.0);
-		assertEquals(0.9910302351978083, apBlackboxSpeed.targetMaxRpmScale(), 1.0e-12);
-		assertEquals(1.785907292377809, apBlackboxSpeed.equivalentMaxThrustLossPercent(), 1.0e-12);
-		assertEquals(2.7501805335816614, apBlackboxSpeed.observedThrustLossPercent(), 1.0e-12);
-		assertEquals(0.009642732412038528, apBlackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.9910302351978076, apBlackboxSpeed.targetMaxRpmScale(), 1.0e-12);
+		assertEquals(1.7859072923778085, apBlackboxSpeed.equivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(21.397476807663228, apBlackboxSpeed.observedThrustLossPercent(), 1.0e-12);
+		assertEquals(0.1961156951528542, apBlackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.04, apBlackboxSpeed.maxAllowedThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.363690937609333, apBlackboxSpeed.maxRotorAdvanceRatio(), 1.0e-12);
-		assertEquals(0.5686283206838519, apBlackboxSpeed.maxRotorTipMach(), 1.0e-12);
-		assertEquals(28.2856195772058, apBlackboxSpeed.neutralThrustNewtonsAtMaxMargin(), 1.0e-12);
-		assertEquals(27.507713973790523, apBlackboxSpeed.deratedThrustNewtonsAtMaxMargin(), 1.0e-12);
-		assertTrue(apBlackboxSpeed.thrustMarginPassed());
-		assertEquals("PASS", apBlackboxSpeed.status());
-		assertEquals("forward-punchout-derate-margin-within-contract", apBlackboxSpeed.message());
+		assertEquals(0.5688188955364236, apBlackboxSpeed.maxRotorTipMach(), 1.0e-12);
+		assertEquals(9.284276111928687, apBlackboxSpeed.neutralThrustNewtonsAtMaxMargin(), 1.0e-12);
+		assertEquals(7.297675284119329, apBlackboxSpeed.deratedThrustNewtonsAtMaxMargin(), 1.0e-12);
+		assertFalse(apBlackboxSpeed.thrustMarginPassed());
+		assertEquals("FAIL", apBlackboxSpeed.status());
+		assertEquals("forward-punchout-derate-margin-exceeds-contract", apBlackboxSpeed.message());
 		assertFalse(apBlackboxSpeed.runtimeCouplingAllowed());
 		assertFalse(apBlackboxSpeed.playableReferenceAllowed());
 		assertFalse(apBlackboxSpeed.gameplayAutoApplyAllowed());
 
 		assertEquals(10, audit.summary().rowCount());
-		assertEquals(6, audit.summary().passedRowCount());
-		assertEquals(4, audit.summary().failedRowCount());
-		assertEquals(4, audit.summary().apDroneFailedRowCount());
+		assertEquals(5, audit.summary().passedRowCount());
+		assertEquals(5, audit.summary().failedRowCount());
+		assertEquals(5, audit.summary().apDroneFailedRowCount());
 		assertEquals(0, audit.summary().racingQuadFailedRowCount());
-		assertEquals(19.234986468803942, audit.summary().maxObservedThrustLossPercent(), 1.0e-12);
-		assertEquals(0.17449079176426135, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.04777311177790107,
+		assertEquals(49.25013391822248, audit.summary().maxObservedThrustLossPercent(), 1.0e-12);
+		assertEquals(0.47464226625844674, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.04818344060840724,
 				audit.summary().minFailingThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.009642732412038528,
+		assertEquals(0.1961156951528542,
 				audit.summary().blackboxSpeedApDroneThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.020144608176940988,
+		assertEquals(0.02014635241961253,
 				audit.summary().blackboxSpeedRacingQuadThrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.1430189561494134, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
+		assertEquals(0.08135095812641524, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
 		assertEquals(0.009550913074549803, audit.summary().maxTargetOmegaOvershootRatio(), 1.0e-12);
-		assertEquals(0.13446063617142187, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
+		assertEquals(0.1604219790768001, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
 		assertEquals(0.6224189932941847, audit.summary().maxRotorAdvanceRatio(), 1.0e-12);
-		assertEquals(0.5751608878693577, audit.summary().maxRotorTipMach(), 1.0e-12);
+		assertEquals(0.5753590539454095, audit.summary().maxRotorTipMach(), 1.0e-12);
 		assertEquals("apDrone", audit.summary().dominantFailurePreset());
 		assertEquals("investigate-apDrone-full-throttle-derate-transient-thrust-loss-before-runtime-coupling",
 				audit.summary().nextRequiredAction());

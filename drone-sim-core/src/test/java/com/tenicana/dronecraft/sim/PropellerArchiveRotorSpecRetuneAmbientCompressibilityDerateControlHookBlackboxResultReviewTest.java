@@ -60,7 +60,7 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
 								.row("racingQuad", "cold_air_forward_punchout_margin");
 		assertEquals(0.0, racingForward.primaryErrorRatio(), 1.0e-12);
-		assertEquals(0.020144608176940988, racingForward.secondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.02014635241961253, racingForward.secondaryErrorRatio(), 1.0e-12);
 		assertTrue(racingForward.blackboxRegressionPassed());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
@@ -70,13 +70,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals("tip_mach_and_thrust_loss_margin", apForward.targetMetric());
 		assertEquals(360, apForward.sampleCount());
 		assertEquals(0.0, apForward.primaryErrorRatio(), 1.0e-12);
-		assertEquals(0.009642732412038528, apForward.secondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.009642732412038528, apForward.maxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.1961156951528542, apForward.secondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.1961156951528542, apForward.maxThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.009013488645329533, apForward.maxTargetOmegaOvershootRatio(), 1.0e-12);
-		assertEquals(0, apForward.physicalConstraintViolationCount());
-		assertTrue(apForward.blackboxRegressionPassed());
-		assertEquals("PASS", apForward.status());
-		assertEquals("target-omega-blackbox-regression-result-passed", apForward.message());
+		assertEquals(1, apForward.physicalConstraintViolationCount());
+		assertFalse(apForward.blackboxRegressionPassed());
+		assertEquals("FAIL", apForward.status());
+		assertEquals("target-omega-blackbox-regression-result-failed", apForward.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview
 				.DerateControlHookBlackboxResultReviewRow apFailsafe =
@@ -90,23 +90,23 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertTrue(apFailsafe.blackboxRegressionPassed());
 
 		assertEquals(8, audit.summary().rowCount());
-		assertEquals(8, audit.summary().passedRowCount());
+		assertEquals(7, audit.summary().passedRowCount());
 		assertEquals(2, audit.summary().presetCount());
 		assertEquals(4, audit.summary().regressionCaseCount());
 		assertEquals(2, audit.summary().failsafeActivatedRowCount());
 		assertEquals(2, audit.summary().processedDisarmedRowCount());
 		assertEquals(0.004075367197358903, audit.summary().maxPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.020144608176940988, audit.summary().maxSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.036880311699495016, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
+		assertEquals(0.1961156951528542, audit.summary().maxSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.054975011415431374, audit.summary().maxTargetScaleErrorRatio(), 1.0e-12);
 		assertEquals(0.009013488645329533, audit.summary().maxTargetOmegaOvershootRatio(), 1.0e-12);
-		assertEquals(1.1575880155545448e-6, audit.summary().maxEscElectricalOutputDelta(), 1.0e-18);
-		assertEquals(0.025369671759410597, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
+		assertEquals(1.157588021882816e-6, audit.summary().maxEscElectricalOutputDelta(), 1.0e-18);
+		assertEquals(0.06133096120332277, audit.summary().maxMotorOmegaAboveNeutralRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxTipMachMarginViolationRatio(), 1.0e-12);
-		assertEquals(0.020144608176940988, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.1961156951528542, audit.summary().maxThrustLossOverContractRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxTargetOmegaAfterReleaseRatio(), 1.0e-12);
 		assertEquals(0.0, audit.summary().maxMotorOmegaOverspeedRatio(), 1.0e-12);
-		assertEquals(0, audit.summary().physicalConstraintViolationCount());
-		assertTrue(audit.summary().blackboxRegressionPassed());
+		assertEquals(1, audit.summary().physicalConstraintViolationCount());
+		assertFalse(audit.summary().blackboxRegressionPassed());
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxResultReview

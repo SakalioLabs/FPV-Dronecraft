@@ -54,13 +54,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 										"synthetic_derate_validation_all_pass",
 										"racingQuad",
 										"hover_hold_target_omega_scale");
-		assertTrue(current.controlHookImplementationReady());
-		assertTrue(current.regressionRunPlanned());
+		assertFalse(current.controlHookImplementationReady());
+		assertFalse(current.regressionRunPlanned());
 		assertTrue(current.regressionInvoked());
 		assertTrue(current.regressionPassed());
-		assertEquals(0.9715982698017723, current.targetMaxRpmScale(), 1.0e-12);
+		assertEquals(0.9715982698017722, current.targetMaxRpmScale(), 1.0e-12);
 		assertEquals(28310.07356552835, current.contractedMaxRpm(), 1.0e-12);
-		assertEquals(5.599680211820246, current.equivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(5.599680211820268, current.equivalentMaxThrustLossPercent(), 1.0e-12);
 		assertFalse(current.runtimeCouplingAllowed());
 		assertFalse(current.playableReferenceAllowed());
 		assertFalse(current.gameplayAutoApplyAllowed());
@@ -76,13 +76,13 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 										"synthetic_derate_validation_all_pass",
 										"apDrone",
 										"cold_air_forward_punchout_margin");
-		assertTrue(failedCurrent.controlHookImplementationReady());
-		assertTrue(failedCurrent.regressionRunPlanned());
+		assertFalse(failedCurrent.controlHookImplementationReady());
+		assertFalse(failedCurrent.regressionRunPlanned());
 		assertTrue(failedCurrent.regressionInvoked());
-		assertTrue(failedCurrent.regressionPassed());
-		assertEquals("PASS", failedCurrent.status());
-		assertEquals("target-omega-blackbox-regression-result-passed", failedCurrent.blocker());
-		assertEquals("feed-blackbox-acceptance-gate-for-manual-control-hook-review",
+		assertFalse(failedCurrent.regressionPassed());
+		assertEquals("FAIL", failedCurrent.status());
+		assertEquals("target-omega-blackbox-regression-result-failed", failedCurrent.blocker());
+		assertEquals("investigate-apDrone-cold-forward-punchout-derate-margin",
 				failedCurrent.nextRequiredAction());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix
@@ -101,9 +101,9 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals(180, ready.minSampleCount());
 		assertEquals(0.006, ready.maxPrimaryErrorRatio(), 1.0e-12);
 		assertEquals(0.03, ready.maxSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.9910302351978083, ready.targetMaxRpmScale(), 1.0e-12);
+		assertEquals(0.9910302351978076, ready.targetMaxRpmScale(), 1.0e-12);
 		assertEquals(29472.808857731186, ready.contractedMaxRpm(), 1.0e-12);
-		assertEquals(1.7859072923776753, ready.equivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(1.7859072923778085, ready.equivalentMaxThrustLossPercent(), 1.0e-12);
 		assertFalse(ready.runtimeCouplingAllowed());
 		assertEquals("PENDING_REGRESSION", ready.status());
 		assertEquals("blackbox-regression-not-run", ready.blocker());
@@ -113,16 +113,16 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlac
 		assertEquals(16, audit.summary().rowCount());
 		assertEquals(4, audit.summary().regressionCaseCount());
 		assertEquals(2, audit.summary().contractScenarioCount());
-		assertEquals(2, audit.summary().controlHookImplementationReadyScenarioCount());
-		assertEquals(16, audit.summary().regressionRunPlannedCount());
+		assertEquals(1, audit.summary().controlHookImplementationReadyScenarioCount());
+		assertEquals(8, audit.summary().regressionRunPlannedCount());
 		assertEquals(8, audit.summary().regressionInvokedCount());
-		assertEquals(8, audit.summary().regressionPassedCount());
+		assertEquals(7, audit.summary().regressionPassedCount());
 		assertEquals(0, audit.summary().runtimeCouplingAllowedCount());
 		assertEquals(0, audit.summary().playableReferenceAllowedCount());
 		assertEquals(0, audit.summary().gameplayAutoApplyAllowedCount());
 		assertEquals(8, audit.summary().maxRowsPerScenario());
-		assertEquals(0.9715982698017723, audit.summary().minTargetMaxRpmScale(), 1.0e-12);
-		assertEquals(5.599680211820246, audit.summary().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
+		assertEquals(0.9715982698017722, audit.summary().minTargetMaxRpmScale(), 1.0e-12);
+		assertEquals(5.599680211820268, audit.summary().maxEquivalentMaxThrustLossPercent(), 1.0e-12);
 
 		assertThrows(IllegalArgumentException.class,
 				() -> PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookBlackboxRegressionMatrix

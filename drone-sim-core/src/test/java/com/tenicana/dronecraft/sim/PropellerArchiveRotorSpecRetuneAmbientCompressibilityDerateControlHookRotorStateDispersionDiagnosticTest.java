@@ -43,40 +43,40 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRoto
 		assertEquals("synthetic_derate_validation_all_pass", blackboxSpeed.scenarioName());
 		assertEquals("apDrone", blackboxSpeed.presetName());
 		assertEquals("cold_sea_level_minus10c", blackboxSpeed.ambientCaseName());
-		assertEquals(46, blackboxSpeed.peakSampleIndex());
-		assertEquals(0.23500000000000001, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
-		assertEquals(0.009642732412038528, blackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
-		assertEquals(0.07031344250625146,
+		assertEquals(353, blackboxSpeed.peakSampleIndex());
+		assertEquals(1.77, blackboxSpeed.peakTimeSeconds(), 1.0e-12);
+		assertEquals(0.1961156951528542, blackboxSpeed.thrustLossOverContractRatio(), 1.0e-12);
+		assertEquals(0.6704653270613072,
 				blackboxSpeed.stateVelocityDeltaMetersPerSecond(), 1.0e-12);
-		assertEquals(0.007320403101864318, blackboxSpeed.attitudeEulerDeltaRadians(), 1.0e-12);
-		assertEquals(0.14242029417317925,
+		assertEquals(0.5463830537769551, blackboxSpeed.attitudeEulerDeltaRadians(), 1.0e-12);
+		assertEquals(2.5975089859340508,
 				blackboxSpeed.angularVelocityDeltaRadiansPerSecond(), 1.0e-12);
-		assertEquals(0.0, blackboxSpeed.propellerScaleDropAverage(), 1.0e-12);
-		assertEquals(0.0, blackboxSpeed.propellerScaleDropMax(), 1.0e-12);
-		assertEquals(0.0, blackboxSpeed.propellerScaleDropRange(), 1.0e-12);
-		assertEquals(1.0, blackboxSpeed.deratedAveragePropellerThrustScale(), 1.0e-12);
-		assertEquals(1.0, blackboxSpeed.deratedMinPropellerThrustScale(), 1.0e-12);
-		assertEquals(1.0, blackboxSpeed.deratedMaxPropellerThrustScale(), 1.0e-12);
-		assertEquals(0.0, blackboxSpeed.deratedPropellerThrustScaleRange(), 1.0e-12);
-		assertEquals(0.031347025623796536, blackboxSpeed.deratedAverageAdvanceRatio(), 1.0e-12);
-		assertEquals(0.013612475121139264, blackboxSpeed.deratedAdvanceRatioRange(), 1.0e-12);
-		assertEquals(1.744370158949999, blackboxSpeed.deratedRotorThrustRangeNewtons(), 1.0e-12);
-		assertEquals(0.3421652802625781, blackboxSpeed.deratedAverageRotorStallIntensity(), 1.0e-12);
-		assertEquals(9.711504930912702e-4, blackboxSpeed.deratedAverageBladeDissymmetryIntensity(), 1.0e-12);
-		assertEquals(0.5556748575532443, blackboxSpeed.deratedAverageBladeElementStallIntensity(), 1.0e-12);
-		assertEquals(0.33111171689124785, blackboxSpeed.deratedAverageConingIntensity(), 1.0e-12);
-		assertEquals(0.9789912693318444, blackboxSpeed.residualAfterCompressibilityRatio(), 1.0e-12);
-		assertEquals(0.020869392084478244, blackboxSpeed.residualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.0,
+		assertEquals(0.04103540992942442, blackboxSpeed.propellerScaleDropAverage(), 1.0e-12);
+		assertEquals(0.14445936611474752, blackboxSpeed.propellerScaleDropMax(), 1.0e-12);
+		assertEquals(0.22278609979262776, blackboxSpeed.propellerScaleDropRange(), 1.0e-12);
+		assertEquals(0.34664069690933275, blackboxSpeed.deratedAveragePropellerThrustScale(), 1.0e-12);
+		assertEquals(0.2585842816202404, blackboxSpeed.deratedMinPropellerThrustScale(), 1.0e-12);
+		assertEquals(0.4460408600904524, blackboxSpeed.deratedMaxPropellerThrustScale(), 1.0e-12);
+		assertEquals(0.18745657847021202, blackboxSpeed.deratedPropellerThrustScaleRange(), 1.0e-12);
+		assertEquals(0.18479613476818135, blackboxSpeed.deratedAverageAdvanceRatio(), 1.0e-12);
+		assertEquals(0.02491052456241008, blackboxSpeed.deratedAdvanceRatioRange(), 1.0e-12);
+		assertEquals(1.5361903260843972, blackboxSpeed.deratedRotorThrustRangeNewtons(), 1.0e-12);
+		assertEquals(0.670093195894906, blackboxSpeed.deratedAverageRotorStallIntensity(), 1.0e-12);
+		assertEquals(0.3143564932934507, blackboxSpeed.deratedAverageBladeDissymmetryIntensity(), 1.0e-12);
+		assertEquals(0.8548625875892806, blackboxSpeed.deratedAverageBladeElementStallIntensity(), 1.0e-12);
+		assertEquals(0.23058913265226144, blackboxSpeed.deratedAverageConingIntensity(), 1.0e-12);
+		assertEquals(0.9381455728556013, blackboxSpeed.residualAfterCompressibilityRatio(), 1.0e-12);
+		assertEquals(0.051824729389994606, blackboxSpeed.residualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(0.11604659391786115,
 				blackboxSpeed.propellerScaleDropOverFormulaArchiveGap(), 1.0e-12);
 		assertFalse(blackboxSpeed.freeFlightStateDivergence());
-		assertFalse(blackboxSpeed.propellerScaleSpreadLarge());
+		assertTrue(blackboxSpeed.propellerScaleSpreadLarge());
 		assertFalse(blackboxSpeed.propellerScaleDropExceedsArchiveGap());
-		assertFalse(blackboxSpeed.residualDeficitAboveThreshold());
+		assertTrue(blackboxSpeed.residualDeficitAboveThreshold());
 		assertFalse(blackboxSpeed.runtimeCouplingAllowed());
 		assertFalse(blackboxSpeed.playableReferenceAllowed());
 		assertFalse(blackboxSpeed.gameplayAutoApplyAllowed());
-		assertEquals("local-propeller-scale-spread-without-large-state-divergence",
+		assertEquals("residual-thrust-scale-before-state-dispersion",
 				blackboxSpeed.dominantDispersionBucket());
 		assertEquals("BLOCKED", blackboxSpeed.status());
 
@@ -84,51 +84,51 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRoto
 				.RotorStateDispersionRow fastRow =
 						PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRotorStateDispersionDiagnostic
 								.row(28.0);
-		assertEquals(0.8606654502327913, fastRow.stateVelocityDeltaMetersPerSecond(), 1.0e-12);
-		assertEquals(0.13606002608911932, fastRow.propellerScaleDropAverage(), 1.0e-12);
-		assertEquals(0.15643014557193613, fastRow.propellerScaleDropMax(), 1.0e-12);
-		assertEquals(0.10484747015062723, fastRow.deratedPropellerThrustScaleRange(), 1.0e-12);
-		assertEquals(0.013892306264261259, fastRow.deratedAdvanceRatioRange(), 1.0e-12);
-		assertEquals(2.5260589711039043, fastRow.deratedRotorThrustRangeNewtons(), 1.0e-12);
-		assertEquals(1.207908288304092, fastRow.propellerScaleDropOverFormulaArchiveGap(), 1.0e-12);
+		assertEquals(1.3485566501916006, fastRow.stateVelocityDeltaMetersPerSecond(), 1.0e-12);
+		assertEquals(0.14444171718757012, fastRow.propellerScaleDropAverage(), 1.0e-12);
+		assertEquals(0.16806661327154948, fastRow.propellerScaleDropMax(), 1.0e-12);
+		assertEquals(0.14726664929560818, fastRow.deratedPropellerThrustScaleRange(), 1.0e-12);
+		assertEquals(0.031410890798159924, fastRow.deratedAdvanceRatioRange(), 1.0e-12);
+		assertEquals(2.7523201841958485, fastRow.deratedRotorThrustRangeNewtons(), 1.0e-12);
+		assertEquals(2.7052694036593445, fastRow.propellerScaleDropOverFormulaArchiveGap(), 1.0e-12);
 		assertTrue(fastRow.freeFlightStateDivergence());
-		assertFalse(fastRow.propellerScaleSpreadLarge());
+		assertTrue(fastRow.propellerScaleSpreadLarge());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookRotorStateDispersionDiagnostic
 				.RotorStateDispersionSummary summary = audit.summary();
 		assertEquals(5, summary.rowCount());
 		assertEquals(5, summary.failedRowCount());
-		assertEquals(2, summary.freeFlightStateDivergenceRowCount());
-		assertEquals(2, summary.propellerScaleSpreadLargeRowCount());
-		assertEquals(0, summary.propellerScaleDropExceedsArchiveGapRowCount());
-		assertEquals(2, summary.residualDeficitAboveThresholdRowCount());
-		assertEquals(3.354058931284269, summary.maxStateVelocityDeltaMetersPerSecond(), 1.0e-12);
-		assertEquals(5.424387428975164, summary.maxAttitudeEulerDeltaRadians(), 1.0e-12);
-		assertEquals(19.357695908640878, summary.maxAngularVelocityDeltaRadiansPerSecond(), 1.0e-12);
-		assertEquals(0.31177722940737174, summary.maxPropellerScaleDropAverage(), 1.0e-12);
-		assertEquals(0.4561816155794527, summary.maxPropellerScaleDropMax(), 1.0e-12);
-		assertEquals(0.3096179981346193, summary.maxPropellerScaleDropRange(), 1.0e-12);
-		assertEquals(0.21968193918808165,
+		assertEquals(3, summary.freeFlightStateDivergenceRowCount());
+		assertEquals(4, summary.propellerScaleSpreadLargeRowCount());
+		assertEquals(2, summary.propellerScaleDropExceedsArchiveGapRowCount());
+		assertEquals(3, summary.residualDeficitAboveThresholdRowCount());
+		assertEquals(2.9892244211484305, summary.maxStateVelocityDeltaMetersPerSecond(), 1.0e-12);
+		assertEquals(5.914021977804991, summary.maxAttitudeEulerDeltaRadians(), 1.0e-12);
+		assertEquals(4.711665364071266, summary.maxAngularVelocityDeltaRadiansPerSecond(), 1.0e-12);
+		assertEquals(0.5054526604279256, summary.maxPropellerScaleDropAverage(), 1.0e-12);
+		assertEquals(0.7434815847910942, summary.maxPropellerScaleDropMax(), 1.0e-12);
+		assertEquals(0.3416905851736429, summary.maxPropellerScaleDropRange(), 1.0e-12);
+		assertEquals(0.3969134902024324,
 				summary.maxDeratedPropellerThrustScaleRange(), 1.0e-12);
-		assertEquals(0.042035572947572625, summary.maxDeratedAdvanceRatioRange(), 1.0e-12);
-		assertEquals(3.3725071845480556, summary.maxDeratedRotorThrustRangeNewtons(), 1.0e-12);
-		assertEquals(0.8915324357349034,
+		assertEquals(0.0714654008623731, summary.maxDeratedAdvanceRatioRange(), 1.0e-12);
+		assertEquals(3.9128538244672075, summary.maxDeratedRotorThrustRangeNewtons(), 1.0e-12);
+		assertEquals(0.8548625875892806,
 				summary.maxDeratedAverageBladeElementStallIntensity(), 1.0e-12);
-		assertEquals(0.5960938389179319, summary.maxDeratedAverageRotorStallIntensity(), 1.0e-12);
-		assertEquals(0.06285299649224374, summary.maxResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.07031344250625146,
+		assertEquals(0.670093195894906, summary.maxDeratedAverageRotorStallIntensity(), 1.0e-12);
+		assertEquals(0.06686369268551773, summary.maxResidualThrustDeficitRatio(), 1.0e-12);
+		assertEquals(0.6704653270613072,
 				summary.blackboxSpeedStateVelocityDeltaMetersPerSecond(), 1.0e-12);
-		assertEquals(0.0,
+		assertEquals(0.04103540992942442,
 				summary.blackboxSpeedPropellerScaleDropAverage(), 1.0e-12);
-		assertEquals(0.020869392084478244,
+		assertEquals(0.051824729389994606,
 				summary.blackboxSpeedResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.8606654502327913,
+		assertEquals(1.3485566501916006,
 				summary.fastSpeedStateVelocityDeltaMetersPerSecond(), 1.0e-12);
-		assertEquals(0.13606002608911932,
+		assertEquals(0.14444171718757012,
 				summary.fastSpeedPropellerScaleDropAverage(), 1.0e-12);
-		assertEquals(0.10484747015062723,
+		assertEquals(0.14726664929560818,
 				summary.fastSpeedDeratedPropellerThrustScaleRange(), 1.0e-12);
-		assertEquals("residual-thrust-scale-before-state-dispersion",
+		assertEquals("free-flight-state-divergence-with-per-rotor-propeller-scale-spread",
 				summary.dominantDispersionBucket());
 		assertEquals("inspect-free-flight-state-hold-or-normalize-blackbox-punchout-before-residual-thrust-tuning",
 				summary.nextRequiredAction());

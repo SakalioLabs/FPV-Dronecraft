@@ -46,24 +46,24 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertEquals(360, blackboxSpeed.sampleCount());
 		assertEquals(360, blackboxSpeed.minSampleCount());
 		assertEquals(0.0, blackboxSpeed.freeFlightPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.009642732412038528, blackboxSpeed.freeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0, blackboxSpeed.freeFlightPhysicalConstraintViolationCount());
-		assertTrue(blackboxSpeed.freeFlightRegressionPassed());
+		assertEquals(0.1961156951528542, blackboxSpeed.freeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(1, blackboxSpeed.freeFlightPhysicalConstraintViolationCount());
+		assertFalse(blackboxSpeed.freeFlightRegressionPassed());
 		assertTrue(blackboxSpeed.stateNormalizedEvidenceApplied());
 		assertEquals(0.0, blackboxSpeed.stateNormalizedPrimaryErrorRatio(), 1.0e-12);
-		assertEquals(0.013942762381785191,
+		assertEquals(0.013821464890990382,
 				blackboxSpeed.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0, blackboxSpeed.stateNormalizedPhysicalConstraintViolationCount());
 		assertEquals(0.02, blackboxSpeed.maxAllowedPrimaryErrorRatio(), 1.0e-12);
 		assertEquals(0.04, blackboxSpeed.maxAllowedSecondaryErrorRatio(), 1.0e-12);
 		assertEquals(0.9821409270762219, blackboxSpeed.contractThrustRatio(), 1.0e-12);
-		assertEquals(0.9681981646944368, blackboxSpeed.heldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.014429734182337728,
+		assertEquals(0.9683194621852316, blackboxSpeed.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.01691589004505678,
 				blackboxSpeed.heldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(-0.44593480208765984, blackboxSpeed.heldResidualReductionRatio(), 1.0e-12);
+		assertEquals(0.9295239227017613, blackboxSpeed.heldResidualReductionRatio(), 1.0e-12);
 		assertEquals(0.0, blackboxSpeed.heldStateVelocityDeltaMetersPerSecond(), 1.0e-12);
 		assertTrue(blackboxSpeed.stateNormalizedRegressionPassed());
-		assertFalse(blackboxSpeed.freeFlightAcceptanceStillBlocked());
+		assertTrue(blackboxSpeed.freeFlightAcceptanceStillBlocked());
 		assertTrue(blackboxSpeed.stateNormalizedLabAcceptanceAllowed());
 		assertFalse(blackboxSpeed.manualControlHookReviewAllowed());
 		assertFalse(blackboxSpeed.runtimeImplementationAllowed());
@@ -71,7 +71,8 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 		assertFalse(blackboxSpeed.playableReferenceAllowed());
 		assertFalse(blackboxSpeed.gameplayAutoApplyAllowed());
 		assertEquals("STATE_NORMALIZED_PASS", blackboxSpeed.status());
-		assertEquals("free-flight-blackbox-result-already-passed", blackboxSpeed.message());
+		assertEquals("state-normalized-forward-punchout-clears-lab-margin-but-free-flight-acceptance-stays-blocked",
+				blackboxSpeed.message());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxAcceptanceGate
 				.StateNormalizedBlackboxAcceptanceRow racingForward =
@@ -79,42 +80,42 @@ class PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStat
 								.row("racingQuad", "cold_air_forward_punchout_margin");
 		assertTrue(racingForward.freeFlightRegressionPassed());
 		assertTrue(racingForward.stateNormalizedEvidenceApplied());
-		assertEquals(0.021957819779317794,
+		assertEquals(0.021945700352512906,
 				racingForward.stateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.9220453781024795, racingForward.heldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.0038020388191628562,
+		assertEquals(0.9220574975292845, racingForward.heldObservedThrustRatio(), 1.0e-12);
+		assertEquals(0.0038040896905451316,
 				racingForward.heldResidualThrustDeficitRatio(), 1.0e-12);
 		assertTrue(racingForward.stateNormalizedRegressionPassed());
 
 		PropellerArchiveRotorSpecRetuneAmbientCompressibilityDerateControlHookStateNormalizedBlackboxAcceptanceGate
 				.StateNormalizedBlackboxAcceptanceSummary summary = audit.summary();
 		assertEquals(8, summary.rowCount());
-		assertEquals(8, summary.freeFlightPassedRowCount());
-		assertEquals(0, summary.freeFlightFailedRowCount());
+		assertEquals(7, summary.freeFlightPassedRowCount());
+		assertEquals(1, summary.freeFlightFailedRowCount());
 		assertEquals(2, summary.stateNormalizedEvidenceAppliedRowCount());
 		assertEquals(8, summary.stateNormalizedPassedRowCount());
 		assertEquals(0, summary.stateNormalizedFailedRowCount());
 		assertEquals(0, summary.stateNormalizedPhysicalConstraintViolationCount());
-		assertEquals(0.020144608176940988, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.021957819779317794,
+		assertEquals(0.1961156951528542, summary.maxFreeFlightSecondaryErrorRatio(), 1.0e-12);
+		assertEquals(0.021945700352512906,
 				summary.maxStateNormalizedSecondaryErrorRatio(), 1.0e-12);
-		assertEquals(0.014429734182337728,
+		assertEquals(0.01691589004505678,
 				summary.maxHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(0.9681981646944368,
+		assertEquals(0.9683194621852316,
 				summary.blackboxSpeedHeldObservedThrustRatio(), 1.0e-12);
-		assertEquals(0.014429734182337728,
+		assertEquals(0.01691589004505678,
 				summary.blackboxSpeedHeldResidualThrustDeficitRatio(), 1.0e-12);
-		assertEquals(-0.44593480208765984,
+		assertEquals(0.9295239227017613,
 				summary.blackboxSpeedResidualReductionRatio(), 1.0e-12);
-		assertTrue(summary.currentFreeFlightBlackboxAcceptanceReady());
-		assertFalse(summary.stateNormalizedLabAcceptanceReady());
+		assertFalse(summary.currentFreeFlightBlackboxAcceptanceReady());
+		assertTrue(summary.stateNormalizedLabAcceptanceReady());
 		assertFalse(summary.manualControlHookReviewAllowed());
 		assertFalse(summary.runtimeImplementationAllowed());
 		assertFalse(summary.runtimeCouplingAllowed());
 		assertFalse(summary.playableReferenceAllowed());
 		assertFalse(summary.gameplayAutoApplyAllowed());
-		assertEquals("BLOCKED", summary.status());
-		assertEquals("inspect-state-normalized-blackbox-failures-before-acceptance",
+		assertEquals("STATE_NORMALIZED_READY", summary.status());
+		assertEquals("feed-state-normalized-forward-punchout-into-separate-blackbox-harness-before-free-flight-acceptance",
 				summary.nextRequiredAction());
 
 		assertThrows(IllegalArgumentException.class,
