@@ -755,6 +755,115 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 	}
 
 	@Test
+	void airframeDragWrenchAddsPressureCenterMomentToCtCpJStep() {
+		DroneConfig config = DroneConfig.apDrone()
+				.withCenterOfPressureOffsetBodyMeters(new Vec3(0.025, 0.015, -0.020));
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient()
+		);
+		double[] omegas = fill(config.rotors().size(), hoverOmega);
+		double[] previousOmegas = omegas.clone();
+		Vec3 bodyRelativeAirVelocity = new Vec3(8.0, 3.0, 10.0);
+		Vec3 angularVelocityBody = new Vec3(0.20, -0.15, 0.10);
+		Quaternion bodyToWorld = new Quaternion(
+				Math.cos(Math.PI / 12.0),
+				0.0,
+				Math.sin(Math.PI / 12.0),
+				0.0
+		);
+		double separatedFlowStateIntensity = 0.60;
+		double dt = 0.01;
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample sample =
+				PropellerArchiveCtCpJWorldForceApplicationProvider
+						.sampleStaticAnchoredConfigurationFromWorldKinematics(
+								"apDrone",
+								"airframe_pressure_center_wrench",
+								config,
+								Vec3.ZERO,
+								bodyToWorld,
+								bodyToWorld.rotate(bodyRelativeAirVelocity),
+								angularVelocityBody,
+								Vec3.ZERO,
+								null,
+								omegas,
+								RHO,
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.CLAMP_TO_ENVELOPE
+						);
+
+		AirframePressureCenterModel.AirframePressureCenterSample pressureCenter =
+				sample.steadyAirframePressureCenterSample(config, separatedFlowStateIntensity);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample translational =
+				sample.rotorGravityTransientTranslationalDragRigidBodyWrench(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						separatedFlowStateIntensity,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeTranslational =
+				sample.runtimeReplacementRotorGravityTransientTranslationalDragRigidBodyWrench(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						separatedFlowStateIntensity,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample fullWrench =
+				sample.rotorGravityTransientAirframeDragRigidBodyWrench(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						separatedFlowStateIntensity,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeFullWrench =
+				sample.runtimeReplacementRotorGravityTransientAirframeDragRigidBodyWrench(
+						config,
+						previousOmegas,
+						omegas,
+						angularVelocityBody,
+						separatedFlowStateIntensity,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview preview =
+				sample.rotorGravityTransientAirframeDragStepPreview(
+						config,
+						Vec3.ZERO,
+						bodyToWorld.rotate(bodyRelativeAirVelocity),
+						angularVelocityBody,
+						previousOmegas,
+						omegas,
+						separatedFlowStateIntensity,
+						dt
+				);
+
+		Vec3 expectedTorqueBody = translational.totalTorqueBodyNewtonMeters()
+				.add(pressureCenter.pressureCenterTorqueBodyNewtonMeters());
+		Vec3 expectedAngularAcceleration = expectedTorqueBody
+				.subtract(fullWrench.gyroscopicTorqueBodyNewtonMeters())
+				.divide(config.inertiaKgMetersSquared());
+		assertTrue(pressureCenter.pressureCenterTorqueBodyNewtonMeters().length() > 1.0e-4);
+		assertVectorEquals(translational.totalForceWorldNewtons(),
+				fullWrench.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(expectedTorqueBody, fullWrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(expectedAngularAcceleration,
+				fullWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(angularVelocityBody.add(expectedAngularAcceleration.multiply(dt)),
+				preview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		assertVectorEquals(runtimeTranslational.totalForceWorldNewtons(),
+				runtimeFullWrench.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(runtimeTranslational.totalTorqueBodyNewtonMeters()
+					.add(pressureCenter.pressureCenterTorqueBodyNewtonMeters()),
+				runtimeFullWrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertTrue(runtimeFullWrench.runtimeReplacement());
+	}
+
+	@Test
 	void providerComparesRotorOnlyStepTransitionFromStates() {
 		DroneConfig config = DroneConfig.apDrone();
 		RotorSpec rotor = config.rotors().get(0);

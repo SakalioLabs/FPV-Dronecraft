@@ -6758,17 +6758,18 @@ public final class DronePhysics {
 				environment,
 				dtSeconds
 		);
-		Vec3 momentArmBody = config.centerOfPressureOffsetBodyMeters()
-				.add(dynamicPressureCenterOffsetBody)
-				.subtract(config.centerOfMassOffsetBodyMeters());
 		Vec3 airframeForceBody = airframeDragForceBody
 				.add(airframeLiftForceBody)
 				.add(rotorWashDragForceBody)
 				.add(a4mcLocalVoxelRotorWashPressureCenterForceBody(dynamicPressureCenterOffsetBody, environment, airDensityRatio));
-		if (momentArmBody.lengthSquared() <= 1.0e-12 || airframeForceBody.lengthSquared() <= 1.0e-12 || airDensityRatio <= 0.0) {
+		if (airDensityRatio <= 0.0) {
 			return Vec3.ZERO;
 		}
-		return momentArmBody.cross(airframeForceBody).clamp(-0.45, 0.45);
+		return AirframePressureCenterModel.sampleAtDynamicPressureCenter(
+				config,
+				airframeForceBody,
+				dynamicPressureCenterOffsetBody
+		).pressureCenterTorqueBodyNewtonMeters();
 	}
 
 	private Vec3 updateDynamicPressureCenterOffsetBody(
@@ -6801,37 +6802,13 @@ public final class DronePhysics {
 	) {
 		double speed = relativeAirVelocityBody.length();
 		Vec3 a4mcLocalOffset = a4mcLocalVoxelPressureCenterOffsetBody(environment, speed);
-		if (speed < 2.0) {
-			return a4mcLocalOffset;
-		}
-		double forwardReference = Math.max(2.0, Math.abs(relativeAirVelocityBody.z()));
-		double angleOfAttack = Math.atan2(relativeAirVelocityBody.y(), forwardReference);
-		double sideslip = Math.atan2(relativeAirVelocityBody.x(), forwardReference);
-		double angleIntensity = MathUtil.clamp(
-				Math.abs(angleOfAttack) / Math.toRadians(55.0)
-						+ 0.80 * Math.abs(sideslip) / Math.toRadians(60.0),
-				0.0,
-				1.0
-		);
-		if (angleIntensity <= 1.0e-6) {
-			return a4mcLocalOffset;
-		}
-
-		double speedScale = smoothStep(3.0, 18.0, speed);
-		double separationBias = 0.35 + 0.65 * effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
-		double migrationScale = speedScale * separationBias * angleIntensity;
-		if (migrationScale <= 1.0e-6) {
-			return a4mcLocalOffset;
-		}
-
-		double lateralShift = -0.018 * Math.sin(sideslip) * migrationScale;
-		double verticalShift = 0.016 * Math.sin(angleOfAttack) * migrationScale;
-		double forwardFlowFraction = MathUtil.clamp(Math.abs(relativeAirVelocityBody.z()) / speed, 0.0, 1.0);
-		double aftShift = -0.026
-				* (Math.abs(Math.sin(angleOfAttack)) + 0.70 * Math.abs(Math.sin(sideslip)))
-				* migrationScale
-				* forwardFlowFraction;
-		return new Vec3(lateralShift, verticalShift, aftShift)
+		double separatedFlow = speed < 2.0
+				? 0.0
+				: effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
+		return AirframePressureCenterModel.steadyDynamicPressureCenterOffsetBodyMeters(
+				relativeAirVelocityBody,
+				separatedFlow
+		)
 				.add(a4mcLocalOffset)
 				.clamp(-0.040, 0.040);
 	}
