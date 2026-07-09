@@ -5317,7 +5317,14 @@ public final class DronePhysics {
 				double axialWakeOverlap = rotorWakeAxisOverlap(source, receiver, downstreamDistance, lateralDistance);
 				double axialLateralFactor = 0.0;
 				if (axialWakeOverlap > 1.0e-6 && crossflowFlush > 1.0e-6) {
-					double wakeRadius = source.radiusMeters() + Math.max(0.0, downstreamDistance) * 0.42;
+					double fallbackWakeRadius = source.radiusMeters() + Math.max(0.0, downstreamDistance) * 0.42;
+					double wakeRadius = rotorCtCpJRuntimeWakeCoreRadiusMeters(
+							state,
+							sourceIndex,
+							source,
+							downstreamDistance,
+							fallbackWakeRadius
+					);
 					axialLateralFactor = 1.0 - smoothStep(wakeRadius * 0.35, wakeRadius + receiver.radiusMeters() * 0.85, lateralDistance);
 				}
 				double axialContributionFactor = Math.max(0.0, axialWakeOverlap * axialLateralFactor * crossflowFlush);
@@ -6339,6 +6346,41 @@ public final class DronePhysics {
 			return fallback;
 		}
 		return geometry * wakeTangentialVelocity;
+	}
+
+	static double rotorCtCpJRuntimeWakeCoreRadiusMeters(
+			DroneState state,
+			int sourceRotorIndex,
+			RotorSpec source,
+			double downstreamDistanceMeters,
+			double fallbackWakeRadiusMeters
+	) {
+		double fallback = finiteNonnegative(fallbackWakeRadiusMeters);
+		if (source == null) {
+			return fallback;
+		}
+		double sourceRadius = Math.max(1.0e-6, source.radiusMeters());
+		if (fallback <= 1.0e-6) {
+			fallback = sourceRadius;
+		}
+		if (state == null
+				|| sourceRotorIndex < 0
+				|| sourceRotorIndex >= state.motorCount()
+				|| !state.rotorCtCpJReferenceRuntimeApplied(sourceRotorIndex)) {
+			return fallback;
+		}
+		double farWakeRadius = state.rotorCtCpJReferenceFarWakeEquivalentRadiusMeters(sourceRotorIndex);
+		if (!Double.isFinite(farWakeRadius) || farWakeRadius <= 1.0e-6) {
+			return fallback;
+		}
+		double downstream = Math.max(0.0, finiteOrDefault(downstreamDistanceMeters, 0.0));
+		double contraction = smoothStep(sourceRadius * 0.35, sourceRadius * 4.0, downstream);
+		double contractedRadius = sourceRadius + (farWakeRadius - sourceRadius) * contraction;
+		return MathUtil.clamp(
+				contractedRadius,
+				sourceRadius * 0.35,
+				Math.max(sourceRadius, fallback)
+		);
 	}
 
 	private double updateRotorTranslationalLiftIntensity(
