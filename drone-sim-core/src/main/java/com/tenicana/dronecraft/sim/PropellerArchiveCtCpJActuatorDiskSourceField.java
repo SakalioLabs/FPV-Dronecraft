@@ -469,6 +469,119 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		}
 	}
 
+	public record VoxelGridBudgetComparison(
+			VoxelGridSample gridSample,
+			double sourceThicknessMeters,
+			double targetSourceVolumeCubicMeters,
+			double sampledSourceVolumeCubicMeters,
+			Vec3 targetBodyForceWorldNewtons,
+			Vec3 sampledBodyForceWorldNewtons,
+			Vec3 targetWakeAngularMomentumTorqueWorldNewtonMeters,
+			Vec3 sampledWakeAngularMomentumTorqueWorldNewtonMeters,
+			double targetDiskMassFlowKilogramsPerSecond,
+			double sampledDiskMassFlowKilogramsPerSecond,
+			double targetIdealMomentumPowerWatts,
+			double sampledIdealMomentumPowerWatts,
+			double targetWakeSwirlKineticPowerWatts,
+			double sampledWakeSwirlKineticPowerWatts,
+			double targetTotalWakeKineticPowerWatts,
+			double sampledTotalWakeKineticPowerWatts
+	) {
+		public VoxelGridBudgetComparison {
+			if (gridSample == null) {
+				throw new IllegalArgumentException("gridSample must not be null.");
+			}
+			sourceThicknessMeters = finiteNonnegative(sourceThicknessMeters);
+			targetSourceVolumeCubicMeters = finiteNonnegative(targetSourceVolumeCubicMeters);
+			sampledSourceVolumeCubicMeters = finiteNonnegative(sampledSourceVolumeCubicMeters);
+			targetBodyForceWorldNewtons = finiteVecOrZero(targetBodyForceWorldNewtons);
+			sampledBodyForceWorldNewtons = finiteVecOrZero(sampledBodyForceWorldNewtons);
+			targetWakeAngularMomentumTorqueWorldNewtonMeters =
+					finiteVecOrZero(targetWakeAngularMomentumTorqueWorldNewtonMeters);
+			sampledWakeAngularMomentumTorqueWorldNewtonMeters =
+					finiteVecOrZero(sampledWakeAngularMomentumTorqueWorldNewtonMeters);
+			targetDiskMassFlowKilogramsPerSecond = finiteNonnegative(targetDiskMassFlowKilogramsPerSecond);
+			sampledDiskMassFlowKilogramsPerSecond = finiteNonnegative(sampledDiskMassFlowKilogramsPerSecond);
+			targetIdealMomentumPowerWatts = finiteNonnegative(targetIdealMomentumPowerWatts);
+			sampledIdealMomentumPowerWatts = finiteNonnegative(sampledIdealMomentumPowerWatts);
+			targetWakeSwirlKineticPowerWatts = finiteNonnegative(targetWakeSwirlKineticPowerWatts);
+			sampledWakeSwirlKineticPowerWatts = finiteNonnegative(sampledWakeSwirlKineticPowerWatts);
+			targetTotalWakeKineticPowerWatts = finiteNonnegative(targetTotalWakeKineticPowerWatts);
+			sampledTotalWakeKineticPowerWatts = finiteNonnegative(sampledTotalWakeKineticPowerWatts);
+		}
+
+		public double sampledMinusTargetSourceVolumeCubicMeters() {
+			return sampledSourceVolumeCubicMeters - targetSourceVolumeCubicMeters;
+		}
+
+		public double sampledMinusTargetSourceVolumeFraction() {
+			return ratio(sampledMinusTargetSourceVolumeCubicMeters(), targetSourceVolumeCubicMeters);
+		}
+
+		public Vec3 sampledMinusTargetBodyForceWorldNewtons() {
+			return sampledBodyForceWorldNewtons.subtract(targetBodyForceWorldNewtons);
+		}
+
+		public double bodyForceResidualFraction() {
+			return ratio(sampledMinusTargetBodyForceWorldNewtons().length(), targetBodyForceWorldNewtons.length());
+		}
+
+		public Vec3 sampledMinusTargetWakeAngularMomentumTorqueWorldNewtonMeters() {
+			return sampledWakeAngularMomentumTorqueWorldNewtonMeters
+					.subtract(targetWakeAngularMomentumTorqueWorldNewtonMeters);
+		}
+
+		public double wakeAngularMomentumTorqueResidualFraction() {
+			return ratio(
+					sampledMinusTargetWakeAngularMomentumTorqueWorldNewtonMeters().length(),
+					targetWakeAngularMomentumTorqueWorldNewtonMeters.length()
+			);
+		}
+
+		public double sampledMinusTargetDiskMassFlowKilogramsPerSecond() {
+			return sampledDiskMassFlowKilogramsPerSecond - targetDiskMassFlowKilogramsPerSecond;
+		}
+
+		public double diskMassFlowResidualFraction() {
+			return ratio(
+					sampledMinusTargetDiskMassFlowKilogramsPerSecond(),
+					targetDiskMassFlowKilogramsPerSecond
+			);
+		}
+
+		public double sampledMinusTargetIdealMomentumPowerWatts() {
+			return sampledIdealMomentumPowerWatts - targetIdealMomentumPowerWatts;
+		}
+
+		public double idealMomentumPowerResidualFraction() {
+			return ratio(sampledMinusTargetIdealMomentumPowerWatts(), targetIdealMomentumPowerWatts);
+		}
+
+		public double sampledMinusTargetWakeSwirlKineticPowerWatts() {
+			return sampledWakeSwirlKineticPowerWatts - targetWakeSwirlKineticPowerWatts;
+		}
+
+		public double wakeSwirlKineticPowerResidualFraction() {
+			return ratio(sampledMinusTargetWakeSwirlKineticPowerWatts(), targetWakeSwirlKineticPowerWatts);
+		}
+
+		public double sampledMinusTargetTotalWakeKineticPowerWatts() {
+			return sampledTotalWakeKineticPowerWatts - targetTotalWakeKineticPowerWatts;
+		}
+
+		public double totalWakeKineticPowerResidualFraction() {
+			return ratio(sampledMinusTargetTotalWakeKineticPowerWatts(), targetTotalWakeKineticPowerWatts);
+		}
+
+		public double maxAbsoluteLoadResidualFraction() {
+			double max = Math.max(bodyForceResidualFraction(), wakeAngularMomentumTorqueResidualFraction());
+			max = Math.max(max, Math.abs(diskMassFlowResidualFraction()));
+			max = Math.max(max, Math.abs(idealMomentumPowerResidualFraction()));
+			max = Math.max(max, Math.abs(wakeSwirlKineticPowerResidualFraction()));
+			return Math.max(max, Math.abs(totalWakeKineticPowerResidualFraction()));
+		}
+	}
+
 	public SourceFieldSample sampleAt(Vec3 samplePointWorldMeters) {
 		Vec3 point = finiteVecOrZero(samplePointWorldMeters);
 		int contributingSources = 0;
@@ -697,6 +810,30 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 			}
 		}
 		return new VoxelGridSample(gridSpec, normalizedSubcells, cells);
+	}
+
+	public VoxelGridBudgetComparison compareVoxelGridBudget(VoxelGridSample gridSample) {
+		if (gridSample == null) {
+			throw new IllegalArgumentException("gridSample must not be null.");
+		}
+		return new VoxelGridBudgetComparison(
+				gridSample,
+				sourceThicknessMeters,
+				integratedSourceVolumeCubicMeters(),
+				gridSample.sampledSourceVolumeCubicMeters(),
+				integratedBodyForceWorldNewtons(),
+				gridSample.integratedBodyForceWorldNewtons(),
+				integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
+				gridSample.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
+				integratedDiskMassFlowKilogramsPerSecond(),
+				gridSample.integratedDiskMassFlowKilogramsPerSecond(sourceThicknessMeters),
+				integratedIdealMomentumPowerWatts(),
+				gridSample.integratedIdealMomentumPowerWatts(sourceThicknessMeters),
+				integratedWakeSwirlKineticPowerWatts(),
+				gridSample.integratedWakeSwirlKineticPowerWatts(sourceThicknessMeters),
+				integratedTotalWakeKineticPowerWatts(),
+				gridSample.integratedTotalWakeKineticPowerWatts(sourceThicknessMeters)
+		);
 	}
 
 	private VoxelCellSample sampleVoxelCell(
@@ -970,6 +1107,16 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		return radial.lengthSquared() <= diskRadius * diskRadius + EPSILON;
 	}
 
+	public double integratedSourceVolumeCubicMeters() {
+		double sum = 0.0;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			if (sourceTerm != null && sourceTerm.applied()) {
+				sum += sourceTerm.sourceVolumeCubicMeters(sourceThicknessMeters);
+			}
+		}
+		return finiteNonnegative(sum);
+	}
+
 	public Vec3 integratedBodyForceWorldNewtons() {
 		Vec3 sum = Vec3.ZERO;
 		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
@@ -1069,6 +1216,13 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 
 	private static double finiteNonnegative(double value) {
 		return Double.isFinite(value) && value > 0.0 ? value : 0.0;
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= EPSILON) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 
 	private static int normalizeSubcellSamplesPerAxis(int subcellSamplesPerAxis) {

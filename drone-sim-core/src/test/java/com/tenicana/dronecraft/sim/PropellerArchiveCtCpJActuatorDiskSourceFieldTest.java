@@ -60,6 +60,8 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 		assertVectorEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
 						.multiply(sourceTerm.diskAreaSquareMeters()),
 				field.integratedBodyForceWorldNewtons(), 1.0e-12);
+		assertEquals(sourceTerm.sourceVolumeCubicMeters(SOURCE_THICKNESS),
+				field.integratedSourceVolumeCubicMeters(), 1.0e-12);
 		assertVectorEquals(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters(),
 				field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
 		assertEquals(sourceTerm.massFluxKilogramsPerSecondSquareMeter()
@@ -576,9 +578,15 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				field.sampleVoxelGrid(grid, 5);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample conservative =
 				field.sampleConservativeVoxelGrid(grid, 5);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridBudgetComparison geometricBudget =
+				field.compareVoxelGridBudget(geometric);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridBudgetComparison conservativeBudget =
+				field.compareVoxelGridBudget(conservative);
 
 		assertTrue(geometric.integratedBodyForceWorldNewtons()
 				.subtract(field.integratedBodyForceWorldNewtons()).length() > 1.0e-6);
+		assertTrue(geometricBudget.maxAbsoluteLoadResidualFraction() > 0.0);
+		assertTrue(Math.abs(geometricBudget.sampledMinusTargetSourceVolumeFraction()) > 0.0);
 		assertVectorEquals(field.integratedBodyForceWorldNewtons(),
 				conservative.integratedBodyForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
@@ -599,6 +607,25 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				conservative.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS), 1.0e-12);
 		assertEquals(field.integratedTotalWakeKineticPowerWatts(),
 				conservative.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS), 1.0e-12);
+		assertEquals(field.integratedSourceVolumeCubicMeters(),
+				conservativeBudget.targetSourceVolumeCubicMeters(), 1.0e-12);
+		assertEquals(conservative.sampledSourceVolumeCubicMeters(),
+				conservativeBudget.sampledSourceVolumeCubicMeters(), 1.0e-12);
+		assertVectorEquals(field.integratedBodyForceWorldNewtons(),
+				conservativeBudget.sampledBodyForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(),
+				conservativeBudget.sampledWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertEquals(field.integratedDiskMassFlowKilogramsPerSecond(),
+				conservativeBudget.sampledDiskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(field.integratedIdealMomentumPowerWatts(),
+				conservativeBudget.sampledIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(field.integratedWakeSwirlKineticPowerWatts(),
+				conservativeBudget.sampledWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(field.integratedTotalWakeKineticPowerWatts(),
+				conservativeBudget.sampledTotalWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(0.0, conservativeBudget.maxAbsoluteLoadResidualFraction(), 1.0e-12);
+		assertEquals(0.0, conservativeBudget.bodyForceResidualFraction(), 1.0e-12);
+		assertEquals(0.0, conservativeBudget.wakeAngularMomentumTorqueResidualFraction(), 1.0e-12);
 		assertEquals(geometric.activeSubsampleCount(), conservative.activeSubsampleCount());
 		assertEquals(geometric.activeCellCount(), conservative.activeCellCount());
 		assertTrue(conservative.cells().get(0).pressureJumpPascals()
@@ -715,6 +742,7 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 				new PropellerArchiveCtCpJActuatorDiskSourceField(List.of(), SOURCE_THICKNESS);
 
 		assertFalse(field.sampleAt(Vec3.ZERO).insideAnySource());
+		assertEquals(0.0, field.integratedSourceVolumeCubicMeters(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, field.integratedBodyForceWorldNewtons(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, field.integratedWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
 		assertEquals(0.0, field.integratedDiskMassFlowKilogramsPerSecond(), 1.0e-15);
