@@ -624,24 +624,61 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return actualTotalForceBodyNewtons.subtract(referenceTotalForceBodyNewtons());
 		}
 
+		public double forceBodyResidualFraction() {
+			return ratio(forceBodyResidualNewtons().length(), referenceTotalForceBodyNewtons().length());
+		}
+
 		public Vec3 torqueBodyResidualNewtonMeters() {
 			return actualTotalTorqueBodyNewtonMeters.subtract(referenceTotalTorqueBodyNewtonMeters());
+		}
+
+		public double torqueBodyResidualFraction() {
+			return ratio(
+					torqueBodyResidualNewtonMeters().length(),
+					referenceTotalTorqueBodyNewtonMeters().length()
+			);
 		}
 
 		public double thrustResidualNewtons() {
 			return actualTotalThrustNewtons - referenceTotalThrustNewtons();
 		}
 
+		public double thrustResidualFraction() {
+			return ratio(thrustResidualNewtons(), referenceTotalThrustNewtons());
+		}
+
 		public double shaftPowerResidualWatts() {
 			return actualTotalShaftPowerWatts - referenceTotalShaftPowerWatts();
+		}
+
+		public double shaftPowerResidualFraction() {
+			return ratio(shaftPowerResidualWatts(), referenceTotalShaftPowerWatts());
 		}
 
 		public double shaftTorqueResidualNewtonMeters() {
 			return actualTotalShaftTorqueNewtonMeters - referenceTotalShaftTorqueNewtonMeters();
 		}
 
+		public double shaftTorqueResidualFraction() {
+			return ratio(shaftTorqueResidualNewtonMeters(), referenceTotalShaftTorqueNewtonMeters());
+		}
+
+		public double maxAbsoluteResidualFraction() {
+			double max = Math.max(forceBodyResidualFraction(), torqueBodyResidualFraction());
+			max = Math.max(max, Math.abs(thrustResidualFraction()));
+			max = Math.max(max, Math.abs(shaftPowerResidualFraction()));
+			return Math.max(max, Math.abs(shaftTorqueResidualFraction()));
+		}
+
 		public Vec3 runtimeReplacementForceBodyResidualNewtons() {
 			return actualTotalForceBodyNewtons.subtract(runtimeReplacementReferenceTotalForceBodyNewtons());
+		}
+
+		public double runtimeReplacementForceBodyResidualFraction() {
+			return ratio(
+					runtimeReplacementForceBodyResidualNewtons().length(),
+					runtimeReplacementReferenceTotalForceBodyNewtons().length()
+			);
 		}
 
 		public Vec3 runtimeReplacementTorqueBodyResidualNewtonMeters() {
@@ -650,17 +687,49 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public double runtimeReplacementTorqueBodyResidualFraction() {
+			return ratio(
+					runtimeReplacementTorqueBodyResidualNewtonMeters().length(),
+					runtimeReplacementReferenceTotalTorqueBodyNewtonMeters().length()
+			);
+		}
+
 		public double runtimeReplacementThrustResidualNewtons() {
 			return actualTotalThrustNewtons - runtimeReplacementReferenceTotalThrustNewtons();
+		}
+
+		public double runtimeReplacementThrustResidualFraction() {
+			return ratio(runtimeReplacementThrustResidualNewtons(),
+					runtimeReplacementReferenceTotalThrustNewtons());
 		}
 
 		public double runtimeReplacementShaftPowerResidualWatts() {
 			return actualTotalShaftPowerWatts - runtimeReplacementReferenceTotalShaftPowerWatts();
 		}
 
+		public double runtimeReplacementShaftPowerResidualFraction() {
+			return ratio(runtimeReplacementShaftPowerResidualWatts(),
+					runtimeReplacementReferenceTotalShaftPowerWatts());
+		}
+
 		public double runtimeReplacementShaftTorqueResidualNewtonMeters() {
 			return actualTotalShaftTorqueNewtonMeters
 					- runtimeReplacementReferenceTotalShaftTorqueNewtonMeters();
+		}
+
+		public double runtimeReplacementShaftTorqueResidualFraction() {
+			return ratio(runtimeReplacementShaftTorqueResidualNewtonMeters(),
+					runtimeReplacementReferenceTotalShaftTorqueNewtonMeters());
+		}
+
+		public double runtimeReplacementMaxAbsoluteResidualFraction() {
+			double max = Math.max(
+					runtimeReplacementForceBodyResidualFraction(),
+					runtimeReplacementTorqueBodyResidualFraction()
+			);
+			max = Math.max(max, Math.abs(runtimeReplacementThrustResidualFraction()));
+			max = Math.max(max, Math.abs(runtimeReplacementShaftPowerResidualFraction()));
+			return Math.max(max, Math.abs(runtimeReplacementShaftTorqueResidualFraction()));
 		}
 	}
 
@@ -830,6 +899,13 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 
 	private static double finiteOrZero(double value) {
 		return Double.isFinite(value) ? value : 0.0;
+	}
+
+	private static double ratio(double numerator, double denominator) {
+		if (!Double.isFinite(numerator) || !Double.isFinite(denominator) || Math.abs(denominator) <= 1.0e-12) {
+			return 0.0;
+		}
+		return numerator / denominator;
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {

@@ -204,6 +204,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int stateShadowPowerResidualIndex = column(header, "rotor_ctcpj_state_ref_shaft_power_residual_w");
 		int stateShadowShaftTorqueResidualIndex =
 				column(header, "rotor_ctcpj_state_ref_shaft_torque_residual_nm");
+		int stateShadowForceResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_force_residual_fraction");
+		int stateShadowTorqueResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_torque_residual_fraction");
+		int stateShadowThrustResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_thrust_residual_fraction");
+		int stateShadowPowerResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_shaft_power_residual_fraction");
+		int stateShadowShaftTorqueResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_shaft_torque_residual_fraction");
+		int stateShadowMaxResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_max_abs_residual_fraction");
 		int stateShadowRuntimeForceResidualIndex =
 				column(header, "rotor_ctcpj_state_ref_runtime_replacement_force_residual_n");
 		int stateShadowRuntimeTorqueResidualIndex =
@@ -214,6 +226,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				column(header, "rotor_ctcpj_state_ref_runtime_replacement_shaft_power_residual_w");
 		int stateShadowRuntimeShaftTorqueResidualIndex =
 				column(header, "rotor_ctcpj_state_ref_runtime_replacement_shaft_torque_residual_nm");
+		int stateShadowRuntimeForceResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_force_residual_fraction");
+		int stateShadowRuntimeTorqueResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_torque_residual_fraction");
+		int stateShadowRuntimeThrustResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_thrust_residual_fraction");
+		int stateShadowRuntimePowerResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_shaft_power_residual_fraction");
+		int stateShadowRuntimeShaftTorqueResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_shaft_torque_residual_fraction");
+		int stateShadowRuntimeMaxResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_max_abs_residual_fraction");
 		int staticAvailableIndex = column(header, "rotor_ctcpj_static_ref_available");
 		int rotorStaticCtIndex = column(header, "rotor_0_ctcpj_static_ref_ct");
 		int rotorStaticPowerIndex = column(header, "rotor_0_ctcpj_static_ref_shaft_power_w");
@@ -344,7 +368,11 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_state_ref_force_residual_x_n"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_ctcpj_state_ref_torque_residual_nm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_ctcpj_state_ref_max_abs_residual_fraction"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_ctcpj_state_ref_runtime_replacement_shaft_power_residual_w"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_ctcpj_state_ref_runtime_replacement_max_abs_residual_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_static_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_0_ctcpj_static_ref_ideal_induced_velocity_mps"));
@@ -944,6 +972,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double powerResidual = Math.abs(Double.parseDouble(row[stateShadowPowerResidualIndex]));
 				double shaftTorqueResidual =
 						Math.abs(Double.parseDouble(row[stateShadowShaftTorqueResidualIndex]));
+				double forceResidualFraction =
+						Double.parseDouble(row[stateShadowForceResidualFractionIndex]);
+				double torqueResidualFraction =
+						Double.parseDouble(row[stateShadowTorqueResidualFractionIndex]);
+				double thrustResidualFraction =
+						Double.parseDouble(row[stateShadowThrustResidualFractionIndex]);
+				double powerResidualFraction =
+						Double.parseDouble(row[stateShadowPowerResidualFractionIndex]);
+				double shaftTorqueResidualFraction =
+						Double.parseDouble(row[stateShadowShaftTorqueResidualFractionIndex]);
+				double maxResidualFraction =
+						Double.parseDouble(row[stateShadowMaxResidualFractionIndex]);
 				double runtimeForceResidual =
 						Double.parseDouble(row[stateShadowRuntimeForceResidualIndex]);
 				double runtimeTorqueResidual =
@@ -954,6 +994,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 						Math.abs(Double.parseDouble(row[stateShadowRuntimePowerResidualIndex]));
 				double runtimeShaftTorqueResidual =
 						Math.abs(Double.parseDouble(row[stateShadowRuntimeShaftTorqueResidualIndex]));
+				double runtimeForceResidualFraction =
+						Double.parseDouble(row[stateShadowRuntimeForceResidualFractionIndex]);
+				double runtimeTorqueResidualFraction =
+						Double.parseDouble(row[stateShadowRuntimeTorqueResidualFractionIndex]);
+				double runtimeThrustResidualFraction =
+						Double.parseDouble(row[stateShadowRuntimeThrustResidualFractionIndex]);
+				double runtimePowerResidualFraction =
+						Double.parseDouble(row[stateShadowRuntimePowerResidualFractionIndex]);
+				double runtimeShaftTorqueResidualFraction =
+						Double.parseDouble(row[stateShadowRuntimeShaftTorqueResidualFractionIndex]);
+				double runtimeMaxResidualFraction =
+						Double.parseDouble(row[stateShadowRuntimeMaxResidualFractionIndex]);
 				assertEquals(DroneConfig.apDrone().rotors().size(), actualRotors);
 				assertTrue(acceptedRotors >= 0);
 				assertTrue(runtimeAcceptedRotors >= 0);
@@ -972,11 +1024,37 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(thrustResidual));
 				assertTrue(Double.isFinite(powerResidual));
 				assertTrue(Double.isFinite(shaftTorqueResidual));
+				assertTrue(Double.isFinite(forceResidualFraction));
+				assertTrue(Double.isFinite(torqueResidualFraction));
+				assertTrue(Double.isFinite(thrustResidualFraction));
+				assertTrue(Double.isFinite(powerResidualFraction));
+				assertTrue(Double.isFinite(shaftTorqueResidualFraction));
+				assertTrue(Double.isFinite(maxResidualFraction));
 				assertTrue(Double.isFinite(runtimeForceResidual));
 				assertTrue(Double.isFinite(runtimeTorqueResidual));
 				assertTrue(Double.isFinite(runtimeThrustResidual));
 				assertTrue(Double.isFinite(runtimePowerResidual));
 				assertTrue(Double.isFinite(runtimeShaftTorqueResidual));
+				assertTrue(Double.isFinite(runtimeForceResidualFraction));
+				assertTrue(Double.isFinite(runtimeTorqueResidualFraction));
+				assertTrue(Double.isFinite(runtimeThrustResidualFraction));
+				assertTrue(Double.isFinite(runtimePowerResidualFraction));
+				assertTrue(Double.isFinite(runtimeShaftTorqueResidualFraction));
+				assertTrue(Double.isFinite(runtimeMaxResidualFraction));
+				assertTrue(forceResidualFraction >= 0.0);
+				assertTrue(torqueResidualFraction >= 0.0);
+				assertTrue(maxResidualFraction >= Math.abs(forceResidualFraction));
+				assertTrue(maxResidualFraction >= Math.abs(torqueResidualFraction));
+				assertTrue(maxResidualFraction >= Math.abs(thrustResidualFraction));
+				assertTrue(maxResidualFraction >= Math.abs(powerResidualFraction));
+				assertTrue(maxResidualFraction >= Math.abs(shaftTorqueResidualFraction));
+				assertTrue(runtimeForceResidualFraction >= 0.0);
+				assertTrue(runtimeTorqueResidualFraction >= 0.0);
+				assertTrue(runtimeMaxResidualFraction >= Math.abs(runtimeForceResidualFraction));
+				assertTrue(runtimeMaxResidualFraction >= Math.abs(runtimeTorqueResidualFraction));
+				assertTrue(runtimeMaxResidualFraction >= Math.abs(runtimeThrustResidualFraction));
+				assertTrue(runtimeMaxResidualFraction >= Math.abs(runtimePowerResidualFraction));
+				assertTrue(runtimeMaxResidualFraction >= Math.abs(runtimeShaftTorqueResidualFraction));
 				assertEquals(magnitude(forceX, forceY, forceZ), forceResidual, 1.0e-4);
 				assertEquals(magnitude(torqueX, torqueY, torqueZ), torqueResidual, 1.0e-5);
 				stateShadowAcceptedRotorCount += acceptedRotors;
@@ -1373,12 +1451,18 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 		int stateShadowAvailableIndex = column(header, "rotor_ctcpj_state_ref_available");
 		int stateShadowAcceptedRotorsIndex = column(header, "rotor_ctcpj_state_ref_accepted_rotors");
 		int stateShadowForceResidualIndex = column(header, "rotor_ctcpj_state_ref_force_residual_n");
+		int stateShadowMaxResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_max_abs_residual_fraction");
+		int stateShadowRuntimeMaxResidualFractionIndex =
+				column(header, "rotor_ctcpj_state_ref_runtime_replacement_max_abs_residual_fraction");
 		for (int i = 1; i < lines.size(); i++) {
 			String[] row = lines.get(i).split(",", -1);
 			assertEquals(header.length, row.length, "CSV row " + i + " column count changed");
 			assertEquals(0.0, Double.parseDouble(row[stateShadowAvailableIndex]), 1.0e-12);
 			assertEquals(0.0, Double.parseDouble(row[stateShadowAcceptedRotorsIndex]), 1.0e-12);
 			assertEquals(0.0, Double.parseDouble(row[stateShadowForceResidualIndex]), 1.0e-12);
+			assertEquals(0.0, Double.parseDouble(row[stateShadowMaxResidualFractionIndex]), 1.0e-12);
+			assertEquals(0.0, Double.parseDouble(row[stateShadowRuntimeMaxResidualFractionIndex]), 1.0e-12);
 		}
 		assertEquals(0, report.ctCpJStateShadowFrameSampleCount());
 		assertEquals(0, report.ctCpJStateShadowAcceptedRotorSampleCount());

@@ -1339,11 +1339,25 @@ public final class OfflineFlightRecorder {
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_thrust_residual_n");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_shaft_power_residual_w");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_shaft_torque_residual_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_force_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_torque_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_thrust_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_shaft_power_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_shaft_torque_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_max_abs_residual_fraction");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_force_residual_n");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_torque_residual_nm");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_thrust_residual_n");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_shaft_power_residual_w");
 		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_shaft_torque_residual_nm");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_force_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_torque_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_thrust_residual_fraction");
+		appendCtCpJReferenceColumn(builder,
+				"rotor_ctcpj_state_ref_runtime_replacement_shaft_power_residual_fraction");
+		appendCtCpJReferenceColumn(builder,
+				"rotor_ctcpj_state_ref_runtime_replacement_shaft_torque_residual_fraction");
+		appendCtCpJReferenceColumn(builder, "rotor_ctcpj_state_ref_runtime_replacement_max_abs_residual_fraction");
 	}
 
 	private static void appendCtCpJReferenceColumn(StringBuilder builder, String column) {
@@ -5492,11 +5506,23 @@ public final class OfflineFlightRecorder {
 					comparison.thrustResidualNewtons(),
 					comparison.shaftPowerResidualWatts(),
 					comparison.shaftTorqueResidualNewtonMeters(),
+					comparison.forceBodyResidualFraction(),
+					comparison.torqueBodyResidualFraction(),
+					comparison.thrustResidualFraction(),
+					comparison.shaftPowerResidualFraction(),
+					comparison.shaftTorqueResidualFraction(),
+					comparison.maxAbsoluteResidualFraction(),
 					comparison.runtimeReplacementForceBodyResidualNewtons(),
 					comparison.runtimeReplacementTorqueBodyResidualNewtonMeters(),
 					comparison.runtimeReplacementThrustResidualNewtons(),
 					comparison.runtimeReplacementShaftPowerResidualWatts(),
-					comparison.runtimeReplacementShaftTorqueResidualNewtonMeters()
+					comparison.runtimeReplacementShaftTorqueResidualNewtonMeters(),
+					comparison.runtimeReplacementForceBodyResidualFraction(),
+					comparison.runtimeReplacementTorqueBodyResidualFraction(),
+					comparison.runtimeReplacementThrustResidualFraction(),
+					comparison.runtimeReplacementShaftPowerResidualFraction(),
+					comparison.runtimeReplacementShaftTorqueResidualFraction(),
+					comparison.runtimeReplacementMaxAbsoluteResidualFraction()
 			);
 		} catch (IllegalArgumentException exception) {
 			return CtCpJStateShadowTelemetry.unavailable();
@@ -5537,11 +5563,23 @@ public final class OfflineFlightRecorder {
 		appendExtra(builder, sample.thrustResidualNewtons(), "%.5f");
 		appendExtra(builder, sample.shaftPowerResidualWatts(), "%.5f");
 		appendExtra(builder, sample.shaftTorqueResidualNewtonMeters(), "%.6f");
+		appendExtra(builder, sample.forceResidualFraction(), "%.8f");
+		appendExtra(builder, sample.torqueResidualFraction(), "%.8f");
+		appendExtra(builder, sample.thrustResidualFraction(), "%.8f");
+		appendExtra(builder, sample.shaftPowerResidualFraction(), "%.8f");
+		appendExtra(builder, sample.shaftTorqueResidualFraction(), "%.8f");
+		appendExtra(builder, sample.maxAbsResidualFraction(), "%.8f");
 		appendExtra(builder, sample.runtimeReplacementForceResidualMagnitudeNewtons(), "%.5f");
 		appendExtra(builder, sample.runtimeReplacementTorqueResidualMagnitudeNewtonMeters(), "%.6f");
 		appendExtra(builder, sample.runtimeReplacementThrustResidualNewtons(), "%.5f");
 		appendExtra(builder, sample.runtimeReplacementShaftPowerResidualWatts(), "%.5f");
 		appendExtra(builder, sample.runtimeReplacementShaftTorqueResidualNewtonMeters(), "%.6f");
+		appendExtra(builder, sample.runtimeReplacementForceResidualFraction(), "%.8f");
+		appendExtra(builder, sample.runtimeReplacementTorqueResidualFraction(), "%.8f");
+		appendExtra(builder, sample.runtimeReplacementThrustResidualFraction(), "%.8f");
+		appendExtra(builder, sample.runtimeReplacementShaftPowerResidualFraction(), "%.8f");
+		appendExtra(builder, sample.runtimeReplacementShaftTorqueResidualFraction(), "%.8f");
+		appendExtra(builder, sample.runtimeReplacementMaxAbsResidualFraction(), "%.8f");
 	}
 
 	private record CtCpJStateShadowTelemetry(
@@ -5556,11 +5594,23 @@ public final class OfflineFlightRecorder {
 			double thrustResidualNewtons,
 			double shaftPowerResidualWatts,
 			double shaftTorqueResidualNewtonMeters,
+			double forceResidualFraction,
+			double torqueResidualFraction,
+			double thrustResidualFraction,
+			double shaftPowerResidualFraction,
+			double shaftTorqueResidualFraction,
+			double maxAbsResidualFraction,
 			Vec3 runtimeReplacementForceResidualNewtons,
 			Vec3 runtimeReplacementTorqueResidualNewtonMeters,
 			double runtimeReplacementThrustResidualNewtons,
 			double runtimeReplacementShaftPowerResidualWatts,
-			double runtimeReplacementShaftTorqueResidualNewtonMeters
+			double runtimeReplacementShaftTorqueResidualNewtonMeters,
+			double runtimeReplacementForceResidualFraction,
+			double runtimeReplacementTorqueResidualFraction,
+			double runtimeReplacementThrustResidualFraction,
+			double runtimeReplacementShaftPowerResidualFraction,
+			double runtimeReplacementShaftTorqueResidualFraction,
+			double runtimeReplacementMaxAbsResidualFraction
 	) {
 		private static CtCpJStateShadowTelemetry unavailable() {
 			return new CtCpJStateShadowTelemetry(
@@ -5575,8 +5625,20 @@ public final class OfflineFlightRecorder {
 					0.0,
 					0.0,
 					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
 					Vec3.ZERO,
 					Vec3.ZERO,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
+					0.0,
 					0.0,
 					0.0,
 					0.0
@@ -5594,6 +5656,12 @@ public final class OfflineFlightRecorder {
 			thrustResidualNewtons = finiteOrZero(thrustResidualNewtons);
 			shaftPowerResidualWatts = finiteOrZero(shaftPowerResidualWatts);
 			shaftTorqueResidualNewtonMeters = finiteOrZero(shaftTorqueResidualNewtonMeters);
+			forceResidualFraction = finiteOrZero(forceResidualFraction);
+			torqueResidualFraction = finiteOrZero(torqueResidualFraction);
+			thrustResidualFraction = finiteOrZero(thrustResidualFraction);
+			shaftPowerResidualFraction = finiteOrZero(shaftPowerResidualFraction);
+			shaftTorqueResidualFraction = finiteOrZero(shaftTorqueResidualFraction);
+			maxAbsResidualFraction = finiteOrZero(maxAbsResidualFraction);
 			runtimeReplacementForceResidualNewtons =
 					finiteVectorOrZero(runtimeReplacementForceResidualNewtons);
 			runtimeReplacementTorqueResidualNewtonMeters =
@@ -5604,6 +5672,18 @@ public final class OfflineFlightRecorder {
 					finiteOrZero(runtimeReplacementShaftPowerResidualWatts);
 			runtimeReplacementShaftTorqueResidualNewtonMeters =
 					finiteOrZero(runtimeReplacementShaftTorqueResidualNewtonMeters);
+			runtimeReplacementForceResidualFraction =
+					finiteOrZero(runtimeReplacementForceResidualFraction);
+			runtimeReplacementTorqueResidualFraction =
+					finiteOrZero(runtimeReplacementTorqueResidualFraction);
+			runtimeReplacementThrustResidualFraction =
+					finiteOrZero(runtimeReplacementThrustResidualFraction);
+			runtimeReplacementShaftPowerResidualFraction =
+					finiteOrZero(runtimeReplacementShaftPowerResidualFraction);
+			runtimeReplacementShaftTorqueResidualFraction =
+					finiteOrZero(runtimeReplacementShaftTorqueResidualFraction);
+			runtimeReplacementMaxAbsResidualFraction =
+					finiteOrZero(runtimeReplacementMaxAbsResidualFraction);
 		}
 
 		private double forceResidualMagnitudeNewtons() {

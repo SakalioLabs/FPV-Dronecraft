@@ -387,11 +387,23 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertEquals(0.0, aligned.thrustResidualNewtons(), 1.0e-12);
 		assertEquals(0.0, aligned.shaftPowerResidualWatts(), 1.0e-12);
 		assertEquals(0.0, aligned.shaftTorqueResidualNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, aligned.forceBodyResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.torqueBodyResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.thrustResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.shaftPowerResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.shaftTorqueResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.maxAbsoluteResidualFraction(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, aligned.runtimeReplacementForceBodyResidualNewtons(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, aligned.runtimeReplacementTorqueBodyResidualNewtonMeters(), 1.0e-12);
 		assertEquals(0.0, aligned.runtimeReplacementThrustResidualNewtons(), 1.0e-12);
 		assertEquals(0.0, aligned.runtimeReplacementShaftPowerResidualWatts(), 1.0e-12);
 		assertEquals(0.0, aligned.runtimeReplacementShaftTorqueResidualNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementForceBodyResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementTorqueBodyResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementThrustResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementShaftPowerResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementShaftTorqueResidualFraction(), 1.0e-12);
+		assertEquals(0.0, aligned.runtimeReplacementMaxAbsoluteResidualFraction(), 1.0e-12);
 
 		PropellerArchiveCtCpJRotorForceModel.RotorForceSample first =
 				reference.aggregate().rotorSamples().get(0);
@@ -418,6 +430,36 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertEquals(0.25, offset.thrustResidualNewtons(), 1.0e-12);
 		assertEquals(2.0, offset.shaftPowerResidualWatts(), 1.0e-12);
 		assertEquals(0.003, offset.shaftTorqueResidualNewtonMeters(), 1.0e-12);
+		assertEquals(0.25 / offset.referenceTotalForceBodyNewtons().length(),
+				offset.forceBodyResidualFraction(), 1.0e-12);
+		assertEquals(0.010 / offset.referenceTotalTorqueBodyNewtonMeters().length(),
+				offset.torqueBodyResidualFraction(), 1.0e-12);
+		assertEquals(0.25 / offset.referenceTotalThrustNewtons(),
+				offset.thrustResidualFraction(), 1.0e-12);
+		assertEquals(2.0 / offset.referenceTotalShaftPowerWatts(),
+				offset.shaftPowerResidualFraction(), 1.0e-12);
+		assertEquals(0.003 / offset.referenceTotalShaftTorqueNewtonMeters(),
+				offset.shaftTorqueResidualFraction(), 1.0e-12);
+		double maxResidualFraction = Math.max(
+				Math.max(offset.forceBodyResidualFraction(), offset.torqueBodyResidualFraction()),
+				Math.max(Math.abs(offset.thrustResidualFraction()),
+						Math.abs(offset.shaftPowerResidualFraction()))
+		);
+		maxResidualFraction = Math.max(maxResidualFraction,
+				Math.abs(offset.shaftTorqueResidualFraction()));
+		assertEquals(maxResidualFraction, offset.maxAbsoluteResidualFraction(), 1.0e-12);
+		assertEquals(offset.forceBodyResidualFraction(),
+				offset.runtimeReplacementForceBodyResidualFraction(), 1.0e-12);
+		assertEquals(offset.torqueBodyResidualFraction(),
+				offset.runtimeReplacementTorqueBodyResidualFraction(), 1.0e-12);
+		assertEquals(offset.thrustResidualFraction(),
+				offset.runtimeReplacementThrustResidualFraction(), 1.0e-12);
+		assertEquals(offset.shaftPowerResidualFraction(),
+				offset.runtimeReplacementShaftPowerResidualFraction(), 1.0e-12);
+		assertEquals(offset.shaftTorqueResidualFraction(),
+				offset.runtimeReplacementShaftTorqueResidualFraction(), 1.0e-12);
+		assertEquals(offset.maxAbsoluteResidualFraction(),
+				offset.runtimeReplacementMaxAbsoluteResidualFraction(), 1.0e-12);
 		assertVectorEquals(positionWorld, state.positionMeters(), 1.0e-15);
 		assertVectorEquals(velocityWorld, state.velocityMetersPerSecond(), 1.0e-15);
 		assertQuaternionEquals(bodyToWorld, state.orientation(), 1.0e-15);
