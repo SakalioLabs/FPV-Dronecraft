@@ -5349,8 +5349,14 @@ public final class DronePhysics {
 				}
 
 				double radiusMatch = MathUtil.clamp(source.radiusMeters() / Math.max(1.0e-6, receiver.radiusMeters()), 0.45, 1.45);
+				double wakeMomentumStrength = rotorCtCpJRuntimeWakeDiskLoadingStrength(
+						state,
+						sourceIndex,
+						source,
+						sourceSpinRatio
+				);
 				double contribution = MathUtil.clamp(
-						sourceSpinRatio * sourceSpinRatio * wakeGeometryFactor * (0.70 + 0.18 * radiusMatch),
+						wakeMomentumStrength * wakeGeometryFactor * (0.70 + 0.18 * radiusMatch),
 						0.0,
 						1.0
 				);
@@ -6353,6 +6359,36 @@ public final class DronePhysics {
 			return fallback;
 		}
 		return geometry * wakeTangentialVelocity;
+	}
+
+	static double rotorCtCpJRuntimeWakeDiskLoadingStrength(
+			DroneState state,
+			int sourceRotorIndex,
+			RotorSpec source,
+			double fallbackSourceSpinRatio
+	) {
+		double spinRatio = MathUtil.clamp(finiteOrDefault(fallbackSourceSpinRatio, 0.0), 0.0, 1.0);
+		double fallback = spinRatio * spinRatio;
+		if (state == null
+				|| source == null
+				|| sourceRotorIndex < 0
+				|| sourceRotorIndex >= state.motorCount()
+				|| !state.rotorCtCpJReferenceRuntimeApplied(sourceRotorIndex)) {
+			return fallback;
+		}
+		double diskArea = Math.PI * source.radiusMeters() * source.radiusMeters();
+		double maxDiskLoading = diskArea > 1.0e-12
+				? source.maxThrustNewtons() / diskArea
+				: 0.0;
+		double diskLoading = state.rotorCtCpJReferenceDiskLoadingNewtonsPerSquareMeter(sourceRotorIndex);
+		if (Double.isFinite(diskLoading) && diskLoading > 0.0 && maxDiskLoading > 1.0e-12) {
+			return MathUtil.clamp(diskLoading / maxDiskLoading, 0.0, 1.0);
+		}
+		double thrust = state.rotorCtCpJReferenceThrustNewtons(sourceRotorIndex);
+		if (Double.isFinite(thrust) && thrust > 0.0 && source.maxThrustNewtons() > 1.0e-12) {
+			return MathUtil.clamp(thrust / source.maxThrustNewtons(), 0.0, 1.0);
+		}
+		return fallback;
 	}
 
 	static double rotorCtCpJRuntimeWakeAxialExcessVelocityMetersPerSecond(

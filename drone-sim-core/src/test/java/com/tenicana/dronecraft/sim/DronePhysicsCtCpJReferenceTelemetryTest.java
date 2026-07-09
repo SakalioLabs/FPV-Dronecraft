@@ -950,6 +950,88 @@ class DronePhysicsCtCpJReferenceTelemetryTest {
 	}
 
 	@Test
+	void acceptedReferenceSampleWeightsRuntimeWakeByDiskLoading() {
+		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"mid_domain_mid_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double omega = reference.rpm() * 2.0 * Math.PI / 60.0;
+		double spinRatio = omega / rotor.maxOmegaRadiansPerSecond();
+		Vec3 axialFlow = rotor.thrustAxisBody().multiply(reference.advanceRatioJ()
+				* reference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, axialFlow, omega, 1.0);
+
+		assertNotNull(sample);
+		assertTrue(sample.runtimeForceReplacementAccepted());
+		DroneState state = new DroneState(1);
+		state.setRotorCtCpJReferenceSample(0, sample);
+		double maxDiskLoading = rotor.maxThrustNewtons()
+				/ (Math.PI * rotor.radiusMeters() * rotor.radiusMeters());
+		double expectedDiskLoadingStrength =
+				sample.dimensionalSample().diskLoadingNewtonsPerSquareMeter() / maxDiskLoading;
+		double fallbackSpinStrength = spinRatio * spinRatio;
+
+		assertEquals(expectedDiskLoadingStrength,
+				DronePhysics.rotorCtCpJRuntimeWakeDiskLoadingStrength(
+						state,
+						0,
+						rotor,
+						spinRatio
+				),
+				1.0e-15);
+		assertTrue(expectedDiskLoadingStrength > 0.0);
+		assertTrue(expectedDiskLoadingStrength < fallbackSpinStrength);
+		assertEquals(fallbackSpinStrength,
+				DronePhysics.rotorCtCpJRuntimeWakeDiskLoadingStrength(
+						null,
+						0,
+						rotor,
+						spinRatio
+				),
+				1.0e-15);
+
+		PropellerArchiveCtCpJLookupEvaluator.LookupQuery highReference =
+				PropellerArchiveCtCpJLookupEvaluator.queryForReferenceCase(
+						"apDrone",
+						"high_domain_max_rpm",
+						rotor.radiusMeters() * 2.0,
+						RHO
+				);
+		double clampedOmega = highReference.rpm() * 2.0 * Math.PI / 60.0;
+		double clampedSpinRatio = clampedOmega / rotor.maxOmegaRadiansPerSecond();
+		double clampedJ = highReference.advanceRatioJ() + 0.20;
+		Vec3 clampedAxialFlow = rotor.thrustAxisBody().multiply(clampedJ
+				* highReference.rpm()
+				/ 60.0
+				* rotor.radiusMeters()
+				* 2.0);
+		PropellerArchiveCtCpJRotorForceModel.RotorForceSample clampedSample =
+				DronePhysics.sampleRotorCtCpJReference(rotor, clampedAxialFlow, clampedOmega, 1.0);
+		DroneState clampedState = new DroneState(1);
+		clampedState.setRotorCtCpJReferenceSample(0, clampedSample);
+
+		assertNotNull(clampedSample);
+		assertTrue(clampedSample.clamped());
+		assertFalse(clampedState.rotorCtCpJReferenceRuntimeApplied(0));
+		assertEquals(clampedSpinRatio * clampedSpinRatio,
+				DronePhysics.rotorCtCpJRuntimeWakeDiskLoadingStrength(
+						clampedState,
+						0,
+						rotor,
+						clampedSpinRatio
+				),
+				1.0e-15);
+	}
+
+	@Test
 	void acceptedReferenceSampleContractsRuntimeWakeCoreRadius() {
 		RotorSpec rotor = DroneConfig.apDrone().rotors().get(0);
 		PropellerArchiveCtCpJLookupEvaluator.LookupQuery reference =
