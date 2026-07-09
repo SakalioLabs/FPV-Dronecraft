@@ -1059,6 +1059,30 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return ratio(totalIdealMomentumPowerWatts, totalActuatorDiskAreaSquareMeters());
 		}
 
+		public double totalAxialMomentumThrustNewtons() {
+			return sumAxialMomentumThrustNewtons(false);
+		}
+
+		public double totalAxialMomentumThrustResidualNewtons() {
+			return totalAxialMomentumThrustNewtons() - totalThrustNewtons;
+		}
+
+		public double totalAxialMomentumThrustResidualFraction() {
+			return ratio(totalAxialMomentumThrustResidualNewtons(), totalThrustNewtons);
+		}
+
+		public double totalAxialMomentumPowerWatts() {
+			return sumAxialMomentumPowerWatts(false);
+		}
+
+		public double totalAxialMomentumPowerResidualWatts() {
+			return totalAxialMomentumPowerWatts() - totalIdealMomentumPowerWatts;
+		}
+
+		public double totalAxialMomentumPowerResidualFraction() {
+			return ratio(totalAxialMomentumPowerResidualWatts(), totalIdealMomentumPowerWatts);
+		}
+
 		public double minRuntimeTipMachMargin() {
 			double margin = Double.POSITIVE_INFINITY;
 			for (RotorForceSample sample : rotorSamples) {
@@ -1169,6 +1193,38 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			);
 		}
 
+		public double runtimeForceReplacementAxialMomentumThrustNewtons() {
+			return sumAxialMomentumThrustNewtons(true);
+		}
+
+		public double runtimeForceReplacementAxialMomentumThrustResidualNewtons() {
+			return runtimeForceReplacementAxialMomentumThrustNewtons()
+					- runtimeForceReplacementThrustNewtons;
+		}
+
+		public double runtimeForceReplacementAxialMomentumThrustResidualFraction() {
+			return ratio(
+					runtimeForceReplacementAxialMomentumThrustResidualNewtons(),
+					runtimeForceReplacementThrustNewtons
+			);
+		}
+
+		public double runtimeForceReplacementAxialMomentumPowerWatts() {
+			return sumAxialMomentumPowerWatts(true);
+		}
+
+		public double runtimeForceReplacementAxialMomentumPowerResidualWatts() {
+			return runtimeForceReplacementAxialMomentumPowerWatts()
+					- runtimeForceReplacementIdealMomentumPowerWatts;
+		}
+
+		public double runtimeForceReplacementAxialMomentumPowerResidualFraction() {
+			return ratio(
+					runtimeForceReplacementAxialMomentumPowerResidualWatts(),
+					runtimeForceReplacementIdealMomentumPowerWatts
+			);
+		}
+
 		public Vec3 runtimeForceReplacementWakeAngularMomentumTorqueResidualBodyNewtonMeters() {
 			return runtimeForceReplacementWakeAngularMomentumTorqueBodyNewtonMeters()
 					.subtract(runtimeForceReplacementReactionTorqueBodyNewtonMeters);
@@ -1264,6 +1320,28 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				));
 			}
 			return List.copyOf(sourceTerms);
+		}
+
+		private double sumAxialMomentumThrustNewtons(boolean runtimeForceReplacementOnly) {
+			double sum = 0.0;
+			for (RotorForceSample sample : rotorSamples) {
+				if (runtimeForceReplacementOnly && !sample.runtimeForceReplacementAccepted()) {
+					continue;
+				}
+				sum += sample.dimensionalSample().axialMomentumThrustNewtons();
+			}
+			return finiteOrZero(sum);
+		}
+
+		private double sumAxialMomentumPowerWatts(boolean runtimeForceReplacementOnly) {
+			double sum = 0.0;
+			for (RotorForceSample sample : rotorSamples) {
+				if (runtimeForceReplacementOnly && !sample.runtimeForceReplacementAccepted()) {
+					continue;
+				}
+				sum += sample.dimensionalSample().axialMomentumPowerWatts();
+			}
+			return finiteOrZero(sum);
 		}
 	}
 
