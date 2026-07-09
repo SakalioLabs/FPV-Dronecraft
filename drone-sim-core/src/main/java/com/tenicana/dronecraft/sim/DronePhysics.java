@@ -1530,7 +1530,11 @@ public final class DronePhysics {
 					environment.rotorFlowObstruction(i),
 					surfaceScrape
 			)
-					+ rotorAngularDragLoadFactor(aerodynamicRotor, angularVelocityBody, aerodynamicOmega)
+					+ RotorAngularRateDampingModel.loadFactor(
+							aerodynamicRotor,
+							angularVelocityBody,
+							aerodynamicOmega
+					)
 					+ 0.28 * wakeInterference
 					+ rotorWakeSwirlLoadFactor(rotor, aerodynamicOmega, wakeSwirlSpeed)
 					+ rotorWindmillingLoadFactor(aerodynamicRotor, rotorRelativeAirVelocityBody, aerodynamicOmega, escElectricalOutput)
@@ -1728,7 +1732,8 @@ public final class DronePhysics {
 					.add(inertiaTorques.accelerationReactionTorqueBodyNewtonMeters());
 			rotorGyroscopicTorqueSum = rotorGyroscopicTorqueSum
 					.add(inertiaTorques.gyroscopicReactionTorqueBodyNewtonMeters());
-			Vec3 angularDragTorque = rotorAngularDragTorque(
+			RotorAngularRateDampingModel.RotorAngularRateDampingSample angularRateDamping =
+					RotorAngularRateDampingModel.sample(
 					aerodynamicRotor,
 					angularVelocityBody,
 					rotorDiskAxisBody,
@@ -1739,6 +1744,7 @@ public final class DronePhysics {
 					rotorStall,
 					wakeInterference
 			);
+			Vec3 angularDragTorque = angularRateDamping.dampingTorqueBodyNewtonMeters();
 			rotorAngularDragTorqueSum = rotorAngularDragTorqueSum.add(angularDragTorque);
 			double inflowSkewIntensity = rotorInflowSkewIntensity(
 					aerodynamicRotor,
@@ -2782,62 +2788,6 @@ public final class DronePhysics {
 		double deceleration = (previousOmega - omega) / dtSeconds;
 		double torqueMagnitude = rotor.rotorInertiaKgMetersSquared() * deceleration * brakingBlend;
 		return diskAxisBody.multiply(rotor.spinDirection() * torqueMagnitude).clamp(-0.35, 0.35);
-	}
-
-	private static Vec3 rotorAngularDragTorque(
-			RotorSpec rotor,
-			Vec3 bodyAngularVelocity,
-			Vec3 rotorDiskAxisBody,
-			double omegaRadiansPerSecond,
-			double thrustNewtons,
-			double airDensityRatio,
-			double aerodynamicLoadFactor,
-			double rotorStall,
-			double wakeInterference
-	) {
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		if (rotor.diskDragCoefficient() <= 0.0 || spinRatio <= 0.08 || bodyAngularVelocity.lengthSquared() <= 1.0e-9) {
-			return Vec3.ZERO;
-		}
-
-		Vec3 diskAxisBody = rotorDiskAxisBody == null || rotorDiskAxisBody.lengthSquared() <= 1.0e-9
-				? BODY_ROTOR_AXIS
-				: rotorDiskAxisBody.normalized();
-		double axialRate = bodyAngularVelocity.dot(diskAxisBody);
-		Vec3 axialRateBody = diskAxisBody.multiply(axialRate);
-		Vec3 transverseRateBody = bodyAngularVelocity.subtract(axialRateBody);
-		double diskLoad = Math.max(
-				thrustNewtons,
-				rotor.maxThrustNewtons() * spinRatio * spinRatio * 0.18
-		);
-		double loadFactor = MathUtil.clamp(aerodynamicLoadFactor <= 1.0e-6 ? 1.0 : aerodynamicLoadFactor, 0.35, 2.0);
-		double dirtyAirFactor = 1.0 + 0.22 * rotorStall + 0.18 * wakeInterference;
-		double transverseMomentPerRadPerSecond = diskLoad
-				* rotor.radiusMeters()
-				* rotor.diskDragCoefficient()
-				* Math.max(0.2, airDensityRatio)
-				* spinRatio
-				* (0.85 + 0.15 * loadFactor)
-				* dirtyAirFactor
-				* 2.4;
-		double axialMomentPerRadPerSecond = transverseMomentPerRadPerSecond * 0.22;
-		Vec3 torque = transverseRateBody.multiply(-transverseMomentPerRadPerSecond)
-				.add(axialRateBody.multiply(-axialMomentPerRadPerSecond));
-		return torque.clamp(-0.18, 0.18);
-	}
-
-	private static double rotorAngularDragLoadFactor(RotorSpec rotor, Vec3 bodyAngularVelocity, double omegaRadiansPerSecond) {
-		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.0);
-		if (rotor.diskDragCoefficient() <= 0.0 || spinRatio <= 0.08) {
-			return 0.0;
-		}
-
-		Vec3 axis = rotorAxisBody(rotor);
-		double axialRate = Math.abs(bodyAngularVelocity.dot(axis));
-		double transverseRate = bodyAngularVelocity.subtract(axis.multiply(bodyAngularVelocity.dot(axis))).length();
-		double diskDragScale = MathUtil.clamp(rotor.diskDragCoefficient() / 0.0028, 0.0, 3.5);
-		double rateLoad = smoothStep(Math.toRadians(180.0), Math.toRadians(900.0), transverseRate + 0.22 * axialRate);
-		return MathUtil.clamp(0.16 * diskDragScale * spinRatio * rateLoad, 0.0, 0.45);
 	}
 
 	private static Vec3 rotorDiskAxisBody(Vec3 thrustAxisForceBody) {
