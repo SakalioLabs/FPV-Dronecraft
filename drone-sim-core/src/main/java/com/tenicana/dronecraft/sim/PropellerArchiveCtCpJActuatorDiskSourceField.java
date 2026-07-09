@@ -423,6 +423,33 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 		}
 
 		public Vec3 massFluxWeightedFreestreamVelocityWorldMetersPerSecond() {
+			return massFluxWeightedVelocityWorldMetersPerSecond(
+					VoxelCellSample::freestreamVelocityWorldMetersPerSecond);
+		}
+
+		public Vec3 massFluxWeightedActuatorDiskAxialVelocityWorldMetersPerSecond() {
+			return massFluxWeightedVelocityWorldMetersPerSecond(
+					VoxelCellSample::actuatorDiskAxialVelocityWorldMetersPerSecond);
+		}
+
+		public Vec3 massFluxWeightedFarWakeAxialVelocityWorldMetersPerSecond() {
+			return massFluxWeightedVelocityWorldMetersPerSecond(
+					VoxelCellSample::farWakeAxialVelocityWorldMetersPerSecond);
+		}
+
+		public Vec3 massFluxWeightedTargetWakeVelocityWorldMetersPerSecond() {
+			return massFluxWeightedVelocityWorldMetersPerSecond(
+					VoxelCellSample::targetWakeVelocityWorldMetersPerSecond);
+		}
+
+		public Vec3 massFluxWeightedWakeSkewLateralVelocityWorldMetersPerSecond() {
+			return massFluxWeightedVelocityWorldMetersPerSecond(
+					VoxelCellSample::wakeSkewLateralVelocityWorldMetersPerSecond);
+		}
+
+		private Vec3 massFluxWeightedVelocityWorldMetersPerSecond(
+				java.util.function.Function<VoxelCellSample, Vec3> velocitySelector
+		) {
 			Vec3 weightedVelocity = Vec3.ZERO;
 			double totalWeight = 0.0;
 			for (VoxelCellSample cell : cells) {
@@ -430,12 +457,12 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					continue;
 				}
 				double weight = cell.massFluxKilogramsPerSecondSquareMeter()
-						* cell.sampledSourceVolumeCubicMeters();
+						* cell.cellVolumeCubicMeters();
 				if (!Double.isFinite(weight) || weight <= EPSILON) {
 					continue;
 				}
 				weightedVelocity = weightedVelocity.add(
-						cell.freestreamVelocityWorldMetersPerSecond().multiply(weight));
+						finiteVecOrZero(velocitySelector.apply(cell)).multiply(weight));
 				totalWeight += weight;
 			}
 			return totalWeight <= EPSILON ? Vec3.ZERO : weightedVelocity.multiply(1.0 / totalWeight);

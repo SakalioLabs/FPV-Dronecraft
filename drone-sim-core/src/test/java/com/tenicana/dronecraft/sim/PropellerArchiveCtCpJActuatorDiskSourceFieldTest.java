@@ -159,6 +159,101 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 	}
 
 	@Test
+	void massFluxWeightedGridVelocitiesUseProjectedMassFlowWeights() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		Vec3 lightFreestream = new Vec3(-1.0, 2.0, 0.5);
+		Vec3 lightActuator = new Vec3(0.0, 1.0, 0.0);
+		Vec3 lightFarWake = new Vec3(0.0, 4.0, 0.0);
+		Vec3 lightSwirl = new Vec3(0.0, 0.0, 1.0);
+		Vec3 lightTarget = new Vec3(1.0, 4.0, 1.0);
+		Vec3 heavyFreestream = new Vec3(3.0, 6.0, -0.5);
+		Vec3 heavyActuator = new Vec3(0.0, 3.0, 0.0);
+		Vec3 heavyFarWake = new Vec3(0.0, 8.0, 0.0);
+		Vec3 heavySwirl = new Vec3(0.0, 0.0, 2.0);
+		Vec3 heavyTarget = new Vec3(3.0, 8.0, 2.0);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample lightCell =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+						0,
+						0,
+						0,
+						grid.cellCenterWorldMeters(0, 0, 0),
+						grid.cellVolumeCubicMeters(),
+						4,
+						1,
+						0.25,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						0.0,
+						2.0,
+						lightActuator,
+						0.0,
+						0.0,
+						0.0,
+						lightFarWake,
+						lightSwirl,
+						lightTarget,
+						lightFreestream
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample heavyCell =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+						1,
+						0,
+						0,
+						grid.cellCenterWorldMeters(1, 0, 0),
+						grid.cellVolumeCubicMeters(),
+						4,
+						4,
+						1.0,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						0.0,
+						4.0,
+						heavyActuator,
+						0.0,
+						0.0,
+						0.0,
+						heavyFarWake,
+						heavySwirl,
+						heavyTarget,
+						heavyFreestream
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						2,
+						List.of(lightCell, heavyCell)
+				);
+		double lightWeight = lightCell.massFluxKilogramsPerSecondSquareMeter()
+				* lightCell.cellVolumeCubicMeters();
+		double heavyWeight = heavyCell.massFluxKilogramsPerSecondSquareMeter()
+				* heavyCell.cellVolumeCubicMeters();
+
+		assertEquals(0.25, lightCell.sourceVolumeFraction(), 1.0e-15);
+		assertEquals(1.0, heavyCell.sourceVolumeFraction(), 1.0e-15);
+		assertVectorEquals(weighted(lightFreestream, lightWeight, heavyFreestream, heavyWeight),
+				gridSample.massFluxWeightedFreestreamVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(weighted(lightActuator, lightWeight, heavyActuator, heavyWeight),
+				gridSample.massFluxWeightedActuatorDiskAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(weighted(lightFarWake, lightWeight, heavyFarWake, heavyWeight),
+				gridSample.massFluxWeightedFarWakeAxialVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(weighted(lightTarget, lightWeight, heavyTarget, heavyWeight),
+				gridSample.massFluxWeightedTargetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(weighted(
+						lightTarget.subtract(lightFarWake).subtract(lightSwirl),
+						lightWeight,
+						heavyTarget.subtract(heavyFarWake).subtract(heavySwirl),
+						heavyWeight),
+				gridSample.massFluxWeightedWakeSkewLateralVelocityWorldMetersPerSecond(), 1.0e-15);
+	}
+
+	@Test
 	void keepsCylindricalDiskBoundaryInclusiveAndRejectsOutsidePoints() {
 		PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm =
 				hoverSourceTerm();
@@ -737,6 +832,11 @@ class PropellerArchiveCtCpJActuatorDiskSourceFieldTest {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static Vec3 weighted(Vec3 first, double firstWeight, Vec3 second, double secondWeight) {
+		double total = firstWeight + secondWeight;
+		return first.multiply(firstWeight / total).add(second.multiply(secondWeight / total));
 	}
 
 	private static double expectedWakeSwirlSpeed(
