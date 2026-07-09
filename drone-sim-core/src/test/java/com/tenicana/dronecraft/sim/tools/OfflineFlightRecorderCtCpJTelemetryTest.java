@@ -59,6 +59,32 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				"rotor_0_ctcpj_runtime_axial_propulsive_efficiency");
 		int rotorRuntimeMomentumRatioIndex = column(header,
 				"rotor_0_ctcpj_runtime_ideal_momentum_power_over_shaft_power");
+		int rotorRuntimeActuatorDiskVelocityIndex = column(header,
+				"rotor_0_ctcpj_runtime_actuator_disk_axial_velocity_mps");
+		int rotorRuntimeDiskMassFlowIndex = column(header,
+				"rotor_0_ctcpj_runtime_disk_mass_flow_kg_s");
+		int rotorRuntimeFarWakeVelocityIndex = column(header,
+				"rotor_0_ctcpj_runtime_far_wake_axial_velocity_mps");
+		int rotorRuntimeFarWakeAreaIndex = column(header,
+				"rotor_0_ctcpj_runtime_far_wake_contracted_area_m2");
+		int rotorRuntimeFarWakeRadiusIndex = column(header,
+				"rotor_0_ctcpj_runtime_far_wake_equivalent_radius_m");
+		int rotorRuntimeSwirlRadiusIndex = column(header,
+				"rotor_0_ctcpj_runtime_angular_momentum_swirl_radius_m");
+		int rotorRuntimeWakeTangentialVelocityIndex = column(header,
+				"rotor_0_ctcpj_runtime_wake_tangential_velocity_mps");
+		int rotorRuntimeWakeSwirlPowerIndex = column(header,
+				"rotor_0_ctcpj_runtime_wake_swirl_kinetic_power_w");
+		int rotorRuntimeTotalWakePowerIndex = column(header,
+				"rotor_0_ctcpj_runtime_total_wake_kinetic_power_w");
+		int rotorRuntimeTotalWakePowerRatioIndex = column(header,
+				"rotor_0_ctcpj_runtime_total_wake_kinetic_power_over_shaft_power");
+		int rotorRuntimeWakeSwirlPowerRatioIndex = column(header,
+				"rotor_0_ctcpj_runtime_wake_swirl_kinetic_power_over_shaft_power");
+		int rotorRuntimeWakePowerResidualIndex = column(header,
+				"rotor_0_ctcpj_runtime_total_wake_kinetic_power_residual_w");
+		int rotorRuntimeWakePowerResidualFractionIndex = column(header,
+				"rotor_0_ctcpj_runtime_total_wake_kinetic_power_residual_fraction");
 		int availableIndex = column(header, "rotor_ctcpj_ref_available");
 		int blockedIndex = column(header, "rotor_ctcpj_ref_blocked");
 		int clampedIndex = column(header, "rotor_ctcpj_ref_clamped");
@@ -255,6 +281,16 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				"rotor_0_ctcpj_runtime_axial_propulsive_efficiency"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains(
 				"rotor_7_ctcpj_runtime_ideal_momentum_power_over_shaft_power"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_runtime_actuator_disk_axial_velocity_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_runtime_disk_mass_flow_kg_s"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_7_ctcpj_runtime_far_wake_axial_velocity_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_0_ctcpj_runtime_wake_tangential_velocity_mps"));
+		assertTrue(OfflineFlightRecorder.csvHeader().contains(
+				"rotor_7_ctcpj_runtime_total_wake_kinetic_power_residual_fraction"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_ct"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_rpm"));
 		assertTrue(OfflineFlightRecorder.csvHeader().contains("rotor_0_ctcpj_ref_runtime_applied"));
@@ -441,6 +477,23 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				double runtimeIdealInducedPower = Double.parseDouble(row[rotorRuntimeIdealInducedPowerIndex]);
 				double runtimeAxialEta = Double.parseDouble(row[rotorRuntimeAxialEtaIndex]);
 				double runtimeMomentumRatio = Double.parseDouble(row[rotorRuntimeMomentumRatioIndex]);
+				double runtimeActuatorDiskVelocity = Double.parseDouble(row[rotorRuntimeActuatorDiskVelocityIndex]);
+				double runtimeDiskMassFlow = Double.parseDouble(row[rotorRuntimeDiskMassFlowIndex]);
+				double runtimeFarWakeVelocity = Double.parseDouble(row[rotorRuntimeFarWakeVelocityIndex]);
+				double runtimeFarWakeArea = Double.parseDouble(row[rotorRuntimeFarWakeAreaIndex]);
+				double runtimeFarWakeRadius = Double.parseDouble(row[rotorRuntimeFarWakeRadiusIndex]);
+				double runtimeSwirlRadius = Double.parseDouble(row[rotorRuntimeSwirlRadiusIndex]);
+				double runtimeWakeTangentialVelocity =
+						Double.parseDouble(row[rotorRuntimeWakeTangentialVelocityIndex]);
+				double runtimeWakeSwirlPower = Double.parseDouble(row[rotorRuntimeWakeSwirlPowerIndex]);
+				double runtimeTotalWakePower = Double.parseDouble(row[rotorRuntimeTotalWakePowerIndex]);
+				double runtimeTotalWakePowerRatio =
+						Double.parseDouble(row[rotorRuntimeTotalWakePowerRatioIndex]);
+				double runtimeWakeSwirlPowerRatio =
+						Double.parseDouble(row[rotorRuntimeWakeSwirlPowerRatioIndex]);
+				double runtimeWakePowerResidual = Double.parseDouble(row[rotorRuntimeWakePowerResidualIndex]);
+				double runtimeWakePowerResidualFraction =
+						Double.parseDouble(row[rotorRuntimeWakePowerResidualFractionIndex]);
 				assertTrue(Double.isFinite(runtimeCt));
 				assertTrue(Double.isFinite(runtimeCp));
 				assertTrue(Double.isFinite(runtimeCq));
@@ -452,6 +505,19 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 				assertTrue(Double.isFinite(runtimeIdealInducedPower));
 				assertTrue(Double.isFinite(runtimeAxialEta));
 				assertTrue(Double.isFinite(runtimeMomentumRatio));
+				assertTrue(Double.isFinite(runtimeActuatorDiskVelocity));
+				assertTrue(Double.isFinite(runtimeDiskMassFlow));
+				assertTrue(Double.isFinite(runtimeFarWakeVelocity));
+				assertTrue(Double.isFinite(runtimeFarWakeArea));
+				assertTrue(Double.isFinite(runtimeFarWakeRadius));
+				assertTrue(Double.isFinite(runtimeSwirlRadius));
+				assertTrue(Double.isFinite(runtimeWakeTangentialVelocity));
+				assertTrue(Double.isFinite(runtimeWakeSwirlPower));
+				assertTrue(Double.isFinite(runtimeTotalWakePower));
+				assertTrue(Double.isFinite(runtimeTotalWakePowerRatio));
+				assertTrue(Double.isFinite(runtimeWakeSwirlPowerRatio));
+				assertTrue(Double.isFinite(runtimeWakePowerResidual));
+				assertTrue(Double.isFinite(runtimeWakePowerResidualFraction));
 				if (rotorRuntimeValid > 0.0 && rpm > 0.0) {
 					double n = rpm / 60.0;
 					double airDensity = PropellerArchiveCtCpJDimensionalRotorResponse
@@ -487,6 +553,43 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 					assertEquals(thrust * expectedInducedVelocity, runtimeIdealInducedPower, 2.0e-3);
 					assertEquals(runtimeUsefulAxialPower + runtimeIdealInducedPower,
 							runtimeIdealMomentumPower, 2.0e-3);
+					double expectedActuatorDiskVelocity = axialAdvanceSpeed + expectedInducedVelocity;
+					double expectedDiskMassFlow = airDensity * diskArea * expectedActuatorDiskVelocity;
+					double expectedFarWakeVelocity = axialAdvanceSpeed + 2.0 * expectedInducedVelocity;
+					double expectedFarWakeArea = expectedFarWakeVelocity > 1.0e-9
+							? expectedDiskMassFlow / (airDensity * expectedFarWakeVelocity)
+							: 0.0;
+					double expectedFarWakeRadius = expectedFarWakeArea > 1.0e-9
+							? Math.sqrt(expectedFarWakeArea / Math.PI)
+							: 0.0;
+					double expectedSwirlRadius =
+							expectedFarWakeRadius * RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION;
+					double expectedWakeTangentialVelocity =
+							expectedDiskMassFlow > 1.0e-9 && expectedSwirlRadius > 1.0e-9
+									? Math.abs(Double.parseDouble(row[motorAerodynamicTorqueIndex]))
+											/ (expectedDiskMassFlow * expectedSwirlRadius)
+									: 0.0;
+					double expectedWakeSwirlPower =
+							expectedDiskMassFlow > 1.0e-9
+									&& expectedSwirlRadius > 1.0e-9
+									&& expectedWakeTangentialVelocity > 1.0e-9
+									&& expectedFarWakeRadius > 1.0e-9
+									? expectedDiskMassFlow
+											* Math.pow(expectedSwirlRadius * expectedWakeTangentialVelocity, 2.0)
+											/ (expectedFarWakeRadius * expectedFarWakeRadius)
+									: 0.0;
+					assertEquals(expectedActuatorDiskVelocity, runtimeActuatorDiskVelocity, 1.5e-4);
+					assertEquals(expectedDiskMassFlow, runtimeDiskMassFlow, 1.5e-4);
+					assertEquals(expectedFarWakeVelocity, runtimeFarWakeVelocity, 1.5e-4);
+					assertEquals(expectedFarWakeArea, runtimeFarWakeArea, 5.0e-7);
+					assertEquals(expectedFarWakeRadius, runtimeFarWakeRadius, 5.0e-7);
+					assertEquals(expectedSwirlRadius, runtimeSwirlRadius, 5.0e-7);
+					assertEquals(expectedWakeTangentialVelocity, runtimeWakeTangentialVelocity, 5.0e-4);
+					assertEquals(expectedWakeSwirlPower, runtimeWakeSwirlPower, 5.0e-3);
+					assertEquals(runtimeIdealMomentumPower + runtimeWakeSwirlPower,
+							runtimeTotalWakePower, 4.0e-3);
+					assertEquals(aerodynamicPower - runtimeTotalWakePower,
+							runtimeWakePowerResidual, 4.0e-3);
 					if (aerodynamicPower > 1.0e-9) {
 						assertEquals(runtimeUsefulAxialPower / aerodynamicPower, runtimeAxialEta, 1.0e-4);
 						assertEquals(runtimeEta, runtimeAxialEta, 1.0e-4);
@@ -495,6 +598,12 @@ class OfflineFlightRecorderCtCpJTelemetryTest {
 								runtimeMomentumRatio,
 								1.0e-4
 						);
+						assertEquals(runtimeTotalWakePower / aerodynamicPower,
+								runtimeTotalWakePowerRatio, 1.0e-4);
+						assertEquals(runtimeWakeSwirlPower / aerodynamicPower,
+								runtimeWakeSwirlPowerRatio, 1.0e-4);
+						assertEquals(runtimeWakePowerResidual / aerodynamicPower,
+								runtimeWakePowerResidualFraction, 1.0e-4);
 					}
 				}
 			}

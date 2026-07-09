@@ -1195,6 +1195,19 @@ public final class OfflineFlightRecorder {
 		appendCtCpJRuntimeColumnFamily(builder, "ideal_induced_power_w");
 		appendCtCpJRuntimeColumnFamily(builder, "axial_propulsive_efficiency");
 		appendCtCpJRuntimeColumnFamily(builder, "ideal_momentum_power_over_shaft_power");
+		appendCtCpJRuntimeColumnFamily(builder, "actuator_disk_axial_velocity_mps");
+		appendCtCpJRuntimeColumnFamily(builder, "disk_mass_flow_kg_s");
+		appendCtCpJRuntimeColumnFamily(builder, "far_wake_axial_velocity_mps");
+		appendCtCpJRuntimeColumnFamily(builder, "far_wake_contracted_area_m2");
+		appendCtCpJRuntimeColumnFamily(builder, "far_wake_equivalent_radius_m");
+		appendCtCpJRuntimeColumnFamily(builder, "angular_momentum_swirl_radius_m");
+		appendCtCpJRuntimeColumnFamily(builder, "wake_tangential_velocity_mps");
+		appendCtCpJRuntimeColumnFamily(builder, "wake_swirl_kinetic_power_w");
+		appendCtCpJRuntimeColumnFamily(builder, "total_wake_kinetic_power_w");
+		appendCtCpJRuntimeColumnFamily(builder, "total_wake_kinetic_power_over_shaft_power");
+		appendCtCpJRuntimeColumnFamily(builder, "wake_swirl_kinetic_power_over_shaft_power");
+		appendCtCpJRuntimeColumnFamily(builder, "total_wake_kinetic_power_residual_w");
+		appendCtCpJRuntimeColumnFamily(builder, "total_wake_kinetic_power_residual_fraction");
 		appendCtCpJReferenceColumnFamily(builder, "available");
 		appendCtCpJReferenceColumnFamily(builder, "blocked");
 		appendCtCpJReferenceColumnFamily(builder, "clamped");
@@ -4634,6 +4647,69 @@ public final class OfflineFlightRecorder {
 						rotorCtCpJRuntimeIdealMomentumPower,
 						motorAerodynamicShaftPower
 				);
+		double[] rotorCtCpJRuntimeActuatorDiskAxialVelocity =
+				rotorCtCpJRuntimeActuatorDiskAxialVelocity(
+						rotorCtCpJRuntimeAxialAdvanceSpeed,
+						rotorCtCpJRuntimeIdealInducedVelocity
+				);
+		double[] rotorCtCpJRuntimeDiskMassFlow = rotorCtCpJRuntimeDiskMassFlow(
+				config,
+				environment,
+				rotorCtCpJRuntimeActuatorDiskAxialVelocity
+		);
+		double[] rotorCtCpJRuntimeFarWakeAxialVelocity =
+				rotorCtCpJRuntimeFarWakeAxialVelocity(
+						rotorCtCpJRuntimeAxialAdvanceSpeed,
+						rotorCtCpJRuntimeIdealInducedVelocity
+				);
+		double[] rotorCtCpJRuntimeFarWakeContractedArea =
+				rotorCtCpJRuntimeFarWakeContractedArea(
+						environment,
+						rotorCtCpJRuntimeDiskMassFlow,
+						rotorCtCpJRuntimeFarWakeAxialVelocity
+				);
+		double[] rotorCtCpJRuntimeFarWakeEquivalentRadius =
+				rotorCtCpJRuntimeFarWakeEquivalentRadius(rotorCtCpJRuntimeFarWakeContractedArea);
+		double[] rotorCtCpJRuntimeAngularMomentumSwirlRadius =
+				rotorCtCpJRuntimeAngularMomentumSwirlRadius(rotorCtCpJRuntimeFarWakeEquivalentRadius);
+		double[] rotorCtCpJRuntimeWakeTangentialVelocity =
+				rotorCtCpJRuntimeWakeTangentialVelocity(
+						motorAerodynamicTorque,
+						rotorCtCpJRuntimeDiskMassFlow,
+						rotorCtCpJRuntimeAngularMomentumSwirlRadius
+				);
+		double[] rotorCtCpJRuntimeWakeSwirlKineticPower =
+				rotorCtCpJRuntimeWakeSwirlKineticPower(
+						rotorCtCpJRuntimeDiskMassFlow,
+						rotorCtCpJRuntimeAngularMomentumSwirlRadius,
+						rotorCtCpJRuntimeWakeTangentialVelocity,
+						rotorCtCpJRuntimeFarWakeEquivalentRadius
+				);
+		double[] rotorCtCpJRuntimeTotalWakeKineticPower =
+				rotorCtCpJRuntimeTotalWakeKineticPower(
+						rotorCtCpJRuntimeIdealMomentumPower,
+						rotorCtCpJRuntimeWakeSwirlKineticPower
+				);
+		double[] rotorCtCpJRuntimeTotalWakeKineticPowerOverShaftPower =
+				rotorCtCpJRuntimePowerRatio(
+						rotorCtCpJRuntimeTotalWakeKineticPower,
+						motorAerodynamicShaftPower
+				);
+		double[] rotorCtCpJRuntimeWakeSwirlKineticPowerOverShaftPower =
+				rotorCtCpJRuntimePowerRatio(
+						rotorCtCpJRuntimeWakeSwirlKineticPower,
+						motorAerodynamicShaftPower
+				);
+		double[] rotorCtCpJRuntimeTotalWakeKineticPowerResidual =
+				rotorCtCpJRuntimePowerResidual(
+						motorAerodynamicShaftPower,
+						rotorCtCpJRuntimeTotalWakeKineticPower
+				);
+		double[] rotorCtCpJRuntimeTotalWakeKineticPowerResidualFraction =
+				rotorCtCpJRuntimePowerRatio(
+						rotorCtCpJRuntimeTotalWakeKineticPowerResidual,
+						motorAerodynamicShaftPower
+				);
 		boolean[] rotorCtCpJReferenceAvailable = state.rotorCtCpJReferenceAvailable();
 		boolean[] rotorCtCpJReferenceBlocked = state.rotorCtCpJReferenceBlocked();
 		boolean[] rotorCtCpJReferencePresent = ctCpJReferencePresent(
@@ -5018,6 +5094,32 @@ public final class OfflineFlightRecorder {
 		appendDoubleFamily(builder, rotorCtCpJRuntimeAxialPropulsiveEfficiency,
 				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
 		appendDoubleFamily(builder, rotorCtCpJRuntimeIdealMomentumPowerOverShaftPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeActuatorDiskAxialVelocity,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeDiskMassFlow,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeFarWakeAxialVelocity,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeFarWakeContractedArea,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.7f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeFarWakeEquivalentRadius,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.7f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeAngularMomentumSwirlRadius,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.7f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeWakeTangentialVelocity,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeWakeSwirlKineticPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeTotalWakeKineticPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeTotalWakeKineticPowerOverShaftPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeWakeSwirlKineticPowerOverShaftPower,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeTotalWakeKineticPowerResidual,
+				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
+		appendDoubleFamily(builder, rotorCtCpJRuntimeTotalWakeKineticPowerResidualFraction,
 				rotorCtCpJRuntimeCoefficientAvailable, "%.5f");
 		appendBooleanFamily(builder, rotorCtCpJReferenceAvailable);
 		appendBooleanFamily(builder, rotorCtCpJReferenceBlocked);
@@ -5765,6 +5867,222 @@ public final class OfflineFlightRecorder {
 			double shaftPower = valueOrZero(aerodynamicShaftPowerWatts, i);
 			values[i] = shaftPower > 1.0e-12
 					? finiteOrZero(valueOrZero(idealMomentumPowerWatts, i) / shaftPower)
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeActuatorDiskAxialVelocity(
+			double[] axialAdvanceSpeedMetersPerSecond,
+			double[] idealInducedVelocityMetersPerSecond
+	) {
+		int count = Math.max(
+				axialAdvanceSpeedMetersPerSecond == null ? 0 : axialAdvanceSpeedMetersPerSecond.length,
+				idealInducedVelocityMetersPerSecond == null ? 0 : idealInducedVelocityMetersPerSecond.length
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = finiteOrZero(
+					Math.max(0.0, valueOrZero(axialAdvanceSpeedMetersPerSecond, i))
+							+ Math.max(0.0, valueOrZero(idealInducedVelocityMetersPerSecond, i))
+			);
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeDiskMassFlow(
+			DroneConfig config,
+			DroneEnvironment environment,
+			double[] actuatorDiskAxialVelocityMetersPerSecond
+	) {
+		int count = Math.min(
+				config == null ? 0 : config.rotors().size(),
+				actuatorDiskAxialVelocityMetersPerSecond == null ? 0 : actuatorDiskAxialVelocityMetersPerSecond.length
+		);
+		double[] values = new double[count];
+		double density = runtimeAirDensityKgPerCubicMeter(environment);
+		for (int i = 0; i < count; i++) {
+			RotorSpec rotor = config.rotors().get(i);
+			double diskArea = Math.PI * rotor.radiusMeters() * rotor.radiusMeters();
+			double axialVelocity = Math.max(0.0, valueOrZero(actuatorDiskAxialVelocityMetersPerSecond, i));
+			values[i] = finiteOrZero(density * diskArea * axialVelocity);
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeFarWakeAxialVelocity(
+			double[] axialAdvanceSpeedMetersPerSecond,
+			double[] idealInducedVelocityMetersPerSecond
+	) {
+		int count = Math.max(
+				axialAdvanceSpeedMetersPerSecond == null ? 0 : axialAdvanceSpeedMetersPerSecond.length,
+				idealInducedVelocityMetersPerSecond == null ? 0 : idealInducedVelocityMetersPerSecond.length
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = finiteOrZero(
+					Math.max(0.0, valueOrZero(axialAdvanceSpeedMetersPerSecond, i))
+							+ 2.0 * Math.max(0.0, valueOrZero(idealInducedVelocityMetersPerSecond, i))
+			);
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeFarWakeContractedArea(
+			DroneEnvironment environment,
+			double[] diskMassFlowKilogramsPerSecond,
+			double[] farWakeAxialVelocityMetersPerSecond
+	) {
+		int count = Math.max(
+				diskMassFlowKilogramsPerSecond == null ? 0 : diskMassFlowKilogramsPerSecond.length,
+				farWakeAxialVelocityMetersPerSecond == null ? 0 : farWakeAxialVelocityMetersPerSecond.length
+		);
+		double[] values = new double[count];
+		double density = runtimeAirDensityKgPerCubicMeter(environment);
+		for (int i = 0; i < count; i++) {
+			double massFlow = Math.max(0.0, valueOrZero(diskMassFlowKilogramsPerSecond, i));
+			double wakeSpeed = Math.max(0.0, valueOrZero(farWakeAxialVelocityMetersPerSecond, i));
+			values[i] = density > 1.0e-12 && wakeSpeed > 1.0e-12
+					? finiteOrZero(massFlow / (density * wakeSpeed))
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeFarWakeEquivalentRadius(
+			double[] farWakeContractedAreaSquareMeters
+	) {
+		int count = farWakeContractedAreaSquareMeters == null ? 0 : farWakeContractedAreaSquareMeters.length;
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double area = Math.max(0.0, valueOrZero(farWakeContractedAreaSquareMeters, i));
+			values[i] = area > 1.0e-12 ? finiteOrZero(Math.sqrt(area / Math.PI)) : 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeAngularMomentumSwirlRadius(
+			double[] farWakeEquivalentRadiusMeters
+	) {
+		int count = farWakeEquivalentRadiusMeters == null ? 0 : farWakeEquivalentRadiusMeters.length;
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = finiteOrZero(
+					Math.max(0.0, valueOrZero(farWakeEquivalentRadiusMeters, i))
+							* RotorSpec.BLADE_GEOMETRY_REFERENCE_STATION_FRACTION
+			);
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeWakeTangentialVelocity(
+			double[] aerodynamicTorqueNewtonMeters,
+			double[] diskMassFlowKilogramsPerSecond,
+			double[] angularMomentumSwirlRadiusMeters
+	) {
+		int count = Math.max(
+				aerodynamicTorqueNewtonMeters == null ? 0 : aerodynamicTorqueNewtonMeters.length,
+				Math.max(
+						diskMassFlowKilogramsPerSecond == null ? 0 : diskMassFlowKilogramsPerSecond.length,
+						angularMomentumSwirlRadiusMeters == null ? 0 : angularMomentumSwirlRadiusMeters.length
+				)
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double massFlow = Math.max(0.0, valueOrZero(diskMassFlowKilogramsPerSecond, i));
+			double swirlRadius = Math.max(0.0, valueOrZero(angularMomentumSwirlRadiusMeters, i));
+			double denominator = massFlow * swirlRadius;
+			values[i] = denominator > 1.0e-12
+					? finiteOrZero(Math.abs(valueOrZero(aerodynamicTorqueNewtonMeters, i)) / denominator)
+					: 0.0;
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeWakeSwirlKineticPower(
+			double[] diskMassFlowKilogramsPerSecond,
+			double[] angularMomentumSwirlRadiusMeters,
+			double[] wakeTangentialVelocityMetersPerSecond,
+			double[] wakeRadiusMeters
+	) {
+		int count = Math.max(
+				diskMassFlowKilogramsPerSecond == null ? 0 : diskMassFlowKilogramsPerSecond.length,
+				Math.max(
+						angularMomentumSwirlRadiusMeters == null ? 0 : angularMomentumSwirlRadiusMeters.length,
+						Math.max(
+								wakeTangentialVelocityMetersPerSecond == null
+										? 0
+										: wakeTangentialVelocityMetersPerSecond.length,
+								wakeRadiusMeters == null ? 0 : wakeRadiusMeters.length
+						)
+				)
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double massFlow = Math.max(0.0, valueOrZero(diskMassFlowKilogramsPerSecond, i));
+			double swirlRadius = Math.max(0.0, valueOrZero(angularMomentumSwirlRadiusMeters, i));
+			double tangentialVelocity = Math.max(0.0, valueOrZero(wakeTangentialVelocityMetersPerSecond, i));
+			double wakeRadius = Math.max(0.0, valueOrZero(wakeRadiusMeters, i));
+			if (massFlow <= 1.0e-12
+					|| swirlRadius <= 1.0e-12
+					|| tangentialVelocity <= 1.0e-12
+					|| wakeRadius <= 1.0e-12) {
+				values[i] = 0.0;
+				continue;
+			}
+			double specificAngularMomentum = swirlRadius * tangentialVelocity;
+			values[i] = finiteOrZero(
+					massFlow * specificAngularMomentum * specificAngularMomentum / (wakeRadius * wakeRadius));
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimeTotalWakeKineticPower(
+			double[] idealMomentumPowerWatts,
+			double[] wakeSwirlKineticPowerWatts
+	) {
+		int count = Math.max(
+				idealMomentumPowerWatts == null ? 0 : idealMomentumPowerWatts.length,
+				wakeSwirlKineticPowerWatts == null ? 0 : wakeSwirlKineticPowerWatts.length
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = finiteOrZero(
+					Math.max(0.0, valueOrZero(idealMomentumPowerWatts, i))
+							+ Math.max(0.0, valueOrZero(wakeSwirlKineticPowerWatts, i))
+			);
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimePowerResidual(
+			double[] shaftPowerWatts,
+			double[] modeledPowerWatts
+	) {
+		int count = Math.max(
+				shaftPowerWatts == null ? 0 : shaftPowerWatts.length,
+				modeledPowerWatts == null ? 0 : modeledPowerWatts.length
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			values[i] = finiteOrZero(valueOrZero(shaftPowerWatts, i) - valueOrZero(modeledPowerWatts, i));
+		}
+		return values;
+	}
+
+	private static double[] rotorCtCpJRuntimePowerRatio(
+			double[] numeratorWatts,
+			double[] denominatorWatts
+	) {
+		int count = Math.max(
+				numeratorWatts == null ? 0 : numeratorWatts.length,
+				denominatorWatts == null ? 0 : denominatorWatts.length
+		);
+		double[] values = new double[count];
+		for (int i = 0; i < count; i++) {
+			double denominator = valueOrZero(denominatorWatts, i);
+			values[i] = denominator > 1.0e-12
+					? finiteOrZero(valueOrZero(numeratorWatts, i) / denominator)
 					: 0.0;
 		}
 		return values;
