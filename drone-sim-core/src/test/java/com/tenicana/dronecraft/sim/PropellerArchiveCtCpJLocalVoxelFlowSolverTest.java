@@ -307,10 +307,16 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run =
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(gridSample, config);
 		Vec3 sourceWakeTorque = gridSample.integratedWakeAngularMomentumTorqueWorldNewtonMeters();
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.AngularMomentumBudgetComparison angularBudget =
+				run.angularMomentumBudgetComparison(singleRotor.diskCenterWorldMeters());
 
 		assertTrue(sourceWakeTorque.length() > 0.0);
 		assertVectorEquals(sourceWakeTorque.multiply(DT * run.completedStepCount()),
 				run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-14);
+		assertVectorEquals(singleRotor.diskCenterWorldMeters(),
+				angularBudget.momentReferenceWorldMeters(), 1.0e-15);
+		assertVectorEquals(run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(),
+				angularBudget.wakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-14);
 		for (PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverIteration iteration : run.iterations()) {
 			assertVectorEquals(sourceWakeTorque,
 					iteration.sourceAdvance().totalWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
@@ -326,6 +332,56 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				run.sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(
 						singleRotor.diskCenterWorldMeters()),
 				1.0e-14);
+		assertVectorEquals(totalSourceFlowAngularMomentumDelta,
+				angularBudget.sourceStepFlowAngularMomentumDeltaWorldNewtonMeterSeconds(), 1.0e-14);
+		assertVectorEquals(run.sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-14);
+		assertEquals(
+				angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds().length()
+						/ angularBudget.wakeAngularMomentumImpulseWorldNewtonMeterSeconds().length(),
+				angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseFraction(),
+				1.0e-14
+		);
+		assertVectorEquals(run.finalAngularMomentumWorldNewtonMeterSeconds(singleRotor.diskCenterWorldMeters())
+						.subtract(run.initialAngularMomentumWorldNewtonMeterSeconds(
+								singleRotor.diskCenterWorldMeters())),
+				run.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(singleRotor.diskCenterWorldMeters()),
+				1.0e-14);
+		assertVectorEquals(run.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				angularBudget.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(), 1.0e-14);
+		assertVectorEquals(run.cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				angularBudget.cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(),
+				1.0e-14);
+		assertVectorEquals(run.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters())
+						.add(run.cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+								singleRotor.diskCenterWorldMeters())),
+				run.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				1.0e-14);
+		assertVectorEquals(run.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				angularBudget.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(),
+				1.0e-14);
+		assertVectorEquals(run.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters())
+						.subtract(run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds()),
+				run.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				1.0e-14);
+		assertVectorEquals(run.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(
+						singleRotor.diskCenterWorldMeters()),
+				angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(),
+				1.0e-14);
+		assertEquals(
+				angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds().length()
+						/ angularBudget.wakeAngularMomentumImpulseWorldNewtonMeterSeconds().length(),
+				angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseFraction(),
+				1.0e-14
+		);
 		Vec3 afterSourceAngularMomentum = run.iterations().get(0)
 				.stateAfterSource()
 				.totalAngularMomentumWorldNewtonMeterSeconds(RHO, singleRotor.diskCenterWorldMeters());
@@ -454,6 +510,21 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				run.totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				run.sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(Vec3.ZERO),
+				1.0e-15);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.AngularMomentumBudgetComparison angularBudget =
+				run.angularMomentumBudgetComparison(Vec3.ZERO);
+		assertVectorEquals(Vec3.ZERO,
+				angularBudget.wakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				angularBudget.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertEquals(0.0, angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseFraction(), 1.0e-15);
+		assertEquals(0.0, angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseFraction(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSourcePlusThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
@@ -537,6 +608,21 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				run.totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO,
 				run.sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				run.retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(Vec3.ZERO),
+				1.0e-15);
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.AngularMomentumBudgetComparison angularBudget =
+				run.angularMomentumBudgetComparison(Vec3.ZERO);
+		assertVectorEquals(Vec3.ZERO,
+				angularBudget.wakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				angularBudget.retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(), 1.0e-15);
+		assertEquals(0.0, angularBudget.sourceStepFlowMinusWakeAngularMomentumImpulseFraction(), 1.0e-15);
+		assertEquals(0.0, angularBudget.retainedPlusBoundaryMinusWakeAngularMomentumImpulseFraction(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSourcePlusThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);

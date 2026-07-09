@@ -314,6 +314,55 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			}
 		}
 
+		public record AngularMomentumBudgetComparison(
+				Vec3 momentReferenceWorldMeters,
+				Vec3 wakeAngularMomentumImpulseWorldNewtonMeterSeconds,
+				Vec3 sourceStepFlowAngularMomentumDeltaWorldNewtonMeterSeconds,
+				Vec3 retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds,
+				Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds
+		) {
+			public AngularMomentumBudgetComparison {
+				momentReferenceWorldMeters = finiteVecOrZero(momentReferenceWorldMeters);
+				wakeAngularMomentumImpulseWorldNewtonMeterSeconds =
+						finiteVecOrZero(wakeAngularMomentumImpulseWorldNewtonMeterSeconds);
+				sourceStepFlowAngularMomentumDeltaWorldNewtonMeterSeconds =
+						finiteVecOrZero(sourceStepFlowAngularMomentumDeltaWorldNewtonMeterSeconds);
+				retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds =
+						finiteVecOrZero(retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds);
+				cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds =
+						finiteVecOrZero(cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds);
+			}
+
+			public Vec3 sourceStepFlowMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds() {
+				return sourceStepFlowAngularMomentumDeltaWorldNewtonMeterSeconds
+						.subtract(wakeAngularMomentumImpulseWorldNewtonMeterSeconds);
+			}
+
+			public double sourceStepFlowMinusWakeAngularMomentumImpulseFraction() {
+				return ratio(
+						sourceStepFlowMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds().length(),
+						wakeAngularMomentumImpulseWorldNewtonMeterSeconds.length()
+				);
+			}
+
+			public Vec3 retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds() {
+				return retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds
+						.add(cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds);
+			}
+
+			public Vec3 retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds() {
+				return retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds()
+						.subtract(wakeAngularMomentumImpulseWorldNewtonMeterSeconds);
+			}
+
+			public double retainedPlusBoundaryMinusWakeAngularMomentumImpulseFraction() {
+				return ratio(
+						retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds().length(),
+						wakeAngularMomentumImpulseWorldNewtonMeterSeconds.length()
+				);
+			}
+		}
+
 		public int completedStepCount() {
 			return iterations.size();
 		}
@@ -390,6 +439,23 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			);
 		}
 
+		public AngularMomentumBudgetComparison angularMomentumBudgetComparison() {
+			return angularMomentumBudgetComparison(initialState.gridSpec().gridCenterWorldMeters());
+		}
+
+		public AngularMomentumBudgetComparison angularMomentumBudgetComparison(Vec3 momentReferenceWorldMeters) {
+			Vec3 reference = momentReferenceWorldMeters == null || !momentReferenceWorldMeters.isFinite()
+					? initialState.gridSpec().gridCenterWorldMeters()
+					: momentReferenceWorldMeters;
+			return new AngularMomentumBudgetComparison(
+					reference,
+					totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(),
+					totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(reference),
+					retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(reference),
+					cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(reference)
+			);
+		}
+
 		public Vec3 totalSourceImpulseWorldNewtonSeconds() {
 			Vec3 sum = Vec3.ZERO;
 			for (SolverIteration iteration : iterations) {
@@ -427,6 +493,26 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 				Vec3 momentReferenceWorldMeters
 		) {
 			return totalSourceFlowAngularMomentumDeltaWorldNewtonMeterSeconds(momentReferenceWorldMeters)
+					.subtract(totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds());
+		}
+
+		public Vec3 retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(Vec3 momentReferenceWorldMeters) {
+			return finalAngularMomentumWorldNewtonMeterSeconds(momentReferenceWorldMeters)
+					.subtract(initialAngularMomentumWorldNewtonMeterSeconds(momentReferenceWorldMeters));
+		}
+
+		public Vec3 retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+				Vec3 momentReferenceWorldMeters
+		) {
+			return retainedFlowAngularMomentumDeltaWorldNewtonMeterSeconds(momentReferenceWorldMeters)
+					.add(cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(
+							momentReferenceWorldMeters));
+		}
+
+		public Vec3 retainedPlusBoundaryMinusWakeAngularMomentumImpulseWorldNewtonMeterSeconds(
+				Vec3 momentReferenceWorldMeters
+		) {
+			return retainedPlusBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(momentReferenceWorldMeters)
 					.subtract(totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds());
 		}
 
