@@ -120,13 +120,25 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				sample.rotorRigidBodyWrench(config, angularVelocityBody);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeWrench =
 				sample.runtimeReplacementRigidBodyWrench(config, angularVelocityBody);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample gravityWrench =
+				sample.rotorGravityRigidBodyWrench(config, angularVelocityBody);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeGravityWrench =
+				sample.runtimeReplacementGravityRigidBodyWrench(config, angularVelocityBody);
 		Vec3 expectedTorqueBody = bodyToWorld.conjugate().rotate(sample.totalTorqueWorldNewtonMeters());
 		Vec3 expectedGyroscopicTorque =
 				angularVelocityBody.cross(config.inertiaKgMetersSquared().multiply(angularVelocityBody));
 		Vec3 expectedAngularAcceleration =
 				expectedTorqueBody.subtract(expectedGyroscopicTorque).divide(config.inertiaKgMetersSquared());
+		Vec3 gravityForceWorld = new Vec3(
+				0.0,
+				-config.massKg() * config.gravityMetersPerSecondSquared(),
+				0.0
+		);
+		Vec3 gravityAccelerationWorld = new Vec3(0.0, -config.gravityMetersPerSecondSquared(), 0.0);
 		assertFalse(wrench.runtimeReplacement());
 		assertTrue(runtimeWrench.runtimeReplacement());
+		assertFalse(gravityWrench.runtimeReplacement());
+		assertTrue(runtimeGravityWrench.runtimeReplacement());
 		assertVectorEquals(sample.totalThrustForceWorldNewtons(), wrench.totalForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(sample.totalTorqueWorldNewtonMeters(), wrench.totalTorqueWorldNewtonMeters(), 1.0e-12);
 		assertVectorEquals(expectedTorqueBody, wrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
@@ -141,10 +153,38 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimeWrench.linearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
 		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared(),
 				runtimeWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.totalForceWorldNewtons().add(gravityForceWorld),
+				gravityWrench.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(wrench.totalTorqueWorldNewtonMeters(),
+				gravityWrench.totalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(wrench.totalTorqueBodyNewtonMeters(),
+				gravityWrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(wrench.linearAccelerationWorldMetersPerSecondSquared().add(gravityAccelerationWorld),
+				gravityWrench.linearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared(),
+				gravityWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(gravityWrench.totalForceWorldNewtons(),
+				runtimeGravityWrench.totalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(gravityWrench.totalTorqueBodyNewtonMeters(),
+				runtimeGravityWrench.totalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(gravityWrench.linearAccelerationWorldMetersPerSecondSquared(),
+				runtimeGravityWrench.linearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(gravityWrench.angularAccelerationBodyRadiansPerSecondSquared(),
+				runtimeGravityWrench.angularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview preview =
 				sample.rotorOnlyStepPreview(config, positionWorld, velocityWorld, angularVelocityBody, dt);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview runtimePreview =
 				sample.runtimeReplacementRotorOnlyStepPreview(
+						config,
+						positionWorld,
+						velocityWorld,
+						angularVelocityBody,
+						dt
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview gravityPreview =
+				sample.rotorGravityStepPreview(config, positionWorld, velocityWorld, angularVelocityBody, dt);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview runtimeGravityPreview =
+				sample.runtimeReplacementRotorGravityStepPreview(
 						config,
 						positionWorld,
 						velocityWorld,
@@ -160,8 +200,14 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		);
 		Quaternion expectedNextOrientation =
 				bodyToWorld.integrateBodyAngularVelocity(expectedNextAngularVelocity, dt);
+		Vec3 expectedGravityNextVelocity = velocityWorld.add(
+				gravityWrench.linearAccelerationWorldMetersPerSecondSquared().multiply(dt)
+		);
+		Vec3 expectedGravityNextPosition = positionWorld.add(expectedGravityNextVelocity.multiply(dt));
 		assertFalse(preview.runtimeReplacement());
 		assertTrue(runtimePreview.runtimeReplacement());
+		assertFalse(gravityPreview.runtimeReplacement());
+		assertTrue(runtimeGravityPreview.runtimeReplacement());
 		assertEquals(dt, preview.dtSeconds(), 1.0e-15);
 		assertVectorEquals(positionWorld, preview.initialPositionWorldMeters(), 1.0e-15);
 		assertVectorEquals(velocityWorld, preview.initialVelocityWorldMetersPerSecond(), 1.0e-15);
@@ -179,6 +225,22 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimePreview.nextBodyToWorldOrientation(), 1.0e-12);
 		assertVectorEquals(preview.nextAngularVelocityBodyRadiansPerSecond(),
 				runtimePreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedGravityNextVelocity,
+				gravityPreview.nextVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(expectedGravityNextPosition,
+				gravityPreview.nextPositionWorldMeters(), 1.0e-12);
+		assertQuaternionEquals(expectedNextOrientation,
+				gravityPreview.nextBodyToWorldOrientation(), 1.0e-12);
+		assertVectorEquals(expectedNextAngularVelocity,
+				gravityPreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		assertVectorEquals(gravityPreview.nextPositionWorldMeters(),
+				runtimeGravityPreview.nextPositionWorldMeters(), 1.0e-12);
+		assertVectorEquals(gravityPreview.nextVelocityWorldMetersPerSecond(),
+				runtimeGravityPreview.nextVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertQuaternionEquals(gravityPreview.nextBodyToWorldOrientation(),
+				runtimeGravityPreview.nextBodyToWorldOrientation(), 1.0e-12);
+		assertVectorEquals(gravityPreview.nextAngularVelocityBodyRadiansPerSecond(),
+				runtimeGravityPreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample energy =
 				sample.rotorOnlyStepEnergySample(config, positionWorld, velocityWorld, angularVelocityBody, dt);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepEnergySample runtimeEnergy =
@@ -303,20 +365,17 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				alignedWrenchResidual.actualForceBodyNewtons(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO,
 				alignedWrenchResidual.equivalentExternalForceBodyNewtons(), 1.0e-12);
-		Vec3 gravityWorld = new Vec3(0.0,
-				-config.massKg() * config.gravityMetersPerSecondSquared(),
-				0.0);
-		assertVectorEquals(gravityWorld,
+		assertVectorEquals(gravityForceWorld,
 				alignedWrenchResidual.gravityForceWorldNewtons(config.gravityMetersPerSecondSquared()),
 				1.0e-12);
-		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityWorld),
+		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityForceWorld),
 				alignedWrenchResidual.gravityForceBodyNewtons(config.gravityMetersPerSecondSquared()),
 				1.0e-12);
-		assertVectorEquals(gravityWorld.multiply(-1.0),
+		assertVectorEquals(gravityForceWorld.multiply(-1.0),
 				alignedWrenchResidual.nonGravityExternalForceWorldNewtons(
 						config.gravityMetersPerSecondSquared()),
 				1.0e-12);
-		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityWorld.multiply(-1.0)),
+		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityForceWorld.multiply(-1.0)),
 				alignedWrenchResidual.nonGravityExternalForceBodyNewtons(
 						config.gravityMetersPerSecondSquared()),
 				1.0e-12);
@@ -352,21 +411,16 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertEquals(0.0, alignedWrenchResidual.torqueResidualFraction(), 1.0e-12);
 		assertEquals(0.0, alignedWrenchResidual.maxWrenchResidualFraction(), 1.0e-12);
 
-		Vec3 gravityVelocityOffset = new Vec3(
-				0.0,
-				-config.gravityMetersPerSecondSquared() * dt,
-				0.0
-		);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepWrenchResidualSample
 				gravityWrenchResidual = preview.residualTo(
-						expectedNextPosition.add(gravityVelocityOffset.multiply(dt)),
-						expectedNextVelocity.add(gravityVelocityOffset),
-						expectedNextOrientation,
-						expectedNextAngularVelocity
+						gravityPreview.nextPositionWorldMeters(),
+						gravityPreview.nextVelocityWorldMetersPerSecond(),
+						gravityPreview.nextBodyToWorldOrientation(),
+						gravityPreview.nextAngularVelocityBodyRadiansPerSecond()
 				).equivalentExternalWrench(config);
-		assertVectorEquals(gravityWorld,
+		assertVectorEquals(gravityForceWorld,
 				gravityWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
-		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityWorld),
+		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityForceWorld),
 				gravityWrenchResidual.equivalentExternalForceBodyNewtons(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO,
 				gravityWrenchResidual.nonGravityExternalForceWorldNewtons(
@@ -384,6 +438,21 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				gravityWrenchResidual.nonGravityExternalForceOverWeight(
 						config.gravityMetersPerSecondSquared()),
 				1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample
+				gravityAlignedResidual = gravityPreview.residualTo(
+						gravityPreview.nextPositionWorldMeters(),
+						gravityPreview.nextVelocityWorldMetersPerSecond(),
+						gravityPreview.nextBodyToWorldOrientation(),
+						gravityPreview.nextAngularVelocityBodyRadiansPerSecond()
+				);
+		assertVectorEquals(Vec3.ZERO, gravityAlignedResidual.positionResidualWorldMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, gravityAlignedResidual.velocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				gravityAlignedResidual.angularVelocityResidualBodyRadiansPerSecond(), 1.0e-12);
+		assertEquals(0.0, gravityAlignedResidual.maxResidualFraction(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				gravityAlignedResidual.equivalentExternalWrench(config)
+						.equivalentExternalForceWorldNewtons(), 1.0e-12);
 
 		Vec3 positionOffset = new Vec3(0.0010, -0.0020, 0.0005);
 		Vec3 velocityOffset = new Vec3(0.020, -0.010, 0.005);
@@ -598,8 +667,68 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertEquals(0.0, aligned.maxResidualFraction(), 1.0e-12);
 		assertEquals(0.0, runtimeAligned.maxResidualFraction(), 1.0e-12);
 
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview gravityPreview =
+				reference.rotorGravityStepPreview(config, positionWorld, velocityWorld, angularVelocityBody, dt);
+		next.setPositionMeters(gravityPreview.nextPositionWorldMeters());
+		next.setVelocityMetersPerSecond(gravityPreview.nextVelocityWorldMetersPerSecond());
+		next.setOrientation(gravityPreview.nextBodyToWorldOrientation());
+		next.setAngularVelocityBodyRadiansPerSecond(gravityPreview.nextAngularVelocityBodyRadiansPerSecond());
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample gravityAligned =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.compareRotorGravityStepToStateTransition(
+						"apDrone",
+						"provider_state_transition",
+						config,
+						previous,
+						next,
+						environment,
+						omegas,
+						dt,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample runtimeGravityAligned =
+				PropellerArchiveCtCpJWorldForceApplicationProvider
+						.compareRuntimeReplacementRotorGravityStepToStateTransition(
+								"apDrone",
+								"provider_state_transition",
+								config,
+								previous,
+								next,
+								environment,
+								omegas,
+								dt,
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+						);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample rotorOnlyAgainstGravity =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.compareRotorOnlyStepToStateTransition(
+						"apDrone",
+						"provider_state_transition",
+						config,
+						previous,
+						next,
+						environment,
+						omegas,
+						dt,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		assertFalse(gravityAligned.runtimeReplacement());
+		assertTrue(runtimeGravityAligned.runtimeReplacement());
+		assertEquals(0.0, gravityAligned.maxResidualFraction(), 1.0e-12);
+		assertEquals(0.0, runtimeGravityAligned.maxResidualFraction(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				gravityAligned.equivalentExternalWrench(config).equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(new Vec3(0.0, -config.massKg() * config.gravityMetersPerSecondSquared(), 0.0),
+				rotorOnlyAgainstGravity.equivalentExternalWrench(config)
+						.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				rotorOnlyAgainstGravity.equivalentExternalWrench(config)
+						.nonGravityExternalForceWorldNewtons(config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+
 		Vec3 velocityOffset = new Vec3(0.015, 0.0, -0.005);
+		next.setPositionMeters(preview.nextPositionWorldMeters());
 		next.setVelocityMetersPerSecond(preview.nextVelocityWorldMetersPerSecond().add(velocityOffset));
+		next.setOrientation(preview.nextBodyToWorldOrientation());
+		next.setAngularVelocityBodyRadiansPerSecond(preview.nextAngularVelocityBodyRadiansPerSecond());
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample offset =
 				PropellerArchiveCtCpJWorldForceApplicationProvider.compareRotorOnlyStepToStateTransition(
 						"apDrone",

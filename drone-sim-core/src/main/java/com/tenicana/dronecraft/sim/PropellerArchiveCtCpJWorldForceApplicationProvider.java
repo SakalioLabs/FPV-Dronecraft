@@ -233,6 +233,122 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		).residualTo(nextState);
 	}
 
+	public static RotorOnlyStepResidualSample compareRotorGravityStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		return compareRotorGravityStepToStateTransition(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				nextState,
+				environment,
+				previousState.motorOmegaRadiansPerSecond(),
+				dtSeconds,
+				envelopePolicy
+		);
+	}
+
+	public static RotorOnlyStepResidualSample compareRotorGravityStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double[] omegaRadiansPerSecond,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		WorldForceApplicationSample reference = sampleStaticAnchoredConfigurationFromState(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				environment,
+				omegaRadiansPerSecond,
+				envelopePolicy
+		);
+		return reference.rotorGravityStepPreview(
+				config,
+				previousState.positionMeters(),
+				previousState.velocityMetersPerSecond(),
+				previousState.angularVelocityBodyRadiansPerSecond(),
+				dtSeconds
+		).residualTo(nextState);
+	}
+
+	public static RotorOnlyStepResidualSample compareRuntimeReplacementRotorGravityStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		return compareRuntimeReplacementRotorGravityStepToStateTransition(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				nextState,
+				environment,
+				previousState.motorOmegaRadiansPerSecond(),
+				dtSeconds,
+				envelopePolicy
+		);
+	}
+
+	public static RotorOnlyStepResidualSample compareRuntimeReplacementRotorGravityStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double[] omegaRadiansPerSecond,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		WorldForceApplicationSample reference = sampleStaticAnchoredConfigurationFromState(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				environment,
+				omegaRadiansPerSecond,
+				envelopePolicy
+		);
+		return reference.runtimeReplacementRotorGravityStepPreview(
+				config,
+				previousState.positionMeters(),
+				previousState.velocityMetersPerSecond(),
+				previousState.angularVelocityBodyRadiansPerSecond(),
+				dtSeconds
+		).residualTo(nextState);
+	}
+
 	public static WorldForceApplicationSample sampleStaticAnchoredConfigurationFromWorldKinematics(
 			String presetName,
 			String caseName,
@@ -573,6 +689,38 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			);
 		}
 
+		public RigidBodyWrenchSample rotorGravityRigidBodyWrench(
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond
+		) {
+			if (config == null) {
+				throw new IllegalArgumentException("config must not be null.");
+			}
+			return rigidBodyWrench(
+					config,
+					totalThrustForceWorldNewtons().add(gravityForceWorldNewtons(config)),
+					totalTorqueWorldNewtonMeters(),
+					angularVelocityBodyRadiansPerSecond,
+					false
+			);
+		}
+
+		public RigidBodyWrenchSample runtimeReplacementGravityRigidBodyWrench(
+				DroneConfig config,
+				Vec3 angularVelocityBodyRadiansPerSecond
+		) {
+			if (config == null) {
+				throw new IllegalArgumentException("config must not be null.");
+			}
+			return rigidBodyWrench(
+					config,
+					runtimeReplacementTotalThrustForceWorldNewtons().add(gravityForceWorldNewtons(config)),
+					runtimeReplacementTotalTorqueWorldNewtonMeters(),
+					angularVelocityBodyRadiansPerSecond,
+					true
+			);
+		}
+
 		public RotorOnlyStepPreview rotorOnlyStepPreview(
 				DroneConfig config,
 				Vec3 positionWorldMeters,
@@ -582,6 +730,22 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		) {
 			return stepPreview(
 					rotorRigidBodyWrench(config, angularVelocityBodyRadiansPerSecond),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RotorOnlyStepPreview rotorGravityStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return stepPreview(
+					rotorGravityRigidBodyWrench(config, angularVelocityBodyRadiansPerSecond),
 					positionWorldMeters,
 					velocityWorldMetersPerSecond,
 					angularVelocityBodyRadiansPerSecond,
@@ -646,6 +810,22 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		) {
 			return stepPreview(
 					runtimeReplacementRigidBodyWrench(config, angularVelocityBodyRadiansPerSecond),
+					positionWorldMeters,
+					velocityWorldMetersPerSecond,
+					angularVelocityBodyRadiansPerSecond,
+					dtSeconds
+			);
+		}
+
+		public RotorOnlyStepPreview runtimeReplacementRotorGravityStepPreview(
+				DroneConfig config,
+				Vec3 positionWorldMeters,
+				Vec3 velocityWorldMetersPerSecond,
+				Vec3 angularVelocityBodyRadiansPerSecond,
+				double dtSeconds
+		) {
+			return stepPreview(
+					runtimeReplacementGravityRigidBodyWrench(config, angularVelocityBodyRadiansPerSecond),
 					positionWorldMeters,
 					velocityWorldMetersPerSecond,
 					angularVelocityBodyRadiansPerSecond,
@@ -738,6 +918,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 					gyroscopicTorqueBody,
 					runtimeReplacement
 			);
+		}
+
+		private static Vec3 gravityForceWorldNewtons(DroneConfig config) {
+			return new Vec3(0.0, -config.massKg() * config.gravityMetersPerSecondSquared(), 0.0);
 		}
 	}
 
