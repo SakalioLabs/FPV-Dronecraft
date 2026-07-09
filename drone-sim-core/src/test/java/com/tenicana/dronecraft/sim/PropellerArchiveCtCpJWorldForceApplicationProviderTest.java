@@ -78,6 +78,44 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				sample.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(sample.runtimeReplacementTotalThrustForceWorldNewtons(),
 				sample.runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(sample.aggregate().totalWakeAngularMomentumTorqueWorldNewtonMeters(bodyToWorld),
+				sample.totalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(sample.aggregate().totalWakeAngularMomentumTorqueResidualWorldNewtonMeters(bodyToWorld),
+				sample.totalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(
+				sample.aggregate().runtimeForceReplacementWakeAngularMomentumTorqueWorldNewtonMeters(bodyToWorld),
+				sample.runtimeReplacementTotalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters(),
+				1.0e-12
+		);
+		assertVectorEquals(
+				sample.aggregate()
+						.runtimeForceReplacementWakeAngularMomentumTorqueResidualWorldNewtonMeters(bodyToWorld),
+				sample.runtimeReplacementTotalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters(),
+				1.0e-12
+		);
+		assertEquals(sample.aggregate().totalDiskMassFlowKilogramsPerSecond(),
+				sample.totalActuatorDiskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(sample.aggregate().totalIdealMomentumPowerWatts(),
+				sample.totalActuatorDiskIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().totalWakeSwirlKineticPowerWatts(),
+				sample.totalActuatorDiskWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().totalWakeKineticPowerWatts(),
+				sample.totalActuatorDiskWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().totalWakeKineticPowerResidualWatts(),
+				sample.totalActuatorDiskWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().runtimeForceReplacementDiskMassFlowKilogramsPerSecond(),
+				sample.runtimeReplacementTotalActuatorDiskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(sample.aggregate().runtimeForceReplacementIdealMomentumPowerWatts(),
+				sample.runtimeReplacementTotalActuatorDiskIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().runtimeForceReplacementWakeSwirlKineticPowerWatts(),
+				sample.runtimeReplacementTotalActuatorDiskWakeSwirlKineticPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().runtimeForceReplacementWakeKineticPowerWatts(),
+				sample.runtimeReplacementTotalActuatorDiskWakeKineticPowerWatts(), 1.0e-12);
+		assertEquals(sample.aggregate().runtimeForceReplacementWakeKineticPowerResidualWatts(),
+				sample.runtimeReplacementTotalActuatorDiskWakeKineticPowerResidualWatts(), 1.0e-12);
+		assertTrue(sample.totalActuatorDiskMassFlowKilogramsPerSecond() > 0.0);
+		assertTrue(sample.totalActuatorDiskWakeKineticPowerWatts()
+				>= sample.totalActuatorDiskIdealMomentumPowerWatts());
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample wrench =
 				sample.rotorRigidBodyWrench(config, angularVelocityBody);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeWrench =
@@ -261,6 +299,16 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				fromState.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(fromState.totalThrustForceWorldNewtons(),
 				fromState.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(direct.totalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters(),
+				fromState.totalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(direct.totalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters(),
+				fromState.totalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters(), 1.0e-12);
+		assertEquals(direct.totalActuatorDiskMassFlowKilogramsPerSecond(),
+				fromState.totalActuatorDiskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(direct.totalActuatorDiskIdealMomentumPowerWatts(),
+				fromState.totalActuatorDiskIdealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(direct.totalActuatorDiskWakeKineticPowerWatts(),
+				fromState.totalActuatorDiskWakeKineticPowerWatts(), 1.0e-12);
 		assertTrue(fromState.totalThrustForceWorldNewtons().length() > 0.0);
 		assertVectorEquals(
 				direct.rotorRigidBodyWrench(config, angularVelocityBody)
@@ -421,6 +469,18 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertVectorEquals(sample.totalThrustForceWorldNewtons(),
 				sample.totalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO, sample.runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sample.runtimeReplacementTotalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO,
+				sample.runtimeReplacementTotalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters(),
+				1.0e-15);
+		assertEquals(0.0, sample.runtimeReplacementTotalActuatorDiskMassFlowKilogramsPerSecond(), 1.0e-15);
+		assertEquals(0.0, sample.runtimeReplacementTotalActuatorDiskIdealMomentumPowerWatts(), 1.0e-15);
+		assertEquals(0.0, sample.runtimeReplacementTotalActuatorDiskWakeSwirlKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, sample.runtimeReplacementTotalActuatorDiskWakeKineticPowerWatts(), 1.0e-15);
+		assertEquals(0.0, sample.runtimeReplacementTotalActuatorDiskWakeKineticPowerResidualWatts(), 1.0e-15);
+		assertTrue(sample.totalActuatorDiskMassFlowKilogramsPerSecond() > 0.0);
+		assertTrue(sample.totalActuatorDiskWakeKineticPowerWatts() > 0.0);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample rawWrench =
 				sample.rotorRigidBodyWrench(config, Vec3.ZERO);
 		PropellerArchiveCtCpJWorldForceApplicationProvider.RigidBodyWrenchSample runtimeWrench =

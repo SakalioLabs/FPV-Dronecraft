@@ -1,6 +1,7 @@
 package com.tenicana.dronecraft.sim;
 
 import java.util.List;
+import java.util.function.ToDoubleFunction;
 
 public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 	private static final double DEFAULT_AMBIENT_TEMPERATURE_CELSIUS = 25.0;
@@ -332,6 +333,102 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 
 		public Vec3 runtimeReplacementTotalActuatorDiskSurfaceForceWorldNewtons() {
 			return sumActuatorDiskSurfaceForce(runtimeReplacementRotorActuatorDiskSourceTerms);
+		}
+
+		public Vec3 totalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters() {
+			return sumActuatorDiskWakeAngularMomentumTorque(rotorActuatorDiskSourceTerms);
+		}
+
+		public Vec3 runtimeReplacementTotalActuatorDiskWakeAngularMomentumTorqueWorldNewtonMeters() {
+			return sumActuatorDiskWakeAngularMomentumTorque(runtimeReplacementRotorActuatorDiskSourceTerms);
+		}
+
+		public Vec3 totalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters() {
+			return sumActuatorDiskWakeAngularMomentumTorqueResidual(rotorActuatorDiskSourceTerms);
+		}
+
+		public Vec3 runtimeReplacementTotalActuatorDiskWakeAngularMomentumTorqueResidualWorldNewtonMeters() {
+			return sumActuatorDiskWakeAngularMomentumTorqueResidual(runtimeReplacementRotorActuatorDiskSourceTerms);
+		}
+
+		public double totalActuatorDiskMassFlowKilogramsPerSecond() {
+			return sumActuatorDiskScalar(
+					rotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::diskMassFlowKilogramsPerSecond
+			);
+		}
+
+		public double runtimeReplacementTotalActuatorDiskMassFlowKilogramsPerSecond() {
+			return sumActuatorDiskScalar(
+					runtimeReplacementRotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::diskMassFlowKilogramsPerSecond
+			);
+		}
+
+		public double totalActuatorDiskIdealMomentumPowerWatts() {
+			return sumActuatorDiskScalar(
+					rotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::idealMomentumPowerWatts
+			);
+		}
+
+		public double runtimeReplacementTotalActuatorDiskIdealMomentumPowerWatts() {
+			return sumActuatorDiskScalar(
+					runtimeReplacementRotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::idealMomentumPowerWatts
+			);
+		}
+
+		public double totalActuatorDiskWakeSwirlKineticPowerWatts() {
+			return sumActuatorDiskScalar(
+					rotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::wakeSwirlKineticPowerWatts
+			);
+		}
+
+		public double runtimeReplacementTotalActuatorDiskWakeSwirlKineticPowerWatts() {
+			return sumActuatorDiskScalar(
+					runtimeReplacementRotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::wakeSwirlKineticPowerWatts
+			);
+		}
+
+		public double totalActuatorDiskWakeKineticPowerWatts() {
+			return sumActuatorDiskScalar(
+					rotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::totalWakeKineticPowerWatts
+			);
+		}
+
+		public double runtimeReplacementTotalActuatorDiskWakeKineticPowerWatts() {
+			return sumActuatorDiskScalar(
+					runtimeReplacementRotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::totalWakeKineticPowerWatts
+			);
+		}
+
+		public double totalActuatorDiskWakeKineticPowerResidualWatts() {
+			return sumActuatorDiskScalar(
+					rotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::totalWakeKineticPowerResidualWatts
+			);
+		}
+
+		public double runtimeReplacementTotalActuatorDiskWakeKineticPowerResidualWatts() {
+			return sumActuatorDiskScalar(
+					runtimeReplacementRotorActuatorDiskSourceTerms,
+					PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample
+							::totalWakeKineticPowerResidualWatts
+			);
 		}
 
 		public RigidBodyWrenchSample rotorRigidBodyWrench(
@@ -673,6 +770,40 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		return sum;
 	}
 
+	private static Vec3 sumActuatorDiskWakeAngularMomentumTorque(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			sum = sum.add(sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static Vec3 sumActuatorDiskWakeAngularMomentumTorqueResidual(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms
+	) {
+		Vec3 sum = Vec3.ZERO;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			sum = sum.add(sourceTerm.wakeAngularMomentumTorqueResidualWorldNewtonMeters());
+		}
+		return sum;
+	}
+
+	private static double sumActuatorDiskScalar(
+			List<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> sourceTerms,
+			ToDoubleFunction<PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample> scalar
+	) {
+		double sum = 0.0;
+		for (PropellerArchiveCtCpJRotorForceModel.RotorActuatorDiskSourceTermSample sourceTerm : sourceTerms) {
+			double value = scalar.applyAsDouble(sourceTerm);
+			if (Double.isFinite(value)) {
+				sum += value;
+			}
+		}
+		return finiteOrZero(sum);
+	}
+
 	private static Vec3 sum(Vec3[] values) {
 		Vec3 sum = Vec3.ZERO;
 		if (values == null) {
@@ -695,6 +826,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			}
 		}
 		return sum;
+	}
+
+	private static double finiteOrZero(double value) {
+		return Double.isFinite(value) ? value : 0.0;
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {
