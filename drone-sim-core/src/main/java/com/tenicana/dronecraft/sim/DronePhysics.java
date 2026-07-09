@@ -5336,6 +5336,8 @@ public final class DronePhysics {
 				}
 				double axialContributionFactor = Math.max(0.0, axialWakeOverlap * axialLateralFactor * crossflowFlush);
 				RotorConvectedWake convectedWake = rotorConvectedWakeOverlap(
+						state,
+						sourceIndex,
 						source,
 						receiver,
 						relativeAirVelocityBody,
@@ -5449,6 +5451,8 @@ public final class DronePhysics {
 	}
 
 	private static RotorConvectedWake rotorConvectedWakeOverlap(
+			DroneState state,
+			int sourceRotorIndex,
 			RotorSpec source,
 			RotorSpec receiver,
 			Vec3 relativeAirVelocityBody,
@@ -5483,7 +5487,13 @@ public final class DronePhysics {
 		double wakeDropMeters = sourceInducedVelocityMetersPerSecond * wakeAgeSeconds;
 		double receiverBelowSourceMeters = -sourceToReceiverBody.dot(sourceAxisBody);
 		double axialMissMeters = receiverBelowSourceMeters - wakeDropMeters;
-		double wakeRadius = sourceRadius + wakeDropMeters * 0.38 + alongConvectionMeters * 0.045;
+		double wakeRadius = rotorCtCpJRuntimeConvectedWakeCoreRadiusMeters(
+				state,
+				sourceRotorIndex,
+				source,
+				wakeDropMeters,
+				alongConvectionMeters
+		);
 		double maxUsefulAlong = Math.max(sourceRadius * 8.0, receiverRadius * 5.5);
 		double alongCapture = smoothStep(sourceRadius * 0.35, Math.max(sourceRadius * 2.4, receiverRadius * 2.0), alongConvectionMeters)
 				* (1.0 - smoothStep(maxUsefulAlong * 0.72, maxUsefulAlong, alongConvectionMeters));
@@ -6482,6 +6492,30 @@ public final class DronePhysics {
 		double wakeExcessVelocity = idealInducedVelocity
 				+ (farWakeExcessVelocity - idealInducedVelocity) * farWakeBlend;
 		return finiteNonnegative(wakeExcessVelocity);
+	}
+
+	static double rotorCtCpJRuntimeConvectedWakeCoreRadiusMeters(
+			DroneState state,
+			int sourceRotorIndex,
+			RotorSpec source,
+			double wakeDropMeters,
+			double alongConvectionMeters
+	) {
+		if (source == null) {
+			return 0.0;
+		}
+		double sourceRadius = Math.max(1.0e-6, source.radiusMeters());
+		double wakeDrop = Math.max(0.0, finiteOrDefault(wakeDropMeters, 0.0));
+		double alongConvection = Math.max(0.0, finiteOrDefault(alongConvectionMeters, 0.0));
+		double fallbackContractedRadius = sourceRadius + wakeDrop * 0.38;
+		double contractedRadius = rotorCtCpJRuntimeWakeCoreRadiusMeters(
+				state,
+				sourceRotorIndex,
+				source,
+				wakeDrop,
+				fallbackContractedRadius
+		);
+		return finiteNonnegative(contractedRadius + alongConvection * 0.045);
 	}
 
 	static double rotorCtCpJRuntimeWakeCoreRadiusMeters(
