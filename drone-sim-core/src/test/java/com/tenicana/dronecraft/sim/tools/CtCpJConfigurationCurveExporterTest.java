@@ -258,7 +258,11 @@ class CtCpJConfigurationCurveExporterTest {
 		assertEquals(0.0, numberCell(worldWind, columns, "total_thrust_moment_body_z_nm"), 2.0e-5);
 		assertEquals(numberCell(worldWind, columns, "total_reaction_torque_body_y_nm"),
 				numberCell(worldWind, columns, "trim_body_torque_residual_y_nm"), 1.0e-12);
-		assertTrue(Math.abs(numberCell(worldWind, columns, "trim_body_torque_residual_y_nm")) > 1.0e-4);
+		assertEquals(0.0, numberCell(worldWind, columns, "trim_body_torque_residual_x_nm"), 1.0e-5);
+		assertEquals(0.0, numberCell(worldWind, columns, "trim_body_torque_residual_y_nm"), 1.0e-5);
+		assertEquals(0.0, numberCell(worldWind, columns, "trim_body_torque_residual_z_nm"), 1.0e-5);
+		assertTrue(numberCell(worldWind, columns, "trim_max_allocated_rotor_thrust_n")
+				> numberCell(worldWind, columns, "trim_min_allocated_rotor_thrust_n"));
 		assertTrue(numberCell(worldWind, columns, "effective_j_max")
 				> numberCell(worldWind, columns, "effective_j_min"));
 		assertTrue(numberCell(worldWind, columns, "effective_rpm_max")

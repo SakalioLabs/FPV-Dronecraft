@@ -2434,7 +2434,13 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				localWind.solutionSample().totalThrustMomentBodyNewtonMeters(), 2.0e-5);
 		assertEquals(localWind.solutionSample().totalReactionTorqueBodyNewtonMeters().y(),
 				localWind.bodyTorqueResidualNewtonMeters().y(), 1.0e-12);
-		assertTrue(Math.abs(localWind.bodyTorqueResidualNewtonMeters().y()) > 1.0e-4);
+		assertVectorEquals(Vec3.ZERO, localWind.bodyTorqueResidualNewtonMeters(), 1.0e-5);
+		assertTrue(localWind.maxAllocatedRotorThrustNewtons()
+				> localWind.minAllocatedRotorThrustNewtons());
+		assertTrue(localWind.allocatedRotorThrustsNewtons()[0]
+				> baseline.allocatedRotorThrustsNewtons()[0]);
+		assertTrue(localWind.allocatedRotorThrustsNewtons()[1]
+				< baseline.allocatedRotorThrustsNewtons()[1]);
 		assertEquals(vehicleVelocityWorld.y(), baseline.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);
 		assertEquals(vehicleVelocityWorld.y() - 0.25,
 				localWind.signedAxialAdvanceSpeedMetersPerSecond(), 1.0e-12);

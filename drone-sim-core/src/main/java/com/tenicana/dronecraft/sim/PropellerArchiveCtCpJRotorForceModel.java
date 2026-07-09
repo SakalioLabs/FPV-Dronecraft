@@ -8,6 +8,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	private static final double MOMENTUM_POWER_CLOSURE_TOLERANCE = 1.0e-6;
 	private static final double TARGET_THRUST_SOLVE_RELATIVE_TOLERANCE = 1.0e-6;
 	private static final int TARGET_THRUST_SOLVE_MAX_ITERATIONS = 56;
+	private static final int CONFIGURATION_TRIM_DYNAMIC_YAW_MAX_ITERATIONS = 8;
+	private static final double CONFIGURATION_TRIM_BODY_TORQUE_ABSOLUTE_TOLERANCE = 2.0e-5;
 	private static final double RUNTIME_REPLACEMENT_MAX_INFLOW_ANGLE_RADIANS = Math.toRadians(15.0);
 	private static final double RUNTIME_REPLACEMENT_STATIC_TRANSVERSE_TOLERANCE_METERS_PER_SECOND = 0.35;
 	private static final double RUNTIME_REPLACEMENT_MAX_TIP_MACH = 0.46;
@@ -1269,7 +1271,8 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		SOLVED,
 		ALLOCATION_UNAVAILABLE,
 		NEGATIVE_ALLOCATED_THRUST,
-		ROTOR_SOLVE_BLOCKED
+		ROTOR_SOLVE_BLOCKED,
+		BODY_TORQUE_NOT_CONVERGED
 	}
 
 	public record RotorTargetThrustSolution(
@@ -2508,37 +2511,105 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 				);
 			}
 		}
-		List<RotorTargetThrustSolution> rotorSolutions = new ArrayList<>();
-		List<RotorForceSample> rotorSamples = new ArrayList<>();
-		boolean solved = true;
+		List<RotorTargetThrustSolution> rotorSolutions = List.of();
+		RotorForceAggregateSample aggregate = null;
+		boolean bodyTorqueConverged = false;
 		String normalizedCase = caseName == null || caseName.isBlank() ? "configuration_trim" : caseName;
-		for (int i = 0; i < config.rotors().size(); i++) {
-			RotorTargetThrustSolution rotorSolution = solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
-					presetName,
-					normalizedCase,
-					config.rotors().get(i),
-					relativeAirVelocities[i],
+		for (int trimIteration = 0;
+				trimIteration < CONFIGURATION_TRIM_DYNAMIC_YAW_MAX_ITERATIONS;
+				trimIteration++) {
+			List<RotorTargetThrustSolution> iterationRotorSolutions = new ArrayList<>();
+			List<RotorForceSample> rotorSamples = new ArrayList<>();
+			boolean rotorTargetsSolved = true;
+			for (int i = 0; i < config.rotors().size(); i++) {
+				RotorTargetThrustSolution rotorSolution = solveStaticAnchoredRpmForTargetThrustFromRelativeAirVelocity(
+						presetName,
+						normalizedCase,
+						config.rotors().get(i),
+						relativeAirVelocities[i],
+						config.centerOfMassOffsetBodyMeters(),
+						Math.max(0.0, allocatedThrusts[i]),
+						lowerOmegaRadiansPerSecond,
+						upperOmegaRadiansPerSecond,
+						airDensityKgPerCubicMeter,
+						ambientTemperatureCelsius,
+						ambientHumidity
+				);
+				iterationRotorSolutions.add(rotorSolution);
+				if (!rotorSolution.solved()) {
+					rotorTargetsSolved = false;
+				}
+				if (rotorSolution.solutionSample() != null) {
+					rotorSamples.add(rotorSolution.solutionSample());
+				}
+			}
+			rotorSolutions = List.copyOf(iterationRotorSolutions);
+			aggregate = rotorSamples.size() == config.rotors().size()
+					? aggregate(rotorSamples)
+					: null;
+			if (!rotorTargetsSolved) {
+				return new ConfigurationTrimSolution(
+						ConfigurationTrimSolveStatus.ROTOR_SOLVE_BLOCKED,
+						targetThrustNewtons,
+						targetTorque,
+						signedAxialAdvanceSpeedMetersPerSecond,
+						lowerOmegaRadiansPerSecond,
+						upperOmegaRadiansPerSecond,
+						allocatedThrusts,
+						rotorSolutions,
+						aggregate
+				);
+			}
+			if (configurationTrimBodyTorqueConverged(aggregate, targetTorque, targetThrustNewtons)) {
+				bodyTorqueConverged = true;
+				break;
+			}
+			if (trimIteration + 1 >= CONFIGURATION_TRIM_DYNAMIC_YAW_MAX_ITERATIONS) {
+				break;
+			}
+			double[] dynamicYawTorquePerThrustMeters =
+					dynamicYawTorquePerThrustMeters(config.rotors(), rotorSolutions);
+			double[] nextAllocatedThrusts = allocateStaticTrimThrusts(
+					config.rotors(),
 					config.centerOfMassOffsetBodyMeters(),
-					Math.max(0.0, allocatedThrusts[i]),
-					lowerOmegaRadiansPerSecond,
-					upperOmegaRadiansPerSecond,
-					airDensityKgPerCubicMeter,
-					ambientTemperatureCelsius,
-					ambientHumidity
+					targetThrustNewtons,
+					targetTorque,
+					dynamicYawTorquePerThrustMeters
 			);
-			rotorSolutions.add(rotorSolution);
-			if (!rotorSolution.solved()) {
-				solved = false;
+			if (nextAllocatedThrusts == null || nextAllocatedThrusts.length < config.rotors().size()) {
+				return new ConfigurationTrimSolution(
+						ConfigurationTrimSolveStatus.ALLOCATION_UNAVAILABLE,
+						targetThrustNewtons,
+						targetTorque,
+						signedAxialAdvanceSpeedMetersPerSecond,
+						lowerOmegaRadiansPerSecond,
+						upperOmegaRadiansPerSecond,
+						nextAllocatedThrusts,
+						rotorSolutions,
+						aggregate
+				);
 			}
-			if (rotorSolution.solutionSample() != null) {
-				rotorSamples.add(rotorSolution.solutionSample());
+			for (double thrust : nextAllocatedThrusts) {
+				if (thrust < -1.0e-8) {
+					return new ConfigurationTrimSolution(
+							ConfigurationTrimSolveStatus.NEGATIVE_ALLOCATED_THRUST,
+							targetThrustNewtons,
+							targetTorque,
+							signedAxialAdvanceSpeedMetersPerSecond,
+							lowerOmegaRadiansPerSecond,
+							upperOmegaRadiansPerSecond,
+							nextAllocatedThrusts,
+							rotorSolutions,
+							aggregate
+					);
+				}
 			}
+			allocatedThrusts = nextAllocatedThrusts;
 		}
-		RotorForceAggregateSample aggregate = rotorSamples.size() == config.rotors().size()
-				? aggregate(rotorSamples)
-				: null;
 		return new ConfigurationTrimSolution(
-				solved ? ConfigurationTrimSolveStatus.SOLVED : ConfigurationTrimSolveStatus.ROTOR_SOLVE_BLOCKED,
+				bodyTorqueConverged
+						? ConfigurationTrimSolveStatus.SOLVED
+						: ConfigurationTrimSolveStatus.BODY_TORQUE_NOT_CONVERGED,
 				targetThrustNewtons,
 				targetTorque,
 				signedAxialAdvanceSpeedMetersPerSecond,
@@ -3865,11 +3936,68 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		return Math.max(1.0e-8, Math.abs(targetThrustNewtons) * TARGET_THRUST_SOLVE_RELATIVE_TOLERANCE);
 	}
 
+	private static boolean configurationTrimBodyTorqueConverged(
+			RotorForceAggregateSample aggregate,
+			Vec3 targetBodyTorqueNewtonMeters,
+			double targetThrustNewtons
+	) {
+		if (aggregate == null) {
+			return false;
+		}
+		double tolerance = Math.max(
+				CONFIGURATION_TRIM_BODY_TORQUE_ABSOLUTE_TOLERANCE,
+				Math.max(
+						finiteVecOrZero(targetBodyTorqueNewtonMeters).length(),
+						Math.abs(finiteOrZero(targetThrustNewtons))
+				) * TARGET_THRUST_SOLVE_RELATIVE_TOLERANCE
+		);
+		return aggregate.totalBodyTorqueNewtonMeters()
+				.subtract(finiteVecOrZero(targetBodyTorqueNewtonMeters))
+				.length() <= tolerance;
+	}
+
+	private static double[] dynamicYawTorquePerThrustMeters(
+			List<RotorSpec> rotors,
+			List<RotorTargetThrustSolution> rotorSolutions
+	) {
+		int rotorCount = rotors == null ? 0 : rotors.size();
+		double[] coefficients = new double[rotorCount];
+		for (int i = 0; i < rotorCount; i++) {
+			RotorSpec rotor = rotors.get(i);
+			double coefficient = rotor.yawTorquePerThrustMeter();
+			if (rotorSolutions != null && i < rotorSolutions.size()) {
+				RotorTargetThrustSolution solution = rotorSolutions.get(i);
+				RotorForceSample sample = solution == null ? null : solution.solutionSample();
+				if (sample != null && !sample.blocked()) {
+					coefficient = sample.yawTorquePerThrustMeterEquivalent();
+				}
+			}
+			coefficients[i] = finiteNonnegative(coefficient);
+		}
+		return coefficients;
+	}
+
 	private static double[] allocateStaticTrimThrusts(
 			List<RotorSpec> rotors,
 			Vec3 centerOfMassOffsetBodyMeters,
 			double targetThrustNewtons,
 			Vec3 targetBodyTorqueNewtonMeters
+	) {
+		return allocateStaticTrimThrusts(
+				rotors,
+				centerOfMassOffsetBodyMeters,
+				targetThrustNewtons,
+				targetBodyTorqueNewtonMeters,
+				null
+		);
+	}
+
+	private static double[] allocateStaticTrimThrusts(
+			List<RotorSpec> rotors,
+			Vec3 centerOfMassOffsetBodyMeters,
+			double targetThrustNewtons,
+			Vec3 targetBodyTorqueNewtonMeters,
+			double[] yawTorquePerThrustMeters
 	) {
 		int rotorCount = rotors == null ? 0 : rotors.size();
 		if (rotorCount == 0 || !Double.isFinite(targetThrustNewtons) || targetThrustNewtons < 0.0) {
@@ -3881,7 +4009,10 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		for (int i = 0; i < rotorCount; i++) {
 			RotorSpec rotor = rotors.get(i);
 			Vec3 arm = rotor.positionBodyMeters().subtract(centerOfMass);
-			Vec3 torqueCoefficient = rotorTorqueCoefficientPerThrust(rotor, arm);
+			double yawTorquePerThrust = yawTorquePerThrustMeters != null && i < yawTorquePerThrustMeters.length
+					? yawTorquePerThrustMeters[i]
+					: rotor.yawTorquePerThrustMeter();
+			Vec3 torqueCoefficient = rotorTorqueCoefficientPerThrust(rotor, arm, yawTorquePerThrust);
 			rows[0][i] = 1.0;
 			rows[1][i] = torqueCoefficient.x();
 			rows[2][i] = torqueCoefficient.y();
@@ -3927,10 +4058,19 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 	}
 
 	private static Vec3 rotorTorqueCoefficientPerThrust(RotorSpec rotor, Vec3 rotorArmBody) {
+		return rotorTorqueCoefficientPerThrust(rotor, rotorArmBody, rotor.yawTorquePerThrustMeter());
+	}
+
+	private static Vec3 rotorTorqueCoefficientPerThrust(
+			RotorSpec rotor,
+			Vec3 rotorArmBody,
+			double yawTorquePerThrustMeter
+	) {
 		Vec3 axis = rotorAxisBody(rotor);
 		Vec3 arm = finiteVecOrZero(rotorArmBody);
+		double yawCoefficient = finiteNonnegative(yawTorquePerThrustMeter);
 		return arm.cross(axis)
-				.add(axis.multiply(rotor.spinDirection() * rotor.yawTorquePerThrustMeter()));
+				.add(axis.multiply(rotor.spinDirection() * yawCoefficient));
 	}
 
 	private static double[] solveLinearSystem(double[][] matrix, double[] rhs) {
