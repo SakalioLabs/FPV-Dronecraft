@@ -53,6 +53,8 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		assertTrue(lines.get(0).contains("wake_plane_tangent_u_world_x"));
 		assertTrue(lines.get(0).contains("wake_support_radius_m"));
 		assertTrue(lines.get(0).contains("expected_top_hat_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("expected_freestream_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("expected_wake_excess_velocity_world_y_mps"));
 
 		assertEquals("wake_plane_top_hat", textCell(hoverCenter, columns, "probe_kind"));
 		assertEquals("centerline", textCell(hoverCenter, columns, "probe_region"));
@@ -65,6 +67,11 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		assertEquals(numberCell(hoverCenter, columns, "expected_top_hat_speed_mps"),
 				numberCell(hoverCenter, columns, "expected_axial_velocity_mps"), 1.0e-12);
 		assertEquals(0.0, numberCell(hoverCenter, columns, "expected_transverse_velocity_mps"), 1.0e-12);
+		assertEquals(0.0, numberCell(hoverCenter, columns, "expected_freestream_speed_mps"), 1.0e-12);
+		assertEquals(numberCell(hoverCenter, columns, "expected_top_hat_velocity_world_y_mps"),
+				numberCell(hoverCenter, columns, "expected_wake_excess_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(numberCell(hoverCenter, columns, "expected_top_hat_speed_mps"),
+				numberCell(hoverCenter, columns, "expected_wake_excess_speed_mps"), 1.0e-12);
 
 		assertEquals("outer_reference", textCell(hoverOuter, columns, "probe_region"));
 		assertEquals(1.25, numberCell(hoverOuter, columns, "plane_radial_fraction"), 1.0e-15);
@@ -74,6 +81,7 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 						* numberCell(hoverOuter, columns, "disk_radius_m"),
 				numberCell(hoverOuter, columns, "probe_point_world_x_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(hoverOuter, columns, "expected_top_hat_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(hoverOuter, columns, "expected_wake_excess_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(hoverOuter, columns, "pressure_jump_pa"), 1.0e-15);
 
 		assertEquals("wake_core_top_hat", textCell(highJInner, columns, "probe_region"));
@@ -105,10 +113,17 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 				"wake_centerline_direction_world", "wake_plane_tangent_u_world"), 1.0e-15);
 		assertEquals(0.0, vectorDot(skewCenter, columns,
 				"wake_centerline_direction_world", "wake_plane_tangent_v_world"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skewCenter, columns,
+				"expected_freestream_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(2.4, numberCell(skewCenter, columns,
+				"expected_wake_excess_velocity_world_x_mps"), 1.0e-15);
+		assertTrue(numberCell(skewCenter, columns, "expected_wake_excess_speed_mps") > 0.0);
 
 		assertEquals("false", textCell(highBlockCenter, columns, "source_enabled"));
 		assertEquals("OUT_OF_ENVELOPE_BLOCKED", textCell(highBlockCenter, columns, "lookup_status"));
 		assertEquals(0.0, numberCell(highBlockCenter, columns, "expected_top_hat_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlockCenter, columns, "expected_freestream_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlockCenter, columns, "expected_wake_excess_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlockCenter, columns, "total_force_world_y_n"), 1.0e-15);
 	}
 
@@ -123,6 +138,8 @@ class CtCpJActuatorDiskWakePlaneProbeExporterTest {
 		assertTrue(lines.get(0).contains("wake_centerline_direction_world_y"));
 		assertTrue(lines.get(0).contains("probe_region"));
 		assertTrue(lines.get(0).contains("expected_axial_velocity_mps"));
+		assertTrue(lines.get(0).contains("expected_freestream_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("expected_wake_excess_velocity_world_y_mps"));
 	}
 
 	@Test

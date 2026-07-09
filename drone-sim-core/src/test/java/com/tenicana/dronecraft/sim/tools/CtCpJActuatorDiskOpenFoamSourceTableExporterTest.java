@@ -39,6 +39,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,source_name"));
 		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_y_mps"));
 		assertTrue(lines.get(0).contains("wake_skew_angle_rad"));
+		assertTrue(lines.get(0).contains("freestream_velocity_y_mps"));
 		assertEquals("ctcpj_apdrone_static_anchored_source_hover_raw_source_rotor_0",
 				textCell(hover, columns, "source_name"));
 		assertEquals("true", textCell(hover, columns, "source_enabled"));
@@ -70,6 +71,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(Math.abs(numberCell(hover, columns, "reaction_torque_y_nm")) > 0.0);
 		assertEquals(numberCell(hover, columns, "reaction_torque_y_nm"),
 				numberCell(hover, columns, "wake_angular_momentum_torque_y_nm"), 1.0e-18);
+		assertEquals(0.0, numberCell(hover, columns, "freestream_speed_mps"), 1.0e-12);
 		double hoverWakeSupportVolume = Math.PI
 				* numberCell(hover, columns, "wake_swirl_support_radius_m")
 				* numberCell(hover, columns, "wake_swirl_support_radius_m")
@@ -123,6 +125,10 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertEquals(-2.4, numberCell(skew, columns,
 				"wake_skew_lateral_velocity_x_mps"), 1.0e-15);
 		assertEquals(2.4, numberCell(skew, columns, "wake_skew_lateral_speed_mps"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skew, columns, "freestream_velocity_x_mps"), 1.0e-15);
+		assertTrue(numberCell(skew, columns, "freestream_velocity_y_mps") > 0.0);
+		assertTrue(numberCell(skew, columns, "freestream_speed_mps")
+				> numberCell(skew, columns, "freestream_velocity_y_mps"));
 		assertTrue(numberCell(skew, columns, "wake_skew_angle_rad") > 0.0);
 
 		assertEquals("false", textCell(highBlock, columns, "source_enabled"));
@@ -139,6 +145,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertEquals(highBlockSwirlRadius,
 				numberCell(highBlock, columns, "angular_momentum_swirl_radius_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_tangential_velocity_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "freestream_speed_mps"), 1.0e-15);
 		assertEquals(highBlockRadius, numberCell(highBlock, columns, "wake_swirl_support_radius_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "wake_swirl_angular_velocity_rad_s"), 1.0e-15);
 		assertEquals(numberCell(highBlock, columns, "center_x_m")
@@ -177,6 +184,7 @@ class CtCpJActuatorDiskOpenFoamSourceTableExporterTest {
 		assertTrue(lines.get(0).contains("wake_swirl_velocity_y_mps"));
 		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_y_mps"));
 		assertTrue(lines.get(0).contains("wake_skew_lateral_speed_mps"));
+		assertTrue(lines.get(0).contains("freestream_velocity_y_mps"));
 		assertTrue(lines.get(0).contains("wake_swirl_kinetic_power_w"));
 	}
 

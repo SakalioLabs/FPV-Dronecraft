@@ -296,6 +296,19 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return rotateBodyVectorToWorld(wakeSkewLateralVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
 		}
 
+		public Vec3 freestreamVelocityBodyMetersPerSecond() {
+			if (blocked()) {
+				return Vec3.ZERO;
+			}
+			return actuatorDiskAxialVelocityBodyMetersPerSecond().multiply(2.0)
+					.subtract(farWakeAxialVelocityBodyMetersPerSecond())
+					.add(wakeSkewLateralVelocityBodyMetersPerSecond());
+		}
+
+		public Vec3 freestreamVelocityWorldMetersPerSecond(Quaternion bodyToWorldOrientation) {
+			return rotateBodyVectorToWorld(freestreamVelocityBodyMetersPerSecond(), bodyToWorldOrientation);
+		}
+
 		public double wakeSkewAngleRadians() {
 			double axialSpeed = farWakeAxialVelocityBodyMetersPerSecond().length();
 			double lateralSpeed = wakeSkewLateralVelocityBodyMetersPerSecond().length();
@@ -666,6 +679,15 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			return wakeSkewLateralVelocityWorldMetersPerSecond().length();
 		}
 
+		public Vec3 freestreamVelocityWorldMetersPerSecond() {
+			if (!applied) {
+				return Vec3.ZERO;
+			}
+			return actuatorDiskAxialVelocityWorldMetersPerSecond.multiply(2.0)
+					.subtract(farWakeAxialVelocityWorldMetersPerSecond)
+					.add(wakeSkewLateralVelocityWorldMetersPerSecond());
+		}
+
 		public double wakeSkewAngleRadians() {
 			double axialSpeed = Math.abs(farWakeCenterlineAxialSpeedMetersPerSecond());
 			double lateralSpeed = wakeSkewLateralSpeedMetersPerSecond();
@@ -810,6 +832,14 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 		public Vec3 totalWakeVelocityWorldMetersPerSecondAt(Vec3 samplePointWorldMeters) {
 			return farWakeCenterlineVelocityWorldMetersPerSecondAt(samplePointWorldMeters)
 					.add(wakeSwirlVelocityWorldMetersPerSecond(samplePointWorldMeters));
+		}
+
+		public Vec3 wakeExcessVelocityWorldMetersPerSecondAt(Vec3 samplePointWorldMeters) {
+			Vec3 wakeVelocity = totalWakeVelocityWorldMetersPerSecondAt(samplePointWorldMeters);
+			if (wakeVelocity.lengthSquared() <= EPSILON) {
+				return Vec3.ZERO;
+			}
+			return wakeVelocity.subtract(freestreamVelocityWorldMetersPerSecond());
 		}
 	}
 

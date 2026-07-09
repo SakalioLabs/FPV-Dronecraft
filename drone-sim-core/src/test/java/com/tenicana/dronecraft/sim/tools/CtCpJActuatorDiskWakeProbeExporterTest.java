@@ -45,6 +45,8 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertTrue(lines.get(0).contains("expected_far_wake_speed_mps"));
 		assertTrue(lines.get(0).contains("expected_swirl_speed_mps"));
 		assertTrue(lines.get(0).contains("expected_wake_speed_mps"));
+		assertTrue(lines.get(0).contains("expected_freestream_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("expected_wake_excess_velocity_world_y_mps"));
 
 		assertEquals("true", textCell(hover, columns, "source_enabled"));
 		assertEquals("centerline_axial", textCell(hover, columns, "probe_kind"));
@@ -66,6 +68,11 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertEquals(0.0, numberCell(hover, columns, "expected_swirl_speed_mps"), 1.0e-15);
 		assertEquals(numberCell(hover, columns, "expected_far_wake_speed_mps"),
 				numberCell(hover, columns, "expected_wake_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "expected_freestream_speed_mps"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "expected_wake_velocity_world_y_mps"),
+				numberCell(hover, columns, "expected_wake_excess_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(numberCell(hover, columns, "expected_wake_speed_mps"),
+				numberCell(hover, columns, "expected_wake_excess_speed_mps"), 1.0e-12);
 		assertEquals(numberCell(hover, columns, "pressure_jump_pa") / SOURCE_THICKNESS,
 				numberCell(hover, columns, "body_force_density_world_y_n_m3"), 1.0e-9);
 		assertEquals(numberCell(hover, columns, "body_force_density_world_y_n_m3")
@@ -96,6 +103,11 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertEquals("true", textCell(midJ, columns, "source_enabled"));
 		assertEquals(0.4064, numberCell(midJ, columns, "query_j"), 1.0e-12);
 		assertTrue(numberCell(midJ, columns, "expected_far_wake_speed_mps") > 0.0);
+		assertTrue(numberCell(midJ, columns, "expected_freestream_velocity_world_y_mps") > 0.0);
+		assertEquals(numberCell(midJ, columns, "expected_wake_velocity_world_y_mps")
+						- numberCell(midJ, columns, "expected_freestream_velocity_world_y_mps"),
+				numberCell(midJ, columns, "expected_wake_excess_velocity_world_y_mps"), 1.0e-12);
+		assertTrue(numberCell(midJ, columns, "expected_wake_excess_velocity_world_y_mps") > 0.0);
 		assertTrue(numberCell(midJ, columns, "eta") > 0.0);
 
 		assertEquals("true", textCell(skew, columns, "source_enabled"));
@@ -111,6 +123,8 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 						* numberCell(skew, columns, "probe_distance_m"),
 				numberCell(skew, columns, "probe_point_world_y_m"), 1.0e-15);
 		assertEquals(0.0, numberCell(skew, columns, "expected_far_wake_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skew, columns, "expected_freestream_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(2.4, numberCell(skew, columns, "expected_wake_excess_velocity_world_x_mps"), 1.0e-15);
 
 		assertEquals("true", textCell(highJ, columns, "source_enabled"));
 		assertEquals(0.73152, numberCell(highJ, columns, "query_j"), 1.0e-12);
@@ -132,6 +146,8 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertEquals(0.0, numberCell(highBlock, columns, "expected_far_wake_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "expected_swirl_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "expected_wake_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "expected_freestream_speed_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(highBlock, columns, "expected_wake_excess_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "body_force_density_world_y_n_m3"), 1.0e-15);
 		assertEquals(0.0, numberCell(highBlock, columns, "total_force_world_y_n"), 1.0e-15);
 	}
@@ -148,6 +164,8 @@ class CtCpJActuatorDiskWakeProbeExporterTest {
 		assertTrue(lines.get(0).contains("source_bounding_sphere_radius_m"));
 		assertTrue(lines.get(0).contains("total_force_world_y_n"));
 		assertTrue(lines.get(0).contains("expected_swirl_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("expected_freestream_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("expected_wake_excess_velocity_world_y_mps"));
 	}
 
 	@Test

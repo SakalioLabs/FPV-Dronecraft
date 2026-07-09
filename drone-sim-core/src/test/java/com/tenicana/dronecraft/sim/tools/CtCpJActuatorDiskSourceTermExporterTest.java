@@ -37,6 +37,7 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(lines.get(0).startsWith("preset,case,row_kind,rotor_index,query_j,query_rpm"));
 		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("wake_skew_angle_rad"));
+		assertTrue(lines.get(0).contains("freestream_velocity_world_y_mps"));
 		assertFalse(lines.stream().skip(1).anyMatch(line -> line.contains("NaN")));
 
 		String hover = lineFor(lines, columns, "static_anchored_source_hover", "raw_source", 0);
@@ -63,6 +64,10 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals(0.0, numberCell(hover, columns, "actuator_disk_axial_velocity_world_x_mps"), 1.0e-15);
 		assertTrue(numberCell(hover, columns, "actuator_disk_axial_velocity_world_y_mps") > 0.0);
 		assertEquals(0.0, numberCell(hover, columns, "actuator_disk_axial_velocity_world_z_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(hover, columns, "freestream_velocity_world_x_mps"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "freestream_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "freestream_velocity_world_z_mps"), 1.0e-12);
+		assertEquals(0.0, numberCell(hover, columns, "freestream_speed_mps"), 1.0e-12);
 		assertEquals(RHO * numberCell(hover, columns, "actuator_disk_axial_velocity_world_y_mps"),
 				numberCell(hover, columns, "mass_flux_kg_s_m2"), 1.0e-12);
 		assertEquals(0.0, numberCell(hover, columns, "eta"), 1.0e-15);
@@ -178,6 +183,12 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 				> numberCell(mid, columns, "query_signed_axial_speed_mps"));
 		assertTrue(numberCell(mid, columns, "far_wake_axial_velocity_world_y_mps")
 				> numberCell(mid, columns, "query_signed_axial_speed_mps"));
+		assertEquals(0.0, numberCell(mid, columns, "freestream_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(numberCell(mid, columns, "query_signed_axial_speed_mps"),
+				numberCell(mid, columns, "freestream_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(0.0, numberCell(mid, columns, "freestream_velocity_world_z_mps"), 1.0e-15);
+		assertEquals(numberCell(mid, columns, "query_signed_axial_speed_mps"),
+				numberCell(mid, columns, "freestream_speed_mps"), 1.0e-12);
 		assertTrue(numberCell(mid, columns, "wake_tangential_velocity_mps") > 0.0);
 		assertEquals(numberCell(mid, columns, "wake_swirl_kinetic_power_w")
 						/ numberCell(mid, columns, "shaft_power_w"),
@@ -192,6 +203,11 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals(-2.4, numberCell(skew, columns,
 				"wake_skew_lateral_velocity_world_x_mps"), 1.0e-15);
 		assertEquals(2.4, numberCell(skew, columns, "wake_skew_lateral_speed_mps"), 1.0e-15);
+		assertEquals(-2.4, numberCell(skew, columns, "freestream_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(numberCell(skew, columns, "query_signed_axial_speed_mps"),
+				numberCell(skew, columns, "freestream_velocity_world_y_mps"), 1.0e-12);
+		assertTrue(numberCell(skew, columns, "freestream_speed_mps")
+				> numberCell(skew, columns, "freestream_velocity_world_y_mps"));
 		assertEquals(Math.atan2(2.4, numberCell(skew, columns, "far_wake_axial_velocity_world_y_mps")),
 				numberCell(skew, columns, "wake_skew_angle_rad"), 1.0e-15);
 		assertTrue(numberCell(skew, columns, "wake_skew_angle_deg") > 0.0);
@@ -232,6 +248,7 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertEquals(0.0, numberCell(blockedRaw, columns, "pressure_jump_pa"), 1.0e-15);
 		assertEquals(0.0,
 				numberCell(blockedRaw, columns, "actuator_disk_axial_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(0.0, numberCell(blockedRaw, columns, "freestream_speed_mps"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns, "integrated_thrust_force_world_y_n"), 1.0e-15);
 		assertEquals(0.0, numberCell(blockedRaw, columns,
 				"equivalent_body_force_integral_world_y_n"), 1.0e-15);
@@ -276,6 +293,7 @@ class CtCpJActuatorDiskSourceTermExporterTest {
 		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_m"));
 		assertTrue(lines.get(0).contains("far_wake_centerline_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("wake_skew_lateral_speed_mps"));
+		assertTrue(lines.get(0).contains("freestream_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("far_wake_equivalent_radius_over_disk_radius"));
 		assertTrue(lines.get(0).contains("source_volume_m3"));
 		assertTrue(lines.get(0).contains("body_force_density_world_y_n_m3"));

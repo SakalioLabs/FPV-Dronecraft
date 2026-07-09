@@ -82,6 +82,14 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 			"expected_top_hat_velocity_world_y_mps",
 			"expected_top_hat_velocity_world_z_mps",
 			"expected_top_hat_speed_mps",
+			"expected_freestream_velocity_world_x_mps",
+			"expected_freestream_velocity_world_y_mps",
+			"expected_freestream_velocity_world_z_mps",
+			"expected_freestream_speed_mps",
+			"expected_wake_excess_velocity_world_x_mps",
+			"expected_wake_excess_velocity_world_y_mps",
+			"expected_wake_excess_velocity_world_z_mps",
+			"expected_wake_excess_speed_mps",
 			"expected_axial_velocity_mps",
 			"expected_transverse_velocity_mps",
 			"body_force_density_world_x_n_m3",
@@ -247,6 +255,16 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 						"far_wake_axial_velocity_y_mps",
 						"far_wake_axial_velocity_z_mps")
 				: Vec3.ZERO;
+		Vec3 expectedFreestreamVelocity = sourceEnabled(row)
+				? vector(
+						row,
+						"freestream_velocity_x_mps",
+						"freestream_velocity_y_mps",
+						"freestream_velocity_z_mps")
+				: Vec3.ZERO;
+		Vec3 expectedWakeExcessVelocity = wakeCore
+				? expectedVelocity.subtract(expectedFreestreamVelocity)
+				: Vec3.ZERO;
 		Vec3 bodyForceDensity = sourceEnabled(row)
 				? vector(
 						row,
@@ -309,6 +327,14 @@ public final class CtCpJActuatorDiskWakePlaneProbeExporter {
 				number(expectedVelocity.y()),
 				number(expectedVelocity.z()),
 				number(expectedVelocity.length()),
+				number(expectedFreestreamVelocity.x()),
+				number(expectedFreestreamVelocity.y()),
+				number(expectedFreestreamVelocity.z()),
+				number(expectedFreestreamVelocity.length()),
+				number(expectedWakeExcessVelocity.x()),
+				number(expectedWakeExcessVelocity.y()),
+				number(expectedWakeExcessVelocity.z()),
+				number(expectedWakeExcessVelocity.length()),
 				number(axialVelocity),
 				number(transverseVelocity),
 				number(bodyForceDensity.x()),

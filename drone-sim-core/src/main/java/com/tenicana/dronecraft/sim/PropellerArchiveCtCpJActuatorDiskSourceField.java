@@ -367,10 +367,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecondAt(point);
 			Vec3 sourceWakeSwirlVelocity = sourceTerm.wakeSwirlVelocityWorldMetersPerSecond(point);
 			Vec3 sourceTargetWakeVelocity = sourceFarWakeCenterlineVelocity.add(sourceWakeSwirlVelocity);
-			Vec3 sourceFreestreamVelocity = sourceTerm.actuatorDiskAxialVelocityWorldMetersPerSecond()
-					.multiply(2.0)
-					.subtract(sourceTerm.farWakeAxialVelocityWorldMetersPerSecond())
-					.add(sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond());
+			Vec3 sourceFreestreamVelocity = sourceTerm.freestreamVelocityWorldMetersPerSecond();
 			bodyForceDensity = bodyForceDensity.add(
 					sourceTerm.equivalentBodyForceWorldNewtonsPerCubicMeter(sourceThicknessMeters));
 			wakeTorqueDensity = wakeTorqueDensity.add(sourceTerm
@@ -749,10 +746,7 @@ public record PropellerArchiveCtCpJActuatorDiskSourceField(
 					cellCoverage.averageFarWakeCenterlineVelocityWorldMetersPerSecond();
 			Vec3 sourceWakeSwirlVelocity = cellCoverage.averageWakeSwirlVelocityWorldMetersPerSecond();
 			Vec3 sourceTargetWakeVelocity = sourceFarWakeCenterlineVelocity.add(sourceWakeSwirlVelocity);
-			Vec3 sourceFreestreamVelocity = coverage.sourceTerm().actuatorDiskAxialVelocityWorldMetersPerSecond()
-					.multiply(2.0)
-					.subtract(coverage.sourceTerm().farWakeAxialVelocityWorldMetersPerSecond())
-					.add(coverage.sourceTerm().wakeSkewLateralVelocityWorldMetersPerSecond());
+			Vec3 sourceFreestreamVelocity = coverage.sourceTerm().freestreamVelocityWorldMetersPerSecond();
 			double sourceMassFluxWeight =
 					coverage.sourceTerm().massFluxKilogramsPerSecondSquareMeter() * sourceWeight;
 			if (sourceMassFluxWeight > EPSILON) {

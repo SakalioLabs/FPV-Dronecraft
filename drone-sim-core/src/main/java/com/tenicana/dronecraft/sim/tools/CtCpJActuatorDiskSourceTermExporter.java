@@ -98,6 +98,10 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"wake_skew_lateral_speed_mps",
 			"wake_skew_angle_rad",
 			"wake_skew_angle_deg",
+			"freestream_velocity_world_x_mps",
+			"freestream_velocity_world_y_mps",
+			"freestream_velocity_world_z_mps",
+			"freestream_speed_mps",
 			"reaction_torque_world_x_nm",
 			"reaction_torque_world_y_nm",
 			"reaction_torque_world_z_nm",
@@ -333,6 +337,7 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 		Quaternion orientation = sourceCase.bodyToWorldOrientation();
 		Vec3 farWakeCenterlineVelocity = sourceTerm.farWakeCenterlineVelocityWorldMetersPerSecond();
 		Vec3 wakeSkewLateralVelocity = sourceTerm.wakeSkewLateralVelocityWorldMetersPerSecond();
+		Vec3 freestreamVelocity = sourceTerm.freestreamVelocityWorldMetersPerSecond();
 		return String.join(",",
 				escape(lookup.presetName()),
 				escape(lookup.caseName()),
@@ -412,6 +417,10 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(sourceTerm.wakeSkewLateralSpeedMetersPerSecond()),
 				number(sourceTerm.wakeSkewAngleRadians()),
 				number(Math.toDegrees(sourceTerm.wakeSkewAngleRadians())),
+				number(freestreamVelocity.x()),
+				number(freestreamVelocity.y()),
+				number(freestreamVelocity.z()),
+				number(freestreamVelocity.length()),
 				number(sourceTerm.reactionTorqueWorldNewtonMeters().x()),
 				number(sourceTerm.reactionTorqueWorldNewtonMeters().y()),
 				number(sourceTerm.reactionTorqueWorldNewtonMeters().z()),
