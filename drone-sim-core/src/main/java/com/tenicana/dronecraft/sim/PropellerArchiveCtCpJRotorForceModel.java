@@ -209,7 +209,11 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 			double ratio = dimensionalSample.idealMomentumPowerOverShaftPower();
 			return Double.isFinite(ratio)
 					&& ratio > 0.0
-					&& ratio <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE;
+					&& ratio <= 1.0 + MOMENTUM_POWER_CLOSURE_TOLERANCE
+					&& Math.abs(dimensionalSample.axialMomentumThrustResidualFraction())
+					<= MOMENTUM_POWER_CLOSURE_TOLERANCE
+					&& Math.abs(dimensionalSample.axialMomentumPowerResidualFraction())
+					<= MOMENTUM_POWER_CLOSURE_TOLERANCE;
 		}
 
 		public boolean wakePowerClosureSatisfied() {

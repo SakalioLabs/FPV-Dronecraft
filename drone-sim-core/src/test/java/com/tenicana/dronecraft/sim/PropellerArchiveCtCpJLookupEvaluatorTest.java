@@ -397,6 +397,12 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				blockedSample.diskAreaSquareMeters(), 1.0e-15);
 		assertEquals(0.0, blockedSample.diskLoadingNewtonsPerSquareMeter(), 1.0e-12);
 		assertEquals(0.0, blockedSample.diskMassFlowKilogramsPerSecond(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialMomentumThrustNewtons(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialMomentumThrustResidualNewtons(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialMomentumThrustResidualFraction(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialMomentumPowerWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialMomentumPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.0, blockedSample.axialMomentumPowerResidualFraction(), 1.0e-12);
 		assertEquals(0.0, blockedSample.farWakeContractedAreaSquareMeters(), 1.0e-12);
 		assertEquals(0.0, blockedSample.farWakeEquivalentRadiusMeters(), 1.0e-12);
 		assertEquals(0.0, blockedSample.usefulAxialThrustPowerWatts(), 1.0e-12);
@@ -538,7 +544,7 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 	private static void assertWakeMomentumAndSwirlClosure(
 			PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample sample
 	) {
-		double axialSpeed = Math.max(0.0, sample.axialAdvanceSpeedMetersPerSecond());
+		double axialSpeed = sample.nonnegativeAxialAdvanceSpeedMetersPerSecond();
 		double wakeDelta = sample.farWakeAxialVelocityMetersPerSecond() - axialSpeed;
 		assertEquals(2.0 * sample.idealInducedVelocityMetersPerSecond(), wakeDelta, 1.0e-15);
 		assertEquals(axialSpeed + sample.idealInducedVelocityMetersPerSecond(),
@@ -550,8 +556,14 @@ class PropellerArchiveCtCpJLookupEvaluatorTest {
 				sample.diskMassFlowKilogramsPerSecond(),
 				1.0e-15
 		);
+		assertEquals(sample.thrustNewtons(), sample.axialMomentumThrustNewtons(), 1.0e-12);
+		assertEquals(0.0, sample.axialMomentumThrustResidualNewtons(), 1.0e-12);
+		assertEquals(0.0, sample.axialMomentumThrustResidualFraction(), 1.0e-12);
 		assertEquals(sample.thrustNewtons(),
 				sample.diskMassFlowKilogramsPerSecond() * wakeDelta, 1.0e-12);
+		assertEquals(sample.idealMomentumPowerWatts(), sample.axialMomentumPowerWatts(), 1.0e-12);
+		assertEquals(0.0, sample.axialMomentumPowerResidualWatts(), 1.0e-12);
+		assertEquals(0.0, sample.axialMomentumPowerResidualFraction(), 1.0e-12);
 		assertEquals(
 				0.5 * sample.diskMassFlowKilogramsPerSecond()
 						* (sample.farWakeAxialVelocityMetersPerSecond()

@@ -205,6 +205,41 @@ public final class PropellerArchiveCtCpJLookupEvaluator {
 			}
 			return wakeAngularMomentumTorqueResidualNewtonMeters() / denominator;
 		}
+
+		public double nonnegativeAxialAdvanceSpeedMetersPerSecond() {
+			return Math.max(0.0, axialAdvanceSpeedMetersPerSecond);
+		}
+
+		public double axialMomentumThrustNewtons() {
+			double axialSpeed = nonnegativeAxialAdvanceSpeedMetersPerSecond();
+			double thrust = diskMassFlowKilogramsPerSecond
+					* (farWakeAxialVelocityMetersPerSecond - axialSpeed);
+			return Double.isFinite(thrust) ? thrust : 0.0;
+		}
+
+		public double axialMomentumThrustResidualNewtons() {
+			return axialMomentumThrustNewtons() - thrustNewtons;
+		}
+
+		public double axialMomentumThrustResidualFraction() {
+			return ratio(axialMomentumThrustResidualNewtons(), thrustNewtons);
+		}
+
+		public double axialMomentumPowerWatts() {
+			double axialSpeed = nonnegativeAxialAdvanceSpeedMetersPerSecond();
+			double power = 0.5 * diskMassFlowKilogramsPerSecond
+					* (farWakeAxialVelocityMetersPerSecond * farWakeAxialVelocityMetersPerSecond
+					- axialSpeed * axialSpeed);
+			return Double.isFinite(power) ? power : 0.0;
+		}
+
+		public double axialMomentumPowerResidualWatts() {
+			return axialMomentumPowerWatts() - idealMomentumPowerWatts;
+		}
+
+		public double axialMomentumPowerResidualFraction() {
+			return ratio(axialMomentumPowerResidualWatts(), idealMomentumPowerWatts);
+		}
 	}
 
 	public static LookupQuery queryForReferenceCase(
