@@ -284,6 +284,7 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				alignedWrenchResidual = alignedResidual.equivalentExternalWrench(config);
 		assertFalse(alignedWrenchResidual.runtimeReplacement());
 		assertEquals(dt, alignedWrenchResidual.dtSeconds(), 1.0e-15);
+		assertQuaternionEquals(bodyToWorld, alignedWrenchResidual.bodyToWorldOrientation(), 1.0e-15);
 		assertVectorEquals(wrench.linearAccelerationWorldMetersPerSecondSquared(),
 				alignedWrenchResidual.referenceLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
 		assertVectorEquals(wrench.linearAccelerationWorldMetersPerSecondSquared(),
@@ -296,6 +297,37 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				alignedWrenchResidual.actualForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO,
 				alignedWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(wrench.totalForceWorldNewtons()),
+				alignedWrenchResidual.referenceForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(wrench.totalForceWorldNewtons()),
+				alignedWrenchResidual.actualForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedWrenchResidual.equivalentExternalForceBodyNewtons(), 1.0e-12);
+		Vec3 gravityWorld = new Vec3(0.0,
+				-config.massKg() * config.gravityMetersPerSecondSquared(),
+				0.0);
+		assertVectorEquals(gravityWorld,
+				alignedWrenchResidual.gravityForceWorldNewtons(config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityWorld),
+				alignedWrenchResidual.gravityForceBodyNewtons(config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertVectorEquals(gravityWorld.multiply(-1.0),
+				alignedWrenchResidual.nonGravityExternalForceWorldNewtons(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityWorld.multiply(-1.0)),
+				alignedWrenchResidual.nonGravityExternalForceBodyNewtons(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertEquals(0.0,
+				alignedWrenchResidual.equivalentExternalForceOverWeight(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertEquals(1.0,
+				alignedWrenchResidual.nonGravityExternalForceOverWeight(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
 		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared(),
 				alignedWrenchResidual.referenceAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
 		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared(),
@@ -310,9 +342,48 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				alignedWrenchResidual.actualTotalTorqueBodyNewtonMeters(), 1.0e-12);
 		assertVectorEquals(Vec3.ZERO,
 				alignedWrenchResidual.equivalentExternalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.rotate(wrench.totalTorqueBodyNewtonMeters()),
+				alignedWrenchResidual.referenceTotalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.rotate(wrench.totalTorqueBodyNewtonMeters()),
+				alignedWrenchResidual.actualTotalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedWrenchResidual.equivalentExternalTorqueWorldNewtonMeters(), 1.0e-12);
 		assertEquals(0.0, alignedWrenchResidual.forceResidualFraction(), 1.0e-12);
 		assertEquals(0.0, alignedWrenchResidual.torqueResidualFraction(), 1.0e-12);
 		assertEquals(0.0, alignedWrenchResidual.maxWrenchResidualFraction(), 1.0e-12);
+
+		Vec3 gravityVelocityOffset = new Vec3(
+				0.0,
+				-config.gravityMetersPerSecondSquared() * dt,
+				0.0
+		);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepWrenchResidualSample
+				gravityWrenchResidual = preview.residualTo(
+						expectedNextPosition.add(gravityVelocityOffset.multiply(dt)),
+						expectedNextVelocity.add(gravityVelocityOffset),
+						expectedNextOrientation,
+						expectedNextAngularVelocity
+				).equivalentExternalWrench(config);
+		assertVectorEquals(gravityWorld,
+				gravityWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(gravityWorld),
+				gravityWrenchResidual.equivalentExternalForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				gravityWrenchResidual.nonGravityExternalForceWorldNewtons(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				gravityWrenchResidual.nonGravityExternalForceBodyNewtons(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertEquals(1.0,
+				gravityWrenchResidual.equivalentExternalForceOverWeight(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
+		assertEquals(0.0,
+				gravityWrenchResidual.nonGravityExternalForceOverWeight(
+						config.gravityMetersPerSecondSquared()),
+				1.0e-12);
 
 		Vec3 positionOffset = new Vec3(0.0010, -0.0020, 0.0005);
 		Vec3 velocityOffset = new Vec3(0.020, -0.010, 0.005);
@@ -368,6 +439,11 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				offsetWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
 		assertVectorEquals(wrench.totalForceWorldNewtons().add(expectedExternalForce),
 				offsetWrenchResidual.actualForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(expectedExternalForce),
+				offsetWrenchResidual.equivalentExternalForceBodyNewtons(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.conjugate().rotate(
+						wrench.totalForceWorldNewtons().add(expectedExternalForce)),
+				offsetWrenchResidual.actualForceBodyNewtons(), 1.0e-12);
 		assertVectorEquals(expectedResidualAngularAcceleration,
 				offsetWrenchResidual.residualAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
 		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared()
@@ -377,6 +453,11 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				offsetWrenchResidual.equivalentExternalTorqueBodyNewtonMeters(), 1.0e-12);
 		assertVectorEquals(wrench.totalTorqueBodyNewtonMeters().add(expectedExternalTorque),
 				offsetWrenchResidual.actualTotalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.rotate(expectedExternalTorque),
+				offsetWrenchResidual.equivalentExternalTorqueWorldNewtonMeters(), 1.0e-12);
+		assertVectorEquals(bodyToWorld.rotate(wrench.totalTorqueBodyNewtonMeters()
+						.add(expectedExternalTorque)),
+				offsetWrenchResidual.actualTotalTorqueWorldNewtonMeters(), 1.0e-12);
 		assertEquals(transitionFraction(
 						expectedExternalForce.length(),
 						wrench.totalForceWorldNewtons().length(),

@@ -1158,6 +1158,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return residual.preview().dtSeconds();
 		}
 
+		public Quaternion bodyToWorldOrientation() {
+			return residual.preview().initialBodyToWorldOrientation();
+		}
+
 		public Vec3 referenceLinearAccelerationWorldMetersPerSecondSquared() {
 			return residual.preview().wrench().linearAccelerationWorldMetersPerSecondSquared();
 		}
@@ -1181,6 +1185,55 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 
 		public Vec3 equivalentExternalForceWorldNewtons() {
 			return actualForceWorldNewtons().subtract(referenceForceWorldNewtons());
+		}
+
+		public Vec3 referenceForceBodyNewtons() {
+			return rotateWorldVectorToBody(referenceForceWorldNewtons(), bodyToWorldOrientation());
+		}
+
+		public Vec3 actualForceBodyNewtons() {
+			return rotateWorldVectorToBody(actualForceWorldNewtons(), bodyToWorldOrientation());
+		}
+
+		public Vec3 equivalentExternalForceBodyNewtons() {
+			return rotateWorldVectorToBody(equivalentExternalForceWorldNewtons(), bodyToWorldOrientation());
+		}
+
+		public Vec3 gravityForceWorldNewtons(double gravityMetersPerSecondSquared) {
+			return new Vec3(0.0, -weightNewtons(gravityMetersPerSecondSquared), 0.0);
+		}
+
+		public Vec3 gravityForceBodyNewtons(double gravityMetersPerSecondSquared) {
+			return rotateWorldVectorToBody(
+					gravityForceWorldNewtons(gravityMetersPerSecondSquared),
+					bodyToWorldOrientation()
+			);
+		}
+
+		public Vec3 nonGravityExternalForceWorldNewtons(double gravityMetersPerSecondSquared) {
+			return equivalentExternalForceWorldNewtons()
+					.subtract(gravityForceWorldNewtons(gravityMetersPerSecondSquared));
+		}
+
+		public Vec3 nonGravityExternalForceBodyNewtons(double gravityMetersPerSecondSquared) {
+			return rotateWorldVectorToBody(
+					nonGravityExternalForceWorldNewtons(gravityMetersPerSecondSquared),
+					bodyToWorldOrientation()
+			);
+		}
+
+		public double equivalentExternalForceOverWeight(double gravityMetersPerSecondSquared) {
+			return ratio(
+					equivalentExternalForceWorldNewtons().length(),
+					weightNewtons(gravityMetersPerSecondSquared)
+			);
+		}
+
+		public double nonGravityExternalForceOverWeight(double gravityMetersPerSecondSquared) {
+			return ratio(
+					nonGravityExternalForceWorldNewtons(gravityMetersPerSecondSquared).length(),
+					weightNewtons(gravityMetersPerSecondSquared)
+			);
 		}
 
 		public double forceResidualFraction() {
@@ -1221,6 +1274,18 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return actualTotalTorqueBodyNewtonMeters().subtract(referenceTotalTorqueBodyNewtonMeters());
 		}
 
+		public Vec3 referenceTotalTorqueWorldNewtonMeters() {
+			return rotateBodyVectorToWorld(referenceTotalTorqueBodyNewtonMeters(), bodyToWorldOrientation());
+		}
+
+		public Vec3 actualTotalTorqueWorldNewtonMeters() {
+			return rotateBodyVectorToWorld(actualTotalTorqueBodyNewtonMeters(), bodyToWorldOrientation());
+		}
+
+		public Vec3 equivalentExternalTorqueWorldNewtonMeters() {
+			return rotateBodyVectorToWorld(equivalentExternalTorqueBodyNewtonMeters(), bodyToWorldOrientation());
+		}
+
 		public double torqueResidualFraction() {
 			return stepResidualFraction(
 					equivalentExternalTorqueBodyNewtonMeters().length(),
@@ -1231,6 +1296,10 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 
 		public double maxWrenchResidualFraction() {
 			return Math.max(forceResidualFraction(), torqueResidualFraction());
+		}
+
+		private double weightNewtons(double gravityMetersPerSecondSquared) {
+			return massKg * finiteNonnegative(gravityMetersPerSecondSquared);
 		}
 	}
 
@@ -1559,6 +1628,12 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 				+ left.y() * right.y()
 				+ left.z() * right.z());
 		return 2.0 * Math.acos(MathUtil.clamp(dot, 0.0, 1.0));
+	}
+
+	private static Vec3 rotateBodyVectorToWorld(Vec3 bodyVector, Quaternion bodyToWorldOrientation) {
+		return finiteQuaternionOrIdentity(bodyToWorldOrientation)
+				.normalized()
+				.rotate(finiteVecOrZero(bodyVector));
 	}
 
 	private static Vec3 rotateWorldVectorToBody(Vec3 worldVector, Quaternion bodyToWorldOrientation) {
