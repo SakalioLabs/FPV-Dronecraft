@@ -313,6 +313,101 @@ class PropellerArchiveCtCpJLocalVoxelMomentumStepTest {
 	}
 
 	@Test
+	void residenceThroughFlowCarriesSkewLateralVelocityWithoutUsingFarWakeAxialSpeed() {
+		double sourceThickness = 0.5;
+		double cellVolume = 1.0;
+		double cellAveragedMassFlux = 2.0;
+		Vec3 actuatorDiskAxialVelocity = new Vec3(0.0, 3.0, 0.0);
+		Vec3 farWakeAxialVelocity = new Vec3(0.0, 9.0, 0.0);
+		Vec3 wakeSkewLateralVelocity = new Vec3(1.25, 0.0, -0.75);
+		Vec3 wakeSwirlVelocity = new Vec3(0.0, 0.0, 0.40);
+		Vec3 targetWakeVelocity = farWakeAxialVelocity
+				.add(wakeSkewLateralVelocity)
+				.add(wakeSwirlVelocity);
+		Vec3 expectedThroughFlowTarget = actuatorDiskAxialVelocity
+				.add(wakeSkewLateralVelocity)
+				.add(wakeSwirlVelocity);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						1,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+						0,
+						0,
+						0,
+						grid.cellCenterWorldMeters(0, 0, 0),
+						cellVolume,
+						1,
+						1,
+						1.0,
+						Vec3.ZERO,
+						Vec3.ZERO,
+						0.0,
+						cellAveragedMassFlux,
+						actuatorDiskAxialVelocity,
+						0.0,
+						0.0,
+						0.0,
+						farWakeAxialVelocity,
+						wakeSwirlVelocity,
+						targetWakeVelocity
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						1,
+						List.of(sourceCell)
+				);
+
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.MassFluxResidenceStepSample residence =
+				PropellerArchiveCtCpJLocalVoxelMomentumStep.stepWithMassFluxResidence(
+						sourceGrid,
+						RHO,
+						DT,
+						sourceThickness,
+						Vec3.ZERO
+				);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMassFluxResidenceStep cell =
+				residence.activeCells().get(0);
+		PropellerArchiveCtCpJLocalVoxelMomentumStep.CellMomentumStep sourceStep =
+				cell.sourceMomentumStep();
+		double expectedSourceMassFlow = cellAveragedMassFlux * cellVolume / sourceThickness;
+		double expectedResidenceAlpha = -Math.expm1(-expectedSourceMassFlow * DT / (RHO * cellVolume));
+		Vec3 expectedVelocityAfterResidence = expectedThroughFlowTarget.multiply(expectedResidenceAlpha);
+
+		assertVectorEquals(targetWakeVelocity,
+				sourceStep.targetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedThroughFlowTarget,
+				sourceStep.targetThroughFlowVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertEquals(actuatorDiskAxialVelocity.y(),
+				sourceStep.targetThroughFlowVelocityWorldMetersPerSecond().y(), 1.0e-15);
+		assertEquals(farWakeAxialVelocity.y(),
+				sourceStep.targetWakeVelocityWorldMetersPerSecond().y(), 1.0e-15);
+		assertEquals(wakeSkewLateralVelocity.x(),
+				sourceStep.targetThroughFlowVelocityWorldMetersPerSecond().x(), 1.0e-15);
+		assertEquals(wakeSkewLateralVelocity.z() + wakeSwirlVelocity.z(),
+				sourceStep.targetThroughFlowVelocityWorldMetersPerSecond().z(), 1.0e-15);
+		assertEquals(expectedSourceMassFlow, cell.sourceMassFlowRateKilogramsPerSecond(), 1.0e-15);
+		assertEquals(expectedResidenceAlpha, cell.residenceAlpha(), 1.0e-15);
+		assertVectorEquals(expectedVelocityAfterResidence,
+				cell.velocityAfterResidenceWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedVelocityAfterResidence,
+				cell.throughFlowVelocityDeltaWorldMetersPerSecond(), 1.0e-15);
+		assertTrue(cell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().length()
+				> cell.targetThroughFlowVelocityResidualAfterResidenceWorldMetersPerSecond().length());
+		assertEquals(
+				farWakeAxialVelocity.y() - expectedVelocityAfterResidence.y(),
+				cell.targetWakeVelocityResidualAfterResidenceWorldMetersPerSecond().y(),
+				1.0e-15
+		);
+	}
+
+	@Test
 	void massFlowWeightedWakeResidualFollowsSourceMassFlow() {
 		double sourceThickness = 0.5;
 		double cellVolume = 1.0;

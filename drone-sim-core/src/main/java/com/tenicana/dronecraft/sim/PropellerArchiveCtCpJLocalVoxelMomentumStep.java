@@ -542,7 +542,11 @@ public final class PropellerArchiveCtCpJLocalVoxelMomentumStep {
 		Vec3 velocityDelta = acceleration.multiply(timeStepSeconds);
 		Vec3 velocityAfterStep = initialVelocityWorldMetersPerSecond.add(velocityDelta);
 		Vec3 targetWakeVelocity = sourceCell.targetWakeVelocityWorldMetersPerSecond();
+		Vec3 wakeSkewLateralVelocity = targetWakeVelocity
+				.subtract(sourceCell.farWakeAxialVelocityWorldMetersPerSecond())
+				.subtract(sourceCell.wakeSwirlVelocityWorldMetersPerSecond());
 		Vec3 targetThroughFlowVelocity = sourceCell.actuatorDiskAxialVelocityWorldMetersPerSecond()
+				.add(wakeSkewLateralVelocity)
 				.add(sourceCell.wakeSwirlVelocityWorldMetersPerSecond());
 		Vec3 momentumRate = sourceCell.integratedBodyForceWorldNewtons();
 		Vec3 impulse = momentumRate.multiply(timeStepSeconds);
