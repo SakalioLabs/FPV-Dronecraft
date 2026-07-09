@@ -1124,6 +1124,114 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			max = Math.max(max, orientationResidualFraction());
 			return Math.max(max, angularVelocityResidualFraction());
 		}
+
+		public RotorOnlyStepWrenchResidualSample equivalentExternalWrench(DroneConfig config) {
+			if (config == null) {
+				throw new IllegalArgumentException("config must not be null.");
+			}
+			return new RotorOnlyStepWrenchResidualSample(
+					this,
+					config.massKg(),
+					config.inertiaKgMetersSquared()
+			);
+		}
+	}
+
+	public record RotorOnlyStepWrenchResidualSample(
+			RotorOnlyStepResidualSample residual,
+			double massKg,
+			Vec3 inertiaKgMetersSquared
+	) {
+		public RotorOnlyStepWrenchResidualSample {
+			if (residual == null) {
+				throw new IllegalArgumentException("residual must not be null.");
+			}
+			massKg = finitePositiveOrOne(massKg);
+			inertiaKgMetersSquared = finitePositiveVecOrUnit(inertiaKgMetersSquared);
+		}
+
+		public boolean runtimeReplacement() {
+			return residual.runtimeReplacement();
+		}
+
+		public double dtSeconds() {
+			return residual.preview().dtSeconds();
+		}
+
+		public Vec3 referenceLinearAccelerationWorldMetersPerSecondSquared() {
+			return residual.preview().wrench().linearAccelerationWorldMetersPerSecondSquared();
+		}
+
+		public Vec3 actualLinearAccelerationWorldMetersPerSecondSquared() {
+			return divideByStep(residual.actualVelocityDeltaWorldMetersPerSecond(), dtSeconds());
+		}
+
+		public Vec3 residualLinearAccelerationWorldMetersPerSecondSquared() {
+			return actualLinearAccelerationWorldMetersPerSecondSquared()
+					.subtract(referenceLinearAccelerationWorldMetersPerSecondSquared());
+		}
+
+		public Vec3 referenceForceWorldNewtons() {
+			return residual.preview().wrench().totalForceWorldNewtons();
+		}
+
+		public Vec3 actualForceWorldNewtons() {
+			return actualLinearAccelerationWorldMetersPerSecondSquared().multiply(massKg);
+		}
+
+		public Vec3 equivalentExternalForceWorldNewtons() {
+			return actualForceWorldNewtons().subtract(referenceForceWorldNewtons());
+		}
+
+		public double forceResidualFraction() {
+			return stepResidualFraction(
+					equivalentExternalForceWorldNewtons().length(),
+					referenceForceWorldNewtons().length(),
+					actualForceWorldNewtons().length()
+			);
+		}
+
+		public Vec3 referenceAngularAccelerationBodyRadiansPerSecondSquared() {
+			return residual.preview().wrench().angularAccelerationBodyRadiansPerSecondSquared();
+		}
+
+		public Vec3 actualAngularAccelerationBodyRadiansPerSecondSquared() {
+			return divideByStep(residual.actualAngularVelocityDeltaBodyRadiansPerSecond(), dtSeconds());
+		}
+
+		public Vec3 residualAngularAccelerationBodyRadiansPerSecondSquared() {
+			return actualAngularAccelerationBodyRadiansPerSecondSquared()
+					.subtract(referenceAngularAccelerationBodyRadiansPerSecondSquared());
+		}
+
+		public Vec3 gyroscopicTorqueBodyNewtonMeters() {
+			return residual.preview().wrench().gyroscopicTorqueBodyNewtonMeters();
+		}
+
+		public Vec3 referenceTotalTorqueBodyNewtonMeters() {
+			return residual.preview().wrench().totalTorqueBodyNewtonMeters();
+		}
+
+		public Vec3 actualTotalTorqueBodyNewtonMeters() {
+			return inertiaKgMetersSquared.multiply(actualAngularAccelerationBodyRadiansPerSecondSquared())
+					.add(gyroscopicTorqueBodyNewtonMeters());
+		}
+
+		public Vec3 equivalentExternalTorqueBodyNewtonMeters() {
+			return actualTotalTorqueBodyNewtonMeters().subtract(referenceTotalTorqueBodyNewtonMeters());
+		}
+
+		public double torqueResidualFraction() {
+			return stepResidualFraction(
+					equivalentExternalTorqueBodyNewtonMeters().length(),
+					referenceTotalTorqueBodyNewtonMeters().length(),
+					actualTotalTorqueBodyNewtonMeters().length()
+			);
+		}
+
+		public double maxWrenchResidualFraction() {
+			return Math.max(forceResidualFraction(), torqueResidualFraction());
+		}
 	}
 
 	public record RotorOnlyStepEnergySample(
@@ -1401,6 +1509,13 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		}
 		double scale = Math.max(Math.abs(referenceMagnitude), Math.abs(actualMagnitude));
 		return scale <= 1.0e-12 ? 0.0 : residualMagnitude / scale;
+	}
+
+	private static Vec3 divideByStep(Vec3 value, double dtSeconds) {
+		if (!Double.isFinite(dtSeconds) || dtSeconds <= 1.0e-12) {
+			return Vec3.ZERO;
+		}
+		return finiteVecOrZero(value).multiply(1.0 / dtSeconds);
 	}
 
 	private static Vec3 finiteVecOrZero(Vec3 value) {

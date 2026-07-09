@@ -280,6 +280,39 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertEquals(0.0, alignedResidual.orientationResidualFraction(), 1.0e-12);
 		assertEquals(0.0, alignedResidual.angularVelocityResidualFraction(), 1.0e-12);
 		assertEquals(0.0, alignedResidual.maxResidualFraction(), 1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepWrenchResidualSample
+				alignedWrenchResidual = alignedResidual.equivalentExternalWrench(config);
+		assertFalse(alignedWrenchResidual.runtimeReplacement());
+		assertEquals(dt, alignedWrenchResidual.dtSeconds(), 1.0e-15);
+		assertVectorEquals(wrench.linearAccelerationWorldMetersPerSecondSquared(),
+				alignedWrenchResidual.referenceLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.linearAccelerationWorldMetersPerSecondSquared(),
+				alignedWrenchResidual.actualLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedWrenchResidual.residualLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.totalForceWorldNewtons(),
+				alignedWrenchResidual.referenceForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(wrench.totalForceWorldNewtons(),
+				alignedWrenchResidual.actualForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared(),
+				alignedWrenchResidual.referenceAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared(),
+				alignedWrenchResidual.actualAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedWrenchResidual.residualAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.gyroscopicTorqueBodyNewtonMeters(),
+				alignedWrenchResidual.gyroscopicTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(wrench.totalTorqueBodyNewtonMeters(),
+				alignedWrenchResidual.referenceTotalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(wrench.totalTorqueBodyNewtonMeters(),
+				alignedWrenchResidual.actualTotalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedWrenchResidual.equivalentExternalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertEquals(0.0, alignedWrenchResidual.forceResidualFraction(), 1.0e-12);
+		assertEquals(0.0, alignedWrenchResidual.torqueResidualFraction(), 1.0e-12);
+		assertEquals(0.0, alignedWrenchResidual.maxWrenchResidualFraction(), 1.0e-12);
 
 		Vec3 positionOffset = new Vec3(0.0010, -0.0020, 0.0005);
 		Vec3 velocityOffset = new Vec3(0.020, -0.010, 0.005);
@@ -319,6 +352,44 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 						offsetResidual.referenceAngularVelocityDeltaBodyRadiansPerSecond().length(),
 						offsetResidual.actualAngularVelocityDeltaBodyRadiansPerSecond().length()),
 				offsetResidual.angularVelocityResidualFraction(), 1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepWrenchResidualSample
+				offsetWrenchResidual = offsetResidual.equivalentExternalWrench(config);
+		Vec3 expectedResidualLinearAcceleration = velocityOffset.multiply(1.0 / dt);
+		Vec3 expectedExternalForce = expectedResidualLinearAcceleration.multiply(config.massKg());
+		Vec3 expectedResidualAngularAcceleration = angularVelocityOffset.multiply(1.0 / dt);
+		Vec3 expectedExternalTorque = config.inertiaKgMetersSquared()
+				.multiply(expectedResidualAngularAcceleration);
+		assertVectorEquals(expectedResidualLinearAcceleration,
+				offsetWrenchResidual.residualLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.linearAccelerationWorldMetersPerSecondSquared()
+						.add(expectedResidualLinearAcceleration),
+				offsetWrenchResidual.actualLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(expectedExternalForce,
+				offsetWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(wrench.totalForceWorldNewtons().add(expectedExternalForce),
+				offsetWrenchResidual.actualForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(expectedResidualAngularAcceleration,
+				offsetWrenchResidual.residualAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(wrench.angularAccelerationBodyRadiansPerSecondSquared()
+						.add(expectedResidualAngularAcceleration),
+				offsetWrenchResidual.actualAngularAccelerationBodyRadiansPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(expectedExternalTorque,
+				offsetWrenchResidual.equivalentExternalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertVectorEquals(wrench.totalTorqueBodyNewtonMeters().add(expectedExternalTorque),
+				offsetWrenchResidual.actualTotalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertEquals(transitionFraction(
+						expectedExternalForce.length(),
+						wrench.totalForceWorldNewtons().length(),
+						offsetWrenchResidual.actualForceWorldNewtons().length()),
+				offsetWrenchResidual.forceResidualFraction(), 1.0e-12);
+		assertEquals(transitionFraction(
+						expectedExternalTorque.length(),
+						wrench.totalTorqueBodyNewtonMeters().length(),
+						offsetWrenchResidual.actualTotalTorqueBodyNewtonMeters().length()),
+				offsetWrenchResidual.torqueResidualFraction(), 1.0e-12);
+		assertEquals(Math.max(offsetWrenchResidual.forceResidualFraction(),
+						offsetWrenchResidual.torqueResidualFraction()),
+				offsetWrenchResidual.maxWrenchResidualFraction(), 1.0e-12);
 		double expectedMaxResidualFraction = Math.max(
 				Math.max(offsetResidual.positionResidualFraction(), offsetResidual.velocityResidualFraction()),
 				Math.max(offsetResidual.orientationResidualFraction(),
@@ -463,6 +534,17 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertVectorEquals(velocityOffset, offset.velocityResidualWorldMetersPerSecond(), 1.0e-12);
 		assertTrue(offset.velocityResidualFraction() > 0.0);
 		assertEquals(offset.velocityResidualFraction(), offset.maxResidualFraction(), 1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepWrenchResidualSample
+				offsetWrenchResidual = offset.equivalentExternalWrench(config);
+		assertVectorEquals(velocityOffset.multiply(1.0 / dt),
+				offsetWrenchResidual.residualLinearAccelerationWorldMetersPerSecondSquared(), 1.0e-12);
+		assertVectorEquals(velocityOffset.multiply(config.massKg() / dt),
+				offsetWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				offsetWrenchResidual.equivalentExternalTorqueBodyNewtonMeters(), 1.0e-12);
+		assertTrue(offsetWrenchResidual.forceResidualFraction() > 0.0);
+		assertEquals(offsetWrenchResidual.forceResidualFraction(),
+				offsetWrenchResidual.maxWrenchResidualFraction(), 1.0e-12);
 		assertVectorEquals(positionWorld, previous.positionMeters(), 1.0e-15);
 		assertVectorEquals(velocityWorld, previous.velocityMetersPerSecond(), 1.0e-15);
 		assertQuaternionEquals(bodyToWorld, previous.orientation(), 1.0e-15);
@@ -841,6 +923,19 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 		assertVectorEquals(zeroForceVelocityDrift,
 				runtimeDriftResidual.velocityResidualWorldMetersPerSecond(), 1.0e-12);
 		assertEquals(1.0, runtimeDriftResidual.velocityResidualFraction(), 1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepWrenchResidualSample
+				runtimeDriftWrenchResidual = runtimeDriftResidual.equivalentExternalWrench(config);
+		assertTrue(runtimeDriftWrenchResidual.runtimeReplacement());
+		assertVectorEquals(Vec3.ZERO, runtimeDriftWrenchResidual.referenceForceWorldNewtons(), 1.0e-15);
+		assertVectorEquals(zeroForceVelocityDrift.multiply(config.massKg() / dt),
+				runtimeDriftWrenchResidual.actualForceWorldNewtons(), 1.0e-12);
+		assertVectorEquals(zeroForceVelocityDrift.multiply(config.massKg() / dt),
+				runtimeDriftWrenchResidual.equivalentExternalForceWorldNewtons(), 1.0e-12);
+		assertEquals(1.0, runtimeDriftWrenchResidual.forceResidualFraction(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				runtimeDriftWrenchResidual.equivalentExternalTorqueBodyNewtonMeters(), 1.0e-15);
+		assertEquals(0.0, runtimeDriftWrenchResidual.torqueResidualFraction(), 1.0e-15);
+		assertEquals(1.0, runtimeDriftWrenchResidual.maxWrenchResidualFraction(), 1.0e-12);
 		for (int i = 0; i < sample.runtimeReplacementRotorApplications().size(); i++) {
 			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 					sample.runtimeReplacementRotorApplications().get(i);
