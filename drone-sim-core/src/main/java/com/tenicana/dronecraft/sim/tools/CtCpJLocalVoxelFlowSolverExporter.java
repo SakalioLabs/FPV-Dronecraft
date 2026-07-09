@@ -184,6 +184,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_open_boundary_net_outward_impulse_world_y_ns",
 			"cumulative_open_boundary_net_outward_impulse_world_z_ns",
 			"cumulative_open_boundary_net_outward_axial_impulse_ns",
+			"cumulative_source_plus_through_flow_axial_impulse_ns",
+			"cumulative_solver_axial_momentum_residual_ns",
+			"retained_flow_axial_momentum_delta_ns",
+			"retained_flow_minus_source_through_and_solver_axial_residual_ns",
+			"retained_plus_boundary_net_outward_axial_impulse_ns",
+			"retained_plus_boundary_over_source_through_axial_impulse",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_x_nm_s",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_y_nm_s",
 			"cumulative_open_boundary_net_outward_angular_impulse_world_z_nm_s",
@@ -1216,6 +1222,25 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				flowAxialMomentumAfterSource - flowAxialMomentumBeforeSource;
 		double flowAxialMomentumSourceDeltaMinusCombinedImpulse =
 				flowAxialMomentumSourceDelta - sourceAxialImpulse - throughFlowAxialImpulse;
+		double initialFlowAxialMomentum = run.initialState().totalAxialMomentumNewtonSeconds(
+				run.config().airDensityKgPerCubicMeter(), sourceAxisWorld, run.solidMask());
+		double cumulativeSourcePlusThroughFlowAxialImpulse =
+				cumulativeSourceAxialImpulse + cumulativeThroughFlowAxialImpulse;
+		double cumulativeSolverAxialMomentumResidual =
+				cumulativeAdvectionMomentumResidual.add(cumulativeProjectionMomentumResidual)
+						.add(cumulativeSolidBoundaryMomentumResidual)
+						.dot(sourceAxisWorld);
+		double retainedFlowAxialMomentumDelta =
+				flowAxialMomentumAfterSolidBoundary - initialFlowAxialMomentum;
+		double retainedFlowMinusSourceThroughAndSolverAxialResidual =
+				retainedFlowAxialMomentumDelta
+						- cumulativeSourcePlusThroughFlowAxialImpulse
+						- cumulativeSolverAxialMomentumResidual;
+		double retainedPlusBoundaryNetOutwardAxialImpulse =
+				retainedFlowAxialMomentumDelta + cumulativeOpenBoundaryNetOutwardAxialImpulse;
+		double retainedPlusBoundaryOverSourceThroughAxialImpulse =
+				ratio(retainedPlusBoundaryNetOutwardAxialImpulse,
+						cumulativeSourcePlusThroughFlowAxialImpulse);
 		Vec3 sourceFreestreamVelocity =
 				metadata.sourceGridSample().massFluxWeightedFreestreamVelocityWorldMetersPerSecond();
 		Vec3 initialFlowVelocity =
@@ -1462,6 +1487,12 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeOpenBoundaryNetOutwardImpulse.y()),
 				number(cumulativeOpenBoundaryNetOutwardImpulse.z()),
 				number(cumulativeOpenBoundaryNetOutwardAxialImpulse),
+				number(cumulativeSourcePlusThroughFlowAxialImpulse),
+				number(cumulativeSolverAxialMomentumResidual),
+				number(retainedFlowAxialMomentumDelta),
+				number(retainedFlowMinusSourceThroughAndSolverAxialResidual),
+				number(retainedPlusBoundaryNetOutwardAxialImpulse),
+				number(retainedPlusBoundaryOverSourceThroughAxialImpulse),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.x()),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.y()),
 				number(cumulativeOpenBoundaryNetOutwardAngularImpulse.z()),

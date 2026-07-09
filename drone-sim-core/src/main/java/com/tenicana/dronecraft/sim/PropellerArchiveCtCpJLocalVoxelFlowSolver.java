@@ -254,6 +254,22 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return sum;
 		}
 
+		public Vec3 totalSourcePlusThroughFlowImpulseWorldNewtonSeconds() {
+			return totalSourceImpulseWorldNewtonSeconds().add(totalThroughFlowImpulseWorldNewtonSeconds());
+		}
+
+		public double totalSourceAxialImpulseNewtonSeconds(Vec3 axialDirectionWorld) {
+			return axialComponent(totalSourceImpulseWorldNewtonSeconds(), axialDirectionWorld);
+		}
+
+		public double totalThroughFlowAxialImpulseNewtonSeconds(Vec3 axialDirectionWorld) {
+			return axialComponent(totalThroughFlowImpulseWorldNewtonSeconds(), axialDirectionWorld);
+		}
+
+		public double totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(Vec3 axialDirectionWorld) {
+			return axialComponent(totalSourcePlusThroughFlowImpulseWorldNewtonSeconds(), axialDirectionWorld);
+		}
+
 		public double totalSourceMassKilograms() {
 			double mass = 0.0;
 			for (SolverIteration iteration : iterations) {
@@ -323,6 +339,10 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 						.multiply(config.timeStepSeconds()));
 			}
 			return impulse;
+		}
+
+		public double cumulativeOpenBoundaryNetOutwardAxialImpulseNewtonSeconds(Vec3 axialDirectionWorld) {
+			return axialComponent(cumulativeOpenBoundaryNetOutwardImpulseWorldNewtonSeconds(), axialDirectionWorld);
 		}
 
 		public Vec3 cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds() {
@@ -561,6 +581,59 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return sum;
 		}
 
+		public Vec3 totalSolverMomentumResidualWorldNewtonSeconds() {
+			return totalAdvectionMomentumResidualWorldNewtonSeconds()
+					.add(totalProjectionMomentumResidualWorldNewtonSeconds())
+					.add(totalSolidBoundaryMomentumResidualWorldNewtonSeconds());
+		}
+
+		public double totalSolverAxialMomentumResidualNewtonSeconds(Vec3 axialDirectionWorld) {
+			return axialComponent(totalSolverMomentumResidualWorldNewtonSeconds(), axialDirectionWorld);
+		}
+
+		public Vec3 initialMomentumWorldNewtonSeconds() {
+			return initialState.totalMomentumWorldNewtonSeconds(config.airDensityKgPerCubicMeter(), solidMask);
+		}
+
+		public double initialAxialMomentumNewtonSeconds(Vec3 axialDirectionWorld) {
+			return initialState.totalAxialMomentumNewtonSeconds(
+					config.airDensityKgPerCubicMeter(),
+					axialDirectionWorld,
+					solidMask);
+		}
+
+		public double finalAxialMomentumNewtonSeconds(Vec3 axialDirectionWorld) {
+			return finalState.totalAxialMomentumNewtonSeconds(
+					config.airDensityKgPerCubicMeter(),
+					axialDirectionWorld,
+					solidMask);
+		}
+
+		public double retainedFlowAxialMomentumDeltaNewtonSeconds(Vec3 axialDirectionWorld) {
+			return finalAxialMomentumNewtonSeconds(axialDirectionWorld)
+					- initialAxialMomentumNewtonSeconds(axialDirectionWorld);
+		}
+
+		public double retainedFlowMinusSourceThroughAndSolverAxialResidualNewtonSeconds(
+				Vec3 axialDirectionWorld
+		) {
+			return retainedFlowAxialMomentumDeltaNewtonSeconds(axialDirectionWorld)
+					- totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(axialDirectionWorld)
+					- totalSolverAxialMomentumResidualNewtonSeconds(axialDirectionWorld);
+		}
+
+		public double retainedPlusBoundaryNetOutwardAxialImpulseNewtonSeconds(Vec3 axialDirectionWorld) {
+			return retainedFlowAxialMomentumDeltaNewtonSeconds(axialDirectionWorld)
+					+ cumulativeOpenBoundaryNetOutwardAxialImpulseNewtonSeconds(axialDirectionWorld);
+		}
+
+		public double retainedPlusBoundaryOverSourceThroughAxialImpulse(Vec3 axialDirectionWorld) {
+			return ratio(
+					retainedPlusBoundaryNetOutwardAxialImpulseNewtonSeconds(axialDirectionWorld),
+					totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(axialDirectionWorld)
+			);
+		}
+
 		public int maxSolidCellCount() {
 			int max = 0;
 			for (SolverIteration iteration : iterations) {
@@ -651,6 +724,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 					&& Math.abs(denominator) > EPSILON
 					? numerator / denominator
 					: 0.0;
+		}
+
+		private static double axialComponent(Vec3 vectorWorld, Vec3 axialDirectionWorld) {
+			Vec3 vector = vectorWorld == null || !vectorWorld.isFinite() ? Vec3.ZERO : vectorWorld;
+			Vec3 axis = axialDirectionWorld == null || !axialDirectionWorld.isFinite()
+					? Vec3.ZERO
+					: axialDirectionWorld.normalized();
+			return axis.lengthSquared() <= EPSILON ? 0.0 : vector.dot(axis);
 		}
 	}
 

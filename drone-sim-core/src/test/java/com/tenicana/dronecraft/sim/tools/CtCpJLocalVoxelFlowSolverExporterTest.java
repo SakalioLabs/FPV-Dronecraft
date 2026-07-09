@@ -112,6 +112,19 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0,
 				number(hoverInitial, "cumulative_open_boundary_net_outward_axial_impulse_ns"), 1.0e-15);
 		assertEquals(0.0,
+				number(hoverInitial, "cumulative_source_plus_through_flow_axial_impulse_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "cumulative_solver_axial_momentum_residual_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "retained_flow_axial_momentum_delta_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial,
+						"retained_flow_minus_source_through_and_solver_axial_residual_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "retained_plus_boundary_net_outward_axial_impulse_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(hoverInitial, "retained_plus_boundary_over_source_through_axial_impulse"), 1.0e-15);
+		assertEquals(0.0,
 				number(hoverInitial, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_grid_integrated_disk_mass_flow_kg_s"), 1.0e-15);
 		assertEquals(0.0, number(hoverInitial, "source_mass_flow_rate_residual_kg_s"), 1.0e-15);
@@ -194,6 +207,37 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				1.0e-12);
 		assertEquals(number(hoverStep2, "cumulative_open_boundary_net_outward_impulse_world_y_ns"),
 				number(hoverStep2, "cumulative_open_boundary_net_outward_axial_impulse_ns"), 1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_source_axial_impulse_ns")
+						+ number(hoverStep2, "cumulative_through_flow_axial_impulse_ns"),
+				number(hoverStep2, "cumulative_source_plus_through_flow_axial_impulse_ns"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "cumulative_advection_momentum_residual_world_y_ns")
+						+ number(hoverStep2, "cumulative_projection_momentum_residual_world_y_ns")
+						+ number(hoverStep2, "cumulative_solid_boundary_momentum_residual_world_y_ns"),
+				number(hoverStep2, "cumulative_solver_axial_momentum_residual_ns"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "flow_axial_momentum_after_solid_boundary_ns")
+						- number(hoverInitial, "flow_axial_momentum_after_solid_boundary_ns"),
+				number(hoverStep2, "retained_flow_axial_momentum_delta_ns"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "retained_flow_axial_momentum_delta_ns")
+						- number(hoverStep2, "cumulative_source_plus_through_flow_axial_impulse_ns")
+						- number(hoverStep2, "cumulative_solver_axial_momentum_residual_ns"),
+				number(hoverStep2,
+						"retained_flow_minus_source_through_and_solver_axial_residual_ns"),
+				1.0e-9);
+		assertEquals(0.0,
+				number(hoverStep2,
+						"retained_flow_minus_source_through_and_solver_axial_residual_ns"),
+				1.0e-9);
+		assertEquals(number(hoverStep2, "retained_flow_axial_momentum_delta_ns")
+						+ number(hoverStep2, "cumulative_open_boundary_net_outward_axial_impulse_ns"),
+				number(hoverStep2, "retained_plus_boundary_net_outward_axial_impulse_ns"),
+				1.0e-12);
+		assertEquals(number(hoverStep2, "retained_plus_boundary_net_outward_axial_impulse_ns")
+						/ number(hoverStep2, "cumulative_source_plus_through_flow_axial_impulse_ns"),
+				number(hoverStep2, "retained_plus_boundary_over_source_through_axial_impulse"),
+				1.0e-12);
 		assertTrue(number(hoverStep2, "mean_active_wake_residual_after_residence_mps") > 0.0);
 		assertTrue(number(hoverStep2, "mass_flow_weighted_wake_residual_after_residence_mps") > 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2,
@@ -575,6 +619,19 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(blockedStep2, "cumulative_source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0,
 				number(blockedStep2, "cumulative_open_boundary_net_outward_axial_impulse_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_source_plus_through_flow_axial_impulse_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "cumulative_solver_axial_momentum_residual_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "retained_flow_axial_momentum_delta_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2,
+						"retained_flow_minus_source_through_and_solver_axial_residual_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "retained_plus_boundary_net_outward_axial_impulse_ns"), 1.0e-15);
+		assertEquals(0.0,
+				number(blockedStep2, "retained_plus_boundary_over_source_through_axial_impulse"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_mechanical_work_power_w"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "source_mechanical_work_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(blockedStep2, "through_flow_mechanical_work_power_w"), 1.0e-15);
@@ -1068,6 +1125,13 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("cumulative_source_axial_momentum_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_source_total_wake_kinetic_energy_j"));
 		assertTrue(lines.get(0).contains("cumulative_open_boundary_net_outward_axial_impulse_ns"));
+		assertTrue(lines.get(0).contains("cumulative_source_plus_through_flow_axial_impulse_ns"));
+		assertTrue(lines.get(0).contains("cumulative_solver_axial_momentum_residual_ns"));
+		assertTrue(lines.get(0).contains("retained_flow_axial_momentum_delta_ns"));
+		assertTrue(lines.get(0).contains(
+				"retained_flow_minus_source_through_and_solver_axial_residual_ns"));
+		assertTrue(lines.get(0).contains("retained_plus_boundary_net_outward_axial_impulse_ns"));
+		assertTrue(lines.get(0).contains("retained_plus_boundary_over_source_through_axial_impulse"));
 		assertTrue(lines.get(0).contains("source_mechanical_work_power_w"));
 		assertTrue(lines.get(0).contains("source_mechanical_work_energy_j"));
 		assertTrue(lines.get(0).contains("through_flow_mechanical_work_power_w"));

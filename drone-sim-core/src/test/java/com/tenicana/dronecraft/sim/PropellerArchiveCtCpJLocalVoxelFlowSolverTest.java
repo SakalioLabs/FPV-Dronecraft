@@ -71,6 +71,16 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(gridSample.integratedAxialMomentumPowerWatts(sourceAxisWorld, SOURCE_THICKNESS)
 						* DT * run.completedStepCount(),
 				run.totalSourceAxialMomentumEnergyJoules(sourceAxisWorld), 1.0e-12);
+		assertVectorEquals(run.totalSourceImpulseWorldNewtonSeconds()
+						.add(run.totalThroughFlowImpulseWorldNewtonSeconds()),
+				run.totalSourcePlusThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(run.totalSourceImpulseWorldNewtonSeconds().y(),
+				run.totalSourceAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-12);
+		assertEquals(run.totalThroughFlowImpulseWorldNewtonSeconds().y(),
+				run.totalThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-12);
+		assertEquals(run.totalSourceImpulseWorldNewtonSeconds().y()
+						+ run.totalThroughFlowImpulseWorldNewtonSeconds().y(),
+				run.totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-12);
 		assertEquals(gridSample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS)
 						* DT * run.completedStepCount(),
 				run.totalWakeSwirlKineticEnergyJoules(), 1.0e-12);
@@ -135,6 +145,8 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				run.cumulativeOpenBoundaryNetOutwardMassKilograms(), 1.0e-15);
 		assertVectorEquals(expectedBoundaryImpulse,
 				run.cumulativeOpenBoundaryNetOutwardImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(expectedBoundaryImpulse.y(),
+				run.cumulativeOpenBoundaryNetOutwardAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
 		assertVectorEquals(expectedBoundaryAngularImpulse,
 				run.cumulativeOpenBoundaryNetOutwardAngularImpulseWorldNewtonMeterSeconds(), 1.0e-15);
 		assertEquals(run.cumulativeOpenBoundaryOutwardKineticEnergyJoules()
@@ -157,6 +169,29 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 						+ run.cumulativeOpenBoundaryNetOutwardKineticEnergyJoules())
 						/ run.totalWakeKineticEnergyJoules(),
 				run.retainedPlusBoundaryNetOutwardKineticEnergyOverSourceWakeKineticEnergy(), 1.0e-15);
+		Vec3 expectedSolverMomentumResidual = run.totalAdvectionMomentumResidualWorldNewtonSeconds()
+				.add(run.totalProjectionMomentumResidualWorldNewtonSeconds())
+				.add(run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds());
+		double retainedAxialMomentumDelta =
+				run.finalAxialMomentumNewtonSeconds(sourceAxisWorld)
+						- run.initialAxialMomentumNewtonSeconds(sourceAxisWorld);
+		assertVectorEquals(expectedSolverMomentumResidual,
+				run.totalSolverMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.initialMomentumWorldNewtonSeconds(), 1.0e-15);
+		assertEquals(run.finalMomentumWorldNewtonSeconds().y(),
+				run.finalAxialMomentumNewtonSeconds(sourceAxisWorld), 1.0e-12);
+		assertEquals(retainedAxialMomentumDelta,
+				run.retainedFlowAxialMomentumDeltaNewtonSeconds(sourceAxisWorld), 1.0e-12);
+		assertEquals(expectedSolverMomentumResidual.y(),
+				run.totalSolverAxialMomentumResidualNewtonSeconds(sourceAxisWorld), 1.0e-12);
+		assertEquals(0.0,
+				run.retainedFlowMinusSourceThroughAndSolverAxialResidualNewtonSeconds(sourceAxisWorld),
+				1.0e-9);
+		assertEquals(retainedAxialMomentumDelta + expectedBoundaryImpulse.y(),
+				run.retainedPlusBoundaryNetOutwardAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-12);
+		assertEquals((retainedAxialMomentumDelta + expectedBoundaryImpulse.y())
+						/ run.totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld),
+				run.retainedPlusBoundaryOverSourceThroughAxialImpulse(sourceAxisWorld), 1.0e-12);
 		assertEquals(0, run.maxSolidCellCount());
 		assertEquals(0, run.maxSolidClampedCellCount());
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
@@ -366,9 +401,26 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO,
 				run.sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalSourcePlusThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalSolverMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		Vec3 sourceAxisWorld = new Vec3(0.0, 1.0, 0.0);
+		assertEquals(0.0, run.totalSourceAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.totalThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.totalSolverAxialMomentumResidualNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.cumulativeOpenBoundaryNetOutwardAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(run.initialAxialMomentumNewtonSeconds(sourceAxisWorld),
+				run.finalAxialMomentumNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.retainedFlowAxialMomentumDeltaNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedFlowMinusSourceThroughAndSolverAxialResidualNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedPlusBoundaryNetOutwardAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedPlusBoundaryOverSourceThroughAxialImpulse(sourceAxisWorld), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
 		assertEquals(0.0, run.openBoundaryOutwardMassOverSourceMass(), 1.0e-15);
 		assertEquals(0.0, run.openBoundaryNetOutwardMassOverSourceMass(), 1.0e-15);
@@ -432,9 +484,25 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(Vec3.ZERO,
 				run.sourceFlowAngularMomentumDeltaMinusWakeImpulseWorldNewtonMeterSeconds(Vec3.ZERO), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalSourcePlusThroughFlowImpulseWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalAdvectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalProjectionMomentumResidualWorldNewtonSeconds(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, run.totalSolidBoundaryMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		assertVectorEquals(Vec3.ZERO, run.totalSolverMomentumResidualWorldNewtonSeconds(), 1.0e-15);
+		Vec3 sourceAxisWorld = new Vec3(0.0, 1.0, 0.0);
+		assertEquals(0.0, run.totalSourceAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.totalThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.totalSourcePlusThroughFlowAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.totalSolverAxialMomentumResidualNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.initialAxialMomentumNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.finalAxialMomentumNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0, run.retainedFlowAxialMomentumDeltaNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedFlowMinusSourceThroughAndSolverAxialResidualNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedPlusBoundaryNetOutwardAxialImpulseNewtonSeconds(sourceAxisWorld), 1.0e-15);
+		assertEquals(0.0,
+				run.retainedPlusBoundaryOverSourceThroughAxialImpulse(sourceAxisWorld), 1.0e-15);
 		assertEquals(0.0, run.totalSourceMassKilograms(), 1.0e-15);
 		assertEquals(0.0, run.openBoundaryOutwardMassOverSourceMass(), 1.0e-15);
 		assertEquals(0.0, run.openBoundaryNetOutwardMassOverSourceMass(), 1.0e-15);
