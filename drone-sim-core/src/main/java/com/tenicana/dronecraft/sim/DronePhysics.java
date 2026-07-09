@@ -5345,7 +5345,13 @@ public final class DronePhysics {
 						: lateralDistance;
 				double coaxialCoreFactor = 1.0 - smoothStep(source.radiusMeters() * 0.08, source.radiusMeters() * 0.72, effectiveMissDistance);
 				double swirlCapture = MathUtil.clamp(0.34 + 0.26 * coaxialCoreFactor + 0.14 * sourceSpinRatio, 0.0, 0.78);
-				double swirlVelocity = contribution * sourceInducedVelocity * swirlCapture;
+				double swirlVelocity = rotorCtCpJRuntimeWakeSwirlVelocityMetersPerSecond(
+						state,
+						sourceIndex,
+						contribution,
+						swirlCapture,
+						sourceInducedVelocity
+				);
 				Vec3 sourceArmBody = sourcePosition.subtract(config.centerOfMassOffsetBodyMeters());
 				Vec3 swirlDirection = rotorWakeSwirlDirection(
 						sourceAxisBody,
@@ -6309,6 +6315,30 @@ public final class DronePhysics {
 			return fallback;
 		}
 		return MathUtil.clamp(wakeResidenceLength / representativeWakeSpeed, 0.004, 0.240);
+	}
+
+	static double rotorCtCpJRuntimeWakeSwirlVelocityMetersPerSecond(
+			DroneState state,
+			int sourceRotorIndex,
+			double contribution,
+			double swirlCapture,
+			double fallbackSourceInducedVelocityMetersPerSecond
+	) {
+		double geometry = MathUtil.clamp(finiteOrDefault(contribution, 0.0), 0.0, 1.0)
+				* MathUtil.clamp(finiteOrDefault(swirlCapture, 0.0), 0.0, 1.0);
+		double fallback = geometry * finiteNonnegative(fallbackSourceInducedVelocityMetersPerSecond);
+		if (state == null
+				|| sourceRotorIndex < 0
+				|| sourceRotorIndex >= state.motorCount()
+				|| !state.rotorCtCpJReferenceRuntimeApplied(sourceRotorIndex)) {
+			return fallback;
+		}
+		double wakeTangentialVelocity =
+				state.rotorCtCpJReferenceWakeTangentialVelocityMetersPerSecond(sourceRotorIndex);
+		if (!Double.isFinite(wakeTangentialVelocity) || wakeTangentialVelocity <= 0.0) {
+			return fallback;
+		}
+		return geometry * wakeTangentialVelocity;
 	}
 
 	private double updateRotorTranslationalLiftIntensity(
