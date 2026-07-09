@@ -179,6 +179,69 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimePreview.nextBodyToWorldOrientation(), 1.0e-12);
 		assertVectorEquals(preview.nextAngularVelocityBodyRadiansPerSecond(),
 				runtimePreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-12);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample alignedResidual =
+				preview.residualTo(
+						expectedNextPosition,
+						expectedNextVelocity,
+						expectedNextOrientation,
+						expectedNextAngularVelocity
+				);
+		assertFalse(alignedResidual.runtimeReplacement());
+		assertVectorEquals(Vec3.ZERO, alignedResidual.positionResidualWorldMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, alignedResidual.velocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertEquals(0.0, alignedResidual.orientationAngleResidualRadians(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO,
+				alignedResidual.angularVelocityResidualBodyRadiansPerSecond(), 1.0e-12);
+		assertEquals(0.0, alignedResidual.positionResidualFraction(), 1.0e-12);
+		assertEquals(0.0, alignedResidual.velocityResidualFraction(), 1.0e-12);
+		assertEquals(0.0, alignedResidual.orientationResidualFraction(), 1.0e-12);
+		assertEquals(0.0, alignedResidual.angularVelocityResidualFraction(), 1.0e-12);
+		assertEquals(0.0, alignedResidual.maxResidualFraction(), 1.0e-12);
+
+		Vec3 positionOffset = new Vec3(0.0010, -0.0020, 0.0005);
+		Vec3 velocityOffset = new Vec3(0.020, -0.010, 0.005);
+		Vec3 angularVelocityOffset = new Vec3(0.003, -0.006, 0.002);
+		Quaternion actualNextOrientation =
+				expectedNextOrientation.integrateBodyAngularVelocity(new Vec3(0.0, 0.20, 0.0), 0.01);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample offsetResidual =
+				preview.residualTo(
+						expectedNextPosition.add(positionOffset),
+						expectedNextVelocity.add(velocityOffset),
+						actualNextOrientation,
+						expectedNextAngularVelocity.add(angularVelocityOffset)
+				);
+		assertVectorEquals(positionOffset, offsetResidual.positionResidualWorldMeters(), 1.0e-12);
+		assertVectorEquals(velocityOffset, offsetResidual.velocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(angularVelocityOffset,
+				offsetResidual.angularVelocityResidualBodyRadiansPerSecond(), 1.0e-12);
+		assertEquals(quaternionAngleBetween(expectedNextOrientation, actualNextOrientation),
+				offsetResidual.orientationAngleResidualRadians(), 1.0e-12);
+		assertEquals(transitionFraction(
+						positionOffset.length(),
+						offsetResidual.referencePositionDeltaWorldMeters().length(),
+						offsetResidual.actualPositionDeltaWorldMeters().length()),
+				offsetResidual.positionResidualFraction(), 1.0e-12);
+		assertEquals(transitionFraction(
+						velocityOffset.length(),
+						offsetResidual.referenceVelocityDeltaWorldMetersPerSecond().length(),
+						offsetResidual.actualVelocityDeltaWorldMetersPerSecond().length()),
+				offsetResidual.velocityResidualFraction(), 1.0e-12);
+		assertEquals(transitionFraction(
+						offsetResidual.orientationAngleResidualRadians(),
+						offsetResidual.referenceOrientationStepAngleRadians(),
+						offsetResidual.actualOrientationStepAngleRadians()),
+				offsetResidual.orientationResidualFraction(), 1.0e-12);
+		assertEquals(transitionFraction(
+						angularVelocityOffset.length(),
+						offsetResidual.referenceAngularVelocityDeltaBodyRadiansPerSecond().length(),
+						offsetResidual.actualAngularVelocityDeltaBodyRadiansPerSecond().length()),
+				offsetResidual.angularVelocityResidualFraction(), 1.0e-12);
+		double expectedMaxResidualFraction = Math.max(
+				Math.max(offsetResidual.positionResidualFraction(), offsetResidual.velocityResidualFraction()),
+				Math.max(offsetResidual.orientationResidualFraction(),
+						offsetResidual.angularVelocityResidualFraction())
+		);
+		assertEquals(expectedMaxResidualFraction, offsetResidual.maxResidualFraction(), 1.0e-12);
 		for (int i = 0; i < sample.rotorApplications().size(); i++) {
 			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 					sample.rotorApplications().get(i);
@@ -216,6 +279,111 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 					1.0e-12
 			);
 		}
+	}
+
+	@Test
+	void providerComparesRotorOnlyStepTransitionFromStates() {
+		DroneConfig config = DroneConfig.apDrone();
+		RotorSpec rotor = config.rotors().get(0);
+		double hoverOmega = Math.sqrt(
+				(config.massKg() * config.gravityMetersPerSecondSquared() / config.rotors().size())
+						/ rotor.thrustCoefficient());
+		double[] omegas = fill(config.rotors().size(), hoverOmega);
+		DroneState previous = new DroneState(config.rotors().size());
+		DroneState next = new DroneState(config.rotors().size());
+		Vec3 positionWorld = new Vec3(0.75, 68.0, -1.25);
+		Vec3 angularVelocityBody = new Vec3(0.25, -0.10, 0.04);
+		Quaternion bodyToWorld = new Quaternion(
+				Math.cos(Math.PI * 0.10),
+				0.0,
+				0.0,
+				Math.sin(Math.PI * 0.10)
+		);
+		Vec3 windWorld = new Vec3(0.20, 0.0, -0.15);
+		Vec3 relativeAirBody = new Vec3(0.0, 1.25, 0.15);
+		Vec3 velocityWorld = windWorld.add(bodyToWorld.rotate(relativeAirBody));
+		DroneEnvironment environment = new DroneEnvironment(windWorld, 1.0, Double.POSITIVE_INFINITY);
+		double dt = 0.01;
+		for (int i = 0; i < omegas.length; i++) {
+			previous.setMotorOmegaRadiansPerSecond(i, omegas[i]);
+		}
+		previous.setPositionMeters(positionWorld);
+		previous.setVelocityMetersPerSecond(velocityWorld);
+		previous.setOrientation(bodyToWorld);
+		previous.setAngularVelocityBodyRadiansPerSecond(angularVelocityBody);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.WorldForceApplicationSample reference =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.sampleStaticAnchoredConfigurationFromState(
+						"apDrone",
+						"provider_state_transition",
+						config,
+						previous,
+						environment,
+						omegas,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepPreview preview =
+				reference.rotorOnlyStepPreview(config, positionWorld, velocityWorld, angularVelocityBody, dt);
+		next.setPositionMeters(preview.nextPositionWorldMeters());
+		next.setVelocityMetersPerSecond(preview.nextVelocityWorldMetersPerSecond());
+		next.setOrientation(preview.nextBodyToWorldOrientation());
+		next.setAngularVelocityBodyRadiansPerSecond(preview.nextAngularVelocityBodyRadiansPerSecond());
+
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample aligned =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.compareRotorOnlyStepToStateTransition(
+						"apDrone",
+						"provider_state_transition",
+						config,
+						previous,
+						next,
+						environment,
+						omegas,
+						dt,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample runtimeAligned =
+				PropellerArchiveCtCpJWorldForceApplicationProvider
+						.compareRuntimeReplacementRotorOnlyStepToStateTransition(
+								"apDrone",
+								"provider_state_transition",
+								config,
+								previous,
+								next,
+								environment,
+								omegas,
+								dt,
+								PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+						);
+
+		assertFalse(aligned.runtimeReplacement());
+		assertTrue(runtimeAligned.runtimeReplacement());
+		assertVectorEquals(Vec3.ZERO, aligned.positionResidualWorldMeters(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aligned.velocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertEquals(0.0, aligned.orientationAngleResidualRadians(), 1.0e-12);
+		assertVectorEquals(Vec3.ZERO, aligned.angularVelocityResidualBodyRadiansPerSecond(), 1.0e-12);
+		assertEquals(0.0, aligned.maxResidualFraction(), 1.0e-12);
+		assertEquals(0.0, runtimeAligned.maxResidualFraction(), 1.0e-12);
+
+		Vec3 velocityOffset = new Vec3(0.015, 0.0, -0.005);
+		next.setVelocityMetersPerSecond(preview.nextVelocityWorldMetersPerSecond().add(velocityOffset));
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample offset =
+				PropellerArchiveCtCpJWorldForceApplicationProvider.compareRotorOnlyStepToStateTransition(
+						"apDrone",
+						"provider_state_transition",
+						config,
+						previous,
+						next,
+						environment,
+						omegas,
+						dt,
+						PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy.BLOCK_OUT_OF_ENVELOPE
+				);
+		assertVectorEquals(velocityOffset, offset.velocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertTrue(offset.velocityResidualFraction() > 0.0);
+		assertEquals(offset.velocityResidualFraction(), offset.maxResidualFraction(), 1.0e-12);
+		assertVectorEquals(positionWorld, previous.positionMeters(), 1.0e-15);
+		assertVectorEquals(velocityWorld, previous.velocityMetersPerSecond(), 1.0e-15);
+		assertQuaternionEquals(bodyToWorld, previous.orientation(), 1.0e-15);
+		assertVectorEquals(angularVelocityBody, previous.angularVelocityBodyRadiansPerSecond(), 1.0e-15);
 	}
 
 	@Test
@@ -546,6 +714,26 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 				runtimePreview.nextPositionWorldMeters(), 1.0e-15);
 		assertQuaternionEquals(Quaternion.IDENTITY, runtimePreview.nextBodyToWorldOrientation(), 1.0e-15);
 		assertVectorEquals(Vec3.ZERO, runtimePreview.nextAngularVelocityBodyRadiansPerSecond(), 1.0e-15);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample runtimeAlignedResidual =
+				runtimePreview.residualTo(
+						runtimePreview.nextPositionWorldMeters(),
+						runtimePreview.nextVelocityWorldMetersPerSecond(),
+						runtimePreview.nextBodyToWorldOrientation(),
+						runtimePreview.nextAngularVelocityBodyRadiansPerSecond()
+				);
+		assertTrue(runtimeAlignedResidual.runtimeReplacement());
+		assertEquals(0.0, runtimeAlignedResidual.maxResidualFraction(), 1.0e-12);
+		Vec3 zeroForceVelocityDrift = new Vec3(0.01, 0.0, 0.0);
+		PropellerArchiveCtCpJWorldForceApplicationProvider.RotorOnlyStepResidualSample runtimeDriftResidual =
+				runtimePreview.residualTo(
+						runtimePreview.nextPositionWorldMeters(),
+						runtimePreview.nextVelocityWorldMetersPerSecond().add(zeroForceVelocityDrift),
+						runtimePreview.nextBodyToWorldOrientation(),
+						runtimePreview.nextAngularVelocityBodyRadiansPerSecond()
+				);
+		assertVectorEquals(zeroForceVelocityDrift,
+				runtimeDriftResidual.velocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertEquals(1.0, runtimeDriftResidual.velocityResidualFraction(), 1.0e-12);
 		for (int i = 0; i < sample.runtimeReplacementRotorApplications().size(); i++) {
 			PropellerArchiveCtCpJRotorForceModel.RotorWorldForceApplicationSample application =
 					sample.runtimeReplacementRotorApplications().get(i);
@@ -581,6 +769,19 @@ class PropellerArchiveCtCpJWorldForceApplicationProviderTest {
 			values[i] = value;
 		}
 		return values;
+	}
+
+	private static double transitionFraction(double residualMagnitude, double referenceMagnitude, double actualMagnitude) {
+		double scale = Math.max(Math.abs(referenceMagnitude), Math.abs(actualMagnitude));
+		return scale <= 1.0e-12 ? 0.0 : residualMagnitude / scale;
+	}
+
+	private static double quaternionAngleBetween(Quaternion expected, Quaternion actual) {
+		double dot = Math.abs(expected.w() * actual.w()
+				+ expected.x() * actual.x()
+				+ expected.y() * actual.y()
+				+ expected.z() * actual.z());
+		return 2.0 * Math.acos(MathUtil.clamp(dot, 0.0, 1.0));
 	}
 
 	private static void copyReferenceRotorTelemetryIntoState(

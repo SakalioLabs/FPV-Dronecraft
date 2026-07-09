@@ -117,6 +117,122 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		);
 	}
 
+	public static RotorOnlyStepResidualSample compareRotorOnlyStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		return compareRotorOnlyStepToStateTransition(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				nextState,
+				environment,
+				previousState.motorOmegaRadiansPerSecond(),
+				dtSeconds,
+				envelopePolicy
+		);
+	}
+
+	public static RotorOnlyStepResidualSample compareRotorOnlyStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double[] omegaRadiansPerSecond,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		WorldForceApplicationSample reference = sampleStaticAnchoredConfigurationFromState(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				environment,
+				omegaRadiansPerSecond,
+				envelopePolicy
+		);
+		return reference.rotorOnlyStepPreview(
+				config,
+				previousState.positionMeters(),
+				previousState.velocityMetersPerSecond(),
+				previousState.angularVelocityBodyRadiansPerSecond(),
+				dtSeconds
+		).residualTo(nextState);
+	}
+
+	public static RotorOnlyStepResidualSample compareRuntimeReplacementRotorOnlyStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		return compareRuntimeReplacementRotorOnlyStepToStateTransition(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				nextState,
+				environment,
+				previousState.motorOmegaRadiansPerSecond(),
+				dtSeconds,
+				envelopePolicy
+		);
+	}
+
+	public static RotorOnlyStepResidualSample compareRuntimeReplacementRotorOnlyStepToStateTransition(
+			String presetName,
+			String caseName,
+			DroneConfig config,
+			DroneState previousState,
+			DroneState nextState,
+			DroneEnvironment environment,
+			double[] omegaRadiansPerSecond,
+			double dtSeconds,
+			PropellerArchiveCtCpJLookupEvaluator.EnvelopePolicy envelopePolicy
+	) {
+		if (previousState == null) {
+			throw new IllegalArgumentException("previousState must not be null.");
+		}
+		WorldForceApplicationSample reference = sampleStaticAnchoredConfigurationFromState(
+				presetName,
+				caseName,
+				config,
+				previousState,
+				environment,
+				omegaRadiansPerSecond,
+				envelopePolicy
+		);
+		return reference.runtimeReplacementRotorOnlyStepPreview(
+				config,
+				previousState.positionMeters(),
+				previousState.velocityMetersPerSecond(),
+				previousState.angularVelocityBodyRadiansPerSecond(),
+				dtSeconds
+		).residualTo(nextState);
+	}
+
 	public static WorldForceApplicationSample sampleStaticAnchoredConfigurationFromWorldKinematics(
 			String presetName,
 			String caseName,
@@ -786,6 +902,158 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		public boolean runtimeReplacement() {
 			return wrench.runtimeReplacement();
 		}
+
+		public RotorOnlyStepResidualSample residualTo(DroneState actualNextState) {
+			if (actualNextState == null) {
+				throw new IllegalArgumentException("actualNextState must not be null.");
+			}
+			return residualTo(
+					actualNextState.positionMeters(),
+					actualNextState.velocityMetersPerSecond(),
+					actualNextState.orientation(),
+					actualNextState.angularVelocityBodyRadiansPerSecond()
+			);
+		}
+
+		public RotorOnlyStepResidualSample residualTo(
+				Vec3 actualNextPositionWorldMeters,
+				Vec3 actualNextVelocityWorldMetersPerSecond,
+				Quaternion actualNextBodyToWorldOrientation,
+				Vec3 actualNextAngularVelocityBodyRadiansPerSecond
+		) {
+			return new RotorOnlyStepResidualSample(
+					this,
+					actualNextPositionWorldMeters,
+					actualNextVelocityWorldMetersPerSecond,
+					actualNextBodyToWorldOrientation,
+					actualNextAngularVelocityBodyRadiansPerSecond
+			);
+		}
+	}
+
+	public record RotorOnlyStepResidualSample(
+			RotorOnlyStepPreview preview,
+			Vec3 actualNextPositionWorldMeters,
+			Vec3 actualNextVelocityWorldMetersPerSecond,
+			Quaternion actualNextBodyToWorldOrientation,
+			Vec3 actualNextAngularVelocityBodyRadiansPerSecond
+	) {
+		public RotorOnlyStepResidualSample {
+			if (preview == null) {
+				throw new IllegalArgumentException("preview must not be null.");
+			}
+			actualNextPositionWorldMeters = finiteVecOrZero(actualNextPositionWorldMeters);
+			actualNextVelocityWorldMetersPerSecond = finiteVecOrZero(actualNextVelocityWorldMetersPerSecond);
+			actualNextBodyToWorldOrientation =
+					finiteQuaternionOrIdentity(actualNextBodyToWorldOrientation).normalized();
+			actualNextAngularVelocityBodyRadiansPerSecond =
+					finiteVecOrZero(actualNextAngularVelocityBodyRadiansPerSecond);
+		}
+
+		public boolean runtimeReplacement() {
+			return preview.runtimeReplacement();
+		}
+
+		public Vec3 referencePositionDeltaWorldMeters() {
+			return preview.nextPositionWorldMeters().subtract(preview.initialPositionWorldMeters());
+		}
+
+		public Vec3 actualPositionDeltaWorldMeters() {
+			return actualNextPositionWorldMeters.subtract(preview.initialPositionWorldMeters());
+		}
+
+		public Vec3 positionResidualWorldMeters() {
+			return actualNextPositionWorldMeters.subtract(preview.nextPositionWorldMeters());
+		}
+
+		public double positionResidualFraction() {
+			return stepResidualFraction(
+					positionResidualWorldMeters().length(),
+					referencePositionDeltaWorldMeters().length(),
+					actualPositionDeltaWorldMeters().length()
+			);
+		}
+
+		public Vec3 referenceVelocityDeltaWorldMetersPerSecond() {
+			return preview.nextVelocityWorldMetersPerSecond()
+					.subtract(preview.initialVelocityWorldMetersPerSecond());
+		}
+
+		public Vec3 actualVelocityDeltaWorldMetersPerSecond() {
+			return actualNextVelocityWorldMetersPerSecond
+					.subtract(preview.initialVelocityWorldMetersPerSecond());
+		}
+
+		public Vec3 velocityResidualWorldMetersPerSecond() {
+			return actualNextVelocityWorldMetersPerSecond
+					.subtract(preview.nextVelocityWorldMetersPerSecond());
+		}
+
+		public double velocityResidualFraction() {
+			return stepResidualFraction(
+					velocityResidualWorldMetersPerSecond().length(),
+					referenceVelocityDeltaWorldMetersPerSecond().length(),
+					actualVelocityDeltaWorldMetersPerSecond().length()
+			);
+		}
+
+		public double referenceOrientationStepAngleRadians() {
+			return orientationAngleBetweenRadians(
+					preview.initialBodyToWorldOrientation(),
+					preview.nextBodyToWorldOrientation()
+			);
+		}
+
+		public double actualOrientationStepAngleRadians() {
+			return orientationAngleBetweenRadians(
+					preview.initialBodyToWorldOrientation(),
+					actualNextBodyToWorldOrientation
+			);
+		}
+
+		public double orientationAngleResidualRadians() {
+			return orientationAngleBetweenRadians(
+					preview.nextBodyToWorldOrientation(),
+					actualNextBodyToWorldOrientation
+			);
+		}
+
+		public double orientationResidualFraction() {
+			return stepResidualFraction(
+					orientationAngleResidualRadians(),
+					referenceOrientationStepAngleRadians(),
+					actualOrientationStepAngleRadians()
+			);
+		}
+
+		public Vec3 referenceAngularVelocityDeltaBodyRadiansPerSecond() {
+			return preview.nextAngularVelocityBodyRadiansPerSecond()
+					.subtract(preview.initialAngularVelocityBodyRadiansPerSecond());
+		}
+
+		public Vec3 actualAngularVelocityDeltaBodyRadiansPerSecond() {
+			return actualNextAngularVelocityBodyRadiansPerSecond
+					.subtract(preview.initialAngularVelocityBodyRadiansPerSecond());
+		}
+
+		public Vec3 angularVelocityResidualBodyRadiansPerSecond() {
+			return actualNextAngularVelocityBodyRadiansPerSecond
+					.subtract(preview.nextAngularVelocityBodyRadiansPerSecond());
+		}
+
+		public double angularVelocityResidualFraction() {
+			return stepResidualFraction(
+					angularVelocityResidualBodyRadiansPerSecond().length(),
+					referenceAngularVelocityDeltaBodyRadiansPerSecond().length(),
+					actualAngularVelocityDeltaBodyRadiansPerSecond().length()
+			);
+		}
+
+		public double maxResidualFraction() {
+			double max = Math.max(positionResidualFraction(), velocityResidualFraction());
+			max = Math.max(max, orientationResidualFraction());
+			return Math.max(max, angularVelocityResidualFraction());
+		}
 	}
 
 	private static Vec3 sumThrustForce(
@@ -908,6 +1176,16 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 		return numerator / denominator;
 	}
 
+	private static double stepResidualFraction(double residualMagnitude, double referenceMagnitude, double actualMagnitude) {
+		if (!Double.isFinite(residualMagnitude)
+				|| !Double.isFinite(referenceMagnitude)
+				|| !Double.isFinite(actualMagnitude)) {
+			return 0.0;
+		}
+		double scale = Math.max(Math.abs(referenceMagnitude), Math.abs(actualMagnitude));
+		return scale <= 1.0e-12 ? 0.0 : residualMagnitude / scale;
+	}
+
 	private static Vec3 finiteVecOrZero(Vec3 value) {
 		if (value == null || !value.isFinite()) {
 			return Vec3.ZERO;
@@ -931,6 +1209,16 @@ public final class PropellerArchiveCtCpJWorldForceApplicationProvider {
 			return 0.0;
 		}
 		return value;
+	}
+
+	private static double orientationAngleBetweenRadians(Quaternion a, Quaternion b) {
+		Quaternion left = finiteQuaternionOrIdentity(a).normalized();
+		Quaternion right = finiteQuaternionOrIdentity(b).normalized();
+		double dot = Math.abs(left.w() * right.w()
+				+ left.x() * right.x()
+				+ left.y() * right.y()
+				+ left.z() * right.z());
+		return 2.0 * Math.acos(MathUtil.clamp(dot, 0.0, 1.0));
 	}
 
 	private static Vec3 rotateWorldVectorToBody(Vec3 worldVector, Quaternion bodyToWorldOrientation) {
