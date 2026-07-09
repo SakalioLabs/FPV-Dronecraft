@@ -39,9 +39,13 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(gridSample, config);
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample effectiveSourceGrid =
 				run.effectiveSourceGridSample();
+		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun.SourceBudgetComparison sourceBudget =
+				run.sourceBudgetComparison();
 
 		assertEquals(4, run.completedStepCount());
 		assertEquals(4, run.iterations().size());
+		assertEquals(DT * run.completedStepCount(), sourceBudget.durationSeconds(), 1.0e-15);
+		assertEquals(run.completedStepCount(), sourceBudget.completedStepCount());
 		assertEquals(gridSample, run.sourceGridSample());
 		assertEquals(gridSample, effectiveSourceGrid);
 		assertVectorEquals(gridSample.massFluxWeightedTargetWakeVelocityWorldMetersPerSecond(),
@@ -88,9 +92,26 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertVectorEquals(gridSample.integratedBodyForceWorldNewtons()
 						.multiply(DT * run.completedStepCount()),
 				run.totalSourceImpulseWorldNewtonSeconds(), 1.0e-12);
+		assertVectorEquals(run.totalSourceImpulseWorldNewtonSeconds(),
+				sourceBudget.actualSourceImpulseWorldNewtonSeconds(), 1.0e-12);
+		assertVectorEquals(sourceBudget.expectedSourceImpulseWorldNewtonSeconds(),
+				sourceBudget.actualSourceImpulseWorldNewtonSeconds(), 1.0e-12);
+		assertVectorEquals(run.totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(),
+				sourceBudget.actualWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-12);
+		assertVectorEquals(sourceBudget.expectedWakeAngularMomentumImpulseWorldNewtonMeterSeconds(),
+				sourceBudget.actualWakeAngularMomentumImpulseWorldNewtonMeterSeconds(), 1.0e-12);
+		assertEquals(0.0, sourceBudget.sourceImpulseResidualFraction(), 1.0e-12);
+		assertEquals(0.0, sourceBudget.wakeAngularMomentumImpulseResidualFraction(), 1.0e-12);
 		assertEquals(gridSample.integratedIdealMomentumPowerWatts(SOURCE_THICKNESS)
 						* DT * run.completedStepCount(),
 				run.totalIdealMomentumEnergyJoules(), 1.0e-12);
+		assertEquals(run.totalSourceMassKilograms(), sourceBudget.actualSourceMassKilograms(), 1.0e-12);
+		assertEquals(sourceBudget.expectedSourceMassKilograms(),
+				sourceBudget.actualSourceMassKilograms(), 1.0e-12);
+		assertEquals(run.totalIdealMomentumEnergyJoules(),
+				sourceBudget.actualIdealMomentumEnergyJoules(), 1.0e-12);
+		assertEquals(sourceBudget.expectedIdealMomentumEnergyJoules(),
+				sourceBudget.actualIdealMomentumEnergyJoules(), 1.0e-12);
 		Vec3 sourceAxisWorld = new Vec3(0.0, 1.0, 0.0);
 		assertEquals(gridSample.integratedAxialMomentumPowerWatts(sourceAxisWorld, SOURCE_THICKNESS)
 						* DT * run.completedStepCount(),
@@ -108,9 +129,18 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 		assertEquals(gridSample.integratedWakeSwirlKineticPowerWatts(SOURCE_THICKNESS)
 						* DT * run.completedStepCount(),
 				run.totalWakeSwirlKineticEnergyJoules(), 1.0e-12);
+		assertEquals(run.totalWakeSwirlKineticEnergyJoules(),
+				sourceBudget.actualWakeSwirlKineticEnergyJoules(), 1.0e-12);
+		assertEquals(sourceBudget.expectedWakeSwirlKineticEnergyJoules(),
+				sourceBudget.actualWakeSwirlKineticEnergyJoules(), 1.0e-12);
 		assertEquals(gridSample.integratedTotalWakeKineticPowerWatts(SOURCE_THICKNESS)
 						* DT * run.completedStepCount(),
 				run.totalWakeKineticEnergyJoules(), 1.0e-12);
+		assertEquals(run.totalWakeKineticEnergyJoules(),
+				sourceBudget.actualTotalWakeKineticEnergyJoules(), 1.0e-12);
+		assertEquals(sourceBudget.expectedTotalWakeKineticEnergyJoules(),
+				sourceBudget.actualTotalWakeKineticEnergyJoules(), 1.0e-12);
+		assertEquals(0.0, sourceBudget.maxAbsoluteResidualFraction(), 1.0e-12);
 		assertTrue(run.totalSourceFlowKineticEnergyDeltaJoules() > 0.0);
 		assertEquals(run.totalSourceFlowKineticEnergyDeltaJoules() - run.totalIdealMomentumEnergyJoules(),
 				run.sourceFlowKineticEnergyDeltaMinusIdealMomentumEnergyJoules(), 1.0e-12);

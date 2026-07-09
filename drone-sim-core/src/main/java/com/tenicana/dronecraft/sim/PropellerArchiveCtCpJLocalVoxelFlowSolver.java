@@ -209,6 +209,111 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			iterations = List.copyOf(iterations == null ? List.of() : iterations);
 		}
 
+		public record SourceBudgetComparison(
+				double durationSeconds,
+				int completedStepCount,
+				Vec3 expectedSourceImpulseWorldNewtonSeconds,
+				Vec3 actualSourceImpulseWorldNewtonSeconds,
+				Vec3 expectedWakeAngularMomentumImpulseWorldNewtonMeterSeconds,
+				Vec3 actualWakeAngularMomentumImpulseWorldNewtonMeterSeconds,
+				double expectedSourceMassKilograms,
+				double actualSourceMassKilograms,
+				double expectedIdealMomentumEnergyJoules,
+				double actualIdealMomentumEnergyJoules,
+				double expectedWakeSwirlKineticEnergyJoules,
+				double actualWakeSwirlKineticEnergyJoules,
+				double expectedTotalWakeKineticEnergyJoules,
+				double actualTotalWakeKineticEnergyJoules
+		) {
+			public SourceBudgetComparison {
+				durationSeconds = finiteNonnegative(durationSeconds);
+				completedStepCount = Math.max(0, completedStepCount);
+				expectedSourceImpulseWorldNewtonSeconds =
+						finiteVecOrZero(expectedSourceImpulseWorldNewtonSeconds);
+				actualSourceImpulseWorldNewtonSeconds =
+						finiteVecOrZero(actualSourceImpulseWorldNewtonSeconds);
+				expectedWakeAngularMomentumImpulseWorldNewtonMeterSeconds =
+						finiteVecOrZero(expectedWakeAngularMomentumImpulseWorldNewtonMeterSeconds);
+				actualWakeAngularMomentumImpulseWorldNewtonMeterSeconds =
+						finiteVecOrZero(actualWakeAngularMomentumImpulseWorldNewtonMeterSeconds);
+				expectedSourceMassKilograms = finiteNonnegative(expectedSourceMassKilograms);
+				actualSourceMassKilograms = finiteNonnegative(actualSourceMassKilograms);
+				expectedIdealMomentumEnergyJoules = finiteNonnegative(expectedIdealMomentumEnergyJoules);
+				actualIdealMomentumEnergyJoules = finiteNonnegative(actualIdealMomentumEnergyJoules);
+				expectedWakeSwirlKineticEnergyJoules =
+						finiteNonnegative(expectedWakeSwirlKineticEnergyJoules);
+				actualWakeSwirlKineticEnergyJoules =
+						finiteNonnegative(actualWakeSwirlKineticEnergyJoules);
+				expectedTotalWakeKineticEnergyJoules =
+						finiteNonnegative(expectedTotalWakeKineticEnergyJoules);
+				actualTotalWakeKineticEnergyJoules =
+						finiteNonnegative(actualTotalWakeKineticEnergyJoules);
+			}
+
+			public Vec3 sourceImpulseResidualWorldNewtonSeconds() {
+				return actualSourceImpulseWorldNewtonSeconds.subtract(expectedSourceImpulseWorldNewtonSeconds);
+			}
+
+			public double sourceImpulseResidualFraction() {
+				return ratio(
+						sourceImpulseResidualWorldNewtonSeconds().length(),
+						expectedSourceImpulseWorldNewtonSeconds.length()
+				);
+			}
+
+			public Vec3 wakeAngularMomentumImpulseResidualWorldNewtonMeterSeconds() {
+				return actualWakeAngularMomentumImpulseWorldNewtonMeterSeconds
+						.subtract(expectedWakeAngularMomentumImpulseWorldNewtonMeterSeconds);
+			}
+
+			public double wakeAngularMomentumImpulseResidualFraction() {
+				return ratio(
+						wakeAngularMomentumImpulseResidualWorldNewtonMeterSeconds().length(),
+						expectedWakeAngularMomentumImpulseWorldNewtonMeterSeconds.length()
+				);
+			}
+
+			public double sourceMassResidualKilograms() {
+				return actualSourceMassKilograms - expectedSourceMassKilograms;
+			}
+
+			public double sourceMassResidualFraction() {
+				return ratio(sourceMassResidualKilograms(), expectedSourceMassKilograms);
+			}
+
+			public double idealMomentumEnergyResidualJoules() {
+				return actualIdealMomentumEnergyJoules - expectedIdealMomentumEnergyJoules;
+			}
+
+			public double idealMomentumEnergyResidualFraction() {
+				return ratio(idealMomentumEnergyResidualJoules(), expectedIdealMomentumEnergyJoules);
+			}
+
+			public double wakeSwirlKineticEnergyResidualJoules() {
+				return actualWakeSwirlKineticEnergyJoules - expectedWakeSwirlKineticEnergyJoules;
+			}
+
+			public double wakeSwirlKineticEnergyResidualFraction() {
+				return ratio(wakeSwirlKineticEnergyResidualJoules(), expectedWakeSwirlKineticEnergyJoules);
+			}
+
+			public double totalWakeKineticEnergyResidualJoules() {
+				return actualTotalWakeKineticEnergyJoules - expectedTotalWakeKineticEnergyJoules;
+			}
+
+			public double totalWakeKineticEnergyResidualFraction() {
+				return ratio(totalWakeKineticEnergyResidualJoules(), expectedTotalWakeKineticEnergyJoules);
+			}
+
+			public double maxAbsoluteResidualFraction() {
+				double max = Math.max(sourceImpulseResidualFraction(), wakeAngularMomentumImpulseResidualFraction());
+				max = Math.max(max, Math.abs(sourceMassResidualFraction()));
+				max = Math.max(max, Math.abs(idealMomentumEnergyResidualFraction()));
+				max = Math.max(max, Math.abs(wakeSwirlKineticEnergyResidualFraction()));
+				return Math.max(max, Math.abs(totalWakeKineticEnergyResidualFraction()));
+			}
+		}
+
 		public int completedStepCount() {
 			return iterations.size();
 		}
@@ -256,6 +361,33 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 		public double finalMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond() {
 			return finalState.massFluxWeightedTargetWakeVelocityResidualMagnitudeOverSourceGridMetersPerSecond(
 					effectiveSourceGridSample());
+		}
+
+		public SourceBudgetComparison sourceBudgetComparison() {
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+					effectiveSourceGridSample();
+			double durationSeconds = config.timeStepSeconds() * completedStepCount();
+			return new SourceBudgetComparison(
+					durationSeconds,
+					completedStepCount(),
+					sourceGrid.integratedBodyForceWorldNewtons().multiply(durationSeconds),
+					totalSourceImpulseWorldNewtonSeconds(),
+					sourceGrid.integratedWakeAngularMomentumTorqueWorldNewtonMeters()
+							.multiply(durationSeconds),
+					totalWakeAngularMomentumImpulseWorldNewtonMeterSeconds(),
+					sourceGrid.integratedDiskMassFlowKilogramsPerSecond(config.sourceThicknessMeters())
+							* durationSeconds,
+					totalSourceMassKilograms(),
+					sourceGrid.integratedIdealMomentumPowerWatts(config.sourceThicknessMeters())
+							* durationSeconds,
+					totalIdealMomentumEnergyJoules(),
+					sourceGrid.integratedWakeSwirlKineticPowerWatts(config.sourceThicknessMeters())
+							* durationSeconds,
+					totalWakeSwirlKineticEnergyJoules(),
+					sourceGrid.integratedTotalWakeKineticPowerWatts(config.sourceThicknessMeters())
+							* durationSeconds,
+					totalWakeKineticEnergyJoules()
+			);
 		}
 
 		public Vec3 totalSourceImpulseWorldNewtonSeconds() {
@@ -776,6 +908,14 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 					&& Math.abs(denominator) > EPSILON
 					? numerator / denominator
 					: 0.0;
+		}
+
+		private static Vec3 finiteVecOrZero(Vec3 value) {
+			return value == null || !value.isFinite() ? Vec3.ZERO : value;
+		}
+
+		private static double finiteNonnegative(double value) {
+			return Double.isFinite(value) && value > 0.0 ? value : 0.0;
 		}
 
 		private static double axialComponent(Vec3 vectorWorld, Vec3 axialDirectionWorld) {
