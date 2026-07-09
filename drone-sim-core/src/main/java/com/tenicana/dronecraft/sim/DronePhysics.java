@@ -9157,35 +9157,17 @@ public final class DronePhysics {
 		if (speedSquared < 1.0e-6 || airDensityRatio <= 0.0) {
 			return poweredLift;
 		}
-
-		double separatedFlow = effectiveAirframeSeparationIntensity(relativeAirVelocityBody);
-		double pitchPlaneSpeed = Math.hypot(relativeAirVelocityBody.y(), relativeAirVelocityBody.z());
-		Vec3 pitchLift = Vec3.ZERO;
-		if (pitchPlaneSpeed > 1.0e-6) {
-			double aoa = Math.atan2(relativeAirVelocityBody.y(), relativeAirVelocityBody.z());
-			double liftCoefficient = 0.085 * Math.sqrt(config.bodyDragCoefficients().y() * config.bodyDragCoefficients().z());
-			double pitchStall = smoothStep(Math.toRadians(34.0), Math.toRadians(72.0), Math.abs(aoa));
-			double dynamicPitchStall = Math.max(0.32 * pitchStall, separatedFlow * pitchStall);
-			double stallScale = 1.0 - 0.55 * dynamicPitchStall;
-			double liftMagnitude = liftCoefficient * speedSquared * Math.sin(2.0 * aoa) * stallScale * airDensityRatio;
-			Vec3 liftDirection = new Vec3(0.0, relativeAirVelocityBody.z(), -relativeAirVelocityBody.y()).normalized();
-			pitchLift = liftDirection.multiply(liftMagnitude);
-		}
-
-		double yawPlaneSpeed = Math.hypot(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
-		Vec3 sideLift = Vec3.ZERO;
-		if (yawPlaneSpeed > 1.0e-6) {
-			double sideslip = Math.atan2(relativeAirVelocityBody.x(), relativeAirVelocityBody.z());
-			double sideforceCoefficient = 0.065 * Math.sqrt(config.bodyDragCoefficients().x() * config.bodyDragCoefficients().z());
-			double yawStall = smoothStep(Math.toRadians(35.0), Math.toRadians(75.0), Math.abs(sideslip));
-			double dynamicYawStall = Math.max(0.32 * yawStall, separatedFlow * yawStall);
-			double stallScale = 1.0 - 0.50 * dynamicYawStall;
-			double sideforceMagnitude = sideforceCoefficient * speedSquared * Math.sin(2.0 * sideslip) * stallScale * airDensityRatio;
-			Vec3 sideforceDirection = new Vec3(-relativeAirVelocityBody.z(), 0.0, relativeAirVelocityBody.x()).normalized();
-			sideLift = sideforceDirection.multiply(sideforceMagnitude);
-		}
-
-		return poweredLift.add(pitchLift).add(sideLift).clamp(-18.0, 18.0);
+		AirframeLiftForceModel.AirframeLiftForceSample freestreamLift =
+				AirframeLiftForceModel.sampleSteady(
+						config,
+						relativeAirVelocityBody,
+						airDensityRatio,
+						effectiveAirframeSeparationIntensity(relativeAirVelocityBody)
+				);
+		return poweredLift
+				.add(freestreamLift.pitchLiftForceBodyNewtons())
+				.add(freestreamLift.sideLiftForceBodyNewtons())
+				.clamp(-18.0, 18.0);
 	}
 
 	private Vec3 calculatePoweredRotorWashAirframeLiftForce(Vec3 totalForceBody, double airDensityRatio) {
