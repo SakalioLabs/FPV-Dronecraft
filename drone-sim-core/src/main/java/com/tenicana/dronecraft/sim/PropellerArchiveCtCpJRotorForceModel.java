@@ -698,6 +698,73 @@ public final class PropellerArchiveCtCpJRotorForceModel {
 					.add(wakeSkewLateralVelocityWorldMetersPerSecond());
 		}
 
+		public double freestreamAxialSpeedMetersPerSecond() {
+			if (!applied) {
+				return 0.0;
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			if (normal.lengthSquared() <= EPSILON) {
+				return 0.0;
+			}
+			return finiteNonnegative(freestreamVelocityWorldMetersPerSecond().dot(normal));
+		}
+
+		public double farWakeAxialSpeedMetersPerSecond() {
+			if (!applied) {
+				return 0.0;
+			}
+			Vec3 normal = finiteVecOrZero(diskNormalWorld).normalized();
+			if (normal.lengthSquared() <= EPSILON) {
+				return 0.0;
+			}
+			return finiteNonnegative(farWakeAxialVelocityWorldMetersPerSecond.dot(normal));
+		}
+
+		public double integratedThrustNewtons() {
+			if (!applied) {
+				return 0.0;
+			}
+			return pressureJumpPascals * diskAreaSquareMeters;
+		}
+
+		public double idealMomentumPowerWatts() {
+			if (!applied) {
+				return 0.0;
+			}
+			return idealMomentumPowerLoadingWattsPerSquareMeter * diskAreaSquareMeters;
+		}
+
+		public double axialMomentumThrustNewtons() {
+			double thrust = diskMassFlowKilogramsPerSecond()
+					* (farWakeAxialSpeedMetersPerSecond() - freestreamAxialSpeedMetersPerSecond());
+			return finiteOrZero(thrust);
+		}
+
+		public double axialMomentumThrustResidualNewtons() {
+			return axialMomentumThrustNewtons() - integratedThrustNewtons();
+		}
+
+		public double axialMomentumThrustResidualFraction() {
+			return ratio(axialMomentumThrustResidualNewtons(), integratedThrustNewtons());
+		}
+
+		public double axialMomentumPowerWatts() {
+			double upstreamAxialSpeed = freestreamAxialSpeedMetersPerSecond();
+			double downstreamAxialSpeed = farWakeAxialSpeedMetersPerSecond();
+			double power = 0.5 * diskMassFlowKilogramsPerSecond()
+					* (downstreamAxialSpeed * downstreamAxialSpeed
+					- upstreamAxialSpeed * upstreamAxialSpeed);
+			return finiteOrZero(power);
+		}
+
+		public double axialMomentumPowerResidualWatts() {
+			return axialMomentumPowerWatts() - idealMomentumPowerWatts();
+		}
+
+		public double axialMomentumPowerResidualFraction() {
+			return ratio(axialMomentumPowerResidualWatts(), idealMomentumPowerWatts());
+		}
+
 		public double wakeSkewAngleRadians() {
 			double axialSpeed = Math.abs(farWakeCenterlineAxialSpeedMetersPerSecond());
 			double lateralSpeed = wakeSkewLateralSpeedMetersPerSecond();

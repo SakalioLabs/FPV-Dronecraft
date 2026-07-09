@@ -139,7 +139,15 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 			"disk_loading_n_m2",
 			"ideal_induced_velocity_mps",
 			"ideal_momentum_power_w",
-			"ideal_momentum_power_over_shaft_power"
+			"ideal_momentum_power_over_shaft_power",
+			"source_freestream_axial_speed_mps",
+			"source_far_wake_axial_speed_mps",
+			"source_axial_momentum_thrust_n",
+			"source_axial_momentum_thrust_residual_n",
+			"source_axial_momentum_thrust_residual_fraction",
+			"source_axial_momentum_power_w",
+			"source_axial_momentum_power_residual_w",
+			"source_axial_momentum_power_residual_fraction"
 	);
 	private static final double RPM_PER_RADIAN_PER_SECOND = 60.0 / (2.0 * Math.PI);
 	private static final double MID_ADVANCE_RATIO_J = 0.4064;
@@ -458,7 +466,15 @@ public final class CtCpJActuatorDiskSourceTermExporter {
 				number(dimensional.diskLoadingNewtonsPerSquareMeter()),
 				number(dimensional.idealInducedVelocityMetersPerSecond()),
 				number(dimensional.idealMomentumPowerWatts()),
-				number(dimensional.idealMomentumPowerOverShaftPower())
+				number(dimensional.idealMomentumPowerOverShaftPower()),
+				number(sourceTerm.freestreamAxialSpeedMetersPerSecond()),
+				number(sourceTerm.farWakeAxialSpeedMetersPerSecond()),
+				number(sourceTerm.axialMomentumThrustNewtons()),
+				number(sourceTerm.axialMomentumThrustResidualNewtons()),
+				number(sourceTerm.axialMomentumThrustResidualFraction()),
+				number(sourceTerm.axialMomentumPowerWatts()),
+				number(sourceTerm.axialMomentumPowerResidualWatts()),
+				number(sourceTerm.axialMomentumPowerResidualFraction())
 		);
 	}
 

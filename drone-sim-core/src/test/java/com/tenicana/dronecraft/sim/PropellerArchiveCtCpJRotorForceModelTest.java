@@ -615,6 +615,28 @@ class PropellerArchiveCtCpJRotorForceModelTest {
 				sourceTerm.wakeAngularMomentumTorqueWorldNewtonMeters(), 1.0e-15);
 		assertVectorEquals(sample.wakeAngularMomentumTorqueResidualWorldNewtonMeters(bodyToWorld),
 				sourceTerm.wakeAngularMomentumTorqueResidualWorldNewtonMeters(), 1.0e-15);
+		assertEquals(sourceTerm.thrustSurfaceForceWorldNewtonsPerSquareMeter()
+						.multiply(sourceTerm.diskAreaSquareMeters()).length(),
+				sourceTerm.integratedThrustNewtons(), 1.0e-12);
+		assertEquals(sourceTerm.idealMomentumPowerLoadingWattsPerSquareMeter()
+						* sourceTerm.diskAreaSquareMeters(),
+				sourceTerm.idealMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().nonnegativeAxialAdvanceSpeedMetersPerSecond(),
+				sourceTerm.freestreamAxialSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().farWakeAxialVelocityMetersPerSecond(),
+				sourceTerm.farWakeAxialSpeedMetersPerSecond(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().axialMomentumThrustNewtons(),
+				sourceTerm.axialMomentumThrustNewtons(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().axialMomentumThrustResidualNewtons(),
+				sourceTerm.axialMomentumThrustResidualNewtons(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().axialMomentumThrustResidualFraction(),
+				sourceTerm.axialMomentumThrustResidualFraction(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().axialMomentumPowerWatts(),
+				sourceTerm.axialMomentumPowerWatts(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().axialMomentumPowerResidualWatts(),
+				sourceTerm.axialMomentumPowerResidualWatts(), 1.0e-12);
+		assertEquals(sample.dimensionalSample().axialMomentumPowerResidualFraction(),
+				sourceTerm.axialMomentumPowerResidualFraction(), 1.0e-12);
 		assertEquals(sourceTerm.diskAreaSquareMeters() * 0.1,
 				sourceTerm.sourceVolumeCubicMeters(0.1), 1.0e-15);
 		assertEquals(Math.PI
