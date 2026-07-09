@@ -263,6 +263,28 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			return mass;
 		}
 
+		public double totalSourceGridIntegratedDiskMassKilograms() {
+			double mass = 0.0;
+			for (SolverIteration iteration : iterations) {
+				mass += iteration.sourceAdvance().sourceGridIntegratedDiskMassFlowKilogramsPerSecond()
+						* config.timeStepSeconds();
+			}
+			return mass;
+		}
+
+		public double totalSourceMassResidualKilograms() {
+			return totalSourceMassKilograms() - totalSourceGridIntegratedDiskMassKilograms();
+		}
+
+		public double maxAbsSourceMassFlowRateResidualKilogramsPerSecond() {
+			double max = 0.0;
+			for (SolverIteration iteration : iterations) {
+				max = Math.max(max, Math.abs(iteration.sourceAdvance()
+						.sourceMassFlowRateResidualKilogramsPerSecond()));
+			}
+			return max;
+		}
+
 		public double cumulativeOpenBoundaryNetOutwardMassKilograms() {
 			double mass = 0.0;
 			for (SolverIteration iteration : iterations) {

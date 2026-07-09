@@ -112,7 +112,11 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cumulative_solid_boundary_momentum_residual_world_y_ns",
 			"cumulative_solid_boundary_momentum_residual_world_z_ns",
 			"source_mass_flow_kg_s",
+			"source_grid_integrated_disk_mass_flow_kg_s",
+			"source_mass_flow_rate_residual_kg_s",
 			"cumulative_source_mass_kg",
+			"cumulative_source_grid_integrated_disk_mass_kg",
+			"cumulative_source_mass_residual_kg",
 			"target_ideal_momentum_power_w",
 			"target_wake_swirl_kinetic_power_w",
 			"target_total_wake_kinetic_power_w",
@@ -914,7 +918,15 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		Vec3 cumulativeSolidBoundaryMomentumResidual =
 				cumulativeSolidBoundaryMomentumResidual(run, completedSteps);
 		double sourceMassFlow = initial ? 0.0 : iteration.sourceAdvance().totalSourceMassFlowRateKilogramsPerSecond();
+		double sourceGridIntegratedDiskMassFlow = initial ? 0.0
+				: iteration.sourceAdvance().sourceGridIntegratedDiskMassFlowKilogramsPerSecond();
+		double sourceMassFlowRateResidual = initial ? 0.0
+				: iteration.sourceAdvance().sourceMassFlowRateResidualKilogramsPerSecond();
 		double cumulativeSourceMass = cumulativeSourceMass(run, completedSteps);
+		double cumulativeSourceGridIntegratedDiskMass =
+				cumulativeSourceGridIntegratedDiskMass(run, completedSteps);
+		double cumulativeSourceMassResidual =
+				cumulativeSourceMass - cumulativeSourceGridIntegratedDiskMass;
 		double targetIdealMomentumPower =
 				metadata.sourceGridSample().integratedIdealMomentumPowerWatts(run.config().sourceThicknessMeters());
 		double targetWakeSwirlKineticPower = metadata.sourceGridSample()
@@ -1296,7 +1308,11 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(cumulativeSolidBoundaryMomentumResidual.y()),
 				number(cumulativeSolidBoundaryMomentumResidual.z()),
 				number(sourceMassFlow),
+				number(sourceGridIntegratedDiskMassFlow),
+				number(sourceMassFlowRateResidual),
 				number(cumulativeSourceMass),
+				number(cumulativeSourceGridIntegratedDiskMass),
+				number(cumulativeSourceMassResidual),
 				number(targetIdealMomentumPower),
 				number(targetWakeSwirlKineticPower),
 				number(targetTotalWakeKineticPower),
@@ -1656,6 +1672,19 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double mass = 0.0;
 		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
 			mass += run.iterations().get(i).sourceAdvance().totalSourceMassFlowRateKilogramsPerSecond()
+					* run.config().timeStepSeconds();
+		}
+		return mass;
+	}
+
+	private static double cumulativeSourceGridIntegratedDiskMass(
+			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run,
+			int completedSteps
+	) {
+		double mass = 0.0;
+		for (int i = 0; i < completedSteps && i < run.iterations().size(); i++) {
+			mass += run.iterations().get(i).sourceAdvance()
+					.sourceGridIntegratedDiskMassFlowKilogramsPerSecond()
 					* run.config().timeStepSeconds();
 		}
 		return mass;

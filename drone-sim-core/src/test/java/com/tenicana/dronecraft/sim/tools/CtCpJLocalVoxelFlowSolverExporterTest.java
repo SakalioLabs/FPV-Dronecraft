@@ -99,6 +99,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 				number(hoverInitial, "cumulative_open_boundary_net_outward_mass_kg"), 1.0e-15);
 		assertEquals(0.0,
 				number(hoverInitial, "cumulative_open_boundary_net_outward_kinetic_energy_j"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_grid_integrated_disk_mass_flow_kg_s"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "source_mass_flow_rate_residual_kg_s"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "cumulative_source_grid_integrated_disk_mass_kg"), 1.0e-15);
+		assertEquals(0.0, number(hoverInitial, "cumulative_source_mass_residual_kg"), 1.0e-15);
 		assertEquals(0.0,
 				number(hoverInitial, "cumulative_open_boundary_outward_mass_over_source_mass"), 1.0e-15);
 		assertEquals(0.0,
@@ -135,7 +139,16 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0, integer(hoverStep2, "solid_cell_count"));
 		assertEquals(0, integer(hoverStep2, "solid_clamped_cell_count"));
 		assertTrue(number(hoverStep2, "source_mass_flow_kg_s") > 0.0);
+		assertEquals(number(hoverStep2, "source_mass_flow_kg_s"),
+				number(hoverStep2, "source_grid_integrated_disk_mass_flow_kg_s"), 1.0e-12);
+		assertEquals(0.0, number(hoverStep2, "source_mass_flow_rate_residual_kg_s"), 1.0e-12);
 		assertTrue(number(hoverStep2, "cumulative_source_mass_kg") > 0.0);
+		assertEquals(number(hoverStep2, "cumulative_source_mass_kg"),
+				number(hoverStep2, "cumulative_source_grid_integrated_disk_mass_kg"), 1.0e-12);
+		assertEquals(number(hoverStep2, "source_grid_integrated_disk_mass_flow_kg_s")
+						* TIME_STEP * STEPS,
+				number(hoverStep2, "cumulative_source_grid_integrated_disk_mass_kg"), 1.0e-12);
+		assertEquals(0.0, number(hoverStep2, "cumulative_source_mass_residual_kg"), 1.0e-12);
 		assertTrue(number(hoverStep2, "mean_active_wake_residual_after_residence_mps") > 0.0);
 		assertTrue(number(hoverStep2, "mass_flow_weighted_wake_residual_after_residence_mps") > 0.0);
 		assertTrue(Double.isFinite(number(hoverStep2,
@@ -751,6 +764,10 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertEquals(0.0, number(hoverStep, "source_total_wake_kinetic_energy_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "flow_kinetic_energy_source_delta_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "source_mass_flow_kg_s"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_grid_integrated_disk_mass_flow_kg_s"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "source_mass_flow_rate_residual_kg_s"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "cumulative_source_grid_integrated_disk_mass_kg"), 1.0e-15);
+		assertEquals(0.0, number(hoverStep, "cumulative_source_mass_residual_kg"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_after_solid_boundary_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "kinetic_energy_solid_boundary_delta_j"), 1.0e-15);
 		assertEquals(0.0, number(hoverStep, "solid_boundary_dissipated_energy_j"), 1.0e-15);
