@@ -6122,6 +6122,7 @@ public final class DronePhysics {
 				omegaRadiansPerSecond,
 				inducedVelocity,
 				targetInducedVelocity,
+				ctCpJReferenceSample,
 				dtSeconds
 		);
 
@@ -6229,6 +6230,7 @@ public final class DronePhysics {
 			double omegaRadiansPerSecond,
 			double inducedVelocityMetersPerSecond,
 			double targetInducedVelocityMetersPerSecond,
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample ctCpJReferenceSample,
 			double dtSeconds
 	) {
 		double spinRatio = MathUtil.clamp(Math.abs(omegaRadiansPerSecond) / rotor.maxOmegaRadiansPerSecond(), 0.0, 1.10);
@@ -6256,6 +6258,21 @@ public final class DronePhysics {
 				0.060,
 				0.340
 		);
+		double ctCpJResidenceTime = rotorCtCpJRuntimeWakeResidenceTimeSeconds(
+				ctCpJReferenceSample,
+				rotor,
+				Double.NaN
+		);
+		if (ctCpJResidenceTime > 0.0) {
+			double ctCpJBuildTimeConstant = MathUtil.clamp(1.20 * ctCpJResidenceTime, 0.010, 0.095);
+			double ctCpJReleaseTimeConstant = MathUtil.clamp(
+					3.20 * ctCpJResidenceTime / (0.80 + 0.95 * transverseFlush + 0.55 * climbFlush),
+					0.045,
+					0.260
+			);
+			buildTimeConstant = 0.55 * buildTimeConstant + 0.45 * ctCpJBuildTimeConstant;
+			releaseTimeConstant = 0.60 * releaseTimeConstant + 0.40 * ctCpJReleaseTimeConstant;
+		}
 		double timeConstant = targetWakeVelocity > previousWakeVelocity ? buildTimeConstant : releaseTimeConstant;
 		double alpha = MathUtil.expSmoothing(dtSeconds, timeConstant);
 		double wakeVelocity = previousWakeVelocity + (targetWakeVelocity - previousWakeVelocity) * alpha;
@@ -6266,6 +6283,32 @@ public final class DronePhysics {
 		}
 		rotorInducedWakeVelocityMetersPerSecond[index] = wakeVelocity;
 		return wakeVelocity;
+	}
+
+	static double rotorCtCpJRuntimeWakeResidenceTimeSeconds(
+			PropellerArchiveCtCpJRotorForceModel.RotorForceSample sample,
+			RotorSpec rotor,
+			double fallbackResidenceTimeSeconds
+	) {
+		double fallback = Math.max(0.0, finiteOrDefault(fallbackResidenceTimeSeconds, 0.0));
+		if (!ctCpJRuntimeSampleAccepted(sample) || rotor == null) {
+			return fallback;
+		}
+		PropellerArchiveCtCpJLookupEvaluator.RotorDimensionalSample dimensional = sample.dimensionalSample();
+		double actuatorDiskSpeed = dimensional.actuatorDiskAxialVelocityMetersPerSecond();
+		double farWakeSpeed = dimensional.farWakeAxialVelocityMetersPerSecond();
+		double representativeWakeSpeed = Math.max(
+				actuatorDiskSpeed,
+				0.5 * (actuatorDiskSpeed + farWakeSpeed)
+		);
+		if (!Double.isFinite(representativeWakeSpeed) || representativeWakeSpeed <= 1.0e-6) {
+			return fallback;
+		}
+		double wakeResidenceLength = 2.0 * rotor.radiusMeters();
+		if (!Double.isFinite(wakeResidenceLength) || wakeResidenceLength <= 1.0e-6) {
+			return fallback;
+		}
+		return MathUtil.clamp(wakeResidenceLength / representativeWakeSpeed, 0.004, 0.240);
 	}
 
 	private double updateRotorTranslationalLiftIntensity(
