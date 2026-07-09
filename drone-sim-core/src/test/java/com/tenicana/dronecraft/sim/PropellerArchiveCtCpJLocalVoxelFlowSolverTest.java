@@ -37,9 +37,33 @@ class PropellerArchiveCtCpJLocalVoxelFlowSolverTest {
 
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run =
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(gridSample, config);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample effectiveSourceGrid =
+				run.effectiveSourceGridSample();
 
 		assertEquals(4, run.completedStepCount());
 		assertEquals(4, run.iterations().size());
+		assertEquals(gridSample, run.sourceGridSample());
+		assertEquals(gridSample, effectiveSourceGrid);
+		assertVectorEquals(gridSample.massFluxWeightedTargetWakeVelocityWorldMetersPerSecond(),
+				run.massFluxWeightedSourceTargetWakeVelocityWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(run.initialState().massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(
+						effectiveSourceGrid),
+				run.initialMassFluxWeightedSourceVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(run.finalState().massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(
+						effectiveSourceGrid),
+				run.finalMassFluxWeightedSourceVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(run.massFluxWeightedSourceTargetWakeVelocityWorldMetersPerSecond()
+						.subtract(run.initialMassFluxWeightedSourceVelocityWorldMetersPerSecond()),
+				run.initialMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertVectorEquals(run.massFluxWeightedSourceTargetWakeVelocityWorldMetersPerSecond()
+						.subtract(run.finalMassFluxWeightedSourceVelocityWorldMetersPerSecond()),
+				run.finalMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond(), 1.0e-12);
+		assertEquals(run.initialMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond().length(),
+				run.initialMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond(), 1.0e-15);
+		assertEquals(run.finalMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond().length(),
+				run.finalMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond(), 1.0e-15);
+		assertTrue(run.initialMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond() > 0.0);
+		assertTrue(Double.isFinite(run.finalMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond()));
 		assertEquals(diffusionNumber, config.diffusionNumber(gridSample.gridSpec()), 1.0e-15);
 		assertEquals(diffusionNumber, run.maxDiffusionNumber(), 1.0e-15);
 		assertTrue(run.maxAdvectionCourantNumber() > 0.0);

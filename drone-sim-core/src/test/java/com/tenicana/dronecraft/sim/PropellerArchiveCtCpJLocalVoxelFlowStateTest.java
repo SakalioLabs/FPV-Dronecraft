@@ -116,6 +116,77 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 	}
 
 	@Test
+	void sourceGridMassFluxWeightedVelocityResidualUsesCurrentVoxelState() {
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+						Vec3.ZERO,
+						1.0,
+						2,
+						1,
+						1
+				);
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample lightCell =
+				sourceCell(grid, 0, 2.0, new Vec3(0.0, 4.0, 1.0));
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample heavyCell =
+				sourceCell(grid, 1, 6.0, new Vec3(0.0, 8.0, -1.0));
+		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGrid =
+				new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+						grid,
+						1,
+						List.of(lightCell, heavyCell)
+				);
+		PropellerArchiveCtCpJLocalVoxelFlowState state =
+				new PropellerArchiveCtCpJLocalVoxelFlowState(
+						grid,
+						List.of(
+								new Vec3(1.0, 2.0, 3.0),
+								new Vec3(5.0, 6.0, 7.0)
+						)
+				);
+		double lightWeight = lightCell.massFluxKilogramsPerSecondSquareMeter()
+				* lightCell.cellVolumeCubicMeters();
+		double heavyWeight = heavyCell.massFluxKilogramsPerSecondSquareMeter()
+				* heavyCell.cellVolumeCubicMeters();
+		Vec3 expectedStateVelocity = weighted(
+				state.velocityAt(0, 0, 0),
+				lightWeight,
+				state.velocityAt(1, 0, 0),
+				heavyWeight);
+		Vec3 expectedTargetVelocity = weighted(
+				lightCell.targetWakeVelocityWorldMetersPerSecond(),
+				lightWeight,
+				heavyCell.targetWakeVelocityWorldMetersPerSecond(),
+				heavyWeight);
+		Vec3 expectedResidual = expectedTargetVelocity.subtract(expectedStateVelocity);
+
+		assertVectorEquals(expectedStateVelocity,
+				state.massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(sourceGrid), 1.0e-15);
+		assertVectorEquals(expectedTargetVelocity,
+				sourceGrid.massFluxWeightedTargetWakeVelocityWorldMetersPerSecond(), 1.0e-15);
+		assertVectorEquals(expectedResidual,
+				state.massFluxWeightedTargetWakeVelocityResidualOverSourceGridWorldMetersPerSecond(sourceGrid),
+				1.0e-15);
+		assertEquals(expectedResidual.length(),
+				state.massFluxWeightedTargetWakeVelocityResidualMagnitudeOverSourceGridMetersPerSecond(sourceGrid),
+				1.0e-15);
+		assertThrows(IllegalArgumentException.class,
+				() -> state.massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(null));
+		assertThrows(IllegalArgumentException.class,
+				() -> state.massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(
+						new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample(
+								new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec(
+										Vec3.ZERO,
+										1.0,
+										1,
+										1,
+										1
+								),
+								1,
+								List.of(lightCell)
+						)));
+	}
+
+	@Test
 	void advanceWithSourceSkipsSourceTermsInsideSolidCells() {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample gridSample =
 				conservativeGridForSignedAxialSpeed(
@@ -1550,6 +1621,41 @@ class PropellerArchiveCtCpJLocalVoxelFlowStateTest {
 				bodyToWorldOrientation,
 				envelopePolicy
 		);
+	}
+
+	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSpec grid,
+			int xIndex,
+			double massFluxKilogramsPerSecondSquareMeter,
+			Vec3 targetWakeVelocityWorldMetersPerSecond
+	) {
+		return new PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample(
+				xIndex,
+				0,
+				0,
+				grid.cellCenterWorldMeters(xIndex, 0, 0),
+				grid.cellVolumeCubicMeters(),
+				1,
+				1,
+				1.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				0.0,
+				massFluxKilogramsPerSecondSquareMeter,
+				Vec3.ZERO,
+				0.0,
+				0.0,
+				0.0,
+				Vec3.ZERO,
+				Vec3.ZERO,
+				targetWakeVelocityWorldMetersPerSecond,
+				Vec3.ZERO
+		);
+	}
+
+	private static Vec3 weighted(Vec3 first, double firstWeight, Vec3 second, double secondWeight) {
+		double total = firstWeight + secondWeight;
+		return first.multiply(firstWeight / total).add(second.multiply(secondWeight / total));
 	}
 
 	private static PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample conservativeGridForSignedAxialSpeed(

@@ -178,6 +178,7 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			PropellerArchiveCtCpJLocalVoxelFlowState finalState,
 			SolverConfig config,
 			PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask,
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			List<SolverIteration> iterations
 	) {
 		public SolverRun {
@@ -193,17 +194,68 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			if (solidMask == null) {
 				throw new IllegalArgumentException("solidMask must not be null.");
 			}
+			if (sourceGridSample == null) {
+				throw new IllegalArgumentException("sourceGridSample must not be null.");
+			}
 			if (!initialState.gridSpec().equals(finalState.gridSpec())) {
 				throw new IllegalArgumentException("initial and final states must share a voxel grid.");
 			}
 			if (!initialState.gridSpec().equals(solidMask.gridSpec())) {
 				throw new IllegalArgumentException("solidMask grid must match solver states.");
 			}
+			if (!initialState.gridSpec().equals(sourceGridSample.gridSpec())) {
+				throw new IllegalArgumentException("sourceGridSample grid must match solver states.");
+			}
 			iterations = List.copyOf(iterations == null ? List.of() : iterations);
 		}
 
 		public int completedStepCount() {
 			return iterations.size();
+		}
+
+		public PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample effectiveSourceGridSample() {
+			if (iterations.isEmpty()) {
+				return sourceGridSample;
+			}
+			return iterations.get(0)
+					.sourceAdvance()
+					.residenceStep()
+					.sourceMomentumSample()
+					.sourceGridSample();
+		}
+
+		public Vec3 massFluxWeightedSourceTargetWakeVelocityWorldMetersPerSecond() {
+			return effectiveSourceGridSample().massFluxWeightedTargetWakeVelocityWorldMetersPerSecond();
+		}
+
+		public Vec3 initialMassFluxWeightedSourceVelocityWorldMetersPerSecond() {
+			return initialState.massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(
+					effectiveSourceGridSample());
+		}
+
+		public Vec3 finalMassFluxWeightedSourceVelocityWorldMetersPerSecond() {
+			return finalState.massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(
+					effectiveSourceGridSample());
+		}
+
+		public Vec3 initialMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond() {
+			return initialState.massFluxWeightedTargetWakeVelocityResidualOverSourceGridWorldMetersPerSecond(
+					effectiveSourceGridSample());
+		}
+
+		public Vec3 finalMassFluxWeightedTargetWakeVelocityResidualWorldMetersPerSecond() {
+			return finalState.massFluxWeightedTargetWakeVelocityResidualOverSourceGridWorldMetersPerSecond(
+					effectiveSourceGridSample());
+		}
+
+		public double initialMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond() {
+			return initialState.massFluxWeightedTargetWakeVelocityResidualMagnitudeOverSourceGridMetersPerSecond(
+					effectiveSourceGridSample());
+		}
+
+		public double finalMassFluxWeightedTargetWakeVelocityResidualMagnitudeMetersPerSecond() {
+			return finalState.massFluxWeightedTargetWakeVelocityResidualMagnitudeOverSourceGridMetersPerSecond(
+					effectiveSourceGridSample());
 		}
 
 		public Vec3 totalSourceImpulseWorldNewtonSeconds() {
@@ -877,6 +929,6 @@ public final class PropellerArchiveCtCpJLocalVoxelFlowSolver {
 			iterations.add(new SolverIteration(step, sourceAdvance, advection, diffusion, projection, solidBoundary));
 			state = solidBoundary.nextState();
 		}
-		return new SolverRun(solverInitialState, state, config, solidMask, iterations);
+		return new SolverRun(solverInitialState, state, config, solidMask, sourceGridSample, iterations);
 	}
 }

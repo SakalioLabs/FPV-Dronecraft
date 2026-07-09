@@ -1100,6 +1100,45 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		return velocitiesWorldMetersPerSecond.get(linearIndex(xIndex, yIndex, zIndex));
 	}
 
+	public Vec3 massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample
+	) {
+		validateSourceGridSample(sourceGridSample);
+		Vec3 weightedVelocity = Vec3.ZERO;
+		double totalWeight = 0.0;
+		for (int cellIndex = 0; cellIndex < sourceGridSample.cells().size(); cellIndex++) {
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelCellSample sourceCell =
+					sourceGridSample.cells().get(cellIndex);
+			if (!sourceCell.active()) {
+				continue;
+			}
+			double weight = sourceCell.massFluxKilogramsPerSecondSquareMeter()
+					* sourceCell.cellVolumeCubicMeters();
+			if (!Double.isFinite(weight) || weight <= EPSILON) {
+				continue;
+			}
+			weightedVelocity = weightedVelocity.add(
+					velocitiesWorldMetersPerSecond.get(cellIndex).multiply(weight));
+			totalWeight += weight;
+		}
+		return totalWeight <= EPSILON ? Vec3.ZERO : weightedVelocity.multiply(1.0 / totalWeight);
+	}
+
+	public Vec3 massFluxWeightedTargetWakeVelocityResidualOverSourceGridWorldMetersPerSecond(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample
+	) {
+		validateSourceGridSample(sourceGridSample);
+		return sourceGridSample.massFluxWeightedTargetWakeVelocityWorldMetersPerSecond()
+				.subtract(massFluxWeightedVelocityOverSourceGridWorldMetersPerSecond(sourceGridSample));
+	}
+
+	public double massFluxWeightedTargetWakeVelocityResidualMagnitudeOverSourceGridMetersPerSecond(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample
+	) {
+		return massFluxWeightedTargetWakeVelocityResidualOverSourceGridWorldMetersPerSecond(sourceGridSample)
+				.length();
+	}
+
 	public Vec3 vorticityAt(int xIndex, int yIndex, int zIndex) {
 		return vorticityAt(xIndex, yIndex, zIndex, VoxelSolidMask.open(gridSpec));
 	}
@@ -2545,6 +2584,20 @@ public record PropellerArchiveCtCpJLocalVoxelFlowState(
 		}
 		if (!gridSpec.equals(solidMask.gridSpec())) {
 			throw new IllegalArgumentException("solidMask grid must match this flow state.");
+		}
+	}
+
+	private void validateSourceGridSample(
+			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample
+	) {
+		if (sourceGridSample == null) {
+			throw new IllegalArgumentException("sourceGridSample must not be null.");
+		}
+		if (!gridSpec.equals(sourceGridSample.gridSpec())) {
+			throw new IllegalArgumentException("sourceGridSample grid must match this flow state.");
+		}
+		if (sourceGridSample.cells().size() != velocitiesWorldMetersPerSecond.size()) {
+			throw new IllegalArgumentException("sourceGridSample cell count must match this flow state.");
 		}
 	}
 
