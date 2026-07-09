@@ -615,6 +615,73 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 	}
 
 	@Test
+	void csvLinesCanInitializeFromCtCpJFreestreamVelocity() {
+		List<String> calmLines = CtCpJLocalVoxelFlowSolverExporter.csvLines(
+				"apDrone",
+				RHO,
+				SOURCE_THICKNESS,
+				CELL_SIZE,
+				PADDING_CELLS,
+				SUBCELL_SAMPLES,
+				TIME_STEP,
+				KINEMATIC_VISCOSITY,
+				1,
+				25.0,
+				0.0,
+				MAX_ADVECTION_COURANT,
+				PRESSURE_PROJECTION_ITERATIONS,
+				DOWNSTREAM_WAKE_LENGTH,
+				CtCpJLocalVoxelFlowSolverExporter.SolidBoxExportConfig.open(),
+				CtCpJLocalVoxelFlowSolverExporter.InitialFlowMode.CALM
+		);
+		List<String> freestreamLines = CtCpJLocalVoxelFlowSolverExporter.csvLines(
+				"apDrone",
+				RHO,
+				SOURCE_THICKNESS,
+				CELL_SIZE,
+				PADDING_CELLS,
+				SUBCELL_SAMPLES,
+				TIME_STEP,
+				KINEMATIC_VISCOSITY,
+				1,
+				25.0,
+				0.0,
+				MAX_ADVECTION_COURANT,
+				PRESSURE_PROJECTION_ITERATIONS,
+				DOWNSTREAM_WAKE_LENGTH,
+				CtCpJLocalVoxelFlowSolverExporter.SolidBoxExportConfig.open(),
+				CtCpJLocalVoxelFlowSolverExporter.InitialFlowMode.FREESTREAM
+		);
+		Map<String, Integer> calmColumns = columns(calmLines);
+		Map<String, Integer> freestreamColumns = columns(freestreamLines);
+
+		Map<String, String> calmInitial =
+				recordFor(calmLines, calmColumns, "static_anchored_source_mid_j", "raw_source", "initial", 0);
+		Map<String, String> freestreamInitial =
+				recordFor(freestreamLines, freestreamColumns, "static_anchored_source_mid_j", "raw_source",
+						"initial", 0);
+		Map<String, String> freestreamStep =
+				recordFor(freestreamLines, freestreamColumns, "static_anchored_source_mid_j", "raw_source",
+						"step", 0);
+		double sourceFreestreamY = number(freestreamInitial, "source_freestream_velocity_world_y_mps");
+
+		assertEquals("calm", calmInitial.get("initial_flow_mode"));
+		assertEquals("freestream", freestreamInitial.get("initial_flow_mode"));
+		assertEquals("freestream", freestreamStep.get("initial_flow_mode"));
+		assertTrue(sourceFreestreamY > 0.0);
+		assertEquals(sourceFreestreamY, number(calmInitial, "source_freestream_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(0.0, number(calmInitial, "initial_flow_velocity_world_y_mps"), 1.0e-15);
+		assertEquals(sourceFreestreamY, number(freestreamInitial, "initial_flow_velocity_world_y_mps"), 1.0e-12);
+		assertEquals(0.0, number(freestreamInitial, "initial_flow_velocity_world_x_mps"), 1.0e-15);
+		assertEquals(0.0, number(freestreamInitial, "initial_flow_velocity_world_z_mps"), 1.0e-15);
+		assertEquals(0.0, number(calmInitial, "kinetic_energy_before_source_j"), 1.0e-15);
+		assertTrue(number(freestreamInitial, "kinetic_energy_before_source_j") > 0.0);
+		assertEquals(number(freestreamInitial, "kinetic_energy_before_source_j"),
+				number(freestreamInitial, "kinetic_energy_after_solid_boundary_j"), 1.0e-12);
+		assertTrue(number(freestreamStep, "kinetic_energy_before_source_j") > 0.0);
+	}
+
+	@Test
 	void csvLinesCanApplyWorldSolidBoxMask() {
 		CtCpJLocalVoxelFlowSolverExporter.SolidBoxExportConfig solidBoxConfig =
 				new CtCpJLocalVoxelFlowSolverExporter.SolidBoxExportConfig(
@@ -744,6 +811,47 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 	}
 
 	@Test
+	void mainAcceptsTrailingInitialFlowModeAfterSolidBoxList(@TempDir Path tempDir) throws IOException {
+		Path output = tempDir.resolve("freestream-local-voxel-solver.csv");
+
+		CtCpJLocalVoxelFlowSolverExporter.main(new String[] {
+				"apDrone",
+				output.toString(),
+				Double.toString(RHO),
+				Double.toString(SOURCE_THICKNESS),
+				Double.toString(CELL_SIZE),
+				Integer.toString(PADDING_CELLS),
+				Integer.toString(SUBCELL_SAMPLES),
+				Double.toString(TIME_STEP),
+				Double.toString(KINEMATIC_VISCOSITY),
+				"1",
+				"25.0",
+				"0.0",
+				Double.toString(MAX_ADVECTION_COURANT),
+				Integer.toString(PRESSURE_PROJECTION_ITERATIONS),
+				Double.toString(DOWNSTREAM_WAKE_LENGTH),
+				"100,100,100,101,101,101",
+				"0.999",
+				"freestream"
+		});
+
+		List<String> lines = Files.readAllLines(output);
+		Map<String, Integer> columns = columns(lines);
+		Map<String, String> midInitial =
+				recordFor(lines, columns, "static_anchored_source_mid_j", "raw_source", "initial", 0);
+
+		assertEquals(25, lines.size());
+		assertTrue(lines.stream().noneMatch(line -> line.contains("NaN")));
+		assertEquals("freestream", midInitial.get("initial_flow_mode"));
+		assertEquals(1, integer(midInitial, "solid_box_count"));
+		assertEquals(0, integer(midInitial, "solid_cell_count"));
+		assertTrue(number(midInitial, "source_freestream_velocity_world_y_mps") > 0.0);
+		assertEquals(number(midInitial, "source_freestream_velocity_world_y_mps"),
+				number(midInitial, "initial_flow_velocity_world_y_mps"), 1.0e-12);
+		assertTrue(number(midInitial, "kinetic_energy_before_source_j") > 0.0);
+	}
+
+	@Test
 	void writeCreatesParentDirectoriesAndCsvFile(@TempDir Path tempDir) throws IOException {
 		Path output = tempDir.resolve("nested").resolve("local-voxel-solver.csv");
 
@@ -754,6 +862,9 @@ class CtCpJLocalVoxelFlowSolverExporterTest {
 		assertTrue(lines.get(0).contains("cumulative_source_impulse_world_y_ns"));
 		assertTrue(lines.get(0).contains("max_advection_courant_number"));
 		assertTrue(lines.get(0).contains("downstream_wake_length_m"));
+		assertTrue(lines.get(0).contains("initial_flow_mode"));
+		assertTrue(lines.get(0).contains("source_freestream_velocity_world_y_mps"));
+		assertTrue(lines.get(0).contains("initial_flow_velocity_world_y_mps"));
 		assertTrue(lines.get(0).contains("advection_courant_number"));
 		assertTrue(lines.get(0).contains("advection_substep_count"));
 		assertTrue(lines.get(0).contains("cumulative_advection_momentum_residual_world_y_ns"));

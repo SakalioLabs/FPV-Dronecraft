@@ -40,6 +40,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			"cell_size_m",
 			"padding_cells",
 			"downstream_wake_length_m",
+			"initial_flow_mode",
+			"source_freestream_velocity_world_x_mps",
+			"source_freestream_velocity_world_y_mps",
+			"source_freestream_velocity_world_z_mps",
+			"initial_flow_velocity_world_x_mps",
+			"initial_flow_velocity_world_y_mps",
+			"initial_flow_velocity_world_z_mps",
 			"solid_box_count",
 			"solid_box_minimum_volume_fraction",
 			"solid_occluded_source_cell_count",
@@ -405,6 +412,76 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		}
 	}
 
+	public enum InitialFlowMode {
+		CALM("calm"),
+		FREESTREAM("freestream");
+
+		private final String csvValue;
+
+		InitialFlowMode(String csvValue) {
+			this.csvValue = csvValue;
+		}
+
+		public String csvValue() {
+			return csvValue;
+		}
+
+		public Vec3 initialVelocityWorldMetersPerSecond(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample
+		) {
+			if (this == FREESTREAM) {
+				return sourceGridSample.massFluxWeightedFreestreamVelocityWorldMetersPerSecond();
+			}
+			return Vec3.ZERO;
+		}
+
+		public PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run(
+				PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
+				PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
+				PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask
+		) {
+			if (this == FREESTREAM) {
+				return PropellerArchiveCtCpJLocalVoxelFlowSolver.runFromFreestream(
+						sourceGridSample,
+						config,
+						solidMask);
+			}
+			return PropellerArchiveCtCpJLocalVoxelFlowSolver.run(
+					sourceGridSample,
+					config,
+					solidMask);
+		}
+
+		public static InitialFlowMode parse(String value) {
+			if (value == null || value.isBlank()) {
+				return CALM;
+			}
+			String normalized = value.trim()
+					.toLowerCase(Locale.ROOT)
+					.replace('-', '_');
+			if (normalized.equals("calm") || normalized.equals("zero") || normalized.equals("still")) {
+				return CALM;
+			}
+			if (normalized.equals("freestream") || normalized.equals("free_stream")
+					|| normalized.equals("ct_cp_j_freestream")) {
+				return FREESTREAM;
+			}
+			throw new IllegalArgumentException("initial flow mode must be calm or freestream.");
+		}
+
+		public static boolean isInitialFlowMode(String value) {
+			if (value == null || value.isBlank()) {
+				return false;
+			}
+			try {
+				parse(value);
+				return true;
+			} catch (IllegalArgumentException ignored) {
+				return false;
+			}
+		}
+	}
+
 	public static void main(String[] args) throws IOException {
 		String presetName = args.length >= 1 && !args[0].isBlank()
 				? args[0]
@@ -451,7 +528,11 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		double downstreamWakeLength = args.length >= 15 && !args[14].isBlank()
 				? Double.parseDouble(args[14])
 				: DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS;
-		SolidBoxExportConfig solidBoxConfig = solidBoxExportConfig(args, 15);
+		int initialFlowModeIndex = trailingInitialFlowModeIndex(args, 15);
+		InitialFlowMode initialFlowMode = initialFlowModeIndex < args.length
+				? InitialFlowMode.parse(args[initialFlowModeIndex])
+				: InitialFlowMode.CALM;
+		SolidBoxExportConfig solidBoxConfig = solidBoxExportConfig(args, 15, initialFlowModeIndex);
 		write(
 				presetName,
 				output,
@@ -468,7 +549,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				maxAdvectionCourantNumber,
 				pressureProjectionIterations,
 				downstreamWakeLength,
-				solidBoxConfig
+				solidBoxConfig,
+				initialFlowMode
 		);
 	}
 
@@ -489,7 +571,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER,
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS,
 				DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS,
-				SolidBoxExportConfig.open()
+				SolidBoxExportConfig.open(),
+				InitialFlowMode.CALM
 		);
 	}
 
@@ -526,7 +609,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				maxAdvectionCourantNumber,
 				pressureProjectionIterations,
 				downstreamWakeLengthMeters,
-				SolidBoxExportConfig.open()
+				SolidBoxExportConfig.open(),
+				InitialFlowMode.CALM
 		);
 	}
 
@@ -548,6 +632,46 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			double downstreamWakeLengthMeters,
 			SolidBoxExportConfig solidBoxConfig
 	) throws IOException {
+		write(
+				presetName,
+				output,
+				airDensityKgPerCubicMeter,
+				sourceThicknessMeters,
+				cellSizeMeters,
+				paddingCells,
+				subcellSamplesPerAxis,
+				timeStepSeconds,
+				kinematicViscositySquareMetersPerSecond,
+				stepCount,
+				ambientTemperatureCelsius,
+				ambientHumidity,
+				maxAdvectionCourantNumber,
+				pressureProjectionIterations,
+				downstreamWakeLengthMeters,
+				solidBoxConfig,
+				InitialFlowMode.CALM
+		);
+	}
+
+	public static void write(
+			String presetName,
+			Path output,
+			double airDensityKgPerCubicMeter,
+			double sourceThicknessMeters,
+			double cellSizeMeters,
+			int paddingCells,
+			int subcellSamplesPerAxis,
+			double timeStepSeconds,
+			double kinematicViscositySquareMetersPerSecond,
+			int stepCount,
+			double ambientTemperatureCelsius,
+			double ambientHumidity,
+			double maxAdvectionCourantNumber,
+			int pressureProjectionIterations,
+			double downstreamWakeLengthMeters,
+			SolidBoxExportConfig solidBoxConfig,
+			InitialFlowMode initialFlowMode
+	) throws IOException {
 		if (output == null) {
 			throw new IllegalArgumentException("output path must not be null.");
 		}
@@ -566,7 +690,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				maxAdvectionCourantNumber,
 				pressureProjectionIterations,
 				downstreamWakeLengthMeters,
-				solidBoxConfig
+				solidBoxConfig,
+				initialFlowMode
 		);
 		Path parent = output.toAbsolutePath().getParent();
 		if (parent != null) {
@@ -591,7 +716,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_MAX_ADVECTION_COURANT_NUMBER,
 				PropellerArchiveCtCpJLocalVoxelFlowSolver.DEFAULT_PRESSURE_PROJECTION_ITERATIONS,
 				DEFAULT_DOWNSTREAM_WAKE_LENGTH_METERS,
-				SolidBoxExportConfig.open()
+				SolidBoxExportConfig.open(),
+				InitialFlowMode.CALM
 		);
 	}
 
@@ -626,7 +752,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				maxAdvectionCourantNumber,
 				pressureProjectionIterations,
 				downstreamWakeLengthMeters,
-				SolidBoxExportConfig.open()
+				SolidBoxExportConfig.open(),
+				InitialFlowMode.CALM
 		);
 	}
 
@@ -647,8 +774,48 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			double downstreamWakeLengthMeters,
 			SolidBoxExportConfig solidBoxConfig
 	) {
+		return csvLines(
+				presetName,
+				airDensityKgPerCubicMeter,
+				sourceThicknessMeters,
+				cellSizeMeters,
+				paddingCells,
+				subcellSamplesPerAxis,
+				timeStepSeconds,
+				kinematicViscositySquareMetersPerSecond,
+				stepCount,
+				ambientTemperatureCelsius,
+				ambientHumidity,
+				maxAdvectionCourantNumber,
+				pressureProjectionIterations,
+				downstreamWakeLengthMeters,
+				solidBoxConfig,
+				InitialFlowMode.CALM
+		);
+	}
+
+	public static List<String> csvLines(
+			String presetName,
+			double airDensityKgPerCubicMeter,
+			double sourceThicknessMeters,
+			double cellSizeMeters,
+			int paddingCells,
+			int subcellSamplesPerAxis,
+			double timeStepSeconds,
+			double kinematicViscositySquareMetersPerSecond,
+			int stepCount,
+			double ambientTemperatureCelsius,
+			double ambientHumidity,
+			double maxAdvectionCourantNumber,
+			int pressureProjectionIterations,
+			double downstreamWakeLengthMeters,
+			SolidBoxExportConfig solidBoxConfig,
+			InitialFlowMode initialFlowMode
+	) {
 		SolidBoxExportConfig effectiveSolidBoxConfig =
 				solidBoxConfig == null ? SolidBoxExportConfig.open() : solidBoxConfig;
+		InitialFlowMode effectiveInitialFlowMode =
+				initialFlowMode == null ? InitialFlowMode.CALM : initialFlowMode;
 		List<Map<String, String>> voxelRows = parseCsv(String.join("\n",
 				CtCpJActuatorDiskVoxelSourceFieldExporter.csvLines(
 						presetName,
@@ -675,7 +842,8 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 		lines.add(HEADER);
 		for (Map.Entry<SourceGroupKey, List<Map<String, String>>> entry : sourceGroups(voxelRows).entrySet()) {
 			lines.addAll(csvLinesForGroup(entry.getKey(), entry.getValue(),
-					config, paddingCells, downstreamWakeLengthMeters, effectiveSolidBoxConfig));
+					config, paddingCells, downstreamWakeLengthMeters, effectiveSolidBoxConfig,
+					effectiveInitialFlowMode));
 		}
 		return List.copyOf(lines);
 	}
@@ -686,20 +854,22 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
 			int paddingCells,
 			double downstreamWakeLengthMeters,
-			SolidBoxExportConfig solidBoxConfig
+			SolidBoxExportConfig solidBoxConfig,
+			InitialFlowMode initialFlowMode
 	) {
 		PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample =
 				sourceGridSample(rows);
 		PropellerArchiveCtCpJLocalVoxelFlowState.VoxelSolidMask solidMask =
 				solidBoxConfig.solidMaskFor(sourceGridSample.gridSpec());
 		PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverRun run =
-				PropellerArchiveCtCpJLocalVoxelFlowSolver.run(sourceGridSample, config, solidMask);
+				initialFlowMode.run(sourceGridSample, config, solidMask);
 		Map<String, String> first = rows.get(0);
 		GroupMetadata metadata = metadata(
 				key,
 				first,
 				sourceGridSample,
 				config,
+				initialFlowMode,
 				paddingCells,
 				downstreamWakeLengthMeters,
 				solidBoxConfig);
@@ -952,6 +1122,10 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				: iteration.solidBoundaryStep().dissipatedKineticEnergyJoules();
 		double cumulativeSolidBoundaryDissipatedEnergy =
 				cumulativeSolidBoundaryDissipatedEnergy(run, completedSteps);
+		Vec3 sourceFreestreamVelocity =
+				metadata.sourceGridSample().massFluxWeightedFreestreamVelocityWorldMetersPerSecond();
+		Vec3 initialFlowVelocity =
+				metadata.initialFlowMode().initialVelocityWorldMetersPerSecond(metadata.sourceGridSample());
 		double cumulativeOpenBoundaryOutwardMassOverSourceMass =
 				ratio(cumulativeOpenBoundaryOutwardMass, cumulativeSourceMass);
 		double cumulativeOpenBoundaryNetOutwardMassOverSourceMass =
@@ -1050,6 +1224,13 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				number(metadata.cellSizeMeters()),
 				Integer.toString(metadata.paddingCells()),
 				number(metadata.downstreamWakeLengthMeters()),
+				escape(metadata.initialFlowMode().csvValue()),
+				number(sourceFreestreamVelocity.x()),
+				number(sourceFreestreamVelocity.y()),
+				number(sourceFreestreamVelocity.z()),
+				number(initialFlowVelocity.x()),
+				number(initialFlowVelocity.y()),
+				number(initialFlowVelocity.z()),
 				Integer.toString(metadata.solidBoxConfig().solidBoxCount()),
 				number(metadata.solidBoxConfig().minimumSolidVolumeFraction()),
 				Integer.toString(solidOccludedSourceCellCount(metadata.sourceGridSample(), run.solidMask())),
@@ -1756,6 +1937,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			Map<String, String> first,
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
+			InitialFlowMode initialFlowMode,
 			int paddingCells,
 			double downstreamWakeLengthMeters,
 			SolidBoxExportConfig solidBoxConfig
@@ -1776,27 +1958,37 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 						"target_body_force_world_z_n"),
 				sourceGridSample,
 				config,
+				initialFlowMode,
 				solidBoxConfig
 		);
 	}
 
 	private static SolidBoxExportConfig solidBoxExportConfig(String[] args, int firstIndex) {
-		if (args.length > firstIndex && solidBoxListArgument(args[firstIndex])) {
-			for (int i = firstIndex + 2; i < args.length; i++) {
+		return solidBoxExportConfig(args, firstIndex, args.length);
+	}
+
+	private static SolidBoxExportConfig solidBoxExportConfig(
+			String[] args,
+			int firstIndex,
+			int lastIndexExclusive
+	) {
+		int upperBound = Math.max(firstIndex, Math.min(lastIndexExclusive, args.length));
+		if (upperBound > firstIndex && solidBoxListArgument(args[firstIndex])) {
+			for (int i = firstIndex + 2; i < upperBound; i++) {
 				if (!args[i].isBlank()) {
 					throw new IllegalArgumentException(
 							"solidBoxes list argument accepts only an optional minimum solid volume threshold.");
 				}
 			}
 			double minimumSolidVolumeFraction =
-					args.length > firstIndex + 1 && !args[firstIndex + 1].isBlank()
+					upperBound > firstIndex + 1 && !args[firstIndex + 1].isBlank()
 							? Double.parseDouble(args[firstIndex + 1])
 							: 0.0;
 			return new SolidBoxExportConfig(
 					parseSolidBoxList(args[firstIndex]),
 					minimumSolidVolumeFraction);
 		}
-		int lastValueIndexExclusive = args.length;
+		int lastValueIndexExclusive = upperBound;
 		while (lastValueIndexExclusive > firstIndex && args[lastValueIndexExclusive - 1].isBlank()) {
 			lastValueIndexExclusive--;
 		}
@@ -1836,6 +2028,16 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 				? Double.parseDouble(providedValues.get(providedValues.size() - 1))
 				: 0.0;
 		return new SolidBoxExportConfig(boxes, minimumSolidVolumeFraction);
+	}
+
+	private static int trailingInitialFlowModeIndex(String[] args, int firstIndex) {
+		for (int i = args.length - 1; i >= firstIndex; i--) {
+			if (args[i] == null || args[i].isBlank()) {
+				continue;
+			}
+			return InitialFlowMode.isInitialFlowMode(args[i]) ? i : args.length;
+		}
+		return args.length;
 	}
 
 	private static boolean solidBoxListArgument(String value) {
@@ -2170,6 +2372,7 @@ public final class CtCpJLocalVoxelFlowSolverExporter {
 			Vec3 targetBodyForceWorldNewtons,
 			PropellerArchiveCtCpJActuatorDiskSourceField.VoxelGridSample sourceGridSample,
 			PropellerArchiveCtCpJLocalVoxelFlowSolver.SolverConfig config,
+			InitialFlowMode initialFlowMode,
 			SolidBoxExportConfig solidBoxConfig
 	) {
 	}
